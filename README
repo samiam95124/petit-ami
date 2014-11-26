@@ -1,0 +1,60 @@
+********************************* PETIT AMI PROJECT ****************************
+
+WHAT IT IS
+
+Petit Ami is a general purpose tool kit based on the libraries used in the
+language Pascaline. The toolkit is written in the C language, but is written in
+such a way as it does not have dependencies on the C language. Thus, it can be
+used by several languages by the process of "binding" or using a cross language
+API to interface to it.
+
+Petit AMI addresses:
+
+System services, such as directory listings, file name handling, paths,
+    environment, other program execution, date and time, and
+    internationalization.
+
+Display drawing, windowing and graphics.
+
+Sound processing.
+
+Networking
+
+Petit Ami is designed to supply a basic set of functionality commonly needed
+by programs across multiple platforms.
+
+The design basics of Petit Ami, and what makes it different from other,
+similar toolkits is that Petit Ami is:
+
+- The simplest possible set of functions needed to perform the covered functions.
+  PA does not try to provide lots of ways to do things or give advanced features.
+  It provides only the minimum necessary features, and leaves the makings of
+  advanced libraries to other packages.
+
+- PA uses the most simple I/O models possible. There are no callbacks, and there
+  is a single event loop. If all the program needs is keyboard input, even the
+  event loop can be bypassed.
+
+- PA is upward compatible with the original text based models of programming
+  languages. It uses standard C I/O like printf, scanf, putc, getc and other
+  standard library functions, and builds on them in a compatable way. Thus any
+  standard ANSI C program is automatically a Petit Ami compatible program. This
+  is very different than virtually all existing TKs that force you to discard
+  standard I/O models to use the GTK elements of their TK.
+
+WHAT IS PROVIDED
+
+Petit Ami is a series of C files that address the various API sections that
+make up the PA standard. The ability run standard ANSI library functions atop
+a GUI is done by using NEWLIB and interdicting the basic file I/O calls,
+including to the console.
+
+PA can be run either native or stacked atop another TK. The first PA/TK
+available is a layer of adaption code for GTK+, which allows PA/TK to run on
+any system GTK+ can, including Windows, Linux an the MAC.
+
+When another language besides C is used, an LTL or Language Translation layer
+is included. Current LTLs are:
+
+C++
+Pascaline
