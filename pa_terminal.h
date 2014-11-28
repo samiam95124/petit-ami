@@ -61,7 +61,7 @@ typedef enum {
     /** print document */              etprint,
     /** print block */                 etprintb,
     /** print screen */                etprints,
-    /** int key */                     etfun,
+    /** function key */                etfun,
     /** display menu */                etmenu,
     /** mouse button assertion */      etmouba,
     /** mouse button deassertion */    etmoubd,

@@ -115,9 +115,68 @@ typedef enum {
 
 } errcod;
 
+/*
+ * keyboard key equivalents table
+ *
+ * Contains equivalent strings as are returned from xterm keys
+ * attached to an IBM-PC keyboard.
+ *
+ */
+
+char *keytab[etterm+1] = {
+
+    "", /** ANSI character returned */
+    "\33\133\101", /** cursor up one line */
+    "\33\133\102", /** down one line */
+    "\33\133\104", /** left one character */
+    "\33\133\103", /** right one character */
+    "\33\133\61\73\65\104", /** left one word */
+    "\33\133\61\73\65\103", /** right one word */
+    "", /** home of document */
+    "", /** home of screen */
+    "", /** home of line */
+    "", /** end of document */
+    "", /** end of screen */
+    "", /** end of line */
+    "", /** scroll left one character */
+    "", /** scroll right one character */
+    "\33\133\61\73\65\102", /** scroll up one line */
+    "\33\133\61\73\65\101", /** scroll down one line */
+    "", /** page down */
+    "", /** page up */
+    "\11", /** tab */
+    "\12", /** enter line */
+    "", /** insert block */
+    "", /** insert line */
+    "", /** insert toggle */
+    "", /** delete block */
+    "", /** delete line */
+    "", /** delete character forward */
+    "", /** delete character backward */
+    "", /** copy block */
+    "", /** copy line */
+    "", /** cancel current operation */
+    "", /** stop current operation */
+    "", /** continue current operation */
+    "", /** print document */
+    "", /** print block */
+    "", /** print screen */
+    "", /** int key */
+    "", /** display menu */
+    "", /** mouse button assertion */
+    "", /** mouse button deassertion */
+    "", /** mouse move */
+    "", /** timer matures */
+    "", /** joystick button assertion */
+    "", /** joystick button deassertion */
+    "", /** joystick move */
+    "", /** terminate program */
+
+};
+
 /* screen contexts array */           static scnptr screens[MAXCON];
 /* index for current screen */        static int curscn;
-/* array of event handler routines */ static pevthan evthan[etterm];
+/* array of event handler routines */ static pevthan evthan[etterm+1];
 
 /*
  * Saved vectors to system calls. These vectors point to the old, existing
