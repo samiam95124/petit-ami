@@ -28,10 +28,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include "pa_terminal.h"
-#include "stdio.h"
+//#include "stdio.h"
+
 
 #define MAXXD 80  /**< standard terminal x, 80x25 */
-#define MAXYD 80/*25*/  /**< standard terminal x, 80x25 */
+#define MAXYD 43 /*25*/  /**< standard terminal x, 80x25 */
 #define MAXCON 10 /**< number of screen contexts */
 
 /* file handle numbers at the system interface level */
@@ -455,12 +456,12 @@ static void restore(void)
 
     trm_home(); /* restore cursor to upper left to start */
     /* set colors and attributes */
-    trm_fcolor(screens[curscn]->forec); /* restore colors */
-    trm_bcolor(screens[curscn]->backc);
-    setattr(screens[curscn]->attr); /* restore attributes */
-    fs = screens[curscn]->forec; /* save current colors and attributes */
-    bs = screens[curscn]->backc;
-    as = screens[curscn]->attr;
+    trm_fcolor(screens[curscn-1]->forec); /* restore colors */
+    trm_bcolor(screens[curscn-1]->backc);
+    setattr(screens[curscn-1]->attr); /* restore attributes */
+    fs = screens[curscn-1]->forec; /* save current colors and attributes */
+    bs = screens[curscn-1]->backc;
+    as = screens[curscn-1]->attr;
     /* copy buffer to screen */
     for (yi = 1; yi <= MAXYD; yi++) { /* lines */
 
@@ -470,7 +471,7 @@ static void restore(void)
                with what is set. if a new color or attribute is called for,
                we set that, and update the saves. this technique cuts down on
                the amount of output characters */
-            p = &(screens[curscn]->buf[yi][xi]); /* index this screen element */
+            p = &(screens[curscn-1]->buf[yi][xi]); /* index this screen element */
             if (p->forec != fs) { /* new foreground color */
 
                 trm_fcolor(p->forec); /* set the new color */
@@ -499,10 +500,10 @@ static void restore(void)
 
    };
    /* restore cursor position */
-   trm_cursor(screens[curscn]->curx, screens[curscn]->cury);
-   trm_fcolor(screens[curscn]->forec); /* restore colors */
-   trm_bcolor(screens[curscn]->backc);
-   setattr(screens[curscn]->attr); /* restore attributes */
+   trm_cursor(screens[curscn-1]->curx, screens[curscn-1]->cury);
+   trm_fcolor(screens[curscn-1]->forec); /* restore colors */
+   trm_bcolor(screens[curscn-1]->backc);
+   setattr(screens[curscn-1]->attr); /* restore attributes */
 
 }
 
@@ -794,8 +795,8 @@ static void iclear(void)
 
     trm_clear(); /* erase screen */
     clrbuf(); /* clear the screen buffer */
-    screens[curscn]->cury = 1; /* set cursor at home */
-    screens[curscn]->curx = 1;
+    screens[curscn-1]->cury = 1; /* set cursor at home */
+    screens[curscn-1]->curx = 1;
 
 }
 
@@ -837,18 +838,18 @@ static void iup(void)
 
 {
 
-    if (screens[curscn]->cury > 1) { /* not at top of screen */
+    if (screens[curscn-1]->cury > 1) { /* not at top of screen */
 
         trm_up(); /* move up */
-        screens[curscn]->cury = screens[curscn]->cury-1; /* update position */
+        screens[curscn-1]->cury = screens[curscn-1]->cury-1; /* update position */
 
-    } else if (screens[curscn]->scroll) /* scroll enabled */
+    } else if (screens[curscn-1]->scroll) /* scroll enabled */
         iscroll(0, -1); /* at top already, scroll up */
     else { /* wrap cursor around to screen bottom */
 
-        screens[curscn]->cury = MAXYD; /* set new position */
+        screens[curscn-1]->cury = MAXYD; /* set new position */
         /* update on screen */
-        trm_cursor(screens[curscn]->curx, screens[curscn]->cury);
+        trm_cursor(screens[curscn-1]->curx, screens[curscn-1]->cury);
 
     }
 
@@ -866,18 +867,18 @@ static void idown()
 
 {
 
-    if (screens[curscn]->cury < MAXYD) { /* not at bottom of screen */
+    if (screens[curscn-1]->cury < MAXYD) { /* not at bottom of screen */
 
         trm_down(); /* move down */
-        screens[curscn]->cury = screens[curscn]->cury+1; /* update position */
+        screens[curscn-1]->cury = screens[curscn-1]->cury+1; /* update position */
 
-    } else if (screens[curscn]->scroll) /* wrap enabled */
+    } else if (screens[curscn-1]->scroll) /* wrap enabled */
         iscroll(0, +1); /* already at bottom, scroll down */
     else { /* wrap cursor around to screen top */
 
-        screens[curscn]->cury = 1; /* set new position */
+        screens[curscn-1]->cury = 1; /* set new position */
         /* update on screen */
-        trm_cursor(screens[curscn]->curx, screens[curscn]->cury);
+        trm_cursor(screens[curscn-1]->curx, screens[curscn-1]->cury);
 
     }
 
@@ -895,17 +896,17 @@ static void ileft()
 
 {
 
-    if (screens[curscn]->curx > 1) { /* not at extreme left */
+    if (screens[curscn-1]->curx > 1) { /* not at extreme left */
 
         trm_left(); /* move left */
-        screens[curscn]->curx = screens[curscn]->curx-1; /* update position */
+        screens[curscn-1]->curx = screens[curscn-1]->curx-1; /* update position */
 
     } else { /* wrap cursor motion */
 
         iup(); /* move cursor up one line */
-        screens[curscn]->curx = MAXXD; /* set cursor to extreme right */
+        screens[curscn-1]->curx = MAXXD; /* set cursor to extreme right */
         /* position on screen */
-        trm_cursor(screens[curscn]->curx, screens[curscn]->cury);
+        trm_cursor(screens[curscn-1]->curx, screens[curscn-1]->cury);
 
     }
 
@@ -923,15 +924,15 @@ static void iright()
 
 {
 
-    if (screens[curscn]->curx < MAXXD) { /* not at extreme right */
+    if (screens[curscn-1]->curx < MAXXD) { /* not at extreme right */
 
         trm_right(); /* move right */
-        screens[curscn]->curx = screens[curscn]->curx+1; /* update position */
+        screens[curscn-1]->curx = screens[curscn-1]->curx+1; /* update position */
 
     } else { /* wrap cursor motion */
 
         idown(); /* move cursor up one line */
-        screens[curscn]->curx = 1; /* set cursor to extreme left */
+        screens[curscn-1]->curx = 1; /* set cursor to extreme left */
         putchr('\r'); /* position on screen */
 
     }
@@ -1616,7 +1617,7 @@ forces a screen refresh, which can be important when working on terminals.
 
 *******************************************************************************/
 
-void select(FILE *f, int u, int d)
+void selects(FILE *f, int u, int d)
 
 {
 

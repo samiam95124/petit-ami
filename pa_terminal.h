@@ -161,7 +161,7 @@ void scroll(FILE* f, int x, int y);
 int curx(FILE* f);
 int cury(FILE* f);
 int curbnd(FILE* f);
-void select(FILE *f, int u, int d);
+void selects(FILE *f, int u, int d);
 void event(FILE* f, evtrec* er);
 void timer(FILE* f, int i, int t, int r);
 void killtimer(FILE* f, int i);

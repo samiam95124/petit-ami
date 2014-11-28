@@ -29,6 +29,7 @@
 *                                                                              *
 *******************************************************************************/
 
+#include "stdio.h"
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
@@ -37,7 +38,7 @@
 #include <errno.h>
 
 /* We use a custom stdio.h */
-#include "stdio.h"
+
 
 #define FALSE 0
 #define TRUE 1
