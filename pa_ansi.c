@@ -177,6 +177,8 @@ char *keytab[etterm+1] = {
 /* screen contexts array */           static scnptr screens[MAXCON];
 /* index for current screen */        static int curscn;
 /* array of event handler routines */ static pevthan evthan[etterm+1];
+/** input keyboard lookahead buffer */ static int keybuf;
+/** input buffer valid (loaded) */     static int keyvld;
 
 /*
  * Saved vectors to system calls. These vectors point to the old, existing
@@ -320,6 +322,60 @@ static void wrtint(int i)
     }
 
 }
+
+/** *****************************************************************************
+
+Get keyboard code control match
+
+Performs a successive match to keyboard input. A keyboard character is read,
+and matched against the keyboard equivalence table. If we find a match, we keep
+reading in characters until we get a single unambiguous matching entry.
+
+*******************************************************************************/
+
+static void getkey(evtcod *evt, char *key)
+
+{
+
+    /** input key match buffer. This is sized to the longest control key
+        sequence possible. */
+    char   buf[10];
+    int    len;
+    int    cnt; /* match count */
+    int    match; /* exact match found */
+    evtcod i; /* index for events */
+
+    len = 0;
+    *evt = etchar; /* default to simple character */
+    do { /* match input keys */
+
+        keybuf = getchr(); /* get next character to lookahead */
+        keyvld = 1; /* set valid */
+        buf[len++] = keybuf; /* accumulate in match buffer */
+        cnt = 0; /* set no matches */
+        match = 0;
+        for (i = etchar; i <= etterm && !match; i++) {
+
+            if (!strncmp(buf, keytab[i], len)) {
+
+                cnt++; /* increment match count */
+                *evt = i; /* set what event */
+                /* set if the match is whole key */
+                match = strlen(keytab[i] = len;
+
+            }
+
+        }
+
+    } while (cnt && !match); /* while substring match but not whole match */
+    if (*evt == etchar) {
+
+        *key = keybuf; /* load from key buffer */
+        keyvld = 0; /* set empty */
+
+    }
+
+ }
 
 /** *****************************************************************************
 
@@ -2039,6 +2095,7 @@ static void init_terminal()
     trm_wrapoff(); /* wrap is always off */
     iniscn(); /* initalize screen */
     for (e = etchar; e <= etterm; e++) evthan[e] = defaultevent;
+    keyvld = 0; /* set no key loaded */
 
 }
 
