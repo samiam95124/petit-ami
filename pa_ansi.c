@@ -177,8 +177,6 @@ char *keytab[etterm+1] = {
 /* screen contexts array */           static scnptr screens[MAXCON];
 /* index for current screen */        static int curscn;
 /* array of event handler routines */ static pevthan evthan[etterm+1];
-/** input keyboard lookahead buffer */ static int keybuf;
-/** input buffer valid (loaded) */     static int keyvld;
 
 /*
  * Saved vectors to system calls. These vectors point to the old, existing
@@ -331,6 +329,11 @@ Performs a successive match to keyboard input. A keyboard character is read,
 and matched against the keyboard equivalence table. If we find a match, we keep
 reading in characters until we get a single unambiguous matching entry.
 
+If the match never results in a full match, the buffered characters are simply
+discarded, and matching goes on with the next input character. Such "stillborn"
+matches are either the result of ill considered input key equivalences, or of
+a user typing in keys manually that happen to evaluate to special keys.
+
 *******************************************************************************/
 
 static void getkey(evtcod *evt, char *key)
@@ -341,37 +344,44 @@ static void getkey(evtcod *evt, char *key)
         sequence possible. */
     char   buf[10];
     int    len;
-    int    cnt; /* match count */
-    int    match; /* exact match found */
+    int    pmatch; /* partial match found */
+    int    ematch; /* exact match found */
+    int    stillborn; /* stillborn match */
     evtcod i; /* index for events */
 
     len = 0;
-    *evt = etchar; /* default to simple character */
     do { /* match input keys */
 
-        keybuf = getchr(); /* get next character to lookahead */
-        keyvld = 1; /* set valid */
-        buf[len++] = keybuf; /* accumulate in match buffer */
-        cnt = 0; /* set no matches */
-        match = 0;
-        for (i = etchar; i <= etterm && !match; i++) {
+        buf[len++] = getchr(); /* get next character to match buffer */
+        pmatch = 0; /* set no partial matches */
+        ematch = 0; /* set no exact matches */
+        stillborn = 0; /* no stillborn match */
+        for (i = etchar; i <= etterm && !ematch; i++) {
 
             if (!strncmp(buf, keytab[i], len)) {
 
-                cnt++; /* increment match count */
+            	pmatch = 1; /* set partial match */
                 *evt = i; /* set what event */
                 /* set if the match is whole key */
-                match = strlen(keytab[i] = len;
+                ematch = strlen(keytab[i]) == len;
 
             }
 
         }
+        /* if no partial match, then something went wrong, or there never was
+           at match at all. For such "stillborn" matches we start over */
+        if (!pmatch && len > 1) {
 
-    } while (cnt && !match); /* while substring match but not whole match */
-    if (*evt == etchar) {
+        	len = 0; /* clear the buffer */
+        	stillborn = 1; /* set stillborn match */
 
-        *key = keybuf; /* load from key buffer */
-        keyvld = 0; /* set empty */
+        }
+
+    } while ((pmatch && !ematch) || stillborn); /* while substring match but not whole match */
+    if (!ematch) {
+
+    	*key = buf[0]; /* get our character from buffer */
+    	*evt = etchar; /* set character event */
 
     }
 
@@ -1763,8 +1773,8 @@ void event(FILE* f, evtrec *er)
 
     do { /* loop handling via event vectors */
 
-        er->echar = getchr(); /* get character */
-        er->etype = etchar; /* place event */
+    	/* get next key event */
+    	getkey(&er->etype, &er->echar);
         er->handled = 1; /* set event is handled by default */
         /* decode alternate character types */
         if (er->echar == '\n') er->etype = etenter;
@@ -2095,7 +2105,6 @@ static void init_terminal()
     trm_wrapoff(); /* wrap is always off */
     iniscn(); /* initalize screen */
     for (e = etchar; e <= etterm; e++) evthan[e] = defaultevent;
-    keyvld = 0; /* set no key loaded */
 
 }
 
