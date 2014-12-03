@@ -25,11 +25,10 @@
  *
  ******************************************************************************/
 
+#include <termios.h>
 #include <stdlib.h>
 #include <string.h>
 #include "pa_terminal.h"
-//#include "stdio.h"
-
 
 #define MAXXD 80  /**< standard terminal x, 80x25 */
 #define MAXYD 43 /*25*/  /**< standard terminal x, 80x25 */
@@ -170,7 +169,7 @@ char *keytab[etterm+1] = {
     "", /** joystick button assertion */
     "", /** joystick button deassertion */
     "", /** joystick move */
-    "", /** terminate program */
+    "\3", /** terminate program */
 
 };
 
@@ -189,6 +188,11 @@ static popen_t ofpopen;
 static pclose_t ofpclose;
 static punlink_t ofpunlink;
 static plseek_t ofplseek;
+
+/**
+ * Save for terminal status
+ */
+static struct termios trmsav;
 
 /** ****************************************************************************
 
@@ -242,7 +246,6 @@ static char getchr(void)
 
     /* receive character to the next hander in the override chain */
     rc = (*ofpread)(INPFIL, &c, 1);
-
     if (rc != 1) error(einpdev); /* input device error */
 
     return c; /* return character */
@@ -1071,6 +1074,10 @@ Place next terminal character
 Places the given character to the current cursor position using the current
 colors and attribute.
 
+We handle some elementary control codes here, like newline, backspace and form
+feed. However, the idea is not to provide a parallel set of screen controls.
+That's what the API is for.
+
 *******************************************************************************/
 
 static void plcchr(char c)
@@ -1082,8 +1089,13 @@ static void plcchr(char c)
     /* handle special character cases first */
     if (c == '\r') /* carriage return, position to extreme left */
         icursor(1, screens[curscn-1]->cury);
-    else if (c == '\n') idown(); /* line feed, move down */
-    else if (c == '\b') ileft(); /* back space, move left */
+    else if (c == '\n') {
+
+        /* line end */
+        idown(); /* line feed, move down */
+        icursor(1, screens[curscn-1]->cury); /* position to extreme left */
+
+    } else if (c == '\b') ileft(); /* back space, move left */
     else if (c == '\f') iclear(); /* clear screen */
     else if (c >= ' ' && c != 0x7f) {
 
@@ -2088,7 +2100,8 @@ static void init_terminal()
 
 {
 
-    /* index for events */ evtcod e;
+    /** index for events */            evtcod e;
+    /** build new terminal settings */ struct termios raw;
 
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
@@ -2106,6 +2119,29 @@ static void init_terminal()
     iniscn(); /* initalize screen */
     for (e = etchar; e <= etterm; e++) evthan[e] = defaultevent;
 
+    /*
+     * Set terminal in raw mode
+     */
+    tcgetattr(0,&trmsav); /* save original state of terminal */
+    raw = trmsav; /* copy into new state */
+
+    /* input modes - clear indicated ones giving: no break, no CR to NL,
+       no parity check, no strip char, no start/stop output (sic) control */
+    raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+
+    /* output modes - clear giving: no post processing such as NL to CR+NL */
+    raw.c_oflag &= ~(OPOST);
+
+    /* control modes - set 8 bit chars */
+    raw.c_cflag |= (CS8);
+
+    /* local modes - clear giving: echoing off, canonical off (no erase with
+       backspace, ^U,...),  no extended functions, no signal chars (^Z,^C) */
+    raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
+
+    /* put terminal in raw mode after flushing */
+    tcsetattr(0,TCSAFLUSH,&raw);
+
 }
 
 /** ****************************************************************************
@@ -2122,6 +2158,9 @@ static void deinit_terminal (void) __attribute__((destructor (102)));
 static void deinit_terminal()
 
 {
+
+    /* restore terminal */
+    tcsetattr(0,TCSAFLUSH,&trmsav);
 
     /* holding copies of system vectors */
     pread_t cppread;
