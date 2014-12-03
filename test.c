@@ -4,7 +4,6 @@ Petit Ami test program
 
 *******************************************************************************/
 
-//#include "stdio.h"
 #include <stdio.h>
 #include <string.h>
 #include "pa_terminal.h"
