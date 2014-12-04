@@ -120,56 +120,62 @@ typedef enum {
  * Contains equivalent strings as are returned from xterm keys
  * attached to an IBM-PC keyboard.
  *
+ * Note these definitions are mosly CUA (common user interface). One exception
+ * was the terminate key, which has a long tradition as CTRL-C, and I left it.
+ *
  */
 
 char *keytab[etterm+1] = {
 
     "", /** ANSI character returned */
-    "\33\133\101", /** cursor up one line */
-    "\33\133\102", /** down one line */
-    "\33\133\104", /** left one character */
-    "\33\133\103", /** right one character */
-    "\33\133\61\73\65\104", /** left one word */
-    "\33\133\61\73\65\103", /** right one word */
-    "", /** home of document */
-    "", /** home of screen */
-    "", /** home of line */
-    "", /** end of document */
-    "", /** end of screen */
-    "", /** end of line */
-    "", /** scroll left one character */
-    "", /** scroll right one character */
-    "\33\133\61\73\65\102", /** scroll up one line */
-    "\33\133\61\73\65\101", /** scroll down one line */
-    "", /** page down */
-    "", /** page up */
-    "\11", /** tab */
-    "\12", /** enter line */
-    "", /** insert block */
-    "", /** insert line */
-    "", /** insert toggle */
-    "", /** delete block */
-    "", /** delete line */
-    "", /** delete character forward */
-    "", /** delete character backward */
-    "", /** copy block */
-    "", /** copy line */
-    "", /** cancel current operation */
-    "", /** stop current operation */
-    "", /** continue current operation */
-    "", /** print document */
-    "", /** print block */
-    "", /** print screen */
-    "", /** int key */
-    "", /** display menu */
-    "", /** mouse button assertion */
-    "", /** mouse button deassertion */
-    "", /** mouse move */
-    "", /** timer matures */
-    "", /** joystick button assertion */
-    "", /** joystick button deassertion */
-    "", /** joystick move */
-    "\3", /** terminate program */
+    /* Common controls are:
+    Codes                      Meaning                   IBM-PC keyboard equivalents
+    */
+    "\33\133\101",          /* cursor up one line        (up arrow) */
+    "\33\133\102",          /* down one line             (down arrow) */
+    "\33\133\104",          /* left one character        (left arrow) */
+    "\33\133\103",          /* right one character       (right arrow) */
+    "\33\133\61\73\65\104", /* left one word             (ctrl-left arrow)*/
+    "\33\133\61\73\65\103", /* right one word            (ctrl-right arrow) */
+    "\33\117\110",          /* home of document          (ctrl-home)*/
+    "",                     /* home of screen */
+    "\33\117\110",          /* home of line              (home) */
+    "",                     /* end of document */
+    "",                     /* end of screen */
+    "\33\117\106",          /* end of line               (end) */
+    "",                     /* scroll left one character */
+    "",                     /* scroll right one character */
+    "\33\133\61\73\65\102", /* scroll up one line        (ctrl-up arrow) */
+    "\33\133\61\73\65\101", /* scroll down one line      (ctrl-down arrow) */
+    "\33\133\66\176",       /* page down                 (page down) */
+    "\33\133\65\176",       /* page up                   (page up) */
+    "\11",                  /* tab                       (tab) */
+    "\15",                  /* enter line                (enter) */
+    "\26",                  /* insert block              (ctrl-v) */
+    "",                     /* insert line */
+    "\33\133\62\176",       /* insert toggle              (insert) */
+    "",                     /* delete block */
+    "",                     /* delete line */
+    "\176",                 /* delete character forward   (del) */
+    "\177",                 /* delete character backward  (backspace) */
+    "\143",                 /* copy block                 (alt-c) */
+    "",                     /* copy line */
+    "",                     /* cancel current operation */
+    "\23",                  /* stop current operation     (ctrl-s) */
+    "\21",                  /* continue current operation (ctrl-q) */
+    "",                     /* print document */
+    "",                     /* print block */
+    "",                     /* print screen */
+    "",                     /* function key */
+    "",                     /* display menu */
+    "",                     /* mouse button assertion */
+    "",                     /* mouse button deassertion */
+    "",                     /* mouse move */
+    "",                     /* timer matures */
+    "",                     /* joystick button assertion */
+    "",                     /* joystick button deassertion */
+    "",                     /* joystick move */
+    "\3",                   /* terminate program (ctrl-c) */
 
 };
 
