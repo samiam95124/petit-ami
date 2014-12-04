@@ -8,7 +8,7 @@
  * useful on any terminal that uses ANSI control codes, mainly the VT100 and
  * emulations of it.
  *
- * This is a vestigal PA/TK terminal handler. It does not meet the full
+ * This is a vestigial PA/TK terminal handler. It does not meet the full
  * standard for PA/TK terminal level interface. Instead it is meant to
  * provide a starting point to implementations such as Unix/Linux that don't
  * have an API to control the console, or for serial, telnet or ssh links to
@@ -1166,11 +1166,12 @@ static ssize_t iwrite(int fd, const void* buff, size_t count)
 
     ssize_t rc; /* return code */
     char *p = (char *)buff;
+    size_t cnt = count;
 
     if (fd == OUTFIL) {
 
         /* send data to terminal */
-        while (count--) plcchr(*p++);
+        while (cnt--) plcchr(*p++);
         rc = count; /* set return same as count */
 
     } else rc = (*ofpwrite)(fd, buff, count);
