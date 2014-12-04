@@ -2277,7 +2277,11 @@ int puts(const char *s)
 
 {
 
-    return fputs(s, stdout); /* output string */
+    int rc; /* return code */
+
+    rc = fputs(s, stdout); /* output string */
+    if (rc) return EOF; /* exit with error */
+    return fputs("\n", stdout); /* output end of line */
 
 }
 
