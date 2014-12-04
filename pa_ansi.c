@@ -893,7 +893,7 @@ static void iscroll(int x, int y)
                 if (yi + 1 < MAXYD)
                     /* output next line sequence on all lines but the last. this is
                        because the last one would cause us to scroll */
-                    putstr("\r\\n");
+                    putstr("\r\n");
 
             }
             /* restore cursor position */
