@@ -30,7 +30,7 @@ main()
                 break;
 
       	    }
-            case etup:      printf("cursor up one line\n"); break;
+            case etup:      printf("up one line\n"); break;
             case etdown:    printf("down one line\n"); break;
             case etleft:    printf("left one character\n"); break;
             case etright:   printf("right one character\n"); break;
