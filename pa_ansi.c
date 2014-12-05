@@ -434,7 +434,7 @@ static int colnum(color c)
 Basic terminal controls
 
 These routines control the basic terminal functions. They exist just to
-encapsulate this information. All of these functionss are specific to ANSI
+encapsulate this information. All of these functions are specific to ANSI
 compliant terminals.
 
 ANSI is able to set more than one attribute at a time, but under windows 95
@@ -442,13 +442,18 @@ there are no two attributes that you can detect together ! This is because
 win95 modifies the attributes quite a bit (there is no blink). This capability
 can be replaced later if needed.
 
-Other notes: underline only works on monochrome terminals. On color, it makes
+Other notes:
+
+1. Underline only works on monochrome terminals. On color, it makes
 the text turn blue.
+
+2. On linux, gnome-terminal and xterm both do not also home the cursor on
+a clear (as the ANSI spec says). We fake this by adding a specific cursor home.
 
 *******************************************************************************/
 
 /** clear screen and home cursor */
-static void trm_clear(void) { putstr("\33[2J"); }
+static void trm_clear(void) { putstr("\33[2J\33[H"); }
 /** home cursor */ static void trm_home(void) { putstr("\33[H"); }
 /** move cursor up */ static void trm_up(void) { putstr("\33[A"); }
 /** move cursor down */ static void trm_down(void) { putstr("\33[B"); }
