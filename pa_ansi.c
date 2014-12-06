@@ -31,7 +31,7 @@
 #include "pa_terminal.h"
 
 #define MAXXD 80  /**< standard terminal x, 80x25 */
-#define MAXYD 43 /*25*/  /**< standard terminal x, 80x25 */
+#define MAXYD 24 /*25*/  /**< standard terminal x, 80x25 */
 #define MAXCON 10 /**< number of screen contexts */
 
 /* file handle numbers at the system interface level */
@@ -160,7 +160,7 @@ char *keytab[etterm+1] = {
     "\177",                 /* delete character backward  (backspace) */
     "\143",                 /* copy block                 (alt-c) */
     "",                     /* copy line */
-    "",                     /* cancel current operation */
+    "\33\33",               /* cancel current operation   (esc esc) */
     "\23",                  /* stop current operation     (ctrl-s) */
     "\21",                  /* continue current operation (ctrl-q) */
     "",                     /* print document */
@@ -610,7 +610,7 @@ static void restore(void)
                with what is set. if a new color or attribute is called for,
                we set that, and update the saves. this technique cuts down on
                the amount of output characters */
-            p = &(screens[curscn-1]->buf[yi][xi]); /* index this screen element */
+            p = &(screens[curscn-1]->buf[yi-1][xi-1]); /* index this screen element */
             if (p->forec != fs) { /* new foreground color */
 
                 trm_fcolor(p->forec); /* set the new color */
@@ -702,7 +702,7 @@ static void iscroll(int x, int y)
         yi = y;   /* set line count */
         while (yi > 0) {  /* scroll down requested lines */
 
-            putchr('n');   /* scroll down */
+            putchr('\n');   /* scroll down */
             yi--;   /* count lines */
 
         }
@@ -712,13 +712,13 @@ static void iscroll(int x, int y)
         for (yi = 1; yi <= MAXYD-1; yi++) /* move any lines up */
             if (yi+y <= MAXYD) /* still within buffer */
                 /* move lines up */
-                    memcpy(screens[curscn-1]->buf[yi],
-                           screens[curscn-1]->buf[yi+y],
+                    memcpy(screens[curscn-1]->buf[yi-1],
+                           screens[curscn-1]->buf[yi+y-1],
                            MAXXD * sizeof(scnrec));
         for (yi = MAXYD-y+1; yi <= MAXYD; yi++) /* clear blank lines at end */
             for (xi = 1; xi <= MAXXD; xi++) {
 
-            sp = &screens[curscn-1]->buf[yi][xi];
+            sp = &screens[curscn-1]->buf[yi-1][xi-1];
             sp->ch = ' ';   /* clear to blanks at colors and attributes */
             sp->forec = screens[curscn-1]->forec;
             sp->backc = screens[curscn-1]->backc;
@@ -755,14 +755,14 @@ static void iscroll(int x, int y)
                 for (yi = 1; yi <= MAXYD-1; yi++) /* move any lines up */
                     if (yi + y + 1 <= MAXYD) /* still within buffer */
                         /* move lines up */
-                        memcpy(screens[curscn-1]->buf[yi],
-                               screens[curscn-1]->buf[yi + y],
+                        memcpy(screens[curscn-1]->buf[yi-1],
+                               screens[curscn-1]->buf[yi+y-1],
                                MAXXD*sizeof(scnrec));
                 for (yi = MAXYD-y+1; yi <= MAXYD; yi++)
                     /* clear blank lines at end */
                     for (xi = 0; xi < MAXXD; xi++) {
 
-                    sp = &screens[curscn-1]->buf[yi][xi];
+                    sp = &screens[curscn-1]->buf[yi-1][xi-1];
                     sp->ch = ' ';   /* clear to blanks at colors and attributes */
                     sp->forec = screens[curscn-1]->forec;
                     sp->backc = screens[curscn-1]->backc;
@@ -775,13 +775,13 @@ static void iscroll(int x, int y)
                 for (yi = MAXYD; yi >= 2; yi--)   /* move any lines up */
                     if (yi + y >= 1) /* still within buffer */
                         /* move lines up */
-                        memcpy(screens[curscn-1]->buf[yi],
-                               screens[curscn-1]->buf[yi+y],
+                        memcpy(screens[curscn-1]->buf[yi-1],
+                               screens[curscn-1]->buf[yi+y-1],
                                MAXXD * sizeof(scnrec));
                 for (yi = 1; yi <= abs(y); yi++) /* clear blank lines at start */
                     for (xi = 1; xi <= MAXXD; xi++) {
 
-                    sp = &screens[curscn-1]->buf[yi][xi];
+                    sp = &screens[curscn-1]->buf[yi-1][xi-1];
                     /* clear to blanks at colors and attributes */
                     sp->ch = ' ';
                     sp->forec = screens[curscn-1]->forec;
@@ -798,12 +798,12 @@ static void iscroll(int x, int y)
                     for (xi = 1; xi <= MAXXD-1; xi++) /* move left */
                         if (xi + x + 1 <= MAXXD) /* still within buffer */
                             /* move characters left */
-                            screens[curscn-1]->buf[yi][xi] =
-                                screens[curscn-1]->buf[yi][xi+x];
+                            screens[curscn-1]->buf[yi-1][xi-1] =
+                                screens[curscn-1]->buf[yi-1][xi+x-1];
                     /* clear blank spaces at right */
                     for (xi = MAXXD-x+1; xi <= MAXXD; xi++) {
 
-                        sp = &screens[curscn-1]->buf[yi][xi];
+                        sp = &screens[curscn-1]->buf[yi-1][xi-1];
                         /* clear to blanks at colors and attributes */
                         sp->ch = ' ';
                         sp->forec = screens[curscn-1]->forec;
@@ -821,12 +821,12 @@ static void iscroll(int x, int y)
                     for (xi = MAXXD; xi >= 2; xi--) /* move right */
                         if (xi+x >= 1) /* still within buffer */
                             /* move characters left */
-                            screens[curscn-1]->buf[yi][xi] =
-                                screens[curscn-1]->buf[yi][xi + x];
+                            screens[curscn-1]->buf[yi-1][xi-1] =
+                                screens[curscn-1]->buf[yi-1][xi+x-1];
                     /* clear blank spaces at left */
                     for (xi = 1; xi <= abs(x); xi++) {
 
-                        sp = &screens[curscn-1]->buf[yi][xi];
+                        sp = &screens[curscn-1]->buf[yi-1][xi-1];
                         sp->ch = ' ';   /* clear to blanks at colors and attributes */
                         sp->forec = screens[curscn-1]->forec;
                         sp->backc = screens[curscn-1]->backc;
@@ -858,16 +858,16 @@ static void iscroll(int x, int y)
 
                     m = 1; /* set match */
                     /* check all elements match */
-                    if (screens[curscn-1]->buf[yi][lx-1].ch != scnsav[yi][lx-1].ch)
+                    if (screens[curscn-1]->buf[yi-1][lx-1].ch != scnsav[yi-1][lx-1].ch)
                         m = 0;
-                    if (screens[curscn-1]->buf[yi][lx-1].forec !=
-                        scnsav[yi][lx-1].forec)
+                    if (screens[curscn-1]->buf[yi-1][lx-1].forec !=
+                        scnsav[yi-1][lx-1].forec)
                         m = 0;
-                    if (screens[curscn-1]->buf[yi][lx-1].backc !=
-                        scnsav[yi][lx-1].backc)
+                    if (screens[curscn-1]->buf[yi-1][lx-1].backc !=
+                        scnsav[yi-1][lx-1].backc)
                         m = 0;
-                    if (screens[curscn-1]->buf[yi][lx-1].attr !=
-                        scnsav[yi][lx-1].attr)
+                    if (screens[curscn-1]->buf[yi-1][lx-1].attr !=
+                        scnsav[yi-1][lx-1].attr)
                         m = 0;
                     if (m) lx--; /* next character */
 
@@ -878,7 +878,7 @@ static void iscroll(int x, int y)
                        with what is set. if a new color or attribute is called for,
                        we set that, and update the saves. this technique cuts down on
                        the amount of output characters */
-                    sp = &screens[curscn-1]->buf[yi][xi];
+                    sp = &screens[curscn-1]->buf[yi-1][xi-1];
                     if (sp->forec != fs) { /* new foreground color */
 
                         trm_fcolor(sp->forec); /* set the new color */
@@ -1011,9 +1011,9 @@ static void idown()
         trm_down(); /* move down */
         screens[curscn-1]->cury = screens[curscn-1]->cury+1; /* update position */
 
-    } else if (screens[curscn-1]->scroll) /* wrap enabled */
+    } else if (screens[curscn-1]->scroll) { /* wrap enabled */
         iscroll(0, +1); /* already at bottom, scroll down */
-    else { /* wrap cursor around to screen top */
+    } else { /* wrap cursor around to screen top */
 
         screens[curscn-1]->cury = 1; /* set new position */
         /* update on screen */
