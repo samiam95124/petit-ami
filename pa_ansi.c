@@ -123,6 +123,11 @@ typedef enum {
  * Note these definitions are mosly CUA (common user interface). One exception
  * was the terminate key, which has a long tradition as CTRL-C, and I left it.
  *
+ * In xterm the home and end keys return the same regardless of their shift,
+ * control or alt status. Some of the CUA keys may not be available simply
+ * because the GUI intercepts them. For example, print screen, insert and
+ * similar keys. Thus we need a xterm equivalent, and we use alternative keys.
+ *
  */
 
 char *keytab[etterm+1] = {
@@ -131,39 +136,39 @@ char *keytab[etterm+1] = {
     /* Common controls are:
     Codes                      Meaning                   IBM-PC keyboard equivalents
     */
-    "\33\133\101",          /* cursor up one line        (up arrow) */
-    "\33\133\102",          /* down one line             (down arrow) */
-    "\33\133\104",          /* left one character        (left arrow) */
-    "\33\133\103",          /* right one character       (right arrow) */
-    "\33\133\61\73\65\104", /* left one word             (ctrl-left arrow)*/
-    "\33\133\61\73\65\103", /* right one word            (ctrl-right arrow) */
-    "\33\117\110",          /* home of document          (ctrl-home)*/
-    "",                     /* home of screen */
-    "\33\117\110",          /* home of line              (home) */
-    "",                     /* end of document */
-    "",                     /* end of screen */
-    "\33\117\106",          /* end of line               (end) */
-    "",                     /* scroll left one character */
-    "",                     /* scroll right one character */
-    "\33\133\61\73\65\102", /* scroll up one line        (ctrl-up arrow) */
-    "\33\133\61\73\65\101", /* scroll down one line      (ctrl-down arrow) */
-    "\33\133\66\176",       /* page down                 (page down) */
-    "\33\133\65\176",       /* page up                   (page up) */
-    "\11",                  /* tab                       (tab) */
-    "\15",                  /* enter line                (enter) */
-    "\26",                  /* insert block              (ctrl-v) */
+    "\33\133\101",          /* cursor up one line         (up arrow) */
+    "\33\133\102",          /* down one line              (down arrow) */
+    "\33\133\104",          /* left one character         (left arrow) */
+    "\33\133\103",          /* right one character        (right arrow) */
+    "\33\133\61\73\65\104", /* left one word              (ctrl-left arrow)*/
+    "\33\133\61\73\65\103", /* right one word             (ctrl-right arrow) */
+    "\24",                  /* home of document           (ctrl-t) */
+    "\10",                  /* home of screen             (ctrl-h) */
+    "\33\117\110",          /* home of line               (home) */
+    "\2",                   /* end of document            (ctrl-b) */
+    "\5",                   /* end of screen              (ctrl-e) */
+    "\33\117\106",          /* end of line                (end) */
+    "\33\133\65\73\65\176", /* scroll left one character  (ctrl-page up) */
+    "\33\133\66\73\65\176", /* scroll right one character (ctrl-page down)  */
+    "\33\133\61\73\65\102", /* scroll up one line         (ctrl-up arrow) */
+    "\33\133\61\73\65\101", /* scroll down one line       (ctrl-down arrow) */
+    "\33\133\66\176",       /* page down                  (page down) */
+    "\33\133\65\176",       /* page up                    (page up) */
+    "\11",                  /* tab                        (tab) */
+    "\15",                  /* enter line                 (enter) */
+    "\26",                  /* insert block               (ctrl-v) */
     "",                     /* insert line */
     "\33\133\62\176",       /* insert toggle              (insert) */
-    "",                     /* delete block */
-    "",                     /* delete line */
-    "\176",                 /* delete character forward   (del) */
+    "\33\133\63\73\62\176", /* delete block               (shift-del) */
+    "\4",                   /* delete line                (ctrl-d) */
+    "\33\133\63\176",       /* delete character forward   (del) */
     "\177",                 /* delete character backward  (backspace) */
-    "\143",                 /* copy block                 (alt-c) */
+    "\33\143",              /* copy block                 (alt-c) */
     "",                     /* copy line */
     "\33\33",               /* cancel current operation   (esc esc) */
     "\23",                  /* stop current operation     (ctrl-s) */
     "\21",                  /* continue current operation (ctrl-q) */
-    "",                     /* print document */
+    "\20",                  /* print document             (ctrl-p) */
     "",                     /* print block */
     "",                     /* print screen */
     "",                     /* function key */
@@ -175,7 +180,7 @@ char *keytab[etterm+1] = {
     "",                     /* joystick button assertion */
     "",                     /* joystick button deassertion */
     "",                     /* joystick move */
-    "\3",                   /* terminate program (ctrl-c) */
+    "\3",                   /* terminate program           (ctrl-c) */
 
 };
 
