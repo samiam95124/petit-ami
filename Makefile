@@ -15,6 +15,9 @@ getkeys: getkeys.c Makefile
 	
 terminal: pa_ansi.c pa_terminal.h terminal.c stdio.c stdio.h Makefile
 	gcc -g -o terminal stdio.c pa_ansi.c terminal.c
+
+test1: test1.c
+	gcc -o test1 test1.c -lrt
 	
 clean:
 	rm -f *.exe

@@ -28,6 +28,14 @@
 #include <termios.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <sys/timerfd.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <time.h>
+#include <unistd.h>
+#include <stdint.h>
+
 #include "pa_terminal.h"
 
 #define MAXXD 80  /**< standard terminal x, 80x25 */
@@ -39,6 +47,12 @@
 #define INPFIL 0 /* handle to standard input */
 #define OUTFIL 1 /* handle to standard output */
 #define ERRFIL 2 /* handle to standard error */
+
+/* foreground and background color bases */
+#define FORECOLORBASE 90 /* aixterm */
+#define BACKCOLORBASE 100
+//#define FORECOLORBASE 30 /* ansi */
+//#define BACKCOLORBASE 40
 
 /* types of system vectors for override calls */
 
@@ -204,6 +218,17 @@ static plseek_t ofplseek;
  * Save for terminal status
  */
 static struct termios trmsav;
+
+/**
+ * Set of input file ids for select
+ */
+fd_set ifdset;
+int ifdmax;
+
+/**
+ * Active timers table
+ */
+int timtbl[MAXTIM];
 
 /** ****************************************************************************
 
@@ -475,11 +500,11 @@ static void trm_attroff(void) { putstr("\33[0m"); }
 
 /** set foreground color */
 static void trm_fcolor(color c)
-    { putstr("\33["); wrtint(30+colnum(c)); putstr("m"); }
+    { putstr("\33["); wrtint(FORECOLORBASE+colnum(c)); putstr("m"); }
 
 /** set background color */
 static void trm_bcolor(color c)
-    { putstr("\33["); wrtint(40+colnum(c)); putstr("m"); };
+    { putstr("\33["); wrtint(BACKCOLORBASE+colnum(c)); putstr("m"); };
 
 /** position cursor */
 static void trm_cursor(int x, int y)
@@ -1613,7 +1638,7 @@ Turn on strikeout attribute
 
 Turns on/off the strikeout attribute.
 
-Not impelemented.
+Not implemented.
 
 *******************************************************************************/
 
@@ -1822,14 +1847,44 @@ No timer is implemented.
 
 *******************************************************************************/
 
-void timer(/* file to s} event to */                FILE *f,
+void timer(/* file to send event to */              FILE *f,
            /* timer handle */                       int i,
-           /* number of milliseconds to run */      int t,
+           /* number of 100us counts */             int t,
            /* timer is to rerun after completion */ int r)
 
 {
 
-    error(etimacc); /* no timers available */
+    struct itimerspec ts;
+    int rv;
+
+    if (i < 1 || i > MAXTIM) error(einvhan); /* invalid timer handle */
+    if (timtbl[i-1] < 0) { /* timer entry inactive, create a timer */
+
+        timtbl[i-1] = timerfd_create(CLOCK_REALTIME, 0);
+        if (timtbl[i-1] == -1) error(etimacc);
+        FD_SET(timtbl[i-1], &ifdset); /* place new file in select set */
+        /* if the new file handle is greater than  any existing, set new max */
+        if (timtbl[i-1]+1 > ifdmax) ifdmax = timtbl[i-1]+1;
+
+    }
+
+    /* set timer run time */
+    ts.it_value.tv_sec = t/10000; /* set number of seconds to run */
+    ts.it_value.tv_nsec = t%10000*1000; /* set number of nanoseconds to run */
+
+    /* set if timer does not rerun */
+    ts.it_interval.tv_sec = 0;
+    ts.it_interval.tv_nsec = 0;
+
+    if (r) { /* timer reruns */
+
+        ts.it_interval.tv_sec = ts.it_interval.tv_sec;
+        ts.it_interval.tv_nsec = ts.it_interval.tv_nsec;
+
+    }
+
+    rv = timerfd_settime(timtbl[i-1], 0, &ts, NULL);
+    if (rv < 0) error(etimacc); /* could not set time */
 
 }
 
@@ -1838,8 +1893,8 @@ void timer(/* file to s} event to */                FILE *f,
 Kill timer
 
 Kills a given timer, by it's id number. Only repeating timers should be killed.
-Note: timers are not implemented. I tried this under win95, it was
-uncooperative.
+Killed timers are not removed. Once a timer is set active, it is always set
+in reserve.
 
 *******************************************************************************/
 
@@ -1848,7 +1903,20 @@ void killtimer(/* file to kill timer on */ FILE *f,
 
 {
 
-    error(etimacc); /* no timers available */
+    struct itimerspec ts;
+    int rv;
+
+    if (i < 1 || i > MAXTIM) error(einvhan); /* invalid timer handle */
+    if (timtbl[i-1] < 0) error(etimacc); /* no such timer */
+
+    /* set timer run time to zero to kill it */
+    ts.it_value.tv_sec = 0;
+    ts.it_value.tv_nsec = 0;
+    ts.it_interval.tv_sec = 0;
+    ts.it_interval.tv_nsec = 0;
+
+    rv = timerfd_settime(timtbl[i-1], 0, &ts, NULL);
+    if (rv < 0) error(etimacc); /* could not set time */
 
 }
 
@@ -2119,6 +2187,7 @@ static void init_terminal()
 
     /** index for events */            evtcod e;
     /** build new terminal settings */ struct termios raw;
+    /** index for timer table */       int ti;
 
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
@@ -2156,6 +2225,18 @@ static void init_terminal()
        backspace, ^U,...),  no extended functions, no signal chars (^Z,^C) */
     raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
 
+    /* clear input select set */
+    FD_ZERO(&ifdset);
+
+    /* select input file */
+    FD_SET(0, &ifdset);
+
+    /* set current max input fd */
+    ifdmax = 0+1;
+
+    /* clear the timers table */
+    for (ti = 0; ti < MAXTIM; ti++) timtbl[ti] = -1;
+
     /* put terminal in raw mode after flushing */
     tcsetattr(0,TCSAFLUSH,&raw);
 
@@ -2176,8 +2257,13 @@ static void deinit_terminal()
 
 {
 
+    int ti; /* index for timers */
+
     /* restore terminal */
     tcsetattr(0,TCSAFLUSH,&trmsav);
+
+    /* close any open timers */
+    for (ti = 0; ti < MAXTIM; ti++) if (timtbl[ti] != -1) close(timtbl[ti]);
 
     /* holding copies of system vectors */
     pread_t cppread;

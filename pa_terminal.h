@@ -17,7 +17,7 @@
 
 #include <stdio.h>
 
-#define MAXTIM /**< maximum number of timers available */
+#define MAXTIM 10 /**< maximum number of timers available */
 
 /** colors displayable in text mode */
 typedef enum { black, white, red, green, blue, cyan, yellow, magenta } color;
