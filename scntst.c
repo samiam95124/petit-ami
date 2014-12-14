@@ -1,4 +1,8 @@
-{******************************************************************************
+/* Output from p2c 1.21alpha-07.Dec.93, the Pascal-to-C translator */
+/* From input file "scntst.pas" */
+
+
+/*******************************************************************************
 *                                                                             *
 *                           SCREEN TEST PROGRAM                               *
 *                                                                             *
@@ -40,1046 +44,1303 @@
 * Scrolling speed:       0.000192 Sec. Per scroll.                            *
 * Buffer switch speed:   0.000126 Sec. per switch.                            *
 *                                                                             *
-******************************************************************************}
-
-program scntst(input, output);
-
-uses trmlib,
-     extlib;
-
-label 99;
-
-var x, y, lx, ly, tx, ty: integer;
-    dx, dy: integer;
-    c: char;
-    top, bottom, lside, rside: integer; { borders }
-    direction: (dup, ddown, dleft, dright); { writting direction }
-    count, t1, t2: integer;
-    delay: integer;
-    minlen: integer; { minimum direction, x or y }
-    er: evtrec; { event record }
-    i, b: integer;
-    tc: integer;
-    clk: integer;
-    cnt: integer;
-    tf: text; { test file }
+*******************************************************************************/
 
-{ draw box }
 
-procedure box(sx, sy, ex, ey: integer; c: char);
+#include <p2c/p2c.h>
 
-var x, y: integer;
 
-begin
-
-   { top }
-   cursor(output, sx, sy);
-   for x := sx to ex do write(c);
-   { bottom }
-   cursor(output, sx, ey);
-   for x := sx to ex do write(c);
-   { left }
-   for y := sy to ey do begin cursor(output, sx, y); write(c) end;
-   { right }
-   for y := sy to ey do begin cursor(output, ex, y); write(c) end
-
-end;
-
-{ wait time in 100 microseconds }
-
-procedure wait(t: integer);
-
-begin
-
-   timer(output, 1, t, false);
-   repeat event(input, er) until (er.etype = ettim) or (er.etype = etterm);
-   if er.etype = etterm then goto 99
-
-end;
-
-{ wait return to be pressed, or handle terminate }
-
-procedure waitnext;
-
-begin
-
-   repeat event(input, er) until (er.etype = etenter) or (er.etype = etterm);
-   if er.etype = etterm then goto 99
-
-end;
-   
-procedure timetest;
-
-var i, t, et, total, max, min: integer;
-    er: evtrec;
-
-begin
-
-   writeln('Timer test, measuring minimum timer resolution, 100 samples');
-   writeln;
-   max := 0;
-   min := maxint;
-   for i := 1 to 100 do begin
-
-      t := clock;
-      timer(output, 1, 1, false);
-      repeat write('*'); event(input, er) until er.etype = ettim;
-      et := elapsed(t);
-      total := total+elapsed(t);
-      if et > max then max := et;
-      if et < min then min := et
-
-   end;
-   writeln;
-   writeln;
-   writeln('Average time was: ', total div 100:1, '00 Microseconds');
-   writeln('Minimum time was: ', min:1, '00 Microseconds');
-   writeln('Maximum time was: ', max:1, '00 Microseconds');
-   write('This timer supports frame rates up to ', 10000 div (total div 100):1);
-   writeln(' frames per second');
-   t := clock;
-   timer(output, 1, 10000, false);
-   repeat event(input, er) until er.etype = ettim;
-   writeln('1 second time, was: ', elapsed(t):1, '00 Microseconds');
-   writeln;
-   writeln('30 seconds of 1 second ticks:');
-   writeln;
-   for i := 1 to 30 do begin
-
-      timer(output, 1, 10000, false);
-      repeat event(input, er) until (er.etype = ettim) or (er.etype = etterm);
-      if er.etype = etterm then goto 99;
-      write('.')
-
-   end
-
-end;
-
-{ plot joystick on screen }
-
-procedure plotjoy(line, joy: integer);
-
-var i, x: integer;
-    r:    real;
-
-begin
-
-   cursor(output, 1, line);
-   for i := 1 to maxx(output) do write(' '); { clear line }
-   if joy < 0 then begin { plot left }
-
-      r := abs(joy);
-      x := (maxx(output) div 2)-round(r*(maxx(output) div 2)/maxint);
-      cursor(output, x, line);
-      while x <= maxx(output) div 2 do begin
-
-         write('*');
-         x := x+1
-
-      end
-   
-   end else begin { plot right }
-
-      r := joy;
-      x := round(r*(maxx(output) div 2)/maxint+(maxx(output) div 2));
-      i := maxx(output) div 2;
-      cursor(output, i, line);
-      while i <= x do begin
-
-         write('*');
-         i := i+1
-
-      end
-
-   end
-
-end;
-
-{ print centered string }
-
-procedure prtcen(y: integer; view s: string);
-
-begin
-
-   cursor(output, (maxx(output) div 2)-(max(s) div 2), y);
-   write(s)
-
-end;
-
-{ print center banner string }
-
-procedure prtban(view s: string);
-
-var i: integer;
-
-begin
-
-   cursor(output, (maxx(output) div 2)-(max(s) div 2)-1, maxy(output) div 2-1);
-   for i := 1 to max(s)+2 do write(' ');
-   cursor(output, (maxx(output) div 2)-(max(s) div 2)-1, maxy(output) div 2);
-   write(' ');
-   prtcen(maxy(output) div 2, s);
-   write(' ');
-   cursor(output, (maxx(output) div 2)-(max(s) div 2)-1, maxy(output) div 2+1);
-   for i := 1 to max(s)+2 do write(' ');
-
-end;
-
-begin
-
-   select(output, 2, 2); { move off the display buffer }
-   { set black on white text }
-   fcolor(output, black);
-   bcolor(output, white);
-   page;
-   curvis(output, false);
-   prtban('Terminal mode screen test vs. 1.0');
-   prtcen(maxy(output), 'Press return to continue');
-   waitnext;
-   page; { clear screen }
-   writeln('Screen size: x -> ', maxx(output):1, ' y -> ', maxy(output):1);
-   writeln;
-   writeln('Number of joysticks: ', joystick(output):1);
-   for i := 1 to joystick(output) do begin
-
-      writeln;
-      writeln('Number of axes on joystick: ', i:1, ' is: ', 
-              joyaxis(output, i):1);
-      writeln('Number of buttons on joystick: ', i:1, ' is: ', 
-              joybutton(output, i):1)
-
-   end;
-   writeln;
-   writeln('Number of mice: ', mouse(output):1);
-   for i := 1 to mouse(output) do begin
-
-      writeln;
-      writeln('Number of buttons on mouse: ', i:1, ' is: ', 
-              mousebutton(output, i):1)
-
-   end;
-   prtcen(maxy(output), 'Press return to continue');
-   waitnext;
-   page;
-   timetest;
-   prtcen(maxy(output), 'Press return to continue');
-   waitnext;
-   page;
-   curvis(output, true);
-   write('Cursor should be [on ], press return ->');
-   waitnext;
-   curvis(output, false);
-   write('\crCursor should be [off], press return ->');
-   waitnext;
-   curvis(output, true);
-   write('\crCursor should be [on ], press return ->');
-   waitnext;
-   curvis(output, false);
-   writeln;
-   writeln;
-   prtcen(maxy(output), 
-          'Press return to start test (and to pass each pattern)');
-   waitnext;
-
-   { ************************* Test last line problem ************************ }
-
-   page;
-   curvis(output, false); { remove cursor }
-   auto(output, false); { turn off auto scroll }
-   prtcen(1, 'Last line blank out test');
-   cursor(output, 1, 3);
-   writeln('If this terminal is not capable of showing the last character on');
-   writeln('the last line, the "*" character pointed to by the arrow below');
-   writeln('will not appear (probally blank). This should be noted for each');
-   writeln('of the following test patterns.');
-   cursor(output, 1, maxy(output));
-   for i := 1 to maxx(output)-2 do write('-');
-   write('>*');
-   waitnext;
-   
-   { ************************** Cursor movements test ************************ }
-
-   { First, do it with automatic scrolling on. The pattern will rely on scroll
-     up, down, left wrap and right wrap working correctly. }
-
-   page;
-   auto(output, true); { set auto on }
-   curvis(output, false); { remove cursor }
-   { top of left lower }
-   cursor(output, 1, maxy(output));
-   write('\\/');
-   { top of right lower, bottom of left lower, and move it all up }
-   cursor(output, maxx(output)-1, maxy(output));
-   write('\\//\\');
-   { finish right lower }
-   up(output);
-   left(output);
-   left(output);
-   left(output);
-   left(output);
-   down(output);
-   down(output);
-   write('/\\');
-   { now move it back down }
-   home(output);
-   left(output);
-   { upper left hand cross }
-   cursor(output, 1, 1);
-   write('\\/');
-   cursor(output, maxx(output), 1);
-   right(output);
-   write('/\\');
-   { upper right hand cross }
-   cursor(output, maxx(output)-1, 2);
-   write('/\\');
-   cursor(output, 1, 2);
-   left(output);
-   left(output);
-   write('\\/');
-   { test delete works }
-   prtcen(1, 'BARK!');
-   del(output);
-   del(output);
-   del(output);
-   del(output);
-   del(output);
-   prtcen(maxy(output) div 2-1, 'Cursor movements test, automatic scroll ON');
-   prtcen(maxy(output) div 2+1, 'Should be a double line X in each corner');
-   waitnext;
-
-   { Now do it with automatic scrolling off. The pattern will rely on the
-     ability of the cursor to go into "negative" space. }
-
-   page;
-   auto(output, false); { disable automatic screen scroll/wrap }
-   { upper left }
-   home(output);
-   write('\\/');
-   up(output);
-   left(output);
-   left(output);
-   left(output);
-   left(output);
-   down(output);
-   down(output);
-   right(output);
-   right(output);
-   write('/\\');
-   { upper right }
-   cursor(output, maxx(output)-1, 1);
-   write('\\/');
-   down(output);
-   del(output);
-   del(output);
-   write('/\\');
-   { lower left }
-   cursor(output, 1, maxy(output));
-   write('/\\');
-   down(output);
-   left(output);
-   left(output);
-   left(output);
-   up(output);
-   up(output);
-   right(output);
-   write('\\/');
-   { lower right }
-   cursor(output, maxx(output), maxy(output)-1);
-   write('/');
-   left(output);
-   left(output);
-   write('\\');
-   down(output);
-   del(output);
-   write('/\\');
-   prtcen(maxy(output) div 2-1, 'Cursor movements test, automatic scroll OFF');
-   prtcen(maxy(output) div 2+1, 'Should be a double line X in each corner');
-   waitnext;
-
-   { **************************** Scroll cursor test ************************* }
-
-   page;
-   curvis(output, true);
-   prtcen(maxy(output) div 2, 'Scroll cursor test, cursor should be here ->');
-   up(output);
-   scroll(output, 0, 1);
-   waitnext;
-   curvis(output, false);
-
-   { ******************************* Row ID test ***************************** }
-
-   page;
-   { perform row id test }
-   c := '1';
-   for y := 1 to maxy(output) do begin
-
-      cursor(output, 1, y); { index start of line }
-      for x := 1 to maxx(output) do write(c); { output characters }
-      if c <> '9' then c := succ(c) { next character }
-      else c := '0' { start over }
-
-   end;
-   prtban('Row ID test, all rows should be numbered');
-   waitnext;
-
-   { *************************** Collumn ID test ***************************** }
-
-   page;
-   c := '1';
-   for y := 1 to maxy(output) do begin
-
-      cursor(output, 1, y); { index start of line }
-      for x := 1 to maxx(output) do begin
-
-         write(c); { output characters }
-         if c <> '9' then c := succ(c) { next character }
-         else c := '0' { start over }
-
-      end
-
-   end;
-   prtban('Collumn ID test, all collumns should be numbered');
-   waitnext;
-
-   { ****************************** Fill test ******************************** }
-
-   page;
-   c := chr(0); { initalize character value }
-   for y := 1 to maxy(output) do begin
-
-      cursor(output, 1, y); { index start of line }
-      for x := 1 to maxx(output) do begin
-
-         if (c >= ' ') and (c <> chr($7f)) then write(c)
-         else write('\\');
-         if c <> chr($7f) then c := succ(c) { next character }
-         else c := chr(0) { start over }
-
-      end
-
-   end;
-   prtban('Fill test, all printable characters should appear');
-   waitnext;
-
-   { **************************** Sidewinder test **************************** }
-
-   page;
-   { perform sidewinder }
-   x := 1; { set origin }
-   y := 1;
-   top := 1; { set borders }
-   bottom := maxy(output);
-   lside := 2;
-   rside := maxx(output);
-   direction := ddown; { start down }
-   t1 := maxx(output);
-   t2 := maxy(output);
-   tc := 0;
-   for count := 1 to t1 * t2 do begin { for all screen characters }
-
-      cursor(output, x, y); { place character }
-      write('*');
-      tc := tc+1;
-      if tc >= 10 then begin
-
-         wait(50); { 50 milliseconds }
-         tc := 0
-
-      end;
-      case direction of
-
-         ddown:  begin
-
-                   y := y + 1; { next }
-                   if y = bottom then begin { change }
-
-                      direction := dright;
-                      bottom := bottom - 1
-
-                   end
-
-                end;
-
-         dright: begin
-
-                   x := x + 1; { next }
-                   if x = rside then begin
-
-                      direction := dup;
-                      rside := rside - 1
-
-                   end
-
-                end;
-
-         dup:    begin
-
-                   y := y - 1;
-                   if y = top then begin
-
-                      direction := dleft;
-                      top := top + 1
-
-                   end
-
-                end;
-
-         dleft:  begin
-
-                   x := x - 1;
-                   if x = lside then begin
-
-                      direction := ddown;
-                      lside := lside + 1
-
-                   end
-
-                end
-
-      end
-
-   end;
-   prtcen(maxy(output)-1, '                 ');
-   prtcen(maxy(output), ' Sidewinder test ');
-   waitnext;
-
-   { *************************** Bouncing ball test ************************** }
-
-   page;
-   x := 10; { set origin }
-   y := 20;
-   lx := 10; { set last }
-   ly := 20;
-   dx := -1; { set initial directions }
-   dy := -1;
-   for count := 1 to 1000 do begin
-
-      cursor(output, x, y); { place character }
-      write('*');
-      cursor(output, lx, ly); { place character }
-      write(' ');
-      lx := x; { set last }
-      ly := y;
-      x := x + dx; { find next x }
-      y := y + dy; { find next y }
-      tx := x;
-      ty := y;
-      if (x = 1) or (tx = maxx(output)) then dx := -dx; { find new dir x }
-      if (y = 1) or (ty = maxy(output)) then dy := -dy; { find new dir y }
-      wait(100) { slow this down }
-
-   end;
-   prtcen(maxy(output)-1, '                    ');
-   prtcen(maxy(output), ' Bouncing ball test ');
-   waitnext;
-
-   { *************************** Attributes test ************************** }
-
-   page;
-   if maxy(output) < 20 then write('Not enough lines for attributes test')
-   else begin
-
-      blink(output, true);
-      writeln('Blinking text');
-      blink(output, false);
-      reverse(output, true);
-      writeln('Reversed text');
-      reverse(output, false);
-      underline(output, true);
-      writeln('Underlined text');
-      underline(output, false);
-      write('Superscript ');
-      superscript(output, true);
-      writeln('text');
-      superscript(output, false);
-      write('Subscript ');
-      subscript(output, true);
-      writeln('text');
-      subscript(output, false);
-      italic(output, true);
-      writeln('Italic text');
-      italic(output, false);
-      bold(output, true);
-      writeln('Bold text');
-      bold(output, false);
-      standout(output, true);
-      writeln('Standout text');
-      standout(output, false);
-      fcolor(output, red);
-      writeln('Red text');
-      fcolor(output, green);
-      writeln('Green text');
-      fcolor(output, blue);
-      writeln('Blue text');
-      fcolor(output, cyan);
-      writeln('Cyan text');
-      fcolor(output, yellow);
-      writeln('Yellow text');
-      fcolor(output, magenta);
-      writeln('Magenta text');
-      fcolor(output, black);
-      bcolor(output, red);
-      writeln('Red background text');
-      bcolor(output, green);
-      writeln('Green background text');
-      bcolor(output, blue);
-      writeln('Blue background text');
-      bcolor(output, cyan);
-      writeln('Cyan background text');
-      bcolor(output, yellow);
-      writeln('Yellow background text');
-      bcolor(output, magenta);
-      writeln('Magenta background text');
-      bcolor(output, white);
-      prtcen(maxy(output), 'Attributes test')
-
-   end;
-   waitnext;
-
-   { ***************************** Scrolling test **************************** }
-
-   page;
-   { fill screen with row order data }
-   c := '1';
-   for y := 1 to maxy(output) do begin
-
-      cursor(output, 1, y); { index start of line }
-      for x := 1 to maxx(output) do write(c); { output characters }
-      if c <> '9' then c := succ(c) { next character }
-      else c := '0' { start over }
-
-   end;
-   for y := 1 to maxy(output) do begin wait(200); scroll(output, 0, 1) end;
-   prtcen(maxy(output), 'Scroll up');
-   waitnext;
-   page;
-   { fill screen with row order data }
-   c := '1';
-   for y := 1 to maxy(output) do begin
-
-      cursor(output, 1, y); { index start of line }
-      for x := 1 to maxx(output) do write(c); { output characters }
-      if c <> '9' then c := succ(c) { next character }
-      else c := '0' { start over }
-
-   end;
-   for y := 1 to maxy(output) do begin wait(200); scroll(output, 0, -1) end;
-   prtcen(maxy(output), 'Scroll down');
-   waitnext;
-   page;
-   { fill screen with collumn order data }
-   c := '1';
-   for y := 1 to maxy(output) do begin
-
-      cursor(output, 1, y); { index start of line }
-      for x := 1 to maxx(output) do begin
-
-         write(c); { output characters }
-         if c <> '9' then c := succ(c) { next character }
-         else c := '0' { start over }
-
-      end
-
-   end;
-   for x := 1 to maxx(output) do begin wait(200); scroll(output, 1, 0) end;
-   prtcen(maxy(output), 'Scroll left');
-   waitnext;
-   page;
-   { fill screen with collumn order data }
-   c := '1';
-   for y := 1 to maxy(output) do begin
-
-      cursor(output, 1, y); { index start of line }
-      for x := 1 to maxx(output) do begin
-
-         write(c); { output characters }
-         if c <> '9' then c := succ(c) { next character }
-         else c := '0' { start over }
-
-      end
-
-   end;
-   for x := 1 to maxx(output) do begin wait(200); scroll(output, -1, 0) end;
-   { find minimum direction, x or y }
-   if x < y then minlen := x else minlen := y;
-   prtcen(maxy(output), 'Scroll right');
-   waitnext;
-   page;
-   { fill screen with uni data }
-   c := '1';
-   for y := 1 to maxy(output) do begin
-
-      cursor(output, 1, y); { index start of line }
-      for x := 1 to maxx(output) do begin
-
-         write(c); { output characters }
-         if c <> '9' then c := succ(c) { next character }
-         else c := '0' { start over }
-
-      end
-
-   end;
-   for i := 1 to minlen do begin wait(200); scroll(output, 1, 1) end;
-   prtcen(maxy(output), 'Scroll up/left');
-   waitnext;
-   page;
-   { fill screen with uni data }
-   c := '1';
-   for y := 1 to maxy(output) do begin
-
-      cursor(output, 1, y); { index start of line }
-      for x := 1 to maxx(output) do begin
-
-         write(c); { output characters }
-         if c <> '9' then c := succ(c) { next character }
-         else c := '0' { start over }
-
-      end
-
-   end;
-   for i := 1 to minlen do begin wait(200); scroll(output, 1, -1) end;
-   prtcen(maxy(output), 'Scroll down/left');
-   waitnext;
-   page;
-   { fill screen with uni data }
-   c := '1';
-   for y := 1 to maxy(output) do begin
-
-      cursor(output, 1, y); { index start of line }
-      for x := 1 to maxx(output) do begin
-
-         write(c); { output characters }
-         if c <> '9' then c := succ(c) { next character }
-         else c := '0' { start over }
-
-      end
-
-   end;
-   for i := 1 to minlen do begin wait(200); scroll(output, -1, 1) end;
-   prtcen(maxy(output), 'Scroll up/right');
-   waitnext;
-   page;
-   { fill screen with uni data }
-   c := '1';
-   for y := 1 to maxy(output) do begin
-
-      cursor(output, 1, y); { index start of line }
-      for x := 1 to maxx(output) do begin
-
-         write(c); { output characters }
-         if c <> '9' then c := succ(c) { next character }
-         else c := '0' { start over }
-
-      end
-
-   end;
-   for i := 1 to minlen do begin wait(200); scroll(output, -1, -1) end;
-   prtcen(maxy(output), 'Scroll down/right');
-   waitnext;
-
-   { ******************************** Tab test ******************************* }
-
-   page;
-   for y := 1 to maxy(output) do begin
-
-      for i := 1 to y-1 do write('\ht');
-      writeln('>Tab ', y-1:3);
-
-   end;
-   prtcen(maxy(output), 'Tabbing test');
-   waitnext;
-
-   { ************************** Buffer switching test ************************ }
-
-   page;
-   for b := 2 to 10 do begin { prepare buffers }
-
-      select(output, b, 2); { select buffer }
-      { write a shinking box pattern }
-      box(b-1, b-1, maxx(output)-(b-2), maxy(output)-(b-2), '*');
-      prtcen(maxy(output), 'Buffer switching test')
-
-   end;
-   for i := 1 to 30 do { flip buffers }
-      for b := 2 to 10 do begin wait(300); select(output, 2, b) end;
-   select(output, 2, 2); { restore buffer select }
-
-   { **************************** Writethrough test ************************** }
-
-   page;
-   prtcen(maxy(output), 'File writethrough test');
-   home(output);
-   rewrite(tf);
-   writeln(tf, 'This is a test file');
-   reset(tf);
-   while not eoln(tf) do begin
-
-      read(tf, c);
-      write(c)
-
-   end;
-   readln(tf);
-   writeln;
-   writeln;
-   writeln('s/b');
-   writeln;
-   writeln('This is a test file');
-   waitnext;
-
-   { ****************************** Joystick test **************************** }
-
-   if joystick(output) > 0 then begin { joystick test }
-
-      page;
-      prtcen(1, 'Move the joystick(s) X, Y and Z, and hit buttons');
-      prtcen(maxy(output), 'Joystick test test');
-      repeat { gather joystick events }
-    
-         { we do up to 4 joysticks }
-         event(input, er);
-         if er.etype = etjoymov then begin { joystick movement }
-
-            if er.mjoyn = 1 then begin { joystick 1 }
-
-               cursor(output, 1, 3);
-               write('joystick: ', er.mjoyn:1, ' x: ', er.joypx, ' y: ',
-                     er.joypy, ' z: ', er.joypz);
-               plotjoy(4, er.joypx);
-               plotjoy(5, er.joypy);
-               plotjoy(6, er.joypz);
-
-            end else if er.mjoyn = 2 then begin { joystick 2 }
-
-               cursor(output, 1, 7);
-               write('joystick: ', er.mjoyn:1, ' x: ', er.joypx, ' y: ',
-                     er.joypy, ' z: ', er.joypz);
-               plotjoy(8, er.joypx);
-               plotjoy(9, er.joypy);
-               plotjoy(10, er.joypz);
-
-            end else if er.mjoyn = 3 then begin { joystick 3 }
-
-               cursor(output, 1, 11);
-               write('joystick: ', er.mjoyn:1, ' x: ', er.joypx, ' y: ',
-                     er.joypy, ' z: ', er.joypz);
-               plotjoy(11, er.joypx);
-               plotjoy(12, er.joypy);
-               plotjoy(13, er.joypz);
-
-            end else if er.mjoyn = 4 then begin { joystick 4 }
-
-               cursor(output, 1, 14);
-               write('joystick: ', er.mjoyn:1, ' x: ', er.joypx, ' y: ',
-                     er.joypy, ' z: ', er.joypz);
-               plotjoy(15, er.joypx);
-               plotjoy(16, er.joypy);
-               plotjoy(17, er.joypz);
-
-            end
-
-         end else if er.etype = etjoyba then begin { joystick button assert }
-
-            if er.ajoyn = 1 then begin { joystick 1 }
-
-               cursor(output, 1, 18);
-               write('joystick: ', er.ajoyn:1, ' button assert:   ', er.ajoybn:1);
-
-            end else if er.ajoyn = 2 then begin { joystick 2 }
-
-               cursor(output, 1, 19);
-               write('joystick: ', er.ajoyn:1, ' button assert:   ', er.ajoybn:1);
-
-            end else if er.ajoyn = 3 then begin { joystick 3 }
-
-               cursor(output, 1, 20);
-               write('joystick: ', er.ajoyn:1, ' button assert:   ', er.ajoybn:1);
-
-            end else if er.ajoyn = 4 then begin { joystick 4 }
-
-               cursor(output, 1, 21);
-               write('joystick: ', er.ajoyn:1, ' button assert:   ', er.ajoybn:1);
-
-            end
-
-         end else if er.etype = etjoybd then begin { joystick button deassert }
-
-            if er.djoyn = 1 then begin { joystick 1 }
-
-               cursor(output, 1, 18);
-               write('joystick: ', er.djoyn:1, ' button deassert: ', er.djoybn:1);
-
-            end else if er.djoyn = 2 then begin { joystick 2 }
-
-               cursor(output, 1, 19);
-               write('joystick: ', er.djoyn:1, ' button deassert: ', er.djoybn:1);
-
-            end else if er.djoyn = 3 then begin { joystick 3 }
-
-               cursor(output, 1, 20);
-               write('joystick: ', er.djoyn:1, ' button deassert: ', er.djoybn:1);
-
-            end else if er.djoyn = 4 then begin { joystick 4 }
-
-               cursor(output, 1, 21);
-               write('joystick: ', er.djoyn:1, ' button deassert: ', er.djoybn:1);
-
-            end
-
-         end
-
-      until (er.etype = etenter) or (er.etype = etterm)
-
-   end;
-
-   { **************************** Mouse test ********************************* }
-
-   if mouse(input) > 0 then begin { mouse test }
-
-      page;
-      prtcen(1, 'Move the mouse, and hit buttons');
-      prtcen(maxy(output), 'Mouse test');
-      repeat { gather mouse events }
-    
-         { we only one mouse, all mice equate to that (multiple controls) }
-         event(input, er);
-         if er.etype = etmoumov then begin
-
-            cursor(output, x, y);
-            writeln('          ');
-            cursor(output, er.moupx, er.moupy);
-            x := curx(output);
-            y := cury(output);
-            writeln('<- Mouse ', er.mmoun:1)
-
-         end;
-         { blank out button status line }
-         cursor(output, 1, maxy(output)-2);
-         for i := 1 to maxx(output) do write(' ');
-         if er.etype = etmouba then begin { mouse button assert }
-
-            cursor(output, 1, maxy(output)-2);
-            writeln('Mouse button assert, mouse: ', er.amoun:1, 
-                    ' button: ', er.amoubn:1)
-
-         end;
-         if er.etype = etmoubd then begin { mouse button assert }
-
-            cursor(output, 1, maxy(output)-2);
-            writeln('Mouse button deassert, mouse: ', er.dmoun:1, 
-                    ' button: ', er.dmoubn:1)
-
-         end;
-
-      until (er.etype = etenter) or (er.etype = etterm);
-      if er.etype = etterm then goto 99
-
-   end;
-
-   { ********************** Character write speed test *********************** }
-
-   page;
-   clk := clock; { get reference time }
-   c := chr(0); { initalize character value }
-   cnt := 0; { clear character count }
-   for y := 1 to maxy(output) do begin
-
-      cursor(output, 1, y); { index start of line }
-      for x := 1 to maxx(output) do begin
-
-         if (c >= ' ') and (c <> chr($7f)) then write(c)
-         else write('\\');
-         if c <> chr($7f) then c := succ(c) { next character }
-         else c := chr(0); { start over }
-         cnt := cnt+1 { count characters }
-
-      end
-
-   end;
-   clk := elapsed(clk); { find elapsed time }
-   page;
-   writeln('Character write speed: ', clk/cnt*0.0001, 
-           ' average seconds per character');
-   waitnext;
-
-   { ************************** Scrolling speed test ************************* }
-
-   page;
-   { fill screen so we aren't moving blanks (could be optimized) }
-   c := '1';
-   for y := 1 to maxy(output) do begin
-
-      cursor(output, 1, y); { index start of line }
-      for x := 1 to maxx(output) do write(c); { output characters }
-      if c <> '9' then c := succ(c) { next character }
-      else c := '0' { start over }
-
-   end;
-   prtban('Scrolling speed test');
-   clk := clock; { get reference time }
-   cnt := 0; { clear count }
-   for i := 1 to 1000 do begin { scroll various directions }
-
-      scroll(output, 0, -1); { up }
-      scroll(output, -1, 0); { left }
-      scroll(output, 0, +1); { down }
-      scroll(output, 0, +1); { down }
-      scroll(output, +1, 0); { right }
-      scroll(output, +1, 0); { right }
-      scroll(output, 0, -1); { up }
-      scroll(output, 0, -1); { up }
-      scroll(output, -1, 0); { left }
-      scroll(output, 0, +1); { down }
-      scroll(output, -1, -1); { up/left }
-      scroll(output, +1, +1); { down/right }
-      scroll(output, +1, +1); { down/right }
-      scroll(output, -1, -1); { up/left }
-      scroll(output, +1, -1); { up/right }
-      scroll(output, -1, +1); { down/left }
-      scroll(output, -1, +1); { down/left }
-      scroll(output, +1, -1); { up/right }
-      cnt := cnt+19 { count all scrolls }
-
-   end;
-   clk := elapsed(clk); { find elapsed time }
-   page;
-   writeln('Scrolling speed: ', clk/cnt*0.0001, 
-           ' average seconds per scroll');
-   waitnext;
-
-   { ************************** Buffer flip speed test ************************* }
-
-   page;
-   cnt := 0; { clear count }
-
-   for b := 2 to 10 do begin { prepare buffers }
-
-      select(output, b, 2); { select buffer }
-      { write a shinking box pattern }
-      box(b-1, b-1, maxx(output)-(b-2), maxy(output)-(b-2), '*')
-
-   end;
-   clk := clock; { get reference time }
-   for i := 1 to 1000 do { flip buffers }
-      for b := 2 to 10 do begin 
-
-      select(output, 2, b);
-      cnt := cnt+1
-
-   end;
-   clk := elapsed(clk); { find elapsed time }
-   select(output, 2, 2); { restore buffer select }
-   page;
-   writeln('Buffer switch speed: ', clk/cnt*0.0001, 
-           ' average seconds per switch');
-   waitnext;
-
-   99: ; { terminate }
-
-   { test complete }
-   select(output, 1, 1); { back to display buffer }
-   curvis(output, true); { restore cursor }
-   auto(output, true); { enable automatic screen wrap }
-   writeln;
-   writeln('Test complete')
-
-end.
+#ifndef TRMLIB_H
+#include "trmlib.h"
+#endif
+/* p2c: scntst.pas, line 48: Warning: Could not find module EXTLIB [271] */
+
+#include "extlib.h"
+
+
+static long x, y, lx, ly, tx, ty, dx, dy;
+static char c;
+static long top, bottom, lside, rside;   /* borders */
+static enum {
+    dup, ddown, dleft, dright
+} direction;   /* writting direction */
+static long count, t1, t2, delay, minlen;   /* minimum direction, x or y */
+static evtrec er;   /* event record */
+static long i, b, tc, clk, cnt;
+static FILE *tf;   /* test file */
+static char tf_NAME[_FNSIZE];
+
+
+/* draw box */
+
+static void box(long sx, long sy, long ex, long ey, char c)
+{
+    long x, y;
+
+
+    /* top */
+    cursor(stdout, sx, sy);
+    for (x = sx; x <= ex; x++)
+    putchar(c);
+    /* bottom */
+    cursor(stdout, sx, ey);
+    for (x = sx; x <= ex; x++)
+    putchar(c);
+    /* left */
+    for (y = sy; y <= ey; y++) {
+    cursor(stdout, sx, y);
+    putchar(c);
+    }
+    /* right */
+    for (y = sy; y <= ey; y++) {
+    cursor(stdout, ex, y);
+    putchar(c);
+    }
+
+}
+
+
+static jmp_buf _JL99;
+
+
+/* wait time in 100 microseconds */
+
+static void wait(long t)
+{
+    timer(stdout, 1, t, 0);
+    do {
+    event(stdin, &er);
+    } while (er.etype != ettim && er.etype != etterm);
+    if (er.etype == etterm) {
+    longjmp(_JL99, 1);
+
+    }
+}
+
+
+/* wait return to be pressed, or handle terminate */
+
+static void waitnext(void)
+{
+    do {
+    event(stdin, &er);
+    } while (er.etype != etenter && er.etype != etterm);
+    if (er.etype == etterm) {
+    longjmp(_JL99, 1);
+
+    }
+}
+
+
+static void timetest(void)
+{
+    long i, t, et, total, max, min;
+    evtrec er;
+
+
+    printf("Timer test, measuring minimum timer resolution, 100 samples\n\n");
+    max = 0;
+    min = LONG_MAX;
+    for (i = 1; i <= 100; i++) {
+    t = clock;
+/* p2c: scntst.pas, line 124:
+ * Warning: Symbol 'CLOCK' is not defined [221] */
+    timer(stdout, 1, 1, 0);
+    do {
+    putchar('*');
+    event(stdin, &er);
+    } while (er.etype != ettim);
+    et = elapsed(t);
+/* p2c: scntst.pas, line 127:
+ * Warning: Symbol 'ELAPSED' is not defined [221] */
+    total += elapsed(t);
+/* p2c: scntst.pas, line 128:
+ * Warning: Symbol 'ELAPSED' is not defined [221] */
+    if (et > max)
+    max = et;
+    if (et < min) {
+    min = et;
+
+    }
+    }
+
+    printf("\n\nAverage time was: %ld00 Microseconds\n", total / 100);
+    printf("Minimum time was: %ld00 Microseconds\n", min);
+    printf("Maximum time was: %ld00 Microseconds\n", max);
+    printf("This timer supports frame rates up to %ld", 10000 / (total / 100));
+    printf(" frames per second\n");
+    t = clock;
+/* p2c: scntst.pas, line 140:
+ * Warning: Symbol 'CLOCK' is not defined [221] */
+    timer(stdout, 1, 10000, 0);
+    do {
+    event(stdin, &er);
+    } while (er.etype != ettim);
+/* p2c: scntst.pas, line 143:
+ * Warning: Symbol 'ELAPSED' is not defined [221] */
+    printf("1 second time, was: %ld00 Microseconds\n\n", elapsed(t));
+    printf("30 seconds of 1 second ticks:\n\n");
+    for (i = 1; i <= 30; i++) {
+    timer(stdout, 1, 10000, 0);
+    do {
+    event(stdin, &er);
+    } while (er.etype != ettim && er.etype != etterm);
+    if (er.etype == etterm)
+    longjmp(_JL99, 1);
+    putchar('.');
+
+    }
+
+
+}
+
+
+/* plot joystick on screen */
+
+static void plotjoy(long line, long joy)
+{
+    long i, x;
+    double r;
+    long FORLIM;
+
+
+    cursor(stdout, 1, line);
+    FORLIM = maxx(stdout);
+    for (i = 1; i <= FORLIM; i++)   /* clear line */
+    putchar(' ');
+    if (joy < 0) {  /* plot left */
+    r = labs(joy);
+    x = maxx(stdout) / 2 - (long)floor(r * (maxx(stdout) / 2) / LONG_MAX + 0.5);
+    cursor(stdout, x, line);
+    while (x <= maxx(stdout) / 2) {
+    putchar('*');
+    x++;
+
+    }
+
+
+    return;
+    }
+
+    r = joy;
+    x = (long)floor(r * (maxx(stdout) / 2) / LONG_MAX + maxx(stdout) / 2 + 0.5);
+    i = maxx(stdout) / 2;
+    cursor(stdout, i, line);
+    while (i <= x) {
+    putchar('*');
+    i++;
+    /* plot right */
+
+
+
+    }
+
+
+}
+/* p2c: scntst.pas, line 200: Warning: Expected a colon, found 's' [227] */
+/* p2c: scntst.pas, line 200: Warning: Expected a ')', found 's' [227] */
+
+
+/* print centered string */
+
+static void prtcen(long y, void *view)
+{
+/* p2c: scntst.pas, line 204: Warning: Symbol 'S' is not defined [221] */
+    cursor(stdout, maxx(stdout) / 2 - s / 2, y);
+/* p2c: scntst.pas, line 205: Warning: Symbol 'S' is not defined [221] */
+    printf("%ld", s);
+
+}
+/* p2c: scntst.pas, line 211: Warning: Expected a colon, found 's' [227] */
+/* p2c: scntst.pas, line 211: Warning: Expected a ')', found 's' [227] */
+
+
+/* print center banner string */
+
+static void prtban(void *view)
+{
+    long i;
+
+
+/* p2c: scntst.pas, line 217: Warning: Symbol 'S' is not defined [221] */
+    cursor(stdout, maxx(stdout) / 2 - s / 2 - 1, maxy(stdout) / 2 - 1);
+    for (i = 1; i <= s + 2; i++)
+    putchar(' ');
+/* p2c: scntst.pas, line 218: Warning: Symbol 'S' is not defined [221] */
+/* p2c: scntst.pas, line 219: Warning: Symbol 'S' is not defined [221] */
+    cursor(stdout, maxx(stdout) / 2 - s / 2 - 1, maxy(stdout) / 2);
+    putchar(' ');
+/* p2c: scntst.pas, line 221: Warning: Symbol 'S' is not defined [221] */
+    prtcen(maxy(stdout) / 2, (void *)(&s));
+    putchar(' ');
+/* p2c: scntst.pas, line 223: Warning: Symbol 'S' is not defined [221] */
+    cursor(stdout, maxx(stdout) / 2 - s / 2 - 1, maxy(stdout) / 2 + 1);
+    for (i = 1; i <= s + 2; i++)
+    putchar(' ');
+/* p2c: scntst.pas, line 224: Warning: Symbol 'S' is not defined [221] */
+
+}
+
+
+main(int argc, char *argv[])
+{
+    void TEMP;
+    long FORLIM, FORLIM1;
+
+
+    if (setjmp(_JL99))
+    goto _L99;
+    tf = NULL;
+    select(stdout, 2, 2);   /* move off the display buffer */
+    /* set black on white text */
+    fcolor(stdout, black);
+    bcolor(stdout, white);
+    printf("\f");
+    curvis(stdout, 0);
+    TEMP = "Terminal mode screen test vs. 1.0";
+    prtban(&TEMP);
+    TEMP = "Press return to continue";
+    prtcen(maxy(stdout), &TEMP);
+    waitnext();
+    printf("\f");   /* clear screen */
+    printf("Screen size: x -> %ld y -> %ld\n\n", maxx(stdout), maxy(stdout));
+    printf("Number of joysticks: %d\n", joystick(stdout));
+    FORLIM = joystick(stdout);
+    for (i = 1; i <= FORLIM; i++) {
+    printf("\nNumber of axes on joystick: %ld is: %d\n",
+           i, joyaxis(stdout, i));
+    printf("Number of buttons on joystick: %ld is: %d\n",
+           i, joybutton(stdout, i));
+
+    }
+
+    printf("\nNumber of mice: %d\n", mouse(stdout));
+    FORLIM = mouse(stdout);
+    for (i = 1; i <= FORLIM; i++)
+    printf("\nNumber of buttons on mouse: %ld is: %d\n",
+           i, mousebutton(stdout, i));
+
+    TEMP = "Press return to continue";
+
+    prtcen(maxy(stdout), &TEMP);
+    waitnext();
+    printf("\f");
+    timetest();
+    TEMP = "Press return to continue";
+    prtcen(maxy(stdout), &TEMP);
+    waitnext();
+    printf("\f");
+    curvis(stdout, 1);
+    printf("Cursor should be [on ], press return ->");
+    waitnext();
+    curvis(stdout, 0);
+    printf("\\crCursor should be [off], press return ->");
+    waitnext();
+    curvis(stdout, 1);
+    printf("\\crCursor should be [on ], press return ->");
+    waitnext();
+    curvis(stdout, 0);
+    printf("\n\n");
+    TEMP = "Press return to start test (and to pass each pattern)";
+    prtcen(maxy(stdout), &TEMP);
+    waitnext();
+
+    /* ************************* Test last line problem ************************ */
+
+    printf("\f");
+    curvis(stdout, 0);   /* remove cursor */
+    auto_(stdout, 0);   /* turn off auto scroll */
+    TEMP = "Last line blank out test";
+    prtcen(1, &TEMP);
+    cursor(stdout, 1, 3);
+    printf("If this terminal is not capable of showing the last character on\n");
+    printf("the last line, the \"*\" character pointed to by the arrow below\n");
+    printf("will not appear (probally blank). This should be noted for each\n");
+    printf("of the following test patterns.\n");
+    cursor(stdout, 1, maxy(stdout));
+    FORLIM = maxx(stdout) - 2;
+    for (i = 1; i <= FORLIM; i++)
+    putchar('-');
+    printf(">*");
+    waitnext();
+
+    /* ************************** Cursor movements test ************************ */
+
+    /* First, do it with automatic scrolling on. The pattern will rely on scroll
+       up, down, left wrap and right wrap working correctly. */
+
+    printf("\f");
+    auto_(stdout, 1);   /* set auto on */
+    curvis(stdout, 0);   /* remove cursor */
+    /* top of left lower */
+    cursor(stdout, 1, maxy(stdout));
+    printf("\\\\/");
+    /* top of right lower, bottom of left lower, and move it all up */
+    cursor(stdout, maxx(stdout) - 1, maxy(stdout));
+    printf("\\\\//\\\\");
+    /* finish right lower */
+    up(stdout);
+    left(stdout);
+    left(stdout);
+    left(stdout);
+    left(stdout);
+    down(stdout);
+    down(stdout);
+    printf("/\\\\");
+    /* now move it back down */
+    home(stdout);
+    left(stdout);
+    /* upper left hand cross */
+    cursor(stdout, 1, 1);
+    printf("\\\\/");
+    cursor(stdout, maxx(stdout), 1);
+    right(stdout);
+    printf("/\\\\");
+    /* upper right hand cross */
+    cursor(stdout, maxx(stdout) - 1, 2);
+    printf("/\\\\");
+    cursor(stdout, 1, 2);
+    left(stdout);
+    left(stdout);
+    printf("\\\\/");
+    TEMP = "BARK!";
+    /* test delete works */
+    prtcen(1, &TEMP);
+    del(stdout);
+    del(stdout);
+    del(stdout);
+    del(stdout);
+    del(stdout);
+    TEMP = "Cursor movements test, automatic scroll ON";
+    prtcen(maxy(stdout) / 2 - 1, &TEMP);
+    TEMP = "Should be a double line X in each corner";
+    prtcen(maxy(stdout) / 2 + 1, &TEMP);
+    waitnext();
+
+    /* Now do it with automatic scrolling off. The pattern will rely on the
+       ability of the cursor to go into "negative" space. */
+
+    printf("\f");
+    auto_(stdout, 0);   /* disable automatic screen scroll/wrap */
+    /* upper left */
+    home(stdout);
+    printf("\\\\/");
+    up(stdout);
+    left(stdout);
+    left(stdout);
+    left(stdout);
+    left(stdout);
+    down(stdout);
+    down(stdout);
+    right(stdout);
+    right(stdout);
+    printf("/\\\\");
+    /* upper right */
+    cursor(stdout, maxx(stdout) - 1, 1);
+    printf("\\\\/");
+    down(stdout);
+    del(stdout);
+    del(stdout);
+    printf("/\\\\");
+    /* lower left */
+    cursor(stdout, 1, maxy(stdout));
+    printf("/\\\\");
+    down(stdout);
+    left(stdout);
+    left(stdout);
+    left(stdout);
+    up(stdout);
+    up(stdout);
+    right(stdout);
+    printf("\\\\/");
+    /* lower right */
+    cursor(stdout, maxx(stdout), maxy(stdout) - 1);
+    putchar('/');
+    left(stdout);
+    left(stdout);
+    printf("\\\\");
+    down(stdout);
+    del(stdout);
+    printf("/\\\\");
+    TEMP = "Cursor movements test, automatic scroll OFF";
+    prtcen(maxy(stdout) / 2 - 1, &TEMP);
+    TEMP = "Should be a double line X in each corner";
+    prtcen(maxy(stdout) / 2 + 1, &TEMP);
+    waitnext();
+
+    /* **************************** Scroll cursor test ************************* */
+
+    printf("\f");
+    curvis(stdout, 1);
+    TEMP = "Scroll cursor test, cursor should be here ->";
+    prtcen(maxy(stdout) / 2, &TEMP);
+    up(stdout);
+    scroll(stdout, 0, 1);
+    waitnext();
+    curvis(stdout, 0);
+
+    /* ******************************* Row ID test ***************************** */
+
+    printf("\f");
+    /* perform row id test */
+    c = '1';
+    FORLIM = maxy(stdout);
+    for (y = 1; y <= FORLIM; y++) {
+    cursor(stdout, 1, y);   /* index start of line */
+    FORLIM1 = maxx(stdout);
+    for (x = 1; x <= FORLIM1; x++)   /* output characters */
+    putchar(c);
+    if (c != '9')
+    c++;   /* next character */
+    else {
+    c = '0';   /* start over */
+
+    }
+    }
+
+    TEMP = "Row ID test, all rows should be numbered";
+    prtban(&TEMP);
+    waitnext();
+
+    /* *************************** Collumn ID test ***************************** */
+
+    printf("\f");
+    c = '1';
+    FORLIM = maxy(stdout);
+    for (y = 1; y <= FORLIM; y++) {
+    cursor(stdout, 1, y);   /* index start of line */
+    FORLIM1 = maxx(stdout);
+    for (x = 1; x <= FORLIM1; x++) {
+    putchar(c);   /* output characters */
+    if (c != '9')
+    c++;   /* next character */
+    else {
+    c = '0';   /* start over */
+
+    }
+    }
+
+
+    }
+
+    TEMP = "Collumn ID test, all collumns should be numbered";
+    prtban(&TEMP);
+    waitnext();
+
+    /* ****************************** Fill test ******************************** */
+
+    printf("\f");
+    c = '\0';   /* initalize character value */
+    FORLIM = maxy(stdout);
+    for (y = 1; y <= FORLIM; y++) {
+    cursor(stdout, 1, y);   /* index start of line */
+    FORLIM1 = maxx(stdout);
+    for (x = 1; x <= FORLIM1; x++) {
+    if (c >= ' ' && c != '\177')
+    putchar(c);
+    else
+    printf("\\\\");
+    if (c != '\177')
+    c++;   /* next character */
+    else {
+    c = '\0';   /* start over */
+
+    }
+    }
+
+
+    }
+
+    TEMP = "Fill test, all printable characters should appear";
+    prtban(&TEMP);
+    waitnext();
+
+    /* **************************** Sidewinder test **************************** */
+
+    printf("\f");
+    /* perform sidewinder */
+    x = 1;   /* set origin */
+    y = 1;
+    top = 1;   /* set borders */
+    bottom = maxy(stdout);
+    lside = 2;
+    rside = maxx(stdout);
+    direction = ddown;   /* start down */
+    t1 = maxx(stdout);
+    t2 = maxy(stdout);
+    tc = 0;
+    FORLIM = t1 * t2;
+    for (count = 1; count <= FORLIM; count++) {
+    /* for all screen characters */
+    cursor(stdout, x, y);   /* place character */
+    putchar('*');
+    tc++;
+    if (tc >= 10) {
+    wait(50);   /* 50 milliseconds */
+    tc = 0;
+
+    }
+
+    switch (direction) {
+
+        case ddown:
+    y++;   /* next */
+    if (y == bottom) {  /* change */
+    direction = dright;
+    bottom--;
+
+    }
+
+
+    break;
+
+
+        case dright:
+    x++;   /* next */
+    if (x == rside) {
+    direction = dup;
+    rside--;
+
+    }
+
+
+    break;
+
+
+        case dup:
+    y--;
+    if (y == top) {
+    direction = dleft;
+    top++;
+
+    }
+
+
+    break;
+
+
+        case dleft:
+    x--;
+    if (x == lside) {
+    direction = ddown;
+    lside++;
+
+    }
+
+
+    break;
+
+
+    }
+
+    }
+
+    TEMP = "                 ";
+    prtcen(maxy(stdout) - 1, &TEMP);
+    TEMP = " Sidewinder test ";
+    prtcen(maxy(stdout), &TEMP);
+    waitnext();
+
+    /* *************************** Bouncing ball test ************************** */
+
+    printf("\f");
+    x = 10;   /* set origin */
+    y = 20;
+    lx = 10;   /* set last */
+    ly = 20;
+    dx = -1;   /* set initial directions */
+    dy = -1;
+    for (count = 1; count <= 1000; count++) {
+    cursor(stdout, x, y);   /* place character */
+    putchar('*');
+    cursor(stdout, lx, ly);   /* place character */
+    putchar(' ');
+    lx = x;   /* set last */
+    ly = y;
+    x += dx;   /* find next x */
+    y += dy;   /* find next y */
+    tx = x;
+    ty = y;
+    if (x == 1 || tx == maxx(stdout))   /* find new dir x */
+    dx = -dx;
+    if (y == 1 || ty == maxy(stdout))   /* find new dir y */
+    dy = -dy;
+    /* slow this down */
+
+    wait(100);
+    }
+
+    TEMP = "                    ";
+    prtcen(maxy(stdout) - 1, &TEMP);
+    TEMP = " Bouncing ball test ";
+    prtcen(maxy(stdout), &TEMP);
+    waitnext();
+
+    /* *************************** Attributes test ************************** */
+
+    printf("\f");
+    if (maxy(stdout) < 20)
+    printf("Not enough lines for attributes test");
+    else {
+    blink(stdout, 1);
+    printf("Blinking text\n");
+    blink(stdout, 0);
+    reverse(stdout, 1);
+    printf("Reversed text\n");
+    reverse(stdout, 0);
+    underline(stdout, 1);
+    printf("Underlined text\n");
+    underline(stdout, 0);
+    printf("Superscript ");
+    superscript(stdout, 1);
+    printf("text\n");
+    superscript(stdout, 0);
+    printf("Subscript ");
+    subscript(stdout, 1);
+    printf("text\n");
+    subscript(stdout, 0);
+    italic(stdout, 1);
+    printf("Italic text\n");
+    italic(stdout, 0);
+    bold(stdout, 1);
+    printf("Bold text\n");
+    bold(stdout, 0);
+    standout(stdout, 1);
+    printf("Standout text\n");
+    standout(stdout, 0);
+    fcolor(stdout, red);
+    printf("Red text\n");
+    fcolor(stdout, green);
+    printf("Green text\n");
+    fcolor(stdout, blue);
+    printf("Blue text\n");
+    fcolor(stdout, cyan);
+    printf("Cyan text\n");
+    fcolor(stdout, yellow);
+    printf("Yellow text\n");
+    fcolor(stdout, magenta);
+    printf("Magenta text\n");
+    fcolor(stdout, black);
+    bcolor(stdout, red);
+    printf("Red background text\n");
+    bcolor(stdout, green);
+    printf("Green background text\n");
+    bcolor(stdout, blue);
+    printf("Blue background text\n");
+    bcolor(stdout, cyan);
+    printf("Cyan background text\n");
+    bcolor(stdout, yellow);
+    printf("Yellow background text\n");
+    bcolor(stdout, magenta);
+    printf("Magenta background text\n");
+    bcolor(stdout, white);
+
+    TEMP = "Attributes test";
+    prtcen(maxy(stdout), &TEMP);
+    }
+
+    waitnext();
+
+    /* ***************************** Scrolling test **************************** */
+
+    printf("\f");
+    /* fill screen with row order data */
+    c = '1';
+    FORLIM = maxy(stdout);
+    for (y = 1; y <= FORLIM; y++) {
+    cursor(stdout, 1, y);   /* index start of line */
+    FORLIM1 = maxx(stdout);
+    for (x = 1; x <= FORLIM1; x++)   /* output characters */
+    putchar(c);
+    if (c != '9')
+    c++;   /* next character */
+    else {
+    c = '0';   /* start over */
+
+    }
+    }
+
+    FORLIM = maxy(stdout);
+    for (y = 1; y <= FORLIM; y++) {
+    wait(200);
+    scroll(stdout, 0, 1);
+    }
+    TEMP = "Scroll up";
+    prtcen(maxy(stdout), &TEMP);
+    waitnext();
+    printf("\f");
+    /* fill screen with row order data */
+    c = '1';
+    FORLIM = maxy(stdout);
+    for (y = 1; y <= FORLIM; y++) {
+    cursor(stdout, 1, y);   /* index start of line */
+    FORLIM1 = maxx(stdout);
+    for (x = 1; x <= FORLIM1; x++)   /* output characters */
+    putchar(c);
+    if (c != '9')
+    c++;   /* next character */
+    else {
+    c = '0';   /* start over */
+
+    }
+    }
+
+    FORLIM = maxy(stdout);
+    for (y = 1; y <= FORLIM; y++) {
+    wait(200);
+    scroll(stdout, 0, -1);
+    }
+    TEMP = "Scroll down";
+    prtcen(maxy(stdout), &TEMP);
+    waitnext();
+    printf("\f");
+    /* fill screen with collumn order data */
+    c = '1';
+    FORLIM = maxy(stdout);
+    for (y = 1; y <= FORLIM; y++) {
+    cursor(stdout, 1, y);   /* index start of line */
+    FORLIM1 = maxx(stdout);
+    for (x = 1; x <= FORLIM1; x++) {
+    putchar(c);   /* output characters */
+    if (c != '9')
+    c++;   /* next character */
+    else {
+    c = '0';   /* start over */
+
+    }
+    }
+
+
+    }
+
+    FORLIM = maxx(stdout);
+    for (x = 1; x <= FORLIM; x++) {
+    wait(200);
+    scroll(stdout, 1, 0);
+    }
+    TEMP = "Scroll left";
+    prtcen(maxy(stdout), &TEMP);
+    waitnext();
+    printf("\f");
+    /* fill screen with collumn order data */
+    c = '1';
+    FORLIM = maxy(stdout);
+    for (y = 1; y <= FORLIM; y++) {
+    cursor(stdout, 1, y);   /* index start of line */
+    FORLIM1 = maxx(stdout);
+    for (x = 1; x <= FORLIM1; x++) {
+    putchar(c);   /* output characters */
+    if (c != '9')
+    c++;   /* next character */
+    else {
+    c = '0';   /* start over */
+
+    }
+    }
+
+
+    }
+
+    FORLIM = maxx(stdout);
+    for (x = 1; x <= FORLIM; x++) {
+    wait(200);
+    scroll(stdout, -1, 0);
+    }
+    /* find minimum direction, x or y */
+    if (x < y)
+    minlen = x;
+    else
+    minlen = y;
+    TEMP = "Scroll right";
+    prtcen(maxy(stdout), &TEMP);
+    waitnext();
+    printf("\f");
+    /* fill screen with uni data */
+    c = '1';
+    FORLIM = maxy(stdout);
+    for (y = 1; y <= FORLIM; y++) {
+    cursor(stdout, 1, y);   /* index start of line */
+    FORLIM1 = maxx(stdout);
+    for (x = 1; x <= FORLIM1; x++) {
+    putchar(c);   /* output characters */
+    if (c != '9')
+    c++;   /* next character */
+    else {
+    c = '0';   /* start over */
+
+    }
+    }
+
+
+    }
+
+    FORLIM = minlen;
+    for (i = 1; i <= FORLIM; i++) {
+    wait(200);
+    scroll(stdout, 1, 1);
+    }
+    TEMP = "Scroll up/left";
+    prtcen(maxy(stdout), &TEMP);
+    waitnext();
+    printf("\f");
+    /* fill screen with uni data */
+    c = '1';
+    FORLIM = maxy(stdout);
+    for (y = 1; y <= FORLIM; y++) {
+    cursor(stdout, 1, y);   /* index start of line */
+    FORLIM1 = maxx(stdout);
+    for (x = 1; x <= FORLIM1; x++) {
+    putchar(c);   /* output characters */
+    if (c != '9')
+    c++;   /* next character */
+    else {
+    c = '0';   /* start over */
+
+    }
+    }
+
+
+    }
+
+    FORLIM = minlen;
+    for (i = 1; i <= FORLIM; i++) {
+    wait(200);
+    scroll(stdout, 1, -1);
+    }
+    TEMP = "Scroll down/left";
+    prtcen(maxy(stdout), &TEMP);
+    waitnext();
+    printf("\f");
+    /* fill screen with uni data */
+    c = '1';
+    FORLIM = maxy(stdout);
+    for (y = 1; y <= FORLIM; y++) {
+    cursor(stdout, 1, y);   /* index start of line */
+    FORLIM1 = maxx(stdout);
+    for (x = 1; x <= FORLIM1; x++) {
+    putchar(c);   /* output characters */
+    if (c != '9')
+    c++;   /* next character */
+    else {
+    c = '0';   /* start over */
+
+    }
+    }
+
+
+    }
+
+    FORLIM = minlen;
+    for (i = 1; i <= FORLIM; i++) {
+    wait(200);
+    scroll(stdout, -1, 1);
+    }
+    TEMP = "Scroll up/right";
+    prtcen(maxy(stdout), &TEMP);
+    waitnext();
+    printf("\f");
+    /* fill screen with uni data */
+    c = '1';
+    FORLIM = maxy(stdout);
+    for (y = 1; y <= FORLIM; y++) {
+    cursor(stdout, 1, y);   /* index start of line */
+    FORLIM1 = maxx(stdout);
+    for (x = 1; x <= FORLIM1; x++) {
+    putchar(c);   /* output characters */
+    if (c != '9')
+    c++;   /* next character */
+    else {
+    c = '0';   /* start over */
+
+    }
+    }
+
+
+    }
+
+    FORLIM = minlen;
+    for (i = 1; i <= FORLIM; i++) {
+    wait(200);
+    scroll(stdout, -1, -1);
+    }
+    TEMP = "Scroll down/right";
+    prtcen(maxy(stdout), &TEMP);
+    waitnext();
+
+    /* ******************************** Tab test ******************************* */
+
+    printf("\f");
+    FORLIM = maxy(stdout);
+    for (y = 1; y <= FORLIM; y++) {
+    FORLIM1 = y;
+    for (i = 1; i < FORLIM1; i++)
+    printf("\\ht");
+    printf(">Tab %3ld\n", y - 1);
+
+    }
+
+    TEMP = "Tabbing test";
+    prtcen(maxy(stdout), &TEMP);
+    waitnext();
+
+    /* ************************** Buffer switching test ************************ */
+
+    printf("\f");
+    for (b = 2; b <= 10; b++) {  /* prepare buffers */
+    select(stdout, b, 2);   /* select buffer */
+    /* write a shinking box pattern */
+    box(b - 1, b - 1, maxx(stdout) - b + 2, maxy(stdout) - b + 2, '*');
+
+    TEMP = "Buffer switching test";
+    prtcen(maxy(stdout), &TEMP);
+    }
+
+    for (i = 1; i <= 30; i++) {   /* flip buffers */
+    for (b = 2; b <= 10; b++) {
+    wait(300);
+    select(stdout, 2, b);
+    }
+    }
+    select(stdout, 2, 2);   /* restore buffer select */
+
+    /* **************************** Writethrough test ************************** */
+
+    printf("\f");
+    TEMP = "File writethrough test";
+    prtcen(maxy(stdout), &TEMP);
+    home(stdout);
+    if (tf != NULL)
+    tf = freopen(tf_NAME, "w", tf);
+    else
+    tf = fopen(tf_NAME, "w");
+    if (tf == NULL)
+    _EscIO2(FileNotFound, tf_NAME);
+    fprintf(tf, "This is a test file\n");
+    tf = freopen(tf_NAME, "r", tf);
+    if (tf == NULL)
+    _EscIO2(FileNotFound, tf_NAME);
+    while (!P_eoln(tf)) {
+    c = getc(tf);
+    putchar(c);
+
+    }
+
+    fscanf(tf, "%*[^\n]");
+    getc(tf);
+    printf("\n\ns/b\n\n");
+    printf("This is a test file\n");
+    waitnext();
+
+    /* ****************************** Joystick test **************************** */
+
+    if (joystick(stdout) > 0) {  /* joystick test */
+    printf("\f");
+    TEMP = "Move the joystick(s) X, Y and Z, and hit buttons";
+    prtcen(1, &TEMP);
+    TEMP = "Joystick test test";
+    prtcen(maxy(stdout), &TEMP);
+    do {   /* gather joystick events */
+
+    /* we do up to 4 joysticks */
+    event(stdin, &er);
+    if (er.etype == etjoymov) {  /* joystick movement */
+    if (er.UU.U44.mjoyn == 1) {  /* joystick 1 */
+    cursor(stdout, 1, 3);
+    printf("joystick: %d x: %ld y: %ld z: %ld",
+           er.UU.U44.mjoyn, er.UU.U44.joypx, er.UU.U44.joypy,
+           er.UU.U44.joypz);
+    plotjoy(4, er.UU.U44.joypx);
+    plotjoy(5, er.UU.U44.joypy);
+    plotjoy(6, er.UU.U44.joypz);
+
+    }
+
+    else if (er.UU.U44.mjoyn == 2) {  /* joystick 2 */
+
+    cursor(stdout, 1, 7);
+    printf("joystick: %d x: %ld y: %ld z: %ld",
+           er.UU.U44.mjoyn, er.UU.U44.joypx, er.UU.U44.joypy,
+           er.UU.U44.joypz);
+    plotjoy(8, er.UU.U44.joypx);
+    plotjoy(9, er.UU.U44.joypy);
+    plotjoy(10, er.UU.U44.joypz);
+
+    } else if (er.UU.U44.mjoyn == 3) {  /* joystick 3 */
+
+    cursor(stdout, 1, 11);
+    printf("joystick: %d x: %ld y: %ld z: %ld",
+           er.UU.U44.mjoyn, er.UU.U44.joypx, er.UU.U44.joypy,
+           er.UU.U44.joypz);
+    plotjoy(11, er.UU.U44.joypx);
+    plotjoy(12, er.UU.U44.joypy);
+    plotjoy(13, er.UU.U44.joypz);
+
+    } else if (er.UU.U44.mjoyn == 4) {  /* joystick 4 */
+
+
+    cursor(stdout, 1, 14);
+    printf("joystick: %d x: %ld y: %ld z: %ld",
+           er.UU.U44.mjoyn, er.UU.U44.joypx, er.UU.U44.joypy,
+           er.UU.U44.joypz);
+    plotjoy(15, er.UU.U44.joypx);
+    plotjoy(16, er.UU.U44.joypy);
+    plotjoy(17, er.UU.U44.joypz);
+
+    }
+    }
+
+    else if (er.etype == etjoyba) {  /* joystick button assert */
+
+    if (er.UU.U42.ajoyn == 1) {  /* joystick 1 */
+    cursor(stdout, 1, 18);
+    printf("joystick: %d button assert:   %d",
+           er.UU.U42.ajoyn, er.UU.U42.ajoybn);
+
+    }
+
+    else if (er.UU.U42.ajoyn == 2) {  /* joystick 2 */
+
+    cursor(stdout, 1, 19);
+    printf("joystick: %d button assert:   %d",
+           er.UU.U42.ajoyn, er.UU.U42.ajoybn);
+
+    } else if (er.UU.U42.ajoyn == 3) {  /* joystick 3 */
+
+    cursor(stdout, 1, 20);
+    printf("joystick: %d button assert:   %d",
+           er.UU.U42.ajoyn, er.UU.U42.ajoybn);
+
+    } else if (er.UU.U42.ajoyn == 4) {  /* joystick 4 */
+
+
+    cursor(stdout, 1, 21);
+    printf("joystick: %d button assert:   %d",
+           er.UU.U42.ajoyn, er.UU.U42.ajoybn);
+
+    }
+    } else if (er.etype == etjoybd) {  /* joystick button deassert */
+
+
+    if (er.UU.U43.djoyn == 1) {  /* joystick 1 */
+    cursor(stdout, 1, 18);
+    printf("joystick: %d button deassert: %d",
+           er.UU.U43.djoyn, er.UU.U43.djoybn);
+
+    }
+
+    else if (er.UU.U43.djoyn == 2) {  /* joystick 2 */
+
+    cursor(stdout, 1, 19);
+    printf("joystick: %d button deassert: %d",
+           er.UU.U43.djoyn, er.UU.U43.djoybn);
+
+    } else if (er.UU.U43.djoyn == 3) {  /* joystick 3 */
+
+    cursor(stdout, 1, 20);
+    printf("joystick: %d button deassert: %d",
+           er.UU.U43.djoyn, er.UU.U43.djoybn);
+
+    } else if (er.UU.U43.djoyn == 4) {  /* joystick 4 */
+
+
+    cursor(stdout, 1, 21);
+    printf("joystick: %d button deassert: %d",
+           er.UU.U43.djoyn, er.UU.U43.djoybn);
+
+    }
+    }
+    } while (er.etype != etenter && er.etype != etterm);
+    }
+
+
+
+    /* **************************** Mouse test ********************************* */
+
+    if (mouse(stdin) > 0) {  /* mouse test */
+    printf("\f");
+    TEMP = "Move the mouse, and hit buttons";
+    prtcen(1, &TEMP);
+    TEMP = "Mouse test";
+    prtcen(maxy(stdout), &TEMP);
+    do {   /* gather mouse events */
+
+    /* we only one mouse, all mice equate to that (multiple controls) */
+    event(stdin, &er);
+    if (er.etype == etmoumov) {
+    cursor(stdout, x, y);
+    printf("          \n");
+    cursor(stdout, er.UU.U40.moupx, er.UU.U40.moupy);
+    x = curx(stdout);
+    y = cury(stdout);
+    printf("<- Mouse %d\n", er.UU.U40.mmoun);
+
+    }
+
+    /* blank out button status line */
+    cursor(stdout, 1, maxy(stdout) - 2);
+    FORLIM = maxx(stdout);
+    for (i = 1; i <= FORLIM; i++)
+    putchar(' ');
+    if (er.etype == etmouba) {  /* mouse button assert */
+    cursor(stdout, 1, maxy(stdout) - 2);
+    printf("Mouse button assert, mouse: %d button: %d\n",
+           er.UU.U38.amoun, er.UU.U38.amoubn);
+
+    }
+
+    if (er.etype == etmoubd) {  /* mouse button assert */
+    cursor(stdout, 1, maxy(stdout) - 2);
+    printf("Mouse button deassert, mouse: %d button: %d\n",
+           er.UU.U39.dmoun, er.UU.U39.dmoubn);
+
+    }
+
+
+    } while (er.etype != etenter && er.etype != etterm);
+    if (er.etype == etterm) {
+    goto _L99;
+
+    }
+    }
+
+
+    /* ********************** Character write speed test *********************** */
+
+    printf("\f");
+    clk = clock;   /* get reference time */
+/* p2c: scntst.pas, line 981:
+ * Warning: Symbol 'CLOCK' is not defined [221] */
+    c = '\0';   /* initalize character value */
+    cnt = 0;   /* clear character count */
+    FORLIM = maxy(stdout);
+    for (y = 1; y <= FORLIM; y++) {
+    cursor(stdout, 1, y);   /* index start of line */
+    FORLIM1 = maxx(stdout);
+    for (x = 1; x <= FORLIM1; x++) {
+    if (c >= ' ' && c != '\177')
+    putchar(c);
+    else
+    printf("\\\\");
+    if (c != '\177')
+    c++;   /* next character */
+    else
+    c = '\0';
+    /* start over */
+    cnt++;   /* count characters */
+
+    }
+
+
+    }
+
+    clk = elapsed(clk);   /* find elapsed time */
+/* p2c: scntst.pas, line 998:
+ * Warning: Symbol 'ELAPSED' is not defined [221] */
+    printf("\f");
+    printf("Character write speed: % .5E average seconds per character\n",
+           (double)clk / cnt * 0.0001);
+    waitnext();
+
+    /* ************************** Scrolling speed test ************************* */
+
+    printf("\f");
+    /* fill screen so we aren't moving blanks (could be optimized) */
+    c = '1';
+    FORLIM = maxy(stdout);
+    for (y = 1; y <= FORLIM; y++) {
+    cursor(stdout, 1, y);   /* index start of line */
+    FORLIM1 = maxx(stdout);
+    for (x = 1; x <= FORLIM1; x++)   /* output characters */
+    putchar(c);
+    if (c != '9')
+    c++;   /* next character */
+    else {
+    c = '0';   /* start over */
+
+    }
+    }
+
+    TEMP = "Scrolling speed test";
+    prtban(&TEMP);
+    clk = clock;   /* get reference time */
+/* p2c: scntst.pas, line 1018:
+ * Warning: Symbol 'CLOCK' is not defined [221] */
+    cnt = 0;   /* clear count */
+    for (i = 1; i <= 1000; i++) {  /* scroll various directions */
+    scroll(stdout, 0, -1);   /* up */
+    scroll(stdout, -1, 0);   /* left */
+    scroll(stdout, 0, 1);   /* down */
+    scroll(stdout, 0, 1);   /* down */
+    scroll(stdout, 1, 0);   /* right */
+    scroll(stdout, 1, 0);   /* right */
+    scroll(stdout, 0, -1);   /* up */
+    scroll(stdout, 0, -1);   /* up */
+    scroll(stdout, -1, 0);   /* left */
+    scroll(stdout, 0, 1);   /* down */
+    scroll(stdout, -1, -1);   /* up/left */
+    scroll(stdout, 1, 1);   /* down/right */
+    scroll(stdout, 1, 1);   /* down/right */
+    scroll(stdout, -1, -1);   /* up/left */
+    scroll(stdout, 1, -1);   /* up/right */
+    scroll(stdout, -1, 1);   /* down/left */
+    scroll(stdout, -1, 1);   /* down/left */
+    scroll(stdout, 1, -1);   /* up/right */
+    cnt += 19;   /* count all scrolls */
+
+    }
+
+    clk = elapsed(clk);   /* find elapsed time */
+/* p2c: scntst.pas, line 1043:
+ * Warning: Symbol 'ELAPSED' is not defined [221] */
+    printf("\f");
+    printf("Scrolling speed: % .5E average seconds per scroll\n",
+           (double)clk / cnt * 0.0001);
+    waitnext();
+
+    /* ************************** Buffer flip speed test ************************* */
+
+    printf("\f");
+    cnt = 0;   /* clear count */
+
+    for (b = 2; b <= 10; b++) {  /* prepare buffers */
+    select(stdout, b, 2);   /* select buffer */
+    /* write a shinking box pattern */
+
+    box(b - 1, b - 1, maxx(stdout) - b + 2, maxy(stdout) - b + 2, '*');
+    }
+
+    clk = clock;   /* get reference time */
+/* p2c: scntst.pas, line 1061:
+ * Warning: Symbol 'CLOCK' is not defined [221] */
+    for (i = 1; i <= 1000; i++) {   /* flip buffers */
+    for (b = 2; b <= 10; b++) {
+    select(stdout, 2, b);
+    cnt++;
+
+    }
+
+    }
+    clk = elapsed(clk);   /* find elapsed time */
+/* p2c: scntst.pas, line 1069:
+ * Warning: Symbol 'ELAPSED' is not defined [221] */
+    select(stdout, 2, 2);   /* restore buffer select */
+    printf("\f");
+    printf("Buffer switch speed: % .5E average seconds per switch\n",
+           (double)clk / cnt * 0.0001);
+    waitnext();
+
+_L99:   /* terminate */
+
+    /* test complete */
+    select(stdout, 1, 1);   /* back to display buffer */
+    curvis(stdout, 1);   /* restore cursor */
+    auto_(stdout, 1);   /* enable automatic screen wrap */
+    printf("\nTest complete\n");
+    if (tf != NULL)
+    fclose(tf);
+    exit(EXIT_SUCCESS);
+}
+
+
+
+/* End. */

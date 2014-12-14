@@ -13,8 +13,8 @@ event: pa_ansi.c pa_terminal.h event.c stdio.c stdio.h Makefile
 getkeys: getkeys.c Makefile
 	gcc -g -o getkeys getkeys.c
 	
-terminal: pa_ansi.c pa_terminal.h terminal.c stdio.c stdio.h Makefile
-	gcc -g -o terminal stdio.c pa_ansi.c terminal.c
+term: pa_ansi.c pa_terminal.h terminal.c stdio.c stdio.h Makefile
+	gcc -g -o term stdio.c pa_ansi.c terminal.c
 
 test1: test1.c
 	gcc -o test1 test1.c -lrt
