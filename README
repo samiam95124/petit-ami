@@ -41,12 +41,19 @@ similar toolkits is that Petit Ami is:
   standard ANSI C program is automatically a Petit Ami compatible program. This
   is very different than virtually all existing TKs that force you to discard
   standard I/O models to use the GTK elements of their TK.
+  
+- It allows use of standard ANSI C and is language agnostic. PA came from
+  another language, and is far less language dependent than supposedly "language
+  independent" TKs. It does not depend on callbacks, void pointers, zero 
+  terminated strings, classes/objects, and other language specific features. As
+  with with a few other TKs, such language specific features are left to the
+  individual language bindings.
 
 WHAT IS PROVIDED
 
 Petit Ami is a series of C files that address the various API sections that
 make up the PA standard. The ability run standard ANSI library functions atop
-a GUI is done by using NEWLIB and interdicting the basic file I/O calls,
+a GUI is done by using replacing stdio and interdicting the basic file I/O calls,
 including to the console.
 
 PA can be run either native or stacked atop another TK. The first PA/TK

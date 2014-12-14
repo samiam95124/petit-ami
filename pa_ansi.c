@@ -222,13 +222,20 @@ static struct termios trmsav;
 /**
  * Set of input file ids for select
  */
-fd_set ifdset;
+fd_set ifdseta; /* active sets */
+fd_set ifdsets; /* signaled set */
 int ifdmax;
 
 /**
  * Active timers table
  */
 int timtbl[MAXTIM];
+
+/**
+ * Key matching input buffer
+ */
+char keybuf[10]; /* buffer */
+int keylen; /* number of characters in buffer */
 
 /** ****************************************************************************
 
@@ -266,10 +273,13 @@ static void error(errcod e)
 
 /** ****************************************************************************
 
-Write character from input file
+Read character from input file
 
 Reads a single character to from the input file. Used to read from the input file
 directly.
+
+On the input file, we can't use the override, because the select() call bypasses
+it on input, and so we must as well.
 
 *******************************************************************************/
 
@@ -281,7 +291,8 @@ static char getchr(void)
     ssize_t rc; /* return code */
 
     /* receive character to the next hander in the override chain */
-    rc = (*ofpread)(INPFIL, &c, 1);
+    // rc = (*ofpread)(INPFIL, &c, 1);
+    rc = read(INPFIL, &c, 1);
     if (rc != 1) error(einpdev); /* input device error */
 
     return c; /* return character */
@@ -294,6 +305,8 @@ Write character to output file
 
 Writes a single character to the output file. Used to write to the output file
 directly.
+
+Uses the write() override.
 
 *******************************************************************************/
 
@@ -362,7 +375,7 @@ static void wrtint(int i)
 
 /** *****************************************************************************
 
-Get keyboard code control match
+Get keyboard code control match or other event
 
 Performs a successive match to keyboard input. A keyboard character is read,
 and matched against the keyboard equivalence table. If we find a match, we keep
@@ -373,54 +386,90 @@ discarded, and matching goes on with the next input character. Such "stillborn"
 matches are either the result of ill considered input key equivalences, or of
 a user typing in keys manually that happen to evaluate to special keys.
 
+If another event is multiplexed input the input select() mask, that event is
+also input. The set ifdseta indicates what input channels by file descriptor
+are active, and the set ifdsets indicates what input channels currently have
+data.
+
 *******************************************************************************/
 
-static void getkey(evtcod *evt, char *key)
+static void inpevt(evtrec* ev)
 
 {
 
-    /** input key match buffer. This is sized to the longest control key
-        sequence possible. */
-    char   buf[10];
-    int    len;
     int    pmatch; /* partial match found */
-    int    ematch; /* exact match found */
-    int    stillborn; /* stillborn match */
-    evtcod i; /* index for events */
+    evtcod i;      /* index for events */
+    int    rv;     /* return value */
+    int    evtfnd; /* found an event */
+    int    evtsig; /* event signaled */
+    int    ti;     /* index for timers */
 
-    len = 0;
-    do { /* match input keys */
+    evtfnd = 0; /* set no event found */
+    evtsig = 0; /* set no event signaled */
+    do { /* match input events */
 
-        buf[len++] = getchr(); /* get next character to match buffer */
-        pmatch = 0; /* set no partial matches */
-        ematch = 0; /* set no exact matches */
-        stillborn = 0; /* no stillborn match */
-        for (i = etchar; i <= etterm && !ematch; i++) {
+        evtfnd = 0; /* set no event found */
+        /* check one of the read files has signaled */
+        if (FD_ISSET(0, &ifdsets)) {
 
-            if (!strncmp(buf, keytab[i], len)) {
+            /* keyboard (standard input) */
+            evtsig = 1; /* event signaled */
+            keybuf[keylen++] = getchr(); /* get next character to match buffer */
+            pmatch = 0; /* set no partial matches */
+            for (i = etchar; i <= etterm && !evtfnd; i++)
+                if (!strncmp(keybuf, keytab[i], keylen)) {
 
-            	pmatch = 1; /* set partial match */
-                *evt = i; /* set what event */
+                pmatch = 1; /* set partial match */
+                ev->etype = i; /* set what event */
                 /* set if the match is whole key */
-                ematch = strlen(keytab[i]) == len;
+                if (strlen(keytab[i]) == keylen) {
+
+                    /* complete match found, set as event */
+                    ev->etype = i; /* set event */
+                    evtfnd = 1; /* set event found */
+                    keylen = 0; /* clear buffer */
+
+                }
+
+            }
+            /* if no partial match, then something went wrong, or there never was
+               at match at all. For such "stillborn" matches we start over */
+            if (!pmatch && keylen > 1) keylen = 0; /* clear the buffer */
+
+        } else {
+
+            /* look in timer set */
+            for (ti = 0; ti < MAXTIM; ti++) {
+
+                if (FD_ISSET(timtbl[ti], &ifdsets)) {
+
+                    /* timer found, set as event */
+                    evtsig = 1; /* set event signaled */
+                    ev->etype = ettim; /* set timer type */
+                    ev->timnum = ti; /* set timer number */
+                    evtfnd = 1; /* set event found */
+
+                }
 
             }
 
         }
-        /* if no partial match, then something went wrong, or there never was
-           at match at all. For such "stillborn" matches we start over */
-        if (!pmatch && len > 1) {
+        if (!evtsig) {
 
-        	len = 0; /* clear the buffer */
-        	stillborn = 1; /* set stillborn match */
+            /* no input is active, load a new signaler set */
+            ifdsets = ifdseta; /* set up request set */
+            rv = select(ifdmax, &ifdsets, NULL, NULL, NULL);
 
         }
 
-    } while ((pmatch && !ematch) || stillborn); /* while substring match but not whole match */
-    if (!ematch) {
+    /* while substring match and no other event found */
+    } while (pmatch && !evtfnd);
+    if (!evtfnd) { /* if no other event type */
 
-    	*key = buf[0]; /* get our character from buffer */
-    	*evt = etchar; /* set character event */
+        /* set keyboard event */
+    	ev->echar = keybuf[0]; /* get our character from buffer */
+    	ev->etype = etchar; /* set character event */
+    	keylen = 0; /* clear keyboard buffer */
 
     }
 
@@ -1817,7 +1866,9 @@ void selects(FILE *f, int u, int d)
 
 Acquire next input event
 
-Only character input from the standard input is supported.
+Decodes the input for various events. These are sent to the override handlers
+first, then if no chained handler dealt with it, we return the event to the
+caller.
 
 *******************************************************************************/
 
@@ -1827,11 +1878,9 @@ void event(FILE* f, evtrec *er)
 
     do { /* loop handling via event vectors */
 
-    	/* get next key event */
-    	getkey(&er->etype, &er->echar);
+    	/* get next input event */
+    	inpevt(er);
         er->handled = 1; /* set event is handled by default */
-        /* decode alternate character types */
-        if (er->echar == '\n') er->etype = etenter;
         (*evthan[er->etype])(er); /* call event handler first */
 
     } while (er->handled);
@@ -1862,7 +1911,7 @@ void timer(/* file to send event to */              FILE *f,
 
         timtbl[i-1] = timerfd_create(CLOCK_REALTIME, 0);
         if (timtbl[i-1] == -1) error(etimacc);
-        FD_SET(timtbl[i-1], &ifdset); /* place new file in select set */
+        FD_SET(timtbl[i-1], &ifdseta); /* place new file in active select set */
         /* if the new file handle is greater than  any existing, set new max */
         if (timtbl[i-1]+1 > ifdmax) ifdmax = timtbl[i-1]+1;
 
@@ -2205,6 +2254,9 @@ static void init_terminal()
     iniscn(); /* initalize screen */
     for (e = etchar; e <= etterm; e++) evthan[e] = defaultevent;
 
+    /* clear keyboard match buffer */
+    keylen = 0;
+
     /*
      * Set terminal in raw mode
      */
@@ -2226,13 +2278,16 @@ static void init_terminal()
     raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
 
     /* clear input select set */
-    FD_ZERO(&ifdset);
+    FD_ZERO(&ifdseta);
 
     /* select input file */
-    FD_SET(0, &ifdset);
+    FD_SET(0, &ifdseta);
 
     /* set current max input fd */
     ifdmax = 0+1;
+
+    /* clear the signaling set */
+    FD_ZERO(&ifdsets);
 
     /* clear the timers table */
     for (ti = 0; ti < MAXTIM; ti++) timtbl[ti] = -1;
