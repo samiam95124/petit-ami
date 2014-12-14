@@ -124,6 +124,7 @@ typedef enum {
     emouacc,  /* mouse access */
     eoutdev,  /* output device error */
     einpdev,  /* input device error */
+    einvtab,  /* invalid tab stop */
     esysflt   /* system fault */
 
 } errcod;
@@ -236,6 +237,7 @@ int timtbl[MAXTIM];
  */
 char keybuf[10]; /* buffer */
 int keylen; /* number of characters in buffer */
+int tabs[MAXXD]; /* tabs set */
 
 /** ****************************************************************************
 
@@ -264,9 +266,12 @@ static void error(errcod e)
         case emouacc: fprintf(stderr, "No mouse access available"); break;
         case eoutdev: fprintf(stderr, "Error in output device"); break;
         case einpdev: fprintf(stderr, "Error in input device"); break;
+        case einvtab: fprintf(stderr, "Invalid tab stop position"); break;
         case esysflt: fprintf(stderr, "System fault"); break;
 
     }
+    fprintf(stderr, "\n");
+
     exit(1);
 
 }
@@ -1192,7 +1197,13 @@ static void plcchr(char c)
 
     } else if (c == '\b') ileft(); /* back space, move left */
     else if (c == '\f') iclear(); /* clear screen */
-    else if (c >= ' ' && c != 0x7f) {
+    else if (c == '\t') {
+
+        /* find next tab position */
+        while (!tabs[screens[curscn-1]->cury-1] &&
+               screens[curscn-1]->cury <= MAXXD) iright();
+
+    } else if (c >= ' ' && c != 0x7f) {
 
         /* normal character case, not control character */
         putchr(c); /* output character to terminal */
@@ -2073,13 +2084,14 @@ Sets a tab. The tab number t is 1 to n, and indicates the column for the tab.
 Setting a tab stop means that when a tab is received, it will move to the next
 tab stop that is set. If there is no next tab stop, nothing will happen.
 
-Not implemented.
-
 *******************************************************************************/
 
 void settab(FILE* f, int t)
 
 {
+
+    if (t < 1 || t > MAXXD) error(einvtab); /* invalid tab position */
+    tabs[t-1] = 1; /* set tab position */
 
 }
 
@@ -2089,13 +2101,14 @@ restab
 
 Resets a tab. The tab number t is 1 to n, and indicates the column for the tab.
 
-Not implemented.
-
 *******************************************************************************/
 
 void restab(FILE* f, int t)
 
 {
+
+    if (t < 1 || t > MAXXD) error(einvtab); /* invalid tab position */
+    tabs[t-1] = 0; /* reset tab position */
 
 }
 
@@ -2105,13 +2118,15 @@ clrtab
 
 Clears all tabs.
 
-Not implemented.
-
 *******************************************************************************/
 
 void clrtab(FILE* f)
 
 {
+
+    int i;
+
+    for (i = 0; i < MAXXD; i++) tabs[i] = 0; /* clear all tab stops */
 
 }
 
@@ -2241,7 +2256,7 @@ static void init_terminal()
 
     /** index for events */            evtcod e;
     /** build new terminal settings */ struct termios raw;
-    /** index for timer table */       int ti;
+    /** index */                       int i;
 
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
@@ -2295,7 +2310,10 @@ static void init_terminal()
     FD_ZERO(&ifdsets);
 
     /* clear the timers table */
-    for (ti = 0; ti < MAXTIM; ti++) timtbl[ti] = -1;
+    for (i = 0; i < MAXTIM; i++) timtbl[i] = -1;
+
+    /* clear tabs and set to 8ths */
+    for (i = 0; i < MAXXD; i++) tabs[i] = !((i-1)%8) && i != 1;
 
     /* put terminal in raw mode after flushing */
     tcsetattr(0,TCSAFLUSH,&raw);
