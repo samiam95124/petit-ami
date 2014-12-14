@@ -4,17 +4,17 @@
 
 all: test event getkeys terminal
 	
-test: pa_ansi.c pa_terminal.h test.c stdio.c stdio.h Makefile
-	gcc -g -o test stdio.c pa_ansi.c test.c
+test: ansiterm.c terminal.h test.c stdio.c stdio.h Makefile
+	gcc -g -o test stdio.c ansiterm.c test.c
 	
-event: pa_ansi.c pa_terminal.h event.c stdio.c stdio.h Makefile
-	gcc -g -o event stdio.c pa_ansi.c event.c
+event: ansiterm.c terminal.h event.c stdio.c stdio.h Makefile
+	gcc -g -o event stdio.c ansiterm.c event.c
 	
 getkeys: getkeys.c Makefile
 	gcc -g -o getkeys getkeys.c
 	
-term: pa_ansi.c pa_terminal.h terminal.c stdio.c stdio.h Makefile
-	gcc -g -o term stdio.c pa_ansi.c terminal.c
+term: ansiterm.c terminal.h term.c stdio.c stdio.h Makefile
+	gcc -g -o term stdio.c ansiterm.c term.c
 
 test1: test1.c
 	gcc -o test1 test1.c -lrt
