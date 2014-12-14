@@ -397,12 +397,14 @@ static void inpevt(evtrec* ev)
 
 {
 
-    int    pmatch; /* partial match found */
-    evtcod i;      /* index for events */
-    int    rv;     /* return value */
-    int    evtfnd; /* found an event */
-    int    evtsig; /* event signaled */
-    int    ti;     /* index for timers */
+    int      pmatch; /* partial match found */
+    evtcod   i;      /* index for events */
+    int      rv;     /* return value */
+    int      evtfnd; /* found an event */
+    int      evtsig; /* event signaled */
+    int      ti;     /* index for timers */
+    ssize_t  rl;     /* read length */
+    uint64_t exp;    /* timer expiration time */
 
     evtfnd = 0; /* set no event found */
     evtsig = 0; /* set no event signaled */
@@ -414,6 +416,7 @@ static void inpevt(evtrec* ev)
 
             /* keyboard (standard input) */
             evtsig = 1; /* event signaled */
+            FD_CLR(0, &ifdsets); /* remove from input signals */
             keybuf[keylen++] = getchr(); /* get next character to match buffer */
             pmatch = 0; /* set no partial matches */
             for (i = etchar; i <= etterm && !evtfnd; i++)
@@ -439,15 +442,17 @@ static void inpevt(evtrec* ev)
         } else {
 
             /* look in timer set */
-            for (ti = 0; ti < MAXTIM; ti++) {
+            for (ti = 0; ti < MAXTIM && !evtfnd; ti++) {
 
                 if (FD_ISSET(timtbl[ti], &ifdsets)) {
 
                     /* timer found, set as event */
                     evtsig = 1; /* set event signaled */
+                    FD_CLR(timtbl[ti], &ifdsets); /* remove from input signals */
                     ev->etype = ettim; /* set timer type */
-                    ev->timnum = ti; /* set timer number */
+                    ev->timnum = ti+1; /* set timer number */
                     evtfnd = 1; /* set event found */
+                    rl = read(timtbl[ti], &exp, sizeof(uint64_t));
 
                 }
 
@@ -1927,8 +1932,8 @@ void timer(/* file to send event to */              FILE *f,
 
     if (r) { /* timer reruns */
 
-        ts.it_interval.tv_sec = ts.it_interval.tv_sec;
-        ts.it_interval.tv_nsec = ts.it_interval.tv_nsec;
+        ts.it_interval.tv_sec = ts.it_value.tv_sec;
+        ts.it_interval.tv_nsec = ts.it_value.tv_nsec;
 
     }
 
