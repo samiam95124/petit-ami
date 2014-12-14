@@ -1,7 +1,3 @@
-/* Output from p2c 1.21alpha-07.Dec.93, the Pascal-to-C translator */
-/* From input file "scntst.pas" */
-
-
 /*******************************************************************************
 *                                                                             *
 *                           SCREEN TEST PROGRAM                               *
@@ -28,7 +24,7 @@
 * Notes:                                                                      *
 *                                                                             *
 * Should have speed tests adjust their length according to actual process     *
-* time to prevent tests from taking too long on slow cpu/display.             *
+* time to prevent tests from taking too int on slow cpu/display.             *
 *                                                                             *
 * Benchmark results:                                                          *
 *                                                                             *
@@ -46,56 +42,37 @@
 *                                                                             *
 *******************************************************************************/
 
+#include "terminal.h"
+#include "services.h"
 
-#include <p2c/p2c.h>
-
-
-#ifndef TRMLIB_H
-#include "trmlib.h"
-#endif
-/* p2c: scntst.pas, line 48: Warning: Could not find module EXTLIB [271] */
-
-#include "extlib.h"
-
-
-static long x, y, lx, ly, tx, ty, dx, dy;
+static int x, y, lx, ly, tx, ty, dx, dy;
 static char c;
-static long top, bottom, lside, rside;   /* borders */
-static enum {
-    dup, ddown, dleft, dright
-} direction;   /* writting direction */
-static long count, t1, t2, delay, minlen;   /* minimum direction, x or y */
+static int top, bottom, lside, rside; /* borders */
+static enum { dup, ddown, dleft, dright } direction; /* writting direction */
+static int count, t1, t2, delay, minlen;   /* minimum direction, x or y */
 static evtrec er;   /* event record */
-static long i, b, tc, clk, cnt;
+static int i, b, tc, clk, cnt;
 static FILE *tf;   /* test file */
 static char tf_NAME[_FNSIZE];
 
 
 /* draw box */
 
-static void box(long sx, long sy, long ex, long ey, char c)
+static void box(int sx, int sy, int ex, int ey, char c)
 {
-    long x, y;
 
+    int x, y;
 
     /* top */
     cursor(stdout, sx, sy);
-    for (x = sx; x <= ex; x++)
-    putchar(c);
+    for (x = sx; x <= ex; x++) putchar(c);
     /* bottom */
     cursor(stdout, sx, ey);
-    for (x = sx; x <= ex; x++)
-    putchar(c);
+    for (x = sx; x <= ex; x++) putchar(c);
     /* left */
-    for (y = sy; y <= ey; y++) {
-    cursor(stdout, sx, y);
-    putchar(c);
-    }
+    for (y = sy; y <= ey; y++) { cursor(stdout, sx, y); putchar(c); }
     /* right */
-    for (y = sy; y <= ey; y++) {
-    cursor(stdout, ex, y);
-    putchar(c);
-    }
+    for (y = sy; y <= ey; y++) { cursor(stdout, ex, y); putchar(c); }
 
 }
 
@@ -105,16 +82,13 @@ static jmp_buf _JL99;
 
 /* wait time in 100 microseconds */
 
-static void wait(long t)
+static void wait(int t)
 {
-    timer(stdout, 1, t, 0);
-    do {
-    event(stdin, &er);
-    } while (er.etype != ettim && er.etype != etterm);
-    if (er.etype == etterm) {
-    longjmp(_JL99, 1);
 
-    }
+    timer(stdout, 1, t, 0);
+    do { event(stdin, &er); } while (er.etype != ettim && er.etype != etterm);
+    if (er.etype == etterm) { intjmp(_JL99, 1); }
+
 }
 
 
@@ -122,86 +96,66 @@ static void wait(long t)
 
 static void waitnext(void)
 {
-    do {
-    event(stdin, &er);
-    } while (er.etype != etenter && er.etype != etterm);
-    if (er.etype == etterm) {
-    longjmp(_JL99, 1);
 
-    }
+    do { event(stdin, &er); } while (er.etype != etenter && er.etype != etterm);
+    if (er.etype == etterm) { intjmp(_JL99, 1); }
+
 }
 
 
 static void timetest(void)
 {
-    long i, t, et, total, max, min;
-    evtrec er;
 
+    int i, t, et, total, max, min;
+    evtrec er;
 
     printf("Timer test, measuring minimum timer resolution, 100 samples\n\n");
     max = 0;
-    min = LONG_MAX;
+    min = INT_MAX;
     for (i = 1; i <= 100; i++) {
-    t = clock;
-/* p2c: scntst.pas, line 124:
- * Warning: Symbol 'CLOCK' is not defined [221] */
-    timer(stdout, 1, 1, 0);
-    do {
-    putchar('*');
-    event(stdin, &er);
-    } while (er.etype != ettim);
-    et = elapsed(t);
-/* p2c: scntst.pas, line 127:
- * Warning: Symbol 'ELAPSED' is not defined [221] */
-    total += elapsed(t);
-/* p2c: scntst.pas, line 128:
- * Warning: Symbol 'ELAPSED' is not defined [221] */
-    if (et > max)
-    max = et;
-    if (et < min) {
-    min = et;
+
+        t = clock();
+        timer(stdout, 1, 1, 0);
+        do { putchar('*'); event(stdin, &er); } while (er.etype != ettim);
+        et = elapsed(t);
+        total += elapsed(t);
+        if (et > max) max = et;
+        if (et < min) min = et;
 
     }
-    }
-
-    printf("\n\nAverage time was: %ld00 Microseconds\n", total / 100);
+    printf("\n");
+    printf("\n");
+    printf("Average time was: %ld00 Microseconds\n", total / 100);
     printf("Minimum time was: %ld00 Microseconds\n", min);
     printf("Maximum time was: %ld00 Microseconds\n", max);
     printf("This timer supports frame rates up to %ld", 10000 / (total / 100));
     printf(" frames per second\n");
-    t = clock;
-/* p2c: scntst.pas, line 140:
- * Warning: Symbol 'CLOCK' is not defined [221] */
+    t = clock();
     timer(stdout, 1, 10000, 0);
-    do {
-    event(stdin, &er);
-    } while (er.etype != ettim);
-/* p2c: scntst.pas, line 143:
- * Warning: Symbol 'ELAPSED' is not defined [221] */
-    printf("1 second time, was: %ld00 Microseconds\n\n", elapsed(t));
-    printf("30 seconds of 1 second ticks:\n\n");
+    do { event(stdin, &er); } while (er.etype != ettim);
+    printf("1 second time, was: %ld00 Microseconds\n", elapsed(t));
+    printf("\n");
+    printf("30 seconds of 1 second ticks:\n");
+    printf("\n");
     for (i = 1; i <= 30; i++) {
-    timer(stdout, 1, 10000, 0);
-    do {
-    event(stdin, &er);
-    } while (er.etype != ettim && er.etype != etterm);
-    if (er.etype == etterm)
-    longjmp(_JL99, 1);
-    putchar('.');
+
+        timer(stdout, 1, 10000, 0);
+        do { event(stdin, &er); } while (er.etype != ettim && er.etype != etterm);
+        if (er.etype == etterm) intjmp(_JL99, 1);
+        putchar('.');
 
     }
-
 
 }
 
 
 /* plot joystick on screen */
 
-static void plotjoy(long line, long joy)
+static void plotjoy(int line, int joy)
 {
-    long i, x;
+    int i, x;
     double r;
-    long FORLIM;
+    int FORLIM;
 
 
     cursor(stdout, 1, line);
@@ -210,7 +164,7 @@ static void plotjoy(long line, long joy)
     putchar(' ');
     if (joy < 0) {  /* plot left */
     r = labs(joy);
-    x = maxx(stdout) / 2 - (long)floor(r * (maxx(stdout) / 2) / LONG_MAX + 0.5);
+    x = maxx(stdout) / 2 - (int)floor(r * (maxx(stdout) / 2) / int_MAX + 0.5);
     cursor(stdout, x, line);
     while (x <= maxx(stdout) / 2) {
     putchar('*');
@@ -223,7 +177,7 @@ static void plotjoy(long line, long joy)
     }
 
     r = joy;
-    x = (long)floor(r * (maxx(stdout) / 2) / LONG_MAX + maxx(stdout) / 2 + 0.5);
+    x = (int)floor(r * (maxx(stdout) / 2) / int_MAX + maxx(stdout) / 2 + 0.5);
     i = maxx(stdout) / 2;
     cursor(stdout, i, line);
     while (i <= x) {
@@ -237,55 +191,44 @@ static void plotjoy(long line, long joy)
 
 
 }
-/* p2c: scntst.pas, line 200: Warning: Expected a colon, found 's' [227] */
-/* p2c: scntst.pas, line 200: Warning: Expected a ')', found 's' [227] */
 
 
 /* print centered string */
 
-static void prtcen(long y, void *view)
+static void prtcen(int y, char *s)
 {
-/* p2c: scntst.pas, line 204: Warning: Symbol 'S' is not defined [221] */
     cursor(stdout, maxx(stdout) / 2 - s / 2, y);
-/* p2c: scntst.pas, line 205: Warning: Symbol 'S' is not defined [221] */
-    printf("%ld", s);
+    fputs(s, stdout);
 
 }
-/* p2c: scntst.pas, line 211: Warning: Expected a colon, found 's' [227] */
-/* p2c: scntst.pas, line 211: Warning: Expected a ')', found 's' [227] */
 
 
 /* print center banner string */
 
-static void prtban(void *view)
+static void prtban(char *s)
 {
-    long i;
+    int i, FORLIM;
 
 
-/* p2c: scntst.pas, line 217: Warning: Symbol 'S' is not defined [221] */
     cursor(stdout, maxx(stdout) / 2 - s / 2 - 1, maxy(stdout) / 2 - 1);
-    for (i = 1; i <= s + 2; i++)
+    FORLIM = strlen(s) + 2;
+    for (i = 1; i <= FORLIM; i++)
     putchar(' ');
-/* p2c: scntst.pas, line 218: Warning: Symbol 'S' is not defined [221] */
-/* p2c: scntst.pas, line 219: Warning: Symbol 'S' is not defined [221] */
     cursor(stdout, maxx(stdout) / 2 - s / 2 - 1, maxy(stdout) / 2);
     putchar(' ');
-/* p2c: scntst.pas, line 221: Warning: Symbol 'S' is not defined [221] */
-    prtcen(maxy(stdout) / 2, (void *)(&s));
+    prtcen(maxy(stdout) / 2, s);
     putchar(' ');
-/* p2c: scntst.pas, line 223: Warning: Symbol 'S' is not defined [221] */
     cursor(stdout, maxx(stdout) / 2 - s / 2 - 1, maxy(stdout) / 2 + 1);
-    for (i = 1; i <= s + 2; i++)
+    FORLIM = strlen(s) + 2;
+    for (i = 1; i <= FORLIM; i++)
     putchar(' ');
-/* p2c: scntst.pas, line 224: Warning: Symbol 'S' is not defined [221] */
 
 }
 
 
 main(int argc, char *argv[])
 {
-    void TEMP;
-    long FORLIM, FORLIM1;
+    int FORLIM, FORLIM1;
 
 
     if (setjmp(_JL99))
@@ -297,10 +240,8 @@ main(int argc, char *argv[])
     bcolor(stdout, white);
     printf("\f");
     curvis(stdout, 0);
-    TEMP = "Terminal mode screen test vs. 1.0";
-    prtban(&TEMP);
-    TEMP = "Press return to continue";
-    prtcen(maxy(stdout), &TEMP);
+    prtban("Terminal mode screen test vs. 1.0");
+    prtcen(maxy(stdout), "Press return to continue");
     waitnext();
     printf("\f");   /* clear screen */
     printf("Screen size: x -> %ld y -> %ld\n\n", maxx(stdout), maxy(stdout));
@@ -320,14 +261,12 @@ main(int argc, char *argv[])
     printf("\nNumber of buttons on mouse: %ld is: %d\n",
            i, mousebutton(stdout, i));
 
-    TEMP = "Press return to continue";
 
-    prtcen(maxy(stdout), &TEMP);
+    prtcen(maxy(stdout), "Press return to continue");
     waitnext();
     printf("\f");
     timetest();
-    TEMP = "Press return to continue";
-    prtcen(maxy(stdout), &TEMP);
+    prtcen(maxy(stdout), "Press return to continue");
     waitnext();
     printf("\f");
     curvis(stdout, 1);
@@ -341,8 +280,8 @@ main(int argc, char *argv[])
     waitnext();
     curvis(stdout, 0);
     printf("\n\n");
-    TEMP = "Press return to start test (and to pass each pattern)";
-    prtcen(maxy(stdout), &TEMP);
+    prtcen(maxy(stdout),
+           "Press return to start test (and to pass each pattern)");
     waitnext();
 
     /* ************************* Test last line problem ************************ */
@@ -350,8 +289,7 @@ main(int argc, char *argv[])
     printf("\f");
     curvis(stdout, 0);   /* remove cursor */
     auto_(stdout, 0);   /* turn off auto scroll */
-    TEMP = "Last line blank out test";
-    prtcen(1, &TEMP);
+    prtcen(1, "Last line blank out test");
     cursor(stdout, 1, 3);
     printf("If this terminal is not capable of showing the last character on\n");
     printf("the last line, the \"*\" character pointed to by the arrow below\n");
@@ -403,18 +341,15 @@ main(int argc, char *argv[])
     left(stdout);
     left(stdout);
     printf("\\\\/");
-    TEMP = "BARK!";
     /* test delete works */
-    prtcen(1, &TEMP);
+    prtcen(1, "BARK!");
     del(stdout);
     del(stdout);
     del(stdout);
     del(stdout);
     del(stdout);
-    TEMP = "Cursor movements test, automatic scroll ON";
-    prtcen(maxy(stdout) / 2 - 1, &TEMP);
-    TEMP = "Should be a double line X in each corner";
-    prtcen(maxy(stdout) / 2 + 1, &TEMP);
+    prtcen(maxy(stdout) / 2 - 1, "Cursor movements test, automatic scroll ON");
+    prtcen(maxy(stdout) / 2 + 1, "Should be a double line X in each corner");
     waitnext();
 
     /* Now do it with automatic scrolling off. The pattern will rely on the
@@ -462,18 +397,16 @@ main(int argc, char *argv[])
     down(stdout);
     del(stdout);
     printf("/\\\\");
-    TEMP = "Cursor movements test, automatic scroll OFF";
-    prtcen(maxy(stdout) / 2 - 1, &TEMP);
-    TEMP = "Should be a double line X in each corner";
-    prtcen(maxy(stdout) / 2 + 1, &TEMP);
+    prtcen(maxy(stdout) / 2 - 1,
+           "Cursor movements test, automatic scroll OFF");
+    prtcen(maxy(stdout) / 2 + 1, "Should be a double line X in each corner");
     waitnext();
 
     /* **************************** Scroll cursor test ************************* */
 
     printf("\f");
     curvis(stdout, 1);
-    TEMP = "Scroll cursor test, cursor should be here ->";
-    prtcen(maxy(stdout) / 2, &TEMP);
+    prtcen(maxy(stdout) / 2, "Scroll cursor test, cursor should be here ->");
     up(stdout);
     scroll(stdout, 0, 1);
     waitnext();
@@ -498,8 +431,7 @@ main(int argc, char *argv[])
     }
     }
 
-    TEMP = "Row ID test, all rows should be numbered";
-    prtban(&TEMP);
+    prtban("Row ID test, all rows should be numbered");
     waitnext();
 
     /* *************************** Collumn ID test ***************************** */
@@ -523,8 +455,7 @@ main(int argc, char *argv[])
 
     }
 
-    TEMP = "Collumn ID test, all collumns should be numbered";
-    prtban(&TEMP);
+    prtban("Collumn ID test, all collumns should be numbered");
     waitnext();
 
     /* ****************************** Fill test ******************************** */
@@ -551,8 +482,7 @@ main(int argc, char *argv[])
 
     }
 
-    TEMP = "Fill test, all printable characters should appear";
-    prtban(&TEMP);
+    prtban("Fill test, all printable characters should appear");
     waitnext();
 
     /* **************************** Sidewinder test **************************** */
@@ -635,10 +565,8 @@ main(int argc, char *argv[])
 
     }
 
-    TEMP = "                 ";
-    prtcen(maxy(stdout) - 1, &TEMP);
-    TEMP = " Sidewinder test ";
-    prtcen(maxy(stdout), &TEMP);
+    prtcen(maxy(stdout) - 1, "                 ");
+    prtcen(maxy(stdout), " Sidewinder test ");
     waitnext();
 
     /* *************************** Bouncing ball test ************************** */
@@ -670,10 +598,8 @@ main(int argc, char *argv[])
     wait(100);
     }
 
-    TEMP = "                    ";
-    prtcen(maxy(stdout) - 1, &TEMP);
-    TEMP = " Bouncing ball test ";
-    prtcen(maxy(stdout), &TEMP);
+    prtcen(maxy(stdout) - 1, "                    ");
+    prtcen(maxy(stdout), " Bouncing ball test ");
     waitnext();
 
     /* *************************** Attributes test ************************** */
@@ -735,8 +661,7 @@ main(int argc, char *argv[])
     printf("Magenta background text\n");
     bcolor(stdout, white);
 
-    TEMP = "Attributes test";
-    prtcen(maxy(stdout), &TEMP);
+    prtcen(maxy(stdout), "Attributes test");
     }
 
     waitnext();
@@ -765,8 +690,7 @@ main(int argc, char *argv[])
     wait(200);
     scroll(stdout, 0, 1);
     }
-    TEMP = "Scroll up";
-    prtcen(maxy(stdout), &TEMP);
+    prtcen(maxy(stdout), "Scroll up");
     waitnext();
     printf("\f");
     /* fill screen with row order data */
@@ -790,8 +714,7 @@ main(int argc, char *argv[])
     wait(200);
     scroll(stdout, 0, -1);
     }
-    TEMP = "Scroll down";
-    prtcen(maxy(stdout), &TEMP);
+    prtcen(maxy(stdout), "Scroll down");
     waitnext();
     printf("\f");
     /* fill screen with collumn order data */
@@ -818,8 +741,7 @@ main(int argc, char *argv[])
     wait(200);
     scroll(stdout, 1, 0);
     }
-    TEMP = "Scroll left";
-    prtcen(maxy(stdout), &TEMP);
+    prtcen(maxy(stdout), "Scroll left");
     waitnext();
     printf("\f");
     /* fill screen with collumn order data */
@@ -851,8 +773,7 @@ main(int argc, char *argv[])
     minlen = x;
     else
     minlen = y;
-    TEMP = "Scroll right";
-    prtcen(maxy(stdout), &TEMP);
+    prtcen(maxy(stdout), "Scroll right");
     waitnext();
     printf("\f");
     /* fill screen with uni data */
@@ -879,8 +800,7 @@ main(int argc, char *argv[])
     wait(200);
     scroll(stdout, 1, 1);
     }
-    TEMP = "Scroll up/left";
-    prtcen(maxy(stdout), &TEMP);
+    prtcen(maxy(stdout), "Scroll up/left");
     waitnext();
     printf("\f");
     /* fill screen with uni data */
@@ -907,8 +827,7 @@ main(int argc, char *argv[])
     wait(200);
     scroll(stdout, 1, -1);
     }
-    TEMP = "Scroll down/left";
-    prtcen(maxy(stdout), &TEMP);
+    prtcen(maxy(stdout), "Scroll down/left");
     waitnext();
     printf("\f");
     /* fill screen with uni data */
@@ -935,8 +854,7 @@ main(int argc, char *argv[])
     wait(200);
     scroll(stdout, -1, 1);
     }
-    TEMP = "Scroll up/right";
-    prtcen(maxy(stdout), &TEMP);
+    prtcen(maxy(stdout), "Scroll up/right");
     waitnext();
     printf("\f");
     /* fill screen with uni data */
@@ -963,8 +881,7 @@ main(int argc, char *argv[])
     wait(200);
     scroll(stdout, -1, -1);
     }
-    TEMP = "Scroll down/right";
-    prtcen(maxy(stdout), &TEMP);
+    prtcen(maxy(stdout), "Scroll down/right");
     waitnext();
 
     /* ******************************** Tab test ******************************* */
@@ -979,8 +896,7 @@ main(int argc, char *argv[])
 
     }
 
-    TEMP = "Tabbing test";
-    prtcen(maxy(stdout), &TEMP);
+    prtcen(maxy(stdout), "Tabbing test");
     waitnext();
 
     /* ************************** Buffer switching test ************************ */
@@ -991,8 +907,7 @@ main(int argc, char *argv[])
     /* write a shinking box pattern */
     box(b - 1, b - 1, maxx(stdout) - b + 2, maxy(stdout) - b + 2, '*');
 
-    TEMP = "Buffer switching test";
-    prtcen(maxy(stdout), &TEMP);
+    prtcen(maxy(stdout), "Buffer switching test");
     }
 
     for (i = 1; i <= 30; i++) {   /* flip buffers */
@@ -1006,8 +921,7 @@ main(int argc, char *argv[])
     /* **************************** Writethrough test ************************** */
 
     printf("\f");
-    TEMP = "File writethrough test";
-    prtcen(maxy(stdout), &TEMP);
+    prtcen(maxy(stdout), "File writethrough test");
     home(stdout);
     if (tf != NULL)
     tf = freopen(tf_NAME, "w", tf);
@@ -1035,10 +949,8 @@ main(int argc, char *argv[])
 
     if (joystick(stdout) > 0) {  /* joystick test */
     printf("\f");
-    TEMP = "Move the joystick(s) X, Y and Z, and hit buttons";
-    prtcen(1, &TEMP);
-    TEMP = "Joystick test test";
-    prtcen(maxy(stdout), &TEMP);
+    prtcen(1, "Move the joystick(s) X, Y and Z, and hit buttons");
+    prtcen(maxy(stdout), "Joystick test test");
     do {   /* gather joystick events */
 
     /* we do up to 4 joysticks */
@@ -1158,10 +1070,8 @@ main(int argc, char *argv[])
 
     if (mouse(stdin) > 0) {  /* mouse test */
     printf("\f");
-    TEMP = "Move the mouse, and hit buttons";
-    prtcen(1, &TEMP);
-    TEMP = "Mouse test";
-    prtcen(maxy(stdout), &TEMP);
+    prtcen(1, "Move the mouse, and hit buttons");
+    prtcen(maxy(stdout), "Mouse test");
     do {   /* gather mouse events */
 
     /* we only one mouse, all mice equate to that (multiple controls) */
@@ -1207,9 +1117,7 @@ main(int argc, char *argv[])
     /* ********************** Character write speed test *********************** */
 
     printf("\f");
-    clk = clock;   /* get reference time */
-/* p2c: scntst.pas, line 981:
- * Warning: Symbol 'CLOCK' is not defined [221] */
+    clk = clock();   /* get reference time */
     c = '\0';   /* initalize character value */
     cnt = 0;   /* clear character count */
     FORLIM = maxy(stdout);
@@ -1234,8 +1142,6 @@ main(int argc, char *argv[])
     }
 
     clk = elapsed(clk);   /* find elapsed time */
-/* p2c: scntst.pas, line 998:
- * Warning: Symbol 'ELAPSED' is not defined [221] */
     printf("\f");
     printf("Character write speed: % .5E average seconds per character\n",
            (double)clk / cnt * 0.0001);
@@ -1260,11 +1166,8 @@ main(int argc, char *argv[])
     }
     }
 
-    TEMP = "Scrolling speed test";
-    prtban(&TEMP);
-    clk = clock;   /* get reference time */
-/* p2c: scntst.pas, line 1018:
- * Warning: Symbol 'CLOCK' is not defined [221] */
+    prtban("Scrolling speed test");
+    clk = clock();   /* get reference time */
     cnt = 0;   /* clear count */
     for (i = 1; i <= 1000; i++) {  /* scroll various directions */
     scroll(stdout, 0, -1);   /* up */
@@ -1290,8 +1193,6 @@ main(int argc, char *argv[])
     }
 
     clk = elapsed(clk);   /* find elapsed time */
-/* p2c: scntst.pas, line 1043:
- * Warning: Symbol 'ELAPSED' is not defined [221] */
     printf("\f");
     printf("Scrolling speed: % .5E average seconds per scroll\n",
            (double)clk / cnt * 0.0001);
@@ -1309,9 +1210,7 @@ main(int argc, char *argv[])
     box(b - 1, b - 1, maxx(stdout) - b + 2, maxy(stdout) - b + 2, '*');
     }
 
-    clk = clock;   /* get reference time */
-/* p2c: scntst.pas, line 1061:
- * Warning: Symbol 'CLOCK' is not defined [221] */
+    clk = clock();   /* get reference time */
     for (i = 1; i <= 1000; i++) {   /* flip buffers */
     for (b = 2; b <= 10; b++) {
     select(stdout, 2, b);
@@ -1321,8 +1220,6 @@ main(int argc, char *argv[])
 
     }
     clk = elapsed(clk);   /* find elapsed time */
-/* p2c: scntst.pas, line 1069:
- * Warning: Symbol 'ELAPSED' is not defined [221] */
     select(stdout, 2, 2);   /* restore buffer select */
     printf("\f");
     printf("Buffer switch speed: % .5E average seconds per switch\n",
