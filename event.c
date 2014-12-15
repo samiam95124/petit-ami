@@ -10,7 +10,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "pa_terminal.h"
+#include "terminal.h"
 
 main()
 

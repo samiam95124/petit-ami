@@ -6,7 +6,7 @@ Petit Ami test program
 
 #include <stdio.h>
 #include <string.h>
-#include "pa_terminal.h"
+#include "terminal.h"
 
 #define SECOND 10000
 main()

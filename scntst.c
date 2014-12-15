@@ -148,92 +148,79 @@ static void timetest(void)
 
 }
 
-
 /* plot joystick on screen */
 
 static void plotjoy(int line, int joy)
+
 {
+
     int i, x;
     double r;
-    int FORLIM;
-
 
     cursor(stdout, 1, line);
-    FORLIM = maxx(stdout);
-    for (i = 1; i <= FORLIM; i++)   /* clear line */
-    putchar(' ');
+    for (i = 1; i <= maxx(stdout); i++) putchar(' '); /* clear line */
     if (joy < 0) {  /* plot left */
-    r = labs(joy);
-    x = maxx(stdout) / 2 - (int)floor(r * (maxx(stdout) / 2) / int_MAX + 0.5);
-    cursor(stdout, x, line);
-    while (x <= maxx(stdout) / 2) {
-    putchar('*');
-    x++;
+
+        r = labs(joy);
+        x = maxx(stdout)/2-floor(r*(maxx(stdout)/2)/INT_MAX+0.5);
+        cursor(stdout, x, line);
+        while (x <= maxx(stdout) / 2) {
+
+            putchar('*');
+            x++;
+
+        }
+
+    } else { /* plot right */
+
+        r = joy;
+        x = (int)floor(r * (maxx(stdout) / 2) / INT_MAX + maxx(stdout) / 2 + 0.5);
+        i = maxx(stdout) / 2;
+        cursor(stdout, i, line);
+        while (i <= x) {
+        putchar('*');
+        i++;
 
     }
-
-
-    return;
-    }
-
-    r = joy;
-    x = (int)floor(r * (maxx(stdout) / 2) / int_MAX + maxx(stdout) / 2 + 0.5);
-    i = maxx(stdout) / 2;
-    cursor(stdout, i, line);
-    while (i <= x) {
-    putchar('*');
-    i++;
-    /* plot right */
-
-
-
-    }
-
 
 }
-
 
 /* print centered string */
 
 static void prtcen(int y, char *s)
+
 {
-    cursor(stdout, maxx(stdout) / 2 - s / 2, y);
+
+    cursor(stdout, maxx(stdout)/2-strlen(s)/2, y);
     fputs(s, stdout);
 
 }
 
-
 /* print center banner string */
 
 static void prtban(char *s)
+
 {
-    int i, FORLIM;
 
+    int i;
 
-    cursor(stdout, maxx(stdout) / 2 - s / 2 - 1, maxy(stdout) / 2 - 1);
-    FORLIM = strlen(s) + 2;
-    for (i = 1; i <= FORLIM; i++)
-    putchar(' ');
-    cursor(stdout, maxx(stdout) / 2 - s / 2 - 1, maxy(stdout) / 2);
+    cursor(stdout, maxx(stdout)/2-strlen(s)/2-1, maxy(stdout)/2-1);
+    for (i = 1; i <= strlen(s)+2; i++) putchar(' ');
+    cursor(stdout, maxx(stdout)/2-strlen(s)/2-1, maxy(stdout)/2);
     putchar(' ');
     prtcen(maxy(stdout) / 2, s);
     putchar(' ');
-    cursor(stdout, maxx(stdout) / 2 - s / 2 - 1, maxy(stdout) / 2 + 1);
-    FORLIM = strlen(s) + 2;
-    for (i = 1; i <= FORLIM; i++)
-    putchar(' ');
+    cursor(stdout, maxx(stdout)/2-strlen(s)/2-1, maxy(stdout)/2+1);
+    for (i = 1; i <= strlen(s); i++) putchar(' ');
 
 }
 
-
 main(int argc, char *argv[])
 {
-    int FORLIM, FORLIM1;
-
 
     if (setjmp(_JL99))
     goto _L99;
-    tf = NULL;
+
     select(stdout, 2, 2);   /* move off the display buffer */
     /* set black on white text */
     fcolor(stdout, black);
@@ -244,24 +231,26 @@ main(int argc, char *argv[])
     prtcen(maxy(stdout), "Press return to continue");
     waitnext();
     printf("\f");   /* clear screen */
-    printf("Screen size: x -> %ld y -> %ld\n\n", maxx(stdout), maxy(stdout));
+    printf("Screen size: x -> %d y -> %d\n\n", maxx(stdout), maxy(stdout));
     printf("Number of joysticks: %d\n", joystick(stdout));
-    FORLIM = joystick(stdout);
-    for (i = 1; i <= FORLIM; i++) {
-    printf("\nNumber of axes on joystick: %ld is: %d\n",
-           i, joyaxis(stdout, i));
-    printf("Number of buttons on joystick: %ld is: %d\n",
-           i, joybutton(stdout, i));
+    for (i = 1; i <= joystick(stdout); i++) {
+
+        printf("\n");
+        printf("Number of axes on joystick: %d is: %d\n", i,
+            joyaxis(stdout, i));
+        printf("Number of buttons on joystick: %d is: %d\n", i,
+            joybutton(stdout, i));
 
     }
+    printf("\n");
+    printf("Number of mice: %d\n", mouse(stdout));
+    for (i = 1; i <= mouse(stdout); i++) {
 
-    printf("\nNumber of mice: %d\n", mouse(stdout));
-    FORLIM = mouse(stdout);
-    for (i = 1; i <= FORLIM; i++)
-    printf("\nNumber of buttons on mouse: %ld is: %d\n",
-           i, mousebutton(stdout, i));
+        printf("\n");
+        printf("\nNumber of buttons on mouse: %ld is: %d\n", i,
+            mousebutton(stdout, i));
 
-
+    }
     prtcen(maxy(stdout), "Press return to continue");
     waitnext();
     printf("\f");
@@ -273,13 +262,14 @@ main(int argc, char *argv[])
     printf("Cursor should be [on ], press return ->");
     waitnext();
     curvis(stdout, 0);
-    printf("\\crCursor should be [off], press return ->");
+    printf("\rCursor should be [off], press return ->");
     waitnext();
     curvis(stdout, 1);
-    printf("\\crCursor should be [on ], press return ->");
+    printf("\rCursor should be [on ], press return ->");
     waitnext();
     curvis(stdout, 0);
-    printf("\n\n");
+    printf("\n");
+    printf("\n");
     prtcen(maxy(stdout),
            "Press return to start test (and to pass each pattern)");
     waitnext();
@@ -287,8 +277,8 @@ main(int argc, char *argv[])
     /* ************************* Test last line problem ************************ */
 
     printf("\f");
-    curvis(stdout, 0);   /* remove cursor */
-    auto_(stdout, 0);   /* turn off auto scroll */
+    curvis(stdout, 0); /* remove cursor */
+    auto_(stdout, 0); /* turn off auto scroll */
     prtcen(1, "Last line blank out test");
     cursor(stdout, 1, 3);
     printf("If this terminal is not capable of showing the last character on\n");
@@ -296,9 +286,7 @@ main(int argc, char *argv[])
     printf("will not appear (probally blank). This should be noted for each\n");
     printf("of the following test patterns.\n");
     cursor(stdout, 1, maxy(stdout));
-    FORLIM = maxx(stdout) - 2;
-    for (i = 1; i <= FORLIM; i++)
-    putchar('-');
+    for (i = 1; i <= maxx(stdout)-2; i++) putchar('-');
     printf(">*");
     waitnext();
 
@@ -312,10 +300,10 @@ main(int argc, char *argv[])
     curvis(stdout, 0);   /* remove cursor */
     /* top of left lower */
     cursor(stdout, 1, maxy(stdout));
-    printf("\\\\/");
+    printf("\\/");
     /* top of right lower, bottom of left lower, and move it all up */
     cursor(stdout, maxx(stdout) - 1, maxy(stdout));
-    printf("\\\\//\\\\");
+    printf("\\//\\");
     /* finish right lower */
     up(stdout);
     left(stdout);
@@ -324,23 +312,23 @@ main(int argc, char *argv[])
     left(stdout);
     down(stdout);
     down(stdout);
-    printf("/\\\\");
+    printf("/\\");
     /* now move it back down */
     home(stdout);
     left(stdout);
     /* upper left hand cross */
     cursor(stdout, 1, 1);
-    printf("\\\\/");
+    printf("\\/");
     cursor(stdout, maxx(stdout), 1);
     right(stdout);
-    printf("/\\\\");
+    printf("/\\");
     /* upper right hand cross */
     cursor(stdout, maxx(stdout) - 1, 2);
-    printf("/\\\\");
+    printf("/\\");
     cursor(stdout, 1, 2);
     left(stdout);
     left(stdout);
-    printf("\\\\/");
+    printf("\\/");
     /* test delete works */
     prtcen(1, "BARK!");
     del(stdout);
@@ -348,18 +336,18 @@ main(int argc, char *argv[])
     del(stdout);
     del(stdout);
     del(stdout);
-    prtcen(maxy(stdout) / 2 - 1, "Cursor movements test, automatic scroll ON");
-    prtcen(maxy(stdout) / 2 + 1, "Should be a double line X in each corner");
+    prtcen(maxy(stdout)/2-1, "Cursor movements test, automatic scroll ON");
+    prtcen(maxy(stdout)/2+1, "Should be a double line X in each corner");
     waitnext();
 
     /* Now do it with automatic scrolling off. The pattern will rely on the
        ability of the cursor to go into "negative" space. */
 
     printf("\f");
-    auto_(stdout, 0);   /* disable automatic screen scroll/wrap */
+    automode(stdout, 0);   /* disable automatic screen scroll/wrap */
     /* upper left */
     home(stdout);
-    printf("\\\\/");
+    printf("\\/");
     up(stdout);
     left(stdout);
     left(stdout);
@@ -369,17 +357,17 @@ main(int argc, char *argv[])
     down(stdout);
     right(stdout);
     right(stdout);
-    printf("/\\\\");
+    printf("/\\");
     /* upper right */
     cursor(stdout, maxx(stdout) - 1, 1);
-    printf("\\\\/");
+    printf("\\/");
     down(stdout);
     del(stdout);
     del(stdout);
-    printf("/\\\\");
+    printf("/\\");
     /* lower left */
     cursor(stdout, 1, maxy(stdout));
-    printf("/\\\\");
+    printf("/\\");
     down(stdout);
     left(stdout);
     left(stdout);
@@ -387,7 +375,7 @@ main(int argc, char *argv[])
     up(stdout);
     up(stdout);
     right(stdout);
-    printf("\\\\/");
+    printf("\\/");
     /* lower right */
     cursor(stdout, maxx(stdout), maxy(stdout) - 1);
     putchar('/');
@@ -396,17 +384,17 @@ main(int argc, char *argv[])
     printf("\\\\");
     down(stdout);
     del(stdout);
-    printf("/\\\\");
-    prtcen(maxy(stdout) / 2 - 1,
+    printf("/\\");
+    prtcen(maxy(stdout)/2-1,
            "Cursor movements test, automatic scroll OFF");
-    prtcen(maxy(stdout) / 2 + 1, "Should be a double line X in each corner");
+    prtcen(maxy(stdout)/2+1, "Should be a double line X in each corner");
     waitnext();
 
     /* **************************** Scroll cursor test ************************* */
 
     printf("\f");
     curvis(stdout, 1);
-    prtcen(maxy(stdout) / 2, "Scroll cursor test, cursor should be here ->");
+    prtcen(maxy(stdout)/2, "Scroll cursor test, cursor should be here ->");
     up(stdout);
     scroll(stdout, 0, 1);
     waitnext();
@@ -417,20 +405,15 @@ main(int argc, char *argv[])
     printf("\f");
     /* perform row id test */
     c = '1';
-    FORLIM = maxy(stdout);
-    for (y = 1; y <= FORLIM; y++) {
-    cursor(stdout, 1, y);   /* index start of line */
-    FORLIM1 = maxx(stdout);
-    for (x = 1; x <= FORLIM1; x++)   /* output characters */
-    putchar(c);
-    if (c != '9')
-    c++;   /* next character */
-    else {
-    c = '0';   /* start over */
+    for (y = 1; y <= maxy(stdout); y++) {
+
+        cursor(stdout, 1, y);   /* index start of line */
+        for (x = 1; x <= maxx(stdout); x++)   /* output characters */
+        putchar(c);
+        if (c != '9') c++;   /* next character */
+        else c = '0';   /* start over */
 
     }
-    }
-
     prtban("Row ID test, all rows should be numbered");
     waitnext();
 
@@ -438,28 +421,25 @@ main(int argc, char *argv[])
 
     printf("\f");
     c = '1';
-    FORLIM = maxy(stdout);
-    for (y = 1; y <= FORLIM; y++) {
-    cursor(stdout, 1, y);   /* index start of line */
-    FORLIM1 = maxx(stdout);
-    for (x = 1; x <= FORLIM1; x++) {
-    putchar(c);   /* output characters */
-    if (c != '9')
-    c++;   /* next character */
-    else {
-    c = '0';   /* start over */
+    for (y = 1; y <= maxy(output); y++) {
+
+        cursor(stdout, 1, y); /* index start of line */
+        for (x = 1; x <= maxx(stdout); x++) {
+
+            putchar(c); /* output characters */
+            if (c != '9') c++; /* next character */
+            else c = '0'; /* start over */
+
+        }
 
     }
-    }
-
-
-    }
-
     prtban("Collumn ID test, all collumns should be numbered");
     waitnext();
 
     /* ****************************** Fill test ******************************** */
 
+
+arf arf arf arf arf *******************************************************
     printf("\f");
     c = '\0';   /* initalize character value */
     FORLIM = maxy(stdout);

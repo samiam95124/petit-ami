@@ -36,7 +36,7 @@
 #include <unistd.h>
 #include <stdint.h>
 
-#include "pa_terminal.h"
+#include "terminal.h"
 
 #define MAXXD 80  /**< standard terminal x, 80x25 */
 #define MAXYD 24 /*25*/  /**< standard terminal x, 80x25 */

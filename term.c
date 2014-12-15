@@ -10,7 +10,7 @@ This is used mostly for testing.
 
 *******************************************************************************/
 
-#include "pa_terminal.h" /* terminal level functions */
+#include "terminal.h" /* terminal level functions */
 
 main(int argc, char *argv[])
 
