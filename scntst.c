@@ -438,30 +438,21 @@ main(int argc, char *argv[])
 
     /* ****************************** Fill test ******************************** */
 
-
-arf arf arf arf arf *******************************************************
     printf("\f");
     c = '\0';   /* initalize character value */
-    FORLIM = maxy(stdout);
-    for (y = 1; y <= FORLIM; y++) {
-    cursor(stdout, 1, y);   /* index start of line */
-    FORLIM1 = maxx(stdout);
-    for (x = 1; x <= FORLIM1; x++) {
-    if (c >= ' ' && c != '\177')
-    putchar(c);
-    else
-    printf("\\\\");
-    if (c != '\177')
-    c++;   /* next character */
-    else {
-    c = '\0';   /* start over */
+    for (y = 1; y <= maxy(stdout); y++) {
+
+        cursor(stdout, 1, y);   /* index start of line */
+        for (x = 1; x <= maxy(stdout); x++) {
+
+            if (c >= ' ' && c != '\177') putchar(c);
+            else printf("\\");
+            if (c != '\177') c++;   /* next character */
+            else c = '\0';   /* start over */
+
+        }
 
     }
-    }
-
-
-    }
-
     prtban("Fill test, all printable characters should appear");
     waitnext();
 
@@ -479,72 +470,66 @@ arf arf arf arf arf *******************************************************
     t1 = maxx(stdout);
     t2 = maxy(stdout);
     tc = 0;
-    FORLIM = t1 * t2;
-    for (count = 1; count <= FORLIM; count++) {
-    /* for all screen characters */
-    cursor(stdout, x, y);   /* place character */
-    putchar('*');
-    tc++;
-    if (tc >= 10) {
-    wait(50);   /* 50 milliseconds */
-    tc = 0;
+    for (count = 1; count <= t1*t2; count++) {
+
+        /* for all screen characters */
+        cursor(stdout, x, y); /* place character */
+        putchar('*');
+        tc++;
+        if (tc >= 10) {
+
+            wait(50); /* 50 milliseconds */
+            tc = 0;
+
+        }
+        switch (direction) {
+
+            case ddown:
+                y++;   /* next */
+                if (y == bottom) {  /* change */
+
+                    direction = dright;
+                    bottom--;
+
+                }
+                break;
+
+            case dright:
+                x++;   /* next */
+                if (x == rside) {
+
+                    direction = dup;
+                    rside--;
+
+                }
+                break;
+
+
+            case dup:
+                y--;
+                if (y == top) {
+
+                    direction = dleft;
+                    top++;
+
+                }
+                break;
+
+
+            case dleft:
+                x--;
+                if (x == lside) {
+
+                    direction = ddown;
+                    lside++;
+
+                }
+                break;
+
+
+        }
 
     }
-
-    switch (direction) {
-
-        case ddown:
-    y++;   /* next */
-    if (y == bottom) {  /* change */
-    direction = dright;
-    bottom--;
-
-    }
-
-
-    break;
-
-
-        case dright:
-    x++;   /* next */
-    if (x == rside) {
-    direction = dup;
-    rside--;
-
-    }
-
-
-    break;
-
-
-        case dup:
-    y--;
-    if (y == top) {
-    direction = dleft;
-    top++;
-
-    }
-
-
-    break;
-
-
-        case dleft:
-    x--;
-    if (x == lside) {
-    direction = ddown;
-    lside++;
-
-    }
-
-
-    break;
-
-
-    }
-
-    }
-
     prtcen(maxy(stdout) - 1, "                 ");
     prtcen(maxy(stdout), " Sidewinder test ");
     waitnext();
@@ -559,26 +544,26 @@ arf arf arf arf arf *******************************************************
     dx = -1;   /* set initial directions */
     dy = -1;
     for (count = 1; count <= 1000; count++) {
-    cursor(stdout, x, y);   /* place character */
-    putchar('*');
-    cursor(stdout, lx, ly);   /* place character */
-    putchar(' ');
-    lx = x;   /* set last */
-    ly = y;
-    x += dx;   /* find next x */
-    y += dy;   /* find next y */
-    tx = x;
-    ty = y;
-    if (x == 1 || tx == maxx(stdout))   /* find new dir x */
-    dx = -dx;
-    if (y == 1 || ty == maxy(stdout))   /* find new dir y */
-    dy = -dy;
-    /* slow this down */
 
-    wait(100);
+        cursor(stdout, x, y);   /* place character */
+        putchar('*');
+        cursor(stdout, lx, ly);   /* place character */
+        putchar(' ');
+        lx = x;   /* set last */
+        ly = y;
+        x += dx;   /* find next x */
+        y += dy;   /* find next y */
+        tx = x;
+        ty = y;
+        if (x == 1 || tx == maxx(stdout))   /* find new dir x */
+        dx = -dx;
+        if (y == 1 || ty == maxy(stdout))   /* find new dir y */
+        dy = -dy;
+        /* slow this down */
+        wait(100);
+
     }
-
-    prtcen(maxy(stdout) - 1, "                    ");
+    prtcen(maxy(stdout)-1, "                    ");
     prtcen(maxy(stdout), " Bouncing ball test ");
     waitnext();
 
@@ -588,62 +573,62 @@ arf arf arf arf arf *******************************************************
     if (maxy(stdout) < 20)
     printf("Not enough lines for attributes test");
     else {
-    blink(stdout, 1);
-    printf("Blinking text\n");
-    blink(stdout, 0);
-    reverse(stdout, 1);
-    printf("Reversed text\n");
-    reverse(stdout, 0);
-    underline(stdout, 1);
-    printf("Underlined text\n");
-    underline(stdout, 0);
-    printf("Superscript ");
-    superscript(stdout, 1);
-    printf("text\n");
-    superscript(stdout, 0);
-    printf("Subscript ");
-    subscript(stdout, 1);
-    printf("text\n");
-    subscript(stdout, 0);
-    italic(stdout, 1);
-    printf("Italic text\n");
-    italic(stdout, 0);
-    bold(stdout, 1);
-    printf("Bold text\n");
-    bold(stdout, 0);
-    standout(stdout, 1);
-    printf("Standout text\n");
-    standout(stdout, 0);
-    fcolor(stdout, red);
-    printf("Red text\n");
-    fcolor(stdout, green);
-    printf("Green text\n");
-    fcolor(stdout, blue);
-    printf("Blue text\n");
-    fcolor(stdout, cyan);
-    printf("Cyan text\n");
-    fcolor(stdout, yellow);
-    printf("Yellow text\n");
-    fcolor(stdout, magenta);
-    printf("Magenta text\n");
-    fcolor(stdout, black);
-    bcolor(stdout, red);
-    printf("Red background text\n");
-    bcolor(stdout, green);
-    printf("Green background text\n");
-    bcolor(stdout, blue);
-    printf("Blue background text\n");
-    bcolor(stdout, cyan);
-    printf("Cyan background text\n");
-    bcolor(stdout, yellow);
-    printf("Yellow background text\n");
-    bcolor(stdout, magenta);
-    printf("Magenta background text\n");
-    bcolor(stdout, white);
 
-    prtcen(maxy(stdout), "Attributes test");
+        blink(stdout, 1);
+        printf("Blinking text\n");
+        blink(stdout, 0);
+        reverse(stdout, 1);
+        printf("Reversed text\n");
+        reverse(stdout, 0);
+        underline(stdout, 1);
+        printf("Underlined text\n");
+        underline(stdout, 0);
+        printf("Superscript ");
+        superscript(stdout, 1);
+        printf("text\n");
+        superscript(stdout, 0);
+        printf("Subscript ");
+        subscript(stdout, 1);
+        printf("text\n");
+        subscript(stdout, 0);
+        italic(stdout, 1);
+        printf("Italic text\n");
+        italic(stdout, 0);
+        bold(stdout, 1);
+        printf("Bold text\n");
+        bold(stdout, 0);
+        standout(stdout, 1);
+        printf("Standout text\n");
+        standout(stdout, 0);
+        fcolor(stdout, red);
+        printf("Red text\n");
+        fcolor(stdout, green);
+        printf("Green text\n");
+        fcolor(stdout, blue);
+        printf("Blue text\n");
+        fcolor(stdout, cyan);
+        printf("Cyan text\n");
+        fcolor(stdout, yellow);
+        printf("Yellow text\n");
+        fcolor(stdout, magenta);
+        printf("Magenta text\n");
+        fcolor(stdout, black);
+        bcolor(stdout, red);
+        printf("Red background text\n");
+        bcolor(stdout, green);
+        printf("Green background text\n");
+        bcolor(stdout, blue);
+        printf("Blue background text\n");
+        bcolor(stdout, cyan);
+        printf("Cyan background text\n");
+        bcolor(stdout, yellow);
+        printf("Yellow background text\n");
+        bcolor(stdout, magenta);
+        printf("Magenta background text\n");
+        bcolor(stdout, white);
+        prtcen(maxy(stdout), "Attributes test");
+
     }
-
     waitnext();
 
     /* ***************************** Scrolling test **************************** */
@@ -651,231 +636,159 @@ arf arf arf arf arf *******************************************************
     printf("\f");
     /* fill screen with row order data */
     c = '1';
-    FORLIM = maxy(stdout);
-    for (y = 1; y <= FORLIM; y++) {
-    cursor(stdout, 1, y);   /* index start of line */
-    FORLIM1 = maxx(stdout);
-    for (x = 1; x <= FORLIM1; x++)   /* output characters */
-    putchar(c);
-    if (c != '9')
-    c++;   /* next character */
-    else {
-    c = '0';   /* start over */
+    for (y = 1; y <= maxy(stdout); y++) {
+
+        cursor(stdout, 1, y);   /* index start of line */
+        FORLIM1 = maxx(stdout);
+        for (x = 1; x <= maxx(stdout); x++) putchar(c); /* output characters */
+        if (c != '9') c++; /* next character */
+        else c = '0'; /* start over */
 
     }
-    }
-
-    FORLIM = maxy(stdout);
-    for (y = 1; y <= FORLIM; y++) {
-    wait(200);
-    scroll(stdout, 0, 1);
-    }
+    for (y = 1; y <= maxy(stdout); y++) { wait(200); scroll(stdout, 0, 1); }
     prtcen(maxy(stdout), "Scroll up");
     waitnext();
     printf("\f");
     /* fill screen with row order data */
     c = '1';
-    FORLIM = maxy(stdout);
-    for (y = 1; y <= FORLIM; y++) {
-    cursor(stdout, 1, y);   /* index start of line */
-    FORLIM1 = maxx(stdout);
-    for (x = 1; x <= FORLIM1; x++)   /* output characters */
-    putchar(c);
-    if (c != '9')
-    c++;   /* next character */
-    else {
-    c = '0';   /* start over */
+    for (y = 1; y <= maxy(stdout); y++) {
+
+        cursor(stdout, 1, y); /* index start of line */
+        for (x = 1; x <= maxx(stdout); x++) putchar(c); /* output characters */
+        if (c != '9') c++; /* next character */
+        else c = '0';   /* start over */
 
     }
-    }
-
-    FORLIM = maxy(stdout);
-    for (y = 1; y <= FORLIM; y++) {
-    wait(200);
-    scroll(stdout, 0, -1);
-    }
+    for (y = 1; y <= maxy(stdout); y++) { wait(200); scroll(stdout, 0, -1); }
     prtcen(maxy(stdout), "Scroll down");
     waitnext();
     printf("\f");
     /* fill screen with collumn order data */
     c = '1';
-    FORLIM = maxy(stdout);
-    for (y = 1; y <= FORLIM; y++) {
-    cursor(stdout, 1, y);   /* index start of line */
-    FORLIM1 = maxx(stdout);
-    for (x = 1; x <= FORLIM1; x++) {
-    putchar(c);   /* output characters */
-    if (c != '9')
-    c++;   /* next character */
-    else {
-    c = '0';   /* start over */
+    for (y = 1; y <= maxy(stdout); y++) {
+
+        cursor(stdout, 1, y); /* index start of line */
+        for (x = 1; x <= maxx(stdout); x++) {
+
+            putchar(c); /* output characters */
+            if (c != '9') c++; /* next character */
+            else c = '0'; /* start over */
+
+        }
 
     }
-    }
-
-
-    }
-
-    FORLIM = maxx(stdout);
-    for (x = 1; x <= FORLIM; x++) {
-    wait(200);
-    scroll(stdout, 1, 0);
-    }
+    for (x = 1; x <= maxx(stdout); x++) { wait(200); scroll(stdout, 1, 0); }
     prtcen(maxy(stdout), "Scroll left");
     waitnext();
     printf("\f");
     /* fill screen with collumn order data */
     c = '1';
-    FORLIM = maxy(stdout);
-    for (y = 1; y <= FORLIM; y++) {
-    cursor(stdout, 1, y);   /* index start of line */
-    FORLIM1 = maxx(stdout);
-    for (x = 1; x <= FORLIM1; x++) {
-    putchar(c);   /* output characters */
-    if (c != '9')
-    c++;   /* next character */
-    else {
-    c = '0';   /* start over */
+    for (y = 1; y <= maxy(stdout); y++) {
+
+        cursor(stdout, 1, y); /* index start of line */
+        FORLIM1 = maxx(stdout);
+        for (x = 1; x <= maxx(stdout); x++) {
+
+            putchar(c); /* output characters */
+            if (c != '9') c++;   /* next character */
+            else c = '0';   /* start over */
+
+        }
 
     }
-    }
-
-
-    }
-
-    FORLIM = maxx(stdout);
-    for (x = 1; x <= FORLIM; x++) {
-    wait(200);
-    scroll(stdout, -1, 0);
-    }
+    for (x = 1; x <= maxx(stdout); x++) { wait(200); scroll(stdout, -1, 0); }
     /* find minimum direction, x or y */
-    if (x < y)
-    minlen = x;
-    else
-    minlen = y;
+    if (x < y) minlen = x; else minlen = y;
     prtcen(maxy(stdout), "Scroll right");
     waitnext();
     printf("\f");
     /* fill screen with uni data */
     c = '1';
-    FORLIM = maxy(stdout);
-    for (y = 1; y <= FORLIM; y++) {
-    cursor(stdout, 1, y);   /* index start of line */
-    FORLIM1 = maxx(stdout);
-    for (x = 1; x <= FORLIM1; x++) {
-    putchar(c);   /* output characters */
-    if (c != '9')
-    c++;   /* next character */
-    else {
-    c = '0';   /* start over */
+    for (y = 1; y <= maxy(stdout); y++) {
+
+        cursor(stdout, 1, y); /* index start of line */
+        FORLIM1 = maxx(stdout);
+        for (x = 1; x <= FORLIM1; x++) {
+
+            putchar(c);   /* output characters */
+            if (c != '9') c++; /* next character */
+            else c = '0'; /* start over */
+
+        }
 
     }
-    }
-
-
-    }
-
-    FORLIM = minlen;
-    for (i = 1; i <= FORLIM; i++) {
-    wait(200);
-    scroll(stdout, 1, 1);
-    }
+    for (i = 1; i <= minlen; i++) { wait(200); scroll(stdout, 1, 1); }
     prtcen(maxy(stdout), "Scroll up/left");
     waitnext();
     printf("\f");
     /* fill screen with uni data */
     c = '1';
-    FORLIM = maxy(stdout);
-    for (y = 1; y <= FORLIM; y++) {
-    cursor(stdout, 1, y);   /* index start of line */
-    FORLIM1 = maxx(stdout);
-    for (x = 1; x <= FORLIM1; x++) {
-    putchar(c);   /* output characters */
-    if (c != '9')
-    c++;   /* next character */
-    else {
-    c = '0';   /* start over */
+    for (y = 1; y <= maxy(stdout); y++) {
+
+        cursor(stdout, 1, y);   /* index start of line */
+        FORLIM1 = maxx(stdout);
+        for (x = 1; x <= FORLIM1; x++) {
+
+            putchar(c); /* output characters */
+            if (c != '9') c++; /* next character */
+            else c = '0'; /* start over */
+
+        }
 
     }
-    }
-
-
-    }
-
-    FORLIM = minlen;
-    for (i = 1; i <= FORLIM; i++) {
-    wait(200);
-    scroll(stdout, 1, -1);
-    }
+    for (i = 1; i <= minlen; i++) { wait(200); scroll(stdout, 1, -1); }
     prtcen(maxy(stdout), "Scroll down/left");
     waitnext();
     printf("\f");
     /* fill screen with uni data */
     c = '1';
-    FORLIM = maxy(stdout);
-    for (y = 1; y <= FORLIM; y++) {
-    cursor(stdout, 1, y);   /* index start of line */
-    FORLIM1 = maxx(stdout);
-    for (x = 1; x <= FORLIM1; x++) {
-    putchar(c);   /* output characters */
-    if (c != '9')
-    c++;   /* next character */
-    else {
-    c = '0';   /* start over */
+    for (y = 1; y <= maxy(stdout); y++) {
+
+        cursor(stdout, 1, y);   /* index start of line */
+        FORLIM1 = maxx(stdout);
+        for (x = 1; x <= FORLIM1; x++) {
+
+            putchar(c); /* output characters */
+            if (c != '9') c++; /* next character */
+            else c = '0'; /* start over */
+
+        }
 
     }
-    }
-
-
-    }
-
-    FORLIM = minlen;
-    for (i = 1; i <= FORLIM; i++) {
-    wait(200);
-    scroll(stdout, -1, 1);
-    }
+    for (i = 1; i <= minlen; i++) { wait(200); scroll(stdout, -1, 1); }
     prtcen(maxy(stdout), "Scroll up/right");
     waitnext();
     printf("\f");
     /* fill screen with uni data */
     c = '1';
-    FORLIM = maxy(stdout);
-    for (y = 1; y <= FORLIM; y++) {
-    cursor(stdout, 1, y);   /* index start of line */
-    FORLIM1 = maxx(stdout);
-    for (x = 1; x <= FORLIM1; x++) {
-    putchar(c);   /* output characters */
-    if (c != '9')
-    c++;   /* next character */
-    else {
-    c = '0';   /* start over */
+    for (y = 1; y <= maxy(stdout); y++) {
+
+        cursor(stdout, 1, y);   /* index start of line */
+        FORLIM1 = maxx(stdout);
+        for (x = 1; x <= FORLIM1; x++) {
+
+            putchar(c);   /* output characters */
+            if (c != '9')
+            c++;   /* next character */
+            else {
+            c = '0';   /* start over */
+
+         }
 
     }
-    }
-
-
-    }
-
-    FORLIM = minlen;
-    for (i = 1; i <= FORLIM; i++) {
-    wait(200);
-    scroll(stdout, -1, -1);
-    }
+    for (i = 1; i <= minlen; i++) { wait(200); scroll(stdout, -1, -1); }
     prtcen(maxy(stdout), "Scroll down/right");
     waitnext();
 
     /* ******************************** Tab test ******************************* */
 
     printf("\f");
-    FORLIM = maxy(stdout);
-    for (y = 1; y <= FORLIM; y++) {
-    FORLIM1 = y;
-    for (i = 1; i < FORLIM1; i++)
-    printf("\\ht");
-    printf(">Tab %3ld\n", y - 1);
+    for (y = 1; y <= maxy(stdout); y++) {
+
+        for (i = 1; i <= y-1; i++) printf("\t");
+        printf(">Tab %3d\n", y-1);
 
     }
-
     prtcen(maxy(stdout), "Tabbing test");
     waitnext();
 
@@ -883,45 +796,38 @@ arf arf arf arf arf *******************************************************
 
     printf("\f");
     for (b = 2; b <= 10; b++) {  /* prepare buffers */
-    select(stdout, b, 2);   /* select buffer */
-    /* write a shinking box pattern */
-    box(b - 1, b - 1, maxx(stdout) - b + 2, maxy(stdout) - b + 2, '*');
 
-    prtcen(maxy(stdout), "Buffer switching test");
-    }
+        select(stdout, b, 2);   /* select buffer */
+        /* write a shinking box pattern */
+        box(b - 1, b-1, maxx(stdout)-(b- 2), maxy(stdout)-(b-2), '*');
+        prtcen(maxy(stdout), "Buffer switching test");
 
-    for (i = 1; i <= 30; i++) {   /* flip buffers */
-    for (b = 2; b <= 10; b++) {
-    wait(300);
-    select(stdout, 2, b);
     }
-    }
+    for (i = 1; i <= 30; i++) /* flip buffers */
+        for (b = 2; b <= 10; b++) { wait(300); select(stdout, 2, b); }
     select(stdout, 2, 2);   /* restore buffer select */
 
     /* **************************** Writethrough test ************************** */
 
+/* this needs help */
     printf("\f");
     prtcen(maxy(stdout), "File writethrough test");
     home(stdout);
-    if (tf != NULL)
-    tf = freopen(tf_NAME, "w", tf);
-    else
-    tf = fopen(tf_NAME, "w");
-    if (tf == NULL)
-    _EscIO2(FileNotFound, tf_NAME);
+    if (tf != NULL) tf = freopen(tf_NAME, "w", tf);
+    else tf = fopen(tf_NAME, "w");
+    if (tf == NULL)_EscIO2(FileNotFound, tf_NAME);
     fprintf(tf, "This is a test file\n");
     tf = freopen(tf_NAME, "r", tf);
-    if (tf == NULL)
-    _EscIO2(FileNotFound, tf_NAME);
+    if (tf == NULL)_EscIO2(FileNotFound, tf_NAME);
     while (!P_eoln(tf)) {
-    c = getc(tf);
-    putchar(c);
+
+        c = getc(tf);
+        putchar(c);
 
     }
-
     fscanf(tf, "%*[^\n]");
     getc(tf);
-    printf("\n\ns/b\n\n");
+    printf("s/b");
     printf("This is a test file\n");
     waitnext();
 
