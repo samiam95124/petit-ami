@@ -834,169 +834,159 @@ main(int argc, char *argv[])
     /* ****************************** Joystick test **************************** */
 
     if (joystick(stdout) > 0) {  /* joystick test */
-    printf("\f");
-    prtcen(1, "Move the joystick(s) X, Y and Z, and hit buttons");
-    prtcen(maxy(stdout), "Joystick test test");
-    do {   /* gather joystick events */
 
-    /* we do up to 4 joysticks */
-    event(stdin, &er);
-    if (er.etype == etjoymov) {  /* joystick movement */
-    if (er.UU.U44.mjoyn == 1) {  /* joystick 1 */
-    cursor(stdout, 1, 3);
-    printf("joystick: %d x: %ld y: %ld z: %ld",
-           er.UU.U44.mjoyn, er.UU.U44.joypx, er.UU.U44.joypy,
-           er.UU.U44.joypz);
-    plotjoy(4, er.UU.U44.joypx);
-    plotjoy(5, er.UU.U44.joypy);
-    plotjoy(6, er.UU.U44.joypz);
+        printf("\f");
+        prtcen(1, "Move the joystick(s) X, Y and Z, and hit buttons");
+        prtcen(maxy(stdout), "Joystick test test");
+        do {   /* gather joystick events */
 
-    }
+            /* we do up to 4 joysticks */
+            event(stdin, &er);
+            if (er.etype == etjoymov) {  /* joystick movement */
 
-    else if (er.UU.U44.mjoyn == 2) {  /* joystick 2 */
+                if (er.mjoyn == 1) {  /* joystick 1 */
 
-    cursor(stdout, 1, 7);
-    printf("joystick: %d x: %ld y: %ld z: %ld",
-           er.UU.U44.mjoyn, er.UU.U44.joypx, er.UU.U44.joypy,
-           er.UU.U44.joypz);
-    plotjoy(8, er.UU.U44.joypx);
-    plotjoy(9, er.UU.U44.joypy);
-    plotjoy(10, er.UU.U44.joypz);
+                    cursor(stdout, 1, 3);
+                    printf("joystick: %d x: %ld y: %ld z: %ld",
+                           er.mjoyn, er.joypx, er.joypy, er.joypz);
+                    plotjoy(4, er.joypx);
+                    plotjoy(5, er.joypy);
+                    plotjoy(6, er.joypz);
 
-    } else if (er.UU.U44.mjoyn == 3) {  /* joystick 3 */
+                } else if (er.mjoyn == 2) {  /* joystick 2 */
 
-    cursor(stdout, 1, 11);
-    printf("joystick: %d x: %ld y: %ld z: %ld",
-           er.UU.U44.mjoyn, er.UU.U44.joypx, er.UU.U44.joypy,
-           er.UU.U44.joypz);
-    plotjoy(11, er.UU.U44.joypx);
-    plotjoy(12, er.UU.U44.joypy);
-    plotjoy(13, er.UU.U44.joypz);
+                    cursor(stdout, 1, 7);
+                    printf("joystick: %d x: %ld y: %ld z: %ld",
+                           er.mjoyn, er.joypx, er.joypy, er.joypz);
+                    plotjoy(8, er.joypx);
+                    plotjoy(9, er.joypy);
+                    plotjoy(10, er.joypz);
 
-    } else if (er.UU.U44.mjoyn == 4) {  /* joystick 4 */
+                } else if (er.mjoyn == 3) {  /* joystick 3 */
 
+                    cursor(stdout, 1, 11);
+                    printf("joystick: %d x: %ld y: %ld z: %ld",
+                           er.mjoyn, er.joypx, er.joypy, er.joypz);
+                    plotjoy(11, er.joypx);
+                    plotjoy(12, er.joypy);
+                    plotjoy(13, er.joypz);
 
-    cursor(stdout, 1, 14);
-    printf("joystick: %d x: %ld y: %ld z: %ld",
-           er.UU.U44.mjoyn, er.UU.U44.joypx, er.UU.U44.joypy,
-           er.UU.U44.joypz);
-    plotjoy(15, er.UU.U44.joypx);
-    plotjoy(16, er.UU.U44.joypy);
-    plotjoy(17, er.UU.U44.joypz);
+                } else if (er.mjoyn == 4) {  /* joystick 4 */
 
-    }
-    }
+                    cursor(stdout, 1, 14);
+                    printf("joystick: %d x: %ld y: %ld z: %ld",
+                           er.mjoyn, er.joypx, er.joypy, er.joypz);
+                    plotjoy(15, er.joypx);
+                    plotjoy(16, er.joypy);
+                    plotjoy(17, er.joypz);
 
-    else if (er.etype == etjoyba) {  /* joystick button assert */
+                }
 
-    if (er.UU.U42.ajoyn == 1) {  /* joystick 1 */
-    cursor(stdout, 1, 18);
-    printf("joystick: %d button assert:   %d",
-           er.UU.U42.ajoyn, er.UU.U42.ajoybn);
+            } else if (er.etype == etjoyba) {  /* joystick button assert */
 
-    }
+                if (er.ajoyn == 1) {  /* joystick 1 */
 
-    else if (er.UU.U42.ajoyn == 2) {  /* joystick 2 */
+                    cursor(stdout, 1, 18);
+                    printf("joystick: %d button assert:   %d",
+                           er.ajoyn, er.ajoybn);
 
-    cursor(stdout, 1, 19);
-    printf("joystick: %d button assert:   %d",
-           er.UU.U42.ajoyn, er.UU.U42.ajoybn);
+                } else if (er.ajoyn == 2) {  /* joystick 2 */
 
-    } else if (er.UU.U42.ajoyn == 3) {  /* joystick 3 */
+                    cursor(stdout, 1, 19);
+                    printf("joystick: %d button assert:   %d",
+                           er.ajoyn, er.ajoybn);
 
-    cursor(stdout, 1, 20);
-    printf("joystick: %d button assert:   %d",
-           er.UU.U42.ajoyn, er.UU.U42.ajoybn);
+                } else if (er.ajoyn == 3) {  /* joystick 3 */
 
-    } else if (er.UU.U42.ajoyn == 4) {  /* joystick 4 */
+                    cursor(stdout, 1, 20);
+                    printf("joystick: %d button assert:   %d",
+                           er.ajoyn, er.ajoybn);
 
+                } else if (er.ajoyn == 4) {  /* joystick 4 */
 
-    cursor(stdout, 1, 21);
-    printf("joystick: %d button assert:   %d",
-           er.UU.U42.ajoyn, er.UU.U42.ajoybn);
+                    cursor(stdout, 1, 21);
+                    printf("joystick: %d button assert:   %d",
+                           er.ajoyn, er.ajoybn);
 
-    }
-    } else if (er.etype == etjoybd) {  /* joystick button deassert */
+                }
 
+            } else if (er.etype == etjoybd) {  /* joystick button deassert */
 
-    if (er.UU.U43.djoyn == 1) {  /* joystick 1 */
-    cursor(stdout, 1, 18);
-    printf("joystick: %d button deassert: %d",
-           er.UU.U43.djoyn, er.UU.U43.djoybn);
+                if (er.djoyn == 1) {  /* joystick 1 */
 
-    }
+                    cursor(stdout, 1, 18);
+                    printf("joystick: %d button deassert: %d",
+                           er.djoyn, er.djoybn);
 
-    else if (er.UU.U43.djoyn == 2) {  /* joystick 2 */
+                } else if (er.djoyn == 2) {  /* joystick 2 */
 
-    cursor(stdout, 1, 19);
-    printf("joystick: %d button deassert: %d",
-           er.UU.U43.djoyn, er.UU.U43.djoybn);
+                    cursor(stdout, 1, 19);
+                    printf("joystick: %d button deassert: %d",
+                           er.djoyn, er.djoybn);
 
-    } else if (er.UU.U43.djoyn == 3) {  /* joystick 3 */
+                } else if (er.djoyn == 3) {  /* joystick 3 */
 
-    cursor(stdout, 1, 20);
-    printf("joystick: %d button deassert: %d",
-           er.UU.U43.djoyn, er.UU.U43.djoybn);
+                    cursor(stdout, 1, 20);
+                    printf("joystick: %d button deassert: %d",
+                           er.djoyn, er.djoybn);
 
-    } else if (er.UU.U43.djoyn == 4) {  /* joystick 4 */
+                } else if (er.djoyn == 4) {  /* joystick 4 */
 
+                    cursor(stdout, 1, 21);
+                    printf("joystick: %d button deassert: %d",
+                           er.djoyn, er.djoybn);
 
-    cursor(stdout, 1, 21);
-    printf("joystick: %d button deassert: %d",
-           er.UU.U43.djoyn, er.UU.U43.djoybn);
+                }
+
+            }
+
+        } while (er.etype != etenter && er.etype != etterm);
 
     }
-    }
-    } while (er.etype != etenter && er.etype != etterm);
-    }
-
-
 
     /* **************************** Mouse test ********************************* */
 
     if (mouse(stdin) > 0) {  /* mouse test */
-    printf("\f");
-    prtcen(1, "Move the mouse, and hit buttons");
-    prtcen(maxy(stdout), "Mouse test");
-    do {   /* gather mouse events */
 
-    /* we only one mouse, all mice equate to that (multiple controls) */
-    event(stdin, &er);
-    if (er.etype == etmoumov) {
-    cursor(stdout, x, y);
-    printf("          \n");
-    cursor(stdout, er.UU.U40.moupx, er.UU.U40.moupy);
-    x = curx(stdout);
-    y = cury(stdout);
-    printf("<- Mouse %d\n", er.UU.U40.mmoun);
+        printf("\f");
+        prtcen(1, "Move the mouse, and hit buttons");
+        prtcen(maxy(stdout), "Mouse test");
+        do { /* gather mouse events */
 
-    }
+            /* we only one mouse, all mice equate to that (multiple controls) */
+            event(stdin, &er);
+            if (er.etype == etmoumov) {
 
-    /* blank out button status line */
-    cursor(stdout, 1, maxy(stdout) - 2);
-    FORLIM = maxx(stdout);
-    for (i = 1; i <= FORLIM; i++)
-    putchar(' ');
-    if (er.etype == etmouba) {  /* mouse button assert */
-    cursor(stdout, 1, maxy(stdout) - 2);
-    printf("Mouse button assert, mouse: %d button: %d\n",
-           er.UU.U38.amoun, er.UU.U38.amoubn);
+                cursor(stdout, x, y);
+                printf("          \n");
+                cursor(stdout, er.moupx, er.moupy);
+                x = curx(stdout);
+                y = cury(stdout);
+                printf("<- Mouse %d\n", er.mmoun);
 
-    }
+            }
+            /* blank out button status line */
+            cursor(stdout, 1, maxy(stdout)-2);
+            for (i = 1; i <= maxx(stdout); i++) putchar(' ');
+            if (er.etype == etmouba) {  /* mouse button assert */
 
-    if (er.etype == etmoubd) {  /* mouse button assert */
-    cursor(stdout, 1, maxy(stdout) - 2);
-    printf("Mouse button deassert, mouse: %d button: %d\n",
-           er.UU.U39.dmoun, er.UU.U39.dmoubn);
+                cursor(stdout, 1, maxy(stdout)-2);
+                printf("Mouse button assert, mouse: %d button: %d\n",
+                       er.amoun, er.amoubn);
 
-    }
+            }
+            if (er.etype == etmoubd) {  /* mouse button assert */
+
+                cursor(stdout, 1, maxy(stdout) - 2);
+                printf("Mouse button deassert, mouse: %d button: %d\n",
+                       er.dmoun, er.dmoubn);
+
+            }
 
 
-    } while (er.etype != etenter && er.etype != etterm);
-    if (er.etype == etterm) {
-    goto _L99;
+        } while (er.etype != etenter && er.etype != etterm);
+        if (er.etype == etterm) goto _L99;
 
-    }
     }
 
 
@@ -1006,31 +996,27 @@ main(int argc, char *argv[])
     clk = clock();   /* get reference time */
     c = '\0';   /* initalize character value */
     cnt = 0;   /* clear character count */
-    FORLIM = maxy(stdout);
-    for (y = 1; y <= FORLIM; y++) {
-    cursor(stdout, 1, y);   /* index start of line */
-    FORLIM1 = maxx(stdout);
-    for (x = 1; x <= FORLIM1; x++) {
-    if (c >= ' ' && c != '\177')
-    putchar(c);
-    else
-    printf("\\\\");
-    if (c != '\177')
-    c++;   /* next character */
-    else
-    c = '\0';
-    /* start over */
-    cnt++;   /* count characters */
+    for (y = 1; y <= maxy(stdout); y++) {
 
-    }
+        cursor(stdout, 1, y); /* index start of line */
+        for (x = 1; x <= maxx(stdout); x++) {
+
+            if (c >= ' ' && c != '\177')
+            putchar(c);
+            else
+            printf("\\");
+            if (c != '\177') c++; /* next character */
+            else c = '\0'; /* start over */
+            cnt++;   /* count characters */
+
+        }
 
 
     }
-
     clk = elapsed(clk);   /* find elapsed time */
     printf("\f");
     printf("Character write speed: % .5E average seconds per character\n",
-           (double)clk / cnt * 0.0001);
+           clk/cnt*0.0001);
     waitnext();
 
     /* ************************** Scrolling speed test ************************* */
@@ -1038,50 +1024,45 @@ main(int argc, char *argv[])
     printf("\f");
     /* fill screen so we aren't moving blanks (could be optimized) */
     c = '1';
-    FORLIM = maxy(stdout);
-    for (y = 1; y <= FORLIM; y++) {
-    cursor(stdout, 1, y);   /* index start of line */
-    FORLIM1 = maxx(stdout);
-    for (x = 1; x <= FORLIM1; x++)   /* output characters */
-    putchar(c);
-    if (c != '9')
-    c++;   /* next character */
-    else {
-    c = '0';   /* start over */
+    for (y = 1; y <= maxy(stdout); y++) {
+
+        cursor(stdout, 1, y);   /* index start of line */
+        FORLIM1 = maxx(stdout);
+        for (x = 1; x <= maxx(stdout); x++)   /* output characters */
+        putchar(c);
+        if (c != '9') c++; /* next character */
+        else c = '0'; /* start over */
 
     }
-    }
-
     prtban("Scrolling speed test");
-    clk = clock();   /* get reference time */
-    cnt = 0;   /* clear count */
-    for (i = 1; i <= 1000; i++) {  /* scroll various directions */
-    scroll(stdout, 0, -1);   /* up */
-    scroll(stdout, -1, 0);   /* left */
-    scroll(stdout, 0, 1);   /* down */
-    scroll(stdout, 0, 1);   /* down */
-    scroll(stdout, 1, 0);   /* right */
-    scroll(stdout, 1, 0);   /* right */
-    scroll(stdout, 0, -1);   /* up */
-    scroll(stdout, 0, -1);   /* up */
-    scroll(stdout, -1, 0);   /* left */
-    scroll(stdout, 0, 1);   /* down */
-    scroll(stdout, -1, -1);   /* up/left */
-    scroll(stdout, 1, 1);   /* down/right */
-    scroll(stdout, 1, 1);   /* down/right */
-    scroll(stdout, -1, -1);   /* up/left */
-    scroll(stdout, 1, -1);   /* up/right */
-    scroll(stdout, -1, 1);   /* down/left */
-    scroll(stdout, -1, 1);   /* down/left */
-    scroll(stdout, 1, -1);   /* up/right */
-    cnt += 19;   /* count all scrolls */
+    clk = clock(); /* get reference time */
+    cnt = 0; /* clear count */
+    for (i = 1; i <= 1000; i++) { /* scroll various directions */
+
+        scroll(stdout, 0, -1); /* up */
+        scroll(stdout, -1, 0); /* left */
+        scroll(stdout, 0, 1); /* down */
+        scroll(stdout, 0, 1); /* down */
+        scroll(stdout, 1, 0); /* right */
+        scroll(stdout, 1, 0); /* right */
+        scroll(stdout, 0, -1); /* up */
+        scroll(stdout, 0, -1); /* up */
+        scroll(stdout, -1, 0); /* left */
+        scroll(stdout, 0, 1); /* down */
+        scroll(stdout, -1, -1); /* up/left */
+        scroll(stdout, 1, 1); /* down/right */
+        scroll(stdout, 1, 1); /* down/right */
+        scroll(stdout, -1, -1); /* up/left */
+        scroll(stdout, 1, -1); /* up/right */
+        scroll(stdout, -1, 1); /* down/left */
+        scroll(stdout, -1, 1); /* down/left */
+        scroll(stdout, 1, -1); /* up/right */
+        cnt += 19; /* count all scrolls */
 
     }
-
     clk = elapsed(clk);   /* find elapsed time */
     printf("\f");
-    printf("Scrolling speed: % .5E average seconds per scroll\n",
-           (double)clk / cnt * 0.0001);
+    printf("Scrolling speed: % .5E average seconds per scroll\n", clk/cnt*0.0001);
     waitnext();
 
     /* ************************** Buffer flip speed test ************************* */
@@ -1090,40 +1071,36 @@ main(int argc, char *argv[])
     cnt = 0;   /* clear count */
 
     for (b = 2; b <= 10; b++) {  /* prepare buffers */
-    select(stdout, b, 2);   /* select buffer */
-    /* write a shinking box pattern */
 
-    box(b - 1, b - 1, maxx(stdout) - b + 2, maxy(stdout) - b + 2, '*');
+        select(stdout, b, 2);   /* select buffer */
+        /* write a shinking box pattern */
+        box(b - 1, b - 1, maxx(stdout) - b + 2, maxy(stdout) - b + 2, '*');
+
     }
 
     clk = clock();   /* get reference time */
-    for (i = 1; i <= 1000; i++) {   /* flip buffers */
+    for (i = 1; i <= 1000; i++) /* flip buffers */
     for (b = 2; b <= 10; b++) {
-    select(stdout, 2, b);
-    cnt++;
 
-    }
+        select(stdout, 2, b);
+        cnt++;
 
     }
     clk = elapsed(clk);   /* find elapsed time */
     select(stdout, 2, 2);   /* restore buffer select */
     printf("\f");
     printf("Buffer switch speed: % .5E average seconds per switch\n",
-           (double)clk / cnt * 0.0001);
+           clk/cnt*0.0001);
     waitnext();
 
-_L99:   /* terminate */
+_L99: /* terminate */
 
     /* test complete */
     select(stdout, 1, 1);   /* back to display buffer */
     curvis(stdout, 1);   /* restore cursor */
     auto_(stdout, 1);   /* enable automatic screen wrap */
-    printf("\nTest complete\n");
-    if (tf != NULL)
-    fclose(tf);
-    exit(EXIT_SUCCESS);
+    printf("\n");
+    printf("Test complete\n");
+    if (tf != NULL) fclose(tf);
+
 }
-
-
-
-/* End. */
