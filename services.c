@@ -13,8 +13,13 @@
 *                                                                              *
 ********************************************************************************/
 
-#include "unix.h"
-#include "services.h"
+#include "errno".h"
+#include "sys/types.h"
+#include "sys/status.h"
+#include "fcntl.h"
+#include "dirend.h"
+
+#include "services.h" /* the header for this file */
 
 #define hoursec         3600   /* number of seconds in an hour */
 #define daysec          (hoursec * 24)   /* number of seconds in a day */
@@ -57,24 +62,11 @@ Outputs an error message using the special syslib function, then halts.
 
 static void error(char *s)
 {
-    int i;   /* index for string */
-    char pream[8];   /* preamble string */
-    char *p;   /* pointer to string */
-    int FORLIM;
 
+    fprintf(stderr, "\nError: Services: %s\n", s);
 
-    memcpy(pream, "Extlib: ", 8);   /* set preamble */
-    p = Malloc(256);   /* get string to hold */
-    for (i = 0; i <= 7; i++)   /* copy preamble */
-    p[i] = pream[i];
-    FORLIM = strlen(s);
-    for (i = 1; i <= FORLIM; i++)   /* copy string */
-    p[i+7] = s[i-1];
-    puts(p);   /* output string */
-    Free(p);   /* release storage */
-    /* end the run */
+    exit(1);
 
-    _Escape(0);
 }
 
 
@@ -83,7 +75,9 @@ static void error(char *s)
 Handle Unix error
 
 Looks up the given error number to find a message, then prints the message
-as an error.
+as an error. This routine relys on errno being set, and so must be called
+directly after encountering a Unix error.
+
 Note that error numbers are usually passed back as negative numbers by Unix, so
 they should be negated before calling this routine.
 
@@ -91,20 +85,9 @@ they should be negated before calling this routine.
 
 static void unixerr(void)
 {
-    char es[256], ts[256];
-    char STR1[256];
 
+    fprintf(stderr, "\nError: Services: %s\n", strerror(errno));
 
-    sprintf(STR1, "%c", *ts);
-    /*geterr(sc_errno, ts);*/
-    /* get the error message */
-    cat(es, "Unix: ", STR1);   /* form message */
-    Free(ts);   /* release temp */
-    sprintf(STR1, "%c", *es);
-    error(STR1);   /* process error */
-    /* release message */
-
-    Free(es);
 }
 
 
@@ -182,28 +165,34 @@ Create file list
 Accepts a filename, that may include wildcards. All of the matching files are
 found, and a list of file entries is returned. The file entries are in standard
 directory format.
+
 The entries are allocated from general storage, and both the entry and the
 filename should be disposed of by the caller when they are no longer needed.
 If no files are matched, the returned list is nil.
 
 ********************************************************************************/
 
-static void list_(char *f, filrec **l)
-{
-    /* file to search for */
-    /* file list returned */
-    sc_dirent dr;   /* Unix directory record */
-    int fd;   /* directory file descriptor */
-    int r, rd;   /* result code */
-    sc_sstat sr;   /* stat() record */
-    filrec *fp;   /* file entry pointer */
-    filrec *lp;   /* last entry pointer */
-    int i;   /* name index */
-    bufstr p, n, e;   /* filename components */
-    bufstr fn;   /* holder for directory name */
-    bufstr dn;   /* holder for directory entry */
-    char STR1[256];
+void list(
+    /** file to search for */ char *f,
+    /** file list returned */ filrec **l
+)
 
+{
+
+    struct dirent dr; /* Unix directory record */
+    int           fd; /* directory file descriptor */
+    int           r;  /* result code */
+    int           rd;
+    sc_sstat      sr; /* stat() record */
+    filrec*       fp; /* file entry pointer */
+    filrec*       lp; /* last entry pointer */
+    int           i;  /* name index */
+    bufstr        p;  /* filename components */
+    bufstr        n;
+    bufstr        e;
+    bufstr        fn; /* holder for directory name */
+    bufstr        dn; /* holder for directory entry */
+    char STR1[256];
 
     *l = NULL;   /* clear destination list */
     lp = NULL;   /* clear last pointer */
@@ -213,117 +202,117 @@ static void list_(char *f, filrec **l)
     error("Path cannot contain wildcards");
     /* construct name of containing directory */
     maknam(fn, p, ".", "");
-    fd = sc_open(fn, sc_o_rdonly, 0);   /* open the directory */
+    fd = sc_open(fn, O_RDONLY, 0);   /* open the directory */
     if (fd < 0)   /* process unix open error */
     unixerr();
     maknam(fn, "", n, e);   /* reform name without path */
     do {   /* read directory entries */
 
-    rd = sc_readdir(fd, &dr, 1);
-    if (rd < 0)   /* process unix error */
-    unixerr();
-    if (rd == 1) {  /* valid next */
-    /* copy to standard string */
-    clears(dn);   /* clear it */
-    i = 1;   /* set 1st character */
-    while (i < sc_dirlen && dr.d_name[i-1] != '\0') {
-    dn[i-1] = dr.d_name[i-1];   /* copy character */
-    i++;   /* next */
+        rd = sc_readdir(fd, &dr, 1);
+        if (rd < 0) unixerr(); /* process unix error */
+        if (rd == 1) {  /* valid next */
 
-}
+            /* copy to standard string */
+            clears(dn);   /* clear it */
+            i = 1;   /* set 1st character */
+            while (i < sc_dirlen && dr.d_name[i-1] != '\0') {
 
-    if (match(fn, dn, 1, 1)) {  /* matching filename, add to list */
-    fp = Malloc(sizeof(filrec));   /* create a new file entry */
-    sprintf(STR1, "%.*s", sc_dirlen, dr.d_name);
-    r = sc_stat(STR1, &sr);   /* get stat structure on file */
-    if (r < 0)   /* process unix error */
-    unixerr();
-    /* file information in stat record, translate to our format */
-    copys(fp->name, dn);   /* place filename */
-    fp->size = sr.st_size;   /* place size */
-    /* there is actually a real unix allocation, but I haven't figgured out
-       how to calculate it from block/blocksize */
-    fp->alloc = sr.st_size;   /* place allocation */
-    fp->attr = 0;   /* clear attributes */
-    /* clear permissions to all is allowed */
-    fp->user = (1 << ((int)pmread)) | (1 << ((int)pmwrite)) |
-        (1 << ((int)pmexec)) | (1 << ((int)pmdel)) | (1 << ((int)pmvis)) |
-        (1 << ((int)pmcopy)) | (1 << ((int)pmren));
-    fp->other = (1 << ((int)pmread)) | (1 << ((int)pmwrite)) |
-        (1 << ((int)pmexec)) | (1 << ((int)pmdel)) | (1 << ((int)pmvis)) |
-        (1 << ((int)pmcopy)) | (1 << ((int)pmren));
-    fp->group = (1 << ((int)pmread)) | (1 << ((int)pmwrite)) |
-        (1 << ((int)pmexec)) | (1 << ((int)pmdel)) | (1 << ((int)pmvis)) |
-        (1 << ((int)pmcopy)) | (1 << ((int)pmren));
-    /* check and set directory attribute */
-    if ((sr.st_mode & sc_s_ifdir) != 0)
-    fp->attr |= 1 << ((int)atdir);
-    /* check and set any system special file */
-    if ((sr.st_mode & sc_s_ififo) != 0)
-    fp->attr |= 1 << ((int)atsys);
-    if ((sr.st_mode & sc_s_ifchr) != 0)
-    fp->attr |= 1 << ((int)atsys);
-    if ((sr.st_mode & sc_s_ifblk) != 0)
-    fp->attr |= 1 << ((int)atsys);
-    /* check hidden. in Unix, this is done with a leading '.'. We remove
-       visiblity priveledges */
-    if (dr.d_name[0] == '.') {
-    fp->user &= ~(1 << ((int)pmvis));
-    fp->group &= ~(1 << ((int)pmvis));
-    fp->other &= ~(1 << ((int)pmvis));
+                dn[i-1] = dr.d_name[i-1];   /* copy character */
+                i++;   /* next */
 
-}
+            }
+            if (match(fn, dn, 1, 1)) {  /* matching filename, add to list */
+            fp = Malloc(sizeof(filrec));   /* create a new file entry */
+            sprintf(STR1, "%.*s", sc_dirlen, dr.d_name);
+            r = sc_stat(STR1, &sr);   /* get stat structure on file */
+            if (r < 0)   /* process unix error */
+            unixerr();
+            /* file information in stat record, translate to our format */
+            copys(fp->name, dn);   /* place filename */
+            fp->size = sr.st_size;   /* place size */
+            /* there is actually a real unix allocation, but I haven't figgured out
+               how to calculate it from block/blocksize */
+            fp->alloc = sr.st_size;   /* place allocation */
+            fp->attr = 0;   /* clear attributes */
+            /* clear permissions to all is allowed */
+            fp->user = (1 << ((int)pmread)) | (1 << ((int)pmwrite)) |
+                (1 << ((int)pmexec)) | (1 << ((int)pmdel)) | (1 << ((int)pmvis)) |
+                (1 << ((int)pmcopy)) | (1 << ((int)pmren));
+            fp->other = (1 << ((int)pmread)) | (1 << ((int)pmwrite)) |
+                (1 << ((int)pmexec)) | (1 << ((int)pmdel)) | (1 << ((int)pmvis)) |
+                (1 << ((int)pmcopy)) | (1 << ((int)pmren));
+            fp->group = (1 << ((int)pmread)) | (1 << ((int)pmwrite)) |
+                (1 << ((int)pmexec)) | (1 << ((int)pmdel)) | (1 << ((int)pmvis)) |
+                (1 << ((int)pmcopy)) | (1 << ((int)pmren));
+            /* check and set directory attribute */
+            if ((sr.st_mode & sc_s_ifdir) != 0)
+            fp->attr |= 1 << ((int)atdir);
+            /* check and set any system special file */
+            if ((sr.st_mode & sc_s_ififo) != 0)
+            fp->attr |= 1 << ((int)atsys);
+            if ((sr.st_mode & sc_s_ifchr) != 0)
+            fp->attr |= 1 << ((int)atsys);
+            if ((sr.st_mode & sc_s_ifblk) != 0)
+            fp->attr |= 1 << ((int)atsys);
+            /* check hidden. in Unix, this is done with a leading '.'. We remove
+               visiblity priveledges */
+            if (dr.d_name[0] == '.') {
+            fp->user &= ~(1 << ((int)pmvis));
+            fp->group &= ~(1 << ((int)pmvis));
+            fp->other &= ~(1 << ((int)pmvis));
 
-    /* check and set executable attribute. Unix has separate executable
-       permissions for each permission type, we set executable if any of
-       them are true */
-    if ((sr.st_mode & sc_s_iexec) != 0)
-    fp->attr |= 1 << ((int)atexec);
-    /* set execute permissions to user */
-    if ((sr.st_mode & sc_s_iexec) == 0)
-    fp->user &= ~(1 << ((int)pmexec));
-    /* set read permissions to user */
-    if ((sr.st_mode & sc_s_iread) == 0)
-    fp->user &= ~(1 << ((int)pmread));
-    /* set write permissions to user */
-    if ((sr.st_mode & sc_s_iwrite) == 0)
-    fp->user &= ~(1 << ((int)pmwrite));
-    /* set execute permissions to group */
-    if ((sr.st_mode & sc_s_igexec) == 0)
-    fp->group &= ~(1 << ((int)pmexec));
-    /* set read permissions to group */
-    if ((sr.st_mode & sc_s_igread) == 0)
-    fp->group &= ~(1 << ((int)pmread));
-    /* set write permissions to group */
-    if ((sr.st_mode & sc_s_igwrite) == 0)
-    fp->group &= ~(1 << ((int)pmwrite));
-    /* set execute permissions to other */
-    if ((sr.st_mode & sc_s_ioexec) == 0)
-    fp->other = fp->group & (~(1 << ((int)pmexec)));
-    /* set read permissions to other */
-    if ((sr.st_mode & sc_s_ioread) == 0)
-    fp->other = fp->group & (~(1 << ((int)pmread)));
-    /* set write permissions to other */
-    if ((sr.st_mode & sc_s_iowrite) == 0)
-    fp->other = fp->group & (~(1 << ((int)pmwrite)));
-    /* set times */
-    fp->create = sr.st_ctime - unixadj;
-    fp->modify = sr.st_mtime - unixadj;
-    fp->access = sr.st_atime - unixadj;
-    fp->backup = -INT_MAX;   /* no backup time for Unix */
-    /* insert entry to list */
-    if (*l == NULL)
-    *l = fp;   /* insert new top */
-    else
-    lp->next = fp;
-    /* insert next entry */
-    lp = fp;   /* set new last */
-    fp->next = NULL;   /* clear next */
+        }
 
-}
+            /* check and set executable attribute. Unix has separate executable
+               permissions for each permission type, we set executable if any of
+               them are true */
+            if ((sr.st_mode & sc_s_iexec) != 0)
+            fp->attr |= 1 << ((int)atexec);
+            /* set execute permissions to user */
+            if ((sr.st_mode & sc_s_iexec) == 0)
+            fp->user &= ~(1 << ((int)pmexec));
+            /* set read permissions to user */
+            if ((sr.st_mode & sc_s_iread) == 0)
+            fp->user &= ~(1 << ((int)pmread));
+            /* set write permissions to user */
+            if ((sr.st_mode & sc_s_iwrite) == 0)
+            fp->user &= ~(1 << ((int)pmwrite));
+            /* set execute permissions to group */
+            if ((sr.st_mode & sc_s_igexec) == 0)
+            fp->group &= ~(1 << ((int)pmexec));
+            /* set read permissions to group */
+            if ((sr.st_mode & sc_s_igread) == 0)
+            fp->group &= ~(1 << ((int)pmread));
+            /* set write permissions to group */
+            if ((sr.st_mode & sc_s_igwrite) == 0)
+            fp->group &= ~(1 << ((int)pmwrite));
+            /* set execute permissions to other */
+            if ((sr.st_mode & sc_s_ioexec) == 0)
+            fp->other = fp->group & (~(1 << ((int)pmexec)));
+            /* set read permissions to other */
+            if ((sr.st_mode & sc_s_ioread) == 0)
+            fp->other = fp->group & (~(1 << ((int)pmread)));
+            /* set write permissions to other */
+            if ((sr.st_mode & sc_s_iowrite) == 0)
+            fp->other = fp->group & (~(1 << ((int)pmwrite)));
+            /* set times */
+            fp->create = sr.st_ctime - unixadj;
+            fp->modify = sr.st_mtime - unixadj;
+            fp->access = sr.st_atime - unixadj;
+            fp->backup = -INT_MAX;   /* no backup time for Unix */
+            /* insert entry to list */
+            if (*l == NULL)
+            *l = fp;   /* insert new top */
+            else
+            lp->next = fp;
+            /* insert next entry */
+            lp = fp;   /* set new last */
+            fp->next = NULL;   /* clear next */
+
+        }
 
 
-}
+    }
 
 
 } while (rd == 1);
@@ -1424,8 +1413,9 @@ extract the program path from that.
 
 ********************************************************************************/
 
-static void getpgm_(char *p)
+static void getpgm(char *path, int len)
 {
+
     struct LOC_getpgm_ V;
     int pi;   /* index for path */
     bufstr pn;   /* program name holder */

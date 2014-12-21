@@ -251,7 +251,7 @@ static void error(errcod e)
 
 {
 
-    fprintf(stderr, "*** Error: Ansi: ");
+    fprintf(stderr, "*** Error: AnsiTerm: ");
     switch (e) { /* error */
 
         case eftbful: fprintf(stderr, "Too many files"); break;
