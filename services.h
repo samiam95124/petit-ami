@@ -111,7 +111,7 @@ extern void resoper(char *fn, permset p);
 extern void seterr(int c);
 extern void makpth(char *fn);
 extern void rempth(char *fn);
-extern void filchr(uchar *fc);
+extern void filchr(chrset* fc);
 extern char optchr(void);
 extern char pthchr(void);
 

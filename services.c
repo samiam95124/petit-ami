@@ -16,10 +16,15 @@
 #include "errno".h"
 #include "sys/types.h"
 #include "sys/status.h"
+#include "sys/stat.h"
 #include "fcntl.h"
-#include "dirend.h"
+#include "unistd.h"
+#include "dirent.h"
 
 #include "services.h" /* the header for this file */
+
+/* give bit in word from ordinal position */
+#define bit(b) (1 << b)
 
 #define hoursec         3600   /* number of seconds in an hour */
 #define daysec          (hoursec * 24)   /* number of seconds in a day */
@@ -110,53 +115,56 @@ static void plcstr(char *s, int *i, char c)
 
 }
 
+/********************************************************************************
 
-/* match with wildcards at the given a and b positions. we use shortest string
-   first matching */
+Match filenames with wildcards
+
+match with wildcards at the given a and b positions. we use shortest string first
+matching.
+
+********************************************************************************/
 
 static int match(char *a, char *b, int ia, int ib)
-{
-    int m;
 
+{
+
+    int m;
 
     m = 1;   /* default to matches */
     while (ia < strlen(a) && ib < strlen(b) && m) {  /* match characters */
-    if (a[ia-1] == '*') {  /* multicharacter wildcard, go searching */
-    /* skip all wildcards in match expression name. For each '*' or
-       '?', we skip one character in the matched name. The idea being
-       that '*' means 1 or more matched characters */
-    while (ia < strlen(a) && (a[ia-1] == '?' || a[ia-1] == '*')) {
-    ia++;   /* next character */
-    ib++;
 
-}
+        if (a[ia-1] == '*') {  /* multicharacter wildcard, go searching */
 
-    /* recursively match to string until we find a match for the rest
-       or run out of string */
-    while (ib < strlen(b) && !match(a, b, ia, ib))
-    ib++;
-    if (ib >= strlen(b))   /* didn't match, set false */
-    m = 0;
-    ib = strlen(b);   /* terminate */
+            /* skip all wildcards in match expression name. For each '*' or
+               '?', we skip one character in the matched name. The idea being
+               that '*' means 1 or more matched characters */
+            while (ia < strlen(a) && (a[ia-1] == '?' || a[ia-1] == '*')) {
 
-}
+                ia++;   /* next character */
+                ib++;
 
-    else if (a[ia-1] != b[ib-1] && a[ia-1] != '?')
-    m = 0;
-    /* fail match */
-    if (!m)
-    break;
+            }
+            /* recursively match to string until we find a match for the rest
+               or run out of string */
+            while (ib < strlen(b) && !match(a, b, ia, ib)) ib++;
+            if (ib >= strlen(b)) m = 0; /* didn't match, set false */
+            ib = strlen(b);   /* terminate */
 
+        }
 
-    ia++;   /* next character */
-    ib++;
+        else if (a[ia-1] != b[ib-1] && a[ia-1] != '?')
+            m = 0; /* fail match */
+        if (!m) {
 
-}
+            ia++;   /* next character */
+            ib++;
 
+        }
+
+    }
     return m;
 
 }
-
 
 /********************************************************************************
 
@@ -164,7 +172,7 @@ Create file list
 
 Accepts a filename, that may include wildcards. All of the matching files are
 found, and a list of file entries is returned. The file entries are in standard
-directory format.
+directory format. The path may not contain wildcards.
 
 The entries are allocated from general storage, and both the entry and the
 filename should be disposed of by the caller when they are no longer needed.
@@ -183,7 +191,7 @@ void list(
     int           fd; /* directory file descriptor */
     int           r;  /* result code */
     int           rd;
-    sc_sstat      sr; /* stat() record */
+    struct stat   sr; /* stat() record */
     filrec*       fp; /* file entry pointer */
     filrec*       lp; /* last entry pointer */
     int           i;  /* name index */
@@ -191,42 +199,29 @@ void list(
     bufstr        n;
     bufstr        e;
     bufstr        fn; /* holder for directory name */
-    bufstr        dn; /* holder for directory entry */
-    char STR1[256];
 
-    *l = NULL;   /* clear destination list */
-    lp = NULL;   /* clear last pointer */
-    brknam(f, p, n, e);   /* break up filename */
+    *l = NULL; /* clear destination list */
+    lp = NULL; /* clear last pointer */
+    brknam(f, p, n, e); /* break up filename */
     /* check wildcards in path */
-    if (index_(p, "*") != 0 || index_(p, "?") != 0)
-    error("Path cannot contain wildcards");
+    if (strstr(p, "*") || strstr(p, "?")) error("Path cannot contain wildcards");
     /* construct name of containing directory */
     maknam(fn, p, ".", "");
-    fd = sc_open(fn, O_RDONLY, 0);   /* open the directory */
-    if (fd < 0)   /* process unix open error */
-    unixerr();
+    fd = open(fn, O_RDONLY, 0); /* open the directory */
+    if (fd < 0) unixerr(); /* process unix open error */
     maknam(fn, "", n, e);   /* reform name without path */
-    do {   /* read directory entries */
+    do { /* read directory entries */
 
-        rd = sc_readdir(fd, &dr, 1);
+        rd = readdir(fd, &dr, 1);
         if (rd < 0) unixerr(); /* process unix error */
-        if (rd == 1) {  /* valid next */
+        if (rd == 1) { /* valid next */
 
-            /* copy to standard string */
-            clears(dn);   /* clear it */
-            i = 1;   /* set 1st character */
-            while (i < sc_dirlen && dr.d_name[i-1] != '\0') {
-
-                dn[i-1] = dr.d_name[i-1];   /* copy character */
-                i++;   /* next */
-
-            }
-            if (match(fn, dn, 1, 1)) {  /* matching filename, add to list */
-            fp = Malloc(sizeof(filrec));   /* create a new file entry */
-            sprintf(STR1, "%.*s", sc_dirlen, dr.d_name);
-            r = sc_stat(STR1, &sr);   /* get stat structure on file */
-            if (r < 0)   /* process unix error */
-            unixerr();
+            if (match(fn, dr.d_name, 1, 1)) { /* matching filename, add to list */
+            fp = malloc(sizeof(filrec)); /* create a new file entry */
+            fp^.name = malloc(strlen(dr.d_name)); /* copy to new filename string */
+            strcpy(fp^.name, dr.d_name);
+            r = stat(fp^.name, &sr); /* get stat structure on file */
+            if (r < 0) unixerr(); /* process unix error */
             /* file information in stat record, translate to our format */
             copys(fp->name, dn);   /* place filename */
             fp->size = sr.st_size;   /* place size */
@@ -235,90 +230,65 @@ void list(
             fp->alloc = sr.st_size;   /* place allocation */
             fp->attr = 0;   /* clear attributes */
             /* clear permissions to all is allowed */
-            fp->user = (1 << ((int)pmread)) | (1 << ((int)pmwrite)) |
-                (1 << ((int)pmexec)) | (1 << ((int)pmdel)) | (1 << ((int)pmvis)) |
-                (1 << ((int)pmcopy)) | (1 << ((int)pmren));
-            fp->other = (1 << ((int)pmread)) | (1 << ((int)pmwrite)) |
-                (1 << ((int)pmexec)) | (1 << ((int)pmdel)) | (1 << ((int)pmvis)) |
-                (1 << ((int)pmcopy)) | (1 << ((int)pmren));
-            fp->group = (1 << ((int)pmread)) | (1 << ((int)pmwrite)) |
-                (1 << ((int)pmexec)) | (1 << ((int)pmdel)) | (1 << ((int)pmvis)) |
-                (1 << ((int)pmcopy)) | (1 << ((int)pmren));
+            fp->user = bit(pmread) | bit(pmwrite) | bit(pmexec) | bit(pmdel) |
+                       bit(pmvis) | bit(pmcopy) | bit(pmren);
+            fp->other = bit(pmread) | bit(pmwrite) | bit(pmexec) | bit(pmdel) |
+                        bit(pmvis) | bit(pmcopy) | bit(pmren);
+            fp->group = bit(pmread) | bit(pmwrite) | bit(pmexec) | bit(pmdel) |
+                        bit(pmvis)) | bit(pmcopy)) | bit(pmren);
             /* check and set directory attribute */
-            if ((sr.st_mode & sc_s_ifdir) != 0)
-            fp->attr |= 1 << ((int)atdir);
+            if ((sr.st_mode & sc_s_ifdir) != 0) fp->attr |= bit(atdir);
             /* check and set any system special file */
-            if ((sr.st_mode & sc_s_ififo) != 0)
-            fp->attr |= 1 << ((int)atsys);
-            if ((sr.st_mode & sc_s_ifchr) != 0)
-            fp->attr |= 1 << ((int)atsys);
-            if ((sr.st_mode & sc_s_ifblk) != 0)
-            fp->attr |= 1 << ((int)atsys);
+            if ((sr.st_mode & sc_s_ififo) != 0) fp->attr |= bit(atsys);
+            if ((sr.st_mode & sc_s_ifchr) != 0) fp->attr |= bit(atsys);
+            if ((sr.st_mode & sc_s_ifblk) != 0) fp->attr |= bit(atsys);
             /* check hidden. in Unix, this is done with a leading '.'. We remove
                visiblity priveledges */
             if (dr.d_name[0] == '.') {
-            fp->user &= ~(1 << ((int)pmvis));
-            fp->group &= ~(1 << ((int)pmvis));
-            fp->other &= ~(1 << ((int)pmvis));
 
-        }
+                fp->user &= ~bit(pmvis);
+                fp->group &= ~bit(pmvis);
+                fp->other &= ~bit(pmvis);
 
+            }
             /* check and set executable attribute. Unix has separate executable
                permissions for each permission type, we set executable if any of
                them are true */
-            if ((sr.st_mode & sc_s_iexec) != 0)
-            fp->attr |= 1 << ((int)atexec);
+            if ((sr.st_mode & sc_s_iexec) != 0) fp->attr |= bit(atexec);
             /* set execute permissions to user */
-            if ((sr.st_mode & sc_s_iexec) == 0)
-            fp->user &= ~(1 << ((int)pmexec));
+            if ((sr.st_mode & sc_s_iexec) == 0) fp->user &= ~bit(pmexec);
             /* set read permissions to user */
-            if ((sr.st_mode & sc_s_iread) == 0)
-            fp->user &= ~(1 << ((int)pmread));
+            if ((sr.st_mode & sc_s_iread) == 0) fp->user &= ~bit(pmread);
             /* set write permissions to user */
-            if ((sr.st_mode & sc_s_iwrite) == 0)
-            fp->user &= ~(1 << ((int)pmwrite));
+            if ((sr.st_mode & sc_s_iwrite) == 0) fp->user &= ~bit(pmwrite);
             /* set execute permissions to group */
-            if ((sr.st_mode & sc_s_igexec) == 0)
-            fp->group &= ~(1 << ((int)pmexec));
+            if ((sr.st_mode & sc_s_igexec) == 0) fp->group &= ~bit(pmexec);
             /* set read permissions to group */
-            if ((sr.st_mode & sc_s_igread) == 0)
-            fp->group &= ~(1 << ((int)pmread));
+            if ((sr.st_mode & sc_s_igread) == 0) fp->group &= ~bit(pmread);
             /* set write permissions to group */
-            if ((sr.st_mode & sc_s_igwrite) == 0)
-            fp->group &= ~(1 << ((int)pmwrite));
+            if ((sr.st_mode & sc_s_igwrite) == 0) fp->group &= ~bit(pmwrite);
             /* set execute permissions to other */
-            if ((sr.st_mode & sc_s_ioexec) == 0)
-            fp->other = fp->group & (~(1 << ((int)pmexec)));
+            if ((sr.st_mode & sc_s_ioexec) == 0) fp->other = fp->group & (~bit(pmexec));
             /* set read permissions to other */
-            if ((sr.st_mode & sc_s_ioread) == 0)
-            fp->other = fp->group & (~(1 << ((int)pmread)));
+            if ((sr.st_mode & sc_s_ioread) == 0) fp->other = fp->group & (~bit(pmread));
             /* set write permissions to other */
-            if ((sr.st_mode & sc_s_iowrite) == 0)
-            fp->other = fp->group & (~(1 << ((int)pmwrite)));
+            if ((sr.st_mode & sc_s_iowrite) == 0) fp->other = fp->group & (~bit(pmwrite));
             /* set times */
-            fp->create = sr.st_ctime - unixadj;
-            fp->modify = sr.st_mtime - unixadj;
-            fp->access = sr.st_atime - unixadj;
-            fp->backup = -INT_MAX;   /* no backup time for Unix */
+            fp->create = sr.st_ctime-unixadj;
+            fp->modify = sr.st_mtime-unixadj;
+            fp->access = sr.st_atime-unixadj;
+            fp->backup = -INT_MAX; /* no backup time for Unix */
             /* insert entry to list */
-            if (*l == NULL)
-            *l = fp;   /* insert new top */
-            else
-            lp->next = fp;
-            /* insert next entry */
+            if (*l == NULL) *l = fp; /* insert new top */
+            else lp->next = fp; /* insert next entry */
             lp = fp;   /* set new last */
             fp->next = NULL;   /* clear next */
 
         }
 
-
-    }
-
-
-} while (rd == 1);
-    r = sc_close(fd);
-    if (r < 0)   /* process unix error */
-    unixerr();
+    } while (rd == 1);
+    r = close(fd);
+    if (r < 0) unixerr();  /* process unix error */
 
 }
 
@@ -345,11 +315,11 @@ static void wrtzer(int v, struct LOC_times_ *LINK)
 
 Get time string padded
 
-Converts the given time into a padded string.
+Converts the given time into a string.
 
 ********************************************************************************/
 
-static void times_(char *s_, int t)
+static void times(char *s, int t)
 {
     /* result string */
     /* time to convert */
@@ -358,35 +328,23 @@ static void times_(char *s_, int t)
     char m;   /* minute */
     char sec;   /* second */
     int pm;   /* am/pm flag */
-    int FORLIM;
 
-
-
-
-    V.s = s_;
-    if (strlen(V.s) < 11)   /* string to small to hold result */
-    error("*** String to small to hold time");
-    FORLIM = strlen(V.s);
-    for (V.i = 1; V.i <= FORLIM; V.i++)   /* clear result */
-    V.s[V.i-1] = ' ';
-    V.i = 1;   /* set 1st string place */
+    if (strlen(s) < 11) /* string to small to hold result */
+        error("*** String to small to hold time");
+    i = 1;   /* set 1st string place */
     /* because leap adjustments are made in terms of days, we just remove
        the days to find the time of day in seconds. this is completely
        independent of leap adjustments */
     t %= daysec;   /* find number of seconds in day */
-/* p2c: services.pas, line 345:
- * Note: Using % for possibly-negative arguments [317] */
     /* if before 2000, find from remaining seconds */
     if (t < 0)
     t += daysec;
     h = t / hoursec;   /* find hours */
     t %= hoursec;   /* subtract hours */
-/* p2c: services.pas, line 349:
- * Note: Using % for possibly-negative arguments [317] */
+
     m = t / 60;   /* find minutes */
     sec = t % 60;   /* find seconds */
-/* p2c: services.pas, line 351:
- * Note: Using % for possibly-negative arguments [317] */
+
     pm = 0;   /* set am */
     if (h == 0)
     h = 12;   /* hour zero */
@@ -455,11 +413,11 @@ static int leapyear(int y, struct LOC_dates_ *LINK)
 
 Get date string padded
 
-Converts the given date into a padded string.
+Converts the given date into a string.
 
 ********************************************************************************/
 
-static void dates_(char *s_, int t)
+static void dates(char *s_, int t)
 {
     /* string to place date into */
     /* time record to write from */
@@ -571,14 +529,14 @@ Writes the time to a given file, from a time record.
 
 ********************************************************************************/
 
-static void writetime_(FILE *f, int t)
+static void writetime(FILE *f, int t)
 {
     /* file to write to */
     /* time record to write from */
     char s[256];
 
 
-    times_(s, t);   /* convert time to string form */
+    times(s, t);   /* convert time to string form */
     fputs(s, f);   /* output */
 
 }
@@ -594,14 +552,14 @@ used by windows.
 
 ********************************************************************************/
 
-static void writedate_(FILE *f, int t)
+static void writedate(FILE *f, int t)
 {
     /* file to write to */
     /* time record to write from */
     char s[256];
 
 
-    dates_(s, t);   /* convert date to string form */
+    dates(s, t);   /* convert date to string form */
     fputs(s, f);   /* output */
 
 }
