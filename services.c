@@ -292,25 +292,6 @@ void list(
 
 }
 
-
-/* Local variables for times_: */
-struct LOC_times_ {
-    char *s;
-    int i;   /* index for string */
-} ;
-
-static void wrtzer(int v, struct LOC_times_ *LINK)
-{
-    LINK->s[LINK->i-1] = v / 10 + '0';
-    LINK->i++;
-    LINK->s[LINK->i-1] = v % 10 + '0';
-/* p2c: services.pas, line 331:
- * Note: Using % for possibly-negative arguments [317] */
-    LINK->i++;
-
-}
-
-
 /********************************************************************************
 
 Get time string padded
@@ -319,95 +300,69 @@ Converts the given time into a string.
 
 ********************************************************************************/
 
-static void times(char *s, int t)
+static void times(
+    /** result string */           char *s,
+    /** length of string buffer */ int len;
+    /** time to convert */         int t
+)
+
 {
-    /* result string */
-    /* time to convert */
-    struct LOC_times_ V;
+
     char h;   /* hour */
     char m;   /* minute */
-    char sec;   /* second */
-    int pm;   /* am/pm flag */
+    char sec; /* second */
+    int  am;  /* am flag */
+    int  pm;  /* pm flag */
 
-    if (strlen(s) < 11) /* string to small to hold result */
-        error("*** String to small to hold time");
+    if (len < 11-(!time24hour()*3)) /* string to small to hold result */
+        error("*** String buffer to small to hold time");
     i = 1;   /* set 1st string place */
     /* because leap adjustments are made in terms of days, we just remove
        the days to find the time of day in seconds. this is completely
        independent of leap adjustments */
     t %= daysec;   /* find number of seconds in day */
     /* if before 2000, find from remaining seconds */
-    if (t < 0)
-    t += daysec;
+    if (t < 0) t += daysec;
     h = t / hoursec;   /* find hours */
     t %= hoursec;   /* subtract hours */
-
     m = t / 60;   /* find minutes */
     sec = t % 60;   /* find seconds */
+    pm = 0; /* clear am and pm flags */
+    am = 0;
+    if (!time24hour()) { /* do am/pm adjustment */
 
-    pm = 0;   /* set am */
-    if (h == 0)
-    h = 12;   /* hour zero */
-    else if (h > 12) {
-    h -= 12;
-    pm = 1;
-}  /* 1 pm to 11 pm */
-    wrtzer(h, &V);   /* place hour */
-    if (V.s[0] == '0')   /* clear leading zero */
-    V.s[0] = ' ';
-    V.s[V.i-1] = ':';
-    V.i++;
-    wrtzer(m, &V);
-    V.s[V.i-1] = ':';
-    V.i++;
-    wrtzer(sec, &V);
-    V.i++;
-    if (pm) {
-    V.s[V.i-1] = 'p';
-    V.i++;
-    V.s[V.i-1] = 'm';
-    V.i++;
+        if (h == 0) h = 12; /* hour zero */
+        else if (h > 12) { h -= 12; pm = 1; } /* 1 pm to 11 pm */
 
-    return;
-}
+    }
+    /* place hour:miniute:second */
+    switch (timeorder()) {
 
-    V.s[V.i-1] = 'a';
-    V.i++;
-    V.s[V.i-1] = 'm';
-    V.i++;
+        case 1:
+            s += sprintf(s, "%02d%c%02d%c%02d", h, timesep(), m, timesep(), s);
+            break;
+        case 2:
+            s += sprintf(s, "%02d%c%02d%c%02d", h, timesep(), s, timesep(), m);
+            break;
+        case 3:
+            s += sprintf(s, "%02d%c%02d%c%02d", m, timesep(), h, timesep(), s);
+            break;
+        case 4:
+            s += sprintf(s, "%02d%c%02d%c%02d", m, timesep(), s, timesep(), h);
+            break;
+        case 5:
+            s += sprintf(s, "%02d%c%02d%c%02d", s, timesep(), h, timesep(), m);
+            break;
+        case 6:
+            s += sprintf(s, "%02d%c%02d%c%02d", s, timesep(), m, timesep(), h);
+            break;
 
-}
-
-
-/* Local variables for dates_: */
-struct LOC_dates_ {
-    char *s;
-    int i;   /* index for string */
-} ;
-
-static void wrtzer_(int v, struct LOC_dates_ *LINK)
-{
-    LINK->s[LINK->i-1] = v / 10 % 10 + '0';
-/* p2c: services.pas, line 411:
- * Note: Using % for possibly-negative arguments [317] */
-    LINK->i++;
-    LINK->s[LINK->i-1] = v % 10 + '0';
-/* p2c: services.pas, line 413:
- * Note: Using % for possibly-negative arguments [317] */
-    LINK->i++;
+    }
+    if (pm) s += sprintf(s, " pm");
+    if (am) s += sprintf(s, " am");
+    *s = 0; /* terminate string */
 
 }
-
-static int leapyear(int y, struct LOC_dates_ *LINK)
-{
-    return ((y & 3) == 0 && y % 100 != 0 || y % 400 == 0);
-/* p2c: services.pas, line 422:
- * Note: Using % for possibly-negative arguments [317] */
-/* p2c: services.pas, line 422:
- * Note: Using % for possibly-negative arguments [317] */
-
-}
-
 
 /********************************************************************************
 
@@ -417,11 +372,18 @@ Converts the given date into a string.
 
 ********************************************************************************/
 
-static void dates(char *s_, int t)
+/*
+ * Check year is a leap year
+ */
+#define leapyear(y) ((y & 3) == 0 && y % 100 != 0 || y % 400 == 0)
+
+static void dates(
+    /* string to place date into */ char *s_,
+    /* time record to write from */ int t
+)
+
 {
-    /* string to place date into */
-    /* time record to write from */
-    struct LOC_dates_ V;
+
     int y;   /* year holder */
     char d;   /* day holder */
     char m;   /* month holder */
@@ -430,13 +392,8 @@ static void dates(char *s_, int t)
     char di;   /* day counter array index */
     short yd;   /* years in day holder */
     int done;   /* loop complete flag */
-
-
     int days[12];   /* days in months */
-    int FORLIM;
 
-
-    V.s = s_;
     days[0] = 31;   /* january */
     days[1] = 28;   /* february-leap day */
     days[2] = 31;   /* march */
@@ -450,76 +407,66 @@ static void dates(char *s_, int t)
     days[10] = 30;   /* november */
     days[11] = 31;   /* december */
 
-    if (strlen(V.s) < 8)   /* string to small to hold result */
-    error("*** String to small to hold time");
-    FORLIM = strlen(V.s);
-    for (V.i = 1; V.i <= FORLIM; V.i++)   /* clear result */
-    V.s[V.i-1] = ' ';
-    V.i = 1;   /* set 1st string place */
-    if (t < 0)
-    y = 1999;
-    else
-    y = 2000;
-    /* set initial year */
+    if (strlen(V.s) < 10) /* string to small to hold result */
+        error("*** String to small to hold date");
+    if (t < 0) y = 1999; else y = 2000; /* set initial year */
     done = 0;   /* set no loop exit */
     t = abs(t);   /* find seconds magnitude */
     do {
 
-    yd = 365;   /* set days in this year */
-    if (leapyear(y, &V))
-    yd = 366;   /* set leap year days */
-    else
-    yd = 365;
-    /* set normal year days */
-    if (t / daysec > yd) {  /* remove another year */
-    if (y >= 2000)
-    y++;
-    else
-    y--;
-    /* find next year */
-    t -= yd * daysec;   /* remove that many seconds */
+        yd = 365;   /* set days in this year */
+        if (leapyear(y)) yd = 366; /* set leap year days */
+        else  yd = 365;
+        /* set normal year days */
+        if (t/daysec > yd) {  /* remove another year */
 
-}
+            if (y >= 2000) y++; else y--; /* find next year */
+            t -= yd * daysec; /* remove that many seconds */
 
-    else {
-    done = 1;
+        } else done = 1;
 
-}
-} while (!done);   /* until year found */
+    } while (!done);   /* until year found */
     leap = 0;   /* set no leap day */
     /* check leap year, and set leap day accordingly */
-    if (leapyear(y, &V))
-    leap = 1;
-    t = t / daysec + 1;   /* find days into year */
-    if (y < 2000)   /* adjust for negative years */
-    t = leap - t + 366;
+    if (leapyear(y, &V)) leap = 1;
+    t = t/daysec+1; /* find days into year */
+    if (y < 2000) t = leap - t + 366; /* adjust for negative years */
     di = 1;   /* set 1st month */
     while (di <= 12) {  /* fit months */
-    dm = days[di-1];   /* get the days of month */
-    if (di == 2)   /* february, add leap day */
-    dm += leap;
-    /* check remaining day falls within month */
-    if (dm >= t) {
-    m = di;
-    d = t;
-    di = 13;
-} else {
-    t -= dm;
-    di++;
+
+        dm = days[di-1]; /* get the days of month */
+        if (di == 2) dm += leap; /* february, add leap day */
+        /* check remaining day falls within month */
+        if (dm >= t) { m = di; d = t; di = 13; }
+        else { t -= dm; di++; }
+
+    }
+    /* place year/month/day */
+    switch (dateorder()) { /* place according to current location format */
+
+        case 1:
+            s += sprintf(s, "%04d%c%02d%c%02d", y, datesep(), m, datesep(), d);
+            break;
+        case 2:
+            s += sprintf(s, "%04d%c%02d%c%02d", y, datesep(), d, datesep(), m);
+            break;
+        case 3:
+            s += sprintf(s, "%02d%c%02d%c%04d", m, datesep(), d, datesep(), y);
+            break;
+        case 4:
+            s += sprintf(s, "%02d%c%04d%c%02d", m, datesep(), y, datesep(), d);
+            break;
+        case 5:
+            s += sprintf(s, "%02d%c%02d%c%04d", d, datesep(), m, datesep(), y);
+            break;
+        case 6:
+            s += sprintf(s, "%02d%c%04d%c%02d", d, datesep(), y, datesep(), m);
+            break;
+
+    }
+    *s = 0; /* terminate string */
+
 }
-}
-
-
-    wrtzer_(y, &V);   /* place year */
-    V.s[V.i-1] = '/';
-    V.i++;
-    wrtzer_(m, &V);   /* place month */
-    V.s[V.i-1] = '/';
-    V.i++;   /* place day */
-
-    wrtzer_(d, &V);
-}
-
 
 /********************************************************************************
 
@@ -529,18 +476,19 @@ Writes the time to a given file, from a time record.
 
 ********************************************************************************/
 
-static void writetime(FILE *f, int t)
-{
-    /* file to write to */
-    /* time record to write from */
-    char s[256];
+static void writetime(
+        /* file to write to */ FILE *f,
+        /* time record to write from */ int t
+)
 
+{
+
+    char s[256];
 
     times(s, t);   /* convert time to string form */
     fputs(s, f);   /* output */
 
 }
-
 
 /********************************************************************************
 
@@ -552,12 +500,14 @@ used by windows.
 
 ********************************************************************************/
 
-static void writedate(FILE *f, int t)
-{
-    /* file to write to */
-    /* time record to write from */
-    char s[256];
+static void writedate(
+        /* file to write to */ FILE *f,
+        /* time record to write from */ int t
+)
 
+{
+
+    char s[256];
 
     dates(s, t);   /* convert date to string form */
     fputs(s, f);   /* output */
