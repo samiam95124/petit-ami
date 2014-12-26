@@ -1666,26 +1666,6 @@ static void resoper_(char *fn, permset p)
 
 }
 
-
-/********************************************************************************
-
-Set program error code
-
-Sets the return error code for the entire program (main and threads). The
-value of the code is not defined, other than:
-
-0:    No error
-<>0:  Error encountered
-
-********************************************************************************/
-
-static void seterr_(int c)
-{
-    wrapper_exit_code = c;   /* place exit code */
-
-}
-
-
 /********************************************************************************
 
 Make path
@@ -1733,9 +1713,9 @@ static void rempth_(char *fn)
 
 Find valid filename characters
 
-Returns the set of characters allowed in a filespecification. This allows a
+Returns the set of characters allowed in a file specification. This allows a
 specification to be gathered by the user.
-Virtually anything can be stuffed into a Unix name. We don't diferentiate
+Virtually anything can be stuffed into a Unix name. We don't differentiate
 shell special characters because names can be escaped (quoted), and shells
 have different special characters anyway.
 As a result, we only exclude the file characters that would cause problems
@@ -1748,17 +1728,19 @@ removed.
 
 3. '-', because that is the Unix option character.
 
-4. '#', because that is the IP universal option character.
-
 Unfortunately, this can create the inability to access filenames with spaces.
-For such reasons, the program will probally have to determine its own
+For such reasons, the program will probably have to determine its own
 specials in these cases.
 
 ********************************************************************************/
 
 static void filchr_(uchar *fc)
 {
-    /*fc := ['!'..'~']-['-', '#'];*/
+
+    /* add everything but control characters and space */
+    for (i = ' '+1, i <= 0x7f; i++) ADDSET(i);
+    SUBSET('-'); /* add option character */
+    SUBSET(pthchr()); /* add path character */
 
 }
 
@@ -1779,22 +1761,343 @@ static char optchr_(void)
 
 }
 
-
 /*******************************************************************************
 
 Find path separator character
 
 Returns the character used to separate filename path sections.
-In windows/dos this is "\".
+In windows/dos this is "\", in Unix/Linux it is '/'. One possible solution to
+pathing is to accept both characters as a path separator. This means that
+systems that use the '\' as a forcing character would need to represent the
+separator as '\\'.
 
 *******************************************************************************/
 
 static char pthchr_(void)
 {
-    return '\\';
+
+    return '/';
 
 }
 
+/** ****************************************************************************
+
+Find latitude
+
+Finds the latitude of the host. Returns the latitude as a ratioed integer:
+
+0           Equator
+INT_MAX     North pole
+-INT_MAX    South pole
+
+This means each increment equals 0.0000000419 degrees or about 0.00465 meters
+(approximate because it is an angular measurement on an elipsiod).
+
+Note that implementations are generally divided into stationary and mobile
+hosts. A stationary host like a desktop computer can be set once on install.
+A mobile host is constantly reading its location (usually from a GPS).
+
+*******************************************************************************/
+
+extern int latitude(void)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Find longitude
+
+Finds the longitude of the host. Returns the longitude as a ratioed integer:
+
+0           The prime meridian (Greenwitch)
+INT_MAX     The prime meridian eastward around the world
+-INT_MAX    The prime meridian westward around the world
+
+This means that each increment equals 0.0000000838 degrees or about 0.00933
+meters (approximate because it is an angular measurement on an elipsoid).
+
+Note that implementations are generally divided into stationary and mobile
+hosts. A stationary host like a desktop computer can be set once on install.
+A mobile host is constantly reading its location (usually from a GPS).
+
+*******************************************************************************/
+
+extern int longitude(void)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Find altitude
+
+Finds the altitude of the host. Returns the altitude as a ratioed integer:
+
+0           MSL
+INT_MAX     100km high
+-INT_MAX    100km depth
+
+This means that each increment is 0.0000465 meters. MSL is determined by WGS84
+(World Geodetic System of 1984), which estalishes an ideal elipsoid as an
+approximation of the shape of the world. This is the basis for GPS and
+establishes GPS as the main reference MSL surface, which typically must be
+corrected for the exact local system in use, which could be:
+
+1. Local MSL.
+2. Presure altitude.
+
+Or another system.
+
+Note that implementations are generally divided into stationary and mobile
+hosts. A stationary host like a desktop computer can be set once on install.
+A mobile host is constantly reading its location (usually from a GPS).
+
+*******************************************************************************/
+
+extern int altitude(void)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Find country code
+
+Gives the ISO 3166-1 1 to 3 digit numeric code for the country of the host
+computer. Note that the country of host may be set by the user, or may be
+determined by latitude/longitude.
+
+*******************************************************************************/
+
+extern int country(void)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Find country identifier string
+
+Finds the identifier string for the given ISO 3166-1 country code. If the string
+does not fit into the string provided, an error results.
+
+*******************************************************************************/
+
+extern void countrys(
+    /** string buffer */           char* s,
+    /** length of buffer */        int len,
+    /** ISO 3166-1 country code */ int c)
+
+{
+
+/** ****************************************************************************
+
+Find timezone offset
+
+Finds the host location offset for the GMT to local time. It is negative for
+zones west of the prime meridian, and positive for zones east.
+
+*******************************************************************************/
+
+extern int timezone(void)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Find daylight savings time
+
+Finds if daylight savings time is in effect. It returns true if daylight savings
+time is in effect at the present time, which in the majority of locations means
+to add one hour to the local time (some locations offset by 30 minutes).
+
+daysave() is automatically adjusted for time of year. That is, if the location
+uses daylight savings time, but it is not currently in effect, the function
+returns false.
+
+Note that local() already takes daylight savings into account.
+
+*******************************************************************************/
+
+extern int daysave(void)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Find if 12 or 24 hour time is in effect
+
+Returns true if 24 hour time is in use in the current host location.
+
+*******************************************************************************/
+
+extern int time24hour(void);
+
+/** ****************************************************************************
+
+Find language code
+
+Finds a numeric code for the host language using the ISO 639-1 language list.
+639-1 does not prescribe a numeric code for languages, so the exact code is
+defined by the Petit Ami standard from an alphabetic list of the 639-1
+languages. This unfortunately means that any changes or additions must
+necessarily be added at the end, and thus out of order.
+
+*******************************************************************************/
+
+extern int language(void)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Find language identifier string from language code
+
+Finds a language identifer string from a given language code. If the identifier
+string is too long for the string buffer, an error results.
+
+*******************************************************************************/
+
+extern void languages(char* s, int len, int l)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Find the current decimal point character
+
+Finds the decimal point character of the host, which is generally '.' or ','.
+
+*******************************************************************************/
+
+extern char decimal(void);
+
+/** ****************************************************************************
+
+Finds the number separator
+
+finds the number separator of the host, which is generally ',' or '.', and is
+generally used to mark 3 digit groups, ie., 3,000,000.
+
+*******************************************************************************/
+
+extern char numbersep(void)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Find the time order
+
+Returns a code for order of time presentation, which is:
+
+1   hour-minute-second
+2   hour-second-minute
+3   minute-hour-second
+4   minute-second-hour
+5   second-minute-hour
+6   second-minute-hour
+
+The #1 format is the recommended standard for international exchange and is
+compatible with computer sorting. Thus it can be common to override the local
+presentation with it for archival use.
+
+Note that times() compensates for this.
+
+*******************************************************************************/
+
+extern int timeorder(void)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Find the date order
+
+Returns a code for order of date presentation, which is:
+
+1   year-month-day
+2   year-day-month
+3   month-day-year
+4   month-year-day
+5   day-month-year
+6   day-year-month
+
+The #1 format is the recommended standard for international exchange and is
+compatible with computer sorting. Thus it can be common to override the local
+presentation with it for archival use.
+
+The representation of year as 2 digits is depreciated, due to year 2000 issues
+and because it makes the ordering of y-m-d more obvious.
+
+Note that dates() compensates for this.
+
+*******************************************************************************/
+
+extern int dateorder(void);
+
+/** ****************************************************************************
+
+Find date separator character
+
+Finds the date separator character of the host.
+
+Note that dates() uses this character.
+
+*******************************************************************************/
+
+extern char datesep(void)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Find time separator character
+
+Finds the time separator character of the host.
+
+Note that times() uses this character.
+
+*******************************************************************************/
+
+extern char timesep(void)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Find the currency marker character
+
+Finds the currency symbol of the host country.
+
+*******************************************************************************/
+
+extern char currchr(void)
+
+{
+
+}
 
 main(int argc, char *argv[])
 {
