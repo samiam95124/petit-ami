@@ -1,6 +1,6 @@
-/********************************************************************************
+/*******************************************************************************
 *                                                                              *
-*                       UNIX EXTENDED FUNCTION LIBRARY                         *
+*                     UNIX/LINUX EXTENDED FUNCTION LIBRARY                     *
 *                                                                              *
 *                              Created 1996                                    *
 *                                                                              *
@@ -17,6 +17,7 @@
 #include "sys/types.h"
 #include "sys/status.h"
 #include "sys/stat.h"
+#include "sys/time.h"
 #include "fcntl.h"
 #include "unistd.h"
 #include "dirent.h"
@@ -514,7 +515,6 @@ static void writedate(
 
 }
 
-
 /********************************************************************************
 
 Find current time
@@ -523,16 +523,16 @@ Finds the current time as an S2000 integer.
 
 ********************************************************************************/
 
-static int time_(void)
+static int stime(void)
+
 {
+
     sc_timeval tv;   /* record to get time */
-    sc_timezone tz;   /* record to get timezone */
     int r;   /* return value */
 
+    r = sc_gettimeofday(&tv, NULL);   /* get time info */
+    if (r < 0) unixerr();  /* process unix error */
 
-    r = sc_gettimeofday(&tv, &tz);   /* get time info */
-    if (r < 0)   /* process unix error */
-    unixerr();
     return (tv.tv_sec - unixadj);   /* return S2000 time */
 
 }
@@ -542,28 +542,18 @@ static int time_(void)
 
 Convert to local time
 
-Converts a GMT standard time to the local time.
-Note: tried to use the system local time adjustment routine, it bombs.
-Currently hard wired for PST.
+Converts a GMT standard time to the local time using time zone and daylight
+savings. Does not compensate for 30 minute increments in daylight savings or
+timezones.
 
 ********************************************************************************/
 
-static int local_(int t)
+static int local(int t)
 {
-    /* time to convert */
-    /* localized time */
-    sc_timeval tv;   /* record to get time */
-    sc_timezone tz;   /* record to get timezone */
-    int r;   /* return value */
 
-
-    r = sc_gettimeofday(&tv, &tz);   /* get time info */
-    if (r < 0)   /* process unix error */
-    unixerr();
-    return (t - tz.tz_minuteswest * 60);   /* adjust for minutes west */
+    return t+timezone()*60+daysave*60
 
 }
-
 
 /********************************************************************************
 
@@ -579,31 +569,29 @@ Finds the time in terms of "ticks". Ticks are defined to occur at 0.1ms, or
 The base time of 100us is designed specifically to fit these rules. The count
 will rollover each 59 hours using 31 bits of precision (the sign bit is
 unused).
+
 Note that the rules are upward compatible such that at the 64 bit precision
 level, the clock actually represents a real universal time, because it then
 has more than enough precision to count from 0 AD to present.
 
 ********************************************************************************/
 
-static int clock_(void)
+static int uclock(void)
+
 {
-    sc_timeval tv;   /* record to get time */
-    sc_timezone tz;   /* record to get timezone */
-    int r;   /* return value */
 
+    sc_timeval tv; /* record to get time */
+    int r;         /* return value */
 
-    r = sc_gettimeofday(&tv, &tz);   /* get time info */
-    if (r < 0)   /* process unix error */
-    unixerr();
+    r = sc_gettimeofday(&tv, NULL); /* get time info */
+    if (r < 0) unixerr(); /* process unix error */
+
     /* for Unix, the time is kept in microseconds since the start of the last
        second. we find the number of 100usecs, then add 48 hours worth of
        seconds from standard time */
     return (tv.tv_usec / 100 + tv.tv_sec % (daysec * 2) * 10000);
-/* p2c: services.pas, line 608:
- * Note: Using % for possibly-negative arguments [317] */
 
 }
-
 
 /********************************************************************************
 
@@ -615,22 +603,19 @@ time that can be measured is 24 hours.
 
 ********************************************************************************/
 
-static int elapsed_(int r)
+static int elapsed(int r)
 {
+
     /* reference time */
     int t;
 
+    t = uclock();   /* get the current time */
+    if (t >= r) t -= r; /* time has not wrapped */
+    else t += INT_MAX-r; /* time has wrapped */
 
-    t = clock_();   /* get the current time */
-    if (t >= r)
-    t -= r;   /* time has not wrapped */
-    else
-    t += INT_MAX - r;
-    /* time has wrapped */
     return t;   /* return result */
 
 }
-
 
 /********************************************************************************
 
@@ -638,21 +623,24 @@ Validate filename
 
 Finds if the given string contains a valid filename. Returns true if so,
 otherwise false.
+
 There is not much that is not valid in Unix. We only error on a filename that
 is null or all blanks
 
 ********************************************************************************/
 
-static int valid(char *s)
+static int valid(
+    /* string to validate */ char *s
+)
+
 {
-    /* string to validate */
-    /* valid/invalid status */
+
     int r;   /* good/bad result */
 
-
     r = 1;   /* set result good by default */
-    if (*s == '\0')   /* no filename exists */
-    r = 0;
+    while (*s && *s == ' ') s++; /* check all blanks */
+    if (*s == '\0') r = 0; /* no filename exists */
+
     return r;   /* return error status */
 
 }
@@ -663,26 +651,26 @@ static int valid(char *s)
 Validate pathname
 
 Finds if the given string contains a valid pathname. Returns true if so,
-otherwise false.
-There is not much that is not valid in Unix. We only error on a filename that
-is null or all blanks
+otherwise false. There is not much that is not valid in Unix. We only error on a
+filename that is null or all blanks
 
 ********************************************************************************/
 
-static int validp(char *s)
+static int validp(
+    /* string to validate */ char *s
+)
+
 {
-    /* string to validate */
-    /* valid/invalid status */
+
     int r;   /* good/bad result */
 
-
     r = 1;   /* set result good by default */
-    if (*s == '\0')   /* no filename exists */
-    r = 0;
+    while (*s && *s == ' ') s++; /* check all blanks */
+    if (*s == '\0') r = 0; /* no filename exists */
+
     return r;   /* return error status */
 
 }
-
 
 /********************************************************************************
 
@@ -694,33 +682,29 @@ on that directory.
 
 ********************************************************************************/
 
-static int wild_(char *s)
+static int wild(
+    /* filename */ char *s
+)
+
 {
-    /* filename */
-    /* wildcard status */
+
     int r;   /* result flag */
     int i;   /* index for string */
     int ln;   /* length of string */
 
-
     ln = strlen(s);   /* find length */
     r = 0;   /* set no wildcard found */
-    if (ln <= 0)  /* not null */
-    return 0;
+    if (ln <= 0) { /* not null */
 
-    /* search and flag wildcard characters */
-    for (i = 0; i < ln; i++) {
-    if (s[i] == '*' || s[i] == '?')
-    r = 1;
-}
-    if (s[ln-1] == '/') {
-    r = 1;   /* last was '/', it's wild */
+        /* search and flag wildcard characters */
+        for (i = 0; i < ln; i++) { if (s[i] == '*' || s[i] == '?') r = 1; }
+        if (s[ln-1] == '/') r = 1; /* last was '/', it's wild */
 
-}
+    }
+
     return r;
 
 }
-
 
 /********************************************************************************
 
@@ -733,6 +717,7 @@ found.
 
 static void fndenv(char *esn, envrec **ep)
 {
+
     /* string name */
     /* returns environment pointer */
     envrec *p;   /* pointer to environment entry */
@@ -749,11 +734,8 @@ static void fndenv(char *esn, envrec **ep)
     p = p->next;   /* next string */
 
 }
-}
-
 
 }
-
 
 /********************************************************************************
 
@@ -2131,7 +2113,3 @@ main(int argc, char *argv[])
     trim(pthstr, pthstr);
     exit(EXIT_SUCCESS);
 }
-
-
-
-/* End. */
