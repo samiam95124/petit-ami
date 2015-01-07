@@ -8,8 +8,12 @@
 *                                                                              *
 * Contains various system oriented library functions, including files,         *
 * directories, time, program execution, environment, and random numbers.       *
-* This implementation is specific to the Unix system, but extlib tends to      *
+* This implementation is specific to the Unix system, but services tends to    *
 * have processing elements that are universal.                                 *
+*                                                                              *
+* To Do:                                                                       *
+*                                                                              *
+* 1. This version is US english only. Need translations according to locale.   *
 *                                                                              *
 ********************************************************************************/
 
@@ -18,6 +22,7 @@
 #include "sys/status.h"
 #include "sys/stat.h"
 #include "sys/time.h"
+#include <time.h>
 #include "fcntl.h"
 #include "unistd.h"
 #include "dirent.h"
@@ -35,9 +40,9 @@
 
 /* maximum size of holding buffers (I had to make this very large for large
    paths [sam]) */
-#define maxstr          500
+#define MAXSTR          500
 
-typedef char bufstr[maxstr]; /* standard string buffer */
+typedef char bufstr[MAXSTR]; /* standard string buffer */
 
 static bufstr pthstr;   /* buffer for execution path */
 static char **ep;   /* unix environment string table */
@@ -484,7 +489,7 @@ static void writetime(
 
 {
 
-    char s[256];
+    char s[MAXSTR];
 
     times(s, t);   /* convert time to string form */
     fputs(s, f);   /* output */
@@ -508,7 +513,7 @@ static void writedate(
 
 {
 
-    char s[256];
+    char s[MAXSTR];
 
     dates(s, t);   /* convert date to string form */
     fputs(s, f);   /* output */
@@ -527,13 +532,12 @@ static int stime(void)
 
 {
 
-    sc_timeval tv;   /* record to get time */
-    int r;   /* return value */
+    time_t r;   /* return value */
 
-    r = sc_gettimeofday(&tv, NULL);   /* get time info */
+    r = time(NULL); /* get current time */
     if (r < 0) unixerr();  /* process unix error */
 
-    return (tv.tv_sec - unixadj);   /* return S2000 time */
+    return ((int) r);   /* return S2000 time */
 
 }
 
@@ -721,7 +725,7 @@ static void fndenv(char *esn, envrec **ep)
     /* string name */
     /* returns environment pointer */
     envrec *p;   /* pointer to environment entry */
-    char STR1[256];
+    char STR1[MAXSTR];
 
 
     p = envlst;   /* index top of environment list */
@@ -750,7 +754,7 @@ static void getenvp(char *ls, char *ds)
     /* string name */
     /* string buffer */
     envrec *p;   /* pointer to environment entry */
-    char STR1[256];
+    char STR1[MAXSTR];
 
 
     clears(ds);   /* clear result */
@@ -1276,7 +1280,7 @@ static void fulnam_(char *fn)
 
 /* Local variables for getpgm_: */
 struct LOC_getpgm_ {
-    char cp[256];   /* store for command line */
+    char cp[MAXSTR];   /* store for command line */
     int ci;   /* index for command line */
 } ;
 
@@ -1310,7 +1314,7 @@ static void getpgm(char *path, int len)
     int pi;   /* index for path */
     bufstr pn;   /* program name holder */
     bufstr n, e;   /* name component holders */
-    char STR1[256];
+    char STR1[MAXSTR];
 
 
     clears(pn);   /* clear result */
@@ -1859,6 +1863,8 @@ extern int country(void)
 
 {
 
+    return 840; /* USA */
+
 }
 
 /** ****************************************************************************
@@ -1869,6 +1875,119 @@ Finds the identifier string for the given ISO 3166-1 country code. If the string
 does not fit into the string provided, an error results.
 
 *******************************************************************************/
+
+typedef struct {
+
+    char *countrystr;
+    int  countrynum;
+
+} countryety;
+
+countryety countrytab[] = {
+
+    "Afghanistan",         004, "Aland Islands",      248, "Albania",            008,
+    "Algeria",             012, "American Samoa",     016, "Andorra",            020,
+    "Angola",              024, "Anguilla",           660, "Antarctica",         010,
+    "Antigua and Barbuda", 028, "Argentina",          032, "Armenia",            051,
+    "Aruba",               533, "Australia",          036, "Austria",             040,
+    "Azerbaijan",          031, "Bahamas",            044, "Bahrain",            048,
+    "Bangladesh",          050, "Barbados",           052, "Belarus",            112,
+    "Belgium",             056, "Belize",             084, "Benin",              204,
+    "Bermuda",             060, "Bhutan",             064, "Bolivia",            068,
+    "Bonaire, Sint Eustatius and Saba", 535,
+    "Bosnia and Herzegovina", 070,
+    "Botswana",            072, "Bouvet Island",      074, "Brazil",             076,
+    "British Indian Ocean Territory",  086,
+    "Brunei Darussalam",   096, "Bulgaria",           100, "Burkina Faso",       854,
+    "Burundi",             108, "Cambodia",           116, "Cameroon",           120,
+    "Canada",              124, "Cabo Verde",         132, "Cayman Islands",     136,
+    "Central African Republic",    140,
+    "Chad",                148, "Chile",              152, "China",              156,
+    "Christmas Island",    162, "Cocos (Keeling) Islands", 166,
+    "Colombia",            170, "Comoros",            174, "Congo",              178,
+    "Congo, the Democratic Republic of the", 180,
+    "Cook Islands",        184, "Costa Rica",         188, "Côte d'Ivoire",      384,
+    "Croatia",             191, "Cuba",               192, "Curaçao",            531,
+    "Cyprus",              196, "Czech Republic",     203, "Denmark",            208,
+    "Djibouti",            262, "Dominica",           212, "Dominican Republic",  214,
+    "Ecuador",             218, "Egypt",              818, "El Salvador",        222,
+    "Equatorial Guinea",   226, "Eritrea",            232, "Estonia",            233,
+    "Ethiopia",            231, "Falkland Islands (Malvinas)", 238,
+    "Faroe Islands",       234,  "Fiji",               242, "Finland",            246,
+    "France",              250, "French Guiana",      254, "French Polynesia",   258,
+    "French Southern Territories", 260,
+    "Gabon",               266, "Gambia",             270, "Georgia",            268,
+    "Germany",             276, "Ghana",              288, "Gibraltar",          292,
+    "Greece",              300, "Greenland",          304, "Grenada",            308,
+    "Guadeloupe",          312, "Guam",               316, "Guatemala",          320,
+    "Guernsey",            831, "Guinea",             324, "Guinea-Bissau",      624,
+    "Guyana",              328, "Haiti",              332,
+    "Heard Island and McDonald Islands", 334,
+    "Holy See (Vatican City State)", 336,
+    "Honduras",            340, "Hong Kong",          344, "Hungary",            348,
+    "Iceland",             352, "India",              356, "Indonesia",          360,
+    "Iran, Islamic Republic of",   364,
+    "Iraq",                368, "Ireland",            372, "Isle of Man",        833,
+    "Israel",              376, "Italy",              380, "Jamaica",            388,
+    "Japan",               392, "Jersey",             832, "Jordan",             400,
+    "Kazakhstan",          398, "Kenya",              404, "Kiribati",           296,
+    "Korea", North,        408", "Korea, South",       410, "Kuwait",             414,
+    "Kyrgyzstan",          417, "Lao",                418, "Latvia",             428,
+    "Lebanon",             422, "Lesotho",            426, "Liberia",            430,
+    "Libya",               434, "Liechtenstein",      438, "Lithuania",          440,
+    "Luxembourg",          442, "Macao",              446, "Macedonia",          807,
+    "Madagascar",          450, "Malawi",             454, "Malaysia",           458,
+    "Maldives",            462, "Mali",               466, "Malta",              470,
+    "Marshall Islands",    584, "Martinique",         474, "Mauritania",         478,
+    "Mauritius",           480, "Mayotte",            175, "Mexico",             484,
+    "Micronesia",          583, "Moldova",            498, "Monaco",             492,
+    "Mongolia",            496, "Montenegro",         499, "Montserrat",         500,
+    "Morocco",             504, "Mozambique",         508, "Myanmar",            104,
+    "Namibia",             516, "Nauru",              520, "Nepal",              524,
+    "Netherlands",         528, "New Caledonia       540", "New Zealand,        554",
+    "Nicaragua,           558", "Niger               562, "Nigeria",            566,
+    "Niue",                570, "Norfolk Island",     574,
+    "Northern Mariana Islands", 580,
+    "Norway",              578, "Oman",               512, "Pakistan",           586,
+    "Palau",               585, "Palestine",          275, "Panama",             591,
+    "Papua New Guinea",    598, "Paraguay",           600, "Peru",               604,
+    "Philippines",         608, "Pitcairn",           612, "Poland",             616,
+    "Portugal",            620, "Puerto Rico",        630, "Qatar",              634,
+    "Réunion",             638, "Romania",            642, "Russian Federation", 643,
+    "Rwanda",              646, "Saint Barthélemy",   652,
+    "Saint Helena, Ascension and Tristan da Cunha", 654,
+    "Saint Kitts and Nevis", 659,
+    "Saint Lucia",         662, "Saint Martin",       663,
+    "Saint Pierre and Miquelon", 666,
+    "Saint Vincent and the Grenadines", 670,
+    "Samoa",               882, "San Marino",         674,
+    "Sao Tome and Principe", 678,
+    "Saudi Arabia",        682, "Senegal",            686, "Serbia",             688,
+    "Seychelles",          690, "Sierra Leone",       694, "Singapore",          702,
+    "Sint Maarten",        534, "Slovakia",           703, "Slovenia",           705,
+    "Solomon Islands",     090, "Somalia",            706,
+    "South Africa",        710,
+    "South Georgia and the South Sandwich Islands", 239,
+    "South Sudan",         728, "Spain",              724, "Sri Lanka",          144,
+    "Sudan",               729, "Suriname",           740, "Svalbard and Jan Mayen", 744,
+    "Swaziland",           748, "Sweden",             752, "Switzerland",        756,
+    "Syria",               760, "Taiwan",             158, "Tajikistan",         762,
+    "Tanzania",            834, "Thailand",           764, "Timor-Leste",        626,
+    "Togo",                768, "Tokelau",            772, "Tonga",              776,
+    "Trinidad and Tobago", 780, "Tunisia",            788, "Turkey",             792,
+    "Turkmenistan",        795, "Turks and Caicos Islands",    796,
+    "Tuvalu",              798, "Uganda",             800, "Ukraine",            804,
+    "United Arab Emirates", 784,
+    "United Kingdom",      826, "United States",      840,
+    "United States Minor Outlying Islands", 581,
+    "Uruguay",             858, "Uzbekistan",         860,
+    "Vanuatu",             548, "Venezuela",          862,
+    "Viet Nam",            704, "Virgin Islands, British", 092,
+    "Virgin Islands, U.S.", 850,
+    "Wallis and Futuna",   876, "Western Sahara",     732, "Yemen",              887,
+    "Zambia",              894, "Zimbabwe",           716
+
+};
 
 extern void countrys(
     /** string buffer */           char* s,
@@ -1890,6 +2009,16 @@ extern int timezone(void)
 
 {
 
+    time_t t;        /* seconds time holder */
+    struct tm* pgmt; /* time structure gmt */
+    struct tm* plcl; /* local time structure */
+
+    t = time(NULL); /* get seconds time */
+    pgmt = localtime(&t); /* get gmt */
+    plcl = localtime(&t); /* get local */
+
+    return pgmt->tm_hour-plcl->tm_hour; /* return hour difference */
+
 }
 
 /** ****************************************************************************
@@ -1910,7 +2039,16 @@ Note that local() already takes daylight savings into account.
 
 extern int daysave(void)
 
+
 {
+
+    time_t t; /* seconds time holder */
+    struct tm* plcl; /* local time structure */
+
+    t = time(NULL); /* get seconds time */
+    plcl = localtime(&t); /* get local */
+
+    return pcl->tm_isdst; /* return dst active status */
 
 }
 
@@ -1923,6 +2061,12 @@ Returns true if 24 hour time is in use in the current host location.
 *******************************************************************************/
 
 extern int time24hour(void);
+
+{
+
+    return 0;
+
+}
 
 /** ****************************************************************************
 
@@ -1940,6 +2084,8 @@ extern int language(void)
 
 {
 
+    return 30; /* english */
+
 }
 
 /** ****************************************************************************
@@ -1951,9 +2097,64 @@ string is too long for the string buffer, an error results.
 
 *******************************************************************************/
 
+typedef struct {
+
+    int langnum;
+    char *langstr;
+
+} langety;
+
+langety langtab[] = {
+
+    1,  "Afan",         36, "French",      71,  "Lithuanian",     106, "Siswati",
+    2,  "Abkhazian",    37, "Frisian",     72,  "Macedonian",     107, "Slovak",
+    3,  "Afar",         38, "Galician",    73,  "Malagasy",       108, "Slovenian",
+    4,  "Afrikaans",    39, "Georgian",    74,  "Malay",          109, "Somali",
+    5,  "Albanian",     40, "German",      75,  "Malayalam",      110, "Spanish",
+    6,  "Amharic",      41, "Greek",       76,  "Maltese",        111, "Sudanese",
+    7,  "Arabic",       42, "Greenlandic", 77,  "Maori",          112, "Swahili",
+    8,  "Armenian",     43, "Guarani",     78,  "Marathi",        113, "Swedish",
+    9,  "Assamese",     44, "Gujarati",    79,  "Moldavian",      114, "Tagalog",
+    0,  "Aymara",       45, "Hausa",       80,  "Mongolian",      115, "Tajik",
+    11, "Azerbaijani",  46, "Hebrew",      81,  "Nauru",          116, "Tamil",
+    12, "Bashkir",      47, "Hindi",       82,  "Nepali",         117, "Tatar",
+    13, "Basque",       48, "Hungarian",   83,  "Norwegian",      118, "Tegulu",
+    14, "Bengali",      49, "Icelandic",   84,  "Occitan",        119, "Thai",
+    15, "Bhutani",      50, "Indonesian",  85,  "Oriya",          120, "Tibetan",
+    16, "Bihari",       51, "Interlingua", 86,  "Pashto",         121, "Tigrinya",
+    17, "Bislama",      52, "Interlingue", 87,  "Persian",        122, "Tonga",
+    18, "Breton",       53, "Inupiak",     88,  "Polish",         123, "Tsonga",
+    19, "Bulgarian",    54, "Inuktitut",   89,  "Portuguese",     124, "Turkish",
+    20, "Burmese",      55, "Irish",       90,  "Punjabi",        125, "Turkmen",
+    21, "Byelorussian", 56, "Italian",     91,  "Quechua",        126, "Twi",
+    22, "Cambodian",    57, "Japanese",    92,  "Rhaeto-Romance", 127, "Uigur",
+    23, "Catalan",      58, "Javanese",    93,  "Romanian",       128, "Ukrainian",
+    24, "Chinese",      59, "Kannada",     94,  "Russian",        129, "Urdu",
+    25, "Corsican",     60, "Kashmiri",    95,  "Samoan",         130, "Uzbek",
+    26, "Croatian",     61, "Kazakh",      96,  "Sangro",         131, "Vietnamese",
+    27, "Czech",        62, "Kinyarwanda", 97,  "Sanskrit",       132, "Volapuk",
+    28, "Danish",       63, "Kirghiz",     98,  "ScotsGaelic",    133, "Welch",
+    29, "Dutch",        64, "Kirundi",     99,  "Serbian",        134, "Wolof",
+    30, "English",      65, "Korean",      100, "Serbo-Croatian", 135, "Xhosa",
+    31, "Esperanto",    66, "Kurdish",     101, "Sesotho",        136, "Yiddish",
+    32, "Estonian",     67, "Laothian",    102, "Setswana",       137, "Yoruba",
+    33, "Faeroese",     68, "Latin",       103, "Shona",          138, "Zhuang",
+    34, "Fiji",         69, "Latvian",     104, "Sindhi",         139, "Zulu",
+    35, "Finnish",      70, "Lingala",     105, "Singhalese",     0,   ""
+
+};
+
 extern void languages(char* s, int len, int l)
 
 {
+
+    langety* p; /* pointer to language entry */
+
+    p = langtab;
+    while (p->langnum && p-langnum != l) p++;
+    if (!p-langnum) error("Language number invalid");
+    if (strlen(p->langstr) > len) error("Language string too large for buffer")
+    strncpy(s, p->langstr, len);
 
 }
 
@@ -1967,6 +2168,12 @@ Finds the decimal point character of the host, which is generally '.' or ','.
 
 extern char decimal(void);
 
+{
+
+    return '.';
+
+}
+
 /** ****************************************************************************
 
 Finds the number separator
@@ -1979,6 +2186,8 @@ generally used to mark 3 digit groups, ie., 3,000,000.
 extern char numbersep(void)
 
 {
+
+    return ',';
 
 }
 
@@ -2006,6 +2215,8 @@ Note that times() compensates for this.
 extern int timeorder(void)
 
 {
+
+    return 1;
 
 }
 
@@ -2035,6 +2246,11 @@ Note that dates() compensates for this.
 
 extern int dateorder(void);
 
+{
+
+    return 1;
+
+}
 /** ****************************************************************************
 
 Find date separator character
@@ -2048,6 +2264,8 @@ Note that dates() uses this character.
 extern char datesep(void)
 
 {
+
+    return '/';
 
 }
 
@@ -2065,6 +2283,8 @@ extern char timesep(void)
 
 {
 
+    return ':';
+
 }
 
 /** ****************************************************************************
@@ -2079,11 +2299,13 @@ extern char currchr(void)
 
 {
 
+    return '$';
+
 }
 
 main(int argc, char *argv[])
 {
-    char STR1[256];
+    char STR1[MAXSTR];
     int FORLIM;
 
     /* Unix gives us a read only copy of the environment, so we copy to a string
