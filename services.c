@@ -537,7 +537,7 @@ static int stime(void)
     r = time(NULL); /* get current time */
     if (r < 0) unixerr();  /* process unix error */
 
-    return ((int) r);   /* return S2000 time */
+    return ((int) r-unixadj);   /* return S2000 time */
 
 }
 
@@ -555,7 +555,7 @@ timezones.
 static int local(int t)
 {
 
-    return t+timezone()*60+daysave*60
+    return t+timezone()+daysave*60
 
 }
 
@@ -719,25 +719,23 @@ found.
 
 ********************************************************************************/
 
-static void fndenv(char *esn, envrec **ep)
+static void fndenv(
+    /* string name */                 char   *esn,
+    /* returns environment pointer */ envrec **ep
+)
+
 {
 
-    /* string name */
-    /* returns environment pointer */
     envrec *p;   /* pointer to environment entry */
-    char STR1[MAXSTR];
 
-
-    p = envlst;   /* index top of environment list */
-    *ep = NULL;   /* set no string found */
+    p = envlst; /* index top of environment list */
+    *ep = NULL; /* set no string found */
     while (p != NULL && *ep == NULL) {  /* traverse */
-    sprintf(STR1, "%c", *p->name);
-    if (comps(esn, STR1))
-    *ep = p;   /* found */
-    else {
-    p = p->next;   /* next string */
 
-}
+        if (!strcmp(esn, p->name)) *ep = p; /* found */
+        else p = p->next;/* next string */
+
+    }
 
 }
 
@@ -749,45 +747,23 @@ Returns an environment string by name.
 
 ********************************************************************************/
 
-static void getenvp(char *ls, char *ds)
+static void getenv(
+        /* string name */   char *ls,
+        /* string buffer */ char **ds,
+        /* buffer length */ int l
+)
+
 {
-    /* string name */
-    /* string buffer */
-    envrec *p;   /* pointer to environment entry */
-    char STR1[MAXSTR];
 
+    envrec *p; /* pointer to environment entry */
 
-    clears(ds);   /* clear result */
-    fndenv(ls, &p);   /* find environment string */
-    if (p != NULL) {   /* place string */
-    sprintf(STR1, "%c", *p->data);
-    copys(ds, STR1);
-}
+    **ds = 0; /* clear result */
+    fndenv(ls, &p); /* find environment string */
+    if (strlen(p->data) > l)
+        error("Environment string too long for output buffer");
+    if (p != NULL) strncpy(*ds, p->data, l); /* place string */
 
 }
-
-
-/********************************************************************************
-
-Get environment string
-
-Returns an environment string by name.
-
-********************************************************************************/
-
-static void getenv_(char *ls, char *ds)
-{
-    /* string name */
-    /* string buffer */
-    bufstr b;   /* string buffer */
-
-
-    getenvp(ls, b);   /* get environment string */
-    /* copy into result */
-
-    copys(ds, b);
-}
-
 
 /********************************************************************************
 
@@ -797,34 +773,42 @@ Sets an environment string by name.
 
 ********************************************************************************/
 
-static void setenv_(char *sn, char *sd)
+static void setenv(
+    /* name of string */ char *sn,
+    /* value of string */char *sd
+)
+
 {
-    /* name of string */
-    /* value of string */
+
     envrec *p;   /* pointer to environment entry */
 
+    fndenv(sn, &p); /* find environment string */
+    if (p != NULL) { /* found */
 
-    fndenv(sn, &p);   /* find environment string */
-    if (p != NULL) {  /* found */
-    Free(p->data);   /* release last contents */
-    /* create new data string */
+        Free(p->data);   /* release last contents */
+        /* create new data string */
+        p->data = (char *) malloc(strlen(sd));
+        if (!p) error("Could not allocate string");
+        strcpy(p->data, sd);
 
-    copys(p->data, sd);
-    return;
+    } else {
+
+        p = Malloc(sizeof(envrec)); /* get a new environment entry */
+        if (!p) error("Could not allocate structure");
+        p->next = envlst; /* push onto environment list */
+        envlst = p;
+        /* create new name string and place */
+        p->name = (char *) malloc(strlen(sn));
+        if (!p) error("Could not allocate string");
+        strcpy(p->data, sd);
+        /* create new data string and place */
+        p->data = (char *) malloc(strlen(sd));
+        if (!p) error("Could not allocate string");
+        strcpy(p->data, sd);
+
+    }
+
 }
-
-    p = Malloc(sizeof(envrec));   /* get a new environment entry */
-    p->next = envlst;   /* push onto environment list */
-    envlst = p;
-    copys(p.name, sn);   /* set name */
-    /* place data */
-
-    copys(p.data, sd);
-    /* create brand new entry */
-
-
-}
-
 
 /********************************************************************************
 
@@ -834,39 +818,35 @@ Removes an environment string by name.
 
 ********************************************************************************/
 
-static void remenv_(char *sn)
+static void remenv(
+        /* name of string */ char *sn
+)
+
 {
-    /* name of string */
+
     envrec *p, *l;   /* pointer to environment entry */
 
-
     fndenv(sn, &p);   /* find environment string */
-    if (p == NULL)  /* found */
-    return;
+    if (p != NULL) { /* found */
 
+        /* remove entry from list */
+        if (envlst == p) envlst = p->next; /* gap from list top */
+        else { /* search */
 
-    /* remove entry from list */
-    if (envlst == p)
-    envlst = p->next;   /* gap from list top */
-    else {   /* search */
-    /* find last entry that indexes this one */
-    l = envlst;   /* index top of list */
-    while (l->next != p && l != NULL)
-    l = l->next;
-    if (l == NULL)
-    error("System error: bad environment list");
-    l->next = p->next;   /* gap out of list */
+            /* find last entry that indexes this one */
+            l = envlst;  /* index top of list */
+            while (l->next != p && l != NULL) l = l->next; /* search */
+            if (l == NULL) error("Bad environment list");
+            l->next = p->next; /* gap out of list */
+
+        }
+        free(p->name); /* release name */
+        free(p->data); /* release data */
+        Free(p); /* release entry */
+
+    }
 
 }
-    /* search */
-
-    Free(p->name);   /* release name */
-    Free(p->data);   /* release data */
-    /* release entry */
-
-    Free(p);
-}
-
 
 /********************************************************************************
 
@@ -876,28 +856,29 @@ Returns a table with the entire environment string set in it.
 
 ********************************************************************************/
 
-static void allenv_(envrec **el)
+static void allenv(
+    /* environment table */ envrec **el
+)
+
 {
-    /* environment table */
+
     envrec *p, *lp;   /* environment pointers */
 
-
     /* copy current environment list */
-    lp = envlst;   /* index top of environment list */
-    *el = NULL;   /* clear destination */
+    lp = envlst; /* index top of environment list */
+    *el = NULL; /* clear destination */
     while (lp != NULL) {  /* copy entries */
-    p = Malloc(sizeof(envrec));   /* create a new entry */
-    p->next = *el;   /* push onto list */
-    *el = p;
-    copys(p.name, lp.name);   /* place name */
-    copys(p.data, lp.data);   /* place data */
-    lp = lp->next;   /* next entry */
+
+        p = malloc(sizeof(envrec)); /* create a new entry */
+        p->next = *el;   /* push onto list */
+        *el = p;
+        strcpy(p.name, lp.name);   /* place name */
+        strcpy(p.data, lp.data);   /* place data */
+        lp = lp->next;   /* next entry */
+
+    }
 
 }
-
-
-}
-
 
 /********************************************************************************
 
@@ -907,19 +888,21 @@ Executes a program by name. Does not wait for the program to complete.
 
 ********************************************************************************/
 
-static void exec_(char *cmd)
+static void exec(
+    /* program name to execute */ char *cmd
+)
+
 {
-    /* program name to execute */
-    int r;   /* result code */
-    int pid;   /* task id for child process */
-    bufstr cn;   /* buffer for command filename */
-    bufstr cmds;   /* buffer for commands */
-    int wc;   /* word count in command */
-    bufstr p, n, e;   /* filename components */
-    bufstr pc;   /* path copy */
+
+    int r;          /* result code */
+    int pid;        /* task id for child process */
+    bufstr cn;      /* buffer for command filename */
+    bufstr cmds;    /* buffer for commands */
+    int wc;         /* word count in command */
+    bufstr p, n, e; /* filename components */
+    bufstr pc;      /* path copy */
     char **av, **ev;
     int i;
-
 
     wc = words(cmd);   /* find number of words in command */
     if (wc == 0)
@@ -2012,8 +1995,8 @@ extern void countrys(
 
 Find timezone offset
 
-Finds the host location offset for the GMT to local time. It is negative for
-zones west of the prime meridian, and positive for zones east.
+Finds the host location offset for the GMT to local time in seconds. It is
+negative for zones west of the prime meridian, and positive for zones east.
 
 *******************************************************************************/
 
