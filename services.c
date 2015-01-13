@@ -53,7 +53,7 @@ static envrec *p;   /* environment entry pointer */
 
 /* dummy routine placeholders */
 static void cat(char *d, char *s1, char *s2) { }
-static int index_(char *s, char *m) { }
+static int index(char *s, char *m) { }
 static void clears(char *s) { }
 static void copys(char *d, char *s) { }
 static int comps(char *d, char *s) { }
@@ -793,7 +793,7 @@ static void setenv(
 
     } else {
 
-        p = Malloc(sizeof(envrec)); /* get a new environment entry */
+        p = malloc(sizeof(envrec)); /* get a new environment entry */
         if (!p) error("Could not allocate structure");
         p->next = envlst; /* push onto environment list */
         envlst = p;
@@ -907,61 +907,54 @@ static void exec(
     wc = words(cmd);   /* find number of words in command */
     if (wc == 0)
     error("Command is empty");
-    extword(cn, cmd, 1, 1);   /* get the command verb */
+    extword(cn, cmd, 1, 1);  /* get the command verb */
     if (!exists(cn)) {  /* does not exist in current form */
-    /* perform pathing search */
-    brknam(cn, p, n, e);   /* break down the name */
-    if (p[0] == ' ' && pthstr[0] != ' ') {
-    copys(pc, pthstr);   /* make a copy of the path */
-    trim(pc, pc);   /* make sure left aligned */
-    while (pc[0] != ' ') {  /* match path components */
-    i = index_(pc, ":");   /* find next path separator */
-    if (i == 0) {  /* none left, use entire remaining */
-    copys(p, pc);   /* none left, use entire remaining */
-    /* clear the rest */
 
-    clears(pc);
-}
+        /* perform pathing search */
+        brknam(cn, p, n, e);   /* break down the name */
+        if (*p == 0 && *pthstr != 0) {
 
-    else {   /* remove from path */
-    extract(p, pc, 1, i - 1);   /* get left side to path */
-    extract(pc, pc, i + 1, strlen(pc));   /* make sure left aligned */
+            strcpy(pc, pthstr);   /* make a copy of the path */
+            trim(pc, pc);   /* make sure left aligned */
+            while (*pc != 0) {  /* match path components */
 
-    trim(pc, pc);
-}
-    /* copy partial */
+                i = index(pc, ":");   /* find next path separator */
+                if (i == 0) {  /* none left, use entire remaining */
 
-    maknam(cn, p, n, e);   /* create filename */
-    if (exists(cn))   /* found, indicate stop */
-    clears(pc);
+                    strcpy(p, pc); /* none left, use entire remaining */
+                    pc[0] = 0; /* clear the rest */
 
-}
+                } else { /* copy partial */
 
-    if (!exists(cn))
-    error("Command does not exist");
+                    extract(p, pc, 1, i - 1);   /* get left side to path */
+                    extract(pc, pc, i + 1, strlen(pc)); /* remove from path */
+                    trim(pc, pc); /* make sure left aligned */
 
-}
+                }
+                maknam(cn, p, n, e);   /* create filename */
+                if (exists(cn)) *pc = 0;  /* found, indicate stop */
 
-    else
-    error("Command does not exist");
-}
+            }
 
+            if (!exists(cn)) error("Command does not exist");
 
+        } else error("Command does not exist");
+
+    }
     /* on fork, the child is going to see a zero return, and the parent will
        get the process id. Although this seems dangerous, forked processes
        are truly independent, and so don't care what language is running */
-    pid = sc_fork();   /* start subprocess */
-    if (pid != 0)  /* we are the child */
-    return;
+    pid = fork(); /* start subprocess */
+    if (pid == 0) { /* we are the child */
 
+        r = sc_execve(cn, av, ev);   /* execute directory */
+        if (r < 0)   /* process unix error */
+        unixerr();
+        error("Should not continue from execute");
 
-    r = sc_execve(cn, av, ev);   /* execute directory */
-    if (r < 0)   /* process unix error */
-    unixerr();
+    }
 
-    error("Should not continue from execute");
 }
-
 
 /********************************************************************************
 
@@ -971,10 +964,15 @@ Executes a program by name. Waits for the program to complete.
 
 ********************************************************************************/
 
-static void execw_(char *cmd, int *e)
+static void execw(
+    /* program name to execute */ char *cmd,
+    /* return error */ int *e
+)
+
 {
-    /* program name to execute */
-    /* return error */
+
+    error("Function not implemented");
+
 }
 
 
@@ -987,10 +985,15 @@ the program environment.
 
 ********************************************************************************/
 
-static void exece_(char *cmd, envrec *el)
+static void exece(
+    /* program name to execute */ char *cmd,
+    /* environment */ envrec *el
+)
+
 {
-    /* program name to execute */
-    /* environment */
+
+    error("Function not implemented");
+
 }
 
 
@@ -1003,11 +1006,16 @@ program environment.
 
 ********************************************************************************/
 
-static void execew_(char *cmd, envrec *el, int *e)
+static void execew(
+        /* program name to execute */ char *cmd,
+        /* environment */ envrec *el,
+        /* return error */int *e
+)
+
 {
-    /* program name to execute */
-    /* environment */
-    /* return error */
+
+    error("Function not implemented");
+
 }
 
 
@@ -1019,15 +1027,20 @@ Returns the current path in the given padded string.
 
 ********************************************************************************/
 
-static void getcur_(char *fn)
+static void getcur(
+        /* buffer to get path */ char *fn,
+        /* length of buffer */   int l
+)
+
 {
-    /* buffer to get path */
+
     int r;   /* result code */
+    bufstr ts; /* temp buffer */
 
-
-    r = sc_getcwd(fn);   /* get the current path */
-    if (r < 0)   /* process unix error */
-    unixerr();
+    r = getcwd(ts);   /* get the current path */
+    if (r < 0) unixerr(); /* process unix error */
+    if (strlen(ts) > l) error("Path is too long for buffer")
+    strcpy(fn, ts); /* copy to result */
 
 }
 
@@ -1036,30 +1049,29 @@ static void getcur_(char *fn)
 
 Set current path
 
-Sets the current path rom the given string.
+Sets the current path from the given string.
 
 ********************************************************************************/
 
-static void setcur_(char *fn)
+static void setcur(
+        /* path to set */ char *fn
+)
+
 {
+
     int r;   /* result code */
-    char *s;   /* buffer for name */
+    char *s; /* buffer for name */
 
+    r = chdir(fn); /* change current directory */
+    if (r < 0) unixerr();  /* process unix error */
 
-    r = sc_chdir(fn);   /* change current directory */
-    if (r < 0)   /* process unix error */
-    unixerr();
-    /* release string */
-
-    Free(s);
 }
-
 
 /********************************************************************************
 
 Break file specification
 
-Breaks a filespec down into its components, the path, name and extention.
+Breaks a filespec down into its components, the path, name and extension.
 Note that we don't validate file specifications here. Note that any part of
 the file specification could be returned blank.
 
@@ -1070,7 +1082,7 @@ The path is straightforward, and consists of any number of /x sections. The
 presense of a trailing "/" without a name means the entire thing gets parsed
 as a path, including any embedded spaces or "." characters.
 
-Unix allows any number of "." characters, so we consider the extention to be
+Unix allows any number of "." characters, so we consider the extension to be
 only the last such section, which could be null. Unix does not technically
 consider "." to be a special character, but if the brknam and maknam procedures
 are properly paired, it will effectively be treated the same as if the "."
@@ -1078,65 +1090,54 @@ were a normal character.
 
 ********************************************************************************/
 
-static void brknam_(char *fn, char *p, char *n, char *e)
-{
-    /* file specification */
-    /* path */
-    /* name */
-    /* extention */
-    int i, s, f, ln, t;   /* string indexes */
+static void brknam(
+        /* file specification */ char *fn,
+        /* path */               char *p,
+        /* name */               char *n,
+        /* extention */          char *e
+)
 
+{
+
+    int i, s, f, ln, t; /* string indexes */
 
     /* clear all strings */
-    clears(p);
-    clears(n);
-    clears(e);
+    *p = 0;
+    *n = 0;
+    *e = 0;
     ln = strlen(fn);   /* find length of string */
-    if (ln == 0)
-    error("File specification is empty");
+    if (ln == 0) error("File specification is empty");
     s = 1;   /* set 1st character source */
     /* skip spaces */
-    while (fn[s-1] == ' ' && s < ln)
-    s++;
+    while (fn[s-1] == ' ' && s < ln) s++;
     /* find last '/', that will mark the path end */
     f = 0;
-    for (i = 1; i <= ln; i++) {
-    if (fn[i-1] == '/')
-    f = i;
-}
+    for (i = 1; i <= ln; i++) if (fn[i-1] == '/') f = i;
     if (f != 0) {  /* there is a path */
-    extract(p, fn, s, f);   /* place path */
-    s = f + 1;   /* reset next character */
 
-}
+        extract(p, fn, s, f); /* place path */
+        s = f + 1; /* reset next character */
 
+    }
     /* skip any leading '.' in name */
     t = s;
-    while (fn[t-1] == '.' && t <= ln)
-    t++;
-    /* find last '.', that will mark the extention */
+    while (fn[t-1] == '.' && t <= ln) t++;
+    /* find last '.', that will mark the extension */
     f = 0;
-    for (i = t; i <= ln; i++) {
-    if (fn[i-1] == '.')
-    f = i;
-}
-    if (f == 0) {  /* there is an extention */
-    /* just place the rest as the name, and leave extention blank */
-    if (s <= ln) {
-    extract(n, fn, s, ln);
-    /* no extention */
+    for (i = t; i <= ln; i++) if (fn[i-1] == '.') f = i;
+    if (f != 0) {  /* there is an extension */
 
+        extract(n, fn, s, f - 1); /* place name */
+        s = f + 1; /* reset to after "." */
+        extract(e, fn, s, ln); /* get the rest as an extention */
 
-}
+    } else {  /* no extension */
 
-    return;
-}
+        /* just place the rest as the name, and leave extension blank */
+        if (s <= ln) extract(n, fn, s, ln);
 
-    extract(n, fn, s, f - 1);   /* place name */
-    s = f + 1;   /* reset to after "." */
-    /* get the rest as an extention */
+    }
 
-    extract(e, fn, s, ln);
 }
 
 
@@ -1287,6 +1288,8 @@ Get program path
 
 There is no direct call for program path. So we get the command line, and
 extract the program path from that.
+
+Note: this does not work for standard CLIB programs. We need another solution.
 
 ********************************************************************************/
 
@@ -1724,7 +1727,7 @@ is overly cute and not common.
 
 ********************************************************************************/
 
-static char optchr_(void)
+static char optchr(void)
 {
     return '-';
 
@@ -1742,7 +1745,7 @@ separator as '\\'.
 
 *******************************************************************************/
 
-static char pthchr_(void)
+static char pthchr(void)
 {
 
     return '/';
@@ -1829,6 +1832,8 @@ A mobile host is constantly reading its location (usually from a GPS).
 extern int altitude(void)
 
 {
+
+    return 0;
 
 }
 
@@ -2161,7 +2166,7 @@ Finds the decimal point character of the host, which is generally '.' or ','.
 
 *******************************************************************************/
 
-extern char decimal(void);
+extern char decimal(void)
 
 {
 
