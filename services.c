@@ -45,11 +45,8 @@
 typedef char bufstr[MAXSTR]; /* standard string buffer */
 
 static bufstr pthstr;   /* buffer for execution path */
-static char **ep;   /* unix environment string table */
-static int ei;   /* index for string table */
-static int si;   /* index for strings */
+
 static envrec *envlst;   /* our environment list */
-static envrec *p;   /* environment entry pointer */
 
 /* dummy routine placeholders */
 static void cat(char *d, char *s1, char *s2) { }
@@ -1771,7 +1768,7 @@ A mobile host is constantly reading its location (usually from a GPS).
 
 *******************************************************************************/
 
-extern int latitude(void)
+int latitude(void)
 
 {
 
@@ -1796,7 +1793,7 @@ A mobile host is constantly reading its location (usually from a GPS).
 
 *******************************************************************************/
 
-extern int longitude(void)
+int longitude(void)
 
 {
 
@@ -1829,7 +1826,7 @@ A mobile host is constantly reading its location (usually from a GPS).
 
 *******************************************************************************/
 
-extern int altitude(void)
+int altitude(void)
 
 {
 
@@ -1847,7 +1844,7 @@ determined by latitude/longitude.
 
 *******************************************************************************/
 
-extern int country(void)
+int country(void)
 
 {
 
@@ -1980,7 +1977,7 @@ countryety countrytab[] = {
 
 };
 
-extern void countrys(
+void countrys(
     /** string buffer */           char* s,
     /** length of buffer */        int len,
     /** ISO 3166-1 country code */ int c)
@@ -2005,7 +2002,7 @@ negative for zones west of the prime meridian, and positive for zones east.
 
 *******************************************************************************/
 
-extern int timezone(void)
+int timezone(void)
 
 {
 
@@ -2037,7 +2034,7 @@ Note that local() already takes daylight savings into account.
 
 *******************************************************************************/
 
-extern int daysave(void)
+int daysave(void)
 
 
 {
@@ -2060,7 +2057,7 @@ Returns true if 24 hour time is in use in the current host location.
 
 *******************************************************************************/
 
-extern int time24hour(void);
+int time24hour(void);
 
 {
 
@@ -2080,7 +2077,7 @@ necessarily be added at the end, and thus out of order.
 
 *******************************************************************************/
 
-extern int language(void)
+int language(void)
 
 {
 
@@ -2144,7 +2141,7 @@ langety langtab[] = {
 
 };
 
-extern void languages(char* s, int len, int l)
+void languages(char* s, int len, int l)
 
 {
 
@@ -2166,7 +2163,7 @@ Finds the decimal point character of the host, which is generally '.' or ','.
 
 *******************************************************************************/
 
-extern char decimal(void)
+char decimal(void)
 
 {
 
@@ -2183,7 +2180,7 @@ generally used to mark 3 digit groups, ie., 3,000,000.
 
 *******************************************************************************/
 
-extern char numbersep(void)
+char numbersep(void)
 
 {
 
@@ -2212,7 +2209,7 @@ Note that times() compensates for this.
 
 *******************************************************************************/
 
-extern int timeorder(void)
+int timeorder(void)
 
 {
 
@@ -2244,7 +2241,7 @@ Note that dates() compensates for this.
 
 *******************************************************************************/
 
-extern int dateorder(void);
+int dateorder(void);
 
 {
 
@@ -2261,7 +2258,7 @@ Note that dates() uses this character.
 
 *******************************************************************************/
 
-extern char datesep(void)
+char datesep(void)
 
 {
 
@@ -2279,7 +2276,7 @@ Note that times() uses this character.
 
 *******************************************************************************/
 
-extern char timesep(void)
+char timesep(void)
 
 {
 
@@ -2295,7 +2292,7 @@ Finds the currency symbol of the host country.
 
 *******************************************************************************/
 
-extern char currchr(void)
+char currchr(void)
 
 {
 
@@ -2303,35 +2300,294 @@ extern char currchr(void)
 
 }
 
-main(int argc, char *argv[])
+/** ****************************************************************************
+
+Start new thread
+
+Starts a new thread. The address the thread is to run at is specified, and the
+location of an integer to place the thread id that is generated. The thread
+is started, then the thread id is placed for the caller.
+
+Note that the thread ids are numbered from 1 to N, and that thread 1 is always
+reserved for the main thread.
+
+*******************************************************************************/
+
+void newthread(int addr, int *id)
+
 {
-    char STR1[MAXSTR];
-    int FORLIM;
 
-    /* Unix gives us a read only copy of the environment, so we copy to a string
-       list and perform our own reads and writes on that */
-    envlst = NULL;   /* clear environment strings */
-    ep = sc_allenv();   /* get unix environment pointers */
-    FORLIM = strlen(ep);
-    for (ei = 1; ei <= FORLIM; ei++) {  /* copy environment strings */
-    p = Malloc(sizeof(envrec));   /* get a new environment entry */
-    p->next = envlst;   /* push onto environment list */
-    envlst = p;
-    si = index_(ep[ei-1], "=");   /* find location of '=' */
-    if (si == 0)
-    error("Invalid environment string format");
-    extract(p->name, ep[ei-1], 1, si - 1);   /* get the name string */
-    /* get the data string */
-
-    extract(p->data, ep[ei-1], si + 1, strlen(ep[ei-1]));
 }
-/* p2c: services.pas, line 1681:
- * Warning: Mixing non-strings with strings [170] */
 
-    Free(ep);   /* release environment table */
-    getenvp("path", pthstr);   /* load up the current path */
-    /* make sure left aligned */
+/** ****************************************************************************
 
-    trim(pthstr, pthstr);
-    exit(EXIT_SUCCESS);
+Kill thread
+
+Kills and removes the indicated thread. It is possible to kill oneself, in which
+case the routine may not return. However, there are a lot of different
+interpretations of what that means, especially in the multiprocessor case. It is
+certainly possible that the deleted thread will continue even for a time after
+being killed because of interprocessor signal latency.
+
+*******************************************************************************/
+
+void killthread(int id)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Flag signal
+
+Flags a signal to all threads. Accepts the signal id. All threads have a logical
+"copy" of the signal status, either not flagged (false), or flagged (true). When
+a signal occurs, all threads have the signal status set true. Each thread will
+check the status of its copy of the signal separately, and set the flag to "off"
+after having checked it. Multiple signals without having checked it have no
+effect for those threads that have the signal flag already set.
+
+Note: uses pulseevent, which the Windows documents state has issues. Further,
+a setevent/resetevent has the same issue (see MSDN article 173260). The
+alternative the Windows documents give is to use a construct exclusive to Vista,
+which is not at present a workable alternative, since Windows XP must be
+supported.
+
+The issue boils down to request/acknowledge pairing, and the code here satisfies
+that. We signal, give the other thread a chance to run, then loop until our
+request counts clear. This means that we will retry continually a
+non-functioning signal.
+
+*******************************************************************************/
+
+void signal(int* sid)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Flag "one only" signal
+
+This is the same as "signal", except that only the thread that has been waiting
+the longest for the signal is flagged for the signal. This can be more efficent
+than signaling all threads when only one thread can actually use the signal.
+For example, a buffer not empty signal needs only one thread.
+
+If there are no threads awaiting the signal, then the implementation can either
+just flag all threads as per the signal call, or may implement a conditional
+flag that is only given to the first thread that looks at the signal.
+
+Note that it is possible that an implementation can just implement signalone
+as a call to signal.
+
+Note: For the Windows NT/XP version, we pulse the event then see if it cleared
+one, then try again, etc. This is how it has to work to get around Windows
+problems. However, the documentation implies that more than one thread could
+be released via this method. This fits within the definition of this function
+that allows the release of from 1 to N threads, where N is all threads waiting.
+
+*******************************************************************************/
+
+void signalone(int* sid)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Wait signal
+
+Awaits the indicated signal by id. If the signal has already happened, then
+the call returns immediately. If not, the current thread is suspended until the
+signal occurs. The signal is always cleared on exit. Each thread effectively
+has its own copy of the signal, an a signal will remain true for each thread
+until waited on.
+
+Signals are not "guaranteed", that is, there is no indication that
+another thread might not have serviced the event associated with the signal. This
+applies even to the "signalone" call. For this reason, the caller must be ready
+to check if the event is still active, and if necessary, loop calling wait until
+an unserviced signal is found.
+
+In addition, signal queues can be implemented either as "fair" (first come,
+first serve), or "unfair", in which case the thread flagged is a random one.
+
+*******************************************************************************/
+
+void wait(int lid, int* sid)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Create lock
+
+Creates a new critical section lock, and returns the id for the lock. Logical
+lock ids are numbers from 1-N. IP Pascal garantees that at least 10 locks will
+be available, but 100 locks or more are common.
+
+*******************************************************************************/
+
+void newlock(int* id)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Remove lock
+
+Removes a lock by logical id. If any thread is awaiting in a lock, then an error
+results. Removing the lock frees up its logical id for reuse.
+
+*******************************************************************************/
+
+void displock(int id)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Lock critical section
+
+Activates a critical section by logical id. If the lock is not active, it is
+flagged active, and the thread continues. If the lock is active, then the
+calling thread is suspended until it is. Typically, lock queuing is "fair", in
+that the first to come to the lock is the first, in order, receive it. However,
+this behavior is not garanteed.
+
+Critical section locks have a number of features designed to resist deadlock.
+If the same thread performs the same lock more than once, the lock request is
+simply counted on lock, and decremented on unlock. When the lock count equals
+zero, the unlock operation actually occurs. This covers the case where a thread
+recursively executes the same locking routine, either directly or indirectly.
+
+In addition, waiting for a signal while holding a lock causes the lock to be
+freed while waiting for the signal, then the lock is reasserted when the signal
+flags and the thread continues. Callers must, therefore, treat a "wait" call
+as the sequence:
+
+unlock
+wait
+lock
+
+And watch for data change after the wait for signal.
+
+*******************************************************************************/
+
+void lock(int id)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Unlock critical section
+
+Frees up the lock for a critical section by logical id. If other threads are
+waiting on the lock, they are scheduled to run, but the exact order is system
+defined. They may be run in fair order, and they may run immediately
+(presumably interrupting the current thread), or may be scheduled for later.
+
+*******************************************************************************/
+
+void unlock(int id)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Initialize services
+
+We initialize all variables and tables.
+
+*******************************************************************************/
+
+static void init_services (void) __attribute__((constructor (102)));
+static void init_services()
+
+{
+
+    int envlen; /* number of environment strings */
+    char **ep; /* unix environment string table */
+    int ei;    /* index for string table */
+    int si;    /* index for strings */
+    envrec *p; /* environment entry pointer */
+
+    /* Copy environment to local */
+    envlst = NULL;   /* clear environment strings */
+    ep = allenv();   /* get unix environment pointers */
+    envlen = strlen(ep);
+    for (ei = 1; ei <= envlen; ei++) {  /* copy environment strings */
+
+        p = malloc(sizeof(envrec));   /* get a new environment entry */
+        p->next = envlst; /* push onto environment list */
+        envlst = p;
+        si = index(ep[ei-1], "="); /* find location of '=' */
+        if (si == 0) error("Invalid environment string format");
+        extract(p->name, ep[ei-1], 1, si - 1); /* get the name string */
+        /* get the data string */
+        extract(p->data, ep[ei-1], si + 1, strlen(ep[ei-1]));
+
+    }
+    free(ep); /* release environment table */
+    getenv("path", pthstr, MAXSTR); /* load up the current path */
+    trim(pthstr, pthstr); /* make sure left aligned */
+
+}
+
+/** ****************************************************************************
+
+Deinitialize services
+
+Not used at present
+
+*******************************************************************************/
+
+static void deinit_terminal (void) __attribute__((destructor (102)));
+static void deinit_terminal()
+
+{
+
+    int ti; /* index for timers */
+
+    /* restore terminal */
+    tcsetattr(0,TCSAFLUSH,&trmsav);
+
+    /* close any open timers */
+    for (ti = 0; ti < MAXTIM; ti++) if (timtbl[ti] != -1) close(timtbl[ti]);
+
+    /* holding copies of system vectors */
+    pread_t cppread;
+    pwrite_t cppwrite;
+    popen_t cppopen;
+    pclose_t cppclose;
+    punlink_t cppunlink;
+    plseek_t cpplseek;
+
+    /* swap old vectors for existing vectors */
+    ovr_read(ofpread, &cppread);
+    ovr_write(ofpwrite, &cppwrite);
+    ovr_open(ofpopen, &cppopen);
+    ovr_close(ofpclose, &cppclose);
+    ovr_unlink(ofpunlink, &cppunlink);
+    ovr_lseek(ofplseek, &cpplseek);
+
+    /* if we don't see our own vector flag an error */
+    if (cppread != iread || cppwrite != iwrite || cppopen != iopen ||
+        cppclose != iclose || cppunlink != iunlink || cpplseek != ilseek)
+        error(esysflt);
+
 }
