@@ -49,10 +49,10 @@
 #define ERRFIL 2 /* handle to standard error */
 
 /* foreground and background color bases */
-#define FORECOLORBASE 90 /* aixterm */
-#define BACKCOLORBASE 100
-//#define FORECOLORBASE 30 /* ansi */
-//#define BACKCOLORBASE 40
+//#define FORECOLORBASE 90 /* aixterm */
+//#define BACKCOLORBASE 100
+#define FORECOLORBASE 30 /* ansi */
+#define BACKCOLORBASE 40
 
 /* types of system vectors for override calls */
 
@@ -208,12 +208,12 @@ char *keytab[etterm+1] = {
  * vectors that were overriden by this module.
  *
  */
-static pread_t ofpread;
-static pwrite_t ofpwrite;
-static popen_t ofpopen;
-static pclose_t ofpclose;
+static pread_t   ofpread;
+static pwrite_t  ofpwrite;
+static popen_t   ofpopen;
+static pclose_t  ofpclose;
 static punlink_t ofpunlink;
-static plseek_t ofplseek;
+static plseek_t  ofplseek;
 
 /**
  * Save for terminal status
@@ -292,7 +292,7 @@ static char getchr(void)
 
 {
 
-    char c; /* character read */
+    char    c;  /* character read */
     ssize_t rc; /* return code */
 
     /* receive character to the next hander in the override chain */
@@ -548,10 +548,13 @@ static void trm_clear(void) { putstr("\33[2J\33[H"); }
 /** move cursor down */ static void trm_down(void) { putstr("\33[B"); }
 /** move cursor left */ static void trm_left(void) { putstr("\33[D"); }
 /** move cursor right */ static void trm_right(void) { putstr("\33[C"); }
-/** turn on blink attribute */ static void trm_blink(void) { putstr("\33[5m"); }
+/** turn on blink attribute */ static void trm_blink(void) {
+printf("turning on blink\n");
+putstr("\33[5m"); }
 /** turn on reverse video */ static void trm_rev(void) { putstr("\33[7m"); }
 /** turn on underline */ static void trm_undl(void) { putstr("\33[4m"); }
 /** turn on bold attribute */ static void trm_bold(void) { putstr("\33[1m"); }
+/** turn on italic attribute */ static void trm_ital(void) { putstr("\33[3m"); }
 /** turn off all attributes */
 static void trm_attroff(void) { putstr("\33[0m"); }
 /** turn on cursor wrap */ static void trm_wrapon(void) { putstr("\33[7h"); }
@@ -583,7 +586,8 @@ static void trm_cursor(int x, int y)
 Set attribute from attribute code
 
 Accepts a "universal" attribute code, and executes the attribute set required
-to make that happen on screen.
+to make that happen on screen. A few of these don't work on ANSI terminals,
+including superscript and subscript.
 
 *******************************************************************************/
 
@@ -599,7 +603,7 @@ static void setattr(scnatt a)
         case saundl:  trm_undl();    break; /* underline */
         case sasuper: break;                /* superscript */
         case sasubs:  break;                /* subscripting */
-        case saital:  break;                /* italic text */
+        case saital:  trm_ital;      break; /* italic text */
         case sabold:  trm_bold();    break; /* bold text */
 
     }
@@ -655,7 +659,7 @@ static void iniscn(void)
        Bizarre setting of "blink" actually allows access to bright white */
     screens[curscn-1]->forec = black; /* set colors and attributes */
     screens[curscn-1]->backc = white;
-    screens[curscn-1]->attr = sablink;
+    screens[curscn-1]->attr = sanone;
     screens[curscn-1]->scroll = 1; /* turn on autoscroll */
     clrbuf(); /* clear screen buffer with that */
     setattr(screens[curscn-1]->attr); /* set current attribute */

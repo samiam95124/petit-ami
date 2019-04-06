@@ -65,7 +65,7 @@ typedef struct filrec {
     struct filrec *next; /* next entry in list */
 
 } filrec;
-typdef filrec* filptr; /* pointer to file records */
+typedef filrec* filptr; /* pointer to file records */
 
 /* environment strings */
 typedef struct envrec {
@@ -95,8 +95,8 @@ extern int elapsed(int r);
 extern int validfile(char* s);
 extern int validpath(char* s);
 extern int wild(char* s);
-extern void getenv(char* ls, char* ds);
-extern void setenv(char* sn, char* sd);
+extern void getenvs(char* ls, char* ds);
+extern void setenvs(char* sn, char* sd);
 extern void allenv(envrec **el);
 extern void remenv(char* sn);
 extern void exec(char* cmd);

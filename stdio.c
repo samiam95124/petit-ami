@@ -36,6 +36,8 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <errno.h>
+#include <unistd.h>
+#include <ctype.h>
 
 /* We use a custom stdio.h */
 
@@ -65,12 +67,12 @@
 
 /* types of system vectors for override calls */
 
-typedef ssize_t (*pread_t)(int, void*, size_t);
-typedef ssize_t (*pwrite_t)(int, const void*, size_t);
-typedef int (*popen_t)(const char*, int);
-typedef int (*pclose_t)(int);
-typedef int (*punlink_t)(const char*);
-typedef off_t (*plseek_t)(int, off_t, int);
+typedef ssize_t (*vt_read_t)(int, void*, size_t);
+typedef ssize_t (*vt_write_t)(int, const void*, size_t);
+typedef int     (*vt_open_t)(const char*, int);
+typedef int     (*vt_close_t)(int);
+typedef int     (*vt_unlink_t)(const char*);
+typedef off_t   (*vt_lseek_t)(int, off_t, int);
 
 /* standard in, out and error files */
 
@@ -94,12 +96,12 @@ static unsigned long power16; /* hexadecimal */
  * but can be hooked or overridden by higher level layers.
  *
  */
-static pread_t pread;
-static pwrite_t pwrite;
-static popen_t popen;
-static pclose_t pclose;
-static punlink_t punlink;
-static plseek_t plseek;
+static vt_read_t   vt_read;
+static vt_write_t  vt_write;
+static vt_open_t   vt_open;
+static vt_close_t  vt_close;
+static vt_unlink_t vt_unlink;
+static vt_lseek_t  vt_lseek;
 
 /*******************************************************************************
 
@@ -125,17 +127,17 @@ static off_t wlseek(int fd, off_t offset, int whence)
     { return lseek(fd, offset, whence); }
 
 static ssize_t vread(int fd, void* buff, size_t count)
-    { return (*pread)(fd, buff, count); }
+    { return (*vt_read)(fd, buff, count); }
 static ssize_t vwrite(int fd, const void* buff, size_t count)
-    { return (*pwrite)(fd, buff, count); }
+    { return (*vt_write)(fd, buff, count); }
 static int vopen(const char* pathname, int flags)
-    { return (*popen)(pathname, flags); }
+    { return (*vt_open)(pathname, flags); }
 static int vclose(int fd)
-    { return (*pclose)(fd); }
+    { return (*vt_close)(fd); }
 static int vunlink(const char* pathname)
-    { return (*punlink)(pathname); }
+    { return (*vt_unlink)(pathname); }
 static off_t vlseek(int fd, off_t offset, int whence)
-    { return (*plseek)(fd, offset, whence); }
+    { return (*vt_lseek)(fd, offset, whence); }
 
 /*******************************************************************************
 
@@ -148,13 +150,13 @@ original handler established, which goes back to the raw system call.
 
 *******************************************************************************/
 
-void ovr_read(pread_t nfp, pread_t* ofp) { *ofp = pread; pread = nfp; }
-void ovr_write(pwrite_t nfp, pwrite_t* ofp) { *ofp = pwrite; pwrite = nfp; }
-void ovr_open(popen_t nfp, popen_t* ofp) { *ofp = popen; popen = nfp; }
-void ovr_close(pclose_t nfp, pclose_t* ofp) { *ofp = pclose; pclose = nfp; }
-void ovr_unlink(punlink_t nfp, punlink_t* ofp)
-    { *ofp = punlink; punlink = nfp; }
-void ovr_lseek(plseek_t nfp, plseek_t* ofp) { *ofp = plseek; plseek = nfp; }
+void ovr_read(vt_read_t nfp, vt_read_t* ofp) { *ofp = vt_read; vt_read = nfp; }
+void ovr_write(vt_write_t nfp, vt_write_t* ofp) { *ofp = vt_write; vt_write = nfp; }
+void ovr_open(vt_open_t nfp, vt_open_t* ofp) { *ofp = vt_open; vt_open = nfp; }
+void ovr_close(vt_close_t nfp, vt_close_t* ofp) { *ofp = vt_close; vt_close = nfp; }
+void ovr_unlink(vt_unlink_t nfp, vt_unlink_t* ofp)
+    { *ofp = vt_unlink; vt_unlink = nfp; }
+void ovr_lseek(vt_lseek_t nfp, vt_lseek_t* ofp) { *ofp = vt_lseek; vt_lseek = nfp; }
 
 /*******************************************************************************
 
@@ -2251,7 +2253,7 @@ BUGS/ISSUES:
 
 *******************************************************************************/
 
-int putchar(c)
+int putchar(int c)
 
 {
 
@@ -2608,12 +2610,12 @@ static void stdio_init(void)
     int i; /* index for files table */
 
     /* default system call vectors to there normal linkages */
-    pread   = wread;
-    pwrite  = wwrite;
-    popen   = wopen;
-    pclose  = wclose;
-    punlink = wunlink;
-    plseek  = wlseek;
+    vt_read   = wread;
+    vt_write  = wwrite;
+    vt_open   = wopen;
+    vt_close  = wclose;
+    vt_unlink = wunlink;
+    vt_lseek  = wlseek;
 
     /* clear open files table */
     for (i = 0; i < FOPEN_MAX; i++) opnfil[i] = NULL;

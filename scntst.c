@@ -45,6 +45,12 @@
 #include "terminal.h"
 #include "services.h"
 
+#include <setjmp.h>
+#include <limits.h>
+#include <stdlib.h>
+#include <math.h>
+#include <string.h>
+
 static int x, y, lx, ly, tx, ty, dx, dy;
 static char c;
 static int top, bottom, lside, rside; /* borders */
@@ -53,7 +59,7 @@ static int count, t1, t2, delay, minlen;   /* minimum direction, x or y */
 static evtrec er;   /* event record */
 static int i, b, tc, clk, cnt;
 static FILE *tf;   /* test file */
-static char tf_NAME[_FNSIZE];
+static char tf_NAME[10/*_FNSIZE*/] = "testfile";
 
 
 /* draw box */
@@ -87,7 +93,7 @@ static void wait(int t)
 
     timer(stdout, 1, t, 0);
     do { event(stdin, &er); } while (er.etype != ettim && er.etype != etterm);
-    if (er.etype == etterm) { intjmp(_JL99, 1); }
+    if (er.etype == etterm) { longjmp(_JL99, 1); }
 
 }
 
@@ -98,7 +104,7 @@ static void waitnext(void)
 {
 
     do { event(stdin, &er); } while (er.etype != etenter && er.etype != etterm);
-    if (er.etype == etterm) { intjmp(_JL99, 1); }
+    if (er.etype == etterm) { longjmp(_JL99, 1); }
 
 }
 
@@ -114,7 +120,7 @@ static void timetest(void)
     min = INT_MAX;
     for (i = 1; i <= 100; i++) {
 
-        t = clock();
+        t = uclock();
         timer(stdout, 1, 1, 0);
         do { putchar('*'); event(stdin, &er); } while (er.etype != ettim);
         et = elapsed(t);
@@ -125,15 +131,15 @@ static void timetest(void)
     }
     printf("\n");
     printf("\n");
-    printf("Average time was: %ld00 Microseconds\n", total / 100);
-    printf("Minimum time was: %ld00 Microseconds\n", min);
-    printf("Maximum time was: %ld00 Microseconds\n", max);
-    printf("This timer supports frame rates up to %ld", 10000 / (total / 100));
+    printf("Average time was: %d00 Microseconds\n", total / 100);
+    printf("Minimum time was: %d00 Microseconds\n", min);
+    printf("Maximum time was: %d00 Microseconds\n", max);
+    printf("This timer supports frame rates up to %d", 10000 / (total / 100));
     printf(" frames per second\n");
-    t = clock();
+    t = uclock();
     timer(stdout, 1, 10000, 0);
     do { event(stdin, &er); } while (er.etype != ettim);
-    printf("1 second time, was: %ld00 Microseconds\n", elapsed(t));
+    printf("1 second time, was: %d00 Microseconds\n", elapsed(t));
     printf("\n");
     printf("30 seconds of 1 second ticks:\n");
     printf("\n");
@@ -141,7 +147,7 @@ static void timetest(void)
 
         timer(stdout, 1, 10000, 0);
         do { event(stdin, &er); } while (er.etype != ettim && er.etype != etterm);
-        if (er.etype == etterm) intjmp(_JL99, 1);
+        if (er.etype == etterm) longjmp(_JL99, 1);
         putchar('.');
 
     }
@@ -178,8 +184,11 @@ static void plotjoy(int line, int joy)
         i = maxx(stdout) / 2;
         cursor(stdout, i, line);
         while (i <= x) {
-        putchar('*');
-        i++;
+
+            putchar('*');
+            i++;
+
+        }
 
     }
 
@@ -215,13 +224,13 @@ static void prtban(char *s)
 
 }
 
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
 
     if (setjmp(_JL99))
     goto _L99;
 
-    select(stdout, 2, 2);   /* move off the display buffer */
+    selects(stdout, 2, 2);   /* move off the display buffer */
     /* set black on white text */
     fcolor(stdout, black);
     bcolor(stdout, white);
@@ -247,7 +256,7 @@ main(int argc, char *argv[])
     for (i = 1; i <= mouse(stdout); i++) {
 
         printf("\n");
-        printf("\nNumber of buttons on mouse: %ld is: %d\n", i,
+        printf("\nNumber of buttons on mouse: %d is: %d\n", i,
             mousebutton(stdout, i));
 
     }
@@ -278,7 +287,7 @@ main(int argc, char *argv[])
 
     printf("\f");
     curvis(stdout, 0); /* remove cursor */
-    auto_(stdout, 0); /* turn off auto scroll */
+    automode(stdout, 0); /* turn off auto scroll */
     prtcen(1, "Last line blank out test");
     cursor(stdout, 1, 3);
     printf("If this terminal is not capable of showing the last character on\n");
@@ -296,7 +305,7 @@ main(int argc, char *argv[])
        up, down, left wrap and right wrap working correctly. */
 
     printf("\f");
-    auto_(stdout, 1);   /* set auto on */
+    automode(stdout, 1);   /* set auto on */
     curvis(stdout, 0);   /* remove cursor */
     /* top of left lower */
     cursor(stdout, 1, maxy(stdout));
@@ -421,7 +430,7 @@ main(int argc, char *argv[])
 
     printf("\f");
     c = '1';
-    for (y = 1; y <= maxy(output); y++) {
+    for (y = 1; y <= maxy(stdout); y++) {
 
         cursor(stdout, 1, y); /* index start of line */
         for (x = 1; x <= maxx(stdout); x++) {
@@ -639,7 +648,6 @@ main(int argc, char *argv[])
     for (y = 1; y <= maxy(stdout); y++) {
 
         cursor(stdout, 1, y);   /* index start of line */
-        FORLIM1 = maxx(stdout);
         for (x = 1; x <= maxx(stdout); x++) putchar(c); /* output characters */
         if (c != '9') c++; /* next character */
         else c = '0'; /* start over */
@@ -686,7 +694,6 @@ main(int argc, char *argv[])
     for (y = 1; y <= maxy(stdout); y++) {
 
         cursor(stdout, 1, y); /* index start of line */
-        FORLIM1 = maxx(stdout);
         for (x = 1; x <= maxx(stdout); x++) {
 
             putchar(c); /* output characters */
@@ -707,8 +714,7 @@ main(int argc, char *argv[])
     for (y = 1; y <= maxy(stdout); y++) {
 
         cursor(stdout, 1, y); /* index start of line */
-        FORLIM1 = maxx(stdout);
-        for (x = 1; x <= FORLIM1; x++) {
+        for (x = 1; x <= maxx(stdout); x++) {
 
             putchar(c);   /* output characters */
             if (c != '9') c++; /* next character */
@@ -726,8 +732,7 @@ main(int argc, char *argv[])
     for (y = 1; y <= maxy(stdout); y++) {
 
         cursor(stdout, 1, y);   /* index start of line */
-        FORLIM1 = maxx(stdout);
-        for (x = 1; x <= FORLIM1; x++) {
+        for (x = 1; x <= maxx(stdout); x++) {
 
             putchar(c); /* output characters */
             if (c != '9') c++; /* next character */
@@ -745,8 +750,7 @@ main(int argc, char *argv[])
     for (y = 1; y <= maxy(stdout); y++) {
 
         cursor(stdout, 1, y);   /* index start of line */
-        FORLIM1 = maxx(stdout);
-        for (x = 1; x <= FORLIM1; x++) {
+        for (x = 1; x <= maxx(stdout); x++) {
 
             putchar(c); /* output characters */
             if (c != '9') c++; /* next character */
@@ -764,8 +768,7 @@ main(int argc, char *argv[])
     for (y = 1; y <= maxy(stdout); y++) {
 
         cursor(stdout, 1, y);   /* index start of line */
-        FORLIM1 = maxx(stdout);
-        for (x = 1; x <= FORLIM1; x++) {
+        for (x = 1; x <= maxx(stdout); x++) {
 
             putchar(c);   /* output characters */
             if (c != '9')
@@ -797,35 +800,43 @@ main(int argc, char *argv[])
     printf("\f");
     for (b = 2; b <= 10; b++) {  /* prepare buffers */
 
-        select(stdout, b, 2);   /* select buffer */
+        selects(stdout, b, 2);   /* select buffer */
         /* write a shinking box pattern */
         box(b - 1, b-1, maxx(stdout)-(b- 2), maxy(stdout)-(b-2), '*');
         prtcen(maxy(stdout), "Buffer switching test");
 
     }
     for (i = 1; i <= 30; i++) /* flip buffers */
-        for (b = 2; b <= 10; b++) { wait(300); select(stdout, 2, b); }
-    select(stdout, 2, 2);   /* restore buffer select */
+        for (b = 2; b <= 10; b++) { wait(300); selects(stdout, 2, b); }
+    selects(stdout, 2, 2);   /* restore buffer select */
 
     /* **************************** Writethrough test ************************** */
 
-/* this needs help */
     printf("\f");
     prtcen(maxy(stdout), "File writethrough test");
     home(stdout);
     if (tf != NULL) tf = freopen(tf_NAME, "w", tf);
     else tf = fopen(tf_NAME, "w");
-    if (tf == NULL)_EscIO2(FileNotFound, tf_NAME);
+    if (tf == NULL) {
+
+        fprintf(stderr, "*** File not found: %s\n", tf_NAME);
+        exit(1);
+
+    }
     fprintf(tf, "This is a test file\n");
     tf = freopen(tf_NAME, "r", tf);
-    if (tf == NULL)_EscIO2(FileNotFound, tf_NAME);
-    while (!P_eoln(tf)) {
+    if (tf == NULL) {
 
-        c = getc(tf);
+        fprintf(stderr, "*** File not found: %s\n", tf_NAME);
+        exit(1);
+
+    }
+    while ((c = getc(tf)) != '\n') {
+
         putchar(c);
 
     }
-    fscanf(tf, "%*[^\n]");
+    while ((c = getc(tf)) != '\n');
     getc(tf);
     printf("s/b");
     printf("This is a test file\n");
@@ -847,7 +858,7 @@ main(int argc, char *argv[])
                 if (er.mjoyn == 1) {  /* joystick 1 */
 
                     cursor(stdout, 1, 3);
-                    printf("joystick: %d x: %ld y: %ld z: %ld",
+                    printf("joystick: %d x: %d y: %d z: %d",
                            er.mjoyn, er.joypx, er.joypy, er.joypz);
                     plotjoy(4, er.joypx);
                     plotjoy(5, er.joypy);
@@ -856,7 +867,7 @@ main(int argc, char *argv[])
                 } else if (er.mjoyn == 2) {  /* joystick 2 */
 
                     cursor(stdout, 1, 7);
-                    printf("joystick: %d x: %ld y: %ld z: %ld",
+                    printf("joystick: %d x: %d y: %d z: %d",
                            er.mjoyn, er.joypx, er.joypy, er.joypz);
                     plotjoy(8, er.joypx);
                     plotjoy(9, er.joypy);
@@ -865,7 +876,7 @@ main(int argc, char *argv[])
                 } else if (er.mjoyn == 3) {  /* joystick 3 */
 
                     cursor(stdout, 1, 11);
-                    printf("joystick: %d x: %ld y: %ld z: %ld",
+                    printf("joystick: %d x: %d y: %d z: %d",
                            er.mjoyn, er.joypx, er.joypy, er.joypz);
                     plotjoy(11, er.joypx);
                     plotjoy(12, er.joypy);
@@ -874,7 +885,7 @@ main(int argc, char *argv[])
                 } else if (er.mjoyn == 4) {  /* joystick 4 */
 
                     cursor(stdout, 1, 14);
-                    printf("joystick: %d x: %ld y: %ld z: %ld",
+                    printf("joystick: %d x: %d y: %d z: %d",
                            er.mjoyn, er.joypx, er.joypy, er.joypz);
                     plotjoy(15, er.joypx);
                     plotjoy(16, er.joypy);
@@ -993,7 +1004,7 @@ main(int argc, char *argv[])
     /* ********************** Character write speed test *********************** */
 
     printf("\f");
-    clk = clock();   /* get reference time */
+    clk = uclock();   /* get reference time */
     c = '\0';   /* initalize character value */
     cnt = 0;   /* clear character count */
     for (y = 1; y <= maxy(stdout); y++) {
@@ -1027,7 +1038,6 @@ main(int argc, char *argv[])
     for (y = 1; y <= maxy(stdout); y++) {
 
         cursor(stdout, 1, y);   /* index start of line */
-        FORLIM1 = maxx(stdout);
         for (x = 1; x <= maxx(stdout); x++)   /* output characters */
         putchar(c);
         if (c != '9') c++; /* next character */
@@ -1035,7 +1045,7 @@ main(int argc, char *argv[])
 
     }
     prtban("Scrolling speed test");
-    clk = clock(); /* get reference time */
+    clk = uclock(); /* get reference time */
     cnt = 0; /* clear count */
     for (i = 1; i <= 1000; i++) { /* scroll various directions */
 
@@ -1072,22 +1082,22 @@ main(int argc, char *argv[])
 
     for (b = 2; b <= 10; b++) {  /* prepare buffers */
 
-        select(stdout, b, 2);   /* select buffer */
+        selects(stdout, b, 2);   /* select buffer */
         /* write a shinking box pattern */
         box(b - 1, b - 1, maxx(stdout) - b + 2, maxy(stdout) - b + 2, '*');
 
     }
 
-    clk = clock();   /* get reference time */
+    clk = uclock();   /* get reference time */
     for (i = 1; i <= 1000; i++) /* flip buffers */
     for (b = 2; b <= 10; b++) {
 
-        select(stdout, 2, b);
+        selects(stdout, 2, b);
         cnt++;
 
     }
     clk = elapsed(clk);   /* find elapsed time */
-    select(stdout, 2, 2);   /* restore buffer select */
+    selects(stdout, 2, 2);   /* restore buffer select */
     printf("\f");
     printf("Buffer switch speed: % .5E average seconds per switch\n",
            clk/cnt*0.0001);
@@ -1096,9 +1106,9 @@ main(int argc, char *argv[])
 _L99: /* terminate */
 
     /* test complete */
-    select(stdout, 1, 1);   /* back to display buffer */
-    curvis(stdout, 1);   /* restore cursor */
-    auto_(stdout, 1);   /* enable automatic screen wrap */
+    selects(stdout, 1, 1); /* back to display buffer */
+    curvis(stdout, 1);     /* restore cursor */
+    automode(stdout, 1);   /* enable automatic screen wrap */
     printf("\n");
     printf("Test complete\n");
     if (tf != NULL) fclose(tf);

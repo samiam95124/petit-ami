@@ -65,3 +65,49 @@ is included. Current LTLs are:
 
 C++
 Pascaline
+
+HOW IT WORKS
+
+Besides providing a set of support libraries, Petit-AMI uses a trick of the 
+standard C libraries (LIBC). Each of the modules that make up the standard C
+library collection can be replaced with another. We use this principle to
+replace the stdio library with our own. The PA stdio module implements all of
+the file I/O calls, such as getchar(), putchar(), printf(), scanf(), etc.
+These are all written to standard LIBC specifications, and all of them distill
+the basic I/O operations down to calls to the fundamental operating system
+I/O calls, such as read(), write(), open(), etc.
+
+The trick is that our stdio implements an override function in standard C.
+Each of the read(), write(), open(), close(), unlink() and lseek() basic OS
+call entries has an override routine which saves the original function being
+called and replaces it with what the overrider wants.
+
+What this does is allow PA modules to "hook" the fundamental OS calls and
+redirect them, process the calls themselves, and even call the orignal overriden
+functions if needed. So lets say a graphical terminal module is loaded from the
+PA module set. It overrides the I/O functions, and translates the read() and
+write() calls to (say) GTK graphics calls. Thus, even though the original
+program contains say:
+
+int main(void)
+
+{
+
+    printf("Hello, world\n");
+    
+}
+
+Using the standard I/O from LIBC, it ends up on a graphical window set up to
+output to the GTK graphics and windowing package.
+
+PA is designed to present its I/O abstractions as a series of paradigms starting
+with standard terminal output, lines of text with line terminator characters 
+(CR/LF or just LF). It them adds a terminal model, or lines of text on a fixed
+screen, then mixed graphics and text on a screen, then windows containing
+graphics and text, then widgets, etc.
+
+The idea is that every paradigm is built to be compatible ith the one before, 
+and thus each program using one of the lower paradigm can be ported without 
+change to a more complex model. Line oriented model programs can be ported to
+terminal model, terminal to graphical, graphical to windowing, etc.
+

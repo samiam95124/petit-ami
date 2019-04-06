@@ -744,7 +744,7 @@ Returns an environment string by name.
 
 ********************************************************************************/
 
-static void getenv(
+static void getenvs(
         /* string name */   char *ls,
         /* string buffer */ char **ds,
         /* buffer length */ int l
@@ -770,7 +770,7 @@ Sets an environment string by name.
 
 ********************************************************************************/
 
-static void setenv(
+static void setenvs(
     /* name of string */ char *sn,
     /* value of string */char *sd
 )
