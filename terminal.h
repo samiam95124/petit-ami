@@ -17,69 +17,70 @@
 
 #include <stdio.h>
 
-#define MAXTIM 10 /**< maximum number of timers available */
+#define PA_MAXTIM 10 /**< maximum number of timers available */
 
 /** colors displayable in text mode */
-typedef enum { black, white, red, green, blue, cyan, yellow, magenta } color;
+typedef enum { pa_black, pa_white, pa_red, pa_green, pa_blue, pa_cyan,
+               pa_yellow, pa_magenta } pa_color;
 
 /** events */
 typedef enum {
 
-    /** ANSI character returned */     etchar,
-    /** cursor up one line */          etup,
-    /** down one line */               etdown,
-    /** left one character */          etleft,
-    /** right one character */         etright,
-    /** left one word */               etleftw,
-    /** right one word */              etrightw,
-    /** home of document */            ethome,
-    /** home of screen */              ethomes,
-    /** home of line */                ethomel,
-    /** end of document */             etend,
-    /** end of screen */               etends,
-    /** end of line */                 etendl,
-    /** scroll left one character */   etscrl,
-    /** scroll right one character */  etscrr,
-    /** scroll up one line */          etscru,
-    /** scroll down one line */        etscrd,
-    /** page down */                   etpagd,
-    /** page up */                     etpagu,
-    /** tab */                         ettab,
-    /** enter line */                  etenter,
-    /** insert block */                etinsert,
-    /** insert line */                 etinsertl,
-    /** insert toggle */               etinsertt,
-    /** delete block */                etdel,
-    /** delete line */                 etdell,
-    /** delete character forward */    etdelcf,
-    /** delete character backward */   etdelcb,
-    /** copy block */                  etcopy,
-    /** copy line */                   etcopyl,
-    /** cancel current operation */    etcan,
-    /** stop current operation */      etstop,
-    /** continue current operation */  etcont,
-    /** print document */              etprint,
-    /** print block */                 etprintb,
-    /** print screen */                etprints,
-    /** function key */                etfun,
-    /** display menu */                etmenu,
-    /** mouse button assertion */      etmouba,
-    /** mouse button deassertion */    etmoubd,
-    /** mouse move */                  etmoumov,
-    /** timer matures */               ettim,
-    /** joystick button assertion */   etjoyba,
-    /** joystick button deassertion */ etjoybd,
-    /** joystick move */               etjoymov,
-    /** terminate program */           etterm
+    /** ANSI character returned */     pa_etchar,
+    /** cursor up one line */          pa_etup,
+    /** down one line */               pa_etdown,
+    /** left one character */          pa_etleft,
+    /** right one character */         pa_etright,
+    /** left one word */               pa_etleftw,
+    /** right one word */              pa_etrightw,
+    /** home of document */            pa_ethome,
+    /** home of screen */              pa_ethomes,
+    /** home of line */                pa_ethomel,
+    /** end of document */             pa_etend,
+    /** end of screen */               pa_etends,
+    /** end of line */                 pa_etendl,
+    /** scroll left one character */   pa_etscrl,
+    /** scroll right one character */  pa_etscrr,
+    /** scroll up one line */          pa_etscru,
+    /** scroll down one line */        pa_etscrd,
+    /** page down */                   pa_etpagd,
+    /** page up */                     pa_etpagu,
+    /** tab */                         pa_ettab,
+    /** enter line */                  pa_etenter,
+    /** insert block */                pa_etinsert,
+    /** insert line */                 pa_etinsertl,
+    /** insert toggle */               pa_etinsertt,
+    /** delete block */                pa_etdel,
+    /** delete line */                 pa_etdell,
+    /** delete character forward */    pa_etdelcf,
+    /** delete character backward */   pa_etdelcb,
+    /** copy block */                  pa_etcopy,
+    /** copy line */                   pa_etcopyl,
+    /** cancel current operation */    pa_etcan,
+    /** stop current operation */      pa_etstop,
+    /** continue current operation */  pa_etcont,
+    /** print document */              pa_etprint,
+    /** print block */                 pa_etprintb,
+    /** print screen */                pa_etprints,
+    /** function key */                pa_etfun,
+    /** display menu */                pa_etmenu,
+    /** mouse button assertion */      pa_etmouba,
+    /** mouse button deassertion */    pa_etmoubd,
+    /** mouse move */                  pa_etmoumov,
+    /** timer matures */               pa_ettim,
+    /** joystick button assertion */   pa_etjoyba,
+    /** joystick button deassertion */ pa_etjoybd,
+    /** joystick move */               pa_etjoymov,
+    /** terminate program */           pa_etterm
 
-} evtcod;
+} pa_evtcod;
 
 /** event record */
 
 typedef struct {
 
 	/* identifier of window for event */ int winid;
-    /* event type */                     evtcod etype;
+    /* event type */                     pa_evtcod etype;
     /* event was handled */              int handled;
     union {
 
@@ -128,56 +129,56 @@ typedef struct {
 
      };
 
-} evtrec;
+} pa_evtrec;
 
 /** event function pointer */
-typedef void (*pevthan)(evtrec*);
+typedef void (*pa_pevthan)(pa_evtrec*);
 
 /* routines at this level */
 
-void cursor(FILE* f, int x, int y);
-int maxx(FILE* f);
-int maxy(FILE* f);
-void home(FILE* f);
-void del(FILE* f);
-void up(FILE* f);
-void down(FILE* f);
-void left(FILE* f);
-void right(FILE* f);
-void blink(FILE* f, int e);
-void reverse(FILE* f, int e);
-void underline(FILE* f, int e);
-void superscript(FILE* f, int e);
-void subscript(FILE* f, int e);
-void italic(FILE* f, int e);
-void bold(FILE* f, int e);
-void strikeout(FILE* f, int e);
-void standout(FILE* f, int e);
-void fcolor(FILE* f, color c);
-void bcolor(FILE* f, color c);
-void automode(FILE* f, int e);
-void curvis(FILE* f, int e);
-void scroll(FILE* f, int x, int y);
-int curx(FILE* f);
-int cury(FILE* f);
-int curbnd(FILE* f);
-void selects(FILE *f, int u, int d);
-void event(FILE* f, evtrec* er);
-void timer(FILE* f, int i, int t, int r);
-void killtimer(FILE* f, int i);
-int mouse(FILE *f);
-int mousebutton(FILE* f, int m);
-int joystick(FILE* f);
-int joybutton(FILE* f, int j);
-int joyaxis(FILE* f, int j);
-void settab(FILE* f, int t);
-void restab(FILE* f, int t);
-void clrtab(FILE* f);
-int funkey(FILE* f);
-void frametimer(FILE* f, int e);
-void autohold(FILE* f, int e);
-void wrtstr(FILE* f, char *s);
-void wrtstrn(FILE* f, char *s, int n);
-void eventover(evtcod e, pevthan eh,  pevthan* oeh);
+void pa_cursor(FILE* f, int x, int y);
+int  pa_maxx(FILE* f);
+int  pa_maxy(FILE* f);
+void pa_home(FILE* f);
+void pa_del(FILE* f);
+void pa_up(FILE* f);
+void pa_down(FILE* f);
+void pa_left(FILE* f);
+void pa_right(FILE* f);
+void pa_blink(FILE* f, int e);
+void pa_reverse(FILE* f, int e);
+void pa_underline(FILE* f, int e);
+void pa_superscript(FILE* f, int e);
+void pa_subscript(FILE* f, int e);
+void pa_italic(FILE* f, int e);
+void pa_bold(FILE* f, int e);
+void pa_strikeout(FILE* f, int e);
+void pa_standout(FILE* f, int e);
+void pa_fcolor(FILE* f, pa_color c);
+void pa_bcolor(FILE* f, pa_color c);
+void pa_automode(FILE* f, int e);
+void pa_curvis(FILE* f, int e);
+void pa_scroll(FILE* f, int x, int y);
+int  pa_curx(FILE* f);
+int  pa_cury(FILE* f);
+int  pa_curbnd(FILE* f);
+void pa_selects(FILE *f, int u, int d);
+void pa_event(FILE* f, pa_evtrec* er);
+void pa_timer(FILE* f, int i, int t, int r);
+void pa_killtimer(FILE* f, int i);
+int  pa_mouse(FILE *f);
+int  pa_mousebutton(FILE* f, int m);
+int  pa_joystick(FILE* f);
+int  pa_joybutton(FILE* f, int j);
+int  pa_joyaxis(FILE* f, int j);
+void pa_settab(FILE* f, int t);
+void pa_restab(FILE* f, int t);
+void pa_clrtab(FILE* f);
+int  pa_funkey(FILE* f);
+void pa_frametimer(FILE* f, int e);
+void pa_autohold(FILE* f, int e);
+void pa_wrtstr(FILE* f, char *s);
+void pa_wrtstrn(FILE* f, char *s, int n);
+void pa_eventover(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh);
 
 #endif /* __TERMINAL_H__ */

@@ -2,10 +2,13 @@
 # Makefile for Petit Ami test
 #
 
-all: test event getkeys terminal
+all: test event getkeys terminal scntst
 	
 test: ansiterm.c terminal.h test.c stdio.c stdio.h Makefile
 	gcc -g -o test stdio.c ansiterm.c test.c
+	
+scntst: ansiterm.c terminal.h scntst.c stdio.c stdio.h services.h services.c Makefile
+	gcc -g -o test stdio.c ansiterm.c services.c scntst.c
 	
 event: ansiterm.c terminal.h event.c stdio.c stdio.h Makefile
 	gcc -g -o event stdio.c ansiterm.c event.c

@@ -771,10 +771,8 @@ int main(int argc, char *argv[])
         for (x = 1; x <= maxx(stdout); x++) {
 
             putchar(c);   /* output characters */
-            if (c != '9')
-            c++;   /* next character */
-            else {
-            c = '0';   /* start over */
+            if (c != '9') c++;   /* next character */
+            else c = '0';   /* start over */
 
          }
 

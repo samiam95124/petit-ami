@@ -39,7 +39,7 @@
 #include "terminal.h"
 
 #define MAXXD 80  /**< standard terminal x, 80x25 */
-#define MAXYD 24 /*25*/  /**< standard terminal x, 80x25 */
+#define MAXYD 24  /*25*/  /**< standard terminal x, 80x25 */
 #define MAXCON 10 /**< number of screen contexts */
 
 /* file handle numbers at the system interface level */
@@ -91,8 +91,8 @@ typedef enum {
 typedef struct {
 
       /* character at location */        char ch;
-      /* foreground color at location */ color forec;
-      /* background color at location */ color backc;
+      /* foreground color at location */ pa_color forec;
+      /* background color at location */ pa_color backc;
       /* active attribute at location */ scnatt attr;
 
 } scnrec;
@@ -103,8 +103,8 @@ typedef struct { /* screen context */
       /* screen buffer */                    scnbuf buf;
       /* current cursor location x */        int curx;
       /* current cursor location y */        int cury;
-      /* current writing foreground color */ color forec;
-      /* current writing background color */ color backc;
+      /* current writing foreground color */ pa_color forec;
+      /* current writing background color */ pa_color backc;
       /* current writing attribute */        scnatt attr;
       /* current status of scroll */         int scroll;
 
@@ -145,7 +145,7 @@ typedef enum {
  *
  */
 
-char *keytab[etterm+1] = {
+char *keytab[pa_etterm+1] = {
 
     "", /** ANSI character returned */
     /* Common controls are:
@@ -201,7 +201,7 @@ char *keytab[etterm+1] = {
 
 /* screen contexts array */           static scnptr screens[MAXCON];
 /* index for current screen */        static int curscn;
-/* array of event handler routines */ static pevthan evthan[etterm+1];
+/* array of event handler routines */ static pa_pevthan evthan[pa_etterm+1];
 
 /*
  * Saved vectors to system calls. These vectors point to the old, existing
@@ -223,21 +223,21 @@ static struct termios trmsav;
 /**
  * Set of input file ids for select
  */
-fd_set ifdseta; /* active sets */
-fd_set ifdsets; /* signaled set */
-int ifdmax;
+static fd_set ifdseta; /* active sets */
+static fd_set ifdsets; /* signaled set */
+static int ifdmax;
 
 /**
  * Active timers table
  */
-int timtbl[MAXTIM];
+static int timtbl[PA_MAXTIM];
 
 /**
  * Key matching input buffer
  */
-char keybuf[10]; /* buffer */
-int keylen; /* number of characters in buffer */
-int tabs[MAXXD]; /* tabs set */
+static char keybuf[10]; /* buffer */
+static int keylen; /* number of characters in buffer */
+static int tabs[MAXXD]; /* tabs set */
 
 /** ****************************************************************************
 
@@ -398,18 +398,18 @@ data.
 
 *******************************************************************************/
 
-static void inpevt(evtrec* ev)
+static void inpevt(pa_evtrec* ev)
 
 {
 
-    int      pmatch; /* partial match found */
-    evtcod   i;      /* index for events */
-    int      rv;     /* return value */
-    int      evtfnd; /* found an event */
-    int      evtsig; /* event signaled */
-    int      ti;     /* index for timers */
-    ssize_t  rl;     /* read length */
-    uint64_t exp;    /* timer expiration time */
+    int       pmatch; /* partial match found */
+    pa_evtcod i;      /* index for events */
+    int       rv;     /* return value */
+    int       evtfnd; /* found an event */
+    int       evtsig; /* event signaled */
+    int       ti;     /* index for timers */
+    ssize_t   rl;     /* read length */
+    uint64_t  exp;    /* timer expiration time */
 
     evtfnd = 0; /* set no event found */
     evtsig = 0; /* set no event signaled */
@@ -424,7 +424,7 @@ static void inpevt(evtrec* ev)
             FD_CLR(0, &ifdsets); /* remove from input signals */
             keybuf[keylen++] = getchr(); /* get next character to match buffer */
             pmatch = 0; /* set no partial matches */
-            for (i = etchar; i <= etterm && !evtfnd; i++)
+            for (i = pa_etchar; i <= pa_etterm && !evtfnd; i++)
                 if (!strncmp(keybuf, keytab[i], keylen)) {
 
                 pmatch = 1; /* set partial match */
@@ -447,14 +447,14 @@ static void inpevt(evtrec* ev)
         } else {
 
             /* look in timer set */
-            for (ti = 0; ti < MAXTIM && !evtfnd; ti++) {
+            for (ti = 0; ti < PA_MAXTIM && !evtfnd; ti++) {
 
                 if (FD_ISSET(timtbl[ti], &ifdsets)) {
 
                     /* timer found, set as event */
                     evtsig = 1; /* set event signaled */
                     FD_CLR(timtbl[ti], &ifdsets); /* remove from input signals */
-                    ev->etype = ettim; /* set timer type */
+                    ev->etype = pa_ettim; /* set timer type */
                     ev->timnum = ti+1; /* set timer number */
                     evtfnd = 1; /* set event found */
                     rl = read(timtbl[ti], &exp, sizeof(uint64_t));
@@ -478,7 +478,7 @@ static void inpevt(evtrec* ev)
 
         /* set keyboard event */
     	ev->echar = keybuf[0]; /* get our character from buffer */
-    	ev->etype = etchar; /* set character event */
+    	ev->etype = pa_etchar; /* set character event */
     	keylen = 0; /* clear keyboard buffer */
 
     }
@@ -494,7 +494,7 @@ ANSI compliant terminal..
 
 *******************************************************************************/
 
-static int colnum(color c)
+static int colnum(pa_color c)
 
 {
 
@@ -503,14 +503,14 @@ static int colnum(color c)
     /* translate color number */
     switch (c) { /* color */
 
-        case black:   n = 0;  break;
-        case white:   n = 7; break;
-        case red:     n = 1; break;
-        case green:   n = 2; break;
-        case blue:    n = 4; break;
-        case cyan:    n = 6; break;
-        case yellow:  n = 3; break;
-        case magenta: n = 5; break;
+        case pa_black:   n = 0;  break;
+        case pa_white:   n = 7; break;
+        case pa_red:     n = 1; break;
+        case pa_green:   n = 2; break;
+        case pa_blue:    n = 4; break;
+        case pa_cyan:    n = 6; break;
+        case pa_yellow:  n = 3; break;
+        case pa_magenta: n = 5; break;
 
     }
 
@@ -561,11 +561,11 @@ static void trm_attroff(void) { putstr("\33[0m"); }
 /** turn off cursor wrap */ static void trm_wrapoff(void) { putstr("\33[7l"); }
 
 /** set foreground color */
-static void trm_fcolor(color c)
+static void trm_fcolor(pa_color c)
     { putstr("\33["); wrtint(FORECOLORBASE+colnum(c)); putstr("m"); }
 
 /** set background color */
-static void trm_bcolor(color c)
+static void trm_bcolor(pa_color c)
     { putstr("\33["); wrtint(BACKCOLORBASE+colnum(c)); putstr("m"); };
 
 /** position cursor */
@@ -657,8 +657,8 @@ static void iniscn(void)
     screens[curscn-1]->curx = 1;
     /* these attributes and colors are pretty much windows 95 specific. The
        Bizarre setting of "blink" actually allows access to bright white */
-    screens[curscn-1]->forec = black; /* set colors and attributes */
-    screens[curscn-1]->backc = white;
+    screens[curscn-1]->forec = pa_black; /* set colors and attributes */
+    screens[curscn-1]->backc = pa_white;
     screens[curscn-1]->attr = sanone;
     screens[curscn-1]->scroll = 1; /* turn on autoscroll */
     clrbuf(); /* clear screen buffer with that */
@@ -682,7 +682,7 @@ static void restore(void)
 {
 
     /** screen indexes */         int xi, yi;
-    /** color saves */            color fs, bs;
+    /** color saves */            pa_color fs, bs;
     /** attribute saves */        scnatt as;
     /** screen element pointer */ scnrec *p;
 
@@ -749,7 +749,7 @@ which will cause the event to return to the event() caller.
 
 *******************************************************************************/
 
-static void defaultevent(evtrec* ev)
+static void defaultevent(pa_evtrec* ev)
 
 {
 
@@ -778,13 +778,13 @@ static void iscroll(int x, int y)
 
 {
 
-    int     xi, yi;   /* screen counters */
-    color   fs, bs;   /* color saves */
-    scnatt  as;       /* attribute saves */
-    scnbuf  scnsav;   /* full screen buffer save */
-    int     lx;       /* last unmatching character index */
-    int     m;        /* match flag */
-    scnrec* sp;       /* pointer to screen record */
+    int     xi, yi;    /* screen counters */
+    pa_color   fs, bs; /* color saves */
+    scnatt  as;        /* attribute saves */
+    scnbuf  scnsav;    /* full screen buffer save */
+    int     lx;        /* last unmatching character index */
+    int     m;         /* match flag */
+    scnrec* sp;        /* pointer to screen record */
 
     if (y > 0 && x == 0) {
 
@@ -1374,7 +1374,7 @@ This is the external interface to cursor.
 
 *******************************************************************************/
 
-void cursor(FILE *f, int x, int y)
+void pa_cursor(FILE *f, int x, int y)
 
 {
 
@@ -1391,7 +1391,7 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-int maxx(FILE *f)
+int pa_maxx(FILE *f)
 
 {
 
@@ -1408,7 +1408,7 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-int maxy(FILE *f)
+int pa_maxy(FILE *f)
 
 {
 
@@ -1424,7 +1424,7 @@ Moves the cursor to the home position at (1, 1), the upper right hand corner.
 
 *******************************************************************************/
 
-void home(FILE *f)
+void pa_home(FILE *f)
 
 {
 
@@ -1443,13 +1443,13 @@ position left.
 
 *******************************************************************************/
 
-void del(FILE* f)
+void pa_del(FILE* f)
 
 {
 
-    left(f); /* back up cursor */
+    pa_left(f); /* back up cursor */
     plcchr(' '); /* blank out */
-    left(f); /* back up again */
+    pa_left(f); /* back up again */
 
 }
 
@@ -1461,7 +1461,7 @@ This is the external interface to up.
 
 *******************************************************************************/
 
-void up(FILE *f)
+void pa_up(FILE *f)
 
 {
 
@@ -1478,7 +1478,7 @@ This is the external interface to down.
 
 *******************************************************************************/
 
-void down(FILE *f)
+void pa_down(FILE *f)
 
 {
 
@@ -1494,7 +1494,7 @@ This is the external interface to left.
 
 *******************************************************************************/
 
-void left(FILE *f)
+void pa_left(FILE *f)
 
 {
 
@@ -1510,7 +1510,7 @@ This is the external interface to right.
 
 *******************************************************************************/
 
-void right(FILE *f)
+void pa_right(FILE *f)
 
 {
 
@@ -1532,7 +1532,7 @@ colors, which an ATTRIBUTE command seems to mess with !
 
 *******************************************************************************/
 
-void blink(FILE *f, int e)
+void pa_blink(FILE *f, int e)
 
 {
 
@@ -1557,7 +1557,7 @@ colors, which an ATTRIBUTE command seems to mess with !
 
 *******************************************************************************/
 
-void reverse(FILE *f, int e)
+void pa_reverse(FILE *f, int e)
 
 {
 
@@ -1592,7 +1592,7 @@ colors, which an ATTRIBUTE command seems to mess with !
 
 *******************************************************************************/
 
-void underline(FILE *f, int e)
+void pa_underline(FILE *f, int e)
 
 {
 
@@ -1624,7 +1624,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void superscript(FILE *f, int e)
+void pa_superscript(FILE *f, int e)
 
 {
 
@@ -1641,7 +1641,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void subscript(FILE *f, int e)
+void pa_subscript(FILE *f, int e)
 
 {
 
@@ -1658,7 +1658,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void italic(FILE *f, int e)
+void pa_italic(FILE *f, int e)
 
 {
 
@@ -1678,7 +1678,7 @@ colors, which an ATTRIBUTE command seems to mess with !
 
 *******************************************************************************/
 
-void bold(FILE *f, int e)
+void pa_bold(FILE *f, int e)
 
 {
 
@@ -1711,7 +1711,7 @@ Not implemented.
 
 *******************************************************************************/
 
-void strikeout(FILE *f, int e)
+void pa_strikeout(FILE *f, int e)
 
 {
 
@@ -1726,11 +1726,11 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void standout(FILE *f, int e)
+void pa_standout(FILE *f, int e)
 
 {
 
-    reverse(f, e); /* implement as reverse */
+    pa_reverse(f, e); /* implement as reverse */
 
 }
 
@@ -1742,7 +1742,7 @@ Sets the foreground (text) color from the universal primary code.
 
 *******************************************************************************/
 
-void fcolor(FILE *f, color c)
+void pa_fcolor(FILE *f, pa_color c)
 
 {
 
@@ -1759,7 +1759,7 @@ Sets the background color from the universal primary code.
 
 *******************************************************************************/
 
-void bcolor(FILE *f, color c)
+void pa_bcolor(FILE *f, pa_color c)
 
 {
 
@@ -1777,7 +1777,7 @@ off the screen at the top or bottom will scroll up or down, respectively.
 
 *******************************************************************************/
 
-void automode(FILE *f, int e)
+void pa_automode(FILE *f, int e)
 
 {
 
@@ -1793,7 +1793,7 @@ Enable or disable cursor visibility. We don't have a capability for this.
 
 *******************************************************************************/
 
-void curvis(FILE *f, int e)
+void pa_curvis(FILE *f, int e)
 
 {
 
@@ -1810,7 +1810,7 @@ int.
 
 *******************************************************************************/
 
-void scroll(FILE *f, int x, int y)
+void pa_scroll(FILE *f, int x, int y)
 
 {
 
@@ -1826,7 +1826,7 @@ Returns the current location of the cursor in x.
 
 *******************************************************************************/
 
-int curx(FILE *f)
+int pa_curx(FILE *f)
 
 {
 
@@ -1842,7 +1842,7 @@ Returns the current location of the cursor in y.
 
 *******************************************************************************/
 
-int cury(FILE *f)
+int pa_cury(FILE *f)
 
 {
 
@@ -1865,7 +1865,7 @@ forces a screen refresh, which can be important when working on terminals.
 
 *******************************************************************************/
 
-void selects(FILE *f, int u, int d)
+void pa_selects(FILE *f, int u, int d)
 
 {
 
@@ -1892,7 +1892,7 @@ caller.
 
 *******************************************************************************/
 
-void event(FILE* f, evtrec *er)
+void pa_event(FILE* f, pa_evtrec *er)
 
 {
 
@@ -1916,17 +1916,17 @@ No timer is implemented.
 
 *******************************************************************************/
 
-void timer(/* file to send event to */              FILE *f,
-           /* timer handle */                       int i,
-           /* number of 100us counts */             int t,
-           /* timer is to rerun after completion */ int r)
+void pa_timer(/* file to send event to */              FILE *f,
+              /* timer handle */                       int i,
+              /* number of 100us counts */             int t,
+              /* timer is to rerun after completion */ int r)
 
 {
 
     struct itimerspec ts;
     int rv;
 
-    if (i < 1 || i > MAXTIM) error(einvhan); /* invalid timer handle */
+    if (i < 1 || i > PA_MAXTIM) error(einvhan); /* invalid timer handle */
     if (timtbl[i-1] < 0) { /* timer entry inactive, create a timer */
 
         timtbl[i-1] = timerfd_create(CLOCK_REALTIME, 0);
@@ -1967,15 +1967,15 @@ in reserve.
 
 *******************************************************************************/
 
-void killtimer(/* file to kill timer on */ FILE *f,
-               /* handle of timer */       int i)
+void pa_killtimer(/* file to kill timer on */ FILE *f,
+                  /* handle of timer */       int i)
 
 {
 
     struct itimerspec ts;
     int rv;
 
-    if (i < 1 || i > MAXTIM) error(einvhan); /* invalid timer handle */
+    if (i < 1 || i > PA_MAXTIM) error(einvhan); /* invalid timer handle */
     if (timtbl[i-1] < 0) error(etimacc); /* no such timer */
 
     /* set timer run time to zero to kill it */
@@ -1997,7 +1997,7 @@ Returns the number of mice attached.
 
 *******************************************************************************/
 
-int mouse(FILE *f)
+int pa_mouse(FILE *f)
 
 {
 
@@ -2013,7 +2013,7 @@ Returns the number of buttons implemented on a given mouse.
 
 *******************************************************************************/
 
-int mousebutton(FILE *f, int m)
+int pa_mousebutton(FILE *f, int m)
 
 {
 
@@ -2032,7 +2032,7 @@ Note that Windows 95 has no joystick capability.
 
 *******************************************************************************/
 
-int joystick(FILE *f)
+int pa_joystick(FILE *f)
 
 {
 
@@ -2049,7 +2049,7 @@ Note that Windows 95 has no joystick capability.
 
 *******************************************************************************/
 
-int joybutton(FILE *f, int j)
+int pa_joybutton(FILE *f, int j)
 
 {
 
@@ -2070,7 +2070,7 @@ Note that Windows 95 has no joystick capability.
 
 *******************************************************************************/
 
-int joyaxis(FILE *f, int j)
+int pa_joyaxis(FILE *f, int j)
 
 {
 
@@ -2107,7 +2107,7 @@ Resets a tab. The tab number t is 1 to n, and indicates the column for the tab.
 
 *******************************************************************************/
 
-void restab(FILE* f, int t)
+void pa_restab(FILE* f, int t)
 
 {
 
@@ -2124,7 +2124,7 @@ Clears all tabs.
 
 *******************************************************************************/
 
-void clrtab(FILE* f)
+void pa_clrtab(FILE* f)
 
 {
 
@@ -2144,7 +2144,7 @@ Not implemented.
 
 *******************************************************************************/
 
-int funkey(FILE* f)
+int pa_funkey(FILE* f)
 
 {
 
@@ -2160,7 +2160,7 @@ Not currently implemented.
 
 *******************************************************************************/
 
-void frametimer(FILE* f, int e)
+void pa_frametimer(FILE* f, int e)
 
 {
 
@@ -2176,7 +2176,7 @@ We don't implement automatic hold here.
 
 *******************************************************************************/
 
-void autohold(FILE* f, int e)
+void pa_autohold(FILE* f, int e)
 
 {
 
@@ -2190,7 +2190,7 @@ Writes a string direct to the terminal, bypassing character handling.
 
 *******************************************************************************/
 
-void wrtstr(FILE* f, char *s)
+void pa_wrtstr(FILE* f, char *s)
 
 {
 
@@ -2207,7 +2207,7 @@ handling.
 
 *******************************************************************************/
 
-void wrtstrn(FILE* f, char *s, int n)
+void pa_wrtstrn(FILE* f, char *s, int n)
 
 {
 
@@ -2226,7 +2226,7 @@ call down into the stack by executing the overridden event.
 
 *******************************************************************************/
 
-void eventover(evtcod e, pevthan eh,  pevthan* oeh)
+void pa_eventover(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh)
 
 {
 
@@ -2253,12 +2253,12 @@ before the client program runs.
 
 *******************************************************************************/
 
-static void init_terminal (void) __attribute__((constructor (102)));
-static void init_terminal()
+static void pa_init_terminal (void) __attribute__((constructor (102)));
+static void pa_init_terminal()
 
 {
 
-    /** index for events */            evtcod e;
+    /** index for events */            pa_evtcod e;
     /** build new terminal settings */ struct termios raw;
     /** index */                       int i;
 
@@ -2276,7 +2276,7 @@ static void init_terminal()
     curscn = 1; /* set current screen */
     trm_wrapoff(); /* wrap is always off */
     iniscn(); /* initalize screen */
-    for (e = etchar; e <= etterm; e++) evthan[e] = defaultevent;
+    for (e = pa_etchar; e <= pa_etterm; e++) evthan[e] = defaultevent;
 
     /* clear keyboard match buffer */
     keylen = 0;
@@ -2314,7 +2314,7 @@ static void init_terminal()
     FD_ZERO(&ifdsets);
 
     /* clear the timers table */
-    for (i = 0; i < MAXTIM; i++) timtbl[i] = -1;
+    for (i = 0; i < PA_MAXTIM; i++) timtbl[i] = -1;
 
     /* clear tabs and set to 8ths */
     for (i = 0; i < MAXXD; i++) tabs[i] = !((i-1)%8) && i != 1;
@@ -2334,8 +2334,8 @@ and that should be corrected.
 
 *******************************************************************************/
 
-static void deinit_terminal (void) __attribute__((destructor (102)));
-static void deinit_terminal()
+static void pa_deinit_terminal (void) __attribute__((destructor (102)));
+static void pa_deinit_terminal()
 
 {
 
@@ -2345,7 +2345,7 @@ static void deinit_terminal()
     tcsetattr(0,TCSAFLUSH,&trmsav);
 
     /* close any open timers */
-    for (ti = 0; ti < MAXTIM; ti++) if (timtbl[ti] != -1) close(timtbl[ti]);
+    for (ti = 0; ti < PA_MAXTIM; ti++) if (timtbl[ti] != -1) close(timtbl[ti]);
 
     /* holding copies of system vectors */
     pread_t cppread;

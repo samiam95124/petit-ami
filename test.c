@@ -14,27 +14,27 @@ int main(void)
 
 {
 
-    evtrec er;
+    pa_evtrec er;
 
-    home(stdout);
+    pa_home(stdout);
 
-    printf("Terminal surface is: x: %d by y: %d\n", maxx(stdout), maxy(stdout));
+    printf("Terminal surface is: x: %d by y: %d\n", pa_maxx(stdout), pa_maxy(stdout));
     /* place message at middle of screeen */
-    cursor(stdout, maxx(stdout)/2-strlen("Hello, Petit Ami")/2, maxy(stdout)/2);
+    pa_cursor(stdout, pa_maxx(stdout)/2-strlen("Hello, Petit Ami")/2, pa_maxy(stdout)/2);
     printf("Hello, Petit Ami");
 
     /* set periodic timer for 10 seconds */
-    timer(stdin, 1, 3*SECOND, 1);
+    pa_timer(stdin, 1, 3*SECOND, 1);
     do {
 
-        event(stdin, &er);
+        pa_event(stdin, &er);
         printf("Event processed\n");
-        if (er.etype == ettim) {
+        if (er.etype == pa_ettim) {
 
             printf("Timer event: Timer: %d\n", er.timnum);
 
         }
 
-    } while (er.etype != etterm); /* until terminate */
+    } while (er.etype != pa_etterm); /* until terminate */
 
 }

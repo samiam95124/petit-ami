@@ -17,15 +17,15 @@
 *                                                                              *
 ********************************************************************************/
 
-#include "errno".h"
-#include "sys/types.h"
-#include "sys/status.h"
-#include "sys/stat.h"
-#include "sys/time.h"
+#include <errno.h>
+#include <sys/types.h>
+//#include <sys/status.h>
+#include <sys/stat.h>
+#include <sys/time.h>
 #include <time.h>
-#include "fcntl.h"
-#include "unistd.h"
-#include "dirent.h"
+#include <fcntl.h>
+#include <unistd.h>
+#include <dirent.h>
 
 #include "services.h" /* the header for this file */
 
@@ -183,7 +183,7 @@ If no files are matched, the returned list is nil.
 
 ********************************************************************************/
 
-void list(
+void pa_list(
     /** file to search for */ char *f,
     /** file list returned */ filrec **l
 )
@@ -303,7 +303,7 @@ Converts the given time into a string.
 
 ********************************************************************************/
 
-static void times(
+void pa_times(
     /** result string */           char *s,
     /** length of string buffer */ int len;
     /** time to convert */         int t
@@ -380,8 +380,8 @@ Converts the given date into a string.
  */
 #define leapyear(y) ((y & 3) == 0 && y % 100 != 0 || y % 400 == 0)
 
-static void dates(
-    /* string to place date into */ char *s_,
+void pa_dates(
+    /* string to place date into */ char *s,
     /* time record to write from */ int t
 )
 
@@ -479,7 +479,7 @@ Writes the time to a given file, from a time record.
 
 ********************************************************************************/
 
-static void writetime(
+void pa_writetime(
         /* file to write to */ FILE *f,
         /* time record to write from */ int t
 )
@@ -503,7 +503,7 @@ used by windows.
 
 ********************************************************************************/
 
-static void writedate(
+void pa_writedate(
         /* file to write to */ FILE *f,
         /* time record to write from */ int t
 )
@@ -525,7 +525,7 @@ Finds the current time as an S2000 integer.
 
 ********************************************************************************/
 
-static int stime(void)
+int pa_time(void)
 
 {
 
@@ -549,7 +549,7 @@ timezones.
 
 ********************************************************************************/
 
-static int local(int t)
+int pa_local(int t)
 {
 
     return t+timezone()+daysave*60
@@ -577,7 +577,7 @@ has more than enough precision to count from 0 AD to present.
 
 ********************************************************************************/
 
-static int uclock(void)
+int pa_clock(void)
 
 {
 
@@ -604,7 +604,7 @@ time that can be measured is 24 hours.
 
 ********************************************************************************/
 
-static int elapsed(int r)
+int pa_elapsed(int r)
 {
 
     /* reference time */
@@ -630,7 +630,7 @@ is null or all blanks
 
 ********************************************************************************/
 
-static int valid(
+int pa_validfile(
     /* string to validate */ char *s
 )
 
@@ -657,7 +657,7 @@ filename that is null or all blanks
 
 ********************************************************************************/
 
-static int validp(
+int pa_validpath(
     /* string to validate */ char *s
 )
 
@@ -683,7 +683,7 @@ on that directory.
 
 ********************************************************************************/
 
-static int wild(
+int pa_wild(
     /* filename */ char *s
 )
 
@@ -716,7 +716,7 @@ found.
 
 ********************************************************************************/
 
-static void fndenv(
+void pa_getenv(
     /* string name */                 char   *esn,
     /* returns environment pointer */ envrec **ep
 )
@@ -738,39 +738,13 @@ static void fndenv(
 
 /********************************************************************************
 
-Get environment string padded
-
-Returns an environment string by name.
-
-********************************************************************************/
-
-static void getenvs(
-        /* string name */   char *ls,
-        /* string buffer */ char **ds,
-        /* buffer length */ int l
-)
-
-{
-
-    envrec *p; /* pointer to environment entry */
-
-    **ds = 0; /* clear result */
-    fndenv(ls, &p); /* find environment string */
-    if (strlen(p->data) > l)
-        error("Environment string too long for output buffer");
-    if (p != NULL) strncpy(*ds, p->data, l); /* place string */
-
-}
-
-/********************************************************************************
-
 Set environment string
 
 Sets an environment string by name.
 
 ********************************************************************************/
 
-static void setenvs(
+void pa_setenv(
     /* name of string */ char *sn,
     /* value of string */char *sd
 )
@@ -815,7 +789,7 @@ Removes an environment string by name.
 
 ********************************************************************************/
 
-static void remenv(
+void pa_remenv(
         /* name of string */ char *sn
 )
 
@@ -853,7 +827,7 @@ Returns a table with the entire environment string set in it.
 
 ********************************************************************************/
 
-static void allenv(
+void pa_allenv(
     /* environment table */ envrec **el
 )
 
@@ -885,7 +859,7 @@ Executes a program by name. Does not wait for the program to complete.
 
 ********************************************************************************/
 
-static void exec(
+void pa_exec(
     /* program name to execute */ char *cmd
 )
 
@@ -961,7 +935,7 @@ Executes a program by name. Waits for the program to complete.
 
 ********************************************************************************/
 
-static void execw(
+void pa_execw(
     /* program name to execute */ char *cmd,
     /* return error */ int *e
 )
@@ -982,7 +956,7 @@ the program environment.
 
 ********************************************************************************/
 
-static void exece(
+void pa_exece(
     /* program name to execute */ char *cmd,
     /* environment */ envrec *el
 )
@@ -1003,7 +977,7 @@ program environment.
 
 ********************************************************************************/
 
-static void execew(
+void pa_execew(
         /* program name to execute */ char *cmd,
         /* environment */ envrec *el,
         /* return error */int *e
@@ -1024,7 +998,7 @@ Returns the current path in the given padded string.
 
 ********************************************************************************/
 
-static void getcur(
+void pa_getcur(
         /* buffer to get path */ char *fn,
         /* length of buffer */   int l
 )
@@ -1050,7 +1024,7 @@ Sets the current path from the given string.
 
 ********************************************************************************/
 
-static void setcur(
+void pa_setcur(
         /* path to set */ char *fn
 )
 
@@ -1087,7 +1061,7 @@ were a normal character.
 
 ********************************************************************************/
 
-static void brknam(
+void pa_brknam(
         /* file specification */ char *fn,
         /* path */               char *p,
         /* name */               char *n,
@@ -1182,7 +1156,7 @@ concatenating.
 
 ********************************************************************************/
 
-static void maknam_(char *fn_, char *p, char *n, char *e)
+void pa_maknam(char *fn_, char *p, char *n, char *e)
 {
     /* file specification to build */
     /* path */
@@ -1226,7 +1200,7 @@ No validity check is done. Garbage in, garbage out.
 
 ********************************************************************************/
 
-static void fulnam_(char *fn)
+void pa_fulnam_(char *fn)
 {
     /* file specification */
     bufstr p, n, e, ps;   /* filespec components */
@@ -1290,7 +1264,7 @@ Note: this does not work for standard CLIB programs. We need another solution.
 
 ********************************************************************************/
 
-static void getpgm(char *path, int len)
+void pa_getpgm(char *path, int len)
 {
 
     struct LOC_getpgm_ V;
@@ -1346,7 +1320,7 @@ directory.
 
 ********************************************************************************/
 
-static void getusr_(char *fn)
+void pa_getusr(char *fn)
 {
     bufstr b, b1;   /* buffer for result */
 
@@ -1408,7 +1382,7 @@ possible. This is done with makpth.
 
 ********************************************************************************/
 
-static void setatr_(char *fn, attrset a)
+void pa_setatr(char *fn, attrset a)
 {
     /* file to set attributes on */
     /* attribute set */
@@ -1426,7 +1400,7 @@ possible.
 
 ********************************************************************************/
 
-static void resatr_(char *fn, attrset a)
+void pa_resatr(char *fn, attrset a)
 {
     /* file to set attributes on */
     /* attribute set */
@@ -1444,7 +1418,7 @@ which effectively means "back this file up now".
 
 ********************************************************************************/
 
-static void bakupd_(char *fn)
+void pa_bakupd(char *fn)
 {
     setatr_(fn, 1 << ((int)atarc));
 }
@@ -1458,7 +1432,7 @@ Sets user permisions
 
 ********************************************************************************/
 
-static void setuper_(char *fn, permset p)
+void pa_setuper(char *fn, permset p)
 {
     sc_sstat sr;   /* stat() record */
     int r;   /* result code */
@@ -1489,7 +1463,7 @@ Resets user permissions.
 
 ********************************************************************************/
 
-static void resuper_(char *fn, permset p)
+void pa_resuper(char *fn, permset p)
 {
     sc_sstat sr;   /* stat() record */
     int r;   /* result code */
@@ -1520,7 +1494,7 @@ Sets group permissions.
 
 ********************************************************************************/
 
-static void setgper_(char *fn, permset p)
+void pa_setgper(char *fn, permset p)
 {
     sc_sstat sr;   /* stat() record */
     int r;   /* result code */
@@ -1551,7 +1525,7 @@ Resets group permissions.
 
 ********************************************************************************/
 
-static void resgper_(char *fn, permset p)
+void pa_resgper(char *fn, permset p)
 {
     sc_sstat sr;   /* stat() record */
     int r;   /* result code */
@@ -1582,7 +1556,7 @@ Sets other permissions.
 
 ********************************************************************************/
 
-static void setoper_(char *fn, permset p)
+void pa_setoper(char *fn, permset p)
 {
     sc_sstat sr;   /* stat() record */
     int r;   /* result code */
@@ -1613,7 +1587,7 @@ Resets other permissions.
 
 ********************************************************************************/
 
-static void resoper_(char *fn, permset p)
+void pa_resoper(char *fn, permset p)
 {
     sc_sstat sr;   /* stat() record */
     int r;   /* result code */
@@ -1643,7 +1617,7 @@ Create a new path. Only one new level at a time may be created.
 
 ********************************************************************************/
 
-static void makpth_(char *fn)
+void pa_makpth(char *fn)
 {
     int r;   /* result code */
 
@@ -1666,7 +1640,7 @@ Create a new path. Only one new level at a time may be deleted.
 
 ********************************************************************************/
 
-static void rempth_(char *fn)
+void pa_rempth(char *fn)
 {
     int r;   /* result code */
 
@@ -1703,7 +1677,7 @@ specials in these cases.
 
 ********************************************************************************/
 
-static void filchr_(uchar *fc)
+void pa_filchr(uchar *fc)
 {
 
     /* add everything but control characters and space */
@@ -1724,7 +1698,7 @@ is overly cute and not common.
 
 ********************************************************************************/
 
-static char optchr(void)
+char pa_optchr(void)
 {
     return '-';
 
@@ -1742,7 +1716,7 @@ separator as '\\'.
 
 *******************************************************************************/
 
-static char pthchr(void)
+char pa_pthchr(void)
 {
 
     return '/';
@@ -1768,7 +1742,7 @@ A mobile host is constantly reading its location (usually from a GPS).
 
 *******************************************************************************/
 
-int latitude(void)
+int pa_latitude(void)
 
 {
 
@@ -1793,7 +1767,7 @@ A mobile host is constantly reading its location (usually from a GPS).
 
 *******************************************************************************/
 
-int longitude(void)
+int pa_longitude(void)
 
 {
 
@@ -1826,7 +1800,7 @@ A mobile host is constantly reading its location (usually from a GPS).
 
 *******************************************************************************/
 
-int altitude(void)
+int pa_altitude(void)
 
 {
 
@@ -1844,7 +1818,7 @@ determined by latitude/longitude.
 
 *******************************************************************************/
 
-int country(void)
+int pa_country(void)
 
 {
 
@@ -1912,7 +1886,7 @@ countryety countrytab[] = {
     "Heard Island and McDonald Islands", 334,
     "Holy See (Vatican City State)", 336,
     "Honduras",          340, "Hong Kong",        344, "Hungary",          348,
-    "Iceland",           352, "India",              356, "Indonesia",          360,
+    "Iceland",           352, "India",            356, "Indonesia",        360,
     "Iran, Islamic Republic of", 364,
     "Iraq",              368, "Ireland",          372, "Isle of Man",      833,
     "Israel",            376, "Italy",            380, "Jamaica",          388,
@@ -1977,7 +1951,7 @@ countryety countrytab[] = {
 
 };
 
-void countrys(
+void pa_countrys(
     /** string buffer */           char* s,
     /** length of buffer */        int len,
     /** ISO 3166-1 country code */ int c)
@@ -1993,6 +1967,7 @@ void countrys(
     strncpy(s, p->countrystr, len);
 
 }
+
 /** ****************************************************************************
 
 Find timezone offset
@@ -2002,7 +1977,7 @@ negative for zones west of the prime meridian, and positive for zones east.
 
 *******************************************************************************/
 
-int timezone(void)
+int pa_timezone(void)
 
 {
 
@@ -2034,7 +2009,7 @@ Note that local() already takes daylight savings into account.
 
 *******************************************************************************/
 
-int daysave(void)
+int pa_daysave(void)
 
 
 {
@@ -2057,7 +2032,7 @@ Returns true if 24 hour time is in use in the current host location.
 
 *******************************************************************************/
 
-int time24hour(void);
+int pa_time24hour(void);
 
 {
 
@@ -2077,7 +2052,7 @@ necessarily be added at the end, and thus out of order.
 
 *******************************************************************************/
 
-int language(void)
+int pa_language(void)
 
 {
 
@@ -2141,7 +2116,7 @@ langety langtab[] = {
 
 };
 
-void languages(char* s, int len, int l)
+void pa_languages(char* s, int len, int l)
 
 {
 
@@ -2163,7 +2138,7 @@ Finds the decimal point character of the host, which is generally '.' or ','.
 
 *******************************************************************************/
 
-char decimal(void)
+char pa_decimal(void)
 
 {
 
@@ -2180,7 +2155,7 @@ generally used to mark 3 digit groups, ie., 3,000,000.
 
 *******************************************************************************/
 
-char numbersep(void)
+char pa_numbersep(void)
 
 {
 
@@ -2209,7 +2184,7 @@ Note that times() compensates for this.
 
 *******************************************************************************/
 
-int timeorder(void)
+int pa_timeorder(void)
 
 {
 
@@ -2241,7 +2216,7 @@ Note that dates() compensates for this.
 
 *******************************************************************************/
 
-int dateorder(void);
+int pa_dateorder(void);
 
 {
 
@@ -2258,7 +2233,7 @@ Note that dates() uses this character.
 
 *******************************************************************************/
 
-char datesep(void)
+char pa_datesep(void)
 
 {
 
@@ -2276,7 +2251,7 @@ Note that times() uses this character.
 
 *******************************************************************************/
 
-char timesep(void)
+char pa_timesep(void)
 
 {
 
@@ -2292,7 +2267,7 @@ Finds the currency symbol of the host country.
 
 *******************************************************************************/
 
-char currchr(void)
+char pa_currchr(void)
 
 {
 
@@ -2313,7 +2288,7 @@ reserved for the main thread.
 
 *******************************************************************************/
 
-void newthread(int addr, int *id)
+void pa_newthread(int addr, int *id)
 
 {
 
@@ -2331,7 +2306,7 @@ being killed because of interprocessor signal latency.
 
 *******************************************************************************/
 
-void killthread(int id)
+void pa_killthread(int id)
 
 {
 
@@ -2361,7 +2336,7 @@ non-functioning signal.
 
 *******************************************************************************/
 
-void signal(int* sid)
+void pa_signal(int* sid)
 
 {
 
@@ -2391,7 +2366,7 @@ that allows the release of from 1 to N threads, where N is all threads waiting.
 
 *******************************************************************************/
 
-void signalone(int* sid)
+void pa_signalone(int* sid)
 
 {
 
@@ -2418,7 +2393,7 @@ first serve), or "unfair", in which case the thread flagged is a random one.
 
 *******************************************************************************/
 
-void wait(int lid, int* sid)
+void pa_wait(int lid, int* sid)
 
 {
 
@@ -2434,7 +2409,7 @@ be available, but 100 locks or more are common.
 
 *******************************************************************************/
 
-void newlock(int* id)
+void pa_newlock(int* id)
 
 {
 
@@ -2449,7 +2424,7 @@ results. Removing the lock frees up its logical id for reuse.
 
 *******************************************************************************/
 
-void displock(int id)
+void pa_displock(int id)
 
 {
 
@@ -2484,7 +2459,7 @@ And watch for data change after the wait for signal.
 
 *******************************************************************************/
 
-void lock(int id)
+void pa_lock(int id)
 
 {
 
@@ -2501,7 +2476,7 @@ defined. They may be run in fair order, and they may run immediately
 
 *******************************************************************************/
 
-void unlock(int id)
+void pa_unlock(int id)
 
 {
 
@@ -2515,8 +2490,8 @@ We initialize all variables and tables.
 
 *******************************************************************************/
 
-static void init_services (void) __attribute__((constructor (102)));
-static void init_services()
+static void pa_init_services (void) __attribute__((constructor (102)));
+static void pa_init_services()
 
 {
 
@@ -2556,8 +2531,8 @@ Not used at present
 
 *******************************************************************************/
 
-static void deinit_terminal (void) __attribute__((destructor (102)));
-static void deinit_terminal()
+static void pa_deinit_terminal (void) __attribute__((destructor (102)));
+static void pa_deinit_terminal()
 
 {
 
