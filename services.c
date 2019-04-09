@@ -26,8 +26,17 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "services.h" /* the header for this file */
+
+/* contains the program invocation path */
+extern char *program_invocation_name;
+
+/* contains the entire environment strings array */
+extern char **environ;
 
 /* give bit in word from ordinal position */
 #define bit(b) (1 << b)
@@ -46,19 +55,7 @@ typedef char bufstr[MAXSTR]; /* standard string buffer */
 
 static bufstr pthstr;   /* buffer for execution path */
 
-static envrec *envlst;   /* our environment list */
-
-/* dummy routine placeholders */
-static void cat(char *d, char *s1, char *s2) { }
-static int index(char *s, char *m) { }
-static void clears(char *s) { }
-static void copys(char *d, char *s) { }
-static int comps(char *d, char *s) { }
-static int words(char *s) { }
-static void extword(char *d, char *s, int st, int ed) { }
-static void extract(char *d, char *s, int st, int ed) { }
-static int exists(char *fn) { }
-static void trim(char *d, char *s) { }
+static pa_envrec *envlst;   /* our environment list */
 
 /********************************************************************************
 
@@ -94,27 +91,146 @@ they should be negated before calling this routine.
 static void unixerr(void)
 {
 
-    fprintf(stderr, "\nError: Services: %s\n", strerror(errno));
+    error(strerror(errno));
 
 }
 
-
 /********************************************************************************
 
-Place character in string
+Check file exists
 
-Places the given character in the space padded string buffer, with full error
-checking.
+Checks if the named file exists. Returns true if so.
 
 ********************************************************************************/
 
-static void plcstr(char *s, int *i, char c)
+static int exists(char *fn)
 {
-    /* check overflow */
-    if (*i > strlen(s))   /* overflow */
-    error("Name too long for buffer");
-    s[*i - 1] = c;   /* place character */
-    (*i)++;   /* next */
+
+    FILE *fp;
+
+    if (fp = fopen(fn, "r")) fclose(fp);
+
+    return !!fp;
+
+}
+
+/********************************************************************************
+
+Extract string
+
+Extracts a substring. The characters in the source string indicated are extracted
+and placed into the destination string. It is an error if the number of
+characters in the substring are too large for the destination.
+
+********************************************************************************/
+
+static void extract(char *d, int l, char *s, int st, int ed)
+{
+
+    if (ed-st+1 > l) error("String too large for desination");
+    while (st <= ed) *d++ = s[st++];
+    *d = 0;
+
+}
+
+/********************************************************************************
+
+Trim leading and trailing spaces off string.
+
+Removes leading and trailing spaces from a given string. Since the string will
+shrink by definition, no length is needed.
+
+********************************************************************************/
+
+static void trim(char *s)
+{
+
+    while (*s == ' ') s++;
+    while (*s != ' ') s++;
+    *s = 0;
+
+}
+
+/********************************************************************************
+
+Find number of words in string
+
+Finds the number of space delimited words in a string.
+
+********************************************************************************/
+
+static int words(char *s)
+{
+
+    int wc;
+    int ichar;
+    int ispace;
+
+    wc = 0;
+    ichar = 0;
+    ispace = 0;
+    while (*s) {
+
+        if (*s == ' ') {
+
+            if (!ispace) { ispace = 1; ichar = 0; }
+
+        } else {
+
+            if (!ichar) { ichar = 1; ispace = 0; wc++; }
+
+        }
+
+    }
+
+    return wc;
+
+}
+
+/********************************************************************************
+
+Extract words from string
+
+Extracts a series of space delimited words from a string.
+
+********************************************************************************/
+
+static int extwords(char *d, int dl, char *s, int st, int ed)
+{
+
+    int wc;
+    int ichar;
+    int ispace;
+
+    wc = 0;
+    ichar = 0;
+    ispace = 0;
+    if (dl < 1) error("String too large for destination");
+    dl--; /* create room for terminator */
+    while (*s) {
+
+        if (*s == ' ') {
+
+            if (!ispace) { ispace = 1; ichar = 0; }
+
+        } else {
+
+            if (!ichar) { ichar = 1; ispace = 0; wc++; }
+            if (wc >=st && wc <= ed) {
+
+                if (!dl) error("String too large for destination");
+                *d++ = *s;
+                dl--;
+
+            }
+
+        }
+        s++;
+
+    }
+    *d = 0;
+
+    return wc;
 
 }
 
@@ -165,6 +281,7 @@ static int match(char *a, char *b, int ia, int ib)
         }
 
     }
+
     return m;
 
 }
@@ -185,7 +302,7 @@ If no files are matched, the returned list is nil.
 
 void pa_list(
     /** file to search for */ char *f,
-    /** file list returned */ filrec **l
+    /** file list returned */ pa_filrec **l
 )
 
 {
@@ -195,8 +312,8 @@ void pa_list(
     int           r;  /* result code */
     int           rd;
     struct stat   sr; /* stat() record */
-    filrec*       fp; /* file entry pointer */
-    filrec*       lp; /* last entry pointer */
+    pa_filrec*    fp; /* file entry pointer */
+    pa_filrec*    lp; /* last entry pointer */
     int           i;  /* name index */
     bufstr        p;  /* filename components */
     bufstr        n;
@@ -205,14 +322,14 @@ void pa_list(
 
     *l = NULL; /* clear destination list */
     lp = NULL; /* clear last pointer */
-    brknam(f, p, n, e); /* break up filename */
+    pa_brknam(f, p, n, e); /* break up filename */
     /* check wildcards in path */
     if (strstr(p, "*") || strstr(p, "?")) error("Path cannot contain wildcards");
     /* construct name of containing directory */
-    maknam(fn, p, ".", "");
+    pa_maknam(fn, p, ".", "");
     fd = open(fn, O_RDONLY, 0); /* open the directory */
     if (fd < 0) unixerr(); /* process unix open error */
-    maknam(fn, "", n, e);   /* reform name without path */
+    pa_maknam(fn, "", n, e);   /* reform name without path */
     do { /* read directory entries */
 
         rd = readdir(fd, &dr, 1);
@@ -226,7 +343,7 @@ void pa_list(
             r = stat(fp^.name, &sr); /* get stat structure on file */
             if (r < 0) unixerr(); /* process unix error */
             /* file information in stat record, translate to our format */
-            copys(fp->name, dn);   /* place filename */
+            strcpy(fp->name, dn);   /* place filename */
             fp->size = sr.st_size;   /* place size */
             /* there is actually a real unix allocation, but I haven't figgured out
                how to calculate it from block/blocksize */
@@ -240,11 +357,11 @@ void pa_list(
             fp->group = bit(pmread) | bit(pmwrite) | bit(pmexec) | bit(pmdel) |
                         bit(pmvis)) | bit(pmcopy)) | bit(pmren);
             /* check and set directory attribute */
-            if ((sr.st_mode & sc_s_ifdir) != 0) fp->attr |= bit(atdir);
+            if ((sr.st_mode & S_IFDIR) != 0) fp->attr |= bit(atdir);
             /* check and set any system special file */
-            if ((sr.st_mode & sc_s_ififo) != 0) fp->attr |= bit(atsys);
-            if ((sr.st_mode & sc_s_ifchr) != 0) fp->attr |= bit(atsys);
-            if ((sr.st_mode & sc_s_ifblk) != 0) fp->attr |= bit(atsys);
+            if ((sr.st_mode & S_IFIFO) != 0) fp->attr |= bit(atsys);
+            if ((sr.st_mode & S_IFCHR) != 0) fp->attr |= bit(atsys);
+            if ((sr.st_mode & S_IFBLK) != 0) fp->attr |= bit(atsys);
             /* check hidden. in Unix, this is done with a leading '.'. We remove
                visiblity priveledges */
             if (dr.d_name[0] == '.') {
@@ -257,25 +374,25 @@ void pa_list(
             /* check and set executable attribute. Unix has separate executable
                permissions for each permission type, we set executable if any of
                them are true */
-            if ((sr.st_mode & sc_s_iexec) != 0) fp->attr |= bit(atexec);
+            if ((sr.st_mode & s_iexec) != 0) fp->attr |= bit(atexec);
             /* set execute permissions to user */
-            if ((sr.st_mode & sc_s_iexec) == 0) fp->user &= ~bit(pmexec);
+            if ((sr.st_mode & s_iexec) == 0) fp->user &= ~bit(pmexec);
             /* set read permissions to user */
-            if ((sr.st_mode & sc_s_iread) == 0) fp->user &= ~bit(pmread);
+            if ((sr.st_mode & s_iread) == 0) fp->user &= ~bit(pmread);
             /* set write permissions to user */
-            if ((sr.st_mode & sc_s_iwrite) == 0) fp->user &= ~bit(pmwrite);
+            if ((sr.st_mode & s_iwrite) == 0) fp->user &= ~bit(pmwrite);
             /* set execute permissions to group */
-            if ((sr.st_mode & sc_s_igexec) == 0) fp->group &= ~bit(pmexec);
+            if ((sr.st_mode & s_igexec) == 0) fp->group &= ~bit(pmexec);
             /* set read permissions to group */
-            if ((sr.st_mode & sc_s_igread) == 0) fp->group &= ~bit(pmread);
+            if ((sr.st_mode & s_igread) == 0) fp->group &= ~bit(pmread);
             /* set write permissions to group */
-            if ((sr.st_mode & sc_s_igwrite) == 0) fp->group &= ~bit(pmwrite);
+            if ((sr.st_mode & s_igwrite) == 0) fp->group &= ~bit(pmwrite);
             /* set execute permissions to other */
-            if ((sr.st_mode & sc_s_ioexec) == 0) fp->other = fp->group & (~bit(pmexec));
+            if ((sr.st_mode & s_ioexec) == 0) fp->other = fp->group & (~bit(pmexec));
             /* set read permissions to other */
-            if ((sr.st_mode & sc_s_ioread) == 0) fp->other = fp->group & (~bit(pmread));
+            if ((sr.st_mode & s_ioread) == 0) fp->other = fp->group & (~bit(pmread));
             /* set write permissions to other */
-            if ((sr.st_mode & sc_s_iowrite) == 0) fp->other = fp->group & (~bit(pmwrite));
+            if ((sr.st_mode & s_iowrite) == 0) fp->other = fp->group & (~bit(pmwrite));
             /* set times */
             fp->create = sr.st_ctime-unixadj;
             fp->modify = sr.st_mtime-unixadj;
@@ -297,7 +414,7 @@ void pa_list(
 
 /********************************************************************************
 
-Get time string padded
+Get time string
 
 Converts the given time into a string.
 
@@ -305,7 +422,7 @@ Converts the given time into a string.
 
 void pa_times(
     /** result string */           char *s,
-    /** length of string buffer */ int len;
+    /** result string length */    int sl,
     /** time to convert */         int t
 )
 
@@ -317,8 +434,8 @@ void pa_times(
     int  am;  /* am flag */
     int  pm;  /* pm flag */
 
-    if (len < 11-(!time24hour()*3)) /* string to small to hold result */
-        error("*** String buffer to small to hold time");
+    if (sl < 11-(!time24hour()*3)) /* string to small to hold result */
+        error("String buffer to small to hold time");
     i = 1;   /* set 1st string place */
     /* because leap adjustments are made in terms of days, we just remove
        the days to find the time of day in seconds. this is completely
@@ -361,15 +478,15 @@ void pa_times(
             break;
 
     }
-    if (pm) s += sprintf(s, " pm");
-    if (am) s += sprintf(s, " am");
+    if (pm) strcat(s, " pm");
+    if (am) strcat(s  " am");
     *s = 0; /* terminate string */
 
 }
 
 /********************************************************************************
 
-Get date string padded
+Get date string
 
 Converts the given date into a string.
 
@@ -381,8 +498,9 @@ Converts the given date into a string.
 #define leapyear(y) ((y & 3) == 0 && y % 100 != 0 || y % 400 == 0)
 
 void pa_dates(
-    /* string to place date into */ char *s,
-    /* time record to write from */ int t
+    /** string to place date into */   char *s,
+    /** string to place date length */ int sl,
+    /** time record to write from */   int t
 )
 
 {
@@ -410,7 +528,7 @@ void pa_dates(
     days[10] = 30;   /* november */
     days[11] = 31;   /* december */
 
-    if (strlen(V.s) < 10) /* string to small to hold result */
+    if (sl < 10) /* string to small to hold result */
         error("*** String to small to hold date");
     if (t < 0) y = 1999; else y = 2000; /* set initial year */
     done = 0;   /* set no loop exit */
@@ -480,13 +598,13 @@ Writes the time to a given file, from a time record.
 ********************************************************************************/
 
 void pa_writetime(
-        /* file to write to */ FILE *f,
-        /* time record to write from */ int t
+        /** file to write to */ FILE *f,
+        /** time record to write from */ int t
 )
 
 {
 
-    char s[MAXSTR];
+    bufstr s;
 
     times(s, t);   /* convert time to string form */
     fputs(s, f);   /* output */
@@ -552,7 +670,7 @@ timezones.
 int pa_local(int t)
 {
 
-    return t+timezone()+daysave*60
+    return t+pa_timezone()+pa_daysave()*60
 
 }
 
@@ -581,10 +699,10 @@ int pa_clock(void)
 
 {
 
-    sc_timeval tv; /* record to get time */
+    timeval tv; /* record to get time */
     int r;         /* return value */
 
-    r = sc_gettimeofday(&tv, NULL); /* get time info */
+    r = gettimeofday(&tv, NULL); /* get time info */
     if (r < 0) unixerr(); /* process unix error */
 
     /* for Unix, the time is kept in microseconds since the start of the last
@@ -610,7 +728,7 @@ int pa_elapsed(int r)
     /* reference time */
     int t;
 
-    t = uclock();   /* get the current time */
+    t = pa_clock();   /* get the current time */
     if (t >= r) t -= r; /* time has not wrapped */
     else t += INT_MAX-r; /* time has wrapped */
 
@@ -640,7 +758,7 @@ int pa_validfile(
 
     r = 1;   /* set result good by default */
     while (*s && *s == ' ') s++; /* check all blanks */
-    if (*s == '\0') r = 0; /* no filename exists */
+    if (!*s) r = 0; /* no filename exists */
 
     return r;   /* return error status */
 
@@ -667,7 +785,7 @@ int pa_validpath(
 
     r = 1;   /* set result good by default */
     while (*s && *s == ' ') s++; /* check all blanks */
-    if (*s == '\0') r = 0; /* no filename exists */
+    if (!*s) r = 0; /* no filename exists */
 
     return r;   /* return error status */
 
@@ -716,9 +834,9 @@ found.
 
 ********************************************************************************/
 
-void pa_getenv(
-    /* string name */                 char   *esn,
-    /* returns environment pointer */ envrec **ep
+static void fndenv(
+    /* string name */                      char*    esn,
+    /* returns environment string entry */ envptr** ep
 )
 
 {
@@ -733,6 +851,29 @@ void pa_getenv(
         else p = p->next;/* next string */
 
     }
+
+}
+
+/*******************************************************************************
+
+Get environment string
+
+Returns an environment string by name.
+
+*******************************************************************************/
+
+void pa_getenv(
+    /** string name */        char* esn,
+    /** string data */        char* esd,
+    /** string data length */ int esdl
+{
+
+    pa_envrec *p;
+
+    *esd = 0;
+    fndenv(esn, &p);
+    if (strlen(p->data) > esdl) then error("String too large for destination");
+    if (p) strcpy(esd, p->data);
 
 }
 
@@ -751,12 +892,12 @@ void pa_setenv(
 
 {
 
-    envrec *p;   /* pointer to environment entry */
+    pa_envrec *p;   /* pointer to environment entry */
 
     fndenv(sn, &p); /* find environment string */
     if (p != NULL) { /* found */
 
-        Free(p->data);   /* release last contents */
+        free(p->data);   /* release last contents */
         /* create new data string */
         p->data = (char *) malloc(strlen(sd));
         if (!p) error("Could not allocate string");
@@ -764,7 +905,7 @@ void pa_setenv(
 
     } else {
 
-        p = malloc(sizeof(envrec)); /* get a new environment entry */
+        p = malloc(sizeof(pa_envrec)); /* get a new environment entry */
         if (!p) error("Could not allocate structure");
         p->next = envlst; /* push onto environment list */
         envlst = p;
@@ -813,7 +954,7 @@ void pa_remenv(
         }
         free(p->name); /* release name */
         free(p->data); /* release data */
-        Free(p); /* release entry */
+        free(p); /* release entry */
 
     }
 
@@ -873,6 +1014,7 @@ void pa_exec(
     bufstr p, n, e; /* filename components */
     bufstr pc;      /* path copy */
     char **av, **ev;
+    char *cp;
     int i;
 
     wc = words(cmd);   /* find number of words in command */
@@ -886,20 +1028,20 @@ void pa_exec(
         if (*p == 0 && *pthstr != 0) {
 
             strcpy(pc, pthstr);   /* make a copy of the path */
-            trim(pc, pc);   /* make sure left aligned */
+            trim(pc);   /* make sure left aligned */
             while (*pc != 0) {  /* match path components */
 
-                i = index(pc, ":");   /* find next path separator */
-                if (i == 0) {  /* none left, use entire remaining */
+                cp = strchr(pc, ':'); /* find next path separator */
+                if (!cp) {  /* none left, use entire remaining */
 
                     strcpy(p, pc); /* none left, use entire remaining */
                     pc[0] = 0; /* clear the rest */
 
                 } else { /* copy partial */
 
-                    extract(p, pc, 1, i - 1);   /* get left side to path */
-                    extract(pc, pc, i + 1, strlen(pc)); /* remove from path */
-                    trim(pc, pc); /* make sure left aligned */
+                    extract(p, pc, 1, cp-pc);   /* get left side to path */
+                    extract(pc, pc, cp-pc+1, strlen(pc)); /* remove from path */
+                    trim(pc); /* make sure left aligned */
 
                 }
                 maknam(cn, p, n, e);   /* create filename */
@@ -989,7 +1131,6 @@ void pa_execew(
 
 }
 
-
 /********************************************************************************
 
 Get current path
@@ -999,22 +1140,18 @@ Returns the current path in the given padded string.
 ********************************************************************************/
 
 void pa_getcur(
-        /* buffer to get path */ char *fn,
-        /* length of buffer */   int l
+        /** buffer to get path */ char *fn,
+        /** length of buffer */   int l
 )
 
 {
 
     int r;   /* result code */
-    bufstr ts; /* temp buffer */
 
-    r = getcwd(ts);   /* get the current path */
+    r = getcwd(fn, l);   /* get the current path */
     if (r < 0) unixerr(); /* process unix error */
-    if (strlen(ts) > l) error("Path is too long for buffer")
-    strcpy(fn, ts); /* copy to result */
 
 }
-
 
 /********************************************************************************
 
@@ -1031,7 +1168,6 @@ void pa_setcur(
 {
 
     int r;   /* result code */
-    char *s; /* buffer for name */
 
     r = chdir(fn); /* change current directory */
     if (r < 0) unixerr();  /* process unix error */
@@ -1063,9 +1199,9 @@ were a normal character.
 
 void pa_brknam(
         /* file specification */ char *fn,
-        /* path */               char *p,
-        /* name */               char *n,
-        /* extention */          char *e
+        /* path */               char *p, int pl,
+        /* name */               char *n, int nl,
+        /* extention */          char *e, int el
 )
 
 {
@@ -1086,7 +1222,7 @@ void pa_brknam(
     for (i = 1; i <= ln; i++) if (fn[i-1] == '/') f = i;
     if (f != 0) {  /* there is a path */
 
-        extract(p, fn, s, f); /* place path */
+        extract(p, pl, fn, s, f); /* place path */
         s = f + 1; /* reset next character */
 
     }
@@ -1098,53 +1234,18 @@ void pa_brknam(
     for (i = t; i <= ln; i++) if (fn[i-1] == '.') f = i;
     if (f != 0) {  /* there is an extension */
 
-        extract(n, fn, s, f - 1); /* place name */
+        extract(n, nl, fn, s, f - 1); /* place name */
         s = f + 1; /* reset to after "." */
-        extract(e, fn, s, ln); /* get the rest as an extention */
+        extract(e, el, fn, s, ln); /* get the rest as an extension */
 
     } else {  /* no extension */
 
         /* just place the rest as the name, and leave extension blank */
-        if (s <= ln) extract(n, fn, s, ln);
+        if (s <= ln) extract(n, nl, fn, s, ln);
 
     }
 
 }
-
-
-/* Local variables for maknam_: */
-struct LOC_maknam_ {
-    char *fn;
-} ;
-
-/* concatenate without leading space */
-
-static void catnls(char *d, char *s, int *p, struct LOC_maknam_ *LINK)
-{
-    int i, f, ln;
-    bufstr buff;
-
-
-    ln = strlen(s);   /* find length */
-    f = 0;   /* clear found */
-    /* find first non-space position */
-    for (i = 1; i <= ln; i++) {
-    if (s[i-1] != ' ' && f == 0)
-    f = i;
-}
-    if (f == 0)  /* found */
-    return;
-
-
-    /* check to long for result */
-    if (ln - f + *p + 1 > strlen(LINK->fn))
-    error("Name too long for buffer");
-    extract(buff, s, f, ln);   /* place contents */
-    strinsert(d, (void *)buff, *p);
-    *p += strlen(buff);   /* advance position */
-
-}
-
 
 /********************************************************************************
 
@@ -1156,39 +1257,33 @@ concatenating.
 
 ********************************************************************************/
 
-void pa_maknam(char *fn_, char *p, char *n, char *e)
+void pa_maknam(
+    /** file specification to build */ char *fn,
+    /** file specification length */   int fnl,
+    /** path */                        char *p,
+    /** filename */                    char *n,
+    /** extension */                   char *e
+)
 {
-    /* file specification to build */
-    /* path */
-    /* name */
-    /* extention */
-    struct LOC_maknam_ V;
+
     int i;   /* index for string */
     int fsi;   /* index for output filename */
 
-
-    V.fn = fn_;
-    clears(V.fn);   /* clear output string */
-    fsi = 1;   /* set 1st output character */
-    catnls(V.fn, p, &fsi, &V);   /* place path */
+    strcat(fn, p); /* place path */
     /* check path properly terminated */
     i = strlen(p);   /* find length */
-    if (i != 0) {   /* not null */
-    if (p[i-1] != '/')
-    catnls(V.fn, "/", &fsi, &V);
-}
+    if (*p) /* not null */
+        if (p[i-1] != '/') strcat(fn, "/"); /* add path separator */
     /* terminate path */
-    catnls(V.fn, n, &fsi, &V);   /* place name */
-    if (*e != '\0') {  /* there is an extention */
-    catnls(V.fn, ".", &fsi, &V);   /* place '.' */
-    /* place extention */
+    strcat(fn, n); /* place name */
+    if (*e) {  /* there is an extention */
 
-    catnls(V.fn, e, &fsi, &V);
+        strcat(fn, "."); /* place '.' */
+        strcat(f, e); /* place extension */
+
+    }
+
 }
-
-
-}
-
 
 /********************************************************************************
 
@@ -1200,58 +1295,40 @@ No validity check is done. Garbage in, garbage out.
 
 ********************************************************************************/
 
-void pa_fulnam_(char *fn)
+void pa_fulnam_(
+    /** filename */        char *fn,
+    /** filename length */ fnl
+)
 {
+
     /* file specification */
     bufstr p, n, e, ps;   /* filespec components */
 
-
-    brknam_(fn, p, n, e);   /* break spec down */
+    brknam_(fn, p, MAXSTR, n, MAXSTR, e, MAXSTR);   /* break spec down */
     /* if the path is blank, then default to current */
-    if (p[0] == ' ')
-    p[0] = '.';
-    if ((comps(n, ".") || comps(n, "..")) && e[0] == ' ') {
-    /* its '.' or '..', find equivalent path */
-    getcur_(ps);   /* save current path */
-    setcur_(fn);   /* set candidate path */
-    getcur_(fn);   /* get washed path */
-    /* reset old path */
+    if (*p) strcpy(p. ".");
+    if ((!strcmp(n, ".") || !strcmp(n, "..")) && !*e) {
 
-    setcur_(ps);
-    return;
-}
+        /* its '.' or '..', find equivalent path */
+        getcur(ps, MAXSTR);   /* save current path */
+        setcur(fn);   /* set candidate path */
+        getcur(fn, MAXSTR);   /* get washed path */
+        /* reset old path */
 
-    getcur_(ps);   /* save current path */
-    setcur_(p);   /* set candidate path */
-    getcur_(p);   /* get washed path */
-    setcur_(ps);   /* reset old path */
-    /* reassemble */
+        setcur_(ps);
 
-    maknam_(fn, p, n, e);
+    } else {
 
+        getcur(ps, MAXSTR);   /* save current path */
+        setcur(p);   /* set candidate path */
+        getcur(p, MAXSTR);   /* get washed path */
+        setcur(ps);   /* reset old path */
+        /* reassemble */
+        maknam(fn, fnl, p, n, e);
 
-}
-
-
-/* Local variables for getpgm_: */
-struct LOC_getpgm_ {
-    char cp[MAXSTR];   /* store for command line */
-    int ci;   /* index for command line */
-} ;
-
-static char chkcmd(struct LOC_getpgm_ *LINK)
-{
-    char c;
-
-
-    if (LINK->ci <= strlen(LINK->cp))
-    c = LINK->cp[LINK->ci-1];
-    else
-    c = ' ';
-    return c;
+    }
 
 }
-
 
 /********************************************************************************
 
@@ -1264,38 +1341,20 @@ Note: this does not work for standard CLIB programs. We need another solution.
 
 ********************************************************************************/
 
-void pa_getpgm(char *path, int len)
+void pa_getpgm(
+    /** program path */ char *p,
+    /** program path length */ int pl
+)
 {
 
-    struct LOC_getpgm_ V;
-    int pi;   /* index for path */
     bufstr pn;   /* program name holder */
     bufstr n, e;   /* name component holders */
-    char STR1[MAXSTR];
 
-
-    clears(pn);   /* clear result */
-    /*sc_getcmd(cp);*/
-    /* get commandline */
-    V.ci = 1;   /* set 1st command line position */
-    pi = 1;   /* set 1st path position */
-    /* skip spaces in command line */
-    while (chkcmd(&V) == ' ' && V.ci <= sprintf(STR1, "%c", *V.cp))
-    V.ci++;
-    /* place program name and path */
-    while (chkcmd(&V) != ' ' && V.ci <= sprintf(STR1, "%c", *V.cp)) {
-    plcstr(pn, &pi, chkcmd(&V));
-    V.ci++;
+    strcpy(pn, program_invocation_name); /* copy invoke name to path */
+    pv_fulnam(pn, MAXSTR);   /* clean that */
+    pv_brknam(pn, p, pl, n, MAXSTR, e, MAXSTR); /* extract path from that */
 
 }
-
-    Free(V.cp);   /* release command line */
-    fulnam_(pn);   /* clean that */
-    /* extract path from that */
-
-    brknam_(pn, p, n, e);
-}
-
 
 /********************************************************************************
 
@@ -1320,56 +1379,50 @@ directory.
 
 ********************************************************************************/
 
-void pa_getusr(char *fn)
+void pa_getusr(
+    /** pathname */ char *fn
+    /** pathname length */)
 {
+
     bufstr b, b1;   /* buffer for result */
 
+    getenv("home", b, MAXSTR);
+    if (!b[0]) {  /* not found */
 
-    getenvp("home", b);
-    if (b[0] == ' ')   /* place result */
-    {  /* not found */
-    getenvp("userhome", b);
-    if (b[0] == ' ') {  /* not found */
-    getenvp("userdir", b);
-    if (b[0] == ' ') {  /* not found */
-    getenvp("user", b);
-    if (b[0] != ' ') {  /* path that */
-    strcpy(b1, b);   /* copy */
-    copys(b, "/home/");   /* set prefix */
-    /* combine */
+        getenv("userhome", b, MAXSTR);
+        if (!b[0]) {  /* not found */
 
-    cat(b, b, b1);
-}
+            getenv("userdir", b, MAXSTR);
+            if (!b[0]) {  /* not found */
 
-    else {  /* path that */
-    getenvp("username", b);
-    if (b[0] != ' ') {
-    strcpy(b1, b);   /* copy */
-    copys(b, "/home/");   /* set prefix */
-    /* combine */
+                getenv("user", b, MAXSTR);
+                if (b[0]) { /* found, path that */
 
-    cat(b, b, b1);
-}
+                    strcpy(b1, b); /* copy */
+                    strcpy(b, "/home/"); /* set prefix */
+                    strcat(b, b1); /* combine */
 
-    else {
-    getpgm_(b);
-    /* all fails, set to program path */
+                } else {  /* path that */
 
-}
-}
-}
+                    getenv("username", b, MAXSTR);
+                    if (b[0]) {
+
+                        strcpy(b1, b);   /* copy */
+                        strcpy(b, "/home/");   /* set prefix */
+                        strcat(b, b1); /* combine */
+
+                    }
+
+                } else getpgm(b, MAXSTR); /* all fails, set to program path */
+
+            }
+
+        }
 
 
-}
+    }
+    strcpy(fn, b); /* place result */
 
-
-}
-
-
-    /* not found */
-
-
-    copys(fn, b);
 }
 
 
@@ -1384,12 +1437,10 @@ possible. This is done with makpth.
 
 void pa_setatr(char *fn, attrset a)
 {
-    /* file to set attributes on */
-    /* attribute set */
+
     /* no unix attributes can be set */
 
 }
-
 
 /********************************************************************************
 
@@ -1402,12 +1453,10 @@ possible.
 
 void pa_resatr(char *fn, attrset a)
 {
-    /* file to set attributes on */
-    /* attribute set */
+
     /* no unix attributes can be reset */
 
 }
-
 
 /********************************************************************************
 
@@ -1420,9 +1469,10 @@ which effectively means "back this file up now".
 
 void pa_bakupd(char *fn)
 {
-    setatr_(fn, 1 << ((int)atarc));
-}
 
+    pa_setatr(fn, bit(pa_atarc));
+
+}
 
 /********************************************************************************
 
@@ -1434,23 +1484,19 @@ Sets user permisions
 
 void pa_setuper(char *fn, permset p)
 {
-    sc_sstat sr;   /* stat() record */
-    int r;   /* result code */
 
+    struct sstat sr; /* stat() record */
+    int          r;  /* result code */
 
-    r = sc_stat(fn, &sr);   /* get stat structure on file */
+    r = stat(fn, &sr);   /* get stat structure on file */
     if (r < 0)   /* process unix error */
     unixerr();
-    sr.st_mode &= 0777;   /* mask permissions */
-    if (((1 << ((int)pmread)) & p) != 0)   /* set read */
-    sr.st_mode |= sc_s_iread;
-    if (((1 << ((int)pmwrite)) & p) != 0)   /* set write */
-    sr.st_mode |= sc_s_iwrite;
-    if (((1 << ((int)pmexec)) & p) != 0)   /* set execute */
-    sr.st_mode |= sc_s_iexec;
-    r = sc_chmod(fn, sr.st_mode);   /* set mode */
-    if (r < 0)   /* process unix error */
-    unixerr();
+    sr.st_mode &= 0777; /* mask permissions */
+    if (bit(pa_pmread) & p) sr.st_mode |= S_IRUSR; /* set read */
+    if (bit(pa_pmwrite) & p) sr.st_mode |= S_IWUSR; /* set write */
+    if (bit(pa_pmexec) & p) sr.st_mode |= S_IXUSR; /* set execute */
+    r = chmod(fn, sr.st_mode); /* set mode */
+    if (r < 0) unixerr();  /* process unix error */
 
 }
 
@@ -1465,23 +1511,18 @@ Resets user permissions.
 
 void pa_resuper(char *fn, permset p)
 {
-    sc_sstat sr;   /* stat() record */
-    int r;   /* result code */
 
+    struct stat sr;   /* stat() record */
+    int         r;    /* result code */
 
-    r = sc_stat(fn, &sr);   /* get stat structure on file */
-    if (r < 0)   /* process unix error */
-    unixerr();
+    r = stat(fn, &sr);   /* get stat structure on file */
+    if (r < 0) unixerr();  /* process unix error */
     sr.st_mode &= 0777;   /* mask permissions */
-    if (((1 << ((int)pmread)) & p) != 0)   /* set read */
-    sr.st_mode &= ~sc_s_iread;
-    if (((1 << ((int)pmwrite)) & p) != 0)   /* set write */
-    sr.st_mode &= ~sc_s_iwrite;
-    if (((1 << ((int)pmexec)) & p) != 0)   /* set execute */
-    sr.st_mode &= ~sc_s_iexec;
+    if (bit(pa_pmread) & p) sr.st_mode &= ~S_IRUSR; /* set read */
+    if (bit(pa_pmwrite) & p) sr.st_mode &= ~S_IWUSR; /* set write */
+    if (bit(pa_pmexec) & p) sr.st_mode &= ~S_IXUSR; /* set execute */
     r = sc_chmod(fn, sr.st_mode);   /* set mode */
-    if (r < 0)   /* process unix error */
-    unixerr();
+    if (r < 0) unixerr();  /* process unix error */
 
 }
 
@@ -1496,23 +1537,18 @@ Sets group permissions.
 
 void pa_setgper(char *fn, permset p)
 {
-    sc_sstat sr;   /* stat() record */
+
+    struct stat sr;   /* stat() record */
     int r;   /* result code */
 
-
-    r = sc_stat(fn, &sr);   /* get stat structure on file */
-    if (r < 0)   /* process unix error */
-    unixerr();
+    r = sc_stat(fn, &sr); /* get stat structure on file */
+    if (r < 0) unixerr(); /* process unix error */
     sr.st_mode &= 0777;   /* mask permissions */
-    if (((1 << ((int)pmread)) & p) != 0)   /* set read */
-    sr.st_mode |= sc_s_igread;
-    if (((1 << ((int)pmwrite)) & p) != 0)   /* set write */
-    sr.st_mode |= sc_s_igwrite;
-    if (((1 << ((int)pmexec)) & p) != 0)   /* set execute */
-    sr.st_mode |= sc_s_igexec;
+    if (bit(pa_pmread) & p) sr.st_mode |= S_IRGRP;  /* set read */
+    if (bit(pa_pmwrite) & p) sr.st_mode |= S_IWGRP;  /* set write */
+    if (bit(pa_pmexec) & p) sr.st_mode |= S_IXGRP;  /* set execute */
     r = sc_chmod(fn, sr.st_mode);   /* set mode */
-    if (r < 0)   /* process unix error */
-    unixerr();
+    if (r < 0) unixerr();  /* process unix error */
 
 }
 
@@ -1527,23 +1563,17 @@ Resets group permissions.
 
 void pa_resgper(char *fn, permset p)
 {
-    sc_sstat sr;   /* stat() record */
-    int r;   /* result code */
+    struct stat sr; /* stat() record */
+    int         r;  /* result code */
 
-
-    r = sc_stat(fn, &sr);   /* get stat structure on file */
-    if (r < 0)   /* process unix error */
-    unixerr();
+    r = stat(fn, &sr); /* get stat structure on file */
+    if (r < 0) unixerr(); /* process unix error */
     sr.st_mode &= 0777;   /* mask permissions */
-    if (((1 << ((int)pmread)) & p) != 0)   /* set read */
-    sr.st_mode &= ~sc_s_igread;
-    if (((1 << ((int)pmwrite)) & p) != 0)   /* set write */
-    sr.st_mode &= ~sc_s_igwrite;
-    if (((1 << ((int)pmexec)) & p) != 0)   /* set execute */
-    sr.st_mode &= ~sc_s_igexec;
-    r = sc_chmod(fn, sr.st_mode);   /* set mode */
-    if (r < 0)   /* process unix error */
-    unixerr();
+    if (bit(pa_pmread) & p)  sr.st_mode &= ~S_IRGRP; /* set read */
+    if (bit(pa_pmwrite) & p) sr.st_mode &= ~S_IWGRP;  /* set write */
+    if (bit(pa_pmexec) & p) sr.st_mode &= ~S_IXRGP;  /* set execute */
+    r = chmod(fn, sr.st_mode);   /* set mode */
+    if (r < 0) unixerr();  /* process unix error */
 
 }
 
@@ -1558,23 +1588,18 @@ Sets other permissions.
 
 void pa_setoper(char *fn, permset p)
 {
-    sc_sstat sr;   /* stat() record */
-    int r;   /* result code */
 
+    struct stat sr; /* stat() record */
+    int         r;  /* result code */
 
-    r = sc_stat(fn, &sr);   /* get stat structure on file */
-    if (r < 0)   /* process unix error */
-    unixerr();
+    r = stat(fn, &sr);   /* get stat structure on file */
+    if (r < 0) unixerr();  /* process unix error */
     sr.st_mode &= 0777;   /* mask permissions */
-    if (((1 << ((int)pmread)) & p) != 0)   /* set read */
-    sr.st_mode |= sc_s_ioread;
-    if (((1 << ((int)pmwrite)) & p) != 0)   /* set write */
-    sr.st_mode |= sc_s_iowrite;
-    if (((1 << ((int)pmexec)) & p) != 0)   /* set execute */
-    sr.st_mode |= sc_s_ioexec;
-    r = sc_chmod(fn, sr.st_mode);   /* set mode */
-    if (r < 0)   /* process unix error */
-    unixerr();
+    if (bit(pa_pmread) & p) sr.st_mode |= S_IROTH;  /* set read */
+    if (bit(pa_pmwrite) & p) sr.st_mode |= S_IWOTH;  /* set write */
+    if (bit(pa_pmexec) & p) sr.st_mode |= S_IXOTH;  /* set execute */
+    r = chmod(fn, sr.st_mode);   /* set mode */
+    if (r < 0) unixerr();  /* process unix error */
 
 }
 
@@ -1589,23 +1614,18 @@ Resets other permissions.
 
 void pa_resoper(char *fn, permset p)
 {
-    sc_sstat sr;   /* stat() record */
-    int r;   /* result code */
 
+    struct stat sr; /* stat() record */
+    int         r;  /* result code */
 
-    r = sc_stat(fn, &sr);   /* get stat structure on file */
-    if (r < 0)   /* process unix error */
-    unixerr();
-    sr.st_mode &= 0777;   /* mask permissions */
-    if (((1 << ((int)pmread)) & p) != 0)   /* set read */
-    sr.st_mode &= ~sc_s_ioread;
-    if (((1 << ((int)pmwrite)) & p) != 0)   /* set write */
-    sr.st_mode &= ~sc_s_iowrite;
-    if (((1 << ((int)pmexec)) & p) != 0)   /* set execute */
-    sr.st_mode &= ~sc_s_ioexec;
-    r = sc_chmod(fn, sr.st_mode);   /* set mode */
-    if (r < 0)   /* process unix error */
-    unixerr();
+    r = stat(fn, &sr); /* get stat structure on file */
+    if (r < 0) unixerr(); /* process unix error */
+    sr.st_mode &= 0777; /* mask permissions */
+    if (bit(pa_pmread) & p) sr.st_mode &= ~S_IROTH; /* set read */
+    if (bit(pa_pmwrite) & p) sr.st_mode &= ~S_IWOTH; /* set write */
+    if (bit(pa_pmexec) & p) sr.st_mode &= ~S_IXOTH; /* set execute */
+    r = chmod(fn, sr.st_mode); /* set mode */
+    if (r < 0) unixerr(); /* process unix error */
 
 }
 
@@ -1619,18 +1639,16 @@ Create a new path. Only one new level at a time may be created.
 
 void pa_makpth(char *fn)
 {
+
     int r;   /* result code */
 
-
     /* make directory, give all permissions allowable */
-    r = sc_mkdir(fn,
-        sc_s_iread | sc_s_iwrite | sc_s_iexec | sc_s_igread | sc_s_igwrite |
-        sc_s_igexec | sc_s_ioread | sc_s_iowrite | sc_s_ioexec);
-    if (r < 0)   /* process unix error */
-    unixerr();
+    r = mkdir(fn,
+        s_irusr | s_iwusr | s_ixusr | s_irgrp | s_iwgrp | s_ixgrp |
+        s_iroth | s_iwoth | s_ixoth);
+    if (r < 0) unixerr(); /* process unix error */
 
 }
-
 
 /********************************************************************************
 
@@ -1642,15 +1660,14 @@ Create a new path. Only one new level at a time may be deleted.
 
 void pa_rempth(char *fn)
 {
+
     int r;   /* result code */
 
+    r = rmdir(fn); /* remove directory */
+    if (r < 0) unixerr(); /* process unix error */
 
-    r = sc_rmdir(fn);   /* remove directory */
-    if (r < 0)   /* process unix error */
-    unixerr();
 
 }
-
 
 /********************************************************************************
 
@@ -1677,7 +1694,7 @@ specials in these cases.
 
 ********************************************************************************/
 
-void pa_filchr(uchar *fc)
+void pa_filchr(char *fc)
 {
 
     /* add everything but control characters and space */
@@ -1686,7 +1703,6 @@ void pa_filchr(uchar *fc)
     SUBSET(pthchr()); /* add path character */
 
 }
-
 
 /********************************************************************************
 
@@ -2277,216 +2293,15 @@ char pa_currchr(void)
 
 /** ****************************************************************************
 
-Start new thread
-
-Starts a new thread. The address the thread is to run at is specified, and the
-location of an integer to place the thread id that is generated. The thread
-is started, then the thread id is placed for the caller.
-
-Note that the thread ids are numbered from 1 to N, and that thread 1 is always
-reserved for the main thread.
-
-*******************************************************************************/
-
-void pa_newthread(int addr, int *id)
-
-{
-
-}
-
-/** ****************************************************************************
-
-Kill thread
-
-Kills and removes the indicated thread. It is possible to kill oneself, in which
-case the routine may not return. However, there are a lot of different
-interpretations of what that means, especially in the multiprocessor case. It is
-certainly possible that the deleted thread will continue even for a time after
-being killed because of interprocessor signal latency.
-
-*******************************************************************************/
-
-void pa_killthread(int id)
-
-{
-
-}
-
-/** ****************************************************************************
-
-Flag signal
-
-Flags a signal to all threads. Accepts the signal id. All threads have a logical
-"copy" of the signal status, either not flagged (false), or flagged (true). When
-a signal occurs, all threads have the signal status set true. Each thread will
-check the status of its copy of the signal separately, and set the flag to "off"
-after having checked it. Multiple signals without having checked it have no
-effect for those threads that have the signal flag already set.
-
-Note: uses pulseevent, which the Windows documents state has issues. Further,
-a setevent/resetevent has the same issue (see MSDN article 173260). The
-alternative the Windows documents give is to use a construct exclusive to Vista,
-which is not at present a workable alternative, since Windows XP must be
-supported.
-
-The issue boils down to request/acknowledge pairing, and the code here satisfies
-that. We signal, give the other thread a chance to run, then loop until our
-request counts clear. This means that we will retry continually a
-non-functioning signal.
-
-*******************************************************************************/
-
-void pa_signal(int* sid)
-
-{
-
-}
-
-/** ****************************************************************************
-
-Flag "one only" signal
-
-This is the same as "signal", except that only the thread that has been waiting
-the longest for the signal is flagged for the signal. This can be more efficent
-than signaling all threads when only one thread can actually use the signal.
-For example, a buffer not empty signal needs only one thread.
-
-If there are no threads awaiting the signal, then the implementation can either
-just flag all threads as per the signal call, or may implement a conditional
-flag that is only given to the first thread that looks at the signal.
-
-Note that it is possible that an implementation can just implement signalone
-as a call to signal.
-
-Note: For the Windows NT/XP version, we pulse the event then see if it cleared
-one, then try again, etc. This is how it has to work to get around Windows
-problems. However, the documentation implies that more than one thread could
-be released via this method. This fits within the definition of this function
-that allows the release of from 1 to N threads, where N is all threads waiting.
-
-*******************************************************************************/
-
-void pa_signalone(int* sid)
-
-{
-
-}
-
-/** ****************************************************************************
-
-Wait signal
-
-Awaits the indicated signal by id. If the signal has already happened, then
-the call returns immediately. If not, the current thread is suspended until the
-signal occurs. The signal is always cleared on exit. Each thread effectively
-has its own copy of the signal, an a signal will remain true for each thread
-until waited on.
-
-Signals are not "guaranteed", that is, there is no indication that
-another thread might not have serviced the event associated with the signal. This
-applies even to the "signalone" call. For this reason, the caller must be ready
-to check if the event is still active, and if necessary, loop calling wait until
-an unserviced signal is found.
-
-In addition, signal queues can be implemented either as "fair" (first come,
-first serve), or "unfair", in which case the thread flagged is a random one.
-
-*******************************************************************************/
-
-void pa_wait(int lid, int* sid)
-
-{
-
-}
-
-/** ****************************************************************************
-
-Create lock
-
-Creates a new critical section lock, and returns the id for the lock. Logical
-lock ids are numbers from 1-N. IP Pascal garantees that at least 10 locks will
-be available, but 100 locks or more are common.
-
-*******************************************************************************/
-
-void pa_newlock(int* id)
-
-{
-
-}
-
-/** ****************************************************************************
-
-Remove lock
-
-Removes a lock by logical id. If any thread is awaiting in a lock, then an error
-results. Removing the lock frees up its logical id for reuse.
-
-*******************************************************************************/
-
-void pa_displock(int id)
-
-{
-
-}
-
-/** ****************************************************************************
-
-Lock critical section
-
-Activates a critical section by logical id. If the lock is not active, it is
-flagged active, and the thread continues. If the lock is active, then the
-calling thread is suspended until it is. Typically, lock queuing is "fair", in
-that the first to come to the lock is the first, in order, receive it. However,
-this behavior is not garanteed.
-
-Critical section locks have a number of features designed to resist deadlock.
-If the same thread performs the same lock more than once, the lock request is
-simply counted on lock, and decremented on unlock. When the lock count equals
-zero, the unlock operation actually occurs. This covers the case where a thread
-recursively executes the same locking routine, either directly or indirectly.
-
-In addition, waiting for a signal while holding a lock causes the lock to be
-freed while waiting for the signal, then the lock is reasserted when the signal
-flags and the thread continues. Callers must, therefore, treat a "wait" call
-as the sequence:
-
-unlock
-wait
-lock
-
-And watch for data change after the wait for signal.
-
-*******************************************************************************/
-
-void pa_lock(int id)
-
-{
-
-}
-
-/** ****************************************************************************
-
-Unlock critical section
-
-Frees up the lock for a critical section by logical id. If other threads are
-waiting on the lock, they are scheduled to run, but the exact order is system
-defined. They may be run in fair order, and they may run immediately
-(presumably interrupting the current thread), or may be scheduled for later.
-
-*******************************************************************************/
-
-void pa_unlock(int id)
-
-{
-
-}
-
-/** ****************************************************************************
-
 Initialize services
 
 We initialize all variables and tables.
+
+The Linux environment string table is fixed in length, and thus cannot be
+Edited. We load it to a dynamic table, and thus may edit it. It can then be
+passed on to a subprogram, either in the edited form, or unmodified.
+
+Note the environment is unordered.
 
 *******************************************************************************/
 
@@ -2495,31 +2310,31 @@ static void pa_init_services()
 
 {
 
-    int envlen; /* number of environment strings */
-    char **ep; /* unix environment string table */
-    int ei;    /* index for string table */
-    int si;    /* index for strings */
-    envrec *p; /* environment entry pointer */
+    int     envlen; /* number of environment strings */
+    char**  ep;     /* unix environment string table */
+    int     ei;     /* index for string table */
+    int     si;     /* index for strings */
+    envrec* p;      /* environment entry pointer */
+    char*   cp;
 
     /* Copy environment to local */
     envlst = NULL;   /* clear environment strings */
-    ep = allenv();   /* get unix environment pointers */
-    envlen = strlen(ep);
-    for (ei = 1; ei <= envlen; ei++) {  /* copy environment strings */
+    ep = environ;   /* get unix environment pointers */
+    while (*ep != NULL) {  /* copy environment strings */
 
         p = malloc(sizeof(envrec));   /* get a new environment entry */
         p->next = envlst; /* push onto environment list */
         envlst = p;
-        si = index(ep[ei-1], "="); /* find location of '=' */
-        if (si == 0) error("Invalid environment string format");
-        extract(p->name, ep[ei-1], 1, si - 1); /* get the name string */
+        cp = strchr(ep, "="); /* find location of '=' */
+        if (!cp) error("Invalid environment string format");
+        extract(p->name, ep, 1, cp-ep); /* get the name string */
         /* get the data string */
-        extract(p->data, ep[ei-1], si + 1, strlen(ep[ei-1]));
+        extract(p->data, ep, cp-ep+1, strlen(ep));
+        ep++; /* next environment string */
 
     }
-    free(ep); /* release environment table */
     getenv("path", pthstr, MAXSTR); /* load up the current path */
-    trim(pthstr, pthstr); /* make sure left aligned */
+    trim(pthstr); /* make sure left aligned */
 
 }
 
@@ -2531,38 +2346,20 @@ Not used at present
 
 *******************************************************************************/
 
-static void pa_deinit_terminal (void) __attribute__((destructor (102)));
-static void pa_deinit_terminal()
+static void pa_deinit_services (void) __attribute__((destructor (102)));
+static void pa_deinit_services()
 
 {
 
-    int ti; /* index for timers */
+    int     ti; /* index for timers */
+    envrec* p;  /* environment entry pointer */
 
-    /* restore terminal */
-    tcsetattr(0,TCSAFLUSH,&trmsav);
+    while (envlst) {
 
-    /* close any open timers */
-    for (ti = 0; ti < MAXTIM; ti++) if (timtbl[ti] != -1) close(timtbl[ti]);
+        p = envlst;
+        envlst = envlst->next;
+        free(p);
 
-    /* holding copies of system vectors */
-    pread_t cppread;
-    pwrite_t cppwrite;
-    popen_t cppopen;
-    pclose_t cppclose;
-    punlink_t cppunlink;
-    plseek_t cpplseek;
-
-    /* swap old vectors for existing vectors */
-    ovr_read(ofpread, &cppread);
-    ovr_write(ofpwrite, &cppwrite);
-    ovr_open(ofpopen, &cppopen);
-    ovr_close(ofpclose, &cppclose);
-    ovr_unlink(ofpunlink, &cppunlink);
-    ovr_lseek(ofplseek, &cpplseek);
-
-    /* if we don't see our own vector flag an error */
-    if (cppread != iread || cppwrite != iwrite || cppopen != iopen ||
-        cppclose != iclose || cppunlink != iunlink || cpplseek != ilseek)
-        error(esysflt);
+    }
 
 }

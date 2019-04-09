@@ -11,6 +11,8 @@
 #ifndef __SERVICES_H__
 #define __SERVICES_H__
 
+#include <stdio.h>
+
 /*
  * Set manipulation operators for chrset.
  *
@@ -25,65 +27,65 @@
 /* attributes */
 typedef enum {
 
-    atexec, /* is an executable file type */
-    atarc,  /* has been archived since last modification */
-    atsys,  /* is a system special file */
-    atdir,  /* is a directory special file */
-    atloop  /* contains heriarchy loop */
+    pa_atexec, /* is an executable file type */
+    pa_atarc,  /* has been archived since last modification */
+    pa_atsys,  /* is a system special file */
+    pa_atdir,  /* is a directory special file */
+    pa_atloop  /* contains heriarchy loop */
 
-} attribute;
-typedef int attrset; /* attributes in a set */
+} pa_attribute;
+typedef int pa_attrset; /* attributes in a set */
 
 /* permissions */
 typedef enum {
 
-    pmread,  /* may be read */
-    pmwrite, /* may be written */
-    pmexec,  /* may be executed */
-    pmdel,   /* may be deleted */
-    pmvis,   /* may be seen in directory listings */
-    pmcopy,  /* may be copied */
-    pmren    /* may be renamed/moved */
+    pa_pmread,  /* may be read */
+    pa_pmwrite, /* may be written */
+    pa_pmexec,  /* may be executed */
+    pa_pmdel,   /* may be deleted */
+    pa_pmvis,   /* may be seen in directory listings */
+    pa_pmcopy,  /* may be copied */
+    pa_pmren    /* may be renamed/moved */
 
-} permission;
-typedef int permset; /* permissions in a set */
+} pa_permission;
+typedef int pa_permset; /* permissions in a set */
 
 /* standard directory format */
-typedef struct filrec {
+typedef struct pa_filrec {
 
-    char    *name;   /* name of file */
-    int     size;   /* size of file */
-    int     alloc;   /* allocation of file */
-    attrset attr;   /* attributes */
-    int     create;   /* time of creation */
-    int     modify;   /* time of last modification */
-    int     access;   /* time of last access */
-    int     backup;   /* time of last backup */
-    permset user;   /* user permissions */
-    permset group;   /* group permissions */
-    permset other;   /* other permissions */
-    struct filrec *next; /* next entry in list */
+    char*             name;   /* name of file */
+    long long         size;   /* size of file */
+    long long         alloc;  /* allocation of file */
+    pa_attrset        attr;   /* attributes */
+    int               create; /* time of creation */
+    int               modify; /* time of last modification */
+    int               access; /* time of last access */
+    int               backup; /* time of last backup */
+    pa_permset        user;   /* user permissions */
+    pa_permset        group;  /* group permissions */
+    pa_permset        other;  /* other permissions */
+    struct pa_filrec* next;   /* next entry in list */
 
-} filrec;
-typedef filrec* filptr; /* pointer to file records */
+} pa_filrec;
+typedef pa_filrec* pa_filptr; /* pointer to file records */
 
 /* environment strings */
-typedef struct envrec {
+typedef struct pa_envrec {
 
     char* name; /* name of string */
     char* data; /* data in string */
-    struct envrec *next; /* next entry in list */
+    struct pa_envrec *next; /* next entry in list */
 
-} envrec;
-typedef envrec* envptr; /* pointer to environment record */
+} pa_envrec;
+typedef pa_envrec* pa_envptr; /* pointer to environment record */
 
 /* character set */
-typedef unsigned char chrset[32];
+typedef unsigned char pa_chrset[32];
 
 /*
  * Functions exposed in the services module
  */
-extern void pa_list(char* f, filrec **l);
+extern void pa_list(char* f, pa_filrec **l);
 extern void pa_times(char* s, int t);
 extern void pa_dates(char* s, int t);
 extern void pa_writetime(FILE *f, int t);
@@ -97,12 +99,12 @@ extern int  pa_validpath(char* s);
 extern int  pa_wild(char* s);
 extern void pa_getenv(char* ls, char* ds);
 extern void pa_setenv(char* sn, char* sd);
-extern void pa_allenv(envrec **el);
+extern void pa_allenv(pa_envrec **el);
 extern void pa_remenv(char* sn);
 extern void pa_exec(char* cmd);
-extern void pa_exece(char* cmd, envrec *el);
+extern void pa_exece(char* cmd, pa_envrec *el);
 extern void pa_execw(char* cmd, int *e);
-extern void pa_execew(char* cmd, envrec *el, int *e);
+extern void pa_execew(char* cmd, pa_envrec *el, int *e);
 extern void pa_getcur(char* fn);
 extern void pa_setcur(char* fn);
 extern void pa_brknam(char* fn, char* p, char* n, char* e);
@@ -110,18 +112,18 @@ extern void pa_maknam(char* fn, char* p, char* n, char* e);
 extern void pa_fulnam(char* fn);
 extern void pa_getpgm(char* p);
 extern void pa_getusr(char* fn);
-extern void pa_setatr(char* fn, attrset a);
-extern void pa_resatr(char* fn, attrset a);
+extern void pa_setatr(char* fn, pa_attrset a);
+extern void pa_resatr(char* fn, pa_attrset a);
 extern void pa_bakupd(char* fn);
-extern void pa_setuper(char* fn, permset p);
-extern void pa_resuper(char* fn, permset p);
-extern void pa_setgper(char* fn, permset p);
-extern void pa_resgper(char* fn, permset p);
-extern void pa_setoper(char* fn, permset p);
-extern void pa_resoper(char* fn, permset p);
+extern void pa_setuper(char* fn, pa_permset p);
+extern void pa_resuper(char* fn, pa_permset p);
+extern void pa_setgper(char* fn, pa_permset p);
+extern void pa_resgper(char* fn, pa_permset p);
+extern void pa_setoper(char* fn, pa_permset p);
+extern void pa_resoper(char* fn, pa_permset p);
 extern void pa_makpth(char* fn);
 extern void pa_rempth(char* fn);
-extern void pa_filchr(chrset* fc);
+extern void pa_filchr(pa_chrset* fc);
 extern char pa_optchr(void);
 extern char pa_pthchr(void);
 extern int  pa_latitude(void);
