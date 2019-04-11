@@ -19,10 +19,11 @@
  * These are used to change the character set that defines what characters
  * are admissible in filenames.
  */
-#define INSET(b, s) (s[b>>3] & 1<<b%8) /* test inclusion */
-#define ADDSET(b, s) (s[b>>3] | 1<<b%8) /* add set member */
-#define SUBSET(b, s) (s[b>>3] & ~(1<<b%8)) /* remove set member */
-#define CLRSET(s) { int i; for (i = 0; i < 32; i++) s[i] = 0; } /* clear set */
+#define SETLEN 32 /* length of char set */
+#define INSET(s, b) (s[b>>3] & 1<<b%8) /* test inclusion */
+#define ADDSET(s, b) (s[b>>3] | 1<<b%8) /* add set member */
+#define SUBSET(s, b) (s[b>>3] & ~(1<<b%8)) /* remove set member */
+#define CLRSET(s) { int i; for (i = 0; i < SETLEN; i++) s[i] = 0; } /* clear set */
 
 /* attributes */
 typedef enum {
@@ -80,14 +81,14 @@ typedef struct pa_envrec {
 typedef pa_envrec* pa_envptr; /* pointer to environment record */
 
 /* character set */
-typedef unsigned char pa_chrset[32];
+typedef unsigned char pa_chrset[SETLEN];
 
 /*
  * Functions exposed in the services module
  */
 extern void pa_list(char* f, pa_filrec **l);
-extern void pa_times(char* s, int t);
-extern void pa_dates(char* s, int t);
+extern void pa_times(char* s, int sl, int t);
+extern void pa_dates(char* s, int sl, int t);
 extern void pa_writetime(FILE *f, int t);
 extern void pa_writedate(FILE *f, int t);
 extern int  pa_time(void);
@@ -97,7 +98,7 @@ extern int  pa_elapsed(int r);
 extern int  pa_validfile(char* s);
 extern int  pa_validpath(char* s);
 extern int  pa_wild(char* s);
-extern void pa_getenv(char* ls, char* ds);
+extern void pa_getenv(char* ls, char* ds, int dsl);
 extern void pa_setenv(char* sn, char* sd);
 extern void pa_allenv(pa_envrec **el);
 extern void pa_remenv(char* sn);
@@ -105,12 +106,12 @@ extern void pa_exec(char* cmd);
 extern void pa_exece(char* cmd, pa_envrec *el);
 extern void pa_execw(char* cmd, int *e);
 extern void pa_execew(char* cmd, pa_envrec *el, int *e);
-extern void pa_getcur(char* fn);
+extern void pa_getcur(char* fn, int l);
 extern void pa_setcur(char* fn);
-extern void pa_brknam(char* fn, char* p, char* n, char* e);
-extern void pa_maknam(char* fn, char* p, char* n, char* e);
-extern void pa_fulnam(char* fn);
-extern void pa_getpgm(char* p);
+extern void pa_brknam(char* fn, char* p, int pl, char* n, int nl, char* e, int el);
+extern void pa_maknam(char* fn, int fnl, char* p, char* n, char* e);
+extern void pa_fulnam(char* fn, int fnl);
+extern void pa_getpgm(char* p, int pl);
 extern void pa_getusr(char* fn);
 extern void pa_setatr(char* fn, pa_attrset a);
 extern void pa_resatr(char* fn, pa_attrset a);
@@ -123,19 +124,19 @@ extern void pa_setoper(char* fn, pa_permset p);
 extern void pa_resoper(char* fn, pa_permset p);
 extern void pa_makpth(char* fn);
 extern void pa_rempth(char* fn);
-extern void pa_filchr(pa_chrset* fc);
+extern void pa_filchr(pa_chrset fc);
 extern char pa_optchr(void);
 extern char pa_pthchr(void);
 extern int  pa_latitude(void);
 extern int  pa_longitude(void);
 extern int  pa_altitude(void);
 extern int  pa_country(void);
-extern void pa_countrys(char* s, int c);
+extern void pa_countrys(char* s, int sl, int c);
 extern int  pa_timezone(void);
 extern int  pa_daysave(void);
 extern int  pa_time24hour(void);
 extern int  pa_language(void);
-extern void pa_languages(char* s, int l);
+extern void pa_languages(char* s, int sl, int l);
 extern char pa_decimal(void);
 extern char pa_numbersep(void);
 extern int  pa_timeorder(void);

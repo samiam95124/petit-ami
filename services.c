@@ -29,6 +29,8 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <dirent.h>
+#include <limits.h>
 
 #include "services.h" /* the header for this file */
 
@@ -307,107 +309,111 @@ void pa_list(
 
 {
 
-    struct dirent dr; /* Unix directory record */
-    int           fd; /* directory file descriptor */
-    int           r;  /* result code */
-    int           rd;
-    struct stat   sr; /* stat() record */
-    pa_filrec*    fp; /* file entry pointer */
-    pa_filrec*    lp; /* last entry pointer */
-    int           i;  /* name index */
-    bufstr        p;  /* filename components */
-    bufstr        n;
-    bufstr        e;
-    bufstr        fn; /* holder for directory name */
+    struct dirent* dr; /* Unix directory record */
+    DIR*           dd; /* directory file descriptor */
+    int            r;  /* result code */
+    int            rd;
+    struct stat    sr; /* stat() record */
+    pa_filrec*     fp; /* file entry pointer */
+    pa_filrec*     lp; /* last entry pointer */
+    int            i;  /* name index */
+    bufstr         p;  /* filename components */
+    bufstr         n;
+    bufstr         e;
+    bufstr         fn; /* holder for directory name */
 
     *l = NULL; /* clear destination list */
     lp = NULL; /* clear last pointer */
-    pa_brknam(f, p, n, e); /* break up filename */
+    pa_brknam(f, p, MAXSTR, n, MAXSTR, e, MAXSTR); /* break up filename */
     /* check wildcards in path */
     if (strstr(p, "*") || strstr(p, "?")) error("Path cannot contain wildcards");
     /* construct name of containing directory */
-    pa_maknam(fn, p, ".", "");
-    fd = open(fn, O_RDONLY, 0); /* open the directory */
-    if (fd < 0) unixerr(); /* process unix open error */
-    pa_maknam(fn, "", n, e);   /* reform name without path */
+    pa_maknam(fn, MAXSTR, p, ".", "");
+    dd = opendir(fn); /* open the directory */
+    if (!dd) unixerr(); /* process unix open error */
+    pa_maknam(fn, MAXSTR, "", n, e);   /* reform name without path */
     do { /* read directory entries */
 
-        rd = readdir(fd, &dr, 1);
-        if (rd < 0) unixerr(); /* process unix error */
-        if (rd == 1) { /* valid next */
+        errno = 0; /* clear any error */
+        dr = readdir(dd);
+        if (errno) unixerr(); /* process unix error */
+        if (dr) { /* valid next */
 
-            if (match(fn, dr.d_name, 1, 1)) { /* matching filename, add to list */
-            fp = malloc(sizeof(filrec)); /* create a new file entry */
-            fp^.name = malloc(strlen(dr.d_name)); /* copy to new filename string */
-            strcpy(fp^.name, dr.d_name);
-            r = stat(fp^.name, &sr); /* get stat structure on file */
-            if (r < 0) unixerr(); /* process unix error */
-            /* file information in stat record, translate to our format */
-            strcpy(fp->name, dn);   /* place filename */
-            fp->size = sr.st_size;   /* place size */
-            /* there is actually a real unix allocation, but I haven't figgured out
-               how to calculate it from block/blocksize */
-            fp->alloc = sr.st_size;   /* place allocation */
-            fp->attr = 0;   /* clear attributes */
-            /* clear permissions to all is allowed */
-            fp->user = bit(pmread) | bit(pmwrite) | bit(pmexec) | bit(pmdel) |
-                       bit(pmvis) | bit(pmcopy) | bit(pmren);
-            fp->other = bit(pmread) | bit(pmwrite) | bit(pmexec) | bit(pmdel) |
-                        bit(pmvis) | bit(pmcopy) | bit(pmren);
-            fp->group = bit(pmread) | bit(pmwrite) | bit(pmexec) | bit(pmdel) |
-                        bit(pmvis)) | bit(pmcopy)) | bit(pmren);
-            /* check and set directory attribute */
-            if ((sr.st_mode & S_IFDIR) != 0) fp->attr |= bit(atdir);
-            /* check and set any system special file */
-            if ((sr.st_mode & S_IFIFO) != 0) fp->attr |= bit(atsys);
-            if ((sr.st_mode & S_IFCHR) != 0) fp->attr |= bit(atsys);
-            if ((sr.st_mode & S_IFBLK) != 0) fp->attr |= bit(atsys);
-            /* check hidden. in Unix, this is done with a leading '.'. We remove
-               visiblity priveledges */
-            if (dr.d_name[0] == '.') {
+            if (match(fn, dr->d_name, 1, 1)) { /* matching filename, add to list */
 
-                fp->user &= ~bit(pmvis);
-                fp->group &= ~bit(pmvis);
-                fp->other &= ~bit(pmvis);
+                fp = malloc(sizeof(pa_filrec)); /* create a new file entry */
+                fp->name = malloc(strlen(dr->d_name)); /* copy to new filename string */
+                strcpy(fp->name, dr->d_name);
+                r = stat(fp->name, &sr); /* get stat structure on file */
+                if (r < 0) unixerr(); /* process unix error */
+                /* file information in stat record, translate to our format */
+                strcpy(fp->name, dr->d_name);   /* place filename */
+                fp->size = sr.st_size;   /* place size */
+                /* there is actually a real unix allocation, but I haven't figgured out
+                   how to calculate it from block/blocksize */
+                fp->alloc = sr.st_size;   /* place allocation */
+                fp->attr = 0;   /* clear attributes */
+                /* clear permissions to all is allowed */
+                fp->user = bit(pa_pmread) | bit(pa_pmwrite) | bit(pa_pmexec) | bit(pa_pmdel) |
+                           bit(pa_pmvis) | bit(pa_pmcopy) | bit(pa_pmren);
+                fp->other = bit(pa_pmread) | bit(pa_pmwrite) | bit(pa_pmexec) | bit(pa_pmdel) |
+                            bit(pa_pmvis) | bit(pa_pmcopy) | bit(pa_pmren);
+                fp->group = bit(pa_pmread) | bit(pa_pmwrite) | bit(pa_pmexec) | bit(pa_pmdel) |
+                            bit(pa_pmvis) | bit(pa_pmcopy) | bit(pa_pmren);
+                /* check and set directory attribute */
+                if (sr.st_mode & S_IFDIR) fp->attr |= bit(pa_atdir);
+                /* check and set any system special file */
+                if (sr.st_mode & S_IFIFO) fp->attr |= bit(pa_atsys);
+                if (sr.st_mode & S_IFCHR) fp->attr |= bit(pa_atsys);
+                if (sr.st_mode & S_IFBLK) fp->attr |= bit(pa_atsys);
+                /* check hidden. in Unix, this is done with a leading '.'. We remove
+                   visiblity priveledges */
+                if (dr->d_name[0] == '.') {
+
+                    fp->user &= ~bit(pa_pmvis);
+                    fp->group &= ~bit(pa_pmvis);
+                    fp->other &= ~bit(pa_pmvis);
+
+                }
+                /* check and set executable attribute. Unix has separate executable
+                   permissions for each permission type, we set executable if any of
+                   them are true */
+                if (sr.st_mode & S_IXUSR) fp->attr |= bit(pa_atexec);
+                /* set execute permissions to user */
+                if (sr.st_mode & S_IXUSR) fp->user &= ~bit(pa_pmexec);
+                /* set read permissions to user */
+                if (sr.st_mode & S_IRUSR) fp->user &= ~bit(pa_pmread);
+                /* set write permissions to user */
+                if (sr.st_mode & S_IWUSR) fp->user &= ~bit(pa_pmwrite);
+                /* set execute permissions to group */
+                if (sr.st_mode & S_IXGRP) fp->group &= ~bit(pa_pmexec);
+                /* set read permissions to group */
+                if (sr.st_mode & S_IRGRP) fp->group &= ~bit(pa_pmread);
+                /* set write permissions to group */
+                if (sr.st_mode & S_IWGRP) fp->group &= ~bit(pa_pmwrite);
+                /* set execute permissions to other */
+                if (sr.st_mode & S_IXOTH) fp->other = fp->group & (~bit(pa_pmexec));
+                /* set read permissions to other */
+                if (sr.st_mode & S_IROTH) fp->other = fp->group & (~bit(pa_pmread));
+                /* set write permissions to other */
+                if (sr.st_mode & S_IWOTH) fp->other = fp->group & (~bit(pa_pmwrite));
+                /* set times */
+                fp->create = sr.st_ctime-unixadj;
+                fp->modify = sr.st_mtime-unixadj;
+                fp->access = sr.st_atime-unixadj;
+                fp->backup = -INT_MAX; /* no backup time for Unix */
+                /* insert entry to list */
+                if (*l == NULL) *l = fp; /* insert new top */
+                else lp->next = fp; /* insert next entry */
+                lp = fp;   /* set new last */
+                fp->next = NULL;   /* clear next */
 
             }
-            /* check and set executable attribute. Unix has separate executable
-               permissions for each permission type, we set executable if any of
-               them are true */
-            if ((sr.st_mode & s_iexec) != 0) fp->attr |= bit(atexec);
-            /* set execute permissions to user */
-            if ((sr.st_mode & s_iexec) == 0) fp->user &= ~bit(pmexec);
-            /* set read permissions to user */
-            if ((sr.st_mode & s_iread) == 0) fp->user &= ~bit(pmread);
-            /* set write permissions to user */
-            if ((sr.st_mode & s_iwrite) == 0) fp->user &= ~bit(pmwrite);
-            /* set execute permissions to group */
-            if ((sr.st_mode & s_igexec) == 0) fp->group &= ~bit(pmexec);
-            /* set read permissions to group */
-            if ((sr.st_mode & s_igread) == 0) fp->group &= ~bit(pmread);
-            /* set write permissions to group */
-            if ((sr.st_mode & s_igwrite) == 0) fp->group &= ~bit(pmwrite);
-            /* set execute permissions to other */
-            if ((sr.st_mode & s_ioexec) == 0) fp->other = fp->group & (~bit(pmexec));
-            /* set read permissions to other */
-            if ((sr.st_mode & s_ioread) == 0) fp->other = fp->group & (~bit(pmread));
-            /* set write permissions to other */
-            if ((sr.st_mode & s_iowrite) == 0) fp->other = fp->group & (~bit(pmwrite));
-            /* set times */
-            fp->create = sr.st_ctime-unixadj;
-            fp->modify = sr.st_mtime-unixadj;
-            fp->access = sr.st_atime-unixadj;
-            fp->backup = -INT_MAX; /* no backup time for Unix */
-            /* insert entry to list */
-            if (*l == NULL) *l = fp; /* insert new top */
-            else lp->next = fp; /* insert next entry */
-            lp = fp;   /* set new last */
-            fp->next = NULL;   /* clear next */
 
         }
 
     } while (rd == 1);
-    r = close(fd);
+    r = closedir(dd);
     if (r < 0) unixerr();  /* process unix error */
 
 }
@@ -428,15 +434,14 @@ void pa_times(
 
 {
 
-    char h;   /* hour */
-    char m;   /* minute */
-    char sec; /* second */
+    int h;   /* hour */
+    int m;   /* minute */
+    int sec; /* second */
     int  am;  /* am flag */
     int  pm;  /* pm flag */
 
-    if (sl < 11-(!time24hour()*3)) /* string to small to hold result */
+    if (sl < 11-(!pa_time24hour()*3)) /* string to small to hold result */
         error("String buffer to small to hold time");
-    i = 1;   /* set 1st string place */
     /* because leap adjustments are made in terms of days, we just remove
        the days to find the time of day in seconds. this is completely
        independent of leap adjustments */
@@ -449,37 +454,37 @@ void pa_times(
     sec = t % 60;   /* find seconds */
     pm = 0; /* clear am and pm flags */
     am = 0;
-    if (!time24hour()) { /* do am/pm adjustment */
+    if (!pa_time24hour()) { /* do am/pm adjustment */
 
         if (h == 0) h = 12; /* hour zero */
         else if (h > 12) { h -= 12; pm = 1; } /* 1 pm to 11 pm */
 
     }
     /* place hour:miniute:second */
-    switch (timeorder()) {
+    switch (pa_timeorder()) {
 
         case 1:
-            s += sprintf(s, "%02d%c%02d%c%02d", h, timesep(), m, timesep(), s);
+            s += sprintf(s, "%02d%c%02d%c%02d", h, pa_timesep(), m, pa_timesep(), sec);
             break;
         case 2:
-            s += sprintf(s, "%02d%c%02d%c%02d", h, timesep(), s, timesep(), m);
+            s += sprintf(s, "%02d%c%02d%c%02d", h, pa_timesep(), sec, pa_timesep(), m);
             break;
         case 3:
-            s += sprintf(s, "%02d%c%02d%c%02d", m, timesep(), h, timesep(), s);
+            s += sprintf(s, "%02d%c%02d%c%02d", m, pa_timesep(), h, pa_timesep(), sec);
             break;
         case 4:
-            s += sprintf(s, "%02d%c%02d%c%02d", m, timesep(), s, timesep(), h);
+            s += sprintf(s, "%02d%c%02d%c%02d", m, pa_timesep(), sec, pa_timesep(), h);
             break;
         case 5:
-            s += sprintf(s, "%02d%c%02d%c%02d", s, timesep(), h, timesep(), m);
+            s += sprintf(s, "%02d%c%02d%c%02d", sec, pa_timesep(), h, pa_timesep(), m);
             break;
         case 6:
-            s += sprintf(s, "%02d%c%02d%c%02d", s, timesep(), m, timesep(), h);
+            s += sprintf(s, "%02d%c%02d%c%02d", sec, pa_timesep(), m, pa_timesep(), h);
             break;
 
     }
     if (pm) strcat(s, " pm");
-    if (am) strcat(s  " am");
+    if (am) strcat(s, " am");
     *s = 0; /* terminate string */
 
 }
@@ -549,7 +554,7 @@ void pa_dates(
     } while (!done);   /* until year found */
     leap = 0;   /* set no leap day */
     /* check leap year, and set leap day accordingly */
-    if (leapyear(y, &V)) leap = 1;
+    if (leapyear(y)) leap = 1;
     t = t/daysec+1; /* find days into year */
     if (y < 2000) t = leap - t + 366; /* adjust for negative years */
     di = 1;   /* set 1st month */
@@ -563,25 +568,25 @@ void pa_dates(
 
     }
     /* place year/month/day */
-    switch (dateorder()) { /* place according to current location format */
+    switch (pa_dateorder()) { /* place according to current location format */
 
         case 1:
-            s += sprintf(s, "%04d%c%02d%c%02d", y, datesep(), m, datesep(), d);
+            s += sprintf(s, "%04d%c%02d%c%02d", y, pa_datesep(), m, pa_datesep(), d);
             break;
         case 2:
-            s += sprintf(s, "%04d%c%02d%c%02d", y, datesep(), d, datesep(), m);
+            s += sprintf(s, "%04d%c%02d%c%02d", y, pa_datesep(), d, pa_datesep(), m);
             break;
         case 3:
-            s += sprintf(s, "%02d%c%02d%c%04d", m, datesep(), d, datesep(), y);
+            s += sprintf(s, "%02d%c%02d%c%04d", m, pa_datesep(), d, pa_datesep(), y);
             break;
         case 4:
-            s += sprintf(s, "%02d%c%04d%c%02d", m, datesep(), y, datesep(), d);
+            s += sprintf(s, "%02d%c%04d%c%02d", m, pa_datesep(), y, pa_datesep(), d);
             break;
         case 5:
-            s += sprintf(s, "%02d%c%02d%c%04d", d, datesep(), m, datesep(), y);
+            s += sprintf(s, "%02d%c%02d%c%04d", d, pa_datesep(), m, pa_datesep(), y);
             break;
         case 6:
-            s += sprintf(s, "%02d%c%04d%c%02d", d, datesep(), y, datesep(), m);
+            s += sprintf(s, "%02d%c%04d%c%02d", d, pa_datesep(), y, pa_datesep(), m);
             break;
 
     }
@@ -606,7 +611,7 @@ void pa_writetime(
 
     bufstr s;
 
-    times(s, t);   /* convert time to string form */
+    pa_times(s, MAXSTR, t);   /* convert time to string form */
     fputs(s, f);   /* output */
 
 }
@@ -630,7 +635,7 @@ void pa_writedate(
 
     char s[MAXSTR];
 
-    dates(s, t);   /* convert date to string form */
+    pa_dates(s, MAXSTR, t);   /* convert date to string form */
     fputs(s, f);   /* output */
 
 }
@@ -670,7 +675,7 @@ timezones.
 int pa_local(int t)
 {
 
-    return t+pa_timezone()+pa_daysave()*60
+    return t+pa_timezone()+pa_daysave()*60;
 
 }
 
@@ -699,8 +704,8 @@ int pa_clock(void)
 
 {
 
-    timeval tv; /* record to get time */
-    int r;         /* return value */
+    struct timeval tv; /* record to get time */
+    int            r;  /* return value */
 
     r = gettimeofday(&tv, NULL); /* get time info */
     if (r < 0) unixerr(); /* process unix error */
@@ -835,13 +840,13 @@ found.
 ********************************************************************************/
 
 static void fndenv(
-    /* string name */                      char*    esn,
-    /* returns environment string entry */ envptr** ep
+    /* string name */                      char*       esn,
+    /* returns environment string entry */ pa_envptr*  ep
 )
 
 {
 
-    envrec *p;   /* pointer to environment entry */
+    pa_envptr p; /* pointer to environment entry */
 
     p = envlst; /* index top of environment list */
     *ep = NULL; /* set no string found */
@@ -866,13 +871,14 @@ void pa_getenv(
     /** string name */        char* esn,
     /** string data */        char* esd,
     /** string data length */ int esdl
+)
 {
 
     pa_envrec *p;
 
     *esd = 0;
     fndenv(esn, &p);
-    if (strlen(p->data) > esdl) then error("String too large for destination");
+    if (strlen(p->data) > esdl) error("String too large for destination");
     if (p) strcpy(esd, p->data);
 
 }
@@ -936,7 +942,7 @@ void pa_remenv(
 
 {
 
-    envrec *p, *l;   /* pointer to environment entry */
+    pa_envrec *p, *l; /* pointer to environment entry */
 
     fndenv(sn, &p);   /* find environment string */
     if (p != NULL) { /* found */
@@ -969,23 +975,23 @@ Returns a table with the entire environment string set in it.
 ********************************************************************************/
 
 void pa_allenv(
-    /* environment table */ envrec **el
+    /* environment table */ pa_envrec **el
 )
 
 {
 
-    envrec *p, *lp;   /* environment pointers */
+    pa_envrec *p, *lp; /* environment pointers */
 
     /* copy current environment list */
     lp = envlst; /* index top of environment list */
     *el = NULL; /* clear destination */
     while (lp != NULL) {  /* copy entries */
 
-        p = malloc(sizeof(envrec)); /* create a new entry */
+        p = malloc(sizeof(pa_envrec)); /* create a new entry */
         p->next = *el;   /* push onto list */
         *el = p;
-        strcpy(p.name, lp.name);   /* place name */
-        strcpy(p.data, lp.data);   /* place data */
+        strcpy(p->name, lp->name);   /* place name */
+        strcpy(p->data, lp->data);   /* place data */
         lp = lp->next;   /* next entry */
 
     }
@@ -1020,11 +1026,11 @@ void pa_exec(
     wc = words(cmd);   /* find number of words in command */
     if (wc == 0)
     error("Command is empty");
-    extword(cn, cmd, 1, 1);  /* get the command verb */
+    extwords(cn, MAXSTR, cmd, 1, 1);  /* get the command verb */
     if (!exists(cn)) {  /* does not exist in current form */
 
         /* perform pathing search */
-        brknam(cn, p, n, e);   /* break down the name */
+        pa_brknam(cn, p, MAXSTR, n, MAXSTR, e, MAXSTR);   /* break down the name */
         if (*p == 0 && *pthstr != 0) {
 
             strcpy(pc, pthstr);   /* make a copy of the path */
@@ -1039,12 +1045,12 @@ void pa_exec(
 
                 } else { /* copy partial */
 
-                    extract(p, pc, 1, cp-pc);   /* get left side to path */
-                    extract(pc, pc, cp-pc+1, strlen(pc)); /* remove from path */
+                    extract(p, MAXSTR, pc, 1, cp-pc);   /* get left side to path */
+                    extract(pc, MAXSTR, pc, cp-pc+1, strlen(pc)); /* remove from path */
                     trim(pc); /* make sure left aligned */
 
                 }
-                maknam(cn, p, n, e);   /* create filename */
+                pa_maknam(cn, MAXSTR, p, n, e);   /* create filename */
                 if (exists(cn)) *pc = 0;  /* found, indicate stop */
 
             }
@@ -1060,7 +1066,7 @@ void pa_exec(
     pid = fork(); /* start subprocess */
     if (pid == 0) { /* we are the child */
 
-        r = sc_execve(cn, av, ev);   /* execute directory */
+        r = execve(cn, av, ev);   /* execute directory */
         if (r < 0)   /* process unix error */
         unixerr();
         error("Should not continue from execute");
@@ -1099,8 +1105,8 @@ the program environment.
 ********************************************************************************/
 
 void pa_exece(
-    /* program name to execute */ char *cmd,
-    /* environment */ envrec *el
+    /* program name to execute */ char      *cmd,
+    /* environment */             pa_envrec *el
 )
 
 {
@@ -1121,8 +1127,8 @@ program environment.
 
 void pa_execew(
         /* program name to execute */ char *cmd,
-        /* environment */ envrec *el,
-        /* return error */int *e
+        /* environment */             pa_envrec *el,
+        /* return error */            int *e
 )
 
 {
@@ -1146,10 +1152,8 @@ void pa_getcur(
 
 {
 
-    int r;   /* result code */
-
-    r = getcwd(fn, l);   /* get the current path */
-    if (r < 0) unixerr(); /* process unix error */
+    fn = getcwd(fn, l);   /* get the current path */
+    if (!fn) unixerr(); /* process unix error */
 
 }
 
@@ -1279,7 +1283,7 @@ void pa_maknam(
     if (*e) {  /* there is an extention */
 
         strcat(fn, "."); /* place '.' */
-        strcat(f, e); /* place extension */
+        strcat(fn, e); /* place extension */
 
     }
 
@@ -1295,36 +1299,36 @@ No validity check is done. Garbage in, garbage out.
 
 ********************************************************************************/
 
-void pa_fulnam_(
+void pa_fulnam(
     /** filename */        char *fn,
-    /** filename length */ fnl
+    /** filename length */ int fnl
 )
 {
 
     /* file specification */
     bufstr p, n, e, ps;   /* filespec components */
 
-    brknam_(fn, p, MAXSTR, n, MAXSTR, e, MAXSTR);   /* break spec down */
+    pa_brknam(fn, p, MAXSTR, n, MAXSTR, e, MAXSTR);   /* break spec down */
     /* if the path is blank, then default to current */
-    if (*p) strcpy(p. ".");
+    if (*p) strcpy(p, ".");
     if ((!strcmp(n, ".") || !strcmp(n, "..")) && !*e) {
 
         /* its '.' or '..', find equivalent path */
-        getcur(ps, MAXSTR);   /* save current path */
-        setcur(fn);   /* set candidate path */
-        getcur(fn, MAXSTR);   /* get washed path */
+        pa_getcur(ps, MAXSTR);   /* save current path */
+        pa_setcur(fn);   /* set candidate path */
+        pa_getcur(fn, MAXSTR);   /* get washed path */
         /* reset old path */
 
-        setcur_(ps);
+        pa_setcur(ps);
 
     } else {
 
-        getcur(ps, MAXSTR);   /* save current path */
-        setcur(p);   /* set candidate path */
-        getcur(p, MAXSTR);   /* get washed path */
-        setcur(ps);   /* reset old path */
+        pa_getcur(ps, MAXSTR);   /* save current path */
+        pa_setcur(p);   /* set candidate path */
+        pa_getcur(p, MAXSTR);   /* get washed path */
+        pa_setcur(ps);   /* reset old path */
         /* reassemble */
-        maknam(fn, fnl, p, n, e);
+        pa_maknam(fn, fnl, p, n, e);
 
     }
 
@@ -1342,8 +1346,8 @@ Note: this does not work for standard CLIB programs. We need another solution.
 ********************************************************************************/
 
 void pa_getpgm(
-    /** program path */ char *p,
-    /** program path length */ int pl
+    /** program path */        char* p,
+    /** program path length */ int   pl
 )
 {
 
@@ -1351,8 +1355,8 @@ void pa_getpgm(
     bufstr n, e;   /* name component holders */
 
     strcpy(pn, program_invocation_name); /* copy invoke name to path */
-    pv_fulnam(pn, MAXSTR);   /* clean that */
-    pv_brknam(pn, p, pl, n, MAXSTR, e, MAXSTR); /* extract path from that */
+    pa_fulnam(pn, MAXSTR);   /* clean that */
+    pa_brknam(pn, p, pl, n, MAXSTR, e, MAXSTR); /* extract path from that */
 
 }
 
@@ -1386,16 +1390,16 @@ void pa_getusr(
 
     bufstr b, b1;   /* buffer for result */
 
-    getenv("home", b, MAXSTR);
+    pa_getenv("home", b, MAXSTR);
     if (!b[0]) {  /* not found */
 
-        getenv("userhome", b, MAXSTR);
+        pa_getenv("userhome", b, MAXSTR);
         if (!b[0]) {  /* not found */
 
-            getenv("userdir", b, MAXSTR);
+            pa_getenv("userdir", b, MAXSTR);
             if (!b[0]) {  /* not found */
 
-                getenv("user", b, MAXSTR);
+                pa_getenv("user", b, MAXSTR);
                 if (b[0]) { /* found, path that */
 
                     strcpy(b1, b); /* copy */
@@ -1404,16 +1408,18 @@ void pa_getusr(
 
                 } else {  /* path that */
 
-                    getenv("username", b, MAXSTR);
+                    pa_getenv("username", b, MAXSTR);
                     if (b[0]) {
 
                         strcpy(b1, b);   /* copy */
                         strcpy(b, "/home/");   /* set prefix */
                         strcat(b, b1); /* combine */
 
-                    }
+                    } else
+                        /* all fails, set to program path */
+                        pa_getpgm(b, MAXSTR);
 
-                } else getpgm(b, MAXSTR); /* all fails, set to program path */
+                }
 
             }
 
@@ -1435,7 +1441,7 @@ possible. This is done with makpth.
 
 ********************************************************************************/
 
-void pa_setatr(char *fn, attrset a)
+void pa_setatr(char *fn, pa_attrset a)
 {
 
     /* no unix attributes can be set */
@@ -1451,7 +1457,7 @@ possible.
 
 ********************************************************************************/
 
-void pa_resatr(char *fn, attrset a)
+void pa_resatr(char *fn, pa_attrset a)
 {
 
     /* no unix attributes can be reset */
@@ -1482,11 +1488,11 @@ Sets user permisions
 
 ********************************************************************************/
 
-void pa_setuper(char *fn, permset p)
+void pa_setuper(char *fn, pa_permset p)
 {
 
-    struct sstat sr; /* stat() record */
-    int          r;  /* result code */
+    struct stat sr; /* stat() record */
+    int          r; /* result code */
 
     r = stat(fn, &sr);   /* get stat structure on file */
     if (r < 0)   /* process unix error */
@@ -1509,7 +1515,7 @@ Resets user permissions.
 
 ********************************************************************************/
 
-void pa_resuper(char *fn, permset p)
+void pa_resuper(char *fn, pa_permset p)
 {
 
     struct stat sr;   /* stat() record */
@@ -1521,7 +1527,7 @@ void pa_resuper(char *fn, permset p)
     if (bit(pa_pmread) & p) sr.st_mode &= ~S_IRUSR; /* set read */
     if (bit(pa_pmwrite) & p) sr.st_mode &= ~S_IWUSR; /* set write */
     if (bit(pa_pmexec) & p) sr.st_mode &= ~S_IXUSR; /* set execute */
-    r = sc_chmod(fn, sr.st_mode);   /* set mode */
+    r = chmod(fn, sr.st_mode);   /* set mode */
     if (r < 0) unixerr();  /* process unix error */
 
 }
@@ -1535,19 +1541,19 @@ Sets group permissions.
 
 ********************************************************************************/
 
-void pa_setgper(char *fn, permset p)
+void pa_setgper(char *fn, pa_permset p)
 {
 
     struct stat sr;   /* stat() record */
     int r;   /* result code */
 
-    r = sc_stat(fn, &sr); /* get stat structure on file */
+    r = stat(fn, &sr); /* get stat structure on file */
     if (r < 0) unixerr(); /* process unix error */
     sr.st_mode &= 0777;   /* mask permissions */
     if (bit(pa_pmread) & p) sr.st_mode |= S_IRGRP;  /* set read */
     if (bit(pa_pmwrite) & p) sr.st_mode |= S_IWGRP;  /* set write */
     if (bit(pa_pmexec) & p) sr.st_mode |= S_IXGRP;  /* set execute */
-    r = sc_chmod(fn, sr.st_mode);   /* set mode */
+    r = chmod(fn, sr.st_mode);   /* set mode */
     if (r < 0) unixerr();  /* process unix error */
 
 }
@@ -1561,7 +1567,7 @@ Resets group permissions.
 
 ********************************************************************************/
 
-void pa_resgper(char *fn, permset p)
+void pa_resgper(char *fn, pa_permset p)
 {
     struct stat sr; /* stat() record */
     int         r;  /* result code */
@@ -1571,7 +1577,7 @@ void pa_resgper(char *fn, permset p)
     sr.st_mode &= 0777;   /* mask permissions */
     if (bit(pa_pmread) & p)  sr.st_mode &= ~S_IRGRP; /* set read */
     if (bit(pa_pmwrite) & p) sr.st_mode &= ~S_IWGRP;  /* set write */
-    if (bit(pa_pmexec) & p) sr.st_mode &= ~S_IXRGP;  /* set execute */
+    if (bit(pa_pmexec) & p) sr.st_mode &= ~S_IXGRP;  /* set execute */
     r = chmod(fn, sr.st_mode);   /* set mode */
     if (r < 0) unixerr();  /* process unix error */
 
@@ -1586,7 +1592,7 @@ Sets other permissions.
 
 ********************************************************************************/
 
-void pa_setoper(char *fn, permset p)
+void pa_setoper(char *fn, pa_permset p)
 {
 
     struct stat sr; /* stat() record */
@@ -1612,7 +1618,7 @@ Resets other permissions.
 
 ********************************************************************************/
 
-void pa_resoper(char *fn, permset p)
+void pa_resoper(char *fn, pa_permset p)
 {
 
     struct stat sr; /* stat() record */
@@ -1644,8 +1650,8 @@ void pa_makpth(char *fn)
 
     /* make directory, give all permissions allowable */
     r = mkdir(fn,
-        s_irusr | s_iwusr | s_ixusr | s_irgrp | s_iwgrp | s_ixgrp |
-        s_iroth | s_iwoth | s_ixoth);
+        S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP |
+        S_IROTH | S_IWOTH | S_IXOTH);
     if (r < 0) unixerr(); /* process unix error */
 
 }
@@ -1694,13 +1700,17 @@ specials in these cases.
 
 ********************************************************************************/
 
-void pa_filchr(char *fc)
+void pa_filchr(pa_chrset fc)
 {
 
+    int i;
+
+    /* clear set */
+    for (i = 0; i < SETLEN; i++) fc[i] = 0;
     /* add everything but control characters and space */
-    for (i = ' '+1, i <= 0x7f; i++) ADDSET(i);
-    SUBSET('-'); /* add option character */
-    SUBSET(pthchr()); /* add path character */
+    for (i = ' '+1; i <= 0x7f; i++) ADDSET(fc, i);
+    SUBSET(fc, '-'); /* add option character */
+    SUBSET(fc, pa_pthchr()); /* add path character */
 
 }
 
@@ -1860,21 +1870,21 @@ typedef struct {
 
 countryety countrytab[] = {
 
-    "Afghanistan",       004, "Aland Islands",    248, "Albania",          008,
-    "Algeria",           012, "American Samoa",   016, "Andorra",          020,
-    "Angola",            024, "Anguilla",         660, "Antarctica",       010,
-    "Antigua and Barbuda", 028,
-    "Argentina",         032, "Armenia",          051, "Aruba",            533,
-    "Australia",         036, "Austria",          040, "Azerbaijan",       031,
-    "Bahamas",           044, "Bahrain",          048, "Bangladesh",       050,
-    "Barbados",          052, "Belarus",          112, "Belgium",          056,
-    "Belize",            084, "Benin",            204, "Bermuda",          060,
-    "Bhutan",            064, "Bolivia",          068,
+    "Afghanistan",        4, "Aland Islands",    248, "Albania",           8,
+    "Algeria",           12, "American Samoa",    16, "Andorra",          20,
+    "Angola",            24, "Anguilla",         660, "Antarctica",       10,
+    "Antigua and Barbuda", 28,
+    "Argentina",         32, "Armenia",           51, "Aruba",            533,
+    "Australia",         36, "Austria",           40, "Azerbaijan",        31,
+    "Bahamas",           44, "Bahrain",           48, "Bangladesh",        50,
+    "Barbados",          52, "Belarus",          112, "Belgium",          56,
+    "Belize",            84, "Benin",            204, "Bermuda",          60,
+    "Bhutan",            64, "Bolivia",          68,
     "Bonaire, Sint Eustatius and Saba", 535,
-    "Bosnia and Herzegovina", 070,
-    "Botswana",          072, "Bouvet Island",    074, "Brazil",           076,
-    "British Indian Ocean Territory",  086,
-    "Brunei Darussalam", 096, "Bulgaria",         100, "Burkina Faso",     854,
+    "Bosnia and Herzegovina", 70,
+    "Botswana",          72, "Bouvet Island",      74, "Brazil",           76,
+    "British Indian Ocean Territory",  86,
+    "Brunei Darussalam", 96, "Bulgaria",          100, "Burkina Faso",     854,
     "Burundi",           108, "Cambodia",         116, "Cameroon",         120,
     "Canada",            124, "Cabo Verde",       132, "Cayman Islands",   136,
     "Central African Republic", 140,
@@ -1908,7 +1918,7 @@ countryety countrytab[] = {
     "Israel",            376, "Italy",            380, "Jamaica",          388,
     "Japan",             392, "Jersey",           832, "Jordan",           400,
     "Kazakhstan",        398, "Kenya",            404, "Kiribati",         296,
-    "Korea, North",      408", "Korea, South",    410, "Kuwait",           414,
+    "Korea, North",      408, "Korea, South",     410, "Kuwait",           414,
     "Kyrgyzstan",        417, "Lao",              418, "Latvia",           428,
     "Lebanon",           422, "Lesotho",          426, "Liberia",          430,
     "Libya",             434, "Liechtenstein",    438, "Lithuania",        440,
@@ -1921,8 +1931,8 @@ countryety countrytab[] = {
     "Mongolia",          496, "Montenegro",       499, "Montserrat",       500,
     "Morocco",           504, "Mozambique",       508, "Myanmar",          104,
     "Namibia",           516, "Nauru",            520, "Nepal",            524,
-    "Netherlands",       528, "New Caledonia      540, "New Zealand,       554,
-    "Nicaragua",         558, "Niger"             562, "Nigeria",          566,
+    "Netherlands",       528, "New Caledonia",    540, "New Zealand",      554,
+    "Nicaragua",         558, "Niger",            562, "Nigeria",          566,
     "Niue",              570, "Norfolk Island",   574,
     "Northern Mariana Islands", 580,
     "Norway",            578, "Oman",             512, "Pakistan",         586,
@@ -1943,7 +1953,7 @@ countryety countrytab[] = {
     "Saudi Arabia",      682, "Senegal",          686, "Serbia",           688,
     "Seychelles",        690, "Sierra Leone",     694, "Singapore",        702,
     "Sint Maarten",      534, "Slovakia",         703, "Slovenia",         705,
-    "Solomon Islands",   090, "Somalia",          706,
+    "Solomon Islands",    90, "Somalia",          706,
     "South Africa",      710,
     "South Georgia and the South Sandwich Islands", 239,
     "South Sudan",       728, "Spain",            724, "Sri Lanka",        144,
@@ -1960,7 +1970,7 @@ countryety countrytab[] = {
     "United States Minor Outlying Islands", 581,
     "Uruguay",           858, "Uzbekistan",       860,
     "Vanuatu",           548, "Venezuela",        862,
-    "Viet Nam",          704, "Virgin Islands, British", 092,
+    "Viet Nam",          704, "Virgin Islands, British", 92,
     "Virgin Islands, U.S.", 850,
     "Wallis and Futuna", 876, "Western Sahara",   732, "Yemen",            887,
     "Zambia",            894, "Zimbabwe",         716
@@ -1977,9 +1987,9 @@ void pa_countrys(
     countryety* p; /* pointer to language entry */
 
     p = countrytab;
-    while (p->countrynum && p-countrynum != l) p++;
-    if (!p-countrynum) error("Country number invalid");
-    if (strlen(p->countrystr) > len) error("Country string too large for buffer")
+    while (p->countrynum && p->countrynum != c) p++;
+    if (!p->countrynum) error("Country number invalid");
+    if (strlen(p->countrystr) > len) error("Country string too large for buffer");
     strncpy(s, p->countrystr, len);
 
 }
@@ -2036,7 +2046,7 @@ int pa_daysave(void)
     t = time(NULL); /* get seconds time */
     plcl = localtime(&t); /* get local */
 
-    return pcl->tm_isdst; /* return dst active status */
+    return plcl->tm_isdst; /* return dst active status */
 
 }
 
@@ -2048,7 +2058,7 @@ Returns true if 24 hour time is in use in the current host location.
 
 *******************************************************************************/
 
-int pa_time24hour(void);
+int pa_time24hour(void)
 
 {
 
@@ -2139,9 +2149,9 @@ void pa_languages(char* s, int len, int l)
     langety* p; /* pointer to language entry */
 
     p = langtab;
-    while (p->langnum && p-langnum != l) p++;
-    if (!p-langnum) error("Language number invalid");
-    if (strlen(p->langstr) > len) error("Language string too large for buffer")
+    while (p->langnum && p->langnum != l) p++;
+    if (!p->langnum) error("Language number invalid");
+    if (strlen(p->langstr) > len) error("Language string too large for buffer");
     strncpy(s, p->langstr, len);
 
 }
@@ -2232,7 +2242,7 @@ Note that dates() compensates for this.
 
 *******************************************************************************/
 
-int pa_dateorder(void);
+int pa_dateorder(void)
 
 {
 
@@ -2310,30 +2320,36 @@ static void pa_init_services()
 
 {
 
-    int     envlen; /* number of environment strings */
-    char**  ep;     /* unix environment string table */
-    int     ei;     /* index for string table */
-    int     si;     /* index for strings */
-    envrec* p;      /* environment entry pointer */
-    char*   cp;
+    int        envlen; /* number of environment strings */
+    char**     ep;     /* unix environment string table */
+    int        ei;     /* index for string table */
+    int        si;     /* index for strings */
+    pa_envrec* p;      /* environment entry pointer */
+    char*      cp;
+    int        l;
 
     /* Copy environment to local */
     envlst = NULL;   /* clear environment strings */
     ep = environ;   /* get unix environment pointers */
     while (*ep != NULL) {  /* copy environment strings */
 
-        p = malloc(sizeof(envrec));   /* get a new environment entry */
+        p = malloc(sizeof(pa_envrec)); /* get a new environment entry */
         p->next = envlst; /* push onto environment list */
         envlst = p;
-        cp = strchr(ep, "="); /* find location of '=' */
+        cp = strchr(*ep, '='); /* find location of '=' */
         if (!cp) error("Invalid environment string format");
-        extract(p->name, ep, 1, cp-ep); /* get the name string */
+        /* get the name string */
+        l = cp-*ep+1;
+        p->name = malloc(l+1);
+        extract(p->name, l, *ep, 1, cp-*ep);
         /* get the data string */
-        extract(p->data, ep, cp-ep+1, strlen(ep));
+        l = strlen(*ep)-(cp-*ep+1)+1;
+        p->data = malloc(l);
+        extract(p->data, l, *ep, cp-*ep+1, strlen(*ep));
         ep++; /* next environment string */
 
     }
-    getenv("path", pthstr, MAXSTR); /* load up the current path */
+    pa_getenv("path", pthstr, MAXSTR); /* load up the current path */
     trim(pthstr); /* make sure left aligned */
 
 }
@@ -2351,8 +2367,8 @@ static void pa_deinit_services()
 
 {
 
-    int     ti; /* index for timers */
-    envrec* p;  /* environment entry pointer */
+    int        ti; /* index for timers */
+    pa_envrec* p;  /* environment entry pointer */
 
     while (envlst) {
 
