@@ -4,8 +4,9 @@
 
 all: test event getkeys terminal scntst
 	
-test: ansiterm.c terminal.h test.c stdio.c stdio.h Makefile
-	gcc -g -o test stdio.c ansiterm.c test.c
+test: ansiterm.c terminal.h test.c stdio.c stdio.h services.c services.h Makefile
+	gcc -g -o test services.c test.c
+#	gcc -g -o test stdio.c services.c ansiterm.c test.c
 	
 scntst: ansiterm.c terminal.h scntst.c stdio.c stdio.h services.h services.c Makefile
 	gcc -g -o test stdio.c ansiterm.c services.c scntst.c

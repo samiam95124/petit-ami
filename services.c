@@ -129,6 +129,8 @@ characters in the substring are too large for the destination.
 static void extract(char *d, int l, char *s, int st, int ed)
 {
 
+    char *ds = d;
+
     if (ed-st+1 > l) error("String too large for desination");
     while (st <= ed) *d++ = s[st++];
     *d = 0;
@@ -148,7 +150,7 @@ static void trim(char *s)
 {
 
     while (*s == ' ') s++;
-    while (*s != ' ') s++;
+    while (*s != ' ' && *s) s++;
     *s = 0;
 
 }
@@ -312,7 +314,6 @@ void pa_list(
     struct dirent* dr; /* Unix directory record */
     DIR*           dd; /* directory file descriptor */
     int            r;  /* result code */
-    int            rd;
     struct stat    sr; /* stat() record */
     pa_filrec*     fp; /* file entry pointer */
     pa_filrec*     lp; /* last entry pointer */
@@ -412,7 +413,7 @@ void pa_list(
 
         }
 
-    } while (rd == 1);
+    } while (dr);
     r = closedir(dd);
     if (r < 0) unixerr();  /* process unix error */
 
@@ -850,7 +851,7 @@ static void fndenv(
 
     p = envlst; /* index top of environment list */
     *ep = NULL; /* set no string found */
-    while (p != NULL && *ep == NULL) {  /* traverse */
+    while (p && *ep == NULL) {  /* traverse */
 
         if (!strcmp(esn, p->name)) *ep = p; /* found */
         else p = p->next;/* next string */
@@ -878,6 +879,7 @@ void pa_getenv(
 
     *esd = 0;
     fndenv(esn, &p);
+    if (!p) error("Environment string not found");
     if (strlen(p->data) > esdl) error("String too large for destination");
     if (p) strcpy(esd, p->data);
 
@@ -1273,7 +1275,7 @@ void pa_maknam(
     int i;   /* index for string */
     int fsi;   /* index for output filename */
 
-    strcat(fn, p); /* place path */
+    strcpy(fn, p); /* place path */
     /* check path properly terminated */
     i = strlen(p);   /* find length */
     if (*p) /* not null */
@@ -2325,6 +2327,7 @@ static void pa_init_services()
     int        ei;     /* index for string table */
     int        si;     /* index for strings */
     pa_envrec* p;      /* environment entry pointer */
+    pa_envrec* p1;
     char*      cp;
     int        l;
 
@@ -2339,17 +2342,28 @@ static void pa_init_services()
         cp = strchr(*ep, '='); /* find location of '=' */
         if (!cp) error("Invalid environment string format");
         /* get the name string */
-        l = cp-*ep+1;
+        l = cp-*ep;
         p->name = malloc(l+1);
-        extract(p->name, l, *ep, 1, cp-*ep);
+        extract(p->name, l, *ep, 0, cp-*ep-1);
         /* get the data string */
-        l = strlen(*ep)-(cp-*ep+1)+1;
-        p->data = malloc(l);
-        extract(p->data, l, *ep, cp-*ep+1, strlen(*ep));
+        l = strlen(*ep)-(cp-*ep+1);
+        p->data = malloc(l+1);
+        extract(p->data, l, *ep, cp+1-*ep, strlen(*ep)-1);
         ep++; /* next environment string */
 
     }
-    pa_getenv("path", pthstr, MAXSTR); /* load up the current path */
+    /* reverse the environment to original order for neatness */
+    p = envlst;
+    envlst = NULL;
+    while (p) {
+
+        p1 = p;
+        p = p->next;
+        p1->next = envlst;
+        envlst = p1;
+
+     }
+    pa_getenv("PATH", pthstr, MAXSTR); /* load up the current path */
     trim(pthstr); /* make sure left aligned */
 
 }
