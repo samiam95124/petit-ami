@@ -41,13 +41,13 @@ extern char *program_invocation_name;
 extern char **environ;
 
 /* give bit in word from ordinal position */
-#define bit(b) (1 << b)
+#define BIT(b) (1 << b)
 
-#define hoursec         3600   /* number of seconds in an hour */
-#define daysec          (hoursec * 24)   /* number of seconds in a day */
-#define yearsec         (daysec * 365)   /* number of seconds in year */
+#define HOURSEC         3600   /* number of seconds in an hour */
+#define DAYSEC          (HOURSEC * 24)   /* number of seconds in a day */
+#define YEARSEC         (DAYSEC * 365)   /* number of seconds in year */
 /* Unix time adjustment for 1970 */
-#define unixadj         (yearsec * 30 + daysec * 7)
+#define UNIXADJ         (YEARSEC * 30 + DAYSEC * 7)
 
 /* maximum size of holding buffers (I had to make this very large for large
    paths [sam]) */
@@ -355,53 +355,53 @@ void pa_list(
                 fp->alloc = sr.st_size;   /* place allocation */
                 fp->attr = 0;   /* clear attributes */
                 /* clear permissions to all is allowed */
-                fp->user = bit(pa_pmread) | bit(pa_pmwrite) | bit(pa_pmexec) | bit(pa_pmdel) |
-                           bit(pa_pmvis) | bit(pa_pmcopy) | bit(pa_pmren);
-                fp->other = bit(pa_pmread) | bit(pa_pmwrite) | bit(pa_pmexec) | bit(pa_pmdel) |
-                            bit(pa_pmvis) | bit(pa_pmcopy) | bit(pa_pmren);
-                fp->group = bit(pa_pmread) | bit(pa_pmwrite) | bit(pa_pmexec) | bit(pa_pmdel) |
-                            bit(pa_pmvis) | bit(pa_pmcopy) | bit(pa_pmren);
+                fp->user = BIT(pa_pmread) | BIT(pa_pmwrite) | BIT(pa_pmexec) | BIT(pa_pmdel) |
+                           BIT(pa_pmvis) | BIT(pa_pmcopy) | BIT(pa_pmren);
+                fp->other = BIT(pa_pmread) | BIT(pa_pmwrite) | BIT(pa_pmexec) | BIT(pa_pmdel) |
+                            BIT(pa_pmvis) | BIT(pa_pmcopy) | BIT(pa_pmren);
+                fp->group = BIT(pa_pmread) | BIT(pa_pmwrite) | BIT(pa_pmexec) | BIT(pa_pmdel) |
+                            BIT(pa_pmvis) | BIT(pa_pmcopy) | BIT(pa_pmren);
                 /* check and set directory attribute */
-                if (sr.st_mode & S_IFDIR) fp->attr |= bit(pa_atdir);
+                if (sr.st_mode & S_IFDIR) fp->attr |= BIT(pa_atdir);
                 /* check and set any system special file */
-                if (sr.st_mode & S_IFIFO) fp->attr |= bit(pa_atsys);
-                if (sr.st_mode & S_IFCHR) fp->attr |= bit(pa_atsys);
-                if (sr.st_mode & S_IFBLK) fp->attr |= bit(pa_atsys);
+                if (sr.st_mode & S_IFIFO) fp->attr |= BIT(pa_atsys);
+                if (sr.st_mode & S_IFCHR) fp->attr |= BIT(pa_atsys);
+                if (sr.st_mode & S_IFBLK) fp->attr |= BIT(pa_atsys);
                 /* check hidden. in Unix, this is done with a leading '.'. We remove
                    visiblity priveledges */
                 if (dr->d_name[0] == '.') {
 
-                    fp->user &= ~bit(pa_pmvis);
-                    fp->group &= ~bit(pa_pmvis);
-                    fp->other &= ~bit(pa_pmvis);
+                    fp->user &= ~BIT(pa_pmvis);
+                    fp->group &= ~BIT(pa_pmvis);
+                    fp->other &= ~BIT(pa_pmvis);
 
                 }
                 /* check and set executable attribute. Unix has separate executable
                    permissions for each permission type, we set executable if any of
                    them are true */
-                if (sr.st_mode & S_IXUSR) fp->attr |= bit(pa_atexec);
+                if (sr.st_mode & S_IXUSR) fp->attr |= BIT(pa_atexec);
                 /* set execute permissions to user */
-                if (sr.st_mode & S_IXUSR) fp->user &= ~bit(pa_pmexec);
+                if (sr.st_mode & S_IXUSR) fp->user &= ~BIT(pa_pmexec);
                 /* set read permissions to user */
-                if (sr.st_mode & S_IRUSR) fp->user &= ~bit(pa_pmread);
+                if (sr.st_mode & S_IRUSR) fp->user &= ~BIT(pa_pmread);
                 /* set write permissions to user */
-                if (sr.st_mode & S_IWUSR) fp->user &= ~bit(pa_pmwrite);
+                if (sr.st_mode & S_IWUSR) fp->user &= ~BIT(pa_pmwrite);
                 /* set execute permissions to group */
-                if (sr.st_mode & S_IXGRP) fp->group &= ~bit(pa_pmexec);
+                if (sr.st_mode & S_IXGRP) fp->group &= ~BIT(pa_pmexec);
                 /* set read permissions to group */
-                if (sr.st_mode & S_IRGRP) fp->group &= ~bit(pa_pmread);
+                if (sr.st_mode & S_IRGRP) fp->group &= ~BIT(pa_pmread);
                 /* set write permissions to group */
-                if (sr.st_mode & S_IWGRP) fp->group &= ~bit(pa_pmwrite);
+                if (sr.st_mode & S_IWGRP) fp->group &= ~BIT(pa_pmwrite);
                 /* set execute permissions to other */
-                if (sr.st_mode & S_IXOTH) fp->other = fp->group & (~bit(pa_pmexec));
+                if (sr.st_mode & S_IXOTH) fp->other = fp->group & (~BIT(pa_pmexec));
                 /* set read permissions to other */
-                if (sr.st_mode & S_IROTH) fp->other = fp->group & (~bit(pa_pmread));
+                if (sr.st_mode & S_IROTH) fp->other = fp->group & (~BIT(pa_pmread));
                 /* set write permissions to other */
-                if (sr.st_mode & S_IWOTH) fp->other = fp->group & (~bit(pa_pmwrite));
+                if (sr.st_mode & S_IWOTH) fp->other = fp->group & (~BIT(pa_pmwrite));
                 /* set times */
-                fp->create = sr.st_ctime-unixadj;
-                fp->modify = sr.st_mtime-unixadj;
-                fp->access = sr.st_atime-unixadj;
+                fp->create = sr.st_ctime-UNIXADJ;
+                fp->modify = sr.st_mtime-UNIXADJ;
+                fp->access = sr.st_atime-UNIXADJ;
                 fp->backup = -INT_MAX; /* no backup time for Unix */
                 /* insert entry to list */
                 if (*l == NULL) *l = fp; /* insert new top */
@@ -446,11 +446,11 @@ void pa_times(
     /* because leap adjustments are made in terms of days, we just remove
        the days to find the time of day in seconds. this is completely
        independent of leap adjustments */
-    t %= daysec;   /* find number of seconds in day */
+    t %= DAYSEC;   /* find number of seconds in day */
     /* if before 2000, find from remaining seconds */
-    if (t < 0) t += daysec;
-    h = t / hoursec;   /* find hours */
-    t %= hoursec;   /* subtract hours */
+    if (t < 0) t += DAYSEC;
+    h = t / HOURSEC;   /* find hours */
+    t %= HOURSEC;   /* subtract hours */
     m = t / 60;   /* find minutes */
     sec = t % 60;   /* find seconds */
     pm = 0; /* clear am and pm flags */
@@ -501,7 +501,7 @@ Converts the given date into a string.
 /*
  * Check year is a leap year
  */
-#define leapyear(y) ((y & 3) == 0 && y % 100 != 0 || y % 400 == 0)
+#define LEAPYEAR(y) ((y & 3) == 0 && y % 100 != 0 || y % 400 == 0)
 
 void pa_dates(
     /** string to place date into */   char *s,
@@ -542,21 +542,21 @@ void pa_dates(
     do {
 
         yd = 365;   /* set days in this year */
-        if (leapyear(y)) yd = 366; /* set leap year days */
+        if (LEAPYEAR(y)) yd = 366; /* set leap year days */
         else  yd = 365;
         /* set normal year days */
-        if (t/daysec > yd) {  /* remove another year */
+        if (t/DAYSEC > yd) {  /* remove another year */
 
             if (y >= 2000) y++; else y--; /* find next year */
-            t -= yd * daysec; /* remove that many seconds */
+            t -= yd * DAYSEC; /* remove that many seconds */
 
         } else done = 1;
 
     } while (!done);   /* until year found */
     leap = 0;   /* set no leap day */
     /* check leap year, and set leap day accordingly */
-    if (leapyear(y)) leap = 1;
-    t = t/daysec+1; /* find days into year */
+    if (LEAPYEAR(y)) leap = 1;
+    t = t/DAYSEC+1; /* find days into year */
     if (y < 2000) t = leap - t + 366; /* adjust for negative years */
     di = 1;   /* set 1st month */
     while (di <= 12) {  /* fit months */
@@ -658,7 +658,7 @@ int pa_time(void)
     r = time(NULL); /* get current time */
     if (r < 0) unixerr();  /* process unix error */
 
-    return ((int) r-unixadj);   /* return S2000 time */
+    return ((int) r-UNIXADJ);   /* return S2000 time */
 
 }
 
@@ -676,7 +676,7 @@ timezones.
 int pa_local(int t)
 {
 
-    return t+pa_timezone()+pa_daysave()*60;
+    return t+pa_timezone()+pa_daysave()*HOURSEC;
 
 }
 
@@ -714,7 +714,7 @@ int pa_clock(void)
     /* for Unix, the time is kept in microseconds since the start of the last
        second. we find the number of 100usecs, then add 48 hours worth of
        seconds from standard time */
-    return (tv.tv_usec / 100 + tv.tv_sec % (daysec * 2) * 10000);
+    return (tv.tv_usec / 100 + tv.tv_sec % (DAYSEC * 2) * 10000);
 
 }
 
@@ -1478,7 +1478,7 @@ which effectively means "back this file up now".
 void pa_bakupd(char *fn)
 {
 
-    pa_setatr(fn, bit(pa_atarc));
+    pa_setatr(fn, BIT(pa_atarc));
 
 }
 
@@ -1500,9 +1500,9 @@ void pa_setuper(char *fn, pa_permset p)
     if (r < 0)   /* process unix error */
     unixerr();
     sr.st_mode &= 0777; /* mask permissions */
-    if (bit(pa_pmread) & p) sr.st_mode |= S_IRUSR; /* set read */
-    if (bit(pa_pmwrite) & p) sr.st_mode |= S_IWUSR; /* set write */
-    if (bit(pa_pmexec) & p) sr.st_mode |= S_IXUSR; /* set execute */
+    if (BIT(pa_pmread) & p) sr.st_mode |= S_IRUSR; /* set read */
+    if (BIT(pa_pmwrite) & p) sr.st_mode |= S_IWUSR; /* set write */
+    if (BIT(pa_pmexec) & p) sr.st_mode |= S_IXUSR; /* set execute */
     r = chmod(fn, sr.st_mode); /* set mode */
     if (r < 0) unixerr();  /* process unix error */
 
@@ -1526,9 +1526,9 @@ void pa_resuper(char *fn, pa_permset p)
     r = stat(fn, &sr);   /* get stat structure on file */
     if (r < 0) unixerr();  /* process unix error */
     sr.st_mode &= 0777;   /* mask permissions */
-    if (bit(pa_pmread) & p) sr.st_mode &= ~S_IRUSR; /* set read */
-    if (bit(pa_pmwrite) & p) sr.st_mode &= ~S_IWUSR; /* set write */
-    if (bit(pa_pmexec) & p) sr.st_mode &= ~S_IXUSR; /* set execute */
+    if (BIT(pa_pmread) & p) sr.st_mode &= ~S_IRUSR; /* set read */
+    if (BIT(pa_pmwrite) & p) sr.st_mode &= ~S_IWUSR; /* set write */
+    if (BIT(pa_pmexec) & p) sr.st_mode &= ~S_IXUSR; /* set execute */
     r = chmod(fn, sr.st_mode);   /* set mode */
     if (r < 0) unixerr();  /* process unix error */
 
@@ -1552,9 +1552,9 @@ void pa_setgper(char *fn, pa_permset p)
     r = stat(fn, &sr); /* get stat structure on file */
     if (r < 0) unixerr(); /* process unix error */
     sr.st_mode &= 0777;   /* mask permissions */
-    if (bit(pa_pmread) & p) sr.st_mode |= S_IRGRP;  /* set read */
-    if (bit(pa_pmwrite) & p) sr.st_mode |= S_IWGRP;  /* set write */
-    if (bit(pa_pmexec) & p) sr.st_mode |= S_IXGRP;  /* set execute */
+    if (BIT(pa_pmread) & p) sr.st_mode |= S_IRGRP;  /* set read */
+    if (BIT(pa_pmwrite) & p) sr.st_mode |= S_IWGRP;  /* set write */
+    if (BIT(pa_pmexec) & p) sr.st_mode |= S_IXGRP;  /* set execute */
     r = chmod(fn, sr.st_mode);   /* set mode */
     if (r < 0) unixerr();  /* process unix error */
 
@@ -1577,9 +1577,9 @@ void pa_resgper(char *fn, pa_permset p)
     r = stat(fn, &sr); /* get stat structure on file */
     if (r < 0) unixerr(); /* process unix error */
     sr.st_mode &= 0777;   /* mask permissions */
-    if (bit(pa_pmread) & p)  sr.st_mode &= ~S_IRGRP; /* set read */
-    if (bit(pa_pmwrite) & p) sr.st_mode &= ~S_IWGRP;  /* set write */
-    if (bit(pa_pmexec) & p) sr.st_mode &= ~S_IXGRP;  /* set execute */
+    if (BIT(pa_pmread) & p)  sr.st_mode &= ~S_IRGRP; /* set read */
+    if (BIT(pa_pmwrite) & p) sr.st_mode &= ~S_IWGRP;  /* set write */
+    if (BIT(pa_pmexec) & p) sr.st_mode &= ~S_IXGRP;  /* set execute */
     r = chmod(fn, sr.st_mode);   /* set mode */
     if (r < 0) unixerr();  /* process unix error */
 
@@ -1603,9 +1603,9 @@ void pa_setoper(char *fn, pa_permset p)
     r = stat(fn, &sr);   /* get stat structure on file */
     if (r < 0) unixerr();  /* process unix error */
     sr.st_mode &= 0777;   /* mask permissions */
-    if (bit(pa_pmread) & p) sr.st_mode |= S_IROTH;  /* set read */
-    if (bit(pa_pmwrite) & p) sr.st_mode |= S_IWOTH;  /* set write */
-    if (bit(pa_pmexec) & p) sr.st_mode |= S_IXOTH;  /* set execute */
+    if (BIT(pa_pmread) & p) sr.st_mode |= S_IROTH;  /* set read */
+    if (BIT(pa_pmwrite) & p) sr.st_mode |= S_IWOTH;  /* set write */
+    if (BIT(pa_pmexec) & p) sr.st_mode |= S_IXOTH;  /* set execute */
     r = chmod(fn, sr.st_mode);   /* set mode */
     if (r < 0) unixerr();  /* process unix error */
 
@@ -1629,9 +1629,9 @@ void pa_resoper(char *fn, pa_permset p)
     r = stat(fn, &sr); /* get stat structure on file */
     if (r < 0) unixerr(); /* process unix error */
     sr.st_mode &= 0777; /* mask permissions */
-    if (bit(pa_pmread) & p) sr.st_mode &= ~S_IROTH; /* set read */
-    if (bit(pa_pmwrite) & p) sr.st_mode &= ~S_IWOTH; /* set write */
-    if (bit(pa_pmexec) & p) sr.st_mode &= ~S_IXOTH; /* set execute */
+    if (BIT(pa_pmread) & p) sr.st_mode &= ~S_IROTH; /* set read */
+    if (BIT(pa_pmwrite) & p) sr.st_mode &= ~S_IWOTH; /* set write */
+    if (BIT(pa_pmexec) & p) sr.st_mode &= ~S_IXOTH; /* set execute */
     r = chmod(fn, sr.st_mode); /* set mode */
     if (r < 0) unixerr(); /* process unix error */
 
@@ -2009,15 +2009,19 @@ int pa_timezone(void)
 
 {
 
-    time_t t;        /* seconds time holder */
-    struct tm* pgmt; /* time structure gmt */
-    struct tm* plcl; /* local time structure */
+    time_t t, nt;  /* seconds time holder */
+    struct tm gmt; /* time structure gmt */
+    struct tm lcl; /* local time structure */
 
     t = time(NULL); /* get seconds time */
-    pgmt = localtime(&t); /* get gmt */
-    plcl = localtime(&t); /* get local */
+    gmtime_r(&t, &gmt); /* get gmt */
+    localtime_r(&t, &lcl); /* get local */
+    nt = (lcl.tm_hour-gmt.tm_hour)*HOURSEC-(!!lcl.tm_isdst*HOURSEC);
+    /* adjust for GMT ahead of local */
+    if (lcl.tm_mday = gmt.tm_mday) nt -= 24*HOURSEC;
 
-    return pgmt->tm_hour-plcl->tm_hour; /* return hour difference */
+    /* return hour difference */
+    return nt;
 
 }
 
@@ -2048,7 +2052,7 @@ int pa_daysave(void)
     t = time(NULL); /* get seconds time */
     plcl = localtime(&t); /* get local */
 
-    return plcl->tm_isdst; /* return dst active status */
+    return !!plcl->tm_isdst; /* return dst active status */
 
 }
 

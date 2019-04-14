@@ -14,15 +14,24 @@ int main(void)
 
 {
 
-    pa_filptr fp;
+    int time;
 
-    pa_list("*", &fp); /* get current directory listing */
-    printf("Current directory:\n\n");
-    while (fp) {
+    time = pa_time();
 
-        printf("%s\n", fp->name);
-        fp = fp->next;
+    printf("Current time (GMT): ");
+    pa_writetime(stdout, time);
+    printf("\n");
 
-    }
+    printf("current date (GMT): ");
+    pa_writedate(stdout, time);
+    printf("\n");
+
+    printf("Current time (local): ");
+    pa_writetime(stdout, pa_local(time));
+    printf("\n");
+
+    printf("current date (local): ");
+    pa_writedate(stdout, pa_local(time));
+    printf("\n");
 
 }
