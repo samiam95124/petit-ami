@@ -22,6 +22,7 @@
 //#include <sys/status.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <sys/wait.h>
 #include <time.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -54,6 +55,8 @@ extern char **environ;
 #define MAXSTR          500
 
 typedef char bufstr[MAXSTR]; /* standard string buffer */
+
+#define MAXARG 1000 /* maximum number of argv strings */
 
 static bufstr pthstr;   /* buffer for execution path */
 
@@ -184,6 +187,7 @@ static int words(char *s)
             if (!ichar) { ichar = 1; ispace = 0; wc++; }
 
         }
+        s++;
 
     }
 
@@ -199,7 +203,7 @@ Extracts a series of space delimited words from a string.
 
 ********************************************************************************/
 
-static int extwords(char *d, int dl, char *s, int st, int ed)
+static void extwords(char *d, int dl, char *s, int st, int ed)
 {
 
     int wc;
@@ -215,11 +219,12 @@ static int extwords(char *d, int dl, char *s, int st, int ed)
 
         if (*s == ' ') {
 
+            if (ichar) wc++; /* count end of word */
             if (!ispace) { ispace = 1; ichar = 0; }
 
         } else {
 
-            if (!ichar) { ichar = 1; ispace = 0; wc++; }
+            if (!ichar) { ichar = 1; ispace = 0; }
             if (wc >=st && wc <= ed) {
 
                 if (!dl) error("String too large for destination");
@@ -233,8 +238,6 @@ static int extwords(char *d, int dl, char *s, int st, int ed)
 
     }
     *d = 0;
-
-    return wc;
 
 }
 
@@ -819,7 +822,7 @@ int pa_wild(
 
     ln = strlen(s);   /* find length */
     r = 0;   /* set no wildcard found */
-    if (ln <= 0) { /* not null */
+    if (ln) { /* not null */
 
         /* search and flag wildcard characters */
         for (i = 0; i < ln; i++) { if (s[i] == '*' || s[i] == '?') r = 1; }
@@ -880,7 +883,7 @@ void pa_getenv(
     *esd = 0;
     fndenv(esn, &p);
     if (!p) error("Environment string not found");
-    if (strlen(p->data) > esdl) error("String too large for destination");
+    if (strlen(p->data)+1 > esdl) error("String too large for destination");
     if (p) strcpy(esd, p->data);
 
 }
@@ -903,7 +906,7 @@ void pa_setenv(
     pa_envrec *p;   /* pointer to environment entry */
 
     fndenv(sn, &p); /* find environment string */
-    if (p != NULL) { /* found */
+    if (p) { /* found */
 
         free(p->data);   /* release last contents */
         /* create new data string */
@@ -918,11 +921,11 @@ void pa_setenv(
         p->next = envlst; /* push onto environment list */
         envlst = p;
         /* create new name string and place */
-        p->name = (char *) malloc(strlen(sn));
+        p->name = (char *) malloc(strlen(sn)+1);
         if (!p) error("Could not allocate string");
-        strcpy(p->data, sd);
+        strcpy(p->name, sn);
         /* create new data string and place */
-        p->data = (char *) malloc(strlen(sd));
+        p->data = (char *) malloc(strlen(sd)+1);
         if (!p) error("Could not allocate string");
         strcpy(p->data, sd);
 
@@ -982,21 +985,126 @@ void pa_allenv(
 
 {
 
-    pa_envrec *p, *lp; /* environment pointers */
+    pa_envrec *p, *lp, *tp; /* environment pointers */
 
     /* copy current environment list */
     lp = envlst; /* index top of environment list */
-    *el = NULL; /* clear destination */
+    tp = NULL; /* clear destination */
     while (lp != NULL) {  /* copy entries */
 
         p = malloc(sizeof(pa_envrec)); /* create a new entry */
-        p->next = *el;   /* push onto list */
-        *el = p;
+        p->next = tp;   /* push onto list */
+        tp = p;
+        p->name = (char *) malloc(strlen(lp->name)+1);
         strcpy(p->name, lp->name);   /* place name */
+        p->data = (char *) malloc(strlen(lp->data)+1);
         strcpy(p->data, lp->data);   /* place data */
         lp = lp->next;   /* next entry */
 
     }
+    /* reverse to destination */
+    *el = NULL; /* clear destination */
+    while (tp) {
+
+        p = tp;
+        tp = tp->next;
+        p->next = *el;
+        *el = p;
+
+    }
+
+}
+
+/********************************************************************************
+
+Create argv array from string
+
+Fills an argv array with the words from a given string.
+
+********************************************************************************/
+
+void filargv(
+    /* command to use */ char *cmd,
+    /* argv array */     char *argv[],
+    /* argv length */    int max
+)
+{
+
+    int i;
+    int wc;
+    bufstr arg;
+
+    wc = words(cmd); /* find number of words in command */
+    /* construct argv list for new command */
+    for (i = 0; i < wc; i++) {
+
+        extwords(arg, MAXSTR, cmd, i, i);
+        argv[i] = malloc(strlen(arg)+1);
+        strcpy(argv[i], arg);
+
+    }
+    argv[i] = NULL;
+
+}
+
+/********************************************************************************
+
+Path program name
+
+Given a program with possible path, checks it exists and tries to path it if it
+does not exist and no path is provided. Gives and error if not successful.
+Returns the properly pathed command if found.
+
+********************************************************************************/
+
+void cmdpth(
+    /* command to search for */           char *cn,
+    /* result correctly pathed command */ char *pcn,
+    /* result length */                   int  pcnl
+)
+{
+
+    bufstr p, n, e; /* filename components */
+    bufstr pc;      /* path copy */
+    bufstr ncn;
+    char *cp;
+
+    strcpy(ncn, cn); /* copy command to temp */
+    if (!exists(cn)) {  /* does not exist in current form */
+
+        /* perform pathing search */
+        pa_brknam(cn, p, MAXSTR, n, MAXSTR, e, MAXSTR); /* break down the name */
+        *ncn = 0;
+        if (*p == 0 && *pthstr != 0) {
+
+            strcpy(pc, pthstr);   /* make a copy of the path */
+            trim(pc);   /* make sure left aligned */
+            while (*pc != 0) {  /* match path components */
+
+                cp = strchr(pc, ':' /*pa_pthchr()*/); /* find next path separator */
+                if (!cp) {  /* none left, use entire remaining */
+
+                    strcpy(p, pc); /* none left, use entire remaining */
+                    pc[0] = 0; /* clear the rest */
+
+                } else { /* copy partial */
+
+                    extract(p, MAXSTR, pc, 0, cp-pc-1);   /* get left side to path */
+                    extract(pc, MAXSTR, pc, cp-pc+1, strlen(pc)); /* remove from path */
+                    trim(pc); /* make sure left aligned */
+
+                }
+                pa_maknam(ncn, MAXSTR, p, n, e);   /* create filename */
+                if (exists(ncn)) *pc = 0;  /* found, indicate stop */
+
+            }
+            if (!exists(ncn)) error("Command does not exist");
+
+        } else error("Command does not exist");
+
+    }
+    if (strlen(ncn)+1 > pcnl) error("String too large for destination\n");
+    strcpy(pcn, ncn); /* copy to result */
 
 }
 
@@ -1014,64 +1122,28 @@ void pa_exec(
 
 {
 
-    int r;          /* result code */
-    int pid;        /* task id for child process */
-    bufstr cn;      /* buffer for command filename */
-    bufstr cmds;    /* buffer for commands */
-    int wc;         /* word count in command */
-    bufstr p, n, e; /* filename components */
-    bufstr pc;      /* path copy */
-    char **av, **ev;
-    char *cp;
-    int i;
+    int r;              /* result code */
+    int pid;            /* task id for child process */
+    bufstr cn;          /* buffer for command filename */
+    int wc;             /* word count in command */
+    char *argv[MAXARG]; /* argv array to be passed */
 
     wc = words(cmd);   /* find number of words in command */
     if (wc == 0)
     error("Command is empty");
-    extwords(cn, MAXSTR, cmd, 1, 1);  /* get the command verb */
-    if (!exists(cn)) {  /* does not exist in current form */
+    extwords(cn, MAXSTR, cmd, 0, 0);  /* get the command verb */
+    cmdpth(cn, cn, MAXSTR); /* fix path */
+    filargv(cmd, argv, MAXARG); /* construct argv list for new command */
 
-        /* perform pathing search */
-        pa_brknam(cn, p, MAXSTR, n, MAXSTR, e, MAXSTR);   /* break down the name */
-        if (*p == 0 && *pthstr != 0) {
-
-            strcpy(pc, pthstr);   /* make a copy of the path */
-            trim(pc);   /* make sure left aligned */
-            while (*pc != 0) {  /* match path components */
-
-                cp = strchr(pc, ':'); /* find next path separator */
-                if (!cp) {  /* none left, use entire remaining */
-
-                    strcpy(p, pc); /* none left, use entire remaining */
-                    pc[0] = 0; /* clear the rest */
-
-                } else { /* copy partial */
-
-                    extract(p, MAXSTR, pc, 1, cp-pc);   /* get left side to path */
-                    extract(pc, MAXSTR, pc, cp-pc+1, strlen(pc)); /* remove from path */
-                    trim(pc); /* make sure left aligned */
-
-                }
-                pa_maknam(cn, MAXSTR, p, n, e);   /* create filename */
-                if (exists(cn)) *pc = 0;  /* found, indicate stop */
-
-            }
-
-            if (!exists(cn)) error("Command does not exist");
-
-        } else error("Command does not exist");
-
-    }
     /* on fork, the child is going to see a zero return, and the parent will
        get the process id. Although this seems dangerous, forked processes
        are truly independent, and so don't care what language is running */
     pid = fork(); /* start subprocess */
     if (pid == 0) { /* we are the child */
 
-        r = execve(cn, av, ev);   /* execute directory */
-        if (r < 0)   /* process unix error */
-        unixerr();
-        error("Should not continue from execute");
+        r = execv(cn, argv);   /* execute directory */
+        if (r < 0) unixerr();  /* process unix error */
+        error("Execute failed");
 
     }
 
@@ -1087,12 +1159,39 @@ Executes a program by name. Waits for the program to complete.
 
 void pa_execw(
     /* program name to execute */ char *cmd,
-    /* return error */ int *e
+    /* return error */ int *err
 )
 
 {
+    int r;              /* result code */
+    int pid;            /* task id for child process */
+    bufstr cn;          /* buffer for command filename */
+    int wc;             /* word count in command */
+    char *argv[MAXARG]; /* argv array to be passed */
 
-    error("Function not implemented");
+    wc = words(cmd);   /* find number of words in command */
+    if (wc == 0)
+    error("Command is empty");
+    extwords(cn, MAXSTR, cmd, 0, 0);  /* get the command verb */
+    cmdpth(cn, cn, MAXSTR); /* fix path */
+
+    filargv(cmd, argv, MAXARG); /* construct argv list for new command */
+
+    /* on fork, the child is going to see a zero return, and the parent will
+       get the process id. Although this seems dangerous, forked processes
+       are truly independent, and so don't care what language is running */
+    pid = fork(); /* start subprocess */
+    if (pid == 0) { /* we are the child */
+
+        r = execv(cn, argv);   /* execute directory */
+        if (r < 0) unixerr();  /* process unix error */
+        error("Execute failed");
+
+    } else { /* we are the parent */
+
+        waitpid(pid, err, 0);
+
+    }
 
 }
 
@@ -1212,42 +1311,67 @@ void pa_brknam(
 
 {
 
-    int i, s, f, ln, t; /* string indexes */
+    int i, s, f, t; /* string indexes */
+    char *s1, *s2;
 
     /* clear all strings */
     *p = 0;
     *n = 0;
     *e = 0;
-    ln = strlen(fn);   /* find length of string */
-    if (ln == 0) error("File specification is empty");
-    s = 1;   /* set 1st character source */
+    if (!strlen(fn)) error("File specification is empty");
+    s1 = fn; /* index file spec */
     /* skip spaces */
-    while (fn[s-1] == ' ' && s < ln) s++;
-    /* find last '/', that will mark the path end */
-    f = 0;
-    for (i = 1; i <= ln; i++) if (fn[i-1] == '/') f = i;
-    if (f != 0) {  /* there is a path */
+    while (*s1 && *s1 == ' ') s1++;
+    /* find last '/' that will mark the path */
+    s2 = strrchr(s1, '/');
+    if (s2) {
 
-        extract(p, pl, fn, s, f); /* place path */
-        s = f + 1; /* reset next character */
+        /* there was a path, store that */
+        while (s1 <= s2) {
+
+            if (!pl) error("String to large for destination\n");
+            *p++ = *s1++;
+            pl--;
+
+        }
+        if (!nl) error("String to large for destination\n");
+        *p = 0;
+        /* now s1 points after path */
 
     }
-    /* skip any leading '.' in name */
-    t = s;
-    while (fn[t-1] == '.' && t <= ln) t++;
-    /* find last '.', that will mark the extension */
-    f = 0;
-    for (i = t; i <= ln; i++) if (fn[i-1] == '.') f = i;
-    if (f != 0) {  /* there is an extension */
+    /* keep any leading '.' characters from fooling extension finder */
+    s2 = s1; /* copy start point in name */
+    while (*s2 == '.') s2++;
+    /* find last '.' that will mark the extension */
+    s2 = strrchr(s2, '.');
+    if (s2) {
 
-        extract(n, nl, fn, s, f - 1); /* place name */
-        s = f + 1; /* reset to after "." */
-        extract(e, el, fn, s, ln); /* get the rest as an extension */
+        /* there was a name, store that */
+        while (s1 <= s2) {
 
-    } else {  /* no extension */
+            if (!nl) error("String to large for destination\n");
+            *n++ = *s1++;
+            nl--;
 
-        /* just place the rest as the name, and leave extension blank */
-        if (s <= ln) extract(n, nl, fn, s, ln);
+        }
+        if (!nl) error("String to large for destination\n");
+        *n = 0;
+        /* now s1 points to extension or nothing */
+
+    } else {
+
+        /* no extension */
+        if (strlen(s1)+1 > nl) error("String to large for destination\n");
+        strcpy(n, s1);
+        while (*s1) s1++;
+
+    }
+    if (*s1 == '.') {
+
+        /* there is an extension */
+        if (strlen(s1)+1 > el) error("String to large for destination\n");
+        s1++; /* skip '.' */
+        strcpy(e, s1);
 
     }
 

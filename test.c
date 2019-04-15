@@ -14,24 +14,9 @@ int main(void)
 
 {
 
-    int time;
+    int err;
 
-    time = pa_time();
-
-    printf("Current time (GMT): ");
-    pa_writetime(stdout, time);
-    printf("\n");
-
-    printf("current date (GMT): ");
-    pa_writedate(stdout, time);
-    printf("\n");
-
-    printf("Current time (local): ");
-    pa_writetime(stdout, pa_local(time));
-    printf("\n");
-
-    printf("current date (local): ");
-    pa_writedate(stdout, pa_local(time));
-    printf("\n");
+    pa_execw("ls", &err);
+    printf("Command returned: %d\n", err);
 
 }
