@@ -57,6 +57,7 @@ extern char **environ;
 typedef char bufstr[MAXSTR]; /* standard string buffer */
 
 #define MAXARG 1000 /* maximum number of argv strings */
+#define MAXENV 10000 /* maximum number of environment strings */
 
 static bufstr pthstr;   /* buffer for execution path */
 
@@ -1023,7 +1024,7 @@ Fills an argv array with the words from a given string.
 
 ********************************************************************************/
 
-void filargv(
+void cpyargv(
     /* command to use */ char *cmd,
     /* argv array */     char *argv[],
     /* argv length */    int max
@@ -1044,6 +1045,40 @@ void filargv(
 
     }
     argv[i] = NULL;
+
+}
+
+/********************************************************************************
+
+Create Linux environment array from services format
+
+Creates a copy of a services environment string array from a services format
+environment list.
+
+********************************************************************************/
+
+void cpyenv(
+    /* services environment list */ pa_envptr env,
+    /* Linux environment array */   char *envp[],
+    /* Linux environment array length */ int envpl
+)
+{
+
+    int i;
+
+    i = 0;
+    while (env) { /* traverse services environment list */
+
+        if (!envpl) error("Environment list too large");
+        envp[i] = malloc(strlen(env->name)+1+strlen(env->data)+1);
+        strcpy(envp[i], env->name);
+        strcat(envp[i], "=");
+        strcat(envp[i], env->data);
+        i++;
+        envpl--;
+        env = env->next;
+
+    }
 
 }
 
@@ -1126,14 +1161,12 @@ void pa_exec(
     int pid;            /* task id for child process */
     bufstr cn;          /* buffer for command filename */
     int wc;             /* word count in command */
-    char *argv[MAXARG]; /* argv array to be passed */
 
     wc = words(cmd);   /* find number of words in command */
     if (wc == 0)
     error("Command is empty");
     extwords(cn, MAXSTR, cmd, 0, 0);  /* get the command verb */
     cmdpth(cn, cn, MAXSTR); /* fix path */
-    filargv(cmd, argv, MAXARG); /* construct argv list for new command */
 
     /* on fork, the child is going to see a zero return, and the parent will
        get the process id. Although this seems dangerous, forked processes
@@ -1141,7 +1174,13 @@ void pa_exec(
     pid = fork(); /* start subprocess */
     if (pid == 0) { /* we are the child */
 
-        r = execv(cn, argv);   /* execute directory */
+        char *argv[MAXARG]; /* argv array to be passed */
+        char *envp[MAXENV]; /* environment string array to be passed */
+
+        cpyargv(cmd, argv, MAXARG); /* construct argv list for new command */
+        /* construct environment list for new command */
+        cpyenv(envlst, envp, MAXENV);
+        r = execve(cn, argv, envp);   /* execute directory */
         if (r < 0) unixerr();  /* process unix error */
         error("Execute failed");
 
@@ -1163,11 +1202,11 @@ void pa_execw(
 )
 
 {
+
     int r;              /* result code */
     int pid;            /* task id for child process */
     bufstr cn;          /* buffer for command filename */
     int wc;             /* word count in command */
-    char *argv[MAXARG]; /* argv array to be passed */
 
     wc = words(cmd);   /* find number of words in command */
     if (wc == 0)
@@ -1175,15 +1214,19 @@ void pa_execw(
     extwords(cn, MAXSTR, cmd, 0, 0);  /* get the command verb */
     cmdpth(cn, cn, MAXSTR); /* fix path */
 
-    filargv(cmd, argv, MAXARG); /* construct argv list for new command */
-
     /* on fork, the child is going to see a zero return, and the parent will
        get the process id. Although this seems dangerous, forked processes
        are truly independent, and so don't care what language is running */
     pid = fork(); /* start subprocess */
     if (pid == 0) { /* we are the child */
 
-        r = execv(cn, argv);   /* execute directory */
+        char *argv[MAXARG]; /* argv array to be passed */
+        char *envp[MAXENV]; /* environment string array to be passed */
+
+        cpyargv(cmd, argv, MAXARG); /* construct argv list for new command */
+        /* construct environment list for new command */
+        cpyenv(envlst, envp, MAXENV);
+        r = execve(cn, argv, envp);   /* execute directory */
         if (r < 0) unixerr();  /* process unix error */
         error("Execute failed");
 
@@ -1194,7 +1237,6 @@ void pa_execw(
     }
 
 }
-
 
 /********************************************************************************
 
@@ -1212,7 +1254,34 @@ void pa_exece(
 
 {
 
-    error("Function not implemented");
+    int r;              /* result code */
+    int pid;            /* task id for child process */
+    bufstr cn;          /* buffer for command filename */
+    int wc;             /* word count in command */
+
+    wc = words(cmd);   /* find number of words in command */
+    if (wc == 0)
+    error("Command is empty");
+    extwords(cn, MAXSTR, cmd, 0, 0);  /* get the command verb */
+    cmdpth(cn, cn, MAXSTR); /* fix path */
+
+    /* on fork, the child is going to see a zero return, and the parent will
+       get the process id. Although this seems dangerous, forked processes
+       are truly independent, and so don't care what language is running */
+    pid = fork(); /* start subprocess */
+    if (pid == 0) { /* we are the child */
+
+        char *argv[MAXARG]; /* argv array to be passed */
+        char *envp[MAXENV]; /* environment string array to be passed */
+
+        cpyargv(cmd, argv, MAXARG); /* construct argv list for new command */
+        /* construct environment list for new command */
+        cpyenv(el, envp, MAXENV);
+        r = execve(cn, argv, envp);   /* execute directory */
+        if (r < 0) unixerr();  /* process unix error */
+        error("Execute failed");
+
+    }
 
 }
 
@@ -1229,12 +1298,43 @@ program environment.
 void pa_execew(
         /* program name to execute */ char *cmd,
         /* environment */             pa_envrec *el,
-        /* return error */            int *e
+        /* return error */            int *err
 )
 
 {
 
-    error("Function not implemented");
+    int r;              /* result code */
+    int pid;            /* task id for child process */
+    bufstr cn;          /* buffer for command filename */
+    int wc;             /* word count in command */
+
+    wc = words(cmd);   /* find number of words in command */
+    if (wc == 0)
+    error("Command is empty");
+    extwords(cn, MAXSTR, cmd, 0, 0);  /* get the command verb */
+    cmdpth(cn, cn, MAXSTR); /* fix path */
+
+    /* on fork, the child is going to see a zero return, and the parent will
+       get the process id. Although this seems dangerous, forked processes
+       are truly independent, and so don't care what language is running */
+    pid = fork(); /* start subprocess */
+    if (pid == 0) { /* we are the child */
+
+        char *argv[MAXARG]; /* argv array to be passed */
+        char *envp[MAXENV]; /* environment string array to be passed */
+
+        cpyargv(cmd, argv, MAXARG); /* construct argv list for new command */
+        /* construct environment list for new command */
+        cpyenv(el, envp, MAXENV);
+        r = execve(cn, argv, envp);   /* execute directory */
+        if (r < 0) unixerr();  /* process unix error */
+        error("Execute failed");
+
+    } else { /* we are the parent */
+
+        waitpid(pid, err, 0);
+
+    }
 
 }
 
@@ -1891,6 +1991,10 @@ This means each increment equals 0.0000000419 degrees or about 0.00465 meters
 Note that implementations are generally divided into stationary and mobile
 hosts. A stationary host like a desktop computer can be set once on install.
 A mobile host is constantly reading its location (usually from a GPS).
+
+There are algorithims that can find the approximate location of a host from
+network connections. This would effectively allow the automatic setting of a
+host location.
 
 *******************************************************************************/
 
