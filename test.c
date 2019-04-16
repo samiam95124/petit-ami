@@ -16,7 +16,8 @@ int main(void)
 
     char fn[100];
 
-    pa_maknam(fn, 100, "bark/", "sniff", "scratch");
+    strcpy(fn, "here");
+    pa_fulnam(fn, 100);
     printf("Filename: %s\n", fn);
 
 }

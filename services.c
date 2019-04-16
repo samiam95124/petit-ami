@@ -1536,27 +1536,13 @@ void pa_fulnam(
 
     pa_brknam(fn, p, MAXSTR, n, MAXSTR, e, MAXSTR);   /* break spec down */
     /* if the path is blank, then default to current */
-    if (*p) strcpy(p, ".");
-    if ((!strcmp(n, ".") || !strcmp(n, "..")) && !*e) {
-
-        /* its '.' or '..', find equivalent path */
-        pa_getcur(ps, MAXSTR);   /* save current path */
-        pa_setcur(fn);   /* set candidate path */
-        pa_getcur(fn, MAXSTR);   /* get washed path */
-        /* reset old path */
-
-        pa_setcur(ps);
-
-    } else {
-
-        pa_getcur(ps, MAXSTR);   /* save current path */
-        pa_setcur(p);   /* set candidate path */
-        pa_getcur(p, MAXSTR);   /* get washed path */
-        pa_setcur(ps);   /* reset old path */
-        /* reassemble */
-        pa_maknam(fn, fnl, p, n, e);
-
-    }
+    if (!*p) strcpy(p, ".");
+    pa_getcur(ps, MAXSTR);   /* save current path */
+    pa_setcur(p);   /* set candidate path */
+    pa_getcur(p, MAXSTR);   /* get washed path */
+    pa_setcur(ps);   /* reset old path */
+    /* reassemble */
+    pa_maknam(fn, fnl, p, n, e);
 
 }
 
