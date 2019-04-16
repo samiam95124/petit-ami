@@ -14,15 +14,9 @@ int main(void)
 
 {
 
-    int err;
-    pa_envptr el;
+    char fn[100];
 
-    el = malloc(sizeof(pa_envrec));
-    el->name = malloc(strlen("teststr")+1);
-    strcpy(el->name, "teststr");
-    el->data = malloc(strlen("hello, world")+1);
-    strcpy(el->data, "hello, world");
-    pa_execew("printenv", el, &err);
-    printf("Command returned: %d\n", err);
+    pa_maknam(fn, 100, "bark/", "sniff", "scratch");
+    printf("Filename: %s\n", fn);
 
 }

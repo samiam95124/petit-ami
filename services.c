@@ -1447,7 +1447,7 @@ void pa_brknam(
     if (s2) {
 
         /* there was a name, store that */
-        while (s1 <= s2) {
+        while (s1 < s2) {
 
             if (!nl) error("String to large for destination\n");
             *n++ = *s1++;
