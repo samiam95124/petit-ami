@@ -107,6 +107,7 @@ typedef struct { /* screen context */
       /* current writing background color */ pa_color backc;
       /* current writing attribute */        scnatt attr;
       /* current status of scroll */         int scroll;
+      /* current status of cursor visible */ int curvis;
 
 } scncon;
 /** pointer to screen context block */ typedef scncon* scnptr;
@@ -559,6 +560,8 @@ putstr("\33[5m"); }
 static void trm_attroff(void) { putstr("\33[0m"); }
 /** turn on cursor wrap */ static void trm_wrapon(void) { putstr("\33[7h"); }
 /** turn off cursor wrap */ static void trm_wrapoff(void) { putstr("\33[7l"); }
+/** turn off cursor */ static void trm_curoff(void) { putstr("\33[?25l"); }
+/** turn off cursor */ static void trm_curon(void) { putstr("\33[?25h"); }
 
 /** set foreground color */
 static void trm_fcolor(pa_color c)
@@ -660,6 +663,7 @@ static void iniscn(void)
     screens[curscn-1]->forec = pa_black; /* set colors and attributes */
     screens[curscn-1]->backc = pa_white;
     screens[curscn-1]->attr = sanone;
+    screens[curscn-1]->curvis = 1; /* turn on cursor visible */
     screens[curscn-1]->scroll = 1; /* turn on autoscroll */
     clrbuf(); /* clear screen buffer with that */
     setattr(screens[curscn-1]->attr); /* set current attribute */
@@ -736,6 +740,8 @@ static void restore(void)
    trm_fcolor(screens[curscn-1]->forec); /* restore colors */
    trm_bcolor(screens[curscn-1]->backc);
    setattr(screens[curscn-1]->attr); /* restore attributes */
+   /* restore cursor visible status */
+   if (screens[curscn-1]->curvis) trm_curon(); else trm_curoff();
 
 }
 
@@ -1777,7 +1783,7 @@ off the screen at the top or bottom will scroll up or down, respectively.
 
 *******************************************************************************/
 
-void pa_automode(FILE *f, int e)
+void pa_auto(FILE *f, int e)
 
 {
 
@@ -1797,7 +1803,8 @@ void pa_curvis(FILE *f, int e)
 
 {
 
-    /* no capability */
+    screens[curscn-1]->curvis = !!e; /* set cursor visible status */
+    if (e) trm_curon(); else trm_curoff();
 
 }
 
@@ -1865,7 +1872,7 @@ forces a screen refresh, which can be important when working on terminals.
 
 *******************************************************************************/
 
-void pa_selects(FILE *f, int u, int d)
+void pa_select(FILE *f, int u, int d)
 
 {
 

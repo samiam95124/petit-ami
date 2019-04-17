@@ -56,7 +56,7 @@ static char c;
 static int top, bottom, lside, rside; /* borders */
 static enum { dup, ddown, dleft, dright } direction; /* writting direction */
 static int count, t1, t2, delay, minlen;   /* minimum direction, x or y */
-static evtrec er;   /* event record */
+static pa_evtrec er;   /* event record */
 static int i, b, tc, clk, cnt;
 static FILE *tf;   /* test file */
 static char tf_NAME[10/*_FNSIZE*/] = "testfile";
@@ -70,15 +70,15 @@ static void box(int sx, int sy, int ex, int ey, char c)
     int x, y;
 
     /* top */
-    cursor(stdout, sx, sy);
+    pa_cursor(stdout, sx, sy);
     for (x = sx; x <= ex; x++) putchar(c);
     /* bottom */
-    cursor(stdout, sx, ey);
+    pa_cursor(stdout, sx, ey);
     for (x = sx; x <= ex; x++) putchar(c);
     /* left */
-    for (y = sy; y <= ey; y++) { cursor(stdout, sx, y); putchar(c); }
+    for (y = sy; y <= ey; y++) { pa_cursor(stdout, sx, y); putchar(c); }
     /* right */
-    for (y = sy; y <= ey; y++) { cursor(stdout, ex, y); putchar(c); }
+    for (y = sy; y <= ey; y++) { pa_cursor(stdout, ex, y); putchar(c); }
 
 }
 
@@ -91,9 +91,12 @@ static jmp_buf _JL99;
 static void wait(int t)
 {
 
-    timer(stdout, 1, t, 0);
-    do { event(stdin, &er); } while (er.etype != ettim && er.etype != etterm);
-    if (er.etype == etterm) { longjmp(_JL99, 1); }
+    pa_evtrec er; /* event record */
+
+    pa_timer(stdout, 1, t, 0);
+    do { pa_event(stdin, &er);
+    } while (er.etype != pa_ettim && er.etype != pa_etterm);
+    if (er.etype == pa_etterm) { longjmp(_JL99, 1); }
 
 }
 
@@ -103,8 +106,11 @@ static void wait(int t)
 static void waitnext(void)
 {
 
-    do { event(stdin, &er); } while (er.etype != etenter && er.etype != etterm);
-    if (er.etype == etterm) { longjmp(_JL99, 1); }
+    pa_evtrec er; /* event record */
+
+    do { pa_event(stdin, &er);
+    } while (er.etype != pa_etenter && er.etype != pa_etterm);
+    if (er.etype == pa_etterm) { longjmp(_JL99, 1); }
 
 }
 
@@ -113,18 +119,18 @@ static void timetest(void)
 {
 
     int i, t, et, total, max, min;
-    evtrec er;
+    pa_evtrec er;
 
     printf("Timer test, measuring minimum timer resolution, 100 samples\n\n");
     max = 0;
     min = INT_MAX;
     for (i = 1; i <= 100; i++) {
 
-        t = uclock();
-        timer(stdout, 1, 1, 0);
-        do { putchar('*'); event(stdin, &er); } while (er.etype != ettim);
-        et = elapsed(t);
-        total += elapsed(t);
+        t = pa_clock();
+        pa_timer(stdout, 1, 1, 0);
+        do { putchar('*'); pa_event(stdin, &er); } while (er.etype != pa_ettim);
+        et = pa_elapsed(t);
+        total += pa_elapsed(t);
         if (et > max) max = et;
         if (et < min) min = et;
 
@@ -136,18 +142,19 @@ static void timetest(void)
     printf("Maximum time was: %d00 Microseconds\n", max);
     printf("This timer supports frame rates up to %d", 10000 / (total / 100));
     printf(" frames per second\n");
-    t = uclock();
-    timer(stdout, 1, 10000, 0);
-    do { event(stdin, &er); } while (er.etype != ettim);
-    printf("1 second time, was: %d00 Microseconds\n", elapsed(t));
+    t = pa_clock();
+    pa_timer(stdout, 1, 10000, 0);
+    do { pa_event(stdin, &er); } while (er.etype != pa_ettim);
+    printf("1 second time, was: %d00 Microseconds\n", pa_elapsed(t));
     printf("\n");
     printf("30 seconds of 1 second ticks:\n");
     printf("\n");
     for (i = 1; i <= 30; i++) {
 
-        timer(stdout, 1, 10000, 0);
-        do { event(stdin, &er); } while (er.etype != ettim && er.etype != etterm);
-        if (er.etype == etterm) longjmp(_JL99, 1);
+        pa_timer(stdout, 1, 10000, 0);
+        do { pa_event(stdin, &er);
+        } while (er.etype != pa_ettim && er.etype != pa_etterm);
+        if (er.etype == pa_etterm) longjmp(_JL99, 1);
         putchar('.');
 
     }
@@ -163,14 +170,14 @@ static void plotjoy(int line, int joy)
     int i, x;
     double r;
 
-    cursor(stdout, 1, line);
-    for (i = 1; i <= maxx(stdout); i++) putchar(' '); /* clear line */
+    pa_cursor(stdout, 1, line);
+    for (i = 1; i <= pa_maxx(stdout); i++) putchar(' '); /* clear line */
     if (joy < 0) {  /* plot left */
 
         r = labs(joy);
-        x = maxx(stdout)/2-floor(r*(maxx(stdout)/2)/INT_MAX+0.5);
-        cursor(stdout, x, line);
-        while (x <= maxx(stdout) / 2) {
+        x = pa_maxx(stdout)/2-floor(r*(pa_maxx(stdout)/2)/INT_MAX+0.5);
+        pa_cursor(stdout, x, line);
+        while (x <= pa_maxx(stdout) / 2) {
 
             putchar('*');
             x++;
@@ -180,9 +187,9 @@ static void plotjoy(int line, int joy)
     } else { /* plot right */
 
         r = joy;
-        x = (int)floor(r * (maxx(stdout) / 2) / INT_MAX + maxx(stdout) / 2 + 0.5);
-        i = maxx(stdout) / 2;
-        cursor(stdout, i, line);
+        x = (int)floor(r * (pa_maxx(stdout) / 2) / INT_MAX + pa_maxx(stdout) / 2 + 0.5);
+        i = pa_maxx(stdout) / 2;
+        pa_cursor(stdout, i, line);
         while (i <= x) {
 
             putchar('*');
@@ -200,7 +207,7 @@ static void prtcen(int y, char *s)
 
 {
 
-    cursor(stdout, maxx(stdout)/2-strlen(s)/2, y);
+    pa_cursor(stdout, pa_maxx(stdout)/2-strlen(s)/2, y);
     fputs(s, stdout);
 
 }
@@ -213,13 +220,13 @@ static void prtban(char *s)
 
     int i;
 
-    cursor(stdout, maxx(stdout)/2-strlen(s)/2-1, maxy(stdout)/2-1);
+    pa_cursor(stdout, pa_maxx(stdout)/2-strlen(s)/2-1, pa_maxy(stdout)/2-1);
     for (i = 1; i <= strlen(s)+2; i++) putchar(' ');
-    cursor(stdout, maxx(stdout)/2-strlen(s)/2-1, maxy(stdout)/2);
+    pa_cursor(stdout, pa_maxx(stdout)/2-strlen(s)/2-1, pa_maxy(stdout)/2);
     putchar(' ');
-    prtcen(maxy(stdout) / 2, s);
+    prtcen(pa_maxy(stdout) / 2, s);
     putchar(' ');
-    cursor(stdout, maxx(stdout)/2-strlen(s)/2-1, maxy(stdout)/2+1);
+    pa_cursor(stdout, pa_maxx(stdout)/2-strlen(s)/2-1, pa_maxy(stdout)/2+1);
     for (i = 1; i <= strlen(s); i++) putchar(' ');
 
 }
@@ -230,72 +237,72 @@ int main(int argc, char *argv[])
     if (setjmp(_JL99))
     goto _L99;
 
-    selects(stdout, 2, 2);   /* move off the display buffer */
+    pa_select(stdout, 2, 2);   /* move off the display buffer */
     /* set black on white text */
-    fcolor(stdout, black);
-    bcolor(stdout, white);
+    pa_fcolor(stdout, pa_black);
+    pa_bcolor(stdout, pa_white);
     printf("\f");
-    curvis(stdout, 0);
+    pa_curvis(stdout, 0);
     prtban("Terminal mode screen test vs. 1.0");
-    prtcen(maxy(stdout), "Press return to continue");
+    prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
     printf("\f");   /* clear screen */
-    printf("Screen size: x -> %d y -> %d\n\n", maxx(stdout), maxy(stdout));
-    printf("Number of joysticks: %d\n", joystick(stdout));
-    for (i = 1; i <= joystick(stdout); i++) {
+    printf("Screen size: x -> %d y -> %d\n\n", pa_maxx(stdout), pa_maxy(stdout));
+    printf("Number of joysticks: %d\n", pa_joystick(stdout));
+    for (i = 1; i <= pa_joystick(stdout); i++) {
 
         printf("\n");
         printf("Number of axes on joystick: %d is: %d\n", i,
-            joyaxis(stdout, i));
+            pa_joyaxis(stdout, i));
         printf("Number of buttons on joystick: %d is: %d\n", i,
-            joybutton(stdout, i));
+            pa_joybutton(stdout, i));
 
     }
     printf("\n");
-    printf("Number of mice: %d\n", mouse(stdout));
-    for (i = 1; i <= mouse(stdout); i++) {
+    printf("Number of mice: %d\n", pa_mouse(stdout));
+    for (i = 1; i <= pa_mouse(stdout); i++) {
 
         printf("\n");
         printf("\nNumber of buttons on mouse: %d is: %d\n", i,
-            mousebutton(stdout, i));
+            pa_mousebutton(stdout, i));
 
     }
-    prtcen(maxy(stdout), "Press return to continue");
+    prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
     printf("\f");
     timetest();
-    prtcen(maxy(stdout), "Press return to continue");
+    prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
     printf("\f");
-    curvis(stdout, 1);
+    pa_curvis(stdout, 1);
     printf("Cursor should be [on ], press return ->");
     waitnext();
-    curvis(stdout, 0);
+    pa_curvis(stdout, 0);
     printf("\rCursor should be [off], press return ->");
     waitnext();
-    curvis(stdout, 1);
+    pa_curvis(stdout, 1);
     printf("\rCursor should be [on ], press return ->");
     waitnext();
-    curvis(stdout, 0);
+    pa_curvis(stdout, 0);
     printf("\n");
     printf("\n");
-    prtcen(maxy(stdout),
+    prtcen(pa_maxy(stdout),
            "Press return to start test (and to pass each pattern)");
     waitnext();
 
     /* ************************* Test last line problem ************************ */
 
     printf("\f");
-    curvis(stdout, 0); /* remove cursor */
-    automode(stdout, 0); /* turn off auto scroll */
+    pa_curvis(stdout, 0); /* remove cursor */
+    pa_auto(stdout, 0); /* turn off auto scroll */
     prtcen(1, "Last line blank out test");
-    cursor(stdout, 1, 3);
+    pa_cursor(stdout, 1, 3);
     printf("If this terminal is not capable of showing the last character on\n");
     printf("the last line, the \"*\" character pointed to by the arrow below\n");
     printf("will not appear (probally blank). This should be noted for each\n");
     printf("of the following test patterns.\n");
-    cursor(stdout, 1, maxy(stdout));
-    for (i = 1; i <= maxx(stdout)-2; i++) putchar('-');
+    pa_cursor(stdout, 1, pa_maxy(stdout));
+    for (i = 1; i <= pa_maxx(stdout)-2; i++) putchar('-');
     printf(">*");
     waitnext();
 
@@ -305,119 +312,119 @@ int main(int argc, char *argv[])
        up, down, left wrap and right wrap working correctly. */
 
     printf("\f");
-    automode(stdout, 1);   /* set auto on */
-    curvis(stdout, 0);   /* remove cursor */
+    pa_auto(stdout, 1);   /* set auto on */
+    pa_curvis(stdout, 0);   /* remove cursor */
     /* top of left lower */
-    cursor(stdout, 1, maxy(stdout));
+    pa_cursor(stdout, 1, pa_maxy(stdout));
     printf("\\/");
     /* top of right lower, bottom of left lower, and move it all up */
-    cursor(stdout, maxx(stdout) - 1, maxy(stdout));
+    pa_cursor(stdout, pa_maxx(stdout) - 1, pa_maxy(stdout));
     printf("\\//\\");
     /* finish right lower */
-    up(stdout);
-    left(stdout);
-    left(stdout);
-    left(stdout);
-    left(stdout);
-    down(stdout);
-    down(stdout);
+    pa_up(stdout);
+    pa_left(stdout);
+    pa_left(stdout);
+    pa_left(stdout);
+    pa_left(stdout);
+    pa_down(stdout);
+    pa_down(stdout);
     printf("/\\");
     /* now move it back down */
-    home(stdout);
-    left(stdout);
+    pa_home(stdout);
+    pa_left(stdout);
     /* upper left hand cross */
-    cursor(stdout, 1, 1);
+    pa_cursor(stdout, 1, 1);
     printf("\\/");
-    cursor(stdout, maxx(stdout), 1);
-    right(stdout);
+    pa_cursor(stdout, pa_maxx(stdout), 1);
+    pa_right(stdout);
     printf("/\\");
     /* upper right hand cross */
-    cursor(stdout, maxx(stdout) - 1, 2);
+    pa_cursor(stdout, pa_maxx(stdout) - 1, 2);
     printf("/\\");
-    cursor(stdout, 1, 2);
-    left(stdout);
-    left(stdout);
+    pa_cursor(stdout, 1, 2);
+    pa_left(stdout);
+    pa_left(stdout);
     printf("\\/");
     /* test delete works */
     prtcen(1, "BARK!");
-    del(stdout);
-    del(stdout);
-    del(stdout);
-    del(stdout);
-    del(stdout);
-    prtcen(maxy(stdout)/2-1, "Cursor movements test, automatic scroll ON");
-    prtcen(maxy(stdout)/2+1, "Should be a double line X in each corner");
+    pa_del(stdout);
+    pa_del(stdout);
+    pa_del(stdout);
+    pa_del(stdout);
+    pa_del(stdout);
+    prtcen(pa_maxy(stdout)/2-1, "Cursor movements test, automatic scroll ON");
+    prtcen(pa_maxy(stdout)/2+1, "Should be a double line X in each corner");
     waitnext();
 
     /* Now do it with automatic scrolling off. The pattern will rely on the
        ability of the cursor to go into "negative" space. */
 
     printf("\f");
-    automode(stdout, 0);   /* disable automatic screen scroll/wrap */
+    pa_auto(stdout, 0);   /* disable automatic screen scroll/wrap */
     /* upper left */
-    home(stdout);
+    pa_home(stdout);
     printf("\\/");
-    up(stdout);
-    left(stdout);
-    left(stdout);
-    left(stdout);
-    left(stdout);
-    down(stdout);
-    down(stdout);
-    right(stdout);
-    right(stdout);
+    pa_up(stdout);
+    pa_left(stdout);
+    pa_left(stdout);
+    pa_left(stdout);
+    pa_left(stdout);
+    pa_down(stdout);
+    pa_down(stdout);
+    pa_right(stdout);
+    pa_right(stdout);
     printf("/\\");
     /* upper right */
-    cursor(stdout, maxx(stdout) - 1, 1);
+    pa_cursor(stdout, pa_maxx(stdout) - 1, 1);
     printf("\\/");
-    down(stdout);
-    del(stdout);
-    del(stdout);
+    pa_down(stdout);
+    pa_del(stdout);
+    pa_del(stdout);
     printf("/\\");
     /* lower left */
-    cursor(stdout, 1, maxy(stdout));
+    pa_cursor(stdout, 1, pa_maxy(stdout));
     printf("/\\");
-    down(stdout);
-    left(stdout);
-    left(stdout);
-    left(stdout);
-    up(stdout);
-    up(stdout);
-    right(stdout);
+    pa_down(stdout);
+    pa_left(stdout);
+    pa_left(stdout);
+    pa_left(stdout);
+    pa_up(stdout);
+    pa_up(stdout);
+    pa_right(stdout);
     printf("\\/");
     /* lower right */
-    cursor(stdout, maxx(stdout), maxy(stdout) - 1);
+    pa_cursor(stdout, pa_maxx(stdout), pa_maxy(stdout) - 1);
     putchar('/');
-    left(stdout);
-    left(stdout);
+    pa_left(stdout);
+    pa_left(stdout);
     printf("\\\\");
-    down(stdout);
-    del(stdout);
+    pa_down(stdout);
+    pa_del(stdout);
     printf("/\\");
-    prtcen(maxy(stdout)/2-1,
+    prtcen(pa_maxy(stdout)/2-1,
            "Cursor movements test, automatic scroll OFF");
-    prtcen(maxy(stdout)/2+1, "Should be a double line X in each corner");
+    prtcen(pa_maxy(stdout)/2+1, "Should be a double line X in each corner");
     waitnext();
 
     /* **************************** Scroll cursor test ************************* */
 
     printf("\f");
-    curvis(stdout, 1);
-    prtcen(maxy(stdout)/2, "Scroll cursor test, cursor should be here ->");
-    up(stdout);
-    scroll(stdout, 0, 1);
+    pa_curvis(stdout, 1);
+    prtcen(pa_maxy(stdout)/2, "Scroll cursor test, cursor should be here ->");
+    pa_up(stdout);
+    pa_scroll(stdout, 0, 1);
     waitnext();
-    curvis(stdout, 0);
+    pa_curvis(stdout, 0);
 
     /* ******************************* Row ID test ***************************** */
 
     printf("\f");
     /* perform row id test */
     c = '1';
-    for (y = 1; y <= maxy(stdout); y++) {
+    for (y = 1; y <= pa_maxy(stdout); y++) {
 
-        cursor(stdout, 1, y);   /* index start of line */
-        for (x = 1; x <= maxx(stdout); x++)   /* output characters */
+        pa_cursor(stdout, 1, y);   /* index start of line */
+        for (x = 1; x <= pa_maxx(stdout); x++)   /* output characters */
         putchar(c);
         if (c != '9') c++;   /* next character */
         else c = '0';   /* start over */
@@ -430,10 +437,10 @@ int main(int argc, char *argv[])
 
     printf("\f");
     c = '1';
-    for (y = 1; y <= maxy(stdout); y++) {
+    for (y = 1; y <= pa_maxy(stdout); y++) {
 
-        cursor(stdout, 1, y); /* index start of line */
-        for (x = 1; x <= maxx(stdout); x++) {
+        pa_cursor(stdout, 1, y); /* index start of line */
+        for (x = 1; x <= pa_maxx(stdout); x++) {
 
             putchar(c); /* output characters */
             if (c != '9') c++; /* next character */
@@ -449,10 +456,10 @@ int main(int argc, char *argv[])
 
     printf("\f");
     c = '\0';   /* initalize character value */
-    for (y = 1; y <= maxy(stdout); y++) {
+    for (y = 1; y <= pa_maxy(stdout); y++) {
 
-        cursor(stdout, 1, y);   /* index start of line */
-        for (x = 1; x <= maxy(stdout); x++) {
+        pa_cursor(stdout, 1, y);   /* index start of line */
+        for (x = 1; x <= pa_maxy(stdout); x++) {
 
             if (c >= ' ' && c != '\177') putchar(c);
             else printf("\\");
@@ -472,17 +479,17 @@ int main(int argc, char *argv[])
     x = 1;   /* set origin */
     y = 1;
     top = 1;   /* set borders */
-    bottom = maxy(stdout);
+    bottom = pa_maxy(stdout);
     lside = 2;
-    rside = maxx(stdout);
+    rside = pa_maxx(stdout);
     direction = ddown;   /* start down */
-    t1 = maxx(stdout);
-    t2 = maxy(stdout);
+    t1 = pa_maxx(stdout);
+    t2 = pa_maxy(stdout);
     tc = 0;
     for (count = 1; count <= t1*t2; count++) {
 
         /* for all screen characters */
-        cursor(stdout, x, y); /* place character */
+        pa_cursor(stdout, x, y); /* place character */
         putchar('*');
         tc++;
         if (tc >= 10) {
@@ -539,8 +546,8 @@ int main(int argc, char *argv[])
         }
 
     }
-    prtcen(maxy(stdout) - 1, "                 ");
-    prtcen(maxy(stdout), " Sidewinder test ");
+    prtcen(pa_maxy(stdout) - 1, "                 ");
+    prtcen(pa_maxy(stdout), " Sidewinder test ");
     waitnext();
 
     /* *************************** Bouncing ball test ************************** */
@@ -554,9 +561,9 @@ int main(int argc, char *argv[])
     dy = -1;
     for (count = 1; count <= 1000; count++) {
 
-        cursor(stdout, x, y);   /* place character */
+        pa_cursor(stdout, x, y);   /* place character */
         putchar('*');
-        cursor(stdout, lx, ly);   /* place character */
+        pa_cursor(stdout, lx, ly);   /* place character */
         putchar(' ');
         lx = x;   /* set last */
         ly = y;
@@ -564,78 +571,78 @@ int main(int argc, char *argv[])
         y += dy;   /* find next y */
         tx = x;
         ty = y;
-        if (x == 1 || tx == maxx(stdout))   /* find new dir x */
+        if (x == 1 || tx == pa_maxx(stdout))   /* find new dir x */
         dx = -dx;
-        if (y == 1 || ty == maxy(stdout))   /* find new dir y */
+        if (y == 1 || ty == pa_maxy(stdout))   /* find new dir y */
         dy = -dy;
         /* slow this down */
         wait(100);
 
     }
-    prtcen(maxy(stdout)-1, "                    ");
-    prtcen(maxy(stdout), " Bouncing ball test ");
+    prtcen(pa_maxy(stdout)-1, "                    ");
+    prtcen(pa_maxy(stdout), " Bouncing ball test ");
     waitnext();
 
     /* *************************** Attributes test ************************** */
 
     printf("\f");
-    if (maxy(stdout) < 20)
+    if (pa_maxy(stdout) < 20)
     printf("Not enough lines for attributes test");
     else {
 
-        blink(stdout, 1);
+        pa_blink(stdout, 1);
         printf("Blinking text\n");
-        blink(stdout, 0);
-        reverse(stdout, 1);
+        pa_blink(stdout, 0);
+        pa_reverse(stdout, 1);
         printf("Reversed text\n");
-        reverse(stdout, 0);
-        underline(stdout, 1);
+        pa_reverse(stdout, 0);
+        pa_underline(stdout, 1);
         printf("Underlined text\n");
-        underline(stdout, 0);
+        pa_underline(stdout, 0);
         printf("Superscript ");
-        superscript(stdout, 1);
+        pa_superscript(stdout, 1);
         printf("text\n");
-        superscript(stdout, 0);
+        pa_superscript(stdout, 0);
         printf("Subscript ");
-        subscript(stdout, 1);
+        pa_subscript(stdout, 1);
         printf("text\n");
-        subscript(stdout, 0);
-        italic(stdout, 1);
+        pa_subscript(stdout, 0);
+        pa_italic(stdout, 1);
         printf("Italic text\n");
-        italic(stdout, 0);
-        bold(stdout, 1);
+        pa_italic(stdout, 0);
+        pa_bold(stdout, 1);
         printf("Bold text\n");
-        bold(stdout, 0);
-        standout(stdout, 1);
+        pa_bold(stdout, 0);
+        pa_standout(stdout, 1);
         printf("Standout text\n");
-        standout(stdout, 0);
-        fcolor(stdout, red);
+        pa_standout(stdout, 0);
+        pa_fcolor(stdout, pa_red);
         printf("Red text\n");
-        fcolor(stdout, green);
+        pa_fcolor(stdout, pa_green);
         printf("Green text\n");
-        fcolor(stdout, blue);
+        pa_fcolor(stdout, pa_blue);
         printf("Blue text\n");
-        fcolor(stdout, cyan);
+        pa_fcolor(stdout, pa_cyan);
         printf("Cyan text\n");
-        fcolor(stdout, yellow);
+        pa_fcolor(stdout, pa_yellow);
         printf("Yellow text\n");
-        fcolor(stdout, magenta);
+        pa_fcolor(stdout, pa_magenta);
         printf("Magenta text\n");
-        fcolor(stdout, black);
-        bcolor(stdout, red);
+        pa_fcolor(stdout, pa_black);
+        pa_bcolor(stdout, pa_red);
         printf("Red background text\n");
-        bcolor(stdout, green);
+        pa_bcolor(stdout, pa_green);
         printf("Green background text\n");
-        bcolor(stdout, blue);
+        pa_bcolor(stdout, pa_blue);
         printf("Blue background text\n");
-        bcolor(stdout, cyan);
+        pa_bcolor(stdout, pa_cyan);
         printf("Cyan background text\n");
-        bcolor(stdout, yellow);
+        pa_bcolor(stdout, pa_yellow);
         printf("Yellow background text\n");
-        bcolor(stdout, magenta);
+        pa_bcolor(stdout, pa_magenta);
         printf("Magenta background text\n");
-        bcolor(stdout, white);
-        prtcen(maxy(stdout), "Attributes test");
+        pa_bcolor(stdout, pa_white);
+        prtcen(pa_maxy(stdout), "Attributes test");
 
     }
     waitnext();
@@ -645,38 +652,38 @@ int main(int argc, char *argv[])
     printf("\f");
     /* fill screen with row order data */
     c = '1';
-    for (y = 1; y <= maxy(stdout); y++) {
+    for (y = 1; y <= pa_maxy(stdout); y++) {
 
-        cursor(stdout, 1, y);   /* index start of line */
-        for (x = 1; x <= maxx(stdout); x++) putchar(c); /* output characters */
+        pa_cursor(stdout, 1, y);   /* index start of line */
+        for (x = 1; x <= pa_maxx(stdout); x++) putchar(c); /* output characters */
         if (c != '9') c++; /* next character */
         else c = '0'; /* start over */
 
     }
-    for (y = 1; y <= maxy(stdout); y++) { wait(200); scroll(stdout, 0, 1); }
-    prtcen(maxy(stdout), "Scroll up");
+    for (y = 1; y <= pa_maxy(stdout); y++) { wait(200); pa_scroll(stdout, 0, 1); }
+    prtcen(pa_maxy(stdout), "Scroll up");
     waitnext();
     printf("\f");
     /* fill screen with row order data */
     c = '1';
-    for (y = 1; y <= maxy(stdout); y++) {
+    for (y = 1; y <= pa_maxy(stdout); y++) {
 
-        cursor(stdout, 1, y); /* index start of line */
-        for (x = 1; x <= maxx(stdout); x++) putchar(c); /* output characters */
+        pa_cursor(stdout, 1, y); /* index start of line */
+        for (x = 1; x <= pa_maxx(stdout); x++) putchar(c); /* output characters */
         if (c != '9') c++; /* next character */
         else c = '0';   /* start over */
 
     }
-    for (y = 1; y <= maxy(stdout); y++) { wait(200); scroll(stdout, 0, -1); }
-    prtcen(maxy(stdout), "Scroll down");
+    for (y = 1; y <= pa_maxy(stdout); y++) { wait(200); pa_scroll(stdout, 0, -1); }
+    prtcen(pa_maxy(stdout), "Scroll down");
     waitnext();
     printf("\f");
     /* fill screen with collumn order data */
     c = '1';
-    for (y = 1; y <= maxy(stdout); y++) {
+    for (y = 1; y <= pa_maxy(stdout); y++) {
 
-        cursor(stdout, 1, y); /* index start of line */
-        for (x = 1; x <= maxx(stdout); x++) {
+        pa_cursor(stdout, 1, y); /* index start of line */
+        for (x = 1; x <= pa_maxx(stdout); x++) {
 
             putchar(c); /* output characters */
             if (c != '9') c++; /* next character */
@@ -685,16 +692,16 @@ int main(int argc, char *argv[])
         }
 
     }
-    for (x = 1; x <= maxx(stdout); x++) { wait(200); scroll(stdout, 1, 0); }
-    prtcen(maxy(stdout), "Scroll left");
+    for (x = 1; x <= pa_maxx(stdout); x++) { wait(200); pa_scroll(stdout, 1, 0); }
+    prtcen(pa_maxy(stdout), "Scroll left");
     waitnext();
     printf("\f");
     /* fill screen with collumn order data */
     c = '1';
-    for (y = 1; y <= maxy(stdout); y++) {
+    for (y = 1; y <= pa_maxy(stdout); y++) {
 
-        cursor(stdout, 1, y); /* index start of line */
-        for (x = 1; x <= maxx(stdout); x++) {
+        pa_cursor(stdout, 1, y); /* index start of line */
+        for (x = 1; x <= pa_maxx(stdout); x++) {
 
             putchar(c); /* output characters */
             if (c != '9') c++;   /* next character */
@@ -703,18 +710,18 @@ int main(int argc, char *argv[])
         }
 
     }
-    for (x = 1; x <= maxx(stdout); x++) { wait(200); scroll(stdout, -1, 0); }
+    for (x = 1; x <= pa_maxx(stdout); x++) { wait(200); pa_scroll(stdout, -1, 0); }
     /* find minimum direction, x or y */
     if (x < y) minlen = x; else minlen = y;
-    prtcen(maxy(stdout), "Scroll right");
+    prtcen(pa_maxy(stdout), "Scroll right");
     waitnext();
     printf("\f");
     /* fill screen with uni data */
     c = '1';
-    for (y = 1; y <= maxy(stdout); y++) {
+    for (y = 1; y <= pa_maxy(stdout); y++) {
 
-        cursor(stdout, 1, y); /* index start of line */
-        for (x = 1; x <= maxx(stdout); x++) {
+        pa_cursor(stdout, 1, y); /* index start of line */
+        for (x = 1; x <= pa_maxx(stdout); x++) {
 
             putchar(c);   /* output characters */
             if (c != '9') c++; /* next character */
@@ -723,16 +730,16 @@ int main(int argc, char *argv[])
         }
 
     }
-    for (i = 1; i <= minlen; i++) { wait(200); scroll(stdout, 1, 1); }
-    prtcen(maxy(stdout), "Scroll up/left");
+    for (i = 1; i <= minlen; i++) { wait(200); pa_scroll(stdout, 1, 1); }
+    prtcen(pa_maxy(stdout), "Scroll up/left");
     waitnext();
     printf("\f");
     /* fill screen with uni data */
     c = '1';
-    for (y = 1; y <= maxy(stdout); y++) {
+    for (y = 1; y <= pa_maxy(stdout); y++) {
 
-        cursor(stdout, 1, y);   /* index start of line */
-        for (x = 1; x <= maxx(stdout); x++) {
+        pa_cursor(stdout, 1, y);   /* index start of line */
+        for (x = 1; x <= pa_maxx(stdout); x++) {
 
             putchar(c); /* output characters */
             if (c != '9') c++; /* next character */
@@ -741,16 +748,16 @@ int main(int argc, char *argv[])
         }
 
     }
-    for (i = 1; i <= minlen; i++) { wait(200); scroll(stdout, 1, -1); }
-    prtcen(maxy(stdout), "Scroll down/left");
+    for (i = 1; i <= minlen; i++) { wait(200); pa_scroll(stdout, 1, -1); }
+    prtcen(pa_maxy(stdout), "Scroll down/left");
     waitnext();
     printf("\f");
     /* fill screen with uni data */
     c = '1';
-    for (y = 1; y <= maxy(stdout); y++) {
+    for (y = 1; y <= pa_maxy(stdout); y++) {
 
-        cursor(stdout, 1, y);   /* index start of line */
-        for (x = 1; x <= maxx(stdout); x++) {
+        pa_cursor(stdout, 1, y);   /* index start of line */
+        for (x = 1; x <= pa_maxx(stdout); x++) {
 
             putchar(c); /* output characters */
             if (c != '9') c++; /* next character */
@@ -759,16 +766,16 @@ int main(int argc, char *argv[])
         }
 
     }
-    for (i = 1; i <= minlen; i++) { wait(200); scroll(stdout, -1, 1); }
-    prtcen(maxy(stdout), "Scroll up/right");
+    for (i = 1; i <= minlen; i++) { wait(200); pa_scroll(stdout, -1, 1); }
+    prtcen(pa_maxy(stdout), "Scroll up/right");
     waitnext();
     printf("\f");
     /* fill screen with uni data */
     c = '1';
-    for (y = 1; y <= maxy(stdout); y++) {
+    for (y = 1; y <= pa_maxy(stdout); y++) {
 
-        cursor(stdout, 1, y);   /* index start of line */
-        for (x = 1; x <= maxx(stdout); x++) {
+        pa_cursor(stdout, 1, y);   /* index start of line */
+        for (x = 1; x <= pa_maxx(stdout); x++) {
 
             putchar(c);   /* output characters */
             if (c != '9') c++;   /* next character */
@@ -777,20 +784,20 @@ int main(int argc, char *argv[])
          }
 
     }
-    for (i = 1; i <= minlen; i++) { wait(200); scroll(stdout, -1, -1); }
-    prtcen(maxy(stdout), "Scroll down/right");
+    for (i = 1; i <= minlen; i++) { wait(200); pa_scroll(stdout, -1, -1); }
+    prtcen(pa_maxy(stdout), "Scroll down/right");
     waitnext();
 
     /* ******************************** Tab test ******************************* */
 
     printf("\f");
-    for (y = 1; y <= maxy(stdout); y++) {
+    for (y = 1; y <= pa_maxy(stdout); y++) {
 
         for (i = 1; i <= y-1; i++) printf("\t");
         printf(">Tab %3d\n", y-1);
 
     }
-    prtcen(maxy(stdout), "Tabbing test");
+    prtcen(pa_maxy(stdout), "Tabbing test");
     waitnext();
 
     /* ************************** Buffer switching test ************************ */
@@ -798,21 +805,21 @@ int main(int argc, char *argv[])
     printf("\f");
     for (b = 2; b <= 10; b++) {  /* prepare buffers */
 
-        selects(stdout, b, 2);   /* select buffer */
+        pa_select(stdout, b, 2);   /* select buffer */
         /* write a shinking box pattern */
-        box(b - 1, b-1, maxx(stdout)-(b- 2), maxy(stdout)-(b-2), '*');
-        prtcen(maxy(stdout), "Buffer switching test");
+        box(b - 1, b-1, pa_maxx(stdout)-(b- 2), pa_maxy(stdout)-(b-2), '*');
+        prtcen(pa_maxy(stdout), "Buffer switching test");
 
     }
     for (i = 1; i <= 30; i++) /* flip buffers */
-        for (b = 2; b <= 10; b++) { wait(300); selects(stdout, 2, b); }
-    selects(stdout, 2, 2);   /* restore buffer select */
+        for (b = 2; b <= 10; b++) { wait(300); pa_select(stdout, 2, b); }
+    pa_select(stdout, 2, 2);   /* restore buffer select */
 
     /* **************************** Writethrough test ************************** */
 
     printf("\f");
-    prtcen(maxy(stdout), "File writethrough test");
-    home(stdout);
+    prtcen(pa_maxy(stdout), "File writethrough test");
+    pa_home(stdout);
     if (tf != NULL) tf = freopen(tf_NAME, "w", tf);
     else tf = fopen(tf_NAME, "w");
     if (tf == NULL) {
@@ -842,20 +849,20 @@ int main(int argc, char *argv[])
 
     /* ****************************** Joystick test **************************** */
 
-    if (joystick(stdout) > 0) {  /* joystick test */
+    if (pa_joystick(stdout) > 0) {  /* joystick test */
 
         printf("\f");
         prtcen(1, "Move the joystick(s) X, Y and Z, and hit buttons");
-        prtcen(maxy(stdout), "Joystick test test");
+        prtcen(pa_maxy(stdout), "Joystick test test");
         do {   /* gather joystick events */
 
             /* we do up to 4 joysticks */
-            event(stdin, &er);
-            if (er.etype == etjoymov) {  /* joystick movement */
+            pa_event(stdin, &er);
+            if (er.etype == pa_etjoymov) {  /* joystick movement */
 
                 if (er.mjoyn == 1) {  /* joystick 1 */
 
-                    cursor(stdout, 1, 3);
+                    pa_cursor(stdout, 1, 3);
                     printf("joystick: %d x: %d y: %d z: %d",
                            er.mjoyn, er.joypx, er.joypy, er.joypz);
                     plotjoy(4, er.joypx);
@@ -864,7 +871,7 @@ int main(int argc, char *argv[])
 
                 } else if (er.mjoyn == 2) {  /* joystick 2 */
 
-                    cursor(stdout, 1, 7);
+                    pa_cursor(stdout, 1, 7);
                     printf("joystick: %d x: %d y: %d z: %d",
                            er.mjoyn, er.joypx, er.joypy, er.joypz);
                     plotjoy(8, er.joypx);
@@ -873,7 +880,7 @@ int main(int argc, char *argv[])
 
                 } else if (er.mjoyn == 3) {  /* joystick 3 */
 
-                    cursor(stdout, 1, 11);
+                    pa_cursor(stdout, 1, 11);
                     printf("joystick: %d x: %d y: %d z: %d",
                            er.mjoyn, er.joypx, er.joypy, er.joypz);
                     plotjoy(11, er.joypx);
@@ -882,7 +889,7 @@ int main(int argc, char *argv[])
 
                 } else if (er.mjoyn == 4) {  /* joystick 4 */
 
-                    cursor(stdout, 1, 14);
+                    pa_cursor(stdout, 1, 14);
                     printf("joystick: %d x: %d y: %d z: %d",
                            er.mjoyn, er.joypx, er.joypy, er.joypz);
                     plotjoy(15, er.joypx);
@@ -891,57 +898,57 @@ int main(int argc, char *argv[])
 
                 }
 
-            } else if (er.etype == etjoyba) {  /* joystick button assert */
+            } else if (er.etype == pa_etjoyba) {  /* joystick button assert */
 
                 if (er.ajoyn == 1) {  /* joystick 1 */
 
-                    cursor(stdout, 1, 18);
+                    pa_cursor(stdout, 1, 18);
                     printf("joystick: %d button assert:   %d",
                            er.ajoyn, er.ajoybn);
 
                 } else if (er.ajoyn == 2) {  /* joystick 2 */
 
-                    cursor(stdout, 1, 19);
+                    pa_cursor(stdout, 1, 19);
                     printf("joystick: %d button assert:   %d",
                            er.ajoyn, er.ajoybn);
 
                 } else if (er.ajoyn == 3) {  /* joystick 3 */
 
-                    cursor(stdout, 1, 20);
+                    pa_cursor(stdout, 1, 20);
                     printf("joystick: %d button assert:   %d",
                            er.ajoyn, er.ajoybn);
 
                 } else if (er.ajoyn == 4) {  /* joystick 4 */
 
-                    cursor(stdout, 1, 21);
+                    pa_cursor(stdout, 1, 21);
                     printf("joystick: %d button assert:   %d",
                            er.ajoyn, er.ajoybn);
 
                 }
 
-            } else if (er.etype == etjoybd) {  /* joystick button deassert */
+            } else if (er.etype == pa_etjoybd) {  /* joystick button deassert */
 
                 if (er.djoyn == 1) {  /* joystick 1 */
 
-                    cursor(stdout, 1, 18);
+                    pa_cursor(stdout, 1, 18);
                     printf("joystick: %d button deassert: %d",
                            er.djoyn, er.djoybn);
 
                 } else if (er.djoyn == 2) {  /* joystick 2 */
 
-                    cursor(stdout, 1, 19);
+                    pa_cursor(stdout, 1, 19);
                     printf("joystick: %d button deassert: %d",
                            er.djoyn, er.djoybn);
 
                 } else if (er.djoyn == 3) {  /* joystick 3 */
 
-                    cursor(stdout, 1, 20);
+                    pa_cursor(stdout, 1, 20);
                     printf("joystick: %d button deassert: %d",
                            er.djoyn, er.djoybn);
 
                 } else if (er.djoyn == 4) {  /* joystick 4 */
 
-                    cursor(stdout, 1, 21);
+                    pa_cursor(stdout, 1, 21);
                     printf("joystick: %d button deassert: %d",
                            er.djoyn, er.djoybn);
 
@@ -949,52 +956,52 @@ int main(int argc, char *argv[])
 
             }
 
-        } while (er.etype != etenter && er.etype != etterm);
+        } while (er.etype != pa_etenter && er.etype != pa_etterm);
 
     }
 
     /* **************************** Mouse test ********************************* */
 
-    if (mouse(stdin) > 0) {  /* mouse test */
+    if (pa_mouse(stdin) > 0) {  /* mouse test */
 
         printf("\f");
         prtcen(1, "Move the mouse, and hit buttons");
-        prtcen(maxy(stdout), "Mouse test");
+        prtcen(pa_maxy(stdout), "Mouse test");
         do { /* gather mouse events */
 
             /* we only one mouse, all mice equate to that (multiple controls) */
-            event(stdin, &er);
-            if (er.etype == etmoumov) {
+            pa_event(stdin, &er);
+            if (er.etype == pa_etmoumov) {
 
-                cursor(stdout, x, y);
+                pa_cursor(stdout, x, y);
                 printf("          \n");
-                cursor(stdout, er.moupx, er.moupy);
-                x = curx(stdout);
-                y = cury(stdout);
+                pa_cursor(stdout, er.moupx, er.moupy);
+                x = pa_curx(stdout);
+                y = pa_cury(stdout);
                 printf("<- Mouse %d\n", er.mmoun);
 
             }
             /* blank out button status line */
-            cursor(stdout, 1, maxy(stdout)-2);
-            for (i = 1; i <= maxx(stdout); i++) putchar(' ');
-            if (er.etype == etmouba) {  /* mouse button assert */
+            pa_cursor(stdout, 1, pa_maxy(stdout)-2);
+            for (i = 1; i <= pa_maxx(stdout); i++) putchar(' ');
+            if (er.etype == pa_etmouba) {  /* mouse button assert */
 
-                cursor(stdout, 1, maxy(stdout)-2);
+                pa_cursor(stdout, 1, pa_maxy(stdout)-2);
                 printf("Mouse button assert, mouse: %d button: %d\n",
                        er.amoun, er.amoubn);
 
             }
-            if (er.etype == etmoubd) {  /* mouse button assert */
+            if (er.etype == pa_etmoubd) {  /* mouse button assert */
 
-                cursor(stdout, 1, maxy(stdout) - 2);
+                pa_cursor(stdout, 1, pa_maxy(stdout) - 2);
                 printf("Mouse button deassert, mouse: %d button: %d\n",
                        er.dmoun, er.dmoubn);
 
             }
 
 
-        } while (er.etype != etenter && er.etype != etterm);
-        if (er.etype == etterm) goto _L99;
+        } while (er.etype != pa_etenter && er.etype != pa_etterm);
+        if (er.etype == pa_etterm) goto _L99;
 
     }
 
@@ -1002,13 +1009,13 @@ int main(int argc, char *argv[])
     /* ********************** Character write speed test *********************** */
 
     printf("\f");
-    clk = uclock();   /* get reference time */
+    clk = pa_clock();   /* get reference time */
     c = '\0';   /* initalize character value */
     cnt = 0;   /* clear character count */
-    for (y = 1; y <= maxy(stdout); y++) {
+    for (y = 1; y <= pa_maxy(stdout); y++) {
 
-        cursor(stdout, 1, y); /* index start of line */
-        for (x = 1; x <= maxx(stdout); x++) {
+        pa_cursor(stdout, 1, y); /* index start of line */
+        for (x = 1; x <= pa_maxx(stdout); x++) {
 
             if (c >= ' ' && c != '\177')
             putchar(c);
@@ -1022,7 +1029,7 @@ int main(int argc, char *argv[])
 
 
     }
-    clk = elapsed(clk);   /* find elapsed time */
+    clk = pa_elapsed(clk);   /* find elapsed time */
     printf("\f");
     printf("Character write speed: % .5E average seconds per character\n",
            clk/cnt*0.0001);
@@ -1033,42 +1040,42 @@ int main(int argc, char *argv[])
     printf("\f");
     /* fill screen so we aren't moving blanks (could be optimized) */
     c = '1';
-    for (y = 1; y <= maxy(stdout); y++) {
+    for (y = 1; y <= pa_maxy(stdout); y++) {
 
-        cursor(stdout, 1, y);   /* index start of line */
-        for (x = 1; x <= maxx(stdout); x++)   /* output characters */
+        pa_cursor(stdout, 1, y);   /* index start of line */
+        for (x = 1; x <= pa_maxx(stdout); x++)   /* output characters */
         putchar(c);
         if (c != '9') c++; /* next character */
         else c = '0'; /* start over */
 
     }
     prtban("Scrolling speed test");
-    clk = uclock(); /* get reference time */
+    clk = pa_clock(); /* get reference time */
     cnt = 0; /* clear count */
     for (i = 1; i <= 1000; i++) { /* scroll various directions */
 
-        scroll(stdout, 0, -1); /* up */
-        scroll(stdout, -1, 0); /* left */
-        scroll(stdout, 0, 1); /* down */
-        scroll(stdout, 0, 1); /* down */
-        scroll(stdout, 1, 0); /* right */
-        scroll(stdout, 1, 0); /* right */
-        scroll(stdout, 0, -1); /* up */
-        scroll(stdout, 0, -1); /* up */
-        scroll(stdout, -1, 0); /* left */
-        scroll(stdout, 0, 1); /* down */
-        scroll(stdout, -1, -1); /* up/left */
-        scroll(stdout, 1, 1); /* down/right */
-        scroll(stdout, 1, 1); /* down/right */
-        scroll(stdout, -1, -1); /* up/left */
-        scroll(stdout, 1, -1); /* up/right */
-        scroll(stdout, -1, 1); /* down/left */
-        scroll(stdout, -1, 1); /* down/left */
-        scroll(stdout, 1, -1); /* up/right */
+        pa_scroll(stdout, 0, -1); /* up */
+        pa_scroll(stdout, -1, 0); /* left */
+        pa_scroll(stdout, 0, 1); /* down */
+        pa_scroll(stdout, 0, 1); /* down */
+        pa_scroll(stdout, 1, 0); /* right */
+        pa_scroll(stdout, 1, 0); /* right */
+        pa_scroll(stdout, 0, -1); /* up */
+        pa_scroll(stdout, 0, -1); /* up */
+        pa_scroll(stdout, -1, 0); /* left */
+        pa_scroll(stdout, 0, 1); /* down */
+        pa_scroll(stdout, -1, -1); /* up/left */
+        pa_scroll(stdout, 1, 1); /* down/right */
+        pa_scroll(stdout, 1, 1); /* down/right */
+        pa_scroll(stdout, -1, -1); /* up/left */
+        pa_scroll(stdout, 1, -1); /* up/right */
+        pa_scroll(stdout, -1, 1); /* down/left */
+        pa_scroll(stdout, -1, 1); /* down/left */
+        pa_scroll(stdout, 1, -1); /* up/right */
         cnt += 19; /* count all scrolls */
 
     }
-    clk = elapsed(clk);   /* find elapsed time */
+    clk = pa_elapsed(clk);   /* find elapsed time */
     printf("\f");
     printf("Scrolling speed: % .5E average seconds per scroll\n", clk/cnt*0.0001);
     waitnext();
@@ -1080,22 +1087,22 @@ int main(int argc, char *argv[])
 
     for (b = 2; b <= 10; b++) {  /* prepare buffers */
 
-        selects(stdout, b, 2);   /* select buffer */
+        pa_select(stdout, b, 2);   /* select buffer */
         /* write a shinking box pattern */
-        box(b - 1, b - 1, maxx(stdout) - b + 2, maxy(stdout) - b + 2, '*');
+        box(b - 1, b - 1, pa_maxx(stdout) - b + 2, pa_maxy(stdout) - b + 2, '*');
 
     }
 
-    clk = uclock();   /* get reference time */
+    clk = pa_clock();   /* get reference time */
     for (i = 1; i <= 1000; i++) /* flip buffers */
     for (b = 2; b <= 10; b++) {
 
-        selects(stdout, 2, b);
+        pa_select(stdout, 2, b);
         cnt++;
 
     }
-    clk = elapsed(clk);   /* find elapsed time */
-    selects(stdout, 2, 2);   /* restore buffer select */
+    clk = pa_elapsed(clk);   /* find elapsed time */
+    pa_select(stdout, 2, 2);   /* restore buffer select */
     printf("\f");
     printf("Buffer switch speed: % .5E average seconds per switch\n",
            clk/cnt*0.0001);
@@ -1104,9 +1111,9 @@ int main(int argc, char *argv[])
 _L99: /* terminate */
 
     /* test complete */
-    selects(stdout, 1, 1); /* back to display buffer */
-    curvis(stdout, 1);     /* restore cursor */
-    automode(stdout, 1);   /* enable automatic screen wrap */
+    pa_select(stdout, 1, 1); /* back to display buffer */
+    pa_curvis(stdout, 1);     /* restore cursor */
+    pa_auto(stdout, 1);   /* enable automatic screen wrap */
     printf("\n");
     printf("Test complete\n");
     if (tf != NULL) fclose(tf);
