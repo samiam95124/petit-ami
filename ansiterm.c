@@ -49,10 +49,10 @@
 #define ERRFIL 2 /* handle to standard error */
 
 /* foreground and background color bases */
-//#define FORECOLORBASE 90 /* aixterm */
-//#define BACKCOLORBASE 100
-#define FORECOLORBASE 30 /* ansi */
-#define BACKCOLORBASE 40
+#define FORECOLORBASE 90 /* aixterm */
+#define BACKCOLORBASE 100
+//#define FORECOLORBASE 30 /* ansi */
+//#define BACKCOLORBASE 40
 
 /* types of system vectors for override calls */
 
