@@ -883,9 +883,12 @@ void pa_getenv(
 
     *esd = 0;
     fndenv(esn, &p);
-    if (!p) error("Environment string not found");
-    if (strlen(p->data)+1 > esdl) error("String too large for destination");
-    if (p) strcpy(esd, p->data);
+    if (p) {
+
+        if (strlen(p->data)+1 > esdl) error("String too large for destination");
+        if (p) strcpy(esd, p->data);
+
+    }
 
 }
 
@@ -1596,53 +1599,46 @@ directory.
 ********************************************************************************/
 
 void pa_getusr(
-    /** pathname */ char *fn
-    /** pathname length */)
+    /** pathname */        char *fn,
+    /** pathname length */ int fnl
+)
 {
 
     bufstr b, b1;   /* buffer for result */
+    int i, f;
+    char* envnam[] = { "home", "userhome", "userdir", "user", "username",
+                       "HOME", "USERHOME", "USERDIR", "USER", "USERNAME",
+                       0 };
 
-    pa_getenv("home", b, MAXSTR);
-    if (!b[0]) {  /* not found */
+    *fn = 0; /* clear result */
+    /* find applicable environment names, in order */
+    for (i = 0, f = -1; envnam[i] && f == -1; i++) {
 
-        pa_getenv("userhome", b, MAXSTR);
-        if (!b[0]) {  /* not found */
+        pa_getenv(envnam[i], b, MAXSTR);
+        if (*b && f < 0) f = i;
 
-            pa_getenv("userdir", b, MAXSTR);
-            if (!b[0]) {  /* not found */
+    }
+    if (f >= 0) {
 
-                pa_getenv("user", b, MAXSTR);
-                if (b[0]) { /* found, path that */
+        /* check names used to derive path */
+        if (!strcmp(envnam[f], "user") || !strcmp(envnam[f], "USER") ||
+            !strcmp(envnam[f], "username") || !strcmp(envnam[f], "USERNAME")) {
 
-                    strcpy(b1, b); /* copy */
-                    strcpy(b, "/home/"); /* set prefix */
-                    strcat(b, b1); /* combine */
-
-                } else {  /* path that */
-
-                    pa_getenv("username", b, MAXSTR);
-                    if (b[0]) {
-
-                        strcpy(b1, b);   /* copy */
-                        strcpy(b, "/home/");   /* set prefix */
-                        strcat(b, b1); /* combine */
-
-                    } else
-                        /* all fails, set to program path */
-                        pa_getpgm(b, MAXSTR);
-
-                }
-
-            }
+            strcpy(b1, b); /* copy */
+            strcpy(b, "/home/"); /* set prefix */
+            strcat(b, b1); /* combine */
 
         }
 
+    } else {
+
+        /* all fails, set to program path */
+        pa_getpgm(b, MAXSTR);
 
     }
     strcpy(fn, b); /* place result */
 
 }
-
 
 /********************************************************************************
 

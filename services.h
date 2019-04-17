@@ -112,7 +112,7 @@ extern void pa_brknam(char* fn, char* p, int pl, char* n, int nl, char* e, int e
 extern void pa_maknam(char* fn, int fnl, char* p, char* n, char* e);
 extern void pa_fulnam(char* fn, int fnl);
 extern void pa_getpgm(char* p, int pl);
-extern void pa_getusr(char* fn);
+extern void pa_getusr(char* fn, int fnl);
 extern void pa_setatr(char* fn, pa_attrset a);
 extern void pa_resatr(char* fn, pa_attrset a);
 extern void pa_bakupd(char* fn);

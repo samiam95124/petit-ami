@@ -16,8 +16,7 @@ int main(void)
 
     char fn[100];
 
-    strcpy(fn, "here");
-    pa_fulnam(fn, 100);
-    printf("Filename: %s\n", fn);
+    pa_getusr(fn, 100);
+    printf("User path: %s\n", fn);
 
 }
