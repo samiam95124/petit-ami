@@ -8,12 +8,6 @@
  * useful on any terminal that uses ANSI control codes, mainly the VT100 and
  * emulations of it.
  *
- * This is a vestigial PA/TK terminal handler. It does not meet the full
- * standard for PA/TK terminal level interface. Instead it is meant to
- * provide a starting point to implementations such as Unix/Linux that don't
- * have an API to control the console, or for serial, telnet or ssh links to
- * a VT100 terminal emulation.
- *
  * This module is completely compatible with ANSI C.
  *
  * The module works by keeping a in memory image of the output terminal and
@@ -22,6 +16,18 @@
  * from the terminal to determine the state of individual character cells.
  *
  * In this version, the file argument is not used.
+ *
+ * The ANSI interface is mainly useful in Linux/BSD because the ANSI controls
+ * are standardized there, and serial connections are more widely used
+ * (like SSH). Curses is also used, but it, too, is typically just a wrapper for
+ * ANSI controls, since the wide variety of different serial terminals from the
+ * 1970s and before have died off (which perhaps shows that one way to
+ * standardize the world is to get a smaller world).
+ *
+ * When used as a remote terminal, the issues get interesting. We could use
+ * ANSI to report screen size from the far terminal, but what would that mean,
+ * since the actual screen is local? Similar issues exist with the mouse and
+ * joystick devices, and these issues deserve further research.
  *
  ******************************************************************************/
 
@@ -32,14 +38,23 @@
 #include <sys/timerfd.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <sys/ioctl.h>
 #include <time.h>
 #include <unistd.h>
 #include <stdint.h>
 
 #include "terminal.h"
 
-#define MAXXD 80  /**< standard terminal x, 80x25 */
-#define MAXYD 24  /*25*/  /**< standard terminal x, 80x25 */
+/* Default terminal size sets the geometry of the terminal if we cannot find
+   out the geometry from the terminal itself. */
+#define DEFXD 80 /* default terminal size, 80x24, this is Linux standard */
+#define DEFYD 24
+
+/* The maximum dimensions are used to set the size of the holding arrays.
+   These should be reasonable values to prevent becoming a space hog. */
+#define MAXXD 250  /**< Maximum terminal size x */
+#define MAXYD 250  /**< Maximum terminal size y */
+
 #define MAXCON 10 /**< number of screen contexts */
 
 /* file handle numbers at the system interface level */
@@ -48,7 +63,15 @@
 #define OUTFIL 1 /* handle to standard output */
 #define ERRFIL 2 /* handle to standard error */
 
-/* foreground and background color bases */
+/* Foreground and background color bases.
+   The "normal" ANSI base gives dull colors on Linux, Windows and probably the
+   Mac as well (untested). On linux the AIX colors give bright, and on Windows
+   blink gives bright (apparently since blink is not implemented there). This
+   was considered a non-issue since we use the Windows console mode driver
+   instead of this driver.
+   Note that dull colors are mainly an issue for "paper white" background
+   programs because dull white looks different from every other window on the
+   system. */
 #define FORECOLORBASE 90 /* aixterm */
 #define BACKCOLORBASE 100
 //#define FORECOLORBASE 30 /* ansi */
@@ -239,6 +262,8 @@ static int timtbl[PA_MAXTIM];
 static char keybuf[10]; /* buffer */
 static int keylen; /* number of characters in buffer */
 static int tabs[MAXXD]; /* tabs set */
+static int dimx; /* actual width of screen */
+static int dimy; /* actual height of screen */
 
 /** ****************************************************************************
 
@@ -549,9 +574,7 @@ static void trm_clear(void) { putstr("\33[2J\33[H"); }
 /** move cursor down */ static void trm_down(void) { putstr("\33[B"); }
 /** move cursor left */ static void trm_left(void) { putstr("\33[D"); }
 /** move cursor right */ static void trm_right(void) { putstr("\33[C"); }
-/** turn on blink attribute */ static void trm_blink(void) {
-printf("turning on blink\n");
-putstr("\33[5m"); }
+/** turn on blink attribute */ static void trm_blink(void) { putstr("\33[5m"); }
 /** turn on reverse video */ static void trm_rev(void) { putstr("\33[7m"); }
 /** turn on underline */ static void trm_undl(void) { putstr("\33[4m"); }
 /** turn on bold attribute */ static void trm_bold(void) { putstr("\33[1m"); }
@@ -630,8 +653,8 @@ static void clrbuf(void)
     /** pointer to screen record */ scnrec* sp;
 
     /* clear the screen buffer */
-    for (y = 1;  y <= MAXYD; y++)
-        for (x = 1; x < MAXXD; x++) {
+    for (y = 1;  y <= dimy; y++)
+        for (x = 1; x < dimy; x++) {
 
         sp = &screens[curscn-1]->buf[y-1][x-1];
         sp->ch = ' '; /* clear to spaces */
@@ -699,9 +722,9 @@ static void restore(void)
     bs = screens[curscn-1]->backc;
     as = screens[curscn-1]->attr;
     /* copy buffer to screen */
-    for (yi = 1; yi <= MAXYD; yi++) { /* lines */
+    for (yi = 1; yi <= dimy; yi++) { /* lines */
 
-        for (xi = 1; xi <= MAXXD; xi++) { /* characters */
+        for (xi = 1; xi <= dimx; xi++) { /* characters */
 
             /* for each new character, we compare the attributes and colors
                with what is set. if a new color or attribute is called for,
@@ -729,7 +752,7 @@ static void restore(void)
             putchr(p->ch); /* now output the actual character */
 
         };
-        if (yi < MAXYD)
+        if (yi < dimy)
             /* output next line sequence on all lines but the last. this is
                because the last one would cause us to scroll */
             putstr("\r\n");
@@ -795,7 +818,7 @@ static void iscroll(int x, int y)
     if (y > 0 && x == 0) {
 
         /* downward straight scroll, we can do this with native scrolling */
-        trm_cursor(1, MAXYD); /* position to bottom of screen */
+        trm_cursor(1, dimy); /* position to bottom of screen */
         /* use linefeed to scroll. linefeeds work no matter the state of
            wrap, and use whatever the current background color is */
         yi = y;   /* set line count */
@@ -808,14 +831,14 @@ static void iscroll(int x, int y)
         /* restore cursor position */
         trm_cursor(screens[curscn-1]->curx, screens[curscn-1]->cury);
         /* now, adjust the buffer to be the same */
-        for (yi = 1; yi <= MAXYD-1; yi++) /* move any lines up */
-            if (yi+y <= MAXYD) /* still within buffer */
+        for (yi = 1; yi <= dimy-1; yi++) /* move any lines up */
+            if (yi+y <= dimy) /* still within buffer */
                 /* move lines up */
                     memcpy(screens[curscn-1]->buf[yi-1],
                            screens[curscn-1]->buf[yi+y-1],
-                           MAXXD * sizeof(scnrec));
-        for (yi = MAXYD-y+1; yi <= MAXYD; yi++) /* clear blank lines at end */
-            for (xi = 1; xi <= MAXXD; xi++) {
+                           dimx * sizeof(scnrec));
+        for (yi = dimy-y+1; yi <= dimy; yi++) /* clear blank lines at end */
+            for (xi = 1; xi <= dimx; xi++) {
 
             sp = &screens[curscn-1]->buf[yi-1][xi-1];
             sp->ch = ' ';   /* clear to blanks at colors and attributes */
@@ -829,7 +852,7 @@ static void iscroll(int x, int y)
 
         /* when the scroll is arbitrary, we do it by completely refreshing the
            contents of the screen from the buffer */
-        if (x <= -MAXXD || x >= MAXXD || y <= -MAXYD || y >= MAXYD) {
+        if (x <= -dimx || x >= dimx || y <= -dimy || y >= dimy) {
 
             /* scroll would result in complete clear, do it */
             trm_clear();   /* scroll would result in complete clear, do it */
@@ -851,15 +874,15 @@ static void iscroll(int x, int y)
             memcpy(scnsav, screens[curscn-1]->buf, sizeof(scnbuf));
             if (y > 0) {  /* move text up */
 
-                for (yi = 1; yi <= MAXYD-1; yi++) /* move any lines up */
-                    if (yi + y + 1 <= MAXYD) /* still within buffer */
+                for (yi = 1; yi <= dimy-1; yi++) /* move any lines up */
+                    if (yi + y + 1 <= dimy) /* still within buffer */
                         /* move lines up */
                         memcpy(screens[curscn-1]->buf[yi-1],
                                screens[curscn-1]->buf[yi+y-1],
-                               MAXXD*sizeof(scnrec));
-                for (yi = MAXYD-y+1; yi <= MAXYD; yi++)
+                               dimx*sizeof(scnrec));
+                for (yi = dimy-y+1; yi <= dimy; yi++)
                     /* clear blank lines at end */
-                    for (xi = 0; xi < MAXXD; xi++) {
+                    for (xi = 0; xi < dimx; xi++) {
 
                     sp = &screens[curscn-1]->buf[yi-1][xi-1];
                     sp->ch = ' ';   /* clear to blanks at colors and attributes */
@@ -871,14 +894,14 @@ static void iscroll(int x, int y)
 
             } else if (y < 0) {  /* move text down */
 
-                for (yi = MAXYD; yi >= 2; yi--)   /* move any lines up */
+                for (yi = dimy; yi >= 2; yi--)   /* move any lines up */
                     if (yi + y >= 1) /* still within buffer */
                         /* move lines up */
                         memcpy(screens[curscn-1]->buf[yi-1],
                                screens[curscn-1]->buf[yi+y-1],
-                               MAXXD * sizeof(scnrec));
+                               dimx * sizeof(scnrec));
                 for (yi = 1; yi <= abs(y); yi++) /* clear blank lines at start */
-                    for (xi = 1; xi <= MAXXD; xi++) {
+                    for (xi = 1; xi <= dimx; xi++) {
 
                     sp = &screens[curscn-1]->buf[yi-1][xi-1];
                     /* clear to blanks at colors and attributes */
@@ -892,15 +915,15 @@ static void iscroll(int x, int y)
             }
             if (x > 0) { /* move text left */
 
-                for (yi = 1; yi <= MAXYD; yi++) { /* move text left */
+                for (yi = 1; yi <= dimy; yi++) { /* move text left */
 
-                    for (xi = 1; xi <= MAXXD-1; xi++) /* move left */
-                        if (xi + x + 1 <= MAXXD) /* still within buffer */
+                    for (xi = 1; xi <= dimx-1; xi++) /* move left */
+                        if (xi + x + 1 <= dimx) /* still within buffer */
                             /* move characters left */
                             screens[curscn-1]->buf[yi-1][xi-1] =
                                 screens[curscn-1]->buf[yi-1][xi+x-1];
                     /* clear blank spaces at right */
-                    for (xi = MAXXD-x+1; xi <= MAXXD; xi++) {
+                    for (xi = dimx-x+1; xi <= dimx; xi++) {
 
                         sp = &screens[curscn-1]->buf[yi-1][xi-1];
                         /* clear to blanks at colors and attributes */
@@ -915,9 +938,9 @@ static void iscroll(int x, int y)
 
             } else if (x < 0) { /* move text right */
 
-                for (yi = 1; yi <= MAXYD; yi++) { /* move text right */
+                for (yi = 1; yi <= dimy; yi++) { /* move text right */
 
-                    for (xi = MAXXD; xi >= 2; xi--) /* move right */
+                    for (xi = dimx; xi >= 2; xi--) /* move right */
                         if (xi+x >= 1) /* still within buffer */
                             /* move characters left */
                             screens[curscn-1]->buf[yi-1][xi-1] =
@@ -942,7 +965,7 @@ static void iscroll(int x, int y)
             fs = screens[curscn-1]->forec; /* save current colors and attributes */
             bs = screens[curscn-1]->backc;
             as = screens[curscn-1]->attr;
-            for (yi = 1; yi <= MAXYD; yi++) { /* lines */
+            for (yi = 1; yi <= dimy; yi++) { /* lines */
 
                 /* find the last unmatching character between real and new buffers.
                    Then, we only need output the leftmost non-matching characters
@@ -952,7 +975,7 @@ static void iscroll(int x, int y)
                    SERIOUSLY complex, we could check runs of matching characters,
                    then check if performing a direct cursor position is less output
                    characters than just outputing data :) */
-                lx = MAXXD; /* set to end */
+                lx = dimx; /* set to end */
                 do { /* check matches */
 
                     m = 1; /* set match */
@@ -1000,7 +1023,7 @@ static void iscroll(int x, int y)
                     putchr(sp->ch);
 
                 }
-                if (yi + 1 < MAXYD)
+                if (yi + 1 < dimy)
                     /* output next line sequence on all lines but the last. this is
                        because the last one would cause us to scroll */
                     putstr("\r\n");
@@ -1050,7 +1073,7 @@ static void icursor(int x, int y)
 
 {
 
-    if (x >= 1 && x <= MAXXD && y >= 1 && y <= MAXYD) {
+    if (x >= 1 && x <= dimx && y >= 1 && y <= dimy) {
 
         if (x != screens[curscn-1]->curx || y != screens[curscn-1]->cury) {
 
@@ -1085,7 +1108,7 @@ static void iup(void)
         iscroll(0, -1); /* at top already, scroll up */
     else { /* wrap cursor around to screen bottom */
 
-        screens[curscn-1]->cury = MAXYD; /* set new position */
+        screens[curscn-1]->cury = dimy; /* set new position */
         /* update on screen */
         trm_cursor(screens[curscn-1]->curx, screens[curscn-1]->cury);
 
@@ -1105,7 +1128,7 @@ static void idown()
 
 {
 
-    if (screens[curscn-1]->cury < MAXYD) { /* not at bottom of screen */
+    if (screens[curscn-1]->cury < dimy) { /* not at bottom of screen */
 
         trm_down(); /* move down */
         screens[curscn-1]->cury = screens[curscn-1]->cury+1; /* update position */
@@ -1142,7 +1165,7 @@ static void ileft()
     } else { /* wrap cursor motion */
 
         iup(); /* move cursor up one line */
-        screens[curscn-1]->curx = MAXXD; /* set cursor to extreme right */
+        screens[curscn-1]->curx = dimx; /* set cursor to extreme right */
         /* position on screen */
         trm_cursor(screens[curscn-1]->curx, screens[curscn-1]->cury);
 
@@ -1162,7 +1185,7 @@ static void iright()
 
 {
 
-    if (screens[curscn-1]->curx < MAXXD) { /* not at extreme right */
+    if (screens[curscn-1]->curx < dimx) { /* not at extreme right */
 
         trm_right(); /* move right */
         screens[curscn-1]->curx = screens[curscn-1]->curx+1; /* update position */
@@ -1211,7 +1234,7 @@ static void plcchr(char c)
 
         /* find next tab position */
         while (!tabs[screens[curscn-1]->cury-1] &&
-               screens[curscn-1]->cury <= MAXXD) iright();
+               screens[curscn-1]->cury <= dimy) iright();
 
     } else if (c >= ' ' && c != 0x7f) {
 
@@ -1225,7 +1248,7 @@ static void plcchr(char c)
         p->backc = screens[curscn-1]->backc;
         p->attr = screens[curscn-1]->attr; /* place attribute */
         /* finish cursor right processing */
-        if (screens[curscn-1]->curx < MAXXD) /* not at extreme right */
+        if (screens[curscn-1]->curx < dimx) /* not at extreme right */
             screens[curscn-1]->curx++; /* update position */
         else
             /* Wrap being off, ANSI left the cursor at the extreme right. So now
@@ -1401,7 +1424,7 @@ int pa_maxx(FILE *f)
 
 {
 
-    return MAXXD; /* set maximum x */
+    return dimx; /* set maximum x */
 
 }
 
@@ -1418,7 +1441,7 @@ int pa_maxy(FILE *f)
 
 {
 
-    return MAXYD; /* set maximum y */
+    return dimy; /* set maximum y */
 
 }
 
@@ -1543,11 +1566,21 @@ void pa_blink(FILE *f, int e)
 {
 
     trm_attroff(); /* turn off attributes */
-    /* either on or off leads to blink, so we just do that */
-    screens[curscn-1]->attr = sablink; /* set attribute active */
-    setattr(screens[curscn-1]->attr); /* set current attribute */
-    trm_fcolor(screens[curscn-1]->forec); /* set current colors */
-    trm_bcolor(screens[curscn-1]->backc);
+    if (e) { /* reverse on */
+
+        screens[curscn-1]->attr = sablink; /* set attribute active */
+        setattr(screens[curscn-1]->attr); /* set current attribute */
+        trm_fcolor(screens[curscn-1]->forec); /* set current colors */
+        trm_bcolor(screens[curscn-1]->backc);
+
+    } else { /* turn it off */
+
+        screens[curscn-1]->attr = sanone; /* set attribute active */
+        setattr(screens[curscn-1]->attr); /* set current attribute */
+        trm_fcolor(screens[curscn-1]->forec); /* set current colors */
+        trm_bcolor(screens[curscn-1]->backc);
+
+    }
 
 }
 
@@ -1577,7 +1610,7 @@ void pa_reverse(FILE *f, int e)
 
     } else { /* turn it off */
 
-        screens[curscn-1]->attr = sablink; /* set attribute active */
+        screens[curscn-1]->attr = sanone; /* set attribute active */
         setattr(screens[curscn-1]->attr); /* set current attribute */
         trm_fcolor(screens[curscn-1]->forec); /* set current colors */
         trm_bcolor(screens[curscn-1]->backc);
@@ -1612,7 +1645,7 @@ void pa_underline(FILE *f, int e)
 
     } else { /* turn it off */
 
-        screens[curscn-1]->attr = sablink; /* set attribute active */
+        screens[curscn-1]->attr = sanone; /* set attribute active */
         setattr(screens[curscn-1]->attr); /* set current attribute */
         trm_fcolor(screens[curscn-1]->forec); /* set current colors */
         trm_bcolor(screens[curscn-1]->backc);
@@ -1668,7 +1701,22 @@ void pa_italic(FILE *f, int e)
 
 {
 
-    /* no capability */
+    trm_attroff(); /* turn off attributes */
+    if (e) { /* italic on */
+
+        screens[curscn-1]->attr = saital; /* set attribute active */
+        setattr(screens[curscn-1]->attr); /* set current attribute */
+        trm_fcolor(screens[curscn-1]->forec); /* set current colors */
+        trm_bcolor(screens[curscn-1]->backc);
+
+    } else { /* turn it off */
+
+        screens[curscn-1]->attr = sanone; /* set attribute active */
+        setattr(screens[curscn-1]->attr); /* set current attribute */
+        trm_fcolor(screens[curscn-1]->forec); /* set current colors */
+        trm_bcolor(screens[curscn-1]->backc);
+
+    }
 
 }
 
@@ -1698,7 +1746,7 @@ void pa_bold(FILE *f, int e)
 
     } else { /* turn it off */
 
-        screens[curscn-1]->attr = sablink; /* set attribute active */
+        screens[curscn-1]->attr = sanone; /* set attribute active */
         setattr(screens[curscn-1]->attr); /* set current attribute */
         trm_fcolor(screens[curscn-1]->forec); /* set current colors */
         trm_bcolor(screens[curscn-1]->backc);
@@ -1720,6 +1768,8 @@ Not implemented.
 void pa_strikeout(FILE *f, int e)
 
 {
+
+    /* no capability */
 
 }
 
@@ -2101,7 +2151,7 @@ void settab(FILE* f, int t)
 
 {
 
-    if (t < 1 || t > MAXXD) error(einvtab); /* invalid tab position */
+    if (t < 1 || t > dimx) error(einvtab); /* invalid tab position */
     tabs[t-1] = 1; /* set tab position */
 
 }
@@ -2118,7 +2168,7 @@ void pa_restab(FILE* f, int t)
 
 {
 
-    if (t < 1 || t > MAXXD) error(einvtab); /* invalid tab position */
+    if (t < 1 || t > dimx) error(einvtab); /* invalid tab position */
     tabs[t-1] = 0; /* reset tab position */
 
 }
@@ -2137,7 +2187,7 @@ void pa_clrtab(FILE* f)
 
     int i;
 
-    for (i = 0; i < MAXXD; i++) tabs[i] = 0; /* clear all tab stops */
+    for (i = 0; i < dimx; i++) tabs[i] = 0; /* clear all tab stops */
 
 }
 
@@ -2268,6 +2318,8 @@ static void pa_init_terminal()
     /** index for events */            pa_evtcod e;
     /** build new terminal settings */ struct termios raw;
     /** index */                       int i;
+    /** window size record */          struct winsize ws;
+    /** result code */                 int r;
 
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
@@ -2276,6 +2328,19 @@ static void pa_init_terminal()
     ovr_close(iclose, &ofpclose);
     ovr_unlink(iunlink, &ofpunlink);
     ovr_lseek(ilseek, &ofplseek);
+
+    /* set default screen geometry */
+    dimx = DEFXD;
+    dimy = DEFYD;
+
+    /* attempt to determine actual screen size */
+    r = ioctl(STDIN_FILENO, TIOCGWINSZ, &ws);
+    if (!r) {
+
+        dimx = ws.ws_row;
+        dimy = ws.ws_col;
+
+    }
 
     /* clear screens array */
     for (curscn = 1; curscn <= MAXCON; curscn++) screens[curscn-1] = 0;
@@ -2324,9 +2389,9 @@ static void pa_init_terminal()
     for (i = 0; i < PA_MAXTIM; i++) timtbl[i] = -1;
 
     /* clear tabs and set to 8ths */
-    for (i = 0; i < MAXXD; i++) tabs[i] = !((i-1)%8) && i != 1;
+    for (i = 0; i < dimx; i++) tabs[i] = !((i-1)%8) && i != 1;
 
-    /* put terminal in raw mode after flushing */
+    /* restore terminal state after flushing */
     tcsetattr(0,TCSAFLUSH,&raw);
 
 }
