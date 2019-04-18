@@ -1,6 +1,6 @@
 /** ****************************************************************************
  *
- * Petit AMI
+ *                                 Petit AMI
  *
  * ANSI console interface
  *
@@ -24,10 +24,11 @@
  * 1970s and before have died off (which perhaps shows that one way to
  * standardize the world is to get a smaller world).
  *
- * When used as a remote terminal, the issues get interesting. We could use
- * ANSI to report screen size from the far terminal, but what would that mean,
- * since the actual screen is local? Similar issues exist with the mouse and
- * joystick devices, and these issues deserve further research.
+ * The ANSI driver really has two modes: one when used as a local program, and
+ * another when used remotely via serial connection, telnet, ssh or similar
+ * program. In the latter case, the mouse and joystick position is irrelevant,
+ * and we need to determine terminal geometry via ANSI sequences (yes, it is
+ * possible!).
  *
  ******************************************************************************/
 
@@ -2337,8 +2338,8 @@ static void pa_init_terminal()
     r = ioctl(STDIN_FILENO, TIOCGWINSZ, &ws);
     if (!r) {
 
-        dimx = ws.ws_row;
-        dimy = ws.ws_col;
+        dimx = ws.ws_col;
+        dimy = ws.ws_row;
 
     }
 
