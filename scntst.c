@@ -316,6 +316,7 @@ int main(int argc, char *argv[])
     pa_curvis(stdout, 0);   /* remove cursor */
     /* top of left lower */
     pa_cursor(stdout, 1, pa_maxy(stdout));
+
     printf("\\/");
     /* top of right lower, bottom of left lower, and move it all up */
     pa_cursor(stdout, pa_maxx(stdout) - 1, pa_maxy(stdout));

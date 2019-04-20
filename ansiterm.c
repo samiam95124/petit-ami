@@ -655,7 +655,7 @@ static void clrbuf(void)
 
     /* clear the screen buffer */
     for (y = 1;  y <= dimy; y++)
-        for (x = 1; x < dimy; x++) {
+        for (x = 1; x <= dimx; x++) {
 
         sp = &screens[curscn-1]->buf[y-1][x-1];
         sp->ch = ' '; /* clear to spaces */
@@ -837,7 +837,7 @@ static void iscroll(int x, int y)
                 /* move lines up */
                     memcpy(screens[curscn-1]->buf[yi-1],
                            screens[curscn-1]->buf[yi+y-1],
-                           dimx * sizeof(scnrec));
+                           MAXXD * sizeof(scnrec));
         for (yi = dimy-y+1; yi <= dimy; yi++) /* clear blank lines at end */
             for (xi = 1; xi <= dimx; xi++) {
 
@@ -880,7 +880,7 @@ static void iscroll(int x, int y)
                         /* move lines up */
                         memcpy(screens[curscn-1]->buf[yi-1],
                                screens[curscn-1]->buf[yi+y-1],
-                               dimx*sizeof(scnrec));
+                               MAXXD*sizeof(scnrec));
                 for (yi = dimy-y+1; yi <= dimy; yi++)
                     /* clear blank lines at end */
                     for (xi = 0; xi < dimx; xi++) {
@@ -894,13 +894,12 @@ static void iscroll(int x, int y)
                 }
 
             } else if (y < 0) {  /* move text down */
-
                 for (yi = dimy; yi >= 2; yi--)   /* move any lines up */
                     if (yi + y >= 1) /* still within buffer */
                         /* move lines up */
                         memcpy(screens[curscn-1]->buf[yi-1],
                                screens[curscn-1]->buf[yi+y-1],
-                               dimx * sizeof(scnrec));
+                               MAXXD * sizeof(scnrec));
                 for (yi = 1; yi <= abs(y); yi++) /* clear blank lines at start */
                     for (xi = 1; xi <= dimx; xi++) {
 
@@ -975,7 +974,7 @@ static void iscroll(int x, int y)
                    efficient as a cursor movement. if, however, you want to get
                    SERIOUSLY complex, we could check runs of matching characters,
                    then check if performing a direct cursor position is less output
-                   characters than just outputing data :) */
+                   characters than just outputting data :) */
                 lx = dimx; /* set to end */
                 do { /* check matches */
 
@@ -984,14 +983,11 @@ static void iscroll(int x, int y)
                     if (screens[curscn-1]->buf[yi-1][lx-1].ch != scnsav[yi-1][lx-1].ch)
                         m = 0;
                     if (screens[curscn-1]->buf[yi-1][lx-1].forec !=
-                        scnsav[yi-1][lx-1].forec)
-                        m = 0;
+                        scnsav[yi-1][lx-1].forec) m = 0;
                     if (screens[curscn-1]->buf[yi-1][lx-1].backc !=
-                        scnsav[yi-1][lx-1].backc)
-                        m = 0;
+                        scnsav[yi-1][lx-1].backc) m = 0;
                     if (screens[curscn-1]->buf[yi-1][lx-1].attr !=
-                        scnsav[yi-1][lx-1].attr)
-                        m = 0;
+                        scnsav[yi-1][lx-1].attr)  m = 0;
                     if (m) lx--; /* next character */
 
                 } while (m && lx); /* until match or no more */
@@ -1010,7 +1006,7 @@ static void iscroll(int x, int y)
                     }
                     if (sp->backc != bs) { /* new background color */
 
-                        trm_bcolor(sp->forec); /* set the new color */
+                        trm_bcolor(sp->backc); /* set the new color */
                         bs = sp->backc; /* set save */
 
                     }
