@@ -634,6 +634,15 @@ static void setattr(scnatt a)
         case sabold:  trm_bold();    break; /* bold text */
 
     }
+    /* attribute off may change the colors back to "normal" (normal for that
+       particular implementation), apparently to remove reverse video. So we
+       need to restore colors in this case, since PA/TK preserves colors. */
+    if (a == sanone) {
+
+        trm_fcolor(screens[curscn-1]->forec); /* set current colors */
+        trm_bcolor(screens[curscn-1]->backc);
+
+    }
 
 }
 

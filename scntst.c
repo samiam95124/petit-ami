@@ -270,7 +270,7 @@ int main(int argc, char *argv[])
     prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
     printf("\f");
-    timetest();
+//    timetest();
     prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
     printf("\f");
@@ -283,6 +283,7 @@ int main(int argc, char *argv[])
     pa_curvis(stdout, 1);
     printf("\rCursor should be [on ], press return ->");
     waitnext();
+    printf("\r                                       ");
     pa_curvis(stdout, 0);
     printf("\n");
     printf("\n");
