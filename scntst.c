@@ -227,7 +227,7 @@ static void prtban(char *s)
     prtcen(pa_maxy(stdout) / 2, s);
     putchar(' ');
     pa_cursor(stdout, pa_maxx(stdout)/2-strlen(s)/2-1, pa_maxy(stdout)/2+1);
-    for (i = 1; i <= strlen(s); i++) putchar(' ');
+    for (i = 1; i <= strlen(s)+2; i++) putchar(' ');
 
 }
 
@@ -243,6 +243,7 @@ int main(int argc, char *argv[])
     pa_bcolor(stdout, pa_white);
     printf("\f");
     pa_curvis(stdout, 0);
+#if 0
     prtban("Terminal mode screen test vs. 1.0");
     prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
@@ -399,7 +400,7 @@ int main(int argc, char *argv[])
     putchar('/');
     pa_left(stdout);
     pa_left(stdout);
-    printf("\\\\");
+    printf("\\");
     pa_down(stdout);
     pa_del(stdout);
     printf("/\\");
@@ -435,13 +436,13 @@ int main(int argc, char *argv[])
     prtban("Row ID test, all rows should be numbered");
     waitnext();
 
-    /* *************************** Collumn ID test ***************************** */
+    /* *************************** Column ID test ***************************** */
 
     printf("\f");
-    c = '1';
     for (y = 1; y <= pa_maxy(stdout); y++) {
 
         pa_cursor(stdout, 1, y); /* index start of line */
+        c = '1';
         for (x = 1; x <= pa_maxx(stdout); x++) {
 
             putchar(c); /* output characters */
@@ -451,17 +452,17 @@ int main(int argc, char *argv[])
         }
 
     }
-    prtban("Collumn ID test, all collumns should be numbered");
+    prtban("Column ID test, all columns should be numbered");
     waitnext();
 
     /* ****************************** Fill test ******************************** */
-
+#endif
     printf("\f");
     c = '\0';   /* initalize character value */
     for (y = 1; y <= pa_maxy(stdout); y++) {
 
         pa_cursor(stdout, 1, y);   /* index start of line */
-        for (x = 1; x <= pa_maxy(stdout); x++) {
+        for (x = 1; x <= pa_maxx(stdout); x++) {
 
             if (c >= ' ' && c != '\177') putchar(c);
             else printf("\\");
