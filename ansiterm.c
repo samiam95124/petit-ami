@@ -903,15 +903,15 @@ static void iscroll(int x, int y)
             memcpy(scnsav, screens[curscn-1]->buf, sizeof(scnbuf));
             if (y > 0) {  /* move text up */
 
-                for (yi = 1; yi <= dimy-1; yi++) /* move any lines up */
-                    if (yi + y + 1 <= dimy) /* still within buffer */
+                for (yi = 1; yi < dimy; yi++) /* move any lines up */
+                    if (yi + y <= dimy) /* still within buffer */
                         /* move lines up */
                         memcpy(screens[curscn-1]->buf[yi-1],
                                screens[curscn-1]->buf[yi+y-1],
                                MAXXD*sizeof(scnrec));
                 for (yi = dimy-y+1; yi <= dimy; yi++)
                     /* clear blank lines at end */
-                    for (xi = 0; xi < dimx; xi++) {
+                    for (xi = 1; xi <= dimx; xi++) {
 
                     sp = &screens[curscn-1]->buf[yi-1][xi-1];
                     sp->ch = ' ';   /* clear to blanks at colors and attributes */
@@ -922,6 +922,7 @@ static void iscroll(int x, int y)
                 }
 
             } else if (y < 0) { /* move text down */
+
                 for (yi = dimy; yi >= 2; yi--)   /* move any lines up */
                     if (yi + y >= 1) /* still within buffer */
                         /* move lines up */
@@ -942,7 +943,6 @@ static void iscroll(int x, int y)
 
             }
             if (x > 0) { /* move text left */
-
                 for (yi = 1; yi <= dimy; yi++) { /* move text left */
 
                     for (xi = 1; xi <= dimx-1; xi++) /* move left */
