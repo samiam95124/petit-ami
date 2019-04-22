@@ -14,9 +14,14 @@ int main(void)
 
 {
 
-    char fn[100];
+    int t;
 
-    pa_getusr(fn, 100);
-    printf("User path: %s\n", fn);
+    while (1) {
+
+        t = pa_clock();
+        while (pa_elapsed(t) < 10000);
+        printf("Second\n");
+
+    }
 
 }

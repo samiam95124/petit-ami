@@ -1988,6 +1988,7 @@ void pa_timer(/* file to send event to */              FILE *f,
 
     struct itimerspec ts;
     int rv;
+    long tl;
 
     if (i < 1 || i > PA_MAXTIM) error(einvhan); /* invalid timer handle */
     if (timtbl[i-1] < 0) { /* timer entry inactive, create a timer */
@@ -2001,8 +2002,9 @@ void pa_timer(/* file to send event to */              FILE *f,
     }
 
     /* set timer run time */
-    ts.it_value.tv_sec = t/10000; /* set number of seconds to run */
-    ts.it_value.tv_nsec = t%10000*1000; /* set number of nanoseconds to run */
+    tl = t;
+    ts.it_value.tv_sec = tl/10000; /* set number of seconds to run */
+    ts.it_value.tv_nsec = tl%10000*100000; /* set number of nanoseconds to run */
 
     /* set if timer does not rerun */
     ts.it_interval.tv_sec = 0;

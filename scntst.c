@@ -243,7 +243,6 @@ int main(int argc, char *argv[])
     pa_bcolor(stdout, pa_white);
     printf("\f");
     pa_curvis(stdout, 0);
-#if 0
     prtban("Terminal mode screen test vs. 1.0");
     prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
@@ -270,8 +269,9 @@ int main(int argc, char *argv[])
     }
     prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
+#if 0
     printf("\f");
-//    timetest();
+    timetest();
     prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
     printf("\f");
@@ -456,7 +456,7 @@ int main(int argc, char *argv[])
     waitnext();
 
     /* ****************************** Fill test ******************************** */
-#endif
+
     printf("\f");
     c = '\0';   /* initalize character value */
     for (y = 1; y <= pa_maxy(stdout); y++) {
@@ -476,7 +476,8 @@ int main(int argc, char *argv[])
     waitnext();
 
     /* **************************** Sidewinder test **************************** */
-
+#endif
+pa_auto(stdout, 0);
     printf("\f");
     /* perform sidewinder */
     x = 1;   /* set origin */
@@ -497,7 +498,7 @@ int main(int argc, char *argv[])
         tc++;
         if (tc >= 10) {
 
-            wait(50); /* 50 milliseconds */
+            wait(50); /* 5 milliseconds */
             tc = 0;
 
         }
