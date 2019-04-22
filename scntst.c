@@ -83,7 +83,7 @@ static void box(int sx, int sy, int ex, int ey, char c)
 }
 
 
-static jmp_buf _JL99;
+static jmp_buf terminate_buf;
 
 
 /* wait time in 100 microseconds */
@@ -96,7 +96,7 @@ static void wait(int t)
     pa_timer(stdout, 1, t, 0);
     do { pa_event(stdin, &er);
     } while (er.etype != pa_ettim && er.etype != pa_etterm);
-    if (er.etype == pa_etterm) { longjmp(_JL99, 1); }
+    if (er.etype == pa_etterm) { longjmp(terminate_buf, 1); }
 
 }
 
@@ -110,7 +110,7 @@ static void waitnext(void)
 
     do { pa_event(stdin, &er);
     } while (er.etype != pa_etenter && er.etype != pa_etterm);
-    if (er.etype == pa_etterm) { longjmp(_JL99, 1); }
+    if (er.etype == pa_etterm) { longjmp(terminate_buf, 1); }
 
 }
 
@@ -154,7 +154,7 @@ static void timetest(void)
         pa_timer(stdout, 1, 10000, 0);
         do { pa_event(stdin, &er);
         } while (er.etype != pa_ettim && er.etype != pa_etterm);
-        if (er.etype == pa_etterm) longjmp(_JL99, 1);
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
         putchar('.');
 
     }
@@ -234,8 +234,7 @@ static void prtban(char *s)
 int main(int argc, char *argv[])
 {
 
-    if (setjmp(_JL99))
-    goto _L99;
+    if (setjmp(terminate_buf)) goto terminate;
 
     pa_select(stdout, 2, 2);   /* move off the display buffer */
     /* set black on white text */
@@ -476,8 +475,7 @@ int main(int argc, char *argv[])
     waitnext();
 
     /* **************************** Sidewinder test **************************** */
-#endif
-pa_auto(stdout, 0);
+
     printf("\f");
     /* perform sidewinder */
     x = 1;   /* set origin */
@@ -667,6 +665,8 @@ pa_auto(stdout, 0);
     for (y = 1; y <= pa_maxy(stdout); y++) { wait(200); pa_scroll(stdout, 0, 1); }
     prtcen(pa_maxy(stdout), "Scroll up");
     waitnext();
+#endif
+pa_auto(stdout, 0);
     printf("\f");
     /* fill screen with row order data */
     c = '1';
@@ -696,6 +696,7 @@ pa_auto(stdout, 0);
         }
 
     }
+waitnext();
     for (x = 1; x <= pa_maxx(stdout); x++) { wait(200); pa_scroll(stdout, 1, 0); }
     prtcen(pa_maxy(stdout), "Scroll left");
     waitnext();
@@ -1005,10 +1006,9 @@ pa_auto(stdout, 0);
 
 
         } while (er.etype != pa_etenter && er.etype != pa_etterm);
-        if (er.etype == pa_etterm) goto _L99;
+        if (er.etype == pa_etterm) goto terminate;
 
     }
-
 
     /* ********************** Character write speed test *********************** */
 
@@ -1112,7 +1112,7 @@ pa_auto(stdout, 0);
            clk/cnt*0.0001);
     waitnext();
 
-_L99: /* terminate */
+terminate: /* terminate */
 
     /* test complete */
     pa_select(stdout, 1, 1); /* back to display buffer */

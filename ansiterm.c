@@ -813,6 +813,25 @@ is moving under it.
 
 *******************************************************************************/
 
+void prtbuf(void)
+
+{
+
+    int xi, yi;
+
+    fprintf(stderr, "\nBuffer:\n\n");
+    for (yi = 1; yi <= dimy; yi++) {
+
+        fprintf(stderr, "%d: \"", yi);
+        for (xi = 1; xi < dimx; xi++)
+            fprintf(stderr, "%c", screens[curscn-1]->buf[yi-1][xi-1].ch);
+        fprintf(stderr, "\"\n");
+
+    }
+    fprintf(stderr, "\n");
+
+}
+
 static void iscroll(int x, int y)
 
 {
@@ -902,7 +921,7 @@ static void iscroll(int x, int y)
 
                 }
 
-            } else if (y < 0) {  /* move text down */
+            } else if (y < 0) { /* move text down */
                 for (yi = dimy; yi >= 2; yi--)   /* move any lines up */
                     if (yi + y >= 1) /* still within buffer */
                         /* move lines up */
@@ -927,7 +946,7 @@ static void iscroll(int x, int y)
                 for (yi = 1; yi <= dimy; yi++) { /* move text left */
 
                     for (xi = 1; xi <= dimx-1; xi++) /* move left */
-                        if (xi + x + 1 <= dimx) /* still within buffer */
+                        if (xi+x <= dimx) /* still within buffer */
                             /* move characters left */
                             screens[curscn-1]->buf[yi-1][xi-1] =
                                 screens[curscn-1]->buf[yi-1][xi+x-1];
@@ -1029,7 +1048,7 @@ static void iscroll(int x, int y)
                     putchr(sp->ch);
 
                 }
-                if (yi + 1 < dimy)
+                if (yi < dimy)
                     /* output next line sequence on all lines but the last. this is
                        because the last one would cause us to scroll */
                     putstr("\r\n");
