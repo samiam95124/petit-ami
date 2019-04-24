@@ -55,7 +55,7 @@ static int x, y, lx, ly, tx, ty, dx, dy;
 static char c;
 static int top, bottom, lside, rside; /* borders */
 static enum { dup, ddown, dleft, dright } direction; /* writting direction */
-static int count, t1, t2, delay, minlen;   /* minimum direction, x or y */
+static int count, t1, t2, delay, minlen;   /* maximum direction, x or y */
 static pa_evtrec er;   /* event record */
 static int i, b, tc, clk, cnt;
 static FILE *tf;   /* test file */
@@ -268,7 +268,6 @@ int main(int argc, char *argv[])
     }
     prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
-#if 0
     printf("\f");
     timetest();
     prtcen(pa_maxy(stdout), "Press return to continue");
@@ -665,8 +664,6 @@ int main(int argc, char *argv[])
     for (y = 1; y <= pa_maxy(stdout); y++) { wait(200); pa_scroll(stdout, 0, 1); }
     prtcen(pa_maxy(stdout), "Scroll up");
     waitnext();
-#endif
-pa_auto(stdout, 0);
     printf("\f");
     /* fill screen with row order data */
     c = '1';
@@ -696,7 +693,6 @@ pa_auto(stdout, 0);
         }
 
     }
-waitnext();
     for (x = 1; x <= pa_maxx(stdout); x++) { wait(200); pa_scroll(stdout, 1, 0); }
     prtcen(pa_maxy(stdout), "Scroll left");
     waitnext();
@@ -795,7 +791,20 @@ waitnext();
 
     /* ******************************** Tab test ******************************* */
 
+    /* Note tab test, besides testing tabbing, also tests offscreen draws
+       (clipping). */
+
     printf("\f");
+    /* fill top with column order data */
+    c = '1';
+    for (x = 1; x <= pa_maxx(stdout); x++) {
+
+        putchar(c); /* output characters */
+        if (c != '9') c++; /* next character */
+        else c = '0'; /* start over */
+
+    }
+    /* run tabbing */
     for (y = 1; y <= pa_maxy(stdout); y++) {
 
         for (i = 1; i <= y-1; i++) printf("\t");

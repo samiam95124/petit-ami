@@ -43,6 +43,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <limits.h>
 
 #include "terminal.h"
 
@@ -132,6 +133,7 @@ typedef struct { /* screen context */
       /* current writing attribute */        scnatt attr;
       /* current status of scroll */         int scroll;
       /* current status of cursor visible */ int curvis;
+      /* tabbing array */                    int tabs[MAXXD];
 
 } scncon;
 /** pointer to screen context block */ typedef scncon* scnptr;
@@ -224,9 +226,10 @@ char *keytab[pa_etterm+1] = {
 
 };
 
-/* screen contexts array */           static scnptr screens[MAXCON];
-/* index for current screen */        static int curscn;
-/* array of event handler routines */ static pa_pevthan evthan[pa_etterm+1];
+/* screen contexts array */            static scnptr screens[MAXCON];
+/* index for current display screen */ static int curdsp;
+/* index for current update screen */  static int curupd;
+/* array of event handler routines */  static pa_pevthan evthan[pa_etterm+1];
 
 /*
  * Saved vectors to system calls. These vectors point to the old, existing
@@ -265,6 +268,9 @@ static int keylen; /* number of characters in buffer */
 static int tabs[MAXXD]; /* tabs set */
 static int dimx; /* actual width of screen */
 static int dimy; /* actual height of screen */
+static int curon; /* current on/off state of cursor */
+static int curx; /* cursor position on screen */
+static int cury;
 
 /** ****************************************************************************
 
@@ -639,8 +645,8 @@ static void setattr(scnatt a)
        need to restore colors in this case, since PA/TK preserves colors. */
     if (a == sanone) {
 
-        trm_fcolor(screens[curscn-1]->forec); /* set current colors */
-        trm_bcolor(screens[curscn-1]->backc);
+        trm_fcolor(screens[curdsp-1]->forec); /* set current colors */
+        trm_bcolor(screens[curdsp-1]->backc);
 
     }
 
@@ -666,11 +672,11 @@ static void clrbuf(void)
     for (y = 1;  y <= dimy; y++)
         for (x = 1; x <= dimx; x++) {
 
-        sp = &screens[curscn-1]->buf[y-1][x-1];
+        sp = &screens[curdsp-1]->buf[y-1][x-1];
         sp->ch = ' '; /* clear to spaces */
-        sp->forec = screens[curscn-1]->forec;
-        sp->backc = screens[curscn-1]->backc;
-        sp->attr = screens[curscn-1]->attr;
+        sp->forec = screens[curdsp-1]->forec;
+        sp->backc = screens[curdsp-1]->backc;
+        sp->attr = screens[curdsp-1]->attr;
 
     }
 
@@ -689,20 +695,22 @@ static void iniscn(void)
 
 {
 
-    screens[curscn-1]->cury = 1; /* set cursor at home */
-    screens[curscn-1]->curx = 1;
+    screens[curdsp-1]->cury = 1; /* set cursor at home */
+    screens[curdsp-1]->curx = 1;
     /* these attributes and colors are pretty much windows 95 specific. The
        Bizarre setting of "blink" actually allows access to bright white */
-    screens[curscn-1]->forec = pa_black; /* set colors and attributes */
-    screens[curscn-1]->backc = pa_white;
-    screens[curscn-1]->attr = sanone;
-    screens[curscn-1]->curvis = 1; /* turn on cursor visible */
-    screens[curscn-1]->scroll = 1; /* turn on autoscroll */
+    screens[curdsp-1]->forec = pa_black; /* set colors and attributes */
+    screens[curdsp-1]->backc = pa_white;
+    screens[curdsp-1]->attr = sanone;
+    screens[curdsp-1]->curvis = 1; /* turn on cursor visible */
+    screens[curdsp-1]->scroll = 1; /* turn on autoscroll */
     clrbuf(); /* clear screen buffer with that */
-    setattr(screens[curscn-1]->attr); /* set current attribute */
-    trm_fcolor(screens[curscn-1]->forec); /* set current colors */
-    trm_bcolor(screens[curscn-1]->backc);
+    setattr(screens[curdsp-1]->attr); /* set current attribute */
+    trm_fcolor(screens[curdsp-1]->forec); /* set current colors */
+    trm_bcolor(screens[curdsp-1]->backc);
     trm_clear(); /* clear screen, home cursor */
+    curx = 1; /* set that */
+    cury = 1;
 
 }
 
@@ -725,12 +733,12 @@ static void restore(void)
 
     trm_home(); /* restore cursor to upper left to start */
     /* set colors and attributes */
-    trm_fcolor(screens[curscn-1]->forec); /* restore colors */
-    trm_bcolor(screens[curscn-1]->backc);
-    setattr(screens[curscn-1]->attr); /* restore attributes */
-    fs = screens[curscn-1]->forec; /* save current colors and attributes */
-    bs = screens[curscn-1]->backc;
-    as = screens[curscn-1]->attr;
+    trm_fcolor(screens[curdsp-1]->forec); /* restore colors */
+    trm_bcolor(screens[curdsp-1]->backc);
+    setattr(screens[curdsp-1]->attr); /* restore attributes */
+    fs = screens[curdsp-1]->forec; /* save current colors and attributes */
+    bs = screens[curdsp-1]->backc;
+    as = screens[curdsp-1]->attr;
     /* copy buffer to screen */
     for (yi = 1; yi <= dimy; yi++) { /* lines */
 
@@ -740,7 +748,7 @@ static void restore(void)
                with what is set. if a new color or attribute is called for,
                we set that, and update the saves. this technique cuts down on
                the amount of output characters */
-            p = &(screens[curscn-1]->buf[yi-1][xi-1]); /* index this screen element */
+            p = &(screens[curdsp-1]->buf[yi-1][xi-1]); /* index this screen element */
             if (p->forec != fs) { /* new foreground color */
 
                 trm_fcolor(p->forec); /* set the new color */
@@ -769,12 +777,12 @@ static void restore(void)
 
    };
    /* restore cursor position */
-   trm_cursor(screens[curscn-1]->curx, screens[curscn-1]->cury);
-   trm_fcolor(screens[curscn-1]->forec); /* restore colors */
-   trm_bcolor(screens[curscn-1]->backc);
-   setattr(screens[curscn-1]->attr); /* restore attributes */
+   trm_cursor(screens[curdsp-1]->curx, screens[curdsp-1]->cury);
+   trm_fcolor(screens[curdsp-1]->forec); /* restore colors */
+   trm_bcolor(screens[curdsp-1]->backc);
+   setattr(screens[curdsp-1]->attr); /* restore attributes */
    /* restore cursor visible status */
-   if (screens[curscn-1]->curvis) trm_curon(); else trm_curoff();
+   if (screens[curdsp-1]->curvis) trm_curon(); else trm_curoff();
 
 }
 
@@ -794,6 +802,92 @@ static void defaultevent(pa_evtrec* ev)
 
     /* set not handled and exit */
     ev->handled = 0;
+
+}
+
+/*******************************************************************************
+
+Find if cursor is in screen bounds
+
+Checks if the cursor lies in the current bounds, and returns true if so.
+
+*******************************************************************************/
+
+int icurbnd(scnptr sc)
+
+{
+
+   return (sc->curx >= 1) && (sc->curx <= dimx) &&
+          (sc->cury >= 1) && (sc->cury <= dimy);
+
+}
+
+/*******************************************************************************
+
+Set cursor status
+
+Sets the cursor visible or invisible. If the cursor is out of bounds, it is
+invisible regardless. Otherwise, it is visible according to the state of the
+current buffer's visible status.
+
+Should suppress redundant visibility sets here.
+
+*******************************************************************************/
+
+void cursts(scnptr sc)
+
+{
+
+    int cv;
+
+    cv = sc->curvis; /* set current buffer status */
+    if (!icurbnd(sc)) cv = 0; /* not in bounds, force off */
+    if (cv != curon) /* not already at the desired state */
+      if (cv) {
+
+        trm_curon();
+        curon = 1;
+
+    } else {
+
+        trm_curoff();
+        curon = 0;
+
+    }
+
+}
+
+/*******************************************************************************
+
+Position cursor
+
+Positions the cursor (caret) image to the right location on screen, and handles
+the visible or invisible status of that.
+
+*******************************************************************************/
+
+void setcur(scnptr sc)
+
+{
+
+    int b;
+
+    /* check cursor in bounds */
+    if (icurbnd(sc)) {
+
+        /* set cursor position */
+        if (screens[curdsp-1]->curx != curx ||
+            screens[curdsp-1]->cury != cury) {
+
+            /* cursor position and actual don't match */
+            trm_cursor(screens[curdsp-1]->curx, screens[curdsp-1]->cury);
+            curx = screens[curdsp-1]->curx;
+            cury = screens[curdsp-1]->cury;
+
+        }
+
+    }
+    cursts(sc); /* set new cursor status */
 
 }
 
@@ -824,7 +918,7 @@ void prtbuf(void)
 
         fprintf(stderr, "%d: \"", yi);
         for (xi = 1; xi < dimx; xi++)
-            fprintf(stderr, "%c", screens[curscn-1]->buf[yi-1][xi-1].ch);
+            fprintf(stderr, "%c", screens[curdsp-1]->buf[yi-1][xi-1].ch);
         fprintf(stderr, "\"\n");
 
     }
@@ -858,22 +952,22 @@ static void iscroll(int x, int y)
 
         }
         /* restore cursor position */
-        trm_cursor(screens[curscn-1]->curx, screens[curscn-1]->cury);
+        trm_cursor(screens[curdsp-1]->curx, screens[curdsp-1]->cury);
         /* now, adjust the buffer to be the same */
         for (yi = 1; yi <= dimy-1; yi++) /* move any lines up */
             if (yi+y <= dimy) /* still within buffer */
                 /* move lines up */
-                    memcpy(screens[curscn-1]->buf[yi-1],
-                           screens[curscn-1]->buf[yi+y-1],
+                    memcpy(screens[curdsp-1]->buf[yi-1],
+                           screens[curdsp-1]->buf[yi+y-1],
                            MAXXD * sizeof(scnrec));
         for (yi = dimy-y+1; yi <= dimy; yi++) /* clear blank lines at end */
             for (xi = 1; xi <= dimx; xi++) {
 
-            sp = &screens[curscn-1]->buf[yi-1][xi-1];
+            sp = &screens[curdsp-1]->buf[yi-1][xi-1];
             sp->ch = ' ';   /* clear to blanks at colors and attributes */
-            sp->forec = screens[curscn-1]->forec;
-            sp->backc = screens[curscn-1]->backc;
-            sp->attr = screens[curscn-1]->attr;
+            sp->forec = screens[curdsp-1]->forec;
+            sp->backc = screens[curdsp-1]->backc;
+            sp->attr = screens[curdsp-1]->attr;
 
         }
 
@@ -887,7 +981,7 @@ static void iscroll(int x, int y)
             trm_clear();   /* scroll would result in complete clear, do it */
             clrbuf();   /* clear the screen buffer */
             /* restore cursor positition */
-            trm_cursor(screens[curscn-1]->curx, screens[curscn-1]->cury);
+            trm_cursor(screens[curdsp-1]->curx, screens[curdsp-1]->cury);
 
         } else { /* scroll */
 
@@ -900,24 +994,24 @@ static void iscroll(int x, int y)
                the screen is spaces anyways */
 
             /* save the entire buffer */
-            memcpy(scnsav, screens[curscn-1]->buf, sizeof(scnbuf));
+            memcpy(scnsav, screens[curdsp-1]->buf, sizeof(scnbuf));
             if (y > 0) {  /* move text up */
 
                 for (yi = 1; yi < dimy; yi++) /* move any lines up */
                     if (yi + y <= dimy) /* still within buffer */
                         /* move lines up */
-                        memcpy(screens[curscn-1]->buf[yi-1],
-                               screens[curscn-1]->buf[yi+y-1],
+                        memcpy(screens[curdsp-1]->buf[yi-1],
+                               screens[curdsp-1]->buf[yi+y-1],
                                MAXXD*sizeof(scnrec));
                 for (yi = dimy-y+1; yi <= dimy; yi++)
                     /* clear blank lines at end */
                     for (xi = 1; xi <= dimx; xi++) {
 
-                    sp = &screens[curscn-1]->buf[yi-1][xi-1];
+                    sp = &screens[curdsp-1]->buf[yi-1][xi-1];
                     sp->ch = ' ';   /* clear to blanks at colors and attributes */
-                    sp->forec = screens[curscn-1]->forec;
-                    sp->backc = screens[curscn-1]->backc;
-                    sp->attr = screens[curscn-1]->attr;
+                    sp->forec = screens[curdsp-1]->forec;
+                    sp->backc = screens[curdsp-1]->backc;
+                    sp->attr = screens[curdsp-1]->attr;
 
                 }
 
@@ -926,18 +1020,18 @@ static void iscroll(int x, int y)
                 for (yi = dimy; yi >= 2; yi--)   /* move any lines up */
                     if (yi + y >= 1) /* still within buffer */
                         /* move lines up */
-                        memcpy(screens[curscn-1]->buf[yi-1],
-                               screens[curscn-1]->buf[yi+y-1],
+                        memcpy(screens[curdsp-1]->buf[yi-1],
+                               screens[curdsp-1]->buf[yi+y-1],
                                MAXXD * sizeof(scnrec));
                 for (yi = 1; yi <= abs(y); yi++) /* clear blank lines at start */
                     for (xi = 1; xi <= dimx; xi++) {
 
-                    sp = &screens[curscn-1]->buf[yi-1][xi-1];
+                    sp = &screens[curdsp-1]->buf[yi-1][xi-1];
                     /* clear to blanks at colors and attributes */
                     sp->ch = ' ';
-                    sp->forec = screens[curscn-1]->forec;
-                    sp->backc = screens[curscn-1]->backc;
-                    sp->attr = screens[curscn-1]->attr;
+                    sp->forec = screens[curdsp-1]->forec;
+                    sp->backc = screens[curdsp-1]->backc;
+                    sp->attr = screens[curdsp-1]->attr;
 
                 }
 
@@ -948,17 +1042,17 @@ static void iscroll(int x, int y)
                     for (xi = 1; xi <= dimx-1; xi++) /* move left */
                         if (xi+x <= dimx) /* still within buffer */
                             /* move characters left */
-                            screens[curscn-1]->buf[yi-1][xi-1] =
-                                screens[curscn-1]->buf[yi-1][xi+x-1];
+                            screens[curdsp-1]->buf[yi-1][xi-1] =
+                                screens[curdsp-1]->buf[yi-1][xi+x-1];
                     /* clear blank spaces at right */
                     for (xi = dimx-x+1; xi <= dimx; xi++) {
 
-                        sp = &screens[curscn-1]->buf[yi-1][xi-1];
+                        sp = &screens[curdsp-1]->buf[yi-1][xi-1];
                         /* clear to blanks at colors and attributes */
                         sp->ch = ' ';
-                        sp->forec = screens[curscn-1]->forec;
-                        sp->backc = screens[curscn-1]->backc;
-                        sp->attr = screens[curscn-1]->attr;
+                        sp->forec = screens[curdsp-1]->forec;
+                        sp->backc = screens[curdsp-1]->backc;
+                        sp->attr = screens[curdsp-1]->attr;
 
                     }
 
@@ -971,16 +1065,16 @@ static void iscroll(int x, int y)
                     for (xi = dimx; xi >= 2; xi--) /* move right */
                         if (xi+x >= 1) /* still within buffer */
                             /* move characters left */
-                            screens[curscn-1]->buf[yi-1][xi-1] =
-                                screens[curscn-1]->buf[yi-1][xi+x-1];
+                            screens[curdsp-1]->buf[yi-1][xi-1] =
+                                screens[curdsp-1]->buf[yi-1][xi+x-1];
                     /* clear blank spaces at left */
                     for (xi = 1; xi <= abs(x); xi++) {
 
-                        sp = &screens[curscn-1]->buf[yi-1][xi-1];
+                        sp = &screens[curdsp-1]->buf[yi-1][xi-1];
                         sp->ch = ' ';   /* clear to blanks at colors and attributes */
-                        sp->forec = screens[curscn-1]->forec;
-                        sp->backc = screens[curscn-1]->backc;
-                        sp->attr = screens[curscn-1]->attr;
+                        sp->forec = screens[curdsp-1]->forec;
+                        sp->backc = screens[curdsp-1]->backc;
+                        sp->attr = screens[curdsp-1]->attr;
 
                     }
 
@@ -990,9 +1084,9 @@ static void iscroll(int x, int y)
             /* the buffer is adjusted. now just copy the complete buffer to the
                screen */
             trm_home(); /* restore cursor to upper left to start */
-            fs = screens[curscn-1]->forec; /* save current colors and attributes */
-            bs = screens[curscn-1]->backc;
-            as = screens[curscn-1]->attr;
+            fs = screens[curdsp-1]->forec; /* save current colors and attributes */
+            bs = screens[curdsp-1]->backc;
+            as = screens[curdsp-1]->attr;
             for (yi = 1; yi <= dimy; yi++) { /* lines */
 
                 /* find the last unmatching character between real and new buffers.
@@ -1008,13 +1102,13 @@ static void iscroll(int x, int y)
 
                     m = 1; /* set match */
                     /* check all elements match */
-                    if (screens[curscn-1]->buf[yi-1][lx-1].ch != scnsav[yi-1][lx-1].ch)
+                    if (screens[curdsp-1]->buf[yi-1][lx-1].ch != scnsav[yi-1][lx-1].ch)
                         m = 0;
-                    if (screens[curscn-1]->buf[yi-1][lx-1].forec !=
+                    if (screens[curdsp-1]->buf[yi-1][lx-1].forec !=
                         scnsav[yi-1][lx-1].forec) m = 0;
-                    if (screens[curscn-1]->buf[yi-1][lx-1].backc !=
+                    if (screens[curdsp-1]->buf[yi-1][lx-1].backc !=
                         scnsav[yi-1][lx-1].backc) m = 0;
-                    if (screens[curscn-1]->buf[yi-1][lx-1].attr !=
+                    if (screens[curdsp-1]->buf[yi-1][lx-1].attr !=
                         scnsav[yi-1][lx-1].attr)  m = 0;
                     if (m) lx--; /* next character */
 
@@ -1025,7 +1119,7 @@ static void iscroll(int x, int y)
                        with what is set. if a new color or attribute is called for,
                        we set that, and update the saves. this technique cuts down on
                        the amount of output characters */
-                    sp = &screens[curscn-1]->buf[yi-1][xi-1];
+                    sp = &screens[curdsp-1]->buf[yi-1][xi-1];
                     if (sp->forec != fs) { /* new foreground color */
 
                         trm_fcolor(sp->forec); /* set the new color */
@@ -1055,10 +1149,10 @@ static void iscroll(int x, int y)
 
             }
             /* restore cursor position */
-            trm_cursor(screens[curscn-1]->curx, screens[curscn-1]->cury);
-            trm_fcolor(screens[curscn-1]->forec);   /* restore colors */
-            trm_bcolor(screens[curscn-1]->backc);   /* restore attributes */
-            setattr(screens[curscn-1]->attr);
+            trm_cursor(screens[curdsp-1]->curx, screens[curdsp-1]->cury);
+            trm_fcolor(screens[curdsp-1]->forec);   /* restore colors */
+            trm_bcolor(screens[curdsp-1]->backc);   /* restore attributes */
+            setattr(screens[curdsp-1]->attr);
 
         }
 
@@ -1081,8 +1175,11 @@ static void iclear(void)
 
     trm_clear(); /* erase screen */
     clrbuf(); /* clear the screen buffer */
-    screens[curscn-1]->cury = 1; /* set cursor at home */
-    screens[curscn-1]->curx = 1;
+    screens[curdsp-1]->cury = 1; /* set cursor at home */
+    screens[curdsp-1]->curx = 1;
+    curx = 1; /* set actual cursor location */
+    cury = 1;
+    setcur(screens[curdsp-1]);
 
 }
 
@@ -1098,17 +1195,9 @@ static void icursor(int x, int y)
 
 {
 
-    if (x >= 1 && x <= dimx && y >= 1 && y <= dimy) {
-
-        if (x != screens[curscn-1]->curx || y != screens[curscn-1]->cury) {
-
-            trm_cursor(x, y); /* position cursor */
-            screens[curscn-1]->cury = y; /* set new position */
-            screens[curscn-1]->curx = x;
-
-        }
-
-    } else error(einvpos); /* invalid position */
+    screens[curdsp-1]->cury = y; /* set new position */
+    screens[curdsp-1]->curx = x;
+    setcur(screens[curdsp-1]);
 
 }
 
@@ -1124,20 +1213,27 @@ static void iup(void)
 
 {
 
-    if (screens[curscn-1]->cury > 1) { /* not at top of screen */
+    if (screens[curdsp-1]->scroll) { /* autowrap is on */
 
-        trm_up(); /* move up */
-        screens[curscn-1]->cury = screens[curscn-1]->cury-1; /* update position */
+        if (screens[curdsp-1]->cury > 1) { /* not at top of screen */
 
-    } else if (screens[curscn-1]->scroll) /* scroll enabled */
-        iscroll(0, -1); /* at top already, scroll up */
-    else { /* wrap cursor around to screen bottom */
+            trm_up(); /* move up */
+            screens[curdsp-1]->cury = screens[curdsp-1]->cury-1; /* update position */
 
-        screens[curscn-1]->cury = dimy; /* set new position */
-        /* update on screen */
-        trm_cursor(screens[curscn-1]->curx, screens[curscn-1]->cury);
+        } else if (screens[curdsp-1]->scroll) /* scroll enabled */
+            iscroll(0, -1); /* at top already, scroll up */
+        else { /* wrap cursor around to screen bottom */
 
-    }
+            screens[curdsp-1]->cury = dimy; /* set new position */
+            /* update on screen */
+            trm_cursor(screens[curdsp-1]->curx, screens[curdsp-1]->cury);
+
+        }
+
+    } else /* autowrap is off */
+        /* prevent overflow, but otherwise its unlimited */
+        if (screens[curdsp-1]->cury > -INT_MAX) screens[curdsp-1]->cury--;
+    setcur(screens[curdsp-1]);
 
 }
 
@@ -1153,20 +1249,27 @@ static void idown()
 
 {
 
-    if (screens[curscn-1]->cury < dimy) { /* not at bottom of screen */
+    if (screens[curdsp-1]->scroll) { /* autowrap is on */
 
-        trm_down(); /* move down */
-        screens[curscn-1]->cury = screens[curscn-1]->cury+1; /* update position */
+        if (screens[curdsp-1]->cury < dimy) { /* not at bottom of screen */
 
-    } else if (screens[curscn-1]->scroll) { /* wrap enabled */
-        iscroll(0, +1); /* already at bottom, scroll down */
-    } else { /* wrap cursor around to screen top */
+            trm_down(); /* move down */
+            screens[curdsp-1]->cury = screens[curdsp-1]->cury+1; /* update position */
 
-        screens[curscn-1]->cury = 1; /* set new position */
-        /* update on screen */
-        trm_cursor(screens[curscn-1]->curx, screens[curscn-1]->cury);
+        } else if (screens[curdsp-1]->scroll) { /* wrap enabled */
+            iscroll(0, +1); /* already at bottom, scroll down */
+        } else { /* wrap cursor around to screen top */
 
-    }
+            screens[curdsp-1]->cury = 1; /* set new position */
+            /* update on screen */
+            trm_cursor(screens[curdsp-1]->curx, screens[curdsp-1]->cury);
+
+        }
+
+    } else /* autowrap is off */
+        /* prevent overflow, but otherwise its unlimited */
+        if (screens[curdsp-1]->cury < INT_MAX) screens[curdsp-1]->cury++;
+    setcur(screens[curdsp-1]);
 
 }
 
@@ -1182,19 +1285,26 @@ static void ileft()
 
 {
 
-    if (screens[curscn-1]->curx > 1) { /* not at extreme left */
+    if (screens[curdsp-1]->scroll) { /* autowrap is on */
 
-        trm_left(); /* move left */
-        screens[curscn-1]->curx = screens[curscn-1]->curx-1; /* update position */
+        if (screens[curdsp-1]->curx > 1) { /* not at extreme left */
 
-    } else { /* wrap cursor motion */
+            trm_left(); /* move left */
+            screens[curdsp-1]->curx = screens[curdsp-1]->curx-1; /* update position */
 
-        iup(); /* move cursor up one line */
-        screens[curscn-1]->curx = dimx; /* set cursor to extreme right */
-        /* position on screen */
-        trm_cursor(screens[curscn-1]->curx, screens[curscn-1]->cury);
+        } else { /* wrap cursor motion */
 
-    }
+            iup(); /* move cursor up one line */
+            screens[curdsp-1]->curx = dimx; /* set cursor to extreme right */
+            /* position on screen */
+            trm_cursor(screens[curdsp-1]->curx, screens[curdsp-1]->cury);
+
+        }
+
+    } else /* autowrap is off */
+        /* prevent overflow, but otherwise its unlimited */
+        if (screens[curdsp-1]->curx > -INT_MAX) screens[curdsp-1]->curx--;
+    setcur(screens[curdsp-1]);
 
 }
 
@@ -1210,18 +1320,25 @@ static void iright()
 
 {
 
-    if (screens[curscn-1]->curx < dimx) { /* not at extreme right */
+    if (screens[curdsp-1]->scroll) { /* autowrap is on */
 
-        trm_right(); /* move right */
-        screens[curscn-1]->curx = screens[curscn-1]->curx+1; /* update position */
+        if (screens[curdsp-1]->curx < dimx) { /* not at extreme right */
 
-    } else { /* wrap cursor motion */
+            trm_right(); /* move right */
+            screens[curdsp-1]->curx = screens[curdsp-1]->curx+1; /* update position */
 
-        idown(); /* move cursor up one line */
-        screens[curscn-1]->curx = 1; /* set cursor to extreme left */
-        putchr('\r'); /* position on screen */
+        } else { /* wrap cursor motion */
 
-    }
+            idown(); /* move cursor up one line */
+            screens[curdsp-1]->curx = 1; /* set cursor to extreme left */
+            putchr('\r'); /* position on screen */
+
+        }
+
+    } else /* autowrap is off */
+        /* prevent overflow, but otherwise its unlimited */
+        if (screens[curdsp-1]->curx < INT_MAX) screens[curdsp-1]->curx++;
+    setcur(screens[curdsp-1]);
 
 }
 
@@ -1243,44 +1360,45 @@ static void plcchr(char c)
 {
 
     scnrec* p;
+    int i;
 
     /* handle special character cases first */
     if (c == '\r') /* carriage return, position to extreme left */
-        icursor(1, screens[curscn-1]->cury);
+        icursor(1, screens[curdsp-1]->cury);
     else if (c == '\n') {
 
         /* line end */
         idown(); /* line feed, move down */
-        icursor(1, screens[curscn-1]->cury); /* position to extreme left */
+        icursor(1, screens[curdsp-1]->cury); /* position to extreme left */
 
     } else if (c == '\b') ileft(); /* back space, move left */
     else if (c == '\f') iclear(); /* clear screen */
     else if (c == '\t') {
 
         /* find next tab position */
-        while (!tabs[screens[curscn-1]->cury-1] &&
-               screens[curscn-1]->cury <= dimy) iright();
+        i = screens[curdsp-1]->curx+1; /* find current x +1 */
+        while (i < dimx && !tabs[i-1]) i++;
+        if (tabs[i-1]) /* we found a tab */
+           while (screens[curdsp-1]->curx < i) iright();
 
     } else if (c >= ' ' && c != 0x7f) {
 
         /* normal character case, not control character */
-        putchr(c); /* output character to terminal */
-        /* update buffer */
-        p = &screens[curscn-1]->
-                buf[screens[curscn-1]->cury-1][screens[curscn-1]->curx-1];
-        p->ch = c; /* place character */
-        p->forec = screens[curscn-1]->forec; /* place colors */
-        p->backc = screens[curscn-1]->backc;
-        p->attr = screens[curscn-1]->attr; /* place attribute */
-        /* finish cursor right processing */
-        if (screens[curscn-1]->curx < dimx) /* not at extreme right */
-            screens[curscn-1]->curx++; /* update position */
-        else
-            /* Wrap being off, ANSI left the cursor at the extreme right. So now
-               we can process our own version of move right */
-            iright();
+        if (icurbnd(screens[curdsp-1])) {
 
-   }
+            putchr(c); /* output character to terminal */
+            /* update buffer */
+            p = &screens[curdsp-1]->
+                    buf[screens[curdsp-1]->cury-1][screens[curdsp-1]->curx-1];
+            p->ch = c; /* place character */
+            p->forec = screens[curdsp-1]->forec; /* place colors */
+            p->backc = screens[curdsp-1]->backc;
+            p->attr = screens[curdsp-1]->attr; /* place attribute */
+
+        }
+        iright(); /* move right */
+
+    }
 
 }
 
@@ -1436,6 +1554,22 @@ void pa_cursor(FILE *f, int x, int y)
 
 }
 
+/*******************************************************************************
+
+Find if cursor is in screen bounds
+
+This is the external interface to curbnd.
+
+*******************************************************************************/
+
+int pa_curbnd(FILE *f)
+
+{
+
+   return icurbnd(screens[curdsp]);
+
+}
+
 /** ****************************************************************************
 
 Return maximum x dimension
@@ -1483,8 +1617,10 @@ void pa_home(FILE *f)
 {
 
     trm_home(); /* home cursor */
-    screens[curscn-1]->cury = 1; /* set cursor at home */
-    screens[curscn-1]->curx = 1;
+    screens[curdsp-1]->cury = 1; /* set cursor at home */
+    screens[curdsp-1]->curx = 1;
+    curx = 1; /* set actual cursor location */
+    cury = 1;
 
 }
 
@@ -1593,17 +1729,17 @@ void pa_blink(FILE *f, int e)
     trm_attroff(); /* turn off attributes */
     if (e) { /* reverse on */
 
-        screens[curscn-1]->attr = sablink; /* set attribute active */
-        setattr(screens[curscn-1]->attr); /* set current attribute */
-        trm_fcolor(screens[curscn-1]->forec); /* set current colors */
-        trm_bcolor(screens[curscn-1]->backc);
+        screens[curdsp-1]->attr = sablink; /* set attribute active */
+        setattr(screens[curdsp-1]->attr); /* set current attribute */
+        trm_fcolor(screens[curdsp-1]->forec); /* set current colors */
+        trm_bcolor(screens[curdsp-1]->backc);
 
     } else { /* turn it off */
 
-        screens[curscn-1]->attr = sanone; /* set attribute active */
-        setattr(screens[curscn-1]->attr); /* set current attribute */
-        trm_fcolor(screens[curscn-1]->forec); /* set current colors */
-        trm_bcolor(screens[curscn-1]->backc);
+        screens[curdsp-1]->attr = sanone; /* set attribute active */
+        setattr(screens[curdsp-1]->attr); /* set current attribute */
+        trm_fcolor(screens[curdsp-1]->forec); /* set current colors */
+        trm_bcolor(screens[curdsp-1]->backc);
 
     }
 
@@ -1628,17 +1764,17 @@ void pa_reverse(FILE *f, int e)
     trm_attroff(); /* turn off attributes */
     if (e) { /* reverse on */
 
-        screens[curscn-1]->attr = sarev; /* set attribute active */
-        setattr(screens[curscn-1]->attr); /* set current attribute */
-        trm_fcolor(screens[curscn-1]->forec); /* set current colors */
-        trm_bcolor(screens[curscn-1]->backc);
+        screens[curdsp-1]->attr = sarev; /* set attribute active */
+        setattr(screens[curdsp-1]->attr); /* set current attribute */
+        trm_fcolor(screens[curdsp-1]->forec); /* set current colors */
+        trm_bcolor(screens[curdsp-1]->backc);
 
     } else { /* turn it off */
 
-        screens[curscn-1]->attr = sanone; /* set attribute active */
-        setattr(screens[curscn-1]->attr); /* set current attribute */
-        trm_fcolor(screens[curscn-1]->forec); /* set current colors */
-        trm_bcolor(screens[curscn-1]->backc);
+        screens[curdsp-1]->attr = sanone; /* set attribute active */
+        setattr(screens[curdsp-1]->attr); /* set current attribute */
+        trm_fcolor(screens[curdsp-1]->forec); /* set current colors */
+        trm_bcolor(screens[curdsp-1]->backc);
 
     }
 
@@ -1663,17 +1799,17 @@ void pa_underline(FILE *f, int e)
     trm_attroff(); /* turn off attributes */
     if (e) { /* underline on */
 
-        screens[curscn-1]->attr = saundl; /* set attribute active */
-        setattr(screens[curscn-1]->attr); /* set current attribute */
-        trm_fcolor(screens[curscn-1]->forec); /* set current colors */
-        trm_bcolor(screens[curscn-1]->backc);
+        screens[curdsp-1]->attr = saundl; /* set attribute active */
+        setattr(screens[curdsp-1]->attr); /* set current attribute */
+        trm_fcolor(screens[curdsp-1]->forec); /* set current colors */
+        trm_bcolor(screens[curdsp-1]->backc);
 
     } else { /* turn it off */
 
-        screens[curscn-1]->attr = sanone; /* set attribute active */
-        setattr(screens[curscn-1]->attr); /* set current attribute */
-        trm_fcolor(screens[curscn-1]->forec); /* set current colors */
-        trm_bcolor(screens[curscn-1]->backc);
+        screens[curdsp-1]->attr = sanone; /* set attribute active */
+        setattr(screens[curdsp-1]->attr); /* set current attribute */
+        trm_fcolor(screens[curdsp-1]->forec); /* set current colors */
+        trm_bcolor(screens[curdsp-1]->backc);
 
     }
 
@@ -1729,17 +1865,17 @@ void pa_italic(FILE *f, int e)
     trm_attroff(); /* turn off attributes */
     if (e) { /* italic on */
 
-        screens[curscn-1]->attr = saital; /* set attribute active */
-        setattr(screens[curscn-1]->attr); /* set current attribute */
-        trm_fcolor(screens[curscn-1]->forec); /* set current colors */
-        trm_bcolor(screens[curscn-1]->backc);
+        screens[curdsp-1]->attr = saital; /* set attribute active */
+        setattr(screens[curdsp-1]->attr); /* set current attribute */
+        trm_fcolor(screens[curdsp-1]->forec); /* set current colors */
+        trm_bcolor(screens[curdsp-1]->backc);
 
     } else { /* turn it off */
 
-        screens[curscn-1]->attr = sanone; /* set attribute active */
-        setattr(screens[curscn-1]->attr); /* set current attribute */
-        trm_fcolor(screens[curscn-1]->forec); /* set current colors */
-        trm_bcolor(screens[curscn-1]->backc);
+        screens[curdsp-1]->attr = sanone; /* set attribute active */
+        setattr(screens[curdsp-1]->attr); /* set current attribute */
+        trm_fcolor(screens[curdsp-1]->forec); /* set current colors */
+        trm_bcolor(screens[curdsp-1]->backc);
 
     }
 
@@ -1764,17 +1900,17 @@ void pa_bold(FILE *f, int e)
     trm_attroff(); /* turn off attributes */
     if (e) { /* bold on */
 
-        screens[curscn-1]->attr = sabold; /* set attribute active */
-        setattr(screens[curscn-1]->attr); /* set current attribute */
-        trm_fcolor(screens[curscn-1]->forec); /* set current colors */
-        trm_bcolor(screens[curscn-1]->backc);
+        screens[curdsp-1]->attr = sabold; /* set attribute active */
+        setattr(screens[curdsp-1]->attr); /* set current attribute */
+        trm_fcolor(screens[curdsp-1]->forec); /* set current colors */
+        trm_bcolor(screens[curdsp-1]->backc);
 
     } else { /* turn it off */
 
-        screens[curscn-1]->attr = sanone; /* set attribute active */
-        setattr(screens[curscn-1]->attr); /* set current attribute */
-        trm_fcolor(screens[curscn-1]->forec); /* set current colors */
-        trm_bcolor(screens[curscn-1]->backc);
+        screens[curdsp-1]->attr = sanone; /* set attribute active */
+        setattr(screens[curdsp-1]->attr); /* set current attribute */
+        trm_fcolor(screens[curdsp-1]->forec); /* set current colors */
+        trm_bcolor(screens[curdsp-1]->backc);
 
     }
 
@@ -1828,7 +1964,7 @@ void pa_fcolor(FILE *f, pa_color c)
 {
 
     trm_fcolor(c); /* set color */
-    screens[curscn-1]->forec = c;
+    screens[curdsp-1]->forec = c;
 
 }
 
@@ -1845,7 +1981,7 @@ void pa_bcolor(FILE *f, pa_color c)
 {
 
     trm_bcolor(c); /* set color */
-    screens[curscn-1]->backc = c;
+    screens[curdsp-1]->backc = c;
 
 }
 
@@ -1862,7 +1998,7 @@ void pa_auto(FILE *f, int e)
 
 {
 
-    screens[curscn-1]->scroll = e; /* set line wrap status */
+    screens[curdsp-1]->scroll = e; /* set line wrap status */
 
 }
 
@@ -1870,7 +2006,7 @@ void pa_auto(FILE *f, int e)
 
 Enable/disable cursor visibility
 
-Enable or disable cursor visibility. We don't have a capability for this.
+Enable or disable cursor visibility.
 
 *******************************************************************************/
 
@@ -1878,7 +2014,7 @@ void pa_curvis(FILE *f, int e)
 
 {
 
-    screens[curscn-1]->curvis = !!e; /* set cursor visible status */
+    screens[curdsp-1]->curvis = !!e; /* set cursor visible status */
     if (e) trm_curon(); else trm_curoff();
 
 }
@@ -1912,7 +2048,7 @@ int pa_curx(FILE *f)
 
 {
 
-    return screens[curscn-1]->curx; /* return current location x */
+    return screens[curdsp-1]->curx; /* return current location x */
 
 }
 
@@ -1928,7 +2064,7 @@ int pa_cury(FILE *f)
 
 {
 
-    return screens[curscn-1]->cury; /* return current location y */
+    return screens[curdsp-1]->cury; /* return current location y */
 
 }
 
@@ -1945,6 +2081,8 @@ application, since we cannot save the entry screen in any case.
 We allow the screen that is currently active to be reselected. This effectively
 forces a screen refresh, which can be important when working on terminals.
 
+Note that split update and display screens are not implemented at present.
+
 *******************************************************************************/
 
 void pa_select(FILE *f, int u, int d)
@@ -1952,12 +2090,12 @@ void pa_select(FILE *f, int u, int d)
 {
 
     if (d < 1 || d > MAXCON) error(einvscn); /* invalid screen number */
-    curscn = d; /* set the current display screen */
-    if (screens[curscn-1]) restore(); /* restore current screen */
+    curdsp = d; /* set the current display screen */
+    if (screens[curdsp-1]) restore(); /* restore current screen */
     else { /* no current screen, create a new one */
 
         /* get a new screen context */
-        screens[curscn-1] = (scncon*)malloc(sizeof(scncon));
+        screens[curdsp-1] = (scncon*)malloc(sizeof(scncon));
         iniscn(); /* initalize that */
 
     }
@@ -2370,11 +2508,14 @@ static void pa_init_terminal()
     }
 
     /* clear screens array */
-    for (curscn = 1; curscn <= MAXCON; curscn++) screens[curscn-1] = 0;
+    for (curdsp = 1; curdsp <= MAXCON; curdsp++) screens[curdsp-1] = 0;
     screens[0] = (scncon*)malloc(sizeof(scncon)); /* get the default screen */
-    curscn = 1; /* set current screen */
+    curdsp = 1; /* set display current screen */
+    curupd = 1; /* set current update screen */
     trm_wrapoff(); /* wrap is always off */
     iniscn(); /* initalize screen */
+    curon = 1; /* set default cursor on */
+    trm_curon(); /* and make sure that is so */
     for (e = pa_etchar; e <= pa_etterm; e++) evthan[e] = defaultevent;
 
     /* clear keyboard match buffer */
@@ -2416,7 +2557,7 @@ static void pa_init_terminal()
     for (i = 0; i < PA_MAXTIM; i++) timtbl[i] = -1;
 
     /* clear tabs and set to 8ths */
-    for (i = 0; i < dimx; i++) tabs[i] = !((i-1)%8) && i != 1;
+    for (i = 1; i <= dimx; i++) tabs[i-1] = ((i-1)%8 == 0) && (i != 1);
 
     /* restore terminal state after flushing */
     tcsetattr(0,TCSAFLUSH,&raw);
