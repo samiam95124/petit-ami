@@ -240,6 +240,7 @@ int main(int argc, char *argv[])
     /* set black on white text */
     pa_fcolor(stdout, pa_black);
     pa_bcolor(stdout, pa_white);
+#if 0
     printf("\f");
     pa_curvis(stdout, 0);
     prtban("Terminal mode screen test vs. 1.0");
@@ -269,7 +270,7 @@ int main(int argc, char *argv[])
     prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
     printf("\f");
-    timetest();
+//    timetest();
     prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
     printf("\f");
@@ -310,13 +311,11 @@ int main(int argc, char *argv[])
 
     /* First, do it with automatic scrolling on. The pattern will rely on scroll
        up, down, left wrap and right wrap working correctly. */
-
     printf("\f");
     pa_auto(stdout, 1);   /* set auto on */
     pa_curvis(stdout, 0);   /* remove cursor */
     /* top of left lower */
     pa_cursor(stdout, 1, pa_maxy(stdout));
-
     printf("\\/");
     /* top of right lower, bottom of left lower, and move it all up */
     pa_cursor(stdout, pa_maxx(stdout) - 1, pa_maxy(stdout));
@@ -830,20 +829,20 @@ int main(int argc, char *argv[])
     pa_select(stdout, 2, 2);   /* restore buffer select */
 
     /* **************************** Writethrough test ************************** */
-
+#endif
     printf("\f");
     prtcen(pa_maxy(stdout), "File writethrough test");
     pa_home(stdout);
-    if (tf != NULL) tf = freopen(tf_NAME, "w", tf);
-    else tf = fopen(tf_NAME, "w");
+    tf = fopen(tf_NAME, "w");
     if (tf == NULL) {
 
-        fprintf(stderr, "*** File not found: %s\n", tf_NAME);
+        fprintf(stderr, "*** Cannot open file: %s\n", tf_NAME);
         exit(1);
 
     }
+    fclose(tf);
     fprintf(tf, "This is a test file\n");
-    tf = freopen(tf_NAME, "r", tf);
+    tf = fopen(tf_NAME, "r");
     if (tf == NULL) {
 
         fprintf(stderr, "*** File not found: %s\n", tf_NAME);
