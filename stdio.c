@@ -125,7 +125,6 @@ static int wunlink(const char* pathname)
     { return unlink(pathname); }
 static off_t wlseek(int fd, off_t offset, int whence)
     { return lseek(fd, offset, whence); }
-
 static ssize_t vread(int fd, void* buff, size_t count)
     { return (*vt_read)(fd, buff, count); }
 static ssize_t vwrite(int fd, const void* buff, size_t count)
@@ -208,6 +207,8 @@ static int maknod(void)
     opnfil[f]->mode = 0; /* set read only */
     opnfil[f]->append = 0; /* set not append */
     opnfil[f]->pback = EOF; /* nothing in the pushback buffer */
+
+    return f; /* return file id */
 
 }
 
