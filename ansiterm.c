@@ -74,10 +74,25 @@
    Note that dull colors are mainly an issue for "paper white" background
    programs because dull white looks different from every other window on the
    system. */
+#define AIXTERM 1 /* set aix terminal colors active */
+
+#ifdef AIXTERM
+
+#define ANSIFORECOLORBASE 30 /* ansi override base */
+#define ANSIBACKCOLORBASE 40
+
 #define FORECOLORBASE 90 /* aixterm */
 #define BACKCOLORBASE 100
-//#define FORECOLORBASE 30 /* ansi */
-//#define BACKCOLORBASE 40
+
+#else
+
+#define ANSIFORECOLORBASE 30 /* ansi override base */
+#define ANSIBACKCOLORBASE 40
+
+#define FORECOLORBASE 30 /* ansi */
+#define BACKCOLORBASE 40
+
+#endif
 
 /* types of system vectors for override calls */
 
@@ -599,11 +614,29 @@ static void trm_attroff(void) { putstr("\33[0m"); }
 
 /** set foreground color */
 static void trm_fcolor(pa_color c)
-    { putstr("\33["); wrtint(FORECOLORBASE+colnum(c)); putstr("m"); }
+
+{
+
+    putstr("\33[");
+    /* override "bright" black, which is more like grey */
+    if (c == pa_black) wrtint(ANSIFORECOLORBASE+colnum(c));
+    else wrtint(FORECOLORBASE+colnum(c));
+    putstr("m");
+
+}
 
 /** set background color */
 static void trm_bcolor(pa_color c)
-    { putstr("\33["); wrtint(BACKCOLORBASE+colnum(c)); putstr("m"); };
+
+{
+
+    putstr("\33[");
+    /* override "bright" black, which is more like grey */
+    if (c == pa_black) wrtint(ANSIBACKCOLORBASE+colnum(c));
+    else wrtint(BACKCOLORBASE+colnum(c));
+    putstr("m");
+
+}
 
 /** position cursor */
 static void trm_cursor(int x, int y)
