@@ -87,6 +87,7 @@ int fscanf(FILE *stream, const char *format, ...);
 int scanf(const char *format, ...);
 int sscanf(char *s, const char *format, ...);
 int fgetc(FILE *stream);
+//#define getc(fp) fgetc(fp)
 char *fgets(char *s, int n, FILE *stream);
 int fputc(int c, FILE *stream);
 int fputs(const char *s, FILE *stream);

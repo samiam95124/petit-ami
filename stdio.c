@@ -69,7 +69,7 @@
 
 typedef ssize_t (*vt_read_t)(int, void*, size_t);
 typedef ssize_t (*vt_write_t)(int, const void*, size_t);
-typedef int     (*vt_open_t)(const char*, int);
+typedef int     (*vt_open_t)(const char*, int, int);
 typedef int     (*vt_close_t)(int);
 typedef int     (*vt_unlink_t)(const char*);
 typedef off_t   (*vt_lseek_t)(int, off_t, int);
@@ -117,20 +117,21 @@ static ssize_t wread(int fd, void* buff, size_t count)
     { return read(fd, buff, count); }
 static ssize_t wwrite(int fd, const void* buff, size_t count)
     { return write(fd, buff, count); }
-static int wopen(const char* pathname, int flags)
-    { return open(pathname, flags); }
+static int wopen(const char* pathname, int flags, int perm)
+    { return open(pathname, flags, perm); }
 static int wclose(int fd)
     { return close(fd); }
 static int wunlink(const char* pathname)
     { return unlink(pathname); }
 static off_t wlseek(int fd, off_t offset, int whence)
     { return lseek(fd, offset, whence); }
+
 static ssize_t vread(int fd, void* buff, size_t count)
     { return (*vt_read)(fd, buff, count); }
 static ssize_t vwrite(int fd, const void* buff, size_t count)
     { return (*vt_write)(fd, buff, count); }
-static int vopen(const char* pathname, int flags)
-    { return (*vt_open)(pathname, flags); }
+static int vopen(const char* pathname, int flags, int perm)
+    { return (*vt_open)(pathname, flags, perm); }
 static int vclose(int fd)
     { return (*vt_close)(fd); }
 static int vunlink(const char* pathname)
@@ -776,6 +777,7 @@ FILE *fopen(const char *filename, const char *mode)
     int text;   /* text/binary mode */
     int modcod; /* mode code, 0 = read, 1 = write, 2 = append */
     int update; /* update mode */
+    int perm;   /* permissions */
 
     /* move mode attributes to flags */
     text = !!strchr(mode, 'b'); /* set text or binary mode */
@@ -793,15 +795,18 @@ FILE *fopen(const char *filename, const char *mode)
     if (modcod == 2) flags |= O_APPEND; /* set append mode */
     if (modcod == 1) flags |= O_CREAT; /* allow writes to create new file */
 
+    /* permissions are: user read and write, group and others read only */
+    perm = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+
     /* process file open with parameters */
     fti = maknod(); /* create or reuse file entry */
     if (!fti) return NULL; /* couldn't create node */
-    opnfil[fti]->fid = vopen(filename, flags); /* open file with flags */
+    opnfil[fti]->fid = vopen(filename, flags, perm); /* open file with flags */
     if (opnfil[fti]->fid < 0) return (NULL); /* return error */
 
     /* fill file fields with status */
     opnfil[fti]->name = (char *)malloc(strlen(filename)+1); /* get name space */
-    if (opnfil[fti]->name) return NULL; /* couldn't allocate name */
+    if (!opnfil[fti]->name) return NULL; /* couldn't allocate name */
     strcpy(opnfil[fti]->name, filename); /* copy name into place */
     opnfil[fti]->text = text; /* text/binary mode */
     /* set read/write mode for update */
@@ -898,6 +903,7 @@ FILE *freopen(const char *filename, const char *mode, FILE *stream)
     int text;   /* text/binary mode */
     int modcod; /* mode code, 0 = read, 1 = write, 2 = append */
     int update; /* update mode */
+    int perm;   /* permissions */
 
     /* close the stream, and return error if occurs */
     if (fclose(stream) != 0) return (NULL);
@@ -918,8 +924,11 @@ FILE *freopen(const char *filename, const char *mode, FILE *stream)
     if (modcod == 2) flags |= O_APPEND; /* set append mode */
     if (modcod == 1) flags |= O_CREAT; /* allow writes to create new file */
 
+    /* permissions are: user read and write, group and others read only */
+    perm = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+
     /* process file open with parameters */
-    stream->fid = vopen(filename, flags); /* open file with flags */
+    stream->fid = vopen(filename, flags, perm); /* open file with flags */
     if (stream->fid < 0) return (NULL); /* return error */
 
     /* fill file fields with status */
@@ -2146,6 +2155,7 @@ int getc(FILE *stream)
 
 {
 
+fprintf(stderr, "getc:\n");
     return fgetc(stream); /* process get */
 
 }

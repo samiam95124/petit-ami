@@ -83,7 +83,7 @@
 
 typedef ssize_t (*pread_t)(int, void*, size_t);
 typedef ssize_t (*pwrite_t)(int, const void*, size_t);
-typedef int (*popen_t)(const char*, int);
+typedef int (*popen_t)(const char*, int, int);
 typedef int (*pclose_t)(int);
 typedef int (*punlink_t)(const char*);
 typedef off_t (*plseek_t)(int, off_t, int);
@@ -271,6 +271,7 @@ static int dimy; /* actual height of screen */
 static int curon; /* current on/off state of cursor */
 static int curx; /* cursor position on screen */
 static int cury;
+static int curval; /* physical cursor position valid */
 
 /** ****************************************************************************
 
@@ -751,10 +752,11 @@ void setcur(scnptr sc)
         if (icurbnd(sc)) {
 
             /* set cursor position */
-            if (sc->curx != curx || sc->cury != cury) {
+            if ((sc->curx != curx || sc->cury != cury) && curval) {
 
                 /* Cursor position and actual don't match. Try some optimized
-                   cursor positions to reduce bandwidth */
+                   cursor positions to reduce bandwidth. Note we don't count on
+                   real terminal behavior at the borders. */
                 if (sc->curx == 1 && sc->cury == 1) trm_home();
                 else if (sc->curx == curx && sc->cury == cury-1) trm_up();
                 else if (sc->curx == curx && sc->cury == cury+1) trm_down();
@@ -764,6 +766,15 @@ void setcur(scnptr sc)
                 else trm_cursor(sc->curx, sc->cury);
                 curx = sc->curx;
                 cury = sc->cury;
+                curval = 1;
+
+            } else {
+
+                /* don't count on physical cursor location, just reset */
+                trm_cursor(sc->curx, sc->cury);
+                curx = sc->curx;
+                cury = sc->cury;
+                curval = 1;
 
             }
 
@@ -897,6 +908,7 @@ static void restore(scnptr sc)
     trm_cursor(sc->curx, sc->cury);
     curx = sc->curx; /* set physical cursor */
     cury = sc->cury;
+    curval = 1; /* set it is valid */
     trm_fcolor(sc->forec); /* restore colors */
     trm_bcolor(sc->backc);
     setattr(sc, sc->attr); /* restore attributes */
@@ -1219,6 +1231,7 @@ static void iclear(scnptr sc)
         trm_clear(); /* erase screen */
         curx = 1; /* set actual cursor location */
         cury = 1;
+        curval = 1;
         setcur(sc);
 
     }
@@ -1416,7 +1429,6 @@ static void plcchr(scnptr sc, char c)
                 /* This handling is from iright. We do this here because
                    placement implicitly moves the cursor */
                 putchr(c); /* output character to terminal */
-                curx++; /* update physical */
                 if (sc->scroll) { /* autowrap is on */
 
                     if (sc->curx < dimx) /* not at extreme right */
@@ -1427,10 +1439,18 @@ static void plcchr(scnptr sc, char c)
                         sc->curx = 1; /* set cursor to extreme left */
 
                     }
+                    /* update physical cursor */
+                    curx++;
 
-                } else /* autowrap is off */
+                } else {/* autowrap is off */
+
                     /* prevent overflow, but otherwise its unlimited */
                     if (sc->curx < INT_MAX) sc->curx++;
+                    /* don't count on physical cursor behavior if scrolling is
+                       off and we are at extreme right */
+                    curval = 0;
+
+                }
                 setcur(sc); /* update physical cursor */
 
             } else iright(sc); /* move right */
@@ -1510,11 +1530,11 @@ shuts down. Thus we do nothing for this.
 
 *******************************************************************************/
 
-static int iopen(const char* pathname, int flags)
+static int iopen(const char* pathname, int flags, int perm)
 
 {
 
-    return (*ofpopen)(pathname, flags);
+    return (*ofpopen)(pathname, flags, perm);
 
 }
 

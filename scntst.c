@@ -11,7 +11,7 @@
 *                                                                             *
 * 1. Row id - number each row with a digit in turn. This test uncovers        *
 * positioning errors.                                                         *
-* 2. Collumn id - Same for collums.                                           *
+* 2. Column id - Same for colums.                                           *
 * 3. Fill test - fills the screen with the printable ascii characters, and    *
 * "elided" control characters. Tests ability to print standard ASCII set.     *
 * 4. Sidewinder - Fills the screen starting from the edges in. Tests          *
@@ -24,7 +24,7 @@
 * Notes:                                                                      *
 *                                                                             *
 * Should have speed tests adjust their length according to actual process     *
-* time to prevent tests from taking too int on slow cpu/display.             *
+* time to prevent tests from taking too long on slow cpu/display.             *
 *                                                                             *
 * Benchmark results:                                                          *
 *                                                                             *
@@ -50,6 +50,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#include <stdio.h>
 
 static int x, y, lx, ly, tx, ty, dx, dy;
 static char c;
@@ -240,7 +241,6 @@ int main(int argc, char *argv[])
     /* set black on white text */
     pa_fcolor(stdout, pa_black);
     pa_bcolor(stdout, pa_white);
-#if 0
     printf("\f");
     pa_curvis(stdout, 0);
     prtban("Terminal mode screen test vs. 1.0");
@@ -375,7 +375,7 @@ int main(int argc, char *argv[])
     pa_right(stdout);
     printf("/\\");
     /* upper right */
-    pa_cursor(stdout, pa_maxx(stdout) - 1, 1);
+    pa_cursor(stdout, pa_maxx(stdout)-1, 1);
     printf("\\/");
     pa_down(stdout);
     pa_del(stdout);
@@ -393,7 +393,7 @@ int main(int argc, char *argv[])
     pa_right(stdout);
     printf("\\/");
     /* lower right */
-    pa_cursor(stdout, pa_maxx(stdout), pa_maxy(stdout) - 1);
+    pa_cursor(stdout, pa_maxx(stdout), pa_maxy(stdout)-1);
     putchar('/');
     pa_left(stdout);
     pa_left(stdout);
@@ -829,7 +829,7 @@ int main(int argc, char *argv[])
     pa_select(stdout, 2, 2);   /* restore buffer select */
 
     /* **************************** Writethrough test ************************** */
-#endif
+
     printf("\f");
     prtcen(pa_maxy(stdout), "File writethrough test");
     pa_home(stdout);
@@ -840,8 +840,8 @@ int main(int argc, char *argv[])
         exit(1);
 
     }
-    fclose(tf);
     fprintf(tf, "This is a test file\n");
+    fclose(tf);
     tf = fopen(tf_NAME, "r");
     if (tf == NULL) {
 
@@ -849,14 +849,18 @@ int main(int argc, char *argv[])
         exit(1);
 
     }
-    while ((c = getc(tf)) != '\n') {
+// find out why getc() does not work.
+    c = fgetc(tf);
+    while (c != '\n' && c != EOF) {
 
         putchar(c);
+        c = fgetc(tf);
 
     }
-    while ((c = getc(tf)) != '\n');
-    getc(tf);
-    printf("s/b");
+    printf("\n");
+    printf("\n");
+    printf("s/b\n");
+    printf("\n");
     printf("This is a test file\n");
     waitnext();
 
@@ -1020,6 +1024,7 @@ int main(int argc, char *argv[])
 
     /* ********************** Character write speed test *********************** */
 
+#if 0
     printf("\f");
     clk = pa_clock();   /* get reference time */
     c = '\0';   /* initalize character value */
@@ -1046,9 +1051,11 @@ int main(int argc, char *argv[])
     printf("Character write speed: % .5E average seconds per character\n",
            clk/cnt*0.0001);
     waitnext();
+#endif
 
     /* ************************** Scrolling speed test ************************* */
 
+#if 0
     printf("\f");
     /* fill screen so we aren't moving blanks (could be optimized) */
     c = '1';
@@ -1091,9 +1098,11 @@ int main(int argc, char *argv[])
     printf("\f");
     printf("Scrolling speed: % .5E average seconds per scroll\n", clk/cnt*0.0001);
     waitnext();
+ #endif
 
     /* ************************** Buffer flip speed test ************************* */
 
+#if 0
     printf("\f");
     cnt = 0;   /* clear count */
 
@@ -1119,6 +1128,7 @@ int main(int argc, char *argv[])
     printf("Buffer switch speed: % .5E average seconds per switch\n",
            clk/cnt*0.0001);
     waitnext();
+#endif
 
 terminate: /* terminate */
 
