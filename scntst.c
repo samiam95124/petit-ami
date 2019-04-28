@@ -270,7 +270,7 @@ int main(int argc, char *argv[])
     prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
     printf("\f");
-//    timetest();
+    timetest();
     prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
     printf("\f");

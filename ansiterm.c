@@ -272,6 +272,9 @@ static int curon; /* current on/off state of cursor */
 static int curx; /* cursor position on screen */
 static int cury;
 static int curval; /* physical cursor position valid */
+/* global scroll enable. This does not reflect the physical state, we never
+   turn on automatic scroll. */
+static int scroll;
 
 /** ****************************************************************************
 
@@ -836,8 +839,8 @@ static void iniscn(scnptr sc)
     sc->forec = pa_black; /* set colors and attributes */
     sc->backc = pa_white;
     sc->attr = sanone;
-    sc->curvis = 1; /* turn on cursor visible */
-    sc->scroll = 1; /* turn on autoscroll */
+    sc->curvis = curon; /* set cursor visible from curent state */
+    sc->scroll = scroll; /* set autoscroll from global state */
     clrbuf(sc); /* clear screen buffer with that */
 
 }
@@ -1429,6 +1432,9 @@ static void plcchr(scnptr sc, char c)
                 /* This handling is from iright. We do this here because
                    placement implicitly moves the cursor */
                 putchr(c); /* output character to terminal */
+                /* at right side, don't count on the screen wrap action */
+                if (curx = dimx) curval = 0;
+                else curx++; /* update physical cursor */
                 if (sc->scroll) { /* autowrap is on */
 
                     if (sc->curx < dimx) /* not at extreme right */
@@ -1439,8 +1445,6 @@ static void plcchr(scnptr sc, char c)
                         sc->curx = 1; /* set cursor to extreme left */
 
                     }
-                    /* update physical cursor */
-                    curx++;
 
                 } else {/* autowrap is off */
 
@@ -2106,6 +2110,7 @@ void pa_auto(FILE *f, int e)
 {
 
     screens[curupd-1]->scroll = e; /* set line wrap status */
+    if (indisp(screens[curupd-1])) scroll = e; /* also global status */
 
 }
 
@@ -2638,7 +2643,8 @@ static void pa_init_terminal()
     screens[0] = (scncon*)malloc(sizeof(scncon)); /* get the default screen */
     curdsp = 1; /* set display current screen */
     curupd = 1; /* set current update screen */
-    trm_wrapoff(); /* wrap is always off */
+    trm_wrapoff(); /* physical wrap is always off */
+    scroll = 1; /* turn on virtual wrap */
     iniscn(screens[curdsp-1]); /* initalize screen */
     restore(screens[curdsp-1]); /* place on display */
     curon = 1; /* set default cursor on */
