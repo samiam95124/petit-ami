@@ -8,6 +8,7 @@ Used to see what the exact codes being received from the keyboard are.
 
 #include <termios.h>
 #include <stdio.h>
+#include <unistd.h>
 
 static struct termios trmsav;
 
@@ -38,7 +39,7 @@ static void set_tty_raw(void)
 
 }
 
-main()
+void main()
 
 {
 

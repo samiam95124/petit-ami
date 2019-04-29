@@ -19,6 +19,9 @@ getkeys: getkeys.c Makefile
 	
 term: ansiterm.c terminal.h term.c stdio.c stdio.h Makefile
 	gcc -g -o term stdio.c ansiterm.c term.c -lm 
+	
+snake: term_game/snake.c ansiterm.c terminal.h term.c stdio.c stdio.h Makefile
+	gcc -g -o term_game/snake stdio.c ansiterm.c term_game/snake.c -lm
 
 test1: test1.c
 	gcc -o test1 test1.c -lrt -lm 
