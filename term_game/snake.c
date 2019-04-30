@@ -393,7 +393,6 @@ void getevt(boolean tim) /* accept timer events */
         do { /* event rejection loop */
 
             pa_event(stdin, &er); /* get event */
-fprintf(stderr, "getevt: after event: event type: %d\n", er.etype);
 
         } while (er.etype != pa_etleft && er.etype != pa_etright &&
                  er.etype != pa_etup   && er.etype != pa_etdown &&
@@ -457,22 +456,18 @@ void main(void) /* snake */
 
         scrlft = 0; /* clear score add count */
         clrscn();
-fprintf(stderr, "main: 1\n");
         snakel[1].scnx = pa_maxx(stdout)/2; /* set snake position middle */
         snakel[1].scny = pa_maxy(stdout)/2;
         sntop = 1; /* set top snake character */
         writescreen(pa_maxx(stdout)/2, pa_maxy(stdout)/2, '@'); /* place snake */
         timcnt = TIMMAX;
         for (i = 1; i <= SCRNUM; i++) scrsav[i] = '0'; /* zero score */
-fprintf(stderr, "main: 1.1\n");
         nxtscr();
-fprintf(stderr, "main: 2\n");
         getevt(false); /* get the next event, without timers */
         if (er.etype == pa_etterm) goto terminate; /* immediate termination */
         else if (er.etype == pa_etfun) goto restart; /* start new game */
         plctrg(); /* place starting target */
         crash = false; /* set no crash occurred */
-fprintf(stderr, "main: 3\n");
         do { /* game loop */
 
             getevt(true); /* get next event, with timers */
