@@ -189,22 +189,21 @@ typedef enum {
 
 char *keytab[pa_etterm+1] = {
 
-    "", /** ANSI character returned */
     /* Common controls are:
-    Codes                      Meaning                   IBM-PC keyboard equivalents
-    */
+    Codes                   Meaning                   IBM-PC keyboard equivalents */
+    "",                     /* ANSI character returned */
     "\33\133\101",          /* cursor up one line         (up arrow) */
     "\33\133\102",          /* down one line              (down arrow) */
     "\33\133\104",          /* left one character         (left arrow) */
     "\33\133\103",          /* right one character        (right arrow) */
     "\33\133\61\73\65\104", /* left one word              (ctrl-left arrow)*/
     "\33\133\61\73\65\103", /* right one word             (ctrl-right arrow) */
-    "\24",                  /* home of document           (ctrl-t) */
+    "\33\133\61\73\65\110", /* home of document           (ctrl-home) */
     "\10",                  /* home of screen             (ctrl-h) */
-    "\33\117\110",          /* home of line               (home) */
-    "\2",                   /* end of document            (ctrl-b) */
+    "\33\133\110",          /* home of line               (home) */
+    "\33\133\61\73\65\106", /* end of document            (ctrl-end) */
     "\5",                   /* end of screen              (ctrl-e) */
-    "\33\117\106",          /* end of line                (end) */
+    "\33\133\106",          /* end of line                (end) */
     "\33\133\65\73\65\176", /* scroll left one character  (ctrl-page up) */
     "\33\133\66\73\65\176", /* scroll right one character (ctrl-page down)  */
     "\33\133\61\73\65\102", /* scroll up one line         (ctrl-up arrow) */
@@ -463,11 +462,10 @@ static void inpevt(pa_evtrec* ev)
     ssize_t   rl;     /* read length */
     uint64_t  exp;    /* timer expiration time */
 
-    evtfnd = 0; /* set no event found */
-    evtsig = 0; /* set no event signaled */
     do { /* match input events */
 
         evtfnd = 0; /* set no event found */
+        evtsig = 0; /* set no event signaled */
         /* check one of the read files has signaled */
         if (FD_ISSET(0, &ifdsets)) {
 
@@ -480,7 +478,6 @@ static void inpevt(pa_evtrec* ev)
                 if (!strncmp(keybuf, keytab[i], keylen)) {
 
                 pmatch = 1; /* set partial match */
-                ev->etype = i; /* set what event */
                 /* set if the match is whole key */
                 if (strlen(keytab[i]) == keylen) {
 
@@ -488,13 +485,27 @@ static void inpevt(pa_evtrec* ev)
                     ev->etype = i; /* set event */
                     evtfnd = 1; /* set event found */
                     keylen = 0; /* clear buffer */
+                    pmatch = 0; /* clear partial match */
 
                 }
 
             }
-            /* if no partial match, then something went wrong, or there never was
-               at match at all. For such "stillborn" matches we start over */
-            if (!pmatch && keylen > 1) keylen = 0; /* clear the buffer */
+            if (!pmatch) {
+
+                /* if no partial match and there are characters in buffer, something
+                   went wrong, or there never was at match at all. For such
+                   "stillborn" matches we start over */
+                if (keylen > 1) keylen = 0;
+                else if (keylen == 1) { /* have valid character */
+
+                    ev->etype = pa_etchar; /* set event */
+                    ev->echar = keybuf[0]; /* place character */
+                    evtfnd = 1; /* set event found */
+                    keylen = 0; /* clear buffer */
+
+                }
+
+            }
 
         } else {
 
@@ -524,18 +535,10 @@ static void inpevt(pa_evtrec* ev)
 
         }
 
-    /* while substring match and no other event found */
-    } while (pmatch && !evtfnd);
-    if (!evtfnd) { /* if no other event type */
+    /* while substring match and no other event found, or buffer empty */
+    } while (!evtfnd);
 
-        /* set keyboard event */
-    	ev->echar = keybuf[0]; /* get our character from buffer */
-    	ev->etype = pa_etchar; /* set character event */
-    	keylen = 0; /* clear keyboard buffer */
-
-    }
-
- }
+}
 
 /** *****************************************************************************
 
