@@ -216,7 +216,7 @@ char *keytab[pa_etterm+1] = {
     "",                     /* insert line */
     "\33\133\62\176",       /* insert toggle              (insert) */
     "\33\133\63\73\62\176", /* delete block               (shift-del) */
-    "\4",                   /* delete line                (ctrl-d) */
+    "\33\133\63\73\65\176", /* delete line                (ctrl-del) */
     "\33\133\63\176",       /* delete character forward   (del) */
     "\177",                 /* delete character backward  (backspace) */
     "\33\143",              /* copy block                 (alt-c) */
