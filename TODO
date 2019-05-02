@@ -1,0 +1,30 @@
+To do list for Petit-ami
+
+1. Add floating point conversions to stdio.
+
+2. Enable floating point speed calculations based on #1.
+
+3. Find a method to implement the mouse. Because this has to be carefully coordinated
+with the onscreen cursor, this may be better left to the ncurses version.
+
+4. Implement joysticks and test with multiple joysticks.
+
+5. Set sizing from ANSI cursor readback method.
+
+6. Implement tearoff command line parameters.
+
+7. Implement read of rc file from each of program, user and current location.
+
+8. Implement resize messaging.
+
+9. Finish sample programs.
+
+10. event.c shows the cursor being turned off without being commanded by the source.
+
+11. getc() does not work. We got scntst.c to work by using fgetc(). It is because getc() is a macro.
+
+12. snake.c does not keep score.
+
+13. In snake.c, should not be able to back over and kill yourself.
+
+14. Should save and restore base screen to buffer 0.
