@@ -102,7 +102,7 @@ int adjacent(int x, int y)
         yn = y+offset[i].y;
         if (xn >= 0 && xn < MAXXS && yn >= 0 && yn < MAXYS)
             /* valid location */
-            if (board[xn][yn].mine) mines = mines+1; /* count mines */
+            if (board[xn][yn].mine) mines++; /* count mines */
 
     }
 
@@ -172,7 +172,7 @@ void display(void)
             if (board[x][y].mine) putchar('*'); else {
 
                 cnt = adjacent(x, y); /* find adjacent mine count */
-                if (cnt = 0) putchar('.'); /* no adjacent */
+                if (cnt == 0) putchar('.'); /* no adjacent */
                 else putchar(cnt+'0'); /* place the number */
 
             }
@@ -327,7 +327,7 @@ void replay(void)
         /* wait till a character is pressed */
         do { pa_event(stdout, &er); }
         while (er.etype != pa_etchar && er.etype != pa_etterm);
-        if (er.etype = pa_etterm) /* force a quit */
+        if (er.etype == pa_etterm) /* force a quit */
             { er.etype = pa_etchar; er.echar = 'n'; }
 
     } while (er.echar != 'y' && er.echar != 'Y' &&
@@ -437,8 +437,8 @@ void main(void)
     do { /* enter user moves */
 
         pa_cursor(stdout, cursorx, cursory); /* place cursor */
-        x = cursorx-centerx+1; /* set location on board */
-        y = cursory-centery+1;
+        x = cursorx-centerx; /* set location on board */
+        y = cursory-centery;
         pa_event(stdin, &er); /* get the next event */
         switch (er.etype) { /* event */
 
