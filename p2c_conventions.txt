@@ -1,0 +1,151 @@
+Conventions for conversion of Pascaline programs to C
+
+This document outlines some conventions used for conversion of Pascaline 
+programs to C language. This is useful to me for conventions, anyone else for
+their convertions, or for C programmers who want an explaination of the odd
+constructs they see in the C code here.
+
+CONVERTERS
+
+p2c exists, but has several drawbacks:
+
+1. It reformats the code quite a bit, requiring "unreformatting". This includes
+things like kicking the controlled statement of an if () to the next line.
+
+2. It dies (segfaults) on any incorrect source, I.E., it expects the source code
+to be syntactically and semantically perfect.
+
+3. It does not translate Pascaline, but only the Pascal subset.
+
+It is for these reasons I have hand translated a lot of the code here. There are
+other p2c type converters in existance, but I have found them wanting, for
+various reasons:
+
+- They place no value on producing clean, readable and commented C code, since
+they are just designed to cross compile to C.
+
+- There is no attempt to refactor the code into useable C code.
+
+- They don't attempt to maintain formatting and commenting.
+
+The "perfect" converter for me is thus yet to be written, and I will probably 
+have to write it.
+
+I have previously written a converter from C to Pascaline designed to convert
+header files (ch2ph), and I know from that effort that a converter needs to be
+formed from a true compiler front end, not just a search-and-substitute program.
+
+CONVENTIONS
+
+1. Because adapting boolean types is both sourcewide and because there is no set
+convention for boolean in C (both use of 0 and 1 and the definitions TRUE and 
+FALSE are seen) I have settled on the convention of declaring:
+
+typedef enum boolean { false, true } boolean;
+
+This both interoperates with C conventions and gives the constants false and 
+true a proper value (0 and 1).
+
+2. type to typedef. I have converted types in Pascaline to typedefs in C, even
+if the resulting typedef is fairly useless. Example:
+
+Pascaline:
+
+type index = 1..10;
+
+C:
+
+typedef int index;
+
+This is because C has no equivalent to ranged types. The idea of using a name
+alias for a mundane integer is that it prevents the need to globally change all
+all of the named types or factor them out. The types become memnomic equivalents
+for types. It is perhaps one of the more annoying conversions, I will admit
+(especially for C only programmers).
+
+3. 1 based vs. 0 based. A lot of the code refactoring centers around the 
+"misunderstanding" between 0 and 1 based arrays in C vs. Pascaline. Actually,
+Pascaline can easily use 0 based indexes, and C could use 1 based indexes if you
+discard the first element. However, both languages have their conventions.
+
+I have refactored out the 0 index case in a lot of code, but in other cases not.
+For example:
+
+Pascaline:
+
+for i := 1 to 10 do ...
+
+C:
+
+for (i = 1; i <= 10; i++) ...
+
+Are directly equivalent. However:
+
+Pascaline:
+
+for i := 1 to 10 do a[i] = 0;
+
+C:
+
+for (i = 1; i <= 10; i++) a[i-1] = 0;
+
+is unfortunate, so I prefer:
+
+for (i = 0; i < 0; a[i] = 0;
+
+Which better matches C conventions and is less verbose. It makes no difference
+in the code whatever after the compiler optimizes it.
+
+3. Arrays to pointers. I have made little or no effort to convert array notation
+in the code to pointer notation:
+
+Pascaline:
+
+i := 1;
+
+while a[i] = ' ' do i = i+1;
+
+C:
+
+i = 0;
+
+while (a[i] == ' ') i++;
+
+and not:
+
+while (*a == ' ') i++;
+
+The array notation is directly equivalent in C, and is more clear as to the 
+programmer's intent, as well.
+
+4. Strings. Pascaline allows for dynamic arrays as a type. In C this must be a 
+pointer. Thus the convention I have used is:
+
+Pascaline:
+
+type string = packed array of char;
+
+C:
+
+typedef char* string;
+
+This can result in a litte more work inside the code that uses the type, but the
+code is basically equivalent.
+
+4. Sets. The equivalent set types and operations for sets are:
+
+typedef unsigned char set[32];
+
+#define SET(s, b) (*(s+b/8) |= 1<<(b%8)) /* set bit in set */
+#define RES(s, b) (*(s+b/8) &= ~(1<<(b%8)) /* reset bit in set */
+#define INS(s, b) (!!(*(s+b/8) & 1<<(b%8))) /* check bit in set */
+
+void setass(set* d, set* s) { int i; for (i = 0; i < 32; i++) *d++ = *s++; } 
+boolean setequ(set* a, set* b) 
+{ boolean eq = true; int i; for (i = 0; i < 32; i++) if (*d != *s) eq = false; 
+  return eq; } 
+  
+Etc.
+
+In general, however, my preference is to factor out the use of sets, since it is
+not really aligned with tecniques in C.
