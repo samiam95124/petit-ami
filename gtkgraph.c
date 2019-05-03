@@ -6,7 +6,7 @@
 *                                                                             *
 *                            2019/05/03 S. A. Franco                          *
 *                                                                             *
-* Implements the graphical mode functions on GTK. Gralib is upward        *
+* Implements the graphical mode functions on GTK. Gralib is upward            *
 * compatible with trmlib functions.                                           *
 *                                                                             *
 * Proposed improvements:                                                      *
@@ -928,7 +928,7 @@ function baseline(var f: text): integer;
 begin
 
 end;
-
+
 {******************************************************************************
 
 Return maximum x dimension
@@ -1001,7 +1001,7 @@ procedure home(var f: text);
 begin
 
 end;
-
+
 {******************************************************************************
 
 Move cursor up internal
@@ -1060,17 +1060,6 @@ end;
 
 {******************************************************************************
 
-Process tab
-
-Process a single tab. We search to the right of the current cursor collumn to
-find the next tab. If there is no tab, no action is taken, otherwise, the
-cursor is moved to the tab stop.
-
-******************************************************************************}
-
-
-{******************************************************************************
-
 Turn on blink attribute
 
 Turns on/off the blink attribute.
@@ -1099,7 +1088,7 @@ procedure reverse(var f: text; e: boolean);
 begin
 
 end;
-
+
 {******************************************************************************
 
 Turn on underline attribute
@@ -1116,7 +1105,7 @@ procedure underline(var f: text; e: boolean);
 begin
 
 end;
-
+
 {******************************************************************************
 
 Turn on superscript attribute
@@ -1131,7 +1120,7 @@ procedure superscript(var f: text; e: boolean);
 begin
 
 end;
-
+
 {******************************************************************************
 
 Turn on subscript attribute
@@ -1146,7 +1135,7 @@ procedure subscript(var f: text; e: boolean);
 begin
 
 end;
-
+
 {******************************************************************************
 
 Turn on italic attribute
@@ -1201,7 +1190,7 @@ procedure strikeout(var f: text; e: boolean);
 begin
 
 end;
-
+
 {******************************************************************************
 
 Turn on standout attribute
@@ -1230,7 +1219,7 @@ procedure fcolor(var f: text; c: color);
 begin
 
 end;
-
+
 {******************************************************************************
 
 Set foreground color graphical
@@ -1281,7 +1270,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Set background color
@@ -1358,7 +1347,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Set background color graphical
@@ -1463,7 +1452,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Enable/disable automatic scroll and wrap
@@ -1536,7 +1525,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Enable/disable cursor visibility
@@ -1584,7 +1573,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Get location of cursor in x
@@ -1620,7 +1609,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Get location of cursor in y
@@ -1656,7 +1645,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Get location of cursor in x graphical
@@ -1692,7 +1681,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Get location of cursor in y graphical
@@ -1728,7 +1717,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Select current screen
@@ -1828,7 +1817,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Place next terminal character
@@ -1907,7 +1896,7 @@ begin
    end
       
 end;
-
+
 {******************************************************************************
 
 Write string to current cursor position
@@ -2002,7 +1991,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Delete last character
@@ -2051,7 +2040,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Draw line
@@ -2167,7 +2156,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Draw rectangle
@@ -2231,7 +2220,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Draw filled rectangle
@@ -2315,7 +2304,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Draw rounded rectangle
@@ -2379,7 +2368,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Draw filled rounded rectangle
@@ -2463,7 +2452,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Draw ellipse
@@ -2527,7 +2516,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Draw filled ellipse
@@ -2610,7 +2599,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Draw arc
@@ -2714,7 +2703,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Draw filled arc
@@ -2820,7 +2809,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Draw filled cord
@@ -2926,7 +2915,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Draw filled triangle
@@ -3121,7 +3110,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Set pixel
@@ -3185,7 +3174,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Set foreground to overwrite
@@ -3237,7 +3226,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Set background to overwrite
@@ -3289,7 +3278,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Set foreground to invisible
@@ -3341,7 +3330,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Set background to invisible
@@ -3393,7 +3382,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Set foreground to xor
@@ -3445,7 +3434,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Set background to xor
@@ -3492,7 +3481,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Set line width
@@ -3560,7 +3549,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Find character size x
@@ -3596,7 +3585,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Find character size y
@@ -3632,7 +3621,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Find number of installed fonts
@@ -3668,7 +3657,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Change fonts
@@ -3731,7 +3720,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Find name of font
@@ -3790,7 +3779,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Change font size
@@ -3841,7 +3830,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Set character extra spacing y
@@ -3868,7 +3857,7 @@ begin
    refer(s) { stub out }
 
 end;
-
+
 {******************************************************************************
 
 Sets extra character space x
@@ -3895,7 +3884,7 @@ begin
    refer(s) { stub out }
 
 end;
-
+
 {******************************************************************************
 
 Find dots per meter x
@@ -3931,7 +3920,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Find dots per meter y
@@ -3967,7 +3956,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Find string size in pixels
@@ -4065,7 +4054,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Find character position in string
@@ -4130,7 +4119,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Write justified text
@@ -4226,7 +4215,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Find justified character position
@@ -4310,7 +4299,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Turn on condensed attribute
@@ -4339,7 +4328,7 @@ begin
    refer(e) { stub out }
 
 end;
-
+
 {******************************************************************************
 
 Turn on extended attribute
@@ -4368,7 +4357,7 @@ begin
    refer(e) { stub out }
 
 end;
-
+
 {******************************************************************************
 
 Turn on extra light attribute
@@ -4397,7 +4386,7 @@ begin
    refer(e) { stub out }
 
 end;
-
+
 {******************************************************************************
 
 Turn on light attribute
@@ -4426,7 +4415,7 @@ begin
    refer(e) { stub out }
 
 end;
-
+
 {******************************************************************************
 
 Turn on extra bold attribute
@@ -4455,7 +4444,7 @@ begin
    refer(e) { stub out }
 
 end;
-
+
 {******************************************************************************
 
 Turn on hollow attribute
@@ -4484,7 +4473,7 @@ begin
    refer(e) { stub out }
 
 end;
-
+
 {******************************************************************************
 
 Turn on raised attribute
@@ -4513,7 +4502,7 @@ begin
    refer(e) { stub out }
 
 end;
-
+
 {******************************************************************************
 
 Delete picture
@@ -4570,7 +4559,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Load picture
@@ -4671,7 +4660,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Find size x of picture
@@ -4717,7 +4706,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Find size y of picture
@@ -4765,7 +4754,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Draw picture
@@ -4850,7 +4839,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Set viewport offset graphical
@@ -4906,7 +4895,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Set viewport scale
@@ -5000,7 +4989,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Print message string
@@ -5200,7 +5189,7 @@ begin
    end
 
 end;
-
+
 {******************************************************************************
 
 Print message diagnostic
@@ -5224,7 +5213,7 @@ begin
    prtstr('\cr\lf')
 
 end;
-
+
 {******************************************************************************
 
 Print unpacked message diagnostic
@@ -5248,7 +5237,7 @@ begin
    prtstr('\cr\lf')
 
 end;
-
+
 {******************************************************************************
 
 Aquire next input event
@@ -6287,7 +6276,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Wait for intratask message
@@ -6320,7 +6309,7 @@ begin
    until done { until message found }
 
 end;
-
+
 {******************************************************************************
 
 Timer handler procedure
@@ -6365,7 +6354,7 @@ begin
    end else unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Set timer
@@ -6445,7 +6434,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Kill timer
@@ -6497,7 +6486,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Set/kill framing timer
@@ -6570,7 +6559,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Set automatic hold state
@@ -6593,7 +6582,7 @@ begin
    fautohold := e { set new state of autohold }
 
 end;
-
+
 {******************************************************************************
 
 Return number of mice
@@ -6624,7 +6613,7 @@ begin
    mouse := ord(rv <> 0) { set single mouse }
 
 end;
-
+
 {******************************************************************************
 
 Return number of buttons on mouse
@@ -6654,7 +6643,7 @@ begin
       sc_getsystemmetrics(sc_sm_cmousebuttons) { find mouse buttons }
 
 end;
-
+
 {******************************************************************************
 
 Return number of joysticks
@@ -6690,7 +6679,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Return number of buttons on a joystick
@@ -6749,7 +6738,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Return number of axies on a joystick
@@ -6806,7 +6795,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Set tab graphical
@@ -6870,7 +6859,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Set tab
@@ -6906,7 +6895,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Reset tab graphical
@@ -6967,7 +6956,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Reset tab
@@ -7003,7 +6992,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Clear all tabs
@@ -7042,7 +7031,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Find number of function keys
@@ -7069,7 +7058,7 @@ begin
    funkey := 12 { number of function keys }
 
 end;
-
+
 {******************************************************************************
 
 Process input line
@@ -7149,7 +7138,7 @@ begin
    win^.inpptr := 1 { set 1st position on active line }
 
 end;
-
+
 {******************************************************************************
 
 Place string in storage
@@ -7169,7 +7158,7 @@ begin
    str := p
 
 end;
-
+
 {******************************************************************************
 
 Get program name
@@ -7244,7 +7233,7 @@ begin
    for i := 1 to max(pgmnam^) do trmnam^[i+11] := pgmnam^[i]
 
 end;
-
+
 {******************************************************************************
 
 Sort font list
@@ -7330,7 +7319,7 @@ begin
    fp := nl { place result }
 
 end;
-
+
 {******************************************************************************
 
 Font list callback
@@ -7483,7 +7472,7 @@ begin
    enumfont := true { set continue }
 
 end;
-
+
 {******************************************************************************
 
 Get fonts list
@@ -7525,7 +7514,7 @@ begin
    sortfont(win^.fntlst) { sort into alphabetical order }
 
 end;
-
+
 {******************************************************************************
 
 Remove font from font list
@@ -7553,7 +7542,7 @@ begin
    end
 
 end;
-
+
 {******************************************************************************
 
 Search for font by name
@@ -7578,7 +7567,7 @@ begin
    end
 
 end;
-
+
 {******************************************************************************
 
 Separate standard fonts
@@ -7695,7 +7684,7 @@ begin
    win^.fntlst := termfp
 
 end;
-
+
 {******************************************************************************
 
 Set window title
@@ -7755,7 +7744,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Register standard window class
@@ -7797,7 +7786,7 @@ begin
    if not b then winerr { process windows error }
 
 end;
-
+
 {******************************************************************************
 
 Kill window
@@ -7821,7 +7810,7 @@ begin
    repeat igetmsg(msg) until msg.message = umwincls
 
 end;
-
+
 {******************************************************************************
 
 Open and present window
@@ -8042,7 +8031,7 @@ begin
    end
 
 end;
-
+
 {******************************************************************************
 
 Close window
@@ -8082,7 +8071,7 @@ begin
    end
 
 end;
-
+
 {******************************************************************************
 
 Close window
@@ -8158,7 +8147,7 @@ begin
    xltwin[wid] := 0; { clear window to file translation }
 
 end;
-
+
 {******************************************************************************
 
 Open an input and output pair
@@ -8193,7 +8182,7 @@ begin
    filwin[ofn] := wid
 
 end;
-
+
 {******************************************************************************
 
 Alias file number
@@ -8222,7 +8211,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Resolve filename
@@ -8253,7 +8242,7 @@ begin
    end else ss_old_resolve(nm, fs, sav_resolve) { pass it on }
 
 end;
-
+
 {******************************************************************************
 
 Open file for read
@@ -8296,7 +8285,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Open file for write
@@ -8337,7 +8326,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Close file
@@ -8377,7 +8366,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Read file
@@ -8469,7 +8458,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Write file
@@ -8511,7 +8500,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Position file
@@ -8534,7 +8523,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Find location of file
@@ -8559,7 +8548,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Find length of file
@@ -8583,7 +8572,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Check eof of file
@@ -8607,7 +8596,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Open window
@@ -8689,7 +8678,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Size buffer pixel
@@ -8769,7 +8758,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Size buffer in characters
@@ -8807,7 +8796,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Enable/disable buffered mode
@@ -8911,7 +8900,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Activate/distroy menu
@@ -9065,7 +9054,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Find menu entry
@@ -9104,7 +9093,7 @@ begin
    fndmenu := fp { return entry }
 
 end;
-
+
 {******************************************************************************
 
 Enable/disable menu entry
@@ -9167,7 +9156,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 select/deselect menu entry
@@ -9267,7 +9256,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Bring window to front of the Z order
@@ -9346,7 +9335,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Puts window to the back of the Z order
@@ -9398,7 +9387,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Get window size graphical
@@ -9450,7 +9439,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Get window size character
@@ -9517,7 +9506,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Set window size graphical
@@ -9569,7 +9558,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Set window size character
@@ -9636,7 +9625,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Set window position graphical
@@ -9687,7 +9676,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Set window position character
@@ -9754,7 +9743,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Get screen size graphical
@@ -9808,7 +9797,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Find window size from client
@@ -9949,7 +9938,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Get screen size character
@@ -9990,7 +9979,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Enable or disable window frame
@@ -10084,7 +10073,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Enable or disable window sizing
@@ -10183,7 +10172,7 @@ begin
    unlockmain { end exclusive access }
 
 end;
-
+
 {******************************************************************************
 
 Enable or disable window system bar
@@ -10192,126 +10181,12 @@ Turns the system bar on and off.
 
 ******************************************************************************}
 
-procedure isysbar(win: winptr; e: boolean);
-
-var fl1, fl2: integer; { flag }
-    cr:       sc_rect; { client rectangle holder }
-
-begin
-
-   with win^ do begin { in windows context }
-
-      sysbar := e; { set new status of size bars }
-      { no point in making the change of framing is off entirely }
-      if frame then begin
-
-         { set minimum style }
-         fl1 := sc_ws_overlapped or sc_ws_clipchildren;
-         { add frame features }
-         if size then fl1 := fl1 or sc_ws_thickframe
-         else fl1 := fl1 or sc_ws_border;
-         if sysbar then fl1 := fl1 or sc_ws_caption or sc_ws_sysmenu or
-                               sc_ws_minimizebox or sc_ws_maximizebox;
-         { add flags for child window }
-         if parhan <> 0 then fl1 := fl1 or sc_ws_child or sc_ws_clipsiblings;
-         { if we are enabling frames, add the frame parts back }
-         if e then fl1 := fl1 or sc_ws_thickframe;
-         fl2 := $f; { build the gwl_style value }
-         fl2 := not fl2;
-         unlockmain; { end exclusive access }
-         r := sc_setwindowlong(winhan, fl2 {sc_gwl_style}, fl1);
-         lockmain; { start exclusive access }
-         if r = 0 then winerr; { process windows error }
-         unlockmain; { end exclusive access }
-         b := sc_setwindowpos(winhan, 0, 0, 0, 0, 0,
-                              sc_swp_nosize or sc_swp_nomove or 
-                              sc_swp_framechanged);
-         lockmain; { start exclusive access }
-         if not b then winerr; { process windows error }
-         { present the window }
-         unlockmain; { end exclusive access }
-         b := sc_showwindow(winhan, sc_sw_showdefault);
-         lockmain; { start exclusive access }
-         if bufmod then begin { in buffer mode }
-
-            { change window size to match new mode }
-            cr.left := 0; { set up desired client rectangle }
-            cr.top := 0;
-            cr.right := gmaxxg;
-            cr.bottom := gmaxyg;
-            { find window size from client size }
-            b := sc_adjustwindowrectex(cr, fl1, false, 0);
-            if not b then winerr; { process windows error }
-            unlockmain; { end exclusive access }
-            b := sc_setwindowpos(winhan, 0, 0, 0, 
-                                 cr.right-cr.left, cr.bottom-cr.top,
-                                 sc_swp_nomove or sc_swp_nozorder);
-            lockmain; { start exclusive access }
-            if not b then winerr { process windows error }
-
-         end
-
-      end
-
-   end
-
-end;
-
 procedure sysbar(var f: text; e: boolean);
 
-var win: winptr; { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window from file }
-   isysbar(win, e); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure sysbar(e: boolean);
-
-var win: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window from file }
-   isysbar(win, e); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-{******************************************************************************
-
-Append menu entry
-
-Appends a new menu entry to the given list.
-
-******************************************************************************}
-
-procedure appendmenu(var list: menuptr; m: menuptr);
-
-var lp: menuptr;
-
-begin
-
-   { clear these links for insurance }
-   m^.next := nil; { clear next }
-   m^.branch := nil; { clear branch }
-   if list = nil then list := m { list empty, set as first entry }
-   else begin { list non-empty }
-
-      { find last entry in list }
-      lp := list; { index 1st on list }
-      while lp^.next <> nil do lp := lp^.next;
-      lp^.next := m { append at end }
-
-   end
-
-end;
-
 {******************************************************************************
 
 Create standard menu
@@ -10330,297 +10205,10 @@ end of the menu, then the program selections placed in the menu.
 
 procedure stdmenu(view sms: stdmenusel; var sm: menuptr; pm: menuptr);
 
-var m, hm: menuptr; { pointer for menu entries }
-
-{ get menu entry }
-
-procedure getmenu(var m: menuptr; id: integer; view face: string);
-
 begin
-
-   new(m); { get new menu element }
-   m^.next   := nil; { no next }
-   m^.branch := nil; { no branch }
-   m^.onoff  := false; { not an on/off value }
-   m^.oneof  := false; { not a "one of" value }
-   m^.bar    := false; { no bar under }
-   m^.id     := id;    { no id }
-   new(m^.face, max(face)); { place face string }
-   m^.face^ := face
 
 end;
 
-{ add standard list item }
-
-procedure additem(i: integer; var m, l: menuptr; view s: string; 
-                  b: boolean);
-
-begin
-
-   if i in sms then begin { this item is active }
-
-      getmenu(m, i, s); { get menu item }
-      appendmenu(l, m); { add to list }
-      m^.bar := b       { set bar status }
-
-   end
-
-end;
-
-begin
-
-   refer(pm); { we don't implement menu addition yet }
-   sm := nil; { clear menu }
-
-   { check and perform "file" menu }
-
-   if sms*[smnew, smopen, smclose, smsave, smsaveas, smpageset, smprint, 
-           smexit] <> [] then begin { file menu }
-
-      getmenu(hm, 0, 'File'); { get entry }
-      appendmenu(sm, hm);
-
-      additem(smnew, m, hm^.branch, 'New', false);
-      additem(smopen, m, hm^.branch, 'Open', false);
-      additem(smclose, m, hm^.branch, 'Close', false);
-      additem(smsave, m, hm^.branch, 'Save', false);
-      additem(smsaveas, m, hm^.branch, 'Save As', true);
-      additem(smpageset, m, hm^.branch, 'Page Setup', false);
-      additem(smprint, m, hm^.branch, 'Print', true);
-      additem(smexit, m, hm^.branch, 'Exit', false)
-
-   end;
-
-   { check and perform "edit" menu }
-
-   if sms*[smundo, smcut, smpaste, smdelete, smfind, smfindnext, 
-           smreplace, smgoto, smselectall] <> [] then begin { file menu }
-
-      getmenu(hm, 0, 'Edit'); { get entry }
-      appendmenu(sm, hm);
-
-      additem(smundo, m, hm^.branch, 'Undo', true);
-      additem(smcut, m, hm^.branch, 'Cut', false);
-      additem(smpaste, m, hm^.branch, 'Paste', false);
-      additem(smdelete, m, hm^.branch, 'Delete', true);
-      additem(smfind, m, hm^.branch, 'Find', false);
-      additem(smfindnext, m, hm^.branch, 'Find Next', false);
-      additem(smreplace, m, hm^.branch, 'Replace', false);
-      additem(smgoto, m, hm^.branch, 'Goto', true);
-      additem(smselectall, m, hm^.branch, 'Select All', false)
-
-   end;
-
-   { insert custom menu }
-
-   while pm <> nil do begin { insert entries }
-
-      m := pm; { index top button }
-      pm := pm^.next; { next button }
-      appendmenu(sm, m);
-
-   end;
-
-   { check and perform "window" menu }
-
-   if sms*[smnewwindow, smtilehoriz, smtilevert, smcascade, 
-           smcloseall] <> [] then begin { file menu }
-
-      getmenu(hm, 0, 'Window'); { get entry }
-      appendmenu(sm, hm);
-
-      additem(smnewwindow, m, hm^.branch, 'New Window', true);
-      additem(smtilehoriz, m, hm^.branch, 'Tile Horizontally', false);
-      additem(smtilevert, m, hm^.branch, 'Tile Vertically', false);
-      additem(smcascade, m, hm^.branch, 'Cascade', true);
-      additem(smcloseall, m, hm^.branch, 'Close All', false)
-
-   end;
-
-   { check and perform "help" menu }
-
-   if sms*[smhelptopic, smabout] <> [] then begin { file menu }
-
-      getmenu(hm, 0, 'Help'); { get entry }
-      appendmenu(sm, hm);
-
-      additem(smhelptopic, m, hm^.branch, 'Help Topics', true);
-      additem(smabout, m, hm^.branch, 'About', false)
-
-   end
-
-end;
-
-{******************************************************************************
-
-Create widget
-
-Creates a widget within the given window, within the specified bounding box,
-and using the face string and type, and the given id. The string may or may not
-be used.
-
-Widgets use the subthread to buffer them. There were various problems from
-trying to start them on the main window.
-
-******************************************************************************}
-
-procedure widget(win: winptr; x1, y1, x2, y2: integer; view s: string; 
-                 id: integer; typ: wigtyp; exfl: integer; var wp: wigptr);
-
-var fl:     integer; { creation flag }
-    clsstr: packed array [1..20] of char; { class name }
-    b:      boolean; { return value }
-
-{ create widget according to type }
-
-function createwidget(win: winptr; typ: wigtyp; x1, y1, x2, y2: integer;
-                      view s: string; id: integer): integer;
-
-var wh: integer; { handle to widget }
-    ip: imptr;   { intertask message pointer }
-
-begin
-
-   with win^ do begin
-
-      { search previous definition with same id }
-      if fndwig(win, id) <> nil then error(ewigdup); { duplicate widget id }
-      case typ of { widget type }
-
-         wtbutton: begin
-
-            clsstr := 'button              ';
-            fl := sc_bs_pushbutton or exfl;  { button }
-
-         end;
-         wtcheckbox: begin
-
-            clsstr := 'button              ';
-            fl := sc_bs_checkbox or exfl;    { checkbox }
-
-         end;
-         wtradiobutton: begin
-
-            clsstr := 'button              ';
-            fl := sc_bs_radiobutton or exfl; { radio button }
-
-         end;
-         wtgroup: begin
-
-            clsstr := 'button              ';
-            fl := sc_bs_groupbox or exfl;    { group box }
-
-         end;
-         wtbackground: begin
-
-            clsstr := 'static              ';
-            fl := 0 or exfl;   { background }
-
-         end;
-         wtscrollvert: begin { vertical scroll bar }
-
-            clsstr := 'scrollbar           ';
-            fl := sc_sbs_vert or exfl;
-
-         end;
-         wtscrollhoriz: begin { horizontal scrollbar }
-
-            clsstr := 'scrollbar           ';
-            fl := sc_sbs_horz or exfl;
-
-         end;
-         wteditbox: begin { single line edit }
-
-            clsstr := 'edit                ';
-            fl := sc_ws_border or sc_es_left or sc_es_autohscroll or exfl;
-
-         end;
-         wtprogressbar: begin { progress bar }
- 
-            clsstr := 'msctls_progress32   ';
-            fl := 0 or exfl;
-
-         end;
-         wtlistbox: begin { list box }
- 
-            clsstr := 'listbox             ';
-            fl := sc_lbs_standard-sc_lbs_sort or exfl;
-
-         end;
-         wtdropbox: begin { list box }
- 
-            clsstr := 'combobox            ';
-            fl := sc_cbs_dropdownlist or exfl;
-
-         end;
-         wtdropeditbox: begin { list box }
- 
-            clsstr := 'combobox            ';
-            fl := sc_cbs_dropdown or exfl;
-
-         end;
-         wtslidehoriz: begin { horizontal slider }
- 
-            clsstr := 'msctls_trackbar32   ';
-            fl := sc_tbs_horz or sc_tbs_autoticks or exfl;
-
-         end;
-         wtslidevert: begin { vertical slider }
- 
-            clsstr := 'msctls_trackbar32   ';
-            fl := sc_tbs_vert or sc_tbs_autoticks or exfl;
-
-         end;
-         wttabbar: begin { tab bar }
- 
-            clsstr := 'systabcontrol32     ';
-            fl := sc_ws_visible or exfl;
-
-         end;
-
-      end;
-      { create an intertask message to start the widget }
-      getitm(ip); { get a im pointer }
-      ip^.im := imwidget; { set type is widget }
-      copy(ip^.wigcls, clsstr); { place class string }
-      copy(ip^.wigtxt, s); { place face text }
-      ip^.wigflg := sc_ws_child or sc_ws_visible or fl;
-      ip^.wigx := x1-1; { place origin }
-      ip^.wigy := y1-1;
-      ip^.wigw := x2-x1+1; { place size }
-      ip^.wigh := y2-y1+1;
-      ip^.wigpar := winhan; { place parent }
-      ip^.wigid := id; { place id }
-      ip^.wigmod := sc_getmodulehandle_n; { place module }
-      { order widget to start }
-      b := sc_postmessage(dispwin, umim, itm2int(ip), 0);
-      if not b then winerr; { process windows error }
-      { Wait for widget start, this also keeps our window going. } 
-      waitim(imwidget, ip); { wait for the return }
-      wh := ip^.wigwin; { place handle to widget }
-      dispose(ip^.wigcls); { release class string }
-      dispose(ip^.wigtxt); { release face text string }
-      putitm(ip) { release im }
-
-   end;
-
-   createwidget := wh { return handle }
-
-end;
-
-begin
-
-   getwig(win, wp); { get new widget }
-   { Group widgets don't have a background, so we pair it up with a background
-     widget. }
-   if typ = wtgroup then { create buddy for group }
-      wp^.han2 := createwidget(win, wtbackground, x1, y1, x2, y2, '', id);
-   wp^.han := createwidget(win, typ, x1, y1, x2, y2, s, id); { create widget }
-   wp^.id := id; { place button id }
-   wp^.typ := typ { place type }
-
-end;
-
 {******************************************************************************
 
 Kill widget
@@ -10629,51 +10217,12 @@ Removes the widget by id from the window.
 
 ******************************************************************************}
 
-procedure ikillwidget(win: winptr; id: integer);
-
-var wp: wigptr; { widget pointer }
-
-begin
-
-   with win^ do begin { in windows context }
-
-      if not visible then winvis(win); { make sure we are displayed }
-      wp := fndwig(win, id); { find widget }
-      if wp = nil then error(ewignf); { not found }
-      kilwin(wp^.han); { kill window }
-      if wp^.han2 <> 0 then kilwin(wp^.han2); { distroy buddy window }
-      putwig(win, wp) { release widget entry }
-
-   end;
-
-end;
-
 procedure killwidget(var f: text; id: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   ikillwidget(win, id); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure killwidget(id: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ikillwidget(win, id); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Select/deselect widget
@@ -10682,54 +10231,12 @@ Selects or deselects a widget.
 
 ******************************************************************************}
 
-procedure iselectwidget(win: winptr; id: integer; e: boolean);
-
-var wp: wigptr;  { widget entry }
-    r:  integer; { return value }
-
-begin
-
-   with win^ do begin
-
-      if not visible then winvis(win); { make sure we are displayed }
-      wp := fndwig(win, id); { find widget }
-      if wp = nil then error(ewignf); { not found }
-      { check this widget is selectable }
-      if not (wp^.typ in [wtcheckbox, wtradiobutton]) then error(ewigsel);
-      unlockmain; { end exclusive access }
-      r := sc_sendmessage(wp^.han, sc_bm_setcheck, ord(e), 0);
-      lockmain { start exclusive access }
-   
-   end
-
-end;
-
 procedure selectwidget(var f: text; id: integer; e: boolean);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   iselectwidget(win, id, e); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure selectwidget(id: integer; e: boolean);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iselectwidget(win, id, e); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Enable/disable widget
@@ -10738,59 +10245,12 @@ Enables or disables a widget.
 
 ******************************************************************************}
 
-procedure ienablewidget(win: winptr; id: integer; e: boolean);
-
-var wp:  wigptr;  { widget entry }
-    b:   boolean; { return value }
-
-begin
-
-   with win^ do begin
-
-      if not visible then winvis(win); { make sure we are displayed }
-      wp := fndwig(win, id); { find widget }
-      if wp = nil then error(ewignf); { not found }
-      { check this widget can get text }
-      if not (wp^.typ in [wtbutton, wtcheckbox, wtradiobutton, wtgroup,
-                          wtscrollvert, wtscrollhoriz, wtnumselbox,
-                          wteditbox, wtlistbox, wtdropbox, wtdropeditbox,
-                          wtslidehoriz, wtslidevert, 
-                          wttabbar]) then error(ewigdis);
-      unlockmain; { end exclusive access }
-      b := sc_enablewindow(wp^.han, e); { perform }
-      lockmain; { start exclusive access }
-      wp^.enb := e { save enable/disable status }
-   
-   end;
-
-end;
-
 procedure enablewidget(var f: text; id: integer; e: boolean);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   ienablewidget(win, id, e); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure enablewidget(id: integer; e: boolean);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ienablewidget(win, id, e); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Get widget text
@@ -10801,74 +10261,12 @@ This error is currently unchecked.
 
 ******************************************************************************}
 
-procedure igetwidgettext(win: winptr; id: integer; var s: pstring);
-
-var wp:  wigptr;  { widget pointer }
-    ls:  integer; { length of text }
-    sp:  pstring; { pointer to string }
-    i:   integer; { index for string }
-    r:   integer; { return value }
-
-begin
-
-   with win^ do begin
-
-      if not visible then winvis(win); { make sure we are displayed }
-      wp := fndwig(win, id); { find widget }
-      if wp = nil then error(ewignf); { not found }
-      { check this widget can get text }
-      if not (wp^.typ in [wteditbox, wtdropeditbox]) then error(ewiggtxt);
-      unlockmain; { end exclusive access }
-      ls := sc_getwindowtextlength(wp^.han); { get text length }
-      lockmain; { start exclusive access }
-      { There is no real way to process an error, as listed in the 
-        documentation, for getwindowtextlength. The docs define
-        a zero return as being for a zero length string, but also apparently
-        uses that value for errors. }
-      new(sp, ls+1); { get a string for that, with zero terminate }
-      unlockmain; { end exclusive access }
-      r := sc_getwindowtext(wp^.han, sp^); { get the text }
-      lockmain; { start exclusive access }
-      { Getwindowtext has the same issue as getwindowtextlength, with the
-        exception that, since we already have the length of data, if the
-        length is wrong AND the return is zero, its an error. This leaves
-        the case of an error on a zero length return. }
-      if (r = 0) and (r <> ls) then winerr; { process windows error }
-      if r <> ls then error(esystem); { lengths should match }
-      new(s, r); { get final string }
-      for i := 1 to r do s^[i] := sp^[i]; { copy into place }
-      dispose(sp) { release temp buffer }
-
-   end
-
-end;
-
 procedure getwidgettext(var f: text; id: integer; var s: pstring);
 
-var win: winptr;  { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   igetwidgettext(win, id, s); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure getwidgettext(id: integer; var s: pstring);
-
-var win: winptr;  { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   igetwidgettext(win, id, s); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 put edit box text
@@ -10877,55 +10275,12 @@ Places text into an edit box.
 
 ******************************************************************************}
 
-procedure iputwidgettext(win: winptr; id: integer; view s: string);
-
-var wp: wigptr;  { widget pointer }
-    b:  boolean; { return value }
-
-begin
-
-   with win^ do begin
-
-      if not visible then winvis(win); { make sure we are displayed }
-      wp := fndwig(win, id); { find widget }
-      if wp = nil then error(ewignf); { not found }
-      { check this widget can put text }
-      if not (wp^.typ in [wteditbox, wtdropeditbox]) then error(ewigptxt);
-      unlockmain; { end exclusive access }
-      b := sc_setwindowtext(wp^.han, s); { get the text }
-      lockmain; { start exclusive access }
-      if not b then winerr; { process windows error }
-
-   end;
-
-end;
-
 procedure putwidgettext(var f: text; id: integer; view s: string);
 
-var win: winptr;  { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   iputwidgettext(win, id, s); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure putwidgettext(id: integer; view s: string);
-
-var win: winptr;  { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iputwidgettext(win, id, s); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Resize widget
@@ -10934,62 +10289,12 @@ Changes the size of a widget.
 
 ******************************************************************************}
 
-procedure isizwidgetg(win: winptr; id: integer; x, y: integer);
-
-var wp: wigptr; { widget pointer }
-
-begin
-
-   with win^ do begin { in windows context }
-
-      wp := fndwig(win, id); { find widget }
-      if wp = nil then error(ewignf); { not found }
-      unlockmain; { end exclusive access }
-      b := sc_setwindowpos(wp^.han, 0, 0, 0, x, y, 
-                           sc_swp_nomove or sc_swp_nozorder);
-      lockmain; { start exclusive access }
-      if not b then winerr; { process windows error }
-      if wp^.han2 <> 0 then begin { also resize the buddy }
-
-         { Note, the buddy needs to be done differently for a numselbox }
-         unlockmain; { end exclusive access }
-         b := sc_setwindowpos(wp^.han2, 0, 0, 0, x, y, 
-                              sc_swp_nomove or sc_swp_nozorder);
-         lockmain; { start exclusive access }
-         if not b then winerr; { process windows error }
-
-      end
-
-   end;
-
-end;
-
 procedure sizwidgetg(var f: text; id: integer; x, y: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   isizwidgetg(win, id, x, y); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure sizwidgetg(id: integer; x, y: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   isizwidgetg(win, id, x, y); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Reposition widget
@@ -10998,189 +10303,36 @@ Changes the parent position of a widget.
 
 ******************************************************************************}
 
-procedure iposwidgetg(win: winptr; id: integer; x, y: integer);
-
-var wp: wigptr; { widget pointer }
-
-begin
-
-   with win^ do begin { in windows context }
-
-      wp := fndwig(win, id); { find widget }
-      if wp = nil then error(ewignf); { not found }
-      unlockmain; { end exclusive access }
-      b := sc_setwindowpos(wp^.han, 0, x-1, y-1, 0, 0, sc_swp_nosize);
-      lockmain; { start exclusive access }
-      if not b then winerr; { process windows error }
-      if wp^.han2 <> 0 then begin { also reposition the buddy }
-
-         { Note, the buddy needs to be done differently for a numselbox }
-         unlockmain; { end exclusive access }
-         b := sc_setwindowpos(wp^.han2, 0, x-1, y-1, 0, 0, sc_swp_nosize);
-         lockmain; { start exclusive access }
-         if not b then winerr; { process windows error }
-
-      end
-
-   end;
-
-end;
-
 procedure poswidgetg(var f: text; id: integer; x, y: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   iposwidgetg(win, id, x, y); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure poswidgetg(id: integer; x, y: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iposwidgetg(win, id, x, y); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Place widget to back of Z order
 
 ******************************************************************************}
-
-procedure ibackwidget(win: winptr; id: integer);
-
-var wp: wigptr;  { widget pointer }
-    b:  boolean; { result holder }
-
-begin
-
-   with win^ do begin { in windows context }
-
-      wp := fndwig(win, id); { find widget }
-      if wp = nil then error(ewignf); { not found }
-      unlockmain; { end exclusive access }
-      b := sc_setwindowpos(wp^.han, sc_hwnd_bottom, 0, 0, 0, 0, 
-                           sc_swp_nomove or sc_swp_nosize);
-      lockmain; { start exclusive access }
-      if not b then winerr; { process windows error }
-      if wp^.han2 <> 0 then begin { also reposition the buddy }
-
-         { Note, the buddy needs to be done differently for a numselbox }
-         unlockmain; { end exclusive access }
-         b := sc_setwindowpos(wp^.han2, sc_hwnd_bottom, 0, 0, 0, 0, 
-                              sc_swp_nomove or sc_swp_nosize);
-         lockmain; { start exclusive access }
-         if not b then winerr; { process windows error }
-
-      end
-
-   end;
-
-end;
 
 procedure backwidget(var f: text; id: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   ibackwidget(win, id); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure backwidget(id: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ibackwidget(win, id); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Place widget to back of Z order
 
 ******************************************************************************}
 
-procedure ifrontwidget(win: winptr; id: integer);
-
-var wp: wigptr;  { widget pointer }
-    b:  boolean; { result holder }
-    fl: integer;
-
-begin
-
-   with win^ do begin { in windows context }
-
-      wp := fndwig(win, id); { find widget }
-      if wp = nil then error(ewignf); { not found }
-      fl := 0;
-      fl := not fl;
-      unlockmain; { end exclusive access }
-      b := sc_setwindowpos(wp^.han, fl {sc_hwnd_topmost}, 0, 0, 0, 0, 
-                           sc_swp_nomove or sc_swp_nosize);
-      lockmain; { start exclusive access }
-      if not b then winerr; { process windows error }
-      if wp^.han2 <> 0 then begin { also reposition the buddy }
-
-         { Note, the buddy needs to be done differently for a numselbox }
-         unlockmain; { end exclusive access }
-         b := sc_setwindowpos(wp^.han2, fl {sc_hwnd_topmost}, 0, 0, 0, 0, 
-                              sc_swp_nomove or sc_swp_nosize);
-         lockmain; { start exclusive access }
-         if not b then winerr; { process windows error }
-
-      end
-
-   end;
-
-end;
-
 procedure frontwidget(var f: text; id: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   ifrontwidget(win, id); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure frontwidget(id: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ifrontwidget(win, id); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Find minimum/standard button size
@@ -11190,89 +10342,18 @@ a button is calculated and returned.
 
 ******************************************************************************}
 
-procedure ibuttonsizg(win: winptr; view s: string; var w, h: integer);
-
-var sz: sc_size; { size holder }
-    b:  boolean; { return value }
-    dc: integer; { dc for screen }
-
-begin
-
-   refer(win); { don't need the window data }
-
-   dc := sc_getwindowdc(0); { get screen dc }
-   if dc = 0 then winerr; { process windows error }
-   b := sc_gettextextentpoint32(dc, s, sz); { get sizing }
-   if not b then winerr; { process windows error }
-   { add button borders to size }
-   w := sz.cx+sc_getsystemmetrics(sc_sm_cxedge)*2;
-   h := sz.cy+sc_getsystemmetrics(sc_sm_cyedge)*2
-
-end;
-
-procedure ibuttonsiz(win: winptr; view s: string; var w, h: integer);
-
-begin
-
-   ibuttonsizg(win, s, w, h); { get size }
-   { change graphical size to character }
-   w := (w-1) div win^.charspace+1;
-   h := (h-1) div win^.linespace+1
-
-end;
-
 procedure buttonsizg(var f: text; view s: string; var w, h: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   ibuttonsizg(win, s, w, h); { get size }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure buttonsizg(view s: string; var w, h: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ibuttonsizg(win, s, w, h); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
 procedure buttonsiz(var f: text; view s: string; var w, h: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   ibuttonsiz(win, s, w, h); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure buttonsiz(view s: string; var w, h: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ibuttonsiz(win, s, w, h); { get size }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Create button
@@ -11281,88 +10362,20 @@ Creates a standard button within the specified rectangle, on the given window.
 
 ******************************************************************************}
 
-procedure ibuttong(win: winptr; x1, y1, x2, y2: integer; view s: string; 
-                  id: integer);
-
-var wp: wigptr; { widget pointer }
-
-begin
-
-   if not win^.visible then winvis(win); { make sure we are displayed }
-   widget(win, x1, y1, x2, y2, s, id, wtbutton, 0, wp)
-
-end;
-
-procedure ibutton(win: winptr; x1, y1, x2, y2: integer; view s: string; 
-                  id: integer);
-
-begin
-
-   { form graphical from character coordinates }
-   x1 := (x1-1)*win^.charspace+1;
-   y1 := (y1-1)*win^.linespace+1;
-   x2 := (x2)*win^.charspace;
-   y2 := (y2)*win^.linespace;
-   ibuttong(win, x1, y1, x2, y2, s, id) { create button graphical }
-
-end;
-
-procedure buttong(var f: text; x1, y1, x2, y2: integer; view s: string; 
+procedure buttong(var f: text; x1, y1, x2, y2: integer; view s: string;
                  id: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   ibuttong(win, x1, y1, x2, y2, s, id);
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure buttong(x1, y1, x2, y2: integer; view s: string;
-                          id: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ibuttong(win, x1, y1, x2, y2, s, id);
-   unlockmain { end exclusive access }
 
 end;
 
 procedure button(var f: text; x1, y1, x2, y2: integer; view s: string; 
                  id: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   ibutton(win, x1, y1, x2, y2, s, id);
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure button(x1, y1, x2, y2: integer; view s: string;
-                          id: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window from file }
-   ibutton(win, x1, y1, x2, y2, s, id);
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Find minimum/standard checkbox size
@@ -11372,90 +10385,18 @@ a checkbox is calculated and returned.
 
 ******************************************************************************}
 
-procedure icheckboxsizg(win: winptr; view s: string; var w, h: integer);
-
-var sz: sc_size; { size holder }
-    b:  boolean; { return value }
-    dc: integer; { dc for screen }
-
-begin
-
-   refer(win); { don't need the window data }
-
-   dc := sc_getwindowdc(0); { get screen dc }
-   if dc = 0 then winerr; { process windows error }
-   b := sc_gettextextentpoint32(dc, s, sz); { get sizing }
-   if not b then winerr; { process windows error }
-   { We needed to add a fudge factor for the space between the checkbox, the
-     left edge of the widget, and the left edge of the text. }
-   w := sz.cx+sc_getsystemmetrics(sc_sm_cxmenucheck)+6; { return size }
-   h := sz.cy
-
-end;
-
-procedure icheckboxsiz(win: winptr; view s: string; var w, h: integer);
-
-begin
-
-   icheckboxsizg(win, s, w, h); { get size }
-   { change graphical size to character }
-   w := (w-1) div win^.charspace+1;
-   h := (h-1) div win^.linespace+1
-
-end;
-
 procedure checkboxsizg(var f: text; view s: string; var w, h: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   icheckboxsizg(win, s, w, h); { get size }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure checkboxsizg(view s: string; var w, h: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   icheckboxsizg(win, s, w, h); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
 procedure checkboxsiz(var f: text; view s: string; var w, h: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   icheckboxsiz(win, s, w, h); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure checkboxsiz(view s: string; var w, h: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   icheckboxsiz(win, s, w, h); { get size }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Create checkbox
@@ -11465,88 +10406,20 @@ window.
 
 ******************************************************************************}
 
-procedure icheckboxg(win: winptr; x1, y1, x2, y2: integer; view s: string; 
-                     id: integer);
-
-var wp: wigptr; { widget pointer }
-
-begin
-
-   if not win^.visible then winvis(win); { make sure we are displayed }
-   widget(win, x1, y1, x2, y2, s, id, wtcheckbox, 0, wp)
-
-end;
-
-procedure icheckbox(win: winptr; x1, y1, x2, y2: integer; view s: string; 
-                    id: integer);
-
-begin
-
-   { form graphical from character coordinates }
-   x1 := (x1-1)*win^.charspace+1;
-   y1 := (y1-1)*win^.linespace+1;
-   x2 := (x2)*win^.charspace;
-   y2 := (y2)*win^.linespace;
-   icheckboxg(win, x1, y1, x2, y2, s, id) { create button graphical }
-
-end;
-
-procedure checkboxg(var f: text; x1, y1, x2, y2: integer; view s: string; 
+procedure checkboxg(var f: text; x1, y1, x2, y2: integer; view s: string;
                    id: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   icheckboxg(win, x1, y1, x2, y2, s, id); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure checkboxg(x1, y1, x2, y2: integer; view s: string; 
-                            id: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   icheckboxg(win, x1, y1, x2, y2, s, id); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-procedure checkbox(var f: text; x1, y1, x2, y2: integer; view s: string; 
+procedure checkbox(var f: text; x1, y1, x2, y2: integer; view s: string;
                    id: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   icheckbox(win, x1, y1, x2, y2, s, id); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure checkbox(x1, y1, x2, y2: integer; view s: string; 
-                            id: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   icheckbox(win, x1, y1, x2, y2, s, id); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Find minimum/standard radio button size
@@ -11556,90 +10429,18 @@ size of a radio button is calculated and returned.
 
 ******************************************************************************}
 
-procedure iradiobuttonsizg(win: winptr; view s: string; var w, h: integer);
-
-var sz: sc_size; { size holder }
-    b:  boolean; { return value }
-    dc: integer; { dc for screen }
-
-begin
-
-   refer(win); { don't need the window data }
-
-   dc := sc_getwindowdc(0); { get screen dc }
-   if dc = 0 then winerr; { process windows error }
-   b := sc_gettextextentpoint32(dc, s, sz); { get sizing }
-   if not b then winerr; { process windows error }
-   { We needed to add a fudge factor for the space between the checkbox, the
-     left edge of the widget, and the left edge of the text. }
-   w := sz.cx+sc_getsystemmetrics(sc_sm_cxmenucheck)+6; { return size }
-   h := sz.cy
-
-end;
-
-procedure iradiobuttonsiz(win: winptr; view s: string; var w, h: integer);
-
-begin
-
-   iradiobuttonsizg(win, s, w, h); { get size }
-   { change graphical size to character }
-   w := (w-1) div win^.charspace+1;
-   h := (h-1) div win^.linespace+1
-
-end;
-
 procedure radiobuttonsizg(var f: text; view s: string; var w, h: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   iradiobuttonsizg(win, s, w, h); { get size }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure radiobuttonsizg(view s: string; var w, h: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iradiobuttonsizg(win, s, w, h); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
 procedure radiobuttonsiz(var f: text; view s: string; var w, h: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   iradiobuttonsiz(win, s, w, h); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure radiobuttonsiz(view s: string; var w, h: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iradiobuttonsiz(win, s, w, h); { get size }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Create radio button
@@ -11649,88 +10450,20 @@ window.
 
 ******************************************************************************}
 
-procedure iradiobuttong(win: winptr; x1, y1, x2, y2: integer; view s: string; 
-                     id: integer);
-
-var wp: wigptr; { widget pointer }
-
-begin
-
-   if not win^.visible then winvis(win); { make sure we are displayed }
-   widget(win, x1, y1, x2, y2, s, id, wtradiobutton, 0, wp)
-
-end;
-
-procedure iradiobutton(win: winptr; x1, y1, x2, y2: integer; view s: string; 
-                    id: integer);
-
-begin
-
-   { form graphical from character coordinates }
-   x1 := (x1-1)*win^.charspace+1;
-   y1 := (y1-1)*win^.linespace+1;
-   x2 := (x2)*win^.charspace;
-   y2 := (y2)*win^.linespace;
-   iradiobuttong(win, x1, y1, x2, y2, s, id) { create button graphical }
-
-end;
-
-procedure radiobuttong(var f: text; x1, y1, x2, y2: integer; view s: string; 
+procedure radiobuttong(var f: text; x1, y1, x2, y2: integer; view s: string;
                       id: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   iradiobuttong(win, x1, y1, x2, y2, s, id); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure radiobuttong(x1, y1, x2, y2: integer; view s: string;
-                               id: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iradiobuttong(win, x1, y1, x2, y2, s, id); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-procedure radiobutton(var f: text; x1, y1, x2, y2: integer; view s: string; 
+procedure radiobutton(var f: text; x1, y1, x2, y2: integer; view s: string;
                    id: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   iradiobutton(win, x1, y1, x2, y2, s, id); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure radiobutton(x1, y1, x2, y2: integer; view s: string; 
-                            id: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iradiobutton(win, x1, y1, x2, y2, s, id); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Find minimum/standard group size
@@ -11740,105 +10473,20 @@ size of a group is calculated and returned.
 
 ******************************************************************************}
 
-procedure igroupsizg(win: winptr; view s: string; cw, ch: integer;
-                     var w, h, ox, oy: integer);
-
-var sz: sc_size; { size holder }
-    b:  boolean; { return value }
-    dc: integer; { dc for screen }
-
-begin
-
-   refer(win); { don't need the window data }
-
-   dc := sc_getwindowdc(0); { get screen dc }
-   if dc = 0 then winerr; { process windows error }
-   b := sc_gettextextentpoint32(dc, s, sz); { get sizing }
-   if not b then winerr; { process windows error }
-   { Use the string sizing, and rules of thumb for the edges }
-   w := sz.cx+7*2; { return size }
-   { if string is greater than width plus edges, use the string. }
-   if cw+7*2 > w then w := cw+7*2;
-   h := sz.cy+ch+5*2;
-   { set offset to client area }
-   ox := 5;
-   oy := sz.cy
-
-end;
-
-procedure igroupsiz(win: winptr; view s: string; cw, ch: integer;
-                    var w, h, ox, oy: integer);
-
-begin
-
-   { convert client sizes to graphical }
-   cw := cw*win^.charspace;
-   ch := ch*win^.linespace;
-   igroupsizg(win, s, cw, ch, w, h, ox, oy); { get size }
-   { change graphical size to character }
-   w := (w-1) div win^.charspace+1;
-   h := (h-1) div win^.linespace+1;
-   ox := (ox-1) div win^.charspace+1;
-   oy := (oy-1) div win^.linespace+1
-
-end;
-
 procedure groupsizg(var f: text; view s: string; cw, ch: integer;
                     var w, h, ox, oy: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   igroupsizg(win, s, cw, ch, w, h, ox, oy); { get size }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure groupsizg(view s: string; cw, ch: integer;
-                             var w, h, ox, oy: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   igroupsizg(win, s, cw, ch, w, h, ox, oy); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
 procedure groupsiz(var f: text; view s: string; cw, ch: integer;
                    var w, h, ox, oy: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   igroupsiz(win, s, cw, ch, w, h, ox, oy); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure groupsiz(view s: string; cw, ch: integer;
-                            var w, h, ox, oy: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   igroupsiz(win, s, cw, ch, w, h, ox, oy); { get size }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Create group box
@@ -11848,88 +10496,20 @@ no messages. It is used as a background for other widgets.
 
 ******************************************************************************}
 
-procedure igroupg(win: winptr; x1, y1, x2, y2: integer; view s: string; 
-                     id: integer);
-
-var wp: wigptr; { widget pointer }
-
-begin
-
-   if not win^.visible then winvis(win); { make sure we are displayed }
-   widget(win, x1, y1, x2, y2, s, id, wtgroup, 0, wp)
-
-end;
-
-procedure igroup(win: winptr; x1, y1, x2, y2: integer; view s: string; 
-                    id: integer);
-
-begin
-
-   { form graphical from character coordinates }
-   x1 := (x1-1)*win^.charspace+1;
-   y1 := (y1-1)*win^.linespace+1;
-   x2 := (x2)*win^.charspace;
-   y2 := (y2)*win^.linespace;
-   igroupg(win, x1, y1, x2, y2, s, id) { create button graphical }
-
-end;
-
-procedure groupg(var f: text; x1, y1, x2, y2: integer; view s: string; 
+procedure groupg(var f: text; x1, y1, x2, y2: integer; view s: string;
                  id: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   igroupg(win, x1, y1, x2, y2, s, id); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure groupg(x1, y1, x2, y2: integer; view s: string; 
-                         id: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   igroupg(win, x1, y1, x2, y2, s, id); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-procedure group(var f: text; x1, y1, x2, y2: integer; view s: string; 
+procedure group(var f: text; x1, y1, x2, y2: integer; view s: string;
                    id: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   igroup(win, x1, y1, x2, y2, s, id); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure group(x1, y1, x2, y2: integer; view s: string; 
-                            id: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   igroup(win, x1, y1, x2, y2, s, id); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Create background box
@@ -11939,82 +10519,18 @@ generates no messages. It is used as a background for other widgets.
 
 ******************************************************************************}
 
-procedure ibackgroundg(win: winptr; x1, y1, x2, y2: integer; id: integer);
-
-var wp: wigptr; { widget pointer }
-
-begin
-
-   if not win^.visible then winvis(win); { make sure we are displayed }
-   widget(win, x1, y1, x2, y2, '', id, wtbackground, 0, wp)
-
-end;
-
-procedure ibackground(win: winptr; x1, y1, x2, y2: integer; id: integer);
-
-begin
-
-   { form graphical from character coordinates }
-   x1 := (x1-1)*win^.charspace+1;
-   y1 := (y1-1)*win^.linespace+1;
-   x2 := (x2)*win^.charspace;
-   y2 := (y2)*win^.linespace;
-   ibackgroundg(win, x1, y1, x2, y2, id) { create button graphical }
-
-end;
-
 procedure backgroundg(var f: text; x1, y1, x2, y2: integer; id: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   ibackgroundg(win, x1, y1, x2, y2, id); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure backgroundg(x1, y1, x2, y2: integer; id: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ibackgroundg(win, x1, y1, x2, y2, id); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
 procedure background(var f: text; x1, y1, x2, y2: integer; id: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   ibackground(win, x1, y1, x2, y2, id); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure background(x1, y1, x2, y2: integer; id: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ibackground(win, x1, y1, x2, y2, id); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Find minimum/standard vertical scrollbar size
@@ -12024,82 +10540,18 @@ scrollbar is calculated and returned.
 
 ******************************************************************************}
 
-procedure iscrollvertsizg(win: winptr; var w, h: integer);
-
-begin
-
-   refer(win); { don't need the window data }
-   { get system values for scroll bar arrow width and height, for which there
-     are two. }
-   w := sc_getsystemmetrics(sc_sm_cxvscroll);
-   h := sc_getsystemmetrics(sc_sm_cyvscroll)*2
-
-end;
-
-procedure iscrollvertsiz(win: winptr; var w, h: integer);
-
-begin
-
-   refer(win); { not used }
-
-   { Use fixed sizes, as this looks best }
-   w := 2;
-   h := 2
-
-end;
-
 procedure scrollvertsizg(var f: text; var w, h: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   iscrollvertsizg(win, w, h); { get size }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure scrollvertsizg(var w, h: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iscrollvertsizg(win, w, h); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
 procedure scrollvertsiz(var f: text; var w, h: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   iscrollvertsiz(win, w, h); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure scrollvertsiz(var w, h: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iscrollvertsiz(win, w, h); { get size }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Create vertical scrollbar
@@ -12108,183 +10560,39 @@ Creates a vertical scrollbar.
 
 ******************************************************************************}
 
-procedure iscrollvertg(win: winptr; x1, y1, x2, y2: integer; id: integer);
-
-var wp: wigptr;        { widget pointer }
-    si: sc_scrollinfo; { scroll information structure }
-    b:  boolean;       { return value }
-
-begin
-
-   if not win^.visible then winvis(win); { make sure we are displayed }
-   widget(win, x1, y1, x2, y2, '', id, wtscrollvert, 0, wp);
-   { The scroll set for windows is arbitrary. We expand that to 0..maxint on
-     messages. }
-   unlockmain; { end exclusive access }
-   b := sc_setscrollrange(wp^.han, sc_sb_ctl, 0, 255, false);
-   lockmain; { start exclusive access }
-   if not b then winerr; { process windows error }
-   { retrieve the default size of slider }
-   si.cbsize := sc_scrollinfo_len; { set size }
-   si.fmask := sc_sif_page; { set page size }
-   unlockmain; { end exclusive access }
-   b := sc_getscrollinfo(wp^.han, sc_sb_ctl, si);
-   lockmain; { start exclusive access }
-   if not b then winerr; { process windows error }
-   wp^.siz := si.npage { get size }
-
-end;
-
-procedure iscrollvert(win: winptr; x1, y1, x2, y2: integer; id: integer);
-
-begin
-
-   { form graphical from character coordinates }
-   x1 := (x1-1)*win^.charspace+1;
-   y1 := (y1-1)*win^.linespace+1;
-   x2 := (x2)*win^.charspace;
-   y2 := (y2)*win^.linespace;
-   iscrollvertg(win, x1, y1, x2, y2, id) { create button graphical }
-
-end;
-
 procedure scrollvertg(var f: text; x1, y1, x2, y2: integer; id: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   iscrollvertg(win, x1, y1, x2, y2, id); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure scrollvertg(x1, y1, x2, y2: integer; id: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iscrollvertg(win, x1, y1, x2, y2, id); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
 procedure scrollvert(var f: text; x1, y1, x2, y2: integer; id: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   iscrollvert(win, x1, y1, x2, y2, id); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure scrollvert(x1, y1, x2, y2: integer; id: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iscrollvert(win, x1, y1, x2, y2, id); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Find minimum/standard horizontal scrollbar size
 
-Finds the minimum size for a horizontal scrollbar. The minimum size of a 
+Finds the minimum size for a horizontal scrollbar. The minimum size of a
 horizontal scrollbar is calculated and returned.
 
 ******************************************************************************}
 
-procedure iscrollhorizsizg(win: winptr; var w, h: integer);
-
-begin
-
-   refer(win); { don't need the window data }
-   { get system values for scroll bar arrow width and height, for which there
-     are two. }
-   w := sc_getsystemmetrics(sc_sm_cxhscroll)*2;
-   h := sc_getsystemmetrics(sc_sm_cyhscroll)
-
-end;
-
-procedure iscrollhorizsiz(win: winptr; var w, h: integer);
-
-begin
-
-   refer(win); { not used }
-
-   { Use fixed sizes, as this looks best }
-   w := 2;
-   h := 1
-
-end;
-
 procedure scrollhorizsizg(var f: text; var w, h: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   iscrollhorizsizg(win, w, h); { get size }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure scrollhorizsizg(var w, h: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iscrollhorizsizg(win, w, h); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
 procedure scrollhorizsiz(var f: text; var w, h: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   iscrollhorizsiz(win, w, h); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure scrollhorizsiz(var w, h: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iscrollhorizsiz(win, w, h); { get size }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Create horizontal scrollbar
@@ -12293,98 +10601,18 @@ Creates a horizontal scrollbar.
 
 ******************************************************************************}
 
-procedure iscrollhorizg(win: winptr; x1, y1, x2, y2: integer; id: integer);
-
-var wp: wigptr;        { widget pointer }
-    si: sc_scrollinfo; { scroll information structure }
-    b:  boolean;       { return value }
-
-begin
-
-   if not win^.visible then winvis(win); { make sure we are displayed }
-   widget(win, x1, y1, x2, y2, '', id, wtscrollhoriz, 0, wp);
-   { The scroll set for windows is arbitrary. We expand that to 0..maxint on
-     messages. }
-   unlockmain; { end exclusive access }
-   b := sc_setscrollrange(wp^.han, sc_sb_ctl, 0, 255, false);
-   lockmain; { start exclusive access }
-   if not b then winerr; { process windows error }
-   { retrieve the default size of slider }
-   si.cbsize := sc_scrollinfo_len; { set size }
-   si.fmask := sc_sif_page; { set page size }
-   unlockmain; { end exclusive access }
-   b := sc_getscrollinfo(wp^.han, sc_sb_ctl, si);
-   lockmain; { start exclusive access }
-   if not b then winerr; { process windows error }
-   wp^.siz := si.npage { get size }
-
-end;
-
-procedure iscrollhoriz(win: winptr; x1, y1, x2, y2: integer; id: integer);
-
-begin
-
-   { form graphical from character coordinates }
-   x1 := (x1-1)*win^.charspace+1;
-   y1 := (y1-1)*win^.linespace+1;
-   x2 := (x2)*win^.charspace;
-   y2 := (y2)*win^.linespace;
-   iscrollhorizg(win, x1, y1, x2, y2, id) { create button graphical }
-
-end;
-
 procedure scrollhorizg(var f: text; x1, y1, x2, y2: integer; id: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   iscrollhorizg(win, x1, y1, x2, y2, id); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure scrollhorizg(x1, y1, x2, y2: integer; id: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iscrollhorizg(win, x1, y1, x2, y2, id); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
 procedure scrollhoriz(var f: text; x1, y1, x2, y2: integer; id: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   iscrollhoriz(win, x1, y1, x2, y2, id); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure scrollhoriz(x1, y1, x2, y2: integer; id: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iscrollhoriz(win, x1, y1, x2, y2, id); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Set scrollbar position
@@ -12392,33 +10620,6 @@ Set scrollbar position
 Sets the current position of a scrollbar slider.
 
 ******************************************************************************}
-
-procedure iscrollpos(win: winptr; id: integer; r: integer);
-
-var wp: wigptr;  { widget pointer }
-    rv: integer; { return value }
-    f:  real;    { floating temp }
-    p:  integer; { calculated position to set }
-
-begin
-
-   if r < 0 then error(einvspos); { invalid position }
-   with win^ do begin { in windows context }
-
-      if not visible then winvis(win); { make sure we are displayed }
-      wp := fndwig(win, id); { find widget }
-      if wp = nil then error(ewignf); { not found }
-      f := r; { place position in float }
-      { clamp to max }
-      if f*(255-wp^.siz)/maxint > 255 then p := 255
-      else p := round(f*(255-wp^.siz)/maxint);
-      unlockmain; { end exclusive access }
-      rv := sc_setscrollpos(wp^.han, sc_sb_ctl, p, true);
-      lockmain { start exclusive access }
-
-   end
-
-end;
 
 procedure scrollpos(var f: text; id: integer; r: integer);
 
@@ -12433,19 +10634,6 @@ begin
 
 end;
 
-overload procedure scrollpos(id: integer; r: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iscrollpos(win, id, r); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Set scrollbar size
@@ -12453,36 +10641,6 @@ Set scrollbar size
 Sets the current size of a scrollbar slider.
 
 ******************************************************************************}
-
-procedure iscrollsiz(win: winptr; id: integer; r: integer);
-
-var wp:  wigptr;        { widget pointer }
-    rv:  integer;       { return value }
-    si:  sc_scrollinfo; { scroll information structure }
-
-begin
-
-   if r < 0 then error(einvssiz); { invalid scrollbar size }
-   with win^ do begin { in windows context }
-
-      if not visible then winvis(win); { make sure we are displayed }
-      wp := fndwig(win, id); { find widget }
-      if wp = nil then error(ewignf); { not found }
-      si.cbsize := sc_scrollinfo_len; { set size }
-      si.fmask := sc_sif_page; { set page size }
-      si.nmin := 0; { no min }
-      si.nmax := 0; { no max }
-      si.npage := r div $800000; { set size }
-      si.npos := 0; { no position }
-      si.ntrackpos := 0; { no track position }
-      unlockmain; { end exclusive access }
-      rv := sc_setscrollinfo(wp^.han, sc_sb_ctl, si, true);
-      lockmain; { start exclusive access }
-      wp^.siz := r div $800000; { set size }
-
-   end
-
-end;
 
 procedure scrollsiz(var f: text; id: integer; r: integer);
 
@@ -12497,96 +10655,6 @@ begin
 
 end;
 
-overload procedure scrollsiz(id: integer; r: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iscrollsiz(win, id, r); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-{******************************************************************************
-
-Control window procedure for number edit box
-
-This message handler is to allow us to capture the carriage return from an
-number edit box, and turn that into a message. It also restricts input to the
-box to numeric characters.
-
-******************************************************************************}
-
-function wndprocnum(hwnd, imsg, wparam, lparam: integer): integer;
-
-var r:   integer;   { result }
-    wh:  integer;   { parent window handle }
-    lfn: ss_filhdl; { logical number for parent window }
-    win: winptr;    { parent window data }
-    wp:  wigptr;    { widget pointer }
-    s:   packed array [1..100] of char; { buffer for edit string }
-    v:   integer;   { value from edit control }
-    err: boolean;   { error parsing value }
-
-{i: integer;}
-
-begin                                              
-
-   refer(hwnd, imsg, wparam, lparam); { these aren't presently used }
-{;prtstr('wndprocnum: msg: ');
-;prtmsgu(hwnd, imsg, wparam, lparam);}
-
-   { We need to find out who we are talking to. }
-   lockmain; { start exclusive access }
-   wh := sc_getparent(hwnd); { get the widget parent handle }
-   lfn := hwn2lfn(wh); { get the logical window number }
-   win := lfn2win(lfn); { index window from logical number }
-   wp := fndwighan(win, hwnd); { find the widget from that }
-   unlockmain; { end exclusive access }
-   r := 0; { set no error }
-   { check its a character }
-   if imsg = sc_wm_char then begin
-
-      if wp^.enb then begin { is the widget enabled ? }
-
-         { check control is receiving a carriage return }
-         if wparam = ord('\cr') then begin
-
-            r := sc_getwindowtext(wp^.han2, s); { get contents of edit }
-            v := intv(s, err); { get value }
-             { Send edit sends cr message to parent window, with widget logical
-               number embedded as wparam. }
-            if not err and (v >= wp^.low) and (v <= wp^.high) then
-               putmsg(wh, umnumcr, wp^.id, v) { send select message }
-            else
-               { Send the message on to its owner, this will ring the bell in
-                 Windows XP. }
-               r := sc_callwindowproc(wp^.wprc, hwnd, imsg, wparam, lparam)
-
-         end else begin
-
-            { Check valid numerical character, with backspace control. If not,
-              replace with carriage return. This will cause the control to emit
-              an error, a bell in Windows XP. }
-            if not (chr(wparam) in ['0'..'9', '+', '-', '\bs']) then 
-               wparam := ord('\cr');
-            r := sc_callwindowproc(wp^.wprc, hwnd, imsg, wparam, lparam)
-
-         end
-
-      end
-
-   end else
-      { send the message on to its owner }
-      r := sc_callwindowproc(wp^.wprc, hwnd, imsg, wparam, lparam);
-
-   wndprocnum := r { return result }
-
-end;
-
 {******************************************************************************
 
 Find minimum/standard number select box size
@@ -12596,40 +10664,6 @@ select box is calculated and returned.
 
 ******************************************************************************}
 
-procedure inumselboxsizg(win: winptr; l, u: integer; var w, h: integer);
-
-var sz: sc_size; { size holder }
-    b:  boolean; { return value }
-    dc: integer; { dc for screen }
-
-begin
-
-   refer(win); { don't need the window data }
-   refer(l); { don't need lower bound }
-
-   { get size of text }
-   dc := sc_getwindowdc(0); { get screen dc }
-   if dc = 0 then winerr; { process windows error }
-   if u > 9 then b := sc_gettextextentpoint32(dc, '00', sz) { get sizing }
-   else b := sc_gettextextentpoint32(dc, '0', sz); { get sizing }
-   if not b then winerr; { process windows error }
-   { width of text, plus up/down arrows, and border and divider lines }
-   w := sz.cx+sc_getsystemmetrics(sc_sm_cxvscroll)+4;
-   h := sz.cy+2 { height of text plus border lines }
-
-end;
-
-procedure inumselboxsiz(win: winptr; l, u: integer; var w, h: integer);
-
-begin
-
-   inumselboxsizg(win, l, u, w, h); { get size }
-   { change graphical size to character }
-   w := (w-1) div win^.charspace+1;
-   h := (h-1) div win^.linespace+1
-
-end;
-
 procedure numselboxsizg(var f: text; l, u: integer; var w, h: integer);
 
 var win: winptr; { window context }
@@ -12638,19 +10672,6 @@ begin
 
    lockmain; { start exclusive access }
    win := txt2win(f); { get windows context }
-   inumselboxsizg(win, l, u, w, h); { get size }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure numselboxsizg(l, u: integer; var w, h: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
    inumselboxsizg(win, l, u, w, h); { get size }
    unlockmain { end exclusive access }
 
@@ -12669,19 +10690,6 @@ begin
 
 end;
 
-overload procedure numselboxsiz(l, u: integer; var w, h: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   inumselboxsiz(win, l, u, w, h); { get size }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Create number selector
@@ -12690,177 +10698,20 @@ Creates an up/down control for numeric selection.
 
 ******************************************************************************}
 
-procedure inumselboxg(win: winptr; x1, y1, x2, y2: integer; l, u: integer;
-                      id: integer);
-
-var ip:  imptr;   { intratask message pointer }
-    wp:  wigptr;  { widget pointer }
-    br:  boolean; { result }
-    udw: integer; { up/down control width }
-
-begin
-
-   with win^ do begin
-
-      if not visible then winvis(win); { make sure we are displayed }
-      { search previous definition with same id }
-      if fndwig(win, id) <> nil then error(ewigdup); { duplicate widget id }
-
-      { Number select is a composite control, and it will send messages
-        immediately after creation, as the different components talk to each
-        other. Because of this, we must create a widget entry first, even if
-        it is incomplete. }
-      getwig(win, wp); { get new widget }
-      wp^.id := id; { place button id }
-      wp^.typ := wtnumselbox; { place type }
-      wp^.han := 0; { clear handles }
-      wp^.han2 := 0;
-      wp^.low := l; { place limits }
-      wp^.high := u;
-      { get width of up/down control (same as scroll arrow) }
-      udw := sc_getsystemmetrics(sc_sm_cxhscroll);
-      { If the width is not enough for the control to appear, force it. }
-      if x2-x1+1 < udw then x2 := x1+udw-1;
-      getitm(ip); { get a im pointer }
-      ip^.im := imupdown; { set is up/down control }
-      ip^.udflg := sc_ws_child or sc_ws_visible or sc_ws_border or sc_uds_setbuddyint;
-      ip^.udx := x1-1;   
-      ip^.udy := y1-1;   
-      ip^.udcx := x2-x1+1;   
-      ip^.udcy := y2-y1+1;  
-      ip^.udpar := winhan; 
-      ip^.udid := id;  
-      ip^.udinst := sc_getmodulehandle_n;
-      ip^.udup := u;  
-      ip^.udlow := l; 
-      ip^.udpos := l; 
-      br := sc_postmessage(dispwin, umim, itm2int(ip), 0);
-      if not br then winerr; { process windows error }
-      waitim(imupdown, ip); { wait for the return }
-      wp^.han := ip^.udhan; { place control handle }
-      wp^.han2 := ip^.udbuddy; { place buddy handle }
-      putitm(ip); { release im }
-      { place our subclass handler for the edit control }
-      wp^.wprc := sc_getwindowlong(wp^.han2, sc_gwl_wndproc); 
-      if wp^.wprc = 0 then winerr; { process windows error }
-      r := sc_setwindowlong(wp^.han2, sc_gwl_wndproc, sc_wndprocadr(wndprocnum)); 
-      if r = 0 then winerr; { process windows error }
-
-   end
-
-end;
-
-procedure inumselbox(win: winptr; x1, y1, x2, y2: integer; l, u: integer; 
-                     id: integer);
-
-begin
-
-   { form graphical from character coordinates }
-   x1 := (x1-1)*win^.charspace+1;
-   y1 := (y1-1)*win^.linespace+1;
-   x2 := x2*win^.charspace;
-   y2 := y2*win^.linespace;
-   inumselboxg(win, x1, y1, x2, y2, l, u, id) { create button graphical }
-
-end;
-
 procedure numselboxg(var f: text; x1, y1, x2, y2: integer; l, u: integer;
                      id: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   inumselboxg(win, x1, y1, x2, y2, l, u, id); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure numselboxg(x1, y1, x2, y2: integer; l, u: integer;
-                              id: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   inumselboxg(win, x1, y1, x2, y2, l, u, id); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
 procedure numselbox(var f: text; x1, y1, x2, y2: integer; l, u: integer;
                      id: integer);
 
-var win: winptr; { window context }
-
 begin
 
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   inumselbox(win, x1, y1, x2, y2, l, u, id); { execute }
-   unlockmain { end exclusive access }
-
 end;
 
-overload procedure numselbox(x1, y1, x2, y2: integer; l, u: integer;
-                              id: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   inumselbox(win, x1, y1, x2, y2, l, u, id); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-{******************************************************************************
-
-Control window procedure for edit box
-
-This message handler is to allow us to capture the carriage return from an
-edit box, and turn that into a message.
-
-******************************************************************************}
-
-function wndprocedit(hwnd, imsg, wparam, lparam: integer): integer;
-
-var r:   integer;   { result }
-    wh:  integer;   { parent window handle }
-    lfn: ss_filhdl; { logical number for parent window }
-    win: winptr;    { parent window data }
-    wp:  wigptr;    { widget pointer }
-
-begin                                              
-
-   refer(hwnd, imsg, wparam, lparam); { these aren't presently used }
-{;prtstr('wndprocedit: msg: ');
-;prtmsgu(hwnd, imsg, wparam, lparam);}
-
-   { We need to find out who we are talking to. }
-   wh := sc_getparent(hwnd); { get the widget parent handle }
-   lfn := hwn2lfn(wh); { get the logical window number }
-   win := lfn2win(lfn); { index window from logical number }
-   wp := fndwighan(win, hwnd); { find the widget from that }
-   { check control is receiving a carriage return }
-   if (imsg = sc_wm_char) and (wparam = ord('\cr')) then
-       { Send edit sends cr message to parent window, with widget logical
-         number embedded as wparam. }
-      putmsg(wh, umeditcr, wp^.id, 0)
-   else
-      { send the message on to its owner }
-      r := sc_callwindowproc(wp^.wprc, hwnd, imsg, wparam, lparam);
-
-   wndprocedit := r { return result }
-
-end;
-
 {******************************************************************************
 
 Find minimum/standard edit box size
@@ -12870,89 +10721,18 @@ size of an edit box is calculated and returned.
 
 ******************************************************************************}
 
-procedure ieditboxsizg(win: winptr; view s: string; var w, h: integer);
-
-var sz: sc_size; { size holder }
-    b:  boolean; { return value }
-    dc: integer; { dc for screen }
-
-begin
-
-   refer(win); { don't need the window data }
-
-   dc := sc_getwindowdc(0); { get screen dc }
-   if dc = 0 then winerr; { process windows error }
-   b := sc_gettextextentpoint32(dc, s, sz); { get sizing }
-   if not b then winerr; { process windows error }
-   { add borders to size }
-   w := sz.cx+4;
-   h := sz.cy+2
-
-end;
-
-procedure ieditboxsiz(win: winptr; view s: string; var w, h: integer);
-
-begin
-
-   ieditboxsizg(win, s, w, h); { get size }
-   { change graphical size to character }
-   w := (w-1) div win^.charspace+1;
-   h := (h-1) div win^.linespace+1
-
-end;
-
 procedure editboxsizg(var f: text; view s: string; var w, h: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   ieditboxsizg(win, s, w, h); { get size }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure editboxsizg(view s: string; var w, h: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ieditboxsizg(win, s, w, h); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
 procedure editboxsiz(var f: text; view s: string; var w, h: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   ieditboxsiz(win, s, w, h); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure editboxsiz(view s: string; var w, h: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ieditboxsiz(win, s, w, h); { get size }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Create edit box
@@ -12961,88 +10741,18 @@ Creates single line edit box
 
 ******************************************************************************}
 
-procedure ieditboxg(win: winptr; x1, y1, x2, y2: integer; id: integer);
-
-var wp: wigptr; { widget pointer }
-    r: integer;
-
-begin
-
-   if not win^.visible then winvis(win); { make sure we are displayed }
-   widget(win, x1, y1, x2, y2, '', id, wteditbox, 0, wp);
-   { get the windows internal procedure for subclassing }
-   wp^.wprc := sc_getwindowlong(wp^.han, sc_gwl_wndproc); 
-   if wp^.wprc = 0 then winerr; { process windows error }
-   r := sc_setwindowlong(wp^.han, sc_gwl_wndproc, sc_wndprocadr(wndprocedit)); 
-   if r = 0 then winerr; { process windows error }
-
-end;
-
-procedure ieditbox(win: winptr; x1, y1, x2, y2: integer; id: integer);
-
-begin
-
-   { form graphical from character coordinates }
-   x1 := (x1-1)*win^.charspace+1;
-   y1 := (y1-1)*win^.linespace+1;
-   x2 := (x2)*win^.charspace;
-   y2 := (y2)*win^.linespace;
-   ieditboxg(win, x1, y1, x2, y2, id) { create button graphical }
-
-end;
-
 procedure editboxg(var f: text; x1, y1, x2, y2: integer; id: integer);
 
-var win: winptr;  { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   ieditboxg(win, x1,y1, x2,y2, id); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure editboxg(x1, y1, x2, y2: integer; id: integer);
-
-var win: winptr;  { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ieditboxg(win, x1,y1, x2,y2, id); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
 procedure editbox(var f: text; x1, y1, x2, y2: integer; id: integer);
 
-var win: winptr;  { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   ieditbox(win, x1,y1, x2,y2, id); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure editbox(x1, y1, x2, y2: integer; id: integer);
-
-var win: winptr;  { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ieditbox(win, x1,y1, x2,y2, id); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Find minimum/standard edit box size
@@ -13052,82 +10762,18 @@ size of an edit box is calculated and returned.
 
 ******************************************************************************}
 
-procedure iprogbarsizg(win: winptr; var w, h: integer);
-
-begin
-
-   refer(win); { don't need the window data }
-   { Progress bars are arbitrary for sizing. We choose a size that allows for
-     20 bar elements. Note that the size of the blocks in a Windows progress
-     bar are ratioed to the height. }
-   w := 20*14+2;
-   h := 20+2
-
-end;
-
-procedure iprogbarsiz(win: winptr; var w, h: integer);
-
-begin
-
-   iprogbarsizg(win, w, h); { get size }
-   { change graphical size to character }
-   w := (w-1) div win^.charspace+1;
-   h := (h-1) div win^.linespace+1
-
-end;
-
 procedure progbarsizg(var f: text; var w, h: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   iprogbarsizg(win, w, h); { get size }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure progbarsizg(var w, h: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iprogbarsizg(win, w, h); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
 procedure progbarsiz(var f: text; var w, h: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   iprogbarsiz(win, w, h); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure progbarsiz(var w, h: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iprogbarsiz(win, w, h); { get size }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Create progress bar
@@ -13136,88 +10782,18 @@ Creates a progress bar.
 
 ******************************************************************************}
 
-procedure iprogbarg(win: winptr; x1, y1, x2, y2: integer; id: integer);
-
-var wp:  wigptr;  { widget pointer }
-    r:   integer; { return value }
-
-begin
-
-   if not win^.visible then winvis(win); { make sure we are displayed }
-   { create the progress bar }
-   widget(win, x1, y1, x2, y2, '', id, wtprogressbar, 0, wp);
-   { use 0..maxint ratio }
-   unlockmain; { end exclusive access }
-   r := sc_sendmessage(wp^.han, sc_pbm_setrange32, 0, maxint);
-   lockmain { start exclusive access }
-
-end;
-
-procedure iprogbar(win: winptr; x1, y1, x2, y2: integer; id: integer);
-
-begin
-
-   { form graphical from character coordinates }
-   x1 := (x1-1)*win^.charspace+1;
-   y1 := (y1-1)*win^.linespace+1;
-   x2 := (x2)*win^.charspace;
-   y2 := (y2)*win^.linespace;
-   iprogbarg(win, x1, y1, x2, y2, id) { create button graphical }
-
-end;
-
 procedure progbarg(var f: text; x1, y1, x2, y2: integer; id: integer);
 
-var win: winptr;  { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   iprogbarg(win, x1, y1, x2, y2, id); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure progbarg(x1, y1, x2, y2: integer; id: integer);
-
-var win: winptr;  { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iprogbarg(win, x1, y1, x2, y2, id); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
 procedure progbar(var f: text; x1, y1, x2, y2: integer; id: integer);
 
-var win: winptr;  { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   iprogbar(win, x1, y1, x2, y2, id); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure progbar(x1, y1, x2, y2: integer; id: integer);
-
-var win: winptr;  { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iprogbar(win, x1, y1, x2, y2, id); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Set progress bar position
@@ -13226,54 +10802,12 @@ Sets the position of a progress bar, from 0 to maxint.
 
 ******************************************************************************}
 
-procedure iprogbarpos(win: winptr; id: integer; pos: integer);
-
-var wp:  wigptr; { widget pointer }
-    r:  integer;
-
-begin
-
-   if not win^.visible then winvis(win); { make sure we are displayed }
-   if pos < 0 then error(eprgpos); { bad position }
-   with win^ do begin
-
-      wp := fndwig(win, id); { find widget }
-      if wp = nil then error(ewignf); { not found }
-      { set the range }
-      unlockmain; { end exclusive access }
-      r := sc_sendmessage(wp^.han, sc_pbm_setpos, pos, 0);
-      lockmain { start exclusive access }
-
-   end;
-
-end;
-
 procedure progbarpos(var f: text; id: integer; pos: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   iprogbarpos(win, id, pos); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure progbarpos(id: integer; pos: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iprogbarpos(win, id, pos); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Find minimum/standard list box size
@@ -13290,98 +10824,18 @@ specified rectangle, one way or another.
 
 ******************************************************************************}
 
-procedure ilistboxsizg(win: winptr; sp: strptr; var w, h: integer);
-
-var sz: sc_size; { size holder }
-    b:  boolean; { return value }
-    dc: integer; { dc for screen }
-    mw: integer; { max width }
-
-begin
-
-   refer(win); { don't need the window data }
-
-   w := 4; { set minimum overhead }
-   h := 2;
-   while sp <> nil do begin { traverse string list }
-
-      dc := sc_getwindowdc(0); { get screen dc }
-      if dc = 0 then winerr; { process windows error }
-      b := sc_gettextextentpoint32(dc, sp^.str^, sz); { get sizing }
-      if not b then winerr; { process windows error }
-      { add borders to size }
-      mw := sz.cx+4;
-      if mw > w then w := mw; { set new maximum }
-      h := h+sz.cy;
-      sp := sp^.next { next string }
-
-   end
-
-end;
-
-procedure ilistboxsiz(win: winptr; sp: strptr; var w, h: integer);
-
-begin
-
-   ilistboxsizg(win, sp, w, h); { get size }
-   { change graphical size to character }
-   w := (w-1) div win^.charspace+1;
-   h := (h-1) div win^.linespace+1
-
-end;
-
 procedure listboxsizg(var f: text; sp: strptr; var w, h: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   ilistboxsizg(win, sp, w, h); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure listboxsizg(sp: strptr; var w, h: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ilistboxsizg(win, sp, w, h); { get size }
-   unlockmain { end exclusive access }
-
-end;
-                              
 procedure listboxsiz(var f: text; sp: strptr; var w, h: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   ilistboxsiz(win, sp, w, h); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure listboxsiz(sp: strptr; var w, h: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ilistboxsiz(win, sp, w, h); { get size }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Create list box
@@ -13390,98 +10844,20 @@ Creates a list box. Fills it with the string list provided.
 
 ******************************************************************************}
 
-procedure ilistboxg(win: winptr; x1, y1, x2, y2: integer; sp: strptr; 
-                    id: integer);
-
-var wp: wigptr;  { widget pointer }
-    r:  integer; { return value }
-
-begin
-
-   if not win^.visible then winvis(win); { make sure we are displayed }
-   widget(win, x1, y1, x2, y2, '', id, wtlistbox, 0, wp);
-   while sp <> nil do begin { add strings to list }
-
-      unlockmain; { end exclusive access }
-      r := sc_sendmessage(wp^.han, sc_lb_addstring, sp^.str^); { add string }
-      lockmain; { start exclusive access }
-      if r = -1 then error(estrspc); { out of string space }
-      sp := sp^.next { next string }
-
-   end
-
-end;
-
-procedure ilistbox(win: winptr; x1, y1, x2, y2: integer; sp: strptr; 
+procedure listboxg(var f: text; x1, y1, x2, y2: integer; sp: strptr;
                    id: integer);
 
 begin
 
-   { form graphical from character coordinates }
-   x1 := (x1-1)*win^.charspace+1;
-   y1 := (y1-1)*win^.linespace+1;
-   x2 := (x2)*win^.charspace;
-   y2 := (y2)*win^.linespace;
-   ilistboxg(win, x1, y1, x2, y2, sp, id) { create button graphical }
-
 end;
 
-procedure listboxg(var f: text; x1, y1, x2, y2: integer; sp: strptr; 
+procedure listbox(var f: text; x1, y1, x2, y2: integer; sp: strptr;
                    id: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   ilistboxg(win, x1, y1, x2, y2, sp, id); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure listboxg(x1, y1, x2, y2: integer; sp: strptr; 
-                            id: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ilistboxg(win, x1, y1, x2, y2, sp, id); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-procedure listbox(var f: text; x1, y1, x2, y2: integer; sp: strptr; 
-                   id: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   ilistbox(win, x1, y1, x2, y2, sp, id); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure listbox(x1, y1, x2, y2: integer; sp: strptr; 
-                            id: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ilistbox(win, x1, y1, x2, y2, sp, id); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Find minimum/standard dropbox size
@@ -13495,125 +10871,18 @@ selections can be scrolled.
 
 ******************************************************************************}
 
-procedure idropboxsizg(win: winptr; sp: strptr; 
-                       var cw, ch, ow, oh: integer);
-
-{ I can't find a reasonable system metrics version of the drop arrow demensions,
-  so they are hardcoded here. }
-const darrowx = 17;
-      darrowy = 20;
-
-var sz: sc_size; { size holder }
-    b:  boolean; { return value }
-    dc: integer; { dc for screen }
-
-{ find size for single line }
-
-procedure getsiz(view s: string);
-
-begin
-
-   dc := sc_getwindowdc(0); { get screen dc }
-   if dc = 0 then winerr; { process windows error }
-   b := sc_gettextextentpoint32(dc, s, sz); { get sizing }
-   if not b then winerr { process windows error }
-
-end;
-
-begin
-
-   refer(win); { don't need the window data }
-
-   { calculate first line }
-   getsiz(sp^.str^); { find sizing for line }
-   { Find size of string x, drop arrow width, box edges, and add fudge factor
-     to space text out. }
-   cw := sz.cx+darrowx+sc_getsystemmetrics(sc_sm_cxedge)*2+4;
-   ow := cw; { open is the same }
-   { drop arrow height+shadow overhead+drop box bounding }
-   oh := darrowy+sc_getsystemmetrics(sc_sm_cyedge)*2+2;
-   { drop arrow height+shadow overhead }
-   ch := darrowy+sc_getsystemmetrics(sc_sm_cyedge)*2;
-   { add all lines to drop box section }
-   while sp <> nil do begin { traverse string list }
-
-      getsiz(sp^.str^); { find sizing for this line }
-      { find open width on this string only }
-      ow := sz.cx+darrowx+sc_getsystemmetrics(sc_sm_cxedge)*2+4;
-      if ow > cw then cw := ow; { larger than closed width, set new max }
-      oh := oh+sz.cy; { add to open height }
-      sp := sp^.next; { next string }
-
-   end;
-   ow := cw { set maximum open width }
-
-end;
-
-procedure idropboxsiz(win: winptr; sp: strptr; var cw, ch, ow, oh: integer);
-
-begin
-
-   idropboxsizg(win, sp, cw, ch, ow, oh); { get size }
-   { change graphical size to character }
-   cw := (cw-1) div win^.charspace+1;
-   ch := (ch-1) div win^.linespace+1;
-   ow := (ow-1) div win^.charspace+1;
-   oh := (oh-1) div win^.linespace+1
-
-end;
-
 procedure dropboxsizg(var f: text; sp: strptr; var cw, ch, ow, oh: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   idropboxsizg(win, sp, cw, ch, ow, oh); { get size }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure dropboxsizg(sp: strptr; var cw, ch, ow, oh: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   idropboxsizg(win, sp, cw, ch, ow, oh); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
 procedure dropboxsiz(var f: text; sp: strptr; var cw, ch, ow, oh: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   idropboxsiz(win, sp, cw, ch, ow, oh); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure dropboxsiz(sp: strptr; var cw, ch, ow, oh: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   idropboxsiz(win, sp, cw, ch, ow, oh); { get size }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Create dropdown box
@@ -13622,102 +10891,20 @@ Creates a dropdown box. Fills it with the string list provided.
 
 ******************************************************************************}
 
-procedure idropboxg(win: winptr; x1, y1, x2, y2: integer; sp: strptr; 
-                    id: integer);
-
-var wp:  wigptr;  { widget pointer }
-    sp1: strptr;  { string pointer }
-    r:   integer; { return value }
-
-begin
-
-   if not win^.visible then winvis(win); { make sure we are displayed }
-   widget(win, x1, y1, x2, y2, '', id, wtdropbox, 0, wp);
-   sp1 := sp; { index top of string list }
-   while sp1 <> nil do begin { add strings to list }
-
-      unlockmain; { end exclusive access }
-      r := sc_sendmessage(wp^.han, sc_cb_addstring, sp1^.str^); { add string }
-      lockmain; { start exclusive access }
-      if r = -1 then error(estrspc); { out of string space }
-      sp1 := sp1^.next { next string }
-
-   end;
-   unlockmain; { end exclusive access }
-   r := sc_sendmessage(wp^.han, sc_cb_setcursel, 0, 0);
-   lockmain; { start exclusive access }
-   if r = -1 then error(esystem) { should not happen }
-
-end;
-
-procedure idropbox(win: winptr; x1, y1, x2, y2: integer; sp: strptr; 
-                   id: integer);
-
-begin
-
-   { form graphical from character coordinates }
-   x1 := (x1-1)*win^.charspace+1;
-   y1 := (y1-1)*win^.linespace+1;
-   x2 := (x2)*win^.charspace;
-   y2 := (y2)*win^.linespace;
-   idropboxg(win, x1, y1, x2, y2, sp, id) { create button graphical }
-
-end;
-
 procedure dropboxg(var f: text; x1, y1, x2, y2: integer; sp: strptr; 
                    id: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   idropboxg(win, x1, y1, x2, y2, sp, id); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure dropboxg(x1, y1, x2, y2: integer; sp: strptr; id: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   idropboxg(win, x1, y1, x2, y2, sp, id); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
 procedure dropbox(var f: text; x1, y1, x2, y2: integer; sp: strptr; 
                    id: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   idropbox(win, x1, y1, x2, y2, sp, id); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure dropbox(x1, y1, x2, y2: integer; sp: strptr; id: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   idropbox(win, x1, y1, x2, y2, sp, id); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Find minimum/standard drop edit box size
@@ -13732,125 +10919,18 @@ selections can be scrolled.
 
 ******************************************************************************}
 
-procedure idropeditboxsizg(win: winptr; sp: strptr; 
-                           var cw, ch, ow, oh: integer);
-
-{ I can't find a reasonable system metrics version of the drop arrow demensions,
-  so they are hardcoded here. }
-const darrowx = 17;
-      darrowy = 20;
-
-var sz: sc_size; { size holder }
-    b:  boolean; { return value }
-    dc: integer; { dc for screen }
-
-{ find size for single line }
-
-procedure getsiz(view s: string);
-
-begin
-
-   dc := sc_getwindowdc(0); { get screen dc }
-   if dc = 0 then winerr; { process windows error }
-   b := sc_gettextextentpoint32(dc, s, sz); { get sizing }
-   if not b then winerr { process windows error }
-
-end;
-
-begin
-
-   refer(win); { don't need the window data }
-
-   { calculate first line }
-   getsiz(sp^.str^); { find sizing for line }
-   { Find size of string x, drop arrow width, box edges, and add fudge factor
-     to space text out. }
-   cw := sz.cx+darrowx+sc_getsystemmetrics(sc_sm_cxedge)*2+4;
-   ow := cw; { open is the same }
-   { drop arrow height+shadow overhead+drop box bounding }
-   oh := darrowy+sc_getsystemmetrics(sc_sm_cyedge)*2+2;
-   { drop arrow height+shadow overhead }
-   ch := darrowy+sc_getsystemmetrics(sc_sm_cyedge)*2;
-   { add all lines to drop box section }
-   while sp <> nil do begin { traverse string list }
-
-      getsiz(sp^.str^); { find sizing for this line }
-      { find open width on this string only }
-      ow := sz.cx+darrowx+sc_getsystemmetrics(sc_sm_cxedge)*2+4;
-      if ow > cw then cw := ow; { larger than closed width, set new max }
-      oh := oh+sz.cy; { add to open height }
-      sp := sp^.next; { next string }
-
-   end;
-   ow := cw { set maximum open width }
-
-end;
-
-procedure idropeditboxsiz(win: winptr; sp: strptr; var cw, ch, ow, oh: integer);
-
-begin
-
-   idropeditboxsizg(win, sp, cw, ch, ow, oh); { get size }
-   { change graphical size to character }
-   cw := (cw-1) div win^.charspace+1;
-   ch := (ch-1) div win^.linespace+1;
-   ow := (ow-1) div win^.charspace+1;
-   oh := (oh-1) div win^.linespace+1
-
-end;
-
 procedure dropeditboxsizg(var f: text; sp: strptr; var cw, ch, ow, oh: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   idropeditboxsizg(win, sp, cw, ch, ow, oh); { get size }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure dropeditboxsizg(sp: strptr; var cw, ch, ow, oh: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   idropeditboxsizg(win, sp, cw, ch, ow, oh); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
 procedure dropeditboxsiz(var f: text; sp: strptr; var cw, ch, ow, oh: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   idropeditboxsiz(win, sp, cw, ch, ow, oh); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure dropeditboxsiz(sp: strptr; var cw, ch, ow, oh: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   idropeditboxsiz(win, sp, cw, ch, ow, oh); { get size }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Create dropdown edit box
@@ -13862,100 +10942,27 @@ box.
 
 ******************************************************************************}
 
-procedure idropeditboxg(win: winptr; x1, y1, x2, y2: integer; sp: strptr; 
-                        id: integer);
-
-var wp:  wigptr;  { widget pointer }
-    sp1: strptr;  { string pointer }
-    r:   integer; { return value }
-
-begin
-
-   if not win^.visible then winvis(win); { make sure we are displayed }
-   widget(win, x1, y1, x2, y2, '', id, wtdropeditbox, 0, wp);
-   sp1 := sp; { index top of string list }
-   while sp1 <> nil do begin { add strings to list }
-
-      unlockmain; { end exclusive access }
-      r := sc_sendmessage(wp^.han, sc_cb_addstring, sp1^.str^); { add string }
-      lockmain; { start exclusive access }
-      if r = -1 then error(estrspc); { out of string space }
-      sp1 := sp1^.next { next string }
-
-   end
-
-end;
-
-procedure idropeditbox(win: winptr; x1, y1, x2, y2: integer; sp: strptr; 
-                       id: integer);
-
-begin
-
-   { form graphical from character coordinates }
-   x1 := (x1-1)*win^.charspace+1;
-   y1 := (y1-1)*win^.linespace+1;
-   x2 := (x2)*win^.charspace;
-   y2 := (y2)*win^.linespace;
-   idropeditboxg(win, x1, y1, x2, y2, sp, id) { create button graphical }
-
-end;
-
 procedure dropeditboxg(var f: text; x1, y1, x2, y2: integer; sp: strptr; 
                        id: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   idropeditboxg(win, x1, y1, x2, y2, sp, id); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure dropeditboxg(x1, y1, x2, y2: integer; sp: strptr; 
-                                id: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   idropeditboxg(win, x1, y1, x2, y2, sp, id); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
 procedure dropeditbox(var f: text; x1, y1, x2, y2: integer; sp: strptr; 
                        id: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   idropeditbox(win, x1, y1, x2, y2, sp, id); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
 overload procedure dropeditbox(x1, y1, x2, y2: integer; sp: strptr; 
                                 id: integer);
 
-var win: winptr; { window context }
-
 begin
 
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   idropeditbox(win, x1, y1, x2, y2, sp, id); { execute }
-   unlockmain { end exclusive access }
-
 end;
-
+
 {******************************************************************************
 
 Find minimum/standard horizontal slider size
@@ -13965,82 +10972,18 @@ slider is calculated and returned.
 
 ******************************************************************************}
 
-procedure islidehorizsizg(win: winptr; var w, h: integer);
-
-begin
-
-   refer(win); { don't need the window data }
-
-   { The width is that of an average slider. The height is what is needed to
-     present the slider, tick marks, and 2 pixels of spacing around it. }
-   w := 200;
-   h := 32
-
-end;
-
-procedure islidehorizsiz(win: winptr; var w, h: integer);
-
-begin
-
-   islidehorizsizg(win, w, h); { get size }
-   { change graphical size to character }
-   w := (w-1) div win^.charspace+1;
-   h := (h-1) div win^.linespace+1
-
-end;
-
 procedure slidehorizsizg(var f: text; var w, h: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   islidehorizsizg(win, w, h); { get size }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure slidehorizsizg(var w, h: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   islidehorizsizg(win, w, h); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
 procedure slidehorizsiz(var f: text; var w, h: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   islidehorizsiz(win, w, h); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure slidehorizsiz(var w, h: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   islidehorizsiz(win, w, h); { get size }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Create horizontal slider
@@ -14051,96 +10994,20 @@ Bugs: The tick marks should be in pixel terms, not logical terms.
 
 ******************************************************************************}
 
-procedure islidehorizg(win: winptr; x1, y1, x2, y2: integer; mark: integer;
-                       id: integer);
-
-var wp: wigptr;  { widget pointer }
-    r:  integer; { return value }
-
-begin
-
-   if not win^.visible then winvis(win); { make sure we are displayed }
-   if mark = 0 then  { tick marks enabled }
-      widget(win, x1, y1, x2, y2, '', id, wtslidehoriz, sc_tbs_noticks, wp)
-   else { tick marks enabled }
-      widget(win, x1, y1, x2, y2, '', id, wtslidehoriz, 0, wp);
-   { set tickmark frequency }
-   unlockmain; { end exclusive access }
-   r := sc_sendmessage(wp^.han, sc_tbm_setticfreq, mark, 0);
-   lockmain { start exclusive access }
-
-end;
-
-procedure islidehoriz(win: winptr; x1, y1, x2, y2: integer; mark: integer; 
-                      id: integer);
-
-begin
-
-   { form graphical from character coordinates }
-   x1 := (x1-1)*win^.charspace+1;
-   y1 := (y1-1)*win^.linespace+1;
-   x2 := (x2)*win^.charspace;
-   y2 := (y2)*win^.linespace;
-   islidehorizg(win, x1, y1, x2, y2, mark, id) { create button graphical }
-
-end;
-
 procedure slidehorizg(var f: text; x1, y1, x2, y2: integer; mark: integer;
                       id: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   islidehorizg(win, x1, y1, x2, y2, mark, id); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure slidehorizg(x1, y1, x2, y2: integer; mark: integer;
-                              id: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   islidehorizg(win, x1, y1, x2, y2, mark, id); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
 procedure slidehoriz(var f: text; x1, y1, x2, y2: integer; mark: integer;
                       id: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   islidehoriz(win, x1, y1, x2, y2, mark, id); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure slidehoriz(x1, y1, x2, y2: integer; mark: integer;
-                              id: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   islidehoriz(win, x1, y1, x2, y2, mark, id); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Find minimum/standard vertical slider size
@@ -14150,82 +11017,18 @@ slider is calculated and returned.
 
 ******************************************************************************}
 
-procedure islidevertsizg(win: winptr; var w, h: integer);
-
-begin
-
-   refer(win); { don't need the window data }
-
-   { The height is that of an average slider. The width is what is needed to
-     present the slider, tick marks, and 2 pixels of spacing around it. }
-   w := 32;
-   h := 200
-
-end;
-
-procedure islidevertsiz(win: winptr; var w, h: integer);
-
-begin
-
-   islidevertsizg(win, w, h); { get size }
-   { change graphical size to character }
-   w := (w-1) div win^.charspace+1;
-   h := (h-1) div win^.linespace+1
-
-end;
-
 procedure slidevertsizg(var f: text; var w, h: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   islidevertsizg(win, w, h); { get size }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure slidevertsizg(var w, h: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   islidevertsizg(win, w, h); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
 procedure slidevertsiz(var f: text; var w, h: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   islidevertsiz(win, w, h); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure slidevertsiz(var w, h: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   islidevertsiz(win, w, h); { get size }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Create vertical slider
@@ -14236,144 +11039,20 @@ Bugs: The tick marks should be in pixel terms, not logical terms.
 
 ******************************************************************************}
 
-procedure islidevertg(win: winptr; x1, y1, x2, y2: integer; mark: integer;
-                      id: integer);
-
-var wp:  wigptr;  { widget pointer }
-    r:   integer; { return value }
-
-begin
-
-   if not win^.visible then winvis(win); { make sure we are displayed }
-   if mark = 0 then { tick marks off }
-      widget(win, x1, y1, x2, y2, '', id, wtslidevert, sc_tbs_noticks, wp)
-   else { tick marks enabled }
-      widget(win, x1, y1, x2, y2, '', id, wtslidevert, 0, wp);
-   { set tickmark frequency }
-   unlockmain; { end exclusive access }
-   r := sc_sendmessage(wp^.han, sc_tbm_setticfreq, mark, 0);
-   lockmain { start exclusive access }
-
-end;
-
-procedure islidevert(win: winptr; x1, y1, x2, y2: integer; mark: integer; 
-                      id: integer);
-
-begin
-
-   { form graphical from character coordinates }
-   x1 := (x1-1)*win^.charspace+1;
-   y1 := (y1-1)*win^.linespace+1;
-   x2 := (x2)*win^.charspace;
-   y2 := (y2)*win^.linespace;
-   islidevertg(win, x1, y1, x2, y2, mark, id) { create button graphical }
-
-end;
-
 procedure slidevertg(var f: text; x1, y1, x2, y2: integer; mark: integer;
                      id: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   islidevertg(win, x1, y1, x2, y2, mark, id);
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure slidevertg(x1, y1, x2, y2: integer; mark: integer;
-                              id: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   islidevertg(win, x1, y1, x2, y2, mark, id);
-   unlockmain { end exclusive access }
 
 end;
 
 procedure slidevert(var f: text; x1, y1, x2, y2: integer; mark: integer;
                      id: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   islidevert(win, x1, y1, x2, y2, mark, id);
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure slidevert(x1, y1, x2, y2: integer; mark: integer;
-                              id: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   islidevert(win, x1, y1, x2, y2, mark, id);
-   unlockmain { end exclusive access }
-
-end;
-
-{******************************************************************************
-
-Create and distroy useless widget
-
-This appears to be a windows bug. When tab bars are created, they allow
-themselves to be overritten by the parent. This only occurs on tab bars.
-The workaround is to create a distroy a widget right after creating the
-tab bar, since only the last widget created has this problem.
-
-Bug: this is not getting deleted. I fixed it temporarily by making it
-invisible.
-
-******************************************************************************}
-
-procedure uselesswidget(win: winptr);
-
-var ip: imptr; { intratask message pointer }
-
-begin
-
-   with win^ do begin
-
-      getitm(ip); { get a im pointer }
-      ip^.im := imwidget; { set type is widget }
-      copy(ip^.wigcls, 'static');
-      copy(ip^.wigtxt, '');
-      ip^.wigflg := sc_ws_child {or sc_ws_visible};
-      ip^.wigx := 50;
-      ip^.wigy := 50;
-      ip^.wigw := 50;
-      ip^.wigh := 50;
-      ip^.wigpar := winhan;
-      ip^.wigid := 0;
-      ip^.wigmod := sc_getmodulehandle_n;
-      { order widget to start }
-      b := sc_postmessage(dispwin, umim, itm2int(ip), 0);
-      if not b then winerr; { process windows error }
-      { Wait for widget start, this also keeps our window going. } 
-      waitim(imwidget, ip); { wait for the return }
-      kilwin(ip^.wigwin); { kill widget }
-      dispose(ip^.wigcls); { release class string }
-      dispose(ip^.wigtxt); { release face text string }
-      putitm(ip) { release im }
-
-   end
-
-end;
-
 {******************************************************************************
 
 Find minimum/standard tab bar size
@@ -14383,131 +11062,20 @@ calculated and returned.
 
 ******************************************************************************}
 
-procedure itabbarsizg(win: winptr; tor: tabori; cw, ch: integer;
-                      var w, h, ox, oy: integer);
-
-begin
-
-   refer(win); { don't need the window data }
-   
-   if (tor = toright) or (tor = toleft) then begin { vertical bar }
-
-      w := 32; { set minimum width }
-      h := 2+20*2; { set minimum height }
-      w := w+cw; { add client space to width }
-      if ch+4 > h then h := ch+4; { set to client if greater }
-      if tor = toleft then begin
-
-         ox := 28; { set offsets }
-         oy := 4
-
-      end else begin
-
-         ox := 4; { set offsets }
-         oy := 4
-
-      end
-
-   end else begin { horizontal bar }
-
-      w := 2+20*2; { set minimum width, edges, arrows }
-      h := 32; { set minimum height }
-      if cw+4 > w then w := cw+4; { set to client if greater }
-      h := h+ch; { add client space to height }
-      if tor = totop then begin
-
-         ox := 4; { set offsets }
-         oy := 28
-
-      end else begin
-
-         ox := 4; { set offsets }
-         oy := 4
-
-      end
-
-   end
-
-end;
-
-procedure itabbarsiz(win: winptr; tor: tabori; cw, ch: integer; 
+procedure tabbarsizg(var f: text; tor: tabori; cw, ch: integer;
                      var w, h, ox, oy: integer);
 
-var gw, gh, gox, goy: integer;
-
 begin
-
-   { convert client sizes to graphical }
-   cw := cw*win^.charspace;
-   ch := ch*win^.linespace;
-   itabbarsizg(win, tor, cw, ch, gw, gh, gox, goy); { get size }
-   { change graphical size to character }
-   w := (gw-1) div win^.charspace+1;
-   h := (gh-1) div win^.linespace+1;
-   ox := (gox-1) div win^.charspace+1;
-   oy := (goy-1) div win^.linespace+1;
-   { must make sure that client dosen't intrude on edges }
-   if gw-gox-4 mod win^.charspace <> 0 then w := w+1;
-   if gh-goy-4 mod win^.charspace <> 0 then h := h+1
-
-end;
-
-procedure tabbarsizg(var f: text; tor: tabori; cw, ch: integer; 
-                     var w, h, ox, oy: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   itabbarsizg(win, tor, cw, ch, w, h, ox, oy); { get size }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure tabbarsizg(tor: tabori; cw, ch: integer; 
-                              var w, h, ox, oy: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   itabbarsizg(win, tor, cw, ch, w, h, ox, oy); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
 procedure tabbarsiz(var f: text; tor: tabori; cw, ch: integer; 
                     var w, h, ox, oy: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   itabbarsiz(win, tor, cw, ch, w, h, ox, oy); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure tabbarsiz(tor: tabori; cw, ch: integer; 
-                             var w, h, ox, oy: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   itabbarsiz(win, tor, cw, ch, w, h, ox, oy); { get size }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Find client from tabbar size
@@ -14518,131 +11086,20 @@ flexible.
 
 ******************************************************************************}
 
-procedure itabbarclientg(win: winptr; tor: tabori; w, h: integer; 
-                         var cw, ch, ox, oy: integer);
-
-begin
-
-   refer(win); { don't need the window data }
-
-   if (tor = toright) or (tor = toleft) then begin { vertical bar }
-
-      { Find client height and width from total height and width minus
-        tabbar overhead. }
-      cw := w-32;
-      ch := h-8;
-      if tor = toleft then begin
-
-         ox := 28; { set offsets }
-         oy := 4
-
-      end else begin
-
-         ox := 4; { set offsets }
-         oy := 4
-
-      end
-
-   end else begin { horizontal bar }
-
-      { Find client height and width from total height and width minus
-        tabbar overhead. }
-      cw := w-8;
-      ch := h-32;
-      if tor = totop then begin
-
-         ox := 4; { set offsets }
-         oy := 28
-
-      end else begin
-
-         ox := 4; { set offsets }
-         oy := 4
-
-      end
-
-   end
-
-end;
-
-procedure itabbarclient(win: winptr; tor: tabori; w, h: integer; 
-                        var cw, ch, ox, oy: integer);
-
-var gw, gh, gox, goy: integer;
-
-begin
-
-   { convert sizes to graphical }
-   w := w*win^.charspace;
-   h := h*win^.linespace;
-   itabbarsizg(win, tor, w, h, gw, gh, gox, goy); { get size }
-   { change graphical size to character }
-   cw := (gw-1) div win^.charspace+1;
-   ch := (gh-1) div win^.linespace+1;
-   ox := (gox-1) div win^.charspace+1;
-   oy := (goy-1) div win^.linespace+1;
-   { must make sure that client dosen't intrude on edges }
-   if gw-gox-4 mod win^.charspace <> 0 then w := w+1;
-   if gh-goy-4 mod win^.charspace <> 0 then h := h+1
-
-end;
-
 procedure tabbarclientg(var f: text; tor: tabori; w, h: integer; 
                      var cw, ch, ox, oy: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   itabbarclientg(win, tor, w, h, cw, ch, ox, oy); { get size }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure tabbarclientg(tor: tabori; w, h: integer; 
-                                 var cw, ch, ox, oy: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   itabbarclientg(win, tor, w, h, cw, ch, ox, oy); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
 procedure tabbarclient(var f: text; tor: tabori; w, h: integer; 
                     var cw, ch, ox, oy: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   itabbarclient(win, tor, w, h, cw, ch, ox, oy); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure tabbarclient(tor: tabori; w, h: integer; 
-                                var cw, ch, ox, oy: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   itabbarclient(win, tor, w, h, cw, ch, ox, oy); { get size }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Create tab bar
@@ -14655,123 +11112,20 @@ creating and distroying another widget.
 
 ******************************************************************************}
 
-procedure itabbarg(win: winptr; x1, y1, x2, y2: integer; sp: strptr; 
-                   tor: tabori; id: integer);
-
-var wp:  wigptr;    { widget pointer }
-    inx: integer;   { index for tabs }
-    tcr: sc_tcitem; { tab attributes record }
-    bs:  pstring;   { string buffer }
-    i:   integer;   { idnex for string }
-    m:   integer;   { maximum length of string }
-    fl:  integer;   { flags }
-
-begin
-
-   if not win^.visible then winvis(win); { make sure we are displayed }
-   fl := 0; { clear parameter flags }
-   if (tor = toright) or (tor = toleft) then fl := fl+sc_tcs_vertical;
-   if tor = toright then fl := fl+sc_tcs_right;
-   if tor = tobottom then fl := fl+sc_tcs_bottom;
-   widget(win, x1, y1, x2, y2, '', id, wttabbar, fl, wp);
-   inx := 0; { set index }
-   while sp <> nil do begin { add strings to list }
-
-      { create a string buffer with space for terminating zero }
-      m := max(sp^.str^); { get length }
-      new(bs, m+1); { create buffer string }
-      for i := 1 to m do bs^[i] := chr(chr2ascii(sp^.str^[i])); { copy }
-      bs^[m+1] := chr(0); { place terminator }
-      tcr.mask := sc_tcif_text; { set record contains text label }
-      tcr.dwstate := 0; { clear state }
-      tcr.dwstatemask := 0; { clear state mask }
-      tcr.psztext := bs; { place string }
-      tcr.iimage := -1; { no image }
-      tcr.lparam := 0; { no parameter }
-      unlockmain; { end exclusive access }
-      r := sc_sendmessage(wp^.han, sc_tcm_insertitem, inx, tcr); { add string }
-      lockmain; { start exclusive access }
-      if r = -1 then error(etabbar); { can't create tab }
-      dispose(bs); { release string buffer }
-      sp := sp^.next; { next string }
-      inx := inx+1 { next index }
-
-   end;
-
-   uselesswidget(win) { stop overwrite bug }
-
-end;
-
-procedure itabbar(win: winptr; x1, y1, x2, y2: integer; sp: strptr;
-                  tor: tabori; id: integer);
-
-begin
-
-   { form graphical from character coordinates }
-   x1 := (x1-1)*win^.charspace+1;
-   y1 := (y1-1)*win^.linespace+1;
-   x2 := (x2)*win^.charspace;
-   y2 := (y2)*win^.linespace;
-   itabbarg(win, x1, y1, x2, y2, sp, tor, id) { create button graphical }
-
-end;
-
 procedure tabbarg(var f: text; x1, y1, x2, y2: integer; sp: strptr; tor: tabori;
                   id: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   itabbarg(win, x1, y1, x2, y2, sp, tor, id); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure tabbarg(x1, y1, x2, y2: integer; sp: strptr; tor: tabori;
-                           id: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   itabbarg(win, x1, y1, x2, y2, sp, tor, id); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
 procedure tabbar(var f: text; x1, y1, x2, y2: integer; sp: strptr; tor: tabori;
                   id: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   itabbar(win, x1, y1, x2, y2, sp, tor, id); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure tabbar(x1, y1, x2, y2: integer; sp: strptr; tor: tabori;
-                           id: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   itabbar(win, x1, y1, x2, y2, sp, tor, id); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Set tabbar current select
@@ -14781,54 +11135,12 @@ of the tab.
 
 ******************************************************************************}
 
-procedure itabsel(win: winptr; id: integer; tn: integer);
-
-var wp:  wigptr; { widget pointer }
-    r:  integer;
-
-begin
-
-   if not win^.visible then winvis(win); { make sure we are displayed }
-   if tn < 1 then error(etabsel); { bad tab select }
-   with win^ do begin
-
-      wp := fndwig(win, id); { find widget }
-      if wp = nil then error(ewignf); { not found }
-      { set the range }
-      unlockmain; { end exclusive access }
-      r := sc_sendmessage(wp^.han, sc_tcm_setcursel, tn-1, 0);
-      lockmain { start exclusive access }
-
-   end;
-
-end;
-
 procedure tabsel(var f: text; id: integer; tn: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   itabsel(win, id, tn); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure tabsel(id: integer; tn: integer);
-
-var win: winptr; { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   itabsel(win, id, tn); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Output message dialog
@@ -14839,34 +11151,10 @@ Outputs a message dialog with the given title and message strings.
 
 procedure alert(view title, message: string);
 
-var ip: imptr;   { intratask message pointer }
-    b:  boolean; { result }
-
-procedure copy(var d: pstring; view s: string);
-
 begin
-
-   new(d, max(s));
-   d^ := s
 
 end;
 
-begin
-
-   lockmain; { start exclusive access }
-   getitm(ip); { get a im pointer }
-   ip^.im := imalert; { set is alert }
-   copy(ip^.alttit, title); { copy strings }
-   copy(ip^.altmsg, message);
-   b := sc_postmessage(dialogwin, umim, itm2int(ip), 0);
-   if not b then winerr; { process windows error }
-   waitim(imalert, ip); { wait for the return }
-   dispose(ip^.alttit); { free strings }
-   dispose(ip^.altmsg);
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Display choose color dialog
@@ -14879,28 +11167,10 @@ Bug: does not take the input color as the default.
 
 procedure querycolor(var r, g, b: integer);
 
-var ip: imptr;   { intratask message pointer }
-    br: boolean; { result }
-
 begin
 
-   lockmain; { start exclusive access }
-   getitm(ip); { get a im pointer }
-   ip^.im := imqcolor; { set is color query }
-   ip^.clrred := r; { set colors }
-   ip^.clrgreen := g;
-   ip^.clrblue := b;
-   br := sc_postmessage(dialogwin, umim, itm2int(ip), 0);
-   if not br then winerr; { process windows error }
-   waitim(imqcolor, ip); { wait for the return }
-   r := ip^.clrred; { set new colors }
-   g := ip^.clrgreen;
-   b := ip^.clrblue;
-   putitm(ip); { release im }
-   unlockmain { end exclusive access }
-
 end;
-
+
 {******************************************************************************
 
 Display choose file dialog for open
@@ -14919,24 +11189,10 @@ If the operation is cancelled, then a null string will be returned.
 
 procedure queryopen(var s: pstring);
 
-var ip: imptr;   { intratask message pointer }
-    br: boolean; { result }
-
 begin
 
-   lockmain; { start exclusive access }
-   getitm(ip); { get a im pointer }
-   ip^.im := imqopen; { set is open file query }
-   ip^.opnfil := s; { set input string }
-   br := sc_postmessage(dialogwin, umim, itm2int(ip), 0);
-   if not br then winerr; { process windows error }
-   waitim(imqopen, ip); { wait for the return }
-   s := ip^.opnfil; { set output string }
-   putitm(ip); { release im }
-   unlockmain { end exclusive access }
-
 end;
-
+
 {******************************************************************************
 
 Display choose file dialog for save
@@ -14944,7 +11200,7 @@ Display choose file dialog for save
 Presents the choose file dialog, then returns the file string as a dynamic
 string. The default string passed in is presented in the dialog, and a new
 string replaces it. The caller is responsible for disposing of the input
-string and the output string. 
+string and the output string.
 
 If a wildcard is passed as the default, this will be used to filter the files
 in the current directory into a list.
@@ -14955,24 +11211,10 @@ If the operation is cancelled, then a null string will be returned.
 
 procedure querysave(var s: pstring);
 
-var ip: imptr;   { intratask message pointer }
-    br: boolean; { result }
-
 begin
 
-   lockmain; { start exclusive access }
-   getitm(ip); { get a im pointer }
-   ip^.im := imqsave; { set is open file query }
-   ip^.opnfil := s; { set input string }
-   br := sc_postmessage(dialogwin, umim, itm2int(ip), 0);
-   if not br then winerr; { process windows error }
-   waitim(imqsave, ip); { wait for the return }
-   s := ip^.savfil; { set output string }
-   putitm(ip); { release im }
-   unlockmain { end exclusive access }
-
 end;
-
+
 {******************************************************************************
 
 Display choose find text dialog
@@ -15000,28 +11242,10 @@ table this issue until later.
 
 procedure queryfind(var s: pstring; var opt: qfnopts);
 
-var ip: imptr;   { intratask message pointer }
-    br: boolean; { result }
-
 begin
 
-   lockmain; { start exclusive access }
-   { check string to large for dialog, accounting for trailing zero }
-   if max(s^) > sc_findreplace_str_len-1 then error(efndstl);
-   getitm(ip); { get a im pointer }
-   ip^.im := imqfind; { set is find query }
-   ip^.fndstr := s; { set input string }
-   ip^.fndopt := opt; { set options }
-   br := sc_postmessage(dialogwin, umim, itm2int(ip), 0);
-   if not br then winerr; { process windows error }
-   waitim(imqfind, ip); { wait for the return }
-   s := ip^.fndstr; { set output string }
-   opt := ip^.fndopt; { set output options }
-   putitm(ip); { release im }
-   unlockmain { end exclusive access }
-
 end;
-
+
 {******************************************************************************
 
 Display choose replace text dialog
@@ -15041,31 +11265,10 @@ Bug: See comment, queryfind.
 
 procedure queryfindrep(var s, r: pstring; var opt: qfropts);
 
-var ip: imptr;   { intratask message pointer }
-    br: boolean; { result }
-
 begin
 
-   lockmain; { start exclusive access }
-   { check string to large for dialog, accounting for trailing zero }
-   if (max(s^) > sc_findreplace_str_len-1) or
-      (max(r^) > sc_findreplace_str_len-1) then error(efndstl);
-   getitm(ip); { get a im pointer }
-   ip^.im := imqfindrep; { set is find/replace query }
-   ip^.fnrsch := s; { set input find string }
-   ip^.fnrrep := r; { set input replace string }
-   ip^.fnropt := opt; { set options }
-   br := sc_postmessage(dialogwin, umim, itm2int(ip), 0);
-   if not br then winerr; { process windows error }
-   waitim(imqfindrep, ip); { wait for the return }
-   s := ip^.fnrsch; { set output find string }
-   r := ip^.fnrrep;
-   opt := ip^.fnropt; { set output options }
-   putitm(ip); { release im }
-   unlockmain { end exclusive access }
-
 end;
-
+
 {******************************************************************************
 
 Display choose font dialog
@@ -15081,918 +11284,13 @@ user as the defaults.
 
 ******************************************************************************}
 
-procedure iqueryfont(win: winptr; var fc, s, fr, fg, fb, br, bg, bb: integer;
-                     var effect: qfteffects);
-
-var ip:  imptr;   { intratask message pointer }
-    b:   boolean; { result }
-    fns: packed array [1..sc_lf_facesize] of char; { name of font }
-    fs:  pstring; { save for input string }
-
-{ find font in fonts list }
-
-function fndfnt(win: winptr; view fns: string): integer;
-
-var fp:     fontptr; { pointer for fonts list }
-    fc, ff: integer; { font counters }
-
-begin
-
-   fp := win^.fntlst; { index top of fonts }
-   fc := 1; { set 1st font }
-   ff := 0; { set no font found }
-   while fp <> nil do begin { traverse }
-
-      if compp(fns, fp^.fn^) then ff := fc; { found }
-      fp := fp^.next; { next entry }
-      fc := fc+1 { count }
-
-   end;
-   { The font string should match one from the list, since that list was itself
-     formed from the system font list. }
-   if ff = 0 then error(esystem); { should have found matching font }
-
-   fndfnt := ff { return font }
-
-end;
-
-begin
-
-   getitm(ip); { get a im pointer }
-   ip^.im := imqfont; { set is font query }
-   ifontnam(win, fc, fns); { get the name of the font }
-   copy(ip^.fntstr, fns); { place in record }
-   fs := ip^.fntstr; { and save a copy }
-   ip^.fnteff := effect; { copy effects }
-   ip^.fntfr := fr; { copy colors }
-   ip^.fntfg := fg;
-   ip^.fntfb := fb;
-   ip^.fntbr := br;
-   ip^.fntbg := bg;
-   ip^.fntbb := bb;
-   ip^.fntsiz := s; { place font size }
-   { send request } 
-   b := sc_postmessage(dialogwin, umim, itm2int(ip), 0);
-   if not b then winerr; { process windows error }
-   waitim(imqfont, ip); { wait for the return }
-   { pull back the output parameters }
-   fc := fndfnt(win, ip^.fntstr^); { find font from list }
-   effect := ip^.fnteff; { effects }
-   fr := ip^.fntfr; { colors }
-   fg := ip^.fntfg;
-   fb := ip^.fntfb;
-   br := ip^.fntbr;
-   bg := ip^.fntbg;
-   bb := ip^.fntbb;
-   s := ip^.fntsiz; { font size }
-   dispose(ip^.fntstr); { release returned copy of font string }
-   putitm(ip); { release im }
-   dispose(fs) { release our copy of the input font name }
-
-end;
-
 procedure queryfont(var f: text; var fc, s, fr, fg, fb, br, bg, bb: integer;
                     var effect: qfteffects);
 
-var win: winptr;  { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   iqueryfont(win, fc, s, fr, fg, fb, br, bg, bb, effect); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
-overload procedure queryfont(var f: text; var fc, s: integer; 
-                             var fcl, bcl: color;
-                             var effect: qfteffects);
-
-var win: winptr;  { window context }
-    fr, fg, fb, br, bg, bb: integer; { colors }
-
-begin
-                          
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   { convert colors }
-   colrgb(fcl, fr, fg, fb);
-   colrgb(bcl, br, bg, bb);
-   iqueryfont(win, fc, s, fr, fg, fb, br, bg, bb, effect);
-   { convert back again }
-   rgbcol(fr, fg, fb, fcl); 
-   rgbcol(br, bg, bb, bcl);
-   unlockmain { end exclusive access }
-   
-end;
-
-overload procedure queryfont(var fc, s, fr, fg, fb, br, bg, bb: integer;
-                             var effect: qfteffects);
-
-var win: winptr;  { window context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iqueryfont(win, fc, s, fr, fg, fb, br, bg, bb, effect); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure queryfont(var fc, s: integer; var fcl, bcl: color;
-                             var effect: qfteffects);
-
-var win: winptr;  { window context }
-    fr, fg, fb, br, bg, bb: integer; { colors }
-
-begin
-                          
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   { convert colors }
-   colrgb(fcl, fr, fg, fb);
-   colrgb(bcl, br, bg, bb);
-   iqueryfont(win, fc, s, fr, fg, fb, br, bg, bb, effect);
-   { convert back again }
-   rgbcol(fr, fg, fb, fcl); 
-   rgbcol(br, bg, bb, bcl);
-   unlockmain { end exclusive access }
-   
-end;
-
-{******************************************************************************
-
-Window procedure for display thread
-
-This is the window handler callback for all display windows.
-
-******************************************************************************}
-
-function wndproc(hwnd, imsg, wparam, lparam: integer): integer;
-
-var r:   integer;   { result holder }
-    b:   boolean;
-    ofn: ss_filhdl; { output file handle }
-    win: winptr;    { pointer to windows structure }
-    ip:  imptr;     { intratask message pointer }
-    udw: integer;   { up/down control width }
-    cr:  sc_rect;   { client rectangle }
-
-begin
-
-{print('wndproc: msg: ', msgcnt); print(' ');
-;prtmsgu(hwnd, imsg, wparam, lparam);
-;msgcnt := msgcnt+1;}
-   if imsg = sc_wm_create then begin
-
-      r := 0
-
-   end else if imsg = sc_wm_paint then begin
-
-      lockmain; { start exclusive access }
-      { get the logical output file from Windows handle }
-      ofn := hwn2lfn(hwnd);
-      if ofn <> 0 then begin { there is a window }
-
-         win := lfn2win(ofn); { index window from output file }
-         if win^.bufmod then restore(win, false) { perform selective update }
-         else begin { main task will handle it }
-
-            { get update region }
-            b := sc_getupdaterect(hwnd, cr, false);
-            { validate it so windows won't send multiple notifications }
-            b := sc_validatergn_n(hwnd); { validate region }
-            { Pack the update region in the message. This limits the update
-              region to 16 bit coordinates. We need an im to fix this. }
-            wparam := cr.left*$10000+cr.top;
-            lparam := cr.right*$10000+cr.bottom;
-            unlockmain; { end exclusive access }
-            putmsg(hwnd, imsg, wparam, lparam); { send message up }
-            lockmain { start exclusive access }
-
-         end;
-         r := 0
-
-      end else r := sc_defwindowproc(hwnd, imsg, wparam, lparam);
-      unlockmain; { end exclusive access }
-      r := 0
-
-   end else if imsg = sc_wm_setfocus then begin
-
-      lockmain; { start exclusive access }
-      { get the logical output file from Windows handle }
-      ofn := hwn2lfn(hwnd);
-      if ofn <> 0 then begin { there is a window }
-
-         win := lfn2win(ofn); { index window from output file }
-         with win^ do begin
-
-            b := sc_createcaret(winhan, 0, curspace, 3); { activate caret }
-            { set caret (text cursor) position at bottom of bounding box }
-            b := sc_setcaretpos(screens[curdsp]^.curxg-1,
-                                screens[curdsp]^.curyg-1+linespace-3);
-            focus := true; { set screen in focus }
-            curon(win) { show the cursor }
-
-         end
-
-      end;
-      unlockmain; { end exclusive access }
-      putmsg(hwnd, imsg, wparam, lparam); { copy to main thread }
-      r := 0
-
-   end else if imsg = sc_wm_killfocus then begin
-
-      lockmain; { start exclusive access }
-      { get the logical output file from Windows handle }
-      ofn := hwn2lfn(hwnd);
-      if ofn <> 0 then begin { there is a window }
-
-         win := lfn2win(ofn); { index window from output file }
-         with win^ do begin
-
-            focus := false; { set screen not in focus }
-            curoff(win); { hide the cursor }
-            b := sc_destroycaret; { remove text cursor }
-
-         end
-
-      end;
-      unlockmain; { end exclusive access }
-      putmsg(hwnd, imsg, wparam, lparam); { copy to main thread }
-      r := 0
-
-   end else if imsg = ummakwin then begin { create standard window }
-
-      { create the window }
-      stdwinwin := sc_createwindow('StdWin', pgmnam^, stdwinflg,
-                                stdwinx, stdwiny, stdwinw, stdwinh,
-                                stdwinpar, 0, sc_getmodulehandle_n);
-
-      stdwinj1c := false; { set no joysticks }
-      stdwinj2c := false;
-      if joyenb then begin
-
-         r := sc_joysetcapture(stdwinwin, sc_joystickid1, 33, false);
-         stdwinj1c := r = 0; { set joystick 1 was captured }
-         r := sc_joysetcapture(stdwinwin, sc_joystickid2, 33, false);
-         stdwinj2c := r = 0; { set joystick 1 was captured }
-
-      end;
-
-      { signal we started window }
-      iputmsg(0, umwinstr, 0, 0);
-      r := 0
-
-   end else if imsg = umclswin then begin { close standard window }
-
-      b := sc_destroywindow(stdwinwin); { remove window from screen }
-
-      { signal we closed window }
-      iputmsg(0, umwincls, 0, 0);
-      r := 0
-
-   end else if imsg = sc_wm_erasebkgnd then begin
-
-     { Letting windows erase the background is not good, because it flashes, and
-       is redundant in any case, because we handle that. }
-     r := 1 { say we are handling the erase }
-
-   end else if imsg = sc_wm_close then begin
-
-      { we handle our own window close, so don't pass this on }
-      putmsg(0, imsg, wparam, lparam);
-      r := 0
-
-   end else if imsg = sc_wm_destroy then begin
-
-      { here's a problem. Posting quit causes the thread/process to terminate,
-        not just the window. MSDN says to quit only the main window, but what
-        is the main window here ? We send our terminate message based on
-        wm_quit, and the window, even the main, does get closed. The postquit
-        message appears to only be for closing down the program, which our
-        program does by exiting. }
-      { sc_postquitmessage(0); }
-      r := 0
-
-   end else if (imsg = sc_wm_lbuttondown) or (imsg = sc_wm_mbuttondown) or
-               (imsg = sc_wm_rbuttondown) then begin
-
-      { Windows allows child windows to capture the focus, but they don't
-        give it up (its a feature). We get around this by  returning the
-        focus back to any window that is clicked by the mouse, but does
-        not have the focus. }
-      r := sc_setfocus(hwnd);
-      putmsg(hwnd, imsg, wparam, lparam);
-      r := sc_defwindowproc(hwnd, imsg, wparam, lparam);
-
-   end else if imsg = umim then begin { intratask message }
-
-      ip := int2itm(wparam); { get im pointer }
-      case ip^.im of { im type }
-
-         imupdown: begin { create up/down control }
-
-            { get width of up/down control (same as scroll arrow) }
-            udw := sc_getsystemmetrics(sc_sm_cxhscroll);
-            ip^.udbuddy := 
-               sc_createwindow('edit', '', 
-                               sc_ws_child or sc_ws_visible or sc_ws_border or
-                               sc_es_left or sc_es_autohscroll, 
-                               ip^.udx, ip^.udy, ip^.udcx-udw-1, ip^.udcy,
-                               ip^.udpar, ip^.udid, ip^.udinst);
-            ip^.udhan := 
-               sc_createupdowncontrol(ip^.udflg, ip^.udx+ip^.udcx-udw-2, ip^.udy, udw,
-                                      ip^.udcy, ip^.udpar, ip^.udid, ip^.udinst,
-                                      ip^.udbuddy, ip^.udup, ip^.udlow, 
-                                      ip^.udpos);
-            { signal complete }
-            iputmsg(0, umim, wparam, 0)
-
-         end;
-
-         imwidget: begin { create widget }
-
-            { start widget window }
-            ip^.wigwin := sc_createwindow(ip^.wigcls^, ip^.wigtxt^, ip^.wigflg,
-                                          ip^.wigx, ip^.wigy, ip^.wigw,
-                                          ip^.wigh, ip^.wigpar, ip^.wigid,
-                                          ip^.wigmod);
-            { signal we started widget }
-            iputmsg(0, umim, wparam, 0)
-
-         end
-
-      end;
-      r := 0 { clear result }
-
-   end else begin { default handling }
-
-      { Copy messages we are interested in to the main thread. By keeping the
-        messages passed down to only the interesting ones, we help prevent
-        queue "flooding". This is done with a case, and not a set, because sets
-        are limited to 256 elements. }
-      case imsg of
-
-         sc_wm_paint, sc_wm_lbuttondown, sc_wm_lbuttonup, sc_wm_mbuttondown,
-         sc_wm_mbuttonup, sc_wm_rbuttondown, sc_wm_rbuttonup, sc_wm_size,
-         sc_wm_char, sc_wm_keydown, sc_wm_keyup, sc_wm_quit, sc_wm_close,
-         sc_wm_mousemove, sc_wm_timer, sc_wm_command, sc_wm_vscroll, 
-         sc_wm_hscroll, sc_wm_notify: begin
-
-{print('wndproc: passed to main: msg: ', msgcnt); print(' ');
-;prtmsgu(hwnd, imsg, wparam, lparam);
-;msgcnt := msgcnt+1;}
-            putmsg(hwnd, imsg, wparam, lparam);
-
-         end;
-         else { ignore the rest }
-
-      end;
-      r := sc_defwindowproc(hwnd, imsg, wparam, lparam);
-
-   end;
-
-   wndproc := r;
-
-end;
-
-{******************************************************************************
-
-Create dummy window
-
-Create window to pass messages only. The window will have no display.
-
-******************************************************************************}
-
-procedure createdummy(function wndproc(hwnd, imsg, wparam, lparam: integer)
-                      : integer; view name: string; var dummywin: integer);
-
-var wc:  sc_wndclassa; { windows class structure }
-    b:   boolean; { function return }
-    v:   integer;
-
-begin
-
-   { create dummy class for message handling }
-   wc.style      := 0;
-   wc.wndproc    := sc_wndprocadr(wndproc);
-   wc.clsextra   := 0;
-   wc.wndextra   := 0;
-   wc.instance   := sc_getmodulehandle_n;
-   wc.icon       := 0;
-   wc.cursor     := 0;
-   wc.background := 0;
-   wc.menuname   := nil;
-   wc.classname  := str(name);
-   { register that class }
-   b := sc_registerclass(wc);
-   { create the window }
-   v := 2; { construct sc_hwnd_message, $fffffffd }
-   v := not v;
-   dummywin := sc_createwindow(name, '', 0, 0, 0, 0, 0,
-                              v {sc_hwnd_message}, 0, sc_getmodulehandle_n)
-
-end;
-
-{******************************************************************************
-
-Window display thread
-
-Handles the actual display of all windows and input queues associated with
-them. We create a dummy window to allow "headless" communication with the
-thread, but any number of subwindows will be started in the thread.
-
-******************************************************************************}
-
-procedure dispthread;
-
-var msg: sc_msg;
-    b:   boolean; { function return }
-    r:   integer; { result holder }
-
-begin
-
-   { create dummy window for message handling }
-   createdummy(wndproc, 'dispthread', dispwin);
-
-   b := sc_setevent(threadstart); { flag subthread has started up }
-
-   { message handling loop }
-   while sc_getmessage(msg, 0, 0, 0) <> 0 do begin { not a quit message }
-
-      b := sc_translatemessage(msg); { translate keyboard events }
-      r := sc_dispatchmessage(msg)
-
-   end
-
-end;
-
-{******************************************************************************
-
-Window procedure
-
-This is the event handler for the main thread. It's a dummy, and we handle
-everything by sending it on.
-
-******************************************************************************}
-
-function wndprocmain(hwnd, imsg, wparam, lparam: integer): integer;
-
-var r: integer; { result holder }
-
-begin
-
-{;prtstr('wndprocmain: msg: ');
-;prtmsgu(hwnd, imsg, wparam, lparam);}
-   if imsg = sc_wm_create then begin
-
-      r := 0
-
-   end else if imsg = sc_wm_destroy then begin
-
-      sc_postquitmessage(0);
-      r := 0
-
-   end else r := sc_defwindowproc(hwnd, imsg, wparam, lparam);
-
-   wndprocmain := r
-
-end;
-
-{******************************************************************************
-
-Dialog query window procedure
-
-This message handler is to allow is to fix certain features of dialogs, like
-the fact that they come up behind the main window.
-
-******************************************************************************}
-
-function wndprocfix(hwnd, imsg, wparam, lparam: integer): integer;
-
-var b: boolean; { return value }
-
-begin
-
-   refer(hwnd, imsg, wparam, lparam); { these aren't presently used }
-{;prtstr('wndprocfix: msg: ');
-;prtmsgu(hwnd, imsg, wparam, lparam);}
-
-   { If dialog is focused, send it to the foreground. This solves the issue
-     where dialogs are getting parked behind the main window. }
-   if imsg = sc_wm_setfocus then b := sc_setforegroundwindow(hwnd);
-
-   wndprocfix := 0 { tell callback to handle own messages }
-
-end;
-
-{******************************************************************************
-
-Dialog procedure
-
-Runs the various dialogs.
-
-******************************************************************************}
-
-function wndprocdialog(hwnd, imsg, wparam, lparam: integer): integer;
-
-type fnrptr = ^sc_findreplace; { pointer to find replace entry }
-
-var r:    integer;                { result holder }
-    ip:   imptr;                  { intratask message pointer }
-    cr:   sc_choosecolor_rec;     { color select structure }
-    b:    boolean;                { result holder }
-    i:    integer;                { index for string }
-    fr:   sc_openfilename;        { file select structure }
-    bs:   pstring;                { filename holder }
-    frrp: fnrptr;                 { dialog control record for find/replace }
-    fs:   sc_findreplace_str_ptr; { pointer to finder string }
-    rs:   sc_findreplace_str_ptr; { pointer to replacement string }
-    fl:   integer;                { flags }
-    fns:  sc_choosefont_rec;      { font select structure }
-    lf:   sc_lplogfont;           { logical font structure }
-    frcr: record { find/replace record pointer convertion }
-
-       case boolean of
-
-          false: (i: integer);
-          true:  (p: fnrptr)
-
-    end;
-
-begin
-
-{;prtstr('wndprocdialog: msg: ');
-;prtmsgu(hwnd, imsg, wparam, lparam);
-;printn('');}
-   if imsg = sc_wm_create then begin
-
-      r := 0
-
-   end else if imsg = sc_wm_destroy then begin
-
-      sc_postquitmessage(0);
-      r := 0
-
-   end else if imsg = umim then begin { intratask message }
-
-      ip := int2itm(wparam); { get im pointer }
-      case ip^.im of { im type }
-
-         imalert: begin { it's an alert }
-
-            r := sc_messagebox(0, ip^.altmsg^, ip^.alttit^, 
-                               sc_mb_ok or sc_mb_setforeground);
-            { signal complete }
-            iputmsg(0, umim, wparam, 0)
-
-         end;
-
-         imqcolor: begin
-
-            { set starting color }
-            cr.rgbresult := rgb2win(ip^.clrred, ip^.clrgreen, ip^.clrblue);
-            cr.lstructsize := 9*4; { set size }
-            cr.hwndowner := 0; { set no owner }
-            cr.hinstance := 0; { no instance }
-            cr.rgbresult := 0; { clear color }
-            cr.lpcustcolors := gcolorsav; { set global color save }
-            { set display all colors, start with initalized color }
-            cr.flags := sc_cc_anycolor or sc_cc_rgbinit or sc_cc_enablehook;
-            cr.lcustdata := 0; { no data }
-            cr.lpfnhook := sc_wndprocadr(wndprocfix); { hook to force front }
-            cr.lptemplatename := nil; { set no template name }
-            b := sc_choosecolor(cr); { perform choose color }
-            { set resulting color }
-            win2rgb(cr.rgbresult, ip^.clrred, ip^.clrgreen, ip^.clrblue);
-            { signal complete }
-            iputmsg(0, umim, wparam, 0)
-
-         end;
-
-         imqopen, imqsave: begin
-
-            new(bs, 200); { allocate result string buffer }
-            { copy input string to buffer }
-            for r:= 1 to max(ip^.opnfil^) do 
-               bs^[r] := chr(chr2ascii(ip^.opnfil^[r]));
-            { place terminator }
-            bs^[max(ip^.opnfil^)+1] := chr(0);
-            ip^.opnfil := bs; { now index the temp buffer }
-            fr.lstructsize := 21*4+2*2; { set size }
-            fr.hwndowner := 0;
-            fr.hinstance := 0;
-            fr.lpstrfilter := nil;
-            fr.lpstrcustomfilter := nil;
-            fr.nfilterindex := 0;
-            fr.lpstrfile := bs;
-            fr.lpstrfiletitle := nil;
-            fr.lpstrinitialdir := nil;
-            fr.lpstrtitle := nil;
-            fr.flags := sc_ofn_hidereadonly or sc_ofn_enablehook;
-            fr.nfileoffset := 0;
-            fr.nfileextension := 0;
-            fr.lpstrdefext := nil;
-            fr.lcustdata := 0;
-            fr.lpfnhook := sc_wndprocadr(wndprocfix); { hook to force front }
-            fr.lptemplatename := nil;
-            fr.pvreserved := 0;
-            fr.dwreserved := 0;
-            fr.flagsex := 0;
-            if ip^.im = imqopen then { it's open }
-               b := sc_getopenfilename(fr) { perform choose file }
-            else { it's save }
-               b := sc_getsavefilename(fr); { perform choose file }
-            if not b then begin
-         
-               { Check was a cancel. If the user canceled, return a null 
-                 string. }
-               r := sc_commdlgextendederror;
-               if r <> 0 then error(efildlg); { error }
-               { Since the main code is expecting us to make a new string for
-                 the result, we must copy the input to the output so that it's
-                 disposal will be valid. }
-               if ip^.im = imqopen then new(ip^.opnfil, 0)
-               else new(ip^.savfil, 0)
-               
-            end else begin { create result string }
-
-               if ip^.im = imqopen then begin { it's open }
-
-                  i := 1; { set 1st character }
-                  while bs^[i] <> chr(0) do i := i+1; { find terminator }
-                  new(ip^.opnfil, i-1); { create result string }
-                  for i := 1 to i-1 do ip^.opnfil^[i] := ascii2chr(ord(bs^[i]))
-
-               end else begin { it's save }
-
-                  i := 1; { set 1st character }
-                  while bs^[i] <> chr(0) do i := i+1; { find terminator }
-                  new(ip^.savfil, i-1); { create result string }
-                  for i := 1 to i-1 do ip^.savfil^[i] := ascii2chr(ord(bs^[i]))
-
-               end
-
-            end;
-            dispose(bs); { release temp string }
-            { signal complete }
-            iputmsg(0, umim, wparam, 0)
-
-         end;
-
-         imqfind: begin
-
-            new(fs); { get a new finder string }
-            { copy string to destination }
-            for i := 1 to max(ip^.fndstr^) do 
-               fs^[i] := chr(chr2ascii(ip^.fndstr^[i]));
-            fs^[max(ip^.fndstr^)+1] := chr(0); { terminate }
-            new(frrp); { get a find/replace data record }
-            frrp^.lstructsize := sc_findreplace_len; { set size }
-            frrp^.hwndowner := dialogwin; { set owner }
-            frrp^.hinstance := 0; { no instance }
-            { set flags }
-            fl := sc_fr_hidewholeword {or sc_fr_enablehook};
-            { set status of down }
-            if not (qfnup in ip^.fndopt) then fl := fl+sc_fr_down;
-            { set status of case }
-            if qfncase in ip^.fndopt then fl := fl+sc_fr_matchcase;
-            frrp^.flags := fl;
-            frrp^.lpstrfindwhat := fs; { place finder string }
-            frrp^.lpstrreplacewith := nil; { set no replacement string }
-            frrp^.wfindwhatlen := sc_findreplace_str_len; { set length }
-            frrp^.wreplacewithlen := 0; { set null replacement string }
-            frrp^.lcustdata := itm2int(ip); { send ip with this record }
-            frrp^.lpfnhook := 0; { no callback }
-            frrp^.lptemplatename := nil; { set no template }
-            { start find dialog }
-            fndrepmsg := sc_registerwindowmessage('commdlg_FindReplace');
-            ip^.fndhan := sc_findtext(frrp^); { perform dialog }
-            { now bring that to the front }
-            fl := 0;
-            fl := not fl;
-            b := sc_setwindowpos(ip^.fndhan, fl {sc_hwnd_top}, 0, 0, 0, 0,
-                                 sc_swp_nomove or sc_swp_nosize); 
-            b := sc_setforegroundwindow(ip^.fndhan);
-            r := 0
-
-         end;
-
-         imqfindrep: begin
-
-            new(fs); { get a new finder string }
-            { copy string to destination }
-            for i := 1 to max(ip^.fnrsch^) do 
-               fs^[i] := chr(chr2ascii(ip^.fnrsch^[i]));
-            fs^[max(ip^.fnrsch^)+1] := chr(0); { terminate }
-            new(rs); { get a new finder string }
-            { copy string to destination }
-            for i := 1 to max(ip^.fnrrep^) do 
-               rs^[i] := chr(chr2ascii(ip^.fnrrep^[i]));
-            rs^[max(ip^.fnrrep^)+1] := chr(0); { terminate }
-            new(frrp); { get a find/replace data record }
-            frrp^.lstructsize := sc_findreplace_len; { set size }
-            frrp^.hwndowner := dialogwin; { set owner }
-            frrp^.hinstance := 0; { no instance }
-            { set flags }
-            fl := sc_fr_hidewholeword;
-            if not (qfrup in ip^.fnropt) then fl := fl+sc_fr_down; { set status of down }
-            if qfrcase in ip^.fnropt then fl := fl+sc_fr_matchcase; { set status of case }
-            frrp^.flags := fl;
-            frrp^.lpstrfindwhat := fs; { place finder string }
-            frrp^.lpstrreplacewith := rs; { place replacement string }
-            frrp^.wfindwhatlen := sc_findreplace_str_len; { set length }
-            frrp^.wreplacewithlen := sc_findreplace_str_len; { set null replacement string }
-            frrp^.lcustdata := itm2int(ip); { send ip with this record }
-            frrp^.lpfnhook := 0; { clear these }
-            frrp^.lptemplatename := nil;
-            { start find dialog }
-            fndrepmsg := sc_registerwindowmessage('commdlg_FindReplace');
-            ip^.fnrhan := sc_replacetext(frrp^); { perform dialog }
-            { now bring that to the front }
-            fl := 0;
-            fl := not fl;
-            b := sc_setwindowpos(ip^.fnrhan, fl {sc_hwnd_top}, 0, 0, 0, 0,
-                                 sc_swp_nomove or sc_swp_nosize); 
-            b := sc_setforegroundwindow(ip^.fnrhan);
-            r := 0
-
-         end;
-
-         imqfont: begin
-           
-            new(lf); { get a logical font structure }
-            { initalize logical font structure }
-            lf^.lfheight := ip^.fntsiz; { use default height }
-            lf^.lfwidth := 0; { use default width }
-            lf^.lfescapement := 0; { no escapement }
-            lf^.lforientation := 0; { orient to x axis }
-            if qftebold in ip^.fnteff then lf^.lfweight := sc_fw_bold { set bold }
-            else lf^.lfweight := sc_fw_dontcare; { default weight }
-            lf^.lfitalic := ord(qfteitalic in ip^.fnteff);  { italic }
-            lf^.lfunderline := ord(qfteunderline in ip^.fnteff); { underline }
-            lf^.lfstrikeout := ord(qftestrikeout in ip^.fnteff); { strikeout }
-            lf^.lfcharset := sc_default_charset; { use default characters }
-            { use default precision }
-            lf^.lfoutprecision := sc_out_default_precis;
-            { use default clipping }
-            lf^.lfclipprecision := sc_clip_default_precis;
-            lf^.lfquality := sc_default_quality; { use default quality }
-            lf^.lfpitchandfamily := 0; { must be zero }
-            copys2z(lf^.lffacename, ip^.fntstr^); { place face name }
-            { initalize choosefont structure }
-            fns.lstructsize := sc_choosefont_len; { set size }
-            fns.hwndowner := 0; { set no owner }
-            fns.hdc := 0; { no device context }
-            fns.lplogfont := lf; { logical font }
-            fns.ipointsize := 0; { no point size }
-            { set flags }
-            fns.flags := sc_cf_screenfonts or sc_cf_effects or
-                         sc_cf_noscriptsel or sc_cf_forcefontexist or 
-                         sc_cf_ttonly or sc_cf_inittologfontstruct or
-                         sc_cf_enablehook;
-            { color }
-            fns.rgbcolors := rgb2win(ip^.fntfr, ip^.fntfg, ip^.fntfb);
-            fns.lcustdata := 0; { no data }
-            fns.lpfnhook := sc_wndprocadr(wndprocfix); { hook to force front }
-            fns.lptemplatename := nil; { no template name }
-            fns.hinstance := 0; { no instance }
-            fns.lpszstyle := nil; { no style }
-            fns.nfonttype := 0; { no font type }
-            fns.nsizemin := 0; { no minimum size }
-            fns.nsizemax := 0; { no maximum size }
-            b := sc_choosefont(fns); { perform choose font }
-            if not b then begin
-            
-               { Check was a cancel. If the user canceled, just return the string 
-                 empty. }
-               r := sc_commdlgextendederror;
-               if r <> 0 then error(efnddlg); { error }
-               { Since the main code is expecting us to make a new string for
-                 the result, we must copy the input to the output so that it's
-                 disposal will be valid. }
-               copy(ip^.fntstr, ip^.fntstr^)
-               
-            end else begin { set what the dialog changed }
-
-               ip^.fnteff := []; { clear what was set }
-               if lf^.lfitalic <> 0 then ip^.fnteff := ip^.fnteff+[qfteitalic] { italic }
-               else ip^.fnteff := ip^.fnteff-[qfteitalic];
-               if fns.nfonttype and sc_bold_fonttype <> 0 then 
-                  ip^.fnteff := ip^.fnteff+[qftebold] { bold }
-               else
-                  ip^.fnteff := ip^.fnteff-[qftebold];
-               if lf^.lfunderline <> 0 then 
-                  ip^.fnteff := ip^.fnteff+[qfteunderline] { underline }
-               else ip^.fnteff := ip^.fnteff-[qfteunderline];
-               if lf^.lfstrikeout <> 0 then 
-                  ip^.fnteff := ip^.fnteff+[qftestrikeout] { strikeout }
-               else ip^.fnteff := ip^.fnteff-[qftestrikeout];
-               { place foreground colors }
-               win2rgb(fns.rgbcolors, ip^.fntfr, ip^.fntfg, ip^.fntfb);
-               copyz2s(ip^.fntstr, lf^.lffacename); { copy font string back }
-               ip^.fntsiz := abs(lf^.lfheight); { set size }
-
-            end;
-            { signal complete }
-            iputmsg(0, umim, wparam, 0)
-
-         end;
-
-      end;
-      r := 0 { clear result }
-
-   end else if imsg = fndrepmsg then begin { find is done }
-
-      { Here's a series of dirty tricks. The find/replace record pointer is given
-        back to us as an integer by windows. We also stored the ip as "customer
-        data" in integer. }
-      frcr.i := lparam; { get find/replace data pointer }
-      frrp := frcr.p;
-      ip := int2itm(frrp^.lcustdata); { get im pointer }
-      with frrp^, ip^ do { in find/replace context do }
-         if ip^.im = imqfind then begin { it's a find }
-
-         b := sc_destroywindow(ip^.fndhan); { destroy the dialog }
-         { check and set case match mode }
-         if flags and sc_fr_matchcase <> 0 then fndopt := fndopt+[qfncase];
-         { check and set cas up/down mode }
-         if flags and sc_fr_down <> 0 then fndopt := fndopt-[qfnup]
-         else fndopt := fndopt+[qfnup];
-         i := 1; { set 1st character }
-         while lpstrfindwhat^[i] <> chr(0) do i := i+1; { find terminator }
-         new(fndstr, i-1); { create result string }
-         for i := 1 to i-1 do fndstr^[i] := ascii2chr(ord(lpstrfindwhat^[i]));
-         dispose(lpstrfindwhat) { release temp string }
-
-      end else begin { it's a find/replace }
-
-         b := sc_destroywindow(ip^.fnrhan); { destroy the dialog }
-         { check and set case match mode }
-         if flags and sc_fr_matchcase <> 0 then fnropt := fnropt+[qfrcase];
-         { check and set find mode }
-         if flags and sc_fr_findnext <> 0 then fnropt := fnropt+[qfrfind];
-         { check and set replace mode }
-         if flags and sc_fr_replace <> 0 then 
-            fnropt := fnropt-[qfrfind]-[qfrallfil];
-         { check and set replace all mode }
-         if flags and sc_fr_replaceall <> 0 then 
-            fnropt := fnropt-[qfrfind]+[qfrallfil];
-         i := 1; { set 1st character }
-         while lpstrfindwhat^[i] <> chr(0) do i := i+1; { find terminator }
-         new(fnrsch, i-1); { create result string }
-         for i := 1 to i-1 do fnrsch^[i] := ascii2chr(ord(lpstrfindwhat^[i]));
-         i := 1; { set 1st character }
-         while lpstrreplacewith^[i] <> chr(0) do i := i+1; { find terminator }
-         new(fnrrep, i-1); { create result string }
-         for i := 1 to i-1 do 
-            fnrrep^[i] := ascii2chr(ord(lpstrreplacewith^[i]));
-         dispose(lpstrfindwhat); { release temp strings }
-         dispose(lpstrreplacewith)
-
-      end;
-      dispose(frrp); { release find/replace record entry }
-      { signal complete }
-      iputmsg(0, umim, itm2int(ip), 0)
-
-   end else r := sc_defwindowproc(hwnd, imsg, wparam, lparam);
-
-   wndprocdialog := r
-
-end;
-
-{******************************************************************************
-
-Dialog thread
-
-******************************************************************************}
-
-procedure dialogthread;
-
-var msg: sc_msg;
-    b:   boolean; { function return }
-    r:   integer; { result holder }
-
-begin
-
-   { create dummy window for message handling }
-   createdummy(wndprocdialog, 'dialogthread', dialogwin);
-
-   b := sc_setevent(threadstart); { flag subthread has started up }
-
-   { message handling loop }
-   while sc_getmessage(msg, 0, 0, 0) <> 0 do begin { not a quit message }
-
-      b := sc_translatemessage(msg); { translate keyboard events }
-      r := sc_dispatchmessage(msg)
-
-   end
-
-end;
-
 {******************************************************************************
 
 Gralib startup
@@ -16001,107 +11299,8 @@ Gralib startup
 
 begin
 
-   { override our interdicted calls }
-   ss_ovr_alias(filealias, sav_alias);
-   ss_ovr_resolve(fileresolve, sav_resolve);
-   ss_ovr_openread(fileopenread, sav_openread);
-   ss_ovr_openwrite(fileopenwrite, sav_openwrite);
-   ss_ovr_close(fileclose, sav_close);
-   ss_ovr_read(fileread, sav_read);
-   ss_ovr_write(filewrite, sav_write);
-   ss_ovr_position(fileposition, sav_position);
-   ss_ovr_location(filelocation, sav_location);
-   ss_ovr_length(filelength, sav_length);
-   ss_ovr_eof(fileeof, sav_eof);
-   ss_ovr_wrterr(wrterr, sav_wrterr);
-   fend := false; { set no end of program ordered }
-   fautohold := true; { set automatically hold self terminators }
-   eqefre := nil; { set free event queuing list empty }
-   dblflt := false; { set no double fault }
-   wigfre := nil; { set free widget tracking list empty }
-   freitm := nil; { clear intratask message free list }
-   msgcnt := 1; { clear message counter }
-   { Form character to ASCII value translation array from ASCII value to 
-     character translation array. }
-   for ti := 1 to 255 do trnchr[chr(ti)] := 0; { null out array }
-   for ti := 1 to 127 do trnchr[chrtrn[ti]] := ti; { form translation }
-
-   { Set up private message queuing }
-
-   msginp := 1; { clear message input queue }
-   msgout := 1;
-   msgrdy := sc_createevent(true, false); { create message event }
-   imsginp := 1; { clear control message message input queue }
-   imsgout := 1;
-   imsgrdy := sc_createevent(true, false); { create message event }
-   sc_initializecriticalsection(mainlock); { initialize the sequencer lock }
-   { mainlock := sc_createmutex(false); } { create mutex with no owner }
-   { if mainlock = 0 then winerr; } { process windows error }
-   new(gcolorsav); { get the color pick array }
-   fndrepmsg := 0; { set no find/replace message active }
-   for i := 1 to 16 do gcolorsav^[i] := $ffffff; { set all to white }
-   { clear open files table }
-   for fi := 1 to ss_maxhdl do opnfil[fi] := nil; { set unoccupied }
-   { clear top level translator table }
-   for fi := 1 to ss_maxhdl do xltfil[fi] := 0; { set unoccupied }
-   { clear window logical number translator table }
-   for fi := 1 to ss_maxhdl do xltwin[fi] := 0; { set unoccupied }
-   { clear file to window logical number translator table }
-   for fi := 1 to ss_maxhdl do filwin[fi] := 0; { set unoccupied }
-
-   { Create dummy window for message handling. This is only required so that
-     the main thread can be attached to the display thread }
-   createdummy(wndprocmain, 'mainthread', mainwin);
-   mainthreadid := sc_getcurrentthreadid;
-
-   getpgm; { get the program name from the command line }
-   { Now start the display thread, which both manages all displays, and sends us
-     all messages from those displays. }
-   threadstart := sc_createevent(true, false);
-   if threadstart = 0 then winerr; { process windows error }
-   { create subthread }
-   b := sc_resetevent(threadstart); { clear event }
-   r := sc_createthread_nn(0, dispthread, 0, threadid);
-   r := sc_waitforsingleobject(threadstart, -1); { wait for thread to start }
-   if r = -1 then winerr; { process windows error }
-   { Past this point, we need to lock for access between us and the thread. }
-
-   { Now attach the main thread to the display thread. This is required for the
-     main thread to have access to items like the display window caret. }
-   b := sc_attachthreadinput(mainthreadid, threadid, true);
-   if not b then winerr; { process windows error }
-
-   { Start widget thread }
-   b := sc_resetevent(threadstart); { clear event }
-   r := sc_createthread_nn(0, dialogthread, 0, threadid);
-   r := sc_waitforsingleobject(threadstart, -1); { wait for thread to start }
-   if r = -1 then winerr; { process windows error }
-
-   { register the stdwin class used to create all windows }
-   regstd;
-
-   { unused attribute codes }
-   refer(sablink);
-
-   { currently unused routines }
-   refer(lwn2win);
-
-   { diagnostic routines (come in and out of use) }
-   refer(print);
-   refer(printn);
-   refer(prtstr);
-   refer(prtnum);
-   refer(prtmsg);
-   refer(prtmsgu);
-   refer(prtfil);
-   refer(prtmenu);
-   refer(prtwiglst);
-   refer(diastr);
-
-refer(intv);
-
 end;
-
+
 {******************************************************************************
 
 Gralib shutdown
@@ -16109,53 +11308,5 @@ Gralib shutdown
 ******************************************************************************}
 
 begin
-
-   lockmain; { start exclusive access }
-   { if the program tries to exit when the user has not ordered an exit, it
-     is assumed to be a windows "unaware" program. We stop before we exit
-     these, so that their content may be viewed }
-   if not fend and fautohold then begin { process automatic exit sequence }
-
-      { See if output is open at all }
-      if opnfil[outfil] <> nil then { output is allocated }
-         if opnfil[outfil]^.win <> nil then with opnfil[outfil]^.win^ do begin
-
-         { make sure we are displayed }
-         if not visible then winvis(opnfil[outfil]^.win);
-         { If buffering is off, turn it back on. This will cause the screen
-           to come up clear, but this is better than an unrefreshed "hole"
-           in the screen. }
-         if not bufmod then ibuffer(opnfil[outfil]^.win, true);
-         { Check framed. We don't want that off, either, since the user cannot
-           close the window via the system close button. }
-         if not frame then iframe(opnfil[outfil]^.win, true);
-         { Same with system bar }
-         if not sysbar then isysbar(opnfil[outfil]^.win, true);
-         { change window label to alert user }
-         unlockmain; { end exclusive access }
-         b := sc_setwindowtext(winhan, trmnam^);
-         lockmain; { start exclusive access }
-         { wait for a formal end }
-         while not fend do ievent(inpfil, er)
-
-      end
-
-   end;
-   { close any open windows }
-   88: { abort module }
-   if not dblflt then begin { we haven't already exited }
-
-      dblflt := true; { set we already exited }
-      { close all open files and windows }
-      for fi := 1 to ss_maxhdl do
-         if opnfil[fi] <> nil then with opnfil[fi]^ do begin
-
-         if han <> 0 then ss_old_close(han, sav_close); { close at lower level }
-         if win <> nil then clswin(fi) { close open window }
-
-      end
-
-   end;
-   unlockmain { end exclusive access }
 
 end.

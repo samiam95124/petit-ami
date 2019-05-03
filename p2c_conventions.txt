@@ -61,12 +61,23 @@ This is because C has no equivalent to ranged types. The idea of using a name
 alias for a mundane integer is that it prevents the need to globally change all
 all of the named types or factor them out. The types become memnomic equivalents
 for types. It is perhaps one of the more annoying conversions, I will admit
-(especially for C only programmers).
+(especially for C only programmers). However, the advantage is it leaves the
+Pascaline and C source codes comparible side by side.
 
 3. 1 based vs. 0 based. A lot of the code refactoring centers around the 
 "misunderstanding" between 0 and 1 based arrays in C vs. Pascaline. Actually,
 Pascaline can easily use 0 based indexes, and C could use 1 based indexes if you
 discard the first element. However, both languages have their conventions.
+
+The direct, translatable equivalent is to simply give -1 on all indexes:
+
+Pascaline:
+
+a[i]
+
+C:
+
+a[i-1]
 
 I have refactored out the 0 index case in a lot of code, but in other cases not.
 For example:
@@ -134,18 +145,55 @@ code is basically equivalent.
 
 4. Sets. The equivalent set types and operations for sets are:
 
-typedef unsigned char set[32];
+#define MAXSET 32
+
+typedef unsigned char set[MAXSET];
 
 #define SET(s, b) (*(s+b/8) |= 1<<(b%8)) /* set bit in set */
 #define RES(s, b) (*(s+b/8) &= ~(1<<(b%8)) /* reset bit in set */
 #define INS(s, b) (!!(*(s+b/8) & 1<<(b%8))) /* check bit in set */
 
-void setass(set* d, set* s) { int i; for (i = 0; i < 32; i++) *d++ = *s++; } 
+void setass(set* d, set* s) { int i; for (i = 0; i < MAXSET; i++) *d++ = *s++; } 
 boolean setequ(set* a, set* b) 
-{ boolean eq = true; int i; for (i = 0; i < 32; i++) if (*d != *s) eq = false; 
+{ boolean eq = true; int i; for (i = 0; i < MAXSET; i++) if (*d != *s) eq = false; 
   return eq; } 
+void setclr(set* d) { int i; for (i = 0; i < MAXSET; i++) *d = 0;
   
-Etc.
+Etc. Note 32 bytes gives 256 set elements.
 
 In general, however, my preference is to factor out the use of sets, since it is
-not really aligned with tecniques in C.
+not really aligned with techniques in C. There are, in fact, several places
+where sets are essential, and I note that even the Linux kernel uses them on
+occasion. Thus you still may see them.
+
+Any automated converter will, by definition, have to use routines or macros in
+C for sets. The worst one is a constant set like:
+
+s := [one, two, three];
+
+which has to be refactored as:
+
+setclr(s);
+SET(s, one);
+SET(s, two);
+SET(s, three);
+
+I.E., fairly ungainly.
+
+4. Nested functions. The conversion of Pascaline nested functions to C is 
+anywhere from very difficult to impossible. C99 has them in the standard, and
+this is another case of C getting improved with Pascal style constructs, like
+enums (no, Virgina, C didn't always have enums). The latest versions of GCC have
+this feature, so I suspect the answer is to directly convert them
+
+5. Constants. I have followed the convention of using #defines for constants, 
+including expressions. This also means they have to be (or should be, to fit C
+conventions) converted to upper case. I researched using const definitions in C
+according to C99, but found various issues with doing that. I may revisit this.
+
+6. Upper case/lower case. Because Pascaline treats upper and lower case equally,
+you won't generally see upper or lower case used to differentiate symbols here
+(see #4 "sets" for an exception to this rule). Speaking for myself I find using
+case to differentiate symbols in C rather obnoxious in any case, and I don't use
+it in pure C programs, either (I feel the same about struct vs. non-struct 
+naming).
