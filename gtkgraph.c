@@ -1220,6 +1220,12 @@ begin
 
 end;
 
+procedure fcolorc(var f: text; r, g, b: integer);
+
+begin
+
+end;
+
 {******************************************************************************
 
 Set foreground color graphical
@@ -1238,38 +1244,6 @@ procedure fcolorg(var f: text; r, g, b: integer);
 begin
 
 end;
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window from file }
-   ifcolorg(win, r, g, b); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure fcolor(var f: text; r, g, b: integer);
-
-var win: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window from file }
-   ifcolorg(win, r, g, b); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure fcolor(r, g, b: integer);
-
-var win: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window from file }
-   ifcolorg(win, r, g, b); { execute }
-   unlockmain { end exclusive access }
-
-end;
 
 {******************************************************************************
 
@@ -1279,50 +1253,13 @@ Sets the background color from the universal primary code.
 
 ******************************************************************************}
 
-procedure ibcolor(win: winptr; c: color);
-
-var r: integer;
+procedure bcolor(var f: text; c: color);
 
 begin
 
-   with win^, screens[curupd]^ do begin { in window, screen contexts }
-
-      bcrgb := colnum(c); { set color status }
-      gbcrgb := bcrgb;
-      { activate in buffer }
-      if sarev in attr then begin
-
-         r := sc_settextcolor(bdc, bcrgb);
-         if r = -1 then winerr { process windows error }
-
-      end else begin
-
-         r := sc_setbkcolor(bdc, bcrgb);
-         if r = -1 then winerr { process windows error }
-
-      end;
-      if indisp(win) then begin { activate on screen }
-
-         { set screen color according to reverse }
-         if sarev in attr then begin
-
-            r := sc_settextcolor(devcon, bcrgb);
-            if r = -1 then winerr { process windows error }
-
-         end else begin
-
-            r := sc_setbkcolor(devcon, bcrgb);
-            if r = -1 then winerr { process windows error }
-
-         end
-
-      end
-
-   end
-
 end;
 
-procedure bcolor(var f: text; c: color);
+procedure bcolorc(var f: text; r, g, b: integer);
 
 var win: winptr; { windows record pointer }
 
@@ -1330,20 +1267,7 @@ begin
 
    lockmain; { start exclusive access }
    win := txt2win(f); { get window from file }
-   ibcolor(win, c); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure bcolor(c: color);
-
-var win: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window from file }
-   ibcolor(win, c); { execute }
+   ibcolorg(win, r, g, b); { execute }
    unlockmain { end exclusive access }
 
 end;
@@ -1358,98 +1282,9 @@ up, we will be ready.
 
 ******************************************************************************}
 
-procedure ibcolorg(win: winptr; r, g, b: integer); 
-
-var rv: integer;
-
-begin
-
-   with win^, screens[curupd]^ do begin { in window, screen contexts }
-
-      bcrgb := rgb2win(r, g, b); { set color status }
-      gbcrgb := bcrgb;
-      { activate in buffer }
-      if sarev in attr then begin
-
-         r := sc_settextcolor(bdc, bcrgb);
-         if r = -1 then winerr { process windows error }
-
-      end else begin
-
-         rv := sc_setbkcolor(bdc, bcrgb);
-         if rv = -1 then winerr { process windows error }
-
-      end;
-      if indisp(win) then begin { activate on screen }
-
-         { set screen color according to reverse }
-         if sarev in attr then begin
-
-            rv := sc_settextcolor(devcon, bcrgb);
-            if rv = -1 then winerr { process windows error }
-
-         end else begin
-
-            rv := sc_setbkcolor(devcon, bcrgb);
-            if rv = -1 then winerr { process windows error }
-
-         end
-
-      end
-
-   end
-
-end;
-
 procedure bcolorg(var f: text; r, g, b: integer);
 
-var win: winptr; { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window from file }
-   ibcolorg(win, r, g, b); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure bcolorg(r, g, b: integer);
-
-var win: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window from file }
-   ibcolorg(win, r, g, b); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure bcolor(var f: text; r, g, b: integer);
-
-var win: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window from file }
-   ibcolorg(win, r, g, b); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure bcolor(r, g, b: integer);
-
-var win: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window from file }
-   ibcolorg(win, r, g, b); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -1478,51 +1313,9 @@ anywhere.
 
 ******************************************************************************}
 
-procedure iauto(win: winptr; e: boolean);
-
-begin
-
-   with win^, screens[curupd]^ do begin { in window, screen contexts }
-
-      { check we are transitioning to auto mode }
-      if e then begin
-
-         { check display is on grid and in bounds }
-         if (curxg-1) mod charspace <> 0 then error(eatoofg);
-         if (curxg-1) mod charspace <> 0 then error(eatoofg);
-         if not icurbnd(screens[curupd]) then error(eatoecb)
-
-      end;
-      screens[curupd]^.auto := e; { set auto status }
-      gauto := e
-
-   end
-
-end;
-
 procedure auto(var f: text; e: boolean);
 
-var win: winptr; { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window from file }
-   iauto(win, e); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure auto(e: boolean);
-
-var win: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window from file }
-   iauto(win, e); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -1534,43 +1327,9 @@ Enable or disable cursor visibility.
 
 ******************************************************************************}
 
-procedure icurvis(win: winptr; e: boolean);
-
-begin
-
-   with win^ do begin { in window context }
-
-      screens[curupd]^.curv := e; { set cursor visible status }
-      gcurv := e;
-      cursts(win) { process any cursor status change }
-
-   end
-
-end;
-
 procedure curvis(var f: text; e: boolean);
 
-var win: winptr; { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window from file }
-   icurvis(win, e); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure curvis(e: boolean);
-
-var win: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window from file }
-   icurvis(win, e); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -1584,29 +1343,7 @@ Returns the current location of the cursor in x.
 
 function curx(var f: text): integer;
 
-var win: winptr; { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window from file }
-   with win^ do { in window context }
-      curx := screens[curupd]^.curx; { return current location x }
-   unlockmain { end exclusive access }
-
-end;
-
-overload function curx: integer;
-
-var win: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window from file }
-   with win^ do { in window context }
-      curx := screens[curupd]^.curx; { return current location x }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -1620,29 +1357,7 @@ Returns the current location of the cursor in y.
 
 function cury(var f: text): integer;
 
-var win: winptr; { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window from file }
-   with win^ do { in window context }
-      cury := screens[curupd]^.cury; { return current location y }
-   unlockmain { end exclusive access }
-
-end;
-
-overload function cury: integer;
-
-var win: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window from file }
-   with win^ do { in window context }
-      cury := screens[curupd]^.cury; { return current location y }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -1656,29 +1371,7 @@ Returns the current location of the cursor in x, in pixels.
 
 function curxg(var f: text): integer;
 
-var win: winptr; { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window from file }
-   with win^ do { in window context }
-      curxg := screens[curupd]^.curxg; { return current location x }
-   unlockmain { end exclusive access }
-
-end;
-
-overload function curxg: integer;
-
-var win: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window from file }
-   with win^ do { in window context }
-      curxg := screens[curupd]^.curxg; { return current location x }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -1692,29 +1385,7 @@ Returns the current location of the cursor in y, in pixels.
 
 function curyg(var f: text): integer;
 
-var win: winptr; { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window from file }
-   with win^ do { in window context }
-      curyg := screens[curupd]^.curyg; { return current location y }
-   unlockmain { end exclusive access }
-
-end;
-
-overload function curyg: integer;
-
-var win: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window from file }
-   with win^ do { in window context }
-      curyg := screens[curupd]^.curyg; { return current location y }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -1732,169 +1403,10 @@ forces a screen refresh, which can be important when working on terminals.
 
 ******************************************************************************}
 
-procedure iselect(win: winptr; u, d: integer);
-
-var ld: 1..maxcon; { last display screen number save }
-
-begin
-
-   with win^ do begin { in window context }
-
-      if not bufmod then error(ebufoff); { error }
-      if (u < 1) or (u > maxcon) or (d < 1) or (d > maxcon) then
-         error(einvscn); { invalid screen number }
-      ld := curdsp; { save the current display screen number }
-      curupd := u; { set the current update screen }
-      if screens[curupd] = nil then begin { no screen, create one }
-
-         new(screens[curupd]); { get a new screen context }
-         iniscn(win, screens[curupd]); { initalize that }
-
-      end;
-      curdsp := d; { set the current display screen }
-      if screens[curdsp] = nil then begin { no screen, create one }
-
-         { no current screen, create a new one }
-         new(screens[curdsp]); { get a new screen context }
-         iniscn(win, screens[curdsp]); { initalize that }
-      
-      end;
-      { if the screen has changed, restore it }
-      if curdsp <> ld then restore(win, true)
-
-   end
-
-end;
-
 procedure select(var f: text; u, d: integer);
 
-var win: winptr; { windows record pointer }
-
 begin
 
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window from file }
-   iselect(win, u, d); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure select(u, d: integer);
-
-var win: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window from file }
-   iselect(win, u, d); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure select(var f: text; d: integer);
-
-var win: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window from file }
-   iselect(win, d, d); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure select(d: integer);
-
-var win: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window from file }
-   iselect(win, d, d); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-{******************************************************************************
-
-Place next terminal character
-
-Places the given character to the current cursor position using the current
-colors and attributes.
-
-Note: cannot place text with foreground for background xor modes, since there
-is no direct windows feature for that. The only way to add this is to write
-characters into a buffer DC, then blt them back to the main buffer and display
-using ROP combinations.
-
-******************************************************************************}
-
-procedure plcchr(win: winptr; c: char);
-
-var b:   boolean; { function return }
-    cb:  packed array [1..1] of char; { character output buffer }
-    off: integer;   { subscript offset }
-    sz:  sc_size;   { size holder }
-
-begin
-
-   with win^ do begin { in window context }
-
-      if not visible then winvis(win); { make sure we are displayed }
-      { handle special character cases first }
-      if c = '\cr' then with screens[curupd]^ do begin
-
-         { carriage return, position to extreme left }
-         curx := 1; { set to extreme left }
-         curxg := 1;
-         if indisp(win) then setcur(win) { set cursor on screen }
-
-      end else if c = '\lf' then idown(win) { line feed, move down }
-      else if c = '\bs' then ileft(win) { back space, move left }
-      else if c = '\ff' then iclear(win) { clear screen }
-      else if c = '\ht' then itab(win) { process tab }
-      else if (c >= ' ') and (c <> chr($7f)) then { character is visible }
-         with screens[curupd]^ do begin
-
-         off := 0; { set no subscript offset }
-         if sasubs in attr then off := trunc(linespace*0.35);
-         { update buffer }
-         cb[1] := c; { place character }
-         if bufmod then begin { buffer is active }
-
-            { draw character }
-            b := sc_textout(bdc, curxg-1, curyg-1+off, cb);
-            if not b then winerr { process windows error }
-
-         end;
-         if indisp(win) then begin { activate on screen }
-
-            { draw character on screen }
-            curoff(win); { hide the cursor }
-            { draw character }
-            b := sc_textout(devcon, curxg-1, curyg-1+off, cb);
-            if not b then winerr; { process windows error }
-            curon(win) { show the cursor }
-
-         end;
-         if cfont^.sys then iright(win) { move cursor right character }
-         else begin { perform proportional version }
-
-            b := sc_gettextextentpoint32(bdc, cb, sz); { get spacing }
-            if not b then winerr; { process windows error }
-            curxg := curxg+sz.cx; { advance the character width }
-            curx := curxg div charspace+1; { recalculate character position }
-            if indisp(win) then setcur(win) { set cursor on screen }
-
-         end
-
-      end
-
-   end
-      
 end;
 
 {******************************************************************************
@@ -1914,81 +1426,9 @@ such as controls are not suppressed.
 
 ******************************************************************************}
 
-procedure iwrtstr(win: winptr; view s: string);
-
-var b:   boolean; { function return }
-    off: integer; { subscript offset }
-    sz:  sc_size; { size holder }
-
-begin
-
-   with win^, screens[curupd]^ do begin { in window, screen context }
-
-      if auto then error(estrato); { autowrap is on }
-      if not visible then winvis(win); { make sure we are displayed }
-      off := 0; { set no subscript offset }
-      if sasubs in attr then off := trunc(linespace*0.35);
-      { update buffer }
-      if bufmod then begin { buffer is active }
-
-         { draw character }
-         b := sc_textout(bdc, curxg-1, curyg-1+off, s);
-         if not b then winerr { process windows error }
-
-      end;
-      if indisp(win) then begin { activate on screen }
-
-         { draw character on screen }
-         curoff(win); { hide the cursor }
-         { draw character }
-         b := sc_textout(devcon, curxg-1, curyg-1+off, s);
-         if not b then winerr; { process windows error }
-         curon(win) { show the cursor }
-
-      end;
-      if cfont^.sys then begin { perform fixed system advance }
-
-            { should check if this exceeds maxint }
-            curx := curx+max(s); { update position }
-            curxg := curxg+charspace*max(s)
-
-      end else begin { perform proportional version }
-
-         b := sc_gettextextentpoint32(bdc, s, sz); { get spacing }
-         if not b then winerr; { process windows error }
-         curxg := curxg+sz.cx; { advance the character width }
-         curx := curxg div charspace+1; { recalculate character position }
-         if indisp(win) then setcur(win) { set cursor on screen }
-
-      end
-
-   end
-
-end;
-
 procedure wrtstr(var f: text; view s: string);
 
-var win: winptr; { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   iwrtstr(win, s); { perform string write }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure wrtstr(view s: string);
-
-var win: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iwrtstr(win, s); { perform string write }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -2001,43 +1441,9 @@ position left.
 
 ******************************************************************************}
 
-procedure idel(win: winptr);
-
-begin
-
-   with win^ do begin { in window context }
-
-      ileft(win); { back up cursor }
-      plcchr(win, ' '); { blank out }
-      ileft(win) { back up again }
-
-   end
-
-end;
-
 procedure del(var f: text);
 
-var win: winptr; { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   idel(win); { perform delete }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure del;
-
-var win: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   idel(win); { perform delete }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -2049,111 +1455,9 @@ Draws a single line in the foreground color.
 
 ******************************************************************************}
 
-procedure iline(win: winptr; x1, y1, x2, y2: integer);
-
-var b:      boolean; { results }
-    tx, ty: integer; { temp holder }
-    dx, dy: integer;
-
-begin
-
-   with win^, screens[curupd]^ do begin { in window, screen contexts }
-
-      lcurx := x2; { place next progressive endpoint }
-      lcury := y2;
-      { rationalize the line to right/down }
-      if (x1 > x2) or ((x1 = x2) and (y1 > y2)) then begin { swap }
-
-         tx := x1;
-         ty := y1;
-         x1 := x2;
-         y1 := y2;
-         x2 := tx;
-         y2 := ty
-
-      end;
-      { Try to compensate for windows not drawing line endings. }
-      if y1 = y2 then dy := 0
-      else if y1 < y2 then dy := +1
-      else dy := -1;
-      if x1 = x2 then dx := 0
-      else dx := +1;
-      if bufmod then begin { buffer is active }
-
-         { set current position of origin }
-         b := sc_movetoex_n(bdc, x1-1, y1-1);
-         if not b then winerr; { process windows error }
-         b := sc_lineto(bdc, x2-1+dx, y2-1+dy);
-         if not b then winerr; { process windows error }
-
-      end;
-      if indisp(win) then begin { do it again for the current screen }
-
-         if not visible then winvis(win); { make sure we are displayed }
-         curoff(win);
-         b := sc_movetoex_n(devcon, x1-1, y1-1);
-         if not b then winerr; { process windows error }
-         b := sc_lineto(devcon, x2-1+dx, y2-1+dy);
-         if not b then winerr; { process windows error }
-         curon(win)
-
-      end
-
-   end
-
-end;
-
 procedure line(var f: text; x1, y1, x2, y2: integer);
 
-var win: winptr;  { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   iline(win, x1, y1, x2, y2); { draw line }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure line(x1, y1, x2, y2: integer);
-
-var win: winptr;  { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iline(win, x1, y1, x2, y2); { draw line }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure line(var f: text; x2, y2: integer);
-
-var win: winptr;  { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   with win^, screens[curupd]^ do { in window, screen contexts }
-      iline(win, lcurx, lcury, x2, y2); { draw line }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure line(x2, y2: integer);
-
-var win: winptr;  { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   with win^, screens[curupd]^ do { in window, screen contexts }
-      iline(win, lcurx, lcury, x2, y2); { draw line }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -2165,59 +1469,9 @@ Draws a rectangle in foreground color.
 
 ******************************************************************************}
 
-procedure irect(win: winptr; x1, y1, x2, y2: integer);
-
-var b:   boolean; { return value }
-
-begin
-
-   with win^ do begin { in window context }
-
-      if bufmod then begin { buffer is active }
-
-         { draw to buffer }
-         b := sc_rectangle(screens[curupd]^.bdc, x1-1, y1-1, x2, y2);
-         if not b then winerr { process windows error }
-
-      end;
-      if indisp(win) then begin
-
-         { draw to screen }
-         if not visible then winvis(win); { make sure we are displayed }
-         curoff(win);
-         b := sc_rectangle(devcon, x1-1, y1-1, x2, y2);
-         if not b then winerr; { process windows error }
-         curon(win)
-
-      end
-
-   end
-
-end;
-
 procedure rect(var f: text; x1, y1, x2, y2: integer);
 
-var win: winptr;  { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   irect(win, x1, y1, x2, y2); { draw rectangle }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure rect(x1, y1, x2, y2: integer);
-
-var win: winptr;  { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   irect(win, x1, y1, x2, y2); { draw line }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -2228,56 +1482,6 @@ Draw filled rectangle
 Draws a filled rectangle in foreground color.
 
 ******************************************************************************}
-
-procedure ifrect(win: winptr; x1, y1, x2, y2: integer);
-
-var b:   boolean; { return value }
-    r:   integer; { result holder }
-
-begin
-
-   with win^, screens[curupd]^ do begin { in window, screen contexts }
-
-      if bufmod then begin { buffer is active }
-
-         { for filled ellipse, the pen and brush settings are all wrong. we need
-           a single pixel pen and a background brush. we set and restore these }
-         r := sc_selectobject(bdc, fspen);
-         if r = -1 then winerr; { process windows error }
-         r := sc_selectobject(bdc, fbrush);
-         if r = -1 then winerr; { process windows error }
-         { draw to buffer }
-         b := sc_rectangle(bdc, x1-1, y1-1, x2, y2);
-         if not b then winerr; { process windows error }
-         { restore }
-         r := sc_selectobject(bdc, fpen);
-         if r = -1 then winerr; { process windows error }
-         r := sc_selectobject(bdc, sc_getstockobject(sc_null_brush));
-         if r = -1 then winerr { process windows error }
-
-      end;
-      { draw to screen }
-      if indisp(win) then begin
-
-         if not visible then winvis(win); { make sure we are displayed }
-         r := sc_selectobject(devcon, fspen);
-         if r = -1 then winerr; { process windows error }
-         r := sc_selectobject(devcon, fbrush);
-         if r = -1 then winerr; { process windows error }
-         curoff(win);
-         b := sc_rectangle(devcon, x1-1, y1-1, x2, y2);
-         if not b then winerr; { process windows error }
-         curon(win);
-         r := sc_selectobject(devcon, fpen);
-         if r = -1 then winerr; { process windows error }
-         r := sc_selectobject(devcon, sc_getstockobject(sc_null_brush));
-         if r = -1 then winerr { process windows error }
-
-      end
-
-   end
-
-end;
 
 procedure frect(var f: text; x1, y1, x2, y2: integer);
 
@@ -2292,19 +1496,6 @@ begin
 
 end;
 
-overload procedure frect(x1, y1, x2, y2: integer);
-
-var win: winptr;  { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ifrect(win, x1, y1, x2, y2); { draw line }
-   unlockmain { end exclusive access }
-
-end;
-
 {******************************************************************************
 
 Draw rounded rectangle
@@ -2313,59 +1504,9 @@ Draws a rounded rectangle in foreground color.
 
 ******************************************************************************}
 
-procedure irrect(win: winptr; x1, y1, x2, y2, xs, ys: integer);
-
-var b: boolean; { return value }
-
-begin
-
-   with win^ do begin { in window context }
-
-      if bufmod then begin { buffer is active }
-
-         { draw to buffer }
-         b := sc_roundrect(screens[curupd]^.bdc, x1-1, y1-1, x2, y2, xs, ys);
-         if not b then winerr { process windows error }
-
-      end;
-      { draw to screen }
-      if indisp(win) then begin
-
-         if not visible then winvis(win); { make sure we are displayed }
-         curoff(win);
-         b := sc_roundrect(devcon, x1-1, y1-1, x2, y2, xs, ys);
-         if not b then winerr; { process windows error }
-         curon(win)
-
-      end
-
-   end
-
-end;
-
 procedure rrect(var f: text; x1, y1, x2, y2, xs, ys: integer);
 
-var win: winptr;  { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   irrect(win, x1, y1, x2, y2, xs, ys); { draw rectangle }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure rrect(x1, y1, x2, y2, xs, ys: integer);
-
-var win: winptr;  { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   irrect(win, x1, y1, x2, y2, xs, ys); { draw line }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -2377,79 +1518,9 @@ Draws a filled rounded rectangle in foreground color.
 
 ******************************************************************************}
 
-procedure ifrrect(win: winptr; x1, y1, x2, y2, xs, ys: integer);
-
-var b: boolean; { return value }
-    r: integer; { result holder }
-
-begin
-
-   with win^, screens[curupd]^ do begin { in windows, screen contexts }
-
-      if bufmod then begin { buffer is active }
-
-         { for filled ellipse, the pen and brush settings are all wrong. we need
-           a single pixel pen and a background brush. we set and restore these }
-         r := sc_selectobject(bdc, fspen);
-         if r = -1 then winerr; { process windows error }
-         r := sc_selectobject(bdc, fbrush);
-         if r = -1 then winerr; { process windows error }
-         { draw to buffer }
-         b := sc_roundrect(bdc, x1-1, y1-1, x2, y2, xs, ys);
-         if not b then winerr; { process windows error }
-         { restore }
-         r := sc_selectobject(bdc, fpen);
-         if r = -1 then winerr; { process windows error }
-         r := sc_selectobject(bdc, sc_getstockobject(sc_null_brush));
-         if r = -1 then winerr { process windows error }
-
-      end;
-      { draw to screen }
-      if indisp(win) then begin
-
-         if not visible then winvis(win); { make sure we are displayed }
-         r := sc_selectobject(devcon, fspen);
-         if r = -1 then winerr; { process windows error }
-         r := sc_selectobject(devcon, fbrush);
-         if r = -1 then winerr; { process windows error }
-         curoff(win);
-         b := sc_roundrect(devcon, x1-1, y1-1, x2, y2, xs, ys);
-         if not b then winerr; { process windows error }
-         curon(win);
-         r := sc_selectobject(devcon, fpen);
-         if r = -1 then winerr; { process windows error }
-         r := sc_selectobject(devcon, sc_getstockobject(sc_null_brush));
-         if r = -1 then winerr; { process windows error }
-
-      end
-
-   end
-
-end;
-
 procedure frrect(var f: text; x1, y1, x2, y2, xs, ys: integer);
 
-var win: winptr;  { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   ifrrect(win, x1, y1, x2, y2, xs, ys); { draw rectangle }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure frrect(x1, y1, x2, y2, xs, ys: integer);
-
-var win: winptr;  { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ifrrect(win, x1, y1, x2, y2, xs, ys); { draw line }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -2461,59 +1532,9 @@ Draws an ellipse with the current foreground color and line width.
 
 ******************************************************************************}
 
-procedure iellipse(win: winptr; x1, y1, x2, y2: integer);
-
-var b: boolean; { return value }
-
-begin
-
-   with win^ do begin { in windows context }
-
-      if bufmod then begin { buffer is active }
-
-         { draw to buffer }
-         b := sc_ellipse(screens[curupd]^.bdc, x1-1, y1-1, x2, y2);
-         if not b then winerr { process windows error }
-
-      end;
-      { draw to screen }
-      if indisp(win) then begin
-
-         if not visible then winvis(win); { make sure we are displayed }
-         curoff(win);
-         b := sc_ellipse(devcon, x1-1, y1-1, x2, y2);
-         if not b then winerr; { process windows error }
-         curon(win)
-
-      end
-
-   end
-
-end;
-
 procedure ellipse(var f: text; x1, y1, x2, y2: integer);
 
-var win: winptr;  { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   iellipse(win, x1, y1, x2, y2); { draw ellipse }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure ellipse(x1, y1, x2, y2: integer);
-
-var win: winptr;  { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iellipse(win, x1, y1, x2, y2); { draw ellipse }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -2525,78 +1546,9 @@ Draws a filled ellipse with the current foreground color.
 
 ******************************************************************************}
 
-procedure ifellipse(win: winptr; x1, y1, x2, y2: integer);
-
-var b: boolean; { return value }
-
-begin
-
-   with win^, screens[curupd]^ do begin { in windows, screen contexts }
-
-      if bufmod then begin { buffer is active }
-
-         { for filled ellipse, the pen and brush settings are all wrong. we need
-           a single pixel pen and a background brush. we set and restore these }
-         r := sc_selectobject(bdc, fspen);
-         if r = -1 then winerr; { process windows error }
-         r := sc_selectobject(bdc, fbrush);
-         if r = -1 then winerr; { process windows error }
-         { draw to buffer }
-         b := sc_ellipse(bdc, x1-1, y1-1, x2, y2);
-         if not b then winerr; { process windows error }
-         { restore }
-         r := sc_selectobject(bdc, fpen);
-         if r = -1 then winerr; { process windows error }
-         r := sc_selectobject(bdc, sc_getstockobject(sc_null_brush));
-         if r = -1 then winerr { process windows error }
-
-      end;
-      { draw to screen }
-      if indisp(win) then begin
-
-         if not visible then winvis(win); { make sure we are displayed }
-         r := sc_selectobject(devcon, fspen);
-         if r = -1 then winerr; { process windows error }
-         r := sc_selectobject(devcon, fbrush);
-         if r = -1 then winerr; { process windows error }
-         curoff(win);
-         b := sc_ellipse(devcon, x1-1, y1-1, x2, y2);
-         if not b then winerr; { process windows error }
-         curon(win);
-         r := sc_selectobject(devcon, fpen);
-         if r = -1 then winerr; { process windows error }
-         r := sc_selectobject(devcon, sc_getstockobject(sc_null_brush));
-         if r = -1 then winerr; { process windows error }
-
-      end
-
-   end
-
-end;
-
 procedure fellipse(var f: text; x1, y1, x2, y2: integer);
 
-var win: winptr;  { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   ifellipse(win, x1, y1, x2, y2); { draw ellipse }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure fellipse(x1, y1, x2, y2: integer);
-
-var win: winptr;  { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ifellipse(win, x1, y1, x2, y2); { draw ellipse }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -2628,79 +1580,9 @@ Negative angles are allowed.
 
 ******************************************************************************}
 
-procedure iarc(win: winptr; x1, y1, x2, y2, sa, ea: integer);
-
-const precis = 1000; { precision of circle calculation }
-
-var saf, eaf:       real;    { starting angles in radian float }
-    xs, ys, xe, ye: integer; { start and end coordinates }
-    xc, yc:         integer; { center point }
-    t:              integer; { swapper }
-    b:              boolean; { return value }
-
-
-begin
-
-   with win^ do begin { in window context }
-
-      { rationalize rectangle for processing }
-      if x1 > x2 then begin t := x1; x1 := x2; x2 := t end;
-      if y1 > y2 then begin t := y1; y1 := y2; y2 := t end;
-      { convert start and end to radian measure }
-      saf := sa*2.0*pi/maxint;
-      eaf := ea*2.0*pi/maxint;
-      { find center of ellipse }
-      xc := (x2-x1) div 2+x1;
-      yc := (y2-y1) div 2+y1;
-      { resolve start to x, y }
-      xs := round(xc+precis*cos(pi/2-saf));
-      ys := round(yc-precis*sin(pi/2-saf));
-      { resolve end to x, y }
-      xe := round(xc+precis*cos(pi/2-eaf));
-      ye := round(yc-precis*sin(pi/2-eaf));
-      if bufmod then begin { buffer is active }
-
-         b := sc_arc(screens[curupd]^.bdc, x1-1, y1-1, x2, y2, xe, ye, xs, ys);
-         if not b then winerr; { process windows error }
-
-      end;
-      if indisp(win) then begin { do it again for the current screen }
-
-         if not visible then winvis(win); { make sure we are displayed }
-         curoff(win);
-         b := sc_arc(devcon, x1-1, y1-1, x2, y2, xe, ye, xs, ys);
-         if not b then winerr; { process windows error }
-         curon(win);
-
-      end
-
-   end
-
-end;
-
 procedure arc(var f: text; x1, y1, x2, y2, sa, ea: integer);
 
-var win: winptr;  { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   iarc(win, x1, y1, x2, y2, sa, ea); { draw arc }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure arc(x1, y1, x2, y2, sa, ea: integer);
-
-var win: winptr;  { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iarc(win, x1, y1, x2, y2, sa, ea); { draw arc }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -2713,100 +1595,9 @@ as for the arc function above.
 
 ******************************************************************************}
 
-procedure ifarc(win: winptr; x1, y1, x2, y2, sa, ea: integer);
-
-const precis = 1000; { precision of circle calculation }
-
-var saf, eaf:       real;    { starting angles in radian float }
-    xs, ys, xe, ye: integer; { start and end coordinates }
-    xc, yc:         integer; { center point }
-    t:              integer; { swapper }
-    b:              boolean; { return value }
-    r:              integer; { result holder }
-
-begin
-
-   with win^, screens[curupd]^ do begin { in window, screen context }
-
-      { rationalize rectangle for processing }
-      if x1 > x2 then begin t := x1; x1 := x2; x2 := t end;
-      if y1 > y2 then begin t := y1; y1 := y2; y2 := t end;
-      { convert start and end to radian measure }
-      saf := sa*2*pi/maxint;
-      eaf := ea*2*pi/maxint;
-      { find center of ellipse }
-      xc := (x2-x1) div 2+x1;
-      yc := (y2-y1) div 2+y1;
-      { resolve start to x, y }
-      xs := round(xc+precis*cos(pi/2-saf));
-      ys := round(yc-precis*sin(pi/2-saf));
-      { resolve end to x, y }
-      xe := round(xc+precis*cos(pi/2-eaf));
-      ye := round(yc-precis*sin(pi/2-eaf));
-      if bufmod then begin { buffer is active }
-
-         { for filled shape, the pen and brush settings are all wrong. we need
-           a single pixel pen and a background brush. we set and restore these }
-         r := sc_selectobject(bdc, fspen);
-         if r = -1 then winerr; { process windows error }
-         r := sc_selectobject(bdc, fbrush);
-         if r = -1 then winerr; { process windows error }
-         { draw shape }
-         b := sc_pie(bdc, x1-1, y1-1, x2, y2, xe, ye, xs, ys);
-         if not b then winerr; { process windows error }
-         { restore }
-         r := sc_selectobject(bdc, fpen);
-         if r = -1 then winerr; { process windows error }
-         r := sc_selectobject(bdc, sc_getstockobject(sc_null_brush));
-         if r = -1 then winerr { process windows error }
-
-      end;
-      if indisp(win) then begin { do it again for the current screen }
-
-         if not visible then winvis(win); { make sure we are displayed }
-         r := sc_selectobject(devcon, fspen);
-         if r = -1 then winerr; { process windows error }
-         r := sc_selectobject(devcon, fbrush);
-         if r = -1 then winerr; { process windows error }
-         curoff(win);
-         { draw shape }
-         b := sc_pie(devcon, x1-1, y1-1, x2, y2, xe, ye, xs, ys);
-         if not b then winerr; { process windows error }
-         curon(win);
-         r := sc_selectobject(devcon, fpen);
-         if r = -1 then winerr; { process windows error }
-         r := sc_selectobject(devcon, sc_getstockobject(sc_null_brush));
-         if r = -1 then winerr; { process windows error }
-
-      end
-
-   end
-
-end;
-
 procedure farc(var f: text; x1, y1, x2, y2, sa, ea: integer);
 
-var win: winptr;  { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   ifarc(win, x1, y1, x2, y2, sa, ea); { draw arc }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure farc(x1, y1, x2, y2, sa, ea: integer);
-
-var win: winptr;  { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ifarc(win, x1, y1, x2, y2, sa, ea); { draw arc }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -2819,100 +1610,9 @@ as for the arc function above.
 
 ******************************************************************************}
 
-procedure ifchord(win: winptr; x1, y1, x2, y2, sa, ea: integer);
-
-const precis = 1000; { precision of circle calculation }
-
-var saf, eaf:       real;    { starting angles in radian float }
-    xs, ys, xe, ye: integer; { start and end coordinates }
-    xc, yc:         integer; { center point }
-    t:              integer; { swapper }
-    b:              boolean; { return value }
-    r:              integer; { result holder }
-
-begin
-
-   with win^, screens[curupd]^ do begin { in window, screen context }
-
-      { rationalize rectangle for processing }
-      if x1 > x2 then begin t := x1; x1 := x2; x2 := t end;
-      if y1 > y2 then begin t := y1; y1 := y2; y2 := t end;
-      { convert start and end to radian measure }
-      saf := sa*2*pi/maxint;
-      eaf := ea*2*pi/maxint;
-      { find center of ellipse }
-      xc := (x2-x1) div 2+x1;
-      yc := (y2-y1) div 2+y1;
-      { resolve start to x, y }
-      xs := round(xc+precis*cos(pi/2-saf));
-      ys := round(yc-precis*sin(pi/2-saf));
-      { resolve end to x, y }
-      xe := round(xc+precis*cos(pi/2-eaf));
-      ye := round(yc-precis*sin(pi/2-eaf));
-      if bufmod then begin { buffer is active }
-
-         { for filled shape, the pen and brush settings are all wrong. we need
-           a single pixel pen and a background brush. we set and restore these }
-         r := sc_selectobject(bdc, fspen);
-         if r = -1 then winerr; { process windows error }
-         r := sc_selectobject(bdc, fbrush);
-         if r = -1 then winerr; { process windows error }
-         { draw shape }
-         b := sc_chord(bdc, x1-1, y1-1, x2, y2, xe, ye, xs, ys);
-         if not b then winerr; { process windows error }
-         { restore }
-         r := sc_selectobject(bdc, fpen);
-         if r = -1 then winerr; { process windows error }
-         r := sc_selectobject(bdc, sc_getstockobject(sc_null_brush));
-         if r = -1 then winerr { process windows error }
-
-      end;
-      if indisp(win) then begin { do it again for the current screen }
-
-         if not visible then winvis(win); { make sure we are displayed }
-         r := sc_selectobject(devcon, fspen);
-         if r = -1 then winerr; { process windows error }
-         r := sc_selectobject(devcon, fbrush);
-         if r = -1 then winerr; { process windows error }
-         curoff(win);
-         { draw shape }
-         b := sc_chord(devcon, x1-1, y1-1, x2, y2, xe, ye, xs, ys);
-         if not b then winerr; { process windows error }
-         curon(win);
-         r := sc_selectobject(devcon, fpen);
-         if r = -1 then winerr; { process windows error }
-         r := sc_selectobject(devcon, sc_getstockobject(sc_null_brush));
-         if r = -1 then winerr { process windows error }
-
-      end
-
-   end
-
-end;
-
 procedure fchord(var f: text; x1, y1, x2, y2, sa, ea: integer);
 
-var win: winptr;  { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   ifchord(win, x1, y1, x2, y2, sa, ea); { draw cord }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure fchord(x1, y1, x2, y2, sa, ea: integer);
-
-var win: winptr;  { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ifchord(win, x1, y1, x2, y2, sa, ea); { draw cord }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -2924,190 +1624,9 @@ Draws a filled triangle in the current foreground color.
 
 ******************************************************************************}
 
-procedure iftriangle(win: winptr; x1, y1, x2, y2, x3, y3: integer);
-
-var pa:  array [1..3] of sc_point; { points of triangle }
-    b:   boolean; { return value }
-    r:   integer; { result holder }
-
-begin
-
-   with win^ do begin { in window context }
-
-      { place triangle points in array }
-      pa[1].x := x1-1;
-      pa[1].y := y1-1;
-      pa[2].x := x2-1;
-      pa[2].y := y2-1;
-      pa[3].x := x3-1;
-      pa[3].y := y3-1;
-      with screens[curupd]^ do begin
-
-         if bufmod then begin { buffer is active }
-
-            { for filled shape, the pen and brush settings are all wrong. we need
-              a single pixel pen and a background brush. we set and restore these }
-            r := sc_selectobject(bdc, fspen);
-            if r = -1 then winerr; { process windows error }
-            r := sc_selectobject(bdc, fbrush);
-            if r = -1 then winerr; { process windows error }
-            { draw to buffer }
-            b := sc_polygon(bdc, pa);
-            if not b then winerr; { process windows error }
-            { restore }
-            r := sc_selectobject(bdc, fpen);
-            if r = -1 then winerr; { process windows error }
-            r := sc_selectobject(bdc, sc_getstockobject(sc_null_brush));
-            if r = -1 then winerr { process windows error }
-
-         end;
-         { draw to screen }
-         if indisp(win) then begin
-
-            if not visible then winvis(win); { make sure we are displayed }
-            r := sc_selectobject(devcon, fspen);
-            if r = -1 then winerr; { process windows error }
-            r := sc_selectobject(devcon, fbrush);
-            if r = -1 then winerr; { process windows error }
-            curoff(win);
-            b := sc_polygon(devcon, pa);
-            if not b then winerr; { process windows error }
-            curon(win);
-            r := sc_selectobject(devcon, fpen);
-            if r = -1 then winerr; { process windows error }
-            r := sc_selectobject(devcon, sc_getstockobject(sc_null_brush));
-            if r = -1 then winerr; { process windows error }
-
-         end;
-         { The progressive points get shifted left one. This causes progressive
-           single point triangles to become triangle strips. }
-         if tcurs then begin { process odd strip flip }
-
-            tcurx1 := x1; { place next progressive endpoint }
-            tcury1 := y1;
-            tcurx2 := x3;
-            tcury2 := y3
-
-         end else begin { process even strip flip }
-
-            tcurx1 := x3; { place next progressive endpoint }
-            tcury1 := y3;
-            tcurx2 := x2;
-            tcury2 := y2
-
-         end
-
-      end
-
-   end
-
-end;
-
 procedure ftriangle(var f: text; x1, y1, x2, y2, x3, y3: integer);
 
-var win: winptr;  { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   with win^, screens[curupd]^ do begin { in window, screen contexts }
-
-      iftriangle(win, x1, y1, x2, y2, x3, y3); { draw triangle }
-      tcurs := false { set even strip flip state }
-
-   end;
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure ftriangle(x1, y1, x2, y2, x3, y3: integer);
-
-var win: winptr;  { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   with win^, screens[curupd]^ do begin { in window, screen contexts }
-
-      iftriangle(win, x1, y1, x2, y2, x3, y3); { draw triangle }
-      tcurs := false { set even strip flip state }
-
-   end;
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure ftriangle(var f: text; x2, y2, x3, y3: integer);
-
-var win: winptr;  { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   with win^, screens[curupd]^ do begin { in window, screen contexts }
-
-      iftriangle(win, tcurx1, tcury1, x2, y2, x3, y3); { draw triangle }
-      tcurs := false { set even strip flip state }
-
-   end;
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure ftriangle(x2, y2, x3, y3: integer);
-
-var win: winptr;  { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   with win^, screens[curupd]^ do begin { in window, screen contexts }
-
-      iftriangle(win, tcurx1, tcury1, x2, y2, x3, y3); { draw triangle }
-      tcurs := false { set even strip flip state }
-
-   end;
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure ftriangle(var f: text; x3, y3: integer);
-
-var win: winptr;  { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   with win^, screens[curupd]^ do begin { in window, screen contexts }
-
-      tcurs := not tcurs; { flip the strip flip state }
-      iftriangle(win, tcurx1, tcury1, tcurx2, tcury2, x3, y3) { draw triangle }
-
-   end;
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure ftriangle(x3, y3: integer);
-
-var win: winptr;  { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   with win^, screens[curupd]^ do begin { in window, screen contexts }
-
-      tcurs := not tcurs; { flip the strip flip state }
-      iftriangle(win, tcurx1, tcury1, tcurx2, tcury2, x3, y3) { draw triangle }
-
-   end;
-   unlockmain { end exclusive access }
 
 end;
 
@@ -3119,59 +1638,9 @@ Sets a single logical pixel to the foreground color.
 
 ******************************************************************************}
 
-procedure isetpixel(win: winptr; x, y: integer);
-
-var r: sc_colorref; { return value }
-
-begin
-
-   with win^ do begin { in window context }
-
-      if bufmod then begin { buffer is active }
-
-         { paint buffer }
-         r := sc_setpixel(screens[curupd]^.bdc, x-1, y-1, screens[curupd]^.fcrgb);
-         if r = -1 then winerr; { process windows error }
-
-      end;
-      { paint screen }
-      if indisp(win) then begin
-
-         if not visible then winvis(win); { make sure we are displayed }
-         curoff(win);
-         r := sc_setpixel(devcon, x-1, y-1, screens[curupd]^.fcrgb);
-         if r = -1 then winerr; { process windows error }
-         curon(win)
-
-      end
-
-   end
-
-end;
-
 procedure setpixel(var f: text; x, y: integer);
 
-var win: winptr;  { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   isetpixel(win, x, y); { set pixel }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure setpixel(x, y: integer);
-
-var win: winptr;  { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   isetpixel(win, x, y); { set pixel }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -3183,47 +1652,9 @@ Sets the foreground write mode to overwrite.
 
 ******************************************************************************}
 
-procedure ifover(win: winptr);
-
-var r: integer;
-
-begin
-
-   with win^ do begin { in window context }
-
-      gfmod := mdnorm; { set foreground mode normal }
-      screens[curupd]^.fmod := mdnorm;
-      r := sc_setrop2(screens[curupd]^.bdc, sc_r2_copypen);
-      if r = 0 then winerr; { process windows error }
-      if indisp(win) then r := sc_setrop2(devcon, sc_r2_copypen)
-
-   end
-
-end;
-
 procedure fover(var f: text);
 
-var win: winptr;  { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   ifover(win); { set overwrite }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure fover;
-
-var win: winptr;  { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ifover(win); { set overwrite }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -3235,47 +1666,9 @@ Sets the background write mode to overwrite.
 
 ******************************************************************************}
 
-procedure ibover(win: winptr);
-
-var r: integer;
-
-begin
-
-   with win^ do begin { in window context }
-
-      gbmod := mdnorm; { set background mode normal }
-      screens[curupd]^.bmod := mdnorm;
-      r := sc_setbkmode(screens[curupd]^.bdc, sc_opaque);
-      if r = 0 then winerr; { process windows error }
-      if indisp(win) then r := sc_setbkmode(devcon, sc_opaque)
-
-   end
-
-end;
-
 procedure bover(var f: text);
 
-var win: winptr;  { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   ibover(win); { set overwrite }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure bover;
-
-var win: winptr;  { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ibover(win); { set overwrite }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -3287,47 +1680,9 @@ Sets the foreground write mode to invisible.
 
 ******************************************************************************}
 
-procedure ifinvis(win: winptr);
-
-var r: integer;
-
-begin
-
-   with win^ do begin { in window context }
-
-      gfmod := mdinvis; { set foreground mode invisible }
-      screens[curupd]^.fmod := mdinvis;
-      r := sc_setrop2(screens[curupd]^.bdc, sc_r2_nop);
-      if r = 0 then winerr; { process windows error }
-      if indisp(win) then r := sc_setrop2(devcon, sc_r2_nop)
-
-   end
-
-end;
-
 procedure finvis(var f: text);
 
-var win: winptr;  { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   ifinvis(win); { set invisible }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure finvis;
-
-var win: winptr;  { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ifinvis(win); { set invisible }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -3339,47 +1694,9 @@ Sets the background write mode to invisible.
 
 ******************************************************************************}
 
-procedure ibinvis(win: winptr);
-
-var r: integer;
-
-begin
-
-   with win^ do begin { in window context }
-
-      gbmod := mdinvis; { set background mode invisible }
-      screens[curupd]^.bmod := mdinvis;
-      r := sc_setbkmode(screens[curupd]^.bdc, sc_transparent);
-      if r = 0 then winerr; { process windows error }
-      if indisp(win) then r := sc_setbkmode(devcon, sc_transparent)
-
-   end
-
-end;
-
 procedure binvis(var f: text);
 
-var win: winptr;  { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   ibinvis(win); { set invisible }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure binvis;
-
-var win: winptr;  { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ibinvis(win); { set invisible }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -3391,47 +1708,9 @@ Sets the foreground write mode to xor.
 
 ******************************************************************************}
 
-procedure ifxor(win: winptr);
-
-var r: integer;
-
-begin
-
-   with win^ do begin { in window context }
-
-      gfmod := mdxor; { set foreground mode xor }
-      screens[curupd]^.fmod := mdxor;
-      r := sc_setrop2(screens[curupd]^.bdc, sc_r2_xorpen);
-      if r = 0 then winerr; { process windows error }
-      if indisp(win) then r := sc_setrop2(devcon, sc_r2_xorpen)
-
-   end
-
-end;
-
 procedure fxor(var f: text);
 
-var win: winptr;  { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   ifxor(win); { set xor }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure fxor;
-
-var win: winptr;  { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ifxor(win); { set xor }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -3443,42 +1722,9 @@ Sets the background write mode to xor.
 
 ******************************************************************************}
 
-procedure ibxor(win: winptr);
-
-begin
-
-   with win^ do begin { in window context }
-
-      gbmod := mdxor; { set background mode xor }
-      screens[curupd]^.bmod := mdxor
-
-   end
-
-end;
-
 procedure bxor(var f: text);
 
-var win: winptr;  { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   ibxor(win); { set xor }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure bxor;
-
-var win: winptr;  { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ibxor(win); { set xor }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -3490,63 +1736,9 @@ Sets the width of lines and several other figures.
 
 ******************************************************************************}
 
-procedure ilinewidth(win: winptr; w: integer);
-
-var oh: sc_hgdiobj; { old pen }
-    b:  boolean;    { return value }
-    lb: sc_logbrush;
-
-begin
-
-   with win^, screens[curupd]^ do begin { in window, screen context }
-
-      lwidth := w; { set new width }
-      { create new pen with desired width }
-      b := sc_deleteobject(fpen); { remove old pen }
-      if not b then winerr; { process windows error }
-      { create new pen }
-      lb.lbstyle := sc_bs_solid;
-      lb.lbcolor := fcrgb;
-      lb.lbhatch := 0;
-      fpen := sc_extcreatepen_nn(fpenstl, lwidth, lb);
-      if fpen = 0 then winerr; { process windows error }
-      { select to buffer dc }
-      oh := sc_selectobject(bdc, fpen);
-      if r = -1 then winerr; { process windows error }
-      if indisp(win) then begin { activate on screen }
-
-         oh := sc_selectobject(devcon, fpen); { select pen to display }
-         if r = -1 then winerr; { process windows error }
-
-      end
-
-   end
-
-end;
-
 procedure linewidth(var f: text; w: integer);
 
-var win: winptr;  { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   ilinewidth(win, w); { set line width }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure linewidth(w: integer);
-
-var win: winptr;  { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ilinewidth(win, w); { set line width }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -3560,29 +1752,7 @@ Returns the character width.
 
 function chrsizx(var f: text): integer;
 
-var win: winptr; { window pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   with win^ do { in window context }
-      chrsizx := charspace;
-   unlockmain { end exclusive access }
-
-end;
-
-overload function chrsizx: integer;
-
-var win: winptr; { window pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   with win^ do { in window context }
-      chrsizx := charspace;
-   unlockmain { end exclusive access }
 
 end;
 
@@ -3596,29 +1766,7 @@ Returns the character height.
 
 function chrsizy(var f: text): integer;
 
-var win: winptr; { window pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   with win^ do { in window context }
-      chrsizy := linespace;
-   unlockmain { end exclusive access }
-
-end;
-
-overload function chrsizy: integer;
-
-var win: winptr; { window pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   with win^ do { in window context }
-      chrsizy := linespace;
-   unlockmain { end exclusive access }
 
 end;
 
@@ -3632,29 +1780,7 @@ Finds the total number of installed fonts.
 
 function fonts(var f: text): integer; 
 
-var win: winptr; { window pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   with win^ do { in window context }
-      fonts := fntcnt; { return global font counter }
-   unlockmain { end exclusive access }
-
-end;
-
-overload function fonts: integer; 
-
-var win: winptr; { window pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   with win^ do { in window context }
-      fonts := fntcnt; { return global font counter }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -3666,58 +1792,9 @@ Changes the current font to the indicated logical font number.
 
 ******************************************************************************}
 
-procedure ifont(win: winptr; fc: integer); 
-
-var fp: fontptr;
-
-begin
-
-   with win^ do begin { in window context }
-
-      if screens[curupd]^.auto then error(eatoftc); { cannot perform with auto on }
-      if fc < 1 then error(einvfnm); { invalid font number }
-      { find indicated font }
-      fp := fntlst;
-      while (fp <> nil) and (fc > 1) do begin { search }
-
-         fp := fp^.next; { mext font entry }
-         fc := fc-1 { count }
-
-      end;
-      if fc > 1 then error(einvfnm); { invalid font number }
-      if max(fp^.fn^) = 0 then error(efntemp); { font is not assigned }
-      screens[curupd]^.cfont := fp; { place new font }
-      gcfont := fp;
-      newfont(win); { activate font }
-      chgcur(win) { change cursors }
-
-   end
-
-end;
-
 procedure font(var f: text; fc: integer);
 
-var win: winptr;  { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   ifont(win, fc); { set font }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure font(fc: integer);
-
-var win: winptr;  { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ifont(win, fc); { set font }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -3729,54 +1806,9 @@ Returns the name of a font by number.
 
 ******************************************************************************}
 
-procedure ifontnam(win: winptr; fc: integer; var fns: string);
-
-var fp: fontptr; { pointer to font entries }
-    i:  integer; { string index }
-
-begin
-
-   with win^ do begin { in window context }
-
-      if fc <= 0 then error(einvftn); { invalid number }
-      fp := fntlst; { index top of list }
-      while fc > 1 do begin { walk fonts }
-
-         fp := fp^.next; { next font }
-         fc := fc-1; { count }
-         if fp = nil then error(einvftn) { check null }
-
-      end;
-      for i := 1 to max(fns) do fns[i] := ' '; { clear result }
-      for i := 1 to max(fp^.fn^) do fns[i] := fp^.fn^[i] { copy name }
-
-   end
-
-end;
-
 procedure fontnam(var f: text; fc: integer; var fns: string);
 
-var win: winptr;  { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   ifontnam(win, fc, fns); { find font name }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure fontnam(fc: integer; var fns: string);
-
-var win: winptr;  { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ifontnam(win, fc, fns); { find font name }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -3789,45 +1821,9 @@ and line spacing are changed, as well as the baseline.
 
 ******************************************************************************}
 
-procedure ifontsiz(win: winptr; s: integer); 
-
-begin
-
-   with win^ do begin { in window context }
-
-      { cannot perform with system font }
-      if screens[curupd]^.cfont^.sys then error(etrmfts);
-      if screens[curupd]^.auto then error(eatofts); { cannot perform with auto on }
-      gfhigh := s; { set new font height }
-      newfont(win) { activate font }
-
-   end
-
-end;
-
 procedure fontsiz(var f: text; s: integer); 
 
-var win: winptr;  { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   ifontsiz(win, s); { set font size }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure fontsiz(s: integer); 
-
-var win: winptr;  { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ifontsiz(win, s); { set font size }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -3846,16 +1842,6 @@ procedure chrspcy(var f: text; s: integer);
 
 begin
 
-   refer(f, s) { stub out }
-
-end;
-
-overload procedure chrspcy(s: integer); 
-
-begin
-
-   refer(s) { stub out }
-
 end;
 
 {******************************************************************************
@@ -3873,16 +1859,6 @@ procedure chrspcx(var f: text; s: integer);
 
 begin
 
-   refer(f, s) { stub out }
-
-end;
-
-overload procedure chrspcx(s: integer); 
-
-begin
-
-   refer(s) { stub out }
-
 end;
 
 {******************************************************************************
@@ -3895,29 +1871,7 @@ Returns the number of dots per meter resolution in x.
 
 function dpmx(var f: text): integer; 
 
-var win: winptr; { window pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   with win^ do { in window context }
-      dpmx := sdpmx;
-   unlockmain { end exclusive access }
-
-end;
-
-overload function dpmx: integer; 
-
-var win: winptr; { window pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   with win^ do { in window context }
-      dpmx := sdpmx;
-   unlockmain { end exclusive access }
 
 end;
 
@@ -3931,29 +1885,7 @@ Returns the number of dots per meter resolution in y.
 
 function dpmy(var f: text): integer; 
 
-var win: winptr; { window pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   with win^ do { in window context }
-      dpmy := sdpmy;
-   unlockmain { end exclusive access }
-
-end;
-
-overload function dpmy: integer; 
-
-var win: winptr; { window pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   with win^ do { in window context }
-      dpmy := sdpmy;
-   unlockmain { end exclusive access }
 
 end;
 
@@ -3966,92 +1898,15 @@ character spacing and kerning.
 
 ******************************************************************************}
 
-function istrsiz(win: winptr; view s: string): integer; 
-
-var sz: sc_size; { size holder }
-    b:  boolean; { return value }
-
-begin
-
-   with win^ do begin { in window context }
-
-      b := sc_gettextextentpoint32(screens[curupd]^.bdc, s, sz); { get spacing }
-      if not b then winerr; { process windows error }
-      istrsiz := sz.cx { return that }
-
-   end
-
-end;
-
-function istrsizp(win: winptr; view s: string): integer; 
-
-var sz: sc_size; { size holder }
-    b:  boolean; { return value }
-    sp: pstring; { string holder }
-
-begin
-
-   with win^ do begin { in window context }
-
-      copy(sp, s); { create dynamic string of length }
-      b := sc_gettextextentpoint32(screens[curupd]^.bdc, sp^, sz); { get spacing }
-      if not b then winerr; { process windows error }
-      dispose(sp); { release dynamic string }
-      istrsizp := sz.cx { return that }
-
-   end
-
-end;
-
 function strsiz(var f: text; view s: string): integer; 
 
-var win: winptr; { window pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   strsiz := istrsiz(win, s); { find string size }
-   unlockmain { end exclusive access }
-
-end;
-
-overload function strsiz(view s: string): integer; 
-
-var win: winptr; { window pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   strsiz := istrsiz(win, s); { find string size }
-   unlockmain { end exclusive access }
 
 end;
 
 function strsizp(var f: text; view s: string): integer; 
 
-var win: winptr; { window pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   strsizp := istrsizp(win, s); { find string size }
-   unlockmain { end exclusive access }
-
-end;
-
-overload function strsizp(view s: string): integer; 
-
-var win: winptr; { window pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   strsizp := istrsizp(win, s); { find string size }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -4063,60 +1918,9 @@ Finds the pixel offset to the given character in the string.
 
 ******************************************************************************}
 
-function ichrpos(win: winptr; view s: string; p: integer): integer; 
-
-var sp:  pstring; { string holder }
-    siz: integer; { size holder }
-    sz:  sc_size; { size holder }
-    b:   boolean; { return value }
-    i:   integer; { index for string }
-
-begin
-
-   with win^ do begin { in window context }
-
-      if (p < 1) or (p > max(s)) then error(estrinx); { out of range }
-      if p = 1 then siz := 0 { its already at the position }
-      else begin { find substring length }
-
-         new(sp, p-1); { get a substring allocation }
-         for i := 1 to p-1 do sp^[i] := s[i]; { copy substring into place }
-         { get spacing }
-         b := sc_gettextextentpoint32(screens[curupd]^.bdc, sp^, sz);
-         if not b then winerr; { process windows error }
-         dispose(sp); { release substring }
-         siz := sz.cx { place size }
-
-      end;
-      ichrpos := siz { return result }
-
-   end
-
-end;
-
 function chrpos(var f: text; view s: string; p: integer): integer; 
 
-var win: winptr; { window pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   chrpos := ichrpos(win, s, p); { find character position }
-   unlockmain { end exclusive access }
-
-end;
-
-overload function chrpos(view s: string; p: integer): integer; 
-
-var win: winptr; { window pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   chrpos := ichrpos(win, s, p); { find character position }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -4130,89 +1934,9 @@ the system font.
 
 ******************************************************************************}
 
-procedure iwritejust(win: winptr; view s: string; n: integer); 
-
-var sz:  sc_size; { size holder }
-    b:   boolean; { return value }
-    off: integer; { subscript offset }
-    ra:  sc_gcp_results; { placement info record }
-
-begin
-
-   with win^, screens[curupd]^ do begin { in window, screen contexts }
-
-      if cfont^.sys then error(ejstsys); { cannot perform on system font }
-      if auto then error(eatopos); { cannot perform with auto on }
-      off := 0; { set no subscript offset }
-      if sasubs in attr then off := trunc(linespace*0.35);
-      { get minimum spacing for string }
-      b := sc_gettextextentpoint32(bdc, s, sz);
-      if not b then winerr; { process windows error }
-      { if requested less than required, force required }
-      if sz.cx > n then n := sz.cx;
-      { find justified spacing }
-      ra.lstructsize := sc_gcp_results_len; { set length of record }
-      { new(ra.lpoutstring); }
-      ra.lpoutstring := nil;
-      ra.lporder := nil;
-      new(ra.lpdx); { set spacing array }
-      ra.lpcaretpos := nil;
-      ra.lpclass := nil;
-      new(ra.lpglyphs);
-      ra.nglyphs := max(s);
-      ra.nmaxfit := 0;
-      r := sc_getcharacterplacement(screens[curupd]^.bdc, s, n, ra,
-                                    sc_gcp_justify or sc_gcp_maxextent);
-      if r = 0 then winerr; { process windows error }
-      if bufmod then begin { draw to buffer }
-
-         { draw the string to current position }
-         b := sc_exttextout_n(bdc, curxg-1, curyg-1+off, 0, s, ra.lpdx);
-         if not b then winerr { process windows error }
-
-      end;
-      if indisp(win) then begin
-
-         if not visible then winvis(win); { make sure we are displayed }
-         { draw character on screen }
-         curoff(win); { hide the cursor }
-         { draw the string to current position }
-         b := sc_exttextout_n(devcon, curxg-1, curyg-1+off, 0, s, ra.lpdx);
-         if not b then winerr; { process windows error }
-         curon(win) { show the cursor }
-
-      end;
-      curxg := curxg+n; { advance the character width }
-      curx := curxg div charspace+1; { recalculate character position }
-      if indisp(win) then setcur(win) { set cursor on screen }
-
-   end
-
-end;
-
 procedure writejust(var f: text; view s: string; n: integer); 
 
-var win: winptr; { window pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   iwritejust(win, s, n); { write justified text }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure writejust(view s: string; n: integer); 
-
-var win: winptr; { window pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iwritejust(win, s, n); { write justified text }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -4228,75 +1952,9 @@ spaces, with the fractional part lost.
 
 ******************************************************************************}
 
-function ijustpos(win: winptr; view s: string; p, n: integer): integer; 
-
-var off: integer; { offset to character }
-    w:   integer; { minimum string size }
-    ra:  sc_gcp_results; { placement info record }
-    i:   integer; { index for string }
-
-begin
-
-   with win^ do begin { in window context }
-
-      if (p < 1) or (p > max(s)) then error(estrinx); { out of range }
-      if p = 1 then off := 0 { its already at the position }
-      else begin { find substring length }
-
-         w := istrsiz(win, s); { find minimum character spacing }
-         { if allowed is less than the min, return nominal spacing }
-         if n <= w then off := ichrpos(win, s, p) else begin
-
-            { find justified spacing }
-            ra.lstructsize := sc_gcp_results_len; { set length of record }
-            { new(ra.lpoutstring); }
-            ra.lpoutstring := nil;
-            ra.lporder := nil;
-            new(ra.lpdx); { set spacing array }
-            ra.lpcaretpos := nil;
-            ra.lpclass := nil;
-            new(ra.lpglyphs);
-            ra.nglyphs := max(s);
-            ra.nmaxfit := 0;
-            r := sc_getcharacterplacement(screens[curupd]^.bdc, s, n, ra,
-                                          sc_gcp_justify or sc_gcp_maxextent);
-            if r = 0 then winerr; { process windows error }
-            off := 0; { clear offset }
-            { add in all widths to the left of position to offset }
-            for i := 1 to p-1 do off := off+ra.lpdx^[i]
-
-         end
-
-      end;
-      ijustpos := off { return result }
-
-   end
-
-end;
-
 function justpos(var f: text; view s: string; p, n: integer): integer; 
 
-var win: winptr; { window pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   justpos := ijustpos(win, s, p, n); { find justified character position }
-   unlockmain { end exclusive access }
-
-end;
-
-overload function justpos(view s: string; p, n: integer): integer; 
-
-var win: winptr; { window pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   justpos := ijustpos(win, s, p, n); { find justified character position }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -4316,16 +1974,6 @@ Not implemented yet.
 procedure condensed(var f: text; e: boolean); 
 
 begin
-
-   refer(f, e) { stub out }
-
-end;
-
-overload procedure condensed(e: boolean); 
-
-begin
-
-   refer(e) { stub out }
 
 end;
 
@@ -4350,14 +1998,6 @@ begin
 
 end;
 
-overload procedure extended(e: boolean); 
-
-begin
-
-   refer(e) { stub out }
-
-end;
-
 {******************************************************************************
 
 Turn on extra light attribute
@@ -4374,16 +2014,6 @@ Not implemented yet.
 procedure xlight(var f: text; e: boolean); 
 
 begin
-
-   refer(f, e) { stub out }
-
-end;
-
-overload procedure xlight(e: boolean); 
-
-begin
-
-   refer(e) { stub out }
 
 end;
 
@@ -4404,16 +2034,6 @@ procedure light(var f: text; e: boolean);
 
 begin
 
-   refer(f, e) { stub out }
-
-end;
-
-overload procedure light(e: boolean); 
-
-begin
-
-   refer(e) { stub out }
-
 end;
 
 {******************************************************************************
@@ -4432,16 +2052,6 @@ Not implemented yet.
 procedure xbold(var f: text; e: boolean); 
 
 begin
-
-   refer(f, e) { stub out }
-
-end;
-
-overload procedure xbold(e: boolean); 
-
-begin
-
-   refer(e) { stub out }
 
 end;
 
@@ -4462,16 +2072,6 @@ procedure hollow(var f: text; e: boolean);
 
 begin
 
-   refer(f, e) { stub out }
-
-end;
-
-overload procedure hollow(e: boolean); 
-
-begin
-
-   refer(e) { stub out }
-
 end;
 
 {******************************************************************************
@@ -4491,16 +2091,6 @@ procedure raised(var f: text; e: boolean);
 
 begin
 
-   refer(f, e) { stub out }
-
-end;
-
-overload procedure raised(e: boolean); 
-
-begin
-
-   refer(e) { stub out }
-
 end;
 
 {******************************************************************************
@@ -4511,52 +2101,9 @@ Deletes a loaded picture.
 
 ******************************************************************************}
 
-procedure idelpict(win: winptr; p: integer);
-
-var r: integer; { result holder }
-    b: boolean; { result holder }
-
-begin
-
-   with win^ do begin { in window context }
-
-      if (p < 1) or (p > maxpic) then error(einvhan); { bad picture handle }
-      if pictbl[p].han = 0 then error(einvhan); { bad picture handle }
-      r := sc_selectobject(pictbl[p].hdc, pictbl[p].ohn); { reselect old object }
-      if r = -1 then winerr; { process windows error }
-      b := sc_deletedc(pictbl[p].hdc); { delete device context }
-      if not b then winerr; { process windows error }
-      b := sc_deleteobject(pictbl[p].han); { delete bitmap }
-      if not b then winerr; { process windows error }
-      pictbl[p].han := 0 { set this entry free }
-
-   end
-
-end;
-
 procedure delpict(var f: text; p: integer);
 
-var win: winptr; { window pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   idelpict(win, p); { delete picture file }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure delpict(p: integer);
-
-var win: winptr; { window pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   idelpict(win, p); { delete picture file }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -4568,96 +2115,9 @@ Loads a picture into a slot of the loadable pictures array.
 
 ******************************************************************************}
 
-procedure iloadpict(win: winptr; p: integer; view fn: string);
-
-const maxfil = 250; { number of filename characters in buffer }
-
-var r:   integer;   { result holder }
-    bmi: sc_bitmap; { bit map information header }
-    fnh: packed array [1..maxfil] of char; { file name holder }
-    i:  integer;   { index for string }
-
-procedure setext(view ext: string);
-
-var i, x: integer; { index for string }
-    f:    boolean; { found flag } 
-
-begin
-
-   f := false; { set no extention found }
-   { search for extention }
-   for i := 1 to maxfil do if fnh[i] = '.' then f := true; { found }
-   if not f then begin { no extention, place one }
-
-      i := maxfil; { index last character in string }
-      while (i > 1) and (fnh[i] = ' ') do i := i-1;
-      if maxfil-i < 4 then error(epicftl); { filename too large }
-      for x := 1 to 4 do fnh[i+x] := ext[x] { place extention }
-
-   end
-
-end;
-
-begin
-
-   with win^ do begin { in window context }
-
-      if len(fn) > maxfil then error(epicftl); { filename too large }
-      clears(fnh); { clear filename holding }
-      for i := 1 to len(fn) do fnh[i] := fn[i]; { copy }
-      setext('.bmp'); { try bitmap first }
-      if not exists(fnh) then begin { try dib }
-
-         setext('.dib');
-         if not exists(fnh) then error(epicfnf); { no file found }
-
-      end;
-      if (p < 1) or (p > maxpic) then error(einvhan); { bad picture handle }
-      { if the slot is already occupied, delete that picture }
-      if pictbl[p].han <> 0 then idelpict(win, p);
-      { load the image into memory }
-      pictbl[p].han :=
-         sc_loadimage(0, fnh, sc_image_bitmap, 0, 0, sc_lr_loadfromfile);
-      if pictbl[p].han = 0 then winerr; { process windows error }
-      { put it into a device context }
-      pictbl[p].hdc := sc_createcompatibledc(devcon);
-      if pictbl[p].hdc = 0 then winerr; { process windows error }
-      { select that to device context }
-      pictbl[p].ohn := sc_selectobject(pictbl[p].hdc, pictbl[p].han);
-      if pictbl[p].ohn = -1 then winerr; { process windows error }
-      { get sizes }
-      r := sc_getobject_bitmap(pictbl[p].han, sc_bitmap_len, bmi);
-      if r = 0 then winerr; { process windows error }
-      pictbl[p].sx := bmi.bmwidth; { set size x }
-      pictbl[p].sy := bmi.bmheight { set size x }
-
-   end
-
-end;
-
 procedure loadpict(var f: text; p: integer; view fn: string);
 
-var win: winptr; { window pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   iloadpict(win, p, fn); { load picture file }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure loadpict(p: integer; view fn: string);
-
-var win: winptr; { window pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iloadpict(win, p, fn); { load picture file }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -4671,39 +2131,7 @@ Returns the size in x of the logical picture.
 
 function pictsizx(var f: text; p: integer): integer;
 
-var win: winptr; { window pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   with win^ do begin { in window context }
-
-      if (p < 1) or (p > maxpic) then error(einvhan); { bad picture handle }
-      if pictbl[p].han = 0 then error(einvhan); { bad picture handle }
-      pictsizx := pictbl[p].sx { return x size }
-
-   end;
-   unlockmain { end exclusive access }
-
-end;
-
-overload function pictsizx(p: integer): integer;
-
-var win: winptr; { window pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   with win^ do begin { in window context }
-
-      if (p < 1) or (p > maxpic) then error(einvhan); { bad picture handle }
-      if pictbl[p].han = 0 then error(einvhan); { bad picture handle }
-      pictsizx := pictbl[p].sx { return x size }
-
-   end;
-   unlockmain { end exclusive access }
 
 end;
 
@@ -4717,41 +2145,7 @@ Returns the size in y of the logical picture.
 
 function pictsizy(var f: text; p: integer): integer;
 
-var win: winptr; { window pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   with win^ do begin { in window context }
-
-      if (p < 1) or (p > maxpic) then error(einvhan); { bad picture handle }
-      if pictbl[p].han = 0 then error(einvhan); { bad picture handle }
-
-      pictsizy := pictbl[p].sy { return x size }
-
-   end;
-   unlockmain { end exclusive access }
-
-end;
-
-overload function pictsizy(p: integer): integer;
-
-var win: winptr; { window pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   with win^ do begin { in window context }
-
-      if (p < 1) or (p > maxpic) then error(einvhan); { bad picture handle }
-      if pictbl[p].han = 0 then error(einvhan); { bad picture handle }
-
-      pictsizy := pictbl[p].sy { return x size }
-
-   end;
-   unlockmain { end exclusive access }
 
 end;
 
@@ -4766,77 +2160,9 @@ Images will be kept in a rotating cache to prevent repeating reloads.
 
 ******************************************************************************}
 
-procedure ipicture(win: winptr; p: integer; x1, y1, x2, y2: integer);
-
-var b:   boolean;  { result holder }
-    rop: sc_dword; { rop holder }
-
-begin
-
-   with win^ do begin { in window context }
-
-      if (p < 1) or (p > maxpic) then error(einvhan); { bad picture handle }
-      if pictbl[p].han = 0 then error(einvhan); { bad picture handle }
-      case screens[curupd]^.fmod of { rop }
-
-         mdnorm:  rop := sc_srccopy; { straight }
-         mdinvis: ; { no-op }
-         mdxor:   rop := sc_srcinvert { xor }
-
-      end;
-      if screens[curupd]^.fmod <> mdinvis then begin { not a no-op }
-
-         if bufmod then begin { buffer mode on }
-
-            { paint to buffer }
-            b := sc_stretchblt(screens[curupd]^.bdc, 
-                               x1-1, y1-1, x2-x1+1, y2-y1+1,
-                               pictbl[p].hdc, 0, 0, pictbl[p].sx, pictbl[p].sy,
-                               rop);
-            if not b then winerr; { process windows error }
-
-         end;
-         if indisp(win) then begin { paint to screen }
-
-            if not visible then winvis(win); { make sure we are displayed }
-            curoff(win);
-            b := sc_stretchblt(devcon, x1-1, y1-1, x2-x1+1, y2-y1+1, 
-                               pictbl[p].hdc, 0, 0, pictbl[p].sx, pictbl[p].sy,
-                               rop);
-            if not b then winerr; { process windows error }
-            curon(win)
-
-         end
-
-      end
-
-   end
-
-end;
-
 procedure picture(var f: text; p: integer; x1, y1, x2, y2: integer);
 
-var win: winptr; { window pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   ipicture(win, p, x1, y1, x2, y2); { draw picture }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure picture(p: integer; x1, y1, x2, y2: integer);
-
-var win: winptr; { window pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   ipicture(win, p, x1, y1, x2, y2); { draw picture }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -4849,50 +2175,9 @@ Sets the offset of the viewport in logical space, in pixels, anywhere from
 
 ******************************************************************************}
 
-procedure iviewoffg(win: winptr; x, y: integer); 
-
-begin
-
-   with win^ do begin { in window context }
-
-      { check change is needed }
-      if (x <> screens[curupd]^.offx) and (y <> screens[curupd]^.offy) then begin
-
-         screens[curupd]^.offx := x; { set offsets }
-         screens[curupd]^.offy := y;
-         goffx := x;
-         goffy := y;
-         iclear(win) { clear buffer }
-
-      end
-
-   end
-
-end;
-
 procedure viewoffg(var f: text; x, y: integer); 
 
-var win: winptr; { window pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   iviewoffg(win, x, y); { set viewport offset }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure viewoffg(x, y: integer); 
-
-var win: winptr; { window pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iviewoffg(win, x, y); { set viewport offset }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -4916,325 +2201,9 @@ painting into a buffer and transfering asymmetrically, or using outlines.
 
 ******************************************************************************}
 
-procedure iviewscale(win: winptr; x, y: real); 
-
-begin
-   
-   with win^ do begin { in window context }
-
-      { in this starting simplistic formula, the ratio is set x*maxint/maxint.
-        it works, but can overflow for large coordinates or scales near 1 }
-      screens[curupd]^.wextx := 100;
-      screens[curupd]^.wexty := 100;
-      screens[curupd]^.vextx := trunc(x*100);
-      screens[curupd]^.vexty := trunc(y*100);
-      gwextx := 100;
-      gwexty := 100;
-      gvextx := trunc(x*100);
-      gvexty := trunc(y*100);
-      iclear(win) { clear buffer }
-
-   end
-
-end;
-
 procedure viewscale(var f: text; x, y: real);
 
-var win: winptr; { window pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   iviewscale(win, x, y); { set viewport scale }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure viewscale(x, y: real);
-
-var win: winptr; { window pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iviewscale(win, x, y); { set viewport scale }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure viewscale(var f: text; s: real);
-
-var win: winptr; { window pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   iviewscale(win, s, s); { set viewport scale }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure viewscale(s: real);
-
-var win: winptr; { window pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   iviewscale(win, s, s); { set viewport scale }
-   unlockmain { end exclusive access }
-
-end;
-
-{******************************************************************************
-
-Print message string
-
-This routine is for diagnostic use. Comment it out on production builds.
-
-******************************************************************************}
-
-procedure prtmsgstr(mn: integer);
-
-begin
-
-   prtnum(mn, 4, 16);
-   prtstr(': ');
-   if (mn >= $800) and (mn <= $bfff) then prtstr('User message')
-   else if (mn >= $c000) and (mn <= $ffff) then prtstr('Registered message')
-   else case mn of
-
-      $0000: prtstr('WM_NULL');                 
-      $0001: prtstr('WM_CREATE');               
-      $0002: prtstr('WM_DESTROY');              
-      $0003: prtstr('WM_MOVE');                 
-      $0005: prtstr('WM_SIZE');                 
-      $0006: prtstr('WM_ACTIVATE');             
-      $0007: prtstr('WM_SETFOCUS');             
-      $0008: prtstr('WM_KILLFOCUS');            
-      $000A: prtstr('WM_ENABLE');               
-      $000B: prtstr('WM_SETREDRAW');            
-      $000C: prtstr('WM_SETTEXT');              
-      $000D: prtstr('WM_GETTEXT');              
-      $000E: prtstr('WM_GETTEXTLENGTH');        
-      $000F: prtstr('WM_PAINT');                
-      $0010: prtstr('WM_CLOSE');                
-      $0011: prtstr('WM_QUERYENDSESSION');      
-      $0012: prtstr('WM_QUIT');                 
-      $0013: prtstr('WM_QUERYOPEN');            
-      $0014: prtstr('WM_ERASEBKGND');           
-      $0015: prtstr('WM_SYSCOLORCHANGE');       
-      $0016: prtstr('WM_ENDSESSION');           
-      $0018: prtstr('WM_SHOWWINDOW');           
-      $001A: prtstr('WM_WININICHANGE');         
-      $001B: prtstr('WM_DEVMODECHANGE');        
-      $001C: prtstr('WM_ACTIVATEAPP');          
-      $001D: prtstr('WM_FONTCHANGE');           
-      $001E: prtstr('WM_TIMECHANGE');           
-      $001F: prtstr('WM_CANCELMODE');           
-      $0020: prtstr('WM_SETCURSOR');            
-      $0021: prtstr('WM_MOUSEACTIVATE');        
-      $0022: prtstr('WM_CHILDACTIVATE');        
-      $0023: prtstr('WM_QUEUESYNC');            
-      $0024: prtstr('WM_GETMINMAXINFO');        
-      $0026: prtstr('WM_PAINTICON');            
-      $0027: prtstr('WM_ICONERASEBKGND');       
-      $0028: prtstr('WM_NEXTDLGCTL');           
-      $002A: prtstr('WM_SPOOLERSTATUS');        
-      $002B: prtstr('WM_DRAWITEM');             
-      $002C: prtstr('WM_MEASUREITEM');          
-      $002D: prtstr('WM_DELETEITEM');           
-      $002E: prtstr('WM_VKEYTOITEM');           
-      $002F: prtstr('WM_CHARTOITEM');           
-      $0030: prtstr('WM_SETFONT');              
-      $0031: prtstr('WM_GETFONT');              
-      $0032: prtstr('WM_SETHOTKEY');            
-      $0033: prtstr('WM_GETHOTKEY');            
-      $0037: prtstr('WM_QUERYDRAGICON');        
-      $0039: prtstr('WM_COMPAREITEM');          
-      $0041: prtstr('WM_COMPACTING');           
-      $0042: prtstr('WM_OTHERWINDOWCREATED');   
-      $0043: prtstr('WM_OTHERWINDOWDESTROYED'); 
-      $0044: prtstr('WM_COMMNOTIFY');           
-      $0045: prtstr('WM_HOTKEYEVENT');          
-      $0046: prtstr('WM_WINDOWPOSCHANGING');    
-      $0047: prtstr('WM_WINDOWPOSCHANGED');     
-      $0048: prtstr('WM_POWER');                
-      $004A: prtstr('WM_COPYDATA');             
-      $004B: prtstr('WM_CANCELJOURNAL');        
-      $004E: prtstr('WM_NOTIFY');
-      $0050: prtstr('WM_INPUTLANGCHANGEREQUEST');
-      $0051: prtstr('WM_INPUTLANGCHANGE');              
-      $0052: prtstr('WM_TCARD');                        
-      $0053: prtstr('WM_HELP');                         
-      $0054: prtstr('WM_USERCHANGED');                  
-      $0055: prtstr('WM_NOTIFYFORMAT');                 
-      $007B: prtstr('WM_CONTEXTMENU');                  
-      $007C: prtstr('WM_STYLECHANGING');                
-      $007D: prtstr('WM_STYLECHANGED');                 
-      $007E: prtstr('WM_DISPLAYCHANGE');                
-      $007F: prtstr('WM_GETICON');                      
-      $0080: prtstr('WM_SETICON');                      
-      $0081: prtstr('WM_NCCREATE');             
-      $0082: prtstr('WM_NCDESTROY');            
-      $0083: prtstr('WM_NCCALCSIZE');           
-      $0084: prtstr('WM_NCHITTEST');            
-      $0085: prtstr('WM_NCPAINT');              
-      $0086: prtstr('WM_NCACTIVATE');           
-      $0087: prtstr('WM_GETDLGCODE');           
-      $00A0: prtstr('WM_NCMOUSEMOVE');          
-      $00A1: prtstr('WM_NCLBUTTONDOWN');        
-      $00A2: prtstr('WM_NCLBUTTONUP');          
-      $00A3: prtstr('WM_NCLBUTTONDBLCLK');      
-      $00A4: prtstr('WM_NCRBUTTONDOWN');        
-      $00A5: prtstr('WM_NCRBUTTONUP');          
-      $00A6: prtstr('WM_NCRBUTTONDBLCLK');      
-      $00A7: prtstr('WM_NCMBUTTONDOWN');        
-      $00A8: prtstr('WM_NCMBUTTONUP');          
-      $00A9: prtstr('WM_NCMBUTTONDBLCLK');      
-      {$0100: prtstr('WM_KEYFIRST');}             
-      $0100: prtstr('WM_KEYDOWN');
-      $0101: prtstr('WM_KEYUP');                
-      $0102: prtstr('WM_CHAR');                 
-      $0103: prtstr('WM_DEADCHAR');             
-      $0104: prtstr('WM_SYSKEYDOWN');           
-      $0105: prtstr('WM_SYSKEYUP');             
-      $0106: prtstr('WM_SYSCHAR');              
-      $0107: prtstr('WM_SYSDEADCHAR');          
-      $0108: prtstr('WM_KEYLAST');              
-      $0109: prtstr('WM_UNICHAR');
-      $0110: prtstr('WM_INITDIALOG');           
-      $0111: prtstr('WM_COMMAND');              
-      $0112: prtstr('WM_SYSCOMMAND');           
-      $0113: prtstr('WM_TIMER');                
-      $0114: prtstr('WM_HSCROLL');              
-      $0115: prtstr('WM_VSCROLL');              
-      $0116: prtstr('WM_INITMENU');             
-      $0117: prtstr('WM_INITMENUPOPUP');        
-      $011F: prtstr('WM_MENUSELECT');           
-      $0120: prtstr('WM_MENUCHAR');             
-      $0121: prtstr('WM_ENTERIDLE');            
-      $0132: prtstr('WM_CTLCOLORMSGBOX');       
-      $0133: prtstr('WM_CTLCOLOREDIT');         
-      $0134: prtstr('WM_CTLCOLORLISTBOX');      
-      $0135: prtstr('WM_CTLCOLORBTN');          
-      $0136: prtstr('WM_CTLCOLORDLG');          
-      $0137: prtstr('WM_CTLCOLORSCROLLBAR');    
-      $0138: prtstr('WM_CTLCOLORSTATIC');       
-      { $0200: prtstr('WM_MOUSEFIRST'); }
-      $0200: prtstr('WM_MOUSEMOVE');
-      $0201: prtstr('WM_LBUTTONDOWN');          
-      $0202: prtstr('WM_LBUTTONUP');            
-      $0203: prtstr('WM_LBUTTONDBLCLK');        
-      $0204: prtstr('WM_RBUTTONDOWN');          
-      $0205: prtstr('WM_RBUTTONUP');            
-      $0206: prtstr('WM_RBUTTONDBLCLK');        
-      $0207: prtstr('WM_MBUTTONDOWN');          
-      $0208: prtstr('WM_MBUTTONUP');            
-      $0209: prtstr('WM_MBUTTONDBLCLK');        
-      { $0209: prtstr('WM_MOUSELAST'); }           
-      $0210: prtstr('WM_PARENTNOTIFY');         
-      $0211: prtstr('WM_ENTERMENULOOP');        
-      $0212: prtstr('WM_EXITMENULOOP');         
-      $0220: prtstr('WM_MDICREATE');            
-      $0221: prtstr('WM_MDIDESTROY');           
-      $0222: prtstr('WM_MDIACTIVATE');          
-      $0223: prtstr('WM_MDIRESTORE');           
-      $0224: prtstr('WM_MDINEXT');              
-      $0225: prtstr('WM_MDIMAXIMIZE');          
-      $0226: prtstr('WM_MDITILE');              
-      $0227: prtstr('WM_MDICASCADE');           
-      $0228: prtstr('WM_MDIICONARRANGE');       
-      $0229: prtstr('WM_MDIGETACTIVE');         
-      $0230: prtstr('WM_MDISETMENU');           
-      $0231: prtstr('WM_ENTERSIZEMOVE');           
-      $0232: prtstr('WM_EXITSIZEMOVE');           
-      $0233: prtstr('WM_DROPFILES');            
-      $0234: prtstr('WM_MDIREFRESHMENU');       
-      $0300: prtstr('WM_CUT');                  
-      $0301: prtstr('WM_COPY');                 
-      $0302: prtstr('WM_PASTE');                
-      $0303: prtstr('WM_CLEAR');                
-      $0304: prtstr('WM_UNDO');                 
-      $0305: prtstr('WM_RENDERFORMAT');         
-      $0306: prtstr('WM_RENDERALLFORMATS');     
-      $0307: prtstr('WM_DESTROYCLIPBOARD');     
-      $0308: prtstr('WM_DRAWCLIPBOARD');        
-      $0309: prtstr('WM_PAINTCLIPBOARD');       
-      $030A: prtstr('WM_VSCROLLCLIPBOARD');     
-      $030B: prtstr('WM_SIZECLIPBOARD');        
-      $030C: prtstr('WM_ASKCBFORMATNAME');      
-      $030D: prtstr('WM_CHANGECBCHAIN');        
-      $030E: prtstr('WM_HSCROLLCLIPBOARD');     
-      $030F: prtstr('WM_QUERYNEWPALETTE');      
-      $0310: prtstr('WM_PALETTEISCHANGING');    
-      $0311: prtstr('WM_PALETTECHANGED');       
-      $0312: prtstr('WM_HOTKEY');               
-      $0380: prtstr('WM_PENWINFIRST');          
-      $038F: prtstr('WM_PENWINLAST');           
-      $03A0: prtstr('MM_JOY1MOVE');
-      $03A1: prtstr('MM_JOY2MOVE');
-      $03A2: prtstr('MM_JOY1ZMOVE');
-      $03A3: prtstr('MM_JOY2ZMOVE');
-      $03B5: prtstr('MM_JOY1BUTTONDOWN');
-      $03B6: prtstr('MM_JOY2BUTTONDOWN');
-      $03B7: prtstr('MM_JOY1BUTTONUP');
-      $03B8: prtstr('MM_JOY2BUTTONUP');
-      else prtstr('???')
-
-   end
-
-end;
-
-{******************************************************************************
-
-Print message diagnostic
-
-This routine is for diagnostic use. Comment it out on production builds.
-
-******************************************************************************}
-
-procedure prtmsg(var m: sc_msg);
-
-begin
-
-   prtstr('handle: ');
-   prtnum(m.hwnd, 8, 16); 
-   prtstr(' message: '); 
-   prtmsgstr(m.message); 
-   prtstr(' wparam: '); 
-   prtnum(m.wparam, 8, 16); 
-   prtstr(' lparam: ');
-   prtnum(m.lparam, 8, 16);
-   prtstr('\cr\lf')
-
-end;
-
-{******************************************************************************
-
-Print unpacked message diagnostic
-
-This routine is for diagnostic use. Comment it out on production builds.
-
-******************************************************************************}
-
-procedure prtmsgu(hwnd, imsg, wparam, lparam: integer);
-
-begin
-
-   prtstr('handle: ');
-   prtnum(hwnd, 8, 16); 
-   prtstr(' message: '); 
-   prtmsgstr(imsg); 
-   prtstr(' wparam: '); 
-   prtnum(wparam, 8, 16); 
-   prtstr(' lparam: ');
-   prtnum(lparam, 8, 16);
-   prtstr('\cr\lf')
 
 end;
 
@@ -5247,1111 +2216,9 @@ the standard input handle allways used.
 
 ******************************************************************************}
 
-procedure ievent(ifn: ss_filhdl; var er: evtrec);
-
-var msg:    sc_msg;    { windows message }
-    keep:   boolean;   { keep event flag }
-    win:    winptr;    { pointer to windows structure }
-    ofn:    ss_filhdl; { file handle from incoming message }
-    ep:     eqeptr;    { event queuing pointer }
-    b:      boolean;   { return value }
-
-{
-
-Process keyboard event.
-The events are mapped from IBM-PC keyboard keys as follows:
-
-etup      up arrow            cursor up one line 
-etdown    down arrow          down one line 
-etleft    left arrow          left one character 
-etright   right arrow         right one character 
-etleftw   cntrl-left arrow    left one word 
-etrightw  cntrl-right arrow   right one word 
-ethome    cntrl-home          home of document 
-ethomes   shift-home          home of screen 
-ethomel   home                home of line 
-etend     cntrl-end           end of document 
-etends    shift-end           end of screen 
-etendl    end                 end of line 
-etscrl    shift-left arrow    scroll left one character 
-etscrr    shift-right arrow   scroll right one character 
-etscru    cntrl-up arrow      scroll up one line 
-etscrd    cntrl-down arrow    scroll down one line 
-etpagd    page down           page down 
-etpagu    page up             page up 
-ettab     tab                 tab 
-etenter   enter               enter line 
-etinsert  cntrl-insert        insert block 
-etinsertl shift-insert        insert line 
-etinsertt insert              insert toggle 
-etdel     cntrl-del           delete block 
-etdell    shift-del           delete line 
-etdelcf   del                 delete character forward 
-etdelcb   backspace           delete character backward 
-etcopy    cntrl-f1            copy block 
-etcopyl   shift-f1            copy line 
-etcan     esc                 cancel current operation 
-etstop    cntrl-s             stop current operation 
-etcont    cntrl-q             continue current operation 
-etprint   shift-f2            print document
-etprintb  cntrl-f2            print block
-etprints  cntrl-f3            print screen 
-etfun     f1-f12              function keys
-etmenu    alt                 display menu 
-etend     cntrl-c             terminate program 
-
-This is equivalent to the CUA or Common User Access keyboard mapping with 
-various local extentions.
-
-}
-
-procedure keyevent;
-
-begin
-
-   if chr(msg.wparam) = '\cr' then er.etype := etenter { set enter line }
-   else if chr(msg.wparam) = '\bs' then 
-      er.etype := etdelcb { set delete character backwards }
-   else if chr(msg.wparam) = '\ht' then er.etype := ettab { set tab }
-   else if chr(msg.wparam) = '\etx' then begin
-
-      er.etype := etterm; { set end program }
-      fend := true { set end was ordered }
-
-   end else if chr(msg.wparam) = '\xoff' then
-      er.etype := etstop { set stop program }
-   else if chr(msg.wparam) = '\xon' then
-      er.etype := etcont { set continue program }
-   else if chr(msg.wparam) = '\esc' then
-      er.etype := etcan { set cancel operation }
-   else begin { normal character }
-
-      er.etype := etchar; { set character event }
-      er.char := chr(msg.wparam)
-
-   end;
-   keep := true { set keep event }
-
-end;
-
-procedure ctlevent;
-
-begin
-
-   with win^ do begin { in window context }
-
-      if msg.wparam <= $ff then
-         { limited to codes we can put in a set }
-         if msg.wparam in 
-            [sc_vk_home, sc_vk_end, sc_vk_left, sc_vk_right,
-             sc_vk_up, sc_vk_down, sc_vk_insert, sc_vk_delete,
-             sc_vk_prior, sc_vk_next, sc_vk_f1..sc_vk_f12,
-             sc_vk_menu, sc_vk_cancel] then begin
-
-         { this key is one we process }
-         case msg.wparam of { key }
-
-            sc_vk_home: begin { home }
-             
-               if cntrl then er.etype := ethome { home document }
-               else if shift then er.etype := ethomes { home screen }
-               else er.etype := ethomel { home line }
-
-            end;
-            sc_vk_end: begin { end }
-
-               if cntrl then er.etype := etend { end document }
-               else if shift then er.etype := etends { end screen }
-               else er.etype := etendl { end line }
-
-            end;
-            sc_vk_up: begin { up }
-
-               if cntrl then er.etype := etscru { scroll up }
-               else er.etype := etup { up line }
-
-            end;
-            sc_vk_down: begin { down }
-
-               if cntrl then er.etype := etscrd { scroll down }
-               else er.etype := etdown { up line }
-
-            end;
-            sc_vk_left: begin { left }
-
-               if cntrl then er.etype := etleftw { left one word }
-               else if shift then er.etype := etscrl { scroll left one character }
-               else er.etype := etleft { left one character }
-
-            end;
-            sc_vk_right: begin { right }
-
-               if cntrl then er.etype := etrightw { right one word }
-               else if shift then er.etype := etscrr { scroll right one character }
-               else er.etype := etright { left one character }
-
-            end;
-            sc_vk_insert: begin { insert }
-
-               if cntrl then er.etype := etinsert { insert block }
-               else if shift then er.etype := etinsertl { insert line }
-               else er.etype := etinsertt { insert toggle }
-
-            end;
-            sc_vk_delete: begin { delete }
-
-               if cntrl then er.etype := etdel { delete block }
-               else if shift then er.etype := etdell { delete line }
-               else er.etype := etdelcf { insert toggle }
-
-            end;
-            sc_vk_prior: er.etype := etpagu; { page up }
-            sc_vk_next: er.etype := etpagd; { page down }
-            sc_vk_f1: begin { f1 }
-
-               if cntrl then er.etype := etcopy { copy block }
-               else if shift then er.etype := etcopyl { copy line }
-               else begin { f1 }
-
-                  er.etype := etfun;
-                  er.fkey := 1
-
-               end
-
-            end;
-            sc_vk_f2: begin { f2 }
-
-               if cntrl then er.etype := etprintb { print block }
-               else if shift then er.etype := etprint { print document }
-               else begin { f2 }
-
-                  er.etype := etfun;
-                  er.fkey := 2
-
-               end
-
-            end;
-            sc_vk_f3: begin { f3 }
-
-               if cntrl then er.etype := etprints { print screen }
-               else begin { f3 }
-
-                  er.etype := etfun;
-                  er.fkey := 3
-
-               end
-
-            end;
-            sc_vk_f4: begin { f4 }
-
-               er.etype := etfun;
-               er.fkey := 4
-
-            end;
-            sc_vk_f5: begin { f5 }
-
-               er.etype := etfun;
-               er.fkey := 5
-
-            end;
-            sc_vk_f6: begin { f6 }
-
-               er.etype := etfun;
-               er.fkey := 6
-
-            end;
-            sc_vk_f7: begin { f7 }
-
-               er.etype := etfun;
-               er.fkey := 7
-
-            end;
-            sc_vk_f8: begin { f8 }
-
-               er.etype := etfun;
-               er.fkey := 8
-
-            end;
-            sc_vk_f9: begin { f9 }
-
-               er.etype := etfun;
-               er.fkey := 9
-
-            end;
-            sc_vk_f10: begin { f10 }
-
-               er.etype := etfun;
-               er.fkey := 10
-
-            end;
-            sc_vk_f11: begin { f11 }
-
-               er.etype := etfun;
-               er.fkey := 11
-
-            end;
-            sc_vk_f12: begin { f12 }
-
-               er.etype := etfun;
-               er.fkey := 12
-
-            end;
-            sc_vk_menu: er.etype := etmenu; { alt }
-            sc_vk_cancel: er.etype := etterm; { ctl-brk }
-
-         end;
-         keep := true { set keep event }
-
-      end
-
-   end
-
-end;
-
-{
-
-Process mouse event.
-Buttons are assigned to Win 95 as follows:
-
-button 1: Windows left button
-button 2: Windows right button
-button 3: Windows middle from left button
-
-Button 4 is unused. Double clicks will be ignored, displaying my utter
-contempt for the whole double click concept.
-
-}
-
-{ update mouse parameters }
-
-procedure mouseupdate;
-
-begin
-
-   with win^ do begin { in window context }
-
-      { we prioritize events by: movements 1st, button clicks 2nd }
-      if (nmpx <> mpx) or (nmpy <> mpy) then begin { create movement event }
-
-         er.etype := etmoumov; { set movement event }
-         er.mmoun := 1; { mouse 1 }
-         er.moupx := nmpx; { set new mouse position }
-         er.moupy := nmpy;
-         mpx := nmpx; { save new position }
-         mpy := nmpy;
-         keep := true { set to keep }
-
-      end else if (nmpxg <> mpxg) or (nmpyg <> mpyg) then begin
-
-         { create graphical movement event }
-         er.etype := etmoumovg; { set movement event }
-         er.mmoung := 1; { mouse 1 }
-         er.moupxg := nmpxg; { set new mouse position }
-         er.moupyg := nmpyg;
-         mpxg := nmpxg; { save new position }
-         mpyg := nmpyg;
-         keep := true { set to keep }
-
-      end else if nmb1 > mb1 then begin
-
-         er.etype := etmouba; { button 1 assert }
-         er.amoun := 1; { mouse 1 }
-         er.amoubn := 1; { button 1 }
-         mb1 := nmb1; { update status }
-         keep := true { set to keep }
-
-      end else if nmb2 > mb2 then begin
-
-         er.etype := etmouba; { button 2 assert }
-         er.amoun := 1; { mouse 1 }
-         er.amoubn := 2; { button 2 }
-         mb2 := nmb2; { update status }
-         keep := true { set to keep }
-
-      end else if nmb3 > mb3 then begin
-
-         er.etype := etmouba; { button 3 assert }
-         er.amoun := 1; { mouse 1 }
-         er.amoubn := 3; { button 3 }
-         mb3 := nmb3; { update status }
-         keep := true { set to keep }
-
-      end else if nmb1 < mb1 then begin
-
-         er.etype := etmoubd; { button 1 deassert }
-         er.dmoun := 1; { mouse 1 }
-         er.dmoubn := 1; { button 1 }
-         mb1 := nmb1; { update status }
-         keep := true { set to keep }
-
-      end else if nmb2 < mb2 then begin
-
-         er.etype := etmoubd; { button 2 deassert }
-         er.dmoun := 1; { mouse 1 }
-         er.dmoubn := 2; { button 2 }
-         mb2 := nmb2; { update status }
-         keep := true { set to keep }
-
-      end else if nmb3 < mb3 then begin
-
-         er.etype := etmoubd; { button 3 deassert }
-         er.dmoun := 1; { mouse 1 }
-         er.dmoubn := 3; { button 3 }
-         mb3 := nmb3; { update status }
-         keep := true { set to keep }
-
-      end
-
-   end
-
-end;
-
-{ register mouse status }
-
-procedure mouseevent;
-
-begin
-
-   with win^ do begin { in window context }
-
-      nmpx := msg.lparam mod 65536 div charspace+1; { get mouse x }
-      nmpy := msg.lparam div 65536 div linespace+1; { get mouse y }
-      nmpxg := msg.lparam mod 65536+1; { get mouse graphical x }
-      nmpyg := msg.lparam div 65536+1; { get mouse graphical y }
-      { set new button statuses }
-      if msg.message = sc_wm_lbuttondown then nmb1 := true;
-      if msg.message = sc_wm_lbuttonup then nmb1 := false;
-      if msg.message = sc_wm_mbuttondown then nmb2 := true;
-      if msg.message = sc_wm_mbuttonup then nmb2 := false;
-      if msg.message = sc_wm_rbuttondown then nmb3 := true;
-      if msg.message = sc_wm_rbuttonup then nmb3 := false
-
-   end
-
-end;
-
-{ queue event to window }
-
-procedure enqueue(var el: eqeptr; var er: evtrec);
-
-var ep: eqeptr; { pointer to queue entries }
-
-begin
-
-   geteqe(ep); { get a new event container }
-   ep^.evt := er; { copy event to container }
-   { insert into bubble list }
-   if el = nil then begin { list empty, place as first entry }
-
-      ep^.last := ep; { tie entry to itself }
-      ep^.next := ep
-
-   end else begin { list has entries }
-
-      ep^.last := el; { link last to current }
-      ep^.next := el^.next; { link next to next of current }
-      el^.next := ep { link current to new }
-
-   end;
-   el := ep { set that as new root }
-   { ok, new entries are moving to the last direction, and we remove entries
-     from the next direction. }
-
-end;
-
-{ process joystick messages }
-
-procedure joymes;
-
-{ issue event for changed button }
-
-procedure updn(bn, bm: integer);
-
-begin
-
-   { if there is already a message processed, enqueue that }
-   if keep then enqueue(opnfil[opnfil[ofn]^.inl]^.evt, er); { queue it }
-   if (msg.wparam and bm) <> 0 then begin { assert }
-
-      er.etype := etjoyba; { set assert }
-      if (msg.message = sc_mm_joy1buttondown) or 
-         (msg.message = sc_mm_joy1buttonup) then er.ajoyn := 1
-      else er.ajoyn := 2;
-      er.ajoybn := bn { set number }
-
-   end else begin { deassert }
-
-      er.etype := etjoybd; { set deassert }
-      if (msg.message = sc_mm_joy1buttondown) or 
-         (msg.message = sc_mm_joy1buttonup) then er.ajoyn := 1
-      else er.ajoyn := 2;
-      er.djoybn := bn { set number }
-   
-   end;
-   keep := true { set keep event }
-
-end;
-
-begin
-
-   { register changes on each button }
-   if (msg.wparam and sc_joy_button1chg) <> 0 then updn(1, sc_joy_button1);
-   if (msg.wparam and sc_joy_button2chg) <> 0 then updn(2, sc_joy_button2);
-   if (msg.wparam and sc_joy_button3chg) <> 0 then updn(3, sc_joy_button3);
-   if (msg.wparam and sc_joy_button4chg) <> 0 then updn(4, sc_joy_button4)
-
-end;
-
-{ process windows messages to event }
-
-procedure winevt;
-
-var cr:         sc_rect; { client rectangle }
-    wp:         wigptr;  { widget entry pointer }
-    r:          integer; { result holder }
-    b:          boolean; { boolean result }
-    v:          integer; { value }
-    x, y, z:    integer; { joystick readback }
-    dx, dy, dz: integer; { joystick readback differences }
-    nm:         integer; { notification message }
-    f:          real;    { floating point temp }
-    i2nmhdrp: record { convertion record }
-
-       case boolean of
-
-          true:  (i:  integer);
-          false: (rp: ^sc_nmhdr);
-
-    end;
-
-begin
-
-   with win^ do begin { in window context }
-
-      if msg.message = sc_wm_paint then begin { window paint }
-
-         if not bufmod then begin { our client handles it's own redraws }
-
-            { form redraw request }
-            b := sc_getupdaterect(winhan, cr, false);
-            er.etype := etredraw; { set redraw message }
-            er.rsx := msg.wparam div $10000; { fill the rectangle with update }
-            er.rsy := msg.wparam mod $10000;
-            er.rex := msg.lparam div $10000;
-            er.rey := msg.lparam mod $10000;
-            keep := true { set keep event }
-
-         end
-
-      end else if msg.message = sc_wm_size then begin { resize }
-
-         if not bufmod then begin { main thread handles resizes }
-
-            { check if maximize, minimize, or exit from either mode }
-            if msg.wparam = sc_size_maximized then begin
-
-               er.etype := etmax; { set maximize event }
-               { save the event ahead of the resize }
-               enqueue(opnfil[opnfil[ofn]^.inl]^.evt, er) { queue it }
-
-            end else if msg.wparam = sc_size_minimized then begin
-
-               er.etype := etmin; { set minimize event }
-               { save the event ahead of the resize }
-               enqueue(opnfil[opnfil[ofn]^.inl]^.evt, er) { queue it }
-
-            end else if (msg.wparam = sc_size_restored) and
-                        ((sizests = sc_size_minimized) or
-                         (sizests = sc_size_maximized)) then begin
-               
-               { window is restored, and was minimized or maximized }    
-               er.etype := etnorm; { set normalize event }
-               { save the event ahead of the resize }
-               enqueue(opnfil[opnfil[ofn]^.inl]^.evt, er) { queue it }
-
-            end;
-            sizests := msg.wparam; { save size status }
-            { process resize message }
-            gmaxxg := msg.lparam and $ffff; { set x size }
-            gmaxyg := msg.lparam div 65536 and $ffff; { set y size }
-            gmaxx := gmaxxg div charspace; { find character size x }
-            gmaxy := gmaxyg div linespace; { find character size y }
-            screens[curdsp]^.maxx := gmaxx; { copy to screen control }
-            screens[curdsp]^.maxy := gmaxy;
-            screens[curdsp]^.maxxg := gmaxxg;
-            screens[curdsp]^.maxyg := gmaxyg;
-            { place the resize message }
-            er.etype := etresize; { set resize message }
-            keep := true; { set keep event }
-
-         end
-
-      end else if msg.message = sc_wm_char then
-         keyevent { process characters }
-      else if msg.message = sc_wm_keydown then begin
-
-         if msg.wparam = sc_vk_shift then shift := true; { set shift active }
-         if msg.wparam = sc_vk_control then
-            cntrl := true; { set control active }
-         ctlevent { process control character }
-
-      end else if msg.message = sc_wm_keyup then begin
-
-         if msg.wparam = sc_vk_shift then
-            shift := false; { set shift inactive }
-         if msg.wparam = sc_vk_control then
-            cntrl := false { set control inactive }
-
-      end else if (msg.message = sc_wm_quit) or (msg.message = sc_wm_close) then
-         begin
-
-         er.etype := etterm; { set terminate }
-         fend := true; { set end of program ordered }
-         keep := true { set keep event }
-
-      end else if (msg.message = sc_wm_mousemove) or
-                  (msg.message = sc_wm_lbuttondown) or
-                  (msg.message = sc_wm_lbuttonup) or
-                  (msg.message = sc_wm_mbuttondown) or
-                  (msg.message = sc_wm_mbuttonup) or
-                  (msg.message = sc_wm_rbuttondown) or
-                  (msg.message = sc_wm_rbuttonup) then begin
-
-         mouseevent; { mouse event }
-         mouseupdate { check any mouse details need processing }
-
-      end else if msg.message = sc_wm_timer then begin
-
-         { check its a standard timer }
-         if (msg.wparam > 0) and (msg.wparam <= maxtim) then begin
-
-            er.etype := ettim; { set timer event occurred }
-            er.timnum := msg.wparam; { set what timer }
-            keep := true { set keep event }
-
-         end else if msg.wparam = frmtim then begin { its the framing timer }
-
-            er.etype := etframe; { set frame event occurred }
-            keep := true { set keep event }
-
-         end
-
-      end else if (msg.message = sc_mm_joy1move) or
-                  (msg.message = sc_mm_joy2move) or
-                  (msg.message = sc_mm_joy1zmove) or
-                  (msg.message = sc_mm_joy2zmove) then begin
-
-         er.etype := etjoymov; { set joystick moved }
-         { set what joystick }
-         if (msg.message = sc_mm_joy1move) or 
-            (msg.message = sc_mm_joy1zmove) then er.mjoyn := 1
-         else er.mjoyn := 2;
-         { Set all variables to default to same. This way, only the joystick
-           axes that are actually set by the message are registered. }
-         if (msg.message = sc_mm_joy1move) or 
-            (msg.message = sc_mm_joy1zmove) then begin
-
-            x := joy1xs;
-            y := joy1ys;
-            z := joy1zs
-
-         end else begin
-
-            x := joy2xs;
-            y := joy2ys;
-            z := joy2zs
-
-         end;
-         { If it's an x/y move, split the x and y axies parts of the message
-           up. }
-         if (msg.message = sc_mm_joy1move) or 
-            (msg.message = sc_mm_joy2move) then sc_crkmsg(msg.lparam, y, x)
-         { For z axis, get a single variable. }
-         else z := msg.lparam and $ffff;
-         { We perform thresholding on the joystick right here, which is
-           limited to 255 steps (same as joystick hardware. find joystick
-           diffs and update }
-         if (msg.message = sc_mm_joy1move) or 
-            (msg.message = sc_mm_joy1zmove) then begin
-
-            dx := abs(joy1xs-x); { find differences }
-            dy := abs(joy1ys-y);
-            dz := abs(joy1zs-z);
-            joy1xs := x; { place old values }
-            joy1ys := y;
-            joy1zs := z
-
-         end else begin
-
-            dx := abs(joy2xs-x); { find differences }
-            dy := abs(joy2ys-y);
-            dz := abs(joy2zs-z);
-            joy2xs := x; { place old values }
-            joy2ys := y;
-            joy2zs := z
-
-         end;
-         { now reject moves below the threshold }
-         if (dx > 65535 div 255) or (dy > 65535 div 255) or 
-            (dz > 65535 div 255) then begin
-
-            { scale axies between -maxint..maxint and place }
-            er.joypx := (x - 32767)*(maxint div 32768);
-            er.joypy := (y - 32767)*(maxint div 32768);
-            er.joypz := (z - 32767)*(maxint div 32768);
-            keep := true { set keep event }
-
-         end
-   
-      end else if (msg.message = sc_mm_joy1buttondown) or
-                  (msg.message = sc_mm_joy2buttondown) or
-                  (msg.message = sc_mm_joy1buttonup) or
-                  (msg.message = sc_mm_joy2buttonup) then joymes
-      else if msg.message = sc_wm_command then begin
-
-         if msg.lparam <> 0 then begin { it's a widget }
-
-            wp := fndwig(win, msg.wparam and $ffff); { find the widget }
-            if wp = nil then error(esystem); { should be in the list }
-            nm := msg.wparam div $10000; { get notification message }
-            case wp^.typ of { widget type }
-
-               wtbutton: begin { button }
-
-                  if nm = sc_bn_clicked then begin
-   
-                     er.etype := etbutton; { set button assert event }
-                     er.butid := wp^.id; { get widget id }
-                     keep := true { set keep event }
-
-                  end
-
-               end;
-               wtcheckbox: begin { checkbox }
-               
-                  er.etype := etchkbox; { set checkbox select event }
-                  er.ckbxid := wp^.id; { get widget id }
-                  keep := true { set keep event }
-
-               end;
-               wtradiobutton: begin { radio button }
-
-                  er.etype := etradbut; { set checkbox select event }
-                  er.radbid := wp^.id; { get widget id }
-                  keep := true { set keep event }
-
-               end;
-               wtgroup: ; { group box, gives no messages }
-               wtbackground: ; { background box, gives no messages }
-               wtscrollvert: ; { scrollbar, gives no messages }
-               wtscrollhoriz: ; { scrollbar, gives no messages }
-               wteditbox: ; { edit box, requires no messages }
-               wtlistbox: begin { list box }
-
-                  if nm = sc_LBN_DBLCLK then begin
-
-                     unlockmain; { end exclusive access }
-                     r := sc_sendmessage(wp^.han, sc_lb_getcursel, 0, 0);
-                     lockmain; { start exclusive access }
-                     if r = -1 then error(esystem); { should be a select }
-                     er.etype := etlstbox; { set list box select event }
-                     er.lstbid := wp^.id; { get widget id }
-                     er.lstbsl := r+1; { set selection }
-                     keep := true { set keep event }
-
-                  end
-
-               end;
-               wtdropbox: begin { drop box }
-
-                  if nm = sc_CBN_SELENDOK then begin
-
-                     unlockmain; { end exclusive access }
-                     r := sc_sendmessage(wp^.han, sc_cb_getcursel, 0, 0);
-                     lockmain; { start exclusive access }
-                     if r = -1 then error(esystem); { should be a select }
-                     er.etype := etdrpbox; { set list box select event }
-                     er.drpbid := wp^.id; { get widget id }
-                     er.drpbsl := r+1; { set selection }
-                     keep := true { set keep event }
-
-                  end
-
-               end;
-               wtdropeditbox: begin { drop edit box }
-
-                  if nm = sc_CBN_SELENDOK then begin
-
-                     er.etype := etdrebox; { set list box select event }
-                     er.drebid := wp^.id; { get widget id }
-                     keep := true { set keep event }
-
-                  end
-
-               end;
-               wtslidehoriz: ; 
-               wtslidevert: ; 
-               wtnumselbox: ;
-
-            end
-
-         end else begin { it's a menu select }
-
-            er.etype := etmenus; { set menu select event }
-            er.menuid := msg.wparam and $ffff; { get menu id }
-            keep := true { set keep event }
-
-         end
-
-      end else if msg.message = sc_wm_vscroll then begin
-
-         v := msg.wparam and $ffff; { find subcommand }
-         if (v = sc_sb_thumbtrack) or
-            (v = sc_sb_lineup) or (v = sc_sb_linedown) or
-            (v = sc_sb_pageup) or (v = sc_sb_pagedown) then begin 
-
-            { position request }
-            wp := fndwighan(win, msg.lparam); { find widget tracking entry }
-            if wp = nil then error(esystem); { should have been found }
-            if wp^.typ = wtscrollvert then begin { scroll bar }
-
-               if v = sc_sb_lineup then begin
-
-                  er.etype := etsclull; { line up }
-                  er.sclulid := wp^.id
-
-               end else if v = sc_sb_linedown then begin
-
-                  er.etype := etscldrl; { line down }
-                  er.scldlid := wp^.id
-
-               end else if v = sc_sb_pageup then begin
-
-                  er.etype := etsclulp; { page up }
-                  er.sclupid := wp^.id
-
-               end else if v = sc_sb_pagedown then begin
-
-                  er.etype := etscldrp; { page down }
-                  er.scldpid := wp^.id
-
-               end else begin
-
-                  er.etype := etsclpos; { set scroll position event }
-                  er.sclpid := wp^.id; { set widget id }
-                  f := msg.wparam div $10000; { get current position to float }
-                  { clamp to maxint }
-                  if f*maxint/(255-wp^.siz) > maxint then er.sclpos := maxint
-                  else er.sclpos := round(f*maxint/(255-wp^.siz));
-                  {er.sclpos := msg.wparam div 65536*$800000} { get position }
-
-               end;
-               keep := true { set keep event }
-
-            end else if wp^.typ = wtslidevert then begin { slider }
-
-               er.etype := etsldpos; { set scroll position event }
-               er.sldpid := wp^.id; { set widget id }
-               { get position }
-               if v = sc_sb_thumbtrack then { message includes position }
-                  er.sldpos := msg.wparam div 65536*(maxint div 100)
-               else begin { must retrive the position by message }
-
-                  unlockmain; { end exclusive access }
-                  r := sc_sendmessage(wp^.han, sc_tbm_getpos, 0, 0);
-                  lockmain; { start exclusive access }
-                  er.sldpos := r*(maxint div 100) { set position }
-
-               end;
-               keep := true { set keep event }
-               
-            end else error(esystem) { should be one of those }
-
-         end
-
-      end else if msg.message = sc_wm_hscroll then begin
-
-         v := msg.wparam and $ffff; { find subcommand }
-         if (v = sc_sb_thumbtrack) or 
-            (v = sc_sb_lineleft) or (v = sc_sb_lineright) or
-            (v = sc_sb_pageleft) or (v = sc_sb_pageright) then begin 
-
-            { position request }
-            wp := fndwighan(win, msg.lparam); { find widget tracking entry }
-            if wp = nil then error(esystem); { should have been found }
-            if wp^.typ = wtscrollhoriz then begin { scroll bar }
-
-               if v = sc_sb_lineleft then begin
-
-                  er.etype := etsclull; { line up }
-                  er.sclulid := wp^.id
-
-               end else if v = sc_sb_lineright then begin
-
-                  er.etype := etscldrl; { line down }
-                  er.scldlid := wp^.id
-
-               end else if v = sc_sb_pageleft then begin
-
-                  er.etype := etsclulp; { page up }
-                  er.sclupid := wp^.id
-
-               end else if v = sc_sb_pageright then begin
-
-                  er.etype := etscldrp; { page down }
-                  er.scldpid := wp^.id
-
-               end else begin
-
-                  er.etype := etsclpos; { set scroll position event }
-                  er.sclpid := wp^.id; { set widget id }
-                  er.sclpos := msg.wparam div 65536*$800000 { get position }
-
-               end;
-               keep := true { set keep event }
-
-            end else if wp^.typ = wtslidehoriz then begin { slider }
-
-               er.etype := etsldpos; { set scroll position event }
-               er.sldpid := wp^.id; { set widget id }
-               { get position }
-               if v = sc_sb_thumbtrack then { message includes position }
-                  er.sldpos := msg.wparam div 65536*(maxint div 100)
-               else begin { must retrive the position by message }
-
-                  unlockmain; { end exclusive access }
-                  r := sc_sendmessage(wp^.han, sc_tbm_getpos, 0, 0);
-                  lockmain; { start exclusive access }
-                  er.sldpos := r*(maxint div 100) { set position }
-
-               end;
-               keep := true { set keep event }
-
-            end else error(esystem) { should be one of those }
-
-         end
-
-      end else if msg.message = sc_wm_notify then begin
-
-         wp := fndwig(win, msg.wparam); { find widget tracking entry }
-         if wp = nil then error(esystem); { should have been found }
-         i2nmhdrp.i := msg.lparam; { convert lparam to record pointer }
-         v := i2nmhdrp.rp^.code; { get code }
-         { no, I don't know why this works, or what the -2 code is. Tab controls
-           are giving me multiple indications, and the -2 code is more reliable
-           as a selection indicator. }
-         if v = -2 {sc_tcn_selchange} then begin
-
-            unlockmain; { end exclusive access }
-            r := sc_sendmessage(wp^.han, sc_tcm_getcursel, 0, 0);
-            lockmain; { start exclusive access }
-            er.etype := ettabbar; { set tab bar type }
-            er.tabid := wp^.id; { set id }
-            er.tabsel := r+1; { set tab number }
-            keep := true { keep event }
-
-         end
-
-      end else if msg.message = umeditcr then begin
-
-         wp := fndwig(win, msg.wparam); { find widget tracking entry }
-         if wp = nil then error(esystem); { should have been found }
-         er.etype := etedtbox; { set edit box complete event }
-         er.edtbid := wp^.id; { get widget id }
-         keep := true { set keep event }
-
-      end else if msg.message = umnumcr then begin
-
-         wp := fndwig(win, msg.wparam); { find widget tracking entry }
-         if wp = nil then error(esystem); { should have been found }
-         er.etype := etnumbox; { set number select box complete event }
-         er.numbid := wp^.id; { get widget id }
-         er.numbsl := msg.lparam; { set number selected }
-         keep := true { set keep event }
-
-      end
-
-   end
-
-end;
-
-procedure sigevt;
-
-begin
-
-   if (msg.message = sc_wm_quit) or (msg.message = sc_wm_close) then begin
-
-      er.etype := etterm; { set terminate }
-      fend := true; { set end of program ordered }
-      keep := true { set keep event }
-
-   end
-
-end;
-
-begin { ievent }
-
-   { Windows gdi caches, which can cause written graphics to pause uncompleted
-     while we await user input. This next causes a sync-up. }
-   b := sc_gdiflush;
-   { check there are events waiting on the input queue }
-   if opnfil[ifn]^.evt <> nil then with opnfil[ifn]^ do begin
-
-      { We pick one, and only one, event off the input queue. The messages are
-        removed in fifo order. }
-      ep := evt^.next; { index the entry to dequeue }
-      er := ep^.evt; { get the queued event }
-      { if this is the last entry in the queue, just empty the list }
-      if ep^.next = ep then evt := nil
-      else begin { not last entry }
-
-         ep^.next^.last := ep^.last; { link next to last }
-         ep^.last^.next := ep^.next; { link last to next }
-         puteqe(ep) { release entry }
-
-      end
-
-   end else repeat
-
-      keep := false; { set don't keep by default }
-      { get next message }
-      getmsg(msg);
-      { get the logical output file from Windows handle }
-      ofn := hwn2lfn(msg.hwnd);
-{;prtstr('ofn: '); prtnum(ofn, 8, 16); prtstr(' '); prtmsg(msg);}
-      { A message can have a window associated with it, or be sent anonymously.
-        Anonymous messages are typically intertask housekeeping signals. }
-      if ofn > 0 then begin
-
-         win := lfn2win(ofn); { index window from output file }
-         er.winid := filwin[ofn]; { set window id }
-         winevt; { process messsage }
-         if not keep then sigevt { if not found, try intertask signal }
-
-      end else sigevt; { process signal }
-      if keep and (ofn > 0) then begin { we have an event, and not main }
-
-         { check and error if no logical input file is linked to this output
-           window }
-         if opnfil[ofn]^.inl = 0 then error(esystem);
-         if opnfil[ofn]^.inl <> ifn then begin
-             
-            { The event is not for the input agent that is calling us. We will
-              queue the message up on the input file it is intended for. Why
-              would this happen ? Only if the program is switching between
-              input channels, since each input is locked to a task. }
-            enqueue(opnfil[opnfil[ofn]^.inl]^.evt, er);
-            { Now, keep receiving events until one matches the input file we
-              were looking for. }
-            keep := false
-
-         end
-
-      end
-
-   until keep { until an event we want occurs }
-
-end; { ievent }
-
-{ external event interface }
-
 procedure event(var f: text; var er: evtrec);
 
 begin
-
-   lockmain; { start exclusive access }
-   { get logical input file number for input, and get the event for that. }
-   ievent(txt2lfn(f), er); { process event }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure event(var er: evtrec);
-
-begin
-
-   lockmain; { start exclusive access }
-   { get logical input file number for input, and get the event for that. }
-   ievent(inpfil, er); { process event }
-   unlockmain { end exclusive access }
-
-end;
-
-{******************************************************************************
-
-Wait for intratask message
-
-Waits for the given intratask message. Discards any other messages or
-intratask messages. The im is returned back to free, which matches the common
-use of im to just return the entry as acknowledgement.
-
-******************************************************************************}
-
-procedure waitim(m: imcode; var ip: imptr);
-
-var done: boolean; { done flag }
-    msg:  sc_msg;  { message }
-
-begin
-
-   done := false; { set not done }
-   repeat 
-
-      igetmsg(msg); { get next message }
-      if msg.message = umim then begin { receive im }
-  
-         ip := int2itm(msg.wparam); { get im pointer }
-         if ip^.im = m then done := true; { found it }
-         putitm(ip) { release im entry }
-
-      end
-
-   until done { until message found }
-
-end;
-
-{******************************************************************************
-
-Timer handler procedure
-
-Called by the callback thunk set with timesetevent. We are given a user word
-of data, in which we multiplex the two peices of data we need, the logical
-file number for the window file, from which we get the windows handle, and
-the timer number.
-
-With that data, we then post a message back to the queue, containing the
-gralib number of the timer that went off.
-
-The reason we multiplex the logical file number is because the windows handle,
-which we need, has a range determined by Windows, and we have to assume it
-occupies a full word. The alternatives to multiplexing were to have the timer
-callback thunk be customized, which is a non-standard solution, or use one
-of the other parameters Windows passes to this function, which are not
-documented.
-
-******************************************************************************}
-
-procedure timeout(id, msg, usr, dw1, dw2: integer);
-
-var fn: ss_filhdl; { logical file number }
-    wh: integer;   { window handle }
-
-begin
-
-   lockmain; { start exclusive access }
-   refer(id, dw1, dw2, msg); { not used }
-   fn := usr div maxtim; { get lfn multiplexed in user data }
-   { Validate it, but do nothing if wrong. We just don't want to crash on
-     errors here. }
-   if (fn >= 1) and (fn <= ss_maxhdl) then { valid lfn }
-      if opnfil[fn] <> nil then { file is defined }
-         if opnfil[fn]^.win <> nil then begin { file has window context }
-
-      wh := opnfil[fn]^.win^.winhan; { get window handle }
-      unlockmain; { end exclusive access }
-      putmsg(wh, sc_wm_timer, usr mod maxtim { multiplexed timer number}, 0)
-
-   end else unlockmain { end exclusive access }
 
 end;
 
@@ -6370,68 +2237,12 @@ the associated input file.
 
 ******************************************************************************}
 
-procedure itimer(win: winptr;    { file to send event to }
-                 lf:  ss_filhdl; { logical file number }
-                 i:   timhan;    { timer handle }
-                 t:   integer;   { number of tenth-milliseconds to run }
-                 r:   boolean);  { timer is to rerun after completion }
-
-var tf: integer; { timer flags }
-    mt: integer; { millisecond time }
-
-begin
-
-   with win^ do begin { in window context }
-
-      if (i < 1) or (i > maxtim) then error(etimnum); { bad timer number }
-      mt := t div 10; { find millisecond time }
-      if mt = 0 then mt := 1; { fell below minimum, must be >= 1 }
-      { set flags for timer }
-      tf := sc_time_callback_function or sc_time_kill_synchronous;
-      { set repeat/one shot status }
-      if r then tf := tf or sc_time_periodic
-      else tf := tf or sc_time_oneshot;
-      { We need both the timer number, and the window number in the handler,
-        but we only have a single callback parameter available. So we mux
-        them together in a word. }
-      timers[i].han := 
-         sc_timesetevent(mt, 0, timeout, lf*maxtim+i, tf);
-      if timers[i].han = 0 then error(etimacc); { no timer available }
-      timers[i].rep := r; { set timer repeat flag }
-      { should check and return an error }
-
-   end
-
-end;
-
 procedure timer(var f: text;     { file to send event to }
                     i: timhan;   { timer handle }
                     t: integer;  { number of tenth-milliseconds to run }
                     r: boolean); { timer is to rerun after completion }
 
-var win: winptr;  { window pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { index output file }
-   itimer(win, txt2lfn(f), i, t, r); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure timer(i: timhan;   { timer handle }
-                t: integer;  { number of tenth-milliseconds to run }
-                r: boolean); { timer is to rerun after completion }
-
-var win: winptr;  { window pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { index standard output file }
-   itimer(win, outfil, i, t, r); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -6443,47 +2254,10 @@ Kills a given timer, by it's id number. Only repeating timers should be killed.
 
 ******************************************************************************}
 
-procedure ikilltimer(win: winptr;  { file to kill timer on }
-                     i:   timhan); { handle of timer }
-
-var r: sc_mmresult; { return value }
-
-begin
-
-   with win^ do begin { in window context }
-
-      if (i < 1) or (i > maxtim) then error(etimnum); { bad timer number }
-      r := sc_timekillevent(timers[i].han); { kill timer }
-      if r <> 0 then error(etimacc) { error }
-
-   end
-
-end;
-
 procedure killtimer(var f: text;    { file to kill timer on }
                         i: timhan); { handle of timer }
 
-var win: winptr; { window pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { index output file }
-   ikilltimer(win, i); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure killtimer(i: timhan); { handle of timer }
-
-var win: winptr; { window pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { index output file }
-   ikilltimer(win, i); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -6498,65 +2272,9 @@ of the blanking interval.
 
 ******************************************************************************}
 
-procedure iframetimer(win: winptr; lf: ss_filhdl; e: boolean);
-
-begin
-
-   with win^ do begin { in window context }
-
-      if e then begin { enable framing timer }
-
-         if not frmrun then begin { it is not running }
-
-            { set timer to run, 17ms }
-            frmhan := sc_timesetevent(17, 0, timeout, lf*maxtim+frmtim,
-                                      sc_time_callback_function or 
-                                      sc_time_kill_synchronous or
-                                      sc_time_periodic);
-            if frmhan = 0 then error(etimacc); { error }
-            frmrun := true { set timer running }
-
-         end
-
-      end else begin { disable framing timer }
-
-         if frmrun then begin { it is currently running }
-
-            r := sc_timekillevent(frmhan); { kill timer }
-            if r <> 0 then error(etimacc); { error }
-            frmrun := false { set timer not running }
-
-         end
-
-      end
-
-   end
-
-end;
-
 procedure frametimer(var f: text; e: boolean);
 
-var win: winptr; { window pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { index output file }
-   iframetimer(win, txt2lfn(f), e); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure frametimer(e: boolean);
-
-var win: winptr; { window pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { index output file }
-   iframetimer(win, outfil, e); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -6579,8 +2297,6 @@ procedure autohold(e: boolean);
 
 begin
 
-   fautohold := e { set new state of autohold }
-
 end;
 
 {******************************************************************************
@@ -6593,24 +2309,7 @@ Returns the number of mice implemented. Windows supports only one mouse.
 
 function mouse(var f: text): mounum;
 
-var rv: integer; { return value }
-
 begin
-
-   refer(f); { stub out }
-   rv := sc_getsystemmetrics(sc_sm_mousepresent); { find mouse present }
-   mouse := ord(rv <> 0) { set single mouse }
-
-end;
-
-overload function mouse: mounum;
-
-var rv: integer; { return value }
-
-begin
-
-   rv := sc_getsystemmetrics(sc_sm_mousepresent); { find mouse present }
-   mouse := ord(rv <> 0) { set single mouse }
 
 end;
 
@@ -6627,21 +2326,6 @@ function mousebutton(var f: text; m: mouhan): moubut;
 
 begin
 
-   refer(f); { stub out }
-   if m <> 1 then error(einvhan); { bad mouse number }
-   mousebutton := 
-      sc_getsystemmetrics(sc_sm_cmousebuttons) { find mouse buttons }
-
-end;
-
-overload function mousebutton(m: mouhan): moubut;
-
-begin
-
-   if m <> 1 then error(einvhan); { bad mouse number }
-   mousebutton := 
-      sc_getsystemmetrics(sc_sm_cmousebuttons) { find mouse buttons }
-
 end;
 
 {******************************************************************************
@@ -6654,29 +2338,7 @@ Return number of joysticks attached.
 
 function joystick(var f: text): joynum;
 
-var win: winptr; { window pointer }
-
 begin
-  
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   with win^ do { in window context }
-      joystick := numjoy; { two }
-   unlockmain { end exclusive access }
-
-end;
-
-overload function joystick: joynum;
-
-var win: winptr; { window pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   with win^ do { in window context }
-      joystick := numjoy; { two }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -6690,52 +2352,7 @@ Returns the number of buttons on a given joystick.
 
 function joybutton(var f: text; j: joyhan): joybtn;
 
-var jc:  sc_joycaps; { joystick characteristics data }
-    win: winptr;     { window pointer }
-    nb:  integer;    { number of buttons }
-    r:   integer;    { return value }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   with win^ do begin { in window context }
-
-      if (j < 1) or (j > numjoy) then error(einvjoy); { bad joystick id }
-      r := sc_joygetdevcaps(j-1, jc, sc_joycaps_len);
-      if r <> 0 then error(ejoyqry); { could not access joystick }
-      nb := jc.wnumbuttons; { set number of buttons }
-      { We don't support more than 4 buttons. }
-      if nb > 4 then nb := 4;
-      joybutton := nb { set number of buttons }
-
-   end;
-   unlockmain { end exclusive access }
-
-end;
-
-overload function joybutton(j: joyhan): joybtn;
-
-var jc:  sc_joycaps; { joystick characteristics data }
-    win: winptr;     { window pointer }
-    nb:  integer;    { number of buttons }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   with win^ do begin { in window context }
-
-      if (j < 1) or (j > numjoy) then error(einvjoy); { bad joystick id }
-      r := sc_joygetdevcaps(j-1, jc, sc_joycaps_len);
-      if r <> 0 then error(ejoyqry); { could not access joystick } 
-      nb := jc.wnumbuttons; { set number of buttons }
-      { We don't support more than 4 buttons. }
-      if nb > 4 then nb := 4;
-      joybutton := nb { set number of buttons }
-
-   end;
-   unlockmain { end exclusive access }
 
 end;
 
@@ -6749,50 +2366,9 @@ joystick can be considered a slider without positional meaning.
 
 ******************************************************************************}
 
-function ijoyaxis(win: winptr; j: joyhan): joyaxn;
-
-var jc: sc_joycaps; { joystick characteristics data }
-    na: integer;    { number of axes }
-
-begin
-
-   with win^ do begin { in window context }
-
-      if (j < 1) or (j > numjoy) then error(einvjoy); { bad joystick id }
-      r := sc_joygetdevcaps(j-1, jc, sc_joycaps_len);
-      if r <> 0 then error(ejoyqry); { could not access joystick } 
-      na := jc.wnumaxes; { set number of axes }
-      { We don't support more than 3 axes. }
-      if na > 3 then na := 3;
-      ijoyaxis := na { set number of axes }
-
-   end;
-
-end;
-
 function joyaxis(var f: text; j: joyhan): joyaxn;
 
-var win: winptr; { window pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   joyaxis := ijoyaxis(win, j); { find joystick axes }
-   unlockmain { end exclusive access }
-
-end;
-
-overload function joyaxis(j: joyhan): joyaxn;
-
-var win: winptr;     { window pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   joyaxis := ijoyaxis(win, j); { find joystick axes }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -6804,59 +2380,9 @@ Sets a tab at the indicated pixel number.
 
 ******************************************************************************}
 
-procedure isettabg(win: winptr; t: integer);
-
-var i, x: 1..maxtab; { tab index }
-
-begin
-
-   with win^, screens[curupd]^ do begin { window, screen context }
-
-      if auto and (((t-1) mod charspace) <> 0) then
-         error(eatotab); { cannot perform with auto on }
-      if (t < 1) or (t > maxxg) then error(einvtab); { bad tab position }
-      { find free location or tab beyond position }
-      i := 1;
-      while (i < maxtab) and (tab[i] <> 0) and (t > tab[i]) do i := i+1;
-      if (i = maxtab) and (t < tab[i]) then error(etabful); { tab table full }
-      if t <> tab[i] then begin { not the same tab yet again }
-
-         if tab[maxtab] <> 0 then error(etabful); { tab table full }
-         { move tabs above us up }
-         for x := maxtab downto i+1 do tab[x] := tab[x-1];
-         tab[i] := t { place tab in order }    
- 
-      end
-
-   end
-
-end;
-
 procedure settabg(var f: text; t: integer);
 
-var win: winptr; { window pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   with win^ do { in window context }
-      isettabg(win, t); { translate to graphical call }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure settabg(t: integer);
-
-var win: winptr; { window pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   with win^ do { in window context }
-      isettabg(win, t); { translate to graphical call }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -6870,29 +2396,7 @@ Sets a tab at the indicated collumn number.
 
 procedure settab(var f: text; t: integer);
 
-var win: winptr; { window pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   with win^ do { in window context }
-      isettabg(win, (t-1)*charspace+1); { translate to graphical call }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure settab(t: integer);
-
-var win: winptr; { window pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   with win^ do { in window context }
-      isettabg(win, (t-1)*charspace+1); { translate to graphical call }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -6904,56 +2408,9 @@ Resets the tab at the indicated pixel number.
 
 ******************************************************************************}
 
-procedure irestabg(win: winptr; t: integer);
-
-var i:  1..maxtab; { tab index }
-    ft: 0..maxtab; { found tab }
-
-begin
-
-   with win^, screens[curupd]^ do begin { in windows, screen context }
-
-      if (t < 1) or (t > maxxg) then error(einvtab); { bad tab position }
-      { search for that tab }
-      ft := 0; { set not found }
-      for i := 1 to maxtab do if tab[i] = t then ft := i; { found }
-      if ft <> 0 then begin { found the tab, remove it }
-
-         { move all tabs down to gap out }
-         for i := ft to maxtab-1 do tab[i] := tab[i+1];
-         tab[maxtab] := 0 { clear any last tab }
-
-      end
-
-   end
-
-end;
-
 procedure restabg(var f: text; t: integer);
 
-var win: winptr; { window pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   with win^ do { in window context }
-      irestabg(win, t); { translate to graphical call }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure restabg(t: integer);
-
-var win: winptr; { window pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   with win^ do { in window context }
-      irestabg(win, t); { translate to graphical call }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -6967,29 +2424,7 @@ Resets the tab at the indicated collumn number.
 
 procedure restab(var f: text; t: integer);
 
-var win: winptr; { window pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   with win^ do { in window context }
-      irestabg(win, (t-1)*charspace+1); { translate to graphical call }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure restab(t: integer);
-
-var win: winptr; { window pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   with win^ do { in window context }
-      irestabg(win, (t-1)*charspace+1); { translate to graphical call }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -7004,31 +2439,7 @@ arrangement.
 
 procedure clrtab(var f: text);
 
-var i:   1..maxtab;
-    win: winptr; { window pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   with win^ do { in window context }
-      for i := 1 to maxtab do screens[curupd]^.tab[i] := 0;
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure clrtab;
-
-var i:   1..maxtab;
-    win: winptr; { window pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   with win^ do { in window context }
-      for i := 1 to maxtab do screens[curupd]^.tab[i] := 0;
-   unlockmain { end exclusive access }
 
 end;
 
@@ -7046,643 +2457,6 @@ function funkey(var f: text): funky;
 
 begin
 
-   refer(f); { stub out }
-   funkey := 12 { number of function keys }
-
-end;
-
-overload function funkey: funky;
-
-begin
-
-   funkey := 12 { number of function keys }
-
-end;
-
-{******************************************************************************
-
-Process input line
-
-Reads an input line with full echo and editting. The line is placed into the
-input line buffer.
-
-The upgrade for this is to implement a full set of editting features.
-
-Now edits multiple buffers in multiple windows. Each event is received from
-ievent, then dispatched to the buffer whose window it belongs to. When a
-buffer is completed by hitting "enter", then we return.
-
-******************************************************************************}
-
-procedure readline(fn: ss_filhdl);
-
-var er:  evtrec; { event record } 
-    win: winptr; { window pointer }
-
-begin
-
-   repeat { get line characters }
-
-      { get events until an "interesting" event occurs }
-      repeat ievent(fn, er) 
-         until er.etype in [etchar, etenter, etterm, etdelcb];
-      win := lfn2win(xltwin[er.winid]); { get the window from the id }
-      with win^ do begin { in windows context }
-
-         { if the event is line enter, place carriage return code, 
-           otherwise place real character. note that we emulate a
-           terminal and return cr only, which is handled as appropriate
-           by a higher level. if the event is program terminate, then we
-           execute an organized halt }
-         case er.etype of { event }
-
-            etterm:  goto 88; { halt program }
-            etenter: begin { line terminate }
-
-               inpbuf[inpptr] := '\cr'; { return cr }
-               plcchr(win, '\cr'); { output newline sequence }
-               plcchr(win, '\lf');
-               inpend := true { set line was terminated }
-
-            end;
-            etchar: begin { character }
-
-               if inpptr < maxlin then begin
-
-                  inpbuf[inpptr] := er.char; { place real character }
-                  plcchr(win, er.char) { echo the character }
-
-               end;
-               if inpptr < maxlin then inpptr := inpptr+1 { next character }
-
-            end;
-            etdelcb: begin { delete character backwards }
-
-               if inpptr > 1 then begin { not at extreme left }
-
-                  plcchr(win, '\bs'); { backspace, spaceout then backspace again }
-                  plcchr(win, ' ');
-                  plcchr(win, '\bs');
-                  inpptr := inpptr-1 { back up pointer }
-
-               end
-
-            end
-
-         end
-
-      end
-
-   until er.etype = etenter; { until line terminate }
-   { note we still are indexing the last window that gave us the enter }
-   win^.inpptr := 1 { set 1st position on active line }
-
-end;
-
-{******************************************************************************
-
-Place string in storage
-
-Places the given string into dynamic storage, and returns that.
-
-******************************************************************************}
-
-function str(view s: string): pstring;
-
-var p: pstring;
-
-begin
-
-   new(p, max(s));
-   p^ := s;
-   str := p
-
-end;
-
-{******************************************************************************
-
-Get program name
-
-Retrieves the program name off the Win95 command line. This routine is very
-dependent on the structure of a windows command line. The name is enclosed
-in quotes, has a path, and is terminated by '.'.
-A variation on this is a program that executes us directly may not have the
-quotes, and we account for this. I have also accounted for there being no
-extention, just in case these kinds of things turn up.
-
-Notes:
-
-1. Win98 drops the quotes.
-2. Win XP/2000 drops the path and the extention.
-
-******************************************************************************}
-
-procedure getpgm;
-
-var l:  integer; { length of program name string }
-    cp: pstring; { holds command line pointer }
-    i:  integer; { index for string }
-    s:  integer; { index save }
-
-{ This causes CE to fail }
-{ fixed fini: string = 'Finished - ';} { termination message }
-
-{ termination message }
-
-fixed fini: packed array [1..11] of char = 'Finished - ';
-
-{ check next command line character }
-
-function chknxt: char;
-
-var c: char;
-
-begin
-
-   if i > max(cp^) then c := ' ' else c := cp^[i];
-   chknxt := c
-
-end;
-
-begin
-
-   cp := sc_getcommandline; { get command line }
-   i := 1; { set 1st character }
-   if cp^[1] = '"' then i := 2; { set character after quote }
-   { find last '\' in quoted section }
-   s := 0; { flag not found }
-   while (chknxt <> '"') and (chknxt <> ' ') and (i < max(cp^)) do
-      begin if chknxt = '\\' then s := i; i := i+1 end;
-   s := s+1; { skip '\' }
-   i := s; { index 1st character }   
-   { count program name length }
-   l := 0; { clear length }
-   while (chknxt <> '.') and (chknxt <> ' ') do begin l := l+1; i := i+1 end;
-   new(pgmnam, l); { get a string for that }
-   i := s; { index 1st character }
-   while (chknxt <> '.') and (chknxt <> ' ') do begin
-
-      pgmnam^[i-s+1] := chknxt; { place character }
-      i := i+1 { next character }
-
-   end;
-   { form the name for termination }
-   new(trmnam, max(pgmnam^)+11); { get the holding string }
-   for i := 1 to 11 do trmnam^[i] := fini[i]; { place first part }
-   { place program name }
-   for i := 1 to max(pgmnam^) do trmnam^[i+11] := pgmnam^[i]
-
-end;
-
-{******************************************************************************
-
-Sort font list
-
-Sorts the font list for alphabetical order, a-z. The font list does not need
-to be in a particular order (and indeed, can't be absolutely in order, because
-of the first 4 reserved entries), but sorting it makes listings neater if a
-program decides to dump the font names in order.
-
-******************************************************************************}
-
-procedure sortfont(var fp: fontptr);
-
-var nl, p, c, l: fontptr;
-
-function gtr(view d, s: string): boolean;
-
-var i:      integer; { index for string }
-    l:      integer; { common region length }
-    r:      boolean; { result save }
-
-begin
-
-   { check case where one string is null, and compare lengths if so }
-   if (max(s) = 0) or (max(d) = 0) then r := max(d) < max(s)
-   else begin
-
-      { find the shorter of the strings }
-      if max(s) > max(d) then l := max(d) else l := max(s);
-      { compare the overlapping region }
-      i := 1; { set 1st character }
-      { find first non-matching character }
-      while (i < l) and (lcase(s[i]) = lcase(d[i])) do i := i+1;
-      { check not equal, and return status based on that character }
-      if lcase(s[i]) <> lcase(d[i]) then r := lcase(d[i]) < lcase(s[i])
-      { if the entire common region matched, then we base the result on
-        length }
-      else r := max(d) < max(s)
-
-   end;
-   gtr := r { return match status }
-
-end;
-
-begin
-
-   nl := nil; { clear destination list }
-   while fp <> nil do begin { insertion sort }
-
-      p := fp; { index top }
-      fp := fp^.next; { remove that }
-      p^.next := nil; { clear next }
-      c := nl; { index new list }
-      l := nil; { clear last }
-      while c <> nil do begin { find insertion point }
-
-         { compare strings }
-         if gtr(p^.fn^, c^.fn^) then
-            c := nil { terminate }
-         else begin
-
-            l := c; { set last }
-            c := c^.next { advance }
-
-         end
-
-      end;
-      if l = nil then begin
-
-         { if no last, insert to start }
-         p^.next := nl;
-         nl := p
-
-      end else begin
-
-         { insert to middle/end }
-         p^.next := l^.next; { set next }
-         l^.next := p { link to last }
-
-      end
-
-   end;
-   fp := nl { place result }
-
-end;
-
-{******************************************************************************
-
-Font list callback
-
-This routine is called by windows when we register it from getfonts. It is
-called once for each installed font. We ignore non-TrueType fonts, then place
-the found fonts on the global fonts list in no particular order.
-
-Note that OpenType fonts are also flagged as TrueType fonts.
-
-We remove any "bold", "italic" or "oblique" descriptor word from the end of
-the font string, as these are attributes, not part of the name.
-
-******************************************************************************}
-
-function enumfont(var lfd: sc_enumlogfontex; var pfd: sc_newtextmetricex;
-                  ft: sc_dword; ad: sc_lparam): boolean;
-
-var fp:   fontptr; { pointer to font entry }
-    c, i: integer; { indexes }
-
-{ get the last word in the font name }
-
-procedure getlst(view s: string; var d: string);
-
-var i, x: integer;
-
-begin
-
-   clears(d); { clear result }
-   { find end }
-   i := 1;
-   while s[i] <> chr(0) do i := i+1;
-   if i > 1 then begin
-
-      i := i-1; { back up to last character }
-      { back up to non-space }
-      while (s[i] = ' ') and (i > 1) do i := i-1;
-      if s[i] <> ' ' then begin { at end of word }
-
-         { back up to space }
-         while (s[i] <> ' ') and (i > 1) do i := i-1;
-         if s[i] = ' ' then begin { at start of word }
-
-            i := i+1; { index start of word }
-            x := 1; { index start of output }
-            while (s[i] <> chr(0)) and (s[i] <> ' ') do begin
-           
-               d[x] := s[i]; { transfer character }
-               i := i+1; { next }
-               x := x+1
-           
-            end
-
-         end
-
-      end
-
-   end
-
-end;
-
-{ clear last word in font name }
-
-procedure clrlst(var s: string);
-
-var i: integer;
-
-begin
-
-   { find end }
-   i := 1;
-   while s[i] <> chr(0) do i := i+1;
-   if i > 1 then begin { string isn't null }
-
-      i := i-1; { back up to last character }
-      { back up to non-space }
-      while (s[i] = ' ') and (i > 1) do i := i-1;
-      if s[i] <> ' ' then begin { at end of word }
-
-         { back up to space }
-         while (s[i] <> ' ') and (i > 1) do i := i-1;
-         if s[i] = ' ' then begin { at start of word }
-
-            { back up to non-space }
-            while (s[i] = ' ') and (i > 1) do i := i-1;
-            if s[i] <> ' ' then { at end of word before that }
-               s[i+1] := chr(0) { now terminate string there }
-
-         end
-
-      end
-
-   end
-
-end;
-
-{ replace attribute word }
-
-procedure repatt(var s: string);
-
-var buff: packed array [1..sc_lf_fullfacesize] of char;
-    done: boolean;
-
-begin
-
-   repeat
-
-      done := true; { default to no more }
-      getlst(s, buff); { get any last word }
-
-      if compp(buff, 'bold') or compp(buff, 'italic') or 
-         compp(buff, 'oblique') then begin
-
-         clrlst(s); { clear last word }
-         done := false { signal not complete }
-
-      end
-
-   until done
-
-end;
-   
-begin
-
-   refer(pfd, ad); { unused }
-   if (ft and sc_truetype_fonttype <> 0) and
-      ((lfd.elflogfont.lfcharset = sc_ansi_charset) or 
-       (lfd.elflogfont.lfcharset = sc_symbol_charset) or
-       (lfd.elflogfont.lfcharset = sc_default_charset)) then begin
-
-      { ansi character set, record it }
-      repatt(lfd.elffullname); { remove any attribute word }
-      new(fp); { get new font entry }
-      fp^.next := fntlst; { push to list }
-      fntlst := fp;
-      fntcnt := fntcnt+1; { count font }
-      c := 0; { count font name characters }
-      while lfd.elffullname[c+1] <> chr(0) do c := c+1;
-      if c > 0 then begin { not null }
-
-         new(fp^.fn, c); { get a string of that length }
-         for i := 1 to c do fp^.fn^[i] := ascii2chr(ord(lfd.elffullname[i]));
-         
-      end;
-      fp^.fix := (lfd.elflogfont.lfpitchandfamily and 3) = sc_fixed_pitch;
-      fp^.sys := false { set not system }
-
-   end;
-   enumfont := true { set continue }
-
-end;
-
-{******************************************************************************
-
-Get fonts list
-
-Loads the windows font list. The list is filtered for TrueType/OpenType 
-only. We also retrive the fixed pitch status.
-
-Because of the callback arrangement, we have to pass the font list and count
-through globals, which are then placed into the proper window.
-
-******************************************************************************}
-
-procedure getfonts(win: winptr);
-
-var r:  integer;
-    lf: sc_logfont;
-
-begin
-
-   fntlst := nil; { clear fonts list }
-   fntcnt := 0; { clear fonts count }
-   lf.lfheight := 0; { use default height }
-   lf.lfwidth := 0; { use default width }
-   lf.lfescapement := 0; { no escapement }
-   lf.lforientation := 0; { orient to x axis }
-   lf.lfweight := sc_fw_dontcare; { default weight }
-   lf.lfitalic := 0;  { no italic }
-   lf.lfunderline := 0; { no underline }
-   lf.lfstrikeout := 0; { no strikeout }
-   lf.lfcharset := sc_default_charset; { use default characters }
-   lf.lfoutprecision := sc_out_default_precis; { use default precision }
-   lf.lfclipprecision := sc_clip_default_precis; { use default clipping }
-   lf.lfquality := sc_default_quality; { use default quality }
-   lf.lfpitchandfamily := 0; { must be zero }
-   lf.lffacename[1] := chr(0); { match all typeface names }
-   r := sc_enumfontfamiliesex(win^.devcon, lf, enumfont, 0, 0);
-   win^.fntlst := fntlst; { place into windows record }
-   win^.fntcnt := fntcnt;
-   sortfont(win^.fntlst) { sort into alphabetical order }
-
-end;
-
-{******************************************************************************
-
-Remove font from font list
-
-Removes the indicated font from the font list. Does not dispose of the entry.
-
-******************************************************************************}
-
-procedure delfnt(win: winptr; fp: fontptr);
-
-var p: fontptr;
-
-begin
-
-   p := win^.fntlst; { index top of list }
-   if win^.fntlst = nil then error(esystem); { should not be null }
-   if win^.fntlst = fp then win^.fntlst := fp^.next { gap first entry }
-   else begin { mid entry }
-
-      { find entry before ours }
-      while (p^.next <> fp) and (p^.next <> nil) do p := p^.next;
-      if p^.next = nil then error(esystem); { not found }
-      p^.next := fp^.next { gap out }
-
-   end
-
-end;
-
-{******************************************************************************
-
-Search for font by name
-
-Finds a font in the list of fonts. Also matches fixed/no fixed pitch status.
-
-******************************************************************************}
-
-procedure fndfnt(win: winptr; view fn: string; fix: boolean; var fp: fontptr);
-
-var p: fontptr;
-
-begin
-
-   fp := nil; { set no font found }
-   p := win^.fntlst; { index top of font list }
-   while p <> nil do begin { traverse font list }
-
-      if compp(p^.fn^, fn) and (p^.fix = fix) then fp := p; { found, set }
-      p := p^.next { next entry }
-
-   end
-
-end;
-
-{******************************************************************************
-
-Separate standard fonts
-
-Finds the standard fonts, in order, and either moves these to the top of the
-table or creates a blank entry.
-
-Note: could also default to style searching for book and sign fonts.
-
-******************************************************************************}
-
-procedure stdfont(win: winptr);
-
-var termfp, bookfp, signfp, techfp: fontptr; { standard font slots }
-
-{ place font entry in list }
-
-procedure plcfnt(fp: fontptr);
-
-begin
-
-   if fp = nil then begin { no entry, create a dummy }
-
-      new(fp); { get a new entry }
-      new(fp^.fn, 0); { place empty string }
-      fp^.fix := false; { set for cleanlyness }
-      fp^.sys := false { set not system }
-      
-   end;
-   fp^.next := win^.fntlst; { push onto list }
-   win^.fntlst := fp
-
-end;
-     
-begin
-
-   { clear font pointers }
-   termfp := nil;
-   bookfp := nil;
-   signfp := nil;
-   techfp := nil;
-   { set up terminal font. terminal font is set to system default }
-   new(termfp); { get a new entry }
-   termfp^.fix := true; { set fixed }
-   termfp^.sys := true; { set system }
-   new(termfp^.fn, 12); { place name }
-   termfp^.fn^ := 'System Fixed';
-   win^.fntcnt := win^.fntcnt+1; { add to font count }
-   { find book fonts }
-   fndfnt(win, 'Times New Roman', false, bookfp);
-   if bookfp = nil then begin
-
-      fndfnt(win, 'Garamond', false, bookfp);
-      if bookfp = nil then begin
-
-         fndfnt(win, 'Book Antiqua', false, bookfp);
-         if bookfp = nil then begin
-      
-            fndfnt(win, 'Georgia', false, bookfp);
-            if bookfp = nil then begin
-
-               fndfnt(win, 'Palatino Linotype', false, bookfp);
-               if bookfp = nil then fndfnt(win, 'Verdana', false, bookfp)
-
-            end
-
-         end
-
-      end
-
-   end;
-   { find sign fonts }
-
-   fndfnt(win, 'Tahoma', false, signfp);
-   if signfp = nil then begin
-
-      fndfnt(win, 'Microsoft Sans Serif', false, signfp);
-      if signfp = nil then begin
-
-         fndfnt(win, 'Arial', false, signfp);
-         if signfp = nil then begin
-
-            fndfnt(win, 'News Gothic MT', false, signfp);
-            if signfp = nil then begin
-
-               fndfnt(win, 'Century Gothic', false, signfp);
-               if signfp = nil then begin
-
-                  fndfnt(win, 'Franklin Gothic', false, signfp);
-                  if signfp = nil then begin
-
-                     fndfnt(win, 'Trebuchet MS', false, signfp);
-                     if signfp = nil then fndfnt(win, 'Verdana', false, signfp)
-
-                  end
-
-               end
-
-            end
-
-         end
-
-      end
-
-   end;
-   { delete found fonts from the list }
-   if bookfp <> nil then delfnt(win, bookfp);
-   if signfp <> nil then delfnt(win, signfp);
-   { now place the fonts in the list backwards }
-   plcfnt(techfp);
-   plcfnt(signfp);
-   plcfnt(bookfp);
-   termfp^.next := win^.fntlst;
-   win^.fntlst := termfp
-
 end;
 
 {******************************************************************************
@@ -7695,905 +2469,7 @@ Sets the title of the current window.
 
 procedure title(var f: text; view ts: string);
 
-var b:   boolean; { result code }
-    win: winptr; { window pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   with win^ do begin { in window context }
-
-      { Set title is actually done via a "wm_settext" message to the display
-        window, so we have to remove the lock to allow that to be processed.
-        Otherwise, setwindowtext will wait for acknoledgement of the message
-        and lock us. }
-      unlockmain; { end exclusive access }
-      { set window title text }
-      b := sc_setwindowtext(winhan, ts);
-      lockmain { start exclusive access }
-
-   end;
-   if not b then winerr; { process windows error }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure title(view ts: string);
-
-var b:   boolean; { result code }
-    win: winptr; { window pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   with win^ do begin { in window context }
-
-      { Set title is actually done via a "wm_settext" message to the display
-        window, so we have to remove the lock to allow that to be processed.
-        Otherwise, setwindowtext will wait for acknoledgement of the message
-        and lock us. }
-      unlockmain; { end exclusive access }
-      { Set window title text }
-      b := sc_setwindowtext(winhan, ts);
-      lockmain { start exclusive access }
-
-   end;
-   if not b then winerr; { process windows error }
-   unlockmain { end exclusive access }
-
-end;
-
-{******************************************************************************
-
-Register standard window class
-
-Registers the "stdwin" class. All of gralib's normal windows use the same
-class, which has the name "stdwin". This class only needs to be registered
-once, and is thereafter referenced by name.
-
-******************************************************************************}
-
-procedure regstd;
-
-var wc: sc_wndclassa; { windows class structure }
-    b:  boolean;      { boolean }
-
-begin
-
-   { set windows class to a normal window without scroll bars,
-     with a windows procedure pointing to the message mirror.
-     The message mirror reflects messages that should be handled
-     by the program back into the queue, sending others on to
-     the windows default handler }
-   wc.style      := sc_cs_hredraw or sc_cs_vredraw or sc_cs_owndc;
-   wc.wndproc    := sc_wndprocadr(wndproc);
-   wc.clsextra   := 0;
-   wc.wndextra   := 0;
-   wc.instance   := sc_getmodulehandle_n;
-   if wc.instance = 0 then winerr; { process windows error }
-   wc.icon       := sc_loadicon_n(sc_idi_application);
-   if wc.icon = 0 then winerr; { process windows error }
-   wc.cursor     := sc_loadcursor_n(sc_idc_arrow);
-   if wc.cursor = 0 then winerr; { process windows error }
-   wc.background := sc_getstockobject(sc_white_brush);
-   if wc.background = 0 then winerr; { process windows error }
-   wc.menuname   := nil;
-   wc.classname  := str('stdwin');
-   { register that class }
-   b := sc_registerclass(wc);
-   if not b then winerr { process windows error }
-
-end;
-
-{******************************************************************************
-
-Kill window
-
-Sends a destroy window command to the window. We can't directly kill a window
-from the main thread, so we send a message to the window to kill it for us.
-
-******************************************************************************}
-
-procedure kilwin(wh: integer);
-
-var msg: sc_msg; { intertask message }
-
-begin
-
-   stdwinwin := wh; { place window handle }
-   { order window to close }
-   b := sc_postmessage(dispwin, umclswin, 0, 0);
-   if not b then winerr; { process windows error }
-   { Wait for window close. } 
-   repeat igetmsg(msg) until msg.message = umwincls
-
-end;
-
-{******************************************************************************
-
-Open and present window
-
-Given a windows record, opens and presents the window associated with it. All
-of the screen buffer data is cleared, and a single buffer assigned to the
-window.
-
-******************************************************************************}
-
-procedure opnwin(fn, pfn: ss_filhdl);
-           
-var v:     integer;       { used to construct $80000000 value }
-    cr:    sc_rect;       { client rectangle holder }
-    r:     integer;       { result holder }
-    b:     boolean;       { boolean result holder }
-    er:    evtrec;        { event holding record }
-    ti:    1..10;         { index for repeat array }
-    pin:   1..maxpic;     { index for loadable pictures array }
-    si:    1..maxcon;     { index for current display screen }
-    tm:    sc_textmetric; { true type text metric structure }
-    win:   winptr;        { window pointer }
-    pwin:  winptr;        { parent window pointer }
-    f:     integer;       { window creation flags }
-    msg:   sc_msg;        { intertask message }
-
-begin
-
-   win := lfn2win(fn); { get a pointer to the window }
-   with win^ do begin { process within window }
-
-      { find parent }
-      parlfn := pfn; { set parent logical number }
-      if pfn <> 0 then begin
-
-         pwin := lfn2win(pfn); { index parent window }
-         parhan := pwin^.winhan { set parent window handle }
-
-      end else parhan := 0; { set no parent }
-      mb1 := false; { set mouse as assumed no buttons down, at origin }
-      mb2 := false;
-      mb3 := false;
-      mpx := 1;
-      mpy := 1;
-      mpxg := 1;
-      mpyg := 1;
-      nmb1 := false;
-      nmb2 := false;
-      nmb3 := false;
-      nmpx := 1;
-      nmpy := 1;
-      nmpxg := 1;
-      nmpyg := 1;
-      shift := false; { set no shift active }
-      cntrl := false; { set no control active }
-      fcurdwn := false; { set cursor is not down }
-      focus := false; { set not in focus }
-      joy1xs := 0; { clear joystick saves }
-      joy1ys := 0;
-      joy1zs := 0;
-      joy2xs := 0;
-      joy2ys := 0;
-      joy2zs := 0;
-      numjoy := 0; { set number of joysticks 0 }
-      inpptr := 1; { set 1st character }
-      inpend := false; { set no line ending }
-      frmrun := false; { set framing timer not running }
-      bufmod := true; { set buffering on }
-      menhan := 0; { set no menu }
-      metlst := nil; { clear menu tracking list }
-      wiglst := nil; { clear widget list }
-      frame := true; { set frame on }
-      size := true; { set size bars on }
-      sysbar := true; { set system bar on }
-      sizests := 0; { clear last size status word }
-      { clear timer repeat array }
-      for ti := 1 to 10 do begin 
-
-         timers[ti].han := 0; { set no active timer }
-         timers[ti].rep := false { set no repeat }
-
-      end;
-      { clear loadable pictures table }
-      for pin := 1 to maxpic do pictbl[pin].han := 0; 
-      for si := 1 to maxcon do screens[si] := nil;
-      new(screens[1]); { get the default screen }
-      curdsp := 1; { set current display screen }
-      curupd := 1; { set current update screen }
-      visible := false; { set not visible }
-      { now perform windows setup }
-      v := $8000000;
-      v := v*16;
-      { set flags for window create }
-      f := sc_ws_overlappedwindow or sc_ws_clipchildren;
-      { add flags for child window }
-      if parhan <> 0 then f := f or sc_ws_child or sc_ws_clipsiblings;
-      { Create the window, using display task. }
-      stdwinflg := f;
-      stdwinx := v;
-      stdwiny := v;
-      stdwinw := v;
-      stdwinh := v;
-      stdwinpar := parhan;
-      { order window to start }
-      b := sc_postmessage(dispwin, ummakwin, 0, 0);
-      if not b then winerr; { process windows error }
-      { Wait for window start. } 
-      repeat igetmsg(msg) until msg.message = umwinstr;
-      winhan := stdwinwin; { get the new handle }
-      if winhan = 0 then winerr; { process windows error }
-
-      { Joysticks were captured with the window open. Set status of joysticks.
-
-        Do we need to release and recapture the joysticks each time we gain and
-        loose focus ? Windows could have easily outgrown that need by copying
-        the joystick messages. This needs testing. }
-
-      numjoy := 0; { clear joystick counter }
-      joy1cap := stdwinj1c; { set joystick 1 capture status }
-      numjoy := numjoy+ord(joy1cap); { count that }
-      joy2cap := stdwinj2c; { set joystick 1 capture status }
-      numjoy := numjoy+ord(joy2cap); { count that }
-
-      { create a device context for the window }
-      devcon := sc_getdc(winhan); { get device context }
-      if devcon = 0 then winerr; { process windows error }
-      { set rescalable mode }
-      r := sc_setmapmode(devcon, sc_mm_anisotropic);
-      if r = 0 then winerr; { process windows error }
-      { set non-braindamaged stretch mode }
-      r := sc_setstretchbltmode(devcon, sc_halftone);
-      if r = 0 then winerr; { process windows error }
-      { remove fills }
-      r := sc_selectobject(devcon, sc_getstockobject(sc_null_brush));
-      if r = -1 then winerr; { process windows error }
-      { because this is an "open ended" (no feedback) emulation, we must bring
-        the terminal to a known state }
-      gfhigh := fheight; { set default font height }
-      getfonts(win); { get the global fonts list }
-      stdfont(win); { mark the standard fonts }
-      gcfont := fntlst; { index top of list as terminal font }
-      { set up system default parameters }
-      r := sc_selectobject(devcon, sc_getstockobject(sc_system_fixed_font));
-      if r = -1 then winerr; { process windows error }
-      b := sc_gettextmetrics(devcon, tm); { get the standard metrics }
-      if not b then winerr; { process windows error }
-      { calculate line spacing }
-      linespace := tm.tmheight;
-      { calculate character spacing }
-      charspace := tm.tmmaxcharwidth;
-      { set cursor width }
-      curspace := tm.tmavecharwidth; 
-      { find screen device parameters for dpm calculations }
-      shsize := sc_getdevicecaps(devcon, sc_horzsize); { size x in millimeters }
-      svsize := sc_getdevicecaps(devcon, sc_vertsize); { size y in millimeters }
-      shres := sc_getdevicecaps(devcon, sc_horzres); { pixels in x }
-      svres := sc_getdevicecaps(devcon, sc_vertres); { pixels in y }
-      sdpmx := round(shres/shsize*1000); { find dots per meter x }
-      sdpmy := round(svres/svsize*1000); { find dots per meter y }
-      { find client area size }
-      gmaxxg := maxxd*charspace;
-      gmaxyg := maxyd*linespace;
-      cr.left := 0; { set up desired client rectangle }
-      cr.top := 0;
-      cr.right := gmaxxg;
-      cr.bottom := gmaxyg;
-      { find window size from client size }
-      b := sc_adjustwindowrectex(cr, sc_ws_overlappedwindow, false, 0);
-      if not b then winerr; { process windows error }
-      { now, resize the window to just fit our character mode }
-      unlockmain; { end exclusive access }
-      b := sc_setwindowpos(winhan, 0, 0, 0, cr.right-cr.left, cr.bottom-cr.top,
-                           sc_swp_nomove or sc_swp_nozorder);
-      if not b then winerr; { process windows error }
-{ now handled in winvis }
-;if false then begin
-      { present the window }
-      b := sc_showwindow(winhan, sc_sw_showdefault);
-      { send first paint message }
-      b := sc_updatewindow(winhan);
-;end;
-      lockmain; { start exclusive access }
-      { set up global buffer parameters }
-      gmaxx := maxxd; { character max dimensions }
-      gmaxy := maxyd;
-      gattr := []; { no attribute }
-      gauto := true; { auto on }
-      gfcrgb := colnum(black); {foreground black }
-      gbcrgb := colnum(white); { background white }
-      gcurv := true; { cursor visible }
-      gfmod := mdnorm; { set mix modes }
-      gbmod := mdnorm;
-      goffx := 0;  { set 0 offset }
-      goffy := 0;
-      gwextx := 1; { set 1:1 extents }
-      gwexty := 1; 
-      gvextx := 1; 
-      gvexty := 1; 
-      iniscn(win, screens[1]); { initalize screen buffer }
-      restore(win, true); { update to screen }
-{ This next is taking needed messages out of the queue, and I don't believe it
-  is needed anywmore with display tasking. }
-;if false then begin
-      { have seen problems with actions being performed before events are pulled
-        from the queue, like the focus event. the answer to this is to wait a short
-        delay until these messages clear. in fact, all that is really required is
-        to reenter the OS so it can do the callback }
-      frmhan := sc_timesetevent(10, 0, timeout, fn*maxtim+1,
-                                sc_time_callback_function or
-                                sc_time_kill_synchronous or
-                                sc_time_oneshot);
-      if frmhan = 0 then error(etimacc); { no timer available }
-      repeat ievent(opnfil[fn]^.inl, er) 
-         until (er.etype = ettim) or (er.etype = etterm);
-      if er.etype = etterm then goto 88
-;end;
-
-   end
-
-end;
-
-{******************************************************************************
-
-Close window
-
-Shuts down, removes and releases a window.
-
-******************************************************************************}
-
-procedure clswin(fn: ss_filhdl);
-
-var r:   integer; { result holder }
-    b:   boolean; { boolean result holder }
-    win: winptr;  { window pointer }
-
-begin
-
-   win := lfn2win(fn); { get a pointer to the window }
-   with win^ do begin { in windows context }
-
-      b := sc_releasedc(winhan, devcon); { release device context }
-      if not b then winerr; { process error }
-      { release the joysticks }
-      if joy1cap then begin
-
-         r := sc_joyreleasecapture(sc_joystickid1);
-         if r <> 0 then error(ejoyacc) { error }
-
-      end;
-      if joy2cap then begin
-
-         r := sc_joyreleasecapture(sc_joystickid2);
-         if r <> 0 then error(ejoyacc) { error }
-
-      end;
-      kilwin(winhan) { kill window }
-
-   end
-
-end;
-
-{******************************************************************************
-
-Close window
-
-Closes an open window pair. Accepts an output window. The window is closed, and
-the window and file handles are freed. The input file is freed only if no other
-window also links it.
-
-******************************************************************************}
-
-procedure closewin(ofn: ss_filhdl);
-
-var ifn: ss_filhdl; { input file id }
-    wid: ss_filhdl; { window id }
-
-{ flush and close file }
-
-procedure clsfil(fn: ss_filhdl);
-
-var ep: eqeptr;    { pointer for event containers }
-    si: 1..maxcon; { index for screens }
-
-begin
-
-   with opnfil[fn]^ do begin
-
-      { release all of the screen buffers }
-      for si := 1 to maxcon do 
-         if win^.screens[si] <> nil then dispose(win^.screens[si]);
-      dispose(win); { release the window data }
-      win := nil; { set not open }
-      han := 0;
-      inw := false;
-      inl := 0;
-      while evt <> nil do begin 
-
-         ep := evt; { index top }
-         if evt^.next = evt then evt := nil { last entry, clear list }
-         else evt := evt^.next; { gap out entry }
-         dispose(ep) { release }
-
-      end
-
-   end
-
-end;
-
-function inplnk(fn: ss_filhdl): integer;
-
-var fi: ss_filhdl;    { index for files }
-    fc: 0..ss_maxhdl; { counter for files }
-
-begin
-
-   fc := 0; { clear count }
-   for fi := 1 to ss_maxhdl do { traverse files }
-      if opnfil[fi] <> nil then { entry is occupied }
-         if opnfil[fi]^.inl = fn then fc := fc+1; { count the file link }
-
-   inplnk := fc { return result }
-
-end;
-
-begin
-
-   wid := filwin[ofn]; { get window id }
-   ifn := opnfil[ofn]^.inl; { get the input file link }
-   clswin(ofn); { close the window }
-   clsfil(ofn); { flush and close output file }
-   { if no remaining links exist, flush and close input file }
-   if inplnk(ifn) = 0 then clsfil(ifn);
-   filwin[ofn] := 0; { clear file to window translation }
-   xltwin[wid] := 0; { clear window to file translation }
-
-end;
-
-{******************************************************************************
-
-Open an input and output pair
-
-Creates, opens and initalizes an input and output pair of files.
-
-******************************************************************************}
-
-procedure openio(ifn, ofn, pfn, wid: ss_filhdl);
-
-begin
-
-   { if output was never opened, create it now }
-   if opnfil[ofn] = nil then getfet(opnfil[ofn]);
-   { if input was never opened, create it now }
-   if opnfil[ifn] = nil then getfet(opnfil[ifn]);
-   opnfil[ofn]^.inl := ifn; { link output to input }
-   opnfil[ifn]^.inw := true; { set input is window handler }
-   { now see if it has a window attached }
-   if opnfil[ofn]^.win = nil then begin
-
-      { Haven't already started the main input/output window, so allocate
-        and start that. We tolerate multiple opens to the output file. }
-      new(opnfil[ofn]^.win); { get a new window record }
-      opnwin(ofn, pfn) { and start that up }
-
-   end;
-   { check if the window has been pinned to something else }
-   if (xltwin[wid] <> 0) and (xltwin[wid] <> ofn) then 
-      error(ewinuse); { flag error }
-   xltwin[wid] := ofn; { pin the window to the output file }
-   filwin[ofn] := wid
-
-end;
-
-{******************************************************************************
-
-Alias file number
-
-Aliases a top level (application program) file number to its syslib equivalent
-number. Paslib passes this information down the stack when it opens a file.
-Having both the top level number and the syslib equivalent allows us to be
-called by the program, as well as interdicting the syslib calls.
-
-******************************************************************************}
-
-procedure filealias(fn, fa: ss_filhdl);
-
-begin
-
-   lockmain; { start exclusive access }
-   if r = -1 then winerr; { process windows error }
-   { check file has entry }
-   if opnfil[fn] = nil then error(einvhan); { invalid handle }
-   { check is either normal or window file, and is active }
-   { if (opnfil[fn]^.han = 0) and (opnfil[fn]^.win = nil) and 
-      not opnfil[fn]^.inw then error(einvhan);} { invalid handle }
-   { throw consistentcy check if alias is bad }
-   if (fa < 1) or (fa > ss_maxhdl) then error(esystem);
-   xltfil[fa] := fn; { place translation entry }
-   unlockmain { end exclusive access }
-
-end;
-
-{******************************************************************************
-
-Resolve filename
-
-Resolves header file parameters. If the filename is one of our special window
-input or output identifiers, we do nothing. Otherwise, it's passed through to
-the lower level.
-
-Files that attach to the input or output side must be opened as standard
-files because standard Pascal I/O operations, like read and write, are used
-on them. Sending them through paslib allows it to set up normal tables and
-associations for the file.
-
-******************************************************************************}
-
-procedure fileresolve(view nm: string; var fs: pstring);
-
-begin
-
-   { check its our special window identifier }
-   if not compp(fs^, '_input_window') and 
-      not compp(fs^, '_output_window') then begin
-
-      { its one of our specials, just transfer it }
-      new(fs, max(nm)); { get space for string }
-      fs^ := nm { copy }
-
-   end else ss_old_resolve(nm, fs, sav_resolve) { pass it on }
-
-end;
-
-{******************************************************************************
-
-Open file for read
-
-Opens the file by name, and returns the file handle. If the file is the
-"_input" file, then we give it our special handle. Otherwise, the entire
-processing of the file is passed onto the system level.
-We handle the entire processing of the input file here, by processing the
-event queue.
-
-Allows "_debug_in" to override to "_input" for debugging in a console window.
-
-If the input file is "_input_window" then its just the marker for the input
-side of a window. We create an entry for it, but otherwise ignore it, since
-that will be handled by openwin.
-
-******************************************************************************}
-
-procedure fileopenread(var fn: ss_filhdl; view nm: string);
-
-var fs: pstring; { filename buffer pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   remspc(nm, fs); { remove leading and trailing spaces }
-   fn := chksys(fs^); { check it's a system file }
-   if fn = inpfil then 
-      openio(inpfil, outfil, 0, iowin) { it's the "input" file }
-   else begin { not "_input", process pass-on }
-
-      makfil(fn); { find file slot }
-      if compp(fs^, '_debug_in') then { open debug file }
-         ss_old_openread(opnfil[fn]^.han, '_input', sav_openread)
-      else if not compp(fs^, '_input_window') then { open regular }
-         ss_old_openread(opnfil[fn]^.han, fs^, sav_openread);
-
-   end;
-   dispose(fs); { release temp string }
-   unlockmain { end exclusive access }
-
-end;
-
-{******************************************************************************
-
-Open file for write
-
-Opens the file by name, and returns the file handle. If the file is the
-"_output" file, then we give it our special handle. Otherwise, the file entire
-processing of the file is passed onto the system level.
-
-Allows "_debug_out" to override to "_output" for debugging in a console window.
-
-If the output file is "_output_window" then its just the marker for the output
-side of a window. We create an entry for it, but otherwise ignore it, since
-that will be handled by openwin.
-
-******************************************************************************}
-
-procedure fileopenwrite(var fn: ss_filhdl; view nm: string);
-
-var fs: pstring; { filename buffer pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   remspc(nm, fs); { remove leading and trailing spaces }
-   fn := chksys(fs^); { check it's a system file }
-   if fn = outfil then 
-      openio(inpfil, outfil, 0, iowin) { its the "output" file }
-   else begin { not "_output", process pass-on }
-
-      makfil(fn); { find file slot }
-      if compp(fs^, '_debug_out') then { open debug file }
-         ss_old_openwrite(opnfil[fn]^.han, '_output', sav_openwrite)
-      else if not compp(fs^, '_output_window') then { open regular }
-         ss_old_openwrite(opnfil[fn]^.han, fs^, sav_openwrite)
-
-   end;
-   dispose(fs); { release temp string }
-   unlockmain { end exclusive access }
-
-end;
-
-{******************************************************************************
-
-Close file
-
-Closes the file. The file is closed at the system level, then we remove the
-table entry for the file.
-
-A file can be a normal file, the input side of a window, or the output side
-of a window. If its normal, it is passed on to the operating system. If it's
-the output side of a window, then the window is closed, and the link count of
-the associated input file has its link count decremented. If it's an input
-side of a window, then it's an error, since the input side is automatically
-closed when there are no output windows that reference it.
-
-******************************************************************************}
-
-procedure fileclose(fn: ss_filhdl);
-
-begin
-
-   lockmain; { start exclusive access }
-   if (fn < 1) or (fn > ss_maxhdl) then error(einvhan); { invalid file handle }
-   if fn > outfil then begin { transparent file }
-
-      if opnfil[fn]^.win <> nil then closewin(fn) { it's an output window }
-      else if opnfil[fn]^.inw then { it's input linked to window }
-         error(eclsinw) { cannot directly close this }
-      else begin { standard file }
-
-         chkopn(fn); { check valid handle }
-         ss_old_close(opnfil[fn]^.han, sav_close); { close at lower level }
-         opnfil[fn]^.han := 0 { clear out file table entry }
-
-      end
-
-   end;
-   unlockmain { end exclusive access }
-
-end;
-
-{******************************************************************************
-
-Read file
-
-If the file is the input file, we process that by reading from the event queue
-and returning any characters found. Any events besides character events are
-discarded, which is why reading from the "input" file is a downward compatible
-operation.
-All other files are passed on to the system level.
-
-******************************************************************************}
-
-procedure fileread(fn: ss_filhdl; var ba: bytarr);
-
-var i:   integer;   { index for destination }
-    l:   integer;   { length left on destination }
-    win: winptr;    { pointer to window data }
-    ofn: ss_filhdl; { output file handle }
-
-{ find window with non-zero input buffer }
-
-function fndful: ss_filhdl;
-
-var fi: ss_filhdl; { file index }
-    ff: ss_filhdl; { found file }
-
-begin
-
-   ff := 0; { set no file found }
-   for fi := 1 to ss_maxhdl do if opnfil[fi] <> nil then begin
-
-      if (opnfil[fi]^.inl = fn) and (opnfil[fi]^.win <> nil) then
-         { links the input file, and has a window }
-         if opnfil[fi]^.win^.inpend then ff := fi; { found one }
-
-   end;
-
-   fndful := ff { return result }
-
-end;
-
-begin
-
-   lockmain; { start exclusive access }
-   if (fn < 1) or (fn > ss_maxhdl) then error(einvhan); { invalid file handle }
-   if opnfil[fn]^.inw then begin { process input file }
-
-      i := 1; { set 1st byte of destination }
-      l := max(ba); { set length of destination }
-      while l > 0 do { while there is space left in the buffer }
-            begin { read input bytes }
-
-         { find any window with a buffer with data that points to this input
-           file }
-         ofn := fndful;
-         if ofn = 0 then readline(fn) { none, read a buffer }
-         else begin { read characters }
-
-            win := lfn2win(ofn); { get the window }
-            with win^ do { in window context }
-               while (inpptr > 0) and (l > 0) do begin
-
-               { there is data in the buffer, and we need that data }
-               ba[i] := chr2ascii(inpbuf[inpptr]); { get and place next character }
-               if inpptr < maxlin then inpptr := inpptr+1; { next }
-               { if we have just read the last of that line, then flag buffer
-                 empty }
-               if ba[i] = chr2ascii('\cr') then begin
-
-                  inpptr := 1; { set 1st character }
-                  inpend := false { set no ending }
-
-               end;
-               i := i+1; { next character }
-               l := l-1 { count characters }
-
-            end
-
-         end
-
-      end
-      
-   end else begin
-
-      chkopn(fn); { check valid handle }
-      ss_old_read(opnfil[fn]^.han, ba, sav_read) { pass to lower level }
-
-   end;
-   unlockmain { end exclusive access }
-
-end;
-
-{******************************************************************************
-
-Write file
-
-Outputs to the given file. If the file is the "output" file, then we process
-it specially.
-
-******************************************************************************}
-
-procedure filewrite(fn: ss_filhdl; view ba: bytarr);
-
-var i:   integer; { index for destination }
-    l:   integer; { length left on destination }
-    win: winptr;  { pointer to window data }
-
-begin
-
-   lockmain; { start exclusive access }
-   if (fn < 1) or (fn > ss_maxhdl) then error(einvhan); { invalid file handle }
-   if opnfil[fn]^.win <> nil then begin { process window output file }
-
-      win := lfn2win(fn); { index window }
-      i := 1; { set 1st byte of source }
-      l := max(ba); { set length of source }
-      while l > 0 do begin { write output bytes }
-
-         plcchr(win, ascii2chr(ba[i])); { send character to terminal emulator }
-         i := i+1; { next character }
-         l := l-1 { count characters }
-
-      end
-      
-   end else begin { standard file }
-
-      chkopn(fn); { check valid handle }
-      ss_old_write(opnfil[fn]^.han, ba, sav_write) { pass to lower level }
-
-   end;
-   unlockmain { end exclusive access }
-
-end;
-
-{******************************************************************************
-
-Position file
-
-Positions the given file. If the file is one of "input" or "output", we fail
-call, as positioning is not valid on a special file.
-
-******************************************************************************}
-
-procedure fileposition(fn: ss_filhdl; p: integer);
-
-begin
-
-   lockmain; { start exclusive access }
-   if fn > outfil then { transparent file }
-      chkopn(fn); { check valid handle }
-   { check operation performed on special file }
-   if (fn = inpfil) or (fn = outfil) then error(efilopr);
-   ss_old_position(opnfil[fn]^.han, p, sav_position); { pass to lower level }
-   unlockmain { end exclusive access }
-
-end;
-
-{******************************************************************************
-
-Find location of file
-
-Find the location of the given file. If the file is one of "input" or "output",
-we fail the call, as this is not valid on a special file.
-
-******************************************************************************}
-
-function filelocation(fn: ss_filhdl): integer;
-
-begin
-
-   lockmain; { start exclusive access }
-   if r = -1 then winerr; { process windows error }
-   if fn > outfil then { transparent file }
-      chkopn(fn); { check valid handle }
-   { check operation performed on special file }
-   if (fn = inpfil) or (fn = outfil) then error(efilopr);
-   filelocation := 
-      ss_old_location(opnfil[fn]^.han, sav_location); { pass to lower level }
-   unlockmain { end exclusive access }
-
-end;
-
-{******************************************************************************
-
-Find length of file
-
-Find the length of the given file. If the file is one of "input" or "output",
-we fail the call, as this is not valid on a special file.
-
-******************************************************************************}
-
-function filelength(fn: ss_filhdl): integer;
-
-begin
-
-   lockmain; { start exclusive access }
-   if fn > outfil then { transparent file }
-      chkopn(fn); { check valid handle }
-   { check operation performed on special file }
-   if (fn = inpfil) or (fn = outfil) then error(efilopr);
-   { pass to lower level }
-   filelength := ss_old_length(opnfil[fn]^.han, sav_length);
-   unlockmain { end exclusive access }
-
-end;
-
-{******************************************************************************
-
-Check eof of file
-
-Checks if a given file is at eof. On our special files "input" and "output",
-the eof is allways false. On "input", there is no idea of eof on a keyboard
-input file. On "output", eof is allways false on a write only file.
-
-******************************************************************************}
-
-function fileeof(fn: ss_filhdl): boolean;
-
-begin
-
-   lockmain; { start exclusive access }
-   if fn > outfil then { transparent file }
-      chkopn(fn); { check valid handle }
-   { check operation performed on special file }
-   if (fn = inpfil) or (fn = outfil) then fileeof := false { yes, allways true }
-   else fileeof := ss_old_eof(opnfil[fn]^.han, sav_eof); { pass to lower level }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -8610,72 +2486,9 @@ directly. These ids will be be opened as a pair anytime the "_input" or
 
 ******************************************************************************}
 
-procedure iopenwin(var infile, outfile: text; pfn, wid: ss_filhdl);
-
-var ifn, ofn: ss_filhdl; { file logical handles }
-
-begin
-
-   { check valid window handle }
-   if (wid < 1) or (wid > ss_maxhdl) then error(einvwin);
-   { check if the window id is already in use }
-   if xltwin[wid] <> 0 then error(ewinuse); { error }
-   { if input is not open, open it now }
-   if getlfn(infile) = 0 then begin
-
-      unlockmain; { end exclusive access }
-      assign(infile, '_input_window'); { assign to window input }
-      reset(infile); { activate it }
-      lockmain { start exclusive access }
-
-   end;
-   { output should not be open }
-   if getlfn(outfile) <> 0 then error(efinuse) { file in use }
-   else begin { open it }
-
-      unlockmain; { end exclusive access }
-      assign(outfile, '_output_window'); { assign to window output }
-      rewrite(outfile); { activate it }
-      lockmain { start exclusive access }
-      
-   end;
-   { get our level of the file handles }
-   ifn := txt2lfn(infile); { get input file }
-   ofn := txt2lfn(outfile); { get output file } 
-   { check either input is unused, or is already an input side of a window }
-   if opnfil[ifn] <> nil then { entry exists }
-      if not opnfil[ifn]^.inw or (opnfil[ifn]^.han <> 0) or 
-         (opnfil[ifn]^.win <> nil) then error(einmode); { wrong mode }
-   { check output file is in use }
-   if opnfil[ofn] <> nil then { entry exists }
-      if (opnfil[ofn]^.han <> 0) or (opnfil[ofn]^.win <> nil) or 
-          opnfil[ofn]^.inw then error(efinuse); { file in use }
-   { establish all logical files and links, translation tables, and open
-     window }
-   openio(ifn, ofn, pfn, wid)
-
-end;
-
 procedure openwin(var infile, outfile, parent: text; wid: ss_filhdl);
 
-var win: winptr; { window context pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(parent); { validate parent is a window file }
-   iopenwin(infile, outfile, txt2lfn(parent), wid); { process open }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure openwin(var infile, outfile: text; wid: ss_filhdl);
-
-begin
-
-   lockmain; { start exclusive access }
-   iopenwin(infile, outfile, 0, wid); { process open }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -8687,75 +2500,9 @@ Sets or resets the size of the buffer surface, in pixel units.
 
 ******************************************************************************}
 
-procedure isizbufg(win: winptr; x, y: integer);
-
-var cr:  sc_rect;   { client rectangle holder }
-    si:  1..maxcon; { index for current display screen }
-
-begin
-
-   if (x < 1) or (y < 1) then error(einvsiz); { invalid buffer size }
-   with win^ do begin { in windows context }
-
-      { set buffer size }
-      gmaxx := x div charspace; { find character size x }
-      gmaxy := y div linespace; { find character size y }
-      gmaxxg := x; { set size in pixels x }
-      gmaxyg := y; { set size in pixels y }
-      cr.left := 0; { set up desired client rectangle }
-      cr.top := 0;
-      cr.right := gmaxxg;
-      cr.bottom := gmaxyg;
-      { find window size from client size }
-      b := sc_adjustwindowrectex(cr, sc_ws_overlappedwindow, false, 0);
-      if not b then winerr; { process windows error }
-      { now, resize the window to just fit our new buffer size }
-      unlockmain; { end exclusive access }
-      b := sc_setwindowpos(winhan, 0, 0, 0, cr.right-cr.left, cr.bottom-cr.top,
-                           sc_swp_nomove or sc_swp_nozorder);
-      lockmain; { start exclusive access }
-      if not b then winerr; { process windows error }
-      { all the screen buffers are wrong, so tear them out }
-      for si := 1 to maxcon do disscn(win, screens[si]);
-      new(screens[curdsp]); { get the display screen }
-      iniscn(win, screens[curdsp]); { initalize screen buffer }
-      restore(win, true); { update to screen }
-      if curdsp <> curupd then begin { also create the update buffer }
-
-         new(screens[curupd]); { get the display screen }
-         iniscn(win, screens[curupd]); { initalize screen buffer }
-
-      end
-
-   end
-
-end;
-
 procedure sizbufg(var f: text; x, y: integer);
 
-var win: winptr; { window pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window pointer from text file }
-   with win^ do { in window context }
-      isizbufg(win, x, y); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure sizbufg(x, y: integer);
-
-var win: winptr; { window pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   with win^ do { in window context }
-      isizbufg(win, x, y); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -8769,31 +2516,7 @@ Sets or resets the size of the buffer surface, in character counts.
 
 procedure sizbuf(var f: text; x, y: integer);
 
-var win: winptr;    { pointer to windows context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window context }
-   with win^ do { in windows context }
-      { just translate from characters to pixels and do the resize in pixels. }
-      isizbufg(win, x*charspace, y*linespace);
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure sizbuf(x, y: integer);
-
-var win: winptr; { pointer to windows context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   with win^ do { in windows context }
-      { just translate from characters to pixels and do the resize in pixels. }
-      isizbufg(win, x*charspace, y*linespace);
-   unlockmain { end exclusive access }
 
 end;
 
@@ -8806,98 +2529,9 @@ freed.
 
 ******************************************************************************}
 
-procedure ibuffer(win: winptr; e: boolean);
-
-var si:  1..maxcon; { index for current display screen }
-    b:   boolean;   { result }
-    r:   sc_rect;   { rectangle }
-
-begin
-
-   with win^ do begin { in windows context }
-
-      if e then begin { perform buffer on actions }
-
-         bufmod := true; { turn buffer mode on }
-         { restore size from current buffer }
-         gmaxxg := screens[curdsp]^.maxxg; { pixel size }
-         gmaxyg := screens[curdsp]^.maxyg;
-         gmaxx := screens[curdsp]^.maxx; { character size }
-         gmaxy := screens[curdsp]^.maxy;
-         r.left := 0; { set up desired client rectangle }
-         r.top := 0;
-         r.right := gmaxxg;
-         r.bottom := gmaxyg;
-         { find window size from client size }
-         b := sc_adjustwindowrectex(r, sc_ws_overlappedwindow, false, 0);
-         if not b then winerr; { process windows error }
-         { resize the window to just fit our buffer size }
-         unlockmain; { end exclusive access }
-         b := sc_setwindowpos(winhan, 0, 0, 0, r.right-r.left, r.bottom-r.top,
-                              sc_swp_nomove or sc_swp_nozorder);
-         lockmain; { start exclusive access }
-         if not b then winerr; { process windows error }
-         restore(win, true) { restore buffer to screen }
-
-      end else if bufmod then begin { perform buffer off actions }
-
-         { The screen buffer contains a lot of drawing information, so we have
-           to keep one of them. We keep the current display, and force the
-           update to point to it as well. This single buffer then serves as
-           a "template" for the real pixels on screen. }
-         bufmod := false; { turn buffer mode off }
-         for si := 1 to maxcon do if si <> curdsp then disscn(win, screens[si]);
-         { dispose of screen data structures }
-         for si := 1 to maxcon do if si <> curdsp then 
-            if screens[si] <> nil then dispose(screens[si]);
-         curupd := curdsp; { unify the screens }
-         { get actual size of onscreen window, and set that as client space }
-         b := sc_getclientrect(winhan, r);
-         if not b then winerr; { process windows error }
-         gmaxxg := r.right-r.left; { return size }
-         gmaxyg := r.bottom-r.top;
-         gmaxx := gmaxxg div charspace; { find character size x }
-         gmaxy := gmaxyg div linespace; { find character size y }
-         { tell the window to resize }
-         b := sc_postmessage(win^.winhan, sc_wm_size, sc_size_restored, 
-                             gmaxyg*65536+gmaxxg);
-         if not b then winerr; { process windows error }
-         { tell the window to repaint }
-         {b := sc_postmessage(win^.winhan, sc_wm_paint, 0, 0);}
-         putmsg(win^.winhan, sc_wm_paint, 0, 0);
-         if not b then winerr { process windows error }
-
-      end
-
-   end
-
-end;
-
 procedure buffer(var f: text; e: boolean);
 
-var win: winptr; { pointer to windows context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window context }
-   with win^ do { in windows context }
-      ibuffer(win, e); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure buffer(e: boolean);
-
-var win: winptr; { pointer to windows context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   with win^ do { in windows context }
-      ibuffer(win, e); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -8911,186 +2545,9 @@ deleted.
 
 ******************************************************************************}
 
-procedure imenu(win: winptr; m: menuptr);
-
-var b:  boolean; { function result }
-    mp: metptr;  { tracking entry pointer }
-
-{ create menu tracking entry }
-
-procedure mettrk(han: integer; inx: integer; m: menuptr);
-
-var mp: metptr; { menu tracking entry pointer }
-
-begin
-
-   with win^ do begin { in window context }
-
-      new(mp); { get a new tracking entry }
-      mp^.next := metlst; { push onto tracking list }
-      metlst := mp;
-      mp^.han := han; { place menu handle }
-      mp^.inx := inx; { place menu index }
-      mp^.onoff := m^.onoff; { place on/off highlighter }
-      mp^.select := false; { place status of select (off) }
-      mp^.id := m^.id; { place id }
-      mp^.oneof := nil; { set no "one of" }
-      { We are walking backwards in the list, and we need the next list entry
-        to know the "one of" chain. So we tie the entry to itself as a flag
-        that it chains to the next entry. That chain will get fixed on the
-        next entry. }
-      if m^.oneof then mp^.oneof := mp;
-      { now tie the last entry to this if indicated }
-      if mp^.next <> nil then { there is a next entry }
-         if mp^.next^.oneof = mp^.next then mp^.next^.oneof := mp
-
-   end
-
-end;
-
-{ create menu list }
-
-procedure createmenu(m: menuptr; var mh: integer);
-
-var sm:  integer; { submenu handle }
-    f:   integer;  { menu flags }
-    inx: integer; { index number for this menu }
-
-begin
-
-   mh := sc_createmenu; { create new menu }
-   if mh = 0 then winerr; { process windows error }
-   inx := 0; { set first in sequence }
-   while m <> nil do begin { add menu item }
-
-      f := sc_mf_string or sc_mf_enabled; { set string and enable }
-      if m^.branch <> nil then begin { handle submenu }
-
-         createmenu(m^.branch, sm); { create submenu }
-         b := sc_appendmenu(mh, f or sc_mf_popup, sm, m^.face^);
-         if not b then winerr; { process windows error }
-         mettrk(mh, inx, m) { enter that into tracking }
-         
-      end else begin { handle terminal menu }
-
-         b := sc_appendmenu(mh, f, m^.id, m^.face^);
-         if not b then winerr; { process windows error }
-         mettrk(mh, inx, m) { enter that into tracking }
-
-      end;
-      if m^.bar then begin { add separator bar }
-
-         { a separator bar is a blank entry that will never be referenced }
-         b := sc_appendmenu(mh, sc_mf_separator, 0, '');
-         if not b then winerr; { process windows error }
-         inx := inx+1 { next in sequence }
-
-      end;
-      m := m^.next; { next menu entry }
-      inx := inx+1 { next in sequence }
-
-   end
-
-end;
-
-begin
-
-   with win^ do begin { in windows context }
-   
-      if menhan <> 0 then begin { distroy previous menu }
-
-         b := sc_destroymenu(menhan); { destroy it }
-         if not b then winerr; { process windows error }
-         { dispose of menu tracking entries }
-         while metlst <> nil do begin
-
-            mp := metlst; { remove top entry }
-            metlst := metlst^.next; { gap out }
-            dispose(mp) { free the entry }
-
-         end;
-         menhan := 0 { set no menu active }
-
-      end;
-      if m <> nil then { there is a new menu to activate }
-         createmenu(m, menhan);
-      unlockmain; { end exclusive access }
-      b := sc_setmenu(winhan, menhan); { set the menu to the window }
-      lockmain; { start exclusive access }
-      if not b then winerr; { process windows error }
-      unlockmain; { end exclusive access }
-      b := sc_drawmenubar(winhan); { display menu }
-      lockmain; { start exclusive access }
-      if not b then winerr { process windows error }
-
-   end
-
-end;
-
 procedure menu(var f: text; m: menuptr);
 
-var win: winptr; { pointer to windows context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window context }
-   with win^ do { in windows context }
-      imenu(win, m); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure menu(m: menuptr);
-
-var win: winptr; { pointer to windows context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   with win^ do { in windows context }
-      imenu(win, m); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-{******************************************************************************
-
-Find menu entry
-
-Finds a menu entry by id. If the entry is not found, it generates an error.
-If the entry exists more than once, it generates an error.
-
-******************************************************************************}
-
-function fndmenu(win: winptr; id: integer): metptr;
-
-var mp: metptr; { tracking entry pointer }
-    fp: metptr; { found entry pointer }
-
-begin
-
-   with win^ do begin { in window context }
-
-      fp := nil; { set no entry found }
-      mp := metlst; { index top of list }
-      while mp <> nil do begin { traverse }
-
-         if mp^.id = id then begin { found }
-
-            if fp <> nil then error(edupmen); { menu entry is duplicated }
-            fp := mp { set found entry }
-
-         end;
-         mp := mp^.next { next entry }
-            
-      end;
-      if fp = nil then error(emennf) { no menu entry found with id }
-
-   end;
-
-   fndmenu := fp { return entry }
 
 end;
 
@@ -9103,57 +2560,9 @@ and will no longer send messages.
 
 ******************************************************************************}
 
-procedure imenuena(win: winptr; id: integer; onoff: boolean);
-
-var fl: integer; { flags }
-    mp: metptr;  { tracking pointer }
-    r:  integer; { result }
-    b:  boolean; { result }
-
-begin
-
-   with win^ do begin { in windows context }
-   
-      mp := fndmenu(win, id); { find the menu entry }
-      fl := sc_mf_byposition; { place position select flag }
-      if onoff then fl := fl or sc_mf_enabled { enable it }
-      else fl := fl or sc_mf_grayed; { disable it }
-      r := sc_enablemenuitem(mp^.han, mp^.inx, fl); { perform that }
-      if r = -1 then error(esystem); { should not happen }
-      unlockmain; { end exclusive access }
-      b := sc_drawmenubar(winhan); { display menu }
-      lockmain; { start exclusive access }
-      if not b then winerr { process windows error }
-
-   end
-
-end;
-
 procedure menuena(var f: text; id: integer; onoff: boolean);
 
-var win: winptr; { pointer to windows context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window context }
-   with win^ do { in windows context }
-      imenuena(win, id, onoff); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure menuena(id: integer; onoff: boolean);
-
-var win: winptr; { pointer to windows context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   with win^ do { in windows context }
-      imenuena(win, id, onoff); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -9166,94 +2575,9 @@ selected, with no check if not.
 
 ******************************************************************************}
 
-procedure imenusel(win: winptr; id: integer; select: boolean);
-
-var fl: integer; { flags }
-    mp: metptr;  { tracking pointer }
-    b:  boolean; { result }
-    r:  integer; { result }
-
-{ find top of "one of" list }
-
-function fndtop(mp: metptr): metptr;
-
-begin
-
-   if mp^.next <> nil then { there is a next }
-      if mp^.next^.oneof = mp then begin { next entry links this one }
-
-      mp := mp^.next; { go to next entry }
-      mp := fndtop(mp) { try again }
-
-   end;
-
-   fndtop := mp { return result }
-
-end;
-
-{ clear "one of" select list }
-
-procedure clrlst(mp: metptr);
-
-begin
-
-   repeat { items in list }
-
-      fl := sc_mf_byposition or sc_mf_unchecked; { place position select flag }
-      r := sc_checkmenuitem(mp^.han, mp^.inx, fl); { perform that }
-      if r = -1 then error(esystem); { should not happen }
-      mp := mp^.oneof { link next }
-
-   until mp = nil { no more }
-
-end;
-
-begin
-
-   with win^ do begin { in windows context }
-   
-      mp := fndmenu(win, id); { find the menu entry }
-      clrlst(fndtop(mp)); { clear "one of" group }
-      mp^.select := select; { set the new select }
-      fl := sc_mf_byposition; { place position select flag }
-      if mp^.select then fl := fl or sc_mf_checked { select it }
-      else fl := fl or sc_mf_unchecked; { deselect it }
-      r := sc_checkmenuitem(mp^.han, mp^.inx, fl); { perform that }
-      if r = -1 then error(esystem); { should not happen }
-      unlockmain; { end exclusive access }
-      b := sc_drawmenubar(winhan); { display menu }
-      lockmain; { start exclusive access }
-      if not b then winerr { process windows error }
-
-   end
-
-end;
-
 procedure menusel(var f: text; id: integer; select: boolean);
 
-var win: winptr; { pointer to windows context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window context }
-   with win^ do { in windows context }
-      imenusel(win, id, select); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure menusel(id: integer; select: boolean);
-
-var win: winptr; { pointer to windows context }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window pointer from text file }
-   with win^ do { in windows context }
-      imenusel(win, id, select); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -9265,74 +2589,9 @@ Brings the indicated window to the front of the Z order.
 
 ******************************************************************************}
 
-procedure ifront(win: winptr);
-
-var b:  boolean; { result holder }
-    fl: integer;
-
-begin
-
-   with win^ do begin { in windows context }
-
-      fl := 0;
-      fl := not fl;
-      unlockmain; { end exclusive access }
-      b := sc_setwindowpos(winhan, 0{fl} {sc_hwnd_topmost}, 0, 0, 0, 0, 
-                           sc_swp_nomove or sc_swp_nosize);
-      lockmain; { start exclusive access }
-      if not b then winerr; { process windows error }
-
-;if false then begin
-      fl := 1;
-      fl := not fl;
-      unlockmain; { end exclusive access }
-      b := sc_setwindowpos(winhan, fl {sc_hwnd_notopmost}, 0, 0, 0, 0, 
-                           sc_swp_nomove or sc_swp_nosize);
-      lockmain; { start exclusive access }
-      if not b then winerr; { process windows error }
-;end;
-
-      unlockmain; { end exclusive access }
-      b := sc_postmessage(winhan, sc_wm_paint, 0, 0);
-      if not b then winerr; { process windows error }
-      lockmain; { start exclusive access }
-
-      if parhan <> 0 then begin
-
-         unlockmain; { end exclusive access }
-         b := sc_postmessage(parhan, sc_wm_paint, 0, 0);
-         if not b then winerr; { process windows error }
-         lockmain; { start exclusive access }
-
-      end
-
-   end
-   
-end;
-
 procedure front(var f: text);
 
-var win: winptr; { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window from file }
-   ifront(win); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure front;
-
-var win: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window from file }
-   ifront(win); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -9344,47 +2603,9 @@ Puts the indicated window to the back of the Z order.
 
 ******************************************************************************}
 
-procedure iback(win: winptr);
-
-var b: boolean; { result holder }
-
-begin
-
-   with win^ do begin { in windows context }
-
-      unlockmain; { end exclusive access }
-      b := sc_setwindowpos(winhan, sc_hwnd_bottom, 0, 0, 0, 0, 
-                           sc_swp_nomove or sc_swp_nosize);
-      lockmain; { start exclusive access }
-      if not b then winerr; { process windows error }
-
-   end
-   
-end;
-
 procedure back(var f: text);
 
-var win: winptr; { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window from file }
-   iback(win); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure back;
-
-var win: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window from file }
-   iback(win); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -9396,47 +2617,9 @@ Gets the onscreen window size.
 
 ******************************************************************************}
 
-procedure igetsizg(win: winptr; var x, y: integer);
-
-var b: boolean; { result holder }
-    r: sc_rect; { rectangle }
-
-begin
-
-   with win^ do begin { in windows context }
-
-      b := sc_getwindowrect(winhan, r);
-      if not b then winerr; { process windows error }
-      x := r.right-r.left; { return size }
-      y := r.bottom-r.top
-
-   end
-   
-end;
-
 procedure getsizg(var f: text; var x, y: integer);
 
-var win: winptr; { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window from file }
-   igetsizg(win, x, y); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure getsizg(var x, y: integer);
-
-var win: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window from file }
-   igetsizg(win, x, y); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -9455,55 +2638,7 @@ relative measurement.
 
 procedure getsiz(var f: text; var x, y: integer);
 
-var win, par: winptr; { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window from file }
-   igetsizg(win, x, y); { execute }
-   if win^.parlfn <> 0 then begin { has a parent }
-
-      par := lfn2win(win^.parlfn); { index the parent }
-      { find character based sizes }
-      x := (x-1) div par^.charspace+1;
-      y := (y-1) div par^.linespace+1
-
-   end else begin
-
-      { find character based sizes }
-      x := (x-1) div stdchrx+1;
-      y := (y-1) div stdchry+1
-
-   end;
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure getsiz(var x, y: integer);
-
-var win, par: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window from file }
-   igetsizg(win, x, y); { execute }
-   if win^.parlfn <> 0 then begin { has a parent }
-
-      par := lfn2win(win^.parlfn); { index the parent }
-      { find character based sizes }
-      x := (x-1) div par^.charspace+1;
-      y := (y-1) div par^.linespace+1
-
-   end else begin
-
-      { find character based sizes }
-      x := (x-1) div stdchrx+1;
-      y := (y-1) div stdchry+1
-
-   end;
-   unlockmain { end exclusive access }
 
 end;
 
@@ -9515,47 +2650,9 @@ Sets the onscreen window to the given size.
 
 ******************************************************************************}
 
-procedure isetsizg(win: winptr; x, y: integer);
-
-var b: boolean; { result holder }
-
-begin
-
-   with win^ do begin { in windows context }
-
-      unlockmain; { end exclusive access }
-      b := sc_setwindowpos(winhan, 0, 0, 0, x, y, 
-                           sc_swp_nomove or sc_swp_nozorder);
-      lockmain; { start exclusive access }
-      if not b then winerr { process windows error }
-
-   end
-   
-end;
-
 procedure setsizg(var f: text; x, y: integer);
 
-var win: winptr; { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window from file }
-   isetsizg(win, x, y); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure setsizg(x, y: integer);
-
-var win: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window from file }
-   isetsizg(win, x, y); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -9574,55 +2671,7 @@ relative measurement.
 
 procedure setsiz(var f: text; x, y: integer);
 
-var win, par: winptr; { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window from file }
-   if win^.parlfn <> 0 then begin { has a parent }
-
-      par := lfn2win(win^.parlfn); { index the parent }
-      { find character based sizes }
-      x := x*par^.charspace;
-      y := y*par^.linespace
-
-   end else begin
-
-      { find character based sizes }
-      x := x*stdchrx;
-      y := y*stdchry
-
-   end;
-   isetsizg(win, x, y); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure setsiz(x, y: integer);
-
-var win, par: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window from file }
-   if win^.parlfn <> 0 then begin { has a parent }
-
-      par := lfn2win(win^.parlfn); { index the parent }
-      { find character based sizes }
-      x := x*par^.charspace;
-      y := y*par^.linespace
-
-   end else begin
-
-      { find character based sizes }
-      x := x*stdchrx;
-      y := y*stdchry
-
-   end;
-   isetsizg(win, x, y); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -9634,46 +2683,9 @@ Sets the onscreen window to the given position in its parent.
 
 ******************************************************************************}
 
-procedure isetposg(win: winptr; x, y: integer);
-
-var b: boolean; { result holder }
-
-begin
-
-   with win^ do begin { in windows context }
-
-      unlockmain; { end exclusive access }
-      b := sc_setwindowpos(winhan, 0, x-1, y-1, 0, 0, sc_swp_nosize);
-      lockmain; { start exclusive access }
-      if not b then winerr { process windows error }
-
-   end
-   
-end;
-
 procedure setposg(var f: text; x, y: integer);
 
-var win: winptr; { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window from file }
-   isetposg(win, x, y); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure setposg(x, y: integer);
-
-var win: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window from file }
-   isetposg(win, x, y); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -9692,55 +2704,7 @@ relative measurement.
 
 procedure setpos(var f: text; x, y: integer);
 
-var win, par: winptr; { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window from file }
-   if win^.parlfn <> 0 then begin { has a parent }
-
-      par := lfn2win(win^.parlfn); { index the parent }
-      { find character based sizes }
-      x := (x-1)*par^.charspace+1;
-      y := (y-1)*par^.linespace+1
-
-   end else begin
-
-      { find character based sizes }
-      x := (x-1)*stdchrx+1;
-      y := (y-1)*stdchry+1
-
-   end;
-   isetposg(win, x, y); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure setpos(x, y: integer);
-
-var win, par: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window from file }
-   if win^.parlfn <> 0 then begin { has a parent }
-
-      par := lfn2win(win^.parlfn); { index the parent }
-      { find character based sizes }
-      x := (x-1)*par^.charspace+1;
-      y := (y-1)*par^.linespace+1
-
-   end else begin
-
-      { find character based sizes }
-      x := (x-1)*stdchrx+1;
-      y := (y-1)*stdchry+1
-
-   end;
-   isetposg(win, x, y); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -9752,49 +2716,9 @@ Gets the total screen size.
 
 ******************************************************************************}
 
-procedure iscnsizg(win: winptr; var x, y: integer);
-
-var b:      boolean; { result holder }
-    r:      sc_rect; { rectangle }
-    scnhan: integer; { desktop handle }
-
-begin
-
-   with win^ do begin { in windows context }
-
-      scnhan := sc_getdesktopwindow;
-      b := sc_getwindowrect(scnhan, r);
-      if not b then winerr; { process windows error }
-      x := r.right-r.left; { return size }
-      y := r.bottom-r.top
-
-   end
-   
-end;
-
 procedure scnsizg(var f: text; var x, y: integer);
 
-var win: winptr; { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window from file }
-   iscnsizg(win, x, y); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure scnsizg(var x, y: integer);
-
-var win: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window from file }
-   iscnsizg(win, x, y); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -9813,129 +2737,17 @@ Do we also need a menu style type ?
 
 ******************************************************************************}
 
-procedure iwinclientg(win: winptr; cx, cy: integer; var wx, wy: integer; 
-                      view ms: winmodset);
-
-var cr: sc_rect; { client rectangle holder }
-    fl: integer; { flag }
-
-begin
-
-   lockmain; { start exclusive access }
-   with win^ do begin
-
-      cr.left := 0; { set up desired client rectangle }
-      cr.top := 0;
-      cr.right := cx;
-      cr.bottom := cy;
-      { set minimum style }
-      fl := sc_ws_overlapped or sc_ws_clipchildren;
-      { add flags for child window }
-      if parhan <> 0 then fl := fl or sc_ws_child or sc_ws_clipsiblings;
-      if wmframe in ms then begin { add frame features }
-
-         if wmsize in ms then fl := fl or sc_ws_thickframe;
-
-         if wmsysbar in ms then fl := fl or sc_ws_caption or sc_ws_sysmenu or
-                                      sc_ws_minimizebox or sc_ws_maximizebox;
-
-      end;
-      { find window size from client size }
-      b := sc_adjustwindowrectex(cr, fl, false, 0);
-      if not b then winerr; { process windows error }
-      wx := cr.right-cr.left; { return window size }
-      wy := cr.bottom-cr.top
-
-   end;
-   unlockmain { end exclusive access }
-
-end;
-
 procedure winclient(var f: text; cx, cy: integer; var wx, wy: integer;
                     view ms: winmodset);
 
-var win, par: winptr; { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window from file }
-   { execute }
-   iwinclientg(win, cx*win^.charspace, cy*win^.linespace, wx, wy, ms);
-   { find character based sizes }
-   if win^.parlfn <> 0 then begin { has a parent }
-
-      par := lfn2win(win^.parlfn); { index the parent }
-      { find character based sizes }
-      wx := (wx-1) div par^.charspace+1;
-      wy := (wy-1) div par^.linespace+1
-
-   end else begin
-
-      { find character based sizes }
-      wx := (wx-1) div stdchrx+1;
-      wy := (wy-1) div stdchry+1
-
-   end;
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure winclient(cx, cy: integer; var wx, wy: integer;
-                             view ms: winmodset);
-
-var win, par: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window from file }
-   { execute }
-   iwinclientg(win, cx*win^.charspace, cy*win^.linespace, wx, wy, ms);
-   { find character based sizes }
-   if win^.parlfn <> 0 then begin { has a parent }
-
-      par := lfn2win(win^.parlfn); { index the parent }
-      { find character based sizes }
-      wx := (wx-1) div par^.charspace+1;
-      wy := (wy-1) div par^.linespace+1;
-
-   end else begin
-
-      { find character based sizes }
-      wx := (wx-1) div stdchrx+1;
-      wy := (wy-1) div stdchry+1
-
-   end;
-   unlockmain { end exclusive access }
 
 end;
 
 procedure winclientg(var f: text; cx, cy: integer; var wx, wy: integer;
                      view ms: winmodset);
 
-var win: winptr; { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window from file }
-   iwinclientg(win, cx, cy, wx, wy, ms); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure winclientg(cx, cy: integer; var wx, wy: integer;
-                              view ms: winmodset);
-
-var win: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window from file }
-   iwinclientg(win, cx, cy, wx, wy, ms); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -9952,31 +2764,7 @@ because it can only be used as a relative measurement.
 
 procedure scnsiz(var f: text; var x, y: integer);
 
-var win: winptr; { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window from file }
-   iscnsizg(win, x, y); { execute }
-   x := x div stdchrx; { convert to "standard character" size }
-   y := y div stdchry;
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure scnsiz(var x, y: integer);
-
-var win: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window from file }
-   iscnsizg(win, x, y); { execute }
-   x := x div stdchrx; { convert to "standard character" size }
-   y := y div stdchry;
-   unlockmain { end exclusive access }
 
 end;
 
@@ -9988,89 +2776,9 @@ Turns the window frame on and off.
 
 ******************************************************************************}
 
-procedure iframe(win: winptr; e: boolean);
-
-var fl1, fl2: integer; { flag }
-    cr:       sc_rect; { client rectangle holder }
-
-begin
-
-   with win^ do begin { in windows context }
-
-      frame := e; { set new status of frame }
-      fl1 := sc_ws_overlapped or sc_ws_clipchildren; { set minimum style }
-      { add flags for child window }
-      if parhan <> 0 then fl1 := fl1 or sc_ws_child or sc_ws_clipsiblings;
-      { if we are enabling frames, add the frame parts back }
-      if e then begin
-
-         if size then fl1 := fl1 or sc_ws_thickframe;
-         if sysbar then fl1 := fl1 or sc_ws_caption or sc_ws_sysmenu or
-                               sc_ws_minimizebox or sc_ws_maximizebox;
-
-      end;
-      fl2 := $f; { build the gwl_style value }
-      fl2 := not fl2;
-      unlockmain; { end exclusive access }
-      r := sc_setwindowlong(winhan, fl2 {sc_gwl_style}, fl1);
-      lockmain; { start exclusive access }
-      if r = 0 then winerr; { process windows error }
-      unlockmain; { end exclusive access }
-      b := sc_setwindowpos(winhan, 0, 0, 0, 0, 0, 
-                           sc_swp_nosize or sc_swp_nomove or 
-                           sc_swp_framechanged);
-      lockmain; { start exclusive access }
-      if not b then winerr; { process windows error }
-      { present the window }
-      unlockmain; { end exclusive access }
-      b := sc_showwindow(winhan, sc_sw_showdefault);
-      lockmain; { start exclusive access }
-      if bufmod then begin { in buffer mode }
-
-         { change window size to match new mode }
-         cr.left := 0; { set up desired client rectangle }
-         cr.top := 0;
-         cr.right := gmaxxg;
-         cr.bottom := gmaxyg;
-         { find window size from client size }
-         b := sc_adjustwindowrectex(cr, fl1, false, 0);
-         if not b then winerr; { process windows error }
-         unlockmain; { end exclusive access }
-         b := sc_setwindowpos(winhan, 0, 0, 0, 
-                              cr.right-cr.left, cr.bottom-cr.top,
-                              sc_swp_nomove or sc_swp_nozorder);
-         lockmain; { start exclusive access }
-         if not b then winerr { process windows error }
-
-      end
-
-   end
-
-end;
-
 procedure frame(var f: text; e: boolean);
 
-var win: winptr; { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window from file }
-   iframe(win, e); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure frame(e: boolean);
-
-var win: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window from file }
-   iframe(win, e); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -10082,94 +2790,9 @@ Turns the window sizing on and off.
 
 ******************************************************************************}
 
-procedure isizable(win: winptr; e: boolean);
-
-var fl1, fl2: integer; { flag }
-    cr:       sc_rect; { client rectangle holder }
-
-begin
-
-   with win^ do begin { in windows context }
-
-      size := e; { set new status of size bars }
-      { no point in making the change of framing is off entirely }
-      if frame then begin
-
-         { set minimum style }
-         fl1 := sc_ws_overlapped or sc_ws_clipchildren;
-         { add frame features }
-         if size then fl1 := fl1 or sc_ws_thickframe
-         else fl1 := fl1 or sc_ws_border;
-         if sysbar then fl1 := fl1 or sc_ws_caption or sc_ws_sysmenu or
-                               sc_ws_minimizebox or sc_ws_maximizebox;
-         { add flags for child window }
-         if parhan <> 0 then fl1 := fl1 or sc_ws_child or sc_ws_clipsiblings;
-         { if we are enabling frames, add the frame parts back }
-         if e then fl1 := fl1 or sc_ws_thickframe;
-         fl2 := $f; { build the gwl_style value }
-         fl2 := not fl2;
-         unlockmain; { end exclusive access }
-         r := sc_setwindowlong(winhan, fl2 {sc_gwl_style}, fl1);
-         lockmain; { start exclusive access }
-         if r = 0 then winerr; { process windows error }
-         unlockmain; { end exclusive access }
-         b := sc_setwindowpos(winhan, 0, 0, 0, 0, 0, 
-                              sc_swp_nosize or sc_swp_nomove or 
-                              sc_swp_framechanged);
-         lockmain; { start exclusive access }
-         if not b then winerr; { process windows error }
-         { present the window }
-         unlockmain; { end exclusive access }
-         b := sc_showwindow(winhan, sc_sw_showdefault);
-         lockmain; { start exclusive access }
-         if bufmod then begin { in buffer mode }
-
-            { change window size to match new mode }
-            cr.left := 0; { set up desired client rectangle }
-            cr.top := 0;
-            cr.right := gmaxxg;
-            cr.bottom := gmaxyg;
-            { find window size from client size }
-            b := sc_adjustwindowrectex(cr, fl1, false, 0);
-            if not b then winerr; { process windows error }
-            unlockmain; { end exclusive access }
-            b := sc_setwindowpos(winhan, 0, 0, 0, 
-                                 cr.right-cr.left, cr.bottom-cr.top,
-                                 sc_swp_nomove or sc_swp_nozorder);
-            lockmain; { start exclusive access }
-            if not b then winerr { process windows error }
-
-         end
-
-      end
-
-   end
-
-end;
-
 procedure sizable(var f: text; e: boolean);
 
-var win: winptr; { windows record pointer }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get window from file }
-   isizable(win, e); { execute }
-   unlockmain { end exclusive access }
-
-end;
-
-overload procedure sizable(e: boolean);
-
-var win: winptr; { windows record pointer }
-
-begin
-
-   lockmain; { start exclusive access }
-   win := lfn2win(outfil); { get window from file }
-   isizable(win, e); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -10623,14 +3246,7 @@ Sets the current position of a scrollbar slider.
 
 procedure scrollpos(var f: text; id: integer; r: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   iscrollpos(win, id, r); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -10644,14 +3260,7 @@ Sets the current size of a scrollbar slider.
 
 procedure scrollsiz(var f: text; id: integer; r: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   iscrollsiz(win, id, r); { execute }
-   unlockmain { end exclusive access }
 
 end;
 
@@ -10666,27 +3275,13 @@ select box is calculated and returned.
 
 procedure numselboxsizg(var f: text; l, u: integer; var w, h: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   inumselboxsizg(win, l, u, w, h); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
 procedure numselboxsiz(var f: text; l, u: integer; var w, h: integer);
 
-var win: winptr; { window context }
-
 begin
-
-   lockmain; { start exclusive access }
-   win := txt2win(f); { get windows context }
-   inumselboxsiz(win, l, u, w, h); { get size }
-   unlockmain { end exclusive access }
 
 end;
 
