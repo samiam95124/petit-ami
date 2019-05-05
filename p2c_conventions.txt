@@ -64,6 +64,13 @@ for types. It is perhaps one of the more annoying conversions, I will admit
 (especially for C only programmers). However, the advantage is it leaves the
 Pascaline and C source codes comparible side by side.
 
+Update: I have given this considerable thought while hand translating these
+programs. I think there is a case to "unwind" such type defines with the idea
+of making the code "more C like". This is one of those things that makes more
+sense for automated convertion than manual. To unwind a type definition back to,
+say, simple integer could be a source wide convertion, since the type could be
+used anywhere.
+
 3. 1 based vs. 0 based. A lot of the code refactoring centers around the 
 "misunderstanding" between 0 and 1 based arrays in C vs. Pascaline. Actually,
 Pascaline can easily use 0 based indexes, and C could use 1 based indexes if you
@@ -107,7 +114,7 @@ for (i = 0; i < 0; a[i] = 0;
 Which better matches C conventions and is less verbose. It makes no difference
 in the code whatever after the compiler optimizes it.
 
-3. Arrays to pointers. I have made little or no effort to convert array notation
+4. Arrays to pointers. I have made little or no effort to convert array notation
 in the code to pointer notation:
 
 Pascaline:
@@ -129,7 +136,7 @@ while (*a == ' ') i++;
 The array notation is directly equivalent in C, and is more clear as to the 
 programmer's intent, as well.
 
-4. Strings. Pascaline allows for dynamic arrays as a type. In C this must be a 
+5. Strings. Pascaline allows for dynamic arrays as a type. In C this must be a 
 pointer. Thus the convention I have used is:
 
 Pascaline:
@@ -143,7 +150,7 @@ typedef char* string;
 This can result in a litte more work inside the code that uses the type, but the
 code is basically equivalent.
 
-4. Sets. The equivalent set types and operations for sets are:
+6. Sets. The equivalent set types and operations for sets are:
 
 #define MAXSET 32
 
@@ -180,6 +187,27 @@ SET(s, three);
 
 I.E., fairly ungainly.
 
+There is another solution to this for sets that can fit in 32 or even 64 bits.
+In this case the set fits into an unsigned integer or long integer, and becomes:
+
+#define BIT(b) (1<<b) /* find bit from ordinal */
+#define SET(s, b) (*s |= BIT(b)) /* set bit in set */
+#define RES(s, b) (*s &= ~BIT(b)) /* reset bit in set */
+#define INS(s, b) (!!(*s & BIT(b))) /* check bit in set */
+
+IE, it degenerates to a common integer bit operation in C, which is in fact the
+common usage in C. In this case, creating a set from elements in a single line is
+possible:
+
+s = BIT(a)|BIT(b)|BIT(c);
+
+In fact, 32 or 64 bit sets will cover most sets. 64 bits was, in fact, the 
+original set length of Pascal. The requirement was to enable "set of char", 
+which on a CDC machine was 64 characters (upper and lower case were handled by
+shift characters). This was commonly expanded to 256 bits to cover the ASCII 
+character set (in extended form). Thus the majority of set cases can be 
+converted to simple integer sets, and the N set version above covers the rest. 
+
 4. Nested functions. The conversion of Pascaline nested functions to C is 
 anywhere from very difficult to impossible. C99 has them in the standard, and
 this is another case of C getting improved with Pascal style constructs, like
@@ -197,3 +225,40 @@ you won't generally see upper or lower case used to differentiate symbols here
 case to differentiate symbols in C rather obnoxious in any case, and I don't use
 it in pure C programs, either (I feel the same about struct vs. non-struct 
 naming).
+
+7. eoln() or eof() conversions. In order to convert the use of these functions
+to C, this would require refactoring the code. And example of why is:
+
+while not eof(f) do read(f, c);
+
+Where c is char. To do this job in C using only whitebook calls, a refactor is
+required:
+
+while ((c = fgetc(f) != c);
+
+Its a simple refactor, however it can cause changes that ripple through the 
+code. For example:
+
+while not eof(f) do readline();
+
+Where readline() is a routine that reads in an entire line. We don't have access
+to the buffer variable used in readline(), so a more extensive refactor is 
+required.
+
+One way around this, especially for automated translation is to make our own 
+eoln() and eof() routines:
+
+int eoln(FILE* f) { int c; ungetc(c = fgetc(f), f); return c == '\n'; }
+int eof(FILE* f) { int c; ungetc(c = fgetc(f), f); return c == EOF; }
+
+Note this uses the common definition of putting back EOF as having no effect, 
+which indeed was why this rule came about. The whitebook does not actually
+specify this behavior, but most implementations do, because it is the most
+reasonable interpretation, that EOF as put back is simply ignored.
+
+8. Non-reliance on expression evaluation order. This one is pretty simple, 
+Pascaline does not rely on expression ordering. You are supposed to assume that
+all of the expression parts are executed. This rule is downward compatible with
+C, which is to say the expressions thus specified won't be wrong, they will just
+appear as unnecessarily paranoid compared to normal C. Thus you may encounter
+such oddly written expressions or statements.
