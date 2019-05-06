@@ -17,6 +17,9 @@ event: ansiterm.c terminal.h event.c stdio.c stdio.h Makefile
 getkeys: getkeys.c Makefile
 	gcc -g -o getkeys getkeys.c -lm 
 	
+getmouse: getmouse.c Makefile
+	gcc -g -o getmouse getmouse.c -lm 
+	
 term: ansiterm.c terminal.h term.c stdio.c stdio.h Makefile
 	gcc -g -o term stdio.c ansiterm.c term.c -lm 
 	
