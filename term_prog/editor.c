@@ -25,58 +25,56 @@
 #include <string.h>
 #include <ctype.h>
 #include <limits.h>
+#include <stdlib.h>
 
 #include "../terminal.h"
 
 #define MAXLIN 250 /* maximum entered line, must be greater than maxx */
 #define MAXFIL 40  /* maximum length of filename */
 
-type
-
 typedef char*                string;  /* general string type */
 typedef enum { false, true } boolean; /* boolean */
 typedef int   lininx;                 /* index for line buffer */
 typedef char  linbuf[MAXLIN];         /* line buffer */
-typedef line* linptr;                 /* pointer to line entry */
+typedef struct line* linptr;          /* pointer to line entry */
 /* The lines in the edit buffer are stored as a double linked list of
    dynamically allocated strings */
-typedef struct {                      /* line store entry */
+typedef struct line {                 /* line store entry */
 
-    linptr next: linptr; /* next line in store */
-    last: linptr;        /* last line in store */
-    str:  string;        /* string data */
+    linptr next; /* next line in store */
+    linptr last; /* last line in store */
+    string str;  /* string data */
 
 } line;
 typedef int filinx; /* index for filename */
-typedef char filbuf[[MAXFIL]; /* filename */
-typedef crdrec* crdptr; /* pointer to coordinate store */
-typedef struct { /* cursor coordinate save */
+typedef char filbuf[MAXFIL]; /* filename */
+typedef struct crdrec* crdptr; /* pointer to coordinate store */
+typedef struct crdrec { /* cursor coordinate save */
 
     crdptr next; /* next entry */
     int    x, y; /* cursor coordinates */
 
 } crdrec;
 
-var
+linbuf    inpbuf;        /* input line buffer */
+boolean   buflin;        /* current line in buffer flag */
+linptr    linstr;        /* edit lines storage */
+linptr    paglin;        /* top of page line */
+int       lincnt;        /* number of lines in buffer */
+int       chrcnt;        /* number of characters in buffer */
+int       linpos;        /* current line */
+int       poschr;        /* current character on line */
+filbuf    curfil;        /* current file to edit */
+pa_evtrec er;            /* next event record */
+crdptr    curstk;        /* cursor coordinate stack */
+int       mpx;           /* mouse coordinates x */
+int       mpy;           /* mouse coordinates y */
+boolean   insertc;       /* insert/overwrite toggle */
+linbuf    cmdlin;        /* command line */
+lininx    cmdptr;        /* command line pointer */
+jmp_buf   inputloop_buf; /* buffer for return to input loop */
 
-linbuf  inpbuf;        /* input line buffer */
-boolean buflin;        /* current line in buffer flag */
-linptr  linstr;        /* edit lines storage */
-linptr  paglin;        /* top of page line */
-int     lincnt;        /* number of lines in buffer */
-int     chrcnt;        /* number of characters in buffer */
-int     linpos;        /* current line */
-int     poschr;        /* current character on line */
-filbuf  curfil;        /* current file to edit */
-evtrec  er;            /* next event record */
-crdptr  curstk;        /* cursor coordinate stack */
-int     mpx;           /* mouse coordinates x */
-int     mpy;           /* mouse coordinates y */
-boolean insertc;       /* insert/overwrite toggle */
-linbuf  cmdlin;        /* command line */
-lininx  cmdptr;        /* command line pointer */
-jmp_buf inputloop_buf; /* buffer for return to input loop */
-
+void errormsg(string s);
 
 /*******************************************************************************
 
@@ -93,13 +91,13 @@ void pshcur(void)
     crdptr p; /* coordinate entry pointer */
 
     p = malloc(sizeof(crdrec)); /* get a new stack entry */
-    if (!p) errormsg("*** Out of memory');
+    if (!p) errormsg("*** Out of memory");
     p->next = curstk; /* push onto stack */
     curstk = p;
     p->x = pa_curx(stdout); /* place save coordinates */
-    p->y = pa_cury(stdout)
+    p->y = pa_cury(stdout);
 
-end;
+}
 
 /*******************************************************************************
 
@@ -120,7 +118,7 @@ void popcur(void)
         pa_cursor(stdout, curstk->x, curstk->y); /* restore old cursor position */
         p = curstk; /* remove from stack */
         curstk = curstk->next;
-        free(p) /* release entry */
+        free(p); /* release entry */
 
     }
 
@@ -143,7 +141,7 @@ void status(void)
     pa_curvis(stdout, false); /* turn off cursor */
     pshcur; /* save cursor position */
     pa_standout(stdout, true); /* turn on standout */
-    pa_bcolor(stdout, cyan); /* a nice (light) blue, if you please */
+    pa_bcolor(stdout, pa_cyan); /* a nice (light) blue, if you please */
     pa_cursor(stdout, 1, pa_maxy(stdout)); /* position to end line on screen */
     printf("File: %s Line: %6d Char: %3d", curfil, linpos, poschr);
     if (insertc) printf(" Ins"); else printf(" Ovr"); /* write insert status */
@@ -173,9 +171,9 @@ void statusl(void)
     pshcur; /* save cursor position */
     pa_bcolor(stdout, pa_cyan); /* a nice (light) blue, if you please */
     pa_standout(stdout, true); /* enable standout */
-    pa_cursor(stdout, 54, maxy(stdout)); /* go to line position field */
+    pa_cursor(stdout, 54, pa_maxy(stdout)); /* go to line position field */
     printf("%6d", linpos); /* update cursor position */
-    pa_bcolor(stdout, white); /* reset color */
+    pa_bcolor(stdout, pa_white); /* reset color */
     pa_standout(stdout, false); /* disable standout */
     popcur; /* restore cursor position */
     pa_curvis(stdout, true); /* turn on cursor */
@@ -198,12 +196,12 @@ void statusc(void)
     pshcur; /* save cursor position */
     pa_bcolor(stdout, pa_cyan); /* a nice (light) blue, if you please */
     pa_standout(stdout, true); /* enable standout */
-    pa_cursor(stdout, 67, maxy(stdout)); /* go to character position field */
+    pa_cursor(stdout, 67, pa_maxy(stdout)); /* go to character position field */
     printf("%3d", poschr); /* update cursor position */
     pa_bcolor(stdout, pa_white); /* reset color */
     pa_standout(stdout, false); /* disable standout */
     popcur; /* restore cursor position */
-    pa_curvis(stdout, true) /* turn on cursor */
+    pa_curvis(stdout, true); /* turn on cursor */
 
 }
 
@@ -224,11 +222,11 @@ void statusi(void)
     pa_bcolor(stdout, pa_cyan); /* a nice (light) blue, if you please */
     pa_standout(stdout, true); /* enable standout */
     pa_cursor(stdout, 71, pa_maxy(stdout)); /* go to character position field */
-    if insertc then printf("Ins"); else printf("Ovr"); /* write insert status */
+    if (insertc) printf("Ins"); else printf("Ovr"); /* write insert status */
     pa_bcolor(stdout, pa_white); /* reset color */
     pa_standout(stdout, false); /* disable standout */
     popcur; /* restore cursor position */
-    pa_curvis(stdout, true) /* turn on cursor */
+    pa_curvis(stdout, true); /* turn on cursor */
 
 }
 
@@ -242,7 +240,7 @@ This will be overwritten by the next status change.
 
 *******************************************************************************/
 
-void info(string s);
+void info(string s)
  
 {
 
@@ -258,7 +256,7 @@ void info(string s);
     pa_bcolor(stdout, pa_white); /* back to white */
     pa_standout(stdout, false); /* turn off standout */
     popcur; /* restore cursor position */
-    pa_curvis(stdout, true) /* turn on cursor */
+    pa_curvis(stdout, true); /* turn on cursor */
 
 }
 
@@ -270,7 +268,7 @@ Places an information line in the status area, and aborts to input mode.
 
 *******************************************************************************/
 
-void errormsg(string s);
+void errormsg(string s)
  
 {
 
@@ -303,14 +301,14 @@ void plclin(string s)
 
         lp->next = lp; /* self link the entry */
         lp->last = lp;
-        linstr = lp /* and place root */
+        linstr = lp; /* and place root */
 
     } else { /* store not empty */
 
         lp->next = linstr; /* link to next */
         lp->last = linstr->last; /* link to last */
         lp->next->last = lp; /* link next to this */
-        lp->last->next = lp /* link last to this */
+        lp->last->next = lp; /* link last to this */
 
     }
     lincnt++; /* count lines in buffer */
@@ -340,11 +338,11 @@ void wrtlin(int    y, /* position to place string */
         else if (s[i] >= ' ') putchar(s[i]); /* output as is */
         else { /* is a control character */
 
-            pa_fcolor(stdout, red); /* place in red */
-            pa_bcolor(stdout, yellow);
-            putchar(chr(s[i]+'@'); /* output as control sequence */
-            pa_fcolor(stdout, black); /* back to normal */
-            pa_bcolor(stdout, white)
+            pa_fcolor(stdout, pa_red); /* place in red */
+            pa_bcolor(stdout, pa_yellow);
+            putchar(s[i]+'@'); /* output as control sequence */
+            pa_fcolor(stdout, pa_black); /* back to normal */
+            pa_bcolor(stdout, pa_white);
 
         }
 
@@ -375,10 +373,10 @@ void update(void)
     y = 1; /* set 1st line */
     if (lp) do { /* write lines */
 
-        wrtlin(y, lp->str^); /* output line */
+        wrtlin(y, lp->str); /* output line */
         lp = lp->next; /* next line */
         y = y+1;
-        lc = lc-1 /* count available lines on screen */
+        lc = lc-1; /* count available lines on screen */
 
     /* until we wrap around, or screen full */
     } while (lp != linstr && lc != 0);
@@ -442,7 +440,7 @@ linptr fndcur(void)
     linptr lp; /* pointer to line */
     int    lc; /* line count */
 
-    lp = paglin(); /* index page pin */
+    lp = paglin; /* index page pin */
     lc = pa_cury(stdout); /* get current line position */
     while (lp && lc != 1) { /* walk down */
 
@@ -473,14 +471,14 @@ void getbuf(void)
 {
 
     linptr lp; /* pointer to current line */
-    int    i:; /* index for line */
+    int    i;  /* index for line */
 
     if (!buflin) { /* line not in buffer */
 
         for (i = 0; i < MAXLIN; i++) inpbuf[i] = ' '; /* clear input buffer */
-        lp = fndcur; /* find current line */
+        lp = fndcur(); /* find current line */
         if (lp) /* the line exists, copy into buffer */
-            for (i = 0; i < strlen(lp->str); i++) inpbuf[i] = lp->str^[i];
+            for (i = 0; i < strlen(lp->str); i++) inpbuf[i] = lp->str[i];
         buflin = true; /* set line in buffer */
 
     }
@@ -514,7 +512,7 @@ void putbuf(void)
 
     if (buflin) { /* the line is in the buffer */
 
-        lp = fndcur; /* find the current line */
+        lp = fndcur(); /* find the current line */
         if (!lp) { /* beyond end, create lines */
 
             /* find number of new lines needed */
@@ -530,7 +528,7 @@ void putbuf(void)
             }
             /* place blank lines to fill */
             while (lc > 0) { plclin(""); lc--; }
-            lp = fndcur; /* now find that */
+            lp = fndcur(); /* now find that */
 
         }
         /* ok, there is a dirty (but workable) trick here. notice that if we have
@@ -541,7 +539,7 @@ void putbuf(void)
         l = strlen(inpbuf); /* find length of buffered line */
         lp->str = malloc(l+1); /* create a new string */
         strcpy(lp->str, inpbuf); /* copy to string */
-        buflin = false /* set line not in buffer */
+        buflin = false; /* set line not in buffer */
 
     }
 
@@ -565,14 +563,14 @@ void readfile(string fn) /* file to read */
     boolean ef; /* end of file indication */
 
     putbuf(); /* decache any buffer */
-    info('Reading file');
+    info("Reading file");
     /* we should dispose of existing lines before this operation */
     linstr = NULL; /* clear lines buffer */
     lincnt = 0; /* clear total lines */
     chrcnt = 0; /* clear total characters */
     linpos = 1; /* set 1st line */
     poschr = 1; /* set 1st character */
-    f = fopen(f, "r");; /* open the input file */
+    f = fopen(fn, "r"); /* open the input file */
     if (!f) info("*** Cannot open file ***");
     ef = false;
     while (!ef) { /* read lines */
@@ -620,7 +618,7 @@ void movup(void)
                 paglin = paglin->last; /* move page pin up */
                 pshcur; /* save cursor position */
                 pa_home(stdout); /* go to top line */
-                wrtlin(1, paglin->str^); /* output that line */
+                wrtlin(1, paglin->str); /* output that line */
                 popcur; /* restore cursor position */
                 pa_curvis(stdout, true); /* turn on cursor */
                 status(); /* update status line */
@@ -654,7 +652,7 @@ void movdwn(void)
     putbuf(); /* decache any buffer */
     if (linstr) { /* buffer not empty */
 
-        if (pa_cury(stdout) < pa_maxy(stdout)-1)||
+        if (pa_cury(stdout) < pa_maxy(stdout)-1 ||
             paglin->next != linstr) { /* not at last line */
 
             /* Not last line on screen, or more lines left in buffer. We are a
@@ -673,7 +671,7 @@ void movdwn(void)
                 /* clear last line */
                 pa_curvis(stdout, false); /* turn off cursor */
                 pshcur; /* save current position */
-                pa_cursor(stdout, 1, maxy(stdout));
+                pa_cursor(stdout, 1, pa_maxy(stdout));
                 while (pa_curx(stdout) < pa_maxx(stdout)) putchar(' ');
                 putchar(' ');
                 popcur(); /* restore cursor position */
@@ -693,7 +691,7 @@ void movdwn(void)
 
                     /* new line exists */
                     pshcur(); /* save cursor position */
-                    wrtlin(maxy(stdout)-1, lp->str^); /* output that line */
+                    wrtlin(pa_maxy(stdout)-1, lp->str); /* output that line */
                     popcur(); /* restore cursor position */
 
                 }
@@ -816,19 +814,19 @@ void movend(void)
         while (lp != linstr && oc) { /* back up */
 
             lp = lp->last; /* index last line */
-            oc = oc-1; /* count */
-            lc = lc-1
+            oc--; /* count */
+            lc--;
 
         }
         linpos = lincnt; /* set new line position */
-        poschr = strlen(linstr->last->str^)+1; /* set new character position */
+        poschr = strlen(linstr->last->str)+1; /* set new character position */
         if (lp != paglin) { /* we are not already there */
 
             paglin = lp; /* set new position */
             update(); /* redraw */
 
         }
-        pa_cursor(stdout, poschr, (pa_maxy(stdout)-1) div 2+1)
+        pa_cursor(stdout, poschr, (pa_maxy(stdout)-1)/2+1);
 
     }
 
@@ -870,14 +868,14 @@ void movendl(void)
         poschr = strlen(inpbuf)+1; /* set new position */
     else { /* line is in file */
 
-        lp = fndcur; /* find current line */
-        if (lp) poschr = strlen(lp->str^)+1; /* set new position */
+        lp = fndcur(); /* find current line */
+        if (lp) poschr = strlen(lp->str)+1; /* set new position */
         else poschr = 1; /* no line, position to start for empty line */
 
     }
     /* if the line was full, we cannot position past it */
     if (poschr > pa_maxx(stdout)) poschr = pa_maxx(stdout);
-    pa_cursor(stdout, poschr, cury(stdout)); /* move cursor */
+    pa_cursor(stdout, poschr, pa_cury(stdout)); /* move cursor */
     statusc(); /* update status */
 
 }
@@ -918,10 +916,10 @@ void movends(void)
 
     putbuf(); /* decache any buffer */
     linpos = linpos+pa_maxy(stdout)-pa_cury(stdout); /* set new position */
-    lp = fndcur; /* find current line */
-    if (lp) poschr = strlen(lp->str^)+1; /* set new position */
+    lp = fndcur(); /* find current line */
+    if (lp) poschr = strlen(lp->str)+1; /* set new position */
     else poschr = 1; /* no line, position to start for empty line */
-    ps_cursor(stdout, poschr, pa_maxy(stdout)-1); /* move cursor */
+    pa_cursor(stdout, poschr, pa_maxy(stdout)-1); /* move cursor */
     statusc(); /* update status */
 
 }
@@ -1038,10 +1036,10 @@ void scrup(void)
         paglin = paglin->last; /* move page pin up */
         pshcur(); /* save cursor position */
         pa_home(stdout); /* go to top line */
-        if (strlen(paglin->str^) != 0)
-            printf("%s", paglin->str^); /* write revealed line over blanks */
+        if (strlen(paglin->str))
+            printf("%s", paglin->str); /* write revealed line over blanks */
         popcur(); /* restore cursor position */
-        ps_curvis(stdout, true); /* turn on cursor */
+        pa_curvis(stdout, true); /* turn on cursor */
         status(); /* update status line */
 
     }
@@ -1093,8 +1091,8 @@ void scrdwn(void)
                 /* new line exists */
                 pshcur(); /* save cursor position */
                 pa_cursor(stdout, 1, pa_maxy(stdout)-1); /* go to last line */
-                if (strlen(lp->str^))
-                    printf("%", lp->str^); /* output that line */
+                if (strlen(lp->str))
+                    printf("%s", lp->str); /* output that line */
                 popcur(); /* restore cursor position */
 
             }
@@ -1134,7 +1132,7 @@ change the cursor location to equal that.
 
 *******************************************************************************/
 
-void mouass(void);
+void mouass(void)
 
 {
 
@@ -1177,7 +1175,7 @@ position, and the line and status redrawn.
 
 *******************************************************************************/
 
-void entchr(char c);
+void entchr(char c)
 
 {
 
@@ -1213,7 +1211,7 @@ void entchr(char c);
         y = pa_cury(stdout); /* save location y */
         inpbuf[poschr] = c; /* place character */
         putchar(c); /* place character on screen */
-        if (poschr < pa_maxx(stdout)) { /* not at extreme right */
+        if (poschr < pa_maxx(stdout)) /* not at extreme right */
             poschr++; /* advance character position */
         pa_cursor(stdout, poschr, y); /* restore cursor to new position */
         statusc(); /* update character position field */
@@ -1314,10 +1312,24 @@ void tab(void)
 
             entchr(' '); /* place a single space */
 
-    } while (poschr < pa_maxx(stdout) || !((poschr-1) mod 8 = 0));
+    } while (poschr < pa_maxx(stdout) || !((poschr-1)%8==0));
 
 }
 
+/*******************************************************************************
+
+Main procedure
+
+Initializes the program, loads the target source file, and enters the event
+loop. Note during init we select screen 2, which on most PA implementations
+causes the original screen to be saved, so that we can restore it again when
+the program exits.
+
+All of the command keys in the editor appear in the event loop. We leave it
+mostly up to PA to assign which keys do what in the editor, the exception being
+the function keys.
+
+*******************************************************************************/
 void main(int argc, char *argv[])
 
 {
@@ -1341,15 +1353,15 @@ void main(int argc, char *argv[])
         /* we take a special short exit because the display is not workable.
            This only works for in-line display, separate windows just exit
            because it happens too fast */
-        writeln('*** Window too small');
-        goto stopprog
+        printf("*** Window too small\n");
+        goto stopprog;
 
     }
-    select(stdout, 2, 2); /* flip to private screen */
-    auto(stdout, false); /* turn off scrolling */
-    update; /* present blank screen */
+    pa_select(stdout, 2, 2); /* flip to private screen */
+    pa_auto(stdout, false); /* turn off scrolling */
+    update(); /* present blank screen */
 
-    if (argc != 2) errormsg('*** Input file not found');
+    if (argc != 2) errormsg("*** Input file not found");
     strncpy(curfil, argv[1], MAXFIL);
     readfile(curfil); /* read the file in */
 
@@ -1359,57 +1371,57 @@ void main(int argc, char *argv[])
        loop */
     do { /* event loop */
 
-        event(stdin, er); /* get the next event */
+        pa_event(stdin, &er); /* get the next event */
         switch (er.etype) { /* event */
 
-            case etchar:    entchr(er.char); /* ASCII character returned */
-                            break;
-            case etup:      movup(); break; /* cursor up one line */
-            case etdown:    movdwn(); break; /* down one line */
-            case etleft:    movlft(); break; /* left one character */
-            case etright:   movrgt(); break; /* right one character */
-            case etleftw:   break; /* left one word */
-            case etrightw:  break; /* right one word */
-            case ethome:    movhom(); break; /* home of document */
-            case ethomes:   movhoms(); break; /* home of screen */
-            case ethomel:   movhoml(); break; /* home of line */
-            case etend:     movend(); break; /* end of document */
-            case etends:    movends(); break; /* end of screen */
-            case etendl:    movendl(); break; /* end of line */
-            case etscrl:    break; /* scroll left one character */
-            case etscrr:    break; /* scroll right one character */
-            case etscru:    scrup(); break; /* scroll up one line */
-            case etscrd:    scrdwn(); break; /* scroll down one line */
-            case etpagu:    pagup(); break; /* page up */
-            case etpagd:    pagdwn(); break; /* page down */
-            case ettab:     tab(); break; /* tab */
-            case etenter:   break; /* enter line */
-            case etinsert:  break; /* insert block */
-            case etinsertl: break; /* insert line */
-            case etinsertt: togins(); break; /* insert toggle */
-            case etdel:     break; /* delete block */
-            case etdell:    break; /* delete line */
-            case etdelcf:   delfwd(); break; /* delete character forward */
-            case etdelcb:   delbwd(); break; /* delete character backward */
-            case etcopy:    break; /* copy block */
-            case etcopyl:   break; /* copy line */
-            case etcan:     break; /* cancel current operation */
-            case etstop:    break; /* stop current operation */
-            case etcont:    break; /* continue current operation */
-            case etprint:   break; /* print document */
-            case etprintb:  break; /* print block */
-            case etprints:  break; /* print screen */
-            case etfun:     break; /* functions */
-            case etmouba:   mouass(); break; /* mouse button 1 assertion */
-            case etmoumov:  moumov(); break; /* mouse move */
-            case etterm:    break; /* terminate program */
+            case pa_etchar:    entchr(er.echar); /* ASCII character returned */
+                               break;
+            case pa_etup:      movup(); break; /* cursor up one line */
+            case pa_etdown:    movdwn(); break; /* down one line */
+            case pa_etleft:    movlft(); break; /* left one character */
+            case pa_etright:   movrgt(); break; /* right one character */
+            case pa_etleftw:   break; /* left one word */
+            case pa_etrightw:  break; /* right one word */
+            case pa_ethome:    movhom(); break; /* home of document */
+            case pa_ethomes:   movhoms(); break; /* home of screen */
+            case pa_ethomel:   movhoml(); break; /* home of line */
+            case pa_etend:     movend(); break; /* end of document */
+            case pa_etends:    movends(); break; /* end of screen */
+            case pa_etendl:    movendl(); break; /* end of line */
+            case pa_etscrl:    break; /* scroll left one character */
+            case pa_etscrr:    break; /* scroll right one character */
+            case pa_etscru:    scrup(); break; /* scroll up one line */
+            case pa_etscrd:    scrdwn(); break; /* scroll down one line */
+            case pa_etpagu:    pagup(); break; /* page up */
+            case pa_etpagd:    pagdwn(); break; /* page down */
+            case pa_ettab:     tab(); break; /* tab */
+            case pa_etenter:   break; /* enter line */
+            case pa_etinsert:  break; /* insert block */
+            case pa_etinsertl: break; /* insert line */
+            case pa_etinsertt: togins(); break; /* insert toggle */
+            case pa_etdel:     break; /* delete block */
+            case pa_etdell:    break; /* delete line */
+            case pa_etdelcf:   delfwd(); break; /* delete character forward */
+            case pa_etdelcb:   delbwd(); break; /* delete character backward */
+            case pa_etcopy:    break; /* copy block */
+            case pa_etcopyl:   break; /* copy line */
+            case pa_etcan:     break; /* cancel current operation */
+            case pa_etstop:    break; /* stop current operation */
+            case pa_etcont:    break; /* continue current operation */
+            case pa_etprint:   break; /* print document */
+            case pa_etprintb:  break; /* print block */
+            case pa_etprints:  break; /* print screen */
+            case pa_etfun:     break; /* functions */
+            case pa_etmouba:   mouass(); break; /* mouse button 1 assertion */
+            case pa_etmoumov:  moumov(); break; /* mouse move */
+            case pa_etterm:    break; /* terminate program */
 
         }
 
-   } while (er.etype != etterm); /* until terminal event */
+   } while (er.etype != pa_etterm); /* until terminal event */
    pa_auto(stdout, true); /* turn on scrolling */
    pa_select(stdout, 1, 1); /* return to normal screen */
 
-   stopprog: /* exit program */
+   stopprog: ; /* exit program */
 
 }

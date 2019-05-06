@@ -25,6 +25,9 @@ snake: term_game/snake.c ansiterm.c terminal.h term.c stdio.c stdio.h Makefile
 	
 mine: term_game/mine.c ansiterm.c terminal.h term.c stdio.c stdio.h Makefile
 	gcc -g -o term_game/mine stdio.c ansiterm.c term_game/mine.c -lm
+	
+editor: term_prog/editor.c ansiterm.c terminal.h term.c stdio.c stdio.h Makefile
+	gcc -g -o term_prog/editor stdio.c ansiterm.c term_prog/editor.c -lm
 
 test1: test1.c
 	gcc -o test1 test1.c -lrt -lm 
