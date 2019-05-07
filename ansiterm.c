@@ -231,7 +231,9 @@ char *keytab[pa_etterm+1] = {
     "",                     /* display menu */
     "",                     /* mouse button assertion */
     "",                     /* mouse button deassertion */
-    "",                     /* mouse move */
+    /* mouse move is just the leader for the mouse move/assert message. The
+       characters are read in the input handler. */
+    "\33[M",                /* mouse move */
     "",                     /* timer matures */
     "",                     /* joystick button assertion */
     "",                     /* joystick button deassertion */
@@ -277,7 +279,7 @@ static int timtbl[PA_MAXTIM];
 /**
  * Key matching input buffer
  */
-static char keybuf[10]; /* buffer */
+static unsigned char keybuf[10]; /* buffer */
 static int keylen; /* number of characters in buffer */
 static int tabs[MAXXD]; /* tabs set */
 static int dimx; /* actual width of screen */
@@ -289,6 +291,20 @@ static int curval; /* physical cursor position valid */
 /* global scroll enable. This does not reflect the physical state, we never
    turn on automatic scroll. */
 static int scroll;
+/* current tracking states of mouse */
+static int button1; /* button 1 state: 0=assert, 1=deassert */
+static int button2; /* button 2 state: 0=assert, 1=deassert */
+static int button3; /* button 3 state: 0=assert, 1=deassert */
+static int mpx; /* mouse x/y current position */
+static int mpy;
+/* new, incoming states of mouse */
+static int nbutton1; /* button 1 state: 0=assert, 1=deassert */
+static int nbutton2; /* button 2 state: 0=assert, 1=deassert */
+static int nbutton3; /* button 3 state: 0=assert, 1=deassert */
+static int nmpx; /* mouse x/y current position */
+static int nmpy;
+
+
 
 /** ****************************************************************************
 
@@ -461,7 +477,9 @@ static void inpevt(pa_evtrec* ev)
     int       ti;     /* index for timers */
     ssize_t   rl;     /* read length */
     uint64_t  exp;    /* timer expiration time */
+    enum { mnone, mbutton, mx, my } mousts; /* mouse state variable */
 
+    mousts = mnone; /* set no mouse event being processed */
     do { /* match input events */
 
         evtfnd = 0; /* set no event found */
@@ -473,35 +491,72 @@ static void inpevt(pa_evtrec* ev)
             evtsig = 1; /* event signaled */
             FD_CLR(0, &ifdsets); /* remove from input signals */
             keybuf[keylen++] = getchr(); /* get next character to match buffer */
-            pmatch = 0; /* set no partial matches */
-            for (i = pa_etchar; i <= pa_etterm && !evtfnd; i++)
-                if (!strncmp(keybuf, keytab[i], keylen)) {
+            if (mousts == mnone) { /* do table matching */
 
-                pmatch = 1; /* set partial match */
-                /* set if the match is whole key */
-                if (strlen(keytab[i]) == keylen) {
+                pmatch = 0; /* set no partial matches */
+                for (i = pa_etchar; i <= pa_etterm && !evtfnd; i++)
+                    if (!strncmp(keybuf, keytab[i], keylen)) {
 
-                    /* complete match found, set as event */
-                    ev->etype = i; /* set event */
-                    evtfnd = 1; /* set event found */
-                    keylen = 0; /* clear buffer */
-                    pmatch = 0; /* clear partial match */
+                    pmatch = 1; /* set partial match */
+                    /* set if the match is whole key */
+                    if (strlen(keytab[i]) == keylen) {
+
+                        if (i == pa_etmoumov)
+                            /* mouse move leader, start state machine */
+                            mousts = mbutton; /* set next is button state */
+                        else {
+
+                            /* complete match found, set as event */
+                            ev->etype = i; /* set event */
+                            evtfnd = 1; /* set event found */
+                            keylen = 0; /* clear buffer */
+                            pmatch = 0; /* clear partial match */
+
+                        }
+
+                    }
+
+                }
+                if (!pmatch) {
+
+                    /* if no partial match and there are characters in buffer, something
+                       went wrong, or there never was at match at all. For such
+                       "stillborn" matches we start over */
+                    if (keylen > 1) keylen = 0;
+                    else if (keylen == 1) { /* have valid character */
+
+                        ev->etype = pa_etchar; /* set event */
+                        ev->echar = keybuf[0]; /* place character */
+                        evtfnd = 1; /* set event found */
+                        keylen = 0; /* clear buffer */
+
+                    }
 
                 }
 
-            }
-            if (!pmatch) {
+            } else { /* parse mouse components */
 
-                /* if no partial match and there are characters in buffer, something
-                   went wrong, or there never was at match at all. For such
-                   "stillborn" matches we start over */
-                if (keylen > 1) keylen = 0;
-                else if (keylen == 1) { /* have valid character */
+                if (mousts < my) mousts++;
+                else { /* mouse has matured */
 
-                    ev->etype = pa_etchar; /* set event */
-                    ev->echar = keybuf[0]; /* place character */
-                    evtfnd = 1; /* set event found */
-                    keylen = 0; /* clear buffer */
+                    /* the mouse event state is laid out in the buffer, we will
+                       decompose it into a new mouse status */
+                    nbutton1 = 1;
+                    nbutton2 = 1;
+                    nbutton3 = 1;
+                    switch (keybuf[3] & 0x3) {
+
+                        case 0: nbutton1 = 0; break; /* assert button 1 */
+                        case 1: nbutton2 = 0; break; /* assert button 2 */
+                        case 2: nbutton3 = 0; break; /* assert button 3 */
+                        case 3: break; /* deassert all, do nothing */
+
+                    }
+                    /* set new mouse position */
+                    nmpx = keybuf[4]-33+1;
+                    nmpy = keybuf[5]-33+1;
+                    keylen = 0; /* clear key buffer */
+                    mousts = mnone; /* reset mouse aquire */
 
                 }
 
@@ -528,6 +583,70 @@ static void inpevt(pa_evtrec* ev)
 
         }
         if (!evtsig) {
+
+            /* check any mouse states have changed, flag and remove */
+            if (nbutton1 < button1) {
+
+                ev->etype = pa_etmouba;
+                ev->amoun = 1;
+                ev->amoubn = 1;
+                evtfnd = 1;
+                button1 = nbutton1;
+
+            } else if (nbutton1 > button1) {
+
+                ev->etype = pa_etmoubd;
+                ev->dmoun = 1;
+                ev->dmoubn = 1;
+                evtfnd = 1;
+                button1 = nbutton1;
+
+            } else if (nbutton2 < button2) {
+
+                ev->etype = pa_etmouba;
+                ev->amoun = 1;
+                ev->amoubn = 2;
+                evtfnd = 1;
+                button2 = nbutton2;
+
+            } else if (nbutton2 > button2) {
+
+                ev->etype = pa_etmoubd;
+                ev->dmoun = 1;
+                ev->dmoubn = 2;
+                evtfnd = 1;
+                button2 = nbutton2;
+
+            } else if (nbutton3 < button3) {
+
+                ev->etype = pa_etmouba;
+                ev->amoun = 1;
+                ev->amoubn = 3;
+                evtfnd = 1;
+                button3 = nbutton3;
+
+            } else if (nbutton3 > button3) {
+
+                ev->etype = pa_etmoubd;
+                ev->dmoun = 1;
+                ev->dmoubn = 3;
+                evtfnd = 1;
+                button3 = nbutton3;
+
+            } if (nmpx != mpx || nmpy != mpy) {
+
+                ev->etype = pa_etmoumov;
+                ev->mmoun = 1;
+                ev->moupx = nmpx;
+                ev->moupy = nmpy;
+                evtfnd = 1;
+                mpx = nmpx;
+                mpy = nmpy;
+
+            }
+
+        }
+        if (!evtsig && !evtfnd) {
 
             /* no input is active, load a new signaler set */
             ifdsets = ifdseta; /* set up request set */
@@ -2382,7 +2501,9 @@ void pa_killtimer(/* file to kill timer on */ FILE *f,
 
 Returns number of mice
 
-Returns the number of mice attached.
+Returns the number of mice attached. In xterm, we can't actually determine if
+we have a mouse or not, so we just assume we have one. It will be a dead mouse
+if none is available, never changing it's state.
 
 *******************************************************************************/
 
@@ -2390,7 +2511,7 @@ int pa_mouse(FILE *f)
 
 {
 
-    return 0; /* set no mice */
+    return 1; /* set 1 mouse */
 
 }
 
@@ -2398,7 +2519,8 @@ int pa_mouse(FILE *f)
 
 Returns number of buttons on a mouse
 
-Returns the number of buttons implemented on a given mouse.
+Returns the number of buttons implemented on a given mouse. With xterm we have
+to assume 3 buttons.
 
 *******************************************************************************/
 
@@ -2406,9 +2528,7 @@ int pa_mousebutton(FILE *f, int m)
 
 {
 
-    error(emouacc); /* there are no mice */
-
-    return 0; /* shut up compiler */
+    return 3; /* set three buttons */
 
 }
 
@@ -2728,6 +2848,19 @@ static void pa_init_terminal()
     /* clear tabs and set to 8ths */
     for (i = 1; i <= dimx; i++) tabs[i-1] = ((i-1)%8 == 0) && (i != 1);
 
+    /* clear mouse state. Note mouse will be all buttons deasserted, and
+       location 0,0 and thus offscreen. This is important, since in xterm we
+       can't know if there is or is not a mouse, thus a missing mouse is dead
+       and offscreen */
+    button1 = nbutton1 = 1;
+    button2 = nbutton2 = 1;
+    button3 = nbutton3 = 1;
+    mpx = nmpx = 0;
+    mpy = nmpy = 0;
+
+    /* now signal xterm we want all mouse events including all movements */
+    putstr("\33[?1003h");
+
     /* restore terminal state after flushing */
     tcsetattr(0,TCSAFLUSH,&raw);
 
@@ -2752,6 +2885,9 @@ static void pa_deinit_terminal()
 
     /* restore terminal */
     tcsetattr(0,TCSAFLUSH,&trmsav);
+
+    /* turn off mouse tracking */
+    putstr("\33[?1003l");
 
     /* close any open timers */
     for (ti = 0; ti < PA_MAXTIM; ti++) if (timtbl[ti] != -1) close(timtbl[ti]);
