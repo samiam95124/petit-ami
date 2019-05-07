@@ -2855,8 +2855,8 @@ static void pa_init_terminal()
     button1 = nbutton1 = 1;
     button2 = nbutton2 = 1;
     button3 = nbutton3 = 1;
-    mpx = nmpx = 0;
-    mpy = nmpy = 0;
+    mpx = nmpx = -INT_MAX;
+    mpy = nmpy = -INT_MAX;
 
     /* now signal xterm we want all mouse events including all movements */
     putstr("\33[?1003h");
