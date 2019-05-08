@@ -8,20 +8,16 @@ To do list for Petit-ami
 
 4. Set sizing from ANSI cursor readback method.
 
-5. Implement tearoff command line parameters.
+5. Implement read of rc file from each of program, user and current location.
 
-6. Implement read of rc file from each of program, user and current location.
+6. Finish sample programs.
 
-7. Implement resize messaging.
+7. event.c shows the cursor being turned off without being commanded by the source.
 
-8. Finish sample programs.
+8. getc() does not work. We got scntst.c to work by using fgetc(). It is because getc() is a macro.
 
-9. event.c shows the cursor being turned off without being commanded by the source.
+9. snake.c does not keep score.
 
-10. getc() does not work. We got scntst.c to work by using fgetc(). It is because getc() is a macro.
+10. In snake.c, should not be able to back over and kill yourself.
 
-11. snake.c does not keep score.
-
-12. In snake.c, should not be able to back over and kill yourself.
-
-13. Should save and restore base screen to buffer 0.
+11. Should save and restore base screen to buffer 0.
