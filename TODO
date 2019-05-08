@@ -22,3 +22,4 @@ To do list for Petit-ami
 
 11. Implement function keys.
 
+12. Need to compensate for buffer size vs. screen size.
