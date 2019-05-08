@@ -18,6 +18,7 @@ To do list for Petit-ami
 
 9. snake.c does not keep score.
 
-10. In snake.c, should not be able to back over and kill yourself.
+10. Should save and restore base screen to buffer 0.
 
-11. Should save and restore base screen to buffer 0.
+11. Implement function keys.
+

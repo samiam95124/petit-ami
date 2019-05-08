@@ -318,45 +318,51 @@ void movesnake(pa_evtcod usrmov)
             case pa_etright: x++; break; /* move right */
 
         }
-        c = image[x][y]; /* load new character */
-        /* check terminate */
-        if (y == 1 || y == pa_maxy(stdout) || x == 1 || x == pa_maxx(stdout) ||
-            (c != ' ' && !isdigit(c))) {
+        /* if we are directly backing up into ourselves, ignore the move */
+        if (sntop == 1 || x != snakel[sntop-1].scnx ||
+                          y != snakel[sntop-1].scny) {
 
-            crash = true; /* set crash occurred */
-            goto terminate; /* exit */
-
-        }
-        writescreen(x, y, '@'); /* place new head */
-        if (isdigit(c)) {
-
-            plctrg(); /* place new target */
-            /* set digit score */
-            scrlft += c-'0';
-
-        }
-        if (scrlft != 0) {
-
-            sntop++; /* 'grow' snake */
-            if (sntop > MAXSN) { /* snake to big */
+            c = image[x][y]; /* load new character */
+            /* check terminate */
+            if (y == 1 || y == pa_maxy(stdout) || x == 1 || x == pa_maxx(stdout) ||
+                (c != ' ' && !isdigit(c))) {
 
                 crash = true; /* set crash occurred */
                 goto terminate; /* exit */
 
             }
-            nxtscr(); /* increment score */
-            scrlft--; /* decrement score to add */
+            writescreen(x, y, '@'); /* place new head */
+            if (isdigit(c)) {
 
-        } else {
+                plctrg(); /* place new target */
+                /* set digit score */
+                scrlft += c-'0';
 
-            writescreen(snakel[1].scnx, snakel[1].scny, ' ');
-            for (sn = 1; sn <= sntop-1; sn++) /* copy old positions */
-                snakel[sn] = snakel[sn+1];
+            }
+            if (scrlft != 0) {
+
+                sntop++; /* 'grow' snake */
+                if (sntop > MAXSN) { /* snake to big */
+
+                    crash = true; /* set crash occurred */
+                    goto terminate; /* exit */
+
+                }
+                nxtscr(); /* increment score */
+                scrlft--; /* decrement score to add */
+
+            } else {
+
+                writescreen(snakel[1].scnx, snakel[1].scny, ' ');
+                for (sn = 1; sn <= sntop-1; sn++) /* copy old positions */
+                    snakel[sn] = snakel[sn+1];
+
+            }
+            snakel[sntop].scnx = x; /* update coordinates */
+            snakel[sntop].scny = y;
+            lstmov = usrmov; /* set the last move */
 
         }
-        snakel[sntop].scnx = x; /* update coordinates */
-        snakel[sntop].scny = y;
-        lstmov = usrmov; /* set the last move */
 
     }
 
