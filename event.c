@@ -79,6 +79,7 @@ void main()
                                       er.djoyn, er.djoybn); break;
             case pa_etjoymov:  printf("joystick move, stick: %d x: %d y: %d z: %d",
                                       er.mjoyn, er.joypx, er.joypy, er.joypz); break;
+            case pa_etresize:  printf("Window resized\n"); break;
             case pa_etterm:    printf("terminate program\n"); break;
 
         }

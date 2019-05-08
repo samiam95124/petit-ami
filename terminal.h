@@ -71,6 +71,7 @@ typedef enum {
     /** joystick button assertion */   pa_etjoyba,
     /** joystick button deassertion */ pa_etjoybd,
     /** joystick move */               pa_etjoymov,
+    /** window was resized */          pa_etresize,
     /** terminate program */           pa_etterm
 
 } pa_evtcod;

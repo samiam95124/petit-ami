@@ -44,6 +44,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <limits.h>
+#include <signal.h>
 
 #include "terminal.h"
 
@@ -238,6 +239,7 @@ char *keytab[pa_etterm+1] = {
     "",                     /* joystick button assertion */
     "",                     /* joystick button deassertion */
     "",                     /* joystick move */
+    "",                     /* window resize */
     "\3",                   /* terminate program           (ctrl-c) */
 
 };
@@ -303,8 +305,8 @@ static int nbutton2; /* button 2 state: 0=assert, 1=deassert */
 static int nbutton3; /* button 3 state: 0=assert, 1=deassert */
 static int nmpx; /* mouse x/y current position */
 static int nmpy;
-
-
+/* flag for windows change signal */
+static int winch;
 
 /** ****************************************************************************
 
@@ -342,6 +344,23 @@ static void error(errcod e)
     exit(1);
 
 }
+
+/*******************************************************************************
+
+Handle signal from Linux
+
+Handle signal from linux kernel.
+
+*******************************************************************************/
+
+static void sig_handler(int signo)
+
+{
+
+    if (signo == SIGWINCH) winch = 1;
+
+}
+
 
 /** ****************************************************************************
 
@@ -582,7 +601,7 @@ static void inpevt(pa_evtrec* ev)
             }
 
         }
-        if (!evtsig) {
+        if (!evtfnd) {
 
             /* check any mouse states have changed, flag and remove */
             if (nbutton1 < button1) {
@@ -646,11 +665,21 @@ static void inpevt(pa_evtrec* ev)
             }
 
         }
+        if (!evtfnd && winch) {
+
+            ev->etype = pa_etresize;
+            evtfnd = 1;
+            winch = 0;
+
+        }
         if (!evtsig && !evtfnd) {
 
             /* no input is active, load a new signaler set */
             ifdsets = ifdseta; /* set up request set */
             rv = select(ifdmax, &ifdsets, NULL, NULL, NULL);
+            /* if error, the input set won't be modified and thus will appear as
+               if they were active. We clear them in this case */
+            if (rv < 0) FD_ZERO(&ifdsets);
 
         }
 
@@ -2860,6 +2889,13 @@ static void pa_init_terminal()
 
     /* now signal xterm we want all mouse events including all movements */
     putstr("\33[?1003h");
+
+    /* clear the windows change signal */
+    winch = 0;
+
+    /* catch signals. We don't care if it can't be caught, we would just be
+       ignoring the signal(s) in this case.  */
+    signal(SIGWINCH, sig_handler);
 
     /* restore terminal state after flushing */
     tcsetattr(0,TCSAFLUSH,&raw);

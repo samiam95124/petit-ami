@@ -157,10 +157,10 @@ typedef enum pa_evtcod = (
     pa_etjoyba,    /* joystick button assertion */
     pa_etjoybd,    /* joystick button deassertion */
     pa_etjoymov,   /* joystick move */
+    pa_etresize,   /* window was resized */
     pa_etterm,     /* terminate program */
     pa_etmoumovg,  /* mouse move graphical */
     pa_etframe,    /* frame sync */
-    pa_etresize,   /* window was resized */
     pa_etredraw,   /* window redraw */
     pa_etmin,      /* window minimized */
     pa_etmax,      /* window maximized */
