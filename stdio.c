@@ -2151,14 +2151,17 @@ BUGS/ISSUES:
 
 *******************************************************************************/
 
+#ifndef USEMACRO
+
 int getc(FILE *stream)
 
 {
 
-fprintf(stderr, "getc:\n");
     return fgetc(stream); /* process get */
 
 }
+
+#endif
 
 /*******************************************************************************
 
@@ -2241,6 +2244,8 @@ BUGS/ISSUES:
 
 *******************************************************************************/
 
+#ifndef USEMACRO
+
 int putc(int c, FILE *stream)
 
 {
@@ -2248,6 +2253,8 @@ int putc(int c, FILE *stream)
     return fputc(c, stream); /* process put */
 
 }
+
+#endif
 
 /*******************************************************************************
 

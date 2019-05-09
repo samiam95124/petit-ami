@@ -12,10 +12,6 @@
 *                                                                              *
 * BUGS/ISSUES:                                                                 *
 *                                                                              *
-* 1. The appearance of functions as macros, such as putchar and getchar,       *
-* should be an option for users that have issues with their being hard         *
-* functions.                                                                   *
-*                                                                              *
 *******************************************************************************/
 
 #ifndef _STDIO_H_
@@ -40,11 +36,9 @@
 
 #define BUFSIZ 512 /* standard buffer size */
 
-/* seek modes */
-
-#define SEEK_SET 1 /* seek relative to start */
-#define SEEK_CUR 2 /* seek relative to current position */
-#define SEEK_END 3 /* seek relative to end */
+/* this switch allows getc() and putc() to be macros. This is the way LIBC does
+   it, and the ability is included here for possible compatability issues */
+#define USEMACRO 1 /* use macros for getc and putc */
 
 typedef long fpos_t;
 
@@ -87,11 +81,23 @@ int fscanf(FILE *stream, const char *format, ...);
 int scanf(const char *format, ...);
 int sscanf(char *s, const char *format, ...);
 int fgetc(FILE *stream);
-//#define getc(fp) fgetc(fp)
+
+#ifdef USEMACRO
+#define getc(fp) (fgetc(fp))
+#else
+int getc(FILE *stream);
+#endif
+
 char *fgets(char *s, int n, FILE *stream);
 int fputc(int c, FILE *stream);
 int fputs(const char *s, FILE *stream);
-int getc(FILE *stream);
+
+#ifdef USEMACRO
+#define putc(c, fp) fputc(c, fp)
+#else
+int putc(int c, FILE *stream);
+#endif
+
 int getchar(void);
 char *gets(char *s);
 int putc(int c, FILE *stream);

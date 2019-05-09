@@ -14,8 +14,6 @@ To do list for Petit-ami
 
 7. event.c shows the cursor being turned off without being commanded by the source.
 
-8. getc() does not work. We got scntst.c to work by using fgetc(). It is because getc() is a macro.
+8. Should save and restore base screen to buffer 0.
 
-9. Should save and restore base screen to buffer 0.
-
-10. Still having issues with windows resize.
+9. Still having issues with windows resize.
