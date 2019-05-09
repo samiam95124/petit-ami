@@ -16,11 +16,6 @@ To do list for Petit-ami
 
 8. getc() does not work. We got scntst.c to work by using fgetc(). It is because getc() is a macro.
 
-9. snake.c does not keep score.
+9. Should save and restore base screen to buffer 0.
 
-10. Should save and restore base screen to buffer 0.
-
-11. Implement function keys.
-
-12. in Snake game, the snakel[] array uses 1 based indexing. This would cause
-overflow.
+10. Still having issues with windows resize.

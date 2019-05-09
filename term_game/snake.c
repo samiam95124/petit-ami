@@ -254,19 +254,16 @@ void nxtscr(void)
     carry = true; /* initalize carry */
     do { /* process digit add */
  
-        if (scrsav[i] == '9') {
- 
-            scrsav[i] = '0'; /* carry out digit */
-            i--; /* next digit */
- 
-        } else {
+        if (scrsav[i] == '9') scrsav[i] = '0'; /* carry out digit */
+        else {
  
             scrsav[i]++; /* add single turnover */
             carry = false; /* stop */
  
         }
+        i--; /*next digit */
  
-   } while (i >= 0 || carry); /* last digit is processed, no digit carry */
+   } while (i >= 0 && carry); /* last digit is processed, no digit carry */
    /* place score on screen */
    for (i = 0; i < SCRNUM; i++) writescreen(scrloc+i, 1, scrsav[i]);
  
@@ -319,7 +316,7 @@ void movesnake(pa_evtcod usrmov)
 
         }
         /* if we are directly backing up into ourselves, ignore the move */
-        if (sntop == 1 || x != snakel[sntop-1].scnx ||
+        if (sntop == 0 || x != snakel[sntop-1].scnx ||
                           y != snakel[sntop-1].scny) {
 
             c = image[x][y]; /* load new character */
@@ -342,7 +339,7 @@ void movesnake(pa_evtcod usrmov)
             if (scrlft != 0) {
 
                 sntop++; /* 'grow' snake */
-                if (sntop > MAXSN) { /* snake to big */
+                if (sntop >= MAXSN) { /* snake to big */
 
                     crash = true; /* set crash occurred */
                     goto terminate; /* exit */
@@ -353,8 +350,8 @@ void movesnake(pa_evtcod usrmov)
 
             } else {
 
-                writescreen(snakel[1].scnx, snakel[1].scny, ' ');
-                for (sn = 1; sn <= sntop-1; sn++) /* copy old positions */
+                writescreen(snakel[0].scnx, snakel[0].scny, ' ');
+                for (sn = 0; sn < sntop; sn++) /* copy old positions */
                     snakel[sn] = snakel[sn+1];
 
             }
@@ -462,12 +459,12 @@ void main(void) /* snake */
 
         scrlft = 0; /* clear score add count */
         clrscn();
-        snakel[1].scnx = pa_maxx(stdout)/2; /* set snake position middle */
-        snakel[1].scny = pa_maxy(stdout)/2;
-        sntop = 1; /* set top snake character */
+        snakel[0].scnx = pa_maxx(stdout)/2; /* set snake position middle */
+        snakel[0].scny = pa_maxy(stdout)/2;
+        sntop = 0; /* set top snake character */
         writescreen(pa_maxx(stdout)/2, pa_maxy(stdout)/2, '@'); /* place snake */
         timcnt = TIMMAX;
-        for (i = 1; i <= SCRNUM; i++) scrsav[i] = '0'; /* zero score */
+        for (i = 0; i < SCRNUM; i++) scrsav[i] = '0'; /* zero score */
         nxtscr();
         getevt(false); /* get the next event, without timers */
         if (er.etype == pa_etterm) goto terminate; /* immediate termination */
