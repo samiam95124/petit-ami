@@ -8,8 +8,6 @@ To do list for Petit-ami
 
 4. Implement read of rc file from each of program, user and current location.
 
-5. event.c shows the cursor being turned off without being commanded by the source.
+5. Should save and restore base screen to buffer 0.
 
-6. Should save and restore base screen to buffer 0.
-
-7. Still having issues with windows resize.
+6. Still having issues with windows resize.

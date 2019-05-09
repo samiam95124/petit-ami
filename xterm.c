@@ -827,7 +827,7 @@ static void trm_attroff(void) { putstr("\33[0m"); }
 /** turn on cursor wrap */ static void trm_wrapon(void) { putstr("\33[7h"); }
 /** turn off cursor wrap */ static void trm_wrapoff(void) { putstr("\33[7l"); }
 /** turn off cursor */ static void trm_curoff(void) { putstr("\33[?25l"); }
-/** turn off cursor */ static void trm_curon(void) { putstr("\33[?25h"); }
+/** turn on cursor */ static void trm_curon(void) { putstr("\33[?25h"); }
 
 /** set foreground color */
 static void trm_fcolor(pa_color c)
@@ -996,8 +996,6 @@ to bring the old state of the display to the same state as the new display.
 void setcur(scnptr sc)
 
 {
-
-    int b;
 
     if (indisp(sc)) { /* in display */
 
@@ -2887,10 +2885,11 @@ static void pa_init_terminal()
     curupd = 1; /* set current update screen */
     trm_wrapoff(); /* physical wrap is always off */
     scroll = 1; /* turn on virtual wrap */
-    iniscn(screens[curdsp-1]); /* initalize screen */
-    restore(screens[curdsp-1]); /* place on display */
     curon = 1; /* set default cursor on */
     trm_curon(); /* and make sure that is so */
+    iniscn(screens[curdsp-1]); /* initalize screen */
+    restore(screens[curdsp-1]); /* place on display */
+
     for (e = pa_etchar; e <= pa_etterm; e++) evthan[e] = defaultevent;
 
     /* clear keyboard match buffer */

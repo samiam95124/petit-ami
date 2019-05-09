@@ -8,8 +8,9 @@
 *                                                                             *
 ******************************************************************************/
 
-#include <stdio.h>
 #include <string.h>
+
+#include "stdio.h"
 #include "terminal.h"
 
 void main()
