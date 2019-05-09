@@ -24,4 +24,3 @@ To do list for Petit-ami
 
 12. in Snake game, the snakel[] array uses 1 based indexing. This would cause
 overflow.
-
