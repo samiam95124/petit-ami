@@ -308,6 +308,8 @@ static int nmpy;
 /* flag for windows change signal */
 static int winch;
 
+static void restore(scnptr sc);
+
 /** ****************************************************************************
 
 Print error
@@ -361,6 +363,32 @@ static void sig_handler(int signo)
 
 }
 
+/*******************************************************************************
+
+Get size
+
+Finds the x-y window size from the input device. Note that if this is not
+sucessful, the size remains unchanged.
+
+*******************************************************************************/
+
+void findsize(void)
+
+{
+
+    /** window size record */          struct winsize ws;
+    /** result code */                 int r;
+
+    /* attempt to determine actual screen size */
+    r = ioctl(STDIN_FILENO, TIOCGWINSZ, &ws);
+    if (!r) {
+
+        dimx = ws.ws_col;
+        dimy = ws.ws_row;
+
+    }
+
+}
 
 /** ****************************************************************************
 
@@ -497,6 +525,8 @@ static void inpevt(pa_evtrec* ev)
     ssize_t   rl;     /* read length */
     uint64_t  exp;    /* timer expiration time */
     enum { mnone, mbutton, mx, my } mousts; /* mouse state variable */
+    int       dimxs;   /* save for screen size */
+    int       dimys;
 
     mousts = mnone; /* set no mouse event being processed */
     do { /* match input events */
@@ -670,6 +700,13 @@ static void inpevt(pa_evtrec* ev)
             ev->etype = pa_etresize;
             evtfnd = 1;
             winch = 0;
+            /* save current window size */
+            dimxs = dimx;
+            dimys = dimy;
+            /* recalculate window size */
+            findsize();
+            /* now find if we have exposed any new areas, then redraw if so */
+            if (dimx > dimxs || dimy > dimys) restore(screens[curdsp-1]);
 
         }
         if (!evtsig && !evtfnd) {
@@ -989,8 +1026,8 @@ static void clrbuf(scnptr sc)
     /** pointer to screen record */ scnrec* sp;
 
     /* clear the screen buffer */
-    for (y = 1;  y <= dimy; y++)
-        for (x = 1; x <= dimx; x++) {
+    for (y = 1;  y <= MAXYD; y++)
+        for (x = 1; x <= MAXXD; x++) {
 
         sp = &sc->buf[y-1][x-1];
         sp->ch = ' '; /* clear to spaces */
@@ -1603,47 +1640,42 @@ static void plcchr(scnptr sc, char c)
     } else if (c >= ' ' && c != 0x7f) {
 
         /* normal character case, not control character */
-        if (icurbnd(sc)) {
+        p = &sc->buf[sc->cury-1][sc->curx-1];
+        p->ch = c; /* place character */
+        p->forec = sc->forec; /* place colors */
+        p->backc = sc->backc;
+        p->attr = sc->attr; /* place attribute */
+        if (icurbnd(sc) && indisp(sc)) {
 
-            /* update buffer */
-            p = &sc->buf[sc->cury-1][sc->curx-1];
-            p->ch = c; /* place character */
-            p->forec = sc->forec; /* place colors */
-            p->backc = sc->backc;
-            p->attr = sc->attr; /* place attribute */
-            if (indisp(sc)) {
+            /* This handling is from iright. We do this here because
+               placement implicitly moves the cursor */
+            putchr(c); /* output character to terminal */
+            /* at right side, don't count on the screen wrap action */
+            if (curx = dimx) curval = 0;
+            else curx++; /* update physical cursor */
+            if (sc->scroll) { /* autowrap is on */
 
-                /* This handling is from iright. We do this here because
-                   placement implicitly moves the cursor */
-                putchr(c); /* output character to terminal */
-                /* at right side, don't count on the screen wrap action */
-                if (curx = dimx) curval = 0;
-                else curx++; /* update physical cursor */
-                if (sc->scroll) { /* autowrap is on */
+                if (sc->curx < dimx) /* not at extreme right */
+                    sc->curx = sc->curx+1; /* update position */
+                else { /* wrap cursor motion */
 
-                    if (sc->curx < dimx) /* not at extreme right */
-                        sc->curx = sc->curx+1; /* update position */
-                    else { /* wrap cursor motion */
-
-                        idown(sc); /* move cursor down one line */
-                        sc->curx = 1; /* set cursor to extreme left */
-
-                    }
-
-                } else {/* autowrap is off */
-
-                    /* prevent overflow, but otherwise its unlimited */
-                    if (sc->curx < INT_MAX) sc->curx++;
-                    /* don't count on physical cursor behavior if scrolling is
-                       off and we are at extreme right */
-                    curval = 0;
+                    idown(sc); /* move cursor down one line */
+                    sc->curx = 1; /* set cursor to extreme left */
 
                 }
-                setcur(sc); /* update physical cursor */
 
-            } else iright(sc); /* move right */
+            } else {/* autowrap is off */
 
-        }
+                /* prevent overflow, but otherwise its unlimited */
+                if (sc->curx < INT_MAX) sc->curx++;
+                /* don't count on physical cursor behavior if scrolling is
+                   off and we are at extreme right */
+                curval = 0;
+
+            }
+            setcur(sc); /* update physical cursor */
+
+        } else iright(sc); /* move right */
 
     }
 
@@ -2799,8 +2831,6 @@ static void pa_init_terminal()
     /** index for events */            pa_evtcod e;
     /** build new terminal settings */ struct termios raw;
     /** index */                       int i;
-    /** window size record */          struct winsize ws;
-    /** result code */                 int r;
 
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
@@ -2814,14 +2844,8 @@ static void pa_init_terminal()
     dimx = DEFXD;
     dimy = DEFYD;
 
-    /* attempt to determine actual screen size */
-    r = ioctl(STDIN_FILENO, TIOCGWINSZ, &ws);
-    if (!r) {
-
-        dimx = ws.ws_col;
-        dimy = ws.ws_row;
-
-    }
+    /* try getting size from system */
+    findsize();
 
     /* clear screens array */
     for (curupd = 1; curupd <= MAXCON; curupd++) screens[curupd-1] = 0;
