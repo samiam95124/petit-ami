@@ -6,14 +6,10 @@ To do list for Petit-ami
 
 3. Implement joysticks and test with multiple joysticks.
 
-4. Set sizing from ANSI cursor readback method.
+4. Implement read of rc file from each of program, user and current location.
 
-5. Implement read of rc file from each of program, user and current location.
+5. event.c shows the cursor being turned off without being commanded by the source.
 
-6. Finish sample programs.
+6. Should save and restore base screen to buffer 0.
 
-7. event.c shows the cursor being turned off without being commanded by the source.
-
-8. Should save and restore base screen to buffer 0.
-
-9. Still having issues with windows resize.
+7. Still having issues with windows resize.
