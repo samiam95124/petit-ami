@@ -65,7 +65,7 @@ void main()
             case pa_etprint:   printf("print document\n"); break;
             case pa_etprintb:  printf("print block\n"); break;
             case pa_etprints:  printf("print screen\n"); break;
-            case pa_etfun:     printf("Function key, number: %d", er.fkey); break;
+            case pa_etfun:     printf("Function key, number: %d\n", er.fkey); break;
             case pa_etmenu:    printf("display menu\n"); break;
             case pa_etmouba:   printf("mouse button assertion, mouse: %d button: %d\n",
                                       er.amoun, er.amoubn); break;

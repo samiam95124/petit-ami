@@ -2,13 +2,15 @@
  *
  *                                 Petit AMI
  *
- * ANSI console interface
+ * xterm/ANSI console interface
  *
- * This is a standard PA/TK terminal module using ANSI control codes. It is
- * useful on any terminal that uses ANSI control codes, mainly the VT100 and
- * emulations of it.
+ * This is a standard PA/TK terminal module using ANSI control codes, some
+ * of which are specific to various VT10x terminals and xterm which emulates
+ * them. Its mainly for xterm and compatibles, which means Linux and Mac OS X.
  *
- * This module is completely compatible with ANSI C.
+ * Uses ANSI C and a good bit of POSIX. The stdio interface is done by a
+ * specially modified library that includes the ability to hook or override
+ * the bottom level of I/O.
  *
  * The module works by keeping a in memory image of the output terminal and
  * its attributes, along the lines of what curses does. Because it always knows
@@ -29,6 +31,10 @@
  * program. In the latter case, the mouse and joystick position is irrelevant,
  * and we need to determine terminal geometry via ANSI sequences (yes, it is
  * possible!).
+ *
+ * Petit-Ami is a standard that goes back to a start in 1984 with significant
+ * improvements in the 1997 and on years. It was the library standard for
+ * Pascaline, but I translated it to C.
  *
  ******************************************************************************/
 
@@ -59,6 +65,8 @@
 #define MAXYD 250  /**< Maximum terminal size y */
 
 #define MAXCON 10 /**< number of screen contexts */
+
+#define MAXFKEY 10 /**< maximum number of function keys */
 
 /* file handle numbers at the system interface level */
 
@@ -188,7 +196,7 @@ typedef enum {
  *
  */
 
-char *keytab[pa_etterm+1] = {
+char *keytab[pa_etterm+1+MAXFKEY] = {
 
     /* Common controls are:
     Codes                   Meaning                   IBM-PC keyboard equivalents */
@@ -241,6 +249,20 @@ char *keytab[pa_etterm+1] = {
     "",                     /* joystick move */
     "",                     /* window resize */
     "\3",                   /* terminate program           (ctrl-c) */
+    /* we added the Fx key codes to the end here */
+    "\33\117\120",          /* F1 */
+    "\33\117\121",          /* F2 */
+    "\33\117\122",          /* F3 */
+    "\33\117\123",          /* F4 */
+    "\33\133\61\65\176",    /* F5 */
+    "\33\133\61\67\176",    /* F6 */
+    "\33\133\61\70\176",    /* F7 */
+    "\33\133\61\71\176",    /* F8 */
+    "\33\133\62\60\176",    /* F9 */
+    /* F12 is a "pseudo 10th" key in that I wanted to preserve the PA tradition
+       of giving 10 function keys, so I reassigned the last one, since F10 is
+       taken by xterm (I'm sure its a CUA thing) */
+    "\33\133\62\64\176"     /* F12 */
 
 };
 
@@ -543,7 +565,7 @@ static void inpevt(pa_evtrec* ev)
             if (mousts == mnone) { /* do table matching */
 
                 pmatch = 0; /* set no partial matches */
-                for (i = pa_etchar; i <= pa_etterm && !evtfnd; i++)
+                for (i = pa_etchar; i <= pa_etterm+MAXFKEY && !evtfnd; i++)
                     if (!strncmp(keybuf, keytab[i], keylen)) {
 
                     pmatch = 1; /* set partial match */
@@ -556,7 +578,14 @@ static void inpevt(pa_evtrec* ev)
                         else {
 
                             /* complete match found, set as event */
-                            ev->etype = i; /* set event */
+                            if (i > pa_etterm) { /* it's a function key */
+
+                                ev->etype = pa_etfun;
+                                /* compensate for F12 subsitution */
+                                if (i == pa_etterm+MAXFKEY) ev->fkey = 10;
+                                else ev->fkey = i-pa_etterm;
+
+                            } else ev->etype = i; /* set event */
                             evtfnd = 1; /* set event found */
                             keylen = 0; /* clear buffer */
                             pmatch = 0; /* clear partial match */
@@ -2708,15 +2737,19 @@ void pa_clrtab(FILE* f)
 
 funkey
 
-Return number of function keys.
-
-Not implemented.
+Return number of function keys. xterm gives us F1 to F9, takes F10 and F11,
+and leaves us F12. It only reserves F10 of the shifted keys, takes most of
+the ALT-Fx keys, and leaves all of the CONTROL-Fx keys.
+The tradition in PA is to take the F1-F10 keys (it's a nice round number),
+but more can be allocated if needed.
 
 *******************************************************************************/
 
 int pa_funkey(FILE* f)
 
 {
+
+    return MAXFKEY;
 
 }
 
