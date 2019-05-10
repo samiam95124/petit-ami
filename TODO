@@ -11,3 +11,5 @@ To do list for Petit-ami
 5. Should save and restore base screen to buffer 0.
 
 6. Still having issues with windows resize.
+
+7. See if there is a solution to static linking.

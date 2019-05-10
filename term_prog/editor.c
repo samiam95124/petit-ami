@@ -140,16 +140,14 @@ void status(void)
 
     pa_curvis(stdout, false); /* turn off cursor */
     pshcur(); /* save cursor position */
-    pa_standout(stdout, true); /* turn on standout */
     pa_bcolor(stdout, pa_cyan); /* a nice (light) blue, if you please */
     pa_cursor(stdout, 1, pa_maxy(stdout)); /* position to end line on screen */
-    printf("File: %s Line: %6d Char: %3d", curfil, linpos, poschr);
+    printf("File: %-*s Line: %6d Char: %3d", MAXFIL, curfil, linpos, poschr);
     if (insertc) printf(" Ins"); else printf(" Ovr"); /* write insert status */
     while (pa_curx(stdout) < pa_maxx(stdout))
         putchar(' '); /* blank out the rest */
     putchar(' ');
     pa_bcolor(stdout, pa_white); /* back to white */
-    pa_standout(stdout, false); /* turn off standout */
     popcur(); /* restore cursor position */
     pa_curvis(stdout, true); /* turn on cursor */
 
@@ -170,11 +168,9 @@ void statusl(void)
     pa_curvis(stdout, false); /* turn off cursor */
     pshcur(); /* save cursor position */
     pa_bcolor(stdout, pa_cyan); /* a nice (light) blue, if you please */
-    pa_standout(stdout, true); /* enable standout */
     pa_cursor(stdout, 54, pa_maxy(stdout)); /* go to line position field */
     printf("%6d", linpos); /* update cursor position */
     pa_bcolor(stdout, pa_white); /* reset color */
-    pa_standout(stdout, false); /* disable standout */
     popcur(); /* restore cursor position */
     pa_curvis(stdout, true); /* turn on cursor */
 
@@ -195,11 +191,9 @@ void statusc(void)
     pa_curvis(stdout, false); /* turn off cursor */
     pshcur(); /* save cursor position */
     pa_bcolor(stdout, pa_cyan); /* a nice (light) blue, if you please */
-    pa_standout(stdout, true); /* enable standout */
     pa_cursor(stdout, 67, pa_maxy(stdout)); /* go to character position field */
     printf("%3d", poschr); /* update cursor position */
     pa_bcolor(stdout, pa_white); /* reset color */
-    pa_standout(stdout, false); /* disable standout */
     popcur(); /* restore cursor position */
     pa_curvis(stdout, true); /* turn on cursor */
 
@@ -220,11 +214,9 @@ void statusi(void)
     pa_curvis(stdout, false); /* turn off cursor */
     pshcur(); /* save cursor position */
     pa_bcolor(stdout, pa_cyan); /* a nice (light) blue, if you please */
-    pa_standout(stdout, true); /* enable standout */
     pa_cursor(stdout, 71, pa_maxy(stdout)); /* go to character position field */
     if (insertc) printf("Ins"); else printf("Ovr"); /* write insert status */
     pa_bcolor(stdout, pa_white); /* reset color */
-    pa_standout(stdout, false); /* disable standout */
     popcur(); /* restore cursor position */
     pa_curvis(stdout, true); /* turn on cursor */
 
@@ -246,14 +238,12 @@ void info(string s)
 
     pa_curvis(stdout, false); /* turn off cursor */
     pshcur(); /* save cursor position */
-    pa_standout(stdout, true); /* turn on standout */
     pa_bcolor(stdout, pa_yellow); /* place alert color */
     pa_cursor(stdout, 1, pa_maxy(stdout)); /* position to end line on screen */
     if (*s) printf("%s", s); /* output string */
     while (pa_curx(stdout) <= pa_maxx(stdout))
         putchar(' '); /* blank out the rest */
     pa_bcolor(stdout, pa_white); /* back to white */
-    pa_standout(stdout, false); /* turn off standout */
     popcur(); /* restore cursor position */
     pa_curvis(stdout, true); /* turn on cursor */
 
