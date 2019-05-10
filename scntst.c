@@ -42,15 +42,15 @@
 *                                                                             *
 *******************************************************************************/
 
-#include "terminal.h"
-#include "services.h"
-
 #include <setjmp.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
+
+#include "terminal.h"
+#include "services.h"
 
 static int x, y, lx, ly, tx, ty, dx, dy;
 static char c;

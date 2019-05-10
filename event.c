@@ -9,8 +9,8 @@
 ******************************************************************************/
 
 #include <string.h>
+#include <stdio.h>
 
-#include "stdio.h"
 #include "terminal.h"
 
 void main()

@@ -139,7 +139,7 @@ void status(void)
 {
 
     pa_curvis(stdout, false); /* turn off cursor */
-    pshcur; /* save cursor position */
+    pshcur(); /* save cursor position */
     pa_standout(stdout, true); /* turn on standout */
     pa_bcolor(stdout, pa_cyan); /* a nice (light) blue, if you please */
     pa_cursor(stdout, 1, pa_maxy(stdout)); /* position to end line on screen */
@@ -150,7 +150,7 @@ void status(void)
     putchar(' ');
     pa_bcolor(stdout, pa_white); /* back to white */
     pa_standout(stdout, false); /* turn off standout */
-    popcur; /* restore cursor position */
+    popcur(); /* restore cursor position */
     pa_curvis(stdout, true); /* turn on cursor */
 
 }
@@ -168,14 +168,14 @@ void statusl(void)
 {
 
     pa_curvis(stdout, false); /* turn off cursor */
-    pshcur; /* save cursor position */
+    pshcur(); /* save cursor position */
     pa_bcolor(stdout, pa_cyan); /* a nice (light) blue, if you please */
     pa_standout(stdout, true); /* enable standout */
     pa_cursor(stdout, 54, pa_maxy(stdout)); /* go to line position field */
     printf("%6d", linpos); /* update cursor position */
     pa_bcolor(stdout, pa_white); /* reset color */
     pa_standout(stdout, false); /* disable standout */
-    popcur; /* restore cursor position */
+    popcur(); /* restore cursor position */
     pa_curvis(stdout, true); /* turn on cursor */
 
 }
@@ -193,14 +193,14 @@ void statusc(void)
 {
 
     pa_curvis(stdout, false); /* turn off cursor */
-    pshcur; /* save cursor position */
+    pshcur(); /* save cursor position */
     pa_bcolor(stdout, pa_cyan); /* a nice (light) blue, if you please */
     pa_standout(stdout, true); /* enable standout */
     pa_cursor(stdout, 67, pa_maxy(stdout)); /* go to character position field */
     printf("%3d", poschr); /* update cursor position */
     pa_bcolor(stdout, pa_white); /* reset color */
     pa_standout(stdout, false); /* disable standout */
-    popcur; /* restore cursor position */
+    popcur(); /* restore cursor position */
     pa_curvis(stdout, true); /* turn on cursor */
 
 }
@@ -218,14 +218,14 @@ void statusi(void)
 {
 
     pa_curvis(stdout, false); /* turn off cursor */
-    pshcur; /* save cursor position */
+    pshcur(); /* save cursor position */
     pa_bcolor(stdout, pa_cyan); /* a nice (light) blue, if you please */
     pa_standout(stdout, true); /* enable standout */
     pa_cursor(stdout, 71, pa_maxy(stdout)); /* go to character position field */
     if (insertc) printf("Ins"); else printf("Ovr"); /* write insert status */
     pa_bcolor(stdout, pa_white); /* reset color */
     pa_standout(stdout, false); /* disable standout */
-    popcur; /* restore cursor position */
+    popcur(); /* restore cursor position */
     pa_curvis(stdout, true); /* turn on cursor */
 
 }
@@ -245,17 +245,16 @@ void info(string s)
 {
 
     pa_curvis(stdout, false); /* turn off cursor */
-    pshcur; /* save cursor position */
+    pshcur(); /* save cursor position */
     pa_standout(stdout, true); /* turn on standout */
     pa_bcolor(stdout, pa_yellow); /* place alert color */
     pa_cursor(stdout, 1, pa_maxy(stdout)); /* position to end line on screen */
-    if (!*s) printf("%s", s); /* output string */
-    while (pa_curx(stdout) < pa_maxx(stdout))
+    if (*s) printf("%s", s); /* output string */
+    while (pa_curx(stdout) <= pa_maxx(stdout))
         putchar(' '); /* blank out the rest */
-    putchar(' ');
     pa_bcolor(stdout, pa_white); /* back to white */
     pa_standout(stdout, false); /* turn off standout */
-    popcur; /* restore cursor position */
+    popcur(); /* restore cursor position */
     pa_curvis(stdout, true); /* turn on cursor */
 
 }
@@ -616,10 +615,10 @@ void movup(void)
                 pa_curvis(stdout, false); /* turn off cursor */
                 pa_scroll(stdout, 0, -1); /* scroll the screen down */
                 paglin = paglin->last; /* move page pin up */
-                pshcur; /* save cursor position */
+                pshcur(); /* save cursor position */
                 pa_home(stdout); /* go to top line */
                 wrtlin(1, paglin->str); /* output that line */
-                popcur; /* restore cursor position */
+                popcur(); /* restore cursor position */
                 pa_curvis(stdout, true); /* turn on cursor */
                 status(); /* update status line */
 
@@ -670,7 +669,7 @@ void movdwn(void)
 
                 /* clear last line */
                 pa_curvis(stdout, false); /* turn off cursor */
-                pshcur; /* save current position */
+                pshcur(); /* save current position */
                 pa_cursor(stdout, 1, pa_maxy(stdout));
                 while (pa_curx(stdout) < pa_maxx(stdout)) putchar(' ');
                 putchar(' ');
@@ -1330,6 +1329,7 @@ mostly up to PA to assign which keys do what in the editor, the exception being
 the function keys.
 
 *******************************************************************************/
+
 void main(int argc, char *argv[])
 
 {
@@ -1360,11 +1360,13 @@ void main(int argc, char *argv[])
     pa_select(stdout, 2, 2); /* flip to private screen */
     pa_auto(stdout, false); /* turn off scrolling */
     update(); /* present blank screen */
+    strcpy(curfil, ""); /* clear current filename */
+    if (argc == 2) { /* input file exists */
 
-    if (argc != 2) errormsg("*** Input file not found");
-    strncpy(curfil, argv[1], MAXFIL);
-    readfile(curfil); /* read the file in */
+        strncpy(curfil, argv[1], MAXFIL);
+        readfile(curfil); /* read the file in */
 
+    }
     inputloop: /* return to input level */
 
     /* The screen is initalized with the specified file. Now we enter the event
