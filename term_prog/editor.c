@@ -417,7 +417,6 @@ int getlin(FILE*  f, /* file to read */
 
     }
     s[i] = 0; /* place end of string */
-    if (c == '\n') fgetc(f); /* skip line end */
 
     return (c == EOF && !i); /* return EOF status */
 
