@@ -1351,7 +1351,7 @@ void tab(void)
 
             entchr(' '); /* place a single space */
 
-    } while (poschr < pa_maxx(stdout) || !((poschr-1)%8==0));
+    } while (poschr < pa_maxx(stdout) && !((poschr-1)%8==0));
 
 }
 
