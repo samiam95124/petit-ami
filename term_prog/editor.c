@@ -379,7 +379,7 @@ void update(void)
     int y;     /* y position holder */
 
     pa_curvis(stdout, false); /* turn off cursor */
-    putchar('\n'); /* clear screen and home cursor */
+    putchar('\f'); /* clear screen and home cursor */
     lp = paglin; /* index top of page line */
     lc = pa_maxy(stdout)-1; /* set number of lines to output */
     y = 1; /* set 1st line */
