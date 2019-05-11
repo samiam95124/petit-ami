@@ -962,7 +962,7 @@ void pagup(void)
     putbuf();; /* decache any buffer */
     if (paglin) { /* buffer not empty */
 
-        if (paglin = linstr) { /* already at top, just home cursor */
+        if (paglin == linstr) { /* already at top, just home cursor */
 
             linpos = 1; /* set new position */
             pa_cursor(stdout, poschr, 1); /* set to top of screen */
