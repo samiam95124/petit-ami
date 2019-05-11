@@ -1214,7 +1214,7 @@ void entchr(char c)
             y = pa_cury(stdout); /* save location y */
             pa_curvis(stdout, false); /* turn off cursor */
             l = len(inpbuf); /* find new length of line */
-            for (i = poschr-1; i <= l; i++)
+            for (i = poschr-1; i < l; i++)
                 putchar(inpbuf[i]); /* output the line */
             if (poschr < pa_maxx(stdout))
                 poschr++; /* advance character position */
@@ -1311,6 +1311,25 @@ void delfwd(void)
         statusc(); /* update character position field */
       
    }
+
+}
+
+/*******************************************************************************
+
+Line enter
+
+Moves to beginning of the the next line. Enter does not really do anything
+special in edit, its just the combination of two motions.
+
+*******************************************************************************/
+
+void enter(void)
+
+{
+
+    movdwn(); /* move down a line */
+    pa_cursor(stdout, 1, pa_cury(stdout)); /* move to extreme left */
+    poschr = 1;
 
 }
 
@@ -1418,7 +1437,7 @@ void main(int argc, char *argv[])
             case pa_etpagu:    pagup(); break; /* page up */
             case pa_etpagd:    pagdwn(); break; /* page down */
             case pa_ettab:     tab(); break; /* tab */
-            case pa_etenter:   break; /* enter line */
+            case pa_etenter:   enter(); break; /* enter line */
             case pa_etinsert:  break; /* insert block */
             case pa_etinsertl: break; /* insert line */
             case pa_etinsertt: togins(); break; /* insert toggle */
