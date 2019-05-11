@@ -78,6 +78,28 @@ void errormsg(string s);
 
 /*******************************************************************************
 
+Find space padded strng length
+
+Finds the true length of a string, without right hand padding.
+
+*******************************************************************************/
+
+int len(string s)
+
+{
+
+    int i;
+
+    i = strlen(s)-1;
+    while (i > 0 && s[i] == ' ') i--;
+    if (s[i] != ' ') i++;
+
+    return i;
+
+}
+
+/*******************************************************************************
+
 Push cursor coordinates
 
 Saves the current cursor coordinates on the cursor coordinate stack.
@@ -291,6 +313,7 @@ void plclin(string s)
         lp->next = lp; /* self link the entry */
         lp->last = lp;
         linstr = lp; /* and place root */
+        paglin = linstr; /* place the page pin */
 
     } else { /* store not empty */
 
@@ -460,13 +483,19 @@ void getbuf(void)
 
     linptr lp; /* pointer to current line */
     int    i;  /* index for line */
+    int    l;  /* length of line */
 
     if (!buflin) { /* line not in buffer */
 
         for (i = 0; i < MAXLIN; i++) inpbuf[i] = ' '; /* clear input buffer */
         lp = fndcur(); /* find current line */
-        if (lp) /* the line exists, copy into buffer */
-            for (i = 0; i < strlen(lp->str); i++) inpbuf[i] = lp->str[i];
+        if (lp) {
+
+            /* copy without terminating 0 */
+            l = strlen(lp->str);
+            for (i = 0; i < l; i++) inpbuf[i] = lp->str[i];
+
+        }
         buflin = true; /* set line in buffer */
 
     }
@@ -522,11 +551,13 @@ void putbuf(void)
         /* ok, there is a dirty (but workable) trick here. notice that if we have
            created blank lines below the buffer, we will be disposing of that
            newly created blank line. this does not waste storage, however, because
-           zero length allocations don't actually exist */
+           zero length allocations don't actually exist. Note that this works
+           regardless of standard C interpretation.  */
         free(lp->str); /* remove old line */
-        l = strlen(inpbuf); /* find length of buffered line */
+        l = len(inpbuf); /* find length of buffered line */
         lp->str = malloc(l+1); /* create a new string */
-        strcpy(lp->str, inpbuf); /* copy to string */
+        strncpy(lp->str, inpbuf, l); /* copy to string */
+        inpbuf[l] = 0; /* terminate string */
         buflin = false; /* set line not in buffer */
 
     }
@@ -1174,15 +1205,15 @@ void entchr(char c)
     if (insertc) { /* process using insert mode */
 
         getbuf(); /* pull line to buffer */
-        l = strlen(inpbuf); /* find current length of line */
+        l = len(inpbuf); /* find current length of line */
         if (l < pa_maxx(stdout)) { /* we have room to place */
 
             /* move up buffer to make room */
-            for (i = l; i >= poschr; i--) inpbuf[i+1] = inpbuf[i];
-            inpbuf[poschr] = c; /* place character */
+            for (i = l; i >= poschr; i--) inpbuf[i] = inpbuf[i-1];
+            inpbuf[poschr-1] = c; /* place character */
             y = pa_cury(stdout); /* save location y */
             pa_curvis(stdout, false); /* turn off cursor */
-            for (i = poschr; i <= l+1; i++)
+            for (i = poschr-1; i <= l; i++)
                 putchar(inpbuf[i]); /* output the line */
             if (poschr < pa_maxx(stdout))
                 poschr++; /* advance character position */
