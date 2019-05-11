@@ -884,7 +884,7 @@ void movendl(void)
     linptr lp; /* pointer to line */
 
     if (buflin) /* line is in buffer */
-        poschr = strlen(inpbuf)+1; /* set new position */
+        poschr = len(inpbuf)+1; /* set new position */
     else { /* line is in file */
 
         lp = fndcur(); /* find current line */
@@ -1213,6 +1213,7 @@ void entchr(char c)
             inpbuf[poschr-1] = c; /* place character */
             y = pa_cury(stdout); /* save location y */
             pa_curvis(stdout, false); /* turn off cursor */
+            l = len(inpbuf); /* find new length of line */
             for (i = poschr-1; i <= l; i++)
                 putchar(inpbuf[i]); /* output the line */
             if (poschr < pa_maxx(stdout))
@@ -1378,7 +1379,7 @@ void main(int argc, char *argv[])
 
     }
     pa_select(stdout, 2, 2); /* flip to private screen */
-    pa_auto(stdout, false); /* turn off scrolling */
+    pa_auto(stdout, false); /* turn off scrolling/wrapping */
     update(); /* present blank screen */
     strcpy(curfil, ""); /* clear current filename */
     if (argc == 2) { /* input file exists */
