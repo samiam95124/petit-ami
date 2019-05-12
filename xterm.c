@@ -735,7 +735,7 @@ static void inpevt(pa_evtrec* ev)
             /* recalculate window size */
             findsize();
             /* now find if we have exposed any new areas, then redraw if so */
-            if (dimx > dimxs || dimy > dimys) restore(screens[curdsp-1]);
+            /* if (dimx > dimxs || dimy > dimys) */ restore(screens[curdsp-1]);
 
         }
         if (!evtsig && !evtfnd) {
