@@ -735,7 +735,7 @@ static void inpevt(pa_evtrec* ev)
             /* recalculate window size */
             findsize();
             /* now find if we have exposed any new areas, then redraw if so */
-            /* if (dimx > dimxs || dimy > dimys) */ restore(screens[curdsp-1]);
+            if (dimx > dimxs || dimy > dimys) restore(screens[curdsp-1]);
 
         }
         if (!evtsig && !evtfnd) {
@@ -2863,6 +2863,9 @@ static void pa_init_terminal()
     /** build new terminal settings */ struct termios raw;
     /** index */                       int i;
 
+    /* change to alternate screen/turn off wrap */
+    printf("\033[?1049h\033[H");
+
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
     ovr_write(iwrite, &ofpwrite);
@@ -3004,5 +3007,8 @@ static void pa_deinit_terminal()
     if (cppread != iread || cppwrite != iwrite || cppopen != iopen ||
         cppclose != iclose || cppunlink != iunlink || cpplseek != ilseek)
         error(esysflt);
+
+    /* back to normal buffer on xterm */
+    printf("\033[?1049l");
 
 }

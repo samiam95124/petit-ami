@@ -8,8 +8,6 @@ To do list for Petit-ami
 
 4. Implement read of rc file from each of program, user and current location.
 
-5. Should save and restore base screen to buffer 0.
+5. See if there is a solution to static linking.
 
-6. Still having issues with windows resize.
-
-7. See if there is a solution to static linking.
+6. Need to allow buffer zero to keep the 0 screen data.

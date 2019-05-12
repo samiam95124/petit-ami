@@ -385,11 +385,13 @@ void wrtlin(int    y, /* position to place string */
 
 Update entire screen display
 
-Repaints the entire screen, including body text and status line.
+Repaints the entire screen, including body text and status line. Takes a flag
+to indicate if we will clear the screen or not. Screen geometry changes don't
+need a clear, it just flashes the screen.
 
 *******************************************************************************/
 
-void update(void)
+void update(boolean clr)
 
 {
 
@@ -398,7 +400,7 @@ void update(void)
     int y;     /* y position holder */
 
     pa_curvis(stdout, false); /* turn off cursor */
-    putchar('\f'); /* clear screen and home cursor */
+    if (clr) putchar('\f'); /* clear screen and home cursor */
     lp = paglin; /* index top of page line */
     lc = pa_maxy(stdout)-1; /* set number of lines to output */
     y = 1; /* set 1st line */
@@ -619,7 +621,7 @@ void readfile(string fn) /* file to read */
     }
     fclose(f); /* close input file */
     paglin = linstr; /* index top of buffer */
-    update(); /* display that */
+    update(true); /* display that */
 
 }
 
@@ -848,7 +850,7 @@ void movhom(void)
         } else { /* not at top, go there */
 
             paglin = linstr; /* set page to home */
-            update(); /* redraw */
+            update(true); /* redraw */
 
         }
 
@@ -893,7 +895,7 @@ void movend(void)
         if (lp != paglin) { /* we are not already there */
 
             paglin = lp; /* set new position */
-            update(); /* redraw */
+            update(true); /* redraw */
 
         }
         pa_cursor(stdout, poschr, (pa_maxy(stdout)-1)/2+1);
@@ -1032,7 +1034,7 @@ void pagup(void)
 
             }
             pshcur(); /* push cursor coordinates */
-            update(); /* redraw */
+            update(true); /* redraw */
             popcur(); /* restore cursor coordinates */
 
         }
@@ -1075,7 +1077,7 @@ void pagdwn(void)
 
             }
             pshcur(); /* push cursor coordinates */
-            update(); /* redraw */
+            update(true); /* redraw */
             popcur(); /* restore cursor coordinates */
 
         }
@@ -1475,7 +1477,7 @@ void main(int argc, char *argv[])
     }
     pa_select(stdout, 2, 2); /* flip to private screen */
     pa_auto(stdout, false); /* turn off scrolling/wrapping */
-    update(); /* present blank screen */
+    update(true); /* present blank screen */
     strcpy(curfil, ""); /* clear current filename */
     if (argc == 2) { /* input file exists */
 
@@ -1532,7 +1534,7 @@ void main(int argc, char *argv[])
             case pa_etfun:     func(er.fkey); break; /* functions */
             case pa_etmouba:   mouass(); break; /* mouse button 1 assertion */
             case pa_etmoumov:  moumov(); break; /* mouse move */
-            case pa_etresize:  update(); break; /* resize window */
+            case pa_etresize:  update(false); break; /* resize window */
             case pa_etterm:    break; /* terminate program */
 
         }
