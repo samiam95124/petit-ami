@@ -1532,6 +1532,7 @@ void main(int argc, char *argv[])
             case pa_etfun:     func(er.fkey); break; /* functions */
             case pa_etmouba:   mouass(); break; /* mouse button 1 assertion */
             case pa_etmoumov:  moumov(); break; /* mouse move */
+            case pa_etresize:  update(); break; /* resize window */
             case pa_etterm:    break; /* terminate program */
 
         }
