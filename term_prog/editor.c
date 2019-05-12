@@ -17,6 +17,7 @@
 *    F4 - Replace again                                                        *
 *    F5 - Record macro start/stop                                              *
 *    F6 - Playback macro                                                       *
+*    F7 - Save file                                                            *
 *                                                                              *
 ********************************************************************************/
 
@@ -73,6 +74,7 @@ boolean   insertc;       /* insert/overwrite toggle */
 linbuf    cmdlin;        /* command line */
 lininx    cmdptr;        /* command line pointer */
 jmp_buf   inputloop_buf; /* buffer for return to input loop */
+boolean   redraws;       /* in error display */
 
 void errormsg(string s);
 
@@ -172,6 +174,7 @@ void status(void)
     pa_bcolor(stdout, pa_white); /* back to white */
     popcur(); /* restore cursor position */
     pa_curvis(stdout, true); /* turn on cursor */
+    redraws = false; /* set no redraw */
 
 }
 
@@ -187,14 +190,19 @@ void statusl(void)
 
 {
 
-    pa_curvis(stdout, false); /* turn off cursor */
-    pshcur(); /* save cursor position */
-    pa_bcolor(stdout, pa_cyan); /* a nice (light) blue, if you please */
-    pa_cursor(stdout, 54, pa_maxy(stdout)); /* go to line position field */
-    printf("%6d", linpos); /* update cursor position */
-    pa_bcolor(stdout, pa_white); /* reset color */
-    popcur(); /* restore cursor position */
-    pa_curvis(stdout, true); /* turn on cursor */
+    if (redraws) status(); /* redraw complete */
+    else {
+
+        pa_curvis(stdout, false); /* turn off cursor */
+        pshcur(); /* save cursor position */
+        pa_bcolor(stdout, pa_cyan); /* a nice (light) blue, if you please */
+        pa_cursor(stdout, 54, pa_maxy(stdout)); /* go to line position field */
+        printf("%6d", linpos); /* update cursor position */
+        pa_bcolor(stdout, pa_white); /* reset color */
+        popcur(); /* restore cursor position */
+        pa_curvis(stdout, true); /* turn on cursor */
+
+    }
 
 }
 
@@ -210,14 +218,19 @@ void statusc(void)
 
 {
 
-    pa_curvis(stdout, false); /* turn off cursor */
-    pshcur(); /* save cursor position */
-    pa_bcolor(stdout, pa_cyan); /* a nice (light) blue, if you please */
-    pa_cursor(stdout, 67, pa_maxy(stdout)); /* go to character position field */
-    printf("%3d", poschr); /* update cursor position */
-    pa_bcolor(stdout, pa_white); /* reset color */
-    popcur(); /* restore cursor position */
-    pa_curvis(stdout, true); /* turn on cursor */
+    if (redraws) status(); /* redraw complete */
+    else {
+
+        pa_curvis(stdout, false); /* turn off cursor */
+        pshcur(); /* save cursor position */
+        pa_bcolor(stdout, pa_cyan); /* a nice (light) blue, if you please */
+        pa_cursor(stdout, 67, pa_maxy(stdout)); /* go to character position field */
+        printf("%3d", poschr); /* update cursor position */
+        pa_bcolor(stdout, pa_white); /* reset color */
+        popcur(); /* restore cursor position */
+        pa_curvis(stdout, true); /* turn on cursor */
+
+    }
 
 }
 
@@ -233,14 +246,19 @@ void statusi(void)
 
 {
 
-    pa_curvis(stdout, false); /* turn off cursor */
-    pshcur(); /* save cursor position */
-    pa_bcolor(stdout, pa_cyan); /* a nice (light) blue, if you please */
-    pa_cursor(stdout, 71, pa_maxy(stdout)); /* go to character position field */
-    if (insertc) printf("Ins"); else printf("Ovr"); /* write insert status */
-    pa_bcolor(stdout, pa_white); /* reset color */
-    popcur(); /* restore cursor position */
-    pa_curvis(stdout, true); /* turn on cursor */
+    if (redraws) status(); /* redraw complete */
+    else {
+
+        pa_curvis(stdout, false); /* turn off cursor */
+        pshcur(); /* save cursor position */
+        pa_bcolor(stdout, pa_cyan); /* a nice (light) blue, if you please */
+        pa_cursor(stdout, 71, pa_maxy(stdout)); /* go to character position field */
+        if (insertc) printf("Ins"); else printf("Ovr"); /* write insert status */
+        pa_bcolor(stdout, pa_white); /* reset color */
+        popcur(); /* restore cursor position */
+        pa_curvis(stdout, true); /* turn on cursor */
+
+    }
 
 }
 
@@ -268,6 +286,7 @@ void info(string s)
     pa_bcolor(stdout, pa_white); /* back to white */
     popcur(); /* restore cursor position */
     pa_curvis(stdout, true); /* turn on cursor */
+    redraws = true; /* set to redraw */
 
 }
 
@@ -601,6 +620,38 @@ void readfile(string fn) /* file to read */
     fclose(f); /* close input file */
     paglin = linstr; /* index top of buffer */
     update(); /* display that */
+
+}
+
+/*******************************************************************************
+
+Write file from buffer
+
+The current buffer is written to the given file.
+
+*******************************************************************************/
+
+void writefile(string fn) /* file to read */
+
+{
+
+    FILE*  f;  /* text file */
+    linptr lp; /* line pointer */
+
+    putbuf(); /* decache any buffer */
+    info("Writing file");
+    f = fopen(fn, "w"); /* open the output file */
+    if (!f) info("*** Cannot open file ***");
+    lp = linstr; /* index top of buffer */
+    while (lp) { /* write lines */
+
+        fprintf(f, "%s\n", lp->str); /* output line to file */
+        lp = lp->next; /* go next line */
+        if (lp == linstr) lp = NULL; /* line wrapped to top, signal end */
+
+    }
+    fclose(f); /* close input file */
+    status(); /* refresh status line */
 
 }
 
@@ -1357,6 +1408,30 @@ void tab(void)
 
 /*******************************************************************************
 
+Execute function key by number
+
+Accepts a function key number, 1-n, and executes the associated function.
+
+*******************************************************************************/
+
+void func(int fn)
+
+{
+
+    switch (fn) {
+
+        case 7:
+
+            if (!*curfil) errormsg("*** No filename set ***");
+            writefile(curfil); /* write output file */
+            break;
+
+    }
+
+}
+
+/*******************************************************************************
+
 Main procedure
 
 Initializes the program, loads the target source file, and enters the event
@@ -1387,6 +1462,7 @@ void main(int argc, char *argv[])
     mpy = 0;
     buflin = false; /* set no line in buffer */
     insertc = true; /* set insert mode on */
+    redraws = false; /* set no redraw required */
     /* check screen size is less than our minimum */
     if (pa_maxx(stdout) < 70 || pa_maxy(stdout) < 2) {
 
@@ -1453,7 +1529,7 @@ void main(int argc, char *argv[])
             case pa_etprint:   break; /* print document */
             case pa_etprintb:  break; /* print block */
             case pa_etprints:  break; /* print screen */
-            case pa_etfun:     break; /* functions */
+            case pa_etfun:     func(er.fkey); break; /* functions */
             case pa_etmouba:   mouass(); break; /* mouse button 1 assertion */
             case pa_etmoumov:  moumov(); break; /* mouse move */
             case pa_etterm:    break; /* terminate program */
