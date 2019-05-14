@@ -22,7 +22,7 @@
 
 /* enable this next define for testing mode */
 
-#define L_tmpnam 100
+#define L_tmpnam 9
 #define L_TMP_MAX 100
 #define FOPEN_MAX 100
 
@@ -52,8 +52,13 @@ typedef struct {
     int  mode;   /* r/w mode, 0=read, 1=write, 2=read/write */
     int  append; /* append mode */
     int  pback;  /* pushback character, only a single is implemented */
+    int  flags;  /* state flags, 0=EOF */
 
 } FILE;
+
+/* error/status flags */
+
+#define _EFEOF 1 /* stream EOF */
 
 /* standard in, out and error files */
 

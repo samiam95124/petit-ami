@@ -35,6 +35,14 @@
 * "inherently initialized" if you prefer. This solves the error, since it does *
 * not matter when the stdio calls occur.                                       *
 *                                                                              *
+* TO DOs                                                                       *
+*                                                                              *
+* 1. Fill out the definition of rename().                                      *
+*                                                                              *
+* 2. Add floating point handling to scan and print functions.                  *
+*                                                                              *
+* 3. Need a test suite for stdio.                                              *
+*                                                                              *
 *******************************************************************************/
 
 #include "stdio.h"
@@ -48,7 +56,6 @@
 #include <ctype.h>
 
 /* We use a custom stdio.h */
-
 
 #define FALSE 0
 #define TRUE 1
@@ -86,37 +93,40 @@ typedef off_t   (*vt_lseek_t)(int, off_t, int);
 
 /* standard files definitions */
 
-FILE stdinfe = {
+static FILE stdinfe = {
 
     /* fid */    0,           /* set logical file 0 */
     /* name */   NULL,        /* set no name attached */
     /* text */   TRUE,        /* set text */
     /* mode */   STDIO_MREAD, /* set read only */
     /* append */ 0,           /* set not append */
-    /* pback */  EOF          /* nothing in the pushback buffer */
+    /* pback */  EOF,         /* nothing in the pushback buffer */
+    /* flags */  0            /* no state flags active */
 
 };
 
-FILE stdoutfe = {
+static FILE stdoutfe = {
 
-    /* fid */    1,           /* set logical file 0 */
-    /* name */   NULL,        /* set no name attached */
-    /* text */   TRUE,        /* set text */
+    /* fid */    1,            /* set logical file 0 */
+    /* name */   NULL,         /* set no name attached */
+    /* text */   TRUE,         /* set text */
     /* mode */   STDIO_MWRITE, /* set read only */
-    /* append */ 0,           /* set not append */
-    /* pback */  EOF          /* nothing in the pushback buffer */
+    /* append */ 0,            /* set not append */
+    /* pback */  EOF,          /* nothing in the pushback buffer */
+    /* flags */  0             /* no state flags active */
 
 };
 
 
-FILE stderrfe = {
+static FILE stderrfe = {
 
-    /* fid */    2,           /* set logical file 0 */
-    /* name */   NULL,        /* set no name attached */
-    /* text */   TRUE,        /* set text */
+    /* fid */    2,            /* set logical file 0 */
+    /* name */   NULL,         /* set no name attached */
+    /* text */   TRUE,         /* set text */
     /* mode */   STDIO_MWRITE, /* set read only */
-    /* append */ 0,           /* set not append */
-    /* pback */  EOF          /* nothing in the pushback buffer */
+    /* append */ 0,            /* set not append */
+    /* pback */  EOF,          /* nothing in the pushback buffer */
+    /* flags */  0             /* no state flags active */
 
 };
 
@@ -166,6 +176,12 @@ static vt_open_t   vt_open   = wopen;
 static vt_close_t  vt_close  = wclose;
 static vt_unlink_t vt_unlink = wunlink;
 static vt_lseek_t  vt_lseek  = wlseek;
+
+/* counters to generate temp files */
+
+static int tmpcnt; /* temp counter, starting at 0 */
+static int tmpnamc; /* current internal stored temp name */
+static char tmpstr[L_TMP_MAX][L_tmpnam]; /* temp filename array */
 
 /*******************************************************************************
 
@@ -499,7 +515,7 @@ BUGS/ISSUES:
 
 *******************************************************************************/
 
-int getfstr(char **s, FILE *fd)
+static int getfstr(char **s, FILE *fd)
 
 {
 
@@ -530,7 +546,7 @@ BUGS/ISSUES:
 
 *******************************************************************************/
 
-int chkfstr(char *s, FILE *fd)
+static int chkfstr(char *s, FILE *fd)
 
 {
 
@@ -900,6 +916,8 @@ Returns EOF if an error occurs while writing to a file, otherwise 0.
 
 BUGS/ISSUES:
 
+1. Buffering is not implemented at the present time.
+
 *******************************************************************************/
 
 int fflush(FILE *stream)
@@ -1074,14 +1092,22 @@ removed when the program ends.
 
 BUGS/ISSUES:
 
+1. These names are only unique to the program running. Different programs could
+collide.
+
 *******************************************************************************/
 
 FILE *tmpfile(void)
 
 {
 
-    /* fprintf(stderr, "*** Function 'tmpfile' not implemented\n"); */
-    exit(1);
+    FILE* fp;
+    char ts[L_tmpnam];
+
+    tmpnam(ts); /* create a temp name */
+
+    /* note we don't need to hold on to the name */
+    return (fopen(ts, "wb+"));
 
 }
 
@@ -1098,14 +1124,19 @@ no other existing filename.
 
 BUGS/ISSUES:
 
+1. This does not really generate unique names, and so is suitable for testing
+only.
+
 *******************************************************************************/
 
 char *tmpnam(char s[])
 
 {
 
-    /* fprintf(stderr, "*** Function 'tmpnam' not implemented\n"); */
-    exit(1);
+    if (!s) s = &tmpstr[tmpnamc++][0]; /* index the temp string */
+    sprintf(s, "temp%4d", tmpcnt);
+
+    return (s);
 
 }
 
@@ -1131,14 +1162,15 @@ Returns non-zero for error, otherwise zero.
 
 BUGS/ISSUES:
 
+1. We don't do buffering at this time, so this routine is a no-op.
+
 *******************************************************************************/
 
 int setvbuf(FILE *stream, char *buf, int mode, size_t size)
 
 {
 
-    /* fprintf(stderr, "*** Function 'setvbuf' not implemented\n"); */
-    exit(1);
+    return (0);
 
 }
 
@@ -1146,9 +1178,12 @@ int setvbuf(FILE *stream, char *buf, int mode, size_t size)
 
 FUNCTION NAME: setbuf
 
-SHORT DESCRIPTION:
+SHORT DESCRIPTION: Sets up a buffer for the file
 
 DETAILED DESCRIPTION:
+
+Either sets up a buffer to be used with the file, or sets buffering off if the
+buffer pointer is NULL.
 
 BUGS/ISSUES:
 
@@ -1158,7 +1193,8 @@ void setbuf(FILE *stream, char *buf)
 
 {
 
-    (void) setvbuf(stream, buf, _IOFBF, BUFSIZ);
+    if (!buf) setvbuf(stream, buf, _IONBF, 0); /* turn buffering off */
+    else (void) setvbuf(stream, buf, _IOFBF, BUFSIZ);
 
 }
 
@@ -2086,6 +2122,7 @@ int fgetc(FILE *stream)
     } else { /* standard read */
 
         rc = vread(stream->fid, &b, 1); /* read one byte */
+        if (!rc) stream->flags |= _EFEOF; /* set end of file if true */
         if (rc != 1) return EOF; /* return EOF or other error */
         else return (b); /* return character */
 
@@ -2415,9 +2452,14 @@ size_t fread(void *ptr, size_t size, size_t nobj, FILE *stream)
 
 {
 
+    int r;
+
     /* check file is allocated and open */
     if (!stream || stream->fid < 0) return (0);
-    return (vread(stream->fid, ptr, size*nobj)); /* process read */
+    r = vread(stream->fid, ptr, size*nobj); /* process read */
+    if (!r) stream->flags |= _EFEOF; /* set EOF encountered */
+
+    return r;
 
 }
 
@@ -2477,6 +2519,7 @@ int fseek(FILE *stream, long offset, int origin)
 
     /* check file is allocated and open */
     if (!stream || stream->fid < 0) return (0);
+    stream->flags &= ~_EFEOF; /* reset any EOF indication */
     return (!(vlseek(stream->fid, offset, origin) < 0)); /* process seek */
 
 }
@@ -2596,8 +2639,9 @@ void clearerr(FILE *stream)
 
 {
 
-    /* fprintf(stderr, "*** Function 'clearerr' not implemented\n"); */
-    exit(1);
+    /* check file is allocated and open */
+    if (!stream || stream->fid < 0) return;
+    stream->flags = 0; /* clear all flags */
 
 }
 
@@ -2620,8 +2664,9 @@ int feof(FILE *stream)
 
 {
 
-    /* fprintf(stderr, "*** Function 'feof' not implemented\n"); */
-    exit(1);
+    /* check file is allocated and open */
+    if (!stream || stream->fid < 0) return (0);
+    return (!!(stream->flags &_EFEOF)); /* return EOF status */
 
 }
 
@@ -2638,14 +2683,17 @@ error is pending on the file, otherwise zero.
 
 BUGS/ISSUES:
 
+1. Currently there are no error indications kept.
+
 *******************************************************************************/
 
 int ferror(FILE *stream)
 
 {
 
-    /* fprintf(stderr, "*** Function 'ferror' not implemented\n"); */
-    exit(1);
+    /* check file is allocated and open */
+    if (!stream || stream->fid < 0) return (0);
+    return (!!(stream->flags & ~_EFEOF));
 
 }
 
@@ -2669,5 +2717,32 @@ void perror(const char *s)
 {
 
     fprintf(stderr, "%s: %s\n", s, strerror(errno));
+
+}
+
+/*******************************************************************************
+
+stdio shutdown
+
+Unlike the init, we don't have to worry about shutdown race conditions (or as
+much). We set ourselves for last priority.
+
+The only shutdown task is to attempt to remove any temp files created, which is
+non critical. If there were another program, that opened temp files, left them
+open, and also set it's destructor to 101 (perform last), it's possible to
+cause problems, IE., you would really have to try to make this fail.
+
+You can remove the temp delete if you want to look at your temp files.
+
+*******************************************************************************/
+
+static void deinit_stdio (void) __attribute__((destructor (101)));
+static void deinit_stdio()
+
+{
+
+    int i;
+
+    for (i = i; i < tmpnamc; i++) remove(tmpstr[i]);
 
 }
