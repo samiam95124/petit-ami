@@ -27,6 +27,14 @@
 *                                                                              *
 * 3. Check that printf and scanf uses longs throughout.                        *
 *                                                                              *
+* 4. Actual use has shown that there are programs that call the stdio          *
+* functions before any constructor for this module can be run. This results in *
+* a serious error. Thus we have moved the initialization to compile time       *
+* definitions, or at worst, runtime initialization that is "triggered" by NULL *
+* values in the data. This means stdio is either "self initialized" or         *
+* "inherently initialized" if you prefer. This solves the error, since it does *
+* not matter when the stdio calls occur.                                       *
+*                                                                              *
 *******************************************************************************/
 
 #include "stdio.h"
@@ -74,34 +82,90 @@ typedef int     (*vt_close_t)(int);
 typedef int     (*vt_unlink_t)(const char*);
 typedef off_t   (*vt_lseek_t)(int, off_t, int);
 
+
+
+/* standard files definitions */
+
+FILE stdinfe = {
+
+    /* fid */    0,           /* set logical file 0 */
+    /* name */   NULL,        /* set no name attached */
+    /* text */   TRUE,        /* set text */
+    /* mode */   STDIO_MREAD, /* set read only */
+    /* append */ 0,           /* set not append */
+    /* pback */  EOF          /* nothing in the pushback buffer */
+
+};
+
+FILE stdoutfe = {
+
+    /* fid */    1,           /* set logical file 0 */
+    /* name */   NULL,        /* set no name attached */
+    /* text */   TRUE,        /* set text */
+    /* mode */   STDIO_MWRITE, /* set read only */
+    /* append */ 0,           /* set not append */
+    /* pback */  EOF          /* nothing in the pushback buffer */
+
+};
+
+
+FILE stderrfe = {
+
+    /* fid */    2,           /* set logical file 0 */
+    /* name */   NULL,        /* set no name attached */
+    /* text */   TRUE,        /* set text */
+    /* mode */   STDIO_MWRITE, /* set read only */
+    /* append */ 0,           /* set not append */
+    /* pback */  EOF          /* nothing in the pushback buffer */
+
+};
+
 /* standard in, out and error files */
 
-FILE *stdin;
-FILE *stdout;
-FILE *stderr;
+FILE *stdin = &stdinfe;
+FILE *stdout = &stdoutfe;
+FILE *stderr = &stderrfe;
 
-/* open files table */
+/* open files table. The first 0, 1, and 2 entries are tied to stdin, stdout
+   and stderr. This does not have to be, but it makes the system more
+   organized. */
 
-static FILE *opnfil[FOPEN_MAX];
+static FILE *opnfil[FOPEN_MAX] = {
+
+    &stdinfe,   /* standard input */
+    &stdoutfe, /* standard output */
+    &stderrfe  /* standard error */
+
+    /* remaining entries are NULL */
+
+};
 
 /* top powers table, we precalculate this to save runtime */
 
-static unsigned long power2; /* binary */
 static unsigned long power8; /* octal */
 static unsigned long power10; /* decimal */
 static unsigned long power16; /* hexadecimal */
 
+/* declare vector functions in advance */
+
+static ssize_t wread(int fd, void* buff, size_t count);
+static ssize_t wwrite(int fd, const void* buff, size_t count);
+static int wopen(const char* pathname, int flags, int perm);
+static int wclose(int fd);
+static int wunlink(const char* pathname);
+static off_t wlseek(int fd, off_t offset, int whence);
+
 /*
  * Vectors to system calls. These vectors point to the system equivalent calls,
- * but can be hooked or overridden by higher level layers.
- *
+ * but can be hooked or overridden by higher level layers. These are initialized
+ * to the default handlers here in stdio.c.
  */
-static vt_read_t   vt_read;
-static vt_write_t  vt_write;
-static vt_open_t   vt_open;
-static vt_close_t  vt_close;
-static vt_unlink_t vt_unlink;
-static vt_lseek_t  vt_lseek;
+static vt_read_t   vt_read   = wread;
+static vt_write_t  vt_write  = wwrite;
+static vt_open_t   vt_open   = wopen;
+static vt_close_t  vt_close  = wclose;
+static vt_unlink_t vt_unlink = wunlink;
+static vt_lseek_t  vt_lseek  = wlseek;
 
 /*******************************************************************************
 
@@ -1302,17 +1366,20 @@ static int vsprintfe(char *s, const char *fmt, va_list ap, FILE *fd)
                     if (*fmt == 'o') { /* octal */
 
                         r = 8; /* set radix */
+                        if (!power8) power8 = toppow(8); /* find octal */
                         p = power8; /* set top power */
 
                     } else if (*fmt == 'x' || *fmt == 'X' || *fmt == 'p') {
 
                         /* hexadecimal */
                         r = 16; /* set radix */
+                        if (!power16) power16 = toppow(16); /* hexadecimal */
                         p = power16; /* set top power */
 
                     } else { /* decimal */
 
                         r = 10; /* set radix */
+                        if (!power10) power10 = toppow(10); /* decimal */
                         p = power10; /* set top power */
 
                     }
@@ -2406,8 +2473,11 @@ int fseek(FILE *stream, long offset, int origin)
 
 {
 
-    /* fprintf(stderr, "*** Function 'fseek' not implemented\n"); */
-    exit(1);
+    int r;
+
+    /* check file is allocated and open */
+    if (!stream || stream->fid < 0) return (0);
+    return (!(vlseek(stream->fid, offset, origin) < 0)); /* process seek */
 
 }
 
@@ -2429,8 +2499,11 @@ long ftell(FILE *stream)
 
 {
 
-    /* fprintf(stderr, "*** Function 'ftell' not implemented\n"); */
-    exit(1);
+    int r;
+
+    /* check file is allocated and open */
+    if (!stream || stream->fid < 0) return (0);
+    return (vlseek(stream->fid, 0, SEEK_CUR)); /* process seek */
 
 }
 
@@ -2453,6 +2526,7 @@ void rewind(FILE *stream)
 {
 
     (void) fseek(stream, 0l, SEEK_SET); /* perform seek */
+    clearerr(stream); /* clear any error */
 
 }
 
@@ -2475,8 +2549,9 @@ int fgetpos(FILE *stream, fpos_t *ptr)
 
 {
 
-    /* fprintf(stderr, "*** Function 'fgetpos' not implemented\n"); */
-    exit(1);
+    *ptr = ftell(stream); /* get current position */
+
+    return (!!(*ptr < 0));
 
 }
 
@@ -2499,8 +2574,7 @@ int fsetpos(FILE *stream, const fpos_t *ptr)
 
 {
 
-    /* fprintf(stderr, "*** Function 'fsetpos' not implemented\n"); */
-    exit(1);
+    return (fseek(stream, *ptr, SEEK_SET));
 
 }
 
@@ -2594,96 +2668,6 @@ void perror(const char *s)
 
 {
 
-    /* fprintf(stderr, "*** Function 'perror' not implemented\n"); */
-    exit(1);
-
-}
-
-/*******************************************************************************
-
-FUNCTION NAME: stdio_init
-
-SHORT DESCRIPTION: Initialize stdio module
-
-DETAILED DESCRIPTION:
-
-Performs the initialization of this module. The standard input, output and error
-files are allocated and connected to their files. The open files table is
-cleared. The table entries 0, 1 and 2 are allocated to the standard input,
-output and error files, which are assumed to be set up as low level file ids
-0, 1 and 2. They don't technically need to be in the files table, but we
-place them there to keep track of them. If we cannot allocate an entry for
-them, then they are left NULL. This will result in an error if and when they
-are used, instead of faulting immediately.
-
-BUGS/ISSUES:
-
-*******************************************************************************/
-
-static void stdio_init(void) __attribute__ ((constructor (101)));
-static void stdio_init(void)
-
-{
-
-    int i; /* index for files table */
-
-    /* default system call vectors to there normal linkages */
-    vt_read   = wread;
-    vt_write  = wwrite;
-    vt_open   = wopen;
-    vt_close  = wclose;
-    vt_unlink = wunlink;
-    vt_lseek  = wlseek;
-
-    /* clear open files table */
-    for (i = 0; i < FOPEN_MAX; i++) opnfil[i] = NULL;
-
-    /* open standard input */
-    opnfil[0] = malloc(sizeof(FILE)); /* get a new file tracking struct */
-    if (opnfil[0]) { /* entry was allocated, set it up */
-
-        opnfil[0]->fid = 0; /* set logical file 0 */
-        opnfil[0]->name = NULL; /* set no name attached */
-        opnfil[0]->text = TRUE; /* set text */
-        opnfil[0]->mode = STDIO_MREAD; /* set read only */
-        opnfil[0]->append = 0; /* set not append */
-        opnfil[0]->pback = EOF; /* nothing in the pushback buffer */
-
-    }
-    stdin = opnfil[0]; /* place pointer to stdin */
-
-    /* open standard output */
-    opnfil[1] = malloc(sizeof(FILE)); /* get a new file tracking struct */
-    if (opnfil[1]) { /* entry was allocated, set it up */
-
-        opnfil[1]->fid = 1; /* set logical file 1 */
-        opnfil[1]->name = NULL; /* set no name attached */
-        opnfil[1]->text = TRUE; /* set text */
-        opnfil[1]->mode = STDIO_MWRITE; /* set write only */
-        opnfil[1]->append = 0; /* set not append */
-        opnfil[1]->pback = EOF; /* nothing in the pushback buffer */
-
-    }
-    stdout = opnfil[1]; /* place pointer to stdout */
-
-    /* open standard error */
-    opnfil[2] = malloc(sizeof(FILE)); /* get a new file tracking struct */
-    if (opnfil[2]) { /* entry was allocated, set it up */
-
-        opnfil[2]->fid = 2; /* set logical file 1 */
-        opnfil[2]->name = NULL; /* set no name attached */
-        opnfil[2]->text = TRUE; /* set text */
-        opnfil[2]->mode = STDIO_MWRITE; /* set write only */
-        opnfil[2]->append = 0; /* set not append */
-        opnfil[2]->pback = EOF; /* nothing in the pushback buffer */
-
-    }
-    stderr = opnfil[2]; /* place pointer to stderr */
-
-    /* calculate top powers table */
-    power2 = toppow(2); /* binary */
-    power8 = toppow(8); /* octal */
-    power10 = toppow(10); /* decimal */
-    power16 = toppow(16); /* hexadecimal */
+    fprintf(stderr, "%s: %s\n", s, strerror(errno));
 
 }
