@@ -54,6 +54,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <stdio_ext.h>
 
 /* We use a custom stdio.h */
 
@@ -841,6 +842,10 @@ r+b Open binary file for read or write.
 w+b Open binary file for read or write, truncate existing file.
 a+b Open binary file for read or write at end.
 
+glibc extensions:
+
+e   Pass through execs. We support this because it's used by GTK.
+
 In this implementation, the characters can appear in any order, and extra
 characters or duplicates are ignored.
 
@@ -858,13 +863,17 @@ FILE *fopen(const char *filename, const char *mode)
     int modcod; /* mode code, 0 = read, 1 = write, 2 = append */
     int update; /* update mode */
     int perm;   /* permissions */
+    int exec;   /* open file across execs */
 
     /* move mode attributes to flags */
+    modcod = 0; /* default to read */
+    exec = 0; /* default to no exec file cross */
     text = !!strchr(mode, 'b'); /* set text or binary mode */
     update = !!strchr(mode, '+'); /* set update mode */
     if (strchr(mode, 'r')) modcod = 0; /* set read */
     else if (strchr(mode, 'w')) modcod = 1; /* set write */
     else if (strchr(mode, 'a')) modcod = 2; /* set append */
+    else if (strchr(mode, 'e')) exec = 1; /* set open acress execs */
     else return NULL; /* bad mode */
 
     /* clear flags for building */
@@ -874,6 +883,10 @@ FILE *fopen(const char *filename, const char *mode)
     else flags |= O_WRONLY; /* for write or append, set write only */
     if (modcod == 2) flags |= O_APPEND; /* set append mode */
     if (modcod == 1) flags |= O_CREAT; /* allow writes to create new file */
+    if (exec) flags |= O_CLOEXEC; /* cross file over exec */
+
+    /* clear status/error flags */
+
 
     /* permissions are: user read and write, group and others read only */
     perm = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
@@ -894,6 +907,7 @@ FILE *fopen(const char *filename, const char *mode)
     else if (modcod == 0) opnfil[fti]->mode = STDIO_MREAD; /* set read only */
     else opnfil[fti]->mode = STDIO_MWRITE; /* set write only */
     opnfil[fti]->append = update; /* set append mode */
+    opnfil[fti]->flags = 0; /* clear status/error flags */
 
     /* return new file entry */
     return opnfil[fti];
@@ -1023,6 +1037,7 @@ FILE *freopen(const char *filename, const char *mode, FILE *stream)
     else if (modcod == 0) stream->mode = STDIO_MREAD; /* set read only */
     else stream->mode = STDIO_MWRITE; /* set write only */
     stream->append = update; /* set append mode */
+    stream->flags = 0; /* clear status/error flags */
 
     /* return new file entry */
     return stream;
@@ -2121,6 +2136,7 @@ int fgetc(FILE *stream)
 
     } else { /* standard read */
 
+        stream->flags |= _EFRDL; /* set last was read */
         rc = vread(stream->fid, &b, 1); /* read one byte */
         if (!rc) stream->flags |= _EFEOF; /* set end of file if true */
         if (rc != 1) return EOF; /* return EOF or other error */
@@ -2200,6 +2216,7 @@ int fputc(int c, FILE *stream)
     if (!stream || stream->fid < 0) return (EOF);
     b = c; /* place character value in buffer */
     wc = vwrite(stream->fid, &b, 1); /* write one byte */
+    stream->flags |= _EFWRL; /* set last was write */
     if (wc != 1) return (EOF); /* return EOF for error */
     else return (c); /* return character written */
 
@@ -2456,6 +2473,7 @@ size_t fread(void *ptr, size_t size, size_t nobj, FILE *stream)
 
     /* check file is allocated and open */
     if (!stream || stream->fid < 0) return (0);
+    stream->flags |= _EFRDL; /* set last was read */
     r = vread(stream->fid, ptr, size*nobj); /* process read */
     if (!r) stream->flags |= _EFEOF; /* set EOF encountered */
 
@@ -2484,6 +2502,7 @@ size_t fwrite(const void *ptr, size_t size, size_t nobj, FILE *stream)
 
     /* check file is allocated and open */
     if (!stream || stream->fid < 0) return (0);
+    stream->flags |= _EFWRL; /* set last was write */
     return (vwrite(stream->fid, ptr, size*nobj)); /* process write */
 
 }
@@ -2520,6 +2539,8 @@ int fseek(FILE *stream, long offset, int origin)
     /* check file is allocated and open */
     if (!stream || stream->fid < 0) return (0);
     stream->flags &= ~_EFEOF; /* reset any EOF indication */
+    stream->flags &= ~_EFRDL; /* reaset any read indication */
+    stream->flags &= ~_EFWRL; /* reaset any write indication */
     return (!(vlseek(stream->fid, offset, origin) < 0)); /* process seek */
 
 }
@@ -2717,6 +2738,251 @@ void perror(const char *s)
 {
 
     fprintf(stderr, "%s: %s\n", s, strerror(errno));
+
+}
+
+/*******************************************************************************
+
+FUNCTION NAME: __fbufsize
+
+SHORT DESCRIPTION: Get current size of buffer for file
+
+DETAILED DESCRIPTION:
+
+Return the buffer size currently set for the given file.
+
+BUGS/ISSUES:
+
+1. We don't implement buffering at this time.
+
+*******************************************************************************/
+
+size_t __fbufsize(FILE *stream)
+
+{
+
+    return 1; /* size of pushback buffer */
+
+}
+
+/*******************************************************************************
+
+FUNCTION NAME: __fpending
+
+SHORT DESCRIPTION: Get current bytes pending in output buffer
+
+DETAILED DESCRIPTION:
+
+Returns the number of bytes pending in the output buffer.
+
+BUGS/ISSUES:
+
+1. We don't implement buffering at this time.
+
+*******************************************************************************/
+
+size_t __fpending(FILE *stream)
+
+{
+
+    return 0;
+
+}
+
+/*******************************************************************************
+
+FUNCTION NAME: __flbf
+
+SHORT DESCRIPTION: Get line buffered status
+
+DETAILED DESCRIPTION:
+
+Returns true if the file has line buffering, false otherwise.
+
+BUGS/ISSUES:
+
+1. We don't implement buffering at this time.
+
+*******************************************************************************/
+
+int __flbf(FILE *stream)
+
+{
+
+    return 0;
+
+}
+
+/*******************************************************************************
+
+FUNCTION NAME: __freadable
+
+SHORT DESCRIPTION: Get readable status
+
+DETAILED DESCRIPTION:
+
+Returns true if the file is readable, otherwise false.
+
+BUGS/ISSUES:
+
+*******************************************************************************/
+
+int __freadable(FILE *stream)
+
+{
+
+    /* check file is allocated and open */
+    if (!stream || stream->fid < 0) return (0);
+
+    return (stream->mode == STDIO_MREAD || stream->mode == STDIO_MRDWR);
+
+}
+
+/*******************************************************************************
+
+FUNCTION NAME: __fwritable
+
+SHORT DESCRIPTION: Get writeable status
+
+DETAILED DESCRIPTION:
+
+Returns true if the file is writable, otherwise false.
+
+BUGS/ISSUES:
+
+*******************************************************************************/
+
+int __fwritable(FILE *stream)
+
+{
+
+    /* check file is allocated and open */
+    if (!stream || stream->fid < 0) return (0);
+
+    return (stream->mode == STDIO_MWRITE || stream->mode == STDIO_MRDWR);
+
+}
+
+/*******************************************************************************
+
+FUNCTION NAME: __freading
+
+SHORT DESCRIPTION: Get reading status
+
+DETAILED DESCRIPTION:
+
+Returns true if the file is reading or in read mode, otherwise false.
+
+BUGS/ISSUES:
+
+*******************************************************************************/
+
+int __freading(FILE *stream)
+
+{
+
+    /* check file is allocated and open */
+    if (!stream || stream->fid < 0) return (0);
+
+    return (stream->mode == STDIO_MREAD || !!(stream->flags & _EFRDL));
+
+}
+
+/*******************************************************************************
+
+FUNCTION NAME: __freading
+
+SHORT DESCRIPTION: Get reading status
+
+DETAILED DESCRIPTION:
+
+Returns true if the file is reading or in read mode, otherwise false.
+
+BUGS/ISSUES:
+
+*******************************************************************************/
+
+int __fwriting(FILE *stream)
+
+{
+
+    /* check file is allocated and open */
+    if (!stream || stream->fid < 0) return (0);
+
+    return (stream->mode == STDIO_MWRITE || !!(stream->flags & _EFWRL));
+
+}
+
+
+/*******************************************************************************
+
+FUNCTION NAME: __fsetlocking
+
+SHORT DESCRIPTION: Set type of locking in use
+
+DETAILED DESCRIPTION:
+
+Sets what type of locking is wanted for the file:
+
+FSETLOCKING_INTERNAL    Lock each operation.
+FSETLOCKING_BYCALLER    Let caller lock (no lock).
+FSETLOCKING_QUERY       Just return current locking status.
+
+BUGS/ISSUES:
+
+1. No op, always returns FSETLOCKING_INTERNAL.
+
+*******************************************************************************/
+
+int __fsetlocking(FILE *stream, int type)
+
+{
+
+    return (FSETLOCKING_INTERNAL);
+
+}
+
+/*******************************************************************************
+
+FUNCTION NAME: __flushlbf
+
+SHORT DESCRIPTION: Flush line buffer
+
+DETAILED DESCRIPTION:
+
+Flushes the current line buffered output (writes it).
+
+BUGS/ISSUES:
+
+1. Buffering is currently not implemented.
+
+*******************************************************************************/
+
+void _flushlbf(void)
+
+{
+
+}
+
+/*******************************************************************************
+
+FUNCTION NAME: __fpurge
+
+SHORT DESCRIPTION: Discard buffer data
+
+DETAILED DESCRIPTION:
+
+Discards any buffered data.
+
+BUGS/ISSUES:
+
+1. Buffering is currently not implemented.
+
+*******************************************************************************/
+
+void __fpurge(FILE *stream)
+
+{
 
 }
 
