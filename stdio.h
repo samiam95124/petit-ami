@@ -59,8 +59,6 @@ typedef struct {
 /* error/status flags */
 
 #define _EFEOF 0x0001 /* stream EOF */
-#define _EFRDL 0x0002 /* last operation was read */
-#define _EFWRL 0x0004 /* last operation was write */
 
 /* standard in, out and error files */
 
