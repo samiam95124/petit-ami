@@ -54,7 +54,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <ctype.h>
-#include <stdio_ext.h>
+#include <sys/stat.h>
 
 /* We use a custom stdio.h */
 
@@ -863,17 +863,14 @@ FILE *fopen(const char *filename, const char *mode)
     int modcod; /* mode code, 0 = read, 1 = write, 2 = append */
     int update; /* update mode */
     int perm;   /* permissions */
-    int exec;   /* open file across execs */
 
     /* move mode attributes to flags */
     modcod = 0; /* default to read */
-    exec = 0; /* default to no exec file cross */
     text = !!strchr(mode, 'b'); /* set text or binary mode */
     update = !!strchr(mode, '+'); /* set update mode */
     if (strchr(mode, 'r')) modcod = 0; /* set read */
     else if (strchr(mode, 'w')) modcod = 1; /* set write */
     else if (strchr(mode, 'a')) modcod = 2; /* set append */
-    else if (strchr(mode, 'e')) exec = 1; /* set open acress execs */
     else return NULL; /* bad mode */
 
     /* clear flags for building */
@@ -883,13 +880,13 @@ FILE *fopen(const char *filename, const char *mode)
     else flags |= O_WRONLY; /* for write or append, set write only */
     if (modcod == 2) flags |= O_APPEND; /* set append mode */
     if (modcod == 1) flags |= O_CREAT; /* allow writes to create new file */
-    if (exec) flags |= O_CLOEXEC; /* cross file over exec */
-
-    /* clear status/error flags */
-
 
     /* permissions are: user read and write, group and others read only */
+#ifdef __linux__
     perm = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+#else
+    perm = S_IRUSR | S_IWUSR;
+#endif
 
     /* process file open with parameters */
     fti = maknod(); /* create or reuse file entry */
@@ -1021,7 +1018,11 @@ FILE *freopen(const char *filename, const char *mode, FILE *stream)
     if (modcod == 1) flags |= O_CREAT; /* allow writes to create new file */
 
     /* permissions are: user read and write, group and others read only */
+#ifdef __linux__
     perm = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+#else
+    perm = S_IRUSR | S_IWUSR;
+#endif
 
     /* process file open with parameters */
     stream->fid = vopen(filename, flags, perm); /* open file with flags */
