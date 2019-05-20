@@ -45,7 +45,7 @@
 *                                                                              *
 *******************************************************************************/
 
-#include "stdio.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
@@ -935,7 +935,7 @@ int fflush(FILE *stream)
 
 {
 
-    /* no op */
+    return (0); /* no op */
 
 }
 
@@ -991,7 +991,6 @@ FILE *freopen(const char *filename, const char *mode, FILE *stream)
 
 {
 
-    int fti;    /* file table index */
     int flags;  /* open flag settings */
     int text;   /* text/binary mode */
     int modcod; /* mode code, 0 = read, 1 = write, 2 = append */
@@ -1117,7 +1116,6 @@ FILE *tmpfile(void)
 
 {
 
-    FILE* fp;
     char ts[L_tmpnam];
 
     tmpnam(ts); /* create a temp name */
@@ -1571,7 +1569,7 @@ int vsprintf(char *s, const char *fmt, va_list ap)
 
 {
 
-    vsprintfe(s, fmt, ap, (FILE *)NULL); /* process format to string */
+    return (vsprintfe(s, fmt, ap, (FILE *)NULL)); /* process format to string */
 
 }
 
@@ -1595,10 +1593,13 @@ int sprintf(char *s, const char *fmt, ...)
 {
 
     va_list ap; /* argument list pointer */
+    int r;
 
     va_start(ap, fmt); /* open argument list */
-    vsprintf(s, fmt, ap); /* process format to string */
+    r = vsprintf(s, fmt, ap); /* process format to string */
     va_end(ap); /* close argument list */
+
+    return (r);
 
 }
 
@@ -1621,7 +1622,7 @@ int vfprintf(FILE *stream, const char *fmt, va_list ap)
 
 {
 
-    vsprintfe((char *)NULL, fmt, ap, stream); /* process */
+    return vsprintfe((char *)NULL, fmt, ap, stream); /* process */
 
 }
 
@@ -1645,10 +1646,13 @@ int fprintf(FILE *stream, const char *fmt, ...)
 {
 
     va_list ap; /* argument list pointer */
+    int r;
 
     va_start(ap, fmt); /* open argument list */
-    vfprintf(stream, fmt, ap);
+    r = vfprintf(stream, fmt, ap);
     va_end(ap); /* close argument list */
+
+    return (r);
 
 }
 
@@ -1671,7 +1675,7 @@ int vprintf(const char *fmt, va_list ap)
 
 {
 
-    vfprintf(stdout, fmt, ap); /* print */
+    return (vfprintf(stdout, fmt, ap)); /* print */
 
 }
 
@@ -1695,10 +1699,13 @@ int printf(const char *fmt, ...)
 {
 
     va_list ap; /* argument list pointer */
+    int r;
 
     va_start(ap, fmt); /* open argument list */
-    vprintf(fmt, ap); /* print */
+    r = vprintf(fmt, ap); /* print */
     va_end(ap); /* close argument list */
+
+    return (r);
 
 }
 
@@ -1735,7 +1742,7 @@ int vsscanfe(char *s, const char *fmt, va_list ap, FILE *fd)
     char     cflags[UCHAR_MAX+1]; /* character include/disinclude array */
     int      cneg;   /* character match negate flag */
     int      err;    /* numeric error flag */
-    char     lc, nc; /* last and next match characters */
+    char     lc;     /* last and next match characters */
     int      lcs;    /* last character was set */
     int      c;
     int      x;
@@ -2007,7 +2014,7 @@ static int vsscanf(char *s, const char *fmt, va_list ap)
 {
 
     /* process format from string */
-    vsscanfe(s, fmt, ap, (FILE *)NULL);
+    return (vsscanfe(s, fmt, ap, (FILE *)NULL));
 
 }
 
@@ -2028,7 +2035,7 @@ static int vfscanf(FILE *stream, const char *fmt, va_list ap)
 {
 
     /* process format from string */
-    vsscanfe((char *)NULL, fmt, ap, stream);
+    return (vsscanfe((char *)NULL, fmt, ap, stream));
 
 }
 
@@ -2049,10 +2056,13 @@ int sscanf(char *s, const char *fmt, ...)
 {
 
     va_list ap; /* argument list pointer */
+    int r;
 
     va_start(ap, fmt); /* open argument list */
-    vsscanf(s, fmt, ap);
+    r = vsscanf(s, fmt, ap);
     va_end(ap); /* close argument list */
+
+    return (r);
 
 }
 
@@ -2073,10 +2083,13 @@ int fscanf(FILE *stream, const char *fmt, ...)
 {
 
     va_list ap; /* argument list pointer */
+    int r;
 
     va_start(ap, fmt); /* open argument list */
-    vfscanf(stream, fmt, ap);
+    r = vfscanf(stream, fmt, ap);
     va_end(ap); /* close argument list */
+
+    return (r);
 
 }
 
@@ -2097,10 +2110,13 @@ int scanf(const char *fmt, ...)
 {
 
     va_list ap; /* argument list pointer */
+    int r;
 
     va_start(ap, fmt); /* open argument list */
-    vfscanf(stdin, fmt, ap);
+    r = vfscanf(stdin, fmt, ap);
     va_end(ap); /* close argument list */
+
+    return (r);
 
 }
 
@@ -2447,6 +2463,8 @@ int ungetc(int c, FILE *stream)
     if (!stream || stream->fid < 0) return (EOF);
     stream->pback = c; /* put back single character */
 
+    return (c);
+
 }
 
 /*******************************************************************************
@@ -2531,11 +2549,10 @@ int fseek(FILE *stream, long offset, int origin)
 
 {
 
-    int r;
-
     /* check file is allocated and open */
     if (!stream || stream->fid < 0) return (0);
     stream->flags &= ~_EFEOF; /* reset any EOF indication */
+
     return (!(vlseek(stream->fid, offset, origin) < 0)); /* process seek */
 
 }
@@ -2558,10 +2575,9 @@ long ftell(FILE *stream)
 
 {
 
-    int r;
-
     /* check file is allocated and open */
     if (!stream || stream->fid < 0) return (0);
+
     return (vlseek(stream->fid, 0, SEEK_CUR)); /* process seek */
 
 }
@@ -2759,6 +2775,6 @@ static void deinit_stdio()
 
     int i;
 
-    for (i = i; i < tmpnamc; i++) remove(tmpstr[i]);
+    for (i = 0; i < tmpnamc; i++) remove(tmpstr[i]);
 
 }
