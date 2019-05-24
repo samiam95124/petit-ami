@@ -40,6 +40,12 @@
 * Scrolling speed:       0.000192 Sec. Per scroll.                            *
 * Buffer switch speed:   0.000126 Sec. per switch.                            *
 *                                                                             *
+* Linux console/xterm with glibc:                                             *
+*                                                                             *
+* Character write speed: 0.0000133079 Sec. Per character.                     *
+* Scrolling speed:       0.0061 Sec. Per scroll.                              *
+* Buffer switch speed:   0.0079 Sec. per switch.                              *
+*                                                                             *
 *******************************************************************************/
 
 #include <setjmp.h>
@@ -246,7 +252,6 @@ int main(int argc, char *argv[])
     prtban("Terminal mode screen test vs. 1.0");
     prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
-#if 0
     printf("\f");   /* clear screen */
     printf("Screen size: x -> %d y -> %d\n\n", pa_maxx(stdout), pa_maxy(stdout));
     printf("Number of joysticks: %d\n", pa_joystick(stdout));
@@ -1025,7 +1030,6 @@ int main(int argc, char *argv[])
 
     /* ********************** Character write speed test *********************** */
 
-#endif
     printf("\f");
     clk = pa_clock();   /* get reference time */
     c = '\0';   /* initalize character value */
