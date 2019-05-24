@@ -246,6 +246,7 @@ int main(int argc, char *argv[])
     prtban("Terminal mode screen test vs. 1.0");
     prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
+#if 0
     printf("\f");   /* clear screen */
     printf("Screen size: x -> %d y -> %d\n\n", pa_maxx(stdout), pa_maxy(stdout));
     printf("Number of joysticks: %d\n", pa_joystick(stdout));
@@ -1024,7 +1025,7 @@ int main(int argc, char *argv[])
 
     /* ********************** Character write speed test *********************** */
 
-#if 0
+#endif
     printf("\f");
     clk = pa_clock();   /* get reference time */
     c = '\0';   /* initalize character value */
@@ -1049,13 +1050,11 @@ int main(int argc, char *argv[])
     clk = pa_elapsed(clk);   /* find elapsed time */
     printf("\f");
     printf("Character write speed: % .5E average seconds per character\n",
-           clk/cnt*0.0001);
+           (float)clk/cnt*0.0001);
     waitnext();
-#endif
 
     /* ************************** Scrolling speed test ************************* */
 
-#if 0
     printf("\f");
     /* fill screen so we aren't moving blanks (could be optimized) */
     c = '1';
@@ -1071,7 +1070,7 @@ int main(int argc, char *argv[])
     prtban("Scrolling speed test");
     clk = pa_clock(); /* get reference time */
     cnt = 0; /* clear count */
-    for (i = 1; i <= 1000; i++) { /* scroll various directions */
+    for (i = 1; i <= 100; i++) { /* scroll various directions */
 
         pa_scroll(stdout, 0, -1); /* up */
         pa_scroll(stdout, -1, 0); /* left */
@@ -1098,11 +1097,9 @@ int main(int argc, char *argv[])
     printf("\f");
     printf("Scrolling speed: % .5E average seconds per scroll\n", clk/cnt*0.0001);
     waitnext();
- #endif
 
     /* ************************** Buffer flip speed test ************************* */
 
-#if 0
     printf("\f");
     cnt = 0;   /* clear count */
 
@@ -1115,7 +1112,7 @@ int main(int argc, char *argv[])
     }
 
     clk = pa_clock();   /* get reference time */
-    for (i = 1; i <= 1000; i++) /* flip buffers */
+    for (i = 1; i <= 100; i++) /* flip buffers */
     for (b = 2; b <= 10; b++) {
 
         pa_select(stdout, 2, b);
@@ -1128,7 +1125,6 @@ int main(int argc, char *argv[])
     printf("Buffer switch speed: % .5E average seconds per switch\n",
            clk/cnt*0.0001);
     waitnext();
-#endif
 
 terminate: /* terminate */
 

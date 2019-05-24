@@ -15,7 +15,7 @@
 #ifndef __TERMINAL_H__
 #define __TERMINAL_H__
 
-#include "stdio.h"
+#include <stdio.h>
 
 #define PA_MAXTIM 10 /**< maximum number of timers available */
 

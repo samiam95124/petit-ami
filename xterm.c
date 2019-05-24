@@ -2863,15 +2863,19 @@ static void pa_init_terminal()
     /** build new terminal settings */ struct termios raw;
     /** index */                       int i;
 
+    /* turn off I/O buffering */
+    setvbuf(stdin, NULL, _IONBF, 0);
+    setvbuf(stdout, NULL, _IONBF, 0);
+
     /* change to alternate screen/turn off wrap */
-    printf("\033[?1049h\033[H");
+    printf("\033[?1049h\033[H"); fflush(stdout);
 
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
     ovr_write(iwrite, &ofpwrite);
     ovr_open(iopen, &ofpopen);
     ovr_close(iclose, &ofpclose);
-    ovr_unlink(iunlink, &ofpunlink);
+//    ovr_unlink(iunlink, &ofpunlink);
     ovr_lseek(ilseek, &ofplseek);
 
     /* set default screen geometry */
@@ -2976,6 +2980,14 @@ static void pa_deinit_terminal()
 
 {
 
+    /* holding copies of system vectors */
+    pread_t cppread;
+    pwrite_t cppwrite;
+    popen_t cppopen;
+    pclose_t cppclose;
+    punlink_t cppunlink;
+    plseek_t cpplseek;
+
     int ti; /* index for timers */
 
     /* restore terminal */
@@ -2986,29 +2998,19 @@ static void pa_deinit_terminal()
 
     /* close any open timers */
     for (ti = 0; ti < PA_MAXTIM; ti++) if (timtbl[ti] != -1) close(timtbl[ti]);
-
-    /* holding copies of system vectors */
-    pread_t cppread;
-    pwrite_t cppwrite;
-    popen_t cppopen;
-    pclose_t cppclose;
-    punlink_t cppunlink;
-    plseek_t cpplseek;
-
     /* swap old vectors for existing vectors */
     ovr_read(ofpread, &cppread);
     ovr_write(ofpwrite, &cppwrite);
     ovr_open(ofpopen, &cppopen);
     ovr_close(ofpclose, &cppclose);
-    ovr_unlink(ofpunlink, &cppunlink);
+//    ovr_unlink(ofpunlink, &cppunlink);
     ovr_lseek(ofplseek, &cpplseek);
-
     /* if we don't see our own vector flag an error */
     if (cppread != iread || cppwrite != iwrite || cppopen != iopen ||
-        cppclose != iclose || cppunlink != iunlink || cpplseek != ilseek)
+        cppclose != iclose /* || cppunlink != iunlink */ || cpplseek != ilseek)
         error(esysflt);
 
     /* back to normal buffer on xterm */
-    printf("\033[?1049l");
+    printf("\033[?1049l"); fflush(stdout);
 
 }
