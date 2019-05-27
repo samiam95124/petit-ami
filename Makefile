@@ -27,8 +27,8 @@ ifndef LINK_TYPE
         # Linking local stdio, must be dynamic
         LINK_TYPE=dynamic
     else
-        LINK_TYPE=static
-#        LINK_TYPE=dynamic
+#        LINK_TYPE=static
+        LINK_TYPE=dynamic
     endif
 endif
 
@@ -63,6 +63,12 @@ test: xterm.c terminal.h test.c services.c services.h Makefile
 	
 scntst: xterm.c terminal.h scntst.c services.h services.c Makefile
 	$(CC) $(CFLAGS) -o scntst xterm.c services.c scntst.c $(LIBS) -lm 
+	
+gtk_test_unbuffered: xterm.c terminal.h gtk_test_unbuffered.c graph_gtk.c services.c services.h Makefile
+	$(CC) $(CFLAGS) -o gtk_test_unbuffered gtk_test_unbuffered.c graph_gtk.c `pkg-config --cflags --libs gtk+-3.0` $(LIBS) -lm
+	
+gtk_test2: xterm.c terminal.h gtk_test2.c graph_gtk.c services.c services.h Makefile
+	$(CC) $(CFLAGS) -o gtk_test2 gtk_test2.c graph_gtk.c `pkg-config --cflags gtk+-2.0` `pkg-config --libs gtk+-2.0` $(LIBS) -lm
 	
 event: xterm.c terminal.h event.c Makefile
 	$(CC) $(CFLAGS) -o event xterm.c event.c $(LIBS) -lm 
