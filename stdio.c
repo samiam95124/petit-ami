@@ -516,7 +516,7 @@ BUGS/ISSUES:
 
 *******************************************************************************/
 
-static int getfstr(char **s, FILE *fd)
+static int getfstr(const char **s, FILE *fd)
 
 {
 
@@ -547,7 +547,7 @@ BUGS/ISSUES:
 
 *******************************************************************************/
 
-static int chkfstr(char *s, FILE *fd)
+static int chkfstr(const char *s, FILE *fd)
 
 {
 
@@ -584,7 +584,7 @@ BUGS/ISSUES:
 
 *******************************************************************************/
 
-static int chkfstrlen(char *s, int len, FILE *fd)
+static int chkfstrlen(const char *s, int len, FILE *fd)
 
 {
 
@@ -611,7 +611,7 @@ BUGS/ISSUES:
 
 *******************************************************************************/
 
-static void getnumro(char **s, unsigned long *l, int r, int *o, int *cnt,
+static void getnumro(const char **s, unsigned long *l, int r, int *o, int *cnt,
                      int *fld, FILE *fd)
 
 {
@@ -671,8 +671,8 @@ BUGS/ISSUES:
 
 *******************************************************************************/
 
-static unsigned long strtoulso(char **s, int base, int *sgn, int *o, int *cnt,
-                               int *err, int fld, FILE *fd)
+static unsigned long strtoulso(const char **s, int base, int *sgn, int *o, 
+                               int *cnt, int *err, int fld, FILE *fd)
 
 {
 
@@ -762,7 +762,7 @@ BUGS/ISSUES:
 
 *******************************************************************************/
 
-static long strtoli(char **s, int base, int *cnt, int *err, int fld,
+static long strtoli(const char **s, int base, int *cnt, int *err, int fld,
                     FILE *fd)
 
 {
@@ -799,7 +799,7 @@ BUGS/ISSUES:
 
 *******************************************************************************/
 
-static unsigned long strtouli(char **s, int base, int *cnt, int *err, int fld,
+static unsigned long strtouli(const char **s, int base, int *cnt, int *err, int fld,
                               FILE *fd)
 
 {
@@ -1721,7 +1721,7 @@ BUGS/ISSUES:
 
 *******************************************************************************/
 
-int vsscanfe(char *s, const char *fmt, va_list ap, FILE *fd)
+int vsscanfe(const char *s, const char *fmt, va_list ap, FILE *fd)
 
 {
 
@@ -1952,7 +1952,7 @@ int vsscanfe(char *s, const char *fmt, va_list ap, FILE *fd)
                     break;
                 case '%':
                     /* skip any spaces */
-                    while (c = isspace(chkfstr(s, fd))) {
+                    while ((c = isspace(chkfstr(s, fd)))) {
 
                         getfstr(&s, fd); /* get next character */
                         ccnt++; /* count characters */
@@ -2009,7 +2009,7 @@ BUGS/ISSUES:
 
 *******************************************************************************/
 
-static int vsscanf(char *s, const char *fmt, va_list ap)
+static int vsscanf(const char *s, const char *fmt, va_list ap)
 
 {
 
@@ -2051,7 +2051,7 @@ BUGS/ISSUES:
 
 *******************************************************************************/
 
-int sscanf(char *s, const char *fmt, ...)
+int sscanf(const char *s, const char *fmt, ...)
 
 {
 

@@ -13,11 +13,11 @@
 
 #include "terminal.h"
 
-void main()
+int main()
 
 {
 
-	pa_evtrec er;
+    pa_evtrec er;
 
     do {
 
@@ -86,5 +86,7 @@ void main()
         }
 
     } while (er.etype != pa_etterm);
+
+    return 0;
 
 }

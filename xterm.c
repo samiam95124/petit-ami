@@ -38,11 +38,14 @@
  *
  ******************************************************************************/
 
+#ifdef __linux__
+#include <sys/timerfd.h>
+#endif
+
 #include <termios.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <sys/timerfd.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
@@ -303,7 +306,7 @@ static int timtbl[PA_MAXTIM];
 /**
  * Key matching input buffer
  */
-static unsigned char keybuf[10]; /* buffer */
+static char keybuf[10]; /* buffer */
 static int keylen; /* number of characters in buffer */
 static int tabs[MAXXD]; /* tabs set */
 static int dimx; /* actual width of screen */
@@ -908,7 +911,7 @@ static void setattr(scnptr sc, scnatt a)
             case saundl:  trm_undl();    break; /* underline */
             case sasuper: break;                /* superscript */
             case sasubs:  break;                /* subscripting */
-            case saital:  trm_ital;      break; /* italic text */
+            case saital:  trm_ital();    break; /* italic text */
             case sabold:  trm_bold();    break; /* bold text */
 
         }
@@ -965,16 +968,19 @@ void cursts(scnptr sc)
 
         cv = sc->curvis; /* set current buffer status */
         if (!icurbnd(sc)) cv = 0; /* not in bounds, force off */
-        if (cv != curon) /* not already at the desired state */
+        if (cv != curon) { /* not already at the desired state */
+
             if (cv) {
 
-            trm_curon();
-            curon = 1;
+                trm_curon();
+                curon = 1;
 
-        } else {
+            } else {
 
-            trm_curoff();
-            curon = 0;
+                trm_curoff();
+                curon = 0;
+
+            }
 
         }
 
@@ -1678,7 +1684,7 @@ static void plcchr(scnptr sc, char c)
                placement implicitly moves the cursor */
             putchr(c); /* output character to terminal */
             /* at right side, don't count on the screen wrap action */
-            if (curx = dimx) curval = 0;
+            if (curx == dimx) curval = 0;
             else curx++; /* update physical cursor */
             if (sc->scroll) { /* autowrap is on */
 
@@ -2506,8 +2512,6 @@ void pa_event(FILE* f, pa_evtrec *er)
 
 Set timer
 
-No timer is implemented.
-
 *******************************************************************************/
 
 void pa_timer(/* file to send event to */              FILE *f,
@@ -2517,11 +2521,15 @@ void pa_timer(/* file to send event to */              FILE *f,
 
 {
 
+#ifdef __linux__
     struct itimerspec ts;
+#endif
     int rv;
     long tl;
 
     if (i < 1 || i > PA_MAXTIM) error(einvhan); /* invalid timer handle */
+/* I don't have a Mac OS X equivalent to this right now */
+#ifdef __linux__
     if (timtbl[i-1] < 0) { /* timer entry inactive, create a timer */
 
         timtbl[i-1] = timerfd_create(CLOCK_REALTIME, 0);
@@ -2550,6 +2558,7 @@ void pa_timer(/* file to send event to */              FILE *f,
 
     rv = timerfd_settime(timtbl[i-1], 0, &ts, NULL);
     if (rv < 0) error(etimacc); /* could not set time */
+#endif
 
 }
 
@@ -2568,10 +2577,14 @@ void pa_killtimer(/* file to kill timer on */ FILE *f,
 
 {
 
+#ifdef __linux__
     struct itimerspec ts;
+#endif
     int rv;
 
     if (i < 1 || i > PA_MAXTIM) error(einvhan); /* invalid timer handle */
+/* I don't have a Mac OS X equivalent to this right now */
+#ifdef __linux__
     if (timtbl[i-1] < 0) error(etimacc); /* no such timer */
 
     /* set timer run time to zero to kill it */
@@ -2582,6 +2595,7 @@ void pa_killtimer(/* file to kill timer on */ FILE *f,
 
     rv = timerfd_settime(timtbl[i-1], 0, &ts, NULL);
     if (rv < 0) error(etimacc); /* could not set time */
+#endif
 
 }
 

@@ -84,7 +84,7 @@ int vfprintf(FILE *stream, const char *format, va_list arg);
 int vsprintf(char *s, const char *format, va_list arg);
 int fscanf(FILE *stream, const char *format, ...);
 int scanf(const char *format, ...);
-int sscanf(char *s, const char *format, ...);
+int sscanf(const char *s, const char *format, ...);
 int fgetc(FILE *stream);
 
 #ifdef USEMACRO
