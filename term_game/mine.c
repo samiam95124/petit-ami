@@ -7,12 +7,12 @@ user tries to find the mines based on mine counts in adjacent squares.
  
 *******************************************************************************/
 
-#include <stdio.h>
 #include <setjmp.h>
 #include <string.h>
 #include <ctype.h>
 #include <limits.h>
 
+#include <stdio.h>
 #include "../terminal.h"
 
 #define MAXXS   16 /*8*/  /* size of grid */

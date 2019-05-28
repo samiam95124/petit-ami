@@ -44,12 +44,12 @@ Translated to C, 2019/04/28.
 
 *******************************************************************************/
 
-#include <stdio.h>
 #include <setjmp.h>
 #include <string.h>
 #include <ctype.h>
 #include <limits.h>
 
+#include <stdio.h>
 #include "../terminal.h"
 
 #define MAXSN  1000  /* total snake positions */
