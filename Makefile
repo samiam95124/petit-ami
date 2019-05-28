@@ -72,8 +72,7 @@ gtk_test: xterm.c terminal.h gtk_test.c graph_gtk.c services.c services.h Makefi
 	$(CC) $(CFLAGS) -o gtk_test gtk_test.c graph_gtk.c `pkg-config --cflags --libs gtk+-3.0` $(LIBS) -lm
 	
 test: xterm.c terminal.h test.c services.c services.h Makefile
-	$(CC) $(CFLAGS) -o test test.c $(LIBS) -lm
-#	$(CC) $(CFLAGS) -o test test.c xterm.c $(LIBS) -lm
+	$(CC) $(CFLAGS) -o test test.c xterm.c $(LIBS) -lm
 	
 scntst: xterm.c terminal.h scntst.c services.h services.c Makefile
 	$(CC) $(CFLAGS) -o scntst xterm.c services.c scntst.c $(LIBS) -lm 
