@@ -6,17 +6,22 @@
 # Where do stdio definitions and overrides come from?
 #
 ifndef STDIO_SOURCE
-    #
-    # glibc assumes that this is a patched glibc with override calls.
-    #
-    STDIO_SOURCE=glibc
-    #
-    # stdio is a local stdio implementation with overrides.
-    # Note it is not a complete libc. It works because in dynamic linking a module
-    # can effectively replace a later module of the same names. It does not work
-    # for static linking or if other modules in chain bypass posix standards.
-    # 
-#   STDIO_SOURCE=stdio
+    ifeq ($(OS),Windows_NT)
+        #
+        # stdio is a local stdio implementation with overrides.
+        # Note it is not a complete libc. It works because in dynamic linking a module
+        # can effectively replace a later module of the same names. It does not work
+        # for static linking or if other modules in chain bypass posix standards.
+        # 
+        # Windows builds must use stdio since they don't use glibc.
+        #
+        STDIO_SOURCE=stdio
+    else
+        #
+        # glibc assumes that this is a patched glibc with override calls.
+        #
+        STDIO_SOURCE=glibc
+    endif
 endif
 
 #
@@ -56,22 +61,28 @@ else
     LIBS = stdio.c
 endif
 
+#
+# GTK definitions
+#
+GTK_LIBS=`pkg-config --cflags --libs gtk+-3.0`
+        
 all: test event getkeys terminal scntst
 	
 gtk_test: xterm.c terminal.h gtk_test.c graph_gtk.c services.c services.h Makefile
 	$(CC) $(CFLAGS) -o gtk_test gtk_test.c graph_gtk.c `pkg-config --cflags --libs gtk+-3.0` $(LIBS) -lm
 	
 test: xterm.c terminal.h test.c services.c services.h Makefile
-	$(CC) $(CFLAGS) -o test test.c xterm.c $(LIBS) -lm
+	$(CC) $(CFLAGS) -o test test.c $(LIBS) -lm
+#	$(CC) $(CFLAGS) -o test test.c xterm.c $(LIBS) -lm
 	
 scntst: xterm.c terminal.h scntst.c services.h services.c Makefile
 	$(CC) $(CFLAGS) -o scntst xterm.c services.c scntst.c $(LIBS) -lm 
 	
 gtk_test_unbuffered: xterm.c terminal.h gtk_test_unbuffered.c graph_gtk.c services.c services.h Makefile
-	$(CC) $(CFLAGS) -o gtk_test_unbuffered gtk_test_unbuffered.c graph_gtk.c `pkg-config --cflags --libs gtk+-3.0` $(LIBS) -lm
+	$(CC) $(CFLAGS) -o gtk_test_unbuffered gtk_test_unbuffered.c graph_gtk.c $(GTK_LIBS) $(LIBS) -lm
 	
 gtk_test_buffered: xterm.c terminal.h gtk_test_buffered.c graph_gtk.c services.c services.h Makefile
-	$(CC) $(CFLAGS) -o gtk_test_buffered gtk_test_buffered.c graph_gtk.c `pkg-config --cflags --libs gtk+-3.0` $(LIBS) -lm
+	$(CC) $(CFLAGS) -o gtk_test_buffered gtk_test_buffered.c graph_gtk.c $(GTK_LIBS) $(LIBS) -lm
 	
 gtk_test2: xterm.c terminal.h gtk_test2.c graph_gtk.c services.c services.h Makefile
 	$(CC) $(CFLAGS) -o gtk_test2 gtk_test2.c graph_gtk.c `pkg-config --cflags gtk+-2.0` `pkg-config --libs gtk+-2.0` $(LIBS) -lm

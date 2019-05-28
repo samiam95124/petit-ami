@@ -43,14 +43,16 @@
 *                                                                              *
 *******************************************************************************/
 
+#ifdef __linux__
 #include <termios.h>
+#include <sys/timerfd.h>
+#include <sys/ioctl.h>
+#endif
+
 #include <stdlib.h>
 #include <string.h>
-
-#include <sys/timerfd.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <sys/ioctl.h>
 #include <time.h>
 #include <unistd.h>
 #include <stdint.h>
