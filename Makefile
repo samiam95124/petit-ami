@@ -20,7 +20,8 @@ ifndef STDIO_SOURCE
         #
         # glibc assumes that this is a patched glibc with override calls.
         #
-        STDIO_SOURCE=glibc
+        #STDIO_SOURCE=glibc
+        STDIO_SOURCE=stdio
     endif
 endif
 
@@ -73,6 +74,10 @@ gtk_test: xterm.c terminal.h gtk_test.c graph_gtk.c services.c services.h Makefi
 	
 test: xterm.c terminal.h test.c services.c services.h Makefile
 	$(CC) $(CFLAGS) -o test test.c xterm.c $(LIBS) -lm
+	
+testg: graph_x.c terminal.h testg.c services.c services.h Makefile
+	$(CC) $(CFLAGS) graph_x.c testg.c -L/usr/X11R6/lib -lX11 -lxcb $(LIBS) -lm -o testg
+#	$(CC) $(CFLAGS) -o testg testg.c graph_gtk.c $(GTK_LIBS) $(LIBS) -lm
 	
 scntst: xterm.c terminal.h scntst.c services.h services.c Makefile
 	$(CC) $(CFLAGS) -o scntst xterm.c services.c scntst.c $(LIBS) -lm 

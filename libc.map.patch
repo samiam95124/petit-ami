@@ -1,0 +1,47 @@
+--- libc.map	2019-05-28 21:40:15.878435541 -0700
++++ libc.map.save	2019-05-28 09:21:57.560229753 -0700
+@@ -213,7 +213,7 @@
+     catclose; catgets; catopen;
+     cbc_crypt; clntunix_create;
+     cfgetispeed; cfgetospeed; cfmakeraw; cfsetispeed; cfsetospeed; cfsetspeed;
+-    chdir; chmod; chown; close; ovr_close; creat;
++    chdir; chmod; chown; close; creat;
+     chflags; chroot; closelog;
+     chown;
+     clearerr; clearerr_unlocked;
+@@ -382,7 +382,7 @@
+     kill; killpg;
+     klogctl;
+     l64a; labs; lcong48; lcong48_r; ldiv; llabs; lldiv; lrand48; lrand48_r;
+-    lchown; link; lockf; lseek; ovr_lseek;
++    lchown; link; lockf; lseek;
+     lckpwdf;
+     listen;
+     llseek;
+@@ -428,7 +428,7 @@
+     obstack_free;
+     on_exit;
+     open64;
+-    open; ovr_open;
++    open;
+     open_memstream; obstack_printf; obstack_vprintf;
+     opendir;
+     openlog;
+@@ -501,7 +501,7 @@
+     re_comp; re_compile_fastmap; re_compile_pattern; re_exec; re_match;
+     re_match_2; re_search; re_search_2; re_set_registers; re_set_syntax;
+     re_max_failures; re_syntax_options;
+-    read; ovr_read; readlink; rmdir;
++    read; readlink; rmdir;
+     readdir64; readdir64_r;
+     readdir; readdir_r; rewinddir;
+     readv; reboot; remque; revoke;
+@@ -631,7 +631,7 @@
+     wctrans; wctype; wcwidth;
+     wmemchr; wmemcmp; wmemcpy; wmemmove; wmemset;
+     wprintf; wscanf;
+-    write; ovr_write;
++    write;
+     writev;
+     xdecrypt; xdr_authdes_cred; xdr_authdes_verf;
+     xdr_accepted_reply; xdr_array; xdr_authunix_parms; xdr_bool; xdr_bytes;

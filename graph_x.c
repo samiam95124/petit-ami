@@ -3936,14 +3936,17 @@ static void pa_init_graphics(int argc, char *argv[])
 
 {
 
-    int pascreen;
+   XEvent e;
+   const char *msg = "Hello, World!";
+   const char *title = "Hello world";
+   XFontStruct *font;
 
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
     ovr_write(iwrite, &ofpwrite);
     ovr_open(iopen, &ofpopen);
     ovr_close(iclose, &ofpclose);
-    ovr_unlink(iunlink, &ofpunlink);
+//    ovr_unlink(iunlink, &ofpunlink);
     ovr_lseek(ilseek, &ofplseek);
 
     padisplay = XOpenDisplay(NULL);
@@ -3960,6 +3963,34 @@ static void pa_init_graphics(int argc, char *argv[])
                            WhitePixel(padisplay, pascreen));
     XSelectInput(padisplay, pawindow, ExposureMask | KeyPressMask);
     XMapWindow(padisplay, pawindow);
+
+    XStoreName(padisplay, pawindow, title );
+    XSetIconName(padisplay, pawindow, title );
+
+    font = XLoadQueryFont(padisplay, "fixed");
+    if (!font) {
+
+        fprintf(stderr, "*** No font ***\n");
+        exit(1);
+
+    }
+    XSetFont (padisplay, DefaultGC(padisplay, pascreen), font->fid);
+
+fprintf(stderr, "before event call\n");
+  while (1) {
+      XNextEvent(padisplay, &e);
+fprintf(stderr, "got event\n");
+      if (e.type == Expose) {
+fprintf(stderr,"expose event\n");
+         XDrawString(padisplay, pawindow, DefaultGC(padisplay, pascreen), 10, 50, msg, strlen(msg));
+      }
+      if (e.type == KeyPress)
+//fprintf(stderr, "keypress event\n");
+         break;
+   }
+
+printf("All done, bye!\n");
+   XCloseDisplay(padisplay);
 
 }
 
@@ -3987,7 +4018,7 @@ static void pa_deinit_graphics()
     ovr_write(ofpwrite, &cppwrite);
     ovr_open(ofpopen, &cppopen);
     ovr_close(ofpclose, &cppclose);
-    ovr_unlink(ofpunlink, &cppunlink);
+//    ovr_unlink(ofpunlink, &cppunlink);
     ovr_lseek(ofplseek, &cpplseek);
 
     /* if we don't see our own vector flag an error */
