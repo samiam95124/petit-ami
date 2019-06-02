@@ -175,6 +175,8 @@ static int curxg;  /* location of cursor in x graphical */
 static int curyg;  /* location of cursor in y graphical */
 static int curx;   /* location of cursor in x textual */
 static int cury;   /* location of cursor in y textual */
+static int buff_x; /* width of buffer */
+static int buff_y; /* height of buffer */
 
 /* X windows display characteristics.
  *
@@ -3470,23 +3472,23 @@ static void pa_init_graphics(int argc, char *argv[])
     ovr_unlink(iunlink, &ofpunlink);
     ovr_lseek(ilseek, &ofplseek);
 
+    /* set current graphical and character cursor locations */
+    curxg = 1;
+    curyg = 1;
+    curx = 1;
+    cury = 1;
+
+    /* find existing display */
+
     padisplay = XOpenDisplay(NULL);
     if (padisplay == NULL) {
 
         fprintf(stderr, "Cannot open display\n");
         exit(1);
     }
-
     pascreen = DefaultScreen(padisplay);
-    pawindow = XCreateSimpleWindow(padisplay, RootWindow(padisplay, pascreen),
-                                   10, 10, 100, 100, 1,
-                           BlackPixel(padisplay, pascreen),
-                           WhitePixel(padisplay, pascreen));
-    XSelectInput(padisplay, pawindow, ExposureMask | KeyPressMask);
-    XMapWindow(padisplay, pawindow);
 
-    XStoreName(padisplay, pawindow, title );
-    XSetIconName(padisplay, pawindow, title );
+    /* Set fixed font, get context, and set characteristics from that */
 
     pafont = XLoadQueryFont(padisplay, "fixed");
     if (!pafont) {
@@ -3499,22 +3501,35 @@ static void pa_init_graphics(int argc, char *argv[])
     XSetFont (padisplay, pagracxt, pafont->fid);
 
     /* find spacing in current font */
+
     char_x = pafont->max_bounds.rbearing-pafont->min_bounds.lbearing;
     char_y = pafont->max_bounds.ascent+pafont->max_bounds.descent;
 
-    /* set current graphical and character cursor locations */
-    curxg = 1;
-    curyg = 1;
-    curx = 1;
-    cury = 1;
+    /* set buffer size required for character spacing at default character grid
+       size */
+
+    buff_x = DEFXD*char_x;
+    buff_y = DEFYD*char_y;
+
+    /* create our window */
+
+    pawindow = XCreateSimpleWindow(padisplay, RootWindow(padisplay, pascreen),
+                                   10, 10, buff_x, buff_y, 1,
+                           BlackPixel(padisplay, pascreen),
+                           WhitePixel(padisplay, pascreen));
+    XSelectInput(padisplay, pawindow, ExposureMask | KeyPressMask);
+    XMapWindow(padisplay, pawindow);
+
+    XStoreName(padisplay, pawindow, title );
+    XSetIconName(padisplay, pawindow, title );
 
     /* set up pixmap backing buffer for text grid */
     depth = DefaultDepth(padisplay, pascreen);
-    pascnbuf = XCreatePixmap(padisplay, pawindow, DEFXD*char_x, DEFYD*char_y, depth);
+    pascnbuf = XCreatePixmap(padisplay, pawindow, buff_x, buff_y, depth);
 
     XSetForeground(padisplay, pagracxt, WhitePixel(padisplay, pascreen));
 
-    XFillRectangle(padisplay, pascnbuf, pagracxt, 0, 0, DEFXD*char_x, DEFYD*char_y);
+    XFillRectangle(padisplay, pascnbuf, pagracxt, 0, 0, buff_x, buff_y);
 
     XSetForeground(padisplay, pagracxt, BlackPixel(padisplay, pascreen));
 
