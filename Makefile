@@ -69,9 +69,6 @@ GTK_LIBS=`pkg-config --cflags --libs gtk+-3.0`
         
 all: test event getkeys terminal scntst
 	
-gtk_test: xterm.c terminal.h gtk_test.c graph_gtk.c services.c services.h Makefile
-	$(CC) $(CFLAGS) -o gtk_test gtk_test.c graph_gtk.c `pkg-config --cflags --libs gtk+-3.0` $(LIBS) -lm
-	
 test: xterm.c terminal.h test.c services.c services.h Makefile
 	$(CC) $(CFLAGS) -o test test.c xterm.c $(LIBS) -lm
 	
@@ -81,15 +78,6 @@ testg: graph_x.c terminal.h testg.c services.c services.h Makefile
 	
 scntst: xterm.c terminal.h scntst.c services.h services.c Makefile
 	$(CC) $(CFLAGS) -o scntst xterm.c services.c scntst.c $(LIBS) -lm 
-	
-gtk_test_unbuffered: xterm.c terminal.h gtk_test_unbuffered.c graph_gtk.c services.c services.h Makefile
-	$(CC) $(CFLAGS) -o gtk_test_unbuffered gtk_test_unbuffered.c graph_gtk.c $(GTK_LIBS) $(LIBS) -lm
-	
-gtk_test_buffered: xterm.c terminal.h gtk_test_buffered.c graph_gtk.c services.c services.h Makefile
-	$(CC) $(CFLAGS) -o gtk_test_buffered gtk_test_buffered.c graph_gtk.c $(GTK_LIBS) $(LIBS) -lm
-	
-gtk_test2: xterm.c terminal.h gtk_test2.c graph_gtk.c services.c services.h Makefile
-	$(CC) $(CFLAGS) -o gtk_test2 gtk_test2.c graph_gtk.c `pkg-config --cflags gtk+-2.0` `pkg-config --libs gtk+-2.0` $(LIBS) -lm
 	
 event: xterm.c terminal.h event.c Makefile
 	$(CC) $(CFLAGS) -o event xterm.c event.c $(LIBS) -lm 
