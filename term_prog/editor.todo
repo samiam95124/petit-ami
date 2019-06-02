@@ -1,0 +1,4 @@
+1. Implement the rest of the function keys.
+
+2. Allow editing the filename section on the status bar. Need also a non-mouse method
+to do it.
