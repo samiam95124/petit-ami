@@ -191,6 +191,10 @@ XFontStruct* pafont;             /* current font */
 GC           pagracxt;           /* graphics context */
 Pixmap       pascnbuf;           /* pixmap for screen backing buffer */
 
+/* forwards (reduce me please) */
+
+static void plcchr(char c);
+
 /** ****************************************************************************
 
 Print error
@@ -318,6 +322,44 @@ void iscrollg(int x, int y)
 {
 
     /* implement me */
+
+}
+
+/*******************************************************************************
+
+Position cursor
+
+Moves the cursor to the specified x and y location.
+
+*******************************************************************************/
+
+void icursor(int x, int y)
+
+{
+
+    cury = y; /* set new position */
+    curx = x;
+    curxg = (x-1)*char_x+1;
+    curyg = (y-1)*char_y+1;
+
+}
+
+/*******************************************************************************
+
+Position cursor graphical
+
+Moves the cursor to the specified x and y location in pixels.
+
+*******************************************************************************/
+
+void icursorg(int x, int y)
+
+{
+
+    curyg = y; /* set new position */
+    curxg = x;
+    curx = x/char_x;
+    cury = y/char_y;
 
 }
 
@@ -529,11 +571,15 @@ void pa_scrollg(FILE* f, int x, int y)
 
 {
 
+    iscrollg(x, y); /* process */
+
 }
 
 void pa_scroll(FILE* f, int x, int y)
 
 {
+
+    iscrollg(x*char_x, y*char_y); /* process scroll */
 
 }
 
@@ -549,6 +595,8 @@ void pa_cursor(FILE* f, int x, int y)
 
 {
 
+    icursor(x, y); /* process */
+
 }
 
 /*******************************************************************************
@@ -562,6 +610,8 @@ Moves the cursor to the specified x and y location in pixels.
 void pa_cursorg(FILE* f, int x, int y)
 
 {
+
+    icursorg(x, y); /* process */
 
 }
 
@@ -982,6 +1032,8 @@ void pa_auto(FILE* f, boolean e)
 
 {
 
+    autom = e; /* process */
+
 }
 
 /*******************************************************************************
@@ -1109,6 +1161,10 @@ position left.
 void pa_del(FILE* f)
 
 {
+
+    ileft(); /* back up cursor */
+    plcchr(' '); /* blank out */
+    ileft(); /* back up again */
 
 }
 
