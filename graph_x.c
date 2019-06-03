@@ -593,6 +593,8 @@ int pa_maxx(FILE* f)
 
 {
 
+    return (DEFXD);
+
 }
 
 /*******************************************************************************
@@ -607,6 +609,8 @@ display. Because ANSI has no information return capability, this is preset.
 int pa_maxy(FILE* f)
 
 {
+
+    return (DEFYD);
 
 }
 
@@ -623,6 +627,8 @@ int pa_maxxg(FILE* f)
 
 {
 
+    return (buff_x);
+
 }
 
 /*******************************************************************************
@@ -637,6 +643,8 @@ pixels.
 int pa_maxyg(FILE* f)
 
 {
+
+    return (buff_y);
 
 }
 
@@ -3554,8 +3562,13 @@ static void plcchr(char c)
         curx = 1; /* set to extreme left */
         curxg = 1;
 
-    } else if (c == '\n') idown(); /* line feed, move down */
-    else if (c == '\b') ileft(); /* back space, move left */
+    } else if (c == '\n') {
+
+        curx = 1; /* set to extreme left */
+        curxg = 1;
+        idown(); /* line feed, move down */
+
+    } else if (c == '\b') ileft(); /* back space, move left */
     else if (c == '\f') iclear(); /* clear screen */
     else if (c == '\t') itab(); /* process tab */
     /* only output visible characters */
