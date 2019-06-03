@@ -177,6 +177,7 @@ static int curx;   /* location of cursor in x textual */
 static int cury;   /* location of cursor in y textual */
 static int buff_x; /* width of buffer */
 static int buff_y; /* height of buffer */
+static int autom;  /* current status of auto */
 
 /* X windows display characteristics.
  *
@@ -269,6 +270,241 @@ static void error(errcod e)
     fprintf(stderr, "\n");
 
     exit(1);
+
+}
+
+/*******************************************************************************
+
+Clear screen
+
+Clears the screen and homes the cursor. This effectively occurs by writing all
+characters on the screen to spaces with the current colors and attributes.
+
+*******************************************************************************/
+
+void iclear(void)
+
+{
+
+    curx = 1; /* set cursor at home */
+    cury = 1;
+    curxg = 1;
+    curyg = 1;
+    XSetForeground(padisplay, pagracxt, WhitePixel(padisplay, pascreen));
+    XFillRectangle(padisplay, pawindow, pagracxt, 0, 0, buff_x, buff_y);
+    XSetForeground(padisplay, pagracxt, BlackPixel(padisplay, pascreen));
+
+}
+
+/*******************************************************************************
+
+Scroll screen
+
+Scrolls the ANSI terminal screen by deltas in any given direction. If the scroll
+would move all content off the screen, the screen is simply blanked. Otherwise,
+we find the section of the screen that would remain after the scroll, determine
+its source and destination rectangles, and use a bitblt to move it.
+One speedup for the code would be to use non-overlapping fills for the x-y
+fill after the bitblt.
+
+In buffered mode, this routine works by scrolling the buffer, then restoring
+it to the current window. In non-buffered mode, the scroll is applied directly
+to the window.
+
+*******************************************************************************/
+
+void iscrollg(int x, int y)
+
+{
+
+    /* implement me */
+
+}
+
+/*******************************************************************************
+
+Home cursor
+
+Moves the cursor to the home position at (1, 1), the upper right hand corner.
+
+*******************************************************************************/
+
+static void ihome(void)
+
+{
+
+    /* reset cursors */
+    curx = 1;
+    cury = 1;
+    curxg = 1;
+    curyg = 1;
+
+}
+
+/*******************************************************************************
+
+Move cursor up internal
+
+Moves the cursor position up one line. If the cursor is at screen top, and auto
+is on, the screen is scrolled up, meaning that the screen contents are moved
+down a line of text. If auto is off, the cursor can simply continue into
+negative space as long as it stays within the bounds -INT_MAX to INT_MAX.
+
+*******************************************************************************/
+
+static void iup(void)
+
+{
+
+    /* check not top of screen */
+    if (cury > 1) {
+
+        cury = cury-1; /* update position */
+        curyg -= char_y; /* go last character line */
+
+    } else if (autom) iscrollg(0*char_x, -1*char_y); /* scroll up */
+    /* check won't overflow */
+    else if (cury > -INT_MAX) {
+
+        cury = cury-1; /* set new position */
+        curyg -= char_y;
+
+    }
+
+}
+
+/*******************************************************************************
+
+Move cursor down internal
+
+Moves the cursor position down one line. If the cursor is at screen bottom, and
+auto is on, the screen is scrolled down, meaning that the screen contents are
+moved up a line of text. If auto is off, the cursor can simply continue into
+undrawn space as long as it stays within the bounds of -INT_MAX to INT_MAX.
+
+*******************************************************************************/
+
+static void idown(void)
+
+{
+
+    /* check not bottom of screen */
+    if (cury < pa_maxy(stdin)) {
+
+        cury = cury+1; /* update position */
+        curyg += char_y; /* move to next character line */
+
+    } else if (autom) iscrollg(0*char_x, +1*char_y); /* scroll down */
+    else if (cury < INT_MAX) {
+
+        cury = cury+1; /* set new position */
+        curyg += char_y; /* move to next text line */
+
+    }
+
+}
+
+/*******************************************************************************
+
+Move cursor left internal
+
+Moves the cursor one character left. If the cursor is at the extreme left and
+auto mode is on, the cursor will wrap to the right, up one line, otherwise
+the cursor will move into negative space, limited only by maxint.
+
+*******************************************************************************/
+
+static void ileft(void)
+
+{
+
+    /* check not at extreme left */
+    if (curx > 1) {
+
+        curx--; /* update position */
+        curxg = curxg-char_x; /* back one character */
+
+    } else { /* wrap cursor motion */
+
+        if (autom) { /* autowrap is on */
+
+            iup(); /* move cursor up one line */
+            curx = pa_maxx(stdin); /* set cursor to extreme right */
+            curxg = pa_maxxg(stdin)-char_x;
+
+        } else {
+
+            /* check won't overflow */
+            if (curx > -INT_MAX) {
+
+                curx--; /* update position */
+                curxg -= char_x;
+
+            }
+
+        }
+
+    }
+
+}
+
+/*******************************************************************************
+
+Move cursor right
+
+Moves the cursor one character right.
+
+*******************************************************************************/
+
+static void iright(void)
+
+{
+
+    /* check not at extreme right */
+    if (curx < pa_maxx(stdin)) {
+
+        curx++; /* update position */
+        curxg += char_x;
+
+    } else { /* wrap cursor motion */
+
+        if (autom) { /* autowrap is on */
+
+            idown(); /* move cursor up one line */
+            curx = 1; /* set cursor to extreme left */
+            curxg = 1;
+
+        /* check won't overflow */
+        } else {
+
+            if (curx < INT_MAX) {
+
+                curx++; /* update position */
+                curxg += curxg+char_x;
+
+            }
+
+        }
+
+    }
+
+}
+
+/*******************************************************************************
+
+Process tab
+
+Process a single tab. We search to the right of the current cursor collumn to
+find the next tab. If there is no tab, no action is taken, otherwise, the
+cursor is moved to the tab stop.
+
+*******************************************************************************/
+
+static void itab(void)
+
+{
+
+    /* implement me */
 
 }
 
@@ -416,6 +652,8 @@ void pa_home(FILE* f)
 
 {
 
+    ihome(); /* process */
+
 }
 
 /*******************************************************************************
@@ -430,6 +668,8 @@ void pa_up(FILE* f)
 
 {
 
+    iup(); /* process */
+
 }
 
 /*******************************************************************************
@@ -443,6 +683,8 @@ Moves the cursor position down one line.
 void pa_down(FILE* f)
 
 {
+
+    idown(); /* process */
 
 }
 
@@ -459,6 +701,9 @@ the cursor will move into negative space, limited only by maxint.
 void pa_left(FILE* f)
 
 {
+
+    ileft(); /* process */
+
 }
 
 /*******************************************************************************
@@ -472,6 +717,8 @@ Moves the cursor one character right.
 void pa_right(FILE* f)
 
 {
+
+    iright(); /* process */
 
 }
 
@@ -3301,15 +3548,25 @@ static void plcchr(char c)
 
     char cb[2]; /* buffer for output character */
 
+    if (c == '\r') {
+
+        /* carriage return, position to extreme left */
+        curx = 1; /* set to extreme left */
+        curxg = 1;
+
+    } else if (c == '\n') idown(); /* line feed, move down */
+    else if (c == '\b') ileft(); /* back space, move left */
+    else if (c == '\f') iclear(); /* clear screen */
+    else if (c == '\t') itab(); /* process tab */
     /* only output visible characters */
-    if (c >= ' ' && c != 0x7f) {
+    else if (c >= ' ' && c != 0x7f) {
 
         cb[0] = c; /* place character to output */
         cb[1] = 0; /* terminate */
         XDrawString(padisplay, pascnbuf, pagracxt, curxg-1, curyg-1+char_y, cb, 1);
 
         /* advance to next character */
-        curxg += char_x;
+        iright();
 
     }
 
@@ -3477,6 +3734,9 @@ static void pa_init_graphics(int argc, char *argv[])
     curyg = 1;
     curx = 1;
     cury = 1;
+
+    /* set internal states */
+    autom = true; /* auto on */
 
     /* find existing display */
 
