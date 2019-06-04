@@ -1957,7 +1957,7 @@ void pa_event(FILE* f, pa_evtrec* er)
     do {
 
         XNextEvent(padisplay, &e);
-fprintf(stderr, "Event: %d\n", e.type);
+//fprintf(stderr, "Event: %d\n", e.type);
         if (e.type == Expose) {
 
             XCopyArea(padisplay, pascnbuf, pawindow, pagracxt, 0, 0, DEFXD*char_x, DEFYD*char_y, 0, 0);
@@ -1986,30 +1986,37 @@ fprintf(stderr,"key code: %04lx\n", ks);
                     case XK_Clear:     break;
                     case XK_Return:    er->etype = pa_etenter; break;
                     case XK_Escape:    break;
-                    case XK_Delete:    break;
+                    case XK_Delete:    er->etype = pa_etdelcf; break;
 
-                    case XK_Home:      break;
-                    case XK_Left:      break;
-                    case XK_Up:        break;
-                    case XK_Right:     break;
-                    case XK_Down:      break;
-                    case XK_Page_Up:   break;
-                    case XK_Page_Down: break;
-                    case XK_End:       break;
+                    case XK_Home:      er->etype = pa_ethomel; break;
+                    case XK_Left:      er->etype = pa_etleft; break;
+                    case XK_Up:        er->etype = pa_etup; break;
+                    case XK_Right:     er->etype = pa_etright; break;
+                    case XK_Down:      er->etype = pa_etdown; break;
+                    case XK_Page_Up:   er->etype = pa_etpagu; break;
+                    case XK_Page_Down: er->etype = pa_etpagd; break;
+                    case XK_End:       er->etype = pa_etendl; break;
                     case XK_Begin:     break;
 
-                    case XK_F1:        break;
-                    case XK_F2:        break;
-                    case XK_F3:        break;
-                    case XK_F4:        break;
-                    case XK_F5:        break;
-                    case XK_F6:        break;
-                    case XK_F7:        break;
-                    case XK_F8:        break;
-                    case XK_F9:        break;
-                    case XK_F10:       break;
-                    case XK_F11:       break;
-                    case XK_F12:       break;
+                    case XK_Insert:    er->etype = pa_etinsertt; break;
+
+                    case XK_F1:
+                    case XK_F2:
+                    case XK_F3:
+                    case XK_F4:
+                    case XK_F5:
+                    case XK_F6:
+                    case XK_F7:
+                    case XK_F8:
+                    case XK_F9:
+                    case XK_F10:
+                    case XK_F11:
+                    case XK_F12:
+                        /* X11 gives us all 12 function keys for our use, plus
+                           are sequential */
+                        er->etype = pa_etfun; /* function key */
+                        er->fkey = ks-XK_F1+1;
+                        break;
 
                     case XK_C:
                     case XK_c:         if (ctrll || ctrlr)
