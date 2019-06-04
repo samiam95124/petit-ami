@@ -44,6 +44,8 @@
 *******************************************************************************/
 
 #include <X11/Xlib.h>
+#include <X11/keysym.h>
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -1062,6 +1064,8 @@ int pa_curx(FILE* f)
 
 {
 
+    return (curx); /* process */
+
 }
 
 /*******************************************************************************
@@ -1075,6 +1079,8 @@ Returns the current location of the cursor in y.
 int pa_cury(FILE* f)
 
 {
+
+    return (cury); /* process */
 
 }
 
@@ -1090,6 +1096,8 @@ int pa_curxg(FILE* f)
 
 {
 
+    return (curxg); /* process */
+
 }
 
 /*******************************************************************************
@@ -1103,6 +1111,8 @@ Returns the current location of the cursor in y, in pixels.
 int pa_curyg(FILE* f)
 
 {
+
+    return (curyg); /* process */
 
 }
 
@@ -1937,22 +1947,75 @@ void pa_event(FILE* f, pa_evtrec* er)
 {
 
     XEvent e;
-    const char *msg = "Hello, x windows!";
+    boolean evtfnd;
+    KeySym ks;
 
-    while (1) {
+    evtfnd = false;
+    do {
 
         XNextEvent(padisplay, &e);
         if (e.type == Expose) {
 
             XCopyArea(padisplay, pascnbuf, pawindow, pagracxt, 0, 0, DEFXD*char_x, DEFYD*char_y, 0, 0);
-//            XFlush(padisplay);
-//            XDrawString(padisplay, pawindow, DefaultGC(padisplay, pascreen), 10, 50, msg, strlen(msg));
 
         }
-        if (e.type == KeyPress) break;
+        if (e.type == KeyPress) {
 
-    }
-    XCloseDisplay(padisplay);
+            ks = XLookupKeysym(&e.xkey, 0);
+            er->etype = pa_etchar; /* place default code */
+fprintf(stderr,"key code: %04lx\n", ks);
+            if (ks >= ' ' && ks <= 0x7e) {
+
+                /* issue standard key event */
+                er->etype = pa_etchar; /* set event */
+                er->echar = ks; /* set code */
+                evtfnd = true; /* set found */
+
+            } else {
+
+                switch (ks) {
+
+                    /* process control characters */
+                    case XK_BackSpace: er->etype = pa_etdelcb; break;
+                    case XK_Tab:       er->etype = pa_ettab; break;
+                    case XK_Linefeed:  break;
+                    case XK_Clear:     break;
+                    case XK_Return:    er->etype = pa_etenter; break;
+                    case XK_Escape:    break;
+                    case XK_Delete:    break;
+
+                    case XK_Home:      break;
+                    case XK_Left:      break;
+                    case XK_Up:        break;
+                    case XK_Right:     break;
+                    case XK_Down:      break;
+                    case XK_Page_Up:   break;
+                    case XK_Page_Down: break;
+                    case XK_End:       break;
+                    case XK_Begin:     break;
+
+                    case XK_F1:        break;
+                    case XK_F2:        break;
+                    case XK_F3:        break;
+                    case XK_F4:        break;
+                    case XK_F5:        break;
+                    case XK_F6:        break;
+                    case XK_F7:        break;
+                    case XK_F8:        break;
+                    case XK_F9:        break;
+                    case XK_F10:       break;
+                    case XK_F11:       break;
+                    case XK_F12:       break;
+
+                }
+                if (er->etype != pa_etchar)
+                    evtfnd = true; /* a control was found */
+
+            }
+
+        }
+
+    } while (!evtfnd); /* until we have a client event */
 
 }
 
@@ -3632,7 +3695,14 @@ static void plcchr(char c)
 
         cb[0] = c; /* place character to output */
         cb[1] = 0; /* terminate */
+        /* place on buffer */
         XDrawString(padisplay, pascnbuf, pagracxt, curxg-1, curyg-1+char_y, cb, 1);
+        /* refresh screen
+           Not sure why I need to refresh entire screen vs. just draw. This will
+           cause significant speed issues vs. just draw single character.
+        */
+        XCopyArea(padisplay, pascnbuf, pawindow, pagracxt, 0, 0, DEFXD*char_x,
+                  DEFYD*char_y, 0, 0);
 
         /* advance to next character */
         iright();
@@ -3882,6 +3952,9 @@ static void pa_deinit_graphics()
     pclose_t cppclose;
     punlink_t cppunlink;
     plseek_t cpplseek;
+
+    /* close X Window */
+    XCloseDisplay(padisplay);
 
     /* swap old vectors for existing vectors */
     ovr_read(ofpread, &cppread);

@@ -12,11 +12,11 @@ This is used mostly for testing.
 
 #include "terminal.h" /* terminal level functions */
 
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 
 {
 
-    evtrec er;     /* record for returned events */
+    pa_evtrec er;     /* record for returned events */
     int autostate; /* state of automatic wrap and scroll */
     long buf;      /* current terminal buffer */
     int fbold;     /* bold active flag */
@@ -36,76 +36,78 @@ main(int argc, char *argv[])
     autostate = 1; /* set auto on */
     do { /* event loop */
 
-        event(stdin, &er); /* get the next event */
+        pa_event(stdin, &er); /* get the next event */
         switch (er.etype) {   /* event */
 
              /* pass character to output */
-             case etchar: putchar(er.echar); break;
+             case pa_etchar: putchar(er.echar); break;
              /* enter line */
-             case etenter: cursor(stdout, 1, cury(stdout)); down(stdout); break;
-             case etup:    up(stdout); break; /* up one line */
-             case etdown:  down(stdout); break; /* down one line */
-             case etleft:  left(stdout); break; /* left one character */
-             case etright: right(stdout); break; /* right one character */
-             case ethomes: home(stdout); break; /* home screen */
+             case pa_etenter: pa_cursor(stdout, 1, pa_cury(stdout)); pa_down(stdout); break;
+             case pa_etup:    pa_up(stdout); break; /* up one line */
+             case pa_etdown:  pa_down(stdout); break; /* down one line */
+             case pa_etleft:  pa_left(stdout); break; /* left one character */
+             case pa_etright: pa_right(stdout); break; /* right one character */
+             case pa_ethomes: pa_home(stdout); break; /* home screen */
              /* home line */
-             case ethomel: cursor(stdout, 1, cury(stdout)); break;
+             case pa_ethomel: pa_cursor(stdout, 1, pa_cury(stdout)); break;
              /* end screen */
-             case etends:  cursor(stdout, maxx(stdout), maxy(stdout)); break;
+             case pa_etends:  pa_cursor(stdout, pa_maxx(stdout), pa_maxy(stdout)); break;
              /* end line */
-             case etendl:  cursor(stdout, maxx(stdout), cury(stdout)); break;
-             case etscrl:  scroll(stdout, -1, 0); break; /* scroll left */
-             case etscrr:  scroll(stdout, 1, 0); break; /* scroll right */
-             case etscru:  scroll(stdout, 0, -1); break; /* scroll up */
-             case etscrd:  scroll(stdout, 0, 1); break; /* scroll down */
-             case etdelcb: del(stdout); break;  /* delete left character */
-             case ettab:   printf("\t"); break;/* tab */
-             case etinsertt: autostate = !autostate;
-                 automode(stdout, autostate); break;
-             case etfun:  /* function key */
+             case pa_etendl:  pa_cursor(stdout, pa_maxx(stdout), pa_cury(stdout)); break;
+             case pa_etscrl:  pa_scroll(stdout, -1, 0); break; /* scroll left */
+             case pa_etscrr:  pa_scroll(stdout, 1, 0); break; /* scroll right */
+             case pa_etscru:  pa_scroll(stdout, 0, -1); break; /* scroll up */
+             case pa_etscrd:  pa_scroll(stdout, 0, 1); break; /* scroll down */
+             case pa_etdelcb: pa_del(stdout); break;  /* delete left character */
+             case pa_ettab:   printf("\t"); break;/* tab */
+             case pa_etinsertt: autostate = !autostate;
+                 pa_auto(stdout, autostate); break;
+             case pa_etfun:  /* function key */
 
                  if (er.fkey == 1) {  /* function 1: swap screens */
 
                      if (buf == 10) buf = 1;  /* wrap buffer back to zero */
                      else buf++; /* next buffer */
-                     select(stdout, buf, buf);
+                     pa_select(stdout, buf, buf);
 
                  } else if (er.fkey == 2) {  /* function 2: bold toggle */
 
                      fbold = !fbold;   /* toggle */
-                     bold(stdout, fbold); /* apply */
+                     pa_bold(stdout, fbold); /* apply */
 
                  } else if (er.fkey == 3) {  /* function 3: underline toggle */
 
                      fundl = !fundl; /* toggle */
-                     underline(stdout, fundl); /* apply */
+                     pa_underline(stdout, fundl); /* apply */
 
                  } else if (er.fkey == 4) {  /* function 4: strikeout toggle */
 
                      fstko = !fstko; /* toggle */
-                     strikeout(stdout, fstko); /* apply */
+                     pa_strikeout(stdout, fstko); /* apply */
 
 
                  } else if (er.fkey == 5) {  /* function 5: italic toggle */
 
                      fital = !fital;   /* toggle */
-                     italic(stdout, fital); /* apply */
+                     pa_italic(stdout, fital); /* apply */
 
                  } else if (er.fkey == 6) {  /* function 6: subscript toggle */
 
                      fsubs = !fsubs;   /* toggle */
-                     subscript(stdout, fsubs); /* apply */
+                     pa_subscript(stdout, fsubs); /* apply */
 
                  } else if (er.fkey == 7) {  /* function 7: superscript toggle */
 
                      fsups = !fsups;   /* toggle */
-                     superscript(stdout, fsups); /* apply */
+                     pa_superscript(stdout, fsups); /* apply */
 
-                 } else if (er.fkey == 8) bcolor(stdout, cyan);
+                 } else if (er.fkey == 8) pa_bcolor(stdout, pa_cyan);
                  break;
 
         }
 
-    } while (er.etype != etterm); /* until termination signal */
+    } while (er.etype != pa_etterm); /* until termination signal */
+
+    return (0); /* return no error */
 
 }
