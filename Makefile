@@ -63,24 +63,33 @@ else
 endif
 
 #
+# Choose which model, console or graphics window.
+#
+ifdef GRAPH
+    LIBS += -L/usr/X11R6/lib -lX11 -lxcb
+    BASEMOD = graph_x.c
+else
+    BASEMOD = xterm.c
+endif
+
+#
 # GTK definitions
 #
 GTK_LIBS=`pkg-config --cflags --libs gtk+-3.0`
         
 all: test event getkeys terminal scntst
 	
-test: xterm.c terminal.h test.c services.c services.h Makefile
-	$(CC) $(CFLAGS) -o test test.c xterm.c $(LIBS) -lm
+test: $(BASEMOD) terminal.h test.c services.c services.h Makefile
+	$(CC) $(CFLAGS) -o test test.c $(BASEMOD) $(LIBS) -lm
 	
-testg: graph_x.c terminal.h testg.c services.c services.h Makefile
-	$(CC) $(CFLAGS) graph_x.c testg.c -L/usr/X11R6/lib -lX11 -lxcb $(LIBS) -lm -o testg
-#	$(CC) $(CFLAGS) -o testg testg.c graph_gtk.c $(GTK_LIBS) $(LIBS) -lm
+testg: $(BASEMOD) terminal.h testg.c services.c services.h Makefile
+	$(CC) $(CFLAGS) $(BASEMOD) testg.c $(LIBS) -lm -o testg
 	
-scntst: xterm.c terminal.h scntst.c services.h services.c Makefile
+scntst: $(BASEMOD) terminal.h scntst.c services.h services.c Makefile
 	$(CC) $(CFLAGS) -o scntst xterm.c services.c scntst.c $(LIBS) -lm 
 	
-event: xterm.c terminal.h event.c Makefile
-	$(CC) $(CFLAGS) -o event xterm.c event.c $(LIBS) -lm 
+event: $(BASEMOD) terminal.h event.c Makefile
+	$(CC) $(CFLAGS) -o event $(BASEMOD) event.c $(LIBS) -lm 
 	
 getkeys: getkeys.c Makefile
 	$(CC) $(CFLAGS) -o getkeys getkeys.c -lm 
@@ -88,17 +97,17 @@ getkeys: getkeys.c Makefile
 getmouse: getmouse.c Makefile
 	$(CC) $(CFLAGS) -o getmouse getmouse.c -lm 
 	
-term: xterm.c terminal.h term.c Makefile
-	$(CC) $(CFLAGS) -o term xterm.c term.c $(LIBS) -lm 
+term: $(BASEMOD) terminal.h term.c Makefile
+	$(CC) $(CFLAGS) $(BASEMOD) term.c $(LIBS) -lm -o term
 	
-snake: term_game/snake.c xterm.c terminal.h term.c Makefile
-	$(CC) $(CFLAGS) -o term_game/snake xterm.c term_game/snake.c $(LIBS) -lm
+snake: term_game/snake.c $(BASEMOD) terminal.h Makefile
+	$(CC) $(CFLAGS) -o term_game/snake $(BASEMOD) term_game/snake.c $(LIBS) -lm
 	
-mine: term_game/mine.c xterm.c terminal.h term.c Makefile
-	$(CC) $(CFLAGS) -o term_game/mine xterm.c term_game/mine.c $(LIBS) -lm
+mine: term_game/mine.c $(BASEMOD) terminal.h Makefile
+	$(CC) $(CFLAGS) -o term_game/mine $(BASEMOD) term_game/mine.c $(LIBS) -lm
 	
-editor: term_prog/editor.c xterm.c terminal.h term.c Makefile
-	$(CC) $(CFLAGS) -o term_prog/editor xterm.c term_prog/editor.c $(LIBS) -lm
+editor: term_prog/editor.c $(BASEMOD) terminal.h Makefile
+	$(CC) $(CFLAGS) -o term_prog/editor $(BASEMOD) term_prog/editor.c $(LIBS) -lm
 	
 clean:
 	rm -f test scmtst event getkeys getmouse term term_game/snake term_game/mine term_prog/editor test1

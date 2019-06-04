@@ -192,6 +192,8 @@ static       int pascreen;       /* current screen */
 XFontStruct* pafont;             /* current font */
 GC           pagracxt;           /* graphics context */
 Pixmap       pascnbuf;           /* pixmap for screen backing buffer */
+boolean      ctrll, ctrlr;       /* control key active */
+boolean      shiftl, shiftr;     /* shift key active */
 
 /* forwards (reduce me please) */
 
@@ -1950,10 +1952,12 @@ void pa_event(FILE* f, pa_evtrec* er)
     boolean evtfnd;
     KeySym ks;
 
+
     evtfnd = false;
     do {
 
         XNextEvent(padisplay, &e);
+fprintf(stderr, "Event: %d\n", e.type);
         if (e.type == Expose) {
 
             XCopyArea(padisplay, pascnbuf, pawindow, pagracxt, 0, 0, DEFXD*char_x, DEFYD*char_y, 0, 0);
@@ -1964,7 +1968,7 @@ void pa_event(FILE* f, pa_evtrec* er)
             ks = XLookupKeysym(&e.xkey, 0);
             er->etype = pa_etchar; /* place default code */
 fprintf(stderr,"key code: %04lx\n", ks);
-            if (ks >= ' ' && ks <= 0x7e) {
+            if (ks >= ' ' && ks <= 0x7e && !ctrll && !ctrlr) {
 
                 /* issue standard key event */
                 er->etype = pa_etchar; /* set event */
@@ -2007,9 +2011,32 @@ fprintf(stderr,"key code: %04lx\n", ks);
                     case XK_F11:       break;
                     case XK_F12:       break;
 
+                    case XK_C:
+                    case XK_c:         if (ctrll || ctrlr)
+                                           er->etype = pa_etterm; break;
+
+                    case XK_Shift_L:   shiftl = true; break; /* Left shift */
+                    case XK_Shift_R:   shiftr = true; break; /* Right shift */
+                    case XK_Control_L: ctrll = true; break;  /* Left control */
+                    case XK_Control_R: ctrlr = true; break;  /* Right control */
+
                 }
                 if (er->etype != pa_etchar)
                     evtfnd = true; /* a control was found */
+
+            }
+
+        } else if (e.type == KeyRelease) {
+
+            /* Petit-ami does not track key releases, but we need to account for
+              control and shift keys up/down */
+            ks = XLookupKeysym(&e.xkey, 0); /* find code */
+            switch (ks) {
+
+                case XK_Shift_L:   shiftl = false; break; /* Left shift */
+                case XK_Shift_R:   shiftr = false; break; /* Right shift */
+                case XK_Control_L: ctrll = false; break;  /* Left control */
+                case XK_Control_R: ctrlr = false; break;  /* Right control */
 
             }
 
@@ -3873,6 +3900,12 @@ static void pa_init_graphics(int argc, char *argv[])
     curyg = 1;
     curx = 1;
     cury = 1;
+
+    /* set state of shift and control keys */
+    ctrll = false;
+    ctrlr = false;
+    shiftl = false;
+    shiftr = false;
 
     /* set internal states */
     autom = true; /* auto on */
