@@ -289,6 +289,39 @@ static void error(errcod e)
 
 }
 
+/******************************************************************************
+
+Translate colors code
+
+Translates an independent to a terminal specific primary color code for Windows.
+
+******************************************************************************/
+
+int colnum(pa_color c)
+
+{
+
+    int n;
+
+    /* translate color number */
+    switch (c) { /* color */
+
+        case pa_black:     n = 0x000000; break;
+        case pa_white:     n = 0xffffff; break;
+        case pa_red:       n = 0xff0000; break;
+        case pa_green:     n = 0x00ff00; break;
+        case pa_blue:      n = 0x0000ff; break;
+        case pa_cyan:      n = 0x00ffff; break;
+        case pa_yellow:    n = 0xffff00; break;
+        case pa_magenta:   n = 0xff00ff; break;
+        case pa_backcolor: n = 0xeae9d8; break;
+
+    }
+
+    return (n); /* return number */
+
+}
+
 /*******************************************************************************
 
 Clear screen
@@ -800,6 +833,8 @@ Turns on/off the blink attribute.
 
 Note that the attributes can only be set singly.
 
+Graphical mode does not implement blink mode.
+
 *******************************************************************************/
 
 void pa_blink(FILE* f, boolean e)
@@ -952,11 +987,18 @@ void pa_fcolor(FILE* f, pa_color c)
 
 {
 
+    int rgb;
+
+    rgb = colnum(c); /* translate color code to RGB */
+    XSetForeground(padisplay, pagracxt, rgb);
+
 }
 
 void pa_fcolorc(FILE* f, int r, int g, int b)
 
 {
+
+    XSetForeground(padisplay, pagracxt, r<<16 | g<<8 | b);
 
 }
 
@@ -977,6 +1019,8 @@ void pa_fcolorg(FILE* f, int r, int g, int b)
 
 {
 
+    XSetForeground(padisplay, pagracxt, r<<16 | g<<8 | b);
+
 }
 
 /*******************************************************************************
@@ -991,11 +1035,18 @@ void pa_bcolor(FILE* f, pa_color c)
 
 {
 
+    int rgb;
+
+    rgb = colnum(c); /* translate color code to RGB */
+    XSetForeground(padisplay, pagracxt, rgb);
+
 }
 
 void pa_bcolorc(FILE* f, int r, int g, int b)
 
 {
+
+    XSetForeground(padisplay, pagracxt, r<<16 | g<<8 | b);
 
 }
 
@@ -1012,6 +1063,8 @@ up, we will be ready.
 void pa_bcolorg(FILE* f, int r, int g, int b)
 
 {
+
+    XSetForeground(padisplay, pagracxt, r<<16 | g<<8 | b);
 
 }
 

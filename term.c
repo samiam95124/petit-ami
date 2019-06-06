@@ -16,24 +16,26 @@ int main(int argc, char *argv[])
 
 {
 
-    pa_evtrec er;     /* record for returned events */
-    int autostate; /* state of automatic wrap and scroll */
-    long buf;      /* current terminal buffer */
-    int fbold;     /* bold active flag */
-    int fundl;     /* underline active flag */
-    int fstko;     /* strikeout active flag */
-    int fital;     /* italic active flag */
-    int fsubs;     /* subscript active flag */
-    int fsups;     /* superscript active flag */
+    pa_evtrec er;   /* record for returned events */
+    int autostate;  /* state of automatic wrap and scroll */
+    long buf;       /* current terminal buffer */
+    int fbold;      /* bold active flag */
+    int fundl;      /* underline active flag */
+    int fstko;      /* strikeout active flag */
+    int fital;      /* italic active flag */
+    int fsubs;      /* subscript active flag */
+    int fsups;      /* superscript active flag */
+    pa_color color; /* current color */
 
-    buf = 1;       /* set normal buffer */
-    fbold = 0;     /* set bold off */
-    fundl = 0;     /* set underline off */
-    fstko = 0;     /* set strikeout off */
-    fital = 0;     /* set italic off */
-    fsubs = 0;     /* set subscript off */
-    fsups = 0;     /* set superscript off */
-    autostate = 1; /* set auto on */
+    buf = 1;          /* set normal buffer */
+    fbold = 0;        /* set bold off */
+    fundl = 0;        /* set underline off */
+    fstko = 0;        /* set strikeout off */
+    fital = 0;        /* set italic off */
+    fsubs = 0;        /* set subscript off */
+    fsups = 0;        /* set superscript off */
+    autostate = 1;    /* set auto on */
+    color = pa_black; /* set black foreground */
     do { /* event loop */
 
         pa_event(stdin, &er); /* get the next event */
@@ -101,7 +103,14 @@ int main(int argc, char *argv[])
                      fsups = !fsups;   /* toggle */
                      pa_superscript(stdout, fsups); /* apply */
 
-                 } else if (er.fkey == 8) pa_bcolor(stdout, pa_cyan);
+                 } else if (er.fkey == 8) {
+
+                     color++; /* next color */
+                     /* wrap color */
+                     if (color > pa_magenta) color = pa_black;
+                     pa_bcolor(stdout, color);
+
+                 }
                  break;
 
         }
