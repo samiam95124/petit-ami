@@ -194,6 +194,7 @@ GC           pagracxt;           /* graphics context */
 Pixmap       pascnbuf;           /* pixmap for screen backing buffer */
 boolean      ctrll, ctrlr;       /* control key active */
 boolean      shiftl, shiftr;     /* shift key active */
+XEvent       evtexp;             /* expose event record */
 
 /* forwards (reduce me please) */
 
@@ -1967,7 +1968,7 @@ void pa_event(FILE* f, pa_evtrec* er)
 
             ks = XLookupKeysym(&e.xkey, 0);
             er->etype = pa_etchar; /* place default code */
-fprintf(stderr,"key code: %04lx\n", ks);
+//fprintf(stderr,"Key press: key code: %04lx\n", ks);
             if (ks >= ' ' && ks <= 0x7e && !ctrll && !ctrlr) {
 
                 /* issue standard key event */
@@ -1988,14 +1989,18 @@ fprintf(stderr,"key code: %04lx\n", ks);
                     case XK_Escape:    break;
                     case XK_Delete:    er->etype = pa_etdelcf; break;
 
-                    case XK_Home:      er->etype = pa_ethomel; break;
-                    case XK_Left:      er->etype = pa_etleft; break;
+                    case XK_Home:      if (ctrll || ctrlr) er->etype = pa_ethome;
+                                       else er->etype = pa_ethomel; break;
+                    case XK_Left:      if (ctrll || ctrlr) er->etype = pa_etleftw;
+                                       else er->etype = pa_etleft; break;
                     case XK_Up:        er->etype = pa_etup; break;
-                    case XK_Right:     er->etype = pa_etright; break;
+                    case XK_Right:     if (ctrll || ctrlr) er->etype = pa_etrightw;
+                                       else er->etype = pa_etright; break;
                     case XK_Down:      er->etype = pa_etdown; break;
                     case XK_Page_Up:   er->etype = pa_etpagu; break;
                     case XK_Page_Down: er->etype = pa_etpagd; break;
-                    case XK_End:       er->etype = pa_etendl; break;
+                    case XK_End:       if (ctrll || ctrlr) er->etype = pa_etend;
+                                       else er->etype = pa_etendl; break;
                     case XK_Begin:     break;
 
                     case XK_Insert:    er->etype = pa_etinsertt; break;
@@ -2021,6 +2026,13 @@ fprintf(stderr,"key code: %04lx\n", ks);
                     case XK_C:
                     case XK_c:         if (ctrll || ctrlr)
                                            er->etype = pa_etterm; break;
+                    case XK_H:
+                    case XK_h:         if (ctrll || ctrlr)
+                                           er->etype = pa_ethomes; break;
+                    case XK_E:
+                    case XK_e:         if (ctrll || ctrlr)
+                                           er->etype = pa_etends; break;
+
 
                     case XK_Shift_L:   shiftl = true; break; /* Left shift */
                     case XK_Shift_R:   shiftr = true; break; /* Right shift */
@@ -2038,6 +2050,7 @@ fprintf(stderr,"key code: %04lx\n", ks);
             /* Petit-ami does not track key releases, but we need to account for
               control and shift keys up/down */
             ks = XLookupKeysym(&e.xkey, 0); /* find code */
+//fprintf(stderr,"Key release: key code: %04lx\n", ks);
             switch (ks) {
 
                 case XK_Shift_L:   shiftl = false; break; /* Left shift */
@@ -3731,12 +3744,13 @@ static void plcchr(char c)
         cb[1] = 0; /* terminate */
         /* place on buffer */
         XDrawString(padisplay, pascnbuf, pagracxt, curxg-1, curyg-1+char_y, cb, 1);
-        /* refresh screen
-           Not sure why I need to refresh entire screen vs. just draw. This will
-           cause significant speed issues vs. just draw single character.
-        */
-        XCopyArea(padisplay, pascnbuf, pawindow, pagracxt, 0, 0, DEFXD*char_x,
-                  DEFYD*char_y, 0, 0);
+
+        /* send exposure event back to window with mask over character */
+        evtexp.xexpose.x = curxg-1;
+        evtexp.xexpose.y = curyg-1;
+        evtexp.xexpose.width = curxg-1+char_x;
+        evtexp.xexpose.height = curyg-1+char_y;
+        XSendEvent(padisplay, pawindow, false, ExposureMask, &evtexp);
 
         /* advance to next character */
         iright();
@@ -3956,7 +3970,7 @@ static void pa_init_graphics(int argc, char *argv[])
                                    10, 10, buff_x, buff_y, 1,
                            BlackPixel(padisplay, pascreen),
                            WhitePixel(padisplay, pascreen));
-    XSelectInput(padisplay, pawindow, ExposureMask | KeyPressMask);
+    XSelectInput(padisplay, pawindow, ExposureMask | KeyPressMask | KeyReleaseMask);
     XMapWindow(padisplay, pawindow);
 
     XStoreName(padisplay, pawindow, title );
@@ -3971,6 +3985,18 @@ static void pa_init_graphics(int argc, char *argv[])
     XFillRectangle(padisplay, pascnbuf, pagracxt, 0, 0, buff_x, buff_y);
 
     XSetForeground(padisplay, pagracxt, BlackPixel(padisplay, pascreen));
+
+    /* set up the expose event to full buffer by default */
+    evtexp.type = Expose;
+    evtexp.xexpose.type = Expose;
+    evtexp.xexpose.serial = 0;
+    evtexp.xexpose.send_event = 1;
+    evtexp.xexpose.window = pawindow;
+    evtexp.xexpose.x = 0;
+    evtexp.xexpose.y = 0;
+    evtexp.xexpose.width = buff_x;
+    evtexp.xexpose.height = buff_y;
+    evtexp.xexpose.count = 0;
 
 }
 

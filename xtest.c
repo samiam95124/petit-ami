@@ -9,6 +9,7 @@ int main(void) {
    XEvent e;
    const char *msg = "Hello, World!";
    int s;
+   int x;
  
    d = XOpenDisplay(NULL);
    if (d == NULL) {
@@ -24,17 +25,12 @@ int main(void) {
  
    while (1) {
       XNextEvent(d, &e);
-printf("got event\n");
       if (e.type == Expose) {
-printf("expose event\n");
          XDrawString(d, w, DefaultGC(d, s), 10, 50, msg, strlen(msg));
       }
-      if (e.type == KeyPress)
-//printf("keypress event\n");
-         break;
+      if (e.type == KeyPress) break;
    }
 
-printf("All done, bye!\n");
    XCloseDisplay(d);
    return 0;
 }
