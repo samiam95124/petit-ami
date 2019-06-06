@@ -43,12 +43,16 @@
 *                                                                              *
 *******************************************************************************/
 
+/* X11 definitions */
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
 
+/* whitebook definitions */
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
+/* linux definitions */
 #include <sys/timerfd.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -59,6 +63,7 @@
 #include <limits.h>
 #include <stdio.h>
 
+/* local definitions */
 #include "graph.h"
 
 #define MAXTIM       10; /* maximum number of timers available */
@@ -194,6 +199,8 @@ GC           pagracxt;           /* graphics context */
 Pixmap       pascnbuf;           /* pixmap for screen backing buffer */
 boolean      ctrll, ctrlr;       /* control key active */
 boolean      shiftl, shiftr;     /* shift key active */
+boolean      altl, altr;         /* alt key active */
+boolean      capslock;           /* caps lock key active */
 XEvent       evtexp;             /* expose event record */
 
 /* forwards (reduce me please) */
@@ -1952,13 +1959,14 @@ void pa_event(FILE* f, pa_evtrec* er)
     XEvent e;
     boolean evtfnd;
     KeySym ks;
+    boolean esck;
 
 
     evtfnd = false;
+    esck = false; /* set no previous escape */
     do {
 
         XNextEvent(padisplay, &e);
-//fprintf(stderr, "Event: %d\n", e.type);
         if (e.type == Expose) {
 
             XCopyArea(padisplay, pascnbuf, pawindow, pagracxt, 0, 0, DEFXD*char_x, DEFYD*char_y, 0, 0);
@@ -1968,12 +1976,13 @@ void pa_event(FILE* f, pa_evtrec* er)
 
             ks = XLookupKeysym(&e.xkey, 0);
             er->etype = pa_etchar; /* place default code */
-//fprintf(stderr,"Key press: key code: %04lx\n", ks);
-            if (ks >= ' ' && ks <= 0x7e && !ctrll && !ctrlr) {
+            if (ks >= ' ' && ks <= 0x7e && !ctrll && !ctrlr && !altl && !altr) {
 
                 /* issue standard key event */
                 er->etype = pa_etchar; /* set event */
-                er->echar = ks; /* set code */
+                /* set code, normal or shifted */
+                if (shiftl || shiftr) er->echar = !capslock?toupper(ks):ks;
+                else er->echar = capslock?toupper(ks):ks; /* set code */
                 evtfnd = true; /* set found */
 
             } else {
@@ -1983,31 +1992,39 @@ void pa_event(FILE* f, pa_evtrec* er)
                     /* process control characters */
                     case XK_BackSpace: er->etype = pa_etdelcb; break;
                     case XK_Tab:       er->etype = pa_ettab; break;
-                    case XK_Linefeed:  break;
-                    case XK_Clear:     break;
                     case XK_Return:    er->etype = pa_etenter; break;
-                    case XK_Escape:    break;
+                    case XK_Escape:    if (esck)
+                                           { er->etype = pa_etcan; esck = false; }
+                                       else esck = true;
+                                       break;
                     case XK_Delete:    if (shiftl || shiftr) er->etype = pa_etdel;
                                        else if (ctrll || ctrlr) er->etype = pa_etdell;
-                                       else er->etype = pa_etdelcf; break;
+                                       else er->etype = pa_etdelcf;
+                                       break;
 
                     case XK_Home:      if (ctrll || ctrlr) er->etype = pa_ethome;
-                                       else er->etype = pa_ethomel; break;
+                                       else er->etype = pa_ethomel;
+                                       break;
                     case XK_Left:      if (ctrll || ctrlr) er->etype = pa_etleftw;
-                                       else er->etype = pa_etleft; break;
+                                       else er->etype = pa_etleft;
+                                       break;
                     case XK_Up:        if (ctrll || ctrlr) er->etype = pa_etscru;
-                                       else er->etype = pa_etup; break;
+                                       else er->etype = pa_etup;
+                                       break;
                     case XK_Right:     if (ctrll || ctrlr) er->etype = pa_etrightw;
                                        else er->etype = pa_etright; break;
                     case XK_Down:      if (ctrll || ctrlr) er->etype = pa_etscrd;
-                                       else er->etype = pa_etdown; break;
+                                       else er->etype = pa_etdown;
+                                       break;
                     case XK_Page_Up:   if (ctrll || ctrlr) er->etype = pa_etscrl;
-                                       else er->etype = pa_etpagu; break;
+                                       else er->etype = pa_etpagu;
+                                       break;
                     case XK_Page_Down: if (ctrll || ctrlr) er->etype = pa_etscrr;
-                                       else er->etype = pa_etpagd; break;
+                                       else er->etype = pa_etpagd;
+                                       break;
                     case XK_End:       if (ctrll || ctrlr) er->etype = pa_etend;
-                                       else er->etype = pa_etendl; break;
-                    case XK_Begin:     break;
+                                       else er->etype = pa_etendl;
+                                       break;
 
                     case XK_Insert:    er->etype = pa_etinsertt; break;
 
@@ -2030,22 +2047,41 @@ void pa_event(FILE* f, pa_evtrec* er)
                         break;
 
                     case XK_C:
-                    case XK_c:         if (ctrll || ctrlr)
-                                           er->etype = pa_etterm; break;
+                    case XK_c:         if (ctrll || ctrlr) er->etype = pa_etterm;
+                                       else if (altl || altr) er->etype = pa_etcopy;
+                                       break;
+                    case XK_S:
+                    case XK_s:         if (ctrll || ctrlr)
+                                           er->etype = pa_etstop;
+                                       break;
+                    case XK_Q:
+                    case XK_q:         if (ctrll || ctrlr)
+                                           er->etype = pa_etcont;
+                                       break;
+                    case XK_P:
+                    case XK_p:         if (ctrll || ctrlr)
+                                           er->etype = pa_etprint;
+                                       break;
                     case XK_H:
                     case XK_h:         if (ctrll || ctrlr)
-                                           er->etype = pa_ethomes; break;
+                                           er->etype = pa_ethomes;
+                                       break;
                     case XK_E:
                     case XK_e:         if (ctrll || ctrlr)
-                                           er->etype = pa_etends; break;
+                                           er->etype = pa_etends;
+                                       break;
                     case XK_V:
                     case XK_v:         if (ctrll || ctrlr)
-                                           er->etype = pa_etinsert; break;
+                                           er->etype = pa_etinsert;
+                                       break;
 
                     case XK_Shift_L:   shiftl = true; break; /* Left shift */
                     case XK_Shift_R:   shiftr = true; break; /* Right shift */
                     case XK_Control_L: ctrll = true; break;  /* Left control */
                     case XK_Control_R: ctrlr = true; break;  /* Right control */
+                    case XK_Alt_L:     altl = true; break;  /* Left alt */
+                    case XK_Alt_R:     altr = true; break;  /* Right alt */
+                    case XK_Caps_Lock: capslock = !capslock; /* Caps lock */
 
                 }
                 if (er->etype != pa_etchar)
@@ -2058,13 +2094,14 @@ void pa_event(FILE* f, pa_evtrec* er)
             /* Petit-ami does not track key releases, but we need to account for
               control and shift keys up/down */
             ks = XLookupKeysym(&e.xkey, 0); /* find code */
-//fprintf(stderr,"Key release: key code: %04lx\n", ks);
             switch (ks) {
 
                 case XK_Shift_L:   shiftl = false; break; /* Left shift */
                 case XK_Shift_R:   shiftr = false; break; /* Right shift */
                 case XK_Control_L: ctrll = false; break;  /* Left control */
                 case XK_Control_R: ctrlr = false; break;  /* Right control */
+                case XK_Alt_L:     altl = false; break;  /* Left alt */
+                case XK_Alt_R:     altr = false; break;  /* Right alt */
 
             }
 
@@ -3930,11 +3967,14 @@ static void pa_init_graphics(int argc, char *argv[])
     curx = 1;
     cury = 1;
 
-    /* set state of shift and control keys */
+    /* set state of shift, control and alt keys */
     ctrll = false;
     ctrlr = false;
     shiftl = false;
     shiftr = false;
+    altl = false;
+    altr = false;
+    capslock = false;
 
     /* set internal states */
     autom = true; /* auto on */
