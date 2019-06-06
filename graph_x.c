@@ -1987,18 +1987,24 @@ void pa_event(FILE* f, pa_evtrec* er)
                     case XK_Clear:     break;
                     case XK_Return:    er->etype = pa_etenter; break;
                     case XK_Escape:    break;
-                    case XK_Delete:    er->etype = pa_etdelcf; break;
+                    case XK_Delete:    if (shiftl || shiftr) er->etype = pa_etdel;
+                                       else if (ctrll || ctrlr) er->etype = pa_etdell;
+                                       else er->etype = pa_etdelcf; break;
 
                     case XK_Home:      if (ctrll || ctrlr) er->etype = pa_ethome;
                                        else er->etype = pa_ethomel; break;
                     case XK_Left:      if (ctrll || ctrlr) er->etype = pa_etleftw;
                                        else er->etype = pa_etleft; break;
-                    case XK_Up:        er->etype = pa_etup; break;
+                    case XK_Up:        if (ctrll || ctrlr) er->etype = pa_etscru;
+                                       else er->etype = pa_etup; break;
                     case XK_Right:     if (ctrll || ctrlr) er->etype = pa_etrightw;
                                        else er->etype = pa_etright; break;
-                    case XK_Down:      er->etype = pa_etdown; break;
-                    case XK_Page_Up:   er->etype = pa_etpagu; break;
-                    case XK_Page_Down: er->etype = pa_etpagd; break;
+                    case XK_Down:      if (ctrll || ctrlr) er->etype = pa_etscrd;
+                                       else er->etype = pa_etdown; break;
+                    case XK_Page_Up:   if (ctrll || ctrlr) er->etype = pa_etscrl;
+                                       else er->etype = pa_etpagu; break;
+                    case XK_Page_Down: if (ctrll || ctrlr) er->etype = pa_etscrr;
+                                       else er->etype = pa_etpagd; break;
                     case XK_End:       if (ctrll || ctrlr) er->etype = pa_etend;
                                        else er->etype = pa_etendl; break;
                     case XK_Begin:     break;
@@ -2032,7 +2038,9 @@ void pa_event(FILE* f, pa_evtrec* er)
                     case XK_E:
                     case XK_e:         if (ctrll || ctrlr)
                                            er->etype = pa_etends; break;
-
+                    case XK_V:
+                    case XK_v:         if (ctrll || ctrlr)
+                                           er->etype = pa_etinsert; break;
 
                     case XK_Shift_L:   shiftl = true; break; /* Left shift */
                     case XK_Shift_R:   shiftr = true; break; /* Right shift */
