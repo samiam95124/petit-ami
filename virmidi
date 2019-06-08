@@ -1,0 +1,32 @@
+#
+# Enable virtual midi driver
+#
+# From:
+#
+# https://github.com/nodesign/libstk/wiki/Virtual-MIDI-programming-under-Linux,-Hello-world
+#
+# and
+#
+# http://tldp.org/HOWTO/MIDI-HOWTO-10.html
+#
+
+#
+# Make sure timidity is not currently running
+#
+sudo killall timidity
+#
+# Install ALSA virtual synth card driver
+#
+sudo modprobe snd-virmidi snd_index=3
+#
+# Install timidity as the synth server
+#
+timidity -iAD
+#
+# Wait installs
+#
+sleep 2
+#
+# Connect the driver to synth
+#
+aconnect 28:0 128:0
