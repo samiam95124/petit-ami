@@ -252,7 +252,7 @@ typedef struct {
 } pa_evtrec;
      /* menu */
 typedef struct pa_menurec* pa_menuptr;
-typedef struct pa_menurec{
+typedef struct pa_menurec {
 
         pa_menuptr next; /* next menu item in list */
         pa_menuptr branch; /* menu branch */
