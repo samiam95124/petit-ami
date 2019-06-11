@@ -80,7 +80,7 @@ GTK_LIBS=`pkg-config --cflags --libs gtk+-3.0`
 all: test event getkeys terminal scntst
 	
 test: $(BASEMOD) terminal.h test.c services.c services.h Makefile
-	$(CC) $(CFLAGS) -o test test.c $(BASEMOD) $(LIBS) -lm
+	$(CC) $(CFLAGS) -o test test.c sound.c -lasound -lm -pthread
 	
 testg: $(BASEMOD) terminal.h testg.c services.c services.h Makefile
 	$(CC) $(CFLAGS) $(BASEMOD) testg.c $(LIBS) -lm -o testg
