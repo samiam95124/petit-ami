@@ -45,7 +45,7 @@ ifeq ($(STDIO_SOURCE),stdio)
     #
     # In local link, we need to get stdio.h from local directory
     #
-    CFLAGS +=-I.
+    CFLAGS +=-Iinclude
 endif
 
 ifeq ($(LINK_TYPE),static)
@@ -67,20 +67,45 @@ endif
 #
 ifdef GRAPH
     LIBS += -L/usr/X11R6/lib -lX11 -lxcb
-    BASEMOD = graph_x.c
+    BASEMOD = linux/graph_x.c linux/sound.c
 else
-    BASEMOD = xterm.c
+    BASEMOD = linux/xterm.c linux/sound.c
 endif
 
 #
-# GTK definitions
+# Individual Petit-Ami library components
 #
-GTK_LIBS=`pkg-config --cflags --libs gtk+-3.0`
+linux/services.o: linux/services.c include/services.h
+	gcc -g3 -Iinclude -fPIC -c linux/services.c -o linux/services.o
+	
+linux/sound.o: linux/sound.c include/sound.h
+	gcc -g3 -Iinclude -fPIC -c linux/sound.c -o linux/sound.o
+	
+linux/xterm.o: linux/xterm.c include/terminal.h
+	gcc -g3 -Iinclude -fPIC -c linux/xterm.c -o linux/xterm.o
+	
+linux/graph_x.o: linux/graph_x.c include/graph.h
+	gcc -g3 -Iinclude -fPIC -c linux/graph_x.c -o linux/graph_x.o
+
+#
+# Create terminal mode and graphical mode libraries
+#
+bin/petit_ami_term.so: linux/services.o linux/sound.o linux/xterm.o
+	gcc -shared linux/services.o linux/sound.o linux/xterm.o -o bin/petit_ami_term.so
+	
+bin/petit_ami_term.a: linux/services.o linux/sound.o linux/xterm.o
+	ar rcs bin/petit_ami_term.a linux/services.o linux/sound.o linux/xterm.o
+	
+petit_ami_graph: linux/services.o linux/sound.o linux/graph_x.o
+	gcc linux/services.o linux/sound.o linux/xterm.o -o bin/petit_ami_graph.so
+	ar rcs bin/petit_ami_graph.a linux/services.o linux/sound.o linux/xterm.o
         
 all: test event getkeys terminal scntst
 	
-test: $(BASEMOD) terminal.h test.c services.c services.h Makefile
-	$(CC) $(CFLAGS) -o test test.c sound.c -lasound -lm -pthread
+#test: bin/petit_ami_term.so include/terminal.h test.c Makefile
+#	$(CC) $(CFLAGS) -Ilibc -o test libc/stdio.c test.c bin/petit_ami_term.so -lasound -lm -pthread
+test: include/terminal.h test.c Makefile
+	$(CC) $(CFLAGS) -o test test.c linux/sound.c -lasound -lm -pthread
 	
 testg: $(BASEMOD) terminal.h testg.c services.c services.h Makefile
 	$(CC) $(CFLAGS) $(BASEMOD) testg.c $(LIBS) -lm -o testg

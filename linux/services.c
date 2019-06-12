@@ -33,7 +33,7 @@
 #include <dirent.h>
 #include <limits.h>
 
-#include "services.h" /* the header for this file */
+#include <services.h> /* the header for this file */
 
 /* contains the program invocation path */
 extern char *program_invocation_name;
