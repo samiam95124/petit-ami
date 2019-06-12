@@ -111,3 +111,29 @@ and thus each program using one of the lower paradigm can be ported without
 change to a more complex model. Line oriented model programs can be ported to
 terminal model, terminal to graphical, graphical to windowing, etc.
 
+DIRECTORY STRUCTURE
+
+Some of the directories, like bin, don't exist until a make is run to create 
+them.
+
+bin			Contains executable binaries built for the current system, libraries
+            in .dll, .so or .a forms, again built for current system.
+doc			Documentation for the project.
+glibc		Contains, or may contain, glibc and patch files. The patch files are
+            part of the archive. The glibc sources are obtained off the net,
+            patches can be applied to result in a custom glibc binary for the
+            project.
+include		Header files general to the project.
+libc		A custom stdio implementation for Petit-ami, see the docs.
+linux		Linux specific sources.
+macosx		Mac OS X specific sources.
+sound_prog	Programs for sound written for Petit-ami.
+term_game	Terminal mode game programs written for Petit-ami.
+term_prog	Programs for terminal mode written for Petit-ami.
+windows		Windows specific sources.
+
+FILES IN THE ROOT DIRECTORY
+
+Makefile	The make file for all parts of the project.
+README		This file.
+TODO		The to do list for the project.
