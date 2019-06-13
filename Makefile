@@ -39,7 +39,7 @@ ifndef LINK_TYPE
 endif
 
 CC=gcc
-CFLAGS=-g3
+CFLAGS=-g3 -Wl,--rpath=bin
 
 ifeq ($(STDIO_SOURCE),stdio)
     #
@@ -103,10 +103,10 @@ petit_ami_graph: linux/services.o linux/sound.o linux/graph_x.o
 all: test event getkeys terminal scntst
 	
 test: bin/petit_ami_term.so include/terminal.h test.c Makefile
-	$(CC) $(CFLAGS) -Wl,--rpath=bin -o test bin/libc.so test.c bin/petit_ami_term.so -lasound -lm -pthread
+	$(CC) $(CFLAGS) -o test bin/libc.so test.c bin/petit_ami_term.so -lasound -lm -pthread
 	
 play: bin/petit_ami_term.so include/terminal.h sound_prog/play.c Makefile
-	$(CC) $(CFLAGS) -Wl,--rpath=bin -o play bin/libc.so sound_prog/play.c bin/petit_ami_term.so -lasound -lm -pthread
+	$(CC) $(CFLAGS) -o play bin/libc.so sound_prog/play.c bin/petit_ami_term.so -lasound -lm -pthread
 	
 testg: $(BASEMOD) terminal.h testg.c services.c services.h Makefile
 	$(CC) $(CFLAGS) $(BASEMOD) testg.c $(LIBS) -lm -o testg
