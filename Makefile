@@ -52,16 +52,6 @@ ifeq ($(LINK_TYPE),static)
     CFLAGS += -static
 endif
 
-ifeq ($(STDIO_SOURCE),glibc)
-    ifeq ($(LINK_TYPE),static)
-        LIBS = libc.a
-    else
-        LIBS = libc.so
-    endif
-else
-    LIBS = stdio.c
-endif
-
 #
 # Choose which model, console or graphics window.
 #
@@ -71,6 +61,33 @@ ifdef GRAPH
 else
     BASEMOD = linux/xterm.c linux/sound.c
 endif
+
+#
+# For modified GLIBC, we need to specify the libary first or it won't
+# link correctly.
+#
+LIBS = bin/libc.so
+
+#
+# Collected libraries
+#
+ifndef GRAPH
+    #
+    # Graphical model API
+    #
+    LIBS += bin/petit_ami_term.so
+else
+    #
+    # Terminal model API
+    #
+	LIBS += bin/petit_ami_graph.so
+endif 
+LIBS += -lasound -lm -pthread
+
+#
+# Make all executables
+#        
+all: test play scntst event getkeys getmouse term snake mine editor 
 
 #
 # Individual Petit-Ami library components
@@ -99,41 +116,40 @@ bin/petit_ami_term.a: linux/services.o linux/sound.o linux/xterm.o
 petit_ami_graph: linux/services.o linux/sound.o linux/graph_x.o
 	gcc linux/services.o linux/sound.o linux/xterm.o -o bin/petit_ami_graph.so
 	ar rcs bin/petit_ami_graph.a linux/services.o linux/sound.o linux/xterm.o
-        
-all: test event getkeys terminal scntst
-	
+
+#
+# Make individual executables
+#	
 test: bin/petit_ami_term.so include/terminal.h test.c Makefile
-	$(CC) $(CFLAGS) -o test bin/libc.so test.c bin/petit_ami_term.so -lasound -lm -pthread
+	$(CC) $(CFLAGS) test.c $(LIBS) -o test
 	
 play: bin/petit_ami_term.so include/terminal.h sound_prog/play.c Makefile
-	$(CC) $(CFLAGS) -o play bin/libc.so sound_prog/play.c bin/petit_ami_term.so -lasound -lm -pthread
+	$(CC) $(CFLAGS) sound_prog/play.c $(LIBS) -o bin/play
 	
-testg: $(BASEMOD) terminal.h testg.c services.c services.h Makefile
-	$(CC) $(CFLAGS) $(BASEMOD) testg.c $(LIBS) -lm -o testg
+scntst:  include/terminal.h tests/scntst.c include/services.h linux/services.c Makefile
+	$(CC) $(CFLAGS) tests/scntst.c $(LIBS) -o bin/scntst 
 	
-scntst: $(BASEMOD) terminal.h scntst.c services.h services.c Makefile
-	$(CC) $(CFLAGS) -o scntst xterm.c services.c scntst.c $(LIBS) -lm 
+event: include/terminal.h tests/event.c Makefile
+	$(CC) $(CFLAGS) tests/event.c $(LIBS) -o bin/event
 	
-event: $(BASEMOD) terminal.h event.c Makefile
-	$(CC) $(CFLAGS) -o event $(BASEMOD) event.c $(LIBS) -lm 
+getkeys: linux/getkeys.c Makefile
+	$(CC) $(CFLAGS) linux/getkeys.c -lm -o bin/getkeys
 	
-getkeys: getkeys.c Makefile
-	$(CC) $(CFLAGS) -o getkeys getkeys.c -lm 
+getmouse: linux/getmouse.c Makefile
+	$(CC) $(CFLAGS) linux/getmouse.c -lm -o bin/getmouse
 	
-getmouse: getmouse.c Makefile
-	$(CC) $(CFLAGS) -o getmouse getmouse.c -lm 
+term: include/terminal.h tests/term.c Makefile
+	$(CC) $(CFLAGS) tests/term.c $(LIBS) -o bin/term
 	
-term: $(BASEMOD) terminal.h term.c Makefile
-	$(CC) $(CFLAGS) $(BASEMOD) term.c $(LIBS) -lm -o term
+snake: term_game/snake.c include/terminal.h Makefile
+	$(CC) $(CFLAGS) term_game/snake.c $(LIBS) -o bin/snake
 	
-snake: term_game/snake.c $(BASEMOD) terminal.h Makefile
-	$(CC) $(CFLAGS) -o term_game/snake $(BASEMOD) term_game/snake.c $(LIBS) -lm
+mine: term_game/mine.c include/terminal.h Makefile
+	$(CC) $(CFLAGS) term_game/mine.c $(LIBS) -o bin/mine
 	
-mine: term_game/mine.c $(BASEMOD) terminal.h Makefile
-	$(CC) $(CFLAGS) -o term_game/mine $(BASEMOD) term_game/mine.c $(LIBS) -lm
-	
-editor: term_prog/editor.c $(BASEMOD) terminal.h Makefile
-	$(CC) $(CFLAGS) -o term_prog/editor $(BASEMOD) term_prog/editor.c $(LIBS) -lm
+editor: term_prog/editor.c include/terminal.h Makefile
+	$(CC) $(CFLAGS) term_prog/editor.c $(LIBS) -o bin/editor
 	
 clean:
-	rm -f test scmtst event getkeys getmouse term term_game/snake term_game/mine term_prog/editor test1
+	rm -f test bin/scntst bin/event bin/getkeys bin/getmouse bin/term bin/snake
+	rm -f bin/mine bin/editor

@@ -28,7 +28,7 @@
 #include <limits.h>
 #include <stdlib.h>
 
-#include "../terminal.h"
+#include <terminal.h>
 
 #define MAXLIN 250 /* maximum entered line, must be greater than maxx */
 #define MAXFIL 40  /* maximum length of filename */
