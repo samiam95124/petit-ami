@@ -102,10 +102,11 @@ petit_ami_graph: linux/services.o linux/sound.o linux/graph_x.o
         
 all: test event getkeys terminal scntst
 	
-#test: bin/petit_ami_term.so include/terminal.h test.c Makefile
-#	$(CC) $(CFLAGS) -Ilibc -o test libc/stdio.c test.c bin/petit_ami_term.so -lasound -lm -pthread
-test: include/terminal.h test.c Makefile
-	$(CC) $(CFLAGS) -o test test.c linux/sound.c -lasound -lm -pthread
+test: bin/petit_ami_term.so include/terminal.h test.c Makefile
+	$(CC) $(CFLAGS) -Wl,--rpath=bin -o test bin/libc.so test.c bin/petit_ami_term.so -lasound -lm -pthread
+	
+play: bin/petit_ami_term.so include/terminal.h sound_prog/play.c Makefile
+	$(CC) $(CFLAGS) -Wl,--rpath=bin -o play bin/libc.so sound_prog/play.c bin/petit_ami_term.so -lasound -lm -pthread
 	
 testg: $(BASEMOD) terminal.h testg.c services.c services.h Makefile
 	$(CC) $(CFLAGS) $(BASEMOD) testg.c $(LIBS) -lm -o testg
