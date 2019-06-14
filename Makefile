@@ -20,8 +20,8 @@ ifndef STDIO_SOURCE
         #
         # glibc assumes that this is a patched glibc with override calls.
         #
-        #STDIO_SOURCE=glibc
-        STDIO_SOURCE=stdio
+        STDIO_SOURCE=glibc
+        #STDIO_SOURCE=stdio
     endif
 endif
 
@@ -39,13 +39,13 @@ ifndef LINK_TYPE
 endif
 
 CC=gcc
-CFLAGS=-g3 -Wl,--rpath=bin
+CFLAGS=-g3 -Wl,--rpath=bin -Iinclude
 
 ifeq ($(STDIO_SOURCE),stdio)
     #
     # In local link, we need to get stdio.h from local directory
     #
-    CFLAGS +=-Iinclude
+    CFLAGS +=-Ilibc
 endif
 
 ifeq ($(LINK_TYPE),static)
@@ -53,34 +53,36 @@ ifeq ($(LINK_TYPE),static)
 endif
 
 #
-# Choose which model, console or graphics window.
-#
-ifdef GRAPH
-    LIBS += -L/usr/X11R6/lib -lX11 -lxcb
-    BASEMOD = linux/graph_x.c linux/sound.c
-else
-    BASEMOD = linux/xterm.c linux/sound.c
-endif
-
-#
 # For modified GLIBC, we need to specify the libary first or it won't
 # link correctly.
 #
-LIBS = bin/libc.so.6
+ifeq ($(LINK_TYPE),static)
+    LIBS = bin/libc.a
+else
+	LIBS = bin/libc.so.6
+endif
 
 #
 # Collected libraries
 #
 ifndef GRAPH
     #
-    # Graphical model API
-    #
-    LIBS += bin/petit_ami_term.so
-else
-    #
     # Terminal model API
     #
-	LIBS += bin/petit_ami_graph.so
+    ifeq ($(LINK_TYPE),static)
+        LIBS += bin/petit_ami_term.a
+    else
+    	LIBS += bin/petit_ami_term.so
+    endif
+else
+    #
+    # Graphical model API
+    #
+    ifeq ($(LINK_TYPE),static)
+	    LIBS += bin/petit_ami_graph.a
+	else
+	    LIBS += bin/petit_ami_graph.so
+	endif
 endif 
 LIBS += -lasound -lm -pthread
 
@@ -113,8 +115,10 @@ bin/petit_ami_term.so: linux/services.o linux/sound.o linux/xterm.o
 bin/petit_ami_term.a: linux/services.o linux/sound.o linux/xterm.o
 	ar rcs bin/petit_ami_term.a linux/services.o linux/sound.o linux/xterm.o
 	
-petit_ami_graph: linux/services.o linux/sound.o linux/graph_x.o
+petit_ami_graph.so: linux/services.o linux/sound.o linux/graph_x.o
 	gcc linux/services.o linux/sound.o linux/xterm.o -o bin/petit_ami_graph.so
+	
+petit_ami_graph.a: linux/services.o linux/sound.o linux/graph_x.o
 	ar rcs bin/petit_ami_graph.a linux/services.o linux/sound.o linux/xterm.o
 
 #

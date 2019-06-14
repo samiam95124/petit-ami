@@ -18,8 +18,8 @@ https://www.qbasic.net/en/reference/qb11/Statement/PLAY-006.htm
 #include <stdlib.h>
 #include <ctype.h>
 
-#include "terminal.h" /* terminal level API */
-#include "sound.h"    /* sound API */
+#include <terminal.h> /* terminal level API */
+#include <sound.h>    /* sound API */
 
 #define SECOND 10000
 
