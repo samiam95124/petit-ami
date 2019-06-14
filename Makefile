@@ -66,7 +66,7 @@ endif
 # For modified GLIBC, we need to specify the libary first or it won't
 # link correctly.
 #
-LIBS = bin/libc.so
+LIBS = bin/libc.so.6
 
 #
 # Collected libraries
