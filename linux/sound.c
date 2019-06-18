@@ -1814,7 +1814,7 @@ Closes a wave output device by number. This is presently a no-op for linux.
 
 *******************************************************************************/
 
-void closewaveout(int p)
+void pa_closewaveout(int p)
 
 {
 
@@ -1828,12 +1828,12 @@ Plays the given ALSA sound file given the filename.
 
 *******************************************************************************/
 
-static void alsaplaywave(string fn)
+void alsaplaywave(string fn)
 
 {
 
     unsigned int pcm, tmp;
-    int rate, channels;
+    unsigned int rate, channels;
     snd_pcm_t *pcm_handle;
     snd_pcm_hw_params_t *params;
     snd_pcm_uframes_t frames;
@@ -1842,6 +1842,9 @@ static void alsaplaywave(string fn)
     int r;
     boolean end;
     FILE* fh;
+
+    channels = 2;
+    rate = 10000;
 
     /* open input .wav file */
     fh = fopen(fn, "r");

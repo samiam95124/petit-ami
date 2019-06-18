@@ -72,7 +72,7 @@ ifndef GRAPH
     ifeq ($(LINK_TYPE),static)
         LIBS += bin/petit_ami_term.a
     else
-    	LIBS += bin/petit_ami_term.so
+    	LIBS += linux/sound.o bin/petit_ami_term.so
     endif
 else
     #
@@ -109,8 +109,14 @@ linux/graph_x.o: linux/graph_x.c include/graph.h
 #
 # Create terminal mode and graphical mode libraries
 #
+
+#
+# Note that sound lib cannot be put into an .so, there is a bug in ALSA.
+# Thus we leave it as a .o file.
+#
 bin/petit_ami_term.so: linux/services.o linux/sound.o linux/xterm.o
-	gcc -shared linux/services.o linux/sound.o linux/xterm.o -o bin/petit_ami_term.so
+#	gcc -shared linux/services.o linux/sound.o linux/xterm.o -o bin/petit_ami_term.so
+	gcc -shared linux/services.o linux/xterm.o -o bin/petit_ami_term.so
 	
 bin/petit_ami_term.a: linux/services.o linux/sound.o linux/xterm.o
 	ar rcs bin/petit_ami_term.a linux/services.o linux/sound.o linux/xterm.o
