@@ -98,7 +98,7 @@ linux/services.o: linux/services.c include/services.h
 	gcc -g3 -Iinclude -fPIC -c linux/services.c -o linux/services.o
 	
 linux/sound.o: linux/sound.c include/sound.h
-	gcc -g3 -Iinclude -fPIC -c linux/sound.c -o linux/sound.o
+	gcc -g3 -Iinclude -fPIC -c linux/sound.c -lasound -lm -pthread -o linux/sound.o
 	
 linux/xterm.o: linux/xterm.c include/terminal.h
 	gcc -g3 -Iinclude -fPIC -c linux/xterm.c -o linux/xterm.o
@@ -115,7 +115,6 @@ linux/graph_x.o: linux/graph_x.c include/graph.h
 # Thus we leave it as a .o file.
 #
 bin/petit_ami_term.so: linux/services.o linux/sound.o linux/xterm.o
-#	gcc -shared linux/services.o linux/sound.o linux/xterm.o -o bin/petit_ami_term.so
 	gcc -shared linux/services.o linux/xterm.o -o bin/petit_ami_term.so
 	
 bin/petit_ami_term.a: linux/services.o linux/sound.o linux/xterm.o
@@ -163,3 +162,5 @@ editor: term_prog/editor.c include/terminal.h Makefile
 clean:
 	rm -f test bin/scntst bin/event bin/getkeys bin/getmouse bin/term bin/snake
 	rm -f bin/mine bin/editor
+	rm -f linux/*.o
+
