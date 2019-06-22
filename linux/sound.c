@@ -35,6 +35,7 @@
 #define MAXWAVT 100 /* maximum number of wave tracks that can be stored */
 
 #define WAVBUF (16*1024) /* size of output wave buffer */
+#define MAXFIL 200 /* maximum size of wave table filename */
 
 /* midi status messages, high nybble */
 
@@ -219,6 +220,8 @@ static fd_set ifdseta; /* active sets */
 static fd_set ifdsets; /* signaled set */
 static int ifdmax;
 
+/* Wave track storage. Note this needs locking */
+static pthread_mutex_t wavlck; /* sequencer task lock */
 static string wavfil[MAXWAVT]; /* storage for wave track files */
 
 /*******************************************************************************
@@ -1902,8 +1905,20 @@ static void* alsaplaywave(void* data)
     byte*             buffp;
     /* recover wave track id from parameter */
     int               w = (long) data;
+    char              fn[MAXFIL];
 
-    fh = open(wavfil[w], O_RDONLY);
+    /* Have to be very careful about wavetable access, we won't call external
+       routines with the lock on. We are read access, the writer is the
+       delwave() routine. We have to get the filename while locked, copy it
+       out of the table to fixed string (can't call malloc), then check we
+       actually got it outside the lock */
+    pthread_mutex_lock(&wavlck); /* take wave table lock */
+    fn[0] = 0; /* terminate wave table entry */
+    if (wavfil[w]) strncpy(fn, wavfil[w], MAXFIL);
+    pthread_mutex_unlock(&seqlock); /* release lock */
+    if (!fn[0]) return (NULL); /* entry is empty, abort */
+
+    fh = open(fn, O_RDONLY);
     if (fh < 0) error("Cannot open input .wav file");
 
     /* Read in IFF File header */
@@ -1984,6 +1999,8 @@ static void* alsaplaywave(void* data)
 
     snd_pcm_close(pdh); /* close playback device */
     close(fh); /* close input file */
+
+    return (NULL);
 
 }
 
@@ -2155,6 +2172,9 @@ static void pa_init_sound()
 
     /* start sequencer thread */
     pthread_create(&sequencer_thread_id, NULL, sequencer_thread, NULL);
+
+    /* initialize other locks */
+    pthread_mutex_init(&wavlck, NULL); /* init sequencer lock */
 
 }
 
