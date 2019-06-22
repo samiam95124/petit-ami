@@ -1880,7 +1880,7 @@ appear after the initial chunk, and we don't accept further format changes.
 
 *******************************************************************************/
 
-void alsaplaywave(int w)
+static void* alsaplaywave(void* data)
 
 {
 
@@ -1900,6 +1900,8 @@ void alsaplaywave(int w)
     byte              buff[WAVBUF]; /* buffer for frames */
     int               i;
     byte*             buffp;
+    /* recover wave track id from parameter */
+    int               w = (long) data;
 
     fh = open(wavfil[w], O_RDONLY);
     if (fh < 0) error("Cannot open input .wav file");
@@ -1987,6 +1989,27 @@ void alsaplaywave(int w)
 
 /*******************************************************************************
 
+Play ALSA sound file kickoff routine
+
+Plays an ALSA .wav file. This is the kickoff routine. We play .wav files on a
+thread, and this routine spawns a thread to accomplish that. The thread is
+"set and forget", in that it self terminates when the play routine terminates.
+
+*******************************************************************************/
+
+void alsaplaywave_kickoff(int w)
+
+{
+
+    pthread_t tid; /* thread id (unused) */
+    long lw = w; /* adjust word size */
+
+    pthread_create(&tid, NULL, alsaplaywave, (void*)lw);
+
+}
+
+/*******************************************************************************
+
 Load waveform file
 
 Loads a waveform file to a logical cache, from 1 to N. These are loaded up into
@@ -2055,7 +2078,7 @@ void pa_playwave(int p, int t, int w)
     if (!wavfil[w]) error("No wave file loaded for logical wave number");
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
-    if (t == 0 || (t <= elap && seqrun)) alsaplaywave(w);
+    if (t == 0 || (t <= elap && seqrun)) alsaplaywave_kickoff(w);
     else { /* sequence */
 
         /* check sequencer running */
