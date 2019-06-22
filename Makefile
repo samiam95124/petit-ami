@@ -163,4 +163,5 @@ clean:
 	rm -f test bin/scntst bin/event bin/getkeys bin/getmouse bin/term bin/snake
 	rm -f bin/mine bin/editor
 	rm -f linux/*.o
-
+	rm -f bin/petit_ami_term.a
+	rm -f bin/petit_ami_term.so

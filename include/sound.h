@@ -340,7 +340,9 @@ void pa_playsynth(int p, int t, string sf);
 int pa_waveout(void);
 void pa_openwaveout(int p);
 void pa_closewaveout(int p);
-void pa_playwave(int p, int t, string sf);
+void pa_loadwave(int w, string fn);
+void pa_playwave(int p, int t, int w);
+void pa_delwave(int w);
 void pa_volwave(int p, int t, int v);
 
 #endif /* __SOUND_H__ */

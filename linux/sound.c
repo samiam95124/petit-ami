@@ -19,21 +19,22 @@
 * 2. The validation of parameters happens both at entry time and at sequence   *
 * time, need not happen on both.                                               *
 *                                                                              *
-* 3. The model for running MIDI and waveform files might have problems. Its    *
-* supposed to be an accurate event, but its going to have file lookup time     *
-* built into it, which could affect start time. A logical preload/cache        *
-* model would give this package the ability to do something about that.        *
-*                                                                              *
 *******************************************************************************/
 
 #include <pthread.h>
 #include <alsa/asoundlib.h>
 #include <sys/time.h>
 #include <sys/timerfd.h>
+#include <stdlib.h>
 
 #include "sound.h"
 
-#define MAXMID 10 /* maximum midi input/output devices */
+#define MAXMIDP 10 /* maximum midi input/output devices */
+#define MAXWAVP 10 /* maximum wave input/output devices */
+#define MAXMIDT 100 /* maximum number of midi tracks that can be stored */
+#define MAXWAVT 100 /* maximum number of wave tracks that can be stored */
+
+#define WAVBUF (16*1024) /* size of output wave buffer */
 
 /* midi status messages, high nybble */
 
@@ -137,32 +138,79 @@ typedef struct seqmsg {
     seqtyp st; /* type of message */
     union {
 
-        channel ntc; note ntn; int ntv;
-        channel icc; instrument ici;
-        channel vsc; int vsv;
-        channel pc;
-        channel bsc; boolean bsb;
-        string ps;
-        int wv;
+        /* st_noteon st_noteoff st_aftertouch st_pressure */
+        struct { channel ntc; note ntn; int ntv; };
+        /* st_instchange */ struct { channel icc; instrument ici; };
+        /* st_attack, st_release, st_vibrato, st_volsynthchan, st_porttime,
+           st_balance, st_pan, st_timbre, st_brightness, st_reverb, st_tremulo,
+           st_chorus, st_celeste, st_phaser, st_pitch, st_pitchrange,
+           st_mono */ struct { channel vsc; int vsv; };
+        /* st_poly */ channel pc;
+        /* st_legato, st_portamento */ struct { channel bsc; boolean bsb; };
+        /* st_playsynth */ string ps;
+        /* st_playwave */ int wt;
+        /* st_volwave */ int wv;
 
     };
 
 } seqmsg;
 
+/*
+ * .wav file format elements
+ */
+
+/* turn on critical packing. This allows format headers to be read intact
+   from the file */
+#pragma pack(1)
+
+/* wave header */
+typedef struct wavhdr {
+
+    unsigned char id[4];   /* type of header */
+    unsigned int  len;     /* length */
+    unsigned char type[4]; /* type of file */
+
+} wavhdr;
+
+/* chunk header */
+typedef struct cnkhdr {
+
+    unsigned char id[4]; /* type of chunk */
+    unsigned int  len;   /* length of chunk */
+
+} cnkhdr;
+
+/* wave fmt chunk */
+typedef struct fmthdr {
+
+    unsigned char   id[4];         /* type of chunk */
+    unsigned int    len;           /* size of chunk */
+    short           tag;           /* type (1=PCM) */
+    unsigned short  channels;      /* number of channels */
+    unsigned int    samplerate;    /* sample rate per second */
+    unsigned int    byterate;      /* byte rate per second */
+    unsigned short  blockalign;    /* number of bytes in a sample */
+    unsigned short  bitspersample; /* number of bits in a sample */
+
+} fmthdr;
+
+/* turn off critical packing */
+#pragma pack()
+
 /* pointer to message */
 
 typedef seqmsg* seqptr;
 
-static snd_rawmidi_t* midtab[MAXMID]; /* midi output device table */
-static seqptr seqlst;                 /* active sequencer entries */
-static seqptr seqfre;                 /* free sequencer entries */
-static boolean seqrun;                /* sequencer running */
-static struct timeval strtim;         /* start time for sequencer, in raw linux
-                                         time */
-static boolean seqtimact;             /* sequencer timer active */
-static int seqhan;                    /* handle for sequencer timer */
-static pthread_mutex_t seqlock;       /* sequencer task lock */
-static pthread_t sequencer_thread_id; /* sequencer thread id */
+static snd_rawmidi_t* midtab[MAXMIDP]; /* midi output device table */
+static seqptr seqlst;                  /* active sequencer entries */
+static seqptr seqfre;                  /* free sequencer entries */
+static boolean seqrun;                 /* sequencer running */
+static struct timeval strtim;          /* start time for sequencer, in raw linux
+                                          time */
+static boolean seqtimact;              /* sequencer timer active */
+static int seqhan;                     /* handle for sequencer timer */
+static pthread_mutex_t seqlock;        /* sequencer task lock */
+static pthread_t sequencer_thread_id;  /* sequencer thread id */
 
 /*
  * Set of input file ids for select
@@ -170,6 +218,8 @@ static pthread_t sequencer_thread_id; /* sequencer thread id */
 static fd_set ifdseta; /* active sets */
 static fd_set ifdsets; /* signaled set */
 static int ifdmax;
+
+static string wavfil[MAXWAVT]; /* storage for wave track files */
 
 /*******************************************************************************
 
@@ -435,7 +485,7 @@ static void excseq(seqptr p)
         case st_mono:         pa_mono(p->port, 0, p->vsc, p->vsv); break;
         case st_poly:         pa_poly(p->port, 0, p->pc); break;
         case st_playsynth:    pa_playsynth(p->port, 0, p->ps); break;
-        case st_playwave:     pa_playwave(p->port, 0, p->ps); break;
+        case st_playwave:     pa_playwave(p->port, 0, p->wt); break;
         case st_volwave:      pa_volwave(p->port, 0, p->wv); break;
 
     }
@@ -694,7 +744,7 @@ void pa_noteon(int p, int t, channel c, note n, int v)
     int     elap; /* current elapsed time */
     seqptr  sp;   /* message pointer */
 
-    if (p < 1 || p > MAXMID) error("Bad port number");
+    if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
     if (n < 1 || n > 128) error("Bad note number");
     elap = timediff(&strtim); /* find elapsed time */
@@ -740,7 +790,7 @@ void pa_noteoff(int p, int t, channel c, note n, int v)
     int elap;  /* current elapsed time */
     seqptr sp; /* message pointer */
 
-    if (p < 1 || p > MAXMID) error("Bad port number");
+    if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
     if (n < 1 || n > 128) error("Bad note number");
     elap = timediff(&strtim); /* find elapsed time */
@@ -783,7 +833,7 @@ void pa_instchange(int p, int t, channel c, instrument i)
     int elap;  /* current elapsed time */
     seqptr sp; /* message pointer */
 
-    if (p < 1 || p > MAXMID) error("Bad port number");
+    if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
     if (i < 1 || i > 128) error("Bad instrument number");
     elap = timediff(&strtim); /* find elapsed time */
@@ -841,7 +891,7 @@ void pa_attack(int p, int t, channel c, int at)
     seqptr sp;   /* message pointer */
     int    elap; /* current elapsed time */
 
-    if (p < 1 || p > MAXMID) error("Bad port number");
+    if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
@@ -880,7 +930,7 @@ void pa_release(int p, int t, channel c, int rt)
     seqptr sp; /* message pointer */
     int elap;  /* current elapsed time */
 
-    if (p < 1 || p > MAXMID) error("Bad port number");
+    if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
@@ -918,7 +968,7 @@ void pa_legato(int p, int t, channel c, boolean b)
     int elap;  /* current elapsed time */
     seqptr sp; /* message pointer */
 
-    if (p < 1 || p > MAXMID) error("Bad port number");
+    if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
@@ -956,7 +1006,7 @@ void pa_portamento(int p, int t, channel c, boolean b)
     int elap;  /* current elapsed time */
     seqptr sp; /* message pointer */
 
-    if (p < 1 || p > MAXMID) error("Bad port number");
+    if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
@@ -994,7 +1044,7 @@ void pa_volsynthchan(int p, int t, channel c, int v)
     seqptr sp; /* message pointer */
     int elap;  /* current elapsed time */
 
-    if (p < 1 || p > MAXMID) error("Bad port number");
+    if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
@@ -1036,7 +1086,7 @@ void pa_balance(int p, int t, channel c, int b)
     seqptr sp; /* message pointer */
     int elap;  /* current elapsed time */
 
-    if (p < 1 || p > MAXMID) error("Bad port number");
+    if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
@@ -1078,7 +1128,7 @@ void pa_porttime(int p, int t, channel c, int v)
     seqptr sp;   /* message pointer */
     int    elap; /* current elapsed time */
 
-    if (p < 1 || p > MAXMID) error("Bad port number");
+    if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
@@ -1121,7 +1171,7 @@ void pa_vibrato(int p, int t, channel c, int v)
     seqptr sp; /* message pointer */
     int elap;  /* current elapsed time */
 
-    if (p < 1 || p > MAXMID) error("Bad port number");
+    if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
@@ -1165,7 +1215,7 @@ void pa_pan(int p, int t, channel c, int b)
     seqptr sp; /* message pointer */
     int elap;  /* current elapsed time */
 
-    if (p < 1 || p > MAXMID) error("Bad port number");
+    if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
@@ -1207,7 +1257,7 @@ void pa_timbre(int p, int t, channel c, int tb)
     seqptr sp; /* message pointer */
     int elap;  /* current elapsed time */
 
-    if (p < 1 || p > MAXMID) error("Bad port number");
+    if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
@@ -1245,7 +1295,7 @@ void pa_brightness(int p, int t, channel c, int b)
     seqptr sp;   /* message pointer */
     int    elap; /* current elapsed time */
 
-    if (p < 1 || p > MAXMID) error("Bad port number");
+    if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
@@ -1283,7 +1333,7 @@ void pa_reverb(int p, int t, channel c, int r)
     seqptr sp;   /* message pointer */
     int    elap; /* current elapsed time */
 
-    if (p < 1 || p > MAXMID) error("Bad port number");
+    if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
@@ -1321,7 +1371,7 @@ void pa_tremulo(int p, int t, channel c, int tr)
     seqptr sp;   /* message pointer */
     int    elap; /* current elapsed time */
 
-    if (p < 1 || p > MAXMID) error("Bad port number");
+    if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
@@ -1359,7 +1409,7 @@ void pa_chorus(int p, int t, channel c, int cr)
     seqptr sp;  /* message pointer */
     int elap; /* current elapsed time */
 
-    if (p < 1 || p > MAXMID) error("Bad port number");
+    if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
@@ -1397,7 +1447,7 @@ void pa_celeste(int p, int t, channel c, int ce)
     seqptr sp;   /* message pointer */
     int    elap; /* current elapsed time */
 
-    if (p < 1 || p > MAXMID) error("Bad port number");
+    if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
@@ -1435,7 +1485,7 @@ void pa_phaser(int p, int t, channel c, int ph)
     seqptr sp;   /* message pointer */
     int    elap; /* current elapsed time */
 
-    if (p < 1 || p > MAXMID) error("Bad port number");
+    if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
@@ -1477,7 +1527,7 @@ void pa_pitchrange(int p, int t, channel c, int v)
     seqptr sp;   /* message pointer */
     int    elap; /* current elapsed time */
 
-    if (p < 1 || p > MAXMID) error("Bad port number");
+    if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
@@ -1523,7 +1573,7 @@ void pa_mono(int p, int t, channel c, int ch)
     seqptr sp;   /* message pointer */
     int    elap; /* current elapsed time */
 
-    if (p < 1 || p > MAXMID) error("Bad port number");
+    if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
     if (ch < 0 || c > 16) error("Bad mono mode number");
     elap = timediff(&strtim); /* find elapsed time */
@@ -1562,7 +1612,7 @@ void pa_poly(int p, int t, channel c)
     seqptr sp;   /* message pointer */
     int    elap; /* current elapsed time */
 
-    if (p < 1 || p > MAXMID) error("Bad port number");
+    if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
@@ -1599,7 +1649,7 @@ void pa_aftertouch(int p, int t, channel c, note n, int at)
     seqptr sp;   /* message pointer */
     int    elap; /* current elapsed time */
 
-    if (p < 1 || p > MAXMID) error("Bad port number");
+    if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
     if (n < 1 || n > 128) error("Bad note number");
     elap = timediff(&strtim); /* find elapsed time */
@@ -1640,7 +1690,7 @@ void pa_pressure(int p, int t, channel c, note n, int pr)
     seqptr sp;   /* message pointer */
     int    elap; /* current elapsed time */
 
-    if (p < 1 || p > MAXMID) error("Bad port number");
+    if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
     if (n < 1 || n > 128) error("Bad note number");
     elap = timediff(&strtim); /* find elapsed time */
@@ -1683,7 +1733,7 @@ void pa_pitch(int p, int t, channel c, int pt)
     seqptr sp;  /* message pointer */
     int elap; /* current elapsed time */
 
-    if (p < 1 || p > MAXMID) error("Bad port number");
+    if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
@@ -1824,92 +1874,162 @@ void pa_closewaveout(int p)
 
 Play ALSA sound file
 
-Plays the given ALSA sound file given the filename.
+Plays the given ALSA sound file given the logical wave track file number.
+Accepts a limited number of formats for the .wav file. A format header must
+appear after the initial chunk, and we don't accept further format changes.
 
 *******************************************************************************/
 
-void alsaplaywave(string fn)
+void alsaplaywave(int w)
 
 {
 
-    unsigned int pcm, tmp;
-    unsigned int rate, channels;
-    snd_pcm_t *pcm_handle;
-    snd_pcm_hw_params_t *params;
-    snd_pcm_uframes_t frames;
-    char *buff;
-    int buff_size;
-    int r;
-    boolean end;
-    FILE* fh;
+    wavhdr            whd;    /* .wav file header */
+    fmthdr            fhd;    /* fmt chunk header */
+    cnkhdr            chd;    /* data chunk header */
+    snd_pcm_t*        pdh;    /* playback device handle */
+    snd_pcm_format_t  fmt;    /* PCM format */
+    snd_pcm_uframes_t frmsiz; /* frame size, sample bits*channels */
+    unsigned int      remsiz; /* remaining transfer bytes */
+    snd_pcm_uframes_t remfrm; /* remaining frames to transfer */
+    unsigned int      xfrsiz; /* partial transfer size */
+    snd_pcm_uframes_t frmbuf; /* frames in buffer */
+    int               fh;
+    int               r;
+    int               len;
+    byte              buff[WAVBUF]; /* buffer for frames */
+    int               i;
+    byte*             buffp;
 
-    channels = 2;
-    rate = 10000;
+    fh = open(wavfil[w], O_RDONLY);
+    if (fh < 0) error("Cannot open input .wav file");
 
-    /* open input .wav file */
-    fh = fopen(fn, "r");
-    if (!fh) error("Cannot open input .wav file");
+    /* Read in IFF File header */
+    len = read(fh, &whd, sizeof(wavhdr));
+    if (len != sizeof(wavhdr)) error(".wav file format");
 
-    /* open pcm device */
-    r = snd_pcm_open(&pcm_handle, "default", SND_PCM_STREAM_PLAYBACK, 0);
-    if (r < 0) error("Cannot open PCM output device");
+    /* check a RIFF header with WAVE type */
+    if (strncmp("RIFF", whd.id, 4) || strncmp("WAVE", whd.type, 4))
+       error("Not a valid .wav file");
 
-    snd_pcm_hw_params_alloca(&params); /* get hw parameter block */
-    snd_pcm_hw_params_any(pcm_handle, params);
+    /* read in fmt header. Note we expect that at the top of the file, and that
+       there is only one such header. */
+    len = read(fh, &fhd, sizeof(fmthdr));
+    if (len != sizeof(fmthdr)) error(".wav file format");
 
-    /* Set parameters */
-    r = snd_pcm_hw_params_set_access(pcm_handle, params,
-                                       SND_PCM_ACCESS_RW_INTERLEAVED);
-    if (r < 0) error("Cannot set interleaved mode");
+    /* check a format header */
+    if (strncmp("fmt ", fhd.id, 4)) error("Not a valid .wav file");
 
-    r = snd_pcm_hw_params_set_format(pcm_handle, params, SND_PCM_FORMAT_S16_LE);
-    if (r < 0) error("Cannot set format");
+    r = snd_pcm_open(&pdh, "default", SND_PCM_STREAM_PLAYBACK, 0);
+    if (r < 0) error("Cannot open audio output device");
 
-    r = snd_pcm_hw_params_set_channels(pcm_handle, params, channels);
-    if (r < 0) error("Cannot set channels number");
+    /* set PCM format */
+    switch (fhd.bitspersample) {
 
-    r = snd_pcm_hw_params_set_rate_near(pcm_handle, params, &rate, 0);
-    if (r < 0) error("Cannot set rate");
+        case 8:  fmt = SND_PCM_FORMAT_U8;  break;
+        case 16: fmt = SND_PCM_FORMAT_S16; break;
+        case 24: fmt = SND_PCM_FORMAT_S24; break;
+        case 32: fmt = SND_PCM_FORMAT_S32; break;
+        default: error("Cannot play this PCM format");
 
-    /* Write parameters */
-    r = snd_pcm_hw_params(pcm_handle, params);
-    if (r < 0) error("cannot set hardware parameters");
+    }
+    r = snd_pcm_set_params(pdh, fmt, SND_PCM_ACCESS_RW_INTERLEAVED,
+                           fhd.channels, fhd.samplerate, 1, 500000);
+    if (r < 0) error("Cannot set sound parameters");
 
-    /* get number of channels */
-    snd_pcm_hw_params_get_channels(params, &channels);
+    /* calculate frame size, or minimum transfer length in bytes */
+    frmsiz = fhd.blockalign*fhd.channels;
+    frmbuf = WAVBUF/frmsiz; /* find number of frames in a buffer */
 
-    /* get sample rate */
-    snd_pcm_hw_params_get_rate(params, &rate, 0);
+    /* read data chunks */
+    do {
 
-    /* Allocate buffer to hold single period */
-    snd_pcm_hw_params_get_period_size(params, &frames, 0);
+        len = read(fh, &chd, sizeof(cnkhdr));
+        if (len && len != sizeof(cnkhdr)) error(".wav file format");
+        if (len) { /* not EOF */
 
-    buff_size = frames * channels * 2 /* 2 -> sample size */;
-    buff = (char *) malloc(buff_size);
+            if (!strncmp("data", chd.id, 4)) {
 
-    snd_pcm_hw_params_get_period_time(params, &tmp, NULL);
+                /* is a "data" chunk, play */
+                remsiz = chd.len; /* set remaining transfer length */
+                while (remsiz) {
 
-    end = false;
-    while (!end) {
+                    /* find number of frames remaining */
+                    remfrm = remsiz/frmsiz;
+                    if (remfrm > frmbuf) remfrm = frmbuf;
+                    xfrsiz = remfrm*frmsiz; /* find bytes to transfer */
+                    len = read(fh, buff, xfrsiz);
+                    if (len != xfrsiz) error(".wav file format");
+                    r = snd_pcm_writei(pdh, &buff, remfrm);
+                    // If an error, try to recover from it
+                    if (r < 0) r = snd_pcm_recover(pdh, r, 0);
+                    if (r < 0) error("Cannot play .wav file");
+                    remsiz -= xfrsiz; /* find remaining total size */
 
-        /* read input .wav file */
-        r = fread(buff, buff_size, 1, fh);
-        end = r == 0;
-        if (!end) {
+                }
 
-            /* write samples to PCM device */
-            r = snd_pcm_writei(pcm_handle, buff, frames);
-            if (r == -EPIPE) snd_pcm_prepare(pcm_handle);
-            else if (r < 0) error("Cannot write to PCM device");
+            } else {
+
+                /* skip unrecognized chunk */
+                if (chd.len & 1) lseek(fh, chd.len+1, SEEK_CUR);
+                else lseek(fh, chd.len, SEEK_CUR);
+
+            }
 
         }
 
-    }
+    } while (len); /* not EOF */
 
-    snd_pcm_drain(pcm_handle);
-    snd_pcm_close(pcm_handle);
-    free(buff);
-    fclose(fh);
+    snd_pcm_close(pdh); /* close playback device */
+    close(fh); /* close input file */
+
+}
+
+/*******************************************************************************
+
+Load waveform file
+
+Loads a waveform file to a logical cache, from 1 to N. These are loaded up into
+memory for minimum latency. The file is specified by file name, and the file
+type is system dependent.
+
+Note that we support 100 wave files loaded, but the Petit-ami "rule of thumb"
+is no more than 10 wave files at a time.
+
+Note that at present, we don't implement wave caching. This is mainly because on
+the test system, the latency to play is acceptable.
+
+*******************************************************************************/
+
+void pa_loadwave(int w, string fn)
+
+{
+
+    if (w < 1 || w > MAXWAVT) error("Invalid logical wave number");
+    if (wavfil[w]) error("Wave file already defined for logical wave number");
+    wavfil[w] = malloc(strlen(fn)+1); /* allocate filename for slot */
+    if (!wavfil[w]) error("Could not alocate wave file");
+    strcpy(wavfil[w], fn); /* place filename */
+
+}
+
+/*******************************************************************************
+
+Delete waveform file
+
+Removes a waveform file from the caching table. This frees up the entry to be
+redefined.
+
+*******************************************************************************/
+
+void pa_delwave(int w)
+
+{
+
+    if (w < 1 || w > MAXWAVT) error("Invalid logical wave number");
+    if (!wavfil[w]) error("No wave file loaded for logical wave number");
+    free(wavfil[w]); /* free the entry */
+    wavfil[w] = NULL; /* set free */
 
 }
 
@@ -1924,16 +2044,18 @@ The file is specified by file name, and the file type is system dependent.
 
 *******************************************************************************/
 
-void pa_playwave(int p, int t, string sf)
+void pa_playwave(int p, int t, int w)
 
 {
 
     seqptr sp;   /* message pointer */
     int    elap; /* current elapsed time */
 
+    if (w < 1 || w > MAXWAVT) error("Invalid logical wave number");
+    if (!wavfil[w]) error("No wave file loaded for logical wave number");
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
-    if (t == 0 || (t <= elap && seqrun)) alsaplaywave(sf);
+    if (t == 0 || (t <= elap && seqrun)) alsaplaywave(w);
     else { /* sequence */
 
         /* check sequencer running */
@@ -1942,7 +2064,7 @@ void pa_playwave(int p, int t, string sf)
         sp->port = p; /* set port */
         sp->time = t; /* set time */
         sp->st = st_playwave; /* set type */
-        strcpy(sp->ps, sf); /* make copy of file string to play */
+        sp->wt = w; /* set logical track */
         insseq(sp); /* insert to sequencer list */
         acttim(t); /* kick timer if needed */
 
@@ -1988,7 +2110,10 @@ static void pa_init_sound()
     strtim.tv_sec = 0; /* clear start time */
     strtim.tv_usec = 0;
     /* set no midi output ports open */
-    for (i = 0; i < MAXMID; i++) midtab[i] = NULL;
+    for (i = 0; i < MAXMIDP; i++) midtab[i] = NULL;
+
+    /* clear the wave track cache */
+    for (i = 0; i < MAXMIDT; i++) wavfil[i] = NULL;
 
     /* create sequencer timer */
     seqhan = timerfd_create(CLOCK_REALTIME, 0);
