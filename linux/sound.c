@@ -1915,7 +1915,7 @@ static void* alsaplaywave(void* data)
     pthread_mutex_lock(&wavlck); /* take wave table lock */
     fn[0] = 0; /* terminate wave table entry */
     if (wavfil[w]) strncpy(fn, wavfil[w], MAXFIL);
-    pthread_mutex_unlock(&seqlock); /* release lock */
+    pthread_mutex_unlock(&wavlck); /* release lock */
     if (!fn[0]) return (NULL); /* entry is empty, abort */
 
     fh = open(fn, O_RDONLY);
@@ -2045,11 +2045,18 @@ void pa_loadwave(int w, string fn)
 
 {
 
+    string p, p2;
+
     if (w < 1 || w > MAXWAVT) error("Invalid logical wave number");
-    if (wavfil[w]) error("Wave file already defined for logical wave number");
-    wavfil[w] = malloc(strlen(fn)+1); /* allocate filename for slot */
-    if (!wavfil[w]) error("Could not alocate wave file");
-    strcpy(wavfil[w], fn); /* place filename */
+
+    p = malloc(strlen(fn)+1); /* allocate filename for slot */
+    if (!p) error("Could not alocate wave file");
+    strcpy(p, fn); /* place filename */
+    pthread_mutex_lock(&wavlck); /* take wave table lock */
+    p2 = wavfil[w]; /* get existing entry */
+    wavfil[w] = p; /* place new */
+    pthread_mutex_unlock(&wavlck); /* release lock */
+    if (p2) error("Wave file already defined for logical wave number");
 
 }
 
@@ -2066,10 +2073,16 @@ void pa_delwave(int w)
 
 {
 
+    string p;
+
     if (w < 1 || w > MAXWAVT) error("Invalid logical wave number");
-    if (!wavfil[w]) error("No wave file loaded for logical wave number");
-    free(wavfil[w]); /* free the entry */
-    wavfil[w] = NULL; /* set free */
+
+    pthread_mutex_lock(&wavlck); /* take wave table lock */
+    p = wavfil[w]; /* get the existing entry */
+    wavfil[w] = NULL; /* clear original */
+    pthread_mutex_unlock(&wavlck); /* release lock */
+    if (!p) error("No wave file loaded for logical wave number");
+    free(p); /* free the entry */
 
 }
 
