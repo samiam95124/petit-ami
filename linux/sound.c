@@ -198,6 +198,37 @@ typedef struct fmthdr {
 /* turn off critical packing */
 #pragma pack()
 
+/*
+ * .mid file format elements
+ */
+
+/* turn on critical packing. This allows format headers to be read intact
+   from the file */
+#pragma pack(1)
+
+/* Midi header chunk.
+   Midis are big endian. */
+typedef struct midhdr {
+
+    unsigned char  id[4];    /* type of chunk */
+    unsigned int   len;      /* length of chunk */
+    unsigned short fmt;      /* format of file */
+    unsigned short tracks;   /* number of tracks contained in file */
+    unsigned short division; /* delta time for the file */
+
+} midhdr;
+
+/* track header */
+typedef struct trkhdr {
+
+    unsigned char  id[4];    /* type of chunk */
+    unsigned int   len;      /* length of chunk */
+
+} trkhdr;
+
+/* turn off critical packing */
+#pragma pack()
+
 /* pointer to message */
 
 typedef seqmsg* seqptr;
@@ -1775,13 +1806,54 @@ Play ALSA midi file
 
 Plays the given ALSA midi file given the filename.
 
-Not implemented.
-
 *******************************************************************************/
 
 static void alsaplaymidi(string fn)
 
 {
+
+    int fh;     /* file handle */
+    int len;    /* length read */
+    midhdr mh;  /* midi header */
+    trkhdr th;  /* track header */
+
+    fh = open(fn, O_RDONLY);
+    if (fh < 0) error("Cannot open input .mid file");
+
+    /* Read in .mid file header */
+    len = read(fh, &mh, sizeof(midhdr));
+    if (len != sizeof(midhdr)) error("Invalid .mid file format");
+
+    /* check a midi header */
+    if (strncmp("MThd", mh.id, 4)) error("Invalid .mid file format");
+
+    /* check and reject SMTPE framing */
+    if (htobe16(mh.division) & 0x80000000) error("Cannot handle SMTPE framing");
+
+    printf("Mid file header contents\n");
+
+    printf("Len: %d\n", htobe32(mh.len));
+    printf("fmt: %d\n", htobe16(mh.fmt));
+    printf("tracks: %d\n", htobe16(mh.tracks));
+    printf("division: %d\n", htobe16(mh.division));
+
+    do { /* read track chunks */
+
+        /* Read in .mid track header */
+        len = read(fh, &th, sizeof(trkhdr));
+        if (len) { /* not eof */
+
+            if (len != sizeof(trkhdr)) error("Invalid .mid file format");
+
+printf("Track header: %4.4s len: %d\n", th.id, htobe32(th.len));
+            /* check a midi header */
+            if (!strncmp(/*"MTrk"*/"bark", mh.id, 4)) {
+
+            } else lseek(fh, htobe32(th.len), SEEK_CUR);
+
+        }
+
+    } while (len); /* not eof */
 
 }
 
@@ -2186,6 +2258,166 @@ void pa_waitwave(int p)
     pthread_mutex_unlock(&wnmlck); /* release lock */
 
 }
+
+/*******************************************************************************
+
+Set the number of channels for a wave output device
+
+The given port will have its channel number set from the provided number. It
+must be a wave output port, and it must be open. Wave samples are always output
+in 24 bit samples, and the channels are interleaved. This means that the
+presentation will have channel 1 first, followed by channel 2, etc, then repeat
+for the next sample.
+
+*******************************************************************************/
+
+void pa_chanwaveout(int p, int c)
+
+{
+
+}
+
+/*******************************************************************************
+
+Set the rate for a wave output device
+
+The given port will have its rate set from the provided number, which is the
+number of samples per second that will be output. It must be a wave output port,
+and it must be open. Output samples are retimed for the rate. No matter how much
+data is written, each sample is timed to output at the given rate, buffering as
+required.
+
+*******************************************************************************/
+
+void pa_ratewaveout(int p, int c)
+
+{
+
+}
+
+/*******************************************************************************
+
+Write wave data output
+
+Writes a buffer of wave data to the given output wave port. The data must be
+formatted according to the number of channels. It must be a wave output port,
+and it must be open. Wave samples are always output in 24 bit samples, and the
+channels are interleaved. This means that the presentation will have channel
+1 first, followed by channel 2, etc, then repeat for the next sample. The
+samples are converted as required from the 24 bit, big endian samples as
+required. The can be up or down converted according to size, and may be
+converted to floating point.
+
+This package does not control buffering dept. As much buffering a needed to keep
+the data is used without regard for realtime concerns. The nececessary buffering
+for real time is implemented by the user of this package, which is generally
+recommended to be 1ms or less (64 samples at a 44100 sample rate).
+
+*******************************************************************************/
+
+void pa_writewave(int p, byte* buff, int len)
+
+{
+
+}
+
+/*******************************************************************************
+
+Open wave input device
+
+Opens a wave output device by number. By convention, wave in 1 is the default
+input device. This is presently a no-op for linux.
+
+*******************************************************************************/
+
+void pa_openwavein(int p)
+
+{
+
+}
+
+/*******************************************************************************
+
+CLose wave input device
+
+Closes a wave input device by number. This is presently a no-op for linux.
+
+*******************************************************************************/
+
+void pa_closewavein(int p)
+
+{
+
+}
+
+/*******************************************************************************
+
+Get the number of channels for a wave input device
+
+The given port will have its channel number read and returned. It must be a wave
+input port, and it must be open. Wave samples are always input in 24 bit
+samples, and the channels are interleaved. This means that the presentation will
+have channel 1 first, followed by channel 2, etc, then repeat for the next
+sample.
+
+*******************************************************************************/
+
+int pa_chanwavein(int p)
+
+{
+
+}
+
+/*******************************************************************************
+
+Get the rate for a wave input device
+
+The given port will have its rate read and returned, which is the
+number of samples per second that will be input. It must be a wave output port,
+and it must be open. Input samples are timed at the rate.
+
+*******************************************************************************/
+
+int pa_ratewavein(int p)
+
+{
+
+}
+
+/*******************************************************************************
+
+Read wave data input
+
+Reads a buffer of wave data from the given input wave port. The data is
+formatted according to the number of channels. It must be a wave input port,
+and it must be open. Wave samples are always input in 24 bit samples, and the
+channels are interleaved. This means that the presentation will have channel
+1 first, followed by channel 2, etc, then repeat for the next sample. The
+samples are converted as required from the 24 bit, big endian samples as
+required. The can be up or down converted according to size, and may be
+converted to floating point.
+
+The input device will be buffered according to the parameters of the input
+device and/or the device software. The hardware will have a given buffering
+amount, and the driver many change that to be higher or lower. Generally the
+buffering will be designed to keep the buffer latency below 1ms (64 samples at a
+44100 sample rate). Because the exact sample rate is unknown, the caller is
+recommended to provide a buffer that is greater than any possible buffer amount.
+Thus (for example) 1024*channels would be an appropriate buffer size. Not
+providing enough buffering will not cause an error, but will cause the read
+rate to fall behind the data rate.
+
+pa_rdwave() will return the actual number of bytes read, which will contain
+3*pa_chanwavein() bytes of samples. This will then be the actual buffer content.
+
+*******************************************************************************/
+
+int pa_rdwave(int p, byte* buff, int len)
+
+{
+
+}
+
 /*******************************************************************************
 
 Initialize sound module

@@ -345,5 +345,13 @@ void pa_playwave(int p, int t, int w);
 void pa_delwave(int w);
 void pa_volwave(int p, int t, int v);
 void pa_waitwave(int p);
+void pa_chanwaveout(int p, int c);
+void pa_ratewaveout(int p, int r);
+void pa_wrtwave(int p, byte* buff, int len);
+void pa_openwavein(int p);
+void pa_closewavein(int p);
+int pa_chanwavein(int p);
+int pa_ratewavein(int p);
+int pa_rdwave(int p, byte* buff, int len);
 
 #endif /* __SOUND_H__ */
