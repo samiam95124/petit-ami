@@ -344,5 +344,6 @@ void pa_loadwave(int w, string fn);
 void pa_playwave(int p, int t, int w);
 void pa_delwave(int w);
 void pa_volwave(int p, int t, int v);
+void pa_waitwave(int p);
 
 #endif /* __SOUND_H__ */

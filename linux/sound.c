@@ -222,7 +222,13 @@ static int ifdmax;
 
 /* Wave track storage. Note this needs locking */
 static pthread_mutex_t wavlck; /* sequencer task lock */
-static string wavfil[MAXWAVT]; /* storage for wave track files */
+static volatile string wavfil[MAXWAVT]; /* storage for wave track files */
+
+/* The active wave track counter uses both a lock and a condition to signal
+   that it has returned to zero */
+static pthread_mutex_t wnmlck; /* number of outstanding wave plays */
+static pthread_cond_t wnmzer; /* counter reached zero */
+static volatile int numwav; /* outstanding active wave instances */
 
 /*******************************************************************************
 
@@ -1918,6 +1924,11 @@ static void* alsaplaywave(void* data)
     pthread_mutex_unlock(&wavlck); /* release lock */
     if (!fn[0]) return (NULL); /* entry is empty, abort */
 
+    /* count active wave instances */
+    pthread_mutex_lock(&wnmlck);
+    numwav++; /* count active */
+    pthread_mutex_unlock(&wnmlck); /* release lock */
+
     fh = open(fn, O_RDONLY);
     if (fh < 0) error("Cannot open input .wav file");
 
@@ -1999,6 +2010,14 @@ static void* alsaplaywave(void* data)
 
     snd_pcm_close(pdh); /* close playback device */
     close(fh); /* close input file */
+
+    /* count active wave instances */
+    pthread_mutex_lock(&wnmlck);
+    numwav--; /* count active */
+    /* if now zero, signal zero crossing */
+    if (!numwav) pthread_cond_signal(&wnmzer);
+    pthread_mutex_unlock(&wnmlck); /* release lock */
+    if (numwav < 0) error("Wave locking imbalance");
 
     return (NULL);
 
@@ -2143,6 +2162,32 @@ void pa_volwave(int p, int t, int v)
 
 /*******************************************************************************
 
+Wait waves complete
+
+Waits for all pending wave out operations to complete before returning.
+Wavefiles all play on a separate thread. Normally, if the parent program exits
+before the threads all complete, the wave plays stop, and this is usually the
+correct behavior. However, in some cases we want the wave to complete. for
+example a "play mywave.wav" command should wait until the wave finishes.
+
+This routine waits until ALL wave operations completel. There is no way to
+determine indivudual wave completions, since even the same track could have
+mutiple plays active at the same time. So we keep a counter of active plays, and
+wait until they all stop.
+
+*******************************************************************************/
+
+void pa_waitwave(int p)
+
+{
+
+    pthread_mutex_lock(&wnmlck); /* lock counter */
+    pthread_cond_wait(&wnmzer, &wnmlck); /* wait zero event */
+    pthread_mutex_unlock(&wnmlck); /* release lock */
+
+}
+/*******************************************************************************
+
 Initialize sound module
 
 Clears sequencer lists, flags no timer active, clears the midi output port
@@ -2188,6 +2233,9 @@ static void pa_init_sound()
 
     /* initialize other locks */
     pthread_mutex_init(&wavlck, NULL); /* init sequencer lock */
+    pthread_mutex_init(&wnmlck, NULL); /* iint wave count lock */
+    numwav = 0; /* clear wave count */
+    pthread_cond_init(&wnmzer, NULL); /* init wave count zero condition */
 
 }
 
