@@ -37,6 +37,11 @@
 #define WAVBUF (16*1024) /* size of output wave buffer */
 #define MAXFIL 200 /* maximum size of wave table filename */
 
+/*
+ * Print unknown midi event codes
+ */
+#define MIDIUNKNOWN 1
+
 /* midi status messages, high nybble */
 
 #define MESS_NOTE_OFF 0x80
@@ -194,37 +199,6 @@ typedef struct fmthdr {
     unsigned short  bitspersample; /* number of bits in a sample */
 
 } fmthdr;
-
-/* turn off critical packing */
-#pragma pack()
-
-/*
- * .mid file format elements
- */
-
-/* turn on critical packing. This allows format headers to be read intact
-   from the file */
-#pragma pack(1)
-
-/* Midi header chunk.
-   Midis are big endian. */
-typedef struct midhdr {
-
-    unsigned char  id[4];    /* type of chunk */
-    unsigned int   len;      /* length of chunk */
-    unsigned short fmt;      /* format of file */
-    unsigned short tracks;   /* number of tracks contained in file */
-    unsigned short division; /* delta time for the file */
-
-} midhdr;
-
-/* track header */
-typedef struct trkhdr {
-
-    unsigned char  id[4];    /* type of chunk */
-    unsigned int   len;      /* length of chunk */
-
-} trkhdr;
 
 /* turn off critical packing */
 #pragma pack()
@@ -1813,8 +1787,14 @@ static byte readbyt(FILE* fh)
 {
 
     byte b;
+    int v;
 
-    b = getc(fh);
+    v = getc(fh);
+    if (v == EOF) error("Invalid .mid file format");
+    b = v;
+/* All but the header reads call this routine, so uncommenting this print will
+   give a good diagnostic for data reads */
+printf("@%ld: byte: %2.2x\n", ftell(fh), b);
 
     return (b);
 
@@ -1869,6 +1849,7 @@ static int dcdmidi(FILE* fh, byte b, boolean* endtrk)
     unsigned len;
     int cnt;
 
+printf("dcdmidi: begin: command byte: %2.2x\n", b);
     cnt = 0;
     *endtrk = false;
     switch (b>>4) { /* command nybble */
@@ -1943,12 +1924,12 @@ static int dcdmidi(FILE* fh, byte b, boolean* endtrk)
 
                       case 0xf0: /* F0 sysex event */
                                  printf("f0 sysex event\n");
-                                 len = readbyt(fh);  cnt++; /* get length */
+                                 cnt += readvar(fh, &len); /* get length */
                                  fseek(fh, len, SEEK_CUR);
                                  break;
                       case 0xf7: /* F7 sysex event */
                                  printf("f7 sysex event\n");
-                                 len = readbyt(fh);  cnt++; /* get length */
+                                 cnt += readvar(fh, &len); /* get length */
                                  fseek(fh, len, SEEK_CUR);
                                  break;
                       case 0xff: /* meta events */
@@ -1957,6 +1938,7 @@ static int dcdmidi(FILE* fh, byte b, boolean* endtrk)
                                  switch (p1) {
 
                                      case 0x00: /* Sequence number */
+                                                if (len != 2) error("Meta event length does not match");
                                                 p1 = readbyt(fh);  cnt++; /* get low number */
                                                 p2 = readbyt(fh);  cnt++; /* get high number */
                                                 printf("Sequence number: number: %d\n", p2<<8|p1);
@@ -1996,21 +1978,42 @@ static int dcdmidi(FILE* fh, byte b, boolean* endtrk)
                                                 prttxt(fh, len);
                                                 printf("\n");
                                                 break;
-                                     case 0x20: /* MIDI channel prefix */
+                                     case 0x08: /* program name */
+                                                printf("Program name: text: ");
+                                                prttxt(fh, len);
+                                                printf("\n");
+                                                break;
+                                     case 0x09: /* Device name */
+                                                printf("Device name: text: ");
+                                                prttxt(fh, len);
+                                                printf("\n");
+                                                break;
+                                     case 0x20: /* channel prefix */
+                                                if (len != 1) error("Meta event length does not match");
                                                 p1 = readbyt(fh); cnt++; /* get channel */
-                                                printf("MIDI channel prefix: channel: %d\n", p1);
+                                                printf("Channel prefix: channel: %d\n", p1);
+                                                break;
+                                     case 0x21: /* port prefix */
+                                                if (len < 1) error("Meta event length does not match");
+                                                p1 = readbyt(fh); cnt++; /* get port */
+                                                printf("Port prefix: port: %d\n", p1);
+                                                fseek(fh, len-1, SEEK_CUR);
                                                 break;
                                      case 0x2f: /* End of track */
+                                                if (len != 0) error("Meta event length does not match");
                                                 printf("End of track\n");
                                                 *endtrk = true; /* set end of track */
                                                 break;
                                      case 0x51: /* Set tempo */
+                                                if (len != 3) error("Meta event length does not match");
                                                 p1 = readbyt(fh); cnt++; /* get b1-b3 */
                                                 p2 = readbyt(fh); cnt++;
                                                 p3 = readbyt(fh); cnt++;
                                                 printf("Set tempo: new tempo: %d\n", p1<<16|p2<<8|p3);
+                                                fseek(fh, len-3, SEEK_CUR);
                                                 break;
                                      case 0x54: /* SMTPE offset */
+                                                if (len != 5) error("Meta event length does not match");
                                                 p1 = readbyt(fh); cnt++; /* get b1-b5 */
                                                 p2 = readbyt(fh); cnt++;
                                                 p3 = readbyt(fh); cnt++;
@@ -2020,6 +2023,7 @@ static int dcdmidi(FILE* fh, byte b, boolean* endtrk)
                                                        p1, p2, p3, p4, p5);
                                                 break;
                                      case 0x58: /* Time signature */
+                                                if (len != 4) error("Meta event length does not match");
                                                 p1 = readbyt(fh); cnt++; /* get b1-b4 */
                                                 p2 = readbyt(fh); cnt++;
                                                 p3 = readbyt(fh); cnt++;
@@ -2028,6 +2032,7 @@ static int dcdmidi(FILE* fh, byte b, boolean* endtrk)
                                                        p1, p2, p3, p4);
                                                 break;
                                      case 0x59: /* Key signature */
+                                                if (len != 2) error("Meta event length does not match");
                                                 p1 = readbyt(fh); cnt++; /* get b1-b2 */
                                                 p2 = readbyt(fh); cnt++;
                                                 printf("Key signature: sharps or flats: %d ", p1);
@@ -2039,21 +2044,84 @@ static int dcdmidi(FILE* fh, byte b, boolean* endtrk)
                                                 printf("Sequencer specific\n");
                                                 fseek(fh, len, SEEK_CUR);
                                                 break;
-                                     default: error("Invalid .mid file format");
+
+                                     default:   /* unknown */
+                                                printf("Unknown meta event: %2.2x\n", p1);
+                                                fseek(fh, len, SEEK_CUR);
+                                                break;
 
                                  }
                                  break;
 
-                      default: error("Invalid .mid file format");
+                      default:
+#ifdef MIDIUNKNOWN
+                               fprintf(stderr, "Unknown sysex event: %2.2x\n", b);
+#endif
+                               error("Invalid .mid file format");
+                               break;
 
                   }
                   break;
 
-        default: error("Invalid .mid file format");
+        default:
+#ifdef MIDIUNKNOWN
+                 fprintf(stderr, "Unknown status event: %2.2x\n", b);
+#endif
+                 error("Invalid .mid file format");
 
     }
+printf("dcdmidi: end\n");
 
     return (cnt);
+
+}
+
+unsigned int read16be(FILE* fh)
+
+{
+
+    byte b;
+    unsigned int v;
+
+    v = readbyt(fh) << 8;
+    v |= readbyt(fh);
+
+    return (v);
+
+}
+
+unsigned int read32be(FILE* fh)
+
+{
+
+    byte b;
+    unsigned int v;
+
+    v = readbyt(fh) << 24;
+    v |= readbyt(fh) << 16;
+    v |= readbyt(fh) << 8;
+    v |= readbyt(fh);
+
+    return (v);
+
+}
+
+unsigned int str2id(string ids)
+
+{
+
+    return (ids[0]<<24|ids[1]<<16|ids[2]<<8|ids[3]);
+
+}
+
+void prthid(FILE* fh, unsigned int id)
+
+{
+
+    putc(id >>24 & 0xff, fh);
+    putc(id >>16 & 0xff, fh);
+    putc(id >>8 & 0xff, fh);
+    putc(id & 0xff, fh);
 
 }
 
@@ -2061,48 +2129,75 @@ static void alsaplaymidi(string fn)
 
 {
 
-    FILE*        fh;         /* file handle */
-    int          rem;        /* remaining track length */
-    int          len;        /* length read */
-    midhdr       mh;         /* midi header */
-    trkhdr       th;         /* track header */
-    unsigned int delta_time; /* delta time */
-    boolean      endtrk;     /* end of track flag */
-    byte         last;       /* last command */
-    byte         b;
+    FILE*          fh;         /* file handle */
+    unsigned int   rem;        /* remaining track length */
+    unsigned int   len;        /* length read */
+    unsigned int   hlen;       /* header length */
+    unsigned int   delta_time; /* delta time */
+    boolean        endtrk;     /* end of track flag */
+    byte           last;       /* last command */
+    unsigned short fmt;        /* format code */
+    unsigned short tracks;     /* number of tracks */
+    unsigned short division;   /* delta time */
+    int            found;      /* found our header */
+    unsigned int   id;         /* id */
+    byte           b;
+    int            i;
 
     fh = fopen(fn, "r");
     if (!fh) error("Cannot open input .mid file");
+    id = read32be(fh); /* get header id */
 
-    /* Read in .mid file header */
-    len = fread(&mh, 1, sizeof(midhdr), fh);
-    if (len != sizeof(midhdr)) error("Invalid .mid file format1");
+    /* check RIFF prefix */
+    if (id == str2id("RIFF")) {
 
-    /* check a midi header */
-    if (strncmp("MThd", mh.id, 4)) error("Invalid .mid file format2");
+        len = read32be(fh); /* read and discard length */
+        /* a RIFF file can contain a MIDI file, so we search within it */
+        id = read32be(fh); /* get header id */
+        if (id != str2id("RMID")) error("Invalid .mid file header");
+        do {
+
+            id = read32be(fh); /* get next id */
+            len = read32be(fh); /* get length */
+            found = id == str2id("data"); /* check data header */
+            if (!found) fseek(fh, len, SEEK_CUR);
+
+        } while (!found); /* not SMF header */
+        id = read32be(fh); /* get next id */
+
+    }
+
+    /* check a midi file header */
+    if (id != str2id("MThd")) error("Invalid .mid file header");
+
+    /* read the rest of the file header */
+    hlen = read32be(fh); /* get length */
+    fmt = read16be(fh); /* format */
+    tracks = read16be(fh); /* tracks */
+    division = read16be(fh); /* delta time */
 
     /* check and reject SMTPE framing */
-    if (htobe16(mh.division) & 0x80000000) error("Cannot handle SMTPE framing");
+    if (division & 0x80000000) error("Cannot handle SMTPE framing");
 
     printf("Mid file header contents\n");
 
-    printf("Len: %d\n", htobe32(mh.len));
-    printf("fmt: %d\n", htobe16(mh.fmt));
-    printf("tracks: %d\n", htobe16(mh.tracks));
-    printf("division: %d\n", htobe16(mh.division));
+    printf("Len:      %d\n", hlen);
+    printf("fmt:      %d\n", fmt);
+    printf("tracks:   %d\n", tracks);
+    printf("division: %d\n", division);
 
-    do { /* read track chunks */
+    for (i = 0; i < tracks && !feof(fh); i++) { /* read track chunks */
 
-        /* Read in .mid track header */
-        len = fread(&th, 1, sizeof(trkhdr), fh);
-        if (len) { /* not eof */
+        if (!feof(fh)) { /* not eof */
 
-            if (len != sizeof(trkhdr)) error("Invalid .mid file format3");
+            /* Read in .mid track header */
+            id = read32be(fh); /* get header id */
+            hlen = read32be(fh); /* get length */
 
             /* check a midi header */
-            if (!strncmp("MTrk", th.id, 4)) {
+            if (id == str2id("MTrk")) {
 
-                rem = htobe32(th.len); /* set remainder to parse */
+                rem = hlen; /* set remainder to parse */
                 last = 0; /* clear last command */
                 do {
 
@@ -2119,15 +2214,16 @@ static void alsaplaymidi(string fn)
                     }
                     len = dcdmidi(fh, b, &endtrk); /* decode midi instruction */
                     rem -= len; /* count */
-                    last = b; /* save last command */
+                    /* if command is not meta, save as last command */
+                    if (b < 0xf0) last = b;
 
                 } while (rem && !endtrk); /* until run out of commands */
 
-            } else fseek(fh, htobe32(th.len), SEEK_CUR);
+            } else fseek(fh, hlen, SEEK_CUR);
 
         }
 
-    } while (len); /* not eof */
+    }
 
 }
 

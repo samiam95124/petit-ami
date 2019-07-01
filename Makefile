@@ -129,6 +129,9 @@ petit_ami_graph.a: linux/services.o linux/sound.o linux/graph_x.o
 #
 # Make individual executables
 #	
+dumpmidi: linux/dumpmidi.c Makefile
+	gcc -o bin/dumpmidi linux/dumpmidi.c
+
 test: bin/petit_ami_term.so include/terminal.h test.c Makefile
 	$(CC) $(CFLAGS) test.c $(LIBS) -o test
 	
