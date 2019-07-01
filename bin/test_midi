@@ -1,0 +1,4 @@
+rm -f test_results
+find . -name "*.mid" -printf 'test_midi_file "%p"\n' > testit
+find . -name "*.MID" -printf 'test_midi_file "%p"\n' >> testit
+./testit
