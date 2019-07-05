@@ -331,7 +331,7 @@ void pa_chorus(int p, int t, channel c, int cr);
 void pa_celeste(int p, int t, channel c, int ce);
 void pa_phaser(int p, int t, channel c, int ph);
 void pa_aftertouch(int p, int t, channel c, note n, int at);
-void pa_pressure(int p, int t, channel c, note n, int pr);
+void pa_pressure(int p, int t, channel c, int pr);
 void pa_pitch(int p, int t, channel c, int pt);
 void pa_pitchrange(int p, int t, channel c, int v);
 void pa_mono(int p, int t, channel c, int ch);

@@ -26,6 +26,7 @@
 #include <sys/time.h>
 #include <sys/timerfd.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #include "sound.h"
 
@@ -36,6 +37,8 @@
 
 #define WAVBUF (16*1024) /* size of output wave buffer */
 #define MAXFIL 200 /* maximum size of wave table filename */
+
+#define DEFMIDITIM 5000 /* default midi quarter note (.5 seconds) */
 
 /*
  * Print unknown midi event codes
@@ -161,6 +164,10 @@ typedef struct seqmsg {
 
 } seqmsg;
 
+/* pointer to message */
+
+typedef seqmsg* seqptr;
+
 /*
  * .wav file format elements
  */
@@ -202,10 +209,6 @@ typedef struct fmthdr {
 
 /* turn off critical packing */
 #pragma pack()
-
-/* pointer to message */
-
-typedef seqmsg* seqptr;
 
 static snd_rawmidi_t* midtab[MAXMIDP]; /* midi output device table */
 static seqptr seqlst;                  /* active sequencer entries */
@@ -492,8 +495,7 @@ static void excseq(seqptr p)
         case st_phaser:       pa_phaser(p->port, 0, p->vsc, p->vsv); break;
         case st_aftertouch:   pa_aftertouch(p->port, 0, p->ntc, p->ntn, p->ntv);
                               break;
-        case st_pressure:     pa_pressure(p->port, 0, p->ntc, p->ntn, p->ntv);
-                              break;
+        case st_pressure:     pa_pressure(p->port, 0, p->ntc, p->ntv); break;
         case st_pitch:        pa_pitch(p->port, 0, p->vsc, p->vsv); break;
         case st_pitchrange:   pa_pitchrange(p->port, 0, p->vsc, p->vsv); break;
         case st_mono:         pa_mono(p->port, 0, p->vsc, p->vsv); break;
@@ -501,6 +503,156 @@ static void excseq(seqptr p)
         case st_playsynth:    pa_playsynth(p->port, 0, p->ps); break;
         case st_playwave:     pa_playwave(p->port, 0, p->wt); break;
         case st_volwave:      pa_volwave(p->port, 0, p->wv); break;
+
+    }
+
+}
+
+/*******************************************************************************
+
+Dump sequencer list
+
+A diagnostic, dumps the given sequencer list in ASCII.
+
+*******************************************************************************/
+
+static void dmpseq(seqptr p)
+
+{
+
+    switch (p->st) { /* sequencer message type */
+
+        case st_noteon:       printf("noteon: Time: %d Port: %d Channel: %d "
+                                     "Note: %d Velocity: %d\n",
+                                     p->time, p->port, p->ntc, p->ntn, p->ntv);
+                              break;
+        case st_noteoff:      printf("noteoff: Time: %d Port: %d Channel: %d "
+                                     "Note: %d Velocity: %d\n", p->time,
+                                     p->port, p->ntc, p->ntn, p->ntv);
+                              break;
+        case st_instchange:   printf("instchange: Time: %d Port: %d p->port "
+                                     "Channel: %d Instrument: %d\n", p->time,
+                                     p->port, p->icc, p->ici);
+                              break;
+        case st_attack:       printf("attack: Time: %d Port: %d Channel: %d "
+                                     "attack time: %d\n", p->time, p->port,
+                                     p->vsc, p->vsv);
+                              break;
+        case st_release:      printf("release: Time: %d Port: %d Channel: %d "
+                                     "release time: %d\n", p->time, p->port,
+                                     p->vsc, p->vsv);
+                              break;
+        case st_legato:       printf("legato: Time: %d Port: %d Channel: %d "
+                                     "legato on/off: %d\n", p->time, p->port,
+                                     p->bsc, p->bsb);
+                              break;
+        case st_portamento:   printf("portamento: Time: %d Port: %d Channel: %d "
+                                     "portamento on/off: %d\n", p->time, p->port,
+                                     p->bsc, p->bsb);
+                              break;
+        case st_vibrato:      printf("vibrato: Time: %d Port: %d Channel: %d "
+                                     "Vibrato: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_volsynthchan: printf("volsynthchan: Time: %d Port: %d Channel: %d "
+                                     "Volume: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_porttime:     printf("porttime: Time: %d Port: %d Channel: %d "
+                                     "Portamento time: %d\n", p->time, p->port,
+                                     p->vsc, p->vsv);
+                              break;
+        case st_balance:      printf("attack: Time: %d Port: %d Channel: %d "
+                                     "Ballance: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_pan:          printf("pan: Time: %d Port: %d Channel: %d "
+                                     "Pan: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_timbre:       printf("timbre: Time: %d Port: %d Channel: %d "
+                                     "Timbre: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_brightness:   printf("brightness: Time: %d Port: %d Channel: %d "
+                                     "Brightness: %d\n", p->time, p->port,
+                                     p->vsc, p->vsv);
+                              break;
+        case st_reverb:       printf("reverb: Time: %d Port: %d Channel: %d "
+                                     "Reverb: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_tremulo:      printf("tremulo: Time: %d Port: %d Channel: %d "
+                                     "Tremulo: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_chorus:       printf("chorus: Time: %d Port: %d Channel: %d "
+                                     "Chorus: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_celeste:      printf("celeste: Time: %d Port: %d Channel: %d "
+                                     "Celeste: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_phaser:       printf("Phaser: Time: %d Port: %d Channel: %d "
+                                     "Phaser: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_aftertouch:   printf("aftertouch: Time: %d Port: %d Channel: %d "
+                                     "Note: %d Aftertouch: %d\n", p->time,
+                                     p->port, p->ntc, p->ntn, p->ntv);
+                              break;
+        case st_pressure:     printf("pressure: Time: %d Port: %d Channel: %d "
+                                     "Pressure: %d\n", p->time, p->port, p->ntc,
+                                     p->ntv);
+                              break;
+        case st_pitch:        printf("pitch: Time: %d Port: %d Channel: %d "
+                                     "Pitch: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_pitchrange:   printf("pitchrange: Time: %d Port: %d Channel: %d "
+                                     "Pitch range: %d\n", p->time, p->port,
+                                     p->vsc, p->vsv);
+                              break;
+        case st_mono:         printf("mono: Time: %d Port: %d Channel: %d "
+                                     "Mono notes: %d\n", p->time, p->port,
+                                     p->vsc, p->vsv);
+                              break;
+        case st_poly:         printf("poly: Time: %d Port: %d Channel: %d\n",
+                                     p->time, p->port, p->pc);
+                              break;
+        case st_playsynth:    printf("playsynth: Time: %d Port: %d "
+                                     ".mid file: %s\n", p->time, p->port,
+                                     p->ps);
+                              break;
+        case st_playwave:     printf("playwave: Time: %d Port: %d "
+                                     ".wav file logical number: %d\n", p->time,
+                                     p->port, p->wt);
+                              break;
+        case st_volwave:      printf("volwave: Time: %d Port: %d Volume: %d\n",
+                                     p->time, p->port, p->wv);
+                              break;
+
+    }
+
+}
+
+/*******************************************************************************
+
+Dump sequencer list
+
+A diagnostic, dumps the given sequencer list in ASCII.
+
+*******************************************************************************/
+
+static void dmpseqlst(seqptr p)
+
+{
+
+    while (p) {
+
+        dmpseq(p);
+        p = p->next;
 
     }
 
@@ -658,6 +810,7 @@ windows free running time that all sequencer times will be measured from.
 That counter is 32 bits unsigned millisecond, which gives 49.71 days. We 
 take half that, because we store as signed, so we are 24.855 days full
 sequencer time.
+
 Note that there will be no sequencer events, because we don't allow them to
 be set without the sequencer running. The first event will be kicked off by
 a sequenced event.
@@ -1693,11 +1846,11 @@ void pa_aftertouch(int p, int t, channel c, note n, int at)
 
 Channel pressure
 
-Controls channel pressure, 0 to maxint, on a note.
+Controls channel pressure, 0 to maxint.
 
 *******************************************************************************/
 
-void pa_pressure(int p, int t, channel c, note n, int pr)
+void pa_pressure(int p, int t, channel c, int pr)
 
 {
 
@@ -1706,12 +1859,11 @@ void pa_pressure(int p, int t, channel c, note n, int pr)
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
-    if (n < 1 || n > 128) error("Bad note number");
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun))
         /* construct midi message */
-        midimsg3(midtab[p], MESS_CHN_PRES+(c-1), n-1, pr/0x01000000);
+        midimsg2(midtab[p], MESS_CHN_PRES+(c-1), pr/0x01000000);
     else { /* sequence */
 
         /* check sequencer running */
@@ -1721,7 +1873,6 @@ void pa_pressure(int p, int t, channel c, note n, int pr)
         sp->time = t; /* set time */
         sp->st = st_pressure; /* set type */
         sp->ntc = c; /* set channel */
-        sp->ntn = n; /* set note */
         sp->ntv = pr; /* set pressure */
         insseq(sp); /* insert to sequencer list */
         acttim(t); /* kick timer if needed */
@@ -1734,9 +1885,10 @@ void pa_pressure(int p, int t, channel c, note n, int pr)
 
 Set pitch wheel
 
-Sets the pitch wheel value, from 0 to maxint. This is the amount off the note
-in the channel. The GM standard is to adjust for a whole step up and down, which
-is 4 half steps total. A "half step" is the difference between, say, C and C#.
+Sets the pitch wheel value, from -maxint to maxint. This is the amount off the
+note in the channel. The GM standard is to adjust for a whole step up and down,
+which is 4 half steps total. A "half step" is the difference between, say, C and
+C#.
 
 *******************************************************************************/
 
@@ -1794,7 +1946,9 @@ static byte readbyt(FILE* fh)
     b = v;
 /* All but the header reads call this routine, so uncommenting this print will
    give a good diagnostic for data reads */
+/*
 printf("@%ld: byte: %2.2x\n", ftell(fh), b);
+*/
 
     return (b);
 
@@ -1837,7 +1991,8 @@ static void prttxt(FILE* fh, unsigned int len)
 
 }
 
-static int dcdmidi(FILE* fh, byte b, boolean* endtrk)
+static int dcdmidi(FILE* fh, byte b, boolean* endtrk, int p, int t, int* qnote,
+                   seqptr* rsp)
 
 {
 
@@ -1848,87 +2003,130 @@ static int dcdmidi(FILE* fh, byte b, boolean* endtrk)
     byte p5;
     unsigned len;
     int cnt;
+    seqptr sp;
 
-printf("dcdmidi: begin: command byte: %2.2x\n", b);
     cnt = 0;
     *endtrk = false;
+    sp = NULL; /* clear sequencer entry */
     switch (b>>4) { /* command nybble */
 
         case 0x8: /* note off */
                   p1 = readbyt(fh); cnt++;
                   p2 = readbyt(fh); cnt++;
-                  printf("Note off: channel: %d key: %d velocity: %d\n", b&15, p1, p2);
+                  getseq(&sp); /* get sequencer entry */
+                  sp->port = p; /* set port */
+                  sp->time = t; /* set time */
+                  sp->st = st_noteoff; /* set type */
+                  sp->ntc = b&15; /* set channel */
+                  sp->ntn = p1; /* set note */
+                  sp->ntv = p2*0x01000000; /* set velocity */
                   break;
         case 0x9: /* note on */
                   p1 = readbyt(fh); cnt++;
                   p2 = readbyt(fh); cnt++;
-                  printf("Note on: channel: %d key: %d velocity: %d\n", b&15, p1, p2);
+                  getseq(&sp); /* get a sequencer message */
+                  sp->port = p; /* set port */
+                  sp->time = t; /* set time */
+                  sp->st = st_noteon; /* set type */
+                  sp->ntc = b&15; /* set channel */
+                  sp->ntn = p1; /* set note */
+                  sp->ntv = p2*0x01000000; /* set velocity */
                   break;
         case 0xa: /* polyphonic key pressure */
                   p1 = readbyt(fh); cnt++;
                   p2 = readbyt(fh); cnt++;
-                  printf("Polyphonic key pressure: channel: %d key: %d pressure: %d\n", b&15, p1, p2);
+                  getseq(&sp); /* get a sequencer message */
+                  sp->port = p; /* set port */
+                  sp->time = t; /* set time */
+                  sp->st = st_aftertouch; /* set type */
+                  sp->ntc = b&15; /* set channel */
+                  sp->ntn = p1; /* set note */
+                  sp->ntv = p2*0x01000000; /* set aftertouch */
                   break;
         case 0xb: /* controller change/channel mode */
                   p1 = readbyt(fh); cnt++;
                   p2 = readbyt(fh); cnt++;
-                  if (p1 <= 0x77)
-                      printf("Controller change: channel: %d controller number: %d controller value: %d\n", b&15, p1, p2);
-                  else switch (p1) { /* channel mode messages */
+                  switch (p1) { /* channel mode messages */
 
-                      case 0x78: /* All sound off */
-                                 printf("All sound off: channel: %d\n", b&15);
+                      /* note we don't implement all controller messages */
+                      case CTLR_SOUND_ATTACK_TIME:
+                      case CTLR_SOUND_RELEASE_TIME:
+                      case CTLR_LEGATO_PEDAL:
+                      case CTLR_PORTAMENTO:
+                      case CTLR_VOLUME_COARSE:
+                      case CTLR_VOLUME_FINE:
+                      case CTLR_BALANCE_COARSE:
+                      case CTLR_BALANCE_FINE:
+                      case CTLR_PORTAMENTO_TIME_COARSE:
+                      case CTLR_PORTAMENTO_TIME_FINE:
+                      case CTLR_MODULATION_WHEEL_COARSE:
+                      case CTLR_MODULATION_WHEEL_FINE:
+                      case CTLR_PAN_POSITION_COARSE:
+                      case CTLR_PAN_POSITION_FINE:
+                      case CTLR_SOUND_TIMBRE:
+                      case CTLR_SOUND_BRIGHTNESS:
+                      case CTLR_EFFECTS_LEVEL:
+                      case CTLR_TREMULO_LEVEL:
+                      case CTLR_CHORUS_LEVEL:
+                      case CTLR_CELESTE_LEVEL:
+                      case CTLR_PHASER_LEVEL:
+                      case CTLR_REGISTERED_PARAMETER_COARSE:
+                      case CTLR_REGISTERED_PARAMETER_FINE:
+                      case CTLR_DATA_ENTRY_COARSE:
+                      case CTLR_DATA_ENTRY_FINE:
                                  break;
-                      case 0x79: /* Reset all controllers */
-                                 printf("Reset all controllers: channel: %d\n", b&15);
+
+                      case CTLR_MONO_OPERATION: /* Mono mode on */
+                                 getseq(&sp); /* get a sequencer message */
+                                 sp->port = p; /* set port */
+                                 sp->time = t; /* set time */
+                                 sp->st = st_mono; /* set type */
+                                 sp->vsc = b&15; /* set channel */
+                                 sp->vsv = p2; /* set mono mode */
                                  break;
-                      case 0x7a: /* Local control */
-                                 printf("Local control: channel: %d ", b&15);
-                                 if (p2 == 0x00) printf("disconnect keyboard");
-                                 else if (p2 == 0x7f) printf("reconnect keyboard");
-                                 printf("\n");
-                                 break;
-                      case 0x7b: /* All notes off */
-                                 printf("All notes off: channel: %d\n", b&15);
-                                 break;
-                      case 0x7c: /* Omni mode off */
-                                 printf("Omni mode off: channel: %d\n", b&15);
-                                 break;
-                      case 0x7d: /* omni mode on*/
-                                 printf("Omni mode on: channel: %d\n", b&15);
-                                 break;
-                      case 0x7e: /* Mono mode on */
-                                 printf("Mono mode on: channel: %d midi channel in use: %d\n", b&15, p2);
-                                 break;
-                      case 0x7f: /* Poly mode on */
-                                 printf("Poly mode on: channel: %d\n", b&15);
+                      case CTLR_POLY_OPERATION: /* Poly mode on */
+                                 getseq(&sp); /* get a sequencer message */
+                                 sp->port = p; /* set port */
+                                 sp->time = t; /* set time */
+                                 sp->st = st_poly; /* set type */
+                                 sp->pc = b&15; /* set channel */
                                  break;
 
                   }
                   break;
         case 0xc: /* program change */
                   p1 = readbyt(fh); cnt++;
-                  printf("Program change: channel: %d program number: %d\n", b&15, p1);
+                  getseq(&sp); /* get a sequencer message */
+                  sp->port = p; /* set port */
+                  sp->time = t; /* set time */
+                  sp->st = st_instchange; /* set type */
+                  sp->icc = b&15; /* set channel */
+                  sp->ici = p1; /* set instrument */
                   break;
         case 0xd: /* channel key pressure */
                   p1 = readbyt(fh); cnt++;
-                  printf("Channel key pressure: channel: %d channel pressure value: %d\n", b&15, p1);
+                  getseq(&sp); /* get a sequencer message */
+                  sp->port = p; /* set port */
+                  sp->time = t; /* set time */
+                  sp->st = st_pressure; /* set type */
+                  sp->ntc = b&15; /* set channel */
+                  sp->ntv = p1*0x01000000; /* set pressure */
                   break;
         case 0xe: /* pitch bend */
                   p1 = readbyt(fh); cnt++;
                   p2 = readbyt(fh); cnt++;
-                  printf("Pitch bend: channel: %d value: %u\n", b&15, p2<<8|p1);
+                  getseq(&sp); /* get a sequencer message */
+                  sp->port = p; /* set port */
+                  sp->time = t; /* set time */
+                  sp->st = st_pitch; /* set type */
+                  sp->vsc = b&15; /* set channel */
+                  sp->vsv = p2<<7|p1; /* set pitch */
                   break;
         case 0xf: /* sysex/meta */
                   switch (b) {
 
                       case 0xf0: /* F0 sysex event */
-                                 printf("f0 sysex event\n");
-                                 cnt += readvar(fh, &len); /* get length */
-                                 fseek(fh, len, SEEK_CUR);
-                                 break;
                       case 0xf7: /* F7 sysex event */
-                                 printf("f7 sysex event\n");
                                  cnt += readvar(fh, &len); /* get length */
                                  fseek(fh, len, SEEK_CUR);
                                  break;
@@ -1937,71 +2135,8 @@ printf("dcdmidi: begin: command byte: %2.2x\n", b);
                                  cnt += readvar(fh, &len); /* get length */
                                  switch (p1) {
 
-                                     case 0x00: /* Sequence number */
-                                                if (len != 2) error("Meta event length does not match");
-                                                p1 = readbyt(fh);  cnt++; /* get low number */
-                                                p2 = readbyt(fh);  cnt++; /* get high number */
-                                                printf("Sequence number: number: %d\n", p2<<8|p1);
-                                                break;
-                                     case 0x01: /* Text event */
-                                                printf("Text event: text: ");
-                                                prttxt(fh, len);
-                                                printf("\n");
-                                                break;
-                                     case 0x02: /* Copyright notice */
-                                                printf("Copyright notice: text: ");
-                                                prttxt(fh, len);
-                                                printf("\n");
-                                                break;
-                                     case 0x03: /* Sequence/track name */
-                                                printf("Sequence/track name: text: ");
-                                                prttxt(fh, len);
-                                                printf("\n");
-                                                break;
-                                     case 0x04: /* Instrument name */
-                                                printf("Instrument name: text: ");
-                                                prttxt(fh, len);
-                                                printf("\n");
-                                                break;
-                                     case 0x05: /* Lyric */
-                                                printf("Lyric: text: ");
-                                                prttxt(fh, len);
-                                                printf("\n");
-                                                break;
-                                     case 0x06: /* Marker */
-                                                printf("Marker: text: ");
-                                                prttxt(fh, len);
-                                                printf("\n");
-                                                break;
-                                     case 0x07: /* Cue point */
-                                                printf("Que point: text: ");
-                                                prttxt(fh, len);
-                                                printf("\n");
-                                                break;
-                                     case 0x08: /* program name */
-                                                printf("Program name: text: ");
-                                                prttxt(fh, len);
-                                                printf("\n");
-                                                break;
-                                     case 0x09: /* Device name */
-                                                printf("Device name: text: ");
-                                                prttxt(fh, len);
-                                                printf("\n");
-                                                break;
-                                     case 0x20: /* channel prefix */
-                                                if (len != 1) error("Meta event length does not match");
-                                                p1 = readbyt(fh); cnt++; /* get channel */
-                                                printf("Channel prefix: channel: %d\n", p1);
-                                                break;
-                                     case 0x21: /* port prefix */
-                                                if (len < 1) error("Meta event length does not match");
-                                                p1 = readbyt(fh); cnt++; /* get port */
-                                                printf("Port prefix: port: %d\n", p1);
-                                                fseek(fh, len-1, SEEK_CUR);
-                                                break;
                                      case 0x2f: /* End of track */
                                                 if (len != 0) error("Meta event length does not match");
-                                                printf("End of track\n");
                                                 *endtrk = true; /* set end of track */
                                                 break;
                                      case 0x51: /* Set tempo */
@@ -2009,68 +2144,24 @@ printf("dcdmidi: begin: command byte: %2.2x\n", b);
                                                 p1 = readbyt(fh); cnt++; /* get b1-b3 */
                                                 p2 = readbyt(fh); cnt++;
                                                 p3 = readbyt(fh); cnt++;
-                                                printf("Set tempo: new tempo: %d\n", p1<<16|p2<<8|p3);
-                                                fseek(fh, len-3, SEEK_CUR);
+                                                *qnote = (p1<<16|p2<<8|p3)/100;
                                                 break;
-                                     case 0x54: /* SMTPE offset */
-                                                if (len != 5) error("Meta event length does not match");
-                                                p1 = readbyt(fh); cnt++; /* get b1-b5 */
-                                                p2 = readbyt(fh); cnt++;
-                                                p3 = readbyt(fh); cnt++;
-                                                p4 = readbyt(fh); cnt++;
-                                                p5 = readbyt(fh); cnt++;
-                                                printf("SMTPE offset time: %2.2d:%2.2d:%2.2d frames: %d fractional frame: %d\n",
-                                                       p1, p2, p3, p4, p5);
-                                                break;
-                                     case 0x58: /* Time signature */
-                                                if (len != 4) error("Meta event length does not match");
-                                                p1 = readbyt(fh); cnt++; /* get b1-b4 */
-                                                p2 = readbyt(fh); cnt++;
-                                                p3 = readbyt(fh); cnt++;
-                                                p4 = readbyt(fh); cnt++;
-                                                printf("Time signature: numerator: %d denominator: %d MIDI clocks: %d number of 1/32 notes: %d\n",
-                                                       p1, p2, p3, p4);
-                                                break;
-                                     case 0x59: /* Key signature */
-                                                if (len != 2) error("Meta event length does not match");
-                                                p1 = readbyt(fh); cnt++; /* get b1-b2 */
-                                                p2 = readbyt(fh); cnt++;
-                                                printf("Key signature: sharps or flats: %d ", p1);
-                                                if (p2 == 0) printf("major key");
-                                                else if (p2 == 1) printf("minor key");
-                                                printf("\n");
-                                                break;
-                                     case 0x7f: /* Sequencer specific */
-                                                printf("Sequencer specific\n");
-                                                fseek(fh, len, SEEK_CUR);
-                                                break;
-
-                                     default:   /* unknown */
-                                                printf("Unknown meta event: %2.2x\n", p1);
+                                     default:   /* unknown/other */
                                                 fseek(fh, len, SEEK_CUR);
                                                 break;
 
                                  }
                                  break;
 
-                      default:
-#ifdef MIDIUNKNOWN
-                               fprintf(stderr, "Unknown sysex event: %2.2x\n", b);
-#endif
-                               error("Invalid .mid file format");
-                               break;
+                      default: error("Invalid .mid file format");
 
                   }
                   break;
 
-        default:
-#ifdef MIDIUNKNOWN
-                 fprintf(stderr, "Unknown status event: %2.2x\n", b);
-#endif
-                 error("Invalid .mid file format");
+        default: error("Invalid .mid file format");
 
     }
-printf("dcdmidi: end\n");
+    *rsp = sp; /* return sequencer entry (or NULL if none) */
 
     return (cnt);
 
@@ -2125,24 +2216,36 @@ void prthid(FILE* fh, unsigned int id)
 
 }
 
-static void alsaplaymidi(string fn)
+static void alsaplaymidi(int p, string fn)
 
 {
 
-    FILE*          fh;         /* file handle */
-    unsigned int   rem;        /* remaining track length */
-    unsigned int   len;        /* length read */
-    unsigned int   hlen;       /* header length */
-    unsigned int   delta_time; /* delta time */
-    boolean        endtrk;     /* end of track flag */
-    byte           last;       /* last command */
-    unsigned short fmt;        /* format code */
-    unsigned short tracks;     /* number of tracks */
-    unsigned short division;   /* delta time */
-    int            found;      /* found our header */
-    unsigned int   id;         /* id */
-    byte           b;
-    int            i;
+    FILE*             fh;           /* file handle */
+    unsigned int      rem;          /* remaining track length */
+    unsigned int      len;          /* length read */
+    unsigned int      hlen;         /* header length */
+    unsigned int      delta_time;   /* delta time */
+    boolean           endtrk;       /* end of track flag */
+    byte              last;         /* last command */
+    unsigned short    fmt;          /* format code */
+    unsigned short    tracks;       /* number of tracks */
+    unsigned short    division;     /* delta time */
+    int               found;        /* found our header */
+    unsigned int      id;           /* id */
+    int               curtim;       /* current time in 100us */
+    int               qnote;        /* number of 100us/quarter note */
+    seqptr            sp, sp2, sp3; /* sequencer entry */
+    seqptr            seqlst;       /* sorted sequencer list */
+    seqptr            trklst;       /* sorted track list */
+    seqptr            trklas;       /* track last entry */
+    int               tfd;          /* timer file descriptor */
+    struct itimerspec ts;           /* timer data */
+    uint64_t          exp;          /* timer expire value */
+    struct timeval    strtim;       /* start time for sequencer */
+    long              tl;
+    byte              b;
+    int               i;
+    int               r;
 
     fh = fopen(fn, "r");
     if (!fh) error("Cannot open input .mid file");
@@ -2179,15 +2282,16 @@ static void alsaplaymidi(string fn)
     /* check and reject SMTPE framing */
     if (division & 0x80000000) error("Cannot handle SMTPE framing");
 
-    printf("Mid file header contents\n");
-
-    printf("Len:      %d\n", hlen);
-    printf("fmt:      %d\n", fmt);
-    printf("tracks:   %d\n", tracks);
-    printf("division: %d\n", division);
-
+    /*
+     * Read the midi file in and construct a sorted sequencer list.
+     */
+    qnote = DEFMIDITIM; /* set default quarter note time */
+    seqlst = NULL; /* clear the master sequencer list */
     for (i = 0; i < tracks && !feof(fh); i++) { /* read track chunks */
 
+        curtim = 0; /* set zero offset time */
+        trklst = NULL; /* clear track sequencer list */
+        trklas = NULL; /* clear track last sequencer entry */
         if (!feof(fh)) { /* not eof */
 
             /* Read in .mid track header */
@@ -2203,6 +2307,7 @@ static void alsaplaymidi(string fn)
 
                     len = readvar(fh, &delta_time); /* get delta time */
                     rem -= len; /* count */
+                    curtim += delta_time*qnote/division; /* advance with delta time */
                     b = getc(fh); /* get the command byte */
                     rem--; /* count */
                     if (b < 0x80) { /* process running status or repeat */
@@ -2212,18 +2317,108 @@ static void alsaplaymidi(string fn)
                         b = last; /* put back command for repeat */
 
                     }
-                    len = dcdmidi(fh, b, &endtrk); /* decode midi instruction */
+                    /* decode midi instruction */
+                    len = dcdmidi(fh, b, &endtrk, p, curtim, &qnote, &sp);
                     rem -= len; /* count */
+                    if (sp) { /* a sequencer entry was produced */
+
+                        /* note the track list is inherently constructed in time
+                           order */
+                        sp->next = NULL; /* clear next */
+                        if (!trklas) trklst = sp; /* list empty, place first */
+                        else trklas->next = sp; /* link last to this */
+                        trklas = sp; /* set new last */
+                    }
                     /* if command is not meta, save as last command */
                     if (b < 0xf0) last = b;
 
                 } while (rem && !endtrk); /* until run out of commands */
+                /* merge track list with master list */
+                if (trklst) {
+
+                    sp2 = seqlst; /* save master list */
+                    seqlst = NULL; /* clear new list */
+                    sp3 = NULL; /* clear last */
+                    while (sp2 && trklst) { /* while both lists have content */
+
+                        if (sp2->time <= trklst->time) {
+
+                            /* take from master */
+                            sp = sp2; /* remove top entry */
+                            sp2 = sp2->next;
+
+                        } else {
+
+                            /* take from track */
+                            sp = trklst; /* remove top entry */
+                            trklst = sp->next;
+
+                        }
+                        sp->next = NULL; /* clear next */
+                        /* insert to new list */
+                        if (sp3) sp3->next = sp; /* link last to this */
+                        else seqlst = sp; /* set first entry */
+                        sp3 = sp; /* set new last */
+
+                    }
+                    /* dump rest of master list */
+                    while (sp2) {
+
+                        /* take from master */
+                        sp = sp2; /* remove top entry */
+                        sp2 = sp2->next;
+                        sp->next = NULL; /* clear next */
+                        /* insert to new list */
+                        if (sp3) sp3->next = sp; /* link last to this */
+                        else seqlst = sp; /* set first entry */
+                        sp3 = sp; /* set new last */
+
+                    }
+                    /* dump rest of track list */
+                    while (trklst) {
+
+                        /* take from track */
+                        sp = trklst; /* remove top entry */
+                        trklst = sp->next;
+                        /* insert to new list */
+                        if (sp3) sp3->next = sp; /* link last to this */
+                        else seqlst = sp; /* set first entry */
+                        sp3 = sp; /* set new last */
+
+                    }
+
+                }
 
             } else fseek(fh, hlen, SEEK_CUR);
 
         }
 
     }
+    /* sequence and destroy the master list */
+    tfd = timerfd_create(CLOCK_REALTIME, 0); /* create timer */
+    gettimeofday(&strtim, NULL); /* get current time */
+    while (seqlst) {
+
+        curtim = timediff(&strtim); /* find elapsed time since seq start */
+        tl = seqlst->time-curtim; /* set next time to run */
+        /* check event still is in the future */
+        if (tl > 0) {
+
+            ts.it_value.tv_sec = tl/10000; /* set number of seconds to run */
+            ts.it_value.tv_nsec = tl%10000*100000; /* set number of nanoseconds to run */
+            ts.it_interval.tv_sec = 0; /* set does not rerun */
+            ts.it_interval.tv_nsec = 0;
+            timerfd_settime(tfd, 0, &ts, NULL);
+            read(tfd, &exp, sizeof(uint64_t)); /* wait for timer expire */
+
+        }
+        excseq(seqlst); /* execute top entry */
+        sp = seqlst; /* remove top entry */
+        seqlst = sp->next;
+        putseq(sp); /* dispose */
+
+    }
+    close(tfd); /* release the timer */
 
 }
 
@@ -2258,7 +2453,7 @@ void pa_playsynth(int p, int t, string sf)
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun))
-        alsaplaymidi(sf); /* play the file */
+        alsaplaymidi(p, sf); /* play the file */
     else { /* sequence */
 
         /* check sequencer running */

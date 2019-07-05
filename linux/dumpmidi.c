@@ -11,6 +11,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+/*
+ * Print unknown midi event codes
+ */
+#define MIDIUNKNOWN 1
+
 typedef char* string;  /* general string type */
 typedef unsigned char byte; /* byte */
 typedef enum { false, true } boolean; /* boolean */
@@ -37,7 +42,9 @@ static byte readbyt(FILE* fh)
     b = v;
 /* All but the header reads call this routine, so uncommenting this print will
    give a good diagnostic for data reads */
+/*
 printf("@%ld: byte: %2.2x\n", ftell(fh), b);
+*/
 
     return (b);
 
@@ -92,7 +99,6 @@ static int dcdmidi(FILE* fh, byte b, boolean* endtrk)
     unsigned len;
     int cnt;
 
-printf("dcdmidi: begin: command byte: %2.2x\n", b);
     cnt = 0;
     *endtrk = false;
     switch (b>>4) { /* command nybble */
@@ -160,7 +166,7 @@ printf("dcdmidi: begin: command byte: %2.2x\n", b);
         case 0xe: /* pitch bend */
                   p1 = readbyt(fh); cnt++;
                   p2 = readbyt(fh); cnt++;
-                  printf("Pitch bend: channel: %d value: %u\n", b&15, p2<<8|p1);
+                  printf("Pitch bend: channel: %d value: %u\n", b&15, p2<<7|p1);
                   break;
         case 0xf: /* sysex/meta */
                   switch (b) {
@@ -313,7 +319,6 @@ printf("dcdmidi: begin: command byte: %2.2x\n", b);
                  error("Invalid .mid file format");
 
     }
-printf("dcdmidi: end\n");
 
     return (cnt);
 
@@ -385,7 +390,7 @@ int main(int argc, char* argv[])
     int            found;      /* found our header */
     unsigned int   id;         /* id */
     byte           b;
-    int            i;
+    int            trk;
 
     if (argc != 2) {
 
@@ -436,7 +441,7 @@ int main(int argc, char* argv[])
     printf("tracks:   %d\n", tracks);
     printf("division: %d\n", division);
 
-    for (i = 0; i < tracks && !feof(fh); i++) { /* read track chunks */
+    for (trk = 1; trk <= tracks && !feof(fh); trk++) { /* read track chunks */
 
         if (!feof(fh)) { /* not eof */
 
@@ -447,6 +452,7 @@ int main(int argc, char* argv[])
             /* check a midi header */
             if (id == str2id("MTrk")) {
 
+                printf("Track: %d\n", trk);
                 rem = hlen; /* set remainder to parse */
                 last = 0; /* clear last command */
                 do {
