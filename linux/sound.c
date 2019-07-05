@@ -156,7 +156,7 @@ typedef struct seqmsg {
            st_mono */ struct { channel vsc; int vsv; };
         /* st_poly */ channel pc;
         /* st_legato, st_portamento */ struct { channel bsc; boolean bsb; };
-        /* st_playsynth */ string ps;
+        /* st_playsynth */ int sid;
         /* st_playwave */ int wt;
         /* st_volwave */ int wv;
 
@@ -232,11 +232,24 @@ static int ifdmax;
 static pthread_mutex_t wavlck; /* sequencer task lock */
 static volatile string wavfil[MAXWAVT]; /* storage for wave track files */
 
+/* Synth track storage. Note this needs locking */
+static pthread_mutex_t synlck; /* sequencer task lock */
+static volatile seqptr syntab[MAXMIDT]; /* storage for synth track files */
+
 /* The active wave track counter uses both a lock and a condition to signal
    that it has returned to zero */
 static pthread_mutex_t wnmlck; /* number of outstanding wave plays */
 static pthread_cond_t wnmzer; /* counter reached zero */
 static volatile int numwav; /* outstanding active wave instances */
+
+/* The active synth counter uses both a lock and a condition to signal
+   that it has returned to zero */
+static pthread_mutex_t snmlck; /* number of outstanding synth plays */
+static pthread_cond_t snmzer; /* counter reached zero */
+static volatile int numseq; /* outstanding active synth instances */
+/* individual counts on sequencers for each logical syth store. These are
+   by the same lock as the group */
+static volatile int numsql[MAXMIDT];
 
 /*******************************************************************************
 
@@ -361,6 +374,11 @@ static void acttim(int t)
         timerfd_settime(seqhan, 0, &ts, NULL);
         seqtimact = true; /* set sequencer timer active */
 
+        /* count active sequence instances */
+        pthread_mutex_lock(&snmlck);
+        numseq++; /* count active */
+        pthread_mutex_unlock(&snmlck); /* release lock */
+
     }
 
 }
@@ -402,11 +420,35 @@ static void putseq(seqptr p)
 {
 
    /* dispose of any string first, we don't recycle those */
-   if (p->st == st_playsynth || p->st == st_playwave) free(p->ps);
    p->next = seqfre; /* link to top of list */
    seqfre = p; /* push onto list */
 
 }
+
+/*******************************************************************************
+
+Put sequencer list
+
+Frees a sequencer instruction list.
+
+*******************************************************************************/
+
+static void putseqlst(seqptr p)
+
+{
+
+    seqptr tp;
+
+    while (p) {
+
+        tp = p; /* remove top entry from list */
+        p = p->next;
+        putseq(tp); /* free that */
+
+    }
+
+}
+
 
 /*******************************************************************************
 
@@ -500,7 +542,7 @@ static void excseq(seqptr p)
         case st_pitchrange:   pa_pitchrange(p->port, 0, p->vsc, p->vsv); break;
         case st_mono:         pa_mono(p->port, 0, p->vsc, p->vsv); break;
         case st_poly:         pa_poly(p->port, 0, p->pc); break;
-        case st_playsynth:    pa_playsynth(p->port, 0, p->ps); break;
+        case st_playsynth:    pa_playsynth(p->port, 0, p->sid); break;
         case st_playwave:     pa_playwave(p->port, 0, p->wt); break;
         case st_volwave:      pa_volwave(p->port, 0, p->wv); break;
 
@@ -622,8 +664,8 @@ static void dmpseq(seqptr p)
                                      p->time, p->port, p->pc);
                               break;
         case st_playsynth:    printf("playsynth: Time: %d Port: %d "
-                                     ".mid file: %s\n", p->time, p->port,
-                                     p->ps);
+                                     ".mid file id: %d\n", p->time, p->port,
+                                     p->sid);
                               break;
         case st_playwave:     printf("playwave: Time: %d Port: %d "
                                      ".wav file logical number: %d\n", p->time,
@@ -725,8 +767,19 @@ static void* sequencer_thread(void* data)
                     timerfd_settime(seqhan, 0, &ts, NULL);
                     seqtimact = true; /* set sequencer timer active */
 
-                }
+                } else seqtimact = false; /* set quencer timer inactive */
                 pthread_mutex_unlock(&seqlock);
+                if (!seqtimact) {
+
+                    /* count active sequencer instances */
+                    pthread_mutex_lock(&snmlck);
+                    numseq--; /* count active */
+                    /* if now zero, signal zero crossing */
+                    if (!numseq) pthread_cond_signal(&snmzer);
+                    pthread_mutex_unlock(&snmlck); /* release lock */
+                    if (numseq < 0) error("Wave locking imbalance");
+
+                }
 
             }
 
@@ -832,6 +885,8 @@ Stop time
 
 Stops midi sequencer function. Any timers and buffers in use by the sequencer
 are cleared, and all pending events dropped.
+
+Note that this does not stop any midi files from being sequenced.
 
 *******************************************************************************/
 
@@ -1934,6 +1989,105 @@ Plays the given ALSA midi file given the filename.
 
 *******************************************************************************/
 
+static void *alsaplaymidi(void* data)
+
+{
+
+    int               curtim;       /* current time in 100us */
+    int               qnote;        /* number of 100us/quarter note */
+    seqptr            sp;           /* sequencer entry */
+    seqptr            seqlst;       /* sorted sequencer list */
+    int               tfd;          /* timer file descriptor */
+    struct itimerspec ts;           /* timer data */
+    uint64_t          exp;          /* timer expire value */
+    struct timeval    strtim;       /* start time for sequencer */
+    int               s = (long) data;
+    long              tl;
+
+    pthread_mutex_lock(&synlck); /* take wave table lock */
+    seqlst = syntab[s]; /* get the existing entry */
+    pthread_mutex_unlock(&synlck); /* release lock */
+    if (!seqlst) return (NULL); /* entry is empty, abort */
+
+    /* count active sequence instances */
+    pthread_mutex_lock(&snmlck);
+    numseq++; /* count active */
+    numsql[s]++;
+    pthread_mutex_unlock(&snmlck); /* release lock */
+
+    /* sequence and destroy the master list */
+    tfd = timerfd_create(CLOCK_REALTIME, 0); /* create timer */
+    gettimeofday(&strtim, NULL); /* get current time */
+    while (seqlst) {
+
+        curtim = timediff(&strtim); /* find elapsed time since seq start */
+        tl = seqlst->time-curtim; /* set next time to run */
+        /* check event still is in the future */
+        if (tl > 0) {
+
+            ts.it_value.tv_sec = tl/10000; /* set number of seconds to run */
+            ts.it_value.tv_nsec = tl%10000*100000; /* set number of nanoseconds to run */
+            ts.it_interval.tv_sec = 0; /* set does not rerun */
+            ts.it_interval.tv_nsec = 0;
+            timerfd_settime(tfd, 0, &ts, NULL);
+            read(tfd, &exp, sizeof(uint64_t)); /* wait for timer expire */
+
+        }
+        excseq(seqlst); /* execute top entry */
+        sp = seqlst; /* remove top entry */
+        seqlst = sp->next;
+        putseq(sp); /* dispose */
+
+    }
+    close(tfd); /* release the timer */
+
+    /* count active sequencer instances */
+    pthread_mutex_lock(&snmlck);
+    numseq--; /* count active */
+    numsql[s]--;
+    /* if now zero, signal zero crossing */
+    if (!numseq) pthread_cond_signal(&snmzer);
+    pthread_mutex_unlock(&snmlck); /* release lock */
+    if (numseq < 0) error("Wave locking imbalance");
+
+    return (NULL);
+
+}
+
+/*******************************************************************************
+
+Play ALSA synth file kickoff routine
+
+Plays an ALSA .mid file. This is the kickoff routine. We play .mid files on a
+thread, and this routine spawns a thread to accomplish that. The thread is
+"set and forget", in that it self terminates when the play routine terminates.
+
+*******************************************************************************/
+
+void alsaplaysynth_kickoff(int w)
+
+{
+
+    pthread_t tid; /* thread id (unused) */
+    long lw = w; /* adjust word size */
+
+    pthread_create(&tid, NULL, alsaplaymidi, (void*)lw);
+
+}
+
+/*******************************************************************************
+
+Load synthesizer file
+
+Loads a synthesizer control file, usually midi format, into a logical cache,
+from 1 to N. These are loaded up into memory for minimum latency. The file is
+specified by file name, and the file type is system dependent.
+
+Note that we support 100 synth files loaded, but the Petit-ami "rule of thumb"
+is no more than 10 synth files at a time.
+
+*******************************************************************************/
+
 static byte readbyt(FILE* fh)
 
 {
@@ -2216,7 +2370,7 @@ void prthid(FILE* fh, unsigned int id)
 
 }
 
-static void alsaplaymidi(int p, string fn)
+void pa_loadsynth(int s, string fn)
 
 {
 
@@ -2238,14 +2392,11 @@ static void alsaplaymidi(int p, string fn)
     seqptr            seqlst;       /* sorted sequencer list */
     seqptr            trklst;       /* sorted track list */
     seqptr            trklas;       /* track last entry */
-    int               tfd;          /* timer file descriptor */
-    struct itimerspec ts;           /* timer data */
-    uint64_t          exp;          /* timer expire value */
-    struct timeval    strtim;       /* start time for sequencer */
-    long              tl;
     byte              b;
     int               i;
     int               r;
+
+    if (s < 1 || s > MAXMIDT) error("Invalid logical synthesize file number");
 
     fh = fopen(fn, "r");
     if (!fh) error("Cannot open input .mid file");
@@ -2317,8 +2468,10 @@ static void alsaplaymidi(int p, string fn)
                         b = last; /* put back command for repeat */
 
                     }
-                    /* decode midi instruction */
-                    len = dcdmidi(fh, b, &endtrk, p, curtim, &qnote, &sp);
+                    /* decode midi instruction. Note that the output port is
+                       irrelivant, since the actual port will be specified at
+                       play time */
+                    len = dcdmidi(fh, b, &endtrk, PA_SYNTH_OUT, curtim, &qnote, &sp);
                     rem -= len; /* count */
                     if (sp) { /* a sequencer entry was produced */
 
@@ -2394,31 +2547,61 @@ static void alsaplaymidi(int p, string fn)
         }
 
     }
-    /* sequence and destroy the master list */
-    tfd = timerfd_create(CLOCK_REALTIME, 0); /* create timer */
-    gettimeofday(&strtim, NULL); /* get current time */
-    while (seqlst) {
+    /* place completed synth list into the logical table */
+    pthread_mutex_lock(&synlck); /* take wave table lock */
+    sp = syntab[s]; /* get existing entry */
+    syntab[s] = seqlst; /* place new */
+    pthread_mutex_unlock(&synlck); /* release lock */
+    if (sp) error("Wave file already defined for logical wave number");
 
-        curtim = timediff(&strtim); /* find elapsed time since seq start */
-        tl = seqlst->time-curtim; /* set next time to run */
-        /* check event still is in the future */
-        if (tl > 0) {
+}
 
-            ts.it_value.tv_sec = tl/10000; /* set number of seconds to run */
-            ts.it_value.tv_nsec = tl%10000*100000; /* set number of nanoseconds to run */
-            ts.it_interval.tv_sec = 0; /* set does not rerun */
-            ts.it_interval.tv_nsec = 0;
-            timerfd_settime(tfd, 0, &ts, NULL);
-            read(tfd, &exp, sizeof(uint64_t)); /* wait for timer expire */
+/*******************************************************************************
+
+Delete synthesizer file
+
+Removes a synthesizer file from the caching table. This frees up the entry to be
+redefined.
+
+Attempting to delete a synthesizer entry that is actively being played will
+result in this routine blocking until it is complete.
+
+*******************************************************************************/
+
+void pa_delsynth(int s)
+
+{
+
+    seqptr  p;
+    int     n;
+    boolean accessed;
+
+    if (s < 1 || s > MAXMIDT) error("Invalid logical synth file number");
+
+    /* check a synth for that file is active */
+    do {
+
+        /* this is a double lock like your mother warned you about. It is
+           structured two deep and warrants analysis. */
+        accessed = false; /* set no successful access */
+        pthread_mutex_lock(&synlck); /* take synth table lock */
+
+        pthread_mutex_lock(&snmlck);
+        n = numsql[s]++;
+        pthread_mutex_unlock(&snmlck); /* release lock */
+
+        if (!n) { /* no active synths, proceed to delete */
+
+            p = syntab[s]; /* get the existing entry */
+            syntab[s] = NULL; /* clear original */
+            accessed = true; /* set sucessful access */
 
         }
-        excseq(seqlst); /* execute top entry */
-        sp = seqlst; /* remove top entry */
-        seqlst = sp->next;
-        putseq(sp); /* dispose */
+        pthread_mutex_unlock(&synlck); /* release lock */
 
-    }
-    close(tfd); /* release the timer */
+    } while (!accessed); /* until we get a successful access */
+    if (!p) error("No synth file loaded for logical wave number");
+    putseqlst(p); /* free the sequencer list */
 
 }
 
@@ -2441,7 +2624,7 @@ it is open, then reopening it afterwards.
 
 *******************************************************************************/
 
-void pa_playsynth(int p, int t, string sf)
+void pa_playsynth(int p, int t, int s)
 
 {
 
@@ -2453,7 +2636,7 @@ void pa_playsynth(int p, int t, string sf)
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun))
-        alsaplaymidi(p, sf); /* play the file */
+        alsaplaysynth_kickoff(s); /* play the file */
     else { /* sequence */
 
         /* check sequencer running */
@@ -2462,11 +2645,44 @@ void pa_playsynth(int p, int t, string sf)
         sp->port = p; /* set port */
         sp->time = t; /* set time */
         sp->st = st_playsynth; /* set type */
-        strcpy(sp->ps, sf); /* make copy of file string to play */
+        sp->sid = s; /* place synth file id */
         insseq(sp); /* insert to sequencer list */
         acttim(t); /* kick timer if needed */
 
     }
+
+}
+
+/*******************************************************************************
+
+Wait synthesizers complete
+
+Waits for all running sequencers to complete before returning.
+The synthesizers all play on a separate thread. Normally, if the parent program
+exits before the threads all complete, the synth plays stop, and this is usually
+the correct behavior. However, in some cases we want the synth sequencers to
+complete. for example a "play mymidi.mid" command should wait until the synth
+sequencers finish.
+
+This routine waits until ALL synth operations complete. There is no way to
+determine indivudual sequencer completions, since even the same track could have
+mutiple plays active at the same time. So we keep a counter of active plays, and
+wait until they all stop.
+
+The active sequencer count includes all sequencers, including syth (midi) file
+plays and individual notes/events sent to the midi "manual" interface. Thus this
+call only makes sense if the calling program has stopped sending events to the
+sequencer(s), including background tasks.
+
+*******************************************************************************/
+
+void pa_waitsynth(int p)
+
+{
+
+    pthread_mutex_lock(&snmlck); /* lock counter */
+    pthread_cond_wait(&snmzer, &snmlck); /* wait zero event */
+    pthread_mutex_unlock(&snmlck); /* release lock */
 
 }
 
@@ -2807,7 +3023,7 @@ before the threads all complete, the wave plays stop, and this is usually the
 correct behavior. However, in some cases we want the wave to complete. for
 example a "play mywave.wav" command should wait until the wave finishes.
 
-This routine waits until ALL wave operations completel. There is no way to
+This routine waits until ALL wave operations complete. There is no way to
 determine indivudual wave completions, since even the same track could have
 mutiple plays active at the same time. So we keep a counter of active plays, and
 wait until they all stop.
@@ -3008,7 +3224,13 @@ static void pa_init_sound()
     for (i = 0; i < MAXMIDP; i++) midtab[i] = NULL;
 
     /* clear the wave track cache */
-    for (i = 0; i < MAXMIDT; i++) wavfil[i] = NULL;
+    for (i = 0; i < MAXWAVT; i++) wavfil[i] = NULL;
+
+    /* clear the synth track cache */
+    for (i = 0; i < MAXMIDT; i++) syntab[i] = NULL;
+
+    /* clear the synth track active counts */
+    for (i = 0; i < MAXMIDT; i++) numsql[i] = 0;
 
     /* create sequencer timer */
     seqhan = timerfd_create(CLOCK_REALTIME, 0);
@@ -3029,10 +3251,16 @@ static void pa_init_sound()
     pthread_create(&sequencer_thread_id, NULL, sequencer_thread, NULL);
 
     /* initialize other locks */
-    pthread_mutex_init(&wavlck, NULL); /* init sequencer lock */
-    pthread_mutex_init(&wnmlck, NULL); /* iint wave count lock */
+    pthread_mutex_init(&wavlck, NULL); /* init wave output lock */
+    pthread_mutex_init(&wnmlck, NULL); /* init wave count lock */
+    pthread_mutex_init(&synlck, NULL); /* init synth sequencer lock */
+    pthread_mutex_init(&snmlck, NULL); /* init synth count lock */
+
     numwav = 0; /* clear wave count */
     pthread_cond_init(&wnmzer, NULL); /* init wave count zero condition */
+
+    numseq = 0; /* clear sequencer count */
+    pthread_cond_init(&snmzer, NULL); /* init sequencer count zero condition */
 
 }
 
