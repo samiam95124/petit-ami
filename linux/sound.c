@@ -2017,8 +2017,8 @@ static int dcdmidi(FILE* fh, byte b, boolean* endtrk, int p, int t, int* qnote,
                   sp->port = p; /* set port */
                   sp->time = t; /* set time */
                   sp->st = st_noteoff; /* set type */
-                  sp->ntc = b&15; /* set channel */
-                  sp->ntn = p1; /* set note */
+                  sp->ntc = (b&15)+1; /* set channel */
+                  sp->ntn = p1+1; /* set note */
                   sp->ntv = p2*0x01000000; /* set velocity */
                   break;
         case 0x9: /* note on */
@@ -2028,8 +2028,8 @@ static int dcdmidi(FILE* fh, byte b, boolean* endtrk, int p, int t, int* qnote,
                   sp->port = p; /* set port */
                   sp->time = t; /* set time */
                   sp->st = st_noteon; /* set type */
-                  sp->ntc = b&15; /* set channel */
-                  sp->ntn = p1; /* set note */
+                  sp->ntc = (b&15)+1; /* set channel */
+                  sp->ntn = p1+1; /* set note */
                   sp->ntv = p2*0x01000000; /* set velocity */
                   break;
         case 0xa: /* polyphonic key pressure */
@@ -2039,8 +2039,8 @@ static int dcdmidi(FILE* fh, byte b, boolean* endtrk, int p, int t, int* qnote,
                   sp->port = p; /* set port */
                   sp->time = t; /* set time */
                   sp->st = st_aftertouch; /* set type */
-                  sp->ntc = b&15; /* set channel */
-                  sp->ntn = p1; /* set note */
+                  sp->ntc = (b&15)+1; /* set channel */
+                  sp->ntn = p1+1; /* set note */
                   sp->ntv = p2*0x01000000; /* set aftertouch */
                   break;
         case 0xb: /* controller change/channel mode */
@@ -2081,7 +2081,7 @@ static int dcdmidi(FILE* fh, byte b, boolean* endtrk, int p, int t, int* qnote,
                                  sp->port = p; /* set port */
                                  sp->time = t; /* set time */
                                  sp->st = st_mono; /* set type */
-                                 sp->vsc = b&15; /* set channel */
+                                 sp->vsc = (b&15)+1; /* set channel */
                                  sp->vsv = p2; /* set mono mode */
                                  break;
                       case CTLR_POLY_OPERATION: /* Poly mode on */
@@ -2089,7 +2089,7 @@ static int dcdmidi(FILE* fh, byte b, boolean* endtrk, int p, int t, int* qnote,
                                  sp->port = p; /* set port */
                                  sp->time = t; /* set time */
                                  sp->st = st_poly; /* set type */
-                                 sp->pc = b&15; /* set channel */
+                                 sp->pc = (b&15)+1; /* set channel */
                                  break;
 
                   }
@@ -2100,8 +2100,8 @@ static int dcdmidi(FILE* fh, byte b, boolean* endtrk, int p, int t, int* qnote,
                   sp->port = p; /* set port */
                   sp->time = t; /* set time */
                   sp->st = st_instchange; /* set type */
-                  sp->icc = b&15; /* set channel */
-                  sp->ici = p1; /* set instrument */
+                  sp->icc = (b&15)+1; /* set channel */
+                  sp->ici = p1+1; /* set instrument */
                   break;
         case 0xd: /* channel key pressure */
                   p1 = readbyt(fh); cnt++;
@@ -2109,7 +2109,7 @@ static int dcdmidi(FILE* fh, byte b, boolean* endtrk, int p, int t, int* qnote,
                   sp->port = p; /* set port */
                   sp->time = t; /* set time */
                   sp->st = st_pressure; /* set type */
-                  sp->ntc = b&15; /* set channel */
+                  sp->ntc = (b&15)+1; /* set channel */
                   sp->ntv = p1*0x01000000; /* set pressure */
                   break;
         case 0xe: /* pitch bend */
@@ -2119,7 +2119,7 @@ static int dcdmidi(FILE* fh, byte b, boolean* endtrk, int p, int t, int* qnote,
                   sp->port = p; /* set port */
                   sp->time = t; /* set time */
                   sp->st = st_pitch; /* set type */
-                  sp->vsc = b&15; /* set channel */
+                  sp->vsc = (b&15)+1; /* set channel */
                   sp->vsv = p2<<7|p1; /* set pitch */
                   break;
         case 0xf: /* sysex/meta */
