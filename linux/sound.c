@@ -2034,9 +2034,7 @@ static void *alsaplaymidi(void* data)
 
         }
         excseq(seqlst); /* execute top entry */
-        sp = seqlst; /* remove top entry */
-        seqlst = sp->next;
-        putseq(sp); /* dispose */
+        seqlst = seqlst->next;
 
     }
     close(tfd); /* release the timer */
