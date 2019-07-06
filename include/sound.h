@@ -33,6 +33,7 @@
 
 #define PA_SYNTH_OUT 1 /* the default output synth for host */
 #define PA_SYNTH_EXT 2 /* the default output to external synth */
+#define PA_WAVE_OUT 1 /* the default output wave for host */
 
 /* the notes in the lowest octave */
 

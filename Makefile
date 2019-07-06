@@ -131,6 +131,9 @@ petit_ami_graph.a: linux/services.o linux/sound.o linux/graph_x.o
 #	
 dumpmidi: linux/dumpmidi.c Makefile
 	gcc -o bin/dumpmidi linux/dumpmidi.c
+	
+lsalsadev: linux/lsalsadev.c Makefile
+	gcc linux/lsalsadev.c -lasound -o bin/lsalsadev
 
 test: bin/petit_ami_term.so include/terminal.h test.c Makefile
 	$(CC) $(CFLAGS) test.c $(LIBS) -o test
