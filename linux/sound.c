@@ -210,6 +210,16 @@ typedef struct fmthdr {
 /* turn off critical packing */
 #pragma pack()
 
+/* port/id structure to start player tasks */
+typedef struct portid {
+
+    int port;
+    int id;
+
+} portid;
+
+typedef portid* portidptr;
+
 static snd_rawmidi_t* midtab[MAXMIDP]; /* midi output device table */
 static seqptr seqlst;                  /* active sequencer entries */
 static seqptr seqfre;                  /* free sequencer entries */
@@ -2004,17 +2014,22 @@ static void *alsaplaymidi(void* data)
 
 {
 
-    int               curtim;       /* current time in 100us */
-    int               qnote;        /* number of 100us/quarter note */
-    seqptr            sp;           /* sequencer entry */
-    seqptr            seqlst;       /* sorted sequencer list */
-    int               tfd;          /* timer file descriptor */
-    struct itimerspec ts;           /* timer data */
-    uint64_t          exp;          /* timer expire value */
-    struct timeval    strtim;       /* start time for sequencer */
-    int               s = (long) data;
+    int               curtim;  /* current time in 100us */
+    int               qnote;   /* number of 100us/quarter note */
+    seqptr            sp;      /* sequencer entry */
+    seqptr            seqlst;  /* sorted sequencer list */
+    int               tfd;     /* timer file descriptor */
+    struct itimerspec ts;      /* timer data */
+    uint64_t          exp;     /* timer expire value */
+    struct timeval    strtim;  /* start time for sequencer */
+    portidptr         pip;     /* pointer for data we need */
+    int               s;       /* synthesizer file instance */
+    int               p;       /* port */
     long              tl;
 
+    pip = (portidptr) data; /* get data pointer */
+    s = pip->id; /* get id */
+    p = pip->port; /* get port */
     pthread_mutex_lock(&synlck); /* take wave table lock */
     seqlst = syntab[s]; /* get the existing entry */
     pthread_mutex_unlock(&synlck); /* release lock */
@@ -2044,6 +2059,9 @@ static void *alsaplaymidi(void* data)
             read(tfd, &exp, sizeof(uint64_t)); /* wait for timer expire */
 
         }
+        /* Change the port to be the one requested. In this case we are treating
+           the sequencer list to be a form to be applied to any port */
+        seqlst->port = p;
         excseq(seqlst); /* execute top entry */
         seqlst = seqlst->next;
 
@@ -2058,6 +2076,7 @@ static void *alsaplaymidi(void* data)
     if (!numseq) pthread_cond_signal(&snmzer);
     pthread_mutex_unlock(&snmlck); /* release lock */
     if (numseq < 0) error("Wave locking imbalance");
+    free(pip); /* release data pointer */
 
     return (NULL);
 
@@ -2073,14 +2092,17 @@ thread, and this routine spawns a thread to accomplish that. The thread is
 
 *******************************************************************************/
 
-void alsaplaysynth_kickoff(int w)
+void alsaplaysynth_kickoff(int p, int s)
 
 {
 
     pthread_t tid; /* thread id (unused) */
-    long lw = w; /* adjust word size */
+    portidptr pip; /* port/id structure */
 
-    pthread_create(&tid, NULL, alsaplaymidi, (void*)lw);
+    pip = malloc(sizeof(portid)); /* get a port/id structure */
+    pip->port = p; /* place port */
+    pip->id = s; /* place synth file id */
+    pthread_create(&tid, NULL, alsaplaymidi, (void*)pip);
 
 }
 
@@ -2645,7 +2667,7 @@ void pa_playsynth(int p, int t, int s)
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun))
-        alsaplaysynth_kickoff(s); /* play the file */
+        alsaplaysynth_kickoff(p, s); /* play the file */
     else { /* sequence */
 
         /* check sequencer running */
