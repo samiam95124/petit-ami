@@ -30,8 +30,8 @@
 
 #include "sound.h"
 
-#define MAXMIDP 10 /* maximum midi input/output devices */
-#define MAXWAVP 10 /* maximum wave input/output devices */
+#define MAXMIDP 100 /* maximum midi input/output devices */
+#define MAXWAVP 100 /* maximum wave input/output devices */
 #define MAXMIDT 100 /* maximum number of midi tracks that can be stored */
 #define MAXWAVT 100 /* maximum number of wave tracks that can be stored */
 
@@ -250,6 +250,14 @@ static volatile int numseq; /* outstanding active synth instances */
 /* individual counts on sequencers for each logical syth store. These are
    by the same lock as the group */
 static volatile int numsql[MAXMIDT];
+
+/*
+ * Alsa device names
+ *
+ * Each type, PCM in, PCM out, Midi in, midi out, has its own name table.
+ */
+static string alsamidiout[MAXMIDP]; /* MIDI out */
+static string alsapcmout[MAXWAVP]; /* PCM out */
 
 /*******************************************************************************
 
@@ -822,7 +830,9 @@ void pa_opensynthout(int p)
 
     int r;
 
-    r = snd_rawmidi_open(NULL, &midtab[p], "hw:1,0,0", SND_RAWMIDI_SYNC);
+    if (p < 1 || p > MAXMIDP) error("Invalid synthesizer port");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+    r = snd_rawmidi_open(NULL, &midtab[p-1], alsamidiout[p-1], SND_RAWMIDI_SYNC);
     if (r < 0) error("Cannot open synthethizer");
 
 }
@@ -839,7 +849,8 @@ void pa_closesynthout(int p)
 
 {
 
-    snd_rawmidi_close(midtab[p]); /* close port */
+    if (p < 1 || p > MAXMIDP) error("Invalid synthesizer port");
+    snd_rawmidi_close(midtab[p-1]); /* close port */
 
 }
 
@@ -973,7 +984,7 @@ void pa_noteon(int p, int t, channel c, note n, int v)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun))
         /* construct midi message */
-        midimsg3(midtab[p], MESS_NOTE_ON+(c-1), n-1, v/0x01000000);
+        midimsg3(midtab[p-1], MESS_NOTE_ON+(c-1), n-1, v/0x01000000);
     else { /* sequence */
 
         /* check sequencer running */
@@ -1019,7 +1030,7 @@ void pa_noteoff(int p, int t, channel c, note n, int v)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun))
         /* construct midi message */
-        midimsg3(midtab[p], MESS_NOTE_OFF+(c-1), n-1, v/0x01000000);
+        midimsg3(midtab[p-1], MESS_NOTE_OFF+(c-1), n-1, v/0x01000000);
     else { /* sequence */
 
         /* check sequencer running */
@@ -1062,7 +1073,7 @@ void pa_instchange(int p, int t, channel c, instrument i)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun))
         /* construct midi message */
-        midimsg2(midtab[p], MESS_PGM_CHG+(c-1), i-1);
+        midimsg2(midtab[p-1], MESS_PGM_CHG+(c-1), i-1);
     else { /* sequence */
 
         /* check sequencer running */
@@ -1093,7 +1104,7 @@ static void ctlchg(int p, int t, channel c, int cn, int v)
 {
 
     /* construct midi message */
-    midimsg3(midtab[p], MESS_CTRL_CHG+(c-1), cn-1, v/0x01000000);
+    midimsg3(midtab[p-1], MESS_CTRL_CHG+(c-1), cn-1, v/0x01000000);
 
 }
 
@@ -1878,7 +1889,7 @@ void pa_aftertouch(int p, int t, channel c, note n, int at)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun))
       /* construct midi message */
-        midimsg3(midtab[p], MESS_AFTTCH+(c-1), n-1, at/0x01000000);
+        midimsg3(midtab[p-1], MESS_AFTTCH+(c-1), n-1, at/0x01000000);
     else { /* sequence */
 
        /* check sequencer running */
@@ -1918,7 +1929,7 @@ void pa_pressure(int p, int t, channel c, int pr)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun))
         /* construct midi message */
-        midimsg2(midtab[p], MESS_CHN_PRES+(c-1), pr/0x01000000);
+        midimsg2(midtab[p-1], MESS_CHN_PRES+(c-1), pr/0x01000000);
     else { /* sequence */
 
         /* check sequencer running */
@@ -1962,7 +1973,7 @@ void pa_pitch(int p, int t, channel c, int pt)
 
         pt = pt/0x00040000+0x2000; /* reduce to 14 bits, positive only */
         /* construct midi message */
-        midimsg3(midtab[p], MESS_PTCH_WHL+(c-1), pt & 0x7f, pt/0x80);
+        midimsg3(midtab[p-1], MESS_PTCH_WHL+(c-1), pt & 0x7f, pt/0x80);
 
     } else { /* sequence */
 
@@ -2629,8 +2640,8 @@ void pa_playsynth(int p, int t, int s)
     seqptr sp;   /* message pointer */
     int    elap; /* current elapsed time */
 
-    if (p != PA_SYNTH_OUT) error("Must execute play on default output channel");
-    if (midtab[p] < 0) error("Synth output channel not open");
+    if (p < 1 || p > MAXMIDP) error("Invalid synthesizer port");
+    if (midtab[p-1] < 0) error("Synth output channel not open");
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun))
@@ -3199,6 +3210,55 @@ int pa_rdwave(int p, byte* buff, int len)
 
 /*******************************************************************************
 
+Read device names
+
+Reads alsa device names into table. Accepts the table base, device type name,
+I/O type, and table maximum, and fills the table with as many devices as are
+found or fit into the table.
+
+*******************************************************************************/
+
+void readalsadev(string table[], string devt, string iotyp, int tabmax)
+
+{
+
+    char** hint;
+    char** hi;
+    char*  devn;
+    char*  iot;
+    int    r;
+    int    i;
+
+    /* clear target device table */
+    for (i = 0; i < tabmax; i++) table[i] = NULL;
+    i = 0; /* set 1st table entry */
+    /* Enumerate sound devices */
+    r = snd_device_name_hint(-1, devt, (void***)&hint);
+    if (r != 0) error("Cannot get device names");
+    hi = hint;
+    while (*hi != NULL && i < tabmax) {
+
+        /* if table overflows, just keep first entries */
+
+        devn = snd_device_name_get_hint(*hi, "NAME");
+        iot = snd_device_name_get_hint(*hi, "IOID");
+        /* treat null I/O types as universal for now. Alsa returns such
+           types for MIDI devices. It seems to indicate "both" */
+        if (!iot || !strcmp(iotyp, iot))
+            table[i] = devn; /* place name of device */
+        else free(devn); /* free up name */
+        free(iot);
+        hi++; /* next hint */
+        i++; /* next device name */
+
+    }
+    /* release hint */
+    snd_device_name_free_hint((void**)hint);
+
+}
+
+/*******************************************************************************
+
 Initialize sound module
 
 Clears sequencer lists, flags no timer active, clears the midi output port
@@ -3211,7 +3271,7 @@ static void pa_init_sound()
 
 {
 
-    int i; /* index for midi tables */
+    int    i; /* index for midi tables */
 
     seqlst = NULL; /* clear active sequencer list */
     seqfre = NULL; /* clear free sequencer messages */
@@ -3259,6 +3319,12 @@ static void pa_init_sound()
 
     numseq = 0; /* clear sequencer count */
     pthread_cond_init(&snmzer, NULL); /* init sequencer count zero condition */
+
+    /* define the ALSA midi output devices */
+    readalsadev(alsamidiout, "rawmidi", "Output", MAXMIDP);
+
+    /* define the ALSA PCM output devices */
+    readalsadev(alsapcmout, "pcm", "Output", MAXWAVP);
 
 }
 
