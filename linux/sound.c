@@ -2787,15 +2787,20 @@ static void* alsaplaywave(void* data)
     snd_pcm_uframes_t remfrm; /* remaining frames to transfer */
     unsigned int      xfrsiz; /* partial transfer size */
     snd_pcm_uframes_t frmbuf; /* frames in buffer */
+    portidptr         pip;    /* pointer for data we need */
+    int               w;      /* wave file instance */
+    int               p;      /* port */
     int               fh;
     int               r;
     int               len;
     byte              buff[WAVBUF]; /* buffer for frames */
     int               i;
     byte*             buffp;
-    /* recover wave track id from parameter */
-    int               w = (long) data;
     char              fn[MAXFIL];
+
+    pip = (portidptr) data; /* get data pointer */
+    w = pip->id; /* get id */
+    p = pip->port; /* get port */
 
     /* Have to be very careful about wavetable access, we won't call external
        routines with the lock on. We are read access, the writer is the
@@ -2832,7 +2837,7 @@ static void* alsaplaywave(void* data)
     /* check a format header */
     if (strncmp("fmt ", fhd.id, 4)) error("Not a valid .wav file");
 
-    r = snd_pcm_open(&pdh, "default", SND_PCM_STREAM_PLAYBACK, 0);
+    r = snd_pcm_open(&pdh, alsapcmout[p-1], SND_PCM_STREAM_PLAYBACK, 0);
     if (r < 0) error("Cannot open audio output device");
 
     /* set PCM format */
@@ -2902,6 +2907,7 @@ static void* alsaplaywave(void* data)
     if (!numwav) pthread_cond_signal(&wnmzer);
     pthread_mutex_unlock(&wnmlck); /* release lock */
     if (numwav < 0) error("Wave locking imbalance");
+    free(pip); /* release data pointer */
 
     return (NULL);
 
@@ -2917,14 +2923,17 @@ thread, and this routine spawns a thread to accomplish that. The thread is
 
 *******************************************************************************/
 
-void alsaplaywave_kickoff(int w)
+void alsaplaywave_kickoff(int p, int w)
 
 {
 
     pthread_t tid; /* thread id (unused) */
-    long lw = w; /* adjust word size */
+    portidptr pip; /* port/id structure */
 
-    pthread_create(&tid, NULL, alsaplaywave, (void*)lw);
+    pip = malloc(sizeof(portid)); /* get a port/id structure */
+    pip->port = p; /* place port */
+    pip->id = w; /* place synth file id */
+    pthread_create(&tid, NULL, alsaplaywave, (void*)pip);
 
 }
 
@@ -3011,7 +3020,7 @@ void pa_playwave(int p, int t, int w)
     if (!wavfil[w]) error("No wave file loaded for logical wave number");
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
-    if (t == 0 || (t <= elap && seqrun)) alsaplaywave_kickoff(w);
+    if (t == 0 || (t <= elap && seqrun)) alsaplaywave_kickoff(p, w);
     else { /* sequence */
 
         /* check sequencer running */
