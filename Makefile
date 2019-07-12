@@ -134,6 +134,9 @@ dumpmidi: linux/dumpmidi.c Makefile
 	
 lsalsadev: linux/lsalsadev.c Makefile
 	gcc linux/lsalsadev.c -lasound -o bin/lsalsadev
+	
+alsaparms: linux/alsaparms.c Makefile
+	gcc linux/alsaparms.c -lasound -o bin/alsaparms
 
 test: bin/petit_ami_term.so include/terminal.h test.c Makefile
 	$(CC) $(CFLAGS) test.c $(LIBS) -o test

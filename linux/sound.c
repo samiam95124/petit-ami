@@ -268,6 +268,7 @@ static volatile int numsql[MAXMIDT];
  */
 static string alsamidiout[MAXMIDP]; /* MIDI out */
 static string alsapcmout[MAXWAVP]; /* PCM out */
+static string alsapcmin[MAXWAVP]; /* PCM in */
 
 /*******************************************************************************
 
@@ -3356,6 +3357,11 @@ static void pa_init_sound()
 
     /* define the ALSA PCM output devices */
     readalsadev(alsapcmout, "pcm", "Output", MAXWAVP);
+
+    /* define the ALSA PCM input devices */
+    readalsadev(alsapcmin, "pcm", "Input", MAXWAVP);
+printf("Alsa PCM input devices:\n\n");
+for (i = 0; i < MAXWAVP; i++) if (alsapcmin[i]) printf("%d: %s\n", i, alsapcmin[i]);
 
 }
 
