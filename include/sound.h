@@ -33,7 +33,8 @@
 
 #define PA_SYNTH_OUT 1 /* the default output synth for host */
 #define PA_SYNTH_EXT 2 /* the default output to external synth */
-#define PA_WAVE_OUT 1 /* the default output wave for host */
+#define PA_WAVE_IN 1   /* the default wave input for host */
+#define PA_WAVE_OUT 1  /* the default output wave for host */
 
 /* the notes in the lowest octave */
 
@@ -362,6 +363,7 @@ int pa_ratewavein(int p);
 int pa_lenwavein(int p);
 boolean pa_sgnwavein(int p);
 boolean pa_endianwavein(int p);
+boolean pa_fltwavein(int p);
 int pa_rdwave(int p, byte* buff, int len);
 
 #endif /* __SOUND_H__ */

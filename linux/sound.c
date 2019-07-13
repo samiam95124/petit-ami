@@ -3177,6 +3177,9 @@ void pa_openwavein(int p)
 
 {
 
+    if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
+    if (!alsapcmin[p]) error("No wave input device defined at logical number");
+
 }
 
 /*******************************************************************************
@@ -3190,6 +3193,9 @@ Closes a wave input device by number. This is presently a no-op for linux.
 void pa_closewavein(int p)
 
 {
+
+    if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
+    if (!alsapcmin[p]) error("No wave input device defined at logical number");
 
 }
 
@@ -3209,6 +3215,11 @@ int pa_chanwavein(int p)
 
 {
 
+    if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
+    if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
+
+    return (alsapcmin[p-1]->chan); /* return channel count */
+
 }
 
 /*******************************************************************************
@@ -3224,6 +3235,99 @@ and it must be open. Input samples are timed at the rate.
 int pa_ratewavein(int p)
 
 {
+
+    if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
+    if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
+
+    return (alsapcmin[p-1]->rate); /* return channel count */
+
+}
+
+/*******************************************************************************
+
+Get the bit length for a wave input device
+
+Returns the number of bits for a given input wave device. To find the number of
+bytes required for the format is:
+
+bytes = bits/8;
+if (bits%8) bytes++;
+
+This is then multipled by the number of channels to determine the size of a
+"sample", or unit of sound data transfer.
+
+At present, only whole byte format samples are supported, IE., 8, 16, 24, 32,
+etc. However, the caller should assume that partial bytes can be used and thus
+round up bit lengths as shown above.
+
+*******************************************************************************/
+
+int pa_lenwavein(int p)
+
+{
+
+    if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
+    if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
+
+    return (alsapcmin[p-1]->bits); /* return bit count */
+
+}
+
+/*******************************************************************************
+
+Get signed status of wave input device
+
+Returns true if the given wave input device has signed sampling. Note that
+signed sampling is always true if the samples are floating point.
+
+*******************************************************************************/
+
+boolean pa_sgnwavein(int p)
+
+{
+
+    if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
+    if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
+
+    return (alsapcmin[p-1]->sgn); /* return signed status */
+
+}
+
+/*******************************************************************************
+
+Get big endian status of wave input device
+
+Returns true if the given wave input device has big endian sampling.
+
+*******************************************************************************/
+
+boolean pa_bigwavein(int p)
+
+{
+
+    if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
+    if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
+
+    return (alsapcmin[p-1]->big); /* return big endian status */
+
+}
+
+/*******************************************************************************
+
+Get floating point status of wave input device
+
+Returns true if the given wave input device has floating point sampling.
+
+*******************************************************************************/
+
+boolean pa_fltwavein(int p)
+
+{
+
+    if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
+    if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
+
+    return (alsapcmin[p-1]->flt); /* return floating point status */
 
 }
 
