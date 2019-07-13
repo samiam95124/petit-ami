@@ -40,6 +40,8 @@
 
 #define DEFMIDITIM 5000 /* default midi quarter note (.5 seconds) */
 
+#define PREFRATE 44100 /* preferred sample rate (CD player) */
+
 /*
  * Print unknown midi event codes
  */
@@ -220,7 +222,24 @@ typedef struct portid {
 
 typedef portid* portidptr;
 
-static snd_rawmidi_t* midtab[MAXMIDP]; /* midi output device table */
+/* alsa device descriptor */
+
+typedef struct snddev {
+
+    string         name; /* alsa name of device (sufficient to open) */
+    snd_rawmidi_t* midi; /* MIDI device handle */
+    snd_pcm_t*     pcm;  /* PCM device handle */
+    int            chan; /* number of channels */
+    int            bits; /* preferred format bit size */
+    int            rate; /* sample rate */
+    boolean        sgn;  /* preferred format sign */
+    boolean        big;  /* preferred format big endian */
+    boolean        flt;  /* preferred format floating point */
+
+} snddev;
+
+typedef snddev* devptr; /* pointer to waveform device */
+
 static seqptr seqlst;                  /* active sequencer entries */
 static seqptr seqfre;                  /* free sequencer entries */
 static boolean seqrun;                 /* sequencer running */
@@ -265,10 +284,11 @@ static volatile int numsql[MAXMIDT];
  * Alsa device names
  *
  * Each type, PCM in, PCM out, Midi in, midi out, has its own name table.
+ * Midi is not a wave table, but uses the same naming system.
  */
-static string alsamidiout[MAXMIDP]; /* MIDI out */
-static string alsapcmout[MAXWAVP]; /* PCM out */
-static string alsapcmin[MAXWAVP]; /* PCM in */
+static devptr alsamidiout[MAXMIDP]; /* MIDI out */
+static devptr alsapcmout[MAXWAVP]; /* PCM out */
+static devptr alsapcmin[MAXWAVP]; /* PCM in */
 
 /*******************************************************************************
 
@@ -843,7 +863,8 @@ void pa_opensynthout(int p)
 
     if (p < 1 || p > MAXMIDP) error("Invalid synthesizer port");
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
-    r = snd_rawmidi_open(NULL, &midtab[p-1], alsamidiout[p-1], SND_RAWMIDI_SYNC);
+    r = snd_rawmidi_open(NULL, &alsamidiout[p-1]->midi, alsamidiout[p-1]->name,
+                         SND_RAWMIDI_SYNC);
     if (r < 0) error("Cannot open synthethizer");
 
 }
@@ -861,7 +882,7 @@ void pa_closesynthout(int p)
 {
 
     if (p < 1 || p > MAXMIDP) error("Invalid synthesizer port");
-    snd_rawmidi_close(midtab[p-1]); /* close port */
+    snd_rawmidi_close(alsamidiout[p-1]->midi); /* close port */
 
 }
 
@@ -995,7 +1016,7 @@ void pa_noteon(int p, int t, channel c, note n, int v)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun))
         /* construct midi message */
-        midimsg3(midtab[p-1], MESS_NOTE_ON+(c-1), n-1, v/0x01000000);
+        midimsg3(alsamidiout[p-1]->midi, MESS_NOTE_ON+(c-1), n-1, v/0x01000000);
     else { /* sequence */
 
         /* check sequencer running */
@@ -1041,7 +1062,7 @@ void pa_noteoff(int p, int t, channel c, note n, int v)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun))
         /* construct midi message */
-        midimsg3(midtab[p-1], MESS_NOTE_OFF+(c-1), n-1, v/0x01000000);
+        midimsg3(alsamidiout[p-1]->midi, MESS_NOTE_OFF+(c-1), n-1, v/0x01000000);
     else { /* sequence */
 
         /* check sequencer running */
@@ -1084,7 +1105,7 @@ void pa_instchange(int p, int t, channel c, instrument i)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun))
         /* construct midi message */
-        midimsg2(midtab[p-1], MESS_PGM_CHG+(c-1), i-1);
+        midimsg2(alsamidiout[p-1]->midi, MESS_PGM_CHG+(c-1), i-1);
     else { /* sequence */
 
         /* check sequencer running */
@@ -1115,7 +1136,7 @@ static void ctlchg(int p, int t, channel c, int cn, int v)
 {
 
     /* construct midi message */
-    midimsg3(midtab[p-1], MESS_CTRL_CHG+(c-1), cn-1, v/0x01000000);
+    midimsg3(alsamidiout[p-1]->midi, MESS_CTRL_CHG+(c-1), cn-1, v/0x01000000);
 
 }
 
@@ -1900,7 +1921,7 @@ void pa_aftertouch(int p, int t, channel c, note n, int at)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun))
       /* construct midi message */
-        midimsg3(midtab[p-1], MESS_AFTTCH+(c-1), n-1, at/0x01000000);
+        midimsg3(alsamidiout[p-1]->midi, MESS_AFTTCH+(c-1), n-1, at/0x01000000);
     else { /* sequence */
 
        /* check sequencer running */
@@ -1940,7 +1961,7 @@ void pa_pressure(int p, int t, channel c, int pr)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun))
         /* construct midi message */
-        midimsg2(midtab[p-1], MESS_CHN_PRES+(c-1), pr/0x01000000);
+        midimsg2(alsamidiout[p-1]->midi, MESS_CHN_PRES+(c-1), pr/0x01000000);
     else { /* sequence */
 
         /* check sequencer running */
@@ -1984,7 +2005,7 @@ void pa_pitch(int p, int t, channel c, int pt)
 
         pt = pt/0x00040000+0x2000; /* reduce to 14 bits, positive only */
         /* construct midi message */
-        midimsg3(midtab[p-1], MESS_PTCH_WHL+(c-1), pt & 0x7f, pt/0x80);
+        midimsg3(alsamidiout[p-1]->midi, MESS_PTCH_WHL+(c-1), pt & 0x7f, pt/0x80);
 
     } else { /* sequence */
 
@@ -2664,7 +2685,7 @@ void pa_playsynth(int p, int t, int s)
     int    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Invalid synthesizer port");
-    if (midtab[p-1] < 0) error("Synth output channel not open");
+    if (alsamidiout[p-1] < 0) error("Synth output channel not open");
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun))
@@ -2838,7 +2859,7 @@ static void* alsaplaywave(void* data)
     /* check a format header */
     if (strncmp("fmt ", fhd.id, 4)) error("Not a valid .wav file");
 
-    r = snd_pcm_open(&pdh, alsapcmout[p-1], SND_PCM_STREAM_PLAYBACK, 0);
+    r = snd_pcm_open(&pdh, alsapcmout[p-1]->name, SND_PCM_STREAM_PLAYBACK, 0);
     if (r < 0) error("Cannot open audio output device");
 
     /* set PCM format */
@@ -3242,6 +3263,224 @@ int pa_rdwave(int p, byte* buff, int len)
 
 /*******************************************************************************
 
+Find wave channel parameters
+
+Sets the wave channel parameters based on the "preferred" channel parameters.
+We find the number of bits, the sign, the big endian mode, if the channel is
+floating point.
+
+If the device supports multiple formats, we select the best according to
+priorities. These are, in priority order:
+
+1. The largest number of bits.
+2. Signed (vs. Unsigned).
+3. Floating point (vs. fixed).
+4. Endian mode that matches the machine we are on.
+
+The parameters are really for input devices. We assume that the input device
+gives the best parameters for its capture, and the output device matches the
+input device. On a single card, that will be true by definition. When crossing
+hardware from one input to an unrelated device, the output device is assumed
+to adapt to the input device. If that is not possible, alsa will provide a
+translation layer for the I/O. Although an input device can be so adapted, its
+not the best idea, since you could easily be throwing away precision. Thus the
+PA rule: the output device adapts to the input source.
+
+Accepts the wave device to find parameters for, and the stream mode (capture
+or playback). The name of the device (alsa) must be present.
+
+Returns if the device is supported or not. If not supported, then it should be
+removed.
+
+*******************************************************************************/
+
+/* find big or little endian */
+
+int bigend(void)
+
+{
+
+    union {
+
+        int i;
+        unsigned char b;
+
+    } test;
+
+    test.i = 1;
+
+    return (!test.b);
+
+}
+
+int findparms(devptr dev, snd_pcm_stream_t stream)
+
+{
+
+    snd_pcm_t *pcm;
+    snd_pcm_hw_params_t *pars;
+    snd_pcm_format_mask_t *fmask;
+    unsigned chanmin, chanmax;
+    unsigned ratemin, ratemax;
+    unsigned bitmin, bitmax;
+    int bits;
+    int sgn;
+    int big;
+    int flt;
+    int fmt;
+    int supp;
+    int mbits;
+    int msgn;
+    int mbig;
+    int mflt;
+    int msupp;
+
+    int r;
+
+    mbits = 0; msgn = 0; mbig = 0; mflt = 0; msupp = 0;
+    r = snd_pcm_open(&pcm, dev->name, stream, SND_PCM_NONBLOCK);
+    if (r) error("Cannot characterize device");
+    else {
+
+        snd_pcm_hw_params_alloca(&pars);
+        r = snd_pcm_hw_params_any(pcm, pars);
+        if (r < 0) error("Cannot read configuration space");
+        snd_pcm_hw_params_get_channels_min(pars, &chanmin);
+        snd_pcm_hw_params_get_channels_max(pars, &chanmax);
+        dev->chan = chanmax; /* set channels to max */
+        snd_pcm_hw_params_get_rate_min(pars, &ratemin, NULL);
+        snd_pcm_hw_params_get_rate_max(pars, &ratemax, NULL);
+        /* if the rate is single, we are going to adapt to whatever it is.
+           Otherwise we set the standard rate */
+        if (ratemax >= PREFRATE) dev->rate = PREFRATE;
+        else dev->rate = ratemax;
+        snd_pcm_format_mask_alloca(&fmask);
+        snd_pcm_hw_params_get_format_mask(pars, fmask);
+        for(fmt = 0; fmt < SND_PCM_FORMAT_LAST; fmt++) {
+
+            bits = 0; sgn = 0; big = 0; flt = 0; supp = 0;
+            if (snd_pcm_format_mask_test(fmask, (snd_pcm_format_t)fmt)) {
+
+                switch (fmt) {
+
+                    case SND_PCM_FORMAT_S8:
+                        bits = 8; sgn = 1; big = 0; flt = 0; supp = 1; break;
+                    case SND_PCM_FORMAT_U8:
+                        bits = 8; sgn = 0; big = 0; flt = 0; supp = 1; break;
+                    case SND_PCM_FORMAT_S16_LE:
+                        bits = 16; sgn = 1; big = 0; flt = 0; supp = 1; break;
+                    case SND_PCM_FORMAT_S16_BE:
+                        bits = 16; sgn = 1; big = 1; flt = 0; supp = 1; break;
+                    case SND_PCM_FORMAT_U16_LE:
+                        bits = 16; sgn = 0; big = 0; flt = 0; supp = 1; break;
+                    case SND_PCM_FORMAT_U16_BE:
+                        bits = 16; sgn = 0; big = 1; flt = 0; supp = 1; break;
+                    case SND_PCM_FORMAT_S24_LE:
+                        bits = 24; sgn = 1; big = 0; flt = 0; supp = 1; break;
+                    case SND_PCM_FORMAT_S24_BE:
+                        bits = 24; sgn = 1; big = 1; flt = 0; supp = 1; break;
+                    case SND_PCM_FORMAT_U24_LE:
+                        bits = 24; sgn = 0; big = 0; flt = 0; supp = 1; break;
+                    case SND_PCM_FORMAT_U24_BE:
+                        bits = 24; sgn = 0; big = 1; flt = 0; supp = 1; break;
+                    case SND_PCM_FORMAT_S32_LE:
+                        bits = 32; sgn = 1; big = 0; flt = 0; supp = 1; break;
+                    case SND_PCM_FORMAT_S32_BE:
+                        bits = 32; sgn = 1; big = 1; flt = 0; supp = 1; break;
+                    case SND_PCM_FORMAT_U32_LE:
+                        bits = 32; sgn = 0; big = 0; flt = 0; supp = 1; break;
+                    case SND_PCM_FORMAT_U32_BE:
+                        bits = 32; sgn = 0; big = 1; flt = 0; supp = 1; break;
+                    case SND_PCM_FORMAT_FLOAT_LE:
+                        bits = 32; sgn = 1; big = 0; flt = 1; supp = 1; break;
+                    case SND_PCM_FORMAT_FLOAT_BE:
+                        bits = 32; sgn = 1; big = 1; flt = 1; supp = 1; break;
+                    case SND_PCM_FORMAT_FLOAT64_LE:
+                        bits = 64; sgn = 1; big = 0; flt = 1; supp = 1; break;
+                    case SND_PCM_FORMAT_FLOAT64_BE:
+                        bits = 64; sgn = 1; big = 1; flt = 1; supp = 1; break;
+                    case SND_PCM_FORMAT_IEC958_SUBFRAME_LE:
+                        bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
+                    case SND_PCM_FORMAT_IEC958_SUBFRAME_BE:
+                        bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
+                    case SND_PCM_FORMAT_MU_LAW:
+                        bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
+                    case SND_PCM_FORMAT_A_LAW:
+                        bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
+                    case SND_PCM_FORMAT_IMA_ADPCM:
+                        bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
+                    case SND_PCM_FORMAT_MPEG:
+                        bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
+                    case SND_PCM_FORMAT_GSM:
+                        bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
+                    case SND_PCM_FORMAT_SPECIAL:
+                        bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
+                    case SND_PCM_FORMAT_S24_3LE:
+                        bits = 24; sgn = 1; big = 1; flt = 0; supp = 1; break;
+                    case SND_PCM_FORMAT_S24_3BE:
+                        bits = 24; sgn = 1; big = 1; flt = 0; supp = 1; break;
+                    case SND_PCM_FORMAT_U24_3LE:
+                        bits = 24; sgn = 0; big = 0; flt = 0; supp = 1; break;
+                    case SND_PCM_FORMAT_U24_3BE:
+                        bits = 24; sgn = 0; big = 1; flt = 0; supp = 1; break;
+                    case SND_PCM_FORMAT_S20_3LE:
+                        bits = 20; sgn = 1; big = 0; flt = 0; supp = 0; break;
+                    case SND_PCM_FORMAT_S20_3BE:
+                        bits = 20; sgn = 1; big = 1; flt = 0; supp = 0; break;
+                    case SND_PCM_FORMAT_U20_3LE:
+                        bits = 20; sgn = 0; big = 0; flt = 0; supp = 0; break;
+                    case SND_PCM_FORMAT_U20_3BE:
+                        bits = 20; sgn = 0; big = 1; flt = 0; supp = 0; break;
+                    case SND_PCM_FORMAT_S18_3LE:
+                        bits = 18; sgn = 1; big = 0; flt = 0; supp = 0; break;
+                    case SND_PCM_FORMAT_S18_3BE:
+                        bits = 18; sgn = 1; big = 1; flt = 0; supp = 0; break;
+                    case SND_PCM_FORMAT_U18_3LE:
+                        bits = 18; sgn = 0; big = 0; flt = 0; supp = 0; break;
+                    case SND_PCM_FORMAT_U18_3BE:
+                        bits = 18; sgn = 0; big = 1; flt = 0; supp = 0; break;
+
+                }
+                /* find max format */
+                if (supp) {
+
+                    /* is a PA supported format */
+                    if (bits > mbits || flt > mflt) {
+
+                        /* prefer bigger bit size or float */
+                        if (sgn > msgn || big == bigend()) {
+
+                            /* prefer signed or big endian matches host */
+                            mbits = bits; msgn = sgn; mbig = big; mflt = flt; msupp = supp;
+
+                        }
+
+                    }
+
+                }
+
+            }
+
+        }
+        snd_pcm_close(pcm);
+
+    }
+    if (msupp) {
+
+        /* supported device, set up */
+        dev->bits = mbits;
+        dev->sgn = msgn;
+        dev->big = mbig;
+        dev->flt = mflt;
+
+    }
+
+    return (msupp);
+
+}
+
+/*******************************************************************************
+
 Read device names
 
 Reads alsa device names into table. Accepts the table base, device type name,
@@ -3250,7 +3489,7 @@ found or fit into the table.
 
 *******************************************************************************/
 
-void readalsadev(string table[], string devt, string iotyp, int tabmax)
+void readalsadev(devptr table[], string devt, string iotyp, int tabmax)
 
 {
 
@@ -3260,6 +3499,7 @@ void readalsadev(string table[], string devt, string iotyp, int tabmax)
     char*  iot;
     int    r;
     int    i;
+    snd_pcm_stream_t stream;
 
     /* clear target device table */
     for (i = 0; i < tabmax; i++) table[i] = NULL;
@@ -3276,12 +3516,20 @@ void readalsadev(string table[], string devt, string iotyp, int tabmax)
         iot = snd_device_name_get_hint(*hi, "IOID");
         /* treat null I/O types as universal for now. Alsa returns such
            types for MIDI devices. It seems to indicate "both" */
-        if (!iot || !strcmp(iotyp, iot))
-            table[i] = devn; /* place name of device */
-        else free(devn); /* free up name */
+        if (!iot || !strcmp(iotyp, iot)) {
+
+            table[i] = malloc(sizeof(snddev)); /* create new device entry */
+            table[i]->name = devn; /* place name of device */
+            stream = SND_PCM_STREAM_PLAYBACK; /* set playback type */
+            /* set input type if so */
+            if (!strcmp(iotyp, "Input")) stream = SND_PCM_STREAM_CAPTURE;
+            /* characterize the entry and leave blank if not possible */
+            if (!findparms(table[i], stream)) table[i] = NULL;
+
+        } else free(devn); /* free up name */
         free(iot);
         hi++; /* next hint */
-        i++; /* next device name */
+        if (table[i]) i++; /* next device name (if entry defined) */
 
     }
     /* release hint */
@@ -3310,8 +3558,6 @@ static void pa_init_sound()
     seqrun = false; /* set sequencer not running */
     strtim.tv_sec = 0; /* clear start time */
     strtim.tv_usec = 0;
-    /* set no midi output ports open */
-    for (i = 0; i < MAXMIDP; i++) midtab[i] = NULL;
 
     /* clear the wave track cache */
     for (i = 0; i < MAXWAVT; i++) wavfil[i] = NULL;
@@ -3360,8 +3606,6 @@ static void pa_init_sound()
 
     /* define the ALSA PCM input devices */
     readalsadev(alsapcmin, "pcm", "Input", MAXWAVP);
-printf("Alsa PCM input devices:\n\n");
-for (i = 0; i < MAXWAVP; i++) if (alsapcmin[i]) printf("%d: %s\n", i, alsapcmin[i]);
 
 }
 
