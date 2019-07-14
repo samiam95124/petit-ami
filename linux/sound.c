@@ -3441,12 +3441,10 @@ int findparms(devptr dev, snd_pcm_stream_t stream)
     int r;
 
     mbits = 0; msgn = 0; mbig = 0; mflt = 0; msupp = 0;
-    /* ALSA shows devices in enumeration that it cannot actually use. ALSA is
-       actually a bit of a mess, but it is the "Linux sound standard". It prints
-       errors on open instead of just returning bad status, indicates errors
-       like "device is input" even though the device is ALSA typed as output,
-       and other fun things. We just remove such devices from the active list */
+    /* run alsa open in quiet */
+    freopen("/dev/null", "w", stderr);
     r = snd_pcm_open(&pcm, dev->name, stream, SND_PCM_NONBLOCK);
+    freopen("/dev/stderr", "w", stderr);
     if (!r) {
 
         snd_pcm_hw_params_alloca(&pars);
