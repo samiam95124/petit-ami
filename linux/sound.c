@@ -3438,124 +3438,134 @@ int findparms(devptr dev, snd_pcm_stream_t stream)
     int mbig;
     int mflt;
     int msupp;
-
     int r;
 
     mbits = 0; msgn = 0; mbig = 0; mflt = 0; msupp = 0;
+    /* ALSA shows devices in enumeration that it cannot actually use. ALSA is
+       actually a bit of a mess, but it is the "Linux sound standard". It prints
+       errors on open instead of just returning bad status, indicates errors
+       like "device is input" even though the device is ALSA typed as output,
+       and other fun things. We just remove such devices from the active list */
     r = snd_pcm_open(&pcm, dev->name, stream, SND_PCM_NONBLOCK);
-    if (r) error("Cannot characterize device");
-    else {
+    if (!r) {
 
         snd_pcm_hw_params_alloca(&pars);
         r = snd_pcm_hw_params_any(pcm, pars);
-        if (r < 0) error("Cannot read configuration space");
-        snd_pcm_hw_params_get_channels_min(pars, &chanmin);
-        snd_pcm_hw_params_get_channels_max(pars, &chanmax);
-        dev->chan = chanmax; /* set channels to max */
-        snd_pcm_hw_params_get_rate_min(pars, &ratemin, NULL);
-        snd_pcm_hw_params_get_rate_max(pars, &ratemax, NULL);
-        /* if the rate is single, we are going to adapt to whatever it is.
-           Otherwise we set the standard rate */
-        if (ratemax >= PREFRATE) dev->rate = PREFRATE;
-        else dev->rate = ratemax;
-        snd_pcm_format_mask_alloca(&fmask);
-        snd_pcm_hw_params_get_format_mask(pars, fmask);
-        for(fmt = 0; fmt < SND_PCM_FORMAT_LAST; fmt++) {
+        if (r >= 0) {
 
-            bits = 0; sgn = 0; big = 0; flt = 0; supp = 0;
-            if (snd_pcm_format_mask_test(fmask, (snd_pcm_format_t)fmt)) {
+            snd_pcm_hw_params_get_channels_min(pars, &chanmin);
+            snd_pcm_hw_params_get_channels_max(pars, &chanmax);
+            dev->chan = chanmax; /* set channels to max */
+            snd_pcm_hw_params_get_rate_min(pars, &ratemin, NULL);
+            snd_pcm_hw_params_get_rate_max(pars, &ratemax, NULL);
+            /* if the rate is single, we are going to adapt to whatever it is.
+               Otherwise we set the standard rate */
+            if (ratemax >= PREFRATE) dev->rate = PREFRATE;
+            else dev->rate = ratemax;
+            snd_pcm_format_mask_alloca(&fmask);
+            snd_pcm_hw_params_get_format_mask(pars, fmask);
+            for (fmt = 0; fmt < SND_PCM_FORMAT_LAST; fmt++) {
 
-                switch (fmt) {
+                bits = 0; sgn = 0; big = 0; flt = 0; supp = 0;
+                if (snd_pcm_format_mask_test(fmask, (snd_pcm_format_t)fmt)) {
 
-                    case SND_PCM_FORMAT_S8:
-                        bits = 8; sgn = 1; big = 0; flt = 0; supp = 1; break;
-                    case SND_PCM_FORMAT_U8:
-                        bits = 8; sgn = 0; big = 0; flt = 0; supp = 1; break;
-                    case SND_PCM_FORMAT_S16_LE:
-                        bits = 16; sgn = 1; big = 0; flt = 0; supp = 1; break;
-                    case SND_PCM_FORMAT_S16_BE:
-                        bits = 16; sgn = 1; big = 1; flt = 0; supp = 1; break;
-                    case SND_PCM_FORMAT_U16_LE:
-                        bits = 16; sgn = 0; big = 0; flt = 0; supp = 1; break;
-                    case SND_PCM_FORMAT_U16_BE:
-                        bits = 16; sgn = 0; big = 1; flt = 0; supp = 1; break;
-                    case SND_PCM_FORMAT_S24_LE:
-                        bits = 24; sgn = 1; big = 0; flt = 0; supp = 1; break;
-                    case SND_PCM_FORMAT_S24_BE:
-                        bits = 24; sgn = 1; big = 1; flt = 0; supp = 1; break;
-                    case SND_PCM_FORMAT_U24_LE:
-                        bits = 24; sgn = 0; big = 0; flt = 0; supp = 1; break;
-                    case SND_PCM_FORMAT_U24_BE:
-                        bits = 24; sgn = 0; big = 1; flt = 0; supp = 1; break;
-                    case SND_PCM_FORMAT_S32_LE:
-                        bits = 32; sgn = 1; big = 0; flt = 0; supp = 1; break;
-                    case SND_PCM_FORMAT_S32_BE:
-                        bits = 32; sgn = 1; big = 1; flt = 0; supp = 1; break;
-                    case SND_PCM_FORMAT_U32_LE:
-                        bits = 32; sgn = 0; big = 0; flt = 0; supp = 1; break;
-                    case SND_PCM_FORMAT_U32_BE:
-                        bits = 32; sgn = 0; big = 1; flt = 0; supp = 1; break;
-                    case SND_PCM_FORMAT_FLOAT_LE:
-                        bits = 32; sgn = 1; big = 0; flt = 1; supp = 1; break;
-                    case SND_PCM_FORMAT_FLOAT_BE:
-                        bits = 32; sgn = 1; big = 1; flt = 1; supp = 1; break;
-                    case SND_PCM_FORMAT_FLOAT64_LE:
-                        bits = 64; sgn = 1; big = 0; flt = 1; supp = 1; break;
-                    case SND_PCM_FORMAT_FLOAT64_BE:
-                        bits = 64; sgn = 1; big = 1; flt = 1; supp = 1; break;
-                    case SND_PCM_FORMAT_IEC958_SUBFRAME_LE:
-                        bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
-                    case SND_PCM_FORMAT_IEC958_SUBFRAME_BE:
-                        bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
-                    case SND_PCM_FORMAT_MU_LAW:
-                        bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
-                    case SND_PCM_FORMAT_A_LAW:
-                        bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
-                    case SND_PCM_FORMAT_IMA_ADPCM:
-                        bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
-                    case SND_PCM_FORMAT_MPEG:
-                        bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
-                    case SND_PCM_FORMAT_GSM:
-                        bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
-                    case SND_PCM_FORMAT_SPECIAL:
-                        bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
-                    case SND_PCM_FORMAT_S24_3LE:
-                        bits = 24; sgn = 1; big = 1; flt = 0; supp = 1; break;
-                    case SND_PCM_FORMAT_S24_3BE:
-                        bits = 24; sgn = 1; big = 1; flt = 0; supp = 1; break;
-                    case SND_PCM_FORMAT_U24_3LE:
-                        bits = 24; sgn = 0; big = 0; flt = 0; supp = 1; break;
-                    case SND_PCM_FORMAT_U24_3BE:
-                        bits = 24; sgn = 0; big = 1; flt = 0; supp = 1; break;
-                    case SND_PCM_FORMAT_S20_3LE:
-                        bits = 20; sgn = 1; big = 0; flt = 0; supp = 0; break;
-                    case SND_PCM_FORMAT_S20_3BE:
-                        bits = 20; sgn = 1; big = 1; flt = 0; supp = 0; break;
-                    case SND_PCM_FORMAT_U20_3LE:
-                        bits = 20; sgn = 0; big = 0; flt = 0; supp = 0; break;
-                    case SND_PCM_FORMAT_U20_3BE:
-                        bits = 20; sgn = 0; big = 1; flt = 0; supp = 0; break;
-                    case SND_PCM_FORMAT_S18_3LE:
-                        bits = 18; sgn = 1; big = 0; flt = 0; supp = 0; break;
-                    case SND_PCM_FORMAT_S18_3BE:
-                        bits = 18; sgn = 1; big = 1; flt = 0; supp = 0; break;
-                    case SND_PCM_FORMAT_U18_3LE:
-                        bits = 18; sgn = 0; big = 0; flt = 0; supp = 0; break;
-                    case SND_PCM_FORMAT_U18_3BE:
-                        bits = 18; sgn = 0; big = 1; flt = 0; supp = 0; break;
+                    switch (fmt) {
 
-                }
-                /* find max format */
-                if (supp) {
+                        case SND_PCM_FORMAT_S8:
+                            bits = 8; sgn = 1; big = 0; flt = 0; supp = 1; break;
+                        case SND_PCM_FORMAT_U8:
+                            bits = 8; sgn = 0; big = 0; flt = 0; supp = 1; break;
+                        case SND_PCM_FORMAT_S16_LE:
+                            bits = 16; sgn = 1; big = 0; flt = 0; supp = 1; break;
+                        case SND_PCM_FORMAT_S16_BE:
+                            bits = 16; sgn = 1; big = 1; flt = 0; supp = 1; break;
+                        case SND_PCM_FORMAT_U16_LE:
+                            bits = 16; sgn = 0; big = 0; flt = 0; supp = 1; break;
+                        case SND_PCM_FORMAT_U16_BE:
+                            bits = 16; sgn = 0; big = 1; flt = 0; supp = 1; break;
+                        case SND_PCM_FORMAT_S24_LE:
+                            bits = 24; sgn = 1; big = 0; flt = 0; supp = 1; break;
+                        case SND_PCM_FORMAT_S24_BE:
+                            bits = 24; sgn = 1; big = 1; flt = 0; supp = 1; break;
+                        case SND_PCM_FORMAT_U24_LE:
+                            bits = 24; sgn = 0; big = 0; flt = 0; supp = 1; break;
+                        case SND_PCM_FORMAT_U24_BE:
+                            bits = 24; sgn = 0; big = 1; flt = 0; supp = 1; break;
+                        case SND_PCM_FORMAT_S32_LE:
+                            bits = 32; sgn = 1; big = 0; flt = 0; supp = 1; break;
+                        case SND_PCM_FORMAT_S32_BE:
+                            bits = 32; sgn = 1; big = 1; flt = 0; supp = 1; break;
+                        case SND_PCM_FORMAT_U32_LE:
+                            bits = 32; sgn = 0; big = 0; flt = 0; supp = 1; break;
+                        case SND_PCM_FORMAT_U32_BE:
+                            bits = 32; sgn = 0; big = 1; flt = 0; supp = 1; break;
+                        case SND_PCM_FORMAT_FLOAT_LE:
+                            bits = 32; sgn = 1; big = 0; flt = 1; supp = 1; break;
+                        case SND_PCM_FORMAT_FLOAT_BE:
+                            bits = 32; sgn = 1; big = 1; flt = 1; supp = 1; break;
+                        case SND_PCM_FORMAT_FLOAT64_LE:
+                            bits = 64; sgn = 1; big = 0; flt = 1; supp = 1; break;
+                        case SND_PCM_FORMAT_FLOAT64_BE:
+                            bits = 64; sgn = 1; big = 1; flt = 1; supp = 1; break;
+                        case SND_PCM_FORMAT_IEC958_SUBFRAME_LE:
+                            bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
+                        case SND_PCM_FORMAT_IEC958_SUBFRAME_BE:
+                            bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
+                        case SND_PCM_FORMAT_MU_LAW:
+                            bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
+                        case SND_PCM_FORMAT_A_LAW:
+                            bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
+                        case SND_PCM_FORMAT_IMA_ADPCM:
+                            bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
+                        case SND_PCM_FORMAT_MPEG:
+                            bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
+                        case SND_PCM_FORMAT_GSM:
+                            bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
+                        case SND_PCM_FORMAT_SPECIAL:
+                            bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
+                        case SND_PCM_FORMAT_S24_3LE:
+                            bits = 24; sgn = 1; big = 1; flt = 0; supp = 1; break;
+                        case SND_PCM_FORMAT_S24_3BE:
+                            bits = 24; sgn = 1; big = 1; flt = 0; supp = 1; break;
+                        case SND_PCM_FORMAT_U24_3LE:
+                            bits = 24; sgn = 0; big = 0; flt = 0; supp = 1; break;
+                        case SND_PCM_FORMAT_U24_3BE:
+                            bits = 24; sgn = 0; big = 1; flt = 0; supp = 1; break;
+                        case SND_PCM_FORMAT_S20_3LE:
+                            bits = 20; sgn = 1; big = 0; flt = 0; supp = 0; break;
+                        case SND_PCM_FORMAT_S20_3BE:
+                            bits = 20; sgn = 1; big = 1; flt = 0; supp = 0; break;
+                        case SND_PCM_FORMAT_U20_3LE:
+                            bits = 20; sgn = 0; big = 0; flt = 0; supp = 0; break;
+                        case SND_PCM_FORMAT_U20_3BE:
+                            bits = 20; sgn = 0; big = 1; flt = 0; supp = 0; break;
+                        case SND_PCM_FORMAT_S18_3LE:
+                            bits = 18; sgn = 1; big = 0; flt = 0; supp = 0; break;
+                        case SND_PCM_FORMAT_S18_3BE:
+                            bits = 18; sgn = 1; big = 1; flt = 0; supp = 0; break;
+                        case SND_PCM_FORMAT_U18_3LE:
+                            bits = 18; sgn = 0; big = 0; flt = 0; supp = 0; break;
+                        case SND_PCM_FORMAT_U18_3BE:
+                            bits = 18; sgn = 0; big = 1; flt = 0; supp = 0; break;
 
-                    /* is a PA supported format */
-                    if (bits > mbits || flt > mflt) {
+                    }
+                    /* find max format */
+                    if (supp) {
 
-                        /* prefer bigger bit size or float */
-                        if (sgn > msgn || big == bigend()) {
+                        /* is a PA supported format */
+                        if (bits > mbits || flt > mflt) {
 
-                            /* prefer signed or big endian matches host */
-                            mbits = bits; msgn = sgn; mbig = big; mflt = flt; msupp = supp;
+                            /* prefer bigger bit size or float */
+                            if (sgn > msgn || big == bigend()) {
+
+                                /* prefer signed or big endian matches host */
+                                mbits = bits;
+                                msgn = sgn;
+                                mbig = big;
+                                mflt = flt;
+                                msupp = supp;
+
+                            }
 
                         }
 
@@ -3615,9 +3625,44 @@ void readalsadev(devptr table[], string devt, string iotyp, int tabmax)
     while (*hi != NULL && i < tabmax) {
 
         /* if table overflows, just keep first entries */
-
         devn = snd_device_name_get_hint(*hi, "NAME");
         iot = snd_device_name_get_hint(*hi, "IOID");
+        /* fix up incorrectly typed ALSA devices (plugins) */
+        if (!strncmp(devn, "dmix:", 5)) {
+
+            if (iot) free(iot);
+            iot = malloc(7);
+            strcpy(iot, "Output");
+
+        }
+        if (!strncmp(devn, "dsnoop:", 7)) {
+
+            if (iot) free(iot);
+            iot = malloc(7);
+            strcpy(iot, "Input");
+
+        }
+        if (!strncmp(devn, "front:", 6)) {
+
+            if (iot) free(iot);
+            iot = malloc(7);
+            strcpy(iot, "Output");
+
+        }
+        if (!strncmp(devn, "surround", 8)) {
+
+            if (iot) free(iot);
+            iot = malloc(7);
+            strcpy(iot, "Output");
+
+        }
+        if (!strncmp(devn, "iec958:", 7)) {
+
+            if (iot) free(iot);
+            iot = malloc(7);
+            strcpy(iot, "Output");
+
+        }
         /* treat null I/O types as universal for now. Alsa returns such
            types for MIDI devices. It seems to indicate "both" */
         if (!iot || !strcmp(iotyp, iot)) {
@@ -3704,12 +3749,18 @@ static void pa_init_sound()
 
     /* define the ALSA midi output devices */
     readalsadev(alsamidiout, "rawmidi", "Output", MAXMIDP);
+//printf("\nmidi devices:\n\n");
+//for (i = 0; i < MAXMIDP; i++) if (alsamidiout[i]) printf("%d: %s\n", i, alsamidiout[i]->name);
 
     /* define the ALSA PCM output devices */
     readalsadev(alsapcmout, "pcm", "Output", MAXWAVP);
+//printf("\nPCM output devices:\n\n");
+//for (i = 0; i < MAXWAVP; i++) if (alsapcmout[i]) printf("%d: %s\n", i, alsapcmout[i]->name);
 
     /* define the ALSA PCM input devices */
     readalsadev(alsapcmin, "pcm", "Input", MAXWAVP);
+//printf("\nPCM input devices:\n\n");
+//for (i = 0; i < MAXWAVP; i++) if (alsapcmin[i]) printf("%d: %s\n", i, alsapcmin[i]->name);
 
 }
 
