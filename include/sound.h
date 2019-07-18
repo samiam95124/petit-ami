@@ -364,6 +364,6 @@ int pa_lenwavein(int p);
 boolean pa_sgnwavein(int p);
 boolean pa_endianwavein(int p);
 boolean pa_fltwavein(int p);
-int pa_rdwave(int p, byte* buff, int len);
+void pa_rdwave(int p, byte* buff, int len);
 
 #endif /* __SOUND_H__ */

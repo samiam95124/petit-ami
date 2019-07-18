@@ -235,6 +235,7 @@ typedef struct snddev {
     boolean        sgn;  /* preferred format sign */
     boolean        big;  /* preferred format big endian */
     boolean        flt;  /* preferred format floating point */
+    int            ssiz; /* sample size, bits*chan in bytes */
 
 } snddev;
 
@@ -305,6 +306,22 @@ static void error(string s)
     fprintf(stderr, "\nError: Sound: %s\n", s);
 
     exit(1);
+
+}
+
+/*******************************************************************************
+
+Process alsa error
+
+Outputs an ALSA specific error, then halts.
+
+*******************************************************************************/
+
+static void alsaerror(int e)
+
+{
+
+    fprintf(stderr, "\nALSA error: %d:%s\n", e, snd_strerror(e));
 
 }
 
@@ -2769,6 +2786,24 @@ void pa_openwaveout(int p)
 
 {
 
+    int r;
+    int bytes;
+
+    if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
+    if (!alsapcmout[p]) error("No wave output device defined at logical number");
+    r = snd_pcm_open(&alsapcmout[p-1]->pcm, alsapcmout[p-1]->name,
+                     SND_PCM_STREAM_PLAYBACK, 0);
+    if (r < 0) error("Cannot open audio output device");
+    r = snd_pcm_set_params(alsapcmout[p-1]->pcm, SND_PCM_FORMAT_S16,
+                           SND_PCM_ACCESS_RW_INTERLEAVED, alsapcmout[p-1]->chan,
+                           48000/*alsapcmout[p-1]->rate*/, 1, 500000);
+    if (r < 0) error("Cannot set sound parameters");
+    /* find size of sample */
+    bytes = alsapcmout[p-1]->bits/8; /* find bytes per */
+    if (alsapcmout[p-1]->bits&8) bytes++; /* round  up */
+    bytes *= alsapcmout[p-1]->chan;
+    alsapcmout[p-1]->ssiz = bytes;
+
 }
 
 /*******************************************************************************
@@ -3177,8 +3212,22 @@ void pa_openwavein(int p)
 
 {
 
+    int r;
+
+printf("openwavein: begin\n");
     if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
     if (!alsapcmin[p]) error("No wave input device defined at logical number");
+printf("Open input wave file: %s\n", alsapcmin[p-1]->name);
+    r = snd_pcm_open(&alsapcmin[p-1]->pcm, alsapcmin[p-1]->name,
+                     SND_PCM_STREAM_CAPTURE, 0);
+    if (r < 0) alsaerror(r);
+    r = snd_pcm_set_params(alsapcmin[p-1]->pcm, SND_PCM_FORMAT_S16,
+                           SND_PCM_ACCESS_RW_INTERLEAVED, 2/*alsapcmin[p-1]->chan*/,
+                           48000/*alsapcmin[p-1]->rate*/, 1, 500000);
+    if (r < 0) alsaerror(r);
+    snd_pcm_prepare(alsapcmin[p-1]->pcm);
+    if (r < 0) alsaerror(r);
+printf("openwavein: end\n");
 
 }
 
@@ -3359,9 +3408,21 @@ pa_rdwave() will return the actual number of bytes read, which will contain
 
 *******************************************************************************/
 
-int pa_rdwave(int p, byte* buff, int len)
+void pa_rdwave(int p, byte* buff, int len)
 
 {
+
+    int r;
+
+printf("pa_rdwave: begin\n");
+    if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
+    if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
+printf("Reading device: %s\n", alsapcmin[p-1]->name);
+    r = snd_pcm_prepare(alsapcmin[p-1]->pcm);
+    if (r < 0) alsaerror(r);
+    r = snd_pcm_readi(alsapcmin[p-1]->pcm, buff, len);
+    if (r < 0) alsaerror(r);
+printf("pa_rdwave: end\n");
 
 }
 
@@ -3439,12 +3500,19 @@ int findparms(devptr dev, snd_pcm_stream_t stream)
     int mflt;
     int msupp;
     int r;
+    int stderr_save;
+    int stderr_file;
 
     mbits = 0; msgn = 0; mbig = 0; mflt = 0; msupp = 0;
     /* run alsa open in quiet */
+    fflush(stderr);
+    stderr_file = dup(fileno(stderr));
     freopen("/dev/null", "w", stderr);
     r = snd_pcm_open(&pcm, dev->name, stream, SND_PCM_NONBLOCK);
-    freopen("/dev/stderr", "w", stderr);
+    fflush(stderr);
+    dup2(stderr_file, fileno(stderr));
+    close(stderr_file);
+    clearerr(stderr);
     if (!r) {
 
         snd_pcm_hw_params_alloca(&pars);
@@ -3747,18 +3815,18 @@ static void pa_init_sound()
 
     /* define the ALSA midi output devices */
     readalsadev(alsamidiout, "rawmidi", "Output", MAXMIDP);
-//printf("\nmidi devices:\n\n");
-//for (i = 0; i < MAXMIDP; i++) if (alsamidiout[i]) printf("%d: %s\n", i, alsamidiout[i]->name);
+printf("\nmidi devices:\n\n");
+for (i = 0; i < MAXMIDP; i++) if (alsamidiout[i]) printf("%d: %s\n", i+1, alsamidiout[i]->name);
 
     /* define the ALSA PCM output devices */
     readalsadev(alsapcmout, "pcm", "Output", MAXWAVP);
-//printf("\nPCM output devices:\n\n");
-//for (i = 0; i < MAXWAVP; i++) if (alsapcmout[i]) printf("%d: %s\n", i, alsapcmout[i]->name);
+printf("\nPCM output devices:\n\n");
+for (i = 0; i < MAXWAVP; i++) if (alsapcmout[i]) printf("%d: %s\n", i+1, alsapcmout[i]->name);
 
     /* define the ALSA PCM input devices */
     readalsadev(alsapcmin, "pcm", "Input", MAXWAVP);
-//printf("\nPCM input devices:\n\n");
-//for (i = 0; i < MAXWAVP; i++) if (alsapcmin[i]) printf("%d: %s\n", i, alsapcmin[i]->name);
+printf("\nPCM input devices:\n\n");
+for (i = 0; i < MAXWAVP; i++) if (alsapcmin[i]) printf("%d: %s\n", i+1, alsapcmin[i]->name);
 
 }
 
