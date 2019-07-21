@@ -2793,11 +2793,11 @@ void pa_openwaveout(int p)
     if (!alsapcmout[p]) error("No wave output device defined at logical number");
     r = snd_pcm_open(&alsapcmout[p-1]->pcm, alsapcmout[p-1]->name,
                      SND_PCM_STREAM_PLAYBACK, 0);
-    if (r < 0) error("Cannot open audio output device");
+    if (r < 0) alsaerror(r);
     r = snd_pcm_set_params(alsapcmout[p-1]->pcm, SND_PCM_FORMAT_S16,
                            SND_PCM_ACCESS_RW_INTERLEAVED, alsapcmout[p-1]->chan,
                            48000/*alsapcmout[p-1]->rate*/, 1, 500000);
-    if (r < 0) error("Cannot set sound parameters");
+    if (r < 0) alsaerror(r);
     /* find size of sample */
     bytes = alsapcmout[p-1]->bits/8; /* find bytes per */
     if (alsapcmout[p-1]->bits&8) bytes++; /* round  up */
@@ -3108,6 +3108,9 @@ void pa_volwave(int p, int t, int v)
 
 {
 
+    if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
+    if (!alsapcmout[p]) error("No wave output device defined at logical number");
+
 }
 
 /*******************************************************************************
@@ -3153,6 +3156,10 @@ void pa_chanwaveout(int p, int c)
 
 {
 
+    if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
+    if (!alsapcmout[p]) error("No wave output device defined at logical number");
+    alsapcmout[p-1]->chan = c;
+
 }
 
 /*******************************************************************************
@@ -3167,9 +3174,92 @@ required.
 
 *******************************************************************************/
 
-void pa_ratewaveout(int p, int c)
+void pa_ratewaveout(int p, int r)
 
 {
+
+    if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
+    if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
+    alsapcmout[p-1]->rate = r;
+
+}
+
+/*******************************************************************************
+
+Set bit length for output wave device
+
+The given port has its bit length for samples set. Bit lengths are rounded up
+to the nearest byte. At the present time, bit numbers that are not divisible by
+8 are not supported, but the most likely would be to zero or 1 pad the msbs
+depending on signed status, effectively extending the samples. Thus the bit
+cound would mainly indicate precision only.
+
+*******************************************************************************/
+
+void pa_lenwaveout(int p, int l)
+
+{
+
+    if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
+    if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
+    alsapcmout[p-1]->bits = l;
+
+}
+
+/*******************************************************************************
+
+Set sign of wave output device samples
+
+The given port has its signed/no signed status changed. Note that all floating
+point formats are inherently signed.
+
+*******************************************************************************/
+
+void pa_sgnwaveout(int p, boolean s)
+
+{
+
+    if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
+    if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
+    alsapcmout[p-1]->sgn = s;
+
+}
+
+/*******************************************************************************
+
+Set floating/non-floating point format
+
+Sets the floating point/integer format for output sound samples.
+
+*******************************************************************************/
+
+void pa_fltwaveout(int p, boolean f)
+
+{
+
+    if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
+    if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
+    alsapcmout[p-1]->flt = f;
+
+}
+
+/*******************************************************************************
+
+Set big/little endian format
+
+Sets the big or little endian format for an output wave device. It is possible
+that an installation is fixed to the endian format of the host machine, in which
+case it is an error to set a format that is different.
+
+*******************************************************************************/
+
+void pa_endwaveout(int p, boolean e)
+
+{
+
+    if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
+    if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
+    alsapcmout[p-1]->big = e;
 
 }
 
@@ -3193,9 +3283,12 @@ recommended to be 1ms or less (64 samples at a 44100 sample rate).
 
 *******************************************************************************/
 
-void pa_writewave(int p, byte* buff, int len)
+void pa_wrwave(int p, byte* buff, int len)
 
 {
+
+    if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
+    if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
 
 }
 
@@ -3212,22 +3305,49 @@ void pa_openwavein(int p)
 
 {
 
+    snd_pcm_hw_params_t *hw_params;
+    unsigned int rate = 44100;
     int r;
 
-printf("openwavein: begin\n");
     if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
-    if (!alsapcmin[p]) error("No wave input device defined at logical number");
-printf("Open input wave file: %s\n", alsapcmin[p-1]->name);
+    if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
     r = snd_pcm_open(&alsapcmin[p-1]->pcm, alsapcmin[p-1]->name,
                      SND_PCM_STREAM_CAPTURE, 0);
     if (r < 0) alsaerror(r);
+/* don't know why this does not work */
+#if 0
     r = snd_pcm_set_params(alsapcmin[p-1]->pcm, SND_PCM_FORMAT_S16,
                            SND_PCM_ACCESS_RW_INTERLEAVED, 2/*alsapcmin[p-1]->chan*/,
                            48000/*alsapcmin[p-1]->rate*/, 1, 500000);
     if (r < 0) alsaerror(r);
+#endif
+
+    r = snd_pcm_hw_params_malloc(&hw_params);
+    if (r < 0) alsaerror(r);
+
+    /* fill defaults */
+    r = snd_pcm_hw_params_any (alsapcmin[p-1]->pcm, hw_params);
+    if (r < 0) alsaerror(r);
+
+    r = snd_pcm_hw_params_set_access (alsapcmin[p-1]->pcm, hw_params, SND_PCM_ACCESS_RW_INTERLEAVED);
+    if (r < 0) alsaerror(r);
+
+    r = snd_pcm_hw_params_set_format (alsapcmin[p-1]->pcm, hw_params, SND_PCM_FORMAT_S16);
+    if (r < 0) alsaerror(r);
+
+    r = snd_pcm_hw_params_set_rate_near (alsapcmin[p-1]->pcm, hw_params, &rate, 0);
+    if (r < 0) alsaerror(r);
+
+    r = snd_pcm_hw_params_set_channels (alsapcmin[p-1]->pcm, hw_params, 2);
+    if (r < 0) alsaerror(r);
+
+    r = snd_pcm_hw_params (alsapcmin[p-1]->pcm, hw_params);
+    if (r < 0) alsaerror(r);
+
+    snd_pcm_hw_params_free (hw_params);
+
     snd_pcm_prepare(alsapcmin[p-1]->pcm);
     if (r < 0) alsaerror(r);
-printf("openwavein: end\n");
 
 }
 
@@ -3244,7 +3364,7 @@ void pa_closewavein(int p)
 {
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
-    if (!alsapcmin[p]) error("No wave input device defined at logical number");
+    if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
 
 }
 
@@ -3350,7 +3470,7 @@ Returns true if the given wave input device has big endian sampling.
 
 *******************************************************************************/
 
-boolean pa_bigwavein(int p)
+boolean pa_endwavein(int p)
 
 {
 
@@ -3408,21 +3528,18 @@ pa_rdwave() will return the actual number of bytes read, which will contain
 
 *******************************************************************************/
 
-void pa_rdwave(int p, byte* buff, int len)
+int pa_rdwave(int p, byte* buff, int len)
 
 {
 
     int r;
 
-printf("pa_rdwave: begin\n");
     if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
     if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
-printf("Reading device: %s\n", alsapcmin[p-1]->name);
-    r = snd_pcm_prepare(alsapcmin[p-1]->pcm);
-    if (r < 0) alsaerror(r);
     r = snd_pcm_readi(alsapcmin[p-1]->pcm, buff, len);
     if (r < 0) alsaerror(r);
-printf("pa_rdwave: end\n");
+
+    return (r);
 
 }
 
