@@ -236,6 +236,7 @@ typedef struct snddev {
     boolean        big;  /* preferred format big endian */
     boolean        flt;  /* preferred format floating point */
     int            ssiz; /* sample size, bits*chan in bytes */
+    int            fmt;  /* alsa format code for output, -1 if not set */
 
 } snddev;
 
@@ -321,9 +322,164 @@ static void alsaerror(int e)
 
 {
 
-    fprintf(stderr, "\nALSA error: %d:%s\n", e, snd_strerror(e));
+    fprintf(stderr, "\nALSA error: %d: %s\n", e, snd_strerror(e));
 
     exit(1);
+
+}
+
+/*******************************************************************************
+
+Convert ALSA format codes to parameters
+
+Finds the net format parameters bits/sign/endian/float from a given alsa format
+code. The return value is true if the format is supported by PA, otherwise
+false.
+
+*******************************************************************************/
+
+int alsa2params(int fmt, int* rbits, int* rsgn, int* rbig, int* rflt)
+
+{
+
+    int supp; /* format is supported */
+    int bits; /* number of bits */
+    int sgn;  /* signed/unsigned */
+    int big;  /* big/litte endian */
+    int flt;  /* floating point/integer */
+
+    switch (fmt) {
+
+        case SND_PCM_FORMAT_S8:
+            bits = 8; sgn = 1; big = 0; flt = 0; supp = 1; break;
+        case SND_PCM_FORMAT_U8:
+            bits = 8; sgn = 0; big = 0; flt = 0; supp = 1; break;
+        case SND_PCM_FORMAT_S16_LE:
+            bits = 16; sgn = 1; big = 0; flt = 0; supp = 1; break;
+        case SND_PCM_FORMAT_S16_BE:
+            bits = 16; sgn = 1; big = 1; flt = 0; supp = 1; break;
+        case SND_PCM_FORMAT_U16_LE:
+            bits = 16; sgn = 0; big = 0; flt = 0; supp = 1; break;
+        case SND_PCM_FORMAT_U16_BE:
+            bits = 16; sgn = 0; big = 1; flt = 0; supp = 1; break;
+        case SND_PCM_FORMAT_S24_LE:
+            bits = 24; sgn = 1; big = 0; flt = 0; supp = 1; break;
+        case SND_PCM_FORMAT_S24_BE:
+            bits = 24; sgn = 1; big = 1; flt = 0; supp = 1; break;
+        case SND_PCM_FORMAT_U24_LE:
+            bits = 24; sgn = 0; big = 0; flt = 0; supp = 1; break;
+        case SND_PCM_FORMAT_U24_BE:
+            bits = 24; sgn = 0; big = 1; flt = 0; supp = 1; break;
+        case SND_PCM_FORMAT_S32_LE:
+            bits = 32; sgn = 1; big = 0; flt = 0; supp = 1; break;
+        case SND_PCM_FORMAT_S32_BE:
+            bits = 32; sgn = 1; big = 1; flt = 0; supp = 1; break;
+        case SND_PCM_FORMAT_U32_LE:
+            bits = 32; sgn = 0; big = 0; flt = 0; supp = 1; break;
+        case SND_PCM_FORMAT_U32_BE:
+            bits = 32; sgn = 0; big = 1; flt = 0; supp = 1; break;
+        case SND_PCM_FORMAT_FLOAT_LE:
+            bits = 32; sgn = 1; big = 0; flt = 1; supp = 1; break;
+        case SND_PCM_FORMAT_FLOAT_BE:
+            bits = 32; sgn = 1; big = 1; flt = 1; supp = 1; break;
+        case SND_PCM_FORMAT_FLOAT64_LE:
+            bits = 64; sgn = 1; big = 0; flt = 1; supp = 1; break;
+        case SND_PCM_FORMAT_FLOAT64_BE:
+            bits = 64; sgn = 1; big = 1; flt = 1; supp = 1; break;
+        case SND_PCM_FORMAT_IEC958_SUBFRAME_LE:
+            bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
+        case SND_PCM_FORMAT_IEC958_SUBFRAME_BE:
+            bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
+        case SND_PCM_FORMAT_MU_LAW:
+            bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
+        case SND_PCM_FORMAT_A_LAW:
+            bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
+        case SND_PCM_FORMAT_IMA_ADPCM:
+            bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
+        case SND_PCM_FORMAT_MPEG:
+            bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
+        case SND_PCM_FORMAT_GSM:
+            bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
+        case SND_PCM_FORMAT_SPECIAL:
+            bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
+        case SND_PCM_FORMAT_S24_3LE:
+            bits = 24; sgn = 1; big = 1; flt = 0; supp = 1; break;
+        case SND_PCM_FORMAT_S24_3BE:
+            bits = 24; sgn = 1; big = 1; flt = 0; supp = 1; break;
+        case SND_PCM_FORMAT_U24_3LE:
+            bits = 24; sgn = 0; big = 0; flt = 0; supp = 1; break;
+        case SND_PCM_FORMAT_U24_3BE:
+            bits = 24; sgn = 0; big = 1; flt = 0; supp = 1; break;
+        case SND_PCM_FORMAT_S20_3LE:
+            bits = 20; sgn = 1; big = 0; flt = 0; supp = 0; break;
+        case SND_PCM_FORMAT_S20_3BE:
+            bits = 20; sgn = 1; big = 1; flt = 0; supp = 0; break;
+        case SND_PCM_FORMAT_U20_3LE:
+            bits = 20; sgn = 0; big = 0; flt = 0; supp = 0; break;
+        case SND_PCM_FORMAT_U20_3BE:
+            bits = 20; sgn = 0; big = 1; flt = 0; supp = 0; break;
+        case SND_PCM_FORMAT_S18_3LE:
+            bits = 18; sgn = 1; big = 0; flt = 0; supp = 0; break;
+        case SND_PCM_FORMAT_S18_3BE:
+            bits = 18; sgn = 1; big = 1; flt = 0; supp = 0; break;
+        case SND_PCM_FORMAT_U18_3LE:
+            bits = 18; sgn = 0; big = 0; flt = 0; supp = 0; break;
+        case SND_PCM_FORMAT_U18_3BE:
+            bits = 18; sgn = 0; big = 1; flt = 0; supp = 0; break;
+
+    }
+    if (supp) { /* valid format, copy back parameters */
+
+        *rbits = bits;
+        *rsgn = sgn;
+        *rbig = big;
+        *rflt = flt;
+
+    }
+
+    return (supp);
+
+}
+
+/*******************************************************************************
+
+Convert sound device parameters to ALSA format code
+
+Using the alsa parameters for the given device, comes up with an ALSA format
+code that matches. This is required since we use bits/sign/endian/float to
+identify wave sample parameters instead of a code.
+
+Does a linear search to find the format code.
+
+*******************************************************************************/
+
+static int params2alsa(devptr dp)
+
+{
+
+    int fmt;    /* ALSA format code */
+    int supp;   /* format is supported */
+    int bits;   /* number of bits */
+    int sgn;    /* signed/unsigned */
+    int big;    /* big/litte endian */
+    int flt;    /* floating point/integer */
+    int fndfmt; /* found format code */
+
+    fndfmt = -1;
+    for (fmt = 0; fmt < SND_PCM_FORMAT_LAST; fmt++) {
+
+        supp = alsa2params(fmt, &bits, &sgn, &big, &flt);
+        if (supp &&
+            bits == dp->bits &&
+            sgn == dp->sgn &&
+            big == dp->big &&
+            flt == dp->flt) fndfmt = fmt;
+
+    }
+    if (fndfmt == -1)
+        error("No ALSA format equivalent for current wave parameters");
+
+    return (fndfmt);
 
 }
 
@@ -2789,22 +2945,13 @@ void pa_openwaveout(int p)
 {
 
     int r;
-    int bytes;
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
     if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
     r = snd_pcm_open(&alsapcmout[p-1]->pcm, alsapcmout[p-1]->name,
                      SND_PCM_STREAM_PLAYBACK, 0);
     if (r < 0) alsaerror(r);
-    r = snd_pcm_set_params(alsapcmout[p-1]->pcm, SND_PCM_FORMAT_S16,
-                           SND_PCM_ACCESS_RW_INTERLEAVED, /*alsapcmout[p-1]->chan*/2,
-                           44100/*alsapcmout[p-1]->rate*/, 1, 500000);
-    if (r < 0) alsaerror(r);
-    /* find size of sample */
-    bytes = alsapcmout[p-1]->bits/8; /* find bytes per */
-    if (alsapcmout[p-1]->bits&8) bytes++; /* round  up */
-    bytes *= alsapcmout[p-1]->chan;
-    alsapcmout[p-1]->ssiz = bytes;
+    alsapcmout[p-1]->fmt = -1; /* set format undefined until read/write time */
 
 }
 
@@ -3163,8 +3310,9 @@ void pa_chanwaveout(int p, int c)
 {
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
-    if (!alsapcmout[p]) error("No wave output device defined at logical number");
+    if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
     alsapcmout[p-1]->chan = c;
+    alsapcmout[p-1]->fmt = -1; /* set format undefined until read/write time */
 
 }
 
@@ -3187,6 +3335,7 @@ void pa_ratewaveout(int p, int r)
     if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
     if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
     alsapcmout[p-1]->rate = r;
+    alsapcmout[p-1]->fmt = -1; /* set format undefined until read/write time */
 
 }
 
@@ -3209,6 +3358,7 @@ void pa_lenwaveout(int p, int l)
     if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
     if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
     alsapcmout[p-1]->bits = l;
+    alsapcmout[p-1]->fmt = -1; /* set format undefined until read/write time */
 
 }
 
@@ -3228,6 +3378,7 @@ void pa_sgnwaveout(int p, boolean s)
     if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
     if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
     alsapcmout[p-1]->sgn = s;
+    alsapcmout[p-1]->fmt = -1; /* set format undefined until read/write time */
 
 }
 
@@ -3246,6 +3397,7 @@ void pa_fltwaveout(int p, boolean f)
     if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
     if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
     alsapcmout[p-1]->flt = f;
+    alsapcmout[p-1]->fmt = -1; /* set format undefined until read/write time */
 
 }
 
@@ -3266,6 +3418,7 @@ void pa_endwaveout(int p, boolean e)
     if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
     if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
     alsapcmout[p-1]->big = e;
+    alsapcmout[p-1]->fmt = -1; /* set format undefined until read/write time */
 
 }
 
@@ -3294,9 +3447,25 @@ void pa_wrwave(int p, byte* buff, int len)
 {
 
     int r;
+    int bytes;
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
     if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
+    if (alsapcmout[p-1]->fmt == -1) {
+
+        /* if format is not set yet, we set it here */
+        alsapcmout[p-1]->fmt = params2alsa(alsapcmout[p-1]);
+        r = snd_pcm_set_params(alsapcmout[p-1]->pcm, alsapcmout[p-1]->fmt,
+                               SND_PCM_ACCESS_RW_INTERLEAVED, alsapcmout[p-1]->chan,
+                               alsapcmout[p-1]->rate, 1, 500000);
+        if (r < 0) alsaerror(r);
+        /* find size of sample */
+        bytes = alsapcmout[p-1]->bits/8; /* find bytes per */
+        if (alsapcmout[p-1]->bits&8) bytes++; /* round  up */
+        bytes *= alsapcmout[p-1]->chan;
+        alsapcmout[p-1]->ssiz = bytes;
+
+    }
     r = snd_pcm_writei(alsapcmout[p-1]->pcm, buff, len);
     if (r < 0) alsaerror(r);
 
@@ -3317,7 +3486,8 @@ void pa_openwavein(int p)
 {
 
     snd_pcm_hw_params_t *hw_params;
-    unsigned int rate = 44100;
+    unsigned int rate;
+    int fmt;
     int r;
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
@@ -3336,13 +3506,15 @@ void pa_openwavein(int p)
     r = snd_pcm_hw_params_set_access(alsapcmin[p-1]->pcm, hw_params, SND_PCM_ACCESS_RW_INTERLEAVED);
     if (r < 0) alsaerror(r);
 
-    r = snd_pcm_hw_params_set_format(alsapcmin[p-1]->pcm, hw_params, SND_PCM_FORMAT_S16);
+    fmt = params2alsa(alsapcmin[p-1]); /* find equivalent ALSA format code */
+    r = snd_pcm_hw_params_set_format(alsapcmin[p-1]->pcm, hw_params, fmt);
     if (r < 0) alsaerror(r);
 
+    rate = alsapcmin[p-1]->rate;
     r = snd_pcm_hw_params_set_rate_near(alsapcmin[p-1]->pcm, hw_params, &rate, 0);
     if (r < 0) alsaerror(r);
 
-    r = snd_pcm_hw_params_set_channels(alsapcmin[p-1]->pcm, hw_params, 2);
+    r = snd_pcm_hw_params_set_channels(alsapcmin[p-1]->pcm, hw_params, alsapcmin[p-1]->chan);
     if (r < 0) alsaerror(r);
 
     r = snd_pcm_hw_params(alsapcmin[p-1]->pcm, hw_params);
@@ -3657,86 +3829,7 @@ int findparms(devptr dev, snd_pcm_stream_t stream)
                 bits = 0; sgn = 0; big = 0; flt = 0; supp = 0;
                 if (snd_pcm_format_mask_test(fmask, (snd_pcm_format_t)fmt)) {
 
-                    switch (fmt) {
-
-                        case SND_PCM_FORMAT_S8:
-                            bits = 8; sgn = 1; big = 0; flt = 0; supp = 1; break;
-                        case SND_PCM_FORMAT_U8:
-                            bits = 8; sgn = 0; big = 0; flt = 0; supp = 1; break;
-                        case SND_PCM_FORMAT_S16_LE:
-                            bits = 16; sgn = 1; big = 0; flt = 0; supp = 1; break;
-                        case SND_PCM_FORMAT_S16_BE:
-                            bits = 16; sgn = 1; big = 1; flt = 0; supp = 1; break;
-                        case SND_PCM_FORMAT_U16_LE:
-                            bits = 16; sgn = 0; big = 0; flt = 0; supp = 1; break;
-                        case SND_PCM_FORMAT_U16_BE:
-                            bits = 16; sgn = 0; big = 1; flt = 0; supp = 1; break;
-                        case SND_PCM_FORMAT_S24_LE:
-                            bits = 24; sgn = 1; big = 0; flt = 0; supp = 1; break;
-                        case SND_PCM_FORMAT_S24_BE:
-                            bits = 24; sgn = 1; big = 1; flt = 0; supp = 1; break;
-                        case SND_PCM_FORMAT_U24_LE:
-                            bits = 24; sgn = 0; big = 0; flt = 0; supp = 1; break;
-                        case SND_PCM_FORMAT_U24_BE:
-                            bits = 24; sgn = 0; big = 1; flt = 0; supp = 1; break;
-                        case SND_PCM_FORMAT_S32_LE:
-                            bits = 32; sgn = 1; big = 0; flt = 0; supp = 1; break;
-                        case SND_PCM_FORMAT_S32_BE:
-                            bits = 32; sgn = 1; big = 1; flt = 0; supp = 1; break;
-                        case SND_PCM_FORMAT_U32_LE:
-                            bits = 32; sgn = 0; big = 0; flt = 0; supp = 1; break;
-                        case SND_PCM_FORMAT_U32_BE:
-                            bits = 32; sgn = 0; big = 1; flt = 0; supp = 1; break;
-                        case SND_PCM_FORMAT_FLOAT_LE:
-                            bits = 32; sgn = 1; big = 0; flt = 1; supp = 1; break;
-                        case SND_PCM_FORMAT_FLOAT_BE:
-                            bits = 32; sgn = 1; big = 1; flt = 1; supp = 1; break;
-                        case SND_PCM_FORMAT_FLOAT64_LE:
-                            bits = 64; sgn = 1; big = 0; flt = 1; supp = 1; break;
-                        case SND_PCM_FORMAT_FLOAT64_BE:
-                            bits = 64; sgn = 1; big = 1; flt = 1; supp = 1; break;
-                        case SND_PCM_FORMAT_IEC958_SUBFRAME_LE:
-                            bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
-                        case SND_PCM_FORMAT_IEC958_SUBFRAME_BE:
-                            bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
-                        case SND_PCM_FORMAT_MU_LAW:
-                            bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
-                        case SND_PCM_FORMAT_A_LAW:
-                            bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
-                        case SND_PCM_FORMAT_IMA_ADPCM:
-                            bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
-                        case SND_PCM_FORMAT_MPEG:
-                            bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
-                        case SND_PCM_FORMAT_GSM:
-                            bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
-                        case SND_PCM_FORMAT_SPECIAL:
-                            bits = 0; sgn = 0; big = 0; flt = 0; supp = 0; break;
-                        case SND_PCM_FORMAT_S24_3LE:
-                            bits = 24; sgn = 1; big = 1; flt = 0; supp = 1; break;
-                        case SND_PCM_FORMAT_S24_3BE:
-                            bits = 24; sgn = 1; big = 1; flt = 0; supp = 1; break;
-                        case SND_PCM_FORMAT_U24_3LE:
-                            bits = 24; sgn = 0; big = 0; flt = 0; supp = 1; break;
-                        case SND_PCM_FORMAT_U24_3BE:
-                            bits = 24; sgn = 0; big = 1; flt = 0; supp = 1; break;
-                        case SND_PCM_FORMAT_S20_3LE:
-                            bits = 20; sgn = 1; big = 0; flt = 0; supp = 0; break;
-                        case SND_PCM_FORMAT_S20_3BE:
-                            bits = 20; sgn = 1; big = 1; flt = 0; supp = 0; break;
-                        case SND_PCM_FORMAT_U20_3LE:
-                            bits = 20; sgn = 0; big = 0; flt = 0; supp = 0; break;
-                        case SND_PCM_FORMAT_U20_3BE:
-                            bits = 20; sgn = 0; big = 1; flt = 0; supp = 0; break;
-                        case SND_PCM_FORMAT_S18_3LE:
-                            bits = 18; sgn = 1; big = 0; flt = 0; supp = 0; break;
-                        case SND_PCM_FORMAT_S18_3BE:
-                            bits = 18; sgn = 1; big = 1; flt = 0; supp = 0; break;
-                        case SND_PCM_FORMAT_U18_3LE:
-                            bits = 18; sgn = 0; big = 0; flt = 0; supp = 0; break;
-                        case SND_PCM_FORMAT_U18_3BE:
-                            bits = 18; sgn = 0; big = 1; flt = 0; supp = 0; break;
-
-                    }
+                    supp = alsa2params(fmt, &bits, &sgn, &big, &flt);
                     /* find max format */
                     if (supp) {
 
