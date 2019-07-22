@@ -3467,7 +3467,9 @@ void pa_wrwave(int p, byte* buff, int len)
 
     }
     r = snd_pcm_writei(alsapcmout[p-1]->pcm, buff, len);
-    if (r < 0) alsaerror(r);
+    if (r == -EPIPE)
+        snd_pcm_prepare(alsapcmout[p-1]->pcm); /* try to reset stream */
+    else if (r < 0) alsaerror(r);
 
 }
 
