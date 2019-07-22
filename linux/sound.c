@@ -323,6 +323,8 @@ static void alsaerror(int e)
 
     fprintf(stderr, "\nALSA error: %d:%s\n", e, snd_strerror(e));
 
+    exit(1);
+
 }
 
 /*******************************************************************************
@@ -2790,13 +2792,13 @@ void pa_openwaveout(int p)
     int bytes;
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
-    if (!alsapcmout[p]) error("No wave output device defined at logical number");
+    if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
     r = snd_pcm_open(&alsapcmout[p-1]->pcm, alsapcmout[p-1]->name,
                      SND_PCM_STREAM_PLAYBACK, 0);
     if (r < 0) alsaerror(r);
     r = snd_pcm_set_params(alsapcmout[p-1]->pcm, SND_PCM_FORMAT_S16,
-                           SND_PCM_ACCESS_RW_INTERLEAVED, alsapcmout[p-1]->chan,
-                           48000/*alsapcmout[p-1]->rate*/, 1, 500000);
+                           SND_PCM_ACCESS_RW_INTERLEAVED, /*alsapcmout[p-1]->chan*/2,
+                           44100/*alsapcmout[p-1]->rate*/, 1, 500000);
     if (r < 0) alsaerror(r);
     /* find size of sample */
     bytes = alsapcmout[p-1]->bits/8; /* find bytes per */
@@ -2817,6 +2819,10 @@ Closes a wave output device by number. This is presently a no-op for linux.
 void pa_closewaveout(int p)
 
 {
+
+    if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
+    if (!alsapcmout[p]) error("No wave output device defined at logical number");
+    snd_pcm_close(alsapcmout[p-1]->pcm);
 
 }
 
@@ -3287,8 +3293,12 @@ void pa_wrwave(int p, byte* buff, int len)
 
 {
 
+    int r;
+
     if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
     if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
+    r = snd_pcm_writei(alsapcmout[p-1]->pcm, buff, len);
+    if (r < 0) alsaerror(r);
 
 }
 
@@ -3297,7 +3307,8 @@ void pa_wrwave(int p, byte* buff, int len)
 Open wave input device
 
 Opens a wave output device by number. By convention, wave in 1 is the default
-input device. This is presently a no-op for linux.
+input device. The wave stream parameters are determined during enumeration,
+but we assert them here on open.
 
 *******************************************************************************/
 
@@ -3314,34 +3325,27 @@ void pa_openwavein(int p)
     r = snd_pcm_open(&alsapcmin[p-1]->pcm, alsapcmin[p-1]->name,
                      SND_PCM_STREAM_CAPTURE, 0);
     if (r < 0) alsaerror(r);
-/* don't know why this does not work */
-#if 0
-    r = snd_pcm_set_params(alsapcmin[p-1]->pcm, SND_PCM_FORMAT_S16,
-                           SND_PCM_ACCESS_RW_INTERLEAVED, 2/*alsapcmin[p-1]->chan*/,
-                           48000/*alsapcmin[p-1]->rate*/, 1, 500000);
-    if (r < 0) alsaerror(r);
-#endif
 
     r = snd_pcm_hw_params_malloc(&hw_params);
     if (r < 0) alsaerror(r);
 
     /* fill defaults */
-    r = snd_pcm_hw_params_any (alsapcmin[p-1]->pcm, hw_params);
+    r = snd_pcm_hw_params_any(alsapcmin[p-1]->pcm, hw_params);
     if (r < 0) alsaerror(r);
 
-    r = snd_pcm_hw_params_set_access (alsapcmin[p-1]->pcm, hw_params, SND_PCM_ACCESS_RW_INTERLEAVED);
+    r = snd_pcm_hw_params_set_access(alsapcmin[p-1]->pcm, hw_params, SND_PCM_ACCESS_RW_INTERLEAVED);
     if (r < 0) alsaerror(r);
 
-    r = snd_pcm_hw_params_set_format (alsapcmin[p-1]->pcm, hw_params, SND_PCM_FORMAT_S16);
+    r = snd_pcm_hw_params_set_format(alsapcmin[p-1]->pcm, hw_params, SND_PCM_FORMAT_S16);
     if (r < 0) alsaerror(r);
 
-    r = snd_pcm_hw_params_set_rate_near (alsapcmin[p-1]->pcm, hw_params, &rate, 0);
+    r = snd_pcm_hw_params_set_rate_near(alsapcmin[p-1]->pcm, hw_params, &rate, 0);
     if (r < 0) alsaerror(r);
 
-    r = snd_pcm_hw_params_set_channels (alsapcmin[p-1]->pcm, hw_params, 2);
+    r = snd_pcm_hw_params_set_channels(alsapcmin[p-1]->pcm, hw_params, 2);
     if (r < 0) alsaerror(r);
 
-    r = snd_pcm_hw_params (alsapcmin[p-1]->pcm, hw_params);
+    r = snd_pcm_hw_params(alsapcmin[p-1]->pcm, hw_params);
     if (r < 0) alsaerror(r);
 
     snd_pcm_hw_params_free (hw_params);
@@ -3365,6 +3369,7 @@ void pa_closewavein(int p)
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
     if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
+    snd_pcm_close(alsapcmin[p-1]->pcm); /* close wave device */
 
 }
 
