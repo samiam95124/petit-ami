@@ -33,8 +33,9 @@
 
 #define PA_SYNTH_OUT 1 /* the default output synth for host */
 #define PA_SYNTH_EXT 2 /* the default output to external synth */
-#define PA_WAVE_IN 1   /* the default wave input for host */
-#define PA_WAVE_OUT 1  /* the default output wave for host */
+#define PA_SYNTH_IN  1 /* The default input from external synth */
+#define PA_WAVE_IN   1 /* the default wave input for host */
+#define PA_WAVE_OUT  1 /* the default output wave for host */
 
 /* the notes in the lowest octave */
 
@@ -298,12 +299,57 @@
 #define PA_NOTE_MUTE_TRIANGLE      80
 #define PA_NOTE_OPEN_TRIANGLE      81
 
+/* common types */
+
 typedef char* string;  /* general string type */
 typedef enum { false, true } boolean; /* boolean */
 typedef unsigned char byte; /* byte */
 typedef int note;       /* 1..128  note number for midi */
 typedef int channel;    /* 1..16   channel number */
 typedef int instrument; /* 1..128  instrument number */
+
+/* sequencer message types. each routine with a sequenced option has a
+  sequencer message assocated with it */
+
+typedef enum {
+    st_noteon, st_noteoff, st_instchange, st_attack, st_release,
+    st_legato, st_portamento, st_vibrato, st_volsynthchan, st_porttime,
+    st_balance, st_pan, st_timbre, st_brightness, st_reverb, st_tremulo,
+    st_chorus, st_celeste, st_phaser, st_aftertouch, st_pressure,
+    st_pitch, st_pitchrange, st_mono, st_poly, st_playsynth,
+    st_playwave, st_volwave
+} seqtyp;
+
+/* sequencer message */
+
+typedef struct seqmsg {
+
+    struct seqmsg* next; /* next message in list */
+    int port; /* port to which message applies */
+    int time; /* time to execute message */
+    seqtyp st; /* type of message */
+    union {
+
+        /* st_noteon st_noteoff st_aftertouch st_pressure */
+        struct { channel ntc; note ntn; int ntv; };
+        /* st_instchange */ struct { channel icc; instrument ici; };
+        /* st_attack, st_release, st_vibrato, st_volsynthchan, st_porttime,
+           st_balance, st_pan, st_timbre, st_brightness, st_reverb, st_tremulo,
+           st_chorus, st_celeste, st_phaser, st_pitch, st_pitchrange,
+           st_mono */ struct { channel vsc; int vsv; };
+        /* st_poly */ channel pc;
+        /* st_legato, st_portamento */ struct { channel bsc; boolean bsb; };
+        /* st_playsynth */ int sid;
+        /* st_playwave */ int wt;
+        /* st_volwave */ int wv;
+
+    };
+
+} seqmsg;
+
+/* pointer to message */
+
+typedef seqmsg* seqptr;
 
 /* functions at this level */
 
@@ -313,6 +359,8 @@ int pa_curtime(void);
 int pa_synthout(void);
 void pa_opensynthout(int p);
 void pa_closesynthout(int p);
+void pa_opensynthin(int p);
+void pa_closesynthin(int p);
 void pa_noteon(int p, int t, channel c, note n, int v);
 void pa_noteoff(int p, int t, channel c, note n, int v);
 void pa_instchange(int p, int t, channel c, instrument i);
@@ -342,6 +390,8 @@ void pa_loadsynth(int s, string sf);
 void pa_playsynth(int p, int t, int s);
 void pa_delsynth(int s);
 void pa_waitsynth(int p);
+void pa_wrsynth(int p, seqptr sp);
+void pa_rdsynth(int p, seqptr* sp);
 int pa_waveout(void);
 void pa_openwaveout(int p);
 void pa_closewaveout(int p);

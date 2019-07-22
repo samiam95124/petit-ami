@@ -127,49 +127,6 @@
 #define CTLR_MONO_OPERATION                  126
 #define CTLR_POLY_OPERATION                  127
 
-/* sequencer message types. each routine with a sequenced option has a
-  sequencer message assocated with it */
-
-typedef enum {
-    st_noteon, st_noteoff, st_instchange, st_attack, st_release,
-    st_legato, st_portamento, st_vibrato, st_volsynthchan, st_porttime,
-    st_balance, st_pan, st_timbre, st_brightness, st_reverb, st_tremulo,
-    st_chorus, st_celeste, st_phaser, st_aftertouch, st_pressure,
-    st_pitch, st_pitchrange, st_mono, st_poly, st_playsynth,
-    st_playwave, st_volwave
-} seqtyp;
-
-/* sequencer message */
-
-typedef struct seqmsg {
-
-    struct seqmsg* next; /* next message in list */
-    int port; /* port to which message applies */
-    int time; /* time to execute message */
-    seqtyp st; /* type of message */
-    union {
-
-        /* st_noteon st_noteoff st_aftertouch st_pressure */
-        struct { channel ntc; note ntn; int ntv; };
-        /* st_instchange */ struct { channel icc; instrument ici; };
-        /* st_attack, st_release, st_vibrato, st_volsynthchan, st_porttime,
-           st_balance, st_pan, st_timbre, st_brightness, st_reverb, st_tremulo,
-           st_chorus, st_celeste, st_phaser, st_pitch, st_pitchrange,
-           st_mono */ struct { channel vsc; int vsv; };
-        /* st_poly */ channel pc;
-        /* st_legato, st_portamento */ struct { channel bsc; boolean bsb; };
-        /* st_playsynth */ int sid;
-        /* st_playwave */ int wt;
-        /* st_volwave */ int wv;
-
-    };
-
-} seqmsg;
-
-/* pointer to message */
-
-typedef seqmsg* seqptr;
-
 /*
  * .wav file format elements
  */
