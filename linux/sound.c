@@ -40,7 +40,43 @@
 
 #define DEFMIDITIM 5000 /* default midi quarter note (.5 seconds) */
 
-#define PREFRATE 44100 /* preferred sample rate (CD player) */
+/*
+ * Maximum rate number input
+ *
+ * The maximum rate, 44100, is derived from nyquist sampling theorem
+ * that twice the frequency of the input will result in an accurate sample
+ * of that input, provided that the input is band limited at the input
+ * frequency. For human hearing, this is generally accepted at 20000hz.
+ * The 4100hz extra over the ideal 40000 sampling rate is to accomodate
+ * inaccuracies in the band pass filter. This was how CD sample rates
+ * were set, and this became the standard.
+ *
+ * ALSA gives us effectively "infinite" sampling rates in inputs in cases
+ * to be accomodating, but we limit these to the preferred rate for
+ * practical reasons.
+ */
+#define MAXINRATE 44100 /* preferred sample rate (CD player) */
+
+/*
+ * Maximum channel number input
+ *
+ * ALSA sudo-devices can give any number of channels by duplicating
+ * channel data. Similar to rates, these must be limited to reasonable
+ * values. We use 8 channels as the standard limiting channel number,
+ * since that accomodates 7.1 channel sound, currently the multichannel
+ * sound premimum standard.
+ *
+ */
+ #define MAXINCHAN 8
+
+ /*
+  * Maximum bit size input
+  *
+  * Although some ALSA pseudo input devices can deliver 64 bits (64 bit float),
+  * most output devices cannot accomodate this format (even pseudo devices).
+  * So we limit to 32 bits.
+  */
+#define MAXINBITS 32
 
 /*
  * Print unknown midi event codes
@@ -3424,9 +3460,11 @@ void pa_wrwave(int p, byte* buff, int len)
 
     }
     r = snd_pcm_writei(alsapcmout[p-1]->pcm, buff, len);
-    if (r == -EPIPE)
-        snd_pcm_prepare(alsapcmout[p-1]->pcm); /* try to reset stream */
-    else if (r < 0) alsaerror(r);
+    if (r == -EPIPE) {
+        /* uncomment next for a broken pipe diagnostic */
+        /* printf("Recovered from output error\n"); */
+        snd_pcm_recover(alsapcmin[p-1]->pcm, r, 1);
+    } else if (r < 0) alsaerror(r);
 
 }
 
@@ -3672,8 +3710,19 @@ int pa_rdwave(int p, byte* buff, int len)
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
     if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
-    r = snd_pcm_readi(alsapcmin[p-1]->pcm, buff, len);
-    if (r < 0) alsaerror(r);
+    do {
+
+        r = snd_pcm_readi(alsapcmin[p-1]->pcm, buff, len);
+        if (r < 0) {
+
+            /* uncomment the next to get a channel recovery diagnostic */
+            /* fprintf(stderr, "Read data recovered\n"); */
+            r = snd_pcm_recover(alsapcmin[p-1]->pcm, r, 1);
+            if (r < 0) alsaerror(r);
+
+        }
+
+    } while (!r);
 
     return (r);
 
@@ -3774,12 +3823,15 @@ int findparms(devptr dev, snd_pcm_stream_t stream)
 
             snd_pcm_hw_params_get_channels_min(pars, &chanmin);
             snd_pcm_hw_params_get_channels_max(pars, &chanmax);
-            dev->chan = chanmax; /* set channels to max */
+            /* limit channels to max */
+            if (stream == SND_PCM_STREAM_CAPTURE && chanmax > MAXINCHAN)
+                dev->chan = MAXINCHAN;
+            else dev->chan = chanmax; /* set channels to max */
             snd_pcm_hw_params_get_rate_min(pars, &ratemin, NULL);
             snd_pcm_hw_params_get_rate_max(pars, &ratemax, NULL);
-            /* if the rate is single, we are going to adapt to whatever it is.
-               Otherwise we set the standard rate */
-            if (ratemax >= PREFRATE) dev->rate = PREFRATE;
+            /* limit rate to max */
+            if (stream == SND_PCM_STREAM_CAPTURE && ratemax >= MAXINRATE)
+                dev->rate = MAXINRATE;
             else dev->rate = ratemax;
             snd_pcm_format_mask_alloca(&fmask);
             snd_pcm_hw_params_get_format_mask(pars, fmask);
@@ -3789,6 +3841,9 @@ int findparms(devptr dev, snd_pcm_stream_t stream)
                 if (snd_pcm_format_mask_test(fmask, (snd_pcm_format_t)fmt)) {
 
                     supp = alsa2params(fmt, &bits, &sgn, &big, &flt);
+                    /* if input stream and bits > max, we drop this format */
+                    if (stream == SND_PCM_STREAM_CAPTURE && bits > MAXINBITS)
+                        supp = 0;
                     /* find max format */
                     if (supp) {
 
