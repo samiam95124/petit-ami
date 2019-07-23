@@ -357,6 +357,7 @@ void pa_starttime(void);
 void pa_stoptime(void);
 int pa_curtime(void);
 int pa_synthout(void);
+int pa_synthin(void);
 void pa_opensynthout(int p);
 void pa_closesynthout(int p);
 void pa_opensynthin(int p);
@@ -393,6 +394,7 @@ void pa_waitsynth(int p);
 void pa_wrsynth(int p, seqptr sp);
 void pa_rdsynth(int p, seqptr* sp);
 int pa_waveout(void);
+int pa_wavein(void);
 void pa_openwaveout(int p);
 void pa_closewaveout(int p);
 void pa_loadwave(int w, string fn);
@@ -416,5 +418,9 @@ boolean pa_sgnwavein(int p);
 boolean pa_endwavein(int p);
 boolean pa_fltwavein(int p);
 int pa_rdwave(int p, byte* buff, int len);
+void pa_synthoutname(int p, string name, int len);
+void pa_synthinname(int p, string name, int len);
+void pa_waveoutname(int p, string name, int len);
+void pa_waveinname(int p, string name, int len);
 
 #endif /* __SOUND_H__ */

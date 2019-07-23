@@ -276,14 +276,21 @@ static volatile int numseq; /* outstanding active synth instances */
 static volatile int numsql[MAXMIDT];
 
 /*
- * Alsa device names
+ * Alsa devices
  *
  * Each type, PCM in, PCM out, Midi in, midi out, has its own name table.
  * Midi is not a wave table, but uses the same naming system.
  */
 static devptr alsamidiout[MAXMIDP]; /* MIDI out */
+static devptr alsamidiin[MAXMIDP]; /* MIDI in */
 static devptr alsapcmout[MAXWAVP]; /* PCM out */
 static devptr alsapcmin[MAXWAVP]; /* PCM in */
+
+/* number of each device */
+static int alsamidioutnum; /* MIDI out */
+static int alsamidiinnum; /* MIDI in */
+static int alsapcmoutnum; /* PCM out */
+static int alsapcminnum; /* PCM in */
 
 /*******************************************************************************
 
@@ -1008,7 +1015,23 @@ int pa_synthout(void)
 
 {
 
-   return 1; /* for testing */
+   return (alsamidioutnum);
+
+}
+
+/*******************************************************************************
+
+Find number of input midi ports
+
+Returns the total number of input midi ports.
+
+*******************************************************************************/
+
+int pa_synthin(void)
+
+{
+
+   return (alsamidiinnum);
 
 }
 
@@ -2909,10 +2932,9 @@ void pa_waitsynth(int p)
 
 /*******************************************************************************
 
-Find number of wave devices.
+Find number of output wave devices.
 
-Returns the number of wave output devices available. This is hardwared to 1 for
-the one Linux waveform device.
+Returns the number of wave output devices available.
 
 *******************************************************************************/
 
@@ -2920,7 +2942,23 @@ int pa_waveout(void)
 
 {
 
-    return (1);
+    return (alsapcmoutnum);
+
+}
+
+/*******************************************************************************
+
+Find number of input wave devices.
+
+Returns the number of wave output devices available.
+
+*******************************************************************************/
+
+int pa_wavein(void)
+
+{
+
+    return (alsapcminnum);
 
 }
 
@@ -3730,6 +3768,138 @@ int pa_rdwave(int p, byte* buff, int len)
 
 /*******************************************************************************
 
+Find device name of synthesizer output port
+
+Returns the ALSA device name of the given synthsizer output port.
+
+*******************************************************************************/
+
+void pa_synthoutname(int p, string name, int len)
+
+{
+
+    if (p < 1 || p > MAXMIDP) error("Invalid MIDI output port");
+    if (!alsamidiout[p-1])
+        error("No MIDI output device defined at logical number");
+
+    if (strlen(alsamidiout[p-1]->name)+1 > len)
+        error("Device name too large for destination");
+    strcpy(name, alsamidiout[p-1]->name);
+
+}
+
+/*******************************************************************************
+
+Find device name of synthesizer input port
+
+Returns the ALSA device name of the given synthsizer input port.
+
+*******************************************************************************/
+
+void pa_synthinname(int p, string name, int len)
+
+{
+
+    if (p < 1 || p > MAXMIDP) error("Invalid MIDI input port");
+    if (!alsamidiin[p-1])
+        error("No MIDI input device defined at logical number");
+
+    if (strlen(alsamidiin[p-1]->name)+1 > len)
+        error("Device name too large for destination");
+    strcpy(name, alsamidiin[p-1]->name);
+
+}
+
+/*******************************************************************************
+
+Find device name of wave output port
+
+Returns the ALSA device name of the given wave output port.
+
+*******************************************************************************/
+
+void pa_waveoutname(int p, string name, int len)
+
+{
+
+    if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
+    if (!alsapcmout[p-1])
+        error("No wave output device defined at logical number");
+
+    if (strlen(alsapcmout[p-1]->name)+1 > len)
+        error("Device name too large for destination");
+    strcpy(name, alsapcmout[p-1]->name);
+
+}
+
+/*******************************************************************************
+
+Find device name of wave input port
+
+Returns the ALSA device name of the given wave input port.
+
+*******************************************************************************/
+
+void pa_waveinname(int p, string name, int len)
+
+{
+
+    if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
+    if (!alsapcmin[p-1])
+        error("No wave input device defined at logical number");
+
+    if (strlen(alsapcmin[p-1]->name)+1 > len)
+        error("Device name too large for destination");
+    strcpy(name, alsapcmin[p-1]->name);
+
+}
+
+/*******************************************************************************
+
+*******************************************************************************/
+
+void pa_opensynthin(int p)
+
+{
+
+}
+
+/*******************************************************************************
+
+*******************************************************************************/
+
+void pa_closesynthin(int p)
+
+{
+
+}
+
+/*******************************************************************************
+
+*******************************************************************************/
+
+void pa_wrsynth(int p, seqptr sp)
+
+{
+
+}
+
+/*******************************************************************************
+
+*******************************************************************************/
+
+void pa_rdsynth(int p, seqptr* sp)
+
+{
+
+}
+
+/*******************************************************************************
+
+*******************************************************************************/
+
+/*******************************************************************************
+
 Find wave channel parameters
 
 Sets the wave channel parameters based on the "preferred" channel parameters.
@@ -3898,7 +4068,8 @@ found or fit into the table.
 
 *******************************************************************************/
 
-void readalsadev(devptr table[], string devt, string iotyp, int tabmax)
+void readalsadev(devptr table[], string devt, string iotyp, int tabmax,
+                 int* tblcnt)
 
 {
 
@@ -3979,6 +4150,8 @@ void readalsadev(devptr table[], string devt, string iotyp, int tabmax)
     /* release hint */
     snd_device_name_free_hint((void**)hint);
 
+    *tblcnt = i-1; /* return the table count */
+
 }
 
 /*******************************************************************************
@@ -4043,19 +4216,34 @@ static void pa_init_sound()
     pthread_cond_init(&snmzer, NULL); /* init sequencer count zero condition */
 
     /* define the ALSA midi output devices */
-    readalsadev(alsamidiout, "rawmidi", "Output", MAXMIDP);
-printf("\nmidi devices:\n\n");
-for (i = 0; i < MAXMIDP; i++) if (alsamidiout[i]) printf("%d: %s\n", i+1, alsamidiout[i]->name);
+    readalsadev(alsamidiout, "rawmidi", "Output", MAXMIDP, &alsamidioutnum);
+
+    /* uncomment next to get a midi output device listing */
+
+    /*
+    printf("\nmidi devices:\n\n");
+    for (i = 0; i < MAXMIDP; i++) if (alsamidiout[i]) printf("%d: %s\n", i+1, alsamidiout[i]->name);
+    */
 
     /* define the ALSA PCM output devices */
-    readalsadev(alsapcmout, "pcm", "Output", MAXWAVP);
-printf("\nPCM output devices:\n\n");
-for (i = 0; i < MAXWAVP; i++) if (alsapcmout[i]) printf("%d: %s\n", i+1, alsapcmout[i]->name);
+    readalsadev(alsapcmout, "pcm", "Output", MAXWAVP, &alsapcmoutnum);
+
+    /* uncomment next to get a PCM output device listing */
+
+    /*
+    printf("\nPCM output devices:\n\n");
+    for (i = 0; i < MAXWAVP; i++) if (alsapcmout[i]) printf("%d: %s\n", i+1, alsapcmout[i]->name);
+    */
 
     /* define the ALSA PCM input devices */
-    readalsadev(alsapcmin, "pcm", "Input", MAXWAVP);
-printf("\nPCM input devices:\n\n");
-for (i = 0; i < MAXWAVP; i++) if (alsapcmin[i]) printf("%d: %s\n", i+1, alsapcmin[i]->name);
+    readalsadev(alsapcmin, "pcm", "Input", MAXWAVP, &alsapcminnum);
+
+    /* uncomment next to get a PCM input device listing */
+
+    /*
+    printf("\nPCM input devices:\n\n");
+    for (i = 0; i < MAXWAVP; i++) if (alsapcmin[i]) printf("%d: %s\n", i+1, alsapcmin[i]->name);
+    */
 
 }
 
