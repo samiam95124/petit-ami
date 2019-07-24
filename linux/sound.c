@@ -30,6 +30,8 @@
 
 #include "sound.h"
 
+#define SILENTALSA 1 /* silence ALSA during init */
+
 #define MAXMIDP 100 /* maximum midi input/output devices */
 #define MAXWAVP 100 /* maximum wave input/output devices */
 #define MAXMIDT 100 /* maximum number of midi tracks that can be stored */
@@ -3976,15 +3978,19 @@ int findparms(devptr dev, snd_pcm_stream_t stream)
     int stderr_file;
 
     mbits = 0; msgn = 0; mbig = 0; mflt = 0; msupp = 0;
+#ifdef SILENTALSA
     /* run alsa open in quiet */
     fflush(stderr);
     stderr_file = dup(fileno(stderr));
     freopen("/dev/null", "w", stderr);
+#endif
     r = snd_pcm_open(&pcm, dev->name, stream, SND_PCM_NONBLOCK);
+#ifdef SILENTALSA
     fflush(stderr);
     dup2(stderr_file, fileno(stderr));
     close(stderr_file);
     clearerr(stderr);
+#endif
     if (!r) {
 
         snd_pcm_hw_params_alloca(&pars);
@@ -4139,10 +4145,17 @@ void readalsadev(devptr table[], string devt, string iotyp, int tabmax,
             /* set input type if so */
             if (!strcmp(iotyp, "Input")) stream = SND_PCM_STREAM_CAPTURE;
             /* characterize the entry and leave blank if not possible */
-            if (!findparms(table[i], stream)) table[i] = NULL;
+            if (!findparms(table[i], stream)) {
+
+                /* could not characterize, clear entry */
+                free(devn);
+                free(table[i]);
+                table[i] = NULL;
+
+            }
 
         } else free(devn); /* free up name */
-        free(iot);
+        if (iot) free(iot);
         hi++; /* next hint */
         if (table[i]) i++; /* next device name (if entry defined) */
 
@@ -4151,6 +4164,46 @@ void readalsadev(devptr table[], string devt, string iotyp, int tabmax,
     snd_device_name_free_hint((void**)hint);
 
     *tblcnt = i-1; /* return the table count */
+
+}
+
+/*******************************************************************************
+
+Print parameters of device
+
+Prints device parameters. A diagnostic.
+
+*******************************************************************************/
+
+void prtparm(devptr p)
+
+{
+
+    printf("%-20s chan: %d bits: %d rate: %d sgn: %d big: %d flt: %d\n",
+           p->name, p->chan, p->bits, p->rate, p->sgn, p->big, p->flt);
+
+}
+
+/*******************************************************************************
+
+Print device table
+
+Prints a list of devices. A diagnostic.
+
+*******************************************************************************/
+
+void prtdtbl(devptr table[], int len)
+
+{
+
+    int i;
+
+    for (i = 0; i < len; i++) if (table[i]) {
+
+        printf("%2d: ", i+1);
+        prtparm(table[i]);
+
+    }
 
 }
 
@@ -4240,10 +4293,8 @@ static void pa_init_sound()
 
     /* uncomment next to get a PCM input device listing */
 
-    /*
     printf("\nPCM input devices:\n\n");
-    for (i = 0; i < MAXWAVP; i++) if (alsapcmin[i]) printf("%d: %s\n", i+1, alsapcmin[i]->name);
-    */
+    prtdtbl(alsapcmin, MAXWAVP);
 
 }
 
