@@ -31,6 +31,7 @@
 #include "sound.h"
 
 #define SILENTALSA 1 /* silence ALSA during init */
+//#define SHOWDEVTBL 1 /* show device tables after enumeration */
 
 #define MAXMIDP 100 /* maximum midi input/output devices */
 #define MAXWAVP 100 /* maximum wave input/output devices */
@@ -4168,7 +4169,7 @@ void readalsadev(devptr table[], string devt, string iotyp, int tabmax,
     /* release hint */
     snd_device_name_free_hint((void**)hint);
 
-    *tblcnt = i-1; /* return the table count */
+    *tblcnt = i; /* return the table count */
 
 }
 
@@ -4281,24 +4282,26 @@ static void pa_init_sound()
 
     /* uncomment next to get a midi output device listing */
 
+#ifdef SHOWDEVTBL
     printf("\nmidi devices:\n\n");
     prtdtbl(alsamidiout, MAXMIDP, false);
+#endif
 
     /* define the ALSA PCM output devices */
     readalsadev(alsapcmout, "pcm", "Output", MAXWAVP, &alsapcmoutnum);
 
-    /* uncomment next to get a PCM output device listing */
-
+#ifdef SHOWDEVTBL
     printf("\nPCM output devices:\n\n");
     prtdtbl(alsapcmout, MAXWAVP, true);
+#endif
 
     /* define the ALSA PCM input devices */
     readalsadev(alsapcmin, "pcm", "Input", MAXWAVP, &alsapcminnum);
 
-    /* uncomment next to get a PCM input device listing */
-
+#ifdef SHOWDEVTBL
     printf("\nPCM input devices:\n\n");
     prtdtbl(alsapcmin, MAXWAVP, true);
+#endif
 
 }
 
