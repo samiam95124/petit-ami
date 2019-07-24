@@ -4141,16 +4141,21 @@ void readalsadev(devptr table[], string devt, string iotyp, int tabmax,
 
             table[i] = malloc(sizeof(snddev)); /* create new device entry */
             table[i]->name = devn; /* place name of device */
-            stream = SND_PCM_STREAM_PLAYBACK; /* set playback type */
-            /* set input type if so */
-            if (!strcmp(iotyp, "Input")) stream = SND_PCM_STREAM_CAPTURE;
-            /* characterize the entry and leave blank if not possible */
-            if (!findparms(table[i], stream)) {
+            /* if the device is not midi, get the parameters of wave */
+            if (strcmp(devt, "rawmidi")) {
 
-                /* could not characterize, clear entry */
-                free(devn);
-                free(table[i]);
-                table[i] = NULL;
+                stream = SND_PCM_STREAM_PLAYBACK; /* set playback type */
+                /* set input type if so */
+                if (!strcmp(iotyp, "Input")) stream = SND_PCM_STREAM_CAPTURE;
+                /* characterize the entry and leave blank if not possible */
+                if (!findparms(table[i], stream)) {
+
+                    /* could not characterize, clear entry */
+                    free(devn);
+                    free(table[i]);
+                    table[i] = NULL;
+
+                }
 
             }
 
@@ -4175,12 +4180,15 @@ Prints device parameters. A diagnostic.
 
 *******************************************************************************/
 
-void prtparm(devptr p)
+void prtparm(devptr p, boolean wave)
 
 {
 
-    printf("%-20s chan: %d bits: %d rate: %d sgn: %d big: %d flt: %d\n",
-           p->name, p->chan, p->bits, p->rate, p->sgn, p->big, p->flt);
+    if (wave)
+        printf("%-20s chan: %d bits: %d rate: %d sgn: %d big: %d flt: %d\n",
+               p->name, p->chan, p->bits, p->rate, p->sgn, p->big, p->flt);
+    else
+        printf("%-20s\n", p->name);
 
 }
 
@@ -4192,7 +4200,7 @@ Prints a list of devices. A diagnostic.
 
 *******************************************************************************/
 
-void prtdtbl(devptr table[], int len)
+void prtdtbl(devptr table[], int len, boolean wave)
 
 {
 
@@ -4201,7 +4209,7 @@ void prtdtbl(devptr table[], int len)
     for (i = 0; i < len; i++) if (table[i]) {
 
         printf("%2d: ", i+1);
-        prtparm(table[i]);
+        prtparm(table[i], wave);
 
     }
 
@@ -4273,20 +4281,16 @@ static void pa_init_sound()
 
     /* uncomment next to get a midi output device listing */
 
-    /*
     printf("\nmidi devices:\n\n");
-    for (i = 0; i < MAXMIDP; i++) if (alsamidiout[i]) printf("%d: %s\n", i+1, alsamidiout[i]->name);
-    */
+    prtdtbl(alsamidiout, MAXMIDP, false);
 
     /* define the ALSA PCM output devices */
     readalsadev(alsapcmout, "pcm", "Output", MAXWAVP, &alsapcmoutnum);
 
     /* uncomment next to get a PCM output device listing */
 
-    /*
     printf("\nPCM output devices:\n\n");
-    for (i = 0; i < MAXWAVP; i++) if (alsapcmout[i]) printf("%d: %s\n", i+1, alsapcmout[i]->name);
-    */
+    prtdtbl(alsapcmout, MAXWAVP, true);
 
     /* define the ALSA PCM input devices */
     readalsadev(alsapcmin, "pcm", "Input", MAXWAVP, &alsapcminnum);
@@ -4294,7 +4298,7 @@ static void pa_init_sound()
     /* uncomment next to get a PCM input device listing */
 
     printf("\nPCM input devices:\n\n");
-    prtdtbl(alsapcmin, MAXWAVP);
+    prtdtbl(alsapcmin, MAXWAVP, true);
 
 }
 
