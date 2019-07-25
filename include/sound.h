@@ -392,7 +392,7 @@ void pa_playsynth(int p, int t, int s);
 void pa_delsynth(int s);
 void pa_waitsynth(int p);
 void pa_wrsynth(int p, seqptr sp);
-void pa_rdsynth(int p, seqptr* sp);
+void pa_rdsynth(int p, seqptr sp);
 int pa_waveout(void);
 int pa_wavein(void);
 void pa_openwaveout(int p);
