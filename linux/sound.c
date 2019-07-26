@@ -3966,11 +3966,40 @@ void pa_closesynthin(int p)
 
 /*******************************************************************************
 
+Write synthesizer port
+
+Writes a given sequencer instruction entry the given output port. This is the
+same effect as the "constructor" entries, but means the user won't have to
+decode streaming MIDI devices.
+
+Note that if the entries are sequenced (time not 0) they will be entered into
+the sequencer list.
+
+The port numbers in the input are ignored and replaced with the port given as
+a parameter.
+
 *******************************************************************************/
 
 void pa_wrsynth(int p, seqptr sp)
 
 {
+
+    seqptr spp;
+
+    if (p < 1 || p > MAXMIDP) error("Invalid synthesizer port");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+
+    if (sp->time) {
+
+        /* entry to be sequenced */
+        if (!seqrun) error("Sequencer not running");
+        getseq(&spp); /* get a sequencer message */
+        /* make a copy of the command record */
+        memcpy(spp, sp, sizeof(seqmsg));
+        insseq(spp); /* insert to sequencer list */
+        acttim(sp->time); /* kick timer if needed */
+
+    } else  excseq(sp); /* execute the synth note */
 
 }
 
