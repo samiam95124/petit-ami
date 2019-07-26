@@ -3996,6 +3996,7 @@ void pa_wrsynth(int p, seqptr sp)
         getseq(&spp); /* get a sequencer message */
         /* make a copy of the command record */
         memcpy(spp, sp, sizeof(seqmsg));
+        spp->port = p; /* override the port number */
         insseq(spp); /* insert to sequencer list */
         acttim(sp->time); /* kick timer if needed */
 
