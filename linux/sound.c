@@ -251,6 +251,10 @@ static int seqhan;                     /* handle for sequencer timer */
 static pthread_mutex_t seqlock;        /* sequencer task lock */
 static pthread_t sequencer_thread_id;  /* sequencer thread id */
 
+static boolean sinrun;                 /* input timer running */
+static struct timeval sintim;          /* start time input midi marking, in raw
+                                          linux time */
+
 /*
  * Set of input file ids for select
  */
@@ -1085,7 +1089,7 @@ void pa_closesynthout(int p)
 
 /*******************************************************************************
 
-Start time
+Start time output
 
 Starts the sequencer function. The sequencer is cleared, and upcount begins
 after this call. Before a sequencer start, any notes marked as "sequenced" by
@@ -1121,7 +1125,7 @@ void pa_starttimeout(void)
 
 /*******************************************************************************
 
-Stop time
+Stop time output
 
 Stops midi sequencer function. Any timers and buffers in use by the sequencer
 are cleared, and all pending events dropped.
@@ -1167,7 +1171,7 @@ void pa_stoptimeout(void)
 
 /*******************************************************************************
 
-Get current time
+Get current time output
 
 Finds the current time for the sequencer, which is the elapsed time since the
 sequencer started.
@@ -1181,6 +1185,66 @@ int pa_curtimeout(void)
    if (!seqrun) error("Sequencer not running");
 
    return (timediff(&strtim)); /* return difference time */
+
+}
+
+
+
+
+
+
+/*******************************************************************************
+
+Start time input
+
+Marks the time basis for input midi streams. Normally, MIDI input streams are
+marked with 0 time, which means unsequenced. However, starting the input time
+will mark MIDI inputs with their arrival time, which can be used to sequence
+the MIDI commands. Stopping the time will return to marking 0 time.
+
+*******************************************************************************/
+
+void pa_starttimein(void)
+
+{
+
+    gettimeofday(&sintim, NULL); /* get current time */
+    sinrun = true; /* set sequencer running */
+
+}
+
+/*******************************************************************************
+
+Stop time input
+
+Simply sets that we are not marking input time anymore.
+
+*******************************************************************************/
+
+void pa_stoptimein(void)
+
+{
+
+    sinrun = false;
+
+}
+
+/*******************************************************************************
+
+Get current time output
+
+Finds the current time for the sequencer, which is the elapsed time since the
+sequencer started.
+
+*******************************************************************************/
+
+int pa_curtimein(void)
+
+{
+
+   if (!sinrun) error("Input MIDI time is not marking");
+
+   return (timediff(&sintim)); /* return difference time */
 
 }
 
@@ -3993,6 +4057,7 @@ void pa_rdsynth(int p, seqptr sp)
     if (!alsamidiin[p-1]) error("No synthsizer defined for logical port");
 
     t = 0; /* set no time */
+    if (sinrun) t = (timediff(&sintim)); /* mark with current time */
     mp = alsamidiin[p-1];
     b = rdsynth(mp);
     if (b < 0x80) { /* process running status or repeat */
@@ -4481,6 +4546,11 @@ static void pa_init_sound()
     seqrun = false; /* set sequencer not running */
     strtim.tv_sec = 0; /* clear start time */
     strtim.tv_usec = 0;
+    sinrun = false; /* set no input midi time marking */
+    sintim.tv_sec = 0; /* clear input midi start time */
+    sintim.tv_usec = 0;
+
+
 
     /* clear the wave track cache */
     for (i = 0; i < MAXWAVT; i++) wavfil[i] = NULL;
