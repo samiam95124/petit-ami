@@ -1,0 +1,19 @@
+Notes for sound module
+
+1. ALSA returns "busy" errors on devices that are in use by the system.
+That is, go to the sound menu, select a device, and those device(s) go
+busy and consequentially will not show up in our enumeration.
+    
+I have no idea what to do for this. We can't use a device we can't get
+parameters from.
+
+2. There is a consistent problem with ALSA as follows:
+    
+When enumerating the devices, alsa throws an "unable to open slave" error,
+and thus that device is skipped. This only happens when repeatedly runnning
+an enumeration, IE., you run an ALSA enabled program back to back multiple
+times.
+    
+If you simply then wait a minute between runs, the issue goes away. Very
+strange.
+ 
