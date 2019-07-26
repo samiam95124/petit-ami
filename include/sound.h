@@ -353,9 +353,9 @@ typedef seqmsg* seqptr;
 
 /* functions at this level */
 
-void pa_starttime(void);
-void pa_stoptime(void);
-int pa_curtime(void);
+void pa_starttimeout(void);
+void pa_stoptimeout(void);
+int pa_curtimeout(void);
 int pa_synthout(void);
 int pa_synthin(void);
 void pa_opensynthout(int p);

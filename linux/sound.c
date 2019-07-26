@@ -32,6 +32,7 @@
 
 #define SILENTALSA 1 /* silence ALSA during init */
 //#define SHOWDEVTBL 1 /* show device tables after enumeration */
+//#define SHOWMIDIIN 1 /* show midi in dumps */
 
 #define MAXMIDP 100 /* maximum midi input/output devices */
 #define MAXWAVP 100 /* maximum wave input/output devices */
@@ -222,17 +223,19 @@ typedef portid* portidptr;
 
 typedef struct snddev {
 
-    string         name; /* alsa name of device (sufficient to open) */
-    snd_rawmidi_t* midi; /* MIDI device handle */
-    snd_pcm_t*     pcm;  /* PCM device handle */
-    int            chan; /* number of channels */
-    int            bits; /* preferred format bit size */
-    int            rate; /* sample rate */
-    boolean        sgn;  /* preferred format sign */
-    boolean        big;  /* preferred format big endian */
-    boolean        flt;  /* preferred format floating point */
-    int            ssiz; /* sample size, bits*chan in bytes */
-    int            fmt;  /* alsa format code for output, -1 if not set */
+    string         name;  /* alsa name of device (sufficient to open) */
+    snd_rawmidi_t* midi;  /* MIDI device handle */
+    snd_pcm_t*     pcm;   /* PCM device handle */
+    int            chan;  /* number of channels */
+    int            bits;  /* preferred format bit size */
+    int            rate;  /* sample rate */
+    boolean        sgn;   /* preferred format sign */
+    boolean        big;   /* preferred format big endian */
+    boolean        flt;   /* preferred format floating point */
+    int            ssiz;  /* sample size, bits*chan in bytes */
+    int            fmt;   /* alsa format code for output, -1 if not set */
+    byte           last;  /* last byte on midi input */
+    int            pback; /* pushback for input */
 
 } snddev;
 
@@ -1107,7 +1110,7 @@ a sequenced event.
 
 *******************************************************************************/
 
-void pa_starttime(void)
+void pa_starttimeout(void)
 
 {
 
@@ -1127,7 +1130,7 @@ Note that this does not stop any midi files from being sequenced.
 
 *******************************************************************************/
 
-void pa_stoptime(void)
+void pa_stoptimeout(void)
 
 {
 
@@ -1171,7 +1174,7 @@ sequencer started.
 
 *******************************************************************************/
 
-int pa_curtime(void)
+int pa_curtimeout(void)
 
 {
 
@@ -3928,23 +3931,33 @@ a full MIDI decoder.
 
 *******************************************************************************/
 
-byte rdsynth(snd_rawmidi_t* mp)
+byte rdsynth(devptr mp)
 
 {
 
     byte b;
     int r;
 
-    r = snd_rawmidi_read(mp, &b, 1);
-    if (r < 0) alsaerror(r);
-    /* this should never happen */
-    if (r != 1) error("Error reading midi file");
+    if (mp->pback != -1) {
+
+        /* get a pushback character */
+        b = mp->pback;
+        mp->pback = -1; /* set none */
+
+    } else {
+
+        r = snd_rawmidi_read(mp->midi, &b, 1);
+        if (r < 0) alsaerror(r);
+        /* this should never happen */
+        if (r != 1) error("Error reading midi file");
+
+    }
 
     return b;
 
 }
 
-static void rdsynthvar(snd_rawmidi_t* mp, unsigned int* v)
+static void rdsynthvar(devptr mp, unsigned int* v)
 
 {
 
@@ -3965,7 +3978,7 @@ void pa_rdsynth(int p, seqptr sp)
 
 {
 
-    snd_rawmidi_t* mp; /* midi input port */
+    devptr mp; /* midi input port */
     byte b;
     int t;
     byte p1;
@@ -3980,8 +3993,14 @@ void pa_rdsynth(int p, seqptr sp)
     if (!alsamidiin[p-1]) error("No synthsizer defined for logical port");
 
     t = 0; /* set no time */
-    mp = alsamidiin[p-1]->midi;
+    mp = alsamidiin[p-1];
     b = rdsynth(mp);
+    if (b < 0x80) { /* process running status or repeat */
+
+        mp->pback = b; /* put back parameter byte */
+        b = mp->last; /* put back command for repeat */
+
+    }
     switch (b>>4) { /* command nybble */
 
         case 0x8: /* note off */
@@ -4112,6 +4131,11 @@ void pa_rdsynth(int p, seqptr sp)
         default: error("Invalid .mid file format");
 
     }
+    /* if command is not meta, save as last command */
+    if (b < 0xf0) mp->last = b;
+#ifdef SHOWMIDIIN
+    dmpseq(sp); /* dump sequencer instruction */
+#endif
 
 }
 
@@ -4360,6 +4384,8 @@ void readalsadev(devptr table[], string devt, string iotyp, int tabmax,
 
             table[i] = malloc(sizeof(snddev)); /* create new device entry */
             table[i]->name = devn; /* place name of device */
+            table[i]->last = 0; /* clear last byte */
+            table[i]->pback = -1; /* set no pushback */
             /* if the device is not midi, get the parameters of wave */
             if (strcmp(devt, "rawmidi")) {
 
