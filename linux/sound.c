@@ -302,6 +302,10 @@ static int alsamidiinnum; /* MIDI in */
 static int alsapcmoutnum; /* PCM out */
 static int alsapcminnum; /* PCM in */
 
+/* forwards */
+void alsaplaysynth_kickoff(int p, int s);
+void alsaplaywave_kickoff(int p, int w);
+
 /*******************************************************************************
 
 Process sound library error
@@ -726,10 +730,27 @@ static void insseq(seqptr p)
 
 /*******************************************************************************
 
+Controller change
+
+Processes a controller value set, from 0 to 127.
+
+*******************************************************************************/
+
+static void ctlchg(int p, channel c, int cn, int v)
+
+{
+
+    /* construct midi message */
+    midimsg3(alsamidiout[p-1]->midi, MESS_CTRL_CHG+(c-1), cn-1, v/0x01000000);
+
+}
+
+/*******************************************************************************
+
 Execute sequencer message
 
-Executes the call referenced by the message. Each call is performed with
-sequencer bypass, which means its ok to loop back on the call.
+Directly encodes the sequencer message in MIDI format, and outputs to the MIDI
+device assocated with the port.
 
 *******************************************************************************/
 
@@ -737,38 +758,121 @@ static void excseq(seqptr p)
 
 {
 
+    int b;
+    int pt;
+
     switch (p->st) { /* sequencer message type */
 
-        case st_noteon:       pa_noteon(p->port, 0, p->ntc, p->ntn, p->ntv); break;
-        case st_noteoff:      pa_noteoff(p->port, 0, p->ntc, p->ntn, p->ntv);
-                              break;
-        case st_instchange:   pa_instchange(p->port, 0, p->icc, p->ici); break;
-        case st_attack:       pa_attack(p->port, 0, p->vsc, p->vsv); break;
-        case st_release:      pa_release(p->port, 0, p->vsc, p->vsv); break;
-        case st_legato:       pa_legato(p->port, 0, p->bsc, p->bsb); break;
-        case st_portamento:   pa_portamento(p->port, 0, p->bsc, p->bsb); break;
-        case st_vibrato:      pa_vibrato(p->port, 0, p->vsc, p->vsv); break;
-        case st_volsynthchan: pa_volsynthchan(p->port, 0, p->vsc, p->vsv); break;
-        case st_porttime:     pa_porttime(p->port, 0, p->vsc, p->vsv); break;
-        case st_balance:      pa_balance(p->port, 0, p->vsc, p->vsv); break;
-        case st_pan:          pa_pan(p->port, 0, p->vsc, p->vsv); break;
-        case st_timbre:       pa_timbre(p->port, 0, p->vsc, p->vsv); break;
-        case st_brightness:   pa_brightness(p->port, 0, p->vsc, p->vsv); break;
-        case st_reverb:       pa_reverb(p->port, 0, p->vsc, p->vsv); break;
-        case st_tremulo:      pa_tremulo(p->port, 0, p->vsc, p->vsv); break;
-        case st_chorus:       pa_chorus(p->port, 0, p->vsc, p->vsv); break;
-        case st_celeste:      pa_celeste(p->port, 0, p->vsc, p->vsv); break;
-        case st_phaser:       pa_phaser(p->port, 0, p->vsc, p->vsv); break;
-        case st_aftertouch:   pa_aftertouch(p->port, 0, p->ntc, p->ntn, p->ntv);
-                              break;
-        case st_pressure:     pa_pressure(p->port, 0, p->ntc, p->ntv); break;
-        case st_pitch:        pa_pitch(p->port, 0, p->vsc, p->vsv); break;
-        case st_pitchrange:   pa_pitchrange(p->port, 0, p->vsc, p->vsv); break;
-        case st_mono:         pa_mono(p->port, 0, p->vsc, p->vsv); break;
-        case st_poly:         pa_poly(p->port, 0, p->pc); break;
-        case st_playsynth:    pa_playsynth(p->port, 0, p->sid); break;
-        case st_playwave:     pa_playwave(p->port, 0, p->wt); break;
-        case st_volwave:      pa_volwave(p->port, 0, p->wv); break;
+        case st_noteon:
+            midimsg3(alsamidiout[p->port-1]->midi, MESS_NOTE_ON+(p->ntc-1),
+                     p->ntn-1, p->ntv/0x01000000);
+            break;
+        case st_noteoff:
+            midimsg3(alsamidiout[p->port-1]->midi, MESS_NOTE_OFF+(p->ntc-1),
+                     p->ntn-1, p->ntv/0x01000000);
+            break;
+        case st_instchange:
+            midimsg2(alsamidiout[p->port-1]->midi, MESS_PGM_CHG+(p->icc-1),
+                     p->ici-1);
+            break;
+        case st_attack: ctlchg(p->port, p->vsc, CTLR_SOUND_ATTACK_TIME,
+                               p->vsv/0x01000000);
+            break;
+        case st_release: ctlchg(p->port, p->vsc, CTLR_SOUND_RELEASE_TIME, p->vsv/0x01000000);
+            break;
+        case st_legato: ctlchg(p->port, p->bsc, CTLR_LEGATO_PEDAL, !!p->bsb*127);
+            break;
+        case st_portamento: ctlchg(p->port, p->bsc, CTLR_PORTAMENTO, !!p->bsb*127);
+            break;
+        case st_vibrato:
+            /* set high */
+            ctlchg(p->port, p->vsc, CTLR_MODULATION_WHEEL_COARSE, p->vsv/0x01000000);
+            /* set low */
+            ctlchg(p->port, p->vsc, CTLR_MODULATION_WHEEL_FINE, p->vsv/0x00020000 & 0x7f);
+            break;
+        case st_volsynthchan:
+            ctlchg(p->port, p->vsc, CTLR_VOLUME_COARSE, p->vsv/0x01000000); /* set high */
+            ctlchg(p->port, p->vsc, CTLR_VOLUME_FINE, p->vsv/0x00020000 & 0x7f); /* set low */
+            break;
+        case st_porttime:
+            /* set high */
+            ctlchg(p->port, p->vsc, CTLR_PORTAMENTO_TIME_COARSE, p->vsv/0x01000000);
+            /* set low */
+            ctlchg(p->port, p->vsc, CTLR_PORTAMENTO_TIME_FINE, p->vsv/0x00020000 & 0x7f);
+            break;
+        case st_balance:
+            b = p->vsv/0x00040000+0x2000; /* reduce to 14 bits, positive only */
+            ctlchg(p->port, p->vsc, CTLR_BALANCE_COARSE, b/0x80); /* set high */
+            ctlchg(p->port, p->vsc, CTLR_BALANCE_FINE, b & 0x7f); /* set low */
+            break;
+        case st_pan:
+            b = p->vsv/0x00040000+0x2000; /* reduce to 14 bits, positive only */
+            ctlchg(p->port, p->vsc, CTLR_PAN_POSITION_COARSE, b/0x80); /* set high */
+            ctlchg(p->port, p->vsc, CTLR_PAN_POSITION_FINE, b & 0x7f); /* set low */
+            break;
+        case st_timbre:
+            ctlchg(p->port, p->vsc, CTLR_SOUND_TIMBRE, p->vsv/0x01000000);
+            break;
+        case st_brightness:
+            ctlchg(p->port, p->vsc, CTLR_SOUND_BRIGHTNESS, p->vsv/0x01000000);
+            break;
+        case st_reverb:
+            ctlchg(p->port, p->vsc, CTLR_EFFECTS_LEVEL, p->vsv/0x01000000);
+            break;
+        case st_tremulo:
+            ctlchg(p->port, p->vsc, CTLR_TREMULO_LEVEL, p->vsv/0x01000000);
+            break;
+        case st_chorus:
+            ctlchg(p->port, p->vsc, CTLR_CHORUS_LEVEL, p->vsv/0x01000000);
+            break;
+        case st_celeste:
+            ctlchg(p->port, p->vsc, CTLR_CELESTE_LEVEL, p->vsv/0x01000000);
+            break;
+        case st_phaser:
+            ctlchg(p->port, p->vsc, CTLR_PHASER_LEVEL, p->vsv/0x01000000);
+            break;
+        case st_aftertouch:
+            midimsg3(alsamidiout[p->port-1]->midi, MESS_AFTTCH+(p->ntc-1),
+                     p->ntn-1, p->ntv/0x01000000);
+            break;
+        case st_pressure:
+            midimsg2(alsamidiout[p->port-1]->midi, MESS_CHN_PRES+(p->ntc-1),
+                     p->ntv/0x01000000);
+            break;
+        case st_pitch:
+            pt = p->vsv/0x00040000+0x2000; /* reduce to 14 bits, positive only */
+            /* construct midi message */
+            midimsg3(alsamidiout[p->port-1]->midi, MESS_PTCH_WHL+(p->vsc-1),
+                     pt & 0x7f, pt/0x80);
+            break;
+        case st_pitchrange:
+            /* set up data entry */
+            /* set high */
+            ctlchg(p->port, p->vsc, CTLR_REGISTERED_PARAMETER_COARSE, 0);
+            /* set low */
+            ctlchg(p->port, p->vsc, CTLR_REGISTERED_PARAMETER_FINE, 0);
+            /* set high */
+            ctlchg(p->port, p->vsc, CTLR_DATA_ENTRY_COARSE, p->vsv/0x01000000);
+            /* set low */
+            ctlchg(p->port, p->vsc, CTLR_DATA_ENTRY_FINE,
+                   p->vsv/0x00020000 & 0x7f);
+            break;
+        case st_mono:
+            ctlchg(p->port, p->vsc, CTLR_MONO_OPERATION, p->vsv);
+            break;
+        case st_poly:
+            /* value dosen't matter */
+            ctlchg(p->port, p->pc, CTLR_POLY_OPERATION, 0);
+            break;
+        case st_playsynth:
+            alsaplaysynth_kickoff(p->port, p->sid); /* play the file */
+            break;
+        case st_playwave:
+            alsaplaywave_kickoff(p->port, p->wt);
+            break;
+        case st_volwave:
+            /* not implemented at present */
+            break;
 
     }
 
@@ -1386,23 +1490,6 @@ void pa_instchange(int p, int t, channel c, instrument i)
 
 /*******************************************************************************
 
-Controller change
-
-Processes a controller value set, from 0 to 127.
-
-*******************************************************************************/
-
-static void ctlchg(int p, int t, channel c, int cn, int v)
-
-{
-
-    /* construct midi message */
-    midimsg3(alsamidiout[p-1]->midi, MESS_CTRL_CHG+(c-1), cn-1, v/0x01000000);
-
-}
-
-/*******************************************************************************
-
 Set attack time
 
 Sets the time of attack on a note, ie., how long it takes for the note to go
@@ -1422,7 +1509,7 @@ void pa_attack(int p, int t, channel c, int at)
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun))
-        ctlchg(p, t, c, CTLR_SOUND_ATTACK_TIME, at/0x01000000);
+        ctlchg(p, c, CTLR_SOUND_ATTACK_TIME, at/0x01000000);
     else { /* sequence */
 
         /* check sequencer running */
@@ -1461,7 +1548,7 @@ void pa_release(int p, int t, channel c, int rt)
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun))
-        ctlchg(p, t, c, CTLR_SOUND_RELEASE_TIME, rt/0x01000000);
+        ctlchg(p, c, CTLR_SOUND_RELEASE_TIME, rt/0x01000000);
     else { /* sequence */
 
         /* check sequencer running */
@@ -1499,7 +1586,7 @@ void pa_legato(int p, int t, channel c, boolean b)
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun))
-        ctlchg(p, t, c, CTLR_LEGATO_PEDAL, !!b*127);
+        ctlchg(p, c, CTLR_LEGATO_PEDAL, !!b*127);
     else { /* sequence */
 
         /* check sequencer running */
@@ -1537,7 +1624,7 @@ void pa_portamento(int p, int t, channel c, boolean b)
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun))
-        ctlchg(p, t, c, CTLR_PORTAMENTO, !!b*127);
+        ctlchg(p, c, CTLR_PORTAMENTO, !!b*127);
     else { /* sequence */
 
         /* check sequencer running */
@@ -1576,8 +1663,8 @@ void pa_volsynthchan(int p, int t, channel c, int v)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        ctlchg(p, t, c, CTLR_VOLUME_COARSE, v/0x01000000); /* set high */
-        ctlchg(p, t, c, CTLR_VOLUME_FINE, v/0x00020000 & 0x7f); /* set low */
+        ctlchg(p, c, CTLR_VOLUME_COARSE, v/0x01000000); /* set high */
+        ctlchg(p, c, CTLR_VOLUME_FINE, v/0x00020000 & 0x7f); /* set low */
 
     } else { /* sequence */
 
@@ -1619,8 +1706,8 @@ void pa_balance(int p, int t, channel c, int b)
     if (t == 0 || (t <= elap && seqrun)) {
 
         b = b/0x00040000+0x2000; /* reduce to 14 bits, positive only */
-        ctlchg(p, t, c, CTLR_BALANCE_COARSE, b/0x80); /* set high */
-        ctlchg(p, t, c, CTLR_BALANCE_FINE, b & 0x7f); /* set low */
+        ctlchg(p, c, CTLR_BALANCE_COARSE, b/0x80); /* set high */
+        ctlchg(p, c, CTLR_BALANCE_FINE, b & 0x7f); /* set low */
 
     } else { /* sequence */
 
@@ -1661,9 +1748,9 @@ void pa_porttime(int p, int t, channel c, int v)
     if (t == 0 || (t <= elap && seqrun)) {
 
         /* set high */
-        ctlchg(p, t, c, CTLR_PORTAMENTO_TIME_COARSE, v/0x01000000);
+        ctlchg(p, c, CTLR_PORTAMENTO_TIME_COARSE, v/0x01000000);
         /* set low */
-        ctlchg(p, t, c, CTLR_PORTAMENTO_TIME_FINE, v/0x00020000 & 0x7f);
+        ctlchg(p, c, CTLR_PORTAMENTO_TIME_FINE, v/0x00020000 & 0x7f);
 
     } else { /* sequence */
 
@@ -1704,9 +1791,9 @@ void pa_vibrato(int p, int t, channel c, int v)
     if (t == 0 || (t <= elap && seqrun)) {
 
         /* set high */
-        ctlchg(p, t, c, CTLR_MODULATION_WHEEL_COARSE, v/0x01000000);
+        ctlchg(p, c, CTLR_MODULATION_WHEEL_COARSE, v/0x01000000);
         /* set low */
-        ctlchg(p, t, c, CTLR_MODULATION_WHEEL_FINE, v/0x00020000 & 0x7f);
+        ctlchg(p, c, CTLR_MODULATION_WHEEL_FINE, v/0x00020000 & 0x7f);
 
     } else { /* sequence */
 
@@ -1748,8 +1835,8 @@ void pa_pan(int p, int t, channel c, int b)
     if (t == 0 || (t <= elap && seqrun)) {
 
         b = b/0x00040000+0x2000; /* reduce to 14 bits, positive only */
-        ctlchg(p, t, c, CTLR_PAN_POSITION_COARSE, b/0x80); /* set high */
-        ctlchg(p, t, c, CTLR_PAN_POSITION_FINE, b & 0x7f); /* set low */
+        ctlchg(p, c, CTLR_PAN_POSITION_COARSE, b/0x80); /* set high */
+        ctlchg(p, c, CTLR_PAN_POSITION_FINE, b & 0x7f); /* set low */
 
     } else { /* sequence */
 
@@ -1788,7 +1875,7 @@ void pa_timbre(int p, int t, channel c, int tb)
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun))
-        ctlchg(p, t, c, CTLR_SOUND_TIMBRE, tb/0x01000000);
+        ctlchg(p, c, CTLR_SOUND_TIMBRE, tb/0x01000000);
     else { /* sequence */
 
         /* check sequencer running */
@@ -1826,7 +1913,7 @@ void pa_brightness(int p, int t, channel c, int b)
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun))
-        ctlchg(p, t, c, CTLR_SOUND_BRIGHTNESS, b/0x01000000);
+        ctlchg(p, c, CTLR_SOUND_BRIGHTNESS, b/0x01000000);
     else { /* sequence */
 
         /* check sequencer running */
@@ -1864,7 +1951,7 @@ void pa_reverb(int p, int t, channel c, int r)
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun))
-        ctlchg(p, t, c, CTLR_EFFECTS_LEVEL, r/0x01000000);
+        ctlchg(p, c, CTLR_EFFECTS_LEVEL, r/0x01000000);
     else { /* sequence */
 
        /* check sequencer running */
@@ -1902,7 +1989,7 @@ void pa_tremulo(int p, int t, channel c, int tr)
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun))
-        ctlchg(p, t, c, CTLR_TREMULO_LEVEL, tr/0x01000000);
+        ctlchg(p, c, CTLR_TREMULO_LEVEL, tr/0x01000000);
     else { /* sequence */
 
         /* check sequencer running */
@@ -1940,7 +2027,7 @@ void pa_chorus(int p, int t, channel c, int cr)
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun))
-        ctlchg(p, t, c, CTLR_CHORUS_LEVEL, cr/0x01000000);
+        ctlchg(p, c, CTLR_CHORUS_LEVEL, cr/0x01000000);
     else { /* sequence */
 
         /* check sequencer running */
@@ -1978,7 +2065,7 @@ void pa_celeste(int p, int t, channel c, int ce)
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun))
-        ctlchg(p, t, c, CTLR_CELESTE_LEVEL, ce/0x01000000);
+        ctlchg(p, c, CTLR_CELESTE_LEVEL, ce/0x01000000);
     else { /* sequence */
 
         /* check sequencer running */
@@ -2016,7 +2103,7 @@ void pa_phaser(int p, int t, channel c, int ph)
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun))
-        ctlchg(p, t, c, CTLR_PHASER_LEVEL, ph/0x01000000);
+        ctlchg(p, c, CTLR_PHASER_LEVEL, ph/0x01000000);
     else { /* sequence */
 
         /* check sequencer running */
@@ -2060,10 +2147,10 @@ void pa_pitchrange(int p, int t, channel c, int v)
     if (t == 0 || (t <= elap && seqrun)) {
 
         /* set up data entry */
-        ctlchg(p, t, c, CTLR_REGISTERED_PARAMETER_COARSE, 0); /* set high */
-        ctlchg(p, t, c, CTLR_REGISTERED_PARAMETER_FINE, 0); /* set low */
-        ctlchg(p, t, c, CTLR_DATA_ENTRY_COARSE, v/0x01000000); /* set high */
-        ctlchg(p, t, c, CTLR_DATA_ENTRY_FINE, v/0x00020000 & 0x7f); /* set low */
+        ctlchg(p, c, CTLR_REGISTERED_PARAMETER_COARSE, 0); /* set high */
+        ctlchg(p, c, CTLR_REGISTERED_PARAMETER_FINE, 0); /* set low */
+        ctlchg(p, c, CTLR_DATA_ENTRY_COARSE, v/0x01000000); /* set high */
+        ctlchg(p, c, CTLR_DATA_ENTRY_FINE, v/0x00020000 & 0x7f); /* set low */
 
     } else { /* sequence */
 
@@ -2105,7 +2192,7 @@ void pa_mono(int p, int t, channel c, int ch)
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun))
-        ctlchg(p, t, c, CTLR_MONO_OPERATION, ch);
+        ctlchg(p, c, CTLR_MONO_OPERATION, ch);
     else { /* sequence */
 
         /* check sequencer running */
@@ -2143,7 +2230,7 @@ void pa_poly(int p, int t, channel c)
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun))
-        ctlchg(p, t, c, CTLR_POLY_OPERATION, 0); /* value dosen't matter */
+        ctlchg(p, c, CTLR_POLY_OPERATION, 0); /* value dosen't matter */
     else { /* sequence */
 
         /* check sequencer running */
