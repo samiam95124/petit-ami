@@ -617,6 +617,8 @@ Get sequencer message entry
 
 Gets a sequencer message entry, either from the used list, or new.
 
+Its faster to recycle these from a private list.
+
 *******************************************************************************/
 
 static void getseq(seqptr* p)
@@ -647,7 +649,6 @@ static void putseq(seqptr p)
 
 {
 
-   /* dispose of any string first, we don't recycle those */
    p->next = seqfre; /* link to top of list */
    seqfre = p; /* push onto list */
 
@@ -1377,22 +1378,28 @@ void pa_noteon(int p, int t, channel c, note n, int v)
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
     if (n < 1 || n > 128) error("Bad note number");
+
+    /* create sequencer entry */
+    getseq(&sp); /* get a sequencer message */
+    sp->port = p; /* set port */
+    sp->time = t; /* set time */
+    sp->st = st_noteon; /* set type */
+    sp->ntc = c; /* set channel */
+    sp->ntn = n; /* set note */
+    sp->ntv = v; /* set velocity */
+
+    /* find disposition of command */
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
-    if (t == 0 || (t <= elap && seqrun))
-        /* construct midi message */
-        midimsg3(alsamidiout[p-1]->midi, MESS_NOTE_ON+(c-1), n-1, v/0x01000000);
-    else { /* sequence */
+    if (t == 0 || (t <= elap && seqrun)) {
+
+        excseq(sp); /* execute */
+        putseq(sp); /* free */
+
+    } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
-        getseq(&sp); /* get a sequencer message */
-        sp->port = p; /* set port */
-        sp->time = t; /* set time */
-        sp->st = st_noteon; /* set type */
-        sp->ntc = c; /* set channel */
-        sp->ntn = n; /* set note */
-        sp->ntv = v; /* set velocity */
         insseq(sp); /* insert to sequencer list */
         acttim(t); /* kick timer if needed */
 
@@ -1423,22 +1430,27 @@ void pa_noteoff(int p, int t, channel c, note n, int v)
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
     if (n < 1 || n > 128) error("Bad note number");
+
+    /* create sequencer entry */
+    getseq(&sp); /* get a sequencer message */
+    sp->port = p; /* set port */
+    sp->time = t; /* set time */
+    sp->st = st_noteoff; /* set type */
+    sp->ntc = c; /* set channel */
+    sp->ntn = n; /* set note */
+    sp->ntv = v; /* set velocity */
+
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
-    if (t == 0 || (t <= elap && seqrun))
-        /* construct midi message */
-        midimsg3(alsamidiout[p-1]->midi, MESS_NOTE_OFF+(c-1), n-1, v/0x01000000);
-    else { /* sequence */
+    if (t == 0 || (t <= elap && seqrun)) {
+
+        excseq(sp); /* execute */
+        putseq(sp); /* free */
+
+    } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
-        getseq(&sp); /* get a sequencer message */
-        sp->port = p; /* set port */
-        sp->time = t; /* set time */
-        sp->st = st_noteoff; /* set type */
-        sp->ntc = c; /* set channel */
-        sp->ntn = n; /* set note */
-        sp->ntv = v; /* set velocity */
         insseq(sp); /* insert to sequencer list */
         acttim(t); /* kick timer if needed */
 
@@ -1466,21 +1478,26 @@ void pa_instchange(int p, int t, channel c, instrument i)
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
     if (i < 1 || i > 128) error("Bad instrument number");
+
+    /* create sequencer entry */
+    getseq(&sp); /* get a sequencer message */
+    sp->port = p; /* set port */
+    sp->time = t; /* set time */
+    sp->st = st_instchange; /* set type */
+    sp->icc = c; /* set channel */
+    sp->ici = i; /* set instrument */
+
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
-    if (t == 0 || (t <= elap && seqrun))
-        /* construct midi message */
-        midimsg2(alsamidiout[p-1]->midi, MESS_PGM_CHG+(c-1), i-1);
-    else { /* sequence */
+    if (t == 0 || (t <= elap && seqrun)) {
+
+        excseq(sp); /* execute */
+        putseq(sp); /* free */
+
+    } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
-        getseq(&sp); /* get a sequencer message */
-        sp->port = p; /* set port */
-        sp->time = t; /* set time */
-        sp->st = st_instchange; /* set type */
-        sp->icc = c; /* set channel */
-        sp->ici = i; /* set instrument */
         insseq(sp); /* insert to sequencer list */
         acttim(t); /* kick timer if needed */
 
@@ -1506,20 +1523,26 @@ void pa_attack(int p, int t, channel c, int at)
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
+
+    /* create sequencer entry */
+    getseq(&sp); /* get a sequencer message */
+    sp->port = p; /* set port */
+    sp->time = t; /* set time */
+    sp->st = st_attack; /* set type */
+    sp->vsc = c; /* set channel */
+    sp->vsv = at; /* set attack */
+
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
-    if (t == 0 || (t <= elap && seqrun))
-        ctlchg(p, c, CTLR_SOUND_ATTACK_TIME, at/0x01000000);
-    else { /* sequence */
+    if (t == 0 || (t <= elap && seqrun)) {
+
+        excseq(sp); /* execute */
+        putseq(sp); /* free */
+
+    } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
-        getseq(&sp); /* get a sequencer message */
-        sp->port = p; /* set port */
-        sp->time = t; /* set time */
-        sp->st = st_attack; /* set type */
-        sp->vsc = c; /* set channel */
-        sp->vsv = at; /* set attack */
         insseq(sp); /* insert to sequencer list */
         acttim(t); /* kick timer if needed */
 
@@ -1545,20 +1568,26 @@ void pa_release(int p, int t, channel c, int rt)
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
+
+    /* create sequencer entry */
+    getseq(&sp); /* get a sequencer message */
+    sp->port = p; /* set port */
+    sp->time = t; /* set time */
+    sp->st = st_release; /* set type */
+    sp->vsc = c; /* set channel */
+    sp->vsv = rt; /* set release */
+
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
-    if (t == 0 || (t <= elap && seqrun))
-        ctlchg(p, c, CTLR_SOUND_RELEASE_TIME, rt/0x01000000);
-    else { /* sequence */
+    if (t == 0 || (t <= elap && seqrun)) {
+
+        excseq(sp); /* execute */
+        putseq(sp); /* free */
+
+    } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
-        getseq(&sp); /* get a sequencer message */
-        sp->port = p; /* set port */
-        sp->time = t; /* set time */
-        sp->st = st_release; /* set type */
-        sp->vsc = c; /* set channel */
-        sp->vsv = rt; /* set release */
         insseq(sp); /* insert to sequencer list */
         acttim(t); /* kick timer if needed */
 
@@ -1583,20 +1612,26 @@ void pa_legato(int p, int t, channel c, boolean b)
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
+
+    /* create sequencer entry */
+    getseq(&sp); /* get a sequencer message */
+    sp->port = p; /* set port */
+    sp->time = t; /* set time */
+    sp->st = st_legato; /* set type */
+    sp->bsc = c; /* set channel */
+    sp->bsb = b; /* set on/off */
+
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
-    if (t == 0 || (t <= elap && seqrun))
-        ctlchg(p, c, CTLR_LEGATO_PEDAL, !!b*127);
-    else { /* sequence */
+    if (t == 0 || (t <= elap && seqrun)) {
+
+        excseq(sp); /* execute */
+        putseq(sp); /* free */
+
+    } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
-        getseq(&sp); /* get a sequencer message */
-        sp->port = p; /* set port */
-        sp->time = t; /* set time */
-        sp->st = st_legato; /* set type */
-        sp->bsc = c; /* set channel */
-        sp->bsb = b; /* set on/off */
         insseq(sp); /* insert to sequencer list */
         acttim(t); /* kick timer if needed */
 
@@ -1621,20 +1656,26 @@ void pa_portamento(int p, int t, channel c, boolean b)
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
+
+    /* create sequencer entry */
+    getseq(&sp); /* get a sequencer message */
+    sp->port = p; /* set port */
+    sp->time = t; /* set time */
+    sp->st = st_portamento; /* set type */
+    sp->bsc = c; /* set channel */
+    sp->bsb = b; /* set on/off */
+
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
-    if (t == 0 || (t <= elap && seqrun))
-        ctlchg(p, c, CTLR_PORTAMENTO, !!b*127);
-    else { /* sequence */
+    if (t == 0 || (t <= elap && seqrun)) {
+
+        excseq(sp); /* execute */
+        putseq(sp); /* free */
+
+    } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
-        getseq(&sp); /* get a sequencer message */
-        sp->port = p; /* set port */
-        sp->time = t; /* set time */
-        sp->st = st_portamento; /* set type */
-        sp->bsc = c; /* set channel */
-        sp->bsb = b; /* set on/off */
         insseq(sp); /* insert to sequencer list */
         acttim(t); /* kick timer if needed */
 
@@ -1659,23 +1700,26 @@ void pa_volsynthchan(int p, int t, channel c, int v)
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
+
+    /* create sequencer entry */
+    getseq(&sp); /* get a sequencer message */
+    sp->port = p; /* set port */
+    sp->time = t; /* set time */
+    sp->st = st_volsynthchan; /* set type */
+    sp->vsc = c; /* set channel */
+    sp->vsv = v; /* set volume */
+
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        ctlchg(p, c, CTLR_VOLUME_COARSE, v/0x01000000); /* set high */
-        ctlchg(p, c, CTLR_VOLUME_FINE, v/0x00020000 & 0x7f); /* set low */
+        excseq(sp); /* execute */
+        putseq(sp); /* free */
 
     } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
-        getseq(&sp); /* get a sequencer message */
-        sp->port = p; /* set port */
-        sp->time = t; /* set time */
-        sp->st = st_volsynthchan; /* set type */
-        sp->vsc = c; /* set channel */
-        sp->vsv = v; /* set volume */
         insseq(sp); /* insert to sequencer list */
         acttim(t); /* kick timer if needed */
 
@@ -1701,24 +1745,26 @@ void pa_balance(int p, int t, channel c, int b)
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
+
+    /* create sequencer entry */
+    getseq(&sp); /* get a sequencer message */
+    sp->port = p; /* set port */
+    sp->time = t; /* set time */
+    sp->st = st_balance; /* set type */
+    sp->vsc = c; /* set channel */
+    sp->vsv = b; /* set balance */
+
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        b = b/0x00040000+0x2000; /* reduce to 14 bits, positive only */
-        ctlchg(p, c, CTLR_BALANCE_COARSE, b/0x80); /* set high */
-        ctlchg(p, c, CTLR_BALANCE_FINE, b & 0x7f); /* set low */
+        excseq(sp); /* execute */
+        putseq(sp); /* free */
 
     } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
-        getseq(&sp); /* get a sequencer message */
-        sp->port = p; /* set port */
-        sp->time = t; /* set time */
-        sp->st = st_balance; /* set type */
-        sp->vsc = c; /* set channel */
-        sp->vsv = b; /* set balance */
         insseq(sp); /* insert to sequencer list */
         acttim(t); /* kick timer if needed */
 
@@ -1743,25 +1789,26 @@ void pa_porttime(int p, int t, channel c, int v)
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
+
+    /* create sequencer entry */
+    getseq(&sp); /* get a sequencer message */
+    sp->port = p; /* set port */
+    sp->time = t; /* set time */
+    sp->st = st_porttime; /* set type */
+    sp->vsc = c; /* set channel */
+    sp->vsv = v; /* set time */
+
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        /* set high */
-        ctlchg(p, c, CTLR_PORTAMENTO_TIME_COARSE, v/0x01000000);
-        /* set low */
-        ctlchg(p, c, CTLR_PORTAMENTO_TIME_FINE, v/0x00020000 & 0x7f);
+        excseq(sp); /* execute */
+        putseq(sp); /* free */
 
     } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
-        getseq(&sp); /* get a sequencer message */
-        sp->port = p; /* set port */
-        sp->time = t; /* set time */
-        sp->st = st_porttime; /* set type */
-        sp->vsc = c; /* set channel */
-        sp->vsv = v; /* set time */
         insseq(sp); /* insert to sequencer list */
         acttim(t); /* kick timer if needed */
 
@@ -1786,25 +1833,26 @@ void pa_vibrato(int p, int t, channel c, int v)
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
+
+    /* create sequencer entry */
+    getseq(&sp); /* get a sequencer message */
+    sp->port = p; /* set port */
+    sp->time = t; /* set time */
+    sp->st = st_vibrato; /* set type */
+    sp->vsc = c; /* set channel */
+    sp->vsv = v; /* set vibrato */
+
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        /* set high */
-        ctlchg(p, c, CTLR_MODULATION_WHEEL_COARSE, v/0x01000000);
-        /* set low */
-        ctlchg(p, c, CTLR_MODULATION_WHEEL_FINE, v/0x00020000 & 0x7f);
+        excseq(sp); /* execute */
+        putseq(sp); /* free */
 
     } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
-        getseq(&sp); /* get a sequencer message */
-        sp->port = p; /* set port */
-        sp->time = t; /* set time */
-        sp->st = st_vibrato; /* set type */
-        sp->vsc = c; /* set channel */
-        sp->vsv = v; /* set vibrato */
         insseq(sp); /* insert to sequencer list */
         acttim(t); /* kick timer if needed */
 
@@ -1830,24 +1878,26 @@ void pa_pan(int p, int t, channel c, int b)
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
+
+    /* create sequencer entry */
+    getseq(&sp); /* get a sequencer message */
+    sp->port = p; /* set port */
+    sp->time = t; /* set time */
+    sp->st = st_pan; /* set type */
+    sp->vsc = c; /* set channel */
+    sp->vsv = b; /* set pan */
+
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        b = b/0x00040000+0x2000; /* reduce to 14 bits, positive only */
-        ctlchg(p, c, CTLR_PAN_POSITION_COARSE, b/0x80); /* set high */
-        ctlchg(p, c, CTLR_PAN_POSITION_FINE, b & 0x7f); /* set low */
+        excseq(sp); /* execute */
+        putseq(sp); /* free */
 
     } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
-        getseq(&sp); /* get a sequencer message */
-        sp->port = p; /* set port */
-        sp->time = t; /* set time */
-        sp->st = st_pan; /* set type */
-        sp->vsc = c; /* set channel */
-        sp->vsv = b; /* set pan */
         insseq(sp); /* insert to sequencer list */
         acttim(t); /* kick timer if needed */
 
@@ -1872,20 +1922,26 @@ void pa_timbre(int p, int t, channel c, int tb)
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
+
+    /* create sequencer entry */
+    getseq(&sp); /* get a sequencer message */
+    sp->port = p; /* set port */
+    sp->time = t; /* set time */
+    sp->st = st_timbre; /* set type */
+    sp->vsc = c; /* set channel */
+    sp->vsv = tb; /* set timbre */
+
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
-    if (t == 0 || (t <= elap && seqrun))
-        ctlchg(p, c, CTLR_SOUND_TIMBRE, tb/0x01000000);
-    else { /* sequence */
+    if (t == 0 || (t <= elap && seqrun)) {
+
+        excseq(sp); /* execute */
+        putseq(sp); /* free */
+
+    } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
-        getseq(&sp); /* get a sequencer message */
-        sp->port = p; /* set port */
-        sp->time = t; /* set time */
-        sp->st = st_timbre; /* set type */
-        sp->vsc = c; /* set channel */
-        sp->vsv = tb; /* set timbre */
         insseq(sp); /* insert to sequencer list */
         acttim(t); /* kick timer if needed */
 
@@ -1910,20 +1966,26 @@ void pa_brightness(int p, int t, channel c, int b)
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
+
+    /* create sequencer entry */
+    getseq(&sp); /* get a sequencer message */
+    sp->port = p; /* set port */
+    sp->time = t; /* set time */
+    sp->st = st_brightness; /* set type */
+    sp->vsc = c; /* set channel */
+    sp->vsv = b; /* set brightness */
+
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
-    if (t == 0 || (t <= elap && seqrun))
-        ctlchg(p, c, CTLR_SOUND_BRIGHTNESS, b/0x01000000);
-    else { /* sequence */
+    if (t == 0 || (t <= elap && seqrun)) {
+
+        excseq(sp); /* execute */
+        putseq(sp); /* free */
+
+    } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
-        getseq(&sp); /* get a sequencer message */
-        sp->port = p; /* set port */
-        sp->time = t; /* set time */
-        sp->st = st_brightness; /* set type */
-        sp->vsc = c; /* set channel */
-        sp->vsv = b; /* set brightness */
         insseq(sp); /* insert to sequencer list */
         acttim(t); /* kick timer if needed */
 
@@ -1948,20 +2010,26 @@ void pa_reverb(int p, int t, channel c, int r)
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
+
+    /* create sequencer entry */
+    getseq(&sp); /* get a sequencer message */
+    sp->port = p; /* set port */
+    sp->time = t; /* set time */
+    sp->st = st_reverb; /* set type */
+    sp->vsc = c; /* set channel */
+    sp->vsv = r; /* set reverb */
+
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
-    if (t == 0 || (t <= elap && seqrun))
-        ctlchg(p, c, CTLR_EFFECTS_LEVEL, r/0x01000000);
-    else { /* sequence */
+    if (t == 0 || (t <= elap && seqrun)) {
+
+        excseq(sp); /* execute */
+        putseq(sp); /* free */
+
+    } else { /* sequence */
 
        /* check sequencer running */
        if (!seqrun) error("Sequencer not running");
-       getseq(&sp); /* get a sequencer message */
-       sp->port = p; /* set port */
-       sp->time = t; /* set time */
-       sp->st = st_reverb; /* set type */
-       sp->vsc = c; /* set channel */
-       sp->vsv = r; /* set reverb */
        insseq(sp); /* insert to sequencer list */
        acttim(t); /* kick timer if needed */
 
@@ -1986,20 +2054,26 @@ void pa_tremulo(int p, int t, channel c, int tr)
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
+
+    /* create sequencer entry */
+    getseq(&sp); /* get a sequencer message */
+    sp->port = p; /* set port */
+    sp->time = t; /* set time */
+    sp->st = st_tremulo; /* set type */
+    sp->vsc = c; /* set channel */
+    sp->vsv = tr; /* set tremulo */
+
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
-    if (t == 0 || (t <= elap && seqrun))
-        ctlchg(p, c, CTLR_TREMULO_LEVEL, tr/0x01000000);
-    else { /* sequence */
+    if (t == 0 || (t <= elap && seqrun)) {
+
+        excseq(sp); /* execute */
+        putseq(sp); /* free */
+
+    } else { /* sequence */
 
         /* check sequencer running */
        if (!seqrun) error("Sequencer not running");
-       getseq(&sp); /* get a sequencer message */
-       sp->port = p; /* set port */
-       sp->time = t; /* set time */
-       sp->st = st_tremulo; /* set type */
-       sp->vsc = c; /* set channel */
-       sp->vsv = tr; /* set tremulo */
        insseq(sp); /* insert to sequencer list */
        acttim(t); /* kick timer if needed */
 
@@ -2024,20 +2098,27 @@ void pa_chorus(int p, int t, channel c, int cr)
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
+
+    /* create sequencer entry */
+    if (!seqrun) error("Sequencer not running");
+    getseq(&sp); /* get a sequencer message */
+    sp->port = p; /* set port */
+    sp->time = t; /* set time */
+    sp->st = st_chorus; /* set type */
+    sp->vsc = c; /* set channel */
+    sp->vsv = cr; /* set chorus */
+
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
-    if (t == 0 || (t <= elap && seqrun))
-        ctlchg(p, c, CTLR_CHORUS_LEVEL, cr/0x01000000);
-    else { /* sequence */
+    if (t == 0 || (t <= elap && seqrun)) {
+
+        excseq(sp); /* execute */
+        putseq(sp); /* free */
+
+    } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
-        getseq(&sp); /* get a sequencer message */
-        sp->port = p; /* set port */
-        sp->time = t; /* set time */
-        sp->st = st_chorus; /* set type */
-        sp->vsc = c; /* set channel */
-        sp->vsv = cr; /* set chorus */
         insseq(sp); /* insert to sequencer list */
         acttim(t); /* kick timer if needed */
 
@@ -2062,20 +2143,26 @@ void pa_celeste(int p, int t, channel c, int ce)
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
+
+    /* create sequencer entry */
+    getseq(&sp); /* get a sequencer message */
+    sp->port = p; /* set port */
+    sp->time = t; /* set time */
+    sp->st = st_celeste; /* set type */
+    sp->vsc = c; /* set channel */
+    sp->vsv = ce; /* set celeste */
+
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
-    if (t == 0 || (t <= elap && seqrun))
-        ctlchg(p, c, CTLR_CELESTE_LEVEL, ce/0x01000000);
-    else { /* sequence */
+    if (t == 0 || (t <= elap && seqrun)) {
+
+        excseq(sp); /* execute */
+        putseq(sp); /* free */
+
+    } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
-        getseq(&sp); /* get a sequencer message */
-        sp->port = p; /* set port */
-        sp->time = t; /* set time */
-        sp->st = st_celeste; /* set type */
-        sp->vsc = c; /* set channel */
-        sp->vsv = ce; /* set celeste */
         insseq(sp); /* insert to sequencer list */
         acttim(t); /* kick timer if needed */
 
@@ -2100,20 +2187,26 @@ void pa_phaser(int p, int t, channel c, int ph)
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
+
+    /* create sequencer entry */
+    getseq(&sp); /* get a sequencer message */
+    sp->port = p; /* set port */
+    sp->time = t; /* set time */
+    sp->st = st_phaser; /* set type */
+    sp->vsc = c; /* set channel */
+    sp->vsv = ph; /* set phaser */
+
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
-    if (t == 0 || (t <= elap && seqrun))
-        ctlchg(p, c, CTLR_PHASER_LEVEL, ph/0x01000000);
-    else { /* sequence */
+    if (t == 0 || (t <= elap && seqrun)) {
+
+        excseq(sp); /* execute */
+        putseq(sp); /* free */
+
+    } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
-        getseq(&sp); /* get a sequencer message */
-        sp->port = p; /* set port */
-        sp->time = t; /* set time */
-        sp->st = st_phaser; /* set type */
-        sp->vsc = c; /* set channel */
-        sp->vsv = ph; /* set phaser */
         insseq(sp); /* insert to sequencer list */
         acttim(t); /* kick timer if needed */
 
@@ -2142,26 +2235,26 @@ void pa_pitchrange(int p, int t, channel c, int v)
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
+
+    /* create sequencer entry */
+    getseq(&sp); /* get a sequencer message */
+    sp->port = p; /* set port */
+    sp->time = t; /* set time */
+    sp->st = st_pitchrange; /* set type */
+    sp->vsc = c; /* set channel */
+    sp->vsv = v; /* set pitchrange */
+
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        /* set up data entry */
-        ctlchg(p, c, CTLR_REGISTERED_PARAMETER_COARSE, 0); /* set high */
-        ctlchg(p, c, CTLR_REGISTERED_PARAMETER_FINE, 0); /* set low */
-        ctlchg(p, c, CTLR_DATA_ENTRY_COARSE, v/0x01000000); /* set high */
-        ctlchg(p, c, CTLR_DATA_ENTRY_FINE, v/0x00020000 & 0x7f); /* set low */
+        excseq(sp); /* execute */
+        putseq(sp); /* free */
 
     } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
-        getseq(&sp); /* get a sequencer message */
-        sp->port = p; /* set port */
-        sp->time = t; /* set time */
-        sp->st = st_pitchrange; /* set type */
-        sp->vsc = c; /* set channel */
-        sp->vsv = v; /* set pitchrange */
         insseq(sp); /* insert to sequencer list */
         acttim(t); /* kick timer if needed */
 
@@ -2189,20 +2282,26 @@ void pa_mono(int p, int t, channel c, int ch)
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
     if (ch < 0 || c > 16) error("Bad mono mode number");
+
+    /* create sequencer entry */
+    getseq(&sp); /* get a sequencer message */
+    sp->port = p; /* set port */
+    sp->time = t; /* set time */
+    sp->st = st_mono; /* set type */
+    sp->vsc = c; /* set channel */
+    sp->vsv = ch; /* set mono mode */
+
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
-    if (t == 0 || (t <= elap && seqrun))
-        ctlchg(p, c, CTLR_MONO_OPERATION, ch);
-    else { /* sequence */
+    if (t == 0 || (t <= elap && seqrun)) {
+
+        excseq(sp); /* execute */
+        putseq(sp); /* free */
+
+    } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
-        getseq(&sp); /* get a sequencer message */
-        sp->port = p; /* set port */
-        sp->time = t; /* set time */
-        sp->st = st_mono; /* set type */
-        sp->vsc = c; /* set channel */
-        sp->vsv = ch; /* set mono mode */
         insseq(sp); /* insert to sequencer list */
         acttim(t); /* kick timer if needed */
 
@@ -2227,19 +2326,25 @@ void pa_poly(int p, int t, channel c)
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
+
+    /* create sequencer entry */
+    getseq(&sp); /* get a sequencer message */
+    sp->port = p; /* set port */
+    sp->time = t; /* set time */
+    sp->st = st_poly; /* set type */
+    sp->pc = c; /* set channel */
+
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
-    if (t == 0 || (t <= elap && seqrun))
-        ctlchg(p, c, CTLR_POLY_OPERATION, 0); /* value dosen't matter */
-    else { /* sequence */
+    if (t == 0 || (t <= elap && seqrun)) {
+
+        excseq(sp); /* execute */
+        putseq(sp); /* free */
+
+    } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
-        getseq(&sp); /* get a sequencer message */
-        sp->port = p; /* set port */
-        sp->time = t; /* set time */
-        sp->st = st_poly; /* set type */
-        sp->pc = c; /* set channel */
         insseq(sp); /* insert to sequencer list */
         acttim(t); /* kick timer if needed */
 
@@ -2265,22 +2370,27 @@ void pa_aftertouch(int p, int t, channel c, note n, int at)
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
     if (n < 1 || n > 128) error("Bad note number");
+
+    /* create sequencer entry */
+    getseq(&sp); /* get a sequencer message */
+    sp->port = p; /* set port */
+    sp->time = t; /* set time */
+    sp->st = st_aftertouch; /* set type */
+    sp->ntc = c; /* set channel */
+    sp->ntn = n; /* set note */
+    sp->ntv = at; /* set aftertouch */
+
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
-    if (t == 0 || (t <= elap && seqrun))
-      /* construct midi message */
-        midimsg3(alsamidiout[p-1]->midi, MESS_AFTTCH+(c-1), n-1, at/0x01000000);
-    else { /* sequence */
+    if (t == 0 || (t <= elap && seqrun)) {
+
+        excseq(sp); /* execute */
+        putseq(sp); /* free */
+
+    } else { /* sequence */
 
        /* check sequencer running */
        if (!seqrun) error("Sequencer not running");
-       getseq(&sp); /* get a sequencer message */
-       sp->port = p; /* set port */
-       sp->time = t; /* set time */
-       sp->st = st_aftertouch; /* set type */
-       sp->ntc = c; /* set channel */
-       sp->ntn = n; /* set note */
-       sp->ntv = at; /* set aftertouch */
        insseq(sp); /* insert to sequencer list */
        acttim(t); /* kick timer if needed */
 
@@ -2305,21 +2415,26 @@ void pa_pressure(int p, int t, channel c, int pr)
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
+
+    /* create sequencer entry */
+    getseq(&sp); /* get a sequencer message */
+    sp->port = p; /* set port */
+    sp->time = t; /* set time */
+    sp->st = st_pressure; /* set type */
+    sp->ntc = c; /* set channel */
+    sp->ntv = pr; /* set pressure */
+
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
-    if (t == 0 || (t <= elap && seqrun))
-        /* construct midi message */
-        midimsg2(alsamidiout[p-1]->midi, MESS_CHN_PRES+(c-1), pr/0x01000000);
-    else { /* sequence */
+    if (t == 0 || (t <= elap && seqrun)) {
+
+        excseq(sp); /* execute */
+        putseq(sp); /* free */
+
+    } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
-        getseq(&sp); /* get a sequencer message */
-        sp->port = p; /* set port */
-        sp->time = t; /* set time */
-        sp->st = st_pressure; /* set type */
-        sp->ntc = c; /* set channel */
-        sp->ntv = pr; /* set pressure */
         insseq(sp); /* insert to sequencer list */
         acttim(t); /* kick timer if needed */
 
@@ -2347,24 +2462,26 @@ void pa_pitch(int p, int t, channel c, int pt)
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (c < 1 || c > 16) error("Bad channel number");
+
+    /* create sequencer entry */
+    getseq(&sp); /* get a sequencer message */
+    sp->port = p; /* set port */
+    sp->time = t; /* set time */
+    sp->st = st_pitch; /* set type */
+    sp->vsc = c; /* set channel */
+    sp->vsv = pt; /* set pitch */
+
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        pt = pt/0x00040000+0x2000; /* reduce to 14 bits, positive only */
-        /* construct midi message */
-        midimsg3(alsamidiout[p-1]->midi, MESS_PTCH_WHL+(c-1), pt & 0x7f, pt/0x80);
+        excseq(sp); /* execute */
+        putseq(sp); /* free */
 
     } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
-        getseq(&sp); /* get a sequencer message */
-        sp->port = p; /* set port */
-        sp->time = t; /* set time */
-        sp->st = st_pitch; /* set type */
-        sp->vsc = c; /* set channel */
-        sp->vsv = pt; /* set pitch */
         insseq(sp); /* insert to sequencer list */
         acttim(t); /* kick timer if needed */
 
@@ -3034,19 +3151,25 @@ void pa_playsynth(int p, int t, int s)
 
     if (p < 1 || p > MAXMIDP) error("Invalid synthesizer port");
     if (alsamidiout[p-1] < 0) error("Synth output channel not open");
+
+    /* create sequencer entry */
+    getseq(&sp); /* get a sequencer message */
+    sp->port = p; /* set port */
+    sp->time = t; /* set time */
+    sp->st = st_playsynth; /* set type */
+    sp->sid = s; /* place synth file id */
+
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
-    if (t == 0 || (t <= elap && seqrun))
-        alsaplaysynth_kickoff(p, s); /* play the file */
-    else { /* sequence */
+    if (t == 0 || (t <= elap && seqrun)) {
+
+        excseq(sp); /* execute */
+        putseq(sp); /* free */
+
+    } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
-        getseq(&sp); /* get a sequencer message */
-        sp->port = p; /* set port */
-        sp->time = t; /* set time */
-        sp->st = st_playsynth; /* set type */
-        sp->sid = s; /* place synth file id */
         insseq(sp); /* insert to sequencer list */
         acttim(t); /* kick timer if needed */
 
@@ -3416,18 +3539,25 @@ void pa_playwave(int p, int t, int w)
 
     if (w < 1 || w > MAXWAVT) error("Invalid logical wave number");
     if (!wavfil[w]) error("No wave file loaded for logical wave number");
+
+    /* create sequencer entry */
+    getseq(&sp); /* get a sequencer message */
+    sp->port = p; /* set port */
+    sp->time = t; /* set time */
+    sp->st = st_playwave; /* set type */
+    sp->wt = w; /* set logical track */
+
     elap = timediff(&strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
-    if (t == 0 || (t <= elap && seqrun)) alsaplaywave_kickoff(p, w);
-    else { /* sequence */
+    if (t == 0 || (t <= elap && seqrun)) {
+
+        excseq(sp); /* execute */
+        putseq(sp); /* free */
+
+    } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
-        getseq(&sp); /* get a sequencer message */
-        sp->port = p; /* set port */
-        sp->time = t; /* set time */
-        sp->st = st_playwave; /* set type */
-        sp->wt = w; /* set logical track */
         insseq(sp); /* insert to sequencer list */
         acttim(t); /* kick timer if needed */
 
