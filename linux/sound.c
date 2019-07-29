@@ -223,20 +223,23 @@ typedef portid* portidptr;
 
 typedef struct snddev {
 
-    string         name;     /* alsa name of device (sufficient to open) */
-    snd_rawmidi_t* midi;     /* MIDI device handle */
-    snd_pcm_t*     pcm;      /* PCM device handle */
-    int            chan;     /* number of channels */
-    int            bits;     /* preferred format bit size */
-    int            rate;     /* sample rate */
-    boolean        sgn;      /* preferred format sign */
-    boolean        big;      /* preferred format big endian */
-    boolean        flt;      /* preferred format floating point */
-    int            ssiz;     /* sample size, bits*chan in bytes */
-    int            fmt;      /* alsa format code for output, -1 if not set */
-    byte           last;     /* last byte on midi input */
-    int            pback;    /* pushback for input */
-    void (*wrseq)(seqptr p); /* write function pointer */
+    string         name;       /* alsa name of device (sufficient to open) */
+    snd_rawmidi_t* midi;       /* MIDI device handle */
+    snd_pcm_t*     pcm;        /* PCM device handle */
+    int            chan;       /* number of channels */
+    int            bits;       /* preferred format bit size */
+    int            rate;       /* sample rate */
+    boolean        sgn;        /* preferred format sign */
+    boolean        big;        /* preferred format big endian */
+    boolean        flt;        /* preferred format floating point */
+    int            ssiz;       /* sample size, bits*chan in bytes */
+    int            fmt;        /* alsa format code for output, -1 if not set */
+    byte           last;       /* last byte on midi input */
+    int            pback;      /* pushback for input */
+    /* These entries support plug in devices, but are also set for intenal devices */
+    void (*opnseq)(struct snddev* d);          /* open sequencer port */
+    void (*clsseq)(struct snddev* d);          /* close sequencer port */
+    void (*wrseq)(struct snddev* d, seqptr p); /* write function pointer */
 
 } snddev;
 
@@ -756,7 +759,7 @@ device assocated with the port.
 
 *******************************************************************************/
 
-static void excseq(seqptr p)
+static void excseq(devptr d, seqptr p)
 
 {
 
@@ -882,17 +885,86 @@ static void excseq(seqptr p)
 
 /*******************************************************************************
 
+Open ALSA MIDI device
+
+Opens an ALSA MIDI port for use.
+
+*******************************************************************************/
+
+static void openalsamidi(devptr d)
+
+{
+
+    int r;
+
+    r = snd_rawmidi_open(NULL, &d->midi, d->name, SND_RAWMIDI_SYNC);
+    if (r < 0) alsaerror(r);
+
+}
+
+/*******************************************************************************
+
+Close sequencer output device
+
+Closes a sequencer output device for use.
+
+*******************************************************************************/
+
+static void closealsamidi(devptr d)
+
+{
+
+    snd_rawmidi_close(d->midi); /* close port */
+
+}
+
+/*******************************************************************************
+
+Open output device
+
+Opens a sequencer output device for use. Somewhat misnamed, it actually opens
+a midi port for output. It uses sequencer entries to specify the MIDI commands
+to be output.
+
+*******************************************************************************/
+
+static void opnseq(seqptr p)
+
+{
+
+    alsamidiout[p->port-1]->opnseq(alsamidiout[p->port-1]);
+
+}
+
+/*******************************************************************************
+
+Close sequencer output device
+
+Closes a sequencer output device for use.
+
+*******************************************************************************/
+
+static void clsseq(seqptr p)
+
+{
+
+    alsamidiout[p->port-1]->clsseq(alsamidiout[p->port-1]);
+
+}
+
+/*******************************************************************************
+
 Write sequencer entry
 
 Writes a sequencer entry to the device given by it's port.
 
 *******************************************************************************/
 
-void wrtseq(seqptr p)
+static void wrtseq(seqptr p)
 
 {
 
-    alsamidiout[p->port-1]->wrseq(p);
+    alsamidiout[p->port-1]->wrseq(alsamidiout[p->port-1], p);
 
 }
 
@@ -1182,13 +1254,10 @@ void pa_opensynthout(int p)
 
 {
 
-    int r;
-
     if (p < 1 || p > MAXMIDP) error("Invalid synthesizer port");
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
-    r = snd_rawmidi_open(NULL, &alsamidiout[p-1]->midi, alsamidiout[p-1]->name,
-                         SND_RAWMIDI_SYNC);
-    if (r < 0) error("Cannot open synthethizer");
+
+    alsamidiout[p-1]->opnseq(alsamidiout[p-1]);
 
 }
 
@@ -1205,6 +1274,7 @@ void pa_closesynthout(int p)
 {
 
     if (p < 1 || p > MAXMIDP) error("Invalid synthesizer port");
+
     snd_rawmidi_close(alsamidiout[p-1]->midi); /* close port */
 
 }
@@ -4715,6 +4785,8 @@ void readalsadev(devptr table[], string devt, string iotyp, int tabmax,
             table[i]->name = devn; /* place name of device */
             table[i]->last = 0; /* clear last byte */
             table[i]->pback = -1; /* set no pushback */
+            table[i]->opnseq = openalsamidi; /* set open alsa midi device */
+            table[i]->clsseq = closealsamidi; /* set close alsa midi device */
             table[i]->wrseq = excseq; /* set sequencer execute function */
             /* if the device is not midi, get the parameters of wave */
             if (strcmp(devt, "rawmidi")) {
