@@ -136,7 +136,7 @@ Clean up Fluidsynth instance.
 
 *******************************************************************************/
 
-static void fluidsynth_plug_deinit (void) __attribute__((constructor (103)));
+static void fluidsynth_plug_deinit (void) __attribute__((destructor (103)));
 static void fluidsynth_plug_deinit()
 
 {
