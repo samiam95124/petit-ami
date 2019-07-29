@@ -223,19 +223,20 @@ typedef portid* portidptr;
 
 typedef struct snddev {
 
-    string         name;  /* alsa name of device (sufficient to open) */
-    snd_rawmidi_t* midi;  /* MIDI device handle */
-    snd_pcm_t*     pcm;   /* PCM device handle */
-    int            chan;  /* number of channels */
-    int            bits;  /* preferred format bit size */
-    int            rate;  /* sample rate */
-    boolean        sgn;   /* preferred format sign */
-    boolean        big;   /* preferred format big endian */
-    boolean        flt;   /* preferred format floating point */
-    int            ssiz;  /* sample size, bits*chan in bytes */
-    int            fmt;   /* alsa format code for output, -1 if not set */
-    byte           last;  /* last byte on midi input */
-    int            pback; /* pushback for input */
+    string         name;     /* alsa name of device (sufficient to open) */
+    snd_rawmidi_t* midi;     /* MIDI device handle */
+    snd_pcm_t*     pcm;      /* PCM device handle */
+    int            chan;     /* number of channels */
+    int            bits;     /* preferred format bit size */
+    int            rate;     /* sample rate */
+    boolean        sgn;      /* preferred format sign */
+    boolean        big;      /* preferred format big endian */
+    boolean        flt;      /* preferred format floating point */
+    int            ssiz;     /* sample size, bits*chan in bytes */
+    int            fmt;      /* alsa format code for output, -1 if not set */
+    byte           last;     /* last byte on midi input */
+    int            pback;    /* pushback for input */
+    void (*wrseq)(seqptr p); /* write function pointer */
 
 } snddev;
 
@@ -881,6 +882,22 @@ static void excseq(seqptr p)
 
 /*******************************************************************************
 
+Write sequencer entry
+
+Writes a sequencer entry to the device given by it's port.
+
+*******************************************************************************/
+
+void wrtseq(seqptr p)
+
+{
+
+    alsamidiout[p->port-1]->wrseq(p);
+
+}
+
+/*******************************************************************************
+
 Dump sequencer list
 
 A diagnostic, dumps the given sequencer list in ASCII.
@@ -1079,7 +1096,7 @@ static void* sequencer_thread(void* data)
                     if (p->time <= elap) { /* execute this message */
 
                         seqlst = seqlst->next; /* gap out */
-                        excseq(p); /* execute it */
+                        wrtseq(p); /* execute it */
                         putseq(p); /* release entry */
                         p = seqlst; /* index top of list again */
 
@@ -1393,7 +1410,7 @@ void pa_noteon(int p, int t, channel c, note n, int v)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        excseq(sp); /* execute */
+        wrtseq(sp); /* execute */
         putseq(sp); /* free */
 
     } else { /* sequence */
@@ -1444,7 +1461,7 @@ void pa_noteoff(int p, int t, channel c, note n, int v)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        excseq(sp); /* execute */
+        wrtseq(sp); /* execute */
         putseq(sp); /* free */
 
     } else { /* sequence */
@@ -1491,7 +1508,7 @@ void pa_instchange(int p, int t, channel c, instrument i)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        excseq(sp); /* execute */
+        wrtseq(sp); /* execute */
         putseq(sp); /* free */
 
     } else { /* sequence */
@@ -1536,7 +1553,7 @@ void pa_attack(int p, int t, channel c, int at)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        excseq(sp); /* execute */
+        wrtseq(sp); /* execute */
         putseq(sp); /* free */
 
     } else { /* sequence */
@@ -1581,7 +1598,7 @@ void pa_release(int p, int t, channel c, int rt)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        excseq(sp); /* execute */
+        wrtseq(sp); /* execute */
         putseq(sp); /* free */
 
     } else { /* sequence */
@@ -1625,7 +1642,7 @@ void pa_legato(int p, int t, channel c, boolean b)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        excseq(sp); /* execute */
+        wrtseq(sp); /* execute */
         putseq(sp); /* free */
 
     } else { /* sequence */
@@ -1669,7 +1686,7 @@ void pa_portamento(int p, int t, channel c, boolean b)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        excseq(sp); /* execute */
+        wrtseq(sp); /* execute */
         putseq(sp); /* free */
 
     } else { /* sequence */
@@ -1713,7 +1730,7 @@ void pa_volsynthchan(int p, int t, channel c, int v)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        excseq(sp); /* execute */
+        wrtseq(sp); /* execute */
         putseq(sp); /* free */
 
     } else { /* sequence */
@@ -1758,7 +1775,7 @@ void pa_balance(int p, int t, channel c, int b)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        excseq(sp); /* execute */
+        wrtseq(sp); /* execute */
         putseq(sp); /* free */
 
     } else { /* sequence */
@@ -1802,7 +1819,7 @@ void pa_porttime(int p, int t, channel c, int v)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        excseq(sp); /* execute */
+        wrtseq(sp); /* execute */
         putseq(sp); /* free */
 
     } else { /* sequence */
@@ -1846,7 +1863,7 @@ void pa_vibrato(int p, int t, channel c, int v)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        excseq(sp); /* execute */
+        wrtseq(sp); /* execute */
         putseq(sp); /* free */
 
     } else { /* sequence */
@@ -1891,7 +1908,7 @@ void pa_pan(int p, int t, channel c, int b)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        excseq(sp); /* execute */
+        wrtseq(sp); /* execute */
         putseq(sp); /* free */
 
     } else { /* sequence */
@@ -1935,7 +1952,7 @@ void pa_timbre(int p, int t, channel c, int tb)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        excseq(sp); /* execute */
+        wrtseq(sp); /* execute */
         putseq(sp); /* free */
 
     } else { /* sequence */
@@ -1979,7 +1996,7 @@ void pa_brightness(int p, int t, channel c, int b)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        excseq(sp); /* execute */
+        wrtseq(sp); /* execute */
         putseq(sp); /* free */
 
     } else { /* sequence */
@@ -2023,7 +2040,7 @@ void pa_reverb(int p, int t, channel c, int r)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        excseq(sp); /* execute */
+        wrtseq(sp); /* execute */
         putseq(sp); /* free */
 
     } else { /* sequence */
@@ -2067,7 +2084,7 @@ void pa_tremulo(int p, int t, channel c, int tr)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        excseq(sp); /* execute */
+        wrtseq(sp); /* execute */
         putseq(sp); /* free */
 
     } else { /* sequence */
@@ -2112,7 +2129,7 @@ void pa_chorus(int p, int t, channel c, int cr)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        excseq(sp); /* execute */
+        wrtseq(sp); /* execute */
         putseq(sp); /* free */
 
     } else { /* sequence */
@@ -2156,7 +2173,7 @@ void pa_celeste(int p, int t, channel c, int ce)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        excseq(sp); /* execute */
+        wrtseq(sp); /* execute */
         putseq(sp); /* free */
 
     } else { /* sequence */
@@ -2200,7 +2217,7 @@ void pa_phaser(int p, int t, channel c, int ph)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        excseq(sp); /* execute */
+        wrtseq(sp); /* execute */
         putseq(sp); /* free */
 
     } else { /* sequence */
@@ -2248,7 +2265,7 @@ void pa_pitchrange(int p, int t, channel c, int v)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        excseq(sp); /* execute */
+        wrtseq(sp); /* execute */
         putseq(sp); /* free */
 
     } else { /* sequence */
@@ -2295,7 +2312,7 @@ void pa_mono(int p, int t, channel c, int ch)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        excseq(sp); /* execute */
+        wrtseq(sp); /* execute */
         putseq(sp); /* free */
 
     } else { /* sequence */
@@ -2338,7 +2355,7 @@ void pa_poly(int p, int t, channel c)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        excseq(sp); /* execute */
+        wrtseq(sp); /* execute */
         putseq(sp); /* free */
 
     } else { /* sequence */
@@ -2384,7 +2401,7 @@ void pa_aftertouch(int p, int t, channel c, note n, int at)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        excseq(sp); /* execute */
+        wrtseq(sp); /* execute */
         putseq(sp); /* free */
 
     } else { /* sequence */
@@ -2428,7 +2445,7 @@ void pa_pressure(int p, int t, channel c, int pr)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        excseq(sp); /* execute */
+        wrtseq(sp); /* execute */
         putseq(sp); /* free */
 
     } else { /* sequence */
@@ -2475,7 +2492,7 @@ void pa_pitch(int p, int t, channel c, int pt)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        excseq(sp); /* execute */
+        wrtseq(sp); /* execute */
         putseq(sp); /* free */
 
     } else { /* sequence */
@@ -2549,7 +2566,7 @@ static void *alsaplaymidi(void* data)
         /* Change the port to be the one requested. In this case we are treating
            the sequencer list to be a form to be applied to any port */
         seqlst->port = p;
-        excseq(seqlst); /* execute top entry */
+        wrtseq(seqlst); /* execute top entry */
         seqlst = seqlst->next;
 
     }
@@ -3163,7 +3180,7 @@ void pa_playsynth(int p, int t, int s)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        excseq(sp); /* execute */
+        wrtseq(sp); /* execute */
         putseq(sp); /* free */
 
     } else { /* sequence */
@@ -3551,7 +3568,7 @@ void pa_playwave(int p, int t, int w)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        excseq(sp); /* execute */
+        wrtseq(sp); /* execute */
         putseq(sp); /* free */
 
     } else { /* sequence */
@@ -4217,7 +4234,7 @@ void pa_wrsynth(int p, seqptr sp)
         insseq(spp); /* insert to sequencer list */
         acttim(sp->time); /* kick timer if needed */
 
-    } else  excseq(sp); /* execute the synth note */
+    } else  wrtseq(sp); /* execute the synth note */
 
 }
 
@@ -4698,6 +4715,7 @@ void readalsadev(devptr table[], string devt, string iotyp, int tabmax,
             table[i]->name = devn; /* place name of device */
             table[i]->last = 0; /* clear last byte */
             table[i]->pback = -1; /* set no pushback */
+            table[i]->wrseq = excseq; /* set sequencer execute function */
             /* if the device is not midi, get the parameters of wave */
             if (strcmp(devt, "rawmidi")) {
 
