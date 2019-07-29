@@ -237,9 +237,9 @@ typedef struct snddev {
     byte           last;       /* last byte on midi input */
     int            pback;      /* pushback for input */
     /* These entries support plug in devices, but are also set for intenal devices */
-    void (*opnseq)(struct snddev* d);          /* open sequencer port */
-    void (*clsseq)(struct snddev* d);          /* close sequencer port */
-    void (*wrseq)(struct snddev* d, seqptr p); /* write function pointer */
+    void (*opnseq)(int p);           /* open sequencer port */
+    void (*clsseq)(int p);           /* close sequencer port */
+    void (*wrseq)(int p, seqptr sp); /* write function pointer */
 
 } snddev;
 
@@ -759,121 +759,121 @@ device assocated with the port.
 
 *******************************************************************************/
 
-static void excseq(devptr d, seqptr p)
+static void excseq(int p, seqptr sp)
 
 {
 
     int b;
     int pt;
 
-    switch (p->st) { /* sequencer message type */
+    switch (sp->st) { /* sequencer message type */
 
         case st_noteon:
-            midimsg3(alsamidiout[p->port-1]->midi, MESS_NOTE_ON+(p->ntc-1),
-                     p->ntn-1, p->ntv/0x01000000);
+            midimsg3(alsamidiout[sp->port-1]->midi, MESS_NOTE_ON+(sp->ntc-1),
+                     sp->ntn-1, sp->ntv/0x01000000);
             break;
         case st_noteoff:
-            midimsg3(alsamidiout[p->port-1]->midi, MESS_NOTE_OFF+(p->ntc-1),
-                     p->ntn-1, p->ntv/0x01000000);
+            midimsg3(alsamidiout[sp->port-1]->midi, MESS_NOTE_OFF+(sp->ntc-1),
+                     sp->ntn-1, sp->ntv/0x01000000);
             break;
         case st_instchange:
-            midimsg2(alsamidiout[p->port-1]->midi, MESS_PGM_CHG+(p->icc-1),
-                     p->ici-1);
+            midimsg2(alsamidiout[sp->port-1]->midi, MESS_PGM_CHG+(sp->icc-1),
+                     sp->ici-1);
             break;
-        case st_attack: ctlchg(p->port, p->vsc, CTLR_SOUND_ATTACK_TIME,
-                               p->vsv/0x01000000);
+        case st_attack: ctlchg(sp->port, sp->vsc, CTLR_SOUND_ATTACK_TIME,
+                               sp->vsv/0x01000000);
             break;
-        case st_release: ctlchg(p->port, p->vsc, CTLR_SOUND_RELEASE_TIME, p->vsv/0x01000000);
+        case st_release: ctlchg(sp->port, sp->vsc, CTLR_SOUND_RELEASE_TIME, sp->vsv/0x01000000);
             break;
-        case st_legato: ctlchg(p->port, p->bsc, CTLR_LEGATO_PEDAL, !!p->bsb*127);
+        case st_legato: ctlchg(sp->port, sp->bsc, CTLR_LEGATO_PEDAL, !!sp->bsb*127);
             break;
-        case st_portamento: ctlchg(p->port, p->bsc, CTLR_PORTAMENTO, !!p->bsb*127);
+        case st_portamento: ctlchg(sp->port, sp->bsc, CTLR_PORTAMENTO, !!sp->bsb*127);
             break;
         case st_vibrato:
             /* set high */
-            ctlchg(p->port, p->vsc, CTLR_MODULATION_WHEEL_COARSE, p->vsv/0x01000000);
+            ctlchg(sp->port, sp->vsc, CTLR_MODULATION_WHEEL_COARSE, sp->vsv/0x01000000);
             /* set low */
-            ctlchg(p->port, p->vsc, CTLR_MODULATION_WHEEL_FINE, p->vsv/0x00020000 & 0x7f);
+            ctlchg(sp->port, sp->vsc, CTLR_MODULATION_WHEEL_FINE, sp->vsv/0x00020000 & 0x7f);
             break;
         case st_volsynthchan:
-            ctlchg(p->port, p->vsc, CTLR_VOLUME_COARSE, p->vsv/0x01000000); /* set high */
-            ctlchg(p->port, p->vsc, CTLR_VOLUME_FINE, p->vsv/0x00020000 & 0x7f); /* set low */
+            ctlchg(sp->port, sp->vsc, CTLR_VOLUME_COARSE, sp->vsv/0x01000000); /* set high */
+            ctlchg(sp->port, sp->vsc, CTLR_VOLUME_FINE, sp->vsv/0x00020000 & 0x7f); /* set low */
             break;
         case st_porttime:
             /* set high */
-            ctlchg(p->port, p->vsc, CTLR_PORTAMENTO_TIME_COARSE, p->vsv/0x01000000);
+            ctlchg(sp->port, sp->vsc, CTLR_PORTAMENTO_TIME_COARSE, sp->vsv/0x01000000);
             /* set low */
-            ctlchg(p->port, p->vsc, CTLR_PORTAMENTO_TIME_FINE, p->vsv/0x00020000 & 0x7f);
+            ctlchg(sp->port, sp->vsc, CTLR_PORTAMENTO_TIME_FINE, sp->vsv/0x00020000 & 0x7f);
             break;
         case st_balance:
-            b = p->vsv/0x00040000+0x2000; /* reduce to 14 bits, positive only */
-            ctlchg(p->port, p->vsc, CTLR_BALANCE_COARSE, b/0x80); /* set high */
-            ctlchg(p->port, p->vsc, CTLR_BALANCE_FINE, b & 0x7f); /* set low */
+            b = sp->vsv/0x00040000+0x2000; /* reduce to 14 bits, positive only */
+            ctlchg(sp->port, sp->vsc, CTLR_BALANCE_COARSE, b/0x80); /* set high */
+            ctlchg(sp->port, sp->vsc, CTLR_BALANCE_FINE, b & 0x7f); /* set low */
             break;
         case st_pan:
-            b = p->vsv/0x00040000+0x2000; /* reduce to 14 bits, positive only */
-            ctlchg(p->port, p->vsc, CTLR_PAN_POSITION_COARSE, b/0x80); /* set high */
-            ctlchg(p->port, p->vsc, CTLR_PAN_POSITION_FINE, b & 0x7f); /* set low */
+            b = sp->vsv/0x00040000+0x2000; /* reduce to 14 bits, positive only */
+            ctlchg(sp->port, sp->vsc, CTLR_PAN_POSITION_COARSE, b/0x80); /* set high */
+            ctlchg(sp->port, sp->vsc, CTLR_PAN_POSITION_FINE, b & 0x7f); /* set low */
             break;
         case st_timbre:
-            ctlchg(p->port, p->vsc, CTLR_SOUND_TIMBRE, p->vsv/0x01000000);
+            ctlchg(sp->port, sp->vsc, CTLR_SOUND_TIMBRE, sp->vsv/0x01000000);
             break;
         case st_brightness:
-            ctlchg(p->port, p->vsc, CTLR_SOUND_BRIGHTNESS, p->vsv/0x01000000);
+            ctlchg(sp->port, sp->vsc, CTLR_SOUND_BRIGHTNESS, sp->vsv/0x01000000);
             break;
         case st_reverb:
-            ctlchg(p->port, p->vsc, CTLR_EFFECTS_LEVEL, p->vsv/0x01000000);
+            ctlchg(sp->port, sp->vsc, CTLR_EFFECTS_LEVEL, sp->vsv/0x01000000);
             break;
         case st_tremulo:
-            ctlchg(p->port, p->vsc, CTLR_TREMULO_LEVEL, p->vsv/0x01000000);
+            ctlchg(sp->port, sp->vsc, CTLR_TREMULO_LEVEL, sp->vsv/0x01000000);
             break;
         case st_chorus:
-            ctlchg(p->port, p->vsc, CTLR_CHORUS_LEVEL, p->vsv/0x01000000);
+            ctlchg(sp->port, sp->vsc, CTLR_CHORUS_LEVEL, sp->vsv/0x01000000);
             break;
         case st_celeste:
-            ctlchg(p->port, p->vsc, CTLR_CELESTE_LEVEL, p->vsv/0x01000000);
+            ctlchg(sp->port, sp->vsc, CTLR_CELESTE_LEVEL, sp->vsv/0x01000000);
             break;
         case st_phaser:
-            ctlchg(p->port, p->vsc, CTLR_PHASER_LEVEL, p->vsv/0x01000000);
+            ctlchg(sp->port, sp->vsc, CTLR_PHASER_LEVEL, sp->vsv/0x01000000);
             break;
         case st_aftertouch:
-            midimsg3(alsamidiout[p->port-1]->midi, MESS_AFTTCH+(p->ntc-1),
-                     p->ntn-1, p->ntv/0x01000000);
+            midimsg3(alsamidiout[sp->port-1]->midi, MESS_AFTTCH+(sp->ntc-1),
+                     sp->ntn-1, sp->ntv/0x01000000);
             break;
         case st_pressure:
-            midimsg2(alsamidiout[p->port-1]->midi, MESS_CHN_PRES+(p->ntc-1),
-                     p->ntv/0x01000000);
+            midimsg2(alsamidiout[sp->port-1]->midi, MESS_CHN_PRES+(sp->ntc-1),
+                     sp->ntv/0x01000000);
             break;
         case st_pitch:
-            pt = p->vsv/0x00040000+0x2000; /* reduce to 14 bits, positive only */
+            pt = sp->vsv/0x00040000+0x2000; /* reduce to 14 bits, positive only */
             /* construct midi message */
-            midimsg3(alsamidiout[p->port-1]->midi, MESS_PTCH_WHL+(p->vsc-1),
+            midimsg3(alsamidiout[sp->port-1]->midi, MESS_PTCH_WHL+(sp->vsc-1),
                      pt & 0x7f, pt/0x80);
             break;
         case st_pitchrange:
             /* set up data entry */
             /* set high */
-            ctlchg(p->port, p->vsc, CTLR_REGISTERED_PARAMETER_COARSE, 0);
+            ctlchg(sp->port, sp->vsc, CTLR_REGISTERED_PARAMETER_COARSE, 0);
             /* set low */
-            ctlchg(p->port, p->vsc, CTLR_REGISTERED_PARAMETER_FINE, 0);
+            ctlchg(sp->port, sp->vsc, CTLR_REGISTERED_PARAMETER_FINE, 0);
             /* set high */
-            ctlchg(p->port, p->vsc, CTLR_DATA_ENTRY_COARSE, p->vsv/0x01000000);
+            ctlchg(sp->port, sp->vsc, CTLR_DATA_ENTRY_COARSE, sp->vsv/0x01000000);
             /* set low */
-            ctlchg(p->port, p->vsc, CTLR_DATA_ENTRY_FINE,
-                   p->vsv/0x00020000 & 0x7f);
+            ctlchg(sp->port, sp->vsc, CTLR_DATA_ENTRY_FINE,
+                   sp->vsv/0x00020000 & 0x7f);
             break;
         case st_mono:
-            ctlchg(p->port, p->vsc, CTLR_MONO_OPERATION, p->vsv);
+            ctlchg(sp->port, sp->vsc, CTLR_MONO_OPERATION, sp->vsv);
             break;
         case st_poly:
             /* value dosen't matter */
-            ctlchg(p->port, p->pc, CTLR_POLY_OPERATION, 0);
+            ctlchg(sp->port, sp->pc, CTLR_POLY_OPERATION, 0);
             break;
         case st_playsynth:
-            alsaplaysynth_kickoff(p->port, p->sid); /* play the file */
+            alsaplaysynth_kickoff(sp->port, sp->sid); /* play the file */
             break;
         case st_playwave:
-            alsaplaywave_kickoff(p->port, p->wt);
+            alsaplaywave_kickoff(sp->port, sp->wt);
             break;
         case st_volwave:
             /* not implemented at present */
@@ -891,13 +891,14 @@ Opens an ALSA MIDI port for use.
 
 *******************************************************************************/
 
-static void openalsamidi(devptr d)
+static void openalsamidi(int p)
 
 {
 
     int r;
 
-    r = snd_rawmidi_open(NULL, &d->midi, d->name, SND_RAWMIDI_SYNC);
+    r = snd_rawmidi_open(NULL, &alsamidiout[p-1]->midi, alsamidiout[p-1]->name,
+                         SND_RAWMIDI_SYNC);
     if (r < 0) alsaerror(r);
 
 }
@@ -910,11 +911,11 @@ Closes a sequencer output device for use.
 
 *******************************************************************************/
 
-static void closealsamidi(devptr d)
+static void closealsamidi(int p)
 
 {
 
-    snd_rawmidi_close(d->midi); /* close port */
+    snd_rawmidi_close(alsamidiout[p-1]->midi); /* close port */
 
 }
 
@@ -928,11 +929,11 @@ to be output.
 
 *******************************************************************************/
 
-static void opnseq(seqptr p)
+static void opnseq(seqptr sp)
 
 {
 
-    alsamidiout[p->port-1]->opnseq(alsamidiout[p->port-1]);
+    alsamidiout[sp->port-1]->opnseq(sp->port);
 
 }
 
@@ -944,11 +945,11 @@ Closes a sequencer output device for use.
 
 *******************************************************************************/
 
-static void clsseq(seqptr p)
+static void clsseq(seqptr sp)
 
 {
 
-    alsamidiout[p->port-1]->clsseq(alsamidiout[p->port-1]);
+    alsamidiout[sp->port-1]->clsseq(sp->port);
 
 }
 
@@ -960,11 +961,11 @@ Writes a sequencer entry to the device given by it's port.
 
 *******************************************************************************/
 
-static void wrtseq(seqptr p)
+static void wrtseq(seqptr sp)
 
 {
 
-    alsamidiout[p->port-1]->wrseq(alsamidiout[p->port-1], p);
+    alsamidiout[sp->port-1]->wrseq(sp->port, sp);
 
 }
 
@@ -1120,6 +1121,44 @@ static void dmpseqlst(seqptr p)
 
 /*******************************************************************************
 
+Define plug-in sequencer output device
+
+Lets a sequencer plug-in define a device. Accepts three vectors, the open, close
+and write vectors. Returns the defined device.
+
+Plug-ins go into the MIDI output device table at position 1, meaning that the
+plug-in takes over the default device.
+
+*******************************************************************************/
+
+void synthoutplug(
+    /* name */            string name,
+    /* open sequencer */  void (*opnseq)(int p),
+    /* close sequencer */ void (*clsseq)(int p),
+    /* write sequencer */ void (*wrseq)(int p, seqptr sp)
+)
+
+{
+
+    int i;
+
+    if (alsamidioutnum >= MAXMIDP) error("Too many plug in devices");
+    /* move table entries up one */
+    for (i = MAXMIDP; i > 0; i--) alsamidiout[i] = alsamidiout[i-1];
+    alsamidiout[0] = malloc(sizeof(snddev)); /* create new device entry */
+    alsamidiout[0]->name = malloc(strlen(name)+1); /* place name of device */
+    strcpy(alsamidiout[0]->name, name);
+    alsamidiout[0]->last = 0; /* clear last byte */
+    alsamidiout[0]->pback = -1; /* set no pushback */
+    alsamidiout[0]->opnseq = opnseq; /* set open alsa midi device */
+    alsamidiout[0]->clsseq = clsseq; /* set close alsa midi device */
+    alsamidiout[0]->wrseq = wrseq; /* set sequencer execute function */
+    alsamidioutnum++;
+
+}
+
+/*******************************************************************************
+
 Timer thread
 
 Called when the windows event timer expires, we first check if the sequencer
@@ -1257,7 +1296,7 @@ void pa_opensynthout(int p)
     if (p < 1 || p > MAXMIDP) error("Invalid synthesizer port");
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
 
-    alsamidiout[p-1]->opnseq(alsamidiout[p-1]);
+    alsamidiout[p-1]->opnseq(p); /* open port */
 
 }
 
@@ -1275,7 +1314,7 @@ void pa_closesynthout(int p)
 
     if (p < 1 || p > MAXMIDP) error("Invalid synthesizer port");
 
-    snd_rawmidi_close(alsamidiout[p-1]->midi); /* close port */
+    alsamidiout[p-1]->clsseq(p); /* close port */
 
 }
 
@@ -4886,8 +4925,6 @@ static void pa_init_sound()
     sinrun = false; /* set no input midi time marking */
     sintim.tv_sec = 0; /* clear input midi start time */
     sintim.tv_usec = 0;
-
-
 
     /* clear the wave track cache */
     for (i = 0; i < MAXWAVT; i++) wavfil[i] = NULL;
