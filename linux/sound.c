@@ -4633,6 +4633,34 @@ int bigend(void)
 
 }
 
+static int stderr_file;
+
+static void quiet(void)
+
+{
+
+#ifdef SILENTALSA
+    /* run alsa open in quiet */
+    fflush(stderr);
+    stderr_file = dup(fileno(stderr));
+    freopen("/dev/null", "w", stderr);
+#endif
+
+}
+
+static void unquiet(void)
+
+{
+
+#ifdef SILENTALSA
+    fflush(stderr);
+    dup2(stderr_file, fileno(stderr));
+    close(stderr_file);
+    clearerr(stderr);
+#endif
+
+}
+
 int findparms(devptr dev, snd_pcm_stream_t stream)
 
 {
@@ -4656,22 +4684,11 @@ int findparms(devptr dev, snd_pcm_stream_t stream)
     int msupp;
     int r;
     int stderr_save;
-    int stderr_file;
 
     mbits = 0; msgn = 0; mbig = 0; mflt = 0; msupp = 0;
-#ifdef SILENTALSA
-    /* run alsa open in quiet */
-    fflush(stderr);
-    stderr_file = dup(fileno(stderr));
-    freopen("/dev/null", "w", stderr);
-#endif
+    quiet();
     r = snd_pcm_open(&pcm, dev->name, stream, SND_PCM_NONBLOCK);
-#ifdef SILENTALSA
-    fflush(stderr);
-    dup2(stderr_file, fileno(stderr));
-    close(stderr_file);
-    clearerr(stderr);
-#endif
+    unquiet();
     if (!r) {
 
         snd_pcm_hw_params_alloca(&pars);

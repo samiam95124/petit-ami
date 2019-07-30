@@ -60,16 +60,19 @@ static void writeliquid(int p, seqptr sp)
 
 {
 
+
     switch (sp->st) { /* sequencer message type */
 
         case st_noteon:
             fluid_synth_noteon(synth, sp->ntc-1, sp->ntn-1, sp->ntv/0x01000000);
             break;
         case st_noteoff:
-            fluid_synth_noteoff(synth, sp->ntc-1, sp->ntn-1/*,
-                                sp->ntv/0x01000000*/);
+            /* Note fluidsynth has no velocity parameter */
+            fluid_synth_noteoff(synth, sp->ntc-1, sp->ntn-1);
             break;
-        case st_instchange:   break;
+        case st_instchange:
+            fluid_synth_program_change(synth, sp->icc-1, sp->ici-1);
+            break;
         case st_attack:       break;
         case st_release:      break;
         case st_legato:       break;
@@ -87,8 +90,12 @@ static void writeliquid(int p, seqptr sp)
         case st_celeste:      break;
         case st_phaser:       break;
         case st_aftertouch:   break;
-        case st_pressure:     break;
-        case st_pitch:        break;
+        case st_pressure:
+            fluid_synth_channel_pressure(synth, sp->ntc-1, sp->ntv/0x01000000);
+            break;
+        case st_pitch:
+            fluid_synth_pitch_bend(synth, sp->vsc-1, sp->vsv/0x00040000+0x2000);
+            break;
         case st_pitchrange:   break;
         case st_mono:         break;
         case st_poly:         break;
@@ -108,11 +115,39 @@ Registers Fluidsynth as a plug-in device with PA sound module.
 
 *******************************************************************************/
 
+static int stderr_file;
+
+static void quiet(void)
+
+{
+
+    /* run alsa open in quiet */
+    fflush(stderr);
+    stderr_file = dup(fileno(stderr));
+    freopen("/dev/null", "w", stderr);
+
+}
+
+static void unquiet(void)
+
+{
+
+    fflush(stderr);
+    dup2(stderr_file, fileno(stderr));
+    close(stderr_file);
+    clearerr(stderr);
+
+}
+
 static void fluidsynth_plug_init (void) __attribute__((constructor (103)));
 static void fluidsynth_plug_init()
 
 {
 
+    char* p;
+
+    /* turn off liquidsynth error messages */
+    quiet();
     /* create the settings */
     settings = new_fluid_settings();
     /* create the synthesizer */
@@ -122,6 +157,14 @@ static void fluidsynth_plug_init()
     adriver = new_fluid_audio_driver(settings, synth);
     /* load a SoundFont and reset presets */
     sfont_id = fluid_synth_sfload(synth, "/usr/share/sounds/sf2/FluidR3_GM.sf2", 1);
+    /* re-enable error messages */
+    unquiet();
+
+    /* show the device fluidsynth connects to (usually "default") */
+    /*
+    fluid_settings_getstr(settings, "audio.alsa.device", &p);
+    printf("The alsa PCM device for Fluidsynth is: %s\n", p);
+    */
 
     /* now install us as PA device */
     synthoutplug("Liquidsynth", openliquid, closeliquid, writeliquid);
