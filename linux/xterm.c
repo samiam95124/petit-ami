@@ -2517,14 +2517,14 @@ Set timer
 void pa_timer(/* file to send event to */              FILE *f,
               /* timer handle */                       int i,
               /* number of 100us counts */             int t,
-              /* timer is to rerun after completion */ int r)
+              /* timer is to rerun after completion */ boolean r)
 
 {
 
 #ifdef __linux__
     struct itimerspec ts;
 #endif
-    int rv;
+    int  rv;
     long tl;
 
     if (i < 1 || i > PA_MAXTIM) error(einvhan); /* invalid timer handle */

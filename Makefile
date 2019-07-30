@@ -147,6 +147,12 @@ test: bin/petit_ami_term.so include/terminal.h test.c Makefile
 play: bin/petit_ami_term.so include/terminal.h sound_prog/play.c Makefile
 	$(CC) $(CFLAGS) sound_prog/play.c $(LIBS) -o bin/play
 	
+keyboard: bin/petit_ami_term.so include/terminal.h sound_prog/keyboard.c Makefile
+	$(CC) $(CFLAGS) sound_prog/keyboard.c $(LIBS) -o bin/keyboard
+	
+playmidi: bin/petit_ami_term.so include/terminal.h sound_prog/playmidi.c Makefile
+	$(CC) $(CFLAGS) sound_prog/playmidi.c $(LIBS) -o bin/playmidi
+	
 scntst:  include/terminal.h tests/scntst.c include/services.h linux/services.c Makefile
 	$(CC) $(CFLAGS) tests/scntst.c $(LIBS) -o bin/scntst 
 	

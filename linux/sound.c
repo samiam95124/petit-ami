@@ -28,7 +28,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#include "sound.h"
+#include <localdefs.h>
+#include <sound.h>
 
 #define SILENTALSA 1 /* silence ALSA during init */
 //#define SHOWDEVTBL 1 /* show device tables after enumeration */
@@ -741,7 +742,7 @@ Processes a controller value set, from 0 to 127.
 
 *******************************************************************************/
 
-static void ctlchg(int p, channel c, int cn, int v)
+static void ctlchg(int p, pa_channel c, int cn, int v)
 
 {
 
@@ -1491,7 +1492,7 @@ The velocity is set as 0 to maxint.
 
 *******************************************************************************/
 
-void pa_noteon(int p, int t, channel c, note n, int v)
+void pa_noteon(int p, int t, pa_channel c, pa_note n, int v)
 
 
 
@@ -1545,7 +1546,7 @@ The velocity is set as 0 to maxint.
 
 *******************************************************************************/
 
-void pa_noteoff(int p, int t, channel c, note n, int v)
+void pa_noteoff(int p, int t, pa_channel c, pa_note n, int v)
 
 {
 
@@ -1593,7 +1594,7 @@ by Midi GM encoding, 1 to 128. Takes a time for sequencing.
 
 *******************************************************************************/
 
-void pa_instchange(int p, int t, channel c, instrument i)
+void pa_instchange(int p, int t, pa_channel c, pa_instrument i)
 
 {
 
@@ -1640,7 +1641,7 @@ full on.
 
 *******************************************************************************/
 
-void pa_attack(int p, int t, channel c, int at)
+void pa_attack(int p, int t, pa_channel c, int at)
 
 {
 
@@ -1685,7 +1686,7 @@ full on.
 
 *******************************************************************************/
 
-void pa_release(int p, int t, channel c, int rt)
+void pa_release(int p, int t, pa_channel c, int rt)
 
 {
 
@@ -1729,7 +1730,7 @@ Sets the legato mode on/off.
 
 *******************************************************************************/
 
-void pa_legato(int p, int t, channel c, boolean b)
+void pa_legato(int p, int t, pa_channel c, boolean b)
 
 {
 
@@ -1773,7 +1774,7 @@ Sets the portamento mode on/off.
 
 *******************************************************************************/
 
-void pa_portamento(int p, int t, channel c, boolean b)
+void pa_portamento(int p, int t, pa_channel c, boolean b)
 
 {
 
@@ -1817,7 +1818,7 @@ Sets synthesizer volume, 0 to maxint.
 
 *******************************************************************************/
 
-void pa_volsynthchan(int p, int t, channel c, int v)
+void pa_volsynthchan(int p, int t, pa_channel c, int v)
 
 {
 
@@ -1862,7 +1863,7 @@ maxint is all right.
 
 *******************************************************************************/
 
-void pa_balance(int p, int t, channel c, int b)
+void pa_balance(int p, int t, pa_channel c, int b)
 
 {
 
@@ -1906,7 +1907,7 @@ Sets portamento time, 0 to maxint.
 
 *******************************************************************************/
 
-void pa_porttime(int p, int t, channel c, int v)
+void pa_porttime(int p, int t, pa_channel c, int v)
 
 {
 
@@ -1950,7 +1951,7 @@ Sets modulaton value, 0 to maxint.
 
 *******************************************************************************/
 
-void pa_vibrato(int p, int t, channel c, int v)
+void pa_vibrato(int p, int t, pa_channel c, int v)
 
 {
 
@@ -1995,7 +1996,7 @@ maxint is hard right.
 
 *******************************************************************************/
 
-void pa_pan(int p, int t, channel c, int b)
+void pa_pan(int p, int t, pa_channel c, int b)
 
 {
 
@@ -2039,7 +2040,7 @@ Sets the sound timbre, 0 to maxint.
 
 *******************************************************************************/
 
-void pa_timbre(int p, int t, channel c, int tb)
+void pa_timbre(int p, int t, pa_channel c, int tb)
 
 {
 
@@ -2083,7 +2084,7 @@ Sets the sound brightness, 0 to maxint.
 
 *******************************************************************************/
 
-void pa_brightness(int p, int t, channel c, int b)
+void pa_brightness(int p, int t, pa_channel c, int b)
 
 {
 
@@ -2127,7 +2128,7 @@ Sets the sound reverb, 0 to maxint.
 
 *******************************************************************************/
 
-void pa_reverb(int p, int t, channel c, int r)
+void pa_reverb(int p, int t, pa_channel c, int r)
 
 {
 
@@ -2171,7 +2172,7 @@ Sets the sound tremulo, 0 to maxint.
 
 *******************************************************************************/
 
-void pa_tremulo(int p, int t, channel c, int tr)
+void pa_tremulo(int p, int t, pa_channel c, int tr)
 
 {
 
@@ -2215,7 +2216,7 @@ Sets the sound chorus, 0 to maxint.
 
 *******************************************************************************/
 
-void pa_chorus(int p, int t, channel c, int cr)
+void pa_chorus(int p, int t, pa_channel c, int cr)
 
 {
 
@@ -2260,7 +2261,7 @@ Sets the sound celeste, 0 to maxint.
 
 *******************************************************************************/
 
-void pa_celeste(int p, int t, channel c, int ce)
+void pa_celeste(int p, int t, pa_channel c, int ce)
 
 {
 
@@ -2304,7 +2305,7 @@ Sets the sound phaser, 0 to maxint.
 
 *******************************************************************************/
 
-void pa_phaser(int p, int t, channel c, int ph)
+void pa_phaser(int p, int t, pa_channel c, int ph)
 
 {
 
@@ -2352,7 +2353,7 @@ could be reached with a slide, for example.
 
 *******************************************************************************/
 
-void pa_pitchrange(int p, int t, channel c, int v)
+void pa_pitchrange(int p, int t, pa_channel c, int v)
 
 {
 
@@ -2398,7 +2399,7 @@ with 0 being "allways select single note mode".
 
 *******************************************************************************/
 
-void pa_mono(int p, int t, channel c, int ch)
+void pa_mono(int p, int t, pa_channel c, int ch)
 
 {
 
@@ -2443,7 +2444,7 @@ Reenables polyphonic mode after a monophonic operation.
 
 *******************************************************************************/
 
-void pa_poly(int p, int t, channel c)
+void pa_poly(int p, int t, pa_channel c)
 
 {
 
@@ -2486,7 +2487,7 @@ Controls aftertouch, 0 to maxint, on a note.
 
 *******************************************************************************/
 
-void pa_aftertouch(int p, int t, channel c, note n, int at)
+void pa_aftertouch(int p, int t, pa_channel c, pa_note n, int at)
 
 {
 
@@ -2532,7 +2533,7 @@ Controls channel pressure, 0 to maxint.
 
 *******************************************************************************/
 
-void pa_pressure(int p, int t, channel c, int pr)
+void pa_pressure(int p, int t, pa_channel c, int pr)
 
 {
 
@@ -2579,7 +2580,7 @@ C#.
 
 *******************************************************************************/
 
-void pa_pitch(int p, int t, channel c, int pt)
+void pa_pitch(int p, int t, pa_channel c, int pt)
 
 {
 

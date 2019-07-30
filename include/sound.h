@@ -29,6 +29,8 @@
 #ifndef __SOUND_H__
 #define __SOUND_H__
 
+#include <localdefs.h>
+
 #define PA_CHAN_DRUM 10 /* the GM drum channel */
 
 #define PA_SYNTH_OUT 1 /* the default output synth for host */
@@ -301,12 +303,9 @@
 
 /* common types */
 
-typedef char* string;  /* general string type */
-typedef enum { false, true } boolean; /* boolean */
-typedef unsigned char byte; /* byte */
-typedef int note;       /* 1..128  note number for midi */
-typedef int channel;    /* 1..16   channel number */
-typedef int instrument; /* 1..128  instrument number */
+typedef int pa_note;       /* 1..128  note number for midi */
+typedef int pa_channel;    /* 1..16   channel number */
+typedef int pa_instrument; /* 1..128  instrument number */
 
 /* sequencer message types. each routine with a sequenced option has a
   sequencer message assocated with it */
@@ -331,14 +330,14 @@ typedef struct seqmsg {
     union {
 
         /* st_noteon st_noteoff st_aftertouch st_pressure */
-        struct { channel ntc; note ntn; int ntv; };
-        /* st_instchange */ struct { channel icc; instrument ici; };
+        struct { pa_channel ntc; pa_note ntn; int ntv; };
+        /* st_instchange */ struct { pa_channel icc; pa_instrument ici; };
         /* st_attack, st_release, st_vibrato, st_volsynthchan, st_porttime,
            st_balance, st_pan, st_timbre, st_brightness, st_reverb, st_tremulo,
            st_chorus, st_celeste, st_phaser, st_pitch, st_pitchrange,
-           st_mono */ struct { channel vsc; int vsv; };
-        /* st_poly */ channel pc;
-        /* st_legato, st_portamento */ struct { channel bsc; boolean bsb; };
+           st_mono */ struct { pa_channel vsc; int vsv; };
+        /* st_poly */ pa_channel pc;
+        /* st_legato, st_portamento */ struct { pa_channel bsc; boolean bsb; };
         /* st_playsynth */ int sid;
         /* st_playwave */ int wt;
         /* st_volwave */ int wv;
@@ -365,31 +364,31 @@ void pa_opensynthout(int p);
 void pa_closesynthout(int p);
 void pa_opensynthin(int p);
 void pa_closesynthin(int p);
-void pa_noteon(int p, int t, channel c, note n, int v);
-void pa_noteoff(int p, int t, channel c, note n, int v);
-void pa_instchange(int p, int t, channel c, instrument i);
-void pa_attack(int p, int t, channel c, int at);
-void pa_release(int p, int t, channel c, int rt);
-void pa_legato(int p, int t, channel c, boolean b);
-void pa_portamento(int p, int t, channel c, boolean b);
-void pa_vibrato(int p, int t, channel c, int v);
-void pa_volsynthchan(int p, int t, channel c, int v);
-void pa_porttime(int p, int t, channel c, int v);
-void pa_balance(int p, int t, channel c, int b);
-void pa_pan(int p, int t, channel c, int b);
-void pa_timbre(int p, int t, channel c, int tb);
-void pa_brightness(int p, int t, channel c, int b);
-void pa_reverb(int p, int t, channel c, int r);
-void pa_tremulo(int p, int t, channel c, int tr);
-void pa_chorus(int p, int t, channel c, int cr);
-void pa_celeste(int p, int t, channel c, int ce);
-void pa_phaser(int p, int t, channel c, int ph);
-void pa_aftertouch(int p, int t, channel c, note n, int at);
-void pa_pressure(int p, int t, channel c, int pr);
-void pa_pitch(int p, int t, channel c, int pt);
-void pa_pitchrange(int p, int t, channel c, int v);
-void pa_mono(int p, int t, channel c, int ch);
-void pa_poly(int p, int t, channel c);
+void pa_noteon(int p, int t, pa_channel c, pa_note n, int v);
+void pa_noteoff(int p, int t, pa_channel c, pa_note n, int v);
+void pa_instchange(int p, int t, pa_channel c, pa_instrument i);
+void pa_attack(int p, int t, pa_channel c, int at);
+void pa_release(int p, int t, pa_channel c, int rt);
+void pa_legato(int p, int t, pa_channel c, boolean b);
+void pa_portamento(int p, int t, pa_channel c, boolean b);
+void pa_vibrato(int p, int t, pa_channel c, int v);
+void pa_volsynthchan(int p, int t, pa_channel c, int v);
+void pa_porttime(int p, int t, pa_channel c, int v);
+void pa_balance(int p, int t, pa_channel c, int b);
+void pa_pan(int p, int t, pa_channel c, int b);
+void pa_timbre(int p, int t, pa_channel c, int tb);
+void pa_brightness(int p, int t, pa_channel c, int b);
+void pa_reverb(int p, int t, pa_channel c, int r);
+void pa_tremulo(int p, int t, pa_channel c, int tr);
+void pa_chorus(int p, int t, pa_channel c, int cr);
+void pa_celeste(int p, int t, pa_channel c, int ce);
+void pa_phaser(int p, int t, pa_channel c, int ph);
+void pa_aftertouch(int p, int t, pa_channel c, pa_note n, int at);
+void pa_pressure(int p, int t, pa_channel c, int pr);
+void pa_pitch(int p, int t, pa_channel c, int pt);
+void pa_pitchrange(int p, int t, pa_channel c, int v);
+void pa_mono(int p, int t, pa_channel c, int ch);
+void pa_poly(int p, int t, pa_channel c);
 void pa_loadsynth(int s, string sf);
 void pa_playsynth(int p, int t, int s);
 void pa_delsynth(int s);
