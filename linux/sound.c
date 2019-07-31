@@ -760,7 +760,7 @@ device assocated with the port.
 
 *******************************************************************************/
 
-static void excseq(int p, seqptr sp)
+void excseq(int p, seqptr sp)
 
 {
 

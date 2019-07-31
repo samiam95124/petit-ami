@@ -427,7 +427,10 @@ void pa_waveinname(int p, string name, int len);
 
 /* non-standard local access calls */
 
+/* register synth plug in */
 void synthoutplug(string name, void (*opnseq)(int p), void (*clsseq)(int p),
                   void (*wrseq)(int p, seqptr sp));
+/* execute sequencer entry in main code */
+void excseq(int p, seqptr sp);
 
 #endif /* __SOUND_H__ */

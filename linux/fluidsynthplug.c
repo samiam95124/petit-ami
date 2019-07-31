@@ -99,8 +99,11 @@ static void writeliquid(int p, seqptr sp)
         case st_pitchrange:   break;
         case st_mono:         break;
         case st_poly:         break;
-        case st_playsynth:    break;
-        case st_playwave:     break;
+        case st_playsynth:
+        case st_playwave:
+            /* not a midi instruction, we send this back to sound.c */
+            excseq(p, sp);
+            break;
         case st_volwave:      break;
 
     }
