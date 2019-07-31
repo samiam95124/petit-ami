@@ -161,7 +161,7 @@ static void fluidsynth_plug_init()
     /* load a SoundFont and reset presets */
     sfont_id = fluid_synth_sfload(synth, "/usr/share/sounds/sf2/FluidR3_GM.sf2", 1);
     /* fluidsynth default volume is very low. Turn up to reasonable value */
-    fluid_settings_setnum(settings, "synth.gain", 1.0);
+    fluid_settings_setnum(settings, "synth.gain", 0.5);
     /* re-enable error messages */
     unquiet();
 

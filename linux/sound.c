@@ -307,6 +307,9 @@ static int alsamidiinnum; /* MIDI in */
 static int alsapcmoutnum; /* PCM out */
 static int alsapcminnum; /* PCM in */
 
+/* count of plug-ins */
+static int alsamidioutplug; /* MIDI out */
+
 /* forwards */
 void alsaplaysynth_kickoff(int p, int s);
 void alsaplaywave_kickoff(int p, int w);
@@ -344,6 +347,49 @@ static void alsaerror(int e)
     fprintf(stderr, "\nALSA error: %d: %s\n", e, snd_strerror(e));
 
     exit(1);
+
+}
+
+/*******************************************************************************
+
+Print parameters of device
+
+Prints device parameters. A diagnostic.
+
+*******************************************************************************/
+
+void prtparm(devptr p, boolean wave)
+
+{
+
+    if (wave)
+        printf("%-20s chan: %d bits: %d rate: %d sgn: %d big: %d flt: %d\n",
+               p->name, p->chan, p->bits, p->rate, p->sgn, p->big, p->flt);
+    else
+        printf("%-20s\n", p->name);
+
+}
+
+/*******************************************************************************
+
+Print device table
+
+Prints a list of devices. A diagnostic.
+
+*******************************************************************************/
+
+void prtdtbl(devptr table[], int len, boolean wave)
+
+{
+
+    int i;
+
+    for (i = 0; i < len; i++) if (table[i]) {
+
+        printf("%2d: ", i+1);
+        prtparm(table[i], wave);
+
+    }
 
 }
 
@@ -1144,17 +1190,18 @@ void synthoutplug(
     int i;
 
     if (alsamidioutnum >= MAXMIDP) error("Too many plug in devices");
-    /* move table entries up one */
-    for (i = MAXMIDP; i > 0; i--) alsamidiout[i] = alsamidiout[i-1];
-    alsamidiout[0] = malloc(sizeof(snddev)); /* create new device entry */
-    alsamidiout[0]->name = malloc(strlen(name)+1); /* place name of device */
-    strcpy(alsamidiout[0]->name, name);
-    alsamidiout[0]->last = 0; /* clear last byte */
-    alsamidiout[0]->pback = -1; /* set no pushback */
-    alsamidiout[0]->opnseq = opnseq; /* set open alsa midi device */
-    alsamidiout[0]->clsseq = clsseq; /* set close alsa midi device */
-    alsamidiout[0]->wrseq = wrseq; /* set sequencer execute function */
-    alsamidioutnum++;
+    /* move table entries above plug-ins up one */
+    for (i = MAXMIDP; i > alsamidioutplug; i--) alsamidiout[i] = alsamidiout[i-1];
+    alsamidiout[alsamidioutplug] = malloc(sizeof(snddev)); /* create new device entry */
+    alsamidiout[alsamidioutplug]->name = malloc(strlen(name)+1); /* place name of device */
+    strcpy(alsamidiout[alsamidioutplug]->name, name);
+    alsamidiout[alsamidioutplug]->last = 0; /* clear last byte */
+    alsamidiout[alsamidioutplug]->pback = -1; /* set no pushback */
+    alsamidiout[alsamidioutplug]->opnseq = opnseq; /* set open alsa midi device */
+    alsamidiout[alsamidioutplug]->clsseq = clsseq; /* set close alsa midi device */
+    alsamidiout[alsamidioutplug]->wrseq = wrseq; /* set sequencer execute function */
+    alsamidioutnum++; /* count total devices */
+    alsamidioutplug++; /* count plug-ins */
 
 }
 
@@ -4878,49 +4925,6 @@ void readalsadev(devptr table[], string devt, string iotyp, int tabmax,
 
 /*******************************************************************************
 
-Print parameters of device
-
-Prints device parameters. A diagnostic.
-
-*******************************************************************************/
-
-void prtparm(devptr p, boolean wave)
-
-{
-
-    if (wave)
-        printf("%-20s chan: %d bits: %d rate: %d sgn: %d big: %d flt: %d\n",
-               p->name, p->chan, p->bits, p->rate, p->sgn, p->big, p->flt);
-    else
-        printf("%-20s\n", p->name);
-
-}
-
-/*******************************************************************************
-
-Print device table
-
-Prints a list of devices. A diagnostic.
-
-*******************************************************************************/
-
-void prtdtbl(devptr table[], int len, boolean wave)
-
-{
-
-    int i;
-
-    for (i = 0; i < len; i++) if (table[i]) {
-
-        printf("%2d: ", i+1);
-        prtparm(table[i], wave);
-
-    }
-
-}
-
-/*******************************************************************************
-
 Initialize sound module
 
 Clears sequencer lists, flags no timer active, clears the midi output port
@@ -5014,6 +5018,9 @@ static void pa_init_sound()
     printf("\nPCM input devices:\n\n");
     prtdtbl(alsapcmin, MAXWAVP, true);
 #endif
+
+    /* set midi out plug-in count */
+    alsamidioutplug = 0;
 
 }
 
