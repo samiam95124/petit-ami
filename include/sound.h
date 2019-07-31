@@ -34,7 +34,6 @@
 #define PA_CHAN_DRUM 10 /* the GM drum channel */
 
 #define PA_SYNTH_OUT 1 /* the default output synth for host */
-#define PA_SYNTH_EXT 2 /* the default output to external synth */
 #define PA_SYNTH_IN  1 /* The default input from external synth */
 #define PA_WAVE_IN   1 /* the default wave input for host */
 #define PA_WAVE_OUT  1 /* the default output wave for host */
