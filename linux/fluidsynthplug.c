@@ -144,7 +144,7 @@ static void fluidsynth_plug_init()
 
 {
 
-    char* p;
+    char buff[200];
 
     /* turn off liquidsynth error messages */
     quiet();
@@ -157,13 +157,15 @@ static void fluidsynth_plug_init()
     adriver = new_fluid_audio_driver(settings, synth);
     /* load a SoundFont and reset presets */
     sfont_id = fluid_synth_sfload(synth, "/usr/share/sounds/sf2/FluidR3_GM.sf2", 1);
+    /* fluidsynth default volume is very low. Turn up to reasonable value */
+    fluid_settings_setnum(settings, "synth.gain", 1.0);
     /* re-enable error messages */
     unquiet();
 
     /* show the device fluidsynth connects to (usually "default") */
     /*
-    fluid_settings_getstr(settings, "audio.alsa.device", &p);
-    printf("The alsa PCM device for Fluidsynth is: %s\n", p);
+    r = fluid_settings_copystr(settings, "audio.alsa.device", buff, 200);
+    printf("The alsa PCM device for Fluidsynth is: %s\n", buff);
     */
 
     /* now install us as PA device */
