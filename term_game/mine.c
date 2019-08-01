@@ -13,6 +13,7 @@ user tries to find the mines based on mine counts in adjacent squares.
 #include <limits.h>
 #include <stdio.h>
 
+#include <localdefs.h>
 #include <terminal.h>
 
 #define MAXXS   16 /*8*/  /* size of grid */
@@ -20,7 +21,6 @@ user tries to find the mines based on mine counts in adjacent squares.
 #define MAXMINE 40 /*10*/ /* number of mines to place */
 
 typedef char*                string;  /* general string type */
-typedef enum { false, true } boolean; /* boolean */
 typedef struct { /* individual square */
 
       boolean mine; /* mine exists at square */

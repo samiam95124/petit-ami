@@ -23,10 +23,10 @@ https://www.qbasic.net/en/reference/qb11/Statement/PLAY-006.htm
 
 #define SECOND 10000
 
-int  ntime;  /* normal beat time in quarter notes */
-note octave; /* current octave */
-int  deftim; /* default note time */
-int  i;
+int     ntime;  /* normal beat time in quarter notes */
+pa_note octave; /* current octave */
+int     deftim; /* default note time */
+int     i;
 
 void wait(int t)
 
@@ -40,7 +40,7 @@ void wait(int t)
 
 }
 
-void playnote(note n, int nt)
+void playnote(pa_note n, int nt)
 
 {
 
@@ -97,10 +97,10 @@ void play(string ms)
 
 {
 
-    note n;
-    int nt;
-    int x;
-    int i;
+    pa_note n;
+    int     nt;
+    int     x;
+    int     i;
 
     while (*ms) { /* interpret commands*/
 

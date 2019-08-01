@@ -28,13 +28,13 @@
 #include <limits.h>
 #include <stdlib.h>
 
+#include <localdefs.h>
 #include <terminal.h>
 
 #define MAXLIN 250 /* maximum entered line, must be greater than maxx */
 #define MAXFIL 40  /* maximum length of filename */
 
 typedef char*                string;  /* general string type */
-typedef enum { false, true } boolean; /* boolean */
 typedef int   lininx;                 /* index for line buffer */
 typedef char  linbuf[MAXLIN];         /* line buffer */
 typedef struct line* linptr;          /* pointer to line entry */

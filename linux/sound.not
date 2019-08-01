@@ -16,4 +16,6 @@ times.
     
 If you simply then wait a minute between runs, the issue goes away. Very
 strange.
- 
+
+3. Consistent issue with scratchy sound out of ALSA. It happens in both
+wave and midi modes. It seems to often self-correct, but sometimes not. 

@@ -50,6 +50,7 @@ Translated to C, 2019/04/28.
 #include <limits.h>
 #include <stdio.h>
 
+#include <localdefs.h>
 #include <terminal.h>
 
 #define MAXSN  1000  /* total snake positions */
@@ -64,7 +65,6 @@ Translated to C, 2019/04/28.
 #define MAXSCN 100   /* maximum screen demention */
 
 typedef unsigned short       word;    /* 16 bit word */
-typedef enum { false, true } boolean; /* boolean */
 typedef char*                string;  /* general string type */
 typedef int                  scrinx;  /* index for score save */
 typedef int                  sninx;   /* index for snake array */
