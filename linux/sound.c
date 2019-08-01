@@ -1191,7 +1191,7 @@ void synthoutplug(
 
     if (alsamidioutnum >= MAXMIDP) error("Too many plug in devices");
     /* move table entries above plug-ins up one */
-    for (i = MAXMIDP; i > alsamidioutplug; i--) alsamidiout[i] = alsamidiout[i-1];
+    for (i = MAXMIDP; i < alsamidioutplug; i--) alsamidiout[i] = alsamidiout[i-1];
     alsamidiout[alsamidioutplug] = malloc(sizeof(snddev)); /* create new device entry */
     alsamidiout[alsamidioutplug]->name = malloc(strlen(name)+1); /* place name of device */
     strcpy(alsamidiout[alsamidioutplug]->name, name);
@@ -4987,6 +4987,9 @@ static void pa_init_sound()
     numseq = 0; /* clear sequencer count */
     pthread_cond_init(&snmzer, NULL); /* init sequencer count zero condition */
 
+    /* be warned: the diagnostics only show the device tables before
+       installation of plug-ins */
+
     /* define the ALSA midi output devices */
     readalsadev(alsamidiout, "rawmidi", "Output", MAXMIDP, &alsamidioutnum);
 
@@ -4999,8 +5002,8 @@ static void pa_init_sound()
     readalsadev(alsamidiin, "rawmidi", "Input", MAXMIDP, &alsamidiinnum);
 
 #ifdef SHOWDEVTBL
-    printf("\nmidi output devices:\n\n");
-    prtdtbl(alsamidiout, MAXMIDP, false);
+    printf("\nmidi input devices:\n\n");
+    prtdtbl(alsamidiin, MAXMIDP, false);
 #endif
 
     /* define the ALSA PCM output devices */

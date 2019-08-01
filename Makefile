@@ -156,6 +156,9 @@ playmidi: bin/petit_ami_term.so include/terminal.h sound_prog/playmidi.c Makefil
 playwave: bin/petit_ami_term.so include/terminal.h sound_prog/playwave.c Makefile
 	$(CC) $(CFLAGS) sound_prog/playwave.c $(LIBS) -o bin/playwave
 	
+printdev: bin/petit_ami_term.so include/terminal.h sound_prog/printdev.c Makefile
+	$(CC) $(CFLAGS) sound_prog/printdev.c $(LIBS) -o bin/printdev
+	
 random: bin/petit_ami_term.so include/terminal.h sound_prog/random.c Makefile
 	$(CC) $(CFLAGS) sound_prog/random.c $(LIBS) -o bin/random
 	
