@@ -122,7 +122,7 @@ static void writeliquid(int p, seqptr sp)
         case st_playsynth:
         case st_playwave:
             /* not a midi instruction, we send this back to sound.c */
-            excseq(p, sp);
+            pa__excseq(p, sp);
             break;
         case st_volwave:      break;
 
@@ -192,7 +192,7 @@ static void fluidsynth_plug_init()
     */
 
     /* now install us as PA device */
-    synthoutplug("Liquidsynth", openliquid, closeliquid, writeliquid);
+    pa__synthoutplug("Liquidsynth", openliquid, closeliquid, writeliquid);
 
 }
 

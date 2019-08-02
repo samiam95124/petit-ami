@@ -806,7 +806,7 @@ device assocated with the port.
 
 *******************************************************************************/
 
-void excseq(int p, seqptr sp)
+void pa__excseq(int p, seqptr sp)
 
 {
 
@@ -1178,7 +1178,7 @@ plug-in takes over the default device.
 
 *******************************************************************************/
 
-void synthoutplug(
+void pa__synthoutplug(
     /* name */            string name,
     /* open sequencer */  void (*opnseq)(int p),
     /* close sequencer */ void (*clsseq)(int p),
@@ -4892,7 +4892,7 @@ void readalsadev(devptr table[], string devt, string iotyp, int tabmax,
             table[i]->pback = -1; /* set no pushback */
             table[i]->opnseq = openalsamidi; /* set open alsa midi device */
             table[i]->clsseq = closealsamidi; /* set close alsa midi device */
-            table[i]->wrseq = excseq; /* set sequencer execute function */
+            table[i]->wrseq = pa__excseq; /* set sequencer execute function */
             /* if the device is not midi, get the parameters of wave */
             if (strcmp(devt, "rawmidi")) {
 
