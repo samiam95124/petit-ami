@@ -1189,9 +1189,10 @@ void synthoutplug(
 
     int i;
 
-    if (alsamidioutnum >= MAXMIDP) error("Too many plug in devices");
+    if (alsamidioutnum >= MAXMIDP) error("Device table full");
     /* move table entries above plug-ins up one */
-    for (i = MAXMIDP; i < alsamidioutplug; i--) alsamidiout[i] = alsamidiout[i-1];
+    for (i = MAXMIDP-1; i > alsamidioutplug; i--)
+        alsamidiout[i] = alsamidiout[i-1];
     alsamidiout[alsamidioutplug] = malloc(sizeof(snddev)); /* create new device entry */
     alsamidiout[alsamidioutplug]->name = malloc(strlen(name)+1); /* place name of device */
     strcpy(alsamidiout[alsamidioutplug]->name, name);
