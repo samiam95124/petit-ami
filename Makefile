@@ -89,7 +89,9 @@ LIBS += -lasound -lfluidsynth -lm -pthread
 #
 # Make all executables
 #        
-all: test play scntst event getkeys getmouse term snake mine editor 
+all: dumpmidi lsalsadev alsaparms test play keyboard playmidi playwave \
+    printdev connectmidi random scntst event getkeys getmouse term snake mine \
+    editor 
 
 #
 # Individual Petit-Ami library components
