@@ -115,14 +115,14 @@ static void writeliquid(int p, seqptr sp)
             break;
         case st_pitchrange:
             /* this one is open for interpretation: what is a "semitone"? */
-            fluid_synth_pitch_wheel_sens(synth, sp->vsc, sp->vsv/0x00020000);
+            fluid_synth_pitch_wheel_sens(synth, sp->vsc-1, sp->vsv/0x00020000);
             break;
         case st_mono:         break; /* no equivalent function */
         case st_poly:         break; /* no equivalent function */
         case st_playsynth:
         case st_playwave:
             /* not a midi instruction, we send this back to sound.c */
-            pa__excseq(p, sp);
+            _pa_excseq(p, sp);
             break;
         case st_volwave:      break;
 
@@ -192,7 +192,7 @@ static void fluidsynth_plug_init()
     */
 
     /* now install us as PA device */
-    pa__synthoutplug("Liquidsynth", openliquid, closeliquid, writeliquid);
+    _pa_synthoutplug("Liquidsynth", openliquid, closeliquid, writeliquid);
 
 }
 

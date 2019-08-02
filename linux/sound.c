@@ -707,6 +707,156 @@ static void putseq(seqptr p)
 
 /*******************************************************************************
 
+Dump sequencer list
+
+A diagnostic, dumps the given sequencer list in ASCII.
+
+*******************************************************************************/
+
+static void dmpseq(seqptr p)
+
+{
+
+    switch (p->st) { /* sequencer message type */
+
+        case st_noteon:       printf("noteon: Time: %d Port: %d Channel: %d "
+                                     "Note: %d Velocity: %d\n",
+                                     p->time, p->port, p->ntc, p->ntn, p->ntv);
+                              break;
+        case st_noteoff:      printf("noteoff: Time: %d Port: %d Channel: %d "
+                                     "Note: %d Velocity: %d\n", p->time,
+                                     p->port, p->ntc, p->ntn, p->ntv);
+                              break;
+        case st_instchange:   printf("instchange: Time: %d Port: %d p->port "
+                                     "Channel: %d Instrument: %d\n", p->time,
+                                     p->port, p->icc, p->ici);
+                              break;
+        case st_attack:       printf("attack: Time: %d Port: %d Channel: %d "
+                                     "attack time: %d\n", p->time, p->port,
+                                     p->vsc, p->vsv);
+                              break;
+        case st_release:      printf("release: Time: %d Port: %d Channel: %d "
+                                     "release time: %d\n", p->time, p->port,
+                                     p->vsc, p->vsv);
+                              break;
+        case st_legato:       printf("legato: Time: %d Port: %d Channel: %d "
+                                     "legato on/off: %d\n", p->time, p->port,
+                                     p->bsc, p->bsb);
+                              break;
+        case st_portamento:   printf("portamento: Time: %d Port: %d Channel: %d "
+                                     "portamento on/off: %d\n", p->time, p->port,
+                                     p->bsc, p->bsb);
+                              break;
+        case st_vibrato:      printf("vibrato: Time: %d Port: %d Channel: %d "
+                                     "Vibrato: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_volsynthchan: printf("volsynthchan: Time: %d Port: %d Channel: %d "
+                                     "Volume: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_porttime:     printf("porttime: Time: %d Port: %d Channel: %d "
+                                     "Portamento time: %d\n", p->time, p->port,
+                                     p->vsc, p->vsv);
+                              break;
+        case st_balance:      printf("attack: Time: %d Port: %d Channel: %d "
+                                     "Ballance: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_pan:          printf("pan: Time: %d Port: %d Channel: %d "
+                                     "Pan: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_timbre:       printf("timbre: Time: %d Port: %d Channel: %d "
+                                     "Timbre: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_brightness:   printf("brightness: Time: %d Port: %d Channel: %d "
+                                     "Brightness: %d\n", p->time, p->port,
+                                     p->vsc, p->vsv);
+                              break;
+        case st_reverb:       printf("reverb: Time: %d Port: %d Channel: %d "
+                                     "Reverb: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_tremulo:      printf("tremulo: Time: %d Port: %d Channel: %d "
+                                     "Tremulo: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_chorus:       printf("chorus: Time: %d Port: %d Channel: %d "
+                                     "Chorus: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_celeste:      printf("celeste: Time: %d Port: %d Channel: %d "
+                                     "Celeste: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_phaser:       printf("Phaser: Time: %d Port: %d Channel: %d "
+                                     "Phaser: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_aftertouch:   printf("aftertouch: Time: %d Port: %d Channel: %d "
+                                     "Note: %d Aftertouch: %d\n", p->time,
+                                     p->port, p->ntc, p->ntn, p->ntv);
+                              break;
+        case st_pressure:     printf("pressure: Time: %d Port: %d Channel: %d "
+                                     "Pressure: %d\n", p->time, p->port, p->ntc,
+                                     p->ntv);
+                              break;
+        case st_pitch:        printf("pitch: Time: %d Port: %d Channel: %d "
+                                     "Pitch: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_pitchrange:   printf("pitchrange: Time: %d Port: %d Channel: %d "
+                                     "Pitch range: %d\n", p->time, p->port,
+                                     p->vsc, p->vsv);
+                              break;
+        case st_mono:         printf("mono: Time: %d Port: %d Channel: %d "
+                                     "Mono notes: %d\n", p->time, p->port,
+                                     p->vsc, p->vsv);
+                              break;
+        case st_poly:         printf("poly: Time: %d Port: %d Channel: %d\n",
+                                     p->time, p->port, p->pc);
+                              break;
+        case st_playsynth:    printf("playsynth: Time: %d Port: %d "
+                                     ".mid file id: %d\n", p->time, p->port,
+                                     p->sid);
+                              break;
+        case st_playwave:     printf("playwave: Time: %d Port: %d "
+                                     ".wav file logical number: %d\n", p->time,
+                                     p->port, p->wt);
+                              break;
+        case st_volwave:      printf("volwave: Time: %d Port: %d Volume: %d\n",
+                                     p->time, p->port, p->wv);
+                              break;
+
+    }
+
+}
+
+/*******************************************************************************
+
+Dump sequencer list
+
+A diagnostic, dumps the given sequencer list in ASCII.
+
+*******************************************************************************/
+
+static void dmpseqlst(seqptr p)
+
+{
+
+    while (p) {
+
+        dmpseq(p);
+        p = p->next;
+
+    }
+
+}
+
+/*******************************************************************************
+
 Put sequencer list
 
 Frees a sequencer instruction list.
@@ -806,7 +956,7 @@ device assocated with the port.
 
 *******************************************************************************/
 
-void pa__excseq(int p, seqptr sp)
+void _pa_excseq(int p, seqptr sp)
 
 {
 
@@ -1018,156 +1168,6 @@ static void wrtseq(seqptr sp)
 
 /*******************************************************************************
 
-Dump sequencer list
-
-A diagnostic, dumps the given sequencer list in ASCII.
-
-*******************************************************************************/
-
-static void dmpseq(seqptr p)
-
-{
-
-    switch (p->st) { /* sequencer message type */
-
-        case st_noteon:       printf("noteon: Time: %d Port: %d Channel: %d "
-                                     "Note: %d Velocity: %d\n",
-                                     p->time, p->port, p->ntc, p->ntn, p->ntv);
-                              break;
-        case st_noteoff:      printf("noteoff: Time: %d Port: %d Channel: %d "
-                                     "Note: %d Velocity: %d\n", p->time,
-                                     p->port, p->ntc, p->ntn, p->ntv);
-                              break;
-        case st_instchange:   printf("instchange: Time: %d Port: %d p->port "
-                                     "Channel: %d Instrument: %d\n", p->time,
-                                     p->port, p->icc, p->ici);
-                              break;
-        case st_attack:       printf("attack: Time: %d Port: %d Channel: %d "
-                                     "attack time: %d\n", p->time, p->port,
-                                     p->vsc, p->vsv);
-                              break;
-        case st_release:      printf("release: Time: %d Port: %d Channel: %d "
-                                     "release time: %d\n", p->time, p->port,
-                                     p->vsc, p->vsv);
-                              break;
-        case st_legato:       printf("legato: Time: %d Port: %d Channel: %d "
-                                     "legato on/off: %d\n", p->time, p->port,
-                                     p->bsc, p->bsb);
-                              break;
-        case st_portamento:   printf("portamento: Time: %d Port: %d Channel: %d "
-                                     "portamento on/off: %d\n", p->time, p->port,
-                                     p->bsc, p->bsb);
-                              break;
-        case st_vibrato:      printf("vibrato: Time: %d Port: %d Channel: %d "
-                                     "Vibrato: %d\n", p->time, p->port, p->vsc,
-                                     p->vsv);
-                              break;
-        case st_volsynthchan: printf("volsynthchan: Time: %d Port: %d Channel: %d "
-                                     "Volume: %d\n", p->time, p->port, p->vsc,
-                                     p->vsv);
-                              break;
-        case st_porttime:     printf("porttime: Time: %d Port: %d Channel: %d "
-                                     "Portamento time: %d\n", p->time, p->port,
-                                     p->vsc, p->vsv);
-                              break;
-        case st_balance:      printf("attack: Time: %d Port: %d Channel: %d "
-                                     "Ballance: %d\n", p->time, p->port, p->vsc,
-                                     p->vsv);
-                              break;
-        case st_pan:          printf("pan: Time: %d Port: %d Channel: %d "
-                                     "Pan: %d\n", p->time, p->port, p->vsc,
-                                     p->vsv);
-                              break;
-        case st_timbre:       printf("timbre: Time: %d Port: %d Channel: %d "
-                                     "Timbre: %d\n", p->time, p->port, p->vsc,
-                                     p->vsv);
-                              break;
-        case st_brightness:   printf("brightness: Time: %d Port: %d Channel: %d "
-                                     "Brightness: %d\n", p->time, p->port,
-                                     p->vsc, p->vsv);
-                              break;
-        case st_reverb:       printf("reverb: Time: %d Port: %d Channel: %d "
-                                     "Reverb: %d\n", p->time, p->port, p->vsc,
-                                     p->vsv);
-                              break;
-        case st_tremulo:      printf("tremulo: Time: %d Port: %d Channel: %d "
-                                     "Tremulo: %d\n", p->time, p->port, p->vsc,
-                                     p->vsv);
-                              break;
-        case st_chorus:       printf("chorus: Time: %d Port: %d Channel: %d "
-                                     "Chorus: %d\n", p->time, p->port, p->vsc,
-                                     p->vsv);
-                              break;
-        case st_celeste:      printf("celeste: Time: %d Port: %d Channel: %d "
-                                     "Celeste: %d\n", p->time, p->port, p->vsc,
-                                     p->vsv);
-                              break;
-        case st_phaser:       printf("Phaser: Time: %d Port: %d Channel: %d "
-                                     "Phaser: %d\n", p->time, p->port, p->vsc,
-                                     p->vsv);
-                              break;
-        case st_aftertouch:   printf("aftertouch: Time: %d Port: %d Channel: %d "
-                                     "Note: %d Aftertouch: %d\n", p->time,
-                                     p->port, p->ntc, p->ntn, p->ntv);
-                              break;
-        case st_pressure:     printf("pressure: Time: %d Port: %d Channel: %d "
-                                     "Pressure: %d\n", p->time, p->port, p->ntc,
-                                     p->ntv);
-                              break;
-        case st_pitch:        printf("pitch: Time: %d Port: %d Channel: %d "
-                                     "Pitch: %d\n", p->time, p->port, p->vsc,
-                                     p->vsv);
-                              break;
-        case st_pitchrange:   printf("pitchrange: Time: %d Port: %d Channel: %d "
-                                     "Pitch range: %d\n", p->time, p->port,
-                                     p->vsc, p->vsv);
-                              break;
-        case st_mono:         printf("mono: Time: %d Port: %d Channel: %d "
-                                     "Mono notes: %d\n", p->time, p->port,
-                                     p->vsc, p->vsv);
-                              break;
-        case st_poly:         printf("poly: Time: %d Port: %d Channel: %d\n",
-                                     p->time, p->port, p->pc);
-                              break;
-        case st_playsynth:    printf("playsynth: Time: %d Port: %d "
-                                     ".mid file id: %d\n", p->time, p->port,
-                                     p->sid);
-                              break;
-        case st_playwave:     printf("playwave: Time: %d Port: %d "
-                                     ".wav file logical number: %d\n", p->time,
-                                     p->port, p->wt);
-                              break;
-        case st_volwave:      printf("volwave: Time: %d Port: %d Volume: %d\n",
-                                     p->time, p->port, p->wv);
-                              break;
-
-    }
-
-}
-
-/*******************************************************************************
-
-Dump sequencer list
-
-A diagnostic, dumps the given sequencer list in ASCII.
-
-*******************************************************************************/
-
-static void dmpseqlst(seqptr p)
-
-{
-
-    while (p) {
-
-        dmpseq(p);
-        p = p->next;
-
-    }
-
-}
-
-/*******************************************************************************
-
 Define plug-in sequencer output device
 
 Lets a sequencer plug-in define a device. Accepts three vectors, the open, close
@@ -1178,7 +1178,7 @@ plug-in takes over the default device.
 
 *******************************************************************************/
 
-void pa__synthoutplug(
+void _pa_synthoutplug(
     /* name */            string name,
     /* open sequencer */  void (*opnseq)(int p),
     /* close sequencer */ void (*clsseq)(int p),
@@ -4892,7 +4892,7 @@ void readalsadev(devptr table[], string devt, string iotyp, int tabmax,
             table[i]->pback = -1; /* set no pushback */
             table[i]->opnseq = openalsamidi; /* set open alsa midi device */
             table[i]->clsseq = closealsamidi; /* set close alsa midi device */
-            table[i]->wrseq = pa__excseq; /* set sequencer execute function */
+            table[i]->wrseq = _pa_excseq; /* set sequencer execute function */
             /* if the device is not midi, get the parameters of wave */
             if (strcmp(devt, "rawmidi")) {
 
