@@ -162,6 +162,9 @@ printdev: bin/petit_ami_term.so include/terminal.h sound_prog/printdev.c Makefil
 connectmidi: bin/petit_ami_term.so include/terminal.h sound_prog/connectmidi.c Makefile
 	$(CC) $(CFLAGS) sound_prog/connectmidi.c $(LIBS) -o bin/connectmidi
 	
+connectwave: bin/petit_ami_term.so include/terminal.h sound_prog/connectwave.c Makefile
+	$(CC) $(CFLAGS) sound_prog/connectwave.c $(LIBS) -o bin/connectwave
+	
 random: bin/petit_ami_term.so include/terminal.h sound_prog/random.c Makefile
 	$(CC) $(CFLAGS) sound_prog/random.c $(LIBS) -o bin/random
 	
