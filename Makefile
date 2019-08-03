@@ -90,7 +90,7 @@ LIBS += -lasound -lfluidsynth -lm -pthread
 # Make all executables
 #        
 all: dumpmidi lsalsadev alsaparms test play keyboard playmidi playwave \
-    printdev connectmidi random scntst event getkeys getmouse term snake mine \
+    printdev connectmidi connectwave random scntst event getkeys getmouse term snake mine \
     editor 
 
 #
