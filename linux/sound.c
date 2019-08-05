@@ -4069,6 +4069,7 @@ void pa_wrwave(int p, byte* buff, int len)
         if (alsapcmout[p-1]->bits&8) bytes++; /* round  up */
         bytes *= alsapcmout[p-1]->chan;
         alsapcmout[p-1]->ssiz = bytes;
+        snd_pcm_prepare(alsapcmout[p-1]->pcm);
 
     }
     r = snd_pcm_writei(alsapcmout[p-1]->pcm, buff, len);
