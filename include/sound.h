@@ -29,6 +29,10 @@
 #ifndef __SOUND_H__
 #define __SOUND_H__
 
+/* system/external definitions */
+#include <alsa/asoundlib.h>
+
+/* PA local defines */
 #include <localdefs.h>
 
 #define PA_CHAN_DRUM 10 /* the GM drum channel */
@@ -431,5 +435,11 @@ void _pa_synthoutplug(string name, void (*opnseq)(int p), void (*clsseq)(int p),
                   void (*wrseq)(int p, seqptr sp));
 /* execute sequencer entry in main code */
 void _pa_excseq(int p, seqptr sp);
+/* get ALSA handles from sound.c handles. These are used for bypass
+   operations. */
+snd_rawmidi_t* _pa_getsythouthdl(int p);
+snd_rawmidi_t* _pa_getsythinhdl(int p);
+snd_pcm_t* _pa_getwaveouthdl(int p);
+snd_pcm_t* _pa_getwaveinhdl(int p);
 
 #endif /* __SOUND_H__ */

@@ -1208,6 +1208,118 @@ void _pa_synthoutplug(
 
 /*******************************************************************************
 
+Translate logical sythesizer out handle to ALSA handle
+
+Validates a synth out handle and returns the assocated ALSA MIDI out handle.
+This is commonly used for bypass operations, or programs that directly access
+the ALSA functions even though using sound.c.
+
+Please read the PA guide on the subject of bypass operations. Bypassing can
+solve problems, adapt to specific OS issues, or extend the interface. It can
+also cause difficult to debug problems when the sound.c ALSA interface conflicts
+with what the bypass operations do. And sound.c can perform such operations via
+a direct user call OR a background thread.
+
+*******************************************************************************/
+
+snd_rawmidi_t* _pa_getsythouthdl(int p)
+
+{
+
+    if (p < 1 || p > MAXMIDP) error("Invalid synth output port");
+    if (!alsamidiout[p-1])
+        error("No synth output device defined at logical number");
+
+    return (alsamidiout[p-1]->midi);
+
+}
+
+/*******************************************************************************
+
+Translate logical sythesizer in handle to ALSA handle
+
+Validates a synth in handle and returns the assocated ALSA MIDI in handle.
+This is commonly used for bypass operations, or programs that directly access
+the ALSA functions even though using sound.c.
+
+Please read the PA guide on the subject of bypass operations. Bypassing can
+solve problems, adapt to specific OS issues, or extend the interface. It can
+also cause difficult to debug problems when the sound.c ALSA interface conflicts
+with what the bypass operations do. And sound.c can perform such operations via
+a direct user call OR a background thread.
+
+*******************************************************************************/
+
+snd_rawmidi_t* _pa_getsythinhdl(int p)
+
+{
+
+    if (p < 1 || p > MAXMIDP) error("Invalid synth input port");
+    if (!alsamidiin[p-1])
+        error("No synth input device defined at logical number");
+
+    return (alsamidiin[p-1]->midi);
+
+}
+
+/*******************************************************************************
+
+Translate logical wave out handle to ALSA handle
+
+Validates a wave out handle and returns the assocated ALSA PCM out handle.
+This is commonly used for bypass operations, or programs that directly access
+the ALSA functions even though using sound.c.
+
+Please read the PA guide on the subject of bypass operations. Bypassing can
+solve problems, adapt to specific OS issues, or extend the interface. It can
+also cause difficult to debug problems when the sound.c ALSA interface conflicts
+with what the bypass operations do. And sound.c can perform such operations via
+a direct user call OR a background thread.
+
+*******************************************************************************/
+
+snd_pcm_t* _pa_getwaveouthdl(int p)
+
+{
+
+    if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
+    if (!alsapcmout[p-1])
+        error("No wave output device defined at logical number");
+
+    return (alsapcmout[p-1]->pcm);
+
+}
+
+/*******************************************************************************
+
+Translate logical wave in handle to ALSA handle
+
+Validates a wave in handle and returns the assocated ALSA PCM in handle.
+This is commonly used for bypass operations, or programs that directly access
+the ALSA functions even though using sound.c.
+
+Please read the PA guide on the subject of bypass operations. Bypassing can
+solve problems, adapt to specific OS issues, or extend the interface. It can
+also cause difficult to debug problems when the sound.c ALSA interface conflicts
+with what the bypass operations do. And sound.c can perform such operations via
+a direct user call OR a background thread.
+
+*******************************************************************************/
+
+snd_pcm_t* _pa_getwaveinhdl(int p)
+
+{
+
+    if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
+    if (!alsapcmin[p-1])
+        error("No wave input device defined at logical number");
+
+    return (alsapcmin[p-1]->pcm);
+
+}
+
+/*******************************************************************************
+
 Timer thread
 
 Called when the windows event timer expires, we first check if the sequencer
