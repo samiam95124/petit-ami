@@ -176,6 +176,9 @@ genwave: bin/petit_ami_term.so include/terminal.h sound_prog/genwave.c Makefile
 scntst:  include/terminal.h tests/scntst.c include/services.h linux/services.c Makefile
 	$(CC) $(CFLAGS) tests/scntst.c $(LIBS) -o bin/scntst 
 	
+sndtst:  include/terminal.h tests/sndtst.c include/services.h linux/services.c Makefile
+	$(CC) $(CFLAGS) tests/sndtst.c $(LIBS) -o bin/sndtst 
+	
 event: include/terminal.h tests/event.c Makefile
 	$(CC) $(CFLAGS) tests/event.c $(LIBS) -o bin/event
 	

@@ -1841,8 +1841,8 @@ void pa_attack(int p, int t, pa_channel c, int at)
 
 Set release time
 
-Sets the time of attack on a note, ie., how long it takes for the note to go
-full on.
+Sets the time of release on a note, ie., how long it takes for the note to go
+full off.
 
 *******************************************************************************/
 
