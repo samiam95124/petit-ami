@@ -312,8 +312,8 @@ static int alsapcminnum; /* PCM in */
 static int alsamidioutplug; /* MIDI out */
 
 /* forwards */
-void alsaplaysynth_kickoff(int p, int s);
-void alsaplaywave_kickoff(int p, int w);
+static void alsaplaysynth_kickoff(int p, int s);
+static void alsaplaywave_kickoff(int p, int w);
 
 /*******************************************************************************
 
@@ -1680,6 +1680,8 @@ void pa_noteon(int p, int t, pa_channel c, pa_note n, int v)
     seqptr  sp;   /* message pointer */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
     if (c < 1 || c > 16) error("Bad channel number");
     if (n < 1 || n > 128) error("Bad note number");
 
@@ -1732,6 +1734,8 @@ void pa_noteoff(int p, int t, pa_channel c, pa_note n, int v)
     seqptr sp; /* message pointer */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
     if (c < 1 || c > 16) error("Bad channel number");
     if (n < 1 || n > 128) error("Bad note number");
 
@@ -1780,6 +1784,8 @@ void pa_instchange(int p, int t, pa_channel c, pa_instrument i)
     seqptr sp; /* message pointer */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
     if (c < 1 || c > 16) error("Bad channel number");
     if (i < 1 || i > 128) error("Bad instrument number");
 
@@ -1826,6 +1832,8 @@ void pa_attack(int p, int t, pa_channel c, int at)
     int    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
     if (c < 1 || c > 16) error("Bad channel number");
 
     /* create sequencer entry */
@@ -1871,6 +1879,8 @@ void pa_release(int p, int t, pa_channel c, int rt)
     int elap;  /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
     if (c < 1 || c > 16) error("Bad channel number");
 
     /* create sequencer entry */
@@ -1915,6 +1925,8 @@ void pa_legato(int p, int t, pa_channel c, boolean b)
     seqptr sp; /* message pointer */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
     if (c < 1 || c > 16) error("Bad channel number");
 
     /* create sequencer entry */
@@ -1959,6 +1971,8 @@ void pa_portamento(int p, int t, pa_channel c, boolean b)
     seqptr sp; /* message pointer */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
     if (c < 1 || c > 16) error("Bad channel number");
 
     /* create sequencer entry */
@@ -2003,6 +2017,8 @@ void pa_volsynthchan(int p, int t, pa_channel c, int v)
     int elap;  /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
     if (c < 1 || c > 16) error("Bad channel number");
 
     /* create sequencer entry */
@@ -2048,6 +2064,8 @@ void pa_balance(int p, int t, pa_channel c, int b)
     int elap;  /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
     if (c < 1 || c > 16) error("Bad channel number");
 
     /* create sequencer entry */
@@ -2092,6 +2110,8 @@ void pa_porttime(int p, int t, pa_channel c, int v)
     int    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
     if (c < 1 || c > 16) error("Bad channel number");
 
     /* create sequencer entry */
@@ -2136,6 +2156,8 @@ void pa_vibrato(int p, int t, pa_channel c, int v)
     int elap;  /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
     if (c < 1 || c > 16) error("Bad channel number");
 
     /* create sequencer entry */
@@ -2181,6 +2203,8 @@ void pa_pan(int p, int t, pa_channel c, int b)
     int elap;  /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
     if (c < 1 || c > 16) error("Bad channel number");
 
     /* create sequencer entry */
@@ -2225,6 +2249,8 @@ void pa_timbre(int p, int t, pa_channel c, int tb)
     int elap;  /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
     if (c < 1 || c > 16) error("Bad channel number");
 
     /* create sequencer entry */
@@ -2269,6 +2295,8 @@ void pa_brightness(int p, int t, pa_channel c, int b)
     int    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
     if (c < 1 || c > 16) error("Bad channel number");
 
     /* create sequencer entry */
@@ -2313,6 +2341,8 @@ void pa_reverb(int p, int t, pa_channel c, int r)
     int    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
     if (c < 1 || c > 16) error("Bad channel number");
 
     /* create sequencer entry */
@@ -2357,6 +2387,8 @@ void pa_tremulo(int p, int t, pa_channel c, int tr)
     int    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
     if (c < 1 || c > 16) error("Bad channel number");
 
     /* create sequencer entry */
@@ -2401,6 +2433,8 @@ void pa_chorus(int p, int t, pa_channel c, int cr)
     int elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
     if (c < 1 || c > 16) error("Bad channel number");
 
     /* create sequencer entry */
@@ -2446,6 +2480,8 @@ void pa_celeste(int p, int t, pa_channel c, int ce)
     int    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
     if (c < 1 || c > 16) error("Bad channel number");
 
     /* create sequencer entry */
@@ -2490,6 +2526,8 @@ void pa_phaser(int p, int t, pa_channel c, int ph)
     int    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
     if (c < 1 || c > 16) error("Bad channel number");
 
     /* create sequencer entry */
@@ -2538,6 +2576,8 @@ void pa_pitchrange(int p, int t, pa_channel c, int v)
     int    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
     if (c < 1 || c > 16) error("Bad channel number");
 
     /* create sequencer entry */
@@ -2584,6 +2624,8 @@ void pa_mono(int p, int t, pa_channel c, int ch)
     int    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
     if (c < 1 || c > 16) error("Bad channel number");
     if (ch < 0 || c > 16) error("Bad mono mode number");
 
@@ -2629,6 +2671,8 @@ void pa_poly(int p, int t, pa_channel c)
     int    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
     if (c < 1 || c > 16) error("Bad channel number");
 
     /* create sequencer entry */
@@ -2672,6 +2716,8 @@ void pa_aftertouch(int p, int t, pa_channel c, pa_note n, int at)
     int    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
     if (c < 1 || c > 16) error("Bad channel number");
     if (n < 1 || n > 128) error("Bad note number");
 
@@ -2718,6 +2764,8 @@ void pa_pressure(int p, int t, pa_channel c, int pr)
     int    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
     if (c < 1 || c > 16) error("Bad channel number");
 
     /* create sequencer entry */
@@ -2765,6 +2813,8 @@ void pa_pitch(int p, int t, pa_channel c, int pt)
     int elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
     if (c < 1 || c > 16) error("Bad channel number");
 
     /* create sequencer entry */
@@ -3454,7 +3504,8 @@ void pa_playsynth(int p, int t, int s)
     int    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Invalid synthesizer port");
-    if (alsamidiout[p-1] < 0) error("Synth output channel not open");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
 
     /* create sequencer entry */
     getseq(&sp); /* get a sequencer message */
@@ -3507,6 +3558,10 @@ sequencer(s), including background tasks.
 void pa_waitsynth(int p)
 
 {
+
+    if (p < 1 || p > MAXMIDP) error("Invalid synthesizer port");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
 
     pthread_mutex_lock(&snmlck); /* lock counter */
     pthread_cond_wait(&snmzer, &snmlck); /* wait zero event */
@@ -3755,7 +3810,7 @@ thread, and this routine spawns a thread to accomplish that. The thread is
 
 *******************************************************************************/
 
-void alsaplaywave_kickoff(int p, int w)
+static void alsaplaywave_kickoff(int p, int w)
 
 {
 
@@ -3848,6 +3903,9 @@ void pa_playwave(int p, int t, int w)
     seqptr sp;   /* message pointer */
     int    elap; /* current elapsed time */
 
+    if (p < 1 || p > MAXWAVP) error("Invalid wave port");
+    if (!alsapcmout[p-1]) error("No wave device defined for logical port");
+    if (!alsapcmout[p-1]->devopn) error("Wave port not open");
     if (w < 1 || w > MAXWAVT) error("Invalid logical wave number");
     if (!wavfil[w]) error("No wave file loaded for logical wave number");
 
@@ -3892,6 +3950,7 @@ void pa_volwave(int p, int t, int v)
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
     if (!alsapcmout[p]) error("No wave output device defined at logical number");
+    if (!alsapcmout[p-1]->devopn) error("Wave port not open");
 
 }
 
@@ -3915,6 +3974,10 @@ wait until they all stop.
 void pa_waitwave(int p)
 
 {
+
+    if (p < 1 || p > MAXWAVP) error("Invalid wave port");
+    if (!alsapcmout[p-1]) error("No wave device defined for logical port");
+    if (!alsapcmout[p-1]->devopn) error("Wave port not open");
 
     pthread_mutex_lock(&wnmlck); /* lock counter */
     pthread_cond_wait(&wnmzer, &wnmlck); /* wait zero event */
@@ -3940,6 +4003,8 @@ void pa_chanwaveout(int p, int c)
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
     if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
+    if (!alsapcmout[p-1]->devopn) error("Wave port not open");
+
     alsapcmout[p-1]->chan = c;
     alsapcmout[p-1]->fmt = -1; /* set format undefined until read/write time */
 
@@ -3963,6 +4028,8 @@ void pa_ratewaveout(int p, int r)
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
     if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
+    if (!alsapcmout[p-1]->devopn) error("Wave port not open");
+
     alsapcmout[p-1]->rate = r;
     alsapcmout[p-1]->fmt = -1; /* set format undefined until read/write time */
 
@@ -3986,6 +4053,8 @@ void pa_lenwaveout(int p, int l)
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
     if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
+    if (!alsapcmout[p-1]->devopn) error("Wave port not open");
+
     alsapcmout[p-1]->bits = l;
     alsapcmout[p-1]->fmt = -1; /* set format undefined until read/write time */
 
@@ -4006,6 +4075,8 @@ void pa_sgnwaveout(int p, boolean s)
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
     if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
+    if (!alsapcmout[p-1]->devopn) error("Wave port not open");
+
     alsapcmout[p-1]->sgn = s;
     alsapcmout[p-1]->fmt = -1; /* set format undefined until read/write time */
 
@@ -4025,6 +4096,8 @@ void pa_fltwaveout(int p, boolean f)
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
     if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
+    if (!alsapcmout[p-1]->devopn) error("Wave port not open");
+
     alsapcmout[p-1]->flt = f;
     alsapcmout[p-1]->fmt = -1; /* set format undefined until read/write time */
 
@@ -4046,6 +4119,8 @@ void pa_endwaveout(int p, boolean e)
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
     if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
+    if (!alsapcmout[p-1]->devopn) error("Wave port not open");
+
     alsapcmout[p-1]->big = e;
     alsapcmout[p-1]->fmt = -1; /* set format undefined until read/write time */
 
@@ -4080,6 +4155,8 @@ void pa_wrwave(int p, byte* buff, int len)
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
     if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
+    if (!alsapcmout[p-1]->devopn) error("Wave port not open");
+
     if (alsapcmout[p-1]->fmt == -1) {
 
         /* if format is not set yet, we set it here */
@@ -4203,6 +4280,7 @@ int pa_chanwavein(int p)
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
     if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
+    if (!alsapcmin[p-1]->devopn) error("Wave port not open");
 
     return (alsapcmin[p-1]->chan); /* return channel count */
 
@@ -4224,6 +4302,7 @@ int pa_ratewavein(int p)
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
     if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
+    if (!alsapcmin[p-1]->devopn) error("Wave port not open");
 
     return (alsapcmin[p-1]->rate); /* return channel count */
 
@@ -4254,6 +4333,7 @@ int pa_lenwavein(int p)
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
     if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
+    if (!alsapcmin[p-1]->devopn) error("Wave port not open");
 
     return (alsapcmin[p-1]->bits); /* return bit count */
 
@@ -4274,6 +4354,7 @@ boolean pa_sgnwavein(int p)
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
     if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
+    if (!alsapcmin[p-1]->devopn) error("Wave port not open");
 
     return (alsapcmin[p-1]->sgn); /* return signed status */
 
@@ -4293,6 +4374,7 @@ boolean pa_endwavein(int p)
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
     if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
+    if (!alsapcmin[p-1]->devopn) error("Wave port not open");
 
     return (alsapcmin[p-1]->big); /* return big endian status */
 
@@ -4312,6 +4394,7 @@ boolean pa_fltwavein(int p)
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
     if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
+    if (!alsapcmin[p-1]->devopn) error("Wave port not open");
 
     return (alsapcmin[p-1]->flt); /* return floating point status */
 
@@ -4353,6 +4436,8 @@ int pa_rdwave(int p, byte* buff, int len)
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
     if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
+    if (!alsapcmin[p-1]->devopn) error("Wave port not open");
+
     do {
 
         r = snd_pcm_readi(alsapcmin[p-1]->pcm, buff, len);
@@ -4528,7 +4613,8 @@ void pa_wrsynth(int p, seqptr sp)
     seqptr spp;
 
     if (p < 1 || p > MAXMIDP) error("Invalid synthesizer port");
-    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiout[p-1]) error("No synthesizer defined for logical port");
+    if (!alsamidiout[p-1]->devopn) error("Synthesizer port not open");
 
     if (sp->time) {
 
@@ -4626,6 +4712,7 @@ void pa_rdsynth(int p, seqptr sp)
 
     if (p < 1 || p > MAXMIDP) error("Invalid synthesizer port");
     if (!alsamidiin[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiin[p-1]->devopn) error("Synthesizer port not open");
 
     t = 0; /* set no time */
     if (sinrun) t = (timediff(&sintim)); /* mark with current time */
@@ -4777,10 +4864,6 @@ void pa_rdsynth(int p, seqptr sp)
 
 /*******************************************************************************
 
-*******************************************************************************/
-
-/*******************************************************************************
-
 Find wave channel parameters
 
 Sets the wave channel parameters based on the "preferred" channel parameters.
@@ -4814,7 +4897,7 @@ removed.
 
 /* find big or little endian */
 
-int bigend(void)
+static int bigend(void)
 
 {
 
@@ -4859,7 +4942,7 @@ static void unquiet(void)
 
 }
 
-int findparms(devptr dev, snd_pcm_stream_t stream)
+static int findparms(devptr dev, snd_pcm_stream_t stream)
 
 {
 
@@ -4970,8 +5053,8 @@ found or fit into the table.
 
 *******************************************************************************/
 
-void readalsadev(devptr table[], string devt, string iotyp, int tabmax,
-                 int* tblcnt)
+static void readalsadev(devptr table[], string devt, string iotyp, int tabmax,
+                        int* tblcnt)
 
 {
 
@@ -5210,6 +5293,5 @@ static void pa_deinit_sound()
     /* issue close to all wave ins */
     for (i = 0; i < MAXMIDP; i++) if (alsapcmin[i])
         if (alsapcmin[i]->devopn) snd_pcm_close(alsapcmin[i]->pcm);
-
 
 }
