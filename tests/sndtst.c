@@ -114,8 +114,71 @@ void playrand(int port, int notes)
 
 }
 
-int main(int argc, char *argv[])
+/*******************************************************************************
 
+Play note
+
+Just plays a test note, with 1/4 on and off times. Plays middle C.
+
+*******************************************************************************/
+
+void playnote(int port, pa_note n)
+
+{
+
+    pa_noteon(port, 0, 1, n, INT_MAX); /* play middle C */
+    wait(SECOND/4);
+    pa_noteoff(port, 0, 1, n, 0);
+    wait(SECOND/4);
+
+}
+
+
+/*******************************************************************************
+
+Play scale
+
+Plays a simple scale with on time.
+
+*******************************************************************************/
+
+void playscale(int port, int t)
+
+{
+
+    pa_noteon(port, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
+    wait(t);
+    pa_noteoff(port, 0, 1, PA_NOTE_C+PA_OCTAVE_6, 0);
+    wait(SECOND/4);
+    pa_noteon(port, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
+    wait(t);
+    pa_noteoff(port, 0, 1, PA_NOTE_D+PA_OCTAVE_6, 0);
+    wait(SECOND/4);
+    pa_noteon(port, 0, 1, PA_NOTE_E+PA_OCTAVE_6, INT_MAX);
+    wait(t);
+    pa_noteoff(port, 0, 1, PA_NOTE_E+PA_OCTAVE_6, 0);
+    wait(SECOND/4);
+    pa_noteon(port, 0, 1, PA_NOTE_F+PA_OCTAVE_6, INT_MAX);
+    wait(t);
+    pa_noteoff(port, 0, 1, PA_NOTE_F+PA_OCTAVE_6, 0);
+    wait(SECOND/4);
+    pa_noteon(port, 0, 1, PA_NOTE_G+PA_OCTAVE_6, INT_MAX);
+    wait(t);
+    pa_noteoff(port, 0, 1, PA_NOTE_G+PA_OCTAVE_6, 0);
+    wait(SECOND/4);
+    pa_noteon(port, 0, 1, PA_NOTE_A+PA_OCTAVE_6, INT_MAX);
+    wait(t);
+    pa_noteoff(port, 0, 1, PA_NOTE_A+PA_OCTAVE_6, 0);
+    wait(SECOND/4);
+    pa_noteon(port, 0, 1, PA_NOTE_B+PA_OCTAVE_6, INT_MAX);
+    wait(t);
+    pa_noteoff(port, 0, 1, PA_NOTE_B+PA_OCTAVE_6, 0);
+    wait(SECOND/4);
+
+}
+
+
+int main(int argc, char *argv[])
 
 {
 
@@ -127,6 +190,12 @@ int main(int argc, char *argv[])
 
     if (setjmp(terminate_buf)) goto terminate;
 
+    /***************************************************************************
+
+    MIDI TESTS
+
+    ***************************************************************************/
+
     dport = PA_SYNTH_OUT; /* index standard synth output port */
     pa_opensynthout(dport);
 
@@ -136,6 +205,8 @@ int main(int argc, char *argv[])
     printf("Runs through various sound tests and gives you a chance to\n");
     printf("evaluate if the sound produced matches the description.\n\n");
     waitret();
+
+#if 0
     printf("Run through the entire scale of notes available\n");
     for (n = PA_NOTE_C+PA_OCTAVE_1; n <= PA_NOTE_G+PA_OCTAVE_11; n++) {
 
@@ -168,7 +239,7 @@ int main(int argc, char *argv[])
     waitret();
 
     printf("Run though all percussive instruments\n");
-        printf("Note that not all syths implement all instruments\n");
+    printf("Note that not all syths implement all instruments\n");
     printf("Instruments: ");
     for (n = PA_NOTE_ACOUSTIC_BASS_DRUM; n <= PA_NOTE_OPEN_TRIANGLE; n++) {
 
@@ -180,6 +251,31 @@ int main(int argc, char *argv[])
 
     }
     printf("\n");
+    printf("Complete\n");
+    waitret();
+
+    printf("Chop test, play note series and repeat with the envelope time\n");
+    printf("limited by noteoff\n");
+    printf("First piano, then organ\n");
+    printf("Note that some synths appear to set a minimum on note length\n");
+    pa_instchange(dport, 0, 1, PA_INST_ACOUSTIC_GRAND);
+    for (i = 10; i >= 1; i--) playscale(dport, i*(SECOND/30));
+    pa_instchange(dport, 0, 1, PA_INST_DRAWBAR_ORGAN);
+    for (i = 10; i >= 1; i--) playscale(dport, i*(SECOND/30));
+    printf("Complete\n");
+    waitret();
+
+#endif
+    printf("Volume test\n");
+    pa_instchange(dport, 0, 1, PA_INST_ACOUSTIC_GRAND);
+    for (i = 0; i < 20; i++) {
+
+        pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, i*(INT_MAX/20));
+        wait(SECOND/4);
+        pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, 0);
+        wait(SECOND/4);
+
+    }
     printf("Complete\n");
     waitret();
 
@@ -227,12 +323,10 @@ int main(int argc, char *argv[])
 
         printf("Attack: %d\n", i*(INT_MAX/10));
         pa_attack(dport, 0, 1, i*(INT_MAX/10));
-        pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX); /* play middle C */
-        wait(SECOND/4);
-        pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, 0);
-        wait(SECOND/4);
+        playnote(dport, PA_NOTE_C+PA_OCTAVE_6);
 
     }
+    pa_attack(dport, 0, 1, i*(INT_MAX/2)); /* reset normal */
     printf("Complete\n");
     waitret();
 
@@ -243,22 +337,93 @@ int main(int argc, char *argv[])
 
         printf("Attack: %d\n", i*(INT_MAX/10));
         pa_attack(dport, 0, 1, i*(INT_MAX/10));
-        pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX); /* play middle C */
-        wait(SECOND/4);
-        pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, 0);
-        wait(SECOND/4);
+        playnote(dport, PA_NOTE_C+PA_OCTAVE_6);
 
     }
+    pa_attack(dport, 0, 1, i*(INT_MAX/2)); /* reset normal */
     printf("Complete\n");
     waitret();
 
-//#endif
+    /* set release times */
+    printf("Set step release times on piano\n");
+    waitret();
+    for (i = 0; i <= 10; i++) {
+
+        printf("Release: %d\n", i*(INT_MAX/10));
+        pa_release(dport, 0, 1, i*(INT_MAX/10));
+        playnote(dport, PA_NOTE_C+PA_OCTAVE_6);
+
+    }
+    pa_release(dport, 0, 1, i*(INT_MAX/2)); /* reset normal */
+    printf("Complete\n");
+    waitret();
+
+    printf("Set step release times on organ\n");
+    waitret();
+    pa_instchange(dport, 0, 1, PA_INST_DRAWBAR_ORGAN);
+    for (i = 0; i <= 10; i++) {
+
+        printf("Release: %d\n", i*(INT_MAX/10));
+        pa_release(dport, 0, 1, i*(INT_MAX/10));
+        playnote(dport, PA_NOTE_C+PA_OCTAVE_6);
+
+    }
+    pa_release(dport, 0, 1, i*(INT_MAX/2)); /* reset normal */
+    printf("Complete\n");
+    waitret();
+
+    /* set legato */
+    printf("Set legato on piano, first normal, then legato\n");
+    waitret();
+    pa_instchange(dport, 0, 1, PA_INST_ACOUSTIC_GRAND);
+    pa_legato(dport, 0, 1, false);
+    pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX); /* play middle C */
+    wait(SECOND/4);
+    pa_noteon(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX); /* play D */
+    wait(SECOND/4);
+    /* turn off both */
+    pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
+    pa_noteoff(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
+    /* now repeat with legato on */
+    pa_legato(dport, 0, 1, false);
+    pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX); /* play middle C */
+    wait(SECOND/4);
+    pa_noteon(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX); /* play D */
+    wait(SECOND/4);
+    /* turn off both */
+    pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
+    pa_noteoff(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
+    pa_legato(dport, 0, 1, false); /* reset normal */
+    printf("Complete\n");
+    waitret();
+
+    printf("Set legato on organ, first normal, then legato\n");
+    waitret();
+    pa_instchange(dport, 0, 1, PA_INST_DRAWBAR_ORGAN);
+    pa_legato(dport, 0, 1, false);
+    pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX); /* play middle C */
+    wait(SECOND/4);
+    pa_noteon(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX); /* play D */
+    wait(SECOND/4);
+    /* turn off both */
+    pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
+    pa_noteoff(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
+    /* now repeat with legato on */
+    pa_legato(dport, 0, 1, false);
+    pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX); /* play middle C */
+    wait(SECOND/4);
+    pa_noteon(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX); /* play D */
+    wait(SECOND/4);
+    /* turn off both */
+    pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
+    pa_noteoff(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
+    pa_legato(dport, 0, 1, false); /* reset normal */
+    printf("Complete\n");
+    waitret();
 
 terminate: /* terminate */
     pa_closesynthout(dport);
     printf("\n");
-    printf("Test complete\n");
-    waitret();
 
     return (0); /* return no error */
 
