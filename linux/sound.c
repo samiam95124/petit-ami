@@ -241,6 +241,7 @@ typedef struct snddev {
     void (*opnseq)(int p);           /* open sequencer port */
     void (*clsseq)(int p);           /* close sequencer port */
     void (*wrseq)(int p, seqptr sp); /* write function pointer */
+    boolean        devopn;     /* device open flag */
 
 } snddev;
 
@@ -1104,7 +1105,12 @@ static void openalsamidi(int p)
 
 Close sequencer output device
 
-Closes a sequencer output device for use.
+Closes a sequencer output device for use. We shut down the channel as well as
+possible. The MIDI spec states we are to send noteoff commands for every noteon
+command that was sent, but this is impractical. In practice, synths respond to
+the channel messages without the "every noteon" requirement of the standard.
+In fact, all notes off and/or all sound off typically affects all channels
+regardless. We do the safe/complete thing there.
 
 *******************************************************************************/
 
@@ -1112,6 +1118,12 @@ static void closealsamidi(int p)
 
 {
 
+    pa_channel c;
+
+    /* send all all notes off to all channels */
+    for (c = 1; c <= 16; c++) ctlchg(p, c, CTLR_ALL_NOTES_OFF, 0);
+    /* send all sound off to all channels */
+    for (c = 1; c <= 16; c++) ctlchg(p, c, CTLR_ALL_SOUND_OFF, 0);
     snd_rawmidi_close(alsamidiout[p-1]->midi); /* close port */
 
 }
@@ -1456,8 +1468,10 @@ void pa_opensynthout(int p)
 
     if (p < 1 || p > MAXMIDP) error("Invalid synthesizer port");
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+    if (alsamidiout[p-1]->devopn) error("Synthsizer port already open");
 
     alsamidiout[p-1]->opnseq(p); /* open port */
+    alsamidiout[p-1]->devopn = true; /* set open */
 
 }
 
@@ -1474,8 +1488,11 @@ void pa_closesynthout(int p)
 {
 
     if (p < 1 || p > MAXMIDP) error("Invalid synthesizer port");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
 
     alsamidiout[p-1]->clsseq(p); /* close port */
+    alsamidiout[p-1]->devopn = false; /* set closed */
 
 }
 
@@ -3546,9 +3563,12 @@ void pa_openwaveout(int p)
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
     if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
+    if (alsapcmout[p-1]->devopn) error("Wave port already open");
+
     r = snd_pcm_open(&alsapcmout[p-1]->pcm, alsapcmout[p-1]->name,
                      SND_PCM_STREAM_PLAYBACK, 0);
     if (r < 0) alsaerror(r);
+    alsapcmout[p-1]->devopn = true; /* set open */
     alsapcmout[p-1]->fmt = -1; /* set format undefined until read/write time */
 
 }
@@ -3567,7 +3587,11 @@ void pa_closewaveout(int p)
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
     if (!alsapcmout[p]) error("No wave output device defined at logical number");
+    if (!alsapcmout[p-1]->devopn) error("Wave port not open");
+
     snd_pcm_close(alsapcmout[p-1]->pcm);
+    alsapcmout[p-1]->devopn = false; /* set closed */
+
 
 }
 
@@ -4102,9 +4126,12 @@ void pa_openwavein(int p)
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
     if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
+    if (alsapcmin[p-1]->devopn) error("Wave port already open");
+
     r = snd_pcm_open(&alsapcmin[p-1]->pcm, alsapcmin[p-1]->name,
                      SND_PCM_STREAM_CAPTURE, 0);
     if (r < 0) alsaerror(r);
+    alsapcmin[p-1]->devopn = true; /* set open */
 
     r = snd_pcm_hw_params_malloc(&hw_params);
     if (r < 0) alsaerror(r);
@@ -4151,7 +4178,10 @@ void pa_closewavein(int p)
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
     if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
+    if (!alsapcmin[p-1]->devopn) error("Wave port not open");
+
     snd_pcm_close(alsapcmin[p-1]->pcm); /* close wave device */
+    alsapcmin[p-1]->devopn = false; /* set closed */
 
 }
 
@@ -4445,9 +4475,12 @@ void pa_opensynthin(int p)
 
     if (p < 1 || p > MAXMIDP) error("Invalid synthesizer port");
     if (!alsamidiin[p-1]) error("No synthsizer defined for logical port");
+    if (alsamidiin[p-1]->devopn) error("Synthsizer port already open");
+
     r = snd_rawmidi_open(&alsamidiin[p-1]->midi, NULL, alsamidiin[p-1]->name,
                          0);
     if (r < 0) alsaerror(r);
+    alsamidiin[p-1]->devopn = true; /* set open */
 
 }
 
@@ -4465,7 +4498,10 @@ void pa_closesynthin(int p)
 
     if (p < 1 || p > MAXMIDP) error("Invalid synthesizer port");
     if (!alsamidiin[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiin[p-1]->devopn) error("Synthsizer port not open");
+
     snd_rawmidi_close(alsamidiin[p-1]->midi); /* close port */
+    alsamidiin[p-1]->devopn = false; /* set closed */
 
 }
 
@@ -5006,6 +5042,9 @@ void readalsadev(devptr table[], string devt, string iotyp, int tabmax,
             table[i]->opnseq = openalsamidi; /* set open alsa midi device */
             table[i]->clsseq = closealsamidi; /* set close alsa midi device */
             table[i]->wrseq = _pa_excseq; /* set sequencer execute function */
+            table[i]->midi = NULL; /* clear midi handle */
+            table[i]->pcm = NULL; /* clear PCM handle */
+            table[i]->devopn = false; /* set device not open */
             /* if the device is not midi, get the parameters of wave */
             if (strcmp(devt, "rawmidi")) {
 
@@ -5153,5 +5192,24 @@ static void pa_deinit_sound (void) __attribute__((destructor (102)));
 static void pa_deinit_sound()
 
 {
+
+    int i;
+
+    /* issue close to all synth outs */
+    for (i = 0; i < MAXMIDP; i++) if (alsamidiout[i])
+        if (alsamidiout[i]->devopn) alsamidiout[i]->clsseq(i+1);
+
+    /* issue close to all synth ins */
+    for (i = 0; i < MAXMIDP; i++) if (alsamidiin[i])
+        if (alsamidiin[i]->devopn) snd_rawmidi_close(alsamidiin[i]->midi);
+
+    /* issue close to all wave outs */
+    for (i = 0; i < MAXMIDP; i++) if (alsapcmout[i])
+        if (alsapcmout[i]->devopn) snd_pcm_close(alsapcmout[i]->pcm);
+
+    /* issue close to all wave ins */
+    for (i = 0; i < MAXMIDP; i++) if (alsapcmin[i])
+        if (alsapcmin[i]->devopn) snd_pcm_close(alsapcmin[i]->pcm);
+
 
 }
