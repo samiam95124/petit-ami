@@ -943,7 +943,7 @@ static void ctlchg(int p, pa_channel c, int cn, int v)
 {
 
     /* construct midi message */
-    midimsg3(alsamidiout[p-1]->midi, MESS_CTRL_CHG+(c-1), cn-1, v/0x01000000);
+    midimsg3(alsamidiout[p-1]->midi, MESS_CTRL_CHG+(c-1), cn, v/0x01000000);
 
 }
 
@@ -982,9 +982,9 @@ void _pa_excseq(int p, seqptr sp)
             break;
         case st_release: ctlchg(sp->port, sp->vsc, CTLR_SOUND_RELEASE_TIME, sp->vsv/0x01000000);
             break;
-        case st_legato: ctlchg(sp->port, sp->bsc, CTLR_LEGATO_PEDAL, !!sp->bsb*127);
+        case st_legato: ctlchg(sp->port, sp->bsc, CTLR_LEGATO_PEDAL, !!sp->bsb*0x7fffffff);
             break;
-        case st_portamento: ctlchg(sp->port, sp->bsc, CTLR_PORTAMENTO, !!sp->bsb*127);
+        case st_portamento: ctlchg(sp->port, sp->bsc, CTLR_PORTAMENTO, !!sp->bsb*0x7fffffff);
             break;
         case st_vibrato:
             /* set high */
