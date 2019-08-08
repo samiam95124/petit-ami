@@ -26,3 +26,6 @@ Fluidsynth API. Two means to do this are:
 A. Observe the behavior against Fluidsynth decode of midi commands.
 B. Source code examination.
 
+5. pa_rdsynth() should recover from bad inputs and loop until it finds a
+valid code sequence. This would be a normal part of synching up to a stream
+for the first time, or recovering from errors.

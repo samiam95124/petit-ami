@@ -6,6 +6,11 @@ random <instrument>
 
 Plays notes at random from the given instrument, or default 1 (piano).
 
+I have a bit of nostalgia about the random note generators. Synth chips were a
+very early addition to computers (before the IBM-PC in fact). When I went to
+computer fairs, playing random notes was a common demo left playing. This was
+late 1970's-early 1980's.
+
 *******************************************************************************/
 
 #include <stdio.h>

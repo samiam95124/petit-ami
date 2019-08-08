@@ -34,6 +34,7 @@
 #define SILENTALSA 1 /* silence ALSA during init */
 //#define SHOWDEVTBL 1 /* show device tables after enumeration */
 //#define SHOWMIDIIN 1 /* show midi in dumps */
+//#define SHOWMIDIOUT 1 /* show midi bytes output */
 
 #define MAXMIDP 100 /* maximum midi input/output devices */
 #define MAXWAVP 100 /* maximum wave input/output devices */
@@ -567,6 +568,9 @@ static void midimsg2(snd_rawmidi_t *midiout, byte sts, byte dat1)
     /* load the output array */
     oa[0] = sts;
     oa[1] = dat1;
+#ifdef SHOWMIDIOUT
+    printf("MIDI out: %2.2x %2.2x\n", oa[0], oa[1]);
+#endif
     /* send it */
     r = snd_rawmidi_write(midiout, oa, 2);
     if (r < 0) error("Unable to send to MIDI channel");
@@ -592,6 +596,9 @@ static void midimsg3(snd_rawmidi_t *midiout, byte sts, byte dat1, byte dat2)
     oa[0] = sts;
     oa[1] = dat1;
     oa[2] = dat2;
+#ifdef SHOWMIDIOUT
+    printf("MIDI out: %2.2x %2.2x %2.2x\n", oa[0], oa[1], oa[2]);
+#endif
     /* send it */
     r = snd_rawmidi_write(midiout, oa, 3);
     if (r < 0) error("Unable to send to MIDI channel");
@@ -944,7 +951,7 @@ static void ctlchg(int p, pa_channel c, int cn, int v)
 {
 
     /* construct midi message */
-    midimsg3(alsamidiout[p-1]->midi, MESS_CTRL_CHG+(c-1), cn, v/0x01000000);
+    midimsg3(alsamidiout[p-1]->midi, MESS_CTRL_CHG+(c-1), cn, v);
 
 }
 
@@ -983,9 +990,9 @@ void _pa_excseq(int p, seqptr sp)
             break;
         case st_release: ctlchg(sp->port, sp->vsc, CTLR_SOUND_RELEASE_TIME, sp->vsv/0x01000000);
             break;
-        case st_legato: ctlchg(sp->port, sp->bsc, CTLR_LEGATO_PEDAL, !!sp->bsb*0x7fffffff);
+        case st_legato: ctlchg(sp->port, sp->bsc, CTLR_LEGATO_PEDAL, !!sp->bsb*127);
             break;
-        case st_portamento: ctlchg(sp->port, sp->bsc, CTLR_PORTAMENTO, !!sp->bsb*0x7fffffff);
+        case st_portamento: ctlchg(sp->port, sp->bsc, CTLR_PORTAMENTO, !!sp->bsb*127);
             break;
         case st_vibrato:
             /* set high */
@@ -2021,6 +2028,7 @@ void pa_volsynthchan(int p, int t, pa_channel c, int v)
     if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
     if (c < 1 || c > 16) error("Bad channel number");
 
+printf("pa_volsynthchan(%d, %d, %d, %d)\n", p, t, c, v);
     /* create sequencer entry */
     getseq(&sp); /* get a sequencer message */
     sp->port = p; /* set port */

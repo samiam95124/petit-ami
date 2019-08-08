@@ -265,8 +265,7 @@ int main(int argc, char *argv[])
     printf("Complete\n");
     waitret();
 
-#endif
-    printf("Volume test\n");
+    printf("Note volume test\n");
     pa_instchange(dport, 0, 1, PA_INST_ACOUSTIC_GRAND);
     for (i = 0; i < 20; i++) {
 
@@ -385,7 +384,7 @@ int main(int argc, char *argv[])
     pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
     pa_noteoff(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
     /* now repeat with legato on */
-    pa_legato(dport, 0, 1, false);
+    pa_legato(dport, 0, 1, true);
     pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX); /* play middle C */
     wait(SECOND/4);
     pa_noteon(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX); /* play D */
@@ -409,7 +408,7 @@ int main(int argc, char *argv[])
     pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
     pa_noteoff(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
     /* now repeat with legato on */
-    pa_legato(dport, 0, 1, false);
+    pa_legato(dport, 0, 1, true);
     pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX); /* play middle C */
     wait(SECOND/4);
     pa_noteon(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX); /* play D */
@@ -418,6 +417,123 @@ int main(int argc, char *argv[])
     pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
     pa_noteoff(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
     pa_legato(dport, 0, 1, false); /* reset normal */
+    printf("Complete\n");
+    waitret();
+
+    /* set portamento */
+    printf("Set portamento on piano, first normal, then portamento, through\n");
+    printf("various portamento times\n");
+    waitret();
+    pa_instchange(dport, 0, 1, PA_INST_ACOUSTIC_GRAND);
+    for (i = 0; i < 10; i++) {
+
+        printf("Portamento time: %d\n", i*(INT_MAX/10));
+        pa_porttime(dport, 0, 1, i*(INT_MAX/10));
+        pa_portamento(dport, 0, 1, false);
+        pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX); /* play middle C */
+        wait(SECOND/4);
+        pa_noteon(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX); /* play D */
+        wait(SECOND/4);
+        /* turn off both */
+        pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
+        pa_noteoff(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
+        /* now repeat with portamento on */
+        pa_portamento(dport, 0, 1, true);
+        pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX); /* play middle C */
+        wait(SECOND/4);
+        pa_noteon(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX); /* play D */
+        wait(SECOND/4);
+        /* turn off both */
+        pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
+        pa_noteoff(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
+
+    }
+    pa_portamento(dport, 0, 1, false); /* reset normal */
+    printf("Complete\n");
+    waitret();
+
+    printf("Set portamento on organ, first normal, then portamento\n");
+    waitret();
+    pa_instchange(dport, 0, 1, PA_INST_DRAWBAR_ORGAN);
+    for (i = 0; i < 10; i++) {
+
+        printf("Portamento time: %d\n", i*(INT_MAX/10));
+        pa_portamento(dport, 0, 1, false);
+        pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX); /* play middle C */
+        wait(SECOND/4);
+        pa_noteon(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX); /* play D */
+        wait(SECOND/4);
+        /* turn off both */
+        pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
+        pa_noteoff(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
+        /* now repeat with portamento on */
+        pa_portamento(dport, 0, 1, true);
+        pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX); /* play middle C */
+        wait(SECOND/4);
+        pa_noteon(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX); /* play D */
+        wait(SECOND/4);
+        /* turn off both */
+        pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
+        pa_noteoff(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
+
+    }
+    pa_portamento(dport, 0, 1, false); /* reset normal */
+    printf("Complete\n");
+    waitret();
+
+    printf("Channel volume test. Play note continuously while advancing\n");
+    printf("volume\n");
+    pa_instchange(dport, 0, 1, PA_INST_DRAWBAR_ORGAN);
+    pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
+    /* advance volume sets on channel while playing */
+    for (i = 0; i < 20; i++) {
+
+        printf("Volume: %d\n", i*(INT_MAX/20));
+        pa_volsynthchan(dport, 0, 1, i*(INT_MAX/20));
+        wait(SECOND/4);
+
+    }
+    pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
+    /* reset channel vol to midline */
+    pa_volsynthchan(dport, 0, 1, INT_MAX/2);
+    printf("Complete\n");
+    waitret();
+
+    printf("Channel balance test. Play note continuously while changing\n");
+    printf("from to right\n");
+    pa_instchange(dport, 0, 1, PA_INST_DRAWBAR_ORGAN);
+    pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
+    /* advance volume sets on channel while playing */
+    for (i = 0; i < 20; i++) {
+
+        printf("Balance: %d\n", -INT_MAX+(i*(INT_MAX/20*2)));
+        pa_balance(dport, 0, 1, -INT_MAX+(i*(INT_MAX/20*2)));
+        wait(SECOND/4);
+
+    }
+    pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
+    /* reset channel balance to midline */
+    pa_balance(dport, 0, 1, 0);
+    printf("Complete\n");
+    waitret();
+
+#endif
+
+    printf("Channel vibrato test. Play note continuously while advancing\n");
+    printf("vibrato\n");
+    pa_instchange(dport, 0, 1, PA_INST_DRAWBAR_ORGAN);
+    pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
+    /* advance vibrato sets on channel while playing */
+    for (i = 0; i < 20; i++) {
+
+        printf("Vibrato: %d\n", i*(INT_MAX/20));
+        pa_vibrato(dport, 0, 1, i*(INT_MAX/20));
+        wait(SECOND);
+
+    }
+    pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
+    /* reset channel vibrato to midline */
+    pa_vibrato(dport, 0, 1, 0);
     printf("Complete\n");
     waitret();
 
