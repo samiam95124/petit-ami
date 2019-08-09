@@ -186,7 +186,7 @@ int main(int argc, char *argv[])
     pa_note       n; /* note */
     int           o; /* octave */
     pa_instrument ins; /* instrument */
-    int           i;
+    int           i, x, j;
 
     if (setjmp(terminate_buf)) goto terminate;
 
@@ -517,8 +517,6 @@ int main(int argc, char *argv[])
     printf("Complete\n");
     waitret();
 
-#endif
-
     printf("Channel vibrato test. Play note continuously while advancing\n");
     printf("vibrato\n");
     pa_instchange(dport, 0, 1, PA_INST_DRAWBAR_ORGAN);
@@ -534,6 +532,183 @@ int main(int argc, char *argv[])
     pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
     /* reset channel vibrato to midline */
     pa_vibrato(dport, 0, 1, 0);
+    printf("Complete\n");
+    waitret();
+
+    printf("Channel pan test. Play note continuously while changing\n");
+    printf("pan from to right\n");
+    pa_instchange(dport, 0, 1, PA_INST_DRAWBAR_ORGAN);
+    pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
+    /* advance pan sets on channel while playing */
+    for (i = 0; i < 20; i++) {
+
+        printf("Pan: %d\n", -INT_MAX+(i*(INT_MAX/20*2)));
+        pa_pan(dport, 0, 1, -INT_MAX+(i*(INT_MAX/20*2)));
+        wait(SECOND/4);
+
+    }
+    pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
+    /* reset channel pan to midline */
+    pa_pan(dport, 0, 1, 0);
+    printf("Complete\n");
+    waitret();
+
+    printf("Channel timbre test. Play notes while advancing\n");
+    printf("timbre\n");
+    pa_instchange(dport, 0, 1, PA_INST_ACOUSTIC_GRAND);
+    /* advance timbre sets on channel while playing */
+    for (i = 0; i < 20; i++) {
+
+        printf("Timbre: %d\n", i*(INT_MAX/20));
+        pa_timbre(dport, 0, 1, i*(INT_MAX/20));
+        pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
+        wait(SECOND/4);
+        pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, 0);
+        wait(SECOND/4);
+
+    }
+    /* reset channel timbre */
+    pa_timbre(dport, 0, 1, 0);
+    printf("Complete\n");
+    waitret();
+
+    printf("Channel brightness test. Play notes while advancing\n");
+    printf("brightness\n");
+    pa_instchange(dport, 0, 1, PA_INST_ACOUSTIC_GRAND);
+    /* advance brightness sets on channel while playing */
+    for (i = 0; i < 20; i++) {
+
+        printf("Brightness: %d\n", i*(INT_MAX/20));
+        pa_brightness(dport, 0, 1, i*(INT_MAX/20));
+        pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
+        wait(SECOND/4);
+        pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, 0);
+        wait(SECOND/4);
+
+    }
+    /* reset channel brightness */
+    pa_brightness(dport, 0, 1, 0);
+    printf("Complete\n");
+    waitret();
+
+    printf("Channel reverb test. Play notes while advancing\n");
+    printf("reverb\n");
+    pa_instchange(dport, 0, 1, PA_INST_ACOUSTIC_GRAND);
+    /* advance reverb sets on channel while playing */
+    for (i = 0; i < 20; i++) {
+
+        printf("Reverb: %d\n", i*(INT_MAX/20));
+        pa_reverb(dport, 0, 1, i*(INT_MAX/20));
+        pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
+        wait(SECOND/4);
+        pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, 0);
+        wait(SECOND/4);
+
+    }
+    /* reset channel reverb */
+    pa_reverb(dport, 0, 1, 0);
+    printf("Complete\n");
+    waitret();
+
+    printf("Channel tremulo test. Play notes while advancing\n");
+    printf("tremulo\n");
+    pa_instchange(dport, 0, 1, PA_INST_ACOUSTIC_GRAND);
+
+    /* advance tremulo sets on channel while playing */
+    for (i = 0; i < 20; i++) {
+
+        printf("Tremulo: %d\n", i*(INT_MAX/20));
+        pa_tremulo(dport, 0, 1, i*(INT_MAX/20));
+        pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
+        wait(SECOND/4);
+        pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, 0);
+        wait(SECOND/4);
+
+    }
+    /* reset channel tremulo */
+    pa_tremulo(dport, 0, 1, 0);
+    printf("Complete\n");
+    waitret();
+
+    printf("Channel chorus test. Play notes while advancing\n");
+    printf("chorus\n");
+    pa_instchange(dport, 0, 1, PA_INST_ACOUSTIC_GRAND);
+
+    /* advance chorus sets on channel while playing */
+    for (i = 0; i < 20; i++) {
+
+        printf("Chorus: %d\n", i*(INT_MAX/20));
+        pa_chorus(dport, 0, 1, i*(INT_MAX/20));
+        pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
+        wait(SECOND/4);
+        pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, 0);
+        wait(SECOND/4);
+
+    }
+    /* reset channel chorus */
+    pa_chorus(dport, 0, 1, 0);
+    printf("Complete\n");
+    waitret();
+
+    printf("Channel celeste test. Play notes while advancing\n");
+    printf("celeste\n");
+    pa_instchange(dport, 0, 1, PA_INST_ACOUSTIC_GRAND);
+    /* advance celeste sets on channel while playing */
+    for (i = 0; i < 20; i++) {
+
+        printf("Celeste: %d\n", i*(INT_MAX/20));
+        pa_celeste(dport, 0, 1, i*(INT_MAX/20));
+        pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
+        wait(SECOND/4);
+        pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, 0);
+        wait(SECOND/4);
+
+    }
+    /* reset channel celeste */
+    pa_celeste(dport, 0, 1, 0);
+    printf("Complete\n");
+    waitret();
+
+    printf("Channel phaser test. Play notes while advancing\n");
+    printf("phaser\n");
+    pa_instchange(dport, 0, 1, PA_INST_ACOUSTIC_GRAND);
+    /* advance phaser sets on channel while playing */
+    for (i = 0; i < 20; i++) {
+
+        printf("Phaser: %d\n", i*(INT_MAX/20));
+        pa_phaser(dport, 0, 1, i*(INT_MAX/20));
+        pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
+        wait(SECOND/4);
+        pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, 0);
+        wait(SECOND/4);
+
+    }
+    /* reset channel phaser */
+    pa_phaser(dport, 0, 1, 0);
+    printf("Complete\n");
+    waitret();
+
+#endif
+
+    printf("pitch wheel. Vary pitch wheel while playing continuously\n");
+    pa_instchange(dport, 0, 1, PA_INST_LEAD_1_SQUARE);
+    pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
+    for (j = 0; j < 10; j++) {
+
+        printf("Pitchrange: %d\n", j*(INT_MAX/10));
+        pa_pitchrange(dport, 0, 1, j*(INT_MAX/10));
+        for (x = 0; x < 10; x++)
+            for (i = 0; i < 10; i++) {
+
+            printf("Pitch: %d\n", -INT_MAX+(i*(INT_MAX/10*2)));
+            pa_pitch(dport, 0, 1, -INT_MAX+(i*(INT_MAX/10*2)));
+            wait(SECOND/100);
+
+        }
+
+    }
+    pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, 0);
+    pa_pitch(dport, 0, 1, 0);
     printf("Complete\n");
     waitret();
 

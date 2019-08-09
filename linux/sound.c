@@ -2446,7 +2446,6 @@ void pa_chorus(int p, int t, pa_channel c, int cr)
     if (c < 1 || c > 16) error("Bad channel number");
 
     /* create sequencer entry */
-    if (!seqrun) error("Sequencer not running");
     getseq(&sp); /* get a sequencer message */
     sp->port = p; /* set port */
     sp->time = t; /* set time */
@@ -4288,7 +4287,7 @@ int pa_chanwavein(int p)
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
     if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
-    if (!alsapcmin[p-1]->devopn) error("Wave port not open");
+//    if (!alsapcmin[p-1]->devopn) error("Wave port not open");
 
     return (alsapcmin[p-1]->chan); /* return channel count */
 
@@ -4310,7 +4309,7 @@ int pa_ratewavein(int p)
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
     if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
-    if (!alsapcmin[p-1]->devopn) error("Wave port not open");
+//    if (!alsapcmin[p-1]->devopn) error("Wave port not open");
 
     return (alsapcmin[p-1]->rate); /* return channel count */
 
@@ -4341,7 +4340,7 @@ int pa_lenwavein(int p)
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
     if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
-    if (!alsapcmin[p-1]->devopn) error("Wave port not open");
+//    if (!alsapcmin[p-1]->devopn) error("Wave port not open");
 
     return (alsapcmin[p-1]->bits); /* return bit count */
 
@@ -4362,7 +4361,7 @@ boolean pa_sgnwavein(int p)
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
     if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
-    if (!alsapcmin[p-1]->devopn) error("Wave port not open");
+//    if (!alsapcmin[p-1]->devopn) error("Wave port not open");
 
     return (alsapcmin[p-1]->sgn); /* return signed status */
 
@@ -4382,7 +4381,7 @@ boolean pa_endwavein(int p)
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
     if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
-    if (!alsapcmin[p-1]->devopn) error("Wave port not open");
+//    if (!alsapcmin[p-1]->devopn) error("Wave port not open");
 
     return (alsapcmin[p-1]->big); /* return big endian status */
 
@@ -4402,7 +4401,7 @@ boolean pa_fltwavein(int p)
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
     if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
-    if (!alsapcmin[p-1]->devopn) error("Wave port not open");
+//    if (!alsapcmin[p-1]->devopn) error("Wave port not open");
 
     return (alsapcmin[p-1]->flt); /* return floating point status */
 
