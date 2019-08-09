@@ -29,4 +29,4 @@ sleep 2
 #
 # Connect the driver to synth
 #
-aconnect 20:0 128:0
+aconnect 24:0 128:0

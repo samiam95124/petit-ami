@@ -188,6 +188,16 @@ int main(int argc, char *argv[])
     pa_instrument ins; /* instrument */
     int           i, x, j;
 
+    if (argc != 1 && argc != 2) {
+
+        fprintf(stderr, "Usage: sndtst [<port>]\n");
+        exit(1);
+
+    }
+
+    dport = PA_SYNTH_OUT; /* index standard synth output port */
+    if (argc == 2) dport = atoi(argv[1]);
+
     if (setjmp(terminate_buf)) goto terminate;
 
     /***************************************************************************
@@ -196,7 +206,6 @@ int main(int argc, char *argv[])
 
     ***************************************************************************/
 
-    dport = PA_SYNTH_OUT; /* index standard synth output port */
     pa_opensynthout(dport);
 
     pa_instchange(dport, 0, 1, PA_INST_ACOUSTIC_GRAND);
@@ -206,7 +215,6 @@ int main(int argc, char *argv[])
     printf("evaluate if the sound produced matches the description.\n\n");
     waitret();
 
-#if 0
     printf("Run through the entire scale of notes available\n");
     for (n = PA_NOTE_C+PA_OCTAVE_1; n <= PA_NOTE_G+PA_OCTAVE_11; n++) {
 
@@ -687,8 +695,6 @@ int main(int argc, char *argv[])
     pa_phaser(dport, 0, 1, 0);
     printf("Complete\n");
     waitret();
-
-#endif
 
     /* don't know about this test, it seems to limit the total pitch wheel range,
        which is not right */
