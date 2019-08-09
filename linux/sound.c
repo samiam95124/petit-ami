@@ -1220,6 +1220,7 @@ void _pa_synthoutplug(
     alsamidiout[alsamidioutplug]->opnseq = opnseq; /* set open alsa midi device */
     alsamidiout[alsamidioutplug]->clsseq = clsseq; /* set close alsa midi device */
     alsamidiout[alsamidioutplug]->wrseq = wrseq; /* set sequencer execute function */
+    alsamidiout[alsamidioutplug]->devopn = false; /* set not open */
     alsamidioutnum++; /* count total devices */
     alsamidioutplug++; /* count plug-ins */
 

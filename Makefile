@@ -135,7 +135,7 @@ petit_ami_graph.a: linux/services.o linux/sound.o linux/fluidsynthplug.o linux/g
 # Make individual executables
 #	
 dumpmidi: linux/dumpmidi.c Makefile
-	gcc -o bin/dumpmidi linux/dumpmidi.c
+	gcc linux/dumpmidi.c -o bin/dumpmidi
 	
 lsalsadev: linux/lsalsadev.c Makefile
 	gcc linux/lsalsadev.c -lasound -o bin/lsalsadev
@@ -173,7 +173,7 @@ random: bin/petit_ami_term.so include/terminal.h sound_prog/random.c Makefile
 genwave: bin/petit_ami_term.so include/terminal.h sound_prog/genwave.c Makefile
 	$(CC) $(CFLAGS) sound_prog/genwave.c $(LIBS) -o bin/genwave
 	
-scntst: include/terminal.h tests/scntst.c include/services.h linux/services.c Makefile
+scntst: bin/petit_ami_term.so include/terminal.h tests/scntst.c include/services.h linux/services.c Makefile
 	$(CC) $(CFLAGS) tests/scntst.c $(LIBS) -o bin/scntst 
 	
 sndtst: bin/petit_ami_term.so include/terminal.h tests/sndtst.c \
@@ -202,8 +202,10 @@ editor: term_prog/editor.c include/terminal.h Makefile
 	$(CC) $(CFLAGS) term_prog/editor.c $(LIBS) -o bin/editor
 	
 clean:
-	rm -f test bin/scntst bin/event bin/getkeys bin/getmouse bin/term bin/snake
-	rm -f bin/mine bin/editor
+	rm -f bin/dumpmidi bin/lsalsadev bin/alsaparms test bin/play bin/keyboard 
+	rm -f bin/playmidi bin/playwave bin/printdev bin/connectmidi bin/connectwave 
+	rm -f bin/random bin/genwave bin/scntst bin/sndtst bin/event bin/getkeys 
+	rm -f bin/getmouse bin/term bin/snake bin/mine bin/editor
 	rm -f linux/*.o
 	rm -f bin/petit_ami_term.a
 	rm -f bin/petit_ami_term.so

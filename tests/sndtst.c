@@ -690,6 +690,8 @@ int main(int argc, char *argv[])
 
 #endif
 
+    /* don't know about this test, it seems to limit the total pitch wheel range,
+       which is not right */
     printf("pitch wheel. Vary pitch wheel while playing continuously\n");
     pa_instchange(dport, 0, 1, PA_INST_LEAD_1_SQUARE);
     pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
