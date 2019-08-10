@@ -41,10 +41,13 @@ int main(int argc, char **argv)
     dport = PA_SYNTH_OUT;
 
     if (argc >= 2) inst = atoi(argv[1]);
-    else if (argc >= 3) dport = atoi(argv[2]);
+    if (argc >= 3) {
 
-printf("dport: %d\n", dport);
-dport = 6;
+        printf("getting dport\n");
+        dport = atoi(argv[2]);
+
+    }
+
     pa_opensynthout(dport);
     pa_instchange(dport, 0, 1, inst);
     srand(42);

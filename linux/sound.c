@@ -238,6 +238,7 @@ typedef struct snddev {
     int            fmt;        /* alsa format code for output, -1 if not set */
     byte           last;       /* last byte on midi input */
     int            pback;      /* pushback for input */
+    boolean        sync;       /* midi channel synced */
     /* These entries support plug in devices, but are also set for intenal devices */
     void (*opnseq)(int p);           /* open sequencer port */
     void (*clsseq)(int p);           /* close sequencer port */
@@ -4725,7 +4726,10 @@ void pa_rdsynth(int p, seqptr sp)
     t = 0; /* set no time */
     if (sinrun) t = (timediff(&sintim)); /* mark with current time */
     mp = alsamidiin[p-1];
-    b = rdsynth(mp);
+    /* if the channel has just been enabled, skip until we get a bit 8 high
+       command so we sync to MIDI stream */
+    do { b = rdsynth(mp); } while (!mp->sync && b < 0x80);
+    mp->sync; /* set midi syncronized */
     if (b < 0x80) { /* process running status or repeat */
 
         mp->pback = b; /* put back parameter byte */
@@ -5130,6 +5134,7 @@ static void readalsadev(devptr table[], string devt, string iotyp, int tabmax,
             table[i]->name = devn; /* place name of device */
             table[i]->last = 0; /* clear last byte */
             table[i]->pback = -1; /* set no pushback */
+            table[i]->sync = false; /* set channel not syncronized */
             table[i]->opnseq = openalsamidi; /* set open alsa midi device */
             table[i]->clsseq = closealsamidi; /* set close alsa midi device */
             table[i]->wrseq = _pa_excseq; /* set sequencer execute function */
