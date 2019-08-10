@@ -195,7 +195,7 @@ int main(int argc, char *argv[])
 
     }
 
-    dport = PA_SYNTH_OUT; /* index standard synth output port */
+    dport = 6/*PA_SYNTH_OUT*/; /* index standard synth output port */
     if (argc == 2) dport = atoi(argv[1]);
 
     if (setjmp(terminate_buf)) goto terminate;
@@ -213,6 +213,10 @@ int main(int argc, char *argv[])
     printf("Sound library test\n\n");
     printf("Runs through various sound tests and gives you a chance to\n");
     printf("evaluate if the sound produced matches the description.\n\n");
+    printf("\n");
+    printf("Note that this test can also serve as a test of the output synthesizer.\n");
+    printf("Not all synths implement all modes or instruments. In fact, it is common\n");
+    printf("to leave many features unimplemented.\n");
     waitret();
 
     printf("Run through the entire scale of notes available\n");
@@ -489,8 +493,7 @@ int main(int argc, char *argv[])
     printf("Complete\n");
     waitret();
 
-    printf("Channel volume test. Play note continuously while advancing\n");
-    printf("volume\n");
+    printf("Channel volume test. Play note continuously while advancing volume\n");
     pa_instchange(dport, 0, 1, PA_INST_DRAWBAR_ORGAN);
     pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
     /* advance volume sets on channel while playing */
@@ -525,8 +528,7 @@ int main(int argc, char *argv[])
     printf("Complete\n");
     waitret();
 
-    printf("Channel vibrato test. Play note continuously while advancing\n");
-    printf("vibrato\n");
+    printf("Channel vibrato test. Play note continuously while advancing vibrato\n");
     pa_instchange(dport, 0, 1, PA_INST_DRAWBAR_ORGAN);
     pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
     /* advance vibrato sets on channel while playing */
@@ -561,8 +563,7 @@ int main(int argc, char *argv[])
     printf("Complete\n");
     waitret();
 
-    printf("Channel timbre test. Play notes while advancing\n");
-    printf("timbre\n");
+    printf("Channel timbre test. Play notes while advancing timbre\n");
     pa_instchange(dport, 0, 1, PA_INST_ACOUSTIC_GRAND);
     /* advance timbre sets on channel while playing */
     for (i = 0; i < 20; i++) {
@@ -580,8 +581,7 @@ int main(int argc, char *argv[])
     printf("Complete\n");
     waitret();
 
-    printf("Channel brightness test. Play notes while advancing\n");
-    printf("brightness\n");
+    printf("Channel brightness test. Play notes while advancing brightness\n");
     pa_instchange(dport, 0, 1, PA_INST_ACOUSTIC_GRAND);
     /* advance brightness sets on channel while playing */
     for (i = 0; i < 20; i++) {
@@ -599,8 +599,7 @@ int main(int argc, char *argv[])
     printf("Complete\n");
     waitret();
 
-    printf("Channel reverb test. Play notes while advancing\n");
-    printf("reverb\n");
+    printf("Channel reverb test. Play notes while advancing reverb\n");
     pa_instchange(dport, 0, 1, PA_INST_ACOUSTIC_GRAND);
     /* advance reverb sets on channel while playing */
     for (i = 0; i < 20; i++) {
@@ -618,8 +617,7 @@ int main(int argc, char *argv[])
     printf("Complete\n");
     waitret();
 
-    printf("Channel tremulo test. Play notes while advancing\n");
-    printf("tremulo\n");
+    printf("Channel tremulo test. Play notes while advancing tremulo\n");
     pa_instchange(dport, 0, 1, PA_INST_ACOUSTIC_GRAND);
 
     /* advance tremulo sets on channel while playing */
@@ -638,8 +636,7 @@ int main(int argc, char *argv[])
     printf("Complete\n");
     waitret();
 
-    printf("Channel chorus test. Play notes while advancing\n");
-    printf("chorus\n");
+    printf("Channel chorus test. Play notes while advancing chorus\n");
     pa_instchange(dport, 0, 1, PA_INST_ACOUSTIC_GRAND);
 
     /* advance chorus sets on channel while playing */
@@ -658,8 +655,7 @@ int main(int argc, char *argv[])
     printf("Complete\n");
     waitret();
 
-    printf("Channel celeste test. Play notes while advancing\n");
-    printf("celeste\n");
+    printf("Channel celeste test. Play notes while advancing celeste\n");
     pa_instchange(dport, 0, 1, PA_INST_ACOUSTIC_GRAND);
     /* advance celeste sets on channel while playing */
     for (i = 0; i < 20; i++) {
@@ -677,8 +673,7 @@ int main(int argc, char *argv[])
     printf("Complete\n");
     waitret();
 
-    printf("Channel phaser test. Play notes while advancing\n");
-    printf("phaser\n");
+    printf("Channel phaser test. Play notes while advancing phaser\n");
     pa_instchange(dport, 0, 1, PA_INST_ACOUSTIC_GRAND);
     /* advance phaser sets on channel while playing */
     for (i = 0; i < 20; i++) {

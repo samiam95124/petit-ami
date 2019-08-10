@@ -17,6 +17,8 @@ int main(int argc, char **argv)
 
 {
 
+    int dport;
+
     if (argc != 2) {
 
         fprintf(stderr, "Usage: play <.mid file>\n");
@@ -24,11 +26,13 @@ int main(int argc, char **argv)
 
     }
 
+    dport = 1;
+
     pa_loadsynth(1, argv[1]);
-    pa_opensynthout(PA_SYNTH_OUT);
-    pa_playsynth(PA_SYNTH_OUT, 0, 1);
-    pa_waitsynth(PA_SYNTH_OUT);
-    pa_closesynthout(PA_SYNTH_OUT);
+    pa_opensynthout(dport);
+    pa_playsynth(dport, 0, 1);
+    pa_waitsynth(dport);
+    pa_closesynthout(dport);
     pa_delsynth(1);
 
 }

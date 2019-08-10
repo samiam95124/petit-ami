@@ -30,16 +30,21 @@ int main(int argc, char **argv)
 
     pa_instrument inst;
 
-    if (argc != 1 && argc != 2) {
+    if (argc != 1 && argc != 2 && argc != 3) {
 
-        fprintf(stderr, "Usage: random [<instrument>]\n");
+        fprintf(stderr, "Usage: random [<instrument>[<port>]]\n");
         exit(1);
 
     }
 
-    if (argc == 1) inst = 1; else inst = atoi(argv[1]);
-
+    inst = PA_INST_ACOUSTIC_GRAND;
     dport = PA_SYNTH_OUT;
+
+    if (argc >= 2) inst = atoi(argv[1]);
+    else if (argc >= 3) dport = atoi(argv[2]);
+
+printf("dport: %d\n", dport);
+dport = 6;
     pa_opensynthout(dport);
     pa_instchange(dport, 0, 1, inst);
     srand(42);

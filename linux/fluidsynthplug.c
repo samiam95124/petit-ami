@@ -12,12 +12,43 @@ Petit_ami sound system.
 
 #include <fluidsynth.h>
 #include <stdlib.h>
+#include <localdefs.h>
 #include <sound.h>
 
-static fluid_settings_t *settings;
-static fluid_synth_t *synth;
-static fluid_audio_driver_t *adriver;
-static int sfont_id;
+#define MAXINST 10 /* maximum number of fluidsynth instances */
+#define INST 1 /* number of fluidsynth plug instances to create */
+
+/* fluidsynth device record */
+typedef struct {
+
+    fluid_settings_t*     settings;
+    fluid_synth_t*        synth;
+    fluid_audio_driver_t* adriver;
+    int                   sfont_id;
+
+} fluiddev;
+
+typedef fluiddev* fluidptr; /* pointer to fludsynth device */
+
+static fluidptr devtbl[MAXINST]; /* fluidsynth instance table */
+
+/*******************************************************************************
+
+Flag fluidsynth error
+
+Prints an error and stops.
+
+*******************************************************************************/
+
+static void error(string es)
+
+{
+
+    fprintf(stderr, "\nError: Fluidsynth: %s\n", es);
+
+    exit(1);
+
+}
 
 /*******************************************************************************
 
@@ -32,6 +63,9 @@ static void openliquid(int p)
 
 {
 
+    if (p < 1 || p > MAXINST) error("Invalid synth handle");
+    if (!devtbl[p-1]) error("No Fluidsynth output port at logical handle");
+
 }
 
 /*******************************************************************************
@@ -45,6 +79,9 @@ Closes a Liquidsynth MIDI output device for use.
 static void closeliquid(int p)
 
 {
+
+    if (p < 1 || p > MAXINST) error("Invalid synth handle");
+    if (!devtbl[p-1]) error("No Fluidsynth output port at logical handle");
 
 }
 
@@ -66,25 +103,30 @@ static void writeliquid(int p, seqptr sp)
 
 {
 
+    fluidptr fp; /* pointer to fluidsynth device */
 
+    if (p < 1 || p > MAXINST) error("Invalid synth handle");
+    if (!devtbl[p-1]) error("No Fluidsynth output port at logical handle");
+
+    fp = devtbl[p-1]; /* point to device */
     switch (sp->st) { /* sequencer message type */
 
         case st_noteon:
-            fluid_synth_noteon(synth, sp->ntc-1, sp->ntn-1, sp->ntv/0x01000000);
+            fluid_synth_noteon(fp->synth, sp->ntc-1, sp->ntn-1, sp->ntv/0x01000000);
             break;
         case st_noteoff:
             /* Note fluidsynth has no velocity parameter */
-            fluid_synth_noteoff(synth, sp->ntc-1, sp->ntn-1);
+            fluid_synth_noteoff(fp->synth, sp->ntc-1, sp->ntn-1);
             break;
         case st_instchange:
-            fluid_synth_program_change(synth, sp->icc-1, sp->ici-1);
+            fluid_synth_program_change(fp->synth, sp->icc-1, sp->ici-1);
             break;
         case st_attack: break; /* no equivalent function */
         case st_release: break; /* no equivalent function */
         case st_legato:
             /* this call does not appear to be in the current Fluidsynth API */
             /*
-            fluid_synth_set_legato_mode(synth, sp->bsc,
+            fluid_synth_set_legato_mode(fp->synth, sp->bsc,
                 sp->bsb?FLUID_CHANNEL_LEGATO_MODE_MULTI_RETRIGGER:
                         FLUID_CHANNEL_LEGATO_MODE_RETRIGGER);
             */
@@ -108,14 +150,14 @@ static void writeliquid(int p, seqptr sp)
         case st_phaser:       break; /* no equivalent function */
         case st_aftertouch:   break; /* no equivalent function */
         case st_pressure:
-            fluid_synth_channel_pressure(synth, sp->ntc-1, sp->ntv/0x01000000);
+            fluid_synth_channel_pressure(fp->synth, sp->ntc-1, sp->ntv/0x01000000);
             break;
         case st_pitch:
-            fluid_synth_pitch_bend(synth, sp->vsc-1, sp->vsv/0x00040000+0x2000);
+            fluid_synth_pitch_bend(fp->synth, sp->vsc-1, sp->vsv/0x00040000+0x2000);
             break;
         case st_pitchrange:
             /* this one is open for interpretation: what is a "semitone"? */
-            fluid_synth_pitch_wheel_sens(synth, sp->vsc-1, sp->vsv/0x00020000);
+            fluid_synth_pitch_wheel_sens(fp->synth, sp->vsc-1, sp->vsv/0x00020000);
             break;
         case st_mono:         break; /* no equivalent function */
         case st_poly:         break; /* no equivalent function */
@@ -168,31 +210,48 @@ static void fluidsynth_plug_init()
 {
 
     char buff[200];
+    int i;
+    int r;
+
+    /* clear instance table */
+    for (i = 0; i < MAXINST; i++) devtbl[i] = NULL;
 
     /* turn off liquidsynth error messages */
     quiet();
-    /* create the settings */
-    settings = new_fluid_settings();
-    /* create the synthesizer */
-    synth = new_fluid_synth(settings);
-    /* create the audio driver as alsa type */
-    fluid_settings_setstr(settings, "audio.driver", "alsa");
-    adriver = new_fluid_audio_driver(settings, synth);
-    /* load a SoundFont and reset presets */
-    sfont_id = fluid_synth_sfload(synth, "/usr/share/sounds/sf2/FluidR3_GM.sf2", 1);
-    /* fluidsynth default volume is very low. Turn up to reasonable value */
-    fluid_settings_setnum(settings, "synth.gain", 0.5);
+
+    /* create number of desired instances */
+    for (i = 0; i < INST; i++) {
+
+        /* create table entry */
+        devtbl[i] = malloc(sizeof(fluiddev));
+        if (!devtbl[i]) error("Cannot allocate device");
+        /* create the settings */
+        devtbl[i]->settings = new_fluid_settings();
+        /* create the synthesizer */
+        devtbl[i]->synth = new_fluid_synth(devtbl[i]->settings);
+        /* create the audio driver as alsa type */
+        fluid_settings_setstr(devtbl[i]->settings, "audio.driver", "alsa");
+        devtbl[i]->adriver = new_fluid_audio_driver(devtbl[i]->settings, devtbl[i]->synth);
+        /* load a SoundFont and reset presets */
+        devtbl[i]->sfont_id = fluid_synth_sfload(devtbl[i]->synth, "/usr/share/sounds/sf2/FluidR3_GM.sf2", 1);
+        /* fluidsynth default volume is very low. Turn up to reasonable value */
+        fluid_settings_setnum(devtbl[i]->settings, "synth.gain", 0.5);
+
+        /* show the device fluidsynth connects to (usually "default") */
+        /*
+        r = fluid_settings_copystr(settings, "audio.alsa.device", buff, 200);
+        printf("The alsa PCM device for Fluidsynth is: %s\n", buff);
+        */
+
+        /* now install us as PA device */
+        sprintf(buff, "Fluidsynth%d", i+1);
+        _pa_synthoutplug(buff, openliquid, closeliquid, writeliquid);
+
+    }
     /* re-enable error messages */
     unquiet();
 
-    /* show the device fluidsynth connects to (usually "default") */
-    /*
-    r = fluid_settings_copystr(settings, "audio.alsa.device", buff, 200);
-    printf("The alsa PCM device for Fluidsynth is: %s\n", buff);
-    */
 
-    /* now install us as PA device */
-    _pa_synthoutplug("Liquidsynth", openliquid, closeliquid, writeliquid);
 
 }
 
@@ -209,9 +268,15 @@ static void fluidsynth_plug_deinit()
 
 {
 
+    int i;
+
     /* Clean up */
-    delete_fluid_audio_driver(adriver);
-    delete_fluid_synth(synth);
-    delete_fluid_settings(settings);
+    for (i = 0; i < MAXINST; i++) if (devtbl[i]) {
+
+        delete_fluid_audio_driver(devtbl[i]->adriver);
+        delete_fluid_synth(devtbl[i]->synth);
+        delete_fluid_settings(devtbl[i]->settings);
+
+    }
 
 }
