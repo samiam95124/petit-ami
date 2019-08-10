@@ -16,7 +16,7 @@ Petit_ami sound system.
 #include <sound.h>
 
 #define MAXINST 10 /* maximum number of fluidsynth instances */
-#define INST 1 /* number of fluidsynth plug instances to create */
+#define INST 4 /* number of fluidsynth plug instances to create */
 
 /* fluidsynth device record */
 typedef struct {
@@ -59,7 +59,7 @@ one MIDI out device at init time.
 
 *******************************************************************************/
 
-static void openliquid(int p)
+static void openfluid(int p)
 
 {
 
@@ -76,7 +76,7 @@ Closes a Liquidsynth MIDI output device for use.
 
 *******************************************************************************/
 
-static void closeliquid(int p)
+static void closefluid(int p)
 
 {
 
@@ -99,7 +99,7 @@ midi codes are fed directly to Fluidsynth (source code analysis?).
 
 *******************************************************************************/
 
-static void writeliquid(int p, seqptr sp)
+static void writefluid(int p, seqptr sp)
 
 {
 
@@ -245,7 +245,7 @@ static void fluidsynth_plug_init()
 
         /* now install us as PA device */
         sprintf(buff, "Fluidsynth%d", i+1);
-        _pa_synthoutplug(buff, openliquid, closeliquid, writeliquid);
+        _pa_synthoutplug(buff, openfluid, closefluid, writefluid);
 
     }
     /* re-enable error messages */
