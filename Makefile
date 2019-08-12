@@ -66,13 +66,26 @@ endif
 # Collected libraries
 #
 ifndef GRAPH
-    #
-    # Terminal model API
-    #
-    ifeq ($(LINK_TYPE),static)
-        LIBS += bin/petit_ami_term.a
+    ifndef PLAIN
+        #
+        # Terminal model API
+        #
+        ifeq ($(LINK_TYPE),static)
+            LIBS += bin/petit_ami_term.a
+        else
+    	    LIBS += linux/sound.o linux/fluidsynthplug.o bin/petit_ami_term.so
+        endif
     else
-    	LIBS += linux/sound.o linux/fluidsynthplug.o bin/petit_ami_term.so
+        #
+        # Plain (no terminal handler)
+        # This option exists to drop the terminal handler, which should not be
+        # required for most code.
+        #
+        ifeq ($(LINK_TYPE),static)
+            LIBS += bin/petit_ami_plain.a
+        else
+    	    LIBS += linux/sound.o linux/fluidsynthplug.o bin/petit_ami_plain.so
+        endif
     endif
 else
     #
@@ -119,6 +132,12 @@ linux/graph_x.o: linux/graph_x.c include/graph.h
 # Note that sound lib cannot be put into an .so, there is a bug in ALSA.
 # Thus we leave it as a .o file.
 #
+bin/petit_ami_plain.so: linux/services.o linux/sound.o linux/fluidsynthplug.o
+	gcc -shared linux/services.o linux/sound.o linux/fluidsynthplug.o -o bin/petit_ami_plain.so
+	
+bin/petit_ami_plain.a: linux/services.o linux/sound.o linux/fluidsynthplug.o
+	ar rcs bin/petit_ami_plain.a linux/services.o linux/sound.o linux/fluidsynthplug.o
+	
 bin/petit_ami_term.so: linux/services.o linux/sound.o linux/fluidsynthplug.o linux/xterm.o
 	gcc -shared linux/services.o linux/sound.o linux/fluidsynthplug.o linux/xterm.o -o bin/petit_ami_term.so
 	

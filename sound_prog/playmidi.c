@@ -38,11 +38,9 @@ int main(int argc, char **argv)
     }
 
     /* parse user options */
-printf("before options\n");
     options(&argi, &argc, argv, opttbl, true);
-printf("after options\n");
 
-    pa_loadsynth(1, argv[1]);
+    pa_loadsynth(1, argv[argi]);
     pa_opensynthout(dport);
     pa_playsynth(dport, 0, 1);
     pa_waitsynth(dport);
