@@ -152,8 +152,8 @@ play: bin/petit_ami_term.so include/terminal.h sound_prog/play.c Makefile
 keyboard: bin/petit_ami_term.so include/terminal.h sound_prog/keyboard.c Makefile
 	$(CC) $(CFLAGS) sound_prog/keyboard.c $(LIBS) -o bin/keyboard
 	
-playmidi: bin/petit_ami_term.so include/terminal.h sound_prog/playmidi.c Makefile
-	$(CC) $(CFLAGS) sound_prog/playmidi.c $(LIBS) -o bin/playmidi
+playmidi: bin/petit_ami_term.so include/terminal.h sound_prog/playmidi.c linux/option.c Makefile
+	$(CC) $(CFLAGS) sound_prog/playmidi.c linux/option.c $(LIBS) -o bin/playmidi
 
 playwave: bin/petit_ami_term.so include/terminal.h sound_prog/playwave.c Makefile
 	$(CC) $(CFLAGS) sound_prog/playwave.c $(LIBS) -o bin/playwave
