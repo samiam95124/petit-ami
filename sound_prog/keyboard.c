@@ -13,6 +13,7 @@ Yes, its the standard annoying utility to turn your keyoard into an organ.
 
 #include <terminal.h> /* terminal level API */
 #include <sound.h>    /* sound API */
+#include <option.h>
 
 #define SECOND  10000
 #define KEYDOWN 10
@@ -23,6 +24,16 @@ int        velo;  /* velocity */
 int        port;  /* synth port to output to */
 int        keycnt[36];
 int        ki;
+
+int port = PA_SYNTH_OUT; /* set default synth out */
+
+optrec opttbl[] = {
+
+    { "port",  NULL, &port,  NULL, NULL   },
+    { "p",     NULL, &port,  NULL, NULL   },
+    { NULL,    NULL, NULL,    NULL, NULL }
+
+};
 
 void wait(int t)
 
@@ -148,11 +159,23 @@ void tick(void)
 
 }
 
-int main(void)
+int main(int argc, char **argv)
 
 {
 
-    port = PA_SYNTH_OUT; /* set standard output port */
+    int argi = 1;
+
+    /* parse user options */
+    options(&argi, &argc, argv, opttbl, true);
+
+    if (argc != 1) {
+
+        fprintf(stderr, "Usage: keyboard [--port=<port>|-p=<port>]\n");
+
+        exit(1);
+
+    }
+
     pa_opensynthout(port); /* open main synthesiser */
     chan = 1; /* set channel 1 */
     velo = INT_MAX; /* set velocity */
