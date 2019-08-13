@@ -12,10 +12,26 @@ Plays the given midi file.
 #include <stdlib.h>
 
 #include <sound.h>
+#include <option.h>
+
+int dport = PA_WAVE_OUT; /* set default wave out */
+
+optrec opttbl[] = {
+
+    { "port",  NULL, &dport,  NULL, NULL },
+    { "p",     NULL, &dport,  NULL, NULL },
+    { NULL,    NULL, NULL,    NULL, NULL }
+
+};
 
 int main(int argc, char **argv)
 
 {
+
+    int argi = 1;
+
+    /* parse user options */
+    options(&argi, &argc, argv, opttbl, true);
 
     if (argc != 2) {
 
@@ -24,11 +40,11 @@ int main(int argc, char **argv)
 
     }
 
-    pa_loadwave(1, argv[1]);
-    pa_opensynthout(PA_WAVE_OUT);
-    pa_playwave(PA_WAVE_OUT, 0, 1);
-    pa_waitwave(PA_WAVE_OUT);
-    pa_closewaveout(PA_WAVE_OUT);
+    pa_loadwave(1, argv[argi]);
+    pa_openwaveout(dport);
+    pa_playwave(dport, 0, 1);
+    pa_waitwave(dport);
+    pa_closewaveout(dport);
     pa_delwave(1);
 
 }

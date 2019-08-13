@@ -175,7 +175,7 @@ playmidi: bin/petit_ami_term.so include/terminal.h sound_prog/playmidi.c linux/o
 	$(CC) $(CFLAGS) sound_prog/playmidi.c linux/option.c $(LIBS) -o bin/playmidi
 
 playwave: bin/petit_ami_term.so include/terminal.h sound_prog/playwave.c Makefile
-	$(CC) $(CFLAGS) sound_prog/playwave.c $(LIBS) -o bin/playwave
+	$(CC) $(CFLAGS) sound_prog/playwave.c linux/option.c $(LIBS) -o bin/playwave
 	
 printdev: bin/petit_ami_term.so include/terminal.h sound_prog/printdev.c Makefile
 	$(CC) $(CFLAGS) sound_prog/printdev.c $(LIBS) -o bin/printdev
