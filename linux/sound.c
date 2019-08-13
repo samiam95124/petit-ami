@@ -4636,7 +4636,21 @@ void pa_wrsynth(int p, seqptr sp)
         insseq(spp); /* insert to sequencer list */
         acttim(sp->time); /* kick timer if needed */
 
-    } else  wrtseq(sp); /* execute the synth note */
+    } else  {
+
+        if (sp->port != p) {
+
+            /* the ports don't match, we need to override it. We won't modify
+               record given, but make a copy */
+            getseq(&spp); /* get a sequencer message */
+            /* make a copy of the command record */
+            memcpy(spp, sp, sizeof(seqmsg));
+            spp->port = p; /* override the port number */
+            wrtseq(spp); /* output */
+
+        } else wrtseq(sp); /* execute the synth note */
+
+    }
 
 }
 
