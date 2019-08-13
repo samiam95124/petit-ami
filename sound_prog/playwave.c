@@ -35,7 +35,7 @@ int main(int argc, char **argv)
 
     if (argc != 2) {
 
-        fprintf(stderr, "Usage: playwave <.wav file>\n");
+        fprintf(stderr, "Usage: playwave [--port=<port>|-p=<port>] <.wav file>\n");
         exit(1);
 
     }
