@@ -187,7 +187,7 @@ connectwave: bin/petit_ami_term.so include/terminal.h sound_prog/connectwave.c M
 	$(CC) $(CFLAGS) sound_prog/connectwave.c $(LIBS) -o bin/connectwave
 	
 random: bin/petit_ami_term.so include/terminal.h sound_prog/random.c Makefile
-	$(CC) $(CFLAGS) sound_prog/random.c $(LIBS) -o bin/random
+	$(CC) $(CFLAGS) sound_prog/random.c linux/option.c $(LIBS) -o bin/random
 	
 genwave: bin/petit_ami_term.so include/terminal.h sound_prog/genwave.c Makefile
 	$(CC) $(CFLAGS) sound_prog/genwave.c linux/option.c $(LIBS) -o bin/genwave
