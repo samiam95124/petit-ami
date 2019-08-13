@@ -30,15 +30,15 @@ int main(int argc, char **argv)
 
     int argi = 1;
 
+    /* parse user options */
+    options(&argi, &argc, argv, opttbl, true);
+
     if (argc < 2) {
 
         fprintf(stderr, "Usage: play [--port=<port>|-p=<port>] <.mid file>\n");
         exit(1);
 
     }
-
-    /* parse user options */
-    options(&argi, &argc, argv, opttbl, true);
 
     pa_loadsynth(1, argv[argi]);
     pa_opensynthout(dport);

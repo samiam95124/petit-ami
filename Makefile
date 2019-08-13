@@ -190,7 +190,7 @@ random: bin/petit_ami_term.so include/terminal.h sound_prog/random.c Makefile
 	$(CC) $(CFLAGS) sound_prog/random.c $(LIBS) -o bin/random
 	
 genwave: bin/petit_ami_term.so include/terminal.h sound_prog/genwave.c Makefile
-	$(CC) $(CFLAGS) sound_prog/genwave.c $(LIBS) -o bin/genwave
+	$(CC) $(CFLAGS) sound_prog/genwave.c linux/option.c $(LIBS) -o bin/genwave
 	
 scntst: bin/petit_ami_term.so include/terminal.h tests/scntst.c include/services.h linux/services.c Makefile
 	$(CC) $(CFLAGS) tests/scntst.c $(LIBS) -o bin/scntst 

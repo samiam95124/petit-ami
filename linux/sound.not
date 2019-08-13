@@ -25,3 +25,6 @@ Fluidsynth API. Two means to do this are:
 
 A. Observe the behavior against Fluidsynth decode of midi commands.
 B. Source code examination.
+
+5. Need to reset the midi channels on open. Right now it is possible to have the
+midi channel in an odd state which open can't fix.
