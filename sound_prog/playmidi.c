@@ -18,8 +18,8 @@ int dport = PA_SYNTH_OUT; /* set default synth out */
 
 optrec opttbl[] = {
 
-    { "port",  NULL, &dport,  NULL, NULL   },
-    { "p",     NULL, &dport,  NULL, NULL   },
+    { "port",  NULL, &dport,  NULL, NULL },
+    { "p",     NULL, &dport,  NULL, NULL },
     { NULL,    NULL, NULL,    NULL, NULL }
 
 };
@@ -35,7 +35,7 @@ int main(int argc, char **argv)
 
     if (argc < 2) {
 
-        fprintf(stderr, "Usage: play [--port=<port>|-p=<port>] <.mid file>\n");
+        fprintf(stderr, "Usage: playmidi [--port=<port>|-p=<port>] <.mid file>\n");
         exit(1);
 
     }

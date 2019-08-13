@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
    int status;
    int mode = SND_RAWMIDI_SYNC;
    snd_rawmidi_t* midiout = NULL;
-   const char* portname = "hw:1,0,0";  // see alsarawportlist.c example program
+   const char* portname = "hw:CARD=VirMIDI,DEV=0" /*"hw:1,0,0"*/;  // see alsarawportlist.c example program
    if ((argc > 1) && (strncmp("hw:", argv[1], 3) == 0)) {
       portname = argv[1];
    }

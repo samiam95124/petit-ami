@@ -166,7 +166,7 @@ test: bin/petit_ami_term.so include/terminal.h test.c Makefile
 	$(CC) $(CFLAGS) test.c $(LIBS) -o test
 	
 play: bin/petit_ami_term.so include/terminal.h sound_prog/play.c Makefile
-	$(CC) $(CFLAGS) sound_prog/play.c $(LIBS) -o bin/play
+	$(CC) $(CFLAGS) sound_prog/play.c linux/option.c $(LIBS) -o bin/play
 	
 keyboard: bin/petit_ami_term.so include/terminal.h sound_prog/keyboard.c Makefile
 	$(CC) $(CFLAGS) sound_prog/keyboard.c linux/option.c $(LIBS) -o bin/keyboard

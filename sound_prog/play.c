@@ -20,8 +20,19 @@ https://www.qbasic.net/en/reference/qb11/Statement/PLAY-006.htm
 
 #include <terminal.h> /* terminal level API */
 #include <sound.h>    /* sound API */
+#include <option.h> /* options parser */
 
 #define SECOND 10000
+
+int dport = PA_SYNTH_OUT; /* set default synth out */
+
+optrec opttbl[] = {
+
+    { "port",  NULL, &dport,  NULL, NULL },
+    { "p",     NULL, &dport,  NULL, NULL },
+    { NULL,    NULL, NULL,    NULL, NULL }
+
+};
 
 int     ntime;  /* normal beat time in quarter notes */
 pa_note octave; /* current octave */
@@ -45,9 +56,9 @@ void playnote(pa_note n, int nt)
 {
 
 /*printf("Note: %d Time: %d\n", n, nt);*/
-   pa_noteon(1, 0, 1, n, INT_MAX); /* turn on the note */
+   pa_noteon(dport, 0, 1, n, INT_MAX); /* turn on the note */
    wait(nt); /* wait time */
-   pa_noteoff(1, 0, 1, n, INT_MAX); /* turn off the note */
+   pa_noteoff(dport, 0, 1, n, INT_MAX); /* turn off the note */
 
 }
 
@@ -220,11 +231,22 @@ void play(string ms)
 
 }
 
-int main(void)
+int main(int argc, char **argv)
 
 {
 
     int song;
+    int argi = 1;
+
+    /* parse user options */
+    options(&argi, &argc, argv, opttbl, true);
+
+    if (argc != 1) {
+
+        fprintf(stderr, "Usage: play [--port=<port>|-p=<port>]\n");
+        exit(1);
+
+    }
 
     /* set up "play" parameters */
     ntime = SECOND/2; /* set default tempo for quarter notes */
@@ -232,9 +254,9 @@ int main(void)
     deftim = ntime; /* set whole notes default */
 
     printf("Synthesisers: %d\n", pa_synthout());
-    pa_opensynthout(1); /* open main synthesiser */
+    pa_opensynthout(dport); /* open main synthesiser */
 
-    pa_instchange(1, 0, 1, PA_INST_ACOUSTIC_GRAND);
+    pa_instchange(dport, 0, 1, PA_INST_ACOUSTIC_GRAND);
 
     printf("1: Mozart's Sonata in C\n");
     printf("2: Stars And Stripes Forever\n");
