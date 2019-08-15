@@ -243,6 +243,7 @@ typedef struct snddev {
     void (*opnseq)(int p);           /* open sequencer port */
     void (*clsseq)(int p);           /* close sequencer port */
     void (*wrseq)(int p, seqptr sp); /* write function pointer */
+    void (*rdseq)(int p, seqptr sp); /* read function pointer */
     boolean        devopn;     /* device open flag */
 
 } snddev;
@@ -312,6 +313,7 @@ static int alsapcminnum; /* PCM in */
 
 /* count of plug-ins */
 static int alsamidioutplug; /* MIDI out */
+static int alsamidiinplug; /* MIDI in */
 
 /* forwards */
 static void alsaplaysynth_kickoff(int p, int s);
@@ -1091,6 +1093,240 @@ void _pa_excseq(int p, seqptr sp)
 
 /*******************************************************************************
 
+Read sequencer entry
+
+Reads and parses a midi instruction record from the device given by it's port.
+ALSA midi input ports are assumed to be "time delimited", that is, input
+terminates if the input device takes to long to deliver the next byte. This
+makes the input self syncronising. This property will exist even if the traffic
+is burstly, IE., since we parse a MIDI instruction and stop, we will keep sync
+as long as we can properly decode MIDI instructions.
+
+We return the next midi instruction as a sequencer record. The port is as the
+input, which is not useful except to document where the instruction came from.
+If a start time is set for the input, then the input is timestamped, otherwise
+the time will be set to 0 or "unsequenced".
+
+Note that this routine will read meta-instructions, but skip them. It is not
+a full MIDI decoder.
+
+*******************************************************************************/
+
+static byte rdsynth(devptr mp)
+
+{
+
+    byte b;
+    int r;
+
+    if (mp->pback != -1) {
+
+        /* get a pushback character */
+        b = mp->pback;
+        mp->pback = -1; /* set none */
+
+    } else {
+
+        r = snd_rawmidi_read(mp->midi, &b, 1);
+        if (r < 0) alsaerror(r);
+        /* this should never happen */
+        if (r != 1) error("Error reading midi file");
+
+    }
+
+    return b;
+
+}
+
+static void rdsynthvar(devptr mp, unsigned int* v)
+
+{
+
+    byte b;
+    int cnt;
+
+    *v = 0;
+    do {
+
+        b = rdsynth(mp); /* get next part */
+        *v = *v<<7|(b&0x7f); /* shift and place new value */
+
+    } while (b >= 128);
+
+}
+
+static void inpseq(int p, seqptr sp)
+
+{
+
+    devptr mp; /* midi input port */
+    byte b;
+    int t;
+    byte p1;
+    byte p2;
+    byte p3;
+    byte p4;
+    byte p5;
+    unsigned len;
+    int i;
+
+    if (p < 1 || p > MAXMIDP) error("Invalid synthesizer port");
+    if (!alsamidiin[p-1]) error("No synthsizer defined for logical port");
+    if (!alsamidiin[p-1]->devopn) error("Synthesizer port not open");
+
+    t = 0; /* set no time */
+    if (sinrun) t = (timediff(&sintim)); /* mark with current time */
+    mp = alsamidiin[p-1];
+    /* if the channel has just been enabled, skip until we get a bit 8 high
+       command so we sync to MIDI stream */
+    do { b = rdsynth(mp); } while (!mp->sync && b < 0x80);
+    mp->sync; /* set midi syncronized */
+    if (b < 0x80) { /* process running status or repeat */
+
+        mp->pback = b; /* put back parameter byte */
+        b = mp->last; /* put back command for repeat */
+
+    }
+    switch (b>>4) { /* command nybble */
+
+        case 0x8: /* note off */
+                  p1 = rdsynth(mp);
+                  p2 = rdsynth(mp);
+                  sp->port = p; /* set port */
+                  sp->time = t; /* set time */
+                  sp->st = st_noteoff; /* set type */
+                  sp->ntc = (b&15)+1; /* set channel */
+                  sp->ntn = p1+1; /* set note */
+                  sp->ntv = p2*0x01000000; /* set velocity */
+                  break;
+        case 0x9: /* note on */
+                  p1 = rdsynth(mp);
+                  p2 = rdsynth(mp);
+                  sp->port = p; /* set port */
+                  sp->time = t; /* set time */
+                  sp->st = st_noteon; /* set type */
+                  sp->ntc = (b&15)+1; /* set channel */
+                  sp->ntn = p1+1; /* set note */
+                  sp->ntv = p2*0x01000000; /* set velocity */
+                  break;
+        case 0xa: /* polyphonic key pressure */
+                  p1 = rdsynth(mp);
+                  p2 = rdsynth(mp);
+                  sp->port = p; /* set port */
+                  sp->time = t; /* set time */
+                  sp->st = st_aftertouch; /* set type */
+                  sp->ntc = (b&15)+1; /* set channel */
+                  sp->ntn = p1+1; /* set note */
+                  sp->ntv = p2*0x01000000; /* set aftertouch */
+                  break;
+        case 0xb: /* controller change/channel mode */
+                  p1 = rdsynth(mp);
+                  p2 = rdsynth(mp);
+                  switch (p1) { /* channel mode messages */
+
+                      /* note we don't implement all controller messages */
+                      case CTLR_SOUND_ATTACK_TIME:
+                      case CTLR_SOUND_RELEASE_TIME:
+                      case CTLR_LEGATO_PEDAL:
+                      case CTLR_PORTAMENTO:
+                      case CTLR_VOLUME_COARSE:
+                      case CTLR_VOLUME_FINE:
+                      case CTLR_BALANCE_COARSE:
+                      case CTLR_BALANCE_FINE:
+                      case CTLR_PORTAMENTO_TIME_COARSE:
+                      case CTLR_PORTAMENTO_TIME_FINE:
+                      case CTLR_MODULATION_WHEEL_COARSE:
+                      case CTLR_MODULATION_WHEEL_FINE:
+                      case CTLR_PAN_POSITION_COARSE:
+                      case CTLR_PAN_POSITION_FINE:
+                      case CTLR_SOUND_TIMBRE:
+                      case CTLR_SOUND_BRIGHTNESS:
+                      case CTLR_EFFECTS_LEVEL:
+                      case CTLR_TREMULO_LEVEL:
+                      case CTLR_CHORUS_LEVEL:
+                      case CTLR_CELESTE_LEVEL:
+                      case CTLR_PHASER_LEVEL:
+                      case CTLR_REGISTERED_PARAMETER_COARSE:
+                      case CTLR_REGISTERED_PARAMETER_FINE:
+                      case CTLR_DATA_ENTRY_COARSE:
+                      case CTLR_DATA_ENTRY_FINE:
+                                 break;
+
+                      case CTLR_MONO_OPERATION: /* Mono mode on */
+                                 sp->port = p; /* set port */
+                                 sp->time = t; /* set time */
+                                 sp->st = st_mono; /* set type */
+                                 sp->vsc = (b&15)+1; /* set channel */
+                                 sp->vsv = p2; /* set mono mode */
+                                 break;
+                      case CTLR_POLY_OPERATION: /* Poly mode on */
+                                 sp->port = p; /* set port */
+                                 sp->time = t; /* set time */
+                                 sp->st = st_poly; /* set type */
+                                 sp->pc = (b&15)+1; /* set channel */
+                                 break;
+
+                  }
+                  break;
+        case 0xc: /* program change */
+                  p1 = rdsynth(mp);
+                  sp->port = p; /* set port */
+                  sp->time = t; /* set time */
+                  sp->st = st_instchange; /* set type */
+                  sp->icc = (b&15)+1; /* set channel */
+                  sp->ici = p1+1; /* set instrument */
+                  break;
+        case 0xd: /* channel key pressure */
+                  p1 = rdsynth(mp);
+                  sp->port = p; /* set port */
+                  sp->time = t; /* set time */
+                  sp->st = st_pressure; /* set type */
+                  sp->ntc = (b&15)+1; /* set channel */
+                  sp->ntv = p1*0x01000000; /* set pressure */
+                  break;
+        case 0xe: /* pitch bend */
+                  p1 = rdsynth(mp);
+                  p2 = rdsynth(mp);
+                  sp->port = p; /* set port */
+                  sp->time = t; /* set time */
+                  sp->st = st_pitch; /* set type */
+                  sp->vsc = (b&15)+1; /* set channel */
+                  sp->vsv = p2<<7|p1; /* set pitch */
+                  break;
+        case 0xf: /* sysex/meta */
+                  switch (b) {
+
+                      case 0xf0: /* F0 sysex event */
+                      case 0xf7: /* F7 sysex event */
+                                 rdsynthvar(mp, &len); /* get length */
+                                 /* skip instruction */
+                                 for (i = 0; i < len; i++) rdsynth(mp);
+                                 break;
+                      case 0xff: /* meta events */
+                                 p1 = rdsynth(mp);  /* get next byte */
+                                 rdsynthvar(mp, &len); /* get length */
+                                 /* skip instruction */
+                                 for (i = 0; i < len; i++) rdsynth(mp);
+                                 break;
+
+                      default: error("Invalid .mid file format");
+
+                  }
+                  break;
+
+        default: error("Invalid .mid file format");
+
+    }
+    /* if command is not meta, save as last command */
+    if (b < 0xf0) mp->last = b;
+#ifdef SHOWMIDIIN
+    dmpseq(sp); /* dump sequencer instruction */
+#endif
+
+}
+
+/*******************************************************************************
+
 Open ALSA MIDI device
 
 Opens an ALSA MIDI port for use.
@@ -1188,6 +1424,23 @@ static void wrtseq(seqptr sp)
 
 /*******************************************************************************
 
+Read sequencer entry
+
+Reads a sequencer entry from the device given by it's port.
+
+*******************************************************************************/
+
+static void rdseq(seqptr sp)
+
+{
+
+    alsamidiin[sp->port-1]->rdseq(sp->port, sp);
+
+}
+
+
+/*******************************************************************************
+
 Define plug-in sequencer output device
 
 Lets a sequencer plug-in define a device. Accepts three vectors, the open, close
@@ -1224,6 +1477,47 @@ void _pa_synthoutplug(
     alsamidiout[alsamidioutplug]->devopn = false; /* set not open */
     alsamidioutnum++; /* count total devices */
     alsamidioutplug++; /* count plug-ins */
+
+}
+
+/*******************************************************************************
+
+Define plug-in sequencer input device
+
+Lets a sequencer plug-in define a device. Accepts three vectors, the open, close
+and read vectors. Returns the defined device.
+
+Plug-ins go into the MIDI input device table at position 1, meaning that the
+plug-in takes over the default device.
+
+*******************************************************************************/
+
+void _pa_synthinplug(
+    /* name */            string name,
+    /* open sequencer */  void (*opnseq)(int p),
+    /* close sequencer */ void (*clsseq)(int p),
+    /* read sequencer */ void (*rdseq)(int p, seqptr sp)
+)
+
+{
+
+    int i;
+
+    if (alsamidiinnum >= MAXMIDP) error("Device table full");
+    /* move table entries above plug-ins up one */
+    for (i = MAXMIDP-1; i > alsamidiinplug; i--)
+        alsamidiin[i] = alsamidiin[i-1];
+    alsamidiin[alsamidiinplug] = malloc(sizeof(snddev)); /* create new device entry */
+    alsamidiin[alsamidiinplug]->name = malloc(strlen(name)+1); /* place name of device */
+    strcpy(alsamidiin[alsamidiinplug]->name, name);
+    alsamidiin[alsamidiinplug]->last = 0; /* clear last byte */
+    alsamidiin[alsamidiinplug]->pback = -1; /* set no pushback */
+    alsamidiin[alsamidiinplug]->opnseq = opnseq; /* set open alsa midi device */
+    alsamidiin[alsamidiinplug]->clsseq = clsseq; /* set close alsa midi device */
+    alsamidiin[alsamidiinplug]->rdseq = rdseq; /* set sequencer read function */
+    alsamidiin[alsamidiinplug]->devopn = false; /* set not open */
+    alsamidiinnum++; /* count total devices */
+    alsamidiinplug++; /* count plug-ins */
 
 }
 
@@ -4675,216 +4969,16 @@ a full MIDI decoder.
 
 *******************************************************************************/
 
-byte rdsynth(devptr mp)
-
-{
-
-    byte b;
-    int r;
-
-    if (mp->pback != -1) {
-
-        /* get a pushback character */
-        b = mp->pback;
-        mp->pback = -1; /* set none */
-
-    } else {
-
-        r = snd_rawmidi_read(mp->midi, &b, 1);
-        if (r < 0) alsaerror(r);
-        /* this should never happen */
-        if (r != 1) error("Error reading midi file");
-
-    }
-
-    return b;
-
-}
-
-static void rdsynthvar(devptr mp, unsigned int* v)
-
-{
-
-    byte b;
-    int cnt;
-
-    *v = 0;
-    do {
-
-        b = rdsynth(mp); /* get next part */
-        *v = *v<<7|(b&0x7f); /* shift and place new value */
-
-    } while (b >= 128);
-
-}
-
 void pa_rdsynth(int p, seqptr sp)
 
 {
-
-    devptr mp; /* midi input port */
-    byte b;
-    int t;
-    byte p1;
-    byte p2;
-    byte p3;
-    byte p4;
-    byte p5;
-    unsigned len;
-    int i;
 
     if (p < 1 || p > MAXMIDP) error("Invalid synthesizer port");
     if (!alsamidiin[p-1]) error("No synthsizer defined for logical port");
     if (!alsamidiin[p-1]->devopn) error("Synthesizer port not open");
 
-    t = 0; /* set no time */
-    if (sinrun) t = (timediff(&sintim)); /* mark with current time */
-    mp = alsamidiin[p-1];
-    /* if the channel has just been enabled, skip until we get a bit 8 high
-       command so we sync to MIDI stream */
-    do { b = rdsynth(mp); } while (!mp->sync && b < 0x80);
-    mp->sync; /* set midi syncronized */
-    if (b < 0x80) { /* process running status or repeat */
-
-        mp->pback = b; /* put back parameter byte */
-        b = mp->last; /* put back command for repeat */
-
-    }
-    switch (b>>4) { /* command nybble */
-
-        case 0x8: /* note off */
-                  p1 = rdsynth(mp);
-                  p2 = rdsynth(mp);
-                  sp->port = p; /* set port */
-                  sp->time = t; /* set time */
-                  sp->st = st_noteoff; /* set type */
-                  sp->ntc = (b&15)+1; /* set channel */
-                  sp->ntn = p1+1; /* set note */
-                  sp->ntv = p2*0x01000000; /* set velocity */
-                  break;
-        case 0x9: /* note on */
-                  p1 = rdsynth(mp);
-                  p2 = rdsynth(mp);
-                  sp->port = p; /* set port */
-                  sp->time = t; /* set time */
-                  sp->st = st_noteon; /* set type */
-                  sp->ntc = (b&15)+1; /* set channel */
-                  sp->ntn = p1+1; /* set note */
-                  sp->ntv = p2*0x01000000; /* set velocity */
-                  break;
-        case 0xa: /* polyphonic key pressure */
-                  p1 = rdsynth(mp);
-                  p2 = rdsynth(mp);
-                  sp->port = p; /* set port */
-                  sp->time = t; /* set time */
-                  sp->st = st_aftertouch; /* set type */
-                  sp->ntc = (b&15)+1; /* set channel */
-                  sp->ntn = p1+1; /* set note */
-                  sp->ntv = p2*0x01000000; /* set aftertouch */
-                  break;
-        case 0xb: /* controller change/channel mode */
-                  p1 = rdsynth(mp);
-                  p2 = rdsynth(mp);
-                  switch (p1) { /* channel mode messages */
-
-                      /* note we don't implement all controller messages */
-                      case CTLR_SOUND_ATTACK_TIME:
-                      case CTLR_SOUND_RELEASE_TIME:
-                      case CTLR_LEGATO_PEDAL:
-                      case CTLR_PORTAMENTO:
-                      case CTLR_VOLUME_COARSE:
-                      case CTLR_VOLUME_FINE:
-                      case CTLR_BALANCE_COARSE:
-                      case CTLR_BALANCE_FINE:
-                      case CTLR_PORTAMENTO_TIME_COARSE:
-                      case CTLR_PORTAMENTO_TIME_FINE:
-                      case CTLR_MODULATION_WHEEL_COARSE:
-                      case CTLR_MODULATION_WHEEL_FINE:
-                      case CTLR_PAN_POSITION_COARSE:
-                      case CTLR_PAN_POSITION_FINE:
-                      case CTLR_SOUND_TIMBRE:
-                      case CTLR_SOUND_BRIGHTNESS:
-                      case CTLR_EFFECTS_LEVEL:
-                      case CTLR_TREMULO_LEVEL:
-                      case CTLR_CHORUS_LEVEL:
-                      case CTLR_CELESTE_LEVEL:
-                      case CTLR_PHASER_LEVEL:
-                      case CTLR_REGISTERED_PARAMETER_COARSE:
-                      case CTLR_REGISTERED_PARAMETER_FINE:
-                      case CTLR_DATA_ENTRY_COARSE:
-                      case CTLR_DATA_ENTRY_FINE:
-                                 break;
-
-                      case CTLR_MONO_OPERATION: /* Mono mode on */
-                                 sp->port = p; /* set port */
-                                 sp->time = t; /* set time */
-                                 sp->st = st_mono; /* set type */
-                                 sp->vsc = (b&15)+1; /* set channel */
-                                 sp->vsv = p2; /* set mono mode */
-                                 break;
-                      case CTLR_POLY_OPERATION: /* Poly mode on */
-                                 sp->port = p; /* set port */
-                                 sp->time = t; /* set time */
-                                 sp->st = st_poly; /* set type */
-                                 sp->pc = (b&15)+1; /* set channel */
-                                 break;
-
-                  }
-                  break;
-        case 0xc: /* program change */
-                  p1 = rdsynth(mp);
-                  sp->port = p; /* set port */
-                  sp->time = t; /* set time */
-                  sp->st = st_instchange; /* set type */
-                  sp->icc = (b&15)+1; /* set channel */
-                  sp->ici = p1+1; /* set instrument */
-                  break;
-        case 0xd: /* channel key pressure */
-                  p1 = rdsynth(mp);
-                  sp->port = p; /* set port */
-                  sp->time = t; /* set time */
-                  sp->st = st_pressure; /* set type */
-                  sp->ntc = (b&15)+1; /* set channel */
-                  sp->ntv = p1*0x01000000; /* set pressure */
-                  break;
-        case 0xe: /* pitch bend */
-                  p1 = rdsynth(mp);
-                  p2 = rdsynth(mp);
-                  sp->port = p; /* set port */
-                  sp->time = t; /* set time */
-                  sp->st = st_pitch; /* set type */
-                  sp->vsc = (b&15)+1; /* set channel */
-                  sp->vsv = p2<<7|p1; /* set pitch */
-                  break;
-        case 0xf: /* sysex/meta */
-                  switch (b) {
-
-                      case 0xf0: /* F0 sysex event */
-                      case 0xf7: /* F7 sysex event */
-                                 rdsynthvar(mp, &len); /* get length */
-                                 /* skip instruction */
-                                 for (i = 0; i < len; i++) rdsynth(mp);
-                                 break;
-                      case 0xff: /* meta events */
-                                 p1 = rdsynth(mp);  /* get next byte */
-                                 rdsynthvar(mp, &len); /* get length */
-                                 /* skip instruction */
-                                 for (i = 0; i < len; i++) rdsynth(mp);
-                                 break;
-
-                      default: error("Invalid .mid file format");
-
-                  }
-                  break;
-
-        default: error("Invalid .mid file format");
-
-    }
-    /* if command is not meta, save as last command */
-    if (b < 0xf0) mp->last = b;
-#ifdef SHOWMIDIIN
-    dmpseq(sp); /* dump sequencer instruction */
-#endif
+    sp->port = p; /* place port being read */
+    rdseq(sp); /* read the sequencer record */
 
 }
 
@@ -5152,6 +5246,7 @@ static void readalsadev(devptr table[], string devt, string iotyp, int tabmax,
             table[i]->opnseq = openalsamidi; /* set open alsa midi device */
             table[i]->clsseq = closealsamidi; /* set close alsa midi device */
             table[i]->wrseq = _pa_excseq; /* set sequencer execute function */
+            table[i]->rdseq = inpseq; /* set sequencer read function */
             table[i]->midi = NULL; /* clear midi handle */
             table[i]->pcm = NULL; /* clear PCM handle */
             table[i]->devopn = false; /* set device not open */
@@ -5285,8 +5380,9 @@ static void pa_init_sound()
     prtdtbl(alsapcmin, MAXWAVP, true);
 #endif
 
-    /* set midi out plug-in count */
+    /* set midi plug-in counts */
     alsamidioutplug = 0;
+    alsamidiinplug = 0;
 
 }
 

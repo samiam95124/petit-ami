@@ -18,8 +18,11 @@ late 1970's-early 1980's.
 #include <unistd.h>
 #include <limits.h>
 
+#include <terminal.h>
 #include <sound.h>
 #include <option.h>
+
+#define SECOND 10000
 
 int dport = PA_SYNTH_OUT; /* set default synth out */
 pa_instrument inst = PA_INST_ACOUSTIC_GRAND; /* set default instrument */
@@ -33,6 +36,18 @@ optrec opttbl[] = {
     { NULL,   NULL, NULL,    NULL, NULL }
 
 };
+
+void wait(int t)
+
+{
+
+    pa_evtrec er; /* event record */
+
+    pa_timer(stdin, 1, t, false);
+    do { pa_event(stdin, &er); } while (er.etype != pa_ettim && er.etype != pa_etterm);
+    if (er.etype == pa_etterm) exit(0);
+
+}
 
 int main(int argc, char **argv)
 
@@ -64,8 +79,8 @@ int main(int argc, char **argv)
         key = 60 + (int)(12.0f * rand() / (float) RAND_MAX)-1;
         /* Play a note */
         pa_noteon(dport, 0, 1, key, INT_MAX);
-        /* Sleep for 1 second */
-        usleep(100000);
+        /* Sleep for .1 second */
+        wait(SECOND/10);
         /* Stop the note */
         pa_noteoff(dport, 0, 1, key, 0);
 
