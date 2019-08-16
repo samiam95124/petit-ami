@@ -240,10 +240,8 @@ typedef struct snddev {
     int            pback;      /* pushback for input */
     boolean        sync;       /* midi channel synced */
     /* These entries support plug in devices, but are also set for intenal devices */
-    void (*opnseqout)(int p);  /* open output sequencer port */
-    void (*clsseqout)(int p);  /* close output sequencer port */
-    void (*opnseqin)(int p);   /* open input sequencer port */
-    void (*clsseqin)(int p);   /* close input sequencer port */
+    void (*open)(int p);       /* open port */
+    void (*close)(int p);      /* close port */
     void (*wrseq)(int p, seqptr sp); /* write function pointer */
     void (*rdseq)(int p, seqptr sp); /* read function pointer */
     boolean        devopn;     /* device open flag */
@@ -251,6 +249,16 @@ typedef struct snddev {
 } snddev;
 
 typedef snddev* devptr; /* pointer to waveform device */
+
+/* device type */
+typedef enum {
+
+    dt_seqout, /* MIDI output */
+    dt_seqin,  /* MIDI input */
+    dt_pcmout, /* wave output */
+    dt_pcmin   /* wave input */
+
+} devtyp;
 
 static seqptr seqlst;                  /* active sequencer entries */
 static seqptr seqfre;                  /* free sequencer entries */
@@ -1457,8 +1465,8 @@ plug-in takes over the default device.
 
 void _pa_synthoutplug(
     /* name */            string name,
-    /* open sequencer */  void (*opnseqout)(int p),
-    /* close sequencer */ void (*clsseqout)(int p),
+    /* open sequencer */  void (*open)(int p),
+    /* close sequencer */ void (*close)(int p),
     /* write sequencer */ void (*wrseq)(int p, seqptr sp)
 )
 
@@ -1475,8 +1483,8 @@ void _pa_synthoutplug(
     strcpy(alsamidiout[alsamidioutplug]->name, name);
     alsamidiout[alsamidioutplug]->last = 0; /* clear last byte */
     alsamidiout[alsamidioutplug]->pback = -1; /* set no pushback */
-    alsamidiout[alsamidioutplug]->opnseqout = opnseqout; /* set open alsa midi device */
-    alsamidiout[alsamidioutplug]->clsseqout = clsseqout; /* set close alsa midi device */
+    alsamidiout[alsamidioutplug]->open = open; /* set open alsa midi device */
+    alsamidiout[alsamidioutplug]->close = close; /* set close alsa midi device */
     alsamidiout[alsamidioutplug]->wrseq = wrseq; /* set sequencer execute function */
     alsamidiout[alsamidioutplug]->devopn = false; /* set not open */
     alsamidioutnum++; /* count total devices */
@@ -1498,8 +1506,8 @@ plug-in takes over the default device.
 
 void _pa_synthinplug(
     /* name */            string name,
-    /* open sequencer */  void (*opnseqin)(int p),
-    /* close sequencer */ void (*clsseqin)(int p),
+    /* open sequencer */  void (*open)(int p),
+    /* close sequencer */ void (*close)(int p),
     /* read sequencer */ void (*rdseq)(int p, seqptr sp)
 )
 
@@ -1516,8 +1524,8 @@ void _pa_synthinplug(
     strcpy(alsamidiin[alsamidiinplug]->name, name);
     alsamidiin[alsamidiinplug]->last = 0; /* clear last byte */
     alsamidiin[alsamidiinplug]->pback = -1; /* set no pushback */
-    alsamidiin[alsamidiinplug]->opnseqin = opnseqin; /* set open alsa midi device */
-    alsamidiin[alsamidiinplug]->clsseqin = clsseqin; /* set close alsa midi device */
+    alsamidiin[alsamidiinplug]->open = open; /* set open alsa midi device */
+    alsamidiin[alsamidiinplug]->close = close; /* set close alsa midi device */
     alsamidiin[alsamidiinplug]->rdseq = rdseq; /* set sequencer read function */
     alsamidiin[alsamidiinplug]->devopn = false; /* set not open */
     alsamidiinnum++; /* count total devices */
@@ -1777,7 +1785,7 @@ void pa_opensynthout(int p)
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
     if (alsamidiout[p-1]->devopn) error("Synthsizer port already open");
 
-    alsamidiout[p-1]->opnseqout(p); /* open port */
+    alsamidiout[p-1]->open(p); /* open port */
     alsamidiout[p-1]->devopn = true; /* set open */
 
 }
@@ -1798,7 +1806,7 @@ void pa_closesynthout(int p)
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
     if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
 
-    alsamidiout[p-1]->clsseqout(p); /* close port */
+    alsamidiout[p-1]->close(p); /* close port */
     alsamidiout[p-1]->devopn = false; /* set closed */
 
 }
@@ -4869,7 +4877,7 @@ void pa_opensynthin(int p)
     if (!alsamidiin[p-1]) error("No synthsizer defined for logical port");
     if (alsamidiin[p-1]->devopn) error("Synthsizer port already open");
 
-    alsamidiin[p-1]->opnseqin(p); /* open port */
+    alsamidiin[p-1]->open(p); /* open port */
     alsamidiin[p-1]->devopn = true; /* set open */
 
 }
@@ -4890,7 +4898,7 @@ void pa_closesynthin(int p)
     if (!alsamidiin[p-1]) error("No synthsizer defined for logical port");
     if (!alsamidiin[p-1]->devopn) error("Synthsizer port not open");
 
-    alsamidiin[p-1]->clsseqin(p); /* close port */
+    alsamidiin[p-1]->close(p); /* close port */
     alsamidiin[p-1]->devopn = false; /* set closed */
 
 }
@@ -5176,7 +5184,7 @@ found or fit into the table.
 *******************************************************************************/
 
 static void readalsadev(devptr table[], string devt, string iotyp, int tabmax,
-                        int* tblcnt)
+                        int* tblcnt, devtyp dt)
 
 {
 
@@ -5245,10 +5253,17 @@ static void readalsadev(devptr table[], string devt, string iotyp, int tabmax,
             table[i]->last = 0; /* clear last byte */
             table[i]->pback = -1; /* set no pushback */
             table[i]->sync = false; /* set channel not syncronized */
-            table[i]->opnseqout = openalsamidiout; /* set open alsa midi out evice */
-            table[i]->clsseqout = closealsamidiout; /* set close alsa midi out device */
-            table[i]->opnseqin = openalsamidiin; /* set open alsa midi in device */
-            table[i]->clsseqin = closealsamidiin; /* set close alsa midi in device */
+            if (dt == dt_seqout) { /* is a midi out */
+
+                table[i]->open = openalsamidiout; /* set open alsa midi out evice */
+                table[i]->close = closealsamidiout; /* set close alsa midi out device */
+
+            } else if (dt = dt_seqin) { /* is a midi in */
+
+                table[i]->open = openalsamidiin; /* set open alsa midi in device */
+                table[i]->close = closealsamidiin; /* set close alsa midi in device */
+
+            }
             table[i]->wrseq = _pa_excseq; /* set sequencer execute function */
             table[i]->rdseq = inpseq; /* set sequencer read function */
             table[i]->midi = NULL; /* clear midi handle */
@@ -5353,7 +5368,7 @@ static void pa_init_sound()
        installation of plug-ins */
 
     /* define the ALSA midi output devices */
-    readalsadev(alsamidiout, "rawmidi", "Output", MAXMIDP, &alsamidioutnum);
+    readalsadev(alsamidiout, "rawmidi", "Output", MAXMIDP, &alsamidioutnum, dt_seqout);
 
 #ifdef SHOWDEVTBL
     printf("\nmidi output devices:\n\n");
@@ -5361,7 +5376,7 @@ static void pa_init_sound()
 #endif
 
     /* define the ALSA midi input devices */
-    readalsadev(alsamidiin, "rawmidi", "Input", MAXMIDP, &alsamidiinnum);
+    readalsadev(alsamidiin, "rawmidi", "Input", MAXMIDP, &alsamidiinnum, dt_seqin);
 
 #ifdef SHOWDEVTBL
     printf("\nmidi input devices:\n\n");
@@ -5369,7 +5384,7 @@ static void pa_init_sound()
 #endif
 
     /* define the ALSA PCM output devices */
-    readalsadev(alsapcmout, "pcm", "Output", MAXWAVP, &alsapcmoutnum);
+    readalsadev(alsapcmout, "pcm", "Output", MAXWAVP, &alsapcmoutnum, dt_pcmout);
 
 #ifdef SHOWDEVTBL
     printf("\nPCM output devices:\n\n");
@@ -5377,7 +5392,7 @@ static void pa_init_sound()
 #endif
 
     /* define the ALSA PCM input devices */
-    readalsadev(alsapcmin, "pcm", "Input", MAXWAVP, &alsapcminnum);
+    readalsadev(alsapcmin, "pcm", "Input", MAXWAVP, &alsapcminnum, dt_pcmin);
 
 #ifdef SHOWDEVTBL
     printf("\nPCM input devices:\n\n");
@@ -5407,11 +5422,11 @@ static void pa_deinit_sound()
 
     /* issue close to all synth outs */
     for (i = 0; i < MAXMIDP; i++) if (alsamidiout[i])
-        if (alsamidiout[i]->devopn) alsamidiout[i]->clsseqout(i+1);
+        if (alsamidiout[i]->devopn) alsamidiout[i]->close(i+1);
 
     /* issue close to all synth ins */
     for (i = 0; i < MAXMIDP; i++) if (alsamidiin[i])
-        if (alsamidiin[i]->devopn)  alsamidiin[i]->clsseqin(i+1);
+        if (alsamidiin[i]->devopn)  alsamidiin[i]->close(i+1);
 
     /* issue close to all wave outs */
     for (i = 0; i < MAXMIDP; i++) if (alsapcmout[i])

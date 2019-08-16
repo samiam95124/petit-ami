@@ -32,3 +32,6 @@ midi channel in an odd state which open can't fix.
 
 6. Go over the code and lock all globals with mutexes, thus make sound 
 multitask hard.
+
+7. Try opening/operating on all devices. Some entries do not appear to be
+complete.
