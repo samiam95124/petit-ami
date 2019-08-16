@@ -73,7 +73,8 @@ ifndef GRAPH
         ifeq ($(LINK_TYPE),static)
             LIBS += bin/petit_ami_term.a
         else
-    	    LIBS += linux/sound.o linux/fluidsynthplug.o bin/petit_ami_term.so
+    	    LIBS += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o \
+    	            bin/petit_ami_term.so
         endif
     else
         #
@@ -84,7 +85,8 @@ ifndef GRAPH
         ifeq ($(LINK_TYPE),static)
             LIBS += bin/petit_ami_plain.a
         else
-    	    LIBS += linux/sound.o linux/fluidsynthplug.o bin/petit_ami_plain.so
+    	    LIBS += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o \
+    	            bin/petit_ami_plain.so
         endif
     endif
 else
@@ -118,6 +120,9 @@ linux/sound.o: linux/sound.c include/sound.h
 linux/fluidsynthplug.o: linux/fluidsynthplug.c include/sound.h
 	gcc -g3 -Iinclude -fPIC -c linux/fluidsynthplug.c -lasound -lm -pthread -o linux/fluidsynthplug.o
 	
+linux/dumpsynthplug.o: linux/dumpsynthplug.c include/sound.h
+	gcc -g3 -Iinclude -fPIC -c linux/dumpsynthplug.c -lasound -lm -pthread -o linux/dumpsynthplug.o
+	
 linux/xterm.o: linux/xterm.c include/terminal.h
 	gcc -g3 -Iinclude -fPIC -c linux/xterm.c -o linux/xterm.o
 	
@@ -132,23 +137,34 @@ linux/graph_x.o: linux/graph_x.c include/graph.h
 # Note that sound lib cannot be put into an .so, there is a bug in ALSA.
 # Thus we leave it as a .o file.
 #
-bin/petit_ami_plain.so: linux/services.o linux/sound.o linux/fluidsynthplug.o
-	gcc -shared linux/services.o linux/sound.o linux/fluidsynthplug.o -o bin/petit_ami_plain.so
+bin/petit_ami_plain.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
+    linux/dumpsynthplug.o
+	gcc -shared linux/services.o linux/sound.o linux/fluidsynthplug.o \
+	    linux/dumpsynthplug.o -o bin/petit_ami_plain.so
 	
-bin/petit_ami_plain.a: linux/services.o linux/sound.o linux/fluidsynthplug.o
-	ar rcs bin/petit_ami_plain.a linux/services.o linux/sound.o linux/fluidsynthplug.o
+bin/petit_ami_plain.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
+    linux/dumpsynthplug.o
+	ar rcs bin/petit_ami_plain.a linux/services.o linux/sound.o \
+	    linux/fluidsynthplug.o linux/dumpsynthplug.o
 	
-bin/petit_ami_term.so: linux/services.o linux/sound.o linux/fluidsynthplug.o linux/xterm.o
-	gcc -shared linux/services.o linux/sound.o linux/fluidsynthplug.o linux/xterm.o -o bin/petit_ami_term.so
+bin/petit_ami_term.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
+    linux/dumpsynthplug.o linux/xterm.o
+	gcc -shared linux/services.o linux/sound.o linux/fluidsynthplug.o \
+	    linux/dumpsynthplug.o linux/xterm.o -o bin/petit_ami_term.so
 	
-bin/petit_ami_term.a: linux/services.o linux/sound.o linux/fluidsynthplug.o linux/xterm.o
-	ar rcs bin/petit_ami_term.a linux/services.o linux/sound.o linux/fluidsynthplug.o linux/xterm.o
+bin/petit_ami_term.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
+    linux/dumpsynthplug.o linux/xterm.o
+	ar rcs bin/petit_ami_term.a linux/services.o linux/sound.o \
+	    linux/fluidsynthplug.o linux/dumpsynthplug.o linux/xterm.o
 	
-petit_ami_graph.so: linux/services.o linux/sound.o linux/fluidsynthplug.o linux/graph_x.o
-	gcc linux/services.o linux/sound.o linux/fluidsynthplug.o linux/xterm.o -o bin/petit_ami_graph.so
+petit_ami_graph.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
+    linux/dumpsynthplug.o linux/graph_x.o
+	gcc linux/services.o linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o linux/xterm.o -o bin/petit_ami_graph.so
 	
-petit_ami_graph.a: linux/services.o linux/sound.o linux/fluidsynthplug.o linux/graph_x.o
-	ar rcs bin/petit_ami_graph.a linux/services.o linux/sound.o linux/fluidsynthplug.o linux/xterm.o
+petit_ami_graph.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
+    linux/dumpsynthplug.o linux/graph_x.o
+	ar rcs bin/petit_ami_graph.a linux/services.o linux/sound.o \
+	linux/fluidsynthplug.o linux/dumpsynthplug.o linux/xterm.o
 
 #
 # Make individual executables

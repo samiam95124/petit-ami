@@ -19,12 +19,16 @@ strange.
 
 3. Consistent issue with scratchy sound out of ALSA. It happens in both
 wave and midi modes. It seems to often self-correct, but sometimes not.
+Appears to bear relation to task priority.
 
 4. Need to reconcile fluidsynthplug:writeliquid() settings against the
 Fluidsynth API. Two means to do this are:
 
-A. Observe the behavior against Fluidsynth decode of midi commands.
-B. Source code examination.
+    A. Observe the behavior against Fluidsynth decode of midi commands.
+    B. Source code examination.
 
 5. Need to reset the midi channels on open. Right now it is possible to have the
 midi channel in an odd state which open can't fix.
+
+6. Go over the code and lock all globals with mutexes, thus make sound 
+multitask hard.
