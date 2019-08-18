@@ -174,6 +174,40 @@ static void writefluid(int p, seqptr sp)
 
 /*******************************************************************************
 
+Set parameter
+
+Set plug in parameter from the given name and value. Not implemented at present.
+Always returns error.
+
+*******************************************************************************/
+
+int setparamfluid(int p, string name, string value)
+
+{
+
+    return (1); /* always return error */
+
+}
+
+/*******************************************************************************
+
+Get parameter
+
+Get plug in parameter from the given name and value. Not implemented at present.
+Always returns empty string.
+
+*******************************************************************************/
+
+void getparamfluid(int p, string name, string value, int len)
+
+{
+
+    *value = 0; /* clear output string */
+
+}
+
+/*******************************************************************************
+
 Initialize Fluidsynth plug-in.
 
 Registers Fluidsynth as a plug-in device with PA sound module.
@@ -245,7 +279,7 @@ static void fluidsynth_plug_init()
 
         /* now install us as PA device */
         sprintf(buff, "Fluidsynth%d", i+1);
-        _pa_synthoutplug(buff, openfluid, closefluid, writefluid);
+        _pa_synthoutplug(buff, openfluid, closefluid, writefluid, setparamfluid, getparamfluid);
 
     }
     /* re-enable error messages */

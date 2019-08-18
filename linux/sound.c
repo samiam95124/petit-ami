@@ -240,10 +240,26 @@ typedef struct snddev {
     int            pback;      /* pushback for input */
     boolean        sync;       /* midi channel synced */
     /* These entries support plug in devices, but are also set for intenal devices */
-    void (*open)(int p);       /* open port */
-    void (*close)(int p);      /* close port */
-    void (*wrseq)(int p, seqptr sp); /* write function pointer */
-    void (*rdseq)(int p, seqptr sp); /* read function pointer */
+    void (*open)(int p);                  /* open port */
+    void (*close)(int p);                 /* close port */
+    void (*wrseq)(int p, seqptr sp);      /* write MIDI out device */
+    void (*rdseq)(int p, seqptr sp);      /* read MIDI in device */
+    void (*wrwav)(int p, byte* buff, int len); /* write wave out device */
+    int (*rdwav)(int p, byte* buff, int len); /* read wave in device */
+    void (*chanwavout)(int p, int c);     /* channels for wave output */
+    void (*ratewavout)(int p, int r);     /* rate for wave output */
+    void (*lenwavout)(int p, int l);      /* bitlength for wave output */
+    void (*sgnwavout)(int p, boolean s);  /* sign for wave output */
+    void (*fltwavout)(int p, boolean f);  /* float for wave output */
+    void (*endwavout)(int p, boolean e); /* endian for wave output */
+    int (*chanwavin)(int p);              /* channels for wave input */
+    int (*ratewavin)(int p);              /* rate for wave input */
+    int (*lenwavin)(int p);               /* bitlength for wave input */
+    boolean (*sgnwavin)(int p);          /* sign for wave input */
+    boolean (*fltwavin)(int p);          /* float for wave input */
+    boolean (*endwavin)(int p);          /* endian for wave input */
+    int (*setparam)(int p, string name, string value); /* set parameter */
+    void (*getparam)(int p, string name, string value, int len); /* get parameter */
     boolean        devopn;     /* device open flag */
 
 } snddev;
@@ -324,6 +340,8 @@ static int alsapcminnum; /* PCM in */
 /* count of plug-ins */
 static int alsamidioutplug; /* MIDI out */
 static int alsamidiinplug; /* MIDI in */
+static int alsapcmoutplug; /* PCM out */
+static int alsapcminplug; /* PCM in */
 
 /* forwards */
 static void alsaplaysynth_kickoff(int p, int s);
@@ -1420,6 +1438,445 @@ static void closealsamidiin(int p)
 
 /*******************************************************************************
 
+Open ALSA PCM output device
+
+Opens an ALSA PCM output port for use.
+
+*******************************************************************************/
+
+static void openalsapcmout(int p)
+
+{
+
+    int r;
+
+    r = snd_pcm_open(&alsapcmout[p-1]->pcm, alsapcmout[p-1]->name,
+                     SND_PCM_STREAM_PLAYBACK, 0);
+    if (r < 0) alsaerror(r);
+
+}
+
+/*******************************************************************************
+
+Close ALSA PCM output device
+
+Closes an ALSA PCM output device for use.
+
+*******************************************************************************/
+
+static void closealsapcmout(int p)
+
+{
+
+    snd_pcm_close(alsapcmout[p-1]->pcm); /* close port */
+
+}
+
+/*******************************************************************************
+
+Open ALSA PCM input device
+
+Opens an ALSA PCM input port for use.
+
+*******************************************************************************/
+
+static void openalsapcmin(int p)
+
+{
+
+    snd_pcm_hw_params_t *hw_params;
+    unsigned int rate;
+    int fmt;
+    int r;
+
+    r = snd_pcm_open(&alsapcmin[p-1]->pcm, alsapcmin[p-1]->name,
+                     SND_PCM_STREAM_CAPTURE, 0);
+    if (r < 0) alsaerror(r);
+
+    r = snd_pcm_hw_params_malloc(&hw_params);
+    if (r < 0) alsaerror(r);
+
+    /* fill defaults */
+    r = snd_pcm_hw_params_any(alsapcmin[p-1]->pcm, hw_params);
+    if (r < 0) alsaerror(r);
+
+    r = snd_pcm_hw_params_set_access(alsapcmin[p-1]->pcm, hw_params, SND_PCM_ACCESS_RW_INTERLEAVED);
+    if (r < 0) alsaerror(r);
+
+    fmt = params2alsa(alsapcmin[p-1]); /* find equivalent ALSA format code */
+    r = snd_pcm_hw_params_set_format(alsapcmin[p-1]->pcm, hw_params, fmt);
+    if (r < 0) alsaerror(r);
+
+    rate = alsapcmin[p-1]->rate;
+    r = snd_pcm_hw_params_set_rate_near(alsapcmin[p-1]->pcm, hw_params, &rate, 0);
+    if (r < 0) alsaerror(r);
+
+    r = snd_pcm_hw_params_set_channels(alsapcmin[p-1]->pcm, hw_params, alsapcmin[p-1]->chan);
+    if (r < 0) alsaerror(r);
+
+    r = snd_pcm_hw_params(alsapcmin[p-1]->pcm, hw_params);
+    if (r < 0) alsaerror(r);
+
+    snd_pcm_hw_params_free (hw_params);
+
+    snd_pcm_prepare(alsapcmin[p-1]->pcm);
+    if (r < 0) alsaerror(r);
+
+}
+
+/*******************************************************************************
+
+Close ALSA PCM input device
+
+Closes an ALSA PCM input port for use.
+
+*******************************************************************************/
+
+static void closealsapcmin(int p)
+
+{
+
+    snd_pcm_close(alsapcmin[p-1]->pcm); /* close wave device */
+    snd_rawmidi_close(alsamidiout[p-1]->midi); /* close port */
+
+}
+
+/*******************************************************************************
+
+Write ALSA PCM output device
+
+Writes a buffer of wave data to the given output wave port. The data must be
+formatted according to the number of channels. It must be a wave output port,
+and it must be open. Wave samples are always output in 24 bit samples, and the
+channels are interleaved. This means that the presentation will have channel
+1 first, followed by channel 2, etc, then repeat for the next sample. The
+samples are converted as required from the 24 bit, big endian samples as
+required. The can be up or down converted according to size, and may be
+converted to floating point.
+
+This package does not control buffering dept. As much buffering a needed to keep
+the data is used without regard for realtime concerns. The nececessary buffering
+for real time is implemented by the user of this package, which is generally
+recommended to be 1ms or less (64 samples at a 44100 sample rate).
+
+*******************************************************************************/
+
+static void wralsapcmout(int p, byte* buff, int len)
+
+{
+
+    int r;
+    int bytes;
+
+    if (alsapcmout[p-1]->fmt == -1) {
+
+        /* if format is not set yet, we set it here */
+        alsapcmout[p-1]->fmt = params2alsa(alsapcmout[p-1]);
+        r = snd_pcm_set_params(alsapcmout[p-1]->pcm, alsapcmout[p-1]->fmt,
+                               SND_PCM_ACCESS_RW_INTERLEAVED, alsapcmout[p-1]->chan,
+                               alsapcmout[p-1]->rate, 1, 500000);
+        if (r < 0) alsaerror(r);
+        /* find size of sample */
+        bytes = alsapcmout[p-1]->bits/8; /* find bytes per */
+        if (alsapcmout[p-1]->bits&8) bytes++; /* round  up */
+        bytes *= alsapcmout[p-1]->chan;
+        alsapcmout[p-1]->ssiz = bytes;
+        snd_pcm_prepare(alsapcmout[p-1]->pcm);
+
+    }
+    r = snd_pcm_writei(alsapcmout[p-1]->pcm, buff, len);
+    if (r == -EPIPE) {
+        /* uncomment next for a broken pipe diagnostic */
+        /* printf("Recovered from output error\n"); */
+        snd_pcm_recover(alsapcmin[p-1]->pcm, r, 1);
+    } else if (r < 0) alsaerror(r);
+
+}
+
+/*******************************************************************************
+
+Read wave data input
+
+Reads a buffer of wave data from the given input wave port. The data is
+formatted according to the number of channels. It must be a wave input port,
+and it must be open. Wave samples are always input in 24 bit samples, and the
+channels are interleaved. This means that the presentation will have channel
+1 first, followed by channel 2, etc, then repeat for the next sample. The
+samples are converted as required from the 24 bit, big endian samples as
+required. The can be up or down converted according to size, and may be
+converted to floating point.
+
+The input device will be buffered according to the parameters of the input
+device and/or the device software. The hardware will have a given buffering
+amount, and the driver many change that to be higher or lower. Generally the
+buffering will be designed to keep the buffer latency below 1ms (64 samples at a
+44100 sample rate). Because the exact sample rate is unknown, the caller is
+recommended to provide a buffer that is greater than any possible buffer amount.
+Thus (for example) 1024*channels would be an appropriate buffer size. Not
+providing enough buffering will not cause an error, but will cause the read
+rate to fall behind the data rate.
+
+pa_rdwave() will return the actual number of bytes read, which will contain
+3*pa_chanwavein() bytes of samples. This will then be the actual buffer content.
+
+*******************************************************************************/
+
+static int rdalsapcmin(int p, byte* buff, int len)
+
+{
+
+    int r;
+
+    do {
+
+        r = snd_pcm_readi(alsapcmin[p-1]->pcm, buff, len);
+        if (r < 0) {
+
+            /* uncomment the next to get a channel recovery diagnostic */
+            /* fprintf(stderr, "Read data recovered\n"); */
+            r = snd_pcm_recover(alsapcmin[p-1]->pcm, r, 1);
+            if (r < 0) alsaerror(r);
+
+        }
+
+    } while (!r);
+
+    return (r);
+
+}
+
+/*******************************************************************************
+
+Set the number of channels for an alsa PCM output device
+
+The given port will have its channel number set from the provided number. It
+must be a wave output port, and it must be open. Wave samples are always output
+in 24 bit samples, and the channels are interleaved. This means that the
+presentation will have channel 1 first, followed by channel 2, etc, then repeat
+for the next sample.
+
+*******************************************************************************/
+
+static void chanalsapcmout(int p, int c)
+
+{
+
+    alsapcmout[p-1]->chan = c;
+    alsapcmout[p-1]->fmt = -1; /* set format undefined until read/write time */
+
+}
+
+/*******************************************************************************
+
+Set the rate for an ALSA PCM output device
+
+The given port will have its rate set from the provided number, which is the
+number of samples per second that will be output. Output samples are retimed
+for the rate. No matter how much data is written, each sample is timed to output
+at the given rate, buffering as required.
+
+*******************************************************************************/
+
+static void ratealsapcmout(int p, int r)
+
+{
+
+    alsapcmout[p-1]->rate = r;
+    alsapcmout[p-1]->fmt = -1; /* set format undefined until read/write time */
+
+}
+
+/*******************************************************************************
+
+Set bit length for an ALSA PCM output device
+
+The given port has its bit length for samples set. Bit lengths are rounded up
+to the nearest byte. At the present time, bit numbers that are not divisible by
+8 are not supported, but the most likely would be to zero or 1 pad the msbs
+depending on signed status, effectively extending the samples. Thus the bit
+cound would mainly indicate precision only.
+
+*******************************************************************************/
+
+static void lenalsapcmout(int p, int l)
+
+{
+
+    alsapcmout[p-1]->bits = l;
+    alsapcmout[p-1]->fmt = -1; /* set format undefined until read/write time */
+
+}
+
+/*******************************************************************************
+
+Set sign of ALSA PCM output device samples
+
+The given port has its signed/no signed status changed. Note that all floating
+point formats are inherently signed.
+
+*******************************************************************************/
+
+static void sgnalsapcmout(int p, boolean s)
+
+{
+
+    alsapcmout[p-1]->sgn = s;
+    alsapcmout[p-1]->fmt = -1; /* set format undefined until read/write time */
+
+}
+
+/*******************************************************************************
+
+Set floating/non-floating point format of ALSA PCM output device
+
+Sets the floating point/integer format for output sound samples.
+
+*******************************************************************************/
+
+static void fltalsapcmout(int p, boolean f)
+
+{
+
+    alsapcmout[p-1]->flt = f;
+    alsapcmout[p-1]->fmt = -1; /* set format undefined until read/write time */
+
+}
+
+/*******************************************************************************
+
+Set big/little endian format for ALSA PCM output device
+
+Sets the big or little endian format for an output wave device. It is possible
+that an installation is fixed to the endian format of the host machine, in which
+case it is an error to set a format that is different.
+
+*******************************************************************************/
+
+static void endalsapcmout(int p, boolean e)
+
+{
+
+    alsapcmout[p-1]->big = e;
+    alsapcmout[p-1]->fmt = -1; /* set format undefined until read/write time */
+
+}
+
+/*******************************************************************************
+
+Get the number of channels for a ALSA PCM device
+
+The given port will have its channel number read and returned. It must be a PCM
+input port, and it must be open. PCM samples are always input in 24 bit
+samples, and the channels are interleaved. This means that the presentation will
+have channel 1 first, followed by channel 2, etc, then repeat for the next
+sample.
+
+*******************************************************************************/
+
+int chanalsapcmin(int p)
+
+{
+
+    return (alsapcmin[p-1]->chan); /* return channel count */
+
+}
+
+/*******************************************************************************
+
+Get the rate for a ALSA PCM device
+
+The given port will have its rate read and returned, which is the
+number of samples per second that will be input. It must be a PCM output port,
+and it must be open. Input samples are timed at the rate.
+
+*******************************************************************************/
+
+int ratealsapcmin(int p)
+
+{
+
+    return (alsapcmin[p-1]->rate); /* return channel count */
+
+}
+
+/*******************************************************************************
+
+Get the bit length for a ALSA PCM device
+
+Returns the number of bits for a given input PCM device. To find the number of
+bytes required for the format is:
+
+bytes = bits/8;
+if (bits%8) bytes++;
+
+This is then multipled by the number of channels to determine the size of a
+"sample", or unit of sound data transfer.
+
+At present, only whole byte format samples are supported, IE., 8, 16, 24, 32,
+etc. However, the caller should assume that partial bytes can be used and thus
+round up bit lengths as shown above.
+
+*******************************************************************************/
+
+int lenalsapcmin(int p)
+
+{
+
+    return (alsapcmin[p-1]->bits); /* return bit count */
+
+}
+
+/*******************************************************************************
+
+Get signed status of ALSA PCM device
+
+Returns true if the given ALSA PCM device has signed sampling. Note that
+signed sampling is always true if the samples are floating point.
+
+*******************************************************************************/
+
+boolean sgnalsapcmin(int p)
+
+{
+
+    return (alsapcmin[p-1]->sgn); /* return signed status */
+
+}
+
+/*******************************************************************************
+
+Get big endian status of ALSA PCM device
+
+Returns true if the given ALSA PCM device has big endian sampling.
+
+*******************************************************************************/
+
+boolean endalsapcmin(int p)
+
+{
+
+    return (alsapcmin[p-1]->big); /* return big endian status */
+
+}
+
+/*******************************************************************************
+
+Get floating point status of ALSA PCM device
+
+Returns true if the given ALSA PCM device has floating point sampling.
+
+*******************************************************************************/
+
+boolean fltalsapcmin(int p)
+
+{
+
+    return (alsapcmin[p-1]->flt); /* return floating point status */
+
+}
+
+/*******************************************************************************
+
 Write sequencer entry
 
 Writes a sequencer entry to the device given by it's port.
@@ -1450,6 +1907,37 @@ static void rdseq(seqptr sp)
 
 }
 
+/*******************************************************************************
+
+ALSA set parameter
+
+ALSA has no set parameter function, so this always an error.
+
+*******************************************************************************/
+
+static int setalsaparam(int p, string name, string value)
+
+{
+
+    return 1;
+
+}
+
+/*******************************************************************************
+
+ALSA get parameter
+
+ALSA has no get parameter function, so this always returns an empty string.
+
+*******************************************************************************/
+
+static void getalsaparam(int p, string name, string value)
+
+{
+
+    *value = 0;
+
+}
 
 /*******************************************************************************
 
@@ -1464,10 +1952,13 @@ plug-in takes over the default device.
 *******************************************************************************/
 
 void _pa_synthoutplug(
-    /* name */            string name,
-    /* open sequencer */  void (*open)(int p),
-    /* close sequencer */ void (*close)(int p),
-    /* write sequencer */ void (*wrseq)(int p, seqptr sp)
+    /* name */          string name,
+    /* open synth */    void (*open)(int p),
+    /* close synth */   void (*close)(int p),
+    /* write synth */   void (*wrseq)(int p, seqptr sp),
+    /* set parameter */ int (*setparam)(int p, string name, string value),
+    /* get parameter */ void (*getparam)(int p, string name, string value,
+                                         int len)
 )
 
 {
@@ -1486,6 +1977,8 @@ void _pa_synthoutplug(
     alsamidiout[alsamidioutplug]->open = open; /* set open alsa midi device */
     alsamidiout[alsamidioutplug]->close = close; /* set close alsa midi device */
     alsamidiout[alsamidioutplug]->wrseq = wrseq; /* set sequencer execute function */
+    alsamidiout[alsamidioutplug]->setparam = setparam; /* set parameter */
+    alsamidiout[alsamidioutplug]->getparam = getparam; /* get parameter */
     alsamidiout[alsamidioutplug]->devopn = false; /* set not open */
     alsamidioutnum++; /* count total devices */
     alsamidioutplug++; /* count plug-ins */
@@ -1508,7 +2001,10 @@ void _pa_synthinplug(
     /* name */            string name,
     /* open sequencer */  void (*open)(int p),
     /* close sequencer */ void (*close)(int p),
-    /* read sequencer */ void (*rdseq)(int p, seqptr sp)
+    /* read sequencer */  void (*rdseq)(int p, seqptr sp),
+    /* set parameter */   int (*setparam)(int p, string name, string value),
+    /* get parameter */   void (*getparam)(int p, string name, string value,
+                                           int len)
 )
 
 {
@@ -1527,9 +2023,128 @@ void _pa_synthinplug(
     alsamidiin[alsamidiinplug]->open = open; /* set open alsa midi device */
     alsamidiin[alsamidiinplug]->close = close; /* set close alsa midi device */
     alsamidiin[alsamidiinplug]->rdseq = rdseq; /* set sequencer read function */
+    alsamidiout[alsamidiinplug]->setparam = setparam; /* set parameter */
+    alsamidiout[alsamidiinplug]->getparam = getparam; /* get parameter */
     alsamidiin[alsamidiinplug]->devopn = false; /* set not open */
     alsamidiinnum++; /* count total devices */
     alsamidiinplug++; /* count plug-ins */
+
+}
+
+/*******************************************************************************
+
+Define plug-in wave output device
+
+Lets a wave plug-in define a device. Accepts three vectors, the open, close
+and write vectors. Returns the defined device.
+
+Plug-ins go into the wave output device table at position 1, meaning that the
+plug-in takes over the default device.
+
+*******************************************************************************/
+
+void _pa_waveoutplug(
+    /* name */                      string name,
+    /* open sequencer */            void (*open)(int p),
+    /* close sequencer */           void (*close)(int p),
+    /* channels for wave output */  void (*chanwavout)(int p, int c),
+    /* rate for wave output */      void (*ratewavout)(int p, int r),
+    /* bitlength for wave output */ void (*lenwavout)(int p, int l),
+    /* sign for wave output */      void (*sgnwavout)(int p, boolean s),
+    /* float for wave output */     void (*fltwavout)(int p, boolean f),
+    /* endian for wave output */    void (*endwavout)(int p, boolean e),
+    /* write wave */                void (*wrwav)(int p, byte* buff, int len),
+    /* set parameter */             int (*setparam)(int p, string name,
+                                                    string value),
+    /* get parameter */             void (*getparam)(int p, string name,
+                                                     string value, int len)
+)
+
+{
+
+    int i;
+
+    if (alsapcmoutnum >= MAXMIDP) error("Device table full");
+    /* move table entries above plug-ins up one */
+    for (i = MAXMIDP-1; i > alsapcmoutplug; i--)
+        alsapcmout[i] = alsapcmout[i-1];
+    alsapcmout[alsapcmoutplug] = malloc(sizeof(snddev)); /* create new device entry */
+    alsapcmout[alsapcmoutplug]->name = malloc(strlen(name)+1); /* place name of device */
+    strcpy(alsapcmout[alsapcmoutplug]->name, name);
+    alsapcmout[alsapcmoutplug]->last = 0; /* clear last byte */
+    alsapcmout[alsapcmoutplug]->pback = -1; /* set no pushback */
+    alsapcmout[alsapcmoutplug]->open = open; /* set open alsa midi device */
+    alsapcmout[alsapcmoutplug]->close = close; /* set close alsa midi device */
+    alsapcmout[alsapcmoutplug]->wrwav = wrwav; /* set wave out function */
+    alsapcmout[alsapcmoutplug]->chanwavout = chanwavout; /* channels for wave output */
+    alsapcmout[alsapcmoutplug]->ratewavout = ratewavout; /* rate for wave output */
+    alsapcmout[alsapcmoutplug]->lenwavout = lenwavout; /* bitlength for wave output */
+    alsapcmout[alsapcmoutplug]->sgnwavout = sgnwavout; /* sign for wave output */
+    alsapcmout[alsapcmoutplug]->fltwavout = fltwavout; /* float for wave output */
+    alsapcmout[alsapcmoutplug]->endwavout = endwavout; /* endian for wave output */
+    alsamidiout[alsapcmoutplug]->setparam = setparam; /* set parameter */
+    alsamidiout[alsapcmoutplug]->getparam = getparam; /* get parameter */
+    alsapcmout[alsapcmoutplug]->devopn = false; /* set not open */
+    alsapcmoutnum++; /* count total devices */
+    alsapcmoutplug++; /* count plug-ins */
+
+}
+
+/*******************************************************************************
+
+Define plug-in wave input device
+
+Lets a wave plug-in define a device. Accepts three vectors, the open, close
+and write vectors. Returns the defined device.
+
+Plug-ins go into the wave input device table at position 1, meaning that the
+plug-in takes over the default device.
+
+*******************************************************************************/
+
+void _pa_waveinplug(
+    /* name */                     string name,
+    /* open sequencer */           void (*open)(int p),
+    /* close sequencer */          void (*close)(int p),
+    /* channels for wave input */  int (*chanwavin)(int p),
+    /* rate for wave input */      int (*ratewavin)(int p),
+    /* bitlength for wave input */ int (*lenwavin)(int p),
+    /* sign for wave input */      boolean (*sgnwavin)(int p),
+    /* float for wave input */     boolean (*fltwavin)(int p),
+    /* endian for wave input */    boolean (*endwavein)(int p),
+    /* read wave */                int (*rdwav)(int p, byte* buff, int len),
+    /* set parameter */            int (*setparam)(int p, string name,
+                                                   string value),
+    /* get parameter */            void (*getparam)(int p, string name,
+                                                     string value, int len)
+)
+
+{
+
+    int i;
+
+    if (alsapcminnum >= MAXMIDP) error("Device table full");
+    /* move table entries above plug-ins up one */
+    for (i = MAXMIDP-1; i > alsapcminplug; i--)
+        alsapcmin[i] = alsapcmin[i-1];
+    alsapcmin[alsapcminplug] = malloc(sizeof(snddev)); /* create new device entry */
+    alsapcmin[alsapcminplug]->name = malloc(strlen(name)+1); /* place name of device */
+    strcpy(alsapcmin[alsapcminplug]->name, name);
+    alsapcmin[alsapcminplug]->last = 0; /* clear last byte */
+    alsapcmin[alsapcminplug]->pback = -1; /* set no pushback */
+    alsapcmin[alsapcminplug]->open = open; /* set open alsa midi device */
+    alsapcmin[alsapcminplug]->close = close; /* set close alsa midi device */
+    alsapcmin[alsapcminplug]->rdwav = rdwav; /* set wave in function */
+    alsapcmin[alsapcminplug]->chanwavin = chanwavin; /* channels for wave input */
+    alsapcmin[alsapcminplug]->ratewavin = ratewavin; /* rate for wave input */
+    alsapcmin[alsapcminplug]->lenwavin = lenwavin; /* bitlength for wave input */
+    alsapcmin[alsapcminplug]->sgnwavin = sgnwavin; /* sign for wave input */
+    alsapcmin[alsapcminplug]->fltwavin = fltwavin; /* float for wave input */
+    alsapcmin[alsapcminplug]->setparam = setparam; /* set parameter */
+    alsapcmin[alsapcminplug]->getparam = getparam; /* get parameter */
+    alsapcmin[alsapcminplug]->devopn = false; /* set not open */
+    alsapcminnum++; /* count total devices */
+    alsapcminplug++; /* count plug-ins */
 
 }
 
@@ -3935,9 +4550,7 @@ void pa_openwaveout(int p)
     if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
     if (alsapcmout[p-1]->devopn) error("Wave port already open");
 
-    r = snd_pcm_open(&alsapcmout[p-1]->pcm, alsapcmout[p-1]->name,
-                     SND_PCM_STREAM_PLAYBACK, 0);
-    if (r < 0) alsaerror(r);
+    alsapcmout[p-1]->open(p); /* open device */
     alsapcmout[p-1]->devopn = true; /* set open */
     alsapcmout[p-1]->fmt = -1; /* set format undefined until read/write time */
 
@@ -3959,7 +4572,7 @@ void pa_closewaveout(int p)
     if (!alsapcmout[p]) error("No wave output device defined at logical number");
     if (!alsapcmout[p-1]->devopn) error("Wave port not open");
 
-    snd_pcm_close(alsapcmout[p-1]->pcm);
+    alsapcmout[p-1]->close(p); /* close device */
     alsapcmout[p-1]->devopn = false; /* set closed */
 
 
@@ -4320,8 +4933,7 @@ void pa_chanwaveout(int p, int c)
     if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
     if (!alsapcmout[p-1]->devopn) error("Wave port not open");
 
-    alsapcmout[p-1]->chan = c;
-    alsapcmout[p-1]->fmt = -1; /* set format undefined until read/write time */
+    alsapcmout[p-1]->chanwavout; /* set channels */
 
 }
 
@@ -4345,8 +4957,7 @@ void pa_ratewaveout(int p, int r)
     if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
     if (!alsapcmout[p-1]->devopn) error("Wave port not open");
 
-    alsapcmout[p-1]->rate = r;
-    alsapcmout[p-1]->fmt = -1; /* set format undefined until read/write time */
+    alsapcmout[p-1]->ratewavout; /* set rate */
 
 }
 
@@ -4370,8 +4981,7 @@ void pa_lenwaveout(int p, int l)
     if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
     if (!alsapcmout[p-1]->devopn) error("Wave port not open");
 
-    alsapcmout[p-1]->bits = l;
-    alsapcmout[p-1]->fmt = -1; /* set format undefined until read/write time */
+    alsapcmout[p-1]->lenwavout; /* set length */
 
 }
 
@@ -4392,8 +5002,7 @@ void pa_sgnwaveout(int p, boolean s)
     if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
     if (!alsapcmout[p-1]->devopn) error("Wave port not open");
 
-    alsapcmout[p-1]->sgn = s;
-    alsapcmout[p-1]->fmt = -1; /* set format undefined until read/write time */
+    alsapcmout[p-1]->sgnwavout; /* set sign */
 
 }
 
@@ -4413,8 +5022,7 @@ void pa_fltwaveout(int p, boolean f)
     if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
     if (!alsapcmout[p-1]->devopn) error("Wave port not open");
 
-    alsapcmout[p-1]->flt = f;
-    alsapcmout[p-1]->fmt = -1; /* set format undefined until read/write time */
+    alsapcmout[p-1]->fltwavout; /* set float */
 
 }
 
@@ -4436,8 +5044,7 @@ void pa_endwaveout(int p, boolean e)
     if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
     if (!alsapcmout[p-1]->devopn) error("Wave port not open");
 
-    alsapcmout[p-1]->big = e;
-    alsapcmout[p-1]->fmt = -1; /* set format undefined until read/write time */
+    alsapcmout[p-1]->endwavout; /* set endian */
 
 }
 
@@ -4511,48 +5118,12 @@ void pa_openwavein(int p)
 
 {
 
-    snd_pcm_hw_params_t *hw_params;
-    unsigned int rate;
-    int fmt;
-    int r;
-
     if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
     if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
     if (alsapcmin[p-1]->devopn) error("Wave port already open");
 
-    r = snd_pcm_open(&alsapcmin[p-1]->pcm, alsapcmin[p-1]->name,
-                     SND_PCM_STREAM_CAPTURE, 0);
-    if (r < 0) alsaerror(r);
+    alsapcmin[p-1]->open(p); /* open device */
     alsapcmin[p-1]->devopn = true; /* set open */
-
-    r = snd_pcm_hw_params_malloc(&hw_params);
-    if (r < 0) alsaerror(r);
-
-    /* fill defaults */
-    r = snd_pcm_hw_params_any(alsapcmin[p-1]->pcm, hw_params);
-    if (r < 0) alsaerror(r);
-
-    r = snd_pcm_hw_params_set_access(alsapcmin[p-1]->pcm, hw_params, SND_PCM_ACCESS_RW_INTERLEAVED);
-    if (r < 0) alsaerror(r);
-
-    fmt = params2alsa(alsapcmin[p-1]); /* find equivalent ALSA format code */
-    r = snd_pcm_hw_params_set_format(alsapcmin[p-1]->pcm, hw_params, fmt);
-    if (r < 0) alsaerror(r);
-
-    rate = alsapcmin[p-1]->rate;
-    r = snd_pcm_hw_params_set_rate_near(alsapcmin[p-1]->pcm, hw_params, &rate, 0);
-    if (r < 0) alsaerror(r);
-
-    r = snd_pcm_hw_params_set_channels(alsapcmin[p-1]->pcm, hw_params, alsapcmin[p-1]->chan);
-    if (r < 0) alsaerror(r);
-
-    r = snd_pcm_hw_params(alsapcmin[p-1]->pcm, hw_params);
-    if (r < 0) alsaerror(r);
-
-    snd_pcm_hw_params_free (hw_params);
-
-    snd_pcm_prepare(alsapcmin[p-1]->pcm);
-    if (r < 0) alsaerror(r);
 
 }
 
@@ -4572,7 +5143,7 @@ void pa_closewavein(int p)
     if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
     if (!alsapcmin[p-1]->devopn) error("Wave port not open");
 
-    snd_pcm_close(alsapcmin[p-1]->pcm); /* close wave device */
+    alsapcmin[p-1]->close(p); /* close device */
     alsapcmin[p-1]->devopn = false; /* set closed */
 
 }
@@ -4597,7 +5168,7 @@ int pa_chanwavein(int p)
     if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
 //    if (!alsapcmin[p-1]->devopn) error("Wave port not open");
 
-    return (alsapcmin[p-1]->chan); /* return channel count */
+    return (alsapcmin[p-1]->chanwavin(p)); /* return channel count */
 
 }
 
@@ -4619,7 +5190,7 @@ int pa_ratewavein(int p)
     if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
 //    if (!alsapcmin[p-1]->devopn) error("Wave port not open");
 
-    return (alsapcmin[p-1]->rate); /* return channel count */
+    return (alsapcmin[p-1]->ratewavin(p)); /* return channel count */
 
 }
 
@@ -4650,7 +5221,7 @@ int pa_lenwavein(int p)
     if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
 //    if (!alsapcmin[p-1]->devopn) error("Wave port not open");
 
-    return (alsapcmin[p-1]->bits); /* return bit count */
+    return (alsapcmin[p-1]->lenwavin(p)); /* return bit count */
 
 }
 
@@ -4671,7 +5242,7 @@ boolean pa_sgnwavein(int p)
     if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
 //    if (!alsapcmin[p-1]->devopn) error("Wave port not open");
 
-    return (alsapcmin[p-1]->sgn); /* return signed status */
+    return (alsapcmin[p-1]->sgnwavin(p)); /* return signed status */
 
 }
 
@@ -4691,7 +5262,7 @@ boolean pa_endwavein(int p)
     if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
 //    if (!alsapcmin[p-1]->devopn) error("Wave port not open");
 
-    return (alsapcmin[p-1]->big); /* return big endian status */
+    return (alsapcmin[p-1]->endwavin(p)); /* return big endian status */
 
 }
 
@@ -4711,7 +5282,7 @@ boolean pa_fltwavein(int p)
     if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
 //    if (!alsapcmin[p-1]->devopn) error("Wave port not open");
 
-    return (alsapcmin[p-1]->flt); /* return floating point status */
+    return (alsapcmin[p-1]->fltwavin(p)); /* return floating point status */
 
 }
 
@@ -4753,21 +5324,7 @@ int pa_rdwave(int p, byte* buff, int len)
     if (!alsapcmin[p-1]) error("No wave input device defined at logical number");
     if (!alsapcmin[p-1]->devopn) error("Wave port not open");
 
-    do {
-
-        r = snd_pcm_readi(alsapcmin[p-1]->pcm, buff, len);
-        if (r < 0) {
-
-            /* uncomment the next to get a channel recovery diagnostic */
-            /* fprintf(stderr, "Read data recovered\n"); */
-            r = snd_pcm_recover(alsapcmin[p-1]->pcm, r, 1);
-            if (r < 0) alsaerror(r);
-
-        }
-
-    } while (!r);
-
-    return (r);
+    return (alsapcmin[p-1]->rdwav(p, buff, len));
 
 }
 
@@ -5253,17 +5810,45 @@ static void readalsadev(devptr table[], string devt, string iotyp, int tabmax,
             table[i]->last = 0; /* clear last byte */
             table[i]->pback = -1; /* set no pushback */
             table[i]->sync = false; /* set channel not syncronized */
-            if (dt == dt_seqout) { /* is a midi out */
+            switch (dt) { /* table type */
 
-                table[i]->open = openalsamidiout; /* set open alsa midi out evice */
-                table[i]->close = closealsamidiout; /* set close alsa midi out device */
+                case dt_seqout: /* is a midi out */
+                    table[i]->open = openalsamidiout; /* set open alsa midi out evice */
+                    table[i]->close = closealsamidiout; /* set close alsa midi out device */
+                    break;
 
-            } else if (dt = dt_seqin) { /* is a midi in */
+                case dt_seqin: /* is a midi in */
+                    table[i]->open = openalsamidiin; /* set open alsa midi in device */
+                    table[i]->close = closealsamidiin; /* set close alsa midi in device */
+                    break;
 
-                table[i]->open = openalsamidiin; /* set open alsa midi in device */
-                table[i]->close = closealsamidiin; /* set close alsa midi in device */
+                case dt_pcmout: /* is a pcm out */
+                    table[i]->open = openalsapcmout; /* set open alsa midi out evice */
+                    table[i]->close = closealsapcmout; /* set close alsa midi out device */
+                    table[i]->wrwav = wralsapcmout; /* set write wave out device */
+                    table[i]->chanwavout = chanalsapcmout; /* set channels for wave output */
+                    table[i]->ratewavout = ratealsapcmout; /* set rate for wave output */
+                    table[i]->lenwavout = lenalsapcmout;/* set bitlength for wave output */
+                    table[i]->sgnwavout = sgnalsapcmout; /* set sign for wave output */
+                    table[i]->fltwavout = fltalsapcmout; /* set float for wave output */
+                    table[i]->endwavout = endalsapcmout; /* set endian for wave output */
+                    break;
+
+                case dt_pcmin: /* is a pcm in */
+                    table[i]->open = openalsapcmin; /* set open alsa midi out evice */
+                    table[i]->close = closealsapcmin; /* set close alsa midi out device */
+                    table[i]->rdwav = rdalsapcmin; /* set read wave in device */
+                    table[i]->chanwavin = chanalsapcmin; /* set channels for wave input */
+                    table[i]->ratewavin = ratealsapcmin; /* set rate for wave input */
+                    table[i]->lenwavin = lenalsapcmin;/* set bitlength for wave input */
+                    table[i]->sgnwavin = sgnalsapcmin; /* set sign for wave input */
+                    table[i]->fltwavin = fltalsapcmin; /* set float for wave input */
+                    table[i]->endwavin = endalsapcmin; /* set endian for wave output */
+                    break;
 
             }
+            table[i]->setparam = setalsaparam; /* place set routine for all types */
+            table[i]->getparam = getalsaparam; /* place get routine for all types */
             table[i]->wrseq = _pa_excseq; /* set sequencer execute function */
             table[i]->rdseq = inpseq; /* set sequencer read function */
             table[i]->midi = NULL; /* clear midi handle */
@@ -5402,6 +5987,8 @@ static void pa_init_sound()
     /* set midi plug-in counts */
     alsamidioutplug = 0;
     alsamidiinplug = 0;
+    alsapcmoutplug = 0;
+    alsapcminplug = 0;
 
 }
 
