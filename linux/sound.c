@@ -1931,7 +1931,7 @@ ALSA has no get parameter function, so this always returns an empty string.
 
 *******************************************************************************/
 
-static void getalsaparam(int p, string name, string value)
+static void getalsaparam(int p, string name, string value, int len)
 
 {
 
@@ -2951,7 +2951,6 @@ void pa_volsynthchan(int p, int t, pa_channel c, int v)
     if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
     if (c < 1 || c > 16) error("Bad channel number");
 
-printf("pa_volsynthchan(%d, %d, %d, %d)\n", p, t, c, v);
     /* create sequencer entry */
     getseq(&sp); /* get a sequencer message */
     sp->port = p; /* set port */
@@ -4933,7 +4932,7 @@ void pa_chanwaveout(int p, int c)
     if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
     if (!alsapcmout[p-1]->devopn) error("Wave port not open");
 
-    alsapcmout[p-1]->chanwavout; /* set channels */
+    alsapcmout[p-1]->chanwavout(p, c); /* set channels */
 
 }
 
@@ -4957,7 +4956,7 @@ void pa_ratewaveout(int p, int r)
     if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
     if (!alsapcmout[p-1]->devopn) error("Wave port not open");
 
-    alsapcmout[p-1]->ratewavout; /* set rate */
+    alsapcmout[p-1]->ratewavout(p, r); /* set rate */
 
 }
 
@@ -4981,7 +4980,7 @@ void pa_lenwaveout(int p, int l)
     if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
     if (!alsapcmout[p-1]->devopn) error("Wave port not open");
 
-    alsapcmout[p-1]->lenwavout; /* set length */
+    alsapcmout[p-1]->lenwavout(p, l); /* set length */
 
 }
 
@@ -5002,7 +5001,7 @@ void pa_sgnwaveout(int p, boolean s)
     if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
     if (!alsapcmout[p-1]->devopn) error("Wave port not open");
 
-    alsapcmout[p-1]->sgnwavout; /* set sign */
+    alsapcmout[p-1]->sgnwavout(p, s); /* set sign */
 
 }
 
@@ -5022,7 +5021,7 @@ void pa_fltwaveout(int p, boolean f)
     if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
     if (!alsapcmout[p-1]->devopn) error("Wave port not open");
 
-    alsapcmout[p-1]->fltwavout; /* set float */
+    alsapcmout[p-1]->fltwavout(p, f); /* set float */
 
 }
 
@@ -5044,7 +5043,7 @@ void pa_endwaveout(int p, boolean e)
     if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
     if (!alsapcmout[p-1]->devopn) error("Wave port not open");
 
-    alsapcmout[p-1]->endwavout; /* set endian */
+    alsapcmout[p-1]->endwavout(p, e); /* set endian */
 
 }
 
@@ -5079,28 +5078,7 @@ void pa_wrwave(int p, byte* buff, int len)
     if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
     if (!alsapcmout[p-1]->devopn) error("Wave port not open");
 
-    if (alsapcmout[p-1]->fmt == -1) {
-
-        /* if format is not set yet, we set it here */
-        alsapcmout[p-1]->fmt = params2alsa(alsapcmout[p-1]);
-        r = snd_pcm_set_params(alsapcmout[p-1]->pcm, alsapcmout[p-1]->fmt,
-                               SND_PCM_ACCESS_RW_INTERLEAVED, alsapcmout[p-1]->chan,
-                               alsapcmout[p-1]->rate, 1, 500000);
-        if (r < 0) alsaerror(r);
-        /* find size of sample */
-        bytes = alsapcmout[p-1]->bits/8; /* find bytes per */
-        if (alsapcmout[p-1]->bits&8) bytes++; /* round  up */
-        bytes *= alsapcmout[p-1]->chan;
-        alsapcmout[p-1]->ssiz = bytes;
-        snd_pcm_prepare(alsapcmout[p-1]->pcm);
-
-    }
-    r = snd_pcm_writei(alsapcmout[p-1]->pcm, buff, len);
-    if (r == -EPIPE) {
-        /* uncomment next for a broken pipe diagnostic */
-        /* printf("Recovered from output error\n"); */
-        snd_pcm_recover(alsapcmin[p-1]->pcm, r, 1);
-    } else if (r < 0) alsaerror(r);
+    alsapcmout[p-1]->wrwav(p, buff, len);
 
 }
 
