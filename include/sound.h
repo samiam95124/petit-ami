@@ -431,17 +431,20 @@ void pa_waveinname(int p, string name, int len);
 /* non-standard local access calls */
 
 /* register synth plug ins */
-void _pa_synthoutplug(string name, void (*opnseq)(int p), void (*clsseq)(int p),
+void _pa_synthoutplug(boolean addend, string name,
+                      void (*opnseq)(int p), void (*clsseq)(int p),
                       void (*wrseq)(int p, seqptr sp),
                       int (*setparam)(int p, string name, string value),
                       void (*getparam)(int p, string name, string value, int len)
                      );
-void _pa_synthinplug(string name, void (*opnseq)(int p), void (*clsseq)(int p),
+void _pa_synthinplug(boolean addend, string name,
+                     void (*opnseq)(int p), void (*clsseq)(int p),
                      void (*wrseq)(int p, seqptr sp),
                      int (*setparam)(int p, string name, string value),
                      void (*getparam)(int p, string name, string value, int len)
                     );
-void _pa_waveoutplug(string name, void (*open)(int p), void (*close)(int p),
+void _pa_waveoutplug(boolean addend, string name,
+                     void (*open)(int p), void (*close)(int p),
                      void (*chanwavout)(int p, int c),
                      void (*ratewavout)(int p, int r),
                      void (*lenwavout)(int p, int l),
@@ -452,7 +455,8 @@ void _pa_waveoutplug(string name, void (*open)(int p), void (*close)(int p),
                      int (*setparam)(int p, string name, string value),
                      void (*getparam)(int p, string name, string value, int len)
                     );
-void _pa_waveinplug(string name, void (*open)(int p), void (*close)(int p),
+void _pa_waveinplug(boolean addend, string name,
+                    void (*open)(int p), void (*close)(int p),
                     int (*chanwavin)(int p), int (*ratewavin)(int p),
                     int (*lenwavin)(int p), boolean (*sgnwavin)(int p),
                     boolean (*fltwavin)(int p), boolean (*endwavein)(int p),

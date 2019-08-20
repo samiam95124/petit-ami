@@ -1946,12 +1946,15 @@ Define plug-in sequencer output device
 Lets a sequencer plug-in define a device. Accepts three vectors, the open, close
 and write vectors. Returns the defined device.
 
-Plug-ins go into the MIDI output device table at position 1, meaning that the
-plug-in takes over the default device.
+Plug-ins normally go into the MIDI output device table at position 1, meaning
+that the plug-in takes over the default device. The addend parameter changes
+this to add the plug-in to the end of the table. This would be appropriate for
+devices that should not take over the default, such as accessory devices.
 
 *******************************************************************************/
 
 void _pa_synthoutplug(
+    /* add to end */    boolean addend,
     /* name */          string name,
     /* open synth */    void (*open)(int p),
     /* close synth */   void (*close)(int p),
@@ -1964,24 +1967,33 @@ void _pa_synthoutplug(
 {
 
     int i;
+    int p;
 
     if (alsamidioutnum >= MAXMIDP) error("Device table full");
-    /* move table entries above plug-ins up one */
-    for (i = MAXMIDP-1; i > alsamidioutplug; i--)
-        alsamidiout[i] = alsamidiout[i-1];
-    alsamidiout[alsamidioutplug] = malloc(sizeof(snddev)); /* create new device entry */
-    alsamidiout[alsamidioutplug]->name = malloc(strlen(name)+1); /* place name of device */
-    strcpy(alsamidiout[alsamidioutplug]->name, name);
-    alsamidiout[alsamidioutplug]->last = 0; /* clear last byte */
-    alsamidiout[alsamidioutplug]->pback = -1; /* set no pushback */
-    alsamidiout[alsamidioutplug]->open = open; /* set open alsa midi device */
-    alsamidiout[alsamidioutplug]->close = close; /* set close alsa midi device */
-    alsamidiout[alsamidioutplug]->wrseq = wrseq; /* set sequencer execute function */
-    alsamidiout[alsamidioutplug]->setparam = setparam; /* set parameter */
-    alsamidiout[alsamidioutplug]->getparam = getparam; /* get parameter */
-    alsamidiout[alsamidioutplug]->devopn = false; /* set not open */
+    if (addend) p = alsamidioutnum; /* place at end of devices */
+    else {
+
+        p = alsamidioutplug; /* place at end of plugins */
+        /* move table entries above plug-ins up one */
+        for (i = MAXMIDP-1; i > alsamidioutplug; i--)
+            alsamidiout[i] = alsamidiout[i-1];
+        alsamidioutplug++; /* count plug-ins */
+
+    }
+    alsamidiout[p] = malloc(sizeof(snddev)); /* create new device entry */
+    if (!alsamidiout[p]) error("out of memory");
+    alsamidiout[p]->name = malloc(strlen(name)+1); /* place name of device */
+    strcpy(alsamidiout[p]->name, name);
+    alsamidiout[p]->last = 0; /* clear last byte */
+    alsamidiout[p]->pback = -1; /* set no pushback */
+    alsamidiout[p]->open = open; /* set open alsa midi device */
+    alsamidiout[p]->close = close; /* set close alsa midi device */
+    alsamidiout[p]->wrseq = wrseq; /* set sequencer execute function */
+    alsamidiout[p]->setparam = setparam; /* set parameter */
+    alsamidiout[p]->getparam = getparam; /* get parameter */
+    alsamidiout[p]->devopn = false; /* set not open */
     alsamidioutnum++; /* count total devices */
-    alsamidioutplug++; /* count plug-ins */
+
 
 }
 
@@ -1992,12 +2004,15 @@ Define plug-in sequencer input device
 Lets a sequencer plug-in define a device. Accepts three vectors, the open, close
 and read vectors. Returns the defined device.
 
-Plug-ins go into the MIDI input device table at position 1, meaning that the
-plug-in takes over the default device.
+Plug-ins normally go into the MIDI input device table at position 1, meaning
+that the plug-in takes over the default device. The addend parameter changes
+this to add the plug-in to the end of the table. This would be appropriate for
+devices that should not take over the default, such as accessory devices.
 
 *******************************************************************************/
 
 void _pa_synthinplug(
+    /* add to end */      boolean addend,
     /* name */            string name,
     /* open sequencer */  void (*open)(int p),
     /* close sequencer */ void (*close)(int p),
@@ -2010,24 +2025,32 @@ void _pa_synthinplug(
 {
 
     int i;
+    int p;
 
     if (alsamidiinnum >= MAXMIDP) error("Device table full");
-    /* move table entries above plug-ins up one */
-    for (i = MAXMIDP-1; i > alsamidiinplug; i--)
-        alsamidiin[i] = alsamidiin[i-1];
-    alsamidiin[alsamidiinplug] = malloc(sizeof(snddev)); /* create new device entry */
-    alsamidiin[alsamidiinplug]->name = malloc(strlen(name)+1); /* place name of device */
-    strcpy(alsamidiin[alsamidiinplug]->name, name);
-    alsamidiin[alsamidiinplug]->last = 0; /* clear last byte */
-    alsamidiin[alsamidiinplug]->pback = -1; /* set no pushback */
-    alsamidiin[alsamidiinplug]->open = open; /* set open alsa midi device */
-    alsamidiin[alsamidiinplug]->close = close; /* set close alsa midi device */
-    alsamidiin[alsamidiinplug]->rdseq = rdseq; /* set sequencer read function */
-    alsamidiout[alsamidiinplug]->setparam = setparam; /* set parameter */
-    alsamidiout[alsamidiinplug]->getparam = getparam; /* get parameter */
-    alsamidiin[alsamidiinplug]->devopn = false; /* set not open */
+    if (addend) p = alsamidiinnum; /* place at end of devices */
+    else {
+
+        p = alsamidiinplug; /* place at end of plugins */
+        /* move table entries above plug-ins up one */
+        for (i = MAXMIDP-1; i > alsamidiinplug; i--)
+            alsamidiin[i] = alsamidiin[i-1];
+        alsamidiinplug++; /* count plug-ins */
+
+    }
+    alsamidiin[p] = malloc(sizeof(snddev)); /* create new device entry */
+    if (!alsamidiin[p]) error("out of memory");
+    alsamidiin[p]->name = malloc(strlen(name)+1); /* place name of device */
+    strcpy(alsamidiin[p]->name, name);
+    alsamidiin[p]->last = 0; /* clear last byte */
+    alsamidiin[p]->pback = -1; /* set no pushback */
+    alsamidiin[p]->open = open; /* set open alsa midi device */
+    alsamidiin[p]->close = close; /* set close alsa midi device */
+    alsamidiin[p]->rdseq = rdseq; /* set sequencer read function */
+    alsamidiout[p]->setparam = setparam; /* set parameter */
+    alsamidiout[p]->getparam = getparam; /* get parameter */
+    alsamidiin[p]->devopn = false; /* set not open */
     alsamidiinnum++; /* count total devices */
-    alsamidiinplug++; /* count plug-ins */
 
 }
 
@@ -2044,6 +2067,7 @@ plug-in takes over the default device.
 *******************************************************************************/
 
 void _pa_waveoutplug(
+    /* add to end */                boolean addend,
     /* name */                      string name,
     /* open sequencer */            void (*open)(int p),
     /* close sequencer */           void (*close)(int p),
@@ -2063,30 +2087,39 @@ void _pa_waveoutplug(
 {
 
     int i;
+    int p;
 
     if (alsapcmoutnum >= MAXMIDP) error("Device table full");
-    /* move table entries above plug-ins up one */
-    for (i = MAXMIDP-1; i > alsapcmoutplug; i--)
-        alsapcmout[i] = alsapcmout[i-1];
-    alsapcmout[alsapcmoutplug] = malloc(sizeof(snddev)); /* create new device entry */
-    alsapcmout[alsapcmoutplug]->name = malloc(strlen(name)+1); /* place name of device */
-    strcpy(alsapcmout[alsapcmoutplug]->name, name);
-    alsapcmout[alsapcmoutplug]->last = 0; /* clear last byte */
-    alsapcmout[alsapcmoutplug]->pback = -1; /* set no pushback */
-    alsapcmout[alsapcmoutplug]->open = open; /* set open alsa midi device */
-    alsapcmout[alsapcmoutplug]->close = close; /* set close alsa midi device */
-    alsapcmout[alsapcmoutplug]->wrwav = wrwav; /* set wave out function */
-    alsapcmout[alsapcmoutplug]->chanwavout = chanwavout; /* channels for wave output */
-    alsapcmout[alsapcmoutplug]->ratewavout = ratewavout; /* rate for wave output */
-    alsapcmout[alsapcmoutplug]->lenwavout = lenwavout; /* bitlength for wave output */
-    alsapcmout[alsapcmoutplug]->sgnwavout = sgnwavout; /* sign for wave output */
-    alsapcmout[alsapcmoutplug]->fltwavout = fltwavout; /* float for wave output */
-    alsapcmout[alsapcmoutplug]->endwavout = endwavout; /* endian for wave output */
-    alsamidiout[alsapcmoutplug]->setparam = setparam; /* set parameter */
-    alsamidiout[alsapcmoutplug]->getparam = getparam; /* get parameter */
-    alsapcmout[alsapcmoutplug]->devopn = false; /* set not open */
+    if (addend) p = alsapcmoutnum; /* place at end of devices */
+    else {
+
+        p = alsapcmoutplug; /* place at end of plugins */
+        /* move table entries above plug-ins up one */
+        for (i = MAXMIDP-1; i > alsapcmoutplug; i--)
+            alsapcmout[i] = alsapcmout[i-1];
+        alsapcmoutplug++; /* count plug-ins */
+
+    }
+    alsapcmout[p] = malloc(sizeof(snddev)); /* create new device entry */
+    if (!alsapcmout[p]) error("out of memory");
+    alsapcmout[p]->name = malloc(strlen(name)+1); /* place name of device */
+    strcpy(alsapcmout[p]->name, name);
+    alsapcmout[p]->last = 0; /* clear last byte */
+    alsapcmout[p]->pback = -1; /* set no pushback */
+    alsapcmout[p]->open = open; /* set open alsa midi device */
+    alsapcmout[p]->close = close; /* set close alsa midi device */
+    alsapcmout[p]->wrwav = wrwav; /* set wave out function */
+    alsapcmout[p]->chanwavout = chanwavout; /* channels for wave output */
+    alsapcmout[p]->ratewavout = ratewavout; /* rate for wave output */
+    alsapcmout[p]->lenwavout = lenwavout; /* bitlength for wave output */
+    alsapcmout[p]->sgnwavout = sgnwavout; /* sign for wave output */
+    alsapcmout[p]->fltwavout = fltwavout; /* float for wave output */
+    alsapcmout[p]->endwavout = endwavout; /* endian for wave output */
+    alsamidiout[p]->setparam = setparam; /* set parameter */
+    alsamidiout[p]->getparam = getparam; /* get parameter */
+    alsapcmout[p]->devopn = false; /* set not open */
     alsapcmoutnum++; /* count total devices */
-    alsapcmoutplug++; /* count plug-ins */
+
 
 }
 
@@ -2103,6 +2136,7 @@ plug-in takes over the default device.
 *******************************************************************************/
 
 void _pa_waveinplug(
+    /* add to end */               boolean addend,
     /* name */                     string name,
     /* open sequencer */           void (*open)(int p),
     /* close sequencer */          void (*close)(int p),
@@ -2122,29 +2156,38 @@ void _pa_waveinplug(
 {
 
     int i;
+    int p;
 
     if (alsapcminnum >= MAXMIDP) error("Device table full");
-    /* move table entries above plug-ins up one */
-    for (i = MAXMIDP-1; i > alsapcminplug; i--)
-        alsapcmin[i] = alsapcmin[i-1];
-    alsapcmin[alsapcminplug] = malloc(sizeof(snddev)); /* create new device entry */
-    alsapcmin[alsapcminplug]->name = malloc(strlen(name)+1); /* place name of device */
-    strcpy(alsapcmin[alsapcminplug]->name, name);
-    alsapcmin[alsapcminplug]->last = 0; /* clear last byte */
-    alsapcmin[alsapcminplug]->pback = -1; /* set no pushback */
-    alsapcmin[alsapcminplug]->open = open; /* set open alsa midi device */
-    alsapcmin[alsapcminplug]->close = close; /* set close alsa midi device */
-    alsapcmin[alsapcminplug]->rdwav = rdwav; /* set wave in function */
-    alsapcmin[alsapcminplug]->chanwavin = chanwavin; /* channels for wave input */
-    alsapcmin[alsapcminplug]->ratewavin = ratewavin; /* rate for wave input */
-    alsapcmin[alsapcminplug]->lenwavin = lenwavin; /* bitlength for wave input */
-    alsapcmin[alsapcminplug]->sgnwavin = sgnwavin; /* sign for wave input */
-    alsapcmin[alsapcminplug]->fltwavin = fltwavin; /* float for wave input */
-    alsapcmin[alsapcminplug]->setparam = setparam; /* set parameter */
-    alsapcmin[alsapcminplug]->getparam = getparam; /* get parameter */
-    alsapcmin[alsapcminplug]->devopn = false; /* set not open */
+    if (addend) p = alsapcminnum; /* place at end of devices */
+    else {
+
+        p = alsapcminplug; /* place at end of plugins */
+        /* move table entries above plug-ins up one */
+        for (i = MAXMIDP-1; i > alsapcminplug; i--)
+            alsapcmin[i] = alsapcmin[i-1];
+        alsapcminplug++; /* count plug-ins */
+
+    }
+    alsapcmin[p] = malloc(sizeof(snddev)); /* create new device entry */
+    if (!alsapcmin[p]) error("out of memory");
+    alsapcmin[p]->name = malloc(strlen(name)+1); /* place name of device */
+    strcpy(alsapcmin[p]->name, name);
+    alsapcmin[p]->last = 0; /* clear last byte */
+    alsapcmin[p]->pback = -1; /* set no pushback */
+    alsapcmin[p]->open = open; /* set open alsa midi device */
+    alsapcmin[p]->close = close; /* set close alsa midi device */
+    alsapcmin[p]->rdwav = rdwav; /* set wave in function */
+    alsapcmin[p]->chanwavin = chanwavin; /* channels for wave input */
+    alsapcmin[p]->ratewavin = ratewavin; /* rate for wave input */
+    alsapcmin[p]->lenwavin = lenwavin; /* bitlength for wave input */
+    alsapcmin[p]->sgnwavin = sgnwavin; /* sign for wave input */
+    alsapcmin[p]->fltwavin = fltwavin; /* float for wave input */
+    alsapcmin[p]->setparam = setparam; /* set parameter */
+    alsapcmin[p]->getparam = getparam; /* get parameter */
+    alsapcmin[p]->devopn = false; /* set not open */
     alsapcminnum++; /* count total devices */
-    alsapcminplug++; /* count plug-ins */
+
 
 }
 

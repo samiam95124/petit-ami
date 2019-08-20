@@ -8,10 +8,13 @@ to test MIDI in plugins.
 
 *******************************************************************************/
 
+#include <string.h>
 #include <localdefs.h>
 #include <sound.h>
 
 #define MAXINST 100 /* maximum allowed device instance (unused) */
+
+int sport; /* output port */
 
 /*******************************************************************************
 
@@ -81,7 +84,8 @@ static void readdump(int p, seqptr sp)
 
 {
 
-    pa_rdsynth(p+1, sp); /* get seq record from next device in table */
+    if (!sport) error("No input port set to dump");
+    pa_rdsynth(sport, sp); /* get seq record */
     /* now just dump the message */
     switch (sp->st) { /* sequencer message type */
 
@@ -213,7 +217,18 @@ int setparamdump(int p, string name, string value)
 
 {
 
-    return (1); /* always return error */
+    int r;
+    string ep;
+
+    r = 1; /* set error by default */
+    if (!strcmp(name, "connect")) {
+
+        /* set connection for output */
+        sport = strtol(value, &ep, 0);
+        r = !*ep; /* set good if entire string read */
+
+    }
+    return (r); /* exit with error */
 
 }
 
@@ -247,9 +262,10 @@ static void dumpmidi_plug_init()
 
 {
 
-    /* now install us as PA device */
-    _pa_synthinplug("Dump MIDI", opendump, closedump, readdump, setparamdump,
-                    getparamdump);
+    /* now install us as PA device at end */
+    _pa_synthinplug(true, "Dump MIDI", opendump, closedump, readdump,
+                    setparamdump, getparamdump);
+    sport = 0; /* set input port invalid until set */
 
 }
 
