@@ -427,6 +427,14 @@ void pa_synthoutname(int p, string name, int len);
 void pa_synthinname(int p, string name, int len);
 void pa_waveoutname(int p, string name, int len);
 void pa_waveinname(int p, string name, int len);
+int pa_setparamsynthin(int p, string name, string value);
+int pa_setparamsynthout(int p, string name, string value);
+int pa_setparamwavein(int p, string name, string value);
+int pa_setparamwaveout(int p, string name, string value);
+void pa_getparamsynthin(int p, string name, string value, int len);
+void pa_getparamsynthout(int p, string name, string value, int len);
+void pa_getparamwavein(int p, string name, string value, int len);
+void pa_getparamswaveout(int p, string name, string value, int len);
 
 /* non-standard local access calls */
 

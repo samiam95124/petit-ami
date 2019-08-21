@@ -2047,8 +2047,8 @@ void _pa_synthinplug(
     alsamidiin[p]->open = open; /* set open alsa midi device */
     alsamidiin[p]->close = close; /* set close alsa midi device */
     alsamidiin[p]->rdseq = rdseq; /* set sequencer read function */
-    alsamidiout[p]->setparam = setparam; /* set parameter */
-    alsamidiout[p]->getparam = getparam; /* get parameter */
+    alsamidiin[p]->setparam = setparam; /* set parameter */
+    alsamidiin[p]->getparam = getparam; /* get parameter */
     alsamidiin[p]->devopn = false; /* set not open */
     alsamidiinnum++; /* count total devices */
 
@@ -2061,8 +2061,10 @@ Define plug-in wave output device
 Lets a wave plug-in define a device. Accepts three vectors, the open, close
 and write vectors. Returns the defined device.
 
-Plug-ins go into the wave output device table at position 1, meaning that the
-plug-in takes over the default device.
+Plug-ins normally go into the wave output device table at position 1, meaning
+that the plug-in takes over the default device. The addend parameter changes
+this to add the plug-in to the end of the table. This would be appropriate for
+devices that should not take over the default, such as accessory devices.
 
 *******************************************************************************/
 
@@ -2115,8 +2117,8 @@ void _pa_waveoutplug(
     alsapcmout[p]->sgnwavout = sgnwavout; /* sign for wave output */
     alsapcmout[p]->fltwavout = fltwavout; /* float for wave output */
     alsapcmout[p]->endwavout = endwavout; /* endian for wave output */
-    alsamidiout[p]->setparam = setparam; /* set parameter */
-    alsamidiout[p]->getparam = getparam; /* get parameter */
+    alsapcmout[p]->setparam = setparam; /* set parameter */
+    alsapcmout[p]->getparam = getparam; /* get parameter */
     alsapcmout[p]->devopn = false; /* set not open */
     alsapcmoutnum++; /* count total devices */
 
@@ -2130,8 +2132,10 @@ Define plug-in wave input device
 Lets a wave plug-in define a device. Accepts three vectors, the open, close
 and write vectors. Returns the defined device.
 
-Plug-ins go into the wave input device table at position 1, meaning that the
-plug-in takes over the default device.
+Plug-ins normally go into the wave input device table at position 1, meaning
+that the plug-in takes over the default device. The addend parameter changes
+this to add the plug-in to the end of the table. This would be appropriate for
+devices that should not take over the default, such as accessory devices.
 
 *******************************************************************************/
 
@@ -2569,11 +2573,6 @@ int pa_curtimeout(void)
    return (timediff(&strtim)); /* return difference time */
 
 }
-
-
-
-
-
 
 /*******************************************************************************
 
@@ -5567,6 +5566,199 @@ void pa_rdsynth(int p, seqptr sp)
 
     sp->port = p; /* place port being read */
     rdseq(sp); /* read the sequencer record */
+
+}
+
+/*******************************************************************************
+
+Get device parameter synth out
+
+Reads a device parameter by name. Device parameters are strings indexed by name.
+The device parameter is returned if it exists, otherwise an empty string is
+returned.
+
+Device parameters are generally implemented for plug-ins only. The set of
+parameters implemented on a particular device are dependent on that device.
+
+*******************************************************************************/
+
+void pa_getparamsynthout(int p, string name, string value, int len)
+
+{
+
+    if (p < 1 || p > MAXMIDP) error("Invalid synthesizer port");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+
+    alsamidiout[p-1]->getparam(p, name, value, len);
+
+}
+
+/*******************************************************************************
+
+Get device parameter synth in
+
+Reads a device parameter by name. Device parameters are strings indexed by name.
+The device parameter is returned if it exists, otherwise an empty string is
+returned.
+
+Device parameters are generally implemented for plug-ins only. The set of
+parameters implemented on a particular device are dependent on that device.
+
+*******************************************************************************/
+
+void pa_getparamsynthin(int p, string name, string value, int len)
+
+{
+
+    if (p < 1 || p > MAXMIDP) error("Invalid synthesizer port");
+    if (!alsamidiin[p-1]) error("No synthsizer defined for logical port");
+
+    alsamidiin[p-1]->getparam(p, name, value, len);
+
+}
+
+/*******************************************************************************
+
+Get device parameter wave out
+
+Reads a device parameter by name. Device parameters are strings indexed by name.
+The device parameter is returned if it exists, otherwise an empty string is
+returned.
+
+Device parameters are generally implemented for plug-ins only. The set of
+parameters implemented on a particular device are dependent on that device.
+
+*******************************************************************************/
+
+void pa_getparamwaveout(int p, string name, string value, int len)
+
+{
+
+    if (p < 1 || p > MAXWAVP) error("Invalid synthesizer port");
+    if (!alsapcmout[p-1]) error("No wave device defined for logical port");
+
+    alsapcmout[p-1]->getparam(p, name, value, len);
+
+}
+
+/*******************************************************************************
+
+Get device parameter wave in
+
+Reads a device parameter by name. Device parameters are strings indexed by name.
+The device parameter is returned if it exists, otherwise an empty string is
+returned.
+
+Device parameters are generally implemented for plug-ins only. The set of
+parameters implemented on a particular device are dependent on that device.
+
+*******************************************************************************/
+
+void pa_getparamwavein(int p, string name, string value, int len)
+
+{
+
+    if (p < 1 || p > MAXWAVP) error("Invalid synthesizer port");
+    if (!alsapcmin[p-1]) error("No wave device defined for logical port");
+
+    alsapcmin[p-1]->getparam(p, name, value, len);
+
+}
+
+/*******************************************************************************
+
+Set device parameter synth out
+
+Sets a device parameter by name. Device parameters are strings indexed by name.
+The device parameter is set if it exists, otherwise an error results.
+If the parameter was successfully set, a 0 is returned, otherwise 1.
+
+Device parameters are generally implemented for plug-ins only. The set of
+parameters implemented on a particular device are dependent on that device.
+
+*******************************************************************************/
+
+int pa_setparamsynthout(int p, string name, string value)
+
+{
+
+    if (p < 1 || p > MAXMIDP) error("Invalid synthesizer port");
+    if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
+
+    return (alsamidiout[p-1]->setparam(p, name, value));
+
+}
+
+/*******************************************************************************
+
+Set device parameter synth in
+
+Sets a device parameter by name. Device parameters are strings indexed by name.
+The device parameter is set if it exists, otherwise an error results.
+If the parameter was successfully set, a 0 is returned, otherwise 1.
+
+Device parameters are generally implemented for plug-ins only. The set of
+parameters implemented on a particular device are dependent on that device.
+
+*******************************************************************************/
+
+int pa_setparamsynthin(int p, string name, string value)
+
+{
+
+printf("pa_setparamsynthin:\n");
+    if (p < 1 || p > MAXMIDP) error("Invalid synthesizer port");
+    if (!alsamidiin[p-1]) error("No synthsizer defined for logical port");
+
+    return (alsamidiin[p-1]->setparam(p, name, value));
+
+}
+
+/*******************************************************************************
+
+Set device parameter wave out
+
+Sets a device parameter by name. Device parameters are strings indexed by name.
+The device parameter is set if it exists, otherwise an error results.
+If the parameter was successfully set, a 0 is returned, otherwise 1.
+
+Device parameters are generally implemented for plug-ins only. The set of
+parameters implemented on a particular device are dependent on that device.
+
+*******************************************************************************/
+
+int pa_setparamwaveout(int p, string name, string value)
+
+{
+
+    if (p < 1 || p > MAXWAVP) error("Invalid wave port");
+    if (!alsapcmout[p-1]) error("No wave device defined for logical port");
+
+    return (alsapcmout[p-1]->setparam(p, name, value));
+
+}
+
+/*******************************************************************************
+
+Set device parameter wave in
+
+Sets a device parameter by name. Device parameters are strings indexed by name.
+The device parameter is set if it exists, otherwise an error results.
+If the parameter was successfully set, a 0 is returned, otherwise 1.
+
+Device parameters are generally implemented for plug-ins only. The set of
+parameters implemented on a particular device are dependent on that device.
+
+*******************************************************************************/
+
+int pa_setparamwavein(int p, string name, string value)
+
+{
+
+    if (p < 1 || p > MAXWAVP) error("Invalid wave port");
+    if (!alsapcmin[p-1]) error("No wave device defined for logical port");
+
+    return (alsapcmin[p-1]->setparam(p, name, value));
 
 }
 
