@@ -65,29 +65,31 @@ endif
 #
 # Collected libraries
 #
+
+#
+# Plain (no terminal handler)
+# This option exists to drop the terminal handler, which should not be
+# required for most code.
+#
+ifeq ($(LINK_TYPE),static)
+    PLIBS += bin/petit_ami_plain.a
+else
+    PLIBS += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o \
+             bin/petit_ami_plain.so
+endif
+
+#
+# terminal handler libraries
+#
 ifndef GRAPH
-    ifndef PLAIN
-        #
-        # Terminal model API
-        #
-        ifeq ($(LINK_TYPE),static)
-            LIBS += bin/petit_ami_term.a
-        else
-    	    LIBS += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o \
-    	            bin/petit_ami_term.so
-        endif
+    #
+    # Terminal model API
+    #
+    ifeq ($(LINK_TYPE),static)
+        LIBS += bin/petit_ami_term.a
     else
-        #
-        # Plain (no terminal handler)
-        # This option exists to drop the terminal handler, which should not be
-        # required for most code.
-        #
-        ifeq ($(LINK_TYPE),static)
-            LIBS += bin/petit_ami_plain.a
-        else
-    	    LIBS += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o \
-    	            bin/petit_ami_plain.so
-        endif
+        LIBS += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o \
+    	        bin/petit_ami_term.so
     endif
 else
     #
@@ -100,13 +102,15 @@ else
 	endif
 endif 
 LIBS += -lasound -lfluidsynth -lm -pthread
+PLIBS += -lasound -lfluidsynth -lm -pthread
+
 
 #
 # Make all executables
 #        
 all: dumpmidi lsalsadev alsaparms test play keyboard playmidi playwave \
-    printdev connectmidi connectwave random scntst event getkeys getmouse term snake mine \
-    editor 
+    printdev connectmidi connectwave random genwave scntst sndtst event \
+    getkeys getmouse term snake mine editor 
 
 #
 # Individual Petit-Ami library components
@@ -188,25 +192,25 @@ keyboard: bin/petit_ami_term.so include/terminal.h sound_prog/keyboard.c Makefil
 	$(CC) $(CFLAGS) sound_prog/keyboard.c linux/option.c $(LIBS) -o bin/keyboard
 	
 playmidi: bin/petit_ami_term.so include/terminal.h sound_prog/playmidi.c linux/option.c Makefile
-	$(CC) $(CFLAGS) sound_prog/playmidi.c linux/option.c $(LIBS) -o bin/playmidi
+	$(CC) $(CFLAGS) sound_prog/playmidi.c linux/option.c $(PLIBS) -o bin/playmidi
 
 playwave: bin/petit_ami_term.so include/terminal.h sound_prog/playwave.c Makefile
-	$(CC) $(CFLAGS) sound_prog/playwave.c linux/option.c $(LIBS) -o bin/playwave
+	$(CC) $(CFLAGS) sound_prog/playwave.c linux/option.c $(PLIBS) -o bin/playwave
 	
 printdev: bin/petit_ami_term.so include/terminal.h sound_prog/printdev.c Makefile
-	$(CC) $(CFLAGS) sound_prog/printdev.c $(LIBS) -o bin/printdev
+	$(CC) $(CFLAGS) sound_prog/printdev.c $(PLIBS) -o bin/printdev
 
 connectmidi: bin/petit_ami_term.so include/terminal.h sound_prog/connectmidi.c Makefile
-	$(CC) $(CFLAGS) sound_prog/connectmidi.c $(LIBS) -o bin/connectmidi
+	$(CC) $(CFLAGS) sound_prog/connectmidi.c $(PLIBS) -o bin/connectmidi
 	
 connectwave: bin/petit_ami_term.so include/terminal.h sound_prog/connectwave.c Makefile
-	$(CC) $(CFLAGS) sound_prog/connectwave.c $(LIBS) -o bin/connectwave
+	$(CC) $(CFLAGS) sound_prog/connectwave.c $(PLIBS) -o bin/connectwave
 	
 random: bin/petit_ami_term.so include/terminal.h sound_prog/random.c Makefile
 	$(CC) $(CFLAGS) sound_prog/random.c linux/option.c $(LIBS) -o bin/random
 	
 genwave: bin/petit_ami_term.so include/terminal.h sound_prog/genwave.c Makefile
-	$(CC) $(CFLAGS) sound_prog/genwave.c linux/option.c $(LIBS) -o bin/genwave
+	$(CC) $(CFLAGS) sound_prog/genwave.c linux/option.c $(PLIBS) -o bin/genwave
 	
 scntst: bin/petit_ami_term.so include/terminal.h tests/scntst.c include/services.h linux/services.c Makefile
 	$(CC) $(CFLAGS) tests/scntst.c $(LIBS) -o bin/scntst 
