@@ -101,9 +101,8 @@ else
 	    LIBS += bin/petit_ami_graph.so
 	endif
 endif 
-LIBS += -lasound -lfluidsynth -lm -pthread
-PLIBS += -lasound -lfluidsynth -lm -pthread
-
+LIBS += -lasound -lfluidsynth -lm -lpthread
+PLIBS += -lasound -lfluidsynth -lm -lpthread
 
 #
 # Make all executables

@@ -34,6 +34,12 @@
 #!/bin/bash
 
 #
+# Set option to patch source. Not setting this will build a libc without
+# modification.
+#
+patch=1
+
+#
 # Check version number exists
 #
 if [ -z "$1" ]; then
@@ -89,10 +95,14 @@ fi
 #
 # Patch overrides
 #
-patch -p1 < ../glibc_override.patch
-if [ $? -ne 0 ]; then
-    echo "*** Could not apply override patch"
-    exit 1
+if [ "$patch" -eq "1" ]; then
+
+    patch -p1 < ../glibc_override.patch
+    if [ $? -ne 0 ]; then
+        echo "*** Could not apply override patch"
+        exit 1
+    fi
+    
 fi
 
 cd ..
@@ -125,8 +135,12 @@ ls -l libc.a libc.so
 #
 # The map file is patched, then the result remade.
 #
-patch < ../libc.map.patch
-make
+if [ "$patch" -eq "1" ]; then
+
+    patch < ../libc.map.patch
+    make
+    
+fi
 
 #
 # copy resulting libraries to archive area
