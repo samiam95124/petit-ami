@@ -1,0 +1,137 @@
+################################################################################
+#                                                                              #
+#                           MAKE GLIBC WITH OVERRIDES                          #
+#                                                                              #
+# Makes a given version of glibc with overrides. Takes a version parameter,    #
+# and performs all the actions of cloning the master glibc, selecting the      #
+# version source, applying patches, create build directories, and build the    #
+# resulting glibc.                                                             #
+#                                                                              #
+# To make and use a glibc, it must match the version of the glibc in use for   #
+# building general programs in the Linux implementation you have. To find that #
+# out, perform:                                                                #
+#                                                                              #
+# $ ldd test                                                                   #
+#    linux-vdso.so.1 (0x00007ffe81eb6000)                                      #        
+#    libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f2a8fafc000)         #
+#    /lib64/ld-linux-x86-64.so.2 (0x00007f2a8fd0d000)                          #
+# $ ls -l /lib/x86_64-linux-gnu/libc.so.6                                      #
+# lrwxrwxrwx ... /lib/x86_64-linux-gnu/libc.so.6 -> libc-2.29.so               #
+#                                                                              #
+# And you have found the version, in this case 2.29.                           #
+#                                                                              #
+# Execute as:                                                                  #
+#                                                                              #
+# build_glibc 2.29                                                             #
+#                                                                              #
+# Warning: the script will erase the glibc_source, glibc_build, and            #
+# glibc_local. The glibc source will be fetched, versioned and patched in      #
+# glibc_source. It will be built in glibc_build. glibc_local is created as     #
+# per glibc instructions, but appears to be unused.                            #
+#                                                                              #
+################################################################################
+
+#!/bin/bash
+
+#
+# Check version number exists
+#
+if [ -z "$1" ]; then
+
+    #
+    # try to set version from existing library
+    #
+    version=`ls -l /lib/x86_64-linux-gnu/libc.so.6 | sed 's/.*libc\-\([0-9].[0-9][0-9]\).*/\1/'`
+    if [ -z $version ]; then
+    
+        echo "*** Cannot determine glibc version on this system"
+        exit 1
+        
+    fi
+    
+else
+
+    #
+    # Get version # from user
+    #
+    version=$1
+    
+fi
+
+echo "Version number: $version"
+
+cd glibc
+
+#
+# Remove any previous directories
+#
+rm -rf glibc_source glibc_build glibc_local
+
+#
+# clone master directory
+#
+git clone git://sourceware.org/git/glibc.git glibc_source
+if [ $? -ne 0 ]; then
+    echo "*** Could not clone glibc repository"
+    exit 1
+fi
+
+#
+# select version
+#
+cd glibc_source
+git checkout release/$version/master
+if [ $? -ne 0 ]; then
+    echo "*** Could not checkout version $version"
+    exit 1
+fi
+
+#
+# Patch overrides
+#
+patch -p1 < ../glibc_override.patch
+if [ $? -ne 0 ]; then
+    echo "*** Could not apply override patch"
+    exit 1
+fi
+
+cd ..
+mkdir glibc_build
+mkdir glibc_local
+
+#
+# configure
+#
+cd glibc_build
+../glibc_source/configure --prefix=/home/samiam/projects/petit_ami/glibc/glibc_local
+if [ $? -ne 0 ]; then
+    echo "*** Could not configure glibc"
+    exit 1
+fi
+
+#
+# make
+#
+make
+if [ $? -ne 0 ]; then
+    echo "*** Could make glibc"
+    exit 1
+fi
+
+ls -l libc.a libc.so
+
+#
+# Patch map file
+#
+# The map file is patched, then the result remade.
+#
+patch < ../libc.map.patch
+make
+
+#
+# copy resulting libraries to archive area
+#
+make -p ../../bin/glibc
+cp libc.a ../../bin/glibc/libc-ovr-$version.a
+cp libc.so ../../bin/glibc/libc-ovr-$version.so
+echo Function complete
