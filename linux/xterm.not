@@ -1,0 +1,5 @@
+             NOTES FOR XTERM TERMINAL LIBRARY
+
+1. In the program "play", hitting a number like "1" does not take effect until you
+hit another digit.
+
