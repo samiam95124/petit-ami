@@ -1,0 +1,44 @@
+################################################################################
+#                                                                              #
+#                              SET GLIBC VERSION                               #
+#                                                                              #
+# Places symbolic links in the bin directory to the selected glibc version,    #
+# or if that is not provided, the current glic version is found from the host. #
+# This is prerequisite to building against the correct library, since glibc    #
+# does not work unless the version matches that of the host.                   #
+#                                                                              #
+################################################################################
+
+#!/bin/bash
+
+#
+# Check version number exists
+#
+if [ -z "$1" ]; then
+
+    #
+    # try to set version from existing library
+    #
+    version=`ls -l /lib/x86_64-linux-gnu/libc.so.6 | sed 's/.*libc\-\([0-9].[0-9][0-9]\).*/\1/'`
+    if [ -z $version ]; then
+    
+        echo "*** Cannot determine glibc version on this system"
+        exit 1
+        
+    fi
+    
+else
+
+    #
+    # Get version # from user
+    #
+    version=$1
+    
+fi
+
+echo "Version number: $version"
+
+cd bin
+
+ln -sf glibc/libc-ovr-$version.a libc.a
+ln -sf glibc/libc-ovr-$version.so libc.so.6
