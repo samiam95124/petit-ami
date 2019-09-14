@@ -503,7 +503,7 @@ static void wrtint(int i)
     /* leading digit flag */ int  leading;
 
     p = 1; /* set maximum power of 10 */
-    while (p*10/10 == p) p *= 10;
+    while (p && p*10/10 == p) p *= 10;
     leading = 0; /* set no leading digit encountered */
     while (p != 0) { /* output digits */
 
