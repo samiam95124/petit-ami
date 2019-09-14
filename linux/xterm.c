@@ -332,6 +332,8 @@ static int nmpx; /* mouse x/y current position */
 static int nmpy;
 /* flag for windows change signal */
 static int winch;
+/* maximum power of 10 in integer */
+static int maxpow10;
 
 static void restore(scnptr sc);
 
@@ -502,8 +504,7 @@ static void wrtint(int i)
     /* digit holder */       char digit;
     /* leading digit flag */ int  leading;
 
-    p = 1; /* set maximum power of 10 */
-    while (p && p*10/10 == p) p *= 10;
+    p = maxpow10; /* set maximum power of 10 */
     leading = 0; /* set no leading digit encountered */
     while (p != 0) { /* output digits */
 
@@ -2876,6 +2877,7 @@ static void pa_init_terminal()
     /** index for events */            pa_evtcod e;
     /** build new terminal settings */ struct termios raw;
     /** index */                       int i;
+    /** digit count integer */         int dci;
 
     /* turn off I/O buffering */
     setvbuf(stdin, NULL, _IONBF, 0);
@@ -2915,6 +2917,14 @@ static void pa_init_terminal()
 
     /* clear keyboard match buffer */
     keylen = 0;
+
+    /* set maximum power of 10 for conversions */
+    maxpow10 = INT_MAX;
+    dci = 0;
+    while (maxpow10) { maxpow10 /= 10; dci++; }
+    /* find top power of 10 */
+    maxpow10 = 1;
+    while (--dci) maxpow10 = maxpow10*10;
 
     /*
      * Set terminal in raw mode
