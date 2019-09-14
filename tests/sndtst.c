@@ -16,8 +16,20 @@ implementation.
 
 #include <terminal.h> /* terminal level functions */
 #include <sound.h>    /* sound library */
+#include <option.h>   /* option parsing */
 
 #define SECOND 10000 /* one second */
+
+
+int dport = PA_SYNTH_OUT; /* set default synth out */
+
+optrec opttbl[] = {
+
+    { "port",   NULL,    &dport, NULL, NULL },
+    { "p",      NULL,    &dport, NULL, NULL },
+    { NULL,     NULL,    NULL,    NULL, NULL }
+
+};
 
 /* global variables */
 static jmp_buf terminate_buf;
@@ -182,21 +194,21 @@ int main(int argc, char *argv[])
 
 {
 
-    int           dport; /* output port */
     pa_note       n; /* note */
     int           o; /* octave */
     pa_instrument ins; /* instrument */
     int           i, x, j;
+    int           argi = 1;
 
-    if (argc != 1 && argc != 2) {
+    /* parse user options */
+    options(&argi, &argc, argv, opttbl, true);
 
-        fprintf(stderr, "Usage: sndtst [<port>]\n");
+    if (argc != 1) {
+
+        fprintf(stderr, "Usage: sndtst [--port=<port>|--p=<port>]\n");
         exit(1);
 
     }
-
-    dport = 6/*PA_SYNTH_OUT*/; /* index standard synth output port */
-    if (argc == 2) dport = atoi(argv[1]);
 
     if (setjmp(terminate_buf)) goto terminate;
 
@@ -223,9 +235,9 @@ int main(int argc, char *argv[])
     for (n = PA_NOTE_C+PA_OCTAVE_1; n <= PA_NOTE_G+PA_OCTAVE_11; n++) {
 
         printf("%d ", n);
-        pa_noteon(dport, 0, 1, n+o, INT_MAX);
+        pa_noteon(dport, 0, 1, n, INT_MAX);
         wait(SECOND/10);
-        pa_noteoff(dport, 0, 1, n+o, 0);
+        pa_noteoff(dport, 0, 1, n, 0);
 
     }
     printf("\n");
@@ -358,6 +370,7 @@ int main(int argc, char *argv[])
     /* set release times */
     printf("Set step release times on piano\n");
     waitret();
+    pa_instchange(dport, 0, 1, PA_INST_ACOUSTIC_GRAND);
     for (i = 0; i <= 10; i++) {
 
         printf("Release: %d\n", i*(INT_MAX/10));

@@ -216,7 +216,7 @@ scntst: bin/petit_ami_term.so include/terminal.h tests/scntst.c include/services
 	
 sndtst: bin/petit_ami_term.so include/terminal.h tests/sndtst.c \
         include/services.h linux/services.c Makefile
-	$(CC) $(CFLAGS) tests/sndtst.c $(LIBS) -o bin/sndtst 
+	$(CC) $(CFLAGS) tests/sndtst.c linux/option.c $(LIBS) -o bin/sndtst 
 	
 event: include/terminal.h tests/event.c Makefile
 	$(CC) $(CFLAGS) tests/event.c $(LIBS) -o bin/event
