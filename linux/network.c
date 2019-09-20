@@ -23,6 +23,9 @@
 #include <sys/socket.h>
 #include <string.h>
 #include <errno.h>
+#include <arpa/inet.h>
+#include <linux/types.h>
+#include <stdio.h>
 
 /* Petit-Ami definitions */
 #include <localdefs.h>
@@ -261,9 +264,36 @@ TCP/IP or TCP/IP with a security layer, typically TLS 1.3 at this writing.
 
 *******************************************************************************/
 
-void opennet(FILE* f, unsigned long addr, int port, boolean secure)
+FILE* pa_opennet(/* IP address high */ unsigned long long addrh,
+                 /* IP address low */  unsigned long long addrl,
+                 /* port */            int port,
+                 /* link is secured */ boolean secure
+                )
 
 {
+
+    struct sockaddr_in saddr;
+    int fn;
+    int r;
+    FILE* fp;
+
+    fn = makfil(); /* get file entry */
+    opnfil[fn]->net = true;
+    /* not sure what is wanted here */
+    saddr.sin_family = AF_INET;
+    saddr.sin_port = htons(port);
+    r = inet_pton(AF_INET, "128.138.140.44", &saddr.sin_addr);
+    if (r <= 0) netwrterr("Cannot convert network address");
+    /* connect the socket */
+    opnfil[fn]->han = socket(AF_INET, SOCK_STREAM, 0);
+    if (opnfil[fn]->han < 0) linuxerror();
+    r = connect(opnfil[fn]->han, (struct sockaddr *)&saddr, sizeof(saddr));
+    if (r < 0) linuxerror();
+    fp = fdopen(opnfil[fn]->han, "r+");
+    if (!fp) linuxerror();
+    fp->_fileno = fn;
+
+    return (fp);
 
 }
 
@@ -424,6 +454,7 @@ static int iopen(const char* pathname, int flags, int perm)
         lfn = makfil(); /* get a new file entry */
         opnfil[lfn]->net = false; /* set not a network file */
         opnfil[lfn]->han = r; /* set translated file handle */
+        r = lfn; /* set handle to translated one */
 
     }
 
@@ -541,6 +572,7 @@ static void pa_init_network()
 
 {
 
+//printf("pa_init_network: begin\n");
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
     ovr_write(iwrite, &ofpwrite);
@@ -551,6 +583,16 @@ static void pa_init_network()
 
     /* clear open files table */
     for (fi = 0; fi < MAXFIL; fi++) opnfil[fi] = NULL; /* set unoccupied */
+
+    /* set the standard input, output, and error as passthroughs */
+    opnfil[0] = getfet(); /* standard input */
+    opnfil[0]->han = 0;
+    opnfil[1] = getfet(); /* standard output */
+    opnfil[1]->han = 1;
+    opnfil[2] = getfet(); /* standard error */
+    opnfil[2]->han = 2;
+
+//printf("pa_init_network: end\n");
 
 };
 

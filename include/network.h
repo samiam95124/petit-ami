@@ -20,11 +20,14 @@
 #define __NETWORK_H__
 
 #include <stdio.h>
+#include <localdefs.h>
 
 typedef char* string;  /* general string type */
 
-unsigned long pa_addrnet(string name);
-FILE* pa_opennet(unsigned long addr, int port, boolean secure);
+void pa_addrnet(string name, unsigned long long* addrh,
+                unsigned long long* addrl);
+FILE* pa_opennet(unsigned long long addrh, unsigned long long addrl, int port,
+                 boolean secure);
 int pa_maxmsg(void);
 boolean pa_relymsg(void);
 void pa_openmsg(int f, int addr, int port);
