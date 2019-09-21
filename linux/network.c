@@ -204,7 +204,7 @@ int makfil(void)
     
     /* find idle file slot (file with closed file entry) */
     ff = 0; /* clear found file */
-    for (fi = 0; fi < MAXFIL; fi++) { /* search all file entries */
+    for (fi = 0; fi < MAXFIL && !ff; fi++) { /* search all file entries */
 
         if (!opnfil[fi]) ff = fi; /* set found */
         else
