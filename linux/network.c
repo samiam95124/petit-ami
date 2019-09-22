@@ -26,6 +26,7 @@
 #include <arpa/inet.h>
 #include <linux/types.h>
 #include <stdio.h>
+#include <netdb.h>
 
 /* Petit-Ami definitions */
 #include <localdefs.h>
@@ -40,7 +41,6 @@
 typedef struct filrec {
 
    boolean         net;   /* it's a network file */
-   int             han;   /* handle to underlying I/O file */
 
 } filrec;
 typedef filrec* filptr; /* pointer to file record */
@@ -92,7 +92,7 @@ static plseek_t  ofplseek;
 /*
  * Variables
  */
-filptr opnfil[MAXFIL]; /* open files table */
+filrec opnfil[MAXFIL]; /* open files table */
 int fi; /* index for files table */
 int r; /* result */
 
@@ -104,7 +104,7 @@ Outputs an error message using the special syslib function, then halts.
 
 *******************************************************************************/
 
-static void netwrterr(string s)
+static void netwrterr(const char* s)
 
 {
 
@@ -164,83 +164,6 @@ void linuxerror(void)
 
 /*******************************************************************************
 
-Get file entry
-
-Allocates and initalizes a new file entry. File entries are left in the opnfil
-array, so are recycled in place.
-
-*******************************************************************************/
-
-filptr getfet(void)
-
-{
-
-    filptr fp;
-
-    fp = malloc(sizeof(filrec)); /* get a new file entry */
-    fp->net = false; /* set not a network file */
-    fp->han = 0;     /* set handle clear */
-   
-}
-
-/*******************************************************************************
-
-Make file entry
-
-Indexes a present file entry or creates a new one. Looks for a free entry
-in the files table, indicated by 0. If found, that is returned, otherwise
-the file table is full.
-
-Note that the "predefined" file slots are never allocated.
-
-*******************************************************************************/
-
-int makfil(void)
-
-{
-
-    int fi; /* index for files table */
-    int ff; /* found file entry */
-    
-    /* find idle file slot (file with closed file entry) */
-    ff = 0; /* clear found file */
-    for (fi = 0; fi < MAXFIL && !ff; fi++) { /* search all file entries */
-
-        if (!opnfil[fi]) ff = fi; /* set found */
-        else
-            /* check if slot is allocated, but unoccupied and not net file */
-            if (!opnfil[fi]->han && !opnfil[fi]->net)
-                ff = fi; /* set found */
-
-    }
-    if (!ff) error(einvhan); /* no empty file positions found */
-    if (!opnfil[ff]) /* table entry unallocated */
-        opnfil[ff] =  getfet(); /* get and initalize the file entry */
-
-    return (ff); /* return file id number */
-
-}
-
-/*******************************************************************************
-
-Check file entry open
-
-Checks if the given file handle corresponds to a file entry that is allocated,
-and open.
-
-*******************************************************************************/
-
-void chkopn(int fn)
-
-{
-
-   if (!opnfil[fn]) error(einvhan); /* invalid handle */
-   if (!opnfil[fn]->han && !opnfil[fn]->net) error(einvhan);
-
-}
-
-/*******************************************************************************
-
 Get server address
 
 Retrives a server address by name. The name is given as a string. The address
@@ -248,9 +171,23 @@ is returned as an integer.
 
 *******************************************************************************/
 
-unsigned long addrnet(string name)
+void pa_addrnet(string name, unsigned long long* addrh,
+                unsigned long long* addrl)
 
 {
+
+	struct addrinfo *p;
+	int r;
+
+	r = getaddrinfo(name, NULL, NULL, &p);
+	if (r) netwrterr(gai_strerror(r));
+	/* note that if more than one address is returned for this server, we only
+	   use the first one */
+    if (p->ai_family == AF_INET) printf("IPv4 address\n");
+    else if (p->ai_family == AF_INET6) printf("IPv6 address\n");
+    else netwrterr("Cannot use this address type");
+	if (p->ai_socktype != SOCK_STREAM) netwrterr("Cannot use this prototol");
+
 
 }
 
@@ -276,22 +213,20 @@ FILE* pa_opennet(/* IP address high */ unsigned long long addrh,
     int fn;
     int r;
     FILE* fp;
+    in_addr_t ia;
 
-    fn = makfil(); /* get file entry */
-    opnfil[fn]->net = true;
     /* not sure what is wanted here */
     saddr.sin_family = AF_INET;
+    saddr.sin_addr.s_addr = htonl(addrl);
     saddr.sin_port = htons(port);
-    r = inet_pton(AF_INET, "128.138.140.44", &saddr.sin_addr);
-    if (r <= 0) netwrterr("Cannot convert network address");
     /* connect the socket */
-    opnfil[fn]->han = socket(AF_INET, SOCK_STREAM, 0);
-    if (opnfil[fn]->han < 0) linuxerror();
-    r = connect(opnfil[fn]->han, (struct sockaddr *)&saddr, sizeof(saddr));
+    fn = socket(AF_INET, SOCK_STREAM, 0);
+    if (fn < 0) linuxerror();
+    r = connect(fn, (struct sockaddr *)&saddr, sizeof(saddr));
     if (r < 0) linuxerror();
-    fp = fdopen(opnfil[fn]->han, "r+");
+    fp = fdopen(fn, "r+");
     if (!fp) linuxerror();
-    fp->_fileno = fn;
+    opnfil[fn].net = true;
 
     return (fp);
 
@@ -445,20 +380,12 @@ static int iopen(const char* pathname, int flags, int perm)
 
 {
 
-    int lfn;
-
     /* open with passdown */
     r = (*ofpopen)(pathname, flags, perm);
-    if (r >=0) { /* file open succeeded */
+    if (r >= 0)
+    	if (r < 1 || r > MAXFIL) error(einvhan); /* invalid file handle */
 
-        lfn = makfil(); /* get a new file entry */
-        opnfil[lfn]->net = false; /* set not a network file */
-        opnfil[lfn]->han = r; /* set translated file handle */
-        r = lfn; /* set handle to translated one */
-
-    }
-
-    return (r); /* return error code or file number */
+    return (r);
 
 }
 
@@ -475,9 +402,8 @@ static int iclose(int fd)
 {
 
     if (fd < 1 || fd > MAXFIL) error(einvhan); /* invalid file handle */
-    chkopn(fd); /* check open or net file */
 
-    return (*ofpclose)(opnfil[fd]->han);
+    return (*ofpclose)(fd);
 
 }
 
@@ -497,8 +423,7 @@ static ssize_t iread(int fd, void* buff, size_t count)
     ssize_t r;
 
     if (fd < 1 || fd >= MAXFIL) error(einvhan); /* invalid file handle */
-    chkopn(fd); /* check valid handle */
-    r = (*ofpread)(opnfil[fd]->han, buff, count);
+    r = (*ofpread)(fd, buff, count);
 
     return (r);
 
@@ -517,8 +442,7 @@ static ssize_t iwrite(int fd, const void* buff, size_t count)
     ssize_t r;
 
     if (fd < 1 || fd > MAXFIL) error(einvhan); /* invalid file handle */
-    chkopn(fd); /* check valid handle */
-    r = (*ofpwrite)(opnfil[fd]->han, buff, count);
+    r = (*ofpwrite)(fd, buff, count);
 
     return (r);
 
@@ -554,10 +478,8 @@ static off_t ilseek(int fd, off_t offset, int whence)
 {
 
     if (fd < 1 || fd > MAXFIL) error(einvhan); /* invalid file handle */
-    chkopn(fd); /* check open file */
-    if (opnfil[fd]->net) error(enetpos); /* cannot position network file */
 
-    return (*ofplseek)(opnfil[fd]->han, offset, whence);
+    return (*ofplseek)(fd, offset, whence);
 
 }
 
@@ -572,7 +494,6 @@ static void pa_init_network()
 
 {
 
-//printf("pa_init_network: begin\n");
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
     ovr_write(iwrite, &ofpwrite);
@@ -582,17 +503,7 @@ static void pa_init_network()
     ovr_lseek(ilseek, &ofplseek);
 
     /* clear open files table */
-    for (fi = 0; fi < MAXFIL; fi++) opnfil[fi] = NULL; /* set unoccupied */
-
-    /* set the standard input, output, and error as passthroughs */
-    opnfil[0] = getfet(); /* standard input */
-    opnfil[0]->han = 0;
-    opnfil[1] = getfet(); /* standard output */
-    opnfil[1]->han = 1;
-    opnfil[2] = getfet(); /* standard error */
-    opnfil[2]->han = 2;
-
-//printf("pa_init_network: end\n");
+    for (fi = 0; fi < MAXFIL; fi++) opnfil[fi].net = false; /* set unoccupied */
 
 };
 
