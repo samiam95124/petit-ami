@@ -56,6 +56,7 @@ typedef enum {
     esckeof,  /* } encountered on socket */
     efinuse,  /* file already in use */
     enetwrt,  /* Attempt to write to input side of network pair */
+    enetadr,  /* cannot determine address of server */
     esystem   /* System consistency check */
 } errcod;
 
@@ -135,9 +136,10 @@ void error(errcod e)
         case enetpos:  netwrterr("Cannot position network file"); break;
         case enetloc:  netwrterr("Cannot find location network file"); break;
         case enetlen:  netwrterr("Cannot find length network file"); break;
-        case esckeof:  netwrterr("} encountered on socket"); break;
+        case esckeof:  netwrterr("end encountered on socket"); break;
         case efinuse:  netwrterr("File already in use"); break;
         case enetwrt:  netwrterr("Attempt to write to input side of network pair"); break;
+        case enetadr:  netwrterr("Cannot determine address of server"); break;
         case esystem:  netwrterr("System consistency check, please contact v}or"); break;
 
     }
@@ -178,16 +180,27 @@ void pa_addrnet(string name, unsigned long long* addrh,
 
 	struct addrinfo *p;
 	int r;
+	boolean af;
 
+    af = false; /* set address not found */
 	r = getaddrinfo(name, NULL, NULL, &p);
 	if (r) netwrterr(gai_strerror(r));
-	/* note that if more than one address is returned for this server, we only
-	   use the first one */
-    if (p->ai_family == AF_INET) printf("IPv4 address\n");
-    else if (p->ai_family == AF_INET6) printf("IPv6 address\n");
-    else netwrterr("Cannot use this address type");
-	if (p->ai_socktype != SOCK_STREAM) netwrterr("Cannot use this prototol");
+	while (p) {
 
+    	/* traverse the available addresses */
+        if (p->ai_family == AF_INET && p->ai_socktype == SOCK_STREAM) {
+
+            /* get the IPv4 address */
+            *addrh = 0;
+	        *addrl =
+	            ntohl(((struct sockaddr_in*)(p->ai_addr))->sin_addr.s_addr);
+	        af = true; /* set an address found */
+
+	    }
+	    p = p->ai_next;
+
+	}
+	if (!af) error(enetadr); /* no address found */
 
 }
 
