@@ -2,9 +2,7 @@
 *                                                                              *
 *                           INTERNET ACCESS LIBRARY                            *
 *                                                                              *
-*                       Copyright (C) 2006 Scott A. Moore                      *
-*                                                                              *
-*                              5/06 S. A. Moore                                *
+*                       Copyright (C) 2019 Scott A. Franco                     *
 *                                                                              *
 * Implements access to internet functions, via tcp/ip. tcp/ip is implemented   *
 * via the "file" paradygm. An address and port is used to create a file, then  *
@@ -27,6 +25,9 @@
 #include <linux/types.h>
 #include <stdio.h>
 #include <netdb.h>
+#include <openssl/ssl.h>
+
+#include <openssl/err.h>
 
 /* Petit-Ami definitions */
 #include <localdefs.h>
@@ -40,7 +41,12 @@
    flag if they need special handling. */
 typedef struct filrec {
 
-   boolean         net;   /* it's a network file */
+   /* we don't use the network flag for much right now, except to indicate that
+      the file is a socket. Linux treats them equally */
+   boolean net;  /* it's a network file */
+   boolean sec;  /* its a secure sockets file */
+   SSL*    ssl;  /* SSL data */
+   X509*   cert; /* peer certificate */
 
 } filrec;
 typedef filrec* filptr; /* pointer to file record */
@@ -57,6 +63,12 @@ typedef enum {
     efinuse,  /* file already in use */
     enetwrt,  /* Attempt to write to input side of network pair */
     enetadr,  /* cannot determine address of server */
+    einissl,  /* Cannot initialize OpenSSL library */
+    esslnew,  /* Cannot create SSL */
+    esslctx,  /* Cannot create SSL context */
+    esslfid,  /* Cannot connect SSL to file id */
+    esslses,  /* Cannot create SSL session */
+    esslcer,  /* Cannot get SSL certificate */
     esystem   /* System consistency check */
 } errcod;
 
@@ -96,6 +108,10 @@ static plseek_t  ofplseek;
 filrec opnfil[MAXFIL]; /* open files table */
 int fi; /* index for files table */
 int r; /* result */
+
+/* openSSL variables, need to check if these can be shared globally */
+
+SSL_CTX*    ctx;
 
 /*******************************************************************************
 
@@ -140,6 +156,12 @@ void error(errcod e)
         case efinuse:  netwrterr("File already in use"); break;
         case enetwrt:  netwrterr("Attempt to write to input side of network pair"); break;
         case enetadr:  netwrterr("Cannot determine address of server"); break;
+        case einissl:  netwrterr("Cannot initialize OpenSSL library"); break;
+        case esslnew:  netwrterr("Cannot create SSL"); break;
+        case esslctx:  netwrterr("Cannot create SSL context"); break;
+        case esslfid:  netwrterr("Cannot connect SSL to file id"); break;
+        case esslses:  netwrterr("Cannot create SSL session"); break;
+        case esslcer:  netwrterr("Cannot get SSL certificate"); break;
         case esystem:  netwrterr("System consistency check, please contact v}or"); break;
 
     }
@@ -173,8 +195,7 @@ is returned as an integer.
 
 *******************************************************************************/
 
-void pa_addrnet(string name, unsigned long long* addrh,
-                unsigned long long* addrl)
+void pa_addrnet(string name, unsigned long* addr)
 
 {
 
@@ -191,8 +212,7 @@ void pa_addrnet(string name, unsigned long long* addrh,
         if (p->ai_family == AF_INET && p->ai_socktype == SOCK_STREAM) {
 
             /* get the IPv4 address */
-            *addrh = 0;
-	        *addrl =
+	        *addr =
 	            ntohl(((struct sockaddr_in*)(p->ai_addr))->sin_addr.s_addr);
 	        af = true; /* set an address found */
 
@@ -214,8 +234,7 @@ TCP/IP or TCP/IP with a security layer, typically TLS 1.3 at this writing.
 
 *******************************************************************************/
 
-FILE* pa_opennet(/* IP address high */ unsigned long long addrh,
-                 /* IP address low */  unsigned long long addrl,
+FILE* pa_opennet(/* IP address */      unsigned long addr,
                  /* port */            int port,
                  /* link is secured */ boolean secure
                 )
@@ -226,11 +245,10 @@ FILE* pa_opennet(/* IP address high */ unsigned long long addrh,
     int fn;
     int r;
     FILE* fp;
-    in_addr_t ia;
 
     /* not sure what is wanted here */
     saddr.sin_family = AF_INET;
-    saddr.sin_addr.s_addr = htonl(addrl);
+    saddr.sin_addr.s_addr = htonl(addr);
     saddr.sin_port = htons(port);
     /* connect the socket */
     fn = socket(AF_INET, SOCK_STREAM, 0);
@@ -239,7 +257,29 @@ FILE* pa_opennet(/* IP address high */ unsigned long long addrh,
     if (r < 0) linuxerror();
     fp = fdopen(fn, "r+");
     if (!fp) linuxerror();
-    opnfil[fn].net = true;
+    opnfil[fn].net = true; /* set network (sockets) file */
+    opnfil[fn].sec = false; /* set not secure */
+
+    /* check secure sockets layer, and negotiate if so */
+    if (secure) {
+
+        opnfil[fn].ssl = SSL_new(ctx); /* create new ssl */
+        if (!opnfil[fn].ssl) error(esslnew);
+        r = SSL_set_fd(opnfil[fn].ssl, fn); /* connect to fid */
+        if (!r) error(esslfid);
+
+        /* initiate tls handshake */
+        r = SSL_connect(opnfil[fn].ssl);
+        if (r != 1) error(esslses);
+
+        /* Get the remote certificate into the X509 structure.
+           Right now we don't do anything with this (don't verify it) */
+        opnfil[fn].cert = SSL_get_peer_certificate(opnfil[fn].ssl);
+        if (!opnfil[fn].cert) error(esslcer);
+        /* we have done our plaintext setup, now flip to secure handling */
+        opnfil[fn].sec = true; /* set secure */
+
+    }
 
     return (fp);
 
@@ -286,7 +326,7 @@ size (including 0) up to pa_maxmsg() is allowed.
 
 *******************************************************************************/
 
-void pa_wrtmsg(int fn, byte* msg, int len)
+void pa_wrmsg(int fn, byte* msg, int len)
 
 {
 
@@ -304,6 +344,28 @@ is known that a given message size will never be exceeded.
 *******************************************************************************/
 
 int pa_rdmsg(int f, byte* msg, int len)
+
+{
+
+}
+
+/*******************************************************************************
+
+Synchronize messages with buffers
+
+Waits until all outstanding message read requests are filled and all outstanding
+write requests are processed. Messages are not guaranteed to be read or written
+to/from the provided buffers immediately (although that may be true). Before
+reading from a message buffer or reusing a buffer that has written data, this
+call should be used to synchronize with the I/O subsystem.
+
+This can be used to read ahead or write ahead. However, the implementation may
+treat the call as a no-op, in which case all read and write message calls are
+blocking.
+
+*******************************************************************************/
+
+void pa_syncmsg(int f)
 
 {
 
@@ -344,11 +406,11 @@ FILE* pa_waitconn(void)
 
 Message files are reliable
 
-Returns true if the message files on this host are implemented with garanteed
-delivery. This is a property of high performance compute clusters, that the
-delivery of messages are garanteed to arrive error free at their destination.
-If this property appears, the program can skip providing it's own retry or other
-error handling system.
+Returns true if the message files on this host are implemented with guaranteed
+delivery and in order. This is a property of high performance compute clusters,
+that the delivery of messages are guaranteed to arrive error free at their
+destination. If this property appears, the program can skip providing it's own
+retry or other error handling system.
 
 *******************************************************************************/
 
@@ -414,9 +476,19 @@ static int iclose(int fd)
 
 {
 
+    int r;
+
     if (fd < 1 || fd > MAXFIL) error(einvhan); /* invalid file handle */
 
-    return (*ofpclose)(fd);
+    if (opnfil[fd].sec) {
+
+        SSL_free(opnfil[fd].ssl); /* free the ssl */
+        X509_free(opnfil[fd].cert); /* free certificate */
+
+    }
+    r = (*ofpclose)(fd); /* normal file and socket close */
+
+    return (r);
 
 }
 
@@ -436,7 +508,11 @@ static ssize_t iread(int fd, void* buff, size_t count)
     ssize_t r;
 
     if (fd < 1 || fd >= MAXFIL) error(einvhan); /* invalid file handle */
-    r = (*ofpread)(fd, buff, count);
+
+    if (opnfil[fd].sec)
+        /* perform ssl decoded read */
+        r = SSL_read(opnfil[fd].ssl, buff, count);
+    else r = (*ofpread)(fd, buff, count); /* standard file and socket read */
 
     return (r);
 
@@ -455,7 +531,11 @@ static ssize_t iwrite(int fd, const void* buff, size_t count)
     ssize_t r;
 
     if (fd < 1 || fd > MAXFIL) error(einvhan); /* invalid file handle */
-    r = (*ofpwrite)(fd, buff, count);
+
+    if (opnfil[fd].sec)
+        /* perform ssl encoded write */
+        r = SSL_write(opnfil[fd].ssl, buff, count);
+    else r = (*ofpwrite)(fd, buff, count);
 
     return (r);
 
@@ -516,7 +596,21 @@ static void pa_init_network()
     ovr_lseek(ilseek, &ofplseek);
 
     /* clear open files table */
-    for (fi = 0; fi < MAXFIL; fi++) opnfil[fi].net = false; /* set unoccupied */
+    for (fi = 0; fi < MAXFIL; fi++) {
+
+        opnfil[fi].net = false; /* set unoccupied */
+        opnfil[fi].sec = false; /* set ordinary socket */
+        opnfil[fi].ssl = NULL; /* clear SSL data */
+        opnfil[fi].cert = NULL; /* clear certificate data */
+
+    }
+
+    /* initialize SSL library and register algorithms */
+    if(SSL_library_init() < 0) error(einissl);
+
+    /* create new SSL context */
+    ctx = SSL_CTX_new(TLS_client_method());
+    if (!ctx) error(esslctx);
 
 };
 

@@ -24,15 +24,20 @@
 
 typedef char* string;  /* general string type */
 
-void pa_addrnet(string name, unsigned long long* addrh,
+void pa_addrnet(string name, unsigned long* addr);
+void pa_addrnetv6(string name, unsigned long long* addrh,
                 unsigned long long* addrl);
-FILE* pa_opennet(unsigned long long addrh, unsigned long long addrl, int port,
-                 boolean secure);
+FILE* pa_opennet(unsigned long addr, int port, boolean secure);
+FILE* pa_opennetv6(unsigned long long addrh, unsigned long long addrl,
+                   int port, boolean secure);
 int pa_maxmsg(void);
 boolean pa_relymsg(void);
-void pa_openmsg(int f, int addr, int port);
-void pa_wrtmsg(int f, byte* msg, int len);
+void pa_openmsg(int f, unsigned long addr, int port);
+void pa_openmsgv6(int f, unsigned long long addrh, unsigned long long addrl,
+                  int port);
+void pa_wrmsg(int f, byte* msg, int len);
 int pa_rdmsg(int f, byte* msg, int len);
+void pa_syncmsg(int f);
 void pa_clsmsg(int f);
 FILE* pa_waitconn(void);
 
