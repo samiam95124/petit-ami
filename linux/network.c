@@ -26,8 +26,8 @@
 #include <stdio.h>
 #include <netdb.h>
 #include <openssl/ssl.h>
-
 #include <openssl/err.h>
+#include <unistd.h>
 
 /* Petit-Ami definitions */
 #include <localdefs.h>
@@ -47,6 +47,7 @@ typedef struct filrec {
    boolean sec;  /* its a secure sockets file */
    SSL*    ssl;  /* SSL data */
    X509*   cert; /* peer certificate */
+   int     sfn;  /* shadow fid */
 
 } filrec;
 typedef filrec* filptr; /* pointer to file record */
@@ -69,6 +70,7 @@ typedef enum {
     esslfid,  /* Cannot connect SSL to file id */
     esslses,  /* Cannot create SSL session */
     esslcer,  /* Cannot get SSL certificate */
+    enodupf,  /* Cannot create duplicate fid */
     esystem   /* System consistency check */
 } errcod;
 
@@ -162,6 +164,7 @@ void error(errcod e)
         case esslfid:  netwrterr("Cannot connect SSL to file id"); break;
         case esslses:  netwrterr("Cannot create SSL session"); break;
         case esslcer:  netwrterr("Cannot get SSL certificate"); break;
+        case enodupf:  netwrterr("Cannot create duplicate fid"); break;
         case esystem:  netwrterr("System consistency check, please contact v}or"); break;
 
     }
@@ -253,6 +256,7 @@ FILE* pa_opennet(/* IP address */      unsigned long addr,
     /* connect the socket */
     fn = socket(AF_INET, SOCK_STREAM, 0);
     if (fn < 0) linuxerror();
+    if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
     r = connect(fn, (struct sockaddr *)&saddr, sizeof(saddr));
     if (r < 0) linuxerror();
     fp = fdopen(fn, "r+");
@@ -263,9 +267,22 @@ FILE* pa_opennet(/* IP address */      unsigned long addr,
     /* check secure sockets layer, and negotiate if so */
     if (secure) {
 
+        /* to keep ssl handling from looping, we create a shadow fid so we
+           can talk to the underlying socket */
+        opnfil[fn].sfn = dup(fn); /* create second side for ssl operations */
+        if (opnfil[fn].sfn == -1) error(enodupf);
+        if (opnfil[fn].sfn < 0 || opnfil[fn].sfn >= MAXFIL)
+            error(einvhan); /* invalid file handle */
+        /* init the shadow */
+        opnfil[fn].net = true;
+        opnfil[fn].sec = false;
+        opnfil[fn].ssl = NULL;
+        opnfil[fn].cert = NULL;
+
         opnfil[fn].ssl = SSL_new(ctx); /* create new ssl */
         if (!opnfil[fn].ssl) error(esslnew);
-        r = SSL_set_fd(opnfil[fn].ssl, fn); /* connect to fid */
+        /* connect the ssl side to the second fid */
+        r = SSL_set_fd(opnfil[fn].ssl, opnfil[fn].sfn); /* connect to fid */
         if (!r) error(esslfid);
 
         /* initiate tls handshake */
@@ -276,8 +293,8 @@ FILE* pa_opennet(/* IP address */      unsigned long addr,
            Right now we don't do anything with this (don't verify it) */
         opnfil[fn].cert = SSL_get_peer_certificate(opnfil[fn].ssl);
         if (!opnfil[fn].cert) error(esslcer);
-        /* we have done our plaintext setup, now flip to secure handling */
-        opnfil[fn].sec = true; /* set secure */
+        /* we have negotiated with the server, now turn TLS encode/decode on */
+        opnfil[fn].sec = true;
 
     }
 
@@ -458,7 +475,7 @@ static int iopen(const char* pathname, int flags, int perm)
     /* open with passdown */
     r = (*ofpopen)(pathname, flags, perm);
     if (r >= 0)
-    	if (r < 1 || r > MAXFIL) error(einvhan); /* invalid file handle */
+    	if (r < 0 || r > MAXFIL) error(einvhan); /* invalid file handle */
 
     return (r);
 
@@ -478,12 +495,13 @@ static int iclose(int fd)
 
     int r;
 
-    if (fd < 1 || fd > MAXFIL) error(einvhan); /* invalid file handle */
+    if (fd < 0 || fd > MAXFIL) error(einvhan); /* invalid file handle */
 
     if (opnfil[fd].sec) {
 
         SSL_free(opnfil[fd].ssl); /* free the ssl */
         X509_free(opnfil[fd].cert); /* free certificate */
+        (*ofpclose)(opnfil[fd].sfn); /* close the shadow as well */
 
     }
     r = (*ofpclose)(fd); /* normal file and socket close */
@@ -507,7 +525,7 @@ static ssize_t iread(int fd, void* buff, size_t count)
 
     ssize_t r;
 
-    if (fd < 1 || fd >= MAXFIL) error(einvhan); /* invalid file handle */
+    if (fd < 0 || fd >= MAXFIL) error(einvhan); /* invalid file handle */
 
     if (opnfil[fd].sec)
         /* perform ssl decoded read */
@@ -530,7 +548,7 @@ static ssize_t iwrite(int fd, const void* buff, size_t count)
 
     ssize_t r;
 
-    if (fd < 1 || fd > MAXFIL) error(einvhan); /* invalid file handle */
+    if (fd < 0 || fd > MAXFIL) error(einvhan); /* invalid file handle */
 
     if (opnfil[fd].sec)
         /* perform ssl encoded write */
@@ -570,7 +588,7 @@ static off_t ilseek(int fd, off_t offset, int whence)
 
 {
 
-    if (fd < 1 || fd > MAXFIL) error(einvhan); /* invalid file handle */
+    if (fd < 0 || fd > MAXFIL) error(einvhan); /* invalid file handle */
 
     return (*ofplseek)(fd, offset, whence);
 
