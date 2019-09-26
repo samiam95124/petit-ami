@@ -48,6 +48,7 @@ typedef struct filrec {
    SSL*    ssl;  /* SSL data */
    X509*   cert; /* peer certificate */
    int     sfn;  /* shadow fid */
+   boolean opn;  /* file is open with Linux */
 
 } filrec;
 typedef filrec* filptr; /* pointer to file record */
@@ -263,6 +264,7 @@ FILE* pa_opennet(/* IP address */      unsigned long addr,
     if (!fp) linuxerror();
     opnfil[fn].net = true; /* set network (sockets) file */
     opnfil[fn].sec = false; /* set not secure */
+    opnfil[fn].opn = true;
 
     /* check secure sockets layer, and negotiate if so */
     if (secure) {
@@ -474,8 +476,12 @@ static int iopen(const char* pathname, int flags, int perm)
 
     /* open with passdown */
     r = (*ofpopen)(pathname, flags, perm);
-    if (r >= 0)
+    if (r >= 0) {
+
     	if (r < 0 || r > MAXFIL) error(einvhan); /* invalid file handle */
+    	opnfil[r].opn = true; /* set open */
+
+    }
 
     return (r);
 
@@ -618,8 +624,10 @@ static void pa_init_network()
 
         opnfil[fi].net = false; /* set unoccupied */
         opnfil[fi].sec = false; /* set ordinary socket */
-        opnfil[fi].ssl = NULL; /* clear SSL data */
+        opnfil[fi].ssl = NULL;  /* clear SSL data */
         opnfil[fi].cert = NULL; /* clear certificate data */
+        opnfil[fi].sfn = -1;    /* set no shadow */
+        opnfil[fi].opn = false; /* set not open */
 
     }
 
@@ -658,5 +666,16 @@ static void pa_deinit_network()
     ovr_close(ofpclose, &cppclose);
 //    ovr_unlink(ofpunlink, &cppunlink);
     ovr_lseek(ofplseek, &cpplseek);
+
+    /* close out open files and release space */
+    for (fi = 0; fi < MAXFIL; fi++) {
+
+        if (opnfil[fi].opn) close(fi);
+        if (opnfil[fi].ssl) SSL_free(opnfil[fi].ssl);
+        if (opnfil[fi].cert) X509_free(opnfil[fi].cert);
+
+    }
+    /* free context structure */
+    SSL_CTX_free(ctx);
 
 }
