@@ -108,13 +108,13 @@ static plseek_t  ofplseek;
 /*
  * Variables
  */
-filrec opnfil[MAXFIL]; /* open files table */
-int fi; /* index for files table */
-int r; /* result */
+static filrec opnfil[MAXFIL]; /* open files table */
+static int fi; /* index for files table */
+static int r; /* result */
 
 /* openSSL variables, need to check if these can be shared globally */
 
-SSL_CTX*    ctx;
+static SSL_CTX*    ctx;
 
 /*******************************************************************************
 
@@ -143,7 +143,7 @@ This needs to go to a dialog instead of the system error trap.
 
 *******************************************************************************/
  
-void error(errcod e)
+static void error(errcod e)
 
 {
 
@@ -170,8 +170,6 @@ void error(errcod e)
 
     }
 
-    exit(1);
-
 }
 
 /*******************************************************************************
@@ -182,11 +180,62 @@ Handles error in errno. Prints the string assocated with the error.
 
 *******************************************************************************/
 
-void linuxerror(void)
+static void linuxerror(void)
 
 {
 
     fprintf(stderr, "\nLinux Error: %s\n", strerror(errno));
+
+    exit(1);
+
+}
+
+/*******************************************************************************
+
+Handle SSL error
+
+Handles an SSL layer error by looking up the error code and printing the
+appropriate error message.
+
+*******************************************************************************/
+
+static void sslerror(SSL* ssl, int r)
+
+{
+
+    fprintf(stderr, "\nSSL Error: ");
+    switch (SSL_get_error(ssl, r)) {
+
+        case SSL_ERROR_NONE:
+            fprintf(stderr, "The TLS/SSL I/O operation completed\n");
+            break;
+        case SSL_ERROR_ZERO_RETURN:
+            fprintf(stderr, "The TLS/SSL connection has been closed\n");
+            break;
+        case SSL_ERROR_WANT_READ:
+        case SSL_ERROR_WANT_WRITE:
+        case SSL_ERROR_WANT_CONNECT:
+        case SSL_ERROR_WANT_ACCEPT:
+            fprintf(stderr, "The operation did not complete\n");
+            break;
+        case SSL_ERROR_WANT_X509_LOOKUP:
+            fprintf(stderr, "The operation did not complete because an application "
+                      "callback set by SSL_CTX_set_client_cert_cb() has asked "
+                      "to be called again\n");
+            break;
+        case SSL_ERROR_SYSCALL:
+            fprintf(stderr, "System I/O error\n");
+            break;
+        case SSL_ERROR_SSL:
+            fprintf(stderr, "A failure in the SSL library occurred\n");
+            break;
+        default:
+            fprintf(stderr, "Unknown error code\n");
+            break;
+
+    }
+
+    exit(1);
 
 }
 
@@ -289,7 +338,7 @@ FILE* pa_opennet(/* IP address */      unsigned long addr,
 
         /* initiate tls handshake */
         r = SSL_connect(opnfil[fn].ssl);
-        if (r != 1) error(esslses);
+        if (r != 1) sslerror(opnfil[fn].ssl, r);
 
         /* Get the remote certificate into the X509 structure.
            Right now we don't do anything with this (don't verify it) */

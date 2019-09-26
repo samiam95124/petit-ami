@@ -52,20 +52,20 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    /* set default port *
+    /* set default port */
     if (secure) port = 443; /* https standard port */
     else port = 80; /* http standard port */
 
     /* get user specified port */
-    if (argc == 4) port = atoi(argv[3]);
+    if (argc == 4) port = atoi(argv[argi+2]);
 
     /* open the server file */
-    pa_addrnet(argv[1], &addr);
+    pa_addrnet(argv[argi], &addr);
     fp = pa_opennet(addr, port, secure);
 
     /* send request to get root page */
-    fprintf(fp, "GET %s HTTP/1.1\r\n", argv[2]);
-    fprintf(fp, "Host: %s\r\n\r\n", argv[1]);
+    fprintf(fp, "GET %s HTTP/1.1\r\n", argv[argi+1]);
+    fprintf(fp, "Host: %s\r\n\r\n", argv[argi]);
 
     /* print result */
     while (!feof(fp)) {
