@@ -1,0 +1,9 @@
+Notes for network module
+
+1. Need to test various sites on the web, I have seen failures in the ssl 
+library, like standardpascal.com.
+
+2. Need to make library multithread safe. This will, for example, allow
+creation of a "telnet" type program that needs to run one thread for each
+of input and output.
+
