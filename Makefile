@@ -193,32 +193,32 @@ alsaparms: linux/alsaparms.c Makefile
 test: bin/petit_ami_plain.so include/terminal.h test.c Makefile
 	$(CC) $(CFLAGS) test.c $(PLIBS) -o test
 	
-play: bin/petit_ami_term.so include/terminal.h sound_prog/play.c Makefile
-	$(CC) $(CFLAGS) sound_prog/play.c linux/option.c $(LIBS) -o bin/play
+play: bin/petit_ami_term.so include/terminal.h sound_programs/play.c Makefile
+	$(CC) $(CFLAGS) sound_programs/play.c linux/option.c $(LIBS) -o bin/play
 	
-keyboard: bin/petit_ami_term.so include/terminal.h sound_prog/keyboard.c Makefile
-	$(CC) $(CFLAGS) sound_prog/keyboard.c linux/option.c $(LIBS) -o bin/keyboard
+keyboard: bin/petit_ami_term.so include/terminal.h sound_programs/keyboard.c Makefile
+	$(CC) $(CFLAGS) sound_programs/keyboard.c linux/option.c $(LIBS) -o bin/keyboard
 	
-playmidi: bin/petit_ami_term.so include/terminal.h sound_prog/playmidi.c linux/option.c Makefile
-	$(CC) $(CFLAGS) sound_prog/playmidi.c linux/option.c $(PLIBS) -o bin/playmidi
+playmidi: bin/petit_ami_term.so include/terminal.h sound_programs/playmidi.c linux/option.c Makefile
+	$(CC) $(CFLAGS) sound_programs/playmidi.c linux/option.c $(PLIBS) -o bin/playmidi
 
-playwave: bin/petit_ami_term.so include/terminal.h sound_prog/playwave.c Makefile
-	$(CC) $(CFLAGS) sound_prog/playwave.c linux/option.c $(PLIBS) -o bin/playwave
+playwave: bin/petit_ami_term.so include/terminal.h sound_programs/playwave.c Makefile
+	$(CC) $(CFLAGS) sound_programs/playwave.c linux/option.c $(PLIBS) -o bin/playwave
 	
-printdev: bin/petit_ami_term.so include/terminal.h sound_prog/printdev.c Makefile
-	$(CC) $(CFLAGS) sound_prog/printdev.c $(PLIBS) -o bin/printdev
+printdev: bin/petit_ami_term.so include/terminal.h sound_programs/printdev.c Makefile
+	$(CC) $(CFLAGS) sound_programs/printdev.c $(PLIBS) -o bin/printdev
 
-connectmidi: bin/petit_ami_term.so include/terminal.h sound_prog/connectmidi.c Makefile
-	$(CC) $(CFLAGS) sound_prog/connectmidi.c $(PLIBS) -o bin/connectmidi
+connectmidi: bin/petit_ami_term.so include/terminal.h sound_programs/connectmidi.c Makefile
+	$(CC) $(CFLAGS) sound_programs/connectmidi.c $(PLIBS) -o bin/connectmidi
 	
-connectwave: bin/petit_ami_term.so include/terminal.h sound_prog/connectwave.c Makefile
-	$(CC) $(CFLAGS) sound_prog/connectwave.c $(PLIBS) -o bin/connectwave
+connectwave: bin/petit_ami_term.so include/terminal.h sound_programs/connectwave.c Makefile
+	$(CC) $(CFLAGS) sound_programs/connectwave.c $(PLIBS) -o bin/connectwave
 	
-random: bin/petit_ami_term.so include/terminal.h sound_prog/random.c Makefile
-	$(CC) $(CFLAGS) sound_prog/random.c linux/option.c $(LIBS) -o bin/random
+random: bin/petit_ami_term.so include/terminal.h sound_programs/random.c Makefile
+	$(CC) $(CFLAGS) sound_programs/random.c linux/option.c $(LIBS) -o bin/random
 	
-genwave: bin/petit_ami_term.so include/terminal.h sound_prog/genwave.c Makefile
-	$(CC) $(CFLAGS) sound_prog/genwave.c linux/option.c $(PLIBS) -o bin/genwave
+genwave: bin/petit_ami_term.so include/terminal.h sound_programs/genwave.c Makefile
+	$(CC) $(CFLAGS) sound_programs/genwave.c linux/option.c $(PLIBS) -o bin/genwave
 	
 scntst: bin/petit_ami_term.so include/terminal.h tests/scntst.c include/services.h linux/services.c Makefile
 	$(CC) $(CFLAGS) tests/scntst.c $(LIBS) -o bin/scntst 
@@ -239,14 +239,17 @@ getmouse: linux/getmouse.c Makefile
 term: include/terminal.h tests/term.c Makefile
 	$(CC) $(CFLAGS) tests/term.c $(LIBS) -o bin/term
 	
-snake: term_game/snake.c include/terminal.h Makefile
-	$(CC) $(CFLAGS) term_game/snake.c $(LIBS) -o bin/snake
+snake: terminal_games/snake.c include/terminal.h Makefile
+	$(CC) $(CFLAGS) terminal_games/snake.c $(LIBS) -o bin/snake
 	
-mine: term_game/mine.c include/terminal.h Makefile
-	$(CC) $(CFLAGS) term_game/mine.c $(LIBS) -o bin/mine
+mine: terminal_games/mine.c include/terminal.h Makefile
+	$(CC) $(CFLAGS) terminal_games/mine.c $(LIBS) -o bin/mine
 	
-editor: term_prog/editor.c include/terminal.h Makefile
-	$(CC) $(CFLAGS) term_prog/editor.c $(LIBS) -o bin/editor
+editor: terminal_programs/editor.c include/terminal.h Makefile
+	$(CC) $(CFLAGS) terminal_programs/editor.c $(LIBS) -o bin/editor
+	
+getpage: bin/petit_ami_plain.so network_programs/getpage.c Makefile
+	$(CC) $(CFLAGS) network_programs/getpage.c $(PLIBS) -o bin/getpage
 	
 clean:
 	rm -f bin/dumpmidi bin/lsalsadev bin/alsaparms test bin/play bin/keyboard 
