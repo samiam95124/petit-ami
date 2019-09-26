@@ -249,7 +249,7 @@ editor: terminal_programs/editor.c include/terminal.h Makefile
 	$(CC) $(CFLAGS) terminal_programs/editor.c $(LIBS) -o bin/editor
 	
 getpage: bin/petit_ami_plain.so network_programs/getpage.c Makefile
-	$(CC) $(CFLAGS) network_programs/getpage.c $(PLIBS) -o bin/getpage
+	$(CC) $(CFLAGS) network_programs/getpage.c linux/option.c $(PLIBS) -o bin/getpage
 	
 clean:
 	rm -f bin/dumpmidi bin/lsalsadev bin/alsaparms test bin/play bin/keyboard 
