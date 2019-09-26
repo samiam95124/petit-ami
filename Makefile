@@ -58,8 +58,10 @@ endif
 #
 ifeq ($(LINK_TYPE),static)
     LIBS = bin/libc.a
+    PLIBS = bin/libc.a
 else
 	LIBS = bin/libc.so.6
+	PLIBS = bin/libc.so.6
 endif
 
 #
@@ -70,6 +72,9 @@ endif
 # Plain (no terminal handler)
 # This option exists to drop the terminal handler, which should not be
 # required for most code.
+#
+# Note there is no statically linked sound at the moment, since we don't have
+# an absolute version of fluidsynth.
 #
 ifeq ($(LINK_TYPE),static)
     PLIBS += bin/petit_ami_plain.a
@@ -101,8 +106,8 @@ else
 	    LIBS += bin/petit_ami_graph.so
 	endif
 endif 
-LIBS += -lasound -lfluidsynth -lm -lpthread
-PLIBS += -lasound -lfluidsynth -lm -lpthread
+LIBS += -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
+PLIBS += -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
 
 #
 # Make all executables
@@ -119,6 +124,9 @@ linux/services.o: linux/services.c include/services.h
 	
 linux/sound.o: linux/sound.c include/sound.h
 	gcc -g3 -Iinclude -fPIC -c linux/sound.c -lasound -lm -pthread -o linux/sound.o
+	
+linux/network.o: linux/network.c include/network.h
+	gcc -g3 -Iinclude -fPIC -c linux/network.c -o linux/network.o
 	
 linux/fluidsynthplug.o: linux/fluidsynthplug.c include/sound.h
 	gcc -g3 -Iinclude -fPIC -c linux/fluidsynthplug.c -lasound -lm -pthread -o linux/fluidsynthplug.o
@@ -141,33 +149,34 @@ linux/graph_x.o: linux/graph_x.c include/graph.h
 # Thus we leave it as a .o file.
 #
 bin/petit_ami_plain.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o
+    linux/dumpsynthplug.o linux/network.o
 	gcc -shared linux/services.o linux/sound.o linux/fluidsynthplug.o \
-	    linux/dumpsynthplug.o -o bin/petit_ami_plain.so
+	    linux/dumpsynthplug.o linux/network.o -o bin/petit_ami_plain.so
 	
 bin/petit_ami_plain.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o
+    linux/dumpsynthplug.o linux/network.o
 	ar rcs bin/petit_ami_plain.a linux/services.o linux/sound.o \
-	    linux/fluidsynthplug.o linux/dumpsynthplug.o
+	    linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o
 	
 bin/petit_ami_term.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/xterm.o
+    linux/dumpsynthplug.o linux/network.o linux/xterm.o
 	gcc -shared linux/services.o linux/sound.o linux/fluidsynthplug.o \
-	    linux/dumpsynthplug.o linux/xterm.o -o bin/petit_ami_term.so
+	    linux/dumpsynthplug.o  linux/network.o linux/xterm.o -o bin/petit_ami_term.so
 	
 bin/petit_ami_term.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/xterm.o
+    linux/dumpsynthplug.o linux/network.o linux/xterm.o
 	ar rcs bin/petit_ami_term.a linux/services.o linux/sound.o \
-	    linux/fluidsynthplug.o linux/dumpsynthplug.o linux/xterm.o
+	    linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o linux/xterm.o
 	
 petit_ami_graph.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/graph_x.o
-	gcc linux/services.o linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o linux/xterm.o -o bin/petit_ami_graph.so
+    linux/dumpsynthplug.o linux/network.o linux/graph_x.o
+	gcc linux/services.o linux/sound.o linux/fluidsynthplug.o \
+	linux/dumpsynthplug.o  linux/network.o linux/xterm.o -o bin/petit_ami_graph.so
 	
 petit_ami_graph.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/graph_x.o
+    linux/dumpsynthplug.o linux/network.o linux/graph_x.o
 	ar rcs bin/petit_ami_graph.a linux/services.o linux/sound.o \
-	linux/fluidsynthplug.o linux/dumpsynthplug.o linux/xterm.o
+	linux/fluidsynthplug.o linux/dumpsynthplug.o  linux/network.o linux/xterm.o
 
 #
 # Make individual executables
@@ -181,8 +190,8 @@ lsalsadev: linux/lsalsadev.c Makefile
 alsaparms: linux/alsaparms.c Makefile
 	gcc linux/alsaparms.c -lasound -o bin/alsaparms
 
-test: bin/petit_ami_term.so include/terminal.h test.c Makefile
-	$(CC) $(CFLAGS) test.c $(LIBS) -o test
+test: bin/petit_ami_plain.so include/terminal.h test.c Makefile
+	$(CC) $(CFLAGS) test.c $(PLIBS) -o test
 	
 play: bin/petit_ami_term.so include/terminal.h sound_prog/play.c Makefile
 	$(CC) $(CFLAGS) sound_prog/play.c linux/option.c $(LIBS) -o bin/play
