@@ -1,6 +1,6 @@
 /*******************************************************************************
 *                                                                              *
-*                    SIMPLE NETWORK ACCESS TEST PROGRAM                        *
+*                             POP EMAIL READER                                 *
 *                                                                              *
 *                   2006/05/23 Copyright (C) S. A. Franco                      *
 *                                                                              *
@@ -14,12 +14,14 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <localdefs.h>
 #include <network.h>
 #include <option.h>
 
 #define BUFLEN 100
+#define NUMMSG 1000 /* maximum messages to store */
 
 FILE* mail;
 unsigned long addr;
@@ -28,7 +30,8 @@ char server[BUFLEN];
 char user[BUFLEN];
 char pass[BUFLEN];
 int  msgnum;
-int  msgseq;
+int  msgsiz;
+int  msgarr[NUMMSG];
 
 void waitresp(void)
 
@@ -50,6 +53,8 @@ int main(int argc, char **argv)
 
 {
 
+    int i, top;
+
     printf("Mail server access test program\n");
     printf("\n");
 
@@ -68,22 +73,39 @@ int main(int argc, char **argv)
     waitresp();
     fprintf(mail, "list\r\n");
     waitresp();
-    printf("Message Sequence\n");
-    printf("----------------\n");
+    top = 0; /* set top of message array */
+    /* gather message numbers */
     do {
 
         if (fgets(buff, BUFLEN, mail)) {
 
-            if (buff[0] != '.') {
+            if (strcmp(buff, ".\r\n")) {
 
-                sscanf(buff, "%d %d\n", &msgnum, &msgseq);
-                printf("%7d %8d\n", msgnum, msgseq);
+                sscanf(buff, "%d %d\n", &msgnum, &msgsiz);
+                msgarr[top] = msgnum; /* save message number */
+                if (top < NUMMSG) top++; /* advance */
+                //printf("%7d %8d\n", msgnum, msgsiz);
 
             }
 
         }
 
-   } while (buff[0] && buff[0] != '.');
+   } while (buff[0] && strcmp(buff, ".\r\n"));
+   /* now print those messages */
+   for (i = 0; i < top; i++) {
+
+       printf("Message: %d\n\n", msgarr[i]);
+       fprintf(mail, "retr %d\r\n", msgarr[i]);
+       waitresp();
+       do {
+
+           if (fgets(buff, BUFLEN, mail))
+               if (strcmp(buff, ".\r\n")) printf("%s", buff);
+
+       } while (buff[0] && strcmp(buff, ".\r\n"));
+
+   }
+
    fclose(mail);
 
    return (0);
