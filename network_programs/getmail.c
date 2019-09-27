@@ -23,15 +23,31 @@
 #define BUFLEN 100
 #define NUMMSG 1000 /* maximum messages to store */
 
-FILE* mail;
-unsigned long addr;
-char buff[BUFLEN];
-char server[BUFLEN];
-char user[BUFLEN];
-char pass[BUFLEN];
-int  msgnum;
-int  msgsiz;
-int  msgarr[NUMMSG];
+static FILE* mail;
+static unsigned long addr;
+static char buff[BUFLEN];
+static char server[BUFLEN];
+static char user[BUFLEN];
+static char pass[BUFLEN];
+static int  msgnum;
+static int  msgsiz;
+static int  msgarr[NUMMSG];
+static int  port = 110; /* unsecured port */
+static int  sport = 995; /* secured port */
+
+boolean secure = false;
+
+optrec opttbl[] = {
+
+    { "secure", &secure, NULL,   NULL, NULL },
+    { "s",      &secure, NULL,   NULL, NULL },
+    { "port",   NULL,    &port,  NULL, NULL },
+    { "p",      NULL,    &port,  NULL, NULL },
+    { "sport",  NULL,    &sport, NULL, NULL },
+    { "sp",     NULL,    &sport, NULL, NULL },
+    { NULL,     NULL,    NULL,   NULL, NULL }
+
+};
 
 void waitresp(void)
 
@@ -54,22 +70,28 @@ int main(int argc, char **argv)
 {
 
     int i, top;
+    int argi = 1;
+    int pt;
 
     printf("Mail server access test program\n");
     printf("\n");
 
+    /* parse user options */
+    options(&argi, &argc, argv, opttbl, true);
+
     if (argc < 4) {
 
-        fprintf(stderr, "Usage: getmail <server> <user> <pass>\n");
+        fprintf(stderr, "Usage: getmail [--secure|-s] [--port|p=<port>] "
+                        "[--sport|sp=<port>] <server> <user> <pass>\n");
         exit(1);
 
     }
-    pa_addrnet(argv[1], &addr);
-    mail = pa_opennet(addr, 995, true);
+    pa_addrnet(argv[argi], &addr);
+    mail = pa_opennet(addr, secure?sport:port, secure);
     waitresp();
-    fprintf(mail, "user %s\r\n", argv[2]);
+    fprintf(mail, "user %s\r\n", argv[argi+1]);
     waitresp();
-    fprintf(mail, "pass %s\r\n", argv[3]);
+    fprintf(mail, "pass %s\r\n", argv[argi+2]);
     waitresp();
     fprintf(mail, "list\r\n");
     waitresp();
