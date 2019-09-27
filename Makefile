@@ -250,6 +250,9 @@ editor: terminal_programs/editor.c include/terminal.h Makefile
 	
 getpage: bin/petit_ami_plain.so network_programs/getpage.c Makefile
 	$(CC) $(CFLAGS) network_programs/getpage.c linux/option.c $(PLIBS) -o bin/getpage
+
+getmail: bin/petit_ami_plain.so network_programs/getmail.c Makefile
+	$(CC) $(CFLAGS) network_programs/getmail.c linux/option.c $(PLIBS) -o bin/getmail
 	
 clean:
 	rm -f bin/dumpmidi bin/lsalsadev bin/alsaparms test bin/play bin/keyboard 
