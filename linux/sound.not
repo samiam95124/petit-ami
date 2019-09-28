@@ -21,6 +21,9 @@ strange.
 wave and midi modes. It seems to often self-correct, but sometimes not.
 Appears to bear relation to task priority.
 
+[afternote] I have seen this behavior elsewhere, including other programs
+and even the Ubuntu volume control when the system is fully loaded.
+
 4. Need to reconcile fluidsynthplug:writeliquid() settings against the
 Fluidsynth API. Two means to do this are:
 

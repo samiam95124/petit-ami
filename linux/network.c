@@ -299,7 +299,7 @@ FILE* pa_opennet(/* IP address */      unsigned long addr,
     int r;
     FILE* fp;
 
-    /* not sure what is wanted here */
+    /* set up address */
     saddr.sin_family = AF_INET;
     saddr.sin_addr.s_addr = htonl(addr);
     saddr.sin_port = htons(port);
@@ -419,28 +419,6 @@ int pa_rdmsg(int f, byte* msg, int len)
 
 /*******************************************************************************
 
-Synchronize messages with buffers
-
-Waits until all outstanding message read requests are filled and all outstanding
-write requests are processed. Messages are not guaranteed to be read or written
-to/from the provided buffers immediately (although that may be true). Before
-reading from a message buffer or reusing a buffer that has written data, this
-call should be used to synchronize with the I/O subsystem.
-
-This can be used to read ahead or write ahead. However, the implementation may
-treat the call as a no-op, in which case all read and write message calls are
-blocking.
-
-*******************************************************************************/
-
-void pa_syncmsg(int f)
-
-{
-
-}
-
-/*******************************************************************************
-
 Close message file
 
 Closes the given message file.
@@ -460,13 +438,61 @@ Wait external network connection
 Waits for an external socket connection on a given port address. If an external
 client connects to that port, then a socket file is opened and the file number
 returned. Note that any number of such connections can be active at one time.
-The program can invoke multiple tasks to handle each connection.
+The program can invoke multiple tasks to handle each connection. If another
+program tries to take the same port, it is blocked.
 
 *******************************************************************************/
 
-FILE* pa_waitconn(void)
+FILE* pa_waitconn(/* port number to wait on */ int port,
+                  /* secure mode */            boolean secure
+                 )
 
 {
+
+    struct sockaddr_in saddr;
+    int sfn, fn;
+    int r;
+    FILE* fp;
+    int opt;
+
+    /* connect the socket */
+    sfn = socket(AF_INET, SOCK_STREAM, 0);
+    if (sfn < 0) linuxerror();
+    if (sfn < 0 || sfn >= MAXFIL) error(einvhan); /* invalid file handle */
+
+    /* set socket options, multiple servers on address and same port */
+    opt = 1;
+    r = setsockopt(sfn, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt,
+                   sizeof(opt));
+    if (r < 0) linuxerror();
+
+    /* set up address */
+    saddr.sin_family = AF_INET;
+    saddr.sin_addr.s_addr = INADDR_ANY;
+    saddr.sin_port = htons(port);
+    r = bind(sfn, (struct sockaddr *)&saddr, sizeof(saddr));
+    if (r < 0) linuxerror();
+
+    /* wait on port */
+    r = listen(sfn, 3);
+    if (r < 0) linuxerror();
+
+    /* accept connection, discard peer address */
+    fn = accept(sfn, NULL, NULL);
+    if (r < 0) linuxerror();
+    if (sfn < 0 || sfn >= MAXFIL) error(einvhan); /* invalid file handle */
+
+    /* discard server port */
+    close(sfn);
+
+    /* set up as FILE* accessable */
+    fp = fdopen(fn, "r+");
+    if (!fp) linuxerror();
+    opnfil[fn].net = true; /* set network (sockets) file */
+    opnfil[fn].sec = false; /* set not secure */
+    opnfil[fn].opn = true;
+
+    return (fp);
 
 }
 

@@ -37,8 +37,7 @@ void pa_openmsgv6(int f, unsigned long long addrh, unsigned long long addrl,
                   int port);
 void pa_wrmsg(int f, byte* msg, int len);
 int pa_rdmsg(int f, byte* msg, int len);
-void pa_syncmsg(int f);
 void pa_clsmsg(int f);
-FILE* pa_waitconn(void);
+FILE* pa_waitconn(int port, boolean secure);
 
 #endif /* __NETWORK_H__ */
