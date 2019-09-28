@@ -55,7 +55,7 @@ typedef filrec* filptr; /* pointer to file record */
 
 /* error codes */
 typedef enum {
-    ewskini,  /* cannot initalize winsock */
+    ewskini,  /* cannot initialize winsock */
     einvhan,  /* invalid file handle */
     enetopn,  /* cannot reset or rewrite network file */
     enetpos,  /* cannot position network file */
@@ -72,6 +72,7 @@ typedef enum {
     esslses,  /* Cannot create SSL session */
     esslcer,  /* Cannot get SSL certificate */
     enodupf,  /* Cannot create duplicate fid */
+    enoallc,  /* Cannot allocate file entry */
     esystem   /* System consistency check */
 } errcod;
 
@@ -108,9 +109,7 @@ static plseek_t  ofplseek;
 /*
  * Variables
  */
-static filrec opnfil[MAXFIL]; /* open files table */
-static int fi; /* index for files table */
-static int r; /* result */
+static filptr opnfil[MAXFIL]; /* open files table */
 
 /* openSSL variables, need to check if these can be shared globally */
 
@@ -157,7 +156,8 @@ static void error(errcod e)
         case enetlen:  netwrterr("Cannot find length network file"); break;
         case esckeof:  netwrterr("end encountered on socket"); break;
         case efinuse:  netwrterr("File already in use"); break;
-        case enetwrt:  netwrterr("Attempt to write to input side of network pair"); break;
+        case enetwrt:  netwrterr("Attempt to write to input side of network "
+                                 "pair"); break;
         case enetadr:  netwrterr("Cannot determine address of server"); break;
         case einissl:  netwrterr("Cannot initialize OpenSSL library"); break;
         case esslnew:  netwrterr("Cannot create SSL"); break;
@@ -166,7 +166,9 @@ static void error(errcod e)
         case esslses:  netwrterr("Cannot create SSL session"); break;
         case esslcer:  netwrterr("Cannot get SSL certificate"); break;
         case enodupf:  netwrterr("Cannot create duplicate fid"); break;
-        case esystem:  netwrterr("System consistency check, please contact v}or"); break;
+        case enoallc:  netwrterr("Cannot allocate file entry"); break;
+        case esystem:  netwrterr("System consistency check, please contact "
+                                 "vendor"); break;
 
     }
 
@@ -236,6 +238,63 @@ static void sslerror(SSL* ssl, int r)
     }
 
     exit(1);
+
+}
+
+/*******************************************************************************
+
+Get file entry
+
+Checks the indicated file table entry, and allocates a new one if none is
+allocated.
+
+*******************************************************************************/
+
+void getfil(int fn)
+
+{
+
+    if (!opnfil[fn]) {
+
+        opnfil[fn] = malloc(sizeof(filrec));
+        if (!opnfil[fn]) error(enoallc);
+
+        opnfil[fn]->net = false; /* set unoccupied */
+        opnfil[fn]->sec = false;  /* set ordinary socket */
+        opnfil[fn]->ssl = NULL;   /* clear SSL data */
+        opnfil[fn]->cert = NULL;  /* clear certificate data */
+        opnfil[fn]->sfn = -1;     /* set no shadow */
+        opnfil[fn]->opn = false;  /* set not open */
+
+    }
+
+}
+
+/*******************************************************************************
+
+Get file entry
+
+Checks the indicated file table entry, and allocates a new one if none is
+allocated. Then the file entry is initialized.
+
+*******************************************************************************/
+
+void newfil(int fn)
+
+{
+
+    if (!opnfil[fn]) {
+
+        opnfil[fn] = malloc(sizeof(filrec));
+        if (!opnfil[fn]) error(enoallc);
+
+    }
+    opnfil[fn]->net = false; /* set unoccupied */
+    opnfil[fn]->sec = false;  /* set ordinary socket */
+    opnfil[fn]->ssl = NULL;   /* clear SSL data */
+    opnfil[fn]->cert = NULL;  /* clear certificate data */
+    opnfil[fn]->sfn = -1;     /* set no shadow */
+    opnfil[fn]->opn = false;  /* set not open */
 
 }
 
@@ -311,41 +370,39 @@ FILE* pa_opennet(/* IP address */      unsigned long addr,
     if (r < 0) linuxerror();
     fp = fdopen(fn, "r+");
     if (!fp) linuxerror();
-    opnfil[fn].net = true; /* set network (sockets) file */
-    opnfil[fn].sec = false; /* set not secure */
-    opnfil[fn].opn = true;
+    newfil(fn); /* get/renew file entry */
+    opnfil[fn]->net = true; /* set network (sockets) file */
+    opnfil[fn]->sec = false; /* set not secure */
+    opnfil[fn]->opn = true;
 
     /* check secure sockets layer, and negotiate if so */
     if (secure) {
 
         /* to keep ssl handling from looping, we create a shadow fid so we
            can talk to the underlying socket */
-        opnfil[fn].sfn = dup(fn); /* create second side for ssl operations */
-        if (opnfil[fn].sfn == -1) error(enodupf);
-        if (opnfil[fn].sfn < 0 || opnfil[fn].sfn >= MAXFIL)
+        opnfil[fn]->sfn = dup(fn); /* create second side for ssl operations */
+        if (opnfil[fn]->sfn == -1) error(enodupf);
+        if (opnfil[fn]->sfn < 0 || opnfil[fn]->sfn >= MAXFIL)
             error(einvhan); /* invalid file handle */
-        /* init the shadow */
-        opnfil[fn].net = true;
-        opnfil[fn].sec = false;
-        opnfil[fn].ssl = NULL;
-        opnfil[fn].cert = NULL;
+        newfil(opnfil[fn]->sfn); /* init the shadow */
+        opnfil[opnfil[fn]->sfn]->net = true; /* set network file */
 
-        opnfil[fn].ssl = SSL_new(ctx); /* create new ssl */
-        if (!opnfil[fn].ssl) error(esslnew);
+        opnfil[fn]->ssl = SSL_new(ctx); /* create new ssl */
+        if (!opnfil[fn]->ssl) error(esslnew);
         /* connect the ssl side to the second fid */
-        r = SSL_set_fd(opnfil[fn].ssl, opnfil[fn].sfn); /* connect to fid */
+        r = SSL_set_fd(opnfil[fn]->ssl, opnfil[fn]->sfn); /* connect to fid */
         if (!r) error(esslfid);
 
         /* initiate tls handshake */
-        r = SSL_connect(opnfil[fn].ssl);
-        if (r != 1) sslerror(opnfil[fn].ssl, r);
+        r = SSL_connect(opnfil[fn]->ssl);
+        if (r != 1) sslerror(opnfil[fn]->ssl, r);
 
         /* Get the remote certificate into the X509 structure.
            Right now we don't do anything with this (don't verify it) */
-        opnfil[fn].cert = SSL_get_peer_certificate(opnfil[fn].ssl);
-        if (!opnfil[fn].cert) error(esslcer);
+        opnfil[fn]->cert = SSL_get_peer_certificate(opnfil[fn]->ssl);
+        if (!opnfil[fn]->cert) error(esslcer);
         /* we have negotiated with the server, now turn TLS encode/decode on */
-        opnfil[fn].sec = true;
+        opnfil[fn]->sec = true;
 
     }
 
@@ -488,9 +545,8 @@ FILE* pa_waitconn(/* port number to wait on */ int port,
     /* set up as FILE* accessable */
     fp = fdopen(fn, "r+");
     if (!fp) linuxerror();
-    opnfil[fn].net = true; /* set network (sockets) file */
-    opnfil[fn].sec = false; /* set not secure */
-    opnfil[fn].opn = true;
+    newfil(fn); /* initialize file entry */
+    opnfil[fn]->net = true; /* set network (sockets) file */
 
     return (fp);
 
@@ -549,12 +605,15 @@ static int iopen(const char* pathname, int flags, int perm)
 
 {
 
+    int r;
+
     /* open with passdown */
     r = (*ofpopen)(pathname, flags, perm);
     if (r >= 0) {
 
     	if (r < 0 || r > MAXFIL) error(einvhan); /* invalid file handle */
-    	opnfil[r].opn = true; /* set open */
+    	getfil(r); /* create file entry as required */
+    	opnfil[r]->opn = true; /* set open */
 
     }
 
@@ -578,11 +637,12 @@ static int iclose(int fd)
 
     if (fd < 0 || fd > MAXFIL) error(einvhan); /* invalid file handle */
 
-    if (opnfil[fd].sec) {
+    getfil(fd); /* create file entry as required */
+    if (opnfil[fd]->sec) {
 
-        SSL_free(opnfil[fd].ssl); /* free the ssl */
-        X509_free(opnfil[fd].cert); /* free certificate */
-        (*ofpclose)(opnfil[fd].sfn); /* close the shadow as well */
+        SSL_free(opnfil[fd]->ssl); /* free the ssl */
+        X509_free(opnfil[fd]->cert); /* free certificate */
+        (*ofpclose)(opnfil[fd]->sfn); /* close the shadow as well */
 
     }
     r = (*ofpclose)(fd); /* normal file and socket close */
@@ -608,9 +668,10 @@ static ssize_t iread(int fd, void* buff, size_t count)
 
     if (fd < 0 || fd >= MAXFIL) error(einvhan); /* invalid file handle */
 
-    if (opnfil[fd].sec)
+    getfil(fd); /* create file entry as required */
+    if (opnfil[fd]->sec)
         /* perform ssl decoded read */
-        r = SSL_read(opnfil[fd].ssl, buff, count);
+        r = SSL_read(opnfil[fd]->ssl, buff, count);
     else r = (*ofpread)(fd, buff, count); /* standard file and socket read */
 
     return (r);
@@ -631,9 +692,10 @@ static ssize_t iwrite(int fd, const void* buff, size_t count)
 
     if (fd < 0 || fd > MAXFIL) error(einvhan); /* invalid file handle */
 
-    if (opnfil[fd].sec)
+    getfil(fd); /* create file entry as required */
+    if (opnfil[fd]->sec)
         /* perform ssl encoded write */
-        r = SSL_write(opnfil[fd].ssl, buff, count);
+        r = SSL_write(opnfil[fd]->ssl, buff, count);
     else r = (*ofpwrite)(fd, buff, count);
 
     return (r);
@@ -671,6 +733,7 @@ static off_t ilseek(int fd, off_t offset, int whence)
 
     if (fd < 0 || fd > MAXFIL) error(einvhan); /* invalid file handle */
 
+    getfil(fd); /* create file entry as required */
     return (*ofplseek)(fd, offset, whence);
 
 }
@@ -686,6 +749,8 @@ static void pa_init_network()
 
 {
 
+    int fi;
+
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
     ovr_write(iwrite, &ofpwrite);
@@ -695,16 +760,7 @@ static void pa_init_network()
     ovr_lseek(ilseek, &ofplseek);
 
     /* clear open files table */
-    for (fi = 0; fi < MAXFIL; fi++) {
-
-        opnfil[fi].net = false; /* set unoccupied */
-        opnfil[fi].sec = false; /* set ordinary socket */
-        opnfil[fi].ssl = NULL;  /* clear SSL data */
-        opnfil[fi].cert = NULL; /* clear certificate data */
-        opnfil[fi].sfn = -1;    /* set no shadow */
-        opnfil[fi].opn = false; /* set not open */
-
-    }
+    for (fi = 0; fi < MAXFIL; fi++) opnfil[fi] = NULL;
 
     /* initialize SSL library and register algorithms */
     if(SSL_library_init() < 0) error(einissl);
@@ -726,6 +782,8 @@ static void pa_deinit_network()
 
 {
 
+    int fi;
+
     /* holding copies of system vectors */
     pread_t cppread;
     pwrite_t cppwrite;
@@ -743,11 +801,12 @@ static void pa_deinit_network()
     ovr_lseek(ofplseek, &cpplseek);
 
     /* close out open files and release space */
-    for (fi = 0; fi < MAXFIL; fi++) {
+    for (fi = 0; fi < MAXFIL; fi++) if (opnfil[fi]) {
 
-        if (opnfil[fi].opn) close(fi);
-        if (opnfil[fi].ssl) SSL_free(opnfil[fi].ssl);
-        if (opnfil[fi].cert) X509_free(opnfil[fi].cert);
+        if (opnfil[fi]->opn) close(fi);
+        if (opnfil[fi]->ssl) SSL_free(opnfil[fi]->ssl);
+        if (opnfil[fi]->cert) X509_free(opnfil[fi]->cert);
+        free(opnfil[fi]);
 
     }
     /* free context structure */
