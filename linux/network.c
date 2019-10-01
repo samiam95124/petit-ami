@@ -276,9 +276,9 @@ static filptr getfil(void)
 
         /* get entry */
         fp = malloc(sizeof(filrec));
-        if (fp) error(enoallc); /* didn't work */
+        if (!fp) error(enoallc); /* didn't work */
         /* allocate a lock for that (this is permanent) */
-        pthread_mutex_init(&oflock, NULL);
+        pthread_mutex_init(&fp->lock, NULL);
 
     }
     fp->net = false; /* set not network file */
@@ -340,7 +340,7 @@ static void makfil(int fn)
         pthread_mutex_lock(&oflock); /* take the table lock */
         if (!opnfil[fn]) opnfil[fn] = fp; /* still undefined, place */
         else putfil(fp); /* otherwise we got lapped, save the entry */
-        pthread_mutex_lock(&oflock); /* take the table lock */
+        pthread_mutex_unlock(&oflock); /* release the table lock */
 
     }
 
@@ -372,7 +372,7 @@ void newfil(int fn)
         pthread_mutex_lock(&oflock); /* take the table lock */
         if (!opnfil[fn]) opnfil[fn] = fp; /* still undefined, place */
         else putfil(fp); /* otherwise we got lapped, save the entry */
-        pthread_mutex_lock(&oflock); /* take the table lock */
+        pthread_mutex_unlock(&oflock); /* release the table lock */
 
     }
     pthread_mutex_lock(&opnfil[fn]->lock); /* take file entry lock */
@@ -746,14 +746,14 @@ static int iclose(int fd)
     if (fd < 0 || fd > MAXFIL) error(einvhan); /* invalid file handle */
 
     makfil(fd); /* create file entry as required */
-    pthread_mutex_lock(&opnfil[r]->lock); /* acquire lock */
+    pthread_mutex_lock(&opnfil[fd]->lock); /* acquire lock */
     /* copy entry out and clear original. This keeps us from traveling with
        the lock and means we own the file data as locals */
     memcpy(&fr, opnfil[fd], sizeof(filrec));
     opnfil[fd]->ssl = NULL;
     opnfil[fd]->cert = NULL;
     opnfil[fd]->sfn = -1;
-    pthread_mutex_unlock(&opnfil[r]->lock); /* release lock */
+    pthread_mutex_unlock(&opnfil[fd]->lock); /* release lock */
     if (fr.sec) {
 
         SSL_free(fr.ssl); /* free the ssl */
@@ -878,8 +878,14 @@ static void pa_init_network()
 //    ovr_unlink(iunlink, &ofpunlink);
     ovr_lseek(ilseek, &ofplseek);
 
+    frefil = NULL; /* clear free files list */
     /* clear open files table */
     for (fi = 0; fi < MAXFIL; fi++) opnfil[fi] = NULL;
+
+    /* initialize the open files lock */
+    pthread_mutex_init(&oflock, NULL);
+    /* initialize the free files lock */
+    pthread_mutex_init(&fflock, NULL);
 
     /* initialize SSL library and register algorithms */
     if(SSL_library_init() < 0) error(einissl);
@@ -887,11 +893,6 @@ static void pa_init_network()
     /* create new SSL context */
     ctx = SSL_CTX_new(TLS_client_method());
     if (!ctx) error(esslctx);
-
-    /* initialize the open files lock */
-    pthread_mutex_init(&oflock, NULL);
-    /* initialize the free files lock */
-    pthread_mutex_init(&fflock, NULL);
 
 };
 
