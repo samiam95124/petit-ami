@@ -870,14 +870,6 @@ static void pa_init_network()
 
     int fi;
 
-    /* override system calls for basic I/O */
-    ovr_read(iread, &ofpread);
-    ovr_write(iwrite, &ofpwrite);
-    ovr_open(iopen, &ofpopen);
-    ovr_close(iclose, &ofpclose);
-//    ovr_unlink(iunlink, &ofpunlink);
-    ovr_lseek(ilseek, &ofplseek);
-
     frefil = NULL; /* clear free files list */
     /* clear open files table */
     for (fi = 0; fi < MAXFIL; fi++) opnfil[fi] = NULL;
@@ -886,6 +878,14 @@ static void pa_init_network()
     pthread_mutex_init(&oflock, NULL);
     /* initialize the free files lock */
     pthread_mutex_init(&fflock, NULL);
+
+    /* override system calls for basic I/O */
+    ovr_read(iread, &ofpread);
+    ovr_write(iwrite, &ofpwrite);
+    ovr_open(iopen, &ofpopen);
+    ovr_close(iclose, &ofpclose);
+//    ovr_unlink(iunlink, &ofpunlink);
+    ovr_lseek(ilseek, &ofplseek);
 
     /* initialize SSL library and register algorithms */
     if(SSL_library_init() < 0) error(einissl);
