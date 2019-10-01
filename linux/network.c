@@ -496,7 +496,7 @@ FILE* pa_opennet(/* IP address */      unsigned long addr,
         /* Get the remote certificate into the X509 structure.
            Right now we don't do anything with this (don't verify it) */
         cert = SSL_get_peer_certificate(ssl);
-        if (!opnfil[fn]->cert) error(esslcer);
+        if (!cert) error(esslcer);
 
         /* Update to file entry. The semantics of socket() and dup() dictate
            that no other open takes the fid, but I prefer to update the file
