@@ -41,6 +41,7 @@
    flag if they need special handling. */
 typedef struct filrec {
 
+   pthread_mutex_t lock; /* lock for this structure */
    /* we don't use the network flag for much right now, except to indicate that
       the file is a socket. Linux treats them equally */
    boolean net;  /* it's a network file */
@@ -49,6 +50,7 @@ typedef struct filrec {
    X509*   cert; /* peer certificate */
    int     sfn;  /* shadow fid */
    boolean opn;  /* file is open with Linux */
+   struct filrec* next; /* next entry (when placed on free list) */
 
 } filrec;
 typedef filrec* filptr; /* pointer to file record */
@@ -109,7 +111,11 @@ static plseek_t  ofplseek;
 /*
  * Variables
  */
-static filptr opnfil[MAXFIL]; /* open files table */
+static filptr opnfil[MAXFIL];  /* open files table */
+static pthread_mutex_t oflock; /* lock for this structure */
+static filptr frefil;          /* free file entries list */
+static pthread_mutex_t fflock; /* lock for this structure */
+
 
 /* openSSL variables, need to check if these can be shared globally */
 
@@ -245,26 +251,96 @@ static void sslerror(SSL* ssl, int r)
 
 Get file entry
 
+Gets a file entry, either from the free stack or by allocation. Clears the
+fields in the file structure.
+
+Note that we assume the malloc() calls kernel functions, and so we should not
+call it with a lock.
+
+*******************************************************************************/
+
+static filptr getfil(void)
+
+{
+
+    filptr fp;
+
+    if (frefil) { /* get existing free entry */
+
+        pthread_mutex_lock(&fflock); /* take free file lock */
+        fp = frefil; /* index top */
+        frefil = fp->next; /* gap */
+        pthread_mutex_unlock(&fflock); /* release */
+
+    } else { /* allocate new one */
+
+        /* get entry */
+        fp = malloc(sizeof(filrec));
+        if (fp) error(enoallc); /* didn't work */
+        /* allocate a lock for that (this is permanent) */
+        pthread_mutex_init(&oflock, NULL);
+
+    }
+    fp->net = false; /* set not network file */
+    fp->sec = false;  /* set ordinary socket */
+    fp->ssl = NULL;   /* clear SSL data */
+    fp->cert = NULL;  /* clear certificate data */
+    fp->sfn = -1;     /* set no shadow */
+    fp->opn = false;  /* set not open */
+    fp->next = NULL; /* set no next */
+
+    return (fp);
+
+}
+
+/*******************************************************************************
+
+Put file entry
+
+Places the given file entry on the free list, using the free list lock. This
+routine is callable with a (unrelated) lock by the rules of structured locking,
+but note it's sister function getfil is not lock callable.
+
+*******************************************************************************/
+
+static void putfil(filptr fp)
+
+{
+
+    pthread_mutex_lock(&fflock); /* take free file lock */
+    fp->next = frefil; /* place on free list */
+    frefil = fp;
+    pthread_mutex_unlock(&fflock); /* release */
+
+}
+
+/*******************************************************************************
+
+Make file entry
+
 Checks the indicated file table entry, and allocates a new one if none is
 allocated.
 
 *******************************************************************************/
 
-void getfil(int fn)
+static void makfil(int fn)
 
 {
 
+    filptr fp;
+
+    /* See if the file entry is undefined, then get a file entry if not.
+       This could be lapped by another thread, but we are saving the effort
+       of taking a lock on each file entry validation. This is why we use
+       a free list, even though we don't dispose of entries in the files
+       array, just so we can have a supply of ready to use file entries. */
     if (!opnfil[fn]) {
 
-        opnfil[fn] = malloc(sizeof(filrec));
-        if (!opnfil[fn]) error(enoallc);
-
-        opnfil[fn]->net = false; /* set unoccupied */
-        opnfil[fn]->sec = false;  /* set ordinary socket */
-        opnfil[fn]->ssl = NULL;   /* clear SSL data */
-        opnfil[fn]->cert = NULL;  /* clear certificate data */
-        opnfil[fn]->sfn = -1;     /* set no shadow */
-        opnfil[fn]->opn = false;  /* set not open */
+        fp = getfil();
+        pthread_mutex_lock(&oflock); /* take the table lock */
+        if (!opnfil[fn]) opnfil[fn] = fp; /* still undefined, place */
+        else putfil(fp); /* otherwise we got lapped, save the entry */
+        pthread_mutex_lock(&oflock); /* take the table lock */
 
     }
 
@@ -272,7 +348,7 @@ void getfil(int fn)
 
 /*******************************************************************************
 
-Get file entry
+Get new file entry
 
 Checks the indicated file table entry, and allocates a new one if none is
 allocated. Then the file entry is initialized.
@@ -283,18 +359,30 @@ void newfil(int fn)
 
 {
 
+    filptr fp;
+
+    /* See if the file entry is undefined, then get a file entry if not.
+       This could be lapped by another thread, but we are saving the effort
+       of taking a lock on each file entry validation. This is why we use
+       a free list, even though we don't dispose of entries in the files
+       array, just so we can have a supply of ready to use file entries. */
     if (!opnfil[fn]) {
 
-        opnfil[fn] = malloc(sizeof(filrec));
-        if (!opnfil[fn]) error(enoallc);
+        fp = getfil();
+        pthread_mutex_lock(&oflock); /* take the table lock */
+        if (!opnfil[fn]) opnfil[fn] = fp; /* still undefined, place */
+        else putfil(fp); /* otherwise we got lapped, save the entry */
+        pthread_mutex_lock(&oflock); /* take the table lock */
 
     }
+    pthread_mutex_lock(&opnfil[fn]->lock); /* take file entry lock */
     opnfil[fn]->net = false; /* set unoccupied */
     opnfil[fn]->sec = false;  /* set ordinary socket */
     opnfil[fn]->ssl = NULL;   /* clear SSL data */
     opnfil[fn]->cert = NULL;  /* clear certificate data */
     opnfil[fn]->sfn = -1;     /* set no shadow */
     opnfil[fn]->opn = false;  /* set not open */
+    pthread_mutex_unlock(&opnfil[fn]->lock); /* release file entry lock */
 
 }
 
@@ -354,9 +442,12 @@ FILE* pa_opennet(/* IP address */      unsigned long addr,
 {
 
     struct sockaddr_in saddr;
-    int fn;
-    int r;
+    int   fn;
+    int   r;
     FILE* fp;
+    int   sfn;
+    SSL*  ssl;
+    X509* cert;
 
     /* set up address */
     saddr.sin_family = AF_INET;
@@ -368,41 +459,55 @@ FILE* pa_opennet(/* IP address */      unsigned long addr,
     if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
     r = connect(fn, (struct sockaddr *)&saddr, sizeof(saddr));
     if (r < 0) linuxerror();
+    /* connect fid to FILE pointer for glibc use */
     fp = fdopen(fn, "r+");
     if (!fp) linuxerror();
     newfil(fn); /* get/renew file entry */
+    pthread_mutex_lock(&opnfil[fn]->lock); /* take file entry lock */
     opnfil[fn]->net = true; /* set network (sockets) file */
     opnfil[fn]->sec = false; /* set not secure */
     opnfil[fn]->opn = true;
+    pthread_mutex_unlock(&opnfil[fn]->lock); /* release file entry lock */
 
     /* check secure sockets layer, and negotiate if so */
     if (secure) {
 
         /* to keep ssl handling from looping, we create a shadow fid so we
            can talk to the underlying socket */
-        opnfil[fn]->sfn = dup(fn); /* create second side for ssl operations */
-        if (opnfil[fn]->sfn == -1) error(enodupf);
-        if (opnfil[fn]->sfn < 0 || opnfil[fn]->sfn >= MAXFIL)
-            error(einvhan); /* invalid file handle */
-        newfil(opnfil[fn]->sfn); /* init the shadow */
-        opnfil[opnfil[fn]->sfn]->net = true; /* set network file */
+        sfn = dup(fn); /* create second side for ssl operations */
+        if (sfn == -1) error(enodupf);
+        if (sfn < 0 || sfn >= MAXFIL) error(einvhan); /* invalid file handle */
+        newfil(sfn); /* init the shadow */
+        pthread_mutex_lock(&opnfil[sfn]->lock); /* take file entry lock */
+        opnfil[sfn]->net = true; /* set network file */
+        opnfil[sfn]->opn = true;
+        pthread_mutex_unlock(&opnfil[sfn]->lock); /* release file entry lock */
 
-        opnfil[fn]->ssl = SSL_new(ctx); /* create new ssl */
-        if (!opnfil[fn]->ssl) error(esslnew);
-        /* connect the ssl side to the second fid */
-        r = SSL_set_fd(opnfil[fn]->ssl, opnfil[fn]->sfn); /* connect to fid */
+        ssl = SSL_new(ctx); /* create new ssl */
+        if (!ssl) error(esslnew);
+        /* connect the ssl side to the shadow fid */
+        r = SSL_set_fd(ssl, sfn); /* connect to fid */
         if (!r) error(esslfid);
 
         /* initiate tls handshake */
-        r = SSL_connect(opnfil[fn]->ssl);
-        if (r != 1) sslerror(opnfil[fn]->ssl, r);
+        r = SSL_connect(ssl);
+        if (r != 1) sslerror(ssl, r);
 
         /* Get the remote certificate into the X509 structure.
            Right now we don't do anything with this (don't verify it) */
-        opnfil[fn]->cert = SSL_get_peer_certificate(opnfil[fn]->ssl);
+        cert = SSL_get_peer_certificate(ssl);
         if (!opnfil[fn]->cert) error(esslcer);
+
+        /* Update to file entry. The semantics of socket() and dup() dictate
+           that no other open takes the fid, but I prefer to update the file
+           entry atomically. */
+        pthread_mutex_lock(&opnfil[fn]->lock); /* take file entry lock */
+        opnfil[fn]->sfn = sfn;
+        opnfil[fn]->cert = cert;
+        opnfil[fn]->ssl = ssl;
         /* we have negotiated with the server, now turn TLS encode/decode on */
         opnfil[fn]->sec = true;
+        pthread_mutex_unlock(&opnfil[fn]->lock); /* release file entry lock */
 
     }
 
@@ -612,7 +717,9 @@ static int iopen(const char* pathname, int flags, int perm)
     if (r >= 0) {
 
     	if (r < 0 || r > MAXFIL) error(einvhan); /* invalid file handle */
-    	getfil(r); /* create file entry as required */
+    	makfil(r); /* create file entry as required */
+    	/* open to close arguments on opposing threads can leave the open
+    	   indeterminate, but this is just a state issue. */
     	opnfil[r]->opn = true; /* set open */
 
     }
@@ -633,19 +740,31 @@ static int iclose(int fd)
 
 {
 
+    filrec fr; /* shadow of file entries */
     int r;
 
     if (fd < 0 || fd > MAXFIL) error(einvhan); /* invalid file handle */
 
-    getfil(fd); /* create file entry as required */
-    if (opnfil[fd]->sec) {
+    makfil(fd); /* create file entry as required */
+    pthread_mutex_lock(&opnfil[r]->lock); /* acquire lock */
+    /* copy entry out and clear original. This keeps us from traveling with
+       the lock and means we own the file data as locals */
+    memcpy(&fr, opnfil[fd], sizeof(filrec));
+    opnfil[fd]->ssl = NULL;
+    opnfil[fd]->cert = NULL;
+    opnfil[fd]->sfn = -1;
+    pthread_mutex_unlock(&opnfil[r]->lock); /* release lock */
+    if (fr.sec) {
 
-        SSL_free(opnfil[fd]->ssl); /* free the ssl */
-        X509_free(opnfil[fd]->cert); /* free certificate */
-        (*ofpclose)(opnfil[fd]->sfn); /* close the shadow as well */
+        SSL_free(fr.ssl); /* free the ssl */
+        X509_free(fr.cert); /* free certificate */
+        (*ofpclose)(fr.sfn); /* close the shadow as well */
 
     }
     r = (*ofpclose)(fd); /* normal file and socket close */
+    /* open to close arguments on opposing threads can leave the open
+       indeterminate, but this is just a state issue. */
+    opnfil[fd]->opn = false;
 
     return (r);
 
@@ -668,7 +787,7 @@ static ssize_t iread(int fd, void* buff, size_t count)
 
     if (fd < 0 || fd >= MAXFIL) error(einvhan); /* invalid file handle */
 
-    getfil(fd); /* create file entry as required */
+    makfil(fd); /* create file entry as required */
     if (opnfil[fd]->sec)
         /* perform ssl decoded read */
         r = SSL_read(opnfil[fd]->ssl, buff, count);
@@ -692,7 +811,7 @@ static ssize_t iwrite(int fd, const void* buff, size_t count)
 
     if (fd < 0 || fd > MAXFIL) error(einvhan); /* invalid file handle */
 
-    getfil(fd); /* create file entry as required */
+    makfil(fd); /* create file entry as required */
     if (opnfil[fd]->sec)
         /* perform ssl encoded write */
         r = SSL_write(opnfil[fd]->ssl, buff, count);
@@ -733,7 +852,7 @@ static off_t ilseek(int fd, off_t offset, int whence)
 
     if (fd < 0 || fd > MAXFIL) error(einvhan); /* invalid file handle */
 
-    getfil(fd); /* create file entry as required */
+    makfil(fd); /* create file entry as required */
     return (*ofplseek)(fd, offset, whence);
 
 }
@@ -769,6 +888,11 @@ static void pa_init_network()
     ctx = SSL_CTX_new(TLS_client_method());
     if (!ctx) error(esslctx);
 
+    /* initialize the open files lock */
+    pthread_mutex_init(&oflock, NULL);
+    /* initialize the free files lock */
+    pthread_mutex_init(&fflock, NULL);
+
 };
 
 /*******************************************************************************
@@ -803,6 +927,7 @@ static void pa_deinit_network()
     /* close out open files and release space */
     for (fi = 0; fi < MAXFIL; fi++) if (opnfil[fi]) {
 
+        pthread_mutex_destroy(&opnfil[fi]->lock);
         if (opnfil[fi]->opn) close(fi);
         if (opnfil[fi]->ssl) SSL_free(opnfil[fi]->ssl);
         if (opnfil[fi]->cert) X509_free(opnfil[fi]->cert);
@@ -811,5 +936,10 @@ static void pa_deinit_network()
     }
     /* free context structure */
     SSL_CTX_free(ctx);
+
+    /* release the open files lock */
+    pthread_mutex_destroy(&oflock);
+    /* release the free files lock */
+    pthread_mutex_destroy(&fflock);
 
 }
