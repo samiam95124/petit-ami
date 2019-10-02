@@ -45,20 +45,43 @@ string gettys[] = {
 
 };
 
+boolean secure = false;
+
+optrec opttbl[] = {
+
+    { "secure", &secure, NULL, NULL, NULL },
+    { "s",      &secure, NULL, NULL, NULL },
+    { NULL,     NULL,    NULL, NULL, NULL }
+
+};
+
 int main(int argc, char **argv)
 {
 
     FILE* fp;
     char buff[BUFLEN];
     unsigned long addr;
-    int port;
+    int port = 42;
     int s;
+    int argi = 1;
+
+    /* parse user options */
+    options(&argi, &argc, argv, opttbl, true);
+
+    if (argc != 1 && argc != 2) {
+
+        fprintf(stderr, "Usage: gettys [--secure|-s] [<port>]\n");
+        exit(1);
+    }
+
+    /* if user supplied a port, get that */
+    if (argc == 2) port = atoi(argv[argi]);
 
     while (1) { /* serve this port until cancelled */
 
         printf("gettys server waits on port 42 for connections\n");
         /* wait on port 42 */
-        fp = pa_waitconn(42, false);
+        fp = pa_waitconn(port, false);
 
         printf("Inbound connection\n");
 

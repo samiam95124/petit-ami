@@ -255,7 +255,7 @@ getmail: bin/petit_ami_plain.so network_programs/getmail.c Makefile
 	$(CC) $(CFLAGS) network_programs/getmail.c linux/option.c $(PLIBS) -o bin/getmail
 	
 gettys: bin/petit_ami_plain.so network_programs/gettys.c Makefile
-	$(CC) $(CFLAGS) network_programs/gettys.c $(PLIBS) -o bin/gettys
+	$(CC) $(CFLAGS) network_programs/gettys.c linux/option.c $(PLIBS) -o bin/gettys
 	
 clean:
 	rm -f bin/dumpmidi bin/lsalsadev bin/alsaparms test bin/play bin/keyboard 
