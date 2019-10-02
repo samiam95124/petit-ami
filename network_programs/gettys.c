@@ -81,7 +81,7 @@ int main(int argc, char **argv)
 
         printf("gettys server waits on port 42 for connections\n");
         /* wait on port 42 */
-        fp = pa_waitconn(port, false);
+        fp = pa_waitconn(port, secure);
 
         printf("Inbound connection\n");
 
