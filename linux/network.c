@@ -75,6 +75,8 @@ typedef enum {
     esslcer,  /* Cannot get SSL certificate */
     enodupf,  /* Cannot create duplicate fid */
     enoallc,  /* Cannot allocate file entry */
+    enolcert, /* Cannot load certificate */
+    enolpkey, /* Cannot load private key */
     esystem   /* System consistency check */
 } errcod;
 
@@ -197,6 +199,23 @@ static void linuxerror(void)
     exit(1);
 
 }
+/*******************************************************************************
+
+Handle SSL error queue
+
+Dumps the SSL error queue. I don't know what the difference is between this and
+SSL errors at this time.
+
+*******************************************************************************/
+
+static void sslerrorqueue(void)
+
+{
+
+    ERR_print_errors_fp(stderr);
+    exit(1);
+
+}
 
 /*******************************************************************************
 
@@ -236,6 +255,7 @@ static void sslerror(SSL* ssl, int r)
             break;
         case SSL_ERROR_SSL:
             fprintf(stderr, "A failure in the SSL library occurred\n");
+            sslerrorqueue();
             break;
         default:
             fprintf(stderr, "Unknown error code\n");
@@ -505,8 +525,7 @@ FILE* pa_opennet(/* IP address */      unsigned long addr,
         opnfil[fn]->sfn = sfn;
         opnfil[fn]->cert = cert;
         opnfil[fn]->ssl = ssl;
-        /* we have negotiated with the server, now turn TLS encode/decode on */
-        opnfil[fn]->sec = true;
+        opnfil[fn]->sec = true; /* turn TLS encode/decode on for ssl channel */
         pthread_mutex_unlock(&opnfil[fn]->lock); /* release file entry lock */
 
     }
@@ -616,6 +635,8 @@ FILE* pa_waitconn(/* port number to wait on */ int port,
     int r;
     FILE* fp;
     int opt;
+    SSL*  ssl;
+    X509* cert;
 
     /* connect the socket */
     sfn = socket(AF_INET, SOCK_STREAM, 0);
@@ -652,6 +673,46 @@ FILE* pa_waitconn(/* port number to wait on */ int port,
     if (!fp) linuxerror();
     newfil(fn); /* initialize file entry */
     opnfil[fn]->net = true; /* set network (sockets) file */
+
+    /* check secure sockets layer, and negotiate if so */
+    if (secure) {
+
+        /* to keep ssl handling from looping, we create a shadow fid so we
+           can talk to the underlying socket */
+        sfn = dup(fn); /* create second side for ssl operations */
+        if (sfn == -1) error(enodupf);
+        if (sfn < 0 || sfn >= MAXFIL) error(einvhan); /* invalid file handle */
+        newfil(sfn); /* init the shadow */
+        pthread_mutex_lock(&opnfil[sfn]->lock); /* take file entry lock */
+        opnfil[sfn]->net = true; /* set network file */
+        opnfil[sfn]->opn = true;
+        pthread_mutex_unlock(&opnfil[sfn]->lock); /* release file entry lock */
+
+        ssl = SSL_new(ctx); /* create new ssl */
+        if (!ssl) error(esslnew);
+        /* connect the ssl side to the shadow fid */
+        r = SSL_set_fd(ssl, sfn); /* connect to fid */
+        if (!r) error(esslfid);
+
+        /* initiate tls handshake */
+        r = SSL_connect(ssl);
+        if (r != 1) sslerror(ssl, r);
+
+        /* perform ssl server accept */
+        r = SSL_accept(ssl);
+        if (r <= 0) sslerrorqueue();
+
+        /* Update to file entry. The semantics of socket() and dup() dictate
+           that no other open takes the fid, but I prefer to update the file
+           entry atomically. */
+        pthread_mutex_lock(&opnfil[fn]->lock); /* take file entry lock */
+        opnfil[fn]->sfn = sfn;
+        opnfil[fn]->cert = cert;
+        opnfil[fn]->ssl = ssl;
+        opnfil[fn]->sec = true; /* turn TLS encode/decode on for ssl channel */
+        pthread_mutex_unlock(&opnfil[fn]->lock); /* release file entry lock */
+
+    }
 
     return (fp);
 
@@ -869,6 +930,7 @@ static void pa_init_network()
 {
 
     int fi;
+    int r;
 
     frefil = NULL; /* clear free files list */
     /* clear open files table */
@@ -893,6 +955,16 @@ static void pa_init_network()
     /* create new SSL context */
     ctx = SSL_CTX_new(TLS_client_method());
     if (!ctx) error(esslctx);
+
+    /* configure context */
+    SSL_CTX_set_ecdh_auto(ctx, 1);
+
+    /* Set the key and cert */
+    r = SSL_CTX_use_certificate_file(ctx, "cert.pem", SSL_FILETYPE_PEM);
+    if (r <= 0) sslerrorqueue();
+
+    r = SSL_CTX_use_PrivateKey_file(ctx, "key.pem", SSL_FILETYPE_PEM);
+    if (r <= 0) sslerrorqueue();
 
 };
 
