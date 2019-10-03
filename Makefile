@@ -114,7 +114,7 @@ PLIBS += -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
 #        
 all: dumpmidi lsalsadev alsaparms test play keyboard playmidi playwave \
     printdev connectmidi connectwave random genwave scntst sndtst event \
-    getkeys getmouse term snake mine editor 
+    getkeys getmouse term snake mine editor getpage getmail gettys 
 
 #
 # Individual Petit-Ami library components
@@ -261,7 +261,10 @@ clean:
 	rm -f bin/dumpmidi bin/lsalsadev bin/alsaparms test bin/play bin/keyboard 
 	rm -f bin/playmidi bin/playwave bin/printdev bin/connectmidi bin/connectwave 
 	rm -f bin/random bin/genwave bin/scntst bin/sndtst bin/event bin/getkeys 
-	rm -f bin/getmouse bin/term bin/snake bin/mine bin/editor
+	rm -f bin/getmouse bin/term bin/snake bin/mine bin/editor bin/getpage
+	rm -f bin/getmail bin/gettys
 	rm -f linux/*.o
 	rm -f bin/petit_ami_term.a
 	rm -f bin/petit_ami_term.so
+	rm -f bin/petit_ami_plain.a
+	rm -f bin/petit_ami_plain.so
