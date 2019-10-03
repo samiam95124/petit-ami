@@ -61,7 +61,7 @@ int main(int argc, char **argv)
     FILE* fp;
     char buff[BUFLEN];
     unsigned long addr;
-    int port = 42;
+    int port = 4433;
     int s;
     int argi = 1;
 
