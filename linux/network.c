@@ -500,6 +500,7 @@ FILE* pa_opennet(/* IP address */      unsigned long addr,
         if (sfn == -1) error(enodupf);
         if (sfn < 0 || sfn >= MAXFIL) error(einvhan); /* invalid file handle */
         newfil(sfn); /* init the shadow */
+
         pthread_mutex_lock(&opnfil[sfn]->lock); /* take file entry lock */
         opnfil[sfn]->net = true; /* set network file */
         opnfil[sfn]->opn = true;
@@ -644,6 +645,7 @@ FILE* pa_waitconn(/* port number to wait on */ int port,
     sfn = socket(AF_INET, SOCK_STREAM, 0);
     if (sfn < 0) linuxerror();
     if (sfn < 0 || sfn >= MAXFIL) error(einvhan); /* invalid file handle */
+    newfil(sfn); /* clear the fid entry */
 
     /* set socket options, multiple servers on address and same port */
     opt = 1;
@@ -685,6 +687,7 @@ FILE* pa_waitconn(/* port number to wait on */ int port,
         if (sfn == -1) error(enodupf);
         if (sfn < 0 || sfn >= MAXFIL) error(einvhan); /* invalid file handle */
         newfil(sfn); /* init the shadow */
+
         pthread_mutex_lock(&opnfil[sfn]->lock); /* take file entry lock */
         opnfil[sfn]->net = true; /* set network file */
         opnfil[sfn]->opn = true;
@@ -815,8 +818,8 @@ static int iclose(int fd)
     pthread_mutex_unlock(&opnfil[fd]->lock); /* release lock */
     if (fr.sec) {
 
-        SSL_free(fr.ssl); /* free the ssl */
-        X509_free(fr.cert); /* free certificate */
+        if (fr.ssl) SSL_free(fr.ssl); /* free the ssl */
+        if (fr.cert) X509_free(fr.cert); /* free certificate */
         (*ofpclose)(fr.sfn); /* close the shadow as well */
 
     }

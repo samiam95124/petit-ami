@@ -79,7 +79,7 @@ int main(int argc, char **argv)
 
     while (1) { /* serve this port until cancelled */
 
-        printf("gettys server waits on port 42 for connections\n");
+        printf("gettys server waits on port 4433 for connections\n");
         /* wait on port 42 */
         fp = pa_waitconn(port, secure);
 
