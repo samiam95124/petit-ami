@@ -1,0 +1,25 @@
+################################################################################
+#                                                                              #
+#                         Create GLIBC override patches                        #
+#                                                                              #
+# Creates the patch files for the stock glibc source changes required to get   #
+# to an override version of glibc. Creates patches for both the source files   #
+# and for the libc.map file so that the global routines exposed can be reached #
+# outside of glibc.                                                            #
+#                                                                              #
+# The prerequisite for running this script is a fully built glibc in the glibc #
+# directory, such as is provided for by the script build_glibc (which          #
+# incidentally also applies the patches, so know what you are doing).          #
+#                                                                              #
+# This script should be used after making changes to the override support.     #
+#                                                                              #
+################################################################################
+
+#!/bin/bash
+
+#
+# Create glibc source override patches
+#
+cd glibc/glibc_source
+cp ../glibc_override.patch ../glibc_override.patch.old
+git diff > ../glibc_override.patch

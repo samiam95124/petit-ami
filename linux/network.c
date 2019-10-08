@@ -33,7 +33,7 @@
 #include <localdefs.h>
 #include <network.h>
 
-#define MAXFIL 100 /* maximum number of open files */
+#define MAXFIL 1000 /* maximum number of open files */
 
 /* File tracking.
    Files could be transparent in the case of plain text, but SSL and advanced
@@ -86,16 +86,18 @@ typedef ssize_t (*pread_t)(int, void*, size_t);
 typedef ssize_t (*pwrite_t)(int, const void*, size_t);
 typedef int (*popen_t)(const char*, int, int);
 typedef int (*pclose_t)(int);
-typedef int (*punlink_t)(const char*);
 typedef off_t (*plseek_t)(int, off_t, int);
 
 /* system override calls */
 
 extern void ovr_read(pread_t nfp, pread_t* ofp);
+extern void ovr_read_nocancel(pread_t nfp, pread_t* ofp);
 extern void ovr_write(pwrite_t nfp, pwrite_t* ofp);
+extern void ovr_write_nocancel(pwrite_t nfp, pwrite_t* ofp);
 extern void ovr_open(popen_t nfp, popen_t* ofp);
+extern void ovr_open_nocancel(popen_t nfp, popen_t* ofp);
 extern void ovr_close(pclose_t nfp, pclose_t* ofp);
-extern void ovr_unlink(punlink_t nfp, punlink_t* ofp);
+extern void ovr_close_nocancel(pclose_t nfp, pclose_t* ofp);
 extern void ovr_lseek(plseek_t nfp, plseek_t* ofp);
 
 /*
@@ -104,10 +106,13 @@ extern void ovr_lseek(plseek_t nfp, plseek_t* ofp);
  *
  */
 static pread_t   ofpread;
+static pread_t   ofpread_nocancel;
 static pwrite_t  ofpwrite;
+static pwrite_t  ofpwrite_nocancel;
 static popen_t   ofpopen;
+static popen_t   ofpopen_nocancel;
 static pclose_t  ofpclose;
-static punlink_t ofpunlink;
+static pclose_t  ofpclose_nocancel;
 static plseek_t  ofplseek;
 
 /*
@@ -567,6 +572,8 @@ int pa_maxmsg(void)
 
 {
 
+    return (1500); /* MTU */
+
 }
 
 /*******************************************************************************
@@ -749,7 +756,6 @@ read
 write
 open
 close
-unlink
 lseek
 
 We use interdiction to filter standard I/O calls towards the terminal. The
@@ -768,25 +774,45 @@ shuts down. Thus we do nothing for this.
 
 *******************************************************************************/
 
-static int iopen(const char* pathname, int flags, int perm)
+static int ivopen(popen_t opendc, const char* pathname, int flags, int perm)
 
 {
 
     int r;
 
     /* open with passdown */
-    r = (*ofpopen)(pathname, flags, perm);
+    r = (*opendc)(pathname, flags, perm);
     if (r >= 0) {
 
     	if (r < 0 || r > MAXFIL) error(einvhan); /* invalid file handle */
-    	makfil(r); /* create file entry as required */
-    	/* open to close arguments on opposing threads can leave the open
-    	   indeterminate, but this is just a state issue. */
-    	opnfil[r]->opn = true; /* set open */
+    	if (opnfil[r]) { /* if not tracked, don't touch it */
+
+    	    makfil(r); /* create file entry as required */
+    	    /* open to close arguments on opposing threads can leave the open
+    	       indeterminate, but this is just a state issue. */
+    	    opnfil[r]->opn = true; /* set open */
+
+    	}
 
     }
 
     return (r);
+
+}
+
+static int iopen(const char* pathname, int flags, int perm)
+
+{
+
+    ivopen(ofpopen, pathname, flags, perm);
+
+}
+
+static int iopen_nocancel(const char* pathname, int flags, int perm)
+
+{
+
+    ivopen(ofpopen_nocancel, pathname, flags, perm);
 
 }
 
@@ -798,7 +824,7 @@ Does nothing but pass on.
 
 *******************************************************************************/
 
-static int iclose(int fd)
+static int ivclose(pclose_t closedc, int fd)
 
 {
 
@@ -807,28 +833,49 @@ static int iclose(int fd)
 
     if (fd < 0 || fd > MAXFIL) error(einvhan); /* invalid file handle */
 
-    makfil(fd); /* create file entry as required */
-    pthread_mutex_lock(&opnfil[fd]->lock); /* acquire lock */
-    /* copy entry out and clear original. This keeps us from traveling with
-       the lock and means we own the file data as locals */
-    memcpy(&fr, opnfil[fd], sizeof(filrec));
-    opnfil[fd]->ssl = NULL;
-    opnfil[fd]->cert = NULL;
-    opnfil[fd]->sfn = -1;
-    pthread_mutex_unlock(&opnfil[fd]->lock); /* release lock */
-    if (fr.sec) {
+    if (opnfil[fd]) { /* if not tracked, don't touch it */
 
-        if (fr.ssl) SSL_free(fr.ssl); /* free the ssl */
-        if (fr.cert) X509_free(fr.cert); /* free certificate */
-        (*ofpclose)(fr.sfn); /* close the shadow as well */
+        makfil(fd); /* create file entry as required */
+        pthread_mutex_lock(&opnfil[fd]->lock); /* acquire lock */
+        /* copy entry out and clear original. This keeps us from traveling with
+           the lock and means we own the file data as locals */
+        memcpy(&fr, opnfil[fd], sizeof(filrec));
+        opnfil[fd]->ssl = NULL;
+        opnfil[fd]->cert = NULL;
+        opnfil[fd]->sfn = -1;
+        pthread_mutex_unlock(&opnfil[fd]->lock); /* release lock */
+        if (fr.sec) {
+
+            if (fr.ssl) SSL_free(fr.ssl); /* free the ssl */
+            if (fr.cert) X509_free(fr.cert); /* free certificate */
+            (*closedc)(fr.sfn); /* close the shadow as well */
+
+        }
 
     }
-    r = (*ofpclose)(fd); /* normal file and socket close */
+    r = (*closedc)(fd); /* normal file and socket close */
+
     /* open to close arguments on opposing threads can leave the open
        indeterminate, but this is just a state issue. */
-    opnfil[fd]->opn = false;
+    if (opnfil[fd]) opnfil[fd]->opn = false;
 
     return (r);
+
+}
+
+static int iclose(int fd)
+
+{
+
+    ivclose(ofpclose, fd);
+
+}
+
+static int iclose_nocancel(int fd)
+
+{
+
+    ivclose(ofpclose_nocancel, fd);
 
 }
 
@@ -841,7 +888,7 @@ If the file is a network file, we process a read on the associated socket.
 
 *******************************************************************************/
 
-static ssize_t iread(int fd, void* buff, size_t count)
+static ssize_t ivread(pread_t readdc, int fd, void* buff, size_t count)
 
 {
 
@@ -849,13 +896,33 @@ static ssize_t iread(int fd, void* buff, size_t count)
 
     if (fd < 0 || fd >= MAXFIL) error(einvhan); /* invalid file handle */
 
-    makfil(fd); /* create file entry as required */
-    if (opnfil[fd]->sec)
-        /* perform ssl decoded read */
-        r = SSL_read(opnfil[fd]->ssl, buff, count);
-    else r = (*ofpread)(fd, buff, count); /* standard file and socket read */
+    if (opnfil[fd]) { /* if not tracked, don't touch it */
+
+        makfil(fd); /* create file entry as required */
+        if (opnfil[fd]->sec)
+            /* perform ssl decoded read */
+            r = SSL_read(opnfil[fd]->ssl, buff, count);
+        else r = (*readdc)(fd, buff, count); /* standard file and socket read */
+
+    } else r = (*readdc)(fd, buff, count); /* standard file and socket read */
 
     return (r);
+
+}
+
+static ssize_t iread(int fd, void* buff, size_t count)
+
+{
+
+    ivread(ofpread, fd, buff, count);
+
+}
+
+static ssize_t iread_nocancel(int fd, void* buff, size_t count)
+
+{
+
+    ivread(ofpread_nocancel, fd, buff, count);
 
 }
 
@@ -865,7 +932,7 @@ Write
 
 *******************************************************************************/
 
-static ssize_t iwrite(int fd, const void* buff, size_t count)
+static ssize_t ivwrite(pwrite_t writedc, int fd, const void* buff, size_t count)
 
 {
 
@@ -873,29 +940,37 @@ static ssize_t iwrite(int fd, const void* buff, size_t count)
 
     if (fd < 0 || fd > MAXFIL) error(einvhan); /* invalid file handle */
 
-    makfil(fd); /* create file entry as required */
-    if (opnfil[fd]->sec)
-        /* perform ssl encoded write */
-        r = SSL_write(opnfil[fd]->ssl, buff, count);
-    else r = (*ofpwrite)(fd, buff, count);
+    if (opnfil[fd]) { /* if not tracked, don't touch it */
+
+        makfil(fd); /* create file entry as required */
+        if (opnfil[fd]->sec)
+            /* perform ssl encoded write */
+            r = SSL_write(opnfil[fd]->ssl, buff, count);
+        else
+            /* standard file and socket write */
+            r = (*writedc)(fd, buff, count);
+
+    } else
+        /* standard file and socket write */
+        r = (*writedc)(fd, buff, count);
 
     return (r);
 
 }
 
-/*******************************************************************************
-
-Unlink
-
-Unlink has nothing to do with us, so we just pass it on.
-
-*******************************************************************************/
-
-static int iunlink(const char* pathname)
+static ssize_t iwrite(int fd, const void* buff, size_t count)
 
 {
 
-    return (*ofpunlink)(pathname);
+    ivwrite(ofpwrite, fd, buff, count);
+
+}
+
+static ssize_t iwrite_nocancel(int fd, const void* buff, size_t count)
+
+{
+
+    ivwrite(ofpwrite_nocancel, fd, buff, count);
 
 }
 
@@ -908,14 +983,21 @@ or stdout handle.
 
 *******************************************************************************/
 
-static off_t ilseek(int fd, off_t offset, int whence)
+static off_t ivlseek(plseek_t lseekdc, int fd, off_t offset, int whence)
 
 {
 
     if (fd < 0 || fd > MAXFIL) error(einvhan); /* invalid file handle */
 
-    makfil(fd); /* create file entry as required */
-    return (*ofplseek)(fd, offset, whence);
+    return (*lseekdc)(fd, offset, whence);
+
+}
+
+static off_t ilseek(int fd, off_t offset, int whence)
+
+{
+
+    ivlseek(ofplseek, fd, offset, whence);
 
 }
 
@@ -944,10 +1026,13 @@ static void pa_init_network()
 
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
+    ovr_read_nocancel(iread_nocancel, &ofpread_nocancel);
     ovr_write(iwrite, &ofpwrite);
+    ovr_write(iwrite_nocancel, &ofpwrite_nocancel);
     ovr_open(iopen, &ofpopen);
+    ovr_open(iopen_nocancel, &ofpopen_nocancel);
     ovr_close(iclose, &ofpclose);
-//    ovr_unlink(iunlink, &ofpunlink);
+    ovr_close(iclose_nocancel, &ofpclose_nocancel);
     ovr_lseek(ilseek, &ofplseek);
 
     /* initialize SSL library and register algorithms */
@@ -989,18 +1074,24 @@ static void pa_deinit_network()
 
     /* holding copies of system vectors */
     pread_t cppread;
+    pread_t cppread_nocancel;
     pwrite_t cppwrite;
+    pwrite_t cppwrite_nocancel;
     popen_t cppopen;
+    popen_t cppopen_nocancel;
     pclose_t cppclose;
-    punlink_t cppunlink;
+    pclose_t cppclose_nocancel;
     plseek_t cpplseek;
 
     /* swap old vectors for existing vectors */
     ovr_read(ofpread, &cppread);
+    ovr_read(ofpread_nocancel, &cppread_nocancel);
     ovr_write(ofpwrite, &cppwrite);
+    ovr_write(ofpwrite_nocancel, &cppwrite_nocancel);
     ovr_open(ofpopen, &cppopen);
+    ovr_open(ofpopen_nocancel, &cppopen_nocancel);
     ovr_close(ofpclose, &cppclose);
-//    ovr_unlink(ofpunlink, &cppunlink);
+    ovr_close(ofpclose_nocancel, &cppclose_nocancel);
     ovr_lseek(ofplseek, &cpplseek);
 
     /* close out open files and release space */
