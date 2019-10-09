@@ -23,3 +23,12 @@
 cd glibc/glibc_source
 cp ../glibc_override.patch ../glibc_override.patch.old
 git diff > ../glibc_override.patch
+cd ../..
+
+#
+# Create libc.map patch
+#
+# This relies on a copy of the old, unmodified map file existing in the
+# directory above the build directory.
+#
+diff -u glibc/libc.map glibc/glibc_build/libc.map > glibc/libc.map.patch

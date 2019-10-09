@@ -131,6 +131,11 @@ fi
 ls -l libc.a libc.so
 
 #
+# save the unmodified map file for later comparision
+#
+cp libc.map ../libc.map
+ 
+#
 # Patch map file
 #
 # The map file is patched, then the result remade.

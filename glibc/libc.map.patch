@@ -1,11 +1,11 @@
---- libc.map	2019-09-08 23:42:19.454503366 -0700
-+++ libc.map	2019-09-08 23:48:21.462610691 -0700
+--- glibc/libc.map	2019-10-09 10:02:52.406232938 -0700
++++ glibc/glibc_build/libc.map	2019-10-09 10:36:36.236482485 -0700
 @@ -213,7 +213,7 @@
      catclose; catgets; catopen;
      cbc_crypt; clntunix_create;
      cfgetispeed; cfgetospeed; cfmakeraw; cfsetispeed; cfsetospeed; cfsetspeed;
 -    chdir; chmod; chown; close; creat;
-+    chdir; chmod; chown; close; ovr_close; creat;
++    chdir; chmod; chown; close; ovr_close; ovr_close_nocancel; creat;
      chflags; chroot; closelog;
      chown;
      clearerr; clearerr_unlocked;
@@ -23,7 +23,7 @@
      on_exit;
      open64;
 -    open;
-+    open; ovr_open;
++    open; ovr_open; ovr_open_nocancel;
      open_memstream; obstack_printf; obstack_vprintf;
      opendir;
      openlog;
@@ -32,7 +32,7 @@
      re_match_2; re_search; re_search_2; re_set_registers; re_set_syntax;
      re_max_failures; re_syntax_options;
 -    read; readlink; rmdir;
-+    read; ovr_read; readlink; rmdir;
++    read; ovr_read; ovr_read_nocancel; readlink; rmdir;
      readdir64; readdir64_r;
      readdir; readdir_r; rewinddir;
      readv; reboot; remque; revoke;
@@ -41,7 +41,7 @@
      wmemchr; wmemcmp; wmemcpy; wmemmove; wmemset;
      wprintf; wscanf;
 -    write;
-+    write; ovr_write;
++    write; ovr_write; ovr_write_nocancel;
      writev;
      xdecrypt; xdr_authdes_cred; xdr_authdes_verf;
      xdr_accepted_reply; xdr_array; xdr_authunix_parms; xdr_bool; xdr_bytes;
