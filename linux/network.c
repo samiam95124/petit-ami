@@ -646,7 +646,6 @@ FILE* pa_waitconn(/* port number to wait on */ int port,
     FILE* fp;
     int opt;
     SSL*  ssl;
-    X509* cert;
 
     /* connect the socket */
     sfn = socket(AF_INET, SOCK_STREAM, 0);
@@ -715,7 +714,6 @@ FILE* pa_waitconn(/* port number to wait on */ int port,
            entry atomically. */
         pthread_mutex_lock(&opnfil[fn]->lock); /* take file entry lock */
         opnfil[fn]->sfn = sfn;
-        opnfil[fn]->cert = cert;
         opnfil[fn]->ssl = ssl;
         opnfil[fn]->sec = true; /* turn TLS encode/decode on for ssl channel */
         pthread_mutex_unlock(&opnfil[fn]->lock); /* release file entry lock */
