@@ -1028,11 +1028,11 @@ static void pa_init_network()
     ovr_read(iread, &ofpread);
     ovr_read_nocancel(iread_nocancel, &ofpread_nocancel);
     ovr_write(iwrite, &ofpwrite);
-    ovr_write(iwrite_nocancel, &ofpwrite_nocancel);
+    ovr_write_nocancel(iwrite_nocancel, &ofpwrite_nocancel);
     ovr_open(iopen, &ofpopen);
-    ovr_open(iopen_nocancel, &ofpopen_nocancel);
+    ovr_open_nocancel(iopen_nocancel, &ofpopen_nocancel);
     ovr_close(iclose, &ofpclose);
-    ovr_close(iclose_nocancel, &ofpclose_nocancel);
+    ovr_close_nocancel(iclose_nocancel, &ofpclose_nocancel);
     ovr_lseek(ilseek, &ofplseek);
 
     /* initialize SSL library and register algorithms */
@@ -1085,13 +1085,13 @@ static void pa_deinit_network()
 
     /* swap old vectors for existing vectors */
     ovr_read(ofpread, &cppread);
-    ovr_read(ofpread_nocancel, &cppread_nocancel);
+    ovr_read_nocancel(ofpread_nocancel, &cppread_nocancel);
     ovr_write(ofpwrite, &cppwrite);
-    ovr_write(ofpwrite_nocancel, &cppwrite_nocancel);
+    ovr_write_nocancel(ofpwrite_nocancel, &cppwrite_nocancel);
     ovr_open(ofpopen, &cppopen);
-    ovr_open(ofpopen_nocancel, &cppopen_nocancel);
+    ovr_open_nocancel(ofpopen_nocancel, &cppopen_nocancel);
     ovr_close(ofpclose, &cppclose);
-    ovr_close(ofpclose_nocancel, &cppclose_nocancel);
+    ovr_close_nocancel(ofpclose_nocancel, &cppclose_nocancel);
     ovr_lseek(ofplseek, &cpplseek);
 
     /* close out open files and release space */
