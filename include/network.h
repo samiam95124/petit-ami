@@ -31,13 +31,15 @@ FILE* pa_opennet(unsigned long addr, int port, boolean secure);
 FILE* pa_opennetv6(unsigned long long addrh, unsigned long long addrl,
                    int port, boolean secure);
 int pa_maxmsg(void);
-boolean pa_relymsg(void);
-void pa_openmsg(int f, unsigned long addr, int port);
-void pa_openmsgv6(int f, unsigned long long addrh, unsigned long long addrl,
-                  int port);
-void pa_wrmsg(int f, byte* msg, int len);
-int pa_rdmsg(int f, byte* msg, int len);
+boolean pa_relymsg(unsigned long addr);
+boolean pa_relymsgv6(unsigned long long addrh, unsigned long long addrl);
+int pa_openmsg(unsigned long addr, int port, boolean secure);
+int pa_openmsgv6(unsigned long long addrh, unsigned long long addrl, int port,
+                 boolean secure);
+void pa_wrmsg(int fn, void* msg, unsigned long len);
+int pa_rdmsg(int fn, void* msg, unsigned long len);
 void pa_clsmsg(int f);
-FILE* pa_waitconn(int port, boolean secure);
+FILE* pa_waitnet(int port, boolean secure);
+int pa_waitmsg(int port, boolean secure);
 
 #endif /* __NETWORK_H__ */

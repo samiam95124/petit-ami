@@ -33,7 +33,7 @@
 #include <localdefs.h>
 #include <network.h>
 
-#define MAXFIL 1000 /* maximum number of open files */
+#define MAXFIL 100 /* maximum number of open files */
 
 /* File tracking.
    Files could be transparent in the case of plain text, but SSL and advanced
@@ -50,7 +50,10 @@ typedef struct filrec {
    X509*   cert; /* peer certificate */
    int     sfn;  /* shadow fid */
    boolean opn;  /* file is open with Linux */
+   boolean msg; /* is a message socket (udp/dtls) */
+   struct sockaddr_in saddr; /* socket address for messages */
    struct filrec* next; /* next entry (when placed on free list) */
+
 
 } filrec;
 typedef filrec* filptr; /* pointer to file record */
@@ -77,6 +80,8 @@ typedef enum {
     enoallc,  /* Cannot allocate file entry */
     enolcert, /* Cannot load certificate */
     enolpkey, /* Cannot load private key */
+    enotmsg,  /* not a message file id */
+    eismsg,   /* is a message file id */
     esystem   /* System consistency check */
 } errcod;
 
@@ -182,6 +187,10 @@ static void error(errcod e)
         case esslcer:  netwrterr("Cannot get SSL certificate"); break;
         case enodupf:  netwrterr("Cannot create duplicate fid"); break;
         case enoallc:  netwrterr("Cannot allocate file entry"); break;
+        case enolcert: netwrterr("Cannot load certificate"); break;
+        case enolpkey: netwrterr("Cannot load private key"); break;
+        case enotmsg:  netwrterr("Not a message file id"); break;
+        case eismsg:   netwrterr("Is a message file id"); break;
         case esystem:  netwrterr("System consistency check, please contact "
                                  "vendor"); break;
 
@@ -309,11 +318,12 @@ static filptr getfil(void)
 
     }
     fp->net = false; /* set not network file */
-    fp->sec = false;  /* set ordinary socket */
-    fp->ssl = NULL;   /* clear SSL data */
-    fp->cert = NULL;  /* clear certificate data */
-    fp->sfn = -1;     /* set no shadow */
-    fp->opn = false;  /* set not open */
+    fp->sec = false; /* set ordinary socket */
+    fp->ssl = NULL;  /* clear SSL data */
+    fp->cert = NULL; /* clear certificate data */
+    fp->sfn = -1;    /* set no shadow */
+    fp->opn = false; /* set not open */
+    fp->msg = false; /* set not message port */
     fp->next = NULL; /* set no next */
 
     return (fp);
@@ -404,11 +414,12 @@ void newfil(int fn)
     }
     pthread_mutex_lock(&opnfil[fn]->lock); /* take file entry lock */
     opnfil[fn]->net = false; /* set unoccupied */
-    opnfil[fn]->sec = false;  /* set ordinary socket */
-    opnfil[fn]->ssl = NULL;   /* clear SSL data */
-    opnfil[fn]->cert = NULL;  /* clear certificate data */
-    opnfil[fn]->sfn = -1;     /* set no shadow */
-    opnfil[fn]->opn = false;  /* set not open */
+    opnfil[fn]->sec = false; /* set ordinary socket */
+    opnfil[fn]->ssl = NULL;  /* clear SSL data */
+    opnfil[fn]->cert = NULL; /* clear certificate data */
+    opnfil[fn]->sfn = -1;    /* set no shadow */
+    opnfil[fn]->opn = false; /* set not open */
+    opnfil[fn]->msg = false; /* set not message port */
     pthread_mutex_unlock(&opnfil[fn]->lock); /* release file entry lock */
 
 }
@@ -552,9 +563,30 @@ fixed length messages.
 
 *******************************************************************************/
 
-int openmsg(unsigned long addr, int port, boolean secure)
+int pa_openmsg(unsigned long addr, int port, boolean secure)
 
 {
+
+    int fn;
+
+    /* connect the socket */
+    fn = socket(AF_INET, SOCK_DGRAM, 0);
+    if (fn < 0) linuxerror();
+    if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
+
+    newfil(fn); /* get/renew file entry */
+    pthread_mutex_lock(&opnfil[fn]->lock); /* take file entry lock */
+    opnfil[fn]->net = true; /* set network (sockets) file */
+    opnfil[fn]->sec = false; /* set not secure */
+    opnfil[fn]->opn = true;
+    opnfil[fn]->msg = true; /* set message socket */
+    /* set up address */
+    opnfil[fn]->saddr.sin_family = AF_INET;
+    opnfil[fn]->saddr.sin_addr.s_addr = htonl(addr);
+    opnfil[fn]->saddr.sin_port = htons(port);
+    pthread_mutex_unlock(&opnfil[fn]->lock); /* release file entry lock */
+
+    return (fn); /* return fid */
 
 }
 
@@ -585,9 +617,23 @@ size (including 0) up to pa_maxmsg() is allowed.
 
 *******************************************************************************/
 
-void pa_wrmsg(int fn, byte* msg, int len)
+void pa_wrmsg(int fn, void* msg, unsigned long len)
 
 {
+
+    ssize_t r;
+
+    if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
+
+    /* check is a message file */
+    if (!opnfil[fn]->msg) error(enotmsg);
+
+    /* write the message to socket, "non-blocking" (really just means
+       no message confirmation) */
+    r = sendto(fn, msg, len, MSG_DONTWAIT,
+               (const struct sockaddr *) &opnfil[fn]->saddr,
+               sizeof(struct sockaddr_in));
+    if (fn < 0) linuxerror();
 
 }
 
@@ -602,9 +648,25 @@ is known that a given message size will never be exceeded.
 
 *******************************************************************************/
 
-int pa_rdmsg(int f, byte* msg, int len)
+int pa_rdmsg(int fn, void* msg, unsigned long len)
 
 {
+
+    ssize_t r;
+    socklen_t al;
+
+    if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
+
+    /* check is a message file */
+    if (!opnfil[fn]->msg) error(enotmsg);
+
+    al = sizeof(struct sockaddr_in);
+    /* write the message to socket, blocking (get full UDP message) */
+    r = recvfrom(fn, msg, len, MSG_WAITALL,
+                 (struct sockaddr *) &opnfil[fn]->saddr, &al);
+    if (fn < 0) linuxerror();
+
+    return (r); /* exit with length of message */
 
 }
 
@@ -616,9 +678,16 @@ Closes the given message file.
 
 *******************************************************************************/
 
-void pa_clsmsg(int f)
+void pa_clsmsg(int fn)
 
 {
+
+    if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
+
+    /* check is a message file */
+    if (!opnfil[fn]->msg) error(enotmsg);
+
+    close(fn); /* close the socket */
 
 }
 
@@ -736,7 +805,7 @@ retry or other error handling system.
 
 *******************************************************************************/
 
-boolean pa_relymsg(void)
+boolean pa_relymsg(unsigned long addr)
 
 {
 
