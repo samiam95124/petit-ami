@@ -592,6 +592,56 @@ int pa_openmsg(unsigned long addr, int port, boolean secure)
 
 /*******************************************************************************
 
+Wait external message connection
+
+Waits for an external message socket connection on a given port address. If an
+external client connects to that port, then a socket file is opened and the file
+number returned. Note that any number of such connections can be active at one
+time. The program can invoke multiple tasks to handle each connection. If
+another program tries to take the same port, it is blocked.
+
+*******************************************************************************/
+
+int pa_waitmsg(/* port number to wait on */ int port,
+               /* secure mode */            boolean secure
+               )
+
+{
+
+    struct sockaddr_in saddr;
+    int fn;
+    int r;
+    int opt;
+    SSL*  ssl;
+
+    /* connect the socket */
+    fn = socket(AF_INET, SOCK_DGRAM, 0);
+    if (fn < 0) linuxerror();
+    if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
+    newfil(fn); /* clear the fid entry */
+
+    /* set socket options, multiple servers on address and same port */
+    opt = 1;
+    r = setsockopt(fn, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt,
+                   sizeof(opt));
+    if (r < 0) linuxerror();
+
+    /* set up address */
+    opnfil[fn]->saddr.sin_family = AF_INET;
+    opnfil[fn]->saddr.sin_addr.s_addr = INADDR_ANY;
+    opnfil[fn]->saddr.sin_port = htons(port);
+    r = bind(fn, (struct sockaddr *)&saddr, sizeof(saddr));
+    if (r < 0) linuxerror();
+
+    opnfil[fn]->net = true; /* set network (sockets) file */
+    opnfil[fn]->msg = true; /* set message socket */
+
+    return (fn);
+
+}
+
+/*******************************************************************************
+
 Get maximum message size
 
 Returns the maximum size of messages in the system. This is typically 1500, or
@@ -703,9 +753,9 @@ program tries to take the same port, it is blocked.
 
 *******************************************************************************/
 
-FILE* pa_waitconn(/* port number to wait on */ int port,
-                  /* secure mode */            boolean secure
-                 )
+FILE* pa_waitnet(/* port number to wait on */ int port,
+                 /* secure mode */            boolean secure
+                )
 
 {
 

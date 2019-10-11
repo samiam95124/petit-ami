@@ -260,6 +260,9 @@ gettys: bin/petit_ami_plain.so network_programs/gettys.c Makefile
 msgclient: bin/petit_ami_plain.so network_programs/msgclient.c Makefile
 	$(CC) $(CFLAGS) network_programs/msgclient.c $(PLIBS) -o bin/msgclient
 	
+msgserver: bin/petit_ami_plain.so network_programs/msgserver.c Makefile
+	$(CC) $(CFLAGS) network_programs/msgserver.c $(PLIBS) -o bin/msgserver
+	
 clean:
 	rm -f bin/dumpmidi bin/lsalsadev bin/alsaparms test bin/play bin/keyboard 
 	rm -f bin/playmidi bin/playwave bin/printdev bin/connectmidi bin/connectwave 
