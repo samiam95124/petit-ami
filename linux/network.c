@@ -630,7 +630,8 @@ int pa_waitmsg(/* port number to wait on */ int port,
     opnfil[fn]->saddr.sin_family = AF_INET;
     opnfil[fn]->saddr.sin_addr.s_addr = INADDR_ANY;
     opnfil[fn]->saddr.sin_port = htons(port);
-    r = bind(fn, (struct sockaddr *)&saddr, sizeof(saddr));
+    r = bind(fn, (struct sockaddr *)&opnfil[fn]->saddr,
+                 sizeof(struct sockaddr_in));
     if (r < 0) linuxerror();
 
     opnfil[fn]->net = true; /* set network (sockets) file */
