@@ -32,7 +32,7 @@ int main(int argc, char **argv)
     printf("The message from client was: %.*s\n", len, buff);
 
     /* send message to client */
-    pa_wrmsg(fn, "Hello, client again", 13);
+    pa_wrmsg(fn, "Hello, client", 13);
 
     pa_clsmsg(fn);
 
