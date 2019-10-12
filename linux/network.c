@@ -580,7 +580,8 @@ int pa_openmsg(unsigned long addr, int port, boolean secure)
     opnfil[fn]->sec = false; /* set not secure */
     opnfil[fn]->opn = true;
     opnfil[fn]->msg = true; /* set message socket */
-    /* set up address */
+    /* set up server address */
+    memset(&opnfil[fn]->saddr, 0, sizeof(struct sockaddr_in));
     opnfil[fn]->saddr.sin_family = AF_INET;
     opnfil[fn]->saddr.sin_addr.s_addr = htonl(addr);
     opnfil[fn]->saddr.sin_port = htons(port);
@@ -626,12 +627,17 @@ int pa_waitmsg(/* port number to wait on */ int port,
                    sizeof(opt));
     if (r < 0) linuxerror();
 
+    /* clear server and client addresses */
+    memset(&saddr, 0, sizeof(struct sockaddr_in));
+    memset(&opnfil[fn]->saddr, 0, sizeof(struct sockaddr_in));
+
     /* set up address */
-    opnfil[fn]->saddr.sin_family = AF_INET;
-    opnfil[fn]->saddr.sin_addr.s_addr = INADDR_ANY;
-    opnfil[fn]->saddr.sin_port = htons(port);
-    r = bind(fn, (struct sockaddr *)&opnfil[fn]->saddr,
-                 sizeof(struct sockaddr_in));
+    saddr.sin_family = AF_INET;
+    saddr.sin_addr.s_addr = INADDR_ANY;
+    saddr.sin_port = htons(port);
+
+    /* bind to socket */
+    r = bind(fn, (struct sockaddr *)&saddr, sizeof(struct sockaddr_in));
     if (r < 0) linuxerror();
 
     opnfil[fn]->net = true; /* set network (sockets) file */
