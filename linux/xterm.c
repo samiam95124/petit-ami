@@ -1,42 +1,73 @@
 /** ****************************************************************************
- *
- *                                 Petit AMI
- *
- * xterm/ANSI console interface
- *
- * This is a standard PA/TK terminal module using ANSI control codes, some
- * of which are specific to various VT10x terminals and xterm which emulates
- * them. Its mainly for xterm and compatibles, which means Linux and Mac OS X.
- *
- * Uses ANSI C and a good bit of POSIX. The stdio interface is done by a
- * specially modified library that includes the ability to hook or override
- * the bottom level of I/O.
- *
- * The module works by keeping a in memory image of the output terminal and
- * its attributes, along the lines of what curses does. Because it always knows
- * what the state of the actual terminal should be, it does not need to read
- * from the terminal to determine the state of individual character cells.
- *
- * In this version, the file argument is not used.
- *
- * The ANSI interface is mainly useful in Linux/BSD because the ANSI controls
- * are standardized there, and serial connections are more widely used
- * (like SSH). Curses is also used, but it, too, is typically just a wrapper for
- * ANSI controls, since the wide variety of different serial terminals from the
- * 1970s and before have died off (which perhaps shows that one way to
- * standardize the world is to get a smaller world).
- *
- * The ANSI driver really has two modes: one when used as a local program, and
- * another when used remotely via serial connection, telnet, ssh or similar
- * program. In the latter case, the mouse and joystick position is irrelevant,
- * and we need to determine terminal geometry via ANSI sequences (yes, it is
- * possible!).
- *
- * Petit-Ami is a standard that goes back to a start in 1984 with significant
- * improvements in the 1997 and on years. It was the library standard for
- * Pascaline, but I translated it to C.
- *
- ******************************************************************************/
+*                                                                              *
+*                                 Petit AMI                                    *
+*                                                                              *
+* xterm/ANSI console interface                                                 *
+*                                                                              *
+* This is a standard PA/TK terminal module using ANSI control codes, some      *
+* of which are specific to various VT10x terminals and xterm which emulates    *
+* them. Its mainly for xterm and compatibles, which means Linux and Mac OS X.  *
+*                                                                              *
+* Uses ANSI C and a good bit of POSIX. The stdio interface is done by a        *
+* specially modified library that includes the ability to hook or override     *
+* the bottom level of I/O.                                                     *
+*                                                                              *
+* The module works by keeping a in memory image of the output terminal and     *
+* its attributes, along the lines of what curses does. Because it always knows *
+* what the state of the actual terminal should be, it does not need to read    *
+* from the terminal to determine the state of individual character cells.      *
+*                                                                              *
+* In this version, the file argument is not used.                              *
+*                                                                              *
+* The ANSI interface is mainly useful in Linux/BSD because the ANSI controls   *
+* are standardized there, and serial connections are more widely used          *
+* (like SSH). Curses is also used, but it, too, is typically just a wrapper    *
+* for ANSI controls, since the wide variety of different serial terminals from *
+* the 1970s and before have died off (which perhaps shows that one way to      *
+* standardize the world is to get a smaller world).                            *
+*                                                                              *
+* The ANSI driver really has two modes: one when used as a local program, and  *
+* another when used remotely via serial connection, telnet, ssh or similar     *
+* program. In the latter case, the mouse and joystick position is irrelevant,  *
+* and we need to determine terminal geometry via ANSI sequences (yes, it is    *
+* possible!).                                                                  *
+*                                                                              *
+* Petit-Ami is a standard that goes back to a start in 1984 with significant   *
+* improvements in the 1997 and on years. It was the library standard for       *
+* Pascaline, but I translated it to C.                                         *
+*                                                                              *
+*                          BSD LICENSE INFORMATION                             *
+*                                                                              *
+* Copyright (C) 2019 - Scott A. Franco                                         *
+*                                                                              *
+* All rights reserved.                                                         *
+*                                                                              *
+* Redistribution and use in source and binary forms, with or without           *
+* modification, are permitted provided that the following conditions           *
+* are met:                                                                     *
+*                                                                              *
+* 1. Redistributions of source code must retain the above copyright            *
+*    notice, this list of conditions and the following disclaimer.             *
+* 2. Redistributions in binary form must reproduce the above copyright         *
+*    notice, this list of conditions and the following disclaimer in the       *
+*    documentation and/or other materials provided with the distribution.      *
+* 3. Neither the name of the project nor the names of its contributors         *
+*    may be used to endorse or promote products derived from this software     *
+*    without specific prior written permission.                                *
+*                                                                              *
+* THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND      *
+* ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE        *
+* IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE   *
+* ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE     *
+* FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL   *
+* DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS      *
+* OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)        *
+* HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT   *
+* LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    *
+* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF       *
+* SUCH DAMAGE.                                                                 *
+*                                                                              *
+*******************************************************************************/
 
 #ifdef __linux__
 #include <sys/timerfd.h>
