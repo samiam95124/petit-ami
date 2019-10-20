@@ -1377,8 +1377,11 @@ static void pa_deinit_network()
         free(opnfil[fi]);
 
     }
-    /* free context structure */
+    /* free context structures */
     SSL_CTX_free(client_tls_ctx);
+    SSL_CTX_free(client_dtls_ctx);
+    SSL_CTX_free(server_tls_ctx);
+    SSL_CTX_free(server_dtls_ctx);
 
     /* release the open files lock */
     pthread_mutex_destroy(&oflock);
