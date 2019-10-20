@@ -25,7 +25,9 @@ int main(int argc, char **argv)
 
     /* open the server file */
     pa_addrnet(argv[1], &addr);
-    fn = pa_openmsg(addr, 4433, false);
+    /* if it is hostname, need to fix address */
+    if (addr == 0x7f000101) addr = 0x7f000001;
+    fn = pa_openmsg(addr, 4433, true);
 
     /* send message to server */
     pa_wrmsg(fn, "Hello, server", 13);

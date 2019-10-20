@@ -17,6 +17,10 @@
 *                                                                              *
 * Copyright (C) 2019 - Scott A. Franco                                         *
 *                                                                              *
+* Portions of the code Copyright (C) 2009 - 2012 Robin Seggelmann,             *
+* seggelmann@fh-muenster.de, Michael Tuexen, tuexen@fh-muenster.de             *
+* 2019 Felix Weinrank, weinrank@fh-muenster.de                                 *
+*                                                                              *
 * All rights reserved.                                                         *
 *                                                                              *
 * Redistribution and use in source and binary forms, with or without           *
@@ -66,6 +70,15 @@
 
 #define MAXFIL 100 /* maximum number of open files */
 
+/* socket structures */
+typedef union {
+
+    struct sockaddr_storage ss;
+    struct sockaddr_in6 s6;
+    struct sockaddr_in s4;
+
+} socket_struct;
+
 /* File tracking.
    Files could be transparent in the case of plain text, but SSL and advanced
    layering needs special handling. So we translate the file descriptors and
@@ -81,8 +94,10 @@ typedef struct filrec {
    X509*   cert; /* peer certificate */
    int     sfn;  /* shadow fid */
    boolean opn;  /* file is open with Linux */
-   boolean msg; /* is a message socket (udp/dtls) */
-   struct sockaddr_in saddr; /* socket address for messages */
+   boolean msg;  /* is a message socket (udp/dtls) */
+   socket_struct saddr; /* socket address for messages */
+   BIO*    bio;  /* bio for DTLS */
+   boolean sudp; /* its a secure udp */
    struct filrec* next; /* next entry (when placed on free list) */
 
 
@@ -163,8 +178,10 @@ static pthread_mutex_t fflock; /* lock for this structure */
 /*
  * openSSL variables
  */
-static SSL_CTX* client_ctx;
-static SSL_CTX* server_ctx;
+static SSL_CTX* client_tls_ctx;
+static SSL_CTX* client_dtls_ctx;
+static SSL_CTX* server_tls_ctx;
+static SSL_CTX* server_dtls_ctx;
 
 /*******************************************************************************
 
@@ -444,13 +461,14 @@ void newfil(int fn)
 
     }
     pthread_mutex_lock(&opnfil[fn]->lock); /* take file entry lock */
-    opnfil[fn]->net = false; /* set unoccupied */
-    opnfil[fn]->sec = false; /* set ordinary socket */
-    opnfil[fn]->ssl = NULL;  /* clear SSL data */
-    opnfil[fn]->cert = NULL; /* clear certificate data */
-    opnfil[fn]->sfn = -1;    /* set no shadow */
-    opnfil[fn]->opn = false; /* set not open */
-    opnfil[fn]->msg = false; /* set not message port */
+    opnfil[fn]->net = false;  /* set unoccupied */
+    opnfil[fn]->sec = false;  /* set ordinary socket */
+    opnfil[fn]->ssl = NULL;   /* clear SSL data */
+    opnfil[fn]->cert = NULL;  /* clear certificate data */
+    opnfil[fn]->sfn = -1;     /* set no shadow */
+    opnfil[fn]->opn = false;  /* set not open */
+    opnfil[fn]->msg = false;  /* set not message port */
+    opnfil[fn]->sudp = false; /* set not secure udp */
     pthread_mutex_unlock(&opnfil[fn]->lock); /* release file entry lock */
 
 }
@@ -553,7 +571,7 @@ FILE* pa_opennet(/* IP address */      unsigned long addr,
         opnfil[sfn]->opn = true;
         pthread_mutex_unlock(&opnfil[sfn]->lock); /* release file entry lock */
 
-        ssl = SSL_new(client_ctx); /* create new ssl */
+        ssl = SSL_new(client_tls_ctx); /* create new ssl */
         if (!ssl) error(esslnew);
         /* connect the ssl side to the shadow fid */
         r = SSL_set_fd(ssl, sfn); /* connect to fid */
@@ -589,8 +607,8 @@ FILE* pa_opennet(/* IP address */      unsigned long addr,
 Open message file
 
 Opens a message file with the given address, port and security. The file can be
-both written and read. The protocol used for the transfer is either UDP, with
-fixed length messages.
+both written and read. The protocol used for the transfer is either UDP, or
+DTLS, with fixed length messages.
 
 *******************************************************************************/
 
@@ -599,6 +617,10 @@ int pa_openmsg(unsigned long addr, int port, boolean secure)
 {
 
     int fn;
+    socket_struct laddr;
+    int r;
+    struct timeval timeout;
+    char msg[] = "This is the start of client service\n";
 
     /* connect the socket */
     fn = socket(AF_INET, SOCK_DGRAM, 0);
@@ -612,11 +634,48 @@ int pa_openmsg(unsigned long addr, int port, boolean secure)
     opnfil[fn]->opn = true;
     opnfil[fn]->msg = true; /* set message socket */
     /* set up server address */
-    memset(&opnfil[fn]->saddr, 0, sizeof(struct sockaddr_in));
-    opnfil[fn]->saddr.sin_family = AF_INET;
-    opnfil[fn]->saddr.sin_addr.s_addr = htonl(addr);
-    opnfil[fn]->saddr.sin_port = htons(port);
+    memset(&opnfil[fn]->saddr.s4, 0, sizeof(struct sockaddr_in));
+
+    opnfil[fn]->saddr.s4.sin_family = AF_INET;
+    opnfil[fn]->saddr.s4.sin_port = htons(port);
+    opnfil[fn]->saddr.s4.sin_addr.s_addr = htonl(addr);
     pthread_mutex_unlock(&opnfil[fn]->lock); /* release file entry lock */
+
+    /* set up for DTLS operation if selected */
+    if (secure) {
+
+        /* clear local */
+        memset((void *) &laddr, 0, sizeof(struct sockaddr_storage));
+        laddr.s4.sin_family = AF_INET;
+	    laddr.s4.sin_port = htons(0);
+        r = bind(fn, (const struct sockaddr *) &laddr, sizeof(struct sockaddr_in));
+        if (r) linuxerror();
+
+        /* create socket struct */
+        opnfil[fn]->ssl = SSL_new(client_dtls_ctx);
+        if (!opnfil[fn]->ssl) sslerrorqueue();
+
+        /* Create BIO, connect and set to already connected */
+        opnfil[fn]->bio = BIO_new_dgram(fn, BIO_CLOSE);
+        r = connect(fn, (struct sockaddr *) &opnfil[fn]->saddr, sizeof(struct sockaddr_in));
+        if (r) linuxerror();
+
+	    BIO_ctrl(opnfil[fn]->bio, BIO_CTRL_DGRAM_SET_CONNECTED, 0, &opnfil[fn]->saddr.ss);
+
+	    SSL_set_bio(opnfil[fn]->ssl, opnfil[fn]->bio, opnfil[fn]->bio);
+
+	    r = SSL_connect(opnfil[fn]->ssl);
+	    if (r <= 0) sslerror(opnfil[fn]->ssl, r);
+
+	    /* Set and activate timeouts */
+	    timeout.tv_sec = 3;
+	    timeout.tv_usec = 0;
+	    BIO_ctrl(opnfil[fn]->bio, BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
+
+	    /* set secure udp */
+	    opnfil[fn]->sudp = true;
+
+    }
 
     return (fn); /* return fid */
 
@@ -660,7 +719,7 @@ int pa_waitmsg(/* port number to wait on */ int port,
 
     /* clear server and client addresses */
     memset(&saddr, 0, sizeof(struct sockaddr_in));
-    memset(&opnfil[fn]->saddr, 0, sizeof(struct sockaddr_in));
+    memset(&opnfil[fn]->saddr.s4, 0, sizeof(struct sockaddr_in));
 
     /* set up address */
     saddr.sin_family = AF_INET;
@@ -710,18 +769,28 @@ void pa_wrmsg(int fn, void* msg, unsigned long len)
 {
 
     ssize_t r;
+    int sr;
 
     if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
 
     /* check is a message file */
     if (!opnfil[fn]->msg) error(enotmsg);
 
-    /* write the message to socket, "non-blocking" (really just means
-       no message confirmation) */
-    r = sendto(fn, msg, len, MSG_DONTWAIT,
-               (const struct sockaddr *) &opnfil[fn]->saddr,
-               sizeof(struct sockaddr_in));
-    if (fn < 0) linuxerror();
+    if (opnfil[fn]->sudp) { /* secure udp */
+
+        sr = SSL_write(opnfil[fn]->ssl, msg, len);
+        if (sr <= 0) sslerror(opnfil[fn]->ssl, sr);
+
+    } else {
+
+        /* write the message to socket, "non-blocking" (really just means
+           no message confirmation) */
+        r = sendto(fn, msg, len, MSG_DONTWAIT,
+                   (const struct sockaddr *) &opnfil[fn]->saddr.s4,
+                   sizeof(struct sockaddr_in));
+        if (fn < 0) linuxerror();
+
+    }
 
 }
 
@@ -742,17 +811,28 @@ int pa_rdmsg(int fn, void* msg, unsigned long len)
 
     ssize_t r;
     socklen_t al;
+    int sr;
 
     if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
 
     /* check is a message file */
     if (!opnfil[fn]->msg) error(enotmsg);
 
-    al = sizeof(struct sockaddr_in);
-    /* write the message to socket, blocking (get full UDP message) */
-    r = recvfrom(fn, msg, len, MSG_WAITALL,
-                 (struct sockaddr *) &opnfil[fn]->saddr, &al);
-    if (fn < 0) linuxerror();
+    if (opnfil[fn]->sudp) { /* secure udp */
+
+        sr = SSL_read(opnfil[fn]->ssl, msg, len);
+        if (sr <= 0) sslerror(opnfil[fn]->ssl, sr);
+        r = sr; /* set length read */
+
+    } else {
+
+        al = sizeof(struct sockaddr_in);
+        /* write the message to socket, blocking (get full UDP message) */
+        r = recvfrom(fn, msg, len, MSG_WAITALL,
+                     (struct sockaddr *) &opnfil[fn]->saddr.s4, &al);
+        if (fn < 0) linuxerror();
+
+    }
 
     return (r); /* exit with length of message */
 
@@ -856,7 +936,7 @@ FILE* pa_waitnet(/* port number to wait on */ int port,
         opnfil[sfn]->opn = true;
         pthread_mutex_unlock(&opnfil[sfn]->lock); /* release file entry lock */
 
-        ssl = SSL_new(server_ctx); /* create new ssl */
+        ssl = SSL_new(server_tls_ctx); /* create new ssl */
         if (!ssl) error(esslnew);
         /* connect the ssl side to the shadow fid */
         r = SSL_set_fd(ssl, sfn); /* connect to fid */
@@ -1158,6 +1238,39 @@ static off_t ilseek(int fd, off_t offset, int whence)
 
 /*******************************************************************************
 
+Initialize SSL context
+
+*******************************************************************************/
+
+void initctx(
+    /* context */ SSL_CTX** ctx,
+    /* communications method */ const SSL_METHOD *method,
+    /* certificate file */ string cert,
+    /* key file */ string key
+)
+
+{
+
+    int r;
+
+    /* create new client TLS SSL context */
+    *ctx = SSL_CTX_new(method);
+    if (!*ctx) error(esslctx);
+
+    /* Set the client key and cert */
+    r = SSL_CTX_use_certificate_file(*ctx, cert, SSL_FILETYPE_PEM);
+    if (r <= 0) sslerrorqueue();
+
+    r = SSL_CTX_use_PrivateKey_file(*ctx, key, SSL_FILETYPE_PEM);
+    if (r <= 0) sslerrorqueue();
+
+    r = SSL_CTX_check_private_key(*ctx);
+    if (r != 1) sslerrorqueue();
+
+}
+
+/*******************************************************************************
+
 Network startup
 
 *******************************************************************************/
@@ -1192,25 +1305,30 @@ static void pa_init_network()
 
     /* initialize SSL library and register algorithms */
     if(SSL_library_init() < 0) error(einissl);
+    OpenSSL_add_ssl_algorithms();
+    SSL_load_error_strings();
 
-    /* create new client SSL context */
-    client_ctx = SSL_CTX_new(TLS_client_method());
-    //client_ctx = SSL_CTX_new(TLS_server_method());
-    if (!client_ctx) error(esslctx);
+    /* create new client TLS SSL context */
+    initctx(&client_tls_ctx, TLS_client_method(), "client_tls_cert.pem",
+                                                  "client_tls_key.pem");
 
-    /* create new server SSL context */
-    server_ctx = SSL_CTX_new(TLS_server_method());
-    if (!server_ctx) error(esslctx);
+    /* create new client DTLS SSL context */
+    initctx(&client_dtls_ctx, DTLS_client_method(), "client_dtls_cert.pem",
+                                                    "client_dtls_key.pem");
+
+    /* create new server TLS SSL context */
+    initctx(&server_tls_ctx, TLS_server_method(), "server_tls_cert.pem",
+                                                  "server_tls_key.pem");
 
     /* configure server context */
-    SSL_CTX_set_ecdh_auto(server_ctx, 1);
+    SSL_CTX_set_ecdh_auto(server_tls_ctx, 1);
 
-    /* Set the server key and cert */
-    r = SSL_CTX_use_certificate_file(server_ctx, "cert.pem", SSL_FILETYPE_PEM);
-    if (r <= 0) sslerrorqueue();
+    /* create new server DTLS SSL context */
+    initctx(&server_dtls_ctx, DTLS_server_method(), "server_dtls_cert.pem",
+                                                    "server_dtls_key.pem");
 
-    r = SSL_CTX_use_PrivateKey_file(server_ctx, "key.pem", SSL_FILETYPE_PEM);
-    if (r <= 0) sslerrorqueue();
+    /* configure server context */
+    SSL_CTX_set_ecdh_auto(server_dtls_ctx, 1);
 
 };
 
@@ -1260,7 +1378,7 @@ static void pa_deinit_network()
 
     }
     /* free context structure */
-    SSL_CTX_free(client_ctx);
+    SSL_CTX_free(client_tls_ctx);
 
     /* release the open files lock */
     pthread_mutex_destroy(&oflock);
