@@ -258,7 +258,7 @@ gettys: bin/petit_ami_plain.so network_programs/gettys.c Makefile
 	$(CC) $(CFLAGS) network_programs/gettys.c linux/option.c $(PLIBS) -o bin/gettys
 	
 msgclient: bin/petit_ami_plain.so network_programs/msgclient.c Makefile
-	$(CC) $(CFLAGS) network_programs/msgclient.c $(PLIBS) -o bin/msgclient
+	$(CC) $(CFLAGS) network_programs/msgclient.c linux/option.c $(PLIBS) -o bin/msgclient
 	
 msgserver: bin/petit_ami_plain.so network_programs/msgserver.c Makefile
 	$(CC) $(CFLAGS) network_programs/msgserver.c $(PLIBS) -o bin/msgserver
