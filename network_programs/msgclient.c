@@ -51,8 +51,6 @@ int main(int argc, char **argv)
 
     /* open the server file */
     pa_addrnet(argv[argi], &addr);
-    /* if it is hostname, need to fix address */
-    if (addr == 0x7f000101) addr = 0x7f000001;
     fn = pa_openmsg(addr, port, secure);
 
     /* send message to server */
