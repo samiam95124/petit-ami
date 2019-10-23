@@ -11,10 +11,19 @@ Accept message file connections and give simple test messages.
 
 #include <localdefs.h>
 #include <network.h>
+#include <option.h>
 
 #define BUFLEN 250
 
-extern void pa_doit(int port);
+boolean secure = false;
+
+optrec opttbl[] = {
+
+    { "secure", &secure, NULL,   NULL, NULL },
+    { "s",      &secure, NULL,   NULL, NULL },
+    { NULL,     NULL,    NULL,   NULL, NULL }
+
+};
 
 int main(int argc, char **argv)
 {
@@ -23,9 +32,24 @@ int main(int argc, char **argv)
     unsigned long addr;
     int fn;
     int len;
+    int argi = 1;
+    int port;
+
+    /* parse user options */
+    options(&argi, &argc, argv, opttbl, true);
+
+    if (argc != 2) {
+
+        fprintf(stderr, "Usage: msgserver [--secure|-s] port\n");
+        exit(1);
+
+    }
+
+    /* get port number */
+    port = atoi(argv[argi]);
 
     /* open the server file */
-    fn = pa_waitmsg(4433, true);
+    fn = pa_waitmsg(port, secure);
 
     /* receive message from client */
     len = pa_rdmsg(fn, buff, BUFLEN);

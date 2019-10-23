@@ -41,7 +41,7 @@ int main(int argc, char **argv)
 
     if (argc != 3) {
 
-        fprintf(stderr, "Usage: msglclient [--secure|-s] servername port\n");
+        fprintf(stderr, "Usage: msgclient [--secure|-s] servername port\n");
         exit(1);
 
     }

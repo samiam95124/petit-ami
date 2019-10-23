@@ -261,7 +261,7 @@ msgclient: bin/petit_ami_plain.so network_programs/msgclient.c Makefile
 	$(CC) $(CFLAGS) network_programs/msgclient.c linux/option.c $(PLIBS) -o bin/msgclient
 	
 msgserver: bin/petit_ami_plain.so network_programs/msgserver.c Makefile
-	$(CC) $(CFLAGS) network_programs/msgserver.c $(PLIBS) -o bin/msgserver
+	$(CC) $(CFLAGS) network_programs/msgserver.c linux/option.c $(PLIBS) -o bin/msgserver
 	
 clean:
 	rm -f bin/dumpmidi bin/lsalsadev bin/alsaparms test bin/play bin/keyboard 
