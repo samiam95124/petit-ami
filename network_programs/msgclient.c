@@ -34,7 +34,7 @@ int main(int argc, char **argv)
     int fn;
     int len;
     int argi = 1;
-    int port = 4433;
+    int port;
 
     /* parse user options */
     options(&argi, &argc, argv, opttbl, true);
@@ -53,7 +53,7 @@ int main(int argc, char **argv)
     pa_addrnet(argv[argi], &addr);
     /* if it is hostname, need to fix address */
     if (addr == 0x7f000101) addr = 0x7f000001;
-    fn = pa_openmsg(addr, 4433, secure);
+    fn = pa_openmsg(addr, port, secure);
 
     /* send message to server */
     pa_wrmsg(fn, "Hello, server", 13);

@@ -14,6 +14,8 @@ Accept message file connections and give simple test messages.
 
 #define BUFLEN 250
 
+extern void pa_doit(int port);
+
 int main(int argc, char **argv)
 {
 
@@ -23,7 +25,7 @@ int main(int argc, char **argv)
     int len;
 
     /* open the server file */
-    fn = pa_waitmsg(4433, false);
+    fn = pa_waitmsg(4433, true);
 
     /* receive message from client */
     len = pa_rdmsg(fn, buff, BUFLEN);

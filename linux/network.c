@@ -13,6 +13,10 @@
 * systems that cannot do that (Windows), and also give a standard method to    *
 * open such files.                                                             *
 *                                                                              *
+* Note that I often use SSL to mean "secure socket attached to standard FILE   *
+* structure, which nowadays means TLS. I also use DTLS to refer to message     *
+* based sockets using DTLS on UDP.                                             *
+*                                                                              *
 *                          BSD LICENSE INFORMATION                             *
 *                                                                              *
 * Copyright (C) 2019 - Scott A. Franco                                         *
@@ -62,6 +66,7 @@
 #include <netdb.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <openssl/rand.h>
 #include <unistd.h>
 
 /* Petit-Ami definitions */
@@ -69,6 +74,7 @@
 #include <network.h>
 
 #define MAXFIL 100 /* maximum number of open files */
+#define COOKIE_SECRET_LENGTH 16 /* length of secret cookie */
 
 /* socket structures */
 typedef union {
@@ -178,10 +184,17 @@ static pthread_mutex_t fflock; /* lock for this structure */
 /*
  * openSSL variables
  */
+
+/* contexts */
 static SSL_CTX* client_tls_ctx;
 static SSL_CTX* client_dtls_ctx;
 static SSL_CTX* server_tls_ctx;
 static SSL_CTX* server_dtls_ctx;
+
+/* server secret cookie */
+unsigned char cookie_secret[COOKIE_SECRET_LENGTH];
+/* cookie has been initialized */
+int cookie_initialized;
 
 /*******************************************************************************
 
@@ -475,6 +488,207 @@ void newfil(int fn)
 
 /*******************************************************************************
 
+Generate DTLS cookie
+
+Generates a cookie for DTLS communications. A cookie is generated for the given
+ssl socket, and placed into the given buffer. The length of the cookie is also
+set.
+
+This code comes from:
+
+https://github.com/nplab/DTLS-Examples
+
+*******************************************************************************/
+
+int generate_cookie(SSL *ssl, unsigned char *cookie, unsigned int *cookie_len)
+
+{
+
+	unsigned char *buffer, result[EVP_MAX_MD_SIZE];
+	unsigned int length = 0, resultlength;
+	union {
+		struct sockaddr_storage ss;
+		struct sockaddr_in6 s6;
+		struct sockaddr_in s4;
+	} peer;
+
+	/* Initialize a random secret */
+	if (!cookie_initialized)
+		{
+		if (!RAND_bytes(cookie_secret, COOKIE_SECRET_LENGTH))
+			{
+			printf("error setting random cookie secret\n");
+			return 0;
+			}
+		cookie_initialized = true;
+		}
+
+	/* Read peer information */
+	(void) BIO_dgram_get_peer(SSL_get_rbio(ssl), &peer);
+
+	/* Create buffer with peer's address and port */
+	length = 0;
+	switch (peer.ss.ss_family) {
+		case AF_INET:
+			length += sizeof(struct in_addr);
+			break;
+		case AF_INET6:
+			length += sizeof(struct in6_addr);
+			break;
+		default:
+			OPENSSL_assert(0);
+			break;
+	}
+	length += sizeof(in_port_t);
+	buffer = (unsigned char*) OPENSSL_malloc(length);
+
+	if (buffer == NULL)
+		{
+		printf("out of memory\n");
+		return 0;
+		}
+
+	switch (peer.ss.ss_family) {
+		case AF_INET:
+			memcpy(buffer,
+				   &peer.s4.sin_port,
+				   sizeof(in_port_t));
+			memcpy(buffer + sizeof(peer.s4.sin_port),
+				   &peer.s4.sin_addr,
+				   sizeof(struct in_addr));
+			break;
+		case AF_INET6:
+			memcpy(buffer,
+				   &peer.s6.sin6_port,
+				   sizeof(in_port_t));
+			memcpy(buffer + sizeof(in_port_t),
+				   &peer.s6.sin6_addr,
+				   sizeof(struct in6_addr));
+			break;
+		default:
+			OPENSSL_assert(0);
+			break;
+	}
+
+	/* Calculate HMAC of buffer using the secret */
+	HMAC(EVP_sha1(), (const void*) cookie_secret, COOKIE_SECRET_LENGTH,
+		 (const unsigned char*) buffer, length, result, &resultlength);
+	OPENSSL_free(buffer);
+
+	memcpy(cookie, result, resultlength);
+	*cookie_len = resultlength;
+
+	return 1;
+
+}
+
+/*******************************************************************************
+
+Verify DTLS cookie
+
+Verifies a cookie for DTLS communications. A cookie is checked for the given
+ssl socket. The cookie string is expected in a buffer, and the length of the
+string is also given.
+
+This code comes from:
+
+https://github.com/nplab/DTLS-Examples
+
+*******************************************************************************/
+
+int verify_cookie(SSL *ssl, const unsigned char *cookie, unsigned int cookie_len)
+
+{
+
+	unsigned char *buffer, result[EVP_MAX_MD_SIZE];
+	unsigned int length = 0, resultlength;
+	union {
+		struct sockaddr_storage ss;
+		struct sockaddr_in6 s6;
+		struct sockaddr_in s4;
+	} peer;
+
+	/* If secret isn't initialized yet, the cookie can't be valid */
+	if (!cookie_initialized)
+		return 0;
+
+	/* Read peer information */
+	(void) BIO_dgram_get_peer(SSL_get_rbio(ssl), &peer);
+
+	/* Create buffer with peer's address and port */
+	length = 0;
+	switch (peer.ss.ss_family) {
+		case AF_INET:
+			length += sizeof(struct in_addr);
+			break;
+		case AF_INET6:
+			length += sizeof(struct in6_addr);
+			break;
+		default:
+			OPENSSL_assert(0);
+			break;
+	}
+	length += sizeof(in_port_t);
+	buffer = (unsigned char*) OPENSSL_malloc(length);
+
+	if (buffer == NULL)
+		{
+		printf("out of memory\n");
+		return 0;
+		}
+
+	switch (peer.ss.ss_family) {
+		case AF_INET:
+			memcpy(buffer,
+				   &peer.s4.sin_port,
+				   sizeof(in_port_t));
+			memcpy(buffer + sizeof(in_port_t),
+				   &peer.s4.sin_addr,
+				   sizeof(struct in_addr));
+			break;
+		case AF_INET6:
+			memcpy(buffer,
+				   &peer.s6.sin6_port,
+				   sizeof(in_port_t));
+			memcpy(buffer + sizeof(in_port_t),
+				   &peer.s6.sin6_addr,
+				   sizeof(struct in6_addr));
+			break;
+		default:
+			OPENSSL_assert(0);
+			break;
+	}
+
+	/* Calculate HMAC of buffer using the secret */
+	HMAC(EVP_sha1(), (const void*) cookie_secret, COOKIE_SECRET_LENGTH,
+		 (const unsigned char*) buffer, length, result, &resultlength);
+	OPENSSL_free(buffer);
+
+	if (cookie_len == resultlength && memcmp(result, cookie, resultlength) == 0)
+		return 1;
+
+	return 0;
+
+}
+
+/*******************************************************************************
+
+Verify certificate
+
+Currently unused. Returns verified always.
+
+*******************************************************************************/
+
+int dtls_verify_callback (int ok, X509_STORE_CTX *ctx)
+
+{
+
+    return 1;
+
+}
+
+/*******************************************************************************
+
 Get server address
 
 Retrives a server address by name. The name is given as a string. The address
@@ -699,11 +913,12 @@ int pa_waitmsg(/* port number to wait on */ int port,
 
 {
 
-    struct sockaddr_in saddr;
-    int fn;
+    socket_struct caddr;
+    int fn, fn2;
     int r;
     int opt;
-    SSL*  ssl;
+    struct timeval timeout;
+    const int on = 1, off = 0;
 
     /* connect the socket */
     fn = socket(AF_INET, SOCK_DGRAM, 0);
@@ -713,27 +928,76 @@ int pa_waitmsg(/* port number to wait on */ int port,
 
     /* set socket options, multiple servers on address and same port */
     opt = 1;
-    r = setsockopt(fn, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt,
-                   sizeof(opt));
+    r = setsockopt(fn, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
     if (r < 0) linuxerror();
 
-    /* clear server and client addresses */
-    memset(&saddr, 0, sizeof(struct sockaddr_in));
-    memset(&opnfil[fn]->saddr.s4, 0, sizeof(struct sockaddr_in));
+    /* clear server address */
+    memset(&opnfil[fn]->saddr, 0, sizeof(socket_struct));
 
     /* set up address */
-    saddr.sin_family = AF_INET;
-    saddr.sin_addr.s_addr = INADDR_ANY;
-    saddr.sin_port = htons(port);
+    opnfil[fn]->saddr.s4.sin_family = AF_INET;
+    opnfil[fn]->saddr.s4.sin_addr.s_addr = INADDR_ANY;
+    opnfil[fn]->saddr.s4.sin_port = htons(port);
 
     /* bind to socket */
-    r = bind(fn, (struct sockaddr *)&saddr, sizeof(struct sockaddr_in));
+    r = bind(fn, (struct sockaddr *)&opnfil[fn]->saddr,
+                 sizeof(struct sockaddr_in));
     if (r < 0) linuxerror();
 
     opnfil[fn]->net = true; /* set network (sockets) file */
     opnfil[fn]->msg = true; /* set message socket */
 
-    return (fn);
+    /* set up for DTLS operation if selected */
+    if (secure) {
+
+   		memset(&caddr, 0, sizeof(struct sockaddr_storage));
+
+		/* Create BIO */
+		opnfil[fn]->bio = BIO_new_dgram(fn, BIO_NOCLOSE);
+
+		/* Set and activate timeouts */
+		timeout.tv_sec = 5;
+		timeout.tv_usec = 0;
+		BIO_ctrl(opnfil[fn]->bio, BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
+
+		opnfil[fn]->ssl = SSL_new(server_dtls_ctx);
+		if (!opnfil[fn]->ssl) sslerrorqueue();
+
+		SSL_set_bio(opnfil[fn]->ssl, opnfil[fn]->bio, opnfil[fn]->bio);
+		SSL_set_options(opnfil[fn]->ssl, SSL_OP_COOKIE_EXCHANGE);
+
+		while (DTLSv1_listen(opnfil[fn]->ssl, (BIO_ADDR *) &caddr) <= 0);
+
+	    fn2 = socket(AF_INET, SOCK_DGRAM, 0);
+	    if (fn2 < 0) linuxerror();
+
+	    setsockopt(fn2, SOL_SOCKET, SO_REUSEADDR, (const void*) &on, (socklen_t) sizeof(on));
+	    r = bind(fn2, (const struct sockaddr *) &opnfil[fn]->saddr, sizeof(struct sockaddr_in));
+	    if (r) linuxerror();
+	    r = connect(fn2, (struct sockaddr *) &caddr, sizeof(struct sockaddr_in));
+	    if (r) linuxerror();
+
+	    /* Set new fd and set BIO to connected */
+	    BIO_set_fd(SSL_get_rbio(opnfil[fn]->ssl), fn2, BIO_NOCLOSE);
+	    BIO_ctrl(SSL_get_rbio(opnfil[fn]->ssl), BIO_CTRL_DGRAM_SET_CONNECTED,
+	             0, &caddr.ss);
+
+	    /* Finish handshake */
+	    do { r = SSL_accept(opnfil[fn]->ssl); } while (r == 0);
+	    if (r < 0) sslerror(opnfil[fn]->ssl, r);
+
+	    /* Set and activate timeouts */
+	    timeout.tv_sec = 5;
+	    timeout.tv_usec = 0;
+	    BIO_ctrl(SSL_get_rbio(opnfil[fn]->ssl), BIO_CTRL_DGRAM_SET_RECV_TIMEOUT,
+	             0, &timeout);
+
+	    /* set secure udp */
+	    opnfil[fn]->sudp = true;
+
+    }
+
+    return (fn); /* return fid */
 
 }
 
@@ -857,6 +1121,9 @@ void pa_clsmsg(int fn)
 
     close(fn); /* close the socket */
 
+    /* if DTLS, free the ssl struct */
+    if (opnfil[fn]->sudp) SSL_free(opnfil[fn]->ssl);
+
 }
 
 /*******************************************************************************
@@ -978,6 +1245,277 @@ boolean pa_relymsg(unsigned long addr)
 {
 
     return (false);
+
+}
+
+/*******************************************************************************
+
+Get network certificate
+
+Fetches the SSL certificate for an SSL connection. The file must contain an
+open and active SSL connection. Retrieves on of the indicated certificates by
+number, from 1 to N where N is the maximum certificate in the chain.
+Certificate 1 is the certificate for the server connected. Certificate N is the
+CA or Certificate Authority's certificate, AKA the root certificate. The size
+of the certificate buffer is passed, and the actual length of the certificate
+is returned. If there is no certificate by a given number, the resulting length
+is zero. If the certificate would overflow the buffer, -1 is returned.
+
+Certificates are in base64 format, the same as a PEM file, except without the
+"BEGIN CERTIFICATE" and "END CERTIFICATE" lines. The buffer contains a whole
+certificate. Note that characters with value < 20 (control characters), may or
+may not be included in the certificate. Typically carriage returns, line feed
+or both may be used to break up lines in the certificate.
+
+Certificates are normally retrieved in numerical order, that is, 1, 2, 3...N.
+Thus the end of the certificate chain must be found by traversal.
+
+Note that this routine retrieves the peer certificate, or other end of the
+line. Servers are required to provide certificates. Clients are not.
+
+*******************************************************************************/
+
+int pa_certnet(FILE* f, int which, string cert, int len)
+
+{
+
+    /* tag off for now */
+    return (0);
+
+}
+
+/*******************************************************************************
+
+Get message certificate
+
+Fetches the SSL certificate for an DTLS connection. The file must contain
+an open and active DTLS connection. Retrieves on of the indicated
+certificates by number, from 1 to N where N is the maximum certificate in the
+chain. Certificate 1 is the certificate for the server connected. Certificate
+N is the CA or Certificate Authority's certificate, AKA the root certificate.
+The size of the certificate buffer is passed, and the actual length of the
+certificate is returned. If there is no certificate by a given number, the
+resulting length is zero. If the certificate would overflow the buffer, -1 is
+returned.
+
+Certificates are in base64 format, the same as a PEM file, except without the
+"BEGIN CERTIFICATE" and "END CERTIFICATE" lines. The buffer contains a whole
+certificate. Note that characters with value < 20 (control characters), may or
+may not be included in the certificate. Typically carriage returns, line feed
+or both may be used to break up lines in the certificate.
+
+Certificates are normally retrieved in numerical order, that is, 1, 2, 3...N.
+Thus the end of the certificate chain must be found by traversal.
+
+Note that this routine retrieves the peer certificate, or other end of the
+line. Servers are required to provide certificates. Clients are not.
+
+*******************************************************************************/
+
+int pa_certmsg(int fn, int which, string cert, int len)
+
+{
+
+    /* tag off for now */
+    return (0);
+
+}
+
+/*******************************************************************************
+
+Get network certificate data list
+
+Retrieves a list of data fields from the given file by number. The file
+must contain an open and active SSL connection. The data list is a list of
+name - data pairs, both strings. The list can also have branches or forks,
+which make it able to contain complete trees. The certificate number is from
+1 to N where N is the maximum certificate in the chain. Certificate 1 is the
+certificate for the server connected. Certificate N is the CA or Certificate
+Authority's certificate, AKA the root certificate. If there is no certificate
+by that number, the resulting list is NULL.
+
+Certificates are normally retrieved in numerical order, that is, 1, 2, 3...N.
+Thus the end of the certificate chain must be found by traversal.
+
+Note that the list is allocated by this routine, and the caller is responsible
+for freeing the list as necessary.
+
+Note that this routine retrieves the peer certificate, or other end of the
+line. Servers are required to provide certificates. Clients are not.
+
+*******************************************************************************/
+
+void pa_certlistnet(FILE *f, int which, pa_certptr* list)
+
+{
+
+}
+
+/*******************************************************************************
+
+Get message certificate data list
+
+Retrieves a list of data fields from the given file by number. The file
+must contain an open and active DTLS connection. The data list is a list of
+name - data pairs, both strings. The list can also have branches or forks, which
+make it able to contain complete trees. The certificate number is from 1 to N
+where N is the maximum certificate in the chain. Certificate 1 is the
+certificate for the server connected. Certificate N is the CA or Certificate
+Authority's certificate, AKA the root certificate. If there is no certificate
+by that number, the resulting list is NULL.
+
+Certificates are normally retrieved in numerical order, that is, 1, 2, 3...N.
+Thus the end of the certificate chain must be found by traversal.
+
+Note that the list is allocated by this routine, and the caller is responsible
+for freeing the list as necessary.
+
+Note that this routine retrieves the peer certificate, or other end of the
+line. Servers are required to provide certificates. Clients are not.
+
+*******************************************************************************/
+
+void pa_certlistmsg(int fn, int which, pa_certptr* list)
+
+{
+
+}
+
+/*******************************************************************************
+
+Place network certificate in cache
+
+Puts the peer certificate into the certificate data cache. Only the prime or
+#1 certificate is placed in the cache, and only that certificate can be checked,
+meaning that we don't check the complete certificate chain, nor is that
+necessary, since certificates are unique. The file must contain an open and
+active SSL connection. If the peer does not have a certificate, this routine is
+a no-op.
+
+Certificates are kept both in memory as well in the certificate file, and the
+certificate file is added to by this operation. The cache search operation is
+done by efficient hashing.
+
+The intent of the certificate cache is to establish a go-no go or "whitelist"
+of server certificate, but note it is up to the caller to enforce such
+permissions. Network just indicates whether or not the certificate exists in the
+cache.
+
+Note that the implementation may choose to only keep a hash function for the
+certificate in memory for lookups. Regardless of this, the complete certificate
+is kept in the file.
+
+Note that this routine retrieves the peer certificate, or other end of the
+line. Servers are required to provide certificates. Clients are not.
+
+*******************************************************************************/
+
+void pa_certcachenet(FILE *f)
+
+{
+
+}
+
+/*******************************************************************************
+
+Place message certificate in cache
+
+Puts the peer certificate into the certificate data cache. Only the prime or
+#1 certificate is placed in the cache, and only that certificate can be checked,
+meaning that we don't check the complete certificate chain, nor is that
+necessary, since certificates are unique. The file must contain an open and
+active DTLS connection. If the peer does not have a certificate, this routine is
+a no-op.
+
+Certificates are kept both in memory as well in the certificate file, and the
+certificate file is added to by this operation. The cache search operation is
+done by efficient hashing.
+
+The intent of the certificate cache is to establish a go-no go or "whitelist"
+of server certificate, but note it is up to the caller to enforce such
+permissions. Network just indicates whether or not the certificate exists in the
+cache.
+
+Note that the implementation may choose to only keep a hash function for the
+certificate in memory for lookups. Regardless of this, the complete certificate
+is kept in the file.
+
+Note that this routine retrieves the peer certificate, or other end of the
+line. Servers are required to provide certificates. Clients are not.
+
+*******************************************************************************/
+
+void pa_certcachemsg(int fn)
+
+{
+
+}
+
+/*******************************************************************************
+
+Test network certificate in cache
+
+Test if the peer certificate is in the certificate data cache. Only the prime
+or #1 certificate is tested, meaning that we don't check the complete
+certificate chain, nor is that necessary, since certificates are unique. The
+file must contain an open and active SSL connection.
+
+Certificates are kept both in memory as well in the certificate file. The cache
+search operation is done by efficient hashing.
+
+The intent of the certificate cache is to establish a go-no go or "whitelist"
+of server certificate, but note it is up to the caller to enforce such
+permissions. Network just indicates whether or not the certificate exists in the
+cache.
+
+Note that the implementation may choose to only keep a hash function for the
+certificate in memory for lookups. Regardless of this, the complete certificate
+is kept in the file.
+
+Note that this routine retrieves the peer certificate, or other end of the
+line. Servers are required to provide certificates. Clients are not.
+
+*******************************************************************************/
+
+boolean pa_certtestnet(FILE *f)
+
+{
+
+    return false;
+
+}
+
+/*******************************************************************************
+
+Test msg certificate in cache
+
+Test if the peer certificate is in the certificate data cache. Only the prime
+or #1 certificate is tested, meaning that we don't check the complete
+certificate chain, nor is that necessary, since certificates are unique. The
+file must contain an open and active DTLS connection.
+
+Certificates are kept both in memory as well in the certificate file. The cache
+search operation is done by efficient hashing.
+
+The intent of the certificate cache is to establish a go-no go or "whitelist"
+of server certificate, but note it is up to the caller to enforce such
+permissions. Network just indicates whether or not the certificate exists in the
+cache.
+
+Note that the implementation may choose to only keep a hash function for the
+certificate in memory for lookups. Regardless of this, the complete certificate
+is kept in the file.
+
+Note that this routine retrieves the peer certificate, or other end of the
+line. Servers are required to provide certificates. Clients are not.
+
+*******************************************************************************/
+
+boolean pa_certtestmsg(int fn)
+
+{
+
+    return false;
 
 }
 
@@ -1329,6 +1867,18 @@ static void pa_init_network()
 
     /* configure server context */
     SSL_CTX_set_ecdh_auto(server_dtls_ctx, 1);
+
+    /* Client has to authenticate */
+	SSL_CTX_set_verify(server_dtls_ctx,
+	                   SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE,
+	                   dtls_verify_callback);
+
+    SSL_CTX_set_session_cache_mode(server_dtls_ctx, SSL_SESS_CACHE_OFF);
+	SSL_CTX_set_cookie_generate_cb(server_dtls_ctx, generate_cookie);
+	SSL_CTX_set_cookie_verify_cb(server_dtls_ctx, &verify_cookie);
+
+    /* set cookie uninitialized */
+    cookie_initialized = false;
 
 };
 

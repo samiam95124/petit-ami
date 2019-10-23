@@ -22,7 +22,15 @@
 #include <stdio.h>
 #include <localdefs.h>
 
-typedef char* string;  /* general string type */
+/* name - value pair list */
+typedef struct pa_certfield {
+
+    string               name;  /* name of field */
+    string               data;  /* content of field */
+    struct pa_certfield* fork; /* sublist */
+    struct pa_certfield* next; /* next entry in list */
+
+} pa_certfield, *pa_certptr;
 
 void pa_addrnet(string name, unsigned long* addr);
 void pa_addrnetv6(string name, unsigned long long* addrh,
@@ -41,5 +49,13 @@ int pa_rdmsg(int fn, void* msg, unsigned long len);
 void pa_clsmsg(int f);
 FILE* pa_waitnet(int port, boolean secure);
 int pa_waitmsg(int port, boolean secure);
+int pa_certnet(FILE* f, int which, string cert, int len);
+int pa_certmsg(int fn, int which, string cert, int len);
+void pa_certlistnet(FILE *f, int which, pa_certptr* list);
+void pa_certlistmsg(int fn, int which, pa_certptr* list);
+void pa_certcachenet(FILE *f);
+void pa_certcachemsg(int fn);
+boolean pa_certtestnet(FILE *f);
+boolean pa_certtestmsg(int fn);
 
 #endif /* __NETWORK_H__ */
