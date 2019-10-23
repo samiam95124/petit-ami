@@ -14,6 +14,9 @@
 * performance computing and applications that need to determine their own      *
 * reliable delivery protocols like audio and video data.                       *
 *                                                                              *
+* The linux version, and in fact probably all versions, rely on stacking atop  *
+* openssl.                                                                     *
+*                                                                              *
 *******************************************************************************/
 
 #ifndef __NETWORK_H__
