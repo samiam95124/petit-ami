@@ -101,7 +101,7 @@ typedef struct filrec {
    int     sfn;  /* shadow fid */
    boolean opn;  /* file is open with Linux */
    boolean msg;  /* is a message socket (udp/dtls) */
-   socket_struct saddr; /* socket address for messages */
+   socket_struct saddr; /* socket address */
    BIO*    bio;  /* bio for DTLS */
    boolean sudp; /* its a secure udp */
    struct filrec* next; /* next entry (when placed on free list) */
@@ -689,10 +689,10 @@ int dtls_verify_callback (int ok, X509_STORE_CTX *ctx)
 
 /*******************************************************************************
 
-Get server address
+Get server address v4
 
-Retrives a server address by name. The name is given as a string. The address
-is returned as an integer.
+Retrieves a v4 server address by name. The name is given as a string. The
+address is returned as an integer.
 
 *******************************************************************************/
 
@@ -727,22 +727,67 @@ void pa_addrnet(string name, unsigned long* addr)
 
 /*******************************************************************************
 
+Get server address v6
+
+Retrieves a v6 server address by name. The name is given as a string. The
+address is returned as an integer.
+
+*******************************************************************************/
+
+void pa_addrnetv6(string name, unsigned long long* addrh,
+                unsigned long long* addrl)
+
+{
+
+	struct addrinfo *p;
+	int r;
+	boolean af;
+	struct sockaddr_in6* sap;
+
+    af = false; /* set address not found */
+	r = getaddrinfo(name, NULL, NULL, &p);
+	if (r) netwrterr(gai_strerror(r));
+	while (p) {
+
+    	/* traverse the available addresses */
+        if (p->ai_family == AF_INET && p->ai_socktype == SOCK_STREAM) {
+
+            /* get the IPv4 address */
+            sap = (struct sockaddr_in6*)(p->ai_addr);
+            *addrh = (unsigned long long) ntohl(sap->sin6_addr.__in6_u.__u6_addr32[0]) << 32 |
+                    (unsigned long long) ntohl(sap->sin6_addr.__in6_u.__u6_addr32[1]);
+            *addrl = (unsigned long long) ntohl(sap->sin6_addr.__in6_u.__u6_addr32[2]) << 32 |
+                    (unsigned long long) ntohl(sap->sin6_addr.__in6_u.__u6_addr32[3]);
+	        af = true; /* set an address found */
+
+	    }
+	    p = p->ai_next;
+
+	}
+	if (!af) error(enetadr); /* no address found */
+
+}
+
+/*******************************************************************************
+
 Open network file
 
 Opens a network file with the given address, port and security. The file can be
 both written and read. The protocol used for the transfer is either
 TCP/IP or TCP/IP with a security layer, typically TLS 1.3 at this writing.
 
+There are two versions of this routine, depending on if ipv4 or ipv6 addresses
+are used.
+
 *******************************************************************************/
 
-FILE* pa_opennet(/* IP address */      unsigned long addr,
-                 /* port */            int port,
-                 /* link is secured */ boolean secure
-                )
+static FILE* opennet(
+    /* IP address */      struct sockaddr* saddr,
+    /* link is secured */ boolean secure
+)
 
 {
 
-    struct sockaddr_in saddr;
     int   fn;
     int   r;
     FILE* fp;
@@ -750,15 +795,11 @@ FILE* pa_opennet(/* IP address */      unsigned long addr,
     SSL*  ssl;
     X509* cert;
 
-    /* set up address */
-    saddr.sin_family = AF_INET;
-    saddr.sin_addr.s_addr = htonl(addr);
-    saddr.sin_port = htons(port);
     /* connect the socket */
     fn = socket(AF_INET, SOCK_STREAM, 0);
     if (fn < 0) linuxerror();
     if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
-    r = connect(fn, (struct sockaddr *)&saddr, sizeof(saddr));
+    r = connect(fn, saddr, sizeof(struct sockaddr));
     if (r < 0) linuxerror();
     /* connect fid to FILE pointer for glibc use */
     fp = fdopen(fn, "r+");
@@ -816,6 +857,53 @@ FILE* pa_opennet(/* IP address */      unsigned long addr,
 
 }
 
+FILE* pa_opennet(/* IP address */      unsigned long addr,
+                 /* port */            int port,
+                 /* link is secured */ boolean secure
+)
+
+{
+
+    struct sockaddr_in saddr;
+
+    /* set up address */
+    saddr.sin_family = AF_INET;
+    saddr.sin_addr.s_addr = htonl(addr);
+    saddr.sin_port = htons(port);
+
+    /* finish with general routine */
+    return (opennet((struct sockaddr*)&saddr, secure));
+
+}
+
+FILE* pa_opennetv6(
+    /* v6 address low */  unsigned long long addrh,
+    /* v6 address high */ unsigned long long addrl,
+    /* port */            int port,
+    /* link is secured */ boolean secure
+)
+
+{
+
+    struct sockaddr_in6 saddr;
+
+    /* set up address */
+    saddr.sin6_family = AF_INET6;
+    saddr.sin6_addr.__in6_u.__u6_addr32[0] =
+        (uint32_t) htonl(addrh >> 32 & 0xffffffff);
+    saddr.sin6_addr.__in6_u.__u6_addr32[1] =
+        (uint32_t) htonl(addrh & 0xffffffff);
+    saddr.sin6_addr.__in6_u.__u6_addr32[2] =
+        (uint32_t) htonl(addrl >> 32 & 0xffffffff);
+    saddr.sin6_addr.__in6_u.__u6_addr32[3] =
+        (uint32_t) htonl(addrl & 0xffffffff);
+    saddr.sin6_port = htons(port);
+
+    /* finish with general routine */
+    return (opennet((struct sockaddr*)&saddr, secure));
+
+}
+
 /*******************************************************************************
 
 Open message file
@@ -826,7 +914,9 @@ DTLS, with fixed length messages.
 
 *******************************************************************************/
 
-int pa_openmsg(unsigned long addr, int port, boolean secure)
+static int openmsg(
+    /* ip address */      struct sockaddr* saddr,
+    /* link is secured */ boolean secure)
 
 {
 
@@ -847,12 +937,12 @@ int pa_openmsg(unsigned long addr, int port, boolean secure)
     opnfil[fn]->sec = false; /* set not secure */
     opnfil[fn]->opn = true;
     opnfil[fn]->msg = true; /* set message socket */
-    /* set up server address */
-    memset(&opnfil[fn]->saddr.s4, 0, sizeof(struct sockaddr_in));
 
-    opnfil[fn]->saddr.s4.sin_family = AF_INET;
-    opnfil[fn]->saddr.s4.sin_port = htons(port);
-    opnfil[fn]->saddr.s4.sin_addr.s_addr = htonl(addr);
+    /* set up server address */
+    memset(&opnfil[fn]->saddr, 0, sizeof(struct sockaddr));
+
+    /* copy address information from caller */
+    memcpy(&opnfil[fn]->saddr, saddr, sizeof(struct sockaddr));
     pthread_mutex_unlock(&opnfil[fn]->lock); /* release file entry lock */
 
     /* set up for DTLS operation if selected */
@@ -892,6 +982,54 @@ int pa_openmsg(unsigned long addr, int port, boolean secure)
     }
 
     return (fn); /* return fid */
+
+}
+
+int pa_openmsg(
+    /* ip address */      unsigned long addr,
+    /* port */            int port,
+    /* link is secured */ boolean secure
+)
+
+{
+
+    struct sockaddr_in saddr;
+
+    /* set up address */
+    saddr.sin_family = AF_INET;
+    saddr.sin_addr.s_addr = htonl(addr);
+    saddr.sin_port = htons(port);
+
+    /* finish with general routine */
+    return (openmsg((struct sockaddr*)&saddr, secure));
+
+}
+
+int pa_openmsgv6(
+    /* v6 address low */  unsigned long long addrh,
+    /* v6 address high */ unsigned long long addrl,
+    /* port */            int port,
+    /* link is secured */ boolean secure
+)
+
+{
+
+    struct sockaddr_in6 saddr;
+
+    /* set up address */
+    saddr.sin6_family = AF_INET6;
+    saddr.sin6_addr.__in6_u.__u6_addr32[0] =
+        (uint32_t) htonl(addrh >> 32 & 0xffffffff);
+    saddr.sin6_addr.__in6_u.__u6_addr32[1] =
+        (uint32_t) htonl(addrh & 0xffffffff);
+    saddr.sin6_addr.__in6_u.__u6_addr32[2] =
+        (uint32_t) htonl(addrl >> 32 & 0xffffffff);
+    saddr.sin6_addr.__in6_u.__u6_addr32[3] =
+        (uint32_t) htonl(addrl & 0xffffffff);
+    saddr.sin6_port = htons(port);
+
+    /* finish with general routine */
+    return (openmsg((struct sockaddr*)&saddr, secure));
 
 }
 
@@ -1238,9 +1376,20 @@ that the delivery of messages are guaranteed to arrive error free at their
 destination. If this property appears, the program can skip providing it's own
 retry or other error handling system.
 
+There are two versions of this routine, depending on if ipv4 or ipv6 addresses
+are used.
+
 *******************************************************************************/
 
 boolean pa_relymsg(unsigned long addr)
+
+{
+
+    return (false);
+
+}
+
+boolean pa_relymsgv6(unsigned long long addrh, unsigned long long addrl)
 
 {
 

@@ -74,7 +74,6 @@ int main(int argc, char **argv)
 
 	    } else if (p->ai_family == AF_INET6) {
 
-
             /* get the IPv6 address */
             sap = (struct sockaddr_in6*)(p->ai_addr);
             addrh = (unsigned long long) ntohl(sap->sin6_addr.__in6_u.__u6_addr32[0]) << 32 |
