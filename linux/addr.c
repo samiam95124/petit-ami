@@ -24,6 +24,8 @@ int main(int argc, char **argv)
 	struct addrinfo *p;
 	int r;
 	unsigned long addr;
+	unsigned long long addrl, addrh;
+	struct sockaddr_in6* sap;
 
     if (argc != 2) {
 
@@ -65,11 +67,23 @@ int main(int argc, char **argv)
     	}
         if (p->ai_family == AF_INET) {
 
-
             /* get the IPv4 address */
 	        addr = ntohl(((struct sockaddr_in*)(p->ai_addr))->sin_addr.s_addr);
 	        printf(" Address: %ld.%ld.%ld.%ld", addr>>24&0xff, addr>>16&0xff,
 	               addr>>8&0xff, addr&0xff);
+
+	    } else if (p->ai_family == AF_INET6) {
+
+
+            /* get the IPv6 address */
+            sap = (struct sockaddr_in6*)(p->ai_addr);
+            addrh = (unsigned long long) ntohl(sap->sin6_addr.__in6_u.__u6_addr32[0]) << 32 |
+                    (unsigned long long) ntohl(sap->sin6_addr.__in6_u.__u6_addr32[1]);
+            addrl = (unsigned long long) ntohl(sap->sin6_addr.__in6_u.__u6_addr32[2]) << 32 |
+                    (unsigned long long) ntohl(sap->sin6_addr.__in6_u.__u6_addr32[3]);
+            printf(" Address: %llx:%llx:%llx:%llx:%llx:%llx:%llx:%llx",
+                   addrh>>48&0xffff, addrh>>32&0xffff, addrh>>16&0xffff, addrh&0xffff,
+                   addrl>>48&0xffff, addrl>>32&0xffff, addrl>>16&0xffff, addrl&0xffff);
 
 	    }
 	    printf("\n");
