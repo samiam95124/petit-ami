@@ -750,9 +750,9 @@ void pa_addrnetv6(string name, unsigned long long* addrh,
 	while (p) {
 
     	/* traverse the available addresses */
-        if (p->ai_family == AF_INET && p->ai_socktype == SOCK_STREAM) {
+        if (p->ai_family == AF_INET6 && p->ai_socktype == SOCK_STREAM) {
 
-            /* get the IPv4 address */
+            /* get the IPv6 address */
             sap = (struct sockaddr_in6*)(p->ai_addr);
             *addrh = (unsigned long long) ntohl(sap->sin6_addr.__in6_u.__u6_addr32[0]) << 32 |
                     (unsigned long long) ntohl(sap->sin6_addr.__in6_u.__u6_addr32[1]);
@@ -782,35 +782,35 @@ are used.
 *******************************************************************************/
 
 static FILE* opennet(
-    /* IP address */      struct sockaddr* saddr,
-    /* link is secured */ boolean secure
+    /* IP address */          struct sockaddr* saddr,
+    /* link is secured */     boolean secure,
+    /* file open as socket */ int fn
 )
 
 {
 
-    int   fn;
     int   r;
     FILE* fp;
     int   sfn;
     SSL*  ssl;
     X509* cert;
 
-    /* connect the socket */
-    fn = socket(AF_INET, SOCK_STREAM, 0);
-    if (fn < 0) linuxerror();
-    if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
+printf("opennet: begin\n");
     r = connect(fn, saddr, sizeof(struct sockaddr));
     if (r < 0) linuxerror();
+printf("opennet: 0\n");
     /* connect fid to FILE pointer for glibc use */
     fp = fdopen(fn, "r+");
     if (!fp) linuxerror();
     newfil(fn); /* get/renew file entry */
+printf("opennet: 1\n");
     pthread_mutex_lock(&opnfil[fn]->lock); /* take file entry lock */
     opnfil[fn]->net = true; /* set network (sockets) file */
     opnfil[fn]->sec = false; /* set not secure */
     opnfil[fn]->opn = true;
     pthread_mutex_unlock(&opnfil[fn]->lock); /* release file entry lock */
 
+printf("opennet: 2\n");
     /* check secure sockets layer, and negotiate if so */
     if (secure) {
 
@@ -865,14 +865,20 @@ FILE* pa_opennet(/* IP address */      unsigned long addr,
 {
 
     struct sockaddr_in saddr;
+    int fn;
 
     /* set up address */
     saddr.sin_family = AF_INET;
     saddr.sin_addr.s_addr = htonl(addr);
     saddr.sin_port = htons(port);
 
+    /* connect the socket */
+    fn = socket(AF_INET, SOCK_STREAM, 0);
+    if (fn < 0) linuxerror();
+    if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
+
     /* finish with general routine */
-    return (opennet((struct sockaddr*)&saddr, secure));
+    return (opennet((struct sockaddr*)&saddr, secure, fn));
 
 }
 
@@ -886,6 +892,8 @@ FILE* pa_opennetv6(
 {
 
     struct sockaddr_in6 saddr;
+    int fn;
+int r;
 
     /* set up address */
     saddr.sin6_family = AF_INET6;
@@ -899,8 +907,21 @@ FILE* pa_opennetv6(
         (uint32_t) htonl(addrl & 0xffffffff);
     saddr.sin6_port = htons(port);
 
+r = inet_pton(AF_INET6, "2606:2800:220:1:248:1893:25c8:1946", &saddr.sin6_addr);
+if (r <= 0) {
+
+    printf("\n inet_pton error occured\n");
+    exit(1);
+
+}
+
+    /* connect the socket */
+    fn = socket(AF_INET6, SOCK_STREAM, 0);
+    if (fn < 0) linuxerror();
+    if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
+
     /* finish with general routine */
-    return (opennet((struct sockaddr*)&saddr, secure));
+    return (opennet((struct sockaddr*)&saddr, secure, fn));
 
 }
 
@@ -1527,144 +1548,6 @@ line. Servers are required to provide certificates. Clients are not.
 void pa_certlistmsg(int fn, int which, pa_certptr* list)
 
 {
-
-}
-
-/*******************************************************************************
-
-Place network certificate in cache
-
-Puts the peer certificate into the certificate data cache. Only the prime or
-#1 certificate is placed in the cache, and only that certificate can be checked,
-meaning that we don't check the complete certificate chain, nor is that
-necessary, since certificates are unique. The file must contain an open and
-active SSL connection. If the peer does not have a certificate, this routine is
-a no-op.
-
-Certificates are kept both in memory as well in the certificate file, and the
-certificate file is added to by this operation. The cache search operation is
-done by efficient hashing.
-
-The intent of the certificate cache is to establish a go-no go or "whitelist"
-of server certificate, but note it is up to the caller to enforce such
-permissions. Network just indicates whether or not the certificate exists in the
-cache.
-
-Note that the implementation may choose to only keep a hash function for the
-certificate in memory for lookups. Regardless of this, the complete certificate
-is kept in the file.
-
-Note that this routine retrieves the peer certificate, or other end of the
-line. Servers are required to provide certificates. Clients are not.
-
-*******************************************************************************/
-
-void pa_certcachenet(FILE *f)
-
-{
-
-}
-
-/*******************************************************************************
-
-Place message certificate in cache
-
-Puts the peer certificate into the certificate data cache. Only the prime or
-#1 certificate is placed in the cache, and only that certificate can be checked,
-meaning that we don't check the complete certificate chain, nor is that
-necessary, since certificates are unique. The file must contain an open and
-active DTLS connection. If the peer does not have a certificate, this routine is
-a no-op.
-
-Certificates are kept both in memory as well in the certificate file, and the
-certificate file is added to by this operation. The cache search operation is
-done by efficient hashing.
-
-The intent of the certificate cache is to establish a go-no go or "whitelist"
-of server certificate, but note it is up to the caller to enforce such
-permissions. Network just indicates whether or not the certificate exists in the
-cache.
-
-Note that the implementation may choose to only keep a hash function for the
-certificate in memory for lookups. Regardless of this, the complete certificate
-is kept in the file.
-
-Note that this routine retrieves the peer certificate, or other end of the
-line. Servers are required to provide certificates. Clients are not.
-
-*******************************************************************************/
-
-void pa_certcachemsg(int fn)
-
-{
-
-}
-
-/*******************************************************************************
-
-Test network certificate in cache
-
-Test if the peer certificate is in the certificate data cache. Only the prime
-or #1 certificate is tested, meaning that we don't check the complete
-certificate chain, nor is that necessary, since certificates are unique. The
-file must contain an open and active SSL connection.
-
-Certificates are kept both in memory as well in the certificate file. The cache
-search operation is done by efficient hashing.
-
-The intent of the certificate cache is to establish a go-no go or "whitelist"
-of server certificate, but note it is up to the caller to enforce such
-permissions. Network just indicates whether or not the certificate exists in the
-cache.
-
-Note that the implementation may choose to only keep a hash function for the
-certificate in memory for lookups. Regardless of this, the complete certificate
-is kept in the file.
-
-Note that this routine retrieves the peer certificate, or other end of the
-line. Servers are required to provide certificates. Clients are not.
-
-*******************************************************************************/
-
-boolean pa_certtestnet(FILE *f)
-
-{
-
-    return false;
-
-}
-
-/*******************************************************************************
-
-Test msg certificate in cache
-
-Test if the peer certificate is in the certificate data cache. Only the prime
-or #1 certificate is tested, meaning that we don't check the complete
-certificate chain, nor is that necessary, since certificates are unique. The
-file must contain an open and active DTLS connection.
-
-Certificates are kept both in memory as well in the certificate file. The cache
-search operation is done by efficient hashing.
-
-The intent of the certificate cache is to establish a go-no go or "whitelist"
-of server certificate, but note it is up to the caller to enforce such
-permissions. Network just indicates whether or not the certificate exists in the
-cache.
-
-Note that the implementation may choose to only keep a hash function for the
-certificate in memory for lookups. Regardless of this, the complete certificate
-is kept in the file.
-
-Note that this routine retrieves the peer certificate, or other end of the
-line. Servers are required to provide certificates. Clients are not.
-
-*******************************************************************************/
-
-boolean pa_certtestmsg(int fn)
-
-{
-
-    return false;
 
 }
 
