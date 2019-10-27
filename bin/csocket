@@ -1,0 +1,7 @@
+#
+# Compile socket program
+#
+
+#!/bin/bash
+
+gcc linux/socket.c -o bin/socket
