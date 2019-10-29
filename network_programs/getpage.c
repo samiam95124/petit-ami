@@ -72,15 +72,8 @@ int main(int argc, char **argv)
     /* open the server file */
     if (ipv6) {
 
-printf("before addrnetv6\n");
         pa_addrnetv6(argv[argi], &addrh, &addrl);
-printf("after addrnetv6\n");
-printf("Address: %llx:%llx:%llx:%llx:%llx:%llx:%llx:%llx\n",
-       addrh>>48&0xffff, addrh>>32&0xffff, addrh>>16&0xffff, addrh&0xffff,
-       addrl>>48&0xffff, addrl>>32&0xffff, addrl>>16&0xffff, addrl&0xffff);
-printf("Before open\n");
         fp = pa_opennetv6(addrh, addrl, port, secure);
-printf("after open\n");
 
     } else {
 

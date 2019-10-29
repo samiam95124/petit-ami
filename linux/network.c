@@ -782,7 +782,6 @@ are used.
 *******************************************************************************/
 
 static FILE* opennet(
-    /* IP address */          struct sockaddr* saddr,
     /* link is secured */     boolean secure,
     /* file open as socket */ int fn
 )
@@ -795,22 +794,16 @@ static FILE* opennet(
     SSL*  ssl;
     X509* cert;
 
-printf("opennet: begin\n");
-    r = connect(fn, saddr, sizeof(struct sockaddr));
-    if (r < 0) linuxerror();
-printf("opennet: 0\n");
     /* connect fid to FILE pointer for glibc use */
     fp = fdopen(fn, "r+");
     if (!fp) linuxerror();
     newfil(fn); /* get/renew file entry */
-printf("opennet: 1\n");
     pthread_mutex_lock(&opnfil[fn]->lock); /* take file entry lock */
     opnfil[fn]->net = true; /* set network (sockets) file */
     opnfil[fn]->sec = false; /* set not secure */
     opnfil[fn]->opn = true;
     pthread_mutex_unlock(&opnfil[fn]->lock); /* release file entry lock */
 
-printf("opennet: 2\n");
     /* check secure sockets layer, and negotiate if so */
     if (secure) {
 
@@ -866,6 +859,7 @@ FILE* pa_opennet(/* IP address */      unsigned long addr,
 
     struct sockaddr_in saddr;
     int fn;
+    int r;
 
     /* set up address */
     saddr.sin_family = AF_INET;
@@ -877,8 +871,11 @@ FILE* pa_opennet(/* IP address */      unsigned long addr,
     if (fn < 0) linuxerror();
     if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
 
+    r = connect(fn, (struct sockaddr*)&saddr, sizeof(saddr));
+    if (r < 0) linuxerror();
+
     /* finish with general routine */
-    return (opennet((struct sockaddr*)&saddr, secure, fn));
+    return (opennet(secure, fn));
 
 }
 
@@ -893,9 +890,10 @@ FILE* pa_opennetv6(
 
     struct sockaddr_in6 saddr;
     int fn;
-int r;
+    int r;
 
     /* set up address */
+    memset(&saddr, 0, sizeof(struct sockaddr_in6));
     saddr.sin6_family = AF_INET6;
     saddr.sin6_addr.__in6_u.__u6_addr32[0] =
         (uint32_t) htonl(addrh >> 32 & 0xffffffff);
@@ -907,21 +905,16 @@ int r;
         (uint32_t) htonl(addrl & 0xffffffff);
     saddr.sin6_port = htons(port);
 
-r = inet_pton(AF_INET6, "2606:2800:220:1:248:1893:25c8:1946", &saddr.sin6_addr);
-if (r <= 0) {
-
-    printf("\n inet_pton error occured\n");
-    exit(1);
-
-}
-
     /* connect the socket */
     fn = socket(AF_INET6, SOCK_STREAM, 0);
     if (fn < 0) linuxerror();
     if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
 
+    r = connect(fn, (struct sockaddr*)&saddr, sizeof(saddr));
+    if (r < 0) linuxerror();
+
     /* finish with general routine */
-    return (opennet((struct sockaddr*)&saddr, secure, fn));
+    return (opennet(secure, fn));
 
 }
 
