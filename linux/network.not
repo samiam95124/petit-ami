@@ -5,5 +5,17 @@ library, like standardpascal.com.
 
 2. Need to make library multithread safe. This will, for example, allow
 creation of a "telnet" type program that needs to run one thread for each
-of input and output.
+of input and output. [note this was partially completed]
+
+3. pa_relymsg() and pa_relymsgv6() can test for the localhost (or ip6-localhost).
+This means that the path is all software, and will not (or should not) drop
+or reorder packets. The rest will depend on detection of Infiniband network or
+simiar, or the user can give a list of machines in the local domain. This last
+means that the user has verified that the switches will forward %100 of received
+traffic.
+
+4. pa_maxmsg() is based on MTU, and this ends up being detected from end to end
+and is a non-trivial algorithim. For this it needs a target address parameter.
+
+5. The certs routines need a verify procedure.
 
