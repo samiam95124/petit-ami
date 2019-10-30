@@ -102,6 +102,7 @@ typedef struct filrec {
    boolean opn;  /* file is open with Linux */
    boolean msg;  /* is a message socket (udp/dtls) */
    socket_struct saddr; /* socket address */
+   boolean v6addr; /* is an IPv6 address */
    BIO*    bio;  /* bio for DTLS */
    boolean sudp; /* its a secure udp */
    struct filrec* next; /* next entry (when placed on free list) */
@@ -928,17 +929,24 @@ DTLS, with fixed length messages.
 
 *******************************************************************************/
 
-static int openmsg(
-    /* ip address */      struct sockaddr* saddr,
-    /* link is secured */ boolean secure)
+int pa_openmsg(
+    /* ip address */      unsigned long addr,
+    /* port */            int port,
+    /* link is secured */ boolean secure
+)
 
 {
 
+    struct sockaddr_in saddr;
     int fn;
     socket_struct laddr;
     int r;
     struct timeval timeout;
-    char msg[] = "This is the start of client service\n";
+
+    /* set up address */
+    saddr.sin_family = AF_INET;
+    saddr.sin_addr.s_addr = htonl(addr);
+    saddr.sin_port = htons(port);
 
     /* connect the socket */
     fn = socket(AF_INET, SOCK_DGRAM, 0);
@@ -953,11 +961,13 @@ static int openmsg(
     opnfil[fn]->msg = true; /* set message socket */
 
     /* set up server address */
-    memset(&opnfil[fn]->saddr, 0, sizeof(struct sockaddr));
+    memset(&opnfil[fn]->saddr.s4, 0, sizeof(struct sockaddr_in));
 
     /* copy address information from caller */
-    memcpy(&opnfil[fn]->saddr, saddr, sizeof(struct sockaddr));
+    memcpy(&opnfil[fn]->saddr.s4, &saddr, sizeof(struct sockaddr_in));
     pthread_mutex_unlock(&opnfil[fn]->lock); /* release file entry lock */
+
+    opnfil[fn]->v6addr = false; /* set v4 address */
 
     /* set up for DTLS operation if selected */
     if (secure) {
@@ -999,26 +1009,6 @@ static int openmsg(
 
 }
 
-int pa_openmsg(
-    /* ip address */      unsigned long addr,
-    /* port */            int port,
-    /* link is secured */ boolean secure
-)
-
-{
-
-    struct sockaddr_in saddr;
-
-    /* set up address */
-    saddr.sin_family = AF_INET;
-    saddr.sin_addr.s_addr = htonl(addr);
-    saddr.sin_port = htons(port);
-
-    /* finish with general routine */
-    return (openmsg((struct sockaddr*)&saddr, secure));
-
-}
-
 int pa_openmsgv6(
     /* v6 address low */  unsigned long long addrh,
     /* v6 address high */ unsigned long long addrl,
@@ -1029,6 +1019,10 @@ int pa_openmsgv6(
 {
 
     struct sockaddr_in6 saddr;
+    int fn;
+    socket_struct laddr;
+    int r;
+    struct timeval timeout;
 
     /* set up address */
     saddr.sin6_family = AF_INET6;
@@ -1042,8 +1036,62 @@ int pa_openmsgv6(
         (uint32_t) htonl(addrl & 0xffffffff);
     saddr.sin6_port = htons(port);
 
-    /* finish with general routine */
-    return (openmsg((struct sockaddr*)&saddr, secure));
+    /* connect the socket */
+    fn = socket(AF_INET, SOCK_DGRAM, 0);
+    if (fn < 0) linuxerror();
+    if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
+
+    newfil(fn); /* get/renew file entry */
+    pthread_mutex_lock(&opnfil[fn]->lock); /* take file entry lock */
+    opnfil[fn]->net = true; /* set network (sockets) file */
+    opnfil[fn]->sec = false; /* set not secure */
+    opnfil[fn]->opn = true;
+    opnfil[fn]->msg = true; /* set message socket */
+
+    /* set up server address */
+    memset(&opnfil[fn]->saddr.s6, 0, sizeof(struct sockaddr_in6));
+
+    /* copy address information from caller */
+    memcpy(&opnfil[fn]->saddr.s6, &saddr, sizeof(struct sockaddr_in6));
+    pthread_mutex_unlock(&opnfil[fn]->lock); /* release file entry lock */
+
+    /* set up for DTLS operation if selected */
+    if (secure) {
+
+        /* clear local */
+        memset((void *) &laddr, 0, sizeof(struct sockaddr_storage));
+        laddr.s6.sin6_family = AF_INET6;
+	    laddr.s6.sin6_port = htons(0);
+        r = bind(fn, (const struct sockaddr *) &laddr, sizeof(struct sockaddr_in));
+        if (r) linuxerror();
+
+        /* create socket struct */
+        opnfil[fn]->ssl = SSL_new(client_dtls_ctx);
+        if (!opnfil[fn]->ssl) sslerrorqueue();
+
+        /* Create BIO, connect and set to already connected */
+        opnfil[fn]->bio = BIO_new_dgram(fn, BIO_CLOSE);
+        r = connect(fn, (struct sockaddr *) &opnfil[fn]->saddr, sizeof(struct sockaddr_in));
+        if (r) linuxerror();
+
+	    BIO_ctrl(opnfil[fn]->bio, BIO_CTRL_DGRAM_SET_CONNECTED, 0, &opnfil[fn]->saddr.ss);
+
+	    SSL_set_bio(opnfil[fn]->ssl, opnfil[fn]->bio, opnfil[fn]->bio);
+
+	    r = SSL_connect(opnfil[fn]->ssl);
+	    if (r <= 0) sslerror(opnfil[fn]->ssl, r);
+
+	    /* Set and activate timeouts */
+	    timeout.tv_sec = 3;
+	    timeout.tv_usec = 0;
+	    BIO_ctrl(opnfil[fn]->bio, BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
+
+	    /* set secure udp */
+	    opnfil[fn]->sudp = true;
+
+    }
+
+    return (fn); /* return fid */
 
 }
 
@@ -1201,9 +1249,14 @@ void pa_wrmsg(int fn, void* msg, unsigned long len)
 
         /* write the message to socket, "non-blocking" (really just means
            no message confirmation) */
-        r = sendto(fn, msg, len, MSG_DONTWAIT,
-                   (const struct sockaddr *) &opnfil[fn]->saddr.s4,
-                   sizeof(struct sockaddr_in));
+        if (opnfil[fn]->v6addr)
+            r = sendto(fn, msg, len, MSG_DONTWAIT,
+                       (const struct sockaddr *) &opnfil[fn]->saddr.s6,
+                       sizeof(struct sockaddr_in6));
+        else
+            r = sendto(fn, msg, len, MSG_DONTWAIT,
+                       (const struct sockaddr *) &opnfil[fn]->saddr.s4,
+                       sizeof(struct sockaddr_in));
         if (r < 0) linuxerror();
 
     }
@@ -1242,10 +1295,20 @@ int pa_rdmsg(int fn, void* msg, unsigned long len)
 
     } else {
 
-        al = sizeof(struct sockaddr_in);
         /* write the message to socket, blocking (get full UDP message) */
-        r = recvfrom(fn, msg, len, MSG_WAITALL,
-                     (struct sockaddr *) &opnfil[fn]->saddr.s4, &al);
+        if (opnfil[fn]->v6addr) {
+
+            al = sizeof(struct sockaddr_in);
+            r = recvfrom(fn, msg, len, MSG_WAITALL,
+                         (struct sockaddr *) &opnfil[fn]->saddr.s4, &al);
+
+        } else {
+
+            al = sizeof(struct sockaddr_in);
+            r = recvfrom(fn, msg, len, MSG_WAITALL,
+                         (struct sockaddr *) &opnfil[fn]->saddr.s4, &al);
+
+        }
         if (r < 0) linuxerror();
 
     }
