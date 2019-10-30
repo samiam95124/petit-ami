@@ -1204,7 +1204,7 @@ void pa_wrmsg(int fn, void* msg, unsigned long len)
         r = sendto(fn, msg, len, MSG_DONTWAIT,
                    (const struct sockaddr *) &opnfil[fn]->saddr.s4,
                    sizeof(struct sockaddr_in));
-        if (fn < 0) linuxerror();
+        if (r < 0) linuxerror();
 
     }
 
@@ -1246,7 +1246,7 @@ int pa_rdmsg(int fn, void* msg, unsigned long len)
         /* write the message to socket, blocking (get full UDP message) */
         r = recvfrom(fn, msg, len, MSG_WAITALL,
                      (struct sockaddr *) &opnfil[fn]->saddr.s4, &al);
-        if (fn < 0) linuxerror();
+        if (r < 0) linuxerror();
 
     }
 
