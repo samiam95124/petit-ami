@@ -1296,7 +1296,7 @@ FILE* pa_waitnet(/* port number to wait on */ int port,
 
 {
 
-    struct sockaddr_in saddr;
+    struct sockaddr_in6 saddr;
     int sfn, fn;
     int r;
     FILE* fp;
@@ -1304,7 +1304,7 @@ FILE* pa_waitnet(/* port number to wait on */ int port,
     SSL*  ssl;
 
     /* connect the socket */
-    sfn = socket(AF_INET, SOCK_STREAM, 0);
+    sfn = socket(AF_INET6, SOCK_STREAM, 0);
     if (sfn < 0) linuxerror();
     if (sfn < 0 || sfn >= MAXFIL) error(einvhan); /* invalid file handle */
     newfil(sfn); /* clear the fid entry */
@@ -1316,9 +1316,9 @@ FILE* pa_waitnet(/* port number to wait on */ int port,
     if (r < 0) linuxerror();
 
     /* set up address */
-    saddr.sin_family = AF_INET;
-    saddr.sin_addr.s_addr = INADDR_ANY;
-    saddr.sin_port = htons(port);
+    saddr.sin6_family = AF_INET6;
+    saddr.sin6_addr = in6addr_any;
+    saddr.sin6_port = htons(port);
     r = bind(sfn, (struct sockaddr *)&saddr, sizeof(saddr));
     if (r < 0) linuxerror();
 
