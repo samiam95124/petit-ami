@@ -1055,6 +1055,8 @@ int pa_openmsgv6(
     memcpy(&opnfil[fn]->saddr.s6, &saddr, sizeof(struct sockaddr_in6));
     pthread_mutex_unlock(&opnfil[fn]->lock); /* release file entry lock */
 
+    opnfil[fn]->v6addr = true; /* set v6 address */
+
     /* set up for DTLS operation if selected */
     if (secure) {
 
@@ -1062,7 +1064,7 @@ int pa_openmsgv6(
         memset((void *) &laddr, 0, sizeof(struct sockaddr_storage));
         laddr.s6.sin6_family = AF_INET6;
 	    laddr.s6.sin6_port = htons(0);
-        r = bind(fn, (const struct sockaddr *) &laddr, sizeof(struct sockaddr_in));
+        r = bind(fn, (const struct sockaddr *) &laddr, sizeof(struct sockaddr_in6));
         if (r) linuxerror();
 
         /* create socket struct */
@@ -1071,7 +1073,7 @@ int pa_openmsgv6(
 
         /* Create BIO, connect and set to already connected */
         opnfil[fn]->bio = BIO_new_dgram(fn, BIO_CLOSE);
-        r = connect(fn, (struct sockaddr *) &opnfil[fn]->saddr, sizeof(struct sockaddr_in));
+        r = connect(fn, (struct sockaddr *) &opnfil[fn]->saddr, sizeof(struct sockaddr_in6));
         if (r) linuxerror();
 
 	    BIO_ctrl(opnfil[fn]->bio, BIO_CTRL_DGRAM_SET_CONNECTED, 0, &opnfil[fn]->saddr.ss);
@@ -1121,7 +1123,7 @@ int pa_waitmsg(/* port number to wait on */ int port,
     const int on = 1, off = 0;
 
     /* connect the socket */
-    fn = socket(AF_INET, SOCK_DGRAM, 0);
+    fn = socket(AF_INET6, SOCK_DGRAM, 0);
     if (fn < 0) linuxerror();
     if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
     newfil(fn); /* clear the fid entry */
@@ -1135,13 +1137,15 @@ int pa_waitmsg(/* port number to wait on */ int port,
     memset(&opnfil[fn]->saddr, 0, sizeof(socket_struct));
 
     /* set up address */
-    opnfil[fn]->saddr.s4.sin_family = AF_INET;
-    opnfil[fn]->saddr.s4.sin_addr.s_addr = INADDR_ANY;
-    opnfil[fn]->saddr.s4.sin_port = htons(port);
+    opnfil[fn]->saddr.s6.sin6_family = AF_INET6;
+    opnfil[fn]->saddr.s6.sin6_addr = in6addr_any;
+    opnfil[fn]->saddr.s6.sin6_port = htons(port);
+
+    opnfil[fn]->v6addr = true; /* set v6 address */
 
     /* bind to socket */
-    r = bind(fn, (struct sockaddr *)&opnfil[fn]->saddr,
-                 sizeof(struct sockaddr_in));
+    r = bind(fn, (struct sockaddr *)&opnfil[fn]->saddr.s6,
+                 sizeof(struct sockaddr_in6));
     if (r < 0) linuxerror();
 
     opnfil[fn]->net = true; /* set network (sockets) file */
@@ -1150,7 +1154,7 @@ int pa_waitmsg(/* port number to wait on */ int port,
     /* set up for DTLS operation if selected */
     if (secure) {
 
-   		memset(&caddr, 0, sizeof(struct sockaddr_storage));
+   		memset(&caddr, 0, sizeof(socket_struct));
 
 		/* Create BIO */
 		opnfil[fn]->bio = BIO_new_dgram(fn, BIO_NOCLOSE);
@@ -1168,13 +1172,13 @@ int pa_waitmsg(/* port number to wait on */ int port,
 
 		while (DTLSv1_listen(opnfil[fn]->ssl, (BIO_ADDR *) &caddr) <= 0);
 
-	    fn2 = socket(AF_INET, SOCK_DGRAM, 0);
+	    fn2 = socket(AF_INET6, SOCK_DGRAM, 0);
 	    if (fn2 < 0) linuxerror();
 
 	    setsockopt(fn2, SOL_SOCKET, SO_REUSEADDR, (const void*) &on, (socklen_t) sizeof(on));
-	    r = bind(fn2, (const struct sockaddr *) &opnfil[fn]->saddr, sizeof(struct sockaddr_in));
+	    r = bind(fn2, (const struct sockaddr *) &opnfil[fn]->saddr.s6, sizeof(struct sockaddr_in6));
 	    if (r) linuxerror();
-	    r = connect(fn2, (struct sockaddr *) &caddr, sizeof(struct sockaddr_in));
+	    r = connect(fn2, (struct sockaddr *) &caddr.s6, sizeof(struct sockaddr_in6));
 	    if (r) linuxerror();
 
 	    /* Set new fd and set BIO to connected */
@@ -1298,9 +1302,9 @@ int pa_rdmsg(int fn, void* msg, unsigned long len)
         /* write the message to socket, blocking (get full UDP message) */
         if (opnfil[fn]->v6addr) {
 
-            al = sizeof(struct sockaddr_in);
+            al = sizeof(struct sockaddr_in6);
             r = recvfrom(fn, msg, len, MSG_WAITALL,
-                         (struct sockaddr *) &opnfil[fn]->saddr.s4, &al);
+                         (struct sockaddr *) &opnfil[fn]->saddr.s6, &al);
 
         } else {
 
