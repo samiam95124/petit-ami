@@ -1460,13 +1460,17 @@ retry or other error handling system.
 There are two versions of this routine, depending on if ipv4 or ipv6 addresses
 are used.
 
+At the moment, this is a test to see if the address is the local address of
+the host, meaning that it is a completely local connection that will not be
+carried on the wire. Thus it is reliable by definition.
+
 *******************************************************************************/
 
 boolean pa_relymsg(unsigned long addr)
 
 {
 
-    return (false);
+    return (addr == 0x7f000001);
 
 }
 
@@ -1474,7 +1478,7 @@ boolean pa_relymsgv6(unsigned long long addrh, unsigned long long addrl)
 
 {
 
-    return (false);
+    return (addrh == 0 && addrl == 1); /* test local host */
 
 }
 
