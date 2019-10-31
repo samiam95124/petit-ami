@@ -1037,7 +1037,7 @@ int pa_openmsgv6(
     saddr.sin6_port = htons(port);
 
     /* connect the socket */
-    fn = socket(AF_INET, SOCK_DGRAM, 0);
+    fn = socket(AF_INET6, SOCK_DGRAM, 0);
     if (fn < 0) linuxerror();
     if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
 

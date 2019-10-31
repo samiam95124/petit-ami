@@ -58,7 +58,7 @@ int main(int argc, char **argv)
 
     if (argc < 3) {
 
-        fprintf(stderr, "Usage: getpage [--secure|-s] <website> <page> [<port>]\n");
+        fprintf(stderr, "Usage: getpage [--secure|-s] [--v6] <website> <page> [<port>]\n");
         exit(1);
     }
 
