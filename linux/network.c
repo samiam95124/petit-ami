@@ -1207,19 +1207,106 @@ int pa_waitmsg(/* port number to wait on */ int port,
 
 /*******************************************************************************
 
-Get maximum message size
+Get maximum message size v4
 
 Returns the maximum size of messages in the system. This is typically 1500, or
 the maximum size of a UDP message, but can be larger, a so called "jumbo packet"
-at 64kb.
+at 64kb, or somewhere in between.
+
+We return the MTU reported by the interface. For a reliable network, this is
+the absolute packet size. For others, it will be the MTU of the interface, which
+packet breakage is possible.
 
 *******************************************************************************/
 
-int pa_maxmsg(void)
+int pa_maxmsg(unsigned long addr)
 
 {
 
-    return (1500); /* MTU */
+    struct sockaddr_in saddr;
+    int fn;
+    int r;
+    int mtu;
+    int mtulen;
+
+    mtulen = sizeof(mtu); /* set length of word */
+
+    /* set up target address */
+    memset(&saddr, 0, sizeof(saddr));
+	saddr.sin_family = AF_INET;
+	saddr.sin_addr.s_addr = htonl(addr);
+
+    /* create socket */
+	fn = socket(AF_INET, SOCK_DGRAM, 0);
+	if (fn < 0) linuxerror();
+
+    /* connect to address */
+    r = connect(fn, (struct sockaddr *)&saddr, sizeof(saddr));
+    if (r < 0) linuxerror();
+
+    /* find mtu */
+    r = getsockopt(fn, IPPROTO_IP, IP_MTU, &mtu, (socklen_t*)&mtulen);
+    if (r < 0) linuxerror();
+
+    close(fn);
+
+    return (mtu); /* return mtu */
+
+}
+
+/*******************************************************************************
+
+Get maximum message size v6
+
+Returns the maximum size of messages in the system. This is typically 1500, or
+the maximum size of a UDP message, but can be larger, a so called "jumbo packet"
+at 64kb, or somewhere in between.
+
+We return the MTU reported by the interface. For a reliable network, this is
+the absolute packet size. For others, it will be the MTU of the interface, which
+packet breakage is possible.
+
+*******************************************************************************/
+
+int pa_maxmsgv6(unsigned long long addrh, unsigned long long addrl)
+
+{
+
+    struct sockaddr_in6 saddr;
+    int fn;
+    int r;
+    int mtu;
+    int mtulen;
+
+    mtulen = sizeof(mtu); /* set length of word */
+
+    /* set up target address */
+    memset(&saddr, 0, sizeof(saddr));
+    saddr.sin6_family = AF_INET6;
+    saddr.sin6_addr.__in6_u.__u6_addr32[0] =
+        (uint32_t) htonl(addrh >> 32 & 0xffffffff);
+    saddr.sin6_addr.__in6_u.__u6_addr32[1] =
+        (uint32_t) htonl(addrh & 0xffffffff);
+    saddr.sin6_addr.__in6_u.__u6_addr32[2] =
+        (uint32_t) htonl(addrl >> 32 & 0xffffffff);
+    saddr.sin6_addr.__in6_u.__u6_addr32[3] =
+        (uint32_t) htonl(addrl & 0xffffffff);
+
+    /* create socket */
+	fn = socket(AF_INET6, SOCK_DGRAM, 0);
+	if (fn < 0) linuxerror();
+
+    /* connect to address */
+    r = connect(fn, (struct sockaddr *)&saddr, sizeof(saddr));
+    if (r < 0) linuxerror();
+
+    /* find mtu */
+    r = getsockopt(fn, IPPROTO_IP, IP_MTU, &mtu, (socklen_t*)&mtulen);
+    if (r < 0) linuxerror();
+
+    close(fn);
+
+    return (mtu); /* return mtu */
 
 }
 

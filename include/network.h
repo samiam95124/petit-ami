@@ -72,7 +72,8 @@ void pa_addrnetv6(string name, unsigned long long* addrh,
 FILE* pa_opennet(unsigned long addr, int port, boolean secure);
 FILE* pa_opennetv6(unsigned long long addrh, unsigned long long addrl,
                    int port, boolean secure);
-int pa_maxmsg(void);
+int pa_maxmsg(unsigned long addr);
+int pa_maxmsgv6(unsigned long long addrh, unsigned long long addrl);
 boolean pa_relymsg(unsigned long addr);
 boolean pa_relymsgv6(unsigned long long addrh, unsigned long long addrl);
 int pa_openmsg(unsigned long addr, int port, boolean secure);
