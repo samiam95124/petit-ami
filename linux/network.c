@@ -141,6 +141,7 @@ typedef enum {
     ewrbio,   /* Cannot write to BIO in OpenSSL */
     erdbio,   /* Cannot read from BIO in OpenSSL */
     ecerttl,  /* PEM format certificate too large for buffer */
+    einvctn,  /* invalid certificate number */
     esystem   /* System consistency check */
 } errcod;
 
@@ -266,6 +267,7 @@ static void error(errcod e)
         case erdbio:   netwrterr("Cannot read from BIO in OpenSSL"); break;
         case ecerttl:  netwrterr("PEM format certificate too large for buffer");
                        break;
+        case einvctn:  netwrterr("Invalid certificate number"); break;
         case esystem:  netwrterr("System consistency check, please contact "
                                  "support"); break;
 
@@ -1584,69 +1586,6 @@ boolean pa_relymsgv6(unsigned long long addrh, unsigned long long addrl)
 
 /*******************************************************************************
 
-Get network certificate
-
-Fetches the SSL certificate for an SSL connection. The file must contain an
-open and active SSL connection. Retrieves on of the indicated certificates by
-number, from 1 to N where N is the maximum certificate in the chain.
-Certificate 1 is the certificate for the server connected. Certificate N is the
-CA or Certificate Authority's certificate, AKA the root certificate. The size
-of the certificate buffer is passed, and the actual length of the certificate
-is returned. If there is no certificate by a given number, the resulting length
-is zero. If the certificate would overflow the buffer, -1 is returned.
-
-Certificates are in base64 format, the same as a PEM file, except without the
-"BEGIN CERTIFICATE" and "END CERTIFICATE" lines. The buffer contains a whole
-certificate. Note that characters with value < 20 (control characters), may or
-may not be included in the certificate. Typically carriage returns, line feed
-or both may be used to break up lines in the certificate.
-
-Certificates are normally retrieved in numerical order, that is, 1, 2, 3...N.
-Thus the end of the certificate chain must be found by traversal.
-
-Note that this routine retrieves the peer certificate, or other end of the
-line. Servers are required to provide certificates. Clients are not.
-
-*******************************************************************************/
-
-int pa_certnet(FILE* f, int which, string buff, int len)
-
-{
-
-    int fn;
-    X509* cert;
-    BIO* cb;
-    int r;
-
-    fn = fileno(f); /* get fid */
-    if (fn < 0) linuxerror();
-    if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
-
-    makfil(fn); /* create file entry as required */
-    if (!opnfil[fn]->sec) error(enotsec);
-    /* get the certificate */
-    cert = SSL_get_peer_certificate(opnfil[fn]->ssl);
-    if (!cert) error(enocert);
-
-    /* make a bio to memory */
-    cb = BIO_new(BIO_s_mem());
-    if (!cb) error(enobio);
-
-    /* write certificate to BIO */
-    r = PEM_write_bio_X509(cb, cert);
-    if (!r) error(ewrbio);
-
-    /* read certificate back to memory */
-    r = BIO_read(cb, buff, len);
-    if (r < 0) error(erdbio);
-    if (!BIO_eof(cb)) error(ecerttl);
-
-    return (r);
-
-}
-
-/*******************************************************************************
-
 Get message certificate
 
 Fetches the SSL certificate for an DTLS connection. The file must contain
@@ -1656,8 +1595,7 @@ chain. Certificate 1 is the certificate for the server connected. Certificate
 N is the CA or Certificate Authority's certificate, AKA the root certificate.
 The size of the certificate buffer is passed, and the actual length of the
 certificate is returned. If there is no certificate by a given number, the
-resulting length is zero. If the certificate would overflow the buffer, -1 is
-returned.
+resulting length is zero.
 
 Certificates are in base64 format, the same as a PEM file, starting with the
 line "-----BEGIN CERTIFICATE-----" and ending with the line
@@ -1679,31 +1617,99 @@ int pa_certmsg(int fn, int which, string buff, int len)
 {
 
     X509* cert;
+    STACK_OF(X509)* certstk;
     BIO* cb;
     int r;
 
     if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
+    if (which < 1) error(einvctn); /* invalid certificate number */
 
     makfil(fn); /* create file entry as required */
-    if (!opnfil[fn]->sudp) error(enotsec);
+    if (!opnfil[fn]->sudp && !opnfil[fn]->sec) error(enotsec);
+
     /* get the certificate */
     cert = SSL_get_peer_certificate(opnfil[fn]->ssl);
     if (!cert) error(enocert);
 
-    /* make a bio to memory */
-    cb = BIO_new(BIO_s_mem());
-    if (!cb) error(enobio);
+    /* see if we need to get the chain */
+    if (which > 1) {
 
-    /* write certificate to BIO */
-    r = PEM_write_bio_X509(cb, cert);
-    if (!r) error(ewrbio);
+        certstk = SSL_get_peer_cert_chain(opnfil[fn]->ssl);
+        if (!certstk) {
 
-    /* read certificate back to memory */
-    r = BIO_read(cb, buff, len);
-    if (r < 0) error(erdbio);
-    if (!BIO_eof(cb)) error(ecerttl);
+            /* Zakir Durumeric says that it is possible to get a null chain,
+               even though obviously a single certificate exists (it should
+               be first in chain). So if this happens, we create our own chain
+               and stuff the first certificate in it */
+            certstk = sk_X509_new_null();
+            sk_X509_push(certstk, cert);
+
+        }
+        /* if the certificate number is out of range, return nothing */
+        if (which > sk_X509_num(certstk)) cert = NULL;
+        else cert = sk_X509_value(certstk, which-1);
+
+    }
+
+    r = 0; /* set no certificate */
+    if (cert) { /* there was a certificate, read to memory */
+
+        /* make a bio to memory */
+        cb = BIO_new(BIO_s_mem());
+        if (!cb) error(enobio);
+
+        /* write certificate to BIO */
+        r = PEM_write_bio_X509(cb, cert);
+        if (!r) error(ewrbio);
+
+        /* read certificate back to memory */
+        r = BIO_read(cb, buff, len);
+        if (r < 0) error(erdbio);
+        if (!BIO_eof(cb)) error(ecerttl);
+
+    }
 
     return (r);
+
+}
+
+/*******************************************************************************
+
+Get network certificate
+
+Fetches the SSL certificate for an SSL connection. The file must contain an
+open and active SSL connection. Retrieves on of the indicated certificates by
+number, from 1 to N where N is the maximum certificate in the chain.
+Certificate 1 is the certificate for the server connected. Certificate N is the
+CA or Certificate Authority's certificate, AKA the root certificate. The size
+of the certificate buffer is passed, and the actual length of the certificate
+is returned. If there is no certificate by a given number, the resulting length
+is zero.
+
+Certificates are in base64 format, the same as a PEM file, except without the
+"BEGIN CERTIFICATE" and "END CERTIFICATE" lines. The buffer contains a whole
+certificate. Note that characters with value < 20 (control characters), may or
+may not be included in the certificate. Typically carriage returns, line feed
+or both may be used to break up lines in the certificate.
+
+Certificates are normally retrieved in numerical order, that is, 1, 2, 3...N.
+Thus the end of the certificate chain must be found by traversal.
+
+Note that this routine retrieves the peer certificate, or other end of the
+line. Servers are required to provide certificates. Clients are not.
+
+*******************************************************************************/
+
+int pa_certnet(FILE* f, int which, string buff, int len)
+
+{
+
+    int fn;
+
+    fn = fileno(f); /* get fid */
+
+    /* with the fid, the call is the same as for messaging */
+    return (pa_certmsg(fn, which, buff, len));
 
 }
 
