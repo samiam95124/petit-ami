@@ -135,6 +135,12 @@ typedef enum {
     enolpkey, /* Cannot load private key */
     enotmsg,  /* not a message file id */
     eismsg,   /* is a message file id */
+    enotsec,  /* Not a secured file */
+    enocert,  /* Cannot retrieve certificate */
+    enobio,   /* Cannot create BIO in OpenSSL */
+    ewrbio,   /* Cannot write to BIO in OpenSSL */
+    erdbio,   /* Cannot read from BIO in OpenSSL */
+    ecerttl,  /* PEM format certificate too large for buffer */
     esystem   /* System consistency check */
 } errcod;
 
@@ -253,8 +259,15 @@ static void error(errcod e)
         case enolpkey: netwrterr("Cannot load private key"); break;
         case enotmsg:  netwrterr("Not a message file id"); break;
         case eismsg:   netwrterr("Is a message file id"); break;
+        case enotsec:  netwrterr("Not a secured file"); break;
+        case enocert:  netwrterr("Cannot retrieve certificate"); break;
+        case enobio:   netwrterr("Cannot create BIO in OpenSSL"); break;
+        case ewrbio:   netwrterr("Cannot write to BIO in OpenSSL"); break;
+        case erdbio:   netwrterr("Cannot read from BIO in OpenSSL"); break;
+        case ecerttl:  netwrterr("PEM format certificate too large for buffer");
+                       break;
         case esystem:  netwrterr("System consistency check, please contact "
-                                 "vendor"); break;
+                                 "support"); break;
 
     }
 
@@ -1596,12 +1609,39 @@ line. Servers are required to provide certificates. Clients are not.
 
 *******************************************************************************/
 
-int pa_certnet(FILE* f, int which, string cert, int len)
+int pa_certnet(FILE* f, int which, string buff, int len)
 
 {
 
-    /* tag off for now */
-    return (0);
+    int fn;
+    X509* cert;
+    BIO* cb;
+    int r;
+
+    fn = fileno(f); /* get fid */
+    if (fn < 0) linuxerror();
+    if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
+
+    makfil(fn); /* create file entry as required */
+    if (!opnfil[fn]->sec) error(enotsec);
+    /* get the certificate */
+    cert = SSL_get_peer_certificate(opnfil[fn]->ssl);
+    if (!cert) error(enocert);
+
+    /* make a bio to memory */
+    cb = BIO_new(BIO_s_mem());
+    if (!cb) error(enobio);
+
+    /* write certificate to BIO */
+    r = PEM_write_bio_X509(cb, cert);
+    if (!r) error(ewrbio);
+
+    /* read certificate back to memory */
+    r = BIO_read(cb, buff, len);
+    if (r < 0) error(erdbio);
+    if (!BIO_eof(cb)) error(ecerttl);
+
+    return (r);
 
 }
 
@@ -1619,8 +1659,9 @@ certificate is returned. If there is no certificate by a given number, the
 resulting length is zero. If the certificate would overflow the buffer, -1 is
 returned.
 
-Certificates are in base64 format, the same as a PEM file, except without the
-"BEGIN CERTIFICATE" and "END CERTIFICATE" lines. The buffer contains a whole
+Certificates are in base64 format, the same as a PEM file, starting with the
+line "-----BEGIN CERTIFICATE-----" and ending with the line
+"-----END CERTIFICATE----". The buffer contains a whole
 certificate. Note that characters with value < 20 (control characters), may or
 may not be included in the certificate. Typically carriage returns, line feed
 or both may be used to break up lines in the certificate.
@@ -1633,12 +1674,36 @@ line. Servers are required to provide certificates. Clients are not.
 
 *******************************************************************************/
 
-int pa_certmsg(int fn, int which, string cert, int len)
+int pa_certmsg(int fn, int which, string buff, int len)
 
 {
 
-    /* tag off for now */
-    return (0);
+    X509* cert;
+    BIO* cb;
+    int r;
+
+    if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
+
+    makfil(fn); /* create file entry as required */
+    if (!opnfil[fn]->sudp) error(enotsec);
+    /* get the certificate */
+    cert = SSL_get_peer_certificate(opnfil[fn]->ssl);
+    if (!cert) error(enocert);
+
+    /* make a bio to memory */
+    cb = BIO_new(BIO_s_mem());
+    if (!cb) error(enobio);
+
+    /* write certificate to BIO */
+    r = PEM_write_bio_X509(cb, cert);
+    if (!r) error(ewrbio);
+
+    /* read certificate back to memory */
+    r = BIO_read(cb, buff, len);
+    if (r < 0) error(erdbio);
+    if (!BIO_eof(cb)) error(ecerttl);
+
+    return (r);
 
 }
 
