@@ -357,6 +357,7 @@ void pa_list(
     bufstr         n;
     bufstr         e;
     bufstr         fn; /* holder for directory name */
+    int            ls;
 
     *l = NULL; /* clear destination list */
     lp = NULL; /* clear last pointer */
@@ -378,8 +379,10 @@ void pa_list(
             if (match(fn, dr->d_name, 1, 1)) { /* matching filename, add to list */
 
                 fp = malloc(sizeof(pa_filrec)); /* create a new file entry */
-                fp->name = malloc(strlen(dr->d_name)); /* copy to new filename string */
+                ls = strlen(dr->d_name); /* get length of string */
+                fp->name = malloc(ls+1); /* copy to new filename string */
                 strcpy(fp->name, dr->d_name);
+                fp->namelen = ls; /* place length */
                 r = stat(fp->name, &sr); /* get stat structure on file */
                 if (r < 0) unixerr(); /* process unix error */
                 /* file information in stat record, translate to our format */
@@ -1032,8 +1035,10 @@ void pa_allenv(
         tp = p;
         p->name = (char *) malloc(strlen(lp->name)+1);
         strcpy(p->name, lp->name);   /* place name */
+        p->namelen = strlen(lp->name); /* place name length */
         p->data = (char *) malloc(strlen(lp->data)+1);
         strcpy(p->data, lp->data);   /* place data */
+        p->datalen = strlen(lp->data); /* place data length */
         lp = lp->next;   /* next entry */
 
     }

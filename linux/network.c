@@ -23,7 +23,7 @@
 *                                                                              *
 * Portions of the code Copyright (C) 2009 - 2012 Robin Seggelmann,             *
 * seggelmann@fh-muenster.de, Michael Tuexen, tuexen@fh-muenster.de             *
-* 2019 Felix Weinrank, weinrank@fh-muenster.de                                 *
+* 2019 Felix Weinrank, weinrank@fh-muenster.de, The OpenSSL Project Authors.   *
 *                                                                              *
 * All rights reserved.                                                         *
 *                                                                              *
@@ -52,6 +52,15 @@
 * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF       *
 * SUCH DAMAGE.                                                                 *
 *                                                                              *
+* ============================================================================ *
+*                                                                              *
+* For the portions of the code covered by The OpenSSL License:                 *
+*                                                                              *
+* Licensed under the Apache License 2.0 (the "License").  You may not use      *
+* this file except in compliance with the License.  You can obtain a copy      *
+* in the file LICENSE in the source distribution or at                         *
+* https://www.openssl.org/source/license.html                                  *
+*                                                                              *
 *******************************************************************************/
 
 /* Linux definitions */
@@ -67,7 +76,9 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
+#include <openssl/x509v3.h>
 #include <unistd.h>
+#include <ctype.h>
 
 /* Petit-Ami definitions */
 #include <localdefs.h>
@@ -75,6 +86,7 @@
 
 #define MAXFIL 100 /* maximum number of open files */
 #define COOKIE_SECRET_LENGTH 16 /* length of secret cookie */
+#define CVBUFSIZ 4096 /* certificate value buffer size */
 
 /* socket structures */
 typedef union {
@@ -142,6 +154,12 @@ typedef enum {
     erdbio,   /* Cannot read from BIO in OpenSSL */
     ecerttl,  /* PEM format certificate too large for buffer */
     einvctn,  /* invalid certificate number */
+    enoserl,  /* Cannot get serial number */
+    enosiga,  /* Could not get signature algorithm */
+    enoext,   /* Could not get certificate extension */
+    enomem,   /* Cannot allocate memory */
+    ebufovf,  /* Buffer overflow */
+    ecertpar, /* Error parsing certificate data */
     esystem   /* System consistency check */
 } errcod;
 
@@ -187,7 +205,7 @@ static filptr opnfil[MAXFIL];  /* open files table */
 static pthread_mutex_t oflock; /* lock for this structure */
 static filptr frefil;          /* free file entries list */
 static pthread_mutex_t fflock; /* lock for this structure */
-
+static pa_certptr frecert;     /* free certificate name/value entries list */
 
 /*
  * openSSL variables
@@ -268,6 +286,12 @@ static void error(errcod e)
         case ecerttl:  netwrterr("PEM format certificate too large for buffer");
                        break;
         case einvctn:  netwrterr("Invalid certificate number"); break;
+        case enoserl:  netwrterr("Cannot get serial number"); break;
+        case enosiga:  netwrterr("Could not get signature algorithm"); break;
+        case enoext:   netwrterr("Could not get certificate extension"); break;
+        case enomem:   netwrterr("Cannot allocate memory"); break;
+        case ebufovf:  netwrterr("Buffer overflow"); break;
+        case ecertpar: netwrterr("Error parsing certificate data"); break;
         case esystem:  netwrterr("System consistency check, please contact "
                                  "support"); break;
 
@@ -499,6 +523,72 @@ void newfil(int fn)
     opnfil[fn]->msg = false;  /* set not message port */
     opnfil[fn]->sudp = false; /* set not secure udp */
     pthread_mutex_unlock(&opnfil[fn]->lock); /* release file entry lock */
+
+}
+
+/*******************************************************************************
+
+Get certificate name/value entry
+
+Recycles or allocates a name/value entry.
+
+*******************************************************************************/
+
+pa_certptr getcert(void)
+
+{
+
+    pa_certptr cp;
+
+    if (frecert) { /* there are free cert entries */
+
+        cp = frecert; /* get top entry */
+        frecert = cp->next; /* remove from free list */
+
+    } else cp = malloc(sizeof(pa_certfield));
+    if (!cp) error(enomem); /* cannot allocate entry */
+    /* clear fields */
+    cp->name = NULL;
+    cp->data = NULL;
+    cp->critical = false;
+    cp->fork = NULL;
+    cp->next = NULL;
+
+    return (cp); /* return entry */
+
+}
+
+/*******************************************************************************
+
+Put certificate name/value entry
+
+Free a certificate name/value entry. Recycling cert data entries is optional,
+but can reduce memory fragmentation. The strings attached to these entries are
+always recycled, and thus does help with fragmention for those. There are future
+means to do that, such as allocating from blocks of characters.
+
+If a tree structured entry is passed, then the entire tree is freed.
+
+*******************************************************************************/
+
+void putcert(pa_certptr cp)
+
+{
+
+    pa_certptr p;
+
+    /* release strings space */
+    free(cp->name);
+    free(cp->data);
+    /* free sublist */
+    while (cp->fork) { /* traverse the list */
+
+        p = cp->fork; /* top entry from list */
+        cp->fork = cp->fork->next;
+        putcert(p); /* free entry */
+
+    }
+    free(cp); /* free the entry */
 
 }
 
@@ -1735,11 +1825,435 @@ for freeing the list as necessary.
 Note that this routine retrieves the peer certificate, or other end of the
 line. Servers are required to provide certificates. Clients are not.
 
+The formatting and tree structure mostly follows OpenSSL formatting. For
+example, the root is labeled "certificate" even if that it is fairly redundant,
+and is easy to prune off.
+
 *******************************************************************************/
+
+/* print contents of bio */
+
+static int prtbio(BIO *bp)
+
+{
+
+    char buff[4096];
+    int r;
+
+    do {
+
+        r = BIO_gets(bp, buff, 4096);
+        if (r > 0) printf("%.*s", r, buff);
+
+    } while (r > 0);
+
+}
+
+/* put contents of bio in buffer */
+
+static int getbio(BIO *bp, char* buff, int len)
+
+{
+
+    int r;
+
+    do {
+
+        /* read data to buffer */
+        r = BIO_gets(bp, buff, len);
+        if (r < 0) error(erdbio);
+        buff += r; /* advance pointers */
+        len -= r;
+        if (!len) error(ebufovf);
+
+    } while (r > 0);
+
+    return (r); /* return length of buffer content */
+
+}
+
+/* make certificate node */
+
+static pa_certptr maknode(string name)
+
+{
+
+    pa_certptr p;
+
+    p = getcert(); /* get a new certificate d/v entry */
+    p->name = malloc(strlen(name)+1); /* get string entry for name */
+    strcpy(p->name, name); /* copy into place */
+
+    return (p);
+
+}
+
+/* fill data value */
+
+static void filldata(pa_certptr cp, const char* value)
+
+{
+
+    cp->data = malloc(strlen(value)+1); /* get string entry for value */
+    strcpy(cp->data, value); /* copy into place */
+
+}
+
+/* add new entry to end of list */
+
+static pa_certptr addend(pa_certptr* list, string name)
+
+{
+
+    pa_certptr p, p2;
+
+    p = maknode(name); /* create entry */
+    /* append to end of list */
+    if (*list) { /* there are entries */
+
+       p2 = *list; /* index top of list */
+       /* find end of list */
+       while (p2->next) { p2 = p2->next; }
+       /* append */
+       p2->next = p;
+
+    } else *list = p; /* set as root */
+
+    return (p);
+
+}
+
+/* get line from buffer (including '\n') */
+
+static void getlin(char** ibuff, char** obuff)
+
+{
+
+    /* move everything before end of line */
+    while (**ibuff && **ibuff != '\n') *(*obuff)++ = *(*ibuff)++;
+    /* move end of line */
+    if (**ibuff == '\n') { *(*obuff)++ = '\n'; (*ibuff)++; }
+    **obuff = 0; /* terminate */
+
+}
+
+/* remove any last \n on line */
+
+static void remeol(char* buff)
+
+{
+
+    char* cp;
+
+    cp = NULL; /* set no last */
+    /* find end */
+    while (*buff) { cp = buff; buff++; }
+    /* if \n is last character, knock it out */
+    if (cp && *cp == '\n') *cp = 0;
+
+}
+
+/*
+
+Find key
+
+Finds a key of the form:
+
+key<sp>:
+
+The key must start with an alpha character, and must be longer than 2
+characters. That requirement comes from the appearance of hex 'xx' data bytes
+in the input. Leading spaces and spaces between the name and ':' are skipped,
+but spaces within the key are kept.
+
+*/
+
+void fndkey(char buff[], char key[], char** ncp)
+
+{
+
+    char *icp, *ocp;
+
+printf("fndkey: buff: %s\n", buff);
+    key[0] = 0; /* clear output key */
+    icp = buff; /* index first character */
+    ocp = key; /* index output buffer */
+    *ncp = icp; /* set new position at buffer start */
+    while (isspace(*icp)) icp++; /* skip leading spaces */
+    if (isalpha(*icp)) { /* found leader */
+
+        /* place whole key in buffer */
+        while (*icp && *icp != ':') *ocp++ = *icp++;
+        *ocp = 0; /* terminate key */
+        /* if not found kill the key */
+        if (*icp != ':') key[0] = 0;
+        else icp++; /* otherwise skip ':' */
+        /* if too short kill the key */
+        if (ocp-key <= 2) key[0] = 0;
+
+    }
+    /* skip trailing spaces */
+    while (isspace(*icp)) icp++;
+    /* check key is simple descriptor that we don't want expanded into a key */
+    if (!strcmp(key, "keyid") || !strcmp(key, "DNS") || !strcmp(key, "URI"))
+       key[0] = 0; /* kill the key */
+    if (key[0]) *ncp = icp; /* set new position after key */
+printf("fndkey: key: %s remaining: %s\n", key, icp);
+
+}
+
+/*
+
+Get name/value series from buffer.
+
+This is used to parse buffers where the component cert key printers are
+not accessible from outside OpenSSL. Note we rely on names being flush
+left. Each field is of the form:
+
+name: value
+
+Terminated by \n. Values can either terminate on the same line, or occupy
+multiple lines. In that case, each subsequent line is indented by one or more
+spaces. For these values, the indentation is removed, and the entire value
+concatenated, with the \n line endings left intact.
+
+*/
+
+static void getnamval(char* buff, pa_certptr* list, int ident)
+
+{
+
+    char lbuff[CVBUFSIZ]; /* line output buffer */
+    char vbuff[CVBUFSIZ]; /* value output buffer */
+    char name[1024]; /* name */
+    char* cp; /* output buffer pointer */
+    pa_certptr cdp; /* current name/val being worked on */
+    int l;
+
+printf("getnamval: buff:\n%s\n", buff);
+    cdp = NULL; /* clear list entry */
+    while (*buff) { /* loop over all lines in buffer */
+
+        cp = lbuff; /* index output buffer */
+        getlin(&buff, &cp); /* next next line */
+        /* try to match a key */
+        fndkey(lbuff, name, &cp);
+        if (name[0]) {
+
+printf("getnamval: key found: %s\n", name);
+            /* terminate any outstanding entry */
+            remeol(vbuff); /* remove last \n, if exists */
+            if (cdp) filldata(cdp, vbuff); /* place gathered data as value */
+            cdp = addend(list, name); /* create n/v entry */
+            vbuff[0] = 0; /* terminate empty value */
+            if (*cp && *cp != '\n')
+                /* there is more on the line, add to value */
+                strcat(vbuff, cp); /* concatenate value */
+
+        } else { /* no key, concatenate to value */
+
+            /* does not begin with key, but there is no working key, then
+               something is wrong. */
+            if (!cdp) error(ecertpar);
+            strcat(vbuff, cp); /* concatenate to value */
+
+        }
+
+    }
+    /* terminate any outstanding entry */
+    remeol(vbuff); /* remove last \n, if exists */
+    if (cdp) filldata(cdp, vbuff); /* place gathered data as value */
+
+}
 
 void pa_certlistnet(FILE *f, int which, pa_certptr* list)
 
 {
+
+    X509* cert;
+    STACK_OF(X509)* certstk;
+    BIO* bp;
+    int r;
+    int fn;
+    char* cp;
+    char* cp2;
+    int v;
+    ASN1_INTEGER* sn;
+    BIGNUM* bn;
+    int i, j, l;
+    ASN1_TIME* atp;
+    char buff[CVBUFSIZ];
+    char buff2[CVBUFSIZ];
+    X509_EXTENSION* ep;
+    ASN1_OBJECT* op;
+    ASN1_OCTET_STRING *sp;
+    BUF_MEM *bmp;
+    unsigned nid;
+    X509_PUBKEY* kp;
+    EVP_PKEY* ekp;
+    const X509_ALGOR *sig_alg;
+    const ASN1_BIT_STRING *sig;
+    /* branch placeholders */
+    pa_certptr certificate;
+    pa_certptr data;
+    pa_certptr sigal;
+    pa_certptr validity;
+    pa_certptr extensions;
+    pa_certptr cdp, cdp2;
+
+    fn = fileno(f); /* get fid */
+    if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
+    if (which < 1) error(einvctn); /* invalid certificate number */
+
+    makfil(fn); /* create file entry as required */
+    if (!opnfil[fn]->sudp && !opnfil[fn]->sec) error(enotsec);
+
+    /* get the certificate */
+    cert = SSL_get_peer_certificate(opnfil[fn]->ssl);
+    if (!cert) error(enocert);
+
+    /* see if we need to get the chain */
+    if (which > 1) {
+
+        certstk = SSL_get_peer_cert_chain(opnfil[fn]->ssl);
+        if (!certstk) {
+
+            /* Zakir Durumeric says that it is possible to get a null chain,
+               even though obviously a single certificate exists (it should
+               be first in chain). So if this happens, we create our own chain
+               and stuff the first certificate in it */
+            certstk = sk_X509_new_null();
+            sk_X509_push(certstk, cert);
+
+        }
+        /* if the certificate number is out of range, return nothing */
+        if (which > sk_X509_num(certstk)) cert = NULL;
+        else cert = sk_X509_value(certstk, which-1);
+
+    }
+
+    if (cert) {
+
+        /* get memory BIO to convert output */
+        bp = BIO_new(BIO_s_mem());
+
+        /* make the top forks */
+        certificate = addend(list, "Certificate"); /* make root */
+        data = addend(&certificate->fork, "Data"); /* make data branch */
+
+        /* Get the different certificate fields. We use openssl's certificate
+           prints as a guide for formatting */
+
+        cdp = addend(&data->fork, "Version");
+        v = X509_get_version(cert)+1;
+        sprintf(buff, "%d", v);
+        filldata(cdp, buff);
+
+        cdp = addend(&data->fork, "Serial Number");
+        sn = X509_get_serialNumber(cert);
+        bn = ASN1_INTEGER_to_BN(sn, NULL);
+        if (!bn) error(enoserl);
+        cp = BN_bn2hex(bn);
+        if (!cp) error(enoserl);
+        l = strlen(cp);
+        j = 0;
+        for (i = 0; i < l; i++)
+            { buff[j++] = *cp++; if (i % 2 && i < l-1) buff[j++] = ':'; }
+        buff[j] = 0;
+        filldata(cdp, buff);
+
+        cdp = addend(&data->fork, "Signature Algorithm");
+        i = X509_get_signature_nid(cert);
+        if (i == NID_undef) error(enosiga);
+        const char* sa = OBJ_nid2ln(i);
+        filldata(cdp, sa);
+
+        cdp = addend(&data->fork, "Issuer");
+        X509_NAME_print_ex(bp, X509_get_issuer_name(cert), 0, 0/*XN_FLAG_SPC_EQ*/);
+        getbio(bp, buff, CVBUFSIZ);
+        filldata(cdp, buff);
+
+        /* start subfork */
+        validity = addend(&data->fork, "Validity");
+
+        cdp = addend(&validity->fork, "Not Before");
+        atp = X509_get_notBefore(cert);
+        r = ASN1_TIME_print(bp, atp);
+        if (r <= 0) error(ewrbio);
+        getbio(bp, buff, CVBUFSIZ);
+        filldata(cdp, buff);
+
+        cdp = addend(&validity->fork, "Not After");
+        atp = X509_get_notAfter(cert);
+        r = ASN1_TIME_print(bp, atp);
+        if (r <= 0) error(ewrbio);
+        getbio(bp, buff, CVBUFSIZ);
+        filldata(cdp, buff);
+
+        cdp = addend(&data->fork, "Subject");
+        X509_NAME_print_ex(bp, X509_get_subject_name(cert), 0, 0/*XN_FLAG_SPC_EQ*/);
+        getbio(bp, buff, CVBUFSIZ);
+        filldata(cdp, buff);
+
+        cdp = addend(&data->fork, "Subject Public Key Info");
+        cdp = addend(&cdp->fork, "Public Key Algorithm");
+        kp = X509_get_X509_PUBKEY(cert); /* get public key */
+        /* get subject public key info */
+        X509_PUBKEY_get0_param(&op, NULL, NULL, NULL, kp);
+        i2a_ASN1_OBJECT(bp, op);
+        getbio(bp, buff, CVBUFSIZ);
+        filldata(cdp, buff);
+
+        /* This one we have to take apart, the routines are buried in OpenSSL */
+        ekp = X509_get0_pubkey(cert);
+        EVP_PKEY_print_public(bp, ekp, 0, NULL);
+        getbio(bp, buff, CVBUFSIZ); /* place in buffer */
+        getnamval(buff, &cdp->fork, 0); /* parse n/v tree */
+
+        extensions = addend(&data->fork, "X509v3 extensions");
+        const STACK_OF(X509_EXTENSION)* esp = X509_get0_extensions(cert);
+        l = X509v3_get_ext_count(esp);
+        for (i = 0; i < l; i++) {
+
+            ep = sk_X509_EXTENSION_value(esp, i);
+            op = X509_EXTENSION_get_object(ep);
+            i2a_ASN1_OBJECT(bp, op);
+            getbio(bp, buff, CVBUFSIZ);
+            cdp = addend(&extensions->fork, buff);
+printf("Extension key: %s\n", buff);
+            cdp->critical = X509_EXTENSION_get_critical(ep);
+            //r = ssl_X509V3_EXT_print(bp, ep, 0);
+            r = X509V3_EXT_print(bp, ep, 0, 0);
+            /* these appear all empty in practice */
+            if (!r) ASN1_STRING_print(bp, X509_EXTENSION_get_data(ep));
+            getbio(bp, buff, CVBUFSIZ);
+printf("Extension data: <start>\n%s\n<end>\n", buff);
+            //filldata(cdp, buff);
+            getnamval(buff, &cdp->fork, 0); /* parse n/v tree */
+
+        }
+
+#if 0
+printf("Signature Algorithm <start>\n");
+        X509_get0_signature(&sig, &sig_alg, cert);
+        X509_signature_print(bp, sig_alg, sig);
+//        getbio(bp, buff, CVBUFSIZ);
+        /* the key contained in the signature is indented. If we remove it, the
+           key will be conforming */
+//        cp = buff;
+//        while (isspace(*cp)) cp++;
+//         = addend(&certificate->fork, "Data"); /* make data branch */
+       prtbio(bp);
+       printf("\n");
+printf("Signature Algorithm before aux print\n");
+
+        X509_aux_print(bp, cert, 0);
+        prtbio(bp);
+        printf("\n");
+printf("Signature Algorithm <end>\n");
+#endif
+
+    }
 
 }
 

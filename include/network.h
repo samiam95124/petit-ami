@@ -59,10 +59,11 @@
 /* name - value pair list */
 typedef struct pa_certfield {
 
-    string               name;  /* name of field */
-    string               data;  /* content of field */
-    struct pa_certfield* fork; /* sublist */
-    struct pa_certfield* next; /* next entry in list */
+    string               name;     /* name of field */
+    string               data;     /* content of field */
+    boolean              critical; /* is a critical X509 field */
+    struct pa_certfield* fork;     /* sublist */
+    struct pa_certfield* next;     /* next entry in list */
 
 } pa_certfield, *pa_certptr;
 

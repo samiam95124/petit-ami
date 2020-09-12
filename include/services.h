@@ -54,18 +54,19 @@ typedef int pa_permset; /* permissions in a set */
 /* standard directory format */
 typedef struct pa_filrec {
 
-    char*             name;   /* name of file */
-    long long         size;   /* size of file */
-    long long         alloc;  /* allocation of file */
-    pa_attrset        attr;   /* attributes */
-    int               create; /* time of creation */
-    int               modify; /* time of last modification */
-    int               access; /* time of last access */
-    int               backup; /* time of last backup */
-    pa_permset        user;   /* user permissions */
-    pa_permset        group;  /* group permissions */
-    pa_permset        other;  /* other permissions */
-    struct pa_filrec* next;   /* next entry in list */
+    char*             name;    /* name of file (zero terminated) */
+    int               namelen; /* length of name of file */
+    long long         size;    /* size of file */
+    long long         alloc;   /* allocation of file */
+    pa_attrset        attr;    /* attributes */
+    int               create;  /* time of creation */
+    int               modify;  /* time of last modification */
+    int               access;  /* time of last access */
+    int               backup;  /* time of last backup */
+    pa_permset        user;    /* user permissions */
+    pa_permset        group;   /* group permissions */
+    pa_permset        other;   /* other permissions */
+    struct pa_filrec* next;    /* next entry in list */
 
 } pa_filrec;
 typedef pa_filrec* pa_filptr; /* pointer to file records */
@@ -73,8 +74,10 @@ typedef pa_filrec* pa_filptr; /* pointer to file records */
 /* environment strings */
 typedef struct pa_envrec {
 
-    char* name; /* name of string */
-    char* data; /* data in string */
+    char* name;    /* name of string (zero terminated) */
+    int   namelen; /* length of name of string */
+    char* data;    /* data in string (zero terminated) */
+    int   datalen; /* length of data in string */
     struct pa_envrec *next; /* next entry in list */
 
 } pa_envrec;

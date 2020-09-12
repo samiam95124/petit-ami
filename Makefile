@@ -269,12 +269,16 @@ prtcertnet: bin/petit_ami_plain.so network_programs/prtcertnet.c Makefile
 prtcertmsg: bin/petit_ami_plain.so network_programs/prtcertmsg.c Makefile
 	$(CC) $(CFLAGS) network_programs/prtcertmsg.c $(PLIBS) -o bin/prtcertmsg
 	
+listcertnet: bin/petit_ami_plain.so network_programs/listcertnet.c Makefile
+	$(CC) $(CFLAGS) network_programs/listcertnet.c $(PLIBS) -o bin/listcertnet
+	
 clean:
 	rm -f bin/dumpmidi bin/lsalsadev bin/alsaparms test bin/play bin/keyboard 
 	rm -f bin/playmidi bin/playwave bin/printdev bin/connectmidi bin/connectwave 
 	rm -f bin/random bin/genwave bin/scntst bin/sndtst bin/event bin/getkeys 
 	rm -f bin/getmouse bin/term bin/snake bin/mine bin/editor bin/getpage
 	rm -f bin/getmail bin/gettys bin/msgclient bin/msgserver bin/prtcertnet
+	rm -f bin/listcertnet
 	rm -f bin/prtcertmsg
 	rm -f linux/*.o
 	rm -f bin/petit_ami_term.a
