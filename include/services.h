@@ -55,14 +55,14 @@ typedef int pa_permset; /* permissions in a set */
 typedef struct pa_filrec {
 
     char*             name;    /* name of file (zero terminated) */
-    int               namelen; /* length of name of file */
+    long              namelen; /* length of name of file */
     long long         size;    /* size of file */
     long long         alloc;   /* allocation of file */
     pa_attrset        attr;    /* attributes */
-    int               create;  /* time of creation */
-    int               modify;  /* time of last modification */
-    int               access;  /* time of last access */
-    int               backup;  /* time of last backup */
+    long              create;  /* time of creation */
+    long              modify;  /* time of last modification */
+    long              access;  /* time of last access */
+    long              backup;  /* time of last backup */
     pa_permset        user;    /* user permissions */
     pa_permset        group;   /* group permissions */
     pa_permset        other;   /* other permissions */
