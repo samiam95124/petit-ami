@@ -278,7 +278,7 @@ static void extwords(char *d, int dl, char *s, int st, int ed)
 Match filenames with wildcards
 
 match with wildcards at the given a and b positions. we use shortest string first
-matching.
+matching. Wildcards are only recognized in string a.
 
 ********************************************************************************/
 
@@ -291,12 +291,13 @@ static int match(char *a, char *b, int ia, int ib)
     m = 1;   /* default to matches */
     while (ia < strlen(a) && ib < strlen(b) && m) {  /* match characters */
 
-        if (a[ia-1] == '*') {  /* multicharacter wildcard, go searching */
+        if (a[ia] == '*') { /* multicharacter wildcard, go searching */
 
             /* skip all wildcards in match expression name. For each '*' or
                '?', we skip one character in the matched name. The idea being
                that '*' means 1 or more matched characters */
-            while (ia < strlen(a) && (a[ia-1] == '?' || a[ia-1] == '*')) {
+            while (ia < strlen(a) && ib < strlen(b) &&
+                   (a[ia] == '?' || a[ia] == '*')) {
 
                 ia++;   /* next character */
                 ib++;
@@ -306,22 +307,14 @@ static int match(char *a, char *b, int ia, int ib)
                or run out of string */
             while (ib < strlen(b) && !match(a, b, ia, ib)) ib++;
             if (ib >= strlen(b)) m = 0; /* didn't match, set false */
-            ib = strlen(b);   /* terminate */
+            else { ia = strlen(a); ib = strlen(b); } /* terminate */
 
-        }
-
-        else if (a[ia-1] != b[ib-1] && a[ia-1] != '?')
-            m = 0; /* fail match */
-        if (!m) {
-
-            ia++;   /* next character */
-            ib++;
-
-        }
+        } else if (a[ia] != b[ib] && a[ia] != '?') m = 0; /* fail match */
+        else { ia++; ib++; }
 
     }
 
-    return m;
+    return ia == strlen(a) && ib == strlen(b);
 
 }
 
@@ -376,7 +369,7 @@ void pa_list(
         if (errno) unixerr(); /* process unix error */
         if (dr) { /* valid next */
 
-            if (match(fn, dr->d_name, 1, 1)) { /* matching filename, add to list */
+            if (match(fn, dr->d_name, 0, 0)) { /* matching filename, add to list */
 
                 fp = malloc(sizeof(pa_filrec)); /* create a new file entry */
                 ls = strlen(dr->d_name); /* get length of string */
