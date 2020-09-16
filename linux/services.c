@@ -1528,15 +1528,24 @@ void pa_maknam(
     int i;   /* index for string */
     int fsi;   /* index for output filename */
 
+    if (strlen(p) > fnl) error("String too large for desination");
     strcpy(fn, p); /* place path */
     /* check path properly terminated */
     i = strlen(p);   /* find length */
     if (*p) /* not null */
-        if (p[i-1] != '/') strcat(fn, "/"); /* add path separator */
+        if (p[i-1] != '/') {
+
+        if (strlen(fn)+1 > fnl) error("String too large for desination");
+        strcat(fn, "/"); /* add path separator */
+
+    }
     /* terminate path */
+    if (strlen(fn)+strlen(n) > fnl) error("String too large for desination");
     strcat(fn, n); /* place name */
     if (*e) {  /* there is an extention */
 
+        if (strlen(fn)+1+strlen(e) > fnl)
+            error("String too large for desination");
         strcat(fn, "."); /* place '.' */
         strcat(fn, e); /* place extension */
 
