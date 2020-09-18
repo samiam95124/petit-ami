@@ -91,8 +91,12 @@ typedef char bufstr[MAXSTR]; /* standard string buffer */
 #define MAXENV 10000 /* maximum number of environment strings */
 
 static bufstr pthstr;   /* buffer for execution path */
+static bufstr langstr;  /* buffer for language country string (locale) */
 
 static pa_envrec *envlst;   /* our environment list */
+
+static int language;    /* current language */
+static int country;     /* current country */
 
 /********************************************************************************
 
@@ -2095,7 +2099,7 @@ int pa_country(void)
 
 {
 
-    return 840; /* USA */
+    return country; /* USA */
 
 }
 
@@ -2373,7 +2377,8 @@ countryety countrytab[] = {
     { "Western Sahara",                                       "EH", 732 },
     { "Yemen",                                                "YE", 887 },
     { "Zambia",                                               "ZM", 894 },
-    { "Zimbabwe",                                             "ZW", 716 }
+    { "Zimbabwe",                                             "ZW", 716 },
+    { 0,                                                      0,    0   }
 
 };
 
@@ -2384,7 +2389,7 @@ void pa_countrys(
 
 {
 
-    countryety* p; /* pointer to language entry */
+    countryety* p; /* pointer to country entry */
 
     p = countrytab;
     while (p->countrynum && p->countrynum != c) p++;
@@ -2486,7 +2491,7 @@ int pa_language(void)
 
 {
 
-    return 30; /* english */
+    return language; /* english */
 
 }
 
@@ -2515,7 +2520,7 @@ typedef struct {
 
 } langety;
 
-langety langtab[] = {
+static langety langtab[] = {
 
     /* # name                      639-1 */
     { 1,   "Abkhaz",                                              "ab" },
@@ -2701,7 +2706,8 @@ langety langtab[] = {
     { 181, "Yiddish",                                             "yi" },
     { 182, "Yoruba",                                              "yo" },
     { 183, "Zhuang, Chuang",                                      "za" },
-    { 184, "Zulu",                                                "zu" }
+    { 184, "Zulu",                                                "zu" },
+    { 0,   0,                                                     0    }
 
 };
 
@@ -2883,14 +2889,17 @@ static void pa_init_services()
 
 {
 
-    int        envlen; /* number of environment strings */
-    char**     ep;     /* unix environment string table */
-    int        ei;     /* index for string table */
-    int        si;     /* index for strings */
-    pa_envrec* p;      /* environment entry pointer */
-    pa_envrec* p1;
-    char*      cp;
-    int        l;
+    int         envlen; /* number of environment strings */
+    char**      ep;     /* unix environment string table */
+    int         ei;     /* index for string table */
+    int         si;     /* index for strings */
+    pa_envrec*  p;      /* environment entry pointer */
+    langety*    lp;     /* pointer to language entry */
+    countryety* ctp;    /* pointer to language entry */
+    pa_envrec*  p1;
+    char*       cp;
+    int         l;
+
 
     /* Copy environment to local */
     envlst = NULL;   /* clear environment strings */
@@ -2926,6 +2935,56 @@ static void pa_init_services()
      }
     pa_getenv("PATH", pthstr, MAXSTR); /* load up the current path */
     trim(pthstr); /* make sure left aligned */
+    pa_getenv("LANG", langstr, MAXSTR); /* get locale */
+    trim(langstr); /* clean */
+
+    /* set default language and country */
+    language = 30; /* english */
+    country = 840; /* USA */
+
+    /* the (misnamed) LANG environment variable contains the locale in the
+       format:
+
+           ll_cc.UTF-8
+
+       Where language is ll, and country cc. It used to end with the local
+       character set, but that is obsolete, and is always UTF-* now.
+
+       We perform a few validation checks, then set the language and country
+       according to the code. From the country code, all of the other location
+       dependent characteristics are derived, such as date and time format,
+       currency symbol, decimal point character, numbers separator, etc.
+     */
+
+     if (strlen(langstr) >= 5)
+
+         /* search language */
+         lp = langtab;
+         while (lp && lp->langnum) {
+
+             if (!strncmp(langstr, lp->langnamea2c, 2)) {
+
+                 language = lp->langnum;
+                 lp = 0;
+
+             } else lp++;
+
+         }
+
+         /* search country */
+         ctp = countrytab;
+         while (ctp && ctp->countrynum) {
+
+             if (!strncmp(&langstr[3], ctp->countrya2c, 2)) {
+
+                 country = ctp->countrynum;
+                 ctp = 0;
+
+             } else ctp++;
+
+         }
+
+
 
 }
 
