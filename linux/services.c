@@ -2956,7 +2956,7 @@ static void pa_init_services()
        currency symbol, decimal point character, numbers separator, etc.
      */
 
-     if (strlen(langstr) >= 5)
+     if (strlen(langstr) >= 6 && langstr[2] == '_' && langstr[5] == '.')
 
          /* search language */
          lp = langtab;
