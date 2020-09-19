@@ -1,0 +1,12 @@
+Installing Petit-ami
+
+Installation of Petit-ami really just consists of unpacking the
+library an executing:
+
+. setpath
+
+To set up the binaries for execution.
+
+To ease having to install all the packages Petit-ami
+relies on, I have created the bin/install script. It does a
+package install of all the libraries Petit-ami uses.

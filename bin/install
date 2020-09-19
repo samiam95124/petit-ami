@@ -1,0 +1,10 @@
+#!/bin/bash
+#
+# Script to get common packages used by petit-ami.
+#
+sudo apt-get install alsa alsa-tools
+sudo apt-get install libasound2-dev
+sudo apt-get install openssl
+sudo apt-get install libssl-dev
+sudo apt-get install fluidsynth
+sudo apt install libfluidsynth-dev
