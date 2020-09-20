@@ -15,6 +15,10 @@
 *                                                                              *
 * 1. This version is US english only. Need translations according to locale.   *
 *                                                                              *
+* Functions to be changed to translations: pa_dateorder(), pa_datesep(),       *
+* pa_timesep(), pa_currchar(), pa_timeorder(), pa_numbersep(), pa_decimal(),   *
+* pa_time24hour().
+*                                                                              *
 *                          BSD LICENSE INFORMATION                             *
 *                                                                              *
 * Copyright (C) 2019 - Scott A. Franco                                         *
@@ -1954,10 +1958,11 @@ void pa_filchr(pa_chrset fc)
 
     /* clear set */
     for (i = 0; i < SETLEN; i++) fc[i] = 0;
+
     /* add everything but control characters and space */
-    for (i = ' '+1; i <= 0x7f; i++) ADDSET(fc, i);
-    SUBSET(fc, '-'); /* add option character */
-    SUBSET(fc, pa_pthchr()); /* add path character */
+    for (i = ' '+1; i <= 0x7e; i++) ADDSET(fc, i);
+    SUBSET(fc, '-'); /* remove option character */
+    SUBSET(fc, pa_pthchr()); /* remove path character */
 
 }
 
@@ -2023,6 +2028,8 @@ int pa_latitude(void)
 
 {
 
+    return 0;
+
 }
 
 /** ****************************************************************************
@@ -2047,6 +2054,8 @@ A mobile host is constantly reading its location (usually from a GPS).
 int pa_longitude(void)
 
 {
+
+    return 0;
 
 }
 
@@ -2764,12 +2773,12 @@ Find the time order
 
 Returns a code for order of time presentation, which is:
 
-1   hour-minute-second
-2   hour-second-minute
-3   minute-hour-second
-4   minute-second-hour
-5   second-minute-hour
-6   second-minute-hour
+1   hour:minute:second
+2   hour:second:minute
+3   minute:hour:second
+4   minute:second:hour
+5   second:minute:hour
+6   second:minute:hour
 
 The #1 format is the recommended standard for international exchange and is
 compatible with computer sorting. Thus it can be common to override the local
@@ -2954,6 +2963,9 @@ static void pa_init_services()
        according to the code. From the country code, all of the other location
        dependent characteristics are derived, such as date and time format,
        currency symbol, decimal point character, numbers separator, etc.
+
+       Note that if the $LANG variable is not found, or not formatted correctly,
+       or does not contain valid contents, we fall back to defaults above.
      */
 
      if (strlen(langstr) >= 6 && langstr[2] == '_' && langstr[5] == '.')
