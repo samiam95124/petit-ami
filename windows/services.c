@@ -194,7 +194,7 @@ static void extract(char *d, int l, char *s, int st, int ed)
 
     char *ds = d;
 
-    if (ed-st+1 > l) error("String too large for desination");
+    if (ed-st+1 > l) error("String too large for destination");
     while (st <= ed) *d++ = s[st++];
     *d = 0;
 
@@ -298,6 +298,78 @@ static void extwords(char *d, int dl, char *s, int st, int ed)
 
     }
     *d = 0;
+
+}
+
+/*******************************************************************************
+
+Place character in string
+
+Places the given character in the space padded string buffer, with full error
+checking.
+
+*******************************************************************************/
+
+void plcstr(char* s,  /* string to place */
+            int   sl, /* length */
+            int*  i,  /* index */
+            char  c)  /* character to place */
+
+{
+
+   /* check overflow */
+   if (*i > sl+1) error("Name too long for buffer");
+   s[*i] = c; /* place character */
+   *i++; /* next */
+
+}
+
+/******************************************************************************
+
+Extract 1st word
+
+Gets the first space terminated word from the given string. If it is quoted,
+it will get all of the contents within the quotes, including spaces.
+
+******************************************************************************/
+
+void fstwrd(char* s,  /* string containing word */
+            char* d,  /* word */
+            int   dl) /* length of word buffer */
+
+{
+
+    int i, x; /* string indexes */
+
+    i = 1; /* index 1st character of destination */
+    x = 1; /* index 1st character of source */
+    while (s[x] && s[x] == ' ') x++; /* skip leading spaces */
+    if (s[x] == '"') { /* quoted string */
+
+        x++; /* skip leading quote */
+        if (s[x]) { /* still in valid string */
+
+            while (s[x] && s[x] != '"') { /* transfer non-quote */
+
+                plcstr(d, dl, &i, s[x]); /* place character */
+                x++; /* next */
+
+            }
+            if (s[x] != '"') plcstr(d, dl, &i, s[x]);
+
+        }
+
+    } else { /* use space delimited method */
+
+        while (s[x] && s[x] != ' ') { /* transfer non-space */
+
+            plcstr(d, dl, &i, s[x]); /* place character */
+            x = x+1; /* next */
+
+        }
+        if (s[x] != ' ') plcstr(d, dl, &i, s[x]); /* place last */
+
+    }
 
 }
 
@@ -1078,7 +1150,7 @@ void cmdpth(
             trim(pc);   /* make sure left aligned */
             while (*pc != 0) {  /* match path components */
 
-                cp = strchr(pc, ':' /*pa_pthchr()*/); /* find next path separator */
+                cp = strchr(pc, pa_pthchr()); /* find next path separator */
                 if (!cp) {  /* none left, use entire remaining */
 
                     strcpy(p, pc); /* none left, use entire remaining */
@@ -1161,7 +1233,7 @@ void execwin(char* cmd,   /* command to execute */
     si.hStdInput = 0;
     si.hStdOutput = 0;
     si.hStdError = 0;
-    fstwrd(cmd, strlen(cmd), fn, 1, 1); /* get filespec from command line */
+    fstwrd(cmd, fn, MAXSTR); /* get filespec from command line */
     brknam(fn, p, n, e); /* break down filespec */
     if (e[1] == ' ') strcpy(e, "exe"); /* add back missing command extension */
     maknam(fn, p, n, e); /* reconstruct */
@@ -1549,8 +1621,6 @@ Get program path
 There is no direct call for program path. So we get the command line, and
 extract the program path from that.
 
-Note: this does not work for standard CLIB programs. We need another solution.
-
 ********************************************************************************/
 
 void pa_getpgm(
@@ -1559,12 +1629,50 @@ void pa_getpgm(
 )
 {
 
-    bufstr pn;   /* program name holder */
-    bufstr n, e;   /* name component holders */
+    char*  cp;   /* command line holder */
+    bufstr cb;   /* command buffer */
+    bufstr n, e; /* path components */
+    bufstr path; /* execution path */
+    int    i;    /* index for path */
+    int    f;    /* path found */
+    char*  sp;
 
-    strcpy(pn, program_invocation_name); /* copy invoke name to path */
-    pa_fulnam(pn, MAXSTR);   /* clean that */
-    pa_brknam(pn, p, pl, n, MAXSTR, e, MAXSTR); /* extract path from that */
+    cp = GetCommandLine(); /* get the command line */
+    fstwrd(cp, cb, MAXSTR); /* get command */
+    pa_brknam(cb, p, pl, n, MAXSTR, e, MAXSTR); /* break off the path */
+    if (!*p) { /* no path provided, we must search for it */
+
+        /* try current directory */
+        pa_getcur(p, pl); /* get current path */
+        pa_maknam(cb, MAXSTR, p, n, "exe"); /* construct name with that path */
+        if (!exists(cb)) { /* try search path */
+
+            pa_getenv("path", path, MAXSTR);
+            f = 0; /* set path not found */
+            while (*path && !f) { /* search path */
+
+                sp = strchr(path, ';'); /* find next path separator */
+                if (!sp) { /* none, the rest is the path */
+
+                    strcpy(p, path); /* place all in path */
+                    *path = 0; /* clear the path */
+
+                } else { /* break off next segment */
+
+                    extract(p, pl, path, 1, i-1); /* place path */
+                    /* extract the rest as remainer */
+                    extract(path, MAXSTR, path, i+1, strlen(path));
+
+                }
+                pa_maknam(cb, MAXSTR, p, n, "exe"); /* construct name with that path */
+                f = exists(cb); /* check that exists */
+
+            }
+            if (!f) error("Cannot determine program path");
+
+        }
+
+    }
 
 }
 
@@ -1595,41 +1703,48 @@ void pa_getusr(
     /** pathname */        char *fn,
     /** pathname length */ int fnl
 )
+
 {
 
-    bufstr b, b1;   /* buffer for result */
-    int i, f;
-    char* envnam[] = { "home", "userhome", "userdir", "user", "username",
-                       "HOME", "USERHOME", "USERDIR", "USER", "USERNAME",
-                       0 };
+    bufstr b, b1; /* buffer for result */
 
-    *fn = 0; /* clear result */
-    /* find applicable environment names, in order */
-    for (i = 0, f = -1; envnam[i] && f == -1; i++) {
+    pa_getenv("home", b, MAXSTR);
+    if (!*b) { /* not found */
 
-        pa_getenv(envnam[i], b, MAXSTR);
-        if (*b && f < 0) f = i;
+        pa_getenv("userhome", b, MAXSTR);
+        if (!*b) { /* not found */
 
-    }
-    if (f >= 0) {
+            pa_getenv("userdir", b, MAXSTR);
+            if (!*b) { /* not found */
 
-        /* check names used to derive path */
-        if (!strcmp(envnam[f], "user") || !strcmp(envnam[f], "USER") ||
-            !strcmp(envnam[f], "username") || !strcmp(envnam[f], "USERNAME")) {
+                pa_getenv("user", b, MAXSTR);
+                if (!*b) { /* path that */
 
-            strcpy(b1, b); /* copy */
-            strcpy(b, "/home/"); /* set prefix */
-            strcat(b, b1); /* combine */
+                    strcpy(b1, b); /* copy */
+                    strcpy(b, "\\user\\"); /* set prefix */
+                    strcat(b, b1); /* combine */
+
+                } else { /* not found */
+
+                    pa_getenv("username", b, MAXSTR);
+                    if (!*b) { /* path that */
+
+                        strcpy(b1, b); /* copy */
+                        strcpy(b, "\\user\\"); /* set prefix */
+                        strcat(b, b1); /* combine */
+
+                    } else
+                        pa_getpgm(b, MAXSTR); /* all fails, set to program path */
+
+                }
+
+            }
 
         }
 
-    } else {
-
-        /* all fails, set to program path */
-        pa_getpgm(b, MAXSTR);
-
     }
-    strcpy(fn, b); /* place result */
+    if (strlen(b) > fnl+1) error("String too large for destination");
+    strcpy(fn, b); /* copy into place */
 
 }
 
@@ -1643,9 +1758,20 @@ possible. This is done with makpth.
 ********************************************************************************/
 
 void pa_setatr(char *fn, pa_attrset a)
+
 {
 
-    /* no unix attributes can be set */
+    int fa; /* attribute words */
+    int r;  /* result holder */
+
+    fa = GetFileAttributes(fn); /* get existing attributes on file */
+    if (fa < 0) winerr(); /* error, process */
+    /* built attributes equivalent word */
+    fa = 0;
+    if (INISET(a, pa_atarc)) fa |= FILE_ATTRIBUTE_ARCHIVE;
+    if (INISET(a, pa_atsys)) fa |= FILE_ATTRIBUTE_SYSTEM;
+    r = SetFileAttributes(fn, fa); /* set attributes */
+    if (!r) winerr(); /* error, process */
 
 }
 
@@ -1661,7 +1787,17 @@ possible.
 void pa_resatr(char *fn, pa_attrset a)
 {
 
-    /* no unix attributes can be reset */
+    int fa; /* attribute words */
+    int r;  /* result holder */
+
+    fa = GetFileAttributes(fn); /* get existing attributes on file */
+    if (fa < 0) winerr(); /* error, process */
+    /* built attributes equivalent word */
+    fa = 0;
+    if (INISET(a, pa_atarc)) fa &= ~FILE_ATTRIBUTE_ARCHIVE;
+    if (INISET(a, pa_atsys)) fa = fa & ~FILE_ATTRIBUTE_SYSTEM;
+    r = SetFileAttributes(fn, fa); /* set attributes */
+    if (!r) winerr(); /* error, process */
 
 }
 
@@ -1690,20 +1826,26 @@ Sets user permisions
 ********************************************************************************/
 
 void pa_setuper(char *fn, pa_permset p)
+
 {
 
-    struct stat sr; /* stat() record */
-    int          r; /* result code */
+    int fa; /* attribute words */
+    int r;  /* result holder */
 
-    r = stat(fn, &sr);   /* get stat structure on file */
-    if (r < 0)   /* process unix error */
-    unixerr();
-    sr.st_mode &= 0777; /* mask permissions */
-    if (BIT(pa_pmread) & p) sr.st_mode |= S_IRUSR; /* set read */
-    if (BIT(pa_pmwrite) & p) sr.st_mode |= S_IWUSR; /* set write */
-    if (BIT(pa_pmexec) & p) sr.st_mode |= S_IXUSR; /* set execute */
-    r = chmod(fn, sr.st_mode); /* set mode */
-    if (r < 0) unixerr();  /* process unix error */
+    fa = GetFileAttributes(fn); /* get existing attributes on file */
+    if (fa < 0) winerr(); /* error, process */
+    /* built attributes equivalent word */
+    fa = 0;
+    if (INISET(p, pa_pmwrite)) fa = fa & !FILE_ATTRIBUTE_READONLY;
+    if (INISET(p, pa_pmvis)) {
+
+        /* remove hidden and system bits, if set */
+        if (fa & FILE_ATTRIBUTE_HIDDEN) fa = fa & ~FILE_ATTRIBUTE_HIDDEN;
+        if (fa & FILE_ATTRIBUTE_SYSTEM) fa = fa & ~FILE_ATTRIBUTE_SYSTEM;
+
+    }
+    r = setfileattributes(fn, fa); /* set attributes */
+    if (!r) winerr(); /* error, process */
 
 }
 
@@ -1717,19 +1859,20 @@ Resets user permissions.
 ********************************************************************************/
 
 void pa_resuper(char *fn, pa_permset p)
+
 {
 
-    struct stat sr;   /* stat() record */
-    int         r;    /* result code */
+    int fa; /* attribute words */
+    int r;  /* result holder */
 
-    r = stat(fn, &sr);   /* get stat structure on file */
-    if (r < 0) unixerr();  /* process unix error */
-    sr.st_mode &= 0777;   /* mask permissions */
-    if (BIT(pa_pmread) & p) sr.st_mode &= ~S_IRUSR; /* set read */
-    if (BIT(pa_pmwrite) & p) sr.st_mode &= ~S_IWUSR; /* set write */
-    if (BIT(pa_pmexec) & p) sr.st_mode &= ~S_IXUSR; /* set execute */
-    r = chmod(fn, sr.st_mode);   /* set mode */
-    if (r < 0) unixerr();  /* process unix error */
+   fa = GetFileattributes(fn); /* get existing attributes on file */
+   if (fa < 0) winerr(); /* error, process */
+   /* built attributes equivalent word */
+   fa = 0;
+   if (INISET(p, pa_pmwrite)) fa = fa | FILE_ATTRIBUTE_READONLY;
+   if (INISET(p, pa_pmvis)) fa = fa | FILE_ATTRIBUTE_HIDDEN;
+   r = SetFileAttributes(fn, fa); /* set attributes */
+   if (!r) winerr(); /* error, process */
 
 }
 
@@ -1738,24 +1881,13 @@ void pa_resuper(char *fn, pa_permset p)
 
 Set group permissions
 
-Sets group permissions.
+Sets group permissions. This is a no-op.
 
 ********************************************************************************/
 
 void pa_setgper(char *fn, pa_permset p)
+
 {
-
-    struct stat sr;   /* stat() record */
-    int r;   /* result code */
-
-    r = stat(fn, &sr); /* get stat structure on file */
-    if (r < 0) unixerr(); /* process unix error */
-    sr.st_mode &= 0777;   /* mask permissions */
-    if (BIT(pa_pmread) & p) sr.st_mode |= S_IRGRP;  /* set read */
-    if (BIT(pa_pmwrite) & p) sr.st_mode |= S_IWGRP;  /* set write */
-    if (BIT(pa_pmexec) & p) sr.st_mode |= S_IXGRP;  /* set execute */
-    r = chmod(fn, sr.st_mode);   /* set mode */
-    if (r < 0) unixerr();  /* process unix error */
 
 }
 
@@ -1764,23 +1896,13 @@ void pa_setgper(char *fn, pa_permset p)
 
 Reset group permissions
 
-Resets group permissions.
+Resets group permissions. This is a no-op.
 
 ********************************************************************************/
 
 void pa_resgper(char *fn, pa_permset p)
-{
-    struct stat sr; /* stat() record */
-    int         r;  /* result code */
 
-    r = stat(fn, &sr); /* get stat structure on file */
-    if (r < 0) unixerr(); /* process unix error */
-    sr.st_mode &= 0777;   /* mask permissions */
-    if (BIT(pa_pmread) & p)  sr.st_mode &= ~S_IRGRP; /* set read */
-    if (BIT(pa_pmwrite) & p) sr.st_mode &= ~S_IWGRP;  /* set write */
-    if (BIT(pa_pmexec) & p) sr.st_mode &= ~S_IXGRP;  /* set execute */
-    r = chmod(fn, sr.st_mode);   /* set mode */
-    if (r < 0) unixerr();  /* process unix error */
+{
 
 }
 
@@ -1789,24 +1911,13 @@ void pa_resgper(char *fn, pa_permset p)
 
 Set other (global) permissions
 
-Sets other permissions.
+Sets other permissions. This is a no-op.
 
 ********************************************************************************/
 
 void pa_setoper(char *fn, pa_permset p)
+
 {
-
-    struct stat sr; /* stat() record */
-    int         r;  /* result code */
-
-    r = stat(fn, &sr);   /* get stat structure on file */
-    if (r < 0) unixerr();  /* process unix error */
-    sr.st_mode &= 0777;   /* mask permissions */
-    if (BIT(pa_pmread) & p) sr.st_mode |= S_IROTH;  /* set read */
-    if (BIT(pa_pmwrite) & p) sr.st_mode |= S_IWOTH;  /* set write */
-    if (BIT(pa_pmexec) & p) sr.st_mode |= S_IXOTH;  /* set execute */
-    r = chmod(fn, sr.st_mode);   /* set mode */
-    if (r < 0) unixerr();  /* process unix error */
 
 }
 
@@ -1815,24 +1926,12 @@ void pa_setoper(char *fn, pa_permset p)
 
 Reset other (global) permissions
 
-Resets other permissions.
+Resets other permissions. This is a no-op.
 
 ********************************************************************************/
 
 void pa_resoper(char *fn, pa_permset p)
 {
-
-    struct stat sr; /* stat() record */
-    int         r;  /* result code */
-
-    r = stat(fn, &sr); /* get stat structure on file */
-    if (r < 0) unixerr(); /* process unix error */
-    sr.st_mode &= 0777; /* mask permissions */
-    if (BIT(pa_pmread) & p) sr.st_mode &= ~S_IROTH; /* set read */
-    if (BIT(pa_pmwrite) & p) sr.st_mode &= ~S_IWOTH; /* set write */
-    if (BIT(pa_pmexec) & p) sr.st_mode &= ~S_IXOTH; /* set execute */
-    r = chmod(fn, sr.st_mode); /* set mode */
-    if (r < 0) unixerr(); /* process unix error */
 
 }
 
@@ -1847,13 +1946,10 @@ Create a new path. Only one new level at a time may be created.
 void pa_makpth(char *fn)
 {
 
-    int r;   /* result code */
+    int r; /* result */
 
-    /* make directory, give all permissions allowable */
-    r = mkdir(fn,
-        S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP |
-        S_IROTH | S_IWOTH | S_IXOTH);
-    if (r < 0) unixerr(); /* process unix error */
+    r = CreateDirectory(fn, 0); /* create the directory */
+    if (!r) winerr(); /* process error */
 
 }
 
@@ -1870,8 +1966,8 @@ void pa_rempth(char *fn)
 
     int r;   /* result code */
 
-    r = rmdir(fn); /* remove directory */
-    if (r < 0) unixerr(); /* process unix error */
+    r = RemoveDirectory(fn); /* create the directory */
+    if (r < 0) winerr(); /* process unix error */
 
 
 }
@@ -1909,12 +2005,13 @@ void pa_filchr(pa_chrset fc)
     int i;
 
     /* clear set */
-    for (i = 0; i < SETLEN; i++) fc[i] = 0;
+    for (i = 0; i < CSETLEN; i++) fc[i] = 0;
 
     /* add everything but control characters and space */
-    for (i = ' '+1; i <= 0x7e; i++) ADDSET(fc, i);
-    SUBSET(fc, '/'); /* remove option character */
-    SUBSET(fc, pa_pthchr()); /* remove path character */
+    for (i = ' '+1; i <= 0x7e; i++) ADDCSET(fc, i);
+    SUBCSET(fc, '/'); /* remove option character */
+    SUBCSET(fc, pa_pthchr()); /* remove path character */
+    SUBCSET(fc, '"'); /* remove quote */
 
 }
 
@@ -2373,19 +2470,14 @@ int pa_timezone(void)
 
 {
 
-    time_t t, nt;  /* seconds time holder */
-    struct tm gmt; /* time structure gmt */
-    struct tm lcl; /* local time structure */
+    TIME_ZONE_INFORMATION tz; /* time zone information structure */
+    DWORD r;
 
-    t = time(NULL); /* get seconds time */
-    gmtime_r(&t, &gmt); /* get gmt */
-    localtime_r(&t, &lcl); /* get local */
-    nt = (lcl.tm_hour-gmt.tm_hour)*HOURSEC-(!!lcl.tm_isdst*HOURSEC);
-    /* adjust for GMT ahead of local */
-    if (lcl.tm_mday = gmt.tm_mday) nt -= 24*HOURSEC;
+    r = GetTimeZoneInformation(&tz);
+    if (r == TIME_ZONE_ID_INVALID) winerr(); /* flag stop */
 
-    /* return hour difference */
-    return nt;
+    /* change the direction of bias to UTC to local and return */
+    return (-tz.Bias);
 
 }
 
@@ -2410,13 +2502,14 @@ int pa_daysave(void)
 
 {
 
-    time_t t; /* seconds time holder */
-    struct tm* plcl; /* local time structure */
+    TIME_ZONE_INFORMATION tz; /* time zone information structure */
+    DWORD r;
 
-    t = time(NULL); /* get seconds time */
-    plcl = localtime(&t); /* get local */
+    r = GetTimeZoneInformation(&tz);
+    if (r == TIME_ZONE_ID_INVALID) winerr(); /* flag stop */
 
-    return !!plcl->tm_isdst; /* return dst active status */
+    /* change the direction of bias to UTC to local and return */
+    return (r == TIME_ZONE_ID_DAYLIGHT);
 
 }
 
@@ -2537,7 +2630,7 @@ static langety langtab[] = {
     { 51,  "Georgian",                                            "ka" },
     { 52,  "German",                                              "de" },
     { 53,  "Greek (modern)",                                      "el" },
-    { 54,  "GuaranÃ­",                                             "gn" },
+    { 54,  "Guarani",                                             "gn" },
     { 55,  "Gujarati",                                            "gu" },
     { 56,  "Haitian, Haitian Creole",                             "ht" },
     { 57,  "Hausa",                                               "ha" },
@@ -2587,8 +2680,8 @@ static langety langtab[] = {
     { 101, "Malay",                                               "ms" },
     { 102, "Malayalam",                                           "ml" },
     { 103, "Maltese",                                             "mt" },
-    { 104, "MÄ�ori",                                               "mi" },
-    { 105, "Marathi (MarÄ�á¹­hÄ«)",                                   "mr" },
+    { 104, "Maori",                                               "mi" },
+    { 105, "Marathi",                                             "mr" },
     { 106, "Marshallese",                                         "mh" },
     { 107, "Mongolian",                                           "mn" },
     { 108, "Nauruan",                                             "na" },
@@ -2596,7 +2689,7 @@ static langety langtab[] = {
     { 110, "Northern Ndebele",                                    "nd" },
     { 111, "Nepali",                                              "ne" },
     { 112, "Ndonga",                                              "ng" },
-    { 113, "Norwegian BokmÃ¥l",                                    "nb" },
+    { 113, "Norwegian Bokmal",                                    "nb" },
     { 114, "Norwegian Nynorsk",                                   "nn" },
     { 115, "Norwegian",                                           "no" },
     { 116, "Nuosu",                                               "ii" },
@@ -2608,7 +2701,7 @@ static langety langtab[] = {
     { 122, "Oriya",                                               "or" },
     { 123, "Ossetian, Ossetic",                                   "os" },
     { 124, "(Eastern) Punjabi",                                   "pa" },
-    { 125, "PÄ�li",                                                "pi" },
+    { 125, "Pali",                                                "pi" },
     { 126, "Persian (Farsi)",                                     "fa" },
     { 127, "Polish",                                              "pl" },
     { 128, "Pashto, Pushto",                                      "ps" },
@@ -2618,7 +2711,7 @@ static langety langtab[] = {
     { 132, "Kirundi",                                             "rn" },
     { 133, "Romanian",                                            "ro" },
     { 134, "Russian",                                             "ru" },
-    { 135, "Sanskrit (Saá¹�ská¹›ta)",                                 "sa" },
+    { 135, "Sanskrit",                                            "sa" },
     { 136, "Sardinian",                                           "sc" },
     { 137, "Sindhi",                                              "sd" },
     { 138, "Northern Sami",                                       "se" },
@@ -2658,7 +2751,7 @@ static langety langtab[] = {
     { 172, "Uzbek",                                               "uz" },
     { 173, "Venda",                                               "ve" },
     { 174, "Vietnamese",                                          "vi" },
-    { 175, "VolapÃ¼k",                                             "vo" },
+    { 175, "Volapuk",                                             "vo" },
     { 176, "Walloon",                                             "wa" },
     { 177, "Welsh",                                               "cy" },
     { 178, "Wolof",                                               "wo" },
@@ -2857,32 +2950,29 @@ static void pa_init_services()
     pa_envrec*  p;      /* environment entry pointer */
     langety*    lp;     /* pointer to language entry */
     countryety* ctp;    /* pointer to language entry */
+    char*       evstbl; /* Windows environment string block pointer */
+    bufstr      name;   /* save for variable name */
     pa_envrec*  p1;
     char*       cp;
+    char*       np;
     int         l;
-
 
     /* Copy environment to local */
     envlst = NULL;   /* clear environment strings */
-    ep = environ;   /* get unix environment pointers */
-    while (*ep != NULL) {  /* copy environment strings */
+    evstbl = GetEnvironmentStrings(); /* get windows environment string block */
+    while (*evstbl) { /* not end of table */
 
-        p = malloc(sizeof(pa_envrec)); /* get a new environment entry */
-        p->next = envlst; /* push onto environment list */
-        envlst = p;
-        cp = strchr(*ep, '='); /* find location of '=' */
-        if (!cp) error("Invalid environment string format");
-        /* get the name string */
-        l = cp-*ep;
-        p->name = malloc(l+1);
-        extract(p->name, l, *ep, 0, cp-*ep-1);
-        /* get the data string */
-        l = strlen(*ep)-(cp-*ep+1);
-        p->data = malloc(l+1);
-        extract(p->data, l, *ep, cp+1-*ep, strlen(*ep)-1);
-        ep++; /* next environment string */
+        cp = evstbl; /* index string */
+        np = name; /* index name buffer */
+        while (*cp && *cp != '=') *np++ = *cp++; /* skip to '=' */
+        *np = 0; /* terminate name */
+        if (cp && *cp == '=') cp++; /* skip '=' */
+        pa_setenv(name, cp); /* register that variable */
+        while (*cp++);
+        evstbl = cp; /* move to next entry or end */
 
     }
+
     /* reverse the environment to original order for neatness */
     p = envlst;
     envlst = NULL;
@@ -2893,62 +2983,14 @@ static void pa_init_services()
         p1->next = envlst;
         envlst = p1;
 
-     }
+    }
+
     pa_getenv("PATH", pthstr, MAXSTR); /* load up the current path */
     trim(pthstr); /* make sure left aligned */
-    pa_getenv("LANG", langstr, MAXSTR); /* get locale */
-    trim(langstr); /* clean */
 
     /* set default language and country */
     language = 30; /* english */
     country = 840; /* USA */
-
-    /* the (misnamed) LANG environment variable contains the locale in the
-       format:
-
-           ll_cc.UTF-8
-
-       Where language is ll, and country cc. It used to end with the local
-       character set, but that is obsolete, and is always UTF-* now.
-
-       We perform a few validation checks, then set the language and country
-       according to the code. From the country code, all of the other location
-       dependent characteristics are derived, such as date and time format,
-       currency symbol, decimal point character, numbers separator, etc.
-
-       Note that if the $LANG variable is not found, or not formatted correctly,
-       or does not contain valid contents, we fall back to defaults above.
-     */
-
-     if (strlen(langstr) >= 6 && langstr[2] == '_' && langstr[5] == '.')
-
-         /* search language */
-         lp = langtab;
-         while (lp && lp->langnum) {
-
-             if (!strncmp(langstr, lp->langnamea2c, 2)) {
-
-                 language = lp->langnum;
-                 lp = 0;
-
-             } else lp++;
-
-         }
-
-         /* search country */
-         ctp = countrytab;
-         while (ctp && ctp->countrynum) {
-
-             if (!strncmp(&langstr[3], ctp->countrya2c, 2)) {
-
-                 country = ctp->countrynum;
-                 ctp = 0;
-
-             } else ctp++;
-
-         }
-
-
 
 }
 

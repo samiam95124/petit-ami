@@ -19,11 +19,21 @@
  * These are used to change the character set that defines what characters
  * are admissible in filenames.
  */
-#define SETLEN 32 /* length of char set */
-#define INSET(s, b) (s[b>>3] & 1<<b%8) /* test inclusion */
-#define ADDSET(s, b) (s[b>>3] |= 1<<b%8) /* add set member */
-#define SUBSET(s, b) (s[b>>3] &= ~(1<<b%8)) /* remove set member */
-#define CLRSET(s) { int i; for (i = 0; i < SETLEN; i++) s[i] = 0; } /* clear set */
+#define CSETLEN 32 /* length of char set */
+#define INCSET(s, b) (s[b>>3] & 1<<b%8) /* test inclusion */
+#define ADDCSET(s, b) (s[b>>3] |= 1<<b%8) /* add set member */
+#define SUBCSET(s, b) (s[b>>3] &= ~(1<<b%8)) /* remove set member */
+#define CLRCSET(s) { int i; for (i = 0; i < SETLEN; i++) s[i] = 0; } /* clear set */
+
+/*
+ * Set manipulation operators for integer sets.
+ *
+ * These are used to change the character set that defines what characters
+ * are admissible in filenames.
+ */
+#define INISET(s, b) (s & 1<<b%8) /* test inclusion */
+#define ADDISET(s, b) (s |= 1<<b%8) /* add set member */
+#define SUBISET(s, b) (s &= ~(1<<b%8)) /* remove set member */
 
 /* attributes */
 typedef enum {
@@ -81,7 +91,7 @@ typedef struct pa_envrec {
 typedef pa_envrec* pa_envptr; /* pointer to environment record */
 
 /* character set */
-typedef unsigned char pa_chrset[SETLEN];
+typedef unsigned char pa_chrset[CSETLEN];
 
 /*
  * Functions exposed in the services module
