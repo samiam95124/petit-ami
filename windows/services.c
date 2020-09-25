@@ -114,6 +114,9 @@ static pa_envrec *envlst;   /* our environment list */
 static int language;    /* current language */
 static int country;     /* current country */
 
+void pa_brknam(char *fn, char *p, int pl, char *n, int nl, char *e, int el);
+void pa_maknam(char *fn, int fnl, char *p, char *n, char *e);
+
 /********************************************************************************
 
 Process string library error
@@ -386,19 +389,22 @@ to the beginning of the year 2000. As this program is written, that is a
 negative number which is counting up to 0. After the year 2000, it will be
 counting up.
 
+The result time is 32 bits on a 32 bit machine and 64 bits on a 64 bit machine.
+
 ********************************************************************************/
 
-int filetimetoseconds(FILETIME* ft)
+long filetimetoseconds(FILETIME* ft)
 
 {
 
-    DWORDLONG t;
+    ULARGE_INTEGER t;
 
-    t = (DWORDLONG)ft->dwLowDateTime << 32 | ft->dwHighDateTime; /* get 64 bit time */
-    if (!t) t = -INT_MAX;
-    else t = t-0x01bf53eb256d4000/10000000;
+    t.LowPart = ft->dwLowDateTime;
+    t.HighPart = ft->dwHighDateTime;
+    if (!t.QuadPart) t.QuadPart = -INT_MAX;
+    else t.QuadPart = (t.QuadPart-0x01bf53eb256d4000ull)/10000000ull;
 
-    return (t);
+    return (t.QuadPart);
 
 }
 
@@ -501,19 +507,19 @@ void pa_list(
         fp->access = filetimetoseconds(&fd.ftLastAccessTime);
         fp->modify = filetimetoseconds(&fd.ftLastWriteTime);
         /* clear backup, which is not available */
-        fp->backup = -INT_MAX;
+        fp->backup = -LONG_MAX;
         /* insert entry to list */
-        if (!l) *l = fp; /* insert new top */
+        if (!*l) *l = fp; /* insert new top */
         else lp->next = fp; /* insert next entry */
         lp = fp; /* set new last */
         fp->next = 0; /* clear next */
         r = FindNextFile(hdl, &fd); /* find the next file entry */
         if (r != 1) { /* not successful */
 
-            e = getLastError(); /* get error cause */
+            e = GetLastError(); /* get error cause */
             /* send all errors besides end of files to stop handler */
             if (e != ERROR_NO_MORE_FILES) winerr();
-            r = findclose(hdl); /* close search handle */
+            r = FindClose(hdl); /* close search handle */
             if (!r) winerr(); /* stop on any error */
             r = 0; /* terminate search */
 
@@ -753,7 +759,7 @@ Finds the current time as an S2000 integer.
 
 ********************************************************************************/
 
-int pa_time(void)
+long pa_time(void)
 
 {
 
@@ -764,7 +770,7 @@ int pa_time(void)
 
     GetSystemTime(&st); /* get windows time */
     r = SystemTimeToFileTime(&st, &ft); /* convert to 64 bit time */
-    FileTimeToSeconds(ft, t); /* and that to 32 bit time */
+    t = filetimetoseconds(&ft); /* and that to 32 bit time */
 
     return (t); /* return time */
 
@@ -780,7 +786,7 @@ timezones.
 
 ********************************************************************************/
 
-int pa_local(int t)
+long pa_local(long t)
 {
 
     return t+pa_timezone()+pa_daysave()*HOURSEC;
@@ -808,7 +814,7 @@ has more than enough precision to count from 0 AD to present.
 
 ********************************************************************************/
 
-int pa_clock(void)
+long pa_clock(void)
 
 {
 
@@ -826,7 +832,7 @@ time that can be measured is 24 hours.
 
 ********************************************************************************/
 
-int pa_elapsed(int r)
+long pa_elapsed(long r)
 {
 
     /* reference time */
@@ -1234,11 +1240,11 @@ void execwin(char* cmd,   /* command to execute */
     si.hStdOutput = 0;
     si.hStdError = 0;
     fstwrd(cmd, fn, MAXSTR); /* get filespec from command line */
-    brknam(fn, p, n, e); /* break down filespec */
+    pa_brknam(fn, p, MAXSTR, n, MAXSTR, e, MAXSTR); /* break down filespec */
     if (e[1] == ' ') strcpy(e, "exe"); /* add back missing command extension */
-    maknam(fn, p, n, e); /* reconstruct */
+    pa_maknam(fn, MAXSTR, p, n, e); /* reconstruct */
     cmdpth(fn, fn, MAXSTR); /* complete the command path */
-    if (!createprocess_nn(fn, cmd, 0, 0, el, 0, si, pi))
+    if (!CreateProcess(fn, cmd, 0, 0, 0, 0, el, 0, &si, &pi))
         winerr(); /* process extended error */
     /* wait for the process to complete */
     if (wait) { /* perform process wait and error check */
@@ -1385,7 +1391,7 @@ void pa_execew(
 
     trnenv(el, &evstbl); /* translate environment */
     execwin(cmd, evstbl, 1, err); /* execute */
-    frewen(evstbl); /* now tear it back down */
+    free(evstbl); /* free the windows environment block */
 
 }
 
@@ -1844,7 +1850,7 @@ void pa_setuper(char *fn, pa_permset p)
         if (fa & FILE_ATTRIBUTE_SYSTEM) fa = fa & ~FILE_ATTRIBUTE_SYSTEM;
 
     }
-    r = setfileattributes(fn, fa); /* set attributes */
+    r = SetFileAttributes(fn, fa); /* set attributes */
     if (!r) winerr(); /* error, process */
 
 }
@@ -1865,7 +1871,7 @@ void pa_resuper(char *fn, pa_permset p)
     int fa; /* attribute words */
     int r;  /* result holder */
 
-   fa = GetFileattributes(fn); /* get existing attributes on file */
+   fa = GetFileAttributes(fn); /* get existing attributes on file */
    if (fa < 0) winerr(); /* error, process */
    /* built attributes equivalent word */
    fa = 0;
@@ -2477,7 +2483,7 @@ int pa_timezone(void)
     if (r == TIME_ZONE_ID_INVALID) winerr(); /* flag stop */
 
     /* change the direction of bias to UTC to local and return */
-    return (-tz.Bias);
+    return (-(tz.Bias*60));
 
 }
 
@@ -2964,6 +2970,7 @@ static void pa_init_services()
 
         cp = evstbl; /* index string */
         np = name; /* index name buffer */
+        if (*cp == '=') cp++; /* skip "system" environmental strings marker */
         while (*cp && *cp != '=') *np++ = *cp++; /* skip to '=' */
         *np = 0; /* terminate name */
         if (cp && *cp == '=') cp++; /* skip '=' */
