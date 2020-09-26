@@ -175,6 +175,7 @@ static int exists(char *fn)
 
     DWORD atb;
 
+printf("exists: name: %s\n", fn);
     atb = GetFileAttributes(fn);
 
     return (atb != INVALID_FILE_ATTRIBUTES &&
@@ -215,9 +216,26 @@ shrink by definition, no length is needed.
 static void trim(char *s)
 {
 
-    while (*s == ' ') s++;
-    while (*s != ' ' && *s) s++;
-    *s = 0;
+    char* p;
+    char* d;
+
+    /* trim front */
+    p = s;
+    while (*p == ' ') p++;
+    d = s;
+    if (p != s) while (*d++ = *p++);
+
+    /* trim back */
+    p = s;
+    while (*p && *p == ' ') p++; /* find end of string */
+    if (p > s) {
+
+        p--;
+        while (p > s && *p == ' ') p--; /* back up to first non-space */
+        p++; /* reindex */
+        *p = 0; /* terminate */
+
+    }
 
 }
 
@@ -321,9 +339,9 @@ void plcstr(char* s,  /* string to place */
 {
 
    /* check overflow */
-   if (*i > sl+1) error("Name too long for buffer");
+   if (*i > sl-1) error("Name too long for buffer");
    s[*i] = c; /* place character */
-   *i++; /* next */
+   (*i)++; /* next */
 
 }
 
@@ -344,35 +362,35 @@ void fstwrd(char* s,  /* string containing word */
 
     int i, x; /* string indexes */
 
-    i = 1; /* index 1st character of destination */
-    x = 1; /* index 1st character of source */
-    while (s[x] && s[x] == ' ') x++; /* skip leading spaces */
-    if (s[x] == '"') { /* quoted string */
+    i = 0; /* index 1st character of destination */
+    while (*s && *s == ' ') s++; /* skip leading spaces */
+    if (*s == '"') { /* quoted string */
 
-        x++; /* skip leading quote */
-        if (s[x]) { /* still in valid string */
+        s++; /* skip leading quote */
+        if (*s) { /* still in valid string */
 
-            while (s[x] && s[x] != '"') { /* transfer non-quote */
+            while (*s && *s != '"') { /* transfer non-quote */
 
-                plcstr(d, dl, &i, s[x]); /* place character */
-                x++; /* next */
+                plcstr(d, dl, &i, *s); /* place character */
+                s++; /* next */
 
             }
-            if (s[x] != '"') plcstr(d, dl, &i, s[x]);
+            if (*s != '"') plcstr(d, dl, &i, *s);
 
         }
 
     } else { /* use space delimited method */
 
-        while (s[x] && s[x] != ' ') { /* transfer non-space */
+        while (*s && *s != ' ') { /* transfer non-space */
 
-            plcstr(d, dl, &i, s[x]); /* place character */
-            x = x+1; /* next */
+            plcstr(d, dl, &i, *s); /* place character */
+            s++; /* next */
 
         }
-        if (s[x] != ' ') plcstr(d, dl, &i, s[x]); /* place last */
+        if (*s && *s != ' ') plcstr(d, dl, &i, *s); /* place last */
 
     }
+    plcstr(d, dl, &i, 0); /* terminate string */
 
 }
 
@@ -836,7 +854,7 @@ long pa_elapsed(long r)
 {
 
     /* reference time */
-    int t;
+    long t;
 
     t = pa_clock();   /* get the current time */
     if (t >= r) t -= r; /* time has not wrapped */
@@ -1132,7 +1150,7 @@ buffered.
 
 ********************************************************************************/
 
-void cmdpth(
+static void cmdpth(
     /* command to search for */           char *cn,
     /* result correctly pathed command */ char *pcn,
     /* result length */                   int  pcnl
@@ -1156,7 +1174,7 @@ void cmdpth(
             trim(pc);   /* make sure left aligned */
             while (*pc != 0) {  /* match path components */
 
-                cp = strchr(pc, pa_pthchr()); /* find next path separator */
+                cp = strchr(pc, ';'); /* find next path separator */
                 if (!cp) {  /* none left, use entire remaining */
 
                     strcpy(p, pc); /* none left, use entire remaining */
@@ -1200,7 +1218,7 @@ The pathing is broken, we need to add this manually.
 
 ******************************************************************************/
 
-void execwin(char* cmd,   /* command to execute */
+static void execwin(char* cmd,   /* command to execute */
              char* el,    /* environment list */
              int   wait,  /* wait for completion */
              int*  ec)    /* return error */
@@ -1241,7 +1259,7 @@ void execwin(char* cmd,   /* command to execute */
     si.hStdError = 0;
     fstwrd(cmd, fn, MAXSTR); /* get filespec from command line */
     pa_brknam(fn, p, MAXSTR, n, MAXSTR, e, MAXSTR); /* break down filespec */
-    if (e[1] == ' ') strcpy(e, "exe"); /* add back missing command extension */
+    if (!*e) strcpy(e, "exe"); /* add back missing command extension */
     pa_maknam(fn, MAXSTR, p, n, e); /* reconstruct */
     cmdpth(fn, fn, MAXSTR); /* complete the command path */
     if (!CreateProcess(fn, cmd, 0, 0, 0, 0, el, 0, &si, &pi))
@@ -1291,7 +1309,7 @@ Executes a program by name. Waits for the program to complete.
 
 void pa_execw(
     /* program name to execute */ char *cmd,
-    /* return error */ int *err
+    /* return error */            int *err
 )
 
 {
@@ -1561,18 +1579,21 @@ void pa_maknam(
 )
 {
 
-    int i;   /* index for string */
-    int fsi;   /* index for output filename */
+    int  i;    /* index for string */
+    int  fsi;  /* index for output filename */
+    char s[2]; /* path character buffer */
 
     if (strlen(p) > fnl) error("String too large for destination");
     strcpy(fn, p); /* place path */
     /* check path properly terminated */
     i = strlen(p);   /* find length */
     if (*p) /* not null */
-        if (p[i-1] != '/') {
+        if (p[i-1] != pa_pthchr()) {
 
         if (strlen(fn)+1 > fnl) error("String too large for destination");
-        strcat(fn, "/"); /* add path separator */
+        s[0] = pa_pthchr(); /* set up path character as string */
+        s[1] = 0;
+        strcat(fn, s); /* add path separator */
 
     }
     /* terminate path */
@@ -2992,7 +3013,7 @@ static void pa_init_services()
 
     }
 
-    pa_getenv("PATH", pthstr, MAXSTR); /* load up the current path */
+    pa_getenv("Path", pthstr, MAXSTR); /* load up the current path */
     trim(pthstr); /* make sure left aligned */
 
     /* set default language and country */
