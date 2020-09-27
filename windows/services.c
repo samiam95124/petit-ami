@@ -1432,7 +1432,7 @@ void pa_getcur(
    int    r;  /* error return */
    bufstr pb;
 
-   r = GetCurrentDirectory(MAXSTR, pn);/* get current directory */
+   r = GetCurrentDirectory(MAXSTR, pb);/* get current directory */
    /* getcurrentdirectory returns 0 for error, which could be ambiguous. However,
      we ignore that, since having a zero length current directory should be
      impossible. */
@@ -1507,7 +1507,7 @@ void pa_brknam(
     /* skip spaces */
     while (*s1 && *s1 == ' ') s1++;
     /* find last '/' that will mark the path */
-    s2 = strrchr(s1, '/');
+    s2 = strrchr(s1, pa_pthchr());
     if (s2) {
 
         /* there was a path, store that */
