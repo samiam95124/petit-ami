@@ -18,6 +18,14 @@
 * 2. Functions to be changed to translations: pa_dateorder(), pa_datesep(),    *
 * pa_timesep(), pa_currchar(), pa_timeorder(), pa_numbersep(), pa_decimal(),   *
 * pa_time24hour().                                                             *
+*
+* 3. The Unix emulation layer treats .exe and similar endings as having set    *
+* the executable flag, which is a good goal. Similarly, it treats '.' and '..' *
+* directory entries as setting the "hidden" flag, although notably, windows    *
+* itself does not (they are visible in dir listings).                          *
+*                                                                              *
+* 4. Could use more work on crossover attributes. For example, visible, which  *
+* is in permissions, can set the "hidden" attribute in windows.                *
 *                                                                              *
 * Notes:                                                                       *
 *                                                                              *
@@ -87,9 +95,6 @@ extern char *program_invocation_name;
 
 /* contains the entire environment strings array */
 extern char **environ;
-
-/* give bit in word from ordinal position */
-#define BIT(b) (1 << b)
 
 #define HOURSEC         3600   /* number of seconds in an hour */
 #define DAYSEC          (HOURSEC * 24)   /* number of seconds in a day */
@@ -1900,7 +1905,7 @@ void pa_resuper(char *fn, pa_permset p)
 
 Set group permissions
 
-Sets group permissions. This is a no-op.
+Sets group permissions. This is a no-op in Windows
 
 ********************************************************************************/
 
@@ -1915,7 +1920,7 @@ void pa_setgper(char *fn, pa_permset p)
 
 Reset group permissions
 
-Resets group permissions. This is a no-op.
+Resets group permissions. This is a no-op in Windows.
 
 ********************************************************************************/
 
@@ -1930,7 +1935,7 @@ void pa_resgper(char *fn, pa_permset p)
 
 Set other (global) permissions
 
-Sets other permissions. This is a no-op.
+Sets other permissions. This is a no-op in Windows.
 
 ********************************************************************************/
 
@@ -1945,7 +1950,7 @@ void pa_setoper(char *fn, pa_permset p)
 
 Reset other (global) permissions
 
-Resets other permissions. This is a no-op.
+Resets other permissions. This is a no-op in Windows.
 
 ********************************************************************************/
 
@@ -2028,9 +2033,10 @@ void pa_filchr(pa_chrset fc)
 
     /* add everything but control characters and space */
     for (i = ' '+1; i <= 0x7e; i++) ADDCSET(fc, i);
-    SUBCSET(fc, '/'); /* remove option character */
+    SUBCSET(fc, pa_optchr()); /* remove option character */
     SUBCSET(fc, pa_pthchr()); /* remove path character */
-    SUBCSET(fc, '"'); /* remove quote */
+    SUBCSET(fc, '"'); /* remove quote characters */
+    SUBCSET(fc, '\'');
 
 }
 
@@ -2564,7 +2570,7 @@ int pa_language(void)
 
 {
 
-    return language; /* english */
+    return language;
 
 }
 
@@ -3009,7 +3015,7 @@ static void pa_init_services()
     trim(pthstr); /* make sure left aligned */
 
     /* set default language and country */
-    language = 30; /* english */
+    language = 41; /* english */
     country = 840; /* USA */
 
 }
