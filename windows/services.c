@@ -1736,37 +1736,28 @@ void pa_getusr(
 
     bufstr b, b1; /* buffer for result */
 
-    pa_getenv("home", b, MAXSTR);
+    pa_getenv("USERPROFILE", b, MAXSTR);
     if (!*b) { /* not found */
 
-        pa_getenv("userhome", b, MAXSTR);
+        pa_getenv("HOMEPATH", b, MAXSTR);
+        if (*b) {
+
+            strcpy(b1, b); /* save that */
+            pa_getenv("HOMEDRIVE", b, MAXSTR);
+            if (*b) strcat(b, b1); /* combine */
+
+        }
         if (!*b) { /* not found */
 
-            pa_getenv("userdir", b, MAXSTR);
-            if (!*b) { /* not found */
+            pa_getenv("USERNAME", b, MAXSTR);
+            if (!*b) { /* path that */
 
-                pa_getenv("user", b, MAXSTR);
-                if (!*b) { /* path that */
+                strcpy(b1, b); /* copy */
+                strcpy(b, "\\users\\"); /* set prefix */
+                strcat(b, b1); /* combine */
 
-                    strcpy(b1, b); /* copy */
-                    strcpy(b, "\\user\\"); /* set prefix */
-                    strcat(b, b1); /* combine */
-
-                } else { /* not found */
-
-                    pa_getenv("username", b, MAXSTR);
-                    if (!*b) { /* path that */
-
-                        strcpy(b1, b); /* copy */
-                        strcpy(b, "\\user\\"); /* set prefix */
-                        strcat(b, b1); /* combine */
-
-                    } else
-                        pa_getpgm(b, MAXSTR); /* all fails, set to program path */
-
-                }
-
-            }
+            } else
+                pa_getpgm(b, MAXSTR); /* all fails, set to program path */
 
         }
 
