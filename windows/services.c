@@ -175,7 +175,6 @@ static int exists(char *fn)
 
     DWORD atb;
 
-printf("exists: name: %s\n", fn);
     atb = GetFileAttributes(fn);
 
     return (atb != INVALID_FILE_ATTRIBUTES &&
@@ -1273,7 +1272,7 @@ static void execwin(char* cmd,   /* command to execute */
         if (!rb) winerr(); /* process error */
         *ec = eb; /* copyback buffer */
 
-    } else ec = 0; /* clear error return */
+    } else *ec = 0; /* clear error return */
     if (!CloseHandle(pi.hThread)) winerr();
     if (!CloseHandle(pi.hProcess)) winerr();
 
@@ -1314,7 +1313,7 @@ void pa_execw(
 
 {
 
-    execwin(cmd, 0, 0, err); /* execute with no environment and wait */
+    execwin(cmd, 0, 1, err); /* execute with no environment and wait */
 
 }
 
@@ -1340,7 +1339,7 @@ void trnenv(pa_envptr el,      /* our internal format environment */
     p = el;
     while (p) {
 
-        sz += strlen(p->name)+1+1+strlen(p->data)+1;
+        sz += strlen(p->name)+1+strlen(p->data)+1;
         p = p->next;
 
     }
@@ -1353,12 +1352,14 @@ void trnenv(pa_envptr el,      /* our internal format environment */
     while (p) {
 
         strcpy(elb, p->name); /* copy string */
-        elb += strlen(p->name)+1; /* advance over it and termination */
+        elb += strlen(p->name); /* advance over it */
         *elb++ = '='; /* place = char */
         strcpy(elb, p->data); /* copy string */
         elb += strlen(p->data)+1; /* advance over it and termination */
+        p = p->next; /* go next entry */
 
     }
+    *elb = 0; /* terminate table */
 
 }
 
