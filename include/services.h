@@ -23,7 +23,7 @@
  * are admissible in filenames.
  */
 #define CSETLEN 32 /* length of char set */
-#define INCSET(s, b) (s[b>>3] & BIT(b%8)) /* test inclusion */
+#define INCSET(s, b) (!!(s[b>>3] & BIT(b%8))) /* test inclusion */
 #define ADDCSET(s, b) (s[b>>3] |= BIT(b%8)) /* add set member */
 #define SUBCSET(s, b) (s[b>>3] &= BITMSK(b%8)) /* remove set member */
 #define CLRCSET(s) { int i; for (i = 0; i < SETLEN; i++) s[i] = 0; } /* clear set */
@@ -34,7 +34,7 @@
  * These are used to change the character set that defines what characters
  * are admissible in filenames.
  */
-#define INISET(s, b) (s & BIT(b%8)) /* test inclusion */
+#define INISET(s, b) (!!(s & BIT(b%8))) /* test inclusion */
 #define ADDISET(s, b) (s |= BIT(b%8)) /* add set member */
 #define SUBISET(s, b) (s &= BITMSK(b%8)) /* remove set member */
 

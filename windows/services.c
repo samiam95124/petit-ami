@@ -1668,7 +1668,6 @@ void pa_getpgm(
     bufstr path; /* execution path */
     int    i;    /* index for path */
     int    f;    /* path found */
-    char*  sp;
 
     cp = GetCommandLine(); /* get the command line */
     fstwrd(cp, cb, MAXSTR); /* get command */
@@ -1680,19 +1679,19 @@ void pa_getpgm(
         pa_maknam(cb, MAXSTR, p, n, "exe"); /* construct name with that path */
         if (!exists(cb)) { /* try search path */
 
-            pa_getenv("path", path, MAXSTR);
+            pa_getenv("Path", path, MAXSTR);
             f = 0; /* set path not found */
             while (*path && !f) { /* search path */
 
-                sp = strchr(path, ';'); /* find next path separator */
-                if (!sp) { /* none, the rest is the path */
+                i = strchr(path, ';')-path; /* find next path separator */
+                if (!i) { /* none, the rest is the path */
 
                     strcpy(p, path); /* place all in path */
                     *path = 0; /* clear the path */
 
                 } else { /* break off next segment */
 
-                    extract(p, pl, path, 1, i-1); /* place path */
+                    extract(p, pl, path, 0, i-1); /* place path */
                     /* extract the rest as remainer */
                     extract(path, MAXSTR, path, i+1, strlen(path));
 
