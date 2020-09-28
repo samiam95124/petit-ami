@@ -113,8 +113,8 @@ PLIBS += -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
 # Make all executables
 #        
 all: dumpmidi lsalsadev alsaparms test play keyboard playmidi playwave \
-    printdev connectmidi connectwave random genwave scntst sndtst event \
-    getkeys getmouse term snake mine editor getpage getmail gettys 
+    printdev connectmidi connectwave random genwave scntst sndtst svstst \
+    event getkeys getmouse term snake mine editor getpage getmail gettys 
 
 #
 # Individual Petit-Ami library components
@@ -226,6 +226,10 @@ scntst: bin/petit_ami_term.so include/terminal.h tests/scntst.c include/services
 sndtst: bin/petit_ami_term.so include/terminal.h tests/sndtst.c \
         include/services.h linux/services.c Makefile
 	$(CC) $(CFLAGS) tests/sndtst.c linux/option.c $(LIBS) -o bin/sndtst 
+	
+svstst: bin/petit_ami_plain.so include/terminal.h tests/svstst.c \
+        include/services.h linux/services.c Makefile
+	$(CC) $(CFLAGS) tests/svstst.c linux/option.c $(LIBS) -o bin/svstst
 	
 event: include/terminal.h tests/event.c Makefile
 	$(CC) $(CFLAGS) tests/event.c $(LIBS) -o bin/event

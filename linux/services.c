@@ -76,9 +76,6 @@ extern char *program_invocation_name;
 /* contains the entire environment strings array */
 extern char **environ;
 
-/* give bit in word from ordinal position */
-#define BIT(b) (1 << b)
-
 #define HOURSEC         3600   /* number of seconds in an hour */
 #define DAYSEC          (HOURSEC * 24)   /* number of seconds in a day */
 #define YEARSEC         (DAYSEC * 365)   /* number of seconds in year */
@@ -687,7 +684,7 @@ Finds the current time as an S2000 integer.
 
 ********************************************************************************/
 
-int pa_time(void)
+long pa_time(void)
 
 {
 
@@ -711,7 +708,7 @@ timezones.
 
 ********************************************************************************/
 
-int pa_local(int t)
+long pa_local(long t)
 {
 
     return t+pa_timezone()+pa_daysave()*HOURSEC;
@@ -739,7 +736,7 @@ has more than enough precision to count from 0 AD to present.
 
 ********************************************************************************/
 
-int pa_clock(void)
+long pa_clock(void)
 
 {
 
@@ -766,7 +763,7 @@ time that can be measured is 24 hours.
 
 ********************************************************************************/
 
-int pa_elapsed(int r)
+long pa_elapsed(long r)
 {
 
     /* reference time */
@@ -861,7 +858,7 @@ int pa_wild(
 
         /* search and flag wildcard characters */
         for (i = 0; i < ln; i++) { if (s[i] == '*' || s[i] == '?') r = 1; }
-        if (s[ln-1] == '/') r = 1; /* last was '/', it's wild */
+        if (s[ln-1] == pa_pthchr()) r = 1; /* last was '/', it's wild */
 
     }
 
@@ -1270,6 +1267,7 @@ void pa_execw(
     } else { /* we are the parent */
 
         waitpid(pid, err, 0);
+        *err = WEXITSTATUS(*err);
 
     }
 
@@ -1460,7 +1458,7 @@ void pa_brknam(
     /* skip spaces */
     while (*s1 && *s1 == ' ') s1++;
     /* find last '/' that will mark the path */
-    s2 = strrchr(s1, '/');
+    s2 = strrchr(s1, pa_pthchr());
     if (s2) {
 
         /* there was a path, store that */
@@ -1535,16 +1533,19 @@ void pa_maknam(
 
     int i;   /* index for string */
     int fsi;   /* index for output filename */
+    char s[2];
 
     if (strlen(p) > fnl) error("String too large for desination");
     strcpy(fn, p); /* place path */
     /* check path properly terminated */
     i = strlen(p);   /* find length */
     if (*p) /* not null */
-        if (p[i-1] != '/') {
+        if (p[i-1] != pa_pthchr()) {
 
         if (strlen(fn)+1 > fnl) error("String too large for desination");
-        strcat(fn, "/"); /* add path separator */
+        s[0] = pa_pthchr();
+        s[1] = 0;
+        strcat(fn, s); /* add path separator */
 
     }
     /* terminate path */
@@ -1957,12 +1958,12 @@ void pa_filchr(pa_chrset fc)
     int i;
 
     /* clear set */
-    for (i = 0; i < SETLEN; i++) fc[i] = 0;
+    for (i = 0; i < CSETLEN; i++) fc[i] = 0;
 
     /* add everything but control characters and space */
-    for (i = ' '+1; i <= 0x7e; i++) ADDSET(fc, i);
-    SUBSET(fc, '-'); /* remove option character */
-    SUBSET(fc, pa_pthchr()); /* remove path character */
+    for (i = ' '+1; i <= 0x7e; i++) ADDCSET(fc, i);
+    SUBCSET(fc, pa_optchr()); /* remove option character */
+    SUBCSET(fc, pa_pthchr()); /* remove path character */
 
 }
 

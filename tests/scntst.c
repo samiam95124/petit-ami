@@ -152,7 +152,7 @@ static void timetest(void)
     t = pa_clock();
     pa_timer(stdout, 1, 10000, 0);
     do { pa_event(stdin, &er); } while (er.etype != pa_ettim);
-    printf("1 second time, was: %d00 Microseconds\n", pa_elapsed(t));
+    printf("1 second time, was: %ld00 Microseconds\n", pa_elapsed(t));
     printf("\n");
     printf("30 seconds of 1 second ticks:\n");
     printf("\n");

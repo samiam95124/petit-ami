@@ -57,7 +57,7 @@ void main(void)
     pa_filptr lp;
     pa_envptr ep;
     int       t;
-    char      s[MAXSTR], s2[MAXSTR];
+    char      s[MAXSTR], s2[MAXSTR], s3[MAXSTR];
     int       c;
     int       err;
     char      p[MAXSTR], n[MAXSTR], e[MAXSTR];
@@ -106,7 +106,7 @@ void main(void)
     t = pa_clock();
     printf("test11: waiting 1 second\n");
     wait(SECOND);
-    printf("test 11: %d s/b %d (approximate)\n", pa_elapsed(t), SECOND);
+    printf("test 11: %ld s/b %d (approximate)\n", pa_elapsed(t), SECOND);
     printf("test 12: %d s/b 1\n", pa_validfile("c:\\just\\fargle.com"));
     printf("test 14: %d s/b 1\n", pa_wild("c:\\fargle.c?m"));
     printf("test 15: %d s/b 1\n", pa_validfile("c:\\far*gle.com"));
@@ -161,9 +161,10 @@ void main(void)
     pa_getcur(s, MAXSTR);
     printf("test 29: %s s/b <the current path>\n", s);
     pa_getcur(s, MAXSTR);
-    pa_setcur("\\");
+    pa_getusr(s3, MAXSTR);
+    pa_setcur(s3);
     pa_getcur(s2, MAXSTR);
-    printf("test 30: %s s/b c:\\\n", s2);
+    printf("test 30: %s s/b <the user path>\n", s2);
     pa_setcur(s);
     pa_getcur(s, MAXSTR);
     printf("test 31: %s s/b <the current path>\n", s);
