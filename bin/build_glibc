@@ -8,8 +8,18 @@
 # resulting glibc.                                                             #
 #                                                                              #
 # To make and use a glibc, it must match the version of the glibc in use for   #
-# building general programs in the Linux implementation you have. To find that #
-# out, perform:                                                                #
+# building general programs in the Linux implementation you have.              #
+#                                                                              #
+# You can either specify a version, or let the script automatically determine  #
+# it. To perform it automatically, execute:                                    #
+#                                                                              #
+# $ build_glibc                                                                #
+#                                                                              #
+# To build a specific version, execute:                                        #
+#                                                                              #
+# $ build_glibc 2.27                                                           #
+#                                                                              #
+# To determine what version is on your system perform:                         #
 #                                                                              #
 # $ ldd test                                                                   #
 #    linux-vdso.so.1 (0x00007ffe81eb6000)                                      #        
@@ -20,9 +30,11 @@
 #                                                                              #
 # And you have found the version, in this case 2.29.                           #
 #                                                                              #
-# Execute as:                                                                  #
+# Note this can also be found by:                                              #
 #                                                                              #
-# build_glibc 2.29                                                             #
+# ldd --version                                                                #
+#                                                                              #
+# This works since the ldd program is part of the glibc package.               #
 #                                                                              #
 # Warning: the script will erase the glibc_source, glibc_build, and            #
 # glibc_local. The glibc source will be fetched, versioned and patched in      #
