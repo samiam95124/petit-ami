@@ -174,14 +174,17 @@ typedef off_t (*plseek_t)(int, off_t, int);
 /* system override calls */
 
 extern void ovr_read(pread_t nfp, pread_t* ofp);
-extern void ovr_read_nocancel(pread_t nfp, pread_t* ofp);
 extern void ovr_write(pwrite_t nfp, pwrite_t* ofp);
-extern void ovr_write_nocancel(pwrite_t nfp, pwrite_t* ofp);
 extern void ovr_open(popen_t nfp, popen_t* ofp);
-extern void ovr_open_nocancel(popen_t nfp, popen_t* ofp);
 extern void ovr_close(pclose_t nfp, pclose_t* ofp);
-extern void ovr_close_nocancel(pclose_t nfp, pclose_t* ofp);
 extern void ovr_lseek(plseek_t nfp, plseek_t* ofp);
+
+#ifdef NOCANCEL
+extern void ovr_read_nocancel(pread_t nfp, pread_t* ofp);
+extern void ovr_write_nocancel(pwrite_t nfp, pwrite_t* ofp);
+extern void ovr_open_nocancel(popen_t nfp, popen_t* ofp);
+extern void ovr_close_nocancel(pclose_t nfp, pclose_t* ofp);
+#endif
 
 /*
  * Saved vectors to system calls. These vectors point to the old, existing
@@ -2600,14 +2603,16 @@ static void pa_init_network()
 
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
-    ovr_read_nocancel(iread_nocancel, &ofpread_nocancel);
     ovr_write(iwrite, &ofpwrite);
-    ovr_write_nocancel(iwrite_nocancel, &ofpwrite_nocancel);
     ovr_open(iopen, &ofpopen);
-    ovr_open_nocancel(iopen_nocancel, &ofpopen_nocancel);
     ovr_close(iclose, &ofpclose);
-    ovr_close_nocancel(iclose_nocancel, &ofpclose_nocancel);
     ovr_lseek(ilseek, &ofplseek);
+#ifdef NOCANCEL
+    ovr_read_nocancel(iread_nocancel, &ofpread_nocancel);
+    ovr_write_nocancel(iwrite_nocancel, &ofpwrite_nocancel);
+    ovr_open_nocancel(iopen_nocancel, &ofpopen_nocancel);
+    ovr_close_nocancel(iclose_nocancel, &ofpclose_nocancel);
+#endif
 
     /* initialize SSL library and register algorithms */
     if(SSL_library_init() < 0) error(einissl);
@@ -2676,14 +2681,18 @@ static void pa_deinit_network()
 
     /* swap old vectors for existing vectors */
     ovr_read(ofpread, &cppread);
-    ovr_read_nocancel(ofpread_nocancel, &cppread_nocancel);
+
     ovr_write(ofpwrite, &cppwrite);
-    ovr_write_nocancel(ofpwrite_nocancel, &cppwrite_nocancel);
     ovr_open(ofpopen, &cppopen);
-    ovr_open_nocancel(ofpopen_nocancel, &cppopen_nocancel);
     ovr_close(ofpclose, &cppclose);
-    ovr_close_nocancel(ofpclose_nocancel, &cppclose_nocancel);
     ovr_lseek(ofplseek, &cpplseek);
+
+#ifdef NOCANCEL
+    ovr_read_nocancel(ofpread_nocancel, &cppread_nocancel);
+    ovr_write_nocancel(ofpwrite_nocancel, &cppwrite_nocancel);
+    ovr_open_nocancel(ofpopen_nocancel, &cppopen_nocancel);
+    ovr_close_nocancel(ofpclose_nocancel, &cppclose_nocancel);
+#endif
 
     /* close out open files and release space */
     for (fi = 0; fi < MAXFIL; fi++) if (opnfil[fi]) {

@@ -107,9 +107,12 @@ fi
 #
 # Patch overrides
 #
+# The later versions of glibc have more files to patch than earlier ones. The
+# only way around this was to force the patch and ignore errors.
+#
 if [ "$patch" -eq "1" ]; then
 
-    patch -p1 < ../glibc_override.patch
+    patch -p1 < ../glibc_"$version"_override.patch
     if [ $? -ne 0 ]; then
         echo "*** Could not apply override patch"
         exit 1
@@ -154,7 +157,7 @@ cp libc.map ../libc.map
 #
 if [ "$patch" -eq "1" ]; then
 
-    patch < ../libc.map.patch
+    patch < ../libc_"$version"_.map.patch
     make
     
 fi
