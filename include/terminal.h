@@ -82,19 +82,19 @@ typedef enum {
 
 typedef struct {
 
-	/* identifier of window for event */ int winid;
+    /* identifier of window for event */ int winid;
     /* event type */                     pa_evtcod etype;
     /* event was handled */              int handled;
     union {
 
         /* these events require parameter data */
 
-    	/** etchar: ANSI character returned */  char echar;
+        /** etchar: ANSI character returned */  char echar;
         /** ettim: timer handle that matured */ int timnum;
         /** etmoumov: */
         struct {
 
-        	/** mouse number */   int mmoun;
+            /** mouse number */   int mmoun;
             /** mouse movement */ int moupx, moupy;
 
         };
@@ -132,7 +132,7 @@ typedef struct {
 
      };
 
-} pa_evtrec;
+} pa_evtrec, *pa_evtptr;
 
 /** event function pointer */
 typedef void (*pa_pevthan)(pa_evtrec*);
