@@ -12,7 +12,6 @@
 #define __STDDEF_H__
 
 typedef char* string;  /* general string type */
-typedef enum { false, true } boolean; /* boolean */
 typedef unsigned char byte; /* byte */
 
 #endif /* __STDDEF_H__ */

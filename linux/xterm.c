@@ -2530,8 +2530,8 @@ void pa_event(FILE* f, pa_evtrec *er)
 
     do { /* loop handling via event vectors */
 
-    	/* get next input event */
-    	inpevt(er);
+        /* get next input event */
+        inpevt(er);
         er->handled = 1; /* set event is handled by default */
         (*evthan[er->etype])(er); /* call event handler first */
 

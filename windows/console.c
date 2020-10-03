@@ -77,8 +77,12 @@
 *                                                                              *
 *******************************************************************************/
 
+#define WINVER 0x0A00
+#define _WIN32_WINNT 0xA00
+
 #include <sys/types.h>
 #include <stdio.h>
+#include <limits.h>
 #include <windows.h>
 #include <terminal.h>
 
@@ -173,6 +177,18 @@ typedef enum {
 
 } errcod;
 
+/*
+ * Saved vectors to system calls. These vectors point to the old, existing
+ * vectors that were overriden by this module.
+ *
+ */
+static pread_t   ofpread;
+static pwrite_t  ofpwrite;
+static popen_t   ofpopen;
+static pclose_t  ofpclose;
+static punlink_t ofpunlink;
+static plseek_t  ofplseek;
+
 HANDLE inphdl;          /* "input" file handle */
 int     mb1;             /* mouse assert status button 1 */
 int     mb2;             /* mouse assert status button 2 */
@@ -202,10 +218,10 @@ struct {
 CONSOLE_SCREEN_BUFFER_INFO bi; /* screen buffer info structure */
 CONSOLE_CURSOR_INFO        ci; /* console cursor info structure */
 int      ti;          /* index for repeat array */
-int      mode;        /* console mode */
+DWORD    mode;        /* console mode */
 int      b;           /* int return */
 int      i;           /* tab index */
-int      winhan;      /* main window id */
+HWND     winhan;      /* main window id */
 int      r;           /* result holder */
 int      threadid;    /* dummy thread id (unused) */
 int      threadstart; /* thread starts */
@@ -238,7 +254,7 @@ This needs to go to a dialog instead of the system error trap.
 
 *******************************************************************************/
 
-void error(int e)
+static void error(int e)
 
 {
 
@@ -270,61 +286,6 @@ void error(int e)
 
 /*******************************************************************************
 
-Make file entry
-
-Indexes a present file entry or creates a new one. Looks for a free entry
-in the files table, indicated by 0. If found, that is returned, otherwise
-the file table is full.
-
-Note that the "predefined" file slots are never allocated.
-
-*******************************************************************************/
-
-void makfil(int* fn) /* file handle */
-
-{
-
-    int fi; /* index for files table */
-    int ff; /* found file entry */
-
-    /* find idle file slot (file with closed file entry) */
-    ff = 0; /* clear found file */
-    for (fi = OUTFIL+1; fi <= ss_maxhdl; fi++) /* search all file entries */
-        if (!opnfil[fi]) ff = fi; /* found a slot */
-    if (!ff) error(einvhan); /* no empty file positions found */
-    fn = ff; /* set file id number */
-
-}
-
-/*******************************************************************************
-
-Remove leading and trailing spaces
-
-Given a string, removes any leading and trailing spaces in the string. The
-result is allocated and returned as an indexed buffer.
-
-*******************************************************************************/
-
-void remspc(char* nm, /* string */
-            char* rs) /* result string */
-
-{
-
-    int i1, i2; /* string indexes */
-    int n;      /* string is null */
-    char* s, e; /* string start and end */
-
-    s = nm; /* set start of string */
-    while (!*s && *s == ' ') s++; /* skip leading spaces */
-    e = strchr(nm, 0)-1; /* set end of string */
-    while (e > nm && *e == ' ') e--; /* find non-space */
-    while (s <= e) *rs++ = *s++; /* copy body of string */
-    *rs = 0; /* terminate */
-
-}
-
-/*******************************************************************************
-
 Load console status
 
 Loads the current console status. Updates the size, cursor location, and
@@ -332,7 +293,7 @@ current attributes.
 
 *******************************************************************************/
 
-void getpos(void)
+static void getpos(void)
 
 {
 
@@ -344,33 +305,17 @@ void getpos(void)
 
         cp = screens[curupd]; /* index screen context */
         b = GetConsoleScreenBufferInfo(cp->han, &bi);
-        if (cp->conx != bi.dwCursorPosition.x ||
-            (cp->cony != bi.dwCursorPosition.y) {
+        if (cp->conx != bi.dwCursorPosition.X ||
+            cp->cony != bi.dwCursorPosition.Y) {
 
-            conx = bi.dwCursorPosition.x; /* get new cursor position */
-            cony = bi.dwCursorPosition.y;
+            cp->conx = bi.dwCursorPosition.X; /* get new cursor position */
+            cp->cony = bi.dwCursorPosition.Y;
             cp->curx = cp->conx+1; /* place cursor position */
             cp->cury = cp->cony+1;
 
         }
 
     }
-
-}
-
-/*******************************************************************************
-
-Construct packed coordinate word
-
-Creates a Windows console coordinate word based on an X and Y value.
-
-*******************************************************************************/
-
-int pcoord(int x, y)
-
-{
-
-    return (y*65536+x);
 
 }
 
@@ -389,7 +334,7 @@ underline    Background half intensity.
 
 *******************************************************************************/
 
-int colnum(pa_color c, int i)
+static int colnum(pa_color c, int i)
 
 {
 
@@ -400,15 +345,15 @@ int colnum(pa_color c, int i)
         case pa_black:  r = 0x0000 | i*FOREGROUND_INTENSITY; break;
         case pa_white:  r = FOREGROUND_BLUE | FOREGROUND_GREEN |
                             FOREGROUND_RED | !i*FOREGROUND_INTENSITY; break;
-        pa_red:      r = foreground_red | !i*foreground_intensity; break;
-        pa_green:    r = foreground_green | !i*foreground_intensity; break;
-        pa_blue:     r = foreground_blue | !i*foreground_intensity; break;
-        pa_cyan:     r = foreground_blue | foreground_green |
-                         !i*foreground_intensity; break;
-        pa_yellow:  r = foreground_red | foreground_green |
-                        !i*foreground_intensity; break;
-        pa_magenta: r = foreground_red | foreground_blue !
-                        !i*foreground_intensity; break;
+        pa_red:      r = FOREGROUND_RED | !i*FOREGROUND_INTENSITY; break;
+        pa_green:    r = FOREGROUND_GREEN | !i*FOREGROUND_INTENSITY; break;
+        pa_blue:     r = FOREGROUND_BLUE | !i*FOREGROUND_INTENSITY; break;
+        pa_cyan:     r = FOREGROUND_BLUE | FOREGROUND_GREEN |
+                         !i*FOREGROUND_INTENSITY; break;
+        pa_yellow:  r = FOREGROUND_RED | FOREGROUND_GREEN |
+                        !i*FOREGROUND_INTENSITY; break;
+        pa_magenta: r = FOREGROUND_RED | FOREGROUND_BLUE |
+                        !i*FOREGROUND_INTENSITY; break;
 
     }
 
@@ -416,22 +361,16 @@ int colnum(pa_color c, int i)
 
 }
 
-void setcolor(scnptr sc)
+static void setcolor(scnptr sc)
 
 {
 
     if (sc->attr == sarev) /* set reverse colors */
-        sc->sattr = colnum(sc->forec,
-                           (sc->attr == saital || sc->attr == sabold))*16+
-                            colnum(sc->backc, (sc->attr == saundl ||
-                                               sc->attr == sabold));
+        sc->sattr = colnum(sc->forec, (sc->attr == saital || sc->attr == sabold))*16+
+                    colnum(sc->backc, (sc->attr == saundl || sc->attr == sabold));
     else /* set normal colors */
-        sc->sattr = colnum(sc->backc,
-                           (sc->attr == saundl || sc->attr == sabold))*16+
-                            colnum(sc->forec,
-                                   (sc->attr == saital || sc->attr == sabold));
-
-    }
+        sc->sattr = colnum(sc->backc, (sc->attr == saundl || sc->attr == sabold))*16+
+                    colnum(sc->forec, (sc->attr == saital || sc->attr == sabold));
 
 }
 
@@ -462,11 +401,12 @@ pa_color numcol(int a)
          case 7: c = pa_white; break;
 
     }
-    numcol = c
+
+    return (c);
 
 }
 
-void fndcolor(int a)
+static void fndcolor(int a)
 
 {
 
@@ -483,12 +423,12 @@ Checks if the cursor lies in the current bounds, and returns true if so.
 
 *******************************************************************************/
 
-int icurbnd(scnptr sc)
+static int icurbnd(scnptr sc)
 
 {
 
-    return (sc->curx >== 1 && sc->curx <== sc->maxx && sc->cury >== 1 &&
-            sc->cury <== sc->maxy);
+    return (sc->curx >= 1 && sc->curx <= sc->maxx && sc->cury >= 1 &&
+            sc->cury <= sc->maxy);
 
 }
 
@@ -502,7 +442,7 @@ current buffer's visible status.
 
 *******************************************************************************/
 
-void cursts(scnptr sc)
+static void cursts(scnptr sc)
 
 {
 
@@ -513,9 +453,9 @@ void cursts(scnptr sc)
     cv = sc->curv; /* set current buffer status */
     if (!icurbnd(sc)) cv = 0; /* not in bounds, force off */
     /* get current console information */
-    b = GetConsoleCursorInfo(sc->han, ci);
+    b = GetConsoleCursorInfo(sc->han, &ci);
     ci.bVisible = cv; /* set cursor status */
-    b = SetConsoleCursorInfo(sc->han, ci);
+    b = SetConsoleCursorInfo(sc->han, &ci);
 
 }
 
@@ -532,17 +472,20 @@ active display. So we don't position if not in display.
 
 *******************************************************************************/
 
-void setcur(scnptr sc)
+static void setcur(scnptr sc)
 
 {
 
     int b;
+    COORD xy;
 
     /* check cursor in bounds, and buffer in display */
     if (icurbnd(sc) && sc == screens[curdsp]) {
 
         /* set cursor position */
-        b = SetConsoleCursorPosition(han, pcoord(sc->curx-1, sc->cury-1));
+        xy.X = sc->curx-1;
+        xy.Y = sc->cury-1;
+        b = SetConsoleCursorPosition(sc->han, xy);
         sc->conx = sc->curx-1; /* set our copy of that */
         sc->cony = sc->cury-1;
 
@@ -560,7 +503,7 @@ characters on the screen to spaces with the current colors and attributes.
 
 *******************************************************************************/
 
-void iclear(scnptr sc)
+static void iclear(scnptr sc)
 
 {
 
@@ -568,6 +511,8 @@ void iclear(scnptr sc)
     char cb; /* character output buffer */
     int  ab; /* attribute output buffer */
     int  b;
+    COORD xy;
+    DWORD len;
 
     cb = ' '; /* set space */
     ab = sc->sattr; /* set attributes */
@@ -575,8 +520,10 @@ void iclear(scnptr sc)
 
         for (x = 0; x < sc->maxx; x++) {
 
-            b = WriteConsoleOutputCharacter(han, &cb, pcoord(x, y), 1);
-            b = writeconsoleoutputattribute(han, &ab, pcoord(x, y), 1)
+            xy.X = x;
+            xy.Y = y;
+            b = WriteConsoleOutputCharacter(sc->han, &cb, 1, xy, &len);
+            b = writeconsoleoutputattribute(sc->han, &ab, 1, xy, &len);
 
         }
 
@@ -595,15 +542,18 @@ Clears all the parameters in the present screen context.
 
 *******************************************************************************/
 
-void iniscn(scnptr sc)
+static void iniscn(scnptr sc)
 
 {
 
     int i;
+    COORD xy;
 
     sc->maxx = gmaxx; /* set size */
     sc->maxy = gmaxy;
-    b = SetConsoleScreenBufferSize(sc->han, pcoord(sc->maxx, sc->maxy));
+    xy.X = sc->maxx;
+    xy.Y = sc->maxy;
+    b = SetConsoleScreenBufferSize(sc->han, xy);
     sc->forec = gforec; /* set colors and attributes */
     sc->backc = gbackc;
     sc->attr = gattr;
@@ -632,7 +582,7 @@ simpler, and lets Windows perform the fills for us.
 
 *******************************************************************************/
 
-void iscroll(int x, y)
+static void iscroll(int x, int y)
 
 {
 
@@ -640,50 +590,58 @@ void iscroll(int x, y)
     CHAR_INFO  f;  /* fill character info */
     int        b;  /* return value */
     scnptr     sc; /* screen context */
+    COORD      xy;
 
     sc = screens[curupd]; /* index screen context */
-    f.asciichar = ' '; /* set fill values */
-    f.attributes = sc->sattr;
-    if (x <== -sc->maxx || x >== sc->maxx) ||
-        y <== -sc->maxy) || y >== sc->maxy)
+    f.Char.AsciiChar = ' '; /* set fill values */
+    f.Attributes = sc->sattr;
+    if (x <= -sc->maxx || x >= sc->maxx || y <= -sc->maxy || y >= sc->maxy)
         /* scroll would result in complete clear, do it */
         iclear(screens[curupd]); /* clear the screen buffer */
     else { /* scroll */
 
         /* perform y moves */
-        if (y >== 0) { /* move text up */
+        if (y >= 0) { /* move text up */
 
-            sr.left = 0;
-            sr.right = sc->maxx-1;
-            sr.top = y;
-            sr.bottom = sc->maxy-1;
-            b = ScrollConsoleScreenbuffer(sc->han, sr, pcoord(0, 0), f);
+            sr.Left = 0;
+            sr.Right = sc->maxx-1;
+            sr.Top = y;
+            sr.Bottom = sc->maxy-1;
+            xy.X = 0;
+            xy.Y = 0;
+            b = ScrollConsoleScreenbuffer(sc->han, &sr, NULL, xy, &f);
 
         } else { /* move text down */
 
-            sr.left = 0;
-            sr.right = sc->maxx-1;
-            sr.top = 0;
-            sr.bottom = sc->maxy-1;
-            b = ScrollConsoleScreenBuffer(sc->han, sr, pcoord(0, abs(y)), f);
+            sr.Left = 0;
+            sr.Right = sc->maxx-1;
+            sr.Top = 0;
+            sr.Bottom = sc->maxy-1;
+            xy.X = 0;
+            xy.Y = abs(y);
+            b = ScrollConsoleScreenBuffer(sc->han, &sr, NULL, xy, &f);
 
         }
         /* perform x moves */
-        if (x >== 0) then { /* move text left */
+        if (x >= 0) { /* move text left */
 
-            sr.left = x;
-            sr.right = sc->maxx-1;
-            sr.top = 0;
-            sr.bottom = sc->maxy-1;
-            b = ScrollConsoleScreenbuffer(sc->han, sr, pcoord(0, 0), f);
+            sr.Left = x;
+            sr.Right = sc->maxx-1;
+            sr.Top = 0;
+            sr.Bottom = sc->maxy-1;
+            xy.X = 0;
+            xy.Y = 0;
+            b = ScrollConsoleScreenbuffer(sc->han, &sr, NULL, xy, &f);
 
         } else { /* move text right */
 
-            sr.left = 0;
-            sr.right = sc->maxx-1;
-            sr.top = 0;
-            sr.bottom = sc->maxy-1;
-            b = ScrollConsoleScreenBuffer(sc->han, sr, pcoord(abs(x), 0), f);
+            sr.Left = 0;
+            sr.Right = sc->maxx-1;
+            sr.Top = 0;
+            sr.Bottom = sc->maxy-1;
+            xy.X = abs(x);
+            xy.Y = 0;
+            b = ScrollConsoleScreenBuffer(sc->han, &sr, NULL, xy, &f);
 
         }
 
@@ -691,7 +649,7 @@ void iscroll(int x, y)
 
 }
 
-void scroll(FILE* f, int x, int y)
+void pa_scroll(FILE* f, int x, int y)
 
 {
 
@@ -707,7 +665,7 @@ Moves the cursor to the specified x and y location.
 
 *******************************************************************************/
 
-void icursor(int x, int y)
+static void icursor(int x, int y)
 
 {
 
@@ -717,7 +675,7 @@ void icursor(int x, int y)
 
 }
 
-void cursor(FILE* f: text, int x, int y)
+void pa_cursor(FILE* f, int x, int y)
 
 {
 
@@ -733,11 +691,11 @@ This is the external interface to curbnd.
 
 *******************************************************************************/
 
-int curbnd(FILE* f)
+int pa_curbnd(FILE* f)
 
 {
 
-    curbnd = icurbnd(screens[curupd]);
+    return (icurbnd(screens[curupd]));
 
 }
 
@@ -750,11 +708,11 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-int maxx(FILE* f)
+int pa_maxx(FILE* f)
 
 {
 
-    maxx = screens[curupd]->maxx; /* set maximum x */
+    return (screens[curupd]->maxx); /* set maximum x */
 
 }
 
@@ -767,11 +725,11 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-int maxy(FILE* f)
+int pa_maxy(FILE* f)
 
 {
 
-    maxy = screens[curupd]->maxy; /* set maximum y */
+    return (screens[curupd]->maxy); /* set maximum y */
 
 }
 
@@ -783,7 +741,7 @@ Moves the cursor to the home position at (1, 1), the upper right hand corner.
 
 *******************************************************************************/
 
-void home(FILE* f)
+void pa_home(FILE* f)
 
 {
 
@@ -801,7 +759,7 @@ Moves the cursor position up one line.
 
 *******************************************************************************/
 
-void iup(void)
+static void iup(void)
 
 {
 
@@ -812,14 +770,14 @@ void iup(void)
     /* check not top of screen */
     if (sc->cury > 1) sc->cury++; /* update position */
     /* check auto mode */
-    else if (autof) iscroll(0, -1); /* scroll up */
+    else if (sc->autof) iscroll(0, -1); /* scroll up */
     /* check won't overflow */
     else if (sc->cury > -INT_MAX) sc->cury--; /* set new position */
     setcur(sc); /* set cursor on screen */
 
 }
 
-void up(FILE* f)
+void pa_up(FILE* f)
 
 {
 
@@ -835,7 +793,7 @@ Moves the cursor position down one line.
 
 *******************************************************************************/
 
-void idown(void)
+static void idown(void)
 
 {
 
@@ -846,13 +804,13 @@ void idown(void)
     /* check not bottom of screen */
     if (sc->cury < sc->maxy) sc->cury++; /* update position */
     /* check auto mode */
-    else if (sc->autof) iscroll(0, +1) /* scroll down */
+    else if (sc->autof) iscroll(0, +1); /* scroll down */
     else if (sc->cury < INT_MAX) sc->cury++; /* set new position */
     setcur(screens[curupd]); /* set cursor on screen */
 
 }
 
-void down(FILE* f)
+void pa_down(FILE* f)
 
 {
 
@@ -870,7 +828,7 @@ the cursor will move into negative space, limited only by maxint.
 
 *******************************************************************************/
 
-void ileft(void)
+static void ileft(void)
 
 {
 
@@ -885,18 +843,18 @@ void ileft(void)
         if (sc->autof) { /* autowrap is on */
 
             iup(); /* move cursor up one line */
-            sc->curx = sc->maxx /* set cursor to extreme right */
+            sc->curx = sc->maxx; /* set cursor to extreme right */
 
         } else
             /* check won't overflow */
-            if (sc->curx > -INT_MAX) curx--; /* update position */
+            if (sc->curx > -INT_MAX) sc->curx--; /* update position */
 
     }
     setcur(screens[curupd]); /* set cursor on screen */
 
 }
 
-void left(FILE* f)
+void pa_left(FILE* f)
 
 {
 
@@ -912,7 +870,7 @@ Moves the cursor one character right.
 
 *******************************************************************************/
 
-void iright(void)
+static void iright(void)
 
 {
 
@@ -938,7 +896,7 @@ void iright(void)
 
 }
 
-void right(FILE* f)
+void pa_right(FILE* f)
 
 {
 
@@ -956,7 +914,7 @@ cursor is moved to the tab stop.
 
 *******************************************************************************/
 
-void itab(void)
+static void itab(void)
 
 {
 
@@ -983,7 +941,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void blink(FILE* f, int e)
+void pa_blink(FILE* f, int e)
 
 {
 
@@ -1003,7 +961,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void reverse(FILE* f, int e)
+void pa_reverse(FILE* f, int e)
 
 {
 
@@ -1022,7 +980,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void underline(FILE* f, int e)
+void pa_underline(FILE* f, int e)
 
 {
 
@@ -1042,7 +1000,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void superscript(FILE* f, int e)
+void pa_superscript(FILE* f, int e)
 
 {
 
@@ -1061,7 +1019,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void subscript(FILE* f, int e)
+void pa_subscript(FILE* f, int e)
 
 {
 
@@ -1080,7 +1038,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void italic(FILE* f, int e)
+void pa_italic(FILE* f, int e)
 
 {
 
@@ -1103,7 +1061,7 @@ colors, which an ATTRIBUTE command seems to mess with !
 
 *******************************************************************************/
 
-void bold(FILE* f, int e)
+void pa_bold(FILE* f, int e)
 
 {
 
@@ -1125,7 +1083,7 @@ just placed.
 
 *******************************************************************************/
 
-void strikeout(FILE* f, int e)
+void pa_strikeout(FILE* f, int e)
 
 {
 
@@ -1144,7 +1102,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void standout(FILE* f, int e)
+void pa_standout(FILE* f, int e)
 
 {
 
@@ -1160,7 +1118,7 @@ Sets the foreground (text) color from the universal primary code.
 
 *******************************************************************************/
 
-void fcolor(FILE* f, pa_color c)
+void pa_fcolor(FILE* f, pa_color c)
 
 {
 
@@ -1177,7 +1135,7 @@ Sets the background color from the universal primary code.
 
 *******************************************************************************/
 
-void bcolor(FILE* f, pa_color c)
+void pa_bcolor(FILE* f, pa_color c)
 
 {
 
@@ -1211,7 +1169,7 @@ anywhere.
 
 *******************************************************************************/
 
-void auto(FILE* f, int e)
+void pa_auto(FILE* f, int e)
 
 {
 
@@ -1227,7 +1185,7 @@ Enable or disable cursor visibility.
 
 *******************************************************************************/
 
-void curvis(FILE* f, int e)
+void pa_curvis(FILE* f, int e)
 
 {
 
@@ -1244,7 +1202,7 @@ Returns the current location of the cursor in x.
 
 *******************************************************************************/
 
-int curx(FILE* f)
+int pa_curx(FILE* f)
 
 {
 
@@ -1262,7 +1220,7 @@ Returns the current location of the cursor in y.
 
 *******************************************************************************/
 
-int cury(FILE* f)
+int pa_cury(FILE* f)
 
 {
 
@@ -1286,14 +1244,14 @@ forces a screen refresh, which can be important when working on terminals.
 
 *******************************************************************************/
 
-void iselect(int u, int d)
+static void iselect(int u, int d)
 
 {
 
     if (u < 1 || u > MAXCON || d < 1 || d > MAXCON)
         error(einvscn); /* invalid screen number */
     curupd = u; /* set current update screen */
-    if (!screens[curupd]) then { /* no screen, create one */
+    if (!screens[curupd]) { /* no screen, create one */
 
         screens[curupd] = malloc(sizeof(scncon)); /* get a new screen context */
         if (!screens[curupd]) error(enomem); /* failed to allocate */
@@ -1301,7 +1259,7 @@ void iselect(int u, int d)
         screens[curupd]->han =
             CreateConsoleScreenBuffer(GENERIC_READ | GENERIC_WRITE,
                                       FILE_SHARE_READ | FILE_SHARE_WRITE,
-                                      CONSOLE_TEXTMODE_BUFFER);
+                                      NULL, CONSOLE_TEXTMODE_BUFFER, NULL);
         /* check handle is valid */
         if (screens[curupd]->han == INVALID_HANDLE_VALUE) error(esbfcrt);
         iniscn(screens[curupd]); /* initalize that */
@@ -1315,10 +1273,10 @@ void iselect(int u, int d)
         /* create the screen */
         screens[curdsp]->han =
             CreateConsoleScreenBuffer(GENERIC_READ | GENERIC_WRITE,
-                                         FILE_SHARE_READ | FILE_SHARE_WRITE,
-                                         CONSOLE_TEXTMODE_BUFFER);
+                                      FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                      NULL, CONSOLE_TEXTMODE_BUFFER, NULL);
         /* check handle is valid */
-        if screens[curdsp]->han == INVALID_HANDLE_VALUE then error(esbfcrt);
+        if (screens[curdsp]->han == INVALID_HANDLE_VALUE) error(esbfcrt);
         iniscn(screens[curdsp]); /* initalize that */
 
     }
@@ -1329,7 +1287,7 @@ void iselect(int u, int d)
 
 }
 
-void select(FILE* f, int u, int d)
+void pa_select(FILE* f, int u, int d)
 
 {
 
@@ -1349,7 +1307,7 @@ that, and in any case an emulator would be layered above that.
 
 *******************************************************************************/
 
-void plcchr(char c)
+static void plcchr(char c)
 
 {
 
@@ -1358,6 +1316,7 @@ void plcchr(char c)
     int    ab;  /* attribute output buffer */
     int    len; /* length dummy */
     scnptr sc;  /* screen context pointer */
+    COORD  xy;
 
     getpos(); /* update status */
     sc = screens[curupd];
@@ -1365,22 +1324,20 @@ void plcchr(char c)
     if (c == '\r') /* carriage return, position to extreme left */
         icursor(1, sc->cury);
     else if (c == '\n') idown(); /* line feed, move down */
-    else if c == '\b') ileft(); /* back space, move left */
-    else if c == '\f') iclear(sc); /* clear screen */
-    else if c == '\t') itab(); /* process tab */
-    else if (c >== ' ' && c != 0x7f) { /* character is visible */
+    else if (c == '\b') ileft(); /* back space, move left */
+    else if (c == '\f') iclear(sc); /* clear screen */
+    else if (c == '\t') itab(); /* process tab */
+    else if (c >= ' ' && c != 0x7f) { /* character is visible */
 
         if (icurbnd(sc)) { /* cursor in bounds */
 
             cb = c; /* place character in buffer */
             ab = sc->sattr; /* place attribute in buffer */
             /* write character */
-            b = writeconsoleoutputcharacter(sc->han, &cb, 1,
-                                            pcoord(sc->curx-1, sc->cury-1),
-                                            len);
-            b = writeconsoleoutputattribute(han, &ab, 1,
-                                            pcoord(sc->curx-1, sc->cury-1),
-                                            len);
+            xy.X = sc->curx-1;
+            xy.Y = sc->cury-1;
+            b = writeconsoleoutputcharacter(sc->han, &cb, 1, xy, len);
+            b = writeconsoleoutputattribute(sc->han, &ab, 1, xy, len);
 
         }
         iright(); /* move cursor right */
@@ -1398,7 +1355,7 @@ position left.
 
 *******************************************************************************/
 
-void del(FILE* f)
+void pa_del(FILE* f)
 
 {
 
@@ -1474,219 +1431,219 @@ etend      cntrl-c              terminate program
 
 /* check control key pressed */
 
-int cntrl(INPUT_RECORD* inpevt)
+static int cntrl(INPUT_RECORD* inpevt)
 
 {
 
-    return (*inpevt.keyevent.dwcontrolkeystate &&
-            (right_ctrl_pressed || left_ctrl_pressed) != 0);
+    return (((*inpevt)).Event.KeyEvent.dwControlKeyState &&
+            (RIGHT_CTRL_PRESSED || LEFT_CTRL_PRESSED));
 
 }
 
 /* check shift key pressed */
 
-int shift(INPUT_RECORD* inpevt)
+static int shift(INPUT_RECORD* inpevt)
 
 {
 
-    return (*inpevt.keyevent.dwcontrolkeystate && shift_pressed != 0);
+    return (((*inpevt)).Event.KeyEvent.dwControlKeyState && SHIFT_PRESSED != 0);
 
 }
 
-void keyevent(pa_evtptr er, INPUT_RECORD* inpevt, int* keep);
+static void keyevent(pa_evtptr er, INPUT_RECORD* inpevt, int* keep)
 
 {
 
     /* we only take key down (pressed) events */
-    if (*inpevt.keyevent.bkeydown) {
+    if (inpevt->Event.KeyEvent.bKeyDown) {
 
         /* Check character is non-zero. The zero character occurs
           whenever a control feature is hit. */
-        if (*inpevt.keyevent.uchar.asciichar) {
+        if (inpevt->Event.KeyEvent.uChar.AsciiChar) {
 
-            if (*inpevt.keyevent.uchar.asciichar == '\r')
-                *er.etype = etenter /* set enter line */
-            else if (*inpevt.keyevent.uchar.asciichar == '\b')
-                *er.etype = etdelcb /* set delete character backwards */
-            else if (*inpevt.keyevent.uchar.asciichar == '\t')
-                *er.etype = ettab /* set tab */
-            else if (*inpevt.keyevent.uchar.asciichar == 'C'-64)
-                *er.etype = etterm /* set } program */
-            else if (*inpevt.keyevent.uchar.asciichar == 'S'-64)
-                *er.etype = etstop /* set stop program */
-            else if (*inpevt.keyevent.uchar.asciichar == 'Q'-64)
-                *er.etype = etcont /* set continue program */
+            if (inpevt->Event.KeyEvent.uChar.AsciiChar == '\r')
+                er->etype = pa_etenter; /* set enter line */
+            else if (inpevt->Event.KeyEvent.uChar.AsciiChar == '\b')
+                er->etype = pa_etdelcb; /* set delete character backwards */
+            else if (inpevt->Event.KeyEvent.uChar.AsciiChar == '\t')
+                er->etype = pa_ettab; /* set tab */
+            else if (inpevt->Event.KeyEvent.uChar.AsciiChar == 'C'-64)
+                er->etype = pa_etterm; /* set } program */
+            else if (inpevt->Event.KeyEvent.uChar.AsciiChar == 'S'-64)
+                er->etype = pa_etstop; /* set stop program */
+            else if (inpevt->Event.KeyEvent.uChar.AsciiChar == 'Q'-64)
+                er->etype = pa_etcont; /* set continue program */
             else { /* normal character */
 
-                *er.etype = etchar; /* set character event */
-                *er.char = *inpevt.keyevent.uchar.asciichar
+                er->etype = pa_etchar; /* set character event */
+                er->echar = inpevt->Event.KeyEvent.uChar.AsciiChar;
 
             }
-            *keep = true /* set keep event */
+            *keep = 1; /* set keep event */
 
-        } else switch (*inpevt.keyevent.wVirtualKeyCode) { /* key */
+        } else switch (inpevt->Event.KeyEvent.wVirtualKeyCode) { /* key */
 
             case VK_HOME: /* home */
-                if (cntrl(inpevt)) *er.etype = ethome /* home document */
-                else if (shift(inpevt)) *er.etype = ethomes /* home screen */
-                else *er.etype = ethomel; /* home line */
-                *keep = true; /* set keep event */
+                if (cntrl(inpevt)) er->etype = pa_ethome; /* home document */
+                else if (shift(inpevt)) er->etype = pa_ethomes; /* home screen */
+                else er->etype = pa_ethomel; /* home line */
+                *keep = 1; /* set keep event */
                 break;
 
             case VK_END: /* } */
-                if (cntrl(inpevt)) *er.etype = et} /* end document */
-                else if (shift(inpevt)) *er.etype = et}s /* end screen */
-                else *er.etype = etendl; /* end line */
-                *keep = true; /* set keep event */
+                if (cntrl(inpevt)) er->etype = pa_etend; /* end document */
+                else if (shift(inpevt)) er->etype = pa_etends; /* end screen */
+                else er->etype = pa_etendl; /* end line */
+                *keep = 1; /* set keep event */
                 break;
 
             case VK_UP: /* up */
-                if (cntrl(inpevt)) *er.etype = etscru /* scroll up */
-                else *er.etype = etup; /* up line */
-                *keep = true; /* set keep event */
+                if (cntrl(inpevt)) er->etype = pa_etscru; /* scroll up */
+                else er->etype = pa_etup; /* up line */
+                *keep = 1; /* set keep event */
                 break;
 
             case VK_DOWN: /* down */
-                if (cntrl(inpevt)) *er.etype = etscrd; /* scroll down */
-                else *er.etype = etdown; /* up line */
-                *keep = true; /* set keep event */
+                if (cntrl(inpevt)) er->etype = pa_etscrd; /* scroll down */
+                else er->etype = pa_etdown; /* up line */
+                *keep = 1; /* set keep event */
                 break;
 
-            case vk_left: /* left */
-                if (cntrl(inpevt)) *er.etype = etscrl; /* scroll left one character */
-                else if (shift(inpevt)) *er.etype = etleftw; /* left one word */
-                else *er.etype = etleft; /* left one character */
-                *keep = true; /* set keep event */
+            case VK_LEFT: /* left */
+                if (cntrl(inpevt)) er->etype = pa_etscrl; /* scroll left one character */
+                else if (shift(inpevt)) er->etype = pa_etleftw; /* left one word */
+                else er->etype = pa_etleft; /* left one character */
+                *keep = 1; /* set keep event */
                 break;
 
-            case vk_right: /* right */
-                if (cntrl(inpevt)) *er.etype = etscrr; /* scroll right one character */
-                else if (shift(inpevt)) *er.etype = etrightw; /* right one word */
-                else *er.etype = etright; /* left one character */
-                *keep = true; /* set keep event */
+            case VK_RIGHT: /* right */
+                if (cntrl(inpevt)) er->etype = pa_etscrr; /* scroll right one character */
+                else if (shift(inpevt)) er->etype = pa_etrightw; /* right one word */
+                else er->etype = pa_etright; /* left one character */
+                *keep = 1; /* set keep event */
                 break;
 
-            case vk_insert: /* insert */
-                if (cntrl(inpevt)) *er.etype = etinsert; /* insert block */
-                else if (shift(inpevt)) *er.etype = etinsertl; /* insert line */
-                else *er.etype = etinsertt; /* insert toggle */
-                *keep = true; /* set keep event */
+            case VK_INSERT: /* insert */
+                if (cntrl(inpevt)) er->etype = pa_etinsert; /* insert block */
+                else if (shift(inpevt)) er->etype = pa_etinsertl; /* insert line */
+                else er->etype = pa_etinsertt; /* insert toggle */
+                *keep = 1; /* set keep event */
                 break;
 
-            case vk_delete: /* delete */
-                if (cntrl(inpevt)) *er.etype = etdel; /* delete block */
-                else if (shift(inpevt)) *er.etype = etdell; /* delete line */
-                else *er.etype = etdelcf; /* insert toggle */
-                *keep = true; /* set keep event */
+            case VK_DELETE: /* delete */
+                if (cntrl(inpevt)) er->etype = pa_etdel; /* delete block */
+                else if (shift(inpevt)) er->etype = pa_etdell; /* delete line */
+                else er->etype = pa_etdelcf; /* insert toggle */
+                *keep = 1; /* set keep event */
                 break;
 
-            case vk_prior:
-                *er.etype = etpagu; /* page up */
-                *keep = true; /* set keep event */
+            case VK_PRIOR:
+                er->etype = pa_etpagu; /* page up */
+                *keep = 1; /* set keep event */
                 break;
 
-            case vk_next:
-                *er.etype = etpagd; /* page down */
-                *keep = true; /* set keep event */
+            case VK_NEXT:
+                er->etype = pa_etpagd; /* page down */
+                *keep = 1; /* set keep event */
                 break;
 
-            case vk_f1: /* f1 */
-                if (cntrl(inpevt)) *er.etype = etcopy /* copy block */
-                else if (shift(inpevt)) *er.etype = etcopyl; /* copy line */
+            case VK_F1: /* f1 */
+                if (cntrl(inpevt)) er->etype = pa_etcopy; /* copy block */
+                else if (shift(inpevt)) er->etype = pa_etcopyl; /* copy line */
                 else { /* f1 */
 
-                    *er.etype = etfun;
-                    *er.fkey = 1;
+                    er->etype = pa_etfun;
+                    er->fkey = 1;
 
                 }
-                *keep = true; /* set keep event */
+                *keep = 1; /* set keep event */
                 break;
 
-            case vk_f2: /* f2 */
-                if (cntrl(inpevt)) *er.etype = etprintb; /* print block */
-                else if (shift(inpevt)) *er.etype = etprint; /* print document */
+            case VK_F2: /* f2 */
+                if (cntrl(inpevt)) er->etype = pa_etprintb; /* print block */
+                else if (shift(inpevt)) er->etype = pa_etprint; /* print document */
                 else { /* f2 */
 
-                    *er.etype = etfun;
-                    *er.fkey = 2;
+                    er->etype = pa_etfun;
+                    er->fkey = 2;
 
                 }
-                *keep = true; /* set keep event */
+                *keep = 1; /* set keep event */
                 break;
 
-            case vk_f3: /* f3 */
-                if (cntrl(inpevt)) *er.etype = etprints; /* print screen */
+            case VK_F3: /* f3 */
+                if (cntrl(inpevt)) er->etype = pa_etprints; /* print screen */
                 else { /* f3 */
 
-                    *er.etype = etfun;
-                    *er.fkey = 3;
+                    er->etype = pa_etfun;
+                    er->fkey = 3;
 
                 }
-                *keep = true; /* set keep event */
+                *keep = 1; /* set keep event */
                 break;
 
-            case vk_f4: /* f4 */
-                *er.etype = etfun;
-                *er.fkey = 4;
-                *keep = true; /* set keep event */
+            case VK_F4: /* f4 */
+                er->etype = pa_etfun;
+                er->fkey = 4;
+                *keep = 1; /* set keep event */
                 break;
 
-            case vk_f5: /* f5 */
-                *er.etype = etfun;
-                *er.fkey = 5;
-                *keep = true; /* set keep event */
+            case VK_F5: /* f5 */
+                er->etype = pa_etfun;
+                er->fkey = 5;
+                *keep = 1; /* set keep event */
                 break;
 
-            case vk_f6: /* f6 */
-                *er.etype = etfun;
-                *er.fkey = 6;
-                *keep = true; /* set keep event */
+            case VK_F6: /* f6 */
+                er->etype = pa_etfun;
+                er->fkey = 6;
+                *keep = 1; /* set keep event */
                 break;
 
-            case vk_f7: /* f7 */
-                *er.etype = etfun;
-                *er.fkey = 7;
-                *keep = true; /* set keep event */
+            case VK_F7: /* f7 */
+                er->etype = pa_etfun;
+                er->fkey = 7;
+                *keep = 1; /* set keep event */
                 break;
 
-            case vk_f8: /* f8 */
-                *er.etype = etfun;
-                *er.fkey = 8;
-                *keep = true; /* set keep event */
+            case VK_F8: /* f8 */
+                er->etype = pa_etfun;
+                er->fkey = 8;
+                *keep = 1; /* set keep event */
                 break;
 
-            case vk_f9: /* f9 */
-                *er.etype = etfun;
-                *er.fkey = 9;
-                *keep = true; /* set keep event */
+            case VK_F9: /* f9 */
+                er->etype = pa_etfun;
+                er->fkey = 9;
+                *keep = 1; /* set keep event */
                 break;
 
-            case vk_f10: /* f10 */
-                *er.etype = etfun;
-                *er.fkey = 10;
-                *keep = true; /* set keep event */
+            case VK_F10: /* f10 */
+                er->etype = pa_etfun;
+                er->fkey = 10;
+                *keep = 1; /* set keep event */
                 break;
 
-            case vk_f11: /* f11 */
-                *er.etype = etfun;
-                *er.fkey = 11;
-                *keep = true; /* set keep event */
+            case VK_F11: /* f11 */
+                er->etype = pa_etfun;
+                er->fkey = 11;
+                *keep = 1; /* set keep event */
                 break;
 
-            case vk_f12: /* f12 */
-                *er.etype = etfun;
-                *er.fkey = 12;
-                *keep = true; /* set keep event */
+            case VK_F12: /* f12 */
+                er->etype = pa_etfun;
+                er->fkey = 12;
+                *keep = 1; /* set keep event */
                 break;
 
-            case vk_menu:
-                *er.etype = etmenu; /* alt */
-                *keep = true; /* set keep event */
+            case VK_MENU:
+                er->etype = pa_etmenu; /* alt */
+                *keep = 1; /* set keep event */
                 break;
 
-            case vk_cancel:
-                *er.etype = etterm; /* ctl-brk */
-                *keep = true; /* set keep event */
+            case VK_CANCEL:
+                er->etype = pa_etterm; /* ctl-brk */
+                *keep = 1; /* set keep event */
                 break;
 
         }
@@ -1713,84 +1670,84 @@ contempt for the whole double click concept.
 
 /* update mouse parameters */
 
-void mouseupdate(pa_evtptr er, int* keep)
+static void mouseupdate(pa_evtptr er, int* keep)
 
 {
 
     /* we prioritize events by: movements 1st, button clicks 2nd */
     if (nmpx != mpx || nmpy != mpy) { /* create movement event */
 
-        *er.etype = etmoumov; /* set movement event */
-        *er.mmoun = 1; /* mouse 1 */
-        *er.moupx = nmpx; /* set new mouse position */
-        *er.moupy = nmpy;
+        er->etype = pa_etmoumov; /* set movement event */
+        er->mmoun = 1; /* mouse 1 */
+        er->moupx = nmpx; /* set new mouse position */
+        er->moupy = nmpy;
         mpx = nmpx; /* save new position */
         mpy = nmpy;
-        *keep = true; /* set to keep */
+        *keep = 1; /* set to keep */
 
-    } else if nmb1 > mb1 {
+    } else if (nmb1 > mb1) {
 
-        *er.etype = etmouba; /* button 1 assert */
-        *er.amoun = 1; /* mouse 1 */
-        *er.amoubn = 1; /* button 1 */
+        er->etype = pa_etmouba; /* button 1 assert */
+        er->amoun = 1; /* mouse 1 */
+        er->amoubn = 1; /* button 1 */
         mb1 = nmb1; /* update status */
-        *keep = true; /* set to keep */
+        *keep = 1; /* set to keep */
 
-    } else if nmb2 > mb2 {
+    } else if (nmb2 > mb2) {
 
-        *er.etype = etmouba; /* button 2 assert */
-        *er.amoun = 1; /* mouse 1 */
-        *er.amoubn = 2; /* button 2 */
+        er->etype = pa_etmouba; /* button 2 assert */
+        er->amoun = 1; /* mouse 1 */
+        er->amoubn = 2; /* button 2 */
         mb2 = nmb2; /* update status */
-        *keep = true; /* set to keep */
+        *keep = 1; /* set to keep */
 
-    } else if nmb3 > mb3 {
+    } else if (nmb3 > mb3) {
 
-        *er.etype = etmouba; /* button 3 assert */
-        *er.amoun = 1; /* mouse 1 */
-        *er.amoubn = 3; /* button 3 */
+        er->etype = pa_etmouba; /* button 3 assert */
+        er->amoun = 1; /* mouse 1 */
+        er->amoubn = 3; /* button 3 */
         mb3 = nmb3; /* update status */
-        *keep = true; /* set to keep */
+        *keep = 1; /* set to keep */
 
-    } else if nmb4 > mb4 {
+    } else if (nmb4 > mb4) {
 
-        *er.etype = etmouba; /* button 4 assert */
-        *er.amoun = 1; /* mouse 1 */
-        *er.amoubn = 4; /* button 4 */
+        er->etype = pa_etmouba; /* button 4 assert */
+        er->amoun = 1; /* mouse 1 */
+        er->amoubn = 4; /* button 4 */
         mb4 = nmb4; /* update status */
-        *keep = true; /* set to keep */
+        *keep = 1; /* set to keep */
 
-    } else if nmb1 < mb1 {
+    } else if (nmb1 < mb1) {
 
-        *er.etype = etmoubd; /* button 1 deassert */
-        *er.dmoun = 1; /* mouse 1 */
-        *er.dmoubn = 1; /* button 1 */
+        er->etype = pa_etmoubd; /* button 1 deassert */
+        er->dmoun = 1; /* mouse 1 */
+        er->dmoubn = 1; /* button 1 */
         mb1 = nmb1; /* update status */
-        *keep = true; /* set to keep */
+        *keep = 1; /* set to keep */
 
-    } else if nmb2 < mb2 {
+    } else if (nmb2 < mb2) {
 
-        *er.etype = etmoubd; /* button 2 deassert */
-        *er.dmoun = 1; /* mouse 1 */
-        *er.dmoubn = 2; /* button 2 */
+        er->etype = pa_etmoubd; /* button 2 deassert */
+        er->dmoun = 1; /* mouse 1 */
+        er->dmoubn = 2; /* button 2 */
         mb2 = nmb2; /* update status */
-        *keep = true; /* set to keep */
+        *keep = 1; /* set to keep */
 
-    } else if nmb3 < mb3 {
+    } else if (nmb3 < mb3) {
 
-        *er.etype = etmoubd; /* button 3 deassert */
-        *er.dmoun = 1; /* mouse 1 */
-        *er.dmoubn = 3; /* button 3 */
+        er->etype = pa_etmoubd; /* button 3 deassert */
+        er->dmoun = 1; /* mouse 1 */
+        er->dmoubn = 3; /* button 3 */
         mb3 = nmb3; /* update status */
-        *keep = true; /* set to keep */
+        *keep = 1; /* set to keep */
 
-    } else if nmb4 < mb4 {
+    } else if (nmb4 < mb4) {
 
-        *er.etype = etmoubd; /* button 4 deassert */
-        *er.dmoun = 1; /* mouse 1 */
-        *er.dmoubn = 4; /* button 4 */
+        er->etype = pa_etmoubd; /* button 4 deassert */
+        er->dmoun = 1; /* mouse 1 */
+        er->dmoubn = 4; /* button 4 */
         mb4 = nmb4; /* update status */
-        *keep = true; /* set to keep */
+        *keep = 1; /* set to keep */
 
     }
 
@@ -1798,79 +1755,77 @@ void mouseupdate(pa_evtptr er, int* keep)
 
 /* register mouse status */
 
-void mouseevent(INPUT_RECORD* inpevt)
+static void mouseevent(INPUT_RECORD* inpevt)
 
 {
 
     /* gather a new mouse status */
-    nmpx = *inpevt.MouseEvent.dwMousePosition.x+1; /* get mouse position */
-    nmpy = *inpevt.MouseEvent.dwMousePosition.y+1;
-    nmb1 = *inpevt.MouseEvent.dwButtonState && FROM_LEFT_1ST_BUTTON_PRESSED != 0;
-    nmb2 = *inpevt.MouseEvent.dwButtonState && RIGHTMOST_BUTTON_PRESSED != 0;
-    nmb3 = *inpevt.MouseEvent.dwButtonState && FROM_LEFT_2ND_BUTTON_PRESSED != 0;
-    nmb4 = *inpevt.MouseEvent.dwButtonState && FROM_LEFT_3RD_BUTTON_PRESSED != 0
+    nmpx = inpevt->Event.MouseEvent.dwMousePosition.X+1; /* get mouse position */
+    nmpy = inpevt->Event.MouseEvent.dwMousePosition.Y+1;
+    nmb1 = inpevt->Event.MouseEvent.dwButtonState && FROM_LEFT_1ST_BUTTON_PRESSED != 0;
+    nmb2 = inpevt->Event.MouseEvent.dwButtonState && RIGHTMOST_BUTTON_PRESSED != 0;
+    nmb3 = inpevt->Event.MouseEvent.dwButtonState && FROM_LEFT_2ND_BUTTON_PRESSED != 0;
+    nmb4 = inpevt->Event.MouseEvent.dwButtonState && FROM_LEFT_3RD_BUTTON_PRESSED != 0;
 
 }
 
 /* issue event for changed button */
 
-void updn(pa_evtptr er, INPUT_RECORD* inpevt, int* keep, int bn, int bm)
+static void updn(pa_evtptr er, INPUT_RECORD* inpevt, int* keep, int bn, int bm)
 
 {
 
     /* Note that if there are multiple up/down bits, we only register the last
       one. Windows is ambiguous as to if it will combine such events */
-    if (!(*inpevt.KeyEvent.wVirtualKeyCode & bm)) { /* assert */
+    if (!(inpevt->Event.KeyEvent.wVirtualKeyCode & bm)) { /* assert */
 
-        *er.etype = etjoyba; /* set assert */
-        if (*inpevt.EventType == UIV_JOY1BUTTONDOWN ||
-            inpevt.EventType == UIV_JOY1BUTTONUP) *er.ajoyn = 1;
-        else *er.ajoyn = 2;
-        *er.ajoybn = bn; /* set number */
+        er->etype = pa_etjoyba; /* set assert */
+        if (inpevt->EventType == UIV_JOY1BUTTONDOWN ||
+            inpevt->EventType == UIV_JOY1BUTTONUP) er->ajoyn = 1;
+        else er->ajoyn = 2;
+        er->ajoybn = bn; /* set number */
 
     } else { /* deassert */
 
-        *er.etype = etjoybd; /* set deassert */
-        if (inpevt.EventType == UIV_JOY1BUTTONDOWN ||
-            inpevt.EventType == UIV_JOY1BUTTONUP) er.ajoyn = 1;
-        else er.ajoyn = 2;
-        er.djoybn = bn; /* set number */
+        er->etype = pa_etjoybd; /* set deassert */
+        if (inpevt->EventType == UIV_JOY1BUTTONDOWN ||
+            inpevt->EventType == UIV_JOY1BUTTONUP) er->ajoyn = 1;
+        else er->ajoyn = 2;
+        er->djoybn = bn; /* set number */
 
     }
-    *keep = true; /* set keep event */
+    *keep = 1; /* set keep event */
 
 }
 
 /* process joystick messages */
 
-void joymes(INPUT_RECORD* inpevt)
+static void joymes(pa_evtptr er, INPUT_RECORD* inpevt, int* keep)
 
 {
 
     /* register changes on each button */
-    if (!(*inpevt.KeyEvent.wVirtualKeyCode & joy_button1chg))
-        updn(1, joy_button1);
-    if (!(*inpevt.KeyEvent.wVirtualKeyCode & joy_button2chg))
-        updn(2, joy_button2);
-    if (!(*inpevt.KeyEvent.wVirtualKeyCode & joy_button3chg))
-        updn(3, joy_button3);
-    if (!(*inpevt.KeyEvent.wVirtualKeyCode & joy_button4chg))
-        updn(4, joy_button4);
+    if (!(inpevt->Event.KeyEvent.wVirtualKeyCode & JOY_BUTTON1CHG))
+        updn(er, inpevt, keep, 1, JOY_BUTTON1);
+    if (!(inpevt->Event.KeyEvent.wVirtualKeyCode & JOY_BUTTON2CHG))
+        updn(er, inpevt, keep, 2, JOY_BUTTON2);
+    if (!(inpevt->Event.KeyEvent.wVirtualKeyCode & JOY_BUTTON3CHG))
+        updn(er, inpevt, keep, 3, JOY_BUTTON3);
+    if (!(inpevt->Event.KeyEvent.wVirtualKeyCode & JOY_BUTTON4CHG))
+        updn(er, inpevt, keep, 4, JOY_BUTTON4);
 
 }
 
-void ievent(pa_evtptr er)
+static void ievent(pa_evtptr er)
 
 {
 
-    int keep;            /* event keep flag */
-    int b;               /* int return value */
-    int ne;              /* number of events */
-    int x, y, z;         /* joystick readback */
-    int dx, dy, dz;      /* joystick readback differences */
-    INPUT_RECORD inpevt; /* event read buffer */
-
-/*msg:  msg;*/
+    int          keep;       /* event keep flag */
+    int          b;          /* int return value */
+    DWORD        ne;         /* number of events */
+    int          x, y, z;    /* joystick readback */
+    int          dx, dy, dz; /* joystick readback differences */
+    INPUT_RECORD inpevt;     /* event read buffer */
 
     do {
 
@@ -1878,36 +1833,36 @@ void ievent(pa_evtptr er)
         mouseupdate(er, &keep); /* check any mouse details need processing */
         if (!keep) { /* no, go ahead with event read */
 
-            b = ReadConsoleInput(inphdl, inpevt, 1, ne); /* get the next event */
-            if b then { /* process valid event */
+            b = ReadConsoleInput(&inphdl, &inpevt, 1, &ne); /* get the next event */
+            if (b) { /* process valid event */
 
                 /* decode by event */
                 if (inpevt.EventType == KEY_EVENT)
-                    keyevent(er, inpevt, &keep); /* key event */
+                    keyevent(er, &inpevt, &keep); /* key event */
                 else if (inpevt.EventType == MOUSE_EVENT)
-                    mouseevent(er, &keep); /* mouse event */
+                    mouseevent(&inpevt); /* mouse event */
                 else if (inpevt.EventType == UIV_TIM) { /* timer event */
 
-                    er.etype = ettim; /* set timer event occurred */
+                    er->etype = pa_ettim; /* set timer event occurred */
                     /* set what timer */
-                    er.timnum = inpevt.KeyEvent.wVirtualKeyCode;
-                    keep = true; /* set to keep */
+                    er->timnum = inpevt.Event.KeyEvent.wVirtualKeyCode;
+                    keep = 1; /* set to keep */
 
                 } else if (inpevt.EventType == UIV_JOY1MOVE ||
-                           (inpevt.EventType == UIV_JOY1ZMOVE ||
-                           (inpevt.EventType == UIV_JOY2MOVE ||
-                           (inpevt.EventType == UIV_JOY2ZMOVE) {
+                           inpevt.EventType == UIV_JOY1ZMOVE ||
+                           inpevt.EventType == UIV_JOY2MOVE ||
+                           inpevt.EventType == UIV_JOY2ZMOVE) {
 
                     /* joystick move */
-                    er.etype = etjoymov; /* set joystick moved */
+                    er->etype = pa_etjoymov; /* set joystick moved */
                     /* set what joystick */
                     if (inpevt.EventType == UIV_JOY1MOVE ||
-                        (inpevt.EventType == UIV_JOY1ZMOVE) er.mjoyn = 1
-                    else er.mjoyn = 2;
+                        inpevt.EventType == UIV_JOY1ZMOVE) er->mjoyn = 1;
+                    else er->mjoyn = 2;
                     /* Set all variables to default to same. This way, only the joystick
                       axes that are actually set by the message are registered. */
                     if (inpevt.EventType == UIV_JOY1MOVE ||
-                        (inpevt.EventType == UIV_JOY1ZMOVE) {
+                        inpevt.EventType == UIV_JOY1ZMOVE) {
 
                         x = joy1xs;
                         y = joy1ys;
@@ -1923,19 +1878,19 @@ void ievent(pa_evtptr er)
                     /* If it's an x/y move, split the x and y axies parts of the message
                       up. */
                     if (inpevt.EventType == UIV_JOY1MOVE ||
-                        (inpevt.EventType == UIV_JOY2MOVE) {
+                        inpevt.EventType == UIV_JOY2MOVE) {
 
                         /* get x and y positions */
-                        x = inpevt.KeyEvent.wVirtualKeyCode;
-                        y = inpevt.KeyEvent.wVirtualScanCode
+                        x = inpevt.Event.KeyEvent.wVirtualKeyCode;
+                        y = inpevt.Event.KeyEvent.wVirtualScanCode;
 
                     } else /* get z position */
-                        z = inpevt.KeyEvent.wVirtualKeyCode;
+                        z = inpevt.Event.KeyEvent.wVirtualKeyCode;
                     /* We perform thresholding on the joystick right here, which is
                       limited to 255 steps (same as joystick hardware. find joystick
                       diffs and update */
                     if (inpevt.EventType == UIV_JOY1MOVE ||
-                        (inpevt.EventType == UIV_JOY1ZMOVE) {
+                        inpevt.EventType == UIV_JOY1ZMOVE) {
 
                         dx = abs(joy1xs-x); /* find differences */
                         dy = abs(joy1ys-y);
@@ -1958,22 +1913,23 @@ void ievent(pa_evtptr er)
                     if (dx > 65535 / 255 || dy > 65535 / 255 ||
                         dz > 65535 / 255) {
 
-                        /* scale axies between -maxint..maxint and place */
-                        er.joypx = (x - 32767)*(maxint / 32768);
-                        er.joypy = (y - 32767)*(maxint / 32768);
-                        er.joypz = (z - 32767)*(maxint / 32768);
+                        /* scale axies between -INT_MAX..INT_MAX and place */
+                        er->joypx = (x - 32767)*(INT_MAX / 32768);
+                        er->joypy = (y - 32767)*(INT_MAX / 32768);
+                        er->joypz = (z - 32767)*(INT_MAX / 32768);
                         keep = 1; /* set keep event */
 
                     }
 
                 } else if (inpevt.EventType == UIV_JOY1BUTTONDOWN ||
-                                (inpevt.EventType == UIV_JOY2BUTTONDOWN ||
-                                (inpevt.EventType == UIV_JOY1BUTTONUP) or
-                                (inpevt.EventType == UIV_JOY2BUTTONUP) then joymes(inpevt);
-                else if inpevt.EventType == UIV_TERM then {
+                           inpevt.EventType == UIV_JOY2BUTTONDOWN ||
+                           inpevt.EventType == UIV_JOY1BUTTONUP ||
+                           inpevt.EventType == UIV_JOY2BUTTONUP)
+                    joymes(er, &inpevt, &keep);
+                else if (inpevt.EventType == UIV_TERM) {
 
-                    er.etype = etterm; /* set } program */
-                    keep = true; /* set keep event */
+                    er->etype = pa_etterm; /* set } program */
+                    keep = 1; /* set keep event */
 
                 }
 
@@ -1985,11 +1941,11 @@ void ievent(pa_evtptr er)
 
 } /* event */
 
-void event(FILE* f, pa_evtptrr er);
+void pa_event(FILE* f, pa_evtptr er)
 
 {
 
-    ievent(er) /* process event */
+    ievent(er); /* process event */
 
 }
 
@@ -1998,23 +1954,23 @@ void event(FILE* f, pa_evtptrr er);
 Timer handler procedure
 
 Called when the windows multimedia event timer expires. We prepare a message
-to s} up to the console even handler. Since the console event system does not
+to send up to the console even handler. Since the console event system does not
 have user defined messages, this is done by using a key event with an invalid
 event code.
 
 *******************************************************************************/
 
-void timeout(int id, int msg, int usr, int dw1, int dw2)
+static void CALLBACK timeout(UINT id, UINT msg, DWORD_PTR usr, DWORD_PTR dw1, DWORD_PTR dw2)
 
 {
 
     INPUT_RECORD inpevt; /* windows event record array */
-    int ne;  /* number of events written */
+    DWORD ne;  /* number of events written */
     int b;
 
     inpevt.EventType = UIV_TIM; /* set key event type */
-    inpevt.KeyEvent.wVirtualKeyCode = usr; /* set timer handle */
-    b = WriteConsoleInput(inphdl, inpevt, 1, ne); /* send */
+    inpevt.Event.KeyEvent.wVirtualKeyCode = usr; /* set timer handle */
+    b = WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* send */
 
 }
 
@@ -2032,19 +1988,19 @@ the associated input file.
 
 *******************************************************************************/
 
-void itimer(int i, /* timer handle */
+static void itimer(int i, /* timer handle */
             int t, /* number of tenth-milliseconds to run */
             int r) /* timer is to rerun after completion */
 
 {
 
-    int tf; /* timer flags */
-    int mt; /* millisecond time */
+    UINT tf; /* timer flags */
+    UINT mt; /* millisecond time */
 
     mt = t / 10; /* find millisecond time */
-    if (mt == 0) mt = 1; /* fell below minimum, must be >== 1 */
+    if (mt == 0) mt = 1; /* fell below minimum, must be >= 1 */
     /* set flags for timer */
-    tf = TIME_CALLBACK_INT | TIME_KILL_SYNCHRONOUS;
+    tf = TIME_CALLBACK_FUNCTION | TIME_KILL_SYNCHRONOUS;
     /* set repeat/one shot status */
     if (r) tf = tf | TIME_PERIODIC;
     else tf = tf | TIME_ONESHOT;
@@ -2054,11 +2010,11 @@ void itimer(int i, /* timer handle */
 
 }
 
-void timer(FILE*, int i, int t, int r)
+void pa_timer(FILE* f, int i, int t, int r)
 
 {
 
-    itimer(i, t, r) /* set timer */
+    itimer(i, t, r); /* set timer */
 
 }
 
@@ -2070,7 +2026,7 @@ Kills a given timer, by it's id number. Only repeating timers should be killed.
 
 *******************************************************************************/
 
-void killtimer(FILE* f, /* file to kill timer on */
+void pa_killtimer(FILE* f, /* file to kill timer on */
                int   i) /* handle of timer */
 
 {
@@ -2093,7 +2049,7 @@ of the blanking interval.
 
 *******************************************************************************/
 
-void iframetimer(int e)
+static void iframetimer(int e)
 
 {
 
@@ -2103,9 +2059,9 @@ void iframetimer(int e)
 
             /* set timer to run, 17ms */
             frmhan = timeSetEvent(17, 0, timeout, FRMTIM,
-                                  time_callback_int |
-                                  time_kill_synchronous |
-                                  time_periodic);
+                                  TIME_CALLBACK_FUNCTION |
+                                  TIME_KILL_SYNCHRONOUS |
+                                  TIME_PERIODIC);
             if (!frmhan) error(etimacc); /* error */
             frmrun = 1; /* set timer running */
 
@@ -2125,7 +2081,7 @@ void iframetimer(int e)
 
 }
 
-void frametimer(FILE* f, int e)
+void pa_frametimer(FILE* f, int e)
 
 {
 
@@ -2141,11 +2097,11 @@ Returns the number of mice implemented.
 
 *******************************************************************************/
 
-int mouse(FILE* f)
+int pa_mouse(FILE* f)
 
 {
 
-    mouse = 1; /* set single mouse */
+    return (1); /* set single mouse */
 
 }
 
@@ -2158,12 +2114,13 @@ version.
 
 *******************************************************************************/
 
-int mousebutton(FILE* f, int m)
+int pa_mousebutton(FILE* f, int m)
 
 {
 
     if (m != 1) error(einvhan); /* bad mouse number */
-    mousebutton = 3; /* set 3 buttons */
+
+    return (3); /* set 3 buttons */
 
 }
 
@@ -2175,11 +2132,11 @@ Return number of joysticks attached.
 
 *******************************************************************************/
 
-int joystick(FILE* f)
+int pa_joystick(FILE* f)
 
 {
 
-    joystick = numjoy; /* two */
+    return (numjoy); /* two */
 
 }
 
@@ -2191,7 +2148,7 @@ Returns the number of buttons on a given joystick.
 
 *******************************************************************************/
 
-int ijoybutton(int j)
+static int ijoybutton(int j)
 
 {
 
@@ -2199,22 +2156,22 @@ int ijoybutton(int j)
     int nb;     /* number of buttons */
     int r;      /* return value */
 
-    if (j < 1 || j > numjoy) then error(einvjoy); /* bad joystick id */
+    if (j < 1 || j > numjoy) error(einvjoy); /* bad joystick id */
     r = joygetdevcaps(j-1, jc, sizeof(JOYCAPS));
     if (r) error(ejoyqry); /* could not access joystick */
     nb = jc.wNumButtons; /* set number of buttons */
     /* We don't support more than 4 buttons. */
-    if (nb > 4) then nb = 4;
+    if (nb > 4) nb = 4;
 
     return (nb); /* set number of buttons */
 
 }
 
-int joybutton(FILE* f, int j)
+int pa_joybutton(FILE* f, int j)
 
 {
 
-    joybutton = ijoybutton(j);
+    return (ijoybutton(j));
 
 }
 
@@ -2228,7 +2185,7 @@ joystick can be considered a slider without positional meaning.
 
 *******************************************************************************/
 
-int joyaxis(FILE* f, int j)
+int pa_joyaxis(FILE* f, int j)
 
 {
 
@@ -2244,7 +2201,7 @@ Sets a tab at the indicated collumn number.
 
 *******************************************************************************/
 
-void settab(FILE* f, int t)
+void pa_settab(FILE* f, int t)
 
 {
 
@@ -2262,7 +2219,7 @@ Resets the tab at the indicated collumn number.
 
 *******************************************************************************/
 
-void restab(FILE* f, int t)
+void pa_restab(FILE* f, int t)
 
 {
 
@@ -2281,7 +2238,7 @@ arrangement.
 
 *******************************************************************************/
 
-void clrtab(FILE* f)
+void pa_clrtab(FILE* f)
 
 {
 
@@ -2301,11 +2258,11 @@ int keys as well.
 
 *******************************************************************************/
 
-int funkey(FILE* f)
+int pa_funkey(FILE* f)
 
 {
 
-    funkey = 12; /* number of function keys */
+    return (12); /* number of function keys */
 
 }
 
@@ -2313,14 +2270,14 @@ int funkey(FILE* f)
 
 Process input line
 
-Reads an input line with full echo and editting. The line is placed into the
+Reads an input line with full echo and editing. The line is placed into the
 input line buffer.
 
-The upgrade for this is to implement a full set of editting features.
+The upgrade for this is to implement a full set of editing features.
 
 *******************************************************************************/
 
-void readline(void)
+static void readline(void)
 
 {
 
@@ -2330,36 +2287,36 @@ void readline(void)
     do { /* get line characters */
 
         /* get events until an "interesting" event occurs */
-        do { ievent(er); }
-        while (er.etype != etchar && er.etype != etenter &&
-               er.etype != etterm && er.etype !=etdelcb);
+        do { ievent(&er); }
+        while (er.etype != pa_etchar && er.etype != pa_etenter &&
+               er.etype != pa_etterm && er.etype != pa_etdelcb);
         /* if the event is line enter, place carriage return code,
           otherwise place real character. note that we emulate a
           terminal and return cr only, which is handled as appropriate
           by a higher level. if the event is program terminate, then we
           execute an organized halt */
-        swtich (er.etype) { /* event */
+        switch (er.etype) { /* event */
 
-            case etterm: exit(1); /* halt program */
-            case etenter: { /* line terminate */
+            case pa_etterm: exit(1); /* halt program */
+            case pa_etenter: { /* line terminate */
 
                 inpbuf[inpptr] = '\n'; /* return newline */
                 plcchr('\r'); /* output newline sequence */
-                plcchr('\n')
+                plcchr('\n');
 
             }
-            case etchar: { /* character */
+            case pa_etchar: { /* character */
 
                 if (inpptr < MAXLIN) {
 
-                    inpbuf[inpptr] = er.char; /* place real character */
-                    plcchr(er.char); /* echo the character */
+                    inpbuf[inpptr] = er.echar; /* place real character */
+                    plcchr(er.echar); /* echo the character */
 
                 }
                 if (inpptr < MAXLIN) inpptr++; /* next character */
 
             }
-            case etdelcb: { /* delete character backwards */
+            case pa_etdelcb: { /* delete character backwards */
 
                 if (inpptr > 1) { /* not at extreme left */
 
@@ -2374,7 +2331,7 @@ void readline(void)
 
         }
 
-    } while (!er.etype == etenter); /* until line terminate */
+    } while (!er.etype == pa_etenter); /* until line terminate */
     inpptr = 1; /* set 1st position on active line */
 
 }
@@ -2500,11 +2457,11 @@ static ssize_t iread(int fd, void* buff, size_t count)
             /* if there is no line in the input buffer, get one */
             if (!inpptr) readline();
             *p = inpbuf[inpptr]; /* get and place next character */
-            if (inpptr < MAXLN) inpptr++; /* next */
+            if (inpptr < MAXLIN) inpptr++; /* next */
             /* if we have just read the last of that line, then flag buffer empty */
             if (*p = '\n') inpptr = 0;
             p++; /* next character */
-            l--; /* count characters */
+            cnt--; /* count characters */
 
         }
         rc = count; /* set return same as count */
@@ -2537,7 +2494,7 @@ static ssize_t iwrite(int fd, const void* buff, size_t count)
     if (fd == OUTFIL) {
 
         /* send data to terminal */
-        while (cnt--) plcchr(screens[curupd-1], *p++);
+        while (cnt--) plcchr(*p++);
         rc = count; /* set return same as count */
 
     } else rc = (*ofpwrite)(fd, buff, count);
@@ -2555,84 +2512,84 @@ timer and joystick messages back to the main console queue.
 
 *******************************************************************************/
 
-int wndproc(int hwnd, int msg, int wparam, int lparam)
+static LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
 {
 
-    int b;  /* result holder */
-    int r;  /* result holder */
-    int ne;  /* number of events written */
-    int x, y, z;
-    INPUT_RECORD inpevt; /* event buffer */
+    int          b;       /* result holder */
+    int          r;       /* result holder */
+    DWORD        ne;      /* number of events written */
+    int          x, y, z;
+    INPUT_RECORD inpevt;  /* event buffer */
 
     if (msg == WM_CREATE) {
 
         r = 0;
 
-    } else if (msg == MM_JOY1MOVE then {
+    } else if (msg == MM_JOY1MOVE) {
 
         inpevt.EventType = UIV_JOY1MOVE; /* set event type */
         x = LOWORD(lparam); /* get x and y for joystick */
         y = HIWORD(lparam);
-        inpevt.KeyEvent.wVirtualKeyCode = x; /* place */
-        inpevt.KeyEvent.wvirtualscancode = y; /* place */
-        b = WriteConsoleInput(inphdl, inpevt, 1, ne) /* s} */
+        inpevt.Event.KeyEvent.wVirtualKeyCode = x; /* place */
+        inpevt.Event.KeyEvent.wVirtualScanCode = y; /* place */
+        b = WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
 
-    } else if msg == MM_JOY1ZMOVE then {
+    } else if (msg == MM_JOY1ZMOVE) {
 
         inpevt.EventType = UIV_JOY1ZMOVE; /* set event type */
         z = LOWORD(lparam); /* get z for joystick */
-        inpevt.KeyEvent.wVirtualKeyCode = z; /* place */
-        b = WriteConsoleInput(inphdl, inpevt, 1, ne) /* s} */
+        inpevt.Event.KeyEvent.wVirtualKeyCode = z; /* place */
+        b = WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
 
-    } else if msg == MM_JOY2MOVE then {
+    } else if (msg == MM_JOY2MOVE) {
 
         inpevt.EventType = UIV_JOY2MOVE; /* set event type */
         x = LOWORD(lparam); /* get x and y for joystick */
         y = HIWORD(lparam);
-        inpevt.KeyEvent.wVirtualKeyCode = x; /* place */
-        inpevt.KeyEvent.wvirtualscancode = y; /* place */
-        b = WriteConsoleInput(inphdl, inpevt, 1, ne) /* s} */
+        inpevt.Event.KeyEvent.wVirtualKeyCode = x; /* place */
+        inpevt.Event.KeyEvent.wVirtualScanCode = y; /* place */
+        b = WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
 
-    } else if msg == MM_JOY2ZMOVE then {
+    } else if (msg == MM_JOY2ZMOVE) {
 
         inpevt.EventType = UIV_JOY2ZMOVE; /* set event type */
         z = LOWORD(lparam); /* get z for joystick */
-        inpevt.KeyEvent.wVirtualKeyCode = z; /* place */
-        b = WriteConsoleInput(inphdl, inpevt, 1, ne) /* s} */
+        inpevt.Event.KeyEvent.wVirtualKeyCode = z; /* place */
+        b = WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
 
-    } else if msg == MM_JOY1BUTTONDOWN then {
+    } else if (msg == MM_JOY1BUTTONDOWN) {
 
         inpevt.EventType = UIV_JOY1BUTTONDOWN; /* set event type */
-        inpevt.KeyEvent.wVirtualKeyCode = wparam; /* place buttons */
-        b = WriteConsoleInput(inphdl, inpevt, 1, ne) /* s} */
+        inpevt.Event.KeyEvent.wVirtualKeyCode = wparam; /* place buttons */
+        b = WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
 
-    } else if msg == MM_JOY2BUTTONDOWN then {
+    } else if (msg == MM_JOY2BUTTONDOWN) {
 
         inpevt.EventType = UIV_JOY2BUTTONDOWN; /* set event type */
-        inpevt.KeyEvent.wVirtualKeyCode = wparam; /* place buttons */
-        b = WriteConsoleInput(inphdl, inpevt, 1, ne) /* s} */
+        inpevt.Event.KeyEvent.wVirtualKeyCode = wparam; /* place buttons */
+        b = WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
 
-    } else if msg == MM_JOY1BUTTONUP then {
+    } else if (msg == MM_JOY1BUTTONUP) {
 
         inpevt.EventType = UIV_JOY1BUTTONUP; /* set event type */
-        inpevt.KeyEvent.wVirtualKeyCode = wparam; /* place buttons */
-        b = WriteConsoleInput(inphdl, inpevt, 1, ne) /* s} */
+        inpevt.Event.KeyEvent.wVirtualKeyCode = wparam; /* place buttons */
+        b = WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
 
-    } else if msg == MM_JOY2BUTTONUP then {
+    } else if (msg == MM_JOY2BUTTONUP) {
 
         inpevt.EventType = UIV_JOY2BUTTONUP; /* set event type */
-        inpevt.KeyEvent.wVirtualKeyCode = wparam; /* place buttons */
-        b = WriteConsoleInput(inphdl, inpevt, 1, ne) /* s} */
+        inpevt.Event.KeyEvent.wVirtualKeyCode = wparam; /* place buttons */
+        b = WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
 
-    } else if msg == WM_DESTROY then {
+    } else if (msg == WM_DESTROY) {
 
         PostQuitMessage(0);
-        r = 0
+        r = 0;
 
     } else r = DefWindowProc(hwnd, msg, wparam, lparam);
 
-    wndproc = r
+    return (r);
 
 }
 
@@ -2674,8 +2631,6 @@ void dummyloop(void)
     int b;        /* int return */
     int r;        /* result holder */
 
-{
-
     /* there are a few resources that can only be used by windowed programs, such
       as timers and joysticks. to enable these, we start a false windows
       void with a window that is never presented */
@@ -2685,36 +2640,36 @@ void dummyloop(void)
       by the program back into the queue, s}ing others on to
       the windows default handler */
     wc.style         = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
-    wc.lpfnWndProc   = WndProcAdr(wndproc);
+    wc.lpfnWndProc   = wndproc;
     wc.cbClsExtra    = 0;
     wc.cbWndExtra    = 0;
-    wc.hInstance     = getmodulehandle_n;
-    wc.hIcon         = LoadIcon(IDI_APPLICATION);
-    wc.hCursor       = LoadCursor_n(IDC_ARROW);
-    wc.hbfBackGround = GetStockObject(WHITE_BRUSH);
-    wc.lpszMenuName  = 0;
+    wc.hInstance     = GetModuleHandle(NULL);
+    wc.hIcon         = LoadIcon(NULL, IDI_APPLICATION);
+    wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
+    wc.hbrBackground = GetStockObject(WHITE_BRUSH);
+    wc.lpszMenuName  = NULL;
     wc.lpszClassName = "stdwin";
     /* register that class */
-    b = RegisterClass(wc);
+    b = RegisterClass(&wc);
     /* create the window */
     winhan = CreateWindowEx(
                      0, "StdWin", "Dummy", WS_OVERLAPPEDWINDOW,
                      CW_USEDEFAULT, CW_USEDEFAULT,
                      CW_USEDEFAULT, CW_USEDEFAULT,
-                     0, 0, GetModuleHandleA(NULL)
+                     0, 0, GetModuleHandleA(NULL), NULL
             );
     /* capture joysticks */
-    r = JoySetCapture(winhan, JOYSTICKID1, 33, false);
+    r = JoySetCapture(winhan, JOYSTICKID1, 33, 0);
     if (!r) numjoy++; /* count */
-    r = JoySetCapture(winhan, JOYSTICKID2, 33, false);
-    if r == 0 then numjoy = numjoy+1; /* count */
+    r = JoySetCapture(winhan, JOYSTICKID2, 33, 0);
+    if (!r) numjoy = numjoy+1; /* count */
     /* flag subthread has started up */
     threadstart = 1; /* set we started */
     /* message handling loop */
-    while (GetMessage(msg, 0, 0, 0) > 0) { /* not a quit message */
+    while (GetMessage(&msg, 0, 0, 0) > 0) { /* not a quit message */
 
-        b = TranslateMessage(msg); /* translate keyboard events */
-        r = DispatchMessage(msg);
+        b = TranslateMessage(&msg); /* translate keyboard events */
+        r = DispatchMessage(&msg);
 
     }
     /* release the joysticks */
@@ -2735,16 +2690,16 @@ all generate an etterm signal.
 
 *******************************************************************************/
 
-int conhan(DWORD ct)
+static int conhan(DWORD ct)
 
 {
 
     int          b;      /* result holder */
-    int          ne;     /* number of events written */
+    DWORD        ne;     /* number of events written */
     INPUT_RECORD inpevt; /* event buffer */
 
     inpevt.EventType = UIV_TERM; /* set key event type */
-    b = WriteConsoleInput(inphdl, inpevt, 1, ne); /* send */
+    b = WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* send */
 
     return (1); /* set event handled */
 
@@ -2763,7 +2718,7 @@ before the client program runs.
 *******************************************************************************/
 
 static void pa_init_terminal (void) __attribute__((constructor (102)));
-static void pa_init_terminal()
+static void pa_init_terminal(void)
 
 {
 
@@ -2806,19 +2761,19 @@ static void pa_init_terminal()
 
     }
     /* clear open files table */
-    for (cix = 1; cix <= MAXCON; cix++) screens[cix] = nil;
+    for (cix = 1; cix <= MAXCON; cix++) screens[cix] = NULL;
     new(screens[1]); /* get the default screen */
     curdsp = 1; /* set current display screen */
     curupd = 1; /* set current update screen */
     /* point handle to present output screen buffer */
     screens[curupd]->han = GetStdHandle(STD_OUTPUT_HANDLE);
-    b = GetConsoleScreenBufferInfo(screens[curupd]->han, bi);
-    screens[curupd]->maxx = bi.dwSize.x; /* place maximum sizes */
-    screens[curupd]->maxy = bi.dwSize.y;
-    screens[curupd]->curx = bi.dwCursorPosition.x+1; /* place cursor position */
-    screens[curupd]->cury = bi.dwCursorPosition.y+1;
-    screens[curupd]->conx = bi.dwCursorPosition.x; /* set our copy of position */
-    screens[curupd]->cony = bi.dwCursorPosition.y;
+    b = GetConsoleScreenBufferInfo(screens[curupd]->han, &bi);
+    screens[curupd]->maxx = bi.dwSize.X; /* place maximum sizes */
+    screens[curupd]->maxy = bi.dwSize.Y;
+    screens[curupd]->curx = bi.dwCursorPosition.X+1; /* place cursor position */
+    screens[curupd]->cury = bi.dwCursorPosition.Y+1;
+    screens[curupd]->conx = bi.dwCursorPosition.X; /* set our copy of position */
+    screens[curupd]->cony = bi.dwCursorPosition.Y;
     screens[curupd]->sattr = bi.wAttributes; /* place default attributes */
     /* place max setting for all screens */
     gmaxx = screens[curupd]->maxx;
@@ -2828,16 +2783,16 @@ static void pa_init_terminal()
     fndcolor(screens[curupd]->sattr); /* set colors from that */
     gforec = screens[curupd]->forec;
     gbackc = screens[curupd]->backc;
-    b = GetConsoleCursorInfo(screens[curupd]->han, ci); /* get cursor mode */
+    b = GetConsoleCursorInfo(screens[curupd]->han, &ci); /* get cursor mode */
     screens[curupd]->curv = ci.bVisible != 0; /* set cursor visible from that */
-    gcurv = ci.bBisible != 0;
+    gcurv = ci.bVisible != 0;
     screens[curupd]->attr = sanone; /* set no attribute */
     gattr = sanone;
     /* set up tabbing to be on each 8th position */
     for (i = 1; i <= screens[curupd]->maxx; i++)
         screens[curupd]->tab[i] = (i-1) % 8 == 0;
     /* turn on mouse events */
-    b = GetConsoleMode(inphdl, mode);
+    b = GetConsoleMode(inphdl, &mode);
     b = SetConsoleMode(inphdl, mode | ENABLE_MOUSE_INPUT);
     /* capture control handler */
     b = setconsolectrlhandler(conhan, 1);
@@ -2857,6 +2812,9 @@ vectors in them. If that is not so, then a stacking order violation occurred,
 and that should be corrected.
 
 *******************************************************************************/
+
+static void pa_deinit_terminal (void) __attribute__((destructor (102)));
+static void pa_deinit_terminal(void)
 
 {
 
@@ -2878,6 +2836,6 @@ and that should be corrected.
     /* if we don't see our own vector flag an error */
     if (cppread != iread || cppwrite != iwrite || cppopen != iopen ||
         cppclose != iclose /* || cppunlink != iunlink */ || cpplseek != ilseek)
-        error(esysflt);
+        error(esystem);
 
 }
