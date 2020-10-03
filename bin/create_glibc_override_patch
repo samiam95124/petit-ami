@@ -18,11 +18,42 @@
 #!/bin/bash
 
 #
+# Check version number exists
+#
+if [ -z "$1" ]; then
+
+    #
+    # try to set version from existing library
+    #
+    version=`ls -l /lib/x86_64-linux-gnu/libc.so.6 | sed 's/.*libc\-\([0-9].[0-9][0-9]\).*/\1/'`
+    if [ -z $version ]; then
+    
+        echo "*** Cannot determine glibc version on this system"
+        exit 1
+        
+    fi
+    
+else
+
+    #
+    # Get version # from user
+    #
+    version=$1
+    
+fi
+
+echo "Version number: $version"
+
+#
 # Create glibc source override patches
 #
 cd glibc/glibc_source
-cp ../glibc_override.patch ../glibc_override.patch.old
-git diff > ../glibc_override.patch
+if [ -f "../glibc_"$version"_override.patch" ]; then
+
+    cp ../glibc_"$version"_override.patch ../glibc_"$version"_override.patch.old
+    
+fi
+git diff > ../glibc_"$version"_override.patch
 cd ../..
 
 #
@@ -31,4 +62,4 @@ cd ../..
 # This relies on a copy of the old, unmodified map file existing in the
 # directory above the build directory.
 #
-diff -u glibc/libc.map glibc/glibc_build/libc.map > glibc/libc.map.patch
+diff -u glibc/libc.map glibc/glibc_build/libc.map > glibc/libc_"$version"_.map.patch
