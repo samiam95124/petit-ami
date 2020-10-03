@@ -87,8 +87,8 @@
 #include <terminal.h>
 
 /* standard file handles */
-#define INPFIL 1   /* _input */
-#define OUTFIL 2   /* _output */
+#define INPFIL 0   /* _input */
+#define OUTFIL 1   /* _output */
 #define MAXLIN 250 /* maximum length of input buffered line */
 #define MAXCON 10  /* number of screen contexts */
 #define MAXTAB 250 /* maximum number of tabs (length of buffer in x) */
@@ -222,8 +222,7 @@ DWORD    mode;        /* console mode */
 int      b;           /* int return */
 int      i;           /* tab index */
 HWND     winhan;      /* main window id */
-int      r;           /* result holder */
-int      threadid;    /* dummy thread id (unused) */
+DWORD    threadid;    /* dummy thread id (unused) */
 int      threadstart; /* thread starts */
 int      joy1xs;      /* last joystick position 1x */
 int      joy1ys;      /* last joystick position 1y */
@@ -279,6 +278,35 @@ static void error(int e)
 
     }
     fprintf(stderr, "\n");
+
+    exit(1);
+
+}
+
+/********************************************************************************
+
+Handle Windows error
+
+Only called if the last error variable is set. The text string for the error
+is output, and then the program halted.
+
+********************************************************************************/
+
+static void winerr(void)
+{
+
+    int e;
+    char *p;
+    LPVOID lpMsgBuf;
+    int le;
+
+    e = GetLastError();
+    le = FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER |
+                  FORMAT_MESSAGE_IGNORE_INSERTS, NULL, e,
+                  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                  (LPTSTR)&lpMsgBuf,
+                  0, NULL);
+    fprintf(stderr, "\n*** Windows error: %s\n", (char*)lpMsgBuf);
 
     exit(1);
 
@@ -507,10 +535,10 @@ static void iclear(scnptr sc)
 
 {
 
-    int  x, y;
-    char cb; /* character output buffer */
-    int  ab; /* attribute output buffer */
-    int  b;
+    int   x, y;
+    char  cb; /* character output buffer */
+    WORD  ab; /* attribute output buffer */
+    int   b;
     COORD xy;
     DWORD len;
 
@@ -523,7 +551,7 @@ static void iclear(scnptr sc)
             xy.X = x;
             xy.Y = y;
             b = WriteConsoleOutputCharacter(sc->han, &cb, 1, xy, &len);
-            b = writeconsoleoutputattribute(sc->han, &ab, 1, xy, &len);
+            b = WriteConsoleOutputAttribute(sc->han, &ab, 1, xy, &len);
 
         }
 
@@ -609,7 +637,7 @@ static void iscroll(int x, int y)
             sr.Bottom = sc->maxy-1;
             xy.X = 0;
             xy.Y = 0;
-            b = ScrollConsoleScreenbuffer(sc->han, &sr, NULL, xy, &f);
+            b = ScrollConsoleScreenBuffer(sc->han, &sr, NULL, xy, &f);
 
         } else { /* move text down */
 
@@ -631,7 +659,7 @@ static void iscroll(int x, int y)
             sr.Bottom = sc->maxy-1;
             xy.X = 0;
             xy.Y = 0;
-            b = ScrollConsoleScreenbuffer(sc->han, &sr, NULL, xy, &f);
+            b = ScrollConsoleScreenBuffer(sc->han, &sr, NULL, xy, &f);
 
         } else { /* move text right */
 
@@ -1106,7 +1134,7 @@ void pa_standout(FILE* f, int e)
 
 {
 
-    reverse(f, e); /* implement as reverse */
+    pa_reverse(f, e); /* implement as reverse */
 
 }
 
@@ -1281,7 +1309,7 @@ static void iselect(int u, int d)
 
     }
     /* set display buffer as active display console */
-    b = SetConsoleActiveScreenbuffer(screens[curdsp]->han);
+    b = SetConsoleActiveScreenBuffer(screens[curdsp]->han);
     getpos(); /* make sure we are synced with Windows */
     setcur(screens[curdsp]); /* make sure the cursor is at correct point */
 
@@ -1313,8 +1341,8 @@ static void plcchr(char c)
 
     int    b;   /* int return */
     char   cb;  /* character output buffer */
-    int    ab;  /* attribute output buffer */
-    int    len; /* length dummy */
+    WORD   ab;  /* attribute output buffer */
+    DWORD  len; /* length dummy */
     scnptr sc;  /* screen context pointer */
     COORD  xy;
 
@@ -1323,8 +1351,16 @@ static void plcchr(char c)
     /* handle special character cases first */
     if (c == '\r') /* carriage return, position to extreme left */
         icursor(1, sc->cury);
-    else if (c == '\n') idown(); /* line feed, move down */
-    else if (c == '\b') ileft(); /* back space, move left */
+    else if (c == '\n') {
+
+        idown(); /* line feed, move down */
+#ifdef __MINGW32__
+        /* if in a Unix/Linux emulation environment, we want to expand linefeed
+           to CRLF */
+        icursor(1, sc->cury); /* position to extreme left */
+#endif
+
+    } else if (c == '\b') ileft(); /* back space, move left */
     else if (c == '\f') iclear(sc); /* clear screen */
     else if (c == '\t') itab(); /* process tab */
     else if (c >= ' ' && c != 0x7f) { /* character is visible */
@@ -1336,8 +1372,8 @@ static void plcchr(char c)
             /* write character */
             xy.X = sc->curx-1;
             xy.Y = sc->cury-1;
-            b = writeconsoleoutputcharacter(sc->han, &cb, 1, xy, len);
-            b = writeconsoleoutputattribute(sc->han, &ab, 1, xy, len);
+            b = WriteConsoleOutputCharacter(sc->han, &cb, 1, xy, &len);
+            b = WriteConsoleOutputAttribute(sc->han, &ab, 1, xy, &len);
 
         }
         iright(); /* move cursor right */
@@ -1359,9 +1395,9 @@ void pa_del(FILE* f)
 
 {
 
-    left(f); /* back up cursor */
+    pa_left(f); /* back up cursor */
     plcchr(' '); /* blank out */
-    left(f); /* back up again */
+    pa_left(f); /* back up again */
 
 }
 
@@ -1833,8 +1869,9 @@ static void ievent(pa_evtptr er)
         mouseupdate(er, &keep); /* check any mouse details need processing */
         if (!keep) { /* no, go ahead with event read */
 
-            b = ReadConsoleInput(&inphdl, &inpevt, 1, &ne); /* get the next event */
-            if (b) { /* process valid event */
+            b = ReadConsoleInput(inphdl, &inpevt, 1, &ne); /* get the next event */
+            if (!b) winerr(); /* stop on fail */
+            if (ne) { /* process valid event */
 
                 /* decode by event */
                 if (inpevt.EventType == KEY_EVENT)
@@ -2053,6 +2090,8 @@ static void iframetimer(int e)
 
 {
 
+    int r;
+
     if (e) { /* enable timer */
 
         if (!frmrun) { /* it is not running */
@@ -2157,7 +2196,7 @@ static int ijoybutton(int j)
     int r;      /* return value */
 
     if (j < 1 || j > numjoy) error(einvjoy); /* bad joystick id */
-    r = joygetdevcaps(j-1, jc, sizeof(JOYCAPS));
+    r = joyGetDevCaps(j-1, &jc, sizeof(JOYCAPS));
     if (r) error(ejoyqry); /* could not access joystick */
     nb = jc.wNumButtons; /* set number of buttons */
     /* We don't support more than 4 buttons. */
@@ -2622,7 +2661,7 @@ numjoy          Sets the number of joysticks. This is valid after wait for
 
 *******************************************************************************/
 
-void dummyloop(void)
+DWORD WINAPI dummyloop(LPVOID par)
 
 {
 
@@ -2659,9 +2698,9 @@ void dummyloop(void)
                      0, 0, GetModuleHandleA(NULL), NULL
             );
     /* capture joysticks */
-    r = JoySetCapture(winhan, JOYSTICKID1, 33, 0);
+    r = joySetCapture(winhan, JOYSTICKID1, 33, 0);
     if (!r) numjoy++; /* count */
-    r = JoySetCapture(winhan, JOYSTICKID2, 33, 0);
+    r = joySetCapture(winhan, JOYSTICKID2, 33, 0);
     if (!r) numjoy = numjoy+1; /* count */
     /* flag subthread has started up */
     threadstart = 1; /* set we started */
@@ -2673,8 +2712,10 @@ void dummyloop(void)
 
     }
     /* release the joysticks */
-    r = joyreleasecapture(JOYSTICKID1);
-    r = joyreleasecapture(JOYSTICKID2);
+    r = joyReleaseCapture(JOYSTICKID1);
+    r = joyReleaseCapture(JOYSTICKID2);
+
+    return (0); /* return ok (unused) */
 
 }
 
@@ -2690,7 +2731,7 @@ all generate an etterm signal.
 
 *******************************************************************************/
 
-static int conhan(DWORD ct)
+static BOOL WINAPI conhan(DWORD ct)
 
 {
 
@@ -2721,6 +2762,8 @@ static void pa_init_terminal (void) __attribute__((constructor (102)));
 static void pa_init_terminal(void)
 
 {
+
+    HANDLE h;
 
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
@@ -2762,7 +2805,9 @@ static void pa_init_terminal(void)
     }
     /* clear open files table */
     for (cix = 1; cix <= MAXCON; cix++) screens[cix] = NULL;
-    new(screens[1]); /* get the default screen */
+    /* get the default screen */
+    screens[1] = malloc(sizeof(scncon));
+    if (!screens[1]) error(enomem); /* no memory */
     curdsp = 1; /* set current display screen */
     curupd = 1; /* set current update screen */
     /* point handle to present output screen buffer */
@@ -2795,10 +2840,10 @@ static void pa_init_terminal(void)
     b = GetConsoleMode(inphdl, &mode);
     b = SetConsoleMode(inphdl, mode | ENABLE_MOUSE_INPUT);
     /* capture control handler */
-    b = setconsolectrlhandler(conhan, 1);
+    b = SetConsoleCtrlHandler(conhan, 1);
     /* interlock to make sure that thread starts before we continue */
     threadstart = 0;
-    r = CreateThread_nn(0, dummyloop, 0, threadid);
+    h = CreateThread(NULL, 0, dummyloop, NULL, 0, &threadid);
     while (!threadstart); /* wait for thread to start */
 
 }

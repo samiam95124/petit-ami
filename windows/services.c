@@ -163,7 +163,8 @@ static void winerr(void)
                   (LPTSTR)&lpMsgBuf,
                   0, NULL);
     fprintf(stderr, "\n*** Windows error: %s\n", lpMsgBuf);
-    error(strerror(errno));
+
+    exit(1);
 
 }
 
