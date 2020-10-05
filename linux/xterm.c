@@ -1910,7 +1910,7 @@ int pa_curbnd(FILE *f)
 
 {
 
-   return icurbnd(screens[curupd]);
+   return icurbnd(screens[curupd-1]);
 
 }
 

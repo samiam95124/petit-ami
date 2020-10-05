@@ -331,7 +331,7 @@ static void getpos(void)
 
     if (curdsp == curupd) { /* buffer is in display */
 
-        cp = screens[curupd]; /* index screen context */
+        cp = screens[curupd-1]; /* index screen context */
         b = GetConsoleScreenBufferInfo(cp->han, &bi);
         if (cp->conx != bi.dwCursorPosition.X ||
             cp->cony != bi.dwCursorPosition.Y) {
@@ -438,8 +438,8 @@ static void fndcolor(int a)
 
 {
 
-    screens[curupd]->forec = numcol(a); /* set foreground color */
-    screens[curupd]->backc = numcol(a/16); /* set background color */
+    screens[curupd-1]->forec = numcol(a); /* set foreground color */
+    screens[curupd-1]->backc = numcol(a/16); /* set background color */
 
 }
 
@@ -508,7 +508,7 @@ static void setcur(scnptr sc)
     COORD xy;
 
     /* check cursor in bounds, and buffer in display */
-    if (icurbnd(sc) && sc == screens[curdsp]) {
+    if (icurbnd(sc) && sc == screens[curdsp-1]) {
 
         /* set cursor position */
         xy.X = sc->curx-1;
@@ -590,7 +590,7 @@ static void iniscn(scnptr sc)
     setcolor(sc); /* set current color */
     iclear(sc); /* clear screen buffer with that */
     /* set up tabbing to be on each 8th position */
-    for (i = 1; i <= sc->maxx; i++) sc->tab[i] = (i-1) % 8 == 0;
+    for (i = 0; i < sc->maxx; i++) sc->tab[i] = i%8 == 0;
 
 }
 
@@ -620,12 +620,12 @@ static void iscroll(int x, int y)
     scnptr     sc; /* screen context */
     COORD      xy;
 
-    sc = screens[curupd]; /* index screen context */
+    sc = screens[curupd-1]; /* index screen context */
     f.Char.AsciiChar = ' '; /* set fill values */
     f.Attributes = sc->sattr;
     if (x <= -sc->maxx || x >= sc->maxx || y <= -sc->maxy || y >= sc->maxy)
         /* scroll would result in complete clear, do it */
-        iclear(screens[curupd]); /* clear the screen buffer */
+        iclear(screens[curupd-1]); /* clear the screen buffer */
     else { /* scroll */
 
         /* perform y moves */
@@ -697,9 +697,9 @@ static void icursor(int x, int y)
 
 {
 
-    screens[curupd]->cury = y; /* set new position */
-    screens[curupd]->curx = x;
-    setcur(screens[curupd]); /* set cursor on screen */
+    screens[curupd-1]->cury = y; /* set new position */
+    screens[curupd-1]->curx = x;
+    setcur(screens[curupd-1]); /* set cursor on screen */
 
 }
 
@@ -723,7 +723,7 @@ int pa_curbnd(FILE* f)
 
 {
 
-    return (icurbnd(screens[curupd]));
+    return (icurbnd(screens[curupd-1]));
 
 }
 
@@ -740,7 +740,7 @@ int pa_maxx(FILE* f)
 
 {
 
-    return (screens[curupd]->maxx); /* set maximum x */
+    return (screens[curupd-1]->maxx); /* set maximum x */
 
 }
 
@@ -757,7 +757,7 @@ int pa_maxy(FILE* f)
 
 {
 
-    return (screens[curupd]->maxy); /* set maximum y */
+    return (screens[curupd-1]->maxy); /* set maximum y */
 
 }
 
@@ -773,9 +773,9 @@ void pa_home(FILE* f)
 
 {
 
-    screens[curupd]->cury = 1; /* set cursor at home */
-    screens[curupd]->curx = 1;
-    setcur(screens[curupd]); /* set cursor on screen */
+    screens[curupd-1]->cury = 1; /* set cursor at home */
+    screens[curupd-1]->curx = 1;
+    setcur(screens[curupd-1]); /* set cursor on screen */
 
 }
 
@@ -794,7 +794,7 @@ static void iup(void)
     scnptr sc;
 
     getpos(); /* update status */
-    sc = screens[curupd];
+    sc = screens[curupd-1];
     /* check not top of screen */
     if (sc->cury > 1) sc->cury++; /* update position */
     /* check auto mode */
@@ -828,13 +828,13 @@ static void idown(void)
     scnptr sc;
 
     getpos(); /* update status */
-    sc = screens[curupd];
+    sc = screens[curupd-1];
     /* check not bottom of screen */
     if (sc->cury < sc->maxy) sc->cury++; /* update position */
     /* check auto mode */
     else if (sc->autof) iscroll(0, +1); /* scroll down */
     else if (sc->cury < INT_MAX) sc->cury++; /* set new position */
-    setcur(screens[curupd]); /* set cursor on screen */
+    setcur(screens[curupd-1]); /* set cursor on screen */
 
 }
 
@@ -863,7 +863,7 @@ static void ileft(void)
     scnptr sc;
 
     getpos(); /* update status */
-    sc = screens[curupd];
+    sc = screens[curupd-1];
     /* check not extreme left */
     if (sc->curx > 1) sc->curx--; /* update position */
     else { /* wrap cursor motion */
@@ -878,7 +878,7 @@ static void ileft(void)
             if (sc->curx > -INT_MAX) sc->curx--; /* update position */
 
     }
-    setcur(screens[curupd]); /* set cursor on screen */
+    setcur(screens[curupd-1]); /* set cursor on screen */
 
 }
 
@@ -905,7 +905,7 @@ static void iright(void)
     scnptr sc;
 
     getpos; /* update status */
-    sc = screens[curupd];
+    sc = screens[curupd-1];
     /* check not at extreme right */
     if (sc->curx < sc->maxx) sc->curx++; /* update position */
     else { /* wrap cursor motion */
@@ -950,12 +950,12 @@ static void itab(void)
 
     getpos(); /* update status */
     /* first, find if next tab even exists */
-    i = screens[curupd]->curx+1; /* get the current x position +1 */
+    i = screens[curupd-1]->curx+1; /* get the current x position +1 */
     if (i < 1) i = 1; /* don't bother to search to left of screen */
     /* find tab or } of screen */
-    while (i < screens[curupd]->maxx && !screens[curupd]->tab[i]) i++;
-    if (screens[curupd]->tab[i]) /* we found a tab */
-        while (screens[curupd]->curx < i) iright(); /* go to the tab */
+    while (i < screens[curupd-1]->maxx && !screens[curupd-1]->tab[i-1]) i++;
+    if (screens[curupd-1]->tab[i-1]) /* we found a tab */
+        while (screens[curupd-1]->curx < i) iright(); /* go to the tab */
 
 }
 
@@ -974,8 +974,8 @@ void pa_blink(FILE* f, int e)
 {
 
     /* no capability */
-    screens[curupd]->attr = sanone; /* set attribute inactive */
-    setcolor(screens[curupd]); /* set those colors active */
+    screens[curupd-1]->attr = sanone; /* set attribute inactive */
+    setcolor(screens[curupd-1]); /* set those colors active */
 
 }
 
@@ -993,9 +993,9 @@ void pa_reverse(FILE* f, int e)
 
 {
 
-    if (e) screens[curupd]->attr = sarev; /* set reverse status */
-    else screens[curupd]->attr = sanone; /* set attribute inactive */
-    setcolor(screens[curupd]); /* set those colors active */
+    if (e) screens[curupd-1]->attr = sarev; /* set reverse status */
+    else screens[curupd-1]->attr = sanone; /* set attribute inactive */
+    setcolor(screens[curupd-1]); /* set those colors active */
 
 }
 
@@ -1013,9 +1013,9 @@ void pa_underline(FILE* f, int e)
 {
 
     /* substituted by background half intensity */
-    if (e) screens[curupd]->attr = saundl; /* set underline status */
-    else screens[curupd]->attr = sanone; /* set attribute inactive */
-    setcolor(screens[curupd]); /* set those colors active */
+    if (e) screens[curupd-1]->attr = saundl; /* set underline status */
+    else screens[curupd-1]->attr = sanone; /* set attribute inactive */
+    setcolor(screens[curupd-1]); /* set those colors active */
 
 }
 
@@ -1033,8 +1033,8 @@ void pa_superscript(FILE* f, int e)
 {
 
     /* no capability */
-    screens[curupd]->attr = sanone; /* set attribute inactive */
-    setcolor(screens[curupd]); /* set those colors active */
+    screens[curupd-1]->attr = sanone; /* set attribute inactive */
+    setcolor(screens[curupd-1]); /* set those colors active */
 
 }
 
@@ -1052,8 +1052,8 @@ void pa_subscript(FILE* f, int e)
 {
 
     /* no capability */
-    screens[curupd]->attr = sanone; /* set attribute inactive */
-    setcolor(screens[curupd]); /* set those colors active */
+    screens[curupd-1]->attr = sanone; /* set attribute inactive */
+    setcolor(screens[curupd-1]); /* set those colors active */
 
 }
 
@@ -1071,9 +1071,9 @@ void pa_italic(FILE* f, int e)
 {
 
     /* substituted by foreground half intensity */
-    if (e) screens[curupd]->attr = saital; /* set italic status */
-    else screens[curupd]->attr = sanone; /* set attribute inactive */
-    setcolor(screens[curupd]); /* set those colors active */
+    if (e) screens[curupd-1]->attr = saital; /* set italic status */
+    else screens[curupd-1]->attr = sanone; /* set attribute inactive */
+    setcolor(screens[curupd-1]); /* set those colors active */
 
 }
 
@@ -1094,9 +1094,9 @@ void pa_bold(FILE* f, int e)
 {
 
     /* substituted by foreground and background half intensity */
-    if (e) screens[curupd]->attr = sabold; /* set bold status */
-    else screens[curupd]->attr = sanone; /* set attribute inactive */
-    setcolor(screens[curupd]); /* set those colors active */
+    if (e) screens[curupd-1]->attr = sabold; /* set bold status */
+    else screens[curupd-1]->attr = sanone; /* set attribute inactive */
+    setcolor(screens[curupd-1]); /* set those colors active */
 
 }
 
@@ -1116,8 +1116,8 @@ void pa_strikeout(FILE* f, int e)
 {
 
     /* no capability */
-    screens[curupd]->attr = sanone; /* set attribute inactive */
-    setcolor(screens[curupd]); /* set those colors active */
+    screens[curupd-1]->attr = sanone; /* set attribute inactive */
+    setcolor(screens[curupd-1]); /* set those colors active */
 
 }
 
@@ -1150,8 +1150,8 @@ void pa_fcolor(FILE* f, pa_color c)
 
 {
 
-    screens[curupd]->forec = c; /* set color status */
-    setcolor(screens[curupd]); /* activate */
+    screens[curupd-1]->forec = c; /* set color status */
+    setcolor(screens[curupd-1]); /* activate */
 
 }
 
@@ -1167,8 +1167,8 @@ void pa_bcolor(FILE* f, pa_color c)
 
 {
 
-    screens[curupd]->backc = c; /* set color status */
-    setcolor(screens[curupd]); /* activate */
+    screens[curupd-1]->backc = c; /* set color status */
+    setcolor(screens[curupd-1]); /* activate */
 
 }
 
@@ -1201,7 +1201,7 @@ void pa_auto(FILE* f, int e)
 
 {
 
-    screens[curupd]->autof = e; /* set line wrap status */
+    screens[curupd-1]->autof = e; /* set line wrap status */
 
 }
 
@@ -1217,8 +1217,8 @@ void pa_curvis(FILE* f, int e)
 
 {
 
-    screens[curupd]->curv = e; /* set cursor visible status */
-    cursts(screens[curupd]); /* update cursor status */
+    screens[curupd-1]->curv = e; /* set cursor visible status */
+    cursts(screens[curupd-1]); /* update cursor status */
 
 }
 
@@ -1236,7 +1236,7 @@ int pa_curx(FILE* f)
 
     getpos(); /* update status */
 
-    return (screens[curupd]->curx); /* return current location x */
+    return (screens[curupd-1]->curx); /* return current location x */
 
 }
 
@@ -1254,7 +1254,7 @@ int pa_cury(FILE* f)
 
     getpos(); /* update status */
 
-    return (screens[curupd]->cury); /* return current location y */
+    return (screens[curupd-1]->cury); /* return current location y */
 
 }
 
@@ -1279,39 +1279,39 @@ static void iselect(int u, int d)
     if (u < 1 || u > MAXCON || d < 1 || d > MAXCON)
         error(einvscn); /* invalid screen number */
     curupd = u; /* set current update screen */
-    if (!screens[curupd]) { /* no screen, create one */
+    if (!screens[curupd-1]) { /* no screen, create one */
 
-        screens[curupd] = malloc(sizeof(scncon)); /* get a new screen context */
-        if (!screens[curupd]) error(enomem); /* failed to allocate */
+        screens[curupd-1] = malloc(sizeof(scncon)); /* get a new screen context */
+        if (!screens[curupd-1]) error(enomem); /* failed to allocate */
         /* create the screen */
-        screens[curupd]->han =
+        screens[curupd-1]->han =
             CreateConsoleScreenBuffer(GENERIC_READ | GENERIC_WRITE,
                                       FILE_SHARE_READ | FILE_SHARE_WRITE,
                                       NULL, CONSOLE_TEXTMODE_BUFFER, NULL);
         /* check handle is valid */
-        if (screens[curupd]->han == INVALID_HANDLE_VALUE) error(esbfcrt);
-        iniscn(screens[curupd]); /* initalize that */
+        if (screens[curupd-1]->han == INVALID_HANDLE_VALUE) error(esbfcrt);
+        iniscn(screens[curupd-1]); /* initalize that */
 
     }
     curdsp = d; /* set the current display screen */
-    if (!screens[curdsp]) { /* no screen, create one */
+    if (!screens[curdsp-1]) { /* no screen, create one */
 
-        screens[curdsp] = malloc(sizeof(scncon)); /* get a new screen context */
-        if (!screens[curdsp]) error(enomem); /* failed to allocate */
+        screens[curdsp-1] = malloc(sizeof(scncon)); /* get a new screen context */
+        if (!screens[curdsp-1]) error(enomem); /* failed to allocate */
         /* create the screen */
-        screens[curdsp]->han =
+        screens[curdsp-1]->han =
             CreateConsoleScreenBuffer(GENERIC_READ | GENERIC_WRITE,
                                       FILE_SHARE_READ | FILE_SHARE_WRITE,
                                       NULL, CONSOLE_TEXTMODE_BUFFER, NULL);
         /* check handle is valid */
-        if (screens[curdsp]->han == INVALID_HANDLE_VALUE) error(esbfcrt);
-        iniscn(screens[curdsp]); /* initalize that */
+        if (screens[curdsp-1]->han == INVALID_HANDLE_VALUE) error(esbfcrt);
+        iniscn(screens[curdsp-1]); /* initalize that */
 
     }
     /* set display buffer as active display console */
-    b = SetConsoleActiveScreenBuffer(screens[curdsp]->han);
+    b = SetConsoleActiveScreenBuffer(screens[curdsp-1]->han);
     getpos(); /* make sure we are synced with Windows */
-    setcur(screens[curdsp]); /* make sure the cursor is at correct point */
+    setcur(screens[curdsp-1]); /* make sure the cursor is at correct point */
 
 }
 
@@ -1347,7 +1347,7 @@ static void plcchr(char c)
     COORD  xy;
 
     getpos(); /* update status */
-    sc = screens[curupd];
+    sc = screens[curupd-1];
     /* handle special character cases first */
     if (c == '\r') /* carriage return, position to extreme left */
         icursor(1, sc->cury);
@@ -2236,7 +2236,9 @@ int pa_joyaxis(FILE* f, int j)
 
 Set tab
 
-Sets a tab at the indicated collumn number.
+Sets a tab. The tab number t is 1 to n, and indicates the column for the tab.
+Setting a tab stop means that when a tab is received, it will move to the next
+tab stop that is set. If there is no next tab stop, nothing will happen.
 
 *******************************************************************************/
 
@@ -2244,9 +2246,9 @@ void pa_settab(FILE* f, int t)
 
 {
 
-    if (t < 1 || t > screens[curupd]->maxx)
+    if (t < 1 || t > screens[curupd-1]->maxx)
         error(einvtab); /* bad tab position */
-    screens[curupd]->tab[t] = 1; /* place tab at that position */
+    screens[curupd-1]->tab[t-1] = 1; /* place tab at that position */
 
 }
 
@@ -2254,7 +2256,7 @@ void pa_settab(FILE* f, int t)
 
 Reset tab
 
-Resets the tab at the indicated collumn number.
+Resets a tab. The tab number t is 1 to n, and indicates the column for the tab.
 
 *******************************************************************************/
 
@@ -2262,9 +2264,9 @@ void pa_restab(FILE* f, int t)
 
 {
 
-    if (t < 1 || t > screens[curupd]->maxx)
+    if (t < 1 || t > screens[curupd-1]->maxx)
         error(einvtab); /* bad tab position */
-    screens[curupd]->tab[t] = 0; /* clear tab at that position */
+    screens[curupd-1]->tab[t-1] = 0; /* clear tab at that position */
 
 }
 
@@ -2283,7 +2285,7 @@ void pa_clrtab(FILE* f)
 
     int i;
 
-    for (i = 1; i <= screens[curupd]->maxx; i++) screens[curupd]->tab[i] = 0;
+    for (i = 0; i < screens[curupd-1]->maxx; i++) screens[curupd-1]->tab[i] = 0;
 
 }
 
@@ -2322,7 +2324,7 @@ static void readline(void)
 
     pa_evtrec er; /* event record */
 
-    inpptr = 1; /* set 1st character position */
+    inpptr = 0; /* set 1st character position */
     do { /* get line characters */
 
         /* get events until an "interesting" event occurs */
@@ -2357,7 +2359,7 @@ static void readline(void)
             }
             case pa_etdelcb: { /* delete character backwards */
 
-                if (inpptr > 1) { /* not at extreme left */
+                if (inpptr > 0) { /* not at extreme left */
 
                     plcchr('\b'); /* backspace, spaceout then backspace again */
                     plcchr(' ');
@@ -2371,7 +2373,7 @@ static void readline(void)
         }
 
     } while (!er.etype == pa_etenter); /* until line terminate */
-    inpptr = 1; /* set 1st position on active line */
+    inpptr = 0; /* set 1st position on active line */
 
 }
 
@@ -2494,11 +2496,11 @@ static ssize_t iread(int fd, void* buff, size_t count)
         while (cnt--) {
 
             /* if there is no line in the input buffer, get one */
-            if (!inpptr) readline();
+            if (inpptr = -1) readline();
             *p = inpbuf[inpptr]; /* get and place next character */
             if (inpptr < MAXLIN) inpptr++; /* next */
             /* if we have just read the last of that line, then flag buffer empty */
-            if (*p = '\n') inpptr = 0;
+            if (*p = '\n') inpptr = -1;
             p++; /* next character */
             cnt--; /* count characters */
 
@@ -2794,7 +2796,7 @@ static void pa_init_terminal(void)
     joy2ys = 0;
     joy2zs = 0;
     numjoy = 0; /* set number of joysticks 0 */
-    inpptr = 0; /* set no input line active */
+    inpptr = -1; /* set no input line active */
     frmrun = 0; /* set framing timer not running */
     /* clear timer repeat array */
     for (ti = 1; ti <= 10; ti++) {
@@ -2803,44 +2805,44 @@ static void pa_init_terminal(void)
         timers[ti].rep = 0; /* set no repeat */
 
     }
-    /* clear open files table */
-    for (cix = 1; cix <= MAXCON; cix++) screens[cix] = NULL;
+    /* clear screen context table */
+    for (cix = 0; cix < MAXCON; cix++) screens[cix] = NULL;
     /* get the default screen */
-    screens[1] = malloc(sizeof(scncon));
-    if (!screens[1]) error(enomem); /* no memory */
+    screens[0] = malloc(sizeof(scncon));
+    if (!screens[0]) error(enomem); /* no memory */
     curdsp = 1; /* set current display screen */
     curupd = 1; /* set current update screen */
     /* point handle to present output screen buffer */
-    screens[curupd]->han = GetStdHandle(STD_OUTPUT_HANDLE);
-    b = GetConsoleScreenBufferInfo(screens[curupd]->han, &bi);
-    screens[curupd]->maxx = bi.dwSize.X; /* place maximum sizes */
-    screens[curupd]->maxy = bi.dwSize.Y;
-    screens[curupd]->curx = bi.dwCursorPosition.X+1; /* place cursor position */
-    screens[curupd]->cury = bi.dwCursorPosition.Y+1;
-    screens[curupd]->conx = bi.dwCursorPosition.X; /* set our copy of position */
-    screens[curupd]->cony = bi.dwCursorPosition.Y;
-    screens[curupd]->sattr = bi.wAttributes; /* place default attributes */
+    screens[curupd-1]->han = GetStdHandle(STD_OUTPUT_HANDLE);
+    b = GetConsoleScreenBufferInfo(screens[curupd-1]->han, &bi);
+    screens[curupd-1]->maxx = bi.dwSize.X; /* place maximum sizes */
+    screens[curupd-1]->maxy = bi.dwSize.Y;
+    screens[curupd-1]->curx = bi.dwCursorPosition.X+1; /* place cursor position */
+    screens[curupd-1]->cury = bi.dwCursorPosition.Y+1;
+    screens[curupd-1]->conx = bi.dwCursorPosition.X; /* set our copy of position */
+    screens[curupd-1]->cony = bi.dwCursorPosition.Y;
+    screens[curupd-1]->sattr = bi.wAttributes; /* place default attributes */
     /* place max setting for all screens */
-    gmaxx = screens[curupd]->maxx;
-    gmaxy = screens[curupd]->maxy;
-    screens[curupd]->autof = 1; /* turn on auto scroll and wrap */
+    gmaxx = screens[curupd-1]->maxx;
+    gmaxy = screens[curupd-1]->maxy;
+    screens[curupd-1]->autof = 1; /* turn on auto scroll and wrap */
     gautof = 1;
-    fndcolor(screens[curupd]->sattr); /* set colors from that */
-    gforec = screens[curupd]->forec;
-    gbackc = screens[curupd]->backc;
-    b = GetConsoleCursorInfo(screens[curupd]->han, &ci); /* get cursor mode */
-    screens[curupd]->curv = ci.bVisible != 0; /* set cursor visible from that */
+    fndcolor(screens[curupd-1]->sattr); /* set colors from that */
+    gforec = screens[curupd-1]->forec;
+    gbackc = screens[curupd-1]->backc;
+    b = GetConsoleCursorInfo(screens[curupd-1]->han, &ci); /* get cursor mode */
+    screens[curupd-1]->curv = ci.bVisible != 0; /* set cursor visible from that */
     gcurv = ci.bVisible != 0;
-    screens[curupd]->attr = sanone; /* set no attribute */
+    screens[curupd-1]->attr = sanone; /* set no attribute */
     gattr = sanone;
     /* set up tabbing to be on each 8th position */
-    for (i = 1; i <= screens[curupd]->maxx; i++)
-        screens[curupd]->tab[i] = (i-1) % 8 == 0;
+    for (i = 0; i < screens[curupd-1]->maxx; i++)
+        screens[curupd-1]->tab[i] = (i) % 8 == 0;
     /* turn on mouse events */
     b = GetConsoleMode(inphdl, &mode);
     b = SetConsoleMode(inphdl, mode | ENABLE_MOUSE_INPUT);
     /* capture control handler */
-    b = SetConsoleCtrlHandler(conhan, 1);
+    //b = SetConsoleCtrlHandler(conhan, 1);
     /* interlock to make sure that thread starts before we continue */
     threadstart = 0;
     h = CreateThread(NULL, 0, dummyloop, NULL, 0, &threadid);
