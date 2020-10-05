@@ -98,30 +98,35 @@ typedef struct {
             /** mouse movement */ int moupx, moupy;
 
         };
+        /** etmouba */
         struct {
 
             /** mouse handle */  int amoun;
             /** button number */ int amoubn;
 
         };
+        /** etmoubd */
         struct {
 
             /** mouse handle */  int dmoun;
             /** button number */ int dmoubn;
 
         };
+        /** etjoyba */
         struct {
 
             /** joystick number */ int ajoyn;
             /** button number */   int ajoybn;
 
         };
+        /** etjoybd */
         struct {
 
             /** joystick number */ int djoyn;
             /** button number */   int djoybn;
 
         };
+        /** etjoymov */
         struct {
 
             /** joystick number */      int mjoyn;

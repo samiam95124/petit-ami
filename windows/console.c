@@ -95,16 +95,17 @@
 #define FRMTIM 11  /* handle number of framing timer */
 
 /* special user events */
+#define UIV_BASE           0x8000 /* base of user events */
 #define UIV_TIM            0x8000 /* timer matures */
-#define UIV_JOY1MOVE       0x4001 /* joystick 1 move */
-#define UIV_JOY1ZMOVE      0x4002 /* joystick 1 z move */
-#define UIV_JOY2MOVE       0x2002 /* joystick 2 move */
-#define UIV_JOY2ZMOVE      0x2004 /* joystick 2 z move */
-#define UIV_JOY1BUTTONDOWN 0x1000 /* joystick 1 button down */
-#define UIV_JOY2BUTTONDOWN 0x0800 /* joystick 2 button down */
-#define UIV_JOY1BUTTONUP   0x0400 /* joystick 1 button up */
-#define UIV_JOY2BUTTONUP   0x0200 /* joystick 2 button up */
-#define UIV_TERM           0x0100 /* terminate program */
+#define UIV_JOY1MOVE       0x8001 /* joystick 1 move */
+#define UIV_JOY1ZMOVE      0x8002 /* joystick 1 z move */
+#define UIV_JOY2MOVE       0x8003 /* joystick 2 move */
+#define UIV_JOY2ZMOVE      0x8004 /* joystick 2 z move */
+#define UIV_JOY1BUTTONDOWN 0x8005 /* joystick 1 button down */
+#define UIV_JOY2BUTTONDOWN 0x8006 /* joystick 2 button down */
+#define UIV_JOY1BUTTONUP   0x8007 /* joystick 1 button up */
+#define UIV_JOY2BUTTONUP   0x8008 /* joystick 2 button up */
+#define UIV_TERM           0x8009 /* terminate program */
 
 /* types of system vectors for override calls */
 
@@ -1852,15 +1853,116 @@ static void joymes(pa_evtptr er, INPUT_RECORD* inpevt, int* keep)
 
 }
 
+/* process custom events */
+
+static void custevent(pa_evtptr er, INPUT_RECORD* inpevt, int* keep)
+
+{
+
+    int x, y, z;    /* joystick readback */
+    int dx, dy, dz; /* joystick readback differences */
+
+    if (inpevt->Event.KeyEvent.dwControlKeyState == UIV_TIM) { /* timer event */
+
+        er->etype = pa_ettim; /* set timer event occurred */
+        /* set what timer */
+        er->timnum = inpevt->Event.KeyEvent.wVirtualKeyCode;
+        *keep = 1; /* set to keep */
+
+    } else if (inpevt->Event.KeyEvent.dwControlKeyState == UIV_JOY1MOVE ||
+               inpevt->Event.KeyEvent.dwControlKeyState == UIV_JOY1ZMOVE ||
+               inpevt->Event.KeyEvent.dwControlKeyState == UIV_JOY2MOVE ||
+               inpevt->Event.KeyEvent.dwControlKeyState == UIV_JOY2ZMOVE) {
+
+        /* joystick move */
+        er->etype = pa_etjoymov; /* set joystick moved */
+        /* set what joystick */
+        if (inpevt->Event.KeyEvent.dwControlKeyState == UIV_JOY1MOVE ||
+            inpevt->Event.KeyEvent.dwControlKeyState == UIV_JOY1ZMOVE) er->mjoyn = 1;
+        else er->mjoyn = 2;
+        /* Set all variables to default to same. This way, only the joystick
+          axes that are actually set by the message are registered. */
+        if (inpevt->Event.KeyEvent.dwControlKeyState == UIV_JOY1MOVE ||
+            inpevt->Event.KeyEvent.dwControlKeyState == UIV_JOY1ZMOVE) {
+
+            x = joy1xs;
+            y = joy1ys;
+            z = joy1zs;
+
+        } else {
+
+            x = joy2xs;
+            y = joy2ys;
+            z = joy2zs;
+
+        }
+        /* If it's an x/y move, split the x and y axies parts of the message
+          up. */
+        if (inpevt->Event.KeyEvent.dwControlKeyState == UIV_JOY1MOVE ||
+            inpevt->Event.KeyEvent.dwControlKeyState == UIV_JOY2MOVE) {
+
+            /* get x and y positions */
+            x = inpevt->Event.KeyEvent.wVirtualKeyCode;
+            y = inpevt->Event.KeyEvent.wVirtualScanCode;
+
+        } else /* get z position */
+            z = inpevt->Event.KeyEvent.wVirtualKeyCode;
+        /* We perform thresholding on the joystick right here, which is
+          limited to 255 steps (same as joystick hardware. find joystick
+          diffs and update */
+        if (inpevt->Event.KeyEvent.dwControlKeyState == UIV_JOY1MOVE ||
+            inpevt->Event.KeyEvent.dwControlKeyState == UIV_JOY1ZMOVE) {
+
+            dx = abs(joy1xs-x); /* find differences */
+            dy = abs(joy1ys-y);
+            dz = abs(joy1zs-z);
+            joy1xs = x; /* place old values */
+            joy1ys = y;
+            joy1zs = z;
+
+        } else {
+
+            dx = abs(joy2xs-x); /* find differences */
+            dy = abs(joy2ys-y);
+            dz = abs(joy2zs-z);
+            joy2xs = x; /* place old values */
+            joy2ys = y;
+            joy2zs = z;
+
+        }
+        /* now reject moves below the threshold */
+        if (dx > 65535 / 255 || dy > 65535 / 255 ||
+            dz > 65535 / 255) {
+
+            /* scale axies between -INT_MAX..INT_MAX and place */
+            er->joypx = (x - 32767)*(INT_MAX / 32768);
+            er->joypy = (y - 32767)*(INT_MAX / 32768);
+            er->joypz = (z - 32767)*(INT_MAX / 32768);
+            *keep = 1; /* set keep event */
+
+        }
+
+    } else if (inpevt->Event.KeyEvent.dwControlKeyState == UIV_JOY1BUTTONDOWN ||
+               inpevt->Event.KeyEvent.dwControlKeyState == UIV_JOY2BUTTONDOWN ||
+               inpevt->Event.KeyEvent.dwControlKeyState == UIV_JOY1BUTTONUP ||
+               inpevt->Event.KeyEvent.dwControlKeyState == UIV_JOY2BUTTONUP)
+        joymes(er, inpevt, keep);
+    else if (inpevt->Event.KeyEvent.dwControlKeyState == UIV_TERM) {
+
+        er->etype = pa_etterm; /* set } program */
+        *keep = 1; /* set keep event */
+
+    }
+
+}
+
 static void ievent(pa_evtptr er)
 
 {
 
     int          keep;       /* event keep flag */
-    int          b;          /* int return value */
+    BOOL         b;          /* int return value */
     DWORD        ne;         /* number of events */
-    int          x, y, z;    /* joystick readback */
-    int          dx, dy, dz; /* joystick readback differences */
     INPUT_RECORD inpevt;     /* event read buffer */
 
     do {
@@ -1874,101 +1976,15 @@ static void ievent(pa_evtptr er)
             if (ne) { /* process valid event */
 
                 /* decode by event */
-                if (inpevt.EventType == KEY_EVENT)
-                    keyevent(er, &inpevt, &keep); /* key event */
-                else if (inpevt.EventType == MOUSE_EVENT)
+                if (inpevt.EventType == KEY_EVENT) {
+
+                    if (inpevt.Event.KeyEvent.dwControlKeyState >= UIV_BASE)
+                        custevent(er, &inpevt, &keep); /* process our custom event */
+                    else
+                        keyevent(er, &inpevt, &keep); /* key event */
+
+                } else if (inpevt.EventType == MOUSE_EVENT)
                     mouseevent(&inpevt); /* mouse event */
-                else if (inpevt.EventType == UIV_TIM) { /* timer event */
-
-                    er->etype = pa_ettim; /* set timer event occurred */
-                    /* set what timer */
-                    er->timnum = inpevt.Event.KeyEvent.wVirtualKeyCode;
-                    keep = 1; /* set to keep */
-
-                } else if (inpevt.EventType == UIV_JOY1MOVE ||
-                           inpevt.EventType == UIV_JOY1ZMOVE ||
-                           inpevt.EventType == UIV_JOY2MOVE ||
-                           inpevt.EventType == UIV_JOY2ZMOVE) {
-
-                    /* joystick move */
-                    er->etype = pa_etjoymov; /* set joystick moved */
-                    /* set what joystick */
-                    if (inpevt.EventType == UIV_JOY1MOVE ||
-                        inpevt.EventType == UIV_JOY1ZMOVE) er->mjoyn = 1;
-                    else er->mjoyn = 2;
-                    /* Set all variables to default to same. This way, only the joystick
-                      axes that are actually set by the message are registered. */
-                    if (inpevt.EventType == UIV_JOY1MOVE ||
-                        inpevt.EventType == UIV_JOY1ZMOVE) {
-
-                        x = joy1xs;
-                        y = joy1ys;
-                        z = joy1zs;
-
-                    } else {
-
-                        x = joy2xs;
-                        y = joy2ys;
-                        z = joy2zs;
-
-                    }
-                    /* If it's an x/y move, split the x and y axies parts of the message
-                      up. */
-                    if (inpevt.EventType == UIV_JOY1MOVE ||
-                        inpevt.EventType == UIV_JOY2MOVE) {
-
-                        /* get x and y positions */
-                        x = inpevt.Event.KeyEvent.wVirtualKeyCode;
-                        y = inpevt.Event.KeyEvent.wVirtualScanCode;
-
-                    } else /* get z position */
-                        z = inpevt.Event.KeyEvent.wVirtualKeyCode;
-                    /* We perform thresholding on the joystick right here, which is
-                      limited to 255 steps (same as joystick hardware. find joystick
-                      diffs and update */
-                    if (inpevt.EventType == UIV_JOY1MOVE ||
-                        inpevt.EventType == UIV_JOY1ZMOVE) {
-
-                        dx = abs(joy1xs-x); /* find differences */
-                        dy = abs(joy1ys-y);
-                        dz = abs(joy1zs-z);
-                        joy1xs = x; /* place old values */
-                        joy1ys = y;
-                        joy1zs = z;
-
-                    } else {
-
-                        dx = abs(joy2xs-x); /* find differences */
-                        dy = abs(joy2ys-y);
-                        dz = abs(joy2zs-z);
-                        joy2xs = x; /* place old values */
-                        joy2ys = y;
-                        joy2zs = z;
-
-                    }
-                    /* now reject moves below the threshold */
-                    if (dx > 65535 / 255 || dy > 65535 / 255 ||
-                        dz > 65535 / 255) {
-
-                        /* scale axies between -INT_MAX..INT_MAX and place */
-                        er->joypx = (x - 32767)*(INT_MAX / 32768);
-                        er->joypy = (y - 32767)*(INT_MAX / 32768);
-                        er->joypz = (z - 32767)*(INT_MAX / 32768);
-                        keep = 1; /* set keep event */
-
-                    }
-
-                } else if (inpevt.EventType == UIV_JOY1BUTTONDOWN ||
-                           inpevt.EventType == UIV_JOY2BUTTONDOWN ||
-                           inpevt.EventType == UIV_JOY1BUTTONUP ||
-                           inpevt.EventType == UIV_JOY2BUTTONUP)
-                    joymes(er, &inpevt, &keep);
-                else if (inpevt.EventType == UIV_TERM) {
-
-                    er->etype = pa_etterm; /* set } program */
-                    keep = 1; /* set keep event */
-
-                }
 
             }
 
@@ -1993,7 +2009,7 @@ Timer handler procedure
 Called when the windows multimedia event timer expires. We prepare a message
 to send up to the console even handler. Since the console event system does not
 have user defined messages, this is done by using a key event with an invalid
-event code.
+control key code.
 
 *******************************************************************************/
 
@@ -2003,11 +2019,12 @@ static void CALLBACK timeout(UINT id, UINT msg, DWORD_PTR usr, DWORD_PTR dw1, DW
 
     INPUT_RECORD inpevt; /* windows event record array */
     DWORD ne;  /* number of events written */
-    int b;
 
-    inpevt.EventType = UIV_TIM; /* set key event type */
+    /* we mux this into special key fields */
+    inpevt.EventType = KEY_EVENT; /* set key event type */
+    inpevt.Event.KeyEvent.dwControlKeyState = UIV_TIM; /* set timer code */
     inpevt.Event.KeyEvent.wVirtualKeyCode = usr; /* set timer handle */
-    b = WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* send */
+    WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* send */
 
 }
 
