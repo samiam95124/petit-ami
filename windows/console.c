@@ -201,8 +201,6 @@ int     nmb2;            /* new mouse assert status button 2 */
 int     nmb3;            /* new mouse assert status button 3 */
 int     nmb4;            /* new mouse assert status button 4 */
 int     nmpx, nmpy;      /* new mouse current position */
-/* we must open and process the _output file on our own, else we would
-   recurse */
 char    inpbuf[MAXLIN];  /* input line buffer */
 int     inpptr;          /* input line index */
 scnptr  screens[MAXCON]; /* screen contexts array */
@@ -1472,8 +1470,19 @@ static int cntrl(INPUT_RECORD* inpevt)
 
 {
 
-    return (((*inpevt)).Event.KeyEvent.dwControlKeyState &&
-            (RIGHT_CTRL_PRESSED || LEFT_CTRL_PRESSED));
+    return (!!((*inpevt).Event.KeyEvent.dwControlKeyState &
+               (RIGHT_CTRL_PRESSED | LEFT_CTRL_PRESSED)));
+
+}
+
+/* check ALT key pressed */
+
+static int alt(INPUT_RECORD* inpevt)
+
+{
+
+    return (!!((*inpevt).Event.KeyEvent.dwControlKeyState &
+               (RIGHT_ALT_PRESSED | LEFT_ALT_PRESSED)));
 
 }
 
@@ -1483,13 +1492,30 @@ static int shift(INPUT_RECORD* inpevt)
 
 {
 
-    return (((*inpevt)).Event.KeyEvent.dwControlKeyState && SHIFT_PRESSED != 0);
+    return (!!((*inpevt).Event.KeyEvent.dwControlKeyState & SHIFT_PRESSED));
 
 }
 
 static void keyevent(pa_evtptr er, INPUT_RECORD* inpevt, int* keep)
 
 {
+
+    /* uncomment for key scan diagnostic */
+
+    /*
+    printf("keyevent: up/dwn: %d rpt: %d vkc: %x vsc: %x asc: %x "
+           "altl: %d altr: %d ctll: %d ctlr: %d shft: %d\n",
+           inpevt->Event.KeyEvent.bKeyDown, inpevt->Event.KeyEvent.wRepeatCount,
+           inpevt->Event.KeyEvent.wVirtualKeyCode,
+           inpevt->Event.KeyEvent.wVirtualScanCode,
+           inpevt->Event.KeyEvent.uChar.AsciiChar,
+           !!(inpevt->Event.KeyEvent.dwControlKeyState & LEFT_ALT_PRESSED),
+           !!(inpevt->Event.KeyEvent.dwControlKeyState & RIGHT_ALT_PRESSED),
+           !!(inpevt->Event.KeyEvent.dwControlKeyState & LEFT_CTRL_PRESSED),
+           !!(inpevt->Event.KeyEvent.dwControlKeyState & RIGHT_CTRL_PRESSED),
+           !!(inpevt->Event.KeyEvent.dwControlKeyState & SHIFT_PRESSED)
+           );
+    */
 
     /* we only take key down (pressed) events */
     if (inpevt->Event.KeyEvent.bKeyDown) {
@@ -1521,48 +1547,48 @@ static void keyevent(pa_evtptr er, INPUT_RECORD* inpevt, int* keep)
         } else switch (inpevt->Event.KeyEvent.wVirtualKeyCode) { /* key */
 
             case VK_HOME: /* home */
-                if (cntrl(inpevt)) er->etype = pa_ethome; /* home document */
-                else if (shift(inpevt)) er->etype = pa_ethomes; /* home screen */
+                if (alt(inpevt) && shift(inpevt)) er->etype = pa_ethome; /* home document */
+                else if (alt(inpevt)) er->etype = pa_ethomes; /* home screen */
                 else er->etype = pa_ethomel; /* home line */
                 *keep = 1; /* set keep event */
                 break;
 
-            case VK_END: /* } */
-                if (cntrl(inpevt)) er->etype = pa_etend; /* end document */
-                else if (shift(inpevt)) er->etype = pa_etends; /* end screen */
+            case VK_END: /* end */
+                if (alt(inpevt) && shift(inpevt)) er->etype = pa_etend; /* end document */
+                else if (alt(inpevt)) er->etype = pa_etends; /* end screen */
                 else er->etype = pa_etendl; /* end line */
                 *keep = 1; /* set keep event */
                 break;
 
             case VK_UP: /* up */
-                if (cntrl(inpevt)) er->etype = pa_etscru; /* scroll up */
+                if (alt(inpevt)) er->etype = pa_etscru; /* scroll up */
                 else er->etype = pa_etup; /* up line */
                 *keep = 1; /* set keep event */
                 break;
 
             case VK_DOWN: /* down */
-                if (cntrl(inpevt)) er->etype = pa_etscrd; /* scroll down */
+                if (alt(inpevt)) er->etype = pa_etscrd; /* scroll down */
                 else er->etype = pa_etdown; /* up line */
                 *keep = 1; /* set keep event */
                 break;
 
             case VK_LEFT: /* left */
-                if (cntrl(inpevt)) er->etype = pa_etscrl; /* scroll left one character */
-                else if (shift(inpevt)) er->etype = pa_etleftw; /* left one word */
+                if (alt(inpevt) && shift(inpevt)) er->etype = pa_etscrl; /* scroll left one character */
+                else if (alt(inpevt)) er->etype = pa_etleftw; /* left one word */
                 else er->etype = pa_etleft; /* left one character */
                 *keep = 1; /* set keep event */
                 break;
 
             case VK_RIGHT: /* right */
-                if (cntrl(inpevt)) er->etype = pa_etscrr; /* scroll right one character */
-                else if (shift(inpevt)) er->etype = pa_etrightw; /* right one word */
+                if (alt(inpevt) && shift(inpevt)) er->etype = pa_etscrr; /* scroll right one character */
+                else if (alt(inpevt)) er->etype = pa_etrightw; /* right one word */
                 else er->etype = pa_etright; /* left one character */
                 *keep = 1; /* set keep event */
                 break;
 
             case VK_INSERT: /* insert */
-                if (cntrl(inpevt)) er->etype = pa_etinsert; /* insert block */
-                else if (shift(inpevt)) er->etype = pa_etinsertl; /* insert line */
+                if (cntrl(inpevt) && shift(inpevt)) er->etype = pa_etinsert; /* insert block */
+                else if (cntrl(inpevt)) er->etype = pa_etinsertl; /* insert line */
                 else er->etype = pa_etinsertt; /* insert toggle */
                 *keep = 1; /* set keep event */
                 break;
@@ -1570,7 +1596,7 @@ static void keyevent(pa_evtptr er, INPUT_RECORD* inpevt, int* keep)
             case VK_DELETE: /* delete */
                 if (cntrl(inpevt)) er->etype = pa_etdel; /* delete block */
                 else if (shift(inpevt)) er->etype = pa_etdell; /* delete line */
-                else er->etype = pa_etdelcf; /* insert toggle */
+                else er->etype = pa_etdelcf; /* delete character forward */
                 *keep = 1; /* set keep event */
                 break;
 
@@ -2754,12 +2780,13 @@ static BOOL WINAPI conhan(DWORD ct)
 
 {
 
-    int          b;      /* result holder */
     DWORD        ne;     /* number of events written */
     INPUT_RECORD inpevt; /* event buffer */
 
-    inpevt.EventType = UIV_TERM; /* set key event type */
-    b = WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* send */
+    /* we mux this into special key fields */
+    inpevt.EventType = KEY_EVENT; /* set key event type */
+    inpevt.Event.KeyEvent.dwControlKeyState = UIV_TERM; /* set timer code */
+    WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* send */
 
     return (1); /* set event handled */
 
@@ -2857,9 +2884,10 @@ static void pa_init_terminal(void)
         screens[curupd-1]->tab[i] = (i) % 8 == 0;
     /* turn on mouse events */
     b = GetConsoleMode(inphdl, &mode);
-    b = SetConsoleMode(inphdl, mode | ENABLE_MOUSE_INPUT);
+    mode &= ~ENABLE_QUICK_EDIT_MODE; /* enable the mouse */
+    b = SetConsoleMode(inphdl, mode | ENABLE_MOUSE_INPUT | ENABLE_EXTENDED_FLAGS );
     /* capture control handler */
-    //b = SetConsoleCtrlHandler(conhan, 1);
+    b = SetConsoleCtrlHandler(conhan, 1);
     /* interlock to make sure that thread starts before we continue */
     threadstart = 0;
     h = CreateThread(NULL, 0, dummyloop, NULL, 0, &threadid);
