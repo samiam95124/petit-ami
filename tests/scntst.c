@@ -125,12 +125,14 @@ static void waitnext(void)
 static void timetest(void)
 {
 
-    int i, t, et, total, max, min;
+    int i, t, et, max, min;
+    long total;
     pa_evtrec er;
 
     printf("Timer test, measuring minimum timer resolution, 100 samples\n\n");
     max = 0;
     min = INT_MAX;
+    total = 0;
     for (i = 1; i <= 100; i++) {
 
         t = pa_clock();
