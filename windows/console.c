@@ -1825,10 +1825,10 @@ static void mouseevent(INPUT_RECORD* inpevt)
     /* gather a new mouse status */
     nmpx = inpevt->Event.MouseEvent.dwMousePosition.X+1; /* get mouse position */
     nmpy = inpevt->Event.MouseEvent.dwMousePosition.Y+1;
-    nmb1 = inpevt->Event.MouseEvent.dwButtonState && FROM_LEFT_1ST_BUTTON_PRESSED != 0;
-    nmb2 = inpevt->Event.MouseEvent.dwButtonState && RIGHTMOST_BUTTON_PRESSED != 0;
-    nmb3 = inpevt->Event.MouseEvent.dwButtonState && FROM_LEFT_2ND_BUTTON_PRESSED != 0;
-    nmb4 = inpevt->Event.MouseEvent.dwButtonState && FROM_LEFT_3RD_BUTTON_PRESSED != 0;
+    nmb1 = !!(inpevt->Event.MouseEvent.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED);
+    nmb2 = !!(inpevt->Event.MouseEvent.dwButtonState & RIGHTMOST_BUTTON_PRESSED);
+    nmb3 = !!(inpevt->Event.MouseEvent.dwButtonState & FROM_LEFT_2ND_BUTTON_PRESSED);
+    nmb4 = !!(inpevt->Event.MouseEvent.dwButtonState & FROM_LEFT_3RD_BUTTON_PRESSED);
 
 }
 
