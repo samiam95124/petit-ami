@@ -26,7 +26,7 @@
 * Should have speed tests adjust their length according to actual process     *
 * time to prevent tests from taking too long on slow cpu/display.             *
 *                                                                             *
-* Benchmark results:                                                          *
+* Benchmark results for 80x25 screen:                                         *
 *                                                                             *
 * Windows console library (conlib):                                           *
 *                                                                             *
@@ -58,7 +58,7 @@
 #include <terminal.h>
 #include <services.h>
 
-static int x, y, lx, ly, tx, ty, dx, dy;
+static int x, y, lx, ly, tx, ty, dx, dy, maxy, maxx;
 static char c;
 static int top, bottom, lside, rside; /* borders */
 static enum { dup, ddown, dleft, dright } direction; /* writing direction */
@@ -271,7 +271,7 @@ int main(int argc, char *argv[])
     for (i = 1; i <= pa_mouse(stdout); i++) {
 
         printf("\n");
-        printf("\nNumber of buttons on mouse: %d is: %d\n", i,
+        printf("Number of buttons on mouse: %d is: %d\n", i,
             pa_mousebutton(stdout, i));
 
     }
@@ -1037,13 +1037,14 @@ int main(int argc, char *argv[])
     clk = pa_clock();   /* get reference time */
     c = '\0';   /* initalize character value */
     cnt = 0;   /* clear character count */
-    for (y = 1; y <= pa_maxy(stdout); y++) {
+    maxx = pa_maxx(stdout);
+    maxy = pa_maxy(stdout);
+    for (y = 1; y <= maxy; y++) {
 
         pa_cursor(stdout, 1, y); /* index start of line */
-        for (x = 1; x <= pa_maxx(stdout); x++) {
+        for (x = 1; x <= maxx; x++) {
 
-            if (c >= ' ' && c != '\177') putchar(c);
-            else printf("\\");
+            if (c >= ' ' && c != '\177') putchar(c); else putchar('\\');
             if (c != '\177') c++; /* next character */
             else c = '\0'; /* start over */
             cnt++;   /* count characters */

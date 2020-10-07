@@ -36,6 +36,7 @@ int main(int argc, char *argv[])
     fsups = 0;        /* set superscript off */
     autostate = 1;    /* set auto on */
     color = pa_black; /* set black foreground */
+    printf("Terminal emulator test program 1.0\n");
     do { /* event loop */
 
         pa_event(stdin, &er); /* get the next event */

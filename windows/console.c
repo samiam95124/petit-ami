@@ -802,7 +802,7 @@ static void iup(void)
     getpos(); /* update status */
     sc = screens[curupd-1];
     /* check not top of screen */
-    if (sc->cury > 1) sc->cury++; /* update position */
+    if (sc->cury > 1) sc->cury--; /* update position */
     /* check auto mode */
     else if (sc->autof) iscroll(0, -1); /* scroll up */
     /* check won't overflow */
