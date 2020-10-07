@@ -256,6 +256,10 @@ static void error(int e)
 
 {
 
+    /* if screen is active and not screen 1, flip back to screen 1 so the
+       error can be seen */
+    if (screens[0] && curdsp != 1)
+       SetConsoleActiveScreenBuffer(screens[0]->han);
     fprintf(stderr, "*** Error: console: ");
     switch (e) { /* error */
 
@@ -277,6 +281,9 @@ static void error(int e)
 
     }
     fprintf(stderr, "\n");
+
+    /* cancel control-c capture */
+    SetConsoleCtrlHandler(NULL, 0);
 
     exit(1);
 
@@ -1308,7 +1315,7 @@ static void iselect(int u, int d)
 
     }
     /* set display buffer as active display console */
-    b = SetConsoleActiveScreenBuffer(screens[curdsp-1]->han);
+    SetConsoleActiveScreenBuffer(screens[curdsp-1]->han);
     getpos(); /* make sure we are synced with Windows */
     setcur(screens[curdsp-1]); /* make sure the cursor is at correct point */
 
@@ -2271,7 +2278,18 @@ int pa_joyaxis(FILE* f, int j)
 
 {
 
-    return (2); /* 2d */
+    JOYCAPS jc; /* joystick characteristics data */
+    int axis;   /* number of axes */
+    MMRESULT r;      /* return value */
+
+    if (j < 1 || j > numjoy) error(einvjoy); /* bad joystick id */
+    r = joyGetDevCaps(j-1, &jc, sizeof(JOYCAPS));
+    if (r) error(ejoyqry); /* could not access joystick */
+    axis = jc.wNumAxes; /* set number of axes */
+    /* We don't support more than 4 buttons. */
+    if (axis > 3) axis = 3;
+
+    return (axis); /* 2d */
 
 }
 
@@ -2730,6 +2748,8 @@ DWORD WINAPI dummyloop(LPVOID par)
     WNDCLASSA wc; /* windows class structure */
     int b;        /* int return */
     int r;        /* result holder */
+    JOYCAPS  jc;  /* joytick capabilities */
+    MMRESULT mmr; /* result code */
 
     /* there are a few resources that can only be used by windowed programs, such
       as timers and joysticks. to enable these, we start a false windows
@@ -2899,11 +2919,11 @@ static void pa_init_terminal(void)
     for (i = 0; i < screens[curupd-1]->maxx; i++)
         screens[curupd-1]->tab[i] = (i) % 8 == 0;
     /* turn on mouse events */
-    b = GetConsoleMode(inphdl, &mode);
+    GetConsoleMode(inphdl, &mode);
     mode &= ~ENABLE_QUICK_EDIT_MODE; /* enable the mouse */
-    b = SetConsoleMode(inphdl, mode | ENABLE_MOUSE_INPUT | ENABLE_EXTENDED_FLAGS );
+    SetConsoleMode(inphdl, mode | ENABLE_MOUSE_INPUT | ENABLE_EXTENDED_FLAGS );
     /* capture control handler */
-    b = SetConsoleCtrlHandler(conhan, 1);
+    SetConsoleCtrlHandler(conhan, 1);
     /* interlock to make sure that thread starts before we continue */
     threadstart = 0;
     h = CreateThread(NULL, 0, dummyloop, NULL, 0, &threadid);
