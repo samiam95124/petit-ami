@@ -1055,7 +1055,7 @@ int main(int argc, char *argv[])
     }
     clk = pa_elapsed(clk);   /* find elapsed time */
     printf("\f");
-    printf("Character write speed: % .5E average seconds per character\n",
+    printf("Character write speed: %.5E average seconds per character\n",
            (float)clk/cnt*0.0001);
     waitnext();
 
@@ -1101,7 +1101,7 @@ int main(int argc, char *argv[])
     }
     clk = pa_elapsed(clk);   /* find elapsed time */
     printf("\f");
-    printf("Scrolling speed: % .5E average seconds per scroll\n", clk/cnt*0.0001);
+    printf("Scrolling speed: %.5E average seconds per scroll\n", clk/cnt*0.0001);
     waitnext();
 
     /* ************************** Buffer flip speed test ************************* */
@@ -1128,7 +1128,7 @@ int main(int argc, char *argv[])
     clk = pa_elapsed(clk);   /* find elapsed time */
     pa_select(stdout, 2, 2);   /* restore buffer select */
     printf("\f");
-    printf("Buffer switch speed: % .5E average seconds per switch\n",
+    printf("Buffer switch speed: %.5E average seconds per switch\n",
            clk/cnt*0.0001);
     waitnext();
 

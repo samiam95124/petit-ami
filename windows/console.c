@@ -372,14 +372,14 @@ static int colnum(pa_color c, int i)
         case pa_black:  r = 0x0000 | i*FOREGROUND_INTENSITY; break;
         case pa_white:  r = FOREGROUND_BLUE | FOREGROUND_GREEN |
                             FOREGROUND_RED | !i*FOREGROUND_INTENSITY; break;
-        pa_red:      r = FOREGROUND_RED | !i*FOREGROUND_INTENSITY; break;
-        pa_green:    r = FOREGROUND_GREEN | !i*FOREGROUND_INTENSITY; break;
-        pa_blue:     r = FOREGROUND_BLUE | !i*FOREGROUND_INTENSITY; break;
-        pa_cyan:     r = FOREGROUND_BLUE | FOREGROUND_GREEN |
+        case pa_red:      r = FOREGROUND_RED | !i*FOREGROUND_INTENSITY; break;
+        case pa_green:    r = FOREGROUND_GREEN | !i*FOREGROUND_INTENSITY; break;
+        case pa_blue:     r = FOREGROUND_BLUE | !i*FOREGROUND_INTENSITY; break;
+        case pa_cyan:     r = FOREGROUND_BLUE | FOREGROUND_GREEN |
                          !i*FOREGROUND_INTENSITY; break;
-        pa_yellow:  r = FOREGROUND_RED | FOREGROUND_GREEN |
+        case pa_yellow:  r = FOREGROUND_RED | FOREGROUND_GREEN |
                         !i*FOREGROUND_INTENSITY; break;
-        pa_magenta: r = FOREGROUND_RED | FOREGROUND_BLUE |
+        case pa_magenta: r = FOREGROUND_RED | FOREGROUND_BLUE |
                         !i*FOREGROUND_INTENSITY; break;
 
     }
