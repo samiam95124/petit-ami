@@ -11,7 +11,7 @@
 *                                                                             *
 * 1. Row id - number each row with a digit in turn. This test uncovers        *
 * positioning errors.                                                         *
-* 2. Column id - Same for colums.                                           *
+* 2. Column id - Same for colums.                                             *
 * 3. Fill test - fills the screen with the printable ascii characters, and    *
 * "elided" control characters. Tests ability to print standard ASCII set.     *
 * 4. Sidewinder - Fills the screen starting from the edges in. Tests          *
@@ -61,13 +61,13 @@
 static int x, y, lx, ly, tx, ty, dx, dy;
 static char c;
 static int top, bottom, lside, rside; /* borders */
-static enum { dup, ddown, dleft, dright } direction; /* writting direction */
+static enum { dup, ddown, dleft, dright } direction; /* writing direction */
 static int count, t1, t2, delay, minlen;   /* maximum direction, x or y */
 static pa_evtrec er;   /* event record */
-static int i, b, tc, clk, cnt;
+static int i, b, tc, cnt;
+static long clk;
 static FILE *tf;   /* test file */
 static char tf_NAME[10/*_FNSIZE*/] = "testfile";
-
 
 /* draw box */
 
@@ -1042,22 +1042,19 @@ int main(int argc, char *argv[])
         pa_cursor(stdout, 1, y); /* index start of line */
         for (x = 1; x <= pa_maxx(stdout); x++) {
 
-            if (c >= ' ' && c != '\177')
-            putchar(c);
-            else
-            printf("\\");
+            if (c >= ' ' && c != '\177') putchar(c);
+            else printf("\\");
             if (c != '\177') c++; /* next character */
             else c = '\0'; /* start over */
             cnt++;   /* count characters */
 
         }
 
-
     }
     clk = pa_elapsed(clk);   /* find elapsed time */
     printf("\f");
-    printf("Character write speed: %.5E average seconds per character\n",
-           (float)clk/cnt*0.0001);
+    //printf("Character write speed: %.5E average seconds per character\n", (float)clk/cnt*0.0001);
+    printf("Character write speed: 0.%08ld average seconds per character\n", clk*10000/cnt);
     waitnext();
 
     /* ************************** Scrolling speed test ************************* */
@@ -1102,7 +1099,8 @@ int main(int argc, char *argv[])
     }
     clk = pa_elapsed(clk);   /* find elapsed time */
     printf("\f");
-    printf("Scrolling speed: %.5E average seconds per scroll\n", clk/cnt*0.0001);
+    //printf("Scrolling speed: %.5E average seconds per scroll\n", clk/cnt*0.0001);
+    printf("Scrolling speed: 0.%08ld average seconds per scroll\n", clk*10000/cnt);
     waitnext();
 
     /* ************************** Buffer flip speed test ************************* */
@@ -1129,8 +1127,8 @@ int main(int argc, char *argv[])
     clk = pa_elapsed(clk);   /* find elapsed time */
     pa_select(stdout, 2, 2);   /* restore buffer select */
     printf("\f");
-    printf("Buffer switch speed: %.5E average seconds per switch\n",
-           clk/cnt*0.0001);
+    //printf("Buffer switch speed: %.5E average seconds per switch\n", clk/cnt*0.0001);
+    printf("Buffer switch speed: 0.%08ld average seconds per switch\n", clk*10000/cnt);
     waitnext();
 
 terminate: /* terminate */

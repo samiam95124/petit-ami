@@ -186,7 +186,6 @@ int  pa_funkey(FILE* f);
 void pa_frametimer(FILE* f, int e);
 void pa_autohold(FILE* f, int e);
 void pa_wrtstr(FILE* f, char *s);
-void pa_wrtstrn(FILE* f, char *s, int n);
 void pa_eventover(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh);
 
 #endif /* __TERMINAL_H__ */
