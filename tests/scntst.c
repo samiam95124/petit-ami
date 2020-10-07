@@ -571,6 +571,7 @@ int main(int argc, char *argv[])
 
         pa_cursor(stdout, x, y);   /* place character */
         putchar('*');
+        wait(100); /* wait for display, otherwise cannot see */
         pa_cursor(stdout, lx, ly);   /* place character */
         putchar(' ');
         lx = x;   /* set last */
