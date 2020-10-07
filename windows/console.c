@@ -1843,16 +1843,16 @@ static void updn(pa_evtptr er, INPUT_RECORD* inpevt, int* keep, int bn, int bm)
     if (!(inpevt->Event.KeyEvent.wVirtualKeyCode & bm)) { /* assert */
 
         er->etype = pa_etjoyba; /* set assert */
-        if (inpevt->EventType == UIV_JOY1BUTTONDOWN ||
-            inpevt->EventType == UIV_JOY1BUTTONUP) er->ajoyn = 1;
+        if (inpevt->Event.KeyEvent.dwControlKeyState == UIV_JOY1BUTTONDOWN ||
+            inpevt->Event.KeyEvent.dwControlKeyState == UIV_JOY1BUTTONUP) er->ajoyn = 1;
         else er->ajoyn = 2;
         er->ajoybn = bn; /* set number */
 
     } else { /* deassert */
 
         er->etype = pa_etjoybd; /* set deassert */
-        if (inpevt->EventType == UIV_JOY1BUTTONDOWN ||
-            inpevt->EventType == UIV_JOY1BUTTONUP) er->ajoyn = 1;
+        if (inpevt->Event.KeyEvent.dwControlKeyState == UIV_JOY1BUTTONDOWN ||
+            inpevt->Event.KeyEvent.dwControlKeyState == UIV_JOY1BUTTONUP) er->ajoyn = 1;
         else er->ajoyn = 2;
         er->djoybn = bn; /* set number */
 
@@ -1868,13 +1868,13 @@ static void joymes(pa_evtptr er, INPUT_RECORD* inpevt, int* keep)
 {
 
     /* register changes on each button */
-    if (!(inpevt->Event.KeyEvent.wVirtualKeyCode & JOY_BUTTON1CHG))
+    if (inpevt->Event.KeyEvent.wVirtualKeyCode & JOY_BUTTON1CHG)
         updn(er, inpevt, keep, 1, JOY_BUTTON1);
-    if (!(inpevt->Event.KeyEvent.wVirtualKeyCode & JOY_BUTTON2CHG))
+    if (inpevt->Event.KeyEvent.wVirtualKeyCode & JOY_BUTTON2CHG)
         updn(er, inpevt, keep, 2, JOY_BUTTON2);
-    if (!(inpevt->Event.KeyEvent.wVirtualKeyCode & JOY_BUTTON3CHG))
+    if (inpevt->Event.KeyEvent.wVirtualKeyCode & JOY_BUTTON3CHG)
         updn(er, inpevt, keep, 3, JOY_BUTTON3);
-    if (!(inpevt->Event.KeyEvent.wVirtualKeyCode & JOY_BUTTON4CHG))
+    if (inpevt->Event.KeyEvent.wVirtualKeyCode & JOY_BUTTON4CHG)
         updn(er, inpevt, keep, 4, JOY_BUTTON4);
 
 }
@@ -2612,59 +2612,75 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
 
     } else if (msg == MM_JOY1MOVE) {
 
-        inpevt.EventType = UIV_JOY1MOVE; /* set event type */
+        inpevt.EventType = KEY_EVENT; /* set key event type */
+        /* set joystick move code */
+        inpevt.Event.KeyEvent.dwControlKeyState = UIV_JOY1MOVE;
         x = LOWORD(lparam); /* get x and y for joystick */
         y = HIWORD(lparam);
         inpevt.Event.KeyEvent.wVirtualKeyCode = x; /* place */
         inpevt.Event.KeyEvent.wVirtualScanCode = y; /* place */
-        b = WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
+        WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
 
     } else if (msg == MM_JOY1ZMOVE) {
 
-        inpevt.EventType = UIV_JOY1ZMOVE; /* set event type */
+        inpevt.EventType = KEY_EVENT; /* set key event type */
+        /* set joystick move code */
+        inpevt.Event.KeyEvent.dwControlKeyState = UIV_JOY1ZMOVE;
         z = LOWORD(lparam); /* get z for joystick */
         inpevt.Event.KeyEvent.wVirtualKeyCode = z; /* place */
-        b = WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
+        WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
 
     } else if (msg == MM_JOY2MOVE) {
 
-        inpevt.EventType = UIV_JOY2MOVE; /* set event type */
+        inpevt.EventType = KEY_EVENT; /* set key event type */
+        /* set joystick move code */
+        inpevt.Event.KeyEvent.dwControlKeyState = UIV_JOY2MOVE;
         x = LOWORD(lparam); /* get x and y for joystick */
         y = HIWORD(lparam);
         inpevt.Event.KeyEvent.wVirtualKeyCode = x; /* place */
         inpevt.Event.KeyEvent.wVirtualScanCode = y; /* place */
-        b = WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
+        WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
 
     } else if (msg == MM_JOY2ZMOVE) {
 
-        inpevt.EventType = UIV_JOY2ZMOVE; /* set event type */
+        inpevt.EventType = KEY_EVENT; /* set key event type */
+        /* set joystick move code */
+        inpevt.Event.KeyEvent.dwControlKeyState = UIV_JOY2ZMOVE;
         z = LOWORD(lparam); /* get z for joystick */
         inpevt.Event.KeyEvent.wVirtualKeyCode = z; /* place */
-        b = WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
+        WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
 
     } else if (msg == MM_JOY1BUTTONDOWN) {
 
-        inpevt.EventType = UIV_JOY1BUTTONDOWN; /* set event type */
+        inpevt.EventType = KEY_EVENT; /* set key event type */
+        /* set joystick move code */
+        inpevt.Event.KeyEvent.dwControlKeyState = UIV_JOY1BUTTONDOWN;
         inpevt.Event.KeyEvent.wVirtualKeyCode = wparam; /* place buttons */
-        b = WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
+        WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
 
     } else if (msg == MM_JOY2BUTTONDOWN) {
 
-        inpevt.EventType = UIV_JOY2BUTTONDOWN; /* set event type */
+        inpevt.EventType = KEY_EVENT; /* set key event type */
+        /* set joystick move code */
+        inpevt.Event.KeyEvent.dwControlKeyState = UIV_JOY2BUTTONDOWN;
         inpevt.Event.KeyEvent.wVirtualKeyCode = wparam; /* place buttons */
-        b = WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
+        WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
 
     } else if (msg == MM_JOY1BUTTONUP) {
 
-        inpevt.EventType = UIV_JOY1BUTTONUP; /* set event type */
+        inpevt.EventType = KEY_EVENT; /* set key event type */
+        /* set joystick move code */
+        inpevt.Event.KeyEvent.dwControlKeyState = UIV_JOY1BUTTONUP;
         inpevt.Event.KeyEvent.wVirtualKeyCode = wparam; /* place buttons */
-        b = WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
+        WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
 
     } else if (msg == MM_JOY2BUTTONUP) {
 
-        inpevt.EventType = UIV_JOY2BUTTONUP; /* set event type */
+        inpevt.EventType = KEY_EVENT; /* set key event type */
+        /* set joystick move code */
+        inpevt.Event.KeyEvent.dwControlKeyState = UIV_JOY2BUTTONUP;
         inpevt.Event.KeyEvent.wVirtualKeyCode = wparam; /* place buttons */
-        b = WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
+        WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
 
     } else if (msg == WM_DESTROY) {
 
