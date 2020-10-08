@@ -434,5 +434,5 @@ clean:
 	rm -f bin/listcertnet
 	rm -f bin/prtcertmsg
 	find . -name "*.o" -type f -delete
-	find . -name "*.a" -type f -delete
-	find . -name "*.so" -type f -delete
+	rm -f bin/*.a
+	rm -f bin/*.so
