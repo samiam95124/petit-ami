@@ -35,7 +35,7 @@ static int  msgarr[NUMMSG];
 static int  port = 110; /* unsecured port */
 static int  sport = 995; /* secured port */
 
-boolean secure = false;
+int secure = FALSE;
 
 optrec opttbl[] = {
 
@@ -77,7 +77,7 @@ int main(int argc, char **argv)
     printf("\n");
 
     /* parse user options */
-    options(&argi, &argc, argv, opttbl, true);
+    options(&argi, &argc, argv, opttbl, TRUE);
 
     if (argc < 4) {
 

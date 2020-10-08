@@ -186,7 +186,7 @@ ifeq ($(OS),Windows_NT)
 #
 all: dumpmidi test play keyboard playmidi playwave \
     printdev connectmidi connectwave random genwave scntst sndtst svstst \
-    event getkeys getmouse term snake mine editor getpage getmail gettys
+    event term snake mine editor getpage getmail gettys
     
 else
 
@@ -332,27 +332,33 @@ lsalsadev: linux/lsalsadev.c Makefile
 	
 alsaparms: linux/alsaparms.c Makefile
 	gcc linux/alsaparms.c -lasound -o bin/alsaparms
+	
+getkeys: linux/getkeys.c Makefile
+	$(CC) $(CFLAGS) linux/getkeys.c -lm -o bin/getkeys
+	
+getmouse: linux/getmouse.c Makefile
+	$(CC) $(CFLAGS) linux/getmouse.c -lm -o bin/getmouse
 
 #
 # Cross system tools
 #	
-dumpmidi: linux/dumpmidi.c Makefile
-	gcc linux/dumpmidi.c -o bin/dumpmidi
+dumpmidi: utils/dumpmidi.c Makefile
+	gcc utils/dumpmidi.c -o bin/dumpmidi
 
 test: bin/petit_ami_plain$(LIBEXT) include/terminal.h test.c Makefile
 	$(CC) $(CFLAGS) test.c $(PLIBS) -o test
 	
 play: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/play.c Makefile
-	$(CC) $(CFLAGS) sound_programs/play.c linux/option.c $(LIBS) -o bin/play
+	$(CC) $(CFLAGS) sound_programs/play.c utils/option.c $(LIBS) -o bin/play
 	
 keyboard: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/keyboard.c Makefile
-	$(CC) $(CFLAGS) sound_programs/keyboard.c linux/option.c $(LIBS) -o bin/keyboard
+	$(CC) $(CFLAGS) sound_programs/keyboard.c utils/option.c $(LIBS) -o bin/keyboard
 	
-playmidi: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/playmidi.c linux/option.c Makefile
-	$(CC) $(CFLAGS) sound_programs/playmidi.c linux/option.c $(PLIBS) -o bin/playmidi
+playmidi: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/playmidi.c utils/option.c Makefile
+	$(CC) $(CFLAGS) sound_programs/playmidi.c utils/option.c $(PLIBS) -o bin/playmidi
 
 playwave: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/playwave.c Makefile
-	$(CC) $(CFLAGS) sound_programs/playwave.c linux/option.c $(PLIBS) -o bin/playwave
+	$(CC) $(CFLAGS) sound_programs/playwave.c utils/option.c $(PLIBS) -o bin/playwave
 	
 printdev: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/printdev.c Makefile
 	$(CC) $(CFLAGS) sound_programs/printdev.c $(PLIBS) -o bin/printdev
@@ -364,30 +370,24 @@ connectwave: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/conne
 	$(CC) $(CFLAGS) sound_programs/connectwave.c $(PLIBS) -o bin/connectwave
 	
 random: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/random.c Makefile
-	$(CC) $(CFLAGS) sound_programs/random.c linux/option.c $(LIBS) -o bin/random
+	$(CC) $(CFLAGS) sound_programs/random.c utils/option.c $(LIBS) -o bin/random
 	
 genwave: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/genwave.c Makefile
-	$(CC) $(CFLAGS) sound_programs/genwave.c linux/option.c $(PLIBS) -o bin/genwave
+	$(CC) $(CFLAGS) sound_programs/genwave.c utils/option.c $(PLIBS) -o bin/genwave
 	
 scntst: bin/petit_ami_term$(LIBEXT) include/terminal.h tests/scntst.c include/services.h linux/services.c Makefile
 	$(CC) $(CFLAGS) tests/scntst.c $(LIBS) -o bin/scntst 
 	
 sndtst: bin/petit_ami_term$(LIBEXT) include/terminal.h tests/sndtst.c \
         include/services.h linux/services.c Makefile
-	$(CC) $(CFLAGS) tests/sndtst.c linux/option.c $(LIBS) -o bin/sndtst 
+	$(CC) $(CFLAGS) tests/sndtst.c utils/option.c $(LIBS) -o bin/sndtst 
 	
 svstst: bin/petit_ami_plain$(LIBEXT) include/terminal.h tests/svstst.c \
         include/services.h linux/services.c Makefile
-	$(CC) $(CFLAGS) tests/svstst.c linux/option.c $(LIBS) -o bin/svstst
+	$(CC) $(CFLAGS) tests/svstst.c utils/option.c $(LIBS) -o bin/svstst
 	
 event: include/terminal.h tests/event.c Makefile
 	$(CC) $(CFLAGS) tests/event.c $(LIBS) -o bin/event
-	
-getkeys: linux/getkeys.c Makefile
-	$(CC) $(CFLAGS) linux/getkeys.c -lm -o bin/getkeys
-	
-getmouse: linux/getmouse.c Makefile
-	$(CC) $(CFLAGS) linux/getmouse.c -lm -o bin/getmouse
 	
 term: include/terminal.h tests/term.c Makefile
 	$(CC) $(CFLAGS) tests/term.c $(LIBS) -o bin/term
@@ -402,19 +402,19 @@ editor: terminal_programs/editor.c include/terminal.h Makefile
 	$(CC) $(CFLAGS) terminal_programs/editor.c $(LIBS) -o bin/editor
 	
 getpage: bin/petit_ami_plain$(LIBEXT) network_programs/getpage.c Makefile
-	$(CC) $(CFLAGS) network_programs/getpage.c linux/option.c $(PLIBS) -o bin/getpage
+	$(CC) $(CFLAGS) network_programs/getpage.c utils/option.c $(PLIBS) -o bin/getpage
 
 getmail: bin/petit_ami_plain$(LIBEXT) network_programs/getmail.c Makefile
-	$(CC) $(CFLAGS) network_programs/getmail.c linux/option.c $(PLIBS) -o bin/getmail
+	$(CC) $(CFLAGS) network_programs/getmail.c utils/option.c $(PLIBS) -o bin/getmail
 	
 gettys: bin/petit_ami_plain$(LIBEXT) network_programs/gettys.c Makefile
-	$(CC) $(CFLAGS) network_programs/gettys.c linux/option.c $(PLIBS) -o bin/gettys
+	$(CC) $(CFLAGS) network_programs/gettys.c utils/option.c $(PLIBS) -o bin/gettys
 	
 msgclient: bin/petit_ami_plain$(LIBEXT) network_programs/msgclient.c Makefile
-	$(CC) $(CFLAGS) network_programs/msgclient.c linux/option.c $(PLIBS) -o bin/msgclient
+	$(CC) $(CFLAGS) network_programs/msgclient.c utils/option.c $(PLIBS) -o bin/msgclient
 	
 msgserver: bin/petit_ami_plain$(LIBEXT) network_programs/msgserver.c Makefile
-	$(CC) $(CFLAGS) network_programs/msgserver.c linux/option.c $(PLIBS) -o bin/msgserver
+	$(CC) $(CFLAGS) network_programs/msgserver.c utils/option.c $(PLIBS) -o bin/msgserver
 	
 prtcertnet: bin/petit_ami_plain$(LIBEXT) network_programs/prtcertnet.c Makefile
 	$(CC) $(CFLAGS) network_programs/prtcertnet.c $(PLIBS) -o bin/prtcertnet

@@ -45,7 +45,7 @@ void wait(int t)
 
     pa_evtrec er; /* event record */
 
-    pa_timer(stdin, 1, t, false);
+    pa_timer(stdin, 1, t, FALSE);
     do { pa_event(stdin, &er); } while (er.etype != pa_ettim && er.etype != pa_etterm);
     if (er.etype == pa_etterm) exit(0);
 
@@ -67,7 +67,7 @@ void settim(int* t, int ln)
 {
 
     while (ln > 4) { /* process tempo levels */
-   
+
         *t = *t/2;
         ln = ln/2;
 
@@ -199,13 +199,13 @@ void play(string ms)
             ms++; /* advance */
             settim(&x, strtol(ms, &ms, 10)); /* get time */
             wait(x); /* wait for that time */
-         
+
         } else if (tolower(*ms) == 't') { /* tempo */
 
             /* not implemented, just skip */
             ms++; /* advance */
             x = strtol(ms, &ms, 10); /* get time */
-         
+
         } else if (tolower(*ms) == 'm') { /* various commands */
 
             ms++; /* advance */
@@ -239,7 +239,7 @@ int main(int argc, char **argv)
     int argi = 1;
 
     /* parse user options */
-    options(&argi, &argc, argv, opttbl, true);
+    options(&argi, &argc, argv, opttbl, TRUE);
 
     if (argc != 1) {
 

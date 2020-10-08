@@ -41,7 +41,7 @@ void wait(int t)
 
     pa_evtrec er; /* event record */
 
-    pa_timer(stdin, 1, t, false);
+    pa_timer(stdin, 1, t, FALSE);
     do { pa_event(stdin, &er); } while (er.etype != pa_ettim && er.etype != pa_etterm);
     if (er.etype == pa_etterm) exit(0);
 
@@ -90,7 +90,7 @@ void keyon(int n)
         case 34: pa_noteon(port, 0, chan, PA_NOTE_A+PA_OCTAVE_6, velo);       break;
         case 35: pa_noteon(port, 0, chan, PA_NOTE_A_SHARP+PA_OCTAVE_6, velo); break;
         case 36: pa_noteon(port, 0, chan, PA_NOTE_B+PA_OCTAVE_6, velo);       break;
-   
+
     }
     keycnt[n] = KEYDOWN; /* start, or restart, key down count */
 
@@ -166,7 +166,7 @@ int main(int argc, char **argv)
     int argi = 1;
 
     /* parse user options */
-    options(&argi, &argc, argv, opttbl, true);
+    options(&argi, &argc, argv, opttbl, TRUE);
 
     if (argc != 1) {
 
@@ -180,7 +180,7 @@ int main(int argc, char **argv)
     chan = 1; /* set channel 1 */
     velo = INT_MAX; /* set velocity */
     for (ki = 1; ki <= 36; ki++) keycnt[ki] = 0; /* clear key down counts */
-    pa_timer(stdin, 1, SECOND/4/10, true); /* set basic timer */
+    pa_timer(stdin, 1, SECOND/4/10, TRUE); /* set basic timer */
     do { /* events */
 
         pa_event(stdin, &er); /* get next event */

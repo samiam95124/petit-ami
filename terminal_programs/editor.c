@@ -58,7 +58,7 @@ typedef struct crdrec { /* cursor coordinate save */
 } crdrec;
 
 linbuf    inpbuf;        /* input line buffer */
-boolean   buflin;        /* current line in buffer flag */
+int   buflin;        /* current line in buffer flag */
 linptr    linstr;        /* edit lines storage */
 linptr    paglin;        /* top of page line */
 int       lincnt;        /* number of lines in buffer */
@@ -70,11 +70,11 @@ pa_evtrec er;            /* next event record */
 crdptr    curstk;        /* cursor coordinate stack */
 int       mpx;           /* mouse coordinates x */
 int       mpy;           /* mouse coordinates y */
-boolean   insertc;       /* insert/overwrite toggle */
+int   insertc;       /* insert/overwrite toggle */
 linbuf    cmdlin;        /* command line */
 lininx    cmdptr;        /* command line pointer */
 jmp_buf   inputloop_buf; /* buffer for return to input loop */
-boolean   redraws;       /* in error display */
+int   redraws;       /* in error display */
 
 void errormsg(string s);
 
@@ -159,10 +159,10 @@ insert/overwrite status.
 *******************************************************************************/
 
 void status(void)
- 
+
 {
 
-    pa_curvis(stdout, false); /* turn off cursor */
+    pa_curvis(stdout, FALSE); /* turn off cursor */
     pshcur(); /* save cursor position */
     pa_bcolor(stdout, pa_cyan); /* a nice (light) blue, if you please */
     pa_cursor(stdout, 1, pa_maxy(stdout)); /* position to end line on screen */
@@ -173,8 +173,8 @@ void status(void)
     putchar(' ');
     pa_bcolor(stdout, pa_white); /* back to white */
     popcur(); /* restore cursor position */
-    pa_curvis(stdout, true); /* turn on cursor */
-    redraws = false; /* set no redraw */
+    pa_curvis(stdout, TRUE); /* turn on cursor */
+    redraws = FALSE; /* set no redraw */
 
 }
 
@@ -193,14 +193,14 @@ void statusl(void)
     if (redraws) status(); /* redraw complete */
     else {
 
-        pa_curvis(stdout, false); /* turn off cursor */
+        pa_curvis(stdout, FALSE); /* turn off cursor */
         pshcur(); /* save cursor position */
         pa_bcolor(stdout, pa_cyan); /* a nice (light) blue, if you please */
         pa_cursor(stdout, 54, pa_maxy(stdout)); /* go to line position field */
         printf("%6d", linpos); /* update cursor position */
         pa_bcolor(stdout, pa_white); /* reset color */
         popcur(); /* restore cursor position */
-        pa_curvis(stdout, true); /* turn on cursor */
+        pa_curvis(stdout, TRUE); /* turn on cursor */
 
     }
 
@@ -221,14 +221,14 @@ void statusc(void)
     if (redraws) status(); /* redraw complete */
     else {
 
-        pa_curvis(stdout, false); /* turn off cursor */
+        pa_curvis(stdout, FALSE); /* turn off cursor */
         pshcur(); /* save cursor position */
         pa_bcolor(stdout, pa_cyan); /* a nice (light) blue, if you please */
         pa_cursor(stdout, 67, pa_maxy(stdout)); /* go to character position field */
         printf("%3d", poschr); /* update cursor position */
         pa_bcolor(stdout, pa_white); /* reset color */
         popcur(); /* restore cursor position */
-        pa_curvis(stdout, true); /* turn on cursor */
+        pa_curvis(stdout, TRUE); /* turn on cursor */
 
     }
 
@@ -249,14 +249,14 @@ void statusi(void)
     if (redraws) status(); /* redraw complete */
     else {
 
-        pa_curvis(stdout, false); /* turn off cursor */
+        pa_curvis(stdout, FALSE); /* turn off cursor */
         pshcur(); /* save cursor position */
         pa_bcolor(stdout, pa_cyan); /* a nice (light) blue, if you please */
         pa_cursor(stdout, 71, pa_maxy(stdout)); /* go to character position field */
         if (insertc) printf("Ins"); else printf("Ovr"); /* write insert status */
         pa_bcolor(stdout, pa_white); /* reset color */
         popcur(); /* restore cursor position */
-        pa_curvis(stdout, true); /* turn on cursor */
+        pa_curvis(stdout, TRUE); /* turn on cursor */
 
     }
 
@@ -273,10 +273,10 @@ This will be overwritten by the next status change.
 *******************************************************************************/
 
 void info(string s)
- 
+
 {
 
-    pa_curvis(stdout, false); /* turn off cursor */
+    pa_curvis(stdout, FALSE); /* turn off cursor */
     pshcur(); /* save cursor position */
     pa_bcolor(stdout, pa_yellow); /* place alert color */
     pa_cursor(stdout, 1, pa_maxy(stdout)); /* position to end line on screen */
@@ -285,8 +285,8 @@ void info(string s)
         putchar(' '); /* blank out the rest */
     pa_bcolor(stdout, pa_white); /* back to white */
     popcur(); /* restore cursor position */
-    pa_curvis(stdout, true); /* turn on cursor */
-    redraws = true; /* set to redraw */
+    pa_curvis(stdout, TRUE); /* turn on cursor */
+    redraws = TRUE; /* set to redraw */
 
 }
 
@@ -299,7 +299,7 @@ Places an information line in the status area, and aborts to input mode.
 *******************************************************************************/
 
 void errormsg(string s)
- 
+
 {
 
     info(s); /* place error message */
@@ -391,7 +391,7 @@ need a clear, it just flashes the screen.
 
 *******************************************************************************/
 
-void update(boolean clr)
+void update(int clr)
 
 {
 
@@ -399,7 +399,7 @@ void update(boolean clr)
     int lc;    /* line counter */
     int y;     /* y position holder */
 
-    pa_curvis(stdout, false); /* turn off cursor */
+    pa_curvis(stdout, FALSE); /* turn off cursor */
     if (clr) putchar('\f'); /* clear screen and home cursor */
     lp = paglin; /* index top of page line */
     lc = pa_maxy(stdout)-1; /* set number of lines to output */
@@ -413,7 +413,7 @@ void update(boolean clr)
 
     /* until we wrap around, or screen full */
     } while (lp != linstr && lc != 0);
-    pa_curvis(stdout, true); /* turn on cursor */
+    pa_curvis(stdout, TRUE); /* turn on cursor */
     status(); /* replace status line */
     pa_home(stdout); /* place cursor at home */
 
@@ -517,7 +517,7 @@ void getbuf(void)
             for (i = 0; i < l; i++) inpbuf[i] = lp->str[i];
 
         }
-        buflin = true; /* set line in buffer */
+        buflin = TRUE; /* set line in buffer */
 
     }
 
@@ -579,7 +579,7 @@ void putbuf(void)
         lp->str = malloc(l+1); /* create a new string */
         strncpy(lp->str, inpbuf, l); /* copy to string */
         inpbuf[l] = 0; /* terminate string */
-        buflin = false; /* set line not in buffer */
+        buflin = FALSE; /* set line not in buffer */
 
     }
 
@@ -600,7 +600,7 @@ void readfile(string fn) /* file to read */
 
     FILE*   f;  /* text file */
     linbuf  ln; /* input line buffer */
-    boolean ef; /* end of file indication */
+    int ef; /* end of file indication */
 
     putbuf(); /* decache any buffer */
     info("Reading file");
@@ -612,7 +612,7 @@ void readfile(string fn) /* file to read */
     poschr = 1; /* set 1st character */
     f = fopen(fn, "r"); /* open the input file */
     if (!f) info("*** Cannot open file ***");
-    ef = false;
+    ef = FALSE;
     while (!ef) { /* read lines */
 
         ef = getlin(f, ln, MAXLIN); /* get the next line */
@@ -621,7 +621,7 @@ void readfile(string fn) /* file to read */
     }
     fclose(f); /* close input file */
     paglin = linstr; /* index top of buffer */
-    update(true); /* display that */
+    update(TRUE); /* display that */
 
 }
 
@@ -685,14 +685,14 @@ void movup(void)
 
             } else { /* gotta scroll */
 
-                pa_curvis(stdout, false); /* turn off cursor */
+                pa_curvis(stdout, FALSE); /* turn off cursor */
                 pa_scroll(stdout, 0, -1); /* scroll the screen down */
                 paglin = paglin->last; /* move page pin up */
                 pshcur(); /* save cursor position */
                 pa_home(stdout); /* go to top line */
                 wrtlin(1, paglin->str); /* output that line */
                 popcur(); /* restore cursor position */
-                pa_curvis(stdout, true); /* turn on cursor */
+                pa_curvis(stdout, TRUE); /* turn on cursor */
                 status(); /* update status line */
 
             }
@@ -741,7 +741,7 @@ void movdwn(void)
             } else { /* gotta scroll */
 
                 /* clear last line */
-                pa_curvis(stdout, false); /* turn off cursor */
+                pa_curvis(stdout, FALSE); /* turn off cursor */
                 pshcur(); /* save current position */
                 pa_cursor(stdout, 1, pa_maxy(stdout));
                 while (pa_curx(stdout) < pa_maxx(stdout)) putchar(' ');
@@ -767,7 +767,7 @@ void movdwn(void)
                     popcur(); /* restore cursor position */
 
                 }
-                pa_curvis(stdout, true); /* turn on cursor */
+                pa_curvis(stdout, TRUE); /* turn on cursor */
                 status(); /* repaint status line */
 
             }
@@ -850,7 +850,7 @@ void movhom(void)
         } else { /* not at top, go there */
 
             paglin = linstr; /* set page to home */
-            update(true); /* redraw */
+            update(TRUE); /* redraw */
 
         }
 
@@ -895,7 +895,7 @@ void movend(void)
         if (lp != paglin) { /* we are not already there */
 
             paglin = lp; /* set new position */
-            update(true); /* redraw */
+            update(TRUE); /* redraw */
 
         }
         pa_cursor(stdout, poschr, (pa_maxy(stdout)-1)/2+1);
@@ -1034,7 +1034,7 @@ void pagup(void)
 
             }
             pshcur(); /* push cursor coordinates */
-            update(true); /* redraw */
+            update(TRUE); /* redraw */
             popcur(); /* restore cursor coordinates */
 
         }
@@ -1077,7 +1077,7 @@ void pagdwn(void)
 
             }
             pshcur(); /* push cursor coordinates */
-            update(true); /* redraw */
+            update(TRUE); /* redraw */
             popcur(); /* restore cursor coordinates */
 
         }
@@ -1103,7 +1103,7 @@ void scrup(void)
 
         /* not at top of buffer, or not at top of displayed page */
         linpos--; /* adjust line count */
-        pa_curvis(stdout, false); /* turn off cursor */
+        pa_curvis(stdout, FALSE); /* turn off cursor */
         pa_scroll(stdout, 0, -1); /* scroll the screen down */
         paglin = paglin->last; /* move page pin up */
         pshcur(); /* save cursor position */
@@ -1111,7 +1111,7 @@ void scrup(void)
         if (strlen(paglin->str))
             printf("%s", paglin->str); /* write revealed line over blanks */
         popcur(); /* restore cursor position */
-        pa_curvis(stdout, true); /* turn on cursor */
+        pa_curvis(stdout, TRUE); /* turn on cursor */
         status(); /* update status line */
 
     }
@@ -1140,7 +1140,7 @@ void scrdwn(void)
 
             linpos++; /* adjust line count */
             /* clear last line */
-            pa_curvis(stdout, false); /* turn off cursor */
+            pa_curvis(stdout, FALSE); /* turn off cursor */
             pshcur(); /* save current position */
             pa_cursor(stdout, 1, pa_maxy(stdout));
             while (pa_curx(stdout) < pa_maxx(stdout)) putchar(' ');
@@ -1168,7 +1168,7 @@ void scrdwn(void)
                 popcur(); /* restore cursor position */
 
             }
-            pa_curvis(stdout, true); /* turn on cursor */
+            pa_curvis(stdout, TRUE); /* turn on cursor */
             status(); /* repaint status line */
 
         }
@@ -1215,7 +1215,7 @@ void mouass(void)
         poschr = mpx;
         pa_cursor(stdout, mpx, mpy); /* place cursor at new position */
         status(); /* update status line */
-      
+
     }
 
 }
@@ -1265,14 +1265,14 @@ void entchr(char c)
             for (i = l; i >= poschr; i--) inpbuf[i] = inpbuf[i-1];
             inpbuf[poschr-1] = c; /* place character */
             y = pa_cury(stdout); /* save location y */
-            pa_curvis(stdout, false); /* turn off cursor */
+            pa_curvis(stdout, FALSE); /* turn off cursor */
             l = len(inpbuf); /* find new length of line */
             for (i = poschr-1; i < l; i++)
                 putchar(inpbuf[i]); /* output the line */
             if (poschr < pa_maxx(stdout))
                 poschr++; /* advance character position */
             pa_cursor(stdout, poschr, y); /* restore cursor to new position */
-            pa_curvis(stdout, true); /* turn one cursor */
+            pa_curvis(stdout, TRUE); /* turn one cursor */
             statusc(); /* update character position field */
 
         }
@@ -1288,7 +1288,7 @@ void entchr(char c)
             poschr++; /* advance character position */
         pa_cursor(stdout, poschr, y); /* restore cursor to new position */
         statusc(); /* update character position field */
-      
+
     }
 
 }
@@ -1320,13 +1320,13 @@ void delbwd(void)
         poschr--; /* set new character position */
         pa_left(stdout); /* move cursor left */
         l = strlen(inpbuf); /* find length of input buffer */
-        pa_curvis(stdout, false); /* turn off cursor */
+        pa_curvis(stdout, FALSE); /* turn off cursor */
         for (i = poschr; i <= l; i++) putchar(inpbuf[i]); /* replace line */
         if (l < pa_maxx(stdout)) putchar(' '); /* blank out last position */
         pa_cursor(stdout, poschr, y); /* restore position */
-        pa_curvis(stdout, true); /* turn on cursor */
+        pa_curvis(stdout, TRUE); /* turn on cursor */
         statusc(); /* update character position field */
-      
+
    }
 
 }
@@ -1356,13 +1356,13 @@ void delfwd(void)
         for (i = poschr; i <= MAXLIN-1; i++) inpbuf[i] = inpbuf[i+1];
         inpbuf[MAXLIN] = ' '; /* fill last position */
         l = strlen(inpbuf); /* find length of input buffer */
-        pa_curvis(stdout, false); /* turn off cursor */
+        pa_curvis(stdout, FALSE); /* turn off cursor */
         for (i = poschr; i <= l; i++) putchar(inpbuf[i]); /* replace line */
         if (l < pa_maxx(stdout)) putchar(' '); /* blank out last position */
         pa_cursor(stdout, poschr, y); /* restore position */
-        pa_curvis(stdout, true); /* turn on cursor */
+        pa_curvis(stdout, TRUE); /* turn on cursor */
         statusc(); /* update character position field */
-      
+
    }
 
 }
@@ -1462,9 +1462,9 @@ void main(int argc, char *argv[])
     poschr = 1; /* set 1st character */
     mpx = 0; /* set mouse is nowhere */
     mpy = 0;
-    buflin = false; /* set no line in buffer */
-    insertc = true; /* set insert mode on */
-    redraws = false; /* set no redraw required */
+    buflin = FALSE; /* set no line in buffer */
+    insertc = TRUE; /* set insert mode on */
+    redraws = FALSE; /* set no redraw required */
     /* check screen size is less than our minimum */
     if (pa_maxx(stdout) < 70 || pa_maxy(stdout) < 2) {
 
@@ -1476,8 +1476,8 @@ void main(int argc, char *argv[])
 
     }
     pa_select(stdout, 2, 2); /* flip to private screen */
-    pa_auto(stdout, false); /* turn off scrolling/wrapping */
-    update(true); /* present blank screen */
+    pa_auto(stdout, FALSE); /* turn off scrolling/wrapping */
+    update(TRUE); /* present blank screen */
     strcpy(curfil, ""); /* clear current filename */
     if (argc == 2) { /* input file exists */
 
@@ -1534,13 +1534,13 @@ void main(int argc, char *argv[])
             case pa_etfun:     func(er.fkey); break; /* functions */
             case pa_etmouba:   mouass(); break; /* mouse button 1 assertion */
             case pa_etmoumov:  moumov(); break; /* mouse move */
-            case pa_etresize:  update(false); break; /* resize window */
+            case pa_etresize:  update(FALSE); break; /* resize window */
             case pa_etterm:    break; /* terminate program */
 
         }
 
    } while (er.etype != pa_etterm); /* until terminal event */
-   pa_auto(stdout, true); /* turn on scrolling */
+   pa_auto(stdout, TRUE); /* turn on scrolling */
    pa_select(stdout, 1, 1); /* return to normal screen */
 
    stopprog: ; /* exit program */

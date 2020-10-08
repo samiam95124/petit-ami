@@ -8,8 +8,11 @@
 *                                                                              *
 *******************************************************************************/
 
-#ifndef __STDDEF_H__
-#define __STDDEF_H__
+#ifndef __LOCALDEFS_H__
+#define __LOCALDEFS_H__
+
+#define FALSE 0
+#define TRUE  1
 
 typedef char* string;  /* general string type */
 typedef unsigned char byte; /* byte */

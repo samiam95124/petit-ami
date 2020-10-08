@@ -29,10 +29,10 @@ both).
 #define BUFLEN 250
 
 /* do/do not secure connection */
-boolean secure = false;
+int secure = FALSE;
 
 /* use IPv6 or IPv4 */
-boolean ipv6 = false;
+int ipv6 = FALSE;
 
 optrec opttbl[] = {
 
@@ -54,7 +54,7 @@ int main(int argc, char **argv)
     int argi = 1;
 
     /* parse user options */
-    options(&argi, &argc, argv, opttbl, true);
+    options(&argi, &argc, argv, opttbl, FALSE);
 
     if (argc < 3) {
 

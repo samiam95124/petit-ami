@@ -29,7 +29,7 @@ The <lead> is whatever option character services says.
 typedef struct {
 
     string   name; /* name of option */
-    boolean* flag; /* flag encounter */
+    int*     flag; /* flag encounter */
     int*     ival; /* integer value */
     float*   fval; /* floating point value */
     string   str;  /* string value */
@@ -37,7 +37,7 @@ typedef struct {
 } optrec, *optptr;
 
 void dequote(string s);
-int option(string s, optrec opts[], boolean single);
-int options(int* argi, int* argc, char **argv, optrec  opts[], boolean single);
+int option(string s, optrec opts[], int single);
+int options(int* argi, int* argc, char **argv, optrec  opts[], int single);
 
 #endif /* __OPTION_H__ */

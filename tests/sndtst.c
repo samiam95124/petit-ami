@@ -13,6 +13,7 @@ implementation.
 
 #include <limits.h>
 #include <setjmp.h>
+#include <stdlib.h>
 
 #include <terminal.h> /* terminal level functions */
 #include <sound.h>    /* sound library */
@@ -201,7 +202,7 @@ int main(int argc, char *argv[])
     int           argi = 1;
 
     /* parse user options */
-    options(&argi, &argc, argv, opttbl, true);
+    options(&argi, &argc, argv, opttbl, TRUE);
 
     if (argc != 1) {
 
@@ -400,7 +401,7 @@ int main(int argc, char *argv[])
     printf("Set legato on piano, first normal, then legato\n");
     waitret();
     pa_instchange(dport, 0, 1, PA_INST_ACOUSTIC_GRAND);
-    pa_legato(dport, 0, 1, false);
+    pa_legato(dport, 0, 1, FALSE);
     pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX); /* play middle C */
     wait(SECOND/4);
     pa_noteon(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX); /* play D */
@@ -409,7 +410,7 @@ int main(int argc, char *argv[])
     pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
     pa_noteoff(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
     /* now repeat with legato on */
-    pa_legato(dport, 0, 1, true);
+    pa_legato(dport, 0, 1, TRUE);
     pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX); /* play middle C */
     wait(SECOND/4);
     pa_noteon(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX); /* play D */
@@ -417,14 +418,14 @@ int main(int argc, char *argv[])
     /* turn off both */
     pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
     pa_noteoff(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
-    pa_legato(dport, 0, 1, false); /* reset normal */
+    pa_legato(dport, 0, 1, FALSE); /* reset normal */
     printf("Complete\n");
     waitret();
 
     printf("Set legato on organ, first normal, then legato\n");
     waitret();
     pa_instchange(dport, 0, 1, PA_INST_DRAWBAR_ORGAN);
-    pa_legato(dport, 0, 1, false);
+    pa_legato(dport, 0, 1, FALSE);
     pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX); /* play middle C */
     wait(SECOND/4);
     pa_noteon(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX); /* play D */
@@ -433,7 +434,7 @@ int main(int argc, char *argv[])
     pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
     pa_noteoff(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
     /* now repeat with legato on */
-    pa_legato(dport, 0, 1, true);
+    pa_legato(dport, 0, 1, TRUE);
     pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX); /* play middle C */
     wait(SECOND/4);
     pa_noteon(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX); /* play D */
@@ -441,7 +442,7 @@ int main(int argc, char *argv[])
     /* turn off both */
     pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
     pa_noteoff(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
-    pa_legato(dport, 0, 1, false); /* reset normal */
+    pa_legato(dport, 0, 1, FALSE); /* reset normal */
     printf("Complete\n");
     waitret();
 
@@ -454,7 +455,7 @@ int main(int argc, char *argv[])
 
         printf("Portamento time: %d\n", i*(INT_MAX/10));
         pa_porttime(dport, 0, 1, i*(INT_MAX/10));
-        pa_portamento(dport, 0, 1, false);
+        pa_portamento(dport, 0, 1, FALSE);
         pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX); /* play middle C */
         wait(SECOND/4);
         pa_noteon(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX); /* play D */
@@ -463,7 +464,7 @@ int main(int argc, char *argv[])
         pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
         pa_noteoff(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
         /* now repeat with portamento on */
-        pa_portamento(dport, 0, 1, true);
+        pa_portamento(dport, 0, 1, TRUE);
         pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX); /* play middle C */
         wait(SECOND/4);
         pa_noteon(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX); /* play D */
@@ -473,7 +474,7 @@ int main(int argc, char *argv[])
         pa_noteoff(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
 
     }
-    pa_portamento(dport, 0, 1, false); /* reset normal */
+    pa_portamento(dport, 0, 1, FALSE); /* reset normal */
     printf("Complete\n");
     waitret();
 
@@ -483,7 +484,7 @@ int main(int argc, char *argv[])
     for (i = 0; i < 10; i++) {
 
         printf("Portamento time: %d\n", i*(INT_MAX/10));
-        pa_portamento(dport, 0, 1, false);
+        pa_portamento(dport, 0, 1, FALSE);
         pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX); /* play middle C */
         wait(SECOND/4);
         pa_noteon(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX); /* play D */
@@ -492,7 +493,7 @@ int main(int argc, char *argv[])
         pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
         pa_noteoff(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
         /* now repeat with portamento on */
-        pa_portamento(dport, 0, 1, true);
+        pa_portamento(dport, 0, 1, TRUE);
         pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX); /* play middle C */
         wait(SECOND/4);
         pa_noteon(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX); /* play D */
@@ -502,7 +503,7 @@ int main(int argc, char *argv[])
         pa_noteoff(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
 
     }
-    pa_portamento(dport, 0, 1, false); /* reset normal */
+    pa_portamento(dport, 0, 1, FALSE); /* reset normal */
     printf("Complete\n");
     waitret();
 

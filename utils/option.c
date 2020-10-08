@@ -27,18 +27,9 @@ The <lead> is whatever option character services says.
 #include <localdefs.h>
 #include <services.h>
 
+#include <option.h>
+
 #define MAXOPT 100 /* maximum option size */
-
-/* option record */
-typedef struct {
-
-    string   name; /* name of option */
-    boolean* flag; /* flag encounter */
-    int*     ival; /* integer value */
-    float*   fval; /* floating point value */
-    string   str;  /* string value */
-
-} optrec, *optptr;
 
 /**//***************************************************************************
 
@@ -125,36 +116,36 @@ long mode options:
 int option(
     /* string to parse */                string s,
     /* option table */                   optrec opts[],
-    /* allow single character options */ boolean single
+    /* allow single character options */ int    single
 )
 
 {
 
     int r;             /* return value */
-    boolean longopt;   /* option is long ("--") */
+    int longopt;   /* option is long ("--") */
     char    buff[100]; /* buffer for character strings */
     optptr  fp;        /* found option entry pointer */
     string  ep;        /* end pointer */
     optptr  op;        /* option table pointer */
-    boolean fo;        /* an option was found */
-    boolean mm;        /* mismatch found */
+    int fo;        /* an option was found */
+    int mm;        /* mismatch found */
     int i;
 
     r = 1; /* set error by default */
-    longopt = false;
+    longopt = FALSE;
     if (s[0] == pa_optchr()) { /* there is an option */
 
         s++; /* skip option character */
         if (single && pa_optchr() == '-' && *s == '-') {
 
-            longopt = true; /* set long option */
+            longopt = TRUE; /* set long option */
             s++; /* skip '-' */
 
         }
         if (*s && single && !longopt) { /* parse singles */
 
-            fo = false; /* no option found */
-            mm = false; /* no mismatch found */
+            fo = FALSE; /* no option found */
+            mm = FALSE; /* no mismatch found */
             do {
 
                 buff[0] = *s; /* get single character (or null) */
@@ -173,12 +164,12 @@ int option(
                     if (!fp->ival && !fp->fval && !fp->str) {
 
                         /* no parameters required */
-                        fo = true; /* set option found */
-                        if (fp->flag) *fp->flag = true; /* set encounter flag */
+                        fo = TRUE; /* set option found */
+                        if (fp->flag) *fp->flag = TRUE; /* set encounter flag */
 
                     }
 
-                } else mm = true; /* set mismatch */
+                } else mm = TRUE; /* set mismatch */
 
            } while (*s); /* more characters */
            r = !fo || mm; /* set return error */
@@ -203,7 +194,7 @@ int option(
             }
             if (fp) { /* option was found */
 
-                if (fp->flag) *fp->flag = true; /* set encounter flag */
+                if (fp->flag) *fp->flag = TRUE; /* set encounter flag */
                 if (*s == '=' || *s == ':') { /* there is a parameter */
 
                     s++; /* skip '=' or ':' */
@@ -268,7 +259,7 @@ int options(
     /* argument count */                 int*    argc,
     /* arguments array */                char    **argv,
     /* option table */                   optrec  opts[],
-    /* allow single character options */ boolean single
+    /* allow single character options */ int     single
 )
 
 {

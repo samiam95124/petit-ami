@@ -45,7 +45,7 @@ string gettys[] = {
 
 };
 
-boolean secure = false;
+int secure = FALSE;
 
 optrec opttbl[] = {
 
@@ -66,7 +66,7 @@ int main(int argc, char **argv)
     int argi = 1;
 
     /* parse user options */
-    options(&argi, &argc, argv, opttbl, true);
+    options(&argi, &argc, argv, opttbl, TRUE);
 
     if (argc != 1 && argc != 2) {
 

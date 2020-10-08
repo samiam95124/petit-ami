@@ -1,9 +1,9 @@
 /*******************************************************************************
- 
+
 SNAKE GAME PROGRAM
- 
+
 1984 S. A. MOORE
- 
+
 Plays a moving target game were the player is a snake, winding it's body around
 the screen, eating score producing digit 'targets' and trying to avoid the wall
 and itself. The snake's movements are dictated by up, down, east and west
@@ -84,10 +84,10 @@ int       rndseq;                /* random number sequencer */
 char      scrsav[SCRNUM];        /* screen score counter */
 int       scrlft;                /* units of score left to add */
 int       scrloc;                /* location of score digits */
-boolean   fblink;                /* crash blinker */
+int   fblink;                /* crash blinker */
 pa_evtrec er;                    /* event record */
 char      image[MAXSCN][MAXSCN]; /* screen image */
-boolean   crash;                 /* crash occurred flag */
+int   crash;                 /* crash occurred flag */
 int       i;
 int       x;
 int       tx, ty;
@@ -208,71 +208,71 @@ Place target
 Places a digit on the screen for use as a target. Both the location of the
 target and it's value (0-9) are picked at random. Multiple tries are used to
 avoid colisions.
- 
+
 *******************************************************************************/
- 
+
 void plctrg(void)
- 
+
 {
 
     int x; /* index x */
     int y; /* index y */
     char c;
- 
+
     do { /* pick postions and check if the're free */
- 
+
       /* find x, y locations, not on a border using
         a zero - n random function */
       y = rand(pa_maxy(stdout)-2)+1;
       x = rand(pa_maxx(stdout)-2)+1;
       c = image[x][y]; /* get character at position */
- 
+
    } while (c != ' '); /* area is unoccupied */
    /* place target integer */
    writescreen(x, y, rand(9)+'0');
- 
+
 }
 
 /*******************************************************************************
- 
+
 Next score
- 
+
 Increments the displayed score counter. This overflow is not checked. Note that
 the 'scrloc' global constant tells us where to place the score on screen, and
 scrnum indicates the number of score digits.
- 
+
 ********************************************************************************/
- 
+
 void nxtscr(void)
 
 {
 
     scrinx  i;     /* score save index */
-    boolean carry; /* carry out for addition */
- 
+    int carry; /* carry out for addition */
+
     i = SCRNUM-1; /* index LSD */
-    carry = true; /* initalize carry */
+    carry = TRUE; /* initalize carry */
     do { /* process digit add */
- 
+
         if (scrsav[i] == '9') scrsav[i] = '0'; /* carry out digit */
         else {
- 
+
             scrsav[i]++; /* add single turnover */
-            carry = false; /* stop */
- 
+            carry = FALSE; /* stop */
+
         }
         i--; /*next digit */
- 
+
    } while (i >= 0 && carry); /* last digit is processed, no digit carry */
    /* place score on screen */
    for (i = 0; i < SCRNUM; i++) writescreen(scrloc+i, 1, scrsav[i]);
- 
+
 }
 
 /*******************************************************************************
- 
+
 Move snake
- 
+
 Since this game is pretty much solitary, the movement of the snake (activated by
 a player or automatically) evokes most game behavor.
 
@@ -324,7 +324,7 @@ void movesnake(pa_evtcod usrmov)
             if (y == 1 || y == pa_maxy(stdout) || x == 1 || x == pa_maxx(stdout) ||
                 (c != ' ' && !isdigit(c))) {
 
-                crash = true; /* set crash occurred */
+                crash = TRUE; /* set crash occurred */
                 goto terminate; /* exit */
 
             }
@@ -341,7 +341,7 @@ void movesnake(pa_evtcod usrmov)
                 sntop++; /* 'grow' snake */
                 if (sntop >= MAXSN) { /* snake to big */
 
-                    crash = true; /* set crash occurred */
+                    crash = TRUE; /* set crash occurred */
                     goto terminate; /* exit */
 
                 }
@@ -385,11 +385,11 @@ proportional to it's deflection, ie., move it farther, go faster.
 
 *******************************************************************************/
 
-void getevt(boolean tim) /* accept timer events */
+void getevt(int tim) /* accept timer events */
 
 {
 
-    boolean accept; /* accept event flag */
+    int accept; /* accept event flag */
 
     do { /* process rejection loop */
 
@@ -401,7 +401,7 @@ void getevt(boolean tim) /* accept timer events */
                  er.etype != pa_etup   && er.etype != pa_etdown &&
                  er.etype != pa_etterm && er.etype != pa_ettim &&
                  er.etype != pa_etfun  && er.etype != pa_etjoymov);
-        accept = true; /* set event accepted by default */
+        accept = TRUE; /* set event accepted by default */
         if (er.etype == pa_etjoymov) { /* handle joystick */
 
             /* change joystick to default move directions */
@@ -409,7 +409,7 @@ void getevt(boolean tim) /* accept timer events */
             else if (er.joypx < -INT_MAX/10) lstmov = pa_etleft;
             else if (er.joypy > INT_MAX/10) lstmov = pa_etdown;
             else if (er.joypy < -INT_MAX/10) lstmov = pa_etup;
-            accept = false; /* these events don't exit */
+            accept = FALSE; /* these events don't exit */
 
         } else if (er.etype == pa_ettim) { /* timer */
 
@@ -417,9 +417,9 @@ void getevt(boolean tim) /* accept timer events */
 
                 if (er.timnum == 1) /* time's up..default move */
                     movesnake(lstmov); /* move the same as last */
-                else accept = false; /* suppress exit */
+                else accept = FALSE; /* suppress exit */
 
-            } else accept = false; /* suppress exit */
+            } else accept = FALSE; /* suppress exit */
 
         } else if (er.etype != pa_etfun && er.etype != pa_etterm) /* movement */
             movesnake(er.etype); /* process user move */
@@ -446,13 +446,13 @@ void main(void) /* snake */
 {
 
     pa_select(stdout, 2, 2); /* switch screens */
-    pa_curvis(stdout, false); /* remove drawing cursor */
-    pa_auto(stdout, false); /* remove automatic scrolling */
+    pa_curvis(stdout, FALSE); /* remove drawing cursor */
+    pa_auto(stdout, FALSE); /* remove automatic scrolling */
     pa_bcolor(stdout, pa_cyan); /* on cyan background */
     rndseq = 5; /* initalize random number generator */
     for (i = 1; i <= 58; i++) x = rand(1); /* stablize generator */
-    pa_timer(stdin, 1, TIMMAX, true); /* set move timer */
-    pa_timer(stdin, 2, BLNTIM, true); /* set blinker timer */
+    pa_timer(stdin, 1, TIMMAX, TRUE); /* set move timer */
+    pa_timer(stdin, 2, BLNTIM, TRUE); /* set blinker timer */
     do { /* game */
 
         restart: /* start new game */
@@ -466,14 +466,14 @@ void main(void) /* snake */
         timcnt = TIMMAX;
         for (i = 0; i < SCRNUM; i++) scrsav[i] = '0'; /* zero score */
         nxtscr();
-        getevt(false); /* get the next event, without timers */
+        getevt(FALSE); /* get the next event, without timers */
         if (er.etype == pa_etterm) goto terminate; /* immediate termination */
         else if (er.etype == pa_etfun) goto restart; /* start new game */
         plctrg(); /* place starting target */
-        crash = false; /* set no crash occurred */
+        crash = FALSE; /* set no crash occurred */
         do { /* game loop */
 
-            getevt(true); /* get next event, with timers */
+            getevt(TRUE); /* get next event, with timers */
             if (er.etype == pa_etterm) goto terminate; /* immediate termination */
             if (er.etype == pa_etfun) goto restart; /* start new game */
 
@@ -483,7 +483,7 @@ void main(void) /* snake */
         ty = snakel[sntop].scny;
         /* blink the head off and on (so that snakes behind us won't run into
            us) */
-        fblink = false; /* clear crash blinker */
+        fblink = FALSE; /* clear crash blinker */
         do { /* blink cycles */
 
             /* wait for an interesting event */
@@ -508,8 +508,8 @@ void main(void) /* snake */
 
    terminate: /* terminate program */
 
-   pa_curvis(stdout, true); /* restore drawing cursor */
-   pa_auto(stdout, true); /* restore automatic scrolling */
+   pa_curvis(stdout, TRUE); /* restore drawing cursor */
+   pa_auto(stdout, TRUE); /* restore automatic scrolling */
    pa_select(stdout, 1, 1); /* back to original screen */
 
 }

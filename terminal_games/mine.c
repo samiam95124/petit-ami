@@ -3,8 +3,8 @@
 MINE
 
 Mine is the classic game where a field of hidden mines is presented, and the
-user tries to find the mines based on mine counts in adjacent squares. 
- 
+user tries to find the mines based on mine counts in adjacent squares.
+
 *******************************************************************************/
 
 #include <setjmp.h>
@@ -20,13 +20,13 @@ user tries to find the mines based on mine counts in adjacent squares.
 #define MAXYS   16 /*8*/
 #define MAXMINE 40 /*10*/ /* number of mines to place */
 
-typedef char*                string;  /* general string type */
+typedef char*   string;  /* general string type */
 typedef struct { /* individual square */
 
-      boolean mine; /* mine exists at square */
-      boolean vis;  /* square is uncovered */
-      boolean flag; /* square is flagged */
-      
+      int mine; /* mine exists at square */
+      int vis;  /* square is uncovered */
+      int flag; /* square is flagged */
+
 } square;
 typedef struct { int x; int y; } point;
 
@@ -46,24 +46,24 @@ point offset[8] = {
 square    board[MAXXS][MAXYS]; /* playing board */
 int       rndseq;              /* randomizer */
 int       x, y;                /* user move coordinates */
-boolean   done;                /* game over */
+int   done;                /* game over */
 int       centerx;             /* center of screen position x */
 int       centery;             /* center of screen position y */
 int       cursorx;             /* cursor location x */
 int       cursory;             /* cursor location y */
 pa_evtrec er;                  /* event record */
-boolean   badguess;            /* bad guess display flag */
+int   badguess;            /* bad guess display flag */
 int       mousex;              /* mouse position x */
 int       mousey;              /* mouse position y */
 
 /*******************************************************************************
- 
+
 Find random number
- 
+
 Finds a random number between the given top and 1.
- 
+
 *******************************************************************************/
- 
+
 int rand(int top)
 
 {
@@ -80,11 +80,11 @@ int rand(int top)
 }
 
 /*******************************************************************************
- 
+
 Find adjacent mines
 
 Finds the number of mines adjacent to a given square.
- 
+
 *******************************************************************************/
 
 int adjacent(int x, int y)
@@ -94,7 +94,7 @@ int adjacent(int x, int y)
     int mines;  /* number of mines */
     int xn, yn; /* neighbor coordinates */
     int i;      /* index for move array */
- 
+
     mines = 0; /* clear mine count */
     for (i = 0; i < 8; i++) { /* process points of the compass */
 
@@ -111,14 +111,14 @@ int adjacent(int x, int y)
 }
 
 /*******************************************************************************
- 
+
 Set adjacent squares visable
 
 Sets all of the valid adjacent squares visable. If any of those squares are
 not adjacent to a mine, then the neighbors of that square are set visable, etc.
 (recursively).
 This is done to "rip" grids of obviously empty neighbors off the board.
- 
+
 *******************************************************************************/
 
 void visadj(int x, int y)
@@ -127,7 +127,7 @@ void visadj(int x, int y)
 
     int xn, yn; /* neighbor coordinates */
     int i;      /* index for move array */
- 
+
     for (i = 0; i < 8; i++) { /* process points of the compass */
 
         xn = x+offset[i].x; /* find neighbor locations */
@@ -136,7 +136,7 @@ void visadj(int x, int y)
             if (!board[xn][yn].vis) { /* not already visable */
 
             /* valid location */
-            board[xn][yn].vis = true; /* set visable */
+            board[xn][yn].vis = TRUE; /* set visable */
             if (adjacent(xn, yn) == 0) visadj(xn, yn); /* perform recursively */
 
         }
@@ -146,26 +146,26 @@ void visadj(int x, int y)
 }
 
 /*******************************************************************************
- 
+
 Display board
- 
+
 Displays the playing board.
- 
+
 *******************************************************************************/
- 
+
 void display(void)
- 
+
 {
 
     int x;
     int y;
     int cnt; /* count of adjacent mines */
- 
+
     /* scan screen */
     pa_bcolor(stdout, pa_yellow); /* set background color */
     for (y = 0; y < MAXYS; y++)
       for (x = 0; x < MAXXS; x++) {
-      
+
         pa_cursor(stdout, centerx+x, centery+y); /* set start of next line */
         if (board[x][y].vis) {
 
@@ -189,28 +189,28 @@ void display(void)
 }
 
 /*******************************************************************************
- 
+
 Initalize board
 
 Clears all board squares to no mines, invisible and not flagged.
 Then, the specified number of mines are layed on the board at random.
- 
+
 *******************************************************************************/
- 
+
 void clear(void)
- 
+
 {
 
     int x;
     int y;
     int n;
- 
+
     for (x = 0; x < MAXXS; x++) /* clear minefield */
         for (y = 0; y < MAXYS; y++) {
 
-        board[x][y].mine = false; /* set no mine */
-        board[x][y].vis = false; /* set not visible */
-        board[x][y].flag = false; /* set not flagged */
+        board[x][y].mine = FALSE; /* set no mine */
+        board[x][y].vis = FALSE; /* set not visible */
+        board[x][y].flag = FALSE; /* set not flagged */
 
     }
     for (n = 1; n <= MAXMINE; n++) { /* place mines */
@@ -221,7 +221,7 @@ void clear(void)
             y = rand(MAXYS-1);
 
         } while (board[x][y].mine); /* no mine exists at square */
-        board[x][y].mine = true; /* place mine */
+        board[x][y].mine = TRUE; /* place mine */
 
     }
 
@@ -332,7 +332,7 @@ void replay(void)
 
     } while (er.echar != 'y' && er.echar != 'Y' &&
              er.echar != 'n' && er.echar != 'N');
-    if (er.echar == 'n' || er.echar == 'N') done = true; /* set game over */
+    if (er.echar == 'n' || er.echar == 'N') done = TRUE; /* set game over */
     else {
 
         /* clear old messages */
@@ -342,7 +342,7 @@ void replay(void)
         clear(); /* set up board */
         cursorx = centerx; /* set inital cursor position */
         cursory = centery;
-        badguess = false; /* set bad guesses invisible */
+        badguess = FALSE; /* set bad guesses invisible */
 
     }
 
@@ -364,14 +364,14 @@ void hit(int x, int y)
     int xi, yi; /* indexes for board */
     int viscnt; /* visable squares count */
 
-    board[x][y].vis = true; /* set that location visable */
+    board[x][y].vis = TRUE; /* set that location visable */
     if (board[x][y].mine) { /* mine found */
 
         /* make all mines visable, and bad guesses too. */
         for (yi = 0; yi < MAXYS; yi++)
             for (xi = 0; xi < MAXXS; xi++)
-                if (board[xi][yi].mine) board[xi][yi].vis = true;
-        badguess = true; /* set bad guesses visable */
+                if (board[xi][yi].mine) board[xi][yi].vis = TRUE;
+        badguess = TRUE; /* set bad guesses visable */
         display(); /* redisplay board */
         /* announce that to the player */
         pa_bcolor(stdout, pa_red);
@@ -415,7 +415,7 @@ void main(void)
 {
 
     pa_select(stdout, 2, 2); /* switch screens */
-    pa_auto(stdout, false); /* automatic terminal off */
+    pa_auto(stdout, FALSE); /* automatic terminal off */
     pa_bcolor(stdout, pa_cyan); /* color the background */
     putchar('\f'); /* clear to that */
     pa_bcolor(stdout, pa_magenta);
@@ -430,10 +430,10 @@ void main(void)
     rndseq = 1;
     clear(); /* set up board */
     display(); /* display board */
-    done = false; /* set game in progress */
+    done = FALSE; /* set game in progress */
     cursorx = centerx; /* set initial cursor position */
     cursory = centery;
-    badguess = false; /* set bad guesses invisible */
+    badguess = FALSE; /* set bad guesses invisible */
     do { /* enter user moves */
 
         pa_cursor(stdout, cursorx, cursory); /* place cursor */
@@ -486,7 +486,7 @@ void main(void)
         }
 
     } while (!done && er.etype != pa_etterm); /* game complete */
-    pa_auto(stdout, true); /* automatic terminal off */
+    pa_auto(stdout, TRUE); /* automatic terminal off */
     pa_select(stdout, 1, 1); /* restore screen */
-   
+
 }

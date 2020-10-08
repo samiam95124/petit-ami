@@ -37,7 +37,7 @@ Set square wave output (the default is sine wave).
 
 int dport = PA_SYNTH_OUT; /* set default synth out */
 int freq = 440; /* set default frequency */
-boolean square = false; /* set not square wave */
+int square = FALSE; /* set not square wave */
 
 optrec opttbl[] = {
 
@@ -64,7 +64,7 @@ int main(int argc, char **argv)
     int argi = 1;
 
     /* parse user options */
-    options(&argi, &argc, argv, opttbl, true);
+    options(&argi, &argc, argv, opttbl, TRUE);
 
     if (argc != 1) {
 
@@ -83,9 +83,9 @@ int main(int argc, char **argv)
     pa_chanwaveout(dport, 1);      /* one channel */
     pa_ratewaveout(dport, rate);   /* CD sample rate */
     pa_lenwaveout(dport,  16);     /* 16 bits */
-    pa_sgnwaveout(dport,  true);   /* signed */
-    pa_endwaveout(dport,  false);  /* little endian */
-    pa_fltwaveout(dport,  false);  /* integer */
+    pa_sgnwaveout(dport,  TRUE);   /* signed */
+    pa_endwaveout(dport,  FALSE);  /* little endian */
+    pa_fltwaveout(dport,  FALSE);  /* integer */
 
     cost = 2.0 * M_PI * (double)freq / (double)rate;
 
