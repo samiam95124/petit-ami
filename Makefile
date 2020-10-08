@@ -21,7 +21,6 @@ ifndef STDIO_SOURCE
         # glibc assumes that this is a patched glibc with override calls.
         #
         STDIO_SOURCE=glibc
-        #STDIO_SOURCE=stdio
     endif
 endif
 
@@ -29,18 +28,48 @@ endif
 # Link image statically or dynamically?
 #
 ifndef LINK_TYPE
-    ifeq ($(STDIO_SOURCE),stdio)
-        # Linking local stdio, must be dynamic
-        LINK_TYPE=dynamic
+
+    ifeq ($(OS),Windows_NT)
+    
+        #
+        # Windows
+        #
+        # Windows is always static. .dlls are added during load time.
+        #
+        LINK_TYPE=static
+
     else
-#        LINK_TYPE=static
-        LINK_TYPE=dynamic
+    
+        #
+        # Linux 
+        #
+        ifeq ($(STDIO_SOURCE),stdio)
+            # Linking local stdio, must be dynamic
+            LINK_TYPE=dynamic
+        else
+            # LINK_TYPE=static
+            LINK_TYPE=dynamic
+        endif
+        
     endif
+    
 endif
 
 CC=gcc
 CFLAGS=-g3 -Wl,--rpath=bin -Iinclude
 
+#
+# Set library dependencies
+#
+ifeq ($(LINK_TYPE),static)
+    LIBEXT = .a
+else
+    LIBEXT = .so
+endif
+
+#
+# Select where stdio.h comes from
+#
 ifeq ($(STDIO_SOURCE),stdio)
     #
     # In local link, we need to get stdio.h from local directory
@@ -48,20 +77,34 @@ ifeq ($(STDIO_SOURCE),stdio)
     CFLAGS +=-Ilibc
 endif
 
+#
+# modify compile flags for static operation
+#
 ifeq ($(LINK_TYPE),static)
     CFLAGS += -static
 endif
 
 #
-# For modified GLIBC, we need to specify the libary first or it won't
-# link correctly.
+# Specify object file for libc
 #
-ifeq ($(LINK_TYPE),static)
-    LIBS = bin/libc.a
-    PLIBS = bin/libc.a
-else
-	LIBS = bin/libc.so.6
-	PLIBS = bin/libc.so.6
+ifneq ($(OS),Windows_NT)
+
+    #
+    # Linux, use modified GLIBC
+    #
+    
+    #
+    # For modified GLIBC, we need to specify the libary first or it won't
+    # link correctly.
+    #
+    ifeq ($(LINK_TYPE),static)
+        LIBS = bin/libc.a
+        PLIBS = bin/libc.a
+    else
+	    LIBS = bin/libc.so.6
+	    PLIBS = bin/libc.so.6
+    endif
+    
 endif
 
 #
@@ -73,14 +116,21 @@ endif
 # This option exists to drop the terminal handler, which should not be
 # required for most code.
 #
+# Note that this is more important for Linux than Windows, because Windows
+# console is "transparent", or unchanging depending on mode.
+#
 # Note there is no statically linked sound at the moment, since we don't have
 # an absolute version of fluidsynth.
+#
+# The libraries are wrapped as defines as:
+#
+# LIBS		Full Petit-Ami libraries including console or graphics.
+# PLIBS     Petit-Ami libraries without console or graphics.
 #
 ifeq ($(LINK_TYPE),static)
     PLIBS += bin/petit_ami_plain.a
 else
-    PLIBS += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o \
-             bin/petit_ami_plain.so
+    PLIBS += bin/petit_ami_plain.so
 endif
 
 #
@@ -93,8 +143,7 @@ ifndef GRAPH
     ifeq ($(LINK_TYPE),static)
         LIBS += bin/petit_ami_term.a
     else
-        LIBS += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o \
-    	        bin/petit_ami_term.so
+        LIBS += bin/petit_ami_term.so
     endif
 else
     #
@@ -106,18 +155,56 @@ else
 	    LIBS += bin/petit_ami_graph.so
 	endif
 endif 
-LIBS += -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
-PLIBS += -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
+
+#
+# add external packages
+#
+ifeq ($(OS),Windows_NT)
+
+    #
+    # Windows
+    #
+    LIBS += -lwinmm -lgdi32
+    
+else
+
+    #
+    # Linux
+    #
+    LIBS += -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
+    PLIBS += -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
+    
+endif
 
 #
 # Make all executables
 #        
-all: dumpmidi lsalsadev alsaparms test play keyboard playmidi playwave \
+ifeq ($(OS),Windows_NT)
+
+#
+# Windows
+#
+all: dumpmidi test play keyboard playmidi playwave \
     printdev connectmidi connectwave random genwave scntst sndtst svstst \
-    event getkeys getmouse term snake mine editor getpage getmail gettys 
+    event getkeys getmouse term snake mine editor getpage getmail gettys
+    
+else
+
+#
+# Linux
+#
+all: lsalsadev alsaparms dumpmidi test play keyboard playmidi playwave \
+    printdev connectmidi connectwave random genwave scntst sndtst svstst \
+    event getkeys getmouse term snake mine editor getpage getmail gettys
+    
+endif 
 
 #
 # Individual Petit-Ami library components
+#
+
+#
+# Linux target components
 #
 linux/services.o: linux/services.c include/services.h
 	gcc -g3 -Iinclude -fPIC -c linux/services.c -o linux/services.o
@@ -141,7 +228,58 @@ linux/graph_x.o: linux/graph_x.c include/graph.h
 	gcc -g3 -Iinclude -fPIC -c linux/graph_x.c -o linux/graph_x.o
 
 #
+# Windows target components
+#
+# Note that stub sources are not yet implemented
+#
+libc/stdio.o:
+	gcc -g3 -Ilibc -c libc/stdio.c -o libc/stdio.o
+	
+windows/services.o: windows/services.c include/services.h
+	gcc -g3 -Iinclude -c windows/services.c -o windows/services.o
+	
+windows/sound.o: stub/sound.c include/sound.h
+	gcc -g3 -Iinclude -c stub/sound.c -o windows/sound.o
+	
+windows/network.o: stub/network.c include/network.h
+	gcc -g3 -Iinclude -c stub/network.c -o windows/network.o
+	
+windows/console.o: windows/console.c include/terminal.h
+	gcc -g3 -Iinclude -c windows/console.c -o windows/console.o
+	
+windows/graph.o: stub/graph.c include/graph.h
+	gcc -g3 -Iinclude -c stub/graph.c -o windows/graph.o
+
+#
 # Create terminal mode and graphical mode libraries
+#
+
+ifeq ($(OS),Windows_NT)
+
+#
+# Windows
+#
+# Windows cannot use .so files, but rather uses statically linked files that
+# reference .dlls at runtime.
+#
+bin/petit_ami_plain.a: windows/services.o windows/sound.o windows/network.o libc/stdio.o
+	ar rcs bin/petit_ami_plain.a windows/services.o windows/sound.o \
+        windows/network.o libc/stdio.o
+	
+bin/petit_ami_term.a: windows/services.o windows/sound.o windows/network.o \
+    windows/console.o libc/stdio.o
+	ar rcs bin/petit_ami_term.a windows/services.o windows/sound.o \
+	    windows/network.o windows/console.o libc/stdio.o
+	
+petit_ami_graph.a: windows/services.o windows/sound.o windows/network.o \
+    windows/graph.o libc/stdio.o
+	ar rcs bin/petit_ami_graph.a windows/services.o windows/sound.o \
+	    windows/network.o windows/graph.o libc/stdio.o
+	
+else
+
+#
+# Linux
 #
 
 #
@@ -177,57 +315,68 @@ petit_ami_graph.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
     linux/dumpsynthplug.o linux/network.o linux/graph_x.o
 	ar rcs bin/petit_ami_graph.a linux/services.o linux/sound.o \
 	linux/fluidsynthplug.o linux/dumpsynthplug.o  linux/network.o linux/xterm.o
+	
+endif
 
 #
 # Make individual executables
 #	
-dumpmidi: linux/dumpmidi.c Makefile
-	gcc linux/dumpmidi.c -o bin/dumpmidi
-	
+
+#
+# Linux specific tools
+#
+# These will be removed as things settle down.
+#	
 lsalsadev: linux/lsalsadev.c Makefile
 	gcc linux/lsalsadev.c -lasound -o bin/lsalsadev
 	
 alsaparms: linux/alsaparms.c Makefile
 	gcc linux/alsaparms.c -lasound -o bin/alsaparms
 
-test: bin/petit_ami_plain.so include/terminal.h test.c Makefile
+#
+# Cross system tools
+#	
+dumpmidi: linux/dumpmidi.c Makefile
+	gcc linux/dumpmidi.c -o bin/dumpmidi
+
+test: bin/petit_ami_plain$(LIBEXT) include/terminal.h test.c Makefile
 	$(CC) $(CFLAGS) test.c $(PLIBS) -o test
 	
-play: bin/petit_ami_term.so include/terminal.h sound_programs/play.c Makefile
+play: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/play.c Makefile
 	$(CC) $(CFLAGS) sound_programs/play.c linux/option.c $(LIBS) -o bin/play
 	
-keyboard: bin/petit_ami_term.so include/terminal.h sound_programs/keyboard.c Makefile
+keyboard: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/keyboard.c Makefile
 	$(CC) $(CFLAGS) sound_programs/keyboard.c linux/option.c $(LIBS) -o bin/keyboard
 	
-playmidi: bin/petit_ami_term.so include/terminal.h sound_programs/playmidi.c linux/option.c Makefile
+playmidi: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/playmidi.c linux/option.c Makefile
 	$(CC) $(CFLAGS) sound_programs/playmidi.c linux/option.c $(PLIBS) -o bin/playmidi
 
-playwave: bin/petit_ami_term.so include/terminal.h sound_programs/playwave.c Makefile
+playwave: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/playwave.c Makefile
 	$(CC) $(CFLAGS) sound_programs/playwave.c linux/option.c $(PLIBS) -o bin/playwave
 	
-printdev: bin/petit_ami_term.so include/terminal.h sound_programs/printdev.c Makefile
+printdev: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/printdev.c Makefile
 	$(CC) $(CFLAGS) sound_programs/printdev.c $(PLIBS) -o bin/printdev
 
-connectmidi: bin/petit_ami_term.so include/terminal.h sound_programs/connectmidi.c Makefile
+connectmidi: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/connectmidi.c Makefile
 	$(CC) $(CFLAGS) sound_programs/connectmidi.c $(PLIBS) -o bin/connectmidi
 	
-connectwave: bin/petit_ami_term.so include/terminal.h sound_programs/connectwave.c Makefile
+connectwave: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/connectwave.c Makefile
 	$(CC) $(CFLAGS) sound_programs/connectwave.c $(PLIBS) -o bin/connectwave
 	
-random: bin/petit_ami_term.so include/terminal.h sound_programs/random.c Makefile
+random: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/random.c Makefile
 	$(CC) $(CFLAGS) sound_programs/random.c linux/option.c $(LIBS) -o bin/random
 	
-genwave: bin/petit_ami_term.so include/terminal.h sound_programs/genwave.c Makefile
+genwave: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/genwave.c Makefile
 	$(CC) $(CFLAGS) sound_programs/genwave.c linux/option.c $(PLIBS) -o bin/genwave
 	
-scntst: bin/petit_ami_term.so include/terminal.h tests/scntst.c include/services.h linux/services.c Makefile
+scntst: bin/petit_ami_term$(LIBEXT) include/terminal.h tests/scntst.c include/services.h linux/services.c Makefile
 	$(CC) $(CFLAGS) tests/scntst.c $(LIBS) -o bin/scntst 
 	
-sndtst: bin/petit_ami_term.so include/terminal.h tests/sndtst.c \
+sndtst: bin/petit_ami_term$(LIBEXT) include/terminal.h tests/sndtst.c \
         include/services.h linux/services.c Makefile
 	$(CC) $(CFLAGS) tests/sndtst.c linux/option.c $(LIBS) -o bin/sndtst 
 	
-svstst: bin/petit_ami_plain.so include/terminal.h tests/svstst.c \
+svstst: bin/petit_ami_plain$(LIBEXT) include/terminal.h tests/svstst.c \
         include/services.h linux/services.c Makefile
 	$(CC) $(CFLAGS) tests/svstst.c linux/option.c $(LIBS) -o bin/svstst
 	
@@ -252,28 +401,28 @@ mine: terminal_games/mine.c include/terminal.h Makefile
 editor: terminal_programs/editor.c include/terminal.h Makefile
 	$(CC) $(CFLAGS) terminal_programs/editor.c $(LIBS) -o bin/editor
 	
-getpage: bin/petit_ami_plain.so network_programs/getpage.c Makefile
+getpage: bin/petit_ami_plain$(LIBEXT) network_programs/getpage.c Makefile
 	$(CC) $(CFLAGS) network_programs/getpage.c linux/option.c $(PLIBS) -o bin/getpage
 
-getmail: bin/petit_ami_plain.so network_programs/getmail.c Makefile
+getmail: bin/petit_ami_plain$(LIBEXT) network_programs/getmail.c Makefile
 	$(CC) $(CFLAGS) network_programs/getmail.c linux/option.c $(PLIBS) -o bin/getmail
 	
-gettys: bin/petit_ami_plain.so network_programs/gettys.c Makefile
+gettys: bin/petit_ami_plain$(LIBEXT) network_programs/gettys.c Makefile
 	$(CC) $(CFLAGS) network_programs/gettys.c linux/option.c $(PLIBS) -o bin/gettys
 	
-msgclient: bin/petit_ami_plain.so network_programs/msgclient.c Makefile
+msgclient: bin/petit_ami_plain$(LIBEXT) network_programs/msgclient.c Makefile
 	$(CC) $(CFLAGS) network_programs/msgclient.c linux/option.c $(PLIBS) -o bin/msgclient
 	
-msgserver: bin/petit_ami_plain.so network_programs/msgserver.c Makefile
+msgserver: bin/petit_ami_plain$(LIBEXT) network_programs/msgserver.c Makefile
 	$(CC) $(CFLAGS) network_programs/msgserver.c linux/option.c $(PLIBS) -o bin/msgserver
 	
-prtcertnet: bin/petit_ami_plain.so network_programs/prtcertnet.c Makefile
+prtcertnet: bin/petit_ami_plain$(LIBEXT) network_programs/prtcertnet.c Makefile
 	$(CC) $(CFLAGS) network_programs/prtcertnet.c $(PLIBS) -o bin/prtcertnet
 	
-prtcertmsg: bin/petit_ami_plain.so network_programs/prtcertmsg.c Makefile
+prtcertmsg: bin/petit_ami_plain$(LIBEXT) network_programs/prtcertmsg.c Makefile
 	$(CC) $(CFLAGS) network_programs/prtcertmsg.c $(PLIBS) -o bin/prtcertmsg
 	
-listcertnet: bin/petit_ami_plain.so network_programs/listcertnet.c Makefile
+listcertnet: bin/petit_ami_plain$(LIBEXT) network_programs/listcertnet.c Makefile
 	$(CC) $(CFLAGS) network_programs/listcertnet.c $(PLIBS) -o bin/listcertnet
 	
 clean:
@@ -284,8 +433,6 @@ clean:
 	rm -f bin/getmail bin/gettys bin/msgclient bin/msgserver bin/prtcertnet
 	rm -f bin/listcertnet
 	rm -f bin/prtcertmsg
-	rm -f linux/*.o
-	rm -f bin/petit_ami_term.a
-	rm -f bin/petit_ami_term.so
-	rm -f bin/petit_ami_plain.a
-	rm -f bin/petit_ami_plain.so
+	find . -name "*.o" -type f -delete
+	find . -name "*.a" -type f -delete
+	find . -name "*.so" -type f -delete
