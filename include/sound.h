@@ -29,9 +29,6 @@
 #ifndef __SOUND_H__
 #define __SOUND_H__
 
-/* system/external definitions */
-#include <alsa/asoundlib.h>
-
 /* PA local defines */
 #include <localdefs.h>
 
@@ -101,7 +98,7 @@
 #define PA_INST_DULCIMER              16
 
 /* Organ */
-                         
+
 #define PA_INST_DRAWBAR_ORGAN         17
 #define PA_INST_PERCUSSIVE_ORGAN      18
 #define PA_INST_ROCK_ORGAN            19
@@ -167,7 +164,7 @@
 #define PA_INST_SYNTHBRASS_2          64
 
 /* Reed */
-                        
+
 #define PA_INST_SOPRANO_SAX           65
 #define PA_INST_ALTO_SAX              66
 #define PA_INST_TENOR_SAX             67
@@ -189,7 +186,7 @@
 #define PA_INST_OCARINA               80
 
 /* Synth lead */
-                   
+
 #define PA_INST_LEAD_1_SQUARE         81
 #define PA_INST_LEAD_2_SAWTOOTH       82
 #define PA_INST_LEAD_3_CALLIOPE       83
@@ -340,7 +337,7 @@ typedef struct seqmsg {
            st_chorus, st_celeste, st_phaser, st_pitch, st_pitchrange,
            st_mono */ struct { pa_channel vsc; int vsv; };
         /* st_poly */ pa_channel pc;
-        /* st_legato, st_portamento */ struct { pa_channel bsc; boolean bsb; };
+        /* st_legato, st_portamento */ struct { pa_channel bsc; int bsb; };
         /* st_playsynth */ int sid;
         /* st_playwave */ int wt;
         /* st_volwave */ int wv;
@@ -372,8 +369,8 @@ void pa_noteoff(int p, int t, pa_channel c, pa_note n, int v);
 void pa_instchange(int p, int t, pa_channel c, pa_instrument i);
 void pa_attack(int p, int t, pa_channel c, int at);
 void pa_release(int p, int t, pa_channel c, int rt);
-void pa_legato(int p, int t, pa_channel c, boolean b);
-void pa_portamento(int p, int t, pa_channel c, boolean b);
+void pa_legato(int p, int t, pa_channel c, int b);
+void pa_portamento(int p, int t, pa_channel c, int b);
 void pa_vibrato(int p, int t, pa_channel c, int v);
 void pa_volsynthchan(int p, int t, pa_channel c, int v);
 void pa_porttime(int p, int t, pa_channel c, int v);
@@ -410,18 +407,18 @@ void pa_waitwave(int p);
 void pa_chanwaveout(int p, int c);
 void pa_ratewaveout(int p, int r);
 void pa_lenwaveout(int p, int l);
-void pa_sgnwaveout(int p, boolean s);
-void pa_fltwaveout(int p, boolean f);
-void pa_endwaveout(int p, boolean e);
+void pa_sgnwaveout(int p, int s);
+void pa_fltwaveout(int p, int f);
+void pa_endwaveout(int p, int e);
 void pa_wrwave(int p, byte* buff, int len);
 void pa_openwavein(int p);
 void pa_closewavein(int p);
 int pa_chanwavein(int p);
 int pa_ratewavein(int p);
 int pa_lenwavein(int p);
-boolean pa_sgnwavein(int p);
-boolean pa_endwavein(int p);
-boolean pa_fltwavein(int p);
+int pa_sgnwavein(int p);
+int pa_endwavein(int p);
+int pa_fltwavein(int p);
 int pa_rdwave(int p, byte* buff, int len);
 void pa_synthoutname(int p, string name, int len);
 void pa_synthinname(int p, string name, int len);
@@ -439,35 +436,35 @@ void pa_getparamswaveout(int p, string name, string value, int len);
 /* non-standard local access calls */
 
 /* register synth plug ins */
-void _pa_synthoutplug(boolean addend, string name,
+void _pa_synthoutplug(int addend, string name,
                       void (*opnseq)(int p), void (*clsseq)(int p),
                       void (*wrseq)(int p, seqptr sp),
                       int (*setparam)(int p, string name, string value),
                       void (*getparam)(int p, string name, string value, int len)
                      );
-void _pa_synthinplug(boolean addend, string name,
+void _pa_synthinplug(int addend, string name,
                      void (*opnseq)(int p), void (*clsseq)(int p),
                      void (*wrseq)(int p, seqptr sp),
                      int (*setparam)(int p, string name, string value),
                      void (*getparam)(int p, string name, string value, int len)
                     );
-void _pa_waveoutplug(boolean addend, string name,
+void _pa_waveoutplug(int addend, string name,
                      void (*open)(int p), void (*close)(int p),
                      void (*chanwavout)(int p, int c),
                      void (*ratewavout)(int p, int r),
                      void (*lenwavout)(int p, int l),
-                     void (*sgnwavout)(int p, boolean s),
-                     void (*fltwavout)(int p, boolean f),
-                     void (*endwaveout)(int p, boolean e),
+                     void (*sgnwavout)(int p, int s),
+                     void (*fltwavout)(int p, int f),
+                     void (*endwaveout)(int p, int e),
                      void (*wrwav)(int p, byte* buff, int len),
                      int (*setparam)(int p, string name, string value),
                      void (*getparam)(int p, string name, string value, int len)
                     );
-void _pa_waveinplug(boolean addend, string name,
+void _pa_waveinplug(int addend, string name,
                     void (*open)(int p), void (*close)(int p),
                     int (*chanwavin)(int p), int (*ratewavin)(int p),
-                    int (*lenwavin)(int p), boolean (*sgnwavin)(int p),
-                    boolean (*fltwavin)(int p), boolean (*endwavein)(int p),
+                    int (*lenwavin)(int p), int (*sgnwavin)(int p),
+                    int (*fltwavin)(int p), int (*endwavein)(int p),
                     int (*rdwav)(int p, byte* buff, int len),
                     int (*setparam)(int p, string name, string value),
                     void (*getparam)(int p, string name, string value, int len)
@@ -475,11 +472,5 @@ void _pa_waveinplug(boolean addend, string name,
 
 /* execute sequencer entry in main code */
 void _pa_excseq(int p, seqptr sp);
-/* get ALSA handles from sound.c handles. These are used for bypass
-   operations. */
-snd_rawmidi_t* _pa_getsythouthdl(int p);
-snd_rawmidi_t* _pa_getsythinhdl(int p);
-snd_pcm_t* _pa_getwaveouthdl(int p);
-snd_pcm_t* _pa_getwaveinhdl(int p);
 
 #endif /* __SOUND_H__ */

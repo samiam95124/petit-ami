@@ -61,7 +61,7 @@ typedef struct pa_certfield {
 
     string               name;     /* name of field */
     string               data;     /* content of field */
-    boolean              critical; /* is a critical X509 field */
+    int              critical; /* is a critical X509 field */
     struct pa_certfield* fork;     /* sublist */
     struct pa_certfield* next;     /* next entry in list */
 
@@ -70,21 +70,21 @@ typedef struct pa_certfield {
 void pa_addrnet(string name, unsigned long* addr);
 void pa_addrnetv6(string name, unsigned long long* addrh,
                 unsigned long long* addrl);
-FILE* pa_opennet(unsigned long addr, int port, boolean secure);
+FILE* pa_opennet(unsigned long addr, int port, int secure);
 FILE* pa_opennetv6(unsigned long long addrh, unsigned long long addrl,
-                   int port, boolean secure);
+                   int port, int secure);
 int pa_maxmsg(unsigned long addr);
 int pa_maxmsgv6(unsigned long long addrh, unsigned long long addrl);
-boolean pa_relymsg(unsigned long addr);
-boolean pa_relymsgv6(unsigned long long addrh, unsigned long long addrl);
-int pa_openmsg(unsigned long addr, int port, boolean secure);
+int pa_relymsg(unsigned long addr);
+int pa_relymsgv6(unsigned long long addrh, unsigned long long addrl);
+int pa_openmsg(unsigned long addr, int port, int secure);
 int pa_openmsgv6(unsigned long long addrh, unsigned long long addrl, int port,
-                 boolean secure);
+                 int secure);
 void pa_wrmsg(int fn, void* msg, unsigned long len);
 int pa_rdmsg(int fn, void* msg, unsigned long len);
 void pa_clsmsg(int f);
-FILE* pa_waitnet(int port, boolean secure);
-int pa_waitmsg(int port, boolean secure);
+FILE* pa_waitnet(int port, int secure);
+int pa_waitmsg(int port, int secure);
 int pa_certnet(FILE* f, int which, string cert, int len);
 int pa_certmsg(int fn, int which, string cert, int len);
 void pa_certlistnet(FILE *f, int which, pa_certptr* list);
