@@ -384,7 +384,8 @@ sndtst: bin/petit_ami_term$(LIBEXT) include/terminal.h tests/sndtst.c \
 	
 svstst: bin/petit_ami_plain$(LIBEXT) include/terminal.h tests/svstst.c \
         include/services.h linux/services.c Makefile
-	$(CC) $(CFLAGS) tests/svstst.c utils/option.c $(LIBS) -o bin/svstst
+	$(CC) $(CFLAGS) tests/svstst.c utils/option.c $(PLIBS) -o bin/svstst
+	$(CC) $(CFLAGS) tests/svstst1.c $(PLIBS) -o bin/svstst1
 	
 event: include/terminal.h tests/event.c Makefile
 	$(CC) $(CFLAGS) tests/event.c $(LIBS) -o bin/event
@@ -436,3 +437,4 @@ clean:
 	find . -name "*.o" -type f -delete
 	rm -f bin/*.a
 	rm -f bin/*.so
+	rm -f bin/*.exe
