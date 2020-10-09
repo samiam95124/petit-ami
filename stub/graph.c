@@ -91,7 +91,7 @@ void pa_scrollg(FILE* f, int x, int y)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_scrollg: Is not implemented");
 
 }
 
@@ -99,7 +99,7 @@ void pa_scroll(FILE* f, int x, int y)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_scroll: Is not implemented");
 
 }
 
@@ -115,7 +115,7 @@ void pa_cursor(FILE* f, int x, int y)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_cursor: Is not implemented");
 
 }
 
@@ -131,7 +131,7 @@ void pa_cursorg(FILE* f, int x, int y)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_cursorg: Is not implemented");
 
 }
 
@@ -148,7 +148,7 @@ int pa_baseline(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_baseline: Is not implemented");
 
 }
 
@@ -165,7 +165,7 @@ int pa_maxx(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_maxx: Is not implemented");
 
 }
 
@@ -182,7 +182,7 @@ int pa_maxy(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_maxy: Is not implemented");
 
 }
 
@@ -199,7 +199,7 @@ int pa_maxxg(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_maxxg: Is not implemented");
 
 }
 
@@ -216,7 +216,7 @@ int pa_maxyg(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_maxyg: Is not implemented");
 
 }
 
@@ -232,7 +232,7 @@ void pa_home(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_home: Is not implemented");
 
 }
 
@@ -248,7 +248,7 @@ void pa_up(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_up: Is not implemented");
 
 }
 
@@ -264,7 +264,7 @@ void pa_down(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_down: Is not implemented");
 
 }
 
@@ -282,7 +282,7 @@ void pa_left(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_left: Is not implemented");
 
 }
 
@@ -298,7 +298,7 @@ void pa_right(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_right: Is not implemented");
 
 }
 
@@ -318,7 +318,7 @@ void pa_blink(FILE* f, boolean e)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_blink: Is not implemented");
 
 }
 
@@ -335,7 +335,7 @@ void pa_reverse(FILE* f, boolean e)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_reverse: Is not implemented");
 
 }
 
@@ -354,7 +354,7 @@ void pa_underline(FILE* f, boolean e)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_underline: Is not implemented");
 
 }
 
@@ -371,7 +371,7 @@ void pa_superscript(FILE* f, boolean e)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_superscript: Is not implemented");
 
 }
 
@@ -388,7 +388,7 @@ void pa_subscript(FILE* f, boolean e)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_subscript: Is not implemented");
 
 }
 
@@ -410,7 +410,7 @@ void pa_italic(FILE* f, boolean e)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_italic: Is not implemented");
 
 }
 
@@ -430,7 +430,7 @@ void pa_bold(FILE* f, boolean e)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_bold: Is not implemented");
 }
 
 /*******************************************************************************
@@ -448,7 +448,7 @@ void pa_strikeout(FILE* f, boolean e)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_strikeout: Is not implemented");
 
 }
 
@@ -465,7 +465,7 @@ void pa_standout(FILE* f, boolean e)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_standout: Is not implemented");
 
 }
 
@@ -481,7 +481,7 @@ void pa_fcolor(FILE* f, pa_color c)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_fcolor: Is not implemented");
 
 }
 
@@ -489,7 +489,7 @@ void pa_fcolorc(FILE* f, int r, int g, int b)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_fcolorc: Is not implemented");
 
 }
 
@@ -510,7 +510,7 @@ void pa_fcolorg(FILE* f, int r, int g, int b)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_fcolorg: Is not implemented");
 
 }
 
@@ -526,7 +526,7 @@ void pa_bcolor(FILE* f, pa_color c)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_bcolor: Is not implemented");
 
 }
 
@@ -534,7 +534,7 @@ void pa_bcolorc(FILE* f, int r, int g, int b)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_bcolorc: Is not implemented");
 
 }
 
@@ -552,7 +552,7 @@ void pa_bcolorg(FILE* f, int r, int g, int b)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_bcolorg: Is not implemented");
 
 }
 
@@ -585,7 +585,7 @@ void pa_auto(FILE* f, boolean e)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_auto: Is not implemented");
 
 }
 
@@ -601,7 +601,7 @@ void pa_curvis(FILE* f, boolean e)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_curvis: Is not implemented");
 
 }
 
@@ -617,7 +617,7 @@ int pa_curx(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_curx: Is not implemented");
 
 }
 
@@ -633,7 +633,7 @@ int pa_cury(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_cury: Is not implemented");
 
 }
 
@@ -649,7 +649,7 @@ int pa_curxg(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_curxg: Is not implemented");
 
 }
 
@@ -665,7 +665,7 @@ int pa_curyg(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_curyg: Is not implemented");
 
 }
 
@@ -687,7 +687,7 @@ void pa_select(FILE* f, int u, int d)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_select: Is not implemented");
 
 }
 
@@ -712,7 +712,7 @@ void pa_wrtstr(FILE* f, string s)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_wrtstr: Is not implemented");
 
 }
 
@@ -729,7 +729,7 @@ void pa_del(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_del: Is not implemented");
 
 }
 
@@ -745,7 +745,7 @@ void pa_line(FILE* f, int x1, int y1, int x2, int y2)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_line: Is not implemented");
 
 }
 
@@ -761,7 +761,7 @@ void pa_rect(FILE* f, int x1, int y1, int x2, int y2)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_rect: Is not implemented");
 
 }
 
@@ -777,7 +777,7 @@ void pa_frect(FILE* f, int x1, int y1, int x2, int y2)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_frect: Is not implemented");
 
 }
 
@@ -793,7 +793,7 @@ void pa_rrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_rrect: Is not implemented");
 
 }
 
@@ -809,7 +809,7 @@ void pa_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_frrect: Is not implemented");
 
 }
 
@@ -825,7 +825,7 @@ void pa_ellipse(FILE* f, int x1, int y1, int x2, int y2)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_ellipse: Is not implemented");
 
 }
 
@@ -841,7 +841,7 @@ void pa_fellipse(FILE* f, int x1, int y1, int x2, int y2)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_fellipse: Is not implemented");
 
 }
 
@@ -877,7 +877,7 @@ void pa_arc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_arc: Is not implemented");
 
 }
 
@@ -894,7 +894,7 @@ void pa_farc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_farc: Is not implemented");
 
 }
 
@@ -911,7 +911,7 @@ void pa_fchord(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_fchord: Is not implemented");
 
 }
 
@@ -927,7 +927,7 @@ void pa_ftriangle(FILE* f, int x1, int y1, int x2, int y2, int x3, int y3)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_ftriangle: Is not implemented");
 
 }
 
@@ -943,7 +943,7 @@ void pa_setpixel(FILE* f, int x, int y)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_setpixel: Is not implemented");
 
 }
 
@@ -959,7 +959,7 @@ void pa_fover(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_fover: Is not implemented");
 
 }
 
@@ -975,7 +975,7 @@ void pa_bover(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_bover: Is not implemented");
 
 }
 
@@ -991,7 +991,7 @@ void pa_finvis(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_finvis: Is not implemented");
 
 }
 
@@ -1007,7 +1007,7 @@ void pa_binvis(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_binvis: Is not implemented");
 
 }
 
@@ -1023,7 +1023,7 @@ void pa_fxor(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_fxor: Is not implemented");
 
 }
 
@@ -1039,7 +1039,7 @@ void pa_bxor(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_bxor: Is not implemented");
 
 }
 
@@ -1055,7 +1055,7 @@ void pa_linewidth(FILE* f, int w)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_linewidth: Is not implemented");
 
 }
 
@@ -1071,7 +1071,7 @@ int pa_chrsizx(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_chrsizx: Is not implemented");
 
 }
 
@@ -1087,7 +1087,7 @@ int pa_chrsizy(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_chrsizy: Is not implemented");
 
 }
 
@@ -1103,7 +1103,7 @@ int pa_fonts(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_fonts: Is not implemented");
 
 }
 
@@ -1119,7 +1119,7 @@ void pa_font(FILE* f, int fc)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_font: Is not implemented");
 
 }
 
@@ -1135,7 +1135,7 @@ void pa_fontnam(FILE* f, int fc, string fns)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_fontnam: Is not implemented");
 
 }
 
@@ -1152,7 +1152,7 @@ void pa_fontsiz(FILE* f, int s)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_fontsiz: Is not implemented");
 
 }
 
@@ -1171,7 +1171,7 @@ void pa_chrspcy(FILE* f, int s)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_chrspcy: Is not implemented");
 
 }
 
@@ -1190,7 +1190,7 @@ void pa_chrspcx(FILE* f, int s)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_chrspcx: Is not implemented");
 
 }
 
@@ -1206,7 +1206,7 @@ int pa_dpmx(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_dpmx: Is not implemented");
 
 }
 
@@ -1222,7 +1222,7 @@ int pa_dpmy(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_dpmy: Is not implemented");
 
 }
 
@@ -1239,15 +1239,7 @@ int pa_strsiz(FILE* f, string s)
 
 {
 
-    error("pa_: Is not implemented");
-
-}
-
-int pa_strsizp(FILE* f, string s)
-
-{
-
-    error("pa_: Is not implemented");
+    error("pa_strsiz: Is not implemented");
 
 }
 
@@ -1263,7 +1255,7 @@ int pa_chrpos(FILE* f, string s, int p)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_chrpos: Is not implemented");
 
 }
 
@@ -1281,7 +1273,7 @@ void pa_writejust(FILE* f, string s, int n)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_writejust: Is not implemented");
 
 }
 
@@ -1301,7 +1293,7 @@ int pa_justpos(FILE* f, string s, int p, int n)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_justpos: Is not implemented");
 
 }
 
@@ -1322,7 +1314,7 @@ void pa_condensed(FILE* f, boolean e)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_condensed: Is not implemented");
 
 }
 
@@ -1343,7 +1335,7 @@ void pa_extended(FILE* f, boolean e)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_extended: Is not implemented");
 
 }
 
@@ -1364,7 +1356,7 @@ void pa_xlight(FILE* f, boolean e)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_xlight: Is not implemented");
 
 }
 
@@ -1385,7 +1377,7 @@ void pa_light(FILE* f, boolean e)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_light: Is not implemented");
 
 }
 
@@ -1406,7 +1398,7 @@ void pa_xbold(FILE* f, boolean e)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_xbold: Is not implemented");
 
 }
 
@@ -1427,7 +1419,7 @@ void pa_hollow(FILE* f, boolean e)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_hollow: Is not implemented");
 
 }
 
@@ -1448,7 +1440,7 @@ void pa_raised(FILE* f, boolean e)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_raised: Is not implemented");
 
 }
 
@@ -1464,7 +1456,7 @@ void pa_delpict(FILE* f, int p)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_delpict: Is not implemented");
 
 }
 
@@ -1480,7 +1472,7 @@ void pa_loadpict(FILE* f, int p, string fn)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_loadpict: Is not implemented");
 
 }
 
@@ -1496,7 +1488,7 @@ int pa_pictsizx(FILE* f, int p)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_pictsizx: Is not implemented");
 
 }
 
@@ -1512,7 +1504,7 @@ int pa_pictsizy(FILE* f, int p)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_pictsizy: Is not implemented");
 
 }
 
@@ -1531,7 +1523,7 @@ void pa_picture(FILE* f, int p, int x1, int y1, int x2, int y2)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_picture: Is not implemented");
 
 }
 
@@ -1548,7 +1540,7 @@ void pa_viewoffg(FILE* f, int x, int y)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_viewoffg: Is not implemented");
 
 }
 
@@ -1576,7 +1568,7 @@ void pa_viewscale(FILE* f, float x, float y)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_viewscale: Is not implemented");
 
 }
 
@@ -1597,7 +1589,7 @@ void pa_event(FILE* f, pa_evtrec* er)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_event: Is not implemented");
 
 }
 
@@ -1623,7 +1615,7 @@ void pa_timer(FILE*   f, /* file to send event to */
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_timer: Is not implemented");
 
 }
 
@@ -1640,7 +1632,7 @@ void pa_killtimer(FILE*  f, /* file to kill timer on */
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_killtimer: Is not implemented");
 
 }
 
@@ -1659,7 +1651,7 @@ void pa_frametimer(FILE* f, boolean e)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_frametimer: Is not implemented");
 
 }
 
@@ -1682,7 +1674,7 @@ void pa_autohold(boolean e)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_autohold: Is not implemented");
 
 }
 
@@ -1698,7 +1690,7 @@ mounum pa_mouse(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_mouse: Is not implemented");
 
 }
 
@@ -1715,7 +1707,7 @@ moubut pa_mousebutton(FILE* f, mouhan m)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_mousebutton: Is not implemented");
 
 }
 
@@ -1731,7 +1723,7 @@ joynum pa_joystick(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_joystick: Is not implemented");
 
 }
 
@@ -1747,7 +1739,7 @@ joybtn pa_joybutton(FILE* f, joyhan j)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_joybutton: Is not implemented");
 
 }
 
@@ -1765,7 +1757,7 @@ joyaxn pa_joyaxis(FILE* f, joyhan j)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_joyaxis: Is not implemented");
 
 }
 
@@ -1781,7 +1773,7 @@ void pa_settabg(FILE* f, int t)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_settabg: Is not implemented");
 
 }
 
@@ -1797,7 +1789,7 @@ void pa_settab(FILE* f, int t)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_settab: Is not implemented");
 
 }
 
@@ -1813,7 +1805,7 @@ void pa_restabg(FILE* f, int t)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_restabg: Is not implemented");
 
 }
 
@@ -1829,7 +1821,7 @@ void pa_restab(FILE* f, int t)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_restab: Is not implemented");
 
 }
 
@@ -1846,7 +1838,7 @@ void pa_clrtab(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_clrtab: Is not implemented");
 
 }
 
@@ -1864,7 +1856,7 @@ funky pa_funkey(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_funkey: Is not implemented");
 
 }
 
@@ -1880,7 +1872,7 @@ void pa_title(FILE* f, string ts)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_title: Is not implemented");
 
 }
 
@@ -1901,7 +1893,7 @@ void pa_openwin(FILE* infile, FILE* outfile, FILE* parent, int wid)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_openwin: Is not implemented");
 
 }
 
@@ -1917,7 +1909,7 @@ void pa_sizbufg(FILE* f, int x, int y)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_sizbufg: Is not implemented");
 
 }
 
@@ -1933,7 +1925,7 @@ void pa_sizbuf(FILE* f, int x, int y)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_sizbuf: Is not implemented");
 
 }
 
@@ -1950,7 +1942,7 @@ void pa_buffer(FILE* f, boolean e)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_buffer: Is not implemented");
 
 }
 
@@ -1968,7 +1960,7 @@ void pa_menu(FILE* f, pa_menuptr m)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_menu: Is not implemented");
 
 }
 
@@ -1985,7 +1977,7 @@ void pa_menuena(FILE* f, int id, boolean onoff)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_menuena: Is not implemented");
 
 }
 
@@ -2002,7 +1994,7 @@ void pa_menusel(FILE* f, int id, boolean select)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_menusel: Is not implemented");
 
 }
 
@@ -2018,7 +2010,7 @@ void pa_front(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_front: Is not implemented");
 
 }
 
@@ -2034,7 +2026,7 @@ void pa_back(FILE* f)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_back: Is not implemented");
 
 }
 
@@ -2050,7 +2042,7 @@ void pa_getsizg(FILE* f, int* x, int* y)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_getsizg: Is not implemented");
 
 }
 
@@ -2071,7 +2063,7 @@ void pa_getsiz(FILE* f, int* x, int* y)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_getsiz: Is not implemented");
 
 }
 
@@ -2087,7 +2079,7 @@ void pa_setsizg(FILE* f, int x, int y)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_setsizg: Is not implemented");
 
 }
 
@@ -2108,7 +2100,7 @@ void pa_setsiz(FILE* f, int x, int y)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_setsiz: Is not implemented");
 
 }
 
@@ -2124,7 +2116,7 @@ void pa_setposg(FILE* f, int x, int y)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_setposg: Is not implemented");
 
 }
 
@@ -2145,7 +2137,7 @@ void pa_setpos(FILE* f, int x, int y)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_setpos: Is not implemented");
 
 }
 
@@ -2161,7 +2153,7 @@ void pa_scnsizg(FILE* f, int* x, int* y)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_scnsizg: Is not implemented");
 
 }
 
@@ -2185,7 +2177,7 @@ void pa_winclient(FILE* f, int cx, int cy, int* wx, int* wy,
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_winclient: Is not implemented");
 
 }
 
@@ -2194,7 +2186,7 @@ void pa_winclientg(FILE* f, int cx, int cy, int* wx, int* wy,
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_winclientg: Is not implemented");
 
 }
 
@@ -2213,7 +2205,7 @@ void pa_scnsiz(FILE* f, int* x, int* y)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_scnsiz: Is not implemented");
 
 }
 
@@ -2229,7 +2221,7 @@ void pa_frame(FILE* f, boolean e)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_frame: Is not implemented");
 
 }
 
@@ -2245,7 +2237,7 @@ void pa_sizable(FILE* f, boolean e)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_sizable: Is not implemented");
 
 }
 
@@ -2261,7 +2253,7 @@ void pa_sysbar(FILE* f, boolean e)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_sysbar: Is not implemented");
 
 }
 
@@ -2285,7 +2277,7 @@ void pa_stdmenu(pa_stdmenusel sms, pa_menuptr* sm, pa_menuptr pm)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_stdmenu: Is not implemented");
 
 }
 
@@ -2301,7 +2293,7 @@ void pa_killwidget(FILE* f, int id)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_killwidget: Is not implemented");
 
 }
 
@@ -2317,7 +2309,7 @@ void pa_selectwidget(FILE* f, int id, boolean e)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_selectwidget: Is not implemented");
 
 }
 
@@ -2333,7 +2325,7 @@ void pa_enablewidget(FILE* f, int id, boolean e)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_enablewidget: Is not implemented");
 
 }
 
@@ -2351,7 +2343,7 @@ void pa_getwidgettext(FILE* f, int id, string s)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_getwidgettext: Is not implemented");
 
 }
 
@@ -2367,7 +2359,7 @@ void pa_putwidgettext(FILE* f, int id, string s)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_putwidgettext: Is not implemented");
 
 }
 
@@ -2383,7 +2375,7 @@ void pa_sizwidgetg(FILE* f, int id, int x, int y)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_sizewidgetg: Is not implemented");
 
 }
 
@@ -2399,7 +2391,7 @@ void pa_poswidgetg(FILE* f, int id, int x, int y)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_poswidgetg: Is not implemented");
 
 }
 
@@ -2413,7 +2405,7 @@ void pa_backwidget(FILE* f, int id)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_backwidget: Is not implemented");
 
 }
 
@@ -2427,7 +2419,7 @@ void pa_frontwidget(FILE* f, int id)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_frontwidget: Is not implemented");
 
 }
 
@@ -2444,7 +2436,7 @@ void pa_buttonsizg(FILE* f, string s, int* w, int* h)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_buttonsizg: Is not implemented");
 
 }
 
@@ -2452,7 +2444,7 @@ void pa_buttonsiz(FILE* f, string s, int* w, int* h)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_buttonsiz: Is not implemented");
 
 }
 
@@ -2468,7 +2460,7 @@ void pa_buttong(FILE* f, int x1, int y1, int x2, int y2, string s, int id)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_buttong: Is not implemented");
 
 }
 
@@ -2476,7 +2468,7 @@ void pa_button(FILE* f, int x1, int y1, int x2, int y2, string s, int id)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_button: Is not implemented");
 
 }
 
@@ -2493,7 +2485,7 @@ void pa_checkboxsizg(FILE* f, string s, int* w, int* h)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_checkboxsizg: Is not implemented");
 
 }
 
@@ -2501,7 +2493,7 @@ void pa_checkboxsiz(FILE* f, string s,  int* w, int* h)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_checkboxsiz: Is not implemented");
 
 }
 
@@ -2518,7 +2510,7 @@ void pa_checkboxg(FILE* f, int x1, int y1, int x2, int y2, string s, int id)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_checkboxg: Is not implemented");
 
 }
 
@@ -2526,7 +2518,7 @@ void pa_checkbox(FILE* f, int x1, int y1, int x2, int y2, string s, int id)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_checkbox: Is not implemented");
 
 }
 
@@ -2543,7 +2535,7 @@ void pa_radiobuttonsizg(FILE* f, string s, int* w, int* h)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_radiobuttonsizg: Is not implemented");
 
 }
 
@@ -2551,7 +2543,7 @@ void pa_radiobuttonsiz(FILE* f, string s, int* w, int* h)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_radiobuttonsiz: Is not implemented");
 
 }
 
@@ -2568,7 +2560,7 @@ void pa_radiobuttong(FILE* f, int x1, int y1, int x2, int y2, string s, int id)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_radiobuttong: Is not implemented");
 
 }
 
@@ -2576,7 +2568,7 @@ void pa_radiobutton(FILE* f, int x1, int y1, int x2, int y2, string s, int id)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_radiobutton: Is not implemented");
 
 }
 
@@ -2594,7 +2586,7 @@ void pa_groupsizg(FILE* f, string s, int cw, int ch, int* w, int* h,
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_groupsizg: Is not implemented");
 
 }
 
@@ -2603,7 +2595,7 @@ void pa_groupsiz(FILE* f, string s, int cw, int ch, int* w, int* h,
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_groupsiz: Is not implemented");
 
 }
 
@@ -2620,7 +2612,7 @@ void pa_groupg(FILE* f, int x1, int y1, int x2, int y2, string s, int id)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_groupg: Is not implemented");
 
 }
 
@@ -2628,7 +2620,7 @@ void pa_group(FILE* f, int x1, int y1, int x2, int y2, string s, int id)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_group: Is not implemented");
 
 }
 
@@ -2645,7 +2637,7 @@ void pa_backgroundg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_backgroundg: Is not implemented");
 
 }
 
@@ -2653,7 +2645,7 @@ void pa_background(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_background: Is not implemented");
 
 }
 
@@ -2670,7 +2662,7 @@ void pa_scrollvertsizg(FILE* f, int* w, int* h)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_scrollvertsizg: Is not implemented");
 
 }
 
@@ -2678,7 +2670,7 @@ void pa_scrollvertsiz(FILE* f, int* w, int* h)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_scrollvertsiz: Is not implemented");
 
 }
 
@@ -2694,7 +2686,7 @@ void pa_scrollvertg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_scrollvertg: Is not implemented");
 
 }
 
@@ -2702,7 +2694,7 @@ void pa_scrollvert(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_scrollvert: Is not implemented");
 
 }
 
@@ -2719,7 +2711,7 @@ void pa_scrollhorizsizg(FILE* f, int* w, int* h)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_scrolhorizsizg: Is not implemented");
 
 }
 
@@ -2727,7 +2719,7 @@ void pa_scrollhorizsiz(FILE* f, int* w, int* h)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_scrollhorizsiz: Is not implemented");
 
 }
 
@@ -2743,7 +2735,7 @@ void pa_scrollhorizg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_scrollhorizg: Is not implemented");
 
 }
 
@@ -2751,7 +2743,7 @@ void pa_scrollhoriz(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_scrollhoriz: Is not implemented");
 
 }
 
@@ -2767,7 +2759,7 @@ void pa_scrollpos(FILE* f, int id, int r)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_scrollpos: Is not implemented");
 
 }
 
@@ -2783,7 +2775,7 @@ void pa_scrollsiz(FILE* f, int id, int r)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_scrollsiz: Is not implemented");
 
 }
 
@@ -2800,7 +2792,7 @@ void pa_numselboxsizg(FILE* f, int l, int u, int* w, int* h)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_numselboxsizg: Is not implemented");
 
 }
 
@@ -2808,7 +2800,7 @@ void pa_numselboxsiz(FILE* f, int l, int u, int* w, int* h)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_numselboxsiz: Is not implemented");
 
 }
 
@@ -2824,7 +2816,7 @@ void pa_numselboxg(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_numselboxg: Is not implemented");
 
 }
 
@@ -2832,7 +2824,7 @@ void pa_numselbox(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_numselbox: Is not implemented");
 
 }
 
@@ -2849,7 +2841,7 @@ void pa_editboxsizg(FILE* f, string s, int* w, int* h)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_editboxsizg: Is not implemented");
 
 }
 
@@ -2857,7 +2849,7 @@ void pa_editboxsiz(FILE* f, string s, int* w, int* h)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_editboxsiz: Is not implemented");
 
 }
 
@@ -2873,7 +2865,7 @@ void pa_editboxg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_editboxg: Is not implemented");
 
 }
 
@@ -2881,7 +2873,7 @@ void pa_editbox(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_editbox: Is not implemented");
 
 }
 
@@ -2898,7 +2890,7 @@ void pa_progbarsizg(FILE* f, int* w, int* h)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_progbarsizg: Is not implemented");
 
 }
 
@@ -2906,7 +2898,7 @@ void pa_progbarsiz(FILE* f, int* w, int* h)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_progbarsiz: Is not implemented");
 
 }
 
@@ -2922,7 +2914,7 @@ void pa_progbarg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_progbarg: Is not implemented");
 
 }
 
@@ -2930,7 +2922,7 @@ void progbar(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_progbar: Is not implemented");
 
 }
 
@@ -2946,7 +2938,7 @@ void pa_progbarpos(FILE* f, int id, int pos)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_progbarpos: Is not implemented");
 
 }
 
@@ -2970,7 +2962,7 @@ void pa_boxsizg(FILE* f, pa_strptr sp, int* w, int* h)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_boxsizg: Is not implemented");
 
 }
 
@@ -2978,7 +2970,7 @@ void pa_boxsiz(FILE* f, pa_strptr sp, int* w, int* h)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_boxsiz: Is not implemented");
 
 }
 
@@ -2994,7 +2986,7 @@ void pa_boxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_boxg: Is not implemented");
 
 }
 
@@ -3002,7 +2994,7 @@ void pa_box(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_box: Is not implemented");
 
 }
 
@@ -3023,7 +3015,7 @@ void pa_dropboxsizg(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_dropboxsizg: Is not implemented");
 
 }
 
@@ -3031,7 +3023,7 @@ void pa_dropboxsiz(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_dropboxsiz: Is not implemented");
 
 }
 
@@ -3047,7 +3039,7 @@ void pa_dropboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_dropboxg: Is not implemented");
 
 }
 
@@ -3055,7 +3047,7 @@ void pa_dropbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_dropbox: Is not implemented");
 
 }
 
@@ -3077,7 +3069,7 @@ void pa_dropeditboxsizg(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* o
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_dropeditboxsizg: Is not implemented");
 
 }
 
@@ -3085,7 +3077,7 @@ void pa_dropeditboxsiz(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_dropeditboxsiz: Is not implemented");
 
 }
 
@@ -3104,7 +3096,7 @@ void pa_dropeditboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int 
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_dropeditboxg: Is not implemented");
 
 }
 
@@ -3112,7 +3104,7 @@ void pa_dropeditbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int i
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_dropeditbox: Is not implemented");
 
 }
 
@@ -3129,7 +3121,7 @@ void pa_slidehorizsizg(FILE* f, int * w, int* h)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_slidehorizsizg: Is not implemented");
 
 }
 
@@ -3137,7 +3129,7 @@ void pa_slidehorizsiz(FILE* f, int* w, int* h)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_slidehorizsiz: Is not implemented");
 
 }
 
@@ -3155,7 +3147,7 @@ void pa_slidehorizg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_slidehorizg: Is not implemented");
 
 }
 
@@ -3163,7 +3155,7 @@ void pa_slidehoriz(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_slidehoriz: Is not implemented");
 
 }
 
@@ -3180,7 +3172,7 @@ void pa_slidevertsizg(FILE* f, int* w, int* h)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_slidevertsizg: Is not implemented");
 
 }
 
@@ -3188,7 +3180,7 @@ void pa_slidevertsiz(FILE* f, int* w, int* h)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_slidevertsiz: Is not implemented");
 
 }
 
@@ -3206,7 +3198,7 @@ void pa_slidevertg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_slidevertg: Is not implemented");
 
 }
 
@@ -3214,7 +3206,7 @@ void pa_slidevert(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_slidevert: Is not implemented");
 
 }
 
@@ -3232,7 +3224,7 @@ void pa_tabbarsizg(FILE* f, pa_tabori tor, int cw, int ch, int* w, int* h,
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_tabbarsizg: Is not implemented");
 
 }
 
@@ -3241,7 +3233,7 @@ void pa_tabbarsiz(FILE* f, pa_tabori tor, int cw, int ch, int * w, int* h,
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_tabbarsiz: Is not implemented");
 
 }
 
@@ -3260,7 +3252,7 @@ void pa_tabbarclientg(FILE* f, pa_tabori tor, int w, int h, int* cw, int* ch,
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_tabbarclientg: Is not implemented");
 
 }
 
@@ -3269,7 +3261,7 @@ void pa_tabbarclient(FILE* f, pa_tabori tor, int w, int h, int* cw, int* ch,
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_tabbarclient: Is not implemented");
 
 }
 
@@ -3290,7 +3282,7 @@ void pa_tabbarg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp,
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_tabbarg: Is not implemented");
 
 }
 
@@ -3299,7 +3291,7 @@ void pa_tabbar(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp,
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_tabbar: Is not implemented");
 
 }
 
@@ -3316,7 +3308,7 @@ void pa_tabsel(FILE* f, int id, int tn)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_tabsel: Is not implemented");
 
 }
 
@@ -3332,7 +3324,7 @@ void pa_alert(string title, string message)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_alert: Is not implemented");
 
 }
 
@@ -3350,7 +3342,7 @@ void pa_querycolor(int* r, int* g, int* b)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_querycolor: Is not implemented");
 
 }
 
@@ -3374,7 +3366,7 @@ void pa_queryopen(pstring s)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_queryopen: Is not implemented");
 
 }
 
@@ -3398,7 +3390,7 @@ void pa_querysave(pstring s)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_querysave: Is not implemented");
 
 }
 
@@ -3431,7 +3423,7 @@ void pa_queryfind(pstring s, pa_qfnopts* opt)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_queryfind: Is not implemented");
 
 }
 
@@ -3456,7 +3448,7 @@ void pa_queryfindrep(pstring s, pstring r, pa_qfropts* opt)
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_queryfindrep: Is not implemented");
 
 }
 
@@ -3480,6 +3472,6 @@ void pa_queryfont(FILE* f, int* fc, int* s, int* fr, int* fg, int* fb,
 
 {
 
-    error("pa_: Is not implemented");
+    error("pa_queryfont: Is not implemented");
 
 }
