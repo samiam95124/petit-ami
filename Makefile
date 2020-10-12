@@ -232,7 +232,7 @@ linux/graph_x.o: linux/graph_x.c include/graph.h
 #
 # Note that stub sources are not yet implemented
 #
-libc/stdio.o:
+libc/stdio.o: libc/stdio.c libc/stdio.h
 	gcc -g3 -Ilibc -c libc/stdio.c -o libc/stdio.o
 	
 windows/services.o: windows/services.c include/services.h

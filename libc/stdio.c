@@ -671,7 +671,7 @@ BUGS/ISSUES:
 
 *******************************************************************************/
 
-static unsigned long strtoulso(const char **s, int base, int *sgn, int *o, 
+static unsigned long strtoulso(const char **s, int base, int *sgn, int *o,
                                int *cnt, int *err, int fld, FILE *fd)
 
 {
@@ -861,13 +861,13 @@ FILE *fopen(const char *filename, const char *mode)
     int flags;  /* open flag settings */
     int text;   /* text/binary mode */
     int modcod; /* mode code, 0 = read, 1 = write, 2 = append */
-    int update; /* update mode */
+    int append; /* append mode */
     int perm;   /* permissions */
 
     /* move mode attributes to flags */
     modcod = 0; /* default to read */
     text = !!strchr(mode, 'b'); /* set text or binary mode */
-    update = !!strchr(mode, '+'); /* set update mode */
+    append = !!strchr(mode, '+'); /* set append mode */
     if (strchr(mode, 'r')) modcod = 0; /* set read */
     else if (strchr(mode, 'w')) modcod = 1; /* set write */
     else if (strchr(mode, 'a')) modcod = 2; /* set append */
@@ -875,7 +875,7 @@ FILE *fopen(const char *filename, const char *mode)
 
     /* clear flags for building */
     flags = 0;
-    if (update) flags = O_RDWR; /* set append mode, read or write */
+    if (append) flags = O_RDWR; /* set append mode, read or write */
     else if (modcod == 0) flags |= O_RDONLY; /* for read, set read only */
     else flags |= O_WRONLY; /* for write or append, set write only */
     if (modcod == 2) flags |= O_APPEND; /* set append mode */
@@ -900,10 +900,10 @@ FILE *fopen(const char *filename, const char *mode)
     strcpy(opnfil[fti]->name, filename); /* copy name into place */
     opnfil[fti]->text = text; /* text/binary mode */
     /* set read/write mode for update */
-    if (update) opnfil[fti]->mode = STDIO_MRDWR;
+    if (append) opnfil[fti]->mode = STDIO_MRDWR;
     else if (modcod == 0) opnfil[fti]->mode = STDIO_MREAD; /* set read only */
     else opnfil[fti]->mode = STDIO_MWRITE; /* set write only */
-    opnfil[fti]->append = update; /* set append mode */
+    opnfil[fti]->append = append; /* set append mode */
     opnfil[fti]->flags = 0; /* clear status/error flags */
 
     /* return new file entry */
@@ -1044,6 +1044,103 @@ FILE *freopen(const char *filename, const char *mode, FILE *stream)
 
 }
 
+/*******************************************************************************
+
+FUNCTION NAME: fdopen
+
+SHORT DESCRIPTION: Open a stream file with existing file descriptor.
+
+DETAILED DESCRIPTION:
+
+Given an existing file descriptor, creates a stream file and opens it with that
+file descriptor. This essentially means to "fileofy" an existing, already open,
+low level file descriptor to allow stream file operations on it.
+
+The mode must be compatible with the mode of the file descriptor.
+
+BUGS/ISSUES:
+
+*******************************************************************************/
+
+FILE *fdopen(int fd, const char *mode)
+
+{
+
+    int fti;    /* file table index */
+    int flags;  /* open flag settings */
+    int text;   /* text/binary mode */
+    int modcod; /* mode code, 0 = read, 1 = write, 2 = append */
+    int append; /* append mode */
+    int perm;   /* permissions */
+    int fsf;    /* file status flags */
+
+    if (fd < 0) { /* invalid fd */
+
+        errno = EBADF; /* set error */
+        return (NULL); /* flag error to user */
+
+    }
+
+    /* move mode attributes to flags */
+    modcod = 0; /* default to read */
+    text = !!strchr(mode, 'b'); /* set text or binary mode */
+    append = !!strchr(mode, '+'); /* set update mode */
+    if (strchr(mode, 'r')) modcod = 0; /* set read */
+    else if (strchr(mode, 'w')) modcod = 1; /* set write */
+    else if (strchr(mode, 'a')) modcod = 2; /* set append */
+    else return NULL; /* bad mode */
+
+    /* clear flags for building */
+    flags = 0;
+    if (append) flags = O_RDWR; /* set append mode, read or write */
+    else if (modcod == 0) flags |= O_RDONLY; /* for read, set read only */
+    else flags |= O_WRONLY; /* for write or append, set write only */
+    if (modcod == 2) flags |= O_APPEND; /* set append mode */
+    if (modcod == 1) flags |= O_CREAT; /* allow writes to create new file */
+
+    /* permissions are: user read and write, group and others read only */
+#ifdef __linux__
+    perm = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+#else
+    perm = S_IRUSR | S_IWUSR;
+#endif
+
+    /* process file open with parameters */
+    fti = maknod(); /* create or reuse file entry */
+    if (!fti) {
+
+        errno = ENOMEM; /* set error */
+        return (NULL); /* couldn't create node */
+
+    }
+    opnfil[fti]->fid = fd; /* set file id */
+
+    /* get and match existing file parameters */
+#ifndef __MINGW32__
+    /* note mingw does not implement this call at present. The result will be
+       that this call will not check the modes are equivalent. */
+    fsf = fcntl(fd, F_GETFL);
+    if (fsf & (O_APPEND | O_TRUNC | O_CREAT | O_RDWR | O_WRONLY) !=
+        flags & (O_APPEND | O_TRUNC | O_CREAT | O_RDWR | O_WRONLY)) {
+
+        errno = EINVAL; /* flag error */
+        return (NULL); /* return error */
+
+    }
+#endif
+
+    /* fill file fields with status */
+    opnfil[fti]->text = text; /* text/binary mode */
+    /* set read/write mode for update */
+    if (append) opnfil[fti]->mode = STDIO_MRDWR;
+    else if (modcod == 0) opnfil[fti]->mode = STDIO_MREAD; /* set read only */
+    else opnfil[fti]->mode = STDIO_MWRITE; /* set write only */
+    opnfil[fti]->append = append; /* set append mode */
+    opnfil[fti]->flags = 0; /* clear status/error flags */
+
+    /* return new file entry */
+    return opnfil[fti];
+}
 
 /*******************************************************************************
 
@@ -2749,6 +2846,43 @@ void perror(const char *s)
 {
 
     fprintf(stderr, "%s: %s\n", s, strerror(errno));
+
+}
+
+/*******************************************************************************
+
+FUNCTION NAME: fileno
+
+SHORT DESCRIPTION: Return integer descriptor for file
+
+DETAILED DESCRIPTION:
+
+Checks if the file is open, and if so returns the integer file id. Otherwise
+returns -1
+Checks if the given stream is indicating an error. Returns non-zero if an
+error is pending on the file, otherwise zero.
+
+BUGS/ISSUES:
+
+1. Currently there are no error indications kept.
+
+*******************************************************************************/
+
+int fileno(FILE* stream)
+
+{
+
+    int r;
+
+    /* check file is allocated and open */
+    if (!stream || stream->fid < 0) {
+
+        r = -1;
+        errno = EBADF;
+
+    } else r = stream->fid;
+
+    return (r);
 
 }
 

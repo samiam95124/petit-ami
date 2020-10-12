@@ -46,7 +46,7 @@
 *                                                                              *
 *                            BSD LICENSE INFORMATION                           *
 *                                                                              *
-* Copyright (C) 2019 - Scott A. Franco                                         *
+* Copyright (C) 2020 - Scott A. Franco                                         *
 *                                                                              *
 * All rights reserved.                                                         *
 *                                                                              *
