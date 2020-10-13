@@ -81,6 +81,9 @@
 #include <windows.h>
 #include <terminal.h>
 
+#define BIT(b) (1<<b) /* set bit from bit number */
+#define BITMSK(b) (~BIT(b)) /* mask out bit number */
+
 #define MAXXD     80   /* standard terminal, 80x25 */
 #define MAXYD     25
  /* the "standard character" sizes are used to form a pseudo-size for desktop
@@ -118,7 +121,7 @@
 #define PACKMSG  TRUE /* pack paint messages in queue */
 #define MAXFIL   100 /* maximum open files */
 
-   /* screen attribute */
+/* screen attribute */
 typedef enum {
     sablink, /* blinking text (foreground) */
     sarev,   /* reverse video */
@@ -129,6 +132,7 @@ typedef enum {
     sabold,  /* bold text */
     sastkout /* strikeout text */
 } scnatt;
+
 /* font description entry */
 typedef struct fontrec {
 
@@ -138,6 +142,7 @@ typedef struct fontrec {
     struct fontrec* next; /* next font in list */
 
 } fontrec, *fontptr;
+
 typedef enum { mdnorm, mdinvis, mdxor } mode; /* color mix modes */
 
 /* Menu tracking. This is a mirror image of the menu we were given by the
@@ -145,7 +150,6 @@ typedef enum { mdnorm, mdinvis, mdxor } mode; /* color mix modes */
    tree as passed. The menu items are a linear list, since they contain
    both the menu handle && the relative number 0-n of the item, neither
    the lack of tree structure nor the order of the list matters. */
-   metptr == ^metrec;
 typedef struct metrec {
 
     struct metrec* next;   /* next entry */
@@ -156,7 +160,8 @@ typedef struct metrec {
     struct metrec* oneof;  /* "one of" chain pointer */
     int            id;     /* user id of item */
 
-};
+} metrec, *metptr;
+
 /* widget type */
 typedef enum  {
     wtbutton, wtcheckbox, wtradiobutton, wtgroup, wtbackground,
@@ -1935,13 +1940,13 @@ void rgbcol(int r, int g, int b, pa_color* c)
 {
 
    if (r < maxint/2 && g < maxint/2 && b < maxint/2) *c = pa_black;
-   else if (r >== maxint/2 && g < maxint/2 && b < maxint/2) *c = pa_red;
-   else if (r < maxint/2 && g >== maxint/2 && b < maxint/2) *c = pa_green;
-   else if (r < maxint/2 && g < maxint/2 && b >== maxint/2) *c = pa_blue;
-   else if (r < maxint/2 && g >== maxint/2 && b >== maxint/2) *c = pa_cyan;
-   else if (r >== maxint/2 && g >== maxint/2 && b < maxint/2) *c = pa_yellow;
-   else if (r >== maxint/2 && g < maxint/2 && b >== maxint/2) *c = pa_magenta;
-   else if (r >== maxint/2 && g >== maxint/2 && b >== maxint/2) *c = pa_white;
+   else if (r >= maxint/2 && g < maxint/2 && b < maxint/2) *c = pa_red;
+   else if (r < maxint/2 && g >= maxint/2 && b < maxint/2) *c = pa_green;
+   else if (r < maxint/2 && g < maxint/2 && b >= maxint/2) *c = pa_blue;
+   else if (r < maxint/2 && g >= maxint/2 && b >= maxint/2) *c = pa_cyan;
+   else if (r >= maxint/2 && g >= maxint/2 && b < maxint/2) *c = pa_yellow;
+   else if (r >= maxint/2 && g < maxint/2 && b >= maxint/2) *c = pa_magenta;
+   else if (r >= maxint/2 && g >= maxint/2 && b >= maxint/2) *c = pa_white;
    else error(esystem); /* should have been one of those */
 
 }
@@ -2008,31 +2013,27 @@ attributes.
 
 *******************************************************************************/
 
-void clrbuf(win: winptr; sc: scnptr);
-
-var r:    rect;   /* rectangle */
-    hb:   hbrush; /* handle to brush */
-    b:    int;   /* return value */
+void clrbuf(winptr win, scnptr sc)
 
 {
 
-   with win^ do { /* in window context */
+    RECT   r;  /* rectangle */
+    HBRUSH hb; /* handle to brush */
+    int    b;  /* return value */
 
-      r.left = 0; /* set all client area for rectangle clear */
-      r.top = 0;
-      r.right = gmaxxg;
-      r.bottom = gmaxyg;
-      hb = createsolidbrush(sc->bcrgb); /* get a brush for background */
-      if hb == 0  winerr; /* process error */
-      /* clear buffer surface */
-      b = fillrect(sc->bdc, r, hb);
-      if ! b  winerr; /* process error */
-      b = deleteobject(hb); /* free the brush */
-      if ! b  winerr /* process error */
+    r.left = 0; /* set all client area for rectangle clear */
+    r.top = 0;
+    r.right = win->gmaxxg;
+    r.bottom = win->gmaxyg;
+    hb = CreateSolidBrush(sc->bcrgb); /* get a brush for background */
+    if (!hb) winerr(); /* process error */
+    /* clear buffer surface */
+    b = fillrect(sc->bdc, r, hb);
+    if (!b)  winerr(); /* process error */
+    b = DeleteObject(hb); /* free the brush */
+    if (!b)  winerr(); /* process error */
 
-   }
-
-};
+}
 
 /*******************************************************************************
 
@@ -2042,62 +2043,57 @@ Clears the entire window to spaces with the current colors && attributes.
 
 *******************************************************************************/
 
-void clrwin(win: winptr);
-
-var r:    rect;   /* rectangle */
-    hb:   hbrush; /* handle to brush */
-    b:    int;   /* return value */
+void clrwin(winptr win)
 
 {
 
-   with win^ do { /* in window context */
+    RECT   r;  /* rectangle */
+    HBRUSH hb; /* handle to brush */
+    int    b;   /* return value */
 
-      r.left = 0; /* set all client area for rectangle clear */
-      r.top = 0;
-      r.right = gmaxxg;
-      r.bottom = gmaxyg;
-      hb = createsolidbrush(gbcrgb); /* get a brush for background */
-      if hb == 0  winerr; /* process error */
-      /* clear buffer surface */
-      b = fillrect(devcon, r, hb);
-      if ! b  winerr; /* process error */
-      b = deleteobject(hb); /* free the brush */
-      if ! b  winerr /* process error */
+    r.left = 0; /* set all client area for rectangle clear */
+    r.top = 0;
+    r.right = win->gmaxxg;
+    r.bottom = win->gmaxyg;
+    hb = CreateSolidBrush(gbcrgb); /* get a brush for background */
+    if (!hb) winerr(); /* process error */
+    /* clear buffer surface */
+    b = FillRect(devcon, r, hb);
+    if (!b) winerr(); /* process error */
+    b = DeleteObject(hb); /* free the brush */
+    if (!b) winerr(); /* process error */
 
-   }
-
-};
+}
 
 /*******************************************************************************
 
 Find if cursor is in screen bounds
 
-Checks if the cursor lies in the current bounds, && returns TRUE if so.
+Checks if the cursor lies in the current bounds, and returns TRUE if so.
 
 *******************************************************************************/
 
-int icurbnd(sc: scnptr): int;
+int icurbnd(scnptr sc)
 
 {
 
-   icurbnd = (sc->curx >== 1) && (sc->curx <== sc->maxx) and
-              (sc->cury >== 1) && (sc->cury <== sc->maxy)
+   return (sc->curx >= 1 && sc->curx <= sc->maxx &&
+           sc->cury >= 1 && sc->cury <= sc->maxy);
 
-};
+}
 
-int curbnd(var f: text): int;
-
-var win: winptr; /* windows record pointer */
+int curbnd(FILE* f)
 
 {
 
-   lockmain; /* start exclusive access */
-   win = txt2win(f); /* get window from file */
-   with win^ do /* in window context */
-      curbnd = icurbnd(screens[curupd]);
-   unlockmain /* } exclusive access */
+    winptr win; /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    win->curbnd = icurbnd(win->screens[win->curupd]);
+    unlockmain(); /* } exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -2107,25 +2103,24 @@ Makes the cursor visible.
 
 *******************************************************************************/
 
-void curon(win: winptr);
-
-var b: int;
+void curon(winptr win)
 
 {
 
-   with win^ do /* in windows context */
-      if ! fcurdwn && screens[curdsp]->curv and
-         icurbnd(screens[curdsp]) && focus  {
+    int b;
 
-      /* cursor ! already down, cursor visible, cursor in bounds, screen
-        in focus */
-      b = showcaret(winhan); /* show the caret */
-      if ! b  winerr; /* process error */
-      fcurdwn = TRUE /* set cursor on screen */
+    if (!win->fcurdwn && win->screens[win->curdsp]->curv &&
+        icurbnd(win->screens[win->curdsp]) && win->focus)  {
 
-   }
+        /* cursor not already down, cursor visible, cursor in bounds, screen
+           in focus */
+        b = ShowCaret(win->winhan); /* show the caret */
+        if (!b) winerr(); /* process error */
+        win->fcurdwn = TRUE; /* set cursor on screen */
 
-};
+    }
+
+}
 
 /*******************************************************************************
 
@@ -2135,104 +2130,95 @@ Makes the cursor invisible.
 
 *******************************************************************************/
 
-void curoff(win: winptr);
-
-var b: int;
+void curoff(winptr win)
 
 {
 
-   with win^ do /* in windows context */
-      if fcurdwn  { /* cursor visable */
+    int b;
 
-      b = hidecaret(winhan); /* hide the caret */
-      if ! b  winerr; /* process error */
-      fcurdwn = FALSE /* set cursor ! on screen */
+    if (win->fcurdwn) { /* cursor visable */
 
-   }
+        b = HideCaret(win->winhan); /* hide the caret */
+        if (!b) winerr(); /* process error */
+        win->fcurdwn = FALSE /* set cursor ! on screen */
 
-};
+    }
+
+}
 
 /*******************************************************************************
 
 Set cursor status
 
-Changes the current cursor status. If the cursor is out of bounds, || not
+Changes the current cursor status. If the cursor is out of bounds, or not
 set as visible, it is set off. Otherwise, it is set on. Used to change status
 of cursor after position && visible status events. Acts as a combination of
-curon && curoff routines.
+curon and curoff routines.
 
 *******************************************************************************/
 
-void cursts(win: winptr);
-
-var b: int;
+void cursts(winptr win)
 
 {
 
-   with win^ do { /* in window context */
+    int b;
 
-      if screens[curdsp]->curv and
-         icurbnd(screens[curdsp]) && focus  {
+    if (win->screens[win->curdsp]->curv && icurbnd(win->screens[win->curdsp]) &&
+        win->focus) {
 
-         /* cursor should be visible */
-         if ! fcurdwn  { /* ! already down */
+        /* cursor should be visible */
+        if (!win->fcurdwn) { /* ! already down */
 
             /* cursor ! already down, cursor visible, cursor in bounds */
-            b = showcaret(winhan); /* show the caret */
-            if ! b  winerr; /* process error */
-            fcurdwn = TRUE /* set cursor on screen */
+            b = ShowCaret(win->winhan); /* show the caret */
+            if (!b) winerr(); /* process error */
+            win->fcurdwn = TRUE; /* set cursor on screen */
 
-         }
+        }
 
-      } else {
+    } else {
 
          /* cursor should ! be visible */
-         if fcurdwn  { /* cursor visable */
+        if (win->fcurdwn) { /* cursor visable */
 
-            b = hidecaret(winhan); /* hide the caret */
-            if ! b  winerr; /* process error */
-            fcurdwn = FALSE /* set cursor ! on screen */
+            b = HideCaret(win->winhan); /* hide the caret */
+            if (!b) winerr(); /* process error */
+            win->fcurdwn = FALSE; /* set cursor ! on screen */
 
-         }
+        }
 
-      }
+    }
 
-   }
-
-};
+}
 
 /*******************************************************************************
 
 Position cursor
 
-Positions the cursor (caret) image to the right location on screen, && handles
-the visible || invisible status of that.
+Positions the cursor (caret) image to the right location on screen, and handles
+the visible or invisible status of that.
 
 *******************************************************************************/
 
-void setcur(win: winptr);
-
-var b: int;
+void setcur(winptr win)
 
 {
 
-   with win^ do { /* in window context */
+    int b;
 
-      /* check cursor in bounds && visible, && window has focus */
-      if icurbnd(screens[curupd]) && focus  {
+    /* check cursor in bounds && visible, && window has focus */
+    if (icurbnd(win->screens[win->curupd]) && win->focus) {
 
-         /* set to bottom of character bounding box */
-         b = setcaretpos(screens[curdsp]->curxg-1,
-                             screens[curdsp]->curyg-1+linespace-3);
-         /* setcaret position is always returning an error, even when correct */
-         /* if ! b  winerr */ /* process error */
+        /* set to bottom of character bounding box */
+        b = setcaretpos(win->screens[win->curdsp]->curxg-1,
+                        screens[win->curdsp]->curyg-1+win->linespace-3);
+        /* setcaret position is always returning an error, even when correct */
+        /* if (!b) winerr(); */ /* process error */
 
-      };
-      cursts(win) /* process cursor status change */
+    }
+    cursts(win); /* process cursor status change */
 
-   }
-
-};
+}
 
 /*******************************************************************************
 
@@ -2244,110 +2230,107 @@ created on the next focus event.
 
 *******************************************************************************/
 
-void chgcur(win: winptr);
-
-var b: int; /* return value */
+void chgcur(winptr win)
 
 {
 
-   with win^ do /* in window context */
-      if focus  { /* change it */
+    int b; /* return value */
 
-      b = destroycaret; /* remove text cursor */
-      if ! b  winerr; /* process error */
-      b = createcaret(winhan, 0, curspace, 3); /* activate caret */
-      if ! b  winerr; /* process error */
-      fcurdwn = FALSE; /* set cursor ! down */
-      setcur(win) /* replace it */
+    if win->focus  { /* change it */
 
-   }
+        b = DestroyCaret(); /* remove text cursor */
+        if ! b  winerr; /* process error */
+        b = createcaret(win->winhan, 0, win->curspace, 3); /* activate caret */
+        if ! b  winerr; /* process error */
+        win->fcurdwn = FALSE; /* set cursor ! down */
+        setcur(win); /* replace it */
 
-};
+    }
+
+}
 
 /*******************************************************************************
 
 Create font from current attributes
 
-Creates a font using the attrbutes in the current update screen, && sets the
+Creates a font using the attrbutes in the current update screen, and sets the
 metrics for the font.
 
 *******************************************************************************/
 
-void newfont(win: winptr);
-
-var w:  int; /* weight temp */
-    h:  int; /* height temp */
-    tm: textmetric; /* text metric structure */
-    r:  int; /* result holder */
-    sf: int; /* system fixed font object */
-    b:  int;
+void newfont(winptr win)
 
 {
 
-   with win^, screens[curupd]^ do { /* in window, screen context */
+    int        w; /* weight temp */
+    int        h; /* height temp */
+    TEXTMETRIC tm; /* text metric structure */
+    int        r; /* result holder */
+    int        sf; /* system fixed font object */
+    int        b;
+    int        attrc;
 
-      if font <> 0  { /* there is a font */
+    if (win->screens[win->curupd]->font) { /* there is a font */
 
-         /* get the current font out of the dcs */
-         sf = getstockobject(system_fixed_font);
-         if sf == 0  winerr; /* process windows error */
-         if selectobject(bdc, sf)== -1  winerr; /* process windows error */
-         if indisp(win)
-            if selectobject(devcon, sf) == -1  winerr; /* process error */
-         /* this indicates an error when there is none */
-         /* if ! deleteobject(font)  winerr; */ /* delete old font */
-         b = deleteobject(font); /* delete old font */
+       /* get the current font out of the dcs */
+       sf = GetStockBbject(SYSTEM_FIXED_FONT);
+       if (!sf) winerr(); /* process windows error */
+       if (selectobject(bdc, sf) == -1) winerr(); /* process windows error */
+       if (indisp(win)
+          if (SelectObject(devcon, sf) == -1) winerr(); /* process error */
+       /* this indicates an error when there is none */
+       /* if ! deleteobject(font)  winerr; */ /* delete old font */
+       b = DeleteObject(font); /* delete old font */
 
-      };
-      if cfont->sys  { /* select as system font */
+    }
+    if (cfont->sys) { /* select as system font */
 
-         /* select the system font */
-         sf = getstockobject(system_fixed_font);
-         if sf == 0  winerr; /* process windows error */
-         r = selectobject(bdc, sf);
-         if r == -1  winerr; /* process windows error */
-         /* select to screen dc */
-         if indisp(win)
-            if selectobject(devcon, sf) == -1  winerr; /* process error */
+       /* select the system font */
+       sf = GetStockObject(SYSTEM_FIXED_FONT);
+       if (!sf) winerr(); /* process windows error */
+       r = SelectObject(bdc, sf);
+       if (r == -1) winerr(); /* process windows error */
+       /* select to screen dc */
+       if (indisp(win))
+          if (selectobject(devcon, sf) == -1) winerr(); /* process error */
 
-      } else {
+    } else {
 
-         if sabold in attr  w = fw_bold else w = fw_regular;
-         /* set normal height || half height for subscript/superscript */
-         if (sasuper in attr) || (sasubs in attr)
-            h = trunc(gfhigh*0.75) else h = gfhigh;
-         font = createfont(h, 0, 0, 0, w, saital in attr,
-                             saundl in attr, sastkout in attr, ansi_charset,
-                             out_tt_only_precis, clip_default_precis,
-                             FQUALITY, default_PItch,
-                             cfont->fn^);
-         if font == 0  winerr; /* process windows error */
-         /* select to buffer dc */
-         r = selectobject(bdc, font);
-         if r == -1  winerr; /* process windows error */
-         /* select to screen dc */
-         if indisp(win)
-            if selectobject(devcon, font) == -1  winerr; /* process error */
+       attrc = win->screens[win->curupd]->attr; /* copy attribute */
+       if (BIT(sabold) & attrc) w = fw_bold; else w = fw_regular;
+       /* set normal height || half height for subscript/superscript */
+       if (BIT(sasuper) & attrc) || (BIT(sasubs) & attrc)
+          h = trunc(gfhigh*0.75) else h = gfhigh;
+       font = CreateFont(h, 0, 0, 0, w, BIT(saital) & attrc,
+                           BIT(saundl) & attr, BIT(sastkout) & attr, ansi_charset,
+                           out_tt_only_precis, clip_default_precis,
+                           FQUALITY, default_PItch,
+                           cfont->fn^);
+       if (!win->screens[win->curupd]->font) winerr(); /* process windows error */
+       /* select to buffer dc */
+       r = SelectObject(win->screens[win->curupd]->bdc, font);
+       if (r == -1) winerr(); /* process windows error */
+       /* select to screen dc */
+       if (indisp(win))
+          if (selectobject(win->devcon, font) == -1) winerr(); /* process error */
 
-      };
-      b = gettextmetrics(bdc, tm); /* get the standard metrics */
-      if b == FALSE  winerr; /* process windows error */
-      /* Calculate line spacing */
-      linespace = tm.tmheight;
-      lspc = linespace;
-      /* calculate character spacing */
-      charspace = tm.tmmaxcharwidth;
-      /* set cursor width */
-      curspace = tm.tmavecharwidth;
-      cspc = charspace;
-      /* calculate baseline offset */
-      baseoff = linespace-tm.tmdescent-1;
-      /* change cursor to match new font/size */
-      if indisp(win)  chgcur(win)
+    }
+    b = gettextmetrics(win->screens[win->curupd]->bdc, tm); /* get the standard metrics */
+    if (!b) winerr(); /* process windows error */
+    /* Calculate line spacing */
+    win->linespace = tm.tmheight;
+    win->screens[win->curupd]->lspc = win->linespace;
+    /* calculate character spacing */
+    win->charspace = tm.tmmaxcharwidth;
+    /* set cursor width */
+    win->curspace = tm.tmavecharwidth;
+    win->screens[win->curupd]->cspc = win->charspace;
+    /* calculate baseline offset */
+    win->baseoff = win->linespace-tm.tmdescent-1;
+    /* change cursor to match new font/size */
+    if (indisp(win)) chgcur(win);
 
-   }
-
-};
+}
 
 /*******************************************************************************
 
@@ -2358,261 +2341,252 @@ terminal.
 
 *******************************************************************************/
 
-void restore(win:   winptr;   /* window to restore */
-                  whole: int); /* whole || part window */
-
-var b:       int;    /* return value */
-    r:       int;    /* return value */
-    cr, cr2: rect;    /* client rectangle */
-    oh:      hgdiobj; /* old pen */
-    hb:      hbrush;  /* handle to brush */
-    s:       size;    /* size holder */
-    x, y:    int;    /* x && y coordinates */
+void restore(winptr win,   /* window to restore */
+             int    whole) /* whole or part window */
 
 {
 
-   /* open window && screen contexts */
-   with win^, screens[curdsp]^ do {
+    int b;        /* return value */
+    int r;        /* return value */
+    RECT cr, cr2; /* client rectangle */
+    HGDIOBJ oh;   /* old pen */
+    HBRUSH hb;    /* handle to brush */
+    SIZE s;       /* size holder */
+    int x, y;     /* x and y coordinates */
 
-      if bufmod && visible  { /* buffered mode is on, && visible */
+    if (win->bufmod && win->visible)  { /* buffered mode is on, && visible */
 
-         curoff(win); /* hide the cursor for drawing */
-         /* set colors && attributes */
-         if sarev in attr  { /* reverse */
+        curoff(win); /* hide the cursor for drawing */
+        /* set colors && attributes */
+        if (BIT(sarev) & screens[curdsp]->attr)  { /* reverse */
 
-            r = setbkcolor(devcon, fcrgb);
-            if r == -1  winerr; /* process windows error */
-            r = settextcolor(devcon, bcrgb);
-            if r == -1  winerr /* process windows error */
+            r = SetBkColor(win->devcon, screens[curdsp]->fcrgb);
+            if (r == -1) winerr(); /* process windows error */
+            r = SetTextColor(win->devcon, screens[curdsp]->bcrgb);
+            if (r == -1) winerr(); /* process windows error */
 
-         } else {
+        } else {
 
-            r = setbkcolor(devcon, bcrgb);
-            if r == -1  winerr; /* process windows error */
-            r = settextcolor(devcon, fcrgb);
-            if r == -1  winerr /* process windows error */
+            r = SetBkColor(win->devcon, screens[curdsp]->bcrgb);
+            if (r == -1) winerr(); /* process windows error */
+            r = SetTextColor(devcon, screens[curdsp]->fcrgb);
+            if (r == -1) winerr(); /* process windows error */
 
-         };
-         /* select any viewport offset to display */
-         b = setviewportorgex_n(devcon, offx, offy);
-         if ! b  winerr; /* process windows error */
-         /* select the extents */
-         b = setwindowextex(devcon, wextx, wexty, s);
-         /* if ! b  winerr; */ /* process windows error */
-         b = setviewportextex(devcon, vextx, vexty, s);
-         if ! b  winerr; /* process windows error */
-         oh = selectobject(devcon, font); /* select font to display */
-         if oh == -1  winerr; /* process windows error */
-         oh = selectobject(devcon, fpen); /* select pen to display */
-         if oh == -1  winerr; /* process windows error */
-         if whole  { /* get whole client area */
+        }
+        /* select any viewport offset to display */
+        b = SetViewportOrgEx(win->devcon, screens[curdsp]->offx, screens[curdsp]->offy, NULL);
+        if (!b)  winerr(); /* process windows error */
+        /* select the extents */
+        b = SetWindowExtEx(win->devcon, screens[curdsp]->wextx, screens[curdsp]->wexty, s);
+        /* if (!b) winerr(); */ /* process windows error */
+        b = SetViewportExtEx(win->devcon, screens[curdsp]->vextx, screens[curdsp]->vexty, s);
+        if (!b)  winerr; /* process windows error */
+        oh = SelectObject(win->devcon, screens[curdsp]->font); /* select font to display */
+        if (oh == -1) winerr(); /* process windows error */
+        oh = SelectObject(win->devcon, screens[curdsp]->fpen); /* select pen to display */
+        if (oh == -1) winerr(); /* process windows error */
+        if (whole) { /* get whole client area */
 
-            b = GetClientRect(winhan, cr);
-            if ! b  winerr; /* process windows error */
+            b = GetClientRect(win->winhan, cr);
+            if (!b) winerr(); /* process windows error */
 
-         } else /* get only update area */
-            b = GetUpdateRect(winhan, cr, FALSE);
-         /* validate it so windows won"t s} multiple notifications */
-         b = validatergn_n(winhan); /* validate region */
-         if (cr.left <> 0) || (cr.top <> 0) || (cr.right <> 0) ||
-            (cr.bottom <> 0)  { /* area is ! nil */
+        } else /* get only update area */
+            b = GetUpdateRect(win->winhan, cr, FALSE);
+        /* validate it so windows won"t s} multiple notifications */
+        b = ValidateRgn(win->winhan, NULL); /* validate region */
+        if (cr.left <> 0 || cr.top <> 0 || cr.right <> 0 || cr.bottom <> 0) {
+            /* area is ! nil */
 
             /* convert to device coordinates */
-            cr.left = cr.left+offx;
-            cr.top = cr.top+offy;
-            cr.right = cr.right+offx;
-            cr.bottom = cr.bottom+offy;
+            cr.left = cr.left+screens[curdsp]->offx;
+            cr.top = cr.top+screens[curdsp]->offy;
+            cr.right = cr.right+screens[curdsp]->offx;
+            cr.bottom = cr.bottom+screens[curdsp]->offy;
             /* clip update rectangle to buffer */
-            if (cr.left <== gmaxxg) || (cr.bottom <== gmaxyg)  {
+            if (cr.left <= win->gmaxxg || cr.bottom <= win->gmaxyg)  {
 
-               /* It"s within the buffer. Now clip the right && bottom. */
-               x = cr.right; /* copy right && bottom sides */
-               y = cr.bottom;
-               if x > gmaxxg  x = gmaxxg;
-               if y > gmaxyg  y = gmaxyg;
-               /* copy backing bitmap to screen */
-               b = bitblt(devcon, cr.left, cr.top, x-cr.left+1,
-                              y-cr.top+1, bdc, cr.left, cr.top,
-                              srccopy)
+                /* It"s within the buffer. Now clip the right && bottom. */
+                x = cr.right; /* copy right && bottom sides */
+                y = cr.bottom;
+                if (x > win->gmaxxg) x = win->gmaxxg;
+                if (y > win->gmaxyg) y = win->gmaxyg;
+                /* copy backing bitmap to screen */
+                b = BitBlt(win->devcon, cr.left, cr.top, x-cr.left+1,
+                           y-cr.top+1, bdc, cr.left, cr.top, SRCCOPY);
 
-            };
+            }
             /* Now fill the right && left sides of the client beyond the
-              bitmap. */
-            hb = createsolidbrush(bcrgb); /* get a brush for background */
-            if hb == 0  winerr; /* process windows error */
-            /* check right side fill */
-            cr2 = cr; /* copy update rectangle */
-            /* subtract overlapPIng space */
-            if cr2.left <== gmaxxg  cr2.left = gmaxxg;
-            if cr2.left <== cr2.right  /* still has width */
-               b = fillrect(devcon, cr2, hb);
-            /* check bottom side fill */
-            cr2 = cr; /* copy update rectangle */
-            /* subtract overlapPIng space */
-            if cr2.top <== gmaxyg  cr2.top = gmaxyg;
-            if cr2.top <== cr2.bottom  /* still has height */
-               b = fillrect(devcon, cr2, hb);
+               bitmap. */
+           hb = CreateSolidBrush(screens[curdsp]->bcrgb); /* get a brush for background */
+           if (hb == 0) winerr(); /* process windows error */
+           /* check right side fill */
+           cr2 = cr; /* copy update rectangle */
+           /* subtract overlapPIng space */
+           if (cr2.left <= win->gmaxxg) cr2.left = win->gmaxxg;
+           if (cr2.left <= cr2.right) /* still has width */
+                b = FillRect(win->devcon, cr2, hb);
+           /* check bottom side fill */
+           cr2 = cr; /* copy update rectangle */
+           /* subtract overlapPIng space */
+           if (cr2.top <= win->gmaxyg) cr2.top = win->gmaxyg;
+           if (cr2.top <= cr2.bottom) /* still has height */
+                b = FillRect(win->devcon, cr2, hb);
+            b = DeleteObject(hb); /* free the brush */
+            if (!b)  winerr; /* process windows error */
 
-            b = deleteobject(hb); /* free the brush */
-            if ! b  winerr; /* process windows error */
+        }
+        setcur(win); /* show the cursor */
 
-         };
-         setcur(win) /* show the cursor */
+    }
 
-      }
-
-   }
-
-};
+}
 
 /*******************************************************************************
 
 Display window
 
-Presents a window, && s}s it a first paint message. Used to process the
+Presents a window, and sends it a first paint message. Used to process the
 delayed window display function.
 
 *******************************************************************************/
 
-void winvis(win: winptr);
-
-var b:   int; /* int result holder */
-    par: winptr;  /* parent window pointer */
+void winvis(winptr win)
 
 {
 
-   /* If we are making a child window visible, we have to also force its
-     parent visible. This is recursive all the way up. */
-   if win->parlfn <> 0  {
+    int    b;   /* int result holder */
+    winptr par; /* parent window pointer */
 
-      par = lfn2win(win->parlfn); /* get parent data */
-      if ! par->visible  winvis(par) /* make visible if ! */
+    /* If we are making a child window visible, we have to also force its
+       parent visible. This is recursive all the way up. */
+    if (win->parlfn) {
 
-   };
-   unlockmain; /* } exclusive access */
-   /* present the window */
-   b = showwindow(win->winhan, sw_showdefault);
-   /* s} first paint message */
-   b = updatewindow(win->winhan);
-   lockmain; /* start exclusive access */
-   win->visible = TRUE; /* set now visible */
-   restore(win, TRUE) /* restore window */
+        par = lfn2win(win->parlfn); /* get parent data */
+        if (!par->visible) winvis(par); /* make visible if ! */
 
-};
+    }
+    unlockmain(); /* end exclusive access */
+    /* present the window */
+    b = ShowWindow(win->winhan, sw_showdefault);
+    /* send first paint message */
+    b = UpdateWindow(win->winhan);
+    lockmain(); /* start exclusive access */
+    win->visible = TRUE; /* set now visible */
+    restore(win, TRUE) /* restore window */
+
+}
 
 /*******************************************************************************
 
 Initalize screen
 
 Clears all the parameters in the present screen context. Also, the backing
-buffer bitmap is created && cleared to the present colors.
+buffer bitmap is created and cleared to the present colors.
 
 *******************************************************************************/
 
-void iniscn(win: winptr; sc: scnptr);
-
-var i, x: int;
-    hb: hbitmap;
-    lb: logbrush;
+void iniscn(winptr win, scnptr sc)
 
 {
 
-   with win^, sc^ do { /* with current window context */
+    int      i, x;
+    HBITMAP  hb;
+    LOGBRUSH lb;
 
-      maxx = gmaxx; /* set character dimensions */
-      maxy = gmaxy;
-      maxxg = gmaxxg; /* set PIxel dimensions */
-      maxyg = gmaxyg;
-      curx = 1; /* set cursor at home */
-      cury = 1;
-      curxg = 1;
-      curyg = 1;
-      /* We set the progressive cursors to the origin, which is pretty much
-        arbitrary. Nobody should do progressive figures having never done
-        a previous full figure. */
-      lcurx = 1;
-      lcury = 1;
-      tcurs = FALSE; /* set strip flip cursor state */
-      tcurx1 = 1;
-      tcury1 = 1;
-      tcurx2 = 1;
-      tcury2 = 1;
-      fcrgb = gfcrgb; /* set colors && attributes */
-      bcrgb = gbcrgb;
-      attr = gattr;
-      auto = gauto; /* set auto scroll && wrap */
-      curv = gcurv; /* set cursor visibility */
-      lwidth = 1; /* set single PIxel width */
-      font = 0; /* set no font active */
-      cfont = gcfont; /* set current font */
-      fmod = gfmod; /* set mix modes */
-      bmod = gbmod;
-      offx = goffx; /* set viewport offset */
-      offy = goffy;
-      wextx = gwextx; /* set extents */
-      wexty = gwexty;
-      vextx = gvextx;
-      vexty = gvexty;
-      /* create a matching device context */
-      bdc = createcompatibledc(devcon);
-      if bdc == 0  winerr; /* process windows error */
-      /* create a bitmap for that */
-      hb = createcompatiblebitmap(devcon, gmaxxg, gmaxyg);
-      if hb == 0  winerr; /* process windows error */
-      bhn = selectobject(bdc, hb); /* select bitmap into dc */
-      if bhn == -1  winerr; /* process windows error */
-      newfont(win); /* create font for buffer */
-      /* set non-braindamaged stretch mode */
-      r = setstretchbltmode(screens[curupd]->bdc, halftone);
-      if r == 0  winerr; /* process windows error */
-      /* set pen to foreground */
-      lb.lbstyle = bs_solid;
-      lb.lbcolor = fcrgb;
-      lb.lbhatch = 0;
-      fpen = extcreatepen_nn(FPENSTL, lwidth, lb);
-      if fpen == 0  winerr; /* process windows error */
-      r = selectobject(bdc, fpen);
-      if r == -1  winerr; /* process windows error */
-      /* set brush to foreground */
-      fbrush = createsolidbrush(fcrgb);
-      if fbrush == 0  winerr; /* process windows error */
-      /* remove fills */
-      r = selectobject(bdc, getstockobject(null_brush));
-      if r == -1  winerr; /* process windows error */
-      /* set single PIxel pen to foreground */
-      fspen = createpen(FSPENSTL, 1, fcrgb);
-      if fspen == 0  winerr; /* process windows error */
-      /* set colors && attributes */
-      if sarev in attr  { /* reverse */
+    sc->maxx = win->gmaxx; /* set character dimensions */
+    sc->maxy = win->gmaxy;
+    sc->maxxg = win->gmaxxg; /* set PIxel dimensions */
+    sc->maxyg = win->gmaxyg;
+    sc->curx = 1; /* set cursor at home */
+    sc->cury = 1;
+    sc->curxg = 1;
+    sc->curyg = 1;
+    /* We set the progressive cursors to the origin, which is pretty much
+       arbitrary. Nobody should do progressive figures having never done
+       a previous full figure. */
+    sc->lcurx = 1;
+    sc->lcury = 1;
+    sc->tcurs = FALSE; /* set strip flip cursor state */
+    sc->tcurx1 = 1;
+    sc->tcury1 = 1;
+    sc->tcurx2 = 1;
+    sc->tcury2 = 1;
+    sc->fcrgb = win->gfcrgb; /* set colors && attributes */
+    sc->bcrgb = win->gbcrgb;
+    sc->attr = win->gattr;
+    sc->autof = win->gauto; /* set auto scroll && wrap */
+    sc->curv = win->gcurv; /* set cursor visibility */
+    sc->lwidth = 1; /* set single PIxel width */
+    sc->font = 0; /* set no font active */
+    sc->cfont = win->gcfont; /* set current font */
+    sc->fmod = win->gfmod; /* set mix modes */
+    sc->bmod = win->gbmod;
+    sc->offx = win->goffx; /* set viewport offset */
+    sc->offy = win->goffy;
+    sc->wextx = win->gwextx; /* set extents */
+    sc->wexty = win->gwexty;
+    sc->vextx = win->gvextx;
+    sc->vexty = win->gvexty;
+    /* create a matching device context */
+    bdc = CreateCompatibleDC(win->devcon);
+    if (!bdc) winerr(); /* process windows error */
+    /* create a bitmap for that */
+    hb = CreateCompatibleBitMap(win->devcon, win->gmaxxg, win->gmaxyg);
+    if (!hb) winerr(); /* process windows error */
+    sc->bhn = SelectObject(sc->bdc, hb); /* select bitmap into dc */
+    if (sc->bhn == -1) winerr(); /* process windows error */
+    newfont(win); /* create font for buffer */
+    /* set non-braindamaged stretch mode */
+    r = setstretchbltmode(screens[curupd]->bdc, HALFTONE);
+    if (!r) winerr(); /* process windows error */
+    /* set pen to foreground */
+    lb.lbstyle = bs_solid;
+    lb.lbcolor = fcrgb;
+    lb.lbhatch = 0;
+    sc->fpen = ExtCreatePen_nn(FPENSTL, sc->lwidth, lb);
+    if (!sc->fpen) winerr(); /* process windows error */
+    r = selectobject(bdc, fpen);
+    if (r == -1) winerr(); /* process windows error */
+    /* set brush to foreground */
+    sc->fbrush = CreateSolidBrush(fcrgb);
+    if (!sc->fbrush) winerr(); /* process windows error */
+    /* remove fills */
+    r = SelectObject(bdc, GetStockObject(NULL_BRUSH));
+    if (r == -1) winerr(); /* process windows error */
+    /* set single pixel pen to foreground */
+    sc->fspen = CreatePen(FSPENSTL, 1, sc->fcrgb);
+    if (!sc->fspen) winerr(); /* process windows error */
+    /* set colors && attributes */
+    if (BIT(sarev) & sc->attr) { /* reverse */
 
-         r = setbkcolor(bdc, fcrgb);
-         if r == -1  winerr; /* process windows error */
-         r = settextcolor(bdc, bcrgb);
-         if r == -1  winerr /* process windows error */
+       r = SetBkColor(sc->bdc, sc->fcrgb);
+       if (r == -1) winerr(); /* process windows error */
+       r = SetTextColor(sc->bdc, sc->bcrgb);
+       if (r == -1) winerr(); /* process windows error */
 
-      } else {
+    } else {
 
-         r = setbkcolor(bdc, bcrgb);
-         if r == -1  winerr; /* process windows error */
-         r = settextcolor(bdc, fcrgb);
-         if r == -1  winerr /* process windows error */
+       r = SetBkColor(bdc, sc->bcrgb);
+       if (r == -1) winerr(); /* process windows error */
+       r = SetTextColor(bdc, sc->fcrgb);
+       if (r == -1) winerr(); /* process windows error */
 
-      };
-      clrbuf(win, sc); /* clear screen buffer with that */
-      /* set up tabbing to be on each 8th position */
-      i = 9; /* set 1st tab position */
-      x = 1; /* set 1st tab slot */
-      while (i < maxx) && (x < MAXTAB) do {
+    }
+    clrbuf(win, sc); /* clear screen buffer with that */
+    /* set up tabbing to be on each 8th position */
+    i = 9; /* set 1st tab position */
+    x = 1; /* set 1st tab slot */
+    while (i < sc->maxx && x < MAXTAB) {
 
-         tab[x] = (i-1)*charspace+1;  /* set tab */
-         i = i+8; /* next tab */
-         x = x+1
+       sc->tab[x] = (i-1)*charspace+1;  /* set tab */
+       i = i+8; /* next tab */
+       x = x+1
 
-      }
+    }
 
    }
 
-};
+}
 
 /*******************************************************************************
 
@@ -2704,12 +2678,12 @@ var dx, dy, dw, dh: int;   /* destination coordinates && sizes */
    with win^ do { /* in window context */
 
       /* scroll would result in complete clear, do it */
-      if (x <== -gmaxxg) || (x >== gmaxxg) || (y <== -gmaxyg) || (y >== gmaxyg)
+      if (x <= -gmaxxg) || (x >= gmaxxg) || (y <= -gmaxyg) || (y >= gmaxyg)
          iclear(win) /* clear the screen buffer */
       else { /* scroll */
 
          /* set y movement */
-         if y >== 0  { /* move up */
+         if y >= 0  { /* move up */
 
             sy = y; /* from y lines down */
             dy = 0; /* move to top of screen */
@@ -2731,7 +2705,7 @@ var dx, dy, dw, dh: int;   /* destination coordinates && sizes */
 
          };
          /* set x movement */
-         if x >== 0  { /* move text left */
+         if x >= 0  { /* move text left */
 
             sx = x; /* from x characters to the right */
             dx = 0; /* move to left side */
@@ -4297,7 +4271,7 @@ var b:   int; /* int return */
       else if c == "\bs"  ileft(win) /* back space, move left */
       else if c == "\ff"  iclear(win) /* clear screen */
       else if c == "\ht"  itab(win) /* process tab */
-      else if (c >== " ") && (c <> chr(0x7f))  /* character is visible */
+      else if (c >= " ") && (c <> chr(0x7f))  /* character is visible */
          with screens[curupd]^ do {
 
          off = 0; /* set no subscript offset */
@@ -5746,7 +5720,7 @@ var fp: fontptr; /* pointer to font entries */
 
    with win^ do { /* in window context */
 
-      if fc <== 0  error(einvftn); /* invalid number */
+      if fc <= 0  error(einvftn); /* invalid number */
       fp = fntlst; /* index top of list */
       while fc > 1 do { /* walk fonts */
 
@@ -6131,7 +6105,7 @@ var off: int; /* offset to character */
 
          w = istrsiz(win, s); /* find minimum character spacing */
          /* if allowed is less than the min, return nominal spacing */
-         if n <== w  off = ichrpos(win, s, p) else {
+         if n <= w  off = ichrpos(win, s, p) else {
 
             /* find justified spacing */
             ra.lstructsize = gcp_results_len; /* set length of record */
@@ -6691,8 +6665,8 @@ void prtmsgstr(mn: int);
 
    prtnum(mn, 4, 16);
    prtstr(": ");
-   if (mn >== 0x800) && (mn <== 0xbfff)  prtstr("User message")
-   else if (mn >== 0xc000) && (mn <== 0xffff)  prtstr("Registered message")
+   if (mn >= 0x800) && (mn <= 0xbfff)  prtstr("User message")
+   else if (mn >= 0xc000) && (mn <= 0xffff)  prtstr("Registered message")
    else case mn of
 
       0x0000: prtstr("WM_NULL");
@@ -7027,7 +7001,7 @@ void ctlevent;
 
    with win^ do { /* in window context */
 
-      if msg.wparam <== 0xff
+      if msg.wparam <= 0xff
          /* limited to codes we can put in a set */
          if msg.wparam in
             [vk_home, vk_}, vk_left, vk_right,
@@ -7510,7 +7484,7 @@ var cr:         rect; /* client rectangle */
       } else if msg.message == wm_timer  {
 
          /* check its a standard timer */
-         if (msg.wparam > 0) && (msg.wparam <== MAXTIM)  {
+         if (msg.wparam > 0) && (msg.wparam <= MAXTIM)  {
 
             er.etype = ettim; /* set timer event occurred */
             er.timnum = msg.wparam; /* set what timer */
@@ -8019,7 +7993,7 @@ var fn: ss_filhdl; /* logical file number */
    fn = usr / MAXTIM; /* get lfn multiplexed in user data */
    /* Validate it, but do nothing if wrong. We just don"t want to crash on
      errors here. */
-   if (fn >== 1) && (fn <== ss_MAXFIL)  /* valid lfn */
+   if (fn >= 1) && (fn <= ss_MAXFIL)  /* valid lfn */
       if opnfil[fn] <> nil  /* file is defined */
          if opnfil[fn]->win <> nil  { /* file has window context */
 
@@ -8061,7 +8035,7 @@ var tf: int; /* timer flags */
 
       if (i < 1) || (i > MAXTIM)  error(etimnum); /* bad timer number */
       mt = t / 10; /* find millisecond time */
-      if mt == 0  mt = 1; /* fell below minimum, must be >== 1 */
+      if mt == 0  mt = 1; /* fell below minimum, must be >= 1 */
       /* set flags for timer */
       tf = time_callback_int || time_kill_synchronous;
       /* set repeat/one shot status */
@@ -12762,7 +12736,7 @@ var r:   int;   /* result */
             v = intv(s, err); /* get value */
              /* Send edit sends cr message to parent window, with widget logical
                number embedded as wparam. */
-            if ! err && (v >== wp->low) && (v <== wp->high)
+            if ! err && (v >= wp->low) && (v <= wp->high)
                putmsg(wh, UMNUMCR, wp->id, v) /* s} select message */
             else
                /* S} the message on to its owner, this will ring the bell in
