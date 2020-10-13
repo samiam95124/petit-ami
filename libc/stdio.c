@@ -842,10 +842,6 @@ r+b Open binary file for read or write.
 w+b Open binary file for read or write, truncate existing file.
 a+b Open binary file for read or write at end.
 
-glibc extensions:
-
-e   Pass through execs. We support this because it's used by GTK.
-
 In this implementation, the characters can appear in any order, and extra
 characters or duplicates are ignored.
 
@@ -1059,6 +1055,9 @@ low level file descriptor to allow stream file operations on it.
 The mode must be compatible with the mode of the file descriptor.
 
 BUGS/ISSUES:
+
+1. Mingw does not implement fcntl() F_GETFL command, so we cannot check modes
+are compatible.
 
 *******************************************************************************/
 
