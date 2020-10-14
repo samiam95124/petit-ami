@@ -1007,11 +1007,11 @@ void grawrterr(char* es)
 
 {
 
-    unlockmain; /* } exclusive access */
+    unlockmain(); /* } exclusive access */
     prtstr("\nError: Graph: ");
     prtstr(es);
     prtstr("\n");
-    lockmain; /* resume exclusive access */
+    lockmain(); /* resume exclusive access */
 
 };
 
@@ -1045,7 +1045,7 @@ void abort(void)
         }
 
     }
-    unlockmain /* } exclusive access */
+    unlockmain(); /* end exclusive access */
 
 }
 
@@ -1154,11 +1154,11 @@ static void winerr(void)
                   MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
                   (LPTSTR)&lpMsgBuf,
                   0, NULL);
-    unlockmain; /* } exclusive access */
+    unlockmain(); /* } exclusive access */
     prtstr("\nError: Graph: Windows error: ");
     prtstr(lpMsgBuf);
     prtstr("\n");
-    lockmain; /* resume exclusive access */
+    lockmain(); /* resume exclusive access */
 
     abort(); /* abort module */
 
@@ -1684,7 +1684,7 @@ is valid.
 
 *******************************************************************************/
 
-int txt2lfn(var f: text): ss_filhdl;
+int txt2lfn(FILE* f): ss_filhdl;
 
 {
 
@@ -1900,7 +1900,7 @@ int colnum(pa_color c)
 
 Translate color to rgb
 
-Translates colors to rgb, in ratioed maxint form.
+Translates colors to rgb, in ratioed INT_MAX form.
 
 *******************************************************************************/
 
@@ -1912,13 +1912,13 @@ void colrgb(pa_color c, int* r, int* g, int* b)
    switch (c) { /* color */
 
       case pa_black:     { *r = 0; *g = 0; *b = 0; }
-      case pa_white:     { *r = maxint; *g = maxint; *b = maxint; }
-      case pa_red:       { *r = maxint; *g = 0; *b = 0; }
-      case pa_green:     { *r = 0; *g = maxint; *b = 0; }
-      case pa_blue:      { *r = 0; *g = 0; *b = maxint; }
-      case pa_cyan:      { *r = 0; *g = maxint; *b = maxint; }
-      case pa_yellow:    { *r = maxint; *g = maxint; *b = 0; }
-      case pa_magenta:   { *r = maxint; *g = 0; *b = maxint; }
+      case pa_white:     { *r = INT_MAX; *g = INT_MAX; *b = INT_MAX; }
+      case pa_red:       { *r = INT_MAX; *g = 0; *b = 0; }
+      case pa_green:     { *r = 0; *g = INT_MAX; *b = 0; }
+      case pa_blue:      { *r = 0; *g = 0; *b = INT_MAX; }
+      case pa_cyan:      { *r = 0; *g = INT_MAX; *b = INT_MAX; }
+      case pa_yellow:    { *r = INT_MAX; *g = INT_MAX; *b = 0; }
+      case pa_magenta:   { *r = INT_MAX; *g = 0; *b = INT_MAX; }
       case pa_backcolor: { *r = 0xea*0x800000; *g = 0xe9*0x800000;
                            *b = 0xd8*0x800000; }
 
@@ -1930,7 +1930,7 @@ void colrgb(pa_color c, int* r, int* g, int* b)
 
 Translate rgb to color
 
-Translates rgb to color, in ratioed maxint form. Works by choosing the nearest
+Translates rgb to color, in ratioed INT_MAX form. Works by choosing the nearest
 colors.
 
 *******************************************************************************/
@@ -1939,14 +1939,14 @@ void rgbcol(int r, int g, int b, pa_color* c)
 
 {
 
-   if (r < maxint/2 && g < maxint/2 && b < maxint/2) *c = pa_black;
-   else if (r >= maxint/2 && g < maxint/2 && b < maxint/2) *c = pa_red;
-   else if (r < maxint/2 && g >= maxint/2 && b < maxint/2) *c = pa_green;
-   else if (r < maxint/2 && g < maxint/2 && b >= maxint/2) *c = pa_blue;
-   else if (r < maxint/2 && g >= maxint/2 && b >= maxint/2) *c = pa_cyan;
-   else if (r >= maxint/2 && g >= maxint/2 && b < maxint/2) *c = pa_yellow;
-   else if (r >= maxint/2 && g < maxint/2 && b >= maxint/2) *c = pa_magenta;
-   else if (r >= maxint/2 && g >= maxint/2 && b >= maxint/2) *c = pa_white;
+   if (r < INT_MAX/2 && g < INT_MAX/2 && b < INT_MAX/2) *c = pa_black;
+   else if (r >= INT_MAX/2 && g < INT_MAX/2 && b < INT_MAX/2) *c = pa_red;
+   else if (r < INT_MAX/2 && g >= INT_MAX/2 && b < INT_MAX/2) *c = pa_green;
+   else if (r < INT_MAX/2 && g < INT_MAX/2 && b >= INT_MAX/2) *c = pa_blue;
+   else if (r < INT_MAX/2 && g >= INT_MAX/2 && b >= INT_MAX/2) *c = pa_cyan;
+   else if (r >= INT_MAX/2 && g >= INT_MAX/2 && b < INT_MAX/2) *c = pa_yellow;
+   else if (r >= INT_MAX/2 && g < INT_MAX/2 && b >= INT_MAX/2) *c = pa_magenta;
+   else if (r >= INT_MAX/2 && g >= INT_MAX/2 && b >= INT_MAX/2) *c = pa_white;
    else error(esystem); /* should have been one of those */
 
 }
@@ -1955,7 +1955,7 @@ void rgbcol(int r, int g, int b, pa_color* c)
 
 Translate rgb to windows color
 
-Translates a ratioed maxint gralib color to the windows form, which is a 32
+Translates a ratioed INT_MAX gralib color to the windows form, which is a 32
 bit word with blue, green && red bytes.
 
 *******************************************************************************/
@@ -1972,7 +1972,7 @@ int rgb2win(int r, int g, int b)
 
 Translate windows color to rgb color
 
-Translates a windows int color to our ratioed maxint rgb color.
+Translates a windows int color to our ratioed INT_MAX rgb color.
 
 *******************************************************************************/
 
@@ -3025,46 +3025,47 @@ Moves the cursor position up one line.
 
 *******************************************************************************/
 
-void iup(win: winptr);
+void iup(winptr win)
 
 {
 
-   with win^, screens[curupd]^ do { /* in window, screen contexts */
+    scnptr sc;
 
-      /* check ! top of screen */
-      if cury > 1  {
+    sc = win->screens[curupd];
+    /* check ! top of screen */
+    if (sc->cury > 1) {
 
-         cury = cury-1; /* update position */
-         curyg = curyg-linespace
+        /* update position */
+        sc->cury = sc->cury-1;
+        sc->curyg = sc->curyg-win->linespace;
 
-      /* check auto mode */
-      } else if auto
-         iscrollg(win, 0*charspace, -1*linespace) /* scroll up */
-      /* check won"t overflow */
-      else if cury > -maxint  {
+    /* check auto mode */
+    } else if (sc->autof)
+        iscrollg(win, 0*win->charspace, -1*win->linespace); /* scroll up */
+    /* check won't overflow */
+    else if (sc->cury > -INT_MAX) {
 
-         cury = cury-1; /* set new position */
-         curyg = curyg-linespace
+        /* set new position */
+        sc->cury = sc->cury-1;
+        sc->curyg = sc->curyg-win->linespace;
 
-      };
-      if indisp(win)  setcur(win) /* set cursor on screen */
+    }
+    if indisp(win) setcur(win) /* set cursor on screen */
 
-   }
+}
 
-};
-
-void up(var f: text);
-
-var win: winptr; /* windows record pointer */
+void up(FILE* f)
 
 {
 
-   lockmain; /* start exclusive access */
-   win = txt2win(f); /* get window from file */
-   iup(win); /* move up */
-   unlockmain /* } exclusive access */
+    winptr win; /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    iup(win); /* move up */
+    unlockmain(); /* } exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -3074,45 +3075,44 @@ Moves the cursor position down one line.
 
 *******************************************************************************/
 
-void idown(win: winptr);
+void idown(winptr win)
 
 {
 
-   with win^, screens[curupd]^ do { /* in window, screen contexts */
+    scnptr sc;
 
-      /* check ! bottom of screen */
-      if cury < maxy  {
+    sc = screens[curupd];
+    /* check ! bottom of screen */
+    if (sc->cury < sc->maxy) {
 
-         cury = cury+1; /* update position */
-         curyg = curyg+linespace
+       sc->cury = sc->cury+1; /* update position */
+       sc->curyg = sc->curyg+win->linespace;
 
-      /* check auto mode */
-      } else if auto
-         iscrollg(win, 0*charspace, +1*linespace) /* scroll down */
-      else if cury < maxint  {
+    /* check auto mode */
+    } else if (sc->autof)
+       iscrollg(win, 0*win->charspace, +1*win->linespace); /* scroll down */
+    else if (sc->cury < INT_MAX) {
 
-         cury = cury+1; /* set new position */
-         curyg = curyg+linespace
+       sc->cury = sc->cury+1; /* set new position */
+       sc->curyg = sc->curyg+win->linespace;
 
-      };
-      if indisp(win)  setcur(win) /* set cursor on screen */
+    }
+    if (indisp(win)) setcur(win); /* set cursor on screen */
 
-   }
+}
 
-};
-
-void down(var f: text);
-
-var win: winptr; /* windows record pointer */
+void down(winptr win)
 
 {
 
-   lockmain; /* start exclusive access */
-   win = txt2win(f); /* get window from file */
-   idown(win); /* move cursor down */
-   unlockmain /* } exclusive access */
+    winptr win; /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    idown(win); /* move cursor down */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -3120,58 +3120,58 @@ Move cursor left internal
 
 Moves the cursor one character left. If the cursor is at the extreme left and
 auto mode is on, the cursor will wrap to the right, up one line, otherwise
-the cursor will move into negative space, limited only by maxint.
+the cursor will move into negative space, limited only by INT_MAX.
 
 *******************************************************************************/
 
-void ileft(win: winptr);
+void ileft(winptr win)
 
 {
 
-   with win^, screens[curupd]^ do { /* in window, screen contexts */
+    scnptr sc;
 
-      /* check ! extreme left */
-      if curx > 1  {
+    sc = screens[curupd];
 
-         curx = curx-1; /* update position */
-         curxg = curxg-charspace
+    /* check ! extreme left */
+    if sc->curx > 1  {
 
-      } else { /* wrap cursor motion */
+       sc->curx = sc->curx-1; /* update position */
+       sc->curxg = sc->curxg-win->charspace;
 
-         if auto  { /* autowrap is on */
+    } else { /* wrap cursor motion */
 
-            iup(win); /* move cursor up one line */
-            curx = maxx; /* set cursor to extreme right */
-            curxg = maxxg-charspace
+       if (sc->auto)  { /* autowrap is on */
 
-         } else
-            /* check won"t overflow */
-            if curx > -maxint  {
+          iup(win); /* move cursor up one line */
+          sc->curx = sc->maxx; /* set cursor to extreme right */
+          sc->curxg = sc->maxxg-win->charspace;
 
-            curx = curx-1; /* update position */
-            curxg = curxg-charspace
+       } else
+          /* check won"t overflow */
+          if sc->curx > -INT_MAX  {
 
-         }
+          sc->curx = sc->curx-1; /* update position */
+          sc->curxg = sc->curxg-win->charspace;
 
-      };
-      if indisp(win)  setcur(win) /* set cursor on screen */
+       }
 
-   }
+    }
+    if (indisp(win)) setcur(win); /* set cursor on screen */
 
-};
+}
 
-void left(var f: text);
-
-var win: winptr; /* windows record pointer */
+void left(FILE* f)
 
 {
 
-   lockmain; /* start exclusive access */
-   win = txt2win(f); /* get window from file */
-   ileft(win); /* move cursor left */
-   unlockmain /* } exclusive access */
+    winptr win; /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    ileft(win); /* move cursor left */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -3181,53 +3181,53 @@ Moves the cursor one character right.
 
 *******************************************************************************/
 
-void iright(win: winptr);
+void iright(winptr win);
 
 {
 
-   with win^, screens[curupd]^ do { /* in window, screen contexts */
+    scnptr sc;
 
-      /* check ! at extreme right */
-      if curx < MAXXD  {
+    sc = screens[curupd];
 
-         curx = curx+1; /* update position */
-         curxg = curxg+charspace
+    /* check ! at extreme right */
+    if (sc->curx < MAXXD) {
 
-      } else { /* wrap cursor motion */
+       sc->curx = sc->curx+1; /* update position */
+       sc->curxg = sc->curxg+win->charspace;
 
-         if auto  { /* autowrap is on */
+    } else { /* wrap cursor motion */
 
-            idown(win); /* move cursor up one line */
-            curx = 1; /* set cursor to extreme left */
-            curxg = 1
+       if (sc->autof)  { /* autowrap is on */
 
-         /* check won"t overflow */
-         } else if curx < maxint  {
+          idown(win); /* move cursor up one line */
+          sc->curx = 1; /* set cursor to extreme left */
+          sc->curxg = 1;
 
-            curx = curx+1; /* update position */
-            curxg = curxg+charspace
+       /* check won"t overflow */
+       } else (if sc->curx < INT_MAX)  {
 
-         }
+          sc->curx = sc->curx+1; /* update position */
+          sc->curxg = sc->curxg+win->charspace;
 
-      };
-      if indisp(win)  setcur(win) /* set cursor on screen */
+       }
 
-   }
+    }
+    if indisp(win)  setcur(win) /* set cursor on screen */
 
-};
+}
 
-void right(var f: text);
-
-var win: winptr; /* windows record pointer */
+void right(FILE* f);
 
 {
 
-   lockmain; /* start exclusive access */
-   win = txt2win(f); /* get window from file */
-   iright(win); /* move cursor right */
-   unlockmain /* } exclusive access */
+    winptr win; /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    iright(win); /* move cursor right */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -3239,32 +3239,31 @@ cursor is moved to the tab stop.
 
 *******************************************************************************/
 
-void itab(win: winptr);
-
-var i: 1..MAXTAB;
-    x: int;
+void itab(winptr win);
 
 {
 
-   with win^, screens[curupd]^ do { /* in window, screen contexts */
+    int i;
+    int x;
+    scnptr sc;
 
-      /* first, find if next tab even exists */
-      x = curxg+1; /* get just after the current x position */
-      if x < 1  x = 1; /* don"t bother to search to left of screen */
-      /* find tab || } of screen */
-      i = 1; /* set 1st tab position */
-      while (x > tab[i]) && (tab[i] <> 0) && (i < MAXTAB) do i = i+1;
-      if (tab[i] <> 0) && (x < tab[i])  { /* ! off right of tabs */
+    sc = screens[curupd];
 
-         curxg = tab[i]; /* set position to that tab */
-         curx = curxg / charspace+1;
-         if indisp(win)  setcur(win) /* set cursor on screen */
+    /* first, find if next tab even exists */
+    x = sc->curxg+1; /* get just after the current x position */
+    if x < 1  x = 1; /* don"t bother to search to left of screen */
+    /* find tab || } of screen */
+    i = 1; /* set 1st tab position */
+    while (x > sc->tab[i] && sc->tab[i] && i < MAXTAB) do i++;
+    if (sc->tab[i] && x < sc->tab[i])  { /* not off right of tabs */
 
-      }
+       sc->curxg = sc->tab[i]; /* set position to that tab */
+       sc->curx = sc->curxg/win->charspace+1;
+       if indisp(win) setcur(win); /* set cursor on screen */
 
-   }
+    }
 
-};
+}
 
 /*******************************************************************************
 
@@ -3276,14 +3275,13 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void blink(var f: text; e: int);
+void blink(FILE* f, int e)
 
 {
 
-   refer(f, e); /* stub out */
    /* no capability */
 
-};
+}
 
 /*******************************************************************************
 
@@ -3294,70 +3292,68 @@ and foreground writing colors.
 
 *******************************************************************************/
 
-void ireverse(win: winptr; e: int);
-
-var r: int; /* return value */
+void ireverse(winptr win, int e)
 
 {
 
-   with win^, screens[curupd]^ do { /* in window, screen contexts */
+    int r; /* return value */
+    scnptr sc;
 
-      if e  { /* reverse on */
+    sc = screens[curupd];
+    if (e) { /* reverse on */
 
-         attr = attr+[sarev]; /* set attribute active */
-         gattr = gattr+[sarev];
-         /* activate in buffer */
-         r = settextcolor(bdc, bcrgb);
-         if r == -1  winerr(); /* process windows error */
-         r = setbkcolor(bdc, fcrgb);
-         if r == -1  winerr(); /* process windows error */
-         if indisp(win)  { /* activate on screen */
+        sc->attr = sc->attr+[sarev]; /* set attribute active */
+        sc->gattr = sc->gattr+[sarev];
+        /* activate in buffer */
+        r = settextcolor(sc->bdc, sc->bcrgb);
+        if (r == -1) winerr(); /* process windows error */
+        r = setbkcolor(sc->bdc, sc->fcrgb);
+        if (r == -1) winerr(); /* process windows error */
+        if (indisp(win)) { /* activate on screen */
 
             /* reverse the colors */
-            r = settextcolor(devcon, bcrgb);
-            if r == -1  winerr(); /* process windows error */
-            r = setbkcolor(devcon, fcrgb);
-            if r == -1  winerr /* process windows error */
+            r = settextcolor(win->devcon, sc->bcrgb);
+            if (r == -1) winerr(); /* process windows error */
+            r = setbkcolor(win->devcon, sc->fcrgb);
+            if (r == -1) winerr(); /* process windows error */
 
-         }
+        }
 
-      } else { /* turn it off */
+    } else { /* turn it off */
 
-         attr = attr-[sarev]; /* set attribute inactive */
-         gattr = attr-[sarev];
-         /* activate in buffer */
-         r = settextcolor(bdc, fcrgb);
-         if r == -1  winerr(); /* process windows error */
-         r = setbkcolor(bdc, bcrgb);
-         if r == -1  winerr(); /* process windows error */
-         if indisp(win)  { /* activate on screen */
+        sc->attr = sc->attr-[sarev]; /* set attribute inactive */
+        win->gattr = sc->attr-[sarev];
+        /* activate in buffer */
+        r = settextcolor(sc->bdc, sc->fcrgb);
+        if (r == -1) winerr(); /* process windows error */
+        r = setbkcolor(sc->bdc, sc->bcrgb);
+        if (r == -1) winerr(); /* process windows error */
+        if (indisp(win)) { /* activate on screen */
 
             /* set normal colors */
-            r = settextcolor(devcon, fcrgb);
-            if r == -1  winerr(); /* process windows error */
-            r = setbkcolor(devcon, bcrgb);
-            if r == -1  winerr /* process windows error */
+            r = settextcolor(win->devcon, sc->fcrgb);
+            if (r == -1) winerr(); /* process windows error */
+            r = setbkcolor(win->devcon, sc->bcrgb);
+            if (r == -1) winerr(); /* process windows error */
 
-         }
+        }
 
-      }
+    }
 
-   }
+}
 
-};
-
-void reverse(var f: text; e: int);
-
-var win: winptr; /* windows record pointer */
+void reverse(FILE* f, int e)
 
 {
 
-   lockmain; /* start exclusive access */
-   win = txt2win(f); /* get window from file */
-   ireverse(win, e); /* move cursor right */
-   unlockmain /* } exclusive access */
+    winptr win; /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    ireverse(win, e); /* move cursor right */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -3370,41 +3366,42 @@ character drawn.
 
 *******************************************************************************/
 
-void iunderline(win: winptr; e: int);
+void iunderline(winptr win, int e)
 
 {
 
-   with win^, screens[curupd]^ do { /* in window, screen contexts */
+    scnptr sc;
 
-      if e  { /* underline on */
+    sc = screens[curupd];
+    if (e) { /* underline on */
 
-         attr = attr+[saundl]; /* set attribute active */
-         gattr = gattr+[saundl]
+        sc->attr = sc->attr+[saundl]; /* set attribute active */
+        win->gattr = win->gattr+[saundl];
 
-      } else { /* turn it off */
+    } else { /* turn it off */
 
-         attr = attr-[saundl]; /* set attribute inactive */
-         gattr = gattr-[saundl]
+        sc->attr = sc->attr-[saundl]; /* set attribute inactive */
+        win->gattr = win->gattr-[saundl];
 
-      };
-      newfont(win) /* select new font */
+    }
+    newfont(win) /* select new font */
 
    }
 
-};
+}
 
-void underline(var f: text; e: int);
-
-var win: winptr; /* windows record pointer */
+void underline(FILE* f, int e)
 
 {
 
-   lockmain; /* start exclusive access */
-   win = txt2win(f); /* get window from file */
-   iunderline(win, e); /* move cursor right */
-   unlockmain /* } exclusive access */
+    winptr win; /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    iunderline(win, e); /* move cursor right */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -3415,41 +3412,42 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void isuperscript(win: winptr; e: int);
+void isuperscript(winptr win, int e)
 
 {
 
-   with win^, screens[curupd]^ do { /* in window, screen contexts */
+    scnptr sc;
 
-      if e  { /* superscript on */
+    sc = screens[curupd];
+    if (e)  { /* superscript on */
 
-         attr = attr+[sasuper]; /* set attribute active */
-         gattr = gattr+[sasuper]
+        sc->attr = sc->attr+[sasuper]; /* set attribute active */
+        win->gattr = win->gattr+[sasuper];
 
-      } else { /* turn it off */
+    } else { /* turn it off */
 
-         attr = attr-[sasuper]; /* set attribute inactive */
-         gattr = attr-[sasuper]
+        sc->attr = sc->attr-[sasuper]; /* set attribute inactive */
+        win->gattr = win->gattr-[sasuper];
 
-      };
-      newfont(win) /* select new font */
+    }
+    newfont(win); /* select new font */
 
    }
 
-};
+}
 
-void superscript(var f: text; e: int);
-
-var win: winptr; /* windows record pointer */
+void superscript(FILE* f, int e)
 
 {
 
-   lockmain; /* start exclusive access */
-   win = txt2win(f); /* get window from file */
-   isuperscript(win, e); /* move cursor right */
-   unlockmain /* } exclusive access */
+    winptr win; /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    isuperscript(win, e); /* move cursor right */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -3460,41 +3458,42 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void isubscript(win: winptr; e: int);
+void isubscript(winptr win, int e)
 
 {
 
-   with win^, screens[curupd]^ do { /* in window, screen contexts */
+    scnptr sc;
 
-      if e  { /* subscript on */
+    sc = screens[curupd];
+    if (e) { /* subscript on */
 
-         attr = attr+[sasubs]; /* set attribute active */
-         gattr = gattr+[sasubs]
+        sc->attr = sc->attr+[sasubs]; /* set attribute active */
+        win->gattr = win->gattr+[sasubs];
 
-      } else { /* turn it off */
+    } else { /* turn it off */
 
-         attr = attr-[sasubs]; /* set attribute inactive */
-         gattr = attr-[sasubs]
+        sc->attr = sc->attr-[sasubs]; /* set attribute inactive */
+        win->gattr = win->gattr-[sasubs];
 
-      };
-      newfont(win) /* activate new font with that */
+    }
+    newfont(win); /* activate new font with that */
 
    }
 
-};
+}
 
-void subscript(var f: text; e: int);
-
-var win: winptr; /* windows record pointer */
+void subscript(FILE* f, int e)
 
 {
 
-   lockmain; /* start exclusive access */
-   win = txt2win(f); /* get window from file */
-   isubscript(win, e); /* move cursor right */
-   unlockmain /* } exclusive access */
+    winptr win; /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    isubscript(win, e); /* move cursor right */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -3510,41 +3509,40 @@ italic on fixed fonts.
 
 *******************************************************************************/
 
-void iitalic(win: winptr; e: int);
+void iitalic(winptr win, int e)
 
 {
 
-   with win^, screens[curupd]^ do { /* in window, screen contexts */
+    scnptr sc;
 
-      if e  { /* italic on */
+    sc = screens[curupd];
+    if (e) { /* italic on */
 
-         attr = attr+[saital]; /* set attribute active */
-         gattr = gattr+[saital]
+        sc->attr = sc->attr+[saital]; /* set attribute active */
+        win->gattr = win->gattr+[saital];
 
-      } else { /* turn it off */
+    } else { /* turn it off */
 
-         attr = attr-[saital]; /* set attribute inactive */
-         gattr = attr-[saital]
+        sc->attr = sc->attr-[saital]; /* set attribute inactive */
+        win->gattr = win->gattr-[saital];
 
-      };
-      newfont(win) /* activate new font with that */
+    }
+    newfont(win); /* activate new font with that */
 
-   }
+}
 
-};
-
-void italic(var f: text; e: int);
-
-var win: winptr; /* windows record pointer */
+void italic(FILE* f, int e)
 
 {
 
-   lockmain; /* start exclusive access */
-   win = txt2win(f); /* get window from file */
-   iitalic(win, e); /* move cursor right */
-   unlockmain /* } exclusive access */
+    winptr win; /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    iitalic(win, e); /* move cursor right */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -3558,41 +3556,42 @@ colors, which an ATTRIBUTE command seems to mess with !
 
 *******************************************************************************/
 
-void ibold(win: winptr; e: int);
+void ibold(winptr win, int e)
 
 {
 
-   with win^, screens[curupd]^ do { /* in window, screen contexts */
+    scnptr sc;
 
-      if e  { /* bold on */
+    sc = screens[curupd];
+    if (e) { /* bold on */
 
-         attr = attr+[sabold]; /* set attribute active */
-         gattr = gattr+[sabold]
+        sc->attr = sc->attr+[sabold]; /* set attribute active */
+        win->gattr = win->gattr+[sabold];
 
-      } else { /* turn it off */
+    } else { /* turn it off */
 
-         attr = attr-[sabold]; /* set attribute inactive */
-         gattr = gattr-[sabold]
+        attr = attr-[sabold]; /* set attribute inactive */
+        gattr = gattr-[sabold];
 
-      };
-      newfont(win) /* activate new font with that */
+    }
+    newfont(win); /* activate new font with that */
 
    }
 
-};
+}
 
-void bold(var f: text; e: int);
-
-var win: winptr; /* windows record pointer */
+void bold(FILE* f, int e)
 
 {
 
-   lockmain; /* start exclusive access */
-   win = txt2win(f); /* get window from file */
-   ibold(win, e); /* move cursor right */
-   unlockmain /* } exclusive access */
+    winptr win; /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    ibold(win, e); /* move cursor right */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -3605,39 +3604,40 @@ just placed.
 
 *******************************************************************************/
 
-void istrikeout(win: winptr; e: int);
+void istrikeout(winptr win, int e)
 
 {
 
-   with win^, screens[curupd]^ do { /* in window, screen contexts */
+    scnptr sc;
 
-      if e  { /* strikeout on */
+    sc = screens[curupd];
+    if (e) { /* strikeout on */
 
-         attr = attr+[sastkout]; /* set attribute active */
-         gattr = gattr+[sastkout]
+       sc->attr = sc->attr+[sastkout]; /* set attribute active */
+       win->gattr = win->gattr+[sastkout];
 
-      } else { /* turn it off */
+    } else { /* turn it off */
 
-         attr = attr-[sastkout]; /* set attribute inactive */
-         gattr = gattr-[sastkout]
+       sc->attr = sc->attr-[sastkout]; /* set attribute inactive */
+       win->gattr = win->gattr-[sastkout];
 
-      };
-      newfont(win) /* activate new font with that */
+    }
+    newfont(win) /* activate new font with that */
 
    }
 
-};
+}
 
-void strikeout(var f: text; e: int);
-
-var win: winptr; /* windows record pointer */
+void strikeout(FILE* f, int e)
 
 {
 
-   lockmain; /* start exclusive access */
-   win = txt2win(f); /* get window from file */
-   istrikeout(win, e); /* move cursor right */
-   unlockmain /* } exclusive access */
+    winptr win; /* windows record pointer */
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    istrikeout(win, e); /* move cursor right */
+    unlockmain(); /* end exclusive access */
 
 };
 
@@ -3650,13 +3650,13 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void standout(var f: text; e: int);
+void standout(FILE* f, int e)
 
 {
 
-   reverse(f, e) /* implement as reverse */
+   reverse(f, e); /* implement as reverse */
 
-};
+}
 
 /*******************************************************************************
 
@@ -3666,15 +3666,17 @@ Sets the foreground color from the universal primary code.
 
 *******************************************************************************/
 
-void ifcolor(win: winptr; c: color);
-
-var r:  int;    /* return value */
-    oh: hgdiobj; /* old pen */
-    b:  int;    /* return value */
-    lb: logbrush;
+void ifcolor(winptr win, pa_color c)
 
 {
 
+    int r:   int; /* return value */
+    HGDIOBJ  h;   /* old pen */
+    int      b;   /* return value */
+    LOGBRUSH lb;
+    scnptr   sc;
+
+    sc = screens[curupd];
    with win^, screens[curupd]^ do { /* in window, screen contexts */
 
       fcrgb = colnum(c); /* set color status */
@@ -3683,12 +3685,12 @@ var r:  int;    /* return value */
       if sarev in attr  {
 
          r = setbkcolor(bdc, fcrgb);
-         if r == -1  winerr /* process windows error */
+         if r == -1  winerr(); /* process windows error */
 
       } else {
 
          r = settextcolor(bdc, fcrgb);
-         if r == -1  winerr /* process windows error */
+         if r == -1  winerr(); /* process windows error */
 
       };
       /* also activate general graphics color. note that reverse does ! apply
@@ -3720,16 +3722,16 @@ var r:  int;    /* return value */
          if sarev in attr  {
 
             r = setbkcolor(devcon, fcrgb);
-            if r == -1  winerr /* process windows error */
+            if r == -1  winerr(); /* process windows error */
 
          } else {
 
             r = settextcolor(devcon, fcrgb);
-            if r == -1  winerr /* process windows error */
+            if r == -1  winerr(); /* process windows error */
 
          };
          oh = selectobject(devcon, fpen); /* select pen to display */
-         if r == -1  winerr /* process windows error */
+         if r == -1  winerr(); /* process windows error */
 
       }
 
@@ -3737,16 +3739,16 @@ var r:  int;    /* return value */
 
 };
 
-void fcolor(var f: text; c: color);
+void fcolor(FILE* f; c: color);
 
-var win: winptr; /* windows record pointer */
+var winptr win; /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window from file */
    ifcolor(win, c); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -3755,12 +3757,12 @@ var win: winptr; /* windows record pointer */
 Set foreground color graphical
 
 Sets the foreground color from RGB primaries. The RGB values are scaled from
-maxint, so 255 == maxint. This means that if the color resolution ever goes
+INT_MAX, so 255 == INT_MAX. This means that if the color resolution ever goes
 up, we will be ready.
 
 *******************************************************************************/
 
-void ifcolorg(win: winptr; r, g, b: int);
+void ifcolorg(winptr win; r, g, b: int);
 
 var rv: int;    /* return value */
     oh: hgdiobj; /* old pen */
@@ -3777,12 +3779,12 @@ var rv: int;    /* return value */
       if sarev in attr  {
 
          r = setbkcolor(bdc, fcrgb);
-         if r == -1  winerr /* process windows error */
+         if r == -1  winerr(); /* process windows error */
 
       } else {
 
          rv = settextcolor(bdc, fcrgb);
-         if r == -1  winerr /* process windows error */
+         if r == -1  winerr(); /* process windows error */
 
       };
       /* also activate general graphics color. note that reverse does ! apply
@@ -3814,16 +3816,16 @@ var rv: int;    /* return value */
          if sarev in attr  {
 
             rv = setbkcolor(devcon, fcrgb);
-            if rv == -1  winerr /* process windows error */
+            if rv == -1  winerr(); /* process windows error */
 
          } else {
 
             rv = settextcolor(devcon, fcrgb);
-            if rv == -1  winerr /* process windows error */
+            if rv == -1  winerr(); /* process windows error */
 
          };
          oh = selectobject(devcon, fpen); /* select pen to display */
-         if oh == -1  winerr /* process windows error */
+         if oh == -1  winerr(); /* process windows error */
 
       }
 
@@ -3831,16 +3833,16 @@ var rv: int;    /* return value */
 
 };
 
-void fcolorg(var f: text; r, g, b: int);
+void fcolorg(FILE* f; r, g, b: int);
 
-var win: winptr; /* windows record pointer */
+var winptr win; /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window from file */
    ifcolorg(win, r, g, b); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -3852,7 +3854,7 @@ Sets the background color from the universal primary code.
 
 *******************************************************************************/
 
-void ibcolor(win: winptr; c: color);
+void ibcolor(winptr win; c: color);
 
 var r: int;
 
@@ -3866,12 +3868,12 @@ var r: int;
       if sarev in attr  {
 
          r = settextcolor(bdc, bcrgb);
-         if r == -1  winerr /* process windows error */
+         if r == -1  winerr(); /* process windows error */
 
       } else {
 
          r = setbkcolor(bdc, bcrgb);
-         if r == -1  winerr /* process windows error */
+         if r == -1  winerr(); /* process windows error */
 
       };
       if indisp(win)  { /* activate on screen */
@@ -3880,12 +3882,12 @@ var r: int;
          if sarev in attr  {
 
             r = settextcolor(devcon, bcrgb);
-            if r == -1  winerr /* process windows error */
+            if r == -1  winerr(); /* process windows error */
 
          } else {
 
             r = setbkcolor(devcon, bcrgb);
-            if r == -1  winerr /* process windows error */
+            if r == -1  winerr(); /* process windows error */
 
          }
 
@@ -3895,16 +3897,16 @@ var r: int;
 
 };
 
-void bcolor(var f: text; c: color);
+void bcolor(FILE* f; c: color);
 
-var win: winptr; /* windows record pointer */
+var winptr win; /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window from file */
    ibcolor(win, c); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -3913,12 +3915,12 @@ var win: winptr; /* windows record pointer */
 Set background color graphical
 
 Sets the background color from RGB primaries. The RGB values are scaled from
-maxint, so 255 == maxint. This means that if the color resolution ever goes
+INT_MAX, so 255 == INT_MAX. This means that if the color resolution ever goes
 up, we will be ready.
 
 *******************************************************************************/
 
-void ibcolorg(win: winptr; r, g, b: int);
+void ibcolorg(winptr win; r, g, b: int);
 
 var rv: int;
 
@@ -3932,12 +3934,12 @@ var rv: int;
       if sarev in attr  {
 
          r = settextcolor(bdc, bcrgb);
-         if r == -1  winerr /* process windows error */
+         if r == -1  winerr(); /* process windows error */
 
       } else {
 
          rv = setbkcolor(bdc, bcrgb);
-         if rv == -1  winerr /* process windows error */
+         if rv == -1  winerr(); /* process windows error */
 
       };
       if indisp(win)  { /* activate on screen */
@@ -3946,12 +3948,12 @@ var rv: int;
          if sarev in attr  {
 
             rv = settextcolor(devcon, bcrgb);
-            if rv == -1  winerr /* process windows error */
+            if rv == -1  winerr(); /* process windows error */
 
          } else {
 
             rv = setbkcolor(devcon, bcrgb);
-            if rv == -1  winerr /* process windows error */
+            if rv == -1  winerr(); /* process windows error */
 
          }
 
@@ -3961,16 +3963,16 @@ var rv: int;
 
 };
 
-void bcolorg(var f: text; r, g, b: int);
+void bcolorg(FILE* f; r, g, b: int);
 
-var win: winptr; /* windows record pointer */
+var winptr win; /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window from file */
    ibcolorg(win, r, g, b); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -3999,7 +4001,7 @@ anywhere.
 
 *******************************************************************************/
 
-void iauto(win: winptr; e: int);
+void iauto(winptr win; e: int);
 
 {
 
@@ -4021,16 +4023,16 @@ void iauto(win: winptr; e: int);
 
 };
 
-void auto(var f: text; e: int);
+void auto(FILE* f; e: int);
 
-var win: winptr; /* windows record pointer */
+var winptr win; /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window from file */
    iauto(win, e); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -4042,7 +4044,7 @@ Enable || disable cursor visibility.
 
 *******************************************************************************/
 
-void icurvis(win: winptr; e: int);
+void icurvis(winptr win; e: int);
 
 {
 
@@ -4056,16 +4058,16 @@ void icurvis(win: winptr; e: int);
 
 };
 
-void curvis(var f: text; e: int);
+void curvis(FILE* f; e: int);
 
-var win: winptr; /* windows record pointer */
+var winptr win; /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window from file */
    icurvis(win, e); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -4077,17 +4079,17 @@ Returns the current location of the cursor in x.
 
 *******************************************************************************/
 
-int curx(var f: text): int;
+int curx(FILE* f): int;
 
-var win: winptr; /* windows record pointer */
+var winptr win; /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window from file */
    with win^ do /* in window context */
       curx = screens[curupd]->curx; /* return current location x */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -4099,17 +4101,17 @@ Returns the current location of the cursor in y.
 
 *******************************************************************************/
 
-int cury(var f: text): int;
+int cury(FILE* f): int;
 
-var win: winptr; /* windows record pointer */
+var winptr win; /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window from file */
    with win^ do /* in window context */
       cury = screens[curupd]->cury; /* return current location y */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -4121,17 +4123,17 @@ Returns the current location of the cursor in x, in PIxels.
 
 *******************************************************************************/
 
-int curxg(var f: text): int;
+int curxg(FILE* f): int;
 
-var win: winptr; /* windows record pointer */
+var winptr win; /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window from file */
    with win^ do /* in window context */
       curxg = screens[curupd]->curxg; /* return current location x */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -4143,17 +4145,17 @@ Returns the current location of the cursor in y, in PIxels.
 
 *******************************************************************************/
 
-int curyg(var f: text): int;
+int curyg(FILE* f): int;
 
-var win: winptr; /* windows record pointer */
+var winptr win; /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window from file */
    with win^ do /* in window context */
       curyg = screens[curupd]->curyg; /* return current location y */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -4171,7 +4173,7 @@ forces a screen refresh, which can be important when working on terminals.
 
 *******************************************************************************/
 
-void iselect(win: winptr; u, d: int);
+void iselect(winptr win; u, d: int);
 
 var ld: 1..MAXCON; /* last display screen number save */
 
@@ -4205,16 +4207,16 @@ var ld: 1..MAXCON; /* last display screen number save */
 
 };
 
-void select(var f: text; u, d: int);
+void select(FILE* f; u, d: int);
 
-var win: winptr; /* windows record pointer */
+var winptr win; /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window from file */
    iselect(win, u, d); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -4232,7 +4234,7 @@ using ROP combinations.
 
 *******************************************************************************/
 
-void plcchr(win: winptr; c: char);
+void plcchr(winptr win; c: char);
 
 var b:   int; /* int return */
     cb:  packed array [1..1] of char; /* character output buffer */
@@ -4267,7 +4269,7 @@ var b:   int; /* int return */
 
             /* draw character */
             b = textout(bdc, curxg-1, curyg-1+off, cb);
-            if ! b  winerr /* process windows error */
+            if ! b  winerr(); /* process windows error */
 
          };
          if indisp(win)  { /* activate on screen */
@@ -4314,7 +4316,7 @@ such as controls are ! suppressed.
 
 *******************************************************************************/
 
-void iwrtstr(win: winptr; view s: char*);
+void iwrtstr(winptr win; view s: char*);
 
 var b:   int; /* int return */
     off: int; /* subscript offset */
@@ -4333,7 +4335,7 @@ var b:   int; /* int return */
 
          /* draw character */
          b = textout(bdc, curxg-1, curyg-1+off, s);
-         if ! b  winerr /* process windows error */
+         if ! b  winerr(); /* process windows error */
 
       };
       if indisp(win)  { /* activate on screen */
@@ -4348,7 +4350,7 @@ var b:   int; /* int return */
       };
       if cfont->sys  { /* perform fixed system advance */
 
-            /* should check if this exceeds maxint */
+            /* should check if this exceeds INT_MAX */
             curx = curx+max(s); /* update position */
             curxg = curxg+charspace*max(s)
 
@@ -4366,16 +4368,16 @@ var b:   int; /* int return */
 
 };
 
-void wrtstr(var f: text; view s: char*);
+void wrtstr(FILE* f; view s: char*);
 
-var win: winptr; /* windows record pointer */
+var winptr win; /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    iwrtstr(win, s); /* perform char* write */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -4388,7 +4390,7 @@ position left.
 
 *******************************************************************************/
 
-void idel(win: winptr);
+void idel(winptr win);
 
 {
 
@@ -4402,16 +4404,16 @@ void idel(win: winptr);
 
 };
 
-void del(var f: text);
+void del(FILE* f);
 
-var win: winptr; /* windows record pointer */
+var winptr win; /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    idel(win); /* perform delete */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -4423,7 +4425,7 @@ Draws a single line in the foreground color.
 
 *******************************************************************************/
 
-void iline(win: winptr; x1, y1, x2, y2: int);
+void iline(winptr win; x1, y1, x2, y2: int);
 
 var b:      int; /* results */
     tx, ty: int; /* temp holder */
@@ -4477,16 +4479,16 @@ var b:      int; /* results */
 
 };
 
-void line(var f: text; x1, y1, x2, y2: int);
+void line(FILE* f; x1, y1, x2, y2: int);
 
-var win: winptr;  /* windows record pointer */
+var winptr win;  /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    iline(win, x1, y1, x2, y2); /* draw line */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -4498,7 +4500,7 @@ Draws a rectangle in foreground color.
 
 *******************************************************************************/
 
-void irect(win: winptr; x1, y1, x2, y2: int);
+void irect(winptr win; x1, y1, x2, y2: int);
 
 var b:   int; /* return value */
 
@@ -4510,7 +4512,7 @@ var b:   int; /* return value */
 
          /* draw to buffer */
          b = rectangle(screens[curupd]->bdc, x1-1, y1-1, x2, y2);
-         if ! b  winerr /* process windows error */
+         if ! b  winerr(); /* process windows error */
 
       };
       if indisp(win)  {
@@ -4528,16 +4530,16 @@ var b:   int; /* return value */
 
 };
 
-void rect(var f: text; x1, y1, x2, y2: int);
+void rect(FILE* f; x1, y1, x2, y2: int);
 
-var win: winptr;  /* windows record pointer */
+var winptr win;  /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    irect(win, x1, y1, x2, y2); /* draw rectangle */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -4549,7 +4551,7 @@ Draws a filled rectangle in foreground color.
 
 *******************************************************************************/
 
-void ifrect(win: winptr; x1, y1, x2, y2: int);
+void ifrect(winptr win; x1, y1, x2, y2: int);
 
 var b:   int; /* return value */
     r:   int; /* result holder */
@@ -4573,7 +4575,7 @@ var b:   int; /* return value */
          r = selectobject(bdc, fpen);
          if r == -1  winerr(); /* process windows error */
          r = selectobject(bdc, getstockobject(null_brush));
-         if r == -1  winerr /* process windows error */
+         if r == -1  winerr(); /* process windows error */
 
       };
       /* draw to screen */
@@ -4591,7 +4593,7 @@ var b:   int; /* return value */
          r = selectobject(devcon, fpen);
          if r == -1  winerr(); /* process windows error */
          r = selectobject(devcon, getstockobject(null_brush));
-         if r == -1  winerr /* process windows error */
+         if r == -1  winerr(); /* process windows error */
 
       }
 
@@ -4599,16 +4601,16 @@ var b:   int; /* return value */
 
 };
 
-void frect(var f: text; x1, y1, x2, y2: int);
+void frect(FILE* f; x1, y1, x2, y2: int);
 
-var win: winptr;  /* windows record pointer */
+var winptr win;  /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    ifrect(win, x1, y1, x2, y2); /* draw rectangle */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -4620,7 +4622,7 @@ Draws a rounded rectangle in foreground color.
 
 *******************************************************************************/
 
-void irrect(win: winptr; x1, y1, x2, y2, xs, ys: int);
+void irrect(winptr win; x1, y1, x2, y2, xs, ys: int);
 
 var b: int; /* return value */
 
@@ -4632,7 +4634,7 @@ var b: int; /* return value */
 
          /* draw to buffer */
          b = roundrect(screens[curupd]->bdc, x1-1, y1-1, x2, y2, xs, ys);
-         if ! b  winerr /* process windows error */
+         if ! b  winerr(); /* process windows error */
 
       };
       /* draw to screen */
@@ -4650,16 +4652,16 @@ var b: int; /* return value */
 
 };
 
-void rrect(var f: text; x1, y1, x2, y2, xs, ys: int);
+void rrect(FILE* f; x1, y1, x2, y2, xs, ys: int);
 
-var win: winptr;  /* windows record pointer */
+var winptr win;  /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    irrect(win, x1, y1, x2, y2, xs, ys); /* draw rectangle */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -4671,7 +4673,7 @@ Draws a filled rounded rectangle in foreground color.
 
 *******************************************************************************/
 
-void ifrrect(win: winptr; x1, y1, x2, y2, xs, ys: int);
+void ifrrect(winptr win; x1, y1, x2, y2, xs, ys: int);
 
 var b: int; /* return value */
     r: int; /* result holder */
@@ -4695,7 +4697,7 @@ var b: int; /* return value */
          r = selectobject(bdc, fpen);
          if r == -1  winerr(); /* process windows error */
          r = selectobject(bdc, getstockobject(null_brush));
-         if r == -1  winerr /* process windows error */
+         if r == -1  winerr(); /* process windows error */
 
       };
       /* draw to screen */
@@ -4721,16 +4723,16 @@ var b: int; /* return value */
 
 };
 
-void frrect(var f: text; x1, y1, x2, y2, xs, ys: int);
+void frrect(FILE* f; x1, y1, x2, y2, xs, ys: int);
 
-var win: winptr;  /* windows record pointer */
+var winptr win;  /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    ifrrect(win, x1, y1, x2, y2, xs, ys); /* draw rectangle */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -4742,7 +4744,7 @@ Draws an ellipse with the current foreground color && line width.
 
 *******************************************************************************/
 
-void iellipse(win: winptr; x1, y1, x2, y2: int);
+void iellipse(winptr win; x1, y1, x2, y2: int);
 
 var b: int; /* return value */
 
@@ -4754,7 +4756,7 @@ var b: int; /* return value */
 
          /* draw to buffer */
          b = ellipse(screens[curupd]->bdc, x1-1, y1-1, x2, y2);
-         if ! b  winerr /* process windows error */
+         if ! b  winerr(); /* process windows error */
 
       };
       /* draw to screen */
@@ -4772,16 +4774,16 @@ var b: int; /* return value */
 
 };
 
-void ellipse(var f: text; x1, y1, x2, y2: int);
+void ellipse(FILE* f; x1, y1, x2, y2: int);
 
-var win: winptr;  /* windows record pointer */
+var winptr win;  /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    iellipse(win, x1, y1, x2, y2); /* draw ellipse */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -4793,7 +4795,7 @@ Draws a filled ellipse with the current foreground color.
 
 *******************************************************************************/
 
-void ifellipse(win: winptr; x1, y1, x2, y2: int);
+void ifellipse(winptr win; x1, y1, x2, y2: int);
 
 var b: int; /* return value */
 
@@ -4816,7 +4818,7 @@ var b: int; /* return value */
          r = selectobject(bdc, fpen);
          if r == -1  winerr(); /* process windows error */
          r = selectobject(bdc, getstockobject(null_brush));
-         if r == -1  winerr /* process windows error */
+         if r == -1  winerr(); /* process windows error */
 
       };
       /* draw to screen */
@@ -4842,16 +4844,16 @@ var b: int; /* return value */
 
 };
 
-void fellipse(var f: text; x1, y1, x2, y2: int);
+void fellipse(FILE* f; x1, y1, x2, y2: int);
 
-var win: winptr;  /* windows record pointer */
+var winptr win;  /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    ifellipse(win, x1, y1, x2, y2); /* draw ellipse */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -4870,7 +4872,7 @@ point on the circle is found by triangulation.
 
 The larger the circle of precision, the more angles can be represented, but
 the trade off is that the circle must ! reach the edge of an int
-(-maxint..maxint). That means that the total logical coordinate space must be
+(-INT_MAX..INT_MAX). That means that the total logical coordinate space must be
 shortened by the precision. To find out what division of the circle precis
 represents, use cd = precis*2*PI. So, for example, precis == 100 means 628
 divisions of the circle.
@@ -4883,7 +4885,7 @@ Negative angles are allowed.
 
 *******************************************************************************/
 
-void iarc(win: winptr; x1, y1, x2, y2, sa, ea: int);
+void iarc(winptr win; x1, y1, x2, y2, sa, ea: int);
 
 const precis == 1000; /* precision of circle calculation */
 
@@ -4902,8 +4904,8 @@ var saf, eaf:       real;    /* starting angles in radian float */
       if x1 > x2  { t = x1; x1 = x2; x2 = t };
       if y1 > y2  { t = y1; y1 = y2; y2 = t };
       /* convert start && } to radian measure */
-      saf = sa*2.0*PI/maxint;
-      eaf = ea*2.0*PI/maxint;
+      saf = sa*2.0*PI/INT_MAX;
+      eaf = ea*2.0*PI/INT_MAX;
       /* find center of ellipse */
       xc = (x2-x1) / 2+x1;
       yc = (y2-y1) / 2+y1;
@@ -4933,16 +4935,16 @@ var saf, eaf:       real;    /* starting angles in radian float */
 
 };
 
-void arc(var f: text; x1, y1, x2, y2, sa, ea: int);
+void arc(FILE* f; x1, y1, x2, y2, sa, ea: int);
 
-var win: winptr;  /* windows record pointer */
+var winptr win;  /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    iarc(win, x1, y1, x2, y2, sa, ea); /* draw arc */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -4955,7 +4957,7 @@ as for the arc int above.
 
 *******************************************************************************/
 
-void ifarc(win: winptr; x1, y1, x2, y2, sa, ea: int);
+void ifarc(winptr win; x1, y1, x2, y2, sa, ea: int);
 
 const precis == 1000; /* precision of circle calculation */
 
@@ -4974,8 +4976,8 @@ var saf, eaf:       real;    /* starting angles in radian float */
       if x1 > x2  { t = x1; x1 = x2; x2 = t };
       if y1 > y2  { t = y1; y1 = y2; y2 = t };
       /* convert start && } to radian measure */
-      saf = sa*2*PI/maxint;
-      eaf = ea*2*PI/maxint;
+      saf = sa*2*PI/INT_MAX;
+      eaf = ea*2*PI/INT_MAX;
       /* find center of ellipse */
       xc = (x2-x1) / 2+x1;
       yc = (y2-y1) / 2+y1;
@@ -5000,7 +5002,7 @@ var saf, eaf:       real;    /* starting angles in radian float */
          r = selectobject(bdc, fpen);
          if r == -1  winerr(); /* process windows error */
          r = selectobject(bdc, getstockobject(null_brush));
-         if r == -1  winerr /* process windows error */
+         if r == -1  winerr(); /* process windows error */
 
       };
       if indisp(win)  { /* do it again for the current screen */
@@ -5026,16 +5028,16 @@ var saf, eaf:       real;    /* starting angles in radian float */
 
 };
 
-void farc(var f: text; x1, y1, x2, y2, sa, ea: int);
+void farc(FILE* f; x1, y1, x2, y2, sa, ea: int);
 
-var win: winptr;  /* windows record pointer */
+var winptr win;  /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    ifarc(win, x1, y1, x2, y2, sa, ea); /* draw arc */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -5048,7 +5050,7 @@ as for the arc int above.
 
 *******************************************************************************/
 
-void ifchord(win: winptr; x1, y1, x2, y2, sa, ea: int);
+void ifchord(winptr win; x1, y1, x2, y2, sa, ea: int);
 
 const precis == 1000; /* precision of circle calculation */
 
@@ -5067,8 +5069,8 @@ var saf, eaf:       real;    /* starting angles in radian float */
       if x1 > x2  { t = x1; x1 = x2; x2 = t };
       if y1 > y2  { t = y1; y1 = y2; y2 = t };
       /* convert start && } to radian measure */
-      saf = sa*2*PI/maxint;
-      eaf = ea*2*PI/maxint;
+      saf = sa*2*PI/INT_MAX;
+      eaf = ea*2*PI/INT_MAX;
       /* find center of ellipse */
       xc = (x2-x1) / 2+x1;
       yc = (y2-y1) / 2+y1;
@@ -5093,7 +5095,7 @@ var saf, eaf:       real;    /* starting angles in radian float */
          r = selectobject(bdc, fpen);
          if r == -1  winerr(); /* process windows error */
          r = selectobject(bdc, getstockobject(null_brush));
-         if r == -1  winerr /* process windows error */
+         if r == -1  winerr(); /* process windows error */
 
       };
       if indisp(win)  { /* do it again for the current screen */
@@ -5111,7 +5113,7 @@ var saf, eaf:       real;    /* starting angles in radian float */
          r = selectobject(devcon, fpen);
          if r == -1  winerr(); /* process windows error */
          r = selectobject(devcon, getstockobject(null_brush));
-         if r == -1  winerr /* process windows error */
+         if r == -1  winerr(); /* process windows error */
 
       }
 
@@ -5119,16 +5121,16 @@ var saf, eaf:       real;    /* starting angles in radian float */
 
 };
 
-void fchord(var f: text; x1, y1, x2, y2, sa, ea: int);
+void fchord(FILE* f; x1, y1, x2, y2, sa, ea: int);
 
-var win: winptr;  /* windows record pointer */
+var winptr win;  /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    ifchord(win, x1, y1, x2, y2, sa, ea); /* draw cord */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -5140,7 +5142,7 @@ Draws a filled triangle in the current foreground color.
 
 *******************************************************************************/
 
-void iftriangle(win: winptr; x1, y1, x2, y2, x3, y3: int);
+void iftriangle(winptr win; x1, y1, x2, y2, x3, y3: int);
 
 var pa:  array [1..3] of point; /* points of triangle */
     b:   int; /* return value */
@@ -5174,7 +5176,7 @@ var pa:  array [1..3] of point; /* points of triangle */
             r = selectobject(bdc, fpen);
             if r == -1  winerr(); /* process windows error */
             r = selectobject(bdc, getstockobject(null_brush));
-            if r == -1  winerr /* process windows error */
+            if r == -1  winerr(); /* process windows error */
 
          };
          /* draw to screen */
@@ -5219,13 +5221,13 @@ var pa:  array [1..3] of point; /* points of triangle */
 
 };
 
-void ftriangle(var f: text; x1, y1, x2, y2, x3, y3: int);
+void ftriangle(FILE* f; x1, y1, x2, y2, x3, y3: int);
 
-var win: winptr;  /* windows record pointer */
+var winptr win;  /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    with win^, screens[curupd]^ do { /* in window, screen contexts */
 
@@ -5233,7 +5235,7 @@ var win: winptr;  /* windows record pointer */
       tcurs = FALSE /* set even strip flip state */
 
    };
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -5245,7 +5247,7 @@ Sets a single logical PIxel to the foreground color.
 
 *******************************************************************************/
 
-void isetPIxel(win: winptr; x, y: int);
+void isetPIxel(winptr win; x, y: int);
 
 var r: colorref; /* return value */
 
@@ -5275,16 +5277,16 @@ var r: colorref; /* return value */
 
 };
 
-void setPIxel(var f: text; x, y: int);
+void setPIxel(FILE* f; x, y: int);
 
-var win: winptr;  /* windows record pointer */
+var winptr win;  /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    isetPIxel(win, x, y); /* set PIxel */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -5296,7 +5298,7 @@ Sets the foreground write mode to overwrite.
 
 *******************************************************************************/
 
-void ifover(win: winptr);
+void ifover(winptr win);
 
 var r: int;
 
@@ -5314,16 +5316,16 @@ var r: int;
 
 };
 
-void fover(var f: text);
+void fover(FILE* f);
 
-var win: winptr;  /* windows record pointer */
+var winptr win;  /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    ifover(win); /* set overwrite */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -5335,7 +5337,7 @@ Sets the background write mode to overwrite.
 
 *******************************************************************************/
 
-void ibover(win: winptr);
+void ibover(winptr win);
 
 var r: int;
 
@@ -5353,16 +5355,16 @@ var r: int;
 
 };
 
-void bover(var f: text);
+void bover(FILE* f);
 
-var win: winptr;  /* windows record pointer */
+var winptr win;  /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    ibover(win); /* set overwrite */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -5374,7 +5376,7 @@ Sets the foreground write mode to invisible.
 
 *******************************************************************************/
 
-void ifinvis(win: winptr);
+void ifinvis(winptr win);
 
 var r: int;
 
@@ -5392,16 +5394,16 @@ var r: int;
 
 };
 
-void finvis(var f: text);
+void finvis(FILE* f);
 
-var win: winptr;  /* windows record pointer */
+var winptr win;  /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    ifinvis(win); /* set invisible */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -5413,7 +5415,7 @@ Sets the background write mode to invisible.
 
 *******************************************************************************/
 
-void ibinvis(win: winptr);
+void ibinvis(winptr win);
 
 var r: int;
 
@@ -5431,16 +5433,16 @@ var r: int;
 
 };
 
-void binvis(var f: text);
+void binvis(FILE* f);
 
-var win: winptr;  /* windows record pointer */
+var winptr win;  /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    ibinvis(win); /* set invisible */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -5452,7 +5454,7 @@ Sets the foreground write mode to xor.
 
 *******************************************************************************/
 
-void ifxor(win: winptr);
+void ifxor(winptr win);
 
 var r: int;
 
@@ -5470,16 +5472,16 @@ var r: int;
 
 };
 
-void fxor(var f: text);
+void fxor(FILE* f);
 
-var win: winptr;  /* windows record pointer */
+var winptr win;  /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    ifxor(win); /* set xor */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -5491,7 +5493,7 @@ Sets the background write mode to xor.
 
 *******************************************************************************/
 
-void ibxor(win: winptr);
+void ibxor(winptr win);
 
 {
 
@@ -5504,16 +5506,16 @@ void ibxor(win: winptr);
 
 };
 
-void bxor(var f: text);
+void bxor(FILE* f);
 
-var win: winptr;  /* windows record pointer */
+var winptr win;  /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    ibxor(win); /* set xor */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -5525,7 +5527,7 @@ Sets the width of lines && several other figures.
 
 *******************************************************************************/
 
-void ilinewidth(win: winptr; w: int);
+void ilinewidth(winptr win; w: int);
 
 var oh: hgdiobj; /* old pen */
     b:  int;    /* return value */
@@ -5559,16 +5561,16 @@ var oh: hgdiobj; /* old pen */
 
 };
 
-void linewidth(var f: text; w: int);
+void linewidth(FILE* f; w: int);
 
-var win: winptr;  /* windows record pointer */
+var winptr win;  /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    ilinewidth(win, w); /* set line width */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -5580,17 +5582,17 @@ Returns the character width.
 
 *******************************************************************************/
 
-int chrsizx(var f: text): int;
+int chrsizx(FILE* f): int;
 
-var win: winptr; /* window pointer */
+var winptr win; /* window pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    with win^ do /* in window context */
       chrsizx = charspace;
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -5602,17 +5604,17 @@ Returns the character height.
 
 *******************************************************************************/
 
-int chrsizy(var f: text): int;
+int chrsizy(FILE* f): int;
 
-var win: winptr; /* window pointer */
+var winptr win; /* window pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    with win^ do /* in window context */
       chrsizy = linespace;
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -5624,17 +5626,17 @@ Finds the total number of installed fonts.
 
 *******************************************************************************/
 
-int fonts(var f: text): int;
+int fonts(FILE* f): int;
 
-var win: winptr; /* window pointer */
+var winptr win; /* window pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    with win^ do /* in window context */
       fonts = fntcnt; /* return global font counter */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -5646,7 +5648,7 @@ Changes the current font to the indicated logical font number.
 
 *******************************************************************************/
 
-void ifont(win: winptr; fc: int);
+void ifont(winptr win; fc: int);
 
 var fp: fontptr;
 
@@ -5675,16 +5677,16 @@ var fp: fontptr;
 
 };
 
-void font(var f: text; fc: int);
+void font(FILE* f; fc: int);
 
-var win: winptr;  /* windows record pointer */
+var winptr win;  /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    ifont(win, fc); /* set font */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -5696,7 +5698,7 @@ Returns the name of a font by number.
 
 *******************************************************************************/
 
-void ifontnam(win: winptr; fc: int; var fns: char*);
+void ifontnam(winptr win; fc: int; var fns: char*);
 
 var fp: fontptr; /* pointer to font entries */
     i:  int; /* char* index */
@@ -5721,16 +5723,16 @@ var fp: fontptr; /* pointer to font entries */
 
 };
 
-void fontnam(var f: text; fc: int; var fns: char*);
+void fontnam(FILE* f; fc: int; var fns: char*);
 
-var win: winptr;  /* windows record pointer */
+var winptr win;  /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    ifontnam(win, fc, fns); /* find font name */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -5743,7 +5745,7 @@ and line spacing are changed, as well as the baseline.
 
 *******************************************************************************/
 
-void ifontsiz(win: winptr; s: int);
+void ifontsiz(winptr win; s: int);
 
 {
 
@@ -5759,16 +5761,16 @@ void ifontsiz(win: winptr; s: int);
 
 };
 
-void fontsiz(var f: text; s: int);
+void fontsiz(FILE* f; s: int);
 
-var win: winptr;  /* windows record pointer */
+var winptr win;  /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    ifontsiz(win, s); /* set font size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -5783,7 +5785,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void chrspcy(var f: text; s: int);
+void chrspcy(FILE* f; s: int);
 
 {
 
@@ -5802,7 +5804,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void chrspcx(var f: text; s: int);
+void chrspcx(FILE* f; s: int);
 
 {
 
@@ -5818,17 +5820,17 @@ Returns the number of dots per meter resolution in x.
 
 *******************************************************************************/
 
-int dpmx(var f: text): int;
+int dpmx(FILE* f): int;
 
-var win: winptr; /* window pointer */
+var winptr win; /* window pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    with win^ do /* in window context */
       dpmx = sdpmx;
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -5840,17 +5842,17 @@ Returns the number of dots per meter resolution in y.
 
 *******************************************************************************/
 
-int dpmy(var f: text): int;
+int dpmy(FILE* f): int;
 
-var win: winptr; /* window pointer */
+var winptr win; /* window pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    with win^ do /* in window context */
       dpmy = sdpmy;
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -5863,7 +5865,7 @@ character spacing && kerning.
 
 *******************************************************************************/
 
-int istrsiz(win: winptr; view s: char*): int;
+int istrsiz(winptr win; view s: char*): int;
 
 var sz: size; /* size holder */
     b:  int; /* return value */
@@ -5880,7 +5882,7 @@ var sz: size; /* size holder */
 
 };
 
-int istrsizp(win: winptr; view s: char*): int;
+int istrsizp(winptr win; view s: char*): int;
 
 var sz: size; /* size holder */
     b:  int; /* return value */
@@ -5900,29 +5902,29 @@ var sz: size; /* size holder */
 
 };
 
-int strsiz(var f: text; view s: char*): int;
+int strsiz(FILE* f; view s: char*): int;
 
-var win: winptr; /* window pointer */
+var winptr win; /* window pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    strsiz = istrsiz(win, s); /* find char* size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-int strsizp(var f: text; view s: char*): int;
+int strsizp(FILE* f; view s: char*): int;
 
-var win: winptr; /* window pointer */
+var winptr win; /* window pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    strsizp = istrsizp(win, s); /* find char* size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -5934,7 +5936,7 @@ Finds the PIxel offset to the given character in the char*.
 
 *******************************************************************************/
 
-int ichrpos(win: winptr; view s: char*; p: int): int;
+int ichrpos(winptr win; view s: char*; p: int): int;
 
 var sp:  char*; /* char* holder */
     siz: int; /* size holder */
@@ -5965,16 +5967,16 @@ var sp:  char*; /* char* holder */
 
 };
 
-int chrpos(var f: text; view s: char*; p: int): int;
+int chrpos(FILE* f; view s: char*; p: int): int;
 
-var win: winptr; /* window pointer */
+var winptr win; /* window pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    chrpos = ichrpos(win, s, p); /* find character position */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -5988,7 +5990,7 @@ the system font.
 
 *******************************************************************************/
 
-void iwritejust(win: winptr; view s: char*; n: int);
+void iwritejust(winptr win; view s: char*; n: int);
 
 var sz:  size; /* size holder */
     b:   int; /* return value */
@@ -6026,7 +6028,7 @@ var sz:  size; /* size holder */
 
          /* draw the char* to current position */
          b = exttextout_n(bdc, curxg-1, curyg-1+off, 0, s, ra.lpdx);
-         if ! b  winerr /* process windows error */
+         if ! b  winerr(); /* process windows error */
 
       };
       if indisp(win)  {
@@ -6048,16 +6050,16 @@ var sz:  size; /* size holder */
 
 };
 
-void writejust(var f: text; view s: char*; n: int);
+void writejust(FILE* f; view s: char*; n: int);
 
-var win: winptr; /* window pointer */
+var winptr win; /* window pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    iwritejust(win, s, n); /* write justified text */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -6073,7 +6075,7 @@ spaces, with the fractional part lost.
 
 *******************************************************************************/
 
-int ijustpos(win: winptr; view s: char*; p, n: int): int;
+int ijustpos(winptr win; view s: char*; p, n: int): int;
 
 var off: int; /* offset to character */
     w:   int; /* minimum char* size */
@@ -6119,16 +6121,16 @@ var off: int; /* offset to character */
 
 };
 
-int justpos(var f: text; view s: char*; p, n: int): int;
+int justpos(FILE* f; view s: char*; p, n: int): int;
 
-var win: winptr; /* window pointer */
+var winptr win; /* window pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    justpos = ijustpos(win, s, p, n); /* find justified character position */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -6145,7 +6147,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void condensed(var f: text; e: int);
+void condensed(FILE* f; e: int);
 
 {
 
@@ -6166,7 +6168,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void extended(var f: text; e: int);
+void extended(FILE* f; e: int);
 
 {
 
@@ -6187,7 +6189,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void xlight(var f: text; e: int);
+void xlight(FILE* f; e: int);
 
 {
 
@@ -6208,7 +6210,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void light(var f: text; e: int);
+void light(FILE* f; e: int);
 
 {
 
@@ -6229,7 +6231,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void xbold(var f: text; e: int);
+void xbold(FILE* f; e: int);
 
 {
 
@@ -6250,7 +6252,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void hollow(var f: text; e: int);
+void hollow(FILE* f; e: int);
 
 {
 
@@ -6271,7 +6273,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void raised(var f: text; e: int);
+void raised(FILE* f; e: int);
 
 {
 
@@ -6287,7 +6289,7 @@ Deletes a loaded PIcture.
 
 *******************************************************************************/
 
-void idelPIct(win: winptr; p: int);
+void idelPIct(winptr win; p: int);
 
 var r: int; /* result holder */
     b: int; /* result holder */
@@ -6310,16 +6312,16 @@ var r: int; /* result holder */
 
 };
 
-void delPIct(var f: text; p: int);
+void delPIct(FILE* f; p: int);
 
-var win: winptr; /* window pointer */
+var winptr win; /* window pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    idelPIct(win, p); /* delete PIcture file */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -6331,7 +6333,7 @@ Loads a PIcture into a slot of the loadable PIctures array.
 
 *******************************************************************************/
 
-void iloadPIct(win: winptr; p: int; view fn: char*);
+void iloadPIct(winptr win; p: int; view fn: char*);
 
 const maxfnm == 250; /* number of filename characters in buffer */
 
@@ -6398,16 +6400,16 @@ var i, x: int; /* index for char* */
 
 };
 
-void loadPIct(var f: text; p: int; view fn: char*);
+void loadPIct(FILE* f; p: int; view fn: char*);
 
-var win: winptr; /* window pointer */
+var winptr win; /* window pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    iloadPIct(win, p, fn); /* load PIcture file */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -6419,13 +6421,13 @@ Returns the size in x of the logical PIcture.
 
 *******************************************************************************/
 
-int PIctsizx(var f: text; p: int): int;
+int PIctsizx(FILE* f; p: int): int;
 
-var win: winptr; /* window pointer */
+var winptr win; /* window pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    with win^ do { /* in window context */
 
@@ -6434,7 +6436,7 @@ var win: winptr; /* window pointer */
       PIctsizx = PIctbl[p].sx /* return x size */
 
    };
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -6446,13 +6448,13 @@ Returns the size in y of the logical PIcture.
 
 *******************************************************************************/
 
-int PIctsizy(var f: text; p: int): int;
+int PIctsizy(FILE* f; p: int): int;
 
-var win: winptr; /* window pointer */
+var winptr win; /* window pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    with win^ do { /* in window context */
 
@@ -6462,7 +6464,7 @@ var win: winptr; /* window pointer */
       PIctsizy = PIctbl[p].sy /* return x size */
 
    };
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -6477,7 +6479,7 @@ Images will be kept in a rotating cache to prevent repeating reloads.
 
 *******************************************************************************/
 
-void iPIcture(win: winptr; p: int; x1, y1, x2, y2: int);
+void iPIcture(winptr win; p: int; x1, y1, x2, y2: int);
 
 var b:   int;  /* result holder */
     rop: dword; /* rop holder */
@@ -6525,16 +6527,16 @@ var b:   int;  /* result holder */
 
 };
 
-void PIcture(var f: text; p: int; x1, y1, x2, y2: int);
+void PIcture(FILE* f; p: int; x1, y1, x2, y2: int);
 
-var win: winptr; /* window pointer */
+var winptr win; /* window pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    iPIcture(win, p, x1, y1, x2, y2); /* draw PIcture */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -6543,11 +6545,11 @@ var win: winptr; /* window pointer */
 Set viewport offset graphical
 
 Sets the offset of the viewport in logical space, in PIxels, anywhere from
--maxint to maxint.
+-INT_MAX to INT_MAX.
 
 *******************************************************************************/
 
-void iviewoffg(win: winptr; x, y: int);
+void iviewoffg(winptr win; x, y: int);
 
 {
 
@@ -6568,16 +6570,16 @@ void iviewoffg(win: winptr; x, y: int);
 
 };
 
-void viewoffg(var f: text; x, y: int);
+void viewoffg(FILE* f; x, y: int);
 
-var win: winptr; /* window pointer */
+var winptr win; /* window pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    iviewoffg(win, x, y); /* set viewport offset */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -6601,13 +6603,13 @@ painting into a buffer && transfering asymmetrically, || using outlines.
 
 *******************************************************************************/
 
-void iviewscale(win: winptr; x, y: real);
+void iviewscale(winptr win; x, y: real);
 
 {
 
    with win^ do { /* in window context */
 
-      /* in this starting simplistic formula, the ratio is set x*maxint/maxint.
+      /* in this starting simplistic formula, the ratio is set x*INT_MAX/INT_MAX.
         it works, but can overflow for large coordinates || scales near 1 */
       screens[curupd]->wextx = 100;
       screens[curupd]->wexty = 100;
@@ -6623,16 +6625,16 @@ void iviewscale(win: winptr; x, y: real);
 
 };
 
-void viewscale(var f: text; x, y: real);
+void viewscale(FILE* f; x, y: real);
 
-var win: winptr; /* window pointer */
+var winptr win; /* window pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    iviewscale(win, x, y); /* set viewport scale */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -7541,10 +7543,10 @@ var cr:         rect; /* client rectangle */
          if (dx > 65535 / 255) || (dy > 65535 / 255) ||
             (dz > 65535 / 255)  {
 
-            /* scale axies between -maxint..maxint && place */
-            er.joypx = (x - 32767)*(maxint / 32768);
-            er.joypy = (y - 32767)*(maxint / 32768);
-            er.joypz = (z - 32767)*(maxint / 32768);
+            /* scale axies between -INT_MAX..INT_MAX && place */
+            er.joypx = (x - 32767)*(INT_MAX / 32768);
+            er.joypy = (y - 32767)*(INT_MAX / 32768);
+            er.joypz = (z - 32767)*(INT_MAX / 32768);
             keep = TRUE /* set keep event */
 
          }
@@ -7596,9 +7598,9 @@ var cr:         rect; /* client rectangle */
 
                   if nm == LBN_DBLCLK  {
 
-                     unlockmain; /* } exclusive access */
+                     unlockmain(); /* } exclusive access */
                      r = s}message(wp->han, lb_getcursel, 0, 0);
-                     lockmain; /* start exclusive access */
+                     lockmain(); /* start exclusive access */
                      if r == -1  error(esystem); /* should be a select */
                      er.etype = etlstbox; /* set list box select event */
                      er.lstbid = wp->id; /* get widget id */
@@ -7612,9 +7614,9 @@ var cr:         rect; /* client rectangle */
 
                   if nm == CBN_SELENDOK  {
 
-                     unlockmain; /* } exclusive access */
+                     unlockmain(); /* } exclusive access */
                      r = s}message(wp->han, cb_getcursel, 0, 0);
-                     lockmain; /* start exclusive access */
+                     lockmain(); /* start exclusive access */
                      if r == -1  error(esystem); /* should be a select */
                      er.etype = etdrpbox; /* set list box select event */
                      er.drpbid = wp->id; /* get widget id */
@@ -7686,9 +7688,9 @@ var cr:         rect; /* client rectangle */
                   er.etype = etsclpos; /* set scroll position event */
                   er.sclPId = wp->id; /* set widget id */
                   f = msg.wparam / 0x10000; /* get current position to float */
-                  /* clamp to maxint */
-                  if f*maxint/(255-wp->siz) > maxint  er.sclpos = maxint
-                  else er.sclpos = round(f*maxint/(255-wp->siz));
+                  /* clamp to INT_MAX */
+                  if f*INT_MAX/(255-wp->siz) > INT_MAX  er.sclpos = INT_MAX
+                  else er.sclpos = round(f*INT_MAX/(255-wp->siz));
                   /*er.sclpos = msg.wparam / 65536*0x800000*/ /* get position */
 
                };
@@ -7700,13 +7702,13 @@ var cr:         rect; /* client rectangle */
                er.sldPId = wp->id; /* set widget id */
                /* get position */
                if v == sb_thumbtrack  /* message includes position */
-                  er.sldpos = msg.wparam / 65536*(maxint / 100)
+                  er.sldpos = msg.wparam / 65536*(INT_MAX / 100)
                else { /* must retrive the position by message */
 
-                  unlockmain; /* } exclusive access */
+                  unlockmain(); /* } exclusive access */
                   r = s}message(wp->han, tbm_getpos, 0, 0);
-                  lockmain; /* start exclusive access */
-                  er.sldpos = r*(maxint / 100) /* set position */
+                  lockmain(); /* start exclusive access */
+                  er.sldpos = r*(INT_MAX / 100) /* set position */
 
                };
                keep = TRUE /* set keep event */
@@ -7762,13 +7764,13 @@ var cr:         rect; /* client rectangle */
                er.sldPId = wp->id; /* set widget id */
                /* get position */
                if v == sb_thumbtrack  /* message includes position */
-                  er.sldpos = msg.wparam / 65536*(maxint / 100)
+                  er.sldpos = msg.wparam / 65536*(INT_MAX / 100)
                else { /* must retrive the position by message */
 
-                  unlockmain; /* } exclusive access */
+                  unlockmain(); /* } exclusive access */
                   r = s}message(wp->han, tbm_getpos, 0, 0);
-                  lockmain; /* start exclusive access */
-                  er.sldpos = r*(maxint / 100) /* set position */
+                  lockmain(); /* start exclusive access */
+                  er.sldpos = r*(INT_MAX / 100) /* set position */
 
                };
                keep = TRUE /* set keep event */
@@ -7788,9 +7790,9 @@ var cr:         rect; /* client rectangle */
            as a selection indicator. */
          if v == -2 /*tcn_selchange*/  {
 
-            unlockmain; /* } exclusive access */
+            unlockmain(); /* } exclusive access */
             r = s}message(wp->han, tcm_getcursel, 0, 0);
-            lockmain; /* start exclusive access */
+            lockmain(); /* start exclusive access */
             er.etype = ettabbar; /* set tab bar type */
             er.tabid = wp->id; /* set id */
             er.tabsel = r+1; /* set tab number */
@@ -7901,14 +7903,14 @@ void sigevt;
 
 /* external event interface */
 
-void event(var f: text; var er: evtrec);
+void event(FILE* f; var er: evtrec);
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    /* get logical input file number for input, && get the event for that. */
    ievent(txt2lfn(f), er); /* process event */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -7973,7 +7975,7 @@ var fn: ss_filhdl; /* logical file number */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    refer(id, dw1, dw2, msg); /* ! used */
    fn = usr / MAXTIM; /* get lfn multiplexed in user data */
    /* Validate it, but do nothing if wrong. We just don"t want to crash on
@@ -7983,10 +7985,10 @@ var fn: ss_filhdl; /* logical file number */
          if opnfil[fn]->win <> nil  { /* file has window context */
 
       wh = opnfil[fn]->win->winhan; /* get window handle */
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       putmsg(wh, wm_timer, usr % MAXTIM /* multiplexed timer number*/, 0)
 
-   } else unlockmain /* } exclusive access */
+   } else unlockmain(); /* end exclusive access */
 
 };
 
@@ -8005,7 +8007,7 @@ the associated input file.
 
 *******************************************************************************/
 
-void itimer(win: winptr;    /* file to s} event to */
+void itimer(winptr win;    /* file to s} event to */
                  lf:  ss_filhdl; /* logical file number */
                  i:   timhan;    /* timer handle */
                  t:   int;   /* number of tenth-milliseconds to run */
@@ -8039,19 +8041,19 @@ var tf: int; /* timer flags */
 
 };
 
-void timer(var f: text;     /* file to s} event to */
+void timer(FILE* f;     /* file to s} event to */
                     i: timhan;   /* timer handle */
                     t: int;  /* number of tenth-milliseconds to run */
                     r: int); /* timer is to rerun after completion */
 
-var win: winptr;  /* window pointer */
+var winptr win;  /* window pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* index output file */
    itimer(win, txt2lfn(f), i, t, r); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -8063,7 +8065,7 @@ Kills a given timer, by it"s id number. Only repeating timers should be killed.
 
 *******************************************************************************/
 
-void ikilltimer(win: winptr;  /* file to kill timer on */
+void ikilltimer(winptr win;  /* file to kill timer on */
                      i:   timhan); /* handle of timer */
 
 var r: mmresult; /* return value */
@@ -8080,17 +8082,17 @@ var r: mmresult; /* return value */
 
 };
 
-void killtimer(var f: text;    /* file to kill timer on */
+void killtimer(FILE* f;    /* file to kill timer on */
                         i: timhan); /* handle of timer */
 
-var win: winptr; /* window pointer */
+var winptr win; /* window pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* index output file */
    ikilltimer(win, i); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -8105,7 +8107,7 @@ of the blanking interval.
 
 *******************************************************************************/
 
-void iframetimer(win: winptr; lf: ss_filhdl; e: int);
+void iframetimer(winptr win; lf: ss_filhdl; e: int);
 
 {
 
@@ -8141,16 +8143,16 @@ void iframetimer(win: winptr; lf: ss_filhdl; e: int);
 
 };
 
-void frametimer(var f: text; e: int);
+void frametimer(FILE* f; e: int);
 
-var win: winptr; /* window pointer */
+var winptr win; /* window pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* index output file */
    iframetimer(win, txt2lfn(f), e); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -8185,7 +8187,7 @@ Returns the number of mice implemented. Windows supports only one mouse.
 
 *******************************************************************************/
 
-int mouse(var f: text): mounum;
+int mouse(FILE* f): mounum;
 
 var rv: int; /* return value */
 
@@ -8206,7 +8208,7 @@ version.
 
 *******************************************************************************/
 
-int mousebutton(var f: text; m: mouhan): moubut;
+int mousebutton(FILE* f; m: mouhan): moubut;
 
 {
 
@@ -8225,17 +8227,17 @@ Return number of joysticks attached.
 
 *******************************************************************************/
 
-int joystick(var f: text): joynum;
+int joystick(FILE* f): joynum;
 
-var win: winptr; /* window pointer */
+var winptr win; /* window pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    with win^ do /* in window context */
       joystick = numjoy; /* two */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -8247,16 +8249,16 @@ Returns the number of buttons on a given joystick.
 
 *******************************************************************************/
 
-int joybutton(var f: text; j: joyhan): joybtn;
+int joybutton(FILE* f; j: joyhan): joybtn;
 
 var jc:  joycaps; /* joystick characteristics data */
-    win: winptr;     /* window pointer */
+    winptr win;     /* window pointer */
     nb:  int;    /* number of buttons */
     r:   int;    /* return value */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    with win^ do { /* in window context */
 
@@ -8269,7 +8271,7 @@ var jc:  joycaps; /* joystick characteristics data */
       joybutton = nb /* set number of buttons */
 
    };
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -8283,7 +8285,7 @@ joystick can be considered a slider without positional meaning.
 
 *******************************************************************************/
 
-int ijoyaxis(win: winptr; j: joyhan): joyaxn;
+int ijoyaxis(winptr win; j: joyhan): joyaxn;
 
 var jc: joycaps; /* joystick characteristics data */
     na: int;    /* number of axes */
@@ -8304,16 +8306,16 @@ var jc: joycaps; /* joystick characteristics data */
 
 };
 
-int joyaxis(var f: text; j: joyhan): joyaxn;
+int joyaxis(FILE* f; j: joyhan): joyaxn;
 
-var win: winptr; /* window pointer */
+var winptr win; /* window pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    joyaxis = ijoyaxis(win, j); /* find joystick axes */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -8325,7 +8327,7 @@ Sets a tab at the indicated PIxel number.
 
 *******************************************************************************/
 
-void isettabg(win: winptr; t: int);
+void isettabg(winptr win; t: int);
 
 var i, x: 1..MAXTAB; /* tab index */
 
@@ -8353,17 +8355,17 @@ var i, x: 1..MAXTAB; /* tab index */
 
 };
 
-void settabg(var f: text; t: int);
+void settabg(FILE* f; t: int);
 
-var win: winptr; /* window pointer */
+var winptr win; /* window pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    with win^ do /* in window context */
       isettabg(win, t); /* translate to graphical call */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -8375,17 +8377,17 @@ Sets a tab at the indicated collumn number.
 
 *******************************************************************************/
 
-void settab(var f: text; t: int);
+void settab(FILE* f; t: int);
 
-var win: winptr; /* window pointer */
+var winptr win; /* window pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    with win^ do /* in window context */
       isettabg(win, (t-1)*charspace+1); /* translate to graphical call */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -8397,7 +8399,7 @@ Resets the tab at the indicated PIxel number.
 
 *******************************************************************************/
 
-void irestabg(win: winptr; t: int);
+void irestabg(winptr win; t: int);
 
 var i:  1..MAXTAB; /* tab index */
     ft: 0..MAXTAB; /* found tab */
@@ -8422,17 +8424,17 @@ var i:  1..MAXTAB; /* tab index */
 
 };
 
-void restabg(var f: text; t: int);
+void restabg(FILE* f; t: int);
 
-var win: winptr; /* window pointer */
+var winptr win; /* window pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    with win^ do /* in window context */
       irestabg(win, t); /* translate to graphical call */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -8444,17 +8446,17 @@ Resets the tab at the indicated collumn number.
 
 *******************************************************************************/
 
-void restab(var f: text; t: int);
+void restab(FILE* f; t: int);
 
-var win: winptr; /* window pointer */
+var winptr win; /* window pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    with win^ do /* in window context */
       irestabg(win, (t-1)*charspace+1); /* translate to graphical call */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -8467,18 +8469,18 @@ arrangement.
 
 *******************************************************************************/
 
-void clrtab(var f: text);
+void clrtab(FILE* f);
 
 var i:   1..MAXTAB;
-    win: winptr; /* window pointer */
+    winptr win; /* window pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    with win^ do /* in window context */
       for i = 1 to MAXTAB do screens[curupd]->tab[i] = 0;
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -8492,7 +8494,7 @@ int keys as well.
 
 *******************************************************************************/
 
-int funkey(var f: text): funky;
+int funkey(FILE* f): funky;
 
 {
 
@@ -8519,7 +8521,7 @@ buffer is completed by hitting "enter",  we return.
 void readline(fn: ss_filhdl);
 
 var er:  evtrec; /* event record */
-    win: winptr; /* window pointer */
+    winptr win; /* window pointer */
 
 {
 
@@ -8927,7 +8929,7 @@ through globals, which are  placed into the proper window.
 
 *******************************************************************************/
 
-void getfonts(win: winptr);
+void getfonts(winptr win);
 
 var r:  int;
     lf: logfont;
@@ -8965,7 +8967,7 @@ Removes the indicated font from the font list. Does ! dispose of the entry.
 
 *******************************************************************************/
 
-void delfnt(win: winptr; fp: fontptr);
+void delfnt(winptr win; fp: fontptr);
 
 var p: fontptr;
 
@@ -8993,7 +8995,7 @@ Finds a font in the list of fonts. Also matches fixed/no fixed PItch status.
 
 *******************************************************************************/
 
-void fndfnt(win: winptr; view fn: char*; fix: int; var fp: fontptr);
+void fndfnt(winptr win; view fn: char*; fix: int; var fp: fontptr);
 
 var p: fontptr;
 
@@ -9021,7 +9023,7 @@ Note: could also default to style searching for book && sign fonts.
 
 *******************************************************************************/
 
-void stdfont(win: winptr);
+void stdfont(winptr win);
 
 var termfp, bookfp, signfp, techfp: fontptr; /* standard font slots */
 
@@ -9135,14 +9137,14 @@ Sets the title of the current window.
 
 *******************************************************************************/
 
-void title(var f: text; view ts: char*);
+void title(FILE* f; view ts: char*);
 
 var b:   int; /* result code */
-    win: winptr; /* window pointer */
+    winptr win; /* window pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    with win^ do { /* in window context */
 
@@ -9150,14 +9152,14 @@ var b:   int; /* result code */
         window, so we have to remove the lock to allow that to be processed.
         Otherwise, setwindowtext will wait for acknoledgement of the message
         && lock us. */
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       /* set window title text */
       b = setwindowtext(winhan, ts);
-      lockmain /* start exclusive access */
+      lockmain();/* start exclusive access */
 
    };
    if ! b  winerr(); /* process windows error */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -9199,7 +9201,7 @@ var wc: wndclassa; /* windows class structure */
    wc.classname  = str("stdwin");
    /* register that class */
    b = registerclass(wc);
-   if ! b  winerr /* process windows error */
+   if ! b  winerr(); /* process windows error */
 
 };
 
@@ -9397,7 +9399,7 @@ var v:     int;       /* used to construct 0x80000000 value */
       b = adjustwindowrectex(cr, ws_overlappedwindow, FALSE, 0);
       if ! b  winerr(); /* process windows error */
       /* now, resize the window to just fit our character mode */
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       b = setwindowpos(winhan, 0, 0, 0, cr.right-cr.left, cr.bottom-cr.top,
                            swp_nomove || swp_nozorder);
       if ! b  winerr(); /* process windows error */
@@ -9408,7 +9410,7 @@ var v:     int;       /* used to construct 0x80000000 value */
       /* s} first paint message */
       b = updatewindow(winhan);
 ;};
-      lockmain; /* start exclusive access */
+      lockmain(); /* start exclusive access */
       /* set up global buffer parameters */
       gmaxx = MAXXD; /* character max dimensions */
       gmaxy = MAXYD;
@@ -9460,7 +9462,7 @@ void clswin(fn: ss_filhdl);
 
 var r:   int; /* result holder */
     b:   int; /* int result holder */
-    win: winptr;  /* window pointer */
+    winptr win;  /* window pointer */
 
 {
 
@@ -9651,14 +9653,14 @@ var ifn, ofn: ss_filhdl; /* file logical handles */
     if (ifn < 0) { /* no other input file, open new */
 
         /* open input file */
-        unlockmain; /* } exclusive access */
+        unlockmain(); /* } exclusive access */
         *ifn = fopen("nul", "r"); /* open null as read only */
-        lockmain; /* start exclusive access */
+        lockmain(); /* start exclusive access */
         if (ifn < 0) error(enoopn); /* can't open */
 
     }
     /* open output file */
-    unlockmain; /* } exclusive access */
+    unlockmain(); /* } exclusive access */
     *ofn = fopen("nul", "w");
     if (ofn < 0) error(enoopn); /* can't open */
     /* check either input is unused, or is already an input side of a window */
@@ -9674,14 +9676,14 @@ var ifn, ofn: ss_filhdl; /* file logical handles */
 
 void openwin(var infile, OUTFILe, parent: text; wid: ss_filhdl);
 
-var win: winptr; /* window context pointer */
+var winptr win; /* window context pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(parent); /* validate parent is a window file */
    iopenwin(infile, OUTFILe, txt2lfn(parent), wid); /* process open */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -9693,7 +9695,7 @@ Sets || resets the size of the buffer surface, in PIxel units.
 
 *******************************************************************************/
 
-void isizbufg(win: winptr; x, y: int);
+void isizbufg(winptr win; x, y: int);
 
 var cr:  rect;   /* client rectangle holder */
     si:  1..MAXCON; /* index for current display screen */
@@ -9716,10 +9718,10 @@ var cr:  rect;   /* client rectangle holder */
       b = adjustwindowrectex(cr, ws_overlappedwindow, FALSE, 0);
       if ! b  winerr(); /* process windows error */
       /* now, resize the window to just fit our new buffer size */
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       b = setwindowpos(winhan, 0, 0, 0, cr.right-cr.left, cr.bottom-cr.top,
                            swp_nomove || swp_nozorder);
-      lockmain; /* start exclusive access */
+      lockmain(); /* start exclusive access */
       if ! b  winerr(); /* process windows error */
       /* all the screen buffers are wrong, so tear them out */
       for si = 1 to MAXCON do disscn(win, screens[si]);
@@ -9737,17 +9739,17 @@ var cr:  rect;   /* client rectangle holder */
 
 };
 
-void sizbufg(var f: text; x, y: int);
+void sizbufg(FILE* f; x, y: int);
 
-var win: winptr; /* window pointer */
+var winptr win; /* window pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window pointer from text file */
    with win^ do /* in window context */
       isizbufg(win, x, y); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -9759,18 +9761,18 @@ Sets || resets the size of the buffer surface, in character counts.
 
 *******************************************************************************/
 
-void sizbuf(var f: text; x, y: int);
+void sizbuf(FILE* f; x, y: int);
 
-var win: winptr;    /* pointer to windows context */
+var winptr win;    /* pointer to windows context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window context */
    with win^ do /* in windows context */
       /* just translate from characters to PIxels && do the resize in PIxels. */
       isizbufg(win, x*charspace, y*linespace);
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -9783,7 +9785,7 @@ freed.
 
 *******************************************************************************/
 
-void ibuffer(win: winptr; e: int);
+void ibuffer(winptr win; e: int);
 
 var si:  1..MAXCON; /* index for current display screen */
     b:   int;   /* result */
@@ -9809,10 +9811,10 @@ var si:  1..MAXCON; /* index for current display screen */
          b = adjustwindowrectex(r, ws_overlappedwindow, FALSE, 0);
          if ! b  winerr(); /* process windows error */
          /* resize the window to just fit our buffer size */
-         unlockmain; /* } exclusive access */
+         unlockmain(); /* } exclusive access */
          b = setwindowpos(winhan, 0, 0, 0, r.right-r.left, r.bottom-r.top,
                               swp_nomove || swp_nozorder);
-         lockmain; /* start exclusive access */
+         lockmain(); /* start exclusive access */
          if ! b  winerr(); /* process windows error */
          restore(win, TRUE) /* restore buffer to screen */
 
@@ -9842,7 +9844,7 @@ var si:  1..MAXCON; /* index for current display screen */
          /* tell the window to repaint */
          /*b = postmessage(win->winhan, wm_paint, 0, 0);*/
          putmsg(win->winhan, wm_paint, 0, 0);
-         if ! b  winerr /* process windows error */
+         if ! b  winerr(); /* process windows error */
 
       }
 
@@ -9850,17 +9852,17 @@ var si:  1..MAXCON; /* index for current display screen */
 
 };
 
-void buffer(var f: text; e: int);
+void buffer(FILE* f; e: int);
 
-var win: winptr; /* pointer to windows context */
+var winptr win; /* pointer to windows context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window context */
    with win^ do /* in windows context */
       ibuffer(win, e); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -9874,7 +9876,7 @@ deleted.
 
 *******************************************************************************/
 
-void imenu(win: winptr; m: menuptr);
+void imenu(winptr win; m: menuptr);
 
 var b:  int; /* int result */
     mp: metptr;  /* tracking entry pointer */
@@ -9977,30 +9979,30 @@ var sm:  int; /* submenu handle */
       };
       if m <> nil  /* there is a new menu to activate */
          createmenu(m, menhan);
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       b = setmenu(winhan, menhan); /* set the menu to the window */
-      lockmain; /* start exclusive access */
+      lockmain(); /* start exclusive access */
       if ! b  winerr(); /* process windows error */
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       b = drawmenubar(winhan); /* display menu */
-      lockmain; /* start exclusive access */
-      if ! b  winerr /* process windows error */
+      lockmain(); /* start exclusive access */
+      if ! b  winerr(); /* process windows error */
 
    }
 
 };
 
-void menu(var f: text; m: menuptr);
+void menu(FILE* f; m: menuptr);
 
-var win: winptr; /* pointer to windows context */
+var winptr win; /* pointer to windows context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window context */
    with win^ do /* in windows context */
       imenu(win, m); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -10013,7 +10015,7 @@ If the entry exists more than once, it generates an error.
 
 *******************************************************************************/
 
-int fndmenu(win: winptr; id: int): metptr;
+int fndmenu(winptr win; id: int): metptr;
 
 var mp: metptr; /* tracking entry pointer */
     fp: metptr; /* found entry pointer */
@@ -10052,7 +10054,7 @@ and will no longer s} messages.
 
 *******************************************************************************/
 
-void imenuena(win: winptr; id: int; onoff: int);
+void imenuena(winptr win; id: int; onoff: int);
 
 var fl: int; /* flags */
     mp: metptr;  /* tracking pointer */
@@ -10069,26 +10071,26 @@ var fl: int; /* flags */
       else fl = fl || mf_grayed; /* disable it */
       r = enablemenuitem(mp->han, mp->inx, fl); /* perform that */
       if r == -1  error(esystem); /* should ! happen */
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       b = drawmenubar(winhan); /* display menu */
-      lockmain; /* start exclusive access */
-      if ! b  winerr /* process windows error */
+      lockmain(); /* start exclusive access */
+      if ! b  winerr(); /* process windows error */
 
    }
 
 };
 
-void menuena(var f: text; id: int; onoff: int);
+void menuena(FILE* f; id: int; onoff: int);
 
-var win: winptr; /* pointer to windows context */
+var winptr win; /* pointer to windows context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window context */
    with win^ do /* in windows context */
       imenuena(win, id, onoff); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -10101,7 +10103,7 @@ selected, with no check if not.
 
 *******************************************************************************/
 
-void imenusel(win: winptr; id: int; select: int);
+void imenusel(winptr win; id: int; select: int);
 
 var fl: int; /* flags */
     mp: metptr;  /* tracking pointer */
@@ -10155,26 +10157,26 @@ void clrlst(mp: metptr);
       else fl = fl || mf_unchecked; /* deselect it */
       r = checkmenuitem(mp->han, mp->inx, fl); /* perform that */
       if r == -1  error(esystem); /* should ! happen */
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       b = drawmenubar(winhan); /* display menu */
-      lockmain; /* start exclusive access */
-      if ! b  winerr /* process windows error */
+      lockmain(); /* start exclusive access */
+      if ! b  winerr(); /* process windows error */
 
    }
 
 };
 
-void menusel(var f: text; id: int; select: int);
+void menusel(FILE* f; id: int; select: int);
 
-var win: winptr; /* pointer to windows context */
+var winptr win; /* pointer to windows context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window context */
    with win^ do /* in windows context */
       imenusel(win, id, select); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -10186,7 +10188,7 @@ Brings the indicated window to the front of the Z order.
 
 *******************************************************************************/
 
-void ifront(win: winptr);
+void ifront(winptr win);
 
 var b:  int; /* result holder */
     fl: int;
@@ -10197,33 +10199,33 @@ var b:  int; /* result holder */
 
       fl = 0;
       fl = ! fl;
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       b = setwindowpos(winhan, 0/*fl*/ /*hwnd_topmost*/, 0, 0, 0, 0,
                            swp_nomove || swp_nosize);
-      lockmain; /* start exclusive access */
+      lockmain(); /* start exclusive access */
       if ! b  winerr(); /* process windows error */
 
 ;if FALSE  {
       fl = 1;
       fl = ! fl;
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       b = setwindowpos(winhan, fl /*hwnd_notopmost*/, 0, 0, 0, 0,
                            swp_nomove || swp_nosize);
-      lockmain; /* start exclusive access */
+      lockmain(); /* start exclusive access */
       if ! b  winerr(); /* process windows error */
 ;};
 
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       b = postmessage(winhan, wm_paint, 0, 0);
       if ! b  winerr(); /* process windows error */
-      lockmain; /* start exclusive access */
+      lockmain(); /* start exclusive access */
 
       if parhan <> 0  {
 
-         unlockmain; /* } exclusive access */
+         unlockmain(); /* } exclusive access */
          b = postmessage(parhan, wm_paint, 0, 0);
          if ! b  winerr(); /* process windows error */
-         lockmain; /* start exclusive access */
+         lockmain(); /* start exclusive access */
 
       }
 
@@ -10231,16 +10233,16 @@ var b:  int; /* result holder */
 
 };
 
-void front(var f: text);
+void front(FILE* f);
 
-var win: winptr; /* windows record pointer */
+var winptr win; /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window from file */
    ifront(win); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -10252,7 +10254,7 @@ Puts the indicated window to the back of the Z order.
 
 *******************************************************************************/
 
-void iback(win: winptr);
+void iback(winptr win);
 
 var b: int; /* result holder */
 
@@ -10260,26 +10262,26 @@ var b: int; /* result holder */
 
    with win^ do { /* in windows context */
 
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       b = setwindowpos(winhan, hwnd_bottom, 0, 0, 0, 0,
                            swp_nomove || swp_nosize);
-      lockmain; /* start exclusive access */
+      lockmain(); /* start exclusive access */
       if ! b  winerr(); /* process windows error */
 
    }
 
 };
 
-void back(var f: text);
+void back(FILE* f);
 
-var win: winptr; /* windows record pointer */
+var winptr win; /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window from file */
    iback(win); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -10291,7 +10293,7 @@ Gets the onscreen window size.
 
 *******************************************************************************/
 
-void igetsizg(win: winptr; var x, y: int);
+void igetsizg(winptr win; var x, y: int);
 
 var b: int; /* result holder */
     r: rect; /* rectangle */
@@ -10309,16 +10311,16 @@ var b: int; /* result holder */
 
 };
 
-void getsizg(var f: text; var x, y: int);
+void getsizg(FILE* f; var x, y: int);
 
-var win: winptr; /* windows record pointer */
+var winptr win; /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window from file */
    igetsizg(win, x, y); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -10335,13 +10337,13 @@ relative measurement.
 
 *******************************************************************************/
 
-void getsiz(var f: text; var x, y: int);
+void getsiz(FILE* f; var x, y: int);
 
 var win, par: winptr; /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window from file */
    igetsizg(win, x, y); /* execute */
    if win->parlfn <> 0  { /* has a parent */
@@ -10358,7 +10360,7 @@ var win, par: winptr; /* windows record pointer */
       y = (y-1) / STDCHRY+1
 
    };
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -10370,7 +10372,7 @@ Sets the onscreen window to the given size.
 
 *******************************************************************************/
 
-void isetsizg(win: winptr; x, y: int);
+void isetsizg(winptr win; x, y: int);
 
 var b: int; /* result holder */
 
@@ -10378,26 +10380,26 @@ var b: int; /* result holder */
 
    with win^ do { /* in windows context */
 
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       b = setwindowpos(winhan, 0, 0, 0, x, y,
                            swp_nomove || swp_nozorder);
-      lockmain; /* start exclusive access */
-      if ! b  winerr /* process windows error */
+      lockmain(); /* start exclusive access */
+      if ! b  winerr(); /* process windows error */
 
    }
 
 };
 
-void setsizg(var f: text; x, y: int);
+void setsizg(FILE* f; x, y: int);
 
-var win: winptr; /* windows record pointer */
+var winptr win; /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window from file */
    isetsizg(win, x, y); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -10414,13 +10416,13 @@ relative measurement.
 
 *******************************************************************************/
 
-void setsiz(var f: text; x, y: int);
+void setsiz(FILE* f; x, y: int);
 
 var win, par: winptr; /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window from file */
    if win->parlfn <> 0  { /* has a parent */
 
@@ -10437,7 +10439,7 @@ var win, par: winptr; /* windows record pointer */
 
    };
    isetsizg(win, x, y); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -10449,7 +10451,7 @@ Sets the onscreen window to the given position in its parent.
 
 *******************************************************************************/
 
-void isetposg(win: winptr; x, y: int);
+void isetposg(winptr win; x, y: int);
 
 var b: int; /* result holder */
 
@@ -10457,25 +10459,25 @@ var b: int; /* result holder */
 
    with win^ do { /* in windows context */
 
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       b = setwindowpos(winhan, 0, x-1, y-1, 0, 0, swp_nosize);
-      lockmain; /* start exclusive access */
-      if ! b  winerr /* process windows error */
+      lockmain(); /* start exclusive access */
+      if ! b  winerr(); /* process windows error */
 
    }
 
 };
 
-void setposg(var f: text; x, y: int);
+void setposg(FILE* f; x, y: int);
 
-var win: winptr; /* windows record pointer */
+var winptr win; /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window from file */
    isetposg(win, x, y); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -10492,13 +10494,13 @@ relative measurement.
 
 *******************************************************************************/
 
-void setpos(var f: text; x, y: int);
+void setpos(FILE* f; x, y: int);
 
 var win, par: winptr; /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window from file */
    if win->parlfn <> 0  { /* has a parent */
 
@@ -10515,7 +10517,7 @@ var win, par: winptr; /* windows record pointer */
 
    };
    isetposg(win, x, y); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -10527,7 +10529,7 @@ Gets the total screen size.
 
 *******************************************************************************/
 
-void iscnsizg(win: winptr; var x, y: int);
+void iscnsizg(winptr win; var x, y: int);
 
 var b:      int; /* result holder */
     r:      rect; /* rectangle */
@@ -10547,16 +10549,16 @@ var b:      int; /* result holder */
 
 };
 
-void scnsizg(var f: text; var x, y: int);
+void scnsizg(FILE* f; var x, y: int);
 
-var win: winptr; /* windows record pointer */
+var winptr win; /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window from file */
    iscnsizg(win, x, y); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -10575,7 +10577,7 @@ Do we also need a menu style type ?
 
 *******************************************************************************/
 
-void iwinclientg(win: winptr; cx, cy: int; var wx, wy: int;
+void iwinclientg(winptr win; cx, cy: int; var wx, wy: int;
                       view ms: winmodset);
 
 var cr: rect; /* client rectangle holder */
@@ -10583,7 +10585,7 @@ var cr: rect; /* client rectangle holder */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    with win^ do {
 
       cr.left = 0; /* set up desired client rectangle */
@@ -10609,18 +10611,18 @@ var cr: rect; /* client rectangle holder */
       wy = cr.bottom-cr.top
 
    };
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void winclient(var f: text; cx, cy: int; var wx, wy: int;
+void winclient(FILE* f; cx, cy: int; var wx, wy: int;
                     view ms: winmodset);
 
 var win, par: winptr; /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window from file */
    /* execute */
    iwinclientg(win, cx*win->charspace, cy*win->linespace, wx, wy, ms);
@@ -10639,21 +10641,21 @@ var win, par: winptr; /* windows record pointer */
       wy = (wy-1) / STDCHRY+1
 
    };
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void winclientg(var f: text; cx, cy: int; var wx, wy: int;
+void winclientg(FILE* f; cx, cy: int; var wx, wy: int;
                      view ms: winmodset);
 
-var win: winptr; /* windows record pointer */
+var winptr win; /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window from file */
    iwinclientg(win, cx, cy, wx, wy, ms); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -10668,18 +10670,18 @@ because it can only be used as a relative measurement.
 
 *******************************************************************************/
 
-void scnsiz(var f: text; var x, y: int);
+void scnsiz(FILE* f; var x, y: int);
 
-var win: winptr; /* windows record pointer */
+var winptr win; /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window from file */
    iscnsizg(win, x, y); /* execute */
    x = x / STDCHRX; /* convert to "standard character" size */
    y = y / STDCHRY;
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -10691,7 +10693,7 @@ Turns the window frame on && off.
 
 *******************************************************************************/
 
-void iframe(win: winptr; e: int);
+void iframe(winptr win; e: int);
 
 var fl1, fl2: int; /* flag */
     cr:       rect; /* client rectangle holder */
@@ -10714,20 +10716,20 @@ var fl1, fl2: int; /* flag */
       };
       fl2 = 0xf; /* build the gwl_style value */
       fl2 = ! fl2;
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       r = setwindowlong(winhan, fl2 /*gwl_style*/, fl1);
-      lockmain; /* start exclusive access */
+      lockmain(); /* start exclusive access */
       if r == 0  winerr(); /* process windows error */
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       b = setwindowpos(winhan, 0, 0, 0, 0, 0,
                            swp_nosize || swp_nomove ||
                            swp_framechanged);
-      lockmain; /* start exclusive access */
+      lockmain(); /* start exclusive access */
       if ! b  winerr(); /* process windows error */
       /* present the window */
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       b = showwindow(winhan, sw_showdefault);
-      lockmain; /* start exclusive access */
+      lockmain(); /* start exclusive access */
       if bufmod  { /* in buffer mode */
 
          /* change window size to match new mode */
@@ -10738,12 +10740,12 @@ var fl1, fl2: int; /* flag */
          /* find window size from client size */
          b = adjustwindowrectex(cr, fl1, FALSE, 0);
          if ! b  winerr(); /* process windows error */
-         unlockmain; /* } exclusive access */
+         unlockmain(); /* } exclusive access */
          b = setwindowpos(winhan, 0, 0, 0,
                               cr.right-cr.left, cr.bottom-cr.top,
                               swp_nomove || swp_nozorder);
-         lockmain; /* start exclusive access */
-         if ! b  winerr /* process windows error */
+         lockmain(); /* start exclusive access */
+         if ! b  winerr(); /* process windows error */
 
       }
 
@@ -10751,16 +10753,16 @@ var fl1, fl2: int; /* flag */
 
 };
 
-void frame(var f: text; e: int);
+void frame(FILE* f; e: int);
 
-var win: winptr; /* windows record pointer */
+var winptr win; /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window from file */
    iframe(win, e); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -10772,7 +10774,7 @@ Turns the window sizing on && off.
 
 *******************************************************************************/
 
-void isizable(win: winptr; e: int);
+void isizable(winptr win; e: int);
 
 var fl1, fl2: int; /* flag */
     cr:       rect; /* client rectangle holder */
@@ -10798,20 +10800,20 @@ var fl1, fl2: int; /* flag */
          if e  fl1 = fl1 || ws_thickframe;
          fl2 = 0xf; /* build the gwl_style value */
          fl2 = ! fl2;
-         unlockmain; /* } exclusive access */
+         unlockmain(); /* } exclusive access */
          r = setwindowlong(winhan, fl2 /*gwl_style*/, fl1);
-         lockmain; /* start exclusive access */
+         lockmain(); /* start exclusive access */
          if r == 0  winerr(); /* process windows error */
-         unlockmain; /* } exclusive access */
+         unlockmain(); /* } exclusive access */
          b = setwindowpos(winhan, 0, 0, 0, 0, 0,
                               swp_nosize || swp_nomove ||
                               swp_framechanged);
-         lockmain; /* start exclusive access */
+         lockmain(); /* start exclusive access */
          if ! b  winerr(); /* process windows error */
          /* present the window */
-         unlockmain; /* } exclusive access */
+         unlockmain(); /* } exclusive access */
          b = showwindow(winhan, sw_showdefault);
-         lockmain; /* start exclusive access */
+         lockmain(); /* start exclusive access */
          if bufmod  { /* in buffer mode */
 
             /* change window size to match new mode */
@@ -10822,12 +10824,12 @@ var fl1, fl2: int; /* flag */
             /* find window size from client size */
             b = adjustwindowrectex(cr, fl1, FALSE, 0);
             if ! b  winerr(); /* process windows error */
-            unlockmain; /* } exclusive access */
+            unlockmain(); /* } exclusive access */
             b = setwindowpos(winhan, 0, 0, 0,
                                  cr.right-cr.left, cr.bottom-cr.top,
                                  swp_nomove || swp_nozorder);
-            lockmain; /* start exclusive access */
-            if ! b  winerr /* process windows error */
+            lockmain(); /* start exclusive access */
+            if ! b  winerr(); /* process windows error */
 
          }
 
@@ -10837,16 +10839,16 @@ var fl1, fl2: int; /* flag */
 
 };
 
-void sizable(var f: text; e: int);
+void sizable(FILE* f; e: int);
 
-var win: winptr; /* windows record pointer */
+var winptr win; /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window from file */
    isizable(win, e); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -10858,7 +10860,7 @@ Turns the system bar on && off.
 
 *******************************************************************************/
 
-void isysbar(win: winptr; e: int);
+void isysbar(winptr win; e: int);
 
 var fl1, fl2: int; /* flag */
     cr:       rect; /* client rectangle holder */
@@ -10884,20 +10886,20 @@ var fl1, fl2: int; /* flag */
          if e  fl1 = fl1 || ws_thickframe;
          fl2 = 0xf; /* build the gwl_style value */
          fl2 = ! fl2;
-         unlockmain; /* } exclusive access */
+         unlockmain(); /* } exclusive access */
          r = setwindowlong(winhan, fl2 /*gwl_style*/, fl1);
-         lockmain; /* start exclusive access */
+         lockmain(); /* start exclusive access */
          if r == 0  winerr(); /* process windows error */
-         unlockmain; /* } exclusive access */
+         unlockmain(); /* } exclusive access */
          b = setwindowpos(winhan, 0, 0, 0, 0, 0,
                               swp_nosize || swp_nomove ||
                               swp_framechanged);
-         lockmain; /* start exclusive access */
+         lockmain(); /* start exclusive access */
          if ! b  winerr(); /* process windows error */
          /* present the window */
-         unlockmain; /* } exclusive access */
+         unlockmain(); /* } exclusive access */
          b = showwindow(winhan, sw_showdefault);
-         lockmain; /* start exclusive access */
+         lockmain(); /* start exclusive access */
          if bufmod  { /* in buffer mode */
 
             /* change window size to match new mode */
@@ -10908,12 +10910,12 @@ var fl1, fl2: int; /* flag */
             /* find window size from client size */
             b = adjustwindowrectex(cr, fl1, FALSE, 0);
             if ! b  winerr(); /* process windows error */
-            unlockmain; /* } exclusive access */
+            unlockmain(); /* } exclusive access */
             b = setwindowpos(winhan, 0, 0, 0,
                                  cr.right-cr.left, cr.bottom-cr.top,
                                  swp_nomove || swp_nozorder);
-            lockmain; /* start exclusive access */
-            if ! b  winerr /* process windows error */
+            lockmain(); /* start exclusive access */
+            if ! b  winerr(); /* process windows error */
 
          }
 
@@ -10923,16 +10925,16 @@ var fl1, fl2: int; /* flag */
 
 };
 
-void sysbar(var f: text; e: int);
+void sysbar(FILE* f; e: int);
 
-var win: winptr; /* windows record pointer */
+var winptr win; /* windows record pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window from file */
    isysbar(win, e); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -11117,7 +11119,7 @@ trying to start them on the main window.
 
 *******************************************************************************/
 
-void widget(win: winptr; x1, y1, x2, y2: int; view s: char*;
+void widget(winptr win; x1, y1, x2, y2: int; view s: char*;
                  id: int; typ: wigtyp; exfl: int; var wp: wigptr);
 
 var fl:     int; /* creation flag */
@@ -11126,7 +11128,7 @@ var fl:     int; /* creation flag */
 
 /* create widget according to type */
 
-int createwidget(win: winptr; typ: wigtyp; x1, y1, x2, y2: int;
+int createwidget(winptr win; typ: wigtyp; x1, y1, x2, y2: int;
                       view s: char*; id: int): int;
 
 var wh: int; /* handle to widget */
@@ -11282,7 +11284,7 @@ Removes the widget by id from the window.
 
 *******************************************************************************/
 
-void ikillwidget(win: winptr; id: int);
+void ikillwidget(winptr win; id: int);
 
 var wp: wigptr; /* widget pointer */
 
@@ -11301,16 +11303,16 @@ var wp: wigptr; /* widget pointer */
 
 };
 
-void killwidget(var f: text; id: int);
+void killwidget(FILE* f; id: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    ikillwidget(win, id); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -11322,7 +11324,7 @@ Selects || deselects a widget.
 
 *******************************************************************************/
 
-void iselectwidget(win: winptr; id: int; e: int);
+void iselectwidget(winptr win; id: int; e: int);
 
 var wp: wigptr;  /* widget entry */
     r:  int; /* return value */
@@ -11336,24 +11338,24 @@ var wp: wigptr;  /* widget entry */
       if wp == nil  error(ewignf); /* ! found */
       /* check this widget is selectable */
       if ! (wp->typ in [wtcheckbox, wtradiobutton])  error(ewigsel);
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       r = s}message(wp->han, bm_setcheck, ord(e), 0);
-      lockmain /* start exclusive access */
+      lockmain();/* start exclusive access */
 
    }
 
 };
 
-void selectwidget(var f: text; id: int; e: int);
+void selectwidget(FILE* f; id: int; e: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    iselectwidget(win, id, e); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -11365,7 +11367,7 @@ Enables || disables a widget.
 
 *******************************************************************************/
 
-void ienablewidget(win: winptr; id: int; e: int);
+void ienablewidget(winptr win; id: int; e: int);
 
 var wp:  wigptr;  /* widget entry */
     b:   int; /* return value */
@@ -11383,25 +11385,25 @@ var wp:  wigptr;  /* widget entry */
                           wteditbox, wtlistbox, wtdropbox, wtdropeditbox,
                           wtslidehoriz, wtslidevert,
                           wttabbar])  error(ewigdis);
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       b = enablewindow(wp->han, e); /* perform */
-      lockmain; /* start exclusive access */
+      lockmain(); /* start exclusive access */
       wp->enb = e /* save enable/disable status */
 
    };
 
 };
 
-void enablewidget(var f: text; id: int; e: int);
+void enablewidget(FILE* f; id: int; e: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    ienablewidget(win, id, e); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -11415,7 +11417,7 @@ This error is currently unchecked.
 
 *******************************************************************************/
 
-void igetwidgettext(win: winptr; id: int; var s: char*);
+void igetwidgettext(winptr win; id: int; var s: char*);
 
 var wp:  wigptr;  /* widget pointer */
     ls:  int; /* length of text */
@@ -11432,17 +11434,17 @@ var wp:  wigptr;  /* widget pointer */
       if wp == nil  error(ewignf); /* ! found */
       /* check this widget can get text */
       if ! (wp->typ in [wteditbox, wtdropeditbox])  error(ewiggtxt);
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       ls = getwindowtextlength(wp->han); /* get text length */
-      lockmain; /* start exclusive access */
+      lockmain(); /* start exclusive access */
       /* There is no real way to process an error, as listed in the
         documentation, for getwindowtextlength. The docs define
         a zero return as being for a zero length char*, but also apparently
         uses that value for errors. */
       new(sp, ls+1); /* get a char* for that, with zero terminate */
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       r = getwindowtext(wp->han, sp^); /* get the text */
-      lockmain; /* start exclusive access */
+      lockmain(); /* start exclusive access */
       /* Getwindowtext has the same issue as getwindowtextlength, with the
         exception that, since we already have the length of data, if the
         length is wrong AND the return is zero, its an error. This leaves
@@ -11457,16 +11459,16 @@ var wp:  wigptr;  /* widget pointer */
 
 };
 
-void getwidgettext(var f: text; id: int; var s: char*);
+void getwidgettext(FILE* f; id: int; var s: char*);
 
-var win: winptr;  /* window context */
+var winptr win;  /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    igetwidgettext(win, id, s); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -11478,7 +11480,7 @@ Places text into an edit box.
 
 *******************************************************************************/
 
-void iputwidgettext(win: winptr; id: int; view s: char*);
+void iputwidgettext(winptr win; id: int; view s: char*);
 
 var wp: wigptr;  /* widget pointer */
     b:  int; /* return value */
@@ -11492,25 +11494,25 @@ var wp: wigptr;  /* widget pointer */
       if wp == nil  error(ewignf); /* ! found */
       /* check this widget can put text */
       if ! (wp->typ in [wteditbox, wtdropeditbox])  error(ewigptxt);
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       b = setwindowtext(wp->han, s); /* get the text */
-      lockmain; /* start exclusive access */
+      lockmain(); /* start exclusive access */
       if ! b  winerr(); /* process windows error */
 
    };
 
 };
 
-void putwidgettext(var f: text; id: int; view s: char*);
+void putwidgettext(FILE* f; id: int; view s: char*);
 
-var win: winptr;  /* window context */
+var winptr win;  /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    iputwidgettext(win, id, s); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -11522,7 +11524,7 @@ Changes the size of a widget.
 
 *******************************************************************************/
 
-void isizwidgetg(win: winptr; id: int; x, y: int);
+void isizwidgetg(winptr win; id: int; x, y: int);
 
 var wp: wigptr; /* widget pointer */
 
@@ -11532,18 +11534,18 @@ var wp: wigptr; /* widget pointer */
 
       wp = fndwig(win, id); /* find widget */
       if wp == nil  error(ewignf); /* ! found */
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       b = setwindowpos(wp->han, 0, 0, 0, x, y,
                            swp_nomove || swp_nozorder);
-      lockmain; /* start exclusive access */
+      lockmain(); /* start exclusive access */
       if ! b  winerr(); /* process windows error */
       if wp->han2 <> 0  { /* also resize the buddy */
 
          /* Note, the buddy needs to be done differently for a numselbox */
-         unlockmain; /* } exclusive access */
+         unlockmain(); /* } exclusive access */
          b = setwindowpos(wp->han2, 0, 0, 0, x, y,
                               swp_nomove || swp_nozorder);
-         lockmain; /* start exclusive access */
+         lockmain(); /* start exclusive access */
          if ! b  winerr(); /* process windows error */
 
       }
@@ -11552,16 +11554,16 @@ var wp: wigptr; /* widget pointer */
 
 };
 
-void sizwidgetg(var f: text; id: int; x, y: int);
+void sizwidgetg(FILE* f; id: int; x, y: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    isizwidgetg(win, id, x, y); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -11573,7 +11575,7 @@ Changes the parent position of a widget.
 
 *******************************************************************************/
 
-void iposwidgetg(win: winptr; id: int; x, y: int);
+void iposwidgetg(winptr win; id: int; x, y: int);
 
 var wp: wigptr; /* widget pointer */
 
@@ -11583,16 +11585,16 @@ var wp: wigptr; /* widget pointer */
 
       wp = fndwig(win, id); /* find widget */
       if wp == nil  error(ewignf); /* ! found */
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       b = setwindowpos(wp->han, 0, x-1, y-1, 0, 0, swp_nosize);
-      lockmain; /* start exclusive access */
+      lockmain(); /* start exclusive access */
       if ! b  winerr(); /* process windows error */
       if wp->han2 <> 0  { /* also reposition the buddy */
 
          /* Note, the buddy needs to be done differently for a numselbox */
-         unlockmain; /* } exclusive access */
+         unlockmain(); /* } exclusive access */
          b = setwindowpos(wp->han2, 0, x-1, y-1, 0, 0, swp_nosize);
-         lockmain; /* start exclusive access */
+         lockmain(); /* start exclusive access */
          if ! b  winerr(); /* process windows error */
 
       }
@@ -11601,16 +11603,16 @@ var wp: wigptr; /* widget pointer */
 
 };
 
-void poswidgetg(var f: text; id: int; x, y: int);
+void poswidgetg(FILE* f; id: int; x, y: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    iposwidgetg(win, id, x, y); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -11620,7 +11622,7 @@ Place widget to back of Z order
 
 *******************************************************************************/
 
-void ibackwidget(win: winptr; id: int);
+void ibackwidget(winptr win; id: int);
 
 var wp: wigptr;  /* widget pointer */
     b:  int; /* result holder */
@@ -11631,18 +11633,18 @@ var wp: wigptr;  /* widget pointer */
 
       wp = fndwig(win, id); /* find widget */
       if wp == nil  error(ewignf); /* ! found */
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       b = setwindowpos(wp->han, hwnd_bottom, 0, 0, 0, 0,
                            swp_nomove || swp_nosize);
-      lockmain; /* start exclusive access */
+      lockmain(); /* start exclusive access */
       if ! b  winerr(); /* process windows error */
       if wp->han2 <> 0  { /* also reposition the buddy */
 
          /* Note, the buddy needs to be done differently for a numselbox */
-         unlockmain; /* } exclusive access */
+         unlockmain(); /* } exclusive access */
          b = setwindowpos(wp->han2, hwnd_bottom, 0, 0, 0, 0,
                               swp_nomove || swp_nosize);
-         lockmain; /* start exclusive access */
+         lockmain(); /* start exclusive access */
          if ! b  winerr(); /* process windows error */
 
       }
@@ -11651,16 +11653,16 @@ var wp: wigptr;  /* widget pointer */
 
 };
 
-void backwidget(var f: text; id: int);
+void backwidget(FILE* f; id: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    ibackwidget(win, id); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -11670,7 +11672,7 @@ Place widget to back of Z order
 
 *******************************************************************************/
 
-void ifrontwidget(win: winptr; id: int);
+void ifrontwidget(winptr win; id: int);
 
 var wp: wigptr;  /* widget pointer */
     b:  int; /* result holder */
@@ -11684,18 +11686,18 @@ var wp: wigptr;  /* widget pointer */
       if wp == nil  error(ewignf); /* ! found */
       fl = 0;
       fl = ! fl;
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       b = setwindowpos(wp->han, fl /*hwnd_topmost*/, 0, 0, 0, 0,
                            swp_nomove || swp_nosize);
-      lockmain; /* start exclusive access */
+      lockmain(); /* start exclusive access */
       if ! b  winerr(); /* process windows error */
       if wp->han2 <> 0  { /* also reposition the buddy */
 
          /* Note, the buddy needs to be done differently for a numselbox */
-         unlockmain; /* } exclusive access */
+         unlockmain(); /* } exclusive access */
          b = setwindowpos(wp->han2, fl /*hwnd_topmost*/, 0, 0, 0, 0,
                               swp_nomove || swp_nosize);
-         lockmain; /* start exclusive access */
+         lockmain(); /* start exclusive access */
          if ! b  winerr(); /* process windows error */
 
       }
@@ -11704,16 +11706,16 @@ var wp: wigptr;  /* widget pointer */
 
 };
 
-void frontwidget(var f: text; id: int);
+void frontwidget(FILE* f; id: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    ifrontwidget(win, id); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -11726,7 +11728,7 @@ a button is calculated && returned.
 
 *******************************************************************************/
 
-void ibuttonsizg(win: winptr; view s: char*; var w, h: int);
+void ibuttonsizg(winptr win; view s: char*; var w, h: int);
 
 var sz: size; /* size holder */
     b:  int; /* return value */
@@ -11746,7 +11748,7 @@ var sz: size; /* size holder */
 
 };
 
-void ibuttonsiz(win: winptr; view s: char*; var w, h: int);
+void ibuttonsiz(winptr win; view s: char*; var w, h: int);
 
 {
 
@@ -11757,29 +11759,29 @@ void ibuttonsiz(win: winptr; view s: char*; var w, h: int);
 
 };
 
-void buttonsizg(var f: text; view s: char*; var w, h: int);
+void buttonsizg(FILE* f; view s: char*; var w, h: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    ibuttonsizg(win, s, w, h); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void buttonsiz(var f: text; view s: char*; var w, h: int);
+void buttonsiz(FILE* f; view s: char*; var w, h: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    ibuttonsiz(win, s, w, h); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -11791,7 +11793,7 @@ Creates a standard button within the specified rectangle, on the given window.
 
 *******************************************************************************/
 
-void ibuttong(win: winptr; x1, y1, x2, y2: int; view s: char*;
+void ibuttong(winptr win; x1, y1, x2, y2: int; view s: char*;
                   id: int);
 
 var wp: wigptr; /* widget pointer */
@@ -11803,7 +11805,7 @@ var wp: wigptr; /* widget pointer */
 
 };
 
-void ibutton(win: winptr; x1, y1, x2, y2: int; view s: char*;
+void ibutton(winptr win; x1, y1, x2, y2: int; view s: char*;
                   id: int);
 
 {
@@ -11817,31 +11819,31 @@ void ibutton(win: winptr; x1, y1, x2, y2: int; view s: char*;
 
 };
 
-void buttong(var f: text; x1, y1, x2, y2: int; view s: char*;
+void buttong(FILE* f; x1, y1, x2, y2: int; view s: char*;
                  id: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    ibuttong(win, x1, y1, x2, y2, s, id);
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void button(var f: text; x1, y1, x2, y2: int; view s: char*;
+void button(FILE* f; x1, y1, x2, y2: int; view s: char*;
                  id: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    ibutton(win, x1, y1, x2, y2, s, id);
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -11854,7 +11856,7 @@ a checkbox is calculated && returned.
 
 *******************************************************************************/
 
-void icheckboxsizg(win: winptr; view s: char*; var w, h: int);
+void icheckboxsizg(winptr win; view s: char*; var w, h: int);
 
 var sz: size; /* size holder */
     b:  int; /* return value */
@@ -11875,7 +11877,7 @@ var sz: size; /* size holder */
 
 };
 
-void icheckboxsiz(win: winptr; view s: char*; var w, h: int);
+void icheckboxsiz(winptr win; view s: char*; var w, h: int);
 
 {
 
@@ -11886,29 +11888,29 @@ void icheckboxsiz(win: winptr; view s: char*; var w, h: int);
 
 };
 
-void checkboxsizg(var f: text; view s: char*; var w, h: int);
+void checkboxsizg(FILE* f; view s: char*; var w, h: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    icheckboxsizg(win, s, w, h); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void checkboxsiz(var f: text; view s: char*; var w, h: int);
+void checkboxsiz(FILE* f; view s: char*; var w, h: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    icheckboxsiz(win, s, w, h); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -11921,7 +11923,7 @@ window.
 
 *******************************************************************************/
 
-void icheckboxg(win: winptr; x1, y1, x2, y2: int; view s: char*;
+void icheckboxg(winptr win; x1, y1, x2, y2: int; view s: char*;
                      id: int);
 
 var wp: wigptr; /* widget pointer */
@@ -11933,7 +11935,7 @@ var wp: wigptr; /* widget pointer */
 
 };
 
-void icheckbox(win: winptr; x1, y1, x2, y2: int; view s: char*;
+void icheckbox(winptr win; x1, y1, x2, y2: int; view s: char*;
                     id: int);
 
 {
@@ -11947,31 +11949,31 @@ void icheckbox(win: winptr; x1, y1, x2, y2: int; view s: char*;
 
 };
 
-void checkboxg(var f: text; x1, y1, x2, y2: int; view s: char*;
+void checkboxg(FILE* f; x1, y1, x2, y2: int; view s: char*;
                    id: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    icheckboxg(win, x1, y1, x2, y2, s, id); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void checkbox(var f: text; x1, y1, x2, y2: int; view s: char*;
+void checkbox(FILE* f; x1, y1, x2, y2: int; view s: char*;
                    id: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    icheckbox(win, x1, y1, x2, y2, s, id); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -11984,7 +11986,7 @@ size of a radio button is calculated && returned.
 
 *******************************************************************************/
 
-void iradiobuttonsizg(win: winptr; view s: char*; var w, h: int);
+void iradiobuttonsizg(winptr win; view s: char*; var w, h: int);
 
 var sz: size; /* size holder */
     b:  int; /* return value */
@@ -12005,7 +12007,7 @@ var sz: size; /* size holder */
 
 };
 
-void iradiobuttonsiz(win: winptr; view s: char*; var w, h: int);
+void iradiobuttonsiz(winptr win; view s: char*; var w, h: int);
 
 {
 
@@ -12016,29 +12018,29 @@ void iradiobuttonsiz(win: winptr; view s: char*; var w, h: int);
 
 };
 
-void radiobuttonsizg(var f: text; view s: char*; var w, h: int);
+void radiobuttonsizg(FILE* f; view s: char*; var w, h: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    iradiobuttonsizg(win, s, w, h); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void radiobuttonsiz(var f: text; view s: char*; var w, h: int);
+void radiobuttonsiz(FILE* f; view s: char*; var w, h: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    iradiobuttonsiz(win, s, w, h); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -12051,7 +12053,7 @@ window.
 
 *******************************************************************************/
 
-void iradiobuttong(win: winptr; x1, y1, x2, y2: int; view s: char*;
+void iradiobuttong(winptr win; x1, y1, x2, y2: int; view s: char*;
                      id: int);
 
 var wp: wigptr; /* widget pointer */
@@ -12063,7 +12065,7 @@ var wp: wigptr; /* widget pointer */
 
 };
 
-void iradiobutton(win: winptr; x1, y1, x2, y2: int; view s: char*;
+void iradiobutton(winptr win; x1, y1, x2, y2: int; view s: char*;
                     id: int);
 
 {
@@ -12077,31 +12079,31 @@ void iradiobutton(win: winptr; x1, y1, x2, y2: int; view s: char*;
 
 };
 
-void radiobuttong(var f: text; x1, y1, x2, y2: int; view s: char*;
+void radiobuttong(FILE* f; x1, y1, x2, y2: int; view s: char*;
                       id: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    iradiobuttong(win, x1, y1, x2, y2, s, id); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void radiobutton(var f: text; x1, y1, x2, y2: int; view s: char*;
+void radiobutton(FILE* f; x1, y1, x2, y2: int; view s: char*;
                    id: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    iradiobutton(win, x1, y1, x2, y2, s, id); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -12114,7 +12116,7 @@ size of a group is calculated && returned.
 
 *******************************************************************************/
 
-void igroupsizg(win: winptr; view s: char*; cw, ch: int;
+void igroupsizg(winptr win; view s: char*; cw, ch: int;
                      var w, h, ox, oy: int);
 
 var sz: size; /* size holder */
@@ -12140,7 +12142,7 @@ var sz: size; /* size holder */
 
 };
 
-void igroupsiz(win: winptr; view s: char*; cw, ch: int;
+void igroupsiz(winptr win; view s: char*; cw, ch: int;
                     var w, h, ox, oy: int);
 
 {
@@ -12157,31 +12159,31 @@ void igroupsiz(win: winptr; view s: char*; cw, ch: int;
 
 };
 
-void groupsizg(var f: text; view s: char*; cw, ch: int;
+void groupsizg(FILE* f; view s: char*; cw, ch: int;
                     var w, h, ox, oy: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    igroupsizg(win, s, cw, ch, w, h, ox, oy); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void groupsiz(var f: text; view s: char*; cw, ch: int;
+void groupsiz(FILE* f; view s: char*; cw, ch: int;
                    var w, h, ox, oy: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    igroupsiz(win, s, cw, ch, w, h, ox, oy); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -12194,7 +12196,7 @@ no messages. It is used as a background for other widgets.
 
 *******************************************************************************/
 
-void igroupg(win: winptr; x1, y1, x2, y2: int; view s: char*;
+void igroupg(winptr win; x1, y1, x2, y2: int; view s: char*;
                      id: int);
 
 var wp: wigptr; /* widget pointer */
@@ -12206,7 +12208,7 @@ var wp: wigptr; /* widget pointer */
 
 };
 
-void igroup(win: winptr; x1, y1, x2, y2: int; view s: char*;
+void igroup(winptr win; x1, y1, x2, y2: int; view s: char*;
                     id: int);
 
 {
@@ -12220,31 +12222,31 @@ void igroup(win: winptr; x1, y1, x2, y2: int; view s: char*;
 
 };
 
-void groupg(var f: text; x1, y1, x2, y2: int; view s: char*;
+void groupg(FILE* f; x1, y1, x2, y2: int; view s: char*;
                  id: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    igroupg(win, x1, y1, x2, y2, s, id); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void group(var f: text; x1, y1, x2, y2: int; view s: char*;
+void group(FILE* f; x1, y1, x2, y2: int; view s: char*;
                    id: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    igroup(win, x1, y1, x2, y2, s, id); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -12257,7 +12259,7 @@ generates no messages. It is used as a background for other widgets.
 
 *******************************************************************************/
 
-void ibackgroundg(win: winptr; x1, y1, x2, y2: int; id: int);
+void ibackgroundg(winptr win; x1, y1, x2, y2: int; id: int);
 
 var wp: wigptr; /* widget pointer */
 
@@ -12268,7 +12270,7 @@ var wp: wigptr; /* widget pointer */
 
 };
 
-void ibackground(win: winptr; x1, y1, x2, y2: int; id: int);
+void ibackground(winptr win; x1, y1, x2, y2: int; id: int);
 
 {
 
@@ -12281,29 +12283,29 @@ void ibackground(win: winptr; x1, y1, x2, y2: int; id: int);
 
 };
 
-void backgroundg(var f: text; x1, y1, x2, y2: int; id: int);
+void backgroundg(FILE* f; x1, y1, x2, y2: int; id: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    ibackgroundg(win, x1, y1, x2, y2, id); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void background(var f: text; x1, y1, x2, y2: int; id: int);
+void background(FILE* f; x1, y1, x2, y2: int; id: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    ibackground(win, x1, y1, x2, y2, id); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -12316,7 +12318,7 @@ scrollbar is calculated && returned.
 
 *******************************************************************************/
 
-void iscrollvertsizg(win: winptr; var w, h: int);
+void iscrollvertsizg(winptr win; var w, h: int);
 
 {
 
@@ -12328,7 +12330,7 @@ void iscrollvertsizg(win: winptr; var w, h: int);
 
 };
 
-void iscrollvertsiz(win: winptr; var w, h: int);
+void iscrollvertsiz(winptr win; var w, h: int);
 
 {
 
@@ -12340,29 +12342,29 @@ void iscrollvertsiz(win: winptr; var w, h: int);
 
 };
 
-void scrollvertsizg(var f: text; var w, h: int);
+void scrollvertsizg(FILE* f; var w, h: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    iscrollvertsizg(win, w, h); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void scrollvertsiz(var f: text; var w, h: int);
+void scrollvertsiz(FILE* f; var w, h: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    iscrollvertsiz(win, w, h); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -12374,7 +12376,7 @@ Creates a vertical scrollbar.
 
 *******************************************************************************/
 
-void iscrollvertg(win: winptr; x1, y1, x2, y2: int; id: int);
+void iscrollvertg(winptr win; x1, y1, x2, y2: int; id: int);
 
 var wp: wigptr;        /* widget pointer */
     si: scrollinfo; /* scroll information structure */
@@ -12384,24 +12386,24 @@ var wp: wigptr;        /* widget pointer */
 
    if ! win->visible  winvis(win); /* make sure we are displayed */
    widget(win, x1, y1, x2, y2, "", id, wtscrollvert, 0, wp);
-   /* The scroll set for windows is arbitrary. We expand that to 0..maxint on
+   /* The scroll set for windows is arbitrary. We expand that to 0..INT_MAX on
      messages. */
-   unlockmain; /* } exclusive access */
+   unlockmain(); /* } exclusive access */
    b = setscrollrange(wp->han, sb_ctl, 0, 255, FALSE);
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    if ! b  winerr(); /* process windows error */
    /* retrieve the default size of slider */
    si.cbsize = scrollinfo_len; /* set size */
    si.fmask = sif_page; /* set page size */
-   unlockmain; /* } exclusive access */
+   unlockmain(); /* } exclusive access */
    b = getscrollinfo(wp->han, sb_ctl, si);
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    if ! b  winerr(); /* process windows error */
    wp->siz = si.npage /* get size */
 
 };
 
-void iscrollvert(win: winptr; x1, y1, x2, y2: int; id: int);
+void iscrollvert(winptr win; x1, y1, x2, y2: int; id: int);
 
 {
 
@@ -12414,29 +12416,29 @@ void iscrollvert(win: winptr; x1, y1, x2, y2: int; id: int);
 
 };
 
-void scrollvertg(var f: text; x1, y1, x2, y2: int; id: int);
+void scrollvertg(FILE* f; x1, y1, x2, y2: int; id: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    iscrollvertg(win, x1, y1, x2, y2, id); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void scrollvert(var f: text; x1, y1, x2, y2: int; id: int);
+void scrollvert(FILE* f; x1, y1, x2, y2: int; id: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    iscrollvert(win, x1, y1, x2, y2, id); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -12449,7 +12451,7 @@ horizontal scrollbar is calculated && returned.
 
 *******************************************************************************/
 
-void iscrollhorizsizg(win: winptr; var w, h: int);
+void iscrollhorizsizg(winptr win; var w, h: int);
 
 {
 
@@ -12461,7 +12463,7 @@ void iscrollhorizsizg(win: winptr; var w, h: int);
 
 };
 
-void iscrollhorizsiz(win: winptr; var w, h: int);
+void iscrollhorizsiz(winptr win; var w, h: int);
 
 {
 
@@ -12473,29 +12475,29 @@ void iscrollhorizsiz(win: winptr; var w, h: int);
 
 };
 
-void scrollhorizsizg(var f: text; var w, h: int);
+void scrollhorizsizg(FILE* f; var w, h: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    iscrollhorizsizg(win, w, h); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void scrollhorizsiz(var f: text; var w, h: int);
+void scrollhorizsiz(FILE* f; var w, h: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    iscrollhorizsiz(win, w, h); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -12507,7 +12509,7 @@ Creates a horizontal scrollbar.
 
 *******************************************************************************/
 
-void iscrollhorizg(win: winptr; x1, y1, x2, y2: int; id: int);
+void iscrollhorizg(winptr win; x1, y1, x2, y2: int; id: int);
 
 var wp: wigptr;        /* widget pointer */
     si: scrollinfo; /* scroll information structure */
@@ -12517,24 +12519,24 @@ var wp: wigptr;        /* widget pointer */
 
    if ! win->visible  winvis(win); /* make sure we are displayed */
    widget(win, x1, y1, x2, y2, "", id, wtscrollhoriz, 0, wp);
-   /* The scroll set for windows is arbitrary. We expand that to 0..maxint on
+   /* The scroll set for windows is arbitrary. We expand that to 0..INT_MAX on
      messages. */
-   unlockmain; /* } exclusive access */
+   unlockmain(); /* } exclusive access */
    b = setscrollrange(wp->han, sb_ctl, 0, 255, FALSE);
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    if ! b  winerr(); /* process windows error */
    /* retrieve the default size of slider */
    si.cbsize = scrollinfo_len; /* set size */
    si.fmask = sif_page; /* set page size */
-   unlockmain; /* } exclusive access */
+   unlockmain(); /* } exclusive access */
    b = getscrollinfo(wp->han, sb_ctl, si);
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    if ! b  winerr(); /* process windows error */
    wp->siz = si.npage /* get size */
 
 };
 
-void iscrollhoriz(win: winptr; x1, y1, x2, y2: int; id: int);
+void iscrollhoriz(winptr win; x1, y1, x2, y2: int; id: int);
 
 {
 
@@ -12547,29 +12549,29 @@ void iscrollhoriz(win: winptr; x1, y1, x2, y2: int; id: int);
 
 };
 
-void scrollhorizg(var f: text; x1, y1, x2, y2: int; id: int);
+void scrollhorizg(FILE* f; x1, y1, x2, y2: int; id: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    iscrollhorizg(win, x1, y1, x2, y2, id); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void scrollhoriz(var f: text; x1, y1, x2, y2: int; id: int);
+void scrollhoriz(FILE* f; x1, y1, x2, y2: int; id: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    iscrollhoriz(win, x1, y1, x2, y2, id); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -12581,7 +12583,7 @@ Sets the current position of a scrollbar slider.
 
 *******************************************************************************/
 
-void iscrollpos(win: winptr; id: int; r: int);
+void iscrollpos(winptr win; id: int; r: int);
 
 var wp: wigptr;  /* widget pointer */
     rv: int; /* return value */
@@ -12598,26 +12600,26 @@ var wp: wigptr;  /* widget pointer */
       if wp == nil  error(ewignf); /* ! found */
       f = r; /* place position in float */
       /* clamp to max */
-      if f*(255-wp->siz)/maxint > 255  p = 255
-      else p = round(f*(255-wp->siz)/maxint);
-      unlockmain; /* } exclusive access */
+      if f*(255-wp->siz)/INT_MAX > 255  p = 255
+      else p = round(f*(255-wp->siz)/INT_MAX);
+      unlockmain(); /* } exclusive access */
       rv = setscrollpos(wp->han, sb_ctl, p, TRUE);
-      lockmain /* start exclusive access */
+      lockmain();/* start exclusive access */
 
    }
 
 };
 
-void scrollpos(var f: text; id: int; r: int);
+void scrollpos(FILE* f; id: int; r: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    iscrollpos(win, id, r); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -12629,7 +12631,7 @@ Sets the current size of a scrollbar slider.
 
 *******************************************************************************/
 
-void iscrollsiz(win: winptr; id: int; r: int);
+void iscrollsiz(winptr win; id: int; r: int);
 
 var wp:  wigptr;        /* widget pointer */
     rv:  int;       /* return value */
@@ -12650,25 +12652,25 @@ var wp:  wigptr;        /* widget pointer */
       si.npage = r / 0x800000; /* set size */
       si.npos = 0; /* no position */
       si.ntrackpos = 0; /* no track position */
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       rv = setscrollinfo(wp->han, sb_ctl, si, TRUE);
-      lockmain; /* start exclusive access */
+      lockmain(); /* start exclusive access */
       wp->siz = r / 0x800000; /* set size */
 
    }
 
 };
 
-void scrollsiz(var f: text; id: int; r: int);
+void scrollsiz(FILE* f; id: int; r: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    iscrollsiz(win, id, r); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -12687,7 +12689,7 @@ int wndprocnum(hwnd, imsg, wparam, lparam: int): int;
 var r:   int;   /* result */
     wh:  int;   /* parent window handle */
     lfn: ss_filhdl; /* logical number for parent window */
-    win: winptr;    /* parent window data */
+    winptr win;    /* parent window data */
     wp:  wigptr;    /* widget pointer */
     s:   packed array [1..100] of char; /* buffer for edit char* */
     v:   int;   /* value from edit control */
@@ -12702,12 +12704,12 @@ var r:   int;   /* result */
 ;prtmsgu(hwnd, imsg, wparam, lparam);*/
 
    /* We need to find out who we are talking to. */
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    wh = getparent(hwnd); /* get the widget parent handle */
    lfn = hwn2lfn(wh); /* get the logical window number */
    win = lfn2win(lfn); /* index window from logical number */
    wp = fndwighan(win, hwnd); /* find the widget from that */
-   unlockmain; /* } exclusive access */
+   unlockmain(); /* } exclusive access */
    r = 0; /* set no error */
    /* check its a character */
    if imsg == wm_char  {
@@ -12758,7 +12760,7 @@ select box is calculated && returned.
 
 *******************************************************************************/
 
-void inumselboxsizg(win: winptr; l, u: int; var w, h: int);
+void inumselboxsizg(winptr win; l, u: int; var w, h: int);
 
 var sz: size; /* size holder */
     b:  int; /* return value */
@@ -12781,7 +12783,7 @@ var sz: size; /* size holder */
 
 };
 
-void inumselboxsiz(win: winptr; l, u: int; var w, h: int);
+void inumselboxsiz(winptr win; l, u: int; var w, h: int);
 
 {
 
@@ -12792,29 +12794,29 @@ void inumselboxsiz(win: winptr; l, u: int; var w, h: int);
 
 };
 
-void numselboxsizg(var f: text; l, u: int; var w, h: int);
+void numselboxsizg(FILE* f; l, u: int; var w, h: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    inumselboxsizg(win, l, u, w, h); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void numselboxsiz(var f: text; l, u: int; var w, h: int);
+void numselboxsiz(FILE* f; l, u: int; var w, h: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    inumselboxsiz(win, l, u, w, h); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -12826,7 +12828,7 @@ Creates an up/down control for numeric selection.
 
 *******************************************************************************/
 
-void inumselboxg(win: winptr; x1, y1, x2, y2: int; l, u: int;
+void inumselboxg(winptr win; x1, y1, x2, y2: int; l, u: int;
                       id: int);
 
 var ip:  imptr;   /* intratask message pointer */
@@ -12886,7 +12888,7 @@ var ip:  imptr;   /* intratask message pointer */
 
 };
 
-void inumselbox(win: winptr; x1, y1, x2, y2: int; l, u: int;
+void inumselbox(winptr win; x1, y1, x2, y2: int; l, u: int;
                      id: int);
 
 {
@@ -12900,31 +12902,31 @@ void inumselbox(win: winptr; x1, y1, x2, y2: int; l, u: int;
 
 };
 
-void numselboxg(var f: text; x1, y1, x2, y2: int; l, u: int;
+void numselboxg(FILE* f; x1, y1, x2, y2: int; l, u: int;
                      id: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    inumselboxg(win, x1, y1, x2, y2, l, u, id); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void numselbox(var f: text; x1, y1, x2, y2: int; l, u: int;
+void numselbox(FILE* f; x1, y1, x2, y2: int; l, u: int;
                      id: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    inumselbox(win, x1, y1, x2, y2, l, u, id); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -12942,7 +12944,7 @@ int wndprocedit(hwnd, imsg, wparam, lparam: int): int;
 var r:   int;   /* result */
     wh:  int;   /* parent window handle */
     lfn: ss_filhdl; /* logical number for parent window */
-    win: winptr;    /* parent window data */
+    winptr win;    /* parent window data */
     wp:  wigptr;    /* widget pointer */
 
 {
@@ -12978,7 +12980,7 @@ size of an edit box is calculated && returned.
 
 *******************************************************************************/
 
-void ieditboxsizg(win: winptr; view s: char*; var w, h: int);
+void ieditboxsizg(winptr win; view s: char*; var w, h: int);
 
 var sz: size; /* size holder */
     b:  int; /* return value */
@@ -12998,7 +13000,7 @@ var sz: size; /* size holder */
 
 };
 
-void ieditboxsiz(win: winptr; view s: char*; var w, h: int);
+void ieditboxsiz(winptr win; view s: char*; var w, h: int);
 
 {
 
@@ -13009,29 +13011,29 @@ void ieditboxsiz(win: winptr; view s: char*; var w, h: int);
 
 };
 
-void editboxsizg(var f: text; view s: char*; var w, h: int);
+void editboxsizg(FILE* f; view s: char*; var w, h: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    ieditboxsizg(win, s, w, h); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void editboxsiz(var f: text; view s: char*; var w, h: int);
+void editboxsiz(FILE* f; view s: char*; var w, h: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    ieditboxsiz(win, s, w, h); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -13043,7 +13045,7 @@ Creates single line edit box
 
 *******************************************************************************/
 
-void ieditboxg(win: winptr; x1, y1, x2, y2: int; id: int);
+void ieditboxg(winptr win; x1, y1, x2, y2: int; id: int);
 
 var wp: wigptr; /* widget pointer */
     r: int;
@@ -13060,7 +13062,7 @@ var wp: wigptr; /* widget pointer */
 
 };
 
-void ieditbox(win: winptr; x1, y1, x2, y2: int; id: int);
+void ieditbox(winptr win; x1, y1, x2, y2: int; id: int);
 
 {
 
@@ -13073,29 +13075,29 @@ void ieditbox(win: winptr; x1, y1, x2, y2: int; id: int);
 
 };
 
-void editboxg(var f: text; x1, y1, x2, y2: int; id: int);
+void editboxg(FILE* f; x1, y1, x2, y2: int; id: int);
 
-var win: winptr;  /* window context */
+var winptr win;  /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    ieditboxg(win, x1,y1, x2,y2, id); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void editbox(var f: text; x1, y1, x2, y2: int; id: int);
+void editbox(FILE* f; x1, y1, x2, y2: int; id: int);
 
-var win: winptr;  /* window context */
+var winptr win;  /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    ieditbox(win, x1,y1, x2,y2, id); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -13108,7 +13110,7 @@ size of an edit box is calculated && returned.
 
 *******************************************************************************/
 
-void iprogbarsizg(win: winptr; var w, h: int);
+void iprogbarsizg(winptr win; var w, h: int);
 
 {
 
@@ -13121,7 +13123,7 @@ void iprogbarsizg(win: winptr; var w, h: int);
 
 };
 
-void iprogbarsiz(win: winptr; var w, h: int);
+void iprogbarsiz(winptr win; var w, h: int);
 
 {
 
@@ -13132,29 +13134,29 @@ void iprogbarsiz(win: winptr; var w, h: int);
 
 };
 
-void progbarsizg(var f: text; var w, h: int);
+void progbarsizg(FILE* f; var w, h: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    iprogbarsizg(win, w, h); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void progbarsiz(var f: text; var w, h: int);
+void progbarsiz(FILE* f; var w, h: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    iprogbarsiz(win, w, h); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -13166,7 +13168,7 @@ Creates a progress bar.
 
 *******************************************************************************/
 
-void iprogbarg(win: winptr; x1, y1, x2, y2: int; id: int);
+void iprogbarg(winptr win; x1, y1, x2, y2: int; id: int);
 
 var wp:  wigptr;  /* widget pointer */
     r:   int; /* return value */
@@ -13176,14 +13178,14 @@ var wp:  wigptr;  /* widget pointer */
    if ! win->visible  winvis(win); /* make sure we are displayed */
    /* create the progress bar */
    widget(win, x1, y1, x2, y2, "", id, wtprogressbar, 0, wp);
-   /* use 0..maxint ratio */
-   unlockmain; /* } exclusive access */
-   r = s}message(wp->han, pbm_setrange32, 0, maxint);
-   lockmain /* start exclusive access */
+   /* use 0..INT_MAX ratio */
+   unlockmain(); /* } exclusive access */
+   r = s}message(wp->han, pbm_setrange32, 0, INT_MAX);
+   lockmain();/* start exclusive access */
 
 };
 
-void iprogbar(win: winptr; x1, y1, x2, y2: int; id: int);
+void iprogbar(winptr win; x1, y1, x2, y2: int; id: int);
 
 {
 
@@ -13196,29 +13198,29 @@ void iprogbar(win: winptr; x1, y1, x2, y2: int; id: int);
 
 };
 
-void progbarg(var f: text; x1, y1, x2, y2: int; id: int);
+void progbarg(FILE* f; x1, y1, x2, y2: int; id: int);
 
-var win: winptr;  /* window context */
+var winptr win;  /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    iprogbarg(win, x1, y1, x2, y2, id); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void progbar(var f: text; x1, y1, x2, y2: int; id: int);
+void progbar(FILE* f; x1, y1, x2, y2: int; id: int);
 
-var win: winptr;  /* window context */
+var winptr win;  /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    iprogbar(win, x1, y1, x2, y2, id); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -13226,11 +13228,11 @@ var win: winptr;  /* window context */
 
 Set progress bar position
 
-Sets the position of a progress bar, from 0 to maxint.
+Sets the position of a progress bar, from 0 to INT_MAX.
 
 *******************************************************************************/
 
-void iprogbarpos(win: winptr; id: int; pos: int);
+void iprogbarpos(winptr win; id: int; pos: int);
 
 var wp:  wigptr; /* widget pointer */
     r:  int;
@@ -13244,24 +13246,24 @@ var wp:  wigptr; /* widget pointer */
       wp = fndwig(win, id); /* find widget */
       if wp == nil  error(ewignf); /* ! found */
       /* set the range */
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       r = s}message(wp->han, pbm_setpos, pos, 0);
-      lockmain /* start exclusive access */
+      lockmain();/* start exclusive access */
 
    };
 
 };
 
-void progbarpos(var f: text; id: int; pos: int);
+void progbarpos(FILE* f; id: int; pos: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    iprogbarpos(win, id, pos); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -13281,7 +13283,7 @@ specified rectangle, one way || another.
 
 *******************************************************************************/
 
-void ilistboxsizg(win: winptr; sp: strptr; var w, h: int);
+void ilistboxsizg(winptr win; sp: strptr; var w, h: int);
 
 var sz: size; /* size holder */
     b:  int; /* return value */
@@ -13310,7 +13312,7 @@ var sz: size; /* size holder */
 
 };
 
-void ilistboxsiz(win: winptr; sp: strptr; var w, h: int);
+void ilistboxsiz(winptr win; sp: strptr; var w, h: int);
 
 {
 
@@ -13321,29 +13323,29 @@ void ilistboxsiz(win: winptr; sp: strptr; var w, h: int);
 
 };
 
-void listboxsizg(var f: text; sp: strptr; var w, h: int);
+void listboxsizg(FILE* f; sp: strptr; var w, h: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    ilistboxsizg(win, sp, w, h); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void listboxsiz(var f: text; sp: strptr; var w, h: int);
+void listboxsiz(FILE* f; sp: strptr; var w, h: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    ilistboxsiz(win, sp, w, h); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -13355,7 +13357,7 @@ Creates a list box. Fills it with the char* list provided.
 
 *******************************************************************************/
 
-void ilistboxg(win: winptr; x1, y1, x2, y2: int; sp: strptr;
+void ilistboxg(winptr win; x1, y1, x2, y2: int; sp: strptr;
                     id: int);
 
 var wp: wigptr;  /* widget pointer */
@@ -13367,9 +13369,9 @@ var wp: wigptr;  /* widget pointer */
    widget(win, x1, y1, x2, y2, "", id, wtlistbox, 0, wp);
    while sp <> nil do { /* add char*s to list */
 
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       r = s}message(wp->han, lb_addchar*, sp->str^); /* add char* */
-      lockmain; /* start exclusive access */
+      lockmain(); /* start exclusive access */
       if r == -1  error(estrspc); /* out of char* space */
       sp = sp->next /* next char* */
 
@@ -13377,7 +13379,7 @@ var wp: wigptr;  /* widget pointer */
 
 };
 
-void ilistbox(win: winptr; x1, y1, x2, y2: int; sp: strptr;
+void ilistbox(winptr win; x1, y1, x2, y2: int; sp: strptr;
                    id: int);
 
 {
@@ -13391,31 +13393,31 @@ void ilistbox(win: winptr; x1, y1, x2, y2: int; sp: strptr;
 
 };
 
-void listboxg(var f: text; x1, y1, x2, y2: int; sp: strptr;
+void listboxg(FILE* f; x1, y1, x2, y2: int; sp: strptr;
                    id: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    ilistboxg(win, x1, y1, x2, y2, sp, id); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void listbox(var f: text; x1, y1, x2, y2: int; sp: strptr;
+void listbox(FILE* f; x1, y1, x2, y2: int; sp: strptr;
                    id: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    ilistbox(win, x1, y1, x2, y2, sp, id); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -13432,7 +13434,7 @@ selections can be scrolled.
 
 *******************************************************************************/
 
-void idropboxsizg(win: winptr; sp: strptr;
+void idropboxsizg(winptr win; sp: strptr;
                        var cw, ch, ow, oh: int);
 
 /* I can"t find a reasonable system metrics version of the drop arrow demensions,
@@ -13453,7 +13455,7 @@ void getsiz(view s: char*);
    dc = getwindowdc(0); /* get screen dc */
    if dc == 0  winerr(); /* process windows error */
    b = gettextextentpoint32(dc, s, sz); /* get sizing */
-   if ! b  winerr /* process windows error */
+   if ! b  winerr(); /* process windows error */
 
 };
 
@@ -13486,7 +13488,7 @@ void getsiz(view s: char*);
 
 };
 
-void idropboxsiz(win: winptr; sp: strptr; var cw, ch, ow, oh: int);
+void idropboxsiz(winptr win; sp: strptr; var cw, ch, ow, oh: int);
 
 {
 
@@ -13499,29 +13501,29 @@ void idropboxsiz(win: winptr; sp: strptr; var cw, ch, ow, oh: int);
 
 };
 
-void dropboxsizg(var f: text; sp: strptr; var cw, ch, ow, oh: int);
+void dropboxsizg(FILE* f; sp: strptr; var cw, ch, ow, oh: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    idropboxsizg(win, sp, cw, ch, ow, oh); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void dropboxsiz(var f: text; sp: strptr; var cw, ch, ow, oh: int);
+void dropboxsiz(FILE* f; sp: strptr; var cw, ch, ow, oh: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    idropboxsiz(win, sp, cw, ch, ow, oh); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -13533,7 +13535,7 @@ Creates a dropdown box. Fills it with the char* list provided.
 
 *******************************************************************************/
 
-void idropboxg(win: winptr; x1, y1, x2, y2: int; sp: strptr;
+void idropboxg(winptr win; x1, y1, x2, y2: int; sp: strptr;
                     id: int);
 
 var wp:  wigptr;  /* widget pointer */
@@ -13547,21 +13549,21 @@ var wp:  wigptr;  /* widget pointer */
    sp1 = sp; /* index top of char* list */
    while sp1 <> nil do { /* add char*s to list */
 
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       r = s}message(wp->han, cb_addchar*, sp1->str^); /* add char* */
-      lockmain; /* start exclusive access */
+      lockmain(); /* start exclusive access */
       if r == -1  error(estrspc); /* out of char* space */
       sp1 = sp1->next /* next char* */
 
    };
-   unlockmain; /* } exclusive access */
+   unlockmain(); /* } exclusive access */
    r = s}message(wp->han, cb_setcursel, 0, 0);
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    if r == -1  error(esystem) /* should ! happen */
 
 };
 
-void idropbox(win: winptr; x1, y1, x2, y2: int; sp: strptr;
+void idropbox(winptr win; x1, y1, x2, y2: int; sp: strptr;
                    id: int);
 
 {
@@ -13575,31 +13577,31 @@ void idropbox(win: winptr; x1, y1, x2, y2: int; sp: strptr;
 
 };
 
-void dropboxg(var f: text; x1, y1, x2, y2: int; sp: strptr;
+void dropboxg(FILE* f; x1, y1, x2, y2: int; sp: strptr;
                    id: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    idropboxg(win, x1, y1, x2, y2, sp, id); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void dropbox(var f: text; x1, y1, x2, y2: int; sp: strptr;
+void dropbox(FILE* f; x1, y1, x2, y2: int; sp: strptr;
                    id: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    idropbox(win, x1, y1, x2, y2, sp, id); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -13617,7 +13619,7 @@ selections can be scrolled.
 
 *******************************************************************************/
 
-void idropeditboxsizg(win: winptr; sp: strptr;
+void idropeditboxsizg(winptr win; sp: strptr;
                            var cw, ch, ow, oh: int);
 
 /* I can"t find a reasonable system metrics version of the drop arrow demensions,
@@ -13638,7 +13640,7 @@ void getsiz(view s: char*);
    dc = getwindowdc(0); /* get screen dc */
    if dc == 0  winerr(); /* process windows error */
    b = gettextextentpoint32(dc, s, sz); /* get sizing */
-   if ! b  winerr /* process windows error */
+   if ! b  winerr(); /* process windows error */
 
 };
 
@@ -13671,7 +13673,7 @@ void getsiz(view s: char*);
 
 };
 
-void idropeditboxsiz(win: winptr; sp: strptr; var cw, ch, ow, oh: int);
+void idropeditboxsiz(winptr win; sp: strptr; var cw, ch, ow, oh: int);
 
 {
 
@@ -13684,29 +13686,29 @@ void idropeditboxsiz(win: winptr; sp: strptr; var cw, ch, ow, oh: int);
 
 };
 
-void dropeditboxsizg(var f: text; sp: strptr; var cw, ch, ow, oh: int);
+void dropeditboxsizg(FILE* f; sp: strptr; var cw, ch, ow, oh: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    idropeditboxsizg(win, sp, cw, ch, ow, oh); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void dropeditboxsiz(var f: text; sp: strptr; var cw, ch, ow, oh: int);
+void dropeditboxsiz(FILE* f; sp: strptr; var cw, ch, ow, oh: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    idropeditboxsiz(win, sp, cw, ch, ow, oh); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -13721,7 +13723,7 @@ box.
 
 *******************************************************************************/
 
-void idropeditboxg(win: winptr; x1, y1, x2, y2: int; sp: strptr;
+void idropeditboxg(winptr win; x1, y1, x2, y2: int; sp: strptr;
                         id: int);
 
 var wp:  wigptr;  /* widget pointer */
@@ -13735,9 +13737,9 @@ var wp:  wigptr;  /* widget pointer */
    sp1 = sp; /* index top of char* list */
    while sp1 <> nil do { /* add char*s to list */
 
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       r = s}message(wp->han, cb_addchar*, sp1->str^); /* add char* */
-      lockmain; /* start exclusive access */
+      lockmain(); /* start exclusive access */
       if r == -1  error(estrspc); /* out of char* space */
       sp1 = sp1->next /* next char* */
 
@@ -13745,7 +13747,7 @@ var wp:  wigptr;  /* widget pointer */
 
 };
 
-void idropeditbox(win: winptr; x1, y1, x2, y2: int; sp: strptr;
+void idropeditbox(winptr win; x1, y1, x2, y2: int; sp: strptr;
                        id: int);
 
 {
@@ -13759,31 +13761,31 @@ void idropeditbox(win: winptr; x1, y1, x2, y2: int; sp: strptr;
 
 };
 
-void dropeditboxg(var f: text; x1, y1, x2, y2: int; sp: strptr;
+void dropeditboxg(FILE* f; x1, y1, x2, y2: int; sp: strptr;
                        id: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    idropeditboxg(win, x1, y1, x2, y2, sp, id); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void dropeditbox(var f: text; x1, y1, x2, y2: int; sp: strptr;
+void dropeditbox(FILE* f; x1, y1, x2, y2: int; sp: strptr;
                        id: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    idropeditbox(win, x1, y1, x2, y2, sp, id); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -13796,7 +13798,7 @@ slider is calculated && returned.
 
 *******************************************************************************/
 
-void islidehorizsizg(win: winptr; var w, h: int);
+void islidehorizsizg(winptr win; var w, h: int);
 
 {
 
@@ -13809,7 +13811,7 @@ void islidehorizsizg(win: winptr; var w, h: int);
 
 };
 
-void islidehorizsiz(win: winptr; var w, h: int);
+void islidehorizsiz(winptr win; var w, h: int);
 
 {
 
@@ -13820,29 +13822,29 @@ void islidehorizsiz(win: winptr; var w, h: int);
 
 };
 
-void slidehorizsizg(var f: text; var w, h: int);
+void slidehorizsizg(FILE* f; var w, h: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    islidehorizsizg(win, w, h); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void slidehorizsiz(var f: text; var w, h: int);
+void slidehorizsiz(FILE* f; var w, h: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    islidehorizsiz(win, w, h); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -13856,7 +13858,7 @@ Bugs: The tick marks should be in PIxel terms, ! logical terms.
 
 *******************************************************************************/
 
-void islidehorizg(win: winptr; x1, y1, x2, y2: int; mark: int;
+void islidehorizg(winptr win; x1, y1, x2, y2: int; mark: int;
                        id: int);
 
 var wp: wigptr;  /* widget pointer */
@@ -13870,13 +13872,13 @@ var wp: wigptr;  /* widget pointer */
    else /* tick marks enabled */
       widget(win, x1, y1, x2, y2, "", id, wtslidehoriz, 0, wp);
    /* set tickmark frequency */
-   unlockmain; /* } exclusive access */
+   unlockmain(); /* } exclusive access */
    r = s}message(wp->han, tbm_setticfreq, mark, 0);
-   lockmain /* start exclusive access */
+   lockmain();/* start exclusive access */
 
 };
 
-void islidehoriz(win: winptr; x1, y1, x2, y2: int; mark: int;
+void islidehoriz(winptr win; x1, y1, x2, y2: int; mark: int;
                       id: int);
 
 {
@@ -13890,31 +13892,31 @@ void islidehoriz(win: winptr; x1, y1, x2, y2: int; mark: int;
 
 };
 
-void slidehorizg(var f: text; x1, y1, x2, y2: int; mark: int;
+void slidehorizg(FILE* f; x1, y1, x2, y2: int; mark: int;
                       id: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    islidehorizg(win, x1, y1, x2, y2, mark, id); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void slidehoriz(var f: text; x1, y1, x2, y2: int; mark: int;
+void slidehoriz(FILE* f; x1, y1, x2, y2: int; mark: int;
                       id: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    islidehoriz(win, x1, y1, x2, y2, mark, id); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -13927,7 +13929,7 @@ slider is calculated && returned.
 
 *******************************************************************************/
 
-void islidevertsizg(win: winptr; var w, h: int);
+void islidevertsizg(winptr win; var w, h: int);
 
 {
 
@@ -13940,7 +13942,7 @@ void islidevertsizg(win: winptr; var w, h: int);
 
 };
 
-void islidevertsiz(win: winptr; var w, h: int);
+void islidevertsiz(winptr win; var w, h: int);
 
 {
 
@@ -13951,29 +13953,29 @@ void islidevertsiz(win: winptr; var w, h: int);
 
 };
 
-void slidevertsizg(var f: text; var w, h: int);
+void slidevertsizg(FILE* f; var w, h: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    islidevertsizg(win, w, h); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void slidevertsiz(var f: text; var w, h: int);
+void slidevertsiz(FILE* f; var w, h: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    islidevertsiz(win, w, h); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -13987,7 +13989,7 @@ Bugs: The tick marks should be in PIxel terms, ! logical terms.
 
 *******************************************************************************/
 
-void islidevertg(win: winptr; x1, y1, x2, y2: int; mark: int;
+void islidevertg(winptr win; x1, y1, x2, y2: int; mark: int;
                       id: int);
 
 var wp:  wigptr;  /* widget pointer */
@@ -14001,13 +14003,13 @@ var wp:  wigptr;  /* widget pointer */
    else /* tick marks enabled */
       widget(win, x1, y1, x2, y2, "", id, wtslidevert, 0, wp);
    /* set tickmark frequency */
-   unlockmain; /* } exclusive access */
+   unlockmain(); /* } exclusive access */
    r = s}message(wp->han, tbm_setticfreq, mark, 0);
-   lockmain /* start exclusive access */
+   lockmain();/* start exclusive access */
 
 };
 
-void islidevert(win: winptr; x1, y1, x2, y2: int; mark: int;
+void islidevert(winptr win; x1, y1, x2, y2: int; mark: int;
                       id: int);
 
 {
@@ -14021,31 +14023,31 @@ void islidevert(win: winptr; x1, y1, x2, y2: int; mark: int;
 
 };
 
-void slidevertg(var f: text; x1, y1, x2, y2: int; mark: int;
+void slidevertg(FILE* f; x1, y1, x2, y2: int; mark: int;
                      id: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    islidevertg(win, x1, y1, x2, y2, mark, id);
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void slidevert(var f: text; x1, y1, x2, y2: int; mark: int;
+void slidevert(FILE* f; x1, y1, x2, y2: int; mark: int;
                      id: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    islidevert(win, x1, y1, x2, y2, mark, id);
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -14063,7 +14065,7 @@ invisible.
 
 *******************************************************************************/
 
-void uselesswidget(win: winptr);
+void uselesswidget(winptr win);
 
 var ip: imptr; /* intratask message pointer */
 
@@ -14106,7 +14108,7 @@ calculated && returned.
 
 *******************************************************************************/
 
-void itabbarsizg(win: winptr; tor: tabori; cw, ch: int;
+void itabbarsizg(winptr win; tor: tabori; cw, ch: int;
                       var w, h, ox, oy: int);
 
 {
@@ -14153,7 +14155,7 @@ void itabbarsizg(win: winptr; tor: tabori; cw, ch: int;
 
 };
 
-void itabbarsiz(win: winptr; tor: tabori; cw, ch: int;
+void itabbarsiz(winptr win; tor: tabori; cw, ch: int;
                      var w, h, ox, oy: int);
 
 var gw, gh, gox, goy: int;
@@ -14175,31 +14177,31 @@ var gw, gh, gox, goy: int;
 
 };
 
-void tabbarsizg(var f: text; tor: tabori; cw, ch: int;
+void tabbarsizg(FILE* f; tor: tabori; cw, ch: int;
                      var w, h, ox, oy: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    itabbarsizg(win, tor, cw, ch, w, h, ox, oy); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void tabbarsiz(var f: text; tor: tabori; cw, ch: int;
+void tabbarsiz(FILE* f; tor: tabori; cw, ch: int;
                     var w, h, ox, oy: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    itabbarsiz(win, tor, cw, ch, w, h, ox, oy); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -14213,7 +14215,7 @@ flexible.
 
 *******************************************************************************/
 
-void itabbarclientg(win: winptr; tor: tabori; w, h: int;
+void itabbarclientg(winptr win; tor: tabori; w, h: int;
                          var cw, ch, ox, oy: int);
 
 {
@@ -14260,7 +14262,7 @@ void itabbarclientg(win: winptr; tor: tabori; w, h: int;
 
 };
 
-void itabbarclient(win: winptr; tor: tabori; w, h: int;
+void itabbarclient(winptr win; tor: tabori; w, h: int;
                         var cw, ch, ox, oy: int);
 
 var gw, gh, gox, goy: int;
@@ -14282,31 +14284,31 @@ var gw, gh, gox, goy: int;
 
 };
 
-void tabbarclientg(var f: text; tor: tabori; w, h: int;
+void tabbarclientg(FILE* f; tor: tabori; w, h: int;
                      var cw, ch, ox, oy: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    itabbarclientg(win, tor, w, h, cw, ch, ox, oy); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void tabbarclient(var f: text; tor: tabori; w, h: int;
+void tabbarclient(FILE* f; tor: tabori; w, h: int;
                     var cw, ch, ox, oy: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    itabbarclient(win, tor, w, h, cw, ch, ox, oy); /* get size */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -14322,7 +14324,7 @@ creating && distroying another widget.
 
 *******************************************************************************/
 
-void itabbarg(win: winptr; x1, y1, x2, y2: int; sp: strptr;
+void itabbarg(winptr win; x1, y1, x2, y2: int; sp: strptr;
                    tor: tabori; id: int);
 
 var wp:  wigptr;    /* widget pointer */
@@ -14355,9 +14357,9 @@ var wp:  wigptr;    /* widget pointer */
       tcr.psztext = bs; /* place char* */
       tcr.iimage = -1; /* no image */
       tcr.lparam = 0; /* no parameter */
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       r = s}message(wp->han, tcm_insertitem, inx, tcr); /* add char* */
-      lockmain; /* start exclusive access */
+      lockmain(); /* start exclusive access */
       if r == -1  error(etabbar); /* can"t create tab */
       dispose(bs); /* release char* buffer */
       sp = sp->next; /* next char* */
@@ -14369,7 +14371,7 @@ var wp:  wigptr;    /* widget pointer */
 
 };
 
-void itabbar(win: winptr; x1, y1, x2, y2: int; sp: strptr;
+void itabbar(winptr win; x1, y1, x2, y2: int; sp: strptr;
                   tor: tabori; id: int);
 
 {
@@ -14383,31 +14385,31 @@ void itabbar(win: winptr; x1, y1, x2, y2: int; sp: strptr;
 
 };
 
-void tabbarg(var f: text; x1, y1, x2, y2: int; sp: strptr; tor: tabori;
+void tabbarg(FILE* f; x1, y1, x2, y2: int; sp: strptr; tor: tabori;
                   id: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    itabbarg(win, x1, y1, x2, y2, sp, tor, id); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
-void tabbar(var f: text; x1, y1, x2, y2: int; sp: strptr; tor: tabori;
+void tabbar(FILE* f; x1, y1, x2, y2: int; sp: strptr; tor: tabori;
                   id: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    itabbar(win, x1, y1, x2, y2, sp, tor, id); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -14420,7 +14422,7 @@ of the tab.
 
 *******************************************************************************/
 
-void itabsel(win: winptr; id: int; tn: int);
+void itabsel(winptr win; id: int; tn: int);
 
 var wp:  wigptr; /* widget pointer */
     r:  int;
@@ -14434,24 +14436,24 @@ var wp:  wigptr; /* widget pointer */
       wp = fndwig(win, id); /* find widget */
       if wp == nil  error(ewignf); /* ! found */
       /* set the range */
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       r = s}message(wp->han, tcm_setcursel, tn-1, 0);
-      lockmain /* start exclusive access */
+      lockmain();/* start exclusive access */
 
    };
 
 };
 
-void tabsel(var f: text; id: int; tn: int);
+void tabsel(FILE* f; id: int; tn: int);
 
-var win: winptr; /* window context */
+var winptr win; /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    itabsel(win, id, tn); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -14479,7 +14481,7 @@ void strcpy(var d: char*; view s: char*);
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    getitm(ip); /* get a im pointer */
    ip->im = imalert; /* set is alert */
    strcpy(ip->alttit, title); /* copy char*s */
@@ -14489,7 +14491,7 @@ void strcpy(var d: char*; view s: char*);
    waitim(imalert, ip); /* wait for the return */
    dispose(ip->alttit); /* free char*s */
    dispose(ip->altmsg);
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -14510,7 +14512,7 @@ var ip: imptr;   /* intratask message pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    getitm(ip); /* get a im pointer */
    ip->im = imqcolor; /* set is color query */
    ip->clrred = r; /* set colors */
@@ -14523,7 +14525,7 @@ var ip: imptr;   /* intratask message pointer */
    g = ip->clrgreen;
    b = ip->clrblue;
    putitm(ip); /* release im */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -14550,7 +14552,7 @@ var ip: imptr;   /* intratask message pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    getitm(ip); /* get a im pointer */
    ip->im = imqopen; /* set is open file query */
    ip->opnfil = s; /* set input char* */
@@ -14559,7 +14561,7 @@ var ip: imptr;   /* intratask message pointer */
    waitim(imqopen, ip); /* wait for the return */
    s = ip->opnfil; /* set output char* */
    putitm(ip); /* release im */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -14586,7 +14588,7 @@ var ip: imptr;   /* intratask message pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    getitm(ip); /* get a im pointer */
    ip->im = imqsave; /* set is open file query */
    ip->opnfil = s; /* set input char* */
@@ -14595,7 +14597,7 @@ var ip: imptr;   /* intratask message pointer */
    waitim(imqsave, ip); /* wait for the return */
    s = ip->savfil; /* set output char* */
    putitm(ip); /* release im */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -14631,7 +14633,7 @@ var ip: imptr;   /* intratask message pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    /* check char* to large for dialog, accounting for trailing zero */
    if max(s^) > findreplace_str_len-1  error(efndstl);
    getitm(ip); /* get a im pointer */
@@ -14644,7 +14646,7 @@ var ip: imptr;   /* intratask message pointer */
    s = ip->fndstr; /* set output char* */
    opt = ip->fndopt; /* set output options */
    putitm(ip); /* release im */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -14672,7 +14674,7 @@ var ip: imptr;   /* intratask message pointer */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    /* check char* to large for dialog, accounting for trailing zero */
    if (max(s^) > findreplace_str_len-1) or
       (max(r^) > findreplace_str_len-1)  error(efndstl);
@@ -14688,7 +14690,7 @@ var ip: imptr;   /* intratask message pointer */
    r = ip->fnrrep;
    opt = ip->fnropt; /* set output options */
    putitm(ip); /* release im */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -14707,7 +14709,7 @@ user as the defaults.
 
 *******************************************************************************/
 
-void iqueryfont(win: winptr; var fc, s, fr, fg, fb, br, bg, bb: int;
+void iqueryfont(winptr win; var fc, s, fr, fg, fb, br, bg, bb: int;
                      var effect: int);
 
 var ip:  imptr;   /* intratask message pointer */
@@ -14717,7 +14719,7 @@ var ip:  imptr;   /* intratask message pointer */
 
 /* find font in fonts list */
 
-int fndfnt(win: winptr; view fns: char*): int;
+int fndfnt(winptr win; view fns: char*): int;
 
 var fp:     fontptr; /* pointer for fonts list */
     fc, ff: int; /* font counters */
@@ -14777,17 +14779,17 @@ var fp:     fontptr; /* pointer for fonts list */
 
 };
 
-void queryfont(var f: text; var fc, s, fr, fg, fb, br, bg, bb: int;
+void queryfont(FILE* f; var fc, s, fr, fg, fb, br, bg, bb: int;
                     var effect: int);
 
-var win: winptr;  /* window context */
+var winptr win;  /* window context */
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    win = txt2win(f); /* get windows context */
    iqueryfont(win, fc, s, fr, fg, fb, br, bg, bb, effect); /* execute */
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 };
 
@@ -14804,7 +14806,7 @@ int wndproc(hwnd, imsg, wparam, lparam: int): int;
 var r:   int;   /* result holder */
     b:   int;
     ofn: ss_filhdl; /* output file handle */
-    win: winptr;    /* pointer to windows structure */
+    winptr win;    /* pointer to windows structure */
     ip:  imptr;     /* intratask message pointer */
     udw: int;   /* up/down control width */
     cr:  rect;   /* client rectangle */
@@ -14820,7 +14822,7 @@ var r:   int;   /* result holder */
 
    } else if imsg == wm_paint  {
 
-      lockmain; /* start exclusive access */
+      lockmain(); /* start exclusive access */
       /* get the logical output file from Windows handle */
       ofn = hwn2lfn(hwnd);
       if ofn <> 0  { /* there is a window */
@@ -14837,20 +14839,20 @@ var r:   int;   /* result holder */
               region to 16 bit coordinates. We need an im to fix this. */
             wparam = cr.left*0x10000+cr.top;
             lparam = cr.right*0x10000+cr.bottom;
-            unlockmain; /* } exclusive access */
+            unlockmain(); /* } exclusive access */
             putmsg(hwnd, imsg, wparam, lparam); /* s} message up */
-            lockmain /* start exclusive access */
+            lockmain();/* start exclusive access */
 
          };
          r = 0
 
       } else r = defwindowproc(hwnd, imsg, wparam, lparam);
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       r = 0
 
    } else if imsg == wm_setfocus  {
 
-      lockmain; /* start exclusive access */
+      lockmain(); /* start exclusive access */
       /* get the logical output file from Windows handle */
       ofn = hwn2lfn(hwnd);
       if ofn <> 0  { /* there is a window */
@@ -14868,13 +14870,13 @@ var r:   int;   /* result holder */
          }
 
       };
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       putmsg(hwnd, imsg, wparam, lparam); /* copy to main thread */
       r = 0
 
    } else if imsg == wm_killfocus  {
 
-      lockmain; /* start exclusive access */
+      lockmain(); /* start exclusive access */
       /* get the logical output file from Windows handle */
       ofn = hwn2lfn(hwnd);
       if ofn <> 0  { /* there is a window */
@@ -14889,7 +14891,7 @@ var r:   int;   /* result holder */
          }
 
       };
-      unlockmain; /* } exclusive access */
+      unlockmain(); /* } exclusive access */
       putmsg(hwnd, imsg, wparam, lparam); /* copy to main thread */
       r = 0
 
@@ -15715,7 +15717,7 @@ static ssize_t iread(int fd, void* buff, size_t count)
 
       }
       rc = count; /* set all bytes read */
-      unlockmain /* end exclusive access */
+      unlockmain();/* end exclusive access */
 
     } else
         /* passdown */
@@ -15759,7 +15761,7 @@ static ssize_t iwrite(int fd, const void* buff, size_t count)
 
         }
         rc = count; /* set number of bytes written */
-        unlockmain; /* end exclusive access */
+        unlockmain(); /* end exclusive access */
 
     } else { /* standard file */
         rc = (*ofpwrite)(fd, buff, count);
@@ -15881,7 +15883,7 @@ Gralib shutdown
 
 {
 
-   lockmain; /* start exclusive access */
+   lockmain(); /* start exclusive access */
    /* if the program tries to exit when the user has ! ordered an exit, it
      is assumed to be a windows "unaware" program. We stop before we exit
      these, so that their content may be viewed */
@@ -15903,9 +15905,9 @@ Gralib shutdown
          /* Same with system bar */
          if ! sysbar  isysbar(opnfil[OUTFIL]->win, TRUE);
          /* change window label to alert user */
-         unlockmain; /* } exclusive access */
+         unlockmain(); /* } exclusive access */
          b = setwindowtext(winhan, trmnam^);
-         lockmain; /* start exclusive access */
+         lockmain(); /* start exclusive access */
          /* wait for a formal } */
          while ! f} do ievent(INPFIL, er)
 
@@ -15927,6 +15929,6 @@ Gralib shutdown
       }
 
    };
-   unlockmain /* } exclusive access */
+   unlockmain(); /* end exclusive access */
 
 }.

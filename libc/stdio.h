@@ -20,6 +20,61 @@
 #include <stddef.h>
 #include <stdarg.h>
 
+/*
+ * This block of defines will "coin" all of the plain labeled stdio calls and
+ * make them pa_ coined names. This allows the stio calls to exist in parallel
+ * with the built-in stio package.
+ */
+
+#ifdef PA_COIN_NAMES
+
+#define fopen       pa_fopen
+#define freopen     pa_freopen
+#define fdopen      pa_fdopen
+#define fflush      pa_fflush
+#define fclose      pa_fclose
+#define remove      pa_remove
+#define rename      pa_rename
+#define tmpfile     pa_tmpfile
+#define tmpnam      pa_tmpnam
+#define setvbuf     pa_setvbuf
+#define setbuf      pa_setbuf
+#define fprintf     pa_fprintf
+#define printf      pa_printf
+#define sprintf     pa_sprintf
+#define vprintf     pa_vprintf
+#define vfprintf    pa_vfprintf
+#define vsprintf    pa_vsprintf
+#define scanf       pa_scanf
+#define scanf       pa_scanf
+#define sscanf      pa_sscanf
+#define fgetc       pa_fgetc
+#define getc        pa_getc
+#define fgets       pa_fgets
+#define fputc       pa_fputc
+#define fputs       pa_fputs
+#define putc        pa_putc
+#define getchar     pa_getchar
+#define gets        pa_gets
+#define putc        pa_putc
+#define putchar     pa_putchar
+#define puts        pa_puts
+#define ungetc      pa_ungetc
+#define fread       pa_fread
+#define fwrite      pa_fwrite
+#define fseek       pa_fseek
+#define ftell       pa_ftell
+#define rewind      pa_rewind
+#define fgetpos     pa_fgetpos
+#define fsetpos     pa_fsetpos
+#define clearerr    pa_clearerr
+#define feof        pa_feof
+#define ferror      pa_ferror
+#define perror      pa_perror
+#define fileno      pa_fileno
+
+#endif
+
 /* enable this next define for testing mode */
 
 #define L_tmpnam 9
@@ -89,7 +144,11 @@ int sscanf(const char* s, const char *format, ...);
 int fgetc(FILE *stream);
 
 #ifdef USEMACRO
+#ifdef PA_COIN_NAMES
+#define pa_getc(fp) (pa_fgetc(fp))
+#else
 #define getc(fp) (fgetc(fp))
+#endif
 #else
 int getc(FILE *stream);
 #endif
@@ -99,7 +158,11 @@ int fputc(int c, FILE *stream);
 int fputs(const char *s, FILE *stream);
 
 #ifdef USEMACRO
+#ifdef PA_COIN_NAMES
+#define pa_putc(c, fp) pa_fputc(c, fp)
+#else
 #define putc(c, fp) fputc(c, fp)
+#endif
 #else
 int putc(int c, FILE *stream);
 #endif
