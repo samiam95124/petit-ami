@@ -249,6 +249,7 @@ int main(int argc, char *argv[])
     /* set black on white text */
     pa_fcolor(stdout, pa_black);
     pa_bcolor(stdout, pa_white);
+#if 0
     printf("\f");
     pa_curvis(stdout, 0);
     prtban("Terminal mode screen test vs. 1.0");
@@ -303,7 +304,7 @@ int main(int argc, char *argv[])
 
     printf("\f");
     pa_curvis(stdout, 0); /* remove cursor */
-    pa_auto(stdout, 0); /* turn off auto scroll */
+    pa_auto(stdout, FALSE); /* turn off auto scroll */
     prtcen(1, "Last line blank out test");
     pa_cursor(stdout, 1, 3);
     printf("If this terminal is not capable of showing the last character on\n");
@@ -320,7 +321,7 @@ int main(int argc, char *argv[])
     /* First, do it with automatic scrolling on. The pattern will rely on scroll
        up, down, left wrap and right wrap working correctly. */
     printf("\f");
-    pa_auto(stdout, 1);   /* set auto on */
+    pa_auto(stdout, TRUE);   /* set auto on */
     pa_curvis(stdout, 0);   /* remove cursor */
     /* top of left lower */
     pa_cursor(stdout, 1, pa_maxy(stdout));
@@ -368,7 +369,7 @@ int main(int argc, char *argv[])
        ability of the cursor to go into "negative" space. */
 
     printf("\f");
-    pa_auto(stdout, 0);   /* disable automatic screen scroll/wrap */
+    pa_auto(stdout, FALSE);   /* disable automatic screen scroll/wrap */
     /* upper left */
     pa_home(stdout);
     printf("\\/");
@@ -820,6 +821,58 @@ int main(int argc, char *argv[])
 
     }
     prtcen(pa_maxy(stdout), "Tabbing test");
+    waitnext();
+#endif
+    /* ************************** Offscreen write test ************************* */
+
+    putchar('\f');
+    pa_auto(stdout, FALSE);
+    printf("Offscreen write test\n");
+    printf("\n");
+    printf("There should be a cross centered onscreen.\n");
+    printf("The display should not scroll.\n");
+    /* right */
+    x = pa_maxx(stdout)/2; /* find center screen */
+    y = pa_maxy(stdout)/2;
+    for (i = 0; i < pa_maxx(stdout)/2+200; i++) {
+
+        pa_cursor(stdout, x+i, y);
+        putchar('*');
+
+    }
+    /* down */
+    for (i = 0; i < pa_maxy(stdout)/2+200; i++) {
+
+        pa_cursor(stdout, x, y+i);
+        putchar('*');
+
+    }
+    /* left */
+    for (i = 0; i < pa_maxx(stdout)/2+200; i++) {
+
+        pa_cursor(stdout, x-i, y);
+        putchar('*');
+
+    }
+    /* up */
+    for (i = 0; i < pa_maxy(stdout)/2+200; i++) {
+
+        pa_cursor(stdout, x, y-i);
+        putchar('*');
+
+    }
+    waitnext();
+
+    /* ************************** Offscreen scroll test ********************* */
+
+    putchar('\f');
+    pa_auto(stdout, FALSE);
+    printf("Offscreen scroll test\n");
+    printf("\n");
+    printf("The line numbers will count screen lines.\n");
+    printf("The display should not scroll.\n");
+    printf("\n");
+    for (y = 6; y < pa_maxy(stdout)+200; y++) printf("Line %d\n", y);
     waitnext();
 
     /* ************************** Buffer switching test ************************ */
