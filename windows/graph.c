@@ -2275,11 +2275,11 @@ void newfont(winptr win)
        /* get the current font out of the dcs */
        sf = GetStockBbject(SYSTEM_FIXED_FONT);
        if (!sf) winerr(); /* process windows error */
-       if (selectobject(bdc, sf) == -1) winerr(); /* process windows error */
+       if (SelectObject(bdc, sf) == -1) winerr(); /* process windows error */
        if (indisp(win)
           if (SelectObject(devcon, sf) == -1) winerr(); /* process error */
        /* this indicates an error when there is none */
-       /* if ! deleteobject(font)  winerr(); */ /* delete old font */
+       /* if ! DeleteObject(font)  winerr(); */ /* delete old font */
        b = DeleteObject(font); /* delete old font */
 
     }
@@ -2292,7 +2292,7 @@ void newfont(winptr win)
        if (r == -1) winerr(); /* process windows error */
        /* select to screen dc */
        if (indisp(win))
-          if (selectobject(devcon, sf) == -1) winerr(); /* process error */
+          if (SelectObject(devcon, sf) == -1) winerr(); /* process error */
 
     } else {
 
@@ -2312,7 +2312,7 @@ void newfont(winptr win)
        if (r == -1) winerr(); /* process windows error */
        /* select to screen dc */
        if (indisp(win))
-          if (selectobject(win->devcon, font) == -1) winerr(); /* process error */
+          if (SelectObject(win->devcon, font) == -1) winerr(); /* process error */
 
     }
     b = gettextmetrics(win->screens[win->curupd]->bdc, tm); /* get the standard metrics */
@@ -2545,7 +2545,7 @@ void iniscn(winptr win, scnptr sc)
     lb.lbhatch = 0;
     sc->fpen = ExtCreatePen_nn(FPENSTL, sc->lwidth, lb);
     if (!sc->fpen) winerr(); /* process windows error */
-    r = selectobject(bdc, fpen);
+    r = SelectObject(bdc, fpen);
     if (r == -1) winerr(); /* process windows error */
     /* set brush to foreground */
     sc->fbrush = CreateSolidBrush(fcrgb);
@@ -3307,14 +3307,14 @@ void ireverse(winptr win, int e)
         /* activate in buffer */
         r = settextcolor(sc->bdc, sc->bcrgb);
         if (r == -1) winerr(); /* process windows error */
-        r = setbkcolor(sc->bdc, sc->fcrgb);
+        r = SetBkColor(sc->bdc, sc->fcrgb);
         if (r == -1) winerr(); /* process windows error */
         if (indisp(win)) { /* activate on screen */
 
             /* reverse the colors */
             r = settextcolor(win->devcon, sc->bcrgb);
             if (r == -1) winerr(); /* process windows error */
-            r = setbkcolor(win->devcon, sc->fcrgb);
+            r = SetBkColor(win->devcon, sc->fcrgb);
             if (r == -1) winerr(); /* process windows error */
 
         }
@@ -3326,14 +3326,14 @@ void ireverse(winptr win, int e)
         /* activate in buffer */
         r = settextcolor(sc->bdc, sc->fcrgb);
         if (r == -1) winerr(); /* process windows error */
-        r = setbkcolor(sc->bdc, sc->bcrgb);
+        r = SetBkColor(sc->bdc, sc->bcrgb);
         if (r == -1) winerr(); /* process windows error */
         if (indisp(win)) { /* activate on screen */
 
             /* set normal colors */
             r = settextcolor(win->devcon, sc->fcrgb);
             if (r == -1) winerr(); /* process windows error */
-            r = setbkcolor(win->devcon, sc->bcrgb);
+            r = SetBkColor(win->devcon, sc->bcrgb);
             if (r == -1) winerr(); /* process windows error */
 
         }
@@ -3677,80 +3677,76 @@ void ifcolor(winptr win, pa_color c)
     scnptr   sc;
 
     sc = screens[curupd];
-   with win^, screens[curupd]^ do { /* in window, screen contexts */
+    sc->fcrgb = colnum(c); /* set color status */
+    win->gfcrgb = sc->fcrgb;
+    /* activate in buffer */
+    if (BIT(sarev) & sc->attr) {
 
-      fcrgb = colnum(c); /* set color status */
-      gfcrgb = fcrgb;
-      /* activate in buffer */
-      if sarev in attr  {
+       r = SetBkColor(sc->bdc, sc->fcrgb);
+       if (r == -1) winerr(); /* process windows error */
 
-         r = setbkcolor(bdc, fcrgb);
-         if r == -1  winerr(); /* process windows error */
+    } else {
 
-      } else {
+       r = settextcolor(bdc, fcrgb);
+       if (r == -1) winerr(); /* process windows error */
 
-         r = settextcolor(bdc, fcrgb);
-         if r == -1  winerr(); /* process windows error */
+    }
+    /* also activate general graphics color. note that reverse does ! apply
+      to graphical coloring */
+    b = DeleteObject(sc->fpen); /* remove old pen */
+    if (!b) winerr(); /* process windows error */
+    b = DeleteObjectsc->(fbrush); /* remove old brush */
+    if (!b) winerr(); /* process windows error */
+    b = DeleteObject(sc->fspen); /* remove old single PIxel pen */
+    if (!b) winerr(); /* process windows error */
+    /* create new pen */
+    lb.lbstyle = bs_solid;
+    lb.lbcolor = sc->fcrgb;
+    lb.lbhatch = 0;
+    fpen = ExtCreatePen(FPENSTL, sc->lwidth, lb, 0, NULL);
+    if (!fpen) winerr(); /* process windows error */
+    /* create new brush */
+    fbrush = CreateSolidBrush(sc->fcrgb);
+    if (!fbrush) winerr(); /* process windows error */
+    /* create new single PIxel pen */
+    fspen = CreatePen(FSPENSTL, 1, sc->fcrgb);
+    if (!fspen) winerr(); /* process windows error */
+    /* select to buffer dc */
+    oh = SelectObject(sc->bdc, sc->fpen);
+    if (r == -1) winerr(); /* process windows error */
+    if (indisp(win)) { /* activate on screen */
 
-      };
-      /* also activate general graphics color. note that reverse does ! apply
-        to graphical coloring */
-      b = deleteobject(fpen); /* remove old pen */
-      if ! b  winerr(); /* process windows error */
-      b = deleteobject(fbrush); /* remove old brush */
-      if ! b  winerr(); /* process windows error */
-      b = deleteobject(fspen); /* remove old single PIxel pen */
-      if ! b  winerr(); /* process windows error */
-      /* create new pen */
-      lb.lbstyle = bs_solid;
-      lb.lbcolor = fcrgb;
-      lb.lbhatch = 0;
-      fpen = extcreatepen_nn(FPENSTL, lwidth, lb);
-      if fpen == 0  winerr(); /* process windows error */
-      /* create new brush */
-      fbrush = createsolidbrush(fcrgb);
-      if fbrush == 0  winerr(); /* process windows error */
-      /* create new single PIxel pen */
-      fspen = createpen(FSPENSTL, 1, fcrgb);
-      if fspen == 0  winerr(); /* process windows error */
-      /* select to buffer dc */
-      oh = selectobject(bdc, fpen);
-      if r == -1  winerr(); /* process windows error */
-      if indisp(win)  { /* activate on screen */
+       /* set screen color according to reverse */
+       if (BIT(sarev) & sc->attr) {
 
-         /* set screen color according to reverse */
-         if sarev in attr  {
+          r = SetBkColor(win->devcon, sc->fcrgb);
+          if (r == -1) winerr(); /* process windows error */
 
-            r = setbkcolor(devcon, fcrgb);
-            if r == -1  winerr(); /* process windows error */
+       } else {
 
-         } else {
+          r = settextcolor(win->devcon, sc->fcrgb);
+          if (r == -1) winerr(); /* process windows error */
 
-            r = settextcolor(devcon, fcrgb);
-            if r == -1  winerr(); /* process windows error */
+       }
+       oh = SelectObject(win->devcon, sc->fpen); /* select pen to display */
+       if (r == -1) winerr(); /* process windows error */
 
-         };
-         oh = selectobject(devcon, fpen); /* select pen to display */
-         if r == -1  winerr(); /* process windows error */
+    }
 
-      }
+}
 
-   }
-
-};
-
-void fcolor(FILE* f; c: color);
-
-var winptr win; /* windows record pointer */
+void fcolor(FILE* f, pa_color c)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window from file */
-   ifcolor(win, c); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    ifcolor(win, c); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -3764,87 +3760,87 @@ up, we will be ready.
 
 void ifcolorg(winptr win; r, g, b: int);
 
-var rv: int;    /* return value */
-    oh: hgdiobj; /* old pen */
-    bv: int;    /* return value */
-    lb: logbrush;
-
 {
 
-   with win^, screens[curupd]^ do { /* in window, screen contexts */
+    int      rv; /* return value */
+    HGDIOBJ  oh; /* old pen */
+    int      bv; /* return value */
+    LOGBRUSH lb;
+    scnptr   sc;
 
-      fcrgb = rgb2win(r, g, b); /* set color status */
-      gfcrgb = fcrgb;
-      /* activate in buffer */
-      if sarev in attr  {
+    sc = screens[curupd];
+    sc->fcrgb = rgb2win(r, g, b); /* set color status */
+    win->gfcrgb = sc->fcrgb;
+    /* activate in buffer */
+    if (BIT(sarev) & sc->attr) {
 
-         r = setbkcolor(bdc, fcrgb);
-         if r == -1  winerr(); /* process windows error */
+       r = SetBkColor(sc->bdc, sc->fcrgb);
+       if (r == -1) winerr(); /* process windows error */
 
-      } else {
+    } else {
 
-         rv = settextcolor(bdc, fcrgb);
-         if r == -1  winerr(); /* process windows error */
+       rv = Settextcolor(sc->bdc, sc->fcrgb);
+       if (r == -1) winerr(); /* process windows error */
 
-      };
-      /* also activate general graphics color. note that reverse does ! apply
-        to graphical coloring */
-      bv = deleteobject(fpen); /* remove old pen */
-      if ! bv  winerr(); /* process error */
-      bv = deleteobject(fbrush); /* remove old brush */
-      if ! bv  winerr(); /* process error */
-      bv = deleteobject(fspen); /* remove old single PIxel pen */
-      if ! bv  winerr(); /* process error */
-      /* create new pen */
-      lb.lbstyle = bs_solid;
-      lb.lbcolor = fcrgb;
-      lb.lbhatch = 0;
-      fpen = extcreatepen_nn(FPENSTL, lwidth, lb);
-      if fpen == 0  winerr(); /* process error */
-      /* create new brush */
-      fbrush = createsolidbrush(fcrgb);
-      if fbrush == 0  winerr(); /* process error */
-      /* create new single PIxel pen */
-      fspen = createpen(FSPENSTL, 1, fcrgb);
-      if fspen == 0  winerr(); /* process error */
-      /* select to buffer dc */
-      oh = selectobject(bdc, fpen);
-      if oh == -1  winerr(); /* process windows error */
-      if indisp(win)  { /* activate on screen */
+    }
+    /* also activate general graphics color. note that reverse does ! apply
+      to graphical coloring */
+    bv = DeleteObject(sc->fpen); /* remove old pen */
+    if (!bv) winerr(); /* process error */
+    bv = DeleteObject(sc->fbrush); /* remove old brush */
+    if (!bv) winerr(); /* process error */
+    bv = DeleteObject(sc->fspen); /* remove old single PIxel pen */
+    if (!bv) winerr(); /* process error */
+    /* create new pen */
+    lb.lbstyle = bs_solid;
+    lb.lbcolor = fcrgb;
+    lb.lbhatch = 0;
+    fpen = ExtCreatePen(FPENSTL, sc->lwidth, lb, 0, NULL);
+    if (!fpen)  winerr(); /* process error */
+    /* create new brush */
+    fbrush = CreateSolidBrush(sc->fcrgb);
+    if (!fbrush) winerr(); /* process error */
+    /* create new single PIxel pen */
+    fspen = CreatePen(FSPENSTL, 1, sc->fcrgb);
+    if (!fspen) winerr(); /* process error */
+    /* select to buffer dc */
+    oh = SelectObject(bdc, sc->fpen);
+    if (oh == -1) winerr(); /* process windows error */
+    if (indisp(win))  { /* activate on screen */
 
-         /* set screen color according to reverse */
-         if sarev in attr  {
+       /* set screen color according to reverse */
+       if (BIT(sarev) & sc->attr) {
 
-            rv = setbkcolor(devcon, fcrgb);
-            if rv == -1  winerr(); /* process windows error */
+          rv = SetBkColor(win->devcon, sc->fcrgb);
+          if (rv == -1) winerr(); /* process windows error */
 
-         } else {
+       } else {
 
-            rv = settextcolor(devcon, fcrgb);
-            if rv == -1  winerr(); /* process windows error */
+          rv = settextcolor(win->devcon, sc->fcrgb);
+          if (rv == -1) winerr(); /* process windows error */
 
-         };
-         oh = selectobject(devcon, fpen); /* select pen to display */
-         if oh == -1  winerr(); /* process windows error */
+       };
+       oh = SelectObject(win->devcon, sc->fpen); /* select pen to display */
+       if (oh == -1) winerr(); /* process windows error */
 
-      }
+    }
 
    }
 
 };
 
-void fcolorg(FILE* f; r, g, b: int);
-
-var winptr win; /* windows record pointer */
+void fcolorg(FILE* f, int r, int g, int b)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window from file */
-   ifcolorg(win, r, g, b); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    ifcolorg(win, r, g, b); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -3872,7 +3868,7 @@ var r: int;
 
       } else {
 
-         r = setbkcolor(bdc, bcrgb);
+         r = SetBkColor(bdc, bcrgb);
          if r == -1  winerr(); /* process windows error */
 
       };
@@ -3886,7 +3882,7 @@ var r: int;
 
          } else {
 
-            r = setbkcolor(devcon, bcrgb);
+            r = SetBkColor(devcon, bcrgb);
             if r == -1  winerr(); /* process windows error */
 
          }
@@ -3938,7 +3934,7 @@ var rv: int;
 
       } else {
 
-         rv = setbkcolor(bdc, bcrgb);
+         rv = SetBkColor(bdc, bcrgb);
          if rv == -1  winerr(); /* process windows error */
 
       };
@@ -3952,7 +3948,7 @@ var rv: int;
 
          } else {
 
-            rv = setbkcolor(devcon, bcrgb);
+            rv = SetBkColor(devcon, bcrgb);
             if rv == -1  winerr(); /* process windows error */
 
          }
@@ -4564,17 +4560,17 @@ var b:   int; /* return value */
 
          /* for filled ellipse, the pen && brush settings are all wrong. we need
            a single PIxel pen && a background brush. we set && restore these */
-         r = selectobject(bdc, fspen);
+         r = SelectObject(bdc, fspen);
          if r == -1  winerr(); /* process windows error */
-         r = selectobject(bdc, fbrush);
+         r = SelectObject(bdc, fbrush);
          if r == -1  winerr(); /* process windows error */
          /* draw to buffer */
          b = rectangle(bdc, x1-1, y1-1, x2, y2);
          if ! b  winerr(); /* process windows error */
          /* restore */
-         r = selectobject(bdc, fpen);
+         r = SelectObject(bdc, fpen);
          if r == -1  winerr(); /* process windows error */
-         r = selectobject(bdc, getstockobject(null_brush));
+         r = SelectObject(bdc, getstockobject(null_brush));
          if r == -1  winerr(); /* process windows error */
 
       };
@@ -4582,17 +4578,17 @@ var b:   int; /* return value */
       if indisp(win)  {
 
          if ! visible  winvis(win); /* make sure we are displayed */
-         r = selectobject(devcon, fspen);
+         r = SelectObject(devcon, fspen);
          if r == -1  winerr(); /* process windows error */
-         r = selectobject(devcon, fbrush);
+         r = SelectObject(devcon, fbrush);
          if r == -1  winerr(); /* process windows error */
          curoff(win);
          b = rectangle(devcon, x1-1, y1-1, x2, y2);
          if ! b  winerr(); /* process windows error */
          curon(win);
-         r = selectobject(devcon, fpen);
+         r = SelectObject(devcon, fpen);
          if r == -1  winerr(); /* process windows error */
-         r = selectobject(devcon, getstockobject(null_brush));
+         r = SelectObject(devcon, getstockobject(null_brush));
          if r == -1  winerr(); /* process windows error */
 
       }
@@ -4686,17 +4682,17 @@ var b: int; /* return value */
 
          /* for filled ellipse, the pen && brush settings are all wrong. we need
            a single PIxel pen && a background brush. we set && restore these */
-         r = selectobject(bdc, fspen);
+         r = SelectObject(bdc, fspen);
          if r == -1  winerr(); /* process windows error */
-         r = selectobject(bdc, fbrush);
+         r = SelectObject(bdc, fbrush);
          if r == -1  winerr(); /* process windows error */
          /* draw to buffer */
          b = roundrect(bdc, x1-1, y1-1, x2, y2, xs, ys);
          if ! b  winerr(); /* process windows error */
          /* restore */
-         r = selectobject(bdc, fpen);
+         r = SelectObject(bdc, fpen);
          if r == -1  winerr(); /* process windows error */
-         r = selectobject(bdc, getstockobject(null_brush));
+         r = SelectObject(bdc, getstockobject(null_brush));
          if r == -1  winerr(); /* process windows error */
 
       };
@@ -4704,17 +4700,17 @@ var b: int; /* return value */
       if indisp(win)  {
 
          if ! visible  winvis(win); /* make sure we are displayed */
-         r = selectobject(devcon, fspen);
+         r = SelectObject(devcon, fspen);
          if r == -1  winerr(); /* process windows error */
-         r = selectobject(devcon, fbrush);
+         r = SelectObject(devcon, fbrush);
          if r == -1  winerr(); /* process windows error */
          curoff(win);
          b = roundrect(devcon, x1-1, y1-1, x2, y2, xs, ys);
          if ! b  winerr(); /* process windows error */
          curon(win);
-         r = selectobject(devcon, fpen);
+         r = SelectObject(devcon, fpen);
          if r == -1  winerr(); /* process windows error */
-         r = selectobject(devcon, getstockobject(null_brush));
+         r = SelectObject(devcon, getstockobject(null_brush));
          if r == -1  winerr(); /* process windows error */
 
       }
@@ -4807,17 +4803,17 @@ var b: int; /* return value */
 
          /* for filled ellipse, the pen && brush settings are all wrong. we need
            a single PIxel pen && a background brush. we set && restore these */
-         r = selectobject(bdc, fspen);
+         r = SelectObject(bdc, fspen);
          if r == -1  winerr(); /* process windows error */
-         r = selectobject(bdc, fbrush);
+         r = SelectObject(bdc, fbrush);
          if r == -1  winerr(); /* process windows error */
          /* draw to buffer */
          b = ellipse(bdc, x1-1, y1-1, x2, y2);
          if ! b  winerr(); /* process windows error */
          /* restore */
-         r = selectobject(bdc, fpen);
+         r = SelectObject(bdc, fpen);
          if r == -1  winerr(); /* process windows error */
-         r = selectobject(bdc, getstockobject(null_brush));
+         r = SelectObject(bdc, getstockobject(null_brush));
          if r == -1  winerr(); /* process windows error */
 
       };
@@ -4825,17 +4821,17 @@ var b: int; /* return value */
       if indisp(win)  {
 
          if ! visible  winvis(win); /* make sure we are displayed */
-         r = selectobject(devcon, fspen);
+         r = SelectObject(devcon, fspen);
          if r == -1  winerr(); /* process windows error */
-         r = selectobject(devcon, fbrush);
+         r = SelectObject(devcon, fbrush);
          if r == -1  winerr(); /* process windows error */
          curoff(win);
          b = ellipse(devcon, x1-1, y1-1, x2, y2);
          if ! b  winerr(); /* process windows error */
          curon(win);
-         r = selectobject(devcon, fpen);
+         r = SelectObject(devcon, fpen);
          if r == -1  winerr(); /* process windows error */
-         r = selectobject(devcon, getstockobject(null_brush));
+         r = SelectObject(devcon, getstockobject(null_brush));
          if r == -1  winerr(); /* process windows error */
 
       }
@@ -4991,35 +4987,35 @@ var saf, eaf:       real;    /* starting angles in radian float */
 
          /* for filled shape, the pen && brush settings are all wrong. we need
            a single PIxel pen && a background brush. we set && restore these */
-         r = selectobject(bdc, fspen);
+         r = SelectObject(bdc, fspen);
          if r == -1  winerr(); /* process windows error */
-         r = selectobject(bdc, fbrush);
+         r = SelectObject(bdc, fbrush);
          if r == -1  winerr(); /* process windows error */
          /* draw shape */
          b = PIe(bdc, x1-1, y1-1, x2, y2, xe, ye, xs, ys);
          if ! b  winerr(); /* process windows error */
          /* restore */
-         r = selectobject(bdc, fpen);
+         r = SelectObject(bdc, fpen);
          if r == -1  winerr(); /* process windows error */
-         r = selectobject(bdc, getstockobject(null_brush));
+         r = SelectObject(bdc, getstockobject(null_brush));
          if r == -1  winerr(); /* process windows error */
 
       };
       if indisp(win)  { /* do it again for the current screen */
 
          if ! visible  winvis(win); /* make sure we are displayed */
-         r = selectobject(devcon, fspen);
+         r = SelectObject(devcon, fspen);
          if r == -1  winerr(); /* process windows error */
-         r = selectobject(devcon, fbrush);
+         r = SelectObject(devcon, fbrush);
          if r == -1  winerr(); /* process windows error */
          curoff(win);
          /* draw shape */
          b = PIe(devcon, x1-1, y1-1, x2, y2, xe, ye, xs, ys);
          if ! b  winerr(); /* process windows error */
          curon(win);
-         r = selectobject(devcon, fpen);
+         r = SelectObject(devcon, fpen);
          if r == -1  winerr(); /* process windows error */
-         r = selectobject(devcon, getstockobject(null_brush));
+         r = SelectObject(devcon, getstockobject(null_brush));
          if r == -1  winerr(); /* process windows error */
 
       }
@@ -5084,35 +5080,35 @@ var saf, eaf:       real;    /* starting angles in radian float */
 
          /* for filled shape, the pen && brush settings are all wrong. we need
            a single PIxel pen && a background brush. we set && restore these */
-         r = selectobject(bdc, fspen);
+         r = SelectObject(bdc, fspen);
          if r == -1  winerr(); /* process windows error */
-         r = selectobject(bdc, fbrush);
+         r = SelectObject(bdc, fbrush);
          if r == -1  winerr(); /* process windows error */
          /* draw shape */
          b = chord(bdc, x1-1, y1-1, x2, y2, xe, ye, xs, ys);
          if ! b  winerr(); /* process windows error */
          /* restore */
-         r = selectobject(bdc, fpen);
+         r = SelectObject(bdc, fpen);
          if r == -1  winerr(); /* process windows error */
-         r = selectobject(bdc, getstockobject(null_brush));
+         r = SelectObject(bdc, getstockobject(null_brush));
          if r == -1  winerr(); /* process windows error */
 
       };
       if indisp(win)  { /* do it again for the current screen */
 
          if ! visible  winvis(win); /* make sure we are displayed */
-         r = selectobject(devcon, fspen);
+         r = SelectObject(devcon, fspen);
          if r == -1  winerr(); /* process windows error */
-         r = selectobject(devcon, fbrush);
+         r = SelectObject(devcon, fbrush);
          if r == -1  winerr(); /* process windows error */
          curoff(win);
          /* draw shape */
          b = chord(devcon, x1-1, y1-1, x2, y2, xe, ye, xs, ys);
          if ! b  winerr(); /* process windows error */
          curon(win);
-         r = selectobject(devcon, fpen);
+         r = SelectObject(devcon, fpen);
          if r == -1  winerr(); /* process windows error */
-         r = selectobject(devcon, getstockobject(null_brush));
+         r = SelectObject(devcon, getstockobject(null_brush));
          if r == -1  winerr(); /* process windows error */
 
       }
@@ -5165,17 +5161,17 @@ var pa:  array [1..3] of point; /* points of triangle */
 
             /* for filled shape, the pen && brush settings are all wrong. we need
               a single PIxel pen && a background brush. we set && restore these */
-            r = selectobject(bdc, fspen);
+            r = SelectObject(bdc, fspen);
             if r == -1  winerr(); /* process windows error */
-            r = selectobject(bdc, fbrush);
+            r = SelectObject(bdc, fbrush);
             if r == -1  winerr(); /* process windows error */
             /* draw to buffer */
             b = polygon(bdc, pa);
             if ! b  winerr(); /* process windows error */
             /* restore */
-            r = selectobject(bdc, fpen);
+            r = SelectObject(bdc, fpen);
             if r == -1  winerr(); /* process windows error */
-            r = selectobject(bdc, getstockobject(null_brush));
+            r = SelectObject(bdc, getstockobject(null_brush));
             if r == -1  winerr(); /* process windows error */
 
          };
@@ -5183,17 +5179,17 @@ var pa:  array [1..3] of point; /* points of triangle */
          if indisp(win)  {
 
             if ! visible  winvis(win); /* make sure we are displayed */
-            r = selectobject(devcon, fspen);
+            r = SelectObject(devcon, fspen);
             if r == -1  winerr(); /* process windows error */
-            r = selectobject(devcon, fbrush);
+            r = SelectObject(devcon, fbrush);
             if r == -1  winerr(); /* process windows error */
             curoff(win);
             b = polygon(devcon, pa);
             if ! b  winerr(); /* process windows error */
             curon(win);
-            r = selectobject(devcon, fpen);
+            r = SelectObject(devcon, fpen);
             if r == -1  winerr(); /* process windows error */
-            r = selectobject(devcon, getstockobject(null_brush));
+            r = SelectObject(devcon, getstockobject(null_brush));
             if r == -1  winerr(); /* process windows error */
 
          };
@@ -5539,20 +5535,20 @@ var oh: hgdiobj; /* old pen */
 
       lwidth = w; /* set new width */
       /* create new pen with desired width */
-      b = deleteobject(fpen); /* remove old pen */
+      b = DeleteObject(fpen); /* remove old pen */
       if ! b  winerr(); /* process windows error */
       /* create new pen */
       lb.lbstyle = bs_solid;
       lb.lbcolor = fcrgb;
       lb.lbhatch = 0;
-      fpen = extcreatepen_nn(FPENSTL, lwidth, lb);
+      fpen = extCreatePen_nn(FPENSTL, lwidth, lb);
       if fpen == 0  winerr(); /* process windows error */
       /* select to buffer dc */
-      oh = selectobject(bdc, fpen);
+      oh = SelectObject(bdc, fpen);
       if r == -1  winerr(); /* process windows error */
       if indisp(win)  { /* activate on screen */
 
-         oh = selectobject(devcon, fpen); /* select pen to display */
+         oh = SelectObject(devcon, fpen); /* select pen to display */
          if r == -1  winerr(); /* process windows error */
 
       }
@@ -6300,11 +6296,11 @@ var r: int; /* result holder */
 
       if (p < 1) || (p > MAXPIC)  error(einvhan); /* bad PIcture handle */
       if PIctbl[p].han == 0  error(einvhan); /* bad PIcture handle */
-      r = selectobject(PIctbl[p].hdc, PIctbl[p].ohn); /* reselect old object */
+      r = SelectObject(PIctbl[p].hdc, PIctbl[p].ohn); /* reselect old object */
       if r == -1  winerr(); /* process windows error */
       b = deletedc(PIctbl[p].hdc); /* delete device context */
       if ! b  winerr(); /* process windows error */
-      b = deleteobject(PIctbl[p].han); /* delete bitmap */
+      b = DeleteObject(PIctbl[p].han); /* delete bitmap */
       if ! b  winerr(); /* process windows error */
       PIctbl[p].han = 0 /* set this entry free */
 
@@ -6388,7 +6384,7 @@ var i, x: int; /* index for char* */
       PIctbl[p].hdc = createcompatibledc(devcon);
       if PIctbl[p].hdc == 0  winerr(); /* process windows error */
       /* select that to device context */
-      PIctbl[p].ohn = selectobject(PIctbl[p].hdc, PIctbl[p].han);
+      PIctbl[p].ohn = SelectObject(PIctbl[p].hdc, PIctbl[p].han);
       if PIctbl[p].ohn == -1  winerr(); /* process windows error */
       /* get sizes */
       r = getobject_bitmap(PIctbl[p].han, bitmap_len, bmi);
@@ -9362,7 +9358,7 @@ var v:     int;       /* used to construct 0x80000000 value */
       r = setstretchbltmode(devcon, halftone);
       if r == 0  winerr(); /* process windows error */
       /* remove fills */
-      r = selectobject(devcon, getstockobject(null_brush));
+      r = SelectObject(devcon, getstockobject(null_brush));
       if r == -1  winerr(); /* process windows error */
       /* because this is an "open }ed" (no feedback) emulation, we must bring
         the terminal to a known state */
@@ -9371,7 +9367,7 @@ var v:     int;       /* used to construct 0x80000000 value */
       stdfont(win); /* mark the standard fonts */
       gcfont = fntlst; /* index top of list as terminal font */
       /* set up system default parameters */
-      r = selectobject(devcon, getstockobject(system_fixed_font));
+      r = SelectObject(devcon, getstockobject(system_fixed_font));
       if r == -1  winerr(); /* process windows error */
       b = gettextmetrics(devcon, tm); /* get the standard metrics */
       if ! b  winerr(); /* process windows error */
