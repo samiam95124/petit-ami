@@ -64,14 +64,16 @@ void display(void)
     int y;
 
     /* scan screen */
+    pa_home(stdout);
     for (y = 0; y < pa_maxy(stdout); y++) {
 
+        pa_cursor(stdout, 1, y+1);
         for (x = 0; x < pa_maxx(stdout); x++)
             switch (world[x][y].typ) { /* object */
 
-            case none: write(' '); break;
-            case fish: write('^'); break;
-            case shark: write('@'); break;
+            case none:  putchar(' '); break;
+            case fish:  putchar('^'); break;
+            case shark: putchar('@'); break;
 
         }
 
@@ -97,9 +99,9 @@ int randn(int limit)
 
 /*******************************************************************************
 
-Initalize board
+Initialize board
 
-Initalizes the board to "none", then places the required fish && sharks at
+Initializes the board to "none", then places the required fish && sharks at
 random. The ages are set at random with the breeding time for the object as
 the top.
 
@@ -114,14 +116,14 @@ void clear(void)
     int n;
 
     for (x = 0; x < pa_maxx(stdout); x++)
-        for (y = 1; y < pa_maxy(stdout); y++)
+        for (y = 0; y < pa_maxy(stdout); y++)
             world[x][y].typ = none;
     for (n = 0; n < NFISH; n++) {
 
         do {
 
-            x = randn(pa_maxx(stdout));
-            y = randn(pa_maxy(stdout));
+            x = randn(pa_maxx(stdout)-1);
+            y = randn(pa_maxy(stdout)-1);
 
         } while (world[x][y].typ != none);
         world[x][y].typ = fish;
@@ -133,8 +135,8 @@ void clear(void)
 
         do {
 
-            x = randn(pa_maxx(stdout));
-            y = randn(pa_maxy(stdout));
+            x = randn(pa_maxx(stdout)-1);
+            y = randn(pa_maxy(stdout)-1);
 
         } while (world[x][y].typ != none);
         world[x][y].typ = shark;
@@ -154,6 +156,7 @@ Finds a given object adjacent to the given coordinates. If the object is
 found, the coordinates are changed to that object, otherwise, the coordinates
 are left alone. If more than one of the requested object are adjacent, then
 one is picked at random.
+
 Adjacent means wrapped around the board for the edge cases.
 
 *******************************************************************************/
@@ -215,10 +218,10 @@ void fndadj(int* x, int* y, object obj)
 
 Process fish moves
 
-The board is scanned for fish, && if one is found, then we look for adjacent
+The board is scanned for fish, and if one is found, then we look for adjacent
 empty squares. If one is found, we move the fish there. If the fish is ready
-to breed, then a new fish occupys that square, && the old fish remains
-unmoved. We keep track of what fish have moved, && leave the moved fish alone.
+to breed, then a new fish occupy that square, and the old fish remains
+unmoved. We keep track of what fish have moved, and leave the moved fish alone.
 
 *******************************************************************************/
 

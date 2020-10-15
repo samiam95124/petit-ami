@@ -12,3 +12,7 @@ magnitude slower than before.
 4. Errors don't work. Console resets the screen and bails out.
 
 5. Need a reasonable solution to resize messages.
+
+6. Does not listen to ctl-c when very busy.
+
+7. Appears to scroll even if auto is set off.
