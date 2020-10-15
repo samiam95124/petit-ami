@@ -2549,7 +2549,7 @@ Set timer
 void pa_timer(/* file to send event to */              FILE *f,
               /* timer handle */                       int i,
               /* number of 100us counts */             int t,
-              /* timer is to rerun after completion */ boolean r)
+              /* timer is to rerun after completion */ int r)
 
 {
 

@@ -106,17 +106,17 @@ typedef struct filrec {
    pthread_mutex_t lock; /* lock for this structure */
    /* we don't use the network flag for much right now, except to indicate that
       the file is a socket. Linux treats them equally */
-   boolean net;  /* it's a network file */
-   boolean sec;  /* its a secure sockets file */
+   int net;  /* it's a network file */
+   int sec;  /* its a secure sockets file */
    SSL*    ssl;  /* SSL data */
    X509*   cert; /* peer certificate */
    int     sfn;  /* shadow fid */
-   boolean opn;  /* file is open with Linux */
-   boolean msg;  /* is a message socket (udp/dtls) */
+   int opn;  /* file is open with Linux */
+   int msg;  /* is a message socket (udp/dtls) */
    socket_struct saddr; /* socket address */
-   boolean v6addr; /* is an IPv6 address */
+   int v6addr; /* is an IPv6 address */
    BIO*    bio;  /* bio for DTLS */
-   boolean sudp; /* its a secure udp */
+   int sudp; /* its a secure udp */
    struct filrec* next; /* next entry (when placed on free list) */
 
 
@@ -421,13 +421,13 @@ static filptr getfil(void)
         pthread_mutex_init(&fp->lock, NULL);
 
     }
-    fp->net = false; /* set not network file */
-    fp->sec = false; /* set ordinary socket */
+    fp->net = FALSE; /* set not network file */
+    fp->sec = FALSE; /* set ordinary socket */
     fp->ssl = NULL;  /* clear SSL data */
     fp->cert = NULL; /* clear certificate data */
     fp->sfn = -1;    /* set no shadow */
-    fp->opn = false; /* set not open */
-    fp->msg = false; /* set not message port */
+    fp->opn = FALSE; /* set not open */
+    fp->msg = FALSE; /* set not message port */
     fp->next = NULL; /* set no next */
 
     return (fp);
@@ -517,14 +517,14 @@ void newfil(int fn)
 
     }
     pthread_mutex_lock(&opnfil[fn]->lock); /* take file entry lock */
-    opnfil[fn]->net = false;  /* set unoccupied */
-    opnfil[fn]->sec = false;  /* set ordinary socket */
+    opnfil[fn]->net = FALSE;  /* set unoccupied */
+    opnfil[fn]->sec = FALSE;  /* set ordinary socket */
     opnfil[fn]->ssl = NULL;   /* clear SSL data */
     opnfil[fn]->cert = NULL;  /* clear certificate data */
     opnfil[fn]->sfn = -1;     /* set no shadow */
-    opnfil[fn]->opn = false;  /* set not open */
-    opnfil[fn]->msg = false;  /* set not message port */
-    opnfil[fn]->sudp = false; /* set not secure udp */
+    opnfil[fn]->opn = FALSE;  /* set not open */
+    opnfil[fn]->msg = FALSE;  /* set not message port */
+    opnfil[fn]->sudp = FALSE; /* set not secure udp */
     pthread_mutex_unlock(&opnfil[fn]->lock); /* release file entry lock */
 
 }
@@ -553,7 +553,7 @@ pa_certptr getcert(void)
     /* clear fields */
     cp->name = NULL;
     cp->data = NULL;
-    cp->critical = false;
+    cp->critical = FALSE;
     cp->fork = NULL;
     cp->next = NULL;
 
@@ -629,7 +629,7 @@ int generate_cookie(SSL *ssl, unsigned char *cookie, unsigned int *cookie_len)
 			printf("error setting random cookie secret\n");
 			return 0;
 			}
-		cookie_initialized = true;
+		cookie_initialized = TRUE;
 		}
 
 	/* Read peer information */
@@ -811,9 +811,9 @@ void pa_addrnet(string name, unsigned long* addr)
 
 	struct addrinfo *p;
 	int r;
-	boolean af;
+	int af;
 
-    af = false; /* set address not found */
+    af = FALSE; /* set address not found */
 	r = getaddrinfo(name, NULL, NULL, &p);
 	if (r) netwrterr(gai_strerror(r));
 	while (p) {
@@ -824,7 +824,7 @@ void pa_addrnet(string name, unsigned long* addr)
             /* get the IPv4 address */
 	        *addr =
 	            ntohl(((struct sockaddr_in*)(p->ai_addr))->sin_addr.s_addr);
-	        af = true; /* set an address found */
+	        af = TRUE; /* set an address found */
 
 	    }
 	    p = p->ai_next;
@@ -850,10 +850,10 @@ void pa_addrnetv6(string name, unsigned long long* addrh,
 
 	struct addrinfo *p;
 	int r;
-	boolean af;
+	int af;
 	struct sockaddr_in6* sap;
 
-    af = false; /* set address not found */
+    af = FALSE; /* set address not found */
 	r = getaddrinfo(name, NULL, NULL, &p);
 	if (r) netwrterr(gai_strerror(r));
 	while (p) {
@@ -867,7 +867,7 @@ void pa_addrnetv6(string name, unsigned long long* addrh,
                     (unsigned long long) ntohl(sap->sin6_addr.__in6_u.__u6_addr32[1]);
             *addrl = (unsigned long long) ntohl(sap->sin6_addr.__in6_u.__u6_addr32[2]) << 32 |
                     (unsigned long long) ntohl(sap->sin6_addr.__in6_u.__u6_addr32[3]);
-	        af = true; /* set an address found */
+	        af = TRUE; /* set an address found */
 
 	    }
 	    p = p->ai_next;
@@ -891,7 +891,7 @@ are used.
 *******************************************************************************/
 
 static FILE* opennet(
-    /* link is secured */     boolean secure,
+    /* link is secured */     int secure,
     /* file open as socket */ int fn
 )
 
@@ -908,9 +908,9 @@ static FILE* opennet(
     if (!fp) linuxerror();
     newfil(fn); /* get/renew file entry */
     pthread_mutex_lock(&opnfil[fn]->lock); /* take file entry lock */
-    opnfil[fn]->net = true; /* set network (sockets) file */
-    opnfil[fn]->sec = false; /* set not secure */
-    opnfil[fn]->opn = true;
+    opnfil[fn]->net = TRUE; /* set network (sockets) file */
+    opnfil[fn]->sec = FALSE; /* set not secure */
+    opnfil[fn]->opn = TRUE;
     pthread_mutex_unlock(&opnfil[fn]->lock); /* release file entry lock */
 
     /* check secure sockets layer, and negotiate if so */
@@ -924,8 +924,8 @@ static FILE* opennet(
         newfil(sfn); /* init the shadow */
 
         pthread_mutex_lock(&opnfil[sfn]->lock); /* take file entry lock */
-        opnfil[sfn]->net = true; /* set network file */
-        opnfil[sfn]->opn = true;
+        opnfil[sfn]->net = TRUE; /* set network file */
+        opnfil[sfn]->opn = TRUE;
         pthread_mutex_unlock(&opnfil[sfn]->lock); /* release file entry lock */
 
         ssl = SSL_new(client_tls_ctx); /* create new ssl */
@@ -950,7 +950,7 @@ static FILE* opennet(
         opnfil[fn]->sfn = sfn;
         opnfil[fn]->cert = cert;
         opnfil[fn]->ssl = ssl;
-        opnfil[fn]->sec = true; /* turn TLS encode/decode on for ssl channel */
+        opnfil[fn]->sec = TRUE; /* turn TLS encode/decode on for ssl channel */
         pthread_mutex_unlock(&opnfil[fn]->lock); /* release file entry lock */
 
     }
@@ -961,7 +961,7 @@ static FILE* opennet(
 
 FILE* pa_opennet(/* IP address */      unsigned long addr,
                  /* port */            int port,
-                 /* link is secured */ boolean secure
+                 /* link is secured */ int secure
 )
 
 {
@@ -992,7 +992,7 @@ FILE* pa_opennetv6(
     /* v6 address low */  unsigned long long addrh,
     /* v6 address high */ unsigned long long addrl,
     /* port */            int port,
-    /* link is secured */ boolean secure
+    /* link is secured */ int secure
 )
 
 {
@@ -1040,7 +1040,7 @@ DTLS, with fixed length messages.
 int pa_openmsg(
     /* ip address */      unsigned long addr,
     /* port */            int port,
-    /* link is secured */ boolean secure
+    /* link is secured */ int secure
 )
 
 {
@@ -1063,10 +1063,10 @@ int pa_openmsg(
 
     newfil(fn); /* get/renew file entry */
     pthread_mutex_lock(&opnfil[fn]->lock); /* take file entry lock */
-    opnfil[fn]->net = true; /* set network (sockets) file */
-    opnfil[fn]->sec = false; /* set not secure */
-    opnfil[fn]->opn = true;
-    opnfil[fn]->msg = true; /* set message socket */
+    opnfil[fn]->net = TRUE; /* set network (sockets) file */
+    opnfil[fn]->sec = FALSE; /* set not secure */
+    opnfil[fn]->opn = TRUE;
+    opnfil[fn]->msg = TRUE; /* set message socket */
 
     /* set up server address */
     memset(&opnfil[fn]->saddr.s4, 0, sizeof(struct sockaddr_in));
@@ -1075,7 +1075,7 @@ int pa_openmsg(
     memcpy(&opnfil[fn]->saddr.s4, &saddr, sizeof(struct sockaddr_in));
     pthread_mutex_unlock(&opnfil[fn]->lock); /* release file entry lock */
 
-    opnfil[fn]->v6addr = false; /* set v4 address */
+    opnfil[fn]->v6addr = FALSE; /* set v4 address */
 
     /* set up for DTLS operation if selected */
     if (secure) {
@@ -1109,7 +1109,7 @@ int pa_openmsg(
 	    BIO_ctrl(opnfil[fn]->bio, BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
 
 	    /* set secure udp */
-	    opnfil[fn]->sudp = true;
+	    opnfil[fn]->sudp = TRUE;
 
     }
 
@@ -1121,7 +1121,7 @@ int pa_openmsgv6(
     /* v6 address low */  unsigned long long addrh,
     /* v6 address high */ unsigned long long addrl,
     /* port */            int port,
-    /* link is secured */ boolean secure
+    /* link is secured */ int secure
 )
 
 {
@@ -1151,10 +1151,10 @@ int pa_openmsgv6(
 
     newfil(fn); /* get/renew file entry */
     pthread_mutex_lock(&opnfil[fn]->lock); /* take file entry lock */
-    opnfil[fn]->net = true; /* set network (sockets) file */
-    opnfil[fn]->sec = false; /* set not secure */
-    opnfil[fn]->opn = true;
-    opnfil[fn]->msg = true; /* set message socket */
+    opnfil[fn]->net = TRUE; /* set network (sockets) file */
+    opnfil[fn]->sec = FALSE; /* set not secure */
+    opnfil[fn]->opn = TRUE;
+    opnfil[fn]->msg = TRUE; /* set message socket */
 
     /* set up server address */
     memset(&opnfil[fn]->saddr.s6, 0, sizeof(struct sockaddr_in6));
@@ -1163,7 +1163,7 @@ int pa_openmsgv6(
     memcpy(&opnfil[fn]->saddr.s6, &saddr, sizeof(struct sockaddr_in6));
     pthread_mutex_unlock(&opnfil[fn]->lock); /* release file entry lock */
 
-    opnfil[fn]->v6addr = true; /* set v6 address */
+    opnfil[fn]->v6addr = TRUE; /* set v6 address */
 
     /* set up for DTLS operation if selected */
     if (secure) {
@@ -1197,7 +1197,7 @@ int pa_openmsgv6(
 	    BIO_ctrl(opnfil[fn]->bio, BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
 
 	    /* set secure udp */
-	    opnfil[fn]->sudp = true;
+	    opnfil[fn]->sudp = TRUE;
 
     }
 
@@ -1218,7 +1218,7 @@ another program tries to take the same port, it is blocked.
 *******************************************************************************/
 
 int pa_waitmsg(/* port number to wait on */ int port,
-               /* secure mode */            boolean secure
+               /* secure mode */            int secure
                )
 
 {
@@ -1249,15 +1249,15 @@ int pa_waitmsg(/* port number to wait on */ int port,
     opnfil[fn]->saddr.s6.sin6_addr = in6addr_any;
     opnfil[fn]->saddr.s6.sin6_port = htons(port);
 
-    opnfil[fn]->v6addr = true; /* set v6 address */
+    opnfil[fn]->v6addr = TRUE; /* set v6 address */
 
     /* bind to socket */
     r = bind(fn, (struct sockaddr *)&opnfil[fn]->saddr.s6,
                  sizeof(struct sockaddr_in6));
     if (r < 0) linuxerror();
 
-    opnfil[fn]->net = true; /* set network (sockets) file */
-    opnfil[fn]->msg = true; /* set message socket */
+    opnfil[fn]->net = TRUE; /* set network (sockets) file */
+    opnfil[fn]->msg = TRUE; /* set message socket */
 
     /* set up for DTLS operation if selected */
     if (secure) {
@@ -1305,7 +1305,7 @@ int pa_waitmsg(/* port number to wait on */ int port,
 	             0, &timeout);
 
 	    /* set secure udp */
-	    opnfil[fn]->sudp = true;
+	    opnfil[fn]->sudp = TRUE;
 
     }
 
@@ -1553,7 +1553,7 @@ program tries to take the same port, it is blocked.
 *******************************************************************************/
 
 FILE* pa_waitnet(/* port number to wait on */ int port,
-                 /* secure mode */            boolean secure
+                 /* secure mode */            int secure
                 )
 
 {
@@ -1600,7 +1600,7 @@ FILE* pa_waitnet(/* port number to wait on */ int port,
     fp = fdopen(fn, "r+");
     if (!fp) linuxerror();
     newfil(fn); /* initialize file entry */
-    opnfil[fn]->net = true; /* set network (sockets) file */
+    opnfil[fn]->net = TRUE; /* set network (sockets) file */
 
     /* check secure sockets layer, and negotiate if so */
     if (secure) {
@@ -1613,8 +1613,8 @@ FILE* pa_waitnet(/* port number to wait on */ int port,
         newfil(sfn); /* init the shadow */
 
         pthread_mutex_lock(&opnfil[sfn]->lock); /* take file entry lock */
-        opnfil[sfn]->net = true; /* set network file */
-        opnfil[sfn]->opn = true;
+        opnfil[sfn]->net = TRUE; /* set network file */
+        opnfil[sfn]->opn = TRUE;
         pthread_mutex_unlock(&opnfil[sfn]->lock); /* release file entry lock */
 
         ssl = SSL_new(server_tls_ctx); /* create new ssl */
@@ -1633,7 +1633,7 @@ FILE* pa_waitnet(/* port number to wait on */ int port,
         pthread_mutex_lock(&opnfil[fn]->lock); /* take file entry lock */
         opnfil[fn]->sfn = sfn;
         opnfil[fn]->ssl = ssl;
-        opnfil[fn]->sec = true; /* turn TLS encode/decode on for ssl channel */
+        opnfil[fn]->sec = TRUE; /* turn TLS encode/decode on for ssl channel */
         pthread_mutex_unlock(&opnfil[fn]->lock); /* release file entry lock */
 
     }
@@ -1661,7 +1661,7 @@ carried on the wire. Thus it is reliable by definition.
 
 *******************************************************************************/
 
-boolean pa_relymsg(unsigned long addr)
+int pa_relymsg(unsigned long addr)
 
 {
 
@@ -1669,7 +1669,7 @@ boolean pa_relymsg(unsigned long addr)
 
 }
 
-boolean pa_relymsgv6(unsigned long long addrh, unsigned long long addrl)
+int pa_relymsgv6(unsigned long long addrh, unsigned long long addrl)
 
 {
 
@@ -2334,7 +2334,7 @@ static int ivopen(popen_t opendc, const char* pathname, int flags, int perm)
     	    makfil(r); /* create file entry as required */
     	    /* open to close arguments on opposing threads can leave the open
     	       indeterminate, but this is just a state issue. */
-    	    opnfil[r]->opn = true; /* set open */
+    	    opnfil[r]->opn = TRUE; /* set open */
 
     	}
 
@@ -2401,7 +2401,7 @@ static int ivclose(pclose_t closedc, int fd)
 
     /* open to close arguments on opposing threads can leave the open
        indeterminate, but this is just a state issue. */
-    if (opnfil[fd]) opnfil[fd]->opn = false;
+    if (opnfil[fd]) opnfil[fd]->opn = FALSE;
 
     return (r);
 
@@ -2651,7 +2651,7 @@ static void pa_init_network()
 	SSL_CTX_set_cookie_verify_cb(server_dtls_ctx, &verify_cookie);
 
     /* set cookie uninitialized */
-    cookie_initialized = false;
+    cookie_initialized = FALSE;
 
 };
 

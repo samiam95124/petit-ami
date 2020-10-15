@@ -146,10 +146,10 @@ static void timetest(void)
     }
     printf("\n");
     printf("\n");
-    printf("Average time was: %d00 Microseconds\n", total / 100);
+    printf("Average time was: %ld00 Microseconds\n", total / 100);
     printf("Minimum time was: %d00 Microseconds\n", min);
     printf("Maximum time was: %d00 Microseconds\n", max);
-    printf("This timer supports frame rates up to %d", 10000 / (total / 100));
+    printf("This timer supports frame rates up to %ld", 10000 / (total / 100));
     printf(" frames per second\n");
     t = pa_clock();
     pa_timer(stdout, 1, 10000, 0);

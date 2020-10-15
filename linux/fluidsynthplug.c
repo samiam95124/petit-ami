@@ -279,7 +279,7 @@ static void fluidsynth_plug_init()
 
         /* now install us as PA device */
         sprintf(buff, "Fluidsynth%d", i+1);
-        _pa_synthoutplug(false, buff, openfluid, closefluid, writefluid,
+        _pa_synthoutplug(FALSE, buff, openfluid, closefluid, writefluid,
                          setparamfluid, getparamfluid);
 
     }

@@ -262,14 +262,14 @@ typedef struct snddev {
     int            chan;       /* number of channels */
     int            bits;       /* preferred format bit size */
     int            rate;       /* sample rate */
-    boolean        sgn;        /* preferred format sign */
-    boolean        big;        /* preferred format big endian */
-    boolean        flt;        /* preferred format floating point */
+    int            sgn;        /* preferred format sign */
+    int            big;        /* preferred format big endian */
+    int            flt;        /* preferred format floating point */
     int            ssiz;       /* sample size, bits*chan in bytes */
     int            fmt;        /* alsa format code for output, -1 if not set */
     byte           last;       /* last byte on midi input */
     int            pback;      /* pushback for input */
-    boolean        sync;       /* midi channel synced */
+    int            sync;       /* midi channel synced */
     /* These entries support plug in devices, but are also set for intenal devices */
     void (*open)(int p);                  /* open port */
     void (*close)(int p);                 /* close port */
@@ -280,18 +280,18 @@ typedef struct snddev {
     void (*chanwavout)(int p, int c);     /* channels for wave output */
     void (*ratewavout)(int p, int r);     /* rate for wave output */
     void (*lenwavout)(int p, int l);      /* bitlength for wave output */
-    void (*sgnwavout)(int p, boolean s);  /* sign for wave output */
-    void (*fltwavout)(int p, boolean f);  /* float for wave output */
-    void (*endwavout)(int p, boolean e); /* endian for wave output */
+    void (*sgnwavout)(int p, int s);      /* sign for wave output */
+    void (*fltwavout)(int p, int f);      /* float for wave output */
+    void (*endwavout)(int p, int e);      /* endian for wave output */
     int (*chanwavin)(int p);              /* channels for wave input */
     int (*ratewavin)(int p);              /* rate for wave input */
     int (*lenwavin)(int p);               /* bitlength for wave input */
-    boolean (*sgnwavin)(int p);          /* sign for wave input */
-    boolean (*fltwavin)(int p);          /* float for wave input */
-    boolean (*endwavin)(int p);          /* endian for wave input */
+    int (*sgnwavin)(int p);               /* sign for wave input */
+    int (*fltwavin)(int p);               /* float for wave input */
+    int (*endwavin)(int p);               /* endian for wave input */
     int (*setparam)(int p, string name, string value); /* set parameter */
     void (*getparam)(int p, string name, string value, int len); /* get parameter */
-    boolean        devopn;     /* device open flag */
+    int            devopn;     /* device open flag */
 
 } snddev;
 
@@ -309,15 +309,15 @@ typedef enum {
 
 static seqptr seqlst;                  /* active sequencer entries */
 static seqptr seqfre;                  /* free sequencer entries */
-static boolean seqrun;                 /* sequencer running */
+static int seqrun;                     /* sequencer running */
 static struct timeval strtim;          /* start time for sequencer, in raw linux
                                           time */
-static boolean seqtimact;              /* sequencer timer active */
+static int seqtimact;                  /* sequencer timer active */
 static int seqhan;                     /* handle for sequencer timer */
 static pthread_mutex_t seqlock;        /* sequencer task lock */
 static pthread_t sequencer_thread_id;  /* sequencer thread id */
 
-static boolean sinrun;                 /* input timer running */
+static int sinrun;                     /* input timer running */
 static struct timeval sintim;          /* start time input midi marking, in raw
                                           linux time */
 
@@ -422,7 +422,7 @@ Prints device parameters. A diagnostic.
 
 *******************************************************************************/
 
-void prtparm(devptr p, boolean wave)
+void prtparm(devptr p, int wave)
 
 {
 
@@ -442,7 +442,7 @@ Prints a list of devices. A diagnostic.
 
 *******************************************************************************/
 
-void prtdtbl(devptr table[], int len, boolean wave)
+void prtdtbl(devptr table[], int len, int wave)
 
 {
 
@@ -721,7 +721,7 @@ static void acttim(int t)
         ts.it_interval.tv_sec = 0; /* set does not rerun */
         ts.it_interval.tv_nsec = 0;
         timerfd_settime(seqhan, 0, &ts, NULL);
-        seqtimact = true; /* set sequencer timer active */
+        seqtimact = TRUE; /* set sequencer timer active */
 
         /* count active sequence instances */
         pthread_mutex_lock(&snmlck);
@@ -1747,7 +1747,7 @@ point formats are inherently signed.
 
 *******************************************************************************/
 
-static void sgnalsapcmout(int p, boolean s)
+static void sgnalsapcmout(int p, int s)
 
 {
 
@@ -1764,7 +1764,7 @@ Sets the floating point/integer format for output sound samples.
 
 *******************************************************************************/
 
-static void fltalsapcmout(int p, boolean f)
+static void fltalsapcmout(int p, int f)
 
 {
 
@@ -1783,7 +1783,7 @@ case it is an error to set a format that is different.
 
 *******************************************************************************/
 
-static void endalsapcmout(int p, boolean e)
+static void endalsapcmout(int p, int e)
 
 {
 
@@ -1866,7 +1866,7 @@ signed sampling is always true if the samples are floating point.
 
 *******************************************************************************/
 
-boolean sgnalsapcmin(int p)
+int sgnalsapcmin(int p)
 
 {
 
@@ -1882,7 +1882,7 @@ Returns true if the given ALSA PCM device has big endian sampling.
 
 *******************************************************************************/
 
-boolean endalsapcmin(int p)
+int endalsapcmin(int p)
 
 {
 
@@ -1898,7 +1898,7 @@ Returns true if the given ALSA PCM device has floating point sampling.
 
 *******************************************************************************/
 
-boolean fltalsapcmin(int p)
+int fltalsapcmin(int p)
 
 {
 
@@ -1985,7 +1985,7 @@ devices that should not take over the default, such as accessory devices.
 *******************************************************************************/
 
 void _pa_synthoutplug(
-    /* add to end */    boolean addend,
+    /* add to end */    int addend,
     /* name */          string name,
     /* open synth */    void (*open)(int p),
     /* close synth */   void (*close)(int p),
@@ -2022,7 +2022,7 @@ void _pa_synthoutplug(
     alsamidiout[p]->wrseq = wrseq; /* set sequencer execute function */
     alsamidiout[p]->setparam = setparam; /* set parameter */
     alsamidiout[p]->getparam = getparam; /* get parameter */
-    alsamidiout[p]->devopn = false; /* set not open */
+    alsamidiout[p]->devopn = FALSE; /* set not open */
     alsamidioutnum++; /* count total devices */
 
 
@@ -2043,7 +2043,7 @@ devices that should not take over the default, such as accessory devices.
 *******************************************************************************/
 
 void _pa_synthinplug(
-    /* add to end */      boolean addend,
+    /* add to end */      int addend,
     /* name */            string name,
     /* open sequencer */  void (*open)(int p),
     /* close sequencer */ void (*close)(int p),
@@ -2080,7 +2080,7 @@ void _pa_synthinplug(
     alsamidiin[p]->rdseq = rdseq; /* set sequencer read function */
     alsamidiin[p]->setparam = setparam; /* set parameter */
     alsamidiin[p]->getparam = getparam; /* get parameter */
-    alsamidiin[p]->devopn = false; /* set not open */
+    alsamidiin[p]->devopn = FALSE; /* set not open */
     alsamidiinnum++; /* count total devices */
 
 }
@@ -2100,16 +2100,16 @@ devices that should not take over the default, such as accessory devices.
 *******************************************************************************/
 
 void _pa_waveoutplug(
-    /* add to end */                boolean addend,
+    /* add to end */                int addend,
     /* name */                      string name,
     /* open sequencer */            void (*open)(int p),
     /* close sequencer */           void (*close)(int p),
     /* channels for wave output */  void (*chanwavout)(int p, int c),
     /* rate for wave output */      void (*ratewavout)(int p, int r),
     /* bitlength for wave output */ void (*lenwavout)(int p, int l),
-    /* sign for wave output */      void (*sgnwavout)(int p, boolean s),
-    /* float for wave output */     void (*fltwavout)(int p, boolean f),
-    /* endian for wave output */    void (*endwavout)(int p, boolean e),
+    /* sign for wave output */      void (*sgnwavout)(int p, int s),
+    /* float for wave output */     void (*fltwavout)(int p, int f),
+    /* endian for wave output */    void (*endwavout)(int p, int e),
     /* write wave */                void (*wrwav)(int p, byte* buff, int len),
     /* set parameter */             int (*setparam)(int p, string name,
                                                     string value),
@@ -2150,7 +2150,7 @@ void _pa_waveoutplug(
     alsapcmout[p]->endwavout = endwavout; /* endian for wave output */
     alsapcmout[p]->setparam = setparam; /* set parameter */
     alsapcmout[p]->getparam = getparam; /* get parameter */
-    alsapcmout[p]->devopn = false; /* set not open */
+    alsapcmout[p]->devopn = FALSE; /* set not open */
     alsapcmoutnum++; /* count total devices */
 
 
@@ -2171,16 +2171,16 @@ devices that should not take over the default, such as accessory devices.
 *******************************************************************************/
 
 void _pa_waveinplug(
-    /* add to end */               boolean addend,
+    /* add to end */               int addend,
     /* name */                     string name,
     /* open sequencer */           void (*open)(int p),
     /* close sequencer */          void (*close)(int p),
     /* channels for wave input */  int (*chanwavin)(int p),
     /* rate for wave input */      int (*ratewavin)(int p),
     /* bitlength for wave input */ int (*lenwavin)(int p),
-    /* sign for wave input */      boolean (*sgnwavin)(int p),
-    /* float for wave input */     boolean (*fltwavin)(int p),
-    /* endian for wave input */    boolean (*endwavein)(int p),
+    /* sign for wave input */      int (*sgnwavin)(int p),
+    /* float for wave input */     int (*fltwavin)(int p),
+    /* endian for wave input */    int (*endwavein)(int p),
     /* read wave */                int (*rdwav)(int p, byte* buff, int len),
     /* set parameter */            int (*setparam)(int p, string name,
                                                    string value),
@@ -2220,7 +2220,7 @@ void _pa_waveinplug(
     alsapcmin[p]->fltwavin = fltwavin; /* float for wave input */
     alsapcmin[p]->setparam = setparam; /* set parameter */
     alsapcmin[p]->getparam = getparam; /* get parameter */
-    alsapcmin[p]->devopn = false; /* set not open */
+    alsapcmin[p]->devopn = FALSE; /* set not open */
     alsapcminnum++; /* count total devices */
 
 
@@ -2403,9 +2403,9 @@ static void* sequencer_thread(void* data)
                     ts.it_interval.tv_sec = 0; /* set does not rerun */
                     ts.it_interval.tv_nsec = 0;
                     timerfd_settime(seqhan, 0, &ts, NULL);
-                    seqtimact = true; /* set sequencer timer active */
+                    seqtimact = TRUE; /* set sequencer timer active */
 
-                } else seqtimact = false; /* set quencer timer inactive */
+                } else seqtimact = FALSE; /* set quencer timer inactive */
                 pthread_mutex_unlock(&seqlock);
                 if (!seqtimact) {
 
@@ -2479,7 +2479,7 @@ void pa_opensynthout(int p)
     if (alsamidiout[p-1]->devopn) error("Synthsizer port already open");
 
     alsamidiout[p-1]->open(p); /* open port */
-    alsamidiout[p-1]->devopn = true; /* set open */
+    alsamidiout[p-1]->devopn = TRUE; /* set open */
 
 }
 
@@ -2500,7 +2500,7 @@ void pa_closesynthout(int p)
     if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
 
     alsamidiout[p-1]->close(p); /* close port */
-    alsamidiout[p-1]->devopn = false; /* set closed */
+    alsamidiout[p-1]->devopn = FALSE; /* set closed */
 
 }
 
@@ -2536,7 +2536,7 @@ void pa_starttimeout(void)
 {
 
     gettimeofday(&strtim, NULL); /* get current time */
-    seqrun = true; /* set sequencer running */
+    seqrun = TRUE; /* set sequencer running */
 
 }
 
@@ -2560,7 +2560,7 @@ void pa_stoptimeout(void)
 
     strtim.tv_sec = 0; /* clear start time */
     strtim.tv_usec = 0;
-    seqrun = false; /* set sequencer not running */
+    seqrun = FALSE; /* set sequencer not running */
     /* if there is a pending sequencer timer, kill it */
     if (seqtimact) {
 
@@ -2570,7 +2570,7 @@ void pa_stoptimeout(void)
         ts.it_interval.tv_sec = 0;
         ts.it_interval.tv_nsec = 0;
         timerfd_settime(seqhan, 0, &ts, NULL);
-        seqtimact = false; /* set sequencer timer inactive */
+        seqtimact = FALSE; /* set sequencer timer inactive */
 
     }
     /* now clear all pending events */
@@ -2621,7 +2621,7 @@ void pa_starttimein(void)
 {
 
     gettimeofday(&sintim, NULL); /* get current time */
-    sinrun = true; /* set sequencer running */
+    sinrun = TRUE; /* set sequencer running */
 
 }
 
@@ -2637,7 +2637,7 @@ void pa_stoptimein(void)
 
 {
 
-    sinrun = false;
+    sinrun = FALSE;
 
 }
 
@@ -2920,7 +2920,7 @@ Sets the legato mode on/off.
 
 *******************************************************************************/
 
-void pa_legato(int p, int t, pa_channel c, boolean b)
+void pa_legato(int p, int t, pa_channel c, int b)
 
 {
 
@@ -2966,7 +2966,7 @@ Sets the portamento mode on/off.
 
 *******************************************************************************/
 
-void pa_portamento(int p, int t, pa_channel c, boolean b)
+void pa_portamento(int p, int t, pa_channel c, int b)
 
 {
 
@@ -4019,7 +4019,7 @@ static void prttxt(FILE* fh, unsigned int len)
 
 }
 
-static int dcdmidi(FILE* fh, byte b, boolean* endtrk, int p, int t, int* qnote,
+static int dcdmidi(FILE* fh, byte b, int* endtrk, int p, int t, int* qnote,
                    seqptr* rsp)
 
 {
@@ -4034,7 +4034,7 @@ static int dcdmidi(FILE* fh, byte b, boolean* endtrk, int p, int t, int* qnote,
     seqptr sp;
 
     cnt = 0;
-    *endtrk = false;
+    *endtrk = FALSE;
     sp = NULL; /* clear sequencer entry */
     switch (b>>4) { /* command nybble */
 
@@ -4165,7 +4165,7 @@ static int dcdmidi(FILE* fh, byte b, boolean* endtrk, int p, int t, int* qnote,
 
                                      case 0x2f: /* End of track */
                                                 if (len != 0) error("Meta event length does not match");
-                                                *endtrk = true; /* set end of track */
+                                                *endtrk = TRUE; /* set end of track */
                                                 break;
                                      case 0x51: /* Set tempo */
                                                 if (len != 3) error("Meta event length does not match");
@@ -4253,7 +4253,7 @@ void pa_loadsynth(int s, string fn)
     unsigned int      len;          /* length read */
     unsigned int      hlen;         /* header length */
     unsigned int      delta_time;   /* delta time */
-    boolean           endtrk;       /* end of track flag */
+    int           endtrk;       /* end of track flag */
     byte              last;         /* last command */
     unsigned short    fmt;          /* format code */
     unsigned short    tracks;       /* number of tracks */
@@ -4448,7 +4448,7 @@ void pa_delsynth(int s)
 
     seqptr  p;
     int     n;
-    boolean accessed;
+    int accessed;
 
     if (s < 1 || s > MAXMIDT) error("Invalid logical synth file number");
 
@@ -4457,7 +4457,7 @@ void pa_delsynth(int s)
 
         /* this is a double lock like your mother warned you about. It is
            structured two deep and warrants analysis. */
-        accessed = false; /* set no successful access */
+        accessed = FALSE; /* set no successful access */
         pthread_mutex_lock(&synlck); /* take synth table lock */
 
         pthread_mutex_lock(&snmlck);
@@ -4468,7 +4468,7 @@ void pa_delsynth(int s)
 
             p = syntab[s]; /* get the existing entry */
             syntab[s] = NULL; /* clear original */
-            accessed = true; /* set sucessful access */
+            accessed = TRUE; /* set sucessful access */
 
         }
         pthread_mutex_unlock(&synlck); /* release lock */
@@ -4623,7 +4623,7 @@ void pa_openwaveout(int p)
     if (alsapcmout[p-1]->devopn) error("Wave port already open");
 
     alsapcmout[p-1]->open(p); /* open device */
-    alsapcmout[p-1]->devopn = true; /* set open */
+    alsapcmout[p-1]->devopn = TRUE; /* set open */
     alsapcmout[p-1]->fmt = -1; /* set format undefined until read/write time */
 
 }
@@ -4645,7 +4645,7 @@ void pa_closewaveout(int p)
     if (!alsapcmout[p-1]->devopn) error("Wave port not open");
 
     alsapcmout[p-1]->close(p); /* close device */
-    alsapcmout[p-1]->devopn = false; /* set closed */
+    alsapcmout[p-1]->devopn = FALSE; /* set closed */
 
 
 }
@@ -5066,7 +5066,7 @@ point formats are inherently signed.
 
 *******************************************************************************/
 
-void pa_sgnwaveout(int p, boolean s)
+void pa_sgnwaveout(int p, int s)
 
 {
 
@@ -5086,7 +5086,7 @@ Sets the floating point/integer format for output sound samples.
 
 *******************************************************************************/
 
-void pa_fltwaveout(int p, boolean f)
+void pa_fltwaveout(int p, int f)
 
 {
 
@@ -5108,7 +5108,7 @@ case it is an error to set a format that is different.
 
 *******************************************************************************/
 
-void pa_endwaveout(int p, boolean e)
+void pa_endwaveout(int p, int e)
 
 {
 
@@ -5174,7 +5174,7 @@ void pa_openwavein(int p)
     if (alsapcmin[p-1]->devopn) error("Wave port already open");
 
     alsapcmin[p-1]->open(p); /* open device */
-    alsapcmin[p-1]->devopn = true; /* set open */
+    alsapcmin[p-1]->devopn = TRUE; /* set open */
 
 }
 
@@ -5195,7 +5195,7 @@ void pa_closewavein(int p)
     if (!alsapcmin[p-1]->devopn) error("Wave port not open");
 
     alsapcmin[p-1]->close(p); /* close device */
-    alsapcmin[p-1]->devopn = false; /* set closed */
+    alsapcmin[p-1]->devopn = FALSE; /* set closed */
 
 }
 
@@ -5285,7 +5285,7 @@ signed sampling is always true if the samples are floating point.
 
 *******************************************************************************/
 
-boolean pa_sgnwavein(int p)
+int pa_sgnwavein(int p)
 
 {
 
@@ -5305,7 +5305,7 @@ Returns true if the given wave input device has big endian sampling.
 
 *******************************************************************************/
 
-boolean pa_endwavein(int p)
+int pa_endwavein(int p)
 
 {
 
@@ -5325,7 +5325,7 @@ Returns true if the given wave input device has floating point sampling.
 
 *******************************************************************************/
 
-boolean pa_fltwavein(int p)
+int pa_fltwavein(int p)
 
 {
 
@@ -5486,7 +5486,7 @@ void pa_opensynthin(int p)
     if (alsamidiin[p-1]->devopn) error("Synthsizer port already open");
 
     alsamidiin[p-1]->open(p); /* open port */
-    alsamidiin[p-1]->devopn = true; /* set open */
+    alsamidiin[p-1]->devopn = TRUE; /* set open */
 
 }
 
@@ -5507,7 +5507,7 @@ void pa_closesynthin(int p)
     if (!alsamidiin[p-1]->devopn) error("Synthsizer port not open");
 
     alsamidiin[p-1]->close(p); /* close port */
-    alsamidiin[p-1]->devopn = false; /* set closed */
+    alsamidiin[p-1]->devopn = FALSE; /* set closed */
 
 }
 
@@ -6053,7 +6053,7 @@ static void readalsadev(devptr table[], string devt, string iotyp, int tabmax,
             table[i]->name = devn; /* place name of device */
             table[i]->last = 0; /* clear last byte */
             table[i]->pback = -1; /* set no pushback */
-            table[i]->sync = false; /* set channel not syncronized */
+            table[i]->sync = FALSE; /* set channel not syncronized */
             switch (dt) { /* table type */
 
                 case dt_seqout: /* is a midi out */
@@ -6097,7 +6097,7 @@ static void readalsadev(devptr table[], string devt, string iotyp, int tabmax,
             table[i]->rdseq = inpseq; /* set sequencer read function */
             table[i]->midi = NULL; /* clear midi handle */
             table[i]->pcm = NULL; /* clear PCM handle */
-            table[i]->devopn = false; /* set device not open */
+            table[i]->devopn = FALSE; /* set device not open */
             /* if the device is not midi, get the parameters of wave */
             if (strcmp(devt, "rawmidi")) {
 
@@ -6147,10 +6147,10 @@ static void pa_init_sound()
 
     seqlst = NULL; /* clear active sequencer list */
     seqfre = NULL; /* clear free sequencer messages */
-    seqrun = false; /* set sequencer not running */
+    seqrun = FALSE; /* set sequencer not running */
     strtim.tv_sec = 0; /* clear start time */
     strtim.tv_usec = 0;
-    sinrun = false; /* set no input midi time marking */
+    sinrun = FALSE; /* set no input midi time marking */
     sintim.tv_sec = 0; /* clear input midi start time */
     sintim.tv_usec = 0;
 
@@ -6165,7 +6165,7 @@ static void pa_init_sound()
 
     /* create sequencer timer */
     seqhan = timerfd_create(CLOCK_REALTIME, 0);
-    seqtimact = false;
+    seqtimact = FALSE;
 
     /* clear input select set */
     FD_ZERO(&ifdseta);
@@ -6201,7 +6201,7 @@ static void pa_init_sound()
 
 #ifdef SHOWDEVTBL
     printf("\nmidi output devices:\n\n");
-    prtdtbl(alsamidiout, MAXMIDP, false);
+    prtdtbl(alsamidiout, MAXMIDP, FALSE);
 #endif
 
     /* define the ALSA midi input devices */
@@ -6209,7 +6209,7 @@ static void pa_init_sound()
 
 #ifdef SHOWDEVTBL
     printf("\nmidi input devices:\n\n");
-    prtdtbl(alsamidiin, MAXMIDP, false);
+    prtdtbl(alsamidiin, MAXMIDP, FALSE);
 #endif
 
     /* define the ALSA PCM output devices */
@@ -6217,7 +6217,7 @@ static void pa_init_sound()
 
 #ifdef SHOWDEVTBL
     printf("\nPCM output devices:\n\n");
-    prtdtbl(alsapcmout, MAXWAVP, true);
+    prtdtbl(alsapcmout, MAXWAVP, TRUE);
 #endif
 
     /* define the ALSA PCM input devices */
@@ -6225,7 +6225,7 @@ static void pa_init_sound()
 
 #ifdef SHOWDEVTBL
     printf("\nPCM input devices:\n\n");
-    prtdtbl(alsapcmin, MAXWAVP, true);
+    prtdtbl(alsapcmin, MAXWAVP, TRUE);
 #endif
 
     /* set midi plug-in counts */
