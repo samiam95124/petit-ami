@@ -93,7 +93,7 @@ int randn(int limit)
 
 {
 
-    return limit*rand()/RAND_MAX;
+    return (long)limit*rand()/RAND_MAX;
 
 }
 
@@ -372,16 +372,17 @@ redisplay the board && update the clock.
 
 *******************************************************************************/
 
-main()
+void main(void)
 
 {
 
     pa_auto(stdout, FALSE); /* turn off scrolling */
+    pa_curvis(stdout, FALSE); /* turn off cursor */
     putchar('\f'); /* clear screen */
     clear();
     display();
-    /* set cycle to rate limit at 30 times a second, the human event horizon */
-    pa_timer(stdin, 1, 333, TRUE);
+    /* set cycle to rate limit at 10 times a second */
+    pa_timer(stdin, 1, 1000, TRUE);
     do {
 
         /* get next interesting event */
@@ -397,6 +398,7 @@ main()
         }
 
     } while (er.etype != pa_etterm);
+    pa_curvis(stdout, TRUE); /* turn cursor back on */
     pa_auto(stdout, TRUE); /* turn on scrolling */
     putchar('\f'); /* clear screen */
 
