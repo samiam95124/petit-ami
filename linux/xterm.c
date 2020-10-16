@@ -1705,11 +1705,17 @@ static void plcchr(scnptr sc, char c)
     } else if (c >= ' ' && c != 0x7f) {
 
         /* normal character case, not control character */
-        p = &sc->buf[sc->cury-1][sc->curx-1];
-        p->ch = c; /* place character */
-        p->forec = sc->forec; /* place colors */
-        p->backc = sc->backc;
-        p->attr = sc->attr; /* place attribute */
+        if (sc->curx >= 1 && sc->curx <= MAXXD &&
+            sc->cury >= 1 && sc->cury <= MAXYD) {
+
+            /* within the buffer space, otherwise just dump */
+            p = &sc->buf[sc->cury-1][sc->curx-1];
+            p->ch = c; /* place character */
+            p->forec = sc->forec; /* place colors */
+            p->backc = sc->backc;
+            p->attr = sc->attr; /* place attribute */
+
+        }
         if (icurbnd(sc) && indisp(sc)) {
 
             /* This handling is from iright. We do this here because
