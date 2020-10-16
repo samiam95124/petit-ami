@@ -345,8 +345,8 @@ getmouse: linux/getmouse.c Makefile
 dumpmidi: utils/dumpmidi.c Makefile
 	gcc utils/dumpmidi.c -o bin/dumpmidi
 
-test: bin/petit_ami_plain$(LIBEXT) include/terminal.h test.c Makefile
-	$(CC) $(CFLAGS) test.c $(PLIBS) -o test
+test: bin/petit_ami_term$(LIBEXT) include/terminal.h test.c Makefile
+	$(CC) $(CFLAGS) test.c $(LIBS) -o test
 	
 play: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/play.c Makefile
 	$(CC) $(CFLAGS) sound_programs/play.c utils/option.c $(LIBS) -o bin/play
@@ -354,25 +354,25 @@ play: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/play.c Makef
 keyboard: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/keyboard.c Makefile
 	$(CC) $(CFLAGS) sound_programs/keyboard.c utils/option.c $(LIBS) -o bin/keyboard
 	
-playmidi: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/playmidi.c utils/option.c Makefile
+playmidi: bin/petit_ami_plain$(LIBEXT) include/terminal.h sound_programs/playmidi.c utils/option.c Makefile
 	$(CC) $(CFLAGS) sound_programs/playmidi.c utils/option.c $(PLIBS) -o bin/playmidi
 
-playwave: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/playwave.c Makefile
+playwave: bin/petit_ami_plain$(LIBEXT) include/terminal.h sound_programs/playwave.c Makefile
 	$(CC) $(CFLAGS) sound_programs/playwave.c utils/option.c $(PLIBS) -o bin/playwave
 	
-printdev: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/printdev.c Makefile
+printdev: bin/petit_ami_plain$(LIBEXT) include/terminal.h sound_programs/printdev.c Makefile
 	$(CC) $(CFLAGS) sound_programs/printdev.c $(PLIBS) -o bin/printdev
 
-connectmidi: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/connectmidi.c Makefile
+connectmidi: bin/petit_ami_plain$(LIBEXT) include/terminal.h sound_programs/connectmidi.c Makefile
 	$(CC) $(CFLAGS) sound_programs/connectmidi.c $(PLIBS) -o bin/connectmidi
 	
-connectwave: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/connectwave.c Makefile
+connectwave: bin/petit_ami_plain$(LIBEXT) include/terminal.h sound_programs/connectwave.c Makefile
 	$(CC) $(CFLAGS) sound_programs/connectwave.c $(PLIBS) -o bin/connectwave
 	
 random: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/random.c Makefile
 	$(CC) $(CFLAGS) sound_programs/random.c utils/option.c $(LIBS) -o bin/random
 	
-genwave: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/genwave.c Makefile
+genwave: bin/petit_ami_plain$(LIBEXT) include/terminal.h sound_programs/genwave.c Makefile
 	$(CC) $(CFLAGS) sound_programs/genwave.c utils/option.c $(PLIBS) -o bin/genwave
 	
 scntst: bin/petit_ami_term$(LIBEXT) include/terminal.h tests/scntst.c include/services.h linux/services.c Makefile

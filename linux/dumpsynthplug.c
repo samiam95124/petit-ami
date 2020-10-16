@@ -8,6 +8,8 @@ to test MIDI in plugins.
 
 *******************************************************************************/
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <localdefs.h>
 #include <sound.h>
@@ -267,7 +269,7 @@ static void dumpmidi_plug_init()
 {
 
     /* now install us as PA device at end */
-    _pa_synthinplug(true, "Dump MIDI", opendump, closedump, readdump,
+    _pa_synthinplug(TRUE, "Dump MIDI", opendump, closedump, readdump,
                     setparamdump, getparamdump);
     sport = 0; /* set input port invalid until set */
 
