@@ -480,7 +480,7 @@ typedef enum {
     eatoofg,  /* Cannot reenable auto off grid */
     eatoecb,  /* Cannot reenable auto outside screen */
     einvftn,  /* Invalid font number */
-    etrmfnt,  /* Valid terminal font ! found */
+    etrmfnt,  /* Valid terminal font not found */
     eatofts,  /* Cannot resize font with auto enabled */
     eatoftc,  /* Cannot change fonts with auto enabled */
     einvfnm,  /* Invalid logical font number */
@@ -489,8 +489,8 @@ typedef enum {
     etabful,  /* Too many tabs set */
     eatotab,  /* Cannot use graphical tabs with auto on */
     estrinx,  /* String index out of range */
-    ePIcfnf,  /* Picture file ! found */
-    ePIcftl,  /* Picture filename too large */
+    epicfnf,  /* Picture file ! found */
+    epicftl,  /* Picture filename too large */
     etimnum,  /* Invalid timer number */
     ejstsys,  /* Cannot justify system font */
     efnotwin, /* File is ! attached to a window */
@@ -528,6 +528,7 @@ typedef enum {
     enomem,   /* Out of memory */
     enoopn,   /* Cannot open file */
     einvfil,  /* File is invalid */
+    eftntl,   /* font name too large */
     esystem   /* System consistency check */
 
 } errcod;
@@ -1124,6 +1125,7 @@ void error(errcod e)
         case enomem:   grawrterr("Out of memory"); break;
         case enoopn:   grawrterr("Cannot open file"); break;
         case einvfil:  grawrterr("File is invalid"); break;
+        case eftntl:   grawrterr("Font name too large"); break;
         case esystem:  grawrterr("System consistency check, please contact v}or");
 
     }
@@ -2663,7 +2665,7 @@ void iscrollg(winptr win, int x, int y)
     int dx, dy, dw, dh; /* destination coordinates && sizes */
     int sx, sy;         /* destination coordinates */
     int b;              /* result */
-    hbrush hb;          /* handle to brush */
+    HBRUSH hb;          /* handle to brush */
     RECT frx, fry;      /* fill rectangles */
 
     /* scroll would result in complete clear, do it */
@@ -4539,8 +4541,8 @@ void ifrect(winptr win, int x1, int y1, int x2, int y2)
     sc = screens[win->curupd];
     if (win->bufmod) { /* buffer is active */
 
-       /* for filled ellipse, the pen && brush settings are all wrong. we need
-         a single PIxel pen && a background brush. we set && restore these */
+       /* for filled ellipse, the pen and brush settings are all wrong. we need
+         a single pixel pen and a background brush. we set and restore these */
        r = SelectObject(sc->bdc, sc->fspen);
        if (r == -1) winerr(); /* process windows error */
        r = SelectObject(sc->bdc, sc->fbrush);
@@ -5008,89 +5010,87 @@ as for the arc int above.
 
 *******************************************************************************/
 
-void ifchord(winptr win; x1, y1, x2, y2, sa, ea: int);
-
-const precis == 1000; /* precision of circle calculation */
-
-var saf, eaf:       real;    /* starting angles in radian float */
-    xs, ys, xe, ye: int; /* start && } coordinates */
-    xc, yc:         int; /* center point */
-    t:              int; /* swapper */
-    b:              int; /* return value */
-    r:              int; /* result holder */
+void ifchord(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
 
 {
 
-   with win^, screens[curupd]^ do { /* in window, screen context */
+#define PRECIS 1000 /* precision of circle calculation */
 
-      /* rationalize rectangle for processing */
-      if x1 > x2  { t = x1; x1 = x2; x2 = t };
-      if y1 > y2  { t = y1; y1 = y2; y2 = t };
-      /* convert start && } to radian measure */
-      saf = sa*2*PI/INT_MAX;
-      eaf = ea*2*PI/INT_MAX;
-      /* find center of ellipse */
-      xc = (x2-x1) / 2+x1;
-      yc = (y2-y1) / 2+y1;
-      /* resolve start to x, y */
-      xs = round(xc+precis*cos(PI/2-saf));
-      ys = round(yc-precis*sin(PI/2-saf));
-      /* resolve } to x, y */
-      xe = round(xc+precis*cos(PI/2-eaf));
-      ye = round(yc-precis*sin(PI/2-eaf));
-      if bufmod  { /* buffer is active */
+    float   saf, eaf;       /* starting angles in radian float */
+    int     xs, ys, xe, ye; /* start and end coordinates */
+    int     xc, yc;         /* center point */
+    int     t;              /* swapper */
+    BOOL    b;              /* return value */
+    HGDIOBJ r;              /* result holder */
+    scnptr  sc;             /* screen context */
 
-         /* for filled shape, the pen && brush settings are all wrong. we need
+    sc = screens[win->curupd];
+    /* rationalize rectangle for processing */
+    if (x1 > x2) { t = x1; x1 = x2; x2 = t; }
+    if (y1 > y2)  { t = y1; y1 = y2; y2 = t; }
+    /* convert start and end to radian measure */
+    saf = sa*2*PI/INT_MAX;
+    eaf = ea*2*PI/INT_MAX;
+    /* find center of ellipse */
+    xc = (x2-x1)/2+x1;
+    yc = (y2-y1)/2+y1;
+    /* resolve start to x, y */
+    xs = xc+PRECIS*cos(PI/2-saf));
+    ys = yc-PRECIS*sin(PI/2-saf));
+    /* resolve } to x, y */
+    xe = xc+PRECIS*cos(PI/2-eaf));
+    ye = yc-PRECIS*sin(PI/2-eaf));
+    if (win->bufmod) { /* buffer is active */
+
+        /* for filled shape, the pen && brush settings are all wrong. we need
            a single PIxel pen && a background brush. we set && restore these */
-         r = SelectObject(bdc, fspen);
-         if (r == -1) winerr(); /* process windows error */
-         r = SelectObject(bdc, fbrush);
-         if (r == -1) winerr(); /* process windows error */
-         /* draw shape */
-         b = chord(bdc, x1-1, y1-1, x2, y2, xe, ye, xs, ys);
-         if (!b) winerr(); /* process windows error */
-         /* restore */
-         r = SelectObject(bdc, fpen);
-         if (r == -1) winerr(); /* process windows error */
-         r = SelectObject(bdc, GetStockObject(null_brush));
-         if (r == -1) winerr(); /* process windows error */
+        r = SelectObject(sc->bdc, sc->fspen);
+        if (r == -1) winerr(); /* process windows error */
+        r = SelectObject(sc->bdc, sc->fbrush);
+        if (r == -1) winerr(); /* process windows error */
+        /* draw shape */
+        b = chord(sc->bdc, x1-1, y1-1, x2, y2, xe, ye, xs, ys);
+        if (!b) winerr(); /* process windows error */
+        /* restore */
+        r = SelectObject(sc->bdc, sc->fpen);
+        if (r == -1) winerr(); /* process windows error */
+        r = SelectObject(sc->bdc, GetStockObject(NULL_BRUSH));
+        if (r == -1) winerr(); /* process windows error */
 
-      };
-      if (indisp(win)) { /* do it again for the current screen */
+    }
+    if (indisp(win)) { /* do it again for the current screen */
 
-         if ! visible  winvis(win); /* make sure we are displayed */
-         r = SelectObject(devcon, fspen);
-         if (r == -1) winerr(); /* process windows error */
-         r = SelectObject(devcon, fbrush);
-         if (r == -1) winerr(); /* process windows error */
-         curoff(win);
-         /* draw shape */
-         b = chord(devcon, x1-1, y1-1, x2, y2, xe, ye, xs, ys);
-         if (!b) winerr(); /* process windows error */
-         curon(win);
-         r = SelectObject(devcon, fpen);
-         if (r == -1) winerr(); /* process windows error */
-         r = SelectObject(devcon, GetStockObject(null_brush));
-         if (r == -1) winerr(); /* process windows error */
+        if (!win->visible) winvis(win); /* make sure we are displayed */
+        r = SelectObject(win->devcon, sc->fspen);
+        if (r == -1) winerr(); /* process windows error */
+        r = SelectObject(win->devcon, sc->fbrush);
+        if (r == -1) winerr(); /* process windows error */
+        curoff(win);
+        /* draw shape */
+        b = chord(win->devcon, x1-1, y1-1, x2, y2, xe, ye, xs, ys);
+        if (!b) winerr(); /* process windows error */
+        curon(win);
+        r = SelectObject(win->devcon, sc->fpen);
+        if (r == -1) winerr(); /* process windows error */
+        r = SelectObject(win->devcon, GetStockObject(NULL_BRUSH));
+        if (r == -1) winerr(); /* process windows error */
 
-      }
+    }
 
-   }
+}
 
-};
-
-void fchord(FILE* f; x1, y1, x2, y2, sa, ea: int);
-
-var winptr win;  /* windows record pointer */
+void fchord(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   ifchord(win, x1, y1, x2, y2, sa, ea); /* draw cord */
-   unlockmain(); /* end exclusive access */
+    winptr win;  /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    ifchord(win, x1, y1, x2, y2, sa, ea); /* draw cord */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -5100,102 +5100,92 @@ Draws a filled triangle in the current foreground color.
 
 *******************************************************************************/
 
-void iftriangle(winptr win; x1, y1, x2, y2, x3, y3: int);
-
-var pa:  array [1..3] of point; /* points of triangle */
-    b:   int; /* return value */
-    r:   int; /* result holder */
+void iftriangle(winptr win, int x1, int y1, int x2, int y2, int x3, int y3)
 
 {
 
-   with win^ do { /* in window context */
+    POINT   pa[3]; /* points of triangle */
+    BOOL    b;     /* return value */
+    HGDIOBJ r;     /* result holder */
+    scnptr  sc;
 
-      /* place triangle points in array */
-      pa[1].x = x1-1;
-      pa[1].y = y1-1;
-      pa[2].x = x2-1;
-      pa[2].y = y2-1;
-      pa[3].x = x3-1;
-      pa[3].y = y3-1;
-      with screens[curupd]^ do {
+    sc = screens[win->curupd];
+    /* place triangle points in array */
+    pa[1].x = x1-1;
+    pa[1].y = y1-1;
+    pa[2].x = x2-1;
+    pa[2].y = y2-1;
+    pa[3].x = x3-1;
+    pa[3].y = y3-1;
+    if (win->bufmod) { /* buffer is active */
 
-         if bufmod  { /* buffer is active */
+       /* for filled shape, the pen && brush settings are all wrong. we need
+         a single PIxel pen && a background brush. we set && restore these */
+       r = SelectObject(sc->bdc, sc->fspen);
+       if (r == -1) winerr(); /* process windows error */
+       r = SelectObject(sc->bdc, sc->fbrush);
+       if (r == -1) winerr(); /* process windows error */
+       /* draw to buffer */
+       b = polygon(sc->bdc, pa);
+       if (!b) winerr(); /* process windows error */
+       /* restore */
+       r = SelectObject(sc->bdc, sc->fpen);
+       if (r == -1) winerr(); /* process windows error */
+       r = SelectObject(sc->bdc, GetStockObject(NULL_BRUSH));
+       if (r == -1) winerr(); /* process windows error */
 
-            /* for filled shape, the pen && brush settings are all wrong. we need
-              a single PIxel pen && a background brush. we set && restore these */
-            r = SelectObject(bdc, fspen);
-            if (r == -1) winerr(); /* process windows error */
-            r = SelectObject(bdc, fbrush);
-            if (r == -1) winerr(); /* process windows error */
-            /* draw to buffer */
-            b = polygon(bdc, pa);
-            if (!b) winerr(); /* process windows error */
-            /* restore */
-            r = SelectObject(bdc, fpen);
-            if (r == -1) winerr(); /* process windows error */
-            r = SelectObject(bdc, GetStockObject(null_brush));
-            if (r == -1) winerr(); /* process windows error */
+    }
+    /* draw to screen */
+    if (indisp(win)) {
 
-         };
-         /* draw to screen */
-         if (indisp(win)) {
+       if (!win->visible) winvis(win); /* make sure we are displayed */
+       r = SelectObject(win->devcon, sc->fspen);
+       if (r == -1) winerr(); /* process windows error */
+       r = SelectObject(win->devcon, sc->fbrush);
+       if (r == -1) winerr(); /* process windows error */
+       curoff(win);
+       b = polygon(win->devcon, pa);
+       if (!b) winerr(); /* process windows error */
+       curon(win);
+       r = SelectObject(win->devcon, sc->fpen);
+       if (r == -1) winerr(); /* process windows error */
+       r = SelectObject(win->devcon, GetStockObject(NULL_BRUSH));
+       if (r == -1) winerr(); /* process windows error */
 
-            if ! visible  winvis(win); /* make sure we are displayed */
-            r = SelectObject(devcon, fspen);
-            if (r == -1) winerr(); /* process windows error */
-            r = SelectObject(devcon, fbrush);
-            if (r == -1) winerr(); /* process windows error */
-            curoff(win);
-            b = polygon(devcon, pa);
-            if (!b) winerr(); /* process windows error */
-            curon(win);
-            r = SelectObject(devcon, fpen);
-            if (r == -1) winerr(); /* process windows error */
-            r = SelectObject(devcon, GetStockObject(null_brush));
-            if (r == -1) winerr(); /* process windows error */
+    }
+    /* The progressive points get shifted left one. This causes progressive
+      single point triangles to become triangle strips. */
+    if (sc->tcurs) { /* process odd strip flip */
 
-         };
-         /* The progressive points get shifted left one. This causes progressive
-           single point triangles to become triangle strips. */
-         if tcurs  { /* process odd strip flip */
+       tcurx1 = x1; /* place next progressive endpoint */
+       tcury1 = y1;
+       tcurx2 = x3;
+       tcury2 = y3;
 
-            tcurx1 = x1; /* place next progressive }point */
-            tcury1 = y1;
-            tcurx2 = x3;
-            tcury2 = y3
+    } else { /* process even strip flip */
 
-         } else { /* process even strip flip */
+       tcurx1 = x3; /* place next progressive endpoint */
+       tcury1 = y3;
+       tcurx2 = x2;
+       tcury2 = y2;
 
-            tcurx1 = x3; /* place next progressive }point */
-            tcury1 = y3;
-            tcurx2 = x2;
-            tcury2 = y2
+    }
 
-         }
+}
 
-      }
-
-   }
-
-};
-
-void ftriangle(FILE* f; x1, y1, x2, y2, x3, y3: int);
-
-var winptr win;  /* windows record pointer */
+void ftriangle(FILE* f, int x1, int y1, int x2, int y2, int x3, int y3)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   with win^, screens[curupd]^ do { /* in window, screen contexts */
+    winptr win;  /* windows record pointer */
 
-      iftriangle(win, x1, y1, x2, y2, x3, y3); /* draw triangle */
-      tcurs = FALSE /* set even strip flip state */
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    iftriangle(win, x1, y1, x2, y2, x3, y3); /* draw triangle */
+    win->screens[curupd]->tcurs = FALSE /* set even strip flip state */
+    unlockmain(); /* end exclusive access */
 
-   };
-   unlockmain(); /* end exclusive access */
-
-};
+}
 
 /*******************************************************************************
 
@@ -5205,48 +5195,47 @@ Sets a single logical PIxel to the foreground color.
 
 *******************************************************************************/
 
-void isetPIxel(winptr win; x, y: int);
-
-var r: colorref; /* return value */
+void isetpixel(winptr win, int x, int y)
 
 {
 
-   with win^ do { /* in window context */
+    COLORREF r; /* return value */
 
-      if bufmod  { /* buffer is active */
+    if (win->bufmod)  { /* buffer is active */
 
-         /* paint buffer */
-         r = setPIxel(screens[curupd]->bdc, x-1, y-1, screens[curupd]->fcrgb);
-         if (r == -1) winerr(); /* process windows error */
+       /* paint buffer */
+       r = SetPixel(screens[win->curupd]->bdc, x-1, y-1,
+                    screens[win->curupd]->fcrgb);
+       if (r == -1) winerr(); /* process windows error */
 
-      };
-      /* paint screen */
-      if (indisp(win)) {
+    }
+    /* paint screen */
+    if (indisp(win)) {
 
-         if ! visible  winvis(win); /* make sure we are displayed */
-         curoff(win);
-         r = setPIxel(devcon, x-1, y-1, screens[curupd]->fcrgb);
-         if (r == -1) winerr(); /* process windows error */
-         curon(win)
+       if ! win->visible  winvis(win); /* make sure we are displayed */
+       curoff(win);
+       r = SetPixel(win->devcon, x-1, y-1, screens[win->curupd]->fcrgb);
+       if (r == -1) winerr(); /* process windows error */
+       curon(win);
 
-      }
+    }
 
    }
 
-};
+}
 
-void setPIxel(FILE* f; x, y: int);
-
-var winptr win;  /* windows record pointer */
+void setpixel(FILE* f, int x, int y)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   isetPIxel(win, x, y); /* set PIxel */
-   unlockmain(); /* end exclusive access */
+    winptr win;  /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    isetpixel(win, x, y); /* set PIxel */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -5256,36 +5245,32 @@ Sets the foreground write mode to overwrite.
 
 *******************************************************************************/
 
-void ifover(winptr win);
-
-var r: int;
+void ifover(winptr win)
 
 {
 
-   with win^ do { /* in window context */
+    int r;
 
-      gfmod = mdnorm; /* set foreground mode normal */
-      screens[curupd]->fmod = mdnorm;
-      r = setrop2(screens[curupd]->bdc, r2_copypen);
-      if r == 0  winerr(); /* process windows error */
-      if indisp(win)  r = setrop2(devcon, r2_copypen)
+    win->gfmod = mdnorm; /* set foreground mode normal */
+    win->screens[win->curupd]->fmod = mdnorm;
+    r = SetROP2(win->screens[win->curupd]->bdc, R2_COPYPEN);
+    if (r == 0) winerr(); /* process windows error */
+    if (indisp(win)) r = SetROP2(win->devcon, R2_COPYPEN);
 
-   }
+}
 
-};
-
-void fover(FILE* f);
-
-var winptr win;  /* windows record pointer */
+void fover(FILE* f)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   ifover(win); /* set overwrite */
-   unlockmain(); /* end exclusive access */
+    winptr win;  /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    ifover(win); /* set overwrite */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -5295,36 +5280,32 @@ Sets the background write mode to overwrite.
 
 *******************************************************************************/
 
-void ibover(winptr win);
-
-var r: int;
+void ibover(winptr win)
 
 {
 
-   with win^ do { /* in window context */
+    int r;
 
-      gbmod = mdnorm; /* set background mode normal */
-      screens[curupd]->bmod = mdnorm;
-      r = setbkmode(screens[curupd]->bdc, opaque);
-      if r == 0  winerr(); /* process windows error */
-      if indisp(win)  r = setbkmode(devcon, opaque)
+    win->gbmod = mdnorm; /* set background mode normal */
+    win->screens[win->curupd]->bmod = mdnorm;
+    r = SetBkmode(win->screens[win->curupd]->bdc, OPAQUE);
+    if r == 0  winerr(); /* process windows error */
+    if (indisp(win)) r = Setbkmode(win->devcon, OPAQUE);
 
-   }
+}
 
-};
-
-void bover(FILE* f);
-
-var winptr win;  /* windows record pointer */
+void bover(FILE* f)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   ibover(win); /* set overwrite */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    ibover(win); /* set overwrite */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -5334,36 +5315,32 @@ Sets the foreground write mode to invisible.
 
 *******************************************************************************/
 
-void ifinvis(winptr win);
-
-var r: int;
+void ifinvis(winptr win)
 
 {
 
-   with win^ do { /* in window context */
+    int r;
 
-      gfmod = mdinvis; /* set foreground mode invisible */
-      screens[curupd]->fmod = mdinvis;
-      r = setrop2(screens[curupd]->bdc, r2_nop);
-      if r == 0  winerr(); /* process windows error */
-      if indisp(win)  r = setrop2(devcon, r2_nop)
+    win->gfmod = mdinvis; /* set foreground mode invisible */
+    win->screens[win->curupd]->fmod = mdinvis;
+    r = SetROP2(screens[win->curupd]->bdc, R2_NOP);
+    if (r == 0) winerr(); /* process windows error */
+    if (indisp(win)) r = setrop2(devcon, R2_NOP);
 
-   }
+}
 
-};
-
-void finvis(FILE* f);
-
-var winptr win;  /* windows record pointer */
+void finvis(FILE* f)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   ifinvis(win); /* set invisible */
-   unlockmain(); /* end exclusive access */
+    winptr win;  /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    ifinvis(win); /* set invisible */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -5373,36 +5350,32 @@ Sets the background write mode to invisible.
 
 *******************************************************************************/
 
-void ibinvis(winptr win);
-
-var r: int;
+void ibinvis(winptr win)
 
 {
 
-   with win^ do { /* in window context */
+    int r;
 
-      gbmod = mdinvis; /* set background mode invisible */
-      screens[curupd]->bmod = mdinvis;
-      r = setbkmode(screens[curupd]->bdc, transparent);
-      if r == 0  winerr(); /* process windows error */
-      if indisp(win)  r = setbkmode(devcon, transparent)
+    win->gbmod = mdinvis; /* set background mode invisible */
+    win->screens[win->curupd]->bmod = mdinvis;
+    r = SetBkMode(win->screens[win->curupd]->bdc, TRANSPARENT);
+    if (r == 0) winerr(); /* process windows error */
+    if (indisp(win)) r = SetBkMode(win->devcon, TRANSPARENT)
 
-   }
+}
 
-};
-
-void binvis(FILE* f);
-
-var winptr win;  /* windows record pointer */
+void binvis(FILE* f)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   ibinvis(win); /* set invisible */
-   unlockmain(); /* end exclusive access */
+    winptr win;  /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    ibinvis(win); /* set invisible */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -5412,36 +5385,32 @@ Sets the foreground write mode to xor.
 
 *******************************************************************************/
 
-void ifxor(winptr win);
-
-var r: int;
+void ifxor(winptr win)
 
 {
 
-   with win^ do { /* in window context */
+    int r;
 
-      gfmod = mdxor; /* set foreground mode xor */
-      screens[curupd]->fmod = mdxor;
-      r = setrop2(screens[curupd]->bdc, r2_xorpen);
-      if r == 0  winerr(); /* process windows error */
-      if indisp(win)  r = setrop2(devcon, r2_xorpen)
+    win->gfmod = mdxor; /* set foreground mode xor */
+    win->screens[win->curupd]->fmod = mdxor;
+    r = setrop2(win->screens[win->curupd]->bdc, R2_XORPEN);
+    if (!r) winerr(); /* process windows error */
+    if (indisp(win)) r = setrop2(win->devcon, R2_XORPEN);
 
-   }
+}
 
-};
-
-void fxor(FILE* f);
-
-var winptr win;  /* windows record pointer */
+void fxor(FILE* f)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   ifxor(win); /* set xor */
-   unlockmain(); /* end exclusive access */
+    winptr win;  /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    ifxor(win); /* set xor */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -5455,27 +5424,23 @@ void ibxor(winptr win);
 
 {
 
-   with win^ do { /* in window context */
+    win->gbmod = mdxor; /* set background mode xor */
+    win->screens[win->curupd]->bmod = mdxor
 
-      gbmod = mdxor; /* set background mode xor */
-      screens[curupd]->bmod = mdxor
+}
 
-   }
-
-};
-
-void bxor(FILE* f);
-
-var winptr win;  /* windows record pointer */
+void bxor(FILE* f)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   ibxor(win); /* set xor */
-   unlockmain(); /* end exclusive access */
+    winptr win;  /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    ibxor(win); /* set xor */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -5485,52 +5450,50 @@ Sets the width of lines && several other figures.
 
 *******************************************************************************/
 
-void ilinewidth(winptr win; w: int);
-
-var oh: hgdiobj; /* old pen */
-    b:  int;    /* return value */
-    lb: logbrush;
+void ilinewidth(winptr win, int w)
 
 {
 
-   with win^, screens[curupd]^ do { /* in window, screen context */
+    HGDIOBJ  oh; /* old pen */
+    int      b;  /* return value */
+    LOGBRUSH lb;
+    scnptr   sc;
 
-      lwidth = w; /* set new width */
-      /* create new pen with desired width */
-      b = DeleteObject(fpen); /* remove old pen */
-      if (!b) winerr(); /* process windows error */
-      /* create new pen */
-      lb.lbstyle = bs_solid;
-      lb.lbcolor = fcrgb;
-      lb.lbhatch = 0;
-      fpen = extCreatePen_nn(FPENSTL, lwidth, lb);
-      if fpen == 0  winerr(); /* process windows error */
-      /* select to buffer dc */
-      oh = SelectObject(bdc, fpen);
-      if (r == -1) winerr(); /* process windows error */
-      if (indisp(win)) { /* activate on screen */
+    sc = win->screens[win->curupd];
+    sc->lwidth = w; /* set new width */
+    /* create new pen with desired width */
+    b = DeleteObject(sc->fpen); /* remove old pen */
+    if (!b) winerr(); /* process windows error */
+    /* create new pen */
+    lb.lbstyle = BS_SOLID;
+    lb.lbcolor = sc->fcrgb;
+    lb.lbhatch = 0;
+    sc->fpen = ExtCreatePen(FPENSTL, sc->lwidth, lb, 0, NULL);
+    if (!sc->fpen) winerr(); /* process windows error */
+    /* select to buffer dc */
+    oh = SelectObject(sc->bdc, sc->fpen);
+    if (r == -1) winerr(); /* process windows error */
+    if (indisp(win)) { /* activate on screen */
 
-         oh = SelectObject(devcon, fpen); /* select pen to display */
-         if (r == -1) winerr(); /* process windows error */
+        oh = SelectObject(win->devcon, fpen); /* select pen to display */
+        if (r == -1) winerr(); /* process windows error */
 
-      }
+    }
 
-   }
+}
 
-};
-
-void linewidth(FILE* f; w: int);
-
-var winptr win;  /* windows record pointer */
+void linewidth(FILE* f, int w)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   ilinewidth(win, w); /* set line width */
-   unlockmain(); /* end exclusive access */
+    winptr win;  /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    ilinewidth(win, w); /* set line width */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -5540,19 +5503,21 @@ Returns the character width.
 
 *******************************************************************************/
 
-int chrsizx(FILE* f): int;
-
-var winptr win; /* window pointer */
+int chrsizx(FILE* f)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   with win^ do /* in window context */
-      chrsizx = charspace;
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window pointer */
+    int    cs;
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    cs = win->charspace;
+    unlockmain(); /* end exclusive access */
+
+    return (cs);
+
+}
 
 /*******************************************************************************
 
@@ -5564,17 +5529,19 @@ Returns the character height.
 
 int chrsizy(FILE* f): int;
 
-var winptr win; /* window pointer */
-
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   with win^ do /* in window context */
-      chrsizy = linespace;
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window pointer */
+    int cs;
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    cs = win->linespace;
+    unlockmain(); /* end exclusive access */
+
+    return (cs);
+
+}
 
 /*******************************************************************************
 
@@ -5584,19 +5551,21 @@ Finds the total number of installed fonts.
 
 *******************************************************************************/
 
-int fonts(FILE* f): int;
-
-var winptr win; /* window pointer */
+int fonts(FILE* f)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   with win^ do /* in window context */
-      fonts = fntcnt; /* return global font counter */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window pointer */
+    int    ft;
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    ft = win->fntcnt; /* return global font counter */
+    unlockmain(); /* end exclusive access */
+
+    return (ft);
+
+}
 
 /*******************************************************************************
 
@@ -5606,47 +5575,43 @@ Changes the current font to the indicated logical font number.
 
 *******************************************************************************/
 
-void ifont(winptr win; fc: int);
-
-var fp: fontptr;
+void ifont(winptr win, int fc)
 
 {
 
-   with win^ do { /* in window context */
+    fontptr fp: fontptr;
 
-      if screens[curupd]->auto  error(eatoftc); /* cannot perform with auto on */
-      if fc < 1  error(einvfnm); /* invalid font number */
-      /* find indicated font */
-      fp = fntlst;
-      while (fp <> nil) && (fc > 1) do { /* search */
+    if win->screens[win->curupd]->auto  error(eatoftc); /* cannot perform with auto on */
+    if fc < 1  error(einvfnm); /* invalid font number */
+    /* find indicated font */
+    fp = win->fntlst;
+    while (fp <> nil && fc > 1) { /* search */
 
-         fp = fp->next; /* mext font entry */
-         fc = fc-1 /* count */
+       fp = fp->next; /* mext font entry */
+       fc--; /* count */
 
-      };
-      if fc > 1  error(einvfnm); /* invalid font number */
-      if max(fp->fn^) == 0  error(efntemp); /* font is ! assigned */
-      screens[curupd]->cfont = fp; /* place new font */
-      gcfont = fp;
-      newfont(win); /* activate font */
-      chgcur(win) /* change cursors */
+    }
+    if fc > 1  error(einvfnm); /* invalid font number */
+    if (!strlen(fp->fn)) error(efntemp); /* font is not assigned */
+    win->screens[win->curupd]->cfont = fp; /* place new font */
+    win->gcfont = fp;
+    newfont(win); /* activate font */
+    chgcur(win); /* change cursors */
 
-   }
+}
 
-};
-
-void font(FILE* f; fc: int);
-
-var winptr win;  /* windows record pointer */
+void font(FILE* f, int fc)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   ifont(win, fc); /* set font */
-   unlockmain(); /* end exclusive access */
+    winptr win;  /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    ifont(win, fc); /* set font */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -5656,43 +5621,43 @@ Returns the name of a font by number.
 
 *******************************************************************************/
 
-void ifontnam(winptr win; fc: int; var fns: char*);
-
-var fp: fontptr; /* pointer to font entries */
-    i:  int; /* char* index */
+void ifontnam(winptr win, int fc, char* fns, int fnsl)
 
 {
+
+    fonptr fp: fontptr; /* pointer to font entries */
+    int i; /* char* index */
 
    with win^ do { /* in window context */
 
-      if fc <= 0  error(einvftn); /* invalid number */
-      fp = fntlst; /* index top of list */
-      while fc > 1 do { /* walk fonts */
+      if (fc <= 0) error(einvftn); /* invalid number */
+      fp = win->fntlst; /* index top of list */
+      while (fc > 1) { /* walk fonts */
 
          fp = fp->next; /* next font */
          fc = fc-1; /* count */
-         if fp == nil  error(einvftn) /* check null */
+         if (!fp) error(einvftn); /* check null */
 
-      };
-      for i = 1 to max(fns) do fns[i] = " "; /* clear result */
-      for i = 1 to max(fp->fn^) do fns[i] = fp->fn^[i] /* copy name */
+      }
+      if (strlen(fp->fn) > fnsl+1) error(eftntl);
+      strcpy(fns, fp->fn);
 
    }
 
-};
+}
 
-void fontnam(FILE* f; fc: int; var fns: char*);
-
-var winptr win;  /* windows record pointer */
+void fontnam(FILE* f, int fc, char* fns, int fnsl)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   ifontnam(win, fc, fns); /* find font name */
-   unlockmain(); /* end exclusive access */
+    winptr win;  /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    ifontnam(win, fc, fns); /* find font name */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -5703,34 +5668,31 @@ and line spacing are changed, as well as the baseline.
 
 *******************************************************************************/
 
-void ifontsiz(winptr win; s: int);
+void ifontsiz(winptr win, int s)
 
 {
 
-   with win^ do { /* in window context */
+    /* cannot perform with system font */
+    if (win->screens[win->curupd]->cfont->sys) error(etrmfts);
+    if (win->screens[win->curupd]->autof)
+        error(eatofts); /* cannot perform with auto on */
+    win->gfhigh = s; /* set new font height */
+    newfont(win); /* activate font */
 
-      /* cannot perform with system font */
-      if screens[curupd]->cfont->sys  error(etrmfts);
-      if screens[curupd]->auto  error(eatofts); /* cannot perform with auto on */
-      gfhigh = s; /* set new font height */
-      newfont(win) /* activate font */
+}
 
-   }
-
-};
-
-void fontsiz(FILE* f; s: int);
-
-var winptr win;  /* windows record pointer */
+void fontsiz(FILE* f; s: int)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   ifontsiz(win, s); /* set font size */
-   unlockmain(); /* end exclusive access */
+    winptr win;  /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    ifontsiz(win, s); /* set font size */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -5743,13 +5705,13 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void chrspcy(FILE* f; s: int);
+void chrspcy(FILE* f, int s)
 
 {
 
-   refer(f, s) /* stub out */
+   /* not implemented */
 
-};
+}
 
 /*******************************************************************************
 
@@ -5766,9 +5728,9 @@ void chrspcx(FILE* f; s: int);
 
 {
 
-   refer(f, s) /* stub out */
+   /* not implemented */
 
-};
+}
 
 /*******************************************************************************
 
@@ -5778,19 +5740,21 @@ Returns the number of dots per meter resolution in x.
 
 *******************************************************************************/
 
-int dpmx(FILE* f): int;
-
-var winptr win; /* window pointer */
+int dpmx(FILE* f)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   with win^ do /* in window context */
-      dpmx = sdpmx;
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window pointer */
+    int    dpm;
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    dpm = win->sdpmx;
+    unlockmain(); /* end exclusive access */
+
+    return (dpm);
+
+}
 
 /*******************************************************************************
 
@@ -5800,143 +5764,113 @@ Returns the number of dots per meter resolution in y.
 
 *******************************************************************************/
 
-int dpmy(FILE* f): int;
-
-var winptr win; /* window pointer */
+int dpmy(FILE* f)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   with win^ do /* in window context */
-      dpmy = sdpmy;
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    dpm = WIN->sdpmy;
+    unlockmain(); /* end exclusive access */
+
+    return (dpm);
+
+}
 
 /*******************************************************************************
 
-Find char* size in PIxels
+Find char* size in pixels
 
-Returns the number of PIxels wide the given char* would be, considering
-character spacing && kerning.
+Returns the number of pixels wide the given string would be, considering
+character spacing and kerning.
 
 *******************************************************************************/
 
-int istrsiz(winptr win; view s: char*): int;
-
-var sz: size; /* size holder */
-    b:  int; /* return value */
+int istrsiz(winptr win, char* s)
 
 {
 
-   with win^ do { /* in window context */
-
-      b = GetTextExtentPoint32(screens[curupd]->bdc, s, sz); /* get spacing */
-      if (!b) winerr(); /* process windows error */
-      istrsiz = sz.cx /* return that */
-
-   }
-
-};
-
-int istrsizp(winptr win; view s: char*): int;
-
-var sz: size; /* size holder */
-    b:  int; /* return value */
-    sp: char*; /* char* holder */
+    SIZE sz; /* size holder */
+    BOOL b;  /* return value */
+    int s;
 
 {
 
-   with win^ do { /* in window context */
+    /* get spacing */
+    b = GetTextExtentPoint32(win->screens[win->curupd]->bdc, s, sz);
+    if (!b) winerr(); /* process windows error */
+    s = sz.cx; /* return that */
 
-      strcpy(sp, s); /* create dynamic char* of length */
-      b = GetTextExtentPoint32(screens[curupd]->bdc, sp^, sz); /* get spacing */
-      if (!b) winerr(); /* process windows error */
-      dispose(sp); /* release dynamic char* */
-      istrsizp = sz.cx /* return that */
+    return (s);
 
-   }
+}
 
-};
-
-int strsiz(FILE* f; view s: char*): int;
-
-var winptr win; /* window pointer */
+int strsiz(FILE* f, char* s)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   strsiz = istrsiz(win, s); /* find char* size */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    strsiz = istrsiz(win, s); /* find char* size */
+    unlockmain(); /* end exclusive access */
 
-int strsizp(FILE* f; view s: char*): int;
-
-var winptr win; /* window pointer */
-
-{
-
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   strsizp = istrsizp(win, s); /* find char* size */
-   unlockmain(); /* end exclusive access */
-
-};
+}
 
 /*******************************************************************************
 
-Find character position in char*
+Find character position in string
 
-Finds the PIxel offset to the given character in the char*.
+Finds the PIxel offset to the given character in the string.
 
 *******************************************************************************/
 
-int ichrpos(winptr win; view s: char*; p: int): int;
-
-var sp:  char*; /* char* holder */
-    siz: int; /* size holder */
-    sz:  size; /* size holder */
-    b:   int; /* return value */
-    i:   int; /* index for char* */
+int ichrpos(winptr win, char* s, int p)
 
 {
 
-   with win^ do { /* in window context */
+    char* sp; /* string holder */
+    int   siz; /* size holder */
+    SIZE  sz; /* size holder */
+    BOOL  b; /* return value */
+    int   i; /* index for char* */
 
-      if (p < 1) || (p > max(s))  error(estrinx); /* out of range */
-      if p == 1  siz = 0 /* its already at the position */
-      else { /* find subchar* length */
+    if (p < 1 || p > strlen(s)) error(estrinx); /* out of range */
+    if (p == 1) siz = 0 /* its already at the position */
+    else { /* find substring length */
 
-         new(sp, p-1); /* get a subchar* allocation */
-         for i = 1 to p-1 do sp^[i] = s[i]; /* copy subchar* into place */
-         /* get spacing */
-         b = GetTextExtentPoint32(screens[curupd]->bdc, sp^, sz);
-         if (!b) winerr(); /* process windows error */
-         dispose(sp); /* release subchar* */
-         siz = sz.cx /* place size */
+        sp = malloc(p-1); /* get a subchar* allocation */
+        if (!sp) error(enomem); /* no memory */
+        for (i = 0; i < p; i++) sp[i] = s[i]; /* copy substring into place */
+        /* get spacing */
+        b = GetTextExtentPoint32(win->screens[win->curupd]->bdc, sp^, sz);
+        if (!b) winerr(); /* process windows error */
+        free(sp); /* release subchar* */
+        siz = sz.cx; /* place size */
 
-      };
-      ichrpos = siz /* return result */
+    }
+    ichrpos = siz; /* return result */
 
-   }
+}
 
-};
-
-int chrpos(FILE* f; view s: char*; p: int): int;
-
-var winptr win; /* window pointer */
+int chrpos(FILE* f, char* s, int p)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   chrpos = ichrpos(win, s, p); /* find character position */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window pointer */
+    int    cp;
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    cp = ichrpos(win, s, p); /* find character position */
+    unlockmain(); /* end exclusive access */
+
+    return (cp);
+
+}
 
 /*******************************************************************************
 
@@ -5948,7 +5882,7 @@ the system font.
 
 *******************************************************************************/
 
-void iwritejust(winptr win; view s: char*; n: int);
+void iwritejust(winptr win; view s: char*; n: int)
 
 var sz:  size; /* size holder */
     b:   int; /* return value */
@@ -15889,4 +15823,4 @@ Gralib shutdown
    };
    unlockmain(); /* end exclusive access */
 
-}.
+}
