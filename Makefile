@@ -186,7 +186,7 @@ ifeq ($(OS),Windows_NT)
 #
 all: dumpmidi test play keyboard playmidi playwave \
     printdev connectmidi connectwave random genwave scntst sndtst svstst \
-    event term snake pong mine editor getpage getmail gettys
+    event term snake pong mine wator editor getpage getmail gettys
     
 else
 
@@ -195,7 +195,8 @@ else
 #
 all: lsalsadev alsaparms dumpmidi test play keyboard playmidi playwave \
     printdev connectmidi connectwave random genwave scntst sndtst svstst \
-    event getkeys getmouse term snake mine pong editor getpage getmail gettys
+    event getkeys getmouse term snake mine pong wator editor getpage getmail \
+    gettys
     
 endif 
 

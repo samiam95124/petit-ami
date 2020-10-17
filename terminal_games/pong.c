@@ -154,6 +154,7 @@ void main(void)
 
     jchr = INT_MAX/((pa_maxx(stdout)-2) / 2); /* find basic joystick increment */
     pa_select(stdout, 2, 2); /* switch screens */
+    putchar('\f'); /* clear screen */
     pa_curvis(stdout, FALSE); /* remove drawing cursor */
     pa_auto(stdout, FALSE); /* turn off scrolling */
     pa_timer(stdout, 1, MOVTIM, TRUE); /* set movement timer */

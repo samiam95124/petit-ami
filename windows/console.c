@@ -145,6 +145,7 @@ typedef struct { /* screen context */
     HANDLE   han;         /* screen buffer handle */
     int      maxx;        /* maximum x */
     int      maxy;        /* maximum y */
+    int      offy;        /* offset within buffer to display area */
     int      curx;        /* current cursor location x */
     int      cury;        /* current cursor location y */
     int      conx;        /* windows console version of x */
@@ -555,7 +556,7 @@ static void iclear(scnptr sc)
         for (x = 0; x < sc->maxx; x++) {
 
             xy.X = x;
-            xy.Y = y;
+            xy.Y = y+sc->offy;
             b = WriteConsoleOutputCharacter(sc->han, &cb, 1, xy, &len);
             b = WriteConsoleOutputAttribute(sc->han, &ab, 1, xy, &len);
 
@@ -1377,7 +1378,7 @@ static void plcchr(char c)
             ab = sc->sattr; /* place attribute in buffer */
             /* write character */
             xy.X = sc->curx-1;
-            xy.Y = sc->cury-1;
+            xy.Y = sc->cury+sc->offy-1;
             b = WriteConsoleOutputCharacter(sc->han, &cb, 1, xy, &len);
             b = WriteConsoleOutputAttribute(sc->han, &ab, 1, xy, &len);
 
@@ -2846,6 +2847,8 @@ static void pa_init_terminal(void)
 {
 
     HANDLE h;
+    int    ssy;
+    BOOL   b;
 
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
@@ -2895,8 +2898,12 @@ static void pa_init_terminal(void)
     /* point handle to present output screen buffer */
     screens[curupd-1]->han = GetStdHandle(STD_OUTPUT_HANDLE);
     b = GetConsoleScreenBufferInfo(screens[curupd-1]->han, &bi);
+    /* Compensate for windows scrollback buffer by placing us in the display
+       area */
+    ssy = bi.srWindow.Bottom-bi.srWindow.Top+1; /* find displayed y size */
     screens[curupd-1]->maxx = bi.dwSize.X; /* place maximum sizes */
-    screens[curupd-1]->maxy = bi.dwSize.Y;
+    screens[curupd-1]->maxy = ssy; /* set y is displayed only */
+    screens[curupd-1]->offy = bi.dwSize.Y-ssy; /* then set offset to area */
     screens[curupd-1]->curx = bi.dwCursorPosition.X+1; /* place cursor position */
     screens[curupd-1]->cury = bi.dwCursorPosition.Y+1;
     screens[curupd-1]->conx = bi.dwCursorPosition.X; /* set our copy of position */

@@ -376,6 +376,7 @@ void main(void)
 
 {
 
+    pa_select(stdout, 2, 2); /* switch screens */
     pa_auto(stdout, FALSE); /* turn off scrolling */
     pa_curvis(stdout, FALSE); /* turn off cursor */
     putchar('\f'); /* clear screen */
