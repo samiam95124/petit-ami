@@ -402,6 +402,9 @@ mine: bin/petit_ami_term$(LIBEXT) terminal_games/mine.c include/terminal.h Makef
 wator: bin/petit_ami_term$(LIBEXT) terminal_programs/wator.c include/terminal.h Makefile
 	$(CC) $(CFLAGS) terminal_programs/wator.c $(LIBS) -o bin/wator
 	
+pong: bin/petit_ami_term$(LIBEXT) terminal_games/pong.c include/terminal.h Makefile
+	$(CC) $(CFLAGS) terminal_games/pong.c $(LIBS) -o bin/pong
+	
 editor: terminal_programs/editor.c include/terminal.h Makefile
 	$(CC) $(CFLAGS) terminal_programs/editor.c $(LIBS) -o bin/editor
 	
