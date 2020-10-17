@@ -140,11 +140,11 @@ void padpos(int x)
 
 {
 
-    if (x < 5) x = 5; /* clip to ends */
+    if (x < 4) x = 4; /* clip to ends */
     if (x > pa_maxx(stdout)-4) x = pa_maxx(stdout)-4;
     writexy(padx-3, pa_maxy(stdout)-1, "       "); /* blank paddle */
     padx = x; /* move right */
-    writexy(padx-3, pa_maxy(stdout)-1, "=============="); /* place paddle */
+    writexy(padx-3, pa_maxy(stdout)-1, "======="); /* place paddle */
 
 }
 
@@ -161,8 +161,8 @@ void main(void)
     start: /* start new game */
 
     drwscn; /* draw game screen */
-    padx = pa_maxx(stdout) / 2; /* find intial paddle position */
-    writexy(padx-1, pa_maxy(stdout)-1, "=============="); /* place paddle */
+    padx = pa_maxx(stdout)/2; /* find intial paddle position */
+    writexy(padx-3, pa_maxy(stdout)-1, "======="); /* place paddle */
     ballx = 0; /* set ball ! on screen */
     bally = 0;
     baltim = 0; /* set ball ready to start */
