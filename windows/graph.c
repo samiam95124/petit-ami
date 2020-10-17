@@ -5628,21 +5628,17 @@ void ifontnam(winptr win, int fc, char* fns, int fnsl)
     fonptr fp: fontptr; /* pointer to font entries */
     int i; /* char* index */
 
-   with win^ do { /* in window context */
+    if (fc <= 0) error(einvftn); /* invalid number */
+    fp = win->fntlst; /* index top of list */
+    while (fc > 1) { /* walk fonts */
 
-      if (fc <= 0) error(einvftn); /* invalid number */
-      fp = win->fntlst; /* index top of list */
-      while (fc > 1) { /* walk fonts */
+       fp = fp->next; /* next font */
+       fc = fc-1; /* count */
+       if (!fp) error(einvftn); /* check null */
 
-         fp = fp->next; /* next font */
-         fc = fc-1; /* count */
-         if (!fp) error(einvftn); /* check null */
-
-      }
-      if (strlen(fp->fn) > fnsl+1) error(eftntl);
-      strcpy(fns, fp->fn);
-
-   }
+    }
+    if (strlen(fp->fn) > fnsl+1) error(eftntl);
+    strcpy(fns, fp->fn);
 
 }
 
@@ -5876,84 +5872,86 @@ int chrpos(FILE* f, char* s, int p)
 
 Write justified text
 
-Writes a char* of text with justification. The char* && the width in PIxels
+Writes a string of text with justification. The string and the width in PIxels
 is specified. Auto mode cannot be on for this function, nor can it be used on
 the system font.
 
 *******************************************************************************/
 
-void iwritejust(winptr win; view s: char*; n: int)
-
-var sz:  size; /* size holder */
-    b:   int; /* return value */
-    off: int; /* subscript offset */
-    ra:  gcp_results; /* placement info record */
+void iwritejust(winptr win, char* s, int n)
 
 {
 
-   with win^, screens[curupd]^ do { /* in window, screen contexts */
+    SIZE        sz;  /* size holder */
+    BOOL        b;   /* return value */
+    int         off; /* subscript offset */
+    GCP_RESULTS ra;  /* placement info record */
+    scnptr      sc;
+    DWORD       r;
 
-      if cfont->sys  error(ejstsys); /* cannot perform on system font */
-      if auto  error(eatopos); /* cannot perform with auto on */
-      off = 0; /* set no subscript offset */
-      if sasubs in attr  off = trunc(linespace*0.35);
-      /* get minimum spacing for char* */
-      b = GetTextExtentPoint32(bdc, s, sz);
-      if (!b) winerr(); /* process windows error */
-      /* if requested less than required, force required */
-      if sz.cx > n  n = sz.cx;
-      /* find justified spacing */
-      ra.lstructsize = gcp_results_len; /* set length of record */
-      /* new(ra.lpoutchar*); */
-      ra.lpoutchar* = nil;
-      ra.lporder = nil;
-      new(ra.lpdx); /* set spacing array */
-      ra.lpcaretpos = nil;
-      ra.lpclass = nil;
-      new(ra.lpglyphs);
-      ra.nglyphs = max(s);
-      ra.nmaxfit = 0;
-      r = getcharacterplacement(screens[curupd]->bdc, s, n, ra,
-                                    gcp_justify || gcp_maxextent);
-      if r == 0  winerr(); /* process windows error */
-      if bufmod  { /* draw to buffer */
+    sc = win->screens[win->curupd];
+    if (sc->cfont->sys) error(ejstsys); /* cannot perform on system font */
+    if (sc->autof) error(eatopos); /* cannot perform with auto on */
+    off = 0; /* set no subscript offset */
+    if (BIT(sasubs) & sc->attr) off = win->linespace*0.35;
+    /* get minimum spacing for char* */
+    b = GetTextExtentPoint32(win->bdc, s, sz);
+    if (!b) winerr(); /* process windows error */
+    /* if requested less than required, force required */
+    if (sz.cx > n) n = sz.cx;
+    /* find justified spacing */
+    ra.lStructSize = gcp_results_len; /* set length of record */
+    /* new(ra.lpoutchar*); */
+    ra.lpOutString = nil;
+    ra.lpOrder = nil;
+    new(ra.lpdx); /* set spacing array */
+    ra.lpcCaretPos = nil;
+    ra.lpClass = nil;
+    new(ra.lpglyphs);
+    ra.nGlyphs = strlen(s);
+    ra.nMaxFit = 0;
+    r = GetCharacterPlacement(win->screens[win->curupd]->bdc, s, strlen(s),
+                              n, ra, gcp_justify | gcp_maxextent);
+    if (r == 0) winerr(); /* process windows error */
+    if (win->bufmod) { /* draw to buffer */
 
-         /* draw the char* to current position */
-         b = extTextOut_n(bdc, curxg-1, curyg-1+off, 0, s, ra.lpdx);
-         if (!b) winerr(); /* process windows error */
+       /* draw the char* to current position */
+       b = ExtTextOut(bdc, sc->curxg-1, sc->curyg-1+off, 0, s, ra.lpdx);
+       if (!b) winerr(); /* process windows error */
 
-      };
-      if (indisp(win)) {
+    }
+    if (indisp(win)) {
 
-         if ! visible  winvis(win); /* make sure we are displayed */
-         /* draw character on screen */
-         curoff(win); /* hide the cursor */
-         /* draw the char* to current position */
-         b = extTextOut_n(devcon, curxg-1, curyg-1+off, 0, s, ra.lpdx);
-         if (!b) winerr(); /* process windows error */
-         curon(win) /* show the cursor */
+       if (!win->visible) winvis(win); /* make sure we are displayed */
+       /* draw character on screen */
+       curoff(win); /* hide the cursor */
+       /* draw the char* to current position */
+       b = extTextOut(win->devcon, sc->curxg-1, sc->curyg-1+off, 0, NULL,
+                      s, strlen(s), ra.lpdx);
+       if (!b) winerr(); /* process windows error */
+       curon(win); /* show the cursor */
 
-      };
-      curxg = curxg+n; /* advance the character width */
-      curx = curxg / charspace+1; /* recalculate character position */
-      if indisp(win)  setcur(win) /* set cursor on screen */
+    }
+    sc->curxg = sc->curxg+n; /* advance the character width */
+    sc->curx = sc->curxg / win->charspace+1; /* recalculate character position */
+    if (indisp(win)) setcur(win) /* set cursor on screen */
 
    }
 
-};
+}
 
-void writejust(FILE* f; view s: char*; n: int);
-
-var winptr win; /* window pointer */
+void writejust(FILE* f, char* s, int n)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   iwritejust(win, s, n); /* write justified text */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    iwritejust(win, s, n); /* write justified text */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
