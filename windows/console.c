@@ -802,12 +802,15 @@ static void iup(void)
 
     getpos(); /* update status */
     sc = screens[curupd-1];
-    /* check not top of screen */
-    if (sc->cury > 1) sc->cury--; /* update position */
-    /* check auto mode */
-    else if (sc->autof) iscroll(0, -1); /* scroll up */
-    /* check won't overflow */
-    else if (sc->cury > -INT_MAX) sc->cury--; /* set new position */
+    if (sc->autof) { /* auto mode is on */
+
+    	/* check not top of screen */
+    	if (sc->cury > 1) sc->cury--; /* update position */
+    	else iscroll(0, -1); /* scroll up */
+
+   	} else /* auto mode is off */
+    	/* check won't overflow */
+    	if (sc->cury > -INT_MAX) sc->cury--; /* set new position */
     setcur(sc); /* set cursor on screen */
 
 }
@@ -836,11 +839,15 @@ static void idown(void)
 
     getpos(); /* update status */
     sc = screens[curupd-1];
-    /* check not bottom of screen */
-    if (sc->cury < sc->maxy) sc->cury++; /* update position */
-    /* check auto mode */
-    else if (sc->autof) iscroll(0, +1); /* scroll down */
-    else if (sc->cury < INT_MAX) sc->cury++; /* set new position */
+    if (sc->autof) { /* auto mode is on */
+
+    	/* check not bottom of screen */
+    	if (sc->cury < sc->maxy) sc->cury++; /* update position */
+    	else iscroll(0, +1); /* scroll down */
+
+    } else /* auto mode is off */
+        /* prevent overflow, but otherwise increment unlimited */
+    	if (sc->cury < INT_MAX) sc->cury++;
     setcur(screens[curupd-1]); /* set cursor on screen */
 
 }
@@ -871,20 +878,20 @@ static void ileft(void)
 
     getpos(); /* update status */
     sc = screens[curupd-1];
-    /* check not extreme left */
-    if (sc->curx > 1) sc->curx--; /* update position */
-    else { /* wrap cursor motion */
+    if (sc->autof) { /* auto mode is on */
 
-        if (sc->autof) { /* autowrap is on */
+    	/* check not extreme left */
+    	if (sc->curx > 1) sc->curx--; /* update position */
+    	else { /* wrap cursor motion */
 
             iup(); /* move cursor up one line */
             sc->curx = sc->maxx; /* set cursor to extreme right */
 
-        } else
-            /* check won't overflow */
-            if (sc->curx > -INT_MAX) sc->curx--; /* update position */
+		}
 
-    }
+  	} else /* auto mode is off */
+    	/* check won't overflow, but otherwise its unlimited */
+        if (sc->curx > -INT_MAX) sc->curx--; /* update position */
     setcur(screens[curupd-1]); /* set cursor on screen */
 
 }
@@ -913,7 +920,7 @@ static void iright(void)
 
     getpos; /* update status */
     sc = screens[curupd-1];
-    if (sc->autof) { /* autowrap is on */
+    if (sc->autof) { /* auto mode is on */
 
         /* check not at extreme right */
         if (sc->curx < sc->maxx) sc->curx++; /* update position */
@@ -924,12 +931,9 @@ static void iright(void)
 
         }
 
-    } else /* autowrap is off */
-
+    } else /* auto mode is off */
         /* check won't overflow, but otherwise its unlimited */
         if (sc->curx < INT_MAX) sc->curx++; /* update position */
-
-    }
     setcur(sc); /* set cursor on screen */
 
 }
