@@ -13,29 +13,6 @@
 * of this, we let Windows manage the buffer operations, and mostly just        *
 * reformat our calls to console mode.                                          *
 *                                                                              *
-* 2005/04/04 When running other tasks in the same console session from an      *
-* exec, the other program moves the console position, but we don't see that,   *
-* because we keep our own position. This is a side consequence of using the    *
-* Windows direct console calls, which all require the write position to be     *
-* specified. One way might be to return to using file I/O calls. However, we   *
-* use the call "getpos" to reload Windows idea of the console cursor location  *
-* any time certain events occur. These events are:                             *
-*                                                                              *
-* 1. Writing of characters to the console buffer.                              *
-*                                                                              *
-* 2. Relative positioning (up/down/left/right).                                *
-*                                                                              *
-* 3. Reading the position.                                                     *
-*                                                                              *
-* This should keep conlib in sync with any changes in the Windows console,     *
-* with the price that it slows down the execution. However, in character mode  *
-* console, this is deemed acceptable. Note that we ignore any other tasks      *
-* changes of attributes and colors.                                            *
-*                                                                              *
-* Its certainly possible that our output, mixed with others, can be chaotic,   *
-* but this happens in serial implementations as well. Most dangerous is our    *
-* separation of character placement and move right after it. A character       *
-* could come in the middle of that sequence.                                   *
 *                                                                              *
 * Remaining to be done:                                                        *
 *                                                                              *
@@ -148,8 +125,6 @@ typedef struct { /* screen context */
     int      offy;        /* offset within buffer to display area */
     int      curx;        /* current cursor location x */
     int      cury;        /* current cursor location y */
-    int      conx;        /* windows console version of x */
-    int      cony;        /* windows console version of y */
     int      curv;        /* cursor visible */
     pa_color forec;       /* current writing foreground color */
     pa_color backc;       /* current writing background color */
@@ -243,6 +218,7 @@ int      gcurv;       /* state of cursor visible */
 int      cix;         /* index for display screens */
 int      frmrun;      /* framing timer is running */
 int      frmhan;      /* framing timer handle */
+DWORD    cmodes;      /* previous console mode settings */
 
 /*******************************************************************************
 
@@ -316,41 +292,6 @@ static void winerr(void)
     fprintf(stderr, "\n*** Windows error: %s\n", (char*)lpMsgBuf);
 
     exit(1);
-
-}
-
-/*******************************************************************************
-
-Load console status
-
-Loads the current console status. Updates the size, cursor location, and
-current attributes.
-
-*******************************************************************************/
-
-static void getpos(void)
-
-{
-
-    CONSOLE_SCREEN_BUFFER_INFO bi; /* screen buffer info structure */
-    scnptr cp; /* screen pointer */
-    int    b;  /* int return */
-
-    if (curdsp == curupd) { /* buffer is in display */
-
-        cp = screens[curupd-1]; /* index screen context */
-        b = GetConsoleScreenBufferInfo(cp->han, &bi);
-        if (cp->conx != bi.dwCursorPosition.X ||
-            cp->cony != bi.dwCursorPosition.Y) {
-
-            cp->conx = bi.dwCursorPosition.X; /* get new cursor position */
-            cp->cony = bi.dwCursorPosition.Y;
-            cp->curx = cp->conx+1; /* place cursor position */
-            cp->cury = cp->cony+1;
-
-        }
-
-    }
 
 }
 
@@ -521,8 +462,9 @@ static void setcur(scnptr sc)
         xy.X = sc->curx-1;
         xy.Y = sc->cury-1;
         b = SetConsoleCursorPosition(sc->han, xy);
-        sc->conx = sc->curx-1; /* set our copy of that */
-        sc->cony = sc->cury-1;
+        /* error occurs because our version of maxx/maxy is behind real window
+           size */
+        /* if (!b) winerr(); */
 
     }
     cursts(sc); /* set new cursor status */
@@ -800,17 +742,16 @@ static void iup(void)
 
     scnptr sc;
 
-    getpos(); /* update status */
     sc = screens[curupd-1];
     if (sc->autof) { /* auto mode is on */
 
-    	/* check not top of screen */
-    	if (sc->cury > 1) sc->cury--; /* update position */
-    	else iscroll(0, -1); /* scroll up */
+        /* check not top of screen */
+        if (sc->cury > 1) sc->cury--; /* update position */
+        else iscroll(0, -1); /* scroll up */
 
-   	} else /* auto mode is off */
-    	/* check won't overflow */
-    	if (sc->cury > -INT_MAX) sc->cury--; /* set new position */
+       } else /* auto mode is off */
+        /* check won't overflow */
+        if (sc->cury > -INT_MAX) sc->cury--; /* set new position */
     setcur(sc); /* set cursor on screen */
 
 }
@@ -837,17 +778,16 @@ static void idown(void)
 
     scnptr sc;
 
-    getpos(); /* update status */
     sc = screens[curupd-1];
     if (sc->autof) { /* auto mode is on */
 
-    	/* check not bottom of screen */
-    	if (sc->cury < sc->maxy) sc->cury++; /* update position */
-    	else iscroll(0, +1); /* scroll down */
+        /* check not bottom of screen */
+        if (sc->cury < sc->maxy) sc->cury++; /* update position */
+        else iscroll(0, +1); /* scroll down */
 
     } else /* auto mode is off */
         /* prevent overflow, but otherwise increment unlimited */
-    	if (sc->cury < INT_MAX) sc->cury++;
+        if (sc->cury < INT_MAX) sc->cury++;
     setcur(screens[curupd-1]); /* set cursor on screen */
 
 }
@@ -876,21 +816,20 @@ static void ileft(void)
 
     scnptr sc;
 
-    getpos(); /* update status */
     sc = screens[curupd-1];
     if (sc->autof) { /* auto mode is on */
 
-    	/* check not extreme left */
-    	if (sc->curx > 1) sc->curx--; /* update position */
-    	else { /* wrap cursor motion */
+        /* check not extreme left */
+        if (sc->curx > 1) sc->curx--; /* update position */
+        else { /* wrap cursor motion */
 
             iup(); /* move cursor up one line */
             sc->curx = sc->maxx; /* set cursor to extreme right */
 
-		}
+        }
 
-  	} else /* auto mode is off */
-    	/* check won't overflow, but otherwise its unlimited */
+      } else /* auto mode is off */
+        /* check won't overflow, but otherwise its unlimited */
         if (sc->curx > -INT_MAX) sc->curx--; /* update position */
     setcur(screens[curupd-1]); /* set cursor on screen */
 
@@ -918,10 +857,8 @@ static void iright(void)
 
     scnptr sc;
 
-    getpos; /* update status */
     sc = screens[curupd-1];
     if (sc->autof) { /* auto mode is on */
-
         /* check not at extreme right */
         if (sc->curx < sc->maxx) sc->curx++; /* update position */
         else { /* wrap cursor motion */
@@ -962,7 +899,6 @@ static void itab(void)
 
     int i;
 
-    getpos(); /* update status */
     /* first, find if next tab even exists */
     i = screens[curupd-1]->curx+1; /* get the current x position +1 */
     if (i < 1) i = 1; /* don't bother to search to left of screen */
@@ -1248,8 +1184,6 @@ int pa_curx(FILE* f)
 
 {
 
-    getpos(); /* update status */
-
     return (screens[curupd-1]->curx); /* return current location x */
 
 }
@@ -1265,8 +1199,6 @@ Returns the current location of the cursor in y.
 int pa_cury(FILE* f)
 
 {
-
-    getpos(); /* update status */
 
     return (screens[curupd-1]->cury); /* return current location y */
 
@@ -1324,7 +1256,6 @@ static void iselect(int u, int d)
     }
     /* set display buffer as active display console */
     SetConsoleActiveScreenBuffer(screens[curdsp-1]->han);
-    getpos(); /* make sure we are synced with Windows */
     setcur(screens[curdsp-1]); /* make sure the cursor is at correct point */
 
 }
@@ -1360,7 +1291,6 @@ static void plcchr(char c)
     scnptr sc;  /* screen context pointer */
     COORD  xy;
 
-    getpos(); /* update status */
     sc = screens[curupd-1];
     /* handle special character cases first */
     if (c == '\r') /* carriage return, position to extreme left */
@@ -2938,8 +2868,6 @@ static void pa_init_terminal(void)
     screens[curupd-1]->offy = bi.dwSize.Y-ssy; /* then set offset to area */
     screens[curupd-1]->curx = bi.dwCursorPosition.X+1; /* place cursor position */
     screens[curupd-1]->cury = bi.dwCursorPosition.Y+1;
-    screens[curupd-1]->conx = bi.dwCursorPosition.X; /* set our copy of position */
-    screens[curupd-1]->cony = bi.dwCursorPosition.Y;
     screens[curupd-1]->sattr = bi.wAttributes; /* place default attributes */
     /* place max setting for all screens */
     gmaxx = screens[curupd-1]->maxx;
@@ -2961,8 +2889,14 @@ static void pa_init_terminal(void)
     GetConsoleMode(inphdl, &mode);
     mode &= ~ENABLE_QUICK_EDIT_MODE; /* enable the mouse */
     SetConsoleMode(inphdl, mode | ENABLE_MOUSE_INPUT | ENABLE_EXTENDED_FLAGS );
+    /* save previous output mode and stop wrap modes */
+    GetConsoleMode(screens[curupd-1]->han, &cmodes);
+    mode = cmodes;
+    mode &= ~ENABLE_WRAP_AT_EOL_OUTPUT;
+    //mode &= ~DISABLE_NEWLINE_AUTO_RETURN;
+    SetConsoleMode(screens[curupd-1]->han, mode);
     /* capture control handler */
-    SetConsoleCtrlHandler(conhan, 1);
+    SetConsoleCtrlHandler(conhan, TRUE);
     /* interlock to make sure that thread starts before we continue */
     threadstart = 0;
     h = CreateThread(NULL, 0, dummyloop, NULL, 0, &threadid);
@@ -3004,5 +2938,9 @@ static void pa_deinit_terminal(void)
     if (cppread != iread || cppwrite != iwrite || cppopen != iopen ||
         cppclose != iclose /* || cppunlink != iunlink */ || cpplseek != ilseek)
         error(esystem);
+    /* restore previous wrapping behavior */
+    SetConsoleMode(screens[curupd-1]->han, cmodes);
+    /* release control handler */
+    SetConsoleCtrlHandler(NULL, FALSE);
 
 }

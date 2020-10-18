@@ -1,18 +1,8 @@
 Windows console notes
 
-1. Console is currently sized by the buffer size, which delivers ugly results
-when the scrollback buffer is large. Need a solution that sizes by the onscreen
-size.
-
-2. Its slow. Need to study why the character write speed is an order of
+1. Its slow. Need to study why the character write speed is an order of
 magnitude slower than before.
 
-3. Pick up number of mouse buttons from Windows, not a constant.
+2. Pick up number of mouse buttons from Windows, not a constant.
 
-4. Errors don't work. Console resets the screen and bails out.
-
-5. Need a reasonable solution to resize messages.
-
-6. Does not listen to ctl-c when very busy.
-
-7. Appears to scroll even if auto is set off.
+3. Does not listen to ctl-c when very busy.

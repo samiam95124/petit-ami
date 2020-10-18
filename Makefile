@@ -237,19 +237,19 @@ libc/stdio.o: libc/stdio.c libc/stdio.h
 	gcc -g3 -Ilibc -c libc/stdio.c -o libc/stdio.o
 	
 windows/services.o: windows/services.c include/services.h
-	gcc -g3 -Iinclude -c windows/services.c -o windows/services.o
+	gcc -g3 -Ilibc -Iinclude -c windows/services.c -o windows/services.o
 	
 windows/sound.o: stub/sound.c include/sound.h
-	gcc -g3 -Iinclude -c stub/sound.c -o windows/sound.o
+	gcc -g3 -Ilibc -Iinclude -c stub/sound.c -o windows/sound.o
 	
 windows/network.o: stub/network.c include/network.h
-	gcc -g3 -Iinclude -c stub/network.c -o windows/network.o
+	gcc -g3 -Ilibc -Iinclude -c stub/network.c -o windows/network.o
 	
 windows/console.o: windows/console.c include/terminal.h
-	gcc -g3 -Iinclude -c windows/console.c -o windows/console.o
+	gcc -g3 -Ilibc -Iinclude -c windows/console.c -o windows/console.o
 	
 windows/graph.o: stub/graph.c include/graph.h
-	gcc -g3 -Iinclude -c stub/graph.c -o windows/graph.o
+	gcc -g3 -Ilibc -Iinclude -c stub/graph.c -o windows/graph.o
 
 #
 # Create terminal mode and graphical mode libraries

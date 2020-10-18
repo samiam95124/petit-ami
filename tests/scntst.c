@@ -249,7 +249,6 @@ int main(int argc, char *argv[])
     /* set black on white text */
     pa_fcolor(stdout, pa_black);
     pa_bcolor(stdout, pa_white);
-#if 0
     printf("\f");
     pa_curvis(stdout, 0);
     prtban("Terminal mode screen test vs. 1.0");
@@ -822,7 +821,7 @@ int main(int argc, char *argv[])
     }
     prtcen(pa_maxy(stdout), "Tabbing test");
     waitnext();
-#endif
+
     /* ************************** Offscreen write test ************************* */
 
     putchar('\f');
