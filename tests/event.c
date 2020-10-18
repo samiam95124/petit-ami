@@ -21,8 +21,8 @@ int main()
 
     do {
 
-    	pa_event(stdin, &er);
-    	switch (er.etype) {
+        pa_event(stdin, &er);
+        switch (er.etype) {
 
             case pa_etchar: {
 
@@ -30,7 +30,7 @@ int main()
                 printf("ANSI character returned '%c'\n", er.echar);
                 break;
 
-      	    }
+              }
             case pa_etup:      printf("up one line\n"); break;
             case pa_etdown:    printf("down one line\n"); break;
             case pa_etleft:    printf("left one character\n"); break;
@@ -78,9 +78,12 @@ int main()
             case pa_etjoyba:   printf("joystick button assertion, stick: %d button: %d", er.ajoyn, er.ajoybn); break;
             case pa_etjoybd:   printf("joystick button deassertion, stick: %d button: %d\n",
                                       er.djoyn, er.djoybn); break;
-            case pa_etjoymov:  printf("joystick move, stick: %d x: %d y: %d z: %d",
+            case pa_etjoymov:  printf("joystick move, stick: %d x: %d y: %d z: %d\n",
                                       er.mjoyn, er.joypx, er.joypy, er.joypz); break;
-            case pa_etresize:  printf("Window resized\n"); break;
+            case pa_etresize:
+                printf("Window resized\n");
+                printf("New size: x: %d y: %d\n", pa_maxx(stdout), pa_maxy(stdout));
+                break;
             case pa_etterm:    printf("terminate program\n"); break;
 
         }

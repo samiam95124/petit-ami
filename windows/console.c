@@ -913,18 +913,21 @@ static void iright(void)
 
     getpos; /* update status */
     sc = screens[curupd-1];
-    /* check not at extreme right */
-    if (sc->curx < sc->maxx) sc->curx++; /* update position */
-    else { /* wrap cursor motion */
+    if (sc->autof) { /* autowrap is on */
 
-        if (sc->autof) { /* autowrap is on */
+        /* check not at extreme right */
+        if (sc->curx < sc->maxx) sc->curx++; /* update position */
+        else { /* wrap cursor motion */
 
             idown(); /* move cursor up one line */
             sc->curx = 1; /* set cursor to extreme left */
 
-        } else
-            /* check won't overflow */
-            if (sc->curx < INT_MAX) sc->curx++; /* update position */
+        }
+
+    } else /* autowrap is off */
+
+        /* check won't overflow, but otherwise its unlimited */
+        if (sc->curx < INT_MAX) sc->curx++; /* update position */
 
     }
     setcur(sc); /* set cursor on screen */
@@ -1983,7 +1986,7 @@ static void custevent(pa_evtptr er, INPUT_RECORD* inpevt, int* keep)
         joymes(er, inpevt, keep);
     else if (inpevt->Event.KeyEvent.dwControlKeyState == UIV_TERM) {
 
-        er->etype = pa_etterm; /* set } program */
+        er->etype = pa_etterm; /* set end program */
         *keep = 1; /* set keep event */
 
     }
@@ -1994,14 +1997,16 @@ static void ievent(pa_evtptr er)
 
 {
 
-    int          keep;       /* event keep flag */
-    BOOL         b;          /* int return value */
-    DWORD        ne;         /* number of events */
-    INPUT_RECORD inpevt;     /* event read buffer */
+    int          keep;   /* event keep flag */
+    BOOL         b;      /* int return value */
+    DWORD        ne;     /* number of events */
+    INPUT_RECORD inpevt; /* event read buffer */
+    int          x, y, oy;
+    int          ssy;
 
     do {
 
-        keep = 0; /* set don't keep by default */
+        keep = FALSE; /* set don't keep by default */
         mouseupdate(er, &keep); /* check any mouse details need processing */
         if (!keep) { /* no, go ahead with event read */
 
@@ -2019,6 +2024,29 @@ static void ievent(pa_evtptr er)
 
                 } else if (inpevt.EventType == MOUSE_EVENT)
                     mouseevent(&inpevt); /* mouse event */
+                else if (inpevt.EventType == WINDOW_BUFFER_SIZE_EVENT) {
+
+                    er->etype = pa_etresize; /* set resize */
+                    keep = TRUE; /* set keep event */
+                    b = GetConsoleScreenBufferInfo(screens[curupd-1]->han, &bi);
+                    /* Compensate for windows scrollback buffer by placing us in
+                       the display area */
+                    ssy = bi.srWindow.Bottom-bi.srWindow.Top+1; /* find displayed y size */
+                    x = bi.dwSize.X; /* place maximum sizes */
+                    y = ssy; /* set y is displayed only */
+                    oy = bi.dwSize.Y-ssy; /* then set offset to area */
+                    if (screens[curupd-1]->maxx != x || screens[curupd-1]->maxy != y) {
+
+                        /* filter out any messages with no net change. This was
+                           seen commonly. */
+                        screens[curupd-1]->maxx = x; /* place maximum sizes */
+                        screens[curupd-1]->maxy = y; /* set y is displayed only */
+                        screens[curupd-1]->offy = oy; /* then set offset to area */
+
+                    } else keep = FALSE; /* otherwise no event */
+
+                }
+
 
             }
 

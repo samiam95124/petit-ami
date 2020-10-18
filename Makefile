@@ -388,7 +388,7 @@ svstst: bin/petit_ami_plain$(LIBEXT) include/terminal.h tests/svstst.c \
 	$(CC) $(CFLAGS) tests/svstst.c utils/option.c $(PLIBS) -o bin/svstst
 	$(CC) $(CFLAGS) tests/svstst1.c $(PLIBS) -o bin/svstst1
 	
-event: include/terminal.h tests/event.c Makefile
+event: bin/petit_ami_term$(LIBEXT) include/terminal.h tests/event.c Makefile
 	$(CC) $(CFLAGS) tests/event.c $(LIBS) -o bin/event
 	
 term: bin/petit_ami_term$(LIBEXT) include/terminal.h tests/term.c Makefile
@@ -406,7 +406,7 @@ wator: bin/petit_ami_term$(LIBEXT) terminal_programs/wator.c include/terminal.h 
 pong: bin/petit_ami_term$(LIBEXT) terminal_games/pong.c include/terminal.h Makefile
 	$(CC) $(CFLAGS) terminal_games/pong.c $(LIBS) -o bin/pong
 	
-editor: terminal_programs/editor.c include/terminal.h Makefile
+editor: bin/petit_ami_term$(LIBEXT) terminal_programs/editor.c include/terminal.h Makefile
 	$(CC) $(CFLAGS) terminal_programs/editor.c $(LIBS) -o bin/editor
 	
 getpage: bin/petit_ami_plain$(LIBEXT) network_programs/getpage.c Makefile
