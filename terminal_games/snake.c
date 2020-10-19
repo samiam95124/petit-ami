@@ -49,6 +49,7 @@ Translated to C, 2019/04/28.
 #include <ctype.h>
 #include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <localdefs.h>
 #include <terminal.h>
@@ -56,13 +57,13 @@ Translated to C, 2019/04/28.
 #define MAXSN  1000  /* total snake positions */
 #define TIMMAX 5000  /* time between forced moves (1 second) */
 #define BLNTIM 1000  /* delay time for blinker */
-#define MAXLFT 100   /* maximum amount of score achevable before
+#define MAXLFT 100   /* maximum amount of score achievable before
                         being registered without overflow */
 /* instruction message at top of screen; s/b maxx characters long */
 #define SCRNUM 4     /* number of score digits */
 #define SCROFF 45    /* location of first (high) digit of score
                         (should correspond with 'msgstr' above */
-#define MAXSCN 100   /* maximum screen demention */
+#define MAXSCN 250   /* maximum screen dimension */
 
 typedef unsigned short       word;    /* 16 bit word */
 typedef char*                string;  /* general string type */
@@ -80,7 +81,6 @@ int       timcnt;                /* move countdown */
 scnpos    snakel[MAXSN];         /* snake's positions */
 int       sntop;                 /* current snake array top */
 pa_evtcod lstmov;                /* player move type */
-int       rndseq;                /* random number sequencer */
 char      scrsav[SCRNUM];        /* screen score counter */
 int       scrlft;                /* units of score left to add */
 int       scrloc;                /* location of score digits */
@@ -106,13 +106,13 @@ void writescreen(int x, int y, /* position to place character */
 
 {
 
-   pa_cursor(stdout, x, y); /* position to the given location */
-   if (c != image[x][y]) { /* filter redundant placements */
+    pa_cursor(stdout, x, y); /* position to the given location */
+    if (c != image[x][y]) { /* filter redundant placements */
 
-      putchar(c); /* write the character */
-      image[x][y] = c; /* place character in image */
+        putchar(c); /* write the character */
+        image[x][y] = c; /* place character in image */
 
-   }
+    }
 
 }
 
@@ -157,47 +157,40 @@ void clrscn(void)
     int y; /* index y */
     int x; /* index x */
 
-   putchar('\f'); /* clear display screen */
-   for (x = 1; x <= pa_maxx(stdout); x++) /* clear image */
-      for (y = 1; y <= pa_maxy(stdout); y++) image[x][y] = ' ';
-   /* place top */
-   for (x = 1; x <= pa_maxx(stdout); x++) writescreen(x, 1, '*');
-   /* place sides */
-   for (y = 2; y <= pa_maxy(stdout)-1; y++) { /* lines */
+    putchar('\f'); /* clear display screen */
+    for (x = 1; x <= pa_maxx(stdout); x++) /* clear image */
+        for (y = 1; y <= pa_maxy(stdout); y++) image[x][y] = ' ';
+    /* place top */
+    for (x = 1; x <= pa_maxx(stdout); x++) writescreen(x, 1, '*');
+    /* place sides */
+    for (y = 2; y <= pa_maxy(stdout)-1; y++) { /* lines */
 
-      writescreen(1, y, '*'); /* place left border */
-      writescreen(pa_maxx(stdout), y, '*'); /* place right border */
+        writescreen(1, y, '*'); /* place left border */
+        writescreen(pa_maxx(stdout), y, '*'); /* place right border */
 
-   }
-   /* place bottom */
-   for (x = 1; x <= pa_maxx(stdout); x++) writescreen(x, pa_maxy(stdout), '*');
-   /* size and place banners */
-   wrtcen(1, " -> FUNCTION 1 RESTARTS <-   SCORE - 0000 ", &x);
-   scrloc = x+38;
-   wrtcen(pa_maxy(stdout), " SNAKE VS. 2.0 ", &x);
+    }
+    /* place bottom */
+    for (x = 1; x <= pa_maxx(stdout); x++) writescreen(x, pa_maxy(stdout), '*');
+    /* size and place banners */
+    wrtcen(1, " -> FUNCTION 1 RESTARTS <-   SCORE - 0000 ", &x);
+    scrloc = x+38;
+    wrtcen(pa_maxy(stdout), " SNAKE VS. 2.0 ", &x);
 
 }
 
 /*******************************************************************************
 
-Random number generator
+Find random number
 
-This generator was designed after the techniques in 'The Art Of Programming'.
-Despite considerable testing, the damm thing is largely arbitrary. Note that in
-the below version overflow occurs.
-
-A 'top' integer is required, which indicates the size of the requested result.
-
-If time permits, an overhaul of this business would be helpful.
+Find random number between 0 and N.
 
 *******************************************************************************/
 
-int rand(int top)
+int randn(int limit)
 
 {
 
-    rndseq = (11 * rndseq + 6) % 1000;
-    return rndseq % top + 1;
+    return (long)limit*rand()/RAND_MAX;
 
 }
 
@@ -221,15 +214,15 @@ void plctrg(void)
 
     do { /* pick postions and check if the're free */
 
-      /* find x, y locations, not on a border using
-        a zero - n random function */
-      y = rand(pa_maxy(stdout)-2)+1;
-      x = rand(pa_maxx(stdout)-2)+1;
-      c = image[x][y]; /* get character at position */
+        /* find x, y locations, not on a border using
+           a zero - n random function */
+        y = randn(pa_maxy(stdout)-2)+2;
+        x = randn(pa_maxx(stdout)-2)+2;
+        c = image[x][y]; /* get character at position */
 
-   } while (c != ' '); /* area is unoccupied */
-   /* place target integer */
-   writescreen(x, y, rand(9)+'0');
+    } while (c != ' '); /* area is unoccupied */
+    /* place target integer */
+    writescreen(x, y, randn(9)+'1');
 
 }
 
@@ -445,12 +438,16 @@ void main(void) /* snake */
 
 {
 
+    if (pa_maxx(stdout) > MAXSCN || pa_maxy(stdout) > MAXSCN) {
+
+        fprintf(stderr, "*** Error: Screen exceeds maximum size\n");
+        exit(1);
+
+    }
     pa_select(stdout, 2, 2); /* switch screens */
     pa_curvis(stdout, FALSE); /* remove drawing cursor */
     pa_auto(stdout, FALSE); /* remove automatic scrolling */
     pa_bcolor(stdout, pa_cyan); /* on cyan background */
-    rndseq = 5; /* initalize random number generator */
-    for (i = 1; i <= 58; i++) x = rand(1); /* stablize generator */
     pa_timer(stdin, 1, TIMMAX, TRUE); /* set move timer */
     pa_timer(stdin, 2, BLNTIM, TRUE); /* set blinker timer */
     do { /* game */
