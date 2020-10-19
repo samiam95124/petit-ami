@@ -166,7 +166,8 @@ static pclose_t  ofpclose;
 static punlink_t ofpunlink;
 static plseek_t  ofplseek;
 
-HANDLE inphdl;          /* "input" file handle */
+HANDLE inphdl;           /* "input" file handle */
+int     nummbt;          /* number of mouse buttons */
 int     mb1;             /* mouse assert status button 1 */
 int     mb2;             /* mouse assert status button 2 */
 int     mb3;             /* mouse assert status button 3 */
@@ -2145,7 +2146,8 @@ void pa_frametimer(FILE* f, int e)
 
 Return number of mice
 
-Returns the number of mice implemented.
+Returns the number of mice implemented. Windows is fixed to one mouse, but
+I suspect they will eventually have to remove this limit.
 
 *******************************************************************************/
 
@@ -2172,7 +2174,7 @@ int pa_mousebutton(FILE* f, int m)
 
     if (m != 1) error(einvhan); /* bad mouse number */
 
-    return (3); /* set 3 buttons */
+    return (nummbt); /* set 3 buttons */
 
 }
 
@@ -2897,6 +2899,9 @@ static void pa_init_terminal(void)
     SetConsoleMode(screens[curupd-1]->han, mode);
     /* capture control handler */
     SetConsoleCtrlHandler(conhan, TRUE);
+    /* find number of mouse buttons */
+    nummbt = GetSystemMetrics(SM_CMOUSEBUTTONS);
+    if (nummbt > 4) nummbt = 4; /* limit the number of buttons to 4 */
     /* interlock to make sure that thread starts before we continue */
     threadstart = 0;
     h = CreateThread(NULL, 0, dummyloop, NULL, 0, &threadid);
