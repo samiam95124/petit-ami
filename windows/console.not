@@ -3,6 +3,7 @@ Windows console notes
 1. Its slow. Need to study why the character write speed is an order of
 magnitude slower than before.
 
-2. Pick up number of mouse buttons from Windows, not a constant.
+2. Does not listen to ctl-c when very busy.
 
-3. Does not listen to ctl-c when very busy.
+3. Need to pick up cursor location from windows again, at the start. Otherwise
+the typing is not attached to the existing insert point.

@@ -6,7 +6,7 @@
 *                                                                              *
 *                              4/96 S. A. Moore                                *
 *                                                                              *
-* Implements the graphical mode functions on Windows. Gralib is upward         *
+* Implements the graphical mode functions on Windows. graph is upward         *
 * compatible with trmlib functions.                                            *
 *                                                                              *
 * Proposed improvements:                                                       *
@@ -23,13 +23,13 @@
 *                                                                              *
 * History:                                                                     *
 *                                                                              *
-* Gralib started in 1996 as a graphical window demonstrator as a twin to       *
+* graph started in 1996 as a graphical window demonstrator as a twin to       *
 * ansilib, the ANSI control character based terminal mode library.             *
-* In 2003, gralib was upgraded to the graphical terminal standard.             *
-* In 2005, gralib was upgraded to include the window mangement calls, and the  *
+* In 2003, graph was upgraded to the graphical terminal standard.             *
+* In 2005, graph was upgraded to include the window mangement calls, and the  *
 * widget calls.                                                                *
 *                                                                              *
-* Gralib uses three different tasks. The main task is passed on to the         *
+* graph uses three different tasks. The main task is passed on to the         *
 * program, and two subthreads are created. The first one is to run the         *
 * display, and the second runs widgets. The Display task both isolates the     *
 * user interface from any hangs || slowdowns in the main thread, and also      *
@@ -93,7 +93,7 @@
 #define MAXLIN    250   /* maximum length of input bufferred line */
 #define MAXCON    10    /* number of screen contexts */
 #define MAXTAB    50    /* total number of tabs possible per screen */
-#define MAXPIC    50    /* total number of loadable PIctures */
+#define MAXPIC    50    /* total number of loadable pictures */
 #define FHEIGHT   15    /* default font height, matches Windows "system" default */
 #define FQUALITY  nonantialiased_quality /* font writing quality */
 #define FRMTIM    0     /* handle number of framing timer */
@@ -232,7 +232,7 @@ typedef struct scncon { /* screen context */
 
 } scncon, *scnptr;
 
-typedef struct pict { /* PIcture tracking record */
+typedef struct pict { /* picture tracking record */
 
     HBITMAP han; /* handle to bitmap */
     HDC     hdc; /* handle to DC for bitmap */
@@ -319,7 +319,7 @@ typedef struct winrec {
 
     } timers[10];
     int      focus;           /* screen in focus */
-    pict     pictbl[MAXPIC];  /* loadable PIctures table */
+    pict     pictbl[MAXPIC];  /* loadable pictures table */
     int      bufmod;          /* buffered screen mode */
     HMENU    menhan;          /* handle to (main) menu */
     metptr   metlst;          /* menu tracking list */
@@ -749,7 +749,7 @@ void prtfil(void)
     int i; /* index for files table */
 
     for (i = 0; i < MAXFIL; i++) { /* traverse table */
-        if opnfil[i] <> nil  with opnfil[i]^ do { /* print file record */
+        if opnfil[i] != NULL  with opnfil[i]^ do { /* print file record */
 
       print("File: ", i);
       print(" handle: "); prtnum(opnfil[i]->han, 1, 16);
@@ -797,7 +797,7 @@ void prtmenuelm(menuptr m, int offset)
         dooff(offset); print("Face:   "); printn(m->face);
         printn("");
         /* if branch exists, print that list as sublist */
-        if m->branch <> nil  prtmenuelm(m->branch, offset+3);
+        if m->branch != NULL  prtmenuelm(m->branch, offset+3);
         m = m->next /* next entry */
 
     }
@@ -933,7 +933,7 @@ int intv(char* s, /* char* containing int */
 
 Lock mutual access
 
-Locks multiple accesses to gralib globals.
+Locks multiple accesses to graph globals.
 
 No error checking is done.
 
@@ -956,7 +956,7 @@ void lockmain(void)
 
 Unlock mutual access
 
-Unlocks multiple accesses to gralib globals.
+Unlocks multiple accesses to graph globals.
 
 No error checking is done.
 
@@ -1498,10 +1498,10 @@ void getfet(filptr* fp)
     fp = malloc(sizeof(filrec)); /* get new file entry */
     if (!fp) error(enomem); /* no more memory */
     fp->han = 0; /* set handle clear */
-    fp->win = nil; /* set no window */
+    fp->win = NULL; /* set no window */
     fp->inw = FALSE; /* clear input window link */
     fp->inl = 0; /* set no input file linked */
-    fp->evt = nil; /* set no queued events */
+    fp->evt = NULL; /* set no queued events */
 
 }
 
@@ -1594,8 +1594,8 @@ winptr lfn2win(int fn)
 {
 
    if (fn < 0) || (fn >= MAXFIL)  error(einvhan); /* invalid file handle */
-   if opnfil[fn] == nil  error(einvhan); /* invalid handle */
-   if opnfil[fn]->win == nil  error(efnotwin); /* not a window file */
+   if opnfil[fn] == NULL  error(einvhan); /* invalid handle */
+   if opnfil[fn]->win == NULL  error(efnotwin); /* not a window file */
 
    return (opnfil[fn]->win); /* return windows pointer */
 
@@ -1801,7 +1801,7 @@ void putwig(winptr win, wigptr wp)
 
         lp = win->wiglst; /* index list top */
         /* find last entry */
-        while (lp->next <> wp && lp->next) lp = lp->next;
+        while (lp->next != wp && lp->next) lp = lp->next;
         if (!lp->next) error(esystem); /* should have found it */
         lp->next = wp->next /* gap out entry */
 
@@ -1826,7 +1826,7 @@ int fndwig(winptr win, int id)
     wigptr wp, fp;  /* widget pointer */
 
     wp = win->wiglst; /* index top of list */
-    fp = nil; /* clear found */
+    fp = NULL; /* clear found */
     while (wp) { /* traverse list */
 
         if (wp->id == id) fp = wp; /* found */
@@ -1853,7 +1853,7 @@ int fndwighan(winptr win, int han)
     wigptr wp, fp;  /* widget pointer */
 
     wp = win->wiglst; /* index top of list */
-    fp = nil; /* clear found */
+    fp = NULL; /* clear found */
     while (wp) { /* traverse list */
 
         if (wp->han == han || wp->han2 == han) fp = wp; /* found */
@@ -1957,7 +1957,7 @@ void rgbcol(int r, int g, int b, pa_color* c)
 
 Translate rgb to windows color
 
-Translates a ratioed INT_MAX gralib color to the windows form, which is a 32
+Translates a ratioed INT_MAX graph color to the windows form, which is a 32
 bit word with blue, green && red bytes.
 
 *******************************************************************************/
@@ -2396,8 +2396,8 @@ void restore(winptr win,   /* window to restore */
             b = GetUpdateRect(win->winhan, cr, FALSE);
         /* validate it so windows won"t s} multiple notifications */
         b = ValidateRgn(win->winhan, NULL); /* validate region */
-        if (cr.left <> 0 || cr.top <> 0 || cr.right <> 0 || cr.bottom <> 0) {
-            /* area is ! nil */
+        if (cr.left != 0 || cr.top != 0 || cr.right != 0 || cr.bottom != 0) {
+            /* area is ! NULL */
 
             /* convert to device coordinates */
             cr.left = cr.left+screens[curdsp]->offx;
@@ -2539,7 +2539,7 @@ void iniscn(winptr win, scnptr sc)
     if (sc->bhn == -1) winerr(); /* process windows error */
     newfont(win); /* create font for buffer */
     /* set non-braindamaged stretch mode */
-    r = setstretchbltmode(screens[curupd]->bdc, HALFTONE);
+    r = setStretchBltmode(screens[curupd]->bdc, HALFTONE);
     if (!r) winerr(); /* process windows error */
     /* set pen to foreground */
     lb.lbstyle = bs_solid;
@@ -2795,7 +2795,7 @@ void icursor(winptr win, int x, int y)
 
 {
 
-    if (x != win->screens[curupd]->curx || y <> win->screens[curupd]->cury) {
+    if (x != win->screens[curupd]->curx || y != win->screens[curupd]->cury) {
 
         win->screens[curupd]->cury = y; /* set new position */
         win->screens[curupd]->curx = x;
@@ -2836,7 +2836,7 @@ void icursorg(winptr win, int x, int y)
 
     if (win->screens[curupd]->autof)
         error(eatopos); /* cannot perform with auto on */
-    if (x <> win->screens[curupd]->curxg || y <> win->screens[curupd]->curyg)  {
+    if (x != win->screens[curupd]->curxg || y != win->screens[curupd]->curyg)  {
 
          win->screens[curupd]->curyg = y; /* set new position */
          win->screens[curupd]->curxg = x;
@@ -4342,8 +4342,8 @@ void iwrtstr(winptr win,  char* s)
     if (sc->cfont->sys) { /* perform fixed system advance */
 
           /* should check if this exceeds INT_MAX */
-          sc->curx = sc->curx+max(s); /* update position */
-          sc->curxg = curxg+win->charspace*max(s);
+          sc->curx = sc->curx+strlen(s); /* update position */
+          sc->curxg = curxg+win->charspace*strlen(s);
 
     } else { /* perform proportional version */
 
@@ -5585,7 +5585,7 @@ void ifont(winptr win, int fc)
     if fc < 1  error(einvfnm); /* invalid font number */
     /* find indicated font */
     fp = win->fntlst;
-    while (fp <> nil && fc > 1) { /* search */
+    while (fp != NULL && fc > 1) { /* search */
 
        fp = fp->next; /* mext font entry */
        fc--; /* count */
@@ -5902,11 +5902,11 @@ void iwritejust(winptr win, char* s, int n)
     /* find justified spacing */
     ra.lStructSize = gcp_results_len; /* set length of record */
     /* new(ra.lpoutchar*); */
-    ra.lpOutString = nil;
-    ra.lpOrder = nil;
+    ra.lpOutString = NULL;
+    ra.lpOrder = NULL;
     new(ra.lpdx); /* set spacing array */
-    ra.lpcCaretPos = nil;
-    ra.lpClass = nil;
+    ra.lpcCaretPos = NULL;
+    ra.lpClass = NULL;
     new(ra.lpglyphs);
     ra.nGlyphs = strlen(s);
     ra.nMaxFit = 0;
@@ -5957,59 +5957,58 @@ void writejust(FILE* f, char* s, int n)
 
 Find justified character position
 
-Given a char*, a character position in that char*, && the total length
-of the char* in PIxels, returns the offset in PIxels from the start of the
+Given a string, a character position in that string, && the total length
+of the string in PIxels, returns the offset in PIxels from the start of the
 char* to the given character, with justification taken into account.
 The model used is that the extra space needed is divided by the number of
 spaces, with the fractional part lost.
 
 *******************************************************************************/
 
-int ijustpos(winptr win; view s: char*; p, n: int): int;
-
-var off: int; /* offset to character */
-    w:   int; /* minimum char* size */
-    ra:  gcp_results; /* placement info record */
-    i:   int; /* index for char* */
+int ijustpos(winptr win, char* s, int p, int n)
 
 {
 
-   with win^ do { /* in window context */
+    int         off; /* offset to character */
+    int         w;   /* minimum char* size */
+    GCP_RESULTS ra;  /* placement info record */
+    int         i;   /* index for char* */
 
-      if (p < 1) || (p > max(s))  error(estrinx); /* out of range */
-      if p == 1  off = 0 /* its already at the position */
-      else { /* find subchar* length */
+    if (p < 1 || p > strlen(s))  error(estrinx); /* out of range */
+    if (p == 1)  off = 0; /* its already at the position */
+    else { /* find subchar* length */
 
-         w = istrsiz(win, s); /* find minimum character spacing */
-         /* if allowed is less than the min, return nominal spacing */
-         if n <= w  off = ichrpos(win, s, p) else {
+       w = istrsiz(win, s); /* find minimum character spacing */
+       /* if allowed is less than the min, return nominal spacing */
+       if (n <= w) off = ichrpos(win, s, p); else {
 
-            /* find justified spacing */
-            ra.lstructsize = gcp_results_len; /* set length of record */
-            /* new(ra.lpoutchar*); */
-            ra.lpoutchar* = nil;
-            ra.lporder = nil;
-            new(ra.lpdx); /* set spacing array */
-            ra.lpcaretpos = nil;
-            ra.lpclass = nil;
-            new(ra.lpglyphs);
-            ra.nglyphs = max(s);
-            ra.nmaxfit = 0;
-            r = getcharacterplacement(screens[curupd]->bdc, s, n, ra,
-                                          gcp_justify || gcp_maxextent);
-            if r == 0  winerr(); /* process windows error */
-            off = 0; /* clear offset */
-            /* add in all widths to the left of position to offset */
-            for i = 1 to p-1 do off = off+ra.lpdx^[i]
+          /* find justified spacing */
+          ra.lStructSize = sizeof(GCP_RESULTS); /* set length of record */
+          ra.lpOutString = NULL;
+          ra.lpOrder = NULL;
+          /* allocate size array */
+          ra.lpDx = malloc(strlen(s)*sizeof(int));
+          ra.lpCaretPos = NULL;
+          ra.lpClass = NULL;
+          ra.lpGlyphs = NULL;
+          ra.nGlyphs = 0;
+          ra.nMaxFit = 0;
+          r = GetCharacterPlacement(win->screens[win->curupd]->bdc, s, n, ra,
+                                    GCP_JUSTIFY | GCP_MAXEXTENT);
+          if (r == 0) winerr(); /* process windows error */
+          off = 0; /* clear offset */
+          /* add in all widths to the left of position to offset */
+          for (i = 1; i <= p-1; i++) off = off+ra.lpdx->[i];
+          free(rr.lpDx);
 
-         }
+       }
 
-      };
-      ijustpos = off /* return result */
+    }
+    ijustpos = off; /* return result */
 
    }
 
-};
+}
 
 int justpos(FILE* f; view s: char*; p, n: int): int;
 
@@ -6022,7 +6021,7 @@ var winptr win; /* window pointer */
    justpos = ijustpos(win, s, p, n); /* find justified character position */
    unlockmain(); /* end exclusive access */
 
-};
+}
 
 /*******************************************************************************
 
@@ -6037,19 +6036,19 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void condensed(FILE* f; e: int);
+void condensed(FILE* f, int e)
 
 {
 
-   refer(f, e) /* stub out */
+   /* not implemented */
 
-};
+}
 
 /*******************************************************************************
 
-Turn on ext}ed attribute
+Turn on extended attribute
 
-Turns on/off the ext}ed attribute. Ext}ed is a character set with a
+Turns on/off the extended attribute. Ext}ed is a character set with a
 longer baseline than normal characters in the current font.
 
 Note that the attributes can only be set singly.
@@ -6058,13 +6057,13 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void extended(FILE* f; e: int);
+void extended(FILE* f, int e)
 
 {
 
-   refer(f, e) /* stub out */
+   /* not implemented */
 
-};
+}
 
 /*******************************************************************************
 
@@ -6079,13 +6078,13 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void xlight(FILE* f; e: int);
+void xlight(FILE* f, int e)
 
 {
 
-   refer(f, e) /* stub out */
+   /* not implemented */
 
-};
+}
 
 /*******************************************************************************
 
@@ -6100,13 +6099,13 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void light(FILE* f; e: int);
+void light(FILE* f, int e)
 
 {
 
-   refer(f, e) /* stub out */
+   /* not implemented */
 
-};
+}
 
 /*******************************************************************************
 
@@ -6121,13 +6120,13 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void xbold(FILE* f; e: int);
+void xbold(FILE* f, int e)
 
 {
 
-   refer(f, e) /* stub out */
+   /* not implemented */
 
-};
+}
 
 /*******************************************************************************
 
@@ -6142,13 +6141,13 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void hollow(FILE* f; e: int);
+void hollow(FILE* f, int e)
 
 {
 
-   refer(f, e) /* stub out */
+   /* not implemented */
 
-};
+}
 
 /*******************************************************************************
 
@@ -6163,200 +6162,204 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void raised(FILE* f; e: int);
+void raised(FILE* f, int e)
 
 {
 
-   refer(f, e) /* stub out */
+   /* not implemented */
 
-};
+}
 
 /*******************************************************************************
 
-Delete PIcture
+Delete picture
 
-Deletes a loaded PIcture.
+Deletes a loaded picture.
 
 *******************************************************************************/
 
-void idelPIct(winptr win; p: int);
-
-var r: int; /* result holder */
-    b: int; /* result holder */
+void idelpict(winptr win, int p)
 
 {
 
-   with win^ do { /* in window context */
+    HGDIOBJ r; /* result holder */
+    BOOL b; /* result holder */
 
-      if (p < 1) || (p > MAXPIC)  error(einvhan); /* bad PIcture handle */
-      if PIctbl[p].han == 0  error(einvhan); /* bad PIcture handle */
-      r = SelectObject(PIctbl[p].hdc, PIctbl[p].ohn); /* reselect old object */
-      if (r == -1) winerr(); /* process windows error */
-      b = deletedc(PIctbl[p].hdc); /* delete device context */
-      if (!b) winerr(); /* process windows error */
-      b = DeleteObject(PIctbl[p].han); /* delete bitmap */
-      if (!b) winerr(); /* process windows error */
-      PIctbl[p].han = 0 /* set this entry free */
+    if (p < 1 || p > MAXPIC) error(einvhan); /* bad picture handle */
+    if (!win->pictbl[p].han) error(einvhan); /* bad picture handle */
+    /* reselect old object */
+    r = SelectObject(win->pictbl[p].hdc, win->pictbl[p].ohn);
+    if (r == -1) winerr(); /* process windows error */
+    b = deletedc(win->pictbl[p].hdc); /* delete device context */
+    if (!b) winerr(); /* process windows error */
+    b = DeleteObject(win->pictbl[p].han); /* delete bitmap */
+    if (!b) winerr(); /* process windows error */
+    win->pictbl[p].han = 0; /* set this entry free */
 
-   }
+}
 
-};
-
-void delPIct(FILE* f; p: int);
-
-var winptr win; /* window pointer */
+void delpict(FILE* f, int p)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   idelPIct(win, p); /* delete PIcture file */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    idelPIct(win, p); /* delete picture file */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
-Load PIcture
+Load picture
 
-Loads a PIcture into a slot of the loadable PIctures array.
+Loads a picture into a slot of the loadable pictures array.
 
 *******************************************************************************/
 
-void iloadPIct(winptr win; p: int; view fn: char*);
+#define MAXFNM == 250; /* number of filename characters in buffer */
 
-const maxfnm == 250; /* number of filename characters in buffer */
-
-var r:   int;   /* result holder */
-    bmi: bitmap; /* bit map information header */
-    fnh: packed array [1..maxfnm] of char; /* file name holder */
-    i:  int;   /* index for char* */
-
-void setext(view ext: char*);
-
-var i, x: int; /* index for char* */
-    f:    int; /* found flag */
+/* place extension on filename */
+void setext(char* ext)
 
 {
 
-   f = FALSE; /* set no extention found */
-   /* search for extention */
-   for i = 1 to maxfnm do if fnh[i] == "."  f = TRUE; /* found */
-   if ! f  { /* no extention, place one */
+    int i, x; /* index for char* */
+    int f;    /* found flag */
 
-      i = maxfnm; /* index last character in char* */
-      while (i > 1) && (fnh[i] == " ") do i = i-1;
-      if maxfnm-i < 4  error(ePIcftl); /* filename too large */
-      for x = 1 to 4 do fnh[i+x] = ext[x] /* place extention */
+    f = FALSE; /* set no extention found */
+    /* search for extention */
+    for (i = 1; i <= MAXFNM; i++) if (fnh[i] == ".") f = TRUE; /* found */
+    if (!f) { /* no extention, place one */
 
-   }
+        i = MAXFNM; /* index last character in char* */
+        while (i > 1 && fnh[i] == " ") i = i-1;
+        if (maxfnm-i < 4) error(epicftl); /* filename too large */
+        for (x = 1; x <= 4; x++) fnh[i+x] = ext[x]; /* place extention */
 
-};
+    }
+
+}
+
+/* find if file exists */
+int exists(char *fn)
+{
+
+    DWORD atb;
+
+    atb = GetFileAttributes(fn);
+
+    return (atb != INVALID_FILE_ATTRIBUTES &&
+            !(atb & FILE_ATTRIBUTE_DIRECTORY));
+
+}
+
+void iloadpict(winptr win, int p, char* fn)
 
 {
 
-   with win^ do { /* in window context */
+    int    r;           /* result holder */
+    BITMAP bmi;         /* bit map information header */
+    char   fnh[MAXFNM]; /* file name holder */
+    int    i;           /* index for char* */
 
-      if strlen(fn) > maxfnm  error(ePIcftl); /* filename too large */
-      fnh = 0; /* clear filename holding */
-      for i = 1 to strlen(fn) do fnh[i] = fn[i]; /* copy */
-      setext(".bmp"); /* try bitmap first */
-      if ! exists(fnh)  { /* try dib */
+    if (strlen(fn) > maxfnm) error(epicftl); /* filename too large */
+    fnh = 0; /* clear filename holding */
+    strcpy(fnh, fn); /* copy */
+    setext(".bmp"); /* try bitmap first */
+    if (!exists(fnh))  { /* try dib */
 
-         setext(".dib");
-         if ! exists(fnh)  error(ePIcfnf); /* no file found */
+       setext(".dib");
+       if ! exists(fnh)  error(epicfnf); /* no file found */
 
-      };
-      if (p < 1) || (p > MAXPIC)  error(einvhan); /* bad PIcture handle */
-      /* if the slot is already occuPIed, delete that PIcture */
-      if PIctbl[p].han <> 0  idelPIct(win, p);
-      /* load the image into memory */
-      PIctbl[p].han =
-         loadimage(0, fnh, image_bitmap, 0, 0, lr_loadfromfile);
-      if PIctbl[p].han == 0  winerr(); /* process windows error */
-      /* put it into a device context */
-      PIctbl[p].hdc = createcompatibledc(devcon);
-      if PIctbl[p].hdc == 0  winerr(); /* process windows error */
-      /* select that to device context */
-      PIctbl[p].ohn = SelectObject(PIctbl[p].hdc, PIctbl[p].han);
-      if PIctbl[p].ohn == -1  winerr(); /* process windows error */
-      /* get sizes */
-      r = getobject_bitmap(PIctbl[p].han, bitmap_len, bmi);
-      if r == 0  winerr(); /* process windows error */
-      PIctbl[p].sx = bmi.bmwidth; /* set size x */
-      PIctbl[p].sy = bmi.bmheight /* set size x */
+    }
+    if (p < 1 || p > MAXPIC)  error(einvhan); /* bad picture handle */
+    /* if the slot is already occupied, delete that picture */
+    if (win->pictbl[p].han) idelpict(win, p);
+    /* load the image into memory */
+    win->pictbl[p].han =
+       LoadImage(NULL, fnh, IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+    if win->pictbl[p].han == 0  winerr(); /* process windows error */
+    /* put it into a device context */
+    win->pictbl[p].hdc = CreateCompatibleDC(win->devcon);
+    if win->pictbl[p].hdc == 0  winerr(); /* process windows error */
+    /* select that to device context */
+    win->pictbl[p].ohn = SelectObject(win->pictbl[p].hdc, win->pictbl[p].han);
+    if (pictbl[p].ohn == -1) winerr(); /* process windows error */
+    /* get sizes */
+    r = getobject_bitmap(win->pictbl[p].han, sizeof(BITMAP), bmi);
+    if r == 0  winerr(); /* process windows error */
+    win->pictbl[p].sx = bmi.bmwidth; /* set size x */
+    win->pictbl[p].sy = bmi.bmheight; /* set size x */
 
-   }
+}
 
-};
-
-void loadPIct(FILE* f; p: int; view fn: char*);
-
-var winptr win; /* window pointer */
+void loadpict(FILE* f, int p, char* fn)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   iloadPIct(win, p, fn); /* load PIcture file */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    iloadPIct(win, p, fn); /* load picture file */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
-Find size x of PIcture
+Find size x of picture
 
-Returns the size in x of the logical PIcture.
+Returns the size in x of the logical picture.
 
 *******************************************************************************/
 
-int PIctsizx(FILE* f; p: int): int;
-
-var winptr win; /* window pointer */
+int pictsizx(FILE* f, int p)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   with win^ do { /* in window context */
+    winptr win; /* window pointer */
+    int    x;
 
-      if (p < 1) || (p > MAXPIC)  error(einvhan); /* bad PIcture handle */
-      if PIctbl[p].han == 0  error(einvhan); /* bad PIcture handle */
-      PIctsizx = PIctbl[p].sx /* return x size */
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    if (p < 1 || p > MAXPIC) error(einvhan); /* bad picture handle */
+    if (!win->pictbl[p].han) error(einvhan); /* bad picture handle */
+    x = win->pictbl[p].sx /* return x size */
+    unlockmain(); /* end exclusive access */
 
-   };
-   unlockmain(); /* end exclusive access */
+    return (x);
 
-};
+}
 
 /*******************************************************************************
 
-Find size y of PIcture
+Find size y of picture
 
-Returns the size in y of the logical PIcture.
+Returns the size in y of the logical picture.
 
 *******************************************************************************/
 
-int PIctsizy(FILE* f; p: int): int;
-
-var winptr win; /* window pointer */
+int pictsizy(FILE* f, int p)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   with win^ do { /* in window context */
+    winptr win; /* window pointer */
+    int    y;
 
-      if (p < 1) || (p > MAXPIC)  error(einvhan); /* bad PIcture handle */
-      if PIctbl[p].han == 0  error(einvhan); /* bad PIcture handle */
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    if (p < 1) || (p > MAXPIC)  error(einvhan); /* bad picture handle */
+    if (!pictbl[p].han) error(einvhan); /* bad picture handle */
+    y = pictbl[p].sy /* return x size */
+    unlockmain(); /* end exclusive access */
 
-      PIctsizy = PIctbl[p].sy /* return x size */
+    return (y);
 
-   };
-   unlockmain(); /* end exclusive access */
-
-};
+}
 
 /*******************************************************************************
 
@@ -6369,66 +6372,62 @@ Images will be kept in a rotating cache to prevent repeating reloads.
 
 *******************************************************************************/
 
-void ipicture(winptr win; p: int; x1, y1, x2, y2: int);
-
-var b:   int;  /* result holder */
-    rop: dword; /* rop holder */
+void ipicture(winptr win, int p, int x1, int y1, int x2, int y2)
 
 {
 
-   with win^ do { /* in window context */
+    BOOL  b;    /* result holder */
+    DWORD rop:; /* rop holder */
 
-      if (p < 1) || (p > MAXPIC)  error(einvhan); /* bad PIcture handle */
-      if PIctbl[p].han == 0  error(einvhan); /* bad PIcture handle */
-      case screens[curupd]->fmod of /* rop */
+    if (p < 1 || p > MAXPIC)  error(einvhan); /* bad picture handle */
+    if (!win->pictbl[p].han) error(einvhan); /* bad picture handle */
+    switch (win->screens[curupd]->fmod) { /* rop */
 
-         mdnorm:  rop = srccopy; /* straight */
-         mdinvis: ; /* no-op */
-         mdxor:   rop = srcinvert /* xor */
+        case mdnorm:  rop = srccopy; break; /* straight */
+        case mdinvis: break; /* no-op */
+        case mdxor:   rop = srcinvert; break; /* xor */
 
-      };
-      if screens[curupd]->fmod <> mdinvis  { /* ! a no-op */
+    }
+    if (win->screens[curupd]->fmod != mdinvis) { /* ! a no-op */
 
-         if bufmod  { /* buffer mode on */
+        if (win->bufmod) { /* buffer mode on */
 
             /* paint to buffer */
-            b = stretchblt(screens[curupd]->bdc,
-                               x1-1, y1-1, x2-x1+1, y2-y1+1,
-                               PIctbl[p].hdc, 0, 0, PIctbl[p].sx, PIctbl[p].sy,
-                               rop);
+            b = StretchBlt(win->screens[curupd]->bdc,
+                           x1-1, y1-1, x2-x1+1, y2-y1+1,
+                           win->pictbl[p].hdc, 0, 0, pictbl[p].sx, pictbl[p].sy,
+                           rop);
             if (!b) winerr(); /* process windows error */
 
-         };
-         if (indisp(win)) { /* paint to screen */
+        }
+        if (indisp(win)) { /* paint to screen */
 
-            if ! visible  winvis(win); /* make sure we are displayed */
+            if (!win->visible) winvis(win); /* make sure we are displayed */
             curoff(win);
-            b = stretchblt(devcon, x1-1, y1-1, x2-x1+1, y2-y1+1,
-                               PIctbl[p].hdc, 0, 0, PIctbl[p].sx, PIctbl[p].sy,
-                               rop);
-            if (!b) winerr(); /* process windows error */
-            curon(win)
+            b = StretchBlt(win->devcon, x1-1, y1-1, x2-x1+1, y2-y1+1,
+                           win->pictbl[p].hdc, 0, 0, win->pictbl[p].sx,
+                           pictbl[p].sy, rop);
+           if (!b) winerr(); /* process windows error */
+           curon(win);
 
-         }
+        }
 
-      }
+    }
 
-   }
+}
 
-};
-
-void picture(FILE* f; p: int; x1, y1, x2, y2: int);
-
-var winptr win; /* window pointer */
+void picture(FILE* f, int p, int x1, int y1, int x2, int y2)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   iPIcture(win, p, x1, y1, x2, y2); /* draw PIcture */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    ipicture(win, p, x1, y1, x2, y2); /* draw picture */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -6439,294 +6438,291 @@ Sets the offset of the viewport in logical space, in PIxels, anywhere from
 
 *******************************************************************************/
 
-void iviewoffg(winptr win; x, y: int);
+void iviewoffg(winptr win, int x, int y)
 
 {
 
    with win^ do { /* in window context */
 
       /* check change is needed */
-      if (x <> screens[curupd]->offx) && (y <> screens[curupd]->offy)  {
+      if (x != win->screens[win->curupd]->offx &&
+          y != win->screens[win->curupd]->offy) {
 
-         screens[curupd]->offx = x; /* set offsets */
-         screens[curupd]->offy = y;
-         goffx = x;
-         goffy = y;
-         iclear(win) /* clear buffer */
+         win->screens[curupd]->offx = x; /* set offsets */
+         win->screens[curupd]->offy = y;
+         win->goffx = x;
+         win->goffy = y;
+         iclear(win); /* clear buffer */
 
       }
 
    }
 
-};
+}
 
-void viewoffg(FILE* f; x, y: int);
-
-var winptr win; /* window pointer */
+void viewoffg(FILE* f, int x, int y)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   iviewoffg(win, x, y); /* set viewport offset */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    iviewoffg(win, x, y); /* set viewport offset */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
 Set viewport scale
 
-Sets the viewport scale in x && y. The scale is a real fraction between 0 and
+Sets the viewport scale in x and y. The scale is a real fraction between 0 and
 1, with 1 being 1:1 scaling. Viewport scales are allways smaller than logical
-scales, which means that there are more than one logical PIxel to map to a
-given physical PIxel, but never the reverse. This means that PIxels are lost
-in going to the display, but the display never needs to interpolate PIxels
-from logical PIxels.
+scales, which means that there are more than one logical pixel to map to a
+given physical pixel, but never the reverse. This means that pixels are lost
+in going to the display, but the display never needs to interpolate pixels
+from logical pixels.
 
 Note:
 
-Right now, symmetrical scaling (both x && y scales set the same) are all that
+Right now, symmetrical scaling (both x and y scales set the same) are all that
 works completely, since we don"t presently have a method to warp text to fit
 a scaling process. However, this can be done by various means, including
-painting into a buffer && transfering asymmetrically, || using outlines.
+painting into a buffer and transfering asymmetrically, or using outlines.
 
 *******************************************************************************/
 
-void iviewscale(winptr win; x, y: real);
+void iviewscale(winptr win, float x, float y)
 
 {
 
-   with win^ do { /* in window context */
+    /* in this starting simplistic formula, the ratio is set x*INT_MAX/INT_MAX.
+      it works, but can overflow for large coordinates || scales near 1 */
+    win->screens[win->curupd]->wextx = 100;
+    win->screens[win->curupd]->wexty = 100;
+    win->screens[win->curupd]->vextx = x*100;
+    win->screens[win->curupd]->vexty = y*100;
+    win->gwextx = 100;
+    win->gwexty = 100;
+    win->gvextx = x*100;
+    win->gvexty = y*100;
+    iclear(win) /* clear buffer */
 
-      /* in this starting simplistic formula, the ratio is set x*INT_MAX/INT_MAX.
-        it works, but can overflow for large coordinates || scales near 1 */
-      screens[curupd]->wextx = 100;
-      screens[curupd]->wexty = 100;
-      screens[curupd]->vextx = trunc(x*100);
-      screens[curupd]->vexty = trunc(y*100);
-      gwextx = 100;
-      gwexty = 100;
-      gvextx = trunc(x*100);
-      gvexty = trunc(y*100);
-      iclear(win) /* clear buffer */
+}
 
-   }
-
-};
-
-void viewscale(FILE* f; x, y: real);
-
-var winptr win; /* window pointer */
+void viewscale(FILE* f, float x, float y)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   iviewscale(win, x, y); /* set viewport scale */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    iviewscale(win, x, y); /* set viewport scale */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
-Print message char*
+Print message string
 
 This routine is for diagnostic use. Comment it out on production builds.
 
 *******************************************************************************/
 
-void prtmsgstr(mn: int);
+void prtmsgstr(int mn)
 
 {
 
-   prtnum(mn, 4, 16);
-   prtstr(": ");
-   if (mn >= 0x800) && (mn <= 0xbfff)  prtstr("User message")
-   else if (mn >= 0xc000) && (mn <= 0xffff)  prtstr("Registered message")
-   else case mn of
+    prtnum(mn, 4, 16);
+    prtstr(": ");
+    if (mn >= 0x800 && mn <= 0xbfff) prtstr("User message");
+    else if (mn >= 0xc000 && mn <= 0xffff) prtstr("Registered message");
+    else switch (mn) {
 
-      0x0000: prtstr("WM_NULL");
-      0x0001: prtstr("WM_CREATE");
-      0x0002: prtstr("WM_DESTROY");
-      0x0003: prtstr("WM_MOVE");
-      0x0005: prtstr("WM_SIZE");
-      0x0006: prtstr("WM_ACTIVATE");
-      0x0007: prtstr("WM_SETFOCUS");
-      0x0008: prtstr("WM_KILLFOCUS");
-      0x000A: prtstr("WM_ENABLE");
-      0x000B: prtstr("WM_SETREDRAW");
-      0x000C: prtstr("WM_SETTEXT");
-      0x000D: prtstr("WM_GETTEXT");
-      0x000E: prtstr("WM_GETTEXTLENGTH");
-      0x000F: prtstr("WM_PAINT");
-      0x0010: prtstr("WM_CLOSE");
-      0x0011: prtstr("WM_QUERYENDSESSION");
-      0x0012: prtstr("WM_QUIT");
-      0x0013: prtstr("WM_QUERYOPEN");
-      0x0014: prtstr("WM_ERASEBKGND");
-      0x0015: prtstr("WM_SYSCOLORCHANGE");
-      0x0016: prtstr("WM_ENDSESSION");
-      0x0018: prtstr("WM_SHOWWINDOW");
-      0x001A: prtstr("WM_WININICHANGE");
-      0x001B: prtstr("WM_DEVMODECHANGE");
-      0x001C: prtstr("WM_ACTIVATEAPP");
-      0x001D: prtstr("WM_FONTCHANGE");
-      0x001E: prtstr("WM_TIMECHANGE");
-      0x001F: prtstr("WM_CANCELMODE");
-      0x0020: prtstr("WM_SETCURSOR");
-      0x0021: prtstr("WM_MOUSEACTIVATE");
-      0x0022: prtstr("WM_CHILDACTIVATE");
-      0x0023: prtstr("WM_QUEUESYNC");
-      0x0024: prtstr("WM_GETMINMAXINFO");
-      0x0026: prtstr("WM_PAINTICON");
-      0x0027: prtstr("WM_ICONERASEBKGND");
-      0x0028: prtstr("WM_NEXTDLGCTL");
-      0x002A: prtstr("WM_SPOOLERSTATUS");
-      0x002B: prtstr("WM_DRAWITEM");
-      0x002C: prtstr("WM_MEASUREITEM");
-      0x002D: prtstr("WM_DELETEITEM");
-      0x002E: prtstr("WM_VKEYTOITEM");
-      0x002F: prtstr("WM_CHARTOITEM");
-      0x0030: prtstr("WM_SETFONT");
-      0x0031: prtstr("WM_GETFONT");
-      0x0032: prtstr("WM_SETHOTKEY");
-      0x0033: prtstr("WM_GETHOTKEY");
-      0x0037: prtstr("WM_QUERYDRAGICON");
-      0x0039: prtstr("WM_COMPAREITEM");
-      0x0041: prtstr("WM_COMPACTING");
-      0x0042: prtstr("WM_OTHERWINDOWCREATED");
-      0x0043: prtstr("WM_OTHERWINDOWDESTROYED");
-      0x0044: prtstr("WM_COMMNOTIFY");
-      0x0045: prtstr("WM_HOTKEYEVENT");
-      0x0046: prtstr("WM_WINDOWPOSCHANGING");
-      0x0047: prtstr("WM_WINDOWPOSCHANGED");
-      0x0048: prtstr("WM_POWER");
-      0x004A: prtstr("WM_COPYDATA");
-      0x004B: prtstr("WM_CANCELJOURNAL");
-      0x004E: prtstr("WM_NOTIFY");
-      0x0050: prtstr("WM_INPUTLANGCHANGEREQUEST");
-      0x0051: prtstr("WM_INPUTLANGCHANGE");
-      0x0052: prtstr("WM_TCARD");
-      0x0053: prtstr("WM_HELP");
-      0x0054: prtstr("WM_USERCHANGED");
-      0x0055: prtstr("WM_NOTIFYFORMAT");
-      0x007B: prtstr("WM_CONTEXTMENU");
-      0x007C: prtstr("WM_STYLECHANGING");
-      0x007D: prtstr("WM_STYLECHANGED");
-      0x007E: prtstr("WM_DISPLAYCHANGE");
-      0x007F: prtstr("WM_GETICON");
-      0x0080: prtstr("WM_SETICON");
-      0x0081: prtstr("WM_NCCREATE");
-      0x0082: prtstr("WM_NCDESTROY");
-      0x0083: prtstr("WM_NCCALCSIZE");
-      0x0084: prtstr("WM_NCHITTEST");
-      0x0085: prtstr("WM_NCPAINT");
-      0x0086: prtstr("WM_NCACTIVATE");
-      0x0087: prtstr("WM_GETDLGCODE");
-      0x00A0: prtstr("WM_NCMOUSEMOVE");
-      0x00A1: prtstr("WM_NCLBUTTONDOWN");
-      0x00A2: prtstr("WM_NCLBUTTONUP");
-      0x00A3: prtstr("WM_NCLBUTTONDBLCLK");
-      0x00A4: prtstr("WM_NCRBUTTONDOWN");
-      0x00A5: prtstr("WM_NCRBUTTONUP");
-      0x00A6: prtstr("WM_NCRBUTTONDBLCLK");
-      0x00A7: prtstr("WM_NCMBUTTONDOWN");
-      0x00A8: prtstr("WM_NCMBUTTONUP");
-      0x00A9: prtstr("WM_NCMBUTTONDBLCLK");
-      /*0x0100: prtstr("WM_KEYFIRST");*/
-      0x0100: prtstr("WM_KEYDOWN");
-      0x0101: prtstr("WM_KEYUP");
-      0x0102: prtstr("WM_CHAR");
-      0x0103: prtstr("WM_DEADCHAR");
-      0x0104: prtstr("WM_SYSKEYDOWN");
-      0x0105: prtstr("WM_SYSKEYUP");
-      0x0106: prtstr("WM_SYSCHAR");
-      0x0107: prtstr("WM_SYSDEADCHAR");
-      0x0108: prtstr("WM_KEYLAST");
-      0x0109: prtstr("WM_UNICHAR");
-      0x0110: prtstr("WM_INITDIALOG");
-      0x0111: prtstr("WM_COMMAND");
-      0x0112: prtstr("WM_SYSCOMMAND");
-      0x0113: prtstr("WM_TIMER");
-      0x0114: prtstr("WM_HSCROLL");
-      0x0115: prtstr("WM_VSCROLL");
-      0x0116: prtstr("WM_INITMENU");
-      0x0117: prtstr("WM_INITMENUPOPUP");
-      0x011F: prtstr("WM_MENUSELECT");
-      0x0120: prtstr("WM_MENUCHAR");
-      0x0121: prtstr("WM_ENTERIDLE");
-      0x0132: prtstr("WM_CTLCOLORMSGBOX");
-      0x0133: prtstr("WM_CTLCOLOREDIT");
-      0x0134: prtstr("WM_CTLCOLORLISTBOX");
-      0x0135: prtstr("WM_CTLCOLORBTN");
-      0x0136: prtstr("WM_CTLCOLORDLG");
-      0x0137: prtstr("WM_CTLCOLORSCROLLBAR");
-      0x0138: prtstr("WM_CTLCOLORSTATIC");
-      /* 0x0200: prtstr("WM_MOUSEFIRST"); */
-      0x0200: prtstr("WM_MOUSEMOVE");
-      0x0201: prtstr("WM_LBUTTONDOWN");
-      0x0202: prtstr("WM_LBUTTONUP");
-      0x0203: prtstr("WM_LBUTTONDBLCLK");
-      0x0204: prtstr("WM_RBUTTONDOWN");
-      0x0205: prtstr("WM_RBUTTONUP");
-      0x0206: prtstr("WM_RBUTTONDBLCLK");
-      0x0207: prtstr("WM_MBUTTONDOWN");
-      0x0208: prtstr("WM_MBUTTONUP");
-      0x0209: prtstr("WM_MBUTTONDBLCLK");
-      /* 0x0209: prtstr("WM_MOUSELAST"); */
-      0x0210: prtstr("WM_PARENTNOTIFY");
-      0x0211: prtstr("WM_ENTERMENULOOP");
-      0x0212: prtstr("WM_EXITMENULOOP");
-      0x0220: prtstr("WM_MDICREATE");
-      0x0221: prtstr("WM_MDIDESTROY");
-      0x0222: prtstr("WM_MDIACTIVATE");
-      0x0223: prtstr("WM_MDIRESTORE");
-      0x0224: prtstr("WM_MDINEXT");
-      0x0225: prtstr("WM_MDIMAXIMIZE");
-      0x0226: prtstr("WM_MDITILE");
-      0x0227: prtstr("WM_MDICASCADE");
-      0x0228: prtstr("WM_MDIICONARRANGE");
-      0x0229: prtstr("WM_MDIGETACTIVE");
-      0x0230: prtstr("WM_MDISETMENU");
-      0x0231: prtstr("WM_ENTERSIZEMOVE");
-      0x0232: prtstr("WM_EXITSIZEMOVE");
-      0x0233: prtstr("WM_DROPFILES");
-      0x0234: prtstr("WM_MDIREFRESHMENU");
-      0x0300: prtstr("WM_CUT");
-      0x0301: prtstr("WM_COPY");
-      0x0302: prtstr("WM_PASTE");
-      0x0303: prtstr("WM_CLEAR");
-      0x0304: prtstr("WM_UNDO");
-      0x0305: prtstr("WM_RENDERFORMAT");
-      0x0306: prtstr("WM_RENDERALLFORMATS");
-      0x0307: prtstr("WM_DESTROYCLIPBOARD");
-      0x0308: prtstr("WM_DRAWCLIPBOARD");
-      0x0309: prtstr("WM_PAINTCLIPBOARD");
-      0x030A: prtstr("WM_VSCROLLCLIPBOARD");
-      0x030B: prtstr("WM_SIZECLIPBOARD");
-      0x030C: prtstr("WM_ASKCBFORMATNAME");
-      0x030D: prtstr("WM_CHANGECBCHAIN");
-      0x030E: prtstr("WM_HSCROLLCLIPBOARD");
-      0x030F: prtstr("WM_QUERYNEWPALETTE");
-      0x0310: prtstr("WM_PALETTEISCHANGING");
-      0x0311: prtstr("WM_PALETTECHANGED");
-      0x0312: prtstr("WM_HOTKEY");
-      0x0380: prtstr("WM_PENWINFIRST");
-      0x038F: prtstr("WM_PENWINLAST");
-      0x03A0: prtstr("MM_JOY1MOVE");
-      0x03A1: prtstr("MM_JOY2MOVE");
-      0x03A2: prtstr("MM_JOY1ZMOVE");
-      0x03A3: prtstr("MM_JOY2ZMOVE");
-      0x03B5: prtstr("MM_JOY1BUTTONDOWN");
-      0x03B6: prtstr("MM_JOY2BUTTONDOWN");
-      0x03B7: prtstr("MM_JOY1BUTTONUP");
-      0x03B8: prtstr("MM_JOY2BUTTONUP");
-      else prtstr("???")
+        case 0x0000: prtstr("WM_NULL"); break;
+        case 0x0001: prtstr("WM_CREATE"); break;
+        case 0x0002: prtstr("WM_DESTROY"); break;
+        case 0x0003: prtstr("WM_MOVE"); break;
+        case 0x0005: prtstr("WM_SIZE"); break;
+        case 0x0006: prtstr("WM_ACTIVATE"); break;
+        case 0x0007: prtstr("WM_SETFOCUS"); break;
+        case 0x0008: prtstr("WM_KILLFOCUS"); break;
+        case 0x000A: prtstr("WM_ENABLE"); break;
+        case 0x000B: prtstr("WM_SETREDRAW"); break;
+        case 0x000C: prtstr("WM_SETTEXT"); break;
+        case 0x000D: prtstr("WM_GETTEXT"); break;
+        case 0x000E: prtstr("WM_GETTEXTLENGTH"); break;
+        case 0x000F: prtstr("WM_PAINT"); break;
+        case 0x0010: prtstr("WM_CLOSE"); break;
+        case 0x0011: prtstr("WM_QUERYENDSESSION"); break;
+        case 0x0012: prtstr("WM_QUIT"); break;
+        case 0x0013: prtstr("WM_QUERYOPEN"); break;
+        case 0x0014: prtstr("WM_ERASEBKGND"); break;
+        case 0x0015: prtstr("WM_SYSCOLORCHANGE"); break;
+        case 0x0016: prtstr("WM_ENDSESSION"); break;
+        case 0x0018: prtstr("WM_SHOWWINDOW"); break;
+        case 0x001A: prtstr("WM_WININICHANGE"); break;
+        case 0x001B: prtstr("WM_DEVMODECHANGE"); break;
+        case 0x001C: prtstr("WM_ACTIVATEAPP"); break;
+        case 0x001D: prtstr("WM_FONTCHANGE"); break;
+        case 0x001E: prtstr("WM_TIMECHANGE"); break;
+        case 0x001F: prtstr("WM_CANCELMODE"); break;
+        case 0x0020: prtstr("WM_SETCURSOR"); break;
+        case 0x0021: prtstr("WM_MOUSEACTIVATE"); break;
+        case 0x0022: prtstr("WM_CHILDACTIVATE"); break;
+        case 0x0023: prtstr("WM_QUEUESYNC"); break;
+        case 0x0024: prtstr("WM_GETMINMAXINFO"); break;
+        case 0x0026: prtstr("WM_PAINTICON"); break;
+        case 0x0027: prtstr("WM_ICONERASEBKGND"); break;
+        case 0x0028: prtstr("WM_NEXTDLGCTL"); break;
+        case 0x002A: prtstr("WM_SPOOLERSTATUS"); break;
+        case 0x002B: prtstr("WM_DRAWITEM"); break;
+        case 0x002C: prtstr("WM_MEASUREITEM"); break;
+        case 0x002D: prtstr("WM_DELETEITEM"); break;
+        case 0x002E: prtstr("WM_VKEYTOITEM"); break;
+        case 0x002F: prtstr("WM_CHARTOITEM"); break;
+        case 0x0030: prtstr("WM_SETFONT"); break;
+        case 0x0031: prtstr("WM_GETFONT"); break;
+        case 0x0032: prtstr("WM_SETHOTKEY"); break;
+        case 0x0033: prtstr("WM_GETHOTKEY"); break;
+        case 0x0037: prtstr("WM_QUERYDRAGICON"); break;
+        case 0x0039: prtstr("WM_COMPAREITEM"); break;
+        case 0x0041: prtstr("WM_COMPACTING"); break;
+        case 0x0042: prtstr("WM_OTHERWINDOWCREATED"); break;
+        case 0x0043: prtstr("WM_OTHERWINDOWDESTROYED"); break;
+        case 0x0044: prtstr("WM_COMMNOTIFY"); break;
+        case 0x0045: prtstr("WM_HOTKEYEVENT"); break;
+        case 0x0046: prtstr("WM_WINDOWPOSCHANGING"); break;
+        case 0x0047: prtstr("WM_WINDOWPOSCHANGED"); break;
+        case 0x0048: prtstr("WM_POWER"); break;
+        case 0x004A: prtstr("WM_COPYDATA"); break;
+        case 0x004B: prtstr("WM_CANCELJOURNAL"); break;
+        case 0x004E: prtstr("WM_NOTIFY"); break;
+        case 0x0050: prtstr("WM_INPUTLANGCHANGEREQUEST"); break;
+        case 0x0051: prtstr("WM_INPUTLANGCHANGE"); break;
+        case 0x0052: prtstr("WM_TCARD"); break;
+        case 0x0053: prtstr("WM_HELP"); break;
+        case 0x0054: prtstr("WM_USERCHANGED"); break;
+        case 0x0055: prtstr("WM_NOTIFYFORMAT"); break;
+        case 0x007B: prtstr("WM_CONTEXTMENU"); break;
+        case 0x007C: prtstr("WM_STYLECHANGING"); break;
+        case 0x007D: prtstr("WM_STYLECHANGED"); break;
+        case 0x007E: prtstr("WM_DISPLAYCHANGE"); break;
+        case 0x007F: prtstr("WM_GETICON"); break;
+        case 0x0080: prtstr("WM_SETICON"); break;
+        case 0x0081: prtstr("WM_NCCREATE"); break;
+        case 0x0082: prtstr("WM_NCDESTROY"); break;
+        case 0x0083: prtstr("WM_NCCALCSIZE"); break;
+        case 0x0084: prtstr("WM_NCHITTEST"); break;
+        case 0x0085: prtstr("WM_NCPAINT"); break;
+        case 0x0086: prtstr("WM_NCACTIVATE"); break;
+        case 0x0087: prtstr("WM_GETDLGCODE"); break;
+        case 0x00A0: prtstr("WM_NCMOUSEMOVE"); break;
+        case 0x00A1: prtstr("WM_NCLBUTTONDOWN"); break;
+        case 0x00A2: prtstr("WM_NCLBUTTONUP"); break;
+        case 0x00A3: prtstr("WM_NCLBUTTONDBLCLK"); break;
+        case 0x00A4: prtstr("WM_NCRBUTTONDOWN"); break;
+        case 0x00A5: prtstr("WM_NCRBUTTONUP"); break;
+        case 0x00A6: prtstr("WM_NCRBUTTONDBLCLK"); break;
+        case 0x00A7: prtstr("WM_NCMBUTTONDOWN"); break;
+        case 0x00A8: prtstr("WM_NCMBUTTONUP"); break;
+        case 0x00A9: prtstr("WM_NCMBUTTONDBLCLK"); break;
+    /*  case 0x0100: prtstr("WM_KEYFIRST"); break;*/
+        case 0x0100: prtstr("WM_KEYDOWN"); break;
+        case 0x0101: prtstr("WM_KEYUP"); break;
+        case 0x0102: prtstr("WM_CHAR"); break;
+        case 0x0103: prtstr("WM_DEADCHAR"); break;
+        case 0x0104: prtstr("WM_SYSKEYDOWN"); break;
+        case 0x0105: prtstr("WM_SYSKEYUP"); break;
+        case 0x0106: prtstr("WM_SYSCHAR"); break;
+        case 0x0107: prtstr("WM_SYSDEADCHAR"); break;
+        case 0x0108: prtstr("WM_KEYLAST"); break;
+        case 0x0109: prtstr("WM_UNICHAR"); break;
+        case 0x0110: prtstr("WM_INITDIALOG"); break;
+        case 0x0111: prtstr("WM_COMMAND"); break;
+        case 0x0112: prtstr("WM_SYSCOMMAND"); break;
+        case 0x0113: prtstr("WM_TIMER"); break;
+        case 0x0114: prtstr("WM_HSCROLL"); break;
+        case 0x0115: prtstr("WM_VSCROLL"); break;
+        case 0x0116: prtstr("WM_INITMENU"); break;
+        case 0x0117: prtstr("WM_INITMENUPOPUP"); break;
+        case 0x011F: prtstr("WM_MENUSELECT"); break;
+        case 0x0120: prtstr("WM_MENUCHAR"); break;
+        case 0x0121: prtstr("WM_ENTERIDLE"); break;
+        case 0x0132: prtstr("WM_CTLCOLORMSGBOX"); break;
+        case 0x0133: prtstr("WM_CTLCOLOREDIT"); break;
+        case 0x0134: prtstr("WM_CTLCOLORLISTBOX"); break;
+        case 0x0135: prtstr("WM_CTLCOLORBTN"); break;
+        case 0x0136: prtstr("WM_CTLCOLORDLG"); break;
+        case 0x0137: prtstr("WM_CTLCOLORSCROLLBAR"); break;
+        case 0x0138: prtstr("WM_CTLCOLORSTATIC"); break;
+     /*   case 0x0200: prtstr("WM_MOUSEFIRST"); break; */
+        case 0x0200: prtstr("WM_MOUSEMOVE"); break;
+        case 0x0201: prtstr("WM_LBUTTONDOWN"); break;
+        case 0x0202: prtstr("WM_LBUTTONUP"); break;
+        case 0x0203: prtstr("WM_LBUTTONDBLCLK"); break;
+        case 0x0204: prtstr("WM_RBUTTONDOWN"); break;
+        case 0x0205: prtstr("WM_RBUTTONUP"); break;
+        case 0x0206: prtstr("WM_RBUTTONDBLCLK"); break;
+        case 0x0207: prtstr("WM_MBUTTONDOWN"); break;
+        case 0x0208: prtstr("WM_MBUTTONUP"); break;
+        case 0x0209: prtstr("WM_MBUTTONDBLCLK"); break;
+      /*   case 0x0209: prtstr("WM_MOUSELAST"); break; */
+        case 0x0210: prtstr("WM_PARENTNOTIFY"); break;
+        case 0x0211: prtstr("WM_ENTERMENULOOP"); break;
+        case 0x0212: prtstr("WM_EXITMENULOOP"); break;
+        case 0x0220: prtstr("WM_MDICREATE"); break;
+        case 0x0221: prtstr("WM_MDIDESTROY"); break;
+        case 0x0222: prtstr("WM_MDIACTIVATE"); break;
+        case 0x0223: prtstr("WM_MDIRESTORE"); break;
+        case 0x0224: prtstr("WM_MDINEXT"); break;
+        case 0x0225: prtstr("WM_MDIMAXIMIZE"); break;
+        case 0x0226: prtstr("WM_MDITILE"); break;
+        case 0x0227: prtstr("WM_MDICASCADE"); break;
+        case 0x0228: prtstr("WM_MDIICONARRANGE"); break;
+        case 0x0229: prtstr("WM_MDIGETACTIVE"); break;
+        case 0x0230: prtstr("WM_MDISETMENU"); break;
+        case 0x0231: prtstr("WM_ENTERSIZEMOVE"); break;
+        case 0x0232: prtstr("WM_EXITSIZEMOVE"); break;
+        case 0x0233: prtstr("WM_DROPFILES"); break;
+        case 0x0234: prtstr("WM_MDIREFRESHMENU"); break;
+        case 0x0300: prtstr("WM_CUT"); break;
+        case 0x0301: prtstr("WM_COPY"); break;
+        case 0x0302: prtstr("WM_PASTE"); break;
+        case 0x0303: prtstr("WM_CLEAR"); break;
+        case 0x0304: prtstr("WM_UNDO"); break;
+        case 0x0305: prtstr("WM_RENDERFORMAT"); break;
+        case 0x0306: prtstr("WM_RENDERALLFORMATS"); break;
+        case 0x0307: prtstr("WM_DESTROYCLIPBOARD"); break;
+        case 0x0308: prtstr("WM_DRAWCLIPBOARD"); break;
+        case 0x0309: prtstr("WM_PAINTCLIPBOARD"); break;
+        case 0x030A: prtstr("WM_VSCROLLCLIPBOARD"); break;
+        case 0x030B: prtstr("WM_SIZECLIPBOARD"); break;
+        case 0x030C: prtstr("WM_ASKCBFORMATNAME"); break;
+        case 0x030D: prtstr("WM_CHANGECBCHAIN"); break;
+        case 0x030E: prtstr("WM_HSCROLLCLIPBOARD"); break;
+        case 0x030F: prtstr("WM_QUERYNEWPALETTE"); break;
+        case 0x0310: prtstr("WM_PALETTEISCHANGING"); break;
+        case 0x0311: prtstr("WM_PALETTECHANGED"); break;
+        case 0x0312: prtstr("WM_HOTKEY"); break;
+        case 0x0380: prtstr("WM_PENWINFIRST"); break;
+        case 0x038F: prtstr("WM_PENWINLAST"); break;
+        case 0x03A0: prtstr("MM_JOY1MOVE"); break;
+        case 0x03A1: prtstr("MM_JOY2MOVE"); break;
+        case 0x03A2: prtstr("MM_JOY1ZMOVE"); break;
+        case 0x03A3: prtstr("MM_JOY2ZMOVE"); break;
+        case 0x03B5: prtstr("MM_JOY1BUTTONDOWN"); break;
+        case 0x03B6: prtstr("MM_JOY2BUTTONDOWN"); break;
+        case 0x03B7: prtstr("MM_JOY1BUTTONUP"); break;
+        case 0x03B8: prtstr("MM_JOY2BUTTONUP"); break;
+        default: prtstr("???"); break;
 
-   }
+    }
 
-};
+}
 
 /*******************************************************************************
 
@@ -6736,21 +6732,21 @@ This routine is for diagnostic use. Comment it out on production builds.
 
 *******************************************************************************/
 
-void prtmsg(var m: msg);
+void prtmsg(MSG m)
 
 {
 
-   prtstr("handle: ");
-   prtnum(m.hwnd, 8, 16);
-   prtstr(" message: ");
-   prtmsgstr(m.message);
-   prtstr(" wparam: ");
-   prtnum(m.wparam, 8, 16);
-   prtstr(" lparam: ");
-   prtnum(m.lparam, 8, 16);
-   prtstr("\cr\lf")
+    prtstr("handle: ");
+    prtnum(m.hwnd, 8, 16);
+    prtstr(" message: ");
+    prtmsgstr(m.message);
+    prtstr(" wparam: ");
+    prtnum(m.wparam, 8, 16);
+    prtstr(" lparam: ");
+    prtnum(m.lparam, 8, 16);
+    prtstr("\cr\lf");
 
-};
+}
 
 /*******************************************************************************
 
@@ -6760,39 +6756,30 @@ This routine is for diagnostic use. Comment it out on production builds.
 
 *******************************************************************************/
 
-void prtmsgu(hwnd, imsg, wparam, lparam: int);
+void prtmsgu(int hwnd, int imsg, int wparam, int lparam)
 
 {
 
-   prtstr("handle: ");
-   prtnum(hwnd, 8, 16);
-   prtstr(" message: ");
-   prtmsgstr(imsg);
-   prtstr(" wparam: ");
-   prtnum(wparam, 8, 16);
-   prtstr(" lparam: ");
-   prtnum(lparam, 8, 16);
-   prtstr("\cr\lf")
+    prtstr("handle: ");
+    prtnum(hwnd, 8, 16);
+    prtstr(" message: ");
+    prtmsgstr(imsg);
+    prtstr(" wparam: ");
+    prtnum(wparam, 8, 16);
+    prtstr(" lparam: ");
+    prtnum(lparam, 8, 16);
+    prtstr("\cr\lf")
 
-};
+}
 
 /*******************************************************************************
 
 Aquire next input event
 
-Waits for && returns the next event. For now, the input file is ignored, and
+Waits for end returns the next event. For now, the input file is ignored, and
 the standard input handle allways used.
 
 *******************************************************************************/
-
-void ievent(ifn: ss_filhdl; var er: evtrec);
-
-var msg:    msg;    /* windows message */
-    keep:   int;   /* keep event flag */
-    win:    winptr;    /* pointer to windows structure */
-    ofn:    ss_filhdl; /* file handle from incoming message */
-    ep:     eqeptr;    /* event queuing pointer */
-    b:      int;   /* return value */
 
 /*
 
@@ -6808,9 +6795,9 @@ etrightw  cntrl-right arrow   right one word
 ethome    cntrl-home          home of document
 ethomes   shift-home          home of screen
 ethomel   home                home of line
-et}     cntrl-}           } of document
-et}s    shift-}           } of screen
-et}l    }                 } of line
+etend     cntrl-end           end of document
+etends    shift-end           end of screen
+etendl    end                 end of line
 etscrl    shift-left arrow    scroll left one character
 etscrr    shift-right arrow   scroll right one character
 etscru    cntrl-up arrow      scroll up one line
@@ -6836,215 +6823,180 @@ etprintb  cntrl-f2            print block
 etprints  cntrl-f3            print screen
 etfun     f1-f12              int keys
 etmenu    alt                 display menu
-et}     cntrl-c             terminate program
+etend     cntrl-c             terminate program
 
-This is equivalent to the CUA || Common User Access keyboard mapPIng with
+This is equivalent to the CUA or Common User Access keyboard mapping with
 various local extentions.
 
 */
 
-void keyevent;
+void keyevent(evtrec* er, MSG* msg, int* keep)
 
 {
 
-   if chr(msg.wparam) == "\cr"  er.etype = etenter /* set enter line */
-   else if chr(msg.wparam) == "\bs"
-      er.etype = etdelcb /* set delete character backwards */
-   else if chr(msg.wparam) == "\ht"  er.etype = ettab /* set tab */
-   else if chr(msg.wparam) == "\etx"  {
+   if (msg->wparam == '\r') er->etype = etenter; /* set enter line */
+   else if (msg->wparam == '\b')
+      er->etype = etdelcb; /* set delete character backwards */
+   else if (msg->wparam == '\t') er->etype = ettab; /* set tab */
+   else if (msg->wparam == 0x03) /*etx*/  {
 
-      er.etype = etterm; /* set } program */
-      f} = TRUE /* set } was ordered */
+      er->etype = etterm; /* set } program */
+      fend = TRUE /* set } was ordered */
 
-   } else if chr(msg.wparam) == "\xoff"
-      er.etype = etstop /* set stop program */
-   else if chr(msg.wparam) == "\xon"
-      er.etype = etcont /* set continue program */
-   else if chr(msg.wparam) == "\esc"
-      er.etype = etcan /* set cancel operation */
+   } else if (msg->wparam == 0x13) /* xoff */
+      er->etype = etstop; /* set stop program */
+   else if (msg->wparam == 0x11) /* xon */
+      er->etype = etcont; /* set continue program */
+   else if (msg.wparam == 0x1b) /* esc */
+      er->etype = etcan; /* set cancel operation */
    else { /* normal character */
 
-      er.etype = etchar; /* set character event */
-      er.char = chr(msg.wparam)
+      er->etype = etchar; /* set character event */
+      er->echar = msg.wparam;
 
-   };
-   keep = TRUE /* set keep event */
+   }
+   *keep = TRUE; /* set keep event */
 
-};
+}
 
-void ctlevent;
+void ctlevent(winptr win, evtrec* er, MSG* msg, int* keep)
 
 {
 
-   with win^ do { /* in window context */
+    /* find key we process *//
+    switch (msg->wparam) { /* key */
+        case vk_home: /* home */
+            if (win->cntrl) er->etype = ethome; /* home document */
+            else if (win->shift) er->etype = ethomes; /* home screen */
+            else er->etype = ethomel; /* home line */
+            break;
 
-      if msg.wparam <= 0xff
-         /* limited to codes we can put in a set */
-         if msg.wparam in
-            [vk_home, vk_}, vk_left, vk_right,
-             vk_up, vk_down, vk_insert, vk_delete,
-             vk_prior, vk_next, vk_f1..vk_f12,
-             vk_menu, vk_cancel]  {
+        case vk_end: /* end */
+            if (win->cntrl) er->etype = etend; /* } document */
+            else if (win->shift) er->etype = etends; /* } screen */
+            else er->etype = etendl; /* } line */
+            break;
 
-         /* this key is one we process */
-         case msg.wparam of /* key */
+        case vk_up: /* up */
+            if (win->cntrl) er->etype = etscru; /* scroll up */
+            else er->etype = etup; /* up line */
+            break;
 
-            vk_home: { /* home */
+        case vk_down: /* down */
+            if (win->cntrl) er->etype = etscrd; /* scroll down */
+            else er->etype = etdown; /* up line */
+            break;
 
-               if cntrl  er.etype = ethome /* home document */
-               else if shift  er.etype = ethomes /* home screen */
-               else er.etype = ethomel /* home line */
+        case vk_left: /* left */
+            if (win->cntrl) er->etype = etleftw; /* left one word */
+            else if (win->shift) er->etype = etscrl; /* scroll left one character */
+            else er->etype = etleft; /* left one character */
+            break;
 
-            };
-            vk_}: { /* } */
+        case vk_right: /* right */
+            if (win->cntrl) er->etype = etrightw; /* right one word */
+            else if (win->shift) er->etype = etscrr; /* scroll right one character */
+            else er->etype = etright; /* left one character */
+            break;
 
-               if cntrl  er.etype = et} /* } document */
-               else if shift  er.etype = et}s /* } screen */
-               else er.etype = et}l /* } line */
+        case vk_insert: /* insert */
+            if (win->cntrl) er->etype = etinsert; /* insert block */
+            else if (win->shift) er->etype = etinsertl; /* insert line */
+            else er->etype = etinsertt; /* insert toggle */
+            break;
 
-            };
-            vk_up: { /* up */
+        case vk_delete: /* delete */
+            if (win->cntrl) er->etype = etdel; /* delete block */
+            else if (win->shift) er->etype = etdell; /* delete line */
+            else er->etype = etdelcf; /* insert toggle */
+            break;
 
-               if cntrl  er.etype = etscru /* scroll up */
-               else er.etype = etup /* up line */
+        case vk_prior: er->etype = etpagu; /* page up */
+        case vk_next: er->etype = etpagd; /* page down */
+        case vk_f1: /* f1 */
+            if (win->cntrl) er->etype = etcopy /* copy block */
+            else if (win->shift) er->etype = etcopyl; /* copy line */
+            else { /* f1 */
 
-            };
-            vk_down: { /* down */
+                er->etype = etfun;
+                er->fkey = 1;
 
-               if cntrl  er.etype = etscrd /* scroll down */
-               else er.etype = etdown /* up line */
+            }
+            break;
 
-            };
-            vk_left: { /* left */
+        case vk_f2: /* f2 */
+            if (win->cntrl) er->etype = etprintb; /* print block */
+            else if (win->shift) er->etype = etprint; /* print document */
+            else { /* f2 */
 
-               if cntrl  er.etype = etleftw /* left one word */
-               else if shift  er.etype = etscrl /* scroll left one character */
-               else er.etype = etleft /* left one character */
+                er->etype = etfun;
+                er->fkey = 2;
 
-            };
-            vk_right: { /* right */
+            }
+            break;
 
-               if cntrl  er.etype = etrightw /* right one word */
-               else if shift  er.etype = etscrr /* scroll right one character */
-               else er.etype = etright /* left one character */
+        case vk_f3: /* f3 */
+            if (win->cntrl) er->etype = etprints; /* print screen */
+            else { /* f3 */
 
-            };
-            vk_insert: { /* insert */
+                er->etype = etfun;
+                er->fkey = 3;
 
-               if cntrl  er.etype = etinsert /* insert block */
-               else if shift  er.etype = etinsertl /* insert line */
-               else er.etype = etinsertt /* insert toggle */
+            }
+            break;
 
-            };
-            vk_delete: { /* delete */
+        case vk_f4: /* f4 */
+            er->etype = etfun;
+            er->fkey = 4;
+            break;
 
-               if cntrl  er.etype = etdel /* delete block */
-               else if shift  er.etype = etdell /* delete line */
-               else er.etype = etdelcf /* insert toggle */
+        case vk_f5: /* f5 */
+            er->etype = etfun;
+            er->fkey = 5;
+            break;
 
-            };
-            vk_prior: er.etype = etpagu; /* page up */
-            vk_next: er.etype = etpagd; /* page down */
-            vk_f1: { /* f1 */
+        case vk_f6: /* f6 */
+            er->etype = etfun;
+            er->fkey = 6;
+            break;
 
-               if cntrl  er.etype = etcopy /* copy block */
-               else if shift  er.etype = etcopyl /* copy line */
-               else { /* f1 */
+        case vk_f7: /* f7 */
+            er->etype = etfun;
+            er->fkey = 7;
+            break;
 
-                  er.etype = etfun;
-                  er.fkey = 1
+        case vk_f8: /* f8 */
+            er->etype = etfun;
+            er->fkey = 8;
+            break;
 
-               }
+        case vk_f9: /* f9 */
+            er->etype = etfun;
+            er->fkey = 9;
+            break;
 
-            };
-            vk_f2: { /* f2 */
+        case vk_f10: /* f10 */
+            er->etype = etfun;
+            er->fkey = 10;
+            break;
 
-               if cntrl  er.etype = etprintb /* print block */
-               else if shift  er.etype = etprint /* print document */
-               else { /* f2 */
+        case vk_f11: /* f11 */
+            er->etype = etfun;
+            er->fkey = 11;
+            break;
 
-                  er.etype = etfun;
-                  er.fkey = 2
+        case vk_f12: /* f12 */
+            er->etype = etfun;
+            er->fkey = 12;
+            break;
 
-               }
+        case vk_menu: er->etype = etmenu; break; /* alt */
+        case vk_cancel: er->etype = etterm; break; /* ctl-brk */
 
-            };
-            vk_f3: { /* f3 */
+    }
+    *keep = TRUE; /* set keep event */
 
-               if cntrl  er.etype = etprints /* print screen */
-               else { /* f3 */
-
-                  er.etype = etfun;
-                  er.fkey = 3
-
-               }
-
-            };
-            vk_f4: { /* f4 */
-
-               er.etype = etfun;
-               er.fkey = 4
-
-            };
-            vk_f5: { /* f5 */
-
-               er.etype = etfun;
-               er.fkey = 5
-
-            };
-            vk_f6: { /* f6 */
-
-               er.etype = etfun;
-               er.fkey = 6
-
-            };
-            vk_f7: { /* f7 */
-
-               er.etype = etfun;
-               er.fkey = 7
-
-            };
-            vk_f8: { /* f8 */
-
-               er.etype = etfun;
-               er.fkey = 8
-
-            };
-            vk_f9: { /* f9 */
-
-               er.etype = etfun;
-               er.fkey = 9
-
-            };
-            vk_f10: { /* f10 */
-
-               er.etype = etfun;
-               er.fkey = 10
-
-            };
-            vk_f11: { /* f11 */
-
-               er.etype = etfun;
-               er.fkey = 11
-
-            };
-            vk_f12: { /* f12 */
-
-               er.etype = etfun;
-               er.fkey = 12
-
-            };
-            vk_menu: er.etype = etmenu; /* alt */
-            vk_cancel: er.etype = etterm; /* ctl-brk */
-
-         };
-         keep = TRUE /* set keep event */
-
-      }
-
-   }
-
-};
+}
 
 /*
 
@@ -7062,747 +7014,718 @@ contempt for the whole double click concept.
 
 /* update mouse parameters */
 
-void mouseupdate;
+void mouseupdate(winptr win, evtrec* er, int* keep)
 
 {
 
-   with win^ do { /* in window context */
+    /* we prioritize events by: movements 1st, button clicks 2nd */
+    if (win->nmpx != win->mpx || win->nmpy != win->mpy) {
 
-      /* we prioritize events by: movements 1st, button clicks 2nd */
-      if (nmpx <> mpx) || (nmpy <> mpy)  { /* create movement event */
+      /* create movement event */
+       er.etype = etmoumov; /* set movement event */
+       er.mmoun = 1; /* mouse 1 */
+       er.moupx = win->nmpx; /* set new mouse position */
+       er.moupy = win->nmpy;
+       win->mpx = win->nmpx; /* save new position */
+       win->mpy = win->nmpy;
+       *keep = TRUE; /* set to keep */
 
-         er.etype = etmoumov; /* set movement event */
-         er.mmoun = 1; /* mouse 1 */
-         er.moupx = nmpx; /* set new mouse position */
-         er.moupy = nmpy;
-         mpx = nmpx; /* save new position */
-         mpy = nmpy;
-         keep = TRUE /* set to keep */
+    } else if (win->nmpxg != mpxg) || (nmpyg != mpyg) {
 
-      } else if (nmpxg <> mpxg) || (nmpyg <> mpyg)  {
+       /* create graphical movement event */
+       er.etype = etmoumovg; /* set movement event */
+       er.mmoung = 1; /* mouse 1 */
+       er.moupxg = win->nmpxg; /* set new mouse position */
+       er.moupyg = win->nmpyg;
+       win->mpxg = win->nmpxg; /* save new position */
+       win->mpyg = win->nmpyg;
+       *keep = TRUE; /* set to keep */
 
-         /* create graphical movement event */
-         er.etype = etmoumovg; /* set movement event */
-         er.mmoung = 1; /* mouse 1 */
-         er.moupxg = nmpxg; /* set new mouse position */
-         er.moupyg = nmpyg;
-         mpxg = nmpxg; /* save new position */
-         mpyg = nmpyg;
-         keep = TRUE /* set to keep */
+    } else if (win->nmb1 > win->mb1) {
 
-      } else if nmb1 > mb1  {
+       er.etype = etmouba; /* button 1 assert */
+       er.amoun = 1; /* mouse 1 */
+       er.amoubn = 1; /* button 1 */
+       win->mb1 = win->nmb1; /* update status */
+       *keep = TRUE; /* set to keep */
 
-         er.etype = etmouba; /* button 1 assert */
-         er.amoun = 1; /* mouse 1 */
-         er.amoubn = 1; /* button 1 */
-         mb1 = nmb1; /* update status */
-         keep = TRUE /* set to keep */
+    } else if (win->nmb2 > win->mb2) {
 
-      } else if nmb2 > mb2  {
+       er.etype = etmouba; /* button 2 assert */
+       er.amoun = 1; /* mouse 1 */
+       er.amoubn = 2; /* button 2 */
+       win->mb2 = win->nmb2; /* update status */
+       *keep = TRUE; /* set to keep */
 
-         er.etype = etmouba; /* button 2 assert */
-         er.amoun = 1; /* mouse 1 */
-         er.amoubn = 2; /* button 2 */
-         mb2 = nmb2; /* update status */
-         keep = TRUE /* set to keep */
+    } else if (win->nmb3 > win->mb3) {
 
-      } else if nmb3 > mb3  {
+       er.etype = etmouba; /* button 3 assert */
+       er.amoun = 1; /* mouse 1 */
+       er.amoubn = 3; /* button 3 */
+       win->mb3 = win->nmb3; /* update status */
+       *keep = TRUE; /* set to keep */
 
-         er.etype = etmouba; /* button 3 assert */
-         er.amoun = 1; /* mouse 1 */
-         er.amoubn = 3; /* button 3 */
-         mb3 = nmb3; /* update status */
-         keep = TRUE /* set to keep */
+    } else if (win->nmb1 < win->mb1) {
 
-      } else if nmb1 < mb1  {
+       er.etype = etmoubd; /* button 1 deassert */
+       er.dmoun = 1; /* mouse 1 */
+       er.dmoubn = 1; /* button 1 */
+       win->mb1 = win->nmb1; /* update status */
+       *keep = TRUE; /* set to keep */
 
-         er.etype = etmoubd; /* button 1 deassert */
-         er.dmoun = 1; /* mouse 1 */
-         er.dmoubn = 1; /* button 1 */
-         mb1 = nmb1; /* update status */
-         keep = TRUE /* set to keep */
+    } else if (win->nmb2 < win->mb2) {
 
-      } else if nmb2 < mb2  {
+       er.etype = etmoubd; /* button 2 deassert */
+       er.dmoun = 1; /* mouse 1 */
+       er.dmoubn = 2; /* button 2 */
+       win->mb2 = win->nmb2; /* update status */
+       *keep = TRUE; /* set to keep */
 
-         er.etype = etmoubd; /* button 2 deassert */
-         er.dmoun = 1; /* mouse 1 */
-         er.dmoubn = 2; /* button 2 */
-         mb2 = nmb2; /* update status */
-         keep = TRUE /* set to keep */
+    } else if (win->nmb3 < win->mb3) {
 
-      } else if nmb3 < mb3  {
+       er.etype = etmoubd; /* button 3 deassert */
+       er.dmoun = 1; /* mouse 1 */
+       er.dmoubn = 3; /* button 3 */
+       win->mb3 = win->nmb3; /* update status */
+       *keep = TRUE; /* set to keep */
 
-         er.etype = etmoubd; /* button 3 deassert */
-         er.dmoun = 1; /* mouse 1 */
-         er.dmoubn = 3; /* button 3 */
-         mb3 = nmb3; /* update status */
-         keep = TRUE /* set to keep */
+    }
 
-      }
-
-   }
-
-};
+}
 
 /* register mouse status */
 
-void mouseevent;
+void mouseevent(winptr win, MSG* msg)
 
 {
 
-   with win^ do { /* in window context */
+    win->nmpx = msg->lparam%65536/win->charspace+1; /* get mouse x */
+    win->nmpy = msg->lparam/65536/win->linespace+1; /* get mouse y */
+    win->nmpxg = msg->lparam%65536+1; /* get mouse graphical x */
+    win->nmpyg = msg->lparam/65536+1; /* get mouse graphical y */
+    /* set new button statuses */
+    if (msg->message == WM_LBUTTONDOWN) nmb1 = TRUE;
+    if (msg->message == WM_LBUTTONUP) nmb1 = FALSE;
+    if (msg->message == WM_MBUTTONDOWN) nmb2 = TRUE;
+    if (msg->message == WM_MBUTTONUP) nmb2 = FALSE;
+    if (msg->message == WM_RBUTTONDOWN) nmb3 = TRUE;
+    if (msg->message == WM_RBUTTONUP) nmb3 = FALSE;
 
-      nmpx = msg.lparam % 65536 / charspace+1; /* get mouse x */
-      nmpy = msg.lparam / 65536 / linespace+1; /* get mouse y */
-      nmpxg = msg.lparam % 65536+1; /* get mouse graphical x */
-      nmpyg = msg.lparam / 65536+1; /* get mouse graphical y */
-      /* set new button statuses */
-      if msg.message == wm_lbuttondown  nmb1 = TRUE;
-      if msg.message == wm_lbuttonup  nmb1 = FALSE;
-      if msg.message == wm_mbuttondown  nmb2 = TRUE;
-      if msg.message == wm_mbuttonup  nmb2 = FALSE;
-      if msg.message == wm_rbuttondown  nmb3 = TRUE;
-      if msg.message == wm_rbuttonup  nmb3 = FALSE
-
-   }
-
-};
+}
 
 /* queue event to window */
 
-void enqueue(var el: eqeptr; var er: evtrec);
-
-var ep: eqeptr; /* pointer to queue entries */
+void enqueue(eqeptr* el, evtrec* er)
 
 {
 
-   geteqe(ep); /* get a new event container */
-   ep->evt = er; /* copy event to container */
-   /* insert into bubble list */
-   if el == nil  { /* list empty, place as first entry */
+    eqeptr ep; /* pointer to queue entries */
 
-      ep->last = ep; /* tie entry to itself */
-      ep->next = ep
+    geteqe(ep); /* get a new event container */
+    ep->evt = er; /* copy event to container */
+    /* insert into bubble list */
+    if (el == NULL) { /* list empty, place as first entry */
 
-   } else { /* list has entries */
+        ep->last = ep; /* tie entry to itself */
+        ep->next = ep;
 
-      ep->last = el; /* link last to current */
-      ep->next = el->next; /* link next to next of current */
-      el->next = ep /* link current to new */
+    } else { /* list has entries */
 
-   };
-   el = ep /* set that as new root */
-   /* ok, new entries are moving to the last direction, && we remove entries
-     from the next direction. */
+        ep->last = el; /* link last to current */
+        ep->next = el->next; /* link next to next of current */
+        el->next = ep; /* link current to new */
 
-};
+    }
+    el = ep; /* set that as new root */
+    /* ok, new entries are moving to the last direction, and we remove entries
+       from the next direction. */
 
-/* process joystick messages */
-
-void joymes;
+}
 
 /* issue event for changed button */
 
-void updn(bn, bm: int);
+void updn(evtrec* er, MSG* msg, int ofn, int bn, int bm, int* keep)
 
 {
 
    /* if there is already a message processed, enqueue that */
-   if keep  enqueue(opnfil[opnfil[ofn]->inl]->evt, er); /* queue it */
-   if (msg.wparam && bm) <> 0  { /* assert */
+   if (*keep) enqueue(opnfil[opnfil[ofn]->inl]->evt, er); /* queue it */
+   if (msg->wparam && bm) { /* assert */
 
       er.etype = etjoyba; /* set assert */
-      if (msg.message == mm_joy1buttondown) ||
-         (msg.message == mm_joy1buttonup)  er.ajoyn = 1
-      else er.ajoyn = 2;
-      er.ajoybn = bn /* set number */
+      if (msg->message == MM_JOY1BUTTONDOWN ||
+          msg->message == MM_JOY1BUTTONUP) er->ajoyn = 1
+      else er->ajoyn = 2;
+      er->ajoybn = bn; /* set number */
 
    } else { /* deassert */
 
-      er.etype = etjoybd; /* set deassert */
-      if (msg.message == mm_joy1buttondown) ||
-         (msg.message == mm_joy1buttonup)  er.ajoyn = 1
-      else er.ajoyn = 2;
-      er.djoybn = bn /* set number */
+      er->etype = etjoybd; /* set deassert */
+      if (msg->message == MM_JOY1BUTTONDOWN ||
+          msg->message == MM_JOY1BUTTONUP) er.ajoyn = 1
+      else er->ajoyn = 2;
+      er->djoybn = bn; /* set number */
 
-   };
-   keep = TRUE /* set keep event */
+   }
+   *keep = TRUE; /* set keep event */
 
-};
+}
+
+/* process joystick messages */
+
+void joymes(MSG* msg, int ofn)
 
 {
 
    /* register changes on each button */
-   if (msg.wparam && joy_button1chg) <> 0  updn(1, joy_button1);
-   if (msg.wparam && joy_button2chg) <> 0  updn(2, joy_button2);
-   if (msg.wparam && joy_button3chg) <> 0  updn(3, joy_button3);
-   if (msg.wparam && joy_button4chg) <> 0  updn(4, joy_button4)
+   if (msg->wparam & JOY_BUTTON1CHG) updn(msg, ofn, 1, JOY_BUTTON1);
+   if (msg->wparam & JOY_BUTTON2CHG) updn(msg, ofn, 2, JOY_BUTTON2);
+   if (msg->wparam & JOY_BUTTON3CHG) updn(msg, ofn, 3, JOY_BUTTON3);
+   if (msg->wparam & JOY_BUTTON4CHG) updn(msg, ofn, 4, JOY_BUTTON4);
 
-};
+}
 
 /* process windows messages to event */
 
-void winevt;
-
-var cr:         rect; /* client rectangle */
-    wp:         wigptr;  /* widget entry pointer */
-    r:          int; /* result holder */
-    b:          int; /* int result */
-    v:          int; /* value */
-    x, y, z:    int; /* joystick readback */
-    dx, dy, dz: int; /* joystick readback differences */
-    nm:         int; /* notification message */
-    f:          real;    /* floating point temp */
-    i2nmhdrp: record /* convertion record */
-
-       case int of
-
-          TRUE:  (i:  int);
-          FALSE: (rp: ^nmhdr);
-
-    };
+void winevt(winptr win, evtrec* er, MSG* msg, int ofn, int* keep)
 
 {
 
-   with win^ do { /* in window context */
+    RECT   cr;         /* client rectangle */
+    wigptr wp;         /* widget entry pointer */
+    int    r;          /* result holder */
+    int    b;          /* int result */
+    int    v;          /* value */
+    int    x, y, z;    /* joystick readback */
+    int    dx, dy, dz; /* joystick readback differences */
+    int    nm;         /* notification message */
+    float  f;          /* floating point temp */
+    NMHDR* nhp;        /* notification header */
 
-      if msg.message == wm_paint  { /* window paint */
+    if (msg->message == WM_PAINT)  { /* window paint */
 
-         if ! bufmod  { /* our client handles it"s own redraws */
+        if (!win->bufmod) { /* our client handles it"s own redraws */
 
             /* form redraw request */
-            b = getupdaterect(winhan, cr, FALSE);
-            er.etype = etredraw; /* set redraw message */
-            er.rsx = msg.wparam / 0x10000; /* fill the rectangle with update */
-            er.rsy = msg.wparam % 0x10000;
-            er.rex = msg.lparam / 0x10000;
-            er.rey = msg.lparam % 0x10000;
-            keep = TRUE /* set keep event */
+            b = GetUpdateRect(winhan, cr, FALSE);
+            er->etype = pa_etredraw; /* set redraw message */
+            er->rsx = msg->wparam/0x10000; /* fill the rectangle with update */
+            er->rsy = msg->wparam%0x10000;
+            er->rex = msg->lparam/0x10000;
+            er->rey = msg->lparam%0x10000;
+            *keep = TRUE /* set keep event */
 
-         }
+        }
 
-      } else if msg.message == wm_size  { /* resize */
+    } else if (msg->message == WM_SIZE) { /* resize */
 
-         if ! bufmod  { /* main thread handles resizes */
+        if (!win->bufmod) { /* main thread handles resizes */
 
             /* check if maximize, minimize, || exit from either mode */
-            if msg.wparam == size_maximized  {
+            if (msg->wparam == size_maximized)  {
 
-               er.etype = etmax; /* set maximize event */
-               /* save the event ahead of the resize */
-               enqueue(opnfil[opnfil[ofn]->inl]->evt, er) /* queue it */
+                er->etype = pa_etmax; /* set maximize event */
+                /* save the event ahead of the resize */
+                enqueue(opnfil[opnfil[ofn]->inl]->evt, er); /* queue it */
 
-            } else if msg.wparam == size_minimized  {
+            } else if msg->wparam == size_minimized)  {
 
-               er.etype = etmin; /* set minimize event */
-               /* save the event ahead of the resize */
-               enqueue(opnfil[opnfil[ofn]->inl]->evt, er) /* queue it */
+                er->etype = pa_etmin; /* set minimize event */
+                /* save the event ahead of the resize */
+                enqueue(opnfil[opnfil[ofn]->inl]->evt, er) /* queue it */
 
-            } else if (msg.wparam == size_restored) and
-                        ((sizests == size_minimized) or
-                         (sizests == size_maximized))  {
+            } else if (msg->wparam == size_restored &&
+                       (sizests == size_minimized ||
+                        sizests == size_maximized)) {
 
-               /* window is restored, && was minimized || maximized */
-               er.etype = etnorm; /* set normalize event */
-               /* save the event ahead of the resize */
-               enqueue(opnfil[opnfil[ofn]->inl]->evt, er) /* queue it */
+                /* window is restored, && was minimized || maximized */
+                er->etype = pa_etnorm; /* set normalize event */
+                /* save the event ahead of the resize */
+                enqueue(opnfil[opnfil[ofn]->inl]->evt, er); /* queue it */
 
-            };
-            sizests = msg.wparam; /* save size status */
+            }
+            sizests = msg->wparam; /* save size status */
             /* process resize message */
-            gmaxxg = msg.lparam && 0xffff; /* set x size */
-            gmaxyg = msg.lparam / 65536 && 0xffff; /* set y size */
-            gmaxx = gmaxxg / charspace; /* find character size x */
-            gmaxy = gmaxyg / linespace; /* find character size y */
-            screens[curdsp]->maxx = gmaxx; /* copy to screen control */
-            screens[curdsp]->maxy = gmaxy;
-            screens[curdsp]->maxxg = gmaxxg;
-            screens[curdsp]->maxyg = gmaxyg;
+            win->gmaxxg = msg->lparam && 0xffff; /* set x size */
+            win->gmaxyg = msg->lparam / 65536 && 0xffff; /* set y size */
+            win->gmaxx = win->gmaxxg / win->charspace; /* find character size x */
+            win->gmaxy = win->gmaxyg / win->linespace; /* find character size y */
+            win->screens[curdsp]->maxx = win->gmaxx; /* copy to screen control */
+            win->screens[curdsp]->maxy = win->gmaxy;
+            win->screens[curdsp]->maxxg = win->gmaxxg;
+            win->screens[curdsp]->maxyg = win->gmaxyg;
             /* place the resize message */
-            er.etype = etresize; /* set resize message */
-            keep = TRUE; /* set keep event */
+            er->etype = pa_etresize; /* set resize message */
+          *keep = TRUE; /* set keep event */
 
-         }
+        }
 
-      } else if msg.message == wm_char
-         keyevent /* process characters */
-      else if msg.message == wm_keydown  {
+    } else if (msg->message == WM_CHAR) keyevent /* process characters */
+    else if (msg->message == WM_KEYDOWN) {
 
-         if msg.wparam == vk_shift  shift = TRUE; /* set shift active */
-         if msg.wparam == vk_control
-            cntrl = TRUE; /* set control active */
-         ctlevent /* process control character */
+        if (msg->wparam == VK_SHIFT) win->shift = TRUE; /* set shift active */
+        if (msg->wparam == VK_CONTROL) win->cntrl = TRUE; /* set control active */
+        ctlevent(win, er, msg, keep); /* process control character */
 
-      } else if msg.message == wm_keyup  {
+    } else if (msg->message == WM_KEYUP) {
 
-         if msg.wparam == vk_shift
-            shift = FALSE; /* set shift inactive */
-         if msg.wparam == vk_control
-            cntrl = FALSE /* set control inactive */
+        if (msg->wparam == VK_SHIFT) shift = FALSE; /* set shift inactive */
+        if (msg->wparam == VK_CONTROL) cntrl = FALSE; /* set control inactive */
 
-      } else if (msg.message == wm_quit) || (msg.message == wm_close)
-         {
+    } else if (msg->message == WM_QUIT || msg->message == WM_CLOSE) {
 
-         er.etype = etterm; /* set terminate */
-         f} = TRUE; /* set } of program ordered */
-         keep = TRUE /* set keep event */
+        er->etype = etterm; /* set terminate */
+        fend = TRUE; /* set } of program ordered */
+        *keep = TRUE /* set keep event */
 
-      } else if (msg.message == wm_mousemove) or
-                  (msg.message == wm_lbuttondown) or
-                  (msg.message == wm_lbuttonup) or
-                  (msg.message == wm_mbuttondown) or
-                  (msg.message == wm_mbuttonup) or
-                  (msg.message == wm_rbuttondown) or
-                  (msg.message == wm_rbuttonup)  {
+    } else if (msg->message == WM_MOUSEMOVE || msg->message == WM_LBUTTONDOWN ||
+               msg->message == WM_LBUTTONUP || msg->message == WM_MBUTTONDOWN ||
+               msg->message == WM_MBUTTONUP || msg->message == WM_RBUTTONDOWN ||
+               msg->message == WM_RBUTTONUP) {
 
-         mouseevent; /* mouse event */
-         mouseupdate /* check any mouse details need processing */
+        mouseevent(win, msg); /* mouse event */
+        mouseupdate(win, er, keep); /* check any mouse details need processing */
 
-      } else if msg.message == wm_timer  {
+    } else if (msg->message == WM_TIMER) {
 
-         /* check its a standard timer */
-         if (msg.wparam > 0) && (msg.wparam <= MAXTIM)  {
+        /* check its a standard timer */
+        if (msg->wparam > 0 && msg->wparam <= MAXTIM)  {
 
-            er.etype = ettim; /* set timer event occurred */
-            er.timnum = msg.wparam; /* set what timer */
-            keep = TRUE /* set keep event */
+            er->etype = ettim; /* set timer event occurred */
+            er->timnum = msg->wparam; /* set what timer */
+            *keep = TRUE; /* set keep event */
 
-         } else if msg.wparam == FRMTIM  { /* its the framing timer */
+        } else if (msg->wparam == FRMTIM) { /* its the framing timer */
 
-            er.etype = etframe; /* set frame event occurred */
-            keep = TRUE /* set keep event */
+            er->etype = etframe; /* set frame event occurred */
+            *keep = TRUE; /* set keep event */
 
-         }
+        }
 
-      } else if (msg.message == mm_joy1move) or
-                  (msg.message == mm_joy2move) or
-                  (msg.message == mm_joy1zmove) or
-                  (msg.message == mm_joy2zmove)  {
+    } else if (msg->message == MM_JOY1MOVE || msg->message == MM_JOY2MOVE ||
+               msg->message == MM_JOY1ZMOVE || msg->message == MM_JOY2ZMOVE) {
 
-         er.etype = etjoymov; /* set joystick moved */
-         /* set what joystick */
-         if (msg.message == mm_joy1move) ||
-            (msg.message == mm_joy1zmove)  er.mjoyn = 1
-         else er.mjoyn = 2;
-         /* Set all variables to default to same. This way, only the joystick
+        er->etype = etjoymov; /* set joystick moved */
+        /* set what joystick */
+        if (msg->message == MM_JOY1MOVE) || msg->message == MM_JOY1ZMOVE)
+            er->mjoyn = 1;
+        else er->mjoyn = 2;
+        /* Set all variables to default to same. This way, only the joystick
            axes that are actually set by the message are registered. */
-         if (msg.message == mm_joy1move) ||
-            (msg.message == mm_joy1zmove)  {
+        if (msg->message == MM_JOY1MOVE || msg->message == MM_JOY1ZMOVE) {
 
             x = joy1xs;
             y = joy1ys;
-            z = joy1zs
+            z = joy1zs;
 
-         } else {
+        } else {
 
             x = joy2xs;
             y = joy2ys;
-            z = joy2zs
+            z = joy2zs;
 
-         };
-         /* If it"s an x/y move, split the x && y axies parts of the message
+        }
+        /* If it"s an x/y move, split the x and y axies parts of the message
            up. */
-         if (msg.message == mm_joy1move) ||
-            (msg.message == mm_joy2move)  crkmsg(msg.lparam, y, x)
-         /* For z axis, get a single variable. */
-         else z = msg.lparam && 0xffff;
-         /* We perform thresholding on the joystick right here, which is
+        if (msg->message == MM_JOY1MOVE || msg->message == MM_JOY2MOVE)
+            crkmsg(msg->lparam, y, x)
+        /* For z axis, get a single variable. */
+        else z = msg->lparam & 0xffff;
+        /* We perform thresholding on the joystick right here, which is
            limited to 255 steps (same as joystick hardware. find joystick
-           diffs && update */
-         if (msg.message == mm_joy1move) ||
-            (msg.message == mm_joy1zmove)  {
+         diffs && update */
+        if (msg->message == MM_JOY1MOVE || msg->message == MM_JOY1ZMOVE) {
 
             dx = abs(joy1xs-x); /* find differences */
             dy = abs(joy1ys-y);
             dz = abs(joy1zs-z);
             joy1xs = x; /* place old values */
             joy1ys = y;
-            joy1zs = z
+            joy1zs = z;
 
-         } else {
+        } else {
 
             dx = abs(joy2xs-x); /* find differences */
             dy = abs(joy2ys-y);
             dz = abs(joy2zs-z);
             joy2xs = x; /* place old values */
             joy2ys = y;
-            joy2zs = z
+            joy2zs = z;
 
-         };
-         /* now reject moves below the threshold */
-         if (dx > 65535 / 255) || (dy > 65535 / 255) ||
-            (dz > 65535 / 255)  {
+        }
+        /* now reject moves below the threshold */
+        if (dx > 65535 / 255 || dy > 65535 / 255 || dz > 65535 / 255) {
 
             /* scale axies between -INT_MAX..INT_MAX && place */
-            er.joypx = (x - 32767)*(INT_MAX / 32768);
-            er.joypy = (y - 32767)*(INT_MAX / 32768);
-            er.joypz = (z - 32767)*(INT_MAX / 32768);
-            keep = TRUE /* set keep event */
+            er->joypx = (x - 32767)*(INT_MAX / 32768);
+            er->joypy = (y - 32767)*(INT_MAX / 32768);
+            er->joypz = (z - 32767)*(INT_MAX / 32768);
+            *keep = TRUE; /* set keep event */
 
-         }
+        }
 
-      } else if (msg.message == mm_joy1buttondown) or
-                  (msg.message == mm_joy2buttondown) or
-                  (msg.message == mm_joy1buttonup) or
-                  (msg.message == mm_joy2buttonup)  joymes
-      else if msg.message == wm_command  {
+    } else if (msg->message == MM_JOY1BUTTONDOWN ||
+               msg->message == MM_JOY2BUTTONDOWN ||
+               msg->message == MM_JOY1BUTTONUP ||
+               msg->message == MM_JOY2BUTTONUP) joymes();
+    else if (msg->message == WM_COMMAND) {
 
-         if msg.lparam <> 0  { /* it"s a widget */
+        if (msg->lparam) { /* it"s a widget */
 
-            wp = fndwig(win, msg.wparam && 0xffff); /* find the widget */
-            if wp == nil  error(esystem); /* should be in the list */
-            nm = msg.wparam / 0x10000; /* get notification message */
-            case wp->typ of /* widget type */
+            wp = fndwig(win, msg->wparam && 0xffff); /* find the widget */
+            if (wp == NULL) error(esystem); /* should be in the list */
+            nm = msg->wparam / 0x10000; /* get notification message */
+            switch (wp->typ) { /* widget type */
 
-               wtbutton: { /* button */
+                case wtbutton: { /* button */
+                    if nm == bn_clicked  {
 
-                  if nm == bn_clicked  {
+                        er->etype = etbutton; /* set button assert event */
+                        er->butid = wp->id; /* get widget id */
+                        *keep = TRUE; /* set keep event */
 
-                     er.etype = etbutton; /* set button assert event */
-                     er.butid = wp->id; /* get widget id */
-                     keep = TRUE /* set keep event */
+                    }
+                    break;
 
-                  }
+                case wtcheckbox: { /* checkbox */
+                    er->etype = etchkbox; /* set checkbox select event */
+                    er->ckbxid = wp->id; /* get widget id */
+                    *keep = TRUE; /* set keep event */
+                    break;
 
-               };
-               wtcheckbox: { /* checkbox */
+                case wtradiobutton: { /* radio button */
+                    er->etype = etradbut; /* set checkbox select event */
+                    er->radbid = wp->id; /* get widget id */
+                    *keep = TRUE; /* set keep event */
+                    break;
 
-                  er.etype = etchkbox; /* set checkbox select event */
-                  er.ckbxid = wp->id; /* get widget id */
-                  keep = TRUE /* set keep event */
+                case wtgroup: ; /* group box, gives no messages */
+                case wtbackground: ; /* background box, gives no messages */
+                case wtscrollvert: ; /* scrollbar, gives no messages */
+                case wtscrollhoriz: ; /* scrollbar, gives no messages */
+                case wteditbox: ; /* edit box, requires no messages */
+                case wtlistbox: { /* list box */
+                    if (nm == LBN_DBLCLK) {
 
-               };
-               wtradiobutton: { /* radio button */
+                        unlockmain(); /* } exclusive access */
+                        r = sendmessage(wp->han, LB_GETCURSEL, 0, 0);
+                        lockmain(); /* start exclusive access */
+                        if r == -1  error(esystem); /* should be a select */
+                        er->etype = etlstbox; /* set list box select event */
+                        er->lstbid = wp->id; /* get widget id */
+                        er->lstbsl = r+1; /* set selection */
+                        *keep = TRUE; /* set keep event */
 
-                  er.etype = etradbut; /* set checkbox select event */
-                  er.radbid = wp->id; /* get widget id */
-                  keep = TRUE /* set keep event */
+                    }
+                    break;
 
-               };
-               wtgroup: ; /* group box, gives no messages */
-               wtbackground: ; /* background box, gives no messages */
-               wtscrollvert: ; /* scrollbar, gives no messages */
-               wtscrollhoriz: ; /* scrollbar, gives no messages */
-               wteditbox: ; /* edit box, requires no messages */
-               wtlistbox: { /* list box */
+                case wtdropbox: { /* drop box */
+                    if (nm == CBN_SELENDOK) {
 
-                  if nm == LBN_DBLCLK  {
+                        unlockmain(); /* } exclusive access */
+                        r = sendmessage(wp->han, CB_GETCURSEL, 0, 0);
+                        lockmain(); /* start exclusive access */
+                        if r == -1  error(esystem); /* should be a select */
+                        er->etype = etdrpbox; /* set list box select event */
+                        er->drpbid = wp->id; /* get widget id */
+                        er->drpbsl = r+1; /* set selection */
+                        *keep = TRUE; /* set keep event */
 
-                     unlockmain(); /* } exclusive access */
-                     r = s}message(wp->han, lb_getcursel, 0, 0);
-                     lockmain(); /* start exclusive access */
-                     if r == -1  error(esystem); /* should be a select */
-                     er.etype = etlstbox; /* set list box select event */
-                     er.lstbid = wp->id; /* get widget id */
-                     er.lstbsl = r+1; /* set selection */
-                     keep = TRUE /* set keep event */
+                    }
+                    break;
 
-                  }
+                case wtdropeditbox: { /* drop edit box */
+                    if nm == CBN_SELENDOK  {
 
-               };
-               wtdropbox: { /* drop box */
+                        er->etype = etdrebox; /* set list box select event */
+                        er->drebid = wp->id; /* get widget id */
+                        *keep = TRUE; /* set keep event */
 
-                  if nm == CBN_SELENDOK  {
+                    }
+                    break;
 
-                     unlockmain(); /* } exclusive access */
-                     r = s}message(wp->han, cb_getcursel, 0, 0);
-                     lockmain(); /* start exclusive access */
-                     if r == -1  error(esystem); /* should be a select */
-                     er.etype = etdrpbox; /* set list box select event */
-                     er.drpbid = wp->id; /* get widget id */
-                     er.drpbsl = r+1; /* set selection */
-                     keep = TRUE /* set keep event */
-
-                  }
-
-               };
-               wtdropeditbox: { /* drop edit box */
-
-                  if nm == CBN_SELENDOK  {
-
-                     er.etype = etdrebox; /* set list box select event */
-                     er.drebid = wp->id; /* get widget id */
-                     keep = TRUE /* set keep event */
-
-                  }
-
-               };
-               wtslidehoriz: ;
-               wtslidevert: ;
-               wtnumselbox: ;
+                case wtslidehoriz: break;;
+                case wtslidevert: break;;
+                case wtnumselbox: break;;
 
             }
 
-         } else { /* it"s a menu select */
+        } else { /* it"s a menu select */
 
-            er.etype = etmenus; /* set menu select event */
-            er.menuid = msg.wparam && 0xffff; /* get menu id */
-            keep = TRUE /* set keep event */
+            er->etype = etmenus; /* set menu select event */
+            er->menuid = msg->wparam && 0xffff; /* get menu id */
+            *keep = TRUE; /* set keep event */
 
-         }
+        }
 
-      } else if msg.message == wm_vscroll  {
+    } else if (msg->message == WM_VSCROLL)  {
 
-         v = msg.wparam && 0xffff; /* find subcommand */
-         if (v == sb_thumbtrack) or
-            (v == sb_lineup) || (v == sb_linedown) or
-            (v == sb_pageup) || (v == sb_pagedown)  {
+        v = msg->wparam && 0xffff; /* find subcommand */
+        if (v == SB_THUMBTRACK ||
+            v == SB_LINEUP || v == SB_LINEDOWN ||
+            v == SB_PAGEUP || v == SB_PAGEDOWN) {
 
             /* position request */
-            wp = fndwighan(win, msg.lparam); /* find widget tracking entry */
-            if wp == nil  error(esystem); /* should have been found */
-            if wp->typ == wtscrollvert  { /* scroll bar */
+            wp = fndwighan(win, msg->lparam); /* find widget tracking entry */
+            if (wp == NULL) error(esystem); /* should have been found */
+            if (wp->typ == wtscrollvert) { /* scroll bar */
 
-               if v == sb_lineup  {
+                if (v == SB_LINEUP) {
 
-                  er.etype = etsclull; /* line up */
-                  er.sclulid = wp->id
+                    er->etype = etsclull; /* line up */
+                    er->sclulid = wp->id;
 
-               } else if v == sb_linedown  {
+                } else if (v == SB_LINEDOWN) {
 
-                  er.etype = etscldrl; /* line down */
-                  er.scldlid = wp->id
+                    er->etype = etscldrl; /* line down */
+                    er->scldlid = wp->id;
 
-               } else if v == sb_pageup  {
+                } else if (v == SB_PAGEUP) {
 
-                  er.etype = etsclulp; /* page up */
-                  er.scluPId = wp->id
+                    er->etype = etsclulp; /* page up */
+                    er->scluPId = wp->id;
 
-               } else if v == sb_pagedown  {
+                } else if (v == SB_PAGEDOWN) {
 
-                  er.etype = etscldrp; /* page down */
-                  er.scldPId = wp->id
+                    er->etype = etscldrp; /* page down */
+                    er->scldPId = wp->id;
 
-               } else {
+                } else {
 
-                  er.etype = etsclpos; /* set scroll position event */
-                  er.sclPId = wp->id; /* set widget id */
-                  f = msg.wparam / 0x10000; /* get current position to float */
-                  /* clamp to INT_MAX */
-                  if f*INT_MAX/(255-wp->siz) > INT_MAX  er.sclpos = INT_MAX
-                  else er.sclpos = round(f*INT_MAX/(255-wp->siz));
-                  /*er.sclpos = msg.wparam / 65536*0x800000*/ /* get position */
+                    er->etype = etsclpos; /* set scroll position event */
+                    er->sclPId = wp->id; /* set widget id */
+                    f = msg->wparam/0x10000; /* get current position to float */
+                    /* clamp to INT_MAX */
+                    if (f*INT_MAX/(255-wp->siz) > INT_MAX) er->sclpos = INT_MAX;
+                    else er->sclpos = f*INT_MAX/(255-wp->siz);
+                    /*er->sclpos = msg->wparam / 65536*0x800000*/ /* get position */
 
-               };
-               keep = TRUE /* set keep event */
+                }
+                *keep = TRUE; /* set keep event */
 
-            } else if wp->typ == wtslidevert  { /* slider */
+            } else if (wp->typ == wtslidevert) { /* slider */
 
-               er.etype = etsldpos; /* set scroll position event */
-               er.sldPId = wp->id; /* set widget id */
-               /* get position */
-               if v == sb_thumbtrack  /* message includes position */
-                  er.sldpos = msg.wparam / 65536*(INT_MAX / 100)
-               else { /* must retrive the position by message */
+                er->etype = etsldpos; /* set scroll position event */
+                er->sldpid = wp->id; /* set widget id */
+                /* get position */
+                if (v == SB_THUMBTRACK) /* message includes position */
+                    er->sldpos = msg->wparam / 65536*(INT_MAX / 100)
+                else { /* must retrive the position by message */
 
-                  unlockmain(); /* } exclusive access */
-                  r = s}message(wp->han, tbm_getpos, 0, 0);
-                  lockmain(); /* start exclusive access */
-                  er.sldpos = r*(INT_MAX / 100) /* set position */
+                    unlockmain(); /* } exclusive access */
+                    r = sendmessage(wp->han, TBM_GETPOS, 0, 0);
+                    lockmain(); /* start exclusive access */
+                    er->sldpos = r*(INT_MAX/100) /* set position */
 
-               };
-               keep = TRUE /* set keep event */
+                }
+                *keep = TRUE; /* set keep event */
+
+            } else error(esystem); /* should be one of those */
+
+        }
+
+    } else if (msg->message == WM_HSCROLL) {
+
+        v = msg->wparam && 0xffff; /* find subcommand */
+        if (v == SB_THUMBTRACK || v == SB_LINELEFT || v == SB_LINERIGHT ||
+            v == SB_PAGELEFT || v == SB_PAGERIGHT) {
+
+            /* position request */
+            wp = fndwighan(win, msg->lparam); /* find widget tracking entry */
+            if wp == NULL  error(esystem); /* should have been found */
+            if (wp->typ == wtscrollhoriz)  { /* scroll bar */
+
+                if (v == SB_LINELEFT) {
+
+                    er->etype = etsclull; /* line up */
+                    er->sclulid = wp->id;
+
+                } else if (v == SB_LINERIGHT) {
+
+                    er->etype = etscldrl; /* line down */
+                    er->scldlid = wp->id;
+
+                } else if (v == SB_PAGELEFT) {
+
+                    er->etype = etsclulp; /* page up */
+                    er->sclupid = wp->id;
+
+                } else if (v == SB_PAGERIGHT) {
+
+                    er->etype = etscldrp; /* page down */
+                    er->scldpid = wp->id;
+
+                } else {
+
+                    er->etype = etsclpos; /* set scroll position event */
+                    er->sclpid = wp->id; /* set widget id */
+                    er->sclpos = msg->wparam / 65536*0x800000; /* get position */
+
+                }
+                *keep = TRUE; /* set keep event */
+
+            } else if (wp->typ == wtslidehoriz) { /* slider */
+
+                er->etype = etsldpos; /* set scroll position event */
+                er->sldpid = wp->id; /* set widget id */
+                /* get position */
+                if (v == sb_thumbtrack)  /* message includes position */
+                    er->sldpos = msg->wparam / 65536*(INT_MAX / 100)
+                else { /* must retrive the position by message */
+
+                    unlockmain(); /* } exclusive access */
+                    r = sendmessage(wp->han, TBM_GETPOS, 0, 0);
+                    lockmain(); /* start exclusive access */
+                    er->sldpos = r*(INT_MAX / 100) /* set position */
+
+                }
+                *keep = TRUE; /* set keep event */
 
             } else error(esystem) /* should be one of those */
 
-         }
+        }
 
-      } else if msg.message == wm_hscroll  {
+    } else if (msg->message == WM_NOTIFY) {
 
-         v = msg.wparam && 0xffff; /* find subcommand */
-         if (v == sb_thumbtrack) ||
-            (v == sb_lineleft) || (v == sb_lineright) or
-            (v == sb_pageleft) || (v == sb_pageright)  {
-
-            /* position request */
-            wp = fndwighan(win, msg.lparam); /* find widget tracking entry */
-            if wp == nil  error(esystem); /* should have been found */
-            if wp->typ == wtscrollhoriz  { /* scroll bar */
-
-               if v == sb_lineleft  {
-
-                  er.etype = etsclull; /* line up */
-                  er.sclulid = wp->id
-
-               } else if v == sb_lineright  {
-
-                  er.etype = etscldrl; /* line down */
-                  er.scldlid = wp->id
-
-               } else if v == sb_pageleft  {
-
-                  er.etype = etsclulp; /* page up */
-                  er.scluPId = wp->id
-
-               } else if v == sb_pageright  {
-
-                  er.etype = etscldrp; /* page down */
-                  er.scldPId = wp->id
-
-               } else {
-
-                  er.etype = etsclpos; /* set scroll position event */
-                  er.sclPId = wp->id; /* set widget id */
-                  er.sclpos = msg.wparam / 65536*0x800000 /* get position */
-
-               };
-               keep = TRUE /* set keep event */
-
-            } else if wp->typ == wtslidehoriz  { /* slider */
-
-               er.etype = etsldpos; /* set scroll position event */
-               er.sldPId = wp->id; /* set widget id */
-               /* get position */
-               if v == sb_thumbtrack  /* message includes position */
-                  er.sldpos = msg.wparam / 65536*(INT_MAX / 100)
-               else { /* must retrive the position by message */
-
-                  unlockmain(); /* } exclusive access */
-                  r = s}message(wp->han, tbm_getpos, 0, 0);
-                  lockmain(); /* start exclusive access */
-                  er.sldpos = r*(INT_MAX / 100) /* set position */
-
-               };
-               keep = TRUE /* set keep event */
-
-            } else error(esystem) /* should be one of those */
-
-         }
-
-      } else if msg.message == wm_notify  {
-
-         wp = fndwig(win, msg.wparam); /* find widget tracking entry */
-         if wp == nil  error(esystem); /* should have been found */
-         i2nmhdrp.i = msg.lparam; /* convert lparam to record pointer */
-         v = i2nmhdrp.rp->code; /* get code */
-         /* no, I don"t know why this works, || what the -2 code is. Tab controls
-           are giving me multiple indications, && the -2 code is more reliable
-           as a selection indicator. */
-         if v == -2 /*tcn_selchange*/  {
+        wp = fndwig(win, msg->wparam); /* find widget tracking entry */
+        if wp == NULL  error(esystem); /* should have been found */
+        nhp = (NMHDR*)msg->lparam; /* convert lparam to record pointer */
+        v = nhp->code; /* get code */
+        /* no, I don"t know why this works, or what the TCN_SELCHANGE code is.
+           Tab controls are giving me multiple indications, and the
+           TCN_SELCHANGE code is more reliable as a selection indicator. */
+        if (v == TCN_SELCHANGE) {
 
             unlockmain(); /* } exclusive access */
-            r = s}message(wp->han, tcm_getcursel, 0, 0);
+            r = sendmessage(wp->han, tcm_getcursel, 0, 0);
             lockmain(); /* start exclusive access */
-            er.etype = ettabbar; /* set tab bar type */
-            er.tabid = wp->id; /* set id */
-            er.tabsel = r+1; /* set tab number */
-            keep = TRUE /* keep event */
+            er->etype = pa_ettabbar; /* set tab bar type */
+            er->tabid = wp->id; /* set id */
+            er->tabsel = r+1; /* set tab number */
+            *keep = TRUE; /* keep event */
 
-         }
+        }
 
-      } else if msg.message == UMEDITCR  {
+    } else if (msg->message == UMEDITCR) {
 
-         wp = fndwig(win, msg.wparam); /* find widget tracking entry */
-         if wp == nil  error(esystem); /* should have been found */
-         er.etype = etedtbox; /* set edit box complete event */
-         er.edtbid = wp->id; /* get widget id */
-         keep = TRUE /* set keep event */
+        wp = fndwig(win, msg->wparam); /* find widget tracking entry */
+        if wp == NULL  error(esystem); /* should have been found */
+        er->etype = etedtbox; /* set edit box complete event */
+        er->edtbid = wp->id; /* get widget id */
+        *keep = TRUE; /* set keep event */
 
-      } else if msg.message == UMNUMCR  {
+    } else if (msg->message == UMNUMCR) {
 
-         wp = fndwig(win, msg.wparam); /* find widget tracking entry */
-         if wp == nil  error(esystem); /* should have been found */
-         er.etype = etnumbox; /* set number select box complete event */
-         er.numbid = wp->id; /* get widget id */
-         er.numbsl = msg.lparam; /* set number selected */
-         keep = TRUE /* set keep event */
+        wp = fndwig(win, msg->wparam); /* find widget tracking entry */
+        if wp == NULL  error(esystem); /* should have been found */
+        er->etype = etnumbox; /* set number select box complete event */
+        er->numbid = wp->id; /* get widget id */
+        er->numbsl = msg.lparam; /* set number selected */
+        *keep = TRUE; /* set keep event */
 
-      }
+    }
 
-   }
+}
 
-};
-
-void sigevt;
+void sigevt(evtrec* er, MSG* msg, int* keep)
 
 {
 
-   if (msg.message == wm_quit) || (msg.message == wm_close)  {
+    if (msg->message == wm_quit) || (msg->message == wm_close)  {
 
-      er.etype = etterm; /* set terminate */
-      f} = TRUE; /* set } of program ordered */
-      keep = TRUE /* set keep event */
+        er->etype = etterm; /* set terminate */
+        fend = TRUE; /* set end of program ordered */
+        *keep = TRUE; /* set keep event */
 
-   }
+    }
 
-};
+}
 
-{ /* ievent */
+void ievent(int ifn, evtrec* er)
 
-   /* Windows gdi caches, which can cause written graphics to pause uncompleted
-     while we await user input. This next causes a sync-up. */
-   b = gdiflush;
-   /* check there are events waiting on the input queue */
-   if opnfil[ifn]->evt <> nil  with opnfil[ifn]^ do {
+{
 
-      /* We PIck one, && only one, event off the input queue. The messages are
-        removed in fifo order. */
-      ep = evt->next; /* index the entry to dequeue */
-      er = ep->evt; /* get the queued event */
-      /* if this is the last entry in the queue, just empty the list */
-      if ep->next == ep  evt = nil
-      else { /* ! last entry */
+    MSG     msg;  /* windows message */
+    int     keep; /* keep event flag */
+    winptr  win;  /* pointer to windows structure */
+    int     ofn;  /* file handle from incoming message */
+    equeptr ep;   /* event queuing pointer */
+    int     b;    /* return value */
 
-         ep->next->last = ep->last; /* link next to last */
-         ep->last->next = ep->next; /* link last to next */
-         puteqe(ep) /* release entry */
+    /* Windows gdi caches, which can cause written graphics to pause uncompleted
+       while we await user input. This next causes a sync-up. */
+    b = GdiFlush();
+    /* check there are events waiting on the input queue */
+    if (opnfil[ifn]->evt) {
 
-      }
+        /* We PIck one, && only one, event off the input queue. The messages are
+           removed in fifo order. */
+        ep = evt->next; /* index the entry to dequeue */
+        er = ep->evt; /* get the queued event */
+        /* if this is the last entry in the queue, just empty the list */
+        if (ep->next == ep) evt = NULL;
+        else { /* ! last entry */
 
-   } else repeat
+            ep->next->last = ep->last; /* link next to last */
+            ep->last->next = ep->next; /* link last to next */
+            puteqe(ep); /* release entry */
 
-      keep = FALSE; /* set don"t keep by default */
-      /* get next message */
-      getmsg(msg);
-      /* get the logical output file from Windows handle */
-      ofn = hwn2lfn(msg.hwnd);
+        }
+
+    } else do {
+
+        keep = FALSE; /* set don"t keep by default */
+        /* get next message */
+        getmsg(msg);
+        /* get the logical output file from Windows handle */
+        ofn = hwn2lfn(msg.hwnd);
 /*;prtstr("ofn: "); prtnum(ofn, 8, 16); prtstr(" "); prtmsg(msg);*/
-      /* A message can have a window associated with it, || be sent anonymously.
-        Anonymous messages are tyPIcally intertask housekeePIng signals. */
-      if ofn > 0  {
+        /* A message can have a window associated with it, or be sent anonymously.
+           Anonymous messages are typically intertask housekeeping signals. */
+        if ofn > 0  {
 
-         win = lfn2win(ofn); /* index window from output file */
-         er.winid = filwin[ofn]; /* set window id */
-         winevt; /* process messsage */
-         if ! keep  sigevt /* if ! found, try intertask signal */
+            win = lfn2win(ofn); /* index window from output file */
+            er.winid = filwin[ofn]; /* set window id */
+            winevt; /* process messsage */
+            if (!keep) sigevt(er, &msg, &keep); /* if not found, try intertask signal */
 
-      } else sigevt; /* process signal */
-      if keep && (ofn > 0)  { /* we have an event, && ! main */
+        } else sigevt; /* process signal */
+        if (keep && (ofn > 0))  { /* we have an event, and not main */
 
-         /* check && error if no logical input file is linked to this output
-           window */
-         if opnfil[ofn]->inl == 0  error(esystem);
-         if opnfil[ofn]->inl <> ifn  {
+            /* check and error if no logical input file is linked to this output
+               window */
+            if (!opnfil[ofn]->inl) error(esystem);
+            if (opnfil[ofn]->inl != ifn) {
 
-            /* The event is ! for the input agent that is calling us. We will
-              queue the message up on the input file it is int}ed for. Why
-              would this happen ? Only if the program is switching between
-              input channels, since each input is locked to a task. */
-            enqueue(opnfil[opnfil[ofn]->inl]->evt, er);
-            /* Now, keep receiving events until one matches the input file we
-              were looking for. */
-            keep = FALSE
+                /* The event is ! for the input agent that is calling us. We will
+                   queue the message up on the input file it is int}ed for. Why
+                   would this happen ? Only if the program is switching between
+                   input channels, since each input is locked to a task. */
+                enqueue(opnfil[opnfil[ofn]->inl]->evt, er);
+                /* Now, keep receiving events until one matches the input file we
+                   were looking for. */
+                keep = FALSE;
 
-         }
+            }
 
-      }
+        }
 
-   until keep /* until an event we want occurs */
+    } while (!keep); /* until an event we want occurs */
 
-}; /* ievent */
+} /* ievent */
 
 /* external event interface */
 
-void event(FILE* f; var er: evtrec);
+void event(FILE* f, evtrec* er)
 
 {
 
-   lockmain(); /* start exclusive access */
-   /* get logical input file number for input, && get the event for that. */
-   ievent(txt2lfn(f), er); /* process event */
-   unlockmain(); /* end exclusive access */
+    lockmain(); /* start exclusive access */
+    /* get logical input file number for input, && get the event for that. */
+    ievent(txt2lfn(f), er); /* process event */
+    unlockmain(); /* end exclusive access */
 
-};
+}
 
 /*******************************************************************************
 
@@ -7814,73 +7737,72 @@ use of im to just return the entry as acknowledgement.
 
 *******************************************************************************/
 
-void waitim(m: imcode; var ip: imptr);
-
-var done: int; /* done flag */
-    msg:  msg;  /* message */
+void waitim(imcode m, imptr* ip)
 
 {
 
-   done = FALSE; /* set ! done */
-   repeat
+    int done; /* done flag */
+    MSG msg;  /* message */
 
-      igetmsg(msg); /* get next message */
-      if msg.message == UMIM  { /* receive im */
+    done = FALSE; /* set ! done */
+    do {
 
-         ip = (imptr)msg.wparam; /* get im pointer */
-         if ip->im == m  done = TRUE; /* found it */
-         putitm(ip) /* release im entry */
+        igetmsg(msg); /* get next message */
+        if (msg.message == UMIM) { /* receive im */
 
-      }
+            ip = (imptr)msg.wparam; /* get im pointer */
+            if ip->im == m  done = TRUE; /* found it */
+            putitm(ip); /* release im entry */
 
-   until done /* until message found */
+        }
 
-};
+    } while (!done); /* until message found */
+
+}
 
 /*******************************************************************************
 
 Timer handler procedure
 
-Called by the callback thunk set with timesetevent. We are given a user word
+Called by the callback thunk set with TimeSetEvent. We are given a user word
 of data, in which we multiplex the two peices of data we need, the logical
 file number for the window file, from which we get the windows handle, and
 the timer number.
 
 With that data, we  post a message back to the queue, containing the
-gralib number of the timer that went off.
+graph number of the timer that went off.
 
 The reason we multiplex the logical file number is because the windows handle,
 which we need, has a range determined by Windows, && we have to assume it
 occuPIes a full word. The alternatives to multiplexing were to have the timer
-callback thunk be customized, which is a non-standard solution, || use one
+callback thunk be customized, which is a non-standard solution, or use one
 of the other parameters Windows passes to this function, which are not
 documented.
 
 *******************************************************************************/
 
-void timeout(id, msg, usr, dw1, dw2: int);
-
-var fn: ss_filhdl; /* logical file number */
-    wh: int;   /* window handle */
+void timeout(int id, int msg, int usr, int dw1, int dw2)
 
 {
 
-   lockmain(); /* start exclusive access */
-   refer(id, dw1, dw2, msg); /* ! used */
-   fn = usr / MAXTIM; /* get lfn multiplexed in user data */
-   /* Validate it, but do nothing if wrong. We just don"t want to crash on
-     errors here. */
-   if (fn >= 1) && (fn <= ss_MAXFIL)  /* valid lfn */
-      if opnfil[fn] <> nil  /* file is defined */
-         if opnfil[fn]->win <> nil  { /* file has window context */
+    int fn; /* logical file number */
+    int wh; /* window handle */
 
-      wh = opnfil[fn]->win->winhan; /* get window handle */
-      unlockmain(); /* } exclusive access */
-      putmsg(wh, wm_timer, usr % MAXTIM /* multiplexed timer number*/, 0)
+    lockmain(); /* start exclusive access */
+    fn = usr/MAXTIM; /* get lfn multiplexed in user data */
+    /* Validate it, but do nothing if wrong. We just don"t want to crash on
+       errors here. */
+    if (fn >= 1 && fn <= MAXFIL)  /* valid lfn */
+       if (opnfil[fn]) /* file is defined */
+          if (opnfil[fn]->win) { /* file has window context */
 
-   } else unlockmain(); /* end exclusive access */
+        wh = opnfil[fn]->win->winhan; /* get window handle */
+        unlockmain(); /* } exclusive access */
+        putmsg(wh, wm_timer, usr % MAXTIM /* multiplexed timer number*/, 0);
 
-};
+    } else unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -7892,60 +7814,55 @@ This means that a bit more than 24 hours can be measured without using the
 sign.
 
 Timers can be set to repeat, in which case the timer will automatically repeat
-after completion. When the timer matures, it s}s a timer mature event to
+after completion. When the timer matures, it sends a timer mature event to
 the associated input file.
 
 *******************************************************************************/
 
-void itimer(winptr win;    /* file to s} event to */
-                 lf:  ss_filhdl; /* logical file number */
-                 i:   timhan;    /* timer handle */
-                 t:   int;   /* number of tenth-milliseconds to run */
-                 r:   int);  /* timer is to rerun after completion */
-
-var tf: int; /* timer flags */
-    mt: int; /* millisecond time */
+void itimer(winptr win, /* file to s} event to */
+            int    lf,  /* logical file number */
+            int    i,   /* timer handle */
+            int    t,   /* number of tenth-milliseconds to run */
+            int    r)   /* timer is to rerun after completion */
 
 {
 
-   with win^ do { /* in window context */
+    int tf; /* timer flags */
+    int mt; /* millisecond time */
 
-      if (i < 1) || (i > MAXTIM)  error(etimnum); /* bad timer number */
-      mt = t / 10; /* find millisecond time */
-      if mt == 0  mt = 1; /* fell below minimum, must be >= 1 */
-      /* set flags for timer */
-      tf = time_callback_int || time_kill_synchronous;
-      /* set repeat/one shot status */
-      if r  tf = tf || time_periodic
-      else tf = tf || time_oneshot;
-      /* We need both the timer number, && the window number in the handler,
-        but we only have a single callback parameter available. So we mux
-        them together in a word. */
-      timers[i].han =
-         timesetevent(mt, 0, timeout, lf*MAXTIM+i, tf);
-      if timers[i].han == 0  error(etimacc); /* no timer available */
-      timers[i].rep = r; /* set timer repeat flag */
-      /* should check && return an error */
+    if (i < 1 || i > MAXTIM)  error(etimnum); /* bad timer number */
+    mt = t / 10; /* find millisecond time */
+    if (!mt) mt = 1; /* fell below minimum, must be >= 1 */
+    /* set flags for timer */
+    tf = TIME_CALLBACK_FUNCTION | TIME_KILL_SYNCHRONOUS;
+    /* set repeat/one shot status */
+    if (r) tf = tf | TIME_PERIODIC
+    else tf = tf | TIME_ONESHOT;
+    /* We need both the timer number, && the window number in the handler,
+      but we only have a single callback parameter available. So we mux
+      them together in a word. */
+    win->timers[i].han = TimeSetEvent(mt, 0, timeout, lf*MAXTIM+i, tf);
+    if (!win->timers[i].han) error(etimacc); /* no timer available */
+    win->timers[i].rep = r; /* set timer repeat flag */
+    /* should check and return an error */
 
-   }
+}
 
-};
-
-void timer(FILE* f;     /* file to s} event to */
-                    i: timhan;   /* timer handle */
-                    t: int;  /* number of tenth-milliseconds to run */
-                    r: int); /* timer is to rerun after completion */
-
-var winptr win;  /* window pointer */
+void timer(FILE* f, /* file to s} event to */
+           int   i, /* timer handle */
+           int   t, /* number of tenth-milliseconds to run */
+           int   r) /* timer is to rerun after completion */
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* index output file */
-   itimer(win, txt2lfn(f), i, t, r); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* index output file */
+    itimer(win, txt2lfn(f), i, t, r); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -7955,36 +7872,32 @@ Kills a given timer, by it"s id number. Only repeating timers should be killed.
 
 *******************************************************************************/
 
-void ikilltimer(winptr win;  /* file to kill timer on */
-                     i:   timhan); /* handle of timer */
-
-var r: mmresult; /* return value */
+void ikilltimer(winptr win, /* file to kill timer on */
+                int    i)   /* handle of timer */
 
 {
 
-   with win^ do { /* in window context */
+    MMRESULT r; /* return value */
 
-      if (i < 1) || (i > MAXTIM)  error(etimnum); /* bad timer number */
-      r = timekillevent(timers[i].han); /* kill timer */
-      if r <> 0  error(etimacc) /* error */
+    if (i < 1 || i > MAXTIM) error(etimnum); /* bad timer number */
+    r = TimeKillEvent(WIN->timers[i].han); /* kill timer */
+    if (r) error(etimacc); /* error */
 
-   }
+}
 
-};
-
-void killtimer(FILE* f;    /* file to kill timer on */
-                        i: timhan); /* handle of timer */
-
-var winptr win; /* window pointer */
+void killtimer(FILE* f, /* file to kill timer on */
+               int   i) /* handle of timer */
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* index output file */
-   ikilltimer(win, i); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* index output file */
+    ikilltimer(win, i); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -7997,77 +7910,73 @@ of the blanking interval.
 
 *******************************************************************************/
 
-void iframetimer(winptr win; lf: ss_filhdl; e: int);
+void iframetimer(winptr win, int lf, int e)
 
 {
 
-   with win^ do { /* in window context */
+    if (e) { /* enable framing timer */
 
-      if e  { /* enable framing timer */
-
-         if ! frmrun  { /* it is ! running */
+        if (!win->frmrun) { /* it is ! running */
 
             /* set timer to run, 17ms */
-            frmhan = timesetevent(17, 0, timeout, lf*MAXTIM+FRMTIM,
-                                      time_callback_int ||
-                                      time_kill_synchronous or
-                                      time_periodic);
-            if frmhan == 0  error(etimacc); /* error */
-            frmrun = TRUE /* set timer running */
+            win->frmhan = TimeSetEvent(17, 0, timeout, lf*MAXTIM+FRMTIM,
+                                       TIME_CALLBACK_FUNCTION ||
+                                       TIME_KILL_SYNCHRONOUS ||
+                                       TIME_PERIODIC);
+            if (!win->frmhan) error(etimacc); /* error */
+            win->frmrun = TRUE; /* set timer running */
 
-         }
+        }
 
-      } else { /* disable framing timer */
+    } else { /* disable framing timer */
 
-         if frmrun  { /* it is currently running */
+        if (win->frmrun)  { /* it is currently running */
 
-            r = timekillevent(frmhan); /* kill timer */
-            if r <> 0  error(etimacc); /* error */
-            frmrun = FALSE /* set timer ! running */
+            r = TimeKillEvent(frmhan); /* kill timer */
+            if (r) error(etimacc); /* error */
+            win->frmrun = FALSE; /* set timer ! running */
 
-         }
+        }
 
-      }
+    }
 
-   }
+}
 
-};
-
-void frametimer(FILE* f; e: int);
-
-var winptr win; /* window pointer */
+void frametimer(FILE* f, int e)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* index output file */
-   iframetimer(win, txt2lfn(f), e); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* index output file */
+    iframetimer(win, txt2lfn(f), e); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
 Set automatic hold state
 
 Sets the state of the automatic hold flag. Automatic hold is used to hold
-programs that exit without having received a "terminate" signal from gralib.
-This exists to allow the results of gralib unaware programs to be viewed after
+programs that exit without having received a "terminate" signal from graph.
+This exists to allow the results of graph unaware programs to be viewed after
 termination, instead of exiting an distroying the window. This mode works for
 most circumstances, but an advanced program may want to exit for other reasons
 than being closed by the system bar. This call can turn automatic holding off,
 and can only be used by an advanced program, so fufills the requirement of
-holding gralib unaware programs.
+holding graph unaware programs.
 
 *******************************************************************************/
 
-void autohold(e: int);
+void autohold(int e)
 
 {
 
-   fautohold = e /* set new state of autohold */
+    fautohold = e; /* set new state of autohold */
 
-};
+}
 
 /*******************************************************************************
 
@@ -8077,17 +7986,17 @@ Returns the number of mice implemented. Windows supports only one mouse.
 
 *******************************************************************************/
 
-int mouse(FILE* f): mounum;
-
-var rv: int; /* return value */
+int mouse(FILE* f)
 
 {
 
-   refer(f); /* stub out */
-   rv = getsystemmetrics(sm_mousepresent); /* find mouse present */
-   mouse = ord(rv <> 0) /* set single mouse */
+    int rv; /* return value */
 
-};
+    rv = getsystemmetrics(SM_MOUSEPRESENT); /* find mouse present */
+
+    return (!!rv); /* set single mouse */
+
+}
 
 /*******************************************************************************
 
@@ -8098,16 +8007,20 @@ version.
 
 *******************************************************************************/
 
-int mousebutton(FILE* f; m: mouhan): moubut;
+int mousebutton(FILE* f, int m)
 
 {
 
-   refer(f); /* stub out */
-   if m <> 1  error(einvhan); /* bad mouse number */
-   mousebutton =
-      getsystemmetrics(sm_cmousebuttons) /* find mouse buttons */
+    int bn; /* number of mouse buttons *.
 
-};
+    if (m != 1) error(einvhan); /* bad mouse number */
+    bn = getsystemmetrics(sm_cmousebuttons); /* find mouse buttons */
+
+    if (bn > 3) bn = 3; /* limit mouse buttons to 3*/
+
+    return (bn);
+
+}
 
 /*******************************************************************************
 
@@ -8154,7 +8067,7 @@ var jc:  joycaps; /* joystick characteristics data */
 
       if (j < 1) || (j > numjoy)  error(einvjoy); /* bad joystick id */
       r = joygetdevcaps(j-1, jc, joycaps_len);
-      if r <> 0  error(ejoyqry); /* could ! access joystick */
+      if r != 0  error(ejoyqry); /* could ! access joystick */
       nb = jc.wnumbuttons; /* set number of buttons */
       /* We don"t support more than 4 buttons. */
       if nb > 4  nb = 4;
@@ -8186,7 +8099,7 @@ var jc: joycaps; /* joystick characteristics data */
 
       if (j < 1) || (j > numjoy)  error(einvjoy); /* bad joystick id */
       r = joygetdevcaps(j-1, jc, joycaps_len);
-      if r <> 0  error(ejoyqry); /* could ! access joystick */
+      if r != 0  error(ejoyqry); /* could ! access joystick */
       na = jc.wnumaxes; /* set number of axes */
       /* We don"t support more than 3 axes. */
       if na > 3  na = 3;
@@ -8225,16 +8138,16 @@ var i, x: 1..MAXTAB; /* tab index */
 
    with win^, screens[curupd]^ do { /* window, screen context */
 
-      if auto && (((t-1) % charspace) <> 0)
+      if auto && (((t-1) % charspace) != 0)
          error(eatotab); /* cannot perform with auto on */
       if (t < 1) || (t > maxxg)  error(einvtab); /* bad tab position */
       /* find free location || tab beyond position */
       i = 1;
-      while (i < MAXTAB) && (tab[i] <> 0) && (t > tab[i]) do i = i+1;
+      while (i < MAXTAB) && (tab[i] != 0) && (t > tab[i]) do i = i+1;
       if (i == MAXTAB) && (t < tab[i])  error(etabful); /* tab table full */
-      if t <> tab[i]  { /* ! the same tab yet again */
+      if t != tab[i]  { /* ! the same tab yet again */
 
-         if tab[MAXTAB] <> 0  error(etabful); /* tab table full */
+         if tab[MAXTAB] != 0  error(etabful); /* tab table full */
          /* move tabs above us up */
          for x = MAXTAB downto i+1 do tab[x] = tab[x-1];
          tab[i] = t /* place tab in order */
@@ -8302,7 +8215,7 @@ var i:  1..MAXTAB; /* tab index */
       /* search for that tab */
       ft = 0; /* set ! found */
       for i = 1 to MAXTAB do if tab[i] == t  ft = i; /* found */
-      if ft <> 0  { /* found the tab, remove it */
+      if ft != 0  { /* found the tab, remove it */
 
          /* move all tabs down to gap out */
          for i = ft to MAXTAB-1 do tab[i] = tab[i+1];
@@ -8487,7 +8400,7 @@ var p: char*;
 
 {
 
-   new(p, max(s));
+   new(p, strlen(s));
    p^ = s;
    str = p
 
@@ -8545,16 +8458,16 @@ var c: char;
    if cp^[1] == """  i = 2; /* set character after quote */
    /* find last "\" in quoted section */
    s = 0; /* flag ! found */
-   while (chknxt <> """) && (chknxt <> " ") && (i < max(cp^)) do
+   while (chknxt != """) && (chknxt != " ") && (i < max(cp^)) do
       { if chknxt == "\\"  s = i; i = i+1 };
    s = s+1; /* skip "\" */
    i = s; /* index 1st character */
    /* count program name length */
    l = 0; /* clear length */
-   while (chknxt <> ".") && (chknxt <> " ") do { l = l+1; i = i+1 };
+   while (chknxt != ".") && (chknxt != " ") do { l = l+1; i = i+1 };
    new(pgmnam, l); /* get a char* for that */
    i = s; /* index 1st character */
-   while (chknxt <> ".") && (chknxt <> " ") do {
+   while (chknxt != ".") && (chknxt != " ") do {
 
       pgmnam^[i-s+1] = chknxt; /* place character */
       i = i+1 /* next character */
@@ -8592,20 +8505,20 @@ var i:      int; /* index for char* */
 {
 
    /* check case where one char* is null, && compare lengths if so */
-   if (max(s) == 0) || (max(d) == 0)  r = max(d) < max(s)
+   if (strlen(s) == 0) || (max(d) == 0)  r = max(d) < strlen(s)
    else {
 
       /* find the shorter of the char*s */
-      if max(s) > max(d)  l = max(d) else l = max(s);
+      if strlen(s) > max(d)  l = max(d) else l = strlen(s);
       /* compare the overlapPIng region */
       i = 1; /* set 1st character */
       /* find first non-matching character */
       while (i < l) && (tolower(s[i]) == tolower(d[i])) do i = i+1;
       /* check ! equal, && return status based on that character */
-      if tolower(s[i]) <> tolower(d[i])  r = tolower(d[i]) < tolower(s[i])
+      if tolower(s[i]) != tolower(d[i])  r = tolower(d[i]) < tolower(s[i])
       /* if the entire common region matched,  we base the result on
         length */
-      else r = max(d) < max(s)
+      else r = max(d) < strlen(s)
 
    };
    gtr = r /* return match status */
@@ -8614,19 +8527,19 @@ var i:      int; /* index for char* */
 
 {
 
-   nl = nil; /* clear destination list */
-   while fp <> nil do { /* insertion sort */
+   nl = NULL; /* clear destination list */
+   while fp != NULL do { /* insertion sort */
 
       p = fp; /* index top */
       fp = fp->next; /* remove that */
-      p->next = nil; /* clear next */
+      p->next = NULL; /* clear next */
       c = nl; /* index new list */
-      l = nil; /* clear last */
-      while c <> nil do { /* find insertion point */
+      l = NULL; /* clear last */
+      while c != NULL do { /* find insertion point */
 
          /* compare char*s */
          if gtr(p->fn^, c->fn^)
-            c = nil /* terminate */
+            c = NULL /* terminate */
          else {
 
             l = c; /* set last */
@@ -8635,7 +8548,7 @@ var i:      int; /* index for char* */
          }
 
       };
-      if l == nil  {
+      if l == NULL  {
 
          /* if no last, insert to start */
          p->next = nl;
@@ -8686,21 +8599,21 @@ var i, x: int;
    *d = 0; /* clear result */
    /* find } */
    i = 1;
-   while s[i] <> chr(0) do i = i+1;
+   while s[i] != chr(0) do i = i+1;
    if i > 1  {
 
       i = i-1; /* back up to last character */
       /* back up to non-space */
       while (s[i] == " ") && (i > 1) do i = i-1;
-      if s[i] <> " "  { /* at } of word */
+      if s[i] != " "  { /* at } of word */
 
          /* back up to space */
-         while (s[i] <> " ") && (i > 1) do i = i-1;
+         while (s[i] != " ") && (i > 1) do i = i-1;
          if s[i] == " "  { /* at start of word */
 
             i = i+1; /* index start of word */
             x = 1; /* index start of output */
-            while (s[i] <> chr(0)) && (s[i] <> " ") do {
+            while (s[i] != chr(0)) && (s[i] != " ") do {
 
                d[x] = s[i]; /* transfer character */
                i = i+1; /* next */
@@ -8726,21 +8639,21 @@ var i: int;
 
    /* find } */
    i = 1;
-   while s[i] <> chr(0) do i = i+1;
+   while s[i] != chr(0) do i = i+1;
    if i > 1  { /* char* isn"t null */
 
       i = i-1; /* back up to last character */
       /* back up to non-space */
       while (s[i] == " ") && (i > 1) do i = i-1;
-      if s[i] <> " "  { /* at } of word */
+      if s[i] != " "  { /* at } of word */
 
          /* back up to space */
-         while (s[i] <> " ") && (i > 1) do i = i-1;
+         while (s[i] != " ") && (i > 1) do i = i-1;
          if s[i] == " "  { /* at start of word */
 
             /* back up to non-space */
             while (s[i] == " ") && (i > 1) do i = i-1;
-            if s[i] <> " "  /* at } of word before that */
+            if s[i] != " "  /* at } of word before that */
                s[i+1] = chr(0) /* now terminate char* there */
 
          }
@@ -8780,7 +8693,7 @@ var buff: packed array [1..lf_fullfacesize] of char;
 {
 
    refer(pfd, ad); /* unused */
-   if (ft && TRUEtype_fonttype <> 0) and
+   if (ft && TRUEtype_fonttype != 0) and
       ((lfd.elflogfont.lfcharset == ansi_charset) ||
        (lfd.elflogfont.lfcharset == symbol_charset) or
        (lfd.elflogfont.lfcharset == default_charset))  {
@@ -8792,7 +8705,7 @@ var buff: packed array [1..lf_fullfacesize] of char;
       fntlst = fp;
       fntcnt = fntcnt+1; /* count font */
       c = 0; /* count font name characters */
-      while lfd.elffullname[c+1] <> chr(0) do c = c+1;
+      while lfd.elffullname[c+1] != chr(0) do c = c+1;
       if c > 0  { /* ! null */
 
          new(fp->fn, c); /* get a char* of that length */
@@ -8826,7 +8739,7 @@ var r:  int;
 
 {
 
-   fntlst = nil; /* clear fonts list */
+   fntlst = NULL; /* clear fonts list */
    fntcnt = 0; /* clear fonts count */
    lf.lFHEIGHT = 0; /* use default height */
    lf.lfwidth = 0; /* use default width */
@@ -8864,13 +8777,13 @@ var p: fontptr;
 {
 
    p = win->fntlst; /* index top of list */
-   if win->fntlst == nil  error(esystem); /* should ! be null */
+   if win->fntlst == NULL  error(esystem); /* should ! be null */
    if win->fntlst == fp  win->fntlst = fp->next /* gap first entry */
    else { /* mid entry */
 
       /* find entry before ours */
-      while (p->next <> fp) && (p->next <> nil) do p = p->next;
-      if p->next == nil  error(esystem); /* ! found */
+      while (p->next != fp) && (p->next != NULL) do p = p->next;
+      if p->next == NULL  error(esystem); /* ! found */
       p->next = fp->next /* gap out */
 
    }
@@ -8891,9 +8804,9 @@ var p: fontptr;
 
 {
 
-   fp = nil; /* set no font found */
+   fp = NULL; /* set no font found */
    p = win->fntlst; /* index top of font list */
-   while p <> nil do { /* traverse font list */
+   while p != NULL do { /* traverse font list */
 
       if comps(p->fn^, fn) && (p->fix == fix)  fp = p; /* found, set */
       p = p->next /* next entry */
@@ -8923,7 +8836,7 @@ void plcfnt(fp: fontptr);
 
 {
 
-   if fp == nil  { /* no entry, create a dummy */
+   if fp == NULL  { /* no entry, create a dummy */
 
       new(fp); /* get a new entry */
       new(fp->fn, 0); /* place empty char* */
@@ -8939,10 +8852,10 @@ void plcfnt(fp: fontptr);
 {
 
    /* clear font pointers */
-   termfp = nil;
-   bookfp = nil;
-   signfp = nil;
-   techfp = nil;
+   termfp = NULL;
+   bookfp = NULL;
+   signfp = NULL;
+   techfp = NULL;
    /* set up terminal font. terminal font is set to system default */
    new(termfp); /* get a new entry */
    termfp->fix = TRUE; /* set fixed */
@@ -8952,19 +8865,19 @@ void plcfnt(fp: fontptr);
    win->fntcnt = win->fntcnt+1; /* add to font count */
    /* find book fonts */
    fndfnt(win, "Times New Roman", FALSE, bookfp);
-   if bookfp == nil  {
+   if bookfp == NULL  {
 
       fndfnt(win, "Garamond", FALSE, bookfp);
-      if bookfp == nil  {
+      if bookfp == NULL  {
 
          fndfnt(win, "Book Antiqua", FALSE, bookfp);
-         if bookfp == nil  {
+         if bookfp == NULL  {
 
             fndfnt(win, "Georgia", FALSE, bookfp);
-            if bookfp == nil  {
+            if bookfp == NULL  {
 
                fndfnt(win, "Palatino Linotype", FALSE, bookfp);
-               if bookfp == nil  fndfnt(win, "Verdana", FALSE, bookfp)
+               if bookfp == NULL  fndfnt(win, "Verdana", FALSE, bookfp)
 
             }
 
@@ -8976,25 +8889,25 @@ void plcfnt(fp: fontptr);
    /* find sign fonts */
 
    fndfnt(win, "Tahoma", FALSE, signfp);
-   if signfp == nil  {
+   if signfp == NULL  {
 
       fndfnt(win, "Microsoft Sans Serif", FALSE, signfp);
-      if signfp == nil  {
+      if signfp == NULL  {
 
          fndfnt(win, "Arial", FALSE, signfp);
-         if signfp == nil  {
+         if signfp == NULL  {
 
             fndfnt(win, "News Gothic MT", FALSE, signfp);
-            if signfp == nil  {
+            if signfp == NULL  {
 
                fndfnt(win, "Century Gothic", FALSE, signfp);
-               if signfp == nil  {
+               if signfp == NULL  {
 
                   fndfnt(win, "Franklin Gothic", FALSE, signfp);
-                  if signfp == nil  {
+                  if signfp == NULL  {
 
                      fndfnt(win, "Trebuchet MS", FALSE, signfp);
-                     if signfp == nil  fndfnt(win, "Verdana", FALSE, signfp)
+                     if signfp == NULL  fndfnt(win, "Verdana", FALSE, signfp)
 
                   }
 
@@ -9008,8 +8921,8 @@ void plcfnt(fp: fontptr);
 
    };
    /* delete found fonts from the list */
-   if bookfp <> nil  delfnt(win, bookfp);
-   if signfp <> nil  delfnt(win, signfp);
+   if bookfp != NULL  delfnt(win, bookfp);
+   if signfp != NULL  delfnt(win, signfp);
    /* now place the fonts in the list backwards */
    plcfnt(techfp);
    plcfnt(signfp);
@@ -9057,9 +8970,9 @@ var b:   int; /* result code */
 
 Register standard window class
 
-Registers the "stdwin" class. All of gralib"s normal windows use the same
+Registers the "stdwin" class. All of graph's normal windows use the same
 class, which has the name "stdwin". This class only needs to be registered
-once, && is thereafter referenced by name.
+once, and is thereafter referenced by name.
 
 *******************************************************************************/
 
@@ -9087,7 +9000,7 @@ var wc: wndclassa; /* windows class structure */
    if wc.cursor == 0  winerr(); /* process windows error */
    wc.background = GetStockObject(white_brush);
    if wc.background == 0  winerr(); /* process windows error */
-   wc.menuname   = nil;
+   wc.menuname   = NULL;
    wc.classname  = str("stdwin");
    /* register that class */
    b = registerclass(wc);
@@ -9137,7 +9050,7 @@ var v:     int;       /* used to construct 0x80000000 value */
     b:     int;       /* int result holder */
     er:    evtrec;        /* event holding record */
     ti:    1..10;         /* index for repeat array */
-    PIn:   1..MAXPIC;     /* index for loadable PIctures array */
+    PIn:   1..MAXPIC;     /* index for loadable pictures array */
     si:    1..MAXCON;     /* index for current display screen */
     tm:    textmetric; /* TRUE type text metric structure */
     win:   winptr;        /* window pointer */
@@ -9152,7 +9065,7 @@ var v:     int;       /* used to construct 0x80000000 value */
 
       /* find parent */
       parlfn = pfn; /* set parent logical number */
-      if pfn <> 0  {
+      if pfn != 0  {
 
          pwin = lfn2win(pfn); /* index parent window */
          parhan = pwin->winhan /* set parent window handle */
@@ -9188,8 +9101,8 @@ var v:     int;       /* used to construct 0x80000000 value */
       frmrun = FALSE; /* set framing timer ! running */
       bufmod = TRUE; /* set buffering on */
       menhan = 0; /* set no menu */
-      metlst = nil; /* clear menu tracking list */
-      wiglst = nil; /* clear widget list */
+      metlst = NULL; /* clear menu tracking list */
+      wiglst = NULL; /* clear widget list */
       frame = TRUE; /* set frame on */
       size = TRUE; /* set size bars on */
       sysbar = TRUE; /* set system bar on */
@@ -9201,9 +9114,9 @@ var v:     int;       /* used to construct 0x80000000 value */
          timers[ti].rep = FALSE /* set no repeat */
 
       };
-      /* clear loadable PIctures table */
-      for PIn = 1 to MAXPIC do PIctbl[PIn].han = 0;
-      for si = 1 to MAXCON do screens[si] = nil;
+      /* clear loadable pictures table */
+      for PIn = 1 to MAXPIC do pictbl[PIn].han = 0;
+      for si = 1 to MAXCON do screens[si] = NULL;
       new(screens[1]); /* get the default screen */
       curdsp = 1; /* set current display screen */
       curupd = 1; /* set current update screen */
@@ -9214,7 +9127,7 @@ var v:     int;       /* used to construct 0x80000000 value */
       /* set flags for window create */
       f = ws_overlappedwindow || ws_clipchildren;
       /* add flags for child window */
-      if parhan <> 0  f = f || ws_child || ws_clipsiblings;
+      if parhan != 0  f = f || ws_child || ws_clipsiblings;
       /* Create the window, using display task. */
       stdwinflg = f;
       stdwinx = v;
@@ -9249,7 +9162,7 @@ var v:     int;       /* used to construct 0x80000000 value */
       r = setmapmode(devcon, mm_anisotroPIc);
       if r == 0  winerr(); /* process windows error */
       /* set non-braindamaged stretch mode */
-      r = setstretchbltmode(devcon, halftone);
+      r = setStretchBltmode(devcon, halftone);
       if r == 0  winerr(); /* process windows error */
       /* remove fills */
       r = SelectObject(devcon, GetStockObject(null_brush));
@@ -9326,7 +9239,7 @@ var v:     int;       /* used to construct 0x80000000 value */
         from the queue, like the focus event. the answer to this is to wait a short
         delay until these messages clear. in fact, all that is really required is
         to reenter the OS so it can do the callback */
-      frmhan = timesetevent(10, 0, timeout, fn*MAXTIM+1,
+      frmhan = TimeSetEvent(10, 0, timeout, fn*MAXTIM+1,
                                 time_callback_int or
                                 time_kill_synchronous or
                                 time_oneshot);
@@ -9365,13 +9278,13 @@ var r:   int; /* result holder */
       if joy1cap  {
 
          r = joyreleasecapture(joystickid1);
-         if r <> 0  error(ejoyacc) /* error */
+         if r != 0  error(ejoyacc) /* error */
 
       };
       if joy2cap  {
 
          r = joyreleasecapture(joystickid2);
-         if r <> 0  error(ejoyacc) /* error */
+         if r != 0  error(ejoyacc) /* error */
 
       };
       kilwin(winhan) /* kill window */
@@ -9408,16 +9321,16 @@ var ep: eqeptr;    /* pointer for event containers */
 
       /* release all of the screen buffers */
       for si = 1 to MAXCON do
-         if win->screens[si] <> nil  dispose(win->screens[si]);
+         if win->screens[si] != NULL  dispose(win->screens[si]);
       dispose(win); /* release the window data */
-      win = nil; /* set ! open */
+      win = NULL; /* set ! open */
       han = 0;
       inw = FALSE;
       inl = 0;
-      while evt <> nil do {
+      while evt != NULL do {
 
          ep = evt; /* index top */
-         if evt->next == evt  evt = nil /* last entry, clear list */
+         if evt->next == evt  evt = NULL /* last entry, clear list */
          else evt = evt->next; /* gap out entry */
          dispose(ep) /* release */
 
@@ -9436,7 +9349,7 @@ var fi: ss_filhdl;    /* index for files */
 
    fc = 0; /* clear count */
    for fi = 1 to ss_MAXFIL do /* traverse files */
-      if opnfil[fi] <> nil  /* entry is occuPIed */
+      if opnfil[fi] != NULL  /* entry is occuPIed */
          if opnfil[fi]->inl == fn  fc = fc+1; /* count the file link */
 
    inplnk = fc /* return result */
@@ -9469,13 +9382,13 @@ void openio(ifn, ofn, pfn, wid: ss_filhdl);
 {
 
    /* if output was never opened, create it now */
-   if opnfil[ofn] == nil  getfet(opnfil[ofn]);
+   if opnfil[ofn] == NULL  getfet(opnfil[ofn]);
    /* if input was never opened, create it now */
-   if opnfil[ifn] == nil  getfet(opnfil[ifn]);
+   if opnfil[ifn] == NULL  getfet(opnfil[ifn]);
    opnfil[ofn]->inl = ifn; /* link output to input */
    opnfil[ifn]->inw = TRUE; /* set input is window handler */
    /* now see if it has a window attached */
-   if opnfil[ofn]->win == nil  {
+   if opnfil[ofn]->win == NULL  {
 
       /* Haven"t already started the main input/output window, so allocate
         && start that. We tolerate multiple opens to the output file. */
@@ -9484,7 +9397,7 @@ void openio(ifn, ofn, pfn, wid: ss_filhdl);
 
    };
    /* check if the window has been PInned to something else */
-   if (xltwin[wid] <> 0) && (xltwin[wid] <> ofn)
+   if (xltwin[wid] != 0) && (xltwin[wid] != ofn)
       error(ewinuse); /* flag error */
    xltwin[wid] = ofn; /* pin the window to the output file */
    filwin[ofn] = wid
@@ -9538,7 +9451,7 @@ var ifn, ofn: ss_filhdl; /* file logical handles */
     /* check valid window handle */
     if (wid < 1) || (wid > ss_MAXFIL)  error(einvwin);
     /* check if the window id is already in use */
-    if xltwin[wid] <> 0  error(ewinuse); /* error */
+    if xltwin[wid] != 0  error(ewinuse); /* error */
     ifn = fndfil(*infile); /* find previous open input side */
     if (ifn < 0) { /* no other input file, open new */
 
@@ -9558,7 +9471,7 @@ var ifn, ofn: ss_filhdl; /* file logical handles */
       if (!opnfil[ifn]->inw || opnfil[ifn]->win) error(einmode); /* wrong mode */
    /* check output file is in use for input or output from window */
    if (opnfil[ofn])  /* entry exists */
-      if (opnfil[ofn]->inw <> nil) || opnfil[ofn]->win) error(efinuse); /* file in use */
+      if (opnfil[ofn]->inw != NULL) || opnfil[ofn]->win) error(efinuse); /* file in use */
    /* establish all logical files and links, translation tables, and open window */
    openio(ifn, ofn, pfn, wid)
 
@@ -9618,7 +9531,7 @@ var cr:  rect;   /* client rectangle holder */
       new(screens[curdsp]); /* get the display screen */
       iniscn(win, screens[curdsp]); /* initalize screen buffer */
       restore(win, TRUE); /* update to screen */
-      if curdsp <> curupd  { /* also create the update buffer */
+      if curdsp != curupd  { /* also create the update buffer */
 
          new(screens[curupd]); /* get the display screen */
          iniscn(win, screens[curupd]); /* initalize screen buffer */
@@ -9715,10 +9628,10 @@ var si:  1..MAXCON; /* index for current display screen */
            update to point to it as well. This single buffer  serves as
            a "template" for the real PIxels on screen. */
          bufmod = FALSE; /* turn buffer mode off */
-         for si = 1 to MAXCON do if si <> curdsp  disscn(win, screens[si]);
+         for si = 1 to MAXCON do if si != curdsp  disscn(win, screens[si]);
          /* dispose of screen data structures */
-         for si = 1 to MAXCON do if si <> curdsp
-            if screens[si] <> nil  dispose(screens[si]);
+         for si = 1 to MAXCON do if si != curdsp
+            if screens[si] != NULL  dispose(screens[si]);
          curupd = curdsp; /* unify the screens */
          /* get actual size of onscreen window, && set that as client space */
          b = getclientrect(winhan, r);
@@ -9761,7 +9674,7 @@ var winptr win; /* pointer to windows context */
 Activate/distroy menu
 
 Accepts a menu list, && sets the menu active. If there is already a menu
-active, that is replaced. If the menu list is nil,  the active menu is
+active, that is replaced. If the menu list is NULL,  the active menu is
 deleted.
 
 *******************************************************************************/
@@ -9789,14 +9702,14 @@ var mp: metptr; /* menu tracking entry pointer */
       mp->onoff = m->onoff; /* place on/off highlighter */
       mp->select = FALSE; /* place status of select (off) */
       mp->id = m->id; /* place id */
-      mp->oneof = nil; /* set no "one of" */
+      mp->oneof = NULL; /* set no "one of" */
       /* We are walking backwards in the list, && we need the next list entry
         to know the "one of" chain. So we tie the entry to itself as a flag
         that it chains to the next entry. That chain will get fixed on the
         next entry. */
       if m->oneof  mp->oneof = mp;
       /* now tie the last entry to this if indicated */
-      if mp->next <> nil  /* there is a next entry */
+      if mp->next != NULL  /* there is a next entry */
          if mp->next->oneof == mp->next  mp->next->oneof = mp
 
    }
@@ -9816,10 +9729,10 @@ var sm:  int; /* submenu handle */
    mh = createmenu; /* create new menu */
    if mh == 0  winerr(); /* process windows error */
    inx = 0; /* set first in sequence */
-   while m <> nil do { /* add menu item */
+   while m != NULL do { /* add menu item */
 
       f = mf_char* || mf_enabled; /* set char* && enable */
-      if m->branch <> nil  { /* handle submenu */
+      if m->branch != NULL  { /* handle submenu */
 
          createmenu(m->branch, sm); /* create submenu */
          b = app}menu(mh, f || mf_popup, sm, m->face^);
@@ -9852,12 +9765,12 @@ var sm:  int; /* submenu handle */
 
    with win^ do { /* in windows context */
 
-      if menhan <> 0  { /* distroy previous menu */
+      if menhan != 0  { /* distroy previous menu */
 
          b = destroymenu(menhan); /* destroy it */
          if (!b) winerr(); /* process windows error */
          /* dispose of menu tracking entries */
-         while metlst <> nil do {
+         while metlst != NULL do {
 
             mp = metlst; /* remove top entry */
             metlst = metlst->next; /* gap out */
@@ -9867,7 +9780,7 @@ var sm:  int; /* submenu handle */
          menhan = 0 /* set no menu active */
 
       };
-      if m <> nil  /* there is a new menu to activate */
+      if m != NULL  /* there is a new menu to activate */
          createmenu(m, menhan);
       unlockmain(); /* } exclusive access */
       b = setmenu(winhan, menhan); /* set the menu to the window */
@@ -9914,20 +9827,20 @@ var mp: metptr; /* tracking entry pointer */
 
    with win^ do { /* in window context */
 
-      fp = nil; /* set no entry found */
+      fp = NULL; /* set no entry found */
       mp = metlst; /* index top of list */
-      while mp <> nil do { /* traverse */
+      while mp != NULL do { /* traverse */
 
          if mp->id == id  { /* found */
 
-            if fp <> nil  error(edupmen); /* menu entry is duplicated */
+            if fp != NULL  error(edupmen); /* menu entry is duplicated */
             fp = mp /* set found entry */
 
          };
          mp = mp->next /* next entry */
 
       };
-      if fp == nil  error(emennf) /* no menu entry found with id */
+      if fp == NULL  error(emennf) /* no menu entry found with id */
 
    };
 
@@ -10006,7 +9919,7 @@ int fndtop(mp: metptr): metptr;
 
 {
 
-   if mp->next <> nil  /* there is a next */
+   if mp->next != NULL  /* there is a next */
       if mp->next->oneof == mp  { /* next entry links this one */
 
       mp = mp->next; /* go to next entry */
@@ -10031,7 +9944,7 @@ void clrlst(mp: metptr);
       if r == -1  error(esystem); /* should ! happen */
       mp = mp->oneof /* link next */
 
-   until mp == nil /* no more */
+   until mp == NULL /* no more */
 
 };
 
@@ -10110,7 +10023,7 @@ var b:  int; /* result holder */
       if (!b) winerr(); /* process windows error */
       lockmain(); /* start exclusive access */
 
-      if parhan <> 0  {
+      if parhan != 0  {
 
          unlockmain(); /* } exclusive access */
          b = postmessage(parhan, wm_paint, 0, 0);
@@ -10236,7 +10149,7 @@ var win, par: winptr; /* windows record pointer */
    lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window from file */
    igetsizg(win, x, y); /* execute */
-   if win->parlfn <> 0  { /* has a parent */
+   if win->parlfn != 0  { /* has a parent */
 
       par = lfn2win(win->parlfn); /* index the parent */
       /* find character based sizes */
@@ -10314,7 +10227,7 @@ var win, par: winptr; /* windows record pointer */
 
    lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window from file */
-   if win->parlfn <> 0  { /* has a parent */
+   if win->parlfn != 0  { /* has a parent */
 
       par = lfn2win(win->parlfn); /* index the parent */
       /* find character based sizes */
@@ -10392,7 +10305,7 @@ var win, par: winptr; /* windows record pointer */
 
    lockmain(); /* start exclusive access */
    win = txt2win(f); /* get window from file */
-   if win->parlfn <> 0  { /* has a parent */
+   if win->parlfn != 0  { /* has a parent */
 
       par = lfn2win(win->parlfn); /* index the parent */
       /* find character based sizes */
@@ -10485,7 +10398,7 @@ var cr: rect; /* client rectangle holder */
       /* set minimum style */
       fl = ws_overlapped || ws_clipchildren;
       /* add flags for child window */
-      if parhan <> 0  fl = fl || ws_child || ws_clipsiblings;
+      if parhan != 0  fl = fl || ws_child || ws_clipsiblings;
       if wmframe in ms  { /* add frame features */
 
          if wmsize in ms  fl = fl || ws_thickframe;
@@ -10517,7 +10430,7 @@ var win, par: winptr; /* windows record pointer */
    /* execute */
    iwinclientg(win, cx*win->charspace, cy*win->linespace, wx, wy, ms);
    /* find character based sizes */
-   if win->parlfn <> 0  { /* has a parent */
+   if win->parlfn != 0  { /* has a parent */
 
       par = lfn2win(win->parlfn); /* index the parent */
       /* find character based sizes */
@@ -10595,7 +10508,7 @@ var fl1, fl2: int; /* flag */
       frame = e; /* set new status of frame */
       fl1 = ws_overlapped || ws_clipchildren; /* set minimum style */
       /* add flags for child window */
-      if parhan <> 0  fl1 = fl1 || ws_child || ws_clipsiblings;
+      if parhan != 0  fl1 = fl1 || ws_child || ws_clipsiblings;
       /* if we are enabling frames, add the frame parts back */
       if e  {
 
@@ -10685,7 +10598,7 @@ var fl1, fl2: int; /* flag */
          if sysbar  fl1 = fl1 || ws_caption || ws_sysmenu or
                                ws_minimizebox || ws_maximizebox;
          /* add flags for child window */
-         if parhan <> 0  fl1 = fl1 || ws_child || ws_clipsiblings;
+         if parhan != 0  fl1 = fl1 || ws_child || ws_clipsiblings;
          /* if we are enabling frames, add the frame parts back */
          if e  fl1 = fl1 || ws_thickframe;
          fl2 = 0xf; /* build the gwl_style value */
@@ -10771,7 +10684,7 @@ var fl1, fl2: int; /* flag */
          if sysbar  fl1 = fl1 || ws_caption || ws_sysmenu or
                                ws_minimizebox || ws_maximizebox;
          /* add flags for child window */
-         if parhan <> 0  fl1 = fl1 || ws_child || ws_clipsiblings;
+         if parhan != 0  fl1 = fl1 || ws_child || ws_clipsiblings;
          /* if we are enabling frames, add the frame parts back */
          if e  fl1 = fl1 || ws_thickframe;
          fl2 = 0xf; /* build the gwl_style value */
@@ -10843,14 +10756,14 @@ var lp: menuptr;
 {
 
    /* clear these links for insurance */
-   m->next = nil; /* clear next */
-   m->branch = nil; /* clear branch */
-   if list == nil  list = m /* list empty, set as first entry */
+   m->next = NULL; /* clear next */
+   m->branch = NULL; /* clear branch */
+   if list == NULL  list = m /* list empty, set as first entry */
    else { /* list non-empty */
 
       /* find last entry in list */
       lp = list; /* index 1st on list */
-      while lp->next <> nil do lp = lp->next;
+      while lp->next != NULL do lp = lp->next;
       lp->next = m /* app} at } */
 
    }
@@ -10884,8 +10797,8 @@ void getmenu(var m: menuptr; id: int; view face: char*);
 {
 
    new(m); /* get new menu element */
-   m->next   = nil; /* no next */
-   m->branch = nil; /* no branch */
+   m->next   = NULL; /* no next */
+   m->branch = NULL; /* no branch */
    m->onoff  = FALSE; /* ! an on/off value */
    m->oneof  = FALSE; /* ! a "one of" value */
    m->bar    = FALSE; /* no bar under */
@@ -10915,12 +10828,12 @@ void additem(i: int; var m, l: menuptr; view s: char*;
 {
 
    refer(pm); /* we don"t implement menu addition yet */
-   sm = nil; /* clear menu */
+   sm = NULL; /* clear menu */
 
    /* check && perform "file" menu */
 
    if sms*[SMNEW, SMOPEN, SMCLOSE, SMSAVE, SMSAVEas, SMPAGESET, SMPRINT,
-           SMEXIT] <> []  { /* file menu */
+           SMEXIT] != []  { /* file menu */
 
       getmenu(hm, 0, "File"); /* get entry */
       app}menu(sm, hm);
@@ -10939,7 +10852,7 @@ void additem(i: int; var m, l: menuptr; view s: char*;
    /* check && perform "edit" menu */
 
    if sms*[SMUNDO, SMCUT, SMPASTE, SMDELETE, SMFIND, SMFINDnext,
-           SMREPLACE, SMGOTO, SMSELECTALL] <> []  { /* file menu */
+           SMREPLACE, SMGOTO, SMSELECTALL] != []  { /* file menu */
 
       getmenu(hm, 0, "Edit"); /* get entry */
       app}menu(sm, hm);
@@ -10958,7 +10871,7 @@ void additem(i: int; var m, l: menuptr; view s: char*;
 
    /* insert custom menu */
 
-   while pm <> nil do { /* insert entries */
+   while pm != NULL do { /* insert entries */
 
       m = pm; /* index top button */
       pm = pm->next; /* next button */
@@ -10969,7 +10882,7 @@ void additem(i: int; var m, l: menuptr; view s: char*;
    /* check && perform "window" menu */
 
    if sms*[SMNEWwindow, SMTILEHORIZ, SMTILEVERT, SMCASCADE,
-           SMCLOSEall] <> []  { /* file menu */
+           SMCLOSEall] != []  { /* file menu */
 
       getmenu(hm, 0, "Window"); /* get entry */
       app}menu(sm, hm);
@@ -10984,7 +10897,7 @@ void additem(i: int; var m, l: menuptr; view s: char*;
 
    /* check && perform "help" menu */
 
-   if sms*[SMHELPTOPIC, SMABOUT] <> []  { /* file menu */
+   if sms*[SMHELPTOPIC, SMABOUT] != []  { /* file menu */
 
       getmenu(hm, 0, "Help"); /* get entry */
       app}menu(sm, hm);
@@ -11029,7 +10942,7 @@ var wh: int; /* handle to widget */
    with win^ do {
 
       /* search previous definition with same id */
-      if fndwig(win, id) <> nil  error(ewigdup); /* duplicate widget id */
+      if fndwig(win, id) != NULL  error(ewigdup); /* duplicate widget id */
       case typ of /* widget type */
 
          wtbutton: {
@@ -11184,9 +11097,9 @@ var wp: wigptr; /* widget pointer */
 
       if ! visible  winvis(win); /* make sure we are displayed */
       wp = fndwig(win, id); /* find widget */
-      if wp == nil  error(ewignf); /* ! found */
+      if wp == NULL  error(ewignf); /* ! found */
       kilwin(wp->han); /* kill window */
-      if wp->han2 <> 0  kilwin(wp->han2); /* distroy buddy window */
+      if wp->han2 != 0  kilwin(wp->han2); /* distroy buddy window */
       putwig(win, wp) /* release widget entry */
 
    };
@@ -11225,7 +11138,7 @@ var wp: wigptr;  /* widget entry */
 
       if ! visible  winvis(win); /* make sure we are displayed */
       wp = fndwig(win, id); /* find widget */
-      if wp == nil  error(ewignf); /* ! found */
+      if wp == NULL  error(ewignf); /* ! found */
       /* check this widget is selectable */
       if ! (wp->typ in [wtcheckbox, wtradiobutton])  error(ewigsel);
       unlockmain(); /* } exclusive access */
@@ -11268,7 +11181,7 @@ var wp:  wigptr;  /* widget entry */
 
       if ! visible  winvis(win); /* make sure we are displayed */
       wp = fndwig(win, id); /* find widget */
-      if wp == nil  error(ewignf); /* ! found */
+      if wp == NULL  error(ewignf); /* ! found */
       /* check this widget can get text */
       if ! (wp->typ in [wtbutton, wtcheckbox, wtradiobutton, wtgroup,
                           wtscrollvert, wtscrollhoriz, wtnumselbox,
@@ -11321,7 +11234,7 @@ var wp:  wigptr;  /* widget pointer */
 
       if ! visible  winvis(win); /* make sure we are displayed */
       wp = fndwig(win, id); /* find widget */
-      if wp == nil  error(ewignf); /* ! found */
+      if wp == NULL  error(ewignf); /* ! found */
       /* check this widget can get text */
       if ! (wp->typ in [wteditbox, wtdropeditbox])  error(ewiggtxt);
       unlockmain(); /* } exclusive access */
@@ -11339,8 +11252,8 @@ var wp:  wigptr;  /* widget pointer */
         exception that, since we already have the length of data, if the
         length is wrong AND the return is zero, its an error. This leaves
         the case of an error on a zero length return. */
-      if (r == 0) && (r <> ls)  winerr(); /* process windows error */
-      if r <> ls  error(esystem); /* lengths should match */
+      if (r == 0) && (r != ls)  winerr(); /* process windows error */
+      if r != ls  error(esystem); /* lengths should match */
       new(s, r); /* get final char* */
       for i = 1 to r do s^[i] = sp^[i]; /* copy into place */
       dispose(sp) /* release temp buffer */
@@ -11381,7 +11294,7 @@ var wp: wigptr;  /* widget pointer */
 
       if ! visible  winvis(win); /* make sure we are displayed */
       wp = fndwig(win, id); /* find widget */
-      if wp == nil  error(ewignf); /* ! found */
+      if wp == NULL  error(ewignf); /* ! found */
       /* check this widget can put text */
       if ! (wp->typ in [wteditbox, wtdropeditbox])  error(ewigptxt);
       unlockmain(); /* } exclusive access */
@@ -11423,13 +11336,13 @@ var wp: wigptr; /* widget pointer */
    with win^ do { /* in windows context */
 
       wp = fndwig(win, id); /* find widget */
-      if wp == nil  error(ewignf); /* ! found */
+      if wp == NULL  error(ewignf); /* ! found */
       unlockmain(); /* } exclusive access */
       b = setwindowpos(wp->han, 0, 0, 0, x, y,
                            swp_nomove || swp_nozorder);
       lockmain(); /* start exclusive access */
       if (!b) winerr(); /* process windows error */
-      if wp->han2 <> 0  { /* also resize the buddy */
+      if wp->han2 != 0  { /* also resize the buddy */
 
          /* Note, the buddy needs to be done differently for a numselbox */
          unlockmain(); /* } exclusive access */
@@ -11474,12 +11387,12 @@ var wp: wigptr; /* widget pointer */
    with win^ do { /* in windows context */
 
       wp = fndwig(win, id); /* find widget */
-      if wp == nil  error(ewignf); /* ! found */
+      if wp == NULL  error(ewignf); /* ! found */
       unlockmain(); /* } exclusive access */
       b = setwindowpos(wp->han, 0, x-1, y-1, 0, 0, swp_nosize);
       lockmain(); /* start exclusive access */
       if (!b) winerr(); /* process windows error */
-      if wp->han2 <> 0  { /* also reposition the buddy */
+      if wp->han2 != 0  { /* also reposition the buddy */
 
          /* Note, the buddy needs to be done differently for a numselbox */
          unlockmain(); /* } exclusive access */
@@ -11522,13 +11435,13 @@ var wp: wigptr;  /* widget pointer */
    with win^ do { /* in windows context */
 
       wp = fndwig(win, id); /* find widget */
-      if wp == nil  error(ewignf); /* ! found */
+      if wp == NULL  error(ewignf); /* ! found */
       unlockmain(); /* } exclusive access */
       b = setwindowpos(wp->han, hwnd_bottom, 0, 0, 0, 0,
                            swp_nomove || swp_nosize);
       lockmain(); /* start exclusive access */
       if (!b) winerr(); /* process windows error */
-      if wp->han2 <> 0  { /* also reposition the buddy */
+      if wp->han2 != 0  { /* also reposition the buddy */
 
          /* Note, the buddy needs to be done differently for a numselbox */
          unlockmain(); /* } exclusive access */
@@ -11573,7 +11486,7 @@ var wp: wigptr;  /* widget pointer */
    with win^ do { /* in windows context */
 
       wp = fndwig(win, id); /* find widget */
-      if wp == nil  error(ewignf); /* ! found */
+      if wp == NULL  error(ewignf); /* ! found */
       fl = 0;
       fl = ! fl;
       unlockmain(); /* } exclusive access */
@@ -11581,7 +11494,7 @@ var wp: wigptr;  /* widget pointer */
                            swp_nomove || swp_nosize);
       lockmain(); /* start exclusive access */
       if (!b) winerr(); /* process windows error */
-      if wp->han2 <> 0  { /* also reposition the buddy */
+      if wp->han2 != 0  { /* also reposition the buddy */
 
          /* Note, the buddy needs to be done differently for a numselbox */
          unlockmain(); /* } exclusive access */
@@ -12487,7 +12400,7 @@ var wp: wigptr;  /* widget pointer */
 
       if ! visible  winvis(win); /* make sure we are displayed */
       wp = fndwig(win, id); /* find widget */
-      if wp == nil  error(ewignf); /* ! found */
+      if wp == NULL  error(ewignf); /* ! found */
       f = r; /* place position in float */
       /* clamp to max */
       if f*(255-wp->siz)/INT_MAX > 255  p = 255
@@ -12534,7 +12447,7 @@ var wp:  wigptr;        /* widget pointer */
 
       if ! visible  winvis(win); /* make sure we are displayed */
       wp = fndwig(win, id); /* find widget */
-      if wp == nil  error(ewignf); /* ! found */
+      if wp == NULL  error(ewignf); /* ! found */
       si.cbsize = scrollinfo_len; /* set size */
       si.fmask = sif_page; /* set page size */
       si.nmin = 0; /* no min */
@@ -12732,7 +12645,7 @@ var ip:  imptr;   /* intratask message pointer */
 
       if ! visible  winvis(win); /* make sure we are displayed */
       /* search previous definition with same id */
-      if fndwig(win, id) <> nil  error(ewigdup); /* duplicate widget id */
+      if fndwig(win, id) != NULL  error(ewigdup); /* duplicate widget id */
 
       /* Number select is a composite control, && it will s} messages
         immediately after creation, as the different components talk to each
@@ -13134,7 +13047,7 @@ var wp:  wigptr; /* widget pointer */
    with win^ do {
 
       wp = fndwig(win, id); /* find widget */
-      if wp == nil  error(ewignf); /* ! found */
+      if wp == NULL  error(ewignf); /* ! found */
       /* set the range */
       unlockmain(); /* } exclusive access */
       r = s}message(wp->han, pbm_setpos, pos, 0);
@@ -13186,7 +13099,7 @@ var sz: size; /* size holder */
 
    w = 4; /* set minimum overhead */
    h = 2;
-   while sp <> nil do { /* traverse char* list */
+   while sp != NULL do { /* traverse char* list */
 
       dc = getwindowdc(0); /* get screen dc */
       if dc == 0  winerr(); /* process windows error */
@@ -13257,7 +13170,7 @@ var wp: wigptr;  /* widget pointer */
 
    if ! win->visible  winvis(win); /* make sure we are displayed */
    widget(win, x1, y1, x2, y2, "", id, wtlistbox, 0, wp);
-   while sp <> nil do { /* add char*s to list */
+   while sp != NULL do { /* add char*s to list */
 
       unlockmain(); /* } exclusive access */
       r = s}message(wp->han, lb_addchar*, sp->str^); /* add char* */
@@ -13364,7 +13277,7 @@ void getsiz(view s: char*);
    /* drop arrow height+shadow overhead */
    ch = darrowy+getsystemmetrics(sm_cyedge)*2;
    /* add all lines to drop box section */
-   while sp <> nil do { /* traverse char* list */
+   while sp != NULL do { /* traverse char* list */
 
       getsiz(sp->str^); /* find sizing for this line */
       /* find open width on this char* only */
@@ -13437,7 +13350,7 @@ var wp:  wigptr;  /* widget pointer */
    if ! win->visible  winvis(win); /* make sure we are displayed */
    widget(win, x1, y1, x2, y2, "", id, wtdropbox, 0, wp);
    sp1 = sp; /* index top of char* list */
-   while sp1 <> nil do { /* add char*s to list */
+   while sp1 != NULL do { /* add char*s to list */
 
       unlockmain(); /* } exclusive access */
       r = s}message(wp->han, cb_addchar*, sp1->str^); /* add char* */
@@ -13549,7 +13462,7 @@ void getsiz(view s: char*);
    /* drop arrow height+shadow overhead */
    ch = darrowy+getsystemmetrics(sm_cyedge)*2;
    /* add all lines to drop box section */
-   while sp <> nil do { /* traverse char* list */
+   while sp != NULL do { /* traverse char* list */
 
       getsiz(sp->str^); /* find sizing for this line */
       /* find open width on this char* only */
@@ -13625,7 +13538,7 @@ var wp:  wigptr;  /* widget pointer */
    if ! win->visible  winvis(win); /* make sure we are displayed */
    widget(win, x1, y1, x2, y2, "", id, wtdropeditbox, 0, wp);
    sp1 = sp; /* index top of char* list */
-   while sp1 <> nil do { /* add char*s to list */
+   while sp1 != NULL do { /* add char*s to list */
 
       unlockmain(); /* } exclusive access */
       r = s}message(wp->han, cb_addchar*, sp1->str^); /* add char* */
@@ -14062,8 +13975,8 @@ var gw, gh, gox, goy: int;
    ox = (gox-1) / win->charspace+1;
    oy = (goy-1) / win->linespace+1;
    /* must make sure that client dosen"t intrude on edges */
-   if gw-gox-4 % win->charspace <> 0  w = w+1;
-   if gh-goy-4 % win->charspace <> 0  h = h+1
+   if gw-gox-4 % win->charspace != 0  w = w+1;
+   if gh-goy-4 % win->charspace != 0  h = h+1
 
 };
 
@@ -14169,8 +14082,8 @@ var gw, gh, gox, goy: int;
    ox = (gox-1) / win->charspace+1;
    oy = (goy-1) / win->linespace+1;
    /* must make sure that client dosen"t intrude on edges */
-   if gw-gox-4 % win->charspace <> 0  w = w+1;
-   if gh-goy-4 % win->charspace <> 0  h = h+1
+   if gw-gox-4 % win->charspace != 0  w = w+1;
+   if gh-goy-4 % win->charspace != 0  h = h+1
 
 };
 
@@ -14234,7 +14147,7 @@ var wp:  wigptr;    /* widget pointer */
    if tor == tobottom  fl = fl+tcs_bottom;
    widget(win, x1, y1, x2, y2, "", id, wttabbar, fl, wp);
    inx = 0; /* set index */
-   while sp <> nil do { /* add char*s to list */
+   while sp != NULL do { /* add char*s to list */
 
       /* create a char* buffer with space for terminating zero */
       m = max(sp->str^); /* get length */
@@ -14324,7 +14237,7 @@ var wp:  wigptr; /* widget pointer */
    with win^ do {
 
       wp = fndwig(win, id); /* find widget */
-      if wp == nil  error(ewignf); /* ! found */
+      if wp == NULL  error(ewignf); /* ! found */
       /* set the range */
       unlockmain(); /* } exclusive access */
       r = s}message(wp->han, tcm_setcursel, tn-1, 0);
@@ -14364,7 +14277,7 @@ void strcpy(var d: char*; view s: char*);
 
 {
 
-   new(d, max(s));
+   new(d, strlen(s));
    d^ = s
 
 };
@@ -14619,7 +14532,7 @@ var fp:     fontptr; /* pointer for fonts list */
    fp = win->fntlst; /* index top of fonts */
    fc = 1; /* set 1st font */
    ff = 0; /* set no font found */
-   while fp <> nil do { /* traverse */
+   while fp != NULL do { /* traverse */
 
       if comps(fns, fp->fn^)  ff = fc; /* found */
       fp = fp->next; /* next entry */
@@ -14715,14 +14628,14 @@ var r:   int;   /* result holder */
       lockmain(); /* start exclusive access */
       /* get the logical output file from Windows handle */
       ofn = hwn2lfn(hwnd);
-      if ofn <> 0  { /* there is a window */
+      if ofn != 0  { /* there is a window */
 
          win = lfn2win(ofn); /* index window from output file */
          if win->bufmod  restore(win, FALSE) /* perform selective update */
          else { /* main task will handle it */
 
             /* get update region */
-            b = getupdaterect(hwnd, cr, FALSE);
+            b = GetUpdateRect(hwnd, cr, FALSE);
             /* validate it so windows won"t s} multiple notifications */
             b = validatergn_n(hwnd); /* validate region */
             /* Pack the update region in the message. This limits the update
@@ -14745,7 +14658,7 @@ var r:   int;   /* result holder */
       lockmain(); /* start exclusive access */
       /* get the logical output file from Windows handle */
       ofn = hwn2lfn(hwnd);
-      if ofn <> 0  { /* there is a window */
+      if ofn != 0  { /* there is a window */
 
          win = lfn2win(ofn); /* index window from output file */
          with win^ do {
@@ -14769,7 +14682,7 @@ var r:   int;   /* result holder */
       lockmain(); /* start exclusive access */
       /* get the logical output file from Windows handle */
       ofn = hwn2lfn(hwnd);
-      if ofn <> 0  { /* there is a window */
+      if ofn != 0  { /* there is a window */
 
          win = lfn2win(ofn); /* index window from output file */
          with win^ do {
@@ -14946,7 +14859,7 @@ var wc:  wndclassa; /* windows class structure */
    wc.icon       = 0;
    wc.cursor     = 0;
    wc.background = 0;
-   wc.menuname   = nil;
+   wc.menuname   = NULL;
    wc.classname  = str(name);
    /* register that class */
    b = registerclass(wc);
@@ -14982,7 +14895,7 @@ var msg: msg;
    b = setevent(threadstart); /* flag subthread has started up */
 
    /* message handling loop */
-   while getmessage(msg, 0, 0, 0) <> 0 do { /* ! a quit message */
+   while getmessage(msg, 0, 0, 0) != 0 do { /* ! a quit message */
 
       b = translatemessage(msg); /* translate keyboard events */
       r = dispatchmessage(msg)
@@ -15125,7 +15038,7 @@ var r:    int;                /* result holder */
             cr.flags = cc_anycolor || cc_rgbinit || cc_enablehook;
             cr.lcustdata = 0; /* no data */
             cr.lpfnhook = wndprocadr(wndprocfix); /* hook to force front */
-            cr.lptemplatename = nil; /* set no template name */
+            cr.lptemplatename = NULL; /* set no template name */
             b = choosecolor(cr); /* perform choose color */
             /* set resulting color */
             win2rgb(cr.rgbresult, ip->clrred, ip->clrgreen, ip->clrblue);
@@ -15146,20 +15059,20 @@ var r:    int;                /* result holder */
             fr.lstructsize = 21*4+2*2; /* set size */
             fr.hwndowner = 0;
             fr.hinstance = 0;
-            fr.lpstrfilter = nil;
-            fr.lpstrcustomfilter = nil;
+            fr.lpstrfilter = NULL;
+            fr.lpstrcustomfilter = NULL;
             fr.nfilterindex = 0;
             fr.lpstrfile = bs;
-            fr.lpstrfiletitle = nil;
-            fr.lpstrinitialdir = nil;
-            fr.lpstrtitle = nil;
+            fr.lpstrfiletitle = NULL;
+            fr.lpstrinitialdir = NULL;
+            fr.lpstrtitle = NULL;
             fr.flags = ofn_hidereadonly || ofn_enablehook;
             fr.nfileoffset = 0;
             fr.nfileextension = 0;
-            fr.lpstrdefext = nil;
+            fr.lpstrdefext = NULL;
             fr.lcustdata = 0;
             fr.lpfnhook = wndprocadr(wndprocfix); /* hook to force front */
-            fr.lptemplatename = nil;
+            fr.lptemplatename = NULL;
             fr.pvreserved = 0;
             fr.dwreserved = 0;
             fr.flagsex = 0;
@@ -15172,7 +15085,7 @@ var r:    int;                /* result holder */
                /* Check was a cancel. If the user canceled, return a null
                  char*. */
                r = commdlgext}ederror;
-               if r <> 0  error(efildlg); /* error */
+               if r != 0  error(efildlg); /* error */
                /* Since the main code is expecting us to make a new char* for
                  the result, we must copy the input to the output so that it"s
                  disposal will be valid. */
@@ -15184,14 +15097,14 @@ var r:    int;                /* result holder */
                if ip->im == imqopen  { /* it"s open */
 
                   i = 1; /* set 1st character */
-                  while bs^[i] <> chr(0) do i = i+1; /* find terminator */
+                  while bs^[i] != chr(0) do i = i+1; /* find terminator */
                   new(ip->opnfil, i-1); /* create result char* */
                   for i = 1 to i-1 do ip->opnfil^[i] = ascii2chr(ord(bs^[i]))
 
                } else { /* it"s save */
 
                   i = 1; /* set 1st character */
-                  while bs^[i] <> chr(0) do i = i+1; /* find terminator */
+                  while bs^[i] != chr(0) do i = i+1; /* find terminator */
                   new(ip->savfil, i-1); /* create result char* */
                   for i = 1 to i-1 do ip->savfil^[i] = ascii2chr(ord(bs^[i]))
 
@@ -15223,12 +15136,12 @@ var r:    int;                /* result holder */
             if qfncase in ip->fndopt  fl = fl+fr_matchcase;
             frrp->flags = fl;
             frrp->lpstrfindwhat = fs; /* place finder char* */
-            frrp->lpstrreplacewith = nil; /* set no replacement char* */
+            frrp->lpstrreplacewith = NULL; /* set no replacement char* */
             frrp->wfindwhatlen = findreplace_str_len; /* set length */
             frrp->wreplacewithlen = 0; /* set null replacement char* */
             frrp->lcustdata = (LPARAM)ip; /* s} ip with this record */
             frrp->lpfnhook = 0; /* no callback */
-            frrp->lptemplatename = nil; /* set no template */
+            frrp->lptemplatename = NULL; /* set no template */
             /* start find dialog */
             fndrepmsg = registerwindowmessage("commdlg_FindReplace");
             ip->fndhan = findtext(frrp^); /* perform dialog */
@@ -15269,7 +15182,7 @@ var r:    int;                /* result holder */
             frrp->wreplacewithlen = findreplace_str_len; /* set null replacement char* */
             frrp->lcustdata = (LPARAM)ip; /* s} ip with this record */
             frrp->lpfnhook = 0; /* clear these */
-            frrp->lptemplatename = nil;
+            frrp->lptemplatename = NULL;
             /* start find dialog */
             fndrepmsg = registerwindowmessage("commdlg_FindReplace");
             ip->fnrhan = replacetext(frrp^); /* perform dialog */
@@ -15319,9 +15232,9 @@ var r:    int;                /* result holder */
             fns.rgbcolors = rgb2win(ip->fntfr, ip->fntfg, ip->fntfb);
             fns.lcustdata = 0; /* no data */
             fns.lpfnhook = wndprocadr(wndprocfix); /* hook to force front */
-            fns.lptemplatename = nil; /* no template name */
+            fns.lptemplatename = NULL; /* no template name */
             fns.hinstance = 0; /* no instance */
-            fns.lpszstyle = nil; /* no style */
+            fns.lpszstyle = NULL; /* no style */
             fns.nfonttype = 0; /* no font type */
             fns.nsizemin = 0; /* no minimum size */
             fns.nsizemax = 0; /* no maximum size */
@@ -15331,7 +15244,7 @@ var r:    int;                /* result holder */
                /* Check was a cancel. If the user canceled, just return the char*
                  empty. */
                r = commdlgext}ederror;
-               if r <> 0  error(efnddlg); /* error */
+               if r != 0  error(efnddlg); /* error */
                /* Since the main code is expecting us to make a new char* for
                  the result, we must copy the input to the output so that it"s
                  disposal will be valid. */
@@ -15340,16 +15253,16 @@ var r:    int;                /* result holder */
             } else { /* set what the dialog changed */
 
                ip->fnteff = []; /* clear what was set */
-               if lf->lfitalic <> 0  ip->fnteff = ip->fnteff+[qfteitalic] /* italic */
+               if lf->lfitalic != 0  ip->fnteff = ip->fnteff+[qfteitalic] /* italic */
                else ip->fnteff = ip->fnteff-[qfteitalic];
-               if fns.nfonttype && bold_fonttype <> 0
+               if fns.nfonttype && bold_fonttype != 0
                   ip->fnteff = ip->fnteff+[qftebold] /* bold */
                else
                   ip->fnteff = ip->fnteff-[qftebold];
-               if lf->lfunderline <> 0
+               if lf->lfunderline != 0
                   ip->fnteff = ip->fnteff+[qfteunderline] /* underline */
                else ip->fnteff = ip->fnteff-[qfteunderline];
-               if lf->lfstrikeout <> 0
+               if lf->lfstrikeout != 0
                   ip->fnteff = ip->fnteff+[qftestrikeout] /* strikeout */
                else ip->fnteff = ip->fnteff-[qftestrikeout];
                /* place foreground colors */
@@ -15379,12 +15292,12 @@ var r:    int;                /* result holder */
 
          b = destroywindow(ip->fndhan); /* destroy the dialog */
          /* check && set case match mode */
-         if flags && fr_matchcase <> 0  fndopt = fndopt+[qfncase];
+         if flags && fr_matchcase != 0  fndopt = fndopt+[qfncase];
          /* check && set cas up/down mode */
-         if flags && fr_down <> 0  fndopt = fndopt-[qfnup]
+         if flags && fr_down != 0  fndopt = fndopt-[qfnup]
          else fndopt = fndopt+[qfnup];
          i = 1; /* set 1st character */
-         while lpstrfindwhat^[i] <> chr(0) do i = i+1; /* find terminator */
+         while lpstrfindwhat^[i] != chr(0) do i = i+1; /* find terminator */
          new(fndstr, i-1); /* create result char* */
          for i = 1 to i-1 do fndstr^[i] = ascii2chr(ord(lpstrfindwhat^[i]));
          dispose(lpstrfindwhat) /* release temp char* */
@@ -15393,21 +15306,21 @@ var r:    int;                /* result holder */
 
          b = destroywindow(ip->fnrhan); /* destroy the dialog */
          /* check && set case match mode */
-         if flags && fr_matchcase <> 0  fnropt = fnropt+[qfrcase];
+         if flags && fr_matchcase != 0  fnropt = fnropt+[qfrcase];
          /* check && set find mode */
-         if flags && fr_findnext <> 0  fnropt = fnropt+[qfrfind];
+         if flags && fr_findnext != 0  fnropt = fnropt+[qfrfind];
          /* check && set replace mode */
-         if flags && fr_replace <> 0
+         if flags && fr_replace != 0
             fnropt = fnropt-[qfrfind]-[qfrallfil];
          /* check && set replace all mode */
-         if flags && fr_replaceall <> 0
+         if flags && fr_replaceall != 0
             fnropt = fnropt-[qfrfind]+[qfrallfil];
          i = 1; /* set 1st character */
-         while lpstrfindwhat^[i] <> chr(0) do i = i+1; /* find terminator */
+         while lpstrfindwhat^[i] != chr(0) do i = i+1; /* find terminator */
          new(fnrsch, i-1); /* create result char* */
          for i = 1 to i-1 do fnrsch^[i] = ascii2chr(ord(lpstrfindwhat^[i]));
          i = 1; /* set 1st character */
-         while lpstrreplacewith^[i] <> chr(0) do i = i+1; /* find terminator */
+         while lpstrreplacewith^[i] != chr(0) do i = i+1; /* find terminator */
          new(fnrrep, i-1); /* create result char* */
          for i = 1 to i-1 do
             fnrrep^[i] = ascii2chr(ord(lpstrreplacewith^[i]));
@@ -15445,7 +15358,7 @@ var msg: msg;
    b = setevent(threadstart); /* flag subthread has started up */
 
    /* message handling loop */
-   while getmessage(msg, 0, 0, 0) <> 0 do { /* ! a quit message */
+   while getmessage(msg, 0, 0, 0) != 0 do { /* ! a quit message */
 
       b = translatemessage(msg); /* translate keyboard events */
       r = dispatchmessage(msg)
@@ -15548,7 +15461,7 @@ static int fndful(int fd) /* output window file */
     ff = -1; /* set no file found */
     for fi = 0; fi < MAXFIL; fi++) if (opnfil[fi])  {
 
-        if (opnfil[fi]->inl == fd) && (opnfil[fi]->win <> nil)
+        if (opnfil[fi]->inl == fd) && (opnfil[fi]->win != NULL)
             /* links the input file, and has a window */
             if (opnfil[fi]->win->inpend) ff = fi; /* found one */
 
@@ -15662,7 +15575,7 @@ static ssize_t iwrite(int fd, const void* buff, size_t count)
 
 /*******************************************************************************
 
-Gralib startup
+Graph startup
 
 *******************************************************************************/
 
@@ -15680,10 +15593,10 @@ static void pa_init_network()
 
    fend = FALSE; /* set no end of program ordered */
    fautohold = TRUE; /* set automatically hold self terminators */
-   eqefre = nil; /* set free event queuing list empty */
+   eqefre = NULL; /* set free event queuing list empty */
    dblflt = FALSE; /* set no double fault */
-   wigfre = nil; /* set free widget tracking list empty */
-   freitm = nil; /* clear intratask message free list */
+   wigfre = NULL; /* set free widget tracking list empty */
+   freitm = NULL; /* clear intratask message free list */
    msgcnt = 1; /* clear message counter */
    /* Form character to ASCII value translation array from ASCII value to
      character translation array. */
@@ -15705,7 +15618,7 @@ static void pa_init_network()
    fndrepmsg = 0; /* set no find/replace message active */
    for i = 1 to 16 do gcolorsav^[i] = 0xffffff; /* set all to white */
    /* clear open files table */
-   for fi = 1 to ss_MAXFIL do opnfil[fi] = nil; /* set unoccuPIed */
+   for fi = 1 to ss_MAXFIL do opnfil[fi] = NULL; /* set unoccuPIed */
    /* clear top level translator table */
    for fi = 1 to ss_MAXFIL do xltfil[fi] = 0; /* set unoccuPIed */
    /* clear window logical number translator table */
@@ -15767,7 +15680,7 @@ refer(intv);
 
 /*******************************************************************************
 
-Gralib shutdown
+Graph shutdown
 
 *******************************************************************************/
 
@@ -15777,11 +15690,11 @@ Gralib shutdown
    /* if the program tries to exit when the user has ! ordered an exit, it
      is assumed to be a windows "unaware" program. We stop before we exit
      these, so that their content may be viewed */
-   if ! f} && fautohold  { /* process automatic exit sequence */
+   if ! fend && fautohold  { /* process automatic exit sequence */
 
       /* See if output is open at all */
-      if opnfil[OUTFIL] <> nil  /* output is allocated */
-         if opnfil[OUTFIL]->win <> nil  with opnfil[OUTFIL]->win^ do {
+      if opnfil[OUTFIL] != NULL  /* output is allocated */
+         if opnfil[OUTFIL]->win != NULL  with opnfil[OUTFIL]->win^ do {
 
          /* make sure we are displayed */
          if ! visible  winvis(opnfil[OUTFIL]->win);
@@ -15811,10 +15724,10 @@ Gralib shutdown
       dblflt = TRUE; /* set we already exited */
       /* close all open files && windows */
       for fi = 1 to ss_MAXFIL do
-         if opnfil[fi] <> nil  with opnfil[fi]^ do {
+         if opnfil[fi] != NULL  with opnfil[fi]^ do {
 
-         if han <> 0  ss_old_close(han, sav_close); /* close at lower level */
-         if win <> nil  clswin(fi) /* close open window */
+         if han != 0  ss_old_close(han, sav_close); /* close at lower level */
+         if win != NULL  clswin(fi) /* close open window */
 
       }
 
