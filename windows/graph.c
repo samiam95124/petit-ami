@@ -137,7 +137,7 @@ typedef enum {
 typedef struct fontrec {
 
     char*           fn;   /* name of font */
-    int             fix;  /* fixed PItch font flag */
+    int             fix;  /* fixed pitch font flag */
     int             sys;  /* font is system fixed (default) */
     struct fontrec* next; /* next font in list */
 
@@ -542,8 +542,8 @@ int xltfil[MAXFIL];
 int       fi;           /* index for files table */
 int       fend;         /* end of program ordered flag */
 int       fautohold;    /* automatic hold on exit flag */
-char*     pgmnam;       /* program name char* */
-char*     trmnam;       /* program termination char* */
+char*     pgmnam;       /* program name string */
+char*     trmnam;       /* program termination string */
 /* These are duplicates from the windows record. They must be here because
   Windows calls us back, && the results have to be passed via a global. */
 fontptr   fntlst;       /* list of windows fonts */
@@ -2302,7 +2302,7 @@ void newfont(winptr win)
        if (BIT(sabold) & attrc) w = fw_bold; else w = fw_regular;
        /* set normal height || half height for subscript/superscript */
        if (BIT(sasuper) & attrc) || (BIT(sasubs) & attrc)
-          h = trunc(gfhigh*0.75) else h = gfhigh;
+          h = gfhigh*0.75; else h = gfhigh;
        font = CreateFont(h, 0, 0, 0, w, BIT(saital) & attrc,
                            BIT(saundl) & attr, BIT(sastkout) & attr, ansi_charset,
                            out_tt_only_precis, clip_default_precis,
@@ -2317,7 +2317,7 @@ void newfont(winptr win)
           if (SelectObject(win->devcon, font) == -1) winerr(); /* process error */
 
     }
-    b = gettextmetrics(win->screens[win->curupd]->bdc, tm); /* get the standard metrics */
+    b = GetTextMetrics(win->screens[win->curupd]->bdc, tm); /* get the standard metrics */
     if (!b) winerr(); /* process windows error */
     /* Calculate line spacing */
     win->linespace = tm.tmheight;
@@ -2539,7 +2539,7 @@ void iniscn(winptr win, scnptr sc)
     if (sc->bhn == -1) winerr(); /* process windows error */
     newfont(win); /* create font for buffer */
     /* set non-braindamaged stretch mode */
-    r = setStretchBltmode(screens[curupd]->bdc, HALFTONE);
+    r = SetStretchBltMode(screens[curupd]->bdc, HALFTONE);
     if (!r) winerr(); /* process windows error */
     /* set pen to foreground */
     lb.lbstyle = bs_solid;
@@ -2600,7 +2600,7 @@ Note: The major objects are cleaned, but the minor ones need to be as well.
 
 *******************************************************************************/
 
-void disscn(winptr win, scnptr sc);
+void disscn(winptr win, scnptr sc)
 
 {
 
@@ -6563,7 +6563,7 @@ void prtmsgstr(int mn)
         case 0x0014: prtstr("WM_ERASEBKGND"); break;
         case 0x0015: prtstr("WM_SYSCOLORCHANGE"); break;
         case 0x0016: prtstr("WM_ENDSESSION"); break;
-        case 0x0018: prtstr("WM_SHOWWINDOW"); break;
+        case 0x0018: prtstr("WM_ShowWindow"); break;
         case 0x001A: prtstr("WM_WININICHANGE"); break;
         case 0x001B: prtstr("WM_DEVMODECHANGE"); break;
         case 0x001C: prtstr("WM_ACTIVATEAPP"); break;
@@ -6684,7 +6684,7 @@ void prtmsgstr(int mn)
         case 0x0227: prtstr("WM_MDICASCADE"); break;
         case 0x0228: prtstr("WM_MDIICONARRANGE"); break;
         case 0x0229: prtstr("WM_MDIGETACTIVE"); break;
-        case 0x0230: prtstr("WM_MDISETMENU"); break;
+        case 0x0230: prtstr("WM_MDISetMenu"); break;
         case 0x0231: prtstr("WM_ENTERSIZEMOVE"); break;
         case 0x0232: prtstr("WM_EXITSIZEMOVE"); break;
         case 0x0233: prtstr("WM_DROPFILES"); break;
@@ -8011,7 +8011,7 @@ int mousebutton(FILE* f, int m)
 
 {
 
-    int bn; /* number of mouse buttons *.
+    int bn; /* number of mouse buttons */
 
     if (m != 1) error(einvhan); /* bad mouse number */
     bn = getsystemmetrics(sm_cmousebuttons); /* find mouse buttons */
@@ -8030,19 +8030,21 @@ Return number of joysticks attached.
 
 *******************************************************************************/
 
-int joystick(FILE* f): joynum;
-
-var winptr win; /* window pointer */
+int joystick(FILE* f)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   with win^ do /* in window context */
-      joystick = numjoy; /* two */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window pointer */
+    int    jn;  /* joystick number */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    jn = win->numjoy; /* two */
+    unlockmain(); /* end exclusive access */
+
+    return (jn);
+
+}
 
 /*******************************************************************************
 
@@ -8052,125 +8054,121 @@ Returns the number of buttons on a given joystick.
 
 *******************************************************************************/
 
-int joybutton(FILE* f; j: joyhan): joybtn;
-
-var jc:  joycaps; /* joystick characteristics data */
-    winptr win;     /* window pointer */
-    nb:  int;    /* number of buttons */
-    r:   int;    /* return value */
+int joybutton(FILE* f, int j)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   with win^ do { /* in window context */
+    JOYCAPS  jc;  /* joystick characteristics data */
+    winptr   win; /* window pointer */
+    int      nb;  /* number of buttons */
+    MMRESULT r;   /* return value */
 
-      if (j < 1) || (j > numjoy)  error(einvjoy); /* bad joystick id */
-      r = joygetdevcaps(j-1, jc, joycaps_len);
-      if r != 0  error(ejoyqry); /* could ! access joystick */
-      nb = jc.wnumbuttons; /* set number of buttons */
-      /* We don"t support more than 4 buttons. */
-      if nb > 4  nb = 4;
-      joybutton = nb /* set number of buttons */
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    if (j < 1 || j > win->numjoy) error(einvjoy); /* bad joystick id */
+    r = joyGetDevCaps(j-1, jc, sizeof(JOYCAPS));
+    if r != JOYERR_NOERROR) error(ejoyqry); /* could not access joystick */
+    nb = jc.wNumButtons; /* set number of buttons */
+    /* We don"t support more than 4 buttons. */
+    if (nb > 4) nb = 4;
+    unlockmain(); /* end exclusive access */
 
-   };
-   unlockmain(); /* end exclusive access */
+    return (nb);
 
-};
+}
 
 /*******************************************************************************
 
 Return number of axies on a joystick
 
 Returns the number of axies implemented on a joystick, which can be 1 to 3.
-The axies order of implementation is x, y,  z. TyPIcally, a monodimensional
+The axies order of implementation is x, y,  z. Typically, a monodimensional
 joystick can be considered a slider without positional meaning.
 
 *******************************************************************************/
 
-int ijoyaxis(winptr win; j: joyhan): joyaxn;
-
-var jc: joycaps; /* joystick characteristics data */
-    na: int;    /* number of axes */
+int ijoyaxis(winptr win, int j)
 
 {
 
-   with win^ do { /* in window context */
+    JOYCAPS  jc; /* joystick characteristics data */
+    int      na; /* number of axes */
+    MMRESULT r;
 
-      if (j < 1) || (j > numjoy)  error(einvjoy); /* bad joystick id */
-      r = joygetdevcaps(j-1, jc, joycaps_len);
-      if r != 0  error(ejoyqry); /* could ! access joystick */
-      na = jc.wnumaxes; /* set number of axes */
-      /* We don"t support more than 3 axes. */
-      if na > 3  na = 3;
-      ijoyaxis = na /* set number of axes */
+    if (j < 1 || j > win->numjoy) error(einvjoy); /* bad joystick id */
+    r = joyGetDevCaps(j-1, jc, joycaps_len);
+    if r != JOYERR_NOERROR) error(ejoyqry); /* could not access joystick */
+    na = jc.wNumAxes; /* set number of axes */
+    /* We don"t support more than 3 axes. */
+    if (na > 3) na = 3;
+    ijoyaxis = na; /* set number of axes */
 
-   };
+    return (na);
 
-};
+}
 
-int joyaxis(FILE* f; j: joyhan): joyaxn;
-
-var winptr win; /* window pointer */
+int joyaxis(FILE* f, int j)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   joyaxis = ijoyaxis(win, j); /* find joystick axes */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window pointer */
+    int    na;
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    na = ijoyaxis(win, j); /* find joystick axes */
+    unlockmain(); /* end exclusive access */
+
+    return (na);
+
+}
 
 /*******************************************************************************
 
 Set tab graphical
 
-Sets a tab at the indicated PIxel number.
+Sets a tab at the indicated pixel number.
 
 *******************************************************************************/
 
-void isettabg(winptr win; t: int);
-
-var i, x: 1..MAXTAB; /* tab index */
+void isettabg(winptr win, int t)
 
 {
 
-   with win^, screens[curupd]^ do { /* window, screen context */
+    int i, x; /* tab index */
+    scncon* sc; /* screen context */
 
-      if auto && (((t-1) % charspace) != 0)
-         error(eatotab); /* cannot perform with auto on */
-      if (t < 1) || (t > maxxg)  error(einvtab); /* bad tab position */
-      /* find free location || tab beyond position */
-      i = 1;
-      while (i < MAXTAB) && (tab[i] != 0) && (t > tab[i]) do i = i+1;
-      if (i == MAXTAB) && (t < tab[i])  error(etabful); /* tab table full */
-      if t != tab[i]  { /* ! the same tab yet again */
+    sc = win->screens[win->curupd];
+    if (sc->auto && (t-1)%win->charspace)
+        error(eatotab); /* cannot perform with auto on */
+    if (t < 1 || t > sc->maxxg) error(einvtab); /* bad tab position */
+    /* find free location or tab beyond position */
+    i = 1;
+    while (i < MAXTAB && sc->tab[i] && t > sc->tab[i]) i = i+1;
+    if (i == MAXTAB && t < sc->tab[i]) error(etabful); /* tab table full */
+    if (t != sc->tab[i])  { /* ! the same tab yet again */
 
-         if tab[MAXTAB] != 0  error(etabful); /* tab table full */
-         /* move tabs above us up */
-         for x = MAXTAB downto i+1 do tab[x] = tab[x-1];
-         tab[i] = t /* place tab in order */
+        if (sc->tab[MAXTAB]) error(etabful); /* tab table full */
+        /* move tabs above us up */
+        for (x = MAXTAB; x > i; x--) sc->tab[x] = sc->tab[x-1];
+        sc->tab[i] = t; /* place tab in order */
 
-      }
+    }
 
-   }
+}
 
-};
-
-void settabg(FILE* f; t: int);
-
-var winptr win; /* window pointer */
+void settabg(FILE* f, int t)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   with win^ do /* in window context */
-      isettabg(win, t); /* translate to graphical call */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    isettabg(win, t); /* translate to graphical call */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -8180,19 +8178,18 @@ Sets a tab at the indicated collumn number.
 
 *******************************************************************************/
 
-void settab(FILE* f; t: int);
-
-var winptr win; /* window pointer */
+void settab(FILE* f, int t)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   with win^ do /* in window context */
-      isettabg(win, (t-1)*charspace+1); /* translate to graphical call */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    isettabg(win, (t-1)*win->charspace+1); /* translate to graphical call */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -8202,44 +8199,41 @@ Resets the tab at the indicated PIxel number.
 
 *******************************************************************************/
 
-void irestabg(winptr win; t: int);
-
-var i:  1..MAXTAB; /* tab index */
-    ft: 0..MAXTAB; /* found tab */
+void irestabg(winptr win, int t)
 
 {
 
-   with win^, screens[curupd]^ do { /* in windows, screen context */
+    int     i;  /* tab index */
+    int     ft; /* found tab */
+    scncon* sc; /* screen context */
 
-      if (t < 1) || (t > maxxg)  error(einvtab); /* bad tab position */
-      /* search for that tab */
-      ft = 0; /* set ! found */
-      for i = 1 to MAXTAB do if tab[i] == t  ft = i; /* found */
-      if ft != 0  { /* found the tab, remove it */
+    sc = win->screens[win->curupd];
+    if (t < 1 || t > sc->maxxg) error(einvtab); /* bad tab position */
+    /* search for that tab */
+    ft = 0; /* set ! found */
+    for (i = 1; i <= MAXTAB; i++) if (sc->tab[i] == t) ft = i; /* found */
+    if (ft != 0) { /* found the tab, remove it */
 
-         /* move all tabs down to gap out */
-         for i = ft to MAXTAB-1 do tab[i] = tab[i+1];
-         tab[MAXTAB] = 0 /* clear any last tab */
+       /* move all tabs down to gap out */
+       for (i = ft; i <= MAXTAB-1; i++) sc->tab[i] = sc->tab[i+1];
+       sc->tab[MAXTAB] = 0; /* clear any last tab */
 
-      }
+    }
 
-   }
+}
 
-};
-
-void restabg(FILE* f; t: int);
-
-var winptr win; /* window pointer */
+void restabg(FILE* f, int t)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   with win^ do /* in window context */
-      irestabg(win, t); /* translate to graphical call */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    irestabg(win, t); /* translate to graphical call */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -8249,19 +8243,18 @@ Resets the tab at the indicated collumn number.
 
 *******************************************************************************/
 
-void restab(FILE* f; t: int);
-
-var winptr win; /* window pointer */
+void restab(FILE* f, int t)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   with win^ do /* in window context */
-      irestabg(win, (t-1)*charspace+1); /* translate to graphical call */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    irestabg(win, (t-1)*win->charspace+1); /* translate to graphical call */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -8272,300 +8265,246 @@ arrangement.
 
 *******************************************************************************/
 
-void clrtab(FILE* f);
-
-var i:   1..MAXTAB;
-    winptr win; /* window pointer */
+void clrtab(FILE* f)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   with win^ do /* in window context */
-      for i = 1 to MAXTAB do screens[curupd]->tab[i] = 0;
-   unlockmain(); /* end exclusive access */
+    int    i;
+    winptr win; /* window pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    for (i = 1; i <= MAXTAB; i++) win->screens[win->curupd]->tab[i] = 0;
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
-Find number of int keys
+Find number of function keys
 
-Finds the total number of function, || general assignment keys. Currently, we
-just implement the 12 unshifted PC int keys. We may add control && shift
-int keys as well.
+Finds the total number of function, or general assignment keys. Currently, we
+just implement the 12 unshifted PC function keys. We may add control and shift
+function keys as well.
 
 *******************************************************************************/
 
-int funkey(FILE* f): funky;
+int funkey(FILE* f)
 
 {
 
-   refer(f); /* stub out */
-   funkey = 12 /* number of int keys */
+    funkey = 12; /* number of function keys */
 
-};
+}
 
 /*******************************************************************************
 
 Process input line
 
-Reads an input line with full echo && editting. The line is placed into the
+Reads an input line with full echo and editting. The line is placed into the
 input line buffer.
 
 The upgrade for this is to implement a full set of editting features.
 
 Now edits multiple buffers in multiple windows. Each event is received from
-ievent,  dispatched to the buffer whose window it belongs to. When a
+ievent, dispatched to the buffer whose window it belongs to. When a
 buffer is completed by hitting "enter",  we return.
 
 *******************************************************************************/
 
-void readline(fn: ss_filhdl);
-
-var er:  evtrec; /* event record */
-    winptr win; /* window pointer */
+void readline(int fn)
 
 {
 
-   repeat /* get line characters */
+    pa_evtrec er;  /* event record */
+    winptr    win; /* window pointer */
 
-      /* get events until an "interesting" event occurs */
-      repeat ievent(fn, er)
-         until er.etype in [etchar, etenter, etterm, etdelcb];
-      win = lfn2win(xltwin[er.winid]); /* get the window from the id */
-      with win^ do { /* in windows context */
+    do { /* get line characters */
 
-         /* if the event is line enter, place carriage return code,
+        /* get events until an "interesting" event occurs */
+        do { ievent(fn, er)
+        } while (er.etype != etchar && er.etype != etenter &&
+                 er.etype != etterm && er.etype != etdelcb);
+        win = lfn2win(xltwin[er.winid]); /* get the window from the id */
+        /* if the event is line enter, place carriage return code,
            otherwise place real character. note that we emulate a
            terminal && return cr only, which is handled as appropriate
            by a higher level. if the event is program terminate,  we
            execute an organized halt */
-         case er.etype of /* event */
+        switch (er.etype) of /* event */
 
-            etterm:  goto 88; /* halt program */
-            etenter: { /* line terminate */
+            case etterm:  abort; /* halt program */
+            case etenter: /* line terminate */
+                win->inpbuf[win->inpptr] = "\cr"; /* return cr */
+                plcchr(win, "\cr"); /* output newline sequence */
+                plcchr(win, "\lf");
+                win->inpend = TRUE; /* set line was terminated */
+                break;
 
-               inpbuf[inpptr] = "\cr"; /* return cr */
-               plcchr(win, "\cr"); /* output newline sequence */
-               plcchr(win, "\lf");
-               inp} = TRUE /* set line was terminated */
+            case etchar: /* character */
+                if (win->inpptr < MAXLIN) {
 
-            };
-            etchar: { /* character */
+                    /* place real character */
+                    win->inpbuf[win->inpptr] = er.echar;
+                    plcchr(win, er.echar); /* echo the character */
 
-               if inpptr < MAXLIN  {
+                }
+                if (win->inpptr < MAXLIN)
+                    win->inpptr = win->inpptr+1; /* next character */
+                break;
 
-                  inpbuf[inpptr] = er.char; /* place real character */
-                  plcchr(win, er.char) /* echo the character */
+            case etdelcb: /* delete character backwards */
+                if (win->inpptr > 1) { /* ! at extreme left */
 
-               };
-               if inpptr < MAXLIN  inpptr = inpptr+1 /* next character */
+                    /* backspace, spaceout  backspace again */
+                    plcchr(win, "\bs");
+                    plcchr(win, " ");
+                    plcchr(win, "\bs");
+                    win->inpptr = win->inpptr-1; /* back up pointer */
 
-            };
-            etdelcb: { /* delete character backwards */
+                }
+                break;
 
-               if inpptr > 1  { /* ! at extreme left */
+        }
 
-                  plcchr(win, "\bs"); /* backspace, spaceout  backspace again */
-                  plcchr(win, " ");
-                  plcchr(win, "\bs");
-                  inpptr = inpptr-1 /* back up pointer */
+    } while (until er.etype != pa_etenter); /* until line terminate */
+    /* note we still are indexing the last window that gave us the enter */
+    win->inpptr = 1 /* set 1st position on active line */
 
-               }
-
-            }
-
-         }
-
-      }
-
-   until er.etype == etenter; /* until line terminate */
-   /* note we still are indexing the last window that gave us the enter */
-   win->inpptr = 1 /* set 1st position on active line */
-
-};
+}
 
 /*******************************************************************************
 
-Place char* in storage
+Place string in storage
 
-Places the given char* into dynamic storage, && returns that.
+Places the given string into dynamic storage, and returns that.
 
 *******************************************************************************/
 
-int str(view s: char*): char*;
-
-var p: char*;
+char* str(char* s)
 
 {
 
-   new(p, strlen(s));
-   p^ = s;
-   str = p
+    char* p;
 
-};
+    p = malloc(strlen(s)+1);
+    if (!p) error(enomem);
+    strcpy(p, s);
+
+    return (p);
+
+}
 
 /*******************************************************************************
 
 Get program name
 
-Retrieves the program name off the Win95 command line. This routine is very
-dep}ent on the structure of a windows command line. The name is enclosed
-in quotes, has a path, && is terminated by ".".
-A variation on this is a program that executes us directly may ! have the
-quotes, && we account for this. I have also accounted for there being no
+Retrieves the program name off the Windows command line. This routine is very
+dependent on the structure of a windows command line. The name is enclosed
+in quotes, has a path, and is terminated by ".".
+
+A variation on this is a program that executes us directly may not have the
+quotes, and we account for this. I have also accounted for there being no
 extention, just in case these kinds of things turn up.
+
+Also sets up the termination name, used to place a title on a window that is
+held after execution ends for a program with autohold set.
 
 Notes:
 
 1. Win98 drops the quotes.
-2. Win XP/2000 drops the path && the extention.
+2. Win XP/2000 drops the path and the extention.
 
 *******************************************************************************/
 
-void getpgm;
-
-var l:  int; /* length of program name char* */
-    cp: char*; /* holds command line pointer */
-    i:  int; /* index for char* */
-    s:  int; /* index save */
-
-/* This causes CE to fail */
-/* fixed fini: char* == "Finished - ";*/ /* termination message */
-
-/* termination message */
-
-fixed fini: packed array [1..11] of char == "Finished - ";
-
-/* check next command line character */
-
-int chknxt: char;
-
-var c: char;
+void getpgm(void)
 
 {
 
-   if i > max(cp^)  c = " " else c = cp^[i];
-   chknxt = c
+    int   l;    /* length of program name char* */
+    char* cp;   /* holds command line pointer */
+    char* s, s2;
+    char  fini[] = "Finished - ";
 
-};
+    cp = GetCommandLine(); /* get command line */
+    i = 1; /* set 1st character */
+    if (*cp == '"') cp++; /* skip quote */
+    /* find last "\" in quoted section */
+    s = NULL; /* flag not found */
+    while (*s && *s != '"' && *s != ' ')
+        { if (chknxt(i, cp) == '\\') s = cp+1; cp++; }
+    if (!s) error(esystem);
+    /* count program name length */
+    l = 0; /* clear length */
+    s2 = s; /* index program name */
+    while (*s2 != '.' && *s2 != ' ') { s2++; l++; }
+    pgmnam = malloc(l);
+    if (!pgmnam) error(enomem);
+    s2 = pgmnam; /* index 1st character */
+    while (*s != '.' && *s != ' ') *s2++ = *s++; /* place characters */
+    /* form the name for termination */
+    trmnam = malloc(strlen(pgmnam)+strlen(fini)); /* get the holding string */
+    if (!trmnam) error(enomem);
+    strcpy(trmnam, fini); /* place first part */
+    strcmp(trmnam, pgmnam); /* place program name */
 
-{
-
-   cp = getcommandline; /* get command line */
-   i = 1; /* set 1st character */
-   if cp^[1] == """  i = 2; /* set character after quote */
-   /* find last "\" in quoted section */
-   s = 0; /* flag ! found */
-   while (chknxt != """) && (chknxt != " ") && (i < max(cp^)) do
-      { if chknxt == "\\"  s = i; i = i+1 };
-   s = s+1; /* skip "\" */
-   i = s; /* index 1st character */
-   /* count program name length */
-   l = 0; /* clear length */
-   while (chknxt != ".") && (chknxt != " ") do { l = l+1; i = i+1 };
-   new(pgmnam, l); /* get a char* for that */
-   i = s; /* index 1st character */
-   while (chknxt != ".") && (chknxt != " ") do {
-
-      pgmnam^[i-s+1] = chknxt; /* place character */
-      i = i+1 /* next character */
-
-   };
-   /* form the name for termination */
-   new(trmnam, max(pgmnam^)+11); /* get the holding char* */
-   for i = 1 to 11 do trmnam^[i] = fini[i]; /* place first part */
-   /* place program name */
-   for i = 1 to max(pgmnam^) do trmnam^[i+11] = pgmnam^[i]
-
-};
+}
 
 /*******************************************************************************
 
 Sort font list
 
 Sorts the font list for alphabetical order, a-z. The font list does ! need
-to be in a particular order (and indeed, can"t be absolutely in order, because
+to be in a particular order (and indeed, can't be absolutely in order, because
 of the first 4 reserved entries), but sorting it makes listings neater if a
 program decides to dump the font names in order.
 
 *******************************************************************************/
 
-void sortfont(var fp: fontptr);
-
-var nl, p, c, l: fontptr;
-
-int gtr(view d, s: char*): int;
-
-var i:      int; /* index for char* */
-    l:      int; /* common region length */
-    r:      int; /* result save */
+void sortfont(fontptr* fp)
 
 {
 
-   /* check case where one char* is null, && compare lengths if so */
-   if (strlen(s) == 0) || (max(d) == 0)  r = max(d) < strlen(s)
-   else {
+    fontptr nl, p, c, l;
 
-      /* find the shorter of the char*s */
-      if strlen(s) > max(d)  l = max(d) else l = strlen(s);
-      /* compare the overlapPIng region */
-      i = 1; /* set 1st character */
-      /* find first non-matching character */
-      while (i < l) && (tolower(s[i]) == tolower(d[i])) do i = i+1;
-      /* check ! equal, && return status based on that character */
-      if tolower(s[i]) != tolower(d[i])  r = tolower(d[i]) < tolower(s[i])
-      /* if the entire common region matched,  we base the result on
-        length */
-      else r = max(d) < strlen(s)
+    nl = NULL; /* clear destination list */
+    while (fp != NULL) { /* insertion sort */
 
-   };
-   gtr = r /* return match status */
+        p = fp; /* index top */
+        fp = fp->next; /* remove that */
+        p->next = NULL; /* clear next */
+        c = nl; /* index new list */
+        l = NULL; /* clear last */
+        while (c) { /* find insertion point */
 
-};
+            /* compare char*s */
+            if (strcmp(p->fn, c->fn) > 0) c = NULL; /* terminate */
+            else {
 
-{
+                l = c; /* set last */
+                c = c->next; /* advance */
 
-   nl = NULL; /* clear destination list */
-   while fp != NULL do { /* insertion sort */
+            }
 
-      p = fp; /* index top */
-      fp = fp->next; /* remove that */
-      p->next = NULL; /* clear next */
-      c = nl; /* index new list */
-      l = NULL; /* clear last */
-      while c != NULL do { /* find insertion point */
+        }
+        if (!l) {
 
-         /* compare char*s */
-         if gtr(p->fn^, c->fn^)
-            c = NULL /* terminate */
-         else {
+            /* if no last, insert to start */
+            p->next = nl;
+            nl = p;
 
-            l = c; /* set last */
-            c = c->next /* advance */
+        } else {
 
-         }
+            /* insert to middle/end */
+            p->next = l->next; /* set next */
+            l->next = p; /* link to last */
 
-      };
-      if l == NULL  {
+        }
 
-         /* if no last, insert to start */
-         p->next = nl;
-         nl = p
+    }
+    fp = nl; /* place result */
 
-      } else {
-
-         /* insert to middle/} */
-         p->next = l->next; /* set next */
-         l->next = p /* link to last */
-
-      }
-
-   };
-   fp = nl /* place result */
-
-};
+}
 
 /*******************************************************************************
 
@@ -8577,145 +8516,135 @@ the found fonts on the global fonts list in no particular order.
 
 Note that OpenType fonts are also flagged as TRUEType fonts.
 
-We remove any "bold", "italic" || "oblique" descriptor word from the } of
-the font char*, as these are attributes, ! part of the name.
+We remove any "bold", "italic" or "oblique" descriptor word from the end of
+the font string, as these are attributes, not part of the name.
 
 *******************************************************************************/
 
-int enumfont(var lfd: enumlogfontex; var pfd: newtextmetricex;
-                  ft: dword; ad: lparam): int;
+/* count number of space delimited words in string */
 
-var fp:   fontptr; /* pointer to font entry */
-    c, i: int; /* indexes */
-
-/* get the last word in the font name */
-
-void getlst(view s: char*; var d: char*);
-
-var i, x: int;
+static int words(char *s)
 
 {
 
-   *d = 0; /* clear result */
-   /* find } */
-   i = 1;
-   while s[i] != chr(0) do i = i+1;
-   if i > 1  {
+    int wc;
+    int ichar;
+    int ispace;
 
-      i = i-1; /* back up to last character */
-      /* back up to non-space */
-      while (s[i] == " ") && (i > 1) do i = i-1;
-      if s[i] != " "  { /* at } of word */
+    wc = 0;
+    ichar = 0;
+    ispace = 0;
+    while (*s) {
 
-         /* back up to space */
-         while (s[i] != " ") && (i > 1) do i = i-1;
-         if s[i] == " "  { /* at start of word */
+        if (*s == ' ') {
 
-            i = i+1; /* index start of word */
-            x = 1; /* index start of output */
-            while (s[i] != chr(0)) && (s[i] != " ") do {
+            if (!ispace) { ispace = 1; ichar = 0; }
 
-               d[x] = s[i]; /* transfer character */
-               i = i+1; /* next */
-               x = x+1
+        } else {
+
+            if (!ichar) { ichar = 1; ispace = 0; wc++; }
+
+        }
+        s++;
+
+    }
+
+    return wc;
+
+}
+
+/* extract a series of space delimited words from string */
+
+static void extwords(char *d, int dl, char *s, int st, int ed)
+{
+
+    int wc;
+    int ichar;
+    int ispace;
+
+    wc = 0;
+    ichar = 0;
+    ispace = 0;
+    if (dl < 1) error("String too large for destination");
+    dl--; /* create room for terminator */
+    while (*s) {
+
+        if (*s == ' ') {
+
+            if (ichar) wc++; /* count end of word */
+            if (!ispace) { ispace = 1; ichar = 0; }
+
+        } else {
+
+            if (!ichar) { ichar = 1; ispace = 0; }
+            if (wc >=st && wc <= ed) {
+
+                if (!dl) error("String too large for destination");
+                *d++ = *s;
+                dl--;
 
             }
 
-         }
+        }
+        s++;
 
-      }
+    }
+    *d = 0;
 
-   }
-
-};
-
-/* clear last word in font name */
-
-void clrlst(var s: char*);
-
-var i: int;
-
-{
-
-   /* find } */
-   i = 1;
-   while s[i] != chr(0) do i = i+1;
-   if i > 1  { /* char* isn"t null */
-
-      i = i-1; /* back up to last character */
-      /* back up to non-space */
-      while (s[i] == " ") && (i > 1) do i = i-1;
-      if s[i] != " "  { /* at } of word */
-
-         /* back up to space */
-         while (s[i] != " ") && (i > 1) do i = i-1;
-         if s[i] == " "  { /* at start of word */
-
-            /* back up to non-space */
-            while (s[i] == " ") && (i > 1) do i = i-1;
-            if s[i] != " "  /* at } of word before that */
-               s[i+1] = chr(0) /* now terminate char* there */
-
-         }
-
-      }
-
-   }
-
-};
+}
 
 /* replace attribute word */
 
-void repatt(var s: char*);
-
-var buff: packed array [1..lf_fullfacesize] of char;
-    done: int;
+void repatt(char* s, int l)
 
 {
 
-   repeat
+    int wc;
+    int f;
 
-      done = TRUE; /* default to no more */
-      getlst(s, buff); /* get any last word */
+    wc = words(s); /* find number of words in string */
 
-      if comps(buff, "bold") || comps(buff, "italic") ||
-         comps(buff, "oblique")  {
+    do { /* try removing descriptors from string end */
 
-         clrlst(s); /* clear last word */
-         done = FALSE /* signal ! complete */
+        f = FALSE;
+        if (!wc) error(esystem);
+        extwords(ts, 250, s, wc, wc); /* get last word in string */
+        if (!strcmp(ts, "bold") || !strcmp(ts, "italic") ||
+            !strcmp(ts, "oblique)) { wc--; f = TRUE; }
 
-      }
+    } while (f); /* until no more descriptors found */
 
-   until done
+    /* extract remaining string */
+    extwords(s, l, ts, 1, wc);
 
-};
+}
+
+int enumfont(ENUMLOGFONTEX* lfd, ENUMTEXTMETRICEX pfd, DWORD ft, LPARAM ad)
 
 {
 
-   refer(pfd, ad); /* unused */
-   if (ft && TRUEtype_fonttype != 0) and
-      ((lfd.elflogfont.lfcharset == ansi_charset) ||
-       (lfd.elflogfont.lfcharset == symbol_charset) or
-       (lfd.elflogfont.lfcharset == default_charset))  {
+    fontptr fp;     /* pointer to font entry */
+    int     c, i;   /* indexes */
+    char    ts[250];
+
+    if (ft & TRUETYPE_FONTTYPE) &&
+        (lfd.elfLogFont.lfCharSet == ANSI_CHARSET ||
+         lfd.elfLogFont.lfCharSet == SYMBOL_CHARSET ||
+         lfd.elfLogfont.lfCharSet == DEFAULT_CHARSET)  {
 
       /* ansi character set, record it */
-      repatt(lfd.elffullname); /* remove any attribute word */
-      new(fp); /* get new font entry */
+      strcpy(ts, lfd.elfFullName); /* make a copy of the name */
+      repatt(ts); /* remove any attribute word */
+      fp = malloc(sizeof(fontrec)); /* get a font entry */
+      if (!fp) error(enomem);
       fp->next = fntlst; /* push to list */
       fntlst = fp;
       fntcnt = fntcnt+1; /* count font */
-      c = 0; /* count font name characters */
-      while lfd.elffullname[c+1] != chr(0) do c = c+1;
-      if c > 0  { /* ! null */
+      fp->fn = str(ts); /* create string and copy */
+      fp->fix = !!(lfd.elfLogFont.lfPitchAndFamily & 3 == fixed_pitch);
+      fp->sys = FALSE; /* set not system */
 
-         new(fp->fn, c); /* get a char* of that length */
-         for i = 1 to c do fp->fn^[i] = ascii2chr(ord(lfd.elffullname[i]));
-
-      };
-      fp->fix = (lfd.elflogfont.lfPItchandfamily && 3) == fixed_PItch;
-      fp->sys = FALSE /* set ! system */
-
-   };
+   }
    enumfont = TRUE /* set continue */
 
 };
@@ -8725,212 +8654,215 @@ var buff: packed array [1..lf_fullfacesize] of char;
 Get fonts list
 
 Loads the windows font list. The list is filtered for TRUEType/OpenType
-only. We also retrive the fixed PItch status.
+only. We also retrive the fixed pitch status.
 
-Because of the callback arrangement, we have to pass the font list && count
+Because of the callback arrangement, we have to pass the font list and count
 through globals, which are  placed into the proper window.
 
 *******************************************************************************/
 
-void getfonts(winptr win);
-
-var r:  int;
-    lf: logfont;
+void getfonts(winptr win)
 
 {
 
-   fntlst = NULL; /* clear fonts list */
-   fntcnt = 0; /* clear fonts count */
-   lf.lFHEIGHT = 0; /* use default height */
-   lf.lfwidth = 0; /* use default width */
-   lf.lfescapement = 0; /* no escapement */
-   lf.lforientation = 0; /* orient to x axis */
-   lf.lfweight = fw_dontcare; /* default weight */
-   lf.lfitalic = 0;  /* no italic */
-   lf.lfunderline = 0; /* no underline */
-   lf.lfstrikeout = 0; /* no strikeout */
-   lf.lfcharset = default_charset; /* use default characters */
-   lf.lfoutprecision = out_default_precis; /* use default precision */
-   lf.lfclipprecision = clip_default_precis; /* use default clipPIng */
-   lf.lFQUALITY = default_quality; /* use default quality */
-   lf.lfPItchandfamily = 0; /* must be zero */
-   lf.lffacename[1] = chr(0); /* match all typeface names */
-   r = enumfontfamiliesex(win->devcon, lf, enumfont, 0, 0);
-   win->fntlst = fntlst; /* place into windows record */
-   win->fntcnt = fntcnt;
-   sortfont(win->fntlst) /* sort into alphabetical order */
+    int r;
+    LOGFONT lf;
 
-};
+    fntlst = NULL; /* clear fonts list */
+    fntcnt = 0; /* clear fonts count */
+    lf.lfHeight = 0; /* use default height */
+    lf.lfWidth = 0; /* use default width */
+    lf.lfEscapement = 0; /* no escapement */
+    lf.lfOrientation = 0; /* orient to x axis */
+    lf.lfWeight = fw_dontcare; /* default weight */
+    lf.lfItalic = 0;  /* no italic */
+    lf.lfUnderline = 0; /* no underline */
+    lf.lfStrikeOut = 0; /* no strikeout */
+    lf.lfCharSet = DEFAULT_CHARSET; /* use default characters */
+    lf.lfOutPrecision = OUT_DEFAULT_PRECIS; /* use default precision */
+    lf.lfClipPrecision = CLIP_DEFAULT_PRECIS; /* use default clipPIng */
+    lf.lfQuality = DEFAULT_QUALITY; /* use default quality */
+    lf.lfPitchAndFamily = 0; /* must be zero */
+    lf.lfFaceName[1] = chr(0); /* match all typeface names */
+    r = EnumFontFamiliesEx(win->devcon, lf, enumfont, 0, 0);
+    win->fntlst = fntlst; /* place into windows record */
+    win->fntcnt = fntcnt;
+    sortfont(win->fntlst); /* sort into alphabetical order */
+
+}
 
 /*******************************************************************************
 
 Remove font from font list
 
-Removes the indicated font from the font list. Does ! dispose of the entry.
+Removes the indicated font from the font list. Does not dispose of the entry.
 
 *******************************************************************************/
 
-void delfnt(winptr win; fp: fontptr);
-
-var p: fontptr;
+void delfnt(winptr win, fontptr fp)
 
 {
 
-   p = win->fntlst; /* index top of list */
-   if win->fntlst == NULL  error(esystem); /* should ! be null */
-   if win->fntlst == fp  win->fntlst = fp->next /* gap first entry */
-   else { /* mid entry */
+    fontptr p;
 
-      /* find entry before ours */
-      while (p->next != fp) && (p->next != NULL) do p = p->next;
-      if p->next == NULL  error(esystem); /* ! found */
-      p->next = fp->next /* gap out */
+    p = win->fntlst; /* index top of list */
+    if win->fntlst == NULL  error(esystem); /* should ! be null */
+    if win->fntlst == fp  win->fntlst = fp->next; /* gap first entry */
+    else { /* mid entry */
 
-   }
+        /* find entry before ours */
+        while (p->next != fp && p->next != NULL) do p = p->next;
+        if p->next == NULL  error(esystem); /* not found */
+        p->next = fp->next; /* gap out */
 
-};
+    }
+
+}
 
 /*******************************************************************************
 
 Search for font by name
 
-Finds a font in the list of fonts. Also matches fixed/no fixed PItch status.
+Finds a font in the list of fonts. Also matches fixed/no fixed pitch status.
 
 *******************************************************************************/
 
-void fndfnt(winptr win; view fn: char*; fix: int; var fp: fontptr);
-
-var p: fontptr;
+void fndfnt(winptr win, char* fn, int fix: int, fontptr* fp)
 
 {
 
-   fp = NULL; /* set no font found */
-   p = win->fntlst; /* index top of font list */
-   while p != NULL do { /* traverse font list */
+    fontptr p;
 
-      if comps(p->fn^, fn) && (p->fix == fix)  fp = p; /* found, set */
-      p = p->next /* next entry */
+    *fp = NULL; /* set no font found */
+    p = win->fntlst; /* index top of font list */
+    while (p) { /* traverse font list */
 
-   }
+        if (!strcmp(p->fn, fn && p->fix == fix) *fp = p; /* found, set */
+        p = p->next; /* next entry */
 
-};
+    }
+
+}
 
 /*******************************************************************************
 
 Separate standard fonts
 
-Finds the standard fonts, in order, && either moves these to the top of the
-table || creates a blank entry.
+Finds the standard fonts, in order, and either moves these to the top of the
+table or creates a blank entry.
 
-Note: could also default to style searching for book && sign fonts.
+Note: could also default to style searching for book and sign fonts.
 
 *******************************************************************************/
 
-void stdfont(winptr win);
-
-var termfp, bookfp, signfp, techfp: fontptr; /* standard font slots */
-
 /* place font entry in list */
 
-void plcfnt(fp: fontptr);
+void plcfnt(fontptr fp)
 
 {
 
-   if fp == NULL  { /* no entry, create a dummy */
+    if (!fp) { /* no entry, create a dummy */
 
-      new(fp); /* get a new entry */
-      new(fp->fn, 0); /* place empty char* */
-      fp->fix = FALSE; /* set for cleanlyness */
-      fp->sys = FALSE /* set ! system */
+        fp = malloc(sizeof(fontrec)); /* get a new entry */
+        if (!fp) error(enomem);
+        fp->fn = malloc(1); /* place empty char* */
+        if (!fp-fn) error(enomem);
+        *fp->fn = 0;
+        fp->fix = FALSE; /* set for cleanlyness */
+        fp->sys = FALSE; /* set ! system */
 
-   };
-   fp->next = win->fntlst; /* push onto list */
-   win->fntlst = fp
+    }
+    fp->next = win->fntlst; /* push onto list */
+    win->fntlst = fp;
 
-};
+}
+
+void stdfont(winptr win)
 
 {
 
-   /* clear font pointers */
-   termfp = NULL;
-   bookfp = NULL;
-   signfp = NULL;
-   techfp = NULL;
-   /* set up terminal font. terminal font is set to system default */
-   new(termfp); /* get a new entry */
-   termfp->fix = TRUE; /* set fixed */
-   termfp->sys = TRUE; /* set system */
-   new(termfp->fn, 12); /* place name */
-   termfp->fn^ = "System Fixed";
-   win->fntcnt = win->fntcnt+1; /* add to font count */
-   /* find book fonts */
-   fndfnt(win, "Times New Roman", FALSE, bookfp);
-   if bookfp == NULL  {
+    fontptr termfp, bookfp, signfp, techfp; /* standard font slots */
 
-      fndfnt(win, "Garamond", FALSE, bookfp);
-      if bookfp == NULL  {
+    /* clear font pointers */
+    termfp = NULL;
+    bookfp = NULL;
+    signfp = NULL;
+    techfp = NULL;
+    /* set up terminal font. terminal font is set to system default */
+    termfp = malloc(sizeof(fontrec)); /* get a new entry */
+    if (!termfp) error(enomem);
+    termfp->fix = TRUE; /* set fixed */
+    termfp->sys = TRUE; /* set system */
+    termfp->fn = str("System Fixed");
+    win->fntcnt = win->fntcnt+1; /* add to font count */
+    /* find book fonts */
+    fndfnt(win, "Times New Roman", FALSE, bookfp);
+    if (!bookfp) {
 
-         fndfnt(win, "Book Antiqua", FALSE, bookfp);
-         if bookfp == NULL  {
+        fndfnt(win, "Garamond", FALSE, bookfp);
+        if (!bookfp) {
 
-            fndfnt(win, "Georgia", FALSE, bookfp);
-            if bookfp == NULL  {
+            fndfnt(win, "Book Antiqua", FALSE, bookfp);
+            if (!bookfp) {
 
-               fndfnt(win, "Palatino Linotype", FALSE, bookfp);
-               if bookfp == NULL  fndfnt(win, "Verdana", FALSE, bookfp)
+                fndfnt(win, "Georgia", FALSE, bookfp);
+                if (!bookfp) {
 
-            }
+                    fndfnt(win, "Palatino Linotype", FALSE, bookfp);
+                    if (!bookfp) fndfnt(win, "Verdana", FALSE, bookfp);
 
-         }
-
-      }
-
-   };
-   /* find sign fonts */
-
-   fndfnt(win, "Tahoma", FALSE, signfp);
-   if signfp == NULL  {
-
-      fndfnt(win, "Microsoft Sans Serif", FALSE, signfp);
-      if signfp == NULL  {
-
-         fndfnt(win, "Arial", FALSE, signfp);
-         if signfp == NULL  {
-
-            fndfnt(win, "News Gothic MT", FALSE, signfp);
-            if signfp == NULL  {
-
-               fndfnt(win, "Century Gothic", FALSE, signfp);
-               if signfp == NULL  {
-
-                  fndfnt(win, "Franklin Gothic", FALSE, signfp);
-                  if signfp == NULL  {
-
-                     fndfnt(win, "Trebuchet MS", FALSE, signfp);
-                     if signfp == NULL  fndfnt(win, "Verdana", FALSE, signfp)
-
-                  }
-
-               }
+                }
 
             }
 
-         }
+        }
 
-      }
+    }
+    /* find sign fonts */
 
-   };
-   /* delete found fonts from the list */
-   if bookfp != NULL  delfnt(win, bookfp);
-   if signfp != NULL  delfnt(win, signfp);
-   /* now place the fonts in the list backwards */
-   plcfnt(techfp);
-   plcfnt(signfp);
-   plcfnt(bookfp);
-   termfp->next = win->fntlst;
-   win->fntlst = termfp
+    fndfnt(win, "Tahoma", FALSE, signfp);
+    if (!signfp) {
 
-};
+       fndfnt(win, "Microsoft Sans Serif", FALSE, signfp);
+       if (!signfp) {
+
+          fndfnt(win, "Arial", FALSE, signfp);
+          if (!signfp) {
+
+             fndfnt(win, "News Gothic MT", FALSE, signfp);
+             if (!signfp) {
+
+                fndfnt(win, "Century Gothic", FALSE, signfp);
+                if (!signfp) {
+
+                   fndfnt(win, "Franklin Gothic", FALSE, signfp);
+                   if (!signfp) {
+
+                      fndfnt(win, "Trebuchet MS", FALSE, signfp);
+                      if (!signfp) fndfnt(win, "Verdana", FALSE, signfp);
+
+                   }
+
+                }
+
+             }
+
+          }
+
+       }
+
+    }
+    /* delete found fonts from the list */
+    if (!bookfp) delfnt(win, bookfp);
+    if (!signfp) delfnt(win, signfp);
+    /* now place the fonts in the list backwards */
+    plcfnt(techfp);
+    plcfnt(signfp);
+    plcfnt(bookfp);
+    termfp->next = win->fntlst;
+    win->fntlst = termfp;
+
+}
 
 /*******************************************************************************
 
@@ -8940,31 +8872,27 @@ Sets the title of the current window.
 
 *******************************************************************************/
 
-void title(FILE* f; view ts: char*);
-
-var b:   int; /* result code */
-    winptr win; /* window pointer */
+void title(FILE* f, char* ts)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   with win^ do { /* in window context */
+    BOOL   b;   /* result code */
+    winptr win; /* window pointer */
 
-      /* Set title is actually done via a "wm_settext" message to the display
-        window, so we have to remove the lock to allow that to be processed.
-        Otherwise, setwindowtext will wait for acknoledgement of the message
-        && lock us. */
-      unlockmain(); /* } exclusive access */
-      /* set window title text */
-      b = setwindowtext(winhan, ts);
-      lockmain();/* start exclusive access */
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    /* Set title is actually done via a "wm_settext" message to the display
+       window, so we have to remove the lock to allow that to be processed.
+       Otherwise, setwindowtext will wait for acknoledgement of the message
+       and lock us. */
+    unlockmain(); /* } exclusive access */
+    /* set window title text */
+    b = SetWindowText(win->winhan, ts);
+    lockmain();/* start exclusive access */
+    if (!b) winerr(); /* process windows error */
+    unlockmain(); /* end exclusive access */
 
-   };
-   if (!b) winerr(); /* process windows error */
-   unlockmain(); /* end exclusive access */
-
-};
+}
 
 /*******************************************************************************
 
@@ -8976,65 +8904,66 @@ once, and is thereafter referenced by name.
 
 *******************************************************************************/
 
-void regstd;
-
-var wc: wndclassa; /* windows class structure */
-    b:  int;      /* int */
+void regstd(void)
 
 {
 
-   /* set windows class to a normal window without scroll bars,
-     with a windows void pointing to the message mirror.
-     The message mirror reflects messages that should be handled
-     by the program back into the queue, s}ing others on to
-     the windows default handler */
-   wc.style      = cs_hredraw || cs_vredraw || cs_owndc;
-   wc.wndproc    = wndprocadr(wndproc);
-   wc.clsextra   = 0;
-   wc.wndextra   = 0;
-   wc.instance   = getmodulehandle_n;
-   if wc.instance == 0  winerr(); /* process windows error */
-   wc.icon       = loadicon_n(idi_application);
-   if wc.icon == 0  winerr(); /* process windows error */
-   wc.cursor     = loadcursor_n(idc_arrow);
-   if wc.cursor == 0  winerr(); /* process windows error */
-   wc.background = GetStockObject(white_brush);
-   if wc.background == 0  winerr(); /* process windows error */
-   wc.menuname   = NULL;
-   wc.classname  = str("stdwin");
-   /* register that class */
-   b = registerclass(wc);
-   if (!b) winerr(); /* process windows error */
+    WNDCLASS wc; /* windows class structure */
+    ATOM     b;
 
-};
+    /* set windows class to a normal window without scroll bars,
+       with a windows void pointing to the message mirror.
+       The message mirror reflects messages that should be handled
+       by the program back into the queue, sending others on to
+       the windows default handler */
+//    wc.style      = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
+    wc.lpfnWndProc   = wndproc;
+    wc.cbClsExtra    = 0;
+    wc.cbWndExtra    = 0;
+    wc.hInstance     = GetModuleHandle(NULL);
+    if (!wc.hInstance) winerr(); /* process windows error */
+    wc.hIcon         = loadicon(NULL, IDI_APPLICATION);
+    if (!wc.hIcon) winerr(); /* process windows error */
+    wc.hCursor       = loadcursor(NULL, IDC_ARROW);
+    if (!wc.hCursor) winerr(); /* process windows error */
+    wc.hbrBackground = GetStockObject(WHITE_BRUSH);
+    if (!wc.background) winerr(); /* process windows error */
+    wc.lpszMenuName  = NULL;
+    wc.lpszClassName = str("stdwin");
+    /* register that class */
+    b = registerclass(wc);
+    if (!b) winerr(); /* process windows error */
+
+}
 
 /*******************************************************************************
 
 Kill window
 
-S}s a destroy window command to the window. We can"t directly kill a window
-from the main thread, so we s} a message to the window to kill it for us.
+Sends a destroy window command to the window. We can"t directly kill a window
+from the main thread, so we send a message to the window to kill it for us.
 
 *******************************************************************************/
 
-void kilwin(wh: int);
-
-var msg: msg; /* intertask message */
+void kilwin(int wh)
 
 {
 
-   stdwinwin = wh; /* place window handle */
-   /* order window to close */
-   b = postmessage(dispwin, UMCLSWIN, 0, 0);
-   if (!b) winerr(); /* process windows error */
-   /* Wait for window close. */
-   repeat igetmsg(msg) until msg.message == UMWINCLS
+    MSG  msg; /* intertask message */
+    BOOL b;
 
-};
+    stdwinwin = wh; /* place window handle */
+    /* order window to close */
+    b = postmessage(dispwin, UMCLSWIN, 0, 0);
+    if (!b) winerr(); /* process windows error */
+    /* Wait for window close. */
+    do { igetmsg(msg); } while (msg.message != UMWINCLS);
+
+}
 
 /*******************************************************************************
 
-Open && present window
+Open and present window
 
 Given a windows record, opens && presents the window associated with it. All
 of the screen buffer data is cleared, && a single buffer assigned to the
@@ -9042,332 +8971,321 @@ window.
 
 *******************************************************************************/
 
-void opnwin(fn, pfn: ss_filhdl);
-
-var v:     int;       /* used to construct 0x80000000 value */
-    cr:    rect;       /* client rectangle holder */
-    r:     int;       /* result holder */
-    b:     int;       /* int result holder */
-    er:    evtrec;        /* event holding record */
-    ti:    1..10;         /* index for repeat array */
-    PIn:   1..MAXPIC;     /* index for loadable pictures array */
-    si:    1..MAXCON;     /* index for current display screen */
-    tm:    textmetric; /* TRUE type text metric structure */
-    win:   winptr;        /* window pointer */
-    pwin:  winptr;        /* parent window pointer */
-    f:     int;       /* window creation flags */
-    msg:   msg;        /* intertask message */
+void opnwin(int fn, int pfn)
 
 {
 
-   win = lfn2win(fn); /* get a pointer to the window */
-   with win^ do { /* process within window */
+    RECT cr;       /* client rectangle holder */
+    int r;         /* result holder */
+    int b;         /* int result holder */
+    pa_evtrec er;  /* event holding record */
+    int ti;        /* index for repeat array */
+    int pin;       /* index for loadable pictures array */
+    int si;        /* index for current display screen */
+    TEXTMETRIC tm; /* TRUE type text metric structure */
+    winptr win;    /* window pointer */
+    winptr pwin;   /* parent window pointer */
+    int f;         /* window creation flags */
+    MSG msg;       /* intertask message */
 
-      /* find parent */
-      parlfn = pfn; /* set parent logical number */
-      if pfn != 0  {
+    win = lfn2win(fn); /* get a pointer to the window */
+    /* find parent */
+    parlfn = pfn; /* set parent logical number */
+    if pfn != 0  {
 
-         pwin = lfn2win(pfn); /* index parent window */
-         parhan = pwin->winhan /* set parent window handle */
+       pwin = lfn2win(pfn); /* index parent window */
+       parhan = pwin->winhan /* set parent window handle */
 
-      } else parhan = 0; /* set no parent */
-      mb1 = FALSE; /* set mouse as assumed no buttons down, at origin */
-      mb2 = FALSE;
-      mb3 = FALSE;
-      mpx = 1;
-      mpy = 1;
-      mpxg = 1;
-      mpyg = 1;
-      nmb1 = FALSE;
-      nmb2 = FALSE;
-      nmb3 = FALSE;
-      nmpx = 1;
-      nmpy = 1;
-      nmpxg = 1;
-      nmpyg = 1;
-      shift = FALSE; /* set no shift active */
-      cntrl = FALSE; /* set no control active */
-      fcurdwn = FALSE; /* set cursor is ! down */
-      focus = FALSE; /* set ! in focus */
-      joy1xs = 0; /* clear joystick saves */
-      joy1ys = 0;
-      joy1zs = 0;
-      joy2xs = 0;
-      joy2ys = 0;
-      joy2zs = 0;
-      numjoy = 0; /* set number of joysticks 0 */
-      inpptr = 1; /* set 1st character */
-      inp} = FALSE; /* set no line }ing */
-      frmrun = FALSE; /* set framing timer ! running */
-      bufmod = TRUE; /* set buffering on */
-      menhan = 0; /* set no menu */
-      metlst = NULL; /* clear menu tracking list */
-      wiglst = NULL; /* clear widget list */
-      frame = TRUE; /* set frame on */
-      size = TRUE; /* set size bars on */
-      sysbar = TRUE; /* set system bar on */
-      sizests = 0; /* clear last size status word */
-      /* clear timer repeat array */
-      for ti = 1 to 10 do {
+    } else parhan = 0; /* set no parent */
+    win->mb1 = FALSE; /* set mouse as assumed no buttons down, at origin */
+    win->mb2 = FALSE;
+    win->mb3 = FALSE;
+    win->mpx = 1;
+    win->mpy = 1;
+    win->mpxg = 1;
+    win->mpyg = 1;
+    win->nmb1 = FALSE;
+    win->nmb2 = FALSE;
+    win->nmb3 = FALSE;
+    win->nmpx = 1;
+    win->nmpy = 1;
+    win->nmpxg = 1;
+    win->nmpyg = 1;
+    win->shift = FALSE; /* set no shift active */
+    win->cntrl = FALSE; /* set no control active */
+    win->fcurdwn = FALSE; /* set cursor is ! down */
+    win->focus = FALSE; /* set ! in focus */
+    win->joy1xs = 0; /* clear joystick saves */
+    win->joy1ys = 0;
+    win->joy1zs = 0;
+    win->joy2xs = 0;
+    win->joy2ys = 0;
+    win->joy2zs = 0;
+    win->numjoy = 0; /* set number of joysticks 0 */
+    win->inpptr = 1; /* set 1st character */
+    win->inpend = FALSE; /* set no line }ing */
+    win->frmrun = FALSE; /* set framing timer ! running */
+    win->bufmod = TRUE; /* set buffering on */
+    win->menhan = 0; /* set no menu */
+    win->metlst = NULL; /* clear menu tracking list */
+    win->wiglst = NULL; /* clear widget list */
+    win->frame = TRUE; /* set frame on */
+    win->size = TRUE; /* set size bars on */
+    win->sysbar = TRUE; /* set system bar on */
+    win->sizests = 0; /* clear last size status word */
+    /* clear timer repeat array */
+    for ti = 1 to 10 do {
 
-         timers[ti].han = 0; /* set no active timer */
-         timers[ti].rep = FALSE /* set no repeat */
+       win->timers[ti].han = 0; /* set no active timer */
+       win->timers[ti].rep = FALSE /* set no repeat */
 
-      };
-      /* clear loadable pictures table */
-      for PIn = 1 to MAXPIC do pictbl[PIn].han = 0;
-      for si = 1 to MAXCON do screens[si] = NULL;
-      new(screens[1]); /* get the default screen */
-      curdsp = 1; /* set current display screen */
-      curupd = 1; /* set current update screen */
-      visible = FALSE; /* set ! visible */
-      /* now perform windows setup */
-      v = 0x8000000;
-      v = v*16;
-      /* set flags for window create */
-      f = ws_overlappedwindow || ws_clipchildren;
-      /* add flags for child window */
-      if parhan != 0  f = f || ws_child || ws_clipsiblings;
-      /* Create the window, using display task. */
-      stdwinflg = f;
-      stdwinx = v;
-      stdwiny = v;
-      stdwinw = v;
-      stdwinh = v;
-      stdwinpar = parhan;
-      /* order window to start */
-      b = postmessage(dispwin, UMMAKWIN, 0, 0);
-      if (!b) winerr(); /* process windows error */
-      /* Wait for window start. */
-      repeat igetmsg(msg) until msg.message == UMWINSTR;
-      winhan = stdwinwin; /* get the new handle */
-      if winhan == 0  winerr(); /* process windows error */
+    }
+    /* clear loadable pictures table */
+    for pin = 1 to MAXPIC do win->pictbl[pin].han = 0;
+    for si = 1 to MAXCON do win->screens[si] = NULL;
+    new(win->screens[1]); /* get the default screen */
+    win->curdsp = 1; /* set current display screen */
+    win->curupd = 1; /* set current update screen */
+    win->visible = FALSE; /* set ! visible */
+    /* now perform windows setup */
+    /* set flags for window create */
+    f = WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN;
+    /* add flags for child window */
+    if (parhan) f |= WS_CHILD | WS_CLIPSIBLINGS;
+    /* Create the window, using display task. */
+    stdwinflg = f;
+    stdwinx = 0x80000000;
+    stdwiny = 0x80000000;
+    stdwinw = 0x80000000;
+    stdwinh = 0x80000000;
+    stdwinpar = parhan;
+    /* order window to start */
+    b = postmessage(dispwin, UMMAKWIN, 0, 0);
+    if (!b) winerr(); /* process windows error */
+    /* Wait for window start. */
+    do { igetmsg(msg); } while (msg.message != UMWINSTR);
+    winhan = stdwinwin; /* get the new handle */
+    if (!winhan) winerr(); /* process windows error */
 
-      /* Joysticks were captured with the window open. Set status of joysticks.
+    /* Joysticks were captured with the window open. Set status of joysticks.
 
-        Do we need to release && recapture the joysticks each time we gain and
-        loose focus ? Windows could have easily outgrown that need by copying
-        the joystick messages. This needs testing. */
+      Do we need to release && recapture the joysticks each time we gain and
+      loose focus ? Windows could have easily outgrown that need by copying
+      the joystick messages. This needs testing. */
 
-      numjoy = 0; /* clear joystick counter */
-      joy1cap = stdwinj1c; /* set joystick 1 capture status */
-      numjoy = numjoy+ord(joy1cap); /* count that */
-      joy2cap = stdwinj2c; /* set joystick 1 capture status */
-      numjoy = numjoy+ord(joy2cap); /* count that */
+    win->numjoy = 0; /* clear joystick counter */
+    win->joy1cap = stdwinj1c; /* set joystick 1 capture status */
+    win->numjoy = win->numjoy+joy1cap; /* count that */
+    win->joy2cap = stdwinj2c; /* set joystick 1 capture status */
+    win->numjoy = win->numjoy+joy2cap; /* count that */
 
-      /* create a device context for the window */
-      devcon = getdc(winhan); /* get device context */
-      if devcon == 0  winerr(); /* process windows error */
-      /* set rescalable mode */
-      r = setmapmode(devcon, mm_anisotroPIc);
-      if r == 0  winerr(); /* process windows error */
-      /* set non-braindamaged stretch mode */
-      r = setStretchBltmode(devcon, halftone);
-      if r == 0  winerr(); /* process windows error */
-      /* remove fills */
-      r = SelectObject(devcon, GetStockObject(null_brush));
-      if (r == -1) winerr(); /* process windows error */
-      /* because this is an "open }ed" (no feedback) emulation, we must bring
-        the terminal to a known state */
-      gfhigh = FHEIGHT; /* set default font height */
-      getfonts(win); /* get the global fonts list */
-      stdfont(win); /* mark the standard fonts */
-      gcfont = fntlst; /* index top of list as terminal font */
-      /* set up system default parameters */
-      r = SelectObject(devcon, GetStockObject(system_fixed_font));
-      if (r == -1) winerr(); /* process windows error */
-      b = gettextmetrics(devcon, tm); /* get the standard metrics */
-      if (!b) winerr(); /* process windows error */
-      /* calculate line spacing */
-      linespace = tm.tmheight;
-      /* calculate character spacing */
-      charspace = tm.tmmaxcharwidth;
-      /* set cursor width */
-      curspace = tm.tmavecharwidth;
-      /* find screen device parameters for dpm calculations */
-      shsize = getdevicecaps(devcon, horzsize); /* size x in millimeters */
-      svsize = getdevicecaps(devcon, vertsize); /* size y in millimeters */
-      shres = getdevicecaps(devcon, horzres); /* PIxels in x */
-      svres = getdevicecaps(devcon, vertres); /* PIxels in y */
-      sdpmx = round(shres/shsize*1000); /* find dots per meter x */
-      sdpmy = round(svres/svsize*1000); /* find dots per meter y */
-      /* find client area size */
-      gmaxxg = MAXXD*charspace;
-      gmaxyg = MAXYD*linespace;
-      cr.left = 0; /* set up desired client rectangle */
-      cr.top = 0;
-      cr.right = gmaxxg;
-      cr.bottom = gmaxyg;
-      /* find window size from client size */
-      b = adjustwindowrectex(cr, ws_overlappedwindow, FALSE, 0);
-      if (!b) winerr(); /* process windows error */
-      /* now, resize the window to just fit our character mode */
-      unlockmain(); /* } exclusive access */
-      b = setwindowpos(winhan, 0, 0, 0, cr.right-cr.left, cr.bottom-cr.top,
-                           swp_nomove || swp_nozorder);
-      if (!b) winerr(); /* process windows error */
+    /* create a device context for the window */
+    win->devcon = GetDC(win->winhan); /* get device context */
+    if win->devcon == 0  winerr(); /* process windows error */
+    /* set rescalable mode */
+    r = SetMapMode(win->devcon, mm_anisotroPIc);
+    if r == 0  winerr(); /* process windows error */
+    /* set non-braindamaged stretch mode */
+    r = SetStretchBltMode(win->devcon, halftone);
+    if (!r) winerr(); /* process windows error */
+    /* remove fills */
+    r = SelectObject(win->devcon, GetStockObject(NULL_BRUSH));
+    if (r == -1) winerr(); /* process windows error */
+    /* because this is an "open }ed" (no feedback) emulation, we must bring
+      the terminal to a known state */
+    gfhigh = FHEIGHT; /* set default font height */
+    getfonts(win); /* get the global fonts list */
+    stdfont(win); /* mark the standard fonts */
+    gcfont = fntlst; /* index top of list as terminal font */
+    /* set up system default parameters */
+    r = SelectObject(win->devcon, GetStockObject(SYSTEM_FIXED_FONT));
+    if (r == -1) winerr(); /* process windows error */
+    b = GetTextMetrics(win->devcon, tm); /* get the standard metrics */
+    if (!b) winerr(); /* process windows error */
+    /* calculate line spacing */
+    win->linespace = tm.tmHeight;
+    /* calculate character spacing */
+    win->charspace = tm.tmMaxCharWidth;
+    /* set cursor width */
+    win->curspace = tm.tmAveCharWidth;
+    /* find screen device parameters for dpm calculations */
+    win->shsize = GetDeviceCaps(devcon, HORZSIZE); /* size x in millimeters */
+    win->svsize = GetDeviceCaps(devcon, VERTSIZE); /* size y in millimeters */
+    win->shres = GetDeviceCaps(devcon, HORZRES); /* pixels in x */
+    svres = GetDeviceCaps(devcon, VERTRES); /* pixels in y */
+    win->sdpmx = shres/shsize*1000; /* find dots per meter x */
+    win->sdpmy = svres/svsize*1000; /* find dots per meter y */
+    /* find client area size */
+    win->gmaxxg = MAXXD*win->charspace;
+    win->gmaxyg = MAXYD*win->linespace;
+    cr.left = 0; /* set up desired client rectangle */
+    cr.top = 0;
+    cr.right = win->gmaxxg;
+    cr.bottom = win->gmaxyg;
+    /* find window size from client size */
+    b = AdjustWindowRectEx(cr, WS_OVERLAPPEDWINDOW, FALSE, 0);
+    if (!b) winerr(); /* process windows error */
+    /* now, resize the window to just fit our character mode */
+    unlockmain(); /* } exclusive access */
+    b = SetWindowPos(winhan, 0, 0, 0, cr.right-cr.left, cr.bottom-cr.top,
+                         SWP_NOMOVE | SWP_NOZORDER);
+    if (!b) winerr(); /* process windows error */
 /* now handled in winvis */
-;if FALSE  {
-      /* present the window */
-      b = showwindow(winhan, sw_showdefault);
-      /* s} first paint message */
-      b = updatewindow(winhan);
-;};
-      lockmain(); /* start exclusive access */
-      /* set up global buffer parameters */
-      gmaxx = MAXXD; /* character max dimensions */
-      gmaxy = MAXYD;
-      gattr = []; /* no attribute */
-      gauto = TRUE; /* auto on */
-      gfcrgb = colnum(black); /*foreground black */
-      gbcrgb = colnum(white); /* background white */
-      gcurv = TRUE; /* cursor visible */
-      gfmod = mdnorm; /* set mix modes */
-      gbmod = mdnorm;
-      goffx = 0;  /* set 0 offset */
-      goffy = 0;
-      gwextx = 1; /* set 1:1 extents */
-      gwexty = 1;
-      gvextx = 1;
-      gvexty = 1;
-      iniscn(win, screens[1]); /* initalize screen buffer */
-      restore(win, TRUE); /* update to screen */
-/* This next is taking needed messages out of the queue, && I don"t believe it
+#if 0
+    /* present the window */
+    b = ShowWindow(winhan, SW_SHOWDEFAULT);
+    /* s} first paint message */
+    b = UpdateWindow(winhan);
+#endif
+    lockmain(); /* start exclusive access */
+    /* set up global buffer parameters */
+    win->gmaxx = MAXXD; /* character max dimensions */
+    win->gmaxy = MAXYD;
+    win->gattr = 0; /* no attribute */
+    win->gauto = TRUE; /* auto on */
+    win->gfcrgb = colnum(black); /*foreground black */
+    win->gbcrgb = colnum(white); /* background white */
+    win->gcurv = TRUE; /* cursor visible */
+    win->gfmod = mdnorm; /* set mix modes */
+    win->gbmod = mdnorm;
+    win->goffx = 0;  /* set 0 offset */
+    win->goffy = 0;
+    win->gwextx = 1; /* set 1:1 extents */
+    win->gwexty = 1;
+    win->gvextx = 1;
+    win->gvexty = 1;
+    iniscn(win, screens[0]); /* initalize screen buffer */
+    restore(win, TRUE); /* update to screen */
+/* This next is taking needed messages out of the queue, and I don"t believe it
   is needed anywmore with display tasking. */
-;if FALSE  {
-      /* have seen problems with actions being performed before events are pulled
-        from the queue, like the focus event. the answer to this is to wait a short
-        delay until these messages clear. in fact, all that is really required is
-        to reenter the OS so it can do the callback */
-      frmhan = TimeSetEvent(10, 0, timeout, fn*MAXTIM+1,
-                                time_callback_int or
-                                time_kill_synchronous or
-                                time_oneshot);
-      if frmhan == 0  error(etimacc); /* no timer available */
-      repeat ievent(opnfil[fn]->inl, er)
-         until (er.etype == ettim) || (er.etype == etterm);
-      if er.etype == etterm  goto 88
-;};
+#if 0
+    /* have seen problems with actions being performed before events are pulled
+      from the queue, like the focus event. the answer to this is to wait a short
+      delay until these messages clear. in fact, all that is really required is
+      to reenter the OS so it can do the callback */
+    frmhan = TimeSetEvent(10, 0, timeout, fn*MAXTIM+1,
+                          TIME_CALLBACK_INT or
+                          TIME_KILL_SYNCHRONOUS or
+                          TIME_ONESHOT);
+    if (!frmhan) error(etimacc); /* no timer available */
+    do { ievent(opnfil[fn]->inl, er);
+    } while (er.etype != ettim && er.etype != etterm);
+    if (er.etype == etterm) abort();
+#endif
 
-   }
-
-};
+}
 
 /*******************************************************************************
 
 Close window
 
-Shuts down, removes && releases a window.
+Shuts down, removes and releases a window.
 
 *******************************************************************************/
 
-void clswin(fn: ss_filhdl);
-
-var r:   int; /* result holder */
-    b:   int; /* int result holder */
-    winptr win;  /* window pointer */
+void clswin(int fn)
 
 {
 
-   win = lfn2win(fn); /* get a pointer to the window */
-   with win^ do { /* in windows context */
+    int    r;   /* result holder */
+    int    b;   /* int result holder */
+    winptr win; /* window pointer */
 
-      b = releasedc(winhan, devcon); /* release device context */
-      if (!b) winerr(); /* process error */
-      /* release the joysticks */
-      if joy1cap  {
+    win = lfn2win(fn); /* get a pointer to the window */
+    b = ReleaseDC(win->winhan, win->devcon); /* release device context */
+    if (!b) winerr(); /* process error */
+    /* release the joysticks */
+    if (win->joy1cap) {
 
-         r = joyreleasecapture(joystickid1);
-         if r != 0  error(ejoyacc) /* error */
+        r = JoyReleaseCapture(JOYSTICKID1);
+        if r != 0  error(ejoyacc); /* error */
 
-      };
-      if joy2cap  {
+    }
+    if (win->joy2cap) {
 
-         r = joyreleasecapture(joystickid2);
-         if r != 0  error(ejoyacc) /* error */
+        r = JoyReleaseCapture(JOYSTICKID2);
+        if r != 0  error(ejoyacc); /* error */
 
-      };
-      kilwin(winhan) /* kill window */
+    }
+    kilwin(win->winhan) /* kill window */
 
-   }
-
-};
+}
 
 /*******************************************************************************
 
 Close window
 
 Closes an open window pair. Accepts an output window. The window is closed, and
-the window && file handles are freed. The input file is freed only if no other
+the window and file handles are freed. The input file is freed only if no other
 window also links it.
 
 *******************************************************************************/
 
-void closewin(ofn: ss_filhdl);
+/* flush and close file */
 
-var ifn: ss_filhdl; /* input file id */
-    wid: ss_filhdl; /* window id */
-
-/* flush && close file */
-
-void clsfil(fn: ss_filhdl);
-
-var ep: eqeptr;    /* pointer for event containers */
-    si: 1..MAXCON; /* index for screens */
+void clsfil(int fn)
 
 {
 
-   with opnfil[fn]^ do {
+    eqeptr ep; /* pointer for event containers */
+    int    si; /* index for screens */
+    filptr fp;
 
-      /* release all of the screen buffers */
-      for si = 1 to MAXCON do
-         if win->screens[si] != NULL  dispose(win->screens[si]);
-      dispose(win); /* release the window data */
-      win = NULL; /* set ! open */
-      han = 0;
-      inw = FALSE;
-      inl = 0;
-      while evt != NULL do {
+    fp = opnfil[fn];
+    /* release all of the screen buffers */
+    for (si = 1; si <= MAXCON; si++)
+        if (win->screens[si]) free(win->screens[si]);
+    free(win); /* release the window data */
+    win = NULL; /* set end open */
+    inw = FALSE;
+    inl = 0;
+    while (fp->evt) {
 
-         ep = evt; /* index top */
-         if evt->next == evt  evt = NULL /* last entry, clear list */
-         else evt = evt->next; /* gap out entry */
-         dispose(ep) /* release */
+        ep = fp->evt; /* index top */
+        if (fp->evt->next == fp->evt)
+            fp->evt = NULL; /* last entry, clear list */
+        else evt = evt->next; /* gap out entry */
+        free(ep); /* release */
 
       }
 
    }
 
-};
+}
 
-int inplnk(fn: ss_filhdl): int;
-
-var fi: ss_filhdl;    /* index for files */
-    fc: 0..ss_MAXFIL; /* counter for files */
+int inplnk(int fn)
 
 {
 
-   fc = 0; /* clear count */
-   for fi = 1 to ss_MAXFIL do /* traverse files */
-      if opnfil[fi] != NULL  /* entry is occuPIed */
-         if opnfil[fi]->inl == fn  fc = fc+1; /* count the file link */
+    int fi; /* index for files */
+    int fc; /* counter for files */
 
-   inplnk = fc /* return result */
+    fc = 0; /* clear count */
+    for (fi = 1; fi <= MAXFIL; fi++) /* traverse files */
+        if (opnfil[fi]) /* entry is occuPIed */
+            if (opnfil[fi]->inl == fn) fc++; /* count the file link */
 
-};
+    return (fc); /* return result */
+
+}
+
+void closewin(int ofn)
 
 {
 
-   wid = filwin[ofn]; /* get window id */
-   ifn = opnfil[ofn]->inl; /* get the input file link */
-   clswin(ofn); /* close the window */
-   clsfil(ofn); /* flush && close output file */
-   /* if no remaining links exist, flush && close input file */
-   if inplnk(ifn) == 0  clsfil(ifn);
-   filwin[ofn] = 0; /* clear file to window translation */
-   xltwin[wid] = 0; /* clear window to file translation */
+    int ifn; /* input file id */
+    int wid; /* window id */
 
-};
+    wid = filwin[ofn]; /* get window id */
+    ifn = opnfil[ofn]->inl; /* get the input file link */
+    clswin(ofn); /* close the window */
+    clsfil(ofn); /* flush && close output file */
+    /* if no remaining links exist, flush && close input file */
+    if inplnk(ifn) == 0  clsfil(ifn);
+    filwin[ofn] = 0; /* clear file to window translation */
+    xltwin[wid] = 0; /* clear window to file translation */
+
+}
 
 /*******************************************************************************
 
@@ -9377,32 +9295,33 @@ Creates, opens and initalizes an input and output pair of files.
 
 *******************************************************************************/
 
-void openio(ifn, ofn, pfn, wid: ss_filhdl);
+void openio(int ifn, int ofn, int pfn, int wid)
 
 {
 
-   /* if output was never opened, create it now */
-   if opnfil[ofn] == NULL  getfet(opnfil[ofn]);
-   /* if input was never opened, create it now */
-   if opnfil[ifn] == NULL  getfet(opnfil[ifn]);
-   opnfil[ofn]->inl = ifn; /* link output to input */
-   opnfil[ifn]->inw = TRUE; /* set input is window handler */
-   /* now see if it has a window attached */
-   if opnfil[ofn]->win == NULL  {
+    /* if output was never opened, create it now */
+    if (!opnfil[ofn]) getfet(opnfil[ofn]);
+    /* if input was never opened, create it now */
+    if (!opnfil[ifn]) getfet(opnfil[ifn]);
+    opnfil[ofn]->inl = ifn; /* link output to input */
+    opnfil[ifn]->inw = TRUE; /* set input is window handler */
+    /* now see if it has a window attached */
+    if (!opnfil[ofn]->win) {
 
-      /* Haven"t already started the main input/output window, so allocate
-        && start that. We tolerate multiple opens to the output file. */
-      new(opnfil[ofn]->win); /* get a new window record */
-      opnwin(ofn, pfn) /* && start that up */
+        /* Haven't already started the main input/output window, so allocate
+           and start that. We tolerate multiple opens to the output file. */
+        new(opnfil[ofn]->win); /* get a new window record */
+        opnfil[ofn]->win = malloc(sizeof(winrec));
+        if (!opnfil[ofn]->win) error(enomem);
+        opnwin(ofn, pfn); /* and start that up */
 
-   };
-   /* check if the window has been PInned to something else */
-   if (xltwin[wid] != 0) && (xltwin[wid] != ofn)
-      error(ewinuse); /* flag error */
-   xltwin[wid] = ofn; /* pin the window to the output file */
-   filwin[ofn] = wid
+    }
+    /* check if the window has been pinned to something else */
+    if (xltwin[wid] && xltwin[wid] != ofn) error(ewinuse); /* flag error */
+    xltwin[wid] = ofn; /* pin the window to the output file */
+    filwin[ofn] = wid;
 
-};
+}
 
 /*******************************************************************************
 
@@ -9444,14 +9363,14 @@ int fndfil(FILE* fp)
 
 void iopenwin(FILE** infile, FILE** outfile, int pfn, int wid);
 
-var ifn, ofn: ss_filhdl; /* file logical handles */
-
 {
 
+    int ifn, ofn; /* file logical handles */
+
     /* check valid window handle */
-    if (wid < 1) || (wid > ss_MAXFIL)  error(einvwin);
+    if (wid < 1 || wid > ss_MAXFIL) error(einvwin);
     /* check if the window id is already in use */
-    if xltwin[wid] != 0  error(ewinuse); /* error */
+    if (xltwin[wid]) error(ewinuse); /* error */
     ifn = fndfil(*infile); /* find previous open input side */
     if (ifn < 0) { /* no other input file, open new */
 
@@ -9468,346 +9387,329 @@ var ifn, ofn: ss_filhdl; /* file logical handles */
     if (ofn < 0) error(enoopn); /* can't open */
     /* check either input is unused, or is already an input side of a window */
     if (opnfil[ifn]) /* entry exists */
-      if (!opnfil[ifn]->inw || opnfil[ifn]->win) error(einmode); /* wrong mode */
+        if (!opnfil[ifn]->inw || opnfil[ifn]->win) error(einmode); /* wrong mode */
    /* check output file is in use for input or output from window */
-   if (opnfil[ofn])  /* entry exists */
-      if (opnfil[ofn]->inw != NULL) || opnfil[ofn]->win) error(efinuse); /* file in use */
+   if (opnfil[ofn]) /* entry exists */
+        if (opnfil[ofn]->inw != NULL) || opnfil[ofn]->win)
+            error(efinuse); /* file in use */
    /* establish all logical files and links, translation tables, and open window */
    openio(ifn, ofn, pfn, wid)
 
-};
+}
 
-void openwin(var infile, OUTFILe, parent: text; wid: ss_filhdl);
-
-var winptr win; /* window context pointer */
+void openwin(FILE* infile, outfile, parent, wid)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(parent); /* validate parent is a window file */
-   iopenwin(infile, OUTFILe, txt2lfn(parent), wid); /* process open */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(parent); /* validate parent is a window file */
+    iopenwin(infile, outfile, txt2lfn(parent), wid); /* process open */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
-Size buffer PIxel
+Size buffer pixel
 
-Sets || resets the size of the buffer surface, in PIxel units.
+Sets or resets the size of the buffer surface, in pixel units.
 
 *******************************************************************************/
 
-void isizbufg(winptr win; x, y: int);
-
-var cr:  rect;   /* client rectangle holder */
-    si:  1..MAXCON; /* index for current display screen */
+void isizbufg(winptr win, int x, int y)
 
 {
 
-   if (x < 1) || (y < 1)  error(einvsiz); /* invalid buffer size */
-   with win^ do { /* in windows context */
+    RECT cr; /* client rectangle holder */
+    int si;  /* index for current display screen */
 
-      /* set buffer size */
-      gmaxx = x / charspace; /* find character size x */
-      gmaxy = y / linespace; /* find character size y */
-      gmaxxg = x; /* set size in PIxels x */
-      gmaxyg = y; /* set size in PIxels y */
-      cr.left = 0; /* set up desired client rectangle */
-      cr.top = 0;
-      cr.right = gmaxxg;
-      cr.bottom = gmaxyg;
-      /* find window size from client size */
-      b = adjustwindowrectex(cr, ws_overlappedwindow, FALSE, 0);
-      if (!b) winerr(); /* process windows error */
-      /* now, resize the window to just fit our new buffer size */
-      unlockmain(); /* } exclusive access */
-      b = setwindowpos(winhan, 0, 0, 0, cr.right-cr.left, cr.bottom-cr.top,
-                           swp_nomove || swp_nozorder);
-      lockmain(); /* start exclusive access */
-      if (!b) winerr(); /* process windows error */
-      /* all the screen buffers are wrong, so tear them out */
-      for si = 1 to MAXCON do disscn(win, screens[si]);
-      new(screens[curdsp]); /* get the display screen */
-      iniscn(win, screens[curdsp]); /* initalize screen buffer */
-      restore(win, TRUE); /* update to screen */
-      if curdsp != curupd  { /* also create the update buffer */
+    if (x < 1 || y < 1)  error(einvsiz); /* invalid buffer size */
+    /* set buffer size */
+    win->gmaxx = x/win->charspace; /* find character size x */
+    win->gmaxy = y/win->linespace; /* find character size y */
+    win->gmaxxg = x; /* set size in PIxels x */
+    win->gmaxyg = y; /* set size in PIxels y */
+    cr.left = 0; /* set up desired client rectangle */
+    cr.top = 0;
+    cr.right = win->gmaxxg;
+    cr.bottom = win->gmaxyg;
+    /* find window size from client size */
+    b = AdjustWindowRectEx(cr, WS_OVERLAPPEDWINDOW, FALSE, 0);
+    if (!b) winerr(); /* process windows error */
+    /* now, resize the window to just fit our new buffer size */
+    unlockmain(); /* } exclusive access */
+    b = SetWindowPos(winhan, 0, 0, 0, cr.right-cr.left, cr.bottom-cr.top,
+                     SWP_NOMOVE | swp_nozorder);
+    lockmain(); /* start exclusive access */
+    if (!b) winerr(); /* process windows error */
+    /* all the screen buffers are wrong, so tear them out */
+    for (si = 0; si < MAXCON; si++) disscn(win, win->screens[si]);
+    win->screens[win->curdsp] = malloc(sizeof(scnrec));
+    if (!win->screens[win->curdsp]) error(enomem);
+    iniscn(win, win->screens[win->curdsp]); /* initalize screen buffer */
+    restore(win, TRUE); /* update to screen */
+    if (win->curdsp != win->curupd) { /* also create the update buffer */
 
-         new(screens[curupd]); /* get the display screen */
-         iniscn(win, screens[curupd]); /* initalize screen buffer */
+        new(win->screens[win->curupd]); /* get the display screen */
+        iniscn(win, win->screens[win->curupd]); /* initalize screen buffer */
 
-      }
+    }
 
-   }
+}
 
-};
-
-void sizbufg(FILE* f; x, y: int);
-
-var winptr win; /* window pointer */
+void sizbufg(FILE* f, int x, int y)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   with win^ do /* in window context */
-      isizbufg(win, x, y); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    isizbufg(win, x, y); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
 Size buffer in characters
 
-Sets || resets the size of the buffer surface, in character counts.
+Sets or resets the size of the buffer surface, in character counts.
 
 *******************************************************************************/
 
-void sizbuf(FILE* f; x, y: int);
-
-var winptr win;    /* pointer to windows context */
+void sizbuf(FILE* f, int x, int y)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window context */
-   with win^ do /* in windows context */
-      /* just translate from characters to PIxels && do the resize in PIxels. */
-      isizbufg(win, x*charspace, y*linespace);
-   unlockmain(); /* end exclusive access */
+    winptr win; /* pointer to windows context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window context */
+    /* just translate from characters to pixels and do the resize in pixels. */
+    isizbufg(win, x*win->charspace, y*win->linespace);
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
 Enable/disable buffered mode
 
-Enables || disables surface buffering. If screen buffers are active, they are
+Enables or disables surface buffering. If screen buffers are active, they are
 freed.
 
 *******************************************************************************/
 
-void ibuffer(winptr win; e: int);
-
-var si:  1..MAXCON; /* index for current display screen */
-    b:   int;   /* result */
-    r:   rect;   /* rectangle */
+void ibuffer(winptr win, int e)
 
 {
 
-   with win^ do { /* in windows context */
+    int  si; /* index for current display screen */
+    BOOL b;  /* result */
+    RECT r   /* rectangle */
 
-      if e  { /* perform buffer on actions */
+    if (e) { /* perform buffer on actions */
 
-         bufmod = TRUE; /* turn buffer mode on */
-         /* restore size from current buffer */
-         gmaxxg = screens[curdsp]->maxxg; /* PIxel size */
-         gmaxyg = screens[curdsp]->maxyg;
-         gmaxx = screens[curdsp]->maxx; /* character size */
-         gmaxy = screens[curdsp]->maxy;
-         r.left = 0; /* set up desired client rectangle */
-         r.top = 0;
-         r.right = gmaxxg;
-         r.bottom = gmaxyg;
-         /* find window size from client size */
-         b = adjustwindowrectex(r, ws_overlappedwindow, FALSE, 0);
-         if (!b) winerr(); /* process windows error */
-         /* resize the window to just fit our buffer size */
-         unlockmain(); /* } exclusive access */
-         b = setwindowpos(winhan, 0, 0, 0, r.right-r.left, r.bottom-r.top,
-                              swp_nomove || swp_nozorder);
-         lockmain(); /* start exclusive access */
-         if (!b) winerr(); /* process windows error */
-         restore(win, TRUE) /* restore buffer to screen */
+        win->bufmod = TRUE; /* turn buffer mode on */
+        /* restore size from current buffer */
+        win->gmaxxg = win->screens[win->curdsp]->maxxg; /* PIxel size */
+        win->gmaxyg = win->screens[win->curdsp]->maxyg;
+        win->gmaxx = win->screens[win->curdsp]->maxx; /* character size */
+        win->gmaxy = win->screens[win->curdsp]->maxy;
+        r.left = 0; /* set up desired client rectangle */
+        r.top = 0;
+        r.right = win->gmaxxg;
+        r.bottom = win->gmaxyg;
+        /* find window size from client size */
+        b = AdjustWindowRectEx(r, WS_OVERLAPPEDWINDOW, FALSE, 0);
+        if (!b) winerr(); /* process windows error */
+        /* resize the window to just fit our buffer size */
+        unlockmain(); /* } exclusive access */
+        b = SetWindowPos(win->winhan, 0, 0, 0, r.right-r.left, r.bottom-r.top,
+                         SWP_NOMOVE | SWP_NOZORDER);
+        lockmain(); /* start exclusive access */
+        if (!b) winerr(); /* process windows error */
+        restore(win, TRUE); /* restore buffer to screen */
 
-      } else if bufmod  { /* perform buffer off actions */
+    } else if (win->bufmod) { /* perform buffer off actions */
 
-         /* The screen buffer contains a lot of drawing information, so we have
+        /* The screen buffer contains a lot of drawing information, so we have
            to keep one of them. We keep the current display, && force the
            update to point to it as well. This single buffer  serves as
            a "template" for the real PIxels on screen. */
-         bufmod = FALSE; /* turn buffer mode off */
-         for si = 1 to MAXCON do if si != curdsp  disscn(win, screens[si]);
-         /* dispose of screen data structures */
-         for si = 1 to MAXCON do if si != curdsp
-            if screens[si] != NULL  dispose(screens[si]);
-         curupd = curdsp; /* unify the screens */
-         /* get actual size of onscreen window, && set that as client space */
-         b = getclientrect(winhan, r);
-         if (!b) winerr(); /* process windows error */
-         gmaxxg = r.right-r.left; /* return size */
-         gmaxyg = r.bottom-r.top;
-         gmaxx = gmaxxg / charspace; /* find character size x */
-         gmaxy = gmaxyg / linespace; /* find character size y */
-         /* tell the window to resize */
-         b = postmessage(win->winhan, wm_size, size_restored,
-                             gmaxyg*65536+gmaxxg);
-         if (!b) winerr(); /* process windows error */
-         /* tell the window to repaint */
-         /*b = postmessage(win->winhan, wm_paint, 0, 0);*/
-         putmsg(win->winhan, wm_paint, 0, 0);
-         if (!b) winerr(); /* process windows error */
+        win->bufmod = FALSE; /* turn buffer mode off */
+        for (si = 0; si <MAXCON; si++)
+           if (si != win->curdsp) disscn(win, win->screens[si]);
+        /* dispose of screen data structures */
+        for (si = 0; si < MAXCON; si++) if (si != curdsp-1)
+           if (win->screens[si]) free(win->screens[si]);
+        win->curupd = win->curdsp; /* unify the screens */
+        /* get actual size of onscreen window, && set that as client space */
+        b = GetClientRect(win->winhan, r);
+        if (!b) winerr(); /* process windows error */
+        win->gmaxxg = r.right-r.left; /* return size */
+        win->gmaxyg = r.bottom-r.top;
+        win->gmaxx = win->gmaxxg / win->charspace; /* find character size x */
+        win->gmaxy = win->gmaxyg / win->linespace; /* find character size y */
+        /* tell the window to resize */
+        b = postmessage(win->winhan, WM_SIZE, SIZE_RESTORED,
+                            win->gmaxyg*65536+win->gmaxxg);
+        if (!b) winerr(); /* process windows error */
+        /* tell the window to repaint */
+        /*b = postmessage(win->winhan, wm_paint, 0, 0);*/
+        putmsg(win->winhan, WM_PAINT, 0, 0);
+        if (!b) winerr(); /* process windows error */
 
-      }
+    }
 
-   }
+}
 
-};
-
-void buffer(FILE* f; e: int);
-
-var winptr win; /* pointer to windows context */
+void buffer(FILE* f, int e)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window context */
-   with win^ do /* in windows context */
-      ibuffer(win, e); /* execute */
-   unlockmain(); /* end exclusive access */
+     winptr win; /* pointer to windows context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window context */
+    ibuffer(win, e); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
 Activate/distroy menu
 
-Accepts a menu list, && sets the menu active. If there is already a menu
+Accepts a menu list, and sets the menu active. If there is already a menu
 active, that is replaced. If the menu list is NULL,  the active menu is
 deleted.
 
 *******************************************************************************/
 
-void imenu(winptr win; m: menuptr);
-
-var b:  int; /* int result */
-    mp: metptr;  /* tracking entry pointer */
-
 /* create menu tracking entry */
-
-void mettrk(han: int; inx: int; m: menuptr);
-
-var mp: metptr; /* menu tracking entry pointer */
+void mettrk(int han, int inx, menuptr m)
 
 {
 
-   with win^ do { /* in window context */
+    metptr mp; /* menu tracking entry pointer */
 
-      new(mp); /* get a new tracking entry */
-      mp->next = metlst; /* push onto tracking list */
-      metlst = mp;
-      mp->han = han; /* place menu handle */
-      mp->inx = inx; /* place menu index */
-      mp->onoff = m->onoff; /* place on/off highlighter */
-      mp->select = FALSE; /* place status of select (off) */
-      mp->id = m->id; /* place id */
-      mp->oneof = NULL; /* set no "one of" */
-      /* We are walking backwards in the list, && we need the next list entry
-        to know the "one of" chain. So we tie the entry to itself as a flag
-        that it chains to the next entry. That chain will get fixed on the
-        next entry. */
-      if m->oneof  mp->oneof = mp;
-      /* now tie the last entry to this if indicated */
-      if mp->next != NULL  /* there is a next entry */
-         if mp->next->oneof == mp->next  mp->next->oneof = mp
+    new(mp); /* get a new tracking entry */
+    mp->next = win->metlst; /* push onto tracking list */
+    win->metlst = mp;
+    mp->han = han; /* place menu handle */
+    mp->inx = inx; /* place menu index */
+    mp->onoff = m->onoff; /* place on/off highlighter */
+    mp->select = FALSE; /* place status of select (off) */
+    mp->id = m->id; /* place id */
+    mp->oneof = NULL; /* set no "one of" */
+    /* We are walking backwards in the list, && we need the next list entry
+      to know the "one of" chain. So we tie the entry to itself as a flag
+      that it chains to the next entry. That chain will get fixed on the
+      next entry. */
+    if m->oneof  mp->oneof = mp;
+    /* now tie the last entry to this if indicated */
+    if mp->next != NULL  /* there is a next entry */
+        if mp->next->oneof == mp->next  mp->next->oneof = mp
 
-   }
-
-};
+}
 
 /* create menu list */
-
-void createmenu(m: menuptr; var mh: int);
-
-var sm:  int; /* submenu handle */
-    f:   int;  /* menu flags */
-    inx: int; /* index number for this menu */
+void createmenu(menuptr m, HMENU* mh)
 
 {
 
-   mh = createmenu; /* create new menu */
-   if mh == 0  winerr(); /* process windows error */
-   inx = 0; /* set first in sequence */
-   while m != NULL do { /* add menu item */
+    int sm;  /* submenu handle */
+    int f;   /* menu flags */
+    int inx; /* index number for this menu */
 
-      f = mf_char* || mf_enabled; /* set char* && enable */
-      if m->branch != NULL  { /* handle submenu */
+    mh = CreateMenu(); /* create new menu */
+    if (!mh) winerr(); /* process windows error */
+    inx = 0; /* set first in sequence */
+    while (m) { /* add menu item */
 
-         createmenu(m->branch, sm); /* create submenu */
-         b = app}menu(mh, f || mf_popup, sm, m->face^);
-         if (!b) winerr(); /* process windows error */
-         mettrk(mh, inx, m) /* enter that into tracking */
+        f = MF_STRING | MF_ENABLED; /* set string and enable */
+        if (m->branch) { /* handle submenu */
 
-      } else { /* handle terminal menu */
+            createmenu(m->branch, sm); /* create submenu */
+            b = appendmenu(mh, f | MF_POPUP, sm, m->face);
+            if (!b) winerr(); /* process windows error */
+            mettrk(mh, inx, m); /* enter that into tracking */
 
-         b = app}menu(mh, f, m->id, m->face^);
-         if (!b) winerr(); /* process windows error */
-         mettrk(mh, inx, m) /* enter that into tracking */
+        } else { /* handle terminal menu */
 
-      };
-      if m->bar  { /* add separator bar */
+            b = appendmenu(mh, f, m->id, m->face);
+            if (!b) winerr(); /* process windows error */
+            mettrk(mh, inx, m); /* enter that into tracking */
 
-         /* a separator bar is a blank entry that will never be referenced */
-         b = app}menu(mh, mf_separator, 0, "");
-         if (!b) winerr(); /* process windows error */
-         inx = inx+1 /* next in sequence */
+        }
+        if (m->bar) { /* add separator bar */
 
-      };
-      m = m->next; /* next menu entry */
-      inx = inx+1 /* next in sequence */
+            /* a separator bar is a blank entry that will never be referenced */
+            b = app}menu(mh, mf_separator, 0, "");
+            if (!b) winerr(); /* process windows error */
+            inx = inx+1; /* next in sequence */
+
+        }
+        m = m->next; /* next menu entry */
+        inx++; /* next in sequence */
+
+    }
+
+}
+
+void imenu(winptr win, menuptr m)
+
+{
+
+    BOOL   b;  /* int result */
+    metptr mp; /* tracking entry pointer */
+
+    if win->menhan != 0  { /* distroy previous menu */
+
+        b = DestroyMenu(win->menhan); /* destroy it */
+        if (!b) winerr(); /* process windows error */
+        /* dispose of menu tracking entries */
+        while (win->metlst) {
+
+            mp = win->metlst; /* remove top entry */
+            win->metlst = win->metlst->next; /* gap out */
+            free(mp); /* free the entry */
+
+        }
+        win->menhan = 0; /* set no menu active */
+
+    }
+    if (m) /* there is a new menu to activate */
+        createmenu(m, win->menhan);
+    unlockmain(); /* } exclusive access */
+    b = SetMenu(win->winhan, win->menhan); /* set the menu to the window */
+    lockmain(); /* start exclusive access */
+    if (!b) winerr(); /* process windows error */
+    unlockmain(); /* } exclusive access */
+    b = DrawMenuBar(win->winhan); /* display menu */
+    lockmain(); /* start exclusive access */
+    if (!b) winerr(); /* process windows error */
 
    }
 
-};
+}
+
+void menu(FILE* f, menuptr m)
 
 {
 
-   with win^ do { /* in windows context */
+    winptr win; /* pointer to windows context */
 
-      if menhan != 0  { /* distroy previous menu */
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window context */
+    imenu(win, m); /* execute */
+    unlockmain(); /* end exclusive access */
 
-         b = destroymenu(menhan); /* destroy it */
-         if (!b) winerr(); /* process windows error */
-         /* dispose of menu tracking entries */
-         while metlst != NULL do {
-
-            mp = metlst; /* remove top entry */
-            metlst = metlst->next; /* gap out */
-            dispose(mp) /* free the entry */
-
-         };
-         menhan = 0 /* set no menu active */
-
-      };
-      if m != NULL  /* there is a new menu to activate */
-         createmenu(m, menhan);
-      unlockmain(); /* } exclusive access */
-      b = setmenu(winhan, menhan); /* set the menu to the window */
-      lockmain(); /* start exclusive access */
-      if (!b) winerr(); /* process windows error */
-      unlockmain(); /* } exclusive access */
-      b = drawmenubar(winhan); /* display menu */
-      lockmain(); /* start exclusive access */
-      if (!b) winerr(); /* process windows error */
-
-   }
-
-};
-
-void menu(FILE* f; m: menuptr);
-
-var winptr win; /* pointer to windows context */
-
-{
-
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window context */
-   with win^ do /* in windows context */
-      imenu(win, m); /* execute */
-   unlockmain(); /* end exclusive access */
-
-};
+}
 
 /*******************************************************************************
 
@@ -9818,35 +9720,31 @@ If the entry exists more than once, it generates an error.
 
 *******************************************************************************/
 
-int fndmenu(winptr win; id: int): metptr;
-
-var mp: metptr; /* tracking entry pointer */
-    fp: metptr; /* found entry pointer */
+int fndmenu(winptr win, int id)
 
 {
 
-   with win^ do { /* in window context */
+    metptr mp; /* tracking entry pointer */
+    metptr fp; /* found entry pointer */
 
-      fp = NULL; /* set no entry found */
-      mp = metlst; /* index top of list */
-      while mp != NULL do { /* traverse */
+    fp = NULL; /* set no entry found */
+    mp = win->metlst; /* index top of list */
+    while (mp) { /* traverse */
 
-         if mp->id == id  { /* found */
+        if (mp->id == id) { /* found */
 
-            if fp != NULL  error(edupmen); /* menu entry is duplicated */
-            fp = mp /* set found entry */
+            if (fp) error(edupmen); /* menu entry is duplicated */
+            fp = mp; /* set found entry */
 
-         };
-         mp = mp->next /* next entry */
+        }
+        mp = mp->next; /* next entry */
 
-      };
-      if fp == NULL  error(emennf) /* no menu entry found with id */
+    }
+    if (!fp) error(emennf) /* no menu entry found with id */
 
-   };
+    return (fp); /* return entry */
 
-   fndmenu = fp /* return entry */
-
-};
+}
 
 /*******************************************************************************
 
@@ -9857,131 +9755,120 @@ and will no longer s} messages.
 
 *******************************************************************************/
 
-void imenuena(winptr win; id: int; onoff: int);
-
-var fl: int; /* flags */
-    mp: metptr;  /* tracking pointer */
-    r:  int; /* result */
-    b:  int; /* result */
+void imenuena(winptr win, int id, int onoff)
 
 {
 
-   with win^ do { /* in windows context */
+    int    fl; /* flags */
+    metptr mp; /* tracking pointer */
+    BOOL   b;  /* result */
 
-      mp = fndmenu(win, id); /* find the menu entry */
-      fl = mf_byposition; /* place position select flag */
-      if onoff  fl = fl || mf_enabled /* enable it */
-      else fl = fl || mf_grayed; /* disable it */
-      r = enablemenuitem(mp->han, mp->inx, fl); /* perform that */
-      if r == -1  error(esystem); /* should ! happen */
-      unlockmain(); /* } exclusive access */
-      b = drawmenubar(winhan); /* display menu */
-      lockmain(); /* start exclusive access */
-      if (!b) winerr(); /* process windows error */
+    mp = fndmenu(win, id); /* find the menu entry */
+    fl = MF_BYPOSITION; /* place position select flag */
+    if (onoff) fl |= MF_ENABLED /* enable it */
+    else fl |= MF_GRAYED; /* disable it */
+    b = EnableMenuItem(mp->han, mp->inx, fl); /* perform that */
+    if (b == -1) error(esystem); /* should not happen */
+    unlockmain(); /* } exclusive access */
+    b = DrawMenuBar(win->winhan); /* display menu */
+    lockmain(); /* start exclusive access */
+    if (!b) winerr(); /* process windows error */
 
-   }
+}
 
-};
-
-void menuena(FILE* f; id: int; onoff: int);
-
-var winptr win; /* pointer to windows context */
+void menuena(FILE* f, int id, int onoff)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window context */
-   with win^ do /* in windows context */
-      imenuena(win, id, onoff); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* pointer to windows context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window context */
+    imenuena(win, id, onoff); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
 select/deselect menu entry
 
-Selects || deselects a menu entry by id. The entry is set to checked if
+Selects or deselects a menu entry by id. The entry is set to checked if
 selected, with no check if not.
 
 *******************************************************************************/
 
-void imenusel(winptr win; id: int; select: int);
-
-var fl: int; /* flags */
-    mp: metptr;  /* tracking pointer */
-    b:  int; /* result */
-    r:  int; /* result */
-
 /* find top of "one of" list */
-
-int fndtop(mp: metptr): metptr;
-
-{
-
-   if mp->next != NULL  /* there is a next */
-      if mp->next->oneof == mp  { /* next entry links this one */
-
-      mp = mp->next; /* go to next entry */
-      mp = fndtop(mp) /* try again */
-
-   };
-
-   fndtop = mp /* return result */
-
-};
-
-/* clear "one of" select list */
-
-void clrlst(mp: metptr);
+int fndtop(metptr mp)
 
 {
 
-   repeat /* items in list */
+    if (mp->next) /* there is a next */
+        if (mp->next->oneof == mp) { /* next entry links this one */
 
-      fl = mf_byposition || mf_unchecked; /* place position select flag */
-      r = checkmenuitem(mp->han, mp->inx, fl); /* perform that */
-      if r == -1  error(esystem); /* should ! happen */
-      mp = mp->oneof /* link next */
-
-   until mp == NULL /* no more */
-
-};
-
-{
-
-   with win^ do { /* in windows context */
-
-      mp = fndmenu(win, id); /* find the menu entry */
-      clrlst(fndtop(mp)); /* clear "one of" group */
-      mp->select = select; /* set the new select */
-      fl = mf_byposition; /* place position select flag */
-      if mp->select  fl = fl || mf_checked /* select it */
-      else fl = fl || mf_unchecked; /* deselect it */
-      r = checkmenuitem(mp->han, mp->inx, fl); /* perform that */
-      if r == -1  error(esystem); /* should ! happen */
-      unlockmain(); /* } exclusive access */
-      b = drawmenubar(winhan); /* display menu */
-      lockmain(); /* start exclusive access */
-      if (!b) winerr(); /* process windows error */
+        mp = mp->next; /* go to next entry */
+        mp = fndtop(mp); /* try again */
 
    }
 
-};
+   return (mp); /* return result */
 
-void menusel(FILE* f; id: int; select: int);
+}
 
-var winptr win; /* pointer to windows context */
+/* clear "one of" select list */
+void clrlst(metptr mp)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window context */
-   with win^ do /* in windows context */
-      imenusel(win, id, select); /* execute */
-   unlockmain(); /* end exclusive access */
+    DWORD r;
 
-};
+    do { /* items in list */
+
+        fl = MF_BYPOSITION || MF_UNCHECKED; /* place position select flag */
+        r = CheckMenuItem(mp->han, mp->inx, fl); /* perform that */
+        if (r == -1)  error(esystem); /* should not happen */
+        mp = mp->oneof /* link next */
+
+    } while (mp); /* no more */
+
+}
+
+void imenusel(winptr win, int id, int select)
+
+{
+
+    int    fl; /* flags */
+    metptr mp; /* tracking pointer */
+    BOOL   b;  /* result */
+    DWORD  r;  /* result */
+
+    mp = fndmenu(win, id); /* find the menu entry */
+    clrlst(fndtop(mp)); /* clear "one of" group */
+    mp->select = select; /* set the new select */
+    fl = MF_BYPOSITION; /* place position select flag */
+    if (mp->select) fl |= MF_CHECKED; /* select it */
+    else fl |= MF_UNCHECKED; /* deselect it */
+    r = CheckMenuItem(mp->han, mp->inx, fl); /* perform that */
+    if (r == -1) error(esystem); /* should ! happen */
+    unlockmain(); /* } exclusive access */
+    b = DrawMenuBar(win->winhan); /* display menu */
+    lockmain(); /* start exclusive access */
+    if (!b) winerr(); /* process windows error */
+
+}
+
+void menusel(FILE* f, int id, int select)
+
+{
+
+    winptr win; /* pointer to windows context */
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window context */
+    imenusel(win, id, select); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -9991,63 +9878,59 @@ Brings the indicated window to the front of the Z order.
 
 *******************************************************************************/
 
-void ifront(winptr win);
-
-var b:  int; /* result holder */
-    fl: int;
+void ifront(winptr win)
 
 {
 
-   with win^ do { /* in windows context */
+    BOOL b; /* result holder */
+    int fl;
 
-      fl = 0;
-      fl = ! fl;
-      unlockmain(); /* } exclusive access */
-      b = setwindowpos(winhan, 0/*fl*/ /*hwnd_topmost*/, 0, 0, 0, 0,
-                           swp_nomove || swp_nosize);
-      lockmain(); /* start exclusive access */
-      if (!b) winerr(); /* process windows error */
+    fl = 0;
+    fl = ! fl;
+    unlockmain(); /* } exclusive access */
+    b = SetWindowPos(win->winhan, 0/*fl*/ /*hwnd_topmost*/, 0, 0, 0, 0,
+                     SWP_NOMOVE | SWP_NOSIZE);
+    lockmain(); /* start exclusive access */
+    if (!b) winerr(); /* process windows error */
 
-;if FALSE  {
-      fl = 1;
-      fl = ! fl;
-      unlockmain(); /* } exclusive access */
-      b = setwindowpos(winhan, fl /*hwnd_notopmost*/, 0, 0, 0, 0,
-                           swp_nomove || swp_nosize);
-      lockmain(); /* start exclusive access */
-      if (!b) winerr(); /* process windows error */
-;};
+#if 0
+    fl = 1;
+    fl = ! fl;
+    unlockmain(); /* } exclusive access */
+    b = SetWindowPos(win->winhan, fl /*hwnd_notopmost*/, 0, 0, 0, 0,
+                     SWP_NOMOVE | SWP_NOSIZE);
+    lockmain(); /* start exclusive access */
+    if (!b) winerr(); /* process windows error */
+#endif
 
-      unlockmain(); /* } exclusive access */
-      b = postmessage(winhan, wm_paint, 0, 0);
-      if (!b) winerr(); /* process windows error */
-      lockmain(); /* start exclusive access */
+    unlockmain(); /* } exclusive access */
+    b = postmessage(win->winhan, WM_PAINT, 0, 0);
+    if (!b) winerr(); /* process windows error */
+    lockmain(); /* start exclusive access */
 
-      if parhan != 0  {
+    if (parhan) {
 
-         unlockmain(); /* } exclusive access */
-         b = postmessage(parhan, wm_paint, 0, 0);
-         if (!b) winerr(); /* process windows error */
-         lockmain(); /* start exclusive access */
+        unlockmain(); /* } exclusive access */
+        b = postmessage(win->parhan, WM_PAINT, 0, 0);
+        if (!b) winerr(); /* process windows error */
+        lockmain(); /* start exclusive access */
 
-      }
+    }
 
-   }
+}
 
-};
-
-void front(FILE* f);
-
-var winptr win; /* windows record pointer */
+void front(FILE* f)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window from file */
-   ifront(win); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    ifront(win); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -10057,36 +9940,32 @@ Puts the indicated window to the back of the Z order.
 
 *******************************************************************************/
 
-void iback(winptr win);
-
-var b: int; /* result holder */
+void iback(winptr win)
 
 {
 
-   with win^ do { /* in windows context */
+    BOOL b; /* result holder */
 
-      unlockmain(); /* } exclusive access */
-      b = setwindowpos(winhan, hwnd_bottom, 0, 0, 0, 0,
-                           swp_nomove || swp_nosize);
-      lockmain(); /* start exclusive access */
-      if (!b) winerr(); /* process windows error */
+    unlockmain(); /* } exclusive access */
+    b = SetWindowPos(win->winhan, HWND_BOTTOM, 0, 0, 0, 0,
+                     SWP_NOMOVE || SWP_NOSIZE);
+    lockmain(); /* start exclusive access */
+    if (!b) winerr(); /* process windows error */
 
-   }
+}
 
-};
-
-void back(FILE* f);
-
-var winptr win; /* windows record pointer */
+void back(FILE* f)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window from file */
-   iback(win); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    iback(win); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -10096,36 +9975,32 @@ Gets the onscreen window size.
 
 *******************************************************************************/
 
-void igetsizg(winptr win; var x, y: int);
-
-var b: int; /* result holder */
-    r: rect; /* rectangle */
+void igetsizg(winptr win, int* x, int* y)
 
 {
 
-   with win^ do { /* in windows context */
+    BOOL  b; /* result holder */
+    RECT  r; /* rectangle */
 
-      b = getwindowrect(winhan, r);
-      if (!b) winerr(); /* process windows error */
-      x = r.right-r.left; /* return size */
-      y = r.bottom-r.top
+    b = getwindowrect(win->winhan, r);
+    if (!b) winerr(); /* process windows error */
+    *x = r.right-r.left; /* return size */
+    *y = r.bottom-r.top;
 
-   }
+}
 
-};
-
-void getsizg(FILE* f; var x, y: int);
-
-var winptr win; /* windows record pointer */
+void getsizg(FILE* f, int* x, int* y)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window from file */
-   igetsizg(win, x, y); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    igetsizg(win, x, y); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -10184,7 +10059,7 @@ var b: int; /* result holder */
    with win^ do { /* in windows context */
 
       unlockmain(); /* } exclusive access */
-      b = setwindowpos(winhan, 0, 0, 0, x, y,
+      b = SetWindowPos(winhan, 0, 0, 0, x, y,
                            swp_nomove || swp_nozorder);
       lockmain(); /* start exclusive access */
       if (!b) winerr(); /* process windows error */
@@ -10263,7 +10138,7 @@ var b: int; /* result holder */
    with win^ do { /* in windows context */
 
       unlockmain(); /* } exclusive access */
-      b = setwindowpos(winhan, 0, x-1, y-1, 0, 0, swp_nosize);
+      b = SetWindowPos(winhan, 0, x-1, y-1, 0, 0, swp_nosize);
       lockmain(); /* start exclusive access */
       if (!b) winerr(); /* process windows error */
 
@@ -10408,7 +10283,7 @@ var cr: rect; /* client rectangle holder */
 
       };
       /* find window size from client size */
-      b = adjustwindowrectex(cr, fl, FALSE, 0);
+      b = AdjustWindowRectEx(cr, fl, FALSE, 0);
       if (!b) winerr(); /* process windows error */
       wx = cr.right-cr.left; /* return window size */
       wy = cr.bottom-cr.top
@@ -10524,14 +10399,14 @@ var fl1, fl2: int; /* flag */
       lockmain(); /* start exclusive access */
       if r == 0  winerr(); /* process windows error */
       unlockmain(); /* } exclusive access */
-      b = setwindowpos(winhan, 0, 0, 0, 0, 0,
+      b = SetWindowPos(winhan, 0, 0, 0, 0, 0,
                            swp_nosize || swp_nomove ||
                            swp_framechanged);
       lockmain(); /* start exclusive access */
       if (!b) winerr(); /* process windows error */
       /* present the window */
       unlockmain(); /* } exclusive access */
-      b = showwindow(winhan, sw_showdefault);
+      b = ShowWindow(winhan, sw_showdefault);
       lockmain(); /* start exclusive access */
       if bufmod  { /* in buffer mode */
 
@@ -10541,10 +10416,10 @@ var fl1, fl2: int; /* flag */
          cr.right = gmaxxg;
          cr.bottom = gmaxyg;
          /* find window size from client size */
-         b = adjustwindowrectex(cr, fl1, FALSE, 0);
+         b = AdjustWindowRectEx(cr, fl1, FALSE, 0);
          if (!b) winerr(); /* process windows error */
          unlockmain(); /* } exclusive access */
-         b = setwindowpos(winhan, 0, 0, 0,
+         b = SetWindowPos(winhan, 0, 0, 0,
                               cr.right-cr.left, cr.bottom-cr.top,
                               swp_nomove || swp_nozorder);
          lockmain(); /* start exclusive access */
@@ -10608,14 +10483,14 @@ var fl1, fl2: int; /* flag */
          lockmain(); /* start exclusive access */
          if r == 0  winerr(); /* process windows error */
          unlockmain(); /* } exclusive access */
-         b = setwindowpos(winhan, 0, 0, 0, 0, 0,
+         b = SetWindowPos(winhan, 0, 0, 0, 0, 0,
                               swp_nosize || swp_nomove ||
                               swp_framechanged);
          lockmain(); /* start exclusive access */
          if (!b) winerr(); /* process windows error */
          /* present the window */
          unlockmain(); /* } exclusive access */
-         b = showwindow(winhan, sw_showdefault);
+         b = ShowWindow(winhan, sw_showdefault);
          lockmain(); /* start exclusive access */
          if bufmod  { /* in buffer mode */
 
@@ -10625,10 +10500,10 @@ var fl1, fl2: int; /* flag */
             cr.right = gmaxxg;
             cr.bottom = gmaxyg;
             /* find window size from client size */
-            b = adjustwindowrectex(cr, fl1, FALSE, 0);
+            b = AdjustWindowRectEx(cr, fl1, FALSE, 0);
             if (!b) winerr(); /* process windows error */
             unlockmain(); /* } exclusive access */
-            b = setwindowpos(winhan, 0, 0, 0,
+            b = SetWindowPos(winhan, 0, 0, 0,
                                  cr.right-cr.left, cr.bottom-cr.top,
                                  swp_nomove || swp_nozorder);
             lockmain(); /* start exclusive access */
@@ -10694,14 +10569,14 @@ var fl1, fl2: int; /* flag */
          lockmain(); /* start exclusive access */
          if r == 0  winerr(); /* process windows error */
          unlockmain(); /* } exclusive access */
-         b = setwindowpos(winhan, 0, 0, 0, 0, 0,
+         b = SetWindowPos(winhan, 0, 0, 0, 0, 0,
                               swp_nosize || swp_nomove ||
                               swp_framechanged);
          lockmain(); /* start exclusive access */
          if (!b) winerr(); /* process windows error */
          /* present the window */
          unlockmain(); /* } exclusive access */
-         b = showwindow(winhan, sw_showdefault);
+         b = ShowWindow(winhan, sw_showdefault);
          lockmain(); /* start exclusive access */
          if bufmod  { /* in buffer mode */
 
@@ -10711,10 +10586,10 @@ var fl1, fl2: int; /* flag */
             cr.right = gmaxxg;
             cr.bottom = gmaxyg;
             /* find window size from client size */
-            b = adjustwindowrectex(cr, fl1, FALSE, 0);
+            b = AdjustWindowRectEx(cr, fl1, FALSE, 0);
             if (!b) winerr(); /* process windows error */
             unlockmain(); /* } exclusive access */
-            b = setwindowpos(winhan, 0, 0, 0,
+            b = SetWindowPos(winhan, 0, 0, 0,
                                  cr.right-cr.left, cr.bottom-cr.top,
                                  swp_nomove || swp_nozorder);
             lockmain(); /* start exclusive access */
@@ -11056,8 +10931,8 @@ var wh: int; /* handle to widget */
       /* Wait for widget start, this also keeps our window going. */
       waitim(imwidget, ip); /* wait for the return */
       wh = ip->wigwin; /* place handle to widget */
-      dispose(ip->wigcls); /* release class char* */
-      dispose(ip->wigtxt); /* release face text char* */
+      free(ip->wigcls); /* release class char* */
+      free(ip->wigtxt); /* release face text char* */
       putitm(ip) /* release im */
 
    };
@@ -11256,7 +11131,7 @@ var wp:  wigptr;  /* widget pointer */
       if r != ls  error(esystem); /* lengths should match */
       new(s, r); /* get final char* */
       for i = 1 to r do s^[i] = sp^[i]; /* copy into place */
-      dispose(sp) /* release temp buffer */
+      free(sp) /* release temp buffer */
 
    }
 
@@ -11338,7 +11213,7 @@ var wp: wigptr; /* widget pointer */
       wp = fndwig(win, id); /* find widget */
       if wp == NULL  error(ewignf); /* ! found */
       unlockmain(); /* } exclusive access */
-      b = setwindowpos(wp->han, 0, 0, 0, x, y,
+      b = SetWindowPos(wp->han, 0, 0, 0, x, y,
                            swp_nomove || swp_nozorder);
       lockmain(); /* start exclusive access */
       if (!b) winerr(); /* process windows error */
@@ -11346,7 +11221,7 @@ var wp: wigptr; /* widget pointer */
 
          /* Note, the buddy needs to be done differently for a numselbox */
          unlockmain(); /* } exclusive access */
-         b = setwindowpos(wp->han2, 0, 0, 0, x, y,
+         b = SetWindowPos(wp->han2, 0, 0, 0, x, y,
                               swp_nomove || swp_nozorder);
          lockmain(); /* start exclusive access */
          if (!b) winerr(); /* process windows error */
@@ -11389,14 +11264,14 @@ var wp: wigptr; /* widget pointer */
       wp = fndwig(win, id); /* find widget */
       if wp == NULL  error(ewignf); /* ! found */
       unlockmain(); /* } exclusive access */
-      b = setwindowpos(wp->han, 0, x-1, y-1, 0, 0, swp_nosize);
+      b = SetWindowPos(wp->han, 0, x-1, y-1, 0, 0, swp_nosize);
       lockmain(); /* start exclusive access */
       if (!b) winerr(); /* process windows error */
       if wp->han2 != 0  { /* also reposition the buddy */
 
          /* Note, the buddy needs to be done differently for a numselbox */
          unlockmain(); /* } exclusive access */
-         b = setwindowpos(wp->han2, 0, x-1, y-1, 0, 0, swp_nosize);
+         b = SetWindowPos(wp->han2, 0, x-1, y-1, 0, 0, swp_nosize);
          lockmain(); /* start exclusive access */
          if (!b) winerr(); /* process windows error */
 
@@ -11437,7 +11312,7 @@ var wp: wigptr;  /* widget pointer */
       wp = fndwig(win, id); /* find widget */
       if wp == NULL  error(ewignf); /* ! found */
       unlockmain(); /* } exclusive access */
-      b = setwindowpos(wp->han, hwnd_bottom, 0, 0, 0, 0,
+      b = SetWindowPos(wp->han, hwnd_bottom, 0, 0, 0, 0,
                            swp_nomove || swp_nosize);
       lockmain(); /* start exclusive access */
       if (!b) winerr(); /* process windows error */
@@ -11445,7 +11320,7 @@ var wp: wigptr;  /* widget pointer */
 
          /* Note, the buddy needs to be done differently for a numselbox */
          unlockmain(); /* } exclusive access */
-         b = setwindowpos(wp->han2, hwnd_bottom, 0, 0, 0, 0,
+         b = SetWindowPos(wp->han2, hwnd_bottom, 0, 0, 0, 0,
                               swp_nomove || swp_nosize);
          lockmain(); /* start exclusive access */
          if (!b) winerr(); /* process windows error */
@@ -11490,7 +11365,7 @@ var wp: wigptr;  /* widget pointer */
       fl = 0;
       fl = ! fl;
       unlockmain(); /* } exclusive access */
-      b = setwindowpos(wp->han, fl /*hwnd_topmost*/, 0, 0, 0, 0,
+      b = SetWindowPos(wp->han, fl /*hwnd_topmost*/, 0, 0, 0, 0,
                            swp_nomove || swp_nosize);
       lockmain(); /* start exclusive access */
       if (!b) winerr(); /* process windows error */
@@ -11498,7 +11373,7 @@ var wp: wigptr;  /* widget pointer */
 
          /* Note, the buddy needs to be done differently for a numselbox */
          unlockmain(); /* } exclusive access */
-         b = setwindowpos(wp->han2, fl /*hwnd_topmost*/, 0, 0, 0, 0,
+         b = SetWindowPos(wp->han2, fl /*hwnd_topmost*/, 0, 0, 0, 0,
                               swp_nomove || swp_nosize);
          lockmain(); /* start exclusive access */
          if (!b) winerr(); /* process windows error */
@@ -13894,8 +13769,8 @@ var ip: imptr; /* intratask message pointer */
       /* Wait for widget start, this also keeps our window going. */
       waitim(imwidget, ip); /* wait for the return */
       kilwin(ip->wigwin); /* kill widget */
-      dispose(ip->wigcls); /* release class char* */
-      dispose(ip->wigtxt); /* release face text char* */
+      free(ip->wigcls); /* release class char* */
+      free(ip->wigtxt); /* release face text char* */
       putitm(ip) /* release im */
 
    }
@@ -14164,7 +14039,7 @@ var wp:  wigptr;    /* widget pointer */
       r = s}message(wp->han, tcm_insertitem, inx, tcr); /* add char* */
       lockmain(); /* start exclusive access */
       if r == -1  error(etabbar); /* can"t create tab */
-      dispose(bs); /* release char* buffer */
+      free(bs); /* release char* buffer */
       sp = sp->next; /* next char* */
       inx = inx+1 /* next index */
 
@@ -14292,8 +14167,8 @@ void strcpy(var d: char*; view s: char*);
    b = postmessage(dialogwin, UMIM, (WPARAM)ip, 0);
    if (!b) winerr(); /* process windows error */
    waitim(imalert, ip); /* wait for the return */
-   dispose(ip->alttit); /* free char*s */
-   dispose(ip->altmsg);
+   free(ip->alttit); /* free char*s */
+   free(ip->altmsg);
    unlockmain(); /* end exclusive access */
 
 };
@@ -14576,9 +14451,9 @@ var fp:     fontptr; /* pointer for fonts list */
    bg = ip->fntbg;
    bb = ip->fntbb;
    s = ip->fntsiz; /* font size */
-   dispose(ip->fntstr); /* release returned copy of font char* */
+   free(ip->fntstr); /* release returned copy of font char* */
    putitm(ip); /* release im */
-   dispose(fs) /* release our copy of the input font name */
+   free(fs) /* release our copy of the input font name */
 
 };
 
@@ -14604,7 +14479,7 @@ This is the window handler callback for all display windows.
 
 *******************************************************************************/
 
-int wndproc(hwnd, imsg, wparam, lparam: int): int;
+LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
 
 var r:   int;   /* result holder */
     b:   int;
@@ -15111,7 +14986,7 @@ var r:    int;                /* result holder */
                }
 
             };
-            dispose(bs); /* release temp char* */
+            free(bs); /* release temp char* */
             /* signal complete */
             iputmsg(0, UMIM, wparam, 0)
 
@@ -15148,7 +15023,7 @@ var r:    int;                /* result holder */
             /* now bring that to the front */
             fl = 0;
             fl = ! fl;
-            b = setwindowpos(ip->fndhan, fl /*hwnd_top*/, 0, 0, 0, 0,
+            b = SetWindowPos(ip->fndhan, fl /*hwnd_top*/, 0, 0, 0, 0,
                                  swp_nomove || swp_nosize);
             b = setforegroundwindow(ip->fndhan);
             r = 0
@@ -15189,7 +15064,7 @@ var r:    int;                /* result holder */
             /* now bring that to the front */
             fl = 0;
             fl = ! fl;
-            b = setwindowpos(ip->fnrhan, fl /*hwnd_top*/, 0, 0, 0, 0,
+            b = SetWindowPos(ip->fnrhan, fl /*hwnd_top*/, 0, 0, 0, 0,
                                  swp_nomove || swp_nosize);
             b = setforegroundwindow(ip->fnrhan);
             r = 0
@@ -15300,7 +15175,7 @@ var r:    int;                /* result holder */
          while lpstrfindwhat^[i] != chr(0) do i = i+1; /* find terminator */
          new(fndstr, i-1); /* create result char* */
          for i = 1 to i-1 do fndstr^[i] = ascii2chr(ord(lpstrfindwhat^[i]));
-         dispose(lpstrfindwhat) /* release temp char* */
+         free(lpstrfindwhat) /* release temp char* */
 
       } else { /* it"s a find/replace */
 
@@ -15324,11 +15199,11 @@ var r:    int;                /* result holder */
          new(fnrrep, i-1); /* create result char* */
          for i = 1 to i-1 do
             fnrrep^[i] = ascii2chr(ord(lpstrreplacewith^[i]));
-         dispose(lpstrfindwhat); /* release temp char*s */
-         dispose(lpstrreplacewith)
+         free(lpstrfindwhat); /* release temp char*s */
+         free(lpstrreplacewith)
 
       };
-      dispose(frrp); /* release find/replace record entry */
+      free(frrp); /* release find/replace record entry */
       /* signal complete */
       iputmsg(0, UMIM, (WPARAM)ip, 0)
 
