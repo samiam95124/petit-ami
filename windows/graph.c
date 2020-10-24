@@ -13,9 +13,9 @@
 *                                                                              *
 * Move(f, d, dx, dy, s, sx1, sy1, sx2, sy2)                                    *
 *                                                                              *
-* Moves a block of PIxels from one buffer to another, || to a different place  *
+* Moves a block of pixels from one buffer to another, || to a different place  *
 * in the same buffer. Used to implement various features like intrabuffer      *
-* moves, off screen image chaching, special clipPIng, etc.                     *
+* moves, off screen image chaching, special clipping, etc.                     *
 *                                                                              *
 * fand, band                                                                   *
 *                                                                              *
@@ -116,7 +116,7 @@
  /* foreground pen style */
  /* FPENSTL  ps_geometric || ps_}cap_flat || ps_solid */
 #define FPENSTL  ps_geometric || ps_}cap_flat || ps_solid || ps_join_miter
- /* foreground single PIxel pen style */
+ /* foreground single pixel pen style */
 #define FSPENSTL  ps_solid
 #define PACKMSG  TRUE   /* pack paint messages in queue */
 #define MAXFIL   100    /* maximum open files */
@@ -192,18 +192,18 @@ typedef struct scncon { /* screen context */
     HGDIOBJ bhn;         /* handle for bitmap object */
     HPEN    fpen;        /* foreground pen handle */
     HBRUSH  fbrush;      /* foreground brush handle */
-    HPEN    fspen;       /* foreground single PIxel pen */
+    HPEN    fspen;       /* foreground single pixel pen */
     int     lwidth;      /* width of lines */
-    /* note that the PIxel && character dimensions && positions are kept
-      in parallel for both characters && PIxels */
+    /* note that the pixel && character dimensions && positions are kept
+      in parallel for both characters && pixels */
     int     maxx;        /* maximum characters in x */
     int     maxy;        /* maximum characters in y */
-    int     maxxg;       /* maximum PIxels in x */
-    int     maxyg;       /* maximum PIxels in y */
+    int     maxxg;       /* maximum pixels in x */
+    int     maxyg;       /* maximum pixels in y */
     int     curx;        /* current cursor location x */
     int     cury;        /* current cursor location y */
-    int     curxg;       /* current cursor location in PIxels x */
-    int     curyg;       /* current cursor location in PIxels y */
+    int     curxg;       /* current cursor location in pixels x */
+    int     curyg;       /* current cursor location in pixels y */
     int     lcurx;       /* progressive line cursor x */
     int     lcury;       /* progressive line cursor y */
     int     tcurs;       /* progressive cursor strip flip state */
@@ -285,9 +285,9 @@ typedef struct winrec {
     int      nmb3;            /* new mouse assert status button 3 */
     int      nmpx, nmpy;      /* new mouse current position */
     int      nmpxg, nmpyg;    /* new mouse current position graphical */
-    int      linespace;       /* line spacing in PIxels */
-    int      charspace;       /* character spacing in PIxels */
-    int      curspace;        /* size of cursor, in PIxels */
+    int      linespace;       /* line spacing in pixels */
+    int      charspace;       /* character spacing in pixels */
+    int      curspace;        /* size of cursor, in pixels */
     int      baseoff;         /* font baseline offset from top */
     int      shift;           /* state of shift key */
     int      cntrl;           /* state of control key */
@@ -303,8 +303,8 @@ typedef struct winrec {
     int      joy2zs;          /* last joystick position 2z */
     int      shsize;          /* display screen size x in millimeters */
     int      svsize;          /* display screen size y in millimeters */
-    int      shres;           /* display screen PIxels in x */
-    int      svres;           /* display screen PIxels in y */
+    int      shres;           /* display screen pixels in x */
+    int      svres;           /* display screen pixels in y */
     int      sdpmx;           /* display screen find dots per meter x */
     int      sdpmy;           /* display screen find dots per meter y */
     char     inpbuf[MAXLIN];  /* input line buffer */
@@ -475,7 +475,7 @@ typedef enum {
     einvscn,  /* Invalid screen number */
     einvhan,  /* Invalid handle */
     einvtab,  /* Invalid tab position */
-    eatopos,  /* Cannot position text by PIxel with auto on */
+    eatopos,  /* Cannot position text by pixel with auto on */
     eatocur,  /* Cannot position outside screen with auto on */
     eatoofg,  /* Cannot reenable auto off grid */
     eatoecb,  /* Cannot reenable auto outside screen */
@@ -1072,7 +1072,7 @@ void error(errcod e)
         case efilopr:  grawrterr("Cannot perform operation on special file"); break;
         case einvscn:  grawrterr("Invalid screen number"); break;
         case einvtab:  grawrterr("Tab position specified off screen"); break;
-        case eatopos:  grawrterr("Cannot position text by PIxel with auto on"); break;
+        case eatopos:  grawrterr("Cannot position text by pixel with auto on"); break;
         case eatocur:  grawrterr("Cannot position outside screen with auto on"); break;
         case eatoofg:  grawrterr("Cannot reenable auto off grid"); break;
         case eatoecb:  grawrterr("Cannot reenable auto outside screen"); break;
@@ -1086,8 +1086,8 @@ void error(errcod e)
         case etabful:  grawrterr("Too many tabs set"); break;
         case eatotab:  grawrterr("Cannot set off grid tabs with auto on"); break;
         case estrinx:  grawrterr("String index out of range"); break;
-        case ePIcfnf:  grawrterr("Picture file ! found"); break;
-        case ePIcftl:  grawrterr("Picture filename too large"); break;
+        case epicfnf:  grawrterr("Picture file ! found"); break;
+        case epicftl:  grawrterr("Picture filename too large"); break;
         case etimnum:  grawrterr("Invalid timer number"); break;
         case ejstsys:  grawrterr("Cannot justify system font"); break;
         case efnotwin: grawrterr("File is not attached to a window"); break;
@@ -1530,7 +1530,7 @@ void makfil(int* fn) /* file handle */
 
         if (!opnfil[fi]) /* found an unallocated slot */
             ff = fi /* set found */
-        else /* check if slot is allocated, but unoccuPIed */
+        else /* check if slot is allocated, but unoccupied */
             if (!opnfil[fi]->han && !opnfil[fi]->win) ff = fi; /* set found */
 
     }
@@ -2306,7 +2306,7 @@ void newfont(winptr win)
        font = CreateFont(h, 0, 0, 0, w, BIT(saital) & attrc,
                            BIT(saundl) & attr, BIT(sastkout) & attr, ansi_charset,
                            out_tt_only_precis, clip_default_precis,
-                           FQUALITY, default_PItch,
+                           FQUALITY, default_pitch,
                            cfont->fn^);
        if (!win->screens[win->curupd]->font) winerr(); /* process windows error */
        /* select to buffer dc */
@@ -2423,13 +2423,13 @@ void restore(winptr win,   /* window to restore */
            if (hb == 0) winerr(); /* process windows error */
            /* check right side fill */
            cr2 = cr; /* copy update rectangle */
-           /* subtract overlapPIng space */
+           /* subtract overlapping space */
            if (cr2.left <= win->gmaxxg) cr2.left = win->gmaxxg;
            if (cr2.left <= cr2.right) /* still has width */
                 b = FillRect(win->devcon, cr2, hb);
            /* check bottom side fill */
            cr2 = cr; /* copy update rectangle */
-           /* subtract overlapPIng space */
+           /* subtract overlapping space */
            if (cr2.top <= win->gmaxyg) cr2.top = win->gmaxyg;
            if (cr2.top <= cr2.bottom) /* still has height */
                 b = FillRect(win->devcon, cr2, hb);
@@ -2497,7 +2497,7 @@ void iniscn(winptr win, scnptr sc)
 
     sc->maxx = win->gmaxx; /* set character dimensions */
     sc->maxy = win->gmaxy;
-    sc->maxxg = win->gmaxxg; /* set PIxel dimensions */
+    sc->maxxg = win->gmaxxg; /* set pixel dimensions */
     sc->maxyg = win->gmaxyg;
     sc->curx = 1; /* set cursor at home */
     sc->cury = 1;
@@ -2518,7 +2518,7 @@ void iniscn(winptr win, scnptr sc)
     sc->attr = win->gattr;
     sc->autof = win->gauto; /* set auto scroll && wrap */
     sc->curv = win->gcurv; /* set cursor visibility */
-    sc->lwidth = 1; /* set single PIxel width */
+    sc->lwidth = 1; /* set single pixel width */
     sc->font = 0; /* set no font active */
     sc->cfont = win->gcfont; /* set current font */
     sc->fmod = win->gfmod; /* set mix modes */
@@ -2649,7 +2649,7 @@ Scrolls the ANSI terminal screen by deltas in any given direction. If the scroll
 would move all content off the screen, the screen is simply blanked. Otherwise,
 we find the section of the screen that would remain after the scroll, determine
 its source && destination rectangles, && use a bitblt to move it.
-One speedup for the code would be to use non-overlapPIng fills for the x-y
+One speedup for the code would be to use non-overlapping fills for the x-y
 fill after the bitblt.
 
 In buffered mode, this routine works by scrolling the buffer,  restoring
@@ -2826,7 +2826,7 @@ void cursor(FILE* f, int x, int y)
 
 Position cursor graphical
 
-Moves the cursor to the specified x && y location in PIxels.
+Moves the cursor to the specified x && y location in pixels.
 
 *******************************************************************************/
 
@@ -2941,7 +2941,7 @@ int maxy(FILE* f)
 Return maximum x dimension graphical
 
 Returns the maximum x dimension, which is the width of the client surface in
-PIxels.
+pixels.
 
 *******************************************************************************/
 
@@ -2966,7 +2966,7 @@ int maxxg(FILE* f)
 Return maximum y dimension graphical
 
 Returns the maximum y dimension, which is the height of the client surface in
-PIxels.
+pixels.
 
 *******************************************************************************/
 
@@ -3289,7 +3289,7 @@ void blink(FILE* f, int e)
 
 Turn on reverse attribute
 
-Turns on/off the reverse attribute. Reverse is done by swapPIng the background
+Turns on/off the reverse attribute. Reverse is done by swapping the background
 and foreground writing colors.
 
 *******************************************************************************/
@@ -3506,7 +3506,7 @@ Note that the attributes can only be set singly.
 
 Italic is causing problems with fixed mode on some fonts, && Windows does not
 seem to want to share with me just what the TRUE width of an italic font is
-(without taking heroic measures like drawing && testing PIxels). So we disable
+(without taking heroic measures like drawing && testing pixels). So we disable
 italic on fixed fonts.
 
 *******************************************************************************/
@@ -3699,7 +3699,7 @@ void ifcolor(winptr win, pa_color c)
     if (!b) winerr(); /* process windows error */
     b = DeleteObjectsc->(fbrush); /* remove old brush */
     if (!b) winerr(); /* process windows error */
-    b = DeleteObject(sc->fspen); /* remove old single PIxel pen */
+    b = DeleteObject(sc->fspen); /* remove old single pixel pen */
     if (!b) winerr(); /* process windows error */
     /* create new pen */
     lb.lbStyle = BS_SOLID;
@@ -3710,7 +3710,7 @@ void ifcolor(winptr win, pa_color c)
     /* create new brush */
     sc->fbrush = CreateSolidBrush(sc->fcrgb);
     if (!sc->fbrush) winerr(); /* process windows error */
-    /* create new single PIxel pen */
+    /* create new single pixel pen */
     sc->fspen = CreatePen(FSPENSTL, 1, sc->fcrgb);
     if (!sc->fspen) winerr(); /* process windows error */
     /* select to buffer dc */
@@ -3802,7 +3802,7 @@ void ifcolorg(winptr win; int r, int g, int b)
     /* create new brush */
     sc->fbrush = CreateSolidBrush(sc->fcrgb);
     if (!sc->fbrush) winerr(); /* process error */
-    /* create new single PIxel pen */
+    /* create new single pixel pen */
     sc->fspen = CreatePen(FSPENSTL, 1, sc->fcrgb);
     if (!sc->fspen) winerr(); /* process error */
     /* select to buffer dc */
@@ -4112,7 +4112,7 @@ int cury(FILE* f)
 
 Get location of cursor in x graphical
 
-Returns the current location of the cursor in x, in PIxels.
+Returns the current location of the cursor in x, in pixels.
 
 *******************************************************************************/
 
@@ -4136,7 +4136,7 @@ int curxg(FILE* f)
 
 Get location of cursor in y graphical
 
-Returns the current location of the cursor in y, in PIxels.
+Returns the current location of the cursor in y, in pixels.
 
 *******************************************************************************/
 
@@ -4659,7 +4659,7 @@ void ifrrect(winptr win, int x1, int y1, int x2, int y2, int xs, int ys)
     if (win->bufmod) { /* buffer is active */
 
        /* for filled ellipse, the pen && brush settings are all wrong. we need
-         a single PIxel pen && a background brush. we set && restore these */
+         a single pixel pen && a background brush. we set && restore these */
        r = SelectObject(sc->bdc, sc->fspen);
        if (r == -1) winerr(); /* process windows error */
        r = SelectObject(sc->bdc, sc->fbrush);
@@ -4775,7 +4775,7 @@ void ifellipse(winptr win, int x1, int y1, int x2, int y2)
     if (win->bufmod) { /* buffer is active */
 
         /* for filled ellipse, the pen && brush settings are all wrong. we need
-           a single PIxel pen && a background brush. we set && restore these */
+           a single pixel pen && a background brush. we set && restore these */
         r = SelectObject(sc->bdc, sc->fspen);
         if (r == -1) winerr(); /* process windows error */
         r = SelectObject(sc->bdc, sc->fbrush);
@@ -4952,7 +4952,7 @@ void ifarc(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
     if (win->bufmod) { /* buffer is active */
 
         /* for filled shape, the pen && brush settings are all wrong. we need
-           a single PIxel pen && a background brush. we set && restore these */
+           a single pixel pen && a background brush. we set && restore these */
         r = SelectObject(sc->bdc, sc->fspen);
         if (r == -1) winerr(); /* process windows error */
         r = SelectObject(sc->bdc, sc->fbrush);
@@ -5043,7 +5043,7 @@ void ifchord(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
     if (win->bufmod) { /* buffer is active */
 
         /* for filled shape, the pen && brush settings are all wrong. we need
-           a single PIxel pen && a background brush. we set && restore these */
+           a single pixel pen && a background brush. we set && restore these */
         r = SelectObject(sc->bdc, sc->fspen);
         if (r == -1) winerr(); /* process windows error */
         r = SelectObject(sc->bdc, sc->fbrush);
@@ -5120,7 +5120,7 @@ void iftriangle(winptr win, int x1, int y1, int x2, int y2, int x3, int y3)
     if (win->bufmod) { /* buffer is active */
 
        /* for filled shape, the pen && brush settings are all wrong. we need
-         a single PIxel pen && a background brush. we set && restore these */
+         a single pixel pen && a background brush. we set && restore these */
        r = SelectObject(sc->bdc, sc->fspen);
        if (r == -1) winerr(); /* process windows error */
        r = SelectObject(sc->bdc, sc->fbrush);
@@ -5189,9 +5189,9 @@ void ftriangle(FILE* f, int x1, int y1, int x2, int y2, int x3, int y3)
 
 /*******************************************************************************
 
-Set PIxel
+Set pixel
 
-Sets a single logical PIxel to the foreground color.
+Sets a single logical pixel to the foreground color.
 
 *******************************************************************************/
 
@@ -5232,7 +5232,7 @@ void setpixel(FILE* f, int x, int y)
 
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window pointer from text file */
-    isetpixel(win, x, y); /* set PIxel */
+    isetpixel(win, x, y); /* set pixel */
     unlockmain(); /* end exclusive access */
 
 }
@@ -5820,7 +5820,7 @@ int strsiz(FILE* f, char* s)
 
 Find character position in string
 
-Finds the PIxel offset to the given character in the string.
+Finds the pixel offset to the given character in the string.
 
 *******************************************************************************/
 
@@ -5872,7 +5872,7 @@ int chrpos(FILE* f, char* s, int p)
 
 Write justified text
 
-Writes a string of text with justification. The string and the width in PIxels
+Writes a string of text with justification. The string and the width in pixels
 is specified. Auto mode cannot be on for this function, nor can it be used on
 the system font.
 
@@ -5958,7 +5958,7 @@ void writejust(FILE* f, char* s, int n)
 Find justified character position
 
 Given a string, a character position in that string, && the total length
-of the string in PIxels, returns the offset in PIxels from the start of the
+of the string in pixels, returns the offset in pixels from the start of the
 char* to the given character, with justification taken into account.
 The model used is that the extra space needed is divided by the number of
 spaces, with the fractional part lost.
@@ -6206,7 +6206,7 @@ void delpict(FILE* f, int p)
 
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window pointer from text file */
-    idelPIct(win, p); /* delete picture file */
+    idelpict(win, p); /* delete picture file */
     unlockmain(); /* end exclusive access */
 
 }
@@ -6304,7 +6304,7 @@ void loadpict(FILE* f, int p, char* fn)
 
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window pointer from text file */
-    iloadPIct(win, p, fn); /* load picture file */
+    iloadpict(win, p, fn); /* load picture file */
     unlockmain(); /* end exclusive access */
 
 }
@@ -6433,7 +6433,7 @@ void picture(FILE* f, int p, int x1, int y1, int x2, int y2)
 
 Set viewport offset graphical
 
-Sets the offset of the viewport in logical space, in PIxels, anywhere from
+Sets the offset of the viewport in logical space, in pixels, anywhere from
 -INT_MAX to INT_MAX.
 
 *******************************************************************************/
@@ -7483,17 +7483,17 @@ void winevt(winptr win, evtrec* er, MSG* msg, int ofn, int* keep)
                 } else if (v == SB_PAGEUP) {
 
                     er->etype = etsclulp; /* page up */
-                    er->scluPId = wp->id;
+                    er->sclupid = wp->id;
 
                 } else if (v == SB_PAGEDOWN) {
 
                     er->etype = etscldrp; /* page down */
-                    er->scldPId = wp->id;
+                    er->scldpid = wp->id;
 
                 } else {
 
                     er->etype = etsclpos; /* set scroll position event */
-                    er->sclPId = wp->id; /* set widget id */
+                    er->sclpid = wp->id; /* set widget id */
                     f = msg->wparam/0x10000; /* get current position to float */
                     /* clamp to INT_MAX */
                     if (f*INT_MAX/(255-wp->siz) > INT_MAX) er->sclpos = INT_MAX;
@@ -7658,7 +7658,7 @@ void ievent(int ifn, evtrec* er)
     /* check there are events waiting on the input queue */
     if (opnfil[ifn]->evt) {
 
-        /* We PIck one, && only one, event off the input queue. The messages are
+        /* We pick one, && only one, event off the input queue. The messages are
            removed in fifo order. */
         ep = evt->next; /* index the entry to dequeue */
         er = ep->evt; /* get the queued event */
@@ -7774,7 +7774,7 @@ graph number of the timer that went off.
 
 The reason we multiplex the logical file number is because the windows handle,
 which we need, has a range determined by Windows, && we have to assume it
-occuPIes a full word. The alternatives to multiplexing were to have the timer
+occupies a full word. The alternatives to multiplexing were to have the timer
 callback thunk be customized, which is a non-standard solution, or use one
 of the other parameters Windows passes to this function, which are not
 documented.
@@ -8195,7 +8195,7 @@ void settab(FILE* f, int t)
 
 Reset tab graphical
 
-Resets the tab at the indicated PIxel number.
+Resets the tab at the indicated pixel number.
 
 *******************************************************************************/
 
@@ -8680,7 +8680,7 @@ void getfonts(winptr win)
     lf.lfStrikeOut = 0; /* no strikeout */
     lf.lfCharSet = DEFAULT_CHARSET; /* use default characters */
     lf.lfOutPrecision = OUT_DEFAULT_PRECIS; /* use default precision */
-    lf.lfClipPrecision = CLIP_DEFAULT_PRECIS; /* use default clipPIng */
+    lf.lfClipPrecision = CLIP_DEFAULT_PRECIS; /* use default clipping */
     lf.lfQuality = DEFAULT_QUALITY; /* use default quality */
     lf.lfPitchAndFamily = 0; /* must be zero */
     lf.lfFaceName[1] = chr(0); /* match all typeface names */
@@ -9083,7 +9083,7 @@ void opnwin(int fn, int pfn)
     win->devcon = GetDC(win->winhan); /* get device context */
     if win->devcon == 0  winerr(); /* process windows error */
     /* set rescalable mode */
-    r = SetMapMode(win->devcon, mm_anisotroPIc);
+    r = SetMapMode(win->devcon, mm_anisotropic);
     if r == 0  winerr(); /* process windows error */
     /* set non-braindamaged stretch mode */
     r = SetStretchBltMode(win->devcon, halftone);
@@ -9262,7 +9262,7 @@ int inplnk(int fn)
 
     fc = 0; /* clear count */
     for (fi = 1; fi <= MAXFIL; fi++) /* traverse files */
-        if (opnfil[fi]) /* entry is occuPIed */
+        if (opnfil[fi]) /* entry is occupied */
             if (opnfil[fi]->inl == fn) fc++; /* count the file link */
 
     return (fc); /* return result */
@@ -9429,8 +9429,8 @@ void isizbufg(winptr win, int x, int y)
     /* set buffer size */
     win->gmaxx = x/win->charspace; /* find character size x */
     win->gmaxy = y/win->linespace; /* find character size y */
-    win->gmaxxg = x; /* set size in PIxels x */
-    win->gmaxyg = y; /* set size in PIxels y */
+    win->gmaxxg = x; /* set size in pixels x */
+    win->gmaxyg = y; /* set size in pixels y */
     cr.left = 0; /* set up desired client rectangle */
     cr.top = 0;
     cr.right = win->gmaxxg;
@@ -9515,7 +9515,7 @@ void ibuffer(winptr win, int e)
 
         win->bufmod = TRUE; /* turn buffer mode on */
         /* restore size from current buffer */
-        win->gmaxxg = win->screens[win->curdsp]->maxxg; /* PIxel size */
+        win->gmaxxg = win->screens[win->curdsp]->maxxg; /* pixel size */
         win->gmaxyg = win->screens[win->curdsp]->maxyg;
         win->gmaxx = win->screens[win->curdsp]->maxx; /* character size */
         win->gmaxy = win->screens[win->curdsp]->maxy;
@@ -9539,7 +9539,7 @@ void ibuffer(winptr win, int e)
         /* The screen buffer contains a lot of drawing information, so we have
            to keep one of them. We keep the current display, && force the
            update to point to it as well. This single buffer  serves as
-           a "template" for the real PIxels on screen. */
+           a "template" for the real pixels on screen. */
         win->bufmod = FALSE; /* turn buffer mode off */
         for (si = 0; si <MAXCON; si++)
            if (si != win->curdsp) disscn(win, win->screens[si]);
@@ -9982,7 +9982,7 @@ void igetsizg(winptr win, int* x, int* y)
     BOOL  b; /* result holder */
     RECT  r; /* rectangle */
 
-    b = getwindowrect(win->winhan, r);
+    b = GetWindowRect(win->winhan, r);
     if (!b) winerr(); /* process windows error */
     *x = r.right-r.left; /* return size */
     *y = r.bottom-r.top;
@@ -10008,39 +10008,39 @@ Get window size character
 
 Gets the onscreen window size, in character terms. If the window has a parent,
 the demensions are converted to the current character size there. Otherwise,
-the PIxel based dementions are returned. This occurs because the desktop does
-not have a fixed character aspect, so we make one up, && our logical character
-is "one PIxel" high && wide. It works because it can only be used as a
+the pixel based dementions are returned. This occurs because the desktop does
+not have a fixed character aspect, so we make one up, and our logical character
+is "one pixel" high and wide. It works because it can only be used as a
 relative measurement.
 
 *******************************************************************************/
 
-void getsiz(FILE* f; var x, y: int);
-
-var win, par: winptr; /* windows record pointer */
+void getsiz(FILE* f, int* x, int* y)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window from file */
-   igetsizg(win, x, y); /* execute */
-   if win->parlfn != 0  { /* has a parent */
+    winptr win, par; /* windows record pointer */
 
-      par = lfn2win(win->parlfn); /* index the parent */
-      /* find character based sizes */
-      x = (x-1) / par->charspace+1;
-      y = (y-1) / par->linespace+1
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    igetsizg(win, x, y); /* execute */
+    if (win->parlfn) { /* has a parent */
 
-   } else {
+        par = lfn2win(win->parlfn); /* index the parent */
+        /* find character based sizes */
+        *x = (*x-1) / par->charspace+1;
+        *y = (*y-1) / par->linespace+1;
 
-      /* find character based sizes */
-      x = (x-1) / STDCHRX+1;
-      y = (y-1) / STDCHRY+1
+    } else {
 
-   };
-   unlockmain(); /* end exclusive access */
+        /* find character based sizes */
+        *x = (*x-1) / STDCHRX+1;
+        *y = (*y-1) / STDCHRY+1;
 
-};
+    }
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -10050,36 +10050,31 @@ Sets the onscreen window to the given size.
 
 *******************************************************************************/
 
-void isetsizg(winptr win; x, y: int);
-
-var b: int; /* result holder */
+void isetsizg(winptr win, int x, int y)
 
 {
 
-   with win^ do { /* in windows context */
+    BOOL b; /* result holder */
 
-      unlockmain(); /* } exclusive access */
-      b = SetWindowPos(winhan, 0, 0, 0, x, y,
-                           swp_nomove || swp_nozorder);
-      lockmain(); /* start exclusive access */
-      if (!b) winerr(); /* process windows error */
+    unlockmain(); /* } exclusive access */
+    b = SetWindowPos(win->winhan, 0, 0, 0, x, y, SWP_NOMOVE | SWP_NOZORDER);
+    lockmain(); /* start exclusive access */
+    if (!b) winerr(); /* process windows error */
 
-   }
+}
 
-};
-
-void setsizg(FILE* f; x, y: int);
-
-var winptr win; /* windows record pointer */
+void setsizg(FILE* f, int x, int y)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window from file */
-   isetsizg(win, x, y); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    isetsizg(win, x, y); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -10087,39 +10082,39 @@ Set window size character
 
 Sets the onscreen window size, in character terms. If the window has a parent,
 the demensions are converted to the current character size there. Otherwise,
-the PIxel based dementions are used. This occurs because the desktop does
+the pixel based dementions are used. This occurs because the desktop does
 not have a fixed character aspect, so we make one up, && our logical character
-is "one PIxel" high && wide. It works because it can only be used as a
+is "one pixel" high && wide. It works because it can only be used as a
 relative measurement.
 
 *******************************************************************************/
 
-void setsiz(FILE* f; x, y: int);
-
-var win, par: winptr; /* windows record pointer */
+void setsiz(FILE* f, int x, int y)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window from file */
-   if win->parlfn != 0  { /* has a parent */
+    winptr win, par; /* windows record pointer */
 
-      par = lfn2win(win->parlfn); /* index the parent */
-      /* find character based sizes */
-      x = x*par->charspace;
-      y = y*par->linespace
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    if (win->parlfn) { /* has a parent */
 
-   } else {
+        par = lfn2win(win->parlfn); /* index the parent */
+        /* find character based sizes */
+        x = x*par->charspace;
+        y = y*par->linespace;
 
-      /* find character based sizes */
-      x = x*STDCHRX;
-      y = y*STDCHRY
+    } else {
 
-   };
-   isetsizg(win, x, y); /* execute */
-   unlockmain(); /* end exclusive access */
+        /* find character based sizes */
+        x = x*STDCHRX;
+        y = y*STDCHRY;
 
-};
+    }
+    isetsizg(win, x, y); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -10129,35 +10124,31 @@ Sets the onscreen window to the given position in its parent.
 
 *******************************************************************************/
 
-void isetposg(winptr win; x, y: int);
-
-var b: int; /* result holder */
+void isetposg(winptr win, int x, int y)
 
 {
 
-   with win^ do { /* in windows context */
+    BOOL b; /* result holder */
 
-      unlockmain(); /* } exclusive access */
-      b = SetWindowPos(winhan, 0, x-1, y-1, 0, 0, swp_nosize);
-      lockmain(); /* start exclusive access */
-      if (!b) winerr(); /* process windows error */
+    unlockmain(); /* } exclusive access */
+    b = SetWindowPos(win->winhan, 0, x-1, y-1, 0, 0, SWP_NOSIZE);
+    lockmain(); /* start exclusive access */
+    if (!b) winerr(); /* process windows error */
 
-   }
+}
 
-};
-
-void setposg(FILE* f; x, y: int);
-
-var winptr win; /* windows record pointer */
+void setposg(FILE* f, int x, int y)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window from file */
-   isetposg(win, x, y); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    isetposg(win, x, y); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -10165,39 +10156,39 @@ Set window position character
 
 Sets the onscreen window position, in character terms. If the window has a
 parent, the demensions are converted to the current character size there.
-Otherwise, PIxel based demensions are used. This occurs because the desktop does
+Otherwise, pixel based demensions are used. This occurs because the desktop does
 not have a fixed character aspect, so we make one up, && our logical character
-is "one PIxel" high && wide. It works because it can only be used as a
+is "one pixel" high and wide. It works because it can only be used as a
 relative measurement.
 
 *******************************************************************************/
 
-void setpos(FILE* f; x, y: int);
-
-var win, par: winptr; /* windows record pointer */
+void setpos(FILE* f, int x, int y)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window from file */
-   if win->parlfn != 0  { /* has a parent */
+    winptr win, par; /* windows record pointer */
 
-      par = lfn2win(win->parlfn); /* index the parent */
-      /* find character based sizes */
-      x = (x-1)*par->charspace+1;
-      y = (y-1)*par->linespace+1
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    if (win->parlfn) { /* has a parent */
 
-   } else {
+        par = lfn2win(win->parlfn); /* index the parent */
+        /* find character based sizes */
+        x = (x-1)*par->charspace+1;
+        y = (y-1)*par->linespace+1;
 
-      /* find character based sizes */
-      x = (x-1)*STDCHRX+1;
-      y = (y-1)*STDCHRY+1
+    } else {
 
-   };
-   isetposg(win, x, y); /* execute */
-   unlockmain(); /* end exclusive access */
+        /* find character based sizes */
+        x = (x-1)*STDCHRX+1;
+        y = (y-1)*STDCHRY+1;
 
-};
+    }
+    isetposg(win, x, y); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -10207,38 +10198,34 @@ Gets the total screen size.
 
 *******************************************************************************/
 
-void iscnsizg(winptr win; var x, y: int);
-
-var b:      int; /* result holder */
-    r:      rect; /* rectangle */
-    scnhan: int; /* desktop handle */
+void iscnsizg(winptr win, int* x, int* y)
 
 {
 
-   with win^ do { /* in windows context */
+    BOOL b;      /* result holder */
+    RECT r;      /* rectangle */
+    HWND scnhan; /* desktop handle */
 
-      scnhan = getdesktopwindow;
-      b = getwindowrect(scnhan, r);
-      if (!b) winerr(); /* process windows error */
-      x = r.right-r.left; /* return size */
-      y = r.bottom-r.top
+    scnhan = getdesktopwindow();
+    b = GetWindowRect(win->scnhan, r);
+    if (!b) winerr(); /* process windows error */
+    x = r.right-r.left; /* return size */
+    y = r.bottom-r.top
 
-   }
+}
 
-};
-
-void scnsizg(FILE* f; var x, y: int);
-
-var winptr win; /* windows record pointer */
+void scnsizg(FILE* f, int* x, int* y)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window from file */
-   iscnsizg(win, x, y); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    iscnsizg(win, x, y); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -10248,402 +10235,377 @@ Finds the window size, in parent terms, needed to result in a given client
 window size.
 
 Note: this routine should be able to find the minimum size of a window using
-the given style, && return the minimums if the input size is lower than this.
-This does ! seem to be obvious under Windows.
+the given style, and return the minimums if the input size is lower than this.
+This does not seem to be obvious under Windows.
 
 Do we also need a menu style type ?
 
 *******************************************************************************/
 
-void iwinclientg(winptr win; cx, cy: int; var wx, wy: int;
-                      view ms: winmodset);
-
-var cr: rect; /* client rectangle holder */
-    fl: int; /* flag */
+void iwinclientg(winptr win, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
 
 {
 
-   lockmain(); /* start exclusive access */
-   with win^ do {
+    RECT cr; /* client rectangle holder */
+    int fl;  /* flag */
 
-      cr.left = 0; /* set up desired client rectangle */
-      cr.top = 0;
-      cr.right = cx;
-      cr.bottom = cy;
-      /* set minimum style */
-      fl = ws_overlapped || ws_clipchildren;
-      /* add flags for child window */
-      if parhan != 0  fl = fl || ws_child || ws_clipsiblings;
-      if wmframe in ms  { /* add frame features */
+    lockmain(); /* start exclusive access */
+    cr.left = 0; /* set up desired client rectangle */
+    cr.top = 0;
+    cr.right = cx;
+    cr.bottom = cy;
+    /* set minimum style */
+    fl = WS_OVERLAPPED | WS_CLIPCHILDREN;
+    /* add flags for child window */
+    if (win->parhan) fl |= WS_CHILD | WS_CLIPSIBLINGS;
+    if (BIT(pa_wmframe) & ms) { /* add frame features */
 
-         if wmsize in ms  fl = fl || ws_thickframe;
+        if (BIT(pa_wmsize) & ms) fl |= WS_THICKFRAME;
+        if (BIT(pa_wmsysbar) & ms) fl |= WS_CAPTION | WS_SYSMENU |
+                                         WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
 
-         if wmsysbar in ms  fl = fl || ws_caption || ws_sysmenu or
-                                      ws_minimizebox || ws_maximizebox;
+    }
+    /* find window size from client size */
+    b = AdjustWindowRectEx(cr, fl, FALSE, 0);
+    if (!b) winerr(); /* process windows error */
+    *wx = cr.right-cr.left; /* return window size */
+    *wy = cr.bottom-cr.top
+    unlockmain(); /* end exclusive access */
 
-      };
-      /* find window size from client size */
-      b = AdjustWindowRectEx(cr, fl, FALSE, 0);
-      if (!b) winerr(); /* process windows error */
-      wx = cr.right-cr.left; /* return window size */
-      wy = cr.bottom-cr.top
+}
 
-   };
-   unlockmain(); /* end exclusive access */
-
-};
-
-void winclient(FILE* f; cx, cy: int; var wx, wy: int;
-                    view ms: winmodset);
-
-var win, par: winptr; /* windows record pointer */
+void winclient(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window from file */
-   /* execute */
-   iwinclientg(win, cx*win->charspace, cy*win->linespace, wx, wy, ms);
-   /* find character based sizes */
-   if win->parlfn != 0  { /* has a parent */
+    winptr win, par; /* windows record pointer */
 
-      par = lfn2win(win->parlfn); /* index the parent */
-      /* find character based sizes */
-      wx = (wx-1) / par->charspace+1;
-      wy = (wy-1) / par->linespace+1
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    /* execute */
+    iwinclientg(win, cx*win->charspace, cy*win->linespace, *wx, *wy, ms);
+    /* find character based sizes */
+    if (win->parlfn) { /* has a parent */
 
-   } else {
+        par = lfn2win(win->parlfn); /* index the parent */
+        /* find character based sizes */
+        *wx = (wx-1) / par->charspace+1;
+        *wy = (wy-1) / par->linespace+1;
 
-      /* find character based sizes */
-      wx = (wx-1) / STDCHRX+1;
-      wy = (wy-1) / STDCHRY+1
+    } else {
 
-   };
-   unlockmain(); /* end exclusive access */
+        /* find character based sizes */
+        *wx = (wx-1) / STDCHRX+1;
+        *wy = (wy-1) / STDCHRY+1;
 
-};
+    }
+    unlockmain(); /* end exclusive access */
 
-void winclientg(FILE* f; cx, cy: int; var wx, wy: int;
-                     view ms: winmodset);
+}
 
-var winptr win; /* windows record pointer */
+void winclientg(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window from file */
-   iwinclientg(win, cx, cy, wx, wy, ms); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    iwinclientg(win, cx, cy, wx, wy, ms); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
 Get screen size character
 
-Gets the desktopsize, in character terms. Returns the PIxel size of the screen
-This occurs because the desktop does ! have a fixed character aspect, so we
-make one up, && our logical character is "one PIxel" high && wide. It works
+Gets the desktopsize, in character terms. Returns the pixel size of the screen
+This occurs because the desktop does not have a fixed character aspect, so we
+make one up, and our logical character is "one pixel" high and wide. It works
 because it can only be used as a relative measurement.
 
 *******************************************************************************/
 
-void scnsiz(FILE* f; var x, y: int);
-
-var winptr win; /* windows record pointer */
+void scnsiz(FILE* f, int * x, int* y)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window from file */
-   iscnsizg(win, x, y); /* execute */
-   x = x / STDCHRX; /* convert to "standard character" size */
-   y = y / STDCHRY;
-   unlockmain(); /* end exclusive access */
+    winptr win; /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    iscnsizg(win, *x, *y); /* execute */
+    *x = *x/STDCHRX; /* convert to "standard character" size */
+    *y = *y/STDCHRY;
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
-Enable || disable window frame
+Enable or disable window frame
 
-Turns the window frame on && off.
+Turns the window frame on and off.
 
 *******************************************************************************/
 
-void iframe(winptr win; e: int);
-
-var fl1, fl2: int; /* flag */
-    cr:       rect; /* client rectangle holder */
+void iframe(winptr win, int e)
 
 {
 
-   with win^ do { /* in windows context */
+    int  fl1; /* flag */
+    RECT cr;  /* client rectangle holder */
 
-      frame = e; /* set new status of frame */
-      fl1 = ws_overlapped || ws_clipchildren; /* set minimum style */
-      /* add flags for child window */
-      if parhan != 0  fl1 = fl1 || ws_child || ws_clipsiblings;
-      /* if we are enabling frames, add the frame parts back */
-      if e  {
+    win->frame = e; /* set new status of frame */
+    fl1 = WS_OVERLAPPED | WS_CLIPCHILDREN; /* set minimum style */
+    /* add flags for child window */
+    if (win->fparhan) fl1 |= WS_CHILD | WS_CLIPSIBLINGS;
+    /* if we are enabling frames, add the frame parts back */
+    if (e) {
 
-         if size  fl1 = fl1 || ws_thickframe;
-         if sysbar  fl1 = fl1 || ws_caption || ws_sysmenu or
-                               ws_minimizebox || ws_maximizebox;
+        if (win->size) fl1 |= WS_THICKFRAME;
+        if (win->sysbar) fl1 |= WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX |
+                               WS_MAXIMIZEBOX;
 
-      };
-      fl2 = 0xf; /* build the gwl_style value */
-      fl2 = ! fl2;
-      unlockmain(); /* } exclusive access */
-      r = setwindowlong(winhan, fl2 /*gwl_style*/, fl1);
-      lockmain(); /* start exclusive access */
-      if r == 0  winerr(); /* process windows error */
-      unlockmain(); /* } exclusive access */
-      b = SetWindowPos(winhan, 0, 0, 0, 0, 0,
-                           swp_nosize || swp_nomove ||
-                           swp_framechanged);
-      lockmain(); /* start exclusive access */
-      if (!b) winerr(); /* process windows error */
-      /* present the window */
-      unlockmain(); /* } exclusive access */
-      b = ShowWindow(winhan, sw_showdefault);
-      lockmain(); /* start exclusive access */
-      if bufmod  { /* in buffer mode */
+    }
+    unlockmain(); /* } exclusive access */
+    r = setwindowlong(win->fwinhan, GWL_STYLE, fl1);
+    lockmain(); /* start exclusive access */
+    if (!r) winerr(); /* process windows error */
+    unlockmain(); /* end exclusive access */
+    b = SetWindowPos(win->fwinhan, 0, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE |
+                                                  SWP_FRAMECHANGED);
+    lockmain(); /* start exclusive access */
+    if (!b) winerr(); /* process windows error */
+    /* present the window */
+    unlockmain(); /* end exclusive access */
+    b = ShowWindow(win->fwinhan, SW_SHOWDEFAULT);
+    lockmain(); /* start exclusive access */
+    if (win->bufmod)  { /* in buffer mode */
 
-         /* change window size to match new mode */
-         cr.left = 0; /* set up desired client rectangle */
-         cr.top = 0;
-         cr.right = gmaxxg;
-         cr.bottom = gmaxyg;
-         /* find window size from client size */
-         b = AdjustWindowRectEx(cr, fl1, FALSE, 0);
-         if (!b) winerr(); /* process windows error */
-         unlockmain(); /* } exclusive access */
-         b = SetWindowPos(winhan, 0, 0, 0,
-                              cr.right-cr.left, cr.bottom-cr.top,
-                              swp_nomove || swp_nozorder);
-         lockmain(); /* start exclusive access */
-         if (!b) winerr(); /* process windows error */
+        /* change window size to match new mode */
+        cr.left = 0; /* set up desired client rectangle */
+        cr.top = 0;
+        cr.right = win->fgmaxxg;
+        cr.bottom = win->fgmaxyg;
+        /* find window size from client size */
+        b = AdjustWindowRectEx(cr, fl1, FALSE, 0);
+        if (!b) winerr(); /* process windows error */
+        unlockmain(); /* end exclusive access */
+        b = SetWindowPos(win->fwinhan, 0, 0, 0,
+                            cr.right-cr.left, cr.bottom-cr.top,
+                            SWP_NOMOVE | SWP_NOZORDER);
+        lockmain(); /* start exclusive access */
+        if (!b) winerr(); /* process windows error */
 
-      }
+    }
 
-   }
+}
 
-};
-
-void frame(FILE* f; e: int);
-
-var winptr win; /* windows record pointer */
+void frame(FILE* f, int e)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window from file */
-   iframe(win, e); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    iframe(win, e); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
-Enable || disable window sizing
+Enable or disable window sizing
 
-Turns the window sizing on && off.
+Turns the window sizing on and off.
 
 *******************************************************************************/
 
-void isizable(winptr win; e: int);
-
-var fl1, fl2: int; /* flag */
-    cr:       rect; /* client rectangle holder */
+void isizable(winptr win, int e)
 
 {
 
-   with win^ do { /* in windows context */
+    int  fl1; /* flag */
+    RECT cr;  /* client rectangle holder */
+    HWND r;
+    BOOL b;
 
-      size = e; /* set new status of size bars */
-      /* no point in making the change of framing is off entirely */
-      if frame  {
+    win->size = e; /* set new status of size bars */
+    /* no point in making the change of framing is off entirely */
+    if (win->frame) {
 
-         /* set minimum style */
-         fl1 = ws_overlapped || ws_clipchildren;
-         /* add frame features */
-         if size  fl1 = fl1 || ws_thickframe
-         else fl1 = fl1 || ws_border;
-         if sysbar  fl1 = fl1 || ws_caption || ws_sysmenu or
-                               ws_minimizebox || ws_maximizebox;
-         /* add flags for child window */
-         if parhan != 0  fl1 = fl1 || ws_child || ws_clipsiblings;
-         /* if we are enabling frames, add the frame parts back */
-         if e  fl1 = fl1 || ws_thickframe;
-         fl2 = 0xf; /* build the gwl_style value */
-         fl2 = ! fl2;
-         unlockmain(); /* } exclusive access */
-         r = setwindowlong(winhan, fl2 /*gwl_style*/, fl1);
-         lockmain(); /* start exclusive access */
-         if r == 0  winerr(); /* process windows error */
-         unlockmain(); /* } exclusive access */
-         b = SetWindowPos(winhan, 0, 0, 0, 0, 0,
-                              swp_nosize || swp_nomove ||
-                              swp_framechanged);
-         lockmain(); /* start exclusive access */
-         if (!b) winerr(); /* process windows error */
-         /* present the window */
-         unlockmain(); /* } exclusive access */
-         b = ShowWindow(winhan, sw_showdefault);
-         lockmain(); /* start exclusive access */
-         if bufmod  { /* in buffer mode */
+        /* set minimum style */
+        fl1 = WS_OVERLAPPED | WS_CLIPCHILDREN;
+        /* add frame features */
+        if (win->size) fl1 |= | WS_THICKFRAME;
+        else fl1 = fl1 || WS_BORDER;
+        if (sysbar)
+            fl1 |= WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
+        /* add flags for child window */
+        if (parhan) fl1 |= WS_CHILD | WS_CLIPSIBLINGS;
+        /* if we are enabling frames, add the frame parts back */
+        if (e) fl1 |= WS_THICKFRAME;
+        unlockmain(); /* } exclusive access */
+        r = setwindowlong(win->winhan, GWL_STYLE, fl1);
+        lockmain(); /* start exclusive access */
+        if (!r) winerr(); /* process windows error */
+        unlockmain(); /* } exclusive access */
+        b = SetWindowPos(win->winhan, 0, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE |
+                                                     SWP_FRAMECHANGED);
+        lockmain(); /* start exclusive access */
+        if (!b) winerr(); /* process windows error */
+        /* present the window */
+        unlockmain(); /* } exclusive access */
+        b = ShowWindow(win->winhan, SW_SHOWDEFAULT);
+        lockmain(); /* start exclusive access */
+        if (win->bufmod) { /* in buffer mode */
 
             /* change window size to match new mode */
             cr.left = 0; /* set up desired client rectangle */
             cr.top = 0;
-            cr.right = gmaxxg;
-            cr.bottom = gmaxyg;
+            cr.right = win->gmaxxg;
+            cr.bottom = win->gmaxyg;
             /* find window size from client size */
             b = AdjustWindowRectEx(cr, fl1, FALSE, 0);
             if (!b) winerr(); /* process windows error */
             unlockmain(); /* } exclusive access */
             b = SetWindowPos(winhan, 0, 0, 0,
-                                 cr.right-cr.left, cr.bottom-cr.top,
-                                 swp_nomove || swp_nozorder);
+                             cr.right-cr.left, cr.bottom-cr.top,
+                             SWP_NOMOVE || SWP_NOZORDER);
             lockmain(); /* start exclusive access */
             if (!b) winerr(); /* process windows error */
 
-         }
+        }
 
-      }
+    }
 
-   }
+}
 
-};
-
-void sizable(FILE* f; e: int);
-
-var winptr win; /* windows record pointer */
+void sizable(FILE* f, int e)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window from file */
-   isizable(win, e); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    isizable(win, e); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
-Enable || disable window system bar
+Enable or disable window system bar
 
-Turns the system bar on && off.
+Turns the system bar on and off.
 
 *******************************************************************************/
 
-void isysbar(winptr win; e: int);
-
-var fl1, fl2: int; /* flag */
-    cr:       rect; /* client rectangle holder */
+void isysbar(winptr win, int e)
 
 {
 
-   with win^ do { /* in windows context */
+    int  fl1; /* flag */
+    RECT cr;  /* client rectangle holder */
+    HWND r;
+    BOOL b;
 
-      sysbar = e; /* set new status of size bars */
-      /* no point in making the change of framing is off entirely */
-      if frame  {
+    win->sysbar = e; /* set new status of size bars */
+    /* no point in making the change of framing is off entirely */
+    if (win->frame) {
 
-         /* set minimum style */
-         fl1 = ws_overlapped || ws_clipchildren;
-         /* add frame features */
-         if size  fl1 = fl1 || ws_thickframe
-         else fl1 = fl1 || ws_border;
-         if sysbar  fl1 = fl1 || ws_caption || ws_sysmenu or
-                               ws_minimizebox || ws_maximizebox;
-         /* add flags for child window */
-         if parhan != 0  fl1 = fl1 || ws_child || ws_clipsiblings;
-         /* if we are enabling frames, add the frame parts back */
-         if e  fl1 = fl1 || ws_thickframe;
-         fl2 = 0xf; /* build the gwl_style value */
-         fl2 = ! fl2;
-         unlockmain(); /* } exclusive access */
-         r = setwindowlong(winhan, fl2 /*gwl_style*/, fl1);
-         lockmain(); /* start exclusive access */
-         if r == 0  winerr(); /* process windows error */
-         unlockmain(); /* } exclusive access */
-         b = SetWindowPos(winhan, 0, 0, 0, 0, 0,
-                              swp_nosize || swp_nomove ||
-                              swp_framechanged);
-         lockmain(); /* start exclusive access */
-         if (!b) winerr(); /* process windows error */
-         /* present the window */
-         unlockmain(); /* } exclusive access */
-         b = ShowWindow(winhan, sw_showdefault);
-         lockmain(); /* start exclusive access */
-         if bufmod  { /* in buffer mode */
+        /* set minimum style */
+        fl1 = WS_OVERLAPPED | WS_CLIPCHILDREN;
+        /* add frame features */
+        if (size) fl1 |= WS_THICKFRAME
+        else fl1 |= WS_BORDER;
+        if (sysbar)
+            fl1 |= WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
+        /* add flags for child window */
+        if (win->parhan) fl1 |= WS_CHILD | WS_CLIPSIBLINGS;
+        /* if we are enabling frames, add the frame parts back */
+        if (e) fl1 |= WS_THICKFRAME;
+        unlockmain(); /* end exclusive access */
+        r = setwindowlong(win->winhan, GWL_STYLE, fl1);
+        lockmain(); /* start exclusive access */
+        if (!r) winerr(); /* process windows error */
+        unlockmain(); /* end exclusive access */
+        b = SetWindowPos(win->winhan, 0, 0, 0, 0, 0,
+                             SWP_NOSIZE | SWP_NOMOVE | SWP_FRAMECHANGED);
+        lockmain(); /* start exclusive access */
+        if (!b) winerr(); /* process windows error */
+        /* present the window */
+        unlockmain(); /* } exclusive access */
+        ShowWindow(win->winhan, SW_SHOWDEFAULT);
+        lockmain(); /* start exclusive access */
+        if (win->bufmod) { /* in buffer mode */
 
             /* change window size to match new mode */
             cr.left = 0; /* set up desired client rectangle */
             cr.top = 0;
-            cr.right = gmaxxg;
-            cr.bottom = gmaxyg;
+            cr.right = win->gmaxxg;
+            cr.bottom = win->gmaxyg;
             /* find window size from client size */
             b = AdjustWindowRectEx(cr, fl1, FALSE, 0);
             if (!b) winerr(); /* process windows error */
             unlockmain(); /* } exclusive access */
-            b = SetWindowPos(winhan, 0, 0, 0,
+            b = SetWindowPos(win->winhan, 0, 0, 0,
                                  cr.right-cr.left, cr.bottom-cr.top,
-                                 swp_nomove || swp_nozorder);
+                                 SWP_NOMOVE | SWP_NOZORDER);
             lockmain(); /* start exclusive access */
             if (!b) winerr(); /* process windows error */
 
-         }
+        }
 
-      }
+    }
 
-   }
+}
 
-};
-
-void sysbar(FILE* f; e: int);
-
-var winptr win; /* windows record pointer */
+void sysbar(FILE* f, int e)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window from file */
-   isysbar(win, e); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* windows record pointer */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    isysbar(win, e); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
-App} menu entry
+Append menu entry
 
-App}s a new menu entry to the given list.
+Appends a new menu entry to the given list.
 
 *******************************************************************************/
 
-void app}menu(var list: menuptr; m: menuptr);
-
-var lp: menuptr;
+void appendmenu(menuptr* list, menuptr m)
 
 {
 
-   /* clear these links for insurance */
-   m->next = NULL; /* clear next */
-   m->branch = NULL; /* clear branch */
-   if list == NULL  list = m /* list empty, set as first entry */
-   else { /* list non-empty */
+    menuptr lp;
 
-      /* find last entry in list */
-      lp = list; /* index 1st on list */
-      while lp->next != NULL do lp = lp->next;
-      lp->next = m /* app} at } */
+    /* clear these links for insurance */
+    m->next = NULL; /* clear next */
+    m->branch = NULL; /* clear branch */
+    if (!list) list = m /* list empty, set as first entry */
+    else { /* list non-empty */
 
-   }
+        /* find last entry in list */
+        lp = list; /* index 1st on list */
+        while (lp->next) lp = lp->next;
+        lp->next = m; /* append at end */
 
-};
+    }
+
+}
 
 /*******************************************************************************
 
@@ -10657,132 +10619,130 @@ On this windows version, the standard lists are:
 file edit <program> window help
 
 That is, all of the standard items are sorted into the lists at the start and
-} of the menu,  the program selections placed in the menu.
+end of the menu,  the program selections placed in the menu.
 
 *******************************************************************************/
 
-void stdmenu(view sms: stdmenusel; var sm: menuptr; pm: menuptr);
-
-var m, hm: menuptr; /* pointer for menu entries */
-
 /* get menu entry */
-
-void getmenu(var m: menuptr; id: int; view face: char*);
+void getmenu(menuptr* m, int id, char* face)
 
 {
 
-   new(m); /* get new menu element */
-   m->next   = NULL; /* no next */
-   m->branch = NULL; /* no branch */
-   m->onoff  = FALSE; /* ! an on/off value */
-   m->oneof  = FALSE; /* ! a "one of" value */
-   m->bar    = FALSE; /* no bar under */
-   m->id     = id;    /* no id */
-   new(m->face, max(face)); /* place face char* */
-   m->face^ = face
+    m = malloc(sizeof(pa_menurec));
+    if (!m) error(enomem);
+    m->next   = NULL; /* no next */
+    m->branch = NULL; /* no branch */
+    m->onoff  = FALSE; /* ! an on/off value */
+    m->oneof  = FALSE; /* ! a "one of" value */
+    m->bar    = FALSE; /* no bar under */
+    m->id     = id;    /* no id */
+    m->face = str(face); /* place face string */
 
-};
+}
 
 /* add standard list item */
-
-void additem(i: int; var m, l: menuptr; view s: char*;
-                  b: int);
+void additem(int i, menuptr* m, l, char* s, int b)
 
 {
 
-   if i in sms  { /* this item is active */
+    if i in sms  { /* this item is active */
 
-      getmenu(m, i, s); /* get menu item */
-      app}menu(l, m); /* add to list */
-      m->bar = b       /* set bar status */
+        getmenu(*m, i, s); /* get menu item */
+        appendmenu(*l, *m); /* add to list */
+        m->bar = b; /* set bar status */
+
+    }
+
+}
+
+void stdmenu(pa_stdmenusel sms, menuptr* sm, menuptr pm)
+
+{
+
+    menuptr m, hm; /* pointer for menu entries */
+
+    *sm = NULL; /* clear menu */
+
+    /* check and perform "file" menu */
+
+    if (sms & (BIT(SMNEW) | BIT(SMOPEN) | BIT(SMCLOSE) | BIT(SMSAVE) |
+               BIT(SMSAVEAS) | BIT(SMPAGESET) | BIT(SMPRINT) |
+               BIT(SMEXIT))) { /* file menu */
+
+        getmenu(hm, 0, "File"); /* get entry */
+        appendmenu(sm, hm);
+
+        additem(SMNEW, m, hm->branch, "New", FALSE);
+        additem(SMOPEN, m, hm->branch, "Open", FALSE);
+        additem(SMCLOSE, m, hm->branch, "Close", FALSE);
+        additem(SMSAVE, m, hm->branch, "Save", FALSE);
+        additem(SMSAVEas, m, hm->branch, "Save As", TRUE);
+        additem(SMPAGESET, m, hm->branch, "Page Setup", FALSE);
+        additem(SMPRINT, m, hm->branch, "Print", TRUE);
+        additem(SMEXIT, m, hm->branch, "Exit", FALSE);
 
    }
 
-};
+   /* check and perform "edit" menu */
 
-{
+   if (sms&(BIT(SMUNDO) | BIT(SMCUT) | BIT(SMPASTE) | BIT(SMDELETE) |
+            BIT(SMFIND) | BIT(SMFINDNEXT) | BIT(SMREPLACE) | BIT(SMGOTO) |
+            BIT(SMSELECTALL))) { /* file menu */
 
-   refer(pm); /* we don"t implement menu addition yet */
-   sm = NULL; /* clear menu */
+        getmenu(hm, 0, "Edit"); /* get entry */
+        appendmenu(sm, hm);
 
-   /* check && perform "file" menu */
+        additem(SMUNDO, m, hm->branch, "Undo", TRUE);
+        additem(SMCUT, m, hm->branch, "Cut", FALSE);
+        additem(SMPASTE, m, hm->branch, "Paste", FALSE);
+        additem(SMDELETE, m, hm->branch, "Delete", TRUE);
+        additem(SMFIND, m, hm->branch, "Find", FALSE);
+        additem(SMFINDnext, m, hm->branch, "Find Next", FALSE);
+        additem(SMREPLACE, m, hm->branch, "Replace", FALSE);
+        additem(SMGOTO, m, hm->branch, "Goto", TRUE);
+        additem(SMSELECTALL, m, hm->branch, "Select All", FALSE)
 
-   if sms*[SMNEW, SMOPEN, SMCLOSE, SMSAVE, SMSAVEas, SMPAGESET, SMPRINT,
-           SMEXIT] != []  { /* file menu */
-
-      getmenu(hm, 0, "File"); /* get entry */
-      app}menu(sm, hm);
-
-      additem(SMNEW, m, hm->branch, "New", FALSE);
-      additem(SMOPEN, m, hm->branch, "Open", FALSE);
-      additem(SMCLOSE, m, hm->branch, "Close", FALSE);
-      additem(SMSAVE, m, hm->branch, "Save", FALSE);
-      additem(SMSAVEas, m, hm->branch, "Save As", TRUE);
-      additem(SMPAGESET, m, hm->branch, "Page Setup", FALSE);
-      additem(SMPRINT, m, hm->branch, "Print", TRUE);
-      additem(SMEXIT, m, hm->branch, "Exit", FALSE)
-
-   };
-
-   /* check && perform "edit" menu */
-
-   if sms*[SMUNDO, SMCUT, SMPASTE, SMDELETE, SMFIND, SMFINDnext,
-           SMREPLACE, SMGOTO, SMSELECTALL] != []  { /* file menu */
-
-      getmenu(hm, 0, "Edit"); /* get entry */
-      app}menu(sm, hm);
-
-      additem(SMUNDO, m, hm->branch, "Undo", TRUE);
-      additem(SMCUT, m, hm->branch, "Cut", FALSE);
-      additem(SMPASTE, m, hm->branch, "Paste", FALSE);
-      additem(SMDELETE, m, hm->branch, "Delete", TRUE);
-      additem(SMFIND, m, hm->branch, "Find", FALSE);
-      additem(SMFINDnext, m, hm->branch, "Find Next", FALSE);
-      additem(SMREPLACE, m, hm->branch, "Replace", FALSE);
-      additem(SMGOTO, m, hm->branch, "Goto", TRUE);
-      additem(SMSELECTALL, m, hm->branch, "Select All", FALSE)
-
-   };
+   }
 
    /* insert custom menu */
 
-   while pm != NULL do { /* insert entries */
+   while (pm) { /* insert entries */
 
-      m = pm; /* index top button */
-      pm = pm->next; /* next button */
-      app}menu(sm, m);
-
-   };
-
-   /* check && perform "window" menu */
-
-   if sms*[SMNEWwindow, SMTILEHORIZ, SMTILEVERT, SMCASCADE,
-           SMCLOSEall] != []  { /* file menu */
-
-      getmenu(hm, 0, "Window"); /* get entry */
-      app}menu(sm, hm);
-
-      additem(SMNEWwindow, m, hm->branch, "New Window", TRUE);
-      additem(SMTILEHORIZ, m, hm->branch, "Tile Horizontally", FALSE);
-      additem(SMTILEVERT, m, hm->branch, "Tile Vertically", FALSE);
-      additem(SMCASCADE, m, hm->branch, "Cascade", TRUE);
-      additem(SMCLOSEall, m, hm->branch, "Close All", FALSE)
-
-   };
-
-   /* check && perform "help" menu */
-
-   if sms*[SMHELPTOPIC, SMABOUT] != []  { /* file menu */
-
-      getmenu(hm, 0, "Help"); /* get entry */
-      app}menu(sm, hm);
-
-      additem(SMHELPTOPIC, m, hm->branch, "Help ToPIcs", TRUE);
-      additem(SMABOUT, m, hm->branch, "About", FALSE)
+        m = pm; /* index top button */
+        pm = pm->next; /* next button */
+        appendmenu(sm, m);
 
    }
 
-};
+   /* check and perform "window" menu */
+
+   if (sms&(SMNEWWINDOW) | SMTILEHORIZ) | SMTILEVERT) | SMCASCADE) |
+           SMCLOSEALL)))  { /* file menu */
+
+        getmenu(hm, 0, "Window"); /* get entry */
+        appendmenu(sm, hm);
+
+        additem(SMNEWwindow, m, hm->branch, "New Window", TRUE);
+        additem(SMTILEHORIZ, m, hm->branch, "Tile Horizontally", FALSE);
+        additem(SMTILEVERT, m, hm->branch, "Tile Vertically", FALSE);
+        additem(SMCASCADE, m, hm->branch, "Cascade", TRUE);
+        additem(SMCLOSEall, m, hm->branch, "Close All", FALSE)
+
+   }
+
+   /* check && perform "help" menu */
+
+   if (sms&(BIT(SMHELPTOPIC) | BIT(SMABOUT)))) { /* file menu */
+
+        getmenu(hm, 0, "Help"); /* get entry */
+        appendmenu(sm, hm);
+
+        additem(SMHELPTOPIC, m, hm->branch, "Help Topics", TRUE);
+        additem(SMABOUT, m, hm->branch, "About", FALSE)
+
+    }
+
+}
 
 /*******************************************************************************
 
@@ -10797,162 +10757,143 @@ trying to start them on the main window.
 
 *******************************************************************************/
 
-void widget(winptr win; x1, y1, x2, y2: int; view s: char*;
-                 id: int; typ: wigtyp; exfl: int; var wp: wigptr);
-
-var fl:     int; /* creation flag */
-    clsstr: packed array [1..20] of char; /* class name */
-    b:      int; /* return value */
-
 /* create widget according to type */
-
-int createwidget(winptr win; typ: wigtyp; x1, y1, x2, y2: int;
-                      view s: char*; id: int): int;
-
-var wh: int; /* handle to widget */
-    ip: imptr;   /* intertask message pointer */
+int createwidget(winptr win, wigtyp typ; int x1, int y1, int x2, int y2,
+                 char* s, int id, int exfil)
 
 {
 
-   with win^ do {
+    int   wh;     /* handle to widget */
+    imptr ip;     /* intertask message pointer */
+    char* clsstr;
 
-      /* search previous definition with same id */
-      if fndwig(win, id) != NULL  error(ewigdup); /* duplicate widget id */
-      case typ of /* widget type */
+    /* search previous definition with same id */
+    if (fndwig(win, id)) error(ewigdup); /* duplicate widget id */
+    case typ of /* widget type */
 
-         wtbutton: {
+        wtbutton:
+            clsstr = str("button");
+            fl = BS_PUSHBUTTON | exfl;  /* button */
+            break;
 
-            clsstr = "button              ";
-            fl = bs_pushbutton || exfl;  /* button */
+       wtcheckbox:
+          clsstr = str("button");
+          fl = BS_CHECKBOX | exfl;    /* checkbox */
+          break;
 
-         };
-         wtcheckbox: {
+       wtradiobutton:
+          clsstr = str("button");
+          fl = BS_RADIOBUTTON | exfl; /* radio button */
+          break;
 
-            clsstr = "button              ";
-            fl = bs_checkbox || exfl;    /* checkbox */
+       wtgroup:
+          clsstr = str("button");
+          fl = BS_GROUPBOX | exfl;    /* group box */
+          break;
 
-         };
-         wtradiobutton: {
+       wtbackground:
+          clsstr = str("static");
+          fl = 0 | exfl;   /* background */
+          break;
 
-            clsstr = "button              ";
-            fl = bs_radiobutton || exfl; /* radio button */
+       wtscrollvert: /* vertical scroll bar */
+          clsstr = str("scrollbar");
+          fl = SBS_VERT | exfl;
+          break;
 
-         };
-         wtgroup: {
+       wtscrollhoriz: /* horizontal scrollbar */
+          clsstr = str("scrollbar");
+          fl = SBS_HORZ | exfl;
+          break;
 
-            clsstr = "button              ";
-            fl = bs_groupbox || exfl;    /* group box */
+       wteditbox: /* single line edit */
+          clsstr = str("edit");
+          fl = WS_BORDER | ES_LEFT | ES_AUTOHSCROLL | exfl;
+          break;
 
-         };
-         wtbackground: {
+       wtprogressbar: /* progress bar */
+          clsstr = str("msctls_progress32");
+          fl = 0 | exfl;
+          break;
 
-            clsstr = "static              ";
-            fl = 0 || exfl;   /* background */
+       wtlistbox: /* list box */
+          clsstr = str("listbox");
+          fl = (LBS_STANDARD&~LBS_SORT) | exfl;
+          break;
 
-         };
-         wtscrollvert: { /* vertical scroll bar */
+       wtdropbox: /* list box */
+          clsstr = str("combobox");
+          fl = CBS_DROPDOWNLIST | exfl;
+          break;
 
-            clsstr = "scrollbar           ";
-            fl = sbs_vert || exfl;
+       wtdropeditbox: /* list box */
+          clsstr = str("combobox");
+          fl = CBS_DROPDOWN | exfl;
+          break;
 
-         };
-         wtscrollhoriz: { /* horizontal scrollbar */
+       wtslidehoriz: /* horizontal slider */
+          clsstr = str("msctls_trackbar32");
+          fl = TBS_HORZ | TBS_AUTOTICKS | exfl;
+          break;
 
-            clsstr = "scrollbar           ";
-            fl = sbs_horz || exfl;
+       wtslidevert: /* vertical slider */
+          clsstr = str("msctls_trackbar32");
+          fl = TBS_VERT | TBS_AUTOTICKS | exfl;
+          break;
 
-         };
-         wteditbox: { /* single line edit */
+       wttabbar: /* tab bar */
+          clsstr = str("systabcontrol32");
+          fl = WS_VISIBLE | exfl;
+          break;
 
-            clsstr = "edit                ";
-            fl = ws_border || es_left || es_autohscroll || exfl;
+    }
+    /* create an intertask message to start the widget */
+    getitm(ip); /* get a im pointer */
+    ip->im = imwidget; /* set type is widget */
+    ip->wigcls = clsstr; /* place class string */
+    ip->wigtxt = str(s); /* place face text */
+    ip->wigflg = ws_child | ws_visible | fl;
+    ip->wigx = x1-1; /* place origin */
+    ip->wigy = y1-1;
+    ip->wigw = x2-x1+1; /* place size */
+    ip->wigh = y2-y1+1;
+    ip->wigpar = win->winhan; /* place parent */
+    ip->wigid = id; /* place id */
+    ip->wigmod = GetModuleHandle(NULL); /* place module */
+    /* order widget to start */
+    b = PostMessage(dispwin, UMIM, (WPARAM)ip, 0);
+    if (!b) winerr(); /* process windows error */
+    /* Wait for widget start, this also keeps our window going. */
+    waitim(imwidget, ip); /* wait for the return */
+    wh = ip->wigwin; /* place handle to widget */
+    free(ip->wigcls); /* release class char* */
+    free(ip->wigtxt); /* release face text char* */
+    putitm(ip); /* release im */
 
-         };
-         wtprogressbar: { /* progress bar */
+    return (wh); /* return handle */
 
-            clsstr = "msctls_progress32   ";
-            fl = 0 || exfl;
+}
 
-         };
-         wtlistbox: { /* list box */
-
-            clsstr = "listbox             ";
-            fl = lbs_standard-lbs_sort || exfl;
-
-         };
-         wtdropbox: { /* list box */
-
-            clsstr = "combobox            ";
-            fl = cbs_dropdownlist || exfl;
-
-         };
-         wtdropeditbox: { /* list box */
-
-            clsstr = "combobox            ";
-            fl = cbs_dropdown || exfl;
-
-         };
-         wtslidehoriz: { /* horizontal slider */
-
-            clsstr = "msctls_trackbar32   ";
-            fl = tbs_horz || tbs_autoticks || exfl;
-
-         };
-         wtslidevert: { /* vertical slider */
-
-            clsstr = "msctls_trackbar32   ";
-            fl = tbs_vert || tbs_autoticks || exfl;
-
-         };
-         wttabbar: { /* tab bar */
-
-            clsstr = "systabcontrol32     ";
-            fl = ws_visible || exfl;
-
-         };
-
-      };
-      /* create an intertask message to start the widget */
-      getitm(ip); /* get a im pointer */
-      ip->im = imwidget; /* set type is widget */
-      strcpy(ip->wigcls, clsstr); /* place class char* */
-      strcpy(ip->wigtxt, s); /* place face text */
-      ip->wigflg = ws_child || ws_visible || fl;
-      ip->wigx = x1-1; /* place origin */
-      ip->wigy = y1-1;
-      ip->wigw = x2-x1+1; /* place size */
-      ip->wigh = y2-y1+1;
-      ip->wigpar = winhan; /* place parent */
-      ip->wigid = id; /* place id */
-      ip->wigmod = getmodulehandle_n; /* place module */
-      /* order widget to start */
-      b = PostMessage(dispwin, UMIM, (WPARAM)ip, 0);
-      if (!b) winerr(); /* process windows error */
-      /* Wait for widget start, this also keeps our window going. */
-      waitim(imwidget, ip); /* wait for the return */
-      wh = ip->wigwin; /* place handle to widget */
-      free(ip->wigcls); /* release class char* */
-      free(ip->wigtxt); /* release face text char* */
-      putitm(ip) /* release im */
-
-   };
-
-   createwidget = wh /* return handle */
-
-};
+void widget(winptr win, int x1, int y1, int x2, int y2, char* s, int id,
+            wigtyp typ, int exfl, wigptr* wp)
 
 {
 
-   getwig(win, wp); /* get new widget */
-   /* Group widgets don"t have a background, so we pair it up with a background
-     widget. */
-   if typ == wtgroup  /* create buddy for group */
-      wp->han2 = createwidget(win, wtbackground, x1, y1, x2, y2, "", id);
-   wp->han = createwidget(win, typ, x1, y1, x2, y2, s, id); /* create widget */
-   wp->id = id; /* place button id */
-   wp->typ = typ /* place type */
+    int  fl;         /* creation flag */
+    int  b;          /* return value */
 
-};
+    getwig(win, wp); /* get new widget */
+    /* Group widgets don"t have a background, so we pair it up with a background
+       widget. */
+    if (typ == wtgroup)  /* create buddy for group */
+        wp->han2 = createwidget(win, wtbackground, x1, y1, x2, y2, "", id,
+                                exfl);
+    /* create widget */
+    wp->han = createwidget(win, typ, x1, y1, x2, y2, s, id, exfl);
+    wp->id = id; /* place button id */
+    wp->typ = typ; /* place type */
+
+}
 
 /*******************************************************************************
 
@@ -10962,128 +10903,117 @@ Removes the widget by id from the window.
 
 *******************************************************************************/
 
-void ikillwidget(winptr win; id: int);
-
-var wp: wigptr; /* widget pointer */
+void ikillwidget(winptr win, int id)
 
 {
 
-   with win^ do { /* in windows context */
+    wp: wigptr; /* widget pointer */
 
-      if ! visible  winvis(win); /* make sure we are displayed */
-      wp = fndwig(win, id); /* find widget */
-      if wp == NULL  error(ewignf); /* ! found */
-      kilwin(wp->han); /* kill window */
-      if wp->han2 != 0  kilwin(wp->han2); /* distroy buddy window */
-      putwig(win, wp) /* release widget entry */
+    if (!win->visible) winvis(win); /* make sure we are displayed */
+    wp = fndwig(win, id); /* find widget */
+    if (!wp) error(ewignf); /* ! found */
+    kilwin(wp->han); /* kill window */
+    if wp->han2 != 0  kilwin(wp->han2); /* distroy buddy window */
+    putwig(win, wp) /* release widget entry */
 
-   };
+}
 
-};
-
-void killwidget(FILE* f; id: int);
-
-var winptr win; /* window context */
+void killwidget(FILE* f, int id)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   ikillwidget(win, id); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    ikillwidget(win, id); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
 Select/deselect widget
 
-Selects || deselects a widget.
+Selects or deselects a widget.
 
 *******************************************************************************/
 
-void iselectwidget(winptr win; id: int; e: int);
-
-var wp: wigptr;  /* widget entry */
-    r:  int; /* return value */
+void iselectwidget(winptr win, int id, int e)
 
 {
 
-   with win^ do {
+    wigptr wp;  /* widget entry */
+    int    r; /* return value */
 
-      if ! visible  winvis(win); /* make sure we are displayed */
-      wp = fndwig(win, id); /* find widget */
-      if wp == NULL  error(ewignf); /* ! found */
-      /* check this widget is selectable */
-      if ! (wp->typ in [wtcheckbox, wtradiobutton])  error(ewigsel);
-      unlockmain(); /* } exclusive access */
-      r = s}message(wp->han, bm_setcheck, ord(e), 0);
-      lockmain();/* start exclusive access */
+    if (!win->visible) winvis(win); /* make sure we are displayed */
+    wp = fndwig(win, id); /* find widget */
+    if (!wp) error(ewignf); /* ! found */
+    /* check this widget is selectable */
+    if (wp->typ != wtcheckbox && wp->typ != wtradiobutton) error(ewigsel);
+    unlockmain(); /* } exclusive access */
+    r = sendmessage(wp->han, BM_SETCHECK, ord(e), 0);
+    lockmain();/* start exclusive access */
 
-   }
+}
 
-};
-
-void selectwidget(FILE* f; id: int; e: int);
-
-var winptr win; /* window context */
+void selectwidget(FILE* f, int id, int e)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   iselectwidget(win, id, e); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    iselectwidget(win, id, e); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
 Enable/disable widget
 
-Enables || disables a widget.
+Enables or disables a widget.
 
 *******************************************************************************/
 
-void ienablewidget(winptr win; id: int; e: int);
-
-var wp:  wigptr;  /* widget entry */
-    b:   int; /* return value */
+void ienablewidget(winptr win, int id, int e)
 
 {
 
-   with win^ do {
+    wigptr wp; /* widget entry */
 
-      if ! visible  winvis(win); /* make sure we are displayed */
-      wp = fndwig(win, id); /* find widget */
-      if wp == NULL  error(ewignf); /* ! found */
-      /* check this widget can get text */
-      if ! (wp->typ in [wtbutton, wtcheckbox, wtradiobutton, wtgroup,
-                          wtscrollvert, wtscrollhoriz, wtnumselbox,
-                          wteditbox, wtlistbox, wtdropbox, wtdropeditbox,
-                          wtslidehoriz, wtslidevert,
-                          wttabbar])  error(ewigdis);
-      unlockmain(); /* } exclusive access */
-      b = enablewindow(wp->han, e); /* perform */
-      lockmain(); /* start exclusive access */
-      wp->enb = e /* save enable/disable status */
+    if (!win->visible) winvis(win); /* make sure we are displayed */
+    wp = fndwig(win, id); /* find widget */
+    if (!wp) error(ewignf); /* ! found */
+    /* check this widget can get text */
+    if (wp->typ != wtbutton && wp->typ != wtcheckbox &&
+        wp->typ != wtradiobutton && wp->typ != wtgroup &&
+        wp->typ != wtscrollvert && wp->typ != wtscrollhoriz &&
+        wp->typ != wtnumselbox && wp->typ != wteditbox &&
+        wp->typ != wtlistbox && wp->typ != wtdropbox &&
+        wp->typ != wtdropeditbox && wp->typ != wtslidehoriz &&
+        wp->typ != wtslidevert && wp->typ != wttabbar) error(ewigdis);
+    unlockmain(); /* } exclusive access */
+    enablewindow(wp->han, e); /* perform */
+    lockmain(); /* start exclusive access */
+    wp->enb = e; /* save enable/disable status */
 
-   };
+}
 
-};
-
-void enablewidget(FILE* f; id: int; e: int);
-
-var winptr win; /* window context */
+void enablewidget(FILE* f, int id, int e)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   ienablewidget(win, id, e); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    ienablewidget(win, id, e); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -13483,7 +13413,7 @@ void islidehorizsizg(winptr win; var w, h: int);
    refer(win); /* don"t need the window data */
 
    /* The width is that of an average slider. The height is what is needed to
-     present the slider, tick marks, && 2 PIxels of spacing around it. */
+     present the slider, tick marks, && 2 pixels of spacing around it. */
    w = 200;
    h = 32
 
@@ -13532,7 +13462,7 @@ Create horizontal slider
 
 Creates a horizontal slider.
 
-Bugs: The tick marks should be in PIxel terms, ! logical terms.
+Bugs: The tick marks should be in pixel terms, ! logical terms.
 
 *******************************************************************************/
 
@@ -13614,7 +13544,7 @@ void islidevertsizg(winptr win; var w, h: int);
    refer(win); /* don"t need the window data */
 
    /* The height is that of an average slider. The width is what is needed to
-     present the slider, tick marks, && 2 PIxels of spacing around it. */
+     present the slider, tick marks, && 2 pixels of spacing around it. */
    w = 32;
    h = 200
 
@@ -13663,7 +13593,7 @@ Create vertical slider
 
 Creates a vertical slider.
 
-Bugs: The tick marks should be in PIxel terms, ! logical terms.
+Bugs: The tick marks should be in pixel terms, ! logical terms.
 
 *******************************************************************************/
 
@@ -14679,7 +14609,7 @@ var r:   int;   /* result holder */
 
    } else { /* default handling */
 
-      /* Copy messages we are interested in to the main thread. By keePIng the
+      /* Copy messages we are interested in to the main thread. By keeping the
         messages passed down to only the interesting ones, we help prevent
         queue "flooding". This is done with a case, && ! a set, because sets
         are limited to 256 elements. */
@@ -15087,10 +15017,10 @@ var r:    int;                /* result holder */
             lf->lfcharset = default_charset; /* use default characters */
             /* use default precision */
             lf->lfoutprecision = out_default_precis;
-            /* use default clipPIng */
+            /* use default clipping */
             lf->lfclipprecision = clip_default_precis;
             lf->lFQUALITY = default_quality; /* use default quality */
-            lf->lfPItchandfamily = 0; /* must be zero */
+            lf->lfpitchandfamily = 0; /* must be zero */
             strcpy(lf->lffacename, ip->fntstr^); /* place face name */
             /* initalize choosefont structure */
             fns.lstructsize = choosefont_len; /* set size */
@@ -15489,17 +15419,17 @@ static void pa_init_network()
    initializecriticalsection(mainlock); /* initialize the sequencer lock */
    /* mainlock = createmutex(FALSE); */ /* create mutex with no owner */
    /* if mainlock == 0  winerr(); */ /* process windows error */
-   new(gcolorsav); /* get the color PIck array */
+   new(gcolorsav); /* get the color pick array */
    fndrepmsg = 0; /* set no find/replace message active */
    for i = 1 to 16 do gcolorsav^[i] = 0xffffff; /* set all to white */
    /* clear open files table */
-   for fi = 1 to ss_MAXFIL do opnfil[fi] = NULL; /* set unoccuPIed */
+   for fi = 1 to ss_MAXFIL do opnfil[fi] = NULL; /* set unoccupied */
    /* clear top level translator table */
-   for fi = 1 to ss_MAXFIL do xltfil[fi] = 0; /* set unoccuPIed */
+   for fi = 1 to ss_MAXFIL do xltfil[fi] = 0; /* set unoccupied */
    /* clear window logical number translator table */
-   for fi = 1 to ss_MAXFIL do xltwin[fi] = 0; /* set unoccuPIed */
+   for fi = 1 to ss_MAXFIL do xltwin[fi] = 0; /* set unoccupied */
    /* clear file to window logical number translator table */
-   for fi = 1 to ss_MAXFIL do filwin[fi] = 0; /* set unoccuPIed */
+   for fi = 1 to ss_MAXFIL do filwin[fi] = 0; /* set unoccupied */
 
    /* Create dummy window for message handling. This is only required so that
      the main thread can be attached to the display thread */
