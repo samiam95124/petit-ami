@@ -68,10 +68,16 @@
 #include <dirent.h>
 #include <limits.h>
 
+#ifdef __MACH__
+#include <mach-o/dyld.h>
+#endif
+
 #include <services.h> /* the header for this file */
 
 /* contains the program invocation path */
+#if defined(__linux) || defined(__MINGW32__)
 extern char *program_invocation_name;
+#endif
 
 /* contains the entire environment strings array */
 extern char **environ;
@@ -1610,10 +1616,17 @@ void pa_getpgm(
 )
 {
 
-    bufstr pn;   /* program name holder */
-    bufstr n, e;   /* name component holders */
+    bufstr   pn;   /* program name holder */
+    bufstr   n, e; /* name component holders */
+    unsigned bl;   /* length of buffer holder */
 
+#if defined(__linux) || defined(__MINGW32__)
     strcpy(pn, program_invocation_name); /* copy invoke name to path */
+#else
+    bl = MAXSTR;
+    _NSGetExecutablePath(pn, &bl);
+//    strcpy(pn, getprogname());
+#endif
     pa_fulnam(pn, MAXSTR);   /* clean that */
     pa_brknam(pn, p, pl, n, MAXSTR, e, MAXSTR); /* extract path from that */
 

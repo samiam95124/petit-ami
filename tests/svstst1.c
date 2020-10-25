@@ -8,7 +8,7 @@
 
 #define MAXSTR 100
 
-void main(void)
+int main(void)
 
 {
 
@@ -17,5 +17,7 @@ void main(void)
     pa_getenv("bark", s, MAXSTR);
 
     printf("This is svstst1 \"%s\"\n", s);
+
+    return (0);
 
 }

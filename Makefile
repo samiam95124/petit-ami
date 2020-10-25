@@ -80,7 +80,27 @@ ifndef LINK_TYPE
 endif
 
 CC=gcc
-CFLAGS=-g3 -Wl,--rpath=bin -Iinclude
+CFLAGS=-g3 -Iinclude
+
+#
+# Add flags by OS
+#
+ifeq ($(OSTYPE),Windows_NT)
+
+	# Windows, nothing
+	
+else ifeq ($(OSTYPE),Darwin)
+
+    # Mac OS X, nothing
+    
+else
+
+    #
+    # Linux
+    #
+    CFLAGS+=-Wl,--rpath=bin
+    
+endif
 
 #
 # Set library dependencies
@@ -105,7 +125,23 @@ endif
 # modify compile flags for static operation
 #
 ifeq ($(LINK_TYPE),static)
-    CFLAGS += -static
+
+    ifeq ($(OSTYPE),Windows_NT)
+
+	    # Windows
+	    CFLAGS += -static
+	
+    else ifeq ($(OSTYPE),Darwin)
+
+        # Mac OS X, nothing
+    
+    else
+
+        # Linux
+        CFLAGS += -static
+        
+    endif
+    
 endif
 
 #
