@@ -99,6 +99,8 @@ int pa_curbnd(FILE *f)
 
     error("pa_curbnd: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /** ****************************************************************************
@@ -115,6 +117,8 @@ int pa_maxx(FILE *f)
 {
 
     error("pa_maxx: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -133,6 +137,8 @@ int pa_maxy(FILE *f)
 
     error("pa_maxy: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /** ****************************************************************************
@@ -148,6 +154,8 @@ void pa_home(FILE *f)
 {
 
     error("pa_home: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -497,6 +505,8 @@ int pa_curx(FILE *f)
 
     error("pa_curx: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /** ****************************************************************************
@@ -512,6 +522,8 @@ int pa_cury(FILE *f)
 {
 
     error("pa_cury: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -610,6 +622,8 @@ int pa_mouse(FILE *f)
 
     error("pa_mouse: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /** ****************************************************************************
@@ -626,6 +640,8 @@ int pa_mousebutton(FILE *f, int m)
 {
 
     error("pa_mousebutton: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -644,6 +660,8 @@ int pa_joystick(FILE *f)
 
     error("pa_joystick: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /** ****************************************************************************
@@ -660,6 +678,8 @@ int pa_joybutton(FILE *f, int j)
 {
 
     error("pa_joybutton: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -679,6 +699,8 @@ int pa_joyaxis(FILE *f, int j)
 {
 
     error("pa_joyaxis: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -749,6 +771,8 @@ int pa_funkey(FILE* f)
 {
 
     error("pa_funkey: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 

@@ -189,6 +189,8 @@ long pa_time(void)
 
     error("pa_time: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /********************************************************************************
@@ -205,6 +207,8 @@ long pa_local(long t)
 {
 
     error("pa_local: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -235,6 +239,8 @@ long pa_clock(void)
 
     error("pa_clock: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /********************************************************************************
@@ -251,6 +257,8 @@ long pa_elapsed(long r)
 {
 
     error("pa_elapsed: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -274,6 +282,8 @@ int pa_validfile(
 
     error("pa_validfile: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 
@@ -295,6 +305,8 @@ int pa_validpath(
 
     error("pa_validpath: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /********************************************************************************
@@ -314,6 +326,8 @@ int pa_wild(
 {
 
     error("pa_wild: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -864,6 +878,8 @@ char pa_optchr(void)
 
     error("pa_optchr: Is not implemented");
 
+    return (' '); /* this just shuts up compiler */
+
 }
 
 /*******************************************************************************
@@ -882,6 +898,8 @@ char pa_pthchr(void)
 {
 
     error("pa_pthchr: Is not implemented");
+
+    return (' '); /* this just shuts up compiler */
 
 }
 
@@ -914,6 +932,8 @@ int pa_latitude(void)
 
     error("pa_latitude: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /** ****************************************************************************
@@ -940,6 +960,8 @@ int pa_longitude(void)
 {
 
     error("pa_longitude: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -976,6 +998,8 @@ int pa_altitude(void)
 
     error("pa_altitude: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /** ****************************************************************************
@@ -993,6 +1017,8 @@ int pa_country(void)
 {
 
     error("pa_country: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -1037,6 +1063,8 @@ int pa_timezone(void)
 
     error("pa_timezone: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /** ****************************************************************************
@@ -1062,6 +1090,8 @@ int pa_daysave(void)
 
     error("pa_daysave: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /** ****************************************************************************
@@ -1077,6 +1107,8 @@ int pa_time24hour(void)
 {
 
     error("pa_time24hour: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -1097,6 +1129,8 @@ int pa_language(void)
 {
 
     error("pa_language: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -1139,6 +1173,8 @@ char pa_decimal(void)
 
     error("pa_decimal: Is not implemented");
 
+    return (' '); /* this just shuts up compiler */
+
 }
 
 /** ****************************************************************************
@@ -1155,6 +1191,8 @@ char pa_numbersep(void)
 {
 
     error("pa_numbersep: Is not implemented");
+
+    return (' '); /* this just shuts up compiler */
 
 }
 
@@ -1184,6 +1222,8 @@ int pa_timeorder(void)
 {
 
     error("pa_timeorder: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -1217,6 +1257,8 @@ int pa_dateorder(void)
 
     error("pa_dateorder: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 /** ****************************************************************************
 
@@ -1233,6 +1275,8 @@ char pa_datesep(void)
 {
 
     error("pa_datesep: Is not implemented");
+
+    return (' '); /* this just shuts up compiler */
 
 }
 
@@ -1252,6 +1296,8 @@ char pa_timesep(void)
 
     error("pa_timesep: Is not implemented");
 
+    return (' '); /* this just shuts up compiler */
+
 }
 
 /** ****************************************************************************
@@ -1267,5 +1313,7 @@ char pa_currchr(void)
 {
 
     error("pa_currchr: Is not implemented");
+
+    return (' '); /* this just shuts up compiler */
 
 }

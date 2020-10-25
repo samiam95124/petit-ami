@@ -3,10 +3,22 @@
 #
 
 #
+# Set OSTYPE according to operating system
+#
+# If the OS environment variable is set, we use it, otherwise we assume it is
+# A Unix variant and has uname. This works for linux and Mac OS X.
+#
+ifeq ($(OS),Windows_NT)
+    OSTYPE=Windows_NT
+else
+	OSTYPE=$(shell uname)
+endif
+
+#
 # Where do stdio definitions and overrides come from?
 #
 ifndef STDIO_SOURCE
-    ifeq ($(OS),Windows_NT)
+    ifeq ($(OSTYPE),Windows_NT)
         #
         # stdio is a local stdio implementation with overrides.
         # Note it is not a complete libc. It works because in dynamic linking a module
@@ -16,6 +28,11 @@ ifndef STDIO_SOURCE
         # Windows builds must use stdio since they don't use glibc.
         #
         STDIO_SOURCE=stdio
+    else ifeq ($(OSTYPE),Darwn)
+        #
+        # Mac OS x builds must use stdio since they don't use glibc.
+        #
+        STDIO_SOURCE=stdio    
     else
         #
         # glibc assumes that this is a patched glibc with override calls.
@@ -29,7 +46,7 @@ endif
 #
 ifndef LINK_TYPE
 
-    ifeq ($(OS),Windows_NT)
+    ifeq ($(OSTYPE),Windows_NT)
     
         #
         # Windows
@@ -38,6 +55,13 @@ ifndef LINK_TYPE
         #
         LINK_TYPE=static
 
+    else ifeq ($(OSTYPE),Darwin)
+    
+        #
+        # Mac OS X is static
+        #
+        LINK_TYPE=static
+        
     else
     
         #
@@ -87,7 +111,15 @@ endif
 #
 # Specify object file for libc
 #
-ifneq ($(OS),Windows_NT)
+ifeq ($(OSTYPE),Windows_NT)
+
+	# Nothing, libc is linked in overall lib
+	
+else ifeq ($(OSTYPE),Darwin)
+
+    # Nothing, libc is linked in overall lib
+    
+else
 
     #
     # Linux, use modified GLIBC
@@ -159,12 +191,18 @@ endif
 #
 # add external packages
 #
-ifeq ($(OS),Windows_NT)
+ifeq ($(OSTYPE),Windows_NT)
 
     #
     # Windows
     #
     LIBS += -lwinmm -lgdi32
+
+else ifeq ($(OSTYPE),Darwin)
+
+    #
+    # Nothing needed for Mac OS X
+    #
     
 else
 
@@ -179,10 +217,19 @@ endif
 #
 # Make all executables
 #        
-ifeq ($(OS),Windows_NT)
+ifeq ($(OSTYPE),Windows_NT)
 
 #
 # Windows
+#
+all: dumpmidi test play keyboard playmidi playwave \
+    printdev connectmidi connectwave random genwave scntst sndtst svstst \
+    event term snake pong mine wator editor getpage getmail gettys
+    
+else ifeq ($(OSTYPE),Darwin)
+
+#
+# Mac OS X
 #
 all: dumpmidi test play keyboard playmidi playwave \
     printdev connectmidi connectwave random genwave scntst sndtst svstst \
@@ -252,10 +299,35 @@ windows/graph.o: stub/graph.c include/graph.h
 	gcc -g3 -Ilibc -Iinclude -c stub/graph.c -o windows/graph.o
 
 #
+# Mac OS X target components
+#
+# Note that stub sources are not yet implemented.
+#
+# Mac OS X can use some of the same components as Linux.
+#
+libc/stdio.o: libc/stdio.c libc/stdio.h
+	gcc -g3 -Ilibc -c libc/stdio.c -o libc/stdio.o
+	
+macosx/services.o: linux/services.c include/services.h
+	gcc -g3 -Ilibc -Iinclude -c linux/services.c -o macosx/services.o
+	
+macosx/sound.o: stub/sound.c include/sound.h
+	gcc -g3 -Ilibc -Iinclude -c stub/sound.c -o macosx/sound.o
+	
+macosx/network.o: stub/network.c include/network.h
+	gcc -g3 -Ilibc -Iinclude -c stub/network.c -o macosx/network.o
+	
+macosx/xterm.o: linux/xterm.c include/terminal.h
+	gcc -g3 -Ilibc -Iinclude -c linux/xterm.c -o macosx/xterm.o
+	
+macosx/graph.o: stub/graph.c include/graph.h
+	gcc -g3 -Ilibc -Iinclude -c stub/graph.c -o macosx/graph.o
+	
+#
 # Create terminal mode and graphical mode libraries
 #
 
-ifeq ($(OS),Windows_NT)
+ifeq ($(OSTYPE),Windows_NT)
 
 #
 # Windows
@@ -277,6 +349,28 @@ petit_ami_graph.a: windows/services.o windows/sound.o windows/network.o \
 	ar rcs bin/petit_ami_graph.a windows/services.o windows/sound.o \
 	    windows/network.o windows/graph.o libc/stdio.o
 	
+else ifeq ($(OSTYPE),Darwin)
+
+#
+# Mac OS X
+#
+# Mac OS X cannot use .so files, but rather uses statically linked files that
+# reference .dlls at runtime.
+#
+bin/petit_ami_plain.a: macosx/services.o macosx/sound.o macosx/network.o libc/stdio.o
+	ar rcs bin/petit_ami_plain.a macosx/services.o macosx/sound.o \
+        macosx/network.o libc/stdio.o
+	
+bin/petit_ami_term.a: macosx/services.o macosx/sound.o macosx/network.o \
+    macosx/xterm.o libc/stdio.o
+	ar rcs bin/petit_ami_term.a macosx/services.o macosx/sound.o \
+	    macosx/network.o macosx/xterm.o libc/stdio.o
+	
+petit_ami_graph.a: macosx/services.o macosx/sound.o macosx/network.o \
+    macosx/graph.o libc/stdio.o
+	ar rcs bin/petit_ami_graph.a macosx/services.o macosx/sound.o \
+	    macosx/network.o macosx/graph.o libc/stdio.o
+	    
 else
 
 #

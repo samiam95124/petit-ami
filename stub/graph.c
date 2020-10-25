@@ -150,6 +150,8 @@ int pa_baseline(FILE* f)
 
     error("pa_baseline: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /*******************************************************************************
@@ -166,6 +168,8 @@ int pa_maxx(FILE* f)
 {
 
     error("pa_maxx: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -184,6 +188,8 @@ int pa_maxy(FILE* f)
 
     error("pa_maxy: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /*******************************************************************************
@@ -201,6 +207,8 @@ int pa_maxxg(FILE* f)
 
     error("pa_maxxg: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /*******************************************************************************
@@ -217,6 +225,8 @@ int pa_maxyg(FILE* f)
 {
 
     error("pa_maxyg: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -619,6 +629,8 @@ int pa_curx(FILE* f)
 
     error("pa_curx: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /*******************************************************************************
@@ -634,6 +646,8 @@ int pa_cury(FILE* f)
 {
 
     error("pa_cury: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -651,6 +665,8 @@ int pa_curxg(FILE* f)
 
     error("pa_curxg: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /*******************************************************************************
@@ -666,6 +682,8 @@ int pa_curyg(FILE* f)
 {
 
     error("pa_curyg: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -1073,6 +1091,8 @@ int pa_chrsizx(FILE* f)
 
     error("pa_chrsizx: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /*******************************************************************************
@@ -1089,6 +1109,8 @@ int pa_chrsizy(FILE* f)
 
     error("pa_chrsizy: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /*******************************************************************************
@@ -1104,6 +1126,8 @@ int pa_fonts(FILE* f)
 {
 
     error("pa_fonts: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -1208,6 +1232,8 @@ int pa_dpmx(FILE* f)
 
     error("pa_dpmx: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /*******************************************************************************
@@ -1223,6 +1249,8 @@ int pa_dpmy(FILE* f)
 {
 
     error("pa_dpmy: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -1241,6 +1269,8 @@ int pa_strsiz(FILE* f, string s)
 
     error("pa_strsiz: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /*******************************************************************************
@@ -1256,6 +1286,8 @@ int pa_chrpos(FILE* f, string s, int p)
 {
 
     error("pa_chrpos: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -1294,6 +1326,8 @@ int pa_justpos(FILE* f, string s, int p, int n)
 {
 
     error("pa_justpos: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -1490,6 +1524,8 @@ int pa_pictsizx(FILE* f, int p)
 
     error("pa_pictsizx: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /*******************************************************************************
@@ -1505,6 +1541,8 @@ int pa_pictsizy(FILE* f, int p)
 {
 
     error("pa_pictsizy: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -1692,6 +1730,8 @@ mounum pa_mouse(FILE* f)
 
     error("pa_mouse: Is not implemented");
 
+    return (0); /* this just shuts up compiler */
+
 }
 
 /*******************************************************************************
@@ -1709,6 +1749,8 @@ moubut pa_mousebutton(FILE* f, mouhan m)
 
     error("pa_mousebutton: Is not implemented");
 
+    return (0); /* this just shuts up compiler */
+
 }
 
 /*******************************************************************************
@@ -1725,6 +1767,8 @@ joynum pa_joystick(FILE* f)
 
     error("pa_joystick: Is not implemented");
 
+    return (0); /* this just shuts up compiler */
+
 }
 
 /*******************************************************************************
@@ -1740,6 +1784,8 @@ joybtn pa_joybutton(FILE* f, joyhan j)
 {
 
     error("pa_joybutton: Is not implemented");
+
+    return (0); /* this just shuts up compiler */
 
 }
 
@@ -1758,6 +1804,8 @@ joyaxn pa_joyaxis(FILE* f, joyhan j)
 {
 
     error("pa_joyaxis: Is not implemented");
+
+    return (0); /* this just shuts up compiler */
 
 }
 
@@ -1857,6 +1905,8 @@ funky pa_funkey(FILE* f)
 {
 
     error("pa_funkey: Is not implemented");
+
+    return (0); /* this just shuts up compiler */
 
 }
 

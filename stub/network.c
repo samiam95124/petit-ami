@@ -6,7 +6,7 @@
 *                                                                              *
 *                              Created 2020                                    *
 *                                                                              *
-*                              S. A. FRANCO                                   *
+*                              S. A. FRANCO                                    *
 *                                                                              *
 * This is a stubbed version. It exists so that Petit-Ami can be compiled and   *
 * linked without all of the modules being complete.                            *
@@ -127,6 +127,8 @@ FILE* pa_opennet(/* IP address */      unsigned long addr,
 
     error("pa_opennet: Is not implemented");
 
+    return (NULL); /* this just shuts up compiler */
+
 }
 
 FILE* pa_opennetv6(
@@ -139,6 +141,8 @@ FILE* pa_opennetv6(
 {
 
     error("pa_opennetv6: Is not implemented");
+
+    return (NULL); /* this just shuts up compiler */
 
 }
 
@@ -162,6 +166,8 @@ int pa_openmsg(
 
     error("pa_openmsg: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 int pa_openmsgv6(
@@ -174,6 +180,8 @@ int pa_openmsgv6(
 {
 
     error("pa_openmsgv6: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -197,6 +205,8 @@ int pa_waitmsg(/* port number to wait on */ int port,
 
     error("pa_waitmsg: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /*******************************************************************************
@@ -219,6 +229,8 @@ int pa_maxmsg(unsigned long addr)
 
     error("pa_maxmsg: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /*******************************************************************************
@@ -240,6 +252,8 @@ int pa_maxmsgv6(unsigned long long addrh, unsigned long long addrl)
 {
 
     error("pa_maxmsgv6: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -276,6 +290,8 @@ int pa_rdmsg(int fn, void* msg, unsigned long len)
 {
 
     error("pa_rdmsg: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -315,6 +331,8 @@ FILE* pa_waitnet(/* port number to wait on */ int port,
 
     error("pa_waitnet: Is not implemented");
 
+    return (NULL); /* this just shuts up compiler */
+
 }
 
 /*******************************************************************************
@@ -342,6 +360,8 @@ int pa_relymsg(unsigned long addr)
 
     error("pa_relymsg: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 int pa_relymsgv6(unsigned long long addrh, unsigned long long addrl)
@@ -349,6 +369,8 @@ int pa_relymsgv6(unsigned long long addrh, unsigned long long addrl)
 {
 
     error("pa_relymsgv6: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -386,6 +408,8 @@ int pa_certmsg(int fn, int which, string buff, int len)
 
     error("pa_certmsg: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /*******************************************************************************
@@ -420,6 +444,8 @@ int pa_certnet(FILE* f, int which, string buff, int len)
 {
 
     error("pa_certnet: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 

@@ -17,7 +17,7 @@
 *                                                                              *
 * Functions to be changed to translations: pa_dateorder(), pa_datesep(),       *
 * pa_timesep(), pa_currchar(), pa_timeorder(), pa_numbersep(), pa_decimal(),   *
-* pa_time24hour().
+* pa_time24hour().                                                             *
 *                                                                              *
 *                          BSD LICENSE INFORMATION                             *
 *                                                                              *
@@ -150,7 +150,7 @@ static int exists(char *fn)
 
     FILE *fp;
 
-    if (fp = fopen(fn, "r")) fclose(fp);
+    if ((fp = fopen(fn, "r"))) fclose(fp);
 
     return !!fp;
 
@@ -2431,7 +2431,7 @@ int pa_timezone(void)
     localtime_r(&t, &lcl); /* get local */
     nt = (lcl.tm_hour-gmt.tm_hour)*HOURSEC-(!!lcl.tm_isdst*HOURSEC);
     /* adjust for GMT ahead of local */
-    if (lcl.tm_mday = gmt.tm_mday) nt -= 24*HOURSEC;
+    if (lcl.tm_mday == gmt.tm_mday) nt -= 24*HOURSEC;
 
     /* return hour difference */
     return nt;

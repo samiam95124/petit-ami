@@ -9,7 +9,7 @@
 #define MAXSTR 100
 #define SECOND 10000
 
-void prttimdat(int t)
+static void prttimdat(long t)
 
 {
 
@@ -25,7 +25,7 @@ void prttimdat(int t)
 
 }
 
-void prtperm(pa_permset p)
+static void prtperm(pa_permset p)
 
 {
 
@@ -40,7 +40,7 @@ void prtperm(pa_permset p)
 
 }
 
-void wait(int t)
+static void waittime(int t)
 
 {
 
@@ -50,7 +50,7 @@ void wait(int t)
 
 }
 
-void main(void)
+int main(void)
 
 {
 
@@ -105,7 +105,7 @@ void main(void)
     printf(" s/b <the date>\n");
     t = pa_clock();
     printf("test11: waiting 1 second\n");
-    wait(SECOND);
+    waittime(SECOND);
     printf("test 11: %ld s/b %d (approximate)\n", pa_elapsed(t), SECOND);
     printf("test 12: %d s/b 1\n", pa_validfile("c:\\just\\fargle.com"));
     printf("test 14: %d s/b 1\n", pa_wild("c:\\fargle.c?m"));
@@ -133,7 +133,7 @@ void main(void)
     printf("test24:\n");
     pa_exec("svstst1");
     printf("waiting 5 seconds for program to start\n");
-    wait(SECOND*5);
+    waittime(SECOND*5);
     printf("s/b This is extst1 \"\" (empty string)\n");
     printf("test25:\n");
     pa_execw("svstst1", &err);
@@ -150,7 +150,7 @@ void main(void)
     ep->next = 0;
     pa_exece("svstst1", ep);
     printf("waiting 5 seconds\n");
-    wait(SECOND*5);
+    waittime(SECOND*5);
     printf("s/b This is extst1: \"hi there\"\n");
     printf("test27:\n");
     pa_execew("svstst1", ep, &err);
@@ -249,5 +249,7 @@ void main(void)
     printf("test 67: Date separator: %c\n", pa_datesep());
     printf("test 68: time separator: %c\n", pa_timesep());
     printf("test 69: Currency character: %c\n", pa_currchr());
+
+    return (0); /* exit no error */
 
 }

@@ -85,6 +85,8 @@ int pa_synthout(void)
 
     error("pa_synthout: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /*******************************************************************************
@@ -100,6 +102,8 @@ int pa_synthin(void)
 {
 
     error("pa_synthin: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -207,6 +211,8 @@ int pa_curtimeout(void)
 
     error("pa_curtimeout: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /*******************************************************************************
@@ -258,6 +264,8 @@ int pa_curtimein(void)
 {
 
     error("pa_curtimein: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -796,6 +804,8 @@ int pa_waveout(void)
 
     error("pa_waveout: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /*******************************************************************************
@@ -811,6 +821,8 @@ int pa_wavein(void)
 {
 
     error("pa_wavein: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -1141,6 +1153,8 @@ int pa_chanwavein(int p)
 
     error("pa_chanwavein: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /*******************************************************************************
@@ -1158,6 +1172,8 @@ int pa_ratewavein(int p)
 {
 
     error("pa_ratewavein: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -1186,6 +1202,8 @@ int pa_lenwavein(int p)
 
     error("pa_lenwavein: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /*******************************************************************************
@@ -1203,6 +1221,8 @@ int pa_sgnwavein(int p)
 
     error("pa_sgnwavein: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /*******************************************************************************
@@ -1219,6 +1239,8 @@ int pa_endwavein(int p)
 
     error("pa_endwavein: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /*******************************************************************************
@@ -1234,6 +1256,8 @@ int pa_fltwavein(int p)
 {
 
     error("pa_fltwavein: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -1270,6 +1294,8 @@ int pa_rdwave(int p, byte* buff, int len)
 {
 
     error("pa_rdwave: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -1525,6 +1551,8 @@ int pa_setparamsynthout(int p, string name, string value)
 
     error("pa_setparamsynthout: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /*******************************************************************************
@@ -1545,6 +1573,8 @@ int pa_setparamsynthin(int p, string name, string value)
 {
 
     error("pa_setparamsynthin: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -1567,6 +1597,8 @@ int pa_setparamwaveout(int p, string name, string value)
 
     error("pa_setparamwaveout: Is not implemented");
 
+    return (1); /* this just shuts up compiler */
+
 }
 
 /*******************************************************************************
@@ -1587,5 +1619,7 @@ int pa_setparamwavein(int p, string name, string value)
 {
 
     error("pa_setparamwavein: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }

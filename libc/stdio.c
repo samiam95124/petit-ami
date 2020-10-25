@@ -1119,8 +1119,8 @@ FILE *fdopen(int fd, const char *mode)
     /* note mingw does not implement this call at present. The result will be
        that this call will not check the modes are equivalent. */
     fsf = fcntl(fd, F_GETFL);
-    if (fsf & (O_APPEND | O_TRUNC | O_CREAT | O_RDWR | O_WRONLY) !=
-        flags & (O_APPEND | O_TRUNC | O_CREAT | O_RDWR | O_WRONLY)) {
+    if ((fsf & (O_APPEND | O_TRUNC | O_CREAT | O_RDWR | O_WRONLY)) !=
+        (flags & (O_APPEND | O_TRUNC | O_CREAT | O_RDWR | O_WRONLY))) {
 
         errno = EINVAL; /* flag error */
         return (NULL); /* return error */
