@@ -316,8 +316,8 @@ linux/graph_x.o: linux/graph_x.c include/graph.h
 #
 # Note that stub sources are not yet implemented
 #
-libc/stdio.o: libc/stdio.c libc/stdio.h
-	gcc -g3 -Ilibc -c libc/stdio.c -o libc/stdio.o
+windows/stdio.o: libc/stdio.c libc/stdio.h
+	gcc -g3 -Ilibc -c libc/stdio.c -o windows/stdio.o
 	
 windows/services.o: windows/services.c include/services.h
 	gcc -g3 -Ilibc -Iinclude -c windows/services.c -o windows/services.o
@@ -341,8 +341,8 @@ windows/graph.o: stub/graph.c include/graph.h
 #
 # Mac OS X can use some of the same components as Linux.
 #
-libc/stdio.o: libc/stdio.c libc/stdio.h
-	gcc -g3 -Ilibc -c libc/stdio.c -o libc/stdio.o
+macosx/stdio.o: libc/stdio.c libc/stdio.h
+	gcc -g3 -Ilibc -c libc/stdio.c -o macosx/stdio.o
 	
 macosx/services.o: linux/services.c include/services.h
 	gcc -g3 -Ilibc -Iinclude -c linux/services.c -o macosx/services.o
@@ -371,19 +371,19 @@ ifeq ($(OSTYPE),Windows_NT)
 # Windows cannot use .so files, but rather uses statically linked files that
 # reference .dlls at runtime.
 #
-bin/petit_ami_plain.a: windows/services.o windows/sound.o windows/network.o libc/stdio.o
+bin/petit_ami_plain.a: windows/services.o windows/sound.o windows/network.o windows/stdio.o
 	ar rcs bin/petit_ami_plain.a windows/services.o windows/sound.o \
-        windows/network.o libc/stdio.o
+        windows/network.o windows/stdio.o
 	
 bin/petit_ami_term.a: windows/services.o windows/sound.o windows/network.o \
-    windows/console.o libc/stdio.o
+    windows/console.o windows/stdio.o
 	ar rcs bin/petit_ami_term.a windows/services.o windows/sound.o \
-	    windows/network.o windows/console.o libc/stdio.o
+	    windows/network.o windows/console.o windows/stdio.o
 	
 petit_ami_graph.a: windows/services.o windows/sound.o windows/network.o \
-    windows/graph.o libc/stdio.o
+    windows/graph.o windows/stdio.o
 	ar rcs bin/petit_ami_graph.a windows/services.o windows/sound.o \
-	    windows/network.o windows/graph.o libc/stdio.o
+	    windows/network.o windows/graph.o windows/stdio.o
 	
 else ifeq ($(OSTYPE),Darwin)
 
@@ -393,19 +393,19 @@ else ifeq ($(OSTYPE),Darwin)
 # Mac OS X cannot use .so files, but rather uses statically linked files that
 # reference .dlls at runtime.
 #
-bin/petit_ami_plain.a: macosx/services.o macosx/sound.o macosx/network.o libc/stdio.o
+bin/petit_ami_plain.a: macosx/services.o macosx/sound.o macosx/network.o macosx/stdio.o
 	ar rcs bin/petit_ami_plain.a macosx/services.o macosx/sound.o \
-        macosx/network.o libc/stdio.o
+        macosx/network.o macosx/stdio.o
 	
 bin/petit_ami_term.a: macosx/services.o macosx/sound.o macosx/network.o \
-    macosx/xterm.o libc/stdio.o
+    macosx/xterm.o macosx/stdio.o
 	ar rcs bin/petit_ami_term.a macosx/services.o macosx/sound.o \
-	    macosx/network.o macosx/xterm.o libc/stdio.o
+	    macosx/network.o macosx/xterm.o macosx/stdio.o
 	
 petit_ami_graph.a: macosx/services.o macosx/sound.o macosx/network.o \
-    macosx/graph.o libc/stdio.o
+    macosx/graph.o macosx/stdio.o
 	ar rcs bin/petit_ami_graph.a macosx/services.o macosx/sound.o \
-	    macosx/network.o macosx/graph.o libc/stdio.o
+	    macosx/network.o macosx/graph.o macosx/stdio.o
 	    
 else
 
@@ -476,8 +476,8 @@ getmouse: linux/getmouse.c Makefile
 dumpmidi: utils/dumpmidi.c Makefile
 	gcc utils/dumpmidi.c -o bin/dumpmidi
 
-test: bin/petit_ami_term$(LIBEXT) include/terminal.h test.c Makefile
-	$(CC) $(CFLAGS) test.c $(LIBS) -o test
+test: bin/petit_ami_term$(LIBEXT) include/terminal.h test.c libc/hooktest.c Makefile
+	$(CC) $(CFLAGS) test.c libc/hooktest.o $(LIBS) -o test
 	
 play: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/play.c Makefile
 	$(CC) $(CFLAGS) sound_programs/play.c utils/option.c $(LIBS) -o bin/play

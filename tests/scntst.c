@@ -95,7 +95,7 @@ static jmp_buf terminate_buf;
 
 /* wait time in 100 microseconds */
 
-static void wait(int t)
+static void waittime(int t)
 {
 
     pa_evtrec er; /* event record */
@@ -502,7 +502,7 @@ int main(int argc, char *argv[])
         tc++;
         if (tc >= 10) {
 
-            wait(50); /* 5 milliseconds */
+            waittime(50); /* 5 milliseconds */
             tc = 0;
 
         }
@@ -571,7 +571,7 @@ int main(int argc, char *argv[])
 
         pa_cursor(stdout, x, y);   /* place character */
         putchar('*');
-        wait(100); /* wait for display, otherwise cannot see */
+        waittime(100); /* wait for display, otherwise cannot see */
         pa_cursor(stdout, lx, ly);   /* place character */
         putchar(' ');
         lx = x;   /* set last */
@@ -585,7 +585,7 @@ int main(int argc, char *argv[])
         if (y == 1 || ty == pa_maxy(stdout))   /* find new dir y */
         dy = -dy;
         /* slow this down */
-        wait(100);
+        waittime(100);
 
     }
     prtcen(pa_maxy(stdout)-1, "                    ");
@@ -669,7 +669,7 @@ int main(int argc, char *argv[])
         else c = '0'; /* start over */
 
     }
-    for (y = 1; y <= pa_maxy(stdout); y++) { wait(200); pa_scroll(stdout, 0, 1); }
+    for (y = 1; y <= pa_maxy(stdout); y++) { waittime(200); pa_scroll(stdout, 0, 1); }
     prtcen(pa_maxy(stdout), "Scroll up");
     waitnext();
     printf("\f");
@@ -683,7 +683,7 @@ int main(int argc, char *argv[])
         else c = '0';   /* start over */
 
     }
-    for (y = 1; y <= pa_maxy(stdout); y++) { wait(200); pa_scroll(stdout, 0, -1); }
+    for (y = 1; y <= pa_maxy(stdout); y++) { waittime(200); pa_scroll(stdout, 0, -1); }
     prtcen(pa_maxy(stdout), "Scroll down");
     waitnext();
     printf("\f");
@@ -701,7 +701,7 @@ int main(int argc, char *argv[])
         }
 
     }
-    for (x = 1; x <= pa_maxx(stdout); x++) { wait(200); pa_scroll(stdout, 1, 0); }
+    for (x = 1; x <= pa_maxx(stdout); x++) { waittime(200); pa_scroll(stdout, 1, 0); }
     prtcen(pa_maxy(stdout), "Scroll left");
     waitnext();
     printf("\f");
@@ -719,7 +719,7 @@ int main(int argc, char *argv[])
         }
 
     }
-    for (x = 1; x <= pa_maxx(stdout); x++) { wait(200); pa_scroll(stdout, -1, 0); }
+    for (x = 1; x <= pa_maxx(stdout); x++) { waittime(200); pa_scroll(stdout, -1, 0); }
     /* find minimum direction, x or y */
     if (x < y) minlen = x; else minlen = y;
     prtcen(pa_maxy(stdout), "Scroll right");
@@ -739,7 +739,7 @@ int main(int argc, char *argv[])
         }
 
     }
-    for (i = 1; i <= minlen; i++) { wait(200); pa_scroll(stdout, 1, 1); }
+    for (i = 1; i <= minlen; i++) { waittime(200); pa_scroll(stdout, 1, 1); }
     prtcen(pa_maxy(stdout), "Scroll up/left");
     waitnext();
     printf("\f");
@@ -757,7 +757,7 @@ int main(int argc, char *argv[])
         }
 
     }
-    for (i = 1; i <= minlen; i++) { wait(200); pa_scroll(stdout, 1, -1); }
+    for (i = 1; i <= minlen; i++) { waittime(200); pa_scroll(stdout, 1, -1); }
     prtcen(pa_maxy(stdout), "Scroll down/left");
     waitnext();
     printf("\f");
@@ -775,7 +775,7 @@ int main(int argc, char *argv[])
         }
 
     }
-    for (i = 1; i <= minlen; i++) { wait(200); pa_scroll(stdout, -1, 1); }
+    for (i = 1; i <= minlen; i++) { waittime(200); pa_scroll(stdout, -1, 1); }
     prtcen(pa_maxy(stdout), "Scroll up/right");
     waitnext();
     printf("\f");
@@ -793,7 +793,7 @@ int main(int argc, char *argv[])
          }
 
     }
-    for (i = 1; i <= minlen; i++) { wait(200); pa_scroll(stdout, -1, -1); }
+    for (i = 1; i <= minlen; i++) { waittime(200); pa_scroll(stdout, -1, -1); }
     prtcen(pa_maxy(stdout), "Scroll down/right");
     waitnext();
 
@@ -886,7 +886,7 @@ int main(int argc, char *argv[])
 
     }
     for (i = 1; i <= 30; i++) /* flip buffers */
-        for (b = 2; b <= 10; b++) { wait(300); pa_select(stdout, 2, b); }
+        for (b = 2; b <= 10; b++) { waittime(300); pa_select(stdout, 2, b); }
     pa_select(stdout, 2, 2);   /* restore buffer select */
 
     /* **************************** Writethrough test ************************** */
