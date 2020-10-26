@@ -10,6 +10,7 @@ as a template for a hooker module.
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/types.h>
 
 /* file handle numbers at the system interface level */
 
