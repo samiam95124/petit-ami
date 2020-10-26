@@ -69,9 +69,7 @@
 *                                                                              *
 *******************************************************************************/
 
-#ifdef __linux__
 #include <sys/timerfd.h>
-#endif
 
 #include <termios.h>
 #include <stdlib.h>
@@ -2559,15 +2557,11 @@ void pa_timer(/* file to send event to */              FILE *f,
 
 {
 
-#ifdef __linux__
     struct itimerspec ts;
-#endif
     int  rv;
     long tl;
 
     if (i < 1 || i > PA_MAXTIM) error(einvhan); /* invalid timer handle */
-/* I don't have a Mac OS X equivalent to this right now */
-#ifdef __linux__
     if (timtbl[i-1] < 0) { /* timer entry inactive, create a timer */
 
         timtbl[i-1] = timerfd_create(CLOCK_REALTIME, 0);
@@ -2596,7 +2590,6 @@ void pa_timer(/* file to send event to */              FILE *f,
 
     rv = timerfd_settime(timtbl[i-1], 0, &ts, NULL);
     if (rv < 0) error(etimacc); /* could not set time */
-#endif
 
 }
 
@@ -2615,14 +2608,10 @@ void pa_killtimer(/* file to kill timer on */ FILE *f,
 
 {
 
-#ifdef __linux__
     struct itimerspec ts;
-#endif
     int rv;
 
     if (i < 1 || i > PA_MAXTIM) error(einvhan); /* invalid timer handle */
-/* I don't have a Mac OS X equivalent to this right now */
-#ifdef __linux__
     if (timtbl[i-1] < 0) error(etimacc); /* no such timer */
 
     /* set timer run time to zero to kill it */
@@ -2633,7 +2622,6 @@ void pa_killtimer(/* file to kill timer on */ FILE *f,
 
     rv = timerfd_settime(timtbl[i-1], 0, &ts, NULL);
     if (rv < 0) error(etimacc); /* could not set time */
-#endif
 
 }
 

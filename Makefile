@@ -476,8 +476,8 @@ getmouse: linux/getmouse.c Makefile
 dumpmidi: utils/dumpmidi.c Makefile
 	gcc utils/dumpmidi.c -o bin/dumpmidi
 
-test: bin/petit_ami_term$(LIBEXT) include/terminal.h test.c libc/hooktest.c Makefile
-	$(CC) $(CFLAGS) test.c libc/hooktest.o $(LIBS) -o test
+test: bin/petit_ami_term$(LIBEXT) include/terminal.h test.c Makefile
+	$(CC) $(CFLAGS) test.c $(LIBS) -o test
 	
 play: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/play.c Makefile
 	$(CC) $(CFLAGS) sound_programs/play.c utils/option.c $(LIBS) -o bin/play
