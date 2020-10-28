@@ -106,8 +106,8 @@
 #define UMCLSWIN  0x406 /* close window */
 #define UMWINCLS  0x407 /* window was closed */
 #define UMIM      0x408 /* intratask message */
-#define UMEDITCR  0x409 /* edit widget s}s cr */
-#define UMNUMCR   0x410 /* number select widget s}s cr */
+#define UMEDITCR  0x409 /* edit widget sends cr */
+#define UMNUMCR   0x410 /* number select widget sends cr */
  /* standard file handles */
 #define INPFIL    0     /* input */
 #define OUTFIL    1     /* output */
@@ -508,12 +508,12 @@ typedef enum {
     einvssiz, /* Invalid scroll bar size */
     ectlfal,  /* Attempt to create control fails */
     eprgpos,  /* Invalid progress bar position */
-    estrspc,  /* Out of char* space */
+    estrspc,  /* Out of string space */
     etabbar,  /* Unable to create tab in tab bar */
     efildlg,  /* Unable to create file dialog */
     efnddlg,  /* Unable to create find dialog */
     efntdlg,  /* Unable to create font dialog */
-    efndstl,  /* Find/replace char* too long */
+    efndstl,  /* Find/replace string too long */
     einvwin,  /* Invalid window number */
     einvjye,  /* Invalid joystick event */
     ejoyqry,  /* Could ! get information on joystick */
@@ -523,7 +523,7 @@ typedef enum {
     ewigptxt, /* Cannot put text in this widget */
     ewiggtxt, /* Cannot get text from this widget */
     ewigdis,  /* Cannot disable this widget */
-    estrato,  /* Cannot direct write char* with auto on */
+    estrato,  /* Cannot direct write string with auto on */
     etabsel,  /* Invalid tab select */
     enomem,   /* Out of memory */
     enoopn,   /* Cannot open file */
@@ -559,7 +559,7 @@ msg       msgque[MAXMSG];
 int       msginp;       /* input pointer */
 int       msgout;       /* ouput pointer */
 HANDLE    msgrdy;       /* message ready event */
-/* Control message queue. We s} messages around for internal controls, but
+/* Control message queue. We send messages around for internal controls, but
   we don"t want to discard user messages to get them. So we use a separate
   queue to store control messages. */
 msg       imsgque[MAXMSG];
@@ -908,14 +908,14 @@ int comps(char* d, char* s)
 
 /*******************************************************************************
 
-Get decimal number from char*
+Get decimal number from string
 
-Parses a decimal number from the given char*. Allows signed numbers. Provides
+Parses a decimal number from the given string. Allows signed numbers. Provides
 a flag return that indicates overflow || invalid digit.
 
 *******************************************************************************/
 
-int intv(char* s, /* char* containing int */
+int intv(char* s, /* string containing int */
          int* err /* error occurred */
          )
 
@@ -1106,12 +1106,12 @@ void error(errcod e)
         case einvssiz: grawrterr("Invalid scroll bar slider size"); break;
         case ectlfal:  grawrterr("Attempt to create control fails"); break;
         case eprgpos:  grawrterr("Invalid progress bar position"); break;
-        case estrspc:  grawrterr("Out of char* space"); break;
+        case estrspc:  grawrterr("Out of string space"); break;
         case etabbar:  grawrterr("Unable to create tab in tab bar"); break;
         case efildlg:  grawrterr("Unable to create file dialog"); break;
         case efnddlg:  grawrterr("Unable to create find dialog"); break;
         case efntdlg:  grawrterr("Unable to create font dialog"); break;
-        case efndstl:  grawrterr("Find/replace char* too long"); break;
+        case efndstl:  grawrterr("Find/replace string too long"); break;
         case einvwin:  grawrterr("Invalid window number"); break;
         case einvjye:  grawrterr("Invalid joystick event"); break;
         case ejoyqry:  grawrterr("Could ! get information on joystick"); break;
@@ -1121,7 +1121,7 @@ void error(errcod e)
         case ewigptxt: grawrterr("Cannot put text in this widget"); break;
         case ewiggtxt: grawrterr("Cannot get text from this widget"); break;
         case ewigdis:  grawrterr("Cannot disable this widget"); break;
-        case estrato:  grawrterr("Cannot direct write char* with auto on"); break;
+        case estrato:  grawrterr("Cannot direct write string with auto on"); break;
         case etabsel:  grawrterr("Invalid tab select"); break;
         case enomem:   grawrterr("Out of memory"); break;
         case enoopn:   grawrterr("Cannot open file"); break;
@@ -1140,7 +1140,7 @@ void error(errcod e)
 
 Handle windows error
 
-Only called if the last error variable is set. The text char* for the error
+Only called if the last error variable is set. The text string for the error
 is output, &&  the program halted.
 
 *******************************************************************************/
@@ -2396,7 +2396,7 @@ void restore(winptr win,   /* window to restore */
 
         } else /* get only update area */
             b = GetUpdateRect(win->winhan, cr, FALSE);
-        /* validate it so windows won"t s} multiple notifications */
+        /* validate it so windows won"t send multiple notifications */
         b = ValidateRgn(win->winhan, NULL); /* validate region */
         if (cr.left != 0 || cr.top != 0 || cr.right != 0 || cr.bottom != 0) {
             /* area is ! NULL */
@@ -4367,7 +4367,7 @@ void wrtstr(FILE* f, char* s)
 
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window pointer from text file */
-    iwrtstr(win, s); /* perform char* write */
+    iwrtstr(win, s); /* perform string write */
     unlockmain(); /* end exclusive access */
 
 }
@@ -5628,7 +5628,7 @@ void ifontnam(winptr win, int fc, char* fns, int fnsl)
 {
 
     fonptr fp: fontptr; /* pointer to font entries */
-    int i; /* char* index */
+    int i; /* string index */
 
     if (fc <= 0) error(einvftn); /* invalid number */
     fp = win->fntlst; /* index top of list */
@@ -5779,7 +5779,7 @@ int dpmy(FILE* f)
 
 /*******************************************************************************
 
-Find char* size in pixels
+Find string size in pixels
 
 Returns the number of pixels wide the given string would be, considering
 character spacing and kerning.
@@ -5813,7 +5813,7 @@ int strsiz(FILE* f, char* s)
 
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window pointer from text file */
-    strsiz = istrsiz(win, s); /* find char* size */
+    strsiz = istrsiz(win, s); /* find string size */
     unlockmain(); /* end exclusive access */
 
 }
@@ -5834,19 +5834,19 @@ int ichrpos(winptr win, char* s, int p)
     int   siz; /* size holder */
     SIZE  sz; /* size holder */
     BOOL  b; /* return value */
-    int   i; /* index for char* */
+    int   i; /* index for string */
 
     if (p < 1 || p > strlen(s)) error(estrinx); /* out of range */
     if (p == 1) siz = 0 /* its already at the position */
     else { /* find substring length */
 
-        sp = malloc(p-1); /* get a subchar* allocation */
+        sp = malloc(p-1); /* get a substring allocation */
         if (!sp) error(enomem); /* no memory */
         for (i = 0; i < p; i++) sp[i] = s[i]; /* copy substring into place */
         /* get spacing */
         b = GetTextExtentPoint32(win->screens[win->curupd]->bdc, sp^, sz);
         if (!b) winerr(); /* process windows error */
-        free(sp); /* release subchar* */
+        free(sp); /* release substring */
         siz = sz.cx; /* place size */
 
     }
@@ -5896,14 +5896,14 @@ void iwritejust(winptr win, char* s, int n)
     if (sc->autof) error(eatopos); /* cannot perform with auto on */
     off = 0; /* set no subscript offset */
     if (BIT(sasubs) & sc->attr) off = win->linespace*0.35;
-    /* get minimum spacing for char* */
+    /* get minimum spacing for string */
     b = GetTextExtentPoint32(win->bdc, s, sz);
     if (!b) winerr(); /* process windows error */
     /* if requested less than required, force required */
     if (sz.cx > n) n = sz.cx;
     /* find justified spacing */
     ra.lStructSize = gcp_results_len; /* set length of record */
-    /* new(ra.lpoutchar*); */
+    /* new(ra.lpoutstring); */
     ra.lpOutString = NULL;
     ra.lpOrder = NULL;
     new(ra.lpdx); /* set spacing array */
@@ -5917,7 +5917,7 @@ void iwritejust(winptr win, char* s, int n)
     if (r == 0) winerr(); /* process windows error */
     if (win->bufmod) { /* draw to buffer */
 
-       /* draw the char* to current position */
+       /* draw the string to current position */
        b = ExtTextOut(bdc, sc->curxg-1, sc->curyg-1+off, 0, s, ra.lpdx);
        if (!b) winerr(); /* process windows error */
 
@@ -5927,7 +5927,7 @@ void iwritejust(winptr win, char* s, int n)
        if (!win->visible) winvis(win); /* make sure we are displayed */
        /* draw character on screen */
        curoff(win); /* hide the cursor */
-       /* draw the char* to current position */
+       /* draw the string to current position */
        b = extTextOut(win->devcon, sc->curxg-1, sc->curyg-1+off, 0, NULL,
                       s, strlen(s), ra.lpdx);
        if (!b) winerr(); /* process windows error */
@@ -5961,7 +5961,7 @@ Find justified character position
 
 Given a string, a character position in that string, && the total length
 of the string in pixels, returns the offset in pixels from the start of the
-char* to the given character, with justification taken into account.
+string to the given character, with justification taken into account.
 The model used is that the extra space needed is divided by the number of
 spaces, with the fractional part lost.
 
@@ -5972,13 +5972,13 @@ int ijustpos(winptr win, char* s, int p, int n)
 {
 
     int         off; /* offset to character */
-    int         w;   /* minimum char* size */
+    int         w;   /* minimum string size */
     GCP_RESULTS ra;  /* placement info record */
-    int         i;   /* index for char* */
+    int         i;   /* index for string */
 
     if (p < 1 || p > strlen(s))  error(estrinx); /* out of range */
     if (p == 1)  off = 0; /* its already at the position */
-    else { /* find subchar* length */
+    else { /* find substring length */
 
        w = istrsiz(win, s); /* find minimum character spacing */
        /* if allowed is less than the min, return nominal spacing */
@@ -6228,7 +6228,7 @@ void setext(char* ext)
 
 {
 
-    int i, x; /* index for char* */
+    int i, x; /* index for string */
     int f;    /* found flag */
 
     f = FALSE; /* set no extention found */
@@ -6236,7 +6236,7 @@ void setext(char* ext)
     for (i = 1; i <= MAXFNM; i++) if (fnh[i] == ".") f = TRUE; /* found */
     if (!f) { /* no extention, place one */
 
-        i = MAXFNM; /* index last character in char* */
+        i = MAXFNM; /* index last character in string */
         while (i > 1 && fnh[i] == " ") i = i-1;
         if (maxfnm-i < 4) error(epicftl); /* filename too large */
         for (x = 1; x <= 4; x++) fnh[i+x] = ext[x]; /* place extention */
@@ -6265,7 +6265,7 @@ void iloadpict(winptr win, int p, char* fn)
     int    r;           /* result holder */
     BITMAP bmi;         /* bit map information header */
     char   fnh[MAXFNM]; /* file name holder */
-    int    i;           /* index for char* */
+    int    i;           /* index for string */
 
     if (strlen(fn) > maxfnm) error(epicftl); /* filename too large */
     fnh = 0; /* clear filename holding */
@@ -7410,7 +7410,7 @@ void winevt(winptr win, evtrec* er, MSG* msg, int ofn, int* keep)
                     if (nm == LBN_DBLCLK) {
 
                         unlockmain(); /* } exclusive access */
-                        r = sendmessage(wp->han, LB_GETCURSEL, 0, 0);
+                        r = SendMessage(wp->han, LB_GETCURSEL, 0, 0);
                         lockmain(); /* start exclusive access */
                         if r == -1  error(esystem); /* should be a select */
                         er->etype = etlstbox; /* set list box select event */
@@ -7425,7 +7425,7 @@ void winevt(winptr win, evtrec* er, MSG* msg, int ofn, int* keep)
                     if (nm == CBN_SELENDOK) {
 
                         unlockmain(); /* } exclusive access */
-                        r = sendmessage(wp->han, CB_GETCURSEL, 0, 0);
+                        r = SendMessage(wp->han, CB_GETCURSEL, 0, 0);
                         lockmain(); /* start exclusive access */
                         if r == -1  error(esystem); /* should be a select */
                         er->etype = etdrpbox; /* set list box select event */
@@ -7515,7 +7515,7 @@ void winevt(winptr win, evtrec* er, MSG* msg, int ofn, int* keep)
                 else { /* must retrive the position by message */
 
                     unlockmain(); /* } exclusive access */
-                    r = sendmessage(wp->han, TBM_GETPOS, 0, 0);
+                    r = SendMessage(wp->han, TBM_GETPOS, 0, 0);
                     lockmain(); /* start exclusive access */
                     er->sldpos = r*(INT_MAX/100) /* set position */
 
@@ -7576,7 +7576,7 @@ void winevt(winptr win, evtrec* er, MSG* msg, int ofn, int* keep)
                 else { /* must retrive the position by message */
 
                     unlockmain(); /* } exclusive access */
-                    r = sendmessage(wp->han, TBM_GETPOS, 0, 0);
+                    r = SendMessage(wp->han, TBM_GETPOS, 0, 0);
                     lockmain(); /* start exclusive access */
                     er->sldpos = r*(INT_MAX / 100) /* set position */
 
@@ -7599,7 +7599,7 @@ void winevt(winptr win, evtrec* er, MSG* msg, int ofn, int* keep)
         if (v == TCN_SELCHANGE) {
 
             unlockmain(); /* } exclusive access */
-            r = sendmessage(wp->han, tcm_getcursel, 0, 0);
+            r = SendMessage(wp->han, tcm_getcursel, 0, 0);
             lockmain(); /* start exclusive access */
             er->etype = pa_ettabbar; /* set tab bar type */
             er->tabid = wp->id; /* set id */
@@ -7821,7 +7821,7 @@ the associated input file.
 
 *******************************************************************************/
 
-void itimer(winptr win, /* file to s} event to */
+void itimer(winptr win, /* file to send event to */
             int    lf,  /* logical file number */
             int    i,   /* timer handle */
             int    t,   /* number of tenth-milliseconds to run */
@@ -7850,7 +7850,7 @@ void itimer(winptr win, /* file to s} event to */
 
 }
 
-void timer(FILE* f, /* file to s} event to */
+void timer(FILE* f, /* file to send event to */
            int   i, /* timer handle */
            int   t, /* number of tenth-milliseconds to run */
            int   r) /* timer is to rerun after completion */
@@ -8423,7 +8423,7 @@ void getpgm(void)
 
 {
 
-    int   l;    /* length of program name char* */
+    int   l;    /* length of program name string */
     char* cp;   /* holds command line pointer */
     char* s, s2;
     char  fini[] = "Finished - ";
@@ -8479,7 +8479,7 @@ void sortfont(fontptr* fp)
         l = NULL; /* clear last */
         while (c) { /* find insertion point */
 
-            /* compare char*s */
+            /* compare strings */
             if (strcmp(p->fn, c->fn) > 0) c = NULL; /* terminate */
             else {
 
@@ -8767,7 +8767,7 @@ void plcfnt(fontptr fp)
 
         fp = malloc(sizeof(fontrec)); /* get a new entry */
         if (!fp) error(enomem);
-        fp->fn = malloc(1); /* place empty char* */
+        fp->fn = malloc(1); /* place empty string */
         if (!fp-fn) error(enomem);
         *fp->fn = 0;
         fp->fix = FALSE; /* set for cleanlyness */
@@ -8956,7 +8956,7 @@ void kilwin(int wh)
 
     stdwinwin = wh; /* place window handle */
     /* order window to close */
-    b = postmessage(dispwin, UMCLSWIN, 0, 0);
+    b = PostMessage(dispwin, UMCLSWIN, 0, 0);
     if (!b) winerr(); /* process windows error */
     /* Wait for window close. */
     do { igetmsg(msg); } while (msg.message != UMWINCLS);
@@ -9062,7 +9062,7 @@ void opnwin(int fn, int pfn)
     stdwinh = 0x80000000;
     stdwinpar = parhan;
     /* order window to start */
-    b = postmessage(dispwin, UMMAKWIN, 0, 0);
+    b = PostMessage(dispwin, UMMAKWIN, 0, 0);
     if (!b) winerr(); /* process windows error */
     /* Wait for window start. */
     do { igetmsg(msg); } while (msg.message != UMWINSTR);
@@ -9136,7 +9136,7 @@ void opnwin(int fn, int pfn)
 #if 0
     /* present the window */
     b = ShowWindow(winhan, SW_SHOWDEFAULT);
-    /* s} first paint message */
+    /* send first paint message */
     b = UpdateWindow(winhan);
 #endif
     lockmain(); /* start exclusive access */
@@ -9557,11 +9557,11 @@ void ibuffer(winptr win, int e)
         win->gmaxx = win->gmaxxg / win->charspace; /* find character size x */
         win->gmaxy = win->gmaxyg / win->linespace; /* find character size y */
         /* tell the window to resize */
-        b = postmessage(win->winhan, WM_SIZE, SIZE_RESTORED,
+        b = PostMessage(win->winhan, WM_SIZE, SIZE_RESTORED,
                             win->gmaxyg*65536+win->gmaxxg);
         if (!b) winerr(); /* process windows error */
         /* tell the window to repaint */
-        /*b = postmessage(win->winhan, wm_paint, 0, 0);*/
+        /*b = PostMessage(win->winhan, wm_paint, 0, 0);*/
         putmsg(win->winhan, WM_PAINT, 0, 0);
         if (!b) winerr(); /* process windows error */
 
@@ -9753,7 +9753,7 @@ int fndmenu(winptr win, int id)
 Enable/disable menu entry
 
 Enables || disables a menu entry by id. The entry is set to grey if disabled,
-and will no longer s} messages.
+and will no longer send messages.
 
 *******************************************************************************/
 
@@ -9906,14 +9906,14 @@ void ifront(winptr win)
 #endif
 
     unlockmain(); /* } exclusive access */
-    b = postmessage(win->winhan, WM_PAINT, 0, 0);
+    b = PostMessage(win->winhan, WM_PAINT, 0, 0);
     if (!b) winerr(); /* process windows error */
     lockmain(); /* start exclusive access */
 
     if (parhan) {
 
         unlockmain(); /* } exclusive access */
-        b = postmessage(win->parhan, WM_PAINT, 0, 0);
+        b = PostMessage(win->parhan, WM_PAINT, 0, 0);
         if (!b) winerr(); /* process windows error */
         lockmain(); /* start exclusive access */
 
@@ -10751,7 +10751,7 @@ void stdmenu(pa_stdmenusel sms, menuptr* sm, menuptr pm)
 Create widget
 
 Creates a widget within the given window, within the specified bounding box,
-and using the face char* && type, && the given id. The char* may || may not
+and using the face string && type, && the given id. The string may || may not
 be used.
 
 Widgets use the subthread to buffer them. There were various problems from
@@ -10868,8 +10868,8 @@ int createwidget(winptr win, wigtyp typ; int x1, int y1, int x2, int y2,
     /* Wait for widget start, this also keeps our window going. */
     waitim(imwidget, ip); /* wait for the return */
     wh = ip->wigwin; /* place handle to widget */
-    free(ip->wigcls); /* release class char* */
-    free(ip->wigtxt); /* release face text char* */
+    free(ip->wigcls); /* release class string */
+    free(ip->wigtxt); /* release face text string */
     putitm(ip); /* release im */
 
     return (wh); /* return handle */
@@ -10954,7 +10954,7 @@ void iselectwidget(winptr win, int id, int e)
     /* check this widget is selectable */
     if (wp->typ != wtcheckbox && wp->typ != wtradiobutton) error(ewigsel);
     unlockmain(); /* } exclusive access */
-    r = sendmessage(wp->han, BM_SETCHECK, ord(e), 0);
+    r = SendMessage(wp->han, BM_SETCHECK, ord(e), 0);
     lockmain();/* start exclusive access */
 
 }
@@ -11033,8 +11033,8 @@ void igetwidgettext(winptr win, int id, char* s, int sl)
 
     wigptr wp; /* widget pointer */
     int    ls; /* length of text */
-    char*  sp; /* pointer to char* */
-    int    i;  /* index for char* */
+    char*  sp; /* pointer to string */
+    int    i;  /* index for string */
     int    r;  /* return value */
 
     if (!win->visible) winvis(win); /* make sure we are displayed */
@@ -11537,7 +11537,7 @@ void checkbox(FILE* f, int x1, int y1, int x2, int y2, char* s, id)
 
 Find minimum/standard radio button size
 
-Finds the minimum size for a radio button. Given the face char*, the minimum
+Finds the minimum size for a radio button. Given the face string, the minimum
 size of a radio button is calculated and returned.
 
 *******************************************************************************/
@@ -12047,71 +12047,71 @@ Creates a horizontal scrollbar.
 
 *******************************************************************************/
 
-void iscrollhorizg(winptr win; x1, y1, x2, y2: int; id: int);
-
-var wp: wigptr;        /* widget pointer */
-    si: scrollinfo; /* scroll information structure */
-    b:  int;       /* return value */
+void iscrollhorizg(winptr win, int x1, int y1, int x2, int y2, int id: int)
 
 {
 
-   if ! win->visible  winvis(win); /* make sure we are displayed */
-   widget(win, x1, y1, x2, y2, "", id, wtscrollhoriz, 0, wp);
-   /* The scroll set for windows is arbitrary. We expand that to 0..INT_MAX on
-     messages. */
-   unlockmain(); /* } exclusive access */
-   b = SetScrollRange(wp->han, sb_ctl, 0, 255, FALSE);
-   lockmain(); /* start exclusive access */
-   if (!b) winerr(); /* process windows error */
-   /* retrieve the default size of slider */
-   si.cbsize = scrollinfo_len; /* set size */
-   si.fmask = sif_page; /* set page size */
-   unlockmain(); /* } exclusive access */
-   b = GetScrollInfo(wp->han, sb_ctl, si);
-   lockmain(); /* start exclusive access */
-   if (!b) winerr(); /* process windows error */
-   wp->siz = si.npage /* get size */
+    wigptr     wp; /* widget pointer */
+    SCROLLINFO si; /* scroll information structure */
+    BOOL       b;  /* return value */
 
-};
+    if (!win->visible) winvis(win); /* make sure we are displayed */
+    widget(win, x1, y1, x2, y2, "", id, wtscrollhoriz, 0, wp);
+    /* The scroll set for windows is arbitrary. We expand that to 0..INT_MAX on
+       messages. */
+    unlockmain(); /* } exclusive access */
+    b = SetScrollRange(wp->han, SB_CTL, 0, 255, FALSE);
+    lockmain(); /* start exclusive access */
+    if (!b) winerr(); /* process windows error */
+    /* retrieve the default size of slider */
+    si.cbsize = sizeof(SCROLLINFO); /* set size */
+    si.fmask = sif_page; /* set page size */
+    unlockmain(); /* } exclusive access */
+    b = GetScrollInfo(wp->han, SB_CTL, si);
+    lockmain(); /* start exclusive access */
+    if (!b) winerr(); /* process windows error */
+    wp->siz = si.nPage /* get size */
 
-void iscrollhoriz(winptr win; x1, y1, x2, y2: int; id: int);
+}
 
-{
-
-   /* form graphical from character coordinates */
-   x1 = (x1-1)*win->charspace+1;
-   y1 = (y1-1)*win->linespace+1;
-   x2 = (x2)*win->charspace;
-   y2 = (y2)*win->linespace;
-   iscrollhorizg(win, x1, y1, x2, y2, id) /* create button graphical */
-
-};
-
-void scrollhorizg(FILE* f; x1, y1, x2, y2: int; id: int);
-
-var winptr win; /* window context */
+void iscrollhoriz(winptr win, int x1, int y1, int x2, int y2, int id)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   iscrollhorizg(win, x1, y1, x2, y2, id); /* execute */
-   unlockmain(); /* end exclusive access */
+    /* form graphical from character coordinates */
+    x1 = (x1-1)*win->charspace+1;
+    y1 = (y1-1)*win->linespace+1;
+    x2 = (x2)*win->charspace;
+    y2 = (y2)*win->linespace;
+    iscrollhorizg(win, x1, y1, x2, y2, id) /* create button graphical */
 
-};
+}
 
-void scrollhoriz(FILE* f; x1, y1, x2, y2: int; id: int);
-
-var winptr win; /* window context */
+void scrollhorizg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   iscrollhoriz(win, x1, y1, x2, y2, id); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    iscrollhorizg(win, x1, y1, x2, y2, id); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
+
+void scrollhoriz(FILE* f, int x1, int y1, int x2, int y2, int id)
+
+{
+
+    winptr win; /* window context */
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    iscrollhoriz(win, x1, y1, x2, y2, id); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -12121,45 +12121,41 @@ Sets the current position of a scrollbar slider.
 
 *******************************************************************************/
 
-void iscrollpos(winptr win; id: int; r: int);
-
-var wp: wigptr;  /* widget pointer */
-    rv: int; /* return value */
-    f:  real;    /* floating temp */
-    p:  int; /* calculated position to set */
+void iscrollpos(winptr win, int id, int r)
 
 {
 
-   if r < 0  error(einvspos); /* invalid position */
-   with win^ do { /* in windows context */
+    wigptr wp; /* widget pointer */
+    int    rv; /* return value */
+    float  f;  /* floating temp */
+    int    p;  /* calculated position to set */
 
-      if ! visible  winvis(win); /* make sure we are displayed */
-      wp = fndwig(win, id); /* find widget */
-      if wp == NULL  error(ewignf); /* ! found */
-      f = r; /* place position in float */
-      /* clamp to max */
-      if f*(255-wp->siz)/INT_MAX > 255  p = 255
-      else p = round(f*(255-wp->siz)/INT_MAX);
-      unlockmain(); /* } exclusive access */
-      rv = setscrollpos(wp->han, sb_ctl, p, TRUE);
-      lockmain();/* start exclusive access */
+    if (r < 0) error(einvspos); /* invalid position */
+    if (!win->visible) winvis(win); /* make sure we are displayed */
+    wp = fndwig(win, id); /* find widget */
+    if (!wp) error(ewignf); /* ! found */
+    f = r; /* place position in float */
+    /* clamp to max */
+    if (f*(255-wp->siz)/INT_MAX > 255) p = 255;
+    else p = f*(255-wp->siz)/INT_MAX;
+    unlockmain(); /* } exclusive access */
+    rv = setscrollpos(wp->han, sb_ctl, p, TRUE);
+    lockmain();/* start exclusive access */
 
-   }
+}
 
-};
-
-void scrollpos(FILE* f; id: int; r: int);
-
-var winptr win; /* window context */
+void scrollpos(FILE* f, int id, int r)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   iscrollpos(win, id, r); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    iscrollpos(win, id, r); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -12169,125 +12165,121 @@ Sets the current size of a scrollbar slider.
 
 *******************************************************************************/
 
-void iscrollsiz(winptr win; id: int; r: int);
-
-var wp:  wigptr;        /* widget pointer */
-    rv:  int;       /* return value */
-    si:  scrollinfo; /* scroll information structure */
+void iscrollsiz(winptr win, int id, int r)
 
 {
 
-   if r < 0  error(einvssiz); /* invalid scrollbar size */
-   with win^ do { /* in windows context */
+    wigptr     wp; /* widget pointer */
+    int        rv; /* return value */
+    SCROLLINFO si; /* scroll information structure */
 
-      if ! visible  winvis(win); /* make sure we are displayed */
-      wp = fndwig(win, id); /* find widget */
-      if wp == NULL  error(ewignf); /* ! found */
-      si.cbsize = scrollinfo_len; /* set size */
-      si.fmask = sif_page; /* set page size */
-      si.nmin = 0; /* no min */
-      si.nmax = 0; /* no max */
-      si.npage = r / 0x800000; /* set size */
-      si.npos = 0; /* no position */
-      si.ntrackpos = 0; /* no track position */
-      unlockmain(); /* } exclusive access */
-      rv = setscrollinfo(wp->han, sb_ctl, si, TRUE);
-      lockmain(); /* start exclusive access */
-      wp->siz = r / 0x800000; /* set size */
+    if (r < 0) error(einvssiz); /* invalid scrollbar size */
+    if (!win->visible) winvis(win); /* make sure we are displayed */
+    wp = fndwig(win, id); /* find widget */
+    if (!wp) error(ewignf); /* ! found */
+    si.cbsize = scrollinfo_len; /* set size */
+    si.fmask = sif_page; /* set page size */
+    si.nmin = 0; /* no min */
+    si.nmax = 0; /* no max */
+    si.npage = r / 0x800000; /* set size */
+    si.npos = 0; /* no position */
+    si.ntrackpos = 0; /* no track position */
+    unlockmain(); /* } exclusive access */
+    rv = setscrollinfo(wp->han, sb_ctl, si, TRUE);
+    lockmain(); /* start exclusive access */
+    wp->siz = r / 0x800000; /* set size */
 
-   }
+}
 
-};
-
-void scrollsiz(FILE* f; id: int; r: int);
-
-var winptr win; /* window context */
+void scrollsiz(FILE* f, int id, int r)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   iscrollsiz(win, id, r); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    iscrollsiz(win, id, r); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
-Control window void for number edit box
+Control window function for number edit box
 
 This message handler is to allow us to capture the carriage return from an
-number edit box, && turn that into a message. It also restricts input to the
+number edit box, and turn that into a message. It also restricts input to the
 box to numeric characters.
 
 *******************************************************************************/
 
-int wndprocnum(hwnd, imsg, wparam, lparam: int): int;
-
-var r:   int;   /* result */
-    wh:  int;   /* parent window handle */
-    lfn: ss_filhdl; /* logical number for parent window */
-    winptr win;    /* parent window data */
-    wp:  wigptr;    /* widget pointer */
-    s:   packed array [1..100] of char; /* buffer for edit char* */
-    v:   int;   /* value from edit control */
-    err: int;   /* error parsing value */
-
-/*i: int;*/
+int wndprocnum(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
 
 {
 
-   refer(hwnd, imsg, wparam, lparam); /* these aren"t presently used */
+    int    r;      /* result */
+    int    wh;     /* parent window handle */
+    int    lfn;    /* logical number for parent window */
+    winptr win;    /* parent window data */
+    wigptr wp;     /* widget pointer */
+    char   s[100]; /* buffer for edit string */
+    int    v;      /* value from edit control */
+    int    err;    /* error parsing value */
+
+/*int i;*/
+
 /*;prtstr("wndprocnum: msg: ");
 ;prtmsgu(hwnd, imsg, wparam, lparam);*/
 
-   /* We need to find out who we are talking to. */
-   lockmain(); /* start exclusive access */
-   wh = getparent(hwnd); /* get the widget parent handle */
-   lfn = hwn2lfn(wh); /* get the logical window number */
-   win = lfn2win(lfn); /* index window from logical number */
-   wp = fndwighan(win, hwnd); /* find the widget from that */
-   unlockmain(); /* } exclusive access */
-   r = 0; /* set no error */
-   /* check its a character */
-   if imsg == wm_char  {
+    /* We need to find out who we are talking to. */
+    lockmain(); /* start exclusive access */
+    wh = getparent(hwnd); /* get the widget parent handle */
+    lfn = hwn2lfn(wh); /* get the logical window number */
+    win = lfn2win(lfn); /* index window from logical number */
+    wp = fndwighan(win, hwnd); /* find the widget from that */
+    unlockmain(); /* } exclusive access */
+    r = 0; /* set no error */
+    /* check its a character */
+    if (imsg == wm_char) {
 
-      if wp->enb  { /* is the widget enabled ? */
+        if (wp->enb) { /* is the widget enabled ? */
 
-         /* check control is receiving a carriage return */
-         if wparam == ord("\cr")  {
+            /* check control is receiving a carriage return */
+            if (wparam == '\r') {
 
-            r = getwindowtext(wp->han2, s); /* get contents of edit */
-            v = intv(s, err); /* get value */
-             /* Send edit sends cr message to parent window, with widget logical
-               number embedded as wparam. */
-            if ! err && (v >= wp->low) && (v <= wp->high)
-               putmsg(wh, UMNUMCR, wp->id, v) /* s} select message */
-            else
-               /* S} the message on to its owner, this will ring the bell in
-                 Windows XP. */
-               r = callwindowproc(wp->wprc, hwnd, imsg, wparam, lparam)
+                r = getwindowtext(wp->han2, s); /* get contents of edit */
+                v = intv(s, err); /* get value */
+                /* Send edit sends cr message to parent window, with widget logical
+                   number embedded as wparam. */
+                if (!err && v >= wp->low && v <= wp->high)
+                    putmsg(wh, UMNUMCR, wp->id, v); /* send select message */
+                else
+                    /* Send the message on to its owner, this will ring the bell in
+                       Windows XP. */
+                    r = callwindowproc(wp->wprc, hwnd, imsg, wparam, lparam)
 
-         } else {
+            } else {
 
-            /* Check valid numerical character, with backspace control. If not,
-              replace with carriage return. This will cause the control to emit
-              an error, a bell in Windows XP. */
-            if ! (chr(wparam) in ["0".."9", "+", "-", "\bs"])
-               wparam = ord("\cr");
-            r = callwindowproc(wp->wprc, hwnd, imsg, wparam, lparam)
+                /* Check valid numerical character, with backspace control. If not,
+                   replace with carriage return. This will cause the control to emit
+                   an error, a bell in Windows XP. */
+                if (!((wparam >= '0' && wparam < '9') || wparam == '+' ||
+                      wparam == '-' || wparam == '\b'))
+                    wparam = '\cr"';
+                r = callwindowproc(wp->wprc, hwnd, imsg, wparam, lparam);
 
-         }
+            }
 
-      }
+        }
 
-   } else
-      /* s} the message on to its owner */
-      r = callwindowproc(wp->wprc, hwnd, imsg, wparam, lparam);
+    } else
+        /* send the message on to its owner */
+        r = callwindowproc(wp->wprc, hwnd, imsg, wparam, lparam);
 
-   wndprocnum = r /* return result */
+    return (r); /* return result */
 
-};
+}
 
 /*******************************************************************************
 
@@ -12298,65 +12290,62 @@ select box is calculated && returned.
 
 *******************************************************************************/
 
-void inumselboxsizg(winptr win; l, u: int; var w, h: int);
-
-var sz: size; /* size holder */
-    b:  int; /* return value */
-    dc: int; /* dc for screen */
+void inumselboxsizg(winptr win, int l, int u,  int* w, int* h)
 
 {
 
-   refer(win); /* don"t need the window data */
-   refer(l); /* don"t need lower bound */
+    SIZE sz; /* size holder */
+    BOOL b;  /* return value */
+    HDC  dc; /* dc for screen */
 
-   /* get size of text */
-   dc = GetWindowDC(NULL); /* get screen dc */
-   if dc == 0  winerr(); /* process windows error */
-   if u > 9  b = GetTextExtentPoint32(dc, "00", sz) /* get sizing */
-   else b = GetTextExtentPoint32(dc, "0", sz); /* get sizing */
-   if (!b) winerr(); /* process windows error */
-   /* width of text, plus up/down arrows, && border && divider lines */
-   w = sz.cx+GetSystemMetrics(sm_cxvscroll)+4;
-   h = sz.cy+2 /* height of text plus border lines */
+    /* get size of text */
+    dc = GetWindowDC(NULL); /* get screen dc */
+    if (!dc) winerr(); /* process windows error */
+    if (u > 9) b = GetTextExtentPoint32(dc, "00", sz) /* get sizing */
+    else b = GetTextExtentPoint32(dc, "0", sz); /* get sizing */
+    if (!b) winerr(); /* process windows error */
+    /* width of text, plus up/down arrows, && border && divider lines */
+    *w = sz.cx+GetSystemMetrics(sm_cxvscroll)+4;
+    *h = sz.cy+2; /* height of text plus border lines */
 
-};
+}
 
-void inumselboxsiz(winptr win; l, u: int; var w, h: int);
-
-{
-
-   inumselboxsizg(win, l, u, w, h); /* get size */
-   /* change graphical size to character */
-   w = (w-1) / win->charspace+1;
-   h = (h-1) / win->linespace+1
-
-};
-
-void numselboxsizg(FILE* f; l, u: int; var w, h: int);
-
-var winptr win; /* window context */
+void inumselboxsiz(winptr win, int l, int u, int* w, int* h)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   inumselboxsizg(win, l, u, w, h); /* get size */
-   unlockmain(); /* end exclusive access */
+    inumselboxsizg(win, l, u, w, h); /* get size */
+    /* change graphical size to character */
+    *w = (w-1) / win->charspace+1;
+    *h = (h-1) / win->linespace+1;
 
-};
+}
 
-void numselboxsiz(FILE* f; l, u: int; var w, h: int);
-
-var winptr win; /* window context */
+void numselboxsizg(FILE* f, int l, int u, int* w, int* h)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   inumselboxsiz(win, l, u, w, h); /* get size */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    inumselboxsizg(win, l, u, w, h); /* get size */
+    unlockmain(); /* end exclusive access */
+
+}
+
+void numselboxsiz(FILE* f, int l, int u, int* w, int* h)
+
+{
+
+    winptr win; /* window context */
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    inumselboxsiz(win, l, u, w, h); /* get size */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -12366,214 +12355,206 @@ Creates an up/down control for numeric selection.
 
 *******************************************************************************/
 
-void inumselboxg(winptr win; x1, y1, x2, y2: int; l, u: int;
-                      id: int);
-
-var ip:  imptr;   /* intratask message pointer */
-    wp:  wigptr;  /* widget pointer */
-    br:  int; /* result */
-    udw: int; /* up/down control width */
+void inumselboxg(winptr win, int x1, int y1, int x2, int y2, int l, int u,
+                 int id)
 
 {
 
-   with win^ do {
+    imptr  ip;  /* intratask message pointer */
+    wigptr wp;  /* widget pointer */
+    BOOL   br;  /* result */
+    int    udw; /* up/down control width */
 
-      if ! visible  winvis(win); /* make sure we are displayed */
-      /* search previous definition with same id */
-      if fndwig(win, id) != NULL  error(ewigdup); /* duplicate widget id */
-
-      /* Number select is a composite control, && it will s} messages
-        immediately after creation, as the different components talk to each
-        other. Because of this, we must create a widget entry first, even if
-        it is incomplete. */
-      getwig(win, wp); /* get new widget */
-      wp->id = id; /* place button id */
-      wp->typ = wtnumselbox; /* place type */
-      wp->han = 0; /* clear handles */
-      wp->han2 = 0;
-      wp->low = l; /* place limits */
-      wp->high = u;
-      /* get width of up/down control (same as scroll arrow) */
-      udw = GetSystemMetrics(sm_cxhscroll);
-      /* If the width is ! enough for the control to appear, force it. */
-      if x2-x1+1 < udw  x2 = x1+udw-1;
-      getitm(ip); /* get a im pointer */
-      ip->im = imupdown; /* set is up/down control */
-      ip->udflg = ws_child || ws_visible || ws_border || uds_setbuddyint;
-      ip->udx = x1-1;
-      ip->udy = y1-1;
-      ip->udcx = x2-x1+1;
-      ip->udcy = y2-y1+1;
-      ip->udpar = winhan;
-      ip->udid = id;
-      ip->udinst = getmodulehandle_n;
-      ip->udup = u;
-      ip->udlow = l;
-      ip->udpos = l;
-      br = postmessage(dispwin, UMIM, (WPARAM)ip, 0);
-      if ! br  winerr(); /* process windows error */
-      waitim(imupdown, ip); /* wait for the return */
-      wp->han = ip->udhan; /* place control handle */
-      wp->han2 = ip->udbuddy; /* place buddy handle */
-      putitm(ip); /* release im */
-      /* place our subclass handler for the edit control */
-      wp->wprc = getwindowlong(wp->han2, gwl_wndproc);
-      if wp->wprc == 0  winerr(); /* process windows error */
-      r = setwindowlong(wp->han2, gwl_wndproc, wndprocadr(wndprocnum));
-      if r == 0  winerr(); /* process windows error */
+    if (!win->visible) winvis(win); /* make sure we are displayed */
+    /* search previous definition with same id */
+    if (fndwig(win, id)) error(ewigdup); /* duplicate widget id */
+    /* Number select is a composite control, and it will send messages
+      immediately after creation, as the different components talk to each
+      other. Because of this, we must create a widget entry first, even if
+      it is incomplete. */
+    getwig(win, wp); /* get new widget */
+    wp->id = id; /* place button id */
+    wp->typ = wtnumselbox; /* place type */
+    wp->han = 0; /* clear handles */
+    wp->han2 = 0;
+    wp->low = l; /* place limits */
+    wp->high = u;
+    /* get width of up/down control (same as scroll arrow) */
+    udw = GetSystemMetrics(SM_CXHSCROLL);
+    /* If the width is ! enough for the control to appear, force it. */
+    if (x2-x1+1 < udw) x2 = x1+udw-1;
+    getitm(ip); /* get a im pointer */
+    ip->im = imupdown; /* set is up/down control */
+    ip->udflg = WS_CHILD | WS_VISIBLE | WS_BORDER | UDS_SETBUDDYINT;
+    ip->udx = x1-1;
+    ip->udy = y1-1;
+    ip->udcx = x2-x1+1;
+    ip->udcy = y2-y1+1;
+    ip->udpar = winhan;
+    ip->udid = id;
+    ip->udinst = GetModuleHandle(NULL);
+    ip->udup = u;
+    ip->udlow = l;
+    ip->udpos = l;
+    br = PostMessage(dispwin, UMIM, (WPARAM)ip, 0);
+    if (!br) winerr(); /* process windows error */
+    waitim(imupdown, ip); /* wait for the return */
+    wp->han = ip->udhan; /* place control handle */
+    wp->han2 = ip->udbuddy; /* place buddy handle */
+    putitm(ip); /* release im */
+    /* place our subclass handler for the edit control */
+    wp->wprc = GetWindowLong(wp->han2, GWL_WNDPROC);
+    if wp->wprc == 0  winerr(); /* process windows error */
+    r = setwindowlong(wp->han2, gwl_wndproc, wndprocadr(wndprocnum));
+    if (!r) winerr(); /* process windows error */
 
    }
 
-};
+}
 
-void inumselbox(winptr win; x1, y1, x2, y2: int; l, u: int;
-                     id: int);
-
-{
-
-   /* form graphical from character coordinates */
-   x1 = (x1-1)*win->charspace+1;
-   y1 = (y1-1)*win->linespace+1;
-   x2 = x2*win->charspace;
-   y2 = y2*win->linespace;
-   inumselboxg(win, x1, y1, x2, y2, l, u, id) /* create button graphical */
-
-};
-
-void numselboxg(FILE* f; x1, y1, x2, y2: int; l, u: int;
-                     id: int);
-
-var winptr win; /* window context */
+void inumselbox(winptr win, int x1, int y1, int x2, int y2, int l, int u,
+                int id)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   inumselboxg(win, x1, y1, x2, y2, l, u, id); /* execute */
-   unlockmain(); /* end exclusive access */
+    /* form graphical from character coordinates */
+    x1 = (x1-1)*win->charspace+1;
+    y1 = (y1-1)*win->linespace+1;
+    x2 = x2*win->charspace;
+    y2 = y2*win->linespace;
+    inumselboxg(win, x1, y1, x2, y2, l, u, id) /* create button graphical */
 
-};
+}
 
-void numselbox(FILE* f; x1, y1, x2, y2: int; l, u: int;
-                     id: int);
-
-var winptr win; /* window context */
+void numselboxg(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   inumselbox(win, x1, y1, x2, y2, l, u, id); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    inumselboxg(win, x1, y1, x2, y2, l, u, id); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
+
+void numselbox(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id)
+
+{
+
+    winptr win; /* window context */
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    inumselbox(win, x1, y1, x2, y2, l, u, id); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
-Control window void for edit box
+Control window function for edit box
 
 This message handler is to allow us to capture the carriage return from an
-edit box, && turn that into a message.
+edit box, and turn that into a message.
 
 *******************************************************************************/
 
-int wndprocedit(hwnd, imsg, wparam, lparam: int): int;
-
-var r:   int;   /* result */
-    wh:  int;   /* parent window handle */
-    lfn: ss_filhdl; /* logical number for parent window */
-    winptr win;    /* parent window data */
-    wp:  wigptr;    /* widget pointer */
+int wndprocedit(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
 
 {
 
-   refer(hwnd, imsg, wparam, lparam); /* these aren"t presently used */
+    LRESULT r;   /* result */
+    int     wh;  /* parent window handle */
+    int     lfn; /* logical number for parent window */
+    winptr  win; /* parent window data */
+    wigptr  wp;  /* widget pointer */
+
 /*;prtstr("wndprocedit: msg: ");
 ;prtmsgu(hwnd, imsg, wparam, lparam);*/
 
-   /* We need to find out who we are talking to. */
-   wh = getparent(hwnd); /* get the widget parent handle */
-   lfn = hwn2lfn(wh); /* get the logical window number */
-   win = lfn2win(lfn); /* index window from logical number */
-   wp = fndwighan(win, hwnd); /* find the widget from that */
-   /* check control is receiving a carriage return */
-   if (imsg == wm_char) && (wparam == ord("\cr"))
-       /* S} edit s}s cr message to parent window, with widget logical
-         number embedded as wparam. */
-      putmsg(wh, UMEDITCR, wp->id, 0)
-   else
-      /* s} the message on to its owner */
-      r = callwindowproc(wp->wprc, hwnd, imsg, wparam, lparam);
+    /* We need to find out who we are talking to. */
+    wh = getparent(hwnd); /* get the widget parent handle */
+    lfn = hwn2lfn(wh); /* get the logical window number */
+    win = lfn2win(lfn); /* index window from logical number */
+    wp = fndwighan(win, hwnd); /* find the widget from that */
+    /* check control is receiving a carriage return */
+    if (imsg == wm_char && wparam == '\r')
+        /* Send edit sends cr message to parent window, with widget logical
+           number embedded as wparam. */
+        putmsg(wh, UMEDITCR, wp->id, 0)
+    else
+        /* send the message on to its owner */
+        r = callwindowproc(wp->wprc, hwnd, imsg, wparam, lparam);
 
-   wndprocedit = r /* return result */
+    return (r); /* return result */
 
-};
+}
 
 /*******************************************************************************
 
 Find minimum/standard edit box size
 
-Finds the minimum size for an edit box. Given a sample face char*, the minimum
-size of an edit box is calculated && returned.
+Finds the minimum size for an edit box. Given a sample face string, the minimum
+size of an edit box is calculated and returned.
 
 *******************************************************************************/
 
-void ieditboxsizg(winptr win; view s: char*; var w, h: int);
-
-var sz: size; /* size holder */
-    b:  int; /* return value */
-    dc: int; /* dc for screen */
+void ieditboxsizg(winptr win, char* s, int* w, int* h)
 
 {
 
-   refer(win); /* don"t need the window data */
+    SIZE sz; /* size holder */
+    BOOL b;  /* return value */
+    HDC  dc; /* dc for screen */
 
-   dc = GetWindowDC(NULL); /* get screen dc */
-   if dc == 0  winerr(); /* process windows error */
-   b = GetTextExtentPoint32(dc, s, sz); /* get sizing */
-   if (!b) winerr(); /* process windows error */
-   /* add borders to size */
-   w = sz.cx+4;
-   h = sz.cy+2
+    dc = GetWindowDC(NULL); /* get screen dc */
+    if (!dc) winerr(); /* process windows error */
+    b = GetTextExtentPoint32(dc, s, sz); /* get sizing */
+    if (!b) winerr(); /* process windows error */
+    /* add borders to size */
+    *w = sz.cx+4;
+    *h = sz.cy+2;
 
-};
+}
 
-void ieditboxsiz(winptr win; view s: char*; var w, h: int);
-
-{
-
-   ieditboxsizg(win, s, w, h); /* get size */
-   /* change graphical size to character */
-   w = (w-1) / win->charspace+1;
-   h = (h-1) / win->linespace+1
-
-};
-
-void editboxsizg(FILE* f; view s: char*; var w, h: int);
-
-var winptr win; /* window context */
+void ieditboxsiz(winptr win, char* s, int* w, int* h)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   ieditboxsizg(win, s, w, h); /* get size */
-   unlockmain(); /* end exclusive access */
+    ieditboxsizg(win, s, w, h); /* get size */
+    /* change graphical size to character */
+    *w = (w-1) / win->charspace+1;
+    *h = (h-1) / win->linespace+1
 
-};
+}
 
-void editboxsiz(FILE* f; view s: char*; var w, h: int);
-
-var winptr win; /* window context */
+void editboxsizg(FILE* f, char* s, int* w, int* h)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   ieditboxsiz(win, s, w, h); /* get size */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    ieditboxsizg(win, s, w, h); /* get size */
+    unlockmain(); /* end exclusive access */
+
+}
+
+void editboxsiz(FILE* f, char* s, int* w, int* h)
+
+{
+
+    winptr win; /* window context */
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    ieditboxsiz(win, s, w, h); /* get size */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -12583,120 +12564,119 @@ Creates single line edit box
 
 *******************************************************************************/
 
-void ieditboxg(winptr win; x1, y1, x2, y2: int; id: int);
-
-var wp: wigptr; /* widget pointer */
-    r: int;
+void ieditboxg(winptr win, int x1, int y1, int x2, int y2, int id)
 
 {
 
-   if ! win->visible  winvis(win); /* make sure we are displayed */
-   widget(win, x1, y1, x2, y2, "", id, wteditbox, 0, wp);
-   /* get the windows internal void for subclassing */
-   wp->wprc = getwindowlong(wp->han, gwl_wndproc);
-   if wp->wprc == 0  winerr(); /* process windows error */
-   r = setwindowlong(wp->han, gwl_wndproc, wndprocadr(wndprocedit));
-   if r == 0  winerr(); /* process windows error */
+    wigptr wp; /* widget pointer */
+    LONG   r;
 
-};
+    if (!win->visible) winvis(win); /* make sure we are displayed */
+    widget(win, x1, y1, x2, y2, "", id, wteditbox, 0, wp);
+    /* get the windows internal void for subclassing */
+    wp->wprc = GetWindowLong(wp->han, gwl_wndproc);
+    if (!wp->wprc) winerr(); /* process windows error */
+    r = setwindowlong(wp->han, gwl_wndproc, wndprocadr(wndprocedit));
+    if (!r) winerr(); /* process windows error */
 
-void ieditbox(winptr win; x1, y1, x2, y2: int; id: int);
+}
 
-{
-
-   /* form graphical from character coordinates */
-   x1 = (x1-1)*win->charspace+1;
-   y1 = (y1-1)*win->linespace+1;
-   x2 = (x2)*win->charspace;
-   y2 = (y2)*win->linespace;
-   ieditboxg(win, x1, y1, x2, y2, id) /* create button graphical */
-
-};
-
-void editboxg(FILE* f; x1, y1, x2, y2: int; id: int);
-
-var winptr win;  /* window context */
+void ieditbox(winptr win, int x1, int y1, int x2, int y2, int id)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   ieditboxg(win, x1,y1, x2,y2, id); /* execute */
-   unlockmain(); /* end exclusive access */
+    /* form graphical from character coordinates */
+    x1 = (x1-1)*win->charspace+1;
+    y1 = (y1-1)*win->linespace+1;
+    x2 = (x2)*win->charspace;
+    y2 = (y2)*win->linespace;
+    ieditboxg(win, x1, y1, x2, y2, id); /* create button graphical */
 
-};
+}
 
-void editbox(FILE* f; x1, y1, x2, y2: int; id: int);
-
-var winptr win;  /* window context */
+void editboxg(FILE* f,  int x1, int y1, int x2, int y2, int id)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   ieditbox(win, x1,y1, x2,y2, id); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    ieditboxg(win, x1,y1, x2,y2, id); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
+
+void editbox(FILE* f, int x1, int y1, int x2, int y2, int id)
+
+{
+
+    winptr win; /* window context */
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    ieditbox(win, x1,y1, x2,y2, id); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
 Find minimum/standard edit box size
 
-Finds the minimum size for an edit box. Given a sample face char*, the minimum
-size of an edit box is calculated && returned.
+Finds the minimum size for an edit box. Given a sample face string, the minimum
+size of an edit box is calculated and returned.
 
 *******************************************************************************/
 
-void iprogbarsizg(winptr win; var w, h: int);
+void iprogbarsizg(winptr win, int* w, int* h)
 
 {
 
-   refer(win); /* don"t need the window data */
-   /* Progress bars are arbitrary for sizing. We choose a size that allows for
-     20 bar elements. Note that the size of the blocks in a Windows progress
-     bar are ratioed to the height. */
-   w = 20*14+2;
-   h = 20+2
+    /* Progress bars are arbitrary for sizing. We choose a size that allows for
+       20 bar elements. Note that the size of the blocks in a Windows progress
+       bar are ratioed to the height. */
+    *w = 20*14+2;
+    *h = 20+2
 
-};
+}
 
-void iprogbarsiz(winptr win; var w, h: int);
-
-{
-
-   iprogbarsizg(win, w, h); /* get size */
-   /* change graphical size to character */
-   w = (w-1) / win->charspace+1;
-   h = (h-1) / win->linespace+1
-
-};
-
-void progbarsizg(FILE* f; var w, h: int);
-
-var winptr win; /* window context */
+void iprogbarsiz(winptr win, int* w, int* h)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   iprogbarsizg(win, w, h); /* get size */
-   unlockmain(); /* end exclusive access */
+    iprogbarsizg(win, w, h); /* get size */
+    /* change graphical size to character */
+    *w = (*w-1) / win->charspace+1;
+    *h = (*h-1) / win->linespace+1
 
 };
 
-void progbarsiz(FILE* f; var w, h: int);
-
-var winptr win; /* window context */
+void progbarsizg(FILE* f, int* w, int* h)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   iprogbarsiz(win, w, h); /* get size */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    iprogbarsizg(win, w, h); /* get size */
+    unlockmain(); /* end exclusive access */
+
+}
+
+void progbarsiz(FILE* f, int* w, int* h)
+
+{
+
+    winptr win; /* window context */
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    iprogbarsiz(win, w, h); /* get size */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -12706,61 +12686,61 @@ Creates a progress bar.
 
 *******************************************************************************/
 
-void iprogbarg(winptr win; x1, y1, x2, y2: int; id: int);
-
-var wp:  wigptr;  /* widget pointer */
-    r:   int; /* return value */
+void iprogbarg(winptr win, int x1, int y1, int x2, int y2, int id)
 
 {
 
-   if ! win->visible  winvis(win); /* make sure we are displayed */
-   /* create the progress bar */
-   widget(win, x1, y1, x2, y2, "", id, wtprogressbar, 0, wp);
-   /* use 0..INT_MAX ratio */
-   unlockmain(); /* } exclusive access */
-   r = s}message(wp->han, pbm_setrange32, 0, INT_MAX);
-   lockmain();/* start exclusive access */
+    wigptr  wp; /* widget pointer */
+    LRESULT r;  /* return value */
 
-};
+    if (!win->visible) winvis(win); /* make sure we are displayed */
+    /* create the progress bar */
+    widget(win, x1, y1, x2, y2, "", id, wtprogressbar, 0, wp);
+    /* use 0..INT_MAX ratio */
+    unlockmain(); /* } exclusive access */
+    r = SendMessage(wp->han, PBM_SETRANGE32, 0, INT_MAX);
+    lockmain();/* start exclusive access */
 
-void iprogbar(winptr win; x1, y1, x2, y2: int; id: int);
+}
 
-{
-
-   /* form graphical from character coordinates */
-   x1 = (x1-1)*win->charspace+1;
-   y1 = (y1-1)*win->linespace+1;
-   x2 = (x2)*win->charspace;
-   y2 = (y2)*win->linespace;
-   iprogbarg(win, x1, y1, x2, y2, id) /* create button graphical */
-
-};
-
-void progbarg(FILE* f; x1, y1, x2, y2: int; id: int);
-
-var winptr win;  /* window context */
+void iprogbar(winptr win, int x1, int y1, int x2, int y2, int id)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   iprogbarg(win, x1, y1, x2, y2, id); /* execute */
-   unlockmain(); /* end exclusive access */
+    /* form graphical from character coordinates */
+    x1 = (x1-1)*win->charspace+1;
+    y1 = (y1-1)*win->linespace+1;
+    x2 = (x2)*win->charspace;
+    y2 = (y2)*win->linespace;
+    iprogbarg(win, x1, y1, x2, y2, id); /* create button graphical */
 
-};
+}
 
-void progbar(FILE* f; x1, y1, x2, y2: int; id: int);
-
-var winptr win;  /* window context */
+void progbarg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   iprogbar(win, x1, y1, x2, y2, id); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win;  /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    iprogbarg(win, x1, y1, x2, y2, id); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
+
+void progbar(FILE* f, int x1, int y1, int x2, int y2, int id)
+
+{
+
+    winptr win;  /* window context */
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    iprogbar(win, x1, y1, x2, y2, id); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -12770,98 +12750,92 @@ Sets the position of a progress bar, from 0 to INT_MAX.
 
 *******************************************************************************/
 
-void iprogbarpos(winptr win; id: int; pos: int);
-
-var wp:  wigptr; /* widget pointer */
-    r:  int;
+void iprogbarpos(winptr win, int id, int pos)
 
 {
 
-   if ! win->visible  winvis(win); /* make sure we are displayed */
-   if pos < 0  error(eprgpos); /* bad position */
-   with win^ do {
+    wigptr  wp; /* widget pointer */
+    LRESULT r;
 
-      wp = fndwig(win, id); /* find widget */
-      if wp == NULL  error(ewignf); /* ! found */
-      /* set the range */
-      unlockmain(); /* } exclusive access */
-      r = s}message(wp->han, pbm_setpos, pos, 0);
-      lockmain();/* start exclusive access */
+   if (!win->visible) winvis(win); /* make sure we are displayed */
+   if (pos < 0) error(eprgpos); /* bad position */
+   wp = fndwig(win, id); /* find widget */
+   if (!wp) error(ewignf); /* ! found */
+   /* set the range */
+   unlockmain(); /* } exclusive access */
+   r = SendMessage(wp->han, pbm_setpos, pos, 0);
+   lockmain();/* start exclusive access */
 
-   };
+}
 
-};
-
-void progbarpos(FILE* f; id: int; pos: int);
-
-var winptr win; /* window context */
+void progbarpos(FILE* f, int id, int pos)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   iprogbarpos(win, id, pos); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    iprogbarpos(win, id, pos); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
 Find minimum/standard list box size
 
-Finds the minimum size for an list box. Given a char* list, the minimum size
-of an list box is calculated && returned.
+Finds the minimum size for an list box. Given a string list, the minimum size
+of an list box is calculated and returned.
 
 Windows listboxes pretty much ignore the size given. If you allocate more space
 than needed, it will only put blank lines below if enough space for an entire
-line is present. If the size does ! contain exactly enough to display the
+line is present. If the size does not contain exactly enough to display the
 whole line list, the box will colapse to a single line with an up/down
 control. The only thing that is garanteed is that the box will fit within the
-specified rectangle, one way || another.
+specified rectangle, one way or another.
 
 *******************************************************************************/
 
-void ilistboxsizg(winptr win; sp: strptr; var w, h: int);
-
-var sz: size; /* size holder */
-    b:  int; /* return value */
-    dc: int; /* dc for screen */
-    mw: int; /* max width */
+void ilistboxsizg(winptr win, pa_strptr sp, int* w, int* h)
 
 {
 
-   refer(win); /* don"t need the window data */
+    SIZE sz; /* size holder */
+    BOOL b;  /* return value */
+    HDC  dc; /* dc for screen */
+    int  mw; /* max width */
 
-   w = 4; /* set minimum overhead */
-   h = 2;
-   while sp != NULL do { /* traverse char* list */
+    *w = 4; /* set minimum overhead */
+    *h = 2;
+    while (sp) { /* traverse string list */
 
-      dc = GetWindowDC(NULL); /* get screen dc */
-      if dc == 0  winerr(); /* process windows error */
-      b = GetTextExtentPoint32(dc, sp->str^, sz); /* get sizing */
-      if (!b) winerr(); /* process windows error */
-      /* add borders to size */
-      mw = sz.cx+4;
-      if mw > w  w = mw; /* set new maximum */
-      h = h+sz.cy;
-      sp = sp->next /* next char* */
+        dc = GetWindowDC(NULL); /* get screen dc */
+        if (!dc) winerr(); /* process windows error */
+        b = GetTextExtentPoint32(dc, sp->str, sz); /* get sizing */
+        if (!b) winerr(); /* process windows error */
+        /* add borders to size */
+        mw = sz.cx+4;
+        if (mw > *w) *w = mw; /* set new maximum */
+        *h = *h+sz.cy;
+        sp = sp->next; /* next string */
 
-   }
+    }
 
-};
+}
 
-void ilistboxsiz(winptr win; sp: strptr; var w, h: int);
+void ilistboxsiz(winptr win, pa_strptr, sp, int* w, int* h)
 
 {
 
-   ilistboxsizg(win, sp, w, h); /* get size */
-   /* change graphical size to character */
-   w = (w-1) / win->charspace+1;
-   h = (h-1) / win->linespace+1
+    ilistboxsizg(win, sp, w, h); /* get size */
+    /* change graphical size to character */
+    *w = (*w-1) / win->charspace+1;
+    *h = (*h-1) / win->linespace+1;
 
-};
+}
 
-void listboxsizg(FILE* f; sp: strptr; var w, h: int);
+void listboxsizg(FILE* f, pa_strptr sp, int* w, int* h);
 
 var winptr win; /* window context */
 
@@ -12872,519 +12846,495 @@ var winptr win; /* window context */
    ilistboxsizg(win, sp, w, h); /* get size */
    unlockmain(); /* end exclusive access */
 
-};
+}
 
-void listboxsiz(FILE* f; sp: strptr; var w, h: int);
-
-var winptr win; /* window context */
+void listboxsiz(FILE* f, pa_strptr sp, int* w, int* h)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   ilistboxsiz(win, sp, w, h); /* get size */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    ilistboxsiz(win, sp, w, h); /* get size */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
 Create list box
 
-Creates a list box. Fills it with the char* list provided.
+Creates a list box. Fills it with the string list provided.
 
 *******************************************************************************/
 
-void ilistboxg(winptr win; x1, y1, x2, y2: int; sp: strptr;
-                    id: int);
-
-var wp: wigptr;  /* widget pointer */
-    r:  int; /* return value */
+void ilistboxg(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 {
 
-   if ! win->visible  winvis(win); /* make sure we are displayed */
-   widget(win, x1, y1, x2, y2, "", id, wtlistbox, 0, wp);
-   while sp != NULL do { /* add char*s to list */
+    wigptr wp; /* widget pointer */
+    LRESULT r; /* return value */
 
-      unlockmain(); /* } exclusive access */
-      r = s}message(wp->han, lb_addchar*, sp->str^); /* add char* */
-      lockmain(); /* start exclusive access */
-      if r == -1  error(estrspc); /* out of char* space */
-      sp = sp->next /* next char* */
+    if (!win->visible)  winvis(win); /* make sure we are displayed */
+    widget(win, x1, y1, x2, y2, "", id, wtlistbox, 0, wp);
+    while (sp) { /* add strings to list */
 
-   }
+        unlockmain(); /* } exclusive access */
+        r = SendMessage(wp->han, LB_ADDSTRING, sp->str); /* add string */
+        lockmain(); /* start exclusive access */
+        if (r == -1)  error(estrspc); /* out of string space */
+        sp = sp->next; /* next string */
 
-};
+    }
 
-void ilistbox(winptr win; x1, y1, x2, y2: int; sp: strptr;
-                   id: int);
+}
 
-{
-
-   /* form graphical from character coordinates */
-   x1 = (x1-1)*win->charspace+1;
-   y1 = (y1-1)*win->linespace+1;
-   x2 = (x2)*win->charspace;
-   y2 = (y2)*win->linespace;
-   ilistboxg(win, x1, y1, x2, y2, sp, id) /* create button graphical */
-
-};
-
-void listboxg(FILE* f; x1, y1, x2, y2: int; sp: strptr;
-                   id: int);
-
-var winptr win; /* window context */
+void ilistbox(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   ilistboxg(win, x1, y1, x2, y2, sp, id); /* execute */
-   unlockmain(); /* end exclusive access */
+    /* form graphical from character coordinates */
+    x1 = (x1-1)*win->charspace+1;
+    y1 = (y1-1)*win->linespace+1;
+    x2 = (x2)*win->charspace;
+    y2 = (y2)*win->linespace;
+    ilistboxg(win, x1, y1, x2, y2, sp, id); /* create button graphical */
 
-};
+}
 
-void listbox(FILE* f; x1, y1, x2, y2: int; sp: strptr;
-                   id: int);
-
-var winptr win; /* window context */
+void listboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   ilistbox(win, x1, y1, x2, y2, sp, id); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    ilistboxg(win, x1, y1, x2, y2, sp, id); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
+
+void listbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
+
+{
+
+    winptr win; /* window context */
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    ilistbox(win, x1, y1, x2, y2, sp, id); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
+
+/*******************************************************************************
+
+Find size for single line of text
+
+Find the pixel size in x for the given line of text.
+
+*******************************************************************************/
+
+void getsizlin(char* s, LPSIZE sz)
+
+{
+
+    dc = GetWindowDC(NULL); /* get screen dc */
+    if (!dc) winerr(); /* process windows error */
+    b = GetTextExtentPoint32(dc, s, sz); /* get sizing */
+    if (!b) winerr(); /* process windows error */
+
+}
 
 /*******************************************************************************
 
 Find minimum/standard dropbox size
 
-Finds the minimum size for a dropbox. Given the face char*, the minimum size of
-a dropbox is calculated && returned, for both the "open" && "closed" case.
+Finds the minimum size for a dropbox. Given the face string, the minimum size of
+a dropbox is calculated and returned, for both the "open" and "closed" case.
 
 The open sizing is used to create the widget. The reason for this is that the
-widget can be smaller than the open size, && it will still work, because the
+widget can be smaller than the open size, and it will still work, because the
 selections can be scrolled.
 
 *******************************************************************************/
 
-void idropboxsizg(winptr win; sp: strptr;
-                       var cw, ch, ow, oh: int);
-
-/* I can"t find a reasonable system metrics version of the drop arrow demensions,
-  so they are hardcoded here. */
-const darrowx == 17;
-      darrowy == 20;
-
-var sz: size; /* size holder */
-    b:  int; /* return value */
-    dc: int; /* dc for screen */
-
-/* find size for single line */
-
-void getsiz(view s: char*);
+void idropboxsizg(winptr win, pa_strptr pa_strptr sp, int* cw, int* ch,
+                  int* ow, int* oh)
 
 {
 
-   dc = GetWindowDC(NULL); /* get screen dc */
-   if dc == 0  winerr(); /* process windows error */
-   b = GetTextExtentPoint32(dc, s, sz); /* get sizing */
-   if (!b) winerr(); /* process windows error */
+    /* I can't find a reasonable system metrics version of the drop arrow
+       demensions, so they are hardcoded here. */
+    const int darrowx = 17;
+    const int darrowy = 20;
 
-};
+    SIZE sz; /* size holder */
+    BOOL b;  /* return value */
+    HDC  dc; /* dc for screen */
 
-{
+    /* calculate first line */
+    getsiz(sp->str); /* find sizing for line */
+    /* Find size of string x, drop arrow width, box edges, && add fudge factor
+      to space text out. */
+    *cw = sz.cx+darrowx+GetSystemMetrics(SM_CXEDGE)*2+4;
+    *ow = *cw; /* open is the same */
+    /* drop arrow height+shadow overhead+drop box bounding */
+    *oh = darrowy+GetSystemMetrics(SM_CYEDGE)*2+2;
+    /* drop arrow height+shadow overhead */
+    *ch = darrowy+GetSystemMetrics(SM_CYEDGE)*2;
+    /* add all lines to drop box section */
+    while (sp) { /* traverse string list */
 
-   refer(win); /* don"t need the window data */
+        getsizlin(sp->str); /* find sizing for this line */
+        /* find open width on this string only */
+        *ow = sz.cx+darrowx+GetSystemMetrics(SM_CXEDGE)*2+4;
+        if (*ow > *cw) *cw = *ow; /* larger than closed width, set new max */
+        *oh = *oh+sz.cy; /* add to open height */
+        sp = sp->next; /* next string */
 
-   /* calculate first line */
-   getsiz(sp->str^); /* find sizing for line */
-   /* Find size of char* x, drop arrow width, box edges, && add fudge factor
-     to space text out. */
-   cw = sz.cx+darrowx+GetSystemMetrics(sm_cxedge)*2+4;
-   ow = cw; /* open is the same */
-   /* drop arrow height+shadow overhead+drop box bounding */
-   oh = darrowy+GetSystemMetrics(sm_cyedge)*2+2;
-   /* drop arrow height+shadow overhead */
-   ch = darrowy+GetSystemMetrics(sm_cyedge)*2;
-   /* add all lines to drop box section */
-   while sp != NULL do { /* traverse char* list */
+    }
+    *ow = *cw; /* set maximum open width */
 
-      getsiz(sp->str^); /* find sizing for this line */
-      /* find open width on this char* only */
-      ow = sz.cx+darrowx+GetSystemMetrics(sm_cxedge)*2+4;
-      if ow > cw  cw = ow; /* larger than closed width, set new max */
-      oh = oh+sz.cy; /* add to open height */
-      sp = sp->next; /* next char* */
+}
 
-   };
-   ow = cw /* set maximum open width */
-
-};
-
-void idropboxsiz(winptr win; sp: strptr; var cw, ch, ow, oh: int);
+void idropboxsiz(winptr win, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
 
 {
 
-   idropboxsizg(win, sp, cw, ch, ow, oh); /* get size */
-   /* change graphical size to character */
-   cw = (cw-1) / win->charspace+1;
-   ch = (ch-1) / win->linespace+1;
-   ow = (ow-1) / win->charspace+1;
-   oh = (oh-1) / win->linespace+1
+    idropboxsizg(win, sp, cw, ch, ow, oh); /* get size */
+    /* change graphical size to character */
+    *cw = (*cw-1) / win->charspace+1;
+    *ch = (*ch-1) / win->linespace+1;
+    *ow = (*ow-1) / win->charspace+1;
+    *oh = (*oh-1) / win->linespace+1;
 
-};
+}
 
-void dropboxsizg(FILE* f; sp: strptr; var cw, ch, ow, oh: int);
-
-var winptr win; /* window context */
+void dropboxsizg(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   idropboxsizg(win, sp, cw, ch, ow, oh); /* get size */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    idropboxsizg(win, sp, cw, ch, ow, oh); /* get size */
+    unlockmain(); /* end exclusive access */
 
-void dropboxsiz(FILE* f; sp: strptr; var cw, ch, ow, oh: int);
+}
 
-var winptr win; /* window context */
+void dropboxsiz(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   idropboxsiz(win, sp, cw, ch, ow, oh); /* get size */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    idropboxsiz(win, sp, cw, ch, ow, oh); /* get size */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
 Create dropdown box
 
-Creates a dropdown box. Fills it with the char* list provided.
+Creates a dropdown box. Fills it with the string list provided.
 
 *******************************************************************************/
 
-void idropboxg(winptr win; x1, y1, x2, y2: int; sp: strptr;
-                    id: int);
-
-var wp:  wigptr;  /* widget pointer */
-    sp1: strptr;  /* char* pointer */
-    r:   int; /* return value */
+void idropboxg(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 {
 
-   if ! win->visible  winvis(win); /* make sure we are displayed */
-   widget(win, x1, y1, x2, y2, "", id, wtdropbox, 0, wp);
-   sp1 = sp; /* index top of char* list */
-   while sp1 != NULL do { /* add char*s to list */
+    wigptr wp;  /* widget pointer */
+    pa_strptr sp1;  /* string pointer */
+    LRESULT r; /* return value */
 
-      unlockmain(); /* } exclusive access */
-      r = s}message(wp->han, cb_addchar*, sp1->str^); /* add char* */
-      lockmain(); /* start exclusive access */
-      if r == -1  error(estrspc); /* out of char* space */
-      sp1 = sp1->next /* next char* */
+    if (!win->visible) winvis(win); /* make sure we are displayed */
+    widget(win, x1, y1, x2, y2, "", id, wtdropbox, 0, wp);
+    sp1 = sp; /* index top of string list */
+    while (sp1) { /* add strings to list */
 
-   };
-   unlockmain(); /* } exclusive access */
-   r = s}message(wp->han, cb_setcursel, 0, 0);
-   lockmain(); /* start exclusive access */
-   if r == -1  error(esystem) /* should ! happen */
+        unlockmain(); /* } exclusive access */
+        r = SendMessage(wp->han, cb_addstring, sp1->str^); /* add string */
+        lockmain(); /* start exclusive access */
+        if (r == -1) error(estrspc); /* out of string space */
+        sp1 = sp1->next; /* next string */
 
-};
+    }
+    unlockmain(); /* } exclusive access */
+    r = SendMessage(wp->han, cb_setcursel, 0, 0);
+    lockmain(); /* start exclusive access */
+    if (r == -1)  error(esystem); /* should ! happen */
 
-void idropbox(winptr win; x1, y1, x2, y2: int; sp: strptr;
-                   id: int);
+}
 
-{
-
-   /* form graphical from character coordinates */
-   x1 = (x1-1)*win->charspace+1;
-   y1 = (y1-1)*win->linespace+1;
-   x2 = (x2)*win->charspace;
-   y2 = (y2)*win->linespace;
-   idropboxg(win, x1, y1, x2, y2, sp, id) /* create button graphical */
-
-};
-
-void dropboxg(FILE* f; x1, y1, x2, y2: int; sp: strptr;
-                   id: int);
-
-var winptr win; /* window context */
+void idropbox(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   idropboxg(win, x1, y1, x2, y2, sp, id); /* execute */
-   unlockmain(); /* end exclusive access */
+    /* form graphical from character coordinates */
+    x1 = (x1-1)*win->charspace+1;
+    y1 = (y1-1)*win->linespace+1;
+    x2 = (x2)*win->charspace;
+    y2 = (y2)*win->linespace;
+    idropboxg(win, x1, y1, x2, y2, sp, id); /* create button graphical */
 
-};
+}
 
-void dropbox(FILE* f; x1, y1, x2, y2: int; sp: strptr;
-                   id: int);
-
-var winptr win; /* window context */
+void dropboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   idropbox(win, x1, y1, x2, y2, sp, id); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    idropboxg(win, x1, y1, x2, y2, sp, id); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
+
+void dropbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
+
+{
+
+    winptr win; /* window context */
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    idropbox(win, x1, y1, x2, y2, sp, id); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
 Find minimum/standard drop edit box size
 
-Finds the minimum size for a drop edit box. Given the face char*, the minimum
-size of a drop edit box is calculated && returned, for both the "open" &&
+Finds the minimum size for a drop edit box. Given the face string, the minimum
+size of a drop edit box is calculated and returned, for both the "open" and
 "closed" case.
 
 The open sizing is used to create the widget. The reason for this is that the
-widget can be smaller than the open size, && it will still work, because the
+widget can be smaller than the open size, and it will still work, because the
 selections can be scrolled.
 
 *******************************************************************************/
 
-void idropeditboxsizg(winptr win; sp: strptr;
-                           var cw, ch, ow, oh: int);
-
-/* I can"t find a reasonable system metrics version of the drop arrow demensions,
-  so they are hardcoded here. */
-const darrowx == 17;
-      darrowy == 20;
-
-var sz: size; /* size holder */
-    b:  int; /* return value */
-    dc: int; /* dc for screen */
-
-/* find size for single line */
-
-void getsiz(view s: char*);
+void idropeditboxsizg(winptr win, pa_strptr sp, int* cw, int* ch,
+                      int* ow, int* oh)
 
 {
 
-   dc = GetWindowDC(NULL); /* get screen dc */
-   if dc == 0  winerr(); /* process windows error */
-   b = GetTextExtentPoint32(dc, s, sz); /* get sizing */
-   if (!b) winerr(); /* process windows error */
+    /* I can"t find a reasonable system metrics version of the drop arrow
+       demensions, so they are hardcoded here. */
+    const int darrowx = 17;
+    const int darrowy = 20;
 
-};
+    SIZE sz; /* size holder */
+    BOOL b;  /* return value */
+    HDC  dc; /* dc for screen */
 
-{
+    /* calculate first line */
+    getsizlin(sp->str); /* find sizing for line */
+    /* Find size of string x, drop arrow width, box edges, and add fudge factor
+       to space text out. */
+//    cw = sz.cx+darrowx+GetSystemMetrics(sm_cxedge)*2+4;
+    *ow = *cw; /* open is the same */
+    /* drop arrow height+shadow overhead+drop box bounding */
+    *oh = darrowy+GetSystemMetrics(SM_CYEDGE)*2+2;
+    /* drop arrow height+shadow overhead */
+//    ch = darrowy+GetSystemMetrics(sm_cyedge)*2;
+    /* add all lines to drop box section */
+    while (sp) { /* traverse string list */
 
-   refer(win); /* don"t need the window data */
+        getsizlin(sp->str, &sz); /* find sizing for this line */
+        /* find open width on this string only */
+        *ow = sz.cx+darrowx+GetSystemMetrics(SM_CXEDGE)*2+4;
+        if (*ow > *cw) *cw = *ow; /* larger than closed width, set new max */
+        *oh = *oh+sz.cy; /* add to open height */
+        sp = sp->next; /* next string */
 
-   /* calculate first line */
-   getsiz(sp->str^); /* find sizing for line */
-   /* Find size of char* x, drop arrow width, box edges, && add fudge factor
-     to space text out. */
-   cw = sz.cx+darrowx+GetSystemMetrics(sm_cxedge)*2+4;
-   ow = cw; /* open is the same */
-   /* drop arrow height+shadow overhead+drop box bounding */
-   oh = darrowy+GetSystemMetrics(sm_cyedge)*2+2;
-   /* drop arrow height+shadow overhead */
-   ch = darrowy+GetSystemMetrics(sm_cyedge)*2;
-   /* add all lines to drop box section */
-   while sp != NULL do { /* traverse char* list */
+    }
+    *ow = *cw; /* set maximum open width */
 
-      getsiz(sp->str^); /* find sizing for this line */
-      /* find open width on this char* only */
-      ow = sz.cx+darrowx+GetSystemMetrics(sm_cxedge)*2+4;
-      if ow > cw  cw = ow; /* larger than closed width, set new max */
-      oh = oh+sz.cy; /* add to open height */
-      sp = sp->next; /* next char* */
+}
 
-   };
-   ow = cw /* set maximum open width */
-
-};
-
-void idropeditboxsiz(winptr win; sp: strptr; var cw, ch, ow, oh: int);
+void idropeditboxsiz(winptr win, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
 
 {
 
-   idropeditboxsizg(win, sp, cw, ch, ow, oh); /* get size */
-   /* change graphical size to character */
-   cw = (cw-1) / win->charspace+1;
-   ch = (ch-1) / win->linespace+1;
-   ow = (ow-1) / win->charspace+1;
-   oh = (oh-1) / win->linespace+1
+    idropeditboxsizg(win, sp, cw, ch, ow, oh); /* get size */
+    /* change graphical size to character */
+    *cw = (*cw-1) / win->charspace+1;
+    *ch = (*ch-1) / win->linespace+1;
+    *ow = (*ow-1) / win->charspace+1;
+    *oh = (*oh-1) / win->linespace+1;
 
-};
+}
 
-void dropeditboxsizg(FILE* f; sp: strptr; var cw, ch, ow, oh: int);
-
-var winptr win; /* window context */
+void dropeditboxsizg(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   idropeditboxsizg(win, sp, cw, ch, ow, oh); /* get size */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    idropeditboxsizg(win, sp, cw, ch, ow, oh); /* get size */
+    unlockmain(); /* end exclusive access */
 
-void dropeditboxsiz(FILE* f; sp: strptr; var cw, ch, ow, oh: int);
+}
 
-var winptr win; /* window context */
+void dropeditboxsiz(FILE* f, pa_strptr, sp, int* cw, int* ch, int* ow, int* oh)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   idropeditboxsiz(win, sp, cw, ch, ow, oh); /* get size */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    idropeditboxsiz(win, sp, cw, ch, ow, oh); /* get size */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
 Create dropdown edit box
 
-Creates a dropdown edit box. Fills it with the char* list provided.
+Creates a dropdown edit box. Fills it with the string list provided.
 
 We need to subclass a mode where a return selects the current contents of the
 box.
 
 *******************************************************************************/
 
-void idropeditboxg(winptr win; x1, y1, x2, y2: int; sp: strptr;
-                        id: int);
-
-var wp:  wigptr;  /* widget pointer */
-    sp1: strptr;  /* char* pointer */
-    r:   int; /* return value */
+void idropeditboxg(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp,
+                   int id)
 
 {
 
-   if ! win->visible  winvis(win); /* make sure we are displayed */
-   widget(win, x1, y1, x2, y2, "", id, wtdropeditbox, 0, wp);
-   sp1 = sp; /* index top of char* list */
-   while sp1 != NULL do { /* add char*s to list */
+    wigptr    wp;  /* widget pointer */
+    pa_strptr sp1; /* string pointer */
+    LRESULT   r;   /* return value */
 
-      unlockmain(); /* } exclusive access */
-      r = s}message(wp->han, cb_addchar*, sp1->str^); /* add char* */
-      lockmain(); /* start exclusive access */
-      if r == -1  error(estrspc); /* out of char* space */
-      sp1 = sp1->next /* next char* */
+    if (!win->visible) winvis(win); /* make sure we are displayed */
+    widget(win, x1, y1, x2, y2, "", id, wtdropeditbox, 0, wp);
+    sp1 = sp; /* index top of string list */
+    while (sp1) { /* add strings to list */
 
-   }
+        unlockmain(); /* } exclusive access */
+        r = SendMessage(wp->han, cb_addstring, sp1->str); /* add string */
+        lockmain(); /* start exclusive access */
+        if (r == -1) error(estrspc); /* out of string space */
+        sp1 = sp1->next; /* next string */
 
-};
+    }
 
-void idropeditbox(winptr win; x1, y1, x2, y2: int; sp: strptr;
-                       id: int);
+}
 
-{
-
-   /* form graphical from character coordinates */
-   x1 = (x1-1)*win->charspace+1;
-   y1 = (y1-1)*win->linespace+1;
-   x2 = (x2)*win->charspace;
-   y2 = (y2)*win->linespace;
-   idropeditboxg(win, x1, y1, x2, y2, sp, id) /* create button graphical */
-
-};
-
-void dropeditboxg(FILE* f; x1, y1, x2, y2: int; sp: strptr;
-                       id: int);
-
-var winptr win; /* window context */
+void idropeditbox(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp, id);
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   idropeditboxg(win, x1, y1, x2, y2, sp, id); /* execute */
-   unlockmain(); /* end exclusive access */
+    /* form graphical from character coordinates */
+    x1 = (x1-1)*win->charspace+1;
+    y1 = (y1-1)*win->linespace+1;
+    x2 = (x2)*win->charspace;
+    y2 = (y2)*win->linespace;
+    idropeditboxg(win, x1, y1, x2, y2, sp, id); /* create button graphical */
 
-};
+}
 
-void dropeditbox(FILE* f; x1, y1, x2, y2: int; sp: strptr;
-                       id: int);
-
-var winptr win; /* window context */
+void dropeditboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   idropeditbox(win, x1, y1, x2, y2, sp, id); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    idropeditboxg(win, x1, y1, x2, y2, sp, id); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
+
+void dropeditbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
+
+{
+
+    winptr win; /* window context */
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    idropeditbox(win, x1, y1, x2, y2, sp, id); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
 Find minimum/standard horizontal slider size
 
 Finds the minimum size for a horizontal slider. The minimum size of a horizontal
-slider is calculated && returned.
+slider is calculated and returned.
 
 *******************************************************************************/
 
-void islidehorizsizg(winptr win; var w, h: int);
+void islidehorizsizg(winptr win, int* w, int* h)
 
 {
 
-   refer(win); /* don"t need the window data */
+    /* The width is that of an average slider. The height is what is needed to
+       present the slider, tick marks, and 2 pixels of spacing around it. */
+    *w = 200;
+    *h = 32;
 
-   /* The width is that of an average slider. The height is what is needed to
-     present the slider, tick marks, && 2 pixels of spacing around it. */
-   w = 200;
-   h = 32
+}
 
-};
-
-void islidehorizsiz(winptr win; var w, h: int);
+void islidehorizsiz(winptr win, int* w, int* h)
 
 {
 
-   islidehorizsizg(win, w, h); /* get size */
-   /* change graphical size to character */
-   w = (w-1) / win->charspace+1;
-   h = (h-1) / win->linespace+1
+    islidehorizsizg(win, w, h); /* get size */
+    /* change graphical size to character */
+    *w = (*w-1)/win->charspace+1;
+    *h = (*h-1)/win->linespace+1;
 
-};
+}
 
-void slidehorizsizg(FILE* f; var w, h: int);
-
-var winptr win; /* window context */
+void slidehorizsizg(FILE* f, int* w, int* h)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   islidehorizsizg(win, w, h); /* get size */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    islidehorizsizg(win, w, h); /* get size */
+    unlockmain(); /* end exclusive access */
 
-void slidehorizsiz(FILE* f; var w, h: int);
+}
 
-var winptr win; /* window context */
+void slidehorizsiz(FILE* f, int* w, int* h)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   islidehorizsiz(win, w, h); /* get size */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    islidehorizsiz(win, w, h); /* get size */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -13392,71 +13342,67 @@ Create horizontal slider
 
 Creates a horizontal slider.
 
-Bugs: The tick marks should be in pixel terms, ! logical terms.
+Bugs: The tick marks should be in pixel terms, not logical terms.
 
 *******************************************************************************/
 
-void islidehorizg(winptr win; x1, y1, x2, y2: int; mark: int;
-                       id: int);
-
-var wp: wigptr;  /* widget pointer */
-    r:  int; /* return value */
+void islidehorizg(winptr win, int x1, int y1, int x2, int y2, int mark, int id)
 
 {
 
-   if ! win->visible  winvis(win); /* make sure we are displayed */
-   if mark == 0   /* tick marks enabled */
-      widget(win, x1, y1, x2, y2, "", id, wtslidehoriz, tbs_noticks, wp)
-   else /* tick marks enabled */
-      widget(win, x1, y1, x2, y2, "", id, wtslidehoriz, 0, wp);
-   /* set tickmark frequency */
-   unlockmain(); /* } exclusive access */
-   r = s}message(wp->han, tbm_setticfreq, mark, 0);
-   lockmain();/* start exclusive access */
+    wigptr  wp; /* widget pointer */
+    LRESULT r;  /* return value */
 
-};
+    if (!win->visible) winvis(win); /* make sure we are displayed */
+    if (!mark) /* tick marks enabled */
+        widget(win, x1, y1, x2, y2, "", id, wtslidehoriz, TBS_NOTICKS, wp);
+    else /* tick marks enabled */
+        widget(win, x1, y1, x2, y2, "", id, wtslidehoriz, 0, wp);
+    /* set tickmark frequency */
+    unlockmain(); /* end exclusive access */
+    r = SendMessage(wp->han, TBM_SETTICFREQ, mark, 0);
+    lockmain();/* start exclusive access */
 
-void islidehoriz(winptr win; x1, y1, x2, y2: int; mark: int;
-                      id: int);
+}
 
-{
-
-   /* form graphical from character coordinates */
-   x1 = (x1-1)*win->charspace+1;
-   y1 = (y1-1)*win->linespace+1;
-   x2 = (x2)*win->charspace;
-   y2 = (y2)*win->linespace;
-   islidehorizg(win, x1, y1, x2, y2, mark, id) /* create button graphical */
-
-};
-
-void slidehorizg(FILE* f; x1, y1, x2, y2: int; mark: int;
-                      id: int);
-
-var winptr win; /* window context */
+void islidehoriz(winptr win, int x1, int y1, int x2, int y2, int mark, int id)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   islidehorizg(win, x1, y1, x2, y2, mark, id); /* execute */
-   unlockmain(); /* end exclusive access */
+    /* form graphical from character coordinates */
+    x1 = (x1-1)*win->charspace+1;
+    y1 = (y1-1)*win->linespace+1;
+    x2 = (x2)*win->charspace;
+    y2 = (y2)*win->linespace;
+    islidehorizg(win, x1, y1, x2, y2, mark, id); /* create button graphical */
 
-};
+}
 
-void slidehoriz(FILE* f; x1, y1, x2, y2: int; mark: int;
-                      id: int);
-
-var winptr win; /* window context */
+void slidehorizg(FILE* f, int x1, int y1, int x2, int y2, int mark, id)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   islidehoriz(win, x1, y1, x2, y2, mark, id); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    islidehorizg(win, x1, y1, x2, y2, mark, id); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
+
+void slidehoriz(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+
+{
+
+    winptr win; /* window context */
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    islidehoriz(win, x1, y1, x2, y2, mark, id); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -13467,55 +13413,53 @@ slider is calculated && returned.
 
 *******************************************************************************/
 
-void islidevertsizg(winptr win; var w, h: int);
+void islidevertsizg(winptr win, int* w, int* h)
 
 {
 
-   refer(win); /* don"t need the window data */
+    /* The height is that of an average slider. The width is what is needed to
+       present the slider, tick marks, && 2 pixels of spacing around it. */
+    *w = 32;
+    *h = 200;
 
-   /* The height is that of an average slider. The width is what is needed to
-     present the slider, tick marks, && 2 pixels of spacing around it. */
-   w = 32;
-   h = 200
+}
 
-};
-
-void islidevertsiz(winptr win; var w, h: int);
+void islidevertsiz(winptr win, int* w, int* h)
 
 {
 
-   islidevertsizg(win, w, h); /* get size */
-   /* change graphical size to character */
-   w = (w-1) / win->charspace+1;
-   h = (h-1) / win->linespace+1
+    islidevertsizg(win, w, h); /* get size */
+    /* change graphical size to character */
+    *w = (*w-1)/win->charspace+1;
+    *h = (*h-1)/win->linespace+1;
 
-};
+}
 
-void slidevertsizg(FILE* f; var w, h: int);
-
-var winptr win; /* window context */
+void slidevertsizg(FILE* f, int* w, int* h)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   islidevertsizg(win, w, h); /* get size */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    islidevertsizg(win, w, h); /* get size */
+    unlockmain(); /* end exclusive access */
 
-void slidevertsiz(FILE* f; var w, h: int);
+}
 
-var winptr win; /* window context */
+void slidevertsiz(FILE* f, int* w, int* h)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   islidevertsiz(win, w, h); /* get size */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    islidevertsiz(win, w, h); /* get size */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -13523,32 +13467,30 @@ Create vertical slider
 
 Creates a vertical slider.
 
-Bugs: The tick marks should be in pixel terms, ! logical terms.
+Bugs: The tick marks should be in pixel terms, not logical terms.
 
 *******************************************************************************/
 
-void islidevertg(winptr win; x1, y1, x2, y2: int; mark: int;
-                      id: int);
-
-var wp:  wigptr;  /* widget pointer */
-    r:   int; /* return value */
+void islidevertg(winptr win, int x1, int y1, int x2, int y2, int mark, int id)
 
 {
 
-   if ! win->visible  winvis(win); /* make sure we are displayed */
-   if mark == 0  /* tick marks off */
-      widget(win, x1, y1, x2, y2, "", id, wtslidevert, tbs_noticks, wp)
-   else /* tick marks enabled */
-      widget(win, x1, y1, x2, y2, "", id, wtslidevert, 0, wp);
-   /* set tickmark frequency */
-   unlockmain(); /* } exclusive access */
-   r = s}message(wp->han, tbm_setticfreq, mark, 0);
-   lockmain();/* start exclusive access */
+    wigptr  wp; /* widget pointer */
+    LRESULT r;  /* return value */
 
-};
+    if ! win->visible  winvis(win); /* make sure we are displayed */
+    if mark == 0  /* tick marks off */
+        widget(win, x1, y1, x2, y2, "", id, wtslidevert, tbs_noticks, wp)
+    else /* tick marks enabled */
+        widget(win, x1, y1, x2, y2, "", id, wtslidevert, 0, wp);
+    /* set tickmark frequency */
+    unlockmain(); /* } exclusive access */
+    r = SendMessage(wp->han, tbm_setticfreq, mark, 0);
+    lockmain(); /* start exclusive access */
 
-void islidevert(winptr win; x1, y1, x2, y2: int; mark: int;
-                      id: int);
+}
+
+void islidevert(winptr win, int x1, int y1, int x2, int y2, int mark, int id)
 
 {
 
@@ -13559,296 +13501,286 @@ void islidevert(winptr win; x1, y1, x2, y2: int; mark: int;
    y2 = (y2)*win->linespace;
    islidevertg(win, x1, y1, x2, y2, mark, id) /* create button graphical */
 
-};
+}
 
-void slidevertg(FILE* f; x1, y1, x2, y2: int; mark: int;
-                     id: int);
-
-var winptr win; /* window context */
+void slidevertg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   islidevertg(win, x1, y1, x2, y2, mark, id);
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    islidevertg(win, x1, y1, x2, y2, mark, id);
+    unlockmain(); /* end exclusive access */
 
-void slidevert(FILE* f; x1, y1, x2, y2: int; mark: int;
-                     id: int);
+}
 
-var winptr win; /* window context */
+void slidevert(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   islidevert(win, x1, y1, x2, y2, mark, id);
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    islidevert(win, x1, y1, x2, y2, mark, id);
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
-Create && distroy useless widget
+Create and distroy useless widget
 
 This appears to be a windows bug. When tab bars are created, they allow
 themselves to be overritten by the parent. This only occurs on tab bars.
 The workaround is to create a distroy a widget right after creating the
 tab bar, since only the last widget created has this problem.
 
-Bug: this is ! getting deleted. I fixed it temporarily by making it
+Bug: this is not getting deleted. I fixed it temporarily by making it
 invisible.
 
 *******************************************************************************/
 
-void uselesswidget(winptr win);
-
-var ip: imptr; /* intratask message pointer */
+void uselesswidget(winptr win)
 
 {
 
-   with win^ do {
+    ip: imptr; /* intratask message pointer */
 
-      getitm(ip); /* get a im pointer */
-      ip->im = imwidget; /* set type is widget */
-      strcpy(ip->wigcls, "static");
-      strcpy(ip->wigtxt, "");
-      ip->wigflg = ws_child /*or ws_visible*/;
-      ip->wigx = 50;
-      ip->wigy = 50;
-      ip->wigw = 50;
-      ip->wigh = 50;
-      ip->wigpar = winhan;
-      ip->wigid = 0;
-      ip->wigmod = getmodulehandle_n;
-      /* order widget to start */
-      b = postmessage(dispwin, UMIM, (WPARAM)ip, 0);
-      if (!b) winerr(); /* process windows error */
-      /* Wait for widget start, this also keeps our window going. */
-      waitim(imwidget, ip); /* wait for the return */
-      kilwin(ip->wigwin); /* kill widget */
-      free(ip->wigcls); /* release class char* */
-      free(ip->wigtxt); /* release face text char* */
-      putitm(ip) /* release im */
+    getitm(ip); /* get a im pointer */
+    ip->im = imwidget; /* set type is widget */
+    strcpy(ip->wigcls, "static");
+    strcpy(ip->wigtxt, "");
+    ip->wigflg = WS_CHILD /*or ws_visible*/;
+    ip->wigx = 50;
+    ip->wigy = 50;
+    ip->wigw = 50;
+    ip->wigh = 50;
+    ip->wigpar = win->winhan;
+    ip->wigid = 0;
+    ip->wigmod = GetModuleHandle(NULL);
+    /* order widget to start */
+    b = PostMessage(dispwin, UMIM, (WPARAM)ip, 0);
+    if (!b) winerr(); /* process windows error */
+    /* Wait for widget start, this also keeps our window going. */
+    waitim(imwidget, ip); /* wait for the return */
+    kilwin(ip->wigwin); /* kill widget */
+    free(ip->wigcls); /* release class string */
+    free(ip->wigtxt); /* release face text string */
+    putitm(ip); /* release im */
 
-   }
-
-};
+}
 
 /*******************************************************************************
 
 Find minimum/standard tab bar size
 
 Finds the minimum size for a tab bar. The minimum size of a tab bar is
-calculated && returned.
+calculated and returned.
 
 *******************************************************************************/
 
-void itabbarsizg(winptr win; tor: tabori; cw, ch: int;
-                      var w, h, ox, oy: int);
+void itabbarsizg(winptr win, tabori tor, int cw, int ch, int* w, int* h,
+                 int* ox, int* oy)
 
 {
 
-   refer(win); /* don"t need the window data */
+    if (tor == toright || tor == toleft)  { /* vertical bar */
 
-   if (tor == toright) || (tor == toleft)  { /* vertical bar */
+        *w = 32; /* set minimum width */
+        *h = 2+20*2; /* set minimum height */
+        *w = *w+cw; /* add client space to width */
+        if (ch+4 > *h) *h = ch+4; /* set to client if greater */
+        if (tor == toleft) {
 
-      w = 32; /* set minimum width */
-      h = 2+20*2; /* set minimum height */
-      w = w+cw; /* add client space to width */
-      if ch+4 > h  h = ch+4; /* set to client if greater */
-      if tor == toleft  {
+            *ox = 28; /* set offsets */
+            *oy = 4;
 
-         ox = 28; /* set offsets */
-         oy = 4
+        } else {
 
-      } else {
+            *ox = 4; /* set offsets */
+            *oy = 4;
 
-         ox = 4; /* set offsets */
-         oy = 4
+        }
 
-      }
+    } else { /* horizontal bar */
 
-   } else { /* horizontal bar */
+        *w = 2+20*2; /* set minimum width, edges, arrows */
+        *h = 32; /* set minimum height */
+        if (cw+4 > *w) *w = cw+4; /* set to client if greater */
+        *h = *h+ch; /* add client space to height */
+        if (tor == totop)  {
 
-      w = 2+20*2; /* set minimum width, edges, arrows */
-      h = 32; /* set minimum height */
-      if cw+4 > w  w = cw+4; /* set to client if greater */
-      h = h+ch; /* add client space to height */
-      if tor == totop  {
+            *ox = 4; /* set offsets */
+            *oy = 28;
 
-         ox = 4; /* set offsets */
-         oy = 28
+        } else {
 
-      } else {
+            *ox = 4; /* set offsets */
+            *oy = 4;
 
-         ox = 4; /* set offsets */
-         oy = 4
+        }
 
-      }
+    }
 
-   }
+}
 
-};
-
-void itabbarsiz(winptr win; tor: tabori; cw, ch: int;
-                     var w, h, ox, oy: int);
-
-var gw, gh, gox, goy: int;
+void itabbarsiz(winptr win, tabori tor, int cw, int ch, int* w, int* h,
+                int* ox, int* oy)
 
 {
 
-   /* convert client sizes to graphical */
-   cw = cw*win->charspace;
-   ch = ch*win->linespace;
-   itabbarsizg(win, tor, cw, ch, gw, gh, gox, goy); /* get size */
-   /* change graphical size to character */
-   w = (gw-1) / win->charspace+1;
-   h = (gh-1) / win->linespace+1;
-   ox = (gox-1) / win->charspace+1;
-   oy = (goy-1) / win->linespace+1;
-   /* must make sure that client dosen"t intrude on edges */
-   if gw-gox-4 % win->charspace != 0  w = w+1;
-   if gh-goy-4 % win->charspace != 0  h = h+1
+    int gw, gh, gox, goy;
 
-};
+    /* convert client sizes to graphical */
+    cw = cw*win->charspace;
+    ch = ch*win->linespace;
+    itabbarsizg(win, tor, cw, ch, gw, gh, gox, goy); /* get size */
+    /* change graphical size to character */
+    *w = (gw-1) / win->charspace+1;
+    *h = (gh-1) / win->linespace+1;
+    *ox = (gox-1) / win->charspace+1;
+    *oy = (goy-1) / win->linespace+1;
+    /* must make sure that client dosen"t intrude on edges */
+    if (gw-gox-4%win->charspace) *w = *w+1;
+    if (gh-goy-4%win->charspace) *h = *h+1;
 
-void tabbarsizg(FILE* f; tor: tabori; cw, ch: int;
-                     var w, h, ox, oy: int);
+}
 
-var winptr win; /* window context */
-
-{
-
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   itabbarsizg(win, tor, cw, ch, w, h, ox, oy); /* get size */
-   unlockmain(); /* end exclusive access */
-
-};
-
-void tabbarsiz(FILE* f; tor: tabori; cw, ch: int;
-                    var w, h, ox, oy: int);
-
-var winptr win; /* window context */
+void tabbarsizg(FILE* f, tabori tabori, int cw, int ch, int* w, int* h,
+                int* ox, int* oy)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   itabbarsiz(win, tor, cw, ch, w, h, ox, oy); /* get size */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    itabbarsizg(win, tor, cw, ch, w, h, ox, oy); /* get size */
+    unlockmain(); /* end exclusive access */
+
+}
+
+void tabbarsiz(FILE* f, tabori tor, int cw, int ch, int* w, int* h,
+               int* ox, int* oy)
+
+{
+
+    winptr win; /* window context */
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    itabbarsiz(win, tor, cw, ch, w, h, ox, oy); /* get size */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
 Find client from tabbar size
 
-Given a tabbar size && orientation, this routine gives the client size &&
+Given a tabbar size and orientation, this routine gives the client size and
 offset. This is used where the tabbar size is fixed, but the client area is
 flexible.
 
 *******************************************************************************/
 
-void itabbarclientg(winptr win; tor: tabori; w, h: int;
-                         var cw, ch, ox, oy: int);
+void itabbarclientg(winptr win, tabori tor, int w, int h, int* cw, int* ch,
+                    int* ox, int* oy)
 
 {
 
-   refer(win); /* don"t need the window data */
+    if (tor == toright || tor == toleft)  { /* vertical bar */
 
-   if (tor == toright) || (tor == toleft)  { /* vertical bar */
+        /* Find client height and width from total height and width minus
+         tabbar overhead. */
+        *cw = w-32;
+        *ch = h-8;
+        if (tor == toleft) {
 
-      /* Find client height && width from total height && width minus
-        tabbar overhead. */
-      cw = w-32;
-      ch = h-8;
-      if tor == toleft  {
+            *ox = 28; /* set offsets */
+            *oy = 4;
 
-         ox = 28; /* set offsets */
-         oy = 4
+        } else {
 
-      } else {
+            *ox = 4; /* set offsets */
+            *oy = 4;
 
-         ox = 4; /* set offsets */
-         oy = 4
+        }
 
-      }
+    } else { /* horizontal bar */
 
-   } else { /* horizontal bar */
+        /* Find client height and width from total height and width minus
+           tabbar overhead. */
+        *cw = w-8;
+        *ch = h-32;
+        if (tor == totop) {
 
-      /* Find client height && width from total height && width minus
-        tabbar overhead. */
-      cw = w-8;
-      ch = h-32;
-      if tor == totop  {
+            *ox = 4; /* set offsets */
+            *oy = 28;
 
-         ox = 4; /* set offsets */
-         oy = 28
+        } else {
 
-      } else {
+            *ox = 4; /* set offsets */
+            *oy = 4;
 
-         ox = 4; /* set offsets */
-         oy = 4
+        }
 
-      }
+    }
 
-   }
+}
 
-};
-
-void itabbarclient(winptr win; tor: tabori; w, h: int;
-                        var cw, ch, ox, oy: int);
-
-var gw, gh, gox, goy: int;
+void itabbarclient(winptr win, taboir tor, int w, int h, int* cw, int* ch,
+                   int* ox, int* oy)
 
 {
 
-   /* convert sizes to graphical */
-   w = w*win->charspace;
-   h = h*win->linespace;
-   itabbarsizg(win, tor, w, h, gw, gh, gox, goy); /* get size */
-   /* change graphical size to character */
-   cw = (gw-1) / win->charspace+1;
-   ch = (gh-1) / win->linespace+1;
-   ox = (gox-1) / win->charspace+1;
-   oy = (goy-1) / win->linespace+1;
-   /* must make sure that client dosen"t intrude on edges */
-   if gw-gox-4 % win->charspace != 0  w = w+1;
-   if gh-goy-4 % win->charspace != 0  h = h+1
+    int gw, gh, gox, goy;
 
-};
+    /* convert sizes to graphical */
+    w = w*win->charspace;
+    h = h*win->linespace;
+    itabbarsizg(win, tor, w, h, gw, gh, gox, goy); /* get size */
+    /* change graphical size to character */
+    *cw = (gw-1)/win->charspace+1;
+    *ch = (gh-1)/win->linespace+1;
+    *ox = (gox-1)/win->charspace+1;
+    *oy = (goy-1)/win->linespace+1;
+    /* must make sure that client dosen"t intrude on edges */
+    if (gw-gox-4%win->charspace) w = w+1;
+    if (gh-goy-4%win->charspace) h = h+1;
 
-void tabbarclientg(FILE* f; tor: tabori; w, h: int;
-                     var cw, ch, ox, oy: int);
+}
 
-var winptr win; /* window context */
-
-{
-
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   itabbarclientg(win, tor, w, h, cw, ch, ox, oy); /* get size */
-   unlockmain(); /* end exclusive access */
-
-};
-
-void tabbarclient(FILE* f; tor: tabori; w, h: int;
-                    var cw, ch, ox, oy: int);
-
-var winptr win; /* window context */
+void tabbarclientg(FILE* f, tabori tor, int w, int h, int*  cw, int* ch,
+                   int* ox, int* oy)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   itabbarclient(win, tor, w, h, cw, ch, ox, oy); /* get size */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    itabbarclientg(win, tor, w, h, cw, ch, ox, oy); /* get size */
+    unlockmain(); /* end exclusive access */
+
+}
+
+void tabbarclient(FILE* f, tabori tor, int w, int h, int* cw, int* ch,
+                  int* ox, int* oy)
+
+{
+
+    winptr win; /* window context */
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    itabbarclient(win, tor, w, h, cw, ch, ox, oy); /* get size */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -13858,98 +13790,92 @@ Creates a tab bar with the given orientation.
 
 Bug: has strange overwrite mode where when the widget is first created, it
 allows itself to be overwritten by the main window. This is worked around by
-creating && distroying another widget.
+creating and distroying another widget.
 
 *******************************************************************************/
 
-void itabbarg(winptr win; x1, y1, x2, y2: int; sp: strptr;
-                   tor: tabori; id: int);
-
-var wp:  wigptr;    /* widget pointer */
-    inx: int;   /* index for tabs */
-    tcr: tcitem; /* tab attributes record */
-    bs:  char*;   /* char* buffer */
-    i:   int;   /* idnex for char* */
-    m:   int;   /* maximum length of char* */
-    fl:  int;   /* flags */
+void itabbarg(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp,
+              tabori tor, int id)
 
 {
 
-   if ! win->visible  winvis(win); /* make sure we are displayed */
-   fl = 0; /* clear parameter flags */
-   if (tor == toright) || (tor == toleft)  fl = fl+tcs_vertical;
-   if tor == toright  fl = fl+tcs_right;
-   if tor == tobottom  fl = fl+tcs_bottom;
-   widget(win, x1, y1, x2, y2, "", id, wttabbar, fl, wp);
-   inx = 0; /* set index */
-   while sp != NULL do { /* add char*s to list */
+    wigptr wp;  /* widget pointer */
+    int    inx; /* index for tabs */
+    TCITEM tcr; /* tab attributes record */
+    int    i;   /* idnex for string */
+    int    m;   /* maximum length of string */
+    int    fl;  /* flags */
 
-      /* create a char* buffer with space for terminating zero */
-      m = max(sp->str^); /* get length */
-      new(bs, m+1); /* create buffer char* */
-      for i = 1 to m do bs^[i] = chr(chr2ascii(sp->str^[i])); /* copy */
-      bs^[m+1] = chr(0); /* place terminator */
-      tcr.mask = tcif_text; /* set record contains text label */
-      tcr.dwstate = 0; /* clear state */
-      tcr.dwstatemask = 0; /* clear state mask */
-      tcr.psztext = bs; /* place char* */
-      tcr.iimage = -1; /* no image */
-      tcr.lparam = 0; /* no parameter */
-      unlockmain(); /* } exclusive access */
-      r = s}message(wp->han, tcm_insertitem, inx, tcr); /* add char* */
-      lockmain(); /* start exclusive access */
-      if r == -1  error(etabbar); /* can"t create tab */
-      free(bs); /* release char* buffer */
-      sp = sp->next; /* next char* */
-      inx = inx+1 /* next index */
+    if (!win->visible) winvis(win); /* make sure we are displayed */
+    fl = 0; /* clear parameter flags */
+    if (tor == toright || tor == toleft) fl |= TCS_VERTICAL;
+    if (tor == toright) fl |= TCS_RIGHT;
+    if (tor == tobottom) fl |= TCS_BOTTOM;
+    widget(win, x1, y1, x2, y2, "", id, wttabbar, fl, wp);
+    inx = 0; /* set index */
+    while (sp) { /* add strings to list */
 
-   };
+        /* create a string buffer with space for terminating zero */
+        tcr.mask = tcif_text; /* set record contains text label */
+        tcr.dwState = 0; /* clear state */
+        tcr.dwStateMask = 0; /* clear state mask */
+        tcr.pszText = sp->str; /* place string */
+        tcr.iImage = -1; /* no image */
+        tcr.lParam = 0; /* no parameter */
+        unlockmain(); /* } exclusive access */
+        r = SendMessage(wp->han, TCM_INSERTITEM, inx, tcr); /* add string */
+        lockmain(); /* start exclusive access */
+        if r == -1  error(etabbar); /* can"t create tab */
+        sp = sp->next; /* next string */
+        inx++; /* next index */
 
-   uselesswidget(win) /* stop overwrite bug */
+    }
 
-};
+    uselesswidget(win); /* stop overwrite bug */
 
-void itabbar(winptr win; x1, y1, x2, y2: int; sp: strptr;
-                  tor: tabori; id: int);
+}
 
-{
-
-   /* form graphical from character coordinates */
-   x1 = (x1-1)*win->charspace+1;
-   y1 = (y1-1)*win->linespace+1;
-   x2 = (x2)*win->charspace;
-   y2 = (y2)*win->linespace;
-   itabbarg(win, x1, y1, x2, y2, sp, tor, id) /* create button graphical */
-
-};
-
-void tabbarg(FILE* f; x1, y1, x2, y2: int; sp: strptr; tor: tabori;
-                  id: int);
-
-var winptr win; /* window context */
+void itabbar(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp,
+             tabori tor, int id)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   itabbarg(win, x1, y1, x2, y2, sp, tor, id); /* execute */
-   unlockmain(); /* end exclusive access */
+    /* form graphical from character coordinates */
+    x1 = (x1-1)*win->charspace+1;
+    y1 = (y1-1)*win->linespace+1;
+    x2 = (x2)*win->charspace;
+    y2 = (y2)*win->linespace;
+    itabbarg(win, x1, y1, x2, y2, sp, tor, id) /* create button graphical */
 
-};
+}
 
-void tabbar(FILE* f; x1, y1, x2, y2: int; sp: strptr; tor: tabori;
-                  id: int);
-
-var winptr win; /* window context */
+void tabbarg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, tabori tor,
+             int id)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   itabbar(win, x1, y1, x2, y2, sp, tor, id); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    itabbarg(win, x1, y1, x2, y2, sp, tor, id); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
+
+void tabbar(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, tabori tor,
+            int id)
+
+{
+
+    winptr win; /* window context */
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    itabbar(win, x1, y1, x2, y2, sp, tor, id); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -13960,40 +13886,36 @@ of the tab.
 
 *******************************************************************************/
 
-void itabsel(winptr win; id: int; tn: int);
-
-var wp:  wigptr; /* widget pointer */
-    r:  int;
+void itabsel(winptr win, int id, int tn)
 
 {
 
-   if ! win->visible  winvis(win); /* make sure we are displayed */
-   if tn < 1  error(etabsel); /* bad tab select */
-   with win^ do {
+    wigptr  wp; /* widget pointer */
+    LRESULT r;
 
-      wp = fndwig(win, id); /* find widget */
-      if wp == NULL  error(ewignf); /* ! found */
-      /* set the range */
-      unlockmain(); /* } exclusive access */
-      r = s}message(wp->han, tcm_setcursel, tn-1, 0);
-      lockmain();/* start exclusive access */
+    if (!win->visible) winvis(win); /* make sure we are displayed */
+    if (tn < 1) error(etabsel); /* bad tab select */
+    wp = fndwig(win, id); /* find widget */
+    if (!wp) error(ewignf); /* not found */
+    /* set the range */
+    unlockmain(); /* end exclusive access */
+    r = SendMessage(wp->han, TCM_SETCURSEL, tn-1, 0);
+    lockmain(); /* start exclusive access */
 
-   };
+}
 
-};
-
-void tabsel(FILE* f; id: int; tn: int);
-
-var winptr win; /* window context */
+void tabsel(FILE* f, int id, int tn)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   itabsel(win, id, tn); /* execute */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
 
-};
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    itabsel(win, id, tn); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -14003,35 +13925,24 @@ Outputs a message dialog with the given title and message strings.
 
 *******************************************************************************/
 
-void alert(view title, message: char*);
-
-var ip: imptr;   /* intratask message pointer */
-    b:  int; /* result */
-
-void strcpy(var d: char*; view s: char*);
+void alert(char* title, char* message)
 
 {
 
-   new(d, strlen(s));
-   d^ = s
+    imptr ip; /* intratask message pointer */
+    BOOL  b;  /* result */
 
-};
+    lockmain(); /* start exclusive access */
+    getitm(ip); /* get a im pointer */
+    ip->im = imalert; /* set is alert */
+    ip->alttit = title; /* copy strings */
+    ip->altmsg = message;
+    b = PostMessage(dialogwin, UMIM, (WPARAM)ip, 0);
+    if (!b) winerr(); /* process windows error */
+    waitim(imalert, ip); /* wait for the return */
+    unlockmain(); /* end exclusive access */
 
-{
-
-   lockmain(); /* start exclusive access */
-   getitm(ip); /* get a im pointer */
-   ip->im = imalert; /* set is alert */
-   strcpy(ip->alttit, title); /* copy char*s */
-   strcpy(ip->altmsg, message);
-   b = postmessage(dialogwin, UMIM, (WPARAM)ip, 0);
-   if (!b) winerr(); /* process windows error */
-   waitim(imalert, ip); /* wait for the return */
-   free(ip->alttit); /* free char*s */
-   free(ip->altmsg);
-   unlockmain(); /* end exclusive access */
-
-};
+}
 
 /*******************************************************************************
 
@@ -14043,79 +13954,79 @@ Bug: does ! take the input color as the default.
 
 *******************************************************************************/
 
-void querycolor(var r, g, b: int);
-
-var ip: imptr;   /* intratask message pointer */
-    br: int; /* result */
+void querycolor(int* r, int* g, int* b)
 
 {
 
-   lockmain(); /* start exclusive access */
-   getitm(ip); /* get a im pointer */
-   ip->im = imqcolor; /* set is color query */
-   ip->clrred = r; /* set colors */
-   ip->clrgreen = g;
-   ip->clrblue = b;
-   br = postmessage(dialogwin, UMIM, (WPARAM)ip, 0);
-   if ! br  winerr(); /* process windows error */
-   waitim(imqcolor, ip); /* wait for the return */
-   r = ip->clrred; /* set new colors */
-   g = ip->clrgreen;
-   b = ip->clrblue;
-   putitm(ip); /* release im */
-   unlockmain(); /* end exclusive access */
+    imptr ip; /* intratask message pointer */
+    BOOL  br; /* result */
 
-};
+    lockmain(); /* start exclusive access */
+    getitm(ip); /* get a im pointer */
+    ip->im = imqcolor; /* set is color query */
+    ip->clrred = *r; /* set colors */
+    ip->clrgreen = *g;
+    ip->clrblue = *b;
+    br = PostMessage(dialogwin, UMIM, (WPARAM)ip, 0);
+    if ! br  winerr(); /* process windows error */
+    waitim(imqcolor, ip); /* wait for the return */
+    *r = ip->clrred; /* set new colors */
+    *g = ip->clrgreen;
+    *b = ip->clrblue;
+    putitm(ip); /* release im */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
 Display choose file dialog for open
 
-Presents the choose file dialog,  returns the file char* as a dynamic
-char*. The default char* passed in is presented in the dialog, && a new
-char* replaces it. The caller is responsible for disposing of the input
-char* && the output char*.
+Presents the choose file dialog,  returns the file string as a dynamic
+string. The default string passed in is presented in the dialog, and a new
+string replaces it. The caller is responsible for disposing of the input
+string and the output string.
 
 If a wildcard is passed as the default, this will be used to filter the files
 in the current directory into a list.
 
-If the operation is cancelled,  a null char* will be returned.
+If the operation is cancelled, a null string will be returned.
 
 *******************************************************************************/
 
-void queryopen(var s: char*);
-
-var ip: imptr;   /* intratask message pointer */
-    br: int; /* result */
+void queryopen(char* s)
 
 {
 
-   lockmain(); /* start exclusive access */
-   getitm(ip); /* get a im pointer */
-   ip->im = imqopen; /* set is open file query */
-   ip->opnfil = s; /* set input char* */
-   br = postmessage(dialogwin, UMIM, (WPARAM)ip, 0);
-   if ! br  winerr(); /* process windows error */
-   waitim(imqopen, ip); /* wait for the return */
-   s = ip->opnfil; /* set output char* */
-   putitm(ip); /* release im */
-   unlockmain(); /* end exclusive access */
+    imptr ip; /* intratask message pointer */
+    BOOL  br; /* result */
 
-};
+    lockmain(); /* start exclusive access */
+    getitm(ip); /* get a im pointer */
+    ip->im = imqopen; /* set is open file query */
+    ip->opnfil = s; /* set input string */
+    br = PostMessage(dialogwin, UMIM, (WPARAM)ip, 0);
+    if (!br) winerr(); /* process windows error */
+    waitim(imqopen, ip); /* wait for the return */
+    s = ip->opnfil; /* set output string */
+    putitm(ip); /* release im */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
 Display choose file dialog for save
 
-Presents the choose file dialog,  returns the file char* as a dynamic
-char*. The default char* passed in is presented in the dialog, && a new
-char* replaces it. The caller is responsible for disposing of the input
-char* && the output char*.
+Presents the choose file dialog,  returns the file string as a dynamic
+string. The default string passed in is presented in the dialog, and a new
+string replaces it. The caller is responsible for disposing of the input
+string and the output string.
 
 If a wildcard is passed as the default, this will be used to filter the files
 in the current directory into a list.
 
-If the operation is cancelled,  a null char* will be returned.
+If the operation is cancelled,  a null string will be returned.
 
 *******************************************************************************/
 
@@ -14129,11 +14040,11 @@ var ip: imptr;   /* intratask message pointer */
    lockmain(); /* start exclusive access */
    getitm(ip); /* get a im pointer */
    ip->im = imqsave; /* set is open file query */
-   ip->opnfil = s; /* set input char* */
-   br = postmessage(dialogwin, UMIM, (WPARAM)ip, 0);
+   ip->opnfil = s; /* set input string */
+   br = PostMessage(dialogwin, UMIM, (WPARAM)ip, 0);
    if ! br  winerr(); /* process windows error */
    waitim(imqsave, ip); /* wait for the return */
-   s = ip->savfil; /* set output char* */
+   s = ip->savfil; /* set output string */
    putitm(ip); /* release im */
    unlockmain(); /* end exclusive access */
 
@@ -14143,16 +14054,16 @@ var ip: imptr;   /* intratask message pointer */
 
 Display choose find text dialog
 
-Presents the choose find text dialog,  returns the resulting char*.
+Presents the choose find text dialog,  returns the resulting string.
 A find/replace option set can be specified. The parameters are "flow through",
-meaning that you set them before the call, && they may || may ! be changed
+meaning that you set them before the call, and they may or may ! be changed
 from these defaults after the call. In addition, the parameters are used to
 set the dialog.
 
-The char* that is passed in is discarded without complaint. It is up to the
+The string that is passed in is discarded without complaint. It is up to the
 caller to dispose of it properly.
 
-Bug: should return null char* on cancel. Unlike other dialogs, windows
+Bug: should return null string on cancel. Unlike other dialogs, windows
 provides no indication of if the cancel button was pushed. To do this, we
 would need to hook (or subclass) the find dialog.
 
@@ -14172,16 +14083,16 @@ var ip: imptr;   /* intratask message pointer */
 {
 
    lockmain(); /* start exclusive access */
-   /* check char* to large for dialog, accounting for trailing zero */
+   /* check string to large for dialog, accounting for trailing zero */
    if max(s^) > findreplace_str_len-1  error(efndstl);
    getitm(ip); /* get a im pointer */
    ip->im = imqfind; /* set is find query */
-   ip->fndstr = s; /* set input char* */
+   ip->fndstr = s; /* set input string */
    ip->fndopt = opt; /* set options */
-   br = postmessage(dialogwin, UMIM, (WPARAM)ip, 0);
+   br = PostMessage(dialogwin, UMIM, (WPARAM)ip, 0);
    if ! br  winerr(); /* process windows error */
    waitim(imqfind, ip); /* wait for the return */
-   s = ip->fndstr; /* set output char* */
+   s = ip->fndstr; /* set output string */
    opt = ip->fndopt; /* set output options */
    putitm(ip); /* release im */
    unlockmain(); /* end exclusive access */
@@ -14192,13 +14103,13 @@ var ip: imptr;   /* intratask message pointer */
 
 Display choose replace text dialog
 
-Presents the choose replace text dialog,  returns the resulting char*.
+Presents the choose replace text dialog,  returns the resulting string.
 A find/replace option set can be specified. The parameters are "flow through",
-meaning that you set them before the call, && they may || may ! be changed
+meaning that you set them before the call, and they may or may ! be changed
 from these defaults after the call. In addition, the parameters are used to
 set the dialog.
 
-The char* that is passed in is discarded without complaint. It is up to the
+The string that is passed in is discarded without complaint. It is up to the
 caller to dispose of it properly.
 
 Bug: See comment, queryfind.
@@ -14213,18 +14124,18 @@ var ip: imptr;   /* intratask message pointer */
 {
 
    lockmain(); /* start exclusive access */
-   /* check char* to large for dialog, accounting for trailing zero */
+   /* check string to large for dialog, accounting for trailing zero */
    if (max(s^) > findreplace_str_len-1) or
       (max(r^) > findreplace_str_len-1)  error(efndstl);
    getitm(ip); /* get a im pointer */
    ip->im = imqfindrep; /* set is find/replace query */
-   ip->fnrsch = s; /* set input find char* */
-   ip->fnrrep = r; /* set input replace char* */
+   ip->fnrsch = s; /* set input find string */
+   ip->fnrrep = r; /* set input replace string */
    ip->fnropt = opt; /* set options */
-   br = postmessage(dialogwin, UMIM, (WPARAM)ip, 0);
+   br = PostMessage(dialogwin, UMIM, (WPARAM)ip, 0);
    if ! br  winerr(); /* process windows error */
    waitim(imqfindrep, ip); /* wait for the return */
-   s = ip->fnrsch; /* set output find char* */
+   s = ip->fnrsch; /* set output find string */
    r = ip->fnrrep;
    opt = ip->fnropt; /* set output options */
    putitm(ip); /* release im */
@@ -14237,11 +14148,11 @@ var ip: imptr;   /* intratask message pointer */
 Display choose font dialog
 
 Presents the choose font dialog,  returns the resulting logical font
-number, size, foreground color, background color, && effects (in a special
+number, size, foreground color, background color, and effects (in a special
 effects set for this routine).
 
 The parameters are "flow through", meaning that they should be set to their
-defaults before the call, && changes are made,  updated to the parameters.
+defaults before the call, and changes are made,  updated to the parameters.
 During the routine, the state of the parameters given are presented to the
 user as the defaults.
 
@@ -14253,7 +14164,7 @@ void iqueryfont(winptr win; var fc, s, fr, fg, fb, br, bg, bb: int;
 var ip:  imptr;   /* intratask message pointer */
     b:   int; /* result */
     fns: packed array [1..lf_facesize] of char; /* name of font */
-    fs:  char*; /* save for input char* */
+    fs:  char*; /* save for input string */
 
 /* find font in fonts list */
 
@@ -14274,7 +14185,7 @@ var fp:     fontptr; /* pointer for fonts list */
       fc = fc+1 /* count */
 
    };
-   /* The font char* should match one from the list, since that list was itself
+   /* The font string should match one from the list, since that list was itself
      formed from the system font list. */
    if ff == 0  error(esystem); /* should have found matching font */
 
@@ -14288,7 +14199,7 @@ var fp:     fontptr; /* pointer for fonts list */
    ip->im = imqfont; /* set is font query */
    ifontnam(win, fc, fns); /* get the name of the font */
    strcpy(ip->fntstr, fns); /* place in record */
-   fs = ip->fntstr; /* && save a copy */
+   fs = ip->fntstr; /* and save a copy */
    ip->fnteff = effect; /* copy effects */
    ip->fntfr = fr; /* copy colors */
    ip->fntfg = fg;
@@ -14297,8 +14208,8 @@ var fp:     fontptr; /* pointer for fonts list */
    ip->fntbg = bg;
    ip->fntbb = bb;
    ip->fntsiz = s; /* place font size */
-   /* s} request */
-   b = postmessage(dialogwin, UMIM, (WPARAM)ip, 0);
+   /* send request */
+   b = PostMessage(dialogwin, UMIM, (WPARAM)ip, 0);
    if (!b) winerr(); /* process windows error */
    waitim(imqfont, ip); /* wait for the return */
    /* pull back the output parameters */
@@ -14311,7 +14222,7 @@ var fp:     fontptr; /* pointer for fonts list */
    bg = ip->fntbg;
    bb = ip->fntbb;
    s = ip->fntsiz; /* font size */
-   free(ip->fntstr); /* release returned copy of font char* */
+   free(ip->fntstr); /* release returned copy of font string */
    putitm(ip); /* release im */
    free(fs) /* release our copy of the input font name */
 
@@ -14333,7 +14244,7 @@ var winptr win;  /* window context */
 
 /*******************************************************************************
 
-Window void for display thread
+Window procedure for display thread
 
 This is the window handler callback for all display windows.
 
@@ -14371,14 +14282,14 @@ var r:   int;   /* result holder */
 
             /* get update region */
             b = GetUpdateRect(hwnd, cr, FALSE);
-            /* validate it so windows won"t s} multiple notifications */
+            /* validate it so windows won"t send multiple notifications */
             b = validatergn_n(hwnd); /* validate region */
             /* Pack the update region in the message. This limits the update
               region to 16 bit coordinates. We need an im to fix this. */
             wparam = cr.left*0x10000+cr.top;
             lparam = cr.right*0x10000+cr.bottom;
             unlockmain(); /* } exclusive access */
-            putmsg(hwnd, imsg, wparam, lparam); /* s} message up */
+            putmsg(hwnd, imsg, wparam, lparam); /* send message up */
             lockmain();/* start exclusive access */
 
          };
@@ -14479,8 +14390,8 @@ var r:   int;   /* result holder */
 
       /* here"s a problem. Posting quit causes the thread/process to terminate,
         ! just the window. MSDN says to quit only the main window, but what
-        is the main window here ? We s} our terminate message based on
-        wm_quit, && the window, even the main, does get closed. The postquit
+        is the main window here ? We send our terminate message based on
+        wm_quit, and the window, even the main, does get closed. The postquit
         message appears to only be for closing down the program, which our
         program does by exiting. */
       /* postquitmessage(0); */
@@ -14541,7 +14452,7 @@ var r:   int;   /* result holder */
 
       /* Copy messages we are interested in to the main thread. By keeping the
         messages passed down to only the interesting ones, we help prevent
-        queue "flooding". This is done with a case, && ! a set, because sets
+        queue "flooding". This is done with a case, and ! a set, because sets
         are limited to 256 elements. */
       case imsg of
 
@@ -14590,7 +14501,7 @@ var wc:  wndclassa; /* windows class structure */
    wc.wndproc    = wndprocadr(wndproc);
    wc.clsextra   = 0;
    wc.wndextra   = 0;
-   wc.instance   = getmodulehandle_n;
+   wc.instance   = GEtModuleHandle(NULL);
    wc.icon       = 0;
    wc.cursor     = 0;
    wc.background = 0;
@@ -14610,7 +14521,7 @@ var wc:  wndclassa; /* windows class structure */
 
 Window display thread
 
-Handles the actual display of all windows && input queues associated with
+Handles the actual display of all windows and input queues associated with
 them. We create a dummy window to allow "headless" communication with the
 thread, but any number of subwindows will be started in the thread.
 
@@ -14643,8 +14554,8 @@ var msg: msg;
 
 Window procedure
 
-This is the event handler for the main thread. It"s a dummy, && we handle
-everything by s}ing it on.
+This is the event handler for the main thread. It"s a dummy, and we handle
+everything by sending it on.
 
 *******************************************************************************/
 
@@ -14690,7 +14601,7 @@ var b: int; /* return value */
 /*;prtstr("wndprocfix: msg: ");
 ;prtmsgu(hwnd, imsg, wparam, lparam);*/
 
-   /* If dialog is focused, s} it to the foreground. This solves the issue
+   /* If dialog is focused, send it to the foreground. This solves the issue
      where dialogs are getting parked behind the main window. */
    if imsg == wm_setfocus  b = setforegroundwindow(hwnd);
 
@@ -14714,12 +14625,12 @@ var r:    int;                /* result holder */
     ip:   imptr;                  /* intratask message pointer */
     cr:   choosecolor_rec;     /* color select structure */
     b:    int;                /* result holder */
-    i:    int;                /* index for char* */
+    i:    int;                /* index for string */
     fr:   openfilename;        /* file select structure */
     bs:   char*;                /* filename holder */
     frrp: fnrptr;                 /* dialog control record for find/replace */
-    fs:   findreplace_str_ptr; /* pointer to finder char* */
-    rs:   findreplace_str_ptr; /* pointer to replacement char* */
+    fs:   findreplace_str_ptr; /* pointer to finder string */
+    rs:   findreplace_str_ptr; /* pointer to replacement string */
     fl:   int;                /* flags */
     fns:  choosefont_rec;      /* font select structure */
     lf:   lplogfont;           /* logical font structure */
@@ -14784,8 +14695,8 @@ var r:    int;                /* result holder */
 
          imqopen, imqsave: {
 
-            new(bs, 200); /* allocate result char* buffer */
-            /* copy input char* to buffer */
+            new(bs, 200); /* allocate result string buffer */
+            /* copy input string to buffer */
             for r= 1 to max(ip->opnfil^) do
                bs^[r] = chr(chr2ascii(ip->opnfil^[r]));
             /* place terminator */
@@ -14818,35 +14729,35 @@ var r:    int;                /* result holder */
             if ! b  {
 
                /* Check was a cancel. If the user canceled, return a null
-                 char*. */
+                 string. */
                r = commdlgext}ederror;
                if r != 0  error(efildlg); /* error */
-               /* Since the main code is expecting us to make a new char* for
+               /* Since the main code is expecting us to make a new string for
                  the result, we must copy the input to the output so that it"s
                  disposal will be valid. */
                if ip->im == imqopen  new(ip->opnfil, 0)
                else new(ip->savfil, 0)
 
-            } else { /* create result char* */
+            } else { /* create result string */
 
                if ip->im == imqopen  { /* it"s open */
 
                   i = 1; /* set 1st character */
                   while bs^[i] != chr(0) do i = i+1; /* find terminator */
-                  new(ip->opnfil, i-1); /* create result char* */
+                  new(ip->opnfil, i-1); /* create result string */
                   for i = 1 to i-1 do ip->opnfil^[i] = ascii2chr(ord(bs^[i]))
 
                } else { /* it"s save */
 
                   i = 1; /* set 1st character */
                   while bs^[i] != chr(0) do i = i+1; /* find terminator */
-                  new(ip->savfil, i-1); /* create result char* */
+                  new(ip->savfil, i-1); /* create result string */
                   for i = 1 to i-1 do ip->savfil^[i] = ascii2chr(ord(bs^[i]))
 
                }
 
             };
-            free(bs); /* release temp char* */
+            free(bs); /* release temp string */
             /* signal complete */
             iputmsg(0, UMIM, wparam, 0)
 
@@ -14854,8 +14765,8 @@ var r:    int;                /* result holder */
 
          imqfind: {
 
-            new(fs); /* get a new finder char* */
-            /* copy char* to destination */
+            new(fs); /* get a new finder string */
+            /* copy string to destination */
             for i = 1 to max(ip->fndstr^) do
                fs^[i] = chr(chr2ascii(ip->fndstr^[i]));
             fs^[max(ip->fndstr^)+1] = chr(0); /* terminate */
@@ -14870,11 +14781,11 @@ var r:    int;                /* result holder */
             /* set status of case */
             if qfncase in ip->fndopt  fl = fl+fr_matchcase;
             frrp->flags = fl;
-            frrp->lpstrfindwhat = fs; /* place finder char* */
-            frrp->lpstrreplacewith = NULL; /* set no replacement char* */
+            frrp->lpstrfindwhat = fs; /* place finder string */
+            frrp->lpstrreplacewith = NULL; /* set no replacement string */
             frrp->wfindwhatlen = findreplace_str_len; /* set length */
-            frrp->wreplacewithlen = 0; /* set null replacement char* */
-            frrp->lcustdata = (LPARAM)ip; /* s} ip with this record */
+            frrp->wreplacewithlen = 0; /* set null replacement string */
+            frrp->lcustdata = (LPARAM)ip; /* send ip with this record */
             frrp->lpfnhook = 0; /* no callback */
             frrp->lptemplatename = NULL; /* set no template */
             /* start find dialog */
@@ -14892,13 +14803,13 @@ var r:    int;                /* result holder */
 
          imqfindrep: {
 
-            new(fs); /* get a new finder char* */
-            /* copy char* to destination */
+            new(fs); /* get a new finder string */
+            /* copy string to destination */
             for i = 1 to max(ip->fnrsch^) do
                fs^[i] = chr(chr2ascii(ip->fnrsch^[i]));
             fs^[max(ip->fnrsch^)+1] = chr(0); /* terminate */
-            new(rs); /* get a new finder char* */
-            /* copy char* to destination */
+            new(rs); /* get a new finder string */
+            /* copy string to destination */
             for i = 1 to max(ip->fnrrep^) do
                rs^[i] = chr(chr2ascii(ip->fnrrep^[i]));
             rs^[max(ip->fnrrep^)+1] = chr(0); /* terminate */
@@ -14911,11 +14822,11 @@ var r:    int;                /* result holder */
             if ! (qfrup in ip->fnropt)  fl = fl+fr_down; /* set status of down */
             if qfrcase in ip->fnropt  fl = fl+fr_matchcase; /* set status of case */
             frrp->flags = fl;
-            frrp->lpstrfindwhat = fs; /* place finder char* */
-            frrp->lpstrreplacewith = rs; /* place replacement char* */
+            frrp->lpstrfindwhat = fs; /* place finder string */
+            frrp->lpstrreplacewith = rs; /* place replacement string */
             frrp->wfindwhatlen = findreplace_str_len; /* set length */
-            frrp->wreplacewithlen = findreplace_str_len; /* set null replacement char* */
-            frrp->lcustdata = (LPARAM)ip; /* s} ip with this record */
+            frrp->wreplacewithlen = findreplace_str_len; /* set null replacement string */
+            frrp->lcustdata = (LPARAM)ip; /* send ip with this record */
             frrp->lpfnhook = 0; /* clear these */
             frrp->lptemplatename = NULL;
             /* start find dialog */
@@ -14976,11 +14887,11 @@ var r:    int;                /* result holder */
             b = choosefont(fns); /* perform choose font */
             if ! b  {
 
-               /* Check was a cancel. If the user canceled, just return the char*
+               /* Check was a cancel. If the user canceled, just return the string
                  empty. */
                r = commdlgext}ederror;
                if r != 0  error(efnddlg); /* error */
-               /* Since the main code is expecting us to make a new char* for
+               /* Since the main code is expecting us to make a new string for
                  the result, we must copy the input to the output so that it"s
                  disposal will be valid. */
                strcpy(ip->fntstr, ip->fntstr^)
@@ -15002,7 +14913,7 @@ var r:    int;                /* result holder */
                else ip->fnteff = ip->fnteff-[qftestrikeout];
                /* place foreground colors */
                win2rgb(fns.rgbcolors, ip->fntfr, ip->fntfg, ip->fntfb);
-               strcpy(ip->fntstr, lf->lffacename); /* copy font char* back */
+               strcpy(ip->fntstr, lf->lffacename); /* copy font string back */
                ip->fntsiz = abs(lf->lFHEIGHT); /* set size */
 
             };
@@ -15033,9 +14944,9 @@ var r:    int;                /* result holder */
          else fndopt = fndopt+[qfnup];
          i = 1; /* set 1st character */
          while lpstrfindwhat^[i] != chr(0) do i = i+1; /* find terminator */
-         new(fndstr, i-1); /* create result char* */
+         new(fndstr, i-1); /* create result string */
          for i = 1 to i-1 do fndstr^[i] = ascii2chr(ord(lpstrfindwhat^[i]));
-         free(lpstrfindwhat) /* release temp char* */
+         free(lpstrfindwhat) /* release temp string */
 
       } else { /* it"s a find/replace */
 
@@ -15052,14 +14963,14 @@ var r:    int;                /* result holder */
             fnropt = fnropt-[qfrfind]+[qfrallfil];
          i = 1; /* set 1st character */
          while lpstrfindwhat^[i] != chr(0) do i = i+1; /* find terminator */
-         new(fnrsch, i-1); /* create result char* */
+         new(fnrsch, i-1); /* create result string */
          for i = 1 to i-1 do fnrsch^[i] = ascii2chr(ord(lpstrfindwhat^[i]));
          i = 1; /* set 1st character */
          while lpstrreplacewith^[i] != chr(0) do i = i+1; /* find terminator */
-         new(fnrrep, i-1); /* create result char* */
+         new(fnrrep, i-1); /* create result string */
          for i = 1 to i-1 do
             fnrrep^[i] = ascii2chr(ord(lpstrreplacewith^[i]));
-         free(lpstrfindwhat); /* release temp char*s */
+         free(lpstrfindwhat); /* release temp strings */
          free(lpstrreplacewith)
 
       };
@@ -15235,8 +15146,8 @@ static ssize_t iread(int fd, void* buff, size_t count)
                 with win^ do /* in window context */
                     while (win->inpptr > 0 && l > 0) {
 
-                    /* there is data in the buffer, && we need that data */
-                    ba[i] = win->inpbuf[win->inpptr]; /* get && place next character */
+                    /* there is data in the buffer, and we need that data */
+                    ba[i] = win->inpbuf[win->inpptr]; /* get and place next character */
                     if (win->inpptr < MAXLIN) win->inpptr++; /* next */
                /* if we have just read the last of that line,  flag buffer
                  empty */
@@ -15367,7 +15278,7 @@ static void pa_init_network()
    mainthreadid = getcurrentthreadid;
 
    getpgm; /* get the program name from the command line */
-   /* Now start the display thread, which both manages all displays, && s}s us
+   /* Now start the display thread, which both manages all displays, and sends us
      all messages from those displays. */
    threadstart = createevent(TRUE, FALSE);
    if threadstart == 0  winerr(); /* process windows error */
@@ -15376,7 +15287,7 @@ static void pa_init_network()
    r = createthread_nn(0, dispthread, 0, threadid);
    r = waitforsingleobject(threadstart, -1); /* wait for thread to start */
    if (r == -1) winerr(); /* process windows error */
-   /* Past this point, we need to lock for access between us && the thread. */
+   /* Past this point, we need to lock for access between us and the thread. */
 
    /* Now attach the main thread to the display thread. This is required for the
      main thread to have access to items like the display window caret. */
@@ -15398,7 +15309,7 @@ static void pa_init_network()
    /* currently unused routines */
    refer(lwn2win);
 
-   /* diagnostic routines (come in && out of use) */
+   /* diagnostic routines (come in and out of use) */
    refer(print);
    refer(printn);
    refer(prtstr);
@@ -15457,7 +15368,7 @@ Graph shutdown
    if ! dblflt  { /* we haven"t already exited */
 
       dblflt = TRUE; /* set we already exited */
-      /* close all open files && windows */
+      /* close all open files and windows */
       for fi = 1 to ss_MAXFIL do
          if opnfil[fi] != NULL  with opnfil[fi]^ do {
 
