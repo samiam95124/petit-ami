@@ -403,17 +403,17 @@ typedef struct imrec { /* intermessage record */
         } imqsave;
         struct {
 
-            char* fndstr; /* char* to find */
-            int fndopt;   /* find options */
-            int fndhan;   /* dialog window handle */
+            char* fndstr; /* string to find */
+            int   fndopt; /* find options */
+            int   fndhan; /* dialog window handle */
 
         } imqfind;
         struct {
 
-            char* fnrsch; /* char* to search for */
-            char* fnrrep; /* char* to replace */
-            int fnropt;   /* options */
-            int fnrhan;   /* dialog window handle */
+            char* fnrsch; /* string to search for */
+            char* fnrrep; /* string to replace */
+            int   fnropt; /* options */
+            int   fnrhan; /* dialog window handle */
 
         } imqfindrep;
         struct {
@@ -567,7 +567,7 @@ int       imsginp;      /* input pointer */
 int       imsgout;      /* ouput pointer */
 HANDLE    imsgrdy;      /* message ready event */
 /* this array stores color choices from the user in the color pick dialog */
-colorref_table_ptr gcolorsav:   colorref_table_ptr;
+colorref_table_ptr gcolorsav;
 int       i;            /* index for that */
 int       fndrepmsg;    /* message assignment for find/replace */
 int       dispwin;      /* handle to display thread window */
@@ -1035,16 +1035,10 @@ void abort(void)
     if (!dblflt)  { /* we haven"t already exited */
 
         dblflt = TRUE; /* set we already exited */
-        /* close all open files && windows */
+        /* close all open files and windows */
         for (fi = 0; fi < MAXFIL; fi++)
-            if (opnfil[fi])  with opnfil[fi]^ do {
-
-/* see what needs doing here */
-            /* if (opnfil[fi]->han)
-                ss_old_close(han, sav_close);*/ /* close at lower level */
-            if (opnfil[fi]->win) clswin(fi) /* close open window */
-
-        }
+            if (opnfil[fi] && opnfil[fi]->win)
+                clswin(fi); /* close open window */
 
     }
     unlockmain(); /* end exclusive access */
@@ -13950,7 +13944,7 @@ Display choose color dialog
 
 Presents the choose color dialog,  returns the resulting color.
 
-Bug: does ! take the input color as the default.
+Bug: does not take the input color as the default.
 
 *******************************************************************************/
 
@@ -14030,25 +14024,25 @@ If the operation is cancelled,  a null string will be returned.
 
 *******************************************************************************/
 
-void querysave(var s: char*);
-
-var ip: imptr;   /* intratask message pointer */
-    br: int; /* result */
+void querysave(char* s)
 
 {
 
-   lockmain(); /* start exclusive access */
-   getitm(ip); /* get a im pointer */
-   ip->im = imqsave; /* set is open file query */
-   ip->opnfil = s; /* set input string */
-   br = PostMessage(dialogwin, UMIM, (WPARAM)ip, 0);
-   if ! br  winerr(); /* process windows error */
-   waitim(imqsave, ip); /* wait for the return */
-   s = ip->savfil; /* set output string */
-   putitm(ip); /* release im */
-   unlockmain(); /* end exclusive access */
+    imptr ip; /* intratask message pointer */
+    BOOL br;  /* result */
 
-};
+    lockmain(); /* start exclusive access */
+    getitm(ip); /* get a im pointer */
+    ip->im = imqsave; /* set is open file query */
+    ip->opnfil = s; /* set input string */
+    br = PostMessage(dialogwin, UMIM, (WPARAM)ip, 0);
+    if (!br)  winerr(); /* process windows error */
+    waitim(imqsave, ip); /* wait for the return */
+    s = ip->savfil; /* set output string */
+    putitm(ip); /* release im */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -14056,7 +14050,7 @@ Display choose find text dialog
 
 Presents the choose find text dialog,  returns the resulting string.
 A find/replace option set can be specified. The parameters are "flow through",
-meaning that you set them before the call, and they may or may ! be changed
+meaning that you set them before the call, and they may or may not be changed
 from these defaults after the call. In addition, the parameters are used to
 set the dialog.
 
@@ -14075,29 +14069,27 @@ table this issue until later.
 
 *******************************************************************************/
 
-void queryfind(var s: char*; var opt: int);
-
-var ip: imptr;   /* intratask message pointer */
-    br: int; /* result */
+void queryfind(char* s, int* opt)
 
 {
 
-   lockmain(); /* start exclusive access */
-   /* check string to large for dialog, accounting for trailing zero */
-   if max(s^) > findreplace_str_len-1  error(efndstl);
-   getitm(ip); /* get a im pointer */
-   ip->im = imqfind; /* set is find query */
-   ip->fndstr = s; /* set input string */
-   ip->fndopt = opt; /* set options */
-   br = PostMessage(dialogwin, UMIM, (WPARAM)ip, 0);
-   if ! br  winerr(); /* process windows error */
-   waitim(imqfind, ip); /* wait for the return */
-   s = ip->fndstr; /* set output string */
-   opt = ip->fndopt; /* set output options */
-   putitm(ip); /* release im */
-   unlockmain(); /* end exclusive access */
+    imptr ip;   /* intratask message pointer */
+    BOOL  br; /* result */
 
-};
+    lockmain(); /* start exclusive access */
+    getitm(ip); /* get a im pointer */
+    ip->im = imqfind; /* set is find query */
+    ip->fndstr = s; /* set input string */
+    ip->fndopt = opt; /* set options */
+    br = PostMessage(dialogwin, UMIM, (WPARAM)ip, 0);
+    if (!br) winerr(); /* process windows error */
+    waitim(imqfind, ip); /* wait for the return */
+    s = ip->fndstr; /* set output string */
+    opt = ip->fndopt; /* set output options */
+    putitm(ip); /* release im */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -14116,32 +14108,29 @@ Bug: See comment, queryfind.
 
 *******************************************************************************/
 
-void queryfindrep(var s, r: char*; var opt: int);
-
-var ip: imptr;   /* intratask message pointer */
-    br: int; /* result */
+void queryfindrep(char* s, char* r, int* opt)
 
 {
 
-   lockmain(); /* start exclusive access */
-   /* check string to large for dialog, accounting for trailing zero */
-   if (max(s^) > findreplace_str_len-1) or
-      (max(r^) > findreplace_str_len-1)  error(efndstl);
-   getitm(ip); /* get a im pointer */
-   ip->im = imqfindrep; /* set is find/replace query */
-   ip->fnrsch = s; /* set input find string */
-   ip->fnrrep = r; /* set input replace string */
-   ip->fnropt = opt; /* set options */
-   br = PostMessage(dialogwin, UMIM, (WPARAM)ip, 0);
-   if ! br  winerr(); /* process windows error */
-   waitim(imqfindrep, ip); /* wait for the return */
-   s = ip->fnrsch; /* set output find string */
-   r = ip->fnrrep;
-   opt = ip->fnropt; /* set output options */
-   putitm(ip); /* release im */
-   unlockmain(); /* end exclusive access */
+    imptr ip; /* intratask message pointer */
+    BOOL  br; /* result */
 
-};
+    lockmain(); /* start exclusive access */
+    getitm(ip); /* get a im pointer */
+    ip->im = imqfindrep; /* set is find/replace query */
+    ip->fnrsch = s; /* set input find string */
+    ip->fnrrep = r; /* set input replace string */
+    ip->fnropt = opt; /* set options */
+    br = PostMessage(dialogwin, UMIM, (WPARAM)ip, 0);
+    if (!br) winerr(); /* process windows error */
+    waitim(imqfindrep, ip); /* wait for the return */
+    s = ip->fnrsch; /* set output find string */
+    r = ip->fnrrep;
+    opt = ip->fnropt; /* set output options */
+    putitm(ip); /* release im */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -14158,89 +14147,85 @@ user as the defaults.
 
 *******************************************************************************/
 
-void iqueryfont(winptr win; var fc, s, fr, fg, fb, br, bg, bb: int;
-                     var effect: int);
+/* find font number in fonts list */
 
-var ip:  imptr;   /* intratask message pointer */
-    b:   int; /* result */
-    fns: packed array [1..lf_facesize] of char; /* name of font */
-    fs:  char*; /* save for input string */
-
-/* find font in fonts list */
-
-int fndfnt(winptr win; view fns: char*): int;
-
-var fp:     fontptr; /* pointer for fonts list */
-    fc, ff: int; /* font counters */
+int fndfntnum(winptr win, char* fns)
 
 {
 
-   fp = win->fntlst; /* index top of fonts */
-   fc = 1; /* set 1st font */
-   ff = 0; /* set no font found */
-   while fp != NULL do { /* traverse */
+    fontptr fp;     /* pointer for fonts list */
+    int     fc, ff; /* font counters */
 
-      if comps(fns, fp->fn^)  ff = fc; /* found */
-      fp = fp->next; /* next entry */
-      fc = fc+1 /* count */
+    fp = win->fntlst; /* index top of fonts */
+    fc = 1; /* set 1st font */
+    ff = 0; /* set no font found */
+    while (fp) { /* traverse */
 
-   };
-   /* The font string should match one from the list, since that list was itself
-     formed from the system font list. */
-   if ff == 0  error(esystem); /* should have found matching font */
+        if comps(fns, fp->fn^)  ff = fc; /* found */
+        fp = fp->next; /* next entry */
+        fc = fc+1 /* count */
 
-   fndfnt = ff /* return font */
+    };
+    /* The font string should match one from the list, since that list was itself
+       formed from the system font list. */
+    if ff == 0  error(esystem); /* should have found matching font */
 
-};
+    return (ff); /* return font */
 
-{
+}
 
-   getitm(ip); /* get a im pointer */
-   ip->im = imqfont; /* set is font query */
-   ifontnam(win, fc, fns); /* get the name of the font */
-   strcpy(ip->fntstr, fns); /* place in record */
-   fs = ip->fntstr; /* and save a copy */
-   ip->fnteff = effect; /* copy effects */
-   ip->fntfr = fr; /* copy colors */
-   ip->fntfg = fg;
-   ip->fntfb = fb;
-   ip->fntbr = br;
-   ip->fntbg = bg;
-   ip->fntbb = bb;
-   ip->fntsiz = s; /* place font size */
-   /* send request */
-   b = PostMessage(dialogwin, UMIM, (WPARAM)ip, 0);
-   if (!b) winerr(); /* process windows error */
-   waitim(imqfont, ip); /* wait for the return */
-   /* pull back the output parameters */
-   fc = fndfnt(win, ip->fntstr^); /* find font from list */
-   effect = ip->fnteff; /* effects */
-   fr = ip->fntfr; /* colors */
-   fg = ip->fntfg;
-   fb = ip->fntfb;
-   br = ip->fntbr;
-   bg = ip->fntbg;
-   bb = ip->fntbb;
-   s = ip->fntsiz; /* font size */
-   free(ip->fntstr); /* release returned copy of font string */
-   putitm(ip); /* release im */
-   free(fs) /* release our copy of the input font name */
-
-};
-
-void queryfont(FILE* f; var fc, s, fr, fg, fb, br, bg, bb: int;
-                    var effect: int);
-
-var winptr win;  /* window context */
+void iqueryfont(winptr win, int* fc, int* s, int* fr, int* fg, int* fb, int* br,
+                int* bg, int* bb, int* effect)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   iqueryfont(win, fc, s, fr, fg, fb, br, bg, bb, effect); /* execute */
-   unlockmain(); /* end exclusive access */
+    imptr ip;               /* intratask message pointer */
+    BOOL  b;                /* result */
+    char  fns[LF_FACESIZE]; /* name of font */
 
-};
+    getitm(ip); /* get a im pointer */
+    ip->im = imqfont; /* set is font query */
+    ifontnam(win, *fc, fns); /* get the name of the font */
+    ip->fntstr = &fns; /* place in record */
+    ip->fnteff = effect; /* copy effects */
+    ip->fntfr = *fr; /* copy colors */
+    ip->fntfg = *fg;
+    ip->fntfb = *fb;
+    ip->fntbr = *br;
+    ip->fntbg = *bg;
+    ip->fntbb = *bb;
+    ip->fntsiz = s; /* place font size */
+    /* send request */
+    b = PostMessage(dialogwin, UMIM, (WPARAM)ip, 0);
+    if (!b) winerr(); /* process windows error */
+    waitim(imqfont, ip); /* wait for the return */
+    /* pull back the output parameters */
+    fc = fndfntnum(win, ip->fntstr); /* find font from list */
+    effect = ip->fnteff; /* effects */
+    *fr = ip->fntfr; /* colors */
+    *fg = ip->fntfg;
+    *fb = ip->fntfb;
+    *br = ip->fntbr;
+    *bg = ip->fntbg;
+    *bb = ip->fntbb;
+    s = ip->fntsiz; /* font size */
+    putitm(ip); /* release im */
+
+}
+
+void queryfont(FILE* f, int* fc, int* s, int* fr, int* fg, int* fb,
+               int* br, int* bg, int* bb, int* effect: int);
+
+{
+
+    winptr win;  /* window context */
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    iqueryfont(win, fc, s, fr, fg, fb, br, bg, bb, effect); /* execute */
+    unlockmain(); /* end exclusive access */
+
+}
 
 /*******************************************************************************
 
@@ -14252,232 +14237,222 @@ This is the window handler callback for all display windows.
 
 LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
 
-var r:   int;   /* result holder */
-    b:   int;
-    ofn: ss_filhdl; /* output file handle */
-    winptr win;    /* pointer to windows structure */
-    ip:  imptr;     /* intratask message pointer */
-    udw: int;   /* up/down control width */
-    cr:  rect;   /* client rectangle */
-
 {
+
+    LRESULT r;   /* result holders */
+    BOOL    b;
+    int     ofn; /* output file handle */
+    winptr  win; /* pointer to windows structure */
+    imptr   ip;  /* intratask message pointer */
+    int     udw; /* up/down control width */
+    RECT    cr;  /* client rectangle */
 
 /*print("wndproc: msg: ", msgcnt); print(" ");
 ;prtmsgu(hwnd, imsg, wparam, lparam);
-;msgcnt = msgcnt+1;*/
-   if imsg == wm_create  {
+;msgcnt++;*/
+    if (imsg == wm_create) {
 
-      r = 0
+        r = 0
 
-   } else if imsg == wm_paint  {
+    } else if (imsg == wm_paint) {
 
-      lockmain(); /* start exclusive access */
-      /* get the logical output file from Windows handle */
-      ofn = hwn2lfn(hwnd);
-      if ofn != 0  { /* there is a window */
+        lockmain(); /* start exclusive access */
+        /* get the logical output file from Windows handle */
+        ofn = hwn2lfn(hwnd);
+        if (ofn) { /* there is a window */
 
-         win = lfn2win(ofn); /* index window from output file */
-         if win->bufmod  restore(win, FALSE) /* perform selective update */
-         else { /* main task will handle it */
+            win = lfn2win(ofn); /* index window from output file */
+            if (win->bufmod) restore(win, FALSE); /* perform selective update */
+            else { /* main task will handle it */
 
-            /* get update region */
-            b = GetUpdateRect(hwnd, cr, FALSE);
-            /* validate it so windows won"t send multiple notifications */
-            b = validatergn_n(hwnd); /* validate region */
-            /* Pack the update region in the message. This limits the update
-              region to 16 bit coordinates. We need an im to fix this. */
-            wparam = cr.left*0x10000+cr.top;
-            lparam = cr.right*0x10000+cr.bottom;
-            unlockmain(); /* } exclusive access */
-            putmsg(hwnd, imsg, wparam, lparam); /* send message up */
-            lockmain();/* start exclusive access */
+                /* get update region */
+                b = GetUpdateRect(hwnd, cr, FALSE);
+                /* validate it so windows won"t send multiple notifications */
+                b = ValidateRgn(hwnd, NULL); /* validate region */
+                /* Pack the update region in the message. This limits the update
+                   region to 16 bit coordinates. We need an im to fix this. */
+                wparam = cr.left*0x10000+cr.top;
+                lparam = cr.right*0x10000+cr.bottom;
+                unlockmain(); /* } exclusive access */
+                putmsg(hwnd, imsg, wparam, lparam); /* send message up */
+                lockmain(); /* start exclusive access */
 
-         };
-         r = 0
+            }
+            r = 0;
 
-      } else r = defwindowproc(hwnd, imsg, wparam, lparam);
-      unlockmain(); /* } exclusive access */
-      r = 0
+        } else r = defwindowproc(hwnd, imsg, wparam, lparam);
+        unlockmain(); /* } exclusive access */
+        r = 0;
 
-   } else if imsg == wm_setfocus  {
+    } else if (imsg == wm_setfocus)  {
 
-      lockmain(); /* start exclusive access */
-      /* get the logical output file from Windows handle */
-      ofn = hwn2lfn(hwnd);
-      if ofn != 0  { /* there is a window */
+        lockmain(); /* start exclusive access */
+        /* get the logical output file from Windows handle */
+        ofn = hwn2lfn(hwnd);
+        if (ofn) { /* there is a window */
 
-         win = lfn2win(ofn); /* index window from output file */
-         with win^ do {
-
-            b = createcaret(winhan, 0, curspace, 3); /* activate caret */
+            win = lfn2win(ofn); /* index window from output file */
+            /* activate caret */
+            b = createcaret(win->winhan, 0, win->curspace, 3);
             /* set caret (text cursor) position at bottom of bounding box */
-            b = setcaretpos(screens[curdsp]->curxg-1,
-                                screens[curdsp]->curyg-1+linespace-3);
+            b = setcaretpos(win->screens[win->curdsp]->curxg-1,
+                            win->screens[win->curdsp]->curyg-1+win->linespace-3);
             focus = TRUE; /* set screen in focus */
-            curon(win) /* show the cursor */
+            curon(win); /* show the cursor */
 
-         }
+        }
+        unlockmain(); /* } exclusive access */
+        putmsg(hwnd, imsg, wparam, lparam); /* copy to main thread */
+        r = 0;
 
-      };
-      unlockmain(); /* } exclusive access */
-      putmsg(hwnd, imsg, wparam, lparam); /* copy to main thread */
-      r = 0
+    } else if (imsg == wm_killfocus) {
 
-   } else if imsg == wm_killfocus  {
+        lockmain(); /* start exclusive access */
+        /* get the logical output file from Windows handle */
+        ofn = hwn2lfn(hwnd);
+        if (ofn) { /* there is a window */
 
-      lockmain(); /* start exclusive access */
-      /* get the logical output file from Windows handle */
-      ofn = hwn2lfn(hwnd);
-      if ofn != 0  { /* there is a window */
+           win = lfn2win(ofn); /* index window from output file */
+           win->focus = FALSE; /* set screen ! in focus */
+           curoff(win); /* hide the cursor */
+           b = destroycaret(); /* remove text cursor */
 
-         win = lfn2win(ofn); /* index window from output file */
-         with win^ do {
+        }
+        unlockmain(); /* } exclusive access */
+        putmsg(hwnd, imsg, wparam, lparam); /* copy to main thread */
+        r = 0;
 
-            focus = FALSE; /* set screen ! in focus */
-            curoff(win); /* hide the cursor */
-            b = destroycaret; /* remove text cursor */
+    } else if (imsg == UMMAKWIN) { /* create standard window */
 
-         }
+        /* create the window */
+        stdwinwin = createwindow("StdWin", pgmnam^, stdwinflg,
+                                  stdwinx, stdwiny, stdwinw, stdwinh,
+                                  stdwinpar, 0, getmodulehandle_n);
 
-      };
-      unlockmain(); /* } exclusive access */
-      putmsg(hwnd, imsg, wparam, lparam); /* copy to main thread */
-      r = 0
+        stdwinj1c = FALSE; /* set no joysticks */
+        stdwinj2c = FALSE;
+        if (JOYENB) {
 
-   } else if imsg == UMMAKWIN  { /* create standard window */
+            r = JoySetCapture(stdwinwin, JOYSTICKID1, 33, FALSE);
+            stdwinj1c = r == 0; /* set joystick 1 was captured */
+            r = JoySetCapture(stdwinwin, JOYSTICKID2, 33, FALSE);
+            stdwinj2c = r == 0; /* set joystick 1 was captured */
 
-      /* create the window */
-      stdwinwin = createwindow("StdWin", pgmnam^, stdwinflg,
-                                stdwinx, stdwiny, stdwinw, stdwinh,
-                                stdwinpar, 0, getmodulehandle_n);
+        }
 
-      stdwinj1c = FALSE; /* set no joysticks */
-      stdwinj2c = FALSE;
-      if JOYENB  {
+        /* signal we started window */
+        iputmsg(0, UMWINSTR, 0, 0);
+        r = 0;
 
-         r = joysetcapture(stdwinwin, joystickid1, 33, FALSE);
-         stdwinj1c = r == 0; /* set joystick 1 was captured */
-         r = joysetcapture(stdwinwin, joystickid2, 33, FALSE);
-         stdwinj2c = r == 0; /* set joystick 1 was captured */
+    } else if (imsg == UMCLSWIN) { /* close standard window */
 
-      };
+        b = DestroyWindow(stdwinwin); /* remove window from screen */
 
-      /* signal we started window */
-      iputmsg(0, UMWINSTR, 0, 0);
-      r = 0
+        /* signal we closed window */
+        iputmsg(0, UMWINCLS, 0, 0);
+        r = 0;
 
-   } else if imsg == UMCLSWIN  { /* close standard window */
+    } else if (imsg == wm_erasebkgnd) {
 
-      b = destroywindow(stdwinwin); /* remove window from screen */
+        /* Letting windows erase the background is ! good, because it flashes, and
+           is redundant in any case, because we handle that. */
+        r = 1; /* say we are handling the erase */
 
-      /* signal we closed window */
-      iputmsg(0, UMWINCLS, 0, 0);
-      r = 0
+    } else if (imsg == wm_close) {
 
-   } else if imsg == wm_erasebkgnd  {
+        /* we handle our own window close, so don"t pass this on */
+        putmsg(0, imsg, wparam, lparam);
+        r = 0;
 
-     /* Letting windows erase the background is ! good, because it flashes, and
-       is redundant in any case, because we handle that. */
-     r = 1 /* say we are handling the erase */
+    } else if (imsg == wm_destroy) {
 
-   } else if imsg == wm_close  {
+        /* here"s a problem. Posting quit causes the thread/process to terminate,
+           not just the window. MSDN says to quit only the main window, but what
+           is the main window here ? We send our terminate message based on
+           wm_quit, and the window, even the main, does get closed. The postquit
+           message appears to only be for closing down the program, which our
+           program does by exiting. */
+        /* postquitmessage(0); */
+        r = 0;
 
-      /* we handle our own window close, so don"t pass this on */
-      putmsg(0, imsg, wparam, lparam);
-      r = 0
+    } else if (imsg == wm_lbuttondown || imsg == wm_mbuttondown ||
+               imsg == wm_rbuttondown) {
 
-   } else if imsg == wm_destroy  {
+        /* Windows allows child windows to capture the focus, but they don"t
+           give it up (its a feature). We get around this by  returning the
+           focus back to any window that is clicked by the mouse, but does
+           not have the focus. */
+        r = SetFocus(hwnd);
+        putmsg(hwnd, imsg, wparam, lparam);
+        r = defwindowproc(hwnd, imsg, wparam, lparam);
 
-      /* here"s a problem. Posting quit causes the thread/process to terminate,
-        ! just the window. MSDN says to quit only the main window, but what
-        is the main window here ? We send our terminate message based on
-        wm_quit, and the window, even the main, does get closed. The postquit
-        message appears to only be for closing down the program, which our
-        program does by exiting. */
-      /* postquitmessage(0); */
-      r = 0
+    } else if (imsg == UMIM) { /* intratask message */
 
-   } else if (imsg == wm_lbuttondown) || (imsg == wm_mbuttondown) or
-               (imsg == wm_rbuttondown)  {
+        ip = (imptr)wparam; /* get im pointer */
+        switch (ip->im) { /* im type */
 
-      /* Windows allows child windows to capture the focus, but they don"t
-        give it up (its a feature). We get around this by  returning the
-        focus back to any window that is clicked by the mouse, but does
-        ! have the focus. */
-      r = setfocus(hwnd);
-      putmsg(hwnd, imsg, wparam, lparam);
-      r = defwindowproc(hwnd, imsg, wparam, lparam);
+            case imupdown: /* create up/down control */
+                /* get width of up/down control (same as scroll arrow) */
+                udw = GetSystemMetrics(sm_cxhscroll);
+                ip->udbuddy =
+                    createwindow("edit", "",
+                                 ws_child || ws_visible || ws_border or
+                                 es_left || es_autohscroll,
+                                 ip->udx, ip->udy, ip->udcx-udw-1, ip->udcy,
+                                 ip->udpar, ip->udid, ip->udinst);
+                ip->udhan =
+                    createupdowncontrol(ip->udflg, ip->udx+ip->udcx-udw-2, ip->udy, udw,
+                                        ip->udcy, ip->udpar, ip->udid, ip->udinst,
+                                        ip->udbuddy, ip->udup, ip->udlow,
+                                        ip->udpos);
+                /* signal complete */
+                iputmsg(0, UMIM, wparam, 0);
+                break;
 
-   } else if imsg == UMIM  { /* intratask message */
-
-      ip = (imptr)wparam; /* get im pointer */
-      case ip->im of /* im type */
-
-         imupdown: { /* create up/down control */
-
-            /* get width of up/down control (same as scroll arrow) */
-            udw = GetSystemMetrics(sm_cxhscroll);
-            ip->udbuddy =
-               createwindow("edit", "",
-                               ws_child || ws_visible || ws_border or
-                               es_left || es_autohscroll,
-                               ip->udx, ip->udy, ip->udcx-udw-1, ip->udcy,
-                               ip->udpar, ip->udid, ip->udinst);
-            ip->udhan =
-               createupdowncontrol(ip->udflg, ip->udx+ip->udcx-udw-2, ip->udy, udw,
-                                      ip->udcy, ip->udpar, ip->udid, ip->udinst,
-                                      ip->udbuddy, ip->udup, ip->udlow,
-                                      ip->udpos);
-            /* signal complete */
-            iputmsg(0, UMIM, wparam, 0)
-
-         };
-
-         imwidget: { /* create widget */
-
-            /* start widget window */
-            ip->wigwin = createwindow(ip->wigcls^, ip->wigtxt^, ip->wigflg,
+            case imwidget: /* create widget */
+                /* start widget window */
+                ip->wigwin = createwindow(ip->wigcls^, ip->wigtxt^, ip->wigflg,
                                           ip->wigx, ip->wigy, ip->wigw,
                                           ip->wigh, ip->wigpar, ip->wigid,
                                           ip->wigmod);
-            /* signal we started widget */
-            iputmsg(0, UMIM, wparam, 0)
+                /* signal we started widget */
+                iputmsg(0, UMIM, wparam, 0);
+                break;
 
-         }
+        }
+        r = 0; /* clear result */
 
-      };
-      r = 0 /* clear result */
+    } else { /* default handling */
 
-   } else { /* default handling */
+        /* Copy messages we are interested in to the main thread. By keeping the
+           messages passed down to only the interesting ones, we help prevent
+           queue "flooding". This is done with a case, and ! a set, because sets
+           are limited to 256 elements. */
+        swtich (imsg) {
 
-      /* Copy messages we are interested in to the main thread. By keeping the
-        messages passed down to only the interesting ones, we help prevent
-        queue "flooding". This is done with a case, and ! a set, because sets
-        are limited to 256 elements. */
-      case imsg of
-
-         wm_paint, wm_lbuttondown, wm_lbuttonup, wm_mbuttondown,
-         wm_mbuttonup, wm_rbuttondown, wm_rbuttonup, wm_size,
-         wm_char, wm_keydown, wm_keyup, wm_quit, wm_close,
-         wm_mousemove, wm_timer, wm_command, wm_vscroll,
-         wm_hscroll, wm_notify: {
+            case wm_paint: case wm_lbuttondown: case wm_lbuttonup: case wm_mbuttondown:
+            case wm_mbuttonup: case wm_rbuttondown: case wm_rbuttonup: case wm_size:
+            case wm_char: case wm_keydown: case wm_keyup: case wm_quit: case wm_close:
+            case wm_mousemove: case wm_timer: case wm_command: case wm_vscroll:
+            case wm_hscroll: case wm_notify:
 
 /*print("wndproc: passed to main: msg: ", msgcnt); print(" ");
 ;prtmsgu(hwnd, imsg, wparam, lparam);
 ;msgcnt = msgcnt+1;*/
-            putmsg(hwnd, imsg, wparam, lparam);
+                putmsg(hwnd, imsg, wparam, lparam);
+                break;
 
-         };
-         else /* ignore the rest */
+            }
+            else; /* ignore the rest */
 
-      };
-      r = defwindowproc(hwnd, imsg, wparam, lparam);
+        }
+        r = defwindowproc(hwnd, imsg, wparam, lparam);
 
-   };
+    }
 
-   wndproc = r;
+    return (r);
 
-};
+}
 
 /*******************************************************************************
 
@@ -14487,35 +14462,34 @@ Create window to pass messages only. The window will have no display.
 
 *******************************************************************************/
 
-void createdummy(int wndproc(hwnd, imsg, wparam, lparam: int)
-                      : int; view name: char*; var dummywin: int);
-
-var wc:  wndclassa; /* windows class structure */
-    b:   int; /* int return */
-    v:   int;
+void createdummy(LRESULT (*wndproc)(HWND hwnd, UINT imsg, WPARAM wparam,
+                                    LPARAM lparam),
+                 char* name: char*, int* dummywin)
 
 {
 
-   /* create dummy class for message handling */
-   wc.style      = 0;
-   wc.wndproc    = wndprocadr(wndproc);
-   wc.clsextra   = 0;
-   wc.wndextra   = 0;
-   wc.instance   = GEtModuleHandle(NULL);
-   wc.icon       = 0;
-   wc.cursor     = 0;
-   wc.background = 0;
-   wc.menuname   = NULL;
-   wc.classname  = str(name);
-   /* register that class */
-   b = registerclass(wc);
-   /* create the window */
-   v = 2; /* construct hwnd_message, 0xfffffffd */
-   v = ! v;
-   dummywin = createwindow(name, "", 0, 0, 0, 0, 0,
-                              v /*hwnd_message*/, 0, getmodulehandle_n)
+    WNDCLASSA wc; /* windows class structure */
+    ATOM      b;  /* int return */
 
-};
+    /* create dummy class for message handling */
+    wc.style      = 0;
+    wc.wndproc    = wndproc;
+    wc.clsextra   = 0;
+    wc.wndextra   = 0;
+    wc.instance   = GetModuleHandle(NULL);
+    wc.icon       = 0;
+    wc.cursor     = 0;
+    wc.background = 0;
+    wc.menuname   = NULL;
+    wc.classname  = str(name);
+    /* register that class */
+    b = registerclass(wc);
+    /* create the window */
+    dummywin =
+        createwindow(name, "", 0, 0, 0, 0, 0, HWND_MESSAGE, 0,
+                     GetModuleHandle(NULL));
+
+}
 
 /*******************************************************************************
 
@@ -14527,28 +14501,28 @@ thread, but any number of subwindows will be started in the thread.
 
 *******************************************************************************/
 
-void dispthread;
-
-var msg: msg;
-    b:   int; /* int return */
-    r:   int; /* result holder */
+void dispthread(void)
 
 {
 
-   /* create dummy window for message handling */
-   createdummy(wndproc, "dispthread", dispwin);
+    MSG     msg;
+    BOOL    b;   /* int return */
+    LRESULT r;   /* result holder */
 
-   b = setevent(threadstart); /* flag subthread has started up */
+    /* create dummy window for message handling */
+    createdummy(wndproc, "dispthread", dispwin);
 
-   /* message handling loop */
-   while getmessage(msg, 0, 0, 0) != 0 do { /* ! a quit message */
+    b = SetEvent(threadstart); /* flag subthread has started up */
 
-      b = translatemessage(msg); /* translate keyboard events */
-      r = dispatchmessage(msg)
+    /* message handling loop */
+    while (getmessage(msg, 0, 0, 0)) { /* not a quit message */
 
-   }
+        b = TranslateMessage(msg); /* translate keyboard events */
+        r = Dispatchmessage(msg);
 
-};
+    }
+
+}
 
 /*******************************************************************************
 
@@ -14559,28 +14533,28 @@ everything by sending it on.
 
 *******************************************************************************/
 
-int wndprocmain(hwnd, imsg, wparam, lparam: int): int;
-
-var r: int; /* result holder */
+int wndprocmain(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
 
 {
 
+    LRESULT r; /* result holder */
+
 /*;prtstr("wndprocmain: msg: ");
 ;prtmsgu(hwnd, imsg, wparam, lparam);*/
-   if imsg == wm_create  {
+    if (imsg == WM_CREATE) {
 
-      r = 0
+        r = 0;
 
-   } else if imsg == wm_destroy  {
+    } else if imsg == wm_destroy  {
 
-      postquitmessage(0);
-      r = 0
+        postquitmessage(0);
+        r = 0;
 
-   } else r = defwindowproc(hwnd, imsg, wparam, lparam);
+    } else r = defwindowproc(hwnd, imsg, wparam, lparam);
 
-   wndprocmain = r
+    return (r);
 
-};
+}
 
 /*******************************************************************************
 
@@ -14591,23 +14565,22 @@ the fact that they come up behind the main window.
 
 *******************************************************************************/
 
-int wndprocfix(hwnd, imsg, wparam, lparam: int): int;
-
-var b: int; /* return value */
+int wndprocfix(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
 
 {
 
-   refer(hwnd, imsg, wparam, lparam); /* these aren"t presently used */
+    BOOL b; /* return value */
+
 /*;prtstr("wndprocfix: msg: ");
 ;prtmsgu(hwnd, imsg, wparam, lparam);*/
 
-   /* If dialog is focused, send it to the foreground. This solves the issue
-     where dialogs are getting parked behind the main window. */
-   if imsg == wm_setfocus  b = setforegroundwindow(hwnd);
+    /* If dialog is focused, send it to the foreground. This solves the issue
+       where dialogs are getting parked behind the main window. */
+    if (imsg == WM_SETFOCUS) b = setforegroundwindow(hwnd);
 
-   wndprocfix = 0 /* tell callback to handle own messages */
+    return (0); /* tell callback to handle own messages */
 
-};
+}
 
 /*******************************************************************************
 
@@ -14617,372 +14590,329 @@ Runs the various dialogs.
 
 *******************************************************************************/
 
-int wndprocdialog(hwnd, imsg, wparam, lparam: int): int;
-
-type fnrptr == ^findreplace; /* pointer to find replace entry */
-
-var r:    int;                /* result holder */
-    ip:   imptr;                  /* intratask message pointer */
-    cr:   choosecolor_rec;     /* color select structure */
-    b:    int;                /* result holder */
-    i:    int;                /* index for string */
-    fr:   openfilename;        /* file select structure */
-    bs:   char*;                /* filename holder */
-    frrp: fnrptr;                 /* dialog control record for find/replace */
-    fs:   findreplace_str_ptr; /* pointer to finder string */
-    rs:   findreplace_str_ptr; /* pointer to replacement string */
-    fl:   int;                /* flags */
-    fns:  choosefont_rec;      /* font select structure */
-    lf:   lplogfont;           /* logical font structure */
-    frcr: record /* find/replace record pointer convertion */
-
-       case int of
-
-          FALSE: (i: int);
-          TRUE:  (p: fnrptr)
-
-    };
+LRESULT wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
 
 {
+
+    DWORD        r;    /* result holder */
+    imptr        ip;   /* intratask message pointer */
+    CHOOSECOLOR  cr;   /* color select structure */
+    BOOL         b;    /* result holder */
+    int          i;    /* index for string */
+    OPENFILENAME fr;   /* file select structure */
+    char*        bs;   /* filename holder */
+    FINDREPLACE  frrp; /* dialog control record for find/replace */
+    char*        fs;   /* pointer to finder string */
+    char*        rs;   /* pointer to replacement string */
+    int          fl;   /* flags */
+    CHOOSEFONT   fns;  /* font select structure */
+    LOGFONT      lf;   /* logical font structure */
+    int          sl;
+    int          fsl, rsl;
 
 /*;prtstr("wndprocdialog: msg: ");
 ;prtmsgu(hwnd, imsg, wparam, lparam);
 ;printn("");*/
-   if imsg == wm_create  {
+    if (imsg == WM_CREATE)  {
 
-      r = 0
+        r = 0
 
-   } else if imsg == wm_destroy  {
+    } else if imsg == WM_DESTROY  {
 
-      postquitmessage(0);
-      r = 0
+        postquitmessage(0);
+        r = 0
 
-   } else if imsg == UMIM  { /* intratask message */
+    } else if (imsg == UMIM) { /* intratask message */
 
-      ip = (imptr)wparam; /* get im pointer */
-      case ip->im of /* im type */
+        ip = (imptr)wparam; /* get im pointer */
+        switch (ip->im) { /* im type */
 
-         imalert: { /* it"s an alert */
+            case imalert: /* it"s an alert */
+                r = messagebox(0, ip->altmsg, ip->alttit,
+                               MB_OK | MB_SETFOREGROUND);
+                /* signal complete */
+                iputmsg(0, UMIM, wparam, 0);
+                break;
 
-            r = messagebox(0, ip->altmsg^, ip->alttit^,
-                               mb_ok || mb_setforeground);
-            /* signal complete */
-            iputmsg(0, UMIM, wparam, 0)
+            case imqcolor:
+                /* set starting color */
+                cr.rgbresult = rgb2win(ip->clrred, ip->clrgreen, ip->clrblue);
+                cr.lstructsize = 9*4; /* set size */
+                cr.hwndowner = 0; /* set no owner */
+                cr.hinstance = 0; /* no instance */
+                cr.rgbresult = 0; /* clear color */
+                cr.lpcustcolors = gcolorsav; /* set global color save */
+                /* set display all colors, start with initalized color */
+                cr.flags = cc_anycolor || cc_rgbinit || cc_enablehook;
+                cr.lcustdata = 0; /* no data */
+                cr.lpfnhook = wndprocadr(wndprocfix); /* hook to force front */
+                cr.lptemplatename = NULL; /* set no template name */
+                b = choosecolor(cr); /* perform choose color */
+                /* set resulting color */
+                win2rgb(cr.rgbresult, ip->clrred, ip->clrgreen, ip->clrblue);
+                /* signal complete */
+                iputmsg(0, UMIM, wparam, 0);
+                break;
 
-         };
+            case imqopen:
+            case imqsave:
+                /* find length of input string */
+                if (ip->im == imqopen) sl = strlen(ip->opnfil)+1;
+                else sl = strlen(ip->savfil)+1;
+                if (sl < 256) sl = 256;
+                bs = malloc(sl); /* get string buffer */
+                if (!bs) error(nomem);
+                strcpy(bs, ip->opnfil); /* copy input string to buffer */
+                /* now index the temp buffer */
+                if (ip->im == imqopen) ip->opnfil = bs;
+                else ip->savfil = bs;
+                fr.lstructsize = sizeof(OPENFILENAME); /* set size */
+                fr.hwndowner = 0;
+                fr.hinstance = 0;
+                fr.lpstrfilter = NULL;
+                fr.lpstrcustomfilter = NULL;
+                fr.nfilterindex = 0;
+                fr.lpstrfile = bs;
+                fr.nMaxFile = sl;
+                fr.lpstrfiletitle = NULL;
+                fr.lpstrinitialdir = NULL;
+                fr.lpstrtitle = NULL;
+                fr.flags = ofn_hidereadonly | ofn_enablehook;
+                fr.nfileoffset = 0;
+                fr.nfileextension = 0;
+                fr.lpstrdefext = NULL;
+                fr.lcustdata = 0;
+                fr.lpfnhook = wndprocadr(wndprocfix); /* hook to force front */
+                fr.lptemplatename = NULL;
+                fr.pvreserved = 0;
+                fr.dwreserved = 0;
+                fr.flagsex = 0;
+                if (ip->im == imqopen)  /* it's open */
+                    b = getopenfilename(fr) /* perform choose file */
+                else /* it's save */
+                    b = getsavefilename(fr); /* perform choose file */
+                if (!b) {
 
-         imqcolor: {
+                    /* Check was a cancel. If the user canceled, return a null
+                       string. */
+                    r = CommDlgExtendedError();
+                    if (!r) error(efildlg); /* error */
+                    /* Since the main code is expecting us to make a new string for
+                       the result, we must copy the input to the output so that it"s
+                       disposal will be valid. */
+                    if (ip->im == imqopen) *(ip->opnfil) = 0; /* terminate string */
+                    else *(ip->savfil) = 0;
 
-            /* set starting color */
-            cr.rgbresult = rgb2win(ip->clrred, ip->clrgreen, ip->clrblue);
-            cr.lstructsize = 9*4; /* set size */
-            cr.hwndowner = 0; /* set no owner */
-            cr.hinstance = 0; /* no instance */
-            cr.rgbresult = 0; /* clear color */
-            cr.lpcustcolors = gcolorsav; /* set global color save */
-            /* set display all colors, start with initalized color */
-            cr.flags = cc_anycolor || cc_rgbinit || cc_enablehook;
-            cr.lcustdata = 0; /* no data */
-            cr.lpfnhook = wndprocadr(wndprocfix); /* hook to force front */
-            cr.lptemplatename = NULL; /* set no template name */
-            b = choosecolor(cr); /* perform choose color */
-            /* set resulting color */
-            win2rgb(cr.rgbresult, ip->clrred, ip->clrgreen, ip->clrblue);
-            /* signal complete */
-            iputmsg(0, UMIM, wparam, 0)
+                }
+                /* signal complete */
+                iputmsg(0, UMIM, wparam, 0);
+                break;
 
-         };
+            case imqfind:
+                sl = strlen(ip->fndstr)+1; /* find length of input */
+                /* must be >= 80 characters */
+                if (sl < 80) sl = 80;
+                bs = malloc(sl); /* get string buffer */
+                if (!bs) error(nomem);
+                strcpy(bs, ip->fndstr); /* copy input string to buffer */
+                ip->fndstr = bs; /* index buffer for return */
+                frrp = malloc(sizeof(FINDREPLACE));
+                if (!frrp) error(nomem);
+                frrp->lstructsize = findreplace_len; /* set size */
+                frrp->hwndowner = dialogwin; /* set owner */
+                frrp->hinstance = 0; /* no instance */
+                /* set flags */
+                fl = fr_hidewholeword /* or fr_enablehook*/;
+                /* set status of down */
+                if (!(BIT(qfnup) & ip->fndopt)) fl |= FR_DOWN;
+                /* set status of case */
+                if (BIT(qfncase) & ip->fndopt) fl |= FR_MATCHCASE;
+                frrp->flags = fl;
+                frrp->lpstrfindwhat = fs; /* place finder string */
+                frrp->lpstrreplacewith = NULL; /* set no replacement string */
+                frrp->wfindwhatlen = sl; /* set length */
+                frrp->wreplacewithlen = 0; /* set null replacement string */
+                frrp->lcustdata = (LPARAM)ip; /* send ip with this record */
+                frrp->lpfnhook = 0; /* no callback */
+                frrp->lptemplatename = NULL; /* set no template */
+                /* start find dialog */
+                fndrepmsg = RegisterWindowMessage("commdlg_FindReplace");
+                ip->fndhan = findtext(frr); /* perform dialog */
+                /* now bring that to the front */
+                b = SetWindowPos(ip->fndhan, HWND_TOP, 0, 0, 0, 0,
+                                 SWP_NOMOVE | SWP_NOSIZE);
+                b = SetForegroundWindow(ip->fndhan);
+                r = 0;
+                break;
 
-         imqopen, imqsave: {
+            case imqfindrep:
+                /* find length of search string */
+                fsl =strlen(ip->fnrsch);
+                if (fsl < 80) fsl = 80; /* ensure >= 80 */
+                fs = malloc(fsl);
+                if (!fs) error(enomem);
+                strcpy(fs, ip->fnrsch);
+                /* find length of replacement string */
+                rsl =strlen(ip->fnrrep);
+                if (rsl < 80) rsl = 80; /* ensure >= 80 */
+                rs = malloc(rsl);
+                if (!rs) error(enomem);
+                strcpy(rs, ip->fnrrep);
+                frrp = malloc(sizeof(FINDREPLACE)); /* get a find/replace data record */
+                if (!frrp) error(enomem);
+                frrp->lStructSize = sizeof(FINDREPLACE); /* set size */
+                frrp->hwndOwner = dialogwin; /* set owner */
+                frrp->hInstance = 0; /* no instance */
+                /* set flags */
+                fl = FR_HIDEWHOLEWORD;
+                if (!(BIT(qfrup) & ip->fnropt) fl |= FR_DOWN; /* set status of down */
+                if (BIT(qfrcase) & ip->fnropt) fl |= FR_MATCHCASE; /* set status of case */
+                frrp->Flags = fl;
+                frrp->lpstrFindWhat = fs; /* place finder string */
+                frrp->lpstrReplaceWith = rs; /* place replacement string */
+                frrp->wFindWhatLen = fsl; /* set length */
+                frrp->wReplaceWithLen = rsl; /* set null replacement string */
+                frrp->lCustData = (LPARAM)ip; /* send ip with this record */
+                frrp->lpfnHook = 0; /* clear these */
+                frrp->lpTemplateName = NULL;
+                /* start find dialog */
+                fndrepmsg = RegisterWindowMessage("commdlg_FindReplace");
+                ip->fnrhan = ReplaceText(frrp); /* perform dialog */
+                /* now bring that to the front */
+                b = SetWindowPos(ip->fnrhan, HWND_TOP, 0, 0, 0, 0,
+                                     SWP_NOMOVE | SWP_NOSIZE);
+                b = SetForegroundWindow(ip->fnrhan);
+                r = 0;
+                break;
 
-            new(bs, 200); /* allocate result string buffer */
-            /* copy input string to buffer */
-            for r= 1 to max(ip->opnfil^) do
-               bs^[r] = chr(chr2ascii(ip->opnfil^[r]));
-            /* place terminator */
-            bs^[max(ip->opnfil^)+1] = chr(0);
-            ip->opnfil = bs; /* now index the temp buffer */
-            fr.lstructsize = 21*4+2*2; /* set size */
-            fr.hwndowner = 0;
-            fr.hinstance = 0;
-            fr.lpstrfilter = NULL;
-            fr.lpstrcustomfilter = NULL;
-            fr.nfilterindex = 0;
-            fr.lpstrfile = bs;
-            fr.lpstrfiletitle = NULL;
-            fr.lpstrinitialdir = NULL;
-            fr.lpstrtitle = NULL;
-            fr.flags = ofn_hidereadonly || ofn_enablehook;
-            fr.nfileoffset = 0;
-            fr.nfileextension = 0;
-            fr.lpstrdefext = NULL;
-            fr.lcustdata = 0;
-            fr.lpfnhook = wndprocadr(wndprocfix); /* hook to force front */
-            fr.lptemplatename = NULL;
-            fr.pvreserved = 0;
-            fr.dwreserved = 0;
-            fr.flagsex = 0;
-            if ip->im == imqopen  /* it"s open */
-               b = getopenfilename(fr) /* perform choose file */
-            else /* it"s save */
-               b = getsavefilename(fr); /* perform choose file */
-            if ! b  {
+            case imqfont:
+                lf = malloc(sizeof(LOGFONT)); /* get a logical font structure */
+                if (!lf) error(enomem);
+                /* initalize logical font structure */
+                lf->lfHeight = ip->fntsiz; /* use default height */
+                lf->lfWidth = 0; /* use default width */
+                lf->lfEscapement = 0; /* no escapement */
+                lf->lfOrientation = 0; /* orient to x axis */
+                if (BIT(qftebold) & ip->fnteff) lf->lfweight = FW_BOLD /* set bold */
+                else lf->lfWeight = FW_DONTCARE; /* default weight */
+                lf->lfItalic = BIT(qfteitalic) & ip->fnteff;  /* italic */
+                lf->lfUnderline = BIT(qfteunderline) & ip->fnteff; /* underline */
+                lf->lfStrikeOut = BIT(qftestrikeout) & ip->fnteff; /* strikeout */
+                lf->lfCharSet = DEFAULT_CHARSET; /* use default characters */
+                /* use default precision */
+                lf->lfOutPrecision = OUT_DEFAULT_PRECIS;
+                /* use default clipping */
+                lf->lfClipPrecision = CLIP_DEFAULT_PRECIS;
+                lf->lfQuality = DEFAULT_QUALITY; /* use default quality */
+                lf->lfPitchAndFamily = 0; /* must be zero */
+                strlcpy(lf->lfFaceName, ip->fntstr, 32); /* place face name */
+                /* initalize choosefont structure */
+                fns.lStructSize = sizeof(CHOOSEFONT); /* set size */
+                fns.hwndOwner = 0; /* set no owner */
+                fns.hDC = 0; /* no device context */
+                fns.lpLogFont = lf; /* logical font */
+                fns.iPointSize = 0; /* no point size */
+                /* set flags */
+                fns.Flags = CF_SCREENFONTS | CF_EFFECTS |
+                            CF_NOSCRIPTSEL | CF_FORCEFONTEXIST |
+                            CF_TTONLY | CF_INITTOLOGFONTSTRUCT |
+                            CF_ENABLEHOOK;
+                /* color */
+                fns.rgbColors = rgb2win(ip->fntfr, ip->fntfg, ip->fntfb);
+                fns.lCustData = 0; /* no data */
+                fns.lpfnHook = wndprocadr(wndprocfix); /* hook to force front */
+                fns.lpTemplateName = NULL; /* no template name */
+                fns.hInstance = 0; /* no instance */
+                fns.lpszStyle = NULL; /* no style */
+                fns.nFontType = 0; /* no font type */
+                fns.nSizeMin = 0; /* no minimum size */
+                fns.nSizeMax = 0; /* no maximum size */
+                b = choosefont(fns); /* perform choose font */
+                if (!b) {
 
-               /* Check was a cancel. If the user canceled, return a null
-                 string. */
-               r = commdlgext}ederror;
-               if r != 0  error(efildlg); /* error */
-               /* Since the main code is expecting us to make a new string for
-                 the result, we must copy the input to the output so that it"s
-                 disposal will be valid. */
-               if ip->im == imqopen  new(ip->opnfil, 0)
-               else new(ip->savfil, 0)
+                    /* Check was a cancel. If the user canceled, just return the string
+                       empty. */
+                    r = commdlgextendederror();
+                    if (r) error(efnddlg); /* error */
+                    /* Since the main code is expecting us to make a new string for
+                       the result, we must copy the input to the output so that it"s
+                       disposal will be valid. */
+                    ip->fntstr = malloc(1);
+                    if (!ip->fntstr) error(enomem);
+                    *(ip->fntstr) = 0;
 
-            } else { /* create result string */
+                } else { /* set what the dialog changed */
 
-               if ip->im == imqopen  { /* it"s open */
+                    ip->fnteff = 0; /* clear what was set */
+                    if (lf->lfitalic) ip->fnteff |= BIT(qfteitalic); /* italic */
+                    else ip->fnteff &= ~BIT(qfteitalic);
+                    if (fns.nfonttype & BOLD_FONTTYPE)
+                        ip->fnteff |= BIT(qftebold); /* bold */
+                    else
+                        ip->fnteff &= ~BIT(qftebold);
+                    if (lf->lfunderline)
+                        ip->fnteff |= BIT(qfteunderline); /* underline */
+                    else ip->fnteff &= ~BIT(qfteunderline);
+                    if (lf->lfstrikeout)
+                        ip->fnteff |= BIT(qftestrikeout); /* strikeout */
+                    else ip->fnteff &= ~BIT(qftestrikeout);
+                    /* place foreground colors */
+                    win2rgb(fns.rgbcolors, ip->fntfr, ip->fntfg, ip->fntfb);
+                    strlcpy(ip->fntstr, lf->lffacename, 32); /* copy font string back */
+                    ip->fntsiz = abs(lf->lfHeight); /* set size */
 
-                  i = 1; /* set 1st character */
-                  while bs^[i] != chr(0) do i = i+1; /* find terminator */
-                  new(ip->opnfil, i-1); /* create result string */
-                  for i = 1 to i-1 do ip->opnfil^[i] = ascii2chr(ord(bs^[i]))
+                }
+                /* signal complete */
+                iputmsg(0, UMIM, wparam, 0);
 
-               } else { /* it"s save */
+            }
 
-                  i = 1; /* set 1st character */
-                  while bs^[i] != chr(0) do i = i+1; /* find terminator */
-                  new(ip->savfil, i-1); /* create result string */
-                  for i = 1 to i-1 do ip->savfil^[i] = ascii2chr(ord(bs^[i]))
+        }
+        r = 0; /* clear result */
 
-               }
+    } else if imsg == fndrepmsg  { /* find is done */
 
-            };
-            free(bs); /* release temp string */
-            /* signal complete */
-            iputmsg(0, UMIM, wparam, 0)
+        /* Here's a series of dirty tricks. The find/replace record pointer is given
+           back to us as an int by windows. We also stored the ip as "customer
+           data" in int. */
+        frrp = (FINDREPLACEA*) lparam; /* get find/replace data pointer */
+        ip = (imptr)frrp->lcustdata; /* get im pointer */
+        if ip->im == imqfind  { /* it"s a find */
 
-         };
+            b = destroywindow(ip->fndhan); /* destroy the dialog */
+            /* check and set case match mode */
+            if (frrp->Flags & FR_MATCHCASE) ip->fndopt |= BIT(qfncase);
+            /* check and set cas up/down mode */
+            if (frrp->flags & FR_DOWN) ip->fndopt &= ~BIT(qfnup);
+            else ip->fndopt |= BIT(qfnup);
+            ip->fndstr = frrp->lpstrfindwhat; /* place result string */
 
-         imqfind: {
+        } else { /* it's a find/replace */
 
-            new(fs); /* get a new finder string */
-            /* copy string to destination */
-            for i = 1 to max(ip->fndstr^) do
-               fs^[i] = chr(chr2ascii(ip->fndstr^[i]));
-            fs^[max(ip->fndstr^)+1] = chr(0); /* terminate */
-            new(frrp); /* get a find/replace data record */
-            frrp->lstructsize = findreplace_len; /* set size */
-            frrp->hwndowner = dialogwin; /* set owner */
-            frrp->hinstance = 0; /* no instance */
-            /* set flags */
-            fl = fr_hidewholeword /*or fr_enablehook*/;
-            /* set status of down */
-            if ! (qfnup in ip->fndopt)  fl = fl+fr_down;
-            /* set status of case */
-            if qfncase in ip->fndopt  fl = fl+fr_matchcase;
-            frrp->flags = fl;
-            frrp->lpstrfindwhat = fs; /* place finder string */
-            frrp->lpstrreplacewith = NULL; /* set no replacement string */
-            frrp->wfindwhatlen = findreplace_str_len; /* set length */
-            frrp->wreplacewithlen = 0; /* set null replacement string */
-            frrp->lcustdata = (LPARAM)ip; /* send ip with this record */
-            frrp->lpfnhook = 0; /* no callback */
-            frrp->lptemplatename = NULL; /* set no template */
-            /* start find dialog */
-            fndrepmsg = registerwindowmessage("commdlg_FindReplace");
-            ip->fndhan = findtext(frrp^); /* perform dialog */
-            /* now bring that to the front */
-            fl = 0;
-            fl = ! fl;
-            b = SetWindowPos(ip->fndhan, fl /*hwnd_top*/, 0, 0, 0, 0,
-                                 swp_nomove || swp_nosize);
-            b = setforegroundwindow(ip->fndhan);
-            r = 0
+            b = destroywindow(ip->fnrhan); /* destroy the dialog */
+            /* check and set case match mode */
+            if (frrp->flags & FR_MATCHCASE) ip->fnropt |= BIT(qfrcase);
+            /* check and set find mode */
+            if (frrp->flags & FR_FINDNEXT) ip->fnropt |= BIT([qfrfind);
+            /* check and set replace mode */
+            if (frrp->flags & FR_REPLACE)
+                ip->fnropt = ip->fnropt & ~(BIT(qfrfind] & ~BIT(qfrallfil]));
+            /* check and set replace all mode */
+            if (frrp->flags & FR_REPLACEALL)
+                ip->fnropt = ip->fnropt & ~BIT(qfrfind]) | BIT(qfrallfil);
+            ip->fnrsch = frrp->lpstrFindWhat;
+            ip->fnrrep = frrp->lpstrReplaceWith;
 
-         };
+        }
+        free(frrp); /* release find/replace record entry */
+        /* signal complete */
+        iputmsg(0, UMIM, (WPARAM)ip, 0);
 
-         imqfindrep: {
+    } else r = defwindowproc(hwnd, imsg, wparam, lparam);
 
-            new(fs); /* get a new finder string */
-            /* copy string to destination */
-            for i = 1 to max(ip->fnrsch^) do
-               fs^[i] = chr(chr2ascii(ip->fnrsch^[i]));
-            fs^[max(ip->fnrsch^)+1] = chr(0); /* terminate */
-            new(rs); /* get a new finder string */
-            /* copy string to destination */
-            for i = 1 to max(ip->fnrrep^) do
-               rs^[i] = chr(chr2ascii(ip->fnrrep^[i]));
-            rs^[max(ip->fnrrep^)+1] = chr(0); /* terminate */
-            new(frrp); /* get a find/replace data record */
-            frrp->lstructsize = findreplace_len; /* set size */
-            frrp->hwndowner = dialogwin; /* set owner */
-            frrp->hinstance = 0; /* no instance */
-            /* set flags */
-            fl = fr_hidewholeword;
-            if ! (qfrup in ip->fnropt)  fl = fl+fr_down; /* set status of down */
-            if qfrcase in ip->fnropt  fl = fl+fr_matchcase; /* set status of case */
-            frrp->flags = fl;
-            frrp->lpstrfindwhat = fs; /* place finder string */
-            frrp->lpstrreplacewith = rs; /* place replacement string */
-            frrp->wfindwhatlen = findreplace_str_len; /* set length */
-            frrp->wreplacewithlen = findreplace_str_len; /* set null replacement string */
-            frrp->lcustdata = (LPARAM)ip; /* send ip with this record */
-            frrp->lpfnhook = 0; /* clear these */
-            frrp->lptemplatename = NULL;
-            /* start find dialog */
-            fndrepmsg = registerwindowmessage("commdlg_FindReplace");
-            ip->fnrhan = replacetext(frrp^); /* perform dialog */
-            /* now bring that to the front */
-            fl = 0;
-            fl = ! fl;
-            b = SetWindowPos(ip->fnrhan, fl /*hwnd_top*/, 0, 0, 0, 0,
-                                 swp_nomove || swp_nosize);
-            b = setforegroundwindow(ip->fnrhan);
-            r = 0
+    return (r);
 
-         };
-
-         imqfont: {
-
-            new(lf); /* get a logical font structure */
-            /* initalize logical font structure */
-            lf->lFHEIGHT = ip->fntsiz; /* use default height */
-            lf->lfwidth = 0; /* use default width */
-            lf->lfescapement = 0; /* no escapement */
-            lf->lforientation = 0; /* orient to x axis */
-            if qftebold in ip->fnteff  lf->lfweight = fw_bold /* set bold */
-            else lf->lfweight = fw_dontcare; /* default weight */
-            lf->lfitalic = ord(qfteitalic in ip->fnteff);  /* italic */
-            lf->lfunderline = ord(qfteunderline in ip->fnteff); /* underline */
-            lf->lfstrikeout = ord(qftestrikeout in ip->fnteff); /* strikeout */
-            lf->lfcharset = default_charset; /* use default characters */
-            /* use default precision */
-            lf->lfoutprecision = out_default_precis;
-            /* use default clipping */
-            lf->lfclipprecision = clip_default_precis;
-            lf->lFQUALITY = default_quality; /* use default quality */
-            lf->lfpitchandfamily = 0; /* must be zero */
-            strcpy(lf->lffacename, ip->fntstr^); /* place face name */
-            /* initalize choosefont structure */
-            fns.lstructsize = choosefont_len; /* set size */
-            fns.hwndowner = 0; /* set no owner */
-            fns.hdc = 0; /* no device context */
-            fns.lplogfont = lf; /* logical font */
-            fns.ipointsize = 0; /* no point size */
-            /* set flags */
-            fns.flags = cf_screenfonts || cf_effects or
-                         cf_noscriptsel || cf_forcefontexist ||
-                         cf_ttonly || cf_inittologfontstruct or
-                         cf_enablehook;
-            /* color */
-            fns.rgbcolors = rgb2win(ip->fntfr, ip->fntfg, ip->fntfb);
-            fns.lcustdata = 0; /* no data */
-            fns.lpfnhook = wndprocadr(wndprocfix); /* hook to force front */
-            fns.lptemplatename = NULL; /* no template name */
-            fns.hinstance = 0; /* no instance */
-            fns.lpszstyle = NULL; /* no style */
-            fns.nfonttype = 0; /* no font type */
-            fns.nsizemin = 0; /* no minimum size */
-            fns.nsizemax = 0; /* no maximum size */
-            b = choosefont(fns); /* perform choose font */
-            if ! b  {
-
-               /* Check was a cancel. If the user canceled, just return the string
-                 empty. */
-               r = commdlgext}ederror;
-               if r != 0  error(efnddlg); /* error */
-               /* Since the main code is expecting us to make a new string for
-                 the result, we must copy the input to the output so that it"s
-                 disposal will be valid. */
-               strcpy(ip->fntstr, ip->fntstr^)
-
-            } else { /* set what the dialog changed */
-
-               ip->fnteff = []; /* clear what was set */
-               if lf->lfitalic != 0  ip->fnteff = ip->fnteff+[qfteitalic] /* italic */
-               else ip->fnteff = ip->fnteff-[qfteitalic];
-               if fns.nfonttype && bold_fonttype != 0
-                  ip->fnteff = ip->fnteff+[qftebold] /* bold */
-               else
-                  ip->fnteff = ip->fnteff-[qftebold];
-               if lf->lfunderline != 0
-                  ip->fnteff = ip->fnteff+[qfteunderline] /* underline */
-               else ip->fnteff = ip->fnteff-[qfteunderline];
-               if lf->lfstrikeout != 0
-                  ip->fnteff = ip->fnteff+[qftestrikeout] /* strikeout */
-               else ip->fnteff = ip->fnteff-[qftestrikeout];
-               /* place foreground colors */
-               win2rgb(fns.rgbcolors, ip->fntfr, ip->fntfg, ip->fntfb);
-               strcpy(ip->fntstr, lf->lffacename); /* copy font string back */
-               ip->fntsiz = abs(lf->lFHEIGHT); /* set size */
-
-            };
-            /* signal complete */
-            iputmsg(0, UMIM, wparam, 0)
-
-         };
-
-      };
-      r = 0 /* clear result */
-
-   } else if imsg == fndrepmsg  { /* find is done */
-
-      /* Here"s a series of dirty tricks. The find/replace record pointer is given
-        back to us as an int by windows. We also stored the ip as "customer
-        data" in int. */
-      frcr.i = lparam; /* get find/replace data pointer */
-      frrp = frcr.p;
-      ip = (imptr)frrp->lcustdata; /* get im pointer */
-      with frrp^, ip^ do /* in find/replace context do */
-         if ip->im == imqfind  { /* it"s a find */
-
-         b = destroywindow(ip->fndhan); /* destroy the dialog */
-         /* check && set case match mode */
-         if flags && fr_matchcase != 0  fndopt = fndopt+[qfncase];
-         /* check && set cas up/down mode */
-         if flags && fr_down != 0  fndopt = fndopt-[qfnup]
-         else fndopt = fndopt+[qfnup];
-         i = 1; /* set 1st character */
-         while lpstrfindwhat^[i] != chr(0) do i = i+1; /* find terminator */
-         new(fndstr, i-1); /* create result string */
-         for i = 1 to i-1 do fndstr^[i] = ascii2chr(ord(lpstrfindwhat^[i]));
-         free(lpstrfindwhat) /* release temp string */
-
-      } else { /* it"s a find/replace */
-
-         b = destroywindow(ip->fnrhan); /* destroy the dialog */
-         /* check && set case match mode */
-         if flags && fr_matchcase != 0  fnropt = fnropt+[qfrcase];
-         /* check && set find mode */
-         if flags && fr_findnext != 0  fnropt = fnropt+[qfrfind];
-         /* check && set replace mode */
-         if flags && fr_replace != 0
-            fnropt = fnropt-[qfrfind]-[qfrallfil];
-         /* check && set replace all mode */
-         if flags && fr_replaceall != 0
-            fnropt = fnropt-[qfrfind]+[qfrallfil];
-         i = 1; /* set 1st character */
-         while lpstrfindwhat^[i] != chr(0) do i = i+1; /* find terminator */
-         new(fnrsch, i-1); /* create result string */
-         for i = 1 to i-1 do fnrsch^[i] = ascii2chr(ord(lpstrfindwhat^[i]));
-         i = 1; /* set 1st character */
-         while lpstrreplacewith^[i] != chr(0) do i = i+1; /* find terminator */
-         new(fnrrep, i-1); /* create result string */
-         for i = 1 to i-1 do
-            fnrrep^[i] = ascii2chr(ord(lpstrreplacewith^[i]));
-         free(lpstrfindwhat); /* release temp strings */
-         free(lpstrreplacewith)
-
-      };
-      free(frrp); /* release find/replace record entry */
-      /* signal complete */
-      iputmsg(0, UMIM, (WPARAM)ip, 0)
-
-   } else r = defwindowproc(hwnd, imsg, wparam, lparam);
-
-   wndprocdialog = r
-
-};
+}
 
 /*******************************************************************************
 
@@ -14990,28 +14920,28 @@ Dialog thread
 
 *******************************************************************************/
 
-void dialogthread;
-
-var msg: msg;
-    b:   int; /* int return */
-    r:   int; /* result holder */
+void dialogthread(void)
 
 {
 
-   /* create dummy window for message handling */
-   createdummy(wndprocdialog, "dialogthread", dialogwin);
+    MSG     msg;
+    BOOL    b;   /* int return */
+    LRESULT r;   /* result holder */
 
-   b = setevent(threadstart); /* flag subthread has started up */
+    /* create dummy window for message handling */
+    createdummy(wndprocdialog, "dialogthread", dialogwin);
 
-   /* message handling loop */
-   while getmessage(msg, 0, 0, 0) != 0 do { /* ! a quit message */
+    b = SetEvent(threadstart); /* flag subthread has started up */
 
-      b = translatemessage(msg); /* translate keyboard events */
-      r = dispatchmessage(msg)
+    /* message handling loop */
+    while (GetMessage(msg, 0, 0, 0)) { /* not a quit message */
 
-   }
+        b = TranslateMessage(msg); /* translate keyboard events */
+        r = DispatchMessage(msg);
 
-};
+    }
+
+}
 
 /*******************************************************************************
 
@@ -15133,8 +15063,8 @@ static ssize_t iread(int fd, void* buff, size_t count)
         lockmain(); /* start exclusive access */
         i = 1; /* set 1st byte of destination */
         l = count; /* set length of destination */
-        while (l > 0) /* while there is space left in the buffer */
-            { /* read input bytes */
+        while (l > 0) { /* while there is space left in the buffer */
+            /* read input bytes */
 
             /* find any window with a buffer with data that points to this input
                file */
@@ -15151,7 +15081,7 @@ static ssize_t iread(int fd, void* buff, size_t count)
                     if (win->inpptr < MAXLIN) win->inpptr++; /* next */
                /* if we have just read the last of that line,  flag buffer
                  empty */
-               if (ba[i] == '\cr')  {
+               if (ba[i] == '\r')  {
 
                   win->inpptr = 0; /* set 1st character */
                   win->inpend = FALSE /* set no ending */
@@ -15230,6 +15160,9 @@ static void pa_init_network()
 
 {
 
+    int i;
+    int fi;
+
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
     ovr_write(iwrite, &ofpwrite);
@@ -15237,92 +15170,72 @@ static void pa_init_network()
     ovr_close(iclose, &ofpclose);
     ovr_lseek(ilseek, &ofplseek);
 
-   fend = FALSE; /* set no end of program ordered */
-   fautohold = TRUE; /* set automatically hold self terminators */
-   eqefre = NULL; /* set free event queuing list empty */
-   dblflt = FALSE; /* set no double fault */
-   wigfre = NULL; /* set free widget tracking list empty */
-   freitm = NULL; /* clear intratask message free list */
-   msgcnt = 1; /* clear message counter */
-   /* Form character to ASCII value translation array from ASCII value to
-     character translation array. */
-   for ti = 1 to 255 do trnchr[chr(ti)] = 0; /* null out array */
-   for ti = 1 to 127 do trnchr[chrtrn[ti]] = ti; /* form translation */
+    fend = FALSE; /* set no end of program ordered */
+    fautohold = TRUE; /* set automatically hold self terminators */
+    eqefre = NULL; /* set free event queuing list empty */
+    dblflt = FALSE; /* set no double fault */
+    wigfre = NULL; /* set free widget tracking list empty */
+    freitm = NULL; /* clear intratask message free list */
+    msgcnt = 1; /* clear message counter */
 
-   /* Set up private message queuing */
+    /* Set up private message queuing */
 
-   msginp = 1; /* clear message input queue */
-   msgout = 1;
-   msgrdy = createevent(TRUE, FALSE); /* create message event */
-   imsginp = 1; /* clear control message message input queue */
-   imsgout = 1;
-   imsgrdy = createevent(TRUE, FALSE); /* create message event */
-   initializecriticalsection(mainlock); /* initialize the sequencer lock */
-   /* mainlock = createmutex(FALSE); */ /* create mutex with no owner */
-   /* if mainlock == 0  winerr(); */ /* process windows error */
-   new(gcolorsav); /* get the color pick array */
-   fndrepmsg = 0; /* set no find/replace message active */
-   for i = 1 to 16 do gcolorsav^[i] = 0xffffff; /* set all to white */
-   /* clear open files table */
-   for fi = 1 to ss_MAXFIL do opnfil[fi] = NULL; /* set unoccupied */
-   /* clear top level translator table */
-   for fi = 1 to ss_MAXFIL do xltfil[fi] = 0; /* set unoccupied */
-   /* clear window logical number translator table */
-   for fi = 1 to ss_MAXFIL do xltwin[fi] = 0; /* set unoccupied */
-   /* clear file to window logical number translator table */
-   for fi = 1 to ss_MAXFIL do filwin[fi] = 0; /* set unoccupied */
+    msginp = 1; /* clear message input queue */
+    msgout = 1;
+    msgrdy = createevent(TRUE, FALSE); /* create message event */
+    imsginp = 1; /* clear control message message input queue */
+    imsgout = 1;
+    imsgrdy = createevent(TRUE, FALSE); /* create message event */
+    initializecriticalsection(mainlock); /* initialize the sequencer lock */
+    /* mainlock = createmutex(FALSE); */ /* create mutex with no owner */
+    /* if mainlock == 0  winerr(); */ /* process windows error */
+    new(gcolorsav); /* get the color pick array */
+    fndrepmsg = 0; /* set no find/replace message active */
+    for (i = 0; i < 16; i++) gcolorsav->[i] = 0xffffff; /* set all to white */
+    /* clear open files table */
+    for (fi = 0; i < MAXFIL; i++) {
 
-   /* Create dummy window for message handling. This is only required so that
-     the main thread can be attached to the display thread */
-   createdummy(wndprocmain, "mainthread", mainwin);
-   mainthreadid = getcurrentthreadid;
+        opnfil[fi] = NULL; /* set unoccupied */
+        /* clear top level translator table */
+        xltfil[fi] = 0; /* set unoccupied */
+        /* clear window logical number translator table */
+        xltwin[fi] = 0; /* set unoccupied */
+        /* clear file to window logical number translator table */
+        filwin[fi] = 0; /* set unoccupied */
 
-   getpgm; /* get the program name from the command line */
-   /* Now start the display thread, which both manages all displays, and sends us
-     all messages from those displays. */
-   threadstart = createevent(TRUE, FALSE);
-   if threadstart == 0  winerr(); /* process windows error */
-   /* create subthread */
-   b = resetevent(threadstart); /* clear event */
-   r = createthread_nn(0, dispthread, 0, threadid);
-   r = waitforsingleobject(threadstart, -1); /* wait for thread to start */
-   if (r == -1) winerr(); /* process windows error */
-   /* Past this point, we need to lock for access between us and the thread. */
+    }
+    /* Create dummy window for message handling. This is only required so that
+      the main thread can be attached to the display thread */
+    createdummy(wndprocmain, "mainthread", mainwin);
+    mainthreadid = getcurrentthreadid;
 
-   /* Now attach the main thread to the display thread. This is required for the
-     main thread to have access to items like the display window caret. */
-   b = attachthreadinput(mainthreadid, threadid, TRUE);
-   if (!b) winerr(); /* process windows error */
+    getpgm(); /* get the program name from the command line */
+    /* Now start the display thread, which both manages all displays, and sends us
+      all messages from those displays. */
+    threadstart = CreateEvent(TRUE, FALSE);
+    if (!threadstart) winerr(); /* process windows error */
+    /* create subthread */
+    ResetEvent(threadstart); /* clear event */
+    CreateThread_nn(0, dispthread, 0, threadid);
+    WaitForSingleObject(threadstart, -1); /* wait for thread to start */
+    if (r == -1) winerr(); /* process windows error */
+    /* Past this point, we need to lock for access between us and the thread. */
 
-   /* Start widget thread */
-   b = resetevent(threadstart); /* clear event */
-   r = createthread_nn(0, dialogthread, 0, threadid);
-   r = waitforsingleobject(threadstart, -1); /* wait for thread to start */
-   if (r == -1) winerr(); /* process windows error */
+    /* Now attach the main thread to the display thread. This is required for the
+      main thread to have access to items like the display window caret. */
+    b = attachthreadinput(mainthreadid, threadid, TRUE);
+    if (!b) winerr(); /* process windows error */
 
-   /* register the stdwin class used to create all windows */
-   regstd;
+    /* Start widget thread */
+    ResetEvent(threadstart); /* clear event */
+    CreateThread_nn(0, dialogthread, 0, threadid);
+    r = WaitForSingleObject(threadstart, -1); /* wait for thread to start */
+    if (r == -1) winerr(); /* process windows error */
 
-   /* unused attribute codes */
-   refer(sablink);
+    /* register the stdwin class used to create all windows */
+    regstd();
 
-   /* currently unused routines */
-   refer(lwn2win);
-
-   /* diagnostic routines (come in and out of use) */
-   refer(print);
-   refer(printn);
-   refer(prtstr);
-   refer(prtnum);
-   refer(prtmsg);
-   refer(prtmsgu);
-   refer(prtfil);
-   refer(prtmenu);
-   refer(prtwiglst);
-
-refer(intv);
-
-};
+}
 
 /*******************************************************************************
 
@@ -15330,54 +15243,56 @@ Graph shutdown
 
 *******************************************************************************/
 
+static void pa_deinit_terminal (void) __attribute__((destructor (102)));
+static void pa_deinit_terminal(void)
+
 {
 
-   lockmain(); /* start exclusive access */
-   /* if the program tries to exit when the user has ! ordered an exit, it
-     is assumed to be a windows "unaware" program. We stop before we exit
-     these, so that their content may be viewed */
-   if ! fend && fautohold  { /* process automatic exit sequence */
+    winptr wp;
+    int    fi;
 
-      /* See if output is open at all */
-      if opnfil[OUTFIL] != NULL  /* output is allocated */
-         if opnfil[OUTFIL]->win != NULL  with opnfil[OUTFIL]->win^ do {
+    lockmain(); /* start exclusive access */
+    /* if the program tries to exit when the user has ! ordered an exit, it
+       is assumed to be a windows "unaware" program. We stop before we exit
+       these, so that their content may be viewed */
+    if (!fend && fautohold) { /* process automatic exit sequence */
 
-         /* make sure we are displayed */
-         if ! visible  winvis(opnfil[OUTFIL]->win);
-         /* If buffering is off, turn it back on. This will cause the screen
-           to come up clear, but this is better than an unrefreshed "hole"
-           in the screen. */
-         if ! bufmod  ibuffer(opnfil[OUTFIL]->win, TRUE);
-         /* Check framed. We don"t want that off, either, since the user cannot
-           close the window via the system close button. */
-         if ! frame  iframe(opnfil[OUTFIL]->win, TRUE);
-         /* Same with system bar */
-         if ! sysbar  isysbar(opnfil[OUTFIL]->win, TRUE);
-         /* change window label to alert user */
-         unlockmain(); /* } exclusive access */
-         b = setwindowtext(winhan, trmnam^);
-         lockmain(); /* start exclusive access */
-         /* wait for a formal } */
-         while ! f} do ievent(INPFIL, er)
+        /* See if output is open at all */
+        if (opnfil[OUTFIL]) /* output is allocated */
+            if (opnfil[OUTFIL]->win) {
 
-      }
+            wp = opnfil[OUTFIL]->win;
+            /* make sure we are displayed */
+            if (!wp->visible) winvis(wp);
+            /* If buffering is off, turn it back on. This will cause the screen
+               to come up clear, but this is better than an unrefreshed "hole"
+               in the screen. */
+            if (!wp->bufmod) ibuffer(wp, TRUE);
+            /* Check framed. We don"t want that off, either, since the user cannot
+               close the window via the system close button. */
+            if (!wp->frame) iframe(wp, TRUE);
+            /* Same with system bar */
+            if (!wp->sysbar) isysbar(wp, TRUE);
+            /* change window label to alert user */
+            unlockmain(); /* } exclusive access */
+            b = setwindowtext(wp->winhan, trmnam);
+            lockmain(); /* start exclusive access */
+            /* wait for a formal end */
+            while (!fend) ievent(INPFIL, &er);
 
-   };
-   /* close any open windows */
-   88: /* abort module */
-   if ! dblflt  { /* we haven"t already exited */
+        }
 
-      dblflt = TRUE; /* set we already exited */
-      /* close all open files and windows */
-      for fi = 1 to ss_MAXFIL do
-         if opnfil[fi] != NULL  with opnfil[fi]^ do {
+    }
+    /* close any open windows */
+    if (!dblflt)  { /* we haven"t already exited */
 
-         if han != 0  ss_old_close(han, sav_close); /* close at lower level */
-         if win != NULL  clswin(fi) /* close open window */
+        dblflt = TRUE; /* set we already exited */
+        /* close all open files and windows */
+        for (fi = 0; fi < MAXFIL; fi++)
+            if (opnfil[fi] && opnfil[fi]->win)
+                clswin(fi); /* close open window */
 
-      }
-
-   };
-   unlockmain(); /* end exclusive access */
+    }
+    unlockmain(); /* end exclusive access */
 
 }
