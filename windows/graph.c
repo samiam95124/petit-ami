@@ -6,7 +6,7 @@
 *                                                                              *
 *                              4/96 S. A. Moore                                *
 *                                                                              *
-* Implements the graphical mode functions on Windows. graph is upward         *
+* Implements the graphical mode functions on Windows. graph is upward          *
 * compatible with trmlib functions.                                            *
 *                                                                              *
 * Proposed improvements:                                                       *
@@ -23,13 +23,13 @@
 *                                                                              *
 * History:                                                                     *
 *                                                                              *
-* graph started in 1996 as a graphical window demonstrator as a twin to       *
+* graph started in 1996 as a graphical window demonstrator as a twin to        *
 * ansilib, the ANSI control character based terminal mode library.             *
-* In 2003, graph was upgraded to the graphical terminal standard.             *
+* In 2003, graph was upgraded to the graphical terminal standard.              *
 * In 2005, graph was upgraded to include the window mangement calls, and the  *
 * widget calls.                                                                *
 *                                                                              *
-* graph uses three different tasks. The main task is passed on to the         *
+* graph uses three different tasks. The main task is passed on to the          *
 * program, and two subthreads are created. The first one is to run the         *
 * display, and the second runs widgets. The Display task both isolates the     *
 * user interface from any hangs || slowdowns in the main thread, and also      *
@@ -77,9 +77,11 @@
 #define WINVER 0x0A00
 #define _WIN32_WINNT 0xA00
 
+#include <limits.h>
 #include <string.h>
+#include <math.h>
 #include <windows.h>
-#include <terminal.h>
+#include <graph.h>
 
 #define BIT(b) (1<<b) /* set bit from bit number */
 #define BITMSK(b) (~BIT(b)) /* mask out bit number */
@@ -95,7 +97,7 @@
 #define MAXTAB    50    /* total number of tabs possible per screen */
 #define MAXPIC    50    /* total number of loadable pictures */
 #define FHEIGHT   15    /* default font height, matches Windows "system" default */
-#define FQUALITY  nonantialiased_quality /* font writing quality */
+#define FQUALITY  NONANTIALIASED_QUALITY /* font writing quality */
 #define FRMTIM    0     /* handle number of framing timer */
 #define PI        3.1415926535897932 /* PI to 17 digits */
 #define MAXMSG    1000  /* size of input message queue */
@@ -115,11 +117,12 @@
 #define JOYENB    FALSE /*TRUE*/ /* enable joysticks, for debugging */
  /* foreground pen style */
  /* FPENSTL  ps_geometric || ps_}cap_flat || ps_solid */
-#define FPENSTL  ps_geometric || ps_}cap_flat || ps_solid || ps_join_miter
+#define FPENSTL  (PS_GEOMETRIC | PS_ENDCAP_FLAT | PS_SOLID | PS_JOIN_MITER)
  /* foreground single pixel pen style */
-#define FSPENSTL  ps_solid
+#define FSPENSTL  PS_SOLID
 #define PACKMSG  TRUE   /* pack paint messages in queue */
 #define MAXFIL   100    /* maximum open files */
+#define MAXFNM   250    /* number of filename characters in buffer */
 
 /* screen attribute */
 typedef enum {
@@ -245,10 +248,10 @@ typedef struct pict { /* picture tracking record */
 /* window description */
 typedef struct winrec {
 
-    filhdl   parlfn;          /* logical parent */
+    int      parlfn;          /* logical parent */
     int      parhan;          /* handle to window parent */
-    int      winhan;          /* handle to window */
-    int      devcon;          /* device context */
+    HWND     winhan;          /* handle to window */
+    HDC      devcon;          /* device context */
     scnptr   screens[MAXCON]; /* screen contexts array */
     int      curdsp;          /* index for current display screen */
     int      curupd;          /* index for current update screen */
@@ -265,8 +268,8 @@ typedef struct winrec {
     int      gcurv;           /* state of cursor visible */
     fontptr  gcfont;          /* current font select */
     int      gfhigh;          /* current font height */
-    mod      gfmod;           /* foreground mix mode */
-    mod      gbmod;           /* background mix mode */
+    mode     gfmod;           /* foreground mix mode */
+    mode     gbmod;           /* background mix mode */
     int      goffx;           /* viewport offset x */
     int      goffy;           /* viewport offset y */
     int      gwextx;          /* window extent x */
@@ -336,9 +339,9 @@ typedef struct winrec {
    Events are kept as a double linked "bubble" to ease their FIFO status. */
 typedef struct eqerec {
 
-    evt: evtrec;  /* event */
-    last: eqeptr; /* last list pointer */
-    next: eqeptr  /* next list pointer */
+    pa_evtrec evt;       /* event */
+    struct eqerec* last; /* last list pointer */
+    struct eqerec* next; /* next list pointer */
 
 } eqerec, *eqeptr;
 
@@ -375,7 +378,7 @@ typedef enum {
 
 typedef struct imrec { /* intermessage record */
 
-    next: imptr; /* next message in list */
+    struct imrec* next; /* next message in list */
     union { /* intermessage type */
 
         struct {
@@ -489,20 +492,20 @@ typedef enum {
     etabful,  /* Too many tabs set */
     eatotab,  /* Cannot use graphical tabs with auto on */
     estrinx,  /* String index out of range */
-    epicfnf,  /* Picture file ! found */
+    epicfnf,  /* Picture file not found */
     epicftl,  /* Picture filename too large */
     etimnum,  /* Invalid timer number */
     ejstsys,  /* Cannot justify system font */
-    efnotwin, /* File is ! attached to a window */
+    efnotwin, /* File is not attached to a window */
     ewinuse,  /* Window id in use */
     efinuse,  /* File already in use */
     einmode,  /* Input side of window in wrong mode */
     edcrel,   /* Cannot release Windows device context */
     einvsiz,  /* Invalid buffer size */
-    ebufoff,  /* buffered mode ! enabled */
+    ebufoff,  /* buffered mode not enabled */
     edupmen,  /* Menu id was duplicated */
-    emennf,   /* Meny id was ! found */
-    ewignf,   /* Widget id was ! found */
+    emennf,   /* Meny id was not found */
+    ewignf,   /* Widget id was not found */
     ewigdup,  /* Widget id was duplicated */
     einvspos, /* Invalid scroll bar slider position */
     einvssiz, /* Invalid scroll bar size */
@@ -516,10 +519,10 @@ typedef enum {
     efndstl,  /* Find/replace string too long */
     einvwin,  /* Invalid window number */
     einvjye,  /* Invalid joystick event */
-    ejoyqry,  /* Could ! get information on joystick */
+    ejoyqry,  /* Could not get information on joystick */
     einvjoy,  /* Invalid joystick ID */
     eclsinw,  /* Cannot directly close input side of window */
-    ewigsel,  /* Widget is ! selectable */
+    ewigsel,  /* Widget is not selectable */
     ewigptxt, /* Cannot put text in this widget */
     ewiggtxt, /* Cannot get text from this widget */
     ewigdis,  /* Cannot disable this widget */
@@ -530,6 +533,8 @@ typedef enum {
     einvfil,  /* File is invalid */
     eftntl,   /* font name too large */
     estrtl,   /* string too long for destination */
+    enofnt,   /* Cannot create font */
+    enosel,   /* Cannot select object */
     esystem   /* System consistency check */
 
 } errcod;
@@ -555,19 +560,19 @@ int       b;            /* int result holder */
 eqeptr    eqefre;       /* free event queuing entry list */
 wigptr    wigfre;       /* free widget entry list */
 /* message input queue */
-msg       msgque[MAXMSG];
+MSG       msgque[MAXMSG];
 int       msginp;       /* input pointer */
 int       msgout;       /* ouput pointer */
 HANDLE    msgrdy;       /* message ready event */
 /* Control message queue. We send messages around for internal controls, but
   we don"t want to discard user messages to get them. So we use a separate
   queue to store control messages. */
-msg       imsgque[MAXMSG];
+MSG       imsgque[MAXMSG];
 int       imsginp;      /* input pointer */
 int       imsgout;      /* ouput pointer */
 HANDLE    imsgrdy;      /* message ready event */
 /* this array stores color choices from the user in the color pick dialog */
-colorref_table_ptr gcolorsav;
+COLORREF  gcolorsav[16];
 int       i;            /* index for that */
 int       fndrepmsg;    /* message assignment for find/replace */
 int       dispwin;      /* handle to display thread window */
@@ -587,7 +592,7 @@ int       stdwinwin;    /* window window handle */
 int       stdwinj1c;    /* joystick 1 capture */
 int       stdwinj2c;    /* joystick 1 capture */
 /* mainlock:    int; */ /* lock for all global structures */
-critical_section mainlock:    critical_section; /* main task lock */
+LPCRITICAL_SECTION mainlock; /* main task lock */
 imptr     freitm;       /* intratask message free list */
 int       msgcnt;       /* counter for number of message output (diagnostic) */
 
@@ -615,7 +620,7 @@ void diastr(char* s)
 
     r = Messagebox(0, s, "Debug message", MB_OK);
 
-|}
+}
 
 /*******************************************************************************
 
@@ -631,10 +636,11 @@ void prtstr(char *s)
 {
 
     HANDLE hdl; /* output file handle */
-    UINT   fr;  /* int result */
+    BOOL   fr;  /* int result */
+    DWORD  nbw;
 
-    hdl = getstdhandle(std_error_handle);
-    fr = _lwrite(hdl, s, strlen(s));
+    hdl = GetStdHandle(STD_ERROR_HANDLE);
+    fr = WriteFile(hdl, s, strlen(s), &nbw, NULL);
 
 }
 
@@ -653,9 +659,10 @@ void prtchr(char c)
 
     HANDLE hdl; /* output file handle */
     UINT   fr;  /* int result */
+    DWORD  nbw;
 
-    hdl = getstdhandle(std_error_handle);
-    fr = _lwrite(hdl, &c, 1);
+    hdl = GetStdHandle(STD_ERROR_HANDLE);
+    fr = WriteFile(hdl, &c, 1, &nbw, NULL);
 
 }
 
@@ -678,11 +685,11 @@ void prtnum(int w,  /* value to print */
     int v;
     int s;
 
-   s = FALSE; /* set ! signed */
+   s = FALSE; /* set not signed */
    if (r == 10 && w < 0)  { /* is negative, && decimal */
 
       s = TRUE; /* set signed */
-      w = -w /* remove sign */
+      w = -w; /* remove sign */
 
    }
    /* find maximum digit */
@@ -692,7 +699,7 @@ void prtnum(int w,  /* value to print */
 
       v = w; /* copy value */
       for (j = 1; j <= i; j++) v = v/r; /* move down */
-      if (v)  i++; /* ! found, next */
+      if (v)  i++; /* not found, next */
 
    } while (v != 0);
    if (i > fd)  fd = i; /* set minimum size of number */
@@ -712,31 +719,6 @@ void prtnum(int w,  /* value to print */
 
 /*******************************************************************************
 
-Print
-
-Generalized print, accepts a string, a number, or a string and a number.
-
-*******************************************************************************/
-
-void print(char* s)
-
-{
-
-   prtstr(s)
-
-}
-
-void printn(char* s)
-
-{
-
-   prtstr(s);
-   prtstr("\cr\lf")
-
-}
-
-/*******************************************************************************
-
 Print contents of open file table
 
 A diagnostic. Prints out all open records from the files table.
@@ -749,20 +731,19 @@ void prtfil(void)
 
     int i; /* index for files table */
 
-    for (i = 0; i < MAXFIL; i++) { /* traverse table */
-        if opnfil[i] != NULL  with opnfil[i]^ do { /* print file record */
+    for (i = 0; i < MAXFIL; i++) /* traverse table */
+        if (opnfil[i]) { /* print file record */
 
-      print("File: ", i);
-      print(" handle: "); prtnum(opnfil[i]->han, 1, 16);
-      print(" Win: ");
-      if (opnfil[i]->win)  print("yes") else print("no");
-      print(" Input side of: ");
-      if (opnfil[i]->inw)  print("yes") else print("no");
-      print(" link to file: ", opnfil[i]->inl);
-      print(" Queue is: ");
-      if (opnfil[i]->evt)  printn("nonempty") else printn("empty")
+        prtstr("File: "); prtnum(i, 1, 10);
+        prtstr(" Win: ");
+        if (opnfil[i]->win) prtstr("yes"); else prtstr("no");
+        prtstr(" Input side of: ");
+        if (opnfil[i]->inw) prtstr("yes"); else prtstr("no");
+        prtstr(" link to file: "); prtnum(opnfil[i]->inl, 1, 10);
+        prtstr(" Queue is: ");
+        if (opnfil[i]->evt) prtstr("nonempty\r\n"); else prtstr("empty\r\n");
 
-   }
+    }
 
 }
 
@@ -780,41 +761,46 @@ void dooff(int offset)
 
     int i;
 
-    for (i = 1; i <= offset; i++) prtchr(' ')
+    for (i = 1; i <= offset; i++) prtchr(' ');
 
 }
 
-void prtmenuelm(menuptr m, int offset)
+void prtmenuelm(pa_menuptr m, int offset)
 
 {
 
     while (m) { /* list entries */
 
         /* print menu entries */
-        dooff(offset); printn("Onoff:  ", m->onoff);
-        dooff(offset); printn("Oneof:  ", m->oneof);
-        dooff(offset); printn("Bar:    ", m->bar);
-        dooff(offset); printn("Id:     ", m->id);
-        dooff(offset); print("Face:   "); printn(m->face);
-        printn("");
+        dooff(offset); prtstr("Onoff:  "); prtnum(m->onoff, 1, 10);
+        prtstr("\r\n");
+        dooff(offset); prtstr("Oneof:  "); prtnum(m->oneof, 1, 10);
+        prtstr("\r\n");
+        dooff(offset); prtstr("Bar:    "); prtnum(m->bar, 1, 10);
+        prtstr("\r\n");
+        dooff(offset); prtstr("Id:     "); prtnum(m->id, 1, 10);
+        prtstr("\r\n");
+        dooff(offset); prtstr("Face:   "); prtstr(m->face);
+        prtstr("\r\n");
+        prtstr("\r\n");
         /* if branch exists, print that list as sublist */
-        if m->branch != NULL  prtmenuelm(m->branch, offset+3);
-        m = m->next /* next entry */
+        if (m->branch) prtmenuelm(m->branch, offset+3);
+        m = m->next; /* next entry */
 
     }
 
-};
+}
 
-void prtmenu(m: menuptr);
+void prtmenu(pa_menuptr m)
 
 {
 
-    printn("Menu:");
-    printn("");
+    prtstr("Menu:\r\n");
+    prtstr("\r\n");
     prtmenuelm(m, 0);
-    printn("")
+    prtstr("\r\n");
 
-};
+}
 
 /*******************************************************************************
 
@@ -824,38 +810,38 @@ A diagnostic. Prints the contents of a widget.
 
 *******************************************************************************/
 
-void prtwig(wigptr wp: wigptr)
+void prtwig(wigptr wp)
 
 {
 
-    print("Window handle: ");
+    prtstr("Window handle: ");
     prtnum(wp->han, 1, 16);
-    print(" \"buddy\" Window handle: ");
+    prtstr(" \"buddy\" Window handle: ");
     prtnum(wp->han2, 1, 16);
-    print(" Logical id: ", wp->id);
-    print(" Type: ");
+    prtstr(" Logical id: "); prtnum(wp->id, 1, 10);
+    prtstr(" Type: ");
     switch (wp->typ) { /* widget */
 
-        case wtbutton:      print("Button");
-        case wtcheckbox:    print("Checkbox");
-        case wtradiobutton: print("Radio Button");
-        case wtgroup:       print("Group Box");
-        case wtbackground:  print("Backgroun Box");
-        case wtscrollvert:  print("Vertical Scroll");
-        case wtscrollhoriz: print("Horizontal Scroll");
-        case wtnumselbox:   print("Number Select Box");
-        case wteditbox:     print("Edit Box");
-        case wtprogressbar: print("Progress Bar");
-        case wtlistbox:     print("List Box");
-        case wtdropbox:     print("Drop Box");
-        case wtdropeditbox: print("Drop Edit Box");
-        case wtslidehoriz:  print("Horizontal Slider");
-        case wtslidevert:   print("Vertical Slider");
-        case wttabbar:      print("Tab Bar");
+        case wtbutton:      prtstr("Button");
+        case wtcheckbox:    prtstr("Checkbox");
+        case wtradiobutton: prtstr("Radio Button");
+        case wtgroup:       prtstr("Group Box");
+        case wtbackground:  prtstr("Backgroun Box");
+        case wtscrollvert:  prtstr("Vertical Scroll");
+        case wtscrollhoriz: prtstr("Horizontal Scroll");
+        case wtnumselbox:   prtstr("Number Select Box");
+        case wteditbox:     prtstr("Edit Box");
+        case wtprogressbar: prtstr("Progress Bar");
+        case wtlistbox:     prtstr("List Box");
+        case wtdropbox:     prtstr("Drop Box");
+        case wtdropeditbox: prtstr("Drop Edit Box");
+        case wtslidehoriz:  prtstr("Horizontal Slider");
+        case wtslidevert:   prtstr("Vertical Slider");
+        case wttabbar:      prtstr("Tab Bar");
 
     }
     if (wp->typ == wtscrollvert || wp->typ == wtscrollhoriz)
-        print(" Slider size: ", wp->siz);
+        prtstr(" Slider size: "); prtnum(wp->siz, 1, 10);
 
 }
 
@@ -867,20 +853,20 @@ A diagnostic. Prints the contents of a widget list.
 
 *******************************************************************************/
 
-void prtwiglst(wp: wigptr);
+void prtwiglst(wigptr wp)
 
 {
 
-    printn("Widget list");
-    printn("");
+    prtstr("Widget list\r\n");
+    prtstr("\r\n");
     while (wp) {
 
         prtwig(wp);
-        printn("");
+        prtstr("\r\n");
         wp = wp->next;
 
     }
-    printn("")
+    prtstr("\r\n");
 
 }
 
@@ -922,13 +908,14 @@ int intv(char* s, /* string containing int */
 {
 
    int r;
+   char* ep;
 
    r = strtol(s, &ep, 10);
-   err = !!*ep;
+   *err = !!*ep;
 
    return (r);
 
-};
+}
 
 /*******************************************************************************
 
@@ -942,16 +929,16 @@ No error checking is done.
 
 void lockmain(void)
 
-/* var r: int; */
-
 {
 
-/*;printn("lockmain");*/
-   EnterCriticalSection(mainlock) /* start exclusive access */
+    /* int r; */
+
+/*;prtstr("lockmain\r\n");*/
+   EnterCriticalSection(mainlock); /* start exclusive access */
    /* r = waitforsingleobject(mainlock, -1) */ /* start exclusive access */
 /*;if r == -1  prtstr("Lockmain: lock operation fails\cr\lf");*/
 
-};
+}
 
 /*******************************************************************************
 
@@ -969,12 +956,12 @@ void unlockmain(void)
 
     /* int b; */
 
-/*;printn("unlockmain");*/
-   leavecriticalsection(mainlock) /* end exclusive access */
+/*;prtstr("unlockmain\r\n");*/
+   leavecriticalsection(mainlock); /* end exclusive access */
    /* b = releasemutex(mainlock); */ /* end exclusive access */
 /*;if (!b)  prtstr("Unlockmain: lock operation fails\cr\lf");*/
 
-};
+}
 
 /*******************************************************************************
 
@@ -995,7 +982,7 @@ void wrterr(char* es)
    /* Output in a dialog */
    alert("Runtime Error", es);
 
-};
+}
 
 /*******************************************************************************
 
@@ -1009,13 +996,13 @@ void grawrterr(char* es)
 
 {
 
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     prtstr("\nError: Graph: ");
     prtstr(es);
     prtstr("\n");
     lockmain(); /* resume exclusive access */
 
-};
+}
 
 /*******************************************************************************
 
@@ -1122,6 +1109,8 @@ void error(errcod e)
         case einvfil:  grawrterr("File is invalid"); break;
         case eftntl:   grawrterr("Font name too large"); break;
         case estrtl:   grawrterr("String too long for destination"); break;
+        case enofnt:   grawrterr("Cannot create font"); break;
+        case enosel:   grawrterr("Cannot select object"); break;
         case esystem:  grawrterr("System consistency check, please contact vendor");
 
     }
@@ -1140,6 +1129,7 @@ is output, &&  the program halted.
 *******************************************************************************/
 
 static void winerr(void)
+
 {
 
     int e;
@@ -1152,7 +1142,7 @@ static void winerr(void)
                   MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
                   (LPTSTR)&lpMsgBuf,
                   0, NULL);
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     prtstr("\nError: Graph: Windows error: ");
     prtstr(lpMsgBuf);
     prtstr("\n");
@@ -1174,7 +1164,7 @@ int next(int mi)
 
 {
 
-    if mi == MAXMSG  mi = 1 /* if at end, wrap */
+    if (mi == MAXMSG) mi = 1; /* if at end, wrap */
     else mi = mi+1; /* increment */
 
     return (mi); /* return result */
@@ -1199,31 +1189,31 @@ we have to do it here.
 
 /* unpack paint message */
 
-void upackpm(int wparam, int lparam, int* x1, int* y1, int* x2, int* y2)
+void upackpm(WPARAM wparam, LPARAM lparam, int* x1, int* y1, int* x2, int* y2)
 
 {
 
-   *x1 = wparam/0x10000;
-   *y1 = wparam%0x10000;
-   *x2 = lparam/0x10000;
-   *y2 = lparam%0x10000;
+    *x1 = wparam/0x10000;
+    *y1 = wparam%0x10000;
+    *x2 = lparam/0x10000;
+    *y2 = lparam%0x10000;
 
 }
 
 /* pack paint message */
 
-void packpm(int* wparam, int* lparam, int x1, int y1, int x2, int y2)
+void packpm(WPARAM* wparam, LPARAM* lparam, int x1, int y1, int x2, int y2)
 
 {
 
-   *wparam = x1*0x10000+y1;
-   *lparam = x2*0x10000+y2
+    *wparam = x1*0x10000+y1;
+    *lparam = x2*0x10000+y2;
 
 }
 
-/* find message matching type && window in queue */
+/* find message matching type and window in queue */
 
-int fndmsg(void)
+int fndmsg(HWND hwnd, UINT msg)
 
 {
 
@@ -1234,13 +1224,13 @@ int fndmsg(void)
     mi = msgout; /* index next output message */
     while (mi != msginp) { /* search forward */
 
-        /* Check message type && window handle matches */
-        if (msgque[mi].message == msg) && (msgque[mi].hwnd == hwnd)  {
+        /* Check message type and window handle matches */
+        if (msgque[mi].message == msg && msgque[mi].hwnd == hwnd)  {
 
             fm = mi; /* set found message */
-            mi = msginp /* terminate search */
+            mi = msginp; /* terminate search */
 
-        } else mi = next(mi) /* next entry */
+        } else mi = next(mi); /* next entry */
 
     }
 
@@ -1250,25 +1240,25 @@ int fndmsg(void)
 
 /* enter new message to queue */
 
-void enter(void)
+void enter(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
 {
 
     BOOL b;
 
     /* if the queue is full, dump the oldest entry */
-    if next(msginp) == msgout  msgout = next(msgout);
+    if (next(msginp) == msgout) msgout = next(msgout);
     msgque[msginp].hwnd = hwnd; /* place windows handle */
     msgque[msginp].message = msg; /* place message code */
-    msgque[msginp].wparam = wparam; /* place parameters */
-    msgque[msginp].lparam = lparam;
+    msgque[msginp].wParam = wparam; /* place parameters */
+    msgque[msginp].lParam = lparam;
     msginp = next(msginp); /* advance input pointer */
-    b = setevent(msgrdy) /* flag message ready */
+    b = setevent(msgrdy); /* flag message ready */
     if (!b) winerr(); /* fails */
 
 }
 
-void putmsg(int hwnd, int msg, int wparam, int lparam)
+void putmsg(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
 {
 
@@ -1279,9 +1269,9 @@ void putmsg(int hwnd, int msg, int wparam, int lparam)
 
     lockmain(); /* start exclusive access */
 /* Turning on paint compression causes lost updates */
-    if (msg == wm_paint && PACKMSG)  {
+    if (msg == WM_PAINT && PACKMSG)  {
 
-        fm = fndmsg(); /* find matching message */
+        fm = fndmsg(hwnd, msg); /* find matching message */
         if (fm)  {
 
             /* There is a matching paint message in the queue, fold this message
@@ -1289,30 +1279,30 @@ void putmsg(int hwnd, int msg, int wparam, int lparam)
                rectangle. */
             upackpm(wparam, lparam, &nx1, &ny1, &nx2, &ny2); /* unpack new */
             /* unpack old */
-            upackpm(msgque[fm].wparam, msgque[fm].lparam, &ox1, &oy1, &ox2, &oy2);
+            upackpm(msgque[fm].wParam, msgque[fm].lParam, &ox1, &oy1, &ox2, &oy2);
             /* find greater bounding */
-            if nx1 < ox1  ox1 = nx1;
-            if ny1 < oy1  oy1 = ny1;
-            if nx2 > ox2  ox2 = nx2;
-            if ny2 > oy2  oy2 = ny2;
-            packpm(&msgque[fm].wparam, &msgque[fm].lparam, ox1, oy1, ox2, oy2)
+            if (nx1 < ox1) ox1 = nx1;
+            if (ny1 < oy1) oy1 = ny1;
+            if (nx2 > ox2) ox2 = nx2;
+            if (ny2 > oy2) oy2 = ny2;
+            packpm(&msgque[fm].wParam, &msgque[fm].lParam, ox1, oy1, ox2, oy2);
 
-        } else enter /* enter as new message */
+        } else enter(hwnd, msg, wparam, lparam); /* enter as new message */
 
-    } else if (msg == wm_size) && PACKMSG  {
+    } else if (msg == WM_SIZE && PACKMSG) {
 
-        fm = fndmsg(); /* find matching message */
+        fm = fndmsg(hwnd, msg); /* find matching message */
         if (fm) {
 
             /* We only need the latest size, so overwrite the old with new. */
             msgque[fm].hwnd = hwnd; /* place windows handle */
-            msgque[fm].wparam = wparam; /* place parameters */
-            msgque[fm].lparam = lparam
+            msgque[fm].wParam = wparam; /* place parameters */
+            msgque[fm].lParam = lparam;
 
-        } else enter /* enter as new message */
+        } else enter(hwnd, msg, wparam, lparam); /* enter as new message */
 
-    } else enter; /* enter new message */
-    unlockmain(); /* } exclusive access */
+    } else enter(hwnd, msg, wparam, lparam); /* enter new message */
+    unlockmain(); /* end exclusive access */
 
 }
 
@@ -1326,7 +1316,7 @@ by msginp == msgout.
 
 *******************************************************************************/
 
-void getmsg(msg* msg)
+void getmsg(MSG* msg)
 
 {
 
@@ -1341,7 +1331,7 @@ void getmsg(msg* msg)
         if (msginp == msgout && imsginp == imsgout)  {
 
             /* nothing in queue */
-            unlockmain(); /* } exclusive access */
+            unlockmain(); /* end exclusive access */
             r = WaitForSingleObject(msgrdy, -1); /* wait for next event */
             if (r == -1) winerr(); /* process windows error */
             b = ResetEvent(msgrdy); /* flag message ! ready */
@@ -1351,7 +1341,7 @@ void getmsg(msg* msg)
         /* get messages from the standard queue */
         if (msginp != msgout) { /* queue ! empty */
 
-            msg = msgque[msgout]; /* get next message */
+            memcpy(msg, &msgque[msgout], sizeof(MSG)); /* get next message */
             msgout = next(msgout); /* advance output pointer */
             f = TRUE; /* found a message */
 
@@ -1370,7 +1360,7 @@ the oldest event.
 
 *******************************************************************************/
 
-void iputmsg(int hwnd, int msg, int wparam, int lparam)
+void iputmsg(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
 {
 
@@ -1381,11 +1371,11 @@ void iputmsg(int hwnd, int msg, int wparam, int lparam)
     if (next(imsginp) == imsgout) imsgout = next(imsgout);
     imsgque[imsginp].hwnd = hwnd; /* place windows handle */
     imsgque[imsginp].message = msg; /* place message code */
-    imsgque[imsginp].wparam = wparam; /* place parameters */
-    imsgque[imsginp].lparam = lparam;
+    imsgque[imsginp].wParam = wparam; /* place parameters */
+    imsgque[imsginp].lParam = lparam;
     imsginp = next(imsginp); /* advance input pointer */
     b = SetEvent(imsgrdy); /* flag message ready */
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
 
 }
 
@@ -1399,7 +1389,7 @@ indicated by imsginp == imsgout.
 
 *******************************************************************************/
 
-void igetmsg(var msg: msg);
+void igetmsg(MSG* msg)
 
 {
 
@@ -1414,7 +1404,7 @@ void igetmsg(var msg: msg);
         if (imsginp == imsgout)  {
 
             /* nothing in queue */
-            unlockmain(); /* } exclusive access */
+            unlockmain(); /* end exclusive access */
             r = WaitForSingleObject(imsgrdy, -1); /* wait for next event */
             if (r == -1) winerr(); /* process windows error */
             b = ResetEvent(imsgrdy); /* flag message ! ready */
@@ -1424,7 +1414,7 @@ void igetmsg(var msg: msg);
         /* retrive messages from the control queue first */
         if (imsginp != imsgout)  { /* queue ! empty */
 
-            msg = imsgque[imsgout]; /* get next message */
+            memcpy(msg, &imsgque[imsgout], sizeof(MSG)); /* get next message */
             imsgout = next(imsgout); /* advance output pointer */
             f = TRUE; /* found a message */
 
@@ -1449,7 +1439,7 @@ void getitm(imptr* p)
     if (freitm) { /* free entry available, get that */
 
         *p = freitm; /* index that */
-        freitm = freitm->next /* gap out of free list */
+        freitm = freitm->next; /* gap out of free list */
 
     } else {
 
@@ -1457,7 +1447,7 @@ void getitm(imptr* p)
         if (!p) error(enomem); /* no memory */
 
     }
-    p->next = NULL; /* clear next */
+    (*p)->next = NULL; /* clear next */
 
 }
 
@@ -1491,13 +1481,12 @@ void getfet(filptr* fp)
 
 {
 
-    fp = malloc(sizeof(filrec)); /* get new file entry */
-    if (!fp) error(enomem); /* no more memory */
-    fp->han = 0; /* set handle clear */
-    fp->win = NULL; /* set no window */
-    fp->inw = FALSE; /* clear input window link */
-    fp->inl = 0; /* set no input file linked */
-    fp->evt = NULL; /* set no queued events */
+    *fp = malloc(sizeof(filrec)); /* get new file entry */
+    if (!*fp) error(enomem); /* no more memory */
+    (*fp)->win = NULL; /* set no window */
+    (*fp)->inw = FALSE; /* clear input window link */
+    (*fp)->inl = 0; /* set no input file linked */
+    (*fp)->evt = NULL; /* set no queued events */
 
 }
 
@@ -1525,13 +1514,13 @@ void makfil(int* fn) /* file handle */
     for (fi = ERRFIL+1; fi < MAXFIL; fi++) { /* search all file entries */
 
         if (!opnfil[fi]) /* found an unallocated slot */
-            ff = fi /* set found */
+            ff = fi; /* set found */
         else /* check if slot is allocated, but unoccupied */
-            if (!opnfil[fi]->han && !opnfil[fi]->win) ff = fi; /* set found */
+            if (!opnfil[fi]->win) ff = fi; /* set found */
 
     }
     if (!ff) error(einvhan); /* no empty file positions found */
-    if (!opnfil[ff]) getfet(opnfil[ff]); /* get && initalize the file entry */
+    if (!opnfil[ff]) getfet(&opnfil[ff]); /* get and initalize the file entry */
     *fn = ff; /* set file id number */
 
 }
@@ -1589,9 +1578,9 @@ winptr lfn2win(int fn)
 
 {
 
-   if (fn < 0) || (fn >= MAXFIL)  error(einvhan); /* invalid file handle */
-   if opnfil[fn] == NULL  error(einvhan); /* invalid handle */
-   if opnfil[fn]->win == NULL  error(efnotwin); /* not a window file */
+   if (fn < 0 || fn >= MAXFIL)  error(einvhan); /* invalid file handle */
+   if (!opnfil[fn])  error(einvhan); /* invalid handle */
+   if (!opnfil[fn]->win) error(efnotwin); /* not a window file */
 
    return (opnfil[fn]->win); /* return windows pointer */
 
@@ -1621,7 +1610,7 @@ winptr txt2win(FILE* f)
 
    return (lfn2win(fn)); /* get logical filenumber for file */
 
-};
+}
 
 /*******************************************************************************
 
@@ -1638,7 +1627,7 @@ winptr lwn2win(int wid)
     int    ofn; /* output file handle */
     winptr win; /* window context pointer */
 
-    if (wid < 0) || (wid >= MAXFIL)  error(einvhan); /* error */
+    if (wid < 0 || wid >= MAXFIL)  error(einvhan); /* error */
     ofn = xltwin[wid]; /* get the output file handle */
     win = lfn2win(ofn); /* index window context */
 
@@ -1656,7 +1645,7 @@ converted to hash methods.
 
 *******************************************************************************/
 
-int hwn2lfn(int hw)
+int hwn2lfn(HWND hw)
 
 {
 
@@ -1682,7 +1671,7 @@ is valid.
 
 *******************************************************************************/
 
-int txt2lfn(FILE* f): ss_filhdl;
+int txt2lfn(FILE* f)
 
 {
 
@@ -1711,7 +1700,7 @@ void geteqe(eqeptr* ep)
    if (eqefre) { /* get used entry */
 
       *ep = eqefre; /* index top of list */
-      eqefre = eqefre->next /* gap out of list */
+      eqefre = eqefre->next; /* gap out of list */
 
    } else {
 
@@ -1719,8 +1708,8 @@ void geteqe(eqeptr* ep)
        if (!*ep) error(enomem);
 
    }
-   *ep->last = NULL; /* clear pointers */
-   *ep->next = NULL;
+   (*ep)->last = NULL; /* clear pointers */
+   (*ep)->next = NULL;
 
 }
 
@@ -1745,7 +1734,7 @@ void puteqe(eqeptr ep)
 
 Get widget
 
-Get a widget && place into the window tracking list. If a free widget entry
+Get a widget and place into the window tracking list. If a free widget entry
 is available, that will be used, otherwise a new entry is allocated.
 
 *******************************************************************************/
@@ -1756,23 +1745,23 @@ void getwig(winptr win, wigptr* wp)
 
     if (wigfre) { /* used entry exists, get that */
 
-        wp = wigfre; /* index top entry */
-        wigfre = wigfre->next /* gap out */
+        *wp = wigfre; /* index top entry */
+        wigfre = wigfre->next; /* gap out */
 
    } else {
 
-       wp = malloc(sizeof(wigrec)); /* get entry */
-       if (!wp) error(enomem); /* no memory */
+       *wp = malloc(sizeof(wigrec)); /* get entry */
+       if (!*wp) error(enomem); /* no memory */
 
    }
-   wp->next = win->wiglst; /* push onto list */
-   win->wiglst = wp;
-   wp->han = 0; /* clear handles */
-   wp->han2 = 0;
-   wp->id = 0; /* clear id */
-   wp->typ = wtbutton; /* arbitrary set for type */
-   wp->siz = 0; /* size */
-   wp->enb = TRUE; /* set enabled by default */
+   (*wp)->next = win->wiglst; /* push onto list */
+   win->wiglst = *wp;
+   (*wp)->han = 0; /* clear handles */
+   (*wp)->han2 = 0;
+   (*wp)->id = 0; /* clear id */
+   (*wp)->typ = wtbutton; /* arbitrary set for type */
+   (*wp)->siz = 0; /* size */
+   (*wp)->enb = TRUE; /* set enabled by default */
 
 }
 
@@ -1792,14 +1781,14 @@ void putwig(winptr win, wigptr wp)
     wigptr lp;
 
     /* find last entry */
-    if (win->wiglst == wp)  win->wiglst = win->wiglst->next /* gap top of list */
+    if (win->wiglst == wp)  win->wiglst = win->wiglst->next; /* gap top of list */
     else { /* mid or last in list */
 
         lp = win->wiglst; /* index list top */
         /* find last entry */
         while (lp->next != wp && lp->next) lp = lp->next;
         if (!lp->next) error(esystem); /* should have found it */
-        lp->next = wp->next /* gap out entry */
+        lp->next = wp->next; /* gap out entry */
 
     }
     wp->next = wigfre; /* push onto list */
@@ -1815,7 +1804,7 @@ Finds the given widget by number.
 
 *******************************************************************************/
 
-int fndwig(winptr win, int id)
+wigptr fndwig(winptr win, int id)
 
 {
 
@@ -1826,7 +1815,7 @@ int fndwig(winptr win, int id)
     while (wp) { /* traverse list */
 
         if (wp->id == id) fp = wp; /* found */
-        wp = wp->next /* next in list */
+        wp = wp->next; /* next in list */
 
     }
 
@@ -1842,7 +1831,7 @@ Finds the given widget by window handle.
 
 *******************************************************************************/
 
-int fndwighan(winptr win, int han)
+wigptr fndwighan(winptr win, int han)
 
 {
 
@@ -1853,7 +1842,7 @@ int fndwighan(winptr win, int han)
     while (wp) { /* traverse list */
 
         if (wp->han == han || wp->han2 == han) fp = wp; /* found */
-        wp = wp->next /* next in list */
+        wp = wp->next; /* next in list */
 
     }
 
@@ -1906,21 +1895,21 @@ void colrgb(pa_color c, int* r, int* g, int* b)
 
 {
 
-   /* translate color number */
-   switch (c) { /* color */
+    /* translate color number */
+    switch (c) { /* color */
 
-      case pa_black:     { *r = 0; *g = 0; *b = 0; }
-      case pa_white:     { *r = INT_MAX; *g = INT_MAX; *b = INT_MAX; }
-      case pa_red:       { *r = INT_MAX; *g = 0; *b = 0; }
-      case pa_green:     { *r = 0; *g = INT_MAX; *b = 0; }
-      case pa_blue:      { *r = 0; *g = 0; *b = INT_MAX; }
-      case pa_cyan:      { *r = 0; *g = INT_MAX; *b = INT_MAX; }
-      case pa_yellow:    { *r = INT_MAX; *g = INT_MAX; *b = 0; }
-      case pa_magenta:   { *r = INT_MAX; *g = 0; *b = INT_MAX; }
-      case pa_backcolor: { *r = 0xea*0x800000; *g = 0xe9*0x800000;
-                           *b = 0xd8*0x800000; }
+        case pa_black:     *r = 0; *g = 0; *b = 0; break;
+        case pa_white:     *r = INT_MAX; *g = INT_MAX; *b = INT_MAX; break;
+        case pa_red:       *r = INT_MAX; *g = 0; *b = 0; break;
+        case pa_green:     *r = 0; *g = INT_MAX; *b = 0; break;
+        case pa_blue:      *r = 0; *g = 0; *b = INT_MAX; break;
+        case pa_cyan:      *r = 0; *g = INT_MAX; *b = INT_MAX; break;
+        case pa_yellow:    *r = INT_MAX; *g = INT_MAX; *b = 0; break;
+        case pa_magenta:   *r = INT_MAX; *g = 0; *b = INT_MAX; break;
+        case pa_backcolor: *r = 0xea*0x800000; *g = 0xe9*0x800000;
+                           *b = 0xd8*0x800000; break;
 
-   }
+    }
 
 }
 
@@ -1962,7 +1951,7 @@ int rgb2win(int r, int g, int b)
 
 {
 
-   return ((b / 8388608)*65536+(g / 8388608)*256+(r / 8388608));
+   return ((b/8388608)*65536+(g/8388608)*256+(r/8388608));
 
 }
 
@@ -2027,9 +2016,9 @@ void clrbuf(winptr win, scnptr sc)
     if (!hb) winerr(); /* process error */
     /* clear buffer surface */
     b = fillrect(sc->bdc, r, hb);
-    if (!b)  winerr(); /* process error */
+    if (!b) winerr(); /* process error */
     b = DeleteObject(hb); /* free the brush */
-    if (!b)  winerr(); /* process error */
+    if (!b) winerr(); /* process error */
 
 }
 
@@ -2053,10 +2042,10 @@ void clrwin(winptr win)
     r.top = 0;
     r.right = win->gmaxxg;
     r.bottom = win->gmaxyg;
-    hb = CreateSolidBrush(gbcrgb); /* get a brush for background */
+    hb = CreateSolidBrush(win->gbcrgb); /* get a brush for background */
     if (!hb) winerr(); /* process error */
     /* clear buffer surface */
-    b = FillRect(devcon, r, hb);
+    b = FillRect(win->devcon, &r, hb);
     if (!b) winerr(); /* process error */
     b = DeleteObject(hb); /* free the brush */
     if (!b) winerr(); /* process error */
@@ -2085,11 +2074,14 @@ int curbnd(FILE* f)
 {
 
     winptr win; /* windows record pointer */
+    int    cb;
 
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window from file */
-    win->curbnd = icurbnd(win->screens[win->curupd]);
-    unlockmain(); /* } exclusive access */
+    cb = icurbnd(win->screens[win->curupd]);
+    unlockmain(); /* end exclusive access */
+
+    return (cb);
 
 }
 
@@ -2138,7 +2130,7 @@ void curoff(winptr win)
 
         b = HideCaret(win->winhan); /* hide the caret */
         if (!b) winerr(); /* process error */
-        win->fcurdwn = FALSE /* set cursor ! on screen */
+        win->fcurdwn = FALSE; /* set cursor ! on screen */
 
     }
 
@@ -2204,12 +2196,12 @@ void setcur(winptr win)
 
     int b;
 
-    /* check cursor in bounds && visible, && window has focus */
+    /* check cursor in bounds and visible, and window has focus */
     if (icurbnd(win->screens[win->curupd]) && win->focus) {
 
         /* set to bottom of character bounding box */
         b = setcaretpos(win->screens[win->curdsp]->curxg-1,
-                        screens[win->curdsp]->curyg-1+win->linespace-3);
+                        win->screens[win->curdsp]->curyg-1+win->linespace-3);
         /* setcaret position is always returning an error, even when correct */
         /* if (!b) winerr(); */ /* process error */
 
@@ -2234,7 +2226,7 @@ void chgcur(winptr win)
 
     int b; /* return value */
 
-    if win->focus  { /* change it */
+    if (win->focus) { /* change it */
 
         b = DestroyCaret(); /* remove text cursor */
         if (!b) winerr(); /* process error */
@@ -2264,67 +2256,84 @@ void newfont(winptr win)
     int        h; /* height temp */
     TEXTMETRIC tm; /* text metric structure */
     int        r; /* result holder */
-    int        sf; /* system fixed font object */
+    HGDIOBJ    sf; /* system fixed font object */
     int        b;
     int        attrc;
+    scnptr     sc;
+    HGDIOBJ    rv;
 
-    if (win->screens[win->curupd]->font) { /* there is a font */
 
-       /* get the current font out of the dcs */
-       sf = GetStockBbject(SYSTEM_FIXED_FONT);
-       if (!sf) winerr(); /* process windows error */
-       if (SelectObject(bdc, sf) == -1) winerr(); /* process windows error */
-       if (indisp(win)
-          if (SelectObject(devcon, sf) == -1) winerr(); /* process error */
-       /* this indicates an error when there is none */
-       /* if ! DeleteObject(font)  winerr(); */ /* delete old font */
-       b = DeleteObject(font); /* delete old font */
+    sc = win->screens[win->curupd];
+    if (sc->font) { /* there is a font */
 
-    }
-    if (cfont->sys) { /* select as system font */
-
-       /* select the system font */
+       /* get the current font out of the DCs */
        sf = GetStockObject(SYSTEM_FIXED_FONT);
        if (!sf) winerr(); /* process windows error */
-       r = SelectObject(bdc, sf);
-       if (r == -1) winerr(); /* process windows error */
-       /* select to screen dc */
-       if (indisp(win))
-          if (SelectObject(devcon, sf) == -1) winerr(); /* process error */
+       rv = SelectObject(sc->bdc, sf);
+       if (rv == HGDI_ERROR) winerr();
+       if (indisp(win)) {
+
+            rv = SelectObject(win->devcon, sf);
+            if (rv == HGDI_ERROR) winerr();
+
+       }
+       /* this indicates an error when there is none */
+       /* if ! DeleteObject(font)  winerr(); */ /* delete old font */
+       b = DeleteObject(sc->font); /* delete old font */
+
+    }
+    if (sc->cfont->sys) { /* select as system font */
+
+        /* select the system font */
+        sf = GetStockObject(SYSTEM_FIXED_FONT);
+        if (!sf) winerr(); /* process windows error */
+        rv = SelectObject(sc->bdc, sf);
+        if (rv == HGDI_ERROR) winerr();
+        /* select to screen dc */
+        if (indisp(win)) {
+
+            rv = SelectObject(win->devcon, sf); /* process error */
+            if (rv == HGDI_ERROR) winerr();
+
+        }
 
     } else {
 
-       attrc = win->screens[win->curupd]->attr; /* copy attribute */
-       if (BIT(sabold) & attrc) w = fw_bold; else w = fw_regular;
-       /* set normal height || half height for subscript/superscript */
-       if (BIT(sasuper) & attrc) || (BIT(sasubs) & attrc)
-          h = gfhigh*0.75; else h = gfhigh;
-       font = CreateFont(h, 0, 0, 0, w, BIT(saital) & attrc,
-                           BIT(saundl) & attr, BIT(sastkout) & attr, ansi_charset,
-                           out_tt_only_precis, clip_default_precis,
-                           FQUALITY, default_pitch,
-                           cfont->fn^);
-       if (!win->screens[win->curupd]->font) winerr(); /* process windows error */
-       /* select to buffer dc */
-       r = SelectObject(win->screens[win->curupd]->bdc, font);
-       if (r == -1) winerr(); /* process windows error */
-       /* select to screen dc */
-       if (indisp(win))
-          if (SelectObject(win->devcon, font) == -1) winerr(); /* process error */
+        attrc = win->screens[win->curupd]->attr; /* copy attribute */
+        if (BIT(sabold) & attrc) w = FW_BOLD; else w = FW_REGULAR;
+        /* set normal height || half height for subscript/superscript */
+        if (BIT(sasuper) & attrc || BIT(sasubs) & attrc)
+            h = trunc(win->gfhigh*0.75); else h = win->gfhigh;
+        sc->font = CreateFont(h, 0, 0, 0, w, BIT(saital) & attrc,
+                          BIT(saundl) & sc->attr, BIT(sastkout) & sc->attr, ANSI_CHARSET,
+                          OUT_TT_ONLY_PRECIS, CLIP_DEFAULT_PRECIS,
+                          FQUALITY, DEFAULT_PITCH,
+                          sc->cfont->fn);
+        if (!win->screens[win->curupd]->font) winerr(); /* process windows error */
+        /* select to buffer DC */
+        rv = SelectObject(win->screens[win->curupd]->bdc, sc->font);
+        if (rv == HGDI_ERROR) winerr();
+        /* select to screen DC */
+        if (indisp(win)) {
+
+            rv = SelectObject(win->devcon, sc->font); /* process error */
+            if (rv == HGDI_ERROR) winerr();
+
+        }
 
     }
-    b = GetTextMetrics(win->screens[win->curupd]->bdc, tm); /* get the standard metrics */
+    b = GetTextMetrics(win->screens[win->curupd]->bdc, &tm); /* get the standard metrics */
     if (!b) winerr(); /* process windows error */
     /* Calculate line spacing */
-    win->linespace = tm.tmheight;
+    win->linespace = tm.tmHeight;
     win->screens[win->curupd]->lspc = win->linespace;
     /* calculate character spacing */
-    win->charspace = tm.tmmaxcharwidth;
+    win->charspace = tm.tmMaxCharWidth;
     /* set cursor width */
-    win->curspace = tm.tmavecharwidth;
+    win->curspace = tm.tmAveCharWidth;
     win->screens[win->curupd]->cspc = win->charspace;
     /* calculate baseline offset */
-    win->baseoff = win->linespace-tm.tmdescent-1;
+    win->baseoff = win->linespace-tm.tmDescent-1;
     /* change cursor to match new font/size */
     if (indisp(win)) chgcur(win);
 
@@ -2351,55 +2360,57 @@ void restore(winptr win,   /* window to restore */
     HBRUSH hb;    /* handle to brush */
     SIZE s;       /* size holder */
     int x, y;     /* x and y coordinates */
+    scnptr sc;
 
+    sc = win->screens[win->curdsp];
     if (win->bufmod && win->visible)  { /* buffered mode is on, && visible */
 
         curoff(win); /* hide the cursor for drawing */
         /* set colors && attributes */
-        if (BIT(sarev) & screens[curdsp]->attr)  { /* reverse */
+        if (BIT(sarev) & sc->attr)  { /* reverse */
 
-            r = SetBkColor(win->devcon, screens[curdsp]->fcrgb);
+            r = SetBkColor(win->devcon, sc->fcrgb);
             if (r == -1) winerr(); /* process windows error */
-            r = SetTextColor(win->devcon, screens[curdsp]->bcrgb);
+            r = SetTextColor(win->devcon, sc->bcrgb);
             if (r == -1) winerr(); /* process windows error */
 
         } else {
 
-            r = SetBkColor(win->devcon, screens[curdsp]->bcrgb);
+            r = SetBkColor(win->devcon, sc->bcrgb);
             if (r == -1) winerr(); /* process windows error */
-            r = SetTextColor(devcon, screens[curdsp]->fcrgb);
+            r = SetTextColor(win->devcon, sc->fcrgb);
             if (r == -1) winerr(); /* process windows error */
 
         }
         /* select any viewport offset to display */
-        b = SetViewportOrgEx(win->devcon, screens[curdsp]->offx, screens[curdsp]->offy, NULL);
+        b = SetViewportOrgEx(win->devcon, sc->offx, sc->offy, NULL);
         if (!b)  winerr(); /* process windows error */
         /* select the extents */
-        b = SetWindowExtEx(win->devcon, screens[curdsp]->wextx, screens[curdsp]->wexty, s);
+        b = SetWindowExtEx(win->devcon, sc->wextx, sc->wexty, &s);
         /* if (!b) winerr(); */ /* process windows error */
-        b = SetViewportExtEx(win->devcon, screens[curdsp]->vextx, screens[curdsp]->vexty, s);
+        b = SetViewportExtEx(win->devcon, sc->vextx, sc->vexty, &s);
         if (!b)  winerr(); /* process windows error */
-        oh = SelectObject(win->devcon, screens[curdsp]->font); /* select font to display */
-        if (oh == -1) winerr(); /* process windows error */
-        oh = SelectObject(win->devcon, screens[curdsp]->fpen); /* select pen to display */
-        if (oh == -1) winerr(); /* process windows error */
+        oh = SelectObject(win->devcon, sc->font); /* select font to display */
+        if (oh == HGDI_ERROR) winerr();
+        oh = SelectObject(win->devcon, sc->fpen); /* select pen to display */
+        if (oh == HGDI_ERROR) winerr();
         if (whole) { /* get whole client area */
 
-            b = GetClientRect(win->winhan, cr);
+            b = GetClientRect(win->winhan, &cr);
             if (!b) winerr(); /* process windows error */
 
         } else /* get only update area */
-            b = GetUpdateRect(win->winhan, cr, FALSE);
+            b = GetUpdateRect(win->winhan, &cr, FALSE);
         /* validate it so windows won"t send multiple notifications */
         b = ValidateRgn(win->winhan, NULL); /* validate region */
         if (cr.left != 0 || cr.top != 0 || cr.right != 0 || cr.bottom != 0) {
             /* area is ! NULL */
 
             /* convert to device coordinates */
-            cr.left = cr.left+screens[curdsp]->offx;
-            cr.top = cr.top+screens[curdsp]->offy;
-            cr.right = cr.right+screens[curdsp]->offx;
-            cr.bottom = cr.bottom+screens[curdsp]->offy;
+            cr.left = cr.left+sc->offx;
+            cr.top = cr.top+sc->offy;
+            cr.right = cr.right+sc->offx;
+            cr.bottom = cr.bottom+sc->offy;
             /* clip update rectangle to buffer */
             if (cr.left <= win->gmaxxg || cr.bottom <= win->gmaxyg)  {
 
@@ -2410,25 +2421,25 @@ void restore(winptr win,   /* window to restore */
                 if (y > win->gmaxyg) y = win->gmaxyg;
                 /* copy backing bitmap to screen */
                 b = BitBlt(win->devcon, cr.left, cr.top, x-cr.left+1,
-                           y-cr.top+1, bdc, cr.left, cr.top, SRCCOPY);
+                           y-cr.top+1, sc->bdc, cr.left, cr.top, SRCCOPY);
 
             }
             /* Now fill the right && left sides of the client beyond the
                bitmap. */
-           hb = CreateSolidBrush(screens[curdsp]->bcrgb); /* get a brush for background */
+           hb = CreateSolidBrush(sc->bcrgb); /* get a brush for background */
            if (hb == 0) winerr(); /* process windows error */
            /* check right side fill */
            cr2 = cr; /* copy update rectangle */
            /* subtract overlapping space */
            if (cr2.left <= win->gmaxxg) cr2.left = win->gmaxxg;
            if (cr2.left <= cr2.right) /* still has width */
-                b = FillRect(win->devcon, cr2, hb);
+                b = FillRect(win->devcon, &cr2, hb);
            /* check bottom side fill */
            cr2 = cr; /* copy update rectangle */
            /* subtract overlapping space */
            if (cr2.top <= win->gmaxyg) cr2.top = win->gmaxyg;
            if (cr2.top <= cr2.bottom) /* still has height */
-                b = FillRect(win->devcon, cr2, hb);
+                b = FillRect(win->devcon, &cr2, hb);
             b = DeleteObject(hb); /* free the brush */
             if (!b)  winerr(); /* process windows error */
 
@@ -2465,12 +2476,12 @@ void winvis(winptr win)
     }
     unlockmain(); /* end exclusive access */
     /* present the window */
-    b = ShowWindow(win->winhan, sw_showdefault);
+    b = ShowWindow(win->winhan, SW_SHOWDEFAULT);
     /* send first paint message */
     b = UpdateWindow(win->winhan);
     lockmain(); /* start exclusive access */
     win->visible = TRUE; /* set now visible */
-    restore(win, TRUE) /* restore window */
+    restore(win, TRUE); /* restore window */
 
 }
 
@@ -2490,6 +2501,8 @@ void iniscn(winptr win, scnptr sc)
     int      i, x;
     HBITMAP  hb;
     LOGBRUSH lb;
+    int      r;
+    HGDIOBJ  rv;
 
     sc->maxx = win->gmaxx; /* set character dimensions */
     sc->maxy = win->gmaxy;
@@ -2526,48 +2539,48 @@ void iniscn(winptr win, scnptr sc)
     sc->vextx = win->gvextx;
     sc->vexty = win->gvexty;
     /* create a matching device context */
-    bdc = CreateCompatibleDC(win->devcon);
-    if (!bdc) winerr(); /* process windows error */
+    sc->bdc = CreateCompatibleDC(win->devcon);
+    if (!sc->bdc) winerr(); /* process windows error */
     /* create a bitmap for that */
-    hb = CreateCompatibleBitMap(win->devcon, win->gmaxxg, win->gmaxyg);
+    hb = CreateCompatibleBitmap(win->devcon, win->gmaxxg, win->gmaxyg);
     if (!hb) winerr(); /* process windows error */
     sc->bhn = SelectObject(sc->bdc, hb); /* select bitmap into dc */
-    if (sc->bhn == -1) winerr(); /* process windows error */
+    if (sc->bhn == HGDI_ERROR) winerr(); /* process windows error */
     newfont(win); /* create font for buffer */
     /* set non-braindamaged stretch mode */
-    r = SetStretchBltMode(screens[curupd]->bdc, HALFTONE);
+    r = SetStretchBltMode(win->screens[win->curupd]->bdc, HALFTONE);
     if (!r) winerr(); /* process windows error */
     /* set pen to foreground */
-    lb.lbstyle = bs_solid;
-    lb.lbcolor = fcrgb;
-    lb.lbhatch = 0;
-    sc->fpen = ExtCreatePen_nn(FPENSTL, sc->lwidth, lb);
+    lb.lbStyle = BS_SOLID;
+    lb.lbColor = sc->fcrgb;
+    lb.lbHatch = 0;
+    sc->fpen = ExtCreatePen(FPENSTL, sc->lwidth, &lb, 0, NULL);
     if (!sc->fpen) winerr(); /* process windows error */
-    r = SelectObject(bdc, fpen);
-    if (r == -1) winerr(); /* process windows error */
+    rv = SelectObject(sc->bdc, sc->fpen);
+    if (rv == HGDI_ERROR) error(enosel);
     /* set brush to foreground */
-    sc->fbrush = CreateSolidBrush(fcrgb);
+    sc->fbrush = CreateSolidBrush(sc->fcrgb);
     if (!sc->fbrush) winerr(); /* process windows error */
     /* remove fills */
-    r = SelectObject(bdc, GetStockObject(NULL_BRUSH));
-    if (r == -1) winerr(); /* process windows error */
+    rv = SelectObject(sc->bdc, GetStockObject(NULL_BRUSH));
+    if (rv == HGDI_ERROR) error(enosel);
     /* set single pixel pen to foreground */
     sc->fspen = CreatePen(FSPENSTL, 1, sc->fcrgb);
     if (!sc->fspen) winerr(); /* process windows error */
     /* set colors && attributes */
     if (BIT(sarev) & sc->attr) { /* reverse */
 
-       r = SetBkColor(sc->bdc, sc->fcrgb);
-       if (r == -1) winerr(); /* process windows error */
-       r = SetTextColor(sc->bdc, sc->bcrgb);
-       if (r == -1) winerr(); /* process windows error */
+        r = SetBkColor(sc->bdc, sc->fcrgb);
+        if (r == -1) winerr(); /* process windows error */
+        r = SetTextColor(sc->bdc, sc->bcrgb);
+        if (r == -1) winerr(); /* process windows error */
 
     } else {
 
-       r = SetBkColor(bdc, sc->bcrgb);
-       if (r == -1) winerr(); /* process windows error */
-       r = SetTextColor(bdc, sc->fcrgb);
-       if (r == -1) winerr(); /* process windows error */
+        r = SetBkColor(sc->bdc, sc->bcrgb);
+        if (r == -1) winerr(); /* process windows error */
+        r = SetTextColor(sc->bdc, sc->fcrgb);
+        if (r == -1) winerr(); /* process windows error */
 
     }
     clrbuf(win, sc); /* clear screen buffer with that */
@@ -2576,13 +2589,11 @@ void iniscn(winptr win, scnptr sc)
     x = 1; /* set 1st tab slot */
     while (i < sc->maxx && x < MAXTAB) {
 
-       sc->tab[x] = (i-1)*charspace+1;  /* set tab */
-       i = i+8; /* next tab */
-       x = x+1
+        sc->tab[x] = (i-1)*win->charspace+1;  /* set tab */
+        i = i+8; /* next tab */
+        x = x+1;
 
     }
-
-   }
 
 }
 
@@ -2618,10 +2629,10 @@ void iclear(winptr win)
 {
 
     if (win->bufmod) clrbuf(win, win->screens[win->curupd]); /* clear the screen buffer */
-    win->screens[curupd]->curx = 1; /* set cursor at home */
-    win->screens[curupd]->cury = 1;
-    win->screens[curupd]->curxg = 1;
-    win->screens[curupd]->curyg = 1;
+    win->screens[win->curupd]->curx = 1; /* set cursor at home */
+    win->screens[win->curupd]->cury = 1;
+    win->screens[win->curupd]->curxg = 1;
+    win->screens[win->curupd]->curyg = 1;
     if (indisp(win)) { /* also process to display */
 
         if (win->bufmod) {
@@ -2718,30 +2729,30 @@ void iscrollg(winptr win, int x, int y)
        }
        if (win->bufmod) { /* apply to buffer */
 
-          b = BitBlt(screens[curupd]->bdc, dx, dy, dw, dh,
-                     screens[curupd]->bdc, sx, sy, SRCCOPY);
+          b = BitBlt(win->screens[win->curupd]->bdc, dx, dy, dw, dh,
+                     win->screens[win->curupd]->bdc, sx, sy, SRCCOPY);
           if (!b) winerr(); /* process windows error */
           /* get a brush for background */
-          hb = CreateSolidBrush(screens[curupd]->bcrgb);
+          hb = CreateSolidBrush(win->screens[win->curupd]->bcrgb);
           if (!hb) winerr(); /* process windows error */
           /* fill vacated x */
-          if (x) if (!FillRect(screens[curupd]->bdc, frx, hb)) winerr();
+          if (x) if (!FillRect(win->screens[win->curupd]->bdc, &frx, hb)) winerr();
           /* fill vacated y */
-          if (y) if (!FillRect(screens[curupd]->bdc, fry, hb))  winerr();
+          if (y) if (!FillRect(win->screens[win->curupd]->bdc, &fry, hb)) winerr();
           b = DeleteObject(hb); /* free the brush */
           if (!b) winerr; /* process windows error */
 
        } else {
 
-          b = BitBlt(win->devcon, dx, dy, dw, dh, devcon, sx, sy, SRCCOPY);
+          b = BitBlt(win->devcon, dx, dy, dw, dh, win->devcon, sx, sy, SRCCOPY);
           if (!b) winerr(); /* process windows error */
           /* get a brush for background */
-          hb = CreateSolidBrush(gbcrgb);
+          hb = CreateSolidBrush(win->gbcrgb);
           if (!hb) winerr(); /* process windows error */
           /* fill vacated x */
-          if (x) if (!FillRect(win->devcon, frx, hb)) winerr();
+          if (x) if (!FillRect(win->devcon, &frx, hb)) winerr();
           /* fill vacated y */
-          if (y) if (!FillRect(win->devcon, fry, hb)) winerr();
+          if (y) if (!FillRect(win->devcon, &fry, hb)) winerr();
           b = DeleteObject(hb); /* free the brush */
           if (!b) winerr; /* process windows error */
 
@@ -2749,7 +2760,7 @@ void iscrollg(winptr win, int x, int y)
 
     }
     if (indisp(win) && win->bufmod)
-        restore(win, TRUE) /* move buffer to screen */
+        restore(win, TRUE); /* move buffer to screen */
 
 }
 
@@ -2762,7 +2773,7 @@ void scrollg(FILE* f, int x, int y)
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window from file */
     iscrollg(win, x, y); /* process scroll */
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
 
 }
 
@@ -2775,7 +2786,7 @@ void scroll(FILE* f, int x, int y)
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window from file */
     iscrollg(win, x*win->charspace, y*win->linespace); /* process scroll */
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
 
 }
 
@@ -2791,15 +2802,15 @@ void icursor(winptr win, int x, int y)
 
 {
 
-    if (x != win->screens[curupd]->curx || y != win->screens[curupd]->cury) {
+    if (x != win->screens[win->curupd]->curx || y != win->screens[win->curupd]->cury) {
 
-        win->screens[curupd]->cury = y; /* set new position */
-        win->screens[curupd]->curx = x;
-        win->screens[curupd]->curxg = (x-1)*win->charspace+1;
-        win->screens[curupd]->curyg = (y-1)*win->linespace+1;
-        if (!icurbnd(screens[win->curupd]) && win->screens[curupd]->autof)
+        win->screens[win->curupd]->cury = y; /* set new position */
+        win->screens[win->curupd]->curx = x;
+        win->screens[win->curupd]->curxg = (x-1)*win->charspace+1;
+        win->screens[win->curupd]->curyg = (y-1)*win->linespace+1;
+        if (!icurbnd(win->screens[win->curupd]) && win->screens[win->curupd]->autof)
             error(eatocur); /* bad cursor position with auto */
-        if indisp(win)  setcur(win) /* set cursor on screen */
+        if (indisp(win)) setcur(win); /* set cursor on screen */
 
     }
 
@@ -2814,7 +2825,7 @@ void cursor(FILE* f, int x, int y)
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window from file */
     icursor(win, x, y); /* position cursor */
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
 
 }
 
@@ -2830,15 +2841,15 @@ void icursorg(winptr win, int x, int y)
 
 {
 
-    if (win->screens[curupd]->autof)
+    if (win->screens[win->curupd]->autof)
         error(eatopos); /* cannot perform with auto on */
-    if (x != win->screens[curupd]->curxg || y != win->screens[curupd]->curyg)  {
+    if (x != win->screens[win->curupd]->curxg || y != win->screens[win->curupd]->curyg)  {
 
-         win->screens[curupd]->curyg = y; /* set new position */
-         win->screens[curupd]->curxg = x;
-         win->screens[curupd]->curx = x / win->charspace+1;
-         win->screens[curupd]->cury = y / win->linespace+1;
-         if indisp(win) setcur(win) /* set cursor on screen */
+         win->screens[win->curupd]->curyg = y; /* set new position */
+         win->screens[win->curupd]->curxg = x;
+         win->screens[win->curupd]->curx = x / win->charspace+1;
+         win->screens[win->curupd]->cury = y / win->linespace+1;
+         if (indisp(win)) setcur(win); /* set cursor on screen */
 
     }
 
@@ -2853,7 +2864,7 @@ void cursorg(FILE* f, int x, int y)
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window from file */
     icursorg(win, x, y); /* position cursor */
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
 
 }
 
@@ -2876,7 +2887,7 @@ int baseline(FILE* f)
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window from file */
     r = win->baseoff; /* return current line spacing */
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
 
     return (r);
 
@@ -2901,7 +2912,7 @@ int maxx(FILE* f)
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window from file */
     r = win->gmaxx; /* set maximum x */
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
 
     return (r);
 
@@ -2926,11 +2937,11 @@ int maxy(FILE* f)
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window from file */
     r = win->gmaxy; /* set maximum y */
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
 
     return (r);
 
-};
+}
 
 /*******************************************************************************
 
@@ -2951,7 +2962,7 @@ int maxxg(FILE* f)
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window from file */
     r = win->gmaxxg; /* set maximum x */
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
 
     return (r);
 
@@ -2976,7 +2987,7 @@ int maxyg(FILE* f)
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window from file */
     r = win->gmaxyg; /* set maximum y */
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
 
     return (r);
 
@@ -2994,11 +3005,11 @@ void ihome(winptr win)
 
 {
 
-    screens[win->curdsp]->curx = 1; /* set cursor at home */
-    screens[win->curdsp]->cury = 1;
-    screens[win->curdsp]->curxg = 1;
-    screens[win->curdsp]->curyg = 1;
-    if indisp(win) setcur(win); /* set cursor on screen */
+    win->screens[win->curdsp]->curx = 1; /* set cursor at home */
+    win->screens[win->curdsp]->cury = 1;
+    win->screens[win->curdsp]->curxg = 1;
+    win->screens[win->curdsp]->curyg = 1;
+    if (indisp(win)) setcur(win); /* set cursor on screen */
 
 }
 
@@ -3029,7 +3040,7 @@ void iup(winptr win)
 
     scnptr sc;
 
-    sc = win->screens[curupd];
+    sc = win->screens[win->curupd];
     /* check ! top of screen */
     if (sc->cury > 1) {
 
@@ -3048,7 +3059,7 @@ void iup(winptr win)
         sc->curyg = sc->curyg-win->linespace;
 
     }
-    if indisp(win) setcur(win) /* set cursor on screen */
+    if (indisp(win)) setcur(win); /* set cursor on screen */
 
 }
 
@@ -3061,7 +3072,7 @@ void up(FILE* f)
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window from file */
     iup(win); /* move up */
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
 
 }
 
@@ -3079,7 +3090,7 @@ void idown(winptr win)
 
     scnptr sc;
 
-    sc = screens[curupd];
+    sc = win->screens[win->curupd];
     /* check ! bottom of screen */
     if (sc->cury < sc->maxy) {
 
@@ -3099,7 +3110,7 @@ void idown(winptr win)
 
 }
 
-void down(winptr win)
+void down(FILE* f)
 
 {
 
@@ -3128,17 +3139,17 @@ void ileft(winptr win)
 
     scnptr sc;
 
-    sc = screens[curupd];
+    sc = win->screens[win->curupd];
 
     /* check ! extreme left */
-    if sc->curx > 1  {
+    if (sc->curx > 1) {
 
        sc->curx = sc->curx-1; /* update position */
        sc->curxg = sc->curxg-win->charspace;
 
     } else { /* wrap cursor motion */
 
-       if (sc->auto)  { /* autowrap is on */
+       if (sc->autof) { /* autowrap is on */
 
           iup(win); /* move cursor up one line */
           sc->curx = sc->maxx; /* set cursor to extreme right */
@@ -3146,7 +3157,7 @@ void ileft(winptr win)
 
        } else
           /* check won"t overflow */
-          if sc->curx > -INT_MAX  {
+          if (sc->curx > -INT_MAX) {
 
           sc->curx = sc->curx-1; /* update position */
           sc->curxg = sc->curxg-win->charspace;
@@ -3185,9 +3196,9 @@ void iright(winptr win)
 
     scnptr sc;
 
-    sc = screens[curupd];
+    sc = win->screens[win->curupd];
 
-    /* check ! at extreme right */
+    /* check not at extreme right */
     if (sc->curx < MAXXD) {
 
        sc->curx = sc->curx+1; /* update position */
@@ -3202,7 +3213,7 @@ void iright(winptr win)
           sc->curxg = 1;
 
        /* check won"t overflow */
-       } else (if sc->curx < INT_MAX)  {
+       } else if (sc->curx < INT_MAX)  {
 
           sc->curx = sc->curx+1; /* update position */
           sc->curxg = sc->curxg+win->charspace;
@@ -3210,11 +3221,11 @@ void iright(winptr win)
        }
 
     }
-    if indisp(win)  setcur(win) /* set cursor on screen */
+    if (indisp(win)) setcur(win); /* set cursor on screen */
 
 }
 
-void right(FILE* f);
+void right(FILE* f)
 
 {
 
@@ -3245,19 +3256,19 @@ void itab(winptr win)
     int x;
     scnptr sc;
 
-    sc = screens[curupd];
+    sc = win->screens[win->curupd];
 
     /* first, find if next tab even exists */
     x = sc->curxg+1; /* get just after the current x position */
-    if x < 1  x = 1; /* don"t bother to search to left of screen */
+    if (x < 1)  x = 1; /* don"t bother to search to left of screen */
     /* find tab || } of screen */
     i = 1; /* set 1st tab position */
-    while (x > sc->tab[i] && sc->tab[i] && i < MAXTAB) do i++;
-    if (sc->tab[i] && x < sc->tab[i])  { /* not off right of tabs */
+    while (x > sc->tab[i] && sc->tab[i] && i < MAXTAB) i++;
+    if (sc->tab[i] && x < sc->tab[i]) { /* not off right of tabs */
 
        sc->curxg = sc->tab[i]; /* set position to that tab */
        sc->curx = sc->curxg/win->charspace+1;
-       if indisp(win) setcur(win); /* set cursor on screen */
+       if (indisp(win)) setcur(win); /* set cursor on screen */
 
     }
 
@@ -3297,11 +3308,11 @@ void ireverse(winptr win, int e)
     int r; /* return value */
     scnptr sc;
 
-    sc = screens[curupd];
+    sc = win->screens[win->curupd];
     if (e) { /* reverse on */
 
-        sc->attr = sc->attr+[sarev]; /* set attribute active */
-        sc->gattr = sc->gattr+[sarev];
+        sc->attr |= BIT(sarev); /* set attribute active */
+        win->gattr |= BIT(sarev);
         /* activate in buffer */
         r = SetTextColor(sc->bdc, sc->bcrgb);
         if (r == -1) winerr(); /* process windows error */
@@ -3319,8 +3330,8 @@ void ireverse(winptr win, int e)
 
     } else { /* turn it off */
 
-        sc->attr = sc->attr-[sarev]; /* set attribute inactive */
-        win->gattr = sc->attr-[sarev];
+        sc->attr &= ~BIT(sarev); /* set attribute inactive */
+        win->gattr &= ~BIT(sarev);
         /* activate in buffer */
         r = SetTextColor(sc->bdc, sc->fcrgb);
         if (r == -1) winerr(); /* process windows error */
@@ -3370,21 +3381,19 @@ void iunderline(winptr win, int e)
 
     scnptr sc;
 
-    sc = screens[curupd];
+    sc = win->screens[win->curupd];
     if (e) { /* underline on */
 
-        sc->attr = sc->attr+[saundl]; /* set attribute active */
-        win->gattr = win->gattr+[saundl];
+        sc->attr |= BIT(saundl); /* set attribute active */
+        win->gattr |= BIT(saundl);
 
     } else { /* turn it off */
 
-        sc->attr = sc->attr-[saundl]; /* set attribute inactive */
-        win->gattr = win->gattr-[saundl];
+        sc->attr &= ~BIT(saundl); /* set attribute inactive */
+        win->gattr &= ~BIT(saundl);
 
     }
-    newfont(win) /* select new font */
-
-   }
+    newfont(win); /* select new font */
 
 }
 
@@ -3416,21 +3425,19 @@ void isuperscript(winptr win, int e)
 
     scnptr sc;
 
-    sc = screens[curupd];
+    sc = win->screens[win->curupd];
     if (e)  { /* superscript on */
 
-        sc->attr = sc->attr+[sasuper]; /* set attribute active */
-        win->gattr = win->gattr+[sasuper];
+        sc->attr |= BIT(sasuper); /* set attribute active */
+        win->gattr |= BIT(sasuper);
 
     } else { /* turn it off */
 
-        sc->attr = sc->attr-[sasuper]; /* set attribute inactive */
-        win->gattr = win->gattr-[sasuper];
+        sc->attr &= ~BIT(sasuper); /* set attribute inactive */
+        win->gattr &= ~BIT(sasuper);
 
     }
     newfont(win); /* select new font */
-
-   }
 
 }
 
@@ -3462,21 +3469,19 @@ void isubscript(winptr win, int e)
 
     scnptr sc;
 
-    sc = screens[curupd];
+    sc = win->screens[win->curupd];
     if (e) { /* subscript on */
 
-        sc->attr = sc->attr+[sasubs]; /* set attribute active */
-        win->gattr = win->gattr+[sasubs];
+        sc->attr |= BIT(sasubs); /* set attribute active */
+        win->gattr |= BIT(sasubs);
 
     } else { /* turn it off */
 
-        sc->attr = sc->attr-[sasubs]; /* set attribute inactive */
-        win->gattr = win->gattr-[sasubs];
+        sc->attr &= ~BIT(sasubs); /* set attribute inactive */
+        win->gattr &= ~BIT(sasubs);
 
     }
     newfont(win); /* activate new font with that */
-
-   }
 
 }
 
@@ -3513,16 +3518,16 @@ void iitalic(winptr win, int e)
 
     scnptr sc;
 
-    sc = screens[curupd];
+    sc = win->screens[win->curupd];
     if (e) { /* italic on */
 
-        sc->attr = sc->attr+[saital]; /* set attribute active */
-        win->gattr = win->gattr+[saital];
+        sc->attr |= BIT(saital); /* set attribute active */
+        win->gattr |= BIT(saital);
 
     } else { /* turn it off */
 
-        sc->attr = sc->attr-[saital]; /* set attribute inactive */
-        win->gattr = win->gattr-[saital];
+        sc->attr &= ~BIT(saital); /* set attribute inactive */
+        win->gattr &= ~BIT(saital);
 
     }
     newfont(win); /* activate new font with that */
@@ -3560,21 +3565,19 @@ void ibold(winptr win, int e)
 
     scnptr sc;
 
-    sc = screens[curupd];
+    sc = win->screens[win->curupd];
     if (e) { /* bold on */
 
-        sc->attr = sc->attr+[sabold]; /* set attribute active */
-        win->gattr = win->gattr+[sabold];
+        sc->attr |= BIT(sabold); /* set attribute active */
+        win->gattr |= BIT(sabold);
 
     } else { /* turn it off */
 
-        attr = attr-[sabold]; /* set attribute inactive */
-        gattr = gattr-[sabold];
+        sc->attr &= ~BIT(sabold); /* set attribute inactive */
+        win->gattr &= ~BIT(sabold);
 
     }
     newfont(win); /* activate new font with that */
-
-   }
 
 }
 
@@ -3608,21 +3611,19 @@ void istrikeout(winptr win, int e)
 
     scnptr sc;
 
-    sc = screens[curupd];
+    sc = win->screens[win->curupd];
     if (e) { /* strikeout on */
 
-       sc->attr = sc->attr+[sastkout]; /* set attribute active */
-       win->gattr = win->gattr+[sastkout];
+       sc->attr |= BIT(sastkout); /* set attribute active */
+       win->gattr |= BIT(sastkout);
 
     } else { /* turn it off */
 
-       sc->attr = sc->attr-[sastkout]; /* set attribute inactive */
-       win->gattr = win->gattr-[sastkout];
+       sc->attr &= ~BIT(sastkout); /* set attribute inactive */
+       win->gattr &= ~BIT(sastkout);
 
     }
-    newfont(win) /* activate new font with that */
-
-   }
+    newfont(win); /* activate new font with that */
 
 }
 
@@ -3637,7 +3638,7 @@ void strikeout(FILE* f, int e)
     istrikeout(win, e); /* move cursor right */
     unlockmain(); /* end exclusive access */
 
-};
+}
 
 /*******************************************************************************
 
@@ -3668,13 +3669,13 @@ void ifcolor(winptr win, pa_color c)
 
 {
 
-    int r:   int; /* return value */
-    HGDIOBJ  h;   /* old pen */
-    int      b;   /* return value */
+    int      r;  /* return value */
+    HGDIOBJ  oh; /* old pen */
+    int      b;  /* return value */
     LOGBRUSH lb;
     scnptr   sc;
 
-    sc = screens[curupd];
+    sc = win->screens[win->curupd];
     sc->fcrgb = colnum(c); /* set color status */
     win->gfcrgb = sc->fcrgb;
     /* activate in buffer */
@@ -3693,7 +3694,7 @@ void ifcolor(winptr win, pa_color c)
       to graphical coloring */
     b = DeleteObject(sc->fpen); /* remove old pen */
     if (!b) winerr(); /* process windows error */
-    b = DeleteObjectsc->(fbrush); /* remove old brush */
+    b = DeleteObject(sc->fbrush); /* remove old brush */
     if (!b) winerr(); /* process windows error */
     b = DeleteObject(sc->fspen); /* remove old single pixel pen */
     if (!b) winerr(); /* process windows error */
@@ -3701,8 +3702,8 @@ void ifcolor(winptr win, pa_color c)
     lb.lbStyle = BS_SOLID;
     lb.lbColor = sc->fcrgb;
     lb.lbHatch = 0;
-    sc->fpen = ExtCreatePen(FPENSTL, sc->lwidth, lb, 0, NULL);
-    if (!fpen) winerr(); /* process windows error */
+    sc->fpen = ExtCreatePen(FPENSTL, sc->lwidth, &lb, 0, NULL);
+    if (!sc->fpen) winerr(); /* process windows error */
     /* create new brush */
     sc->fbrush = CreateSolidBrush(sc->fcrgb);
     if (!sc->fbrush) winerr(); /* process windows error */
@@ -3711,7 +3712,7 @@ void ifcolor(winptr win, pa_color c)
     if (!sc->fspen) winerr(); /* process windows error */
     /* select to buffer dc */
     oh = SelectObject(sc->bdc, sc->fpen);
-    if (r == -1) winerr(); /* process windows error */
+    if (oh == HGDI_ERROR) winerr();
     if (indisp(win)) { /* activate on screen */
 
        /* set screen color according to reverse */
@@ -3727,7 +3728,7 @@ void ifcolor(winptr win, pa_color c)
 
        }
        oh = SelectObject(win->devcon, sc->fpen); /* select pen to display */
-       if (r == -1) winerr(); /* process windows error */
+       if (oh == HGDI_ERROR) winerr();
 
     }
 
@@ -3756,7 +3757,7 @@ up, we will be ready.
 
 *******************************************************************************/
 
-void ifcolorg(winptr win; int r, int g, int b)
+void ifcolorg(winptr win, int r, int g, int b)
 
 {
 
@@ -3766,7 +3767,7 @@ void ifcolorg(winptr win; int r, int g, int b)
     LOGBRUSH lb;
     scnptr   sc;
 
-    sc = screens[curupd];
+    sc = win->screens[win->curupd];
     sc->fcrgb = rgb2win(r, g, b); /* set color status */
     win->gfcrgb = sc->fcrgb;
     /* activate in buffer */
@@ -3793,8 +3794,8 @@ void ifcolorg(winptr win; int r, int g, int b)
     lb.lbStyle = BS_SOLID;
     lb.lbColor = sc->fcrgb;
     lb.lbHatch = 0;
-    sc->fpen = ExtCreatePen(FPENSTL, sc->lwidth, lb, 0, NULL);
-    if (!fpen)  winerr(); /* process error */
+    sc->fpen = ExtCreatePen(FPENSTL, sc->lwidth, &lb, 0, NULL);
+    if (!sc->fpen) winerr(); /* process error */
     /* create new brush */
     sc->fbrush = CreateSolidBrush(sc->fcrgb);
     if (!sc->fbrush) winerr(); /* process error */
@@ -3803,7 +3804,7 @@ void ifcolorg(winptr win; int r, int g, int b)
     if (!sc->fspen) winerr(); /* process error */
     /* select to buffer dc */
     oh = SelectObject(sc->bdc, sc->fpen);
-    if (oh == -1) winerr(); /* process windows error */
+    if (oh == HGDI_ERROR) winerr();
     if (indisp(win))  { /* activate on screen */
 
        /* set screen color according to reverse */
@@ -3819,11 +3820,9 @@ void ifcolorg(winptr win; int r, int g, int b)
 
        };
        oh = SelectObject(win->devcon, sc->fpen); /* select pen to display */
-       if (oh == -1) winerr(); /* process windows error */
+       if (oh == HGDI_ERROR) winerr();
 
     }
-
-   }
 
 }
 
@@ -3855,7 +3854,7 @@ void ibcolor(winptr win, pa_color c)
     int r;
     scnptr   sc;
 
-    sc = screens[curupd];
+    sc = win->screens[win->curupd];
     sc->bcrgb = colnum(c); /* set color status */
     win->gbcrgb = sc->bcrgb;
     /* activate in buffer */
@@ -3875,12 +3874,12 @@ void ibcolor(winptr win, pa_color c)
         /* set screen color according to reverse */
         if (BIT(sarev) & sc->attr) {
 
-            r = SetTextColor(sc->devcon, sc->bcrgb);
+            r = SetTextColor(win->devcon, sc->bcrgb);
             if (r == -1) winerr(); /* process windows error */
 
         } else {
 
-            r = SetBkColor(sc->devcon, sc->bcrgb);
+            r = SetBkColor(win->devcon, sc->bcrgb);
             if (r == -1) winerr(); /* process windows error */
 
         }
@@ -3889,7 +3888,7 @@ void ibcolor(winptr win, pa_color c)
 
 }
 
-void bcolor(FILE* f, color c)
+void bcolor(FILE* f, pa_color c)
 
 {
 
@@ -3919,7 +3918,7 @@ void ibcolorg(winptr win, int r, int g, int b)
     int    rv;
     scnptr sc;
 
-    sc = screens[curupd];
+    sc = win->screens[win->curupd];
     sc->bcrgb = rgb2win(r, g, b); /* set color status */
     win->gbcrgb = sc->bcrgb;
     /* activate in buffer */
@@ -3997,7 +3996,7 @@ void iauto(winptr win, int e)
 
     scnptr sc;
 
-    sc = screens[win->curupd];
+    sc = win->screens[win->curupd];
     /* check we are transitioning to auto mode */
     if (e) {
 
@@ -4012,7 +4011,7 @@ void iauto(winptr win, int e)
 
 }
 
-void auto(FILE* f, int e)
+void pa_auto(FILE* f, int e)
 
 {
 
@@ -4037,7 +4036,7 @@ void icurvis(winptr win, int e)
 
 {
 
-    screens[win->curupd]->curv = e; /* set cursor visible status */
+    win->screens[win->curupd]->curv = e; /* set cursor visible status */
     win->gcurv = e;
     cursts(win); /* process any cursor status change */
 
@@ -4073,12 +4072,12 @@ int curx(FILE* f)
 
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window from file */
-    x = screens[win->curupd]->curx; /* return current location x */
+    x = win->screens[win->curupd]->curx; /* return current location x */
     unlockmain(); /* end exclusive access */
 
     return (x);
 
-};
+}
 
 /*******************************************************************************
 
@@ -4097,7 +4096,7 @@ int cury(FILE* f)
 
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window from file */
-    y = screens[win->curupd]->cury; /* return current location y */
+    y = win->screens[win->curupd]->cury; /* return current location y */
     unlockmain(); /* end exclusive access */
 
     return (y);
@@ -4121,7 +4120,7 @@ int curxg(FILE* f)
 
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window from file */
-    x = screens[win->curupd]->curxg; /* return current location x */
+    x = win->screens[win->curupd]->curxg; /* return current location x */
     unlockmain(); /* end exclusive access */
 
     return (x);
@@ -4145,12 +4144,12 @@ int curyg(FILE* f)
 
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window from file */
-    y = screens[win->curupd]->curyg; /* return current location y */
+    y = win->screens[win->curupd]->curyg; /* return current location y */
     unlockmain(); /* end exclusive access */
 
     return (y);
 
-};
+}
 
 /*******************************************************************************
 
@@ -4177,18 +4176,21 @@ void iselect(winptr win, int u, int d)
         error(einvscn); /* invalid screen number */
     ld = win->curdsp; /* save the current display screen number */
     win->curupd = u; /* set the current update screen */
-    if (!screens[win->curupd]) { /* no screen, create one */
+    if (!win->screens[win->curupd]) { /* no screen, create one */
 
-        new(screens[win->curupd]); /* get a new screen context */
-        iniscn(win, screens[win->curupd]); /* initalize that */
+        /* get a new screen context */
+        win->screens[win->curupd] = malloc(sizeof(scncon));
+        if (!win->screens[win->curupd]) error(enomem);
+        iniscn(win, win->screens[win->curupd]); /* initalize that */
 
     }
-    curdsp = d; /* set the current display screen */
-    if (!screens[win->curdsp]) { /* no screen, create one */
+    win->curdsp = d; /* set the current display screen */
+    if (!win->screens[win->curdsp]) { /* no screen, create one */
 
         /* no current screen, create a new one */
-        new(screens[win->curdsp]); /* get a new screen context */
-        iniscn(win, screens[win->curdsp]); /* initalize that */
+        win->screens[win->curdsp] = malloc(sizeof(scncon));
+        if (!win->screens[win->curdsp]) error(enomem);
+        iniscn(win, win->screens[win->curdsp]); /* initalize that */
 
     }
     /* if the screen has changed, restore it */
@@ -4196,7 +4198,7 @@ void iselect(winptr win, int u, int d)
 
 }
 
-void select(FILE* f, int u, int d)
+void pa_select(FILE* f, int u, int d)
 
 {
 
@@ -4232,57 +4234,54 @@ void plcchr(winptr win, char c)
     SIZE   sz;  /* size holder */
     scnptr sc;
 
-    sc = screens[win->curupd];
+    sc = win->screens[win->curupd];
     if (!win->visible) winvis(win); /* make sure we are displayed */
     /* handle special character cases first */
-    if (c == '\cr') {
+    if (c == '\r') {
 
        /* carriage return, position to extreme left */
        sc->curx = 1; /* set to extreme left */
        sc->curxg = 1;
        if (indisp(win)) setcur(win); /* set cursor on screen */
 
-    } else if (c == '\n') idown(win) /* line feed, move down */
-    else if (c == '\b') ileft(win) /* back space, move left */
-    else if (c == '\f') iclear(win) /* clear screen */
-    else if (c == '\t') itab(win) /* process tab */
-    else if (c >= ' ' && c != chr(0x7f))  /* character is visible */
-       with screens[curupd]^ do {
+    } else if (c == '\n') idown(win); /* line feed, move down */
+    else if (c == '\b') ileft(win); /* back space, move left */
+    else if (c == '\f') iclear(win); /* clear screen */
+    else if (c == '\t') itab(win); /* process tab */
+    else if (c >= ' ' && c != chr(0x7f)) { /* character is visible */
 
-       off = 0; /* set no subscript offset */
-       if (BIT(sasubs) & sc->attr) off = win->linespace*0.35;
-       /* update buffer */
-       if (win->bufmod) { /* buffer is active */
+        off = 0; /* set no subscript offset */
+        if (BIT(sasubs) & sc->attr) off = trunc(win->linespace*0.35);
+        /* update buffer */
+        if (win->bufmod) { /* buffer is active */
 
-          /* draw character */
-          b = TextOut(sc->bdc, sc->curxg-1, sc->curyg-1+off, &c);
-          if (!b) winerr(); /* process windows error */
+           /* draw character */
+           b = TextOut(sc->bdc, sc->curxg-1, sc->curyg-1+off, &c, 1);
+           if (!b) winerr(); /* process windows error */
 
-       }
-       if (indisp(win)) { /* activate on screen */
+        }
+        if (indisp(win)) { /* activate on screen */
 
-          /* draw character on screen */
-          curoff(win); /* hide the cursor */
-          /* draw character */
-          b = TextOut(win->devcon, sc->curxg-1, sc->curyg-1+off, cb);
-          if (!b) winerr(); /* process windows error */
-          curon(win); /* show the cursor */
+           /* draw character on screen */
+           curoff(win); /* hide the cursor */
+           /* draw character */
+           b = TextOut(win->devcon, sc->curxg-1, sc->curyg-1+off, &c, 1);
+           if (!b) winerr(); /* process windows error */
+           curon(win); /* show the cursor */
 
-       }
-       if (sc->cfont->sys) iright(win) /* move cursor right character */
-       else { /* perform proportional version */
+        }
+        if (sc->cfont->sys) iright(win); /* move cursor right character */
+        else { /* perform proportional version */
 
-          b = GetTextExtentPoint32(sc->bdc, cb, 1, sz); /* get spacing */
-          if (!b) winerr(); /* process windows error */
-          sc->curxg = sc->curxg+sz.cx; /* advance the character width */
-          sc->curx = sc->curxg/win->charspace+1; /* recalculate character position */
-          if indisp(win) setcur(win); /* set cursor on screen */
+           b = GetTextExtentPoint32(sc->bdc, &c, 1, &sz); /* get spacing */
+           if (!b) winerr(); /* process windows error */
+           sc->curxg = sc->curxg+sz.cx; /* advance the character width */
+           sc->curx = sc->curxg/win->charspace+1; /* recalculate character position */
+           if (indisp(win)) setcur(win); /* set cursor on screen */
 
-       }
+        }
 
     }
-
-   }
 
 }
 
@@ -4312,16 +4311,16 @@ void iwrtstr(winptr win,  char* s)
     SIZE   sz;  /* size holder */
     scnptr sc;
 
-    sc = screens[win->curupd];
+    sc = win->screens[win->curupd];
     if (sc->autof) error(estrato); /* autowrap is on */
     if (!win->visible) winvis(win); /* make sure we are displayed */
     off = 0; /* set no subscript offset */
-    if (BIT(sasubs) & sc->attr) off = win->linespace*0.35;
+    if (BIT(sasubs) & sc->attr) off = trunc(win->linespace*0.35);
     /* update buffer */
     if (win->bufmod) { /* buffer is active */
 
        /* draw character */
-       b = TextOut(bdc, sc->curxg-1, sc->curyg-1+off, s);
+       b = TextOut(sc->bdc, sc->curxg-1, sc->curyg-1+off, s, strlen(s));
        if (!b) winerr(); /* process windows error */
 
     }
@@ -4330,7 +4329,7 @@ void iwrtstr(winptr win,  char* s)
        /* draw character on screen */
        curoff(win); /* hide the cursor */
        /* draw character */
-       b = TextOut(win->devcon, sc->curxg-1, sc->curyg-1+off, s);
+       b = TextOut(win->devcon, sc->curxg-1, sc->curyg-1+off, s, strlen(s));
        if (!b) winerr(); /* process windows error */
        curon(win); /* show the cursor */
 
@@ -4339,15 +4338,15 @@ void iwrtstr(winptr win,  char* s)
 
           /* should check if this exceeds INT_MAX */
           sc->curx = sc->curx+strlen(s); /* update position */
-          sc->curxg = curxg+win->charspace*strlen(s);
+          sc->curxg = sc->curxg+win->charspace*strlen(s);
 
     } else { /* perform proportional version */
 
-       b = GetTextExtentPoint32(sc->bdc, s, sz); /* get spacing */
+       b = GetTextExtentPoint32(sc->bdc, s, strlen(s), &sz); /* get spacing */
        if (!b) winerr(); /* process windows error */
        sc->curxg = sc->curxg+sz.cx; /* advance the character width */
        sc->curx = sc->curxg/win->charspace+1; /* recalculate character position */
-       if indisp(win) setcur(win) /* set cursor on screen */
+       if (indisp(win)) setcur(win); /* set cursor on screen */
 
     }
 
@@ -4375,7 +4374,7 @@ position left.
 
 *******************************************************************************/
 
-void idel(winptr win);
+void idel(winptr win)
 
 {
 
@@ -4415,11 +4414,11 @@ void iline(winptr win, int x1, int y1, int x2, int y2)
     int dx, dy;
     scnptr sc;
 
-    sc = screens[win->curupd];
+    sc = win->screens[win->curupd];
     sc->lcurx = x2; /* place next progressive endpoint */
     sc->lcury = y2;
     /* rationalize the line to right/down */
-    if (x1 > x2 || (x1 == x2 && y1 > y2) { /* swap */
+    if (x1 > x2 || (x1 == x2 && y1 > y2)) { /* swap */
 
        tx = x1;
        ty = y1;
@@ -4430,10 +4429,10 @@ void iline(winptr win, int x1, int y1, int x2, int y2)
 
     }
     /* Try to compensate for windows not drawing line endings. */
-    if (y1 == y2)  dy = 0
-    else if (y1 < y2)  dy = +1
+    if (y1 == y2)  dy = 0;
+    else if (y1 < y2) dy = +1;
     else dy = -1;
-    if (x1 == x2)  dx = 0
+    if (x1 == x2) dx = 0;
     else dx = +1;
     if (win->bufmod) { /* buffer is active */
 
@@ -4488,7 +4487,7 @@ void irect(winptr win, int x1, int y1, int x2, int y2)
     if (win->bufmod) { /* buffer is active */
 
         /* draw to buffer */
-        b = Rectangle(screens[win->curupd]->bdc, x1-1, y1-1, x2, y2);
+        b = Rectangle(win->screens[win->curupd]->bdc, x1-1, y1-1, x2, y2);
         if (!b) winerr(); /* process windows error */
 
     }
@@ -4534,23 +4533,23 @@ void ifrect(winptr win, int x1, int y1, int x2, int y2)
     HGDIOBJ r; /* result holder */
     scnptr sc;
 
-    sc = screens[win->curupd];
+    sc = win->screens[win->curupd];
     if (win->bufmod) { /* buffer is active */
 
        /* for filled ellipse, the pen and brush settings are all wrong. we need
          a single pixel pen and a background brush. we set and restore these */
        r = SelectObject(sc->bdc, sc->fspen);
-       if (r == -1) winerr(); /* process windows error */
+       if (r == HGDI_ERROR) error(enosel);
        r = SelectObject(sc->bdc, sc->fbrush);
-       if (r == -1) winerr(); /* process windows error */
+       if (r == HGDI_ERROR) error(enosel);
        /* draw to buffer */
        b = Rectangle(sc->bdc, x1-1, y1-1, x2, y2);
        if (!b)  winerr(); /* process windows error */
        /* restore */
-       r = SelectObject(sc->bdc, fpen);
-       if (r == -1) winerr(); /* process windows error */
+       r = SelectObject(sc->bdc, sc->fpen);
+       if (r == HGDI_ERROR) error(enosel);
        r = SelectObject(sc->bdc, GetStockObject(NULL_BRUSH));
-       if (r == -1) winerr(); /* process windows error */
+       if (r == HGDI_ERROR) error(enosel);
 
     }
     /* draw to screen */
@@ -4558,17 +4557,17 @@ void ifrect(winptr win, int x1, int y1, int x2, int y2)
 
        if (!win->visible) winvis(win); /* make sure we are displayed */
        r = SelectObject(win->devcon, sc->fspen);
-       if (r == -1) winerr(); /* process windows error */
+       if (r == HGDI_ERROR) error(enosel);
        r = SelectObject(win->devcon, sc->fbrush);
-       if (r == -1) winerr(); /* process windows error */
+       if (r == HGDI_ERROR) error(enosel);
        curoff(win);
        b = Rectangle(win->devcon, x1-1, y1-1, x2, y2);
        if (!b) winerr(); /* process windows error */
        curon(win);
        r = SelectObject(win->devcon, sc->fpen);
-       if (r == -1) winerr(); /* process windows error */
+       if (r == HGDI_ERROR) error(enosel);
        r = SelectObject(win->devcon, GetStockObject(NULL_BRUSH));
-       if (r == -1) winerr(); /* process windows error */
+       if (r == HGDI_ERROR) error(enosel);
 
     }
 
@@ -4605,7 +4604,7 @@ void irrect(winptr win, int x1, int y1, int x2, int y2, int xs, int ys)
     if (win->bufmod)  { /* buffer is active */
 
         /* draw to buffer */
-        b = RoundRect(screens[win->curupd]->bdc, x1-1, y1-1, x2, y2, xs, ys);
+        b = RoundRect(win->screens[win->curupd]->bdc, x1-1, y1-1, x2, y2, xs, ys);
         if (!b) winerr(); /* process windows error */
 
     }
@@ -4626,7 +4625,7 @@ void rrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
 
 {
 
-    var winptr win;  /* windows record pointer */
+    winptr win;  /* windows record pointer */
 
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window pointer from text file */
@@ -4651,41 +4650,41 @@ void ifrrect(winptr win, int x1, int y1, int x2, int y2, int xs, int ys)
     HGDIOBJ r; /* result holder */
     scnptr sc;
 
-    sc = screens[win->curupd];
+    sc = win->screens[win->curupd];
     if (win->bufmod) { /* buffer is active */
 
        /* for filled ellipse, the pen && brush settings are all wrong. we need
          a single pixel pen && a background brush. we set && restore these */
        r = SelectObject(sc->bdc, sc->fspen);
-       if (r == -1) winerr(); /* process windows error */
+       if (r == HGDI_ERROR) error(enosel);
        r = SelectObject(sc->bdc, sc->fbrush);
-       if (r == -1) winerr(); /* process windows error */
+       if (r == HGDI_ERROR) error(enosel);
        /* draw to buffer */
        b = RoundRect(sc->bdc, x1-1, y1-1, x2, y2, xs, ys);
        if (!b) winerr(); /* process windows error */
        /* restore */
-       r = SelectObject(sc->bdc, fpen);
-       if (r == -1) winerr(); /* process windows error */
+       r = SelectObject(sc->bdc, sc->fpen);
+       if (r == HGDI_ERROR) error(enosel);
        r = SelectObject(sc->bdc, GetStockObject(NULL_BRUSH));
-       if (r == -1) winerr(); /* process windows error */
+       if (r == HGDI_ERROR) error(enosel);
 
     }
     /* draw to screen */
     if (indisp(win)) {
 
        if (!win->visible)  winvis(win); /* make sure we are displayed */
-       r = SelectObject(win->devcon, fspen);
-       if (r == -1) winerr(); /* process windows error */
-       r = SelectObject(win->devcon, fbrush);
-       if (r == -1) winerr(); /* process windows error */
+       r = SelectObject(win->devcon, sc->fspen);
+       if (r == HGDI_ERROR) error(enosel);
+       r = SelectObject(win->devcon, sc->fbrush);
+       if (r == HGDI_ERROR) error(enosel);
        curoff(win);
        b = RoundRect(win->devcon, x1-1, y1-1, x2, y2, xs, ys);
        if (!b) winerr(); /* process windows error */
        curon(win);
-       r = SelectObject(win->devcon, fpen);
-       if (r == -1) winerr(); /* process windows error */
+       r = SelectObject(win->devcon, sc->fpen);
+       if (r == HGDI_ERROR) error(enosel);
        r = SelectObject(win->devcon, GetStockObject(NULL_BRUSH));
-       if (r == -1) winerr(); /* process windows error */
+       if (r == HGDI_ERROR) error(enosel);
 
     }
 
@@ -4721,14 +4720,14 @@ void iellipse(winptr win, int x1, int y1, int x2, int y2)
     if (win->bufmod) { /* buffer is active */
 
        /* draw to buffer */
-       b = ellipse(screens[win->curupd]->bdc, x1-1, y1-1, x2, y2);
+       b = ellipse(win->screens[win->curupd]->bdc, x1-1, y1-1, x2, y2);
        if (!b) winerr(); /* process windows error */
 
     }
     /* draw to screen */
     if (indisp(win)) {
 
-       if (!sc->visible) winvis(win); /* make sure we are displayed */
+       if (!win->visible) winvis(win); /* make sure we are displayed */
        curoff(win);
        b = ellipse(win->devcon, x1-1, y1-1, x2, y2);
        if (!b) winerr(); /* process windows error */
@@ -4738,7 +4737,7 @@ void iellipse(winptr win, int x1, int y1, int x2, int y2)
 
 }
 
-void ellipse(FILE* f, int x1, int y1, int x2, int y2)
+void pa_ellipse(FILE* f, int x1, int y1, int x2, int y2)
 
 {
 
@@ -4767,23 +4766,23 @@ void ifellipse(winptr win, int x1, int y1, int x2, int y2)
     HGDIOBJ r; /* result holder */
     scnptr sc;
 
-    sc = screens[win->curupd];
+    sc = win->screens[win->curupd];
     if (win->bufmod) { /* buffer is active */
 
-        /* for filled ellipse, the pen && brush settings are all wrong. we need
+        /* for filled ellipse, the pen and brush settings are all wrong. we need
            a single pixel pen && a background brush. we set && restore these */
         r = SelectObject(sc->bdc, sc->fspen);
-        if (r == -1) winerr(); /* process windows error */
+        if (r == HGDI_ERROR) error(enosel);
         r = SelectObject(sc->bdc, sc->fbrush);
-        if (r == -1) winerr(); /* process windows error */
+        if (r == HGDI_ERROR) error(enosel);
         /* draw to buffer */
         b = ellipse(sc->bdc, x1-1, y1-1, x2, y2);
         if (!b) winerr(); /* process windows error */
         /* restore */
-        r = SelectObject(sc->bdc, fpen);
-        if (r == -1) winerr(); /* process windows error */
+        r = SelectObject(sc->bdc, sc->fpen);
+        if (r == HGDI_ERROR) error(enosel);
         r = SelectObject(sc->bdc, GetStockObject(NULL_BRUSH));
-        if (r == -1) winerr(); /* process windows error */
+        if (r == HGDI_ERROR) error(enosel);
 
     }
     /* draw to screen */
@@ -4791,17 +4790,17 @@ void ifellipse(winptr win, int x1, int y1, int x2, int y2)
 
         if (!win->visible) winvis(win); /* make sure we are displayed */
         r = SelectObject(win->devcon, sc->fspen);
-        if (r == -1) winerr(); /* process windows error */
+        if (r == HGDI_ERROR) error(enosel);
         r = SelectObject(win->devcon, sc->fbrush);
-        if (r == -1) winerr(); /* process windows error */
+        if (r == HGDI_ERROR) error(enosel);
         curoff(win);
         b = ellipse(win->devcon, x1-1, y1-1, x2, y2);
         if (!b) winerr(); /* process windows error */
         curon(win);
-        r = SelectObject(win->devcon, fpen);
-        if (r == -1) winerr(); /* process windows error */
+        r = SelectObject(win->devcon, sc->fpen);
+        if (r == HGDI_ERROR) error(enosel);
         r = SelectObject(win->devcon, GetStockObject(NULL_BRUSH));
-        if (r == -1) winerr(); /* process windows error */
+        if (r == HGDI_ERROR) error(enosel);
 
     }
 
@@ -4852,7 +4851,7 @@ void iarc(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
 
 {
 
-#define PRECIS 1000 /* precision of circle calculation */
+    const int precis = 1000; /* precision of circle calculation */
 
     float saf, eaf;       /* starting angles in radian float */
     int   xs, ys, xe, ye; /* start && } coordinates */
@@ -4870,14 +4869,15 @@ void iarc(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
     xc = (x2-x1) / 2+x1;
     yc = (y2-y1) / 2+y1;
     /* resolve start to x, y */
-    xs = xc+PRECIS*cos(PI/2-saf);
-    ys = yc-PRECIS*sin(PI/2-saf);
+    xs = xc+precis*cos(PI/2-saf);
+    ys = yc-precis*sin(PI/2-saf);
     /* resolve } to x, y */
-    xe = xc+PRECIS*cos(PI/2-eaf);
-    ye = yc-PRECIS*sin(PI/2-eaf);
+    xe = xc+precis*cos(PI/2-eaf);
+    ye = yc-precis*sin(PI/2-eaf);
     if (win->bufmod) { /* buffer is active */
 
-        b = Arc(screens[win->curupd]->bdc, x1-1, y1-1, x2, y2, xe, ye, xs, ys);
+        b = Arc(win->screens[win->curupd]->bdc, x1-1, y1-1, x2, y2, xe, ye,
+                xs, ys);
         if (!b) winerr(); /* process windows error */
 
     }
@@ -4919,7 +4919,7 @@ void ifarc(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
 
 {
 
-#define PRECIS 1000 /* precision of circle calculation */
+    const int precis = 1000; /* precision of circle calculation */
 
     float saf, eaf;     /* starting angles in radian float */
     int xs, ys, xe, ye; /* start && } coordinates */
@@ -4929,7 +4929,7 @@ void ifarc(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
     HGDIOBJ r;          /* result holder */
     scnptr sc;
 
-    sc = screens[win->curupd];
+    sc = win->screens[win->curupd];
     /* rationalize rectangle for processing */
     if (x1 > x2) { t = x1; x1 = x2; x2 = t; };
     if (y1 > y2) { t = y1; y1 = y2; y2 = t; };
@@ -4940,45 +4940,45 @@ void ifarc(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
     xc = (x2-x1)/2+x1;
     yc = (y2-y1)/2+y1;
     /* resolve start to x, y */
-    xs = Round(xc+PRECIS*cos(PI/2-saf));
-    ys = Round(yc-PRECIS*sin(PI/2-saf));
-    /* resolve } to x, y */
-    xe = Round(xc+PRECIS*cos(PI/2-eaf));
-    ye = Round(yc-PRECIS*sin(PI/2-eaf));
+    xs = xc+precis*cos(PI/2-saf);
+    ys = yc-precis*sin(PI/2-saf);
+    /* resolve end to x, y */
+    xe = xc+precis*cos(PI/2-eaf);
+    ye = yc-precis*sin(PI/2-eaf);
     if (win->bufmod) { /* buffer is active */
 
         /* for filled shape, the pen && brush settings are all wrong. we need
            a single pixel pen && a background brush. we set && restore these */
         r = SelectObject(sc->bdc, sc->fspen);
-        if (r == -1) winerr(); /* process windows error */
+        if (r == HGDI_ERROR) error(enosel);
         r = SelectObject(sc->bdc, sc->fbrush);
-        if (r == -1) winerr(); /* process windows error */
+        if (r == HGDI_ERROR) error(enosel);
         /* draw shape */
         b = Pie(sc->bdc, x1-1, y1-1, x2, y2, xe, ye, xs, ys);
         if (!b) winerr(); /* process windows error */
         /* restore */
         r = SelectObject(sc->bdc, sc->fpen);
-        if (r == -1) winerr(); /* process windows error */
+        if (r == HGDI_ERROR) error(enosel);
         r = SelectObject(sc->bdc, GetStockObject(NULL_BRUSH));
-        if (r == -1) winerr(); /* process windows error */
+        if (r == HGDI_ERROR) error(enosel);
 
     }
     if (indisp(win)) { /* do it again for the current screen */
 
         if (!win->visible) winvis(win); /* make sure we are displayed */
         r = SelectObject(win->devcon, sc->fspen);
-        if (r == -1) winerr(); /* process windows error */
+        if (r == HGDI_ERROR) error(enosel);
         r = SelectObject(win->devcon, sc->fbrush);
-        if (r == -1) winerr(); /* process windows error */
+        if (r == HGDI_ERROR) error(enosel);
         curoff(win);
         /* draw shape */
         b = Pie(win->devcon, x1-1, y1-1, x2, y2, xe, ye, xs, ys);
         if (!b) winerr(); /* process windows error */
         curon(win);
-        r = SelectObject(win->devcon, fpen);
-        if (r == -1) winerr(); /* process windows error */
+        r = SelectObject(win->devcon, sc->fpen);
+        if (r == HGDI_ERROR) error(enosel);
         r = SelectObject(win->devcon, GetStockObject(NULL_BRUSH));
-        if (r == -1) winerr(); /* process windows error */
+        if (r == HGDI_ERROR) error(enosel);
 
     }
 
@@ -5010,7 +5010,7 @@ void ifchord(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
 
 {
 
-#define PRECIS 1000 /* precision of circle calculation */
+    const int precis = 1000; /* precision of circle calculation */
 
     float   saf, eaf;       /* starting angles in radian float */
     int     xs, ys, xe, ye; /* start and end coordinates */
@@ -5020,7 +5020,7 @@ void ifchord(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
     HGDIOBJ r;              /* result holder */
     scnptr  sc;             /* screen context */
 
-    sc = screens[win->curupd];
+    sc = win->screens[win->curupd];
     /* rationalize rectangle for processing */
     if (x1 > x2) { t = x1; x1 = x2; x2 = t; }
     if (y1 > y2)  { t = y1; y1 = y2; y2 = t; }
@@ -5031,45 +5031,45 @@ void ifchord(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
     xc = (x2-x1)/2+x1;
     yc = (y2-y1)/2+y1;
     /* resolve start to x, y */
-    xs = xc+PRECIS*cos(PI/2-saf));
-    ys = yc-PRECIS*sin(PI/2-saf));
+    xs = xc+precis*cos(PI/2-saf);
+    ys = yc-precis*sin(PI/2-saf);
     /* resolve } to x, y */
-    xe = xc+PRECIS*cos(PI/2-eaf));
-    ye = yc-PRECIS*sin(PI/2-eaf));
+    xe = xc+precis*cos(PI/2-eaf);
+    ye = yc-precis*sin(PI/2-eaf);
     if (win->bufmod) { /* buffer is active */
 
         /* for filled shape, the pen && brush settings are all wrong. we need
            a single pixel pen && a background brush. we set && restore these */
         r = SelectObject(sc->bdc, sc->fspen);
-        if (r == -1) winerr(); /* process windows error */
+        if (r == HGDI_ERROR) error(enosel);
         r = SelectObject(sc->bdc, sc->fbrush);
-        if (r == -1) winerr(); /* process windows error */
+        if (r == HGDI_ERROR) error(enosel);
         /* draw shape */
         b = chord(sc->bdc, x1-1, y1-1, x2, y2, xe, ye, xs, ys);
         if (!b) winerr(); /* process windows error */
         /* restore */
         r = SelectObject(sc->bdc, sc->fpen);
-        if (r == -1) winerr(); /* process windows error */
+        if (r == HGDI_ERROR) error(enosel);
         r = SelectObject(sc->bdc, GetStockObject(NULL_BRUSH));
-        if (r == -1) winerr(); /* process windows error */
+        if (r == HGDI_ERROR) error(enosel);
 
     }
     if (indisp(win)) { /* do it again for the current screen */
 
         if (!win->visible) winvis(win); /* make sure we are displayed */
         r = SelectObject(win->devcon, sc->fspen);
-        if (r == -1) winerr(); /* process windows error */
+        if (r == HGDI_ERROR) error(enosel);
         r = SelectObject(win->devcon, sc->fbrush);
-        if (r == -1) winerr(); /* process windows error */
+        if (r == HGDI_ERROR) error(enosel);
         curoff(win);
         /* draw shape */
         b = chord(win->devcon, x1-1, y1-1, x2, y2, xe, ye, xs, ys);
         if (!b) winerr(); /* process windows error */
         curon(win);
         r = SelectObject(win->devcon, sc->fpen);
-        if (r == -1) winerr(); /* process windows error */
+        if (r == HGDI_ERROR) error(enosel);
         r = SelectObject(win->devcon, GetStockObject(NULL_BRUSH));
-        if (r == -1) winerr(); /* process windows error */
+        if (r == HGDI_ERROR) error(enosel);
 
     }
 
@@ -5105,7 +5105,7 @@ void iftriangle(winptr win, int x1, int y1, int x2, int y2, int x3, int y3)
     HGDIOBJ r;     /* result holder */
     scnptr  sc;
 
-    sc = screens[win->curupd];
+    sc = win->screens[win->curupd];
     /* place triangle points in array */
     pa[1].x = x1-1;
     pa[1].y = y1-1;
@@ -5115,20 +5115,20 @@ void iftriangle(winptr win, int x1, int y1, int x2, int y2, int x3, int y3)
     pa[3].y = y3-1;
     if (win->bufmod) { /* buffer is active */
 
-       /* for filled shape, the pen && brush settings are all wrong. we need
-         a single pixel pen && a background brush. we set && restore these */
+       /* for filled shape, the pen and brush settings are all wrong. we need
+         a single pixel pen && a background brush. we set and restore these */
        r = SelectObject(sc->bdc, sc->fspen);
-       if (r == -1) winerr(); /* process windows error */
+       if (r == HGDI_ERROR) error(enosel);
        r = SelectObject(sc->bdc, sc->fbrush);
-       if (r == -1) winerr(); /* process windows error */
+       if (r == HGDI_ERROR) error(enosel);
        /* draw to buffer */
        b = polygon(sc->bdc, pa);
        if (!b) winerr(); /* process windows error */
        /* restore */
        r = SelectObject(sc->bdc, sc->fpen);
-       if (r == -1) winerr(); /* process windows error */
+       if (r == HGDI_ERROR) error(enosel);
        r = SelectObject(sc->bdc, GetStockObject(NULL_BRUSH));
-       if (r == -1) winerr(); /* process windows error */
+       if (r == HGDI_ERROR) error(enosel);
 
     }
     /* draw to screen */
@@ -5136,34 +5136,34 @@ void iftriangle(winptr win, int x1, int y1, int x2, int y2, int x3, int y3)
 
        if (!win->visible) winvis(win); /* make sure we are displayed */
        r = SelectObject(win->devcon, sc->fspen);
-       if (r == -1) winerr(); /* process windows error */
+       if (r == HGDI_ERROR) error(enosel);
        r = SelectObject(win->devcon, sc->fbrush);
-       if (r == -1) winerr(); /* process windows error */
+       if (r == HGDI_ERROR) error(enosel);
        curoff(win);
        b = polygon(win->devcon, pa);
        if (!b) winerr(); /* process windows error */
        curon(win);
        r = SelectObject(win->devcon, sc->fpen);
-       if (r == -1) winerr(); /* process windows error */
+       if (r == HGDI_ERROR) error(enosel);
        r = SelectObject(win->devcon, GetStockObject(NULL_BRUSH));
-       if (r == -1) winerr(); /* process windows error */
+       if (r == HGDI_ERROR) error(enosel);
 
     }
     /* The progressive points get shifted left one. This causes progressive
       single point triangles to become triangle strips. */
     if (sc->tcurs) { /* process odd strip flip */
 
-       tcurx1 = x1; /* place next progressive endpoint */
-       tcury1 = y1;
-       tcurx2 = x3;
-       tcury2 = y3;
+       sc->tcurx1 = x1; /* place next progressive endpoint */
+       sc->tcury1 = y1;
+       sc->tcurx2 = x3;
+       sc->tcury2 = y3;
 
     } else { /* process even strip flip */
 
-       tcurx1 = x3; /* place next progressive endpoint */
-       tcury1 = y3;
-       tcurx2 = x2;
-       tcury2 = y2;
+       sc->tcurx1 = x3; /* place next progressive endpoint */
+       sc->tcury1 = y3;
+       sc->tcurx2 = x2;
+       sc->tcury2 = y2;
 
     }
 
@@ -5178,7 +5178,7 @@ void ftriangle(FILE* f, int x1, int y1, int x2, int y2, int x3, int y3)
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window pointer from text file */
     iftriangle(win, x1, y1, x2, y2, x3, y3); /* draw triangle */
-    win->screens[curupd]->tcurs = FALSE /* set even strip flip state */
+    win->screens[win->curupd]->tcurs = FALSE; /* set even strip flip state */
     unlockmain(); /* end exclusive access */
 
 }
@@ -5200,23 +5200,21 @@ void isetpixel(winptr win, int x, int y)
     if (win->bufmod)  { /* buffer is active */
 
        /* paint buffer */
-       r = SetPixel(screens[win->curupd]->bdc, x-1, y-1,
-                    screens[win->curupd]->fcrgb);
+       r = SetPixel(win->screens[win->curupd]->bdc, x-1, y-1,
+                    win->screens[win->curupd]->fcrgb);
        if (r == -1) winerr(); /* process windows error */
 
     }
     /* paint screen */
     if (indisp(win)) {
 
-       if ! win->visible  winvis(win); /* make sure we are displayed */
+       if (!win->visible) winvis(win); /* make sure we are displayed */
        curoff(win);
-       r = SetPixel(win->devcon, x-1, y-1, screens[win->curupd]->fcrgb);
+       r = SetPixel(win->devcon, x-1, y-1, win->screens[win->curupd]->fcrgb);
        if (r == -1) winerr(); /* process windows error */
        curon(win);
 
     }
-
-   }
 
 }
 
@@ -5285,7 +5283,7 @@ void ibover(winptr win)
     win->gbmod = mdnorm; /* set background mode normal */
     win->screens[win->curupd]->bmod = mdnorm;
     r = SetBkmode(win->screens[win->curupd]->bdc, OPAQUE);
-    if r == 0  winerr(); /* process windows error */
+    if (r == 0) winerr(); /* process windows error */
     if (indisp(win)) r = Setbkmode(win->devcon, OPAQUE);
 
 }
@@ -5319,9 +5317,9 @@ void ifinvis(winptr win)
 
     win->gfmod = mdinvis; /* set foreground mode invisible */
     win->screens[win->curupd]->fmod = mdinvis;
-    r = SetROP2(screens[win->curupd]->bdc, R2_NOP);
+    r = SetROP2(win->screens[win->curupd]->bdc, R2_NOP);
     if (r == 0) winerr(); /* process windows error */
-    if (indisp(win)) r = setrop2(devcon, R2_NOP);
+    if (indisp(win)) r = setrop2(win->devcon, R2_NOP);
 
 }
 
@@ -5356,7 +5354,7 @@ void ibinvis(winptr win)
     win->screens[win->curupd]->bmod = mdinvis;
     r = SetBkMode(win->screens[win->curupd]->bdc, TRANSPARENT);
     if (r == 0) winerr(); /* process windows error */
-    if (indisp(win)) r = SetBkMode(win->devcon, TRANSPARENT)
+    if (indisp(win)) r = SetBkMode(win->devcon, TRANSPARENT);
 
 }
 
@@ -5416,12 +5414,12 @@ Sets the background write mode to xor.
 
 *******************************************************************************/
 
-void ibxor(winptr win);
+void ibxor(winptr win)
 
 {
 
     win->gbmod = mdxor; /* set background mode xor */
-    win->screens[win->curupd]->bmod = mdxor
+    win->screens[win->curupd]->bmod = mdxor;
 
 }
 
@@ -5461,18 +5459,18 @@ void ilinewidth(winptr win, int w)
     b = DeleteObject(sc->fpen); /* remove old pen */
     if (!b) winerr(); /* process windows error */
     /* create new pen */
-    lb.lbstyle = BS_SOLID;
-    lb.lbcolor = sc->fcrgb;
-    lb.lbhatch = 0;
-    sc->fpen = ExtCreatePen(FPENSTL, sc->lwidth, lb, 0, NULL);
+    lb.lbStyle = BS_SOLID;
+    lb.lbColor = sc->fcrgb;
+    lb.lbHatch = 0;
+    sc->fpen = ExtCreatePen(FPENSTL, sc->lwidth, &lb, 0, NULL);
     if (!sc->fpen) winerr(); /* process windows error */
     /* select to buffer dc */
     oh = SelectObject(sc->bdc, sc->fpen);
-    if (r == -1) winerr(); /* process windows error */
+    if (oh == HGDI_ERROR) error(enosel);
     if (indisp(win)) { /* activate on screen */
 
-        oh = SelectObject(win->devcon, fpen); /* select pen to display */
-        if (r == -1) winerr(); /* process windows error */
+        oh = SelectObject(win->devcon, sc->fpen); /* select pen to display */
+        if (oh == HGDI_ERROR) error(enosel);
 
     }
 
@@ -5523,7 +5521,7 @@ Returns the character height.
 
 *******************************************************************************/
 
-int chrsizy(FILE* f): int;
+int chrsizy(FILE* f)
 
 {
 
@@ -5575,10 +5573,10 @@ void ifont(winptr win, int fc)
 
 {
 
-    fontptr fp: fontptr;
+    fontptr fp;
 
-    if win->screens[win->curupd]->auto  error(eatoftc); /* cannot perform with auto on */
-    if fc < 1  error(einvfnm); /* invalid font number */
+    if (win->screens[win->curupd]->autof) error(eatoftc); /* cannot perform with auto on */
+    if (fc < 1) error(einvfnm); /* invalid font number */
     /* find indicated font */
     fp = win->fntlst;
     while (fp != NULL && fc > 1) { /* search */
@@ -5587,7 +5585,7 @@ void ifont(winptr win, int fc)
        fc--; /* count */
 
     }
-    if fc > 1  error(einvfnm); /* invalid font number */
+    if (fc > 1)  error(einvfnm); /* invalid font number */
     if (!strlen(fp->fn)) error(efntemp); /* font is not assigned */
     win->screens[win->curupd]->cfont = fp; /* place new font */
     win->gcfont = fp;
@@ -5621,7 +5619,7 @@ void ifontnam(winptr win, int fc, char* fns, int fnsl)
 
 {
 
-    fonptr fp: fontptr; /* pointer to font entries */
+    fontptr fp; /* pointer to font entries */
     int i; /* string index */
 
     if (fc <= 0) error(einvftn); /* invalid number */
@@ -5646,7 +5644,7 @@ void fontnam(FILE* f, int fc, char* fns, int fnsl)
 
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window pointer from text file */
-    ifontnam(win, fc, fns); /* find font name */
+    ifontnam(win, fc, fns, fnsl); /* find font name */
     unlockmain(); /* end exclusive access */
 
 }
@@ -5673,7 +5671,7 @@ void ifontsiz(winptr win, int s)
 
 }
 
-void fontsiz(FILE* f; s: int)
+void fontsiz(FILE* f, int s)
 
 {
 
@@ -5716,7 +5714,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void chrspcx(FILE* f; s: int);
+void chrspcx(FILE* f, int s)
 
 {
 
@@ -5761,10 +5759,11 @@ int dpmy(FILE* f)
 {
 
     winptr win; /* window pointer */
+    int    dpm;
 
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window pointer from text file */
-    dpm = WIN->sdpmy;
+    dpm = win->sdpmy;
     unlockmain(); /* end exclusive access */
 
     return (dpm);
@@ -5786,16 +5785,14 @@ int istrsiz(winptr win, char* s)
 
     SIZE sz; /* size holder */
     BOOL b;  /* return value */
-    int s;
-
-{
+    int ss;
 
     /* get spacing */
-    b = GetTextExtentPoint32(win->screens[win->curupd]->bdc, s, sz);
+    b = GetTextExtentPoint32(win->screens[win->curupd]->bdc, s, 1, &sz);
     if (!b) winerr(); /* process windows error */
-    s = sz.cx; /* return that */
+    ss = sz.cx; /* return that */
 
-    return (s);
+    return (ss);
 
 }
 
@@ -5804,11 +5801,14 @@ int strsiz(FILE* f, char* s)
 {
 
     winptr win; /* window pointer */
+    int    ss;
 
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window pointer from text file */
-    strsiz = istrsiz(win, s); /* find string size */
+    ss = istrsiz(win, s); /* find string size */
     unlockmain(); /* end exclusive access */
+
+    return (ss);
 
 }
 
@@ -5831,20 +5831,17 @@ int ichrpos(winptr win, char* s, int p)
     int   i; /* index for string */
 
     if (p < 1 || p > strlen(s)) error(estrinx); /* out of range */
-    if (p == 1) siz = 0 /* its already at the position */
+    if (p == 1) siz = 0; /* its already at the position */
     else { /* find substring length */
 
-        sp = malloc(p-1); /* get a substring allocation */
-        if (!sp) error(enomem); /* no memory */
-        for (i = 0; i < p; i++) sp[i] = s[i]; /* copy substring into place */
         /* get spacing */
-        b = GetTextExtentPoint32(win->screens[win->curupd]->bdc, sp^, sz);
+        b = GetTextExtentPoint32(win->screens[win->curupd]->bdc, s, p, &sz);
         if (!b) winerr(); /* process windows error */
-        free(sp); /* release substring */
         siz = sz.cx; /* place size */
 
     }
-    ichrpos = siz; /* return result */
+
+    return (siz); /* return result */
 
 }
 
@@ -5889,30 +5886,31 @@ void iwritejust(winptr win, char* s, int n)
     if (sc->cfont->sys) error(ejstsys); /* cannot perform on system font */
     if (sc->autof) error(eatopos); /* cannot perform with auto on */
     off = 0; /* set no subscript offset */
-    if (BIT(sasubs) & sc->attr) off = win->linespace*0.35;
+    if (BIT(sasubs) & sc->attr) off = trunc(win->linespace*0.35);
     /* get minimum spacing for string */
-    b = GetTextExtentPoint32(win->bdc, s, sz);
+    b = GetTextExtentPoint32(sc->bdc, s, strlen(s), &sz);
     if (!b) winerr(); /* process windows error */
     /* if requested less than required, force required */
     if (sz.cx > n) n = sz.cx;
     /* find justified spacing */
-    ra.lStructSize = gcp_results_len; /* set length of record */
+    ra.lStructSize = sizeof(GCP_RESULTS); /* set length of record */
     /* new(ra.lpoutstring); */
     ra.lpOutString = NULL;
     ra.lpOrder = NULL;
-    new(ra.lpdx); /* set spacing array */
-    ra.lpcCaretPos = NULL;
+    new(ra.lpDx); /* set spacing array */
+    ra.lpCaretPos = NULL;
     ra.lpClass = NULL;
-    new(ra.lpglyphs);
+    new(ra.lpGlyphs);
     ra.nGlyphs = strlen(s);
     ra.nMaxFit = 0;
     r = GetCharacterPlacement(win->screens[win->curupd]->bdc, s, strlen(s),
-                              n, ra, gcp_justify | gcp_maxextent);
+                              n, &ra, GCP_JUSTIFY | GCP_MAXEXTENT);
     if (r == 0) winerr(); /* process windows error */
     if (win->bufmod) { /* draw to buffer */
 
        /* draw the string to current position */
-       b = ExtTextOut(bdc, sc->curxg-1, sc->curyg-1+off, 0, s, ra.lpdx);
+       b = ExtTextOut(sc->bdc, sc->curxg-1, sc->curyg-1+off, 0, NULL, s,
+                      strlen(s), ra.lpDx);
        if (!b) winerr(); /* process windows error */
 
     }
@@ -5923,16 +5921,14 @@ void iwritejust(winptr win, char* s, int n)
        curoff(win); /* hide the cursor */
        /* draw the string to current position */
        b = extTextOut(win->devcon, sc->curxg-1, sc->curyg-1+off, 0, NULL,
-                      s, strlen(s), ra.lpdx);
+                      s, strlen(s), ra.lpDx);
        if (!b) winerr(); /* process windows error */
        curon(win); /* show the cursor */
 
     }
     sc->curxg = sc->curxg+n; /* advance the character width */
     sc->curx = sc->curxg / win->charspace+1; /* recalculate character position */
-    if (indisp(win)) setcur(win) /* set cursor on screen */
-
-   }
+    if (indisp(win)) setcur(win); /* set cursor on screen */
 
 }
 
@@ -5953,7 +5949,7 @@ void writejust(FILE* f, char* s, int n)
 
 Find justified character position
 
-Given a string, a character position in that string, && the total length
+Given a string, a character position in that string, and the total length
 of the string in pixels, returns the offset in pixels from the start of the
 string to the given character, with justification taken into account.
 The model used is that the extra space needed is divided by the number of
@@ -5989,33 +5985,36 @@ int ijustpos(winptr win, char* s, int p, int n)
           ra.lpGlyphs = NULL;
           ra.nGlyphs = 0;
           ra.nMaxFit = 0;
-          r = GetCharacterPlacement(win->screens[win->curupd]->bdc, s, n, ra,
+          r = GetCharacterPlacement(win->screens[win->curupd]->bdc, s,
+                                    strlen(s), n, &ra,
                                     GCP_JUSTIFY | GCP_MAXEXTENT);
           if (r == 0) winerr(); /* process windows error */
           off = 0; /* clear offset */
           /* add in all widths to the left of position to offset */
-          for (i = 1; i <= p-1; i++) off = off+ra.lpdx->[i];
-          free(rr.lpDx);
+          for (i = 0; i < p; i++) off = off+ra.lpDx[i];
+          free(ra.lpDx);
 
        }
 
     }
-    ijustpos = off; /* return result */
 
-   }
+    return (off); /* return result */
 
 }
 
-int justpos(FILE* f; view s: char*; p, n: int): int;
-
-var winptr win; /* window pointer */
+int justpos(FILE* f, char* s, int p, int n)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get window pointer from text file */
-   justpos = ijustpos(win, s, p, n); /* find justified character position */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window pointer */
+    int    jp;
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    jp = ijustpos(win, s, p, n); /* find justified character position */
+    unlockmain(); /* end exclusive access */
+
+    return (jp);
 
 }
 
@@ -6185,7 +6184,7 @@ void idelpict(winptr win, int p)
     if (!win->pictbl[p].han) error(einvhan); /* bad picture handle */
     /* reselect old object */
     r = SelectObject(win->pictbl[p].hdc, win->pictbl[p].ohn);
-    if (r == -1) winerr(); /* process windows error */
+    if (r == HGDI_ERROR) error(enosel);
     b = deletedc(win->pictbl[p].hdc); /* delete device context */
     if (!b) winerr(); /* process windows error */
     b = DeleteObject(win->pictbl[p].han); /* delete bitmap */
@@ -6215,10 +6214,8 @@ Loads a picture into a slot of the loadable pictures array.
 
 *******************************************************************************/
 
-#define MAXFNM == 250; /* number of filename characters in buffer */
-
 /* place extension on filename */
-void setext(char* ext)
+void setext(char* fnh, char* ext)
 
 {
 
@@ -6227,12 +6224,12 @@ void setext(char* ext)
 
     f = FALSE; /* set no extention found */
     /* search for extention */
-    for (i = 1; i <= MAXFNM; i++) if (fnh[i] == ".") f = TRUE; /* found */
+    for (i = 1; i <= MAXFNM; i++) if (fnh[i] == '.') f = TRUE; /* found */
     if (!f) { /* no extention, place one */
 
         i = MAXFNM; /* index last character in string */
-        while (i > 1 && fnh[i] == " ") i = i-1;
-        if (maxfnm-i < 4) error(epicftl); /* filename too large */
+        while (i > 1 && fnh[i] == ' ') i = i-1;
+        if (MAXFNM-i < 4) error(epicftl); /* filename too large */
         for (x = 1; x <= 4; x++) fnh[i+x] = ext[x]; /* place extention */
 
     }
@@ -6261,14 +6258,14 @@ void iloadpict(winptr win, int p, char* fn)
     char   fnh[MAXFNM]; /* file name holder */
     int    i;           /* index for string */
 
-    if (strlen(fn) > maxfnm) error(epicftl); /* filename too large */
-    fnh = 0; /* clear filename holding */
+    if (strlen(fn) > MAXFNM) error(epicftl); /* filename too large */
+    *fnh = 0; /* clear filename holding */
     strcpy(fnh, fn); /* copy */
-    setext(".bmp"); /* try bitmap first */
+    setext(fnh, ".bmp"); /* try bitmap first */
     if (!exists(fnh))  { /* try dib */
 
-       setext(".dib");
-       if ! exists(fnh)  error(epicfnf); /* no file found */
+       setext(fnh, ".dib");
+       if (!exists(fnh)) error(epicfnf); /* no file found */
 
     }
     if (p < 1 || p > MAXPIC)  error(einvhan); /* bad picture handle */
@@ -6277,18 +6274,18 @@ void iloadpict(winptr win, int p, char* fn)
     /* load the image into memory */
     win->pictbl[p].han =
        LoadImage(NULL, fnh, IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
-    if win->pictbl[p].han == 0  winerr(); /* process windows error */
+    if (!win->pictbl[p].han) winerr(); /* process windows error */
     /* put it into a device context */
     win->pictbl[p].hdc = CreateCompatibleDC(win->devcon);
-    if win->pictbl[p].hdc == 0  winerr(); /* process windows error */
+    if (!win->pictbl[p].hdc) winerr(); /* process windows error */
     /* select that to device context */
     win->pictbl[p].ohn = SelectObject(win->pictbl[p].hdc, win->pictbl[p].han);
-    if (pictbl[p].ohn == -1) winerr(); /* process windows error */
+    if (win->pictbl[p].ohn == HGDI_ERROR) error(enosel);
     /* get sizes */
     r = getobject_bitmap(win->pictbl[p].han, sizeof(BITMAP), bmi);
-    if r == 0  winerr(); /* process windows error */
-    win->pictbl[p].sx = bmi.bmwidth; /* set size x */
-    win->pictbl[p].sy = bmi.bmheight; /* set size x */
+    if (!r) winerr(); /* process windows error */
+    win->pictbl[p].sx = bmi.bmWidth; /* set size x */
+    win->pictbl[p].sy = bmi.bmHeight; /* set size x */
 
 }
 
@@ -6324,7 +6321,7 @@ int pictsizx(FILE* f, int p)
     win = txt2win(f); /* get window pointer from text file */
     if (p < 1 || p > MAXPIC) error(einvhan); /* bad picture handle */
     if (!win->pictbl[p].han) error(einvhan); /* bad picture handle */
-    x = win->pictbl[p].sx /* return x size */
+    x = win->pictbl[p].sx; /* return x size */
     unlockmain(); /* end exclusive access */
 
     return (x);
@@ -6348,9 +6345,9 @@ int pictsizy(FILE* f, int p)
 
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window pointer from text file */
-    if (p < 1) || (p > MAXPIC)  error(einvhan); /* bad picture handle */
-    if (!pictbl[p].han) error(einvhan); /* bad picture handle */
-    y = pictbl[p].sy /* return x size */
+    if (p < 1 || p > MAXPIC)  error(einvhan); /* bad picture handle */
+    if (!win->pictbl[p].han) error(einvhan); /* bad picture handle */
+    y = win->pictbl[p].sy; /* return x size */
     unlockmain(); /* end exclusive access */
 
     return (y);
@@ -6373,25 +6370,26 @@ void ipicture(winptr win, int p, int x1, int y1, int x2, int y2)
 {
 
     BOOL  b;    /* result holder */
-    DWORD rop:; /* rop holder */
+    DWORD rop; /* rop holder */
 
     if (p < 1 || p > MAXPIC)  error(einvhan); /* bad picture handle */
     if (!win->pictbl[p].han) error(einvhan); /* bad picture handle */
-    switch (win->screens[curupd]->fmod) { /* rop */
+    switch (win->screens[win->curupd]->fmod) { /* rop */
 
-        case mdnorm:  rop = srccopy; break; /* straight */
+        case mdnorm:  rop = SRCCOPY; break; /* straight */
         case mdinvis: break; /* no-op */
-        case mdxor:   rop = srcinvert; break; /* xor */
+        case mdxor:   rop = SRCINVERT; break; /* xor */
 
     }
-    if (win->screens[curupd]->fmod != mdinvis) { /* ! a no-op */
+    if (win->screens[win->curupd]->fmod != mdinvis) { /* ! a no-op */
 
         if (win->bufmod) { /* buffer mode on */
 
             /* paint to buffer */
-            b = StretchBlt(win->screens[curupd]->bdc,
+            b = StretchBlt(win->screens[win->curupd]->bdc,
                            x1-1, y1-1, x2-x1+1, y2-y1+1,
-                           win->pictbl[p].hdc, 0, 0, pictbl[p].sx, pictbl[p].sy,
+                           win->pictbl[p].hdc, 0, 0,
+                           win->pictbl[p].sx, win->pictbl[p].sy,
                            rop);
             if (!b) winerr(); /* process windows error */
 
@@ -6402,7 +6400,7 @@ void ipicture(winptr win, int p, int x1, int y1, int x2, int y2)
             curoff(win);
             b = StretchBlt(win->devcon, x1-1, y1-1, x2-x1+1, y2-y1+1,
                            win->pictbl[p].hdc, 0, 0, win->pictbl[p].sx,
-                           pictbl[p].sy, rop);
+                           win->pictbl[p].sy, rop);
            if (!b) winerr(); /* process windows error */
            curon(win);
 
@@ -6438,21 +6436,17 @@ void iviewoffg(winptr win, int x, int y)
 
 {
 
-   with win^ do { /* in window context */
+    /* check change is needed */
+    if (x != win->screens[win->curupd]->offx &&
+        y != win->screens[win->curupd]->offy) {
 
-      /* check change is needed */
-      if (x != win->screens[win->curupd]->offx &&
-          y != win->screens[win->curupd]->offy) {
+        win->screens[win->curupd]->offx = x; /* set offsets */
+        win->screens[win->curupd]->offy = y;
+        win->goffx = x;
+        win->goffy = y;
+        iclear(win); /* clear buffer */
 
-         win->screens[curupd]->offx = x; /* set offsets */
-         win->screens[curupd]->offy = y;
-         win->goffx = x;
-         win->goffy = y;
-         iclear(win); /* clear buffer */
-
-      }
-
-   }
+    }
 
 }
 
@@ -6497,13 +6491,13 @@ void iviewscale(winptr win, float x, float y)
       it works, but can overflow for large coordinates || scales near 1 */
     win->screens[win->curupd]->wextx = 100;
     win->screens[win->curupd]->wexty = 100;
-    win->screens[win->curupd]->vextx = x*100;
-    win->screens[win->curupd]->vexty = y*100;
+    win->screens[win->curupd]->vextx = trunc(x*100);
+    win->screens[win->curupd]->vexty = trunc(y*100);
     win->gwextx = 100;
     win->gwexty = 100;
-    win->gvextx = x*100;
-    win->gvexty = y*100;
-    iclear(win) /* clear buffer */
+    win->gvextx = trunc(x*100);
+    win->gvexty = trunc(y*100);
+    iclear(win); /* clear buffer */
 
 }
 
@@ -6733,14 +6727,14 @@ void prtmsg(MSG m)
 {
 
     prtstr("handle: ");
-    prtnum(m.hwnd, 8, 16);
+    prtnum((int)m.hwnd, 8, 16);
     prtstr(" message: ");
     prtmsgstr(m.message);
     prtstr(" wparam: ");
-    prtnum(m.wparam, 8, 16);
+    prtnum(m.wParam, 8, 16);
     prtstr(" lparam: ");
-    prtnum(m.lparam, 8, 16);
-    prtstr("\cr\lf");
+    prtnum(m.lParam, 8, 16);
+    prtstr("\r\n");
 
 }
 
@@ -6757,14 +6751,14 @@ void prtmsgu(int hwnd, int imsg, int wparam, int lparam)
 {
 
     prtstr("handle: ");
-    prtnum(hwnd, 8, 16);
+    prtnum((int)hwnd, 8, 16);
     prtstr(" message: ");
     prtmsgstr(imsg);
     prtstr(" wparam: ");
     prtnum(wparam, 8, 16);
     prtstr(" lparam: ");
     prtnum(lparam, 8, 16);
-    prtstr("\cr\lf")
+    prtstr("\r\n");
 
 }
 
@@ -6826,168 +6820,168 @@ various local extentions.
 
 */
 
-void keyevent(evtrec* er, MSG* msg, int* keep)
+void keyevent(pa_evtrec* er, MSG* msg, int* keep)
 
 {
 
-   if (msg->wparam == '\r') er->etype = etenter; /* set enter line */
-   else if (msg->wparam == '\b')
-      er->etype = etdelcb; /* set delete character backwards */
-   else if (msg->wparam == '\t') er->etype = ettab; /* set tab */
-   else if (msg->wparam == 0x03) /*etx*/  {
+   if (msg->wParam == '\r') er->etype = pa_etenter; /* set enter line */
+   else if (msg->wParam == '\b')
+      er->etype = pa_etdelcb; /* set delete character backwards */
+   else if (msg->wParam == '\t') er->etype = pa_ettab; /* set tab */
+   else if (msg->wParam == 0x03) /*etx*/  {
 
-      er->etype = etterm; /* set } program */
-      fend = TRUE /* set } was ordered */
+      er->etype = pa_etterm; /* set } program */
+      fend = TRUE; /* set } was ordered */
 
-   } else if (msg->wparam == 0x13) /* xoff */
-      er->etype = etstop; /* set stop program */
-   else if (msg->wparam == 0x11) /* xon */
-      er->etype = etcont; /* set continue program */
-   else if (msg.wparam == 0x1b) /* esc */
-      er->etype = etcan; /* set cancel operation */
+   } else if (msg->wParam == 0x13) /* xoff */
+      er->etype = pa_etstop; /* set stop program */
+   else if (msg->wParam == 0x11) /* xon */
+      er->etype = pa_etcont; /* set continue program */
+   else if (msg->wParam == 0x1b) /* esc */
+      er->etype = pa_etcan; /* set cancel operation */
    else { /* normal character */
 
-      er->etype = etchar; /* set character event */
-      er->echar = msg.wparam;
+      er->etype = pa_etchar; /* set character event */
+      er->echar = msg->wParam;
 
    }
    *keep = TRUE; /* set keep event */
 
 }
 
-void ctlevent(winptr win, evtrec* er, MSG* msg, int* keep)
+void ctlevent(winptr win, pa_evtrec* er, MSG* msg, int* keep)
 
 {
 
-    /* find key we process *//
-    switch (msg->wparam) { /* key */
-        case vk_home: /* home */
-            if (win->cntrl) er->etype = ethome; /* home document */
-            else if (win->shift) er->etype = ethomes; /* home screen */
-            else er->etype = ethomel; /* home line */
+    /* find key we process */
+    switch (msg->wParam) { /* key */
+        case VK_HOME: /* home */
+            if (win->cntrl) er->etype = pa_ethome; /* home document */
+            else if (win->shift) er->etype = pa_ethomes; /* home screen */
+            else er->etype = pa_ethomel; /* home line */
             break;
 
-        case vk_end: /* end */
-            if (win->cntrl) er->etype = etend; /* } document */
-            else if (win->shift) er->etype = etends; /* } screen */
-            else er->etype = etendl; /* } line */
+        case VK_END: /* end */
+            if (win->cntrl) er->etype = pa_etend; /* } document */
+            else if (win->shift) er->etype = pa_etends; /* } screen */
+            else er->etype = pa_etendl; /* } line */
             break;
 
-        case vk_up: /* up */
-            if (win->cntrl) er->etype = etscru; /* scroll up */
-            else er->etype = etup; /* up line */
+        case VK_UP: /* up */
+            if (win->cntrl) er->etype = pa_etscru; /* scroll up */
+            else er->etype = pa_etup; /* up line */
             break;
 
-        case vk_down: /* down */
-            if (win->cntrl) er->etype = etscrd; /* scroll down */
-            else er->etype = etdown; /* up line */
+        case VK_DOWN: /* down */
+            if (win->cntrl) er->etype = pa_etscrd; /* scroll down */
+            else er->etype = pa_etdown; /* up line */
             break;
 
-        case vk_left: /* left */
-            if (win->cntrl) er->etype = etleftw; /* left one word */
-            else if (win->shift) er->etype = etscrl; /* scroll left one character */
-            else er->etype = etleft; /* left one character */
+        case VK_LEFT: /* left */
+            if (win->cntrl) er->etype = pa_etleftw; /* left one word */
+            else if (win->shift) er->etype = pa_etscrl; /* scroll left one character */
+            else er->etype = pa_etleft; /* left one character */
             break;
 
-        case vk_right: /* right */
-            if (win->cntrl) er->etype = etrightw; /* right one word */
-            else if (win->shift) er->etype = etscrr; /* scroll right one character */
-            else er->etype = etright; /* left one character */
+        case VK_RIGHT: /* right */
+            if (win->cntrl) er->etype = pa_etrightw; /* right one word */
+            else if (win->shift) er->etype = pa_etscrr; /* scroll right one character */
+            else er->etype = pa_etright; /* left one character */
             break;
 
-        case vk_insert: /* insert */
-            if (win->cntrl) er->etype = etinsert; /* insert block */
-            else if (win->shift) er->etype = etinsertl; /* insert line */
-            else er->etype = etinsertt; /* insert toggle */
+        case VK_INSERT: /* insert */
+            if (win->cntrl) er->etype = pa_etinsert; /* insert block */
+            else if (win->shift) er->etype = pa_etinsertl; /* insert line */
+            else er->etype = pa_etinsertt; /* insert toggle */
             break;
 
-        case vk_delete: /* delete */
-            if (win->cntrl) er->etype = etdel; /* delete block */
-            else if (win->shift) er->etype = etdell; /* delete line */
-            else er->etype = etdelcf; /* insert toggle */
+        case VK_DELETE: /* delete */
+            if (win->cntrl) er->etype = pa_etdel; /* delete block */
+            else if (win->shift) er->etype = pa_etdell; /* delete line */
+            else er->etype = pa_etdelcf; /* insert toggle */
             break;
 
-        case vk_prior: er->etype = etpagu; /* page up */
-        case vk_next: er->etype = etpagd; /* page down */
-        case vk_f1: /* f1 */
-            if (win->cntrl) er->etype = etcopy /* copy block */
-            else if (win->shift) er->etype = etcopyl; /* copy line */
+        case VK_PRIOR: er->etype = pa_etpagu; /* page up */
+        case VK_NEXT: er->etype = pa_etpagd; /* page down */
+        case VK_F1: /* f1 */
+            if (win->cntrl) er->etype = pa_etcopy; /* copy block */
+            else if (win->shift) er->etype = pa_etcopyl; /* copy line */
             else { /* f1 */
 
-                er->etype = etfun;
+                er->etype = pa_etfun;
                 er->fkey = 1;
 
             }
             break;
 
-        case vk_f2: /* f2 */
-            if (win->cntrl) er->etype = etprintb; /* print block */
-            else if (win->shift) er->etype = etprint; /* print document */
+        case VK_F2: /* f2 */
+            if (win->cntrl) er->etype = pa_etprintb; /* print block */
+            else if (win->shift) er->etype = pa_etprint; /* print document */
             else { /* f2 */
 
-                er->etype = etfun;
+                er->etype = pa_etfun;
                 er->fkey = 2;
 
             }
             break;
 
-        case vk_f3: /* f3 */
-            if (win->cntrl) er->etype = etprints; /* print screen */
+        case VK_F3: /* f3 */
+            if (win->cntrl) er->etype = pa_etprints; /* print screen */
             else { /* f3 */
 
-                er->etype = etfun;
+                er->etype = pa_etfun;
                 er->fkey = 3;
 
             }
             break;
 
-        case vk_f4: /* f4 */
-            er->etype = etfun;
+        case VK_F4: /* f4 */
+            er->etype = pa_etfun;
             er->fkey = 4;
             break;
 
-        case vk_f5: /* f5 */
-            er->etype = etfun;
+        case VK_F5: /* f5 */
+            er->etype = pa_etfun;
             er->fkey = 5;
             break;
 
-        case vk_f6: /* f6 */
-            er->etype = etfun;
+        case VK_F6: /* f6 */
+            er->etype = pa_etfun;
             er->fkey = 6;
             break;
 
-        case vk_f7: /* f7 */
-            er->etype = etfun;
+        case VK_F7: /* f7 */
+            er->etype = pa_etfun;
             er->fkey = 7;
             break;
 
-        case vk_f8: /* f8 */
-            er->etype = etfun;
+        case VK_F8: /* f8 */
+            er->etype = pa_etfun;
             er->fkey = 8;
             break;
 
-        case vk_f9: /* f9 */
-            er->etype = etfun;
+        case VK_F9: /* f9 */
+            er->etype = pa_etfun;
             er->fkey = 9;
             break;
 
-        case vk_f10: /* f10 */
-            er->etype = etfun;
+        case VK_F10: /* f10 */
+            er->etype = pa_etfun;
             er->fkey = 10;
             break;
 
-        case vk_f11: /* f11 */
-            er->etype = etfun;
+        case VK_F11: /* f11 */
+            er->etype = pa_etfun;
             er->fkey = 11;
             break;
 
-        case vk_f12: /* f12 */
-            er->etype = etfun;
+        case VK_F12: /* f12 */
+            er->etype = pa_etfun;
             er->fkey = 12;
             break;
 
-        case vk_menu: er->etype = etmenu; break; /* alt */
-        case vk_cancel: er->etype = etterm; break; /* ctl-brk */
+        case VK_MENU: er->etype = pa_etmenu; break; /* alt */
+        case VK_CANCEL: er->etype = pa_etterm; break; /* ctl-brk */
 
     }
     *keep = TRUE; /* set keep event */
@@ -7010,7 +7004,7 @@ contempt for the whole double click concept.
 
 /* update mouse parameters */
 
-void mouseupdate(winptr win, evtrec* er, int* keep)
+void mouseupdate(winptr win, pa_evtrec* er, int* keep)
 
 {
 
@@ -7018,70 +7012,70 @@ void mouseupdate(winptr win, evtrec* er, int* keep)
     if (win->nmpx != win->mpx || win->nmpy != win->mpy) {
 
       /* create movement event */
-       er.etype = etmoumov; /* set movement event */
-       er.mmoun = 1; /* mouse 1 */
-       er.moupx = win->nmpx; /* set new mouse position */
-       er.moupy = win->nmpy;
+       er->etype = pa_etmoumov; /* set movement event */
+       er->mmoun = 1; /* mouse 1 */
+       er->moupx = win->nmpx; /* set new mouse position */
+       er->moupy = win->nmpy;
        win->mpx = win->nmpx; /* save new position */
        win->mpy = win->nmpy;
        *keep = TRUE; /* set to keep */
 
-    } else if (win->nmpxg != mpxg) || (nmpyg != mpyg) {
+    } else if (win->nmpxg != win->mpxg || win->nmpyg != win->mpyg) {
 
        /* create graphical movement event */
-       er.etype = etmoumovg; /* set movement event */
-       er.mmoung = 1; /* mouse 1 */
-       er.moupxg = win->nmpxg; /* set new mouse position */
-       er.moupyg = win->nmpyg;
+       er->etype = pa_etmoumovg; /* set movement event */
+       er->mmoung = 1; /* mouse 1 */
+       er->moupxg = win->nmpxg; /* set new mouse position */
+       er->moupyg = win->nmpyg;
        win->mpxg = win->nmpxg; /* save new position */
        win->mpyg = win->nmpyg;
        *keep = TRUE; /* set to keep */
 
     } else if (win->nmb1 > win->mb1) {
 
-       er.etype = etmouba; /* button 1 assert */
-       er.amoun = 1; /* mouse 1 */
-       er.amoubn = 1; /* button 1 */
+       er->etype = pa_etmouba; /* button 1 assert */
+       er->amoun = 1; /* mouse 1 */
+       er->amoubn = 1; /* button 1 */
        win->mb1 = win->nmb1; /* update status */
        *keep = TRUE; /* set to keep */
 
     } else if (win->nmb2 > win->mb2) {
 
-       er.etype = etmouba; /* button 2 assert */
-       er.amoun = 1; /* mouse 1 */
-       er.amoubn = 2; /* button 2 */
+       er->etype = pa_etmouba; /* button 2 assert */
+       er->amoun = 1; /* mouse 1 */
+       er->amoubn = 2; /* button 2 */
        win->mb2 = win->nmb2; /* update status */
        *keep = TRUE; /* set to keep */
 
     } else if (win->nmb3 > win->mb3) {
 
-       er.etype = etmouba; /* button 3 assert */
-       er.amoun = 1; /* mouse 1 */
-       er.amoubn = 3; /* button 3 */
+       er->etype = pa_etmouba; /* button 3 assert */
+       er->amoun = 1; /* mouse 1 */
+       er->amoubn = 3; /* button 3 */
        win->mb3 = win->nmb3; /* update status */
        *keep = TRUE; /* set to keep */
 
     } else if (win->nmb1 < win->mb1) {
 
-       er.etype = etmoubd; /* button 1 deassert */
-       er.dmoun = 1; /* mouse 1 */
-       er.dmoubn = 1; /* button 1 */
+       er->etype = pa_etmoubd; /* button 1 deassert */
+       er->dmoun = 1; /* mouse 1 */
+       er->dmoubn = 1; /* button 1 */
        win->mb1 = win->nmb1; /* update status */
        *keep = TRUE; /* set to keep */
 
     } else if (win->nmb2 < win->mb2) {
 
-       er.etype = etmoubd; /* button 2 deassert */
-       er.dmoun = 1; /* mouse 1 */
-       er.dmoubn = 2; /* button 2 */
+       er->etype = pa_etmoubd; /* button 2 deassert */
+       er->dmoun = 1; /* mouse 1 */
+       er->dmoubn = 2; /* button 2 */
        win->mb2 = win->nmb2; /* update status */
        *keep = TRUE; /* set to keep */
 
     } else if (win->nmb3 < win->mb3) {
 
-       er.etype = etmoubd; /* button 3 deassert */
-       er.dmoun = 1; /* mouse 1 */
-       er.dmoubn = 3; /* button 3 */
+       er->etype = pa_etmoubd; /* button 3 deassert */
+       er->dmoun = 1; /* mouse 1 */
+       er->dmoubn = 3; /* button 3 */
        win->mb3 = win->nmb3; /* update status */
        *keep = TRUE; /* set to keep */
 
@@ -7095,30 +7089,30 @@ void mouseevent(winptr win, MSG* msg)
 
 {
 
-    win->nmpx = msg->lparam%65536/win->charspace+1; /* get mouse x */
-    win->nmpy = msg->lparam/65536/win->linespace+1; /* get mouse y */
-    win->nmpxg = msg->lparam%65536+1; /* get mouse graphical x */
-    win->nmpyg = msg->lparam/65536+1; /* get mouse graphical y */
+    win->nmpx = msg->lParam%65536/win->charspace+1; /* get mouse x */
+    win->nmpy = msg->lParam/65536/win->linespace+1; /* get mouse y */
+    win->nmpxg = msg->lParam%65536+1; /* get mouse graphical x */
+    win->nmpyg = msg->lParam/65536+1; /* get mouse graphical y */
     /* set new button statuses */
-    if (msg->message == WM_LBUTTONDOWN) nmb1 = TRUE;
-    if (msg->message == WM_LBUTTONUP) nmb1 = FALSE;
-    if (msg->message == WM_MBUTTONDOWN) nmb2 = TRUE;
-    if (msg->message == WM_MBUTTONUP) nmb2 = FALSE;
-    if (msg->message == WM_RBUTTONDOWN) nmb3 = TRUE;
-    if (msg->message == WM_RBUTTONUP) nmb3 = FALSE;
+    if (msg->message == WM_LBUTTONDOWN) win->nmb1 = TRUE;
+    if (msg->message == WM_LBUTTONUP) win->nmb1 = FALSE;
+    if (msg->message == WM_MBUTTONDOWN) win->nmb2 = TRUE;
+    if (msg->message == WM_MBUTTONUP) win->nmb2 = FALSE;
+    if (msg->message == WM_RBUTTONDOWN) win->nmb3 = TRUE;
+    if (msg->message == WM_RBUTTONUP) win->nmb3 = FALSE;
 
 }
 
 /* queue event to window */
 
-void enqueue(eqeptr* el, evtrec* er)
+void enqueue(eqeptr* el, pa_evtrec* er)
 
 {
 
     eqeptr ep; /* pointer to queue entries */
 
-    geteqe(ep); /* get a new event container */
-    ep->evt = er; /* copy event to container */
+    geteqe(&ep); /* get a new event container */
+    memcpy(&ep->evt, er, sizeof(pa_evtrec)); /* copy event to container */
     /* insert into bubble list */
     if (el == NULL) { /* list empty, place as first entry */
 
@@ -7127,12 +7121,12 @@ void enqueue(eqeptr* el, evtrec* er)
 
     } else { /* list has entries */
 
-        ep->last = el; /* link last to current */
-        ep->next = el->next; /* link next to next of current */
-        el->next = ep; /* link current to new */
+        ep->last = *el; /* link last to current */
+        ep->next = (*el)->next; /* link next to next of current */
+        (*el)->next = ep; /* link current to new */
 
     }
-    el = ep; /* set that as new root */
+    *el = ep; /* set that as new root */
     /* ok, new entries are moving to the last direction, and we remove entries
        from the next direction. */
 
@@ -7140,25 +7134,25 @@ void enqueue(eqeptr* el, evtrec* er)
 
 /* issue event for changed button */
 
-void updn(evtrec* er, MSG* msg, int ofn, int bn, int bm, int* keep)
+void updn(pa_evtrec* er, MSG* msg, int ofn, int bn, int bm, int* keep)
 
 {
 
    /* if there is already a message processed, enqueue that */
-   if (*keep) enqueue(opnfil[opnfil[ofn]->inl]->evt, er); /* queue it */
-   if (msg->wparam && bm) { /* assert */
+   if (*keep) enqueue(&opnfil[opnfil[ofn]->inl]->evt, er); /* queue it */
+   if (msg->wParam && bm) { /* assert */
 
-      er.etype = etjoyba; /* set assert */
+      er->etype = pa_etjoyba; /* set assert */
       if (msg->message == MM_JOY1BUTTONDOWN ||
-          msg->message == MM_JOY1BUTTONUP) er->ajoyn = 1
+          msg->message == MM_JOY1BUTTONUP) er->ajoyn = 1;
       else er->ajoyn = 2;
       er->ajoybn = bn; /* set number */
 
    } else { /* deassert */
 
-      er->etype = etjoybd; /* set deassert */
+      er->etype = pa_etjoybd; /* set deassert */
       if (msg->message == MM_JOY1BUTTONDOWN ||
-          msg->message == MM_JOY1BUTTONUP) er.ajoyn = 1
+          msg->message == MM_JOY1BUTTONUP) er->ajoyn = 1;
       else er->ajoyn = 2;
       er->djoybn = bn; /* set number */
 
@@ -7169,21 +7163,21 @@ void updn(evtrec* er, MSG* msg, int ofn, int bn, int bm, int* keep)
 
 /* process joystick messages */
 
-void joymes(MSG* msg, int ofn)
+void joymes(pa_evtrec* er, MSG* msg, int ofn, int* keep)
 
 {
 
    /* register changes on each button */
-   if (msg->wparam & JOY_BUTTON1CHG) updn(msg, ofn, 1, JOY_BUTTON1);
-   if (msg->wparam & JOY_BUTTON2CHG) updn(msg, ofn, 2, JOY_BUTTON2);
-   if (msg->wparam & JOY_BUTTON3CHG) updn(msg, ofn, 3, JOY_BUTTON3);
-   if (msg->wparam & JOY_BUTTON4CHG) updn(msg, ofn, 4, JOY_BUTTON4);
+   if (msg->wParam & JOY_BUTTON1CHG) updn(er, msg, ofn, 1, JOY_BUTTON1, keep);
+   if (msg->wParam & JOY_BUTTON2CHG) updn(er, msg, ofn, 2, JOY_BUTTON2, keep);
+   if (msg->wParam & JOY_BUTTON3CHG) updn(er, msg, ofn, 3, JOY_BUTTON3, keep);
+   if (msg->wParam & JOY_BUTTON4CHG) updn(er, msg, ofn, 4, JOY_BUTTON4, keep);
 
 }
 
 /* process windows messages to event */
 
-void winevt(winptr win, evtrec* er, MSG* msg, int ofn, int* keep)
+void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
 
 {
 
@@ -7203,13 +7197,13 @@ void winevt(winptr win, evtrec* er, MSG* msg, int ofn, int* keep)
         if (!win->bufmod) { /* our client handles it"s own redraws */
 
             /* form redraw request */
-            b = GetUpdateRect(winhan, cr, FALSE);
+            b = GetUpdateRect(win->winhan, &cr, FALSE);
             er->etype = pa_etredraw; /* set redraw message */
-            er->rsx = msg->wparam/0x10000; /* fill the rectangle with update */
-            er->rsy = msg->wparam%0x10000;
-            er->rex = msg->lparam/0x10000;
-            er->rey = msg->lparam%0x10000;
-            *keep = TRUE /* set keep event */
+            er->rsx = msg->wParam/0x10000; /* fill the rectangle with update */
+            er->rsy = msg->wParam%0x10000;
+            er->rex = msg->lParam/0x10000;
+            er->rey = msg->lParam%0x10000;
+            *keep = TRUE; /* set keep event */
 
         }
 
@@ -7218,61 +7212,61 @@ void winevt(winptr win, evtrec* er, MSG* msg, int ofn, int* keep)
         if (!win->bufmod) { /* main thread handles resizes */
 
             /* check if maximize, minimize, || exit from either mode */
-            if (msg->wparam == size_maximized)  {
+            if (msg->wParam == SIZE_MAXIMIZED)  {
 
                 er->etype = pa_etmax; /* set maximize event */
                 /* save the event ahead of the resize */
-                enqueue(opnfil[opnfil[ofn]->inl]->evt, er); /* queue it */
+                enqueue(&opnfil[opnfil[ofn]->inl]->evt, er); /* queue it */
 
-            } else if msg->wparam == size_minimized)  {
+            } else if (msg->wParam == SIZE_MINIMIZED)  {
 
                 er->etype = pa_etmin; /* set minimize event */
                 /* save the event ahead of the resize */
-                enqueue(opnfil[opnfil[ofn]->inl]->evt, er) /* queue it */
+                enqueue(&opnfil[opnfil[ofn]->inl]->evt, er); /* queue it */
 
-            } else if (msg->wparam == size_restored &&
-                       (sizests == size_minimized ||
-                        sizests == size_maximized)) {
+            } else if (msg->wParam == SIZE_RESTORED &&
+                       (win->sizests == SIZE_MINIMIZED ||
+                        win->sizests == SIZE_MAXIMIZED)) {
 
                 /* window is restored, && was minimized || maximized */
                 er->etype = pa_etnorm; /* set normalize event */
                 /* save the event ahead of the resize */
-                enqueue(opnfil[opnfil[ofn]->inl]->evt, er); /* queue it */
+                enqueue(&opnfil[opnfil[ofn]->inl]->evt, er); /* queue it */
 
             }
-            sizests = msg->wparam; /* save size status */
+            win->sizests = msg->wParam; /* save size status */
             /* process resize message */
-            win->gmaxxg = msg->lparam && 0xffff; /* set x size */
-            win->gmaxyg = msg->lparam / 65536 && 0xffff; /* set y size */
+            win->gmaxxg = msg->lParam && 0xffff; /* set x size */
+            win->gmaxyg = msg->lParam / 65536 && 0xffff; /* set y size */
             win->gmaxx = win->gmaxxg / win->charspace; /* find character size x */
             win->gmaxy = win->gmaxyg / win->linespace; /* find character size y */
-            win->screens[curdsp]->maxx = win->gmaxx; /* copy to screen control */
-            win->screens[curdsp]->maxy = win->gmaxy;
-            win->screens[curdsp]->maxxg = win->gmaxxg;
-            win->screens[curdsp]->maxyg = win->gmaxyg;
+            win->screens[win->curdsp]->maxx = win->gmaxx; /* copy to screen control */
+            win->screens[win->curdsp]->maxy = win->gmaxy;
+            win->screens[win->curdsp]->maxxg = win->gmaxxg;
+            win->screens[win->curdsp]->maxyg = win->gmaxyg;
             /* place the resize message */
             er->etype = pa_etresize; /* set resize message */
-          *keep = TRUE; /* set keep event */
+            *keep = TRUE; /* set keep event */
 
         }
 
-    } else if (msg->message == WM_CHAR) keyevent /* process characters */
+    } else if (msg->message == WM_CHAR) keyevent(er, msg, keep); /* process characters */
     else if (msg->message == WM_KEYDOWN) {
 
-        if (msg->wparam == VK_SHIFT) win->shift = TRUE; /* set shift active */
-        if (msg->wparam == VK_CONTROL) win->cntrl = TRUE; /* set control active */
+        if (msg->wParam == VK_SHIFT) win->shift = TRUE; /* set shift active */
+        if (msg->wParam == VK_CONTROL) win->cntrl = TRUE; /* set control active */
         ctlevent(win, er, msg, keep); /* process control character */
 
     } else if (msg->message == WM_KEYUP) {
 
-        if (msg->wparam == VK_SHIFT) shift = FALSE; /* set shift inactive */
-        if (msg->wparam == VK_CONTROL) cntrl = FALSE; /* set control inactive */
+        if (msg->wParam == VK_SHIFT) win->shift = FALSE; /* set shift inactive */
+        if (msg->wParam == VK_CONTROL) win->cntrl = FALSE; /* set control inactive */
 
     } else if (msg->message == WM_QUIT || msg->message == WM_CLOSE) {
 
-        er->etype = etterm; /* set terminate */
+        er->etype = pa_etterm; /* set terminate */
         fend = TRUE; /* set } of program ordered */
-        *keep = TRUE /* set keep event */
+        *keep = TRUE; /* set keep event */
 
     } else if (msg->message == WM_MOUSEMOVE || msg->message == WM_LBUTTONDOWN ||
                msg->message == WM_LBUTTONUP || msg->message == WM_MBUTTONDOWN ||
@@ -7285,15 +7279,15 @@ void winevt(winptr win, evtrec* er, MSG* msg, int ofn, int* keep)
     } else if (msg->message == WM_TIMER) {
 
         /* check its a standard timer */
-        if (msg->wparam > 0 && msg->wparam <= MAXTIM)  {
+        if (msg->wParam > 0 && msg->wParam <= PA_MAXTIM)  {
 
-            er->etype = ettim; /* set timer event occurred */
-            er->timnum = msg->wparam; /* set what timer */
+            er->etype = pa_ettim; /* set timer event occurred */
+            er->timnum = msg->wParam; /* set what timer */
             *keep = TRUE; /* set keep event */
 
-        } else if (msg->wparam == FRMTIM) { /* its the framing timer */
+        } else if (msg->wParam == FRMTIM) { /* its the framing timer */
 
-            er->etype = etframe; /* set frame event occurred */
+            er->etype = pa_etframe; /* set frame event occurred */
             *keep = TRUE; /* set keep event */
 
         }
@@ -7301,61 +7295,61 @@ void winevt(winptr win, evtrec* er, MSG* msg, int ofn, int* keep)
     } else if (msg->message == MM_JOY1MOVE || msg->message == MM_JOY2MOVE ||
                msg->message == MM_JOY1ZMOVE || msg->message == MM_JOY2ZMOVE) {
 
-        er->etype = etjoymov; /* set joystick moved */
+        er->etype = pa_etjoymov; /* set joystick moved */
         /* set what joystick */
-        if (msg->message == MM_JOY1MOVE) || msg->message == MM_JOY1ZMOVE)
+        if (msg->message == MM_JOY1MOVE || msg->message == MM_JOY1ZMOVE)
             er->mjoyn = 1;
         else er->mjoyn = 2;
         /* Set all variables to default to same. This way, only the joystick
            axes that are actually set by the message are registered. */
         if (msg->message == MM_JOY1MOVE || msg->message == MM_JOY1ZMOVE) {
 
-            x = joy1xs;
-            y = joy1ys;
-            z = joy1zs;
+            x = win->joy1xs;
+            y = win->joy1ys;
+            z = win->joy1zs;
 
         } else {
 
-            x = joy2xs;
-            y = joy2ys;
-            z = joy2zs;
+            x = win->joy2xs;
+            y = win->joy2ys;
+            z = win->joy2zs;
 
         }
         /* If it"s an x/y move, split the x and y axies parts of the message
            up. */
         if (msg->message == MM_JOY1MOVE || msg->message == MM_JOY2MOVE)
-            crkmsg(msg->lparam, y, x)
+            crkmsg(msg->lParam, y, x);
         /* For z axis, get a single variable. */
-        else z = msg->lparam & 0xffff;
+        else z = msg->lParam & 0xffff;
         /* We perform thresholding on the joystick right here, which is
            limited to 255 steps (same as joystick hardware. find joystick
          diffs && update */
         if (msg->message == MM_JOY1MOVE || msg->message == MM_JOY1ZMOVE) {
 
-            dx = abs(joy1xs-x); /* find differences */
-            dy = abs(joy1ys-y);
-            dz = abs(joy1zs-z);
-            joy1xs = x; /* place old values */
-            joy1ys = y;
-            joy1zs = z;
+            dx = abs(win->joy1xs-x); /* find differences */
+            dy = abs(win->joy1ys-y);
+            dz = abs(win->joy1zs-z);
+            win->joy1xs = x; /* place old values */
+            win->joy1ys = y;
+            win->joy1zs = z;
 
         } else {
 
-            dx = abs(joy2xs-x); /* find differences */
-            dy = abs(joy2ys-y);
-            dz = abs(joy2zs-z);
-            joy2xs = x; /* place old values */
-            joy2ys = y;
-            joy2zs = z;
+            dx = abs(win->joy2xs-x); /* find differences */
+            dy = abs(win->joy2ys-y);
+            dz = abs(win->joy2zs-z);
+            win->joy2xs = x; /* place old values */
+            win->joy2ys = y;
+            win->joy2zs = z;
 
         }
         /* now reject moves below the threshold */
         if (dx > 65535 / 255 || dy > 65535 / 255 || dz > 65535 / 255) {
 
             /* scale axies between -INT_MAX..INT_MAX && place */
-            er->joypx = (x - 32767)*(INT_MAX / 32768);
-            er->joypy = (y - 32767)*(INT_MAX / 32768);
-            er->joypz = (z - 32767)*(INT_MAX / 32768);
+            er->joypx = (x - 32767)*(INT_MAX/32768);
+            er->joypy = (y - 32767)*(INT_MAX/32768);
+            er->joypz = (z - 32767)*(INT_MAX/32768);
             *keep = TRUE; /* set keep event */
 
         }
@@ -7363,34 +7357,34 @@ void winevt(winptr win, evtrec* er, MSG* msg, int ofn, int* keep)
     } else if (msg->message == MM_JOY1BUTTONDOWN ||
                msg->message == MM_JOY2BUTTONDOWN ||
                msg->message == MM_JOY1BUTTONUP ||
-               msg->message == MM_JOY2BUTTONUP) joymes();
+               msg->message == MM_JOY2BUTTONUP) joymes(er, msg, ofn, keep);
     else if (msg->message == WM_COMMAND) {
 
-        if (msg->lparam) { /* it"s a widget */
+        if (msg->lParam) { /* it"s a widget */
 
-            wp = fndwig(win, msg->wparam && 0xffff); /* find the widget */
+            wp = fndwig(win, msg->wParam && 0xffff); /* find the widget */
             if (wp == NULL) error(esystem); /* should be in the list */
-            nm = msg->wparam / 0x10000; /* get notification message */
+            nm = msg->wParam / 0x10000; /* get notification message */
             switch (wp->typ) { /* widget type */
 
-                case wtbutton: { /* button */
-                    if nm == bn_clicked  {
+                case wtbutton: /* button */
+                    if (nm == BN_CLICKED) {
 
-                        er->etype = etbutton; /* set button assert event */
+                        er->etype = pa_etbutton; /* set button assert event */
                         er->butid = wp->id; /* get widget id */
                         *keep = TRUE; /* set keep event */
 
                     }
                     break;
 
-                case wtcheckbox: { /* checkbox */
-                    er->etype = etchkbox; /* set checkbox select event */
+                case wtcheckbox: /* checkbox */
+                    er->etype = pa_etchkbox; /* set checkbox select event */
                     er->ckbxid = wp->id; /* get widget id */
                     *keep = TRUE; /* set keep event */
                     break;
 
-                case wtradiobutton: { /* radio button */
-                    er->etype = etradbut; /* set checkbox select event */
+                case wtradiobutton: /* radio button */
+                    er->etype = pa_etradbut; /* set checkbox select event */
                     er->radbid = wp->id; /* get widget id */
                     *keep = TRUE; /* set keep event */
                     break;
@@ -7400,14 +7394,14 @@ void winevt(winptr win, evtrec* er, MSG* msg, int ofn, int* keep)
                 case wtscrollvert: ; /* scrollbar, gives no messages */
                 case wtscrollhoriz: ; /* scrollbar, gives no messages */
                 case wteditbox: ; /* edit box, requires no messages */
-                case wtlistbox: { /* list box */
+                case wtlistbox: /* list box */
                     if (nm == LBN_DBLCLK) {
 
-                        unlockmain(); /* } exclusive access */
+                        unlockmain(); /* end exclusive access */
                         r = SendMessage(wp->han, LB_GETCURSEL, 0, 0);
                         lockmain(); /* start exclusive access */
                         if r == -1  error(esystem); /* should be a select */
-                        er->etype = etlstbox; /* set list box select event */
+                        er->etype = pa_etlstbox; /* set list box select event */
                         er->lstbid = wp->id; /* get widget id */
                         er->lstbsl = r+1; /* set selection */
                         *keep = TRUE; /* set keep event */
@@ -7415,14 +7409,14 @@ void winevt(winptr win, evtrec* er, MSG* msg, int ofn, int* keep)
                     }
                     break;
 
-                case wtdropbox: { /* drop box */
+                case wtdropbox: /* drop box */
                     if (nm == CBN_SELENDOK) {
 
-                        unlockmain(); /* } exclusive access */
+                        unlockmain(); /* end exclusive access */
                         r = SendMessage(wp->han, CB_GETCURSEL, 0, 0);
                         lockmain(); /* start exclusive access */
                         if r == -1  error(esystem); /* should be a select */
-                        er->etype = etdrpbox; /* set list box select event */
+                        er->etype = pa_etdrpbox; /* set list box select event */
                         er->drpbid = wp->id; /* get widget id */
                         er->drpbsl = r+1; /* set selection */
                         *keep = TRUE; /* set keep event */
@@ -7430,10 +7424,10 @@ void winevt(winptr win, evtrec* er, MSG* msg, int ofn, int* keep)
                     }
                     break;
 
-                case wtdropeditbox: { /* drop edit box */
+                case wtdropeditbox: /* drop edit box */
                     if nm == CBN_SELENDOK  {
 
-                        er->etype = etdrebox; /* set list box select event */
+                        er->etype = pa_etdrebox; /* set list box select event */
                         er->drebid = wp->id; /* get widget id */
                         *keep = TRUE; /* set keep event */
 
@@ -7448,70 +7442,70 @@ void winevt(winptr win, evtrec* er, MSG* msg, int ofn, int* keep)
 
         } else { /* it"s a menu select */
 
-            er->etype = etmenus; /* set menu select event */
-            er->menuid = msg->wparam && 0xffff; /* get menu id */
+            er->etype = pa_etmenus; /* set menu select event */
+            er->menuid = msg->wParam && 0xffff; /* get menu id */
             *keep = TRUE; /* set keep event */
 
         }
 
     } else if (msg->message == WM_VSCROLL)  {
 
-        v = msg->wparam && 0xffff; /* find subcommand */
+        v = msg->wParam && 0xffff; /* find subcommand */
         if (v == SB_THUMBTRACK ||
             v == SB_LINEUP || v == SB_LINEDOWN ||
             v == SB_PAGEUP || v == SB_PAGEDOWN) {
 
             /* position request */
-            wp = fndwighan(win, msg->lparam); /* find widget tracking entry */
+            wp = fndwighan(win, msg->lParam); /* find widget tracking entry */
             if (wp == NULL) error(esystem); /* should have been found */
             if (wp->typ == wtscrollvert) { /* scroll bar */
 
                 if (v == SB_LINEUP) {
 
-                    er->etype = etsclull; /* line up */
+                    er->etype = pa_etsclull; /* line up */
                     er->sclulid = wp->id;
 
                 } else if (v == SB_LINEDOWN) {
 
-                    er->etype = etscldrl; /* line down */
+                    er->etype = pa_etscldrl; /* line down */
                     er->scldlid = wp->id;
 
                 } else if (v == SB_PAGEUP) {
 
-                    er->etype = etsclulp; /* page up */
+                    er->etype = pa_etsclulp; /* page up */
                     er->sclupid = wp->id;
 
                 } else if (v == SB_PAGEDOWN) {
 
-                    er->etype = etscldrp; /* page down */
+                    er->etype = pa_etscldrp; /* page down */
                     er->scldpid = wp->id;
 
                 } else {
 
-                    er->etype = etsclpos; /* set scroll position event */
+                    er->etype = pa_etsclpos; /* set scroll position event */
                     er->sclpid = wp->id; /* set widget id */
-                    f = msg->wparam/0x10000; /* get current position to float */
+                    f = msg->wParam/0x10000; /* get current position to float */
                     /* clamp to INT_MAX */
                     if (f*INT_MAX/(255-wp->siz) > INT_MAX) er->sclpos = INT_MAX;
                     else er->sclpos = f*INT_MAX/(255-wp->siz);
-                    /*er->sclpos = msg->wparam / 65536*0x800000*/ /* get position */
+                    /*er->sclpos = msg->wParam / 65536*0x800000*/ /* get position */
 
                 }
                 *keep = TRUE; /* set keep event */
 
             } else if (wp->typ == wtslidevert) { /* slider */
 
-                er->etype = etsldpos; /* set scroll position event */
+                er->etype = pa_etsldpos; /* set scroll position event */
                 er->sldpid = wp->id; /* set widget id */
                 /* get position */
                 if (v == SB_THUMBTRACK) /* message includes position */
-                    er->sldpos = msg->wparam / 65536*(INT_MAX / 100)
+                    er->sldpos = msg->wParam / 65536*(INT_MAX / 100)
                 else { /* must retrive the position by message */
 
-                    unlockmain(); /* } exclusive access */
+                    unlockmain(); /* end exclusive access */
                     r = SendMessage(wp->han, TBM_GETPOS, 0, 0);
                     lockmain(); /* start exclusive access */
-                    er->sldpos = r*(INT_MAX/100) /* set position */
+                    er->sldpos = r*(INT_MAX/100); /* set position */
 
                 }
                 *keep = TRUE; /* set keep event */
@@ -7522,57 +7516,57 @@ void winevt(winptr win, evtrec* er, MSG* msg, int ofn, int* keep)
 
     } else if (msg->message == WM_HSCROLL) {
 
-        v = msg->wparam && 0xffff; /* find subcommand */
+        v = msg->wParam && 0xffff; /* find subcommand */
         if (v == SB_THUMBTRACK || v == SB_LINELEFT || v == SB_LINERIGHT ||
             v == SB_PAGELEFT || v == SB_PAGERIGHT) {
 
             /* position request */
-            wp = fndwighan(win, msg->lparam); /* find widget tracking entry */
+            wp = fndwighan(win, msg->lParam); /* find widget tracking entry */
             if wp == NULL  error(esystem); /* should have been found */
             if (wp->typ == wtscrollhoriz)  { /* scroll bar */
 
                 if (v == SB_LINELEFT) {
 
-                    er->etype = etsclull; /* line up */
+                    er->etype = pa_etsclull; /* line up */
                     er->sclulid = wp->id;
 
                 } else if (v == SB_LINERIGHT) {
 
-                    er->etype = etscldrl; /* line down */
+                    er->etype = pa_etscldrl; /* line down */
                     er->scldlid = wp->id;
 
                 } else if (v == SB_PAGELEFT) {
 
-                    er->etype = etsclulp; /* page up */
+                    er->etype = pa_etsclulp; /* page up */
                     er->sclupid = wp->id;
 
                 } else if (v == SB_PAGERIGHT) {
 
-                    er->etype = etscldrp; /* page down */
+                    er->etype = pa_etscldrp; /* page down */
                     er->scldpid = wp->id;
 
                 } else {
 
-                    er->etype = etsclpos; /* set scroll position event */
+                    er->etype = pa_etsclpos; /* set scroll position event */
                     er->sclpid = wp->id; /* set widget id */
-                    er->sclpos = msg->wparam / 65536*0x800000; /* get position */
+                    er->sclpos = msg->wParam / 65536*0x800000; /* get position */
 
                 }
                 *keep = TRUE; /* set keep event */
 
             } else if (wp->typ == wtslidehoriz) { /* slider */
 
-                er->etype = etsldpos; /* set scroll position event */
+                er->etype = pa_etsldpos; /* set scroll position event */
                 er->sldpid = wp->id; /* set widget id */
                 /* get position */
                 if (v == sb_thumbtrack)  /* message includes position */
-                    er->sldpos = msg->wparam / 65536*(INT_MAX / 100)
+                    er->sldpos = msg->wParam / 65536*(INT_MAX / 100)
                 else { /* must retrive the position by message */
 
-                    unlockmain(); /* } exclusive access */
+                    unlockmain(); /* end exclusive access */
                     r = SendMessage(wp->han, TBM_GETPOS, 0, 0);
                     lockmain(); /* start exclusive access */
-                    er->sldpos = r*(INT_MAX / 100) /* set position */
+                    er->sldpos = r*(INT_MAX/100); /* set position */
 
                 }
                 *keep = TRUE; /* set keep event */
@@ -7583,16 +7577,16 @@ void winevt(winptr win, evtrec* er, MSG* msg, int ofn, int* keep)
 
     } else if (msg->message == WM_NOTIFY) {
 
-        wp = fndwig(win, msg->wparam); /* find widget tracking entry */
+        wp = fndwig(win, msg->wParam); /* find widget tracking entry */
         if wp == NULL  error(esystem); /* should have been found */
-        nhp = (NMHDR*)msg->lparam; /* convert lparam to record pointer */
+        nhp = (NMHDR*)msg->lParam; /* convert lparam to record pointer */
         v = nhp->code; /* get code */
         /* no, I don"t know why this works, or what the TCN_SELCHANGE code is.
            Tab controls are giving me multiple indications, and the
            TCN_SELCHANGE code is more reliable as a selection indicator. */
         if (v == TCN_SELCHANGE) {
 
-            unlockmain(); /* } exclusive access */
+            unlockmain(); /* end exclusive access */
             r = SendMessage(wp->han, tcm_getcursel, 0, 0);
             lockmain(); /* start exclusive access */
             er->etype = pa_ettabbar; /* set tab bar type */
@@ -7604,19 +7598,19 @@ void winevt(winptr win, evtrec* er, MSG* msg, int ofn, int* keep)
 
     } else if (msg->message == UMEDITCR) {
 
-        wp = fndwig(win, msg->wparam); /* find widget tracking entry */
+        wp = fndwig(win, msg->wParam); /* find widget tracking entry */
         if wp == NULL  error(esystem); /* should have been found */
-        er->etype = etedtbox; /* set edit box complete event */
+        er->etype = pa_etedtbox; /* set edit box complete event */
         er->edtbid = wp->id; /* get widget id */
         *keep = TRUE; /* set keep event */
 
     } else if (msg->message == UMNUMCR) {
 
-        wp = fndwig(win, msg->wparam); /* find widget tracking entry */
+        wp = fndwig(win, msg->wParam); /* find widget tracking entry */
         if wp == NULL  error(esystem); /* should have been found */
-        er->etype = etnumbox; /* set number select box complete event */
+        er->etype = pa_etnumbox; /* set number select box complete event */
         er->numbid = wp->id; /* get widget id */
-        er->numbsl = msg.lparam; /* set number selected */
+        er->numbsl = msg->lParam; /* set number selected */
         *keep = TRUE; /* set keep event */
 
     }
@@ -7627,9 +7621,9 @@ void sigevt(evtrec* er, MSG* msg, int* keep)
 
 {
 
-    if (msg->message == wm_quit) || (msg->message == wm_close)  {
+    if (msg->message == WM_QUIT) || (msg->message == wm_close)  {
 
-        er->etype = etterm; /* set terminate */
+        er->etype = pa_etterm; /* set terminate */
         fend = TRUE; /* set end of program ordered */
         *keep = TRUE; /* set keep event */
 
@@ -7637,7 +7631,7 @@ void sigevt(evtrec* er, MSG* msg, int* keep)
 
 }
 
-void ievent(int ifn, evtrec* er)
+void ievent(int ifn, pa_evtrec* er)
 
 {
 
@@ -7681,7 +7675,7 @@ void ievent(int ifn, evtrec* er)
         if ofn > 0  {
 
             win = lfn2win(ofn); /* index window from output file */
-            er.winid = filwin[ofn]; /* set window id */
+            er->winid = filwin[ofn]; /* set window id */
             winevt; /* process messsage */
             if (!keep) sigevt(er, &msg, &keep); /* if not found, try intertask signal */
 
@@ -7712,7 +7706,7 @@ void ievent(int ifn, evtrec* er)
 
 /* external event interface */
 
-void event(FILE* f, evtrec* er)
+void event(FILE* f, pa_evtrec* er)
 
 {
 
@@ -7793,8 +7787,8 @@ void timeout(int id, int msg, int usr, int dw1, int dw2)
           if (opnfil[fn]->win) { /* file has window context */
 
         wh = opnfil[fn]->win->winhan; /* get window handle */
-        unlockmain(); /* } exclusive access */
-        putmsg(wh, wm_timer, usr % MAXTIM /* multiplexed timer number*/, 0);
+        unlockmain(); /* end exclusive access */
+        putmsg(wh, WM_TIMER, usr%MAXTIM /* multiplexed timer number*/, 0);
 
     } else unlockmain(); /* end exclusive access */
 
@@ -8319,8 +8313,8 @@ void readline(int fn)
 
         /* get events until an "interesting" event occurs */
         do { ievent(fn, er)
-        } while (er.etype != etchar && er.etype != etenter &&
-                 er.etype != etterm && er.etype != etdelcb);
+        } while (er.etype != pa_etchar && er.etype != pa_etenter &&
+                 er.etype != pa_etterm && er.etype != pa_etdelcb);
         win = lfn2win(xltwin[er.winid]); /* get the window from the id */
         /* if the event is line enter, place carriage return code,
            otherwise place real character. note that we emulate a
@@ -8329,15 +8323,15 @@ void readline(int fn)
            execute an organized halt */
         switch (er.etype) of /* event */
 
-            case etterm:  abort; /* halt program */
-            case etenter: /* line terminate */
+            case pa_etterm:  abort; /* halt program */
+            case pa_etenter: /* line terminate */
                 win->inpbuf[win->inpptr] = "\cr"; /* return cr */
                 plcchr(win, "\cr"); /* output newline sequence */
                 plcchr(win, "\lf");
                 win->inpend = TRUE; /* set line was terminated */
                 break;
 
-            case etchar: /* character */
+            case pa_etchar: /* character */
                 if (win->inpptr < MAXLIN) {
 
                     /* place real character */
@@ -8349,7 +8343,7 @@ void readline(int fn)
                     win->inpptr = win->inpptr+1; /* next character */
                 break;
 
-            case etdelcb: /* delete character backwards */
+            case pa_etdelcb: /* delete character backwards */
                 if (win->inpptr > 1) { /* ! at extreme left */
 
                     /* backspace, spaceout  backspace again */
@@ -8365,7 +8359,7 @@ void readline(int fn)
 
     } while (until er.etype != pa_etenter); /* until line terminate */
     /* note we still are indexing the last window that gave us the enter */
-    win->inpptr = 1 /* set 1st position on active line */
+    win->inpptr = 1; /* set 1st position on active line */
 
 }
 
@@ -8643,7 +8637,7 @@ int enumfont(ENUMLOGFONTEX* lfd, ENUMTEXTMETRICEX pfd, DWORD ft, LPARAM ad)
    }
    enumfont = TRUE /* set continue */
 
-};
+}
 
 /*******************************************************************************
 
@@ -8881,7 +8875,7 @@ void title(FILE* f, char* ts)
        window, so we have to remove the lock to allow that to be processed.
        Otherwise, setwindowtext will wait for acknoledgement of the message
        and lock us. */
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     /* set window title text */
     b = SetWindowText(win->winhan, ts);
     lockmain();/* start exclusive access */
@@ -8987,10 +8981,10 @@ void opnwin(int fn, int pfn)
     win = lfn2win(fn); /* get a pointer to the window */
     /* find parent */
     parlfn = pfn; /* set parent logical number */
-    if pfn != 0  {
+    if (pfn) {
 
        pwin = lfn2win(pfn); /* index parent window */
-       parhan = pwin->winhan /* set parent window handle */
+       parhan = pwin->winhan; /* set parent window handle */
 
     } else parhan = 0; /* set no parent */
     win->mb1 = FALSE; /* set mouse as assumed no buttons down, at origin */
@@ -9033,7 +9027,7 @@ void opnwin(int fn, int pfn)
     for ti = 1 to 10 do {
 
        win->timers[ti].han = 0; /* set no active timer */
-       win->timers[ti].rep = FALSE /* set no repeat */
+       win->timers[ti].rep = FALSE; /* set no repeat */
 
     }
     /* clear loadable pictures table */
@@ -9086,7 +9080,7 @@ void opnwin(int fn, int pfn)
     if (!r) winerr(); /* process windows error */
     /* remove fills */
     r = SelectObject(win->devcon, GetStockObject(NULL_BRUSH));
-    if (r == -1) winerr(); /* process windows error */
+    if (r == HGDI_ERROR) error(enosel);
     /* because this is an "open }ed" (no feedback) emulation, we must bring
       the terminal to a known state */
     gfhigh = FHEIGHT; /* set default font height */
@@ -9095,7 +9089,7 @@ void opnwin(int fn, int pfn)
     gcfont = fntlst; /* index top of list as terminal font */
     /* set up system default parameters */
     r = SelectObject(win->devcon, GetStockObject(SYSTEM_FIXED_FONT));
-    if (r == -1) winerr(); /* process windows error */
+    if (r == HGDI_ERROR) error(enosel);
     b = GetTextMetrics(win->devcon, tm); /* get the standard metrics */
     if (!b) winerr(); /* process windows error */
     /* calculate line spacing */
@@ -9122,7 +9116,7 @@ void opnwin(int fn, int pfn)
     b = AdjustWindowRectEx(cr, WS_OVERLAPPEDWINDOW, FALSE, 0);
     if (!b) winerr(); /* process windows error */
     /* now, resize the window to just fit our character mode */
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     b = SetWindowPos(winhan, 0, 0, 0, cr.right-cr.left, cr.bottom-cr.top,
                          SWP_NOMOVE | SWP_NOZORDER);
     if (!b) winerr(); /* process windows error */
@@ -9150,7 +9144,7 @@ void opnwin(int fn, int pfn)
     win->gwexty = 1;
     win->gvextx = 1;
     win->gvexty = 1;
-    iniscn(win, screens[0]); /* initalize screen buffer */
+    iniscn(win, win->screens[0]); /* initalize screen buffer */
     restore(win, TRUE); /* update to screen */
 /* This next is taking needed messages out of the queue, and I don"t believe it
   is needed anywmore with display tasking. */
@@ -9165,8 +9159,8 @@ void opnwin(int fn, int pfn)
                           TIME_ONESHOT);
     if (!frmhan) error(etimacc); /* no timer available */
     do { ievent(opnfil[fn]->inl, er);
-    } while (er.etype != ettim && er.etype != etterm);
-    if (er.etype == etterm) abort();
+    } while (er.etype != pa_ettim && er.etype != pa_etterm);
+    if (er.etype == pa_etterm) abort();
 #endif
 
 }
@@ -9203,7 +9197,7 @@ void clswin(int fn)
         if r != 0  error(ejoyacc); /* error */
 
     }
-    kilwin(win->winhan) /* kill window */
+    kilwin(win->winhan); /* kill window */
 
 }
 
@@ -9371,14 +9365,14 @@ void iopenwin(FILE** infile, FILE** outfile, int pfn, int wid);
     if (ifn < 0) { /* no other input file, open new */
 
         /* open input file */
-        unlockmain(); /* } exclusive access */
+        unlockmain(); /* end exclusive access */
         *ifn = fopen("nul", "r"); /* open null as read only */
         lockmain(); /* start exclusive access */
         if (ifn < 0) error(enoopn); /* can't open */
 
     }
     /* open output file */
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     *ofn = fopen("nul", "w");
     if (ofn < 0) error(enoopn); /* can't open */
     /* check either input is unused, or is already an input side of a window */
@@ -9435,7 +9429,7 @@ void isizbufg(winptr win, int x, int y)
     b = AdjustWindowRectEx(cr, WS_OVERLAPPEDWINDOW, FALSE, 0);
     if (!b) winerr(); /* process windows error */
     /* now, resize the window to just fit our new buffer size */
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     b = SetWindowPos(winhan, 0, 0, 0, cr.right-cr.left, cr.bottom-cr.top,
                      SWP_NOMOVE | swp_nozorder);
     lockmain(); /* start exclusive access */
@@ -9523,7 +9517,7 @@ void ibuffer(winptr win, int e)
         b = AdjustWindowRectEx(r, WS_OVERLAPPEDWINDOW, FALSE, 0);
         if (!b) winerr(); /* process windows error */
         /* resize the window to just fit our buffer size */
-        unlockmain(); /* } exclusive access */
+        unlockmain(); /* end exclusive access */
         b = SetWindowPos(win->winhan, 0, 0, 0, r.right-r.left, r.bottom-r.top,
                          SWP_NOMOVE | SWP_NOZORDER);
         lockmain(); /* start exclusive access */
@@ -9681,11 +9675,11 @@ void imenu(winptr win, menuptr m)
     }
     if (m) /* there is a new menu to activate */
         createmenu(m, win->menhan);
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     b = SetMenu(win->winhan, win->menhan); /* set the menu to the window */
     lockmain(); /* start exclusive access */
     if (!b) winerr(); /* process windows error */
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     b = DrawMenuBar(win->winhan); /* display menu */
     lockmain(); /* start exclusive access */
     if (!b) winerr(); /* process windows error */
@@ -9765,7 +9759,7 @@ void imenuena(winptr win, int id, int onoff)
     else fl |= MF_GRAYED; /* disable it */
     b = EnableMenuItem(mp->han, mp->inx, fl); /* perform that */
     if (b == -1) error(esystem); /* should not happen */
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     b = DrawMenuBar(win->winhan); /* display menu */
     lockmain(); /* start exclusive access */
     if (!b) winerr(); /* process windows error */
@@ -9846,7 +9840,7 @@ void imenusel(winptr win, int id, int select)
     else fl |= MF_UNCHECKED; /* deselect it */
     r = CheckMenuItem(mp->han, mp->inx, fl); /* perform that */
     if (r == -1) error(esystem); /* should ! happen */
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     b = DrawMenuBar(win->winhan); /* display menu */
     lockmain(); /* start exclusive access */
     if (!b) winerr(); /* process windows error */
@@ -9883,7 +9877,7 @@ void ifront(winptr win)
 
     fl = 0;
     fl = ! fl;
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     b = SetWindowPos(win->winhan, 0/*fl*/ /*hwnd_topmost*/, 0, 0, 0, 0,
                      SWP_NOMOVE | SWP_NOSIZE);
     lockmain(); /* start exclusive access */
@@ -9892,21 +9886,21 @@ void ifront(winptr win)
 #if 0
     fl = 1;
     fl = ! fl;
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     b = SetWindowPos(win->winhan, fl /*hwnd_notopmost*/, 0, 0, 0, 0,
                      SWP_NOMOVE | SWP_NOSIZE);
     lockmain(); /* start exclusive access */
     if (!b) winerr(); /* process windows error */
 #endif
 
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     b = PostMessage(win->winhan, WM_PAINT, 0, 0);
     if (!b) winerr(); /* process windows error */
     lockmain(); /* start exclusive access */
 
     if (parhan) {
 
-        unlockmain(); /* } exclusive access */
+        unlockmain(); /* end exclusive access */
         b = PostMessage(win->parhan, WM_PAINT, 0, 0);
         if (!b) winerr(); /* process windows error */
         lockmain(); /* start exclusive access */
@@ -9942,7 +9936,7 @@ void iback(winptr win)
 
     BOOL b; /* result holder */
 
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     b = SetWindowPos(win->winhan, HWND_BOTTOM, 0, 0, 0, 0,
                      SWP_NOMOVE || SWP_NOSIZE);
     lockmain(); /* start exclusive access */
@@ -10052,7 +10046,7 @@ void isetsizg(winptr win, int x, int y)
 
     BOOL b; /* result holder */
 
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     b = SetWindowPos(win->winhan, 0, 0, 0, x, y, SWP_NOMOVE | SWP_NOZORDER);
     lockmain(); /* start exclusive access */
     if (!b) winerr(); /* process windows error */
@@ -10080,7 +10074,7 @@ Sets the onscreen window size, in character terms. If the window has a parent,
 the demensions are converted to the current character size there. Otherwise,
 the pixel based dementions are used. This occurs because the desktop does
 not have a fixed character aspect, so we make one up, && our logical character
-is "one pixel" high && wide. It works because it can only be used as a
+is "one pixel" high and wide. It works because it can only be used as a
 relative measurement.
 
 *******************************************************************************/
@@ -10126,7 +10120,7 @@ void isetposg(winptr win, int x, int y)
 
     BOOL b; /* result holder */
 
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     b = SetWindowPos(win->winhan, 0, x-1, y-1, 0, 0, SWP_NOSIZE);
     lockmain(); /* start exclusive access */
     if (!b) winerr(); /* process windows error */
@@ -10206,7 +10200,7 @@ void iscnsizg(winptr win, int* x, int* y)
     b = GetWindowRect(win->scnhan, r);
     if (!b) winerr(); /* process windows error */
     x = r.right-r.left; /* return size */
-    y = r.bottom-r.top
+    y = r.bottom-r.top;
 
 }
 
@@ -10265,7 +10259,7 @@ void iwinclientg(winptr win, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
     b = AdjustWindowRectEx(cr, fl, FALSE, 0);
     if (!b) winerr(); /* process windows error */
     *wx = cr.right-cr.left; /* return window size */
-    *wy = cr.bottom-cr.top
+    *wy = cr.bottom-cr.top;
     unlockmain(); /* end exclusive access */
 
 }
@@ -10365,7 +10359,7 @@ void iframe(winptr win, int e)
                                WS_MAXIMIZEBOX;
 
     }
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     r = setwindowlong(win->fwinhan, GWL_STYLE, fl1);
     lockmain(); /* start exclusive access */
     if (!r) winerr(); /* process windows error */
@@ -10444,17 +10438,17 @@ void isizable(winptr win, int e)
         if (parhan) fl1 |= WS_CHILD | WS_CLIPSIBLINGS;
         /* if we are enabling frames, add the frame parts back */
         if (e) fl1 |= WS_THICKFRAME;
-        unlockmain(); /* } exclusive access */
+        unlockmain(); /* end exclusive access */
         r = setwindowlong(win->winhan, GWL_STYLE, fl1);
         lockmain(); /* start exclusive access */
         if (!r) winerr(); /* process windows error */
-        unlockmain(); /* } exclusive access */
+        unlockmain(); /* end exclusive access */
         b = SetWindowPos(win->winhan, 0, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE |
                                                      SWP_FRAMECHANGED);
         lockmain(); /* start exclusive access */
         if (!b) winerr(); /* process windows error */
         /* present the window */
-        unlockmain(); /* } exclusive access */
+        unlockmain(); /* end exclusive access */
         b = ShowWindow(win->winhan, SW_SHOWDEFAULT);
         lockmain(); /* start exclusive access */
         if (win->bufmod) { /* in buffer mode */
@@ -10467,7 +10461,7 @@ void isizable(winptr win, int e)
             /* find window size from client size */
             b = AdjustWindowRectEx(cr, fl1, FALSE, 0);
             if (!b) winerr(); /* process windows error */
-            unlockmain(); /* } exclusive access */
+            unlockmain(); /* end exclusive access */
             b = SetWindowPos(winhan, 0, 0, 0,
                              cr.right-cr.left, cr.bottom-cr.top,
                              SWP_NOMOVE || SWP_NOZORDER);
@@ -10535,7 +10529,7 @@ void isysbar(winptr win, int e)
         lockmain(); /* start exclusive access */
         if (!b) winerr(); /* process windows error */
         /* present the window */
-        unlockmain(); /* } exclusive access */
+        unlockmain(); /* end exclusive access */
         ShowWindow(win->winhan, SW_SHOWDEFAULT);
         lockmain(); /* start exclusive access */
         if (win->bufmod) { /* in buffer mode */
@@ -10548,7 +10542,7 @@ void isysbar(winptr win, int e)
             /* find window size from client size */
             b = AdjustWindowRectEx(cr, fl1, FALSE, 0);
             if (!b) winerr(); /* process windows error */
-            unlockmain(); /* } exclusive access */
+            unlockmain(); /* end exclusive access */
             b = SetWindowPos(win->winhan, 0, 0, 0,
                                  cr.right-cr.left, cr.bottom-cr.top,
                                  SWP_NOMOVE | SWP_NOZORDER);
@@ -10696,7 +10690,7 @@ void stdmenu(pa_stdmenusel sms, menuptr* sm, menuptr pm)
         additem(SMFINDnext, m, hm->branch, "Find Next", FALSE);
         additem(SMREPLACE, m, hm->branch, "Replace", FALSE);
         additem(SMGOTO, m, hm->branch, "Goto", TRUE);
-        additem(SMSELECTALL, m, hm->branch, "Select All", FALSE)
+        additem(SMSELECTALL, m, hm->branch, "Select All", FALSE);
 
    }
 
@@ -10722,7 +10716,7 @@ void stdmenu(pa_stdmenusel sms, menuptr* sm, menuptr pm)
         additem(SMTILEHORIZ, m, hm->branch, "Tile Horizontally", FALSE);
         additem(SMTILEVERT, m, hm->branch, "Tile Vertically", FALSE);
         additem(SMCASCADE, m, hm->branch, "Cascade", TRUE);
-        additem(SMCLOSEall, m, hm->branch, "Close All", FALSE)
+        additem(SMCLOSEall, m, hm->branch, "Close All", FALSE);
 
    }
 
@@ -10734,7 +10728,7 @@ void stdmenu(pa_stdmenusel sms, menuptr* sm, menuptr pm)
         appendmenu(sm, hm);
 
         additem(SMHELPTOPIC, m, hm->branch, "Help Topics", TRUE);
-        additem(SMABOUT, m, hm->branch, "About", FALSE)
+        additem(SMABOUT, m, hm->branch, "About", FALSE);
 
     }
 
@@ -10910,7 +10904,7 @@ void ikillwidget(winptr win, int id)
     if (!wp) error(ewignf); /* ! found */
     kilwin(wp->han); /* kill window */
     if wp->han2 != 0  kilwin(wp->han2); /* distroy buddy window */
-    putwig(win, wp) /* release widget entry */
+    putwig(win, wp); /* release widget entry */
 
 }
 
@@ -10947,7 +10941,7 @@ void iselectwidget(winptr win, int id, int e)
     if (!wp) error(ewignf); /* ! found */
     /* check this widget is selectable */
     if (wp->typ != wtcheckbox && wp->typ != wtradiobutton) error(ewigsel);
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     r = SendMessage(wp->han, BM_SETCHECK, ord(e), 0);
     lockmain();/* start exclusive access */
 
@@ -10991,7 +10985,7 @@ void ienablewidget(winptr win, int id, int e)
         wp->typ != wtlistbox && wp->typ != wtdropbox &&
         wp->typ != wtdropeditbox && wp->typ != wtslidehoriz &&
         wp->typ != wtslidevert && wp->typ != wttabbar) error(ewigdis);
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     enablewindow(wp->han, e); /* perform */
     lockmain(); /* start exclusive access */
     wp->enb = e; /* save enable/disable status */
@@ -11040,7 +11034,7 @@ void igetwidgettext(winptr win, int id, char* s, int sl)
       documentation, for GetWindowText. The docs define
       a zero return as being for a zero length string, but also apparently
       uses that value for errors. */
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     r = getwindowtext(wp->han, s, sl); /* get the text */
     lockmain(); /* start exclusive access */
 
@@ -11079,7 +11073,7 @@ void iputwidgettext(winptr win, int id, char* s)
     if (!wp) error(ewignf); /* not found */
     /* check this widget can put text */
     if (wp->typ != wteditbox && wp->typ != wtdropeditbox) error(ewigptxt);
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     b = setwindowtext(wp->han, s); /* get the text */
     lockmain(); /* start exclusive access */
     if (!b) winerr(); /* process windows error */
@@ -11115,14 +11109,14 @@ void isizwidgetg(winptr win, int id,  int x, int y)
 
     wp = fndwig(win, id); /* find widget */
     if (!wp) error(ewignf); /* ! found */
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     b = SetWindowPos(wp->han, 0, 0, 0, x, y, SWP_NOMOVE | SWP_NOZORDER);
     lockmain(); /* start exclusive access */
     if (!b) winerr(); /* process windows error */
     if (wp->han2) { /* also resize the buddy */
 
         /* Note, the buddy needs to be done differently for a numselbox */
-        unlockmain(); /* } exclusive access */
+        unlockmain(); /* end exclusive access */
         b = SetWindowPos(wp->han2, 0, 0, 0, x, y, SWP_NOMOVE | SWP_NOZORDER);
         lockmain(); /* start exclusive access */
         if (!b) winerr(); /* process windows error */
@@ -11167,7 +11161,7 @@ void iposwidgetg(winptr win, int id, int x, int y)
     if (wp->han2) { /* also reposition the buddy */
 
         /* Note, the buddy needs to be done differently for a numselbox */
-        unlockmain(); /* } exclusive access */
+        unlockmain(); /* end exclusive access */
         b = SetWindowPos(wp->han2, 0, x-1, y-1, 0, 0, SWP_NOSIZE);
         lockmain(); /* start exclusive access */
         if (!b) winerr(); /* process windows error */
@@ -11211,7 +11205,7 @@ void ibackwidget(winptr win, int id)
     if (wp->han2) { /* also reposition the buddy */
 
         /* Note, the buddy needs to be done differently for a numselbox */
-        unlockmain(); /* } exclusive access */
+        unlockmain(); /* end exclusive access */
         b = SetWindowPos(wp->han2, HWND_BOTTOM, 0, 0, 0, 0,
                          SWP_NOMOVE | SWP_NOSIZE);
         lockmain(); /* start exclusive access */
@@ -11249,7 +11243,7 @@ void ifrontwidget(winptr win, int id)
 
     wp = fndwig(win, id); /* find widget */
     if (!wp) error(ewignf); /* not found */
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     b = SetWindowPos(wp->han, HWND_TOPMOST, 0, 0, 0, 0,
                      SWP_NOMOVE | SWP_NOSIZE);
     lockmain(); /* start exclusive access */
@@ -11257,7 +11251,7 @@ void ifrontwidget(winptr win, int id)
     if (wp->han2) { /* also reposition the buddy */
 
         /* Note, the buddy needs to be done differently for a numselbox */
-        unlockmain(); /* } exclusive access */
+        unlockmain(); /* end exclusive access */
         b = SetWindowPos(wp->han2, HWND_TOPMOST, 0, 0, 0, 0,
                          SWP_NOMOVE | SWP_NOSIZE);
         lockmain(); /* start exclusive access */
@@ -11303,7 +11297,7 @@ void ibuttonsizg(winptr win, char* s, int* w, int* h)
     if (!b) winerr(); /* process windows error */
     /* add button borders to size */
     *w = sz.cx+GetSystemMetrics(SM_CXEDGE)*2;
-    *h = sz.cy+GetSystemMetrics(SM_CYEDGE)*2
+    *h = sz.cy+GetSystemMetrics(SM_CYEDGE)*2;
 
 }
 
@@ -11697,7 +11691,7 @@ void igroupsiz(winptr win, char* s, int cw, int ch, int* w, int* h,
     *w = (*w-1)/win->charspace+1;
     *h = (*h-1)/win->linespace+1;
     *ox = (*ox-1)/win->charspace+1;
-    *oy = (*oy-1)/win->linespace+1
+    *oy = (*oy-1)/win->linespace+1;
 
 }
 
@@ -11804,7 +11798,7 @@ void ibackgroundg(winptr win, int x1, int y1, int x2, int y2, int id)
     wigptr wp; /* widget pointer */
 
     if (!win->visible) winvis(win); /* make sure we are displayed */
-    widget(win, x1, y1, x2, y2, "", id, wtbackground, 0, wp)
+    widget(win, x1, y1, x2, y2, "", id, wtbackground, 0, wp);
 
 }
 
@@ -11817,7 +11811,7 @@ void ibackground(winptr win, int x1, int y1, int x2, int y2: int, int id)
    y1 = (y1-1)*win->linespace+1;
    x2 = (x2)*win->charspace;
    y2 = (y2)*win->linespace;
-   ibackgroundg(win, x1, y1, x2, y2, id) /* create button graphical */
+   ibackgroundg(win, x1, y1, x2, y2, id); /* create button graphical */
 
 };
 
@@ -11923,14 +11917,14 @@ void iscrollvertg(winptr win, int x1, int y1, int x2, int y2, int id)
     widget(win, x1, y1, x2, y2, "", id, wtscrollvert, 0, wp);
     /* The scroll set for windows is arbitrary. We expand that to 0..INT_MAX on
        messages. */
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     b = SetScrollRange(wp->han, SB_CTL, 0, 255, FALSE);
     lockmain(); /* start exclusive access */
     if (!b) winerr(); /* process windows error */
     /* retrieve the default size of slider */
     si.cbSize = sizeof(SCROLLINFO); /* set size */
     si.fMask = SIF_PAGE; /* set page size */
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     b = GetScrollInfo(wp->han, SB_CTL, si);
     lockmain(); /* start exclusive access */
     if (!b) winerr(); /* process windows error */
@@ -11993,7 +11987,7 @@ void iscrollhorizsizg(winptr win, int* w, int* h)
     /* get system values for scroll bar arrow width && height, for which there
        are two. */
     *w = GetSystemMetrics(sm_cxhscroll)*2;
-    *h = GetSystemMetrics(sm_cyhscroll)
+    *h = GetSystemMetrics(sm_cyhscroll);
 
 }
 
@@ -12003,7 +11997,7 @@ void iscrollhorizsiz(winptr win, int* w, int* h)
 
     /* Use fixed sizes, as this looks best */
     *w = 2;
-    *h = 1
+    *h = 1;
 
 }
 
@@ -12053,18 +12047,18 @@ void iscrollhorizg(winptr win, int x1, int y1, int x2, int y2, int id: int)
     widget(win, x1, y1, x2, y2, "", id, wtscrollhoriz, 0, wp);
     /* The scroll set for windows is arbitrary. We expand that to 0..INT_MAX on
        messages. */
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     b = SetScrollRange(wp->han, SB_CTL, 0, 255, FALSE);
     lockmain(); /* start exclusive access */
     if (!b) winerr(); /* process windows error */
     /* retrieve the default size of slider */
     si.cbsize = sizeof(SCROLLINFO); /* set size */
     si.fmask = sif_page; /* set page size */
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     b = GetScrollInfo(wp->han, SB_CTL, si);
     lockmain(); /* start exclusive access */
     if (!b) winerr(); /* process windows error */
-    wp->siz = si.nPage /* get size */
+    wp->siz = si.nPage; /* get size */
 
 }
 
@@ -12077,7 +12071,7 @@ void iscrollhoriz(winptr win, int x1, int y1, int x2, int y2, int id)
     y1 = (y1-1)*win->linespace+1;
     x2 = (x2)*win->charspace;
     y2 = (y2)*win->linespace;
-    iscrollhorizg(win, x1, y1, x2, y2, id) /* create button graphical */
+    iscrollhorizg(win, x1, y1, x2, y2, id); /* create button graphical */
 
 }
 
@@ -12132,7 +12126,7 @@ void iscrollpos(winptr win, int id, int r)
     /* clamp to max */
     if (f*(255-wp->siz)/INT_MAX > 255) p = 255;
     else p = f*(255-wp->siz)/INT_MAX;
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     rv = setscrollpos(wp->han, sb_ctl, p, TRUE);
     lockmain();/* start exclusive access */
 
@@ -12178,10 +12172,10 @@ void iscrollsiz(winptr win, int id, int r)
     si.npage = r / 0x800000; /* set size */
     si.npos = 0; /* no position */
     si.ntrackpos = 0; /* no track position */
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     rv = setscrollinfo(wp->han, sb_ctl, si, TRUE);
     lockmain(); /* start exclusive access */
-    wp->siz = r / 0x800000; /* set size */
+    wp->siz = r/0x800000; /* set size */
 
 }
 
@@ -12232,10 +12226,10 @@ int wndprocnum(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
     lfn = hwn2lfn(wh); /* get the logical window number */
     win = lfn2win(lfn); /* index window from logical number */
     wp = fndwighan(win, hwnd); /* find the widget from that */
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     r = 0; /* set no error */
     /* check its a character */
-    if (imsg == wm_char) {
+    if (imsg == WM_CHAR) {
 
         if (wp->enb) { /* is the widget enabled ? */
 
@@ -12251,7 +12245,7 @@ int wndprocnum(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
                 else
                     /* Send the message on to its owner, this will ring the bell in
                        Windows XP. */
-                    r = callwindowproc(wp->wprc, hwnd, imsg, wparam, lparam)
+                    r = callwindowproc(wp->wprc, hwnd, imsg, wparam, lparam);
 
             } else {
 
@@ -12402,8 +12396,6 @@ void inumselboxg(winptr win, int x1, int y1, int x2, int y2, int l, int u,
     r = setwindowlong(wp->han2, gwl_wndproc, wndprocadr(wndprocnum));
     if (!r) winerr(); /* process windows error */
 
-   }
-
 }
 
 void inumselbox(winptr win, int x1, int y1, int x2, int y2, int l, int u,
@@ -12416,7 +12408,7 @@ void inumselbox(winptr win, int x1, int y1, int x2, int y2, int l, int u,
     y1 = (y1-1)*win->linespace+1;
     x2 = x2*win->charspace;
     y2 = y2*win->linespace;
-    inumselboxg(win, x1, y1, x2, y2, l, u, id) /* create button graphical */
+    inumselboxg(win, x1, y1, x2, y2, l, u, id); /* create button graphical */
 
 }
 
@@ -12474,10 +12466,10 @@ int wndprocedit(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
     win = lfn2win(lfn); /* index window from logical number */
     wp = fndwighan(win, hwnd); /* find the widget from that */
     /* check control is receiving a carriage return */
-    if (imsg == wm_char && wparam == '\r')
+    if (imsg == WM_CHAR && wparam == '\r')
         /* Send edit sends cr message to parent window, with widget logical
            number embedded as wparam. */
-        putmsg(wh, UMEDITCR, wp->id, 0)
+        putmsg(wh, UMEDITCR, wp->id, 0);
     else
         /* send the message on to its owner */
         r = callwindowproc(wp->wprc, hwnd, imsg, wparam, lparam);
@@ -12520,7 +12512,7 @@ void ieditboxsiz(winptr win, char* s, int* w, int* h)
     ieditboxsizg(win, s, w, h); /* get size */
     /* change graphical size to character */
     *w = (w-1) / win->charspace+1;
-    *h = (h-1) / win->linespace+1
+    *h = (h-1) / win->linespace+1;
 
 }
 
@@ -12631,7 +12623,7 @@ void iprogbarsizg(winptr win, int* w, int* h)
        20 bar elements. Note that the size of the blocks in a Windows progress
        bar are ratioed to the height. */
     *w = 20*14+2;
-    *h = 20+2
+    *h = 20+2;
 
 }
 
@@ -12641,8 +12633,8 @@ void iprogbarsiz(winptr win, int* w, int* h)
 
     iprogbarsizg(win, w, h); /* get size */
     /* change graphical size to character */
-    *w = (*w-1) / win->charspace+1;
-    *h = (*h-1) / win->linespace+1
+    *w = (*w-1)/win->charspace+1;
+    *h = (*h-1)/win->linespace+1;
 
 };
 
@@ -12691,9 +12683,9 @@ void iprogbarg(winptr win, int x1, int y1, int x2, int y2, int id)
     /* create the progress bar */
     widget(win, x1, y1, x2, y2, "", id, wtprogressbar, 0, wp);
     /* use 0..INT_MAX ratio */
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     r = SendMessage(wp->han, PBM_SETRANGE32, 0, INT_MAX);
-    lockmain();/* start exclusive access */
+    lockmain(); /* start exclusive access */
 
 }
 
@@ -12756,9 +12748,9 @@ void iprogbarpos(winptr win, int id, int pos)
    wp = fndwig(win, id); /* find widget */
    if (!wp) error(ewignf); /* ! found */
    /* set the range */
-   unlockmain(); /* } exclusive access */
+   unlockmain(); /* end exclusive access */
    r = SendMessage(wp->han, pbm_setpos, pos, 0);
-   lockmain();/* start exclusive access */
+   lockmain(); /* start exclusive access */
 
 }
 
@@ -12824,8 +12816,8 @@ void ilistboxsiz(winptr win, pa_strptr, sp, int* w, int* h)
 
     ilistboxsizg(win, sp, w, h); /* get size */
     /* change graphical size to character */
-    *w = (*w-1) / win->charspace+1;
-    *h = (*h-1) / win->linespace+1;
+    *w = (*w-1)/win->charspace+1;
+    *h = (*h-1)/win->linespace+1;
 
 }
 
@@ -12874,10 +12866,10 @@ void ilistboxg(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
     widget(win, x1, y1, x2, y2, "", id, wtlistbox, 0, wp);
     while (sp) { /* add strings to list */
 
-        unlockmain(); /* } exclusive access */
+        unlockmain(); /* end exclusive access */
         r = SendMessage(wp->han, LB_ADDSTRING, sp->str); /* add string */
         lockmain(); /* start exclusive access */
-        if (r == -1)  error(estrspc); /* out of string space */
+        if (r == -1) error(estrspc); /* out of string space */
         sp = sp->next; /* next string */
 
     }
@@ -12971,7 +12963,7 @@ void idropboxsizg(winptr win, pa_strptr pa_strptr sp, int* cw, int* ch,
 
     /* calculate first line */
     getsiz(sp->str); /* find sizing for line */
-    /* Find size of string x, drop arrow width, box edges, && add fudge factor
+    /* Find size of string x, drop arrow width, box edges, and add fudge factor
       to space text out. */
     *cw = sz.cx+darrowx+GetSystemMetrics(SM_CXEDGE)*2+4;
     *ow = *cw; /* open is the same */
@@ -13000,10 +12992,10 @@ void idropboxsiz(winptr win, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
 
     idropboxsizg(win, sp, cw, ch, ow, oh); /* get size */
     /* change graphical size to character */
-    *cw = (*cw-1) / win->charspace+1;
-    *ch = (*ch-1) / win->linespace+1;
-    *ow = (*ow-1) / win->charspace+1;
-    *oh = (*oh-1) / win->linespace+1;
+    *cw = (*cw-1)/win->charspace+1;
+    *ch = (*ch-1)/win->linespace+1;
+    *ow = (*ow-1)/win->charspace+1;
+    *oh = (*oh-1)/win->linespace+1;
 
 }
 
@@ -13054,14 +13046,14 @@ void idropboxg(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
     sp1 = sp; /* index top of string list */
     while (sp1) { /* add strings to list */
 
-        unlockmain(); /* } exclusive access */
+        unlockmain(); /* end exclusive access */
         r = SendMessage(wp->han, cb_addstring, sp1->str^); /* add string */
         lockmain(); /* start exclusive access */
         if (r == -1) error(estrspc); /* out of string space */
         sp1 = sp1->next; /* next string */
 
     }
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     r = SendMessage(wp->han, cb_setcursel, 0, 0);
     lockmain(); /* start exclusive access */
     if (r == -1)  error(esystem); /* should ! happen */
@@ -13166,10 +13158,10 @@ void idropeditboxsiz(winptr win, pa_strptr sp, int* cw, int* ch, int* ow, int* o
 
     idropeditboxsizg(win, sp, cw, ch, ow, oh); /* get size */
     /* change graphical size to character */
-    *cw = (*cw-1) / win->charspace+1;
-    *ch = (*ch-1) / win->linespace+1;
-    *ow = (*ow-1) / win->charspace+1;
-    *oh = (*oh-1) / win->linespace+1;
+    *cw = (*cw-1)/win->charspace+1;
+    *ch = (*ch-1)/win->linespace+1;
+    *ow = (*ow-1)/win->charspace+1;
+    *oh = (*oh-1)/win->linespace+1;
 
 }
 
@@ -13224,7 +13216,7 @@ void idropeditboxg(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp,
     sp1 = sp; /* index top of string list */
     while (sp1) { /* add strings to list */
 
-        unlockmain(); /* } exclusive access */
+        unlockmain(); /* end exclusive access */
         r = SendMessage(wp->han, cb_addstring, sp1->str); /* add string */
         lockmain(); /* start exclusive access */
         if (r == -1) error(estrspc); /* out of string space */
@@ -13355,7 +13347,7 @@ void islidehorizg(winptr win, int x1, int y1, int x2, int y2, int mark, int id)
     /* set tickmark frequency */
     unlockmain(); /* end exclusive access */
     r = SendMessage(wp->han, TBM_SETTICFREQ, mark, 0);
-    lockmain();/* start exclusive access */
+    lockmain(); /* start exclusive access */
 
 }
 
@@ -13478,7 +13470,7 @@ void islidevertg(winptr win, int x1, int y1, int x2, int y2, int mark, int id)
     else /* tick marks enabled */
         widget(win, x1, y1, x2, y2, "", id, wtslidevert, 0, wp);
     /* set tickmark frequency */
-    unlockmain(); /* } exclusive access */
+    unlockmain(); /* end exclusive access */
     r = SendMessage(wp->han, tbm_setticfreq, mark, 0);
     lockmain(); /* start exclusive access */
 
@@ -13816,7 +13808,7 @@ void itabbarg(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp,
         tcr.pszText = sp->str; /* place string */
         tcr.iImage = -1; /* no image */
         tcr.lParam = 0; /* no parameter */
-        unlockmain(); /* } exclusive access */
+        unlockmain(); /* end exclusive access */
         r = SendMessage(wp->han, TCM_INSERTITEM, inx, tcr); /* add string */
         lockmain(); /* start exclusive access */
         if r == -1  error(etabbar); /* can"t create tab */
@@ -13839,7 +13831,7 @@ void itabbar(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp,
     y1 = (y1-1)*win->linespace+1;
     x2 = (x2)*win->charspace;
     y2 = (y2)*win->linespace;
-    itabbarg(win, x1, y1, x2, y2, sp, tor, id) /* create button graphical */
+    itabbarg(win, x1, y1, x2, y2, sp, tor, id); /* create button graphical */
 
 }
 
@@ -14247,14 +14239,14 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
     int     udw; /* up/down control width */
     RECT    cr;  /* client rectangle */
 
-/*print("wndproc: msg: ", msgcnt); print(" ");
+/*prtstr("wndproc: msg: ", msgcnt); prtstr(" ");
 ;prtmsgu(hwnd, imsg, wparam, lparam);
 ;msgcnt++;*/
-    if (imsg == wm_create) {
+    if (imsg == WM_CREATE) {
 
-        r = 0
+        r = 0;
 
-    } else if (imsg == wm_paint) {
+    } else if (imsg == WM_PAINT) {
 
         lockmain(); /* start exclusive access */
         /* get the logical output file from Windows handle */
@@ -14273,7 +14265,7 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
                    region to 16 bit coordinates. We need an im to fix this. */
                 wparam = cr.left*0x10000+cr.top;
                 lparam = cr.right*0x10000+cr.bottom;
-                unlockmain(); /* } exclusive access */
+                unlockmain(); /* end exclusive access */
                 putmsg(hwnd, imsg, wparam, lparam); /* send message up */
                 lockmain(); /* start exclusive access */
 
@@ -14281,10 +14273,10 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
             r = 0;
 
         } else r = defwindowproc(hwnd, imsg, wparam, lparam);
-        unlockmain(); /* } exclusive access */
+        unlockmain(); /* end exclusive access */
         r = 0;
 
-    } else if (imsg == wm_setfocus)  {
+    } else if (imsg == WM_SETFOCUS)  {
 
         lockmain(); /* start exclusive access */
         /* get the logical output file from Windows handle */
@@ -14301,11 +14293,11 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
             curon(win); /* show the cursor */
 
         }
-        unlockmain(); /* } exclusive access */
+        unlockmain(); /* end exclusive access */
         putmsg(hwnd, imsg, wparam, lparam); /* copy to main thread */
         r = 0;
 
-    } else if (imsg == wm_killfocus) {
+    } else if (imsg == WM_KILLFOCUS) {
 
         lockmain(); /* start exclusive access */
         /* get the logical output file from Windows handle */
@@ -14318,7 +14310,7 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
            b = destroycaret(); /* remove text cursor */
 
         }
-        unlockmain(); /* } exclusive access */
+        unlockmain(); /* end exclusive access */
         putmsg(hwnd, imsg, wparam, lparam); /* copy to main thread */
         r = 0;
 
@@ -14352,19 +14344,19 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
         iputmsg(0, UMWINCLS, 0, 0);
         r = 0;
 
-    } else if (imsg == wm_erasebkgnd) {
+    } else if (imsg == WM_ERASEBKGND) {
 
         /* Letting windows erase the background is ! good, because it flashes, and
            is redundant in any case, because we handle that. */
         r = 1; /* say we are handling the erase */
 
-    } else if (imsg == wm_close) {
+    } else if (imsg == WM_CLOSE) {
 
         /* we handle our own window close, so don"t pass this on */
         putmsg(0, imsg, wparam, lparam);
         r = 0;
 
-    } else if (imsg == wm_destroy) {
+    } else if (imsg == WM_DESTROY) {
 
         /* here"s a problem. Posting quit causes the thread/process to terminate,
            not just the window. MSDN says to quit only the main window, but what
@@ -14375,8 +14367,8 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
         /* postquitmessage(0); */
         r = 0;
 
-    } else if (imsg == wm_lbuttondown || imsg == wm_mbuttondown ||
-               imsg == wm_rbuttondown) {
+    } else if (imsg == WM_LBUTTONDOWN || imsg == WM_MBUTTONDOWN ||
+               imsg == WM_RBUTTONDOWN) {
 
         /* Windows allows child windows to capture the focus, but they don"t
            give it up (its a feature). We get around this by  returning the
@@ -14430,13 +14422,13 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
            are limited to 256 elements. */
         swtich (imsg) {
 
-            case wm_paint: case wm_lbuttondown: case wm_lbuttonup: case wm_mbuttondown:
-            case wm_mbuttonup: case wm_rbuttondown: case wm_rbuttonup: case wm_size:
-            case wm_char: case wm_keydown: case wm_keyup: case wm_quit: case wm_close:
-            case wm_mousemove: case wm_timer: case wm_command: case wm_vscroll:
-            case wm_hscroll: case wm_notify:
+            case WM_PAINT: case WM_LBUTTONDOWN: case WM_LBUTTONUP: case WM_MBUTTONDOWN:
+            case WM_MBUTTONUP: case WM_RBUTTONDOWN: case WM_RBUTTONUP: case WM_SIZE:
+            case WM_CHAR: case WM_KEYDOWN: case WM_KEYUP: case WM_QUIT: case WM_CLOSE:
+            case WM_MOUSEMOVE: case WM_TIMER: case WM_COMMAND: case WM_VSCROLL:
+            case WM_HSCROLL: case WM_NOTIFY:
 
-/*print("wndproc: passed to main: msg: ", msgcnt); print(" ");
+/*prtstr("wndproc: passed to main: msg: ", msgcnt); prtstr(" ");
 ;prtmsgu(hwnd, imsg, wparam, lparam);
 ;msgcnt = msgcnt+1;*/
                 putmsg(hwnd, imsg, wparam, lparam);
@@ -14545,7 +14537,7 @@ int wndprocmain(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
 
         r = 0;
 
-    } else if imsg == wm_destroy  {
+    } else if imsg == WM_DESTROY  {
 
         postquitmessage(0);
         r = 0;
@@ -14612,15 +14604,15 @@ LRESULT wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
 
 /*;prtstr("wndprocdialog: msg: ");
 ;prtmsgu(hwnd, imsg, wparam, lparam);
-;printn("");*/
+;prtstr("");*/
     if (imsg == WM_CREATE)  {
 
-        r = 0
+        r = 0;
 
     } else if imsg == WM_DESTROY  {
 
         postquitmessage(0);
-        r = 0
+        r = 0;
 
     } else if (imsg == UMIM) { /* intratask message */
 
@@ -14636,17 +14628,17 @@ LRESULT wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
 
             case imqcolor:
                 /* set starting color */
-                cr.rgbresult = rgb2win(ip->clrred, ip->clrgreen, ip->clrblue);
-                cr.lstructsize = 9*4; /* set size */
-                cr.hwndowner = 0; /* set no owner */
-                cr.hinstance = 0; /* no instance */
-                cr.rgbresult = 0; /* clear color */
-                cr.lpcustcolors = gcolorsav; /* set global color save */
+                cr.rgbResult = rgb2win(ip->clrred, ip->clrgreen, ip->clrblue);
+                cr.lStructSize = 9*4; /* set size */
+                cr.hwndOwner = 0; /* set no owner */
+                cr.hInstance = 0; /* no instance */
+                /*??? cr.rgbResult = 0;*/ /* clear color */
+                cr.lpCustColors = gcolorsav; /* set global color save */
                 /* set display all colors, start with initalized color */
-                cr.flags = cc_anycolor || cc_rgbinit || cc_enablehook;
-                cr.lcustdata = 0; /* no data */
-                cr.lpfnhook = wndprocadr(wndprocfix); /* hook to force front */
-                cr.lptemplatename = NULL; /* set no template name */
+                cr.Flags = cc_anycolor || cc_rgbinit || cc_enablehook;
+                cr.lCustData = 0; /* no data */
+                cr.lpfnHook = wndprocadr(wndprocfix); /* hook to force front */
+                cr.lpTemplateName = NULL; /* set no template name */
                 b = choosecolor(cr); /* perform choose color */
                 /* set resulting color */
                 win2rgb(cr.rgbresult, ip->clrred, ip->clrgreen, ip->clrblue);
@@ -15189,9 +15181,8 @@ static void pa_init_network()
     initializecriticalsection(mainlock); /* initialize the sequencer lock */
     /* mainlock = createmutex(FALSE); */ /* create mutex with no owner */
     /* if mainlock == 0  winerr(); */ /* process windows error */
-    new(gcolorsav); /* get the color pick array */
     fndrepmsg = 0; /* set no find/replace message active */
-    for (i = 0; i < 16; i++) gcolorsav->[i] = 0xffffff; /* set all to white */
+    for (i = 0; i < 16; i++) gcolorsav[i] = 0xffffff; /* set all to white */
     /* clear open files table */
     for (fi = 0; i < MAXFIL; i++) {
 
@@ -15274,7 +15265,7 @@ static void pa_deinit_terminal(void)
             /* Same with system bar */
             if (!wp->sysbar) isysbar(wp, TRUE);
             /* change window label to alert user */
-            unlockmain(); /* } exclusive access */
+            unlockmain(); /* end exclusive access */
             b = setwindowtext(wp->winhan, trmnam);
             lockmain(); /* start exclusive access */
             /* wait for a formal end */

@@ -14,6 +14,10 @@
 #ifndef __GRAPH_H__
 #define __GRAPH_H__
 
+#include <stdio.h>
+
+#define PA_MAXTIM 10 /**< maximum number of timers available */
+
 #define PA_FONT_TERM    1 /* terminal font */
 #define PA_FONT_BOOK    2 /* book font */
 #define PA_FONT_SIGN    3 /* sign font */
@@ -316,17 +320,17 @@ int pa_cury(FILE* f);
 int pa_curbnd(FILE* f);
 void pa_select(FILE* f, int u, int d);
 void pa_event(FILE* f, pa_evtrec* er);
-void pa_timer(FILE* f, timhan i, int t, int r);
-void pa_killtimer(FILE* f, timhan i);
-mounum pa_mouse(FILE* f);
-moubut pa_mousebutton(FILE* f, mouhan m);
-joynum pa_joystick(FILE* f);
-joybtn pa_joybutton(FILE* f, joyhan j);
-joyaxn pa_joyaxis(FILE* f, joyhan j);
+void pa_timer(FILE* f, int i, int t, int r);
+void pa_killtimer(FILE* f, int i);
+int pa_mouse(FILE* f);
+int pa_mousebutton(FILE* f, int m);
+int pa_joystick(FILE* f);
+int pa_joybutton(FILE* f, int j);
+int pa_joyaxis(FILE* f, int j);
 void pa_settab(FILE* f, int t);
 void pa_restab(FILE* f, int t);
 void pa_clrtab(FILE* f);
-funky pa_funkey(FILE* f);
+int pa_funkey(FILE* f);
 void pa_frametimer(FILE* f, int e);
 void pa_autohold(int e);
 void pa_wrtstr(FILE* f, char* s);
