@@ -13,7 +13,7 @@
 *                                                                              *
 * Move(f, d, dx, dy, s, sx1, sy1, sx2, sy2)                                    *
 *                                                                              *
-* Moves a block of pixels from one buffer to another, || to a different place  *
+* Moves a block of pixels from one buffer to another, or to a different place  *
 * in the same buffer. Used to implement various features like intrabuffer      *
 * moves, off screen image chaching, special clipping, etc.                     *
 *                                                                              *
@@ -32,14 +32,14 @@
 * graph uses three different tasks. The main task is passed on to the          *
 * program, and two subthreads are created. The first one is to run the         *
 * display, and the second runs widgets. The Display task both isolates the     *
-* user interface from any hangs || slowdowns in the main thread, and also      *
+* user interface from any hangs or slowdowns in the main thread, and also      *
 * allows the display task to be a completely regular windows message loop      *
 * with class handler, that just happens to communicate all of its results      *
 * back to the main thread. This solves several small problems with adapting    *
 * the X Windows/Mac OS style we use to Windows style. The main and the         *
 * display thread are "joined" such that they can both access the same          *
 * windows. The widget task is required because of this joining, and serves to  *
-* isolate the running of widgets from the main || display threads.             *
+* isolate the running of widgets from the main or display threads.             *
 *                                                                              *
 *                            BSD LICENSE INFORMATION                           *
 *                                                                              *
@@ -78,9 +78,11 @@
 #define _WIN32_WINNT 0xA00
 
 #include <limits.h>
+#include <ctype.h>
 #include <string.h>
 #include <math.h>
 #include <windows.h>
+#include <commctrl.h>
 #include <graph.h>
 
 #define BIT(b) (1<<b) /* set bit from bit number */
@@ -156,7 +158,7 @@ typedef enum { mdnorm, mdinvis, mdxor } mode; /* color mix modes */
 typedef struct metrec {
 
     struct metrec* next;   /* next entry */
-    int            han;    /* handle of menu entry is attached to */
+    HMENU          han;    /* handle of menu entry is attached to */
     int            inx;    /* index position, 0-n, of item */
     int            onoff;  /* the item is on-off highlighted */
     int            select; /* the current on/off state of the highlight */
@@ -177,8 +179,8 @@ typedef enum  {
 typedef struct wigrec {
 
     struct wigrec* next; /* next entry in list */
-    int            han;  /* handle to widget window */
-    int            han2; /* handle to "buddy" window */
+    HWND           han;  /* handle to widget window */
+    HWND           han2; /* handle to "buddy" window */
     int            id;   /* logical id of widget */
     wigtyp         typ;  /* type of widget */
     int            siz;  /* size of slider in scroll widget, in windows terms */
@@ -249,7 +251,7 @@ typedef struct pict { /* picture tracking record */
 typedef struct winrec {
 
     int      parlfn;          /* logical parent */
-    int      parhan;          /* handle to window parent */
+    HWND     parhan;          /* handle to window parent */
     HWND     winhan;          /* handle to window */
     HDC      devcon;          /* device context */
     scnptr   screens[MAXCON]; /* screen contexts array */
@@ -379,6 +381,7 @@ typedef enum {
 typedef struct imrec { /* intermessage record */
 
     struct imrec* next; /* next message in list */
+    imcode im; /* message type */
     union { /* intermessage type */
 
         struct {
@@ -386,31 +389,31 @@ typedef struct imrec { /* intermessage record */
             char* alttit; /* title string pointer */
             char* altmsg; /* message string pointer */
 
-        } imalert;
+        };
         struct {
 
             int clrred;   /* colors */
             int clrgreen;
             int clrblue;
 
-        } imqcolor;
+        };
         struct {
 
             char* opnfil; /* filename to open */
 
-        } imqopen;
+        };
         struct {
 
             char* savfil; /* filename to save */
 
-        } imqsave;
+        };
         struct {
 
             char* fndstr; /* string to find */
             int   fndopt; /* find options */
             int   fndhan; /* dialog window handle */
 
-        } imqfind;
+        };
         struct {
 
             char* fnrsch; /* string to search for */
@@ -418,7 +421,7 @@ typedef struct imrec { /* intermessage record */
             int   fnropt; /* options */
             int   fnrhan; /* dialog window handle */
 
-        } imqfindrep;
+        };
         struct {
 
             char* fntstr; /* font char* */
@@ -431,7 +434,7 @@ typedef struct imrec { /* intermessage record */
             int fntbb;    /* bakcground blue */
             int fntsi;    /* size */
 
-        } imqfont;
+        };
         struct {
 
             int udflg;    /* flags */
@@ -448,7 +451,7 @@ typedef struct imrec { /* intermessage record */
             int udpos;    /* control position */
             int udhan;    /* returns handle to control */
 
-        } imupdown;
+        };
         struct {
 
             char* wigcls; /* class char* */
@@ -463,9 +466,9 @@ typedef struct imrec { /* intermessage record */
             int wigmod;   /* module */
             int wigwin;   /* handle to widget */
 
-        } imwidget;
+        };
 
-    } im;
+    };
 
 } imrec, *imptr;
 
@@ -575,8 +578,8 @@ HANDLE    imsgrdy;      /* message ready event */
 COLORREF  gcolorsav[16];
 int       i;            /* index for that */
 int       fndrepmsg;    /* message assignment for find/replace */
-int       dispwin;      /* handle to display thread window */
-int       dialogwin;    /* handle to dialog thread window */
+HWND      dispwin;      /* handle to display thread window */
+HWND      dialogwin;    /* handle to dialog thread window */
 int       threadstart;  /* thread start event handle */
 int       threadid;     /* dummy thread id (unused) */
 int       mainwin;      /* handle to main thread dummy window */
@@ -587,8 +590,8 @@ int       stdwinx;      /* x position */
 int       stdwiny;      /* y position */
 int       stdwinw;      /* width */
 int       stdwinh;      /* height */
-int       stdwinpar;    /* parent */
-int       stdwinwin;    /* window window handle */
+HWND      stdwinpar;    /* parent */
+HWND       stdwinwin;    /* window window handle */
 int       stdwinj1c;    /* joystick 1 capture */
 int       stdwinj2c;    /* joystick 1 capture */
 /* mainlock:    int; */ /* lock for all global structures */
@@ -602,7 +605,8 @@ int       msgcnt;       /* counter for number of message output (diagnostic) */
 int       dblflt;       /* double fault flag */
 
 void clswin(int fn);
-int wndproc(int hwnd, int imsg, int wparam, int lparam);
+LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam);
+void alert(char* title, char* message);
 
 /******************************************************************************
 
@@ -618,7 +622,7 @@ void diastr(char* s)
 
     int r;
 
-    r = Messagebox(0, s, "Debug message", MB_OK);
+    r = MessageBox(0, s, "Debug message", MB_OK);
 
 }
 
@@ -710,8 +714,8 @@ void prtnum(int w,  /* value to print */
       for (j = 1; j <= fd - i; j++) v = v/r; /* extract digit */
       v = v%r; /* mask */
       /* convert ascii */
-      if (v >= 10)  v = v + (ord("A") - 10); else v = v + ord("0");
-      prtchr(chr(v)); /* output */
+      if (v >= 10)  v = v+('A'-10); else v = v+'0';
+      prtchr(v); /* output */
 
    }
 
@@ -815,9 +819,9 @@ void prtwig(wigptr wp)
 {
 
     prtstr("Window handle: ");
-    prtnum(wp->han, 1, 16);
+    prtnum((int)wp->han, 1, 16);
     prtstr(" \"buddy\" Window handle: ");
-    prtnum(wp->han2, 1, 16);
+    prtnum((int)wp->han2, 1, 16);
     prtstr(" Logical id: "); prtnum(wp->id, 1, 10);
     prtstr(" Type: ");
     switch (wp->typ) { /* widget */
@@ -957,7 +961,7 @@ void unlockmain(void)
     /* int b; */
 
 /*;prtstr("unlockmain\r\n");*/
-   leavecriticalsection(mainlock); /* end exclusive access */
+   LeaveCriticalSection(mainlock); /* end exclusive access */
    /* b = releasemutex(mainlock); */ /* end exclusive access */
 /*;if (!b)  prtstr("Unlockmain: lock operation fails\cr\lf");*/
 
@@ -969,7 +973,7 @@ Write error string
 
 This is the hook replacement for the standard syslib routine. The syslib
 serial method of outputing errors won"t work in the windowed environment,
-because the standard output is ! connected.
+because the standard output is not connected.
 
 The error message is output in a dialog.
 
@@ -1253,7 +1257,7 @@ void enter(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     msgque[msginp].wParam = wparam; /* place parameters */
     msgque[msginp].lParam = lparam;
     msginp = next(msginp); /* advance input pointer */
-    b = setevent(msgrdy); /* flag message ready */
+    b = SetEvent(msgrdy); /* flag message ready */
     if (!b) winerr(); /* fails */
 
 }
@@ -1443,7 +1447,7 @@ void getitm(imptr* p)
 
     } else {
 
-        *p = malloc(sizeof(imrec));imnew(p); /* else get a new one */
+        *p = malloc(sizeof(struct imrec)); /* else get a new one */
         if (!p) error(enomem); /* no memory */
 
     }
@@ -1831,7 +1835,7 @@ Finds the given widget by window handle.
 
 *******************************************************************************/
 
-wigptr fndwighan(winptr win, int han)
+wigptr fndwighan(winptr win, HWND han)
 
 {
 
@@ -2015,7 +2019,7 @@ void clrbuf(winptr win, scnptr sc)
     hb = CreateSolidBrush(sc->bcrgb); /* get a brush for background */
     if (!hb) winerr(); /* process error */
     /* clear buffer surface */
-    b = fillrect(sc->bdc, r, hb);
+    b = FillRect(sc->bdc, &r, hb);
     if (!b) winerr(); /* process error */
     b = DeleteObject(hb); /* free the brush */
     if (!b) winerr(); /* process error */
@@ -2200,7 +2204,7 @@ void setcur(winptr win)
     if (icurbnd(win->screens[win->curupd]) && win->focus) {
 
         /* set to bottom of character bounding box */
-        b = setcaretpos(win->screens[win->curdsp]->curxg-1,
+        b = SetCaretPos(win->screens[win->curdsp]->curxg-1,
                         win->screens[win->curdsp]->curyg-1+win->linespace-3);
         /* setcaret position is always returning an error, even when correct */
         /* if (!b) winerr(); */ /* process error */
@@ -2230,7 +2234,7 @@ void chgcur(winptr win)
 
         b = DestroyCaret(); /* remove text cursor */
         if (!b) winerr(); /* process error */
-        b = createcaret(win->winhan, 0, win->curspace, 3); /* activate caret */
+        b = CreateCaret(win->winhan, 0, win->curspace, 3); /* activate caret */
         if (!b) winerr(); /* process error */
         win->fcurdwn = FALSE; /* set cursor ! down */
         setcur(win); /* replace it */
@@ -4248,7 +4252,7 @@ void plcchr(winptr win, char c)
     else if (c == '\b') ileft(win); /* back space, move left */
     else if (c == '\f') iclear(win); /* clear screen */
     else if (c == '\t') itab(win); /* process tab */
-    else if (c >= ' ' && c != chr(0x7f)) { /* character is visible */
+    else if (c >= ' ' && c != 0x7f) { /* character is visible */
 
         off = 0; /* set no subscript offset */
         if (BIT(sasubs) & sc->attr) off = trunc(win->linespace*0.35);
@@ -4437,7 +4441,7 @@ void iline(winptr win, int x1, int y1, int x2, int y2)
     if (win->bufmod) { /* buffer is active */
 
        /* set current position of origin */
-       b = MoveToEx_n(sc->bdc, x1-1, y1-1);
+       b = MoveToEx(sc->bdc, x1-1, y1-1, NULL);
        if (!b) winerr(); /* process windows error */
        b = LineTo(sc->bdc, x2-1+dx, y2-1+dy);
        if (!b) winerr(); /* process windows error */
@@ -4720,7 +4724,7 @@ void iellipse(winptr win, int x1, int y1, int x2, int y2)
     if (win->bufmod) { /* buffer is active */
 
        /* draw to buffer */
-       b = ellipse(win->screens[win->curupd]->bdc, x1-1, y1-1, x2, y2);
+       b = Ellipse(win->screens[win->curupd]->bdc, x1-1, y1-1, x2, y2);
        if (!b) winerr(); /* process windows error */
 
     }
@@ -4729,7 +4733,7 @@ void iellipse(winptr win, int x1, int y1, int x2, int y2)
 
        if (!win->visible) winvis(win); /* make sure we are displayed */
        curoff(win);
-       b = ellipse(win->devcon, x1-1, y1-1, x2, y2);
+       b = Ellipse(win->devcon, x1-1, y1-1, x2, y2);
        if (!b) winerr(); /* process windows error */
        curon(win);
 
@@ -4776,7 +4780,7 @@ void ifellipse(winptr win, int x1, int y1, int x2, int y2)
         r = SelectObject(sc->bdc, sc->fbrush);
         if (r == HGDI_ERROR) error(enosel);
         /* draw to buffer */
-        b = ellipse(sc->bdc, x1-1, y1-1, x2, y2);
+        b = Ellipse(sc->bdc, x1-1, y1-1, x2, y2);
         if (!b) winerr(); /* process windows error */
         /* restore */
         r = SelectObject(sc->bdc, sc->fpen);
@@ -4794,7 +4798,7 @@ void ifellipse(winptr win, int x1, int y1, int x2, int y2)
         r = SelectObject(win->devcon, sc->fbrush);
         if (r == HGDI_ERROR) error(enosel);
         curoff(win);
-        b = ellipse(win->devcon, x1-1, y1-1, x2, y2);
+        b = Ellipse(win->devcon, x1-1, y1-1, x2, y2);
         if (!b) winerr(); /* process windows error */
         curon(win);
         r = SelectObject(win->devcon, sc->fpen);
@@ -5045,7 +5049,7 @@ void ifchord(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
         r = SelectObject(sc->bdc, sc->fbrush);
         if (r == HGDI_ERROR) error(enosel);
         /* draw shape */
-        b = chord(sc->bdc, x1-1, y1-1, x2, y2, xe, ye, xs, ys);
+        b = Chord(sc->bdc, x1-1, y1-1, x2, y2, xe, ye, xs, ys);
         if (!b) winerr(); /* process windows error */
         /* restore */
         r = SelectObject(sc->bdc, sc->fpen);
@@ -5063,7 +5067,7 @@ void ifchord(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
         if (r == HGDI_ERROR) error(enosel);
         curoff(win);
         /* draw shape */
-        b = chord(win->devcon, x1-1, y1-1, x2, y2, xe, ye, xs, ys);
+        b = Chord(win->devcon, x1-1, y1-1, x2, y2, xe, ye, xs, ys);
         if (!b) winerr(); /* process windows error */
         curon(win);
         r = SelectObject(win->devcon, sc->fpen);
@@ -5122,7 +5126,7 @@ void iftriangle(winptr win, int x1, int y1, int x2, int y2, int x3, int y3)
        r = SelectObject(sc->bdc, sc->fbrush);
        if (r == HGDI_ERROR) error(enosel);
        /* draw to buffer */
-       b = polygon(sc->bdc, pa);
+       b = Polygon(sc->bdc, pa, 3);
        if (!b) winerr(); /* process windows error */
        /* restore */
        r = SelectObject(sc->bdc, sc->fpen);
@@ -5140,7 +5144,7 @@ void iftriangle(winptr win, int x1, int y1, int x2, int y2, int x3, int y3)
        r = SelectObject(win->devcon, sc->fbrush);
        if (r == HGDI_ERROR) error(enosel);
        curoff(win);
-       b = polygon(win->devcon, pa);
+       b = Polygon(win->devcon, pa, 3);
        if (!b) winerr(); /* process windows error */
        curon(win);
        r = SelectObject(win->devcon, sc->fpen);
@@ -5282,9 +5286,9 @@ void ibover(winptr win)
 
     win->gbmod = mdnorm; /* set background mode normal */
     win->screens[win->curupd]->bmod = mdnorm;
-    r = SetBkmode(win->screens[win->curupd]->bdc, OPAQUE);
+    r = SetBkMode(win->screens[win->curupd]->bdc, OPAQUE);
     if (r == 0) winerr(); /* process windows error */
-    if (indisp(win)) r = Setbkmode(win->devcon, OPAQUE);
+    if (indisp(win)) r = SetBkMode(win->devcon, OPAQUE);
 
 }
 
@@ -5319,7 +5323,7 @@ void ifinvis(winptr win)
     win->screens[win->curupd]->fmod = mdinvis;
     r = SetROP2(win->screens[win->curupd]->bdc, R2_NOP);
     if (r == 0) winerr(); /* process windows error */
-    if (indisp(win)) r = setrop2(win->devcon, R2_NOP);
+    if (indisp(win)) r = SetROP2(win->devcon, R2_NOP);
 
 }
 
@@ -5387,9 +5391,9 @@ void ifxor(winptr win)
 
     win->gfmod = mdxor; /* set foreground mode xor */
     win->screens[win->curupd]->fmod = mdxor;
-    r = setrop2(win->screens[win->curupd]->bdc, R2_XORPEN);
+    r = SetROP2(win->screens[win->curupd]->bdc, R2_XORPEN);
     if (!r) winerr(); /* process windows error */
-    if (indisp(win)) r = setrop2(win->devcon, R2_XORPEN);
+    if (indisp(win)) r = SetROP2(win->devcon, R2_XORPEN);
 
 }
 
@@ -5881,6 +5885,7 @@ void iwritejust(winptr win, char* s, int n)
     GCP_RESULTS ra;  /* placement info record */
     scnptr      sc;
     DWORD       r;
+    int         sa;
 
     sc = win->screens[win->curupd];
     if (sc->cfont->sys) error(ejstsys); /* cannot perform on system font */
@@ -5897,10 +5902,10 @@ void iwritejust(winptr win, char* s, int n)
     /* new(ra.lpoutstring); */
     ra.lpOutString = NULL;
     ra.lpOrder = NULL;
-    new(ra.lpDx); /* set spacing array */
+    ra.lpDx = &sa;
     ra.lpCaretPos = NULL;
     ra.lpClass = NULL;
-    new(ra.lpGlyphs);
+    ra.lpGlyphs = NULL;
     ra.nGlyphs = strlen(s);
     ra.nMaxFit = 0;
     r = GetCharacterPlacement(win->screens[win->curupd]->bdc, s, strlen(s),
@@ -5920,7 +5925,7 @@ void iwritejust(winptr win, char* s, int n)
        /* draw character on screen */
        curoff(win); /* hide the cursor */
        /* draw the string to current position */
-       b = extTextOut(win->devcon, sc->curxg-1, sc->curyg-1+off, 0, NULL,
+       b = ExtTextOut(win->devcon, sc->curxg-1, sc->curyg-1+off, 0, NULL,
                       s, strlen(s), ra.lpDx);
        if (!b) winerr(); /* process windows error */
        curon(win); /* show the cursor */
@@ -6185,7 +6190,7 @@ void idelpict(winptr win, int p)
     /* reselect old object */
     r = SelectObject(win->pictbl[p].hdc, win->pictbl[p].ohn);
     if (r == HGDI_ERROR) error(enosel);
-    b = deletedc(win->pictbl[p].hdc); /* delete device context */
+    b = DeleteDC(win->pictbl[p].hdc); /* delete device context */
     if (!b) winerr(); /* process windows error */
     b = DeleteObject(win->pictbl[p].han); /* delete bitmap */
     if (!b) winerr(); /* process windows error */
@@ -6282,7 +6287,7 @@ void iloadpict(winptr win, int p, char* fn)
     win->pictbl[p].ohn = SelectObject(win->pictbl[p].hdc, win->pictbl[p].han);
     if (win->pictbl[p].ohn == HGDI_ERROR) error(enosel);
     /* get sizes */
-    r = getobject_bitmap(win->pictbl[p].han, sizeof(BITMAP), bmi);
+    r = GetObject(win->pictbl[p].han, sizeof(BITMAP), &bmi);
     if (!r) winerr(); /* process windows error */
     win->pictbl[p].sx = bmi.bmWidth; /* set size x */
     win->pictbl[p].sy = bmi.bmHeight; /* set size x */
@@ -7315,12 +7320,15 @@ void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
             z = win->joy2zs;
 
         }
-        /* If it"s an x/y move, split the x and y axies parts of the message
+        /* If it's an x/y move, split the x and y axies parts of the message
            up. */
-        if (msg->message == MM_JOY1MOVE || msg->message == MM_JOY2MOVE)
-            crkmsg(msg->lParam, y, x);
+        if (msg->message == MM_JOY1MOVE || msg->message == MM_JOY2MOVE) {
+
+            x = LOWORD(msg->lParam); /* get x and y for joystick */
+            y = HIWORD(msg->lParam);
+
         /* For z axis, get a single variable. */
-        else z = msg->lParam & 0xffff;
+        } else z = msg->lParam & 0xffff;
         /* We perform thresholding on the joystick right here, which is
            limited to 255 steps (same as joystick hardware. find joystick
          diffs && update */
@@ -7400,7 +7408,7 @@ void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
                         unlockmain(); /* end exclusive access */
                         r = SendMessage(wp->han, LB_GETCURSEL, 0, 0);
                         lockmain(); /* start exclusive access */
-                        if r == -1  error(esystem); /* should be a select */
+                        if (r == -1) error(esystem); /* should be a select */
                         er->etype = pa_etlstbox; /* set list box select event */
                         er->lstbid = wp->id; /* get widget id */
                         er->lstbsl = r+1; /* set selection */
@@ -7415,7 +7423,7 @@ void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
                         unlockmain(); /* end exclusive access */
                         r = SendMessage(wp->han, CB_GETCURSEL, 0, 0);
                         lockmain(); /* start exclusive access */
-                        if r == -1  error(esystem); /* should be a select */
+                        if (r == -1) error(esystem); /* should be a select */
                         er->etype = pa_etdrpbox; /* set list box select event */
                         er->drpbid = wp->id; /* get widget id */
                         er->drpbsl = r+1; /* set selection */
@@ -7425,7 +7433,7 @@ void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
                     break;
 
                 case wtdropeditbox: /* drop edit box */
-                    if nm == CBN_SELENDOK  {
+                    if (nm == CBN_SELENDOK)  {
 
                         er->etype = pa_etdrebox; /* set list box select event */
                         er->drebid = wp->id; /* get widget id */
@@ -7456,7 +7464,7 @@ void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
             v == SB_PAGEUP || v == SB_PAGEDOWN) {
 
             /* position request */
-            wp = fndwighan(win, msg->lParam); /* find widget tracking entry */
+            wp = fndwighan(win, (HWND)msg->lParam); /* find widget tracking entry */
             if (wp == NULL) error(esystem); /* should have been found */
             if (wp->typ == wtscrollvert) { /* scroll bar */
 
@@ -7499,7 +7507,7 @@ void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
                 er->sldpid = wp->id; /* set widget id */
                 /* get position */
                 if (v == SB_THUMBTRACK) /* message includes position */
-                    er->sldpos = msg->wParam / 65536*(INT_MAX / 100)
+                    er->sldpos = msg->wParam/65536*(INT_MAX/100);
                 else { /* must retrive the position by message */
 
                     unlockmain(); /* end exclusive access */
@@ -7521,8 +7529,8 @@ void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
             v == SB_PAGELEFT || v == SB_PAGERIGHT) {
 
             /* position request */
-            wp = fndwighan(win, msg->lParam); /* find widget tracking entry */
-            if wp == NULL  error(esystem); /* should have been found */
+            wp = fndwighan(win, (HWND)msg->lParam); /* find widget tracking entry */
+            if (!wp) error(esystem); /* should have been found */
             if (wp->typ == wtscrollhoriz)  { /* scroll bar */
 
                 if (v == SB_LINELEFT) {
@@ -7559,8 +7567,8 @@ void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
                 er->etype = pa_etsldpos; /* set scroll position event */
                 er->sldpid = wp->id; /* set widget id */
                 /* get position */
-                if (v == sb_thumbtrack)  /* message includes position */
-                    er->sldpos = msg->wParam / 65536*(INT_MAX / 100)
+                if (v == SB_THUMBTRACK) /* message includes position */
+                    er->sldpos = msg->wParam/65536*(INT_MAX/100);
                 else { /* must retrive the position by message */
 
                     unlockmain(); /* end exclusive access */
@@ -7571,14 +7579,14 @@ void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
                 }
                 *keep = TRUE; /* set keep event */
 
-            } else error(esystem) /* should be one of those */
+            } else error(esystem); /* should be one of those */
 
         }
 
     } else if (msg->message == WM_NOTIFY) {
 
         wp = fndwig(win, msg->wParam); /* find widget tracking entry */
-        if wp == NULL  error(esystem); /* should have been found */
+        if (!wp) error(esystem); /* should have been found */
         nhp = (NMHDR*)msg->lParam; /* convert lparam to record pointer */
         v = nhp->code; /* get code */
         /* no, I don"t know why this works, or what the TCN_SELCHANGE code is.
@@ -7587,7 +7595,7 @@ void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
         if (v == TCN_SELCHANGE) {
 
             unlockmain(); /* end exclusive access */
-            r = SendMessage(wp->han, tcm_getcursel, 0, 0);
+            r = SendMessage(wp->han, TCM_GETCURSEL, 0, 0);
             lockmain(); /* start exclusive access */
             er->etype = pa_ettabbar; /* set tab bar type */
             er->tabid = wp->id; /* set id */
@@ -7599,7 +7607,7 @@ void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
     } else if (msg->message == UMEDITCR) {
 
         wp = fndwig(win, msg->wParam); /* find widget tracking entry */
-        if wp == NULL  error(esystem); /* should have been found */
+        if (!wp) error(esystem); /* should have been found */
         er->etype = pa_etedtbox; /* set edit box complete event */
         er->edtbid = wp->id; /* get widget id */
         *keep = TRUE; /* set keep event */
@@ -7607,7 +7615,7 @@ void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
     } else if (msg->message == UMNUMCR) {
 
         wp = fndwig(win, msg->wParam); /* find widget tracking entry */
-        if wp == NULL  error(esystem); /* should have been found */
+        if (!wp) error(esystem); /* should have been found */
         er->etype = pa_etnumbox; /* set number select box complete event */
         er->numbid = wp->id; /* get widget id */
         er->numbsl = msg->lParam; /* set number selected */
@@ -7617,11 +7625,11 @@ void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
 
 }
 
-void sigevt(evtrec* er, MSG* msg, int* keep)
+void sigevt(pa_evtrec* er, MSG* msg, int* keep)
 
 {
 
-    if (msg->message == WM_QUIT) || (msg->message == wm_close)  {
+    if (msg->message == WM_QUIT || msg->message == WM_CLOSE)  {
 
         er->etype = pa_etterm; /* set terminate */
         fend = TRUE; /* set end of program ordered */
@@ -7635,12 +7643,12 @@ void ievent(int ifn, pa_evtrec* er)
 
 {
 
-    MSG     msg;  /* windows message */
-    int     keep; /* keep event flag */
-    winptr  win;  /* pointer to windows structure */
-    int     ofn;  /* file handle from incoming message */
-    equeptr ep;   /* event queuing pointer */
-    int     b;    /* return value */
+    MSG    msg;  /* windows message */
+    int    keep; /* keep event flag */
+    winptr win;  /* pointer to windows structure */
+    int    ofn;  /* file handle from incoming message */
+    eqeptr ep;   /* event queuing pointer */
+    int    b;    /* return value */
 
     /* Windows gdi caches, which can cause written graphics to pause uncompleted
        while we await user input. This next causes a sync-up. */
@@ -7650,10 +7658,10 @@ void ievent(int ifn, pa_evtrec* er)
 
         /* We pick one, && only one, event off the input queue. The messages are
            removed in fifo order. */
-        ep = evt->next; /* index the entry to dequeue */
-        er = ep->evt; /* get the queued event */
+        ep = opnfil[ifn]->evt->next; /* index the entry to dequeue */
+        *er = ep->evt; /* get the queued event */
         /* if this is the last entry in the queue, just empty the list */
-        if (ep->next == ep) evt = NULL;
+        if (ep->next == ep) opnfil[ifn]->evt = NULL;
         else { /* ! last entry */
 
             ep->next->last = ep->last; /* link next to last */
@@ -7666,13 +7674,13 @@ void ievent(int ifn, pa_evtrec* er)
 
         keep = FALSE; /* set don"t keep by default */
         /* get next message */
-        getmsg(msg);
+        getmsg(&msg);
         /* get the logical output file from Windows handle */
         ofn = hwn2lfn(msg.hwnd);
 /*;prtstr("ofn: "); prtnum(ofn, 8, 16); prtstr(" "); prtmsg(msg);*/
         /* A message can have a window associated with it, or be sent anonymously.
            Anonymous messages are typically intertask housekeeping signals. */
-        if ofn > 0  {
+        if (ofn > 0)  {
 
             win = lfn2win(ofn); /* index window from output file */
             er->winid = filwin[ofn]; /* set window id */
@@ -7691,7 +7699,7 @@ void ievent(int ifn, pa_evtrec* er)
                    queue the message up on the input file it is int}ed for. Why
                    would this happen ? Only if the program is switching between
                    input channels, since each input is locked to a task. */
-                enqueue(opnfil[opnfil[ofn]->inl]->evt, er);
+                enqueue(&opnfil[opnfil[ofn]->inl]->evt, er);
                 /* Now, keep receiving events until one matches the input file we
                    were looking for. */
                 keep = FALSE;
@@ -7737,12 +7745,12 @@ void waitim(imcode m, imptr* ip)
     done = FALSE; /* set ! done */
     do {
 
-        igetmsg(msg); /* get next message */
+        igetmsg(&msg); /* get next message */
         if (msg.message == UMIM) { /* receive im */
 
-            ip = (imptr)msg.wparam; /* get im pointer */
-            if ip->im == m  done = TRUE; /* found it */
-            putitm(ip); /* release im entry */
+            *ip = (imptr)msg.wParam; /* get im pointer */
+            if ((*ip)->im == m) done = TRUE; /* found it */
+            putitm(*ip); /* release im entry */
 
         }
 
@@ -7771,15 +7779,16 @@ documented.
 
 *******************************************************************************/
 
-void timeout(int id, int msg, int usr, int dw1, int dw2)
+void CALLBACK timeout(UINT id, UINT msg, DWORD_PTR usr, DWORD_PTR dw1,
+                      DWORD_PTR dw2)
 
 {
 
     int fn; /* logical file number */
-    int wh; /* window handle */
+    HWND wh; /* window handle */
 
     lockmain(); /* start exclusive access */
-    fn = usr/MAXTIM; /* get lfn multiplexed in user data */
+    fn = usr/PA_MAXTIM; /* get lfn multiplexed in user data */
     /* Validate it, but do nothing if wrong. We just don"t want to crash on
        errors here. */
     if (fn >= 1 && fn <= MAXFIL)  /* valid lfn */
@@ -7788,7 +7797,7 @@ void timeout(int id, int msg, int usr, int dw1, int dw2)
 
         wh = opnfil[fn]->win->winhan; /* get window handle */
         unlockmain(); /* end exclusive access */
-        putmsg(wh, WM_TIMER, usr%MAXTIM /* multiplexed timer number*/, 0);
+        putmsg(wh, WM_TIMER, usr%PA_MAXTIM /* multiplexed timer number*/, 0);
 
     } else unlockmain(); /* end exclusive access */
 
@@ -7820,18 +7829,18 @@ void itimer(winptr win, /* file to send event to */
     int tf; /* timer flags */
     int mt; /* millisecond time */
 
-    if (i < 1 || i > MAXTIM)  error(etimnum); /* bad timer number */
+    if (i < 1 || i > PA_MAXTIM)  error(etimnum); /* bad timer number */
     mt = t / 10; /* find millisecond time */
     if (!mt) mt = 1; /* fell below minimum, must be >= 1 */
     /* set flags for timer */
     tf = TIME_CALLBACK_FUNCTION | TIME_KILL_SYNCHRONOUS;
     /* set repeat/one shot status */
-    if (r) tf = tf | TIME_PERIODIC
-    else tf = tf | TIME_ONESHOT;
+    if (r) tf |= TIME_PERIODIC;
+    else tf |= TIME_ONESHOT;
     /* We need both the timer number, && the window number in the handler,
       but we only have a single callback parameter available. So we mux
       them together in a word. */
-    win->timers[i].han = TimeSetEvent(mt, 0, timeout, lf*MAXTIM+i, tf);
+    win->timers[i].han = timeSetEvent(mt, 0, timeout, lf*PA_MAXTIM+i, tf);
     if (!win->timers[i].han) error(etimacc); /* no timer available */
     win->timers[i].rep = r; /* set timer repeat flag */
     /* should check and return an error */
@@ -7869,8 +7878,8 @@ void ikilltimer(winptr win, /* file to kill timer on */
 
     MMRESULT r; /* return value */
 
-    if (i < 1 || i > MAXTIM) error(etimnum); /* bad timer number */
-    r = TimeKillEvent(WIN->timers[i].han); /* kill timer */
+    if (i < 1 || i > PA_MAXTIM) error(etimnum); /* bad timer number */
+    r = timeKillEvent(win->timers[i].han); /* kill timer */
     if (r) error(etimacc); /* error */
 
 }
@@ -7909,7 +7918,7 @@ void iframetimer(winptr win, int lf, int e)
         if (!win->frmrun) { /* it is ! running */
 
             /* set timer to run, 17ms */
-            win->frmhan = TimeSetEvent(17, 0, timeout, lf*MAXTIM+FRMTIM,
+            win->frmhan = timeSetEvent(17, 0, timeout, lf*PA_MAXTIM+FRMTIM,
                                        TIME_CALLBACK_FUNCTION ||
                                        TIME_KILL_SYNCHRONOUS ||
                                        TIME_PERIODIC);
@@ -7922,7 +7931,7 @@ void iframetimer(winptr win, int lf, int e)
 
         if (win->frmrun)  { /* it is currently running */
 
-            r = TimeKillEvent(frmhan); /* kill timer */
+            r = timeKillEvent(win->frmhan); /* kill timer */
             if (r) error(etimacc); /* error */
             win->frmrun = FALSE; /* set timer ! running */
 
@@ -8004,7 +8013,7 @@ int mousebutton(FILE* f, int m)
     int bn; /* number of mouse buttons */
 
     if (m != 1) error(einvhan); /* bad mouse number */
-    bn = GetSystemMetrics(sm_cmousebuttons); /* find mouse buttons */
+    bn = GetSystemMetrics(SM_CMOUSEBUTTONS); /* find mouse buttons */
 
     if (bn > 3) bn = 3; /* limit mouse buttons to 3*/
 
@@ -8056,10 +8065,10 @@ int joybutton(FILE* f, int j)
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window pointer from text file */
     if (j < 1 || j > win->numjoy) error(einvjoy); /* bad joystick id */
-    r = joyGetDevCaps(j-1, jc, sizeof(JOYCAPS));
-    if r != JOYERR_NOERROR) error(ejoyqry); /* could not access joystick */
+    r = joyGetDevCaps(j-1, &jc, sizeof(JOYCAPS));
+    if (r != JOYERR_NOERROR) error(ejoyqry); /* could not access joystick */
     nb = jc.wNumButtons; /* set number of buttons */
-    /* We don"t support more than 4 buttons. */
+    /* We don't support more than 4 buttons. */
     if (nb > 4) nb = 4;
     unlockmain(); /* end exclusive access */
 
@@ -8086,12 +8095,11 @@ int ijoyaxis(winptr win, int j)
     MMRESULT r;
 
     if (j < 1 || j > win->numjoy) error(einvjoy); /* bad joystick id */
-    r = joyGetDevCaps(j-1, jc, joycaps_len);
-    if r != JOYERR_NOERROR) error(ejoyqry); /* could not access joystick */
+    r = joyGetDevCaps(j-1, &jc, sizeof(JOYCAPS));
+    if (r != JOYERR_NOERROR) error(ejoyqry); /* could not access joystick */
     na = jc.wNumAxes; /* set number of axes */
     /* We don"t support more than 3 axes. */
     if (na > 3) na = 3;
-    ijoyaxis = na; /* set number of axes */
 
     return (na);
 
@@ -8129,7 +8137,7 @@ void isettabg(winptr win, int t)
     scncon* sc; /* screen context */
 
     sc = win->screens[win->curupd];
-    if (sc->auto && (t-1)%win->charspace)
+    if (sc->autof && (t-1)%win->charspace)
         error(eatotab); /* cannot perform with auto on */
     if (t < 1 || t > sc->maxxg) error(einvtab); /* bad tab position */
     /* find free location or tab beyond position */
@@ -8283,7 +8291,7 @@ int funkey(FILE* f)
 
 {
 
-    funkey = 12; /* number of function keys */
+    return (12); /* number of function keys */
 
 }
 
@@ -8312,7 +8320,7 @@ void readline(int fn)
     do { /* get line characters */
 
         /* get events until an "interesting" event occurs */
-        do { ievent(fn, er)
+        do { ievent(fn, &er);
         } while (er.etype != pa_etchar && er.etype != pa_etenter &&
                  er.etype != pa_etterm && er.etype != pa_etdelcb);
         win = lfn2win(xltwin[er.winid]); /* get the window from the id */
@@ -8321,13 +8329,13 @@ void readline(int fn)
            terminal && return cr only, which is handled as appropriate
            by a higher level. if the event is program terminate,  we
            execute an organized halt */
-        switch (er.etype) of /* event */
+        switch (er.etype) {/* event */
 
             case pa_etterm:  abort; /* halt program */
             case pa_etenter: /* line terminate */
-                win->inpbuf[win->inpptr] = "\cr"; /* return cr */
-                plcchr(win, "\cr"); /* output newline sequence */
-                plcchr(win, "\lf");
+                win->inpbuf[win->inpptr] = '\r'; /* return cr */
+                plcchr(win, '\r'); /* output newline sequence */
+                plcchr(win, '\n');
                 win->inpend = TRUE; /* set line was terminated */
                 break;
 
@@ -8347,9 +8355,9 @@ void readline(int fn)
                 if (win->inpptr > 1) { /* ! at extreme left */
 
                     /* backspace, spaceout  backspace again */
-                    plcchr(win, "\bs");
-                    plcchr(win, " ");
-                    plcchr(win, "\bs");
+                    plcchr(win, '\b');
+                    plcchr(win, ' ');
+                    plcchr(win, '\b');
                     win->inpptr = win->inpptr-1; /* back up pointer */
 
                 }
@@ -8357,7 +8365,7 @@ void readline(int fn)
 
         }
 
-    } while (until er.etype != pa_etenter); /* until line terminate */
+    } while (er.etype != pa_etenter); /* until line terminate */
     /* note we still are indexing the last window that gave us the enter */
     win->inpptr = 1; /* set 1st position on active line */
 
@@ -8413,7 +8421,8 @@ void getpgm(void)
 
     int   l;    /* length of program name string */
     char* cp;   /* holds command line pointer */
-    char* s, s2;
+    char* s;
+    char* s2;
     char  fini[] = "Finished - ";
 
     cp = GetCommandLine(); /* get command line */
@@ -8422,7 +8431,7 @@ void getpgm(void)
     /* find last "\" in quoted section */
     s = NULL; /* flag not found */
     while (*s && *s != '"' && *s != ' ')
-        { if (chknxt(i, cp) == '\\') s = cp+1; cp++; }
+        { if (*cp == '\\') s = cp+1; cp++; }
     if (!s) error(esystem);
     /* count program name length */
     l = 0; /* clear length */
@@ -8460,8 +8469,8 @@ void sortfont(fontptr* fp)
     nl = NULL; /* clear destination list */
     while (fp != NULL) { /* insertion sort */
 
-        p = fp; /* index top */
-        fp = fp->next; /* remove that */
+        p = *fp; /* index top */
+        *fp = (*fp)->next; /* remove that */
         p->next = NULL; /* clear next */
         c = nl; /* index new list */
         l = NULL; /* clear last */
@@ -8492,7 +8501,7 @@ void sortfont(fontptr* fp)
         }
 
     }
-    fp = nl; /* place result */
+    *fp = nl; /* place result */
 
 }
 
@@ -8555,7 +8564,7 @@ static void extwords(char *d, int dl, char *s, int st, int ed)
     wc = 0;
     ichar = 0;
     ispace = 0;
-    if (dl < 1) error("String too large for destination");
+    if (dl < 1) error(estrtl);
     dl--; /* create room for terminator */
     while (*s) {
 
@@ -8569,7 +8578,7 @@ static void extwords(char *d, int dl, char *s, int st, int ed)
             if (!ichar) { ichar = 1; ispace = 0; }
             if (wc >=st && wc <= ed) {
 
-                if (!dl) error("String too large for destination");
+                if (!dl) error(estrtl);
                 *d++ = *s;
                 dl--;
 
@@ -8591,6 +8600,7 @@ void repatt(char* s, int l)
 
     int wc;
     int f;
+    char ts[250];
 
     wc = words(s); /* find number of words in string */
 
@@ -8600,7 +8610,7 @@ void repatt(char* s, int l)
         if (!wc) error(esystem);
         extwords(ts, 250, s, wc, wc); /* get last word in string */
         if (!strcmp(ts, "bold") || !strcmp(ts, "italic") ||
-            !strcmp(ts, "oblique)) { wc--; f = TRUE; }
+            !strcmp(ts, "oblique")) { wc--; f = TRUE; }
 
     } while (f); /* until no more descriptors found */
 
@@ -8609,33 +8619,36 @@ void repatt(char* s, int l)
 
 }
 
-int enumfont(ENUMLOGFONTEX* lfd, ENUMTEXTMETRICEX pfd, DWORD ft, LPARAM ad)
+int CALLBACK enumfont(const LOGFONT* lfd, const TEXTMETRIC* pfd, DWORD ft, LPARAM ad)
 
 {
 
-    fontptr fp;     /* pointer to font entry */
-    int     c, i;   /* indexes */
-    char    ts[250];
+    fontptr        fp;     /* pointer to font entry */
+    int            c, i;   /* indexes */
+    char           ts[250];
+    ENUMLOGFONTEX* lfde;
 
-    if (ft & TRUETYPE_FONTTYPE) &&
-        (lfd.elfLogFont.lfCharSet == ANSI_CHARSET ||
-         lfd.elfLogFont.lfCharSet == SYMBOL_CHARSET ||
-         lfd.elfLogfont.lfCharSet == DEFAULT_CHARSET)  {
+    lfde = (ENUMLOGFONTEX*)lfd;
+    if ((ft & TRUETYPE_FONTTYPE) &&
+        (lfde->elfLogFont.lfCharSet == ANSI_CHARSET ||
+         lfde->elfLogFont.lfCharSet == SYMBOL_CHARSET ||
+         lfde->elfLogFont.lfCharSet == DEFAULT_CHARSET))  {
 
       /* ansi character set, record it */
-      strcpy(ts, lfd.elfFullName); /* make a copy of the name */
-      repatt(ts); /* remove any attribute word */
+      strcpy(ts, lfde->elfFullName); /* make a copy of the name */
+      repatt(ts, 250); /* remove any attribute word */
       fp = malloc(sizeof(fontrec)); /* get a font entry */
       if (!fp) error(enomem);
       fp->next = fntlst; /* push to list */
       fntlst = fp;
       fntcnt = fntcnt+1; /* count font */
       fp->fn = str(ts); /* create string and copy */
-      fp->fix = !!(lfd.elfLogFont.lfPitchAndFamily & 3 == fixed_pitch);
+      fp->fix = !!(lfde->elfLogFont.lfPitchAndFamily & 3 == FIXED_PITCH);
       fp->sys = FALSE; /* set not system */
 
    }
-   enumfont = TRUE /* set continue */
+
+   return (TRUE); /* set continue */
 
 }
 
@@ -8664,7 +8677,7 @@ void getfonts(winptr win)
     lf.lfWidth = 0; /* use default width */
     lf.lfEscapement = 0; /* no escapement */
     lf.lfOrientation = 0; /* orient to x axis */
-    lf.lfWeight = fw_dontcare; /* default weight */
+    lf.lfWeight = FW_DONTCARE; /* default weight */
     lf.lfItalic = 0;  /* no italic */
     lf.lfUnderline = 0; /* no underline */
     lf.lfStrikeOut = 0; /* no strikeout */
@@ -8673,11 +8686,11 @@ void getfonts(winptr win)
     lf.lfClipPrecision = CLIP_DEFAULT_PRECIS; /* use default clipping */
     lf.lfQuality = DEFAULT_QUALITY; /* use default quality */
     lf.lfPitchAndFamily = 0; /* must be zero */
-    lf.lfFaceName[1] = chr(0); /* match all typeface names */
-    r = EnumFontFamiliesEx(win->devcon, lf, enumfont, 0, 0);
+    lf.lfFaceName[0] = 0; /* match all typeface names */
+    r = EnumFontFamiliesEx(win->devcon, &lf, enumfont, 0, 0);
     win->fntlst = fntlst; /* place into windows record */
     win->fntcnt = fntcnt;
-    sortfont(win->fntlst); /* sort into alphabetical order */
+    sortfont(&win->fntlst); /* sort into alphabetical order */
 
 }
 
@@ -8696,13 +8709,13 @@ void delfnt(winptr win, fontptr fp)
     fontptr p;
 
     p = win->fntlst; /* index top of list */
-    if win->fntlst == NULL  error(esystem); /* should ! be null */
-    if win->fntlst == fp  win->fntlst = fp->next; /* gap first entry */
+    if (!win->fntlst) error(esystem); /* should ! be null */
+    if (win->fntlst == fp) win->fntlst = fp->next; /* gap first entry */
     else { /* mid entry */
 
         /* find entry before ours */
-        while (p->next != fp && p->next != NULL) do p = p->next;
-        if p->next == NULL  error(esystem); /* not found */
+        while (p->next != fp && p->next != NULL) p = p->next;
+        if (!p->next) error(esystem); /* not found */
         p->next = fp->next; /* gap out */
 
     }
@@ -8717,7 +8730,7 @@ Finds a font in the list of fonts. Also matches fixed/no fixed pitch status.
 
 *******************************************************************************/
 
-void fndfnt(winptr win, char* fn, int fix: int, fontptr* fp)
+void fndfnt(winptr win, char* fn, int fix, fontptr* fp)
 
 {
 
@@ -8727,7 +8740,7 @@ void fndfnt(winptr win, char* fn, int fix: int, fontptr* fp)
     p = win->fntlst; /* index top of font list */
     while (p) { /* traverse font list */
 
-        if (!strcmp(p->fn, fn && p->fix == fix) *fp = p; /* found, set */
+        if (!strcmp(p->fn, fn) && p->fix == fix) *fp = p; /* found, set */
         p = p->next; /* next entry */
 
     }
@@ -8747,7 +8760,7 @@ Note: could also default to style searching for book and sign fonts.
 
 /* place font entry in list */
 
-void plcfnt(fontptr fp)
+void plcfnt(winptr win, fontptr fp)
 
 {
 
@@ -8756,7 +8769,7 @@ void plcfnt(fontptr fp)
         fp = malloc(sizeof(fontrec)); /* get a new entry */
         if (!fp) error(enomem);
         fp->fn = malloc(1); /* place empty string */
-        if (!fp-fn) error(enomem);
+        if (!fp->fn) error(enomem);
         *fp->fn = 0;
         fp->fix = FALSE; /* set for cleanlyness */
         fp->sys = FALSE; /* set ! system */
@@ -8786,20 +8799,20 @@ void stdfont(winptr win)
     termfp->fn = str("System Fixed");
     win->fntcnt = win->fntcnt+1; /* add to font count */
     /* find book fonts */
-    fndfnt(win, "Times New Roman", FALSE, bookfp);
+    fndfnt(win, "Times New Roman", FALSE, &bookfp);
     if (!bookfp) {
 
-        fndfnt(win, "Garamond", FALSE, bookfp);
+        fndfnt(win, "Garamond", FALSE, &bookfp);
         if (!bookfp) {
 
-            fndfnt(win, "Book Antiqua", FALSE, bookfp);
+            fndfnt(win, "Book Antiqua", FALSE, &bookfp);
             if (!bookfp) {
 
-                fndfnt(win, "Georgia", FALSE, bookfp);
+                fndfnt(win, "Georgia", FALSE, &bookfp);
                 if (!bookfp) {
 
-                    fndfnt(win, "Palatino Linotype", FALSE, bookfp);
-                    if (!bookfp) fndfnt(win, "Verdana", FALSE, bookfp);
+                    fndfnt(win, "Palatino Linotype", FALSE, &bookfp);
+                    if (!bookfp) fndfnt(win, "Verdana", FALSE, &bookfp);
 
                 }
 
@@ -8810,26 +8823,26 @@ void stdfont(winptr win)
     }
     /* find sign fonts */
 
-    fndfnt(win, "Tahoma", FALSE, signfp);
+    fndfnt(win, "Tahoma", FALSE, &signfp);
     if (!signfp) {
 
-       fndfnt(win, "Microsoft Sans Serif", FALSE, signfp);
+       fndfnt(win, "Microsoft Sans Serif", FALSE, &signfp);
        if (!signfp) {
 
-          fndfnt(win, "Arial", FALSE, signfp);
+          fndfnt(win, "Arial", FALSE, &signfp);
           if (!signfp) {
 
-             fndfnt(win, "News Gothic MT", FALSE, signfp);
+             fndfnt(win, "News Gothic MT", FALSE, &signfp);
              if (!signfp) {
 
-                fndfnt(win, "Century Gothic", FALSE, signfp);
+                fndfnt(win, "Century Gothic", FALSE, &signfp);
                 if (!signfp) {
 
-                   fndfnt(win, "Franklin Gothic", FALSE, signfp);
+                   fndfnt(win, "Franklin Gothic", FALSE, &signfp);
                    if (!signfp) {
 
-                      fndfnt(win, "Trebuchet MS", FALSE, signfp);
-                      if (!signfp) fndfnt(win, "Verdana", FALSE, signfp);
+                      fndfnt(win, "Trebuchet MS", FALSE, &signfp);
+                      if (!signfp) fndfnt(win, "Verdana", FALSE, &signfp);
 
                    }
 
@@ -8846,9 +8859,9 @@ void stdfont(winptr win)
     if (!bookfp) delfnt(win, bookfp);
     if (!signfp) delfnt(win, signfp);
     /* now place the fonts in the list backwards */
-    plcfnt(techfp);
-    plcfnt(signfp);
-    plcfnt(bookfp);
+    plcfnt(win, techfp);
+    plcfnt(win, signfp);
+    plcfnt(win, bookfp);
     termfp->next = win->fntlst;
     win->fntlst = termfp;
 
@@ -8912,16 +8925,16 @@ void regstd(void)
     wc.cbWndExtra    = 0;
     wc.hInstance     = GetModuleHandle(NULL);
     if (!wc.hInstance) winerr(); /* process windows error */
-    wc.hIcon         = loadicon(NULL, IDI_APPLICATION);
+    wc.hIcon         = LoadIcon(NULL, IDI_APPLICATION);
     if (!wc.hIcon) winerr(); /* process windows error */
-    wc.hCursor       = loadcursor(NULL, IDC_ARROW);
+    wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
     if (!wc.hCursor) winerr(); /* process windows error */
     wc.hbrBackground = GetStockObject(WHITE_BRUSH);
-    if (!wc.background) winerr(); /* process windows error */
+    if (!wc.hbrBackground) winerr(); /* process windows error */
     wc.lpszMenuName  = NULL;
     wc.lpszClassName = str("stdwin");
     /* register that class */
-    b = registerclass(wc);
+    b = RegisterClass(&wc);
     if (!b) winerr(); /* process windows error */
 
 }
@@ -8935,7 +8948,7 @@ from the main thread, so we send a message to the window to kill it for us.
 
 *******************************************************************************/
 
-void kilwin(int wh)
+void kilwin(HWND wh)
 
 {
 
@@ -8947,7 +8960,7 @@ void kilwin(int wh)
     b = PostMessage(dispwin, UMCLSWIN, 0, 0);
     if (!b) winerr(); /* process windows error */
     /* Wait for window close. */
-    do { igetmsg(msg); } while (msg.message != UMWINCLS);
+    do { igetmsg(&msg); } while (msg.message != UMWINCLS);
 
 }
 
@@ -8966,27 +8979,28 @@ void opnwin(int fn, int pfn)
 {
 
     RECT cr;       /* client rectangle holder */
-    int r;         /* result holder */
-    int b;         /* int result holder */
-    pa_evtrec er;  /* event holding record */
-    int ti;        /* index for repeat array */
-    int pin;       /* index for loadable pictures array */
-    int si;        /* index for current display screen */
+    int        r;         /* result holder */
+    int        b;         /* int result holder */
+    pa_evtrec  er;  /* event holding record */
+    int        ti;        /* index for repeat array */
+    int        pin;       /* index for loadable pictures array */
+    int        si;        /* index for current display screen */
     TEXTMETRIC tm; /* TRUE type text metric structure */
-    winptr win;    /* window pointer */
-    winptr pwin;   /* parent window pointer */
-    int f;         /* window creation flags */
-    MSG msg;       /* intertask message */
+    winptr     win;    /* window pointer */
+    winptr     pwin;   /* parent window pointer */
+    int        f;         /* window creation flags */
+    MSG        msg;       /* intertask message */
+    HGDIOBJ    rv;
 
     win = lfn2win(fn); /* get a pointer to the window */
     /* find parent */
-    parlfn = pfn; /* set parent logical number */
+    win->parlfn = pfn; /* set parent logical number */
     if (pfn) {
 
        pwin = lfn2win(pfn); /* index parent window */
-       parhan = pwin->winhan; /* set parent window handle */
+       win->parhan = pwin->winhan; /* set parent window handle */
 
-    } else parhan = 0; /* set no parent */
+    } else win->parhan = 0; /* set no parent */
     win->mb1 = FALSE; /* set mouse as assumed no buttons down, at origin */
     win->mb2 = FALSE;
     win->mb3 = FALSE;
@@ -9024,16 +9038,17 @@ void opnwin(int fn, int pfn)
     win->sysbar = TRUE; /* set system bar on */
     win->sizests = 0; /* clear last size status word */
     /* clear timer repeat array */
-    for ti = 1 to 10 do {
+    for (ti = 0; ti < 10; ti++) {
 
        win->timers[ti].han = 0; /* set no active timer */
        win->timers[ti].rep = FALSE; /* set no repeat */
 
     }
     /* clear loadable pictures table */
-    for pin = 1 to MAXPIC do win->pictbl[pin].han = 0;
-    for si = 1 to MAXCON do win->screens[si] = NULL;
-    new(win->screens[1]); /* get the default screen */
+    for (pin = 0; pin < MAXPIC; pin++) win->pictbl[pin].han = 0;
+    for (si = 0; si < MAXCON; si++) win->screens[si] = NULL;
+    win->screens[0] = malloc(sizeof(scncon)); /* get the default screen */
+    if (!win->screens[0]) error(enomem);
     win->curdsp = 1; /* set current display screen */
     win->curupd = 1; /* set current update screen */
     win->visible = FALSE; /* set ! visible */
@@ -9041,21 +9056,21 @@ void opnwin(int fn, int pfn)
     /* set flags for window create */
     f = WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN;
     /* add flags for child window */
-    if (parhan) f |= WS_CHILD | WS_CLIPSIBLINGS;
+    if (win->parhan) f |= WS_CHILD | WS_CLIPSIBLINGS;
     /* Create the window, using display task. */
     stdwinflg = f;
     stdwinx = 0x80000000;
     stdwiny = 0x80000000;
     stdwinw = 0x80000000;
     stdwinh = 0x80000000;
-    stdwinpar = parhan;
+    stdwinpar = win->parhan;
     /* order window to start */
     b = PostMessage(dispwin, UMMAKWIN, 0, 0);
     if (!b) winerr(); /* process windows error */
     /* Wait for window start. */
-    do { igetmsg(msg); } while (msg.message != UMWINSTR);
-    winhan = stdwinwin; /* get the new handle */
-    if (!winhan) winerr(); /* process windows error */
+    do { igetmsg(&msg); } while (msg.message != UMWINSTR);
+    win->winhan = stdwinwin; /* get the new handle */
+    if (!win->winhan) winerr(); /* process windows error */
 
     /* Joysticks were captured with the window open. Set status of joysticks.
 
@@ -9065,32 +9080,32 @@ void opnwin(int fn, int pfn)
 
     win->numjoy = 0; /* clear joystick counter */
     win->joy1cap = stdwinj1c; /* set joystick 1 capture status */
-    win->numjoy = win->numjoy+joy1cap; /* count that */
+    win->numjoy = win->numjoy+win->joy1cap; /* count that */
     win->joy2cap = stdwinj2c; /* set joystick 1 capture status */
-    win->numjoy = win->numjoy+joy2cap; /* count that */
+    win->numjoy = win->numjoy+win->joy2cap; /* count that */
 
     /* create a device context for the window */
     win->devcon = GetDC(win->winhan); /* get device context */
-    if win->devcon == 0  winerr(); /* process windows error */
+    if (!win->devcon) winerr(); /* process windows error */
     /* set rescalable mode */
-    r = SetMapMode(win->devcon, mm_anisotropic);
-    if r == 0  winerr(); /* process windows error */
+    r = SetMapMode(win->devcon, MM_ANISOTROPIC);
+    if (!r) winerr(); /* process windows error */
     /* set non-braindamaged stretch mode */
-    r = SetStretchBltMode(win->devcon, halftone);
+    r = SetStretchBltMode(win->devcon, HALFTONE);
     if (!r) winerr(); /* process windows error */
     /* remove fills */
-    r = SelectObject(win->devcon, GetStockObject(NULL_BRUSH));
-    if (r == HGDI_ERROR) error(enosel);
+    rv = SelectObject(win->devcon, GetStockObject(NULL_BRUSH));
+    if (rv == HGDI_ERROR) error(enosel);
     /* because this is an "open }ed" (no feedback) emulation, we must bring
       the terminal to a known state */
-    gfhigh = FHEIGHT; /* set default font height */
+    win->gfhigh = FHEIGHT; /* set default font height */
     getfonts(win); /* get the global fonts list */
     stdfont(win); /* mark the standard fonts */
-    gcfont = fntlst; /* index top of list as terminal font */
+    win->gcfont = fntlst; /* index top of list as terminal font */
     /* set up system default parameters */
-    r = SelectObject(win->devcon, GetStockObject(SYSTEM_FIXED_FONT));
-    if (r == HGDI_ERROR) error(enosel);
-    b = GetTextMetrics(win->devcon, tm); /* get the standard metrics */
+    rv = SelectObject(win->devcon, GetStockObject(SYSTEM_FIXED_FONT));
+    if (rv == HGDI_ERROR) error(enosel);
+    b = GetTextMetrics(win->devcon, &tm); /* get the standard metrics */
     if (!b) winerr(); /* process windows error */
     /* calculate line spacing */
     win->linespace = tm.tmHeight;
@@ -9099,12 +9114,12 @@ void opnwin(int fn, int pfn)
     /* set cursor width */
     win->curspace = tm.tmAveCharWidth;
     /* find screen device parameters for dpm calculations */
-    win->shsize = GetDeviceCaps(devcon, HORZSIZE); /* size x in millimeters */
-    win->svsize = GetDeviceCaps(devcon, VERTSIZE); /* size y in millimeters */
-    win->shres = GetDeviceCaps(devcon, HORZRES); /* pixels in x */
-    svres = GetDeviceCaps(devcon, VERTRES); /* pixels in y */
-    win->sdpmx = shres/shsize*1000; /* find dots per meter x */
-    win->sdpmy = svres/svsize*1000; /* find dots per meter y */
+    win->shsize = GetDeviceCaps(win->devcon, HORZSIZE); /* size x in millimeters */
+    win->svsize = GetDeviceCaps(win->devcon, VERTSIZE); /* size y in millimeters */
+    win->shres = GetDeviceCaps(win->devcon, HORZRES); /* pixels in x */
+    win->svres = GetDeviceCaps(win->devcon, VERTRES); /* pixels in y */
+    win->sdpmx = win->shres/win->shsize*1000; /* find dots per meter x */
+    win->sdpmy = win->svres/win->svsize*1000; /* find dots per meter y */
     /* find client area size */
     win->gmaxxg = MAXXD*win->charspace;
     win->gmaxyg = MAXYD*win->linespace;
@@ -9113,19 +9128,19 @@ void opnwin(int fn, int pfn)
     cr.right = win->gmaxxg;
     cr.bottom = win->gmaxyg;
     /* find window size from client size */
-    b = AdjustWindowRectEx(cr, WS_OVERLAPPEDWINDOW, FALSE, 0);
+    b = AdjustWindowRectEx(&cr, WS_OVERLAPPEDWINDOW, FALSE, 0);
     if (!b) winerr(); /* process windows error */
     /* now, resize the window to just fit our character mode */
     unlockmain(); /* end exclusive access */
-    b = SetWindowPos(winhan, 0, 0, 0, cr.right-cr.left, cr.bottom-cr.top,
+    b = SetWindowPos(win->winhan, 0, 0, 0, cr.right-cr.left, cr.bottom-cr.top,
                          SWP_NOMOVE | SWP_NOZORDER);
     if (!b) winerr(); /* process windows error */
 /* now handled in winvis */
 #if 0
     /* present the window */
-    b = ShowWindow(winhan, SW_SHOWDEFAULT);
+    b = ShowWindow(win->winhan, SW_SHOWDEFAULT);
     /* send first paint message */
-    b = UpdateWindow(winhan);
+    b = UpdateWindow(win->winhan);
 #endif
     lockmain(); /* start exclusive access */
     /* set up global buffer parameters */
@@ -9133,8 +9148,8 @@ void opnwin(int fn, int pfn)
     win->gmaxy = MAXYD;
     win->gattr = 0; /* no attribute */
     win->gauto = TRUE; /* auto on */
-    win->gfcrgb = colnum(black); /*foreground black */
-    win->gbcrgb = colnum(white); /* background white */
+    win->gfcrgb = colnum(pa_black); /*foreground black */
+    win->gbcrgb = colnum(pa_white); /* background white */
     win->gcurv = TRUE; /* cursor visible */
     win->gfmod = mdnorm; /* set mix modes */
     win->gbmod = mdnorm;
@@ -9187,14 +9202,14 @@ void clswin(int fn)
     /* release the joysticks */
     if (win->joy1cap) {
 
-        r = JoyReleaseCapture(JOYSTICKID1);
-        if r != 0  error(ejoyacc); /* error */
+        r = joyReleaseCapture(JOYSTICKID1);
+        if (r) error(ejoyacc); /* error */
 
     }
     if (win->joy2cap) {
 
-        r = JoyReleaseCapture(JOYSTICKID2);
-        if r != 0  error(ejoyacc); /* error */
+        r = joyReleaseCapture(JOYSTICKID2);
+        if (r) error(ejoyacc); /* error */
 
     }
     kilwin(win->winhan); /* kill window */
@@ -9224,22 +9239,20 @@ void clsfil(int fn)
     fp = opnfil[fn];
     /* release all of the screen buffers */
     for (si = 1; si <= MAXCON; si++)
-        if (win->screens[si]) free(win->screens[si]);
-    free(win); /* release the window data */
-    win = NULL; /* set end open */
-    inw = FALSE;
-    inl = 0;
+        if (fp->win->screens[si]) free(fp->win->screens[si]);
+    free(fp->win); /* release the window data */
+    fp->win = NULL; /* set end open */
+    fp->inw = FALSE;
+    fp->inl = 0;
     while (fp->evt) {
 
         ep = fp->evt; /* index top */
         if (fp->evt->next == fp->evt)
             fp->evt = NULL; /* last entry, clear list */
-        else evt = evt->next; /* gap out entry */
+        else fp->evt = fp->evt->next; /* gap out entry */
         free(ep); /* release */
 
-      }
-
-   }
+    }
 
 }
 
@@ -9271,7 +9284,7 @@ void closewin(int ofn)
     clswin(ofn); /* close the window */
     clsfil(ofn); /* flush && close output file */
     /* if no remaining links exist, flush && close input file */
-    if inplnk(ifn) == 0  clsfil(ifn);
+    if (!inplnk(ifn))  clsfil(ifn);
     filwin[ofn] = 0; /* clear file to window translation */
     xltwin[wid] = 0; /* clear window to file translation */
 
@@ -9290,9 +9303,9 @@ void openio(int ifn, int ofn, int pfn, int wid)
 {
 
     /* if output was never opened, create it now */
-    if (!opnfil[ofn]) getfet(opnfil[ofn]);
+    if (!opnfil[ofn]) getfet(&opnfil[ofn]);
     /* if input was never opened, create it now */
-    if (!opnfil[ifn]) getfet(opnfil[ifn]);
+    if (!opnfil[ifn]) getfet(&opnfil[ifn]);
     opnfil[ofn]->inl = ifn; /* link output to input */
     opnfil[ifn]->inw = TRUE; /* set input is window handler */
     /* now see if it has a window attached */
@@ -9300,7 +9313,6 @@ void openio(int ifn, int ofn, int pfn, int wid)
 
         /* Haven't already started the main input/output window, so allocate
            and start that. We tolerate multiple opens to the output file. */
-        new(opnfil[ofn]->win); /* get a new window record */
         opnfil[ofn]->win = malloc(sizeof(winrec));
         if (!opnfil[ofn]->win) error(enomem);
         opnwin(ofn, pfn); /* and start that up */
@@ -9351,14 +9363,14 @@ int fndfil(FILE* fp)
 
 }
 
-void iopenwin(FILE** infile, FILE** outfile, int pfn, int wid);
+void iopenwin(FILE** infile, FILE** outfile, int pfn, int wid)
 
 {
 
     int ifn, ofn; /* file logical handles */
 
     /* check valid window handle */
-    if (wid < 1 || wid > ss_MAXFIL) error(einvwin);
+    if (wid < 1 || wid > MAXFIL) error(einvwin);
     /* check if the window id is already in use */
     if (xltwin[wid]) error(ewinuse); /* error */
     ifn = fndfil(*infile); /* find previous open input side */
@@ -9366,28 +9378,31 @@ void iopenwin(FILE** infile, FILE** outfile, int pfn, int wid);
 
         /* open input file */
         unlockmain(); /* end exclusive access */
-        *ifn = fopen("nul", "r"); /* open null as read only */
+        *infile = fopen("nul", "r"); /* open null as read only */
         lockmain(); /* start exclusive access */
-        if (ifn < 0) error(enoopn); /* can't open */
+        if (!*infile) error(enoopn); /* can't open */
 
     }
     /* open output file */
     unlockmain(); /* end exclusive access */
-    *ofn = fopen("nul", "w");
-    if (ofn < 0) error(enoopn); /* can't open */
+    *outfile = fopen("nul", "w");
+    ofn = fileno(*outfile); /* get logical file no. */
+    if (ofn == -1) error(esystem);
+    if (!*outfile) error(enoopn); /* can't open */
+
     /* check either input is unused, or is already an input side of a window */
     if (opnfil[ifn]) /* entry exists */
         if (!opnfil[ifn]->inw || opnfil[ifn]->win) error(einmode); /* wrong mode */
    /* check output file is in use for input or output from window */
    if (opnfil[ofn]) /* entry exists */
-        if (opnfil[ofn]->inw != NULL) || opnfil[ofn]->win)
+        if (opnfil[ofn]->inw || opnfil[ofn]->win)
             error(efinuse); /* file in use */
    /* establish all logical files and links, translation tables, and open window */
-   openio(ifn, ofn, pfn, wid)
+   openio(ifn, ofn, pfn, wid);
 
 }
 
-void openwin(FILE* infile, outfile, parent, wid)
+void openwin(FILE* infile, FILE* outfile, FILE* parent, int wid)
 
 {
 
@@ -9395,7 +9410,7 @@ void openwin(FILE* infile, outfile, parent, wid)
 
     lockmain(); /* start exclusive access */
     win = txt2win(parent); /* validate parent is a window file */
-    iopenwin(infile, outfile, txt2lfn(parent), wid); /* process open */
+    iopenwin(&infile, &outfile, txt2lfn(parent), wid); /* process open */
     unlockmain(); /* end exclusive access */
 
 }
@@ -9426,23 +9441,24 @@ void isizbufg(winptr win, int x, int y)
     cr.right = win->gmaxxg;
     cr.bottom = win->gmaxyg;
     /* find window size from client size */
-    b = AdjustWindowRectEx(cr, WS_OVERLAPPEDWINDOW, FALSE, 0);
+    b = AdjustWindowRectEx(&cr, WS_OVERLAPPEDWINDOW, FALSE, 0);
     if (!b) winerr(); /* process windows error */
     /* now, resize the window to just fit our new buffer size */
     unlockmain(); /* end exclusive access */
-    b = SetWindowPos(winhan, 0, 0, 0, cr.right-cr.left, cr.bottom-cr.top,
-                     SWP_NOMOVE | swp_nozorder);
+    b = SetWindowPos(win->winhan, 0, 0, 0, cr.right-cr.left, cr.bottom-cr.top,
+                     SWP_NOMOVE | SWP_NOZORDER);
     lockmain(); /* start exclusive access */
     if (!b) winerr(); /* process windows error */
     /* all the screen buffers are wrong, so tear them out */
     for (si = 0; si < MAXCON; si++) disscn(win, win->screens[si]);
-    win->screens[win->curdsp] = malloc(sizeof(scnrec));
+    win->screens[win->curdsp] = malloc(sizeof(scncon));
     if (!win->screens[win->curdsp]) error(enomem);
     iniscn(win, win->screens[win->curdsp]); /* initalize screen buffer */
     restore(win, TRUE); /* update to screen */
     if (win->curdsp != win->curupd) { /* also create the update buffer */
 
-        new(win->screens[win->curupd]); /* get the display screen */
+        win->screens[win->curupd] = malloc(sizeof(scncon)); /* get the display screen */
+        if (!win->screens[win->curupd]) error(enomem);
         iniscn(win, win->screens[win->curupd]); /* initalize screen buffer */
 
     }
@@ -9499,7 +9515,7 @@ void ibuffer(winptr win, int e)
 
     int  si; /* index for current display screen */
     BOOL b;  /* result */
-    RECT r   /* rectangle */
+    RECT r;  /* rectangle */
 
     if (e) { /* perform buffer on actions */
 
@@ -9514,7 +9530,7 @@ void ibuffer(winptr win, int e)
         r.right = win->gmaxxg;
         r.bottom = win->gmaxyg;
         /* find window size from client size */
-        b = AdjustWindowRectEx(r, WS_OVERLAPPEDWINDOW, FALSE, 0);
+        b = AdjustWindowRectEx(&r, WS_OVERLAPPEDWINDOW, FALSE, 0);
         if (!b) winerr(); /* process windows error */
         /* resize the window to just fit our buffer size */
         unlockmain(); /* end exclusive access */
@@ -9527,18 +9543,18 @@ void ibuffer(winptr win, int e)
     } else if (win->bufmod) { /* perform buffer off actions */
 
         /* The screen buffer contains a lot of drawing information, so we have
-           to keep one of them. We keep the current display, && force the
+           to keep one of them. We keep the current display, and force the
            update to point to it as well. This single buffer  serves as
            a "template" for the real pixels on screen. */
         win->bufmod = FALSE; /* turn buffer mode off */
         for (si = 0; si <MAXCON; si++)
            if (si != win->curdsp) disscn(win, win->screens[si]);
         /* dispose of screen data structures */
-        for (si = 0; si < MAXCON; si++) if (si != curdsp-1)
+        for (si = 0; si < MAXCON; si++) if (si != win->curdsp-1)
            if (win->screens[si]) free(win->screens[si]);
         win->curupd = win->curdsp; /* unify the screens */
         /* get actual size of onscreen window, && set that as client space */
-        b = GetClientRect(win->winhan, r);
+        b = GetClientRect(win->winhan, &r);
         if (!b) winerr(); /* process windows error */
         win->gmaxxg = r.right-r.left; /* return size */
         win->gmaxyg = r.bottom-r.top;
@@ -9581,13 +9597,14 @@ deleted.
 *******************************************************************************/
 
 /* create menu tracking entry */
-void mettrk(int han, int inx, menuptr m)
+void mettrk(winptr win, HMENU han, int inx, pa_menuptr m)
 
 {
 
     metptr mp; /* menu tracking entry pointer */
 
-    new(mp); /* get a new tracking entry */
+    mp = malloc(sizeof(metrec)); /* get a new tracking entry */
+    if (!mp) error(enomem);
     mp->next = win->metlst; /* push onto tracking list */
     win->metlst = mp;
     mp->han = han; /* place menu handle */
@@ -9600,46 +9617,46 @@ void mettrk(int han, int inx, menuptr m)
       to know the "one of" chain. So we tie the entry to itself as a flag
       that it chains to the next entry. That chain will get fixed on the
       next entry. */
-    if m->oneof  mp->oneof = mp;
+    if (m->oneof) mp->oneof = mp;
     /* now tie the last entry to this if indicated */
-    if mp->next != NULL  /* there is a next entry */
-        if mp->next->oneof == mp->next  mp->next->oneof = mp
+    if (mp->next) /* there is a next entry */
+        if (mp->next->oneof == mp->next) mp->next->oneof = mp;
 
 }
 
 /* create menu list */
-void createmenu(menuptr m, HMENU* mh)
+void createmenu(winptr win, pa_menuptr m, HMENU* mh)
 
 {
 
-    int sm;  /* submenu handle */
-    int f;   /* menu flags */
-    int inx; /* index number for this menu */
+    HMENU sm;  /* submenu handle */
+    int   f;   /* menu flags */
+    int   inx; /* index number for this menu */
 
-    mh = CreateMenu(); /* create new menu */
-    if (!mh) winerr(); /* process windows error */
+    *mh = CreateMenu(); /* create new menu */
+    if (!*mh) winerr(); /* process windows error */
     inx = 0; /* set first in sequence */
     while (m) { /* add menu item */
 
         f = MF_STRING | MF_ENABLED; /* set string and enable */
         if (m->branch) { /* handle submenu */
 
-            createmenu(m->branch, sm); /* create submenu */
-            b = appendmenu(mh, f | MF_POPUP, sm, m->face);
+            createmenu(win, m->branch, &sm); /* create submenu */
+            b = AppendMenu(*mh, f | MF_POPUP, (UINT_PTR)sm, m->face);
             if (!b) winerr(); /* process windows error */
-            mettrk(mh, inx, m); /* enter that into tracking */
+            mettrk(win, *mh, inx, m); /* enter that into tracking */
 
         } else { /* handle terminal menu */
 
-            b = appendmenu(mh, f, m->id, m->face);
+            b = AppendMenu(*mh, f, (UINT_PTR)m->id, m->face);
             if (!b) winerr(); /* process windows error */
-            mettrk(mh, inx, m); /* enter that into tracking */
+            mettrk(win, *mh, inx, m); /* enter that into tracking */
 
         }
         if (m->bar) { /* add separator bar */
 
             /* a separator bar is a blank entry that will never be referenced */
-            b = app}menu(mh, mf_separator, 0, "");
+            b = AppendMenu(*mh, MF_SEPARATOR, 0, "");
             if (!b) winerr(); /* process windows error */
             inx = inx+1; /* next in sequence */
 
@@ -9651,14 +9668,14 @@ void createmenu(menuptr m, HMENU* mh)
 
 }
 
-void imenu(winptr win, menuptr m)
+void imenu(winptr win, pa_menuptr m)
 
 {
 
     BOOL   b;  /* int result */
     metptr mp; /* tracking entry pointer */
 
-    if win->menhan != 0  { /* distroy previous menu */
+    if (win->menhan) { /* distroy previous menu */
 
         b = DestroyMenu(win->menhan); /* destroy it */
         if (!b) winerr(); /* process windows error */
@@ -9674,7 +9691,7 @@ void imenu(winptr win, menuptr m)
 
     }
     if (m) /* there is a new menu to activate */
-        createmenu(m, win->menhan);
+        createmenu(win, m, &win->menhan);
     unlockmain(); /* end exclusive access */
     b = SetMenu(win->winhan, win->menhan); /* set the menu to the window */
     lockmain(); /* start exclusive access */
@@ -9684,11 +9701,9 @@ void imenu(winptr win, menuptr m)
     lockmain(); /* start exclusive access */
     if (!b) winerr(); /* process windows error */
 
-   }
-
 }
 
-void menu(FILE* f, menuptr m)
+void menu(FILE* f, pa_menuptr m)
 
 {
 
@@ -9710,7 +9725,7 @@ If the entry exists more than once, it generates an error.
 
 *******************************************************************************/
 
-int fndmenu(winptr win, int id)
+metptr fndmenu(winptr win, int id)
 
 {
 
@@ -9730,7 +9745,7 @@ int fndmenu(winptr win, int id)
         mp = mp->next; /* next entry */
 
     }
-    if (!fp) error(emennf) /* no menu entry found with id */
+    if (!fp) error(emennf); /* no menu entry found with id */
 
     return (fp); /* return entry */
 
@@ -9755,7 +9770,7 @@ void imenuena(winptr win, int id, int onoff)
 
     mp = fndmenu(win, id); /* find the menu entry */
     fl = MF_BYPOSITION; /* place position select flag */
-    if (onoff) fl |= MF_ENABLED /* enable it */
+    if (onoff) fl |= MF_ENABLED; /* enable it */
     else fl |= MF_GRAYED; /* disable it */
     b = EnableMenuItem(mp->han, mp->inx, fl); /* perform that */
     if (b == -1) error(esystem); /* should not happen */
@@ -9789,7 +9804,7 @@ selected, with no check if not.
 *******************************************************************************/
 
 /* find top of "one of" list */
-int fndtop(metptr mp)
+metptr fndtop(metptr mp)
 
 {
 
@@ -9806,7 +9821,7 @@ int fndtop(metptr mp)
 }
 
 /* clear "one of" select list */
-void clrlst(metptr mp)
+void clrlst(int* fl, metptr mp)
 
 {
 
@@ -9814,10 +9829,10 @@ void clrlst(metptr mp)
 
     do { /* items in list */
 
-        fl = MF_BYPOSITION || MF_UNCHECKED; /* place position select flag */
-        r = CheckMenuItem(mp->han, mp->inx, fl); /* perform that */
-        if (r == -1)  error(esystem); /* should not happen */
-        mp = mp->oneof /* link next */
+        *fl = MF_BYPOSITION | MF_UNCHECKED; /* place position select flag */
+        r = CheckMenuItem(mp->han, mp->inx, *fl); /* perform that */
+        if (r == -1) error(esystem); /* should not happen */
+        mp = mp->oneof; /* link next */
 
     } while (mp); /* no more */
 
@@ -9833,7 +9848,7 @@ void imenusel(winptr win, int id, int select)
     DWORD  r;  /* result */
 
     mp = fndmenu(win, id); /* find the menu entry */
-    clrlst(fndtop(mp)); /* clear "one of" group */
+    clrlst(&fl, fndtop(mp)); /* clear "one of" group */
     mp->select = select; /* set the new select */
     fl = MF_BYPOSITION; /* place position select flag */
     if (mp->select) fl |= MF_CHECKED; /* select it */
@@ -9898,7 +9913,7 @@ void ifront(winptr win)
     if (!b) winerr(); /* process windows error */
     lockmain(); /* start exclusive access */
 
-    if (parhan) {
+    if (win->parhan) {
 
         unlockmain(); /* end exclusive access */
         b = PostMessage(win->parhan, WM_PAINT, 0, 0);
@@ -9972,7 +9987,7 @@ void igetsizg(winptr win, int* x, int* y)
     BOOL  b; /* result holder */
     RECT  r; /* rectangle */
 
-    b = GetWindowRect(win->winhan, r);
+    b = GetWindowRect(win->winhan, &r);
     if (!b) winerr(); /* process windows error */
     *x = r.right-r.left; /* return size */
     *y = r.bottom-r.top;
@@ -12202,7 +12217,7 @@ box to numeric characters.
 
 *******************************************************************************/
 
-int wndprocnum(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
+LRESULT CALLBACK wndprocnum(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
 
 {
 
