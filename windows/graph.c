@@ -77,6 +77,7 @@
 #define WINVER 0x0A00
 #define _WIN32_WINNT 0xA00
 
+#include <sys/types.h>
 #include <limits.h>
 #include <ctype.h>
 #include <string.h>
@@ -90,7 +91,7 @@
 
 #define MAXXD     80    /* standard terminal, 80x25 */
 #define MAXYD     25
- /* the "standard character" sizes are used to form a pseudo-size for desktop
+/* the "standard character" sizes are used to form a pseudo-size for desktop
    character measurements in a graphical system. */
 #define STDCHRX   8
 #define STDCHRY   12
@@ -112,19 +113,37 @@
 #define UMIM      0x408 /* intratask message */
 #define UMEDITCR  0x409 /* edit widget sends cr */
 #define UMNUMCR   0x410 /* number select widget sends cr */
- /* standard file handles */
+/* standard file handles */
 #define INPFIL    0     /* input */
 #define OUTFIL    1     /* output */
 #define ERRFIL    3     /* error */
 #define JOYENB    FALSE /*TRUE*/ /* enable joysticks, for debugging */
- /* foreground pen style */
- /* FPENSTL  ps_geometric || ps_}cap_flat || ps_solid */
+/* foreground pen style */
+/* FPENSTL  ps_geometric || ps_}cap_flat || ps_solid */
 #define FPENSTL  (PS_GEOMETRIC | PS_ENDCAP_FLAT | PS_SOLID | PS_JOIN_MITER)
- /* foreground single pixel pen style */
+/* foreground single pixel pen style */
 #define FSPENSTL  PS_SOLID
 #define PACKMSG  TRUE   /* pack paint messages in queue */
 #define MAXFIL   100    /* maximum open files */
 #define MAXFNM   250    /* number of filename characters in buffer */
+
+/* types of system vectors for override calls */
+
+typedef ssize_t (*pread_t)(int, void*, size_t);
+typedef ssize_t (*pwrite_t)(int, const void*, size_t);
+typedef int (*popen_t)(const char*, int, int);
+typedef int (*pclose_t)(int);
+typedef int (*punlink_t)(const char*);
+typedef off_t (*plseek_t)(int, off_t, int);
+
+/* system override calls */
+
+extern void ovr_read(pread_t nfp, pread_t* ofp);
+extern void ovr_write(pwrite_t nfp, pwrite_t* ofp);
+extern void ovr_open(popen_t nfp, popen_t* ofp);
+extern void ovr_close(pclose_t nfp, pclose_t* ofp);
+extern void ovr_unlink(punlink_t nfp, punlink_t* ofp);
+extern void ovr_lseek(plseek_t nfp, plseek_t* ofp);
 
 /* screen attribute */
 typedef enum {
@@ -184,7 +203,7 @@ typedef struct wigrec {
     int            id;   /* logical id of widget */
     wigtyp         typ;  /* type of widget */
     int            siz;  /* size of slider in scroll widget, in windows terms */
-    int            wprc; /* subclassed windows procedure, converted to int */
+    WNDPROC        wprc; /* subclassed windows procedure, converted to int */
     int            low;  /* low limit of up/down control */
     int            high; /* high limit of up/down control */
     int            enb;  /* widget is enabled */
@@ -384,45 +403,45 @@ typedef struct imrec { /* intermessage record */
     imcode im; /* message type */
     union { /* intermessage type */
 
-        struct {
+        struct { /* imalert */
 
             char* alttit; /* title string pointer */
             char* altmsg; /* message string pointer */
 
         };
-        struct {
+        struct { /* imqcolor */
 
             int clrred;   /* colors */
             int clrgreen;
             int clrblue;
 
         };
-        struct {
+        struct { /* imqopen */
 
             char* opnfil; /* filename to open */
 
         };
-        struct {
+        struct { /* imqsave */
 
             char* savfil; /* filename to save */
 
         };
-        struct {
+        struct { /* imqfind */
 
             char* fndstr; /* string to find */
             int   fndopt; /* find options */
-            int   fndhan; /* dialog window handle */
+            HWND  fndhan; /* dialog window handle */
 
         };
-        struct {
+        struct { /* imqfindrep */
 
             char* fnrsch; /* string to search for */
             char* fnrrep; /* string to replace */
             int   fnropt; /* options */
-            int   fnrhan; /* dialog window handle */
+            HWND  fnrhan; /* dialog window handle */
 
         };
-        struct {
+        struct { /* imqfont */
 
             char* fntstr; /* font char* */
             int fnteff;   /* font effects */
@@ -432,39 +451,39 @@ typedef struct imrec { /* intermessage record */
             int fntbr;    /* background red */
             int fntbg;    /* background green */
             int fntbb;    /* bakcground blue */
-            int fntsi;    /* size */
+            int fntsiz;   /* size */
 
         };
-        struct {
+        struct { /* imupdown */
 
-            int udflg;    /* flags */
-            int udx;      /* coordinates x */
-            int udy;      /* coordinates y */
-            int udcx;     /* width */
-            int udcy;     /* height */
-            int udpar;    /* parent window */
-            int udid;     /* id */
-            int udinst;   /* instance */
-            int udbuddy;  /* buddy window handle */
-            int udup;     /* upper bound */
-            int udlow;    /* lower bound */
-            int udpos;    /* control position */
-            int udhan;    /* returns handle to control */
+            int     udflg;    /* flags */
+            int     udx;      /* coordinates x */
+            int     udy;      /* coordinates y */
+            int     udcx;     /* width */
+            int     udcy;     /* height */
+            HWND    udpar;    /* parent window */
+            int     udid;     /* id */
+            HMODULE udinst;   /* instance */
+            HWND    udbuddy;  /* buddy window handle */
+            int     udup;     /* upper bound */
+            int     udlow;    /* lower bound */
+            int     udpos;    /* control position */
+            HWND    udhan;    /* returns handle to control */
 
         };
-        struct {
+        struct { /* imwidget */
 
-            char* wigcls; /* class char* */
-            char* wigtxt; /* text label char* */
-            int wigflg;   /* flags */
-            int wigx;     /* origin x */
-            int wigy;     /* origin y */
-            int wigw;     /* width */
-            int wigh;     /* height */
-            int wigpar;   /* parent window handle */
-            int wigid;    /* widget id */
-            int wigmod;   /* module */
-            int wigwin;   /* handle to widget */
+            char*   wigcls; /* class char* */
+            char*   wigtxt; /* text label char* */
+            int     wigflg; /* flags */
+            int     wigx;   /* origin x */
+            int     wigy;   /* origin y */
+            int     wigw;   /* width */
+            int     wigh;   /* height */
+            HWND    wigpar; /* parent window handle */
+            int     wigid;  /* widget id */
+            HMODULE wigmod; /* module */
+            HWND    wigwin; /* handle to widget */
 
         };
 
@@ -542,6 +561,18 @@ typedef enum {
 
 } errcod;
 
+/*
+ * Saved vectors to system calls. These vectors point to the old, existing
+ * vectors that were overridden by this module.
+ *
+ */
+static pread_t   ofpread;
+static pwrite_t  ofpwrite;
+static popen_t   ofpopen;
+static pclose_t  ofpclose;
+static punlink_t ofpunlink;
+static plseek_t  ofplseek;
+
 filptr opnfil[MAXFIL]; /* open files table */
 int xltwin[MAXFIL]; /* window equivalence table */
 int filwin[MAXFIL]; /* file to window equivalence table */
@@ -580,9 +611,9 @@ int       i;            /* index for that */
 int       fndrepmsg;    /* message assignment for find/replace */
 HWND      dispwin;      /* handle to display thread window */
 HWND      dialogwin;    /* handle to dialog thread window */
-int       threadstart;  /* thread start event handle */
-int       threadid;     /* dummy thread id (unused) */
-int       mainwin;      /* handle to main thread dummy window */
+HANDLE    threadstart;  /* thread start event handle */
+DWORD     threadid;     /* dummy thread id (unused) */
+HWND      mainwin;      /* handle to main thread dummy window */
 int       mainthreadid; /* main thread id */
 /* This block communicates with the subthread to create standard windows. */
 int       stdwinflg;    /* flags */
@@ -606,6 +637,7 @@ int       dblflt;       /* double fault flag */
 
 void clswin(int fn);
 LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam);
+LRESULT CALLBACK wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam);
 void alert(char* title, char* message);
 
 /******************************************************************************
@@ -901,7 +933,7 @@ int comps(char* d, char* s)
 Get decimal number from string
 
 Parses a decimal number from the given string. Allows signed numbers. Provides
-a flag return that indicates overflow || invalid digit.
+a flag return that indicates overflow or invalid digit.
 
 *******************************************************************************/
 
@@ -1033,6 +1065,8 @@ void abort(void)
 
     }
     unlockmain(); /* end exclusive access */
+
+    exit(1); /* exit */
 
 }
 
@@ -9953,7 +9987,7 @@ void iback(winptr win)
 
     unlockmain(); /* end exclusive access */
     b = SetWindowPos(win->winhan, HWND_BOTTOM, 0, 0, 0, 0,
-                     SWP_NOMOVE || SWP_NOSIZE);
+                     SWP_NOMOVE | SWP_NOSIZE);
     lockmain(); /* start exclusive access */
     if (!b) winerr(); /* process windows error */
 
@@ -10211,11 +10245,11 @@ void iscnsizg(winptr win, int* x, int* y)
     RECT r;      /* rectangle */
     HWND scnhan; /* desktop handle */
 
-    scnhan = getdesktopwindow();
-    b = GetWindowRect(win->scnhan, r);
+    scnhan = GetDesktopWindow();
+    b = GetWindowRect(scnhan, &r);
     if (!b) winerr(); /* process windows error */
-    x = r.right-r.left; /* return size */
-    y = r.bottom-r.top;
+    *x = r.right-r.left; /* return size */
+    *y = r.bottom-r.top;
 
 }
 
@@ -10271,7 +10305,7 @@ void iwinclientg(winptr win, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
 
     }
     /* find window size from client size */
-    b = AdjustWindowRectEx(cr, fl, FALSE, 0);
+    b = AdjustWindowRectEx(&cr, fl, FALSE, 0);
     if (!b) winerr(); /* process windows error */
     *wx = cr.right-cr.left; /* return window size */
     *wy = cr.bottom-cr.top;
@@ -10288,20 +10322,20 @@ void winclient(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window from file */
     /* execute */
-    iwinclientg(win, cx*win->charspace, cy*win->linespace, *wx, *wy, ms);
+    iwinclientg(win, cx*win->charspace, cy*win->linespace, wx, wy, ms);
     /* find character based sizes */
     if (win->parlfn) { /* has a parent */
 
         par = lfn2win(win->parlfn); /* index the parent */
         /* find character based sizes */
-        *wx = (wx-1) / par->charspace+1;
-        *wy = (wy-1) / par->linespace+1;
+        *wx = (*wx-1) / par->charspace+1;
+        *wy = (*wy-1) / par->linespace+1;
 
     } else {
 
         /* find character based sizes */
-        *wx = (wx-1) / STDCHRX+1;
-        *wy = (wy-1) / STDCHRY+1;
+        *wx = (*wx-1) / STDCHRX+1;
+        *wy = (*wy-1) / STDCHRY+1;
 
     }
     unlockmain(); /* end exclusive access */
@@ -10332,7 +10366,7 @@ because it can only be used as a relative measurement.
 
 *******************************************************************************/
 
-void scnsiz(FILE* f, int * x, int* y)
+void scnsiz(FILE* f, int* x, int* y)
 
 {
 
@@ -10340,7 +10374,7 @@ void scnsiz(FILE* f, int * x, int* y)
 
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window from file */
-    iscnsizg(win, *x, *y); /* execute */
+    iscnsizg(win, x, y); /* execute */
     *x = *x/STDCHRX; /* convert to "standard character" size */
     *y = *y/STDCHRY;
     unlockmain(); /* end exclusive access */
@@ -10365,7 +10399,7 @@ void iframe(winptr win, int e)
     win->frame = e; /* set new status of frame */
     fl1 = WS_OVERLAPPED | WS_CLIPCHILDREN; /* set minimum style */
     /* add flags for child window */
-    if (win->fparhan) fl1 |= WS_CHILD | WS_CLIPSIBLINGS;
+    if (win->parhan) fl1 |= WS_CHILD | WS_CLIPSIBLINGS;
     /* if we are enabling frames, add the frame parts back */
     if (e) {
 
@@ -10375,30 +10409,30 @@ void iframe(winptr win, int e)
 
     }
     unlockmain(); /* end exclusive access */
-    r = setwindowlong(win->fwinhan, GWL_STYLE, fl1);
+    r = SetWindowLong(win->winhan, GWL_STYLE, fl1);
     lockmain(); /* start exclusive access */
     if (!r) winerr(); /* process windows error */
     unlockmain(); /* end exclusive access */
-    b = SetWindowPos(win->fwinhan, 0, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE |
-                                                  SWP_FRAMECHANGED);
+    b = SetWindowPos(win->winhan, 0, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE |
+                                                 SWP_FRAMECHANGED);
     lockmain(); /* start exclusive access */
     if (!b) winerr(); /* process windows error */
     /* present the window */
     unlockmain(); /* end exclusive access */
-    b = ShowWindow(win->fwinhan, SW_SHOWDEFAULT);
+    b = ShowWindow(win->winhan, SW_SHOWDEFAULT);
     lockmain(); /* start exclusive access */
     if (win->bufmod)  { /* in buffer mode */
 
         /* change window size to match new mode */
         cr.left = 0; /* set up desired client rectangle */
         cr.top = 0;
-        cr.right = win->fgmaxxg;
-        cr.bottom = win->fgmaxyg;
+        cr.right = win->gmaxxg;
+        cr.bottom = win->gmaxyg;
         /* find window size from client size */
-        b = AdjustWindowRectEx(cr, fl1, FALSE, 0);
+        b = AdjustWindowRectEx(&cr, fl1, FALSE, 0);
         if (!b) winerr(); /* process windows error */
         unlockmain(); /* end exclusive access */
-        b = SetWindowPos(win->fwinhan, 0, 0, 0,
+        b = SetWindowPos(win->winhan, 0, 0, 0,
                             cr.right-cr.left, cr.bottom-cr.top,
                             SWP_NOMOVE | SWP_NOZORDER);
         lockmain(); /* start exclusive access */
@@ -10435,8 +10469,8 @@ void isizable(winptr win, int e)
 
     int  fl1; /* flag */
     RECT cr;  /* client rectangle holder */
-    HWND r;
     BOOL b;
+    LONG r;
 
     win->size = e; /* set new status of size bars */
     /* no point in making the change of framing is off entirely */
@@ -10445,16 +10479,16 @@ void isizable(winptr win, int e)
         /* set minimum style */
         fl1 = WS_OVERLAPPED | WS_CLIPCHILDREN;
         /* add frame features */
-        if (win->size) fl1 |= | WS_THICKFRAME;
-        else fl1 = fl1 || WS_BORDER;
-        if (sysbar)
+        if (win->size) fl1 |= WS_THICKFRAME;
+        else fl1 |= WS_BORDER;
+        if (win->sysbar)
             fl1 |= WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
         /* add flags for child window */
-        if (parhan) fl1 |= WS_CHILD | WS_CLIPSIBLINGS;
+        if (win->parhan) fl1 |= WS_CHILD | WS_CLIPSIBLINGS;
         /* if we are enabling frames, add the frame parts back */
         if (e) fl1 |= WS_THICKFRAME;
         unlockmain(); /* end exclusive access */
-        r = setwindowlong(win->winhan, GWL_STYLE, fl1);
+        r = SetWindowLong(win->winhan, GWL_STYLE, fl1);
         lockmain(); /* start exclusive access */
         if (!r) winerr(); /* process windows error */
         unlockmain(); /* end exclusive access */
@@ -10474,10 +10508,10 @@ void isizable(winptr win, int e)
             cr.right = win->gmaxxg;
             cr.bottom = win->gmaxyg;
             /* find window size from client size */
-            b = AdjustWindowRectEx(cr, fl1, FALSE, 0);
+            b = AdjustWindowRectEx(&cr, fl1, FALSE, 0);
             if (!b) winerr(); /* process windows error */
             unlockmain(); /* end exclusive access */
-            b = SetWindowPos(winhan, 0, 0, 0,
+            b = SetWindowPos(win->winhan, 0, 0, 0,
                              cr.right-cr.left, cr.bottom-cr.top,
                              SWP_NOMOVE || SWP_NOZORDER);
             lockmain(); /* start exclusive access */
@@ -10516,7 +10550,7 @@ void isysbar(winptr win, int e)
 
     int  fl1; /* flag */
     RECT cr;  /* client rectangle holder */
-    HWND r;
+    LONG r;
     BOOL b;
 
     win->sysbar = e; /* set new status of size bars */
@@ -10526,16 +10560,16 @@ void isysbar(winptr win, int e)
         /* set minimum style */
         fl1 = WS_OVERLAPPED | WS_CLIPCHILDREN;
         /* add frame features */
-        if (size) fl1 |= WS_THICKFRAME
+        if (win->size) fl1 |= WS_THICKFRAME;
         else fl1 |= WS_BORDER;
-        if (sysbar)
+        if (win->sysbar)
             fl1 |= WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
         /* add flags for child window */
         if (win->parhan) fl1 |= WS_CHILD | WS_CLIPSIBLINGS;
         /* if we are enabling frames, add the frame parts back */
         if (e) fl1 |= WS_THICKFRAME;
         unlockmain(); /* end exclusive access */
-        r = setwindowlong(win->winhan, GWL_STYLE, fl1);
+        r = SetWindowLong(win->winhan, GWL_STYLE, fl1);
         lockmain(); /* start exclusive access */
         if (!r) winerr(); /* process windows error */
         unlockmain(); /* end exclusive access */
@@ -10555,7 +10589,7 @@ void isysbar(winptr win, int e)
             cr.right = win->gmaxxg;
             cr.bottom = win->gmaxyg;
             /* find window size from client size */
-            b = AdjustWindowRectEx(cr, fl1, FALSE, 0);
+            b = AdjustWindowRectEx(&cr, fl1, FALSE, 0);
             if (!b) winerr(); /* process windows error */
             unlockmain(); /* end exclusive access */
             b = SetWindowPos(win->winhan, 0, 0, 0,
@@ -10591,20 +10625,20 @@ Appends a new menu entry to the given list.
 
 *******************************************************************************/
 
-void appendmenu(menuptr* list, menuptr m)
+void appendmenu(pa_menuptr* list, pa_menuptr m)
 
 {
 
-    menuptr lp;
+    pa_menuptr lp;
 
     /* clear these links for insurance */
     m->next = NULL; /* clear next */
     m->branch = NULL; /* clear branch */
-    if (!list) list = m /* list empty, set as first entry */
+    if (!*list) *list = m; /* list empty, set as first entry */
     else { /* list non-empty */
 
         /* find last entry in list */
-        lp = list; /* index 1st on list */
+        lp = *list; /* index 1st on list */
         while (lp->next) lp = lp->next;
         lp->next = m; /* append at end */
 
@@ -10629,83 +10663,85 @@ end of the menu,  the program selections placed in the menu.
 *******************************************************************************/
 
 /* get menu entry */
-void getmenu(menuptr* m, int id, char* face)
+void getmenu(pa_menuptr* m, int id, char* face)
 
 {
 
-    m = malloc(sizeof(pa_menurec));
-    if (!m) error(enomem);
-    m->next   = NULL; /* no next */
-    m->branch = NULL; /* no branch */
-    m->onoff  = FALSE; /* ! an on/off value */
-    m->oneof  = FALSE; /* ! a "one of" value */
-    m->bar    = FALSE; /* no bar under */
-    m->id     = id;    /* no id */
-    m->face = str(face); /* place face string */
+    *m = malloc(sizeof(pa_menurec));
+    if (!*m) error(enomem);
+    (*m)->next   = NULL; /* no next */
+    (*m)->branch = NULL; /* no branch */
+    (*m)->onoff  = FALSE; /* ! an on/off value */
+    (*m)->oneof  = FALSE; /* ! a "one of" value */
+    (*m)->bar    = FALSE; /* no bar under */
+    (*m)->id     = id;    /* no id */
+    (*m)->face = str(face); /* place face string */
 
 }
 
 /* add standard list item */
-void additem(int i, menuptr* m, l, char* s, int b)
+void additem(pa_stdmenusel sms, int i, pa_menuptr* m, pa_menuptr* l, char* s,
+             int b)
 
 {
 
-    if i in sms  { /* this item is active */
+    if (BIT(i) & sms) { /* this item is active */
 
-        getmenu(*m, i, s); /* get menu item */
-        appendmenu(*l, *m); /* add to list */
-        m->bar = b; /* set bar status */
+        getmenu(m, i, s); /* get menu item */
+        appendmenu(l, *m); /* add to list */
+        (*m)->bar = b; /* set bar status */
 
     }
 
 }
 
-void stdmenu(pa_stdmenusel sms, menuptr* sm, menuptr pm)
+void stdmenu(pa_stdmenusel sms, pa_menuptr* sm, pa_menuptr pm)
 
 {
 
-    menuptr m, hm; /* pointer for menu entries */
+    pa_menuptr m, hm; /* pointer for menu entries */
 
     *sm = NULL; /* clear menu */
 
     /* check and perform "file" menu */
 
-    if (sms & (BIT(SMNEW) | BIT(SMOPEN) | BIT(SMCLOSE) | BIT(SMSAVE) |
-               BIT(SMSAVEAS) | BIT(SMPAGESET) | BIT(SMPRINT) |
-               BIT(SMEXIT))) { /* file menu */
+    if (sms & (BIT(PA_SMNEW) | BIT(PA_SMOPEN) | BIT(PA_SMCLOSE) |
+               BIT(PA_SMSAVE) | BIT(PA_SMSAVEAS) | BIT(PA_SMPAGESET) |
+               BIT(PA_SMPRINT) | BIT(PA_SMEXIT))) { /* file menu */
 
-        getmenu(hm, 0, "File"); /* get entry */
+        getmenu(&hm, 0, "File"); /* get entry */
         appendmenu(sm, hm);
 
-        additem(SMNEW, m, hm->branch, "New", FALSE);
-        additem(SMOPEN, m, hm->branch, "Open", FALSE);
-        additem(SMCLOSE, m, hm->branch, "Close", FALSE);
-        additem(SMSAVE, m, hm->branch, "Save", FALSE);
-        additem(SMSAVEas, m, hm->branch, "Save As", TRUE);
-        additem(SMPAGESET, m, hm->branch, "Page Setup", FALSE);
-        additem(SMPRINT, m, hm->branch, "Print", TRUE);
-        additem(SMEXIT, m, hm->branch, "Exit", FALSE);
+        additem(sms, PA_SMNEW, &m, &hm->branch, "New", FALSE);
+        additem(sms, PA_SMOPEN, &m, &hm->branch, "Open", FALSE);
+        additem(sms, PA_SMCLOSE, &m, &hm->branch, "Close", FALSE);
+        additem(sms, PA_SMSAVE, &m, &hm->branch, "Save", FALSE);
+        additem(sms, PA_SMSAVEAS, &m, &hm->branch, "Save As", TRUE);
+        additem(sms, PA_SMPAGESET, &m, &hm->branch, "Page Setup", FALSE);
+        additem(sms, PA_SMPRINT, &m, &hm->branch, "Print", TRUE);
+        additem(sms, PA_SMEXIT, &m, &hm->branch, "Exit", FALSE);
 
    }
 
    /* check and perform "edit" menu */
 
-   if (sms&(BIT(SMUNDO) | BIT(SMCUT) | BIT(SMPASTE) | BIT(SMDELETE) |
-            BIT(SMFIND) | BIT(SMFINDNEXT) | BIT(SMREPLACE) | BIT(SMGOTO) |
-            BIT(SMSELECTALL))) { /* file menu */
+   if (sms&(BIT(PA_SMUNDO) | BIT(PA_SMCUT) | BIT(PA_SMPASTE) |
+            BIT(PA_SMDELETE) | BIT(PA_SMFIND) | BIT(PA_SMFINDNEXT) |
+            BIT(PA_SMREPLACE) | BIT(PA_SMGOTO) | BIT(PA_SMSELECTALL))) {
 
-        getmenu(hm, 0, "Edit"); /* get entry */
+        /* file menu */
+        getmenu(&hm, 0, "Edit"); /* get entry */
         appendmenu(sm, hm);
 
-        additem(SMUNDO, m, hm->branch, "Undo", TRUE);
-        additem(SMCUT, m, hm->branch, "Cut", FALSE);
-        additem(SMPASTE, m, hm->branch, "Paste", FALSE);
-        additem(SMDELETE, m, hm->branch, "Delete", TRUE);
-        additem(SMFIND, m, hm->branch, "Find", FALSE);
-        additem(SMFINDnext, m, hm->branch, "Find Next", FALSE);
-        additem(SMREPLACE, m, hm->branch, "Replace", FALSE);
-        additem(SMGOTO, m, hm->branch, "Goto", TRUE);
-        additem(SMSELECTALL, m, hm->branch, "Select All", FALSE);
+        additem(sms, PA_SMUNDO, &m, &hm->branch, "Undo", TRUE);
+        additem(sms, PA_SMCUT, &m, &hm->branch, "Cut", FALSE);
+        additem(sms, PA_SMPASTE, &m, &hm->branch, "Paste", FALSE);
+        additem(sms, PA_SMDELETE, &m, &hm->branch, "Delete", TRUE);
+        additem(sms, PA_SMFIND, &m, &hm->branch, "Find", FALSE);
+        additem(sms, PA_SMFINDNEXT, &m, &hm->branch, "Find Next", FALSE);
+        additem(sms, PA_SMREPLACE, &m, &hm->branch, "Replace", FALSE);
+        additem(sms, PA_SMGOTO, &m, &hm->branch, "Goto", TRUE);
+        additem(sms, PA_SMSELECTALL, &m, &hm->branch, "Select All", FALSE);
 
    }
 
@@ -10721,29 +10757,29 @@ void stdmenu(pa_stdmenusel sms, menuptr* sm, menuptr pm)
 
    /* check and perform "window" menu */
 
-   if (sms&(SMNEWWINDOW) | SMTILEHORIZ) | SMTILEVERT) | SMCASCADE) |
-           SMCLOSEALL)))  { /* file menu */
+   if (sms & (BIT(PA_SMNEWWINDOW) | BIT(PA_SMTILEHORIZ) | BIT(PA_SMTILEVERT) |
+              BIT(PA_SMCASCADE) | BIT(PA_SMCLOSEALL)))  { /* file menu */
 
-        getmenu(hm, 0, "Window"); /* get entry */
+        getmenu(&hm, 0, "Window"); /* get entry */
         appendmenu(sm, hm);
 
-        additem(SMNEWwindow, m, hm->branch, "New Window", TRUE);
-        additem(SMTILEHORIZ, m, hm->branch, "Tile Horizontally", FALSE);
-        additem(SMTILEVERT, m, hm->branch, "Tile Vertically", FALSE);
-        additem(SMCASCADE, m, hm->branch, "Cascade", TRUE);
-        additem(SMCLOSEall, m, hm->branch, "Close All", FALSE);
+        additem(sms, PA_SMNEWWINDOW, &m, &hm->branch, "New Window", TRUE);
+        additem(sms, PA_SMTILEHORIZ, &m, &hm->branch, "Tile Horizontally", FALSE);
+        additem(sms, PA_SMTILEVERT, &m, &hm->branch, "Tile Vertically", FALSE);
+        additem(sms, PA_SMCASCADE, &m, &hm->branch, "Cascade", TRUE);
+        additem(sms, PA_SMCLOSEALL, &m, &hm->branch, "Close All", FALSE);
 
    }
 
    /* check && perform "help" menu */
 
-   if (sms&(BIT(SMHELPTOPIC) | BIT(SMABOUT)))) { /* file menu */
+   if (sms & (BIT(PA_SMHELPTOPIC) | BIT(PA_SMABOUT))) { /* file menu */
 
-        getmenu(hm, 0, "Help"); /* get entry */
+        getmenu(&hm, 0, "Help"); /* get entry */
         appendmenu(sm, hm);
 
-        additem(SMHELPTOPIC, m, hm->branch, "Help Topics", TRUE);
-        additem(SMABOUT, m, hm->branch, "About", FALSE);
+        additem(sms, PA_SMHELPTOPIC, &m, &hm->branch, "Help Topics", TRUE);
+        additem(sms, PA_SMABOUT, &m, &hm->branch, "About", FALSE);
 
     }
 
@@ -10754,7 +10790,7 @@ void stdmenu(pa_stdmenusel sms, menuptr* sm, menuptr pm)
 Create widget
 
 Creates a widget within the given window, within the specified bounding box,
-and using the face string && type, && the given id. The string may || may not
+and using the face string && type, && the given id. The string may or may not
 be used.
 
 Widgets use the subthread to buffer them. There were various problems from
@@ -10763,101 +10799,103 @@ trying to start them on the main window.
 *******************************************************************************/
 
 /* create widget according to type */
-int createwidget(winptr win, wigtyp typ; int x1, int y1, int x2, int y2,
-                 char* s, int id, int exfil)
+HWND createwidget(winptr win, wigtyp typ, int x1, int y1, int x2, int y2,
+                  char* s, int id, int exfl)
 
 {
 
-    int   wh;     /* handle to widget */
+    HWND  wh;     /* handle to widget */
     imptr ip;     /* intertask message pointer */
     char* clsstr;
+    int   fl;     /* creation flag */
+    int   b;      /* return value */
 
     /* search previous definition with same id */
     if (fndwig(win, id)) error(ewigdup); /* duplicate widget id */
-    case typ of /* widget type */
+    switch (typ) { /* widget type */
 
-        wtbutton:
+        case wtbutton:
             clsstr = str("button");
             fl = BS_PUSHBUTTON | exfl;  /* button */
             break;
 
-       wtcheckbox:
+       case wtcheckbox:
           clsstr = str("button");
           fl = BS_CHECKBOX | exfl;    /* checkbox */
           break;
 
-       wtradiobutton:
+       case wtradiobutton:
           clsstr = str("button");
           fl = BS_RADIOBUTTON | exfl; /* radio button */
           break;
 
-       wtgroup:
+       case wtgroup:
           clsstr = str("button");
           fl = BS_GROUPBOX | exfl;    /* group box */
           break;
 
-       wtbackground:
+       case wtbackground:
           clsstr = str("static");
           fl = 0 | exfl;   /* background */
           break;
 
-       wtscrollvert: /* vertical scroll bar */
+       case wtscrollvert: /* vertical scroll bar */
           clsstr = str("scrollbar");
           fl = SBS_VERT | exfl;
           break;
 
-       wtscrollhoriz: /* horizontal scrollbar */
+       case wtscrollhoriz: /* horizontal scrollbar */
           clsstr = str("scrollbar");
           fl = SBS_HORZ | exfl;
           break;
 
-       wteditbox: /* single line edit */
+       case wteditbox: /* single line edit */
           clsstr = str("edit");
           fl = WS_BORDER | ES_LEFT | ES_AUTOHSCROLL | exfl;
           break;
 
-       wtprogressbar: /* progress bar */
+       case wtprogressbar: /* progress bar */
           clsstr = str("msctls_progress32");
           fl = 0 | exfl;
           break;
 
-       wtlistbox: /* list box */
+       case wtlistbox: /* list box */
           clsstr = str("listbox");
           fl = (LBS_STANDARD&~LBS_SORT) | exfl;
           break;
 
-       wtdropbox: /* list box */
+       case wtdropbox: /* list box */
           clsstr = str("combobox");
           fl = CBS_DROPDOWNLIST | exfl;
           break;
 
-       wtdropeditbox: /* list box */
+       case wtdropeditbox: /* list box */
           clsstr = str("combobox");
           fl = CBS_DROPDOWN | exfl;
           break;
 
-       wtslidehoriz: /* horizontal slider */
+       case wtslidehoriz: /* horizontal slider */
           clsstr = str("msctls_trackbar32");
           fl = TBS_HORZ | TBS_AUTOTICKS | exfl;
           break;
 
-       wtslidevert: /* vertical slider */
+       case wtslidevert: /* vertical slider */
           clsstr = str("msctls_trackbar32");
           fl = TBS_VERT | TBS_AUTOTICKS | exfl;
           break;
 
-       wttabbar: /* tab bar */
+       case wttabbar: /* tab bar */
           clsstr = str("systabcontrol32");
           fl = WS_VISIBLE | exfl;
           break;
 
     }
     /* create an intertask message to start the widget */
-    getitm(ip); /* get a im pointer */
+    getitm(&ip); /* get a im pointer */
     ip->im = imwidget; /* set type is widget */
     ip->wigcls = clsstr; /* place class string */
     ip->wigtxt = str(s); /* place face text */
-    ip->wigflg = ws_child | ws_visible | fl;
+    ip->wigflg = WS_CHILD | WS_VISIBLE | fl;
     ip->wigx = x1-1; /* place origin */
     ip->wigy = y1-1;
     ip->wigw = x2-x1+1; /* place size */
@@ -10869,7 +10907,7 @@ int createwidget(winptr win, wigtyp typ; int x1, int y1, int x2, int y2,
     b = PostMessage(dispwin, UMIM, (WPARAM)ip, 0);
     if (!b) winerr(); /* process windows error */
     /* Wait for widget start, this also keeps our window going. */
-    waitim(imwidget, ip); /* wait for the return */
+    waitim(imwidget, &ip); /* wait for the return */
     wh = ip->wigwin; /* place handle to widget */
     free(ip->wigcls); /* release class string */
     free(ip->wigtxt); /* release face text string */
@@ -10884,19 +10922,16 @@ void widget(winptr win, int x1, int y1, int x2, int y2, char* s, int id,
 
 {
 
-    int  fl;         /* creation flag */
-    int  b;          /* return value */
-
     getwig(win, wp); /* get new widget */
     /* Group widgets don"t have a background, so we pair it up with a background
        widget. */
     if (typ == wtgroup)  /* create buddy for group */
-        wp->han2 = createwidget(win, wtbackground, x1, y1, x2, y2, "", id,
-                                exfl);
+        (*wp)->han2 = createwidget(win, wtbackground, x1, y1, x2, y2, "", id,
+                                  exfl);
     /* create widget */
-    wp->han = createwidget(win, typ, x1, y1, x2, y2, s, id, exfl);
-    wp->id = id; /* place button id */
-    wp->typ = typ; /* place type */
+    (*wp)->han = createwidget(win, typ, x1, y1, x2, y2, s, id, exfl);
+    (*wp)->id = id; /* place button id */
+    (*wp)->typ = typ; /* place type */
 
 }
 
@@ -10912,13 +10947,13 @@ void ikillwidget(winptr win, int id)
 
 {
 
-    wp: wigptr; /* widget pointer */
+    wigptr wp; /* widget pointer */
 
     if (!win->visible) winvis(win); /* make sure we are displayed */
     wp = fndwig(win, id); /* find widget */
     if (!wp) error(ewignf); /* ! found */
     kilwin(wp->han); /* kill window */
-    if wp->han2 != 0  kilwin(wp->han2); /* distroy buddy window */
+    if (wp->han2) kilwin(wp->han2); /* distroy buddy window */
     putwig(win, wp); /* release widget entry */
 
 }
@@ -10957,7 +10992,7 @@ void iselectwidget(winptr win, int id, int e)
     /* check this widget is selectable */
     if (wp->typ != wtcheckbox && wp->typ != wtradiobutton) error(ewigsel);
     unlockmain(); /* end exclusive access */
-    r = SendMessage(wp->han, BM_SETCHECK, ord(e), 0);
+    r = SendMessage(wp->han, BM_SETCHECK, e, 0);
     lockmain();/* start exclusive access */
 
 }
@@ -11001,7 +11036,7 @@ void ienablewidget(winptr win, int id, int e)
         wp->typ != wtdropeditbox && wp->typ != wtslidehoriz &&
         wp->typ != wtslidevert && wp->typ != wttabbar) error(ewigdis);
     unlockmain(); /* end exclusive access */
-    enablewindow(wp->han, e); /* perform */
+    EnableWindow(wp->han, e); /* perform */
     lockmain(); /* start exclusive access */
     wp->enb = e; /* save enable/disable status */
 
@@ -11050,12 +11085,12 @@ void igetwidgettext(winptr win, int id, char* s, int sl)
       a zero return as being for a zero length string, but also apparently
       uses that value for errors. */
     unlockmain(); /* end exclusive access */
-    r = getwindowtext(wp->han, s, sl); /* get the text */
+    r = GetWindowText(wp->han, s, sl); /* get the text */
     lockmain(); /* start exclusive access */
 
 }
 
-void getwidgettext(FILE* f, int id, char* s)
+void getwidgettext(FILE* f, int id, char* s, int sl)
 
 {
 
@@ -11063,7 +11098,7 @@ void getwidgettext(FILE* f, int id, char* s)
 
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get windows context */
-    igetwidgettext(win, id, s); /* execute */
+    igetwidgettext(win, id, s, sl); /* execute */
     unlockmain(); /* end exclusive access */
 
 }
@@ -11089,7 +11124,7 @@ void iputwidgettext(winptr win, int id, char* s)
     /* check this widget can put text */
     if (wp->typ != wteditbox && wp->typ != wtdropeditbox) error(ewigptxt);
     unlockmain(); /* end exclusive access */
-    b = setwindowtext(wp->han, s); /* get the text */
+    b = SetWindowText(wp->han, s); /* get the text */
     lockmain(); /* start exclusive access */
     if (!b) winerr(); /* process windows error */
 
@@ -11308,7 +11343,7 @@ void ibuttonsizg(winptr win, char* s, int* w, int* h)
 
     dc = GetWindowDC(NULL); /* get screen dc */
     if (!dc) winerr(); /* process windows error */
-    b = GetTextExtentPoint32(dc, s, sz); /* get sizing */
+    b = GetTextExtentPoint32(dc, s, strlen(s), &sz); /* get sizing */
     if (!b) winerr(); /* process windows error */
     /* add button borders to size */
     *w = sz.cx+GetSystemMetrics(SM_CXEDGE)*2;
@@ -11322,8 +11357,8 @@ void ibuttonsiz(winptr win, char* s, int* w, int* h)
 
     ibuttonsizg(win, s, w, h); /* get size */
     /* change graphical size to character */
-    *w = (w-1) / win->charspace+1;
-    *h = (h-1) / win->linespace+1;
+    *w = (*w-1) / win->charspace+1;
+    *h = (*h-1) / win->linespace+1;
 
 }
 
@@ -11365,14 +11400,14 @@ void ibuttong(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
-    wp: wigptr; /* widget pointer */
+    wigptr wp; /* widget pointer */
 
-    if (!win->visible  winvis(win); /* make sure we are displayed */
-    widget(win, x1, y1, x2, y2, s, id, wtbutton, 0, wp);
+    if (!win->visible) winvis(win); /* make sure we are displayed */
+    widget(win, x1, y1, x2, y2, s, id, wtbutton, 0, &wp);
 
 }
 
-void ibutton(winptr win, int x1, int y1, int x2, int y2, char* s, id)
+void ibutton(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -11385,8 +11420,7 @@ void ibutton(winptr win, int x1, int y1, int x2, int y2, char* s, id)
 
 }
 
-void buttong(FILE* f; x1, y1, x2, y2: int; view s: char*;
-                 id: int);
+void buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -11399,7 +11433,7 @@ void buttong(FILE* f; x1, y1, x2, y2: int; view s: char*;
 
 }
 
-void button(FILE* f, int x1, int y1, int x2, int y2, char* s int id)
+void button(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -11430,8 +11464,8 @@ void icheckboxsizg(winptr win, char* s, int* w, int* h)
     HDC  dc; /* dc for screen */
 
     dc = GetWindowDC(NULL); /* get screen dc */
-    if dc == 0  winerr(); /* process windows error */
-    b = GetTextExtentPoint32(dc, s, sz); /* get sizing */
+    if (!dc) winerr(); /* process windows error */
+    b = GetTextExtentPoint32(dc, s, strlen(s), &sz); /* get sizing */
     if (!b) winerr(); /* process windows error */
     /* We needed to add a fudge factor for the space between the checkbox, the
        left edge of the widget, && the left edge of the text. */
@@ -11446,8 +11480,8 @@ void icheckboxsiz(winptr win, char* s, int* w, int* h)
 
     icheckboxsizg(win, s, w, h); /* get size */
     /* change graphical size to character */
-    *w = (w-1) / win->charspace+1;
-    *h = (h-1) / win->linespace+1;
+    *w = (*w-1) / win->charspace+1;
+    *h = (*h-1) / win->linespace+1;
 
 }
 
@@ -11493,11 +11527,11 @@ void icheckboxg(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
     wigptr wp; /* widget pointer */
 
     if (!win->visible) winvis(win); /* make sure we are displayed */
-    widget(win, x1, y1, x2, y2, s, id, wtcheckbox, 0, wp);
+    widget(win, x1, y1, x2, y2, s, id, wtcheckbox, 0, &wp);
 
 }
 
-void icheckbox(winptr win, int x1, int y1, int x2, int y2, char* s, id)
+void icheckbox(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -11523,7 +11557,7 @@ void checkboxg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-void checkbox(FILE* f, int x1, int y1, int x2, int y2, char* s, id)
+void checkbox(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -11555,7 +11589,7 @@ void iradiobuttonsizg(winptr win, char* s, int* w, int* h)
 
     dc = GetWindowDC(NULL); /* get screen dc */
     if (!dc) winerr(); /* process windows error */
-    b = GetTextExtentPoint32(dc, s, sz); /* get sizing */
+    b = GetTextExtentPoint32(dc, s, strlen(s), &sz); /* get sizing */
     if (!b) winerr(); /* process windows error */
     /* We needed to add a fudge factor for the space between the checkbox, the
        left edge of the widget, and the left edge of the text. */
@@ -11570,8 +11604,8 @@ void iradiobuttonsiz(winptr win, char* s, int* w, int* h)
 
     iradiobuttonsizg(win, s, w, h); /* get size */
     /* change graphical size to character */
-    *w = (w-1)/win->charspace+1;
-    *h = (h-1)/win->linespace+1;
+    *w = (*w-1)/win->charspace+1;
+    *h = (*h-1)/win->linespace+1;
 
 }
 
@@ -11614,10 +11648,10 @@ void iradiobuttong(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
-    wp: wigptr; /* widget pointer */
+    wigptr wp; /* widget pointer */
 
     if (!win->visible) winvis(win); /* make sure we are displayed */
-    widget(win, x1, y1, x2, y2, s, id, wtradiobutton, 0, wp);
+    widget(win, x1, y1, x2, y2, s, id, wtradiobutton, 0, &wp);
 
 }
 
@@ -11647,7 +11681,7 @@ void radiobuttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-void radiobutton(FILE* f, int x1, int y1, int x2, int y2, char* s int id)
+void radiobutton(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -11680,7 +11714,7 @@ void igroupsizg(winptr win, char* s, int cw, int ch, int* w, int* h,
 
     dc = GetWindowDC(NULL); /* get screen dc */
     if (!dc) winerr(); /* process windows error */
-    b = GetTextExtentPoint32(dc, s, sz); /* get sizing */
+    b = GetTextExtentPoint32(dc, s, strlen(s), &sz); /* get sizing */
     if (!b) winerr(); /* process windows error */
     /* Use the string sizing, and rules of thumb for the edges */
     *w = sz.cx+7*2; /* return size */
@@ -11754,7 +11788,7 @@ void igroupg(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
     wigptr wp; /* widget pointer */
 
     if (!win->visible) winvis(win); /* make sure we are displayed */
-    widget(win, x1, y1, x2, y2, s, id, wtgroup, 0, wp);
+    widget(win, x1, y1, x2, y2, s, id, wtgroup, 0, &wp);
 
 }
 
@@ -11771,7 +11805,7 @@ void igroup(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-void groupg(FILE* f, int x1, int y1, int x2, int y2, char* s, id)
+void groupg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -11813,11 +11847,11 @@ void ibackgroundg(winptr win, int x1, int y1, int x2, int y2, int id)
     wigptr wp; /* widget pointer */
 
     if (!win->visible) winvis(win); /* make sure we are displayed */
-    widget(win, x1, y1, x2, y2, "", id, wtbackground, 0, wp);
+    widget(win, x1, y1, x2, y2, "", id, wtbackground, 0, &wp);
 
 }
 
-void ibackground(winptr win, int x1, int y1, int x2, int y2: int, int id)
+void ibackground(winptr win, int x1, int y1, int x2, int y2, int id)
 
 {
 
@@ -11865,14 +11899,14 @@ scrollbar is calculated and returned.
 
 *******************************************************************************/
 
-void iscrollvertsizg(winptr win int* w, int* h)
+void iscrollvertsizg(winptr win, int* w, int* h)
 
 {
 
     /* get system values for scroll bar arrow width and height, for which there
        are two. */
-    *w = GetSystemMetrics(sm_cxvscroll);
-    *h = GetSystemMetrics(sm_cyvscroll)*2;
+    *w = GetSystemMetrics(SM_CXVSCROLL);
+    *h = GetSystemMetrics(SM_CYVSCROLL)*2;
 
 }
 
@@ -11929,7 +11963,7 @@ void iscrollvertg(winptr win, int x1, int y1, int x2, int y2, int id)
     BOOL       b;  /* return value */
 
     if (!win->visible) winvis(win); /* make sure we are displayed */
-    widget(win, x1, y1, x2, y2, "", id, wtscrollvert, 0, wp);
+    widget(win, x1, y1, x2, y2, "", id, wtscrollvert, 0, &wp);
     /* The scroll set for windows is arbitrary. We expand that to 0..INT_MAX on
        messages. */
     unlockmain(); /* end exclusive access */
@@ -11940,7 +11974,7 @@ void iscrollvertg(winptr win, int x1, int y1, int x2, int y2, int id)
     si.cbSize = sizeof(SCROLLINFO); /* set size */
     si.fMask = SIF_PAGE; /* set page size */
     unlockmain(); /* end exclusive access */
-    b = GetScrollInfo(wp->han, SB_CTL, si);
+    b = GetScrollInfo(wp->han, SB_CTL, &si);
     lockmain(); /* start exclusive access */
     if (!b) winerr(); /* process windows error */
     wp->siz = si.nPage; /* get size */
@@ -12001,8 +12035,8 @@ void iscrollhorizsizg(winptr win, int* w, int* h)
 
     /* get system values for scroll bar arrow width && height, for which there
        are two. */
-    *w = GetSystemMetrics(sm_cxhscroll)*2;
-    *h = GetSystemMetrics(sm_cyhscroll);
+    *w = GetSystemMetrics(SM_CXHSCROLL)*2;
+    *h = GetSystemMetrics(SM_CYHSCROLL);
 
 }
 
@@ -12050,7 +12084,7 @@ Creates a horizontal scrollbar.
 
 *******************************************************************************/
 
-void iscrollhorizg(winptr win, int x1, int y1, int x2, int y2, int id: int)
+void iscrollhorizg(winptr win, int x1, int y1, int x2, int y2, int id)
 
 {
 
@@ -12059,7 +12093,7 @@ void iscrollhorizg(winptr win, int x1, int y1, int x2, int y2, int id: int)
     BOOL       b;  /* return value */
 
     if (!win->visible) winvis(win); /* make sure we are displayed */
-    widget(win, x1, y1, x2, y2, "", id, wtscrollhoriz, 0, wp);
+    widget(win, x1, y1, x2, y2, "", id, wtscrollhoriz, 0, &wp);
     /* The scroll set for windows is arbitrary. We expand that to 0..INT_MAX on
        messages. */
     unlockmain(); /* end exclusive access */
@@ -12067,10 +12101,10 @@ void iscrollhorizg(winptr win, int x1, int y1, int x2, int y2, int id: int)
     lockmain(); /* start exclusive access */
     if (!b) winerr(); /* process windows error */
     /* retrieve the default size of slider */
-    si.cbsize = sizeof(SCROLLINFO); /* set size */
-    si.fmask = sif_page; /* set page size */
+    si.cbSize = sizeof(SCROLLINFO); /* set size */
+    si.fMask = SIF_PAGE; /* set page size */
     unlockmain(); /* end exclusive access */
-    b = GetScrollInfo(wp->han, SB_CTL, si);
+    b = GetScrollInfo(wp->han, SB_CTL, &si);
     lockmain(); /* start exclusive access */
     if (!b) winerr(); /* process windows error */
     wp->siz = si.nPage; /* get size */
@@ -12142,7 +12176,7 @@ void iscrollpos(winptr win, int id, int r)
     if (f*(255-wp->siz)/INT_MAX > 255) p = 255;
     else p = f*(255-wp->siz)/INT_MAX;
     unlockmain(); /* end exclusive access */
-    rv = setscrollpos(wp->han, sb_ctl, p, TRUE);
+    rv = SetScrollPos(wp->han, SB_CTL, p, TRUE);
     lockmain();/* start exclusive access */
 
 }
@@ -12180,15 +12214,15 @@ void iscrollsiz(winptr win, int id, int r)
     if (!win->visible) winvis(win); /* make sure we are displayed */
     wp = fndwig(win, id); /* find widget */
     if (!wp) error(ewignf); /* ! found */
-    si.cbsize = scrollinfo_len; /* set size */
-    si.fmask = sif_page; /* set page size */
-    si.nmin = 0; /* no min */
-    si.nmax = 0; /* no max */
-    si.npage = r / 0x800000; /* set size */
-    si.npos = 0; /* no position */
-    si.ntrackpos = 0; /* no track position */
+    si.cbSize = sizeof(SCROLLINFO); /* set size */
+    si.fMask = SIF_PAGE; /* set page size */
+    si.nMin = 0; /* no min */
+    si.nMax = 0; /* no max */
+    si.nPage = r/0x800000; /* set size */
+    si.nPos = 0; /* no position */
+    si.nTrackPos = 0; /* no track position */
     unlockmain(); /* end exclusive access */
-    rv = setscrollinfo(wp->han, sb_ctl, si, TRUE);
+    rv = SetScrollInfo(wp->han, SB_CTL, &si, TRUE);
     lockmain(); /* start exclusive access */
     wp->siz = r/0x800000; /* set size */
 
@@ -12222,7 +12256,7 @@ LRESULT CALLBACK wndprocnum(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
 {
 
     int    r;      /* result */
-    int    wh;     /* parent window handle */
+    HWND   wh;     /* parent window handle */
     int    lfn;    /* logical number for parent window */
     winptr win;    /* parent window data */
     wigptr wp;     /* widget pointer */
@@ -12237,7 +12271,7 @@ LRESULT CALLBACK wndprocnum(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
 
     /* We need to find out who we are talking to. */
     lockmain(); /* start exclusive access */
-    wh = getparent(hwnd); /* get the widget parent handle */
+    wh = GetParent(hwnd); /* get the widget parent handle */
     lfn = hwn2lfn(wh); /* get the logical window number */
     win = lfn2win(lfn); /* index window from logical number */
     wp = fndwighan(win, hwnd); /* find the widget from that */
@@ -12251,8 +12285,8 @@ LRESULT CALLBACK wndprocnum(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
             /* check control is receiving a carriage return */
             if (wparam == '\r') {
 
-                r = getwindowtext(wp->han2, s); /* get contents of edit */
-                v = intv(s, err); /* get value */
+                r = GetWindowText(wp->han2, s, 100); /* get contents of edit */
+                v = intv(s, &err); /* get value */
                 /* Send edit sends cr message to parent window, with widget logical
                    number embedded as wparam. */
                 if (!err && v >= wp->low && v <= wp->high)
@@ -12260,7 +12294,7 @@ LRESULT CALLBACK wndprocnum(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
                 else
                     /* Send the message on to its owner, this will ring the bell in
                        Windows XP. */
-                    r = callwindowproc(wp->wprc, hwnd, imsg, wparam, lparam);
+                    r = CallWindowProc(wp->wprc, hwnd, imsg, wparam, lparam);
 
             } else {
 
@@ -12269,8 +12303,8 @@ LRESULT CALLBACK wndprocnum(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
                    an error, a bell in Windows XP. */
                 if (!((wparam >= '0' && wparam < '9') || wparam == '+' ||
                       wparam == '-' || wparam == '\b'))
-                    wparam = '\cr"';
-                r = callwindowproc(wp->wprc, hwnd, imsg, wparam, lparam);
+                    wparam = '\r';
+                r = CallWindowProc(wp->wprc, hwnd, imsg, wparam, lparam);
 
             }
 
@@ -12278,7 +12312,7 @@ LRESULT CALLBACK wndprocnum(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
 
     } else
         /* send the message on to its owner */
-        r = callwindowproc(wp->wprc, hwnd, imsg, wparam, lparam);
+        r = CallWindowProc(wp->wprc, hwnd, imsg, wparam, lparam);
 
     return (r); /* return result */
 
@@ -12304,11 +12338,11 @@ void inumselboxsizg(winptr win, int l, int u,  int* w, int* h)
     /* get size of text */
     dc = GetWindowDC(NULL); /* get screen dc */
     if (!dc) winerr(); /* process windows error */
-    if (u > 9) b = GetTextExtentPoint32(dc, "00", sz) /* get sizing */
-    else b = GetTextExtentPoint32(dc, "0", sz); /* get sizing */
+    if (u > 9) b = GetTextExtentPoint32(dc, "00", 2, &sz); /* get sizing */
+    else b = GetTextExtentPoint32(dc, "0", 1, &sz); /* get sizing */
     if (!b) winerr(); /* process windows error */
     /* width of text, plus up/down arrows, && border && divider lines */
-    *w = sz.cx+GetSystemMetrics(sm_cxvscroll)+4;
+    *w = sz.cx+GetSystemMetrics(SM_CXVSCROLL)+4;
     *h = sz.cy+2; /* height of text plus border lines */
 
 }
@@ -12319,8 +12353,8 @@ void inumselboxsiz(winptr win, int l, int u, int* w, int* h)
 
     inumselboxsizg(win, l, u, w, h); /* get size */
     /* change graphical size to character */
-    *w = (w-1) / win->charspace+1;
-    *h = (h-1) / win->linespace+1;
+    *w = (*w-1) / win->charspace+1;
+    *h = (*h-1) / win->linespace+1;
 
 }
 
@@ -12375,7 +12409,7 @@ void inumselboxg(winptr win, int x1, int y1, int x2, int y2, int l, int u,
       immediately after creation, as the different components talk to each
       other. Because of this, we must create a widget entry first, even if
       it is incomplete. */
-    getwig(win, wp); /* get new widget */
+    getwig(win, &wp); /* get new widget */
     wp->id = id; /* place button id */
     wp->typ = wtnumselbox; /* place type */
     wp->han = 0; /* clear handles */
@@ -12386,14 +12420,14 @@ void inumselboxg(winptr win, int x1, int y1, int x2, int y2, int l, int u,
     udw = GetSystemMetrics(SM_CXHSCROLL);
     /* If the width is ! enough for the control to appear, force it. */
     if (x2-x1+1 < udw) x2 = x1+udw-1;
-    getitm(ip); /* get a im pointer */
+    getitm(&ip); /* get a im pointer */
     ip->im = imupdown; /* set is up/down control */
     ip->udflg = WS_CHILD | WS_VISIBLE | WS_BORDER | UDS_SETBUDDYINT;
     ip->udx = x1-1;
     ip->udy = y1-1;
     ip->udcx = x2-x1+1;
     ip->udcy = y2-y1+1;
-    ip->udpar = winhan;
+    ip->udpar = win->winhan;
     ip->udid = id;
     ip->udinst = GetModuleHandle(NULL);
     ip->udup = u;
@@ -12401,14 +12435,14 @@ void inumselboxg(winptr win, int x1, int y1, int x2, int y2, int l, int u,
     ip->udpos = l;
     br = PostMessage(dispwin, UMIM, (WPARAM)ip, 0);
     if (!br) winerr(); /* process windows error */
-    waitim(imupdown, ip); /* wait for the return */
+    waitim(imupdown, &ip); /* wait for the return */
     wp->han = ip->udhan; /* place control handle */
     wp->han2 = ip->udbuddy; /* place buddy handle */
     putitm(ip); /* release im */
     /* place our subclass handler for the edit control */
-    wp->wprc = GetWindowLong(wp->han2, GWL_WNDPROC);
-    if wp->wprc == 0  winerr(); /* process windows error */
-    r = setwindowlong(wp->han2, gwl_wndproc, wndprocadr(wndprocnum));
+    wp->wprc = (WNDPROC)GetWindowLongPtr(wp->han2, GWL_WNDPROC);
+    if (!wp->wprc) winerr(); /* process windows error */
+    r = SetWindowLong(wp->han2, GWL_WNDPROC, (LONG)wndprocnum);
     if (!r) winerr(); /* process windows error */
 
 }
@@ -12467,7 +12501,7 @@ int wndprocedit(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
 {
 
     LRESULT r;   /* result */
-    int     wh;  /* parent window handle */
+    HWND    wh;  /* parent window handle */
     int     lfn; /* logical number for parent window */
     winptr  win; /* parent window data */
     wigptr  wp;  /* widget pointer */
@@ -12476,7 +12510,7 @@ int wndprocedit(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
 ;prtmsgu(hwnd, imsg, wparam, lparam);*/
 
     /* We need to find out who we are talking to. */
-    wh = getparent(hwnd); /* get the widget parent handle */
+    wh = GetParent(hwnd); /* get the widget parent handle */
     lfn = hwn2lfn(wh); /* get the logical window number */
     win = lfn2win(lfn); /* index window from logical number */
     wp = fndwighan(win, hwnd); /* find the widget from that */
@@ -12487,7 +12521,7 @@ int wndprocedit(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
         putmsg(wh, UMEDITCR, wp->id, 0);
     else
         /* send the message on to its owner */
-        r = callwindowproc(wp->wprc, hwnd, imsg, wparam, lparam);
+        r = CallWindowProc(wp->wprc, hwnd, imsg, wparam, lparam);
 
     return (r); /* return result */
 
@@ -12512,7 +12546,7 @@ void ieditboxsizg(winptr win, char* s, int* w, int* h)
 
     dc = GetWindowDC(NULL); /* get screen dc */
     if (!dc) winerr(); /* process windows error */
-    b = GetTextExtentPoint32(dc, s, sz); /* get sizing */
+    b = GetTextExtentPoint32(dc, s, strlen(s), &sz); /* get sizing */
     if (!b) winerr(); /* process windows error */
     /* add borders to size */
     *w = sz.cx+4;
@@ -12526,8 +12560,8 @@ void ieditboxsiz(winptr win, char* s, int* w, int* h)
 
     ieditboxsizg(win, s, w, h); /* get size */
     /* change graphical size to character */
-    *w = (w-1) / win->charspace+1;
-    *h = (h-1) / win->linespace+1;
+    *w = (*w-1) / win->charspace+1;
+    *h = (*h-1) / win->linespace+1;
 
 }
 
@@ -12573,11 +12607,11 @@ void ieditboxg(winptr win, int x1, int y1, int x2, int y2, int id)
     LONG   r;
 
     if (!win->visible) winvis(win); /* make sure we are displayed */
-    widget(win, x1, y1, x2, y2, "", id, wteditbox, 0, wp);
+    widget(win, x1, y1, x2, y2, "", id, wteditbox, 0, &wp);
     /* get the windows internal void for subclassing */
-    wp->wprc = GetWindowLong(wp->han, gwl_wndproc);
+    wp->wprc = (WNDPROC)GetWindowLongPtr(wp->han, GWL_WNDPROC);
     if (!wp->wprc) winerr(); /* process windows error */
-    r = setwindowlong(wp->han, gwl_wndproc, wndprocadr(wndprocedit));
+    r = SetWindowLong(wp->han, GWL_WNDPROC, (LONG)wndprocedit);
     if (!r) winerr(); /* process windows error */
 
 }
@@ -12696,7 +12730,7 @@ void iprogbarg(winptr win, int x1, int y1, int x2, int y2, int id)
 
     if (!win->visible) winvis(win); /* make sure we are displayed */
     /* create the progress bar */
-    widget(win, x1, y1, x2, y2, "", id, wtprogressbar, 0, wp);
+    widget(win, x1, y1, x2, y2, "", id, wtprogressbar, 0, &wp);
     /* use 0..INT_MAX ratio */
     unlockmain(); /* end exclusive access */
     r = SendMessage(wp->han, PBM_SETRANGE32, 0, INT_MAX);
@@ -12764,7 +12798,7 @@ void iprogbarpos(winptr win, int id, int pos)
    if (!wp) error(ewignf); /* ! found */
    /* set the range */
    unlockmain(); /* end exclusive access */
-   r = SendMessage(wp->han, pbm_setpos, pos, 0);
+   r = SendMessage(wp->han, PBM_SETPOS, pos, 0);
    lockmain(); /* start exclusive access */
 
 }
@@ -12813,7 +12847,7 @@ void ilistboxsizg(winptr win, pa_strptr sp, int* w, int* h)
 
         dc = GetWindowDC(NULL); /* get screen dc */
         if (!dc) winerr(); /* process windows error */
-        b = GetTextExtentPoint32(dc, sp->str, sz); /* get sizing */
+        b = GetTextExtentPoint32(dc, sp->str, strlen(sp->str), &sz); /* get sizing */
         if (!b) winerr(); /* process windows error */
         /* add borders to size */
         mw = sz.cx+4;
@@ -12825,7 +12859,7 @@ void ilistboxsizg(winptr win, pa_strptr sp, int* w, int* h)
 
 }
 
-void ilistboxsiz(winptr win, pa_strptr, sp, int* w, int* h)
+void ilistboxsiz(winptr win, pa_strptr sp, int* w, int* h)
 
 {
 
@@ -12836,16 +12870,16 @@ void ilistboxsiz(winptr win, pa_strptr, sp, int* w, int* h)
 
 }
 
-void listboxsizg(FILE* f, pa_strptr sp, int* w, int* h);
-
-var winptr win; /* window context */
+void listboxsizg(FILE* f, pa_strptr sp, int* w, int* h)
 
 {
 
-   lockmain(); /* start exclusive access */
-   win = txt2win(f); /* get windows context */
-   ilistboxsizg(win, sp, w, h); /* get size */
-   unlockmain(); /* end exclusive access */
+    winptr win; /* window context */
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    ilistboxsizg(win, sp, w, h); /* get size */
+    unlockmain(); /* end exclusive access */
 
 }
 
@@ -12878,11 +12912,11 @@ void ilistboxg(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
     LRESULT r; /* return value */
 
     if (!win->visible)  winvis(win); /* make sure we are displayed */
-    widget(win, x1, y1, x2, y2, "", id, wtlistbox, 0, wp);
+    widget(win, x1, y1, x2, y2, "", id, wtlistbox, 0, &wp);
     while (sp) { /* add strings to list */
 
         unlockmain(); /* end exclusive access */
-        r = SendMessage(wp->han, LB_ADDSTRING, sp->str); /* add string */
+        r = SendMessage(wp->han, LB_ADDSTRING, 0, (LPARAM)sp->str); /* add string */
         lockmain(); /* start exclusive access */
         if (r == -1) error(estrspc); /* out of string space */
         sp = sp->next; /* next string */
@@ -12942,9 +12976,11 @@ void getsizlin(char* s, LPSIZE sz)
 
 {
 
+    HDC dc;
+
     dc = GetWindowDC(NULL); /* get screen dc */
     if (!dc) winerr(); /* process windows error */
-    b = GetTextExtentPoint32(dc, s, sz); /* get sizing */
+    b = GetTextExtentPoint32(dc, s, strlen(s), sz); /* get sizing */
     if (!b) winerr(); /* process windows error */
 
 }
@@ -12962,8 +12998,7 @@ selections can be scrolled.
 
 *******************************************************************************/
 
-void idropboxsizg(winptr win, pa_strptr pa_strptr sp, int* cw, int* ch,
-                  int* ow, int* oh)
+void idropboxsizg(winptr win, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
 
 {
 
@@ -12977,7 +13012,7 @@ void idropboxsizg(winptr win, pa_strptr pa_strptr sp, int* cw, int* ch,
     HDC  dc; /* dc for screen */
 
     /* calculate first line */
-    getsiz(sp->str); /* find sizing for line */
+    getsizlin(sp->str, &sz); /* find sizing for line */
     /* Find size of string x, drop arrow width, box edges, and add fudge factor
       to space text out. */
     *cw = sz.cx+darrowx+GetSystemMetrics(SM_CXEDGE)*2+4;
@@ -12989,7 +13024,7 @@ void idropboxsizg(winptr win, pa_strptr pa_strptr sp, int* cw, int* ch,
     /* add all lines to drop box section */
     while (sp) { /* traverse string list */
 
-        getsizlin(sp->str); /* find sizing for this line */
+        getsizlin(sp->str, &sz); /* find sizing for this line */
         /* find open width on this string only */
         *ow = sz.cx+darrowx+GetSystemMetrics(SM_CXEDGE)*2+4;
         if (*ow > *cw) *cw = *ow; /* larger than closed width, set new max */
@@ -13057,19 +13092,19 @@ void idropboxg(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
     LRESULT r; /* return value */
 
     if (!win->visible) winvis(win); /* make sure we are displayed */
-    widget(win, x1, y1, x2, y2, "", id, wtdropbox, 0, wp);
+    widget(win, x1, y1, x2, y2, "", id, wtdropbox, 0, &wp);
     sp1 = sp; /* index top of string list */
     while (sp1) { /* add strings to list */
 
         unlockmain(); /* end exclusive access */
-        r = SendMessage(wp->han, cb_addstring, sp1->str^); /* add string */
+        r = SendMessage(wp->han, CB_ADDSTRING, 0, (LPARAM)sp1->str); /* add string */
         lockmain(); /* start exclusive access */
         if (r == -1) error(estrspc); /* out of string space */
         sp1 = sp1->next; /* next string */
 
     }
     unlockmain(); /* end exclusive access */
-    r = SendMessage(wp->han, cb_setcursel, 0, 0);
+    r = SendMessage(wp->han, CB_SETCURSEL, 0, 0);
     lockmain(); /* start exclusive access */
     if (r == -1)  error(esystem); /* should ! happen */
 
@@ -13143,15 +13178,15 @@ void idropeditboxsizg(winptr win, pa_strptr sp, int* cw, int* ch,
     HDC  dc; /* dc for screen */
 
     /* calculate first line */
-    getsizlin(sp->str); /* find sizing for line */
+    getsizlin(sp->str, &sz); /* find sizing for line */
     /* Find size of string x, drop arrow width, box edges, and add fudge factor
        to space text out. */
-//    cw = sz.cx+darrowx+GetSystemMetrics(sm_cxedge)*2+4;
+//    cw = sz.cx+darrowx+GetSystemMetrics(SM_CXEDGE)*2+4;
     *ow = *cw; /* open is the same */
     /* drop arrow height+shadow overhead+drop box bounding */
     *oh = darrowy+GetSystemMetrics(SM_CYEDGE)*2+2;
     /* drop arrow height+shadow overhead */
-//    ch = darrowy+GetSystemMetrics(sm_cyedge)*2;
+//    ch = darrowy+GetSystemMetrics(SM_CYEDGE)*2;
     /* add all lines to drop box section */
     while (sp) { /* traverse string list */
 
@@ -13193,7 +13228,7 @@ void dropeditboxsizg(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
 
 }
 
-void dropeditboxsiz(FILE* f, pa_strptr, sp, int* cw, int* ch, int* ow, int* oh)
+void dropeditboxsiz(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
 
 {
 
@@ -13227,12 +13262,12 @@ void idropeditboxg(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp,
     LRESULT   r;   /* return value */
 
     if (!win->visible) winvis(win); /* make sure we are displayed */
-    widget(win, x1, y1, x2, y2, "", id, wtdropeditbox, 0, wp);
+    widget(win, x1, y1, x2, y2, "", id, wtdropeditbox, 0, &wp);
     sp1 = sp; /* index top of string list */
     while (sp1) { /* add strings to list */
 
         unlockmain(); /* end exclusive access */
-        r = SendMessage(wp->han, cb_addstring, sp1->str); /* add string */
+        r = SendMessage(wp->han, CB_ADDSTRING, 0, (LPARAM)sp1->str); /* add string */
         lockmain(); /* start exclusive access */
         if (r == -1) error(estrspc); /* out of string space */
         sp1 = sp1->next; /* next string */
@@ -13241,7 +13276,7 @@ void idropeditboxg(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp,
 
 }
 
-void idropeditbox(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp, id);
+void idropeditbox(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 {
 
@@ -13356,9 +13391,9 @@ void islidehorizg(winptr win, int x1, int y1, int x2, int y2, int mark, int id)
 
     if (!win->visible) winvis(win); /* make sure we are displayed */
     if (!mark) /* tick marks enabled */
-        widget(win, x1, y1, x2, y2, "", id, wtslidehoriz, TBS_NOTICKS, wp);
+        widget(win, x1, y1, x2, y2, "", id, wtslidehoriz, TBS_NOTICKS, &wp);
     else /* tick marks enabled */
-        widget(win, x1, y1, x2, y2, "", id, wtslidehoriz, 0, wp);
+        widget(win, x1, y1, x2, y2, "", id, wtslidehoriz, 0, &wp);
     /* set tickmark frequency */
     unlockmain(); /* end exclusive access */
     r = SendMessage(wp->han, TBM_SETTICFREQ, mark, 0);
@@ -13379,7 +13414,7 @@ void islidehoriz(winptr win, int x1, int y1, int x2, int y2, int mark, int id)
 
 }
 
-void slidehorizg(FILE* f, int x1, int y1, int x2, int y2, int mark, id)
+void slidehorizg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 
 {
 
@@ -13479,14 +13514,14 @@ void islidevertg(winptr win, int x1, int y1, int x2, int y2, int mark, int id)
     wigptr  wp; /* widget pointer */
     LRESULT r;  /* return value */
 
-    if ! win->visible  winvis(win); /* make sure we are displayed */
-    if mark == 0  /* tick marks off */
-        widget(win, x1, y1, x2, y2, "", id, wtslidevert, tbs_noticks, wp)
+    if (!win->visible) winvis(win); /* make sure we are displayed */
+    if (!mark) /* tick marks off */
+        widget(win, x1, y1, x2, y2, "", id, wtslidevert, TBS_NOTICKS, &wp);
     else /* tick marks enabled */
-        widget(win, x1, y1, x2, y2, "", id, wtslidevert, 0, wp);
+        widget(win, x1, y1, x2, y2, "", id, wtslidevert, 0, &wp);
     /* set tickmark frequency */
     unlockmain(); /* end exclusive access */
-    r = SendMessage(wp->han, tbm_setticfreq, mark, 0);
+    r = SendMessage(wp->han, TBM_SETTICFREQ, mark, 0);
     lockmain(); /* start exclusive access */
 
 }
@@ -13500,7 +13535,7 @@ void islidevert(winptr win, int x1, int y1, int x2, int y2, int mark, int id)
    y1 = (y1-1)*win->linespace+1;
    x2 = (x2)*win->charspace;
    y2 = (y2)*win->linespace;
-   islidevertg(win, x1, y1, x2, y2, mark, id) /* create button graphical */
+   islidevertg(win, x1, y1, x2, y2, mark, id); /* create button graphical */
 
 }
 
@@ -13548,13 +13583,13 @@ void uselesswidget(winptr win)
 
 {
 
-    ip: imptr; /* intratask message pointer */
+    imptr ip; /* intratask message pointer */
 
-    getitm(ip); /* get a im pointer */
+    getitm(&ip); /* get a im pointer */
     ip->im = imwidget; /* set type is widget */
     strcpy(ip->wigcls, "static");
     strcpy(ip->wigtxt, "");
-    ip->wigflg = WS_CHILD /*or ws_visible*/;
+    ip->wigflg = WS_CHILD /*or WS_VISIBLE*/;
     ip->wigx = 50;
     ip->wigy = 50;
     ip->wigw = 50;
@@ -13566,7 +13601,7 @@ void uselesswidget(winptr win)
     b = PostMessage(dispwin, UMIM, (WPARAM)ip, 0);
     if (!b) winerr(); /* process windows error */
     /* Wait for widget start, this also keeps our window going. */
-    waitim(imwidget, ip); /* wait for the return */
+    waitim(imwidget, &ip); /* wait for the return */
     kilwin(ip->wigwin); /* kill widget */
     free(ip->wigcls); /* release class string */
     free(ip->wigtxt); /* release face text string */
@@ -13583,18 +13618,18 @@ calculated and returned.
 
 *******************************************************************************/
 
-void itabbarsizg(winptr win, tabori tor, int cw, int ch, int* w, int* h,
+void itabbarsizg(winptr win, pa_tabori tor, int cw, int ch, int* w, int* h,
                  int* ox, int* oy)
 
 {
 
-    if (tor == toright || tor == toleft)  { /* vertical bar */
+    if (tor == pa_toright || tor == pa_toleft)  { /* vertical bar */
 
         *w = 32; /* set minimum width */
         *h = 2+20*2; /* set minimum height */
         *w = *w+cw; /* add client space to width */
         if (ch+4 > *h) *h = ch+4; /* set to client if greater */
-        if (tor == toleft) {
+        if (tor == pa_toleft) {
 
             *ox = 28; /* set offsets */
             *oy = 4;
@@ -13612,7 +13647,7 @@ void itabbarsizg(winptr win, tabori tor, int cw, int ch, int* w, int* h,
         *h = 32; /* set minimum height */
         if (cw+4 > *w) *w = cw+4; /* set to client if greater */
         *h = *h+ch; /* add client space to height */
-        if (tor == totop)  {
+        if (tor == pa_totop)  {
 
             *ox = 4; /* set offsets */
             *oy = 28;
@@ -13628,7 +13663,7 @@ void itabbarsizg(winptr win, tabori tor, int cw, int ch, int* w, int* h,
 
 }
 
-void itabbarsiz(winptr win, tabori tor, int cw, int ch, int* w, int* h,
+void itabbarsiz(winptr win, pa_tabori tor, int cw, int ch, int* w, int* h,
                 int* ox, int* oy)
 
 {
@@ -13638,7 +13673,7 @@ void itabbarsiz(winptr win, tabori tor, int cw, int ch, int* w, int* h,
     /* convert client sizes to graphical */
     cw = cw*win->charspace;
     ch = ch*win->linespace;
-    itabbarsizg(win, tor, cw, ch, gw, gh, gox, goy); /* get size */
+    itabbarsizg(win, tor, cw, ch, &gw, &gh, &gox, &goy); /* get size */
     /* change graphical size to character */
     *w = (gw-1) / win->charspace+1;
     *h = (gh-1) / win->linespace+1;
@@ -13650,7 +13685,7 @@ void itabbarsiz(winptr win, tabori tor, int cw, int ch, int* w, int* h,
 
 }
 
-void tabbarsizg(FILE* f, tabori tabori, int cw, int ch, int* w, int* h,
+void tabbarsizg(FILE* f, pa_tabori tor, int cw, int ch, int* w, int* h,
                 int* ox, int* oy)
 
 {
@@ -13664,7 +13699,7 @@ void tabbarsizg(FILE* f, tabori tabori, int cw, int ch, int* w, int* h,
 
 }
 
-void tabbarsiz(FILE* f, tabori tor, int cw, int ch, int* w, int* h,
+void tabbarsiz(FILE* f, pa_tabori tor, int cw, int ch, int* w, int* h,
                int* ox, int* oy)
 
 {
@@ -13688,18 +13723,18 @@ flexible.
 
 *******************************************************************************/
 
-void itabbarclientg(winptr win, tabori tor, int w, int h, int* cw, int* ch,
+void itabbarclientg(winptr win, pa_tabori tor, int w, int h, int* cw, int* ch,
                     int* ox, int* oy)
 
 {
 
-    if (tor == toright || tor == toleft)  { /* vertical bar */
+    if (tor == pa_toright || tor == pa_toleft)  { /* vertical bar */
 
         /* Find client height and width from total height and width minus
          tabbar overhead. */
         *cw = w-32;
         *ch = h-8;
-        if (tor == toleft) {
+        if (tor == pa_toleft) {
 
             *ox = 28; /* set offsets */
             *oy = 4;
@@ -13717,7 +13752,7 @@ void itabbarclientg(winptr win, tabori tor, int w, int h, int* cw, int* ch,
            tabbar overhead. */
         *cw = w-8;
         *ch = h-32;
-        if (tor == totop) {
+        if (tor == pa_totop) {
 
             *ox = 4; /* set offsets */
             *oy = 28;
@@ -13733,7 +13768,7 @@ void itabbarclientg(winptr win, tabori tor, int w, int h, int* cw, int* ch,
 
 }
 
-void itabbarclient(winptr win, taboir tor, int w, int h, int* cw, int* ch,
+void itabbarclient(winptr win, pa_tabori tor, int w, int h, int* cw, int* ch,
                    int* ox, int* oy)
 
 {
@@ -13743,7 +13778,7 @@ void itabbarclient(winptr win, taboir tor, int w, int h, int* cw, int* ch,
     /* convert sizes to graphical */
     w = w*win->charspace;
     h = h*win->linespace;
-    itabbarsizg(win, tor, w, h, gw, gh, gox, goy); /* get size */
+    itabbarsizg(win, tor, w, h, &gw, &gh, &gox, &goy); /* get size */
     /* change graphical size to character */
     *cw = (gw-1)/win->charspace+1;
     *ch = (gh-1)/win->linespace+1;
@@ -13755,7 +13790,7 @@ void itabbarclient(winptr win, taboir tor, int w, int h, int* cw, int* ch,
 
 }
 
-void tabbarclientg(FILE* f, tabori tor, int w, int h, int*  cw, int* ch,
+void tabbarclientg(FILE* f, pa_tabori tor, int w, int h, int*  cw, int* ch,
                    int* ox, int* oy)
 
 {
@@ -13769,7 +13804,7 @@ void tabbarclientg(FILE* f, tabori tor, int w, int h, int*  cw, int* ch,
 
 }
 
-void tabbarclient(FILE* f, tabori tor, int w, int h, int* cw, int* ch,
+void tabbarclient(FILE* f, pa_tabori tor, int w, int h, int* cw, int* ch,
                   int* ox, int* oy)
 
 {
@@ -13796,37 +13831,39 @@ creating and distroying another widget.
 *******************************************************************************/
 
 void itabbarg(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp,
-              tabori tor, int id)
+              pa_tabori tor, int id)
 
 {
 
-    wigptr wp;  /* widget pointer */
-    int    inx; /* index for tabs */
-    TCITEM tcr; /* tab attributes record */
-    int    i;   /* idnex for string */
-    int    m;   /* maximum length of string */
-    int    fl;  /* flags */
+    wigptr  wp;  /* widget pointer */
+    int     inx; /* index for tabs */
+    TCITEM  tcr; /* tab attributes record */
+    int     i;   /* idnex for string */
+    int     m;   /* maximum length of string */
+    int     fl;  /* flags */
+    LRESULT r;
 
     if (!win->visible) winvis(win); /* make sure we are displayed */
     fl = 0; /* clear parameter flags */
-    if (tor == toright || tor == toleft) fl |= TCS_VERTICAL;
-    if (tor == toright) fl |= TCS_RIGHT;
-    if (tor == tobottom) fl |= TCS_BOTTOM;
-    widget(win, x1, y1, x2, y2, "", id, wttabbar, fl, wp);
+    if (tor == pa_toright || tor == pa_toleft) fl |= TCS_VERTICAL;
+    if (tor == pa_toright) fl |= TCS_RIGHT;
+    if (tor == pa_tobottom) fl |= TCS_BOTTOM;
+    widget(win, x1, y1, x2, y2, "", id, wttabbar, fl, &wp);
     inx = 0; /* set index */
     while (sp) { /* add strings to list */
 
         /* create a string buffer with space for terminating zero */
-        tcr.mask = tcif_text; /* set record contains text label */
+        tcr.mask = TCIF_TEXT; /* set record contains text label */
         tcr.dwState = 0; /* clear state */
         tcr.dwStateMask = 0; /* clear state mask */
         tcr.pszText = sp->str; /* place string */
         tcr.iImage = -1; /* no image */
         tcr.lParam = 0; /* no parameter */
         unlockmain(); /* end exclusive access */
-        r = SendMessage(wp->han, TCM_INSERTITEM, inx, tcr); /* add string */
+        /* add string */
+        r = SendMessage(wp->han, TCM_INSERTITEM, (WPARAM)inx, (LPARAM)&tcr);
         lockmain(); /* start exclusive access */
-        if r == -1  error(etabbar); /* can"t create tab */
+        if (r == -1)  error(etabbar); /* can"t create tab */
         sp = sp->next; /* next string */
         inx++; /* next index */
 
@@ -13837,7 +13874,7 @@ void itabbarg(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp,
 }
 
 void itabbar(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp,
-             tabori tor, int id)
+             pa_tabori tor, int id)
 
 {
 
@@ -13850,7 +13887,7 @@ void itabbar(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp,
 
 }
 
-void tabbarg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, tabori tor,
+void tabbarg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, pa_tabori tor,
              int id)
 
 {
@@ -13864,7 +13901,7 @@ void tabbarg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, tabori tor,
 
 }
 
-void tabbar(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, tabori tor,
+void tabbar(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, pa_tabori tor,
             int id)
 
 {
@@ -13934,13 +13971,13 @@ void alert(char* title, char* message)
     BOOL  b;  /* result */
 
     lockmain(); /* start exclusive access */
-    getitm(ip); /* get a im pointer */
+    getitm(&ip); /* get a im pointer */
     ip->im = imalert; /* set is alert */
     ip->alttit = title; /* copy strings */
     ip->altmsg = message;
     b = PostMessage(dialogwin, UMIM, (WPARAM)ip, 0);
     if (!b) winerr(); /* process windows error */
-    waitim(imalert, ip); /* wait for the return */
+    waitim(imalert, &ip); /* wait for the return */
     unlockmain(); /* end exclusive access */
 
 }
@@ -13963,14 +14000,14 @@ void querycolor(int* r, int* g, int* b)
     BOOL  br; /* result */
 
     lockmain(); /* start exclusive access */
-    getitm(ip); /* get a im pointer */
+    getitm(&ip); /* get a im pointer */
     ip->im = imqcolor; /* set is color query */
     ip->clrred = *r; /* set colors */
     ip->clrgreen = *g;
     ip->clrblue = *b;
     br = PostMessage(dialogwin, UMIM, (WPARAM)ip, 0);
-    if ! br  winerr(); /* process windows error */
-    waitim(imqcolor, ip); /* wait for the return */
+    if (!br) winerr(); /* process windows error */
+    waitim(imqcolor, &ip); /* wait for the return */
     *r = ip->clrred; /* set new colors */
     *g = ip->clrgreen;
     *b = ip->clrblue;
@@ -14003,12 +14040,12 @@ void queryopen(char* s)
     BOOL  br; /* result */
 
     lockmain(); /* start exclusive access */
-    getitm(ip); /* get a im pointer */
+    getitm(&ip); /* get a im pointer */
     ip->im = imqopen; /* set is open file query */
     ip->opnfil = s; /* set input string */
     br = PostMessage(dialogwin, UMIM, (WPARAM)ip, 0);
     if (!br) winerr(); /* process windows error */
-    waitim(imqopen, ip); /* wait for the return */
+    waitim(imqopen, &ip); /* wait for the return */
     s = ip->opnfil; /* set output string */
     putitm(ip); /* release im */
     unlockmain(); /* end exclusive access */
@@ -14039,12 +14076,12 @@ void querysave(char* s)
     BOOL br;  /* result */
 
     lockmain(); /* start exclusive access */
-    getitm(ip); /* get a im pointer */
+    getitm(&ip); /* get a im pointer */
     ip->im = imqsave; /* set is open file query */
     ip->opnfil = s; /* set input string */
     br = PostMessage(dialogwin, UMIM, (WPARAM)ip, 0);
     if (!br)  winerr(); /* process windows error */
-    waitim(imqsave, ip); /* wait for the return */
+    waitim(imqsave, &ip); /* wait for the return */
     s = ip->savfil; /* set output string */
     putitm(ip); /* release im */
     unlockmain(); /* end exclusive access */
@@ -14084,15 +14121,15 @@ void queryfind(char* s, int* opt)
     BOOL  br; /* result */
 
     lockmain(); /* start exclusive access */
-    getitm(ip); /* get a im pointer */
+    getitm(&ip); /* get a im pointer */
     ip->im = imqfind; /* set is find query */
     ip->fndstr = s; /* set input string */
-    ip->fndopt = opt; /* set options */
+    ip->fndopt = *opt; /* set options */
     br = PostMessage(dialogwin, UMIM, (WPARAM)ip, 0);
     if (!br) winerr(); /* process windows error */
-    waitim(imqfind, ip); /* wait for the return */
+    waitim(imqfind, &ip); /* wait for the return */
     s = ip->fndstr; /* set output string */
-    opt = ip->fndopt; /* set output options */
+    *opt = ip->fndopt; /* set output options */
     putitm(ip); /* release im */
     unlockmain(); /* end exclusive access */
 
@@ -14123,17 +14160,17 @@ void queryfindrep(char* s, char* r, int* opt)
     BOOL  br; /* result */
 
     lockmain(); /* start exclusive access */
-    getitm(ip); /* get a im pointer */
+    getitm(&ip); /* get a im pointer */
     ip->im = imqfindrep; /* set is find/replace query */
     ip->fnrsch = s; /* set input find string */
     ip->fnrrep = r; /* set input replace string */
-    ip->fnropt = opt; /* set options */
+    ip->fnropt = *opt; /* set options */
     br = PostMessage(dialogwin, UMIM, (WPARAM)ip, 0);
     if (!br) winerr(); /* process windows error */
-    waitim(imqfindrep, ip); /* wait for the return */
+    waitim(imqfindrep, &ip); /* wait for the return */
     s = ip->fnrsch; /* set output find string */
     r = ip->fnrrep;
-    opt = ip->fnropt; /* set output options */
+    *opt = ip->fnropt; /* set output options */
     putitm(ip); /* release im */
     unlockmain(); /* end exclusive access */
 
@@ -14168,14 +14205,14 @@ int fndfntnum(winptr win, char* fns)
     ff = 0; /* set no font found */
     while (fp) { /* traverse */
 
-        if comps(fns, fp->fn^)  ff = fc; /* found */
+        if (comps(fns, fp->fn)) ff = fc; /* found */
         fp = fp->next; /* next entry */
-        fc = fc+1 /* count */
+        fc++; /* count */
 
-    };
+    }
     /* The font string should match one from the list, since that list was itself
        formed from the system font list. */
-    if ff == 0  error(esystem); /* should have found matching font */
+    if (!ff)  error(esystem); /* should have found matching font */
 
     return (ff); /* return font */
 
@@ -14190,38 +14227,38 @@ void iqueryfont(winptr win, int* fc, int* s, int* fr, int* fg, int* fb, int* br,
     BOOL  b;                /* result */
     char  fns[LF_FACESIZE]; /* name of font */
 
-    getitm(ip); /* get a im pointer */
+    getitm(&ip); /* get a im pointer */
     ip->im = imqfont; /* set is font query */
-    ifontnam(win, *fc, fns); /* get the name of the font */
-    ip->fntstr = &fns; /* place in record */
-    ip->fnteff = effect; /* copy effects */
+    ifontnam(win, *fc, fns, LF_FACESIZE); /* get the name of the font */
+    ip->fntstr = fns; /* place in record */
+    ip->fnteff = *effect; /* copy effects */
     ip->fntfr = *fr; /* copy colors */
     ip->fntfg = *fg;
     ip->fntfb = *fb;
     ip->fntbr = *br;
     ip->fntbg = *bg;
     ip->fntbb = *bb;
-    ip->fntsiz = s; /* place font size */
+    ip->fntsiz = *s; /* place font size */
     /* send request */
     b = PostMessage(dialogwin, UMIM, (WPARAM)ip, 0);
     if (!b) winerr(); /* process windows error */
-    waitim(imqfont, ip); /* wait for the return */
+    waitim(imqfont, &ip); /* wait for the return */
     /* pull back the output parameters */
-    fc = fndfntnum(win, ip->fntstr); /* find font from list */
-    effect = ip->fnteff; /* effects */
+    *fc = fndfntnum(win, ip->fntstr); /* find font from list */
+    *effect = ip->fnteff; /* effects */
     *fr = ip->fntfr; /* colors */
     *fg = ip->fntfg;
     *fb = ip->fntfb;
     *br = ip->fntbr;
     *bg = ip->fntbg;
     *bb = ip->fntbb;
-    s = ip->fntsiz; /* font size */
+    *s = ip->fntsiz; /* font size */
     putitm(ip); /* release im */
 
 }
 
 void queryfont(FILE* f, int* fc, int* s, int* fr, int* fg, int* fb,
-               int* br, int* bg, int* bb, int* effect: int);
+               int* br, int* bg, int* bb, int* effect)
 
 {
 
@@ -14273,7 +14310,7 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
             else { /* main task will handle it */
 
                 /* get update region */
-                b = GetUpdateRect(hwnd, cr, FALSE);
+                b = GetUpdateRect(hwnd, &cr, FALSE);
                 /* validate it so windows won"t send multiple notifications */
                 b = ValidateRgn(hwnd, NULL); /* validate region */
                 /* Pack the update region in the message. This limits the update
@@ -14287,7 +14324,7 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
             }
             r = 0;
 
-        } else r = defwindowproc(hwnd, imsg, wparam, lparam);
+        } else r = DefWindowProc(hwnd, imsg, wparam, lparam);
         unlockmain(); /* end exclusive access */
         r = 0;
 
@@ -14300,11 +14337,11 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
 
             win = lfn2win(ofn); /* index window from output file */
             /* activate caret */
-            b = createcaret(win->winhan, 0, win->curspace, 3);
+            b = CreateCaret(win->winhan, 0, win->curspace, 3);
             /* set caret (text cursor) position at bottom of bounding box */
-            b = setcaretpos(win->screens[win->curdsp]->curxg-1,
+            b = SetCaretPos(win->screens[win->curdsp]->curxg-1,
                             win->screens[win->curdsp]->curyg-1+win->linespace-3);
-            focus = TRUE; /* set screen in focus */
+            win->focus = TRUE; /* set screen in focus */
             curon(win); /* show the cursor */
 
         }
@@ -14322,7 +14359,7 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
            win = lfn2win(ofn); /* index window from output file */
            win->focus = FALSE; /* set screen ! in focus */
            curoff(win); /* hide the cursor */
-           b = destroycaret(); /* remove text cursor */
+           b = DestroyCaret(); /* remove text cursor */
 
         }
         unlockmain(); /* end exclusive access */
@@ -14332,17 +14369,17 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
     } else if (imsg == UMMAKWIN) { /* create standard window */
 
         /* create the window */
-        stdwinwin = createwindow("StdWin", pgmnam^, stdwinflg,
+        stdwinwin = CreateWindow("StdWin", pgmnam, stdwinflg,
                                   stdwinx, stdwiny, stdwinw, stdwinh,
-                                  stdwinpar, 0, getmodulehandle_n);
+                                  stdwinpar, 0, GetModuleHandle(NULL), NULL);
 
         stdwinj1c = FALSE; /* set no joysticks */
         stdwinj2c = FALSE;
         if (JOYENB) {
 
-            r = JoySetCapture(stdwinwin, JOYSTICKID1, 33, FALSE);
+            r = joySetCapture(stdwinwin, JOYSTICKID1, 33, FALSE);
             stdwinj1c = r == 0; /* set joystick 1 was captured */
-            r = JoySetCapture(stdwinwin, JOYSTICKID2, 33, FALSE);
+            r = joySetCapture(stdwinwin, JOYSTICKID2, 33, FALSE);
             stdwinj2c = r == 0; /* set joystick 1 was captured */
 
         }
@@ -14389,9 +14426,9 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
            give it up (its a feature). We get around this by  returning the
            focus back to any window that is clicked by the mouse, but does
            not have the focus. */
-        r = SetFocus(hwnd);
+        SetFocus(hwnd);
         putmsg(hwnd, imsg, wparam, lparam);
-        r = defwindowproc(hwnd, imsg, wparam, lparam);
+        r = DefWindowProc(hwnd, imsg, wparam, lparam);
 
     } else if (imsg == UMIM) { /* intratask message */
 
@@ -14400,15 +14437,15 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
 
             case imupdown: /* create up/down control */
                 /* get width of up/down control (same as scroll arrow) */
-                udw = GetSystemMetrics(sm_cxhscroll);
+                udw = GetSystemMetrics(SM_CXHSCROLL);
                 ip->udbuddy =
-                    createwindow("edit", "",
-                                 ws_child || ws_visible || ws_border or
-                                 es_left || es_autohscroll,
+                    CreateWindow("edit", "",
+                                 WS_CHILD | WS_VISIBLE | WS_BORDER |
+                                 ES_LEFT | ES_AUTOHSCROLL,
                                  ip->udx, ip->udy, ip->udcx-udw-1, ip->udcy,
-                                 ip->udpar, ip->udid, ip->udinst);
+                                 ip->udpar, (HMENU)ip->udid, ip->udinst, NULL);
                 ip->udhan =
-                    createupdowncontrol(ip->udflg, ip->udx+ip->udcx-udw-2, ip->udy, udw,
+                    CreateUpDownControl(ip->udflg, ip->udx+ip->udcx-udw-2, ip->udy, udw,
                                         ip->udcy, ip->udpar, ip->udid, ip->udinst,
                                         ip->udbuddy, ip->udup, ip->udlow,
                                         ip->udpos);
@@ -14418,10 +14455,10 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
 
             case imwidget: /* create widget */
                 /* start widget window */
-                ip->wigwin = createwindow(ip->wigcls^, ip->wigtxt^, ip->wigflg,
+                ip->wigwin = CreateWindow(ip->wigcls, ip->wigtxt, ip->wigflg,
                                           ip->wigx, ip->wigy, ip->wigw,
-                                          ip->wigh, ip->wigpar, ip->wigid,
-                                          ip->wigmod);
+                                          ip->wigh, ip->wigpar, (HMENU)ip->wigid,
+                                          ip->wigmod, NULL);
                 /* signal we started widget */
                 iputmsg(0, UMIM, wparam, 0);
                 break;
@@ -14435,7 +14472,7 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
            messages passed down to only the interesting ones, we help prevent
            queue "flooding". This is done with a case, and ! a set, because sets
            are limited to 256 elements. */
-        swtich (imsg) {
+        switch (imsg) {
 
             case WM_PAINT: case WM_LBUTTONDOWN: case WM_LBUTTONUP: case WM_MBUTTONDOWN:
             case WM_MBUTTONUP: case WM_RBUTTONDOWN: case WM_RBUTTONUP: case WM_SIZE:
@@ -14449,11 +14486,8 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
                 putmsg(hwnd, imsg, wparam, lparam);
                 break;
 
-            }
-            else; /* ignore the rest */
-
         }
-        r = defwindowproc(hwnd, imsg, wparam, lparam);
+        r = DefWindowProc(hwnd, imsg, wparam, lparam);
 
     }
 
@@ -14469,32 +14503,30 @@ Create window to pass messages only. The window will have no display.
 
 *******************************************************************************/
 
-void createdummy(LRESULT (*wndproc)(HWND hwnd, UINT imsg, WPARAM wparam,
-                                    LPARAM lparam),
-                 char* name: char*, int* dummywin)
+void createdummy(WNDPROC wndproc, char* name, HWND* dummywin)
 
 {
 
-    WNDCLASSA wc; /* windows class structure */
-    ATOM      b;  /* int return */
+    WNDCLASS wc; /* windows class structure */
+    ATOM     b;  /* int return */
 
     /* create dummy class for message handling */
-    wc.style      = 0;
-    wc.wndproc    = wndproc;
-    wc.clsextra   = 0;
-    wc.wndextra   = 0;
-    wc.instance   = GetModuleHandle(NULL);
-    wc.icon       = 0;
-    wc.cursor     = 0;
-    wc.background = 0;
-    wc.menuname   = NULL;
-    wc.classname  = str(name);
+    wc.style         = 0;
+    wc.lpfnWndProc   = wndproc;
+    wc.cbClsExtra    = 0;
+    wc.cbWndExtra    = 0;
+    wc.hInstance     = GetModuleHandle(NULL);
+    wc.hIcon         = 0;
+    wc.hCursor       = 0;
+    wc.hbrBackground = 0;
+    wc.lpszMenuName  = NULL;
+    wc.lpszClassName = str(name);
     /* register that class */
-    b = registerclass(wc);
+    b = RegisterClass(&wc);
     /* create the window */
-    dummywin =
-        createwindow(name, "", 0, 0, 0, 0, 0, HWND_MESSAGE, 0,
-                     GetModuleHandle(NULL));
+    *dummywin =
+        CreateWindow(name, "", 0, 0, 0, 0, 0, HWND_MESSAGE, 0,
+                     GetModuleHandle(NULL), NULL);
 
 }
 
@@ -14508,7 +14540,7 @@ thread, but any number of subwindows will be started in the thread.
 
 *******************************************************************************/
 
-void dispthread(void)
+DWORD WINAPI dispthread(LPVOID lpParameter)
 
 {
 
@@ -14517,15 +14549,15 @@ void dispthread(void)
     LRESULT r;   /* result holder */
 
     /* create dummy window for message handling */
-    createdummy(wndproc, "dispthread", dispwin);
+    createdummy(wndproc, "dispthread", &dispwin);
 
     b = SetEvent(threadstart); /* flag subthread has started up */
 
     /* message handling loop */
-    while (getmessage(msg, 0, 0, 0)) { /* not a quit message */
+    while (GetMessage(&msg, 0, 0, 0)) { /* not a quit message */
 
-        b = TranslateMessage(msg); /* translate keyboard events */
-        r = Dispatchmessage(msg);
+        b = TranslateMessage(&msg); /* translate keyboard events */
+        r = DispatchMessage(&msg);
 
     }
 
@@ -14540,7 +14572,8 @@ everything by sending it on.
 
 *******************************************************************************/
 
-int wndprocmain(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
+LRESULT CALLBACK wndprocmain(HWND hwnd, UINT imsg, WPARAM wparam,
+                                 LPARAM lparam)
 
 {
 
@@ -14552,12 +14585,12 @@ int wndprocmain(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
 
         r = 0;
 
-    } else if imsg == WM_DESTROY  {
+    } else if (imsg == WM_DESTROY) {
 
-        postquitmessage(0);
+        PostQuitMessage(0);
         r = 0;
 
-    } else r = defwindowproc(hwnd, imsg, wparam, lparam);
+    } else r = DefWindowProc(hwnd, imsg, wparam, lparam);
 
     return (r);
 
@@ -14572,7 +14605,9 @@ the fact that they come up behind the main window.
 
 *******************************************************************************/
 
-int wndprocfix(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
+/* Note: The Microsoft online description does not use APIENTRY, this is in
+   MINGW */
+UINT_PTR APIENTRY wndprocfix(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
 
 {
 
@@ -14583,7 +14618,7 @@ int wndprocfix(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
 
     /* If dialog is focused, send it to the foreground. This solves the issue
        where dialogs are getting parked behind the main window. */
-    if (imsg == WM_SETFOCUS) b = setforegroundwindow(hwnd);
+    if (imsg == WM_SETFOCUS) b = SetForegroundWindow(hwnd);
 
     return (0); /* tell callback to handle own messages */
 
@@ -14597,7 +14632,7 @@ Runs the various dialogs.
 
 *******************************************************************************/
 
-LRESULT wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
+LRESULT CALLBACK wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
 
 {
 
@@ -14608,12 +14643,12 @@ LRESULT wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
     int          i;    /* index for string */
     OPENFILENAME fr;   /* file select structure */
     char*        bs;   /* filename holder */
-    FINDREPLACE  frrp; /* dialog control record for find/replace */
+    FINDREPLACE* frrp; /* dialog control record for find/replace */
     char*        fs;   /* pointer to finder string */
     char*        rs;   /* pointer to replacement string */
     int          fl;   /* flags */
     CHOOSEFONT   fns;  /* font select structure */
-    LOGFONT      lf;   /* logical font structure */
+    LOGFONT*     lf;   /* logical font structure */
     int          sl;
     int          fsl, rsl;
 
@@ -14624,9 +14659,9 @@ LRESULT wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
 
         r = 0;
 
-    } else if imsg == WM_DESTROY  {
+    } else if (imsg == WM_DESTROY)  {
 
-        postquitmessage(0);
+        PostQuitMessage(0);
         r = 0;
 
     } else if (imsg == UMIM) { /* intratask message */
@@ -14635,7 +14670,7 @@ LRESULT wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
         switch (ip->im) { /* im type */
 
             case imalert: /* it"s an alert */
-                r = messagebox(0, ip->altmsg, ip->alttit,
+                r = MessageBox(0, ip->altmsg, ip->alttit,
                                MB_OK | MB_SETFOREGROUND);
                 /* signal complete */
                 iputmsg(0, UMIM, wparam, 0);
@@ -14650,13 +14685,13 @@ LRESULT wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
                 /*??? cr.rgbResult = 0;*/ /* clear color */
                 cr.lpCustColors = gcolorsav; /* set global color save */
                 /* set display all colors, start with initalized color */
-                cr.Flags = cc_anycolor || cc_rgbinit || cc_enablehook;
+                cr.Flags = CC_ANYCOLOR | CC_RGBINIT | CC_ENABLEHOOK;
                 cr.lCustData = 0; /* no data */
-                cr.lpfnHook = wndprocadr(wndprocfix); /* hook to force front */
+                cr.lpfnHook = wndprocfix; /* hook to force front */
                 cr.lpTemplateName = NULL; /* set no template name */
-                b = choosecolor(cr); /* perform choose color */
+                b = ChooseColor(&cr); /* perform choose color */
                 /* set resulting color */
-                win2rgb(cr.rgbresult, ip->clrred, ip->clrgreen, ip->clrblue);
+                win2rgb(cr.rgbResult, &ip->clrred, &ip->clrgreen, &ip->clrblue);
                 /* signal complete */
                 iputmsg(0, UMIM, wparam, 0);
                 break;
@@ -14668,36 +14703,36 @@ LRESULT wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
                 else sl = strlen(ip->savfil)+1;
                 if (sl < 256) sl = 256;
                 bs = malloc(sl); /* get string buffer */
-                if (!bs) error(nomem);
+                if (!bs) error(enomem);
                 strcpy(bs, ip->opnfil); /* copy input string to buffer */
                 /* now index the temp buffer */
                 if (ip->im == imqopen) ip->opnfil = bs;
                 else ip->savfil = bs;
-                fr.lstructsize = sizeof(OPENFILENAME); /* set size */
-                fr.hwndowner = 0;
-                fr.hinstance = 0;
-                fr.lpstrfilter = NULL;
-                fr.lpstrcustomfilter = NULL;
-                fr.nfilterindex = 0;
-                fr.lpstrfile = bs;
+                fr.lStructSize = sizeof(OPENFILENAME); /* set size */
+                fr.hwndOwner = 0;
+                fr.hInstance = 0;
+                fr.lpstrFilter = NULL;
+                fr.lpstrCustomFilter = NULL;
+                fr.nFilterIndex = 0;
+                fr.lpstrFile = bs;
                 fr.nMaxFile = sl;
-                fr.lpstrfiletitle = NULL;
-                fr.lpstrinitialdir = NULL;
-                fr.lpstrtitle = NULL;
-                fr.flags = ofn_hidereadonly | ofn_enablehook;
-                fr.nfileoffset = 0;
-                fr.nfileextension = 0;
-                fr.lpstrdefext = NULL;
-                fr.lcustdata = 0;
-                fr.lpfnhook = wndprocadr(wndprocfix); /* hook to force front */
-                fr.lptemplatename = NULL;
-                fr.pvreserved = 0;
-                fr.dwreserved = 0;
-                fr.flagsex = 0;
+                fr.lpstrFileTitle = NULL;
+                fr.lpstrInitialDir = NULL;
+                fr.lpstrTitle = NULL;
+                fr.Flags = OFN_HIDEREADONLY | OFN_ENABLEHOOK;
+                fr.nFileOffset = 0;
+                fr.nFileExtension = 0;
+                fr.lpstrDefExt = NULL;
+                fr.lCustData = 0;
+                fr.lpfnHook = wndprocfix; /* hook to force front */
+                fr.lpTemplateName = NULL;
+                fr.pvReserved = 0;
+                fr.dwReserved = 0;
+                fr.FlagsEx = 0;
                 if (ip->im == imqopen)  /* it's open */
-                    b = getopenfilename(fr) /* perform choose file */
+                    b = GetOpenFileName(&fr); /* perform choose file */
                 else /* it's save */
-                    b = getsavefilename(fr); /* perform choose file */
+                    b = GetSaveFileName(&fr); /* perform choose file */
                 if (!b) {
 
                     /* Check was a cancel. If the user canceled, return a null
@@ -14720,31 +14755,31 @@ LRESULT wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
                 /* must be >= 80 characters */
                 if (sl < 80) sl = 80;
                 bs = malloc(sl); /* get string buffer */
-                if (!bs) error(nomem);
+                if (!bs) error(enomem);
                 strcpy(bs, ip->fndstr); /* copy input string to buffer */
                 ip->fndstr = bs; /* index buffer for return */
-                frrp = malloc(sizeof(FINDREPLACE));
-                if (!frrp) error(nomem);
-                frrp->lstructsize = findreplace_len; /* set size */
-                frrp->hwndowner = dialogwin; /* set owner */
-                frrp->hinstance = 0; /* no instance */
+                frrp = malloc(sizeof(FINDREPLACE)); /* get find/replace entry */
+                if (!frrp) error(enomem);
+                frrp->lStructSize = sizeof(FINDREPLACE); /* set size */
+                frrp->hwndOwner = dialogwin; /* set owner */
+                frrp->hInstance = 0; /* no instance */
                 /* set flags */
-                fl = fr_hidewholeword /* or fr_enablehook*/;
+                fl = FR_HIDEWHOLEWORD; /* or FR_ENABLEHOOK*/;
                 /* set status of down */
-                if (!(BIT(qfnup) & ip->fndopt)) fl |= FR_DOWN;
+                if (!(BIT(pa_qfnup) & ip->fndopt)) fl |= FR_DOWN;
                 /* set status of case */
-                if (BIT(qfncase) & ip->fndopt) fl |= FR_MATCHCASE;
-                frrp->flags = fl;
-                frrp->lpstrfindwhat = fs; /* place finder string */
-                frrp->lpstrreplacewith = NULL; /* set no replacement string */
-                frrp->wfindwhatlen = sl; /* set length */
-                frrp->wreplacewithlen = 0; /* set null replacement string */
-                frrp->lcustdata = (LPARAM)ip; /* send ip with this record */
-                frrp->lpfnhook = 0; /* no callback */
-                frrp->lptemplatename = NULL; /* set no template */
+                if (BIT(pa_qfncase) & ip->fndopt) fl |= FR_MATCHCASE;
+                frrp->Flags = fl;
+                frrp->lpstrFindWhat = fs; /* place finder string */
+                frrp->lpstrReplaceWith = NULL; /* set no replacement string */
+                frrp->wFindWhatLen = sl; /* set length */
+                frrp->wReplaceWithLen = 0; /* set null replacement string */
+                frrp->lCustData = (LPARAM)ip; /* send ip with this record */
+                frrp->lpfnHook = 0; /* no callback */
+                frrp->lpTemplateName = NULL; /* set no template */
                 /* start find dialog */
                 fndrepmsg = RegisterWindowMessage("commdlg_FindReplace");
-                ip->fndhan = findtext(frr); /* perform dialog */
+                ip->fndhan = FindText(frrp); /* perform dialog */
                 /* now bring that to the front */
                 b = SetWindowPos(ip->fndhan, HWND_TOP, 0, 0, 0, 0,
                                  SWP_NOMOVE | SWP_NOSIZE);
@@ -14765,15 +14800,15 @@ LRESULT wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
                 rs = malloc(rsl);
                 if (!rs) error(enomem);
                 strcpy(rs, ip->fnrrep);
-                frrp = malloc(sizeof(FINDREPLACE)); /* get a find/replace data record */
+                frrp = malloc(sizeof(FINDREPLACE)); /* get find/replace entry */
                 if (!frrp) error(enomem);
                 frrp->lStructSize = sizeof(FINDREPLACE); /* set size */
                 frrp->hwndOwner = dialogwin; /* set owner */
                 frrp->hInstance = 0; /* no instance */
                 /* set flags */
                 fl = FR_HIDEWHOLEWORD;
-                if (!(BIT(qfrup) & ip->fnropt) fl |= FR_DOWN; /* set status of down */
-                if (BIT(qfrcase) & ip->fnropt) fl |= FR_MATCHCASE; /* set status of case */
+                if (!(BIT(pa_qfrup) & ip->fnropt)) fl |= FR_DOWN; /* set status of down */
+                if (BIT(pa_qfrcase) & ip->fnropt) fl |= FR_MATCHCASE; /* set status of case */
                 frrp->Flags = fl;
                 frrp->lpstrFindWhat = fs; /* place finder string */
                 frrp->lpstrReplaceWith = rs; /* place replacement string */
@@ -14800,11 +14835,11 @@ LRESULT wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
                 lf->lfWidth = 0; /* use default width */
                 lf->lfEscapement = 0; /* no escapement */
                 lf->lfOrientation = 0; /* orient to x axis */
-                if (BIT(qftebold) & ip->fnteff) lf->lfweight = FW_BOLD /* set bold */
+                if (BIT(pa_qftebold) & ip->fnteff) lf->lfWeight = FW_BOLD; /* set bold */
                 else lf->lfWeight = FW_DONTCARE; /* default weight */
-                lf->lfItalic = BIT(qfteitalic) & ip->fnteff;  /* italic */
-                lf->lfUnderline = BIT(qfteunderline) & ip->fnteff; /* underline */
-                lf->lfStrikeOut = BIT(qftestrikeout) & ip->fnteff; /* strikeout */
+                lf->lfItalic = BIT(pa_qfteitalic) & ip->fnteff;  /* italic */
+                lf->lfUnderline = BIT(pa_qfteunderline) & ip->fnteff; /* underline */
+                lf->lfStrikeOut = BIT(pa_qftestrikeout) & ip->fnteff; /* strikeout */
                 lf->lfCharSet = DEFAULT_CHARSET; /* use default characters */
                 /* use default precision */
                 lf->lfOutPrecision = OUT_DEFAULT_PRECIS;
@@ -14812,7 +14847,7 @@ LRESULT wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
                 lf->lfClipPrecision = CLIP_DEFAULT_PRECIS;
                 lf->lfQuality = DEFAULT_QUALITY; /* use default quality */
                 lf->lfPitchAndFamily = 0; /* must be zero */
-                strlcpy(lf->lfFaceName, ip->fntstr, 32); /* place face name */
+                strncpy(lf->lfFaceName, ip->fntstr, 32); /* place face name */
                 /* initalize choosefont structure */
                 fns.lStructSize = sizeof(CHOOSEFONT); /* set size */
                 fns.hwndOwner = 0; /* set no owner */
@@ -14827,19 +14862,19 @@ LRESULT wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
                 /* color */
                 fns.rgbColors = rgb2win(ip->fntfr, ip->fntfg, ip->fntfb);
                 fns.lCustData = 0; /* no data */
-                fns.lpfnHook = wndprocadr(wndprocfix); /* hook to force front */
+                fns.lpfnHook = wndprocfix; /* hook to force front */
                 fns.lpTemplateName = NULL; /* no template name */
                 fns.hInstance = 0; /* no instance */
                 fns.lpszStyle = NULL; /* no style */
                 fns.nFontType = 0; /* no font type */
                 fns.nSizeMin = 0; /* no minimum size */
                 fns.nSizeMax = 0; /* no maximum size */
-                b = choosefont(fns); /* perform choose font */
+                b = ChooseFont(&fns); /* perform choose font */
                 if (!b) {
 
                     /* Check was a cancel. If the user canceled, just return the string
                        empty. */
-                    r = commdlgextendederror();
+                    r = CommDlgExtendedError();
                     if (r) error(efnddlg); /* error */
                     /* Since the main code is expecting us to make a new string for
                        the result, we must copy the input to the output so that it"s
@@ -14851,71 +14886,70 @@ LRESULT wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
                 } else { /* set what the dialog changed */
 
                     ip->fnteff = 0; /* clear what was set */
-                    if (lf->lfitalic) ip->fnteff |= BIT(qfteitalic); /* italic */
-                    else ip->fnteff &= ~BIT(qfteitalic);
-                    if (fns.nfonttype & BOLD_FONTTYPE)
-                        ip->fnteff |= BIT(qftebold); /* bold */
+                    if (lf->lfItalic) ip->fnteff |= BIT(pa_qfteitalic); /* italic */
+                    else ip->fnteff &= ~BIT(pa_qfteitalic);
+                    if (fns.nFontType & BOLD_FONTTYPE)
+                        ip->fnteff |= BIT(pa_qftebold); /* bold */
                     else
-                        ip->fnteff &= ~BIT(qftebold);
-                    if (lf->lfunderline)
-                        ip->fnteff |= BIT(qfteunderline); /* underline */
-                    else ip->fnteff &= ~BIT(qfteunderline);
-                    if (lf->lfstrikeout)
-                        ip->fnteff |= BIT(qftestrikeout); /* strikeout */
-                    else ip->fnteff &= ~BIT(qftestrikeout);
+                        ip->fnteff &= ~BIT(pa_qftebold);
+                    if (lf->lfUnderline)
+                        ip->fnteff |= BIT(pa_qfteunderline); /* underline */
+                    else ip->fnteff &= ~BIT(pa_qfteunderline);
+                    if (lf->lfStrikeOut)
+                        ip->fnteff |= BIT(pa_qftestrikeout); /* strikeout */
+                    else ip->fnteff &= ~BIT(pa_qftestrikeout);
                     /* place foreground colors */
-                    win2rgb(fns.rgbcolors, ip->fntfr, ip->fntfg, ip->fntfb);
-                    strlcpy(ip->fntstr, lf->lffacename, 32); /* copy font string back */
+                    win2rgb(fns.rgbColors, &ip->fntfr, &ip->fntfg, &ip->fntfb);
+                    strncpy(ip->fntstr, lf->lfFaceName, 32); /* copy font string back */
                     ip->fntsiz = abs(lf->lfHeight); /* set size */
 
                 }
                 /* signal complete */
                 iputmsg(0, UMIM, wparam, 0);
-
-            }
+                break;
 
         }
         r = 0; /* clear result */
 
-    } else if imsg == fndrepmsg  { /* find is done */
+    } else if (imsg == fndrepmsg) { /* find is done */
 
         /* Here's a series of dirty tricks. The find/replace record pointer is given
            back to us as an int by windows. We also stored the ip as "customer
            data" in int. */
         frrp = (FINDREPLACEA*) lparam; /* get find/replace data pointer */
-        ip = (imptr)frrp->lcustdata; /* get im pointer */
-        if ip->im == imqfind  { /* it"s a find */
+        ip = (imptr)frrp->lCustData; /* get im pointer */
+        if (ip->im == imqfind) { /* it"s a find */
 
-            b = destroywindow(ip->fndhan); /* destroy the dialog */
+            b = DestroyWindow(ip->fndhan); /* destroy the dialog */
             /* check and set case match mode */
-            if (frrp->Flags & FR_MATCHCASE) ip->fndopt |= BIT(qfncase);
+            if (frrp->Flags & FR_MATCHCASE) ip->fndopt |= BIT(pa_qfncase);
             /* check and set cas up/down mode */
-            if (frrp->flags & FR_DOWN) ip->fndopt &= ~BIT(qfnup);
-            else ip->fndopt |= BIT(qfnup);
-            ip->fndstr = frrp->lpstrfindwhat; /* place result string */
+            if (frrp->Flags & FR_DOWN) ip->fndopt &= ~BIT(pa_qfnup);
+            else ip->fndopt |= BIT(pa_qfnup);
+            ip->fndstr = frrp->lpstrFindWhat; /* place result string */
 
         } else { /* it's a find/replace */
 
-            b = destroywindow(ip->fnrhan); /* destroy the dialog */
+            b = DestroyWindow(ip->fnrhan); /* destroy the dialog */
             /* check and set case match mode */
-            if (frrp->flags & FR_MATCHCASE) ip->fnropt |= BIT(qfrcase);
+            if (frrp->Flags & FR_MATCHCASE) ip->fnropt |= BIT(pa_qfrcase);
             /* check and set find mode */
-            if (frrp->flags & FR_FINDNEXT) ip->fnropt |= BIT([qfrfind);
+            if (frrp->Flags & FR_FINDNEXT) ip->fnropt |= BIT(pa_qfrfind);
             /* check and set replace mode */
-            if (frrp->flags & FR_REPLACE)
-                ip->fnropt = ip->fnropt & ~(BIT(qfrfind] & ~BIT(qfrallfil]));
+            if (frrp->Flags & FR_REPLACE)
+                ip->fnropt = ip->fnropt & ~(BIT(pa_qfrfind) & ~BIT(pa_qfrallfil));
             /* check and set replace all mode */
-            if (frrp->flags & FR_REPLACEALL)
-                ip->fnropt = ip->fnropt & ~BIT(qfrfind]) | BIT(qfrallfil);
+            if (frrp->Flags & FR_REPLACEALL)
+                ip->fnropt = ip->fnropt & ~BIT(pa_qfrfind) | BIT(pa_qfrallfil);
             ip->fnrsch = frrp->lpstrFindWhat;
             ip->fnrrep = frrp->lpstrReplaceWith;
 
         }
-        free(frrp); /* release find/replace record entry */
+        free(frrp); /* release find/replace entry */
         /* signal complete */
         iputmsg(0, UMIM, (WPARAM)ip, 0);
 
-    } else r = defwindowproc(hwnd, imsg, wparam, lparam);
+    } else r = DefWindowProc(hwnd, imsg, wparam, lparam);
 
     return (r);
 
@@ -14927,7 +14961,7 @@ Dialog thread
 
 *******************************************************************************/
 
-void dialogthread(void)
+DWORD WINAPI dialogthread(LPVOID lpParameter)
 
 {
 
@@ -14936,15 +14970,15 @@ void dialogthread(void)
     LRESULT r;   /* result holder */
 
     /* create dummy window for message handling */
-    createdummy(wndprocdialog, "dialogthread", dialogwin);
+    createdummy(wndprocdialog, "dialogthread", &dialogwin);
 
     b = SetEvent(threadstart); /* flag subthread has started up */
 
     /* message handling loop */
-    while (GetMessage(msg, 0, 0, 0)) { /* not a quit message */
+    while (GetMessage(&msg, 0, 0, 0)) { /* not a quit message */
 
-        b = TranslateMessage(msg); /* translate keyboard events */
-        r = DispatchMessage(msg);
+        b = TranslateMessage(&msg); /* translate keyboard events */
+        r = DispatchMessage(&msg);
 
     }
 
@@ -15042,9 +15076,9 @@ static int fndful(int fd) /* output window file */
     int ff; /* found file */
 
     ff = -1; /* set no file found */
-    for fi = 0; fi < MAXFIL; fi++) if (opnfil[fi])  {
+    for (fi = 0; fi < MAXFIL; fi++) if (opnfil[fi]) {
 
-        if (opnfil[fi]->inl == fd) && (opnfil[fi]->win != NULL)
+        if (opnfil[fi]->inl == fd && opnfil[fi]->win != NULL)
             /* links the input file, and has a window */
             if (opnfil[fi]->win->inpend) ff = fi; /* found one */
 
@@ -15058,17 +15092,17 @@ static ssize_t iread(int fd, void* buff, size_t count)
 
 {
 
-    int i;      /* index for destination */
-    int l;      /* length left on destination */
-    winptr win; /* pointer to window data */
-    int ofn;    /* output file handle */
-    ssize_t rc; /* return code */
+    int            l;   /* length left on destination */
+    winptr         win; /* pointer to window data */
+    int            ofn; /* output file handle */
+    ssize_t        rc;  /* return code */
+    unsigned char* ba;
 
-    if (fn < 1) || (fn > MAXFIL)  error(einvhan); /* invalid file handle */
-    if (opnfil[fd] && opnfil[fn]->inw) { /* process input file */
+    if (fd < 0 || fd >= MAXFIL) error(einvhan); /* invalid file handle */
+    if (opnfil[fd] && opnfil[fd]->inw) { /* process input file */
 
         lockmain(); /* start exclusive access */
-        i = 1; /* set 1st byte of destination */
+        ba = (unsigned char*)buff; /* index start of buffer */
         l = count; /* set length of destination */
         while (l > 0) { /* while there is space left in the buffer */
             /* read input bytes */
@@ -15080,26 +15114,24 @@ static ssize_t iread(int fd, void* buff, size_t count)
             else { /* read characters */
 
                 win = lfn2win(ofn); /* get the window */
-                with win^ do /* in window context */
-                    while (win->inpptr > 0 && l > 0) {
+                while (win->inpptr > 0 && l > 0) {
 
                     /* there is data in the buffer, and we need that data */
-                    ba[i] = win->inpbuf[win->inpptr]; /* get and place next character */
+                    *ba = win->inpbuf[win->inpptr]; /* get and place next character */
                     if (win->inpptr < MAXLIN) win->inpptr++; /* next */
-               /* if we have just read the last of that line,  flag buffer
-                 empty */
-               if (ba[i] == '\r')  {
+                    /* if we have just read the last of that line,  flag buffer
+                       empty */
+                    if (*ba == '\r')  {
 
-                  win->inpptr = 0; /* set 1st character */
-                  win->inpend = FALSE /* set no ending */
+                        win->inpptr = 0; /* set 1st character */
+                        win->inpend = FALSE; /* set no ending */
 
-               }
-               i++; /* next character */
-               l--; /* count characters */
+                    }
+                    l--; /* count characters */
+
+                }
 
             }
-
-         }
 
       }
       rc = count; /* set all bytes read */
@@ -15132,15 +15164,16 @@ static ssize_t iwrite(int fd, const void* buff, size_t count)
     int     l;   /* length left on destination */
     winptr  win; /* pointer to window data */
     ssize_t rc;  /* return code */
-
+    unsigned char* ba;
 
     if (fd < 0 || fd > MAXFIL)  error(einvhan); /* invalid file handle */
-    if (opnfil[fd] && opnfil[fd]->win)  { /* process window output file */
+    if (opnfil[fd] && opnfil[fd]->win) { /* process window output file */
 
         lockmain(); /* start exclusive access */
         win = lfn2win(fd); /* index window */
         l = count; /* set length of source */
-        while (l > 0) do { /* write output bytes */
+        ba = (unsigned char*)buff; /* index buffer */
+        while (l > 0) { /* write output bytes */
 
             plcchr(win, *ba++); /* send character to terminal emulator */
             l--; /* count characters */
@@ -15149,7 +15182,7 @@ static ssize_t iwrite(int fd, const void* buff, size_t count)
         rc = count; /* set number of bytes written */
         unlockmain(); /* end exclusive access */
 
-    } else { /* standard file */
+    } else /* standard file */
         rc = (*ofpwrite)(fd, buff, count);
 
     return (rc); /* return read count/error */
@@ -15162,8 +15195,8 @@ Graph startup
 
 *******************************************************************************/
 
-static void pa_init_network (void) __attribute__((constructor (103)));
-static void pa_init_network()
+static void pa_init_graph (void) __attribute__((constructor (103)));
+static void pa_init_graph()
 
 {
 
@@ -15189,11 +15222,11 @@ static void pa_init_network()
 
     msginp = 1; /* clear message input queue */
     msgout = 1;
-    msgrdy = createevent(TRUE, FALSE); /* create message event */
+    msgrdy = CreateEvent(NULL, TRUE, FALSE, NULL); /* create message event */
     imsginp = 1; /* clear control message message input queue */
     imsgout = 1;
-    imsgrdy = createevent(TRUE, FALSE); /* create message event */
-    initializecriticalsection(mainlock); /* initialize the sequencer lock */
+    imsgrdy = CreateEvent(NULL, TRUE, FALSE, NULL); /* create message event */
+    InitializeCriticalSection(mainlock); /* initialize the sequencer lock */
     /* mainlock = createmutex(FALSE); */ /* create mutex with no owner */
     /* if mainlock == 0  winerr(); */ /* process windows error */
     fndrepmsg = 0; /* set no find/replace message active */
@@ -15212,29 +15245,29 @@ static void pa_init_network()
     }
     /* Create dummy window for message handling. This is only required so that
       the main thread can be attached to the display thread */
-    createdummy(wndprocmain, "mainthread", mainwin);
-    mainthreadid = getcurrentthreadid;
+    createdummy(wndprocmain, "mainthread", &mainwin);
+    mainthreadid = GetCurrentThreadId();
 
     getpgm(); /* get the program name from the command line */
     /* Now start the display thread, which both manages all displays, and sends us
       all messages from those displays. */
-    threadstart = CreateEvent(TRUE, FALSE);
+    threadstart = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (!threadstart) winerr(); /* process windows error */
     /* create subthread */
     ResetEvent(threadstart); /* clear event */
-    CreateThread_nn(0, dispthread, 0, threadid);
+    CreateThread(NULL, 0, dispthread, NULL, 0, &threadid);
     WaitForSingleObject(threadstart, -1); /* wait for thread to start */
     if (r == -1) winerr(); /* process windows error */
     /* Past this point, we need to lock for access between us and the thread. */
 
     /* Now attach the main thread to the display thread. This is required for the
       main thread to have access to items like the display window caret. */
-    b = attachthreadinput(mainthreadid, threadid, TRUE);
+    b = AttachThreadInput(mainthreadid, threadid, TRUE);
     if (!b) winerr(); /* process windows error */
 
     /* Start widget thread */
     ResetEvent(threadstart); /* clear event */
-    CreateThread_nn(0, dialogthread, 0, threadid);
+    CreateThread(NULL, 0, dialogthread, NULL, 0, &threadid);
     r = WaitForSingleObject(threadstart, -1); /* wait for thread to start */
     if (r == -1) winerr(); /* process windows error */
 
@@ -15249,8 +15282,8 @@ Graph shutdown
 
 *******************************************************************************/
 
-static void pa_deinit_terminal (void) __attribute__((destructor (102)));
-static void pa_deinit_terminal(void)
+static void pa_deinit_graph (void) __attribute__((destructor (102)));
+static void pa_deinit_graph(void)
 
 {
 
@@ -15281,7 +15314,7 @@ static void pa_deinit_terminal(void)
             if (!wp->sysbar) isysbar(wp, TRUE);
             /* change window label to alert user */
             unlockmain(); /* end exclusive access */
-            b = setwindowtext(wp->winhan, trmnam);
+            b = SetWindowText(wp->winhan, trmnam);
             lockmain(); /* start exclusive access */
             /* wait for a formal end */
             while (!fend) ievent(INPFIL, &er);

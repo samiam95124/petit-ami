@@ -156,7 +156,7 @@ typedef enum {
 
 /*
  * Saved vectors to system calls. These vectors point to the old, existing
- * vectors that were overriden by this module.
+ * vectors that were overridden by this module.
  *
  */
 static pread_t   ofpread;
