@@ -573,68 +573,72 @@ static pclose_t  ofpclose;
 static punlink_t ofpunlink;
 static plseek_t  ofplseek;
 
-filptr opnfil[MAXFIL]; /* open files table */
-int xltwin[MAXFIL]; /* window equivalence table */
-int filwin[MAXFIL]; /* file to window equivalence table */
+static filptr opnfil[MAXFIL]; /* open files table */
+static int xltwin[MAXFIL]; /* window equivalence table */
+static int filwin[MAXFIL]; /* file to window equivalence table */
 /* array to translate top level file ids to syslib equivalents */
-int xltfil[MAXFIL];
+static int xltfil[MAXFIL];
 
-int       fi;           /* index for files table */
-int       fend;         /* end of program ordered flag */
-int       fautohold;    /* automatic hold on exit flag */
-char*     pgmnam;       /* program name string */
-char*     trmnam;       /* program termination string */
+static int       fi;           /* index for files table */
+static int       fend;         /* end of program ordered flag */
+static int       fautohold;    /* automatic hold on exit flag */
+static char*     pgmnam;       /* program name string */
+static char*     trmnam;       /* program termination string */
 /* These are duplicates from the windows record. They must be here because
   Windows calls us back, && the results have to be passed via a global. */
-fontptr   fntlst;       /* list of windows fonts */
-int       fntcnt;       /* number of fonts in font list */
-pa_evtrec er;           /* event record */
-int       r;            /* result holder */
-int       b;            /* int result holder */
-eqeptr    eqefre;       /* free event queuing entry list */
-wigptr    wigfre;       /* free widget entry list */
+static fontptr   fntlst;       /* list of windows fonts */
+static int       fntcnt;       /* number of fonts in font list */
+static pa_evtrec er;           /* event record */
+static int       r;            /* result holder */
+static int       b;            /* int result holder */
+static eqeptr    eqefre;       /* free event queuing entry list */
+static wigptr    wigfre;       /* free widget entry list */
 /* message input queue */
-MSG       msgque[MAXMSG];
-int       msginp;       /* input pointer */
-int       msgout;       /* ouput pointer */
-HANDLE    msgrdy;       /* message ready event */
+static MSG       msgque[MAXMSG];
+static int       msginp;       /* input pointer */
+static int       msgout;       /* ouput pointer */
+static HANDLE    msgrdy;       /* message ready event */
 /* Control message queue. We send messages around for internal controls, but
   we don"t want to discard user messages to get them. So we use a separate
   queue to store control messages. */
-MSG       imsgque[MAXMSG];
-int       imsginp;      /* input pointer */
-int       imsgout;      /* ouput pointer */
-HANDLE    imsgrdy;      /* message ready event */
+static MSG       imsgque[MAXMSG];
+static int       imsginp;      /* input pointer */
+static int       imsgout;      /* ouput pointer */
+static HANDLE    imsgrdy;      /* message ready event */
 /* this array stores color choices from the user in the color pick dialog */
-COLORREF  gcolorsav[16];
-int       i;            /* index for that */
-int       fndrepmsg;    /* message assignment for find/replace */
-HWND      dispwin;      /* handle to display thread window */
-HWND      dialogwin;    /* handle to dialog thread window */
-HANDLE    threadstart;  /* thread start event handle */
-DWORD     threadid;     /* dummy thread id (unused) */
-HWND      mainwin;      /* handle to main thread dummy window */
-int       mainthreadid; /* main thread id */
+static COLORREF  gcolorsav[16];
+static int       i;            /* index for that */
+static int       fndrepmsg;    /* message assignment for find/replace */
+static HWND      dispwin;      /* handle to display thread window */
+static HWND      dialogwin;    /* handle to dialog thread window */
+static HANDLE    threadstart;  /* thread start event handle */
+static DWORD     threadid;     /* dummy thread id (unused) */
+static HWND      mainwin;      /* handle to main thread dummy window */
+static int       mainthreadid; /* main thread id */
 /* This block communicates with the subthread to create standard windows. */
-int       stdwinflg;    /* flags */
-int       stdwinx;      /* x position */
-int       stdwiny;      /* y position */
-int       stdwinw;      /* width */
-int       stdwinh;      /* height */
-HWND      stdwinpar;    /* parent */
-HWND       stdwinwin;    /* window window handle */
-int       stdwinj1c;    /* joystick 1 capture */
-int       stdwinj2c;    /* joystick 1 capture */
+static int       stdwinflg;    /* flags */
+static int       stdwinx;      /* x position */
+static int       stdwiny;      /* y position */
+static int       stdwinw;      /* width */
+static int       stdwinh;      /* height */
+static HWND      stdwinpar;    /* parent */
+static HWND       stdwinwin;    /* window window handle */
+static int       stdwinj1c;    /* joystick 1 capture */
+static int       stdwinj2c;    /* joystick 1 capture */
 /* mainlock:    int; */ /* lock for all global structures */
 LPCRITICAL_SECTION mainlock; /* main task lock */
-imptr     freitm;       /* intratask message free list */
-int       msgcnt;       /* counter for number of message output (diagnostic) */
+static imptr     freitm;       /* intratask message free list */
+static int       msgcnt;       /* counter for number of message output (diagnostic) */
 
 /* The double fault flag is set when exiting, so if we exit again, it
   is checked,  forces an immediate exit. This keeps faults from
   looping. */
-int       dblflt;       /* double fault flag */
+static int       dblflt;       /* double fault flag */
 
+/*
+ * Forward declarations.
+ *
+ */
 static void clswin(int fn);
 static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam);
 static LRESULT CALLBACK wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam);
