@@ -2107,7 +2107,7 @@ int icurbnd(scnptr sc)
 
 }
 
-int curbnd(FILE* f)
+int pa_curbnd(FILE* f)
 
 {
 
@@ -2802,7 +2802,7 @@ void iscrollg(winptr win, int x, int y)
 
 }
 
-void scrollg(FILE* f, int x, int y)
+void pa_scrollg(FILE* f, int x, int y)
 
 {
 
@@ -2815,7 +2815,7 @@ void scrollg(FILE* f, int x, int y)
 
 }
 
-void scroll(FILE* f, int x, int y)
+void pa_scroll(FILE* f, int x, int y)
 
 {
 
@@ -2854,7 +2854,7 @@ void icursor(winptr win, int x, int y)
 
 }
 
-void cursor(FILE* f, int x, int y)
+void pa_cursor(FILE* f, int x, int y)
 
 {
 
@@ -2893,7 +2893,7 @@ void icursorg(winptr win, int x, int y)
 
 }
 
-void cursorg(FILE* f, int x, int y)
+void pa_cursorg(FILE* f, int x, int y)
 
 {
 
@@ -2915,7 +2915,7 @@ to the font baseline. The baseline is the line all characters rest on.
 
 *******************************************************************************/
 
-int baseline(FILE* f)
+int pa_baseline(FILE* f)
 
 {
 
@@ -2940,7 +2940,7 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-int maxx(FILE* f)
+int pa_maxx(FILE* f)
 
 {
 
@@ -2965,7 +2965,7 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-int maxy(FILE* f)
+int pa_maxy(FILE* f)
 
 {
 
@@ -2990,7 +2990,7 @@ pixels.
 
 *******************************************************************************/
 
-int maxxg(FILE* f)
+int pa_maxxg(FILE* f)
 
 {
 
@@ -3015,7 +3015,7 @@ pixels.
 
 *******************************************************************************/
 
-int maxyg(FILE* f)
+int pa_maxyg(FILE* f)
 
 {
 
@@ -3051,7 +3051,7 @@ void ihome(winptr win)
 
 }
 
-void home(FILE* f)
+void pa_home(FILE* f)
 
 {
 
@@ -3101,7 +3101,7 @@ void iup(winptr win)
 
 }
 
-void up(FILE* f)
+void pa_up(FILE* f)
 
 {
 
@@ -3148,7 +3148,7 @@ void idown(winptr win)
 
 }
 
-void down(FILE* f)
+void pa_down(FILE* f)
 
 {
 
@@ -3207,7 +3207,7 @@ void ileft(winptr win)
 
 }
 
-void left(FILE* f)
+void pa_left(FILE* f)
 
 {
 
@@ -3228,7 +3228,7 @@ Moves the cursor one character right.
 
 *******************************************************************************/
 
-void iright(winptr win)
+void pa_iright(winptr win)
 
 {
 
@@ -3263,7 +3263,7 @@ void iright(winptr win)
 
 }
 
-void right(FILE* f)
+void pa_right(FILE* f)
 
 {
 
@@ -3322,7 +3322,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void blink(FILE* f, int e)
+void pa_blink(FILE* f, int e)
 
 {
 
@@ -3389,7 +3389,7 @@ void ireverse(winptr win, int e)
 
 }
 
-void reverse(FILE* f, int e)
+void pa_reverse(FILE* f, int e)
 
 {
 
@@ -3435,7 +3435,7 @@ void iunderline(winptr win, int e)
 
 }
 
-void underline(FILE* f, int e)
+void pa_underline(FILE* f, int e)
 
 {
 
@@ -3479,7 +3479,7 @@ void isuperscript(winptr win, int e)
 
 }
 
-void superscript(FILE* f, int e)
+void pa_superscript(FILE* f, int e)
 
 {
 
@@ -3523,7 +3523,7 @@ void isubscript(winptr win, int e)
 
 }
 
-void subscript(FILE* f, int e)
+void pa_subscript(FILE* f, int e)
 
 {
 
@@ -3572,7 +3572,7 @@ void iitalic(winptr win, int e)
 
 }
 
-void italic(FILE* f, int e)
+void pa_italic(FILE* f, int e)
 
 {
 
@@ -3619,7 +3619,7 @@ void ibold(winptr win, int e)
 
 }
 
-void bold(FILE* f, int e)
+void pa_bold(FILE* f, int e)
 
 {
 
@@ -3665,7 +3665,7 @@ void istrikeout(winptr win, int e)
 
 }
 
-void strikeout(FILE* f, int e)
+void pa_strikeout(FILE* f, int e)
 
 {
 
@@ -3687,11 +3687,11 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void standout(FILE* f, int e)
+void pa_standout(FILE* f, int e)
 
 {
 
-   reverse(f, e); /* implement as reverse */
+   pa_reverse(f, e); /* implement as reverse */
 
 }
 
@@ -3772,7 +3772,7 @@ void ifcolor(winptr win, pa_color c)
 
 }
 
-void fcolor(FILE* f, pa_color c)
+void pa_fcolor(FILE* f, pa_color c)
 
 {
 
@@ -3864,7 +3864,7 @@ void ifcolorg(winptr win, int r, int g, int b)
 
 }
 
-void fcolorg(FILE* f, int r, int g, int b)
+void pa_fcolorg(FILE* f, int r, int g, int b)
 
 {
 
@@ -3926,7 +3926,7 @@ void ibcolor(winptr win, pa_color c)
 
 }
 
-void bcolor(FILE* f, pa_color c)
+void pa_bcolor(FILE* f, pa_color c)
 
 {
 
@@ -3990,7 +3990,7 @@ void ibcolorg(winptr win, int r, int g, int b)
 
 }
 
-void bcolorg(FILE* f, int r, int g, int b)
+void pa_bcolorg(FILE* f, int r, int g, int b)
 
 {
 
@@ -4080,7 +4080,7 @@ void icurvis(winptr win, int e)
 
 }
 
-void curvis(FILE* f, int e)
+void pa_curvis(FILE* f, int e)
 
 {
 
@@ -4101,7 +4101,7 @@ Returns the current location of the cursor in x.
 
 *******************************************************************************/
 
-int curx(FILE* f)
+int pa_curx(FILE* f)
 
 {
 
@@ -4125,7 +4125,7 @@ Returns the current location of the cursor in y.
 
 *******************************************************************************/
 
-int cury(FILE* f)
+int pa_cury(FILE* f)
 
 {
 
@@ -4149,7 +4149,7 @@ Returns the current location of the cursor in x, in pixels.
 
 *******************************************************************************/
 
-int curxg(FILE* f)
+int pa_curxg(FILE* f)
 
 {
 
@@ -4173,7 +4173,7 @@ Returns the current location of the cursor in y, in pixels.
 
 *******************************************************************************/
 
-int curyg(FILE* f)
+int pa_curyg(FILE* f)
 
 {
 
@@ -4390,7 +4390,7 @@ void iwrtstr(winptr win,  char* s)
 
 }
 
-void wrtstr(FILE* f, char* s)
+void pa_wrtstr(FILE* f, char* s)
 
 {
 
@@ -4422,7 +4422,7 @@ void idel(winptr win)
 
 }
 
-void del(FILE* f)
+void pa_del(FILE* f)
 
 {
 
@@ -4495,7 +4495,7 @@ void iline(winptr win, int x1, int y1, int x2, int y2)
 
 }
 
-void line(FILE* f, int x1, int y1, int x2, int y2)
+void pa_line(FILE* f, int x1, int y1, int x2, int y2)
 
 {
 
@@ -4542,7 +4542,7 @@ void irect(winptr win, int x1, int y1, int x2, int y2)
 
 }
 
-void rect(FILE* f, int x1, int y1, int x2, int y2)
+void pa_rect(FILE* f, int x1, int y1, int x2, int y2)
 
 {
 
@@ -4611,7 +4611,7 @@ void ifrect(winptr win, int x1, int y1, int x2, int y2)
 
 }
 
-void frect(FILE* f, int x1, int y1, int x2, int y2)
+void pa_frect(FILE* f, int x1, int y1, int x2, int y2)
 
 {
 
@@ -4659,7 +4659,7 @@ void irrect(winptr win, int x1, int y1, int x2, int y2, int xs, int ys)
 
 }
 
-void rrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
+void pa_rrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
 
 {
 
@@ -4728,7 +4728,7 @@ void ifrrect(winptr win, int x1, int y1, int x2, int y2, int xs, int ys)
 
 }
 
-void frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
+void pa_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
 
 {
 
@@ -4844,7 +4844,7 @@ void ifellipse(winptr win, int x1, int y1, int x2, int y2)
 
 }
 
-void fellipse(FILE* f, int x1, int y1, int x2, int y2)
+void pa_fellipse(FILE* f, int x1, int y1, int x2, int y2)
 
 {
 
@@ -4931,7 +4931,7 @@ void iarc(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
 
 }
 
-void arc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
+void pa_arc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
 
 {
 
@@ -5022,7 +5022,7 @@ void ifarc(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
 
 }
 
-void farc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
+void pa_farc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
 
 {
 
@@ -5113,7 +5113,7 @@ void ifchord(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
 
 }
 
-void fchord(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
+void pa_fchord(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
 
 {
 
@@ -5207,7 +5207,7 @@ void iftriangle(winptr win, int x1, int y1, int x2, int y2, int x3, int y3)
 
 }
 
-void ftriangle(FILE* f, int x1, int y1, int x2, int y2, int x3, int y3)
+void pa_ftriangle(FILE* f, int x1, int y1, int x2, int y2, int x3, int y3)
 
 {
 
@@ -5256,7 +5256,7 @@ void isetpixel(winptr win, int x, int y)
 
 }
 
-void setpixel(FILE* f, int x, int y)
+void pa_setpixel(FILE* f, int x, int y)
 
 {
 
@@ -5291,7 +5291,7 @@ void ifover(winptr win)
 
 }
 
-void fover(FILE* f)
+void pa_fover(FILE* f)
 
 {
 
@@ -5326,7 +5326,7 @@ void ibover(winptr win)
 
 }
 
-void bover(FILE* f)
+void pa_bover(FILE* f)
 
 {
 
@@ -5361,7 +5361,7 @@ void ifinvis(winptr win)
 
 }
 
-void finvis(FILE* f)
+void pa_finvis(FILE* f)
 
 {
 
@@ -5396,7 +5396,7 @@ void ibinvis(winptr win)
 
 }
 
-void binvis(FILE* f)
+void pa_binvis(FILE* f)
 
 {
 
@@ -5431,7 +5431,7 @@ void ifxor(winptr win)
 
 }
 
-void fxor(FILE* f)
+void pa_fxor(FILE* f)
 
 {
 
@@ -5461,7 +5461,7 @@ void ibxor(winptr win)
 
 }
 
-void bxor(FILE* f)
+void pa_bxor(FILE* f)
 
 {
 
@@ -5514,7 +5514,7 @@ void ilinewidth(winptr win, int w)
 
 }
 
-void linewidth(FILE* f, int w)
+void pa_linewidth(FILE* f, int w)
 
 {
 
@@ -5535,7 +5535,7 @@ Returns the character width.
 
 *******************************************************************************/
 
-int chrsizx(FILE* f)
+int pa_chrsizx(FILE* f)
 
 {
 
@@ -5559,7 +5559,7 @@ Returns the character height.
 
 *******************************************************************************/
 
-int chrsizy(FILE* f)
+int pa_chrsizy(FILE* f)
 
 {
 
@@ -5583,7 +5583,7 @@ Finds the total number of installed fonts.
 
 *******************************************************************************/
 
-int fonts(FILE* f)
+int pa_fonts(FILE* f)
 
 {
 
@@ -5632,7 +5632,7 @@ void ifont(winptr win, int fc)
 
 }
 
-void font(FILE* f, int fc)
+void pa_font(FILE* f, int fc)
 
 {
 
@@ -5674,7 +5674,7 @@ void ifontnam(winptr win, int fc, char* fns, int fnsl)
 
 }
 
-void fontnam(FILE* f, int fc, char* fns, int fnsl)
+void pa_fontnam(FILE* f, int fc, char* fns, int fnsl)
 
 {
 
@@ -5709,7 +5709,7 @@ void ifontsiz(winptr win, int s)
 
 }
 
-void fontsiz(FILE* f, int s)
+void pa_fontsiz(FILE* f, int s)
 
 {
 
@@ -5733,7 +5733,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void chrspcy(FILE* f, int s)
+void pa_chrspcy(FILE* f, int s)
 
 {
 
@@ -5752,7 +5752,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void chrspcx(FILE* f, int s)
+void pa_chrspcx(FILE* f, int s)
 
 {
 
@@ -5768,7 +5768,7 @@ Returns the number of dots per meter resolution in x.
 
 *******************************************************************************/
 
-int dpmx(FILE* f)
+int pa_dpmx(FILE* f)
 
 {
 
@@ -5792,7 +5792,7 @@ Returns the number of dots per meter resolution in y.
 
 *******************************************************************************/
 
-int dpmy(FILE* f)
+int pa_dpmy(FILE* f)
 
 {
 
@@ -5834,7 +5834,7 @@ int istrsiz(winptr win, char* s)
 
 }
 
-int strsiz(FILE* f, char* s)
+int pa_strsiz(FILE* f, char* s)
 
 {
 
@@ -5883,7 +5883,7 @@ int ichrpos(winptr win, char* s, int p)
 
 }
 
-int chrpos(FILE* f, char* s, int p)
+int pa_chrpos(FILE* f, char* s, int p)
 
 {
 
@@ -5971,7 +5971,7 @@ void iwritejust(winptr win, char* s, int n)
 
 }
 
-void writejust(FILE* f, char* s, int n)
+void pa_writejust(FILE* f, char* s, int n)
 
 {
 
@@ -6041,7 +6041,7 @@ int ijustpos(winptr win, char* s, int p, int n)
 
 }
 
-int justpos(FILE* f, char* s, int p, int n)
+int pa_justpos(FILE* f, char* s, int p, int n)
 
 {
 
@@ -6070,7 +6070,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void condensed(FILE* f, int e)
+void pa_condensed(FILE* f, int e)
 
 {
 
@@ -6091,7 +6091,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void extended(FILE* f, int e)
+void pa_extended(FILE* f, int e)
 
 {
 
@@ -6112,7 +6112,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void xlight(FILE* f, int e)
+void pa_xlight(FILE* f, int e)
 
 {
 
@@ -6133,7 +6133,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void light(FILE* f, int e)
+void pa_light(FILE* f, int e)
 
 {
 
@@ -6154,7 +6154,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void xbold(FILE* f, int e)
+void pa_xbold(FILE* f, int e)
 
 {
 
@@ -6175,7 +6175,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void hollow(FILE* f, int e)
+void pa_hollow(FILE* f, int e)
 
 {
 
@@ -6196,7 +6196,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void raised(FILE* f, int e)
+void pa_raised(FILE* f, int e)
 
 {
 
@@ -6232,7 +6232,7 @@ void idelpict(winptr win, int p)
 
 }
 
-void delpict(FILE* f, int p)
+void pa_delpict(FILE* f, int p)
 
 {
 
@@ -6328,7 +6328,7 @@ void iloadpict(winptr win, int p, char* fn)
 
 }
 
-void loadpict(FILE* f, int p, char* fn)
+void pa_loadpict(FILE* f, int p, char* fn)
 
 {
 
@@ -6349,7 +6349,7 @@ Returns the size in x of the logical picture.
 
 *******************************************************************************/
 
-int pictsizx(FILE* f, int p)
+int pa_pictsizx(FILE* f, int p)
 
 {
 
@@ -6375,7 +6375,7 @@ Returns the size in y of the logical picture.
 
 *******************************************************************************/
 
-int pictsizy(FILE* f, int p)
+int pa_pictsizy(FILE* f, int p)
 
 {
 
@@ -6449,7 +6449,7 @@ void ipicture(winptr win, int p, int x1, int y1, int x2, int y2)
 
 }
 
-void picture(FILE* f, int p, int x1, int y1, int x2, int y2)
+void pa_picture(FILE* f, int p, int x1, int y1, int x2, int y2)
 
 {
 
@@ -6489,7 +6489,7 @@ void iviewoffg(winptr win, int x, int y)
 
 }
 
-void viewoffg(FILE* f, int x, int y)
+void pa_viewoffg(FILE* f, int x, int y)
 
 {
 
@@ -6540,7 +6540,7 @@ void iviewscale(winptr win, float x, float y)
 
 }
 
-void viewscale(FILE* f, float x, float y)
+void pa_viewscale(FILE* f, float x, float y)
 
 {
 
@@ -7748,7 +7748,7 @@ void ievent(int ifn, pa_evtrec* er)
 
 /* external event interface */
 
-void event(FILE* f, pa_evtrec* er)
+void pa_event(FILE* f, pa_evtrec* er)
 
 {
 
@@ -7881,7 +7881,7 @@ void itimer(winptr win, /* file to send event to */
 
 }
 
-void timer(FILE* f, /* file to send event to */
+void pa_timer(FILE* f, /* file to send event to */
            int   i, /* timer handle */
            int   t, /* number of tenth-milliseconds to run */
            int   r) /* timer is to rerun after completion */
@@ -7918,7 +7918,7 @@ void ikilltimer(winptr win, /* file to kill timer on */
 
 }
 
-void killtimer(FILE* f, /* file to kill timer on */
+void pa_killtimer(FILE* f, /* file to kill timer on */
                int   i) /* handle of timer */
 
 {
@@ -7975,7 +7975,7 @@ void iframetimer(winptr win, int lf, int e)
 
 }
 
-void frametimer(FILE* f, int e)
+void pa_frametimer(FILE* f, int e)
 
 {
 
@@ -8003,7 +8003,7 @@ holding graph unaware programs.
 
 *******************************************************************************/
 
-void autohold(int e)
+void pa_autohold(int e)
 
 {
 
@@ -8019,7 +8019,7 @@ Returns the number of mice implemented. Windows supports only one mouse.
 
 *******************************************************************************/
 
-int mouse(FILE* f)
+int pa_mouse(FILE* f)
 
 {
 
@@ -8040,7 +8040,7 @@ version.
 
 *******************************************************************************/
 
-int mousebutton(FILE* f, int m)
+int pa_mousebutton(FILE* f, int m)
 
 {
 
@@ -8063,7 +8063,7 @@ Return number of joysticks attached.
 
 *******************************************************************************/
 
-int joystick(FILE* f)
+int pa_joystick(FILE* f)
 
 {
 
@@ -8087,7 +8087,7 @@ Returns the number of buttons on a given joystick.
 
 *******************************************************************************/
 
-int joybutton(FILE* f, int j)
+int pa_joybutton(FILE* f, int j)
 
 {
 
@@ -8139,7 +8139,7 @@ int ijoyaxis(winptr win, int j)
 
 }
 
-int joyaxis(FILE* f, int j)
+int pa_joyaxis(FILE* f, int j)
 
 {
 
@@ -8189,7 +8189,7 @@ void isettabg(winptr win, int t)
 
 }
 
-void settabg(FILE* f, int t)
+void pa_settabg(FILE* f, int t)
 
 {
 
@@ -8210,7 +8210,7 @@ Sets a tab at the indicated collumn number.
 
 *******************************************************************************/
 
-void settab(FILE* f, int t)
+void pa_settab(FILE* f, int t)
 
 {
 
@@ -8254,7 +8254,7 @@ void irestabg(winptr win, int t)
 
 }
 
-void restabg(FILE* f, int t)
+void pa_restabg(FILE* f, int t)
 
 {
 
@@ -8275,7 +8275,7 @@ Resets the tab at the indicated collumn number.
 
 *******************************************************************************/
 
-void restab(FILE* f, int t)
+void pa_restab(FILE* f, int t)
 
 {
 
@@ -8297,7 +8297,7 @@ arrangement.
 
 *******************************************************************************/
 
-void clrtab(FILE* f)
+void pa_clrtab(FILE* f)
 
 {
 
@@ -8321,7 +8321,7 @@ function keys as well.
 
 *******************************************************************************/
 
-int funkey(FILE* f)
+int pa_funkey(FILE* f)
 
 {
 
@@ -8909,7 +8909,7 @@ Sets the title of the current window.
 
 *******************************************************************************/
 
-void title(FILE* f, char* ts)
+void pa_title(FILE* f, char* ts)
 
 {
 
@@ -9436,7 +9436,7 @@ void iopenwin(FILE** infile, FILE** outfile, int pfn, int wid)
 
 }
 
-void openwin(FILE* infile, FILE* outfile, FILE* parent, int wid)
+void pa_openwin(FILE* infile, FILE* outfile, FILE* parent, int wid)
 
 {
 
@@ -9499,7 +9499,7 @@ void isizbufg(winptr win, int x, int y)
 
 }
 
-void sizbufg(FILE* f, int x, int y)
+void pa_sizbufg(FILE* f, int x, int y)
 
 {
 
@@ -9520,7 +9520,7 @@ Sets or resets the size of the buffer surface, in character counts.
 
 *******************************************************************************/
 
-void sizbuf(FILE* f, int x, int y)
+void pa_sizbuf(FILE* f, int x, int y)
 
 {
 
@@ -9607,7 +9607,7 @@ void ibuffer(winptr win, int e)
 
 }
 
-void buffer(FILE* f, int e)
+void pa_buffer(FILE* f, int e)
 
 {
 
@@ -9737,7 +9737,7 @@ void imenu(winptr win, pa_menuptr m)
 
 }
 
-void menu(FILE* f, pa_menuptr m)
+void pa_menu(FILE* f, pa_menuptr m)
 
 {
 
@@ -9815,7 +9815,7 @@ void imenuena(winptr win, int id, int onoff)
 
 }
 
-void menuena(FILE* f, int id, int onoff)
+void pa_menuena(FILE* f, int id, int onoff)
 
 {
 
@@ -9896,7 +9896,7 @@ void imenusel(winptr win, int id, int select)
 
 }
 
-void menusel(FILE* f, int id, int select)
+void pa_menusel(FILE* f, int id, int select)
 
 {
 
@@ -9958,7 +9958,7 @@ void ifront(winptr win)
 
 }
 
-void front(FILE* f)
+void pa_front(FILE* f)
 
 {
 
@@ -9993,7 +9993,7 @@ void iback(winptr win)
 
 }
 
-void back(FILE* f)
+void pa_back(FILE* f)
 
 {
 
@@ -10028,7 +10028,7 @@ void igetsizg(winptr win, int* x, int* y)
 
 }
 
-void getsizg(FILE* f, int* x, int* y)
+void pa_getsizg(FILE* f, int* x, int* y)
 
 {
 
@@ -10054,7 +10054,7 @@ relative measurement.
 
 *******************************************************************************/
 
-void getsiz(FILE* f, int* x, int* y)
+void pa_getsiz(FILE* f, int* x, int* y)
 
 {
 
@@ -10102,7 +10102,7 @@ void isetsizg(winptr win, int x, int y)
 
 }
 
-void setsizg(FILE* f, int x, int y)
+void pa_setsizg(FILE* f, int x, int y)
 
 {
 
@@ -10128,7 +10128,7 @@ relative measurement.
 
 *******************************************************************************/
 
-void setsiz(FILE* f, int x, int y)
+void pa_setsiz(FILE* f, int x, int y)
 
 {
 
@@ -10176,7 +10176,7 @@ void isetposg(winptr win, int x, int y)
 
 }
 
-void setposg(FILE* f, int x, int y)
+void pa_setposg(FILE* f, int x, int y)
 
 {
 
@@ -10202,7 +10202,7 @@ relative measurement.
 
 *******************************************************************************/
 
-void setpos(FILE* f, int x, int y)
+void pa_setpos(FILE* f, int x, int y)
 
 {
 
@@ -10253,7 +10253,7 @@ void iscnsizg(winptr win, int* x, int* y)
 
 }
 
-void scnsizg(FILE* f, int* x, int* y)
+void pa_scnsizg(FILE* f, int* x, int* y)
 
 {
 
@@ -10313,7 +10313,7 @@ void iwinclientg(winptr win, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
 
 }
 
-void winclient(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
+void pa_winclient(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
 
 {
 
@@ -10342,7 +10342,7 @@ void winclient(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
 
 }
 
-void winclientg(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
+void pa_winclientg(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
 
 {
 
@@ -10366,7 +10366,7 @@ because it can only be used as a relative measurement.
 
 *******************************************************************************/
 
-void scnsiz(FILE* f, int* x, int* y)
+void pa_scnsiz(FILE* f, int* x, int* y)
 
 {
 
@@ -10442,7 +10442,7 @@ void iframe(winptr win, int e)
 
 }
 
-void frame(FILE* f, int e)
+void pa_frame(FILE* f, int e)
 
 {
 
@@ -10523,7 +10523,7 @@ void isizable(winptr win, int e)
 
 }
 
-void sizable(FILE* f, int e)
+void pa_sizable(FILE* f, int e)
 
 {
 
@@ -10604,7 +10604,7 @@ void isysbar(winptr win, int e)
 
 }
 
-void sysbar(FILE* f, int e)
+void pa_sysbar(FILE* f, int e)
 
 {
 
@@ -10695,7 +10695,7 @@ void additem(pa_stdmenusel sms, int i, pa_menuptr* m, pa_menuptr* l, char* s,
 
 }
 
-void stdmenu(pa_stdmenusel sms, pa_menuptr* sm, pa_menuptr pm)
+void pa_stdmenu(pa_stdmenusel sms, pa_menuptr* sm, pa_menuptr pm)
 
 {
 
@@ -10771,7 +10771,7 @@ void stdmenu(pa_stdmenusel sms, pa_menuptr* sm, pa_menuptr pm)
 
    }
 
-   /* check && perform "help" menu */
+   /* check and perform "help" menu */
 
    if (sms & (BIT(PA_SMHELPTOPIC) | BIT(PA_SMABOUT))) { /* file menu */
 
@@ -10790,7 +10790,7 @@ void stdmenu(pa_stdmenusel sms, pa_menuptr* sm, pa_menuptr pm)
 Create widget
 
 Creates a widget within the given window, within the specified bounding box,
-and using the face string && type, && the given id. The string may or may not
+and using the face string and type, and the given id. The string may or may not
 be used.
 
 Widgets use the subthread to buffer them. There were various problems from
@@ -10958,7 +10958,7 @@ void ikillwidget(winptr win, int id)
 
 }
 
-void killwidget(FILE* f, int id)
+void pa_killwidget(FILE* f, int id)
 
 {
 
@@ -10997,7 +10997,7 @@ void iselectwidget(winptr win, int id, int e)
 
 }
 
-void selectwidget(FILE* f, int id, int e)
+void pa_selectwidget(FILE* f, int id, int e)
 
 {
 
@@ -11042,7 +11042,7 @@ void ienablewidget(winptr win, int id, int e)
 
 }
 
-void enablewidget(FILE* f, int id, int e)
+void pa_enablewidget(FILE* f, int id, int e)
 
 {
 
@@ -11090,7 +11090,7 @@ void igetwidgettext(winptr win, int id, char* s, int sl)
 
 }
 
-void getwidgettext(FILE* f, int id, char* s, int sl)
+void pa_getwidgettext(FILE* f, int id, char* s, int sl)
 
 {
 
@@ -11130,7 +11130,7 @@ void iputwidgettext(winptr win, int id, char* s)
 
 }
 
-void putwidgettext(FILE* f, int id, char* s)
+void pa_putwidgettext(FILE* f, int id, char* s)
 
 {
 
@@ -11175,7 +11175,7 @@ void isizwidgetg(winptr win, int id,  int x, int y)
 
 }
 
-void sizwidgetg(FILE* f, int id, int x, int y)
+void pa_sizwidgetg(FILE* f, int id, int x, int y)
 
 {
 
@@ -11220,7 +11220,7 @@ void iposwidgetg(winptr win, int id, int x, int y)
 
 }
 
-void poswidgetg(FILE* f, int id, int x, int y)
+void pa_poswidgetg(FILE* f, int id, int x, int y)
 
 {
 
@@ -11265,7 +11265,7 @@ void ibackwidget(winptr win, int id)
 
 }
 
-void backwidget(FILE* f, int id)
+void pa_backwidget(FILE* f, int id)
 
 {
 
@@ -11311,7 +11311,7 @@ void ifrontwidget(winptr win, int id)
 
 }
 
-void frontwidget(FILE* f, int id)
+void pa_frontwidget(FILE* f, int id)
 
 {
 
@@ -11362,7 +11362,7 @@ void ibuttonsiz(winptr win, char* s, int* w, int* h)
 
 }
 
-void buttonsizg(FILE* f, char* s, int* w, int* h)
+void pa_buttonsizg(FILE* f, char* s, int* w, int* h)
 
 {
 
@@ -11375,7 +11375,7 @@ void buttonsizg(FILE* f, char* s, int* w, int* h)
 
 }
 
-void buttonsiz(FILE* f, char* s, int* w, int* h)
+void pa_buttonsiz(FILE* f, char* s, int* w, int* h)
 
 {
 
@@ -11420,7 +11420,7 @@ void ibutton(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-void buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void pa_buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -11433,7 +11433,7 @@ void buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-void button(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void pa_button(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -11485,7 +11485,7 @@ void icheckboxsiz(winptr win, char* s, int* w, int* h)
 
 }
 
-void checkboxsizg(FILE* f, char* s, int* w, int* h)
+void pa_checkboxsizg(FILE* f, char* s, int* w, int* h)
 
 {
 
@@ -11498,7 +11498,7 @@ void checkboxsizg(FILE* f, char* s, int* w, int* h)
 
 }
 
-void checkboxsiz(FILE* f, char* s, int* w, int* h)
+void pa_checkboxsiz(FILE* f, char* s, int* w, int* h)
 
 {
 
@@ -11544,7 +11544,7 @@ void icheckbox(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-void checkboxg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void pa_checkboxg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -11557,7 +11557,7 @@ void checkboxg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-void checkbox(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void pa_checkbox(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -11609,7 +11609,7 @@ void iradiobuttonsiz(winptr win, char* s, int* w, int* h)
 
 }
 
-void radiobuttonsizg(FILE* f, char* s, int* w, int* h)
+void pa_radiobuttonsizg(FILE* f, char* s, int* w, int* h)
 
 {
 
@@ -11622,7 +11622,7 @@ void radiobuttonsizg(FILE* f, char* s, int* w, int* h)
 
 }
 
-void radiobuttonsiz(FILE* f, char* s, int* w, int* h)
+void pa_radiobuttonsiz(FILE* f, char* s, int* w, int* h)
 
 {
 
@@ -11668,7 +11668,7 @@ void iradiobutton(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-void radiobuttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void pa_radiobuttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -11681,7 +11681,7 @@ void radiobuttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-void radiobutton(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void pa_radiobutton(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -11744,7 +11744,7 @@ void igroupsiz(winptr win, char* s, int cw, int ch, int* w, int* h,
 
 }
 
-void groupsizg(FILE* f, char* s, int cw, int ch, int* w, int* h,
+void pa_groupsizg(FILE* f, char* s, int cw, int ch, int* w, int* h,
                int* ox, int* oy)
 
 {
@@ -11758,7 +11758,7 @@ void groupsizg(FILE* f, char* s, int cw, int ch, int* w, int* h,
 
 }
 
-void groupsiz(FILE* f, char* s, int cw, int ch, int* w, int* h,
+void pa_groupsiz(FILE* f, char* s, int cw, int ch, int* w, int* h,
               int* ox, int* oy)
 
 {
@@ -11805,7 +11805,7 @@ void igroup(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-void groupg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void pa_groupg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -11818,7 +11818,7 @@ void groupg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-void group(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void pa_group(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -11864,7 +11864,7 @@ void ibackground(winptr win, int x1, int y1, int x2, int y2, int id)
 
 };
 
-void backgroundg(FILE* f, int x1, int y1, int x2, int y2, int id)
+void pa_backgroundg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
 
@@ -11877,7 +11877,7 @@ void backgroundg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void background(FILE* f, int x1, int y1, int x2, int y2, int id)
+void pa_background(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
 
@@ -11920,7 +11920,7 @@ void iscrollvertsiz(winptr win, int* w, int* h)
 
 }
 
-void scrollvertsizg(FILE* f, int* w, int* h)
+void pa_scrollvertsizg(FILE* f, int* w, int* h)
 
 {
 
@@ -11933,7 +11933,7 @@ void scrollvertsizg(FILE* f, int* w, int* h)
 
 }
 
-void scrollvertsiz(FILE* f, int* w, int* h)
+void pa_scrollvertsiz(FILE* f, int* w, int* h)
 
 {
 
@@ -11994,7 +11994,7 @@ void iscrollvert(winptr win, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void scrollvertg(FILE* f, int x1, int y1, int x2, int y2, int id)
+void pa_scrollvertg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
 
@@ -12007,7 +12007,7 @@ void scrollvertg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void scrollvert(FILE* f, int x1, int y1, int x2, int y2, int id)
+void pa_scrollvert(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
 
@@ -12050,7 +12050,7 @@ void iscrollhorizsiz(winptr win, int* w, int* h)
 
 }
 
-void scrollhorizsizg(FILE* f, int* w, int* h)
+void pa_scrollhorizsizg(FILE* f, int* w, int* h)
 
 {
 
@@ -12063,7 +12063,7 @@ void scrollhorizsizg(FILE* f, int* w, int* h)
 
 }
 
-void scrollhorizsiz(FILE* f, int* w, int* h)
+void pa_scrollhorizsiz(FILE* f, int* w, int* h)
 
 {
 
@@ -12124,7 +12124,7 @@ void iscrollhoriz(winptr win, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void scrollhorizg(FILE* f, int x1, int y1, int x2, int y2, int id)
+void pa_scrollhorizg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
 
@@ -12137,7 +12137,7 @@ void scrollhorizg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void scrollhoriz(FILE* f, int x1, int y1, int x2, int y2, int id)
+void pa_scrollhoriz(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
 
@@ -12181,7 +12181,7 @@ void iscrollpos(winptr win, int id, int r)
 
 }
 
-void scrollpos(FILE* f, int id, int r)
+void pa_scrollpos(FILE* f, int id, int r)
 
 {
 
@@ -12228,7 +12228,7 @@ void iscrollsiz(winptr win, int id, int r)
 
 }
 
-void scrollsiz(FILE* f, int id, int r)
+void pa_scrollsiz(FILE* f, int id, int r)
 
 {
 
@@ -12358,7 +12358,7 @@ void inumselboxsiz(winptr win, int l, int u, int* w, int* h)
 
 }
 
-void numselboxsizg(FILE* f, int l, int u, int* w, int* h)
+void pa_numselboxsizg(FILE* f, int l, int u, int* w, int* h)
 
 {
 
@@ -12371,7 +12371,7 @@ void numselboxsizg(FILE* f, int l, int u, int* w, int* h)
 
 }
 
-void numselboxsiz(FILE* f, int l, int u, int* w, int* h)
+void pa_numselboxsiz(FILE* f, int l, int u, int* w, int* h)
 
 {
 
@@ -12461,7 +12461,7 @@ void inumselbox(winptr win, int x1, int y1, int x2, int y2, int l, int u,
 
 }
 
-void numselboxg(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id)
+void pa_numselboxg(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id)
 
 {
 
@@ -12474,7 +12474,7 @@ void numselboxg(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id)
 
 }
 
-void numselbox(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id)
+void pa_numselbox(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id)
 
 {
 
@@ -12565,7 +12565,7 @@ void ieditboxsiz(winptr win, char* s, int* w, int* h)
 
 }
 
-void editboxsizg(FILE* f, char* s, int* w, int* h)
+void pa_editboxsizg(FILE* f, char* s, int* w, int* h)
 
 {
 
@@ -12578,7 +12578,7 @@ void editboxsizg(FILE* f, char* s, int* w, int* h)
 
 }
 
-void editboxsiz(FILE* f, char* s, int* w, int* h)
+void pa_editboxsiz(FILE* f, char* s, int* w, int* h)
 
 {
 
@@ -12629,7 +12629,7 @@ void ieditbox(winptr win, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void editboxg(FILE* f,  int x1, int y1, int x2, int y2, int id)
+void pa_editboxg(FILE* f,  int x1, int y1, int x2, int y2, int id)
 
 {
 
@@ -12642,7 +12642,7 @@ void editboxg(FILE* f,  int x1, int y1, int x2, int y2, int id)
 
 }
 
-void editbox(FILE* f, int x1, int y1, int x2, int y2, int id)
+void pa_editbox(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
 
@@ -12687,7 +12687,7 @@ void iprogbarsiz(winptr win, int* w, int* h)
 
 };
 
-void progbarsizg(FILE* f, int* w, int* h)
+void pa_progbarsizg(FILE* f, int* w, int* h)
 
 {
 
@@ -12700,7 +12700,7 @@ void progbarsizg(FILE* f, int* w, int* h)
 
 }
 
-void progbarsiz(FILE* f, int* w, int* h)
+void pa_progbarsiz(FILE* f, int* w, int* h)
 
 {
 
@@ -12751,7 +12751,7 @@ void iprogbar(winptr win, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void progbarg(FILE* f, int x1, int y1, int x2, int y2, int id)
+void pa_progbarg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
 
@@ -12764,7 +12764,7 @@ void progbarg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void progbar(FILE* f, int x1, int y1, int x2, int y2, int id)
+void pa_progbar(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
 
@@ -12803,7 +12803,7 @@ void iprogbarpos(winptr win, int id, int pos)
 
 }
 
-void progbarpos(FILE* f, int id, int pos)
+void pa_progbarpos(FILE* f, int id, int pos)
 
 {
 
@@ -12870,7 +12870,7 @@ void ilistboxsiz(winptr win, pa_strptr sp, int* w, int* h)
 
 }
 
-void listboxsizg(FILE* f, pa_strptr sp, int* w, int* h)
+void pa_listboxsizg(FILE* f, pa_strptr sp, int* w, int* h)
 
 {
 
@@ -12883,7 +12883,7 @@ void listboxsizg(FILE* f, pa_strptr sp, int* w, int* h)
 
 }
 
-void listboxsiz(FILE* f, pa_strptr sp, int* w, int* h)
+void pa_listboxsiz(FILE* f, pa_strptr sp, int* w, int* h)
 
 {
 
@@ -12938,7 +12938,7 @@ void ilistbox(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 }
 
-void listboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
+void pa_listboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 {
 
@@ -12951,7 +12951,7 @@ void listboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 }
 
-void listbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
+void pa_listbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 {
 
@@ -13049,7 +13049,7 @@ void idropboxsiz(winptr win, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
 
 }
 
-void dropboxsizg(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
+void pa_dropboxsizg(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
 
 {
 
@@ -13062,7 +13062,7 @@ void dropboxsizg(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
 
 }
 
-void dropboxsiz(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
+void pa_dropboxsiz(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
 
 {
 
@@ -13123,7 +13123,7 @@ void idropbox(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 }
 
-void dropboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
+void pa_dropboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 {
 
@@ -13136,7 +13136,7 @@ void dropboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 }
 
-void dropbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
+void pa_dropbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 {
 
@@ -13215,7 +13215,7 @@ void idropeditboxsiz(winptr win, pa_strptr sp, int* cw, int* ch, int* ow, int* o
 
 }
 
-void dropeditboxsizg(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
+void pa_dropeditboxsizg(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
 
 {
 
@@ -13228,7 +13228,7 @@ void dropeditboxsizg(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
 
 }
 
-void dropeditboxsiz(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
+void pa_dropeditboxsiz(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
 
 {
 
@@ -13289,7 +13289,7 @@ void idropeditbox(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp, int 
 
 }
 
-void dropeditboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
+void pa_dropeditboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 {
 
@@ -13302,7 +13302,7 @@ void dropeditboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 }
 
-void dropeditbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
+void pa_dropeditbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 {
 
@@ -13346,7 +13346,7 @@ void islidehorizsiz(winptr win, int* w, int* h)
 
 }
 
-void slidehorizsizg(FILE* f, int* w, int* h)
+void pa_slidehorizsizg(FILE* f, int* w, int* h)
 
 {
 
@@ -13359,7 +13359,7 @@ void slidehorizsizg(FILE* f, int* w, int* h)
 
 }
 
-void slidehorizsiz(FILE* f, int* w, int* h)
+void pa_slidehorizsiz(FILE* f, int* w, int* h)
 
 {
 
@@ -13414,7 +13414,7 @@ void islidehoriz(winptr win, int x1, int y1, int x2, int y2, int mark, int id)
 
 }
 
-void slidehorizg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+void pa_slidehorizg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 
 {
 
@@ -13427,7 +13427,7 @@ void slidehorizg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 
 }
 
-void slidehoriz(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+void pa_slidehoriz(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 
 {
 
@@ -13471,7 +13471,7 @@ void islidevertsiz(winptr win, int* w, int* h)
 
 }
 
-void slidevertsizg(FILE* f, int* w, int* h)
+void pa_slidevertsizg(FILE* f, int* w, int* h)
 
 {
 
@@ -13484,7 +13484,7 @@ void slidevertsizg(FILE* f, int* w, int* h)
 
 }
 
-void slidevertsiz(FILE* f, int* w, int* h)
+void pa_slidevertsiz(FILE* f, int* w, int* h)
 
 {
 
@@ -13539,7 +13539,7 @@ void islidevert(winptr win, int x1, int y1, int x2, int y2, int mark, int id)
 
 }
 
-void slidevertg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+void pa_slidevertg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 
 {
 
@@ -13552,7 +13552,7 @@ void slidevertg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 
 }
 
-void slidevert(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+void pa_slidevert(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 
 {
 
@@ -13685,7 +13685,7 @@ void itabbarsiz(winptr win, pa_tabori tor, int cw, int ch, int* w, int* h,
 
 }
 
-void tabbarsizg(FILE* f, pa_tabori tor, int cw, int ch, int* w, int* h,
+void pa_tabbarsizg(FILE* f, pa_tabori tor, int cw, int ch, int* w, int* h,
                 int* ox, int* oy)
 
 {
@@ -13699,7 +13699,7 @@ void tabbarsizg(FILE* f, pa_tabori tor, int cw, int ch, int* w, int* h,
 
 }
 
-void tabbarsiz(FILE* f, pa_tabori tor, int cw, int ch, int* w, int* h,
+void pa_tabbarsiz(FILE* f, pa_tabori tor, int cw, int ch, int* w, int* h,
                int* ox, int* oy)
 
 {
@@ -13790,7 +13790,7 @@ void itabbarclient(winptr win, pa_tabori tor, int w, int h, int* cw, int* ch,
 
 }
 
-void tabbarclientg(FILE* f, pa_tabori tor, int w, int h, int*  cw, int* ch,
+void pa_tabbarclientg(FILE* f, pa_tabori tor, int w, int h, int*  cw, int* ch,
                    int* ox, int* oy)
 
 {
@@ -13804,7 +13804,7 @@ void tabbarclientg(FILE* f, pa_tabori tor, int w, int h, int*  cw, int* ch,
 
 }
 
-void tabbarclient(FILE* f, pa_tabori tor, int w, int h, int* cw, int* ch,
+void pa_tabbarclient(FILE* f, pa_tabori tor, int w, int h, int* cw, int* ch,
                   int* ox, int* oy)
 
 {
@@ -13887,7 +13887,7 @@ void itabbar(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp,
 
 }
 
-void tabbarg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, pa_tabori tor,
+void pa_tabbarg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, pa_tabori tor,
              int id)
 
 {
@@ -13901,7 +13901,7 @@ void tabbarg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, pa_tabori to
 
 }
 
-void tabbar(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, pa_tabori tor,
+void pa_tabbar(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, pa_tabori tor,
             int id)
 
 {
@@ -13942,7 +13942,7 @@ void itabsel(winptr win, int id, int tn)
 
 }
 
-void tabsel(FILE* f, int id, int tn)
+void pa_tabsel(FILE* f, int id, int tn)
 
 {
 
@@ -13963,7 +13963,7 @@ Outputs a message dialog with the given title and message strings.
 
 *******************************************************************************/
 
-void alert(char* title, char* message)
+void pa_alert(char* title, char* message)
 
 {
 
@@ -13992,7 +13992,7 @@ Bug: does not take the input color as the default.
 
 *******************************************************************************/
 
-void querycolor(int* r, int* g, int* b)
+void pa_querycolor(int* r, int* g, int* b)
 
 {
 
@@ -14032,7 +14032,7 @@ If the operation is cancelled, a null string will be returned.
 
 *******************************************************************************/
 
-void queryopen(char* s)
+void pa_queryopen(char* s)
 
 {
 
@@ -14068,7 +14068,7 @@ If the operation is cancelled,  a null string will be returned.
 
 *******************************************************************************/
 
-void querysave(char* s)
+void pa_querysave(char* s)
 
 {
 
@@ -14113,7 +14113,7 @@ table this issue until later.
 
 *******************************************************************************/
 
-void queryfind(char* s, int* opt)
+void pa_queryfind(char* s, int* opt)
 
 {
 
@@ -14152,7 +14152,7 @@ Bug: See comment, queryfind.
 
 *******************************************************************************/
 
-void queryfindrep(char* s, char* r, int* opt)
+void pa_queryfindrep(char* s, char* r, int* opt)
 
 {
 
@@ -14257,7 +14257,7 @@ void iqueryfont(winptr win, int* fc, int* s, int* fr, int* fg, int* fb, int* br,
 
 }
 
-void queryfont(FILE* f, int* fc, int* s, int* fr, int* fg, int* fb,
+void pa_queryfont(FILE* f, int* fc, int* s, int* fr, int* fg, int* fb,
                int* br, int* bg, int* bb, int* effect)
 
 {

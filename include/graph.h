@@ -373,7 +373,6 @@ void pa_chrspcx(FILE* f, int s);
 int pa_dpmx(FILE* f);
 int pa_dpmy(FILE* f);
 int pa_strsiz(FILE* f, char* s);
-int pa_strsizp(FILE* f, char* s);
 int pa_chrpos(FILE* f, char* s, int p);
 void pa_writejust(FILE* f, char* s, int n);
 int pa_justpos(FILE* f, char* s, int p, int n);
