@@ -635,10 +635,10 @@ int       msgcnt;       /* counter for number of message output (diagnostic) */
   looping. */
 int       dblflt;       /* double fault flag */
 
-void clswin(int fn);
-LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam);
-LRESULT CALLBACK wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam);
-void alert(char* title, char* message);
+static void clswin(int fn);
+static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam);
+static LRESULT CALLBACK wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam);
+void pa_alert(char* title, char* message);
 
 /******************************************************************************
 
@@ -648,7 +648,7 @@ Outputs the given string into a debug dialog. Used for debug purposes.
 
 ******************************************************************************/
 
-void diastr(char* s)
+static void diastr(char* s)
 
 {
 
@@ -667,7 +667,7 @@ diagnostics, since it will work under any thread or callback.
 
 *******************************************************************************/
 
-void prtstr(char *s)
+static void prtstr(char *s)
 
 {
 
@@ -689,7 +689,7 @@ diagnostics, since it will work under any thread or callback.
 
 *******************************************************************************/
 
-void prtchr(char c)
+static void prtchr(char c)
 
 {
 
@@ -711,9 +711,9 @@ be commented out.
 
 *******************************************************************************/
 
-void prtnum(int w,  /* value to print */
-            int fd, /* field width */
-            int r)  /* radix */
+static void prtnum(int w,  /* value to print */
+                   int fd, /* field width */
+                   int r)  /* radix */
 
 {
 
@@ -761,7 +761,7 @@ A diagnostic. Prints out all open records from the files table.
 
 *******************************************************************************/
 
-void prtfil(void)
+static void prtfil(void)
 
 {
 
@@ -791,7 +791,7 @@ A diagnostic. Prints out the given menu.
 
 *******************************************************************************/
 
-void dooff(int offset)
+static void dooff(int offset)
 
 {
 
@@ -801,7 +801,7 @@ void dooff(int offset)
 
 }
 
-void prtmenuelm(pa_menuptr m, int offset)
+static void prtmenuelm(pa_menuptr m, int offset)
 
 {
 
@@ -827,7 +827,7 @@ void prtmenuelm(pa_menuptr m, int offset)
 
 }
 
-void prtmenu(pa_menuptr m)
+static void prtmenu(pa_menuptr m)
 
 {
 
@@ -846,7 +846,7 @@ A diagnostic. Prints the contents of a widget.
 
 *******************************************************************************/
 
-void prtwig(wigptr wp)
+static void prtwig(wigptr wp)
 
 {
 
@@ -889,7 +889,7 @@ A diagnostic. Prints the contents of a widget list.
 
 *******************************************************************************/
 
-void prtwiglst(wigptr wp)
+static void prtwiglst(wigptr wp)
 
 {
 
@@ -914,7 +914,7 @@ Finds if the give strings match, without regard to case.
 
 *******************************************************************************/
 
-int comps(char* d, char* s)
+static int comps(char* d, char* s)
 
 {
 
@@ -937,9 +937,9 @@ a flag return that indicates overflow or invalid digit.
 
 *******************************************************************************/
 
-int intv(char* s, /* string containing int */
-         int* err /* error occurred */
-         )
+static int intv(char* s, /* string containing int */
+                int* err /* error occurred */
+                )
 
 {
 
@@ -963,7 +963,7 @@ No error checking is done.
 
 *******************************************************************************/
 
-void lockmain(void)
+static void lockmain(void)
 
 {
 
@@ -986,7 +986,7 @@ No error checking is done.
 
 *******************************************************************************/
 
-void unlockmain(void)
+static void unlockmain(void)
 
 {
 
@@ -1011,12 +1011,12 @@ The error message is output in a dialog.
 
 *******************************************************************************/
 
-void wrterr(char* es)
+static void wrterr(char* es)
 
 {
 
    /* Output in a dialog */
-   alert("Runtime Error", es);
+   pa_alert("Runtime Error", es);
 
 }
 
@@ -1028,7 +1028,7 @@ Prints a string in graph specific format.
 
 *******************************************************************************/
 
-void grawrterr(char* es)
+static void grawrterr(char* es)
 
 {
 
@@ -1048,7 +1048,7 @@ Close open files, unlock main and exit.
 
 *******************************************************************************/
 
-void abort(void)
+static void abortm(void)
 
 {
 
@@ -1079,7 +1079,7 @@ This needs to go to a dialog instead of the system error trap.
 
 *******************************************************************************/
 
-void error(errcod e)
+static void error(errcod e)
 
 {
 
@@ -1153,7 +1153,7 @@ void error(errcod e)
 
     }
 
-    abort(); /* abort module */
+    abortm(); /* abort module */
 
 }
 
@@ -1186,7 +1186,7 @@ static void winerr(void)
     prtstr("\n");
     lockmain(); /* resume exclusive access */
 
-    abort(); /* abort module */
+    abortm(); /* abort module */
 
 }
 
@@ -1198,7 +1198,7 @@ Finds the next value of a queue pointer, which wraps around at the }.
 
 *******************************************************************************/
 
-int next(int mi)
+static int next(int mi)
 
 {
 
@@ -1227,7 +1227,8 @@ we have to do it here.
 
 /* unpack paint message */
 
-void upackpm(WPARAM wparam, LPARAM lparam, int* x1, int* y1, int* x2, int* y2)
+static void upackpm(WPARAM wparam, LPARAM lparam, int* x1, int* y1, int* x2,
+                    int* y2)
 
 {
 
@@ -1240,7 +1241,7 @@ void upackpm(WPARAM wparam, LPARAM lparam, int* x1, int* y1, int* x2, int* y2)
 
 /* pack paint message */
 
-void packpm(WPARAM* wparam, LPARAM* lparam, int x1, int y1, int x2, int y2)
+static void packpm(WPARAM* wparam, LPARAM* lparam, int x1, int y1, int x2, int y2)
 
 {
 
@@ -1251,7 +1252,7 @@ void packpm(WPARAM* wparam, LPARAM* lparam, int x1, int y1, int x2, int y2)
 
 /* find message matching type and window in queue */
 
-int fndmsg(HWND hwnd, UINT msg)
+static int fndmsg(HWND hwnd, UINT msg)
 
 {
 
@@ -1278,7 +1279,7 @@ int fndmsg(HWND hwnd, UINT msg)
 
 /* enter new message to queue */
 
-void enter(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
+static void enter(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
 {
 
@@ -1296,7 +1297,7 @@ void enter(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
 }
 
-void putmsg(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
+static void putmsg(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
 {
 
@@ -1354,7 +1355,7 @@ by msginp == msgout.
 
 *******************************************************************************/
 
-void getmsg(MSG* msg)
+static void getmsg(MSG* msg)
 
 {
 
@@ -1398,7 +1399,7 @@ the oldest event.
 
 *******************************************************************************/
 
-void iputmsg(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
+static void iputmsg(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
 {
 
@@ -1427,7 +1428,7 @@ indicated by imsginp == imsgout.
 
 *******************************************************************************/
 
-void igetmsg(MSG* msg)
+static void igetmsg(MSG* msg)
 
 {
 
@@ -1470,7 +1471,7 @@ Gets a new intratask message, || recycles an old one.
 
 *******************************************************************************/
 
-void getitm(imptr* p)
+static void getitm(imptr* p)
 
 {
 
@@ -1497,7 +1498,7 @@ Places the given intratask message into the free list.
 
 *******************************************************************************/
 
-void putitm(imptr p)
+static void putitm(imptr p)
 
 {
 
@@ -1515,7 +1516,7 @@ array, so are recycled in place.
 
 *******************************************************************************/
 
-void getfet(filptr* fp)
+static void getfet(filptr* fp)
 
 {
 
@@ -1540,7 +1541,7 @@ Note that the "predefined" file slots are never allocated.
 
 *******************************************************************************/
 
-void makfil(int* fn) /* file handle */
+static void makfil(int* fn) /* file handle */
 
 {
 
@@ -1612,7 +1613,7 @@ file.
 
 *******************************************************************************/
 
-winptr lfn2win(int fn)
+static winptr lfn2win(int fn)
 
 {
 
@@ -1637,7 +1638,7 @@ file.
 
 *******************************************************************************/
 
-winptr txt2win(FILE* f)
+static winptr txt2win(FILE* f)
 
 {
 
@@ -1658,7 +1659,7 @@ Finds the windows context record from the logical window number, with checking.
 
 *******************************************************************************/
 
-winptr lwn2win(int wid)
+static winptr lwn2win(int wid)
 
 {
 
@@ -1683,7 +1684,7 @@ converted to hash methods.
 
 *******************************************************************************/
 
-int hwn2lfn(HWND hw)
+static int hwn2lfn(HWND hw)
 
 {
 
@@ -1709,7 +1710,7 @@ is valid.
 
 *******************************************************************************/
 
-int txt2lfn(FILE* f)
+static int txt2lfn(FILE* f)
 
 {
 
@@ -1731,7 +1732,7 @@ one.
 
 *******************************************************************************/
 
-void geteqe(eqeptr* ep)
+static void geteqe(eqeptr* ep)
 
 {
 
@@ -1759,7 +1760,7 @@ Places the given event queuing entry onto the free list.
 
 *******************************************************************************/
 
-void puteqe(eqeptr ep)
+static void puteqe(eqeptr ep)
 
 {
 
@@ -1777,7 +1778,7 @@ is available, that will be used, otherwise a new entry is allocated.
 
 *******************************************************************************/
 
-void getwig(winptr win, wigptr* wp)
+static void getwig(winptr win, wigptr* wp)
 
 {
 
@@ -1812,7 +1813,7 @@ list.
 
 *******************************************************************************/
 
-void putwig(winptr win, wigptr wp)
+static void putwig(winptr win, wigptr wp)
 
 {
 
@@ -1842,7 +1843,7 @@ Finds the given widget by number.
 
 *******************************************************************************/
 
-wigptr fndwig(winptr win, int id)
+static wigptr fndwig(winptr win, int id)
 
 {
 
@@ -1869,7 +1870,7 @@ Finds the given widget by window handle.
 
 *******************************************************************************/
 
-wigptr fndwighan(winptr win, HWND han)
+static wigptr fndwighan(winptr win, HWND han)
 
 {
 
@@ -1896,7 +1897,7 @@ Translates an indep}ent to a terminal specific primary color code for Windows.
 
 *******************************************************************************/
 
-int colnum(pa_color c)
+static int colnum(pa_color c)
 
 {
 
@@ -1929,7 +1930,7 @@ Translates colors to rgb, in ratioed INT_MAX form.
 
 *******************************************************************************/
 
-void colrgb(pa_color c, int* r, int* g, int* b)
+static void colrgb(pa_color c, int* r, int* g, int* b)
 
 {
 
@@ -1960,7 +1961,7 @@ colors.
 
 *******************************************************************************/
 
-void rgbcol(int r, int g, int b, pa_color* c)
+static void rgbcol(int r, int g, int b, pa_color* c)
 
 {
 
@@ -1985,7 +1986,7 @@ bit word with blue, green && red bytes.
 
 *******************************************************************************/
 
-int rgb2win(int r, int g, int b)
+static int rgb2win(int r, int g, int b)
 
 {
 
@@ -2001,7 +2002,7 @@ Translates a windows int color to our ratioed INT_MAX rgb color.
 
 *******************************************************************************/
 
-void win2rgb(int wc, int* r, int* g, int* b)
+static void win2rgb(int wc, int* r, int* g, int* b)
 
 {
 
@@ -2021,7 +2022,7 @@ the update screen should also be reflected on the real screen.
 
 *******************************************************************************/
 
-int indisp(winptr win)
+static int indisp(winptr win)
 
 {
 
@@ -2038,7 +2039,7 @@ attributes.
 
 *******************************************************************************/
 
-void clrbuf(winptr win, scnptr sc)
+static void clrbuf(winptr win, scnptr sc)
 
 {
 
@@ -2068,7 +2069,7 @@ Clears the entire window to spaces with the current colors && attributes.
 
 *******************************************************************************/
 
-void clrwin(winptr win)
+static void clrwin(winptr win)
 
 {
 
@@ -2098,7 +2099,7 @@ Checks if the cursor lies in the current bounds, and returns TRUE if so.
 
 *******************************************************************************/
 
-int icurbnd(scnptr sc)
+static int icurbnd(scnptr sc)
 
 {
 
@@ -2131,7 +2132,7 @@ Makes the cursor visible.
 
 *******************************************************************************/
 
-void curon(winptr win)
+static void curon(winptr win)
 
 {
 
@@ -2158,7 +2159,7 @@ Makes the cursor invisible.
 
 *******************************************************************************/
 
-void curoff(winptr win)
+static void curoff(winptr win)
 
 {
 
@@ -2185,7 +2186,7 @@ curon and curoff routines.
 
 *******************************************************************************/
 
-void cursts(winptr win)
+static void cursts(winptr win)
 
 {
 
@@ -2228,7 +2229,7 @@ the visible or invisible status of that.
 
 *******************************************************************************/
 
-void setcur(winptr win)
+static void setcur(winptr win)
 
 {
 
@@ -2253,12 +2254,12 @@ void setcur(winptr win)
 Change cursor
 
 Changes the cursor size. If the cursor is in display,  it is destroyed
-and remade to the new cursor size. Otherwise, it is left alone, && will be
+and remade to the new cursor size. Otherwise, it is left alone, and will be
 created on the next focus event.
 
 *******************************************************************************/
 
-void chgcur(winptr win)
+static void chgcur(winptr win)
 
 {
 
@@ -2286,7 +2287,7 @@ metrics for the font.
 
 *******************************************************************************/
 
-void newfont(winptr win)
+static void newfont(winptr win)
 
 {
 
@@ -2381,12 +2382,12 @@ void newfont(winptr win)
 
 Restore screen
 
-Updates all the buffer && screen parameters from the display screen to the
+Updates all the buffer and screen parameters from the display screen to the
 terminal.
 
 *******************************************************************************/
 
-void restore(winptr win,   /* window to restore */
+static void restore(winptr win,   /* window to restore */
              int    whole) /* whole or part window */
 
 {
@@ -2497,7 +2498,7 @@ delayed window display function.
 
 *******************************************************************************/
 
-void winvis(winptr win)
+static void winvis(winptr win)
 
 {
 
@@ -2532,7 +2533,7 @@ buffer bitmap is created and cleared to the present colors.
 
 *******************************************************************************/
 
-void iniscn(winptr win, scnptr sc)
+static void iniscn(winptr win, scnptr sc)
 
 {
 
@@ -2645,7 +2646,7 @@ Note: The major objects are cleaned, but the minor ones need to be as well.
 
 *******************************************************************************/
 
-void disscn(winptr win, scnptr sc)
+static void disscn(winptr win, scnptr sc)
 
 {
 
@@ -2662,7 +2663,7 @@ characters on the screen to spaces with the current colors and attributes.
 
 *******************************************************************************/
 
-void iclear(winptr win)
+static void iclear(winptr win)
 
 {
 
@@ -2703,7 +2704,7 @@ to the window.
 
 *******************************************************************************/
 
-void iscrollg(winptr win, int x, int y)
+static void iscrollg(winptr win, int x, int y)
 
 {
 
@@ -2836,7 +2837,7 @@ Moves the cursor to the specified x && y location.
 
 *******************************************************************************/
 
-void icursor(winptr win, int x, int y)
+static void icursor(winptr win, int x, int y)
 
 {
 
@@ -2875,7 +2876,7 @@ Moves the cursor to the specified x && y location in pixels.
 
 *******************************************************************************/
 
-void icursorg(winptr win, int x, int y)
+static void icursorg(winptr win, int x, int y)
 
 {
 
@@ -3039,7 +3040,7 @@ Moves the cursor to the home position at (1, 1), the upper right hand corner.
 
 *******************************************************************************/
 
-void ihome(winptr win)
+static void ihome(winptr win)
 
 {
 
@@ -3072,7 +3073,7 @@ Moves the cursor position up one line.
 
 *******************************************************************************/
 
-void iup(winptr win)
+static void iup(winptr win)
 
 {
 
@@ -3122,7 +3123,7 @@ Moves the cursor position down one line.
 
 *******************************************************************************/
 
-void idown(winptr win)
+static void idown(winptr win)
 
 {
 
@@ -3171,7 +3172,7 @@ the cursor will move into negative space, limited only by INT_MAX.
 
 *******************************************************************************/
 
-void ileft(winptr win)
+static void ileft(winptr win)
 
 {
 
@@ -3228,7 +3229,7 @@ Moves the cursor one character right.
 
 *******************************************************************************/
 
-void pa_iright(winptr win)
+void iright(winptr win)
 
 {
 
@@ -3286,7 +3287,7 @@ cursor is moved to the tab stop.
 
 *******************************************************************************/
 
-void itab(winptr win)
+static void itab(winptr win)
 
 {
 
@@ -3339,7 +3340,7 @@ and foreground writing colors.
 
 *******************************************************************************/
 
-void ireverse(winptr win, int e)
+static void ireverse(winptr win, int e)
 
 {
 
@@ -3413,7 +3414,7 @@ character drawn.
 
 *******************************************************************************/
 
-void iunderline(winptr win, int e)
+static void iunderline(winptr win, int e)
 
 {
 
@@ -3457,7 +3458,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void isuperscript(winptr win, int e)
+static void isuperscript(winptr win, int e)
 
 {
 
@@ -3501,7 +3502,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void isubscript(winptr win, int e)
+static void isubscript(winptr win, int e)
 
 {
 
@@ -3550,7 +3551,7 @@ italic on fixed fonts.
 
 *******************************************************************************/
 
-void iitalic(winptr win, int e)
+static void iitalic(winptr win, int e)
 
 {
 
@@ -3597,7 +3598,7 @@ colors, which an ATTRIBUTE command seems to mess with !
 
 *******************************************************************************/
 
-void ibold(winptr win, int e)
+static void ibold(winptr win, int e)
 
 {
 
@@ -3643,7 +3644,7 @@ just placed.
 
 *******************************************************************************/
 
-void istrikeout(winptr win, int e)
+static void istrikeout(winptr win, int e)
 
 {
 
@@ -3703,7 +3704,7 @@ Sets the foreground color from the universal primary code.
 
 *******************************************************************************/
 
-void ifcolor(winptr win, pa_color c)
+static void ifcolor(winptr win, pa_color c)
 
 {
 
@@ -3795,7 +3796,7 @@ up, we will be ready.
 
 *******************************************************************************/
 
-void ifcolorg(winptr win, int r, int g, int b)
+static void ifcolorg(winptr win, int r, int g, int b)
 
 {
 
@@ -3885,7 +3886,7 @@ Sets the background color from the universal primary code.
 
 *******************************************************************************/
 
-void ibcolor(winptr win, pa_color c)
+static void ibcolor(winptr win, pa_color c)
 
 {
 
@@ -3949,7 +3950,7 @@ up, we will be ready.
 
 *******************************************************************************/
 
-void ibcolorg(winptr win, int r, int g, int b)
+static void ibcolorg(winptr win, int r, int g, int b)
 
 {
 
@@ -4028,7 +4029,7 @@ anywhere.
 
 *******************************************************************************/
 
-void iauto(winptr win, int e)
+static void iauto(winptr win, int e)
 
 {
 
@@ -4203,7 +4204,7 @@ forces a screen refresh, which can be important when working on terminals.
 
 *******************************************************************************/
 
-void iselect(winptr win, int u, int d)
+static void iselect(winptr win, int u, int d)
 
 {
 
@@ -4263,7 +4264,7 @@ using ROP combinations.
 
 *******************************************************************************/
 
-void plcchr(winptr win, char c)
+static void plcchr(winptr win, char c)
 
 {
 
@@ -4340,7 +4341,7 @@ such as controls are not suppressed.
 
 *******************************************************************************/
 
-void iwrtstr(winptr win,  char* s)
+static void iwrtstr(winptr win,  char* s)
 
 {
 
@@ -4412,7 +4413,7 @@ position left.
 
 *******************************************************************************/
 
-void idel(winptr win)
+static void idel(winptr win)
 
 {
 
@@ -4443,7 +4444,7 @@ Draws a single line in the foreground color.
 
 *******************************************************************************/
 
-void iline(winptr win, int x1, int y1, int x2, int y2)
+static void iline(winptr win, int x1, int y1, int x2, int y2)
 
 {
 
@@ -4516,7 +4517,7 @@ Draws a rectangle in foreground color.
 
 *******************************************************************************/
 
-void irect(winptr win, int x1, int y1, int x2, int y2)
+static void irect(winptr win, int x1, int y1, int x2, int y2)
 
 {
 
@@ -4563,7 +4564,7 @@ Draws a filled rectangle in foreground color.
 
 *******************************************************************************/
 
-void ifrect(winptr win, int x1, int y1, int x2, int y2)
+static void ifrect(winptr win, int x1, int y1, int x2, int y2)
 
 {
 
@@ -4632,7 +4633,7 @@ Draws a rounded rectangle in foreground color.
 
 *******************************************************************************/
 
-void irrect(winptr win, int x1, int y1, int x2, int y2, int xs, int ys)
+static void irrect(winptr win, int x1, int y1, int x2, int y2, int xs, int ys)
 
 {
 
@@ -4680,7 +4681,7 @@ Draws a filled rounded rectangle in foreground color.
 
 *******************************************************************************/
 
-void ifrrect(winptr win, int x1, int y1, int x2, int y2, int xs, int ys)
+static void ifrrect(winptr win, int x1, int y1, int x2, int y2, int xs, int ys)
 
 {
 
@@ -4749,7 +4750,7 @@ Draws an ellipse with the current foreground color && line width.
 
 *******************************************************************************/
 
-void iellipse(winptr win, int x1, int y1, int x2, int y2)
+static void iellipse(winptr win, int x1, int y1, int x2, int y2)
 
 {
 
@@ -4796,7 +4797,7 @@ Draws a filled ellipse with the current foreground color.
 
 *******************************************************************************/
 
-void ifellipse(winptr win, int x1, int y1, int x2, int y2)
+static void ifellipse(winptr win, int x1, int y1, int x2, int y2)
 
 {
 
@@ -4885,7 +4886,7 @@ Negative angles are allowed.
 
 *******************************************************************************/
 
-void iarc(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
+static void iarc(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
 
 {
 
@@ -4953,7 +4954,7 @@ as for the arc int above.
 
 *******************************************************************************/
 
-void ifarc(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
+static void ifarc(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
 
 {
 
@@ -5044,7 +5045,7 @@ as for the arc int above.
 
 *******************************************************************************/
 
-void ifchord(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
+static void ifchord(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
 
 {
 
@@ -5134,7 +5135,7 @@ Draws a filled triangle in the current foreground color.
 
 *******************************************************************************/
 
-void iftriangle(winptr win, int x1, int y1, int x2, int y2, int x3, int y3)
+static void iftriangle(winptr win, int x1, int y1, int x2, int y2, int x3, int y3)
 
 {
 
@@ -5229,7 +5230,7 @@ Sets a single logical pixel to the foreground color.
 
 *******************************************************************************/
 
-void isetpixel(winptr win, int x, int y)
+static void isetpixel(winptr win, int x, int y)
 
 {
 
@@ -5277,7 +5278,7 @@ Sets the foreground write mode to overwrite.
 
 *******************************************************************************/
 
-void ifover(winptr win)
+static void ifover(winptr win)
 
 {
 
@@ -5312,7 +5313,7 @@ Sets the background write mode to overwrite.
 
 *******************************************************************************/
 
-void ibover(winptr win)
+static void ibover(winptr win)
 
 {
 
@@ -5347,7 +5348,7 @@ Sets the foreground write mode to invisible.
 
 *******************************************************************************/
 
-void ifinvis(winptr win)
+static void ifinvis(winptr win)
 
 {
 
@@ -5382,7 +5383,7 @@ Sets the background write mode to invisible.
 
 *******************************************************************************/
 
-void ibinvis(winptr win)
+static void ibinvis(winptr win)
 
 {
 
@@ -5417,7 +5418,7 @@ Sets the foreground write mode to xor.
 
 *******************************************************************************/
 
-void ifxor(winptr win)
+static void ifxor(winptr win)
 
 {
 
@@ -5452,7 +5453,7 @@ Sets the background write mode to xor.
 
 *******************************************************************************/
 
-void ibxor(winptr win)
+static void ibxor(winptr win)
 
 {
 
@@ -5482,7 +5483,7 @@ Sets the width of lines && several other figures.
 
 *******************************************************************************/
 
-void ilinewidth(winptr win, int w)
+static void ilinewidth(winptr win, int w)
 
 {
 
@@ -5607,7 +5608,7 @@ Changes the current font to the indicated logical font number.
 
 *******************************************************************************/
 
-void ifont(winptr win, int fc)
+static void ifont(winptr win, int fc)
 
 {
 
@@ -5653,7 +5654,7 @@ Returns the name of a font by number.
 
 *******************************************************************************/
 
-void ifontnam(winptr win, int fc, char* fns, int fnsl)
+static void ifontnam(winptr win, int fc, char* fns, int fnsl)
 
 {
 
@@ -5696,7 +5697,7 @@ and line spacing are changed, as well as the baseline.
 
 *******************************************************************************/
 
-void ifontsiz(winptr win, int s)
+static void ifontsiz(winptr win, int s)
 
 {
 
@@ -5817,7 +5818,7 @@ character spacing and kerning.
 
 *******************************************************************************/
 
-int istrsiz(winptr win, char* s)
+static int istrsiz(winptr win, char* s)
 
 {
 
@@ -5858,7 +5859,7 @@ Finds the pixel offset to the given character in the string.
 
 *******************************************************************************/
 
-int ichrpos(winptr win, char* s, int p)
+static int ichrpos(winptr win, char* s, int p)
 
 {
 
@@ -5909,7 +5910,7 @@ the system font.
 
 *******************************************************************************/
 
-void iwritejust(winptr win, char* s, int n)
+static void iwritejust(winptr win, char* s, int n)
 
 {
 
@@ -5996,7 +5997,7 @@ spaces, with the fractional part lost.
 
 *******************************************************************************/
 
-int ijustpos(winptr win, char* s, int p, int n)
+static int ijustpos(winptr win, char* s, int p, int n)
 
 {
 
@@ -6212,7 +6213,7 @@ Deletes a loaded picture.
 
 *******************************************************************************/
 
-void idelpict(winptr win, int p)
+static void idelpict(winptr win, int p)
 
 {
 
@@ -6254,7 +6255,7 @@ Loads a picture into a slot of the loadable pictures array.
 *******************************************************************************/
 
 /* place extension on filename */
-void setext(char* fnh, char* ext)
+static void setext(char* fnh, char* ext)
 
 {
 
@@ -6276,7 +6277,7 @@ void setext(char* fnh, char* ext)
 }
 
 /* find if file exists */
-int exists(char *fn)
+static int exists(char *fn)
 {
 
     DWORD atb;
@@ -6288,7 +6289,7 @@ int exists(char *fn)
 
 }
 
-void iloadpict(winptr win, int p, char* fn)
+static void iloadpict(winptr win, int p, char* fn)
 
 {
 
@@ -6404,7 +6405,7 @@ Images will be kept in a rotating cache to prevent repeating reloads.
 
 *******************************************************************************/
 
-void ipicture(winptr win, int p, int x1, int y1, int x2, int y2)
+static void ipicture(winptr win, int p, int x1, int y1, int x2, int y2)
 
 {
 
@@ -6471,7 +6472,7 @@ Sets the offset of the viewport in logical space, in pixels, anywhere from
 
 *******************************************************************************/
 
-void iviewoffg(winptr win, int x, int y)
+static void iviewoffg(winptr win, int x, int y)
 
 {
 
@@ -6522,7 +6523,7 @@ painting into a buffer and transfering asymmetrically, or using outlines.
 
 *******************************************************************************/
 
-void iviewscale(winptr win, float x, float y)
+static void iviewscale(winptr win, float x, float y)
 
 {
 
@@ -6561,7 +6562,7 @@ This routine is for diagnostic use. Comment it out on production builds.
 
 *******************************************************************************/
 
-void prtmsgstr(int mn)
+static void prtmsgstr(int mn)
 
 {
 
@@ -6761,7 +6762,7 @@ This routine is for diagnostic use. Comment it out on production builds.
 
 *******************************************************************************/
 
-void prtmsg(MSG m)
+static void prtmsg(MSG m)
 
 {
 
@@ -6785,7 +6786,7 @@ This routine is for diagnostic use. Comment it out on production builds.
 
 *******************************************************************************/
 
-void prtmsgu(int hwnd, int imsg, int wparam, int lparam)
+static void prtmsgu(int hwnd, int imsg, int wparam, int lparam)
 
 {
 
@@ -6859,7 +6860,7 @@ various local extentions.
 
 */
 
-void keyevent(pa_evtrec* er, MSG* msg, int* keep)
+static void keyevent(pa_evtrec* er, MSG* msg, int* keep)
 
 {
 
@@ -6888,7 +6889,7 @@ void keyevent(pa_evtrec* er, MSG* msg, int* keep)
 
 }
 
-void ctlevent(winptr win, pa_evtrec* er, MSG* msg, int* keep)
+static void ctlevent(winptr win, pa_evtrec* er, MSG* msg, int* keep)
 
 {
 
@@ -7043,7 +7044,7 @@ contempt for the whole double click concept.
 
 /* update mouse parameters */
 
-void mouseupdate(winptr win, pa_evtrec* er, int* keep)
+static void mouseupdate(winptr win, pa_evtrec* er, int* keep)
 
 {
 
@@ -7124,7 +7125,7 @@ void mouseupdate(winptr win, pa_evtrec* er, int* keep)
 
 /* register mouse status */
 
-void mouseevent(winptr win, MSG* msg)
+static void mouseevent(winptr win, MSG* msg)
 
 {
 
@@ -7144,7 +7145,7 @@ void mouseevent(winptr win, MSG* msg)
 
 /* queue event to window */
 
-void enqueue(eqeptr* el, pa_evtrec* er)
+static void enqueue(eqeptr* el, pa_evtrec* er)
 
 {
 
@@ -7173,7 +7174,7 @@ void enqueue(eqeptr* el, pa_evtrec* er)
 
 /* issue event for changed button */
 
-void updn(pa_evtrec* er, MSG* msg, int ofn, int bn, int bm, int* keep)
+static void updn(pa_evtrec* er, MSG* msg, int ofn, int bn, int bm, int* keep)
 
 {
 
@@ -7202,7 +7203,7 @@ void updn(pa_evtrec* er, MSG* msg, int ofn, int bn, int bm, int* keep)
 
 /* process joystick messages */
 
-void joymes(pa_evtrec* er, MSG* msg, int ofn, int* keep)
+static void joymes(pa_evtrec* er, MSG* msg, int ofn, int* keep)
 
 {
 
@@ -7216,7 +7217,7 @@ void joymes(pa_evtrec* er, MSG* msg, int ofn, int* keep)
 
 /* process windows messages to event */
 
-void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
+static void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
 
 {
 
@@ -7659,7 +7660,7 @@ void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
 
 }
 
-void sigevt(pa_evtrec* er, MSG* msg, int* keep)
+static void sigevt(pa_evtrec* er, MSG* msg, int* keep)
 
 {
 
@@ -7673,7 +7674,7 @@ void sigevt(pa_evtrec* er, MSG* msg, int* keep)
 
 }
 
-void ievent(int ifn, pa_evtrec* er)
+static void ievent(int ifn, pa_evtrec* er)
 
 {
 
@@ -7769,7 +7770,7 @@ use of im to just return the entry as acknowledgement.
 
 *******************************************************************************/
 
-void waitim(imcode m, imptr* ip)
+static void waitim(imcode m, imptr* ip)
 
 {
 
@@ -7813,7 +7814,7 @@ documented.
 
 *******************************************************************************/
 
-void CALLBACK timeout(UINT id, UINT msg, DWORD_PTR usr, DWORD_PTR dw1,
+static void CALLBACK timeout(UINT id, UINT msg, DWORD_PTR usr, DWORD_PTR dw1,
                       DWORD_PTR dw2)
 
 {
@@ -7852,11 +7853,11 @@ the associated input file.
 
 *******************************************************************************/
 
-void itimer(winptr win, /* file to send event to */
-            int    lf,  /* logical file number */
-            int    i,   /* timer handle */
-            int    t,   /* number of tenth-milliseconds to run */
-            int    r)   /* timer is to rerun after completion */
+static void itimer(winptr win, /* file to send event to */
+                   int    lf,  /* logical file number */
+                   int    i,   /* timer handle */
+                   int    t,   /* number of tenth-milliseconds to run */
+                   int    r)   /* timer is to rerun after completion */
 
 {
 
@@ -7882,9 +7883,9 @@ void itimer(winptr win, /* file to send event to */
 }
 
 void pa_timer(FILE* f, /* file to send event to */
-           int   i, /* timer handle */
-           int   t, /* number of tenth-milliseconds to run */
-           int   r) /* timer is to rerun after completion */
+                     int   i, /* timer handle */
+                     int   t, /* number of tenth-milliseconds to run */
+                     int   r) /* timer is to rerun after completion */
 
 {
 
@@ -7905,8 +7906,8 @@ Kills a given timer, by it"s id number. Only repeating timers should be killed.
 
 *******************************************************************************/
 
-void ikilltimer(winptr win, /* file to kill timer on */
-                int    i)   /* handle of timer */
+static void ikilltimer(winptr win, /* file to kill timer on */
+                       int    i)   /* handle of timer */
 
 {
 
@@ -7943,7 +7944,7 @@ of the blanking interval.
 
 *******************************************************************************/
 
-void iframetimer(winptr win, int lf, int e)
+static void iframetimer(winptr win, int lf, int e)
 
 {
 
@@ -8120,7 +8121,7 @@ joystick can be considered a slider without positional meaning.
 
 *******************************************************************************/
 
-int ijoyaxis(winptr win, int j)
+static int ijoyaxis(winptr win, int j)
 
 {
 
@@ -8163,7 +8164,7 @@ Sets a tab at the indicated pixel number.
 
 *******************************************************************************/
 
-void isettabg(winptr win, int t)
+static void isettabg(winptr win, int t)
 
 {
 
@@ -8231,7 +8232,7 @@ Resets the tab at the indicated pixel number.
 
 *******************************************************************************/
 
-void irestabg(winptr win, int t)
+static void irestabg(winptr win, int t)
 
 {
 
@@ -8344,7 +8345,7 @@ buffer is completed by hitting "enter",  we return.
 
 *******************************************************************************/
 
-void readline(int fn)
+static void readline(int fn)
 
 {
 
@@ -8365,7 +8366,7 @@ void readline(int fn)
            execute an organized halt */
         switch (er.etype) {/* event */
 
-            case pa_etterm:  abort; /* halt program */
+            case pa_etterm:  abortm; /* halt program */
             case pa_etenter: /* line terminate */
                 win->inpbuf[win->inpptr] = '\r'; /* return cr */
                 plcchr(win, '\r'); /* output newline sequence */
@@ -8413,7 +8414,7 @@ Places the given string into dynamic storage, and returns that.
 
 *******************************************************************************/
 
-char* str(char* s)
+static char* str(char* s)
 
 {
 
@@ -8449,7 +8450,7 @@ Notes:
 
 *******************************************************************************/
 
-void getpgm(void)
+static void getpgm(void)
 
 {
 
@@ -8494,7 +8495,7 @@ program decides to dump the font names in order.
 
 *******************************************************************************/
 
-void sortfont(fontptr* fp)
+static void sortfont(fontptr* fp)
 
 {
 
@@ -8628,7 +8629,7 @@ static void extwords(char *d, int dl, char *s, int st, int ed)
 
 /* replace attribute word */
 
-void repatt(char* s, int l)
+static void repatt(char* s, int l)
 
 {
 
@@ -8653,7 +8654,7 @@ void repatt(char* s, int l)
 
 }
 
-int CALLBACK enumfont(const LOGFONT* lfd, const TEXTMETRIC* pfd, DWORD ft, LPARAM ad)
+static int CALLBACK enumfont(const LOGFONT* lfd, const TEXTMETRIC* pfd, DWORD ft, LPARAM ad)
 
 {
 
@@ -8698,7 +8699,7 @@ through globals, which are  placed into the proper window.
 
 *******************************************************************************/
 
-void getfonts(winptr win)
+static void getfonts(winptr win)
 
 {
 
@@ -8736,7 +8737,7 @@ Removes the indicated font from the font list. Does not dispose of the entry.
 
 *******************************************************************************/
 
-void delfnt(winptr win, fontptr fp)
+static void delfnt(winptr win, fontptr fp)
 
 {
 
@@ -8764,7 +8765,7 @@ Finds a font in the list of fonts. Also matches fixed/no fixed pitch status.
 
 *******************************************************************************/
 
-void fndfnt(winptr win, char* fn, int fix, fontptr* fp)
+static void fndfnt(winptr win, char* fn, int fix, fontptr* fp)
 
 {
 
@@ -8794,7 +8795,7 @@ Note: could also default to style searching for book and sign fonts.
 
 /* place font entry in list */
 
-void plcfnt(winptr win, fontptr fp)
+static void plcfnt(winptr win, fontptr fp)
 
 {
 
@@ -8814,7 +8815,7 @@ void plcfnt(winptr win, fontptr fp)
 
 }
 
-void stdfont(winptr win)
+static void stdfont(winptr win)
 
 {
 
@@ -8941,7 +8942,7 @@ once, and is thereafter referenced by name.
 
 *******************************************************************************/
 
-void regstd(void)
+static void regstd(void)
 
 {
 
@@ -8982,7 +8983,7 @@ from the main thread, so we send a message to the window to kill it for us.
 
 *******************************************************************************/
 
-void kilwin(HWND wh)
+static void kilwin(HWND wh)
 
 {
 
@@ -9008,7 +9009,7 @@ window.
 
 *******************************************************************************/
 
-void opnwin(int fn, int pfn)
+static void opnwin(int fn, int pfn)
 
 {
 
@@ -9209,7 +9210,7 @@ void opnwin(int fn, int pfn)
     if (!frmhan) error(etimacc); /* no timer available */
     do { ievent(opnfil[fn]->inl, er);
     } while (er.etype != pa_ettim && er.etype != pa_etterm);
-    if (er.etype == pa_etterm) abort();
+    if (er.etype == pa_etterm) abortm();
 #endif
 
 }
@@ -9222,7 +9223,7 @@ Shuts down, removes and releases a window.
 
 *******************************************************************************/
 
-void clswin(int fn)
+static void clswin(int fn)
 
 {
 
@@ -9262,7 +9263,7 @@ window also links it.
 
 /* flush and close file */
 
-void clsfil(int fn)
+static void clsfil(int fn)
 
 {
 
@@ -9290,7 +9291,7 @@ void clsfil(int fn)
 
 }
 
-int inplnk(int fn)
+static int inplnk(int fn)
 
 {
 
@@ -9306,7 +9307,7 @@ int inplnk(int fn)
 
 }
 
-void closewin(int ofn)
+static void closewin(int ofn)
 
 {
 
@@ -9316,9 +9317,9 @@ void closewin(int ofn)
     wid = filwin[ofn]; /* get window id */
     ifn = opnfil[ofn]->inl; /* get the input file link */
     clswin(ofn); /* close the window */
-    clsfil(ofn); /* flush && close output file */
-    /* if no remaining links exist, flush && close input file */
-    if (!inplnk(ifn))  clsfil(ifn);
+    clsfil(ofn); /* flush and close output file */
+    /* if no remaining links exist, flush and close input file */
+    if (!inplnk(ifn)) clsfil(ifn);
     filwin[ofn] = 0; /* clear file to window translation */
     xltwin[wid] = 0; /* clear window to file translation */
 
@@ -9332,7 +9333,7 @@ Creates, opens and initalizes an input and output pair of files.
 
 *******************************************************************************/
 
-void openio(int ifn, int ofn, int pfn, int wid)
+static void openio(int ifn, int ofn, int pfn, int wid)
 
 {
 
@@ -9382,7 +9383,7 @@ FILE structure, we do that by matching the address of the structure.
 *******************************************************************************/
 
 /* check file is already in use */
-int fndfil(FILE* fp)
+static int fndfil(FILE* fp)
 
 {
 
@@ -9397,7 +9398,7 @@ int fndfil(FILE* fp)
 
 }
 
-void iopenwin(FILE** infile, FILE** outfile, int pfn, int wid)
+static void iopenwin(FILE** infile, FILE** outfile, int pfn, int wid)
 
 {
 
@@ -9457,7 +9458,7 @@ Sets or resets the size of the buffer surface, in pixel units.
 
 *******************************************************************************/
 
-void isizbufg(winptr win, int x, int y)
+static void isizbufg(winptr win, int x, int y)
 
 {
 
@@ -9543,7 +9544,7 @@ freed.
 
 *******************************************************************************/
 
-void ibuffer(winptr win, int e)
+static void ibuffer(winptr win, int e)
 
 {
 
@@ -9631,7 +9632,7 @@ deleted.
 *******************************************************************************/
 
 /* create menu tracking entry */
-void mettrk(winptr win, HMENU han, int inx, pa_menuptr m)
+static void mettrk(winptr win, HMENU han, int inx, pa_menuptr m)
 
 {
 
@@ -9659,7 +9660,7 @@ void mettrk(winptr win, HMENU han, int inx, pa_menuptr m)
 }
 
 /* create menu list */
-void createmenu(winptr win, pa_menuptr m, HMENU* mh)
+static void createmenu(winptr win, pa_menuptr m, HMENU* mh)
 
 {
 
@@ -9702,7 +9703,7 @@ void createmenu(winptr win, pa_menuptr m, HMENU* mh)
 
 }
 
-void imenu(winptr win, pa_menuptr m)
+static void imenu(winptr win, pa_menuptr m)
 
 {
 
@@ -9759,7 +9760,7 @@ If the entry exists more than once, it generates an error.
 
 *******************************************************************************/
 
-metptr fndmenu(winptr win, int id)
+static metptr fndmenu(winptr win, int id)
 
 {
 
@@ -9794,7 +9795,7 @@ and will no longer send messages.
 
 *******************************************************************************/
 
-void imenuena(winptr win, int id, int onoff)
+static void imenuena(winptr win, int id, int onoff)
 
 {
 
@@ -9838,7 +9839,7 @@ selected, with no check if not.
 *******************************************************************************/
 
 /* find top of "one of" list */
-metptr fndtop(metptr mp)
+static metptr fndtop(metptr mp)
 
 {
 
@@ -9855,7 +9856,7 @@ metptr fndtop(metptr mp)
 }
 
 /* clear "one of" select list */
-void clrlst(int* fl, metptr mp)
+static void clrlst(int* fl, metptr mp)
 
 {
 
@@ -9872,7 +9873,7 @@ void clrlst(int* fl, metptr mp)
 
 }
 
-void imenusel(winptr win, int id, int select)
+static void imenusel(winptr win, int id, int select)
 
 {
 
@@ -9917,7 +9918,7 @@ Brings the indicated window to the front of the Z order.
 
 *******************************************************************************/
 
-void ifront(winptr win)
+static void ifront(winptr win)
 
 {
 
@@ -9979,7 +9980,7 @@ Puts the indicated window to the back of the Z order.
 
 *******************************************************************************/
 
-void iback(winptr win)
+static void iback(winptr win)
 
 {
 
@@ -10014,7 +10015,7 @@ Gets the onscreen window size.
 
 *******************************************************************************/
 
-void igetsizg(winptr win, int* x, int* y)
+static void igetsizg(winptr win, int* x, int* y)
 
 {
 
@@ -10089,7 +10090,7 @@ Sets the onscreen window to the given size.
 
 *******************************************************************************/
 
-void isetsizg(winptr win, int x, int y)
+static void isetsizg(winptr win, int x, int y)
 
 {
 
@@ -10163,7 +10164,7 @@ Sets the onscreen window to the given position in its parent.
 
 *******************************************************************************/
 
-void isetposg(winptr win, int x, int y)
+static void isetposg(winptr win, int x, int y)
 
 {
 
@@ -10237,7 +10238,7 @@ Gets the total screen size.
 
 *******************************************************************************/
 
-void iscnsizg(winptr win, int* x, int* y)
+static void iscnsizg(winptr win, int* x, int* y)
 
 {
 
@@ -10281,7 +10282,8 @@ Do we also need a menu style type ?
 
 *******************************************************************************/
 
-void iwinclientg(winptr win, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
+static void iwinclientg(winptr win, int cx, int cy, int* wx, int* wy,
+                        pa_winmodset ms)
 
 {
 
@@ -10389,7 +10391,7 @@ Turns the window frame on and off.
 
 *******************************************************************************/
 
-void iframe(winptr win, int e)
+static void iframe(winptr win, int e)
 
 {
 
@@ -10463,7 +10465,7 @@ Turns the window sizing on and off.
 
 *******************************************************************************/
 
-void isizable(winptr win, int e)
+static void isizable(winptr win, int e)
 
 {
 
@@ -10544,7 +10546,7 @@ Turns the system bar on and off.
 
 *******************************************************************************/
 
-void isysbar(winptr win, int e)
+static void isysbar(winptr win, int e)
 
 {
 
@@ -10625,7 +10627,7 @@ Appends a new menu entry to the given list.
 
 *******************************************************************************/
 
-void appendmenu(pa_menuptr* list, pa_menuptr m)
+static void appendmenu(pa_menuptr* list, pa_menuptr m)
 
 {
 
@@ -10663,7 +10665,7 @@ end of the menu,  the program selections placed in the menu.
 *******************************************************************************/
 
 /* get menu entry */
-void getmenu(pa_menuptr* m, int id, char* face)
+static void getmenu(pa_menuptr* m, int id, char* face)
 
 {
 
@@ -10680,8 +10682,8 @@ void getmenu(pa_menuptr* m, int id, char* face)
 }
 
 /* add standard list item */
-void additem(pa_stdmenusel sms, int i, pa_menuptr* m, pa_menuptr* l, char* s,
-             int b)
+static void additem(pa_stdmenusel sms, int i, pa_menuptr* m, pa_menuptr* l,
+                    char* s, int b)
 
 {
 
@@ -10799,8 +10801,8 @@ trying to start them on the main window.
 *******************************************************************************/
 
 /* create widget according to type */
-HWND createwidget(winptr win, wigtyp typ, int x1, int y1, int x2, int y2,
-                  char* s, int id, int exfl)
+static HWND createwidget(winptr win, wigtyp typ, int x1, int y1, int x2, int y2,
+                         char* s, int id, int exfl)
 
 {
 
@@ -10917,8 +10919,8 @@ HWND createwidget(winptr win, wigtyp typ, int x1, int y1, int x2, int y2,
 
 }
 
-void widget(winptr win, int x1, int y1, int x2, int y2, char* s, int id,
-            wigtyp typ, int exfl, wigptr* wp)
+static void widget(winptr win, int x1, int y1, int x2, int y2, char* s, int id,
+                   wigtyp typ, int exfl, wigptr* wp)
 
 {
 
@@ -10943,7 +10945,7 @@ Removes the widget by id from the window.
 
 *******************************************************************************/
 
-void ikillwidget(winptr win, int id)
+static void ikillwidget(winptr win, int id)
 
 {
 
@@ -10979,7 +10981,7 @@ Selects or deselects a widget.
 
 *******************************************************************************/
 
-void iselectwidget(winptr win, int id, int e)
+static void iselectwidget(winptr win, int id, int e)
 
 {
 
@@ -11018,7 +11020,7 @@ Enables or disables a widget.
 
 *******************************************************************************/
 
-void ienablewidget(winptr win, int id, int e)
+static void ienablewidget(winptr win, int id, int e)
 
 {
 
@@ -11065,7 +11067,7 @@ This error is currently unchecked.
 
 *******************************************************************************/
 
-void igetwidgettext(winptr win, int id, char* s, int sl)
+static void igetwidgettext(winptr win, int id, char* s, int sl)
 
 {
 
@@ -11111,7 +11113,7 @@ Places text into an edit box.
 
 *******************************************************************************/
 
-void iputwidgettext(winptr win, int id, char* s)
+static void iputwidgettext(winptr win, int id, char* s)
 
 {
 
@@ -11151,7 +11153,7 @@ Changes the size of a widget.
 
 *******************************************************************************/
 
-void isizwidgetg(winptr win, int id,  int x, int y)
+static void isizwidgetg(winptr win, int id,  int x, int y)
 
 {
 
@@ -11196,7 +11198,7 @@ Changes the parent position of a widget.
 
 *******************************************************************************/
 
-void iposwidgetg(winptr win, int id, int x, int y)
+static void iposwidgetg(winptr win, int id, int x, int y)
 
 {
 
@@ -11239,7 +11241,7 @@ Place widget to back of Z order
 
 *******************************************************************************/
 
-void ibackwidget(winptr win, int id)
+static void ibackwidget(winptr win, int id)
 
 {
 
@@ -11284,7 +11286,7 @@ Place widget to front of Z order
 
 *******************************************************************************/
 
-void ifrontwidget(winptr win, int id)
+static void ifrontwidget(winptr win, int id)
 
 {
 
@@ -11333,7 +11335,7 @@ a button is calculated and returned.
 
 *******************************************************************************/
 
-void ibuttonsizg(winptr win, char* s, int* w, int* h)
+static void ibuttonsizg(winptr win, char* s, int* w, int* h)
 
 {
 
@@ -11351,7 +11353,7 @@ void ibuttonsizg(winptr win, char* s, int* w, int* h)
 
 }
 
-void ibuttonsiz(winptr win, char* s, int* w, int* h)
+static void ibuttonsiz(winptr win, char* s, int* w, int* h)
 
 {
 
@@ -11396,7 +11398,7 @@ Creates a standard button within the specified rectangle, on the given window.
 
 *******************************************************************************/
 
-void ibuttong(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
+static void ibuttong(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -11407,7 +11409,7 @@ void ibuttong(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-void ibutton(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
+static void ibutton(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -11455,7 +11457,7 @@ a checkbox is calculated and returned.
 
 *******************************************************************************/
 
-void icheckboxsizg(winptr win, char* s, int* w, int* h)
+static void icheckboxsizg(winptr win, char* s, int* w, int* h)
 
 {
 
@@ -11474,7 +11476,7 @@ void icheckboxsizg(winptr win, char* s, int* w, int* h)
 
 }
 
-void icheckboxsiz(winptr win, char* s, int* w, int* h)
+static void icheckboxsiz(winptr win, char* s, int* w, int* h)
 
 {
 
@@ -11520,7 +11522,7 @@ window.
 
 *******************************************************************************/
 
-void icheckboxg(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
+static void icheckboxg(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -11531,7 +11533,7 @@ void icheckboxg(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-void icheckbox(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
+static void icheckbox(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -11579,7 +11581,7 @@ size of a radio button is calculated and returned.
 
 *******************************************************************************/
 
-void iradiobuttonsizg(winptr win, char* s, int* w, int* h)
+static void iradiobuttonsizg(winptr win, char* s, int* w, int* h)
 
 {
 
@@ -11598,7 +11600,7 @@ void iradiobuttonsizg(winptr win, char* s, int* w, int* h)
 
 }
 
-void iradiobuttonsiz(winptr win, char* s, int* w, int* h)
+static void iradiobuttonsiz(winptr win, char* s, int* w, int* h)
 
 {
 
@@ -11644,7 +11646,7 @@ window.
 
 *******************************************************************************/
 
-void iradiobuttong(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
+static void iradiobuttong(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -11655,7 +11657,7 @@ void iradiobuttong(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-void iradiobutton(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
+static void iradiobutton(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -11703,8 +11705,8 @@ size of a group is calculated and returned.
 
 *******************************************************************************/
 
-void igroupsizg(winptr win, char* s, int cw, int ch, int* w, int* h,
-                int* ox, int* oy)
+static void igroupsizg(winptr win, char* s, int cw, int ch, int* w, int* h,
+                       int* ox, int* oy)
 
 {
 
@@ -11727,8 +11729,8 @@ void igroupsizg(winptr win, char* s, int cw, int ch, int* w, int* h,
 
 }
 
-void igroupsiz(winptr win, char* s, int cw, int ch, int* w, int* h,
-               int* ox, int* oy)
+static void igroupsiz(winptr win, char* s, int cw, int ch, int* w, int* h,
+                      int* ox, int* oy)
 
 {
 
@@ -11745,7 +11747,7 @@ void igroupsiz(winptr win, char* s, int cw, int ch, int* w, int* h,
 }
 
 void pa_groupsizg(FILE* f, char* s, int cw, int ch, int* w, int* h,
-               int* ox, int* oy)
+                  int* ox, int* oy)
 
 {
 
@@ -11781,7 +11783,7 @@ no messages. It is used as a background for other widgets.
 
 *******************************************************************************/
 
-void igroupg(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
+static void igroupg(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -11792,7 +11794,7 @@ void igroupg(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-void igroup(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
+static void igroup(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -11840,7 +11842,7 @@ generates no messages. It is used as a background for other widgets.
 
 *******************************************************************************/
 
-void ibackgroundg(winptr win, int x1, int y1, int x2, int y2, int id)
+static void ibackgroundg(winptr win, int x1, int y1, int x2, int y2, int id)
 
 {
 
@@ -11851,7 +11853,7 @@ void ibackgroundg(winptr win, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void ibackground(winptr win, int x1, int y1, int x2, int y2, int id)
+static void ibackground(winptr win, int x1, int y1, int x2, int y2, int id)
 
 {
 
@@ -11862,7 +11864,7 @@ void ibackground(winptr win, int x1, int y1, int x2, int y2, int id)
    y2 = (y2)*win->linespace;
    ibackgroundg(win, x1, y1, x2, y2, id); /* create button graphical */
 
-};
+}
 
 void pa_backgroundg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
@@ -11899,7 +11901,7 @@ scrollbar is calculated and returned.
 
 *******************************************************************************/
 
-void iscrollvertsizg(winptr win, int* w, int* h)
+static void iscrollvertsizg(winptr win, int* w, int* h)
 
 {
 
@@ -11910,7 +11912,7 @@ void iscrollvertsizg(winptr win, int* w, int* h)
 
 }
 
-void iscrollvertsiz(winptr win, int* w, int* h)
+static void iscrollvertsiz(winptr win, int* w, int* h)
 
 {
 
@@ -11954,7 +11956,7 @@ Creates a vertical scrollbar.
 
 *******************************************************************************/
 
-void iscrollvertg(winptr win, int x1, int y1, int x2, int y2, int id)
+static void iscrollvertg(winptr win, int x1, int y1, int x2, int y2, int id)
 
 {
 
@@ -11981,7 +11983,7 @@ void iscrollvertg(winptr win, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void iscrollvert(winptr win, int x1, int y1, int x2, int y2, int id)
+static void iscrollvert(winptr win, int x1, int y1, int x2, int y2, int id)
 
 {
 
@@ -12029,7 +12031,7 @@ horizontal scrollbar is calculated && returned.
 
 *******************************************************************************/
 
-void iscrollhorizsizg(winptr win, int* w, int* h)
+static void iscrollhorizsizg(winptr win, int* w, int* h)
 
 {
 
@@ -12040,7 +12042,7 @@ void iscrollhorizsizg(winptr win, int* w, int* h)
 
 }
 
-void iscrollhorizsiz(winptr win, int* w, int* h)
+static void iscrollhorizsiz(winptr win, int* w, int* h)
 
 {
 
@@ -12084,7 +12086,7 @@ Creates a horizontal scrollbar.
 
 *******************************************************************************/
 
-void iscrollhorizg(winptr win, int x1, int y1, int x2, int y2, int id)
+static void iscrollhorizg(winptr win, int x1, int y1, int x2, int y2, int id)
 
 {
 
@@ -12111,7 +12113,7 @@ void iscrollhorizg(winptr win, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void iscrollhoriz(winptr win, int x1, int y1, int x2, int y2, int id)
+static void iscrollhoriz(winptr win, int x1, int y1, int x2, int y2, int id)
 
 {
 
@@ -12158,7 +12160,7 @@ Sets the current position of a scrollbar slider.
 
 *******************************************************************************/
 
-void iscrollpos(winptr win, int id, int r)
+static void iscrollpos(winptr win, int id, int r)
 
 {
 
@@ -12202,7 +12204,7 @@ Sets the current size of a scrollbar slider.
 
 *******************************************************************************/
 
-void iscrollsiz(winptr win, int id, int r)
+static void iscrollsiz(winptr win, int id, int r)
 
 {
 
@@ -12251,7 +12253,7 @@ box to numeric characters.
 
 *******************************************************************************/
 
-LRESULT CALLBACK wndprocnum(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
+static LRESULT CALLBACK wndprocnum(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
 
 {
 
@@ -12327,7 +12329,7 @@ select box is calculated && returned.
 
 *******************************************************************************/
 
-void inumselboxsizg(winptr win, int l, int u,  int* w, int* h)
+static void inumselboxsizg(winptr win, int l, int u,  int* w, int* h)
 
 {
 
@@ -12347,7 +12349,7 @@ void inumselboxsizg(winptr win, int l, int u,  int* w, int* h)
 
 }
 
-void inumselboxsiz(winptr win, int l, int u, int* w, int* h)
+static void inumselboxsiz(winptr win, int l, int u, int* w, int* h)
 
 {
 
@@ -12392,7 +12394,7 @@ Creates an up/down control for numeric selection.
 
 *******************************************************************************/
 
-void inumselboxg(winptr win, int x1, int y1, int x2, int y2, int l, int u,
+static void inumselboxg(winptr win, int x1, int y1, int x2, int y2, int l, int u,
                  int id)
 
 {
@@ -12447,7 +12449,7 @@ void inumselboxg(winptr win, int x1, int y1, int x2, int y2, int l, int u,
 
 }
 
-void inumselbox(winptr win, int x1, int y1, int x2, int y2, int l, int u,
+static void inumselbox(winptr win, int x1, int y1, int x2, int y2, int l, int u,
                 int id)
 
 {
@@ -12496,7 +12498,7 @@ edit box, and turn that into a message.
 
 *******************************************************************************/
 
-int wndprocedit(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
+static int wndprocedit(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
 
 {
 
@@ -12536,7 +12538,7 @@ size of an edit box is calculated and returned.
 
 *******************************************************************************/
 
-void ieditboxsizg(winptr win, char* s, int* w, int* h)
+static void ieditboxsizg(winptr win, char* s, int* w, int* h)
 
 {
 
@@ -12554,7 +12556,7 @@ void ieditboxsizg(winptr win, char* s, int* w, int* h)
 
 }
 
-void ieditboxsiz(winptr win, char* s, int* w, int* h)
+static void ieditboxsiz(winptr win, char* s, int* w, int* h)
 
 {
 
@@ -12599,7 +12601,7 @@ Creates single line edit box
 
 *******************************************************************************/
 
-void ieditboxg(winptr win, int x1, int y1, int x2, int y2, int id)
+static void ieditboxg(winptr win, int x1, int y1, int x2, int y2, int id)
 
 {
 
@@ -12616,7 +12618,7 @@ void ieditboxg(winptr win, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void ieditbox(winptr win, int x1, int y1, int x2, int y2, int id)
+static void ieditbox(winptr win, int x1, int y1, int x2, int y2, int id)
 
 {
 
@@ -12664,7 +12666,7 @@ size of an edit box is calculated and returned.
 
 *******************************************************************************/
 
-void iprogbarsizg(winptr win, int* w, int* h)
+static void iprogbarsizg(winptr win, int* w, int* h)
 
 {
 
@@ -12676,7 +12678,7 @@ void iprogbarsizg(winptr win, int* w, int* h)
 
 }
 
-void iprogbarsiz(winptr win, int* w, int* h)
+static void iprogbarsiz(winptr win, int* w, int* h)
 
 {
 
@@ -12721,7 +12723,7 @@ Creates a progress bar.
 
 *******************************************************************************/
 
-void iprogbarg(winptr win, int x1, int y1, int x2, int y2, int id)
+static void iprogbarg(winptr win, int x1, int y1, int x2, int y2, int id)
 
 {
 
@@ -12738,7 +12740,7 @@ void iprogbarg(winptr win, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void iprogbar(winptr win, int x1, int y1, int x2, int y2, int id)
+static void iprogbar(winptr win, int x1, int y1, int x2, int y2, int id)
 
 {
 
@@ -12785,7 +12787,7 @@ Sets the position of a progress bar, from 0 to INT_MAX.
 
 *******************************************************************************/
 
-void iprogbarpos(winptr win, int id, int pos)
+static void iprogbarpos(winptr win, int id, int pos)
 
 {
 
@@ -12832,7 +12834,7 @@ specified rectangle, one way or another.
 
 *******************************************************************************/
 
-void ilistboxsizg(winptr win, pa_strptr sp, int* w, int* h)
+static void ilistboxsizg(winptr win, pa_strptr sp, int* w, int* h)
 
 {
 
@@ -12859,7 +12861,7 @@ void ilistboxsizg(winptr win, pa_strptr sp, int* w, int* h)
 
 }
 
-void ilistboxsiz(winptr win, pa_strptr sp, int* w, int* h)
+static void ilistboxsiz(winptr win, pa_strptr sp, int* w, int* h)
 
 {
 
@@ -12904,7 +12906,7 @@ Creates a list box. Fills it with the string list provided.
 
 *******************************************************************************/
 
-void ilistboxg(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
+static void ilistboxg(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 {
 
@@ -12925,7 +12927,7 @@ void ilistboxg(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 }
 
-void ilistbox(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
+static void ilistbox(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 {
 
@@ -12972,7 +12974,7 @@ Find the pixel size in x for the given line of text.
 
 *******************************************************************************/
 
-void getsizlin(char* s, LPSIZE sz)
+static void getsizlin(char* s, LPSIZE sz)
 
 {
 
@@ -12998,7 +13000,8 @@ selections can be scrolled.
 
 *******************************************************************************/
 
-void idropboxsizg(winptr win, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
+static void idropboxsizg(winptr win, pa_strptr sp, int* cw, int* ch,
+                         int* ow, int* oh)
 
 {
 
@@ -13036,7 +13039,8 @@ void idropboxsizg(winptr win, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
 
 }
 
-void idropboxsiz(winptr win, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
+static void idropboxsiz(winptr win, pa_strptr sp, int* cw, int* ch,
+                        int* ow, int* oh)
 
 {
 
@@ -13083,7 +13087,8 @@ Creates a dropdown box. Fills it with the string list provided.
 
 *******************************************************************************/
 
-void idropboxg(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
+static void idropboxg(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp,
+                      int id)
 
 {
 
@@ -13110,7 +13115,8 @@ void idropboxg(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 }
 
-void idropbox(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
+static void idropbox(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp,
+                     int id)
 
 {
 
@@ -13163,8 +13169,8 @@ selections can be scrolled.
 
 *******************************************************************************/
 
-void idropeditboxsizg(winptr win, pa_strptr sp, int* cw, int* ch,
-                      int* ow, int* oh)
+static void idropeditboxsizg(winptr win, pa_strptr sp, int* cw, int* ch,
+                             int* ow, int* oh)
 
 {
 
@@ -13202,7 +13208,7 @@ void idropeditboxsizg(winptr win, pa_strptr sp, int* cw, int* ch,
 
 }
 
-void idropeditboxsiz(winptr win, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
+static void idropeditboxsiz(winptr win, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
 
 {
 
@@ -13252,7 +13258,7 @@ box.
 
 *******************************************************************************/
 
-void idropeditboxg(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp,
+static void idropeditboxg(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp,
                    int id)
 
 {
@@ -13276,7 +13282,7 @@ void idropeditboxg(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp,
 
 }
 
-void idropeditbox(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
+static void idropeditbox(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 {
 
@@ -13324,7 +13330,7 @@ slider is calculated and returned.
 
 *******************************************************************************/
 
-void islidehorizsizg(winptr win, int* w, int* h)
+static void islidehorizsizg(winptr win, int* w, int* h)
 
 {
 
@@ -13335,7 +13341,7 @@ void islidehorizsizg(winptr win, int* w, int* h)
 
 }
 
-void islidehorizsiz(winptr win, int* w, int* h)
+static void islidehorizsiz(winptr win, int* w, int* h)
 
 {
 
@@ -13382,7 +13388,7 @@ Bugs: The tick marks should be in pixel terms, not logical terms.
 
 *******************************************************************************/
 
-void islidehorizg(winptr win, int x1, int y1, int x2, int y2, int mark, int id)
+static void islidehorizg(winptr win, int x1, int y1, int x2, int y2, int mark, int id)
 
 {
 
@@ -13401,7 +13407,7 @@ void islidehorizg(winptr win, int x1, int y1, int x2, int y2, int mark, int id)
 
 }
 
-void islidehoriz(winptr win, int x1, int y1, int x2, int y2, int mark, int id)
+static void islidehoriz(winptr win, int x1, int y1, int x2, int y2, int mark, int id)
 
 {
 
@@ -13449,7 +13455,7 @@ slider is calculated && returned.
 
 *******************************************************************************/
 
-void islidevertsizg(winptr win, int* w, int* h)
+static void islidevertsizg(winptr win, int* w, int* h)
 
 {
 
@@ -13460,7 +13466,7 @@ void islidevertsizg(winptr win, int* w, int* h)
 
 }
 
-void islidevertsiz(winptr win, int* w, int* h)
+static void islidevertsiz(winptr win, int* w, int* h)
 
 {
 
@@ -13507,7 +13513,8 @@ Bugs: The tick marks should be in pixel terms, not logical terms.
 
 *******************************************************************************/
 
-void islidevertg(winptr win, int x1, int y1, int x2, int y2, int mark, int id)
+static void islidevertg(winptr win, int x1, int y1, int x2, int y2, int mark,
+                        int id)
 
 {
 
@@ -13526,7 +13533,7 @@ void islidevertg(winptr win, int x1, int y1, int x2, int y2, int mark, int id)
 
 }
 
-void islidevert(winptr win, int x1, int y1, int x2, int y2, int mark, int id)
+static void islidevert(winptr win, int x1, int y1, int x2, int y2, int mark, int id)
 
 {
 
@@ -13579,7 +13586,7 @@ invisible.
 
 *******************************************************************************/
 
-void uselesswidget(winptr win)
+static void uselesswidget(winptr win)
 
 {
 
@@ -13618,8 +13625,8 @@ calculated and returned.
 
 *******************************************************************************/
 
-void itabbarsizg(winptr win, pa_tabori tor, int cw, int ch, int* w, int* h,
-                 int* ox, int* oy)
+static void itabbarsizg(winptr win, pa_tabori tor, int cw, int ch, int* w, int* h,
+                        int* ox, int* oy)
 
 {
 
@@ -13663,8 +13670,8 @@ void itabbarsizg(winptr win, pa_tabori tor, int cw, int ch, int* w, int* h,
 
 }
 
-void itabbarsiz(winptr win, pa_tabori tor, int cw, int ch, int* w, int* h,
-                int* ox, int* oy)
+static void itabbarsiz(winptr win, pa_tabori tor, int cw, int ch, int* w, int* h,
+                       int* ox, int* oy)
 
 {
 
@@ -13723,8 +13730,8 @@ flexible.
 
 *******************************************************************************/
 
-void itabbarclientg(winptr win, pa_tabori tor, int w, int h, int* cw, int* ch,
-                    int* ox, int* oy)
+static void itabbarclientg(winptr win, pa_tabori tor, int w, int h, int* cw, int* ch,
+                           int* ox, int* oy)
 
 {
 
@@ -13768,8 +13775,8 @@ void itabbarclientg(winptr win, pa_tabori tor, int w, int h, int* cw, int* ch,
 
 }
 
-void itabbarclient(winptr win, pa_tabori tor, int w, int h, int* cw, int* ch,
-                   int* ox, int* oy)
+static void itabbarclient(winptr win, pa_tabori tor, int w, int h, int* cw, int* ch,
+                          int* ox, int* oy)
 
 {
 
@@ -13830,8 +13837,8 @@ creating and distroying another widget.
 
 *******************************************************************************/
 
-void itabbarg(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp,
-              pa_tabori tor, int id)
+static void itabbarg(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp,
+                     pa_tabori tor, int id)
 
 {
 
@@ -13873,8 +13880,8 @@ void itabbarg(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp,
 
 }
 
-void itabbar(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp,
-             pa_tabori tor, int id)
+static void itabbar(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp,
+                    pa_tabori tor, int id)
 
 {
 
@@ -13924,7 +13931,7 @@ of the tab.
 
 *******************************************************************************/
 
-void itabsel(winptr win, int id, int tn)
+static void itabsel(winptr win, int id, int tn)
 
 {
 
@@ -14193,7 +14200,7 @@ user as the defaults.
 
 /* find font number in fonts list */
 
-int fndfntnum(winptr win, char* fns)
+static int fndfntnum(winptr win, char* fns)
 
 {
 
@@ -14218,8 +14225,8 @@ int fndfntnum(winptr win, char* fns)
 
 }
 
-void iqueryfont(winptr win, int* fc, int* s, int* fr, int* fg, int* fb, int* br,
-                int* bg, int* bb, int* effect)
+static void iqueryfont(winptr win, int* fc, int* s, int* fr, int* fg, int* fb,
+                       int* br, int* bg, int* bb, int* effect)
 
 {
 
@@ -14279,7 +14286,8 @@ This is the window handler callback for all display windows.
 
 *******************************************************************************/
 
-LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
+static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam,
+                                LPARAM lparam)
 
 {
 
@@ -14503,7 +14511,7 @@ Create window to pass messages only. The window will have no display.
 
 *******************************************************************************/
 
-void createdummy(WNDPROC wndproc, char* name, HWND* dummywin)
+static void createdummy(WNDPROC wndproc, char* name, HWND* dummywin)
 
 {
 
@@ -14540,7 +14548,7 @@ thread, but any number of subwindows will be started in the thread.
 
 *******************************************************************************/
 
-DWORD WINAPI dispthread(LPVOID lpParameter)
+static DWORD WINAPI dispthread(LPVOID lpParameter)
 
 {
 
@@ -14572,8 +14580,8 @@ everything by sending it on.
 
 *******************************************************************************/
 
-LRESULT CALLBACK wndprocmain(HWND hwnd, UINT imsg, WPARAM wparam,
-                                 LPARAM lparam)
+static LRESULT CALLBACK wndprocmain(HWND hwnd, UINT imsg, WPARAM wparam,
+                                    LPARAM lparam)
 
 {
 
@@ -14607,7 +14615,8 @@ the fact that they come up behind the main window.
 
 /* Note: The Microsoft online description does not use APIENTRY, this is in
    MINGW */
-UINT_PTR APIENTRY wndprocfix(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
+static UINT_PTR APIENTRY wndprocfix(HWND hwnd, UINT imsg, WPARAM wparam,
+                                    LPARAM lparam)
 
 {
 
@@ -14632,7 +14641,8 @@ Runs the various dialogs.
 
 *******************************************************************************/
 
-LRESULT CALLBACK wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
+static LRESULT CALLBACK wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam,
+                                      LPARAM lparam)
 
 {
 
@@ -14961,7 +14971,7 @@ Dialog thread
 
 *******************************************************************************/
 
-DWORD WINAPI dialogthread(LPVOID lpParameter)
+static DWORD WINAPI dialogthread(LPVOID lpParameter)
 
 {
 
