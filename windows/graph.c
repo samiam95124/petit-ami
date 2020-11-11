@@ -131,10 +131,10 @@
 
 typedef ssize_t (*pread_t)(int, void*, size_t);
 typedef ssize_t (*pwrite_t)(int, const void*, size_t);
-typedef int (*popen_t)(const char*, int, int);
-typedef int (*pclose_t)(int);
-typedef int (*punlink_t)(const char*);
-typedef off_t (*plseek_t)(int, off_t, int);
+typedef int     (*popen_t)(const char*, int, int);
+typedef int     (*pclose_t)(int);
+typedef int     (*punlink_t)(const char*);
+typedef off_t   (*plseek_t)(int, off_t, int);
 
 /* system override calls */
 
@@ -172,7 +172,7 @@ typedef enum { mdnorm, mdinvis, mdxor } mode; /* color mix modes */
 /* Menu tracking. This is a mirror image of the menu we were given by the
    user. However, we can do with less information than is in the original
    tree as passed. The menu items are a linear list, since they contain
-   both the menu handle && the relative number 0-n of the item, neither
+   both the menu handle and the relative number 0-n of the item, neither
    the lack of tree structure nor the order of the list matters. */
 typedef struct metrec {
 
@@ -218,8 +218,8 @@ typedef struct scncon { /* screen context */
     HBRUSH  fbrush;      /* foreground brush handle */
     HPEN    fspen;       /* foreground single pixel pen */
     int     lwidth;      /* width of lines */
-    /* note that the pixel && character dimensions && positions are kept
-      in parallel for both characters && pixels */
+    /* note that the pixel and character dimensions and positions are kept
+      in parallel for both characters and pixels */
     int     maxx;        /* maximum characters in x */
     int     maxy;        /* maximum characters in y */
     int     maxxg;       /* maximum pixels in x */
@@ -244,7 +244,7 @@ typedef struct scncon { /* screen context */
     int     cspc;        /* character spacing */
     int     lspc;        /* line spacing */
     int     attr;        /* set of active attributes */
-    int     autof;       /* current status of scroll && wrap */
+    int     autof;       /* current status of scroll and wrap */
     int     tab[MAXTAB]; /* tabbing array */
     int     curv;        /* cursor visible */
     int     offx;        /* viewport offset x */
@@ -576,8 +576,6 @@ static plseek_t  ofplseek;
 static filptr opnfil[MAXFIL]; /* open files table */
 static int xltwin[MAXFIL]; /* window equivalence table */
 static int filwin[MAXFIL]; /* file to window equivalence table */
-/* array to translate top level file ids to syslib equivalents */
-static int xltfil[MAXFIL];
 
 static int       fi;           /* index for files table */
 static int       fend;         /* end of program ordered flag */
@@ -585,7 +583,7 @@ static int       fautohold;    /* automatic hold on exit flag */
 static char*     pgmnam;       /* program name string */
 static char*     trmnam;       /* program termination string */
 /* These are duplicates from the windows record. They must be here because
-  Windows calls us back, && the results have to be passed via a global. */
+  Windows calls us back, and the results have to be passed via a global. */
 static fontptr   fntlst;       /* list of windows fonts */
 static int       fntcnt;       /* number of fonts in font list */
 static pa_evtrec er;           /* event record */
@@ -622,7 +620,7 @@ static int       stdwiny;      /* y position */
 static int       stdwinw;      /* width */
 static int       stdwinh;      /* height */
 static HWND      stdwinpar;    /* parent */
-static HWND       stdwinwin;    /* window window handle */
+static HWND      stdwinwin;    /* window window handle */
 static int       stdwinj1c;    /* joystick 1 capture */
 static int       stdwinj2c;    /* joystick 1 capture */
 /* mainlock:    int; */ /* lock for all global structures */
@@ -1166,7 +1164,7 @@ static void error(errcod e)
 Handle windows error
 
 Only called if the last error variable is set. The text string for the error
-is output, &&  the program halted.
+is output, and the program halted.
 
 *******************************************************************************/
 
@@ -1198,7 +1196,7 @@ static void winerr(void)
 
 Find next queue pointer
 
-Finds the next value of a queue pointer, which wraps around at the }.
+Finds the next value of a queue pointer, which wraps around at the end.
 
 *******************************************************************************/
 
@@ -1206,8 +1204,8 @@ static int next(int mi)
 
 {
 
-    if (mi == MAXMSG) mi = 1; /* if at end, wrap */
-    else mi = mi+1; /* increment */
+    mi++; /* next message */
+    if (mi >= MAXMSG) mi = 0; /* if at end, wrap */
 
     return (mi); /* return result */
 
@@ -1441,7 +1439,7 @@ static void igetmsg(MSG* msg)
 
     f = FALSE; /* set no message found */
     /* It should ! happen, but if we get a FALSE signal, loop waiting for
-       signal, && don"t leave until we get a TRUE message. */
+       signal, and don"t leave until we get a TRUE message. */
     do { /* wait for message */
 
         if (imsginp == imsgout)  {
@@ -1471,7 +1469,7 @@ static void igetmsg(MSG* msg)
 
 Get intratask message entry
 
-Gets a new intratask message, || recycles an old one.
+Gets a new intratask message, or recycles an old one.
 
 *******************************************************************************/
 
@@ -1515,7 +1513,7 @@ static void putitm(imptr p)
 
 Get file entry
 
-Allocates && initalizes a new file entry. File entries are left in the opnfil
+Allocates and initalizes a new file entry. File entries are left in the opnfil
 array, so are recycled in place.
 
 *******************************************************************************/
@@ -1537,7 +1535,7 @@ static void getfet(filptr* fp)
 
 Make file entry
 
-Indexes a present file entry || creates a new one. Looks for a free entry
+Indexes a present file entry or creates a new one. Looks for a free entry
 in the files table, indicated by 0. If found, that is returned, otherwise
 the file table is full.
 
@@ -1612,7 +1610,7 @@ Finds the window associated with a text file. Gets the logical top level
 filenumber for the file, converts this via its top to bottom alias,
 validates that an alias has been established. This effectively means the file
 was opened. , the window structure assigned to the file is fetched, and
-validated. That means that the file was opened as a window input || output
+validated. That means that the file was opened as a window input or output
 file.
 
 *******************************************************************************/
@@ -1637,7 +1635,7 @@ Finds the window associated with a text file. Gets the logical top level
 filenumber for the file, converts this via its top to bottom alias,
 validates that an alias has been established. This effectively means the file
 was opened. , the window structure assigned to the file is fetched, and
-validated. That means that the file was opened as a window input || output
+validated. That means that the file was opened as a window input or output
 file.
 
 *******************************************************************************/
@@ -1671,7 +1669,7 @@ static winptr lwn2win(int wid)
     winptr win; /* window context pointer */
 
     if (wid < 0 || wid >= MAXFIL)  error(einvhan); /* error */
-    ofn = xltwin[wid]; /* get the output file handle */
+    ofn = xltwin[wid-1]; /* get the output file handle */
     win = lfn2win(ofn); /* index window context */
 
     return (win); /* return result */
@@ -1709,7 +1707,7 @@ static int hwn2lfn(HWND hw)
 
 Get logical file number from file
 
-Gets the logical translated file number from a text file, && verifies it
+Gets the logical translated file number from a text file, and verifies it
 is valid.
 
 *******************************************************************************/
@@ -1897,7 +1895,7 @@ static wigptr fndwighan(winptr win, HWND han)
 
 Translate colors code
 
-Translates an indep}ent to a terminal specific primary color code for Windows.
+Translates an independent to a terminal specific primary color code for Windows.
 
 *******************************************************************************/
 
@@ -2069,7 +2067,7 @@ static void clrbuf(winptr win, scnptr sc)
 
 Clear window
 
-Clears the entire window to spaces with the current colors && attributes.
+Clears the entire window to spaces with the current colors and attributes.
 
 *******************************************************************************/
 
@@ -2121,7 +2119,7 @@ int pa_curbnd(FILE* f)
 
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window from file */
-    cb = icurbnd(win->screens[win->curupd]);
+    cb = icurbnd(win->screens[win->curupd-1]);
     unlockmain(); /* end exclusive access */
 
     return (cb);
@@ -2142,8 +2140,8 @@ static void curon(winptr win)
 
     int b;
 
-    if (!win->fcurdwn && win->screens[win->curdsp]->curv &&
-        icurbnd(win->screens[win->curdsp]) && win->focus)  {
+    if (!win->fcurdwn && win->screens[win->curdsp-1]->curv &&
+        icurbnd(win->screens[win->curdsp-1]) && win->focus)  {
 
         /* cursor not already down, cursor visible, cursor in bounds, screen
            in focus */
@@ -2185,7 +2183,7 @@ Set cursor status
 
 Changes the current cursor status. If the cursor is out of bounds, or not
 set as visible, it is set off. Otherwise, it is set on. Used to change status
-of cursor after position && visible status events. Acts as a combination of
+of cursor after position and visible status events. Acts as a combination of
 curon and curoff routines.
 
 *******************************************************************************/
@@ -2196,13 +2194,13 @@ static void cursts(winptr win)
 
     int b;
 
-    if (win->screens[win->curdsp]->curv && icurbnd(win->screens[win->curdsp]) &&
-        win->focus) {
+    if (win->screens[win->curdsp-1]->curv &&
+        icurbnd(win->screens[win->curdsp-1]) && win->focus) {
 
         /* cursor should be visible */
         if (!win->fcurdwn) { /* ! already down */
 
-            /* cursor ! already down, cursor visible, cursor in bounds */
+            /* cursor not already down, cursor visible, cursor in bounds */
             b = ShowCaret(win->winhan); /* show the caret */
             if (!b) winerr(); /* process error */
             win->fcurdwn = TRUE; /* set cursor on screen */
@@ -2211,7 +2209,7 @@ static void cursts(winptr win)
 
     } else {
 
-         /* cursor should ! be visible */
+         /* cursor should not be visible */
         if (win->fcurdwn) { /* cursor visable */
 
             b = HideCaret(win->winhan); /* hide the caret */
@@ -2240,11 +2238,11 @@ static void setcur(winptr win)
     int b;
 
     /* check cursor in bounds and visible, and window has focus */
-    if (icurbnd(win->screens[win->curupd]) && win->focus) {
+    if (icurbnd(win->screens[win->curupd-1]) && win->focus) {
 
         /* set to bottom of character bounding box */
-        b = SetCaretPos(win->screens[win->curdsp]->curxg-1,
-                        win->screens[win->curdsp]->curyg-1+win->linespace-3);
+        b = SetCaretPos(win->screens[win->curdsp-1]->curxg-1,
+                        win->screens[win->curdsp-1]->curyg-1+win->linespace-3);
         /* setcaret position is always returning an error, even when correct */
         /* if (!b) winerr(); */ /* process error */
 
@@ -2306,7 +2304,7 @@ static void newfont(winptr win)
     HGDIOBJ    rv;
 
 
-    sc = win->screens[win->curupd];
+    sc = win->screens[win->curupd-1];
     if (sc->font) { /* there is a font */
 
        /* get the current font out of the DCs */
@@ -2342,7 +2340,7 @@ static void newfont(winptr win)
 
     } else {
 
-        attrc = win->screens[win->curupd]->attr; /* copy attribute */
+        attrc = win->screens[win->curupd-1]->attr; /* copy attribute */
         if (BIT(sabold) & attrc) w = FW_BOLD; else w = FW_REGULAR;
         /* set normal height || half height for subscript/superscript */
         if (BIT(sasuper) & attrc || BIT(sasubs) & attrc)
@@ -2352,9 +2350,9 @@ static void newfont(winptr win)
                           OUT_TT_ONLY_PRECIS, CLIP_DEFAULT_PRECIS,
                           FQUALITY, DEFAULT_PITCH,
                           sc->cfont->fn);
-        if (!win->screens[win->curupd]->font) winerr(); /* process windows error */
+        if (!win->screens[win->curupd-1]->font) winerr(); /* process windows error */
         /* select to buffer DC */
-        rv = SelectObject(win->screens[win->curupd]->bdc, sc->font);
+        rv = SelectObject(win->screens[win->curupd-1]->bdc, sc->font);
         if (rv == HGDI_ERROR) winerr();
         /* select to screen DC */
         if (indisp(win)) {
@@ -2365,16 +2363,16 @@ static void newfont(winptr win)
         }
 
     }
-    b = GetTextMetrics(win->screens[win->curupd]->bdc, &tm); /* get the standard metrics */
+    b = GetTextMetrics(win->screens[win->curupd-1]->bdc, &tm); /* get the standard metrics */
     if (!b) winerr(); /* process windows error */
     /* Calculate line spacing */
     win->linespace = tm.tmHeight;
-    win->screens[win->curupd]->lspc = win->linespace;
+    win->screens[win->curupd-1]->lspc = win->linespace;
     /* calculate character spacing */
     win->charspace = tm.tmMaxCharWidth;
     /* set cursor width */
     win->curspace = tm.tmAveCharWidth;
-    win->screens[win->curupd]->cspc = win->charspace;
+    win->screens[win->curupd-1]->cspc = win->charspace;
     /* calculate baseline offset */
     win->baseoff = win->linespace-tm.tmDescent-1;
     /* change cursor to match new font/size */
@@ -2405,7 +2403,7 @@ static void restore(winptr win,   /* window to restore */
     int x, y;     /* x and y coordinates */
     scnptr sc;
 
-    sc = win->screens[win->curdsp];
+    sc = win->screens[win->curdsp-1];
     if (win->bufmod && win->visible)  { /* buffered mode is on, && visible */
 
         curoff(win); /* hide the cursor for drawing */
@@ -2591,7 +2589,7 @@ static void iniscn(winptr win, scnptr sc)
     if (sc->bhn == HGDI_ERROR) winerr(); /* process windows error */
     newfont(win); /* create font for buffer */
     /* set non-braindamaged stretch mode */
-    r = SetStretchBltMode(win->screens[win->curupd]->bdc, HALFTONE);
+    r = SetStretchBltMode(win->screens[win->curupd-1]->bdc, HALFTONE);
     if (!r) winerr(); /* process windows error */
     /* set pen to foreground */
     lb.lbStyle = BS_SOLID;
@@ -2629,7 +2627,7 @@ static void iniscn(winptr win, scnptr sc)
     clrbuf(win, sc); /* clear screen buffer with that */
     /* set up tabbing to be on each 8th position */
     i = 9; /* set 1st tab position */
-    x = 1; /* set 1st tab slot */
+    x = 0; /* set 1st tab slot */
     while (i < sc->maxx && x < MAXTAB) {
 
         sc->tab[x] = (i-1)*win->charspace+1;  /* set tab */
@@ -2671,11 +2669,11 @@ static void iclear(winptr win)
 
 {
 
-    if (win->bufmod) clrbuf(win, win->screens[win->curupd]); /* clear the screen buffer */
-    win->screens[win->curupd]->curx = 1; /* set cursor at home */
-    win->screens[win->curupd]->cury = 1;
-    win->screens[win->curupd]->curxg = 1;
-    win->screens[win->curupd]->curyg = 1;
+    if (win->bufmod) clrbuf(win, win->screens[win->curupd-1]); /* clear the screen buffer */
+    win->screens[win->curupd-1]->curx = 1; /* set cursor at home */
+    win->screens[win->curupd-1]->cury = 1;
+    win->screens[win->curupd-1]->curxg = 1;
+    win->screens[win->curupd-1]->curyg = 1;
     if (indisp(win)) { /* also process to display */
 
         if (win->bufmod) {
@@ -2712,7 +2710,7 @@ static void iscrollg(winptr win, int x, int y)
 
 {
 
-    int dx, dy, dw, dh; /* destination coordinates && sizes */
+    int dx, dy, dw, dh; /* destination coordinates and sizes */
     int sx, sy;         /* destination coordinates */
     int b;              /* result */
     HBRUSH hb;          /* handle to brush */
@@ -2772,16 +2770,16 @@ static void iscrollg(winptr win, int x, int y)
        }
        if (win->bufmod) { /* apply to buffer */
 
-          b = BitBlt(win->screens[win->curupd]->bdc, dx, dy, dw, dh,
-                     win->screens[win->curupd]->bdc, sx, sy, SRCCOPY);
+          b = BitBlt(win->screens[win->curupd-1]->bdc, dx, dy, dw, dh,
+                     win->screens[win->curupd-1]->bdc, sx, sy, SRCCOPY);
           if (!b) winerr(); /* process windows error */
           /* get a brush for background */
-          hb = CreateSolidBrush(win->screens[win->curupd]->bcrgb);
+          hb = CreateSolidBrush(win->screens[win->curupd-1]->bcrgb);
           if (!hb) winerr(); /* process windows error */
           /* fill vacated x */
-          if (x) if (!FillRect(win->screens[win->curupd]->bdc, &frx, hb)) winerr();
+          if (x) if (!FillRect(win->screens[win->curupd-1]->bdc, &frx, hb)) winerr();
           /* fill vacated y */
-          if (y) if (!FillRect(win->screens[win->curupd]->bdc, &fry, hb)) winerr();
+          if (y) if (!FillRect(win->screens[win->curupd-1]->bdc, &fry, hb)) winerr();
           b = DeleteObject(hb); /* free the brush */
           if (!b) winerr; /* process windows error */
 
@@ -2837,7 +2835,7 @@ void pa_scroll(FILE* f, int x, int y)
 
 Position cursor
 
-Moves the cursor to the specified x && y location.
+Moves the cursor to the specified x and y location.
 
 *******************************************************************************/
 
@@ -2845,13 +2843,15 @@ static void icursor(winptr win, int x, int y)
 
 {
 
-    if (x != win->screens[win->curupd]->curx || y != win->screens[win->curupd]->cury) {
+    if (x != win->screens[win->curupd-1]->curx ||
+        y != win->screens[win->curupd-1]->cury) {
 
-        win->screens[win->curupd]->cury = y; /* set new position */
-        win->screens[win->curupd]->curx = x;
-        win->screens[win->curupd]->curxg = (x-1)*win->charspace+1;
-        win->screens[win->curupd]->curyg = (y-1)*win->linespace+1;
-        if (!icurbnd(win->screens[win->curupd]) && win->screens[win->curupd]->autof)
+        win->screens[win->curupd-1]->cury = y; /* set new position */
+        win->screens[win->curupd-1]->curx = x;
+        win->screens[win->curupd-1]->curxg = (x-1)*win->charspace+1;
+        win->screens[win->curupd-1]->curyg = (y-1)*win->linespace+1;
+        if (!icurbnd(win->screens[win->curupd-1]) &&
+            win->screens[win->curupd-1]->autof)
             error(eatocur); /* bad cursor position with auto */
         if (indisp(win)) setcur(win); /* set cursor on screen */
 
@@ -2876,7 +2876,7 @@ void pa_cursor(FILE* f, int x, int y)
 
 Position cursor graphical
 
-Moves the cursor to the specified x && y location in pixels.
+Moves the cursor to the specified x and y location in pixels.
 
 *******************************************************************************/
 
@@ -2884,14 +2884,15 @@ static void icursorg(winptr win, int x, int y)
 
 {
 
-    if (win->screens[win->curupd]->autof)
+    if (win->screens[win->curupd-1]->autof)
         error(eatopos); /* cannot perform with auto on */
-    if (x != win->screens[win->curupd]->curxg || y != win->screens[win->curupd]->curyg)  {
+    if (x != win->screens[win->curupd-1]->curxg ||
+        y != win->screens[win->curupd-1]->curyg)  {
 
-         win->screens[win->curupd]->curyg = y; /* set new position */
-         win->screens[win->curupd]->curxg = x;
-         win->screens[win->curupd]->curx = x / win->charspace+1;
-         win->screens[win->curupd]->cury = y / win->linespace+1;
+         win->screens[win->curupd-1]->curyg = y; /* set new position */
+         win->screens[win->curupd-1]->curxg = x;
+         win->screens[win->curupd-1]->curx = x / win->charspace+1;
+         win->screens[win->curupd-1]->cury = y / win->linespace+1;
          if (indisp(win)) setcur(win); /* set cursor on screen */
 
     }
@@ -3048,10 +3049,10 @@ static void ihome(winptr win)
 
 {
 
-    win->screens[win->curdsp]->curx = 1; /* set cursor at home */
-    win->screens[win->curdsp]->cury = 1;
-    win->screens[win->curdsp]->curxg = 1;
-    win->screens[win->curdsp]->curyg = 1;
+    win->screens[win->curdsp-1]->curx = 1; /* set cursor at home */
+    win->screens[win->curdsp-1]->cury = 1;
+    win->screens[win->curdsp-1]->curxg = 1;
+    win->screens[win->curdsp-1]->curyg = 1;
     if (indisp(win)) setcur(win); /* set cursor on screen */
 
 }
@@ -3083,7 +3084,7 @@ static void iup(winptr win)
 
     scnptr sc;
 
-    sc = win->screens[win->curupd];
+    sc = win->screens[win->curupd-1];
     /* check ! top of screen */
     if (sc->cury > 1) {
 
@@ -3133,7 +3134,7 @@ static void idown(winptr win)
 
     scnptr sc;
 
-    sc = win->screens[win->curupd];
+    sc = win->screens[win->curupd-1];
     /* check ! bottom of screen */
     if (sc->cury < sc->maxy) {
 
@@ -3182,9 +3183,9 @@ static void ileft(winptr win)
 
     scnptr sc;
 
-    sc = win->screens[win->curupd];
+    sc = win->screens[win->curupd-1];
 
-    /* check ! extreme left */
+    /* check not extreme left */
     if (sc->curx > 1) {
 
        sc->curx = sc->curx-1; /* update position */
@@ -3239,7 +3240,7 @@ void iright(winptr win)
 
     scnptr sc;
 
-    sc = win->screens[win->curupd];
+    sc = win->screens[win->curupd-1];
 
     /* check not at extreme right */
     if (sc->curx < MAXXD) {
@@ -3299,13 +3300,13 @@ static void itab(winptr win)
     int x;
     scnptr sc;
 
-    sc = win->screens[win->curupd];
+    sc = win->screens[win->curupd-1];
 
     /* first, find if next tab even exists */
     x = sc->curxg+1; /* get just after the current x position */
     if (x < 1)  x = 1; /* don"t bother to search to left of screen */
     /* find tab || } of screen */
-    i = 1; /* set 1st tab position */
+    i = 0; /* set 1st tab position */
     while (x > sc->tab[i] && sc->tab[i] && i < MAXTAB) i++;
     if (sc->tab[i] && x < sc->tab[i]) { /* not off right of tabs */
 
@@ -3351,7 +3352,7 @@ static void ireverse(winptr win, int e)
     int r; /* return value */
     scnptr sc;
 
-    sc = win->screens[win->curupd];
+    sc = win->screens[win->curupd-1];
     if (e) { /* reverse on */
 
         sc->attr |= BIT(sarev); /* set attribute active */
@@ -3413,7 +3414,7 @@ Turn on underline attribute
 
 Turns on/off the underline attribute.
 Note that the attributes can only be set singly.
-This is ! implemented, but could be done by drawing a line under each
+This is not implemented, but could be done by drawing a line under each
 character drawn.
 
 *******************************************************************************/
@@ -3424,7 +3425,7 @@ static void iunderline(winptr win, int e)
 
     scnptr sc;
 
-    sc = win->screens[win->curupd];
+    sc = win->screens[win->curupd-1];
     if (e) { /* underline on */
 
         sc->attr |= BIT(saundl); /* set attribute active */
@@ -3468,7 +3469,7 @@ static void isuperscript(winptr win, int e)
 
     scnptr sc;
 
-    sc = win->screens[win->curupd];
+    sc = win->screens[win->curupd-1];
     if (e)  { /* superscript on */
 
         sc->attr |= BIT(sasuper); /* set attribute active */
@@ -3512,7 +3513,7 @@ static void isubscript(winptr win, int e)
 
     scnptr sc;
 
-    sc = win->screens[win->curupd];
+    sc = win->screens[win->curupd-1];
     if (e) { /* subscript on */
 
         sc->attr |= BIT(sasubs); /* set attribute active */
@@ -3548,9 +3549,9 @@ Turn on italic attribute
 Turns on/off the italic attribute.
 Note that the attributes can only be set singly.
 
-Italic is causing problems with fixed mode on some fonts, && Windows does not
+Italic is causing problems with fixed mode on some fonts, and Windows does not
 seem to want to share with me just what the TRUE width of an italic font is
-(without taking heroic measures like drawing && testing pixels). So we disable
+(without taking heroic measures like drawing and testing pixels). So we disable
 italic on fixed fonts.
 
 *******************************************************************************/
@@ -3561,7 +3562,7 @@ static void iitalic(winptr win, int e)
 
     scnptr sc;
 
-    sc = win->screens[win->curupd];
+    sc = win->screens[win->curupd-1];
     if (e) { /* italic on */
 
         sc->attr |= BIT(saital); /* set attribute active */
@@ -3595,10 +3596,11 @@ void pa_italic(FILE* f, int e)
 Turn on bold attribute
 
 Turns on/off the bold attribute.
+
 Note that the attributes can only be set singly.
 Basically, the only way that I have found to reliably change attributes
 on a PC is to turn it all off,  reset everything, including the
-colors, which an ATTRIBUTE command seems to mess with !
+colors, which an ATTRIBUTE command seems to mess with not.
 
 *******************************************************************************/
 
@@ -3608,7 +3610,7 @@ static void ibold(winptr win, int e)
 
     scnptr sc;
 
-    sc = win->screens[win->curupd];
+    sc = win->screens[win->curupd-1];
     if (e) { /* bold on */
 
         sc->attr |= BIT(sabold); /* set attribute active */
@@ -3654,7 +3656,7 @@ static void istrikeout(winptr win, int e)
 
     scnptr sc;
 
-    sc = win->screens[win->curupd];
+    sc = win->screens[win->curupd-1];
     if (e) { /* strikeout on */
 
        sc->attr |= BIT(sastkout); /* set attribute active */
@@ -3718,7 +3720,7 @@ static void ifcolor(winptr win, pa_color c)
     LOGBRUSH lb;
     scnptr   sc;
 
-    sc = win->screens[win->curupd];
+    sc = win->screens[win->curupd-1];
     sc->fcrgb = colnum(c); /* set color status */
     win->gfcrgb = sc->fcrgb;
     /* activate in buffer */
@@ -3733,7 +3735,7 @@ static void ifcolor(winptr win, pa_color c)
        if (r == -1) winerr(); /* process windows error */
 
     }
-    /* also activate general graphics color. note that reverse does ! apply
+    /* also activate general graphics color. note that reverse does not apply
       to graphical coloring */
     b = DeleteObject(sc->fpen); /* remove old pen */
     if (!b) winerr(); /* process windows error */
@@ -3810,7 +3812,7 @@ static void ifcolorg(winptr win, int r, int g, int b)
     LOGBRUSH lb;
     scnptr   sc;
 
-    sc = win->screens[win->curupd];
+    sc = win->screens[win->curupd-1];
     sc->fcrgb = rgb2win(r, g, b); /* set color status */
     win->gfcrgb = sc->fcrgb;
     /* activate in buffer */
@@ -3897,7 +3899,7 @@ static void ibcolor(winptr win, pa_color c)
     int r;
     scnptr   sc;
 
-    sc = win->screens[win->curupd];
+    sc = win->screens[win->curupd-1];
     sc->bcrgb = colnum(c); /* set color status */
     win->gbcrgb = sc->bcrgb;
     /* activate in buffer */
@@ -3961,7 +3963,7 @@ static void ibcolorg(winptr win, int r, int g, int b)
     int    rv;
     scnptr sc;
 
-    sc = win->screens[win->curupd];
+    sc = win->screens[win->curupd-1];
     sc->bcrgb = rgb2win(r, g, b); /* set color status */
     win->gbcrgb = sc->bcrgb;
     /* activate in buffer */
@@ -4039,7 +4041,7 @@ static void iauto(winptr win, int e)
 
     scnptr sc;
 
-    sc = win->screens[win->curupd];
+    sc = win->screens[win->curupd-1];
     /* check we are transitioning to auto mode */
     if (e) {
 
@@ -4071,7 +4073,7 @@ void pa_auto(FILE* f, int e)
 
 Enable/disable cursor visibility
 
-Enable || disable cursor visibility.
+Enable or disable cursor visibility.
 
 *******************************************************************************/
 
@@ -4079,7 +4081,7 @@ void icurvis(winptr win, int e)
 
 {
 
-    win->screens[win->curupd]->curv = e; /* set cursor visible status */
+    win->screens[win->curupd-1]->curv = e; /* set cursor visible status */
     win->gcurv = e;
     cursts(win); /* process any cursor status change */
 
@@ -4115,7 +4117,7 @@ int pa_curx(FILE* f)
 
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window from file */
-    x = win->screens[win->curupd]->curx; /* return current location x */
+    x = win->screens[win->curupd-1]->curx; /* return current location x */
     unlockmain(); /* end exclusive access */
 
     return (x);
@@ -4139,7 +4141,7 @@ int pa_cury(FILE* f)
 
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window from file */
-    y = win->screens[win->curupd]->cury; /* return current location y */
+    y = win->screens[win->curupd-1]->cury; /* return current location y */
     unlockmain(); /* end exclusive access */
 
     return (y);
@@ -4163,7 +4165,7 @@ int pa_curxg(FILE* f)
 
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window from file */
-    x = win->screens[win->curupd]->curxg; /* return current location x */
+    x = win->screens[win->curupd-1]->curxg; /* return current location x */
     unlockmain(); /* end exclusive access */
 
     return (x);
@@ -4187,7 +4189,7 @@ int pa_curyg(FILE* f)
 
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window from file */
-    y = win->screens[win->curupd]->curyg; /* return current location y */
+    y = win->screens[win->curupd-1]->curyg; /* return current location y */
     unlockmain(); /* end exclusive access */
 
     return (y);
@@ -4199,7 +4201,7 @@ int pa_curyg(FILE* f)
 Select current screen
 
 Selects one of the screens to set active. If the screen has never been used,
- a new screen is allocated && cleared.
+ a new screen is allocated and cleared.
 The most common use of the screen selection system is to be able to save the
 initial screen to be restored on exit. This is a moot point in this
 application, since we cannot save the entry screen in any case.
@@ -4219,21 +4221,21 @@ static void iselect(winptr win, int u, int d)
         error(einvscn); /* invalid screen number */
     ld = win->curdsp; /* save the current display screen number */
     win->curupd = u; /* set the current update screen */
-    if (!win->screens[win->curupd]) { /* no screen, create one */
+    if (!win->screens[win->curupd-1]) { /* no screen, create one */
 
         /* get a new screen context */
-        win->screens[win->curupd] = malloc(sizeof(scncon));
-        if (!win->screens[win->curupd]) error(enomem);
-        iniscn(win, win->screens[win->curupd]); /* initalize that */
+        win->screens[win->curupd-1] = malloc(sizeof(scncon));
+        if (!win->screens[win->curupd-1]) error(enomem);
+        iniscn(win, win->screens[win->curupd-1]); /* initalize that */
 
     }
     win->curdsp = d; /* set the current display screen */
-    if (!win->screens[win->curdsp]) { /* no screen, create one */
+    if (!win->screens[win->curdsp-1]) { /* no screen, create one */
 
         /* no current screen, create a new one */
-        win->screens[win->curdsp] = malloc(sizeof(scncon));
-        if (!win->screens[win->curdsp]) error(enomem);
-        iniscn(win, win->screens[win->curdsp]); /* initalize that */
+        win->screens[win->curdsp-1] = malloc(sizeof(scncon));
+        if (!win->screens[win->curdsp-1]) error(enomem);
+        iniscn(win, win->screens[win->curdsp-1]); /* initalize that */
 
     }
     /* if the screen has changed, restore it */
@@ -4259,11 +4261,11 @@ void pa_select(FILE* f, int u, int d)
 Place next terminal character
 
 Places the given character to the current cursor position using the current
-colors && attributes.
+colors and attributes.
 
 Note: cannot place text with foreground for background xor modes, since there
 is no direct windows feature for that. The only way to add this is to write
-characters into a buffer DC,  blt them back to the main buffer && display
+characters into a buffer DC, blt them back to the main buffer and display
 using ROP combinations.
 
 *******************************************************************************/
@@ -4277,7 +4279,7 @@ static void plcchr(winptr win, char c)
     SIZE   sz;  /* size holder */
     scnptr sc;
 
-    sc = win->screens[win->curupd];
+    sc = win->screens[win->curupd-1];
     if (!win->visible) winvis(win); /* make sure we are displayed */
     /* handle special character cases first */
     if (c == '\r') {
@@ -4354,7 +4356,7 @@ static void iwrtstr(winptr win,  char* s)
     SIZE   sz;  /* size holder */
     scnptr sc;
 
-    sc = win->screens[win->curupd];
+    sc = win->screens[win->curupd-1];
     if (sc->autof) error(estrato); /* autowrap is on */
     if (!win->visible) winvis(win); /* make sure we are displayed */
     off = 0; /* set no subscript offset */
@@ -4412,7 +4414,7 @@ void pa_wrtstr(FILE* f, char* s)
 
 Delete last character
 
-Deletes the character to the left of the cursor, && moves the cursor one
+Deletes the character to the left of the cursor, and moves the cursor one
 position left.
 
 *******************************************************************************/
@@ -4457,7 +4459,7 @@ static void iline(winptr win, int x1, int y1, int x2, int y2)
     int dx, dy;
     scnptr sc;
 
-    sc = win->screens[win->curupd];
+    sc = win->screens[win->curupd-1];
     sc->lcurx = x2; /* place next progressive endpoint */
     sc->lcury = y2;
     /* rationalize the line to right/down */
@@ -4530,7 +4532,7 @@ static void irect(winptr win, int x1, int y1, int x2, int y2)
     if (win->bufmod) { /* buffer is active */
 
         /* draw to buffer */
-        b = Rectangle(win->screens[win->curupd]->bdc, x1-1, y1-1, x2, y2);
+        b = Rectangle(win->screens[win->curupd-1]->bdc, x1-1, y1-1, x2, y2);
         if (!b) winerr(); /* process windows error */
 
     }
@@ -4576,7 +4578,7 @@ static void ifrect(winptr win, int x1, int y1, int x2, int y2)
     HGDIOBJ r; /* result holder */
     scnptr sc;
 
-    sc = win->screens[win->curupd];
+    sc = win->screens[win->curupd-1];
     if (win->bufmod) { /* buffer is active */
 
        /* for filled ellipse, the pen and brush settings are all wrong. we need
@@ -4647,7 +4649,7 @@ static void irrect(winptr win, int x1, int y1, int x2, int y2, int xs, int ys)
     if (win->bufmod)  { /* buffer is active */
 
         /* draw to buffer */
-        b = RoundRect(win->screens[win->curupd]->bdc, x1-1, y1-1, x2, y2, xs, ys);
+        b = RoundRect(win->screens[win->curupd-1]->bdc, x1-1, y1-1, x2, y2, xs, ys);
         if (!b) winerr(); /* process windows error */
 
     }
@@ -4693,7 +4695,7 @@ static void ifrrect(winptr win, int x1, int y1, int x2, int y2, int xs, int ys)
     HGDIOBJ r; /* result holder */
     scnptr sc;
 
-    sc = win->screens[win->curupd];
+    sc = win->screens[win->curupd-1];
     if (win->bufmod) { /* buffer is active */
 
        /* for filled ellipse, the pen && brush settings are all wrong. we need
@@ -4750,7 +4752,7 @@ void pa_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
 
 Draw ellipse
 
-Draws an ellipse with the current foreground color && line width.
+Draws an ellipse with the current foreground color and line width.
 
 *******************************************************************************/
 
@@ -4763,7 +4765,7 @@ static void iellipse(winptr win, int x1, int y1, int x2, int y2)
     if (win->bufmod) { /* buffer is active */
 
        /* draw to buffer */
-       b = Ellipse(win->screens[win->curupd]->bdc, x1-1, y1-1, x2, y2);
+       b = Ellipse(win->screens[win->curupd-1]->bdc, x1-1, y1-1, x2, y2);
        if (!b) winerr(); /* process windows error */
 
     }
@@ -4809,11 +4811,11 @@ static void ifellipse(winptr win, int x1, int y1, int x2, int y2)
     HGDIOBJ r; /* result holder */
     scnptr sc;
 
-    sc = win->screens[win->curupd];
+    sc = win->screens[win->curupd-1];
     if (win->bufmod) { /* buffer is active */
 
         /* for filled ellipse, the pen and brush settings are all wrong. we need
-           a single pixel pen && a background brush. we set && restore these */
+           a single pixel pen && a background brush. we set and restore these */
         r = SelectObject(sc->bdc, sc->fspen);
         if (r == HGDI_ERROR) error(enosel);
         r = SelectObject(sc->bdc, sc->fbrush);
@@ -4866,24 +4868,24 @@ void pa_fellipse(FILE* f, int x1, int y1, int x2, int y2)
 
 Draw arc
 
-Draws an arc in the current foreground color && line width. The containing
-rectangle of the ellipse is given, && the start && } angles clockwise from
+Draws an arc in the current foreground color and line width. The containing
+rectangle of the ellipse is given, and the start and end angles clockwise from
 0 degrees delimit the arc.
 
-Windows takes the start && } delimited by a line ext}ing from the center
+Windows takes the start and end delimited by a line extending from the center
 of the arc. The way we do the convertion is to project the angle upon a circle
 whose radius is the precision we wish to use for the calculation.  that
 point on the circle is found by triangulation.
 
 The larger the circle of precision, the more angles can be represented, but
-the trade off is that the circle must ! reach the edge of an int
+the trade off is that the circle must not reach the edge of an int
 (-INT_MAX..INT_MAX). That means that the total logical coordinate space must be
 shortened by the precision. To find out what division of the circle precis
 represents, use cd = precis*2*PI. So, for example, precis == 100 means 628
 divisions of the circle.
 
-The } && start points can be negative.
-Note that Windows draws arcs counterclockwise, so our start && } points are
+The end and start points can be negative.
+Note that Windows draws arcs counterclockwise, so our start and end points are
 swapped.
 
 Negative angles are allowed.
@@ -4919,7 +4921,7 @@ static void iarc(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
     ye = yc-precis*sin(PI/2-eaf);
     if (win->bufmod) { /* buffer is active */
 
-        b = Arc(win->screens[win->curupd]->bdc, x1-1, y1-1, x2, y2, xe, ye,
+        b = Arc(win->screens[win->curupd-1]->bdc, x1-1, y1-1, x2, y2, xe, ye,
                 xs, ys);
         if (!b) winerr(); /* process windows error */
 
@@ -4965,14 +4967,14 @@ static void ifarc(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
     const int precis = 1000; /* precision of circle calculation */
 
     float saf, eaf;     /* starting angles in radian float */
-    int xs, ys, xe, ye; /* start && } coordinates */
+    int xs, ys, xe, ye; /* start and end coordinates */
     int xc, yc;         /* center point */
     int t;              /* swapper */
     BOOL b;             /* return value */
     HGDIOBJ r;          /* result holder */
     scnptr sc;
 
-    sc = win->screens[win->curupd];
+    sc = win->screens[win->curupd-1];
     /* rationalize rectangle for processing */
     if (x1 > x2) { t = x1; x1 = x2; x2 = t; };
     if (y1 > y2) { t = y1; y1 = y2; y2 = t; };
@@ -4990,8 +4992,8 @@ static void ifarc(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
     ye = yc-precis*sin(PI/2-eaf);
     if (win->bufmod) { /* buffer is active */
 
-        /* for filled shape, the pen && brush settings are all wrong. we need
-           a single pixel pen && a background brush. we set && restore these */
+        /* for filled shape, the pen and brush settings are all wrong. we need
+           a single pixel pen and a background brush. we set and restore these */
         r = SelectObject(sc->bdc, sc->fspen);
         if (r == HGDI_ERROR) error(enosel);
         r = SelectObject(sc->bdc, sc->fbrush);
@@ -5063,7 +5065,7 @@ static void ifchord(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
     HGDIOBJ r;              /* result holder */
     scnptr  sc;             /* screen context */
 
-    sc = win->screens[win->curupd];
+    sc = win->screens[win->curupd-1];
     /* rationalize rectangle for processing */
     if (x1 > x2) { t = x1; x1 = x2; x2 = t; }
     if (y1 > y2)  { t = y1; y1 = y2; y2 = t; }
@@ -5081,8 +5083,8 @@ static void ifchord(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
     ye = yc-precis*sin(PI/2-eaf);
     if (win->bufmod) { /* buffer is active */
 
-        /* for filled shape, the pen && brush settings are all wrong. we need
-           a single pixel pen && a background brush. we set && restore these */
+        /* for filled shape, the pen and brush settings are all wrong. we need
+           a single pixel pen and a background brush. we set and restore these */
         r = SelectObject(sc->bdc, sc->fspen);
         if (r == HGDI_ERROR) error(enosel);
         r = SelectObject(sc->bdc, sc->fbrush);
@@ -5148,7 +5150,7 @@ static void iftriangle(winptr win, int x1, int y1, int x2, int y2, int x3, int y
     HGDIOBJ r;     /* result holder */
     scnptr  sc;
 
-    sc = win->screens[win->curupd];
+    sc = win->screens[win->curupd-1];
     /* place triangle points in array */
     pa[1].x = x1-1;
     pa[1].y = y1-1;
@@ -5159,7 +5161,7 @@ static void iftriangle(winptr win, int x1, int y1, int x2, int y2, int x3, int y
     if (win->bufmod) { /* buffer is active */
 
        /* for filled shape, the pen and brush settings are all wrong. we need
-         a single pixel pen && a background brush. we set and restore these */
+         a single pixel pen and a background brush. we set and restore these */
        r = SelectObject(sc->bdc, sc->fspen);
        if (r == HGDI_ERROR) error(enosel);
        r = SelectObject(sc->bdc, sc->fbrush);
@@ -5221,7 +5223,7 @@ void pa_ftriangle(FILE* f, int x1, int y1, int x2, int y2, int x3, int y3)
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window pointer from text file */
     iftriangle(win, x1, y1, x2, y2, x3, y3); /* draw triangle */
-    win->screens[win->curupd]->tcurs = FALSE; /* set even strip flip state */
+    win->screens[win->curupd-1]->tcurs = FALSE; /* set even strip flip state */
     unlockmain(); /* end exclusive access */
 
 }
@@ -5243,8 +5245,8 @@ static void isetpixel(winptr win, int x, int y)
     if (win->bufmod)  { /* buffer is active */
 
        /* paint buffer */
-       r = SetPixel(win->screens[win->curupd]->bdc, x-1, y-1,
-                    win->screens[win->curupd]->fcrgb);
+       r = SetPixel(win->screens[win->curupd-1]->bdc, x-1, y-1,
+                    win->screens[win->curupd-1]->fcrgb);
        if (r == -1) winerr(); /* process windows error */
 
     }
@@ -5253,7 +5255,7 @@ static void isetpixel(winptr win, int x, int y)
 
        if (!win->visible) winvis(win); /* make sure we are displayed */
        curoff(win);
-       r = SetPixel(win->devcon, x-1, y-1, win->screens[win->curupd]->fcrgb);
+       r = SetPixel(win->devcon, x-1, y-1, win->screens[win->curupd-1]->fcrgb);
        if (r == -1) winerr(); /* process windows error */
        curon(win);
 
@@ -5289,8 +5291,8 @@ static void ifover(winptr win)
     int r;
 
     win->gfmod = mdnorm; /* set foreground mode normal */
-    win->screens[win->curupd]->fmod = mdnorm;
-    r = SetROP2(win->screens[win->curupd]->bdc, R2_COPYPEN);
+    win->screens[win->curupd-1]->fmod = mdnorm;
+    r = SetROP2(win->screens[win->curupd-1]->bdc, R2_COPYPEN);
     if (r == 0) winerr(); /* process windows error */
     if (indisp(win)) r = SetROP2(win->devcon, R2_COPYPEN);
 
@@ -5324,8 +5326,8 @@ static void ibover(winptr win)
     int r;
 
     win->gbmod = mdnorm; /* set background mode normal */
-    win->screens[win->curupd]->bmod = mdnorm;
-    r = SetBkMode(win->screens[win->curupd]->bdc, OPAQUE);
+    win->screens[win->curupd-1]->bmod = mdnorm;
+    r = SetBkMode(win->screens[win->curupd-1]->bdc, OPAQUE);
     if (r == 0) winerr(); /* process windows error */
     if (indisp(win)) r = SetBkMode(win->devcon, OPAQUE);
 
@@ -5359,8 +5361,8 @@ static void ifinvis(winptr win)
     int r;
 
     win->gfmod = mdinvis; /* set foreground mode invisible */
-    win->screens[win->curupd]->fmod = mdinvis;
-    r = SetROP2(win->screens[win->curupd]->bdc, R2_NOP);
+    win->screens[win->curupd-1]->fmod = mdinvis;
+    r = SetROP2(win->screens[win->curupd-1]->bdc, R2_NOP);
     if (r == 0) winerr(); /* process windows error */
     if (indisp(win)) r = SetROP2(win->devcon, R2_NOP);
 
@@ -5394,8 +5396,8 @@ static void ibinvis(winptr win)
     int r;
 
     win->gbmod = mdinvis; /* set background mode invisible */
-    win->screens[win->curupd]->bmod = mdinvis;
-    r = SetBkMode(win->screens[win->curupd]->bdc, TRANSPARENT);
+    win->screens[win->curupd-1]->bmod = mdinvis;
+    r = SetBkMode(win->screens[win->curupd-1]->bdc, TRANSPARENT);
     if (r == 0) winerr(); /* process windows error */
     if (indisp(win)) r = SetBkMode(win->devcon, TRANSPARENT);
 
@@ -5429,8 +5431,8 @@ static void ifxor(winptr win)
     int r;
 
     win->gfmod = mdxor; /* set foreground mode xor */
-    win->screens[win->curupd]->fmod = mdxor;
-    r = SetROP2(win->screens[win->curupd]->bdc, R2_XORPEN);
+    win->screens[win->curupd-1]->fmod = mdxor;
+    r = SetROP2(win->screens[win->curupd-1]->bdc, R2_XORPEN);
     if (!r) winerr(); /* process windows error */
     if (indisp(win)) r = SetROP2(win->devcon, R2_XORPEN);
 
@@ -5462,7 +5464,7 @@ static void ibxor(winptr win)
 {
 
     win->gbmod = mdxor; /* set background mode xor */
-    win->screens[win->curupd]->bmod = mdxor;
+    win->screens[win->curupd-1]->bmod = mdxor;
 
 }
 
@@ -5483,7 +5485,7 @@ void pa_bxor(FILE* f)
 
 Set line width
 
-Sets the width of lines && several other figures.
+Sets the width of lines and several other figures.
 
 *******************************************************************************/
 
@@ -5496,7 +5498,7 @@ static void ilinewidth(winptr win, int w)
     LOGBRUSH lb;
     scnptr   sc;
 
-    sc = win->screens[win->curupd];
+    sc = win->screens[win->curupd-1];
     sc->lwidth = w; /* set new width */
     /* create new pen with desired width */
     b = DeleteObject(sc->fpen); /* remove old pen */
@@ -5618,7 +5620,7 @@ static void ifont(winptr win, int fc)
 
     fontptr fp;
 
-    if (win->screens[win->curupd]->autof) error(eatoftc); /* cannot perform with auto on */
+    if (win->screens[win->curupd-1]->autof) error(eatoftc); /* cannot perform with auto on */
     if (fc < 1) error(einvfnm); /* invalid font number */
     /* find indicated font */
     fp = win->fntlst;
@@ -5630,7 +5632,7 @@ static void ifont(winptr win, int fc)
     }
     if (fc > 1)  error(einvfnm); /* invalid font number */
     if (!strlen(fp->fn)) error(efntemp); /* font is not assigned */
-    win->screens[win->curupd]->cfont = fp; /* place new font */
+    win->screens[win->curupd-1]->cfont = fp; /* place new font */
     win->gcfont = fp;
     newfont(win); /* activate font */
     chgcur(win); /* change cursors */
@@ -5706,8 +5708,8 @@ static void ifontsiz(winptr win, int s)
 {
 
     /* cannot perform with system font */
-    if (win->screens[win->curupd]->cfont->sys) error(etrmfts);
-    if (win->screens[win->curupd]->autof)
+    if (win->screens[win->curupd-1]->cfont->sys) error(etrmfts);
+    if (win->screens[win->curupd-1]->autof)
         error(eatofts); /* cannot perform with auto on */
     win->gfhigh = s; /* set new font height */
     newfont(win); /* activate font */
@@ -5831,7 +5833,7 @@ static int istrsiz(winptr win, char* s)
     int ss;
 
     /* get spacing */
-    b = GetTextExtentPoint32(win->screens[win->curupd]->bdc, s, 1, &sz);
+    b = GetTextExtentPoint32(win->screens[win->curupd-1]->bdc, s, 1, &sz);
     if (!b) winerr(); /* process windows error */
     ss = sz.cx; /* return that */
 
@@ -5878,7 +5880,7 @@ static int ichrpos(winptr win, char* s, int p)
     else { /* find substring length */
 
         /* get spacing */
-        b = GetTextExtentPoint32(win->screens[win->curupd]->bdc, s, p, &sz);
+        b = GetTextExtentPoint32(win->screens[win->curupd-1]->bdc, s, p, &sz);
         if (!b) winerr(); /* process windows error */
         siz = sz.cx; /* place size */
 
@@ -5926,7 +5928,7 @@ static void iwritejust(winptr win, char* s, int n)
     DWORD       r;
     int         sa;
 
-    sc = win->screens[win->curupd];
+    sc = win->screens[win->curupd-1];
     if (sc->cfont->sys) error(ejstsys); /* cannot perform on system font */
     if (sc->autof) error(eatopos); /* cannot perform with auto on */
     off = 0; /* set no subscript offset */
@@ -5947,7 +5949,7 @@ static void iwritejust(winptr win, char* s, int n)
     ra.lpGlyphs = NULL;
     ra.nGlyphs = strlen(s);
     ra.nMaxFit = 0;
-    r = GetCharacterPlacement(win->screens[win->curupd]->bdc, s, strlen(s),
+    r = GetCharacterPlacement(win->screens[win->curupd-1]->bdc, s, strlen(s),
                               n, &ra, GCP_JUSTIFY | GCP_MAXEXTENT);
     if (r == 0) winerr(); /* process windows error */
     if (win->bufmod) { /* draw to buffer */
@@ -6029,7 +6031,7 @@ static int ijustpos(winptr win, char* s, int p, int n)
           ra.lpGlyphs = NULL;
           ra.nGlyphs = 0;
           ra.nMaxFit = 0;
-          r = GetCharacterPlacement(win->screens[win->curupd]->bdc, s,
+          r = GetCharacterPlacement(win->screens[win->curupd-1]->bdc, s,
                                     strlen(s), n, &ra,
                                     GCP_JUSTIFY | GCP_MAXEXTENT);
           if (r == 0) winerr(); /* process windows error */
@@ -6225,15 +6227,15 @@ static void idelpict(winptr win, int p)
     BOOL b; /* result holder */
 
     if (p < 1 || p > MAXPIC) error(einvhan); /* bad picture handle */
-    if (!win->pictbl[p].han) error(einvhan); /* bad picture handle */
+    if (!win->pictbl[p-1].han) error(einvhan); /* bad picture handle */
     /* reselect old object */
-    r = SelectObject(win->pictbl[p].hdc, win->pictbl[p].ohn);
+    r = SelectObject(win->pictbl[p-1].hdc, win->pictbl[p-1].ohn);
     if (r == HGDI_ERROR) error(enosel);
-    b = DeleteDC(win->pictbl[p].hdc); /* delete device context */
+    b = DeleteDC(win->pictbl[p-1].hdc); /* delete device context */
     if (!b) winerr(); /* process windows error */
-    b = DeleteObject(win->pictbl[p].han); /* delete bitmap */
+    b = DeleteObject(win->pictbl[p-1].han); /* delete bitmap */
     if (!b) winerr(); /* process windows error */
-    win->pictbl[p].han = 0; /* set this entry free */
+    win->pictbl[p-1].han = 0; /* set this entry free */
 
 }
 
@@ -6314,22 +6316,22 @@ static void iloadpict(winptr win, int p, char* fn)
     }
     if (p < 1 || p > MAXPIC)  error(einvhan); /* bad picture handle */
     /* if the slot is already occupied, delete that picture */
-    if (win->pictbl[p].han) idelpict(win, p);
+    if (win->pictbl[p-1].han) idelpict(win, p);
     /* load the image into memory */
-    win->pictbl[p].han =
+    win->pictbl[p-1].han =
        LoadImage(NULL, fnh, IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
-    if (!win->pictbl[p].han) winerr(); /* process windows error */
+    if (!win->pictbl[p-1].han) winerr(); /* process windows error */
     /* put it into a device context */
-    win->pictbl[p].hdc = CreateCompatibleDC(win->devcon);
-    if (!win->pictbl[p].hdc) winerr(); /* process windows error */
+    win->pictbl[p-1].hdc = CreateCompatibleDC(win->devcon);
+    if (!win->pictbl[p-1].hdc) winerr(); /* process windows error */
     /* select that to device context */
-    win->pictbl[p].ohn = SelectObject(win->pictbl[p].hdc, win->pictbl[p].han);
-    if (win->pictbl[p].ohn == HGDI_ERROR) error(enosel);
+    win->pictbl[p-1].ohn = SelectObject(win->pictbl[p-1].hdc, win->pictbl[p-1].han);
+    if (win->pictbl[p-1].ohn == HGDI_ERROR) error(enosel);
     /* get sizes */
-    r = GetObject(win->pictbl[p].han, sizeof(BITMAP), &bmi);
+    r = GetObject(win->pictbl[p-1].han, sizeof(BITMAP), &bmi);
     if (!r) winerr(); /* process windows error */
-    win->pictbl[p].sx = bmi.bmWidth; /* set size x */
-    win->pictbl[p].sy = bmi.bmHeight; /* set size x */
+    win->pictbl[p-1].sx = bmi.bmWidth; /* set size x */
+    win->pictbl[p-1].sy = bmi.bmHeight; /* set size x */
 
 }
 
@@ -6364,8 +6366,8 @@ int pa_pictsizx(FILE* f, int p)
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window pointer from text file */
     if (p < 1 || p > MAXPIC) error(einvhan); /* bad picture handle */
-    if (!win->pictbl[p].han) error(einvhan); /* bad picture handle */
-    x = win->pictbl[p].sx; /* return x size */
+    if (!win->pictbl[p-1].han) error(einvhan); /* bad picture handle */
+    x = win->pictbl[p-1].sx; /* return x size */
     unlockmain(); /* end exclusive access */
 
     return (x);
@@ -6390,8 +6392,8 @@ int pa_pictsizy(FILE* f, int p)
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window pointer from text file */
     if (p < 1 || p > MAXPIC)  error(einvhan); /* bad picture handle */
-    if (!win->pictbl[p].han) error(einvhan); /* bad picture handle */
-    y = win->pictbl[p].sy; /* return x size */
+    if (!win->pictbl[p-1].han) error(einvhan); /* bad picture handle */
+    y = win->pictbl[p-1].sy; /* return x size */
     unlockmain(); /* end exclusive access */
 
     return (y);
@@ -6417,23 +6419,23 @@ static void ipicture(winptr win, int p, int x1, int y1, int x2, int y2)
     DWORD rop; /* rop holder */
 
     if (p < 1 || p > MAXPIC)  error(einvhan); /* bad picture handle */
-    if (!win->pictbl[p].han) error(einvhan); /* bad picture handle */
-    switch (win->screens[win->curupd]->fmod) { /* rop */
+    if (!win->pictbl[p-1].han) error(einvhan); /* bad picture handle */
+    switch (win->screens[win->curupd-1]->fmod) { /* rop */
 
         case mdnorm:  rop = SRCCOPY; break; /* straight */
         case mdinvis: break; /* no-op */
         case mdxor:   rop = SRCINVERT; break; /* xor */
 
     }
-    if (win->screens[win->curupd]->fmod != mdinvis) { /* ! a no-op */
+    if (win->screens[win->curupd-1]->fmod != mdinvis) { /* ! a no-op */
 
         if (win->bufmod) { /* buffer mode on */
 
             /* paint to buffer */
-            b = StretchBlt(win->screens[win->curupd]->bdc,
+            b = StretchBlt(win->screens[win->curupd-1]->bdc,
                            x1-1, y1-1, x2-x1+1, y2-y1+1,
-                           win->pictbl[p].hdc, 0, 0,
-                           win->pictbl[p].sx, win->pictbl[p].sy,
+                           win->pictbl[p-1].hdc, 0, 0,
+                           win->pictbl[p-1].sx, win->pictbl[p-1].sy,
                            rop);
             if (!b) winerr(); /* process windows error */
 
@@ -6443,8 +6445,8 @@ static void ipicture(winptr win, int p, int x1, int y1, int x2, int y2)
             if (!win->visible) winvis(win); /* make sure we are displayed */
             curoff(win);
             b = StretchBlt(win->devcon, x1-1, y1-1, x2-x1+1, y2-y1+1,
-                           win->pictbl[p].hdc, 0, 0, win->pictbl[p].sx,
-                           win->pictbl[p].sy, rop);
+                           win->pictbl[p-1].hdc, 0, 0, win->pictbl[p-1].sx,
+                           win->pictbl[p-1].sy, rop);
            if (!b) winerr(); /* process windows error */
            curon(win);
 
@@ -6481,11 +6483,11 @@ static void iviewoffg(winptr win, int x, int y)
 {
 
     /* check change is needed */
-    if (x != win->screens[win->curupd]->offx &&
-        y != win->screens[win->curupd]->offy) {
+    if (x != win->screens[win->curupd-1]->offx &&
+        y != win->screens[win->curupd-1]->offy) {
 
-        win->screens[win->curupd]->offx = x; /* set offsets */
-        win->screens[win->curupd]->offy = y;
+        win->screens[win->curupd-1]->offx = x; /* set offsets */
+        win->screens[win->curupd-1]->offy = y;
         win->goffx = x;
         win->goffy = y;
         iclear(win); /* clear buffer */
@@ -6533,10 +6535,10 @@ static void iviewscale(winptr win, float x, float y)
 
     /* in this starting simplistic formula, the ratio is set x*INT_MAX/INT_MAX.
       it works, but can overflow for large coordinates || scales near 1 */
-    win->screens[win->curupd]->wextx = 100;
-    win->screens[win->curupd]->wexty = 100;
-    win->screens[win->curupd]->vextx = trunc(x*100);
-    win->screens[win->curupd]->vexty = trunc(y*100);
+    win->screens[win->curupd-1]->wextx = 100;
+    win->screens[win->curupd-1]->wexty = 100;
+    win->screens[win->curupd-1]->vextx = trunc(x*100);
+    win->screens[win->curupd-1]->vexty = trunc(y*100);
     win->gwextx = 100;
     win->gwexty = 100;
     win->gvextx = trunc(x*100);
@@ -7284,10 +7286,10 @@ static void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
             win->gmaxyg = msg->lParam / 65536 && 0xffff; /* set y size */
             win->gmaxx = win->gmaxxg / win->charspace; /* find character size x */
             win->gmaxy = win->gmaxyg / win->linespace; /* find character size y */
-            win->screens[win->curdsp]->maxx = win->gmaxx; /* copy to screen control */
-            win->screens[win->curdsp]->maxy = win->gmaxy;
-            win->screens[win->curdsp]->maxxg = win->gmaxxg;
-            win->screens[win->curdsp]->maxyg = win->gmaxyg;
+            win->screens[win->curdsp-1]->maxx = win->gmaxx; /* copy to screen control */
+            win->screens[win->curdsp-1]->maxy = win->gmaxy;
+            win->screens[win->curdsp-1]->maxxg = win->gmaxxg;
+            win->screens[win->curdsp-1]->maxyg = win->gmaxyg;
             /* place the resize message */
             er->etype = pa_etresize; /* set resize message */
             *keep = TRUE; /* set keep event */
@@ -7830,7 +7832,7 @@ static void CALLBACK timeout(UINT id, UINT msg, DWORD_PTR usr, DWORD_PTR dw1,
     fn = usr/PA_MAXTIM; /* get lfn multiplexed in user data */
     /* Validate it, but do nothing if wrong. We just don"t want to crash on
        errors here. */
-    if (fn >= 1 && fn <= MAXFIL)  /* valid lfn */
+    if (fn >= 0 && fn < MAXFIL)  /* valid lfn */
        if (opnfil[fn]) /* file is defined */
           if (opnfil[fn]->win) { /* file has window context */
 
@@ -8175,15 +8177,15 @@ static void isettabg(winptr win, int t)
     int i, x; /* tab index */
     scncon* sc; /* screen context */
 
-    sc = win->screens[win->curupd];
+    sc = win->screens[win->curupd-1];
     if (sc->autof && (t-1)%win->charspace)
         error(eatotab); /* cannot perform with auto on */
     if (t < 1 || t > sc->maxxg) error(einvtab); /* bad tab position */
     /* find free location or tab beyond position */
-    i = 1;
+    i = 0;
     while (i < MAXTAB && sc->tab[i] && t > sc->tab[i]) i = i+1;
     if (i == MAXTAB && t < sc->tab[i]) error(etabful); /* tab table full */
-    if (t != sc->tab[i])  { /* ! the same tab yet again */
+    if (t != sc->tab[i])  { /* not the same tab yet again */
 
         if (sc->tab[MAXTAB]) error(etabful); /* tab table full */
         /* move tabs above us up */
@@ -8244,15 +8246,15 @@ static void irestabg(winptr win, int t)
     int     ft; /* found tab */
     scncon* sc; /* screen context */
 
-    sc = win->screens[win->curupd];
+    sc = win->screens[win->curupd-1];
     if (t < 1 || t > sc->maxxg) error(einvtab); /* bad tab position */
     /* search for that tab */
-    ft = 0; /* set ! found */
-    for (i = 1; i <= MAXTAB; i++) if (sc->tab[i] == t) ft = i; /* found */
+    ft = 0; /* set not found */
+    for (i = 0; i < MAXTAB; i++) if (sc->tab[i] == t) ft = i; /* found */
     if (ft != 0) { /* found the tab, remove it */
 
        /* move all tabs down to gap out */
-       for (i = ft; i <= MAXTAB-1; i++) sc->tab[i] = sc->tab[i+1];
+       for (i = ft; i < MAXTAB-1; i++) sc->tab[i] = sc->tab[i+1];
        sc->tab[MAXTAB] = 0; /* clear any last tab */
 
     }
@@ -8311,7 +8313,7 @@ void pa_clrtab(FILE* f)
 
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window pointer from text file */
-    for (i = 1; i <= MAXTAB; i++) win->screens[win->curupd]->tab[i] = 0;
+    for (i = 0; i < MAXTAB; i++) win->screens[win->curupd-1]->tab[i] = 0;
     unlockmain(); /* end exclusive access */
 
 }
@@ -8362,7 +8364,7 @@ static void readline(int fn)
         do { ievent(fn, &er);
         } while (er.etype != pa_etchar && er.etype != pa_etenter &&
                  er.etype != pa_etterm && er.etype != pa_etdelcb);
-        win = lfn2win(xltwin[er.winid]); /* get the window from the id */
+        win = lfn2win(xltwin[er.winid-1]); /* get the window from the id */
         /* if the event is line enter, place carriage return code,
            otherwise place real character. note that we emulate a
            terminal && return cr only, which is handled as appropriate
@@ -8391,7 +8393,7 @@ static void readline(int fn)
                 break;
 
             case pa_etdelcb: /* delete character backwards */
-                if (win->inpptr > 1) { /* ! at extreme left */
+                if (win->inpptr) { /* not at extreme left */
 
                     /* backspace, spaceout  backspace again */
                     plcchr(win, '\b');
@@ -8406,7 +8408,7 @@ static void readline(int fn)
 
     } while (er.etype != pa_etenter); /* until line terminate */
     /* note we still are indexing the last window that gave us the enter */
-    win->inpptr = 1; /* set 1st position on active line */
+    win->inpptr = 0; /* set 1st position on active line */
 
 }
 
@@ -9065,7 +9067,7 @@ static void opnwin(int fn, int pfn)
     win->joy2ys = 0;
     win->joy2zs = 0;
     win->numjoy = 0; /* set number of joysticks 0 */
-    win->inpptr = 1; /* set 1st character */
+    win->inpptr = 0; /* set 1st character */
     win->inpend = FALSE; /* set no line }ing */
     win->frmrun = FALSE; /* set framing timer ! running */
     win->bufmod = TRUE; /* set buffering on */
@@ -9277,7 +9279,7 @@ static void clsfil(int fn)
 
     fp = opnfil[fn];
     /* release all of the screen buffers */
-    for (si = 1; si <= MAXCON; si++)
+    for (si = 0; si < MAXCON; si++)
         if (fp->win->screens[si]) free(fp->win->screens[si]);
     free(fp->win); /* release the window data */
     fp->win = NULL; /* set end open */
@@ -9303,7 +9305,7 @@ static int inplnk(int fn)
     int fc; /* counter for files */
 
     fc = 0; /* clear count */
-    for (fi = 1; fi <= MAXFIL; fi++) /* traverse files */
+    for (fi = 0; fi < MAXFIL; fi++) /* traverse files */
         if (opnfil[fi]) /* entry is occupied */
             if (opnfil[fi]->inl == fn) fc++; /* count the file link */
 
@@ -9325,7 +9327,7 @@ static void closewin(int ofn)
     /* if no remaining links exist, flush and close input file */
     if (!inplnk(ifn)) clsfil(ifn);
     filwin[ofn] = 0; /* clear file to window translation */
-    xltwin[wid] = 0; /* clear window to file translation */
+    xltwin[wid-1] = 0; /* clear window to file translation */
 
 }
 
@@ -9358,8 +9360,8 @@ static void openio(int ifn, int ofn, int pfn, int wid)
 
     }
     /* check if the window has been pinned to something else */
-    if (xltwin[wid] && xltwin[wid] != ofn) error(ewinuse); /* flag error */
-    xltwin[wid] = ofn; /* pin the window to the output file */
+    if (xltwin[wid-1] && xltwin[wid-1] != ofn) error(ewinuse); /* flag error */
+    xltwin[wid-1] = ofn; /* pin the window to the output file */
     filwin[ofn] = wid;
 
 }
@@ -9411,7 +9413,7 @@ static void iopenwin(FILE** infile, FILE** outfile, int pfn, int wid)
     /* check valid window handle */
     if (wid < 1 || wid > MAXFIL) error(einvwin);
     /* check if the window id is already in use */
-    if (xltwin[wid]) error(ewinuse); /* error */
+    if (xltwin[wid-1]) error(ewinuse); /* error */
     ifn = fndfil(*infile); /* find previous open input side */
     if (ifn < 0) { /* no other input file, open new */
 
@@ -9490,15 +9492,15 @@ static void isizbufg(winptr win, int x, int y)
     if (!b) winerr(); /* process windows error */
     /* all the screen buffers are wrong, so tear them out */
     for (si = 0; si < MAXCON; si++) disscn(win, win->screens[si]);
-    win->screens[win->curdsp] = malloc(sizeof(scncon));
-    if (!win->screens[win->curdsp]) error(enomem);
-    iniscn(win, win->screens[win->curdsp]); /* initalize screen buffer */
+    win->screens[win->curdsp-1] = malloc(sizeof(scncon));
+    if (!win->screens[win->curdsp-1]) error(enomem);
+    iniscn(win, win->screens[win->curdsp-1]); /* initalize screen buffer */
     restore(win, TRUE); /* update to screen */
     if (win->curdsp != win->curupd) { /* also create the update buffer */
 
-        win->screens[win->curupd] = malloc(sizeof(scncon)); /* get the display screen */
-        if (!win->screens[win->curupd]) error(enomem);
-        iniscn(win, win->screens[win->curupd]); /* initalize screen buffer */
+        win->screens[win->curupd-1] = malloc(sizeof(scncon)); /* get the display screen */
+        if (!win->screens[win->curupd-1]) error(enomem);
+        iniscn(win, win->screens[win->curupd-1]); /* initalize screen buffer */
 
     }
 
@@ -9560,10 +9562,10 @@ static void ibuffer(winptr win, int e)
 
         win->bufmod = TRUE; /* turn buffer mode on */
         /* restore size from current buffer */
-        win->gmaxxg = win->screens[win->curdsp]->maxxg; /* pixel size */
-        win->gmaxyg = win->screens[win->curdsp]->maxyg;
-        win->gmaxx = win->screens[win->curdsp]->maxx; /* character size */
-        win->gmaxy = win->screens[win->curdsp]->maxy;
+        win->gmaxxg = win->screens[win->curdsp-1]->maxxg; /* pixel size */
+        win->gmaxyg = win->screens[win->curdsp-1]->maxyg;
+        win->gmaxx = win->screens[win->curdsp-1]->maxx; /* character size */
+        win->gmaxy = win->screens[win->curdsp-1]->maxy;
         r.left = 0; /* set up desired client rectangle */
         r.top = 0;
         r.right = win->gmaxxg;
@@ -9586,7 +9588,7 @@ static void ibuffer(winptr win, int e)
            update to point to it as well. This single buffer  serves as
            a "template" for the real pixels on screen. */
         win->bufmod = FALSE; /* turn buffer mode off */
-        for (si = 0; si <MAXCON; si++)
+        for (si = 0; si < MAXCON; si++)
            if (si != win->curdsp) disscn(win, win->screens[si]);
         /* dispose of screen data structures */
         for (si = 0; si < MAXCON; si++) if (si != win->curdsp-1)
@@ -9759,7 +9761,7 @@ void pa_menu(FILE* f, pa_menuptr m)
 
 Find menu entry
 
-Finds a menu entry by id. If the entry is ! found, it generates an error.
+Finds a menu entry by id. If the entry is not found, it generates an error.
 If the entry exists more than once, it generates an error.
 
 *******************************************************************************/
@@ -9794,7 +9796,7 @@ static metptr fndmenu(winptr win, int id)
 
 Enable/disable menu entry
 
-Enables || disables a menu entry by id. The entry is set to grey if disabled,
+Enables or disables a menu entry by id. The entry is set to grey if disabled,
 and will no longer send messages.
 
 *******************************************************************************/
@@ -9835,7 +9837,7 @@ void pa_menuena(FILE* f, int id, int onoff)
 
 /*******************************************************************************
 
-select/deselect menu entry
+Select/deselect menu entry
 
 Selects or deselects a menu entry by id. The entry is set to checked if
 selected, with no check if not.
@@ -10201,7 +10203,7 @@ Set window position character
 Sets the onscreen window position, in character terms. If the window has a
 parent, the demensions are converted to the current character size there.
 Otherwise, pixel based demensions are used. This occurs because the desktop does
-not have a fixed character aspect, so we make one up, && our logical character
+not have a fixed character aspect, so we make one up, and our logical character
 is "one pixel" high and wide. It works because it can only be used as a
 relative measurement.
 
@@ -12031,7 +12033,7 @@ void pa_scrollvert(FILE* f, int x1, int y1, int x2, int y2, int id)
 Find minimum/standard horizontal scrollbar size
 
 Finds the minimum size for a horizontal scrollbar. The minimum size of a
-horizontal scrollbar is calculated && returned.
+horizontal scrollbar is calculated and returned.
 
 *******************************************************************************/
 
@@ -12329,7 +12331,7 @@ static LRESULT CALLBACK wndprocnum(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM l
 Find minimum/standard number select box size
 
 Finds the minimum size for a number select box. The minimum size of a number
-select box is calculated && returned.
+select box is calculated and returned.
 
 *******************************************************************************/
 
@@ -14351,8 +14353,8 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam,
             /* activate caret */
             b = CreateCaret(win->winhan, 0, win->curspace, 3);
             /* set caret (text cursor) position at bottom of bounding box */
-            b = SetCaretPos(win->screens[win->curdsp]->curxg-1,
-                            win->screens[win->curdsp]->curyg-1+win->linespace-3);
+            b = SetCaretPos(win->screens[win->curdsp-1]->curxg-1,
+                            win->screens[win->curdsp-1]->curyg-1+win->linespace-3);
             win->focus = TRUE; /* set screen in focus */
             curon(win); /* show the cursor */
 
@@ -15128,7 +15130,7 @@ static ssize_t iread(int fd, void* buff, size_t count)
             else { /* read characters */
 
                 win = lfn2win(ofn); /* get the window */
-                while (win->inpptr > 0 && l > 0) {
+                while (win->inpptr && l) {
 
                     /* there is data in the buffer, and we need that data */
                     *ba = win->inpbuf[win->inpptr]; /* get and place next character */
@@ -15180,7 +15182,7 @@ static ssize_t iwrite(int fd, const void* buff, size_t count)
     ssize_t rc;  /* return code */
     unsigned char* ba;
 
-    if (fd < 0 || fd > MAXFIL)  error(einvhan); /* invalid file handle */
+    if (fd < 0 || fd >= MAXFIL)  error(einvhan); /* invalid file handle */
     if (opnfil[fd] && opnfil[fd]->win) { /* process window output file */
 
         lockmain(); /* start exclusive access */
@@ -15234,11 +15236,11 @@ static void pa_init_graph()
 
     /* Set up private message queuing */
 
-    msginp = 1; /* clear message input queue */
-    msgout = 1;
+    msginp = 0; /* clear message input queue */
+    msgout = 0;
     msgrdy = CreateEvent(NULL, TRUE, FALSE, NULL); /* create message event */
-    imsginp = 1; /* clear control message message input queue */
-    imsgout = 1;
+    imsginp = 0; /* clear control message message input queue */
+    imsgout = 0;
     imsgrdy = CreateEvent(NULL, TRUE, FALSE, NULL); /* create message event */
     InitializeCriticalSection(mainlock); /* initialize the sequencer lock */
     /* mainlock = createmutex(FALSE); */ /* create mutex with no owner */
@@ -15249,8 +15251,6 @@ static void pa_init_graph()
     for (fi = 0; i < MAXFIL; i++) {
 
         opnfil[fi] = NULL; /* set unoccupied */
-        /* clear top level translator table */
-        xltfil[fi] = 0; /* set unoccupied */
         /* clear window logical number translator table */
         xltwin[fi] = 0; /* set unoccupied */
         /* clear file to window logical number translator table */
