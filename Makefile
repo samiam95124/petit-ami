@@ -232,7 +232,7 @@ ifeq ($(OSTYPE),Windows_NT)
     #
     # Windows
     #
-    LIBS += -lwinmm -lgdi32
+    LIBS += -lwinmm -lgdi32 -lcomdlg32
 
 else ifeq ($(OSTYPE),Darwin)
 
@@ -331,8 +331,8 @@ windows/network.o: stub/network.c include/network.h
 windows/console.o: windows/console.c include/terminal.h
 	gcc -g3 -Ilibc -Iinclude -c windows/console.c -o windows/console.o
 	
-windows/graph.o: stub/graph.c include/graph.h
-	gcc -g3 -Ilibc -Iinclude -c stub/graph.c -o windows/graph.o
+windows/graph.o: windows/graph.c include/graph.h
+	gcc -g3 -Ilibc -Iinclude -c windows/graph.c -o windows/graph.o
 
 #
 # Mac OS X target components
@@ -380,7 +380,7 @@ bin/petit_ami_term.a: windows/services.o windows/sound.o windows/network.o \
 	ar rcs bin/petit_ami_term.a windows/services.o windows/sound.o \
 	    windows/network.o windows/console.o windows/stdio.o
 	
-petit_ami_graph.a: windows/services.o windows/sound.o windows/network.o \
+bin/petit_ami_graph.a: windows/services.o windows/sound.o windows/network.o \
     windows/graph.o windows/stdio.o
 	ar rcs bin/petit_ami_graph.a windows/services.o windows/sound.o \
 	    windows/network.o windows/graph.o windows/stdio.o
@@ -476,8 +476,8 @@ getmouse: linux/getmouse.c Makefile
 dumpmidi: utils/dumpmidi.c Makefile
 	gcc utils/dumpmidi.c -o bin/dumpmidi
 
-test: bin/petit_ami_term$(LIBEXT) include/terminal.h test.c Makefile
-	$(CC) $(CFLAGS) test.c $(LIBS) -o test
+test: bin/petit_ami_graph$(LIBEXT) include/terminal.h test.c Makefile
+	$(CC) $(CFLAGS) test.c -Wl,--whole-archive $(LIBS) -Wl,--no-whole-archive -o test
 	
 play: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/play.c Makefile
 	$(CC) $(CFLAGS) sound_programs/play.c utils/option.c $(LIBS) -o bin/play

@@ -14458,11 +14458,14 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam,
                                  ES_LEFT | ES_AUTOHSCROLL,
                                  ip->udx, ip->udy, ip->udcx-udw-1, ip->udcy,
                                  ip->udpar, (HMENU)ip->udid, ip->udinst, NULL);
+#if 0
+/* note this widget is listed as "obsolete" and does not link */
                 ip->udhan =
                     CreateUpDownControl(ip->udflg, ip->udx+ip->udcx-udw-2, ip->udy, udw,
                                         ip->udcy, ip->udpar, ip->udid, ip->udinst,
                                         ip->udbuddy, ip->udup, ip->udlow,
                                         ip->udpos);
+#endif
                 /* signal complete */
                 iputmsg(0, UMIM, wparam, 0);
                 break;
@@ -15305,7 +15308,7 @@ static void pa_deinit_graph(void)
     int    fi;
 
     lockmain(); /* start exclusive access */
-    /* if the program tries to exit when the user has ! ordered an exit, it
+    /* if the program tries to exit when the user has not ordered an exit, it
        is assumed to be a windows "unaware" program. We stop before we exit
        these, so that their content may be viewed */
     if (!fend && fautohold) { /* process automatic exit sequence */
