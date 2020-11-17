@@ -166,8 +166,8 @@ else
     # link correctly.
     #
     ifeq ($(LINK_TYPE),static)
-        LIBS = bin/libc.a
-        PLIBS = bin/libc.a
+        LIBS = -Wl,--whole-archive bin/libc.a -Wl,--no-whole-archive
+        PLIBS = -Wl,--whole-archive bin/libc.a -Wl,--no-whole-archive
     else
 	    LIBS = bin/libc.so.6
 	    PLIBS = bin/libc.so.6
@@ -196,7 +196,7 @@ endif
 # PLIBS     Petit-Ami libraries without console or graphics.
 #
 ifeq ($(LINK_TYPE),static)
-    PLIBS += bin/petit_ami_plain.a
+    PLIBS += -Wl,--whole-archive bin/petit_ami_plain.a -Wl,--no-whole-archive
 else
     PLIBS += bin/petit_ami_plain.so
 endif
@@ -209,7 +209,7 @@ ifndef GRAPH
     # Terminal model API
     #
     ifeq ($(LINK_TYPE),static)
-        LIBS += bin/petit_ami_term.a
+        LIBS += -Wl,--whole-archive bin/petit_ami_term.a -Wl,--no-whole-archive
     else
         LIBS += bin/petit_ami_term.so
     endif
@@ -218,7 +218,7 @@ else
     # Graphical model API
     #
     ifeq ($(LINK_TYPE),static)
-	    LIBS += bin/petit_ami_graph.a
+	    LIBS += -Wl,--whole-archive bin/petit_ami_graph.a -Wl,--no-whole-archive
 	else
 	    LIBS += bin/petit_ami_graph.so
 	endif
@@ -477,7 +477,7 @@ dumpmidi: utils/dumpmidi.c Makefile
 	gcc utils/dumpmidi.c -o bin/dumpmidi
 
 test: bin/petit_ami_graph$(LIBEXT) include/terminal.h test.c Makefile
-	$(CC) $(CFLAGS) test.c -Wl,--whole-archive $(LIBS) -Wl,--no-whole-archive -o test
+	$(CC) $(CFLAGS) test.c $(LIBS) -o test
 	
 play: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/play.c Makefile
 	$(CC) $(CFLAGS) sound_programs/play.c utils/option.c $(LIBS) -o bin/play

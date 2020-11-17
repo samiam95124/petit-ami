@@ -1108,7 +1108,7 @@ static void error(errcod e)
         case etabful:  grawrterr("Too many tabs set"); break;
         case eatotab:  grawrterr("Cannot set off grid tabs with auto on"); break;
         case estrinx:  grawrterr("String index out of range"); break;
-        case epicfnf:  grawrterr("Picture file ! found"); break;
+        case epicfnf:  grawrterr("Picture file not found"); break;
         case epicftl:  grawrterr("Picture filename too large"); break;
         case etimnum:  grawrterr("Invalid timer number"); break;
         case ejstsys:  grawrterr("Cannot justify system font"); break;
@@ -1118,10 +1118,10 @@ static void error(errcod e)
         case einmode:  grawrterr("Input side of window in wrong mode"); break;
         case edcrel:   grawrterr("Cannot release Windows device context"); break;
         case einvsiz:  grawrterr("Invalid buffer size"); break;
-        case ebufoff:  grawrterr("Buffered mode ! enabled"); break;
+        case ebufoff:  grawrterr("Buffered mode not enabled"); break;
         case edupmen:  grawrterr("Menu id was duplicated"); break;
-        case emennf:   grawrterr("Menu id was ! found"); break;
-        case ewignf:   grawrterr("Widget id was ! found"); break;
+        case emennf:   grawrterr("Menu id was not found"); break;
+        case ewignf:   grawrterr("Widget id was not found"); break;
         case ewigdup:  grawrterr("Widget id was duplicated"); break;
         case einvspos: grawrterr("Invalid scroll bar slider position"); break;
         case einvssiz: grawrterr("Invalid scroll bar slider size"); break;
@@ -1135,10 +1135,10 @@ static void error(errcod e)
         case efndstl:  grawrterr("Find/replace string too long"); break;
         case einvwin:  grawrterr("Invalid window number"); break;
         case einvjye:  grawrterr("Invalid joystick event"); break;
-        case ejoyqry:  grawrterr("Could ! get information on joystick"); break;
+        case ejoyqry:  grawrterr("Could not get information on joystick"); break;
         case einvjoy:  grawrterr("Invalid joystick ID"); break;
         case eclsinw:  grawrterr("Cannot directly close input side of window"); break;
-        case ewigsel:  grawrterr("Widget is ! selectable"); break;
+        case ewigsel:  grawrterr("Widget is not selectable"); break;
         case ewigptxt: grawrterr("Cannot put text in this widget"); break;
         case ewiggtxt: grawrterr("Cannot get text from this widget"); break;
         case ewigdis:  grawrterr("Cannot disable this widget"); break;
