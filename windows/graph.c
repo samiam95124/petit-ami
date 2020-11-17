@@ -86,6 +86,22 @@
 #include <commctrl.h>
 #include <graph.h>
 
+/*
+ * Debug print system
+ *
+ * Example use:
+ *
+ * dbg_printf("There was an error: string: %s\n", bark);
+ *
+ * mydir/test.c:myfunc():12: There was an error: somestring
+ *
+ */
+#define DEBUG 1
+
+#define dbg_printf(fmt, ...) \
+        do { if (DEBUG) fprintf(stderr, "%s:%s():%d: " fmt, __FILE__, \
+                                __func__, __LINE__, __VA_ARGS__); } while (0)
+
 #define BIT(b) (1<<b) /* set bit from bit number */
 #define BITMSK(b) (~BIT(b)) /* mask out bit number */
 
@@ -624,7 +640,7 @@ static HWND      stdwinwin;    /* window window handle */
 static int       stdwinj1c;    /* joystick 1 capture */
 static int       stdwinj2c;    /* joystick 1 capture */
 /* mainlock:    int; */ /* lock for all global structures */
-LPCRITICAL_SECTION mainlock; /* main task lock */
+CRITICAL_SECTION mainlock; /* main task lock */
 static imptr     freitm;       /* intratask message free list */
 static int       msgcnt;       /* counter for number of message output (diagnostic) */
 
@@ -972,7 +988,7 @@ static void lockmain(void)
     /* int r; */
 
 /*;prtstr("lockmain\r\n");*/
-   EnterCriticalSection(mainlock); /* start exclusive access */
+   EnterCriticalSection(&mainlock); /* start exclusive access */
    /* r = waitforsingleobject(mainlock, -1) */ /* start exclusive access */
 /*;if r == -1  prtstr("Lockmain: lock operation fails\cr\lf");*/
 
@@ -995,7 +1011,7 @@ static void unlockmain(void)
     /* int b; */
 
 /*;prtstr("unlockmain\r\n");*/
-   LeaveCriticalSection(mainlock); /* end exclusive access */
+   LeaveCriticalSection(&mainlock); /* end exclusive access */
    /* b = releasemutex(mainlock); */ /* end exclusive access */
 /*;if (!b)  prtstr("Unlockmain: lock operation fails\cr\lf");*/
 
@@ -8453,6 +8469,8 @@ Notes:
 
 1. Win98 drops the quotes.
 2. Win XP/2000 drops the path and the extention.
+3. In windows 10, I have seen both quoted and non-quoted names.
+4. In gdb runs, both \ and / are used in paths (yes at the same time).
 
 *******************************************************************************/
 
@@ -8467,26 +8485,30 @@ static void getpgm(void)
     char  fini[] = "Finished - ";
 
     cp = GetCommandLine(); /* get command line */
-    i = 1; /* set 1st character */
-    if (*cp == '"') cp++; /* skip quote */
-    /* find last "\" in quoted section */
-    s = NULL; /* flag not found */
+    s = cp; /* index start of line */
+    if (*s == '"') s++; /* skip quote */
+    /* find last "\" or "/" in quoted section */
+    s2 = NULL; /* flag not found */
     while (*s && *s != '"' && *s != ' ')
-        { if (*cp == '\\') s = cp+1; cp++; }
-    if (!s) error(esystem);
+        { if (*s == '\\' || *s == '/') s2 = s+1; s++; }
+    /* no path found, use whole name */
+    if (!s2) s2 = cp;
     /* count program name length */
     l = 0; /* clear length */
-    s2 = s; /* index program name */
-    while (*s2 != '.' && *s2 != ' ') { s2++; l++; }
-    pgmnam = malloc(l);
+    s = s2; /* index program name */
+    /* count off length to end or extension */
+    while (*s && *s != '.' && *s != ' ') { s++; l++; }
+    pgmnam = malloc(l+1);
     if (!pgmnam) error(enomem);
+    s = s2; /* index program name */
     s2 = pgmnam; /* index 1st character */
-    while (*s != '.' && *s != ' ') *s2++ = *s++; /* place characters */
+    while (*s && *s != '.' && *s != ' ') *s2++ = *s++; /* place characters */
+    *s2 = 0; /* place terminator */
     /* form the name for termination */
-    trmnam = malloc(strlen(pgmnam)+strlen(fini)); /* get the holding string */
+    trmnam = malloc(strlen(pgmnam)+strlen(fini)+1); /* get the holding string */
     if (!trmnam) error(enomem);
     strcpy(trmnam, fini); /* place first part */
-    strcmp(trmnam, pgmnam); /* place program name */
+    strcat(trmnam, pgmnam); /* place program name */
 
 }
 
@@ -15245,7 +15267,7 @@ static void pa_init_graph()
     imsginp = 0; /* clear control message message input queue */
     imsgout = 0;
     imsgrdy = CreateEvent(NULL, TRUE, FALSE, NULL); /* create message event */
-    InitializeCriticalSection(mainlock); /* initialize the sequencer lock */
+    InitializeCriticalSection(&mainlock); /* initialize the sequencer lock */
     /* mainlock = createmutex(FALSE); */ /* create mutex with no owner */
     /* if mainlock == 0  winerr(); */ /* process windows error */
     fndrepmsg = 0; /* set no find/replace message active */
