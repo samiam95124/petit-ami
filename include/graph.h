@@ -251,7 +251,7 @@ typedef struct pa_menurec {
         int        oneof;  /* "one of" highlight */
         int        bar;    /* place bar under */
         int        id;     /* id of menu item */
-        char*     face;   /* text to place on button */
+        char*      face;   /* text to place on button */
 
 } pa_menurec;
 /* standard menu selector */
