@@ -4222,13 +4222,21 @@ static void plcchr(winptr win, char c)
     /* handle special character cases first */
     if (c == '\r') {
 
-       /* carriage return, position to extreme left */
-       sc->curx = 1; /* set to extreme left */
-       sc->curxg = 1;
-       if (indisp(win)) setcur(win); /* set cursor on screen */
+        /* carriage return, position to extreme left */
+        sc->curx = 1; /* set to extreme left */
+        sc->curxg = 1;
+        if (indisp(win)) setcur(win); /* set cursor on screen */
 
-    } else if (c == '\n') idown(win); /* line feed, move down */
-    else if (c == '\b') ileft(win); /* back space, move left */
+    } else if (c == '\n') {
+
+        /* because the I/O package is a Unix/Linux emulation environment, we
+           linefeed to CRLF */
+        idown(win); /* line feed, move down */
+        sc->curx = 1; /* set to extreme left */
+        sc->curxg = 1;
+        if (indisp(win)) setcur(win); /* set cursor on screen */
+
+    } else if (c == '\b') ileft(win); /* back space, move left */
     else if (c == '\f') iclear(win); /* clear screen */
     else if (c == '\t') itab(win); /* process tab */
     else if (c >= ' ' && c != 0x7f) { /* character is visible */
