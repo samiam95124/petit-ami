@@ -110,6 +110,15 @@ enum { /* debug levels */
         do { if (lvl >= dbglvl) fprintf(stderr, "%s:%s():%d: " fmt, __FILE__, \
                                 __func__, __LINE__, ##__VA_ARGS__); } while (0)
 
+/*
+ * Enable/disable general lock
+ *
+ * This is done from paranoia that Windows performs multithread locking.
+ * The Windows documents on this subject are ambiguous, some parts say it does,
+ * others warn it does not.
+ */
+#define MAINLOCKING 1
+
 #define BIT(b) (1<<b) /* set bit from bit number */
 #define BITMSK(b) (~BIT(b)) /* mask out bit number */
 
@@ -143,7 +152,7 @@ enum { /* debug levels */
 #define ERRFIL    3     /* error */
 #define JOYENB    FALSE /*TRUE*/ /* enable joysticks, for debugging */
 /* foreground pen style */
-/* FPENSTL  ps_geometric || ps_}cap_flat || ps_solid */
+/* FPENSTL  ps_geometric | ps_}cap_flat | ps_solid */
 #define FPENSTL  (PS_GEOMETRIC | PS_ENDCAP_FLAT | PS_SOLID | PS_JOIN_MITER)
 /* foreground single pixel pen style */
 #define FSPENSTL  PS_SOLID
@@ -647,8 +656,8 @@ static HWND      stdwinpar;    /* parent */
 static HWND      stdwinwin;    /* window window handle */
 static int       stdwinj1c;    /* joystick 1 capture */
 static int       stdwinj2c;    /* joystick 1 capture */
-/* mainlock:    int; */ /* lock for all global structures */
-CRITICAL_SECTION mainlock; /* main task lock */
+/* lock for all global structures */
+CRITICAL_SECTION mainlock;     /* main task lock */
 static imptr     freitm;       /* intratask message free list */
 static int       msgcnt;       /* counter for number of message output (diagnostic) */
 
@@ -665,6 +674,7 @@ static void clswin(int fn);
 static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam);
 static LRESULT CALLBACK wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam);
 void pa_alert(char* title, char* message);
+static void error(errcod e);
 
 /******************************************************************************
 
@@ -889,21 +899,20 @@ Lock mutual access
 
 Locks multiple accesses to graph globals.
 
-No error checking is done.
-
 *******************************************************************************/
 
 static void lockmain(void)
 
 {
 
+#if MAINLOCKING
     /* int r; */
 
-dbg_printf(dlinfo, "\n");
-/*;fprintf(stderr, "lockmain\n");*/
-   EnterCriticalSection(&mainlock); /* start exclusive access */
+//    dbg_printf(dlinfo, "Thread id: %d\n", GetCurrentThreadId());
+    EnterCriticalSection(&mainlock); /* start exclusive access */
    /* r = waitforsingleobject(mainlock, -1) */ /* start exclusive access */
 /*;if r == -1  fprintf(stderr, "Lockmain: lock operation fails\cr\lf");*/
+#endif
 
 }
 
@@ -913,21 +922,20 @@ Unlock mutual access
 
 Unlocks multiple accesses to graph globals.
 
-No error checking is done.
-
 *******************************************************************************/
 
 static void unlockmain(void)
 
 {
 
+#if MAINLOCKING
     /* int b; */
 
-dbg_printf(dlinfo, "\n");
-/*;fprintf(stderr, "unlockmain\n");*/
-   LeaveCriticalSection(&mainlock); /* end exclusive access */
+    LeaveCriticalSection(&mainlock); /* end exclusive access */
+//    dbg_printf(dlinfo, "Thread id: %d\n", GetCurrentThreadId());
    /* b = releasemutex(mainlock); */ /* end exclusive access */
 /*;if (!b)  fprintf(stderr, "Unlockmain: lock operation fails\cr\lf");*/
+#endif
 
 }
 
@@ -1238,13 +1246,10 @@ static void putmsg(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     int ox1, oy1, ox2, oy2;
     int fm;                 /* found message */
 
-dbg_printf(dlinfo, "begin\n");
     lockmain(); /* start exclusive access */
-dbg_printf(dlinfo, "after lock\n");
 /* Turning on paint compression causes lost updates */
     if (msg == WM_PAINT && PACKMSG)  {
 
-dbg_printf(dlinfo, "1\n");
         fm = fndmsg(hwnd, msg); /* find matching message */
         if (fm)  {
 
@@ -1265,9 +1270,7 @@ dbg_printf(dlinfo, "1\n");
 
     } else if (msg == WM_SIZE && PACKMSG) {
 
-dbg_printf(dlinfo, "2\n");
         fm = fndmsg(hwnd, msg); /* find matching message */
-dbg_printf(dlinfo, "3\n");
         if (fm) {
 
             /* We only need the latest size, so overwrite the old with new. */
@@ -1276,11 +1279,9 @@ dbg_printf(dlinfo, "3\n");
             msgque[fm].lParam = lparam;
 
         } else enter(hwnd, msg, wparam, lparam); /* enter as new message */
-dbg_printf(dlinfo, "4\n");
 
     } else enter(hwnd, msg, wparam, lparam); /* enter new message */
     unlockmain(); /* end exclusive access */
-dbg_printf(dlinfo, "end\n");
 
 }
 
@@ -2444,7 +2445,6 @@ static void winvis(winptr win)
     int    b;   /* int result holder */
     winptr par; /* parent window pointer */
 
-dbg_printf(dlinfo, "begin\n");
     /* If we are making a child window visible, we have to also force its
        parent visible. This is recursive all the way up. */
     if (win->parlfn) {
@@ -2455,17 +2455,12 @@ dbg_printf(dlinfo, "begin\n");
     }
     unlockmain(); /* end exclusive access */
     /* present the window */
-dbg_printf(dlinfo, "1\n");
     b = ShowWindow(win->winhan, SW_SHOWDEFAULT);
-dbg_printf(dlinfo, "2\n");
     /* send first paint message */
     b = UpdateWindow(win->winhan);
-dbg_printf(dlinfo, "3\n");
     lockmain(); /* start exclusive access */
     win->visible = TRUE; /* set now visible */
-dbg_printf(dlinfo, "4\n");
     restore(win, TRUE); /* restore window */
-dbg_printf(dlinfo, "end\n");
 
 }
 
@@ -4222,7 +4217,6 @@ static void plcchr(winptr win, char c)
     SIZE   sz;  /* size holder */
     scnptr sc;
 
-dbg_printf(dlinfo, "begin\n");
     sc = win->screens[win->curupd-1];
     if (!win->visible) winvis(win); /* make sure we are displayed */
     /* handle special character cases first */
@@ -4271,7 +4265,6 @@ dbg_printf(dlinfo, "begin\n");
         }
 
     }
-dbg_printf(dlinfo, "end\n");
 
 }
 
@@ -14248,10 +14241,9 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam,
     int     udw; /* up/down control width */
     RECT    cr;  /* client rectangle */
 
-dbg_printf(dlinfo, "begin\n");
-dbg_printf(dlinfo, "msg#: %d ", msgcnt);
-;prtmsgu(hwnd, imsg, wparam, lparam);
-;msgcnt++;
+/*
+dbg_printf(dlinfo, "msg#: %d ", msgcnt); prtmsgu(hwnd, imsg, wparam, lparam); msgcnt++;
+*/
     if (imsg == WM_CREATE) {
 
         r = 0;
@@ -14441,9 +14433,9 @@ dbg_printf(dlinfo, "msg#: %d ", msgcnt);
             case WM_MOUSEMOVE: case WM_TIMER: case WM_COMMAND: case WM_VSCROLL:
             case WM_HSCROLL: case WM_NOTIFY:
 
-fprintf(stderr, "wndproc: passed to main: msg: %d ", msgcnt);
-;prtmsgu(hwnd, imsg, wparam, lparam);
-;msgcnt = msgcnt+1;
+/*
+fprintf(stderr, "wndproc: passed to main: msg: %d ", msgcnt); prtmsgu(hwnd, imsg, wparam, lparam); msgcnt = msgcnt+1;
+*/
                 putmsg(hwnd, imsg, wparam, lparam);
                 break;
 
@@ -14452,7 +14444,6 @@ fprintf(stderr, "wndproc: passed to main: msg: %d ", msgcnt);
 
     }
 
-dbg_printf(dlinfo, "r: %d\n", r);
     return (r);
 
 }
@@ -15240,7 +15231,9 @@ static void pa_init_graph()
     /* open stdin and stdout as I/O window set */
     ifn = fileno(stdin); /* get logical id stdin */
     ofn = fileno(stdout); /* get logical id stdout */
+    lockmain(); /* lock access */
     openio(ifn, ofn, 0, 1); /* process open */
+    unlockmain(); /* unlock access */
 
 }
 
