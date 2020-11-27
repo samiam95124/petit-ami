@@ -518,7 +518,7 @@ svstst: bin/petit_ami_plain$(LIBEXT) include/terminal.h tests/svstst.c \
 	$(CC) $(CFLAGS) tests/svstst.c utils/option.c $(PLIBS) -o bin/svstst
 	$(CC) $(CFLAGS) tests/svstst1.c $(PLIBS) -o bin/svstst1
 	
-event: bin/petit_ami_term$(LIBEXT) include/terminal.h tests/event.c Makefile
+event: bin/petit_ami_graph$(LIBEXT) include/terminal.h tests/event.c Makefile
 	$(CC) $(CFLAGS) tests/event.c $(LIBS) -o bin/event
 	
 term: bin/petit_ami_term$(LIBEXT) include/terminal.h tests/term.c Makefile

@@ -1132,6 +1132,246 @@ static void winerr(void)
 
 /*******************************************************************************
 
+Print message string
+
+This routine is for diagnostic use. Comment it out on production builds.
+
+*******************************************************************************/
+
+static void prtmsgstr(int mn)
+
+{
+
+    fprintf(stderr, "%04x: ", mn);
+    if (mn >= 0x800 && mn <= 0xbfff) fprintf(stderr, "User message");
+    else if (mn >= 0xc000 && mn <= 0xffff) fprintf(stderr, "Registered message");
+    else switch (mn) {
+
+        case 0x0000: fprintf(stderr, "WM_NULL"); break;
+        case 0x0001: fprintf(stderr, "WM_CREATE"); break;
+        case 0x0002: fprintf(stderr, "WM_DESTROY"); break;
+        case 0x0003: fprintf(stderr, "WM_MOVE"); break;
+        case 0x0005: fprintf(stderr, "WM_SIZE"); break;
+        case 0x0006: fprintf(stderr, "WM_ACTIVATE"); break;
+        case 0x0007: fprintf(stderr, "WM_SETFOCUS"); break;
+        case 0x0008: fprintf(stderr, "WM_KILLFOCUS"); break;
+        case 0x000A: fprintf(stderr, "WM_ENABLE"); break;
+        case 0x000B: fprintf(stderr, "WM_SETREDRAW"); break;
+        case 0x000C: fprintf(stderr, "WM_SETTEXT"); break;
+        case 0x000D: fprintf(stderr, "WM_GETTEXT"); break;
+        case 0x000E: fprintf(stderr, "WM_GETTEXTLENGTH"); break;
+        case 0x000F: fprintf(stderr, "WM_PAINT"); break;
+        case 0x0010: fprintf(stderr, "WM_CLOSE"); break;
+        case 0x0011: fprintf(stderr, "WM_QUERYENDSESSION"); break;
+        case 0x0012: fprintf(stderr, "WM_QUIT"); break;
+        case 0x0013: fprintf(stderr, "WM_QUERYOPEN"); break;
+        case 0x0014: fprintf(stderr, "WM_ERASEBKGND"); break;
+        case 0x0015: fprintf(stderr, "WM_SYSCOLORCHANGE"); break;
+        case 0x0016: fprintf(stderr, "WM_ENDSESSION"); break;
+        case 0x0018: fprintf(stderr, "WM_ShowWindow"); break;
+        case 0x001A: fprintf(stderr, "WM_WININICHANGE"); break;
+        case 0x001B: fprintf(stderr, "WM_DEVMODECHANGE"); break;
+        case 0x001C: fprintf(stderr, "WM_ACTIVATEAPP"); break;
+        case 0x001D: fprintf(stderr, "WM_FONTCHANGE"); break;
+        case 0x001E: fprintf(stderr, "WM_TIMECHANGE"); break;
+        case 0x001F: fprintf(stderr, "WM_CANCELMODE"); break;
+        case 0x0020: fprintf(stderr, "WM_SETCURSOR"); break;
+        case 0x0021: fprintf(stderr, "WM_MOUSEACTIVATE"); break;
+        case 0x0022: fprintf(stderr, "WM_CHILDACTIVATE"); break;
+        case 0x0023: fprintf(stderr, "WM_QUEUESYNC"); break;
+        case 0x0024: fprintf(stderr, "WM_GETMINMAXINFO"); break;
+        case 0x0026: fprintf(stderr, "WM_PAINTICON"); break;
+        case 0x0027: fprintf(stderr, "WM_ICONERASEBKGND"); break;
+        case 0x0028: fprintf(stderr, "WM_NEXTDLGCTL"); break;
+        case 0x002A: fprintf(stderr, "WM_SPOOLERSTATUS"); break;
+        case 0x002B: fprintf(stderr, "WM_DRAWITEM"); break;
+        case 0x002C: fprintf(stderr, "WM_MEASUREITEM"); break;
+        case 0x002D: fprintf(stderr, "WM_DELETEITEM"); break;
+        case 0x002E: fprintf(stderr, "WM_VKEYTOITEM"); break;
+        case 0x002F: fprintf(stderr, "WM_CHARTOITEM"); break;
+        case 0x0030: fprintf(stderr, "WM_SETFONT"); break;
+        case 0x0031: fprintf(stderr, "WM_GETFONT"); break;
+        case 0x0032: fprintf(stderr, "WM_SETHOTKEY"); break;
+        case 0x0033: fprintf(stderr, "WM_GETHOTKEY"); break;
+        case 0x0037: fprintf(stderr, "WM_QUERYDRAGICON"); break;
+        case 0x0039: fprintf(stderr, "WM_COMPAREITEM"); break;
+        case 0x0041: fprintf(stderr, "WM_COMPACTING"); break;
+        case 0x0042: fprintf(stderr, "WM_OTHERWINDOWCREATED"); break;
+        case 0x0043: fprintf(stderr, "WM_OTHERWINDOWDESTROYED"); break;
+        case 0x0044: fprintf(stderr, "WM_COMMNOTIFY"); break;
+        case 0x0045: fprintf(stderr, "WM_HOTKEYEVENT"); break;
+        case 0x0046: fprintf(stderr, "WM_WINDOWPOSCHANGING"); break;
+        case 0x0047: fprintf(stderr, "WM_WINDOWPOSCHANGED"); break;
+        case 0x0048: fprintf(stderr, "WM_POWER"); break;
+        case 0x004A: fprintf(stderr, "WM_COPYDATA"); break;
+        case 0x004B: fprintf(stderr, "WM_CANCELJOURNAL"); break;
+        case 0x004E: fprintf(stderr, "WM_NOTIFY"); break;
+        case 0x0050: fprintf(stderr, "WM_INPUTLANGCHANGEREQUEST"); break;
+        case 0x0051: fprintf(stderr, "WM_INPUTLANGCHANGE"); break;
+        case 0x0052: fprintf(stderr, "WM_TCARD"); break;
+        case 0x0053: fprintf(stderr, "WM_HELP"); break;
+        case 0x0054: fprintf(stderr, "WM_USERCHANGED"); break;
+        case 0x0055: fprintf(stderr, "WM_NOTIFYFORMAT"); break;
+        case 0x007B: fprintf(stderr, "WM_CONTEXTMENU"); break;
+        case 0x007C: fprintf(stderr, "WM_STYLECHANGING"); break;
+        case 0x007D: fprintf(stderr, "WM_STYLECHANGED"); break;
+        case 0x007E: fprintf(stderr, "WM_DISPLAYCHANGE"); break;
+        case 0x007F: fprintf(stderr, "WM_GETICON"); break;
+        case 0x0080: fprintf(stderr, "WM_SETICON"); break;
+        case 0x0081: fprintf(stderr, "WM_NCCREATE"); break;
+        case 0x0082: fprintf(stderr, "WM_NCDESTROY"); break;
+        case 0x0083: fprintf(stderr, "WM_NCCALCSIZE"); break;
+        case 0x0084: fprintf(stderr, "WM_NCHITTEST"); break;
+        case 0x0085: fprintf(stderr, "WM_NCPAINT"); break;
+        case 0x0086: fprintf(stderr, "WM_NCACTIVATE"); break;
+        case 0x0087: fprintf(stderr, "WM_GETDLGCODE"); break;
+        case 0x00A0: fprintf(stderr, "WM_NCMOUSEMOVE"); break;
+        case 0x00A1: fprintf(stderr, "WM_NCLBUTTONDOWN"); break;
+        case 0x00A2: fprintf(stderr, "WM_NCLBUTTONUP"); break;
+        case 0x00A3: fprintf(stderr, "WM_NCLBUTTONDBLCLK"); break;
+        case 0x00A4: fprintf(stderr, "WM_NCRBUTTONDOWN"); break;
+        case 0x00A5: fprintf(stderr, "WM_NCRBUTTONUP"); break;
+        case 0x00A6: fprintf(stderr, "WM_NCRBUTTONDBLCLK"); break;
+        case 0x00A7: fprintf(stderr, "WM_NCMBUTTONDOWN"); break;
+        case 0x00A8: fprintf(stderr, "WM_NCMBUTTONUP"); break;
+        case 0x00A9: fprintf(stderr, "WM_NCMBUTTONDBLCLK"); break;
+    /*  case 0x0100: fprintf(stderr, "WM_KEYFIRST"); break;*/
+        case 0x0100: fprintf(stderr, "WM_KEYDOWN"); break;
+        case 0x0101: fprintf(stderr, "WM_KEYUP"); break;
+        case 0x0102: fprintf(stderr, "WM_CHAR"); break;
+        case 0x0103: fprintf(stderr, "WM_DEADCHAR"); break;
+        case 0x0104: fprintf(stderr, "WM_SYSKEYDOWN"); break;
+        case 0x0105: fprintf(stderr, "WM_SYSKEYUP"); break;
+        case 0x0106: fprintf(stderr, "WM_SYSCHAR"); break;
+        case 0x0107: fprintf(stderr, "WM_SYSDEADCHAR"); break;
+        case 0x0108: fprintf(stderr, "WM_KEYLAST"); break;
+        case 0x0109: fprintf(stderr, "WM_UNICHAR"); break;
+        case 0x0110: fprintf(stderr, "WM_INITDIALOG"); break;
+        case 0x0111: fprintf(stderr, "WM_COMMAND"); break;
+        case 0x0112: fprintf(stderr, "WM_SYSCOMMAND"); break;
+        case 0x0113: fprintf(stderr, "WM_TIMER"); break;
+        case 0x0114: fprintf(stderr, "WM_HSCROLL"); break;
+        case 0x0115: fprintf(stderr, "WM_VSCROLL"); break;
+        case 0x0116: fprintf(stderr, "WM_INITMENU"); break;
+        case 0x0117: fprintf(stderr, "WM_INITMENUPOPUP"); break;
+        case 0x011F: fprintf(stderr, "WM_MENUSELECT"); break;
+        case 0x0120: fprintf(stderr, "WM_MENUCHAR"); break;
+        case 0x0121: fprintf(stderr, "WM_ENTERIDLE"); break;
+        case 0x0132: fprintf(stderr, "WM_CTLCOLORMSGBOX"); break;
+        case 0x0133: fprintf(stderr, "WM_CTLCOLOREDIT"); break;
+        case 0x0134: fprintf(stderr, "WM_CTLCOLORLISTBOX"); break;
+        case 0x0135: fprintf(stderr, "WM_CTLCOLORBTN"); break;
+        case 0x0136: fprintf(stderr, "WM_CTLCOLORDLG"); break;
+        case 0x0137: fprintf(stderr, "WM_CTLCOLORSCROLLBAR"); break;
+        case 0x0138: fprintf(stderr, "WM_CTLCOLORSTATIC"); break;
+     /*   case 0x0200: fprintf(stderr, "WM_MOUSEFIRST"); break; */
+        case 0x0200: fprintf(stderr, "WM_MOUSEMOVE"); break;
+        case 0x0201: fprintf(stderr, "WM_LBUTTONDOWN"); break;
+        case 0x0202: fprintf(stderr, "WM_LBUTTONUP"); break;
+        case 0x0203: fprintf(stderr, "WM_LBUTTONDBLCLK"); break;
+        case 0x0204: fprintf(stderr, "WM_RBUTTONDOWN"); break;
+        case 0x0205: fprintf(stderr, "WM_RBUTTONUP"); break;
+        case 0x0206: fprintf(stderr, "WM_RBUTTONDBLCLK"); break;
+        case 0x0207: fprintf(stderr, "WM_MBUTTONDOWN"); break;
+        case 0x0208: fprintf(stderr, "WM_MBUTTONUP"); break;
+        case 0x0209: fprintf(stderr, "WM_MBUTTONDBLCLK"); break;
+      /*   case 0x0209: fprintf(stderr, "WM_MOUSELAST"); break; */
+        case 0x0210: fprintf(stderr, "WM_PARENTNOTIFY"); break;
+        case 0x0211: fprintf(stderr, "WM_ENTERMENULOOP"); break;
+        case 0x0212: fprintf(stderr, "WM_EXITMENULOOP"); break;
+        case 0x0220: fprintf(stderr, "WM_MDICREATE"); break;
+        case 0x0221: fprintf(stderr, "WM_MDIDESTROY"); break;
+        case 0x0222: fprintf(stderr, "WM_MDIACTIVATE"); break;
+        case 0x0223: fprintf(stderr, "WM_MDIRESTORE"); break;
+        case 0x0224: fprintf(stderr, "WM_MDINEXT"); break;
+        case 0x0225: fprintf(stderr, "WM_MDIMAXIMIZE"); break;
+        case 0x0226: fprintf(stderr, "WM_MDITILE"); break;
+        case 0x0227: fprintf(stderr, "WM_MDICASCADE"); break;
+        case 0x0228: fprintf(stderr, "WM_MDIICONARRANGE"); break;
+        case 0x0229: fprintf(stderr, "WM_MDIGETACTIVE"); break;
+        case 0x0230: fprintf(stderr, "WM_MDISetMenu"); break;
+        case 0x0231: fprintf(stderr, "WM_ENTERSIZEMOVE"); break;
+        case 0x0232: fprintf(stderr, "WM_EXITSIZEMOVE"); break;
+        case 0x0233: fprintf(stderr, "WM_DROPFILES"); break;
+        case 0x0234: fprintf(stderr, "WM_MDIREFRESHMENU"); break;
+        case 0x0300: fprintf(stderr, "WM_CUT"); break;
+        case 0x0301: fprintf(stderr, "WM_COPY"); break;
+        case 0x0302: fprintf(stderr, "WM_PASTE"); break;
+        case 0x0303: fprintf(stderr, "WM_CLEAR"); break;
+        case 0x0304: fprintf(stderr, "WM_UNDO"); break;
+        case 0x0305: fprintf(stderr, "WM_RENDERFORMAT"); break;
+        case 0x0306: fprintf(stderr, "WM_RENDERALLFORMATS"); break;
+        case 0x0307: fprintf(stderr, "WM_DESTROYCLIPBOARD"); break;
+        case 0x0308: fprintf(stderr, "WM_DRAWCLIPBOARD"); break;
+        case 0x0309: fprintf(stderr, "WM_PAINTCLIPBOARD"); break;
+        case 0x030A: fprintf(stderr, "WM_VSCROLLCLIPBOARD"); break;
+        case 0x030B: fprintf(stderr, "WM_SIZECLIPBOARD"); break;
+        case 0x030C: fprintf(stderr, "WM_ASKCBFORMATNAME"); break;
+        case 0x030D: fprintf(stderr, "WM_CHANGECBCHAIN"); break;
+        case 0x030E: fprintf(stderr, "WM_HSCROLLCLIPBOARD"); break;
+        case 0x030F: fprintf(stderr, "WM_QUERYNEWPALETTE"); break;
+        case 0x0310: fprintf(stderr, "WM_PALETTEISCHANGING"); break;
+        case 0x0311: fprintf(stderr, "WM_PALETTECHANGED"); break;
+        case 0x0312: fprintf(stderr, "WM_HOTKEY"); break;
+        case 0x0380: fprintf(stderr, "WM_PENWINFIRST"); break;
+        case 0x038F: fprintf(stderr, "WM_PENWINLAST"); break;
+        case 0x03A0: fprintf(stderr, "MM_JOY1MOVE"); break;
+        case 0x03A1: fprintf(stderr, "MM_JOY2MOVE"); break;
+        case 0x03A2: fprintf(stderr, "MM_JOY1ZMOVE"); break;
+        case 0x03A3: fprintf(stderr, "MM_JOY2ZMOVE"); break;
+        case 0x03B5: fprintf(stderr, "MM_JOY1BUTTONDOWN"); break;
+        case 0x03B6: fprintf(stderr, "MM_JOY2BUTTONDOWN"); break;
+        case 0x03B7: fprintf(stderr, "MM_JOY1BUTTONUP"); break;
+        case 0x03B8: fprintf(stderr, "MM_JOY2BUTTONUP"); break;
+        default: fprintf(stderr, "???"); break;
+
+    }
+
+}
+
+/*******************************************************************************
+
+Print message diagnostic
+
+This routine is for diagnostic use. Comment it out on production builds.
+
+*******************************************************************************/
+
+static void prtmsg(MSG* m)
+
+{
+
+    fprintf(stderr, "handle: %p", m->hwnd);
+    fprintf(stderr, " message: ");
+    prtmsgstr(m->message);
+    fprintf(stderr, " wparam: %08x", m->wParam);
+    fprintf(stderr, " lparam: %08x", m->lParam);
+    fprintf(stderr, "\n");
+
+}
+
+/*******************************************************************************
+
+Print unpacked message diagnostic
+
+This routine is for diagnostic use. Comment it out on production builds.
+
+*******************************************************************************/
+
+static void prtmsgu(HWND hwnd, int imsg, int wparam, int lparam)
+
+{
+
+    dbg_printf(dlinfo, "handle: %p message: ", hwnd);
+    prtmsgstr(imsg);
+    fprintf(stderr, " wparam: %08x", wparam);
+    fprintf(stderr, " lparam: %08x", lparam);
+    fprintf(stderr, "\n");
+
+}
+
+/*******************************************************************************
+
 Find next queue pointer
 
 Finds the next value of a queue pointer, which wraps around at the end.
@@ -1246,6 +1486,8 @@ static void putmsg(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     int ox1, oy1, ox2, oy2;
     int fm;                 /* found message */
 
+//dbg_printf(dlinfo, "Message: "); prtmsgu(hwnd, msg, wparam, lparam);
+
     lockmain(); /* start exclusive access */
 /* Turning on paint compression causes lost updates */
     if (msg == WM_PAINT && PACKMSG)  {
@@ -1327,6 +1569,8 @@ static void getmsg(MSG* msg)
         }
 
     } while (!f); /* until we have a message */
+
+//dbg_printf(dlinfo, "Message: "); prtmsg(msg);
 
 }
 
@@ -1464,7 +1708,7 @@ static void getfet(filptr* fp)
     if (!*fp) error(enomem); /* no more memory */
     (*fp)->win = NULL; /* set no window */
     (*fp)->inw = FALSE; /* clear input window link */
-    (*fp)->inl = 0; /* set no input file linked */
+    (*fp)->inl = -1; /* set no input file linked */
     (*fp)->evt = NULL; /* set no queued events */
 
 }
@@ -6508,246 +6752,6 @@ void pa_viewscale(FILE* f, float x, float y)
 
 /*******************************************************************************
 
-Print message string
-
-This routine is for diagnostic use. Comment it out on production builds.
-
-*******************************************************************************/
-
-static void prtmsgstr(int mn)
-
-{
-
-    fprintf(stderr, "%04x: ", mn);
-    if (mn >= 0x800 && mn <= 0xbfff) fprintf(stderr, "User message");
-    else if (mn >= 0xc000 && mn <= 0xffff) fprintf(stderr, "Registered message");
-    else switch (mn) {
-
-        case 0x0000: fprintf(stderr, "WM_NULL"); break;
-        case 0x0001: fprintf(stderr, "WM_CREATE"); break;
-        case 0x0002: fprintf(stderr, "WM_DESTROY"); break;
-        case 0x0003: fprintf(stderr, "WM_MOVE"); break;
-        case 0x0005: fprintf(stderr, "WM_SIZE"); break;
-        case 0x0006: fprintf(stderr, "WM_ACTIVATE"); break;
-        case 0x0007: fprintf(stderr, "WM_SETFOCUS"); break;
-        case 0x0008: fprintf(stderr, "WM_KILLFOCUS"); break;
-        case 0x000A: fprintf(stderr, "WM_ENABLE"); break;
-        case 0x000B: fprintf(stderr, "WM_SETREDRAW"); break;
-        case 0x000C: fprintf(stderr, "WM_SETTEXT"); break;
-        case 0x000D: fprintf(stderr, "WM_GETTEXT"); break;
-        case 0x000E: fprintf(stderr, "WM_GETTEXTLENGTH"); break;
-        case 0x000F: fprintf(stderr, "WM_PAINT"); break;
-        case 0x0010: fprintf(stderr, "WM_CLOSE"); break;
-        case 0x0011: fprintf(stderr, "WM_QUERYENDSESSION"); break;
-        case 0x0012: fprintf(stderr, "WM_QUIT"); break;
-        case 0x0013: fprintf(stderr, "WM_QUERYOPEN"); break;
-        case 0x0014: fprintf(stderr, "WM_ERASEBKGND"); break;
-        case 0x0015: fprintf(stderr, "WM_SYSCOLORCHANGE"); break;
-        case 0x0016: fprintf(stderr, "WM_ENDSESSION"); break;
-        case 0x0018: fprintf(stderr, "WM_ShowWindow"); break;
-        case 0x001A: fprintf(stderr, "WM_WININICHANGE"); break;
-        case 0x001B: fprintf(stderr, "WM_DEVMODECHANGE"); break;
-        case 0x001C: fprintf(stderr, "WM_ACTIVATEAPP"); break;
-        case 0x001D: fprintf(stderr, "WM_FONTCHANGE"); break;
-        case 0x001E: fprintf(stderr, "WM_TIMECHANGE"); break;
-        case 0x001F: fprintf(stderr, "WM_CANCELMODE"); break;
-        case 0x0020: fprintf(stderr, "WM_SETCURSOR"); break;
-        case 0x0021: fprintf(stderr, "WM_MOUSEACTIVATE"); break;
-        case 0x0022: fprintf(stderr, "WM_CHILDACTIVATE"); break;
-        case 0x0023: fprintf(stderr, "WM_QUEUESYNC"); break;
-        case 0x0024: fprintf(stderr, "WM_GETMINMAXINFO"); break;
-        case 0x0026: fprintf(stderr, "WM_PAINTICON"); break;
-        case 0x0027: fprintf(stderr, "WM_ICONERASEBKGND"); break;
-        case 0x0028: fprintf(stderr, "WM_NEXTDLGCTL"); break;
-        case 0x002A: fprintf(stderr, "WM_SPOOLERSTATUS"); break;
-        case 0x002B: fprintf(stderr, "WM_DRAWITEM"); break;
-        case 0x002C: fprintf(stderr, "WM_MEASUREITEM"); break;
-        case 0x002D: fprintf(stderr, "WM_DELETEITEM"); break;
-        case 0x002E: fprintf(stderr, "WM_VKEYTOITEM"); break;
-        case 0x002F: fprintf(stderr, "WM_CHARTOITEM"); break;
-        case 0x0030: fprintf(stderr, "WM_SETFONT"); break;
-        case 0x0031: fprintf(stderr, "WM_GETFONT"); break;
-        case 0x0032: fprintf(stderr, "WM_SETHOTKEY"); break;
-        case 0x0033: fprintf(stderr, "WM_GETHOTKEY"); break;
-        case 0x0037: fprintf(stderr, "WM_QUERYDRAGICON"); break;
-        case 0x0039: fprintf(stderr, "WM_COMPAREITEM"); break;
-        case 0x0041: fprintf(stderr, "WM_COMPACTING"); break;
-        case 0x0042: fprintf(stderr, "WM_OTHERWINDOWCREATED"); break;
-        case 0x0043: fprintf(stderr, "WM_OTHERWINDOWDESTROYED"); break;
-        case 0x0044: fprintf(stderr, "WM_COMMNOTIFY"); break;
-        case 0x0045: fprintf(stderr, "WM_HOTKEYEVENT"); break;
-        case 0x0046: fprintf(stderr, "WM_WINDOWPOSCHANGING"); break;
-        case 0x0047: fprintf(stderr, "WM_WINDOWPOSCHANGED"); break;
-        case 0x0048: fprintf(stderr, "WM_POWER"); break;
-        case 0x004A: fprintf(stderr, "WM_COPYDATA"); break;
-        case 0x004B: fprintf(stderr, "WM_CANCELJOURNAL"); break;
-        case 0x004E: fprintf(stderr, "WM_NOTIFY"); break;
-        case 0x0050: fprintf(stderr, "WM_INPUTLANGCHANGEREQUEST"); break;
-        case 0x0051: fprintf(stderr, "WM_INPUTLANGCHANGE"); break;
-        case 0x0052: fprintf(stderr, "WM_TCARD"); break;
-        case 0x0053: fprintf(stderr, "WM_HELP"); break;
-        case 0x0054: fprintf(stderr, "WM_USERCHANGED"); break;
-        case 0x0055: fprintf(stderr, "WM_NOTIFYFORMAT"); break;
-        case 0x007B: fprintf(stderr, "WM_CONTEXTMENU"); break;
-        case 0x007C: fprintf(stderr, "WM_STYLECHANGING"); break;
-        case 0x007D: fprintf(stderr, "WM_STYLECHANGED"); break;
-        case 0x007E: fprintf(stderr, "WM_DISPLAYCHANGE"); break;
-        case 0x007F: fprintf(stderr, "WM_GETICON"); break;
-        case 0x0080: fprintf(stderr, "WM_SETICON"); break;
-        case 0x0081: fprintf(stderr, "WM_NCCREATE"); break;
-        case 0x0082: fprintf(stderr, "WM_NCDESTROY"); break;
-        case 0x0083: fprintf(stderr, "WM_NCCALCSIZE"); break;
-        case 0x0084: fprintf(stderr, "WM_NCHITTEST"); break;
-        case 0x0085: fprintf(stderr, "WM_NCPAINT"); break;
-        case 0x0086: fprintf(stderr, "WM_NCACTIVATE"); break;
-        case 0x0087: fprintf(stderr, "WM_GETDLGCODE"); break;
-        case 0x00A0: fprintf(stderr, "WM_NCMOUSEMOVE"); break;
-        case 0x00A1: fprintf(stderr, "WM_NCLBUTTONDOWN"); break;
-        case 0x00A2: fprintf(stderr, "WM_NCLBUTTONUP"); break;
-        case 0x00A3: fprintf(stderr, "WM_NCLBUTTONDBLCLK"); break;
-        case 0x00A4: fprintf(stderr, "WM_NCRBUTTONDOWN"); break;
-        case 0x00A5: fprintf(stderr, "WM_NCRBUTTONUP"); break;
-        case 0x00A6: fprintf(stderr, "WM_NCRBUTTONDBLCLK"); break;
-        case 0x00A7: fprintf(stderr, "WM_NCMBUTTONDOWN"); break;
-        case 0x00A8: fprintf(stderr, "WM_NCMBUTTONUP"); break;
-        case 0x00A9: fprintf(stderr, "WM_NCMBUTTONDBLCLK"); break;
-    /*  case 0x0100: fprintf(stderr, "WM_KEYFIRST"); break;*/
-        case 0x0100: fprintf(stderr, "WM_KEYDOWN"); break;
-        case 0x0101: fprintf(stderr, "WM_KEYUP"); break;
-        case 0x0102: fprintf(stderr, "WM_CHAR"); break;
-        case 0x0103: fprintf(stderr, "WM_DEADCHAR"); break;
-        case 0x0104: fprintf(stderr, "WM_SYSKEYDOWN"); break;
-        case 0x0105: fprintf(stderr, "WM_SYSKEYUP"); break;
-        case 0x0106: fprintf(stderr, "WM_SYSCHAR"); break;
-        case 0x0107: fprintf(stderr, "WM_SYSDEADCHAR"); break;
-        case 0x0108: fprintf(stderr, "WM_KEYLAST"); break;
-        case 0x0109: fprintf(stderr, "WM_UNICHAR"); break;
-        case 0x0110: fprintf(stderr, "WM_INITDIALOG"); break;
-        case 0x0111: fprintf(stderr, "WM_COMMAND"); break;
-        case 0x0112: fprintf(stderr, "WM_SYSCOMMAND"); break;
-        case 0x0113: fprintf(stderr, "WM_TIMER"); break;
-        case 0x0114: fprintf(stderr, "WM_HSCROLL"); break;
-        case 0x0115: fprintf(stderr, "WM_VSCROLL"); break;
-        case 0x0116: fprintf(stderr, "WM_INITMENU"); break;
-        case 0x0117: fprintf(stderr, "WM_INITMENUPOPUP"); break;
-        case 0x011F: fprintf(stderr, "WM_MENUSELECT"); break;
-        case 0x0120: fprintf(stderr, "WM_MENUCHAR"); break;
-        case 0x0121: fprintf(stderr, "WM_ENTERIDLE"); break;
-        case 0x0132: fprintf(stderr, "WM_CTLCOLORMSGBOX"); break;
-        case 0x0133: fprintf(stderr, "WM_CTLCOLOREDIT"); break;
-        case 0x0134: fprintf(stderr, "WM_CTLCOLORLISTBOX"); break;
-        case 0x0135: fprintf(stderr, "WM_CTLCOLORBTN"); break;
-        case 0x0136: fprintf(stderr, "WM_CTLCOLORDLG"); break;
-        case 0x0137: fprintf(stderr, "WM_CTLCOLORSCROLLBAR"); break;
-        case 0x0138: fprintf(stderr, "WM_CTLCOLORSTATIC"); break;
-     /*   case 0x0200: fprintf(stderr, "WM_MOUSEFIRST"); break; */
-        case 0x0200: fprintf(stderr, "WM_MOUSEMOVE"); break;
-        case 0x0201: fprintf(stderr, "WM_LBUTTONDOWN"); break;
-        case 0x0202: fprintf(stderr, "WM_LBUTTONUP"); break;
-        case 0x0203: fprintf(stderr, "WM_LBUTTONDBLCLK"); break;
-        case 0x0204: fprintf(stderr, "WM_RBUTTONDOWN"); break;
-        case 0x0205: fprintf(stderr, "WM_RBUTTONUP"); break;
-        case 0x0206: fprintf(stderr, "WM_RBUTTONDBLCLK"); break;
-        case 0x0207: fprintf(stderr, "WM_MBUTTONDOWN"); break;
-        case 0x0208: fprintf(stderr, "WM_MBUTTONUP"); break;
-        case 0x0209: fprintf(stderr, "WM_MBUTTONDBLCLK"); break;
-      /*   case 0x0209: fprintf(stderr, "WM_MOUSELAST"); break; */
-        case 0x0210: fprintf(stderr, "WM_PARENTNOTIFY"); break;
-        case 0x0211: fprintf(stderr, "WM_ENTERMENULOOP"); break;
-        case 0x0212: fprintf(stderr, "WM_EXITMENULOOP"); break;
-        case 0x0220: fprintf(stderr, "WM_MDICREATE"); break;
-        case 0x0221: fprintf(stderr, "WM_MDIDESTROY"); break;
-        case 0x0222: fprintf(stderr, "WM_MDIACTIVATE"); break;
-        case 0x0223: fprintf(stderr, "WM_MDIRESTORE"); break;
-        case 0x0224: fprintf(stderr, "WM_MDINEXT"); break;
-        case 0x0225: fprintf(stderr, "WM_MDIMAXIMIZE"); break;
-        case 0x0226: fprintf(stderr, "WM_MDITILE"); break;
-        case 0x0227: fprintf(stderr, "WM_MDICASCADE"); break;
-        case 0x0228: fprintf(stderr, "WM_MDIICONARRANGE"); break;
-        case 0x0229: fprintf(stderr, "WM_MDIGETACTIVE"); break;
-        case 0x0230: fprintf(stderr, "WM_MDISetMenu"); break;
-        case 0x0231: fprintf(stderr, "WM_ENTERSIZEMOVE"); break;
-        case 0x0232: fprintf(stderr, "WM_EXITSIZEMOVE"); break;
-        case 0x0233: fprintf(stderr, "WM_DROPFILES"); break;
-        case 0x0234: fprintf(stderr, "WM_MDIREFRESHMENU"); break;
-        case 0x0300: fprintf(stderr, "WM_CUT"); break;
-        case 0x0301: fprintf(stderr, "WM_COPY"); break;
-        case 0x0302: fprintf(stderr, "WM_PASTE"); break;
-        case 0x0303: fprintf(stderr, "WM_CLEAR"); break;
-        case 0x0304: fprintf(stderr, "WM_UNDO"); break;
-        case 0x0305: fprintf(stderr, "WM_RENDERFORMAT"); break;
-        case 0x0306: fprintf(stderr, "WM_RENDERALLFORMATS"); break;
-        case 0x0307: fprintf(stderr, "WM_DESTROYCLIPBOARD"); break;
-        case 0x0308: fprintf(stderr, "WM_DRAWCLIPBOARD"); break;
-        case 0x0309: fprintf(stderr, "WM_PAINTCLIPBOARD"); break;
-        case 0x030A: fprintf(stderr, "WM_VSCROLLCLIPBOARD"); break;
-        case 0x030B: fprintf(stderr, "WM_SIZECLIPBOARD"); break;
-        case 0x030C: fprintf(stderr, "WM_ASKCBFORMATNAME"); break;
-        case 0x030D: fprintf(stderr, "WM_CHANGECBCHAIN"); break;
-        case 0x030E: fprintf(stderr, "WM_HSCROLLCLIPBOARD"); break;
-        case 0x030F: fprintf(stderr, "WM_QUERYNEWPALETTE"); break;
-        case 0x0310: fprintf(stderr, "WM_PALETTEISCHANGING"); break;
-        case 0x0311: fprintf(stderr, "WM_PALETTECHANGED"); break;
-        case 0x0312: fprintf(stderr, "WM_HOTKEY"); break;
-        case 0x0380: fprintf(stderr, "WM_PENWINFIRST"); break;
-        case 0x038F: fprintf(stderr, "WM_PENWINLAST"); break;
-        case 0x03A0: fprintf(stderr, "MM_JOY1MOVE"); break;
-        case 0x03A1: fprintf(stderr, "MM_JOY2MOVE"); break;
-        case 0x03A2: fprintf(stderr, "MM_JOY1ZMOVE"); break;
-        case 0x03A3: fprintf(stderr, "MM_JOY2ZMOVE"); break;
-        case 0x03B5: fprintf(stderr, "MM_JOY1BUTTONDOWN"); break;
-        case 0x03B6: fprintf(stderr, "MM_JOY2BUTTONDOWN"); break;
-        case 0x03B7: fprintf(stderr, "MM_JOY1BUTTONUP"); break;
-        case 0x03B8: fprintf(stderr, "MM_JOY2BUTTONUP"); break;
-        default: fprintf(stderr, "???"); break;
-
-    }
-
-}
-
-/*******************************************************************************
-
-Print message diagnostic
-
-This routine is for diagnostic use. Comment it out on production builds.
-
-*******************************************************************************/
-
-static void prtmsg(MSG m)
-
-{
-
-    fprintf(stderr, "handle: %p", m.hwnd);
-    fprintf(stderr, " message: ");
-    prtmsgstr(m.message);
-    fprintf(stderr, " wparam: %08x", m.wParam);
-    fprintf(stderr, " lparam: %08x", m.lParam);
-    fprintf(stderr, "\n");
-
-}
-
-/*******************************************************************************
-
-Print unpacked message diagnostic
-
-This routine is for diagnostic use. Comment it out on production builds.
-
-*******************************************************************************/
-
-static void prtmsgu(HWND hwnd, int imsg, int wparam, int lparam)
-
-{
-
-    dbg_printf(dlinfo, "handle: %p message: ", hwnd);
-    prtmsgstr(imsg);
-    fprintf(stderr, " wparam: %08x", wparam);
-    fprintf(stderr, " lparam: %08x", lparam);
-    fprintf(stderr, "\n");
-
-}
-
-/*******************************************************************************
-
 Aquire next input event
 
 Waits for end returns the next event. For now, the input file is ignored, and
@@ -7635,7 +7639,7 @@ static void ievent(int ifn, pa_evtrec* er)
     /* check there are events waiting on the input queue */
     if (opnfil[ifn]->evt) {
 
-        /* We pick one, && only one, event off the input queue. The messages are
+        /* We pick one, and only one, event off the input queue. The messages are
            removed in fifo order. */
         ep = opnfil[ifn]->evt->next; /* index the entry to dequeue */
         *er = ep->evt; /* get the queued event */
@@ -7656,14 +7660,14 @@ static void ievent(int ifn, pa_evtrec* er)
         getmsg(&msg);
         /* get the logical output file from Windows handle */
         ofn = hwn2lfn(msg.hwnd);
-/*;fprintf(stderr, "ofn: %08x", ofn); fprintf(stderr, " "); prtmsg(msg);*/
+/*;fprintf(stderr, "ofn: %08x", ofn); fprintf(stderr, " "); prtmsg(&msg);*/
         /* A message can have a window associated with it, or be sent anonymously.
            Anonymous messages are typically intertask housekeeping signals. */
         if (ofn > 0)  {
 
             win = lfn2win(ofn); /* index window from output file */
             er->winid = filwin[ofn]; /* set window id */
-            winevt; /* process messsage */
+            winevt(win, er, &msg, ofn, &keep); /* process messsage */
             if (!keep) sigevt(er, &msg, &keep); /* if not found, try intertask signal */
 
         } else sigevt; /* process signal */
@@ -7671,11 +7675,11 @@ static void ievent(int ifn, pa_evtrec* er)
 
             /* check and error if no logical input file is linked to this output
                window */
-            if (!opnfil[ofn]->inl) error(esystem);
+            if (opnfil[ofn]->inl < 0) error(esystem);
             if (opnfil[ofn]->inl != ifn) {
 
-                /* The event is ! for the input agent that is calling us. We will
-                   queue the message up on the input file it is int}ed for. Why
+                /* The event is not for the input agent that is calling us. We will
+                   queue the message up on the input file it is intended for. Why
                    would this happen ? Only if the program is switching between
                    input channels, since each input is locked to a task. */
                 enqueue(&opnfil[opnfil[ofn]->inl]->evt, er);
@@ -7698,7 +7702,7 @@ void pa_event(FILE* f, pa_evtrec* er)
 {
 
     lockmain(); /* start exclusive access */
-    /* get logical input file number for input, && get the event for that. */
+    /* get logical input file number for input, and get the event for that. */
     ievent(txt2lfn(f), er); /* process event */
     unlockmain(); /* end exclusive access */
 
@@ -9228,7 +9232,7 @@ static void clsfil(int fn)
     free(fp->win); /* release the window data */
     fp->win = NULL; /* set end open */
     fp->inw = FALSE;
-    fp->inl = 0;
+    fp->inl = -1;
     while (fp->evt) {
 
         ep = fp->evt; /* index top */
@@ -14252,6 +14256,7 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam,
 /*
 dbg_printf(dlinfo, "msg#: %d ", msgcnt); prtmsgu(hwnd, imsg, wparam, lparam); msgcnt++;
 */
+
     if (imsg == WM_CREATE) {
 
         r = 0;
@@ -14368,7 +14373,7 @@ dbg_printf(dlinfo, "msg#: %d ", msgcnt); prtmsgu(hwnd, imsg, wparam, lparam); ms
 
     } else if (imsg == WM_DESTROY) {
 
-        /* here"s a problem. Posting quit causes the thread/process to terminate,
+        /* here's a problem. Posting quit causes the thread/process to terminate,
            not just the window. MSDN says to quit only the main window, but what
            is the main window here ? We send our terminate message based on
            wm_quit, and the window, even the main, does get closed. The postquit

@@ -19,6 +19,7 @@ int main()
 
     pa_evtrec er;
 
+    printf("Event diagnostic 1.0\n");
     do {
 
         pa_event(stdin, &er);
