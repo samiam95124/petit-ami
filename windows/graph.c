@@ -6842,7 +6842,9 @@ static void ctlevent(winptr win, pa_evtrec* er, MSG* msg, int* keep)
 {
 
     /* find key we process */
+    *keep = TRUE; /* set keep event */
     switch (msg->wParam) { /* key */
+
         case VK_HOME: /* home */
             if (win->cntrl) er->etype = pa_ethome; /* home document */
             else if (win->shift) er->etype = pa_ethomes; /* home screen */
@@ -6971,8 +6973,10 @@ static void ctlevent(winptr win, pa_evtrec* er, MSG* msg, int* keep)
         case VK_MENU: er->etype = pa_etmenu; break; /* alt */
         case VK_CANCEL: er->etype = pa_etterm; break; /* ctl-brk */
 
+        default: *keep = FALSE; /* others are dropped */
+            break;
+
     }
-    *keep = TRUE; /* set keep event */
 
 }
 
@@ -7180,6 +7184,7 @@ static void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
     float  f;          /* floating point temp */
     NMHDR* nhp;        /* notification header */
 
+//dbg_printf(dlinfo, "Message: "); prtmsg(msg);
     if (msg->message == WM_PAINT)  { /* window paint */
 
         if (!win->bufmod) { /* our client handles it"s own redraws */
@@ -14253,9 +14258,7 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam,
     int     udw; /* up/down control width */
     RECT    cr;  /* client rectangle */
 
-/*
-dbg_printf(dlinfo, "msg#: %d ", msgcnt); prtmsgu(hwnd, imsg, wparam, lparam); msgcnt++;
-*/
+//dbg_printf(dlinfo, "msg#: %d ", msgcnt); prtmsgu(hwnd, imsg, wparam, lparam); msgcnt++;
 
     if (imsg == WM_CREATE) {
 

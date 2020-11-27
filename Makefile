@@ -506,7 +506,7 @@ random: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/random.c M
 genwave: bin/petit_ami_plain$(LIBEXT) include/terminal.h sound_programs/genwave.c Makefile
 	$(CC) $(CFLAGS) sound_programs/genwave.c utils/option.c $(PLIBS) -o bin/genwave
 	
-scntst: bin/petit_ami_term$(LIBEXT) include/terminal.h tests/scntst.c include/services.h linux/services.c Makefile
+scntst: bin/petit_ami_graph$(LIBEXT) include/terminal.h tests/scntst.c include/services.h linux/services.c Makefile
 	$(CC) $(CFLAGS) tests/scntst.c $(LIBS) -o bin/scntst 
 	
 sndtst: bin/petit_ami_term$(LIBEXT) include/terminal.h tests/sndtst.c \
