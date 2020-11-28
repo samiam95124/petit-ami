@@ -2748,7 +2748,7 @@ static void iniscn(winptr win, scnptr sc)
     sc->fcrgb = win->gfcrgb; /* set colors && attributes */
     sc->bcrgb = win->gbcrgb;
     sc->attr = win->gattr;
-    sc->autof = win->gauto; /* set auto scroll && wrap */
+    sc->autof = win->gauto; /* set auto scroll and wrap */
     sc->curv = win->gcurv; /* set cursor visibility */
     sc->lwidth = 1; /* set single pixel width */
     sc->font = 0; /* set no font active */
@@ -8766,7 +8766,7 @@ static void plcfnt(winptr win, fontptr fp)
         if (!fp->fn) error(enomem);
         *fp->fn = 0;
         fp->fix = FALSE; /* set for cleanlyness */
-        fp->sys = FALSE; /* set ! system */
+        fp->sys = FALSE; /* set not system */
 
     }
     fp->next = win->fntlst; /* push onto list */
@@ -9095,7 +9095,7 @@ static void opnwin(int fn, int pfn)
     win->gfhigh = FHEIGHT; /* set default font height */
     getfonts(win); /* get the global fonts list */
     stdfont(win); /* mark the standard fonts */
-    win->gcfont = fntlst; /* index top of list as terminal font */
+    win->gcfont = win->fntlst; /* index top of list as terminal font */
     /* set up system default parameters */
     rv = SelectObject(win->devcon, GetStockObject(SYSTEM_FIXED_FONT));
     if (rv == HGDI_ERROR) error(enosel);
