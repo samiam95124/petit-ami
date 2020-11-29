@@ -659,7 +659,6 @@ static int       stdwinj2c;    /* joystick 1 capture */
 /* lock for all global structures */
 CRITICAL_SECTION mainlock;     /* main task lock */
 static imptr     freitm;       /* intratask message free list */
-static int       msgcnt;       /* counter for number of message output (diagnostic) */
 
 /* The double fault flag is set when exiting, so if we exit again, it
   is checked,  forces an immediate exit. This keeps faults from
@@ -6818,7 +6817,7 @@ static void keyevent(pa_evtrec* er, MSG* msg, int* keep)
    else if (msg->wParam == '\t') er->etype = pa_ettab; /* set tab */
    else if (msg->wParam == 0x03) /*etx*/  {
 
-      er->etype = pa_etterm; /* set } program */
+      er->etype = pa_etterm; /* set end program */
       fend = TRUE; /* set } was ordered */
 
    } else if (msg->wParam == 0x13) /* xoff */
@@ -7663,6 +7662,7 @@ static void ievent(int ifn, pa_evtrec* er)
         keep = FALSE; /* set don"t keep by default */
         /* get next message */
         getmsg(&msg);
+//dbg_printf(dlinfo, "Message: "); prtmsg(&msg);
         /* get the logical output file from Windows handle */
         ofn = hwn2lfn(msg.hwnd);
 /*;fprintf(stderr, "ofn: %08x", ofn); fprintf(stderr, " "); prtmsg(&msg);*/
@@ -7675,7 +7675,7 @@ static void ievent(int ifn, pa_evtrec* er)
             winevt(win, er, &msg, ofn, &keep); /* process messsage */
             if (!keep) sigevt(er, &msg, &keep); /* if not found, try intertask signal */
 
-        } else sigevt; /* process signal */
+        } else sigevt(er, &msg, &keep); /* process signal */
         if (keep && (ofn > 0))  { /* we have an event, and not main */
 
             /* check and error if no logical input file is linked to this output
@@ -14258,7 +14258,7 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam,
     int     udw; /* up/down control width */
     RECT    cr;  /* client rectangle */
 
-//dbg_printf(dlinfo, "msg#: %d ", msgcnt); prtmsgu(hwnd, imsg, wparam, lparam); msgcnt++;
+//dbg_printf(dlinfo, "Message: "); prtmsgu(hwnd, imsg, wparam, lparam);
 
     if (imsg == WM_CREATE) {
 
@@ -14364,13 +14364,13 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam,
 
     } else if (imsg == WM_ERASEBKGND) {
 
-        /* Letting windows erase the background is ! good, because it flashes, and
+        /* Letting windows erase the background is not good, because it flashes, and
            is redundant in any case, because we handle that. */
         r = 1; /* say we are handling the erase */
 
     } else if (imsg == WM_CLOSE) {
 
-        /* we handle our own window close, so don"t pass this on */
+        /* we handle our own window close, so don't pass this on */
         putmsg(0, imsg, wparam, lparam);
         r = 0;
 
@@ -15188,7 +15188,6 @@ static void pa_init_graph()
     dblflt = FALSE; /* set no double fault */
     wigfre = NULL; /* set free widget tracking list empty */
     freitm = NULL; /* clear intratask message free list */
-    msgcnt = 1; /* clear message counter */
 
     /* Set up private message queuing */
 
