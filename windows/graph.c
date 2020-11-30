@@ -644,6 +644,7 @@ static HWND      dispwin;      /* handle to display thread window */
 static HWND      dialogwin;    /* handle to dialog thread window */
 static HANDLE    threadstart;  /* thread start event handle */
 static DWORD     threadid;     /* dummy thread id (unused) */
+static HANDLE    threadhdl;    /* windows thread handle */
 static HWND      mainwin;      /* handle to main thread dummy window */
 static int       mainthreadid; /* main thread id */
 /* This block communicates with the subthread to create standard windows. */
@@ -15224,7 +15225,7 @@ static void pa_init_graph()
     if (!threadstart) winerr(); /* process windows error */
     /* create subthread */
     ResetEvent(threadstart); /* clear event */
-    CreateThread(NULL, 0, dispthread, NULL, 0, &threadid);
+    threadhdl = CreateThread(NULL, 0, dispthread, NULL, 0, &threadid);
     WaitForSingleObject(threadstart, -1); /* wait for thread to start */
     if (r == -1) winerr(); /* process windows error */
     /* Past this point, we need to lock for access between us and the thread. */
@@ -15308,6 +15309,8 @@ static void pa_deinit_graph(void)
                 clswin(fi); /* close open window */
 
     }
+    /* kill subthread */
+    TerminateThread(threadhdl, 0);
     unlockmain(); /* end exclusive access */
 
 }

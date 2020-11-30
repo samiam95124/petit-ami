@@ -521,10 +521,10 @@ svstst: bin/petit_ami_plain$(LIBEXT) include/terminal.h tests/svstst.c \
 event: bin/petit_ami_graph$(LIBEXT) include/terminal.h tests/event.c Makefile
 	$(CC) $(CFLAGS) tests/event.c $(LIBS) -o bin/event
 	
-term: bin/petit_ami_term$(LIBEXT) include/terminal.h tests/term.c Makefile
+term: bin/petit_ami_graph$(LIBEXT) include/terminal.h tests/term.c Makefile
 	$(CC) $(CFLAGS) tests/term.c $(LIBS) -o bin/term
 	
-snake: bin/petit_ami_term$(LIBEXT) terminal_games/snake.c include/terminal.h Makefile
+snake: bin/petit_ami_graph$(LIBEXT) terminal_games/snake.c include/terminal.h Makefile
 	$(CC) $(CFLAGS) terminal_games/snake.c $(LIBS) -o bin/snake
 	
 mine: bin/petit_ami_term$(LIBEXT) terminal_games/mine.c include/terminal.h Makefile
