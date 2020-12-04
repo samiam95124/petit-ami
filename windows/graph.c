@@ -1801,11 +1801,12 @@ static winptr lfn2win(int fn)
 
 {
 
-   if (fn < 0 || fn >= MAXFIL)  error(einvhan); /* invalid file handle */
-   if (!opnfil[fn])  error(einvhan); /* invalid handle */
-   if (!opnfil[fn]->win) error(efnotwin); /* not a window file */
+    if (fn < 0 || fn >= MAXFIL)  error(einvhan); /* invalid file handle */
+    if (!opnfil[fn])  error(einvhan); /* invalid handle */
+    if (!opnfil[fn]->win)
+        error(efnotwin); /* not a window file */
 
-   return (opnfil[fn]->win); /* return windows pointer */
+    return (opnfil[fn]->win); /* return windows pointer */
 
 }
 
@@ -7810,7 +7811,7 @@ the associated input file.
 static void itimer(winptr win, /* file to send event to */
                    int    lf,  /* logical file number */
                    int    i,   /* timer handle */
-                   int    t,   /* number of tenth-milliseconds to run */
+                   long   t,   /* number of tenth-milliseconds to run */
                    int    r)   /* timer is to rerun after completion */
 
 {
@@ -7838,7 +7839,7 @@ static void itimer(winptr win, /* file to send event to */
 
 void pa_timer(FILE* f, /* file to send event to */
                      int   i, /* timer handle */
-                     int   t, /* number of tenth-milliseconds to run */
+                     long  t, /* number of tenth-milliseconds to run */
                      int   r) /* timer is to rerun after completion */
 
 {

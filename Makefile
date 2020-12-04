@@ -527,13 +527,13 @@ term: bin/petit_ami_graph$(LIBEXT) include/terminal.h tests/term.c Makefile
 snake: bin/petit_ami_graph$(LIBEXT) terminal_games/snake.c include/terminal.h Makefile
 	$(CC) $(CFLAGS) terminal_games/snake.c $(LIBS) -o bin/snake
 	
-mine: bin/petit_ami_term$(LIBEXT) terminal_games/mine.c include/terminal.h Makefile
+mine: bin/petit_ami_graph$(LIBEXT) terminal_games/mine.c include/terminal.h Makefile
 	$(CC) $(CFLAGS) terminal_games/mine.c $(LIBS) -o bin/mine
 	
-wator: bin/petit_ami_term$(LIBEXT) terminal_programs/wator.c include/terminal.h Makefile
+wator: bin/petit_ami_graph$(LIBEXT) terminal_programs/wator.c include/terminal.h Makefile
 	$(CC) $(CFLAGS) terminal_programs/wator.c $(LIBS) -o bin/wator
 	
-pong: bin/petit_ami_term$(LIBEXT) terminal_games/pong.c include/terminal.h Makefile
+pong: bin/petit_ami_graph$(LIBEXT) terminal_games/pong.c include/terminal.h Makefile
 	$(CC) $(CFLAGS) terminal_games/pong.c $(LIBS) -o bin/pong
 	
 editor: bin/petit_ami_term$(LIBEXT) terminal_programs/editor.c include/terminal.h Makefile
@@ -562,6 +562,27 @@ prtcertmsg: bin/petit_ami_plain$(LIBEXT) network_programs/prtcertmsg.c Makefile
 	
 listcertnet: bin/petit_ami_plain$(LIBEXT) network_programs/listcertnet.c Makefile
 	$(CC) $(CFLAGS) network_programs/listcertnet.c $(PLIBS) -o bin/listcertnet
+
+pixel: bin/petit_ami_graph$(LIBEXT) include/terminal.h graph_programs/pixel.c Makefile
+	$(CC) $(CFLAGS) graph_programs/pixel.c $(LIBS) -o bin/pixel
+	
+ball1: bin/petit_ami_graph$(LIBEXT) include/terminal.h graph_programs/ball1.c Makefile
+	$(CC) $(CFLAGS) graph_programs/ball1.c $(LIBS) -o bin/ball1
+	
+ball2: bin/petit_ami_graph$(LIBEXT) include/terminal.h graph_programs/ball2.c Makefile
+	$(CC) $(CFLAGS) graph_programs/ball2.c $(LIBS) -o bin/ball2
+	
+line1: bin/petit_ami_graph$(LIBEXT) include/terminal.h graph_programs/line1.c Makefile
+	$(CC) $(CFLAGS) graph_programs/line1.c $(LIBS) -o bin/line1
+
+line2: bin/petit_ami_graph$(LIBEXT) include/terminal.h graph_programs/line2.c Makefile
+	$(CC) $(CFLAGS) graph_programs/line2.c $(LIBS) -o bin/line2
+	
+line4: bin/petit_ami_graph$(LIBEXT) include/terminal.h graph_programs/line4.c Makefile
+	$(CC) $(CFLAGS) graph_programs/line4.c $(LIBS) -o bin/line4
+	
+line5: bin/petit_ami_graph$(LIBEXT) include/terminal.h graph_programs/line5.c Makefile
+	$(CC) $(CFLAGS) graph_programs/line5.c $(LIBS) -o bin/line5
 	
 clean:
 	rm -f bin/dumpmidi bin/lsalsadev bin/alsaparms test bin/play bin/keyboard 

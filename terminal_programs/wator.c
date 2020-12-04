@@ -383,7 +383,7 @@ void main(void)
     clear();
     display();
     /* set cycle to rate limit at 10 times a second */
-    pa_timer(stdin, 1, 1000, TRUE);
+    pa_timer(stdout, 1, 1000, TRUE);
     do {
 
         /* get next interesting event */

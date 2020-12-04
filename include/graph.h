@@ -320,7 +320,7 @@ int pa_cury(FILE* f);
 int pa_curbnd(FILE* f);
 void pa_select(FILE* f, int u, int d);
 void pa_event(FILE* f, pa_evtrec* er);
-void pa_timer(FILE* f, int i, int t, int r);
+void pa_timer(FILE* f, int i, long t, int r);
 void pa_killtimer(FILE* f, int i);
 int pa_mouse(FILE* f);
 int pa_mousebutton(FILE* f, int m);

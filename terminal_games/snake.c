@@ -448,8 +448,8 @@ void main(void) /* snake */
     pa_curvis(stdout, FALSE); /* remove drawing cursor */
     pa_auto(stdout, FALSE); /* remove automatic scrolling */
     pa_bcolor(stdout, pa_cyan); /* on cyan background */
-    pa_timer(stdin, 1, TIMMAX, TRUE); /* set move timer */
-    pa_timer(stdin, 2, BLNTIM, TRUE); /* set blinker timer */
+    pa_timer(stdout, 1, TIMMAX, TRUE); /* set move timer */
+    pa_timer(stdout, 2, BLNTIM, TRUE); /* set blinker timer */
     do { /* game */
 
         restart: /* start new game */
