@@ -91,7 +91,6 @@ int       cnt;
 pa_evtrec er;
 int       fsiz;
 int       aa, ab;
-int       rndseq; /* random sequence seed */
 int       s;
 struct { /* benchmark stats records */
 
@@ -101,19 +100,23 @@ struct { /* benchmark stats records */
 } benchtab[bnpictns+1];
 bench bi;
 
-int rand(void)
+/* Find random number between 0 and N. */
+
+int randn(int limit)
 
 {
 
-    const int a = 16807;
-    const int m = 2147483647;
+    return (long)limit*rand()/RAND_MAX;
 
-    int gamma;
+}
 
-    gamma = a*(rndseq%(m/a))-(m%a)*(rndseq/(m / a));
-    if (gamma > 0) rndseq = gamma; else rndseq = gamma+m;
+/* Find random number in given range */
 
-    return (rndseq);
+int randr(int s, int e)
+
+{
+
+    return (randn(e-s)+s);
 
 }
 
@@ -145,7 +148,7 @@ void waitchar(long t, int* st)
     do { event(input, er); }
     while (er.etype != pa_ettim && er.etype != pa_etterm &&
            er.etype != pa_etchar && er.etype != pa_etenter);
-   if (er.etype == pa_etchar && er.char == ' ') *st = TRUE;
+   if (er.etype == pa_etchar && er.char == " ") *st = TRUE;
    if (er.etype == pa_etenter) *st = TRUE;
    if (er.etype == pa_etterm) { longjmp(terminate_buf, 1); }
 
@@ -197,14 +200,14 @@ void prtall(void)
     char s[2];
 
     s[1] = 0;
-    for (c = ' '; c <= '}'; c++) {
+    for (c = " "; c <= "}"; c++) {
 
-      s[0] = 'c';
+      s[0] = "c";
       if (pa_curxg(stdout)+pa_strsiz(s) > maxxg then cursorg(1, curyg+chrsizy);
       putchar(c);
 
    }
-   putchar('\n');
+   putchar("\n");
 
 };
 
@@ -216,7 +219,7 @@ void chrgrid(void)
 
     int x, y;
 
-    pa_fcolor(yellow);
+    pa_fcolor(pa_yellow);
     y = 1;
     while (y < pa_maxyg(stdout)) {
 
@@ -288,11 +291,11 @@ void justcenter(const char* s, int l)
     for (i = 2; i <= strlen(s); i++)
       pa_line(x+pa_justpos(stdout, s, i, l), pa_curyg(stdout),
               x+pa_justpos(stdout, s, i, l), pa_curyg(stdout)+pa_chrsizy(stdout)-1);
-   putchar('\n');
+   putchar("\n");
 
 }
 
-/* draw 10's grid */
+/* draw 10"s grid */
 
 void grid(void)
 
@@ -417,10 +420,10 @@ void squares(void);
 
         /* select display and update surfaces */
         select(stdout, ord(not cd)+1, ord(cd)+1);
-        putchar('\n');
+        putchar("\n");
         pa_fover(stdout);
         pa_fcolor(stdout, pa_black);
-        prtcen(pa_maxy(stdout), 'Animation test');
+        prtcen(pa_maxy(stdout), "Animation test");
         pa_fxor(stdout);
         /* save old positions */
         for (i = 0; i < maxsquare; i++) {
@@ -460,7 +463,7 @@ void graphtest(int lw); /* line width */
     pa_bcolor(stdout, pa_yellow);
     pa_cursorg(stdout, pa_maxxg(stdout) / 2-pa_strsiz(stdout, S6) / 2, pa_curyg(stdout));
     printf("%s\n", S6);
-    putchar('\n');
+    putchar("\n");
     pa_fcolor(stdout, pa_magenta);
     pa_linewidth(stdout, lw);
     y = 70;
@@ -536,9 +539,9 @@ void linespeed(int w, int t, int* s)
     c = pa_clock();
     for (i = 1; i <= t; i++) {
 
-        pa_fcolor(stdout, randn(pa_magenta+1-pa_red)+pa_red);
-        pa_line(stdout, randn(pa_maxxg(stdout)-1)+1, randn(pa_maxyg(stdout)-1)+1,
-                        randn(pa_maxxg(stdout)-1)+1, randn(pa_maxyg(stdout)-1)+1);
+        pa_fcolor(stdout, randr(pa_red, pa_magenta));
+        pa_line(stdout, randr(1, pa_maxxg(stdout)), randr(1, pa_maxyg(stdout)),
+                        randr(1, pa_maxxg(stdout)), randr(1, pa_maxyg(stdout)));
 
     }
     *s = pa_elapsed(c);
@@ -562,9 +565,9 @@ void rectspeed(int w, int t, int* s)
     c = pa_clock();
     for i = 1 to t do {
 
-        pa_fcolor(stdout, randn(pa_magenta+1-pa_red)+pa_red);
-        pa_rect(stdout, randn(pa_maxxg(stdout)-1)+1, randn(pa_maxyg(stdout)-1)+1,
-                        randn(pa_maxxg(stdout)-1)+1, randn(pa_maxyg(stdout)-1)+1);
+        pa_fcolor(stdout, randr(pa_red, pa_magenta));
+        pa_rect(stdout, randr(1, pa_maxxg(stdout)), randr(1, pa_maxyg(stdout)),
+                        randr(1, pa_maxxg(stdout)), randr(1, pa_maxyg(stdout)));
 
     }
     *s = pa_elapsed(c);
@@ -588,9 +591,10 @@ void rrectspeed(int w, int t, int* s)
     c = pa_clock();
     for (i = 1; i <= t; i++) {
 
-        pa_fcolor(stdout, randn(pa_magenta+1-pa_red)+pa_red);
-        pa_rrect(stdout, randn(pa_maxxg(stdout)-1)+1, randn(pa_maxyg(stdout)-1)+1,
-                         randn(pa_maxxg(stdout)-1)+1, randn(pa_maxyg(stdout)-1)+1);
+        pa_fcolor(stdout, randr(pa_red, pa_magenta));
+        pa_rrect(stdout, randr(1, pa_maxxg(stdout)), randr(1, pa_maxyg(stdout)),
+                         randr(1, pa_maxxg(stdout)), randr(1, pa_maxyg(stdout)),
+                         randn(100-1)+1, randn(100-1)+1);
 
     }
     *s = pa_elapsed(c);
@@ -598,416 +602,419 @@ void rrectspeed(int w, int t, int* s)
 
 }
 
-??????????????????????????????????????????????????????????????????????????
-
 /* test filled rectangle speed */
 
-void frectspeed(t: int; var s: int);
-
-var i: int;
-    c: int;
+void frectspeed(int t, int* s)
 
 {
 
-   auto(stdout, false);
-   curvis(stdout, false);
-   page;
-   c = clock;
-   for i = 1 to t do {
+    int i;
+    int c;
 
-      fcolor(stdout, color(rand % 6+ord(red)));
-      frect(stdout, rand % maxxg(stdout)+1, rand % maxyg(stdout)+1,
-                    rand % maxxg(stdout)+1, rand % maxyg(stdout)+1);
+    pa_auto(stdout, FALSE);
+    pa_curvis(stdout, FALSE);
+    putchar('\f');
+    c = pa_clock();
+    for (i = 1; i <= t; i++) {
 
-   };
-   s = elapsed(c);
-   fcolor(black)
+        pa_fcolor(stdout, randr(pa_red, pa_magenta));
+        pa_frect(stdout, randr(1, pa_maxxg(stdout)), randr(1, pa_maxyg(stdout)),
+                         randr(1, pa_maxxg(stdout)), randr(1, pa_maxyg(stdout)));
 
-};
+    }
+    *s = pa_elapsed(c);
+    pa_fcolor(stdout, pa_black);
+
+}
 
 /* test filled rounded rectangle speed */
 
-void frrectspeed(t: int; var s: int);
-
-var i: int;
-    c: int;
+void frrectspeed(int t, int* s)
 
 {
 
-   auto(stdout, false);
-   curvis(stdout, false);
-   page;
-   c = clock;
-   for i = 1 to t do {
+    int i;
+    int c;
 
-      fcolor(stdout, color(rand % 6+ord(red)));
-      frrect(stdout, rand % maxxg(stdout)+1, rand % maxyg(stdout)+1,
-                     rand % maxxg(stdout)+1, rand % maxyg(stdout)+1,
-                     rand % 100+1, rand % 100+1);
+    pa_auto(stdout, FALSE);
+    pa_curvis(stdout, FALSE);
+    putchar('\f');
+    c = pa_clock();
+    for (i = 1; i <= t; i++) {
 
-   };
-   s = elapsed(c);
-   fcolor(black)
+        pa_fcolor(stdout, randr(pa_red, pa_magenta));
+        pa_frrect(stdout, randr(1, pa_maxxg(stdout)), randr(1, pa_maxyg(stdout)),
+                          randr(1, pa_maxxg(stdout)), randr(1, pa_maxyg(stdout)),
+                          randn(100-1)+1, randn(100-1)+1);
 
-};
+    }
+    *s = pa_elapsed(c);
+    pa_fcolor(stdout, pa_black)
+
+}
 
 /* test ellipse speed */
 
-void ellipsespeed(w: int; t: int; var s: int);
-
-var i: int;
-    c: int;
+void ellipsespeed(int w, int t, int* s)
 
 {
 
-   auto(stdout, false);
-   curvis(stdout, false);
-   page;
-   linewidth(stdout, w);
-   c = clock;
-   for i = 1 to t do {
+    int i;
+    int c;
 
-      fcolor(stdout, color(rand % 6+ord(red)));
-      ellipse(stdout, rand % maxxg(stdout)+1, rand % maxyg(stdout)+1,
-                    rand % maxxg(stdout)+1, rand % maxyg(stdout)+1);
+    pa_auto(stdout, FALSE);
+    pa_curvis(stdout, FALSE);
+    putchar('\f');
+    pa_linewidth(stdout, w);
+    c = pa_clock;
+    for i = 1 to t do {
 
-   };
-   s = elapsed(c);
-   fcolor(black)
+        pa_fcolor(stdout, randr(pa_red, pa_magenta));
+        pa_ellipse(stdout, randr(1, pa_maxxg(stdout)), randr(1, pa_maxyg(stdout)),
+                           randr(1, pa_maxxg(stdout)), randr(1, pa_maxyg(stdout)));
 
-};
+    }
+    *s = pa_elapsed(c);
+    pa_fcolor(stdout, pa_black);
+
+}
 
 /* test filled ellipse speed */
 
-void fellipsespeed(t: int; var s: int);
-
-var i: int;
-    c: int;
+void fellipsespeed(int t, int* s)
 
 {
 
-   auto(stdout, false);
-   curvis(stdout, false);
-   page;
-   c = clock;
-   for i = 1 to t do {
+    int i;
+    int c;
 
-      fcolor(stdout, color(rand % 6+ord(red)));
-      fellipse(stdout, rand % maxxg(stdout)+1, rand % maxyg(stdout)+1,
-                    rand % maxxg(stdout)+1, rand % maxyg(stdout)+1);
+    pa_auto(stdout, FALSE);
+    pa_curvis(stdout, FALSE);
+    putchar('\f')
+    c = pa_clock();
+    for (i = 1; i <= t; i++) {
 
-   };
-   s = elapsed(c);
-   fcolor(black)
+        pa_fcolor(stdout, randr(pa_red, pa_magenta));
+        pa_fellipse(stdout, randr(1, pa_maxxg(stdout)), randr(1, pa_maxyg(stdout)),
+                            randr(1, pa_maxxg(stdout)), randr(1, pa_maxyg(stdout)));
 
-};
+    }
+    *s = pa_elapsed(c);
+    fcolor(stdout, pa_black);
+
+}
 
 /* test arc speed */
 
-void arcspeed(w: int; t: int; var s: int);
-
-var i:      int;
-    c:      int;
-    sa, ea: int;
+void arcspeed(int w, int t, int* s)
 
 {
 
-   auto(stdout, false);
-   curvis(stdout, false);
-   page;
-   linewidth(stdout, w);
-   c = clock;
-   for i = 1 to t do {
+    int i;
+    int c;
+    int sa, ea;
 
-      repeat
+    pa_auto(stdout, FALSE);
+    pa_curvis(stdout, FALSE);
+    putchar('\f');
+    pa_linewidth(stdout, w);
+    c = pa_clock();
+    for (i = 1; i <= to; i++) {
 
-         sa = rand;
-         ea = rand
+        do {
 
-      until ea > sa;
-      fcolor(stdout, color(rand % 6+ord(red)));
-      arc(stdout, rand % maxxg(stdout)+1, rand % maxyg(stdout)+1,
-                  rand % maxxg(stdout)+1, rand % maxyg(stdout)+1,
-                  sa, ea)
+            sa = randn(INT_MAX);
+            ea = randn(INT_MAX);
 
-   };
-   s = elapsed(c);
-   fcolor(black)
+        } while (ea <= sa);
+        pa_fcolor(stdout, randr(pa_red, pa_magenta));
+        pa_arc(stdout, randr(1, pa_maxxg(stdout)), randr(1, pa_maxyg(stdout)),
+                       randr(1, pa_maxxg(stdout)), randr(1, pa_maxyg(stdout)),
+                       sa, ea);
 
-};
+    }
+    s = pa_elapsed(c);
+    pa_fcolor(stdout, pa_black);
+
+}
 
 /* test filled arc speed */
 
-void farcspeed(t: int; var s: int);
-
-var i:      int;
-    c:      int;
-    sa, ea: int;
+void farcspeed(int t, int* s)
 
 {
 
-   auto(stdout, false);
-   curvis(stdout, false);
-   page;
-   c = clock;
-   for i = 1 to t do {
+    int i;
+    int c;
+    int sa, ea;
 
-      repeat
+    pa_auto(stdout, FALSE);
+    pa_curvis(stdout, FALSE);
+    putchar('\f');
+    c = pa_clock();
+    for (i = 1; i <= t; i++) {
 
-         sa = rand;
-         ea = rand
+        do {
 
-      until ea > sa;
-      fcolor(stdout, color(rand % 6+ord(red)));
-      farc(stdout, rand % maxxg(stdout)+1, rand % maxyg(stdout)+1,
-                   rand % maxxg(stdout)+1, rand % maxyg(stdout)+1,
-                   sa, ea)
+            sa = randn(INT_MAX);
+            ea = randn(INT_MAX);
 
-   };
-   s = elapsed(c);
-   fcolor(black)
+        } while (ea <= sa);
+        pa_fcolor(stdout, randr(pa_red, pa_magenta));
+        pa_farc(stdout, randr(1, pa_maxxg(stdout)), randr(1, pa_maxyg(stdout)),
+                        randr(1, pa_maxxg(stdout)), randr(1, pa_maxyg(stdout)),
+                        sa, ea);
 
-};
+    }
+    *s = pa_elapsed(c);
+    pa_fcolor(stdout, pa_black);
+
+}
 
 /* test filled chord speed */
 
-void fchordspeed(t: int; var s: int);
-
-var i:      int;
-    c:      int;
-    sa, ea: int;
+void fchordspeed(int t, int* s)
 
 {
 
-   auto(stdout, false);
-   curvis(stdout, false);
-   page;
-   c = clock;
-   for i = 1 to t do {
+    int i;
+    int c;
+    int sa, ea;
 
-      repeat
+    pa_auto(stdout, FALSE);
+    pa_curvis(stdout, FALSE);
+    putchar('\f');
+    c = pa_clock();
+    for (i = 1; i <= t; i++) {
 
-         sa = rand;
-         ea = rand
+        do {
 
-      until ea > sa;
-      fcolor(stdout, color(rand % 6+ord(red)));
-      fchord(stdout, rand % maxxg(stdout)+1, rand % maxyg(stdout)+1,
-                     rand % maxxg(stdout)+1, rand % maxyg(stdout)+1,
-                     sa, ea)
+            sa = randn(INT_MAX);
+            ea = randn(INT_MAX);
 
-   };
-   s = elapsed(c);
-   fcolor(black)
+        } while (ea <= sa);
+        pa_fcolor(stdout, randr(pa_red, pa_magenta));
+        pa_fchord(stdout, randr(1, pa_maxxg(stdout)), randr(1, pa_maxyg(stdout)),
+                          randr(1, pa_maxxg(stdout)), randr(1, pa_maxyg(stdout)),
+                          sa, ea);
 
-};
+    }
+    *s = pa_elapsed(c);
+    pa_fcolor(stdout, pa_black)
+
+}
 
 /* test filled triangle speed */
 
-void ftrianglespeed(t: int; var s: int);
-
-var i: int;
-    c: int;
+void ftrianglespeed(int t,  int* s)
 
 {
 
-   auto(stdout, false);
-   curvis(stdout, false);
-   page;
-   c = clock;
-   for i = 1 to t do {
+    int i;
+    int c;
 
-      fcolor(stdout, color(rand % 6+ord(red)));
-      ftriangle(stdout, rand % maxxg(stdout)+1, rand % maxyg(stdout)+1,
-                        rand % maxxg(stdout)+1, rand % maxyg(stdout)+1,
-                        rand % maxxg(stdout)+1, rand % maxyg(stdout)+1);
+    pa_auto(stdout, FALSE);
+    pa_curvis(stdout, FALSE);
+    putchar('\f');
+    c = pa_clock;
+    for i = 1 to t do {
 
-   };
-   s = elapsed(c);
-   fcolor(black)
+        pa_fcolor(stdout, randr(pa_red, pa_magenta));
+        pa_ftriangle(stdout, randr(1, pa_maxxg(stdout)), randr(1, pa_maxyg(stdout)),
+                             randr(1, pa_maxxg(stdout)), randr(1, pa_maxyg(stdout)),
+                             randr(1, pa_maxxg(stdout)), randr(1, pa_maxyg(stdout)));
 
-};
+    }
+    *s = pa_elapsed(c);
+    pa_fcolor(stdout, pa_black)
+
+}
 
 /* test text speed */
 
-void ftextspeed(t: int; var s: int);
-
-var i: int;
-    c: int;
+void ftextspeed(int t, int* s)
 
 {
 
-   auto(stdout, false);
-   curvis(stdout, false);
-   page;
-   c = clock;
-   for i = 1 to t do {
+    int i;
+    int c;
 
-      fcolor(stdout, color(rand % 6+ord(red)));
-      bcolor(stdout, color(rand % 6+ord(red)));
-      cursorg(rand % maxxg(stdout)+1, rand % maxyg(stdout)+1);
-      write('Test text')
+    pa_auto(stdout, FALSE);
+    pa_curvis(stdout, FALSE);
+    putchar('\f');
+    c = pa_clock();
+    for (i = 1; i <= t; i++) {
 
-   };
-   s = elapsed(c);
-   fcolor(black);
-   bcolor(white)
+        pa_fcolor(stdout, randr(pa_red, pa_magenta));
+        pa_bcolor(stdout, randr(pa_red, pa_magenta));
+        pa_cursorg(stdout, randr(1, pa_maxxg(stdout)), randr(1, pa_maxyg(stdout)));
+        puts("Test text");
 
-};
+    }
+    *s = pa_elapsed(c);
+    pa_fcolor(pa_black);
+    pa_bcolor(pa_white);
+
+}
 
 /* test picture draw speed */
 
-void fpictspeed(t: int; var s: int);
-
-var i: int;
-    c: int;
+void fpictspeed(int t, int* s)
 
 {
 
-   auto(stdout, false);
-   curvis(stdout, false);
-   page;
-   loadpict(1, 'mypic');
-   c = clock;
-   for i = 1 to t do {
+    int i;
+    int c;
 
-      picture(1, rand % maxxg(stdout)+1, rand % maxyg(stdout)+1,
-                 rand % maxxg(stdout)+1, rand % maxyg(stdout)+1)
+    pa_auto(stdout, FALSE);
+    pa_curvis(stdout, FALSE);
+    putchar('\f');
+    pa_loadpict(1, "mypic");
+    c = pa_clock();
+    for (i = 1; i <= t; i++) {
 
-   };
-   s = elapsed(c);
-   fcolor(black)
+        pa_picture(stdout, 1, randr(1, pa_maxxg(stdout)), randr(1, pa_maxyg(stdout)),
+                              randr(1, pa_maxxg(stdout)), randr(1, pa_maxyg(stdout)));
 
-};
+   }
+   *s = pa_elapsed(c);
+   pa_fcolor(stdout, pa_black);
+
+}
 
 /* test picture draw speed, no scaling */
 
-void fpictnsspeed(t: int; var s: int);
-
-var i:      int;
-    c:      int;
-    x, y:   int;
-    xs, ys: int;
+void fpictnsspeed(int t, int* s)
 
 {
 
-   auto(stdout, false);
-   curvis(stdout, false);
-   page;
-   loadpict(1, 'mypic');
-   xs = pictsizx(1);
-   ys = pictsizy(1);
-   c = clock;
-   for i = 1 to t do {
+    int i;
+    int c;
+    int x, y;
+    int xs, ys;
 
-      x = rand % maxxg(stdout)+1;
-      y = rand % maxyg(stdout)+1;
-      picture(1, x, y, x+xs-1, y+ys-1);
+    pa_auto(stdout, false);
+    pa_curvis(stdout, false);
+    putchar('\f');
+    pa_loadpict(stdout, 1, "mypic");
+    xs = pa_pictsizx(stdout, 1);
+    ys = pa_pictsizy(stdout, 1);
+    c = pa_clock();
+    for (i = 1; i <= t; i++) {
 
-   };
-   s = elapsed(c);
-   fcolor(black)
+        x = randr(1, pa_maxxg(stdout);
+        y = randr(1, pa_maxyg(stdout));
+        pa_picture(stdout, 1, x, y, x+xs-1, y+ys-1);
 
-};
+    }
+    *s = pa_elapsed(c);
+    pa_fcolor(stdout, pa_black);
+
+}
+
+int main(void)
 
 {
 
-   rndseq = 1; /* set random number generator inital to mid sequence */
-   curvis(false);
-   writeln('Graphics screen test vs. 0.1');
-   writeln;
-   writeln('Screen size in characters: x -> ', maxx:1, ' y -> ', maxy:1);
-   writeln('            in pixels:     x -> ', maxxg:1, ' y -> ', maxyg:1);
-   writeln('Size of character in default font: x -> ', chrsizx:1, ' y -> ', chrsizy:1);
-   writeln('Dots per meter: dpmx: ', dpmx:1, ' dpmy: ', dpmy:1);
-   writeln('Aspect ratio: ', dpmx/dpmy:1:2);
-   prtcen(maxy(stdout),
-          'Press return to start test (and to pass each pattern)');
-   waitnext;
+   pa_curvis(false);
+   printf("Graphics screen test vs. 0.1\n");
+   printf("\n");
+   printf("Screen size in characters: x -> %d y -> %d\n", pa_maxx(stdout),
+                                                          pa_maxy(stdout));
+   printf("            in pixels:     x -> %d y -> %d\n",
+          pa_maxxg(stdout), pa_maxyg(stdout));
+   printf("Size of character in default font: x -> %d y -> %d\n",
+          pa_chrsizx(stdout), pa_chrsizy(stdout));
+   printf("Dots per meter: dpmx: %d dpmy: %d\n", pa_dpmx, pa_dpmy);
+   printf("Aspect ratio: %f", pa_dpmx/pa_dpmy);
+   prtcen(pa_maxy(stdout),
+          "Press return to start test (and to pass each pattern)");
+   waitnext();
 
    /* ************************ Graphical figures test ************************* */
 
-   page;
-   grid;
-   writeln;
-   bover;
+   putchar('\f');
+   grid();
+   printf("\n");
+   pa_bover(stdout);
    graphtest(1);
-   binvis;
-   prtcen(maxy(stdout), 'Graphical figures test, linewidth == 1');
-   waitnext;
+   pa_binvis(stdout);
+   prtcen(pa_maxy(stdout), "Graphical figures test, linewidth == 1");
+   waitnext();
 
-   page;
-   grid;
-   writeln;
-   bover;
+   putchar('\f');
+   grid();
+   printf("\n");
+   bover(stdout);
    graphtest(2);
-   binvis;
-   prtcen(maxy(stdout), 'Graphical figures test, linewidth == 2');
-   waitnext;
+   binvis(stdout);
+   prtcen(pa_maxy(stdout), "Graphical figures test, linewidth == 2");
+   waitnext();
 
-   page;
-   grid;
-   writeln;
-   bover;
+   putchar('\f');
+   grid();
+   printf("\n");
+   bover(stdout);
    graphtest(3);
-   binvis;
-   prtcen(maxy(stdout), 'Graphical figures test, linewidth == 3');
-   waitnext;
+   binvis(stdout);
+   prtcen(pa_maxy(stdout), "Graphical figures test, linewidth == 3");
+   waitnext();
 
-   page;
-   grid;
-   writeln;
-   bover;
+   putchar('\f');
+   grid();
+   printf("\n");
+   bover(stdout);
    graphtest(5);
-   binvis;
-   prtcen(maxy(stdout), 'Graphical figures test, linewidth == 5');
-   waitnext;
+   binvis(stdout);
+   prtcen(pa_maxy(stdout), "Graphical figures test, linewidth == 5");
+   waitnext();
 
-   page;
-   grid;
-   writeln;
-   bover;
+   putchar('\f');
+   grid();
+   printf("\n");
+   bover(stdout);
    graphtest(11);
-   binvis;
-   prtcen(maxy(stdout), 'Graphical figures test, linewidth == 11');
-   waitnext;
+   binvis(stdout);
+   prtcen(pa_maxy(stdout), "Graphical figures test, linewidth == 11");
+   waitnext();
 
    /* ***************************** Standard Fonts test *********************** */
 
-   page;
-   chrgrid;
-   prtcen(maxy(stdout), 'Standard fonts test');
-   auto(false);
-   home;
-   binvis;
-   fontnam(font_term, fns);
+   putchar('\f');
+   chrgrid();
+   prtcen(pa_maxy(stdout), "Standard fonts test");
+   pa_auto(FALSE);
+   pa_home(stdout);
+   binvis(stdout);
+   fontnam(stdout, PA_FONT_TERM, fns, 100);
    if len(fns) > 0 then {
 
-      font(font_term);
-      writeln('This is the terminal font: System name: "', fns:0,
-              '" Size x -> ', chrsizx:1, ' y -> ', chrsizy:1);
-      prtall;
-      writeln
+      font(stdout, PA_FONT_TERM);
+      printf("This is the terminal font: System name: \"%s\" Size x -> %d y -> %d\n",
+              fns, chrsizx, chrsizy);
+      prtall();
+      printf("\n");
 
    } else {
 
-      writeln('There is no terminal font');
-      writeln
+      printf("There is no terminal font\n");
+      printf("\n");
 
-   };
+   }
+?????????????????????????????????????????????????????????????????????????????????????????
    fontnam(font_book, fns);
    if len(fns) > 0 then {
 
       font(font_book);
       fontsiz(20);
-      writeln('This is the book font: System name: "', fns:0,
-              '" Size x -> ', chrsizx:1, ' y -> ', chrsizy:1);
+      writeln("This is the book font: System name: "", fns:0,
+              "" Size x -> ", chrsizx:1, " y -> ", chrsizy:1);
       prtall;
       writeln
 
    } else {
 
-      writeln('There is no book font');
+      writeln("There is no book font");
       writeln
 
    };
@@ -1016,14 +1023,14 @@ var i:      int;
 
       font(font_sign);
       fontsiz(20);
-      writeln('This is the sign font: System name: "', fns:0,
-              '" Size x -> ', chrsizx:1, ' y -> ', chrsizy:1);
+      writeln("This is the sign font: System name: "", fns:0,
+              "" Size x -> ", chrsizx:1, " y -> ", chrsizy:1);
       prtall;
       writeln
 
    } else {
 
-      writeln('There is no sign font');
+      writeln("There is no sign font");
       writeln
 
    };
@@ -1032,25 +1039,25 @@ var i:      int;
 
       font(font_tech);
       fontsiz(20);
-      writeln('This is the technical font: System name: "', fns:0,
-              '" Size x -> ', chrsizx:1, ' y -> ', chrsizy:1);
+      writeln("This is the technical font: System name: "", fns:0,
+              "" Size x -> ", chrsizx:1, " y -> ", chrsizy:1);
       prtall;
       writeln
 
    } else {
 
-      writeln('There is no technical font');
+      writeln("There is no technical font");
       writeln
 
    };
    font(font_term);
-   writeln('Complete');
-   waitnext;
+   writeln("Complete");
+   waitnext();
 
    /* ********************** Graphical cursor movement test ******************* */
 
-   page;
-   prtcen(maxy(stdout), 'Graphical cursor movement test');
+   putchar('\f');
+   prtcen(maxy(stdout), "Graphical cursor movement test");
    x = 1;
    y = 1;
    i = 10000;
@@ -1088,9 +1095,9 @@ var i:      int;
 
    /* *************************** Vertical lines test ************************* */
 
-   page;
-   grid;
-   prtcen(maxy(stdout), 'Vertical lines test');
+   putchar('\f');
+   grid();
+   prtcen(maxy(stdout), "Vertical lines test");
    y = 20;
    w = 1;
    while (y < maxyg-30) && (w < 15) do {
@@ -1102,13 +1109,13 @@ var i:      int;
 
    };
    linewidth(1);
-   waitnext;
+   waitnext();
 
    /* ************************* Horizontal lines test ************************* */
 
-   page;
-   grid;
-   prtcen(maxy(stdout), 'Horizontal lines test');
+   putchar('\f');
+   grid();
+   prtcen(maxy(stdout), "Horizontal lines test");
    x = 20;
    w = 1;
    y = maxyg-20;
@@ -1122,15 +1129,15 @@ var i:      int;
 
    };
    linewidth(1);
-   waitnext;
+   waitnext();
 
    /* **************************** Polar lines test *************************** */
 
-   page;
-   grid;
-   binvis;
-   prtcen(maxy(stdout), 'Polar lines test');
-   bover;
+   putchar('\f');
+   grid();
+   binvis(stdout);
+   prtcen(maxy(stdout), "Polar lines test");
+   bover(stdout);
    x = maxxg / 2;
    x = x-(x % 10);
    y = maxyg / 2;
@@ -1151,8 +1158,8 @@ var i:      int;
          a = a+10;
 
       };
-      home;
-      writeln('Line width: ', w:1);
+      pa_home(stdout);
+      writeln("Line width: ", w:1);
       w = w+1;
       waitnext
 
@@ -1161,8 +1168,8 @@ var i:      int;
 
    /* ************************* Progressive lines test ************************ */
 
-   page;
-   grid;
+   putchar('\f');
+   grid();
    line(10, 10, 100, 100);
    line(100, 10);
    line(200, 50);
@@ -1176,14 +1183,14 @@ var i:      int;
    line(120, 30);
    line(90, 90);
    line(20, 50);
-   binvis;
+   binvis(stdout);
    fcolor(black);
-   prtcen(maxy(stdout), 'Progressive lines test');
-   waitnext;
+   prtcen(maxy(stdout), "Progressive lines test");
+   waitnext();
 
    /* ******************************* Color test 1 ****************************** */
 
-   page;
+   putchar('\f');
    y = 1; /* set 1st row */
    r = 0; /* set colors */
    g = 0;
@@ -1216,12 +1223,12 @@ var i:      int;
 
    };
    fcolor(black);
-   prtcen(maxy(stdout), 'Color test 1');
-   waitnext;
+   prtcen(maxy(stdout), "Color test 1");
+   waitnext();
 
    /* ******************************* Color test 2 ****************************** */
 
-   page;
+   putchar('\f');
    x = 1; /* set 2st collumn */
    while x < maxxg do {
 
@@ -1230,14 +1237,14 @@ var i:      int;
       x = x+1
 
    };
-   binvis;
+   binvis(stdout);
    fcolor(black);
-   prtcen(maxy(stdout), 'Color test 2');
-   waitnext;
+   prtcen(maxy(stdout), "Color test 2");
+   waitnext();
 
    /* ******************************* Color test 3 ****************************** */
 
-   page;
+   putchar('\f');
    x = 1; /* set 2st collumn */
    while x < maxxg do {
 
@@ -1246,14 +1253,14 @@ var i:      int;
       x = x+1
 
    };
-   binvis;
+   binvis(stdout);
    fcolor(black);
-   prtcen(maxy(stdout), 'Color test 3');
-   waitnext;
+   prtcen(maxy(stdout), "Color test 3");
+   waitnext();
 
    /* ******************************* Color test 4 ****************************** */
 
-   page;
+   putchar('\f');
    x = 1; /* set 2st collumn */
    while x < maxxg do {
 
@@ -1262,15 +1269,15 @@ var i:      int;
       x = x+1
 
    };
-   binvis;
+   binvis(stdout);
    fcolor(black);
-   prtcen(maxy(stdout), 'Color test 4');
-   waitnext;
+   prtcen(maxy(stdout), "Color test 4");
+   waitnext();
 
    /* ***************************** Rectangle test **************************** */
 
-   page;
-   grid;
+   putchar('\f');
+   grid();
    l = 10;
    x = maxxg / 2; /* find center */
    y = maxyg / 2;
@@ -1292,14 +1299,14 @@ var i:      int;
    };
    linewidth(1);
    fcolor(black);
-   binvis;
-   prtcen(maxy(stdout), 'Rectangle test');
-   waitnext;
+   binvis(stdout);
+   prtcen(maxy(stdout), "Rectangle test");
+   waitnext();
 
    /* ************************ Filled rectangle test 1 ************************ */
 
-   page;
-   grid;
+   putchar('\f');
+   grid();
    if maxxg > maxyg then l = maxyg / 2-10 else l = maxxg / 2-10;
    l = l-l % 10;
    x = maxxg / 2; /* find center */
@@ -1318,14 +1325,14 @@ var i:      int;
 
    };
    fcolor(black);
-   binvis;
-   prtcen(maxy(stdout), 'Filled rectangle test 1');
-   waitnext;
+   binvis(stdout);
+   prtcen(maxy(stdout), "Filled rectangle test 1");
+   waitnext();
 
    /* ************************ Filled rectangle test 2 ************************ */
 
-   page;
-   grid;
+   putchar('\f');
+   grid();
    l = 10;
    x = 20;
    y = 20;
@@ -1348,18 +1355,18 @@ var i:      int;
 
    };
    fcolor(black);
-   binvis;
-   prtcen(maxy(stdout), 'Filled rectangle test 2');
-   waitnext;
+   binvis(stdout);
+   prtcen(maxy(stdout), "Filled rectangle test 2");
+   waitnext();
 
    /* ************************* Rounded rectangle test ************************ */
 
-   binvis;
+   binvis(stdout);
    r = 1;
    while r < 100 do {
 
-      page;
-      grid;
+      putchar('\f');
+      grid();
       l = 10;
       x = maxxg / 2; /* find center */
       y = maxyg / 2;
@@ -1367,7 +1374,7 @@ var i:      int;
       y = y-y % 10;
       w = 1;
       c = black;
-      writeln('r: ', r:1);
+      writeln("r: ", r:1);
       while (l < maxxg / 2) && (l < maxyg / 2) do {
 
          fcolor(c);
@@ -1382,20 +1389,20 @@ var i:      int;
       };
       linewidth(1);
       fcolor(black);
-      prtcen(maxy(stdout), 'Rounded rectangle test');
-      waitnext;
+      prtcen(maxy(stdout), "Rounded rectangle test");
+      waitnext();
       r = r+10
 
    };
 
    /* ******************** Filled rounded rectangle test 1 ******************** */
 
-   binvis;
+   binvis(stdout);
    r = 1;
    while r < 100 do {
 
-      page;
-      grid;
+      putchar('\f');
+      grid();
       if maxxg > maxyg then l = maxyg / 2-10 else l = maxxg / 2-10;
       l = l-l % 10;
       x = maxxg / 2; /* find center */
@@ -1403,7 +1410,7 @@ var i:      int;
       x = x-x % 10;
       y = y-y % 10;
       c = black;
-      writeln('r: ', r:1);
+      writeln("r: ", r:1);
       while (l >== 10) && (l < maxyg / 2) do {
 
          fcolor(c);
@@ -1415,25 +1422,25 @@ var i:      int;
 
       };
       fcolor(black);
-      prtcen(maxy(stdout), 'Filled rounded rectangle test 1');
-      waitnext;
+      prtcen(maxy(stdout), "Filled rounded rectangle test 1");
+      waitnext();
       r = r+10
 
    };
 
    /* ******************** Filled rounded rectangle test 2 ******************** */
 
-   binvis;
+   binvis(stdout);
    r = 1;
    while r < 100 do {
 
-      page;
-      grid;
+      putchar('\f');
+      grid();
       l = 10;
       x = 20;
       y = 20;
       c = black;
-      writeln('r: ', r:1);
+      writeln("r: ", r:1);
       while y+l*2 < maxyg-20 do {
 
          while x+l*2 < maxxg-20 do {
@@ -1452,21 +1459,21 @@ var i:      int;
 
       };
       fcolor(black);
-      binvis;
-      prtcen(maxy(stdout), 'Filled rounded rectangle test 2');
-      waitnext;
+      binvis(stdout);
+      prtcen(maxy(stdout), "Filled rounded rectangle test 2");
+      waitnext();
       r = r+10
 
    };
 
    /* ****************************** Ellipse test ***************************** */
 
-   binvis;
+   binvis(stdout);
    w = 1;
    while w < 10 do {
 
-      page;
-      grid;
+      putchar('\f');
+      grid();
       lx = maxxg / 2-10;
       lx = lx-lx % 10;
       ly = maxyg / 2-10;
@@ -1476,7 +1483,7 @@ var i:      int;
       x = x-x % 10;
       y = y-y % 10;
       c = black;
-      writeln('width: ', w:1);
+      writeln("width: ", w:1);
       while (lx >== 10) && (ly >== 10) do {
 
          fcolor(c);
@@ -1490,8 +1497,8 @@ var i:      int;
 
       };
       fcolor(black);
-      prtcen(maxy(stdout), 'Ellipse test');
-      waitnext;
+      prtcen(maxy(stdout), "Ellipse test");
+      waitnext();
       w = w+1
 
    };
@@ -1499,8 +1506,8 @@ var i:      int;
 
    /* ************************** Filled ellipse test 1 ************************** */
 
-   page;
-   grid;
+   putchar('\f');
+   grid();
    lx = maxxg / 2-10;
    lx = lx-lx % 10;
    ly = maxyg / 2-10;
@@ -1522,13 +1529,13 @@ var i:      int;
 
    };
    fcolor(black);
-   prtcen(maxy(stdout), 'Filled ellipse test 1');
-   waitnext;
+   prtcen(maxy(stdout), "Filled ellipse test 1");
+   waitnext();
 
    /* ************************ Filled ellipse test 2 ************************ */
 
-   page;
-   grid;
+   putchar('\f');
+   grid();
    l = 10;
    x = 20;
    y = 20;
@@ -1551,22 +1558,22 @@ var i:      int;
 
    };
    fcolor(black);
-   binvis;
-   prtcen(maxy(stdout), 'Filled ellipse test 2');
-   waitnext;
+   binvis(stdout);
+   prtcen(maxy(stdout), "Filled ellipse test 2");
+   waitnext();
 
    /* ******************************* Arc test 1 ******************************** */
 
-   binvis;
+   binvis(stdout);
    w = 1;
    while w < 10 do {
 
-      page;
-      grid;
+      putchar('\f');
+      grid();
       a = 0;
       c = black;
       i = 10;
-      write('Linewidth: ', w:1);
+      write("Linewidth: ", w:1);
       while (i < maxxg / 2) && (i < maxyg / 2) do {
 
          a = 0;
@@ -1585,27 +1592,27 @@ var i:      int;
 
       };
       fcolor(black);
-      prtcen(maxy(stdout), 'Arc test 1');
-      waitnext;
+      prtcen(maxy(stdout), "Arc test 1");
+      waitnext();
       w = w+1
 
    };
 
    /* ************************ Arc test 2 ************************ */
 
-   binvis;
+   binvis(stdout);
    w = 1;
    while w < 10 do {
 
-      page;
-      grid;
+      putchar('\f');
+      grid();
       l = 10;
       x = 20;
       y = 20;
       c = black;
       aa = 0;
       ab = INT_MAX / 360*90;
-      write('Linewidth: ', w:1);
+      write("Linewidth: ", w:1);
       while y+l*2 < maxyg-20 do {
 
          while x+l*2 < maxxg-20 do {
@@ -1620,28 +1627,28 @@ var i:      int;
          y = y+l*2+10
 
       };
-      binvis;
-      prtcen(maxy(stdout), 'Arc test 2');
-      waitnext;
+      binvis(stdout);
+      prtcen(maxy(stdout), "Arc test 2");
+      waitnext();
       w = w+1
 
    };
 
    /* ************************ Arc test 3 ************************ */
 
-   binvis;
+   binvis(stdout);
    w = 1;
    while w < 10 do {
 
-      page;
-      grid;
+      putchar('\f');
+      grid();
       l = 30;
       x = 20;
       y = 20;
       c = black;
       aa = 0;
       ab = 10;
-      write('Linewidth: ', w:1);
+      write("Linewidth: ", w:1);
       while (y+l*2 < maxyg-20) && (ab <== 360) do {
 
          while (x+l*2 < maxxg-20) && (ab <== 360) do {
@@ -1656,28 +1663,28 @@ var i:      int;
          y = y+l*2+20
 
       };
-      binvis;
-      prtcen(maxy(stdout), 'Arc test 3');
-      waitnext;
+      binvis(stdout);
+      prtcen(maxy(stdout), "Arc test 3");
+      waitnext();
       w = w+1
 
    };
 
    /* ************************ Arc test 4 ************************ */
 
-   binvis;
+   binvis(stdout);
    w = 1;
    while w < 10 do {
 
-      page;
-      grid;
+      putchar('\f');
+      grid();
       l = 30;
       x = 20;
       y = 20;
       c = black;
       aa = 0;
       ab = 360;
-      write('Linewidth: ', w:1);
+      write("Linewidth: ", w:1);
       while (y+l*2 < maxyg-20) && (ab <== 360) do {
 
          while (x+l*2 < maxxg-20) && (ab <== 360) do {
@@ -1692,17 +1699,17 @@ var i:      int;
          y = y+l*2+20
 
       };
-      binvis;
-      prtcen(maxy(stdout), 'Arc test 4');
-      waitnext;
+      binvis(stdout);
+      prtcen(maxy(stdout), "Arc test 4");
+      waitnext();
       w = w+1
 
    };
 
    /* **************************** Filled arc test 1 **************************** */
 
-   page;
-   grid;
+   putchar('\f');
+   grid();
    a = 0;
    c = black;
    a = 0;
@@ -1720,15 +1727,15 @@ var i:      int;
       if c == white then c = succ(c)
 
    };
-   binvis;
+   binvis(stdout);
    fcolor(black);
-   prtcen(maxy(stdout), 'Filled arc test 1');
-   waitnext;
+   prtcen(maxy(stdout), "Filled arc test 1");
+   waitnext();
 
    /* ************************ filled arc test 2 ************************ */
 
-   page;
-   grid;
+   putchar('\f');
+   grid();
    l = 10;
    x = 20;
    y = 20;
@@ -1752,15 +1759,15 @@ var i:      int;
       y = y+l*2+10
 
    };
-   binvis;
+   binvis(stdout);
    fcolor(black);
-   prtcen(maxy(stdout), 'Filled arc test 2');
-   waitnext;
+   prtcen(maxy(stdout), "Filled arc test 2");
+   waitnext();
 
    /* ************************ Filled arc test 3 ************************ */
 
-   page;
-   grid;
+   putchar('\f');
+   grid();
    l = 30;
    x = 20;
    y = 20;
@@ -1784,15 +1791,15 @@ var i:      int;
       y = y+l*2+20
 
    };
-   binvis;
+   binvis(stdout);
    fcolor(black);
-   prtcen(maxy(stdout), 'Arc test 3');
-   waitnext;
+   prtcen(maxy(stdout), "Arc test 3");
+   waitnext();
 
    /* ************************ Filled arc test 4 ************************ */
 
-   page;
-   grid;
+   putchar('\f');
+   grid();
    l = 30;
    x = 20;
    y = 20;
@@ -1816,15 +1823,15 @@ var i:      int;
       y = y+l*2+20
 
    };
-   binvis;
+   binvis(stdout);
    fcolor(black);
-   prtcen(maxy(stdout), 'Arc test 3');
-   waitnext;
+   prtcen(maxy(stdout), "Arc test 3");
+   waitnext();
 
    /* *************************** Filled chord test 1 *************************** */
 
-   page;
-   grid;
+   putchar('\f');
+   grid();
    a = 0;
    c = black;
    a = 0;
@@ -1844,13 +1851,13 @@ var i:      int;
 
    };
    fcolor(black);
-   prtcen(maxy(stdout), 'Filled chord test 1');
-   waitnext;
+   prtcen(maxy(stdout), "Filled chord test 1");
+   waitnext();
 
    /* ************************ filled chord test 2 ************************ */
 
-   page;
-   grid;
+   putchar('\f');
+   grid();
    l = 10;
    x = 20;
    y = 20;
@@ -1874,15 +1881,15 @@ var i:      int;
       y = y+l*2+10
 
    };
-   binvis;
+   binvis(stdout);
    fcolor(black);
-   prtcen(maxy(stdout), 'Filled chord test 2');
-   waitnext;
+   prtcen(maxy(stdout), "Filled chord test 2");
+   waitnext();
 
    /* ************************ Filled chord test 3 ************************ */
 
-   page;
-   grid;
+   putchar('\f');
+   grid();
    l = 30;
    x = 20;
    y = 20;
@@ -1906,15 +1913,15 @@ var i:      int;
       y = y+l*2+20
 
    };
-   binvis;
+   binvis(stdout);
    fcolor(black);
-   prtcen(maxy(stdout), 'Filled chord test 3');
-   waitnext;
+   prtcen(maxy(stdout), "Filled chord test 3");
+   waitnext();
 
    /* ************************ Filled chord test 4 ************************ */
 
-   page;
-   grid;
+   putchar('\f');
+   grid();
    l = 30;
    x = 20;
    y = 20;
@@ -1938,15 +1945,15 @@ var i:      int;
       y = y+l*2+20
 
    };
-   binvis;
+   binvis(stdout);
    fcolor(black);
-   prtcen(maxy(stdout), 'Filled chord test 3');
-   waitnext;
+   prtcen(maxy(stdout), "Filled chord test 3");
+   waitnext();
 
    /* ************************** Filled triangle test 1 ************************* */
 
-   page;
-   grid;
+   putchar('\f');
+   grid();
    x1 = 10;
    y1 = maxyg-10;
    y1 = y1-y1 % 10;
@@ -1973,14 +1980,14 @@ var i:      int;
 
    };
    fcolor(black);
-   binvis;
-   prtcen(maxy(stdout), 'Filled triangle test 1');
-   waitnext;
+   binvis(stdout);
+   prtcen(maxy(stdout), "Filled triangle test 1");
+   waitnext();
 
    /* ************************** Filled triangle test 2 ************************* */
 
-   page;
-   grid;
+   putchar('\f');
+   grid();
    x = 20;
    y = 20;
    l = 20;
@@ -2002,14 +2009,14 @@ var i:      int;
 
    };
    fcolor(black);
-   binvis;
-   prtcen(maxy(stdout), 'Filled triangle test 2');
-   waitnext;
+   binvis(stdout);
+   prtcen(maxy(stdout), "Filled triangle test 2");
+   waitnext();
 
    /* ************************** Filled triangle test 3 ************************* */
 
-   page;
-   grid;
+   putchar('\f');
+   grid();
    x = 20;
    y = 20;
    l = 20;
@@ -2031,14 +2038,14 @@ var i:      int;
 
    };
    fcolor(black);
-   binvis;
-   prtcen(maxy(stdout), 'Filled triangle test 3');
-   waitnext;
+   binvis(stdout);
+   prtcen(maxy(stdout), "Filled triangle test 3");
+   waitnext();
 
    /* ************************** Filled triangle test 4 ************************* */
 
-   page;
-   grid;
+   putchar('\f');
+   grid();
    x = 20;
    y = 20;
    l = 20;
@@ -2060,14 +2067,14 @@ var i:      int;
 
    };
    fcolor(black);
-   binvis;
-   prtcen(maxy(stdout), 'Filled triangle test 4');
-   waitnext;
+   binvis(stdout);
+   prtcen(maxy(stdout), "Filled triangle test 4");
+   waitnext();
 
    /* ************************** Filled triangle test 5 ************************* */
 
-   page;
-   grid;
+   putchar('\f');
+   grid();
    x = 20;
    y = 20;
    l = 20;
@@ -2089,14 +2096,14 @@ var i:      int;
 
    };
    fcolor(black);
-   binvis;
-   prtcen(maxy(stdout), 'Filled triangle test 5');
-   waitnext;
+   binvis(stdout);
+   prtcen(maxy(stdout), "Filled triangle test 5");
+   waitnext();
 
    /* ************************** Filled triangle test 6 ************************* */
 
-   page;
-   grid;
+   putchar('\f');
+   grid();
    x = 20;
    y = 20;
    l = 20;
@@ -2119,14 +2126,14 @@ var i:      int;
 
    };
    fcolor(black);
-   binvis;
-   prtcen(maxy(stdout), 'Filled triangle test 6');
-   waitnext;
+   binvis(stdout);
+   prtcen(maxy(stdout), "Filled triangle test 6");
+   waitnext();
 
    /* ************************** Filled triangle test 7 ************************* */
 
-   page;
-   grid;
+   putchar('\f');
+   grid();
    c = black;
    fcolor(c);
    ftriangle(50, 50, 50, 100, 200, 50);
@@ -2148,28 +2155,28 @@ var i:      int;
    if c < magenta then c = succ(c)
    else c = black;
    if c == white then c = succ(c);
-   binvis;
+   binvis(stdout);
    fcolor(black);
-   prtcen(maxy(stdout), 'Filled triangle test 7');
-   waitnext;
+   prtcen(maxy(stdout), "Filled triangle test 7");
+   waitnext();
 
    /* ************************** Filled triangle test 8 ************************* */
 
-   page;
-   grid;
+   putchar('\f');
+   grid();
    fcolor(black);
    ftriangle(50, 50, 50, 100, 200, 50);
    ftriangle(50, 100, 300, 200, 200, 50);
    ftriangle(200, 50, 300, 200, 350, 100);
    ftriangle(350, 100, 400, 300, 300, 200);
-   binvis;
-   prtcen(maxy(stdout), 'Filled triangle test 8');
-   waitnext;
+   binvis(stdout);
+   prtcen(maxy(stdout), "Filled triangle test 8");
+   waitnext();
 
    /* ************************** Filled triangle test 9 ************************* */
 
-   page;
-   grid;
+   putchar('\f');
+   grid();
    fcolor(black);
    c = black;
    ftriangle(50, 50, 100, 50, 100, 100);
@@ -2188,15 +2195,15 @@ var i:      int;
    if c == white then c = succ(c);
    fcolor(c);
    ftriangle(200, 200, 250, 250);
-   binvis;
+   binvis(stdout);
    fcolor(black);
-   prtcen(maxy(stdout), 'Filled triangle test 9, progressive singles');
-   waitnext;
+   prtcen(maxy(stdout), "Filled triangle test 9, progressive singles");
+   waitnext();
 
    /* ************************** Filled triangle test 9 ************************* */
 
-   page;
-   grid;
+   putchar('\f');
+   grid();
    fcolor(black);
    c = black;
    ftriangle(50, 100, 50, 50, 100, 100);
@@ -2220,22 +2227,22 @@ var i:      int;
    if c == white then c = succ(c);
    fcolor(c);
    ftriangle(300, 100);
-   binvis;
+   binvis(stdout);
    fcolor(black);
-   prtcen(maxy(stdout), 'Filled triangle test 10, progressive strips');
-   waitnext;
+   prtcen(maxy(stdout), "Filled triangle test 10, progressive strips");
+   waitnext();
 
    /* **************************** Font sizing test *************************** */
 
-   page;
-   grid;
+   putchar('\f');
+   grid();
    fsiz = chrsizy; /* save character size to restore */
    h = 10;
    auto(OFF);
    font(font_sign);
    c1 = black;
    c2 = blue;
-   bover;
+   bover(stdout);
    while curyg+chrsizy <== maxyg-20 do {
 
       fcolor(c1);
@@ -2255,16 +2262,16 @@ var i:      int;
    fcolor(black);
    bcolor(white);
    font(font_term);
-   binvis;
-   prtcen(maxy(stdout), 'Font sizing test');
-   waitnext;
+   binvis(stdout);
+   prtcen(maxy(stdout), "Font sizing test");
+   waitnext();
 
    /* ***************************** Font list test **************************** */
 
-   page;
-   grid;
-   writeln('Number of fonts: ', fonts);
-   writeln;
+   putchar('\f');
+   grid();
+   writeln("Number of fonts: ", fonts);
+   printf("\n");
    i = 1;
    cnt = fonts;
    while cnt > 0 do {
@@ -2276,12 +2283,12 @@ var i:      int;
          if len(fns) == 0 then i = i+1
 
       until len(fns) > 0;
-      writeln(i:1, ': ', fns:0);
+      writeln(i:1, ": ", fns:0);
       if cury >== maxy then { /* screen overflows */
 
-         write('Press return to continue');
-         waitnext;
-         page;
+         write("Press return to continue");
+         waitnext();
+         putchar('\f');
          grid
 
       };
@@ -2289,17 +2296,17 @@ var i:      int;
       cnt = cnt-1 /* count fonts */
 
    };
-   writeln;
-   writeln('List complete');
-   waitnext;
+   printf("\n");
+   writeln("List complete");
+   waitnext();
 
    /* *************************** Font examples test ************************** */
 
-   page;
-   grid;
+   putchar('\f');
+   grid();
    auto(OFF);
    bcolor(cyan);
-   bover;
+   bover(stdout);
    i = 1;
    cnt = fonts;
    while cnt > 0 do {
@@ -2312,15 +2319,15 @@ var i:      int;
 
       until len(fns) > 0;
       font(i);
-      writeln(i:1, ': ', fns:0);
+      writeln(i:1, ": ", fns:0);
       if cury >== maxy then { /* screen overflows */
 
          font(font_term);
-         write('Press return to continue');
-         waitnext;
+         write("Press return to continue");
+         waitnext();
          bcolor(white);
-         page;
-         grid;
+         putchar('\f');
+         grid();
          bcolor(cyan)
 
       };
@@ -2330,57 +2337,57 @@ var i:      int;
    };
    bcolor(white);
    font(font_term);
-   binvis;
-   writeln;
-   writeln('List complete');
-   waitnext;
+   binvis(stdout);
+   printf("\n");
+   writeln("List complete");
+   waitnext();
 
    /* ************************** Ext}ed effects test ************************ */
 
-   page;
-   grid;
+   putchar('\f');
+   grid();
    auto(OFF);
    font(font_sign);
    condensed(ON);
-   writeln('Condensed');
+   writeln("Condensed");
    ext}ed(ON);
-   writeln('Ext}ed');
+   writeln("Ext}ed");
    ext}ed(OFF);
    xlight(ON);
-   writeln('Extra light');
+   writeln("Extra light");
    xlight(OFF);
    xbold(ON);
-   writeln('Extra bold');
+   writeln("Extra bold");
    xbold(OFF);
    hollow(ON);
-   writeln('Hollow');
+   writeln("Hollow");
    hollow(OFF);
    raised(ON);
-   writeln('Raised');
+   writeln("Raised");
    raised(OFF);
    font(font_term);
-   prtcen(maxy(stdout), 'Ext}ed effects test');
-   waitnext;
+   prtcen(maxy(stdout), "Ext}ed effects test");
+   waitnext();
 
    /* ****************** Character sizes && positions test ******************* */
 
-   page;
-   grid;
+   putchar('\f');
+   grid();
    auto(OFF);
    fsiz = chrsizy; /* save character size to restore */
    font(font_sign);
    fontsiz(30);
-   writeln('Size of test char*: ', strsiz(S3));
-   writeln;
+   writeln("Size of test char*: ", strsiz(S3));
+   printf("\n");
    x = (maxxg(stdout) / 2)-(strsiz(S3) / 2);
    cursorg(x, curyg); /* go to centered */
    bcolor(cyan);
-   bover;
+   bover(stdout);
    writeln(S3);
    rect(x, curyg, x+strsiz(S3)-1, curyg+chrsizy-1);
    for i = 2 to len(S3) do
       line(x+chrpos(S3, i), curyg, x+chrpos(S3, i), curyg+chrsizy-1);
-   writeln;
+   printf("\n");
 
    l = strsiz(S4); /* get minimum sizing for char* */
    justcenter(S4, l);
@@ -2389,53 +2396,53 @@ var i:      int;
 
    fontsiz(fsiz); /* restore font size */
    font(font_term);
-   binvis;
-   prtcen(maxy(stdout), 'Character sizes && positions');
-   waitnext;
+   binvis(stdout);
+   prtcen(maxy(stdout), "Character sizes && positions");
+   waitnext();
    bcolor(white);
 
    /* ************************* Graphical tabbing test ************************ */
 
-   page;
-   grid;
+   putchar('\f');
+   grid();
    auto(OFF);
    font(font_term);
    for i = 1 to 5 do {
 
-      for x = 1 to i do write('\ht');
-      writeln('Terminal tab: ', i:1)
+      for x = 1 to i do write("\ht");
+      writeln("Terminal tab: ", i:1)
 
    };
    clrtab;
    for i = 1 to 5 do settabg(i*43);
    for i = 1 to 5 do {
 
-      for x = 1 to i do write('\ht');
-      writeln('Graphical tab number: ', i:1, ' position: ', i*43:1)
+      for x = 1 to i do write("\ht");
+      writeln("Graphical tab number: ", i:1, " position: ", i*43:1)
 
    };
    restabg(2*43);
    restabg(4*43);
-   writeln;
-   writeln('After removing tabs ', 2*43, ' && ', 4*43);
-   writeln;
+   printf("\n");
+   writeln("After removing tabs ", 2*43, " && ", 4*43);
+   printf("\n");
    for i = 1 to 5 do {
 
-      for x = 1 to i do write('\ht');
-      writeln('Graphical tab number: ', i:1)
+      for x = 1 to i do write("\ht");
+      writeln("Graphical tab number: ", i:1)
 
    };
-   prtcen(maxy(stdout), 'Graphical tabbing test');
-   waitnext;
+   prtcen(maxy(stdout), "Graphical tabbing test");
+   waitnext();
 
    /* ************************** Picture draw test **************************** */
 
-   page;
-   grid;
-   loadpict(1, 'mypic');
-   writeln('Picture size for 1: x: ', pictsizx(1):1, ' y: ', pictsizy(1):1);
-   loadpict(2, 'mypic1.bmp');
-   writeln('Picture size for 2: x: ', pictsizx(2):1, ' y: ', pictsizy(2):1);
+   putchar('\f');
+   grid();
+   loadpict(1, "mypic");
+   writeln("Picture size for 1: x: ", pictsizx(1):1, " y: ", pictsizy(1):1);
+   loadpict(2, "mypic1.bmp");
+   writeln("Picture size for 2: x: ", pictsizx(2):1, " y: ", pictsizy(2):1);
    picture(1, 50, 50, 100, 100);
    picture(1, 100, 100, 200, 200);
    picture(1, 50, 200, 100, 350);
@@ -2444,70 +2451,70 @@ var i:      int;
    picture(2, 250, 250, 450, 300);
    delpict(1);
    delpict(2);
-   prtcen(maxy(stdout), 'Picture draw test');
-   waitnext;
+   prtcen(maxy(stdout), "Picture draw test");
+   waitnext();
 
    /* ********************** Invisible foreground test ************************ */
 
-   page;
-   grid;
-   writeln;
-   bover;
+   putchar('\f');
+   grid();
+   printf("\n");
+   bover(stdout);
    finvis;
    graphtest(1);
-   binvis;
-   prtcen(maxy(stdout), 'Invisible foreground test');
-   waitnext;
+   binvis(stdout);
+   prtcen(maxy(stdout), "Invisible foreground test");
+   waitnext();
    fover;
 
    /* ********************** Invisible background test ************************ */
 
-   page;
-   grid;
-   writeln;
-   binvis;
+   putchar('\f');
+   grid();
+   printf("\n");
+   binvis(stdout);
    fover;
    graphtest(1);
-   binvis;
-   prtcen(maxy(stdout), 'Invisible background test');
-   waitnext;
-   bover;
+   binvis(stdout);
+   prtcen(maxy(stdout), "Invisible background test");
+   waitnext();
+   bover(stdout);
 
    /* ************************** Xor foreground test ************************** */
 
-   page;
-   grid;
-   writeln;
-   bover;
+   putchar('\f');
+   grid();
+   printf("\n");
+   bover(stdout);
    fxor;
    graphtest(1);
-   binvis;
-   prtcen(maxy(stdout), 'Xor foreground test');
-   waitnext;
+   binvis(stdout);
+   prtcen(maxy(stdout), "Xor foreground test");
+   waitnext();
    fover;
 
    /* ************************* Xor background test *************************** */
 
-   page;
-   grid;
-   writeln;
+   putchar('\f');
+   grid();
+   printf("\n");
    bxor;
    fover;
    graphtest(1);
-   binvis;
-   prtcen(maxy(stdout), 'Xor background test');
-   waitnext;
-   bover;
+   binvis(stdout);
+   prtcen(maxy(stdout), "Xor background test");
+   waitnext();
+   bover(stdout);
 
    /* ************************** Graphical scrolling test **************************** */
 
-   page;
-   grid;
-   binvis;
-   prtcen(1, 'Use up, down, right && left keys to scroll by pixel');
-   prtcen(2, 'Hit enter to continue');
-   prtcen(3, 'Note that edges will clear to green as screen moves');
-   prtcen(maxy(stdout), 'Graphical scrolling test');
+   putchar('\f');
+   grid();
+   binvis(stdout);
+   prtcen(1, "Use up, down, right && left keys to scroll by pixel");
+   prtcen(2, "Hit enter to continue");
+   prtcen(3, "Note that edges will clear to green as screen moves");
+   prtcen(maxy(stdout), "Graphical scrolling test");
    bcolor(green);
    repeat
 
@@ -2519,15 +2526,15 @@ var i:      int;
       if er.etype == etterm then goto 99
 
    until er.etype == etenter;
-   bover;
+   bover(stdout);
    bcolor(white);
 
    /* ************************** Graphical mouse movement test **************************** */
 
-   page;
-   prtcen(1, 'Move the mouse around');
-   prtcen(3, 'Hit Enter to continue');
-   prtcen(maxy(stdout), 'Graphical mouse movement test');
+   putchar('\f');
+   prtcen(1, "Move the mouse around");
+   prtcen(3, "Hit Enter to continue");
+   prtcen(maxy(stdout), "Graphical mouse movement test");
    x = -1;
    y = -1;
    repeat
@@ -2551,33 +2558,33 @@ var i:      int;
    /* ************************** View offset test **************************** */
 
 if false then { /* view offsets are ! completely working */
-   page;
+   putchar('\f');
    auto(OFF);
    viewoffg(-(maxxg / 2), -(maxyg / 2));
-   grid;
+   grid();
    fcolor(green);
    frect(0, 0, 100, 100);
    cursorg(1, -(maxyg / 2));
    fcolor(black);
-   writeln('View offset test');
-   writeln;
-   writeln('The 1,1 origin is now at screen center');
-   waitnext;
+   writeln("View offset test");
+   printf("\n");
+   writeln("The 1,1 origin is now at screen center");
+   waitnext();
    viewoffg(0, 0);
 };
 
    /* ************************** View scale test **************************** */
 
 if false then { /* view scales are ! completely working */
-   page;
+   putchar('\f');
    auto(OFF);
    viewscale(0.5);
-   grid;
+   grid();
    fcolor(green);
    frect(0, 0, 100, 100);
-   prtcen(1, 'Logical coordinates are now 1/2 size');
-   prtcen(maxy(stdout), 'View scale text');
-   waitnext;
+   prtcen(1, "Logical coordinates are now 1/2 size");
+   prtcen(maxy(stdout), "View scale text");
+   waitnext();
 };
 
    /* ************************** Benchmarks **************************** */
@@ -2590,10 +2597,10 @@ if false then { /* view scales are ! completely working */
       time = s
 
    };
-   writeln('Line speed for width: 1, ', i:1, ' lines: ', s*0.0001,
-           ' seconds');
-   writeln('Seconds per line', s*0.0001/i);
-   waitnext;
+   writeln("Line speed for width: 1, ", i:1, " lines: ", s*0.0001,
+           " seconds");
+   writeln("Seconds per line", s*0.0001/i);
+   waitnext();
 
    i = 100000;
    linespeed(10, i, s);
@@ -2603,10 +2610,10 @@ if false then { /* view scales are ! completely working */
       time = s
 
    };
-   writeln('Line speed for width: 10, ', i:1, ' lines: ', s*0.0001,
-           ' seconds');
-   writeln('Seconds per line', s*0.0001/i);
-   waitnext;
+   writeln("Line speed for width: 10, ", i:1, " lines: ", s*0.0001,
+           " seconds");
+   writeln("Seconds per line", s*0.0001/i);
+   waitnext();
 
    i = 100000;
    rectspeed(1, i, s);
@@ -2616,10 +2623,10 @@ if false then { /* view scales are ! completely working */
       time = s
 
    };
-   writeln('Rectangle speed for width: 1, ', i:1, ' lines: ', s*0.0001,
-           ' seconds');
-   writeln('Seconds per rectangle', s*0.0001/i);
-   waitnext;
+   writeln("Rectangle speed for width: 1, ", i:1, " lines: ", s*0.0001,
+           " seconds");
+   writeln("Seconds per rectangle", s*0.0001/i);
+   waitnext();
 
    i = 100000;
    rectspeed(10, i, s);
@@ -2629,10 +2636,10 @@ if false then { /* view scales are ! completely working */
       time = s
 
    };
-   writeln('Rectangle speed for width: 10, ', i:1, ' lines: ', s*0.0001,
-           ' seconds');
-   writeln('Seconds per rectangle', s*0.0001/i);
-   waitnext;
+   writeln("Rectangle speed for width: 10, ", i:1, " lines: ", s*0.0001,
+           " seconds");
+   writeln("Seconds per rectangle", s*0.0001/i);
+   waitnext();
 
    i = 100000;
    rrectspeed(1, i, s);
@@ -2642,10 +2649,10 @@ if false then { /* view scales are ! completely working */
       time = s
 
    };
-   writeln('Rounded rectangle speed for width: 1, ', i:1, ' lines: ', s*0.0001,
-           ' seconds');
-   writeln('Seconds per rounded rectangle', s*0.0001/i);
-   waitnext;
+   writeln("Rounded rectangle speed for width: 1, ", i:1, " lines: ", s*0.0001,
+           " seconds");
+   writeln("Seconds per rounded rectangle", s*0.0001/i);
+   waitnext();
 
    i = 100000;
    rrectspeed(10, i, s);
@@ -2655,10 +2662,10 @@ if false then { /* view scales are ! completely working */
       time = s
 
    };
-   writeln('Rounded rectangle speed for width: 10, ', i:1, ' lines: ', s*0.0001,
-           ' seconds');
-   writeln('Seconds per rounded rectangle', s*0.0001/i);
-   waitnext;
+   writeln("Rounded rectangle speed for width: 10, ", i:1, " lines: ", s*0.0001,
+           " seconds");
+   writeln("Seconds per rounded rectangle", s*0.0001/i);
+   waitnext();
 
    i = 1000000;
    frectspeed(i, s);
@@ -2668,10 +2675,10 @@ if false then { /* view scales are ! completely working */
       time = s
 
    };
-   writeln('Filled rectangle speed, ', i:1, ' lines: ', s*0.0001,
-           ' seconds');
-   writeln('Seconds per filled rectangle', s*0.0001/i);
-   waitnext;
+   writeln("Filled rectangle speed, ", i:1, " lines: ", s*0.0001,
+           " seconds");
+   writeln("Seconds per filled rectangle", s*0.0001/i);
+   waitnext();
 
    i = 100000;
    frrectspeed(i, s);
@@ -2681,10 +2688,10 @@ if false then { /* view scales are ! completely working */
       time = s
 
    };
-   writeln('Filled rounded rectangle speed, ', i:1, ' lines: ', s*0.0001,
-           ' seconds');
-   writeln('Seconds per filled rounded rectangle', s*0.0001/i);
-   waitnext;
+   writeln("Filled rounded rectangle speed, ", i:1, " lines: ", s*0.0001,
+           " seconds");
+   writeln("Seconds per filled rounded rectangle", s*0.0001/i);
+   waitnext();
 
    i = 100000;
    ellipsespeed(1, i, s);
@@ -2694,10 +2701,10 @@ if false then { /* view scales are ! completely working */
       time = s
 
    };
-   writeln('Ellipse speed for width: 1, ', i:1, ' lines: ', s*0.0001,
-           ' seconds');
-   writeln('Seconds per ellipse', s*0.0001/i);
-   waitnext;
+   writeln("Ellipse speed for width: 1, ", i:1, " lines: ", s*0.0001,
+           " seconds");
+   writeln("Seconds per ellipse", s*0.0001/i);
+   waitnext();
 
    i = 100000;
    ellipsespeed(10, i, s);
@@ -2707,10 +2714,10 @@ if false then { /* view scales are ! completely working */
       time = s
 
    };
-   writeln('Ellipse speed for width: 10, ', i:1, ' lines: ', s*0.0001,
-           ' seconds');
-   writeln('Seconds per ellipse', s*0.0001/i);
-   waitnext;
+   writeln("Ellipse speed for width: 10, ", i:1, " lines: ", s*0.0001,
+           " seconds");
+   writeln("Seconds per ellipse", s*0.0001/i);
+   waitnext();
 
    i = 100000;
    fellipsespeed(i, s);
@@ -2720,10 +2727,10 @@ if false then { /* view scales are ! completely working */
       time = s
 
    };
-   writeln('Filled ellipse speed, ', i:1, ' lines: ', s*0.0001,
-           ' seconds');
-   writeln('Seconds per filled ellipse', s*0.0001/i);
-   waitnext;
+   writeln("Filled ellipse speed, ", i:1, " lines: ", s*0.0001,
+           " seconds");
+   writeln("Seconds per filled ellipse", s*0.0001/i);
+   waitnext();
 
    i = 100000;
    arcspeed(1, i, s);
@@ -2733,10 +2740,10 @@ if false then { /* view scales are ! completely working */
       time = s
 
    };
-   writeln('Arc speed for width: 1, ', i:1, ' lines: ', s*0.0001,
-           ' seconds');
-   writeln('Seconds per arc', s*0.0001/i);
-   waitnext;
+   writeln("Arc speed for width: 1, ", i:1, " lines: ", s*0.0001,
+           " seconds");
+   writeln("Seconds per arc", s*0.0001/i);
+   waitnext();
 
    i = 100000;
    arcspeed(10, i, s);
@@ -2746,10 +2753,10 @@ if false then { /* view scales are ! completely working */
       time = s
 
    };
-   writeln('Arc speed for width: 10, ', i:1, ' lines: ', s*0.0001,
-           ' seconds');
-   writeln('Seconds per arc', s*0.0001/i);
-   waitnext;
+   writeln("Arc speed for width: 10, ", i:1, " lines: ", s*0.0001,
+           " seconds");
+   writeln("Seconds per arc", s*0.0001/i);
+   waitnext();
 
    i = 100000;
    farcspeed(i, s);
@@ -2759,10 +2766,10 @@ if false then { /* view scales are ! completely working */
       time = s
 
    };
-   writeln('Filled arc speed, ', i:1, ' lines: ', s*0.0001,
-           ' seconds');
-   writeln('Seconds per filled arc', s*0.0001/i);
-   waitnext;
+   writeln("Filled arc speed, ", i:1, " lines: ", s*0.0001,
+           " seconds");
+   writeln("Seconds per filled arc", s*0.0001/i);
+   waitnext();
 
    i = 100000;
    fchordspeed(i, s);
@@ -2772,10 +2779,10 @@ if false then { /* view scales are ! completely working */
       time = s
 
    };
-   writeln('Filled chord speed, ', i:1, ' lines: ', s*0.0001,
-           ' seconds');
-   writeln('Seconds per filled chord', s*0.0001/i);
-   waitnext;
+   writeln("Filled chord speed, ", i:1, " lines: ", s*0.0001,
+           " seconds");
+   writeln("Seconds per filled chord", s*0.0001/i);
+   waitnext();
 
    i = 1000000;
    ftrianglespeed(i, s);
@@ -2785,12 +2792,12 @@ if false then { /* view scales are ! completely working */
       time = s
 
    };
-   writeln('Filled triangle speed, ', i:1, ' lines: ', s*0.0001,
-           ' seconds');
-   writeln('Seconds per filled triangle', s*0.0001/i);
-   waitnext;
+   writeln("Filled triangle speed, ", i:1, " lines: ", s*0.0001,
+           " seconds");
+   writeln("Seconds per filled triangle", s*0.0001/i);
+   waitnext();
 
-   bover;
+   bover(stdout);
    fover;
    i = 100000;
    ftextspeed(i, s);
@@ -2800,13 +2807,13 @@ if false then { /* view scales are ! completely working */
       time = s
 
    };
-   home;
-   writeln('Text speed, with overwrite, ', i:1, ' lines: ', s*0.0001,
-           ' seconds');
-   writeln('Seconds per write', s*0.0001/i);
-   waitnext;
+   pa_home(stdout);
+   writeln("Text speed, with overwrite, ", i:1, " lines: ", s*0.0001,
+           " seconds");
+   writeln("Seconds per write", s*0.0001/i);
+   waitnext();
 
-   binvis;
+   binvis(stdout);
    fover;
    i = 100000;
    ftextspeed(i, s);
@@ -2816,12 +2823,12 @@ if false then { /* view scales are ! completely working */
       time = s
 
    };
-   home;
-   bover;
-   writeln('Text speed, invisible background, ', i:1, ' lines: ', s*0.0001,
-           ' seconds');
-   writeln('Seconds per write', s*0.0001/i);
-   waitnext;
+   pa_home(stdout);
+   bover(stdout);
+   writeln("Text speed, invisible background, ", i:1, " lines: ", s*0.0001,
+           " seconds");
+   writeln("Seconds per write", s*0.0001/i);
+   waitnext();
 
    i = 1000;
    fpictspeed(i, s);
@@ -2831,10 +2838,10 @@ if false then { /* view scales are ! completely working */
       time = s
 
    };
-   writeln('Picture draw speed, ', i:1, ' lines: ', s*0.0001,
-           ' seconds');
-   writeln('Seconds per picture', s*0.0001/i);
-   waitnext;
+   writeln("Picture draw speed, ", i:1, " lines: ", s*0.0001,
+           " seconds");
+   writeln("Seconds per picture", s*0.0001/i);
+   waitnext();
 
    i = 1000;
    fpictnsspeed(i, s);
@@ -2844,46 +2851,46 @@ if false then { /* view scales are ! completely working */
       time = s
 
    };
-   writeln('No scale picture draw speed, ', i:1, ' lines: ', s*0.0001,
-           ' seconds');
-   writeln('Seconds per picture', s*0.0001/i);
-   waitnext;
+   writeln("No scale picture draw speed, ", i:1, " lines: ", s*0.0001,
+           " seconds");
+   writeln("Seconds per picture", s*0.0001/i);
+   waitnext();
 
    /* stdout table */
 
    writeln(error);
-   writeln(error, 'Benchmark table');
+   writeln(error, "Benchmark table");
    writeln(error);
-   writeln(error, 'Type                        Seconds     Per fig');
-   writeln(error, '--------------------------------------------------');
+   writeln(error, "Type                        Seconds     Per fig");
+   writeln(error, "--------------------------------------------------");
    for bi = bnline1 to bnpictns do with benchtab[bi] do {
 
       case bi of /* benchmark type */
 
-         bnline1:     write(error, 'line width 1                ');
-         bnline10:    write(error, 'line width 10               ');
-         bnrect1:     write(error, 'rectangle width 1           ');
-         bnrect10:    write(error, 'rectangle width 10          ');
-         bnrrect1:    write(error, 'rounded rectangle width 1   ');
-         bnrrect10:   write(error, 'rounded rectangle width 10  ');
-         bnfrect:     write(error, 'filled rectangle            ');
-         bnfrrect:    write(error, 'filled rounded rectangle    ');
-         bnellipse1:  write(error, 'ellipse width 1             ');
-         bnellipse10: write(error, 'ellipse width 10            ');
-         bnfellipse:  write(error, 'filled ellipse              ');
-         bnarc1:      write(error, 'arc width 1                 ');
-         bnarc10:     write(error, 'arc width 10                ');
-         bnfarc:      write(error, 'filled arc                  ');
-         bnfchord:    write(error, 'filled chord                ');
-         bnftriangle: write(error, 'filled triangle             ');
-         bntext:      write(error, 'text                        ');
-         bntextbi:    write(error, 'background invisible text   ');
-         bnpict:      write(error, 'Picture draw                ');
-         bnpictns:    write(error, 'No scaling picture draw     ');
+         bnline1:     write(error, "line width 1                ");
+         bnline10:    write(error, "line width 10               ");
+         bnrect1:     write(error, "rectangle width 1           ");
+         bnrect10:    write(error, "rectangle width 10          ");
+         bnrrect1:    write(error, "rounded rectangle width 1   ");
+         bnrrect10:   write(error, "rounded rectangle width 10  ");
+         bnfrect:     write(error, "filled rectangle            ");
+         bnfrrect:    write(error, "filled rounded rectangle    ");
+         bnellipse1:  write(error, "ellipse width 1             ");
+         bnellipse10: write(error, "ellipse width 10            ");
+         bnfellipse:  write(error, "filled ellipse              ");
+         bnarc1:      write(error, "arc width 1                 ");
+         bnarc10:     write(error, "arc width 10                ");
+         bnfarc:      write(error, "filled arc                  ");
+         bnfchord:    write(error, "filled chord                ");
+         bnftriangle: write(error, "filled triangle             ");
+         bntext:      write(error, "text                        ");
+         bntextbi:    write(error, "background invisible text   ");
+         bnpict:      write(error, "Picture draw                ");
+         bnpictns:    write(error, "No scaling picture draw     ");
 
       };
       writere(error, time*0.0001, 10);
-      write(error, '  ');
+      write(error, "  ");
       writere(error, time*0.0001/iter, 10);
       writeln(error)
 
@@ -2891,10 +2898,12 @@ if false then { /* view scales are ! completely working */
 
    99: /* terminate */
 
-   page;
+   putchar('\f');
    auto(OFF);
    font(font_sign);
    fontsiz(50);
-   prtceng(maxy / 2, 'Test complete');
+   prtceng(maxy / 2, "Test complete");
 
-}.
+   return (0);
+
+}
