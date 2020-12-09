@@ -945,79 +945,78 @@ int main(void)
    putchar('\f');
    grid();
    printf("\n");
-   bover(stdout);
+   pa_bover(stdout);
    graphtest(2);
-   binvis(stdout);
+   pa_binvis(stdout);
    prtcen(pa_maxy(stdout), "Graphical figures test, linewidth == 2");
    waitnext();
 
    putchar('\f');
    grid();
    printf("\n");
-   bover(stdout);
+   pa_bover(stdout);
    graphtest(3);
-   binvis(stdout);
+   pa_binvis(stdout);
    prtcen(pa_maxy(stdout), "Graphical figures test, linewidth == 3");
    waitnext();
 
    putchar('\f');
    grid();
    printf("\n");
-   bover(stdout);
+   pa_bover(stdout);
    graphtest(5);
-   binvis(stdout);
+   pa_binvis(stdout);
    prtcen(pa_maxy(stdout), "Graphical figures test, linewidth == 5");
    waitnext();
 
    putchar('\f');
    grid();
    printf("\n");
-   bover(stdout);
+   pa_bover(stdout);
    graphtest(11);
-   binvis(stdout);
+   pa_binvis(stdout);
    prtcen(pa_maxy(stdout), "Graphical figures test, linewidth == 11");
    waitnext();
 
    /* ***************************** Standard Fonts test *********************** */
 
-   putchar('\f');
-   chrgrid();
-   prtcen(pa_maxy(stdout), "Standard fonts test");
-   pa_auto(FALSE);
-   pa_home(stdout);
-   binvis(stdout);
-   fontnam(stdout, PA_FONT_TERM, fns, 100);
-   if len(fns) > 0 then {
+    putchar('\f');
+    chrgrid();
+    prtcen(pa_maxy(stdout), "Standard fonts test");
+    pa_auto(stdout, FALSE);
+    pa_home(stdout);
+    pa_binvis(stdout);
+    pa_fontnam(stdout, PA_FONT_TERM, fns, 100);
+    if (strlen(fns) > 0) {
 
-      font(stdout, PA_FONT_TERM);
-      printf("This is the terminal font: System name: \"%s\" Size x -> %d y -> %d\n",
-              fns, chrsizx, chrsizy);
-      prtall();
-      printf("\n");
+        pa_font(stdout, PA_FONT_TERM);
+        printf("This is the terminal font: System name: \"%s\" Size x -> %d y -> %d\n",
+               fns, pa_chrsizx(stdout), pa_chrsizy(stdout));
+        prtall();
+        printf("\n");
 
-   } else {
+    } else {
 
-      printf("There is no terminal font\n");
-      printf("\n");
+        printf("There is no terminal font\n");
+        printf("\n");
 
-   }
-?????????????????????????????????????????????????????????????????????????????????????????
-   fontnam(font_book, fns);
-   if len(fns) > 0 then {
+    }
+    pa_fontnam(PA_FONT_BOOK, fns);
+    if (strlen(fns) > 0) {
 
-      font(font_book);
-      fontsiz(20);
-      writeln("This is the book font: System name: "", fns:0,
-              "" Size x -> ", chrsizx:1, " y -> ", chrsizy:1);
-      prtall;
-      writeln
+        pa_font(PA_FONT_BOOK);
+        pa_fontsiz(20);
+        printf("This is the book font: System name: \"%s\" Size x -> %d y -> %d\n",
+               fns, pa_chrsizx(stdout), pa_chrsizy(stdout));
+        prtall();
+        printf("\n");
 
-   } else {
+    } else {
 
-      writeln("There is no book font");
-      writeln
+        printf("There is no book font\n");
+        printf("\n");
 
-   };
+    }
    fontnam(font_sign, fns);
    if len(fns) > 0 then {
 
