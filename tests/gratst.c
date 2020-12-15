@@ -131,7 +131,7 @@ void wait(long t)
     pa_timer(stdout, 1, t, FALSE);
     do { event(stdin, er); }
     while (er.etype != pa_ettim && er.etype != pa_etterm);
-    if (er.etype == pa_etterm) { longjmp(terminate_buf, 1); }
+    if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
 }
 
@@ -203,7 +203,7 @@ void prtall(void)
     for (c = " "; c <= "}"; c++) {
 
       s[0] = "c";
-      if (pa_curxg(stdout)+pa_strsiz(s) > maxxg then cursorg(1, curyg+chrsizy);
+      if (pa_curxg(stdout)+pa_strsiz(s) > maxxg(stdout) then cursorg(1, curyg+chrsizy);
       putchar(c);
 
    }
@@ -510,7 +510,7 @@ void graphtest(int lw); /* line width */
     y = y+10;
     pa_fcolor(stdout, pa_blue);
     pa_linewidth(stdout, 7);
-    pa_line(stdout, 20, y, maxxg-20, y);
+    pa_line(stdout, 20, y, maxxg(stdout)-20, y);
     y = y+20;
     pa_fcolor(stdout, pa_magenta);
     pa_linewidth(stdout, 15);
@@ -1017,1892 +1017,1764 @@ int main(void)
         printf("\n");
 
     }
-   fontnam(font_sign, fns);
-   if len(fns) > 0 then {
+    pa_fontnam(PA_FONT_SIGN, fns);
+    if (strlen(fns) > 0) {
 
-      font(font_sign);
-      fontsiz(20);
-      writeln("This is the sign font: System name: "", fns:0,
-              "" Size x -> ", chrsizx:1, " y -> ", chrsizy:1);
-      prtall;
-      writeln
+        pa_font(font_sign);
+        pa_fontsiz(20);
+        printf("This is the sign font: System name: \"%s\" Size x -> %d y -> %d\n",
+               fns, pa_chrsizx(stdout), pa_chrsizy(stdout));
+        prtall();
+        printf("\n");
 
-   } else {
+    } else {
 
-      writeln("There is no sign font");
-      writeln
+        printf("There is no sign font\n");
+        printf("\n");
 
-   };
-   fontnam(font_tech, fns);
-   if len(fns) > 0 then {
+    }
+    pa_fontnam(PA_FONT_TECH, fns);
+    if (strlen(fns) > 0) {
 
-      font(font_tech);
-      fontsiz(20);
-      writeln("This is the technical font: System name: "", fns:0,
-              "" Size x -> ", chrsizx:1, " y -> ", chrsizy:1);
-      prtall;
-      writeln
+        pa_font(PA_FONT_TECH);
+        pa_fontsiz(20);
+        printf("This is the technical font: System name: \"%s\" Size x -> %d y -> %d\n",
+                fns, pa_chrsizx(stdout), pa_chrsizy(stdout));
+        prtall();
+        printf("\n");
 
-   } else {
+    } else {
 
-      writeln("There is no technical font");
-      writeln
+        printf("There is no technical font\n");
+        printf("\n");
 
-   };
-   font(font_term);
-   writeln("Complete");
-   waitnext();
+    }
+    pa_font(PA_FONT_TERM);
+    printf("Complete\n");
+    waitnext();
 
    /* ********************** Graphical cursor movement test ******************* */
 
-   putchar('\f');
-   prtcen(maxy(stdout), "Graphical cursor movement test");
-   x = 1;
-   y = 1;
-   i = 10000;
-   dx = +1;
-   dy = +1;
-   ln = strsiz(S1);
-   term = false;
-   while ! term do {
+    putchar('\f');
+    prtcen(pa_maxy(stdout), "Graphical cursor movement test");
+    x = 1;
+    y = 1;
+    i = 10000;
+    dx = +1;
+    dy = +1;
+    ln = pa_strsiz(stdout, S1);
+    term = FALSE;
+    while (!term) {
 
-      cursorg(x, y);
-      write(S1);
-      xs = x;
-      ys = y;
-      x = x+dx;
-      y = y+dy;
-      if (x < 1) || (x+ln-1 > maxxg) then {
+        pa_cursorg(stdout, x, y);
+        puts(S1);
+        xs = x;
+        ys = y;
+        x = x+dx;
+        y = y+dy;
+        if (x < 1 || x+ln-1 > pa_maxxg(stdout)) {
 
-         x = xs;
-         dx = -dx
+            x = xs;
+            dx = -dx;
 
-      };
-      if (y < 1) || (y+chrsizy-1 > maxyg) then {
+        }
+        if (y < 1 || y+pa_chrsizy(stdout)-1 > pa_maxyg(stdout)) {
 
-         y = ys;
-         dy = -dy
+            y = ys;
+            dy = -dy;
 
-      };
-      waitchar(100, term);
-      cursorg(xs, ys);
-      fcolor(white);
-      write(S1);
-      fcolor(black)
+        }
+        waitchar(100, term);
+        pa_cursorg(stdout, xs, ys);
+        pa_fcolor(PA_WHITE);
+        puts(S1);
+        pa_fcolor(PA_BLACK)
 
-   };
+    }
 
-   /* *************************** Vertical lines test ************************* */
+    /* *************************** Vertical lines test ************************* */
 
-   putchar('\f');
-   grid();
-   prtcen(maxy(stdout), "Vertical lines test");
-   y = 20;
-   w = 1;
-   while (y < maxyg-30) && (w < 15) do {
+    putchar('\f');
+    grid();
+    prtcen(pa_maxy(stdout), "Vertical lines test");
+    y = 20;
+    w = 1;
+    while (y < pa_maxyg(stdout)-30 && w < 15) {
 
-      linewidth(w);
-      line(20, y, maxxg-20, y);
-      y = y+30;
-      w = w+1
+        pa_linewidth(w);
+        pa_line(20, y, pa_maxxg(stdout)-20, y);
+        y = y+30;
+        w = w+1;
 
-   };
-   linewidth(1);
-   waitnext();
+    }
+    pa_linewidth(stdout, 1);
+    waitnext();
 
-   /* ************************* Horizontal lines test ************************* */
+    /* ************************* Horizontal lines test ************************* */
 
-   putchar('\f');
-   grid();
-   prtcen(maxy(stdout), "Horizontal lines test");
-   x = 20;
-   w = 1;
-   y = maxyg-20;
-   y = y-y % 10;
-   while (x < maxxg-20) && (w < 30) do {
+    putchar('\f');
+    grid();
+    prtcen(pa_maxy(stdout), "Horizontal lines test");
+    x = 20;
+    w = 1;
+    y = pa_maxyg(stdout)-20;
+    y = y-y%10;
+    while (x < pa_maxxg(stdout)-20 && w < 30) {
 
-      linewidth(w);
-      line(x, 20, x, y);
-      x = x+30;
-      w = w+1
+        pa_linewidth(stdout, w);
+        pa_line(stdout, x, 20, x, y);
+        x = x+30;
+        w = w+1;
 
-   };
-   linewidth(1);
-   waitnext();
+    }
+    pa_linewidth(stdout, 1);
+    waitnext();
 
-   /* **************************** Polar lines test *************************** */
+    /* **************************** Polar lines test *************************** */
 
-   putchar('\f');
-   grid();
-   binvis(stdout);
-   prtcen(maxy(stdout), "Polar lines test");
-   bover(stdout);
-   x = maxxg / 2;
-   x = x-(x % 10);
-   y = maxyg / 2;
-   y = y-(y % 10);
-   if maxxg > maxyg then l = maxyg / 2-40
-                    else l = maxxg / 2-40;
-   l = l-(l % 10);
-   w = 1;
-   fcolor(blue);
-   ellipse(x-l, y-l, x+l, y+l);
-   fcolor(black);
-   while w < 10 do {
+    putchar('\f');
+    grid();
+    pa_binvis(stdout);
+    prtcen(pa_maxy(stdout), "Polar lines test");
+    pa_bover(stdout);
+    x = pa_maxxg(stdout) / 2;
+    x = x-(x % 10);
+    y = pa_maxyg(stdout) / 2;
+    y = y-(y % 10);
+    if pa_maxxg(stdout) > pa_maxyg(stdout) then l = pa_maxyg(stdout) / 2-40
+                     else l = pa_maxxg(stdout) / 2-40;
+    l = l-(l % 10);
+    w = 1;
+    pa_fcolor(pa_blue);
+    pa_ellipse(x-l, y-l, x+l, y+l);
+    pa_fcolor(pa_black);
+    while w < 10 do {
 
-      a = 0; /* set angle */
-      while a < 360 do {
+        a = 0; /* set angle */
+        while a < 360 do {
 
-         pline(a, l, x, y, w);
-         a = a+10;
+            pline(a, l, x, y, w);
+            a = a+10;
 
-      };
-      pa_home(stdout);
-      writeln("Line width: ", w:1);
-      w = w+1;
-      waitnext
+        };
+        pa_home(stdout);
+        writeln("Line width: ", w:1);
+        w = w+1;
+        waitnext();
 
-   };
-   linewidth(1);
+    }
+    pa_linewidth(1);
 
-   /* ************************* Progressive lines test ************************ */
+    /* ************************* Progressive lines test ************************ */
 
-   putchar('\f');
-   grid();
-   line(10, 10, 100, 100);
-   line(100, 10);
-   line(200, 50);
-   line(10, 100);
-   line(50, 230);
-   line(20, 130);
-   line(250, 80);
-   line(100, 40);
-   line(160, 180);
-   line(80, 160);
-   line(120, 30);
-   line(90, 90);
-   line(20, 50);
-   binvis(stdout);
-   fcolor(black);
-   prtcen(maxy(stdout), "Progressive lines test");
-   waitnext();
+    putchar('\f');
+    grid();
+    pa_line(stdout, 10, 10, 100, 100);
+    pa_line(stdout, 100, 10);
+    pa_line(stdout, 200, 50);
+    pa_line(stdout, 10, 100);
+    pa_line(stdout, 50, 230);
+    pa_line(stdout, 20, 130);
+    pa_line(stdout, 250, 80);
+    pa_line(stdout, 100, 40);
+    pa_line(stdout, 160, 180);
+    pa_line(stdout, 80, 160);
+    pa_line(stdout, 120, 30);
+    pa_line(stdout, 90, 90);
+    pa_line(stdout, 20, 50);
+    pa_binvis(stdout);
+    pa_fcolor(black);
+    prtcen(pa_maxy(stdout), "Progressive lines test");
+    waitnext();
 
-   /* ******************************* Color test 1 ****************************** */
+    /* ******************************* Color test 1 ****************************** */
 
-   putchar('\f');
-   y = 1; /* set 1st row */
-   r = 0; /* set colors */
-   g = 0;
-   b = 0;
-   while y < maxyg do {
+    putchar('\f');
+    y = 1; /* set 1st row */
+    r = 0; /* set colors */
+    g = 0;
+    b = 0;
+    while (y < pa_maxyg(stdout)) {
 
-      x = 1;
-      while x < maxxg do {
+        x = 1;
+        while (x < pa_maxxg(stdout)) {
 
-         fcolor(r, g, b);
-         frect(x, y, x+COLSQR-1, y+COLSQR-1);
-         x = x+COLSQR;
-         if r <== INT_MAX-INT_MAX / COLDIV then r = r+INT_MAX / COLDIV
-         else {
-
-            r = 0;
-            if g <== INT_MAX-INT_MAX / COLDIV then g = g+INT_MAX / COLDIV
+            pa_fcolor(stdout, r, g, b);
+            pa_frect(stdout, x, y, x+COLSQR-1, y+COLSQR-1);
+            x = x+COLSQR;
+            if (r <= INT_MAX-INT_MAX/COLDIV) r = r+INT_MAX/COLDIV;
             else {
 
-               g = 0;
-               if b <== INT_MAX-INT_MAX / COLDIV then b = b+INT_MAX / COLDIV
-               else b = 0
+                r = 0;
+                if (g <= INT_MAX-INT_MAX/COLDIV) g = g+INT_MAX/COLDIV;
+                else {
+
+                    g = 0;
+                    if (b <= INT_MAX-INT_MAX/COLDIV) b = b+INT_MAX/COLDIV;
+                    else b = 0;
+
+                }
 
             }
 
-         }
+        }
+        y = y+COLSQR;
 
-      };
-      y = y+COLSQR
+    }
+    pa_fcolor(PA_BLACK);
+    prtcen(pa_maxy(stdout), "Color test 1");
+    waitnext();
 
-   };
-   fcolor(black);
-   prtcen(maxy(stdout), "Color test 1");
-   waitnext();
+    /* ******************************* Color test 2 ****************************** */
 
-   /* ******************************* Color test 2 ****************************** */
+    putchar('\f');
+    x = 1; /* set 2st collumn */
+    while (x < pa_maxxg(stdout)) {
 
-   putchar('\f');
-   x = 1; /* set 2st collumn */
-   while x < maxxg do {
+        pa_fcolor(INT_MAX/pa_maxxg(stdout)*x, 0, 0);
+        pa_line(x, 1, x, pa_maxyg(stdout));
+        x = x+1;
 
-      fcolor(INT_MAX / maxxg*x, 0, 0);
-      line(x, 1, x, maxyg);
-      x = x+1
+    }
+    pa_binvis(stdout);
+    pa_fcolor(PA_BLACK);
+    prtcen(pa_maxy(stdout), "Color test 2");
+    waitnext();
 
-   };
-   binvis(stdout);
-   fcolor(black);
-   prtcen(maxy(stdout), "Color test 2");
-   waitnext();
+    /* ******************************* Color test 3 ****************************** */
 
-   /* ******************************* Color test 3 ****************************** */
+    putchar('\f');
+    x = 1; /* set 2st collumn */
+    while (x < pa_maxxg(stdout)) {
 
-   putchar('\f');
-   x = 1; /* set 2st collumn */
-   while x < maxxg do {
+        pa_fcolor(0, INT_MAX/pa_maxxg(stdout)*x, 0);
+        pa_line(x, 1, x, pa_maxyg(stdout));
+        x = x+1;
 
-      fcolor(0, INT_MAX / maxxg*x, 0);
-      line(x, 1, x, maxyg);
-      x = x+1
+    }
+    pa_binvis(stdout);
+    pa_fcolor(PA_BLACK);
+    prtcen(pa_maxy(stdout), "Color test 3");
+    waitnext();
 
-   };
-   binvis(stdout);
-   fcolor(black);
-   prtcen(maxy(stdout), "Color test 3");
-   waitnext();
+    /* ******************************* Color test 4 ****************************** */
 
-   /* ******************************* Color test 4 ****************************** */
+    putchar('\f');
+    x = 1; /* set 2st collumn */
+    while (x < pa_maxxg(stdout)) {
 
-   putchar('\f');
-   x = 1; /* set 2st collumn */
-   while x < maxxg do {
+        pa_fcolor(0, 0, INT_MAX/pa_maxxg(stdout)*x);
+        pa_line(x, 1, x, pa_maxyg(stdout));
+        x = x+1
 
-      fcolor(0, 0, INT_MAX / maxxg*x);
-      line(x, 1, x, maxyg);
-      x = x+1
+    }
+    pa_binvis(stdout);
+    pa_fcolor(black);
+    prtcen(pa_maxy(stdout), "Color test 4");
+    waitnext();
 
-   };
-   binvis(stdout);
-   fcolor(black);
-   prtcen(maxy(stdout), "Color test 4");
-   waitnext();
+    /* ***************************** Rectangle test **************************** */
 
-   /* ***************************** Rectangle test **************************** */
+    putchar('\f');
+    grid();
+    l = 10;
+    x = pa_maxxg(stdout)/2; /* find center */
+    y = pa_maxyg(stdout)/2;
+    x = x-x%10;
+    y = y-y%10;
+    w = 1;
+    c = PA_BLACK;
+    while (l < pa_maxxg(stdout) / 2 && l < pa_maxyg(stdout) / 2) {
 
-   putchar('\f');
-   grid();
-   l = 10;
-   x = maxxg / 2; /* find center */
-   y = maxyg / 2;
-   x = x-x % 10;
-   y = y-y % 10;
-   w = 1;
-   c = black;
-   while (l < maxxg / 2) && (l < maxyg / 2) do {
+        pa_fcolor(c);
+        pa_linewidth(w);
+        pa_rect(x-l, y-l, x+l, y+l);
+        l = l+20;
+        w = w+1;
+        if (c < PA_MAGENTA) c++;
+        else c = PA_BLACK;
+        if (c == PA_WHITE) c++;
 
-      fcolor(c);
-      linewidth(w);
-      rect(x-l, y-l, x+l, y+l);
-      l = l+20;
-      w = w+1;
-      if c < magenta then c = succ(c)
-      else c = black;
-      if c == white then c = succ(c)
+    };
+    pa_linewidth(1);
+    pa_fcolor(PA_BLACK);
+    pa_binvis(stdout);
+    prtcen(pa_maxy(stdout), "Rectangle test");
+    waitnext();
 
-   };
-   linewidth(1);
-   fcolor(black);
-   binvis(stdout);
-   prtcen(maxy(stdout), "Rectangle test");
-   waitnext();
+    /* ************************ Filled rectangle test 1 ************************ */
 
-   /* ************************ Filled rectangle test 1 ************************ */
+    putchar('\f');
+    grid();
+    if (pa_maxxg(stdout) > pa_maxyg(stdout)) l = pa_maxyg(stdout) / 2-10;
+    else l = pa_maxxg(stdout)/2-10;
+    l = l-l % 10;
+    x = pa_maxxg(stdout)/2; /* find center */
+    y = pa_maxyg(stdout)/2;
+    x = x-x%10;
+    y = y-y%10;
+    c = pa_black;
+    while (l >= 10 && l < pa_maxyg(stdout) / 2) do {
 
-   putchar('\f');
-   grid();
-   if maxxg > maxyg then l = maxyg / 2-10 else l = maxxg / 2-10;
-   l = l-l % 10;
-   x = maxxg / 2; /* find center */
-   y = maxyg / 2;
-   x = x-x % 10;
-   y = y-y % 10;
-   c = black;
-   while (l >== 10) && (l < maxyg / 2) do {
+        pa_fcolor(c);
+        pa_frect(x-l, y-l, x+l, y+l);
+        l = l-20;
+        if (c < PA_MAGENTA) c++;
+        else c = PA_BLACK;
+        if (c == PA_WHITE) c++;
 
-      fcolor(c);
-      frect(x-l, y-l, x+l, y+l);
-      l = l-20;
-      if c < magenta then c = succ(c)
-      else c = black;
-      if c == white then c = succ(c)
+    }
+    pa_fcolor(PA_BLACK);
+    pa_binvis(stdout);
+    prtcen(pa_maxy(stdout), "Filled rectangle test 1");
+    waitnext();
 
-   };
-   fcolor(black);
-   binvis(stdout);
-   prtcen(maxy(stdout), "Filled rectangle test 1");
-   waitnext();
+    /* ************************ Filled rectangle test 2 ************************ */
 
-   /* ************************ Filled rectangle test 2 ************************ */
+    putchar('\f');
+    grid();
+    l = 10;
+    x = 20;
+    y = 20;
+    c = PA_BLACK;
+    while (y+l*2 < pa_maxyg(stdout)-20) {
 
-   putchar('\f');
-   grid();
-   l = 10;
-   x = 20;
-   y = 20;
-   c = black;
-   while y+l*2 < maxyg-20 do {
+        while (x+l*2 < pa_maxxg(stdout)-20) {
 
-      while x+l*2 < maxxg-20 do {
-
-         fcolor(c);
-         frect(x, y, x+l*2, y+l*2);
-         x = x+l*2+20;
-         l = l+5;
-         if c < magenta then c = succ(c)
-         else c = black;
-         if c == white then c = succ(c)
-
-      };
-      x = 10;
-      y = y+l*2+10
-
-   };
-   fcolor(black);
-   binvis(stdout);
-   prtcen(maxy(stdout), "Filled rectangle test 2");
-   waitnext();
-
-   /* ************************* Rounded rectangle test ************************ */
-
-   binvis(stdout);
-   r = 1;
-   while r < 100 do {
-
-      putchar('\f');
-      grid();
-      l = 10;
-      x = maxxg / 2; /* find center */
-      y = maxyg / 2;
-      x = x-x % 10;
-      y = y-y % 10;
-      w = 1;
-      c = black;
-      writeln("r: ", r:1);
-      while (l < maxxg / 2) && (l < maxyg / 2) do {
-
-         fcolor(c);
-         linewidth(w);
-         rrect(x-l, y-l, x+l, y+l, r, r);
-         l = l+20;
-         w = w+1;
-         if c < magenta then c = succ(c)
-         else c = black;
-         if c == white then c = succ(c)
-
-      };
-      linewidth(1);
-      fcolor(black);
-      prtcen(maxy(stdout), "Rounded rectangle test");
-      waitnext();
-      r = r+10
-
-   };
-
-   /* ******************** Filled rounded rectangle test 1 ******************** */
-
-   binvis(stdout);
-   r = 1;
-   while r < 100 do {
-
-      putchar('\f');
-      grid();
-      if maxxg > maxyg then l = maxyg / 2-10 else l = maxxg / 2-10;
-      l = l-l % 10;
-      x = maxxg / 2; /* find center */
-      y = maxyg / 2;
-      x = x-x % 10;
-      y = y-y % 10;
-      c = black;
-      writeln("r: ", r:1);
-      while (l >== 10) && (l < maxyg / 2) do {
-
-         fcolor(c);
-         frrect(x-l, y-l, x+l, y+l, r, r);
-         l = l-20;
-         if c < magenta then c = succ(c)
-         else c = black;
-         if c == white then c = succ(c)
-
-      };
-      fcolor(black);
-      prtcen(maxy(stdout), "Filled rounded rectangle test 1");
-      waitnext();
-      r = r+10
-
-   };
-
-   /* ******************** Filled rounded rectangle test 2 ******************** */
-
-   binvis(stdout);
-   r = 1;
-   while r < 100 do {
-
-      putchar('\f');
-      grid();
-      l = 10;
-      x = 20;
-      y = 20;
-      c = black;
-      writeln("r: ", r:1);
-      while y+l*2 < maxyg-20 do {
-
-         while x+l*2 < maxxg-20 do {
-
-            fcolor(c);
-            frrect(x, y, x+l*2, y+l*2, r, r);
+            pa_fcolor(c);
+            pa_frect(x, y, x+l*2, y+l*2);
             x = x+l*2+20;
             l = l+5;
-            if c < magenta then c = succ(c)
-            else c = black;
-            if c == white then c = succ(c)
+            if (c < PA_MAGENTA) c++; else c = PA_BLACK;
+            if (c == PA_WHITE) c++;
 
-         };
-         x = 10;
-         y = y+l*2+10
+        }
+        x = 10;
+        y = y+l*2+10;
 
-      };
-      fcolor(black);
-      binvis(stdout);
-      prtcen(maxy(stdout), "Filled rounded rectangle test 2");
-      waitnext();
-      r = r+10
+    }
+    pa_fcolor(PA_BLACK);
+    pa_binvis(stdout);
+    prtcen(pa_maxy(stdout), "Filled rectangle test 2");
+    waitnext();
 
-   };
+    /* ************************* Rounded rectangle test ************************ */
 
-   /* ****************************** Ellipse test ***************************** */
+    pa_binvis(stdout);
+    r = 1;
+    while (r < 100) {
 
-   binvis(stdout);
-   w = 1;
-   while w < 10 do {
+        putchar('\f');
+        grid();
+        l = 10;
+        x = pa_maxxg(stdout)/2; /* find center */
+        y = pa_maxyg(stdout)/2;
+        x = x-x % 10;
+        y = y-y % 10;
+        w = 1;
+        c = PA_BLACK;
+        writeln("r: %d\n", r);
+        while (l < pa_maxxg(stdout)/2 && l < pa_maxyg(stdout)/2) {
 
-      putchar('\f');
-      grid();
-      lx = maxxg / 2-10;
-      lx = lx-lx % 10;
-      ly = maxyg / 2-10;
-      ly = ly-ly % 10;
-      x = maxxg / 2; /* find center */
-      y = maxyg / 2;
-      x = x-x % 10;
-      y = y-y % 10;
-      c = black;
-      writeln("width: ", w:1);
-      while (lx >== 10) && (ly >== 10) do {
+            pa_fcolor(stdout, c);
+            pa_linewidth(stdout, w);
+            pa_rrect(stdout, x-l, y-l, x+l, y+l, r, r);
+            l = l+20;
+            w = w+1;
+            if (c < PA_MAGENTA) c++; else c = PA_BLACK;
+            if (c == PA_WHITE) c++;
 
-         fcolor(c);
-         linewidth(w);
-         ellipse(x-lx, y-ly, x+lx, y+ly);
-         lx = lx-20;
-         ly = ly-20;
-         if c < magenta then c = succ(c)
-         else c = black;
-         if c == white then c = succ(c)
+        }
+        pa_linewidth(stdout, 1);
+        pa_fcolor(stdout, PA_BLACK);
+        pa_prtcen(stdout, pa_maxy(stdout), "Rounded rectangle test");
+        waitnext();
+        r = r+10;
 
-      };
-      fcolor(black);
-      prtcen(maxy(stdout), "Ellipse test");
-      waitnext();
-      w = w+1
+    }
 
-   };
-   linewidth(1);
+    /* ******************** Filled rounded rectangle test 1 ******************** */
 
-   /* ************************** Filled ellipse test 1 ************************** */
+    pa_binvis(stdout);
+    r = 1;
+    while (r < 100) {
 
-   putchar('\f');
-   grid();
-   lx = maxxg / 2-10;
-   lx = lx-lx % 10;
-   ly = maxyg / 2-10;
-   ly = ly-ly % 10;
-   x = maxxg / 2; /* find center */
-   y = maxyg / 2;
-   x = x-x % 10;
-   y = y-y % 10;
-   c = black;
-   while (lx >== 10) && (ly >== 10) do {
+        putchar('\f');
+        grid();
+        if (pa_maxxg(stdout) > pa_maxyg(stdout)) l = pa_maxyg(stdout)/2-10;
+        else l = pa_maxxg(stdout)/2-10;
+        l = l-l % 10;
+        x = pa_maxxg(stdout)/2; /* find center */
+        y = pa_maxyg(stdout)/2;
+        x = x-x % 10;
+        y = y-y % 10;
+        c = PA_BLACK;
+        printf("r: %d\n", r:1);
+        while (l >== 10 && l < pa_maxyg(stdout)/2) {
 
-      fcolor(c);
-      fellipse(x-lx, y-ly, x+lx, y+ly);
-      lx = lx-20;
-      ly = ly-20;
-      if c < magenta then c = succ(c)
-      else c = black;
-      if c == white then c = succ(c)
+            pa_fcolor(stdout, c);
+            pa_frrect(stdout, x-l, y-l, x+l, y+l, r, r);
+            l = l-20;
+            if (c < PA_MAGENTA) c++; else c = PA_BLACK;
+            if (c == PA_WHITE) c++;
 
-   };
-   fcolor(black);
-   prtcen(maxy(stdout), "Filled ellipse test 1");
-   waitnext();
+        }
+        pa_fcolor(stdout, PA_BLACK);
+        prtcen(pa_maxy(stdout), "Filled rounded rectangle test 1");
+        waitnext();
+        r = r+10;
 
-   /* ************************ Filled ellipse test 2 ************************ */
+    }
 
-   putchar('\f');
-   grid();
-   l = 10;
-   x = 20;
-   y = 20;
-   c = black;
-   while y+l*2 < maxyg-20 do {
+    /* ******************** Filled rounded rectangle test 2 ******************** */
 
-      while x+l*2 < maxxg-20 do {
+    pa_binvis(stdout);
+    r = 1;
+    while (r < 100) {
 
-         fcolor(c);
-         fellipse(x, y, x+l*2, y+l*2);
-         x = x+l*2+20;
-         l = l+5;
-         if c < magenta then c = succ(c)
-         else c = black;
-         if c == white then c = succ(c)
+        putchar('\f');
+        grid();
+        l = 10;
+        x = 20;
+        y = 20;
+        c = PA_BLACK;
+        printf("r: %d\n", r:1);
+        while (y+l*2 < pa_maxyg(stdout)-20) {
 
-      };
-      x = 10;
-      y = y+l*2+10
+            while (x+l*2 < pa_maxxg(stdout)-20) {
 
-   };
-   fcolor(black);
-   binvis(stdout);
-   prtcen(maxy(stdout), "Filled ellipse test 2");
-   waitnext();
+                pa_fcolor(stdout, c);
+                pa_frrect(stdout, x, y, x+l*2, y+l*2, r, r);
+                x = x+l*2+20;
+                l = l+5;
+                if (c < PA_MAGENTA) c++; else c = PA_BLACK;
+                if (c == PA_WHITE) c++;
 
-   /* ******************************* Arc test 1 ******************************** */
+            }
+            x = 10;
+            y = y+l*2+10;
 
-   binvis(stdout);
-   w = 1;
-   while w < 10 do {
+        }
+        pa_fcolor(stdout, PA_BLACK);
+        pa_binvis(stdout, stdout);
+        prtcen(pa_maxy(stdout), "Filled rounded rectangle test 2");
+        waitnext();
+        r = r+10;
 
-      putchar('\f');
-      grid();
-      a = 0;
-      c = black;
-      i = 10;
-      write("Linewidth: ", w:1);
-      while (i < maxxg / 2) && (i < maxyg / 2) do {
+    }
 
-         a = 0;
-         while a <== INT_MAX-INT_MAX / 10 do {
+    /* ****************************** Ellipse test ***************************** */
 
-            fcolor(c);
-            linewidth(w);
-            arc(i, i, maxxg-i, maxyg-i, a, a+INT_MAX / 10);
-            a = a+INT_MAX / 5;
-            if c < magenta then c = succ(c)
-            else c = black;
-            if c == white then c = succ(c)
+    pa_binvis(stdout);
+    w = 1;
+    while (w < 10) {
 
-         };
-         i = i+20
+        putchar('\f');
+        grid();
+        lx = pa_maxxg(stdout)/2-10;
+        lx = lx-lx%10;
+        ly = pa_maxyg/2-10;
+        ly = ly-ly%10;
+        x = pa_maxxg(stdout)/2; /* find center */
+        y = pa_maxyg(stdout)/2;
+        x = x-x%10;
+        y = y-y%10;
+        c = PA_BLACK;
+        printf("width: %d\n", w:1);
+        while (lx >= 10 && ly >= 10) {
 
-      };
-      fcolor(black);
-      prtcen(maxy(stdout), "Arc test 1");
-      waitnext();
-      w = w+1
+            pa_fcolor(stdout, c);
+            pa_linewidth(stdout, w);
+            pa_ellipse(stdout, x-lx, y-ly, x+lx, y+ly);
+            lx = lx-20;
+            ly = ly-20;
+            if c < PA_MAGENTA then c++; else c = PA_BLACK;
+            if c == PA_WHITE then c++;
 
-   };
+        }
+        pa_fcolor(stdout, PA_BLACK);
+        prtcen(pa_maxy(stdout), "Ellipse test");
+        waitnext();
+        w = w+1;
 
-   /* ************************ Arc test 2 ************************ */
+    }
+    pa_linewidth(stdout, 1);
 
-   binvis(stdout);
-   w = 1;
-   while w < 10 do {
+    /* ************************** Filled ellipse test 1 ************************** */
 
-      putchar('\f');
-      grid();
-      l = 10;
-      x = 20;
-      y = 20;
-      c = black;
-      aa = 0;
-      ab = INT_MAX / 360*90;
-      write("Linewidth: ", w:1);
-      while y+l*2 < maxyg-20 do {
+    putchar('\f');
+    grid();
+    lx = pa_maxxg(stdout)/2-10;
+    lx = lx-lx%10;
+    ly = pa_maxyg(stdout)/2-10;
+    ly = ly-ly%10;
+    x = pa_maxxg(stdout)/2; /* find center */
+    y = pa_maxyg(stdout)/2;
+    x = x-x%10;
+    y = y-y%10;
+    c = PA_BLACK;
+    while (lx >= 10 && ly >= 10) {
 
-         while x+l*2 < maxxg-20 do {
+        pa_fcolor(stdout, c);
+        pa_fellipse(stdout, x-lx, y-ly, x+lx, y+ly);
+        lx = lx-20;
+        ly = ly-20;
+        if (c < PA_MAGENTA) c++; else c = PA_BLACK;
+        if (c == PA_WHITE) c++;
 
-            linewidth(w);
-            arc(x, y, x+l*2, y+l*2, aa, ab);
+    }
+    pa_fcolor(stdout, PA_BLACK);
+    prtcen(maxy(stdout), "Filled ellipse test 1");
+    waitnext();
+
+    /* ************************ Filled ellipse test 2 ************************ */
+
+    putchar('\f');
+    grid();
+    l = 10;
+    x = 20;
+    y = 20;
+    c = PA_BLACK;
+    while (y+l*2 < pa_maxyg(stdout)-20) {
+
+        while (x+l*2 < pa_maxxg(stdout)-20) {
+
+            pa_fcolor(stdout, c);
+            pa_fellipse(stdout, x, y, x+l*2, y+l*2);
+            x = x+l*2+20;
+            l = l+5;
+            if (c < PA_MAGENTA) c++; else c = PA_BLACK;
+            if (c == PA_WHITE) c++
+
+        }
+        x = 10;
+        y = y+l*2+10
+
+    }
+    pa_fcolor(stdout, PA_BLACK);
+    pa_binvis(stdout);
+    prtcen(maxy(stdout), "Filled ellipse test 2");
+    waitnext();
+
+    /* ******************************* Arc test 1 ******************************** */
+
+    pa_binvis(stdout);
+    w = 1;
+    while (w < 10) {
+
+        putchar('\f');
+        grid();
+        a = 0;
+        c = PA_BLACK;
+        i = 10;
+        printf("Linewidth: %d", w);
+        while (i < pa_maxxg(stdout)/2 && i < pa_maxyg(stdout)/2) {
+
+            a = 0;
+            while (a <= INT_MAX-INT_MAX/10) {
+
+                pa_fcolor(stdout, c);
+                pa_linewidth(stdout, w);
+                arc(i, i, pa_maxxg(stdout)-i, pa_maxyg(stdout)-i, a, a+INT_MAX/10);
+                a = a+INT_MAX/5;
+                if (c < PA_MAGENTA) c++; else c = PA_BLACK;
+                if (c == PA_WHITE) c++;
+
+            }
+            i = i+20;
+
+        }
+        pa_fcolor(stdout, PA_BLACK);
+        prtcen(pa_maxy(stdout), "Arc test 1");
+        waitnext();
+        w = w+1;
+
+    }
+
+    /* ************************ Arc test 2 ************************ */
+
+    pa_binvis(stdout);
+    w = 1;
+    while (w < 10) {
+
+        putchar('\f');
+        grid();
+        l = 10;
+        x = 20;
+        y = 20;
+        c = PA_BLACK;
+        aa = 0;
+        ab = INT_MAX / 360*90;
+        printf("Linewidth: %d", w);
+        while (y+l*2 < pa_maxyg(stdout)-20) {
+
+            while (x+l*2 < pa_maxxg(stdout)-20) {
+
+                pa_linewidth(stdout, w);
+                pa_arc(stdout, x, y, x+l*2, y+l*2, aa, ab);
+                x = x+l*2+20;
+                l = l+10;
+
+            }
+            x = 10;
+            y = y+l*2+10;
+
+        }
+        pa_binvis(stdout);
+        prtcen(pa_maxy(stdout), "Arc test 2");
+        waitnext();
+        w = w+1;
+
+    }
+
+    /* ************************ Arc test 3 ************************ */
+
+    pa_binvis(stdout);
+    w = 1;
+    while (w < 10) {
+
+        putchar('\f');
+        grid();
+        l = 30;
+        x = 20;
+        y = 20;
+        c = PA_BLACK;
+        aa = 0;
+        ab = 10;
+        printf("Linewidth: %d", w);
+        while (y+l*2 < pa_maxyg(stdout)-20 && ab <= 360) {
+
+            while (x+l*2 < pa_maxxg(stdout)-20 && ab <= 360) {
+
+                pa_linewidth(stdout, w);
+                pa_arc(stdout, x, y, x+l*2, y+l*2, aa*DEGREE, ab*DEGREE);
+                x = x+l*2+20;
+                ab = ab+10
+
+            }
+            x = 10;
+            y = y+l*2+20;
+
+        }
+        pa_binvis(stdout);
+        pa_prtcen(pa_maxy(stdout), "Arc test 3");
+        waitnext();
+        w = w+1;
+
+    }
+
+    /* ************************ Arc test 4 ************************ */
+
+    pa_binvis(stdout);
+    w = 1;
+    while (w < 10) {
+
+        putchar('\f');
+        grid();
+        l = 30;
+        x = 20;
+        y = 20;
+        c = PA_BLACK;
+        aa = 0;
+        ab = 360;
+        printf("Linewidth: %d", w);
+        while (y+l*2 < pa_maxyg(stdout)-20 && ab <== 360) {
+
+            while (x+l*2 < pa_maxxg(stdout)-20 && ab <== 360) {
+
+                pa_linewidth(stdout, w);
+                pa_arc(stdout, x, y, x+l*2, y+l*2, aa*DEGREE, ab*DEGREE);
+                x = x+l*2+20;
+                aa = aa+10;
+
+            }
+            x = 10;
+            y = y+l*2+20;
+
+        }
+        pa_binvis(stdout);
+        prtcen(pa_maxy(stdout), "Arc test 4");
+        waitnext();
+        w = w+1;
+
+    }
+
+    /* **************************** Filled arc test 1 **************************** */
+
+    putchar('\f');
+    grid();
+    a = 0;
+    c = pa_black;
+    a = 0;
+    x = pa_maxxg(stdout)-10;
+    x = x-x % 10;
+    y = pa_maxyg(stdout)-10;
+    y = y-y % 10;
+    while (a <= INT_MAX-INT_MAX/10) {
+
+        pa_fcolor(stdout, c);
+        pa_farc(stdout, 10, 10, x, y, a, a+INT_MAX/10);
+        a = a+INT_MAX / 5;
+        if (c < PA_MAGENTA) c++; else c = PA_BLACK;
+        if (c == PA_WHITE) c++
+
+    };
+    pa_binvis(stdout);
+    pa_fcolor(stdout, PA_BLACK);
+    prtcen(maxy(stdout), "Filled arc test 1");
+    waitnext();
+
+    /* ************************ filled arc test 2 ************************ */
+
+    putchar('\f');
+    grid();
+    l = 10;
+    x = 20;
+    y = 20;
+    c = PA_BLACK;
+    aa = 0;
+    ab = INT_MAX / 360*90;
+    while (y+l*2 < pa_maxyg(stdout)-20) {
+
+        while (x+l*2 < pa_maxxg(stdout)-20) {
+
+            pa_fcolor(stdout, c);
+            pa_farc(stdout, x, y, x+l*2, y+l*2, aa, ab);
             x = x+l*2+20;
             l = l+10;
+            if (c < PA_MAGENTA) c++; else c = PA_BLACK;
+            if (c == PA_WHITE) c++;
 
-         };
-         x = 10;
-         y = y+l*2+10
+        }
+        x = 20;
+        y = y+l*2+10;
 
-      };
-      binvis(stdout);
-      prtcen(maxy(stdout), "Arc test 2");
-      waitnext();
-      w = w+1
+    }
+    pa_binvis(stdout, stdout);
+    pa_fcolor(stdout, PA_BLACK);
+    prtcen(maxy(stdout), "Filled arc test 2");
+    waitnext();
 
-   };
+    /* ************************ Filled arc test 3 ************************ */
 
-   /* ************************ Arc test 3 ************************ */
+    putchar('\f');
+    grid();
+    l = 30;
+    x = 20;
+    y = 20;
+    c = PA_BLACK;
+    aa = 0;
+    ab = 10;
+    while (y+l*2 < pa_maxyg(stdout)-20 && ab <= 360) {
 
-   binvis(stdout);
-   w = 1;
-   while w < 10 do {
+        while (x+l*2 < pa_maxxg(stdout)-20 && ab <= 360) {
 
-      putchar('\f');
-      grid();
-      l = 30;
-      x = 20;
-      y = 20;
-      c = black;
-      aa = 0;
-      ab = 10;
-      write("Linewidth: ", w:1);
-      while (y+l*2 < maxyg-20) && (ab <== 360) do {
-
-         while (x+l*2 < maxxg-20) && (ab <== 360) do {
-
-            linewidth(w);
-            arc(x, y, x+l*2, y+l*2, aa*DEGREE, ab*DEGREE);
+            pa_fcolor(stdout, c);
+            pa_farc(stdout, x, y, x+l*2, y+l*2, aa*DEGREE, ab*DEGREE);
             x = x+l*2+20;
-            ab = ab+10
+            ab = ab+10;
+            if (c < PA_MAGENTA) c++; else c = PA_BLACK;
+            if (c == PA_WHITE) c++;
 
-         };
-         x = 10;
-         y = y+l*2+20
+        }
+        x = 20;
+        y = y+l*2+20;
 
-      };
-      binvis(stdout);
-      prtcen(maxy(stdout), "Arc test 3");
-      waitnext();
-      w = w+1
+    }
+    pa_binvis(stdout);
+    pa_fcolor(stdout, PA_BLACK);
+    prtcen(pa_maxy(stdout), "Arc test 3");
+    waitnext();
 
-   };
+    /* ************************ Filled arc test 4 ************************ */
 
-   /* ************************ Arc test 4 ************************ */
+    putchar('\f');
+    grid();
+    l = 30;
+    x = 20;
+    y = 20;
+    c = PA_BLACK;
+    aa = 0;
+    ab = 360;
+    while (y+l*2 < pa_maxyg(stdout)-20 && ab <= 360) {
 
-   binvis(stdout);
-   w = 1;
-   while w < 10 do {
+        while (x+l*2 < pa_maxxg(stdout)-20 && ab <= 360) {
 
-      putchar('\f');
-      grid();
-      l = 30;
-      x = 20;
-      y = 20;
-      c = black;
-      aa = 0;
-      ab = 360;
-      write("Linewidth: ", w:1);
-      while (y+l*2 < maxyg-20) && (ab <== 360) do {
-
-         while (x+l*2 < maxxg-20) && (ab <== 360) do {
-
-            linewidth(w);
-            arc(x, y, x+l*2, y+l*2, aa*DEGREE, ab*DEGREE);
+            pa_fcolor(stdout, c);
+            pa_farc(stdout, x, y, x+l*2, y+l*2, aa*DEGREE, ab*DEGREE);
             x = x+l*2+20;
-            aa = aa+10
-
-         };
-         x = 10;
-         y = y+l*2+20
-
-      };
-      binvis(stdout);
-      prtcen(maxy(stdout), "Arc test 4");
-      waitnext();
-      w = w+1
-
-   };
-
-   /* **************************** Filled arc test 1 **************************** */
-
-   putchar('\f');
-   grid();
-   a = 0;
-   c = black;
-   a = 0;
-   x = maxxg-10;
-   x = x-x % 10;
-   y = maxyg-10;
-   y = y-y % 10;
-   while a <== INT_MAX-INT_MAX / 10 do {
-
-      fcolor(c);
-      farc(10, 10, x, y, a, a+INT_MAX / 10);
-      a = a+INT_MAX / 5;
-      if c < magenta then c = succ(c)
-      else c = black;
-      if c == white then c = succ(c)
-
-   };
-   binvis(stdout);
-   fcolor(black);
-   prtcen(maxy(stdout), "Filled arc test 1");
-   waitnext();
-
-   /* ************************ filled arc test 2 ************************ */
-
-   putchar('\f');
-   grid();
-   l = 10;
-   x = 20;
-   y = 20;
-   c = black;
-   aa = 0;
-   ab = INT_MAX / 360*90;
-   while y+l*2 < maxyg-20 do {
-
-      while x+l*2 < maxxg-20 do {
-
-         fcolor(c);
-         farc(x, y, x+l*2, y+l*2, aa, ab);
-         x = x+l*2+20;
-         l = l+10;
-         if c < magenta then c = succ(c)
-         else c = black;
-         if c == white then c = succ(c)
-
-      };
-      x = 20;
-      y = y+l*2+10
-
-   };
-   binvis(stdout);
-   fcolor(black);
-   prtcen(maxy(stdout), "Filled arc test 2");
-   waitnext();
-
-   /* ************************ Filled arc test 3 ************************ */
-
-   putchar('\f');
-   grid();
-   l = 30;
-   x = 20;
-   y = 20;
-   c = black;
-   aa = 0;
-   ab = 10;
-   while (y+l*2 < maxyg-20) && (ab <== 360) do {
-
-      while (x+l*2 < maxxg-20) && (ab <== 360) do {
-
-         fcolor(c);
-         farc(x, y, x+l*2, y+l*2, aa*DEGREE, ab*DEGREE);
-         x = x+l*2+20;
-         ab = ab+10;
-         if c < magenta then c = succ(c)
-         else c = black;
-         if c == white then c = succ(c)
-
-      };
-      x = 20;
-      y = y+l*2+20
-
-   };
-   binvis(stdout);
-   fcolor(black);
-   prtcen(maxy(stdout), "Arc test 3");
-   waitnext();
-
-   /* ************************ Filled arc test 4 ************************ */
-
-   putchar('\f');
-   grid();
-   l = 30;
-   x = 20;
-   y = 20;
-   c = black;
-   aa = 0;
-   ab = 360;
-   while (y+l*2 < maxyg-20) && (ab <== 360) do {
-
-      while (x+l*2 < maxxg-20) && (ab <== 360) do {
-
-         fcolor(c);
-         farc(x, y, x+l*2, y+l*2, aa*DEGREE, ab*DEGREE);
-         x = x+l*2+20;
-         aa = aa+10;
-         if c < magenta then c = succ(c)
-         else c = black;
-         if c == white then c = succ(c)
-
-      };
-      x = 20;
-      y = y+l*2+20
-
-   };
-   binvis(stdout);
-   fcolor(black);
-   prtcen(maxy(stdout), "Arc test 3");
-   waitnext();
-
-   /* *************************** Filled chord test 1 *************************** */
-
-   putchar('\f');
-   grid();
-   a = 0;
-   c = black;
-   a = 0;
-   i = 8;
-   x = maxxg-10;
-   x = x-x % 10;
-   y = maxyg-10;
-   y = y-y % 10;
-   while a <== INT_MAX-INT_MAX / i do {
-
-      fcolor(c);
-      fchord(10, 10, x, y, a, a+INT_MAX / i);
-      a = a+INT_MAX / (i / 2);
-      if c < magenta then c = succ(c)
-      else c = black;
-      if c == white then c = succ(c)
-
-   };
-   fcolor(black);
-   prtcen(maxy(stdout), "Filled chord test 1");
-   waitnext();
-
-   /* ************************ filled chord test 2 ************************ */
-
-   putchar('\f');
-   grid();
-   l = 10;
-   x = 20;
-   y = 20;
-   c = black;
-   aa = 0;
-   ab = INT_MAX / 360*90;
-   while y+l*2 < maxyg-20 do {
-
-      while x+l*2 < maxxg-20 do {
-
-         fcolor(c);
-         fchord(x, y, x+l*2, y+l*2, aa, ab);
-         x = x+l*2+20;
-         l = l+10;
-         if c < magenta then c = succ(c)
-         else c = black;
-         if c == white then c = succ(c)
-
-      };
-      x = 20;
-      y = y+l*2+10
-
-   };
-   binvis(stdout);
-   fcolor(black);
-   prtcen(maxy(stdout), "Filled chord test 2");
-   waitnext();
-
-   /* ************************ Filled chord test 3 ************************ */
-
-   putchar('\f');
-   grid();
-   l = 30;
-   x = 20;
-   y = 20;
-   c = black;
-   aa = 0;
-   ab = 10;
-   while (y+l*2 < maxyg-20) && (ab <== 360) do {
-
-      while (x+l*2 < maxxg-20) && (ab <== 360) do {
-
-         fcolor(c);
-         fchord(x, y, x+l*2, y+l*2, aa*DEGREE, ab*DEGREE);
-         x = x+l*2+20;
-         ab = ab+10;
-         if c < magenta then c = succ(c)
-         else c = black;
-         if c == white then c = succ(c)
-
-      };
-      x = 20;
-      y = y+l*2+20
-
-   };
-   binvis(stdout);
-   fcolor(black);
-   prtcen(maxy(stdout), "Filled chord test 3");
-   waitnext();
-
-   /* ************************ Filled chord test 4 ************************ */
-
-   putchar('\f');
-   grid();
-   l = 30;
-   x = 20;
-   y = 20;
-   c = black;
-   aa = 0;
-   ab = 360;
-   while (y+l*2 < maxyg-20) && (ab <== 360) do {
-
-      while (x+l*2 < maxxg-20) && (ab <== 360) do {
-
-         fcolor(c);
-         fchord(x, y, x+l*2, y+l*2, aa*DEGREE, ab*DEGREE);
-         x = x+l*2+20;
-         aa = aa+10;
-         if c < magenta then c = succ(c)
-         else c = black;
-         if c == white then c = succ(c)
-
-      };
-      x = 20;
-      y = y+l*2+20
-
-   };
-   binvis(stdout);
-   fcolor(black);
-   prtcen(maxy(stdout), "Filled chord test 3");
-   waitnext();
-
-   /* ************************** Filled triangle test 1 ************************* */
-
-   putchar('\f');
-   grid();
-   x1 = 10;
-   y1 = maxyg-10;
-   y1 = y1-y1 % 10;
-   x2 = maxxg / 2;
-   y2 = 10;
-   x3 = maxxg-10;
-   x3 = x3-x3 % 10;
-   y3 = maxyg-10;
-   y3 = y3-y3 % 10;
-   c = black;
-   i = 40;
-   while (x1 <== x3-10) && (y2 <== y3-10) do {
-
-      fcolor(c);
-      ftriangle(x1, y1, x2, y2, x3, y3);
-      x1 = x1+i;
-      y1 = y1-i / 2;
-      y2 = y2+i;
-      x3 = x3-i;
-      y3 = y3-i / 2;
-      if c < magenta then c = succ(c)
-      else c = black;
-      if c == white then c = succ(c)
-
-   };
-   fcolor(black);
-   binvis(stdout);
-   prtcen(maxy(stdout), "Filled triangle test 1");
-   waitnext();
-
-   /* ************************** Filled triangle test 2 ************************* */
-
-   putchar('\f');
-   grid();
-   x = 20;
-   y = 20;
-   l = 20;
-   while y < maxyg-20-l do {
-
-      while (y < maxyg-20-l) && (x < maxxg-20-l) do {
-
-         fcolor(c);
-         ftriangle(x, y+l, x+l / 2, y, x+l, y+l);
-         x = x+l+20;
-         l = l+10;
-         if c < magenta then c = succ(c)
-         else c = black;
-         if c == white then c = succ(c)
-
-      };
-      x = 20;
-      y = y+l+20
-
-   };
-   fcolor(black);
-   binvis(stdout);
-   prtcen(maxy(stdout), "Filled triangle test 2");
-   waitnext();
-
-   /* ************************** Filled triangle test 3 ************************* */
-
-   putchar('\f');
-   grid();
-   x = 20;
-   y = 20;
-   l = 20;
-   while y < maxyg-20-l do {
-
-      while (y < maxyg-20-l) && (x < maxxg-20-l) do {
-
-         fcolor(c);
-         ftriangle(x, y+l, x, y, x+l, y+l);
-         x = x+l+20;
-         l = l+10;
-         if c < magenta then c = succ(c)
-         else c = black;
-         if c == white then c = succ(c)
-
-      };
-      x = 20;
-      y = y+l+20
-
-   };
-   fcolor(black);
-   binvis(stdout);
-   prtcen(maxy(stdout), "Filled triangle test 3");
-   waitnext();
-
-   /* ************************** Filled triangle test 4 ************************* */
-
-   putchar('\f');
-   grid();
-   x = 20;
-   y = 20;
-   l = 20;
-   while y < maxyg-20-l do {
-
-      while (y < maxyg-20-l) && (x < maxxg-20-l) do {
-
-         fcolor(c);
-         ftriangle(x, y+l, x, y, x+l, y);
-         x = x+l+20;
-         l = l+10;
-         if c < magenta then c = succ(c)
-         else c = black;
-         if c == white then c = succ(c)
-
-      };
-      x = 20;
-      y = y+l+20
-
-   };
-   fcolor(black);
-   binvis(stdout);
-   prtcen(maxy(stdout), "Filled triangle test 4");
-   waitnext();
-
-   /* ************************** Filled triangle test 5 ************************* */
-
-   putchar('\f');
-   grid();
-   x = 20;
-   y = 20;
-   l = 20;
-   while y < maxyg-20-l do {
-
-      while (y < maxyg-20-l) && (x < maxxg-20-l) do {
-
-         fcolor(c);
-         ftriangle(x+l / 2, y+l, x, y, x+l, y);
-         x = x+l+20;
-         l = l+10;
-         if c < magenta then c = succ(c)
-         else c = black;
-         if c == white then c = succ(c)
-
-      };
-      x = 20;
-      y = y+l+20
-
-   };
-   fcolor(black);
-   binvis(stdout);
-   prtcen(maxy(stdout), "Filled triangle test 5");
-   waitnext();
-
-   /* ************************** Filled triangle test 6 ************************* */
-
-   putchar('\f');
-   grid();
-   x = 20;
-   y = 20;
-   l = 20;
-   c = black;
-   while y < maxyg-20-l do {
-
-      while (y < maxyg-20-l) && (x < maxxg-20-l) do {
-
-         fcolor(c);
-         ftriangle(x+l, y+l, x, y, x+l, y);
-         x = x+l+20;
-         l = l+10;
-         if c < magenta then c = succ(c)
-         else c = black;
-         if c == white then c = succ(c)
-
-      };
-      x = 20;
-      y = y+l+20
-
-   };
-   fcolor(black);
-   binvis(stdout);
-   prtcen(maxy(stdout), "Filled triangle test 6");
-   waitnext();
-
-   /* ************************** Filled triangle test 7 ************************* */
-
-   putchar('\f');
-   grid();
-   c = black;
-   fcolor(c);
-   ftriangle(50, 50, 50, 100, 200, 50);
-   if c < magenta then c = succ(c)
-   else c = black;
-   if c == white then c = succ(c);
-   fcolor(c);
-   ftriangle(50, 100, 300, 200, 200, 50);
-   if c < magenta then c = succ(c)
-   else c = black;
-   if c == white then c = succ(c);
-   fcolor(c);
-   ftriangle(200, 50, 300, 200, 350, 100);
-   if c < magenta then c = succ(c)
-   else c = black;
-   if c == white then c = succ(c);
-   fcolor(c);
-   ftriangle(350, 100, 400, 300, 300, 200);
-   if c < magenta then c = succ(c)
-   else c = black;
-   if c == white then c = succ(c);
-   binvis(stdout);
-   fcolor(black);
-   prtcen(maxy(stdout), "Filled triangle test 7");
-   waitnext();
-
-   /* ************************** Filled triangle test 8 ************************* */
-
-   putchar('\f');
-   grid();
-   fcolor(black);
-   ftriangle(50, 50, 50, 100, 200, 50);
-   ftriangle(50, 100, 300, 200, 200, 50);
-   ftriangle(200, 50, 300, 200, 350, 100);
-   ftriangle(350, 100, 400, 300, 300, 200);
-   binvis(stdout);
-   prtcen(maxy(stdout), "Filled triangle test 8");
-   waitnext();
-
-   /* ************************** Filled triangle test 9 ************************* */
-
-   putchar('\f');
-   grid();
-   fcolor(black);
-   c = black;
-   ftriangle(50, 50, 100, 50, 100, 100);
-   if c < magenta then c = succ(c)
-   else c = black;
-   if c == white then c = succ(c);
-   fcolor(c);
-   ftriangle(200, 100, 200, 200);
-   if c < magenta then c = succ(c)
-   else c = black;
-   if c == white then c = succ(c);
-   fcolor(c);
-   ftriangle(250, 100, 300, 200);
-   if c < magenta then c = succ(c)
-   else c = black;
-   if c == white then c = succ(c);
-   fcolor(c);
-   ftriangle(200, 200, 250, 250);
-   binvis(stdout);
-   fcolor(black);
-   prtcen(maxy(stdout), "Filled triangle test 9, progressive singles");
-   waitnext();
-
-   /* ************************** Filled triangle test 9 ************************* */
-
-   putchar('\f');
-   grid();
-   fcolor(black);
-   c = black;
-   ftriangle(50, 100, 50, 50, 100, 100);
-   if c < magenta then c = succ(c)
-   else c = black;
-   if c == white then c = succ(c);
-   fcolor(c);
-   ftriangle(150, 50);
-   if c < magenta then c = succ(c)
-   else c = black;
-   if c == white then c = succ(c);
-   fcolor(c);
-   ftriangle(200, 160);
-   if c < magenta then c = succ(c)
-   else c = black;
-   if c == white then c = succ(c);
-   fcolor(c);
-   ftriangle(250, 100);
-   if c < magenta then c = succ(c)
-   else c = black;
-   if c == white then c = succ(c);
-   fcolor(c);
-   ftriangle(300, 100);
-   binvis(stdout);
-   fcolor(black);
-   prtcen(maxy(stdout), "Filled triangle test 10, progressive strips");
-   waitnext();
-
-   /* **************************** Font sizing test *************************** */
-
-   putchar('\f');
-   grid();
-   fsiz = chrsizy; /* save character size to restore */
-   h = 10;
-   auto(OFF);
-   font(font_sign);
-   c1 = black;
-   c2 = blue;
-   bover(stdout);
-   while curyg+chrsizy <== maxyg-20 do {
-
-      fcolor(c1);
-      bcolor(c2);
-      fontsiz(h);
-      writeln(S2);
-      h = h+5;
-      if c1 < magenta then c1 = succ(c1)
-      else c1 = black;
-      if c1 == white then c1 = succ(c1);
-      if c2 < magenta then c2 = succ(c2)
-      else c2 = black;
-      if c2 == white then c2 = succ(c2)
-
-   };
-   fontsiz(fsiz); /* restore font size */
-   fcolor(black);
-   bcolor(white);
-   font(font_term);
-   binvis(stdout);
-   prtcen(maxy(stdout), "Font sizing test");
-   waitnext();
-
-   /* ***************************** Font list test **************************** */
-
-   putchar('\f');
-   grid();
-   writeln("Number of fonts: ", fonts);
-   printf("\n");
-   i = 1;
-   cnt = fonts;
-   while cnt > 0 do {
-
-      /* find defined font code */
-      repeat
-
-         fontnam(i, fns);
-         if len(fns) == 0 then i = i+1
-
-      until len(fns) > 0;
-      writeln(i:1, ": ", fns:0);
-      if cury >== maxy then { /* screen overflows */
-
-         write("Press return to continue");
-         waitnext();
-         putchar('\f');
-         grid
-
-      };
-      i = i+1; /* next font code */
-      cnt = cnt-1 /* count fonts */
-
-   };
-   printf("\n");
-   writeln("List complete");
-   waitnext();
-
-   /* *************************** Font examples test ************************** */
-
-   putchar('\f');
-   grid();
-   auto(OFF);
-   bcolor(cyan);
-   bover(stdout);
-   i = 1;
-   cnt = fonts;
-   while cnt > 0 do {
-
-      /* find defined font code */
-      repeat
-
-         fontnam(i, fns);
-         if len(fns) == 0 then i = i+1
-
-      until len(fns) > 0;
-      font(i);
-      writeln(i:1, ": ", fns:0);
-      if cury >== maxy then { /* screen overflows */
-
-         font(font_term);
-         write("Press return to continue");
-         waitnext();
-         bcolor(white);
-         putchar('\f');
-         grid();
-         bcolor(cyan)
-
-      };
-      i = i+1; /* next font code */
-      cnt = cnt-1 /* count fonts */
-
-   };
-   bcolor(white);
-   font(font_term);
-   binvis(stdout);
-   printf("\n");
-   writeln("List complete");
-   waitnext();
-
-   /* ************************** Ext}ed effects test ************************ */
-
-   putchar('\f');
-   grid();
-   auto(OFF);
-   font(font_sign);
-   condensed(ON);
-   writeln("Condensed");
-   ext}ed(ON);
-   writeln("Ext}ed");
-   ext}ed(OFF);
-   xlight(ON);
-   writeln("Extra light");
-   xlight(OFF);
-   xbold(ON);
-   writeln("Extra bold");
-   xbold(OFF);
-   hollow(ON);
-   writeln("Hollow");
-   hollow(OFF);
-   raised(ON);
-   writeln("Raised");
-   raised(OFF);
-   font(font_term);
-   prtcen(maxy(stdout), "Ext}ed effects test");
-   waitnext();
-
-   /* ****************** Character sizes && positions test ******************* */
-
-   putchar('\f');
-   grid();
-   auto(OFF);
-   fsiz = chrsizy; /* save character size to restore */
-   font(font_sign);
-   fontsiz(30);
-   writeln("Size of test char*: ", strsiz(S3));
-   printf("\n");
-   x = (maxxg(stdout) / 2)-(strsiz(S3) / 2);
-   cursorg(x, curyg); /* go to centered */
-   bcolor(cyan);
-   bover(stdout);
-   writeln(S3);
-   rect(x, curyg, x+strsiz(S3)-1, curyg+chrsizy-1);
-   for i = 2 to len(S3) do
-      line(x+chrpos(S3, i), curyg, x+chrpos(S3, i), curyg+chrsizy-1);
-   printf("\n");
-
-   l = strsiz(S4); /* get minimum sizing for char* */
-   justcenter(S4, l);
-   justcenter(S4, l+40);
-   justcenter(S4, l+80);
-
-   fontsiz(fsiz); /* restore font size */
-   font(font_term);
-   binvis(stdout);
-   prtcen(maxy(stdout), "Character sizes && positions");
-   waitnext();
-   bcolor(white);
-
-   /* ************************* Graphical tabbing test ************************ */
-
-   putchar('\f');
-   grid();
-   auto(OFF);
-   font(font_term);
-   for i = 1 to 5 do {
-
-      for x = 1 to i do write("\ht");
-      writeln("Terminal tab: ", i:1)
-
-   };
-   clrtab;
-   for i = 1 to 5 do settabg(i*43);
-   for i = 1 to 5 do {
-
-      for x = 1 to i do write("\ht");
-      writeln("Graphical tab number: ", i:1, " position: ", i*43:1)
-
-   };
-   restabg(2*43);
-   restabg(4*43);
-   printf("\n");
-   writeln("After removing tabs ", 2*43, " && ", 4*43);
-   printf("\n");
-   for i = 1 to 5 do {
-
-      for x = 1 to i do write("\ht");
-      writeln("Graphical tab number: ", i:1)
-
-   };
-   prtcen(maxy(stdout), "Graphical tabbing test");
-   waitnext();
-
-   /* ************************** Picture draw test **************************** */
-
-   putchar('\f');
-   grid();
-   loadpict(1, "mypic");
-   writeln("Picture size for 1: x: ", pictsizx(1):1, " y: ", pictsizy(1):1);
-   loadpict(2, "mypic1.bmp");
-   writeln("Picture size for 2: x: ", pictsizx(2):1, " y: ", pictsizy(2):1);
-   picture(1, 50, 50, 100, 100);
-   picture(1, 100, 100, 200, 200);
-   picture(1, 50, 200, 100, 350);
-   picture(2, 200, 50, 250, 100);
-   picture(2, 250, 100, 350, 200);
-   picture(2, 250, 250, 450, 300);
-   delpict(1);
-   delpict(2);
-   prtcen(maxy(stdout), "Picture draw test");
-   waitnext();
-
-   /* ********************** Invisible foreground test ************************ */
-
-   putchar('\f');
-   grid();
-   printf("\n");
-   bover(stdout);
-   finvis;
-   graphtest(1);
-   binvis(stdout);
-   prtcen(maxy(stdout), "Invisible foreground test");
-   waitnext();
-   fover;
-
-   /* ********************** Invisible background test ************************ */
-
-   putchar('\f');
-   grid();
-   printf("\n");
-   binvis(stdout);
-   fover;
-   graphtest(1);
-   binvis(stdout);
-   prtcen(maxy(stdout), "Invisible background test");
-   waitnext();
-   bover(stdout);
-
-   /* ************************** Xor foreground test ************************** */
-
-   putchar('\f');
-   grid();
-   printf("\n");
-   bover(stdout);
-   fxor;
-   graphtest(1);
-   binvis(stdout);
-   prtcen(maxy(stdout), "Xor foreground test");
-   waitnext();
-   fover;
-
-   /* ************************* Xor background test *************************** */
-
-   putchar('\f');
-   grid();
-   printf("\n");
-   bxor;
-   fover;
-   graphtest(1);
-   binvis(stdout);
-   prtcen(maxy(stdout), "Xor background test");
-   waitnext();
-   bover(stdout);
-
-   /* ************************** Graphical scrolling test **************************** */
-
-   putchar('\f');
-   grid();
-   binvis(stdout);
-   prtcen(1, "Use up, down, right && left keys to scroll by pixel");
-   prtcen(2, "Hit enter to continue");
-   prtcen(3, "Note that edges will clear to green as screen moves");
-   prtcen(maxy(stdout), "Graphical scrolling test");
-   bcolor(green);
-   repeat
-
-      event(er);
-      if er.etype == etup then scrollg(0, -1);
-      if er.etype == etdown then scrollg(0, 1);
-      if er.etype == etright then scrollg(1, 0);
-      if er.etype == etleft then scrollg(-1, 0);
-      if er.etype == etterm then goto 99
-
-   until er.etype == etenter;
-   bover(stdout);
-   bcolor(white);
-
-   /* ************************** Graphical mouse movement test **************************** */
-
-   putchar('\f');
-   prtcen(1, "Move the mouse around");
-   prtcen(3, "Hit Enter to continue");
-   prtcen(maxy(stdout), "Graphical mouse movement test");
-   x = -1;
-   y = -1;
-   repeat
-
-      event(er);
-      if er.etype == etmoumovg then {
-
-         if (x > 0) && (y > 0) then line(x, y, er.moupxg, er.moupyg);
-         x = er.moupxg;
-         y = er.moupyg
-
-      };
-      if er.etype == etterm then goto 99
-
-   until er.etype == etenter;
-
-   /* ************************** Animation test **************************** */
-
-   squares;
-
-   /* ************************** View offset test **************************** */
-
-if false then { /* view offsets are ! completely working */
-   putchar('\f');
-   auto(OFF);
-   viewoffg(-(maxxg / 2), -(maxyg / 2));
-   grid();
-   fcolor(green);
-   frect(0, 0, 100, 100);
-   cursorg(1, -(maxyg / 2));
-   fcolor(black);
-   writeln("View offset test");
-   printf("\n");
-   writeln("The 1,1 origin is now at screen center");
-   waitnext();
-   viewoffg(0, 0);
-};
+            aa = aa+10;
+            if (c < PA_MAGENTA) c++; else c = PA_BLACK;
+            if (c == PA_WHITE) c++;
+
+        }
+        x = 20;
+        y = y+l*2+20;
+
+    }
+    pa_binvis(stdout);
+    pa_fcolor(stdout, PA_BLACK);
+    prtcen(pa_maxy(stdout), "Arc test 3");
+    waitnext();
+
+    /* *************************** Filled chord test 1 *************************** */
+
+    putchar('\f');
+    grid();
+    a = 0;
+    c = PA_BLACK;
+    a = 0;
+    i = 8;
+    x = pa_maxxg(stdout)-10;
+    x = x-x%10;
+    y = pa_maxyg(stdout)-10;
+    y = y-y%10;
+    while (a <= INT_MAX-INT_MAX/i) {
+
+        pa_fcolor(stdout, c);
+        pa_fchord(stdout, 10, 10, x, y, a, a+INT_MAX/i);
+        a = a+INT_MAX/(i/2);
+        if (c < PA_MAGENTA) c++; else c = PA_BLACK;
+        if (c == PA_WHITE) c++;
+
+    }
+    pa_fcolor(stdout, PA_BLACK);
+    prtcen(pa_maxy(stdout), "Filled chord test 1");
+    waitnext();
+
+    /* ************************ filled chord test 2 ************************ */
+
+    putchar('\f');
+    grid();
+    l = 10;
+    x = 20;
+    y = 20;
+    c = PA_BLACK;
+    aa = 0;
+    ab = INT_MAX/360*90;
+    while (y+l*2 < pa_maxyg(stdout)-20) {
+
+        while (x+l*2 < pa_maxxg(stdout)-20) {
+
+            pa_fcolor(stdout, c);
+            pa_fchord(stdout, x, y, x+l*2, y+l*2, aa, ab);
+            x = x+l*2+20;
+            l = l+10;
+            if (c < PA_MAGENTA) c++; else c = PA_BLACK;
+            if (c == PA_WHITE) c++;
+
+        }
+        x = 20;
+        y = y+l*2+10;
+
+    }
+    pa_binvis(stdout);
+    pa_fcolor(stdout, PA_BLACK);
+    prtcen(pa_maxy(stdout), "Filled chord test 2");
+    waitnext();
+
+    /* ************************ Filled chord test 3 ************************ */
+
+    putchar('\f');
+    grid();
+    l = 30;
+    x = 20;
+    y = 20;
+    c = PA_BLACK;
+    aa = 0;
+    ab = 10;
+    while (y+l*2 < pa_maxyg(stdout)-20 && ab <= 360) {
+
+        while (x+l*2 < pa_maxxg(stdout)-20 && ab <= 360) {
+
+            pa_fcolor(stdout, c);
+            pa_fchord(stdout, x, y, x+l*2, y+l*2, aa*DEGREE, ab*DEGREE);
+            x = x+l*2+20;
+            ab = ab+10;
+            if (c < PA_MAGENTA) c++; else c = PA_BLACK;
+            if (c == PA_WHITE) c++;
+
+        }
+        x = 20;
+        y = y+l*2+20;
+
+    }
+    pa_binvis(stdout);
+    pa_fcolor(stdout, PA_BLACK);
+    prtcen(pa_maxy(stdout), "Filled chord test 3");
+    waitnext();
+
+    /* ************************ Filled chord test 4 ************************ */
+
+    putchar('\f');
+    grid();
+    l = 30;
+    x = 20;
+    y = 20;
+    c = PA_BLACK;
+    aa = 0;
+    ab = 360;
+    while (y+l*2 < pa_maxyg(stdout)-20 && ab <= 360) {
+
+        while (x+l*2 < pa_maxxg(stdout)-20 && ab <= 360) {
+
+            pa_fcolor(stdout, c);
+            pa_fchord(stdout, x, y, x+l*2, y+l*2, aa*DEGREE, ab*DEGREE);
+            x = x+l*2+20;
+            aa = aa+10;
+            if (c < PA_MAGENTA) c++; else c = PA_BLACK;
+            if (c == PA_WHITE) c++;
+
+        }
+        x = 20;
+        y = y+l*2+20;
+
+    }
+    pa_binvis(stdout);
+    pa_fcolor(stdout, PA_BLACK);
+    prtcen(pa_maxy(stdout), "Filled chord test 3");
+    waitnext();
+
+    /* ************************** Filled triangle test 1 ************************* */
+
+    putchar('\f');
+    grid();
+    x1 = 10;
+    y1 = pa_maxyg(stdout)-10;
+    y1 = y1-y1 % 10;
+    x2 = pa_maxxg(stdout)/2;
+    y2 = 10;
+    x3 = pa_maxxg(stdout)-10;
+    x3 = x3-x3 % 10;
+    y3 = pa_maxyg(stdout)-10;
+    y3 = y3-y3 % 10;
+    c = PA_BLACK;
+    i = 40;
+    while (x1 <= x3-10 && y2 <= y3-10) {
+
+        pa_fcolor(stdout, c);
+        pa_ftriangle(stdout, x1, y1, x2, y2, x3, y3);
+        x1 = x1+i;
+        y1 = y1-i/2;
+        y2 = y2+i;
+        x3 = x3-i;
+        y3 = y3-i/2;
+        if (c < PA_MAGENTA) c++; else c = PA_BLACK;
+        if (c == PA_WHITE) c++;
+
+    }
+    pa_fcolor(stdout, PA_BLACK);
+    pa_binvis(stdout);
+    prtcen(pa_maxy(stdout), "Filled triangle test 1");
+    waitnext();
+
+    /* ************************** Filled triangle test 2 ************************* */
+
+    putchar('\f');
+    grid();
+    x = 20;
+    y = 20;
+    l = 20;
+    while (y < pa_maxyg(stdout)-20-l) {
+
+        while (y < pa_maxyg(stdout)-20-l && x < maxxg(stdout)-20-l) {
+
+            pa_fcolor(stdout, c);
+            pa_ftriangle(stdout, x, y+l, x+l / 2, y, x+l, y+l);
+            x = x+l+20;
+            l = l+10;
+            if (c < PA_MAGENTA) c++; else c = PA_BLACK;
+            if (c == PA_WHITE) c++;
+
+        }
+        x = 20;
+        y = y+l+20;
+
+    }
+    pa_fcolor(stdout, PA_BLACK);
+    pa_binvis(stdout);
+    prtcen(pa_maxy(stdout), "Filled triangle test 2");
+    waitnext();
+
+    /* ************************** Filled triangle test 3 ************************* */
+
+    putchar('\f');
+    grid();
+    x = 20;
+    y = 20;
+    l = 20;
+    while (y < pa_maxyg(stdout)-20-l) {
+
+        while (y < pa_maxyg(stdout)-20-l && x < pa_maxxg(stdout)-20-l) {
+
+            pa_fcolor(stdout, c);
+            pa_ftriangle(stdout, x, y+l, x, y, x+l, y+l);
+            x = x+l+20;
+            l = l+10;
+            if (c < PA_MAGENTA) c++; else c = PA_BLACK;
+            if (c == PA_WHITE) c++;
+
+        }
+        x = 20;
+        y = y+l+20;
+
+    }
+    pa_fcolor(stdout, PA_BLACK);
+    pa_binvis(stdout);
+    prtcen(maxy(stdout), "Filled triangle test 3");
+    waitnext();
+
+    /* ************************** Filled triangle test 4 ************************* */
+
+    putchar('\f');
+    grid();
+    x = 20;
+    y = 20;
+    l = 20;
+    while (y < pa_maxyg(stdout)-20-l) {
+
+        while (y < pa_maxyg(stdout)-20-l && x < pa_maxxg(stdout)-20-l) {
+
+            pa_fcolor(stdout, c);
+            pa_ftriangle(stdout, x, y+l, x, y, x+l, y);
+            x = x+l+20;
+            l = l+10;
+            if (c < PA_MAGENTA) c++; else c = PA_BLACK;
+            if (c == PA_WHITE) c++;
+
+        }
+        x = 20;
+        y = y+l+20;
+
+    }
+    pa_fcolor(stdout, PA_BLACK);
+    pa_binvis(stdout);
+    prtcen(maxy(stdout), "Filled triangle test 4");
+    waitnext();
+
+    /* ************************** Filled triangle test 5 ************************* */
+
+    putchar('\f');
+    grid();
+    x = 20;
+    y = 20;
+    l = 20;
+    while (y < pa_maxyg(stdout)-20-l) {
+
+        while (y < pa_maxyg(stdout)-20-l && x < pa_maxxg(stdout)-20-l) {
+
+            pa_fcolor(stdout, c);
+            pa_ftriangle(stdout, x+l/2, y+l, x, y, x+l, y);
+            x = x+l+20;
+            l = l+10;
+            if (c < PA_MAGENTA) c++; else c = PA_BLACK;
+            if (c == PA_WHITE) c++;
+
+        }
+        x = 20;
+        y = y+l+20;
+
+    }
+    pa_fcolor(stdout, PA_BLACK);
+    pa_binvis(stdout);
+    prtcen(maxy(stdout), "Filled triangle test 5");
+    waitnext();
+
+    /* ************************** Filled triangle test 6 ************************* */
+
+    putchar('\f');
+    grid();
+    x = 20;
+    y = 20;
+    l = 20;
+    c = PA_BLACK;
+    while (y < pa_maxyg(stdout)-20-l) {
+
+        while (y < pa_maxyg(stdout)-20-l && x < pa_maxxg(stdout)-20-l) {
+
+            pa_fcolor(stdout, c);
+            pa_ftriangle(stdout, x+l, y+l, x, y, x+l, y);
+            x = x+l+20;
+            l = l+10;
+            if (c < PA_MAGENTA) c++; else c = PA_BLACK;
+            if (c == PA_WHITE) c++;
+
+        }
+        x = 20;
+        y = y+l+20;
+
+    }
+    pa_fcolor(stdout, PA_BLACK);
+    pa_binvis(stdout);
+    prtcen(maxy(stdout), "Filled triangle test 6");
+    waitnext();
+
+    /* ************************** Filled triangle test 7 ************************* */
+
+    putchar('\f');
+    grid();
+    c = PA_BLACK;
+    pa_fcolor(stdout, c);
+    pa_ftriangle(stdout, 50, 50, 50, 100, 200, 50);
+    if (c < PA_MAGENTA) c++; else c = PA_BLACK;
+    if (c == PA_WHITE) c++;
+    pa_fcolor(stdout, c);
+    pa_ftriangle(stdout, 50, 100, 300, 200, 200, 50);
+    if (c < PA_MAGENTA) c++; else c = PA_BLACK;
+    if (c == PA_WHITE) c++;
+    pa_fcolor(stdout, c);
+    pa_ftriangle(stdout, 200, 50, 300, 200, 350, 100);
+    if (c < PA_MAGENTA) c++; else c = PA_BLACK;
+    if (c == PA_WHITE) c++;
+    pa_fcolor(stdout, c);
+    pa_ftriangle(350, 100, 400, 300, 300, 200);
+    if (c < PA_MAGENTA) c++; else c = PA_BLACK;
+    if (c == PA_WHITE) c++;
+    pa_binvis(stdout);
+    pa_fcolor(stdout, PA_BLACK);
+    prtcen(pa_maxy(stdout), "Filled triangle test 7");
+    waitnext();
+
+    /* ************************** Filled triangle test 8 ************************* */
+
+    putchar('\f');
+    grid();
+    pa_fcolor(stdout, pa_black);
+    pa_ftriangle(stdout, 50, 50, 50, 100, 200, 50);
+    pa_ftriangle(stdout, 50, 100, 300, 200, 200, 50);
+    pa_ftriangle(stdout, 200, 50, 300, 200, 350, 100);
+    pa_ftriangle(stdout, 350, 100, 400, 300, 300, 200);
+    pa_binvis(stdout);
+    prtcen(pa_maxy(stdout), "Filled triangle test 8");
+    waitnext();
+
+    /* ************************** Filled triangle test 9 ************************* */
+
+    putchar('\f');
+    grid();
+    pa_fcolor(stdout, PA_BLACK);
+    c = PA_BLACK;
+    pa_ftriangle(stdout, 50, 50, 100, 50, 100, 100);
+    if (c < PA_MAGENTA) c++; else c = PA_BLACK;
+    if (c == PA_WHITE) c++;
+    pa_fcolor(stdout, c);
+    pa_ftriangle(stdout, 200, 100, 200, 200);
+    if (c < PA_MAGENTA) c++; else c = PA_BLACK;
+    if (c == PA_WHITE) c++;
+    pa_fcolor(stdout, c);
+    pa_ftriangle(stdout, 250, 100, 300, 200);
+    if (c < PA_MAGENTA) c++; else c = PA_BLACK;
+    if (c == PA_WHITE) c++;
+    pa_fcolor(stdout, c);
+    pa_ftriangle(stdout, 200, 200, 250, 250);
+    pa_binvis(stdout);
+    pa_fcolor(stdout, PA_BLACK);
+    prtcen(maxy(stdout), "Filled triangle test 9, progressive singles");
+    waitnext();
+
+    /* ************************** Filled triangle test 9 ************************* */
+
+    putchar('\f');
+    grid();
+    pa_fcolor(stdout, pa_black);
+    c = PA_BLACK;
+    pa_ftriangle(stdout, 50, 100, 50, 50, 100, 100);
+    if (c < PA_MAGENTA) c++; else c = pa_black;
+    if (c == PA_WHITE) c++;
+    pa_fcolor(stdout, c);
+    pa_ftriangle(stdout, 150, 50);
+    if (c < PA_MAGENTA) c++; else c = pa_black;
+    if (c == PA_WHITE) c++;
+    pa_fcolor(stdout, c);
+    pa_ftriangle(stdout, 200, 160);
+    if (c < PA_MAGENTA) c++; else c = pa_black;
+    if (c == PA_WHITE) c++;
+    pa_fcolor(stdout, c);
+    pa_ftriangle(stdout, 250, 100);
+    if (c < PA_MAGENTA) c++; else c = pa_black;
+    if (c == PA_WHITE) c++;
+    pa_fcolor(stdout, c);
+    pa_ftriangle(stdout, 300, 100);
+    pa_binvis(stdout);
+    pa_fcolor(stdout, PA_BLACK);
+    prtcen(pa_maxy(stdout), "Filled triangle test 10, progressive strips");
+    waitnext();
+
+    /* **************************** Font sizing test *************************** */
+
+    putchar('\f');
+    grid();
+    fsiz = pa_chrsizy(stdout); /* save character size to restore */
+    h = 10;
+    pa_auto(stdout, OFF);
+    pa_font(stdout, PA_FONT_SIGN);
+    c1 = PA_BLACK;
+    c2 = PA_BLUE;
+    pa_bover(stdout);
+    while (pa_curyg(stdout)+pa_chrsizy(stdout) <= pa_maxyg(stdout)-20) {
+
+        pa_fcolor(stdout, c1);
+        pa_bcolor(stdout, c2);
+        pa_fontsiz(stdout, h);
+        puts(S2);
+        h = h+5;
+        if (c1 < PA_MAGENTA) c1++; else c1 = PA_BLACK;
+        if (c1 == PA_WHITE) c1++;
+        if (c2 < PA_MAGENTA) c2++; else c2 = PA_BLACK;
+        if (c2 == PA_WHITE) c2++;
+
+    }
+    pa_fontsiz(stdout, fsiz); /* restore font size */
+    pa_fcolor(stdout, PA_BLACK);
+    pa_bcolor(stdout, PA_WHITE);
+    pa_font(stdout, PA_FONT_TERM);
+    pa_binvis(stdout);
+    prtcen(pa_maxy(stdout), "Font sizing test");
+    waitnext();
+
+    /* ***************************** Font list test **************************** */
+
+    putchar('\f');
+    grid();
+    printf("Number of fonts: %d\n", pa_fonts(stdout));
+    printf("\n");
+    i = 1;
+    cnt = pa_fonts(stdout);
+    while (cnt > 0) {
+
+        /* find defined font code */
+        do {
+
+            pa_fontnam(i, fns);
+            if (!strlen(fns)) i++;
+
+        } while (!strlen(fns));
+        printf("%d: %s\n", i, fns);
+        if (cury >= pa_maxy (stdout)) { /* screen overflows */
+
+            printf("Press return to continue");
+            waitnext();
+            putchar('\f');
+            grid();
+
+        }
+        i = i+1; /* next font code */
+        cnt = cnt-1; /* count fonts */
+
+    }
+    printf("\n");
+    printf("List complete\n");
+    waitnext();
+
+    /* *************************** Font examples test ************************** */
+
+    putchar('\f');
+    grid();
+    pa_auto(OFF);
+    pa_bcolor(PA_CYAN);
+    pa_bover(stdout);
+    i = 1;
+    cnt = pa_fonts(stdout);
+    while (cnt) {
+
+        /* find defined font code */
+        do {
+
+            pa_fontnam(i, fns);
+            if (!strlen(fns)) i++;
+
+        } while (!strlen(fns));
+        font(i);
+        printf("%d: %s\n", i, fns);
+        if (pa_cury(stdout) >= pa_maxy(stdout)) { /* screen overflows */
+
+            pa_font(PA_FONT_TERM);
+            printf("Press return to continue");
+            waitnext();
+            pa_bcolor(PA_WHITE);
+            putchar('\f');
+            grid();
+            pa_bcolor(PA_CYAN)
+
+        }
+        i++; /* next font code */
+        cnt--; /* count fonts */
+
+    }
+    pa_bcolor(PA_WHITE);
+    pa_font(PA_FONT_TERM);
+    pa_binvis(stdout);
+    printf("\n");
+    printf("List complete\n");
+    waitnext();
+
+    /* ************************** Ext}ed effects test ************************ */
+
+    putchar('\f');
+    grid();
+    pa_auto(stdout, OFF);
+    pa_font(stdout, PA_FONT_SIGN);
+    pa_condensed(stdout, ON);
+    printf("Condensed");
+    pa_extended(stdout, ON);
+    printf("Extended");
+    pa_extended(stdout, OFF);
+    pa_xlight(stdout, ON);
+    printf("Extra light");
+    pa_xlight(stdout, OFF);
+    pa_xbold(stdout, ON);
+    printf("Extra bold");
+    pa_xbold(stdout, OFF);
+    pa_hollow(stdout, ON);
+    printf("Hollow");
+    pa_hollow(stdout, OFF);
+    pa_raised(stdout, ON);
+    printf("Raised");
+    pa_raised(stdout, OFF);
+    pa_font(PA_FONT_TERM);
+    prtcen(pa_maxy(stdout), "Extended effects test");
+    waitnext();
+
+    /* ****************** Character sizes && positions test ******************* */
+
+    putchar('\f');
+    grid();
+    pa_auto(stdout, OFF);
+    fsiz = pa_chrsizy(stdout); /* save character size to restore */
+    pa_font(stdout, PA_FONT_SIGN);
+    pa_fontsiz(stdout, 30);
+    printf("Size of test string: %d\n", pa_strsiz(stdout, S3));
+    printf("\n");
+    x = (pa_maxxg(stdout)/2)-(pa_strsiz(stdout, S3)/2);
+    pa_cursorg(stdout, x, pa_curyg); /* go to centered */
+    pa_bcolor(stdout, PA_CYAN);
+    pa_bover(stdout);
+    printf("%s\n", S3);
+    pa_rect(stdout, x, pa_curyg(stdout), x+pa_strsiz(stdout, S3)-1,
+            pa_curyg(stdout)+pa_chrsizy(stdout)-1);
+    for (i = 2; i <= strlen(S3); i++)
+        pa_line(stdout, x+pa_chrpos(S3, i), pa_curyg(stdout),
+                x+pa_chrpos(stdout, S3, i),
+                pa_curyg(stdout)+pa_chrsizy(stdout)-1);
+    printf("\n");
+
+    l = pa_strsiz(stdout, S4); /* get minimum sizing for string */
+    pa_justcenter(stdout, S4, l);
+    pa_justcenter(stdout, S4, l+40);
+    pa_justcenter(stdout, S4, l+80);
+
+    pa_fontsiz(stdout, fsiz); /* restore font size */
+    pa_font(stdout, FONT_TERM);
+    pa_binvis(stdout);
+    prtcen(pa_maxy(stdout), "Character sizes and positions");
+    waitnext();
+    pa_bcolor(stdout, PA_WHITE);
+
+    /* ************************* Graphical tabbing test ************************ */
+
+    putchar('\f');
+    grid();
+    pa_auto(stdout, OFF);
+    pa_font(stdout, PA_FONT_TERM);
+    for (i = 1; i <= 5; i++) {
+
+        for (x = 1; x <= i; i++) putchar('\t');
+        printf("Terminal tab: %d\n", i)
+
+    }
+    pa_clrtab(stdout);
+    for (i = 1; i <= 5; i++) pa_settabg(stdout, i*43);
+    for (i = 1; i <= 5; i++) {
+
+        for (x = 1; x <= i; x++) putchar('\t');
+        printf("Graphical tab number: %d position: %d\n", i, i*43)
+
+    }
+    pa_restabg(stdout, 2*43);
+    pa_restabg(stdout, 4*43);
+    printf("\n");
+    printf("After removing tabs %d and %d\n", 2*43, 4*43);
+    printf("\n");
+    for (i = 1; i <= 5; i++) {
+
+        for (x = 1; x <= i; x++) putchar('\t');
+        printf("Graphical tab number: %d\n", i);
+
+    }
+    prtcen(pa_maxy(stdout), "Graphical tabbing test");
+    waitnext();
+
+    /* ************************** Picture draw test **************************** */
+
+    putchar('\f');
+    grid();
+    pa_loadpict(stdout, 1, "mypic");
+    printf("Picture size for 1: x: %d y: %d\n", pa_pictsizx(stdout, 1),
+           pa_pictsizy(stdout, 1));
+    pa_loadpict(stdout, 2, "mypic1.bmp");
+    printf("Picture size for 2: x: %d y: %d\n", pa_pictsizx(stdout, 2),
+           pa_pictsizy(stdout, 2));
+    pa_picture(stdout, 1, 50, 50, 100, 100);
+    pa_picture(stdout, 1, 100, 100, 200, 200);
+    pa_picture(stdout, 1, 50, 200, 100, 350);
+    pa_picture(stdout, 2, 200, 50, 250, 100);
+    pa_picture(stdout, 2, 250, 100, 350, 200);
+    pa_picture(stdout, 2, 250, 250, 450, 300);
+    pa_delpict(stdout, 1);
+    pa_delpict(stdout, 2);
+    prtcen(pa_maxy(stdout), "Picture draw test");
+    waitnext();
+
+    /* ********************** Invisible foreground test ************************ */
+
+    putchar('\f');
+    grid();
+    printf("\n");
+    pa_bover(stdout);
+    pa_finvis(stdout);
+    graphtest(1);
+    pa_binvis(stdout);
+    prtcen(pa_maxy(stdout), "Invisible foreground test");
+    waitnext();
+    pa_fover(stdout);
+
+    /* ********************** Invisible background test ************************ */
+
+    putchar('\f');
+    grid();
+    printf("\n");
+    pa_binvis(stdout);
+    pa_fover(stdout);
+    graphtest(1);
+    pa_binvis(stdout);
+    prtcen(pa_maxy(stdout), "Invisible background test");
+    waitnext();
+    pa_bover(stdout);
+
+    /* ************************** Xor foreground test ************************** */
+
+    putchar('\f');
+    grid();
+    printf("\n");
+    pa_bover(stdout);
+    pa_fxor(stdout);
+    graphtest(1);
+    pa_binvis(stdout);
+    prtcen(pa_maxy(stdout), "Xor foreground test");
+    waitnext();
+    pa_fover(stdout);
+
+    /* ************************* Xor background test *************************** */
+
+    putchar('\f');
+    grid();
+    printf("\n");
+    pa_bxor(stdout);
+    pa_fover(stdout);
+    graphtest(1);
+    pa_binvis(stdout);
+    prtcen(maxy(stdout), "Xor background test");
+    waitnext();
+    pa_bover(stdout);
+
+    /* ************************** Graphical scrolling test **************************** */
+
+    putchar('\f');
+    grid();
+    pa_binvis(stdout);
+    prtcen(1, "Use up, down, right && left keys to scroll by pixel");
+    prtcen(2, "Hit enter to continue");
+    prtcen(3, "Note that edges will clear to green as screen moves");
+    prtcen(pa_maxy(stdout), "Graphical scrolling test");
+    pa_bcolor(stdout, pa_green);
+    do {
+
+        pa_event(&er);
+        if (er.etype == pa_etup) pa_scrollg(stdout, 0, -1);
+        if (er.etype == pa_etdown) pa_scrollg(stdout, 0, 1);
+        if (er.etype == pa_etright) pa_scrollg(stdout, 1, 0);
+        if (er.etype == pa_etleft) pa_scrollg(stdout, -1, 0);
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
+
+    } while (er.etype != pa_etenter);
+    pa_bover(stdout);
+    pa_bcolor(stdout, pa_white);
+
+    /* ************************** Graphical mouse movement test **************************** */
+
+    putchar('\f');
+    prtcen(1, "Move the mouse around");
+    prtcen(3, "Hit Enter to continue");
+    prtcen(pa_maxy(stdout), "Graphical mouse movement test");
+    x = -1;
+    y = -1;
+    do {
+
+        pa_event(&er);
+        if (er.etype == pa_etmoumovg) {
+
+            if (x > 0 && y > 0) pa_line(x, y, er.moupxg, er.moupyg);
+            x = er.moupxg;
+            y = er.moupyg;
+
+        }
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
+
+    } while (er.etype != pa_etenter);
+
+    /* ************************** Animation test **************************** */
+
+    squares();
+
+    /* ************************** View offset test **************************** */
+
+#if 0 /* view offsets are not completely working */
+    putchar('\f');
+    pa_auto(stdout, OFF);
+    pa_viewoffg(stdout, -(pa_maxxg(stdout)/2), -(pa_maxyg(stdout)/2));
+    grid();
+    pa_fcolor(stdout, PA_GREEN);
+    pa_frect(stdout, 0, 0, 100, 100);
+    pa_cursorg(stdout, 1, -(maxyg(stdout)/2));
+    pa_fcolor(stdout, PA_BLACK);
+    printf("View offset test\n");
+    printf("\n");
+    printf("The 1,1 origin is now at screen center\n");
+    waitnext();
+    pa_viewoffg(stdout, 0, 0);
+#endif
 
    /* ************************** View scale test **************************** */
 
-if false then { /* view scales are ! completely working */
-   putchar('\f');
-   auto(OFF);
-   viewscale(0.5);
-   grid();
-   fcolor(green);
-   frect(0, 0, 100, 100);
-   prtcen(1, "Logical coordinates are now 1/2 size");
-   prtcen(maxy(stdout), "View scale text");
-   waitnext();
-};
-
-   /* ************************** Benchmarks **************************** */
-
-   i = 100000;
-   linespeed(1, i, s);
-   with benchtab[bnline1] do { /* place stats */
-
-      iter = i;
-      time = s
-
-   };
-   writeln("Line speed for width: 1, ", i:1, " lines: ", s*0.0001,
-           " seconds");
-   writeln("Seconds per line", s*0.0001/i);
-   waitnext();
-
-   i = 100000;
-   linespeed(10, i, s);
-   with benchtab[bnline10] do { /* place stats */
-
-      iter = i;
-      time = s
-
-   };
-   writeln("Line speed for width: 10, ", i:1, " lines: ", s*0.0001,
-           " seconds");
-   writeln("Seconds per line", s*0.0001/i);
-   waitnext();
-
-   i = 100000;
-   rectspeed(1, i, s);
-   with benchtab[bnrect1] do { /* place stats */
-
-      iter = i;
-      time = s
-
-   };
-   writeln("Rectangle speed for width: 1, ", i:1, " lines: ", s*0.0001,
-           " seconds");
-   writeln("Seconds per rectangle", s*0.0001/i);
-   waitnext();
-
-   i = 100000;
-   rectspeed(10, i, s);
-   with benchtab[bnrect10] do { /* place stats */
-
-      iter = i;
-      time = s
-
-   };
-   writeln("Rectangle speed for width: 10, ", i:1, " lines: ", s*0.0001,
-           " seconds");
-   writeln("Seconds per rectangle", s*0.0001/i);
-   waitnext();
-
-   i = 100000;
-   rrectspeed(1, i, s);
-   with benchtab[bnrrect1] do { /* place stats */
-
-      iter = i;
-      time = s
-
-   };
-   writeln("Rounded rectangle speed for width: 1, ", i:1, " lines: ", s*0.0001,
-           " seconds");
-   writeln("Seconds per rounded rectangle", s*0.0001/i);
-   waitnext();
-
-   i = 100000;
-   rrectspeed(10, i, s);
-   with benchtab[bnrrect10] do { /* place stats */
-
-      iter = i;
-      time = s
-
-   };
-   writeln("Rounded rectangle speed for width: 10, ", i:1, " lines: ", s*0.0001,
-           " seconds");
-   writeln("Seconds per rounded rectangle", s*0.0001/i);
-   waitnext();
-
-   i = 1000000;
-   frectspeed(i, s);
-   with benchtab[bnfrect] do { /* place stats */
-
-      iter = i;
-      time = s
-
-   };
-   writeln("Filled rectangle speed, ", i:1, " lines: ", s*0.0001,
-           " seconds");
-   writeln("Seconds per filled rectangle", s*0.0001/i);
-   waitnext();
-
-   i = 100000;
-   frrectspeed(i, s);
-   with benchtab[bnfrrect] do { /* place stats */
-
-      iter = i;
-      time = s
-
-   };
-   writeln("Filled rounded rectangle speed, ", i:1, " lines: ", s*0.0001,
-           " seconds");
-   writeln("Seconds per filled rounded rectangle", s*0.0001/i);
-   waitnext();
-
-   i = 100000;
-   ellipsespeed(1, i, s);
-   with benchtab[bnellipse1] do { /* place stats */
-
-      iter = i;
-      time = s
-
-   };
-   writeln("Ellipse speed for width: 1, ", i:1, " lines: ", s*0.0001,
-           " seconds");
-   writeln("Seconds per ellipse", s*0.0001/i);
-   waitnext();
-
-   i = 100000;
-   ellipsespeed(10, i, s);
-   with benchtab[bnellipse10] do { /* place stats */
-
-      iter = i;
-      time = s
-
-   };
-   writeln("Ellipse speed for width: 10, ", i:1, " lines: ", s*0.0001,
-           " seconds");
-   writeln("Seconds per ellipse", s*0.0001/i);
-   waitnext();
-
-   i = 100000;
-   fellipsespeed(i, s);
-   with benchtab[bnfellipse] do { /* place stats */
-
-      iter = i;
-      time = s
-
-   };
-   writeln("Filled ellipse speed, ", i:1, " lines: ", s*0.0001,
-           " seconds");
-   writeln("Seconds per filled ellipse", s*0.0001/i);
-   waitnext();
-
-   i = 100000;
-   arcspeed(1, i, s);
-   with benchtab[bnarc1] do { /* place stats */
-
-      iter = i;
-      time = s
-
-   };
-   writeln("Arc speed for width: 1, ", i:1, " lines: ", s*0.0001,
-           " seconds");
-   writeln("Seconds per arc", s*0.0001/i);
-   waitnext();
-
-   i = 100000;
-   arcspeed(10, i, s);
-   with benchtab[bnarc10] do { /* place stats */
-
-      iter = i;
-      time = s
-
-   };
-   writeln("Arc speed for width: 10, ", i:1, " lines: ", s*0.0001,
-           " seconds");
-   writeln("Seconds per arc", s*0.0001/i);
-   waitnext();
-
-   i = 100000;
-   farcspeed(i, s);
-   with benchtab[bnfarc] do { /* place stats */
-
-      iter = i;
-      time = s
-
-   };
-   writeln("Filled arc speed, ", i:1, " lines: ", s*0.0001,
-           " seconds");
-   writeln("Seconds per filled arc", s*0.0001/i);
-   waitnext();
-
-   i = 100000;
-   fchordspeed(i, s);
-   with benchtab[bnfchord] do { /* place stats */
-
-      iter = i;
-      time = s
-
-   };
-   writeln("Filled chord speed, ", i:1, " lines: ", s*0.0001,
-           " seconds");
-   writeln("Seconds per filled chord", s*0.0001/i);
-   waitnext();
-
-   i = 1000000;
-   ftrianglespeed(i, s);
-   with benchtab[bnftriangle] do { /* place stats */
-
-      iter = i;
-      time = s
-
-   };
-   writeln("Filled triangle speed, ", i:1, " lines: ", s*0.0001,
-           " seconds");
-   writeln("Seconds per filled triangle", s*0.0001/i);
-   waitnext();
-
-   bover(stdout);
-   fover;
-   i = 100000;
-   ftextspeed(i, s);
-   with benchtab[bntext] do { /* place stats */
-
-      iter = i;
-      time = s
-
-   };
-   pa_home(stdout);
-   writeln("Text speed, with overwrite, ", i:1, " lines: ", s*0.0001,
-           " seconds");
-   writeln("Seconds per write", s*0.0001/i);
-   waitnext();
-
-   binvis(stdout);
-   fover;
-   i = 100000;
-   ftextspeed(i, s);
-   with benchtab[bntextbi] do { /* place stats */
-
-      iter = i;
-      time = s
-
-   };
-   pa_home(stdout);
-   bover(stdout);
-   writeln("Text speed, invisible background, ", i:1, " lines: ", s*0.0001,
-           " seconds");
-   writeln("Seconds per write", s*0.0001/i);
-   waitnext();
-
-   i = 1000;
-   fpictspeed(i, s);
-   with benchtab[bnpict] do { /* place stats */
-
-      iter = i;
-      time = s
-
-   };
-   writeln("Picture draw speed, ", i:1, " lines: ", s*0.0001,
-           " seconds");
-   writeln("Seconds per picture", s*0.0001/i);
-   waitnext();
-
-   i = 1000;
-   fpictnsspeed(i, s);
-   with benchtab[bnpictns] do { /* place stats */
-
-      iter = i;
-      time = s
-
-   };
-   writeln("No scale picture draw speed, ", i:1, " lines: ", s*0.0001,
-           " seconds");
-   writeln("Seconds per picture", s*0.0001/i);
-   waitnext();
-
-   /* stdout table */
-
-   writeln(error);
-   writeln(error, "Benchmark table");
-   writeln(error);
-   writeln(error, "Type                        Seconds     Per fig");
-   writeln(error, "--------------------------------------------------");
-   for bi = bnline1 to bnpictns do with benchtab[bi] do {
-
-      case bi of /* benchmark type */
-
-         bnline1:     write(error, "line width 1                ");
-         bnline10:    write(error, "line width 10               ");
-         bnrect1:     write(error, "rectangle width 1           ");
-         bnrect10:    write(error, "rectangle width 10          ");
-         bnrrect1:    write(error, "rounded rectangle width 1   ");
-         bnrrect10:   write(error, "rounded rectangle width 10  ");
-         bnfrect:     write(error, "filled rectangle            ");
-         bnfrrect:    write(error, "filled rounded rectangle    ");
-         bnellipse1:  write(error, "ellipse width 1             ");
-         bnellipse10: write(error, "ellipse width 10            ");
-         bnfellipse:  write(error, "filled ellipse              ");
-         bnarc1:      write(error, "arc width 1                 ");
-         bnarc10:     write(error, "arc width 10                ");
-         bnfarc:      write(error, "filled arc                  ");
-         bnfchord:    write(error, "filled chord                ");
-         bnftriangle: write(error, "filled triangle             ");
-         bntext:      write(error, "text                        ");
-         bntextbi:    write(error, "background invisible text   ");
-         bnpict:      write(error, "Picture draw                ");
-         bnpictns:    write(error, "No scaling picture draw     ");
-
-      };
-      writere(error, time*0.0001, 10);
-      write(error, "  ");
-      writere(error, time*0.0001/iter, 10);
-      writeln(error)
-
-   };
-
-   99: /* terminate */
-
-   putchar('\f');
-   auto(OFF);
-   font(font_sign);
-   fontsiz(50);
-   prtceng(maxy / 2, "Test complete");
-
-   return (0);
+#if 0 /* view scales are not completely working */
+    putchar('\f');
+    pa_auto(stdout, OFF);
+    pa_viewscale(stdout, 0.5);
+    grid();
+    pa_fcolor(stdout, PA_GREEN);
+    pa_frect(stdout, 0, 0, 100, 100);
+    prtcen(1, "Logical coordinates are now 1/2 size");
+    prtcen(pa_maxy(stdout), "View scale text");
+    waitnext();
+#endif
+
+    /* ************************** Benchmarks **************************** */
+
+    i = 100000;
+    linespeed(1, i, s);
+    benchtab[bnline1].iter = i;
+    benchtab[bnline1].time = s;
+    printf("Line speed for width: 1, %d lines %f seconds\n", i, s*0.0001);
+    printf("Seconds per line %f\n", s*0.0001/i);
+    waitnext();
+
+    i = 100000;
+    linespeed(10, i, s);
+    benchtab[bnline10].iter = i;
+    benchtab[bnline10].time = s;
+    printf("Line speed for width: 10, %d lines %f seconds\n", i, s*0.0001);
+    printf("Seconds per line %f\n", s*0.0001/i);
+    waitnext();
+
+    i = 100000;
+    rectspeed(1, i, s);
+    benchtab[bnrect1].iter = i;
+    benchtab[bnrect1].time = s;
+    printf("Rectangle speed for width: 1, %d lines %f seconds\n", i, s*0.0001);
+    printf("Seconds per rectangle %f\n", s*0.0001/i);
+    waitnext();
+
+    i = 100000;
+    rectspeed(10, i, s);
+    benchtab[bnrect10].iter = i;
+    benchtab[bnrect10].time = s;
+    printf("Rectangle speed for width: 10, %d lines %f seconds\n", i, s*0.0001);
+    printf("Seconds per rectangle %f", s*0.0001/i);
+    waitnext();
+
+    i = 100000;
+    rrectspeed(1, i, s);
+    benchtab[bnrrect1].iter = i;
+    benchtab[bnrrect1].time = s;
+    printf("Rounded rectangle speed for width: 1, %d lines %f seconds\n", i, s*0.0001);
+    printf("Seconds per rounded rectangle %f\n", s*0.0001/i);
+    waitnext();
+
+    i = 100000;
+    rrectspeed(10, i, s);
+    benchtab[bnrrect10].iter = i;
+    benchtab[bnrrect10].time = s;
+    printf("Rounded rectangle speed for width: 10, %d lines %f seconds\n", i, s*0.0001);
+    printf("Seconds per rounded rectangle %f\n", s*0.0001/i);
+    waitnext();
+
+    i = 1000000;
+    frectspeed(i, s);
+    benchtab[bnfrect].iter = i;
+    benchtab[bnfrect].time = s;
+    printf("Filled rectangle speed, %d lines %f seconds\n", i, s*0.0001);
+    printf("Seconds per filled rectangle %f\n", s*0.0001/i);
+    waitnext();
+
+    i = 100000;
+    frrectspeed(i, s);
+    benchtab[bnfrrect].iter = i;
+    benchtab[bnfrrect].time = s;
+    printf("Filled rounded rectangle speed, %d lines %f seconds\n", i, s*0.0001);
+    printf("Seconds per filled rounded rectangle %f\n", s*0.0001/i);
+    waitnext();
+
+    i = 100000;
+    ellipsespeed(1, i, s);
+    benchtab[bnellipse1].iter = i;
+    benchtab[bnellipse1].time = s;
+    printf("Ellipse speed for width: 1, %d lines %f seconds\n", i, s*0.0001);
+    printf("Seconds per ellipse %f\n", s*0.0001/i);
+    waitnext();
+
+    i = 100000;
+    ellipsespeed(10, i, s);
+    benchtab[bnellipse10].iter = i;
+    benchtab[bnellipse10].time = s;
+    printf("Ellipse speed for width: 10, %d lines %f seconds\n", i, s*0.0001);
+    printf("Seconds per ellipse %f\n", s*0.0001/i);
+    waitnext();
+
+    i = 100000;
+    fellipsespeed(i, s);
+    benchtab[bnfellipse].iter = i;
+    benchtab[bnfellipse].time = s;
+    printf("Filled ellipse speed, %d lines %f seconds\n", i, s*0.0001);
+    printf("Seconds per filled ellipse %f\n", s*0.0001/i);
+    waitnext();
+
+    i = 100000;
+    arcspeed(1, i, s);
+    benchtab[bnarc1].iter = i;
+    benchtab[bnarc1].time = s;
+    printf("Arc speed for width: 1, %d lines %f seconds\n", i, s*0.0001);
+    printf("Seconds per arc %f\n", s*0.0001/i);
+    waitnext();
+
+    i = 100000;
+    arcspeed(10, i, s);
+    benchtab[bnarc10].iter = i;
+    benchtab[bnarc10].time = s;
+    printf("Arc speed for width: 10, %d lines %f seconds\n", i, s*0.0001);
+    printf("Seconds per arc %f\n", s*0.0001/i);
+    waitnext();
+
+    i = 100000;
+    farcspeed(i, s);
+    benchtab[bnfarc].iter = i;
+    benchtab[bnfarc].time = s;
+    printf("Filled arc speed, %d lines %f seconds\n", i, s*0.0001);
+    printf("Seconds per filled arc %f\n", s*0.0001/i);
+    waitnext();
+
+    i = 100000;
+    fchordspeed(i, s);
+    benchtab[bnfchord].iter = i;
+    benchtab[bnfchord].time = s;
+    printf("Filled chord speed, %d lines %f seconds\n", i, s*0.0001);
+    printf("Seconds per filled chord %f\n", s*0.0001/i);
+    waitnext();
+
+    i = 1000000;
+    ftrianglespeed(i, s);
+    benchtab[bnftriangle].iter = i;
+    benchtab[bnftriangle].time = s;
+    printf("Filled triangle speed, %d lines %f seconds\n", i, s*0.0001);
+    printf("Seconds per filled triangle %f\n", s*0.0001/i);
+    waitnext();
+
+    pa_bover(stdout);
+    pa_fover(stdout);
+    i = 100000;
+    ftextspeed(i, s);
+    benchtab[bntext].iter = i;
+    benchtab[bntext].time = s;
+    pa_home(stdout);
+    printf("Text speed, with overwrite, %d lines %f seconds\n", i, s*0.0001);
+    printf("Seconds per write %f\n", s*0.0001/i);
+    waitnext();
+
+    pa_binvis(stdout);
+    pa_fover(stdout);
+    i = 100000;
+    ftextspeed(i, s);
+    benchtab[bntextbi].iter = i;
+    benchtab[bntextbi].time = s;
+    pa_home(stdout);
+    pa_bover(stdout);
+    printf("Text speed, invisible background, %d lines %f seconds\n", i, s*0.0001);
+    printf("Seconds per write %f\n", s*0.0001/i);
+    waitnext();
+
+    i = 1000;
+    fpictspeed(i, s);
+    benchtab[bnpict].iter = i;
+    benchtab[bnpict].time = s;
+    printf("Picture draw speed, %d lines %f seconds\n", i, s*0.0001);
+    printf("Seconds per picture %f\n", s*0.0001/i);
+    waitnext();
+
+    i = 1000;
+    fpictnsspeed(i, s);
+    benchtab[bnpictns].iter = i;
+    benchtab[bnpictns].time = s
+    printf("No scale picture draw speed, %d lines %f seconds\n", i, s*0.0001);
+    printf("Seconds per picture %f\n", s*0.0001/i);
+    waitnext();
+
+    /* stdout table */
+
+    fprintf(stderr, "\n");
+    fprintf(stderr, "Benchmark table\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "Type                        Seconds     Per fig\n");
+    fprintf(stderr, "--------------------------------------------------\n");
+    for (bi = bnline1; bi <= bnpictns; bi++) {
+
+        switch (bi) { /* benchmark type */
+
+            case bnline1:     fprintf(stderr, "line width 1                "); break;
+            case bnline10:    fprintf(stderr, "line width 10               "); break;
+            case bnrect1:     fprintf(stderr, "rectangle width 1           "); break;
+            case bnrect10:    fprintf(stderr, "rectangle width 10          "); break;
+            case bnrrect1:    fprintf(stderr, "rounded rectangle width 1   "); break;
+            case bnrrect10:   fprintf(stderr, "rounded rectangle width 10  "); break;
+            case bnfrect:     fprintf(stderr, "filled rectangle            "); break;
+            case bnfrrect:    fprintf(stderr, "filled rounded rectangle    "); break;
+            case bnellipse1:  fprintf(stderr, "ellipse width 1             "); break;
+            case bnellipse10: fprintf(stderr, "ellipse width 10            "); break;
+            case bnfellipse:  fprintf(stderr, "filled ellipse              "); break;
+            case bnarc1:      fprintf(stderr, "arc width 1                 "); break;
+            case bnarc10:     fprintf(stderr, "arc width 10                "); break;
+            case bnfarc:      fprintf(stderr, "filled arc                  "); break;
+            case bnfchord:    fprintf(stderr, "filled chord                "); break;
+            case bnftriangle: fprintf(stderr, "filled triangle             "); break;
+            case bntext:      fprintf(stderr, "text                        "); break;
+            case bntextbi:    fprintf(stderr, "background invisible text   "); break;
+            case bnpict:      fprintf(stderr, "Picture draw                "); break;
+            case bnpictns:    fprintf(stderr, "No scaling picture draw     "); break;
+
+        };
+        fprintf(stderr, "%f %d", time*0.0001, 10);
+        fprintf(stderr, "  ");
+        fprintf(stderr, "%f %d", benchtab[bi].time*0.0001/benchtab[bi].iter, 10);
+        fprintf(stderr, "\n")
+
+    }
+
+    terminate: /* terminate */
+
+    putchar('\f');
+    pa_auto(stdout, OFF);
+    pa_font(stdout, PA_FONT_SIGN);
+    pa_fontsiz(stdout, 50);
+    prtceng(pa_maxy(stdout)/2, "Test complete");
+
+    return (0);
 
 }
