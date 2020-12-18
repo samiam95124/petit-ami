@@ -473,7 +473,7 @@ static void graphtest(int lw) /* line width */
     fsiz = pa_chrsizy(stdout); /* save character size to restore */
     pa_fontsiz(stdout, 30);
     pa_bcolor(stdout, pa_yellow);
-    pa_cursorg(stdout, pa_maxxg(stdout) / 2-pa_strsiz(stdout, S6) / 2, pa_curyg(stdout));
+    pa_cursorg(stdout, pa_maxxg(stdout)/2-pa_strsiz(stdout, S6)/2, pa_curyg(stdout));
     printf("%s\n", S6);
     putchar('\n');
     pa_fcolor(stdout, pa_magenta);

@@ -6024,7 +6024,8 @@ static int istrsiz(winptr win, const char* s)
     int ss;
 
     /* get spacing */
-    b = GetTextExtentPoint32(win->screens[win->curupd-1]->bdc, s, 1, &sz);
+    b = GetTextExtentPoint32(win->screens[win->curupd-1]->bdc, s, strlen(s),
+                             &sz);
     if (!b) winerr(); /* process windows error */
     ss = sz.cx; /* return that */
 
