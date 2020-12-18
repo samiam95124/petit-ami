@@ -263,11 +263,6 @@ typedef struct scncon { /* screen context */
     int     curyg;       /* current cursor location in pixels y */
     int     lcurx;       /* progressive line cursor x */
     int     lcury;       /* progressive line cursor y */
-    int     tcurs;       /* progressive cursor strip flip state */
-    int     tcurx1;      /* progressive triangle cursor x1 */
-    int     tcury1;      /* progressive triangle cursor y1 */
-    int     tcurx2;      /* progressive triangle cursor x2 */
-    int     tcury2;      /* progressive triangle cursor y2 */
     int     fcrgb;       /* current writing foreground color in rgb */
     int     bcrgb;       /* current writing background color in rgb */
     mode    fmod;        /* foreground mix mode */
@@ -2741,11 +2736,6 @@ static void iniscn(winptr win, scnptr sc)
        a previous full figure. */
     sc->lcurx = 1;
     sc->lcury = 1;
-    sc->tcurs = FALSE; /* set strip flip cursor state */
-    sc->tcurx1 = 1;
-    sc->tcury1 = 1;
-    sc->tcurx2 = 1;
-    sc->tcury2 = 1;
     sc->fcrgb = win->gfcrgb; /* set colors && attributes */
     sc->bcrgb = win->gbcrgb;
     sc->attr = win->gattr;
@@ -5343,12 +5333,12 @@ static void iftriangle(winptr win, int x1, int y1, int x2, int y2, int x3, int y
 
     sc = win->screens[win->curupd-1];
     /* place triangle points in array */
-    pa[1].x = x1-1;
-    pa[1].y = y1-1;
-    pa[2].x = x2-1;
-    pa[2].y = y2-1;
-    pa[3].x = x3-1;
-    pa[3].y = y3-1;
+    pa[0].x = x1-1;
+    pa[0].y = y1-1;
+    pa[1].x = x2-1;
+    pa[1].y = y2-1;
+    pa[2].x = x3-1;
+    pa[2].y = y3-1;
     if (win->bufmod) { /* buffer is active */
 
        /* for filled shape, the pen and brush settings are all wrong. we need
@@ -5385,23 +5375,6 @@ static void iftriangle(winptr win, int x1, int y1, int x2, int y2, int x3, int y
        if (r == HGDI_ERROR) error(enosel);
 
     }
-    /* The progressive points get shifted left one. This causes progressive
-      single point triangles to become triangle strips. */
-    if (sc->tcurs) { /* process odd strip flip */
-
-       sc->tcurx1 = x1; /* place next progressive endpoint */
-       sc->tcury1 = y1;
-       sc->tcurx2 = x3;
-       sc->tcury2 = y3;
-
-    } else { /* process even strip flip */
-
-       sc->tcurx1 = x3; /* place next progressive endpoint */
-       sc->tcury1 = y3;
-       sc->tcurx2 = x2;
-       sc->tcury2 = y2;
-
-    }
 
 }
 
@@ -5414,7 +5387,6 @@ void pa_ftriangle(FILE* f, int x1, int y1, int x2, int y2, int x3, int y3)
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window pointer from text file */
     iftriangle(win, x1, y1, x2, y2, x3, y3); /* draw triangle */
-    win->screens[win->curupd-1]->tcurs = FALSE; /* set even strip flip state */
     unlockmain(); /* end exclusive access */
 
 }
