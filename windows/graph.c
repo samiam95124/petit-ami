@@ -6015,7 +6015,7 @@ character spacing and kerning.
 
 *******************************************************************************/
 
-static int istrsiz(winptr win, char* s)
+static int istrsiz(winptr win, const char* s)
 
 {
 
@@ -6032,7 +6032,7 @@ static int istrsiz(winptr win, char* s)
 
 }
 
-int pa_strsiz(FILE* f, char* s)
+int pa_strsiz(FILE* f, const char* s)
 
 {
 
@@ -6056,7 +6056,7 @@ Finds the pixel offset to the given character in the string.
 
 *******************************************************************************/
 
-static int ichrpos(winptr win, char* s, int p)
+static int ichrpos(winptr win, const char* s, int p)
 
 {
 
@@ -6081,7 +6081,7 @@ static int ichrpos(winptr win, char* s, int p)
 
 }
 
-int pa_chrpos(FILE* f, char* s, int p)
+int pa_chrpos(FILE* f, const char* s, int p)
 
 {
 
@@ -6107,7 +6107,7 @@ the system font.
 
 *******************************************************************************/
 
-static void iwritejust(winptr win, char* s, int n)
+static void iwritejust(winptr win, const char* s, int n)
 
 {
 
@@ -6169,7 +6169,7 @@ static void iwritejust(winptr win, char* s, int n)
 
 }
 
-void pa_writejust(FILE* f, char* s, int n)
+void pa_writejust(FILE* f, const char* s, int n)
 
 {
 
@@ -6194,7 +6194,7 @@ spaces, with the fractional part lost.
 
 *******************************************************************************/
 
-static int ijustpos(winptr win, char* s, int p, int n)
+static int ijustpos(winptr win, const char* s, int p, int n)
 
 {
 
@@ -6239,7 +6239,7 @@ static int ijustpos(winptr win, char* s, int p, int n)
 
 }
 
-int pa_justpos(FILE* f, char* s, int p, int n)
+int pa_justpos(FILE* f, const char* s, int p, int n)
 
 {
 
