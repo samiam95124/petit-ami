@@ -18,11 +18,6 @@
 
 #define PA_MAXTIM 10 /**< maximum number of timers available */
 
-#define PA_FONT_TERM    1 /* terminal font */
-#define PA_FONT_BOOK    2 /* book font */
-#define PA_FONT_SIGN    3 /* sign font */
-#define PA_FONT_TECH    4 /* technical font (vector font) */
-
 /* standardized menu entries */
 
 #define PA_SMNEW        1 /* new file */
@@ -368,6 +363,10 @@ int pa_fonts(FILE* f);
 void pa_font(FILE* f, int fc);
 void pa_fontnam(FILE* f, int fc, char* fns, int fnsl);
 void pa_fontsiz(FILE* f, int s);
+int pa_termfont(FILE* f);
+int pa_bookfont(FILE* f);
+int pa_signfont(FILE* f);
+int pa_techfont(FILE* f);
 void pa_chrspcy(FILE* f, int s);
 void pa_chrspcx(FILE* f, int s);
 int pa_dpmx(FILE* f);

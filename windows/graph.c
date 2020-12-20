@@ -178,16 +178,23 @@ extern void ovr_close(pclose_t nfp, pclose_t* ofp);
 extern void ovr_unlink(punlink_t nfp, punlink_t* ofp);
 extern void ovr_lseek(plseek_t nfp, plseek_t* ofp);
 
-/* screen attribute */
+/* screen text attribute */
 typedef enum {
-    sablink, /* blinking text (foreground) */
-    sarev,   /* reverse video */
-    saundl,  /* underline */
-    sasuper, /* superscript */
-    sasubs,  /* subscripting */
-    saital,  /* italic text */
-    sabold,  /* bold text */
-    sastkout /* strikeout text */
+    sablink,     /* blinking text (foreground) */
+    sarev,       /* reverse video */
+    saundl,      /* underline */
+    sasuper,     /* superscript */
+    sasubs,      /* subscripting */
+    saital,      /* italic text */
+    sabold,      /* bold text */
+    sastkout,    /* strikeout text */
+    sacondensed, /* condensed */
+    saextended,  /* extended */
+    saxlight,    /* extra light */
+    salight,     /* light */
+    saxbold,     /* bold */
+    sahollow,    /* hollow */
+    saraised     /* raised */
 } scnatt;
 
 /* font description entry */
@@ -261,8 +268,6 @@ typedef struct scncon { /* screen context */
     int     cury;        /* current cursor location y */
     int     curxg;       /* current cursor location in pixels x */
     int     curyg;       /* current cursor location in pixels y */
-    int     lcurx;       /* progressive line cursor x */
-    int     lcury;       /* progressive line cursor y */
     int     fcrgb;       /* current writing foreground color in rgb */
     int     bcrgb;       /* current writing background color in rgb */
     mode    fmod;        /* foreground mix mode */
@@ -327,6 +332,10 @@ typedef struct winrec {
     int      gvexty;          /* viewport extent y */
     fontptr  fntlst;          /* list of windows fonts */
     int      fntcnt;          /* number of fonts in font list */
+    int      termfnt;         /* terminal font number */
+    int      bookfnt;         /* book font number */
+    int      signfnt;         /* sign font number */
+    int      techfnt;         /* technical font number */
     int      mb1;             /* mouse assert status button 1 */
     int      mb2;             /* mouse assert status button 2 */
     int      mb3;             /* mouse assert status button 3 */
@@ -2519,7 +2528,11 @@ static void newfont(winptr win)
     } else {
 
         attrc = win->screens[win->curupd-1]->attr; /* copy attribute */
-        if (BIT(sabold) & attrc) w = FW_BOLD; else w = FW_REGULAR;
+        w = FW_REGULAR;
+        if (BIT(saxlight) & attrc) w = FW_EXTRALIGHT;
+        else if (BIT(salight) & attrc) w = FW_LIGHT;
+        else if (BIT(sabold) & attrc) w = FW_BOLD;
+        else if (BIT(saxbold) & attrc) w = FW_EXTRABOLD;
         /* set normal height || half height for subscript/superscript */
         if (BIT(sasuper) & attrc || BIT(sasubs) & attrc)
             h = trunc(win->gfhigh*0.75); else h = win->gfhigh;
@@ -2731,12 +2744,7 @@ static void iniscn(winptr win, scnptr sc)
     sc->cury = 1;
     sc->curxg = 1;
     sc->curyg = 1;
-    /* We set the progressive cursors to the origin, which is pretty much
-       arbitrary. Nobody should do progressive figures having never done
-       a previous full figure. */
-    sc->lcurx = 1;
-    sc->lcury = 1;
-    sc->fcrgb = win->gfcrgb; /* set colors && attributes */
+    sc->fcrgb = win->gfcrgb; /* set colors and attributes */
     sc->bcrgb = win->gbcrgb;
     sc->attr = win->gattr;
     sc->autof = win->gauto; /* set auto scroll and wrap */
@@ -3784,7 +3792,7 @@ static void ibold(winptr win, int e)
     scnptr sc;
 
     sc = win->screens[win->curupd-1];
-    if (e) { /* bold on */
+    if (e) { /* turn it on */
 
         sc->attr |= BIT(sabold); /* set attribute active */
         win->gattr |= BIT(sabold);
@@ -3807,7 +3815,7 @@ void pa_bold(FILE* f, int e)
 
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window from file */
-    ibold(win, e); /* move cursor right */
+    ibold(win, e); /* set bold */
     unlockmain(); /* end exclusive access */
 
 }
@@ -4641,8 +4649,6 @@ static void iline(winptr win, int x1, int y1, int x2, int y2)
     scnptr sc;
 
     sc = win->screens[win->curupd-1];
-    sc->lcurx = x2; /* place next progressive endpoint */
-    sc->lcury = y2;
     /* rationalize the line to right/down */
     if (x1 > x2 || (x1 == x2 && y1 > y2)) { /* swap */
 
@@ -5894,6 +5900,79 @@ void pa_fontsiz(FILE* f, int s)
 
 /*******************************************************************************
 
+Find standard font numbers
+
+Returns the font number of one of the standard font types, terminal, book,
+sign or technical.
+
+*******************************************************************************/
+
+int pa_termfont(FILE* f)
+
+{
+
+    winptr win;  /* windows record pointer */
+    int    fn;
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    fn = win->termfnt; /* get font number */
+    unlockmain(); /* end exclusive access */
+
+    return (fn);
+
+}
+
+int pa_bookfont(FILE* f)
+
+{
+
+    winptr win;  /* windows record pointer */
+    int    fn;
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    fn = win->bookfnt; /* get font number */
+    unlockmain(); /* end exclusive access */
+
+    return (fn);
+
+}
+
+int pa_signfont(FILE* f)
+
+{
+
+    winptr win;  /* windows record pointer */
+    int    fn;
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    fn = win->signfnt; /* get font number */
+    unlockmain(); /* end exclusive access */
+
+    return (fn);
+
+}
+
+int pa_techfont(FILE* f)
+
+{
+
+    winptr win;  /* windows record pointer */
+    int    fn;
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    fn = win->techfnt; /* get font number */
+    unlockmain(); /* end exclusive access */
+
+    return (fn);
+
+}
+
+/*******************************************************************************
+
 Set character extra spacing y
 
 Sets the extra character space to be added between lines, also referred to
@@ -6090,8 +6169,8 @@ static void iwritejust(winptr win, const char* s, int n)
     GCP_RESULTS ra;  /* placement info record */
     scnptr      sc;
     DWORD       r;
-    int         sa;
 
+    if (strlen(s) > 1000) error(estrtl);
     sc = win->screens[win->curupd-1];
     if (sc->cfont->sys) error(ejstsys); /* cannot perform on system font */
     if (sc->autof) error(eatopos); /* cannot perform with auto on */
@@ -6107,7 +6186,8 @@ static void iwritejust(winptr win, const char* s, int n)
     /* new(ra.lpoutstring); */
     ra.lpOutString = NULL;
     ra.lpOrder = NULL;
-    ra.lpDx = &sa;
+    ra.lpDx = malloc(strlen(s)*sizeof(int));
+    if (!ra.lpDx) error(enomem); /* no memory */
     ra.lpCaretPos = NULL;
     ra.lpClass = NULL;
     ra.lpGlyphs = NULL;
@@ -6139,6 +6219,7 @@ static void iwritejust(winptr win, const char* s, int n)
     sc->curxg = sc->curxg+n; /* advance the character width */
     sc->curx = sc->curxg / win->charspace+1; /* recalculate character position */
     if (indisp(win)) setcur(win); /* set cursor on screen */
+    free(ra.lpDx);
 
 }
 
@@ -6190,10 +6271,11 @@ static int ijustpos(winptr win, const char* s, int p, int n)
           ra.lpOrder = NULL;
           /* allocate size array */
           ra.lpDx = malloc(strlen(s)*sizeof(int));
+          if (!ra.lpDx) error(enomem); /* no memory */
           ra.lpCaretPos = NULL;
           ra.lpClass = NULL;
           ra.lpGlyphs = NULL;
-          ra.nGlyphs = 0;
+          ra.nGlyphs = strlen(s);
           ra.nMaxFit = 0;
           r = GetCharacterPlacement(win->screens[win->curupd-1]->bdc, s,
                                     strlen(s), n, &ra,
@@ -6237,15 +6319,40 @@ shorter baseline than normal characters in the current font.
 
 Note that the attributes can only be set singly.
 
-Not implemented yet.
-
 *******************************************************************************/
+
+static void icondensed(winptr win, int e)
+
+{
+
+    scnptr sc;
+
+    sc = win->screens[win->curupd-1];
+    if (e) { /* turn it on */
+
+        sc->attr |= BIT(sacondensed); /* set attribute active */
+        win->gattr |= BIT(sacondensed);
+
+    } else { /* turn it off */
+
+        sc->attr &= ~BIT(sacondensed); /* set attribute inactive */
+        win->gattr &= ~BIT(sacondensed);
+
+    }
+    newfont(win); /* activate new font with that */
+
+}
 
 void pa_condensed(FILE* f, int e)
 
 {
 
-   /* not implemented */
+    winptr win; /* windows record pointer */
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    icondensed(win, e); /* set condensed */
+    unlockmain(); /* end exclusive access */
 
 }
 
@@ -6262,11 +6369,38 @@ Not implemented yet.
 
 *******************************************************************************/
 
+static void iextended(winptr win, int e)
+
+{
+
+    scnptr sc;
+
+    sc = win->screens[win->curupd-1];
+    if (e) { /* turn it on */
+
+        sc->attr |= BIT(saextended); /* set attribute active */
+        win->gattr |= BIT(saextended);
+
+    } else { /* turn it off */
+
+        sc->attr &= ~BIT(saextended); /* set attribute inactive */
+        win->gattr &= ~BIT(saextended);
+
+    }
+    newfont(win); /* activate new font with that */
+
+}
+
 void pa_extended(FILE* f, int e)
 
 {
 
-   /* not implemented */
+    winptr win; /* windows record pointer */
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    iextended(win, e); /* set extended */
+    unlockmain(); /* end exclusive access */
 
 }
 
@@ -6279,15 +6413,40 @@ light.
 
 Note that the attributes can only be set singly.
 
-Not implemented yet.
-
 *******************************************************************************/
+
+static void ixlight(winptr win, int e)
+
+{
+
+    scnptr sc;
+
+    sc = win->screens[win->curupd-1];
+    if (e) { /* turn it on */
+
+        sc->attr |= BIT(saxlight); /* set attribute active */
+        win->gattr |= BIT(saxlight);
+
+    } else { /* turn it off */
+
+        sc->attr &= ~BIT(saxlight); /* set attribute inactive */
+        win->gattr &= ~BIT(salight);
+
+    }
+    newfont(win); /* activate new font with that */
+
+}
 
 void pa_xlight(FILE* f, int e)
 
 {
 
-   /* not implemented */
+    winptr win; /* windows record pointer */
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    ixlight(win, e); /* set extra light */
+    unlockmain(); /* end exclusive access */
 
 }
 
@@ -6300,15 +6459,40 @@ characters in the currnet font.
 
 Note that the attributes can only be set singly.
 
-Not implemented yet.
-
 *******************************************************************************/
+
+static void ilight(winptr win, int e)
+
+{
+
+    scnptr sc;
+
+    sc = win->screens[win->curupd-1];
+    if (e) { /* turn it on */
+
+        sc->attr |= BIT(salight); /* set attribute active */
+        win->gattr |= BIT(salight);
+
+    } else { /* turn it off */
+
+        sc->attr &= ~BIT(salight); /* set attribute inactive */
+        win->gattr &= ~BIT(salight);
+
+    }
+    newfont(win); /* activate new font with that */
+
+}
 
 void pa_light(FILE* f, int e)
 
 {
 
-   /* not implemented */
+    winptr win; /* windows record pointer */
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    ilight(win, e); /* set light */
+    unlockmain(); /* end exclusive access */
 
 }
 
@@ -6321,15 +6505,40 @@ bold.
 
 Note that the attributes can only be set singly.
 
-Not implemented yet.
-
 *******************************************************************************/
+
+static void ixbold(winptr win, int e)
+
+{
+
+    scnptr sc;
+
+    sc = win->screens[win->curupd-1];
+    if (e) { /* turn it on */
+
+        sc->attr |= BIT(saxbold); /* set attribute active */
+        win->gattr |= BIT(saxbold);
+
+    } else { /* turn it off */
+
+        sc->attr &= ~BIT(saxbold); /* set attribute inactive */
+        win->gattr &= ~BIT(saxbold);
+
+    }
+    newfont(win); /* activate new font with that */
+
+}
 
 void pa_xbold(FILE* f, int e)
 
 {
 
-   /* not implemented */
+    winptr win; /* windows record pointer */
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    ixbold(win, e); /* set extra bold */
+    unlockmain(); /* end exclusive access */
 
 }
 
@@ -6342,15 +6551,40 @@ makes the characters appear sunken into the page.
 
 Note that the attributes can only be set singly.
 
-Not implemented yet.
-
 *******************************************************************************/
+
+static void ihollow(winptr win, int e)
+
+{
+
+    scnptr sc;
+
+    sc = win->screens[win->curupd-1];
+    if (e) { /* turn it on */
+
+        sc->attr |= BIT(sahollow); /* set attribute active */
+        win->gattr |= BIT(sahollow);
+
+    } else { /* turn it off */
+
+        sc->attr &= ~BIT(sahollow); /* set attribute inactive */
+        win->gattr &= ~BIT(sahollow);
+
+    }
+    newfont(win); /* activate new font with that */
+
+}
 
 void pa_hollow(FILE* f, int e)
 
 {
 
-   /* not implemented */
+    winptr win; /* windows record pointer */
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    ihollow(win, e); /* set hollow */
+    unlockmain(); /* end exclusive access */
 
 }
 
@@ -6363,15 +6597,40 @@ makes the characters appear coming off the page.
 
 Note that the attributes can only be set singly.
 
-Not implemented yet.
-
 *******************************************************************************/
+
+static void iraised(winptr win, int e)
+
+{
+
+    scnptr sc;
+
+    sc = win->screens[win->curupd-1];
+    if (e) { /* turn it on */
+
+        sc->attr |= BIT(saraised); /* set attribute active */
+        win->gattr |= BIT(saraised);
+
+    } else { /* turn it off */
+
+        sc->attr &= ~BIT(saraised); /* set attribute inactive */
+        win->gattr &= ~BIT(saraised);
+
+    }
+    newfont(win); /* activate new font with that */
+
+}
 
 void pa_raised(FILE* f, int e)
 
 {
 
-   /* not implemented */
+    winptr win; /* windows record pointer */
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window from file */
+    iraised(win, e); /* set raised */
+    unlockmain(); /* end exclusive access */
 
 }
 
@@ -8489,129 +8748,27 @@ the font string, as these are attributes, not part of the name.
 
 *******************************************************************************/
 
-/* count number of space delimited words in string */
-
-static int words(char *s)
-
-{
-
-    int wc;
-    int ichar;
-    int ispace;
-
-    wc = 0;
-    ichar = 0;
-    ispace = 0;
-    while (*s) {
-
-        if (*s == ' ') {
-
-            if (!ispace) { ispace = 1; ichar = 0; }
-
-        } else {
-
-            if (!ichar) { ichar = 1; ispace = 0; wc++; }
-
-        }
-        s++;
-
-    }
-
-    return wc;
-
-}
-
-/* extract a series of space delimited words from string */
-
-static void extwords(char *d, int dl, char *s, int st, int ed)
-{
-
-    int wc;
-    int ichar;
-    int ispace;
-
-    wc = 1;
-    ichar = 0;
-    ispace = 0;
-    if (dl < 1) error(estrtl);
-    dl--; /* create room for terminator */
-    while (*s) {
-
-        if (*s == ' ') {
-
-            if (ichar) wc++; /* count end of word */
-            if (!ispace) { ispace = 1; ichar = 0; }
-
-        } else {
-
-            if (!ichar) { ichar = 1; ispace = 0; }
-            if (wc >=st && wc <= ed) {
-
-                if (!dl) error(estrtl);
-                *d++ = *s;
-                dl--;
-
-            }
-
-        }
-        s++;
-
-    }
-    *d = 0;
-
-}
-
-/* replace attribute word */
-
-static void repatt(char* s, int l)
-
-{
-
-    int wc;
-    int f;
-    char ts[250];
-
-    wc = words(s); /* find number of words in string */
-
-    do { /* try removing descriptors from string end */
-
-        f = FALSE;
-        if (!wc) error(esystem);
-        extwords(ts, 250, s, wc, wc); /* get last word in string */
-        if (!strcmp(ts, "bold") || !strcmp(ts, "italic") ||
-            !strcmp(ts, "oblique")) { wc--; f = TRUE; }
-
-    } while (f); /* until no more descriptors found */
-
-    /* extract remaining string */
-    extwords(s, l, ts, 1, wc);
-
-}
-
 static int CALLBACK enumfont(const LOGFONT* lfd, const TEXTMETRIC* pfd, DWORD ft, LPARAM ad)
 
 {
 
     fontptr        fp;     /* pointer to font entry */
     int            c, i;   /* indexes */
-    char           ts[250];
     ENUMLOGFONTEX* lfde;
 
     lfde = (ENUMLOGFONTEX*)lfd;
-    if ((ft & TRUETYPE_FONTTYPE) &&
+    if ((ft & TRUETYPE_FONTTYPE) && (*lfde->elfFullName != '@') &&
         (lfde->elfLogFont.lfCharSet == ANSI_CHARSET ||
          lfde->elfLogFont.lfCharSet == SYMBOL_CHARSET ||
          lfde->elfLogFont.lfCharSet == DEFAULT_CHARSET))  {
 
       /* ansi character set, record it */
-      strcpy(ts, lfde->elfFullName); /* make a copy of the name */
-      repatt(ts, 250); /* remove any attribute word */
       fp = malloc(sizeof(fontrec)); /* get a font entry */
       if (!fp) error(enomem);
       fp->next = fntlst; /* push to list */
       fntlst = fp;
       fntcnt = fntcnt+1; /* count font */
-      fp->fn = str(ts); /* create string and copy */
+      fp->fn = str(lfde->elfFullName); /* create string and copy */
       fp->fix = !!(lfde->elfLogFont.lfPitchAndFamily & 3 == FIXED_PITCH);
       fp->sys = FALSE; /* set not system */
 
@@ -8659,7 +8816,7 @@ static void getfonts(winptr win)
     r = EnumFontFamiliesEx(win->devcon, &lf, enumfont, 0, 0);
     win->fntlst = fntlst; /* place into windows record */
     win->fntcnt = fntcnt;
-    sortfont(&win->fntlst); /* sort into alphabetical order */
+
 
 }
 
@@ -8699,20 +8856,32 @@ Finds a font in the list of fonts. Also matches fixed/no fixed pitch status.
 
 *******************************************************************************/
 
-static void fndfnt(winptr win, char* fn, int fix, fontptr* fp)
+static int fndfnt(winptr win, char* fn, int fix, fontptr* fp)
 
 {
 
     fontptr p;
+    int     fc;
+    int     ff;
 
-    *fp = NULL; /* set no font found */
+    ff = 0; /* set no font found */
+    *fp = NULL;
     p = win->fntlst; /* index top of font list */
+    fc = 1; /* set first font number */
     while (p) { /* traverse font list */
 
-        if (!strcmp(p->fn, fn) && p->fix == fix) *fp = p; /* found, set */
+        if (!strcmp(p->fn, fn) && p->fix == fix) {
+
+            *fp = p;
+            ff = fc; /* found, set */
+
+        }
         p = p->next; /* next entry */
+        fc++;
 
     }
+
+    return (ff); /* return found font */
 
 }
 
@@ -8727,61 +8896,46 @@ Note: could also default to style searching for book and sign fonts.
 
 *******************************************************************************/
 
-/* place font entry in list */
-
-static void plcfnt(winptr win, fontptr fp)
-
-{
-
-    if (!fp) { /* no entry, create a dummy */
-
-        fp = malloc(sizeof(fontrec)); /* get a new entry */
-        if (!fp) error(enomem);
-        fp->fn = malloc(1); /* place empty string */
-        if (!fp->fn) error(enomem);
-        *fp->fn = 0;
-        fp->fix = FALSE; /* set for cleanlyness */
-        fp->sys = FALSE; /* set not system */
-
-    }
-    fp->next = win->fntlst; /* push onto list */
-    win->fntlst = fp;
-
-}
-
 static void stdfont(winptr win)
 
 {
 
     fontptr termfp, bookfp, signfp, techfp; /* standard font slots */
 
-    /* clear font pointers */
-    termfp = NULL;
-    bookfp = NULL;
-    signfp = NULL;
-    techfp = NULL;
+    /* clear standard font numbers */
+    win->termfnt = 0;
+    win->bookfnt = 0;
+    win->signfnt = 0;
+    win->techfnt = 0;
+
     /* set up terminal font. terminal font is set to system default */
     termfp = malloc(sizeof(fontrec)); /* get a new entry */
     if (!termfp) error(enomem);
     termfp->fix = TRUE; /* set fixed */
     termfp->sys = TRUE; /* set system */
     termfp->fn = str("System Fixed");
+    termfp->next = win->fntlst; /* push to fonts list */
+    win->fntlst = termfp;
     win->fntcnt = win->fntcnt+1; /* add to font count */
+    sortfont(&win->fntlst); /* sort into alphabetical order */
+    win->termfnt = fndfnt(win, "System Fixed", TRUE, &termfp);
     /* find book fonts */
-    fndfnt(win, "Times New Roman", FALSE, &bookfp);
-    if (!bookfp) {
+    win->bookfnt = fndfnt(win, "Times New Roman", FALSE, &bookfp);
+    if (!win->bookfnt) {
 
-        fndfnt(win, "Garamond", FALSE, &bookfp);
-        if (!bookfp) {
+        win->bookfnt = fndfnt(win, "Garamond", FALSE, &bookfp);
+        if (!win->bookfnt) {
 
-            fndfnt(win, "Book Antiqua", FALSE, &bookfp);
-            if (!bookfp) {
+            win->bookfnt = fndfnt(win, "Book Antiqua", FALSE, &bookfp);
+            if (!win->bookfnt) {
 
-                fndfnt(win, "Georgia", FALSE, &bookfp);
-                if (!bookfp) {
+                win->bookfnt = fndfnt(win, "Georgia", FALSE, &bookfp);
+                if (!win->bookfnt) {
 
-                    fndfnt(win, "Palatino Linotype", FALSE, &bookfp);
-                    if (!bookfp) fndfnt(win, "Verdana", FALSE, &bookfp);
+                    win->bookfnt = fndfnt(win, "Palatino Linotype", FALSE,
+                                          &bookfp);
+                    if (!win->bookfnt)
+                        win->bookfnt = fndfnt(win, "Verdana", FALSE, &bookfp);
 
                 }
 
@@ -8792,26 +8946,28 @@ static void stdfont(winptr win)
     }
     /* find sign fonts */
 
-    fndfnt(win, "Tahoma", FALSE, &signfp);
-    if (!signfp) {
+    win->signfnt = fndfnt(win, "Tahoma", FALSE, &signfp);
+    if (!win->signfnt) {
 
-       fndfnt(win, "Microsoft Sans Serif", FALSE, &signfp);
-       if (!signfp) {
+       win->signfnt = fndfnt(win, "Microsoft Sans Serif", FALSE, &signfp);
+       if (!win->signfnt) {
 
-          fndfnt(win, "Arial", FALSE, &signfp);
-          if (!signfp) {
+          win->signfnt = fndfnt(win, "Arial", FALSE, &signfp);
+          if (!win->signfnt) {
 
-             fndfnt(win, "News Gothic MT", FALSE, &signfp);
-             if (!signfp) {
+             win->signfnt = fndfnt(win, "News Gothic MT", FALSE, &signfp);
+             if (!win->signfnt) {
 
-                fndfnt(win, "Century Gothic", FALSE, &signfp);
-                if (!signfp) {
+                win->signfnt = fndfnt(win, "Century Gothic", FALSE, &signfp);
+                if (!win->signfnt) {
 
-                   fndfnt(win, "Franklin Gothic", FALSE, &signfp);
-                   if (!signfp) {
+                   win->signfnt = fndfnt(win, "Franklin Gothic", FALSE,
+                                         &signfp);
+                   if (!win->signfnt) {
 
-                      fndfnt(win, "Trebuchet MS", FALSE, &signfp);
-                      if (!signfp) fndfnt(win, "Verdana", FALSE, &signfp);
+                      win->signfnt = fndfnt(win, "Trebuchet MS", FALSE,
+                                            &signfp);
+                      if (!win->signfnt) fndfnt(win, "Verdana", FALSE, &signfp);
 
                    }
 
@@ -8824,15 +8980,9 @@ static void stdfont(winptr win)
        }
 
     }
-    /* delete found fonts from the list */
-    if (!bookfp) delfnt(win, bookfp);
-    if (!signfp) delfnt(win, signfp);
-    /* now place the fonts in the list backwards */
-    plcfnt(win, techfp);
-    plcfnt(win, signfp);
-    plcfnt(win, bookfp);
-    termfp->next = win->fntlst;
-    win->fntlst = termfp;
+
+    /* set tech font equivalent to sign font */
+    win->techfnt = win->signfnt;
 
 }
 
@@ -9069,8 +9219,9 @@ static void opnwin(int fn, int pfn)
       the terminal to a known state */
     win->gfhigh = FHEIGHT; /* set default font height */
     getfonts(win); /* get the global fonts list */
-    stdfont(win); /* mark the standard fonts */
-    win->gcfont = win->fntlst; /* index top of list as terminal font */
+    stdfont(win); /* mark/create the standard fonts */
+    /* index terminal font */
+    fndfnt(win, "System Fixed", TRUE, &win->gcfont);
     /* set up system default parameters */
     rv = SelectObject(win->devcon, GetStockObject(SYSTEM_FIXED_FONT));
     if (rv == HGDI_ERROR) error(enosel);
