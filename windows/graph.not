@@ -1,0 +1,13 @@
+Notes for graph.c
+
+1. When a program finishes, and is in autohold, it cannot be cancelled with
+ctl-c.
+
+2. If a program does not exit, and ctl-c is hit in main/text window, the window
+disappears, but the program goes zombie.
+
+3. Errors in graph print in main window, but then it wedges.
+
+4. Should have option to send windows/general errors to a dialog.
+
+5. Need to hook up graph with the option processor.
