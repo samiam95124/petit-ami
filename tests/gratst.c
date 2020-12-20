@@ -299,11 +299,14 @@ static void justcenter(const char* s, int l)
     pa_cursorg(stdout, x, pa_curyg(stdout));
     pa_writejust(stdout, s, l);
     putchar('\n');
+    pa_fcolor(stdout, pa_white);
+    pa_frect(stdout, x, pa_curyg(stdout), x+l-1, pa_curyg(stdout)+pa_chrsizy(stdout)-1);
+    pa_fcolor(stdout, pa_black);
     pa_rect(stdout, x, pa_curyg(stdout), x+l-1, pa_curyg(stdout)+pa_chrsizy(stdout)-1);
-    for (i = 2; i <= strlen(s); i++)
+    for (i = 0; i < strlen(s); i++)
       pa_line(stdout, x+pa_justpos(stdout, s, i, l), pa_curyg(stdout),
               x+pa_justpos(stdout, s, i, l), pa_curyg(stdout)+pa_chrsizy(stdout)-1);
-   putchar('\n');
+    putchar('\n');
 
 }
 
@@ -2292,9 +2295,13 @@ int main(void)
     pa_bcolor(stdout, pa_cyan);
     pa_bover(stdout);
     printf("%s\n", S3);
+    pa_fcolor(stdout, pa_white);
+    pa_frect(stdout, x, pa_curyg(stdout), x+pa_strsiz(stdout, S3)-1,
+            pa_curyg(stdout)+pa_chrsizy(stdout)-1);
+    pa_fcolor(stdout, pa_black);
     pa_rect(stdout, x, pa_curyg(stdout), x+pa_strsiz(stdout, S3)-1,
             pa_curyg(stdout)+pa_chrsizy(stdout)-1);
-    for (i = 2; i <= strlen(S3); i++)
+    for (i = 0; i < strlen(S3); i++)
         pa_line(stdout, x+pa_chrpos(stdout, S3, i), pa_curyg(stdout),
                 x+pa_chrpos(stdout, S3, i),
                 pa_curyg(stdout)+pa_chrsizy(stdout)-1);

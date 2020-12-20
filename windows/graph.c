@@ -6118,8 +6118,8 @@ static int ichrpos(winptr win, const char* s, int p)
     BOOL  b; /* return value */
     int   i; /* index for string */
 
-    if (p < 1 || p > strlen(s)) error(estrinx); /* out of range */
-    if (p == 1) siz = 0; /* its already at the position */
+    if (p < 0 || p >= strlen(s)) error(estrinx); /* out of range */
+    if (p == 0) siz = 0; /* its already at the position */
     else { /* find substring length */
 
         /* get spacing */
@@ -6257,8 +6257,8 @@ static int ijustpos(winptr win, const char* s, int p, int n)
     GCP_RESULTS ra;  /* placement info record */
     int         i;   /* index for string */
 
-    if (p < 1 || p > strlen(s))  error(estrinx); /* out of range */
-    if (p == 1)  off = 0; /* its already at the position */
+    if (p < 0 || p >= strlen(s))  error(estrinx); /* out of range */
+    if (p == 0) off = 0; /* its already at the position */
     else { /* find substring length */
 
        w = istrsiz(win, s); /* find minimum character spacing */
