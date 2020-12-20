@@ -933,6 +933,7 @@ int main(void)
 
     if (setjmp(terminate_buf)) goto terminate;
     pa_curvis(stdout, FALSE);
+#if 0
     printf("Graphics screen test vs. 0.1\n");
     printf("\n");
     printf("Screen size in characters: x -> %d y -> %d\n", pa_maxx(stdout),
@@ -948,7 +949,6 @@ int main(void)
            "Press return to start test (and to pass each pattern)");
     waitnext();
 
-#if 0
     /* ************************ Graphical figures test ************************* */
 
     putchar('\f');
@@ -2281,7 +2281,7 @@ int main(void)
     waitnext();
 
     /* ****************** Character sizes and positions test ******************* */
-#endif
+
     putchar('\f');
     grid();
     pa_auto(stdout, OFF);
@@ -2318,7 +2318,7 @@ int main(void)
     prtcen(pa_maxy(stdout), "Character sizes and positions");
     waitnext();
     pa_bcolor(stdout, pa_white);
-
+#endif
     /* ************************* Graphical tabbing test ************************ */
 
     putchar('\f');
@@ -2327,7 +2327,7 @@ int main(void)
     pa_font(stdout, pa_termfont(stdout));
     for (i = 1; i <= 5; i++) {
 
-        for (x = 1; x <= i; i++) putchar('\t');
+        for (x = 1; x <= i; x++) putchar('\t');
         printf("Terminal tab: %d\n", i);
 
     }
