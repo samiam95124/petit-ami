@@ -2318,7 +2318,7 @@ int main(void)
     prtcen(pa_maxy(stdout), "Character sizes and positions");
     waitnext();
     pa_bcolor(stdout, pa_white);
-#endif
+
     /* ************************* Graphical tabbing test ************************ */
 
     putchar('\f');
@@ -2472,7 +2472,7 @@ int main(void)
     } while (er.etype != pa_etenter);
 
     /* ************************** Animation test **************************** */
-
+#endif
     squares();
 
     /* ************************** View offset test **************************** */

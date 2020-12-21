@@ -1418,6 +1418,8 @@ static int vsprintfe(char *s, const char *fmt, va_list ap, FILE *fd)
     int           *ip;  /* int pointer holder */
     char          *cp;  /* char pointer holder */
     int           l;    /* string length */
+    double        d;    /* floating point holder */
+    int           dp;   /* decimal point is printed */
 
     cnt = 0; /* clear output count */
     while (*fmt) { /* while format characters remain */
@@ -1613,6 +1615,40 @@ static int vsprintfe(char *s, const char *fmt, va_list ap, FILE *fd)
                     fmt++; /* next character */
                     break;
                 case 'f':
+                    d = va_arg(ap, double);
+                    /* validate power */
+                    if (!power10) power10 = toppow(10); /* decimal */
+                    if (!pres) pre = 6; /* set default precision */
+                    dp = TRUE; /* set print decimal point */
+                    if (!pre)
+                        dp = FALSE; /* precision is zero, kill decimal point */
+                    if (d < 0) { /* signed number */
+
+                        sn = TRUE; /* set sign */
+                        d = -d; /* remove from number */
+
+                    }
+                    u = d; /* find whole part of number */
+                    d -= u; /* and remove it */
+                    dg = digits(10, u); /* find digits in whole part */
+                    /* find total of sign whole digits, decimal, fraction */
+                    ndg = sn+dg+dp+pre;
+                    /* if right justified, pad left to go right */
+                    if (!lft) putchrs(&s, fld-ndg, ' ', &cnt, fd);
+                    /* place sign */
+                    if (sn) putchrs(&s, 1, '-', &cnt, fd); /* place negative */
+                    /* print whole number */
+                    putnum(&s, u, 10, power10, FALSE, &cnt, fd);
+                    if (dp)
+                        putchrs(&s, 1, '.', &cnt, fd); /* place decimal point */
+                    /* scale number by precision */
+                    for (i = 0; i < pre; i++) d *= 10;
+                    u = d; /* get that */
+                    putnum(&s, u, 10, power10, FALSE, &cnt, fd);
+                    /* if left justified, pad right to go left */
+                    if (lft) putchrs(&s, fld-ndg, ' ', &cnt, fd);
+                    fmt++; /* next character */
+                    break;
                 case 'e':
                 case 'E':
                 case 'g':

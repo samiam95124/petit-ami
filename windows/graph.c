@@ -6688,20 +6688,22 @@ static void setext(char* fnh, char* ext)
 
 {
 
-    int i, x; /* index for string */
-    int f;    /* found flag */
+    char* ec; /* extension character location */
+    char* cp;
 
-    f = FALSE; /* set no extention found */
-    /* search for extention */
-    for (i = 1; i <= MAXFNM; i++) if (fnh[i] == '.') f = TRUE; /* found */
-    if (!f) { /* no extention, place one */
+    /* find extension or end */
+    cp = fnh;
+    ec = NULL;
+    while (*cp) {
 
-        i = MAXFNM; /* index last character in string */
-        while (i > 1 && fnh[i] == ' ') i = i-1;
-        if (MAXFNM-i < 4) error(epicftl); /* filename too large */
-        for (x = 1; x <= 4; x++) fnh[i+x] = ext[x]; /* place extention */
+        if (*cp == '.' || !*cp) ec = cp;
+        cp++;
 
     }
+    if (!*cp && !ec) ec = cp;
+    if (cp-fnh+strlen(ext) > MAXFNM)
+        error(epicftl); /* filename too large */
+    strcpy(ec, ext); /* place extention */
 
 }
 
