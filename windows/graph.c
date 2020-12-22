@@ -1009,6 +1009,7 @@ static void abortm(void)
 
     }
     unlockmain(); /* end exclusive access */
+    fend = TRUE; /* set exit ordered */
 
     exit(1); /* exit */
 
@@ -7054,7 +7055,7 @@ static void keyevent(pa_evtrec* er, MSG* msg, int* keep)
    else if (msg->wParam == 0x03) /*etx*/  {
 
       er->etype = pa_etterm; /* set end program */
-      fend = TRUE; /* set } was ordered */
+      fend = TRUE; /* set end was ordered */
 
    } else if (msg->wParam == 0x13) /* xoff */
       er->etype = pa_etstop; /* set stop program */
