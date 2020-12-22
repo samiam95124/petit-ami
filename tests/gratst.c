@@ -29,6 +29,31 @@
 * text                            10.922   .00010922                          *
 * background invisible text       10.703   .00010703                          *
 *                                                                             *
+* Benchmark results, AMD Phenom, 2.51 GHZ, Nvidia GeForce 9800 GT             *
+*                                                                             *
+* Type                     Seconds   Per fig                                  *
+* --------------------------------------------------                          *
+* line width 1                 6.71    0.000067                               *
+* line width 10                7.37    0.000073                               *
+* rectangle width 1           10.45    0.000104                               *
+* rectangle width 10          11.98    0.000119                               *
+* rounded rectangle width 1   13.35    0.000133                               *
+* rounded rectangle width 10  16.00    0.000160                               *
+* filled rectangle             8.20    0.000082                               *
+* filled rounded rectangle    20.98    0.000209                               *
+* ellipse width 1             14.96    0.000149                               *
+* ellipse width 10            17.62    0.000176                               *
+* filled ellipse              22.76    0.000227                               *
+* arc width 1                 11.03    0.000110                               *
+* arc width 10                12.78    0.000127                               *
+* filled arc                  16.15    0.000161                               *
+* filled chord                14.53    0.000145                               *
+* filled triangle             24.14    0.000241                               *
+* text                        10.89    0.000435                               *
+* background invisible text   10.95    0.000438                               *
+* Picture draw                23.82    0.002382                               *
+* No scaling picture draw     13.82    0.001382                               *
+*                                                                             *
 *******************************************************************************/
 
 /* base C defines */
@@ -943,7 +968,7 @@ int main(void)
     printf("Size of character in default font: x -> %d y -> %d\n",
            pa_chrsizx(stdout), pa_chrsizy(stdout));
     printf("Dots per meter: dpmx: %d dpmy: %d\n", pa_dpmx(stdout), pa_dpmy(stdout));
-    printf("Aspect ratio: %f\n", pa_dpmx(stdout)/pa_dpmy(stdout));
+    printf("Aspect ratio: %f\n", (double)pa_dpmx(stdout)/pa_dpmy(stdout));
     prtcen(pa_maxy(stdout),
            "Press return to start test (and to pass each pattern)");
     waitnext();
@@ -2710,7 +2735,7 @@ int main(void)
         };
         fprintf(stderr, "%5.2f", benchtab[bi].time*0.0001);
         fprintf(stderr, "    ");
-        fprintf(stderr, "%f.2", benchtab[bi].time*0.0001/benchtab[bi].iter);
+        fprintf(stderr, "%f", benchtab[bi].time*0.0001/benchtab[bi].iter);
         fprintf(stderr, "\n");
 
     }

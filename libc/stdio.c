@@ -1644,6 +1644,8 @@ static int vsprintfe(char *s, const char *fmt, va_list ap, FILE *fd)
                     /* scale number by precision */
                     for (i = 0; i < pre; i++) d *= 10;
                     u = d; /* get that */
+                    dg = digits(10, u); /* find digits in that */
+                    putchrs(&s, pre-dg, '0', &cnt, fd);
                     putnum(&s, u, 10, power10, FALSE, &cnt, fd);
                     /* if left justified, pad right to go left */
                     if (lft) putchrs(&s, fld-ndg, ' ', &cnt, fd);

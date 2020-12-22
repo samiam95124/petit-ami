@@ -17,7 +17,9 @@ static int x1, y1, xd1, yd1, i, x2, y2, xd2, yd2, lx1, ly1, lx2, ly2;
 static int cc; /* color counter */
 static pa_color clr;
 
-static int wait(void)
+/* check user break */
+
+static int chkbrk(void)
 
 {
 
@@ -34,13 +36,7 @@ static int wait(void)
 
 }
 
-/*******************************************************************************
-
-Find random number
-
-Find random number between 0 and N.
-
-*******************************************************************************/
+/* Find random number between 0 and N. */
 
 static int randn(int limit)
 
@@ -99,7 +95,7 @@ int main(void)
             }
 
         }
-        if (wait()) goto terminate;
+        if (chkbrk()) goto terminate;
 
     }
 
