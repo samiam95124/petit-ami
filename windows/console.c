@@ -2769,8 +2769,8 @@ DWORD WINAPI dummyloop(LPVOID par)
 
 Console control handler
 
-This void gets activated as a callback when Windows flags a termination
-event. We s} a termination message back to the event queue, and flag the
+This procedure gets activated as a callback when Windows flags a termination
+event. We send a termination message back to the event queue, and flag the
 event handled.
 At the present time, we don't care what type of termination event it was,
 all generate an etterm signal.

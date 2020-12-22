@@ -15086,6 +15086,27 @@ static DWORD WINAPI dialogthread(LPVOID lpParameter)
 
 /*******************************************************************************
 
+Console control handler
+
+This procedure gets activated as a callback when Windows flags a termination
+event to console. We immediately abort.
+At the present time, we don't care what type of termination event it was,
+all generate an etterm signal.
+
+*******************************************************************************/
+
+static BOOL WINAPI conhan(DWORD ct)
+
+{
+
+    abortm(); /* abort run */
+
+    return (1); /* set event handled */
+
+}
+
+/*******************************************************************************
+
 Open
 
 We don't do anything for this, so pass it on.
@@ -15378,6 +15399,8 @@ static void pa_init_graph()
     lockmain(); /* lock access */
     openio(ifn, ofn, 0, 1); /* process open */
     unlockmain(); /* unlock access */
+    /* capture control handler so that ctl-c to main window cancels properly */
+    SetConsoleCtrlHandler(conhan, TRUE);
 
 }
 
