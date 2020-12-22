@@ -178,25 +178,25 @@ static void waitnext(void)
 
 }
 
-/* print centered char* */
+/* print centered string */
 
 static void prtcen(int y, const char* s)
 
 {
 
    pa_cursor(stdout, (pa_maxx(stdout)/2)-(strlen(s)/2), y);
-   puts(s);
+   printf("%s", s);
 
 }
 
-/* print centered char* graphical */
+/* print centered string graphical */
 
 static void prtceng(int y, const char* s)
 
 {
 
    pa_cursorg(stdout, (pa_maxxg(stdout)/2)-(pa_strsiz(stdout, s)/2), y);
-   puts(s);
+   printf("%s", s);
 
 }
 
@@ -413,7 +413,7 @@ static void squares(void)
     balrec* bt;
 
     /* initalize square data */
-    for (i = 1; i <= MAXSQUARE; i++) {
+    for (i = 0; i < MAXSQUARE; i++) {
 
         bt = &baltbl[i];
         bt->x = randn(pa_maxxg(stdout)-SQUARESIZE)+HALFSQUARE;
@@ -428,14 +428,15 @@ static void squares(void)
     pa_curvis(stdout, FALSE); /* turn off cursor */
     cd = FALSE; /* set 1st display */
     /* place squares on display */
-    for (i = 0; i < MAXSQUARE; i++) drawsquare(baltbl[i].c, baltbl[i].x, baltbl[i].y);
+    for (i = 0; i < MAXSQUARE; i++)
+        drawsquare(baltbl[i].c, baltbl[i].x, baltbl[i].y);
     pa_frametimer(stdout, TRUE); /* start frame timer */
     done = FALSE; /* set ! done */
     while (!done) {
 
         /* select display and update surfaces */
         pa_select(stdout, !cd+1, cd+1);
-        putchar('\n');
+        putchar('\f');
         pa_fover(stdout);
         pa_fcolor(stdout, pa_black);
         prtcen(pa_maxy(stdout), "Animation test");
@@ -449,7 +450,7 @@ static void squares(void)
         }
         /* move squares */
         for (rc = 1; rc <= REPRATE; rc++) /* repeats per frame */
-            for (i = 1; i <= MAXSQUARE; i++) movesquare(i); /* process squares */
+            for (i = 0; i < MAXSQUARE; i++) movesquare(i); /* process squares */
         /* draw squares */
         for (i = 0; i < MAXSQUARE; i++)
             drawsquare(baltbl[i].c, baltbl[i].x, baltbl[i].y);
@@ -863,7 +864,7 @@ static void ftextspeed(int t, int* s)
         pa_fcolor(stdout, randr(pa_red, pa_magenta));
         pa_bcolor(stdout, randr(pa_red, pa_magenta));
         pa_cursorg(stdout, randr(1, pa_maxxg(stdout)), randr(1, pa_maxyg(stdout)));
-        puts("Test text");
+        printf("Test text");
 
     }
     *s = pa_elapsed(c);
@@ -933,7 +934,6 @@ int main(void)
 
     if (setjmp(terminate_buf)) goto terminate;
     pa_curvis(stdout, FALSE);
-#if 0
     printf("Graphics screen test vs. 0.1\n");
     printf("\n");
     printf("Screen size in characters: x -> %d y -> %d\n", pa_maxx(stdout),
@@ -943,8 +943,7 @@ int main(void)
     printf("Size of character in default font: x -> %d y -> %d\n",
            pa_chrsizx(stdout), pa_chrsizy(stdout));
     printf("Dots per meter: dpmx: %d dpmy: %d\n", pa_dpmx(stdout), pa_dpmy(stdout));
-// need floating point output for next
-//    printf("Aspect ratio: %f\n", pa_dpmx(stdout)/pa_dpmy(stdout));
+    printf("Aspect ratio: %f\n", pa_dpmx(stdout)/pa_dpmy(stdout));
     prtcen(pa_maxy(stdout),
            "Press return to start test (and to pass each pattern)");
     waitnext();
@@ -1086,7 +1085,7 @@ int main(void)
     while (!term) {
 
         pa_cursorg(stdout, x, y);
-        puts(S1);
+        printf("%s", S1);
         xs = x;
         ys = y;
         x = x+dx;
@@ -1106,7 +1105,7 @@ int main(void)
         waitchar(100, &term);
         pa_cursorg(stdout, xs, ys);
         pa_fcolor(stdout, pa_white);
-        puts(S1);
+        printf("%s", S1);
         pa_fcolor(stdout, pa_black);
 
     }
@@ -2472,7 +2471,7 @@ int main(void)
     } while (er.etype != pa_etenter);
 
     /* ************************** Animation test **************************** */
-#endif
+
     squares();
 
     /* ************************** View offset test **************************** */
@@ -2557,7 +2556,7 @@ int main(void)
     printf("Seconds per rounded rectangle %f\n", s*0.0001/i);
     waitnext();
 
-    i = 1000000;
+    i = 100000;
     frectspeed(i, &s);
     benchtab[bnfrect].iter = i;
     benchtab[bnfrect].time = s;
@@ -2629,7 +2628,7 @@ int main(void)
     printf("Seconds per filled chord %f\n", s*0.0001/i);
     waitnext();
 
-    i = 1000000;
+    i = 100000;
     ftrianglespeed(i, &s);
     benchtab[bnftriangle].iter = i;
     benchtab[bnftriangle].time = s;
@@ -2639,7 +2638,7 @@ int main(void)
 
     pa_bover(stdout);
     pa_fover(stdout);
-    i = 100000;
+    i = 100000/4;
     ftextspeed(i, &s);
     benchtab[bntext].iter = i;
     benchtab[bntext].time = s;
@@ -2650,7 +2649,7 @@ int main(void)
 
     pa_binvis(stdout);
     pa_fover(stdout);
-    i = 100000;
+    i = 100000/4;
     ftextspeed(i, &s);
     benchtab[bntextbi].iter = i;
     benchtab[bntextbi].time = s;
@@ -2660,7 +2659,7 @@ int main(void)
     printf("Seconds per write %f\n", s*0.0001/i);
     waitnext();
 
-    i = 1000;
+    i = 10000;
     fpictspeed(i, &s);
     benchtab[bnpict].iter = i;
     benchtab[bnpict].time = s;
@@ -2668,7 +2667,7 @@ int main(void)
     printf("Seconds per picture %f\n", s*0.0001/i);
     waitnext();
 
-    i = 1000;
+    i = 10000;
     fpictnsspeed(i, &s);
     benchtab[bnpictns].iter = i;
     benchtab[bnpictns].time = s;
@@ -2681,7 +2680,7 @@ int main(void)
     fprintf(stderr, "\n");
     fprintf(stderr, "Benchmark table\n");
     fprintf(stderr, "\n");
-    fprintf(stderr, "Type                        Seconds     Per fig\n");
+    fprintf(stderr, "Type                        Seconds  Per fig\n");
     fprintf(stderr, "--------------------------------------------------\n");
     for (bi = bnline1; bi <= bnpictns; bi++) {
 
@@ -2709,9 +2708,9 @@ int main(void)
             case bnpictns:    fprintf(stderr, "No scaling picture draw     "); break;
 
         };
-        fprintf(stderr, "%f %d", pa_time()*0.0001, 10);
-        fprintf(stderr, "  ");
-        fprintf(stderr, "%f %d", benchtab[bi].time*0.0001/benchtab[bi].iter, 10);
+        fprintf(stderr, "%5.2f", benchtab[bi].time*0.0001);
+        fprintf(stderr, "    ");
+        fprintf(stderr, "%f.2", benchtab[bi].time*0.0001/benchtab[bi].iter);
         fprintf(stderr, "\n");
 
     }
