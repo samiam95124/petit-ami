@@ -4,6 +4,7 @@ Parse config file
 
 Petit-ami pulls config files in plain text, in the order PUD or "Program, User,
 current directory".
+
 The file name is "petit_ami.cfg" or ".petit_ami.cfg". The first is visible, the
 second is not. They are looked for in that order. Then, the order is to search:
 
@@ -29,6 +30,21 @@ Petit_ami values are tree structured. The syntax of a petit_ami.cfg file is:
 
 <symbol> = a...z | A..Z | _ [a..z | A..Z | _ 0..9]...
 <value> = ~ (space)
+
+Example:
+
+# This is a config file
+
+myval "this is a string"
+thisval Non-quoted string.
+begin network
+
+    # These are definitions specific to "network"
+    ipaddr 192.168.1.1
+    mask 255.255.255.254
+
+end
+lastval 1234
 
 Each element of the .cfg file is on a separate line. Comment lines can be
 interspersed in the file. The value of a symbol is the entire line contents
@@ -86,8 +102,9 @@ a block for each plugin.
 #include <localdefs.h>
 #include <services.h>
 
-#define MAXSTR 250
-#define MAXID  20
+#define MAXSTR 250 /* length of string buffers */
+#define MAXID  20  /* length of id words */
+#define INDENT 4   /* spaces to indent by */
 
 typedef struct value {
 
@@ -244,6 +261,181 @@ static void parlst(
 
 /**//***************************************************************************
 
+Print list section
+
+Prints one section of a config tree with indent. Prints sublists at a higher
+indent level.
+
+*******************************************************************************/
+
+static void prtlstsub(
+    /* list to print */ valptr list,
+    /* indent level */  int ind
+)
+
+{
+
+    while (list) { /* traverse the list */
+
+        fprintf(stderr, "%*c %s\n", ' ', list->name);
+        /* if it is a branch, recurse to print at higher indent */
+        if (list->sublist) {
+
+            fprintf(stderr, "%*c %s\n", ' ', list->name);
+            pa_list(list->sublist, ind+INDENT);
+
+        } else {
+
+            fprintf(stderr, "%*c %s %s\n", ' ', list->name, list->value);
+
+        }
+        list = list->next; /* next list item */
+
+    }
+
+}
+
+/**//***************************************************************************
+
+Replace entry in config list
+
+Given a list and a pointer to an entry within the list, will remove the list
+list entry and replace it with the new one. The removed entry will be recycled.
+
+*******************************************************************************/
+
+static void replace(
+    /* old root */    valptr* root,
+    /* new root */    valptr  match,
+    /* replacement */ valptr  rep
+)
+
+{
+
+    valptr p;
+    valptr l;
+
+    l = NULL; /* set no last */
+    p = root; /* index root */
+    while (p) {
+
+        if (p == match) {
+
+            /* move list links to new entry */
+            if (!l) *root = rep;
+            else l->next = rep;
+            rep->next = match;
+            /* free old entry */
+            free(match);
+
+        }
+        l = p;
+        p = p->next;
+
+    }
+
+
+}
+
+/**//***************************************************************************
+
+Print list
+
+A diagnostic, prints an indented table representing the given tree. Note that
+since config trees are symmetrical, you can print the tree at any level.
+
+*******************************************************************************/
+
+void pa_prtlst(
+    /* list to print */ valptr list
+)
+
+{
+
+    prtlstsub(list, 0); /* print the tree */
+
+}
+
+/**//***************************************************************************
+
+Search list
+
+Searches a list of values for a match. Returns the first matching entry, or
+NULL if not found. Note that this will find either a value or a sublist branch.
+
+*******************************************************************************/
+
+valptr pa_schlst(
+    /* id to match */ string id,
+    /* list to search */ valptr root
+}
+
+{
+
+    while (root && strcmp(root->name, id) root = root->next;
+
+    return (root);
+
+}
+
+/**//***************************************************************************
+
+Merge roots
+
+Merges a new root tree with an old one. If the new tree has leaves that aren't
+represented in the old tree, then they are placed in the old tree. If the new
+tree has leaves the duplicate entries in the old tree, then the new definitions
+replace the old ones.
+
+By definition, all the entries in the new tree are used, and there is no need
+to recycle the new tree entries. All entries that are removed from the old tree
+are recycled.
+
+Warning: the new tree is returned to you intact, but it must be discarded, since
+all of the entries have been freed!
+
+*******************************************************************************/
+
+void pa_merge(
+    /* old root */ valptr* root,
+    /* new root */ valptr newroot
+}
+
+{
+
+    valptr match;
+    valptr p;
+
+    while (newroot) { /* the new root is not at end */
+
+        /* find any matching entry to this new one */
+        match = pa_schlst(newroot->name, root);
+        if (match) { /* found an entry */
+
+            /* merge new sublist with old sublist */
+            pa_merge(&match->sublist, newroot->sublist);
+            /* copy under new entry */
+            newroot->sublist = match->sublist;
+            /* replace with new entry */
+            replace(root, match, newroot);
+            newroot = newroot->next; /* go next */
+
+        } else { /* insert new entry */
+
+            p = newroot; /* index the entry */
+            newroot = newroot->next; /* go next */
+            p->next = *root; /* insert to top of target list */
+            *root = p;
+
+        }
+
+
+    }
+
+}
+
+/**//***************************************************************************
+
 Parse config tree from filename
 
 Parses a configuration tree from the given filename/path to the given root tree.
@@ -251,9 +443,11 @@ The values are merged with the contents of the root passed.
 
 This routine can be called directly to use alternative config file names.
 
+The caller is responsible for freeing the entries in the tree after use.
+
 *******************************************************************************/
 
-void _pa_configfile(string fn, valptr* root)
+void pa_configfile(string fn, valptr* root)
 
 {
 
@@ -314,9 +508,11 @@ with those. You can also perform a merge with other definitions after this
 call. Thus you can either put extra definitions that will be overridden, or
 new definitions that will override.
 
+The caller is responsible for freeing the entries in the tree after use.
+
 *******************************************************************************/
 
-void _pa_config(valptr* root)
+void pa_config(valptr* root)
 
 {
 
