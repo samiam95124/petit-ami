@@ -351,9 +351,10 @@ static void replace(
             /* move list links to new entry */
             if (!l) *root = rep;
             else l->next = rep;
-            rep->next = match;
+            rep->next = match->next;
             /* free old entry */
             free(match);
+            p = rep; /* set new entry */
 
         }
         l = p;
@@ -443,9 +444,10 @@ void pa_merge(
             pa_merge(&match->sublist, newroot->sublist);
             /* copy under new entry */
             newroot->sublist = match->sublist;
+            p = newroot->next; /* save next entry */
             /* replace with new entry */
             replace(root, match, newroot);
-            newroot = newroot->next; /* go next */
+            newroot = p; /* go next */
 
         } else { /* insert new entry */
 
@@ -482,7 +484,6 @@ void pa_configfile(string fn, pa_valptr* root)
     /* line counter */     int    lc;
     /* new root pointer */ pa_valptr np;
 
-fprintf(stderr, "pa_configfile: filename: %s\n", fn);
     f = fopen(fn, "r");
     lc = 0; /* clear line count */
     np = NULL; /* clear new root */
