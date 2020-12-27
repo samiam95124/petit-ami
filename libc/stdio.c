@@ -2319,20 +2319,24 @@ char *fgets(char *s, int n, FILE *stream)
 
     int c; /* input character holder */
     char *s1; /* input array holder */
+    int cc;   /* character count */
 
     if (!stream || stream->fid < 0) return (NULL);
     s1 = s; /* save array to return */
+    cc = 0; /* clear character count */
     do { /* read characters */
 
         c = fgetc(stream); /* get next character */
         if (c == EOF) { /* end of file */
 
             *s = '\0'; /* for neatness, we terminate the string */
-            return NULL; /* eof, return null string */
+            if (cc) return (s1); /* characters were read */
+            else return NULL; /* no characters read, return null string */
 
         }
         *s = c; /* place character */
         s++; /* next character */
+        cc++; /* count characters */
 
     } while (c != '\n' && n--); /* not newline, and not past limit */
     *s = '\0';

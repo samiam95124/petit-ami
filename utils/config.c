@@ -64,10 +64,10 @@ Config values are passed via a tree structure:
 
 typedef struct value {
 
-    struct value next; /* next value in list */
-    struct value sublist; /* new begin/end block */
-    string name; /* name of node */
-    string value; /* value of this node */
+    struct value next;
+    struct value sublist;
+    string name;
+    string value;
 
 } value, *valptr;
 
@@ -98,22 +98,15 @@ a block for each plugin.
 #include <stddef.h>
 #include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 #include <localdefs.h>
 #include <services.h>
+#include <config.h>
 
 #define MAXSTR 250 /* length of string buffers */
 #define MAXID  20  /* length of id words */
 #define INDENT 4   /* spaces to indent by */
-
-typedef struct value {
-
-    struct value  next;    /* next value in list */
-    struct value* sublist; /* new begin/end block */
-    string name;           /* name of node */
-    string value;          /* value of this node */
-
-} value, *valptr;
 
 /**//***************************************************************************
 
@@ -125,7 +118,7 @@ static void error(
     /* filename */      string fn,
     /* line count */    int lc,
     /* error message */ string es
-}
+)
 
 {
 
@@ -148,9 +141,11 @@ The string pointer is advanced past the label.
 *******************************************************************************/
 
 static void parlab(
+    /* name of file */           string  fn,
+    /* line counter */           int     lc,
     /* source string to parse */ string* s,
-    /* resulting id */           string  w,
-}
+    /* resulting id */           string  w
+)
 
 {
 
@@ -158,24 +153,42 @@ static void parlab(
 
     /* get id off line */
     wi = 0; /* set first character */
-    while (isalnum(**s) || **s = '_') {
+    while (isspace(**s)) (*s)++; /* skip spaces */
+    while (isalnum(**s) || **s == '_') {
 
-        if (wi > MAXID-1) {
-
-            fprintf(stderr, "*** Config: File: %s Line: %d id too long\n", fn,
-                    *lc);
-            exit(1);
-
-        }
-        word[wi++] = (**s)++;
+        if (wi > MAXID-1) error(fn, lc, "Id too long");
+        w[wi++] = *(*s)++;
 
     }
-    if (!wi) { /* no label found */
+    w[wi] = 0; /* terminate */
+    if (!wi) error(fn, lc, "missing id");
 
-        fprintf(stderr, "*** Config: File: %s Line: %d missing id\n", fn, *lc);
-        exit(1);
+}
 
-    }
+/**//***************************************************************************
+
+Add item to list end
+
+Adds new list item to end of list.
+
+*******************************************************************************/
+
+void addend(
+    /* list */ pa_valptr* root,
+    /* item */ pa_valptr  item
+)
+
+{
+
+    pa_valptr p;
+    pa_valptr l;
+
+    l = NULL;
+    p = *root;
+    item->next = NULL; /* set no next */
+    while (p) { l = p; p = p->next; } /* traverse to end */
+    if (!l) *root = item; /* insert list top */
+    else l->next = item; /* insert list last */
 
 }
 
@@ -188,10 +201,10 @@ Parses a linear list of configuration lines.
 *******************************************************************************/
 
 static void parlst(
-    /* name of file */        string fn,
-    /* file handle */         FILE F,
-    /* line counter */        int* lc,
-    /* root of config tree */ valptr* root
+    /* name of file */        string  fn,
+    /* file handle */         FILE*   f,
+    /* line counter */        int*    lc,
+    /* root of config tree */ pa_valptr* root
 )
 
 {
@@ -199,61 +212,73 @@ static void parlst(
     /* id buffer */                 char   word[MAXID];
     /* line buffer */               char   linbuf[MAXSTR];
     /* line buffer pointer */       char*  s;
-    /* value constructor pointer */ valptr vp;
+    /* value constructor pointer */ pa_valptr vp;
     /* end of block */              int    end;
+    /* fgets return */              string p;
+    /* length of input line */      int    ll;
 
-    p = fgets(linbuf, MAXSTR, f); /* get next line */
-    (*lc)++; /* increment line counter */
     end = FALSE; /* set not at end */
-    if (p && !end) { /* not eof */
+    while (!end) { /* not eof */
 
-        s = linbuf; /* index line */
-        while (isspace(*s)) s++; /* skip any spaces */
-        if (*s && *s != '\n') { /* ignore blank lines */
+        p = fgets(linbuf, MAXSTR, f); /* get next line */
+        if (p) { /* not EOF */
 
-            if (*s == "#") { /* comment */
+            (*lc)++; /* increment line counter */
+            ll = strlen(linbuf); /* find string length */
+            /* remove trailing eoln */
+            if (ll && linbuf[ll-1] == '\n') linbuf[ll-1] = 0;
+            s = linbuf; /* index line */
+            while (isspace(*s)) s++; /* skip any spaces */
+            if (*s && *s != '\n') { /* ignore blank lines */
 
-                while (*s) s++; /* skip over line */
+                if (*s == '#') { /* comment */
 
-            } else if (isalnum(*s) || *s = '_') {
+                    while (*s) s++; /* skip over line */
 
-                parlab(&s, &word); /* get id off line */
-                if (!strcmp(word, "begin")) {
+                } else if (isalnum(*s) || *s == '_') {
 
-                    /* nested sublist */
-                    parlab(&s, &word); /* get symbol */
-                    /* get sublist constructor */
-                    vp = maloc(sizeof(value));
-                    if (!vp) error(fn, *lc, "Out of memory");
-                    /* push to list */
-                    vp->next = *valptr;
-                    *valptr = vp;
-                    vp->sublist = NULL; /* set no subtree */
-                    strcpy(vp->name, word); /* copy id into place */
-                    /* parse sublist */
-                    parlst(fn, f, lc, &(vp->sublist));
+                    parlab(fn, *lc, &s, word); /* get id off line */
+                    if (!strcmp(word, "begin")) {
 
-                } else if (!strcmp(word, "end")
-                    /* end of list, we simply exit */
-                    end = TRUE;
-                else {
+                        /* nested sublist */
+                        parlab(fn, *lc, &s, word); /* get symbol */
+                        /* get sublist constructor */
+                        vp = malloc(sizeof(pa_value));
+                        if (!vp) error(fn, *lc, "Out of memory");
+                        addend(root, vp); /* add to list end */
+                        vp->sublist = NULL; /* set no subtree */
+                        vp->name = malloc(strlen(word)+1);
+                        if (!vp->name) error(fn, *lc, "Out of memory");
+                        strcpy(vp->name, word); /* copy id into place */
+                        vp->value = NULL;
+                        /* parse sublist */
+                        parlst(fn, f, lc, &(vp->sublist));
 
-                    if (isspace(*s)) s++; /* skip space as separator */
-                    /* valid id found, construct value entry */
-                    vp = maloc(sizeof(value));
-                    if (!vp) error(fn, *lc, "Out of memory");
-                    /* push to list */
-                    vp->next = *valptr;
-                    *valptr = vp;
-                    vp->sublist = NULL; /* set no subtree */
-                    strcpy(vp->name, word); /* copy id into place */
-                    strcpy(vp->value, s); /* copy value into place */
+                    } else if (!strcmp(word, "end"))
+                        /* end of list, we simply exit */
+                        end = TRUE;
+                    else {
 
-                }
+                        if (isspace(*s)) s++; /* skip space as separator */
+                        /* valid id found, construct value entry */
+                        vp = malloc(sizeof(pa_value));
+                        if (!vp) error(fn, *lc, "Out of memory");
+                        addend(root, vp); /* add to list end */
+                        vp->sublist = NULL; /* set no subtree */
+                        vp->name = malloc(strlen(word)+1);
+                        if (!vp->name) error(fn, *lc, "Out of memory");
+                        strcpy(vp->name, word); /* copy id into place */
+                        vp->value = malloc(strlen(s)+1);
+                        if (!vp->value) error(fn, *lc, "Out of memory");
+                        strcpy(vp->value, s); /* copy value into place */
 
-            } else error(fn, *lc, "Missing id");
+                    }
 
-        }
+                } else error(fn, *lc, "Missing id");
+
+            }
+
+        } else end = TRUE; /* set end of file */
 
     }
 
@@ -269,24 +294,26 @@ indent level.
 *******************************************************************************/
 
 static void prtlstsub(
-    /* list to print */ valptr list,
+    /* list to print */ pa_valptr list,
     /* indent level */  int ind
 )
 
 {
 
+    int i;
+
     while (list) { /* traverse the list */
 
-        fprintf(stderr, "%*c %s\n", ' ', list->name);
+        for (i = 0; i < ind; i++) fprintf(stderr, " ");
         /* if it is a branch, recurse to print at higher indent */
         if (list->sublist) {
 
-            fprintf(stderr, "%*c %s\n", ' ', list->name);
-            pa_list(list->sublist, ind+INDENT);
+            fprintf(stderr, "%s\n", list->name);
+            prtlstsub(list->sublist, ind+INDENT);
 
         } else {
 
-            fprintf(stderr, "%*c %s %s\n", ' ', list->name, list->value);
+            fprintf(stderr, "%-20s %s\n", list->name, list->value);
 
         }
         list = list->next; /* next list item */
@@ -305,18 +332,18 @@ list entry and replace it with the new one. The removed entry will be recycled.
 *******************************************************************************/
 
 static void replace(
-    /* old root */    valptr* root,
-    /* new root */    valptr  match,
-    /* replacement */ valptr  rep
+    /* old root */    pa_valptr* root,
+    /* new root */    pa_valptr  match,
+    /* replacement */ pa_valptr  rep
 )
 
 {
 
-    valptr p;
-    valptr l;
+    pa_valptr p;
+    pa_valptr l;
 
     l = NULL; /* set no last */
-    p = root; /* index root */
+    p = *root; /* index root */
     while (p) {
 
         if (p == match) {
@@ -339,15 +366,15 @@ static void replace(
 
 /**//***************************************************************************
 
-Print list
+Print tree
 
 A diagnostic, prints an indented table representing the given tree. Note that
 since config trees are symmetrical, you can print the tree at any level.
 
 *******************************************************************************/
 
-void pa_prtlst(
-    /* list to print */ valptr list
+void pa_prttre(
+    /* list to print */ pa_valptr list
 )
 
 {
@@ -365,14 +392,14 @@ NULL if not found. Note that this will find either a value or a sublist branch.
 
 *******************************************************************************/
 
-valptr pa_schlst(
+pa_valptr pa_schlst(
     /* id to match */ string id,
-    /* list to search */ valptr root
-}
+    /* list to search */ pa_valptr root
+)
 
 {
 
-    while (root && strcmp(root->name, id) root = root->next;
+    while (root && strcmp(root->name, id)) root = root->next;
 
     return (root);
 
@@ -397,19 +424,19 @@ all of the entries have been freed!
 *******************************************************************************/
 
 void pa_merge(
-    /* old root */ valptr* root,
-    /* new root */ valptr newroot
-}
+    /* old root */ pa_valptr* root,
+    /* new root */ pa_valptr newroot
+)
 
 {
 
-    valptr match;
-    valptr p;
+    pa_valptr match;
+    pa_valptr p;
 
     while (newroot) { /* the new root is not at end */
 
         /* find any matching entry to this new one */
-        match = pa_schlst(newroot->name, root);
+        match = pa_schlst(newroot->name, *root);
         if (match) { /* found an entry */
 
             /* merge new sublist with old sublist */
@@ -447,29 +474,27 @@ The caller is responsible for freeing the entries in the tree after use.
 
 *******************************************************************************/
 
-void pa_configfile(string fn, valptr* root)
+void pa_configfile(string fn, pa_valptr* root)
 
 {
 
     /* file id */          FILE*  f;
     /* line counter */     int    lc;
-    /* new root pointer */ valptr np;
+    /* new root pointer */ pa_valptr np;
 
+fprintf(stderr, "pa_configfile: filename: %s\n", fn);
     f = fopen(fn, "r");
     lc = 0; /* clear line count */
+    np = NULL; /* clear new root */
     if (f) { /* file exists/can be opened */
 
-        while (!feof()) {
-
-            /* parse list of values */
-            parlst(fn, f, &lc, &np);
-
-        }
+        /* parse list of values */
+        parlst(fn, f, &lc, &np);
         fclose(f);
+        /* now merge old and new trees */
+        pa_merge(root, np);
 
     }
-    /* now merge old and new trees */
-    merge(root, np);
 
 }
 
@@ -512,7 +537,7 @@ The caller is responsible for freeing the entries in the tree after use.
 
 *******************************************************************************/
 
-void pa_config(valptr* root)
+void pa_config(pa_valptr* root)
 
 {
 
@@ -520,27 +545,27 @@ void pa_config(valptr* root)
     char filnam[MAXSTR];
 
     /* config from program path */
-    pa_getgm(pgmpth, MAXSTR); /* get program path */
+    pa_getpgm(pgmpth, MAXSTR); /* get program path */
     /* try both visible and invisible names */
     pa_maknam(filnam, MAXSTR, pgmpth, "petit_ami", "cfg");
-    configfile(name, root);
+    pa_configfile(filnam, root);
     pa_maknam(filnam, MAXSTR, pgmpth, ".petit_ami", "cfg");
-    configfile(name, root);
+    pa_configfile(filnam, root);
 
     /* config from user path */
     pa_getusr(pgmpth, MAXSTR); /* get user path */
     /* try both visible and invisible names */
     pa_maknam(filnam, MAXSTR, pgmpth, "petit_ami", "cfg");
-    configfile(name, root);
+    pa_configfile(filnam, root);
     pa_maknam(filnam, MAXSTR, pgmpth, ".petit_ami", "cfg");
-    configfile(name, root);
+    pa_configfile(filnam, root);
 
     /* config from current directory */
     pa_getcur(pgmpth, MAXSTR); /* get current path */
     /* try both visible and invisible names */
     pa_maknam(filnam, MAXSTR, pgmpth, "petit_ami", "cfg");
-    configfile(name, root);
+    pa_configfile(filnam, root);
     pa_maknam(filnam, MAXSTR, pgmpth, ".petit_ami", "cfg");
-    configfile(name, root);
+    pa_configfile(filnam, root);
 
 }
