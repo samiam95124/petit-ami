@@ -84,6 +84,8 @@
 #include <math.h>
 #include <windows.h>
 #include <commctrl.h>
+
+#include <config.h>
 #include <graph.h>
 
 /*

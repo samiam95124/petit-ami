@@ -253,6 +253,7 @@ static void parlst(
                         vp->value = NULL;
                         /* parse sublist */
                         parlst(fn, f, lc, &(vp->sublist));
+//fprintf(stderr, "parlst: branch: name: %s value: %s\n", vp->name, vp->value);
 
                     } else if (!strcmp(word, "end"))
                         /* end of list, we simply exit */
@@ -271,6 +272,7 @@ static void parlst(
                         vp->value = malloc(strlen(s)+1);
                         if (!vp->value) error(fn, *lc, "Out of memory");
                         strcpy(vp->value, s); /* copy value into place */
+//fprintf(stderr, "parlst: value: name: %s value: %s\n", vp->name, vp->value);
 
                     }
 
@@ -451,13 +453,11 @@ void pa_merge(
 
         } else { /* insert new entry */
 
-            p = newroot; /* index the entry */
-            newroot = newroot->next; /* go next */
-            p->next = *root; /* insert to top of target list */
-            *root = p;
+            p = newroot->next; /* save next entry */
+            addend(root, newroot); /* add new entry */
+            newroot = p; /* go next */
 
         }
-
 
     }
 
