@@ -1395,6 +1395,8 @@ static int vsprintfe(char *s, const char *fmt, va_list ap, FILE *fd)
 
 {
 
+    const char   nulmsg[] = "(null)"; /* null message */
+
     int           cnt;  /* number of characters processed */
     int           lft;  /* left justify field */
     int           sgn;  /* always print sign */
@@ -1598,20 +1600,31 @@ static int vsprintfe(char *s, const char *fmt, va_list ap, FILE *fd)
                     fmt++; /* next character */
                     break;
                 case 's':
-                    cp = va_arg(ap, char *); /* get signed integer */
-                    if (pres) { /* precision was specified */
+                    cp = va_arg(ap, char *); /* get character pointer */
+                    if (cp) { /* not null */
 
-                        l = pre; /* set length from precision */
-                        for (i = 0; cp[i] && i < l; i++); /* find true length */
-                        if (!cp[i]) l = i; /* if shorter, use that */
+                        if (pres) { /* precision was specified */
 
-                    } else l = strlen(cp); /* find length of string */
-                    /* if right justified, pad left to go right */
-                    if (!lft) putchrs(&s, fld-l, ' ', &cnt, fd);
-                    /* output characters of string */
-                    for (i = 0; i < l; i++) putchrs(&s, 1, *cp++, &cnt, fd);
-                    /* if left justified, pad right to go left */
-                    if (lft) putchrs(&s, fld-l, ' ', &cnt, fd);
+                            l = pre; /* set length from precision */
+                            for (i = 0; cp[i] && i < l; i++); /* find true length */
+                            if (!cp[i]) l = i; /* if shorter, use that */
+
+                        } else l = strlen(cp); /* find length of string */
+                        /* if right justified, pad left to go right */
+                        if (!lft) putchrs(&s, fld-l, ' ', &cnt, fd);
+                        /* output characters of string */
+                        for (i = 0; i < l; i++) putchrs(&s, 1, *cp++, &cnt, fd);
+                        /* if left justified, pad right to go left */
+                        if (lft) putchrs(&s, fld-l, ' ', &cnt, fd);
+
+                    } else { /* null */
+
+                        l = strlen(nulmsg); /* find length of null message */
+                        /* output null message */
+                        for (i = 0; i < l; i++)
+                            putchrs(&s, 1, nulmsg[i], &cnt, fd);
+
+                    }
                     fmt++; /* next character */
                     break;
                 case 'f':
