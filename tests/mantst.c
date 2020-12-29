@@ -4,13 +4,13 @@
 *                                                                             *
 *                    Copyright (C) 2005 Scott A. Moore                        *
 *                                                                             *
-* Tests text && graphical windows management calls.                          *
+* Tests text and graphical windows management calls.                          *
 *                                                                             *
 *******************************************************************************/
 
 program mantst(input, output, error);
 
-uses gralib/*, 
+uses gralib/*,
      extlib,
      strlib */;
 
@@ -56,10 +56,10 @@ var er: evtrec; /* event record */
 
 {
 
-   repeat 
+   repeat
 
       event(input, er);
-      if er.etype == etchar then 
+      if er.etype == etchar then
          writeln('Window: ', er.winid:1, ' char: ', er.char);
 
    until (er.etype == etenter) || (er.etype == etterm);
@@ -98,7 +98,7 @@ var er: evtrec;
 {
 
    timer(output, 1, t, false);
-   repeat event(input, er) 
+   repeat event(input, er)
    until (er.etype == ettim) || (er.etype == etterm);
    if er.etype == etterm then goto 99
 
@@ -129,7 +129,7 @@ var lp: menuptr;
 
 /* create menu entry */
 
-void newmenu(var mp: menuptr; onoff, oneof, bar: boolean; 
+void newmenu(var mp: menuptr; onoff, oneof, bar: boolean;
                   id: int; view face: char*);
 
 {
@@ -197,12 +197,12 @@ var er:   evtrec;
          write(s);
 
       };
-      if er.etype == etresize then { 
+      if er.etype == etresize then {
 
          /* Save the new demensions, even if ! required. This way we must
            get a resize notification for this test to work. */
-         x = maxxg; 
-         y = maxyg 
+         x = maxxg;
+         y = maxyg
 
       };
       if er.etype == etterm then goto 99
@@ -210,6 +210,8 @@ var er:   evtrec;
    until er.etype == etenter
 
 };
+
+int main(void)
 
 {
 
@@ -240,7 +242,7 @@ var er:   evtrec;
    writeln('The title bar of this window should read: This is a mangement test window');
    prtceng(maxyg-chrsizy, 'Window title test');
    waitnext;
-   
+
    /* ************************** Multiple windows ************************** */
 
    page;
@@ -250,12 +252,12 @@ var er:   evtrec;
    auto(on);
    writeln('This is the main window');
    writeln;
-   writeln('Select back && forth between each window, && make sure the'); 
+   writeln('Select back && forth between each window, && make sure the');
    writeln('cursor follows');
    writeln;
    write('Here is the cursor->');
    openwin(input, win2, 2);
-   writeln(win2, 'This is the second window'); 
+   writeln(win2, 'This is the second window');
    writeln(win2);
    write(win2, 'Here is the cursor->');
    waitnext;
@@ -281,7 +283,7 @@ var er:   evtrec;
    for x = 1 to maxx do write('*');
    for y = 1 to maxy do { cursor(1, y); write('*') };
    for y = 1 to maxy do { cursor(maxx, y); write('*') };
-   home;       
+   home;
    writeln('Buffer should now be 50 by 50 characters, and');
    writeln('painted blue');
    writeln('maxx: ', maxx:1, ' maxy: ', maxy:1);
@@ -364,7 +366,7 @@ var er:   evtrec;
    waitnext;
    winclientg(ox, oy, ox, oy, [wmframe, wmsize, wmsysbar]);
    setsizg(ox, oy);
-   
+
    /* ******************** Resize screen with buffer on pixel ***************** */
 
    ox = maxxg;
@@ -427,7 +429,7 @@ var er:   evtrec;
    fb = false; /* clear front/back status */
    font(font_sign);
    fontsiz(50);
-   repeat 
+   repeat
 
       event(input, er);
       if er.etype == etchar then if er.char == ' ' then { /* flip front/back */
@@ -440,7 +442,7 @@ var er:   evtrec;
             prtceng(maxyg / 2-chrsizy / 2, 'Back');
             fcolor(black);
             prtceng(maxyg / 2-chrsizy / 2, 'Front')
-  
+
          } else {
 
             back;
@@ -518,27 +520,27 @@ var er:   evtrec;
    fcolor(black);
    ml = nil; /* clear menu list */
    newmenu(mp, false, false, off, 1, 'Say hello');
-   app}menu(ml, mp); 
+   app}menu(ml, mp);
    newmenu(mp, true, false,  on, 2, 'Bark');
-   app}menu(ml, mp); 
+   app}menu(ml, mp);
    newmenu(mp, false, false, off, 3, 'Walk');
-   app}menu(ml, mp); 
+   app}menu(ml, mp);
    newmenu(sm, false, false, off, 4, 'Sublist');
-   app}menu(ml, sm); 
+   app}menu(ml, sm);
    /* these are one/of buttons */
    newmenu(mp, false, true,  off, 5, 'slow');
-   app}menu(sm->branch, mp); 
+   app}menu(sm->branch, mp);
    newmenu(mp, false, true,  off, 6, 'medium');
-   app}menu(sm->branch, mp); 
+   app}menu(sm->branch, mp);
    newmenu(mp, false, false, on, 7, 'fast');
-   app}menu(sm->branch, mp); 
+   app}menu(sm->branch, mp);
    /* these are on/off buttons */
    newmenu(mp, true, false,  off, 8, 'red');
-   app}menu(sm->branch, mp); 
+   app}menu(sm->branch, mp);
    newmenu(mp, true, false,  off, 9, 'green');
-   app}menu(sm->branch, mp); 
+   app}menu(sm->branch, mp);
    newmenu(mp, true, false,  off, 10, 'blue');
-   app}menu(sm->branch, mp); 
+   app}menu(sm->branch, mp);
    menu(ml);
    menuena(3, off); /* disable 'Walk' */
    menusel(5, on); /* turn on 'slow' */
@@ -555,7 +557,7 @@ var er:   evtrec;
    sred = on; /* set states */
    sgreen = off;
    sblue = off;
-   repeat 
+   repeat
 
       event(input, er);
       if er.etype == etterm then goto 99;
@@ -588,11 +590,11 @@ var er:   evtrec;
    auto(on);
    ml = nil; /* clear menu list */
    newmenu(mp, false, false, off, smmax+1, 'one');
-   app}menu(ml, mp); 
+   app}menu(ml, mp);
    newmenu(mp, true, false,  on, smmax+2, 'two');
-   app}menu(ml, mp); 
+   app}menu(ml, mp);
    newmenu(mp, false, false, off, smmax+3, 'three');
-   app}menu(ml, mp); 
+   app}menu(ml, mp);
    stdmenu([smnew, smopen, smclose, smsave,smsaveas, smpageset, smprint, smexit,
             smundo, smcut, smpaste, smdelete, smfind, smfindnext, smreplace,
             smgoto, smselectall, smnewwindow, smtilehoriz, smtilevert,
@@ -601,7 +603,7 @@ var er:   evtrec;
    writeln('Standard menu appears above');
    writeln('Check our ''one'', ''two'', ''three'' buttons are in the program');
    writeln('defined position');
-   repeat 
+   repeat
 
       event(input, er);
       if er.etype == etterm then goto 99;
@@ -882,8 +884,8 @@ var er:   evtrec;
    auto(off);
    buffer(off);
    /* initalize prime size information */
-   x = maxxg; 
-   y = maxyg; 
+   x = maxxg;
+   y = maxyg;
    linewidth(5); /* set large lines */
    font(font_sign);
    binvis;
@@ -901,12 +903,12 @@ var er:   evtrec;
          rect(1+2, 1+2, x-2, y-2); /* frame the window */
 
       };
-      if er.etype == etresize then { 
+      if er.etype == etresize then {
 
          /* Save the new demensions, even if ! required. This way we must
            get a resize notification for this test to work. */
-         x = maxxg; 
-         y = maxyg 
+         x = maxxg;
+         y = maxyg
 
       };
       if er.etype == etterm then goto 99
@@ -937,7 +939,7 @@ var er:   evtrec;
 
       };
       /* count minimize, maximize, normalize */
-      if er.etype == etmax then maxcnt = maxcnt+1; 
+      if er.etype == etmax then maxcnt = maxcnt+1;
       if er.etype == etmin then mincnt = mincnt+1;
       if er.etype == etnorm then nrmcnt = nrmcnt+1;
 
@@ -1066,7 +1068,7 @@ var er:   evtrec;
    linewidth(1);
    fcolor(win2, cyan);
    winclientg(200, 200, x, y, [wmframe, wmsize, wmsysbar]);
-   writeln('For (200, 200) client, full frame, window size is: ', 
+   writeln('For (200, 200) client, full frame, window size is: ',
            x:1, ',', y:1);
    setsizg(win2, x, y);
    rect(win2, 1, 1, 200, 200);
@@ -1079,7 +1081,7 @@ var er:   evtrec;
    writeln('System bar off');
    sysbar(win2, off);
    winclientg(200, 200, x, y, [wmframe, wmsize]);
-   writeln('For (200, 200) client, no system bar, window size is: ', 
+   writeln('For (200, 200) client, no system bar, window size is: ',
            x:1, ',', y:1);
    setsizg(win2, x, y);
    page(win2);
@@ -1093,7 +1095,7 @@ var er:   evtrec;
    sysbar(win2, on);
    sizable(win2, off);
    winclientg(200, 200, x, y, [wmframe, wmsysbar]);
-   writeln('For (200, 200) client, no sizing, window size is: ', 
+   writeln('For (200, 200) client, no sizing, window size is: ',
            x:1, ',', y:1);
    setsizg(win2, x, y);
    page(win2);
@@ -1108,7 +1110,7 @@ var er:   evtrec;
    sizable(win2, on);
    frame(win2, off);
    winclientg(200, 200, x, y, [wmsize, wmsysbar]);
-   writeln('For (200, 200) client, no frame, window size is: ', 
+   writeln('For (200, 200) client, no frame, window size is: ',
            x:1, ',', y:1);
    setsizg(win2, x, y);
    page(win2);
@@ -1123,7 +1125,7 @@ var er:   evtrec;
    /* ******************* Window size calculate minimums pixel *************** */
 
    /* this test does ! work, winclient needs to return the minimums */
-   if false then { 
+   if false then {
 
    page;
    prtceng(maxyg-chrsizy, 'Window size calculate minimum pixel');
@@ -1132,7 +1134,7 @@ var er:   evtrec;
    linewidth(1);
    fcolor(win2, cyan);
    winclientg(1, 1, x, y, [wmframe, wmsize, wmsysbar]);
-   writeln('For (200, 200) client, full frame, window size minimum is: ', 
+   writeln('For (200, 200) client, full frame, window size minimum is: ',
            x:1, ',', y:1);
    setsizg(win2, 1, 1);
    getsizg(win2, x2, y2);
