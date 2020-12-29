@@ -596,6 +596,7 @@ typedef enum {
     estrtl,   /* string too long for destination */
     enofnt,   /* Cannot create font */
     enosel,   /* Cannot select object */
+    ecfgval,  /* invalid configuration value */
     esystem   /* System consistency check */
 
 } errcod;
@@ -671,6 +672,11 @@ static imptr     freitm;       /* intratask message free list */
   is checked,  forces an immediate exit. This keeps faults from
   looping. */
 static int       dblflt;       /* double fault flag */
+
+/* default window dimensions */
+
+static int       maxxd;
+static int       maxyd;
 
 /*
  * Forward declarations.
@@ -1096,6 +1102,7 @@ static void error(errcod e)
         case estrtl:   grawrterr("String too long for destination"); break;
         case enofnt:   grawrterr("Cannot create font"); break;
         case enosel:   grawrterr("Cannot select object"); break;
+        case ecfgval:  grawrterr("Invalid configuration value"); break;
         case esystem:  grawrterr("System consistency check, please contact vendor");
 
     }
@@ -3319,7 +3326,7 @@ static void idown(winptr win)
     scnptr sc;
 
     sc = win->screens[win->curupd-1];
-    /* check ! bottom of screen */
+    /* check not bottom of screen */
     if (sc->cury < sc->maxy) {
 
        sc->cury = sc->cury+1; /* update position */
@@ -3427,7 +3434,7 @@ void iright(winptr win)
     sc = win->screens[win->curupd-1];
 
     /* check not at extreme right */
-    if (sc->curx < MAXXD) {
+    if (sc->curx < sc->maxx) {
 
        sc->curx = sc->curx+1; /* update position */
        sc->curxg = sc->curxg+win->charspace;
@@ -9246,8 +9253,8 @@ static void opnwin(int fn, int pfn)
     win->sdpmx = win->shres/win->shsize*1000; /* find dots per meter x */
     win->sdpmy = win->svres/win->svsize*1000; /* find dots per meter y */
     /* find client area size */
-    win->gmaxxg = MAXXD*win->charspace;
-    win->gmaxyg = MAXYD*win->linespace;
+    win->gmaxxg = maxxd*win->charspace;
+    win->gmaxyg = maxyd*win->linespace;
     cr.left = 0; /* set up desired client rectangle */
     cr.top = 0;
     cr.right = win->gmaxxg;
@@ -9269,8 +9276,8 @@ static void opnwin(int fn, int pfn)
 #endif
     lockmain(); /* start exclusive access */
     /* set up global buffer parameters */
-    win->gmaxx = MAXXD; /* character max dimensions */
-    win->gmaxy = MAXYD;
+    win->gmaxx = maxxd; /* character max dimensions */
+    win->gmaxy = maxyd;
     win->gattr = 0; /* no attribute */
     win->gauto = TRUE; /* auto on */
     win->gfcrgb = colnum(pa_black); /*foreground black */
@@ -15323,9 +15330,13 @@ static void pa_init_graph()
 
 {
 
-    int i;
-    int fi;
-    int ofn, ifn;
+    int       i;
+    int       fi;
+    int       ofn, ifn;
+    pa_valptr config_root; /* root for config block */
+    pa_valptr term_root; /* root for terminal block */
+    pa_valptr vp;
+    char*     errstr;
 
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
@@ -15334,12 +15345,28 @@ static void pa_init_graph()
     ovr_close(iclose, &ofpclose);
     ovr_lseek(ilseek, &ofplseek);
 
+    maxxd = MAXXD; /* set default window dimensions */
+    maxyd = MAXYD;
     fend = FALSE; /* set no end of program ordered */
     fautohold = TRUE; /* set automatically hold self terminators */
     eqefre = NULL; /* set free event queuing list empty */
     dblflt = FALSE; /* set no double fault */
     wigfre = NULL; /* set free widget tracking list empty */
     freitm = NULL; /* clear intratask message free list */
+
+    /* get setup configuration */
+    config_root = NULL;
+    pa_config(&config_root);
+    /* find "terminal" block */
+    term_root = pa_schlst("terminal", config_root);
+    if (term_root && term_root->sublist) term_root = term_root->sublist;
+    /* find x an y max if they exist */
+    vp = pa_schlst("maxxd", term_root);
+    if (vp) maxxd = strtol(vp->value, &errstr, 10);
+    if (*errstr) error(ecfgval);
+    vp = pa_schlst("maxyd", term_root);
+    if (vp) maxyd = strtol(vp->value, &errstr, 10);
+    if (*errstr) error(ecfgval);
 
     /* Set up private message queuing */
 

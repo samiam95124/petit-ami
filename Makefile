@@ -509,8 +509,9 @@ genwave: bin/petit_ami_plain$(LIBEXT) include/terminal.h sound_programs/genwave.
 scntst: bin/petit_ami_graph$(LIBEXT) include/terminal.h tests/scntst.c include/services.h linux/services.c Makefile
 	$(CC) $(CFLAGS) tests/scntst.c $(LIBS) -o bin/scntst 
 	
-gratst: bin/petit_ami_graph$(LIBEXT) include/terminal.h tests/gratst.c include/services.h linux/services.c Makefile
-	$(CC) $(CFLAGS) tests/gratst.c $(LIBS) -o bin/gratst 
+gratst: bin/petit_ami_graph$(LIBEXT) include/terminal.h tests/gratst.c \
+        include/services.h linux/services.c utils/config.c Makefile
+	$(CC) $(CFLAGS) tests/gratst.c utils/config.c $(LIBS) -o bin/gratst 
 	
 sndtst: bin/petit_ami_term$(LIBEXT) include/terminal.h tests/sndtst.c \
         include/services.h linux/services.c Makefile
