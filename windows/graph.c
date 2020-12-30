@@ -15099,6 +15099,7 @@ Console control handler
 
 This procedure gets activated as a callback when Windows flags a termination
 event to console. We immediately abort.
+
 At the present time, we don't care what type of termination event it was,
 all generate an etterm signal.
 
@@ -15108,7 +15109,11 @@ static BOOL WINAPI conhan(DWORD ct)
 
 {
 
-    abortm(); /* abort run */
+    /* had some issues with zombie processes, so use Windows "ultra-kill"
+       call */
+    ExitProcess(1);
+
+    //abortm(); /* abort run */
 
     return (1); /* set event handled */
 
