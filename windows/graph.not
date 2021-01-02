@@ -1,8 +1,10 @@
 Notes for graph.c
 
 1. When a program finishes, and is in autohold, it cannot be cancelled with
-ctl-c.
+ctl-c. I studied the issue, and apparently by the time it function pa_deinit_graph
+function is executed, something has occurred to damage the input queue such that
+characters typed to the input queue are not serviced, and thus the window locks
+as unresponsive. This was proved by moving the hold code into a function "softshutdown()"
+then call that from main program, and it works fine.
 
 2. Should have option to send windows/general errors to a dialog.
-
-3. Need to hook up graph with the option processor.
