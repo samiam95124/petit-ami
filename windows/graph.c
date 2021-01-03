@@ -113,6 +113,17 @@ enum { /* debug levels */
                                 __func__, __LINE__, ##__VA_ARGS__); } while (0)
 
 /*
+ * Configurable parameters
+ *
+ * These parameters can be configured here at compile time, or are overriden
+ * at runtime by values of the same name in the config files.
+ */
+#define MAXXD     80 /* standard terminal, 80x25 */
+#define MAXYD     25
+
+#define DIALOGERR 1  /* send runtime errors to dialog */
+
+/*
  * Enable/disable general lock
  *
  * This is done from paranoia that Windows performs multithread locking.
@@ -124,8 +135,7 @@ enum { /* debug levels */
 #define BIT(b) (1<<b) /* set bit from bit number */
 #define BITMSK(b) (~BIT(b)) /* mask out bit number */
 
-#define MAXXD     80    /* standard terminal, 80x25 */
-#define MAXYD     25
+
 /* the "standard character" sizes are used to form a pseudo-size for desktop
    character measurements in a graphical system. */
 #define STDCHRX   8
@@ -675,8 +685,11 @@ static int       dblflt;       /* double fault flag */
 
 /* default window dimensions */
 
-static int       maxxd;
-static int       maxyd;
+static int  maxxd;
+static int  maxyd;
+
+/* send runtime errors to dialog */
+static int  dialogerr;
 
 /*
  * Forward declarations.
@@ -985,9 +998,14 @@ static void grawrterr(char* es)
 {
 
     unlockmain(); /* end exclusive access */
-    fprintf(stderr, "\nError: Graph: ");
-    fprintf(stderr, es);
-    fprintf(stderr, "\n");
+    if (dialogerr) pa_alert("Graph Module", es);
+    else {
+
+        fprintf(stderr, "\nError: Graph: ");
+        fprintf(stderr, es);
+        fprintf(stderr, "\n");
+
+    }
     lockmain(); /* resume exclusive access */
 
 }
@@ -15352,6 +15370,8 @@ static void pa_init_graph()
 
     maxxd = MAXXD; /* set default window dimensions */
     maxyd = MAXYD;
+    dialogerr = DIALOGERR; /* send runtime errors to dialog */
+
     fend = FALSE; /* set no end of program ordered */
     fautohold = TRUE; /* set automatically hold self terminators */
     eqefre = NULL; /* set free event queuing list empty */
@@ -15365,12 +15385,16 @@ static void pa_init_graph()
     /* find "terminal" block */
     term_root = pa_schlst("terminal", config_root);
     if (term_root && term_root->sublist) term_root = term_root->sublist;
+
     /* find x an y max if they exist */
     vp = pa_schlst("maxxd", term_root);
     if (vp) maxxd = strtol(vp->value, &errstr, 10);
     if (*errstr) error(ecfgval);
     vp = pa_schlst("maxyd", term_root);
     if (vp) maxyd = strtol(vp->value, &errstr, 10);
+    if (*errstr) error(ecfgval);
+    vp = pa_schlst("dialogerr", term_root);
+    if (vp) dialogerr = strtol(vp->value, &errstr, 10);
     if (*errstr) error(ecfgval);
 
     /* Set up private message queuing */
