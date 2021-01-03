@@ -1,6 +1,70 @@
+################################################################################
+#                                                                              #
+#                           Makefile for Petit Ami test                        #
+#                                                                              #
+################################################################################
 #
-# Makefile for Petit Ami test
+# Structure of makefile
 #
+# There are three sections to the makefile:
+#
+# 1. Establishing macros to make products according to OS and type of build.
+#
+# 2. Building individual components (libraries).
+#
+# 3. Building target programs (tests, demos, utilities, etc.)
+#
+# The macros that are constructed are:
+#
+# CC		Contains the compiler definition in use.
+#
+# CFLAGS	Contains the compiler/linker flags to build programs.
+#
+# PLIBS		Contains the libraries and flags required to build plain (no display
+#           model) programs.
+# 
+# CLIBS		Contains the libraries and flags required to build console model
+#           programs.
+#
+# GLIBS		Contains the libraries and flags required to build graphical model
+#           programs.
+#
+# PLIBSD	Contains dependencies only for plain (no display model) programs.
+#
+# CLIBSD    Contains dependencies only for console model programs.
+#
+# GLIBSD    Contains dependencies only for graphical model programs.
+#
+# The depenencies contain the collected library in use (.so or .a) with the
+# correct extension.
+#
+# The ending of the program name gives the display model the program was 
+# constructed for, one of:
+#
+# <none>	No display model, ie., serial console.
+#
+# c			Console model.
+#
+# g			Graphical model.
+#
+# In all cases, the same source file is used to generate all products, if 
+# multiple output products exist (indeed, that is the point of Petit-Ami).
+# Not all products can be made from a given source file. For example, a 
+# graphical program cannot be also ported to console or serial mode.
+#
+# Note that the "c" or "console" postfix is often dropped, since only the "g"
+# or "graphical" ending is necessary to differentiate the products.
+#
+# Note that "g" or "graphical" may denote a console program that can be compiled
+# in either console or graphical mode, or it may denote a program specifically
+# designed for graphical mode.
+#
+
+################################################################################
+#
+# Establish build macros
+#
+################################################################################
 
 #
 # Set OSTYPE according to operating system
@@ -166,11 +230,16 @@ else
     # link correctly.
     #
     ifeq ($(LINK_TYPE),static)
-        LIBS = -Wl,--whole-archive bin/libc.a -Wl,--no-whole-archive
         PLIBS = -Wl,--whole-archive bin/libc.a -Wl,--no-whole-archive
+        CLIBS = -Wl,--whole-archive bin/libc.a -Wl,--no-whole-archive
+        GLIBS = -Wl,--whole-archive bin/libc.a -Wl,--no-whole-archive
+        PLIBSD = bin/libc.a
+        CLIBSD = bin/libc.a
+        GLIBSD = bin/libc.a
     else
-	    LIBS = bin/libc.so.6
 	    PLIBS = bin/libc.so.6
+	    CLIBS = bin/libc.so.6
+	    GLIBS = bin/libc.so.6
     endif
     
 endif
@@ -204,25 +273,24 @@ endif
 #
 # terminal handler libraries
 #
-ifndef GRAPH
-    #
-    # Terminal model API
-    #
-    ifeq ($(LINK_TYPE),static)
-        LIBS += -Wl,--whole-archive bin/petit_ami_term.a -Wl,--no-whole-archive
-    else
-        LIBS += bin/petit_ami_term.so
-    endif
+
+#
+# Terminal model API
+#
+ifeq ($(LINK_TYPE),static)
+    CLIBS += -Wl,--whole-archive bin/petit_ami_term.a -Wl,--no-whole-archive
 else
-    #
-    # Graphical model API
-    #
-    ifeq ($(LINK_TYPE),static)
-	    LIBS += -Wl,--whole-archive bin/petit_ami_graph.a -Wl,--no-whole-archive
-	else
-	    LIBS += bin/petit_ami_graph.so
-	endif
-endif 
+    CLIBS += bin/petit_ami_term.so
+endif
+
+#
+# Graphical model API
+#
+ifeq ($(LINK_TYPE),static)
+	GLIBS += -Wl,--whole-archive bin/petit_ami_graph.a -Wl,--no-whole-archive
+else
+    GLIBS += bin/petit_ami_graph.so
+endif
 
 #
 # add external packages
@@ -232,7 +300,7 @@ ifeq ($(OSTYPE),Windows_NT)
     #
     # Windows
     #
-    LIBS += -lwinmm -lgdi32 -lcomdlg32
+    GLIBS += -lwinmm -lgdi32 -lcomdlg32
 
 else ifeq ($(OSTYPE),Darwin)
 
@@ -245,50 +313,31 @@ else
     #
     # Linux
     #
-    LIBS += -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
-    PLIBS += -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
+	PLIBS += -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
+    GLIBS += -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
+    CLIBS += -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
     
 endif
 
 #
-# Make all executables
-#        
-ifeq ($(OSTYPE),Windows_NT)
+# Create dependency macros
+#
+PLIBSD = $(PLIBSD)
+CLIBSD = $(CLIBSD)
+GLIBSD = $(GLIBSD)
 
+################################################################################
 #
-# Windows
+# Build individual components
 #
-all: dumpmidi test play keyboard playmidi playwave \
-    printdev connectmidi connectwave random genwave scntst sndtst svstst \
-    event term snake pong mine wator editor getpage getmail gettys
-    
-else ifeq ($(OSTYPE),Darwin)
-
-#
-# Mac OS X
-#
-all: dumpmidi test play keyboard playmidi playwave \
-    printdev connectmidi connectwave random genwave scntst sndtst svstst \
-    event term snake pong mine wator editor getpage getmail gettys
-    
-else
-
-#
-# Linux
-#
-all: lsalsadev alsaparms dumpmidi test play keyboard playmidi playwave \
-    printdev connectmidi connectwave random genwave scntst sndtst svstst \
-    event getkeys getmouse term snake mine pong wator editor getpage getmail \
-    gettys
-    
-endif 
+################################################################################
 
 #
 # Individual Petit-Ami library components
 #
 
 #
-# Linux target components
+# Linux library components
 #
 linux/services.o: linux/services.c include/services.h
 	gcc -g3 -Iinclude -fPIC -c linux/services.c -o linux/services.o
@@ -312,7 +361,7 @@ linux/graph_x.o: linux/graph_x.c include/graph.h
 	gcc -g3 -Iinclude -fPIC -c linux/graph_x.c -o linux/graph_x.o
 
 #
-# Windows target components
+# Windows library components
 #
 # Note that stub sources are not yet implemented
 #
@@ -335,7 +384,7 @@ windows/graph.o: windows/graph.c include/graph.h
 	gcc -g3 -Ilibc -Iinclude -c windows/graph.c -o windows/graph.o
 
 #
-# Mac OS X target components
+# Mac OS X library components
 #
 # Note that stub sources are not yet implemented.
 #
@@ -358,7 +407,13 @@ macosx/xterm.o: linux/xterm.c include/terminal.h
 	
 macosx/graph.o: stub/graph.c include/graph.h
 	gcc -g3 -Ilibc -Iinclude -c stub/graph.c -o macosx/graph.o
-	
+
+################################################################################
+#
+# Build libraries
+#
+################################################################################
+
 #
 # Create terminal mode and graphical mode libraries
 #
@@ -449,9 +504,11 @@ petit_ami_graph.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
 	
 endif
 
+################################################################################
 #
-# Make individual executables
-#	
+# Build final programs
+#
+################################################################################
 
 #
 # Linux specific tools
@@ -471,123 +528,298 @@ getmouse: linux/getmouse.c Makefile
 	$(CC) $(CFLAGS) linux/getmouse.c -lm -o bin/getmouse
 
 #
-# Cross system tools
+# Cross system tools - These work on any Petit-Ami compliant environment
 #	
+
+#
+# Dump midi file in readable format (not Petit-Ami dependent)
+#
 dumpmidi: utils/dumpmidi.c Makefile
 	gcc utils/dumpmidi.c -o bin/dumpmidi
 
-test: bin/petit_ami_graph$(LIBEXT) include/config.h utils/config.c test.c Makefile
-	$(CC) $(CFLAGS) test.c utils/config.c $(LIBS) -o test
+#
+# General test program
+#
+test: $(PLIBSD) include/config.h utils/config.c test.c Makefile
+	$(CC) $(CFLAGS) test.c utils/config.c $(PLIBS) -o test
 	
-play: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/play.c Makefile
-	$(CC) $(CFLAGS) sound_programs/play.c utils/option.c $(LIBS) -o bin/play
+testc: $(CLIBSD) include/config.h utils/config.c test.c Makefile
+	$(CC) $(CFLAGS) test.c utils/config.c $(CLIBS) -o testc
 	
-keyboard: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/keyboard.c Makefile
-	$(CC) $(CFLAGS) sound_programs/keyboard.c utils/option.c $(LIBS) -o bin/keyboard
-	
-playmidi: bin/petit_ami_plain$(LIBEXT) include/terminal.h sound_programs/playmidi.c utils/option.c Makefile
+testg: $(GLIBSD) include/config.h utils/config.c test.c Makefile
+	$(CC) $(CFLAGS) test.c utils/config.c $(GLIBS) -o testg
+
+#
+# Play example songs in QBasic play format (uses console timers)
+# 	
+play: $(CLIBSD) include/terminal.h sound_programs/play.c Makefile
+	$(CC) $(CFLAGS) sound_programs/play.c utils/option.c $(CLIBS) -o bin/play
+
+#
+# Emulate a sound keyboard (uses console timers)
+#	
+keyboard: $(CLIBSD) include/terminal.h sound_programs/keyboard.c Makefile
+	$(CC) $(CFLAGS) sound_programs/keyboard.c utils/option.c $(CLIBS) -o bin/keyboard
+
+#
+# Play midi files
+#	
+playmidi: $(PLIBSD) include/terminal.h sound_programs/playmidi.c utils/option.c Makefile
 	$(CC) $(CFLAGS) sound_programs/playmidi.c utils/option.c $(PLIBS) -o bin/playmidi
 
-playwave: bin/petit_ami_plain$(LIBEXT) include/terminal.h sound_programs/playwave.c Makefile
+#
+# Play wave files
+#
+playwave: $(PLIBSD) include/terminal.h sound_programs/playwave.c Makefile
 	$(CC) $(CFLAGS) sound_programs/playwave.c utils/option.c $(PLIBS) -o bin/playwave
-	
-printdev: bin/petit_ami_plain$(LIBEXT) include/terminal.h sound_programs/printdev.c Makefile
+
+#
+# Print a list of available sound devices
+#	
+printdev: $(PLIBSD) include/terminal.h sound_programs/printdev.c Makefile
 	$(CC) $(CFLAGS) sound_programs/printdev.c $(PLIBS) -o bin/printdev
 
-connectmidi: bin/petit_ami_plain$(LIBEXT) include/terminal.h sound_programs/connectmidi.c Makefile
+#
+# Connect Midi input port to Midi output port
+#
+connectmidi: $(PLIBSD) include/terminal.h sound_programs/connectmidi.c Makefile
 	$(CC) $(CFLAGS) sound_programs/connectmidi.c $(PLIBS) -o bin/connectmidi
-	
-connectwave: bin/petit_ami_plain$(LIBEXT) include/terminal.h sound_programs/connectwave.c Makefile
+
+#
+# Connect wave input port to wave output port
+#	
+connectwave: $(PLIBSD) include/terminal.h sound_programs/connectwave.c Makefile
 	$(CC) $(CFLAGS) sound_programs/connectwave.c $(PLIBS) -o bin/connectwave
-	
-random: bin/petit_ami_term$(LIBEXT) include/terminal.h sound_programs/random.c Makefile
-	$(CC) $(CFLAGS) sound_programs/random.c utils/option.c $(LIBS) -o bin/random
-	
-genwave: bin/petit_ami_plain$(LIBEXT) include/terminal.h sound_programs/genwave.c Makefile
+
+#	
+# Play random notes
+#
+randomc: $(CLIBSD) include/terminal.h sound_programs/random.c Makefile
+	$(CC) $(CFLAGS) sound_programs/random.c utils/option.c $(CLIBS) -o bin/random
+
+#
+# Generate waveforms
+#	
+genwave: $(PLIBSD) include/terminal.h sound_programs/genwave.c Makefile
 	$(CC) $(CFLAGS) sound_programs/genwave.c utils/option.c $(PLIBS) -o bin/genwave
+
+#
+# Test console model compliant output
+#	
+scntst: $(CLIBSD) include/terminal.h tests/scntst.c include/services.h linux/services.c Makefile
+	$(CC) $(CFLAGS) tests/scntst.c $(CLIBS) -o bin/scntst
+
+scntstg: $(GLIBSD) include/terminal.h tests/scntst.c include/services.h linux/services.c Makefile
+	$(CC) $(CFLAGS) tests/scntst.c $(GLIBS) -o bin/scntstg
 	
-scntst: bin/petit_ami_graph$(LIBEXT) include/terminal.h tests/scntst.c include/services.h linux/services.c Makefile
-	$(CC) $(CFLAGS) tests/scntst.c $(LIBS) -o bin/scntst 
-	
-gratst: bin/petit_ami_graph$(LIBEXT) include/terminal.h tests/gratst.c \
+#
+# Test graph model compliant output
+#
+gratst: $(GLIBSD) include/terminal.h tests/gratst.c \
         include/services.h linux/services.c utils/config.c Makefile
-	$(CC) $(CFLAGS) tests/gratst.c utils/config.c $(LIBS) -o bin/gratst 
-	
-sndtst: bin/petit_ami_term$(LIBEXT) include/terminal.h tests/sndtst.c \
+	$(CC) $(CFLAGS) tests/gratst.c utils/config.c $(GLIBS) -o bin/gratst 
+
+#
+# Test sound model compliant input/output (uses console timers)
+#	
+sndtst: $(CLIBSD) include/terminal.h tests/sndtst.c \
         include/services.h linux/services.c Makefile
-	$(CC) $(CFLAGS) tests/sndtst.c utils/option.c $(LIBS) -o bin/sndtst 
+	$(CC) $(CFLAGS) tests/sndtst.c utils/option.c $(CLIBS) -o bin/sndtst 
 	
-svstst: bin/petit_ami_plain$(LIBEXT) include/terminal.h tests/svstst.c \
+#
+# Test services module
+#
+svstst: $(PLIBSD) include/terminal.h tests/svstst.c \
         include/services.h linux/services.c Makefile
 	$(CC) $(CFLAGS) tests/svstst.c utils/option.c $(PLIBS) -o bin/svstst
 	$(CC) $(CFLAGS) tests/svstst1.c $(PLIBS) -o bin/svstst1
+
+#
+# Test event model (console and graph mode)
+#	
+event: $(CLIBSD) include/terminal.h tests/event.c Makefile
+	$(CC) $(CFLAGS) tests/event.c $(CLIBS) -o bin/event
 	
-event: bin/petit_ami_graph$(LIBEXT) include/terminal.h tests/event.c Makefile
-	$(CC) $(CFLAGS) tests/event.c $(LIBS) -o bin/event
+eventg: $(GLIBSD) include/terminal.h tests/event.c Makefile
+	$(CC) $(CFLAGS) tests/event.c $(GLIBS) -o bin/eventg
+
+#
+# Test terminal characteristics (console and graph mode)
+#	
+term: $(GLIBSD) include/terminal.h tests/term.c Makefile
+	$(CC) $(CFLAGS) tests/term.c $(CLIBS) -o bin/term
 	
-term: bin/petit_ami_graph$(LIBEXT) include/terminal.h tests/term.c Makefile
-	$(CC) $(CFLAGS) tests/term.c $(LIBS) -o bin/term
+termg: $(GLIBSD) include/terminal.h tests/term.c Makefile
+	$(CC) $(CFLAGS) tests/term.c $(GLIBS) -o bin/termg
 	
-snake: bin/petit_ami_graph$(LIBEXT) terminal_games/snake.c include/terminal.h Makefile
-	$(CC) $(CFLAGS) terminal_games/snake.c $(LIBS) -o bin/snake
+#
+# Snake game
+#	
+snake: $(CLIBSD) terminal_games/snake.c include/terminal.h Makefile
+	$(CC) $(CFLAGS) terminal_games/snake.c $(CLIBS) -o bin/snake
 	
-mine: bin/petit_ami_graph$(LIBEXT) terminal_games/mine.c include/terminal.h Makefile
-	$(CC) $(CFLAGS) terminal_games/mine.c $(LIBS) -o bin/mine
+snakeg: $(GLIBSD) terminal_games/snake.c include/terminal.h Makefile
+	$(CC) $(CFLAGS) terminal_games/snake.c $(GLIBS) -o bin/snakeg
+
+#
+# Mine game
+#	
+mine: $(CLIBSD) terminal_games/mine.c include/terminal.h Makefile
+	$(CC) $(CFLAGS) terminal_games/mine.c $(CLIBS) -o bin/mine
 	
-wator: bin/petit_ami_graph$(LIBEXT) terminal_programs/wator.c include/terminal.h Makefile
-	$(CC) $(CFLAGS) terminal_programs/wator.c $(LIBS) -o bin/wator
+mineg: $(GLIBSD) terminal_games/mine.c include/terminal.h Makefile
+	$(CC) $(CFLAGS) terminal_games/mine.c $(GLIBS) -o bin/mineg
+
+#
+# Wator game/dazzler
+#	
+wator: $(CLIBSD) terminal_programs/wator.c include/terminal.h Makefile
+	$(CC) $(CFLAGS) terminal_programs/wator.c $(CLIBS) -o bin/wator
 	
-pong: bin/petit_ami_graph$(LIBEXT) terminal_games/pong.c include/terminal.h Makefile
-	$(CC) $(CFLAGS) terminal_games/pong.c $(LIBS) -o bin/pong
+watorg: $(GLIBSD) terminal_programs/wator.c include/terminal.h Makefile
+	$(CC) $(CFLAGS) terminal_programs/wator.c $(GLIBS) -o bin/watorg
+
+#
+# Pong game
+#	
+pong: $(CLIBSD) terminal_games/pong.c include/terminal.h Makefile
+	$(CC) $(CFLAGS) terminal_games/pong.c $(CLIBS) -o bin/pong
 	
-editor: bin/petit_ami_term$(LIBEXT) terminal_programs/editor.c include/terminal.h Makefile
-	$(CC) $(CFLAGS) terminal_programs/editor.c $(LIBS) -o bin/editor
+pongg: $(GLIBSD) terminal_games/pong.c include/terminal.h Makefile
+	$(CC) $(CFLAGS) terminal_games/pong.c $(GLIBS) -o bin/pongg
+
+#
+# Text editor
+#	
+editor: $(CLIBSD) terminal_programs/editor.c include/terminal.h Makefile
+	$(CC) $(CFLAGS) terminal_programs/editor.c $(CLIBS) -o bin/editor
 	
-getpage: bin/petit_ami_plain$(LIBEXT) network_programs/getpage.c Makefile
+editorg: $(GLIBSD) terminal_programs/editor.c include/terminal.h Makefile
+	$(CC) $(CFLAGS) terminal_programs/editor.c $(GLIBS) -o bin/editorg
+
+#
+# Get html/https page
+#	
+getpage: $(PLIBSD) network_programs/getpage.c Makefile
 	$(CC) $(CFLAGS) network_programs/getpage.c utils/option.c $(PLIBS) -o bin/getpage
 
-getmail: bin/petit_ami_plain$(LIBEXT) network_programs/getmail.c Makefile
+#
+# Get remote email
+#
+getmail: $(PLIBSD) network_programs/getmail.c Makefile
 	$(CC) $(CFLAGS) network_programs/getmail.c utils/option.c $(PLIBS) -o bin/getmail
-	
-gettys: bin/petit_ami_plain$(LIBEXT) network_programs/gettys.c Makefile
+
+#
+# Gettysberg address server
+#	
+gettys: $(PLIBSD) network_programs/gettys.c Makefile
 	$(CC) $(CFLAGS) network_programs/gettys.c utils/option.c $(PLIBS) -o bin/gettys
-	
-msgclient: bin/petit_ami_plain$(LIBEXT) network_programs/msgclient.c Makefile
+
+#
+# Message based networking test client
+#	
+msgclient: $(PLIBSD) network_programs/msgclient.c Makefile
 	$(CC) $(CFLAGS) network_programs/msgclient.c utils/option.c $(PLIBS) -o bin/msgclient
-	
-msgserver: bin/petit_ami_plain$(LIBEXT) network_programs/msgserver.c Makefile
+
+#
+# Message based networking test server
+#	
+msgserver: $(PLIBSD) network_programs/msgserver.c Makefile
 	$(CC) $(CFLAGS) network_programs/msgserver.c utils/option.c $(PLIBS) -o bin/msgserver
 	
-prtcertnet: bin/petit_ami_plain$(LIBEXT) network_programs/prtcertnet.c Makefile
+#
+# Print TCPIP/TLS certificates
+#
+prtcertnet: $(PLIBSD) network_programs/prtcertnet.c Makefile
 	$(CC) $(CFLAGS) network_programs/prtcertnet.c $(PLIBS) -o bin/prtcertnet
-	
-prtcertmsg: bin/petit_ami_plain$(LIBEXT) network_programs/prtcertmsg.c Makefile
+
+#
+# Print message based certificates
+#	
+prtcertmsg: $(PLIBSD) network_programs/prtcertmsg.c Makefile
 	$(CC) $(CFLAGS) network_programs/prtcertmsg.c $(PLIBS) -o bin/prtcertmsg
-	
-listcertnet: bin/petit_ami_plain$(LIBEXT) network_programs/listcertnet.c Makefile
+
+#
+# This program is missing????
+#	
+listcertnet: $(PLIBSD) network_programs/listcertnet.c Makefile
 	$(CC) $(CFLAGS) network_programs/listcertnet.c $(PLIBS) -o bin/listcertnet
 
-pixel: bin/petit_ami_graph$(LIBEXT) include/terminal.h graph_programs/pixel.c Makefile
-	$(CC) $(CFLAGS) graph_programs/pixel.c $(LIBS) -o bin/pixel
-	
-ball1: bin/petit_ami_graph$(LIBEXT) include/terminal.h graph_programs/ball1.c Makefile
-	$(CC) $(CFLAGS) graph_programs/ball1.c $(LIBS) -o bin/ball1
-	
-ball2: bin/petit_ami_graph$(LIBEXT) include/terminal.h graph_programs/ball2.c Makefile
-	$(CC) $(CFLAGS) graph_programs/ball2.c $(LIBS) -o bin/ball2
-	
-line1: bin/petit_ami_graph$(LIBEXT) include/terminal.h graph_programs/line1.c Makefile
-	$(CC) $(CFLAGS) graph_programs/line1.c $(LIBS) -o bin/line1
+#
+# Pixel set/reset dazzler
+#
+pixel: $(GLIBSD) include/terminal.h graph_programs/pixel.c Makefile
+	$(CC) $(CFLAGS) graph_programs/pixel.c $(GLIBS) -o bin/pixel
 
-line2: bin/petit_ami_graph$(LIBEXT) include/terminal.h graph_programs/line2.c Makefile
-	$(CC) $(CFLAGS) graph_programs/line2.c $(LIBS) -o bin/line2
+#
+# Moving balls dazzlers
+#	
+ball1: $(GLIBSD) include/terminal.h graph_programs/ball1.c Makefile
+	$(CC) $(CFLAGS) graph_programs/ball1.c $(GLIBS) -o bin/ball1
 	
-line4: bin/petit_ami_graph$(LIBEXT) include/terminal.h graph_programs/line4.c Makefile
-	$(CC) $(CFLAGS) graph_programs/line4.c $(LIBS) -o bin/line4
+ball2: $(GLIBSD) include/terminal.h graph_programs/ball2.c Makefile
+	$(CC) $(CFLAGS) graph_programs/ball2.c $(GLIBS) -o bin/ball2
 	
-line5: bin/petit_ami_graph$(LIBEXT) include/terminal.h graph_programs/line5.c Makefile
-	$(CC) $(CFLAGS) graph_programs/line5.c $(LIBS) -o bin/line5
+#
+# Moving lines dazzlers
+#
+line1: $(GLIBSD) include/terminal.h graph_programs/line1.c Makefile
+	$(CC) $(CFLAGS) graph_programs/line1.c $(GLIBS) -o bin/line1
+
+line2: $(GLIBSD) include/terminal.h graph_programs/line2.c Makefile
+	$(CC) $(CFLAGS) graph_programs/line2.c $(GLIBS) -o bin/line2
 	
+line4: $(GLIBSD) include/terminal.h graph_programs/line4.c Makefile
+	$(CC) $(CFLAGS) graph_programs/line4.c $(GLIBS) -o bin/line4
+	
+line5: $(GLIBSD) include/terminal.h graph_programs/line5.c Makefile
+	$(CC) $(CFLAGS) graph_programs/line5.c $(GLIBS) -o bin/line5
+	
+################################################################################
+#
+# Build targets
+#
+################################################################################
+
+#
+# Make all executables
+#        
+ifeq ($(OSTYPE),Windows_NT)
+
+#
+# Windows
+#
+all: dumpmidi test play keyboard playmidi playwave \
+    printdev connectmidi connectwave random genwave scntst sndtst svstst \
+    event term snake pong mine wator editor getpage getmail gettys
+    
+else ifeq ($(OSTYPE),Darwin)
+
+#
+# Mac OS X
+#
+all: dumpmidi test play keyboard playmidi playwave \
+    printdev connectmidi connectwave random genwave scntst sndtst svstst \
+    event term snake pong mine wator editor getpage getmail gettys
+    
+else
+
+#
+# Linux
+#
+all: lsalsadev alsaparms dumpmidi test play keyboard playmidi playwave \
+    printdev connectmidi connectwave random genwave scntst sndtst svstst \
+    event getkeys getmouse term snake mine pong wator editor getpage getmail \
+    gettys
+    
+endif 
+
+################################################################################
+#
+# Clean target
+#
+################################################################################
+
 clean:
 	rm -f bin/dumpmidi bin/lsalsadev bin/alsaparms test bin/play bin/keyboard 
 	rm -f bin/playmidi bin/playwave bin/printdev bin/connectmidi bin/connectwave 

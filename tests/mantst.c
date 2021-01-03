@@ -224,18 +224,19 @@ int main(void)
 {
 
     if (setjmp(terminate_buf)) goto terminate;
-    pa_auto(OFF);
-    pa_curvis(OFF);
+
+    pa_auto(stdout, OFF);
+    pa_curvis(stdout, OFF);
     writeln('Managed screen test vs. 0.1');
     writeln;
-    pa_scnsiz(x, y);
+    pa_scnsiz(stdout, x, y);
     writeln('Screen size character: x: ', x:1, ' y: ', y:1);
-    pa_scnsizg(x, y);
+    pa_scnsizg(stdout, x, y);
     writeln('Screen size pixel: x: ', x:1, ' y: ', y:1);
     writeln;
-    pa_getsiz(x, y);
+    pa_getsiz(stdout, x, y);
     writeln('Window size character: x: ', x:1, ' y: ', y:1);
-    pa_getsizg(ox, oy);
+    pa_getsizg(stdout, ox, oy);
     writeln('Window size graphical: x: ', ox:1, ' y: ', oy:1);
     writeln;
     writeln('Client size character: x: ', pa_maxx(stdout), ' y: ', pa_maxy(stdout));
