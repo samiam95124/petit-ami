@@ -300,6 +300,7 @@ ifeq ($(OSTYPE),Windows_NT)
     #
     # Windows
     #
+    CLIBS += -lwinmm -lgdi32
     GLIBS += -lwinmm -lgdi32 -lcomdlg32
 
 else ifeq ($(OSTYPE),Darwin)
@@ -322,9 +323,9 @@ endif
 #
 # Create dependency macros
 #
-PLIBSD = $(PLIBSD)
-CLIBSD = $(CLIBSD)
-GLIBSD = $(GLIBSD)
+PLIBSD = bin/petit_ami_plain$(LIBEXT)
+CLIBSD = bin/petit_ami_term$(LIBEXT)
+GLIBSD = bin/petit_ami_graph$(LIBEXT)
 
 ################################################################################
 #
@@ -359,7 +360,7 @@ linux/xterm.o: linux/xterm.c include/terminal.h
 	
 linux/graph_x.o: linux/graph_x.c include/graph.h
 	gcc -g3 -Iinclude -fPIC -c linux/graph_x.c -o linux/graph_x.o
-
+	
 #
 # Windows library components
 #
@@ -407,7 +408,14 @@ macosx/xterm.o: linux/xterm.c include/terminal.h
 	
 macosx/graph.o: stub/graph.c include/graph.h
 	gcc -g3 -Ilibc -Iinclude -c stub/graph.c -o macosx/graph.o
-
+	
+#
+# Components in common to all systems
+#
+utils/config.o: utils/config.c include/localdefs.h include/services.h \
+	            include/config.h
+	gcc -g3 -Iinclude -c utils/config.c -o utils/config.o
+	
 ################################################################################
 #
 # Build libraries
@@ -426,19 +434,19 @@ ifeq ($(OSTYPE),Windows_NT)
 # Windows cannot use .so files, but rather uses statically linked files that
 # reference .dlls at runtime.
 #
-bin/petit_ami_plain.a: windows/services.o windows/sound.o windows/network.o windows/stdio.o
+bin/petit_ami_plain.a: windows/services.o windows/sound.o windows/network.o utils/config.o windows/stdio.o
 	ar rcs bin/petit_ami_plain.a windows/services.o windows/sound.o \
-        windows/network.o windows/stdio.o
+        windows/network.o utils/config.o windows/stdio.o
 	
 bin/petit_ami_term.a: windows/services.o windows/sound.o windows/network.o \
-    windows/console.o windows/stdio.o
+    windows/console.o utils/config.o windows/stdio.o
 	ar rcs bin/petit_ami_term.a windows/services.o windows/sound.o \
-	    windows/network.o windows/console.o windows/stdio.o
+	    windows/network.o windows/console.o utils/config.o windows/stdio.o
 	
 bin/petit_ami_graph.a: windows/services.o windows/sound.o windows/network.o \
-    windows/graph.o windows/stdio.o
+    windows/graph.o utils/config.o windows/stdio.o
 	ar rcs bin/petit_ami_graph.a windows/services.o windows/sound.o \
-	    windows/network.o windows/graph.o windows/stdio.o
+	    windows/network.o windows/graph.o utils/config.o windows/stdio.o
 	
 else ifeq ($(OSTYPE),Darwin)
 
@@ -448,19 +456,19 @@ else ifeq ($(OSTYPE),Darwin)
 # Mac OS X cannot use .so files, but rather uses statically linked files that
 # reference .dlls at runtime.
 #
-bin/petit_ami_plain.a: macosx/services.o macosx/sound.o macosx/network.o macosx/stdio.o
+bin/petit_ami_plain.a: macosx/services.o macosx/sound.o macosx/network.o utils/config.o macosx/stdio.o
 	ar rcs bin/petit_ami_plain.a macosx/services.o macosx/sound.o \
-        macosx/network.o macosx/stdio.o
+        macosx/network.o utils/config.o macosx/stdio.o
 	
 bin/petit_ami_term.a: macosx/services.o macosx/sound.o macosx/network.o \
-    macosx/xterm.o macosx/stdio.o
+    macosx/xterm.o utils/config.o macosx/stdio.o
 	ar rcs bin/petit_ami_term.a macosx/services.o macosx/sound.o \
-	    macosx/network.o macosx/xterm.o macosx/stdio.o
+	    macosx/network.o macosx/xterm.o utils/config.o macosx/stdio.o
 	
 petit_ami_graph.a: macosx/services.o macosx/sound.o macosx/network.o \
-    macosx/graph.o macosx/stdio.o
+    macosx/graph.o utils/config.o macosx/stdio.o
 	ar rcs bin/petit_ami_graph.a macosx/services.o macosx/sound.o \
-	    macosx/network.o macosx/graph.o macosx/stdio.o
+	    macosx/network.o macosx/graph.o utils/config.o macosx/stdio.o
 	    
 else
 
@@ -473,34 +481,40 @@ else
 # Thus we leave it as a .o file.
 #
 bin/petit_ami_plain.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/network.o
+    linux/dumpsynthplug.o linux/network.o utils/config.o 
 	gcc -shared linux/services.o linux/sound.o linux/fluidsynthplug.o \
-	    linux/dumpsynthplug.o linux/network.o -o bin/petit_ami_plain.so
+	    linux/dumpsynthplug.o linux/network.o utils/config.o \
+	    -o bin/petit_ami_plain.so
 	
 bin/petit_ami_plain.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/network.o
+    linux/dumpsynthplug.o linux/network.o utils/config.o 
 	ar rcs bin/petit_ami_plain.a linux/services.o linux/sound.o \
-	    linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o
+	    linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
+	    utils/config.o 
 	
 bin/petit_ami_term.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/network.o linux/xterm.o
+    linux/dumpsynthplug.o linux/network.o linux/xterm.o utils/config.o 
 	gcc -shared linux/services.o linux/sound.o linux/fluidsynthplug.o \
-	    linux/dumpsynthplug.o  linux/network.o linux/xterm.o -o bin/petit_ami_term.so
+	    linux/dumpsynthplug.o  linux/network.o linux/xterm.o utils/config.o \
+	    -o bin/petit_ami_term.so 
 	
 bin/petit_ami_term.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/network.o linux/xterm.o
+    linux/dumpsynthplug.o linux/network.o linux/xterm.o utils/config.o 
 	ar rcs bin/petit_ami_term.a linux/services.o linux/sound.o \
-	    linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o linux/xterm.o
+		linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
+		linux/xterm.o utils/config.o 
 	
 petit_ami_graph.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/network.o linux/graph_x.o
+    linux/dumpsynthplug.o linux/network.o linux/graph_x.o utils/config.o 
 	gcc linux/services.o linux/sound.o linux/fluidsynthplug.o \
-	linux/dumpsynthplug.o  linux/network.o linux/xterm.o -o bin/petit_ami_graph.so
+		linux/dumpsynthplug.o  linux/network.o linux/xterm.o utils/config.o \
+		-o bin/petit_ami_graph.so
 	
 petit_ami_graph.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/network.o linux/graph_x.o
+    linux/dumpsynthplug.o linux/network.o linux/graph_x.o utils/config.o 
 	ar rcs bin/petit_ami_graph.a linux/services.o linux/sound.o \
-	linux/fluidsynthplug.o linux/dumpsynthplug.o  linux/network.o linux/xterm.o
+		linux/fluidsynthplug.o linux/dumpsynthplug.o  linux/network.o \
+		linux/xterm.o utils/config.o
 	
 endif
 
