@@ -1,18 +1,22 @@
 ################################################################################
 #                                                                              #
-#                           Makefile for Petit Ami test                        #
+#               Makefile for Petit Ami and associated programs                 #
 #                                                                              #
 ################################################################################
 #
 # Structure of makefile
 #
-# There are three sections to the makefile:
+# There are five sections to the makefile:
 #
 # 1. Establishing macros to make products according to OS and type of build.
 #
 # 2. Building individual components (libraries).
 #
 # 3. Building target programs (tests, demos, utilities, etc.)
+#
+# 4. Define build targets.
+#
+# 5. Define clean targets.
 #
 # The macros that are constructed are:
 #
@@ -58,6 +62,10 @@
 # Note that "g" or "graphical" may denote a console program that can be compiled
 # in either console or graphical mode, or it may denote a program specifically
 # designed for graphical mode.
+#
+# Note that most of the complexity of this make is to create the libraries for
+# specific implementations. There are sample makefiles elsewhere that are much
+# simpler, because they use prebuilt libraries. Please see those examples.
 #
 
 ################################################################################
@@ -334,10 +342,6 @@ GLIBSD = bin/petit_ami_graph$(LIBEXT)
 ################################################################################
 
 #
-# Individual Petit-Ami library components
-#
-
-#
 # Linux library components
 #
 linux/services.o: linux/services.c include/services.h
@@ -453,8 +457,7 @@ else ifeq ($(OSTYPE),Darwin)
 #
 # Mac OS X
 #
-# Mac OS X cannot use .so files, but rather uses statically linked files that
-# reference .dlls at runtime.
+# Mac OS X cannot use .so files, but rather uses statically linked files.
 #
 bin/petit_ami_plain.a: macosx/services.o macosx/sound.o macosx/network.o utils/config.o macosx/stdio.o
 	ar rcs bin/petit_ami_plain.a macosx/services.o macosx/sound.o \
@@ -479,6 +482,9 @@ else
 #
 # Note that sound lib cannot be put into an .so, there is a bug in ALSA.
 # Thus we leave it as a .o file.
+#
+# The linux build uses fluidsynth, and uses a series of runtime plug-ins
+# to do things like midi to wave conversion.
 #
 bin/petit_ami_plain.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
     linux/dumpsynthplug.o linux/network.o utils/config.o 
@@ -527,7 +533,8 @@ endif
 #
 # Linux specific tools
 #
-# These will be removed as things settle down.
+# These will be removed as things settle down. These were/are used to model
+# Linux specific code and solve problems specific to Linux.
 #	
 lsalsadev: linux/lsalsadev.c Makefile
 	gcc linux/lsalsadev.c -lasound -o bin/lsalsadev
@@ -554,6 +561,10 @@ dumpmidi: utils/dumpmidi.c Makefile
 #
 # General test program
 #
+# If the build is not appropriate to the test program, you can either ignore
+# the errors or comment this out. The test target will move out of the makefile
+# in time.
+#
 test: $(PLIBSD) include/config.h utils/config.c test.c Makefile
 	$(CC) $(CFLAGS) test.c utils/config.c $(PLIBS) -o test
 	
@@ -562,6 +573,13 @@ testc: $(CLIBSD) include/config.h utils/config.c test.c Makefile
 	
 testg: $(GLIBSD) include/config.h utils/config.c test.c Makefile
 	$(CC) $(CFLAGS) test.c utils/config.c $(GLIBS) -o testg
+	
+#
+# Target programs that use Petit-Ami, such as games, utilities, etc.
+# "dazzler" programs is my term. It comes from the Cromemco Dazzler, a graphics
+# that ran on early S100 computers, and was a popular display demonstration from
+# those days.
+#
 
 #
 # Play example songs in QBasic play format (uses console timers)

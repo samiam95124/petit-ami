@@ -24,23 +24,24 @@
 #define OFF 0
 #define ON 1
 
-FILE*      win2;
-FILE*      win3;
-FILE*      win4;
-int        x, x2, y, y2;
-int        ox, oy;       /* original size of window */
-int        fb;           /* front/back flipper */
-pa_evtrec  er;
-pa_menuptr mp;           /* menu pointer */
-pa_menuptr ml;           /* menu list */
-pa_menuptr sm;           /* submenu list */
-int        sred;         /* state variables */
-int        sgreen;
-int        sblue;
-int        mincnt;       /* minimize counter */
-int        maxcnt;       /* maximize counter */
-int        nrmcnt;       /* normalize counter */
-int        i;
+static jmp_buf terminate_buf;
+static FILE*      win2;
+static FILE*      win3;
+static FILE*      win4;
+static int        x, x2, y, y2;
+static int        ox, oy;       /* original size of window */
+static int        fb;           /* front/back flipper */
+static pa_evtrec  er;
+static pa_menuptr mp;           /* menu pointer */
+static pa_menuptr ml;           /* menu list */
+static pa_menuptr sm;           /* submenu list */
+static int        sred;         /* state variables */
+static int        sgreen;
+static int        sblue;
+static int        mincnt;       /* minimize counter */
+static int        maxcnt;       /* maximize counter */
+static int        nrmcnt;       /* normalize counter */
+static int        i;
 
 /* wait return to be pressed, or handle terminate */
 
@@ -58,7 +59,7 @@ static void waitnext(void)
 
 /* wait return to be pressed, or handle terminate, while printing characters */
 
-void waitnextprint(void)
+static void waitnextprint(void)
 
 {
 
@@ -99,7 +100,7 @@ static void prtceng(int y, const char* s)
 
 /* wait time in 100 microseconds */
 
-void wait(int t)
+static void wait(int t)
 
 {
 
@@ -114,7 +115,7 @@ void wait(int t)
 
 /* append a new menu entry to the given list */
 
-void appendmenu(pa_menuptr* list, pa_menuptr m)
+static void appendmenu(pa_menuptr* list, pa_menuptr m)
 
 {
 
@@ -137,7 +138,7 @@ void appendmenu(pa_menuptr* list, pa_menuptr m)
 
 /* create menu entry */
 
-void newmenu(pa_menuptr* mp, int onoff, int oneof, int bar,
+static void newmenu(pa_menuptr* mp, int onoff, int oneof, int bar,
              int id, const string face)
 
 {
@@ -182,7 +183,7 @@ static void chrgrid(void)
 
 /* display frame test */
 
-void frametest(const string s)
+static void frametest(const string s)
 
 {
 
@@ -227,481 +228,487 @@ int main(void)
 
     pa_auto(stdout, OFF);
     pa_curvis(stdout, OFF);
-    writeln('Managed screen test vs. 0.1');
-    writeln;
+    printf("Managed screen test vs. 0.1\n");
+    printf("\n");
     pa_scnsiz(stdout, x, y);
-    writeln('Screen size character: x: ', x:1, ' y: ', y:1);
+    printf("Screen size character: x: %d y: %d\n", x, y);
     pa_scnsizg(stdout, x, y);
-    writeln('Screen size pixel: x: ', x:1, ' y: ', y:1);
-    writeln;
+    printf("Screen size pixel: x: %d y: %d\n", x, y);
+    printf("\n");
     pa_getsiz(stdout, x, y);
-    writeln('Window size character: x: ', x:1, ' y: ', y:1);
+    printf("Window size character: x: %d y: %d\n", x, , y);
     pa_getsizg(stdout, ox, oy);
-    writeln('Window size graphical: x: ', ox:1, ' y: ', oy:1);
-    writeln;
-    writeln('Client size character: x: ', pa_maxx(stdout), ' y: ', pa_maxy(stdout));
-    writeln('Client size graphical: x: ', pa_maxxg(stdout), ' y: ', pa_maxyg(stdout));
-    writeln;
-    writeln('Hit return in any window to continue for each test');
+    printf("Window size graphical: x: %d y: %d\n", ox, oy);
+    printf("\n");
+    printf("Client size character: x: %d y: %d\n", pa_maxx(stdout), pa_maxy(stdout));
+    printf("Client size graphical: x: %d y: %d\n", pa_maxxg(stdout), pa_maxyg(stdout));
+    printf("\n");
+    printf("Hit return in any window to continue for each test\n");
     waitnext();
 
     /* ************************** Window titling test ************************** */
 
-    pa_title('This is a mangement test window');
-    writeln('The title bar of this window should read: This is a mangement test window');
-    prtceng(pa_maxyg(stdout)-pa_chrsizy(stdout), 'Window title test');
+    pa_title("This is a mangement test window");
+    printf("The title bar of this window should read: This is a mangement test window\n");
+    prtceng(pa_maxyg(stdout)-pa_chrsizy(stdout), "Window title test");
     waitnext();
 
     /* ************************** Multiple windows ************************** */
 
     putchar('\f');
-    pa_curvis(on);
-    prtceng(pa_maxyg(stdout)-pa_chrsizy(stdout), 'Multiple window test');
-    pa_home;
-    pa_auto(on);
-    writeln('This is the main window');
-    writeln;
-    writeln('Select back and forth between each window, and make sure the');
-    writeln('cursor follows');
-    writeln;
-    write('Here is the cursor->');
-    pa_openwin(stdin, win2, 2);
-    writeln(win2, 'This is the second window');
-    writeln(win2);
-    write(win2, 'Here is the cursor->');
+    pa_curvis(stdout, ON);
+    prtceng(pa_maxyg(stdout)-pa_chrsizy(stdout), "Multiple window test");
+    pa_home(stdout);
+    pa_auto(stdout, ON);
+    printf("This is the main window");
+    printf("\n");
+    printf("Select back and forth between each window, and make sure the\n");
+    printf("cursor follows\n");
+    printf("\n");
+    printf("Here is the cursor->");
+    pa_openwin(stdin, win2, 2, 0);
+    printf(win2, "This is the second window\n");
+    printf(win2);
+    printf(win2, "Here is the cursor->");
     waitnext();
-    writeln;
-    writeln('Now enter characters to each window, then end with return');
+    printf("\n");
+    printf("Now enter characters to each window, then end with return\n");
     waitnextprint();
     fclose(win2);
     putchar('\f');
-    writeln('Second window now closed');
+    printf("Second window now closed\n");
     waitnext();
-    pa_curvis(off);
-    pa_auto(off);
+    pa_curvis(stdout, OFF);
+    pa_auto(stdout, OFF);
 
     /* ********************* Resize buffer window character ******************** */
 
-    ox = maxx;
-    oy = maxy;
-    pa_bcolor(cyan);
-    pa_sizbuf(50, 50);
+    ox = maxx(stdout);
+    oy = maxy(stdout);
+    pa_bcolor(stdout, cyan);
+    pa_sizbuf(stdout, 50, 50);
     putchar('\f');
-    for (x = 1; x <= pa_maxx(stdout); x++) write('*');
-    cursor(1, pa_maxy(stdout));
-    for (x = 1; x <= pa_maxx(stdout); x++) write('*');
-    for (y = 1; y <= pa_maxy(stdout); y++) { pa_cursor(stdout, 1, y); write('*') };
-    for y = 1 to pa_maxy(stdout) do { pa_cursor(pa_maxx(stdout), y); write('*') };
+    for (x = 1; x <= pa_maxx(stdout); x++) printf("*");
+    pa_cursor(stdout, 1, pa_maxy(stdout));
+    for (x = 1; x <= pa_maxx(stdout); x++) printf("*");
+    for (y = 1; y <= pa_maxy(stdout); y++) { pa_cursor(stdout, 1, y); printf("*") };
+    for (y = 1; y <= pa_maxy(stdout); y++) { pa_cursor(pa_maxx(stdout), y); printf("*") };
     pa_home(stdout);
-    writeln('Buffer should now be 50 by 50 characters, and');
-    writeln('painted blue');
-    writeln('maxx: %d maxy: %d\n", pa_maxx(stdout), pa_maxy(stdout));
-    writeln('Open up window to verify this');
-    prtcen(pa_maxy(stdout), 'Buffer resize character test');
-    pa_bcolor(pa_white);
+    printf("Buffer should now be 50 by 50 characters, and\n");
+    printf("painted blue\n");
+    printf("maxx: %d maxy: %d\n", pa_maxx(stdout), pa_maxy(stdout));
+    printf("Open up window to verify this\n");
+    prtcen(pa_maxy(stdout), "Buffer resize character test\n");
+    pa_bcolor(stdout, pa_white);
     waitnext();
     pa_sizbuf(stdout, ox, oy);
 
     /* *********************** Resize buffer window pixel ********************** */
 
-    ox = pa_maxxg;
-    oy = pa_maxyg;
-    pa_bcolor(pa_cyan);
-    pa_sizbufg(400, 400);
+    ox = pa_maxxg(stdout);
+    oy = pa_maxyg(stdout);
+    pa_bcolor(stdout, pa_cyan);
+    pa_sizbufg(stdout, 400, 400);
     putchar('\f');
-    linewidth(20);
-    line(1, 1, pa_maxxg(stdout), 1);
-    line(1, 1, 1, pa_maxyg(stdout));
-    line(1, pa_maxyg(stdout), pa_maxxg(stdout), pa_maxyg(stdout));
-    line(pa_maxxg(stdout), 1, pa_maxxg(stdout), pa_maxyg(stdout));
-    writeln('Buffer should now be 400 by 400 pixels, and');
-    writeln('painted blue');
-    writeln('maxxg: ', pa_maxxg(stdout), ' maxyg: ', pa_maxyg(stdout));
-    writeln('Open up window to verify this');
-    prtcen(pa_maxy(stdout), 'Buffer resize graphical test');
-    pa_bcolor(pa_white);
+    linewidth(stdout, 20);
+    line(stdout, 1, 1, pa_maxxg(stdout), 1);
+    line(stdout, 1, 1, 1, pa_maxyg(stdout));
+    line(stdout, 1, pa_maxyg(stdout), pa_maxxg(stdout), pa_maxyg(stdout));
+    line(stdout, pa_maxxg(stdout), 1, pa_maxxg(stdout), pa_maxyg(stdout));
+    printf("Buffer should now be 400 by 400 pixels, and\n");
+    printf("painted blue\n");
+    printf("maxxg: %d maxyg: %d\n", pa_maxxg(stdout), pa_maxyg(stdout));
+    printf("Open up window to verify this\n");
+    prtcen(pa_maxy(stdout), "Buffer resize graphical test");
+    pa_bcolor(stdout, pa_white);
     waitnext();
-    pa_sizbufg(ox, oy);
+    pa_sizbufg(stdout, ox, oy);
 
     /* ****************** Resize screen with buffer on character *************** */
 
     ox = pa_maxxg(stdout);
     oy = pa_maxyg(stdout);
-    for x = 20 to 80 do {
+    for (x = 20; x <= 80; x++) {
 
-       pa_setsiz(x, 25);
-       pa_getsiz(x2, y2);
-       if (x2 <> x) || (y2 <> 25) then {
+        pa_setsiz(stdout, x, 25);
+        pa_getsiz(stdout, x2, y2);
+        if (x2 != x || y2 != 25) {
 
-          pa_setsiz(80, 25);
-          putchar('\f');
-          writeln('*** Getsiz does ! match setsiz');
-          waitnext();
-          longjmp(terminate_buf, 1)
+            pa_setsiz(stdout, 80, 25);
+            putchar('\f');
+            printf("*** Getsiz does ! match setsiz\n");
+            waitnext();
+            longjmp(terminate_buf, 1);
 
-       };
-       putchar('\f');
-       writeln('Resize screen buffered character');
-       writeln;
-       writeln('Moving in x');
-       wait(1000)
+        };
+        putchar('\f');
+        printf("Resize screen buffered character\n");
+        printf("\n");
+        printf("Moving in x\n");
+        wait(1000);
 
-    };
-    writeln;
-    writeln('Complete');
+    }
+    printf("\n");
+    printf("Complete");
     waitnext();
-    for y = 10 to 80 do {
+    for (y = 10; y <= 80; y++) {
 
-       pa_setsiz(80, y);
-       pa_getsiz(x2, y2);
-       if (x2 <> 80) || (y2 <> y) then {
+        pa_setsiz(stdout, 80, y);
+        pa_getsiz(stdout, x2, y2);
+        if (x2 != 80 || y2 != y) {
 
-          pa_setsiz(80, 25);
-          putchar('\f');
-          writeln('*** Getsiz does ! match setsiz');
-          waitnext();
-          longjmp(terminate_buf, 1)
+            pa_setsiz(stdout, 80, 25);
+            putchar('\f');
+            printf("*** Getsiz does not match setsiz\n");
+            waitnext();
+            longjmp(terminate_buf, 1);
 
-       };
-       putchar('\f');
-       writeln('Resize screen buffered character');
-       writeln;
-       writeln('Moving in y');
-       wait(1000)
+        }
+        putchar('\f');
+        printf("Resize screen buffered character\n");
+        printf("\n");
+        printf("Moving in y\n");
+        wait(1000);
 
-    };
-    writeln;
-    writeln('Complete');
+    }
+    printf("\n");
+    printf("Complete\n");
     waitnext();
-    pa_winclientg(ox, oy, ox, oy, [pa_wmframe, pa_wmsize, pa_wmsysbar]);
-    pa_setsizg(ox, oy);
+    pa_winclientg(stdout, ox, oy, ox, oy, [pa_wmframe, pa_wmsize, pa_wmsysbar]);
+    pa_setsizg(stdout, ox, oy);
 
     /* ******************** Resize screen with buffer on pixel ***************** */
 
     ox = pa_maxxg(stdout);
     oy = pa_maxyg(stdout);
-    for x = 200 to 800 do {
+    for (x = 200; x <= 800; x++) {
 
-       pa_setsizg(x, 200);
-       pa_getsizg(x2, y2);
-       if (x2 <> x) || (y2 <> 200) then {
+        pa_setsizg(stdout, x, 200);
+        pa_getsizg(stdout, x2, y2);
+        if (x2 != x) || (y2 != 200) then {
 
-          pa_setsiz(80, 25);
-          putchar('\f');
-          writeln('*** Getsiz does ! match setsiz');
-          waitnext();
-          longjmp(terminate_buf, 1)
+            pa_setsiz(stdout, 80, 25);
+            putchar('\f');
+            printf("*** Getsiz does ! match setsiz\n");
+            waitnext();
+            longjmp(terminate_buf, 1);
 
-       };
-       putchar('\f');
-       writeln('Resize screen buffered graphical');
-       writeln;
-       writeln('Moving in x');
-       wait(100)
+        }
+        putchar('\f');
+        printf("Resize screen buffered graphical\n");
+        printf("\n");
+        printf("Moving in x\n");
+        wait(100);
 
-    };
-    writeln;
-    writeln('Complete');
+    }
+    printf("\n");
+    printf("Complete\n");
     waitnext();
-    for y = 100 to 800 do {
+    for (y = 100; y <= 800; y++) {
 
-       pa_setsizg(300, y);
-       pa_getsizg(x2, y2);
-       if (x2 <> 300) || (y2 <> y) then {
+        pa_setsizg(stdout, 300, y);
+        pa_getsizg(stdout, x2, y2);
+        if (x2 != 300 || y2 != y) {
 
-          pa_setsiz(80, 25);
-          putchar('\f');
-          writeln('*** Getsiz does ! match setsiz');
-          waitnext();
-          longjmp(terminate_buf, 1)
+            pa_setsiz(stdout, 80, 25);
+            putchar('\f');
+            printf("*** Getsiz does ! match setsiz\n");
+            waitnext();
+            longjmp(terminate_buf, 1);
 
-       };
-       putchar('\f');
-       writeln('Resize screen buffered graphical');
-       writeln;
-       writeln('Moving in y');
-       wait(100)
+        }
+        putchar('\f');
+        printf("Resize screen buffered graphical\n");
+        printf("\n");
+        printf("Moving in y\n");
+        wait(100);
 
-    };
-    writeln;
-    writeln('Complete');
+    }
+    printf("\n");
+    printf("Complete\n");
     waitnext();
-    pa_winclientg(ox, oy, ox, oy, [wmframe, wmsize, wmsysbar]);
-    pa_setsizg(ox, oy);
+    pa_winclientg(stdout, ox, oy, ox, oy, [wmframe, wmsize, wmsysbar]);
+    pa_setsizg(stdout, ox, oy);
 
     /* ********************************* Front/back test *********************** */
 
     putchar('\f');
-    pa_auto(off);
-    writeln('Position window for font/back test');
-    writeln('Then hit space to flip font/back status, or return to stop');
+    pa_auto(stdout, OFF);
+    printf("Position window for font/back test\n");
+    printf("Then hit space to flip font/back status, or return to stop\n");
     fb = false; /* clear front/back status */
-    pa_font(font_sign);
-    pa_fontsiz(50);
-    repeat
+    pa_font(stdout, font_sign);
+    pa_fontsiz(stdout, 50);
+    do {
 
-       pa_event(stdin, er);
-       if er.etype == pa_etchar then if er.char == ' ' then { /* flip front/back */
+        pa_event(stdin, er);
+        if (er.etype == pa_etchar) if (er.echar == ' ') { /* flip front/back */
 
-          fb = ! fb;
-          if fb then {
+            fb = !fb;
+            if (fb) {
 
-             pa_front;
-             pa_fcolor(pa_white);
-             prtceng(pa_maxyg(stdout) / 2-pa_chrsizy(stdout) / 2, 'Back');
-             pa_fcolor(pa_black);
-             prtceng(pa_maxyg(stdout) / 2-pa_chrsizy / 2, 'Front')
+                pa_front(stdout);
+                pa_fcolor(stdout, pa_white);
+                prtceng(pa_maxyg(stdout) / 2-pa_chrsizy(stdout) / 2, "Back");
+                pa_fcolor(stdout, pa_black);
+                prtceng(pa_maxyg(stdout) / 2-pa_chrsizy / 2, "Front");
 
-          } else {
+            } else {
 
-             pa_back(stdout);
-             pa_fcolor(pa_white);
-             prtceng(pa_maxyg(stdout) / 2-pa_chrsizy(stdout) / 2, 'Front');
-             pa_fcolor(pa_black);
-             prtceng(pa_maxyg(stdout) / 2-pa_chrsizy(stdout) / 2, 'Back')
+                pa_back(stdout);
+                pa_fcolor(stdout, pa_white);
+                prtceng(pa_maxyg(stdout) / 2-pa_chrsizy(stdout) / 2, "Front");
+                pa_fcolor(stdout, pa_black);
+                prtceng(pa_maxyg(stdout) / 2-pa_chrsizy(stdout) / 2, "Back");
 
-          }
+            }
 
-       };
-       if er.etype == pa_etterm then longjmp(terminate_buf, 1)
+        }
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
-    until er.etype == pa_etenter;
+    } while (er.etype != pa_etenter);
     pa_home(stdout);
-    pa_font(font_term);
-    pa_auto(on);
+    pa_font(stdout, pa_term_font(stdout));
+    pa_auto(stdout, ON);
 
     /* ************************* Frame controls test buffered ****************** */
 
     putchar('\f');
-    pa_fcolor(pa_cyan);
-    pa_rect(1, 1, pa_maxxg(stdout), pa_maxyg(stdout));
-    pa_line(1, 1, pa_maxxg(stdout), pa_maxyg(stdout));
-    pa_line(1, pa_maxyg(stdout), pa_maxxg(stdout), 1);
-    pa_fcolor(pa_black);
+    pa_fcolor(stdout, pa_cyan);
+    pa_rect(stdout, 1, 1, pa_maxxg(stdout), pa_maxyg(stdout));
+    pa_line(stdout, 1, 1, pa_maxxg(stdout), pa_maxyg(stdout));
+    pa_line(stdout, 1, pa_maxyg(stdout), pa_maxxg(stdout), 1);
+    pa_fcolor(stdout, pa_black);
     pa_binvis(stdout);
-    writeln('Ready for frame controls buffered');
+    printf("Ready for frame controls buffered\n");
     waitnext();
-    pa_frame(off);
-    writeln('Entire frame off');
+    pa_frame(stdout, OFF);
+    printf("Entire frame off\n");
     waitnext();
-    pa_frame(on);
-    writeln('Entire frame on');
+    pa_frame(stdout, ON);
+    printf("Entire frame on\n");
     waitnext();
-    pa_sysbar(off);
-    writeln('System bar off');
+    pa_sysbar(stdout, OFF);
+    printf("System bar off\n");
     waitnext();
-    pa_sysbar(on);
-    writeln('System bar on');
+    pa_sysbar(stdout, ON);
+    printf("System bar on\n");
     waitnext();
-    pa_sizable(off);
-    writeln('Size bars off');
+    pa_sizable(stdout, OFF);
+    printf("Size bars off\n");
     waitnext();
-    pa_sizable(on);
-    writeln('Size bars on');
+    pa_sizable(stdout, ON);
+    printf("Size bars on\n");
     waitnext();
-    pa_bover;
+    pa_bover(stdout);
 
     /* ************************* Frame controls test buffered ****************** */
 
-    pa_buffer(off);
-    frametest('Ready for frame controls unbuffered');
-    frame(off);
-    frametest('Entire frame off');
-    frame(on);
-    frametest('Entire frame on');
-    pa_sysbar(off);
-    frametest('System bar off');
-    pa_sysbar(on);
-    frametest('System bar on');
-    pa_sizable(off);
-    frametest('Size bars off');
-    pa_sizable(on);
-    frametest('Size bars on');
-    pa_buffer(on);
+    pa_buffer(stdout, off);
+    frametest("Ready for frame controls unbuffered");
+    frame(stdout, off);
+    frametest("Entire frame off");
+    frame(stdout, on);
+    frametest("Entire frame on");
+    pa_sysbar(stdout, off);
+    frametest("System bar off");
+    pa_sysbar(stdout, on);
+    frametest("System bar on");
+    pa_sizable(stdout, off);
+    frametest("Size bars off");
+    pa_sizable(stdout, on);
+    frametest("Size bars on");
+    pa_buffer(stdout, on);
 
     /* ********************************* Menu test ***************************** */
 
     putchar('\f');
-    pa_fcolor(pa_cyan);
-    pa_rect(1, 1, pa_maxxg(stdout), pa_maxyg(stdout));
-    pa_line(1, 1, pa_maxxg(stdout), pa_maxyg(stdout));
-    pa_line(1, pa_maxyg(stdout), pa_maxxg(stdout), 1);
-    pa_fcolor(pa_black);
-    ml = nil; /* clear menu list */
-    newmenu(mp, false, false, off, 1, 'Say hello');
+    pa_fcolor(stdout, pa_cyan);
+    pa_rect(stdout, 1, 1, pa_maxxg(stdout), pa_maxyg(stdout));
+    pa_line(stdout, 1, 1, pa_maxxg(stdout), pa_maxyg(stdout));
+    pa_line(stdout, 1, pa_maxyg(stdout), pa_maxxg(stdout), 1);
+    pa_fcolor(stdout, pa_black);
+    ml = NULL; /* clear menu list */
+    newmenu(mp, FALSE, FALSE, OFF, 1, "Say hello");
     appendmenu(ml, mp);
-    newmenu(mp, true, false,  on, 2, 'Bark');
+    newmenu(mp, TRUE, FALSE,  ON, 2, "Bark");
     appendmenu(ml, mp);
-    newmenu(mp, false, false, off, 3, 'Walk');
+    newmenu(mp, FALSE, FALSE, OFF, 3, "Walk");
     appendmenu(ml, mp);
-    newmenu(sm, false, false, off, 4, 'Sublist');
+    newmenu(sm, FALSE, FALSE, off, 4, "Sublist");
     appendmenu(ml, sm);
     /* these are one/of buttons */
-    newmenu(mp, false, true,  off, 5, 'slow');
+    newmenu(mp, FALSE, TRUE,  OFF, 5, "slow");
     appendmenu(sm->branch, mp);
-    newmenu(mp, false, true,  off, 6, 'medium');
+    newmenu(mp, FALSE, TRUE,  OFF, 6, "medium");
     appendmenu(sm->branch, mp);
-    newmenu(mp, false, false, on, 7, 'fast');
+    newmenu(mp, FALSE, FALSE, ON, 7, "fast");
     appendmenu(sm->branch, mp);
     /* these are on/off buttons */
-    newmenu(mp, true, false,  off, 8, 'red');
+    newmenu(mp, TRUE, FALSE,  OFF, 8, "red");
     appendmenu(sm->branch, mp);
-    newmenu(mp, true, false,  off, 9, 'green');
+    newmenu(mp, TRUE, FALSE,  OFF, 9, "green");
     appendmenu(sm->branch, mp);
-    newmenu(mp, true, false,  off, 10, 'blue');
+    newmenu(mp, TRUE, FALSE,  OFF, 10, "blue");
     appendmenu(sm->branch, mp);
-    pa_menu(ml);
-    pa_menuena(3, off); /* disable 'Walk' */
-    pa_menusel(5, on); /* turn on 'slow' */
-    pa_menusel(8, on); /* turn on 'red' */
+    pa_menu(stdout, ml);
+    pa_menuena(stdout, 3, OFF); /* disable "Walk" */
+    pa_menusel(stdout, 5, ON); /* turn on "slow" */
+    pa_menusel(stdout, 8, ON); /* turn on "red" */
 
     pa_home(stdout);
-    writeln('Use sample menu above');
-    writeln('''Walk'' is disabled');
-    writeln('''Sublist'' is a dropdown');
-    writeln('''slow'', ''medium'' && ''fast'' are a one/of list');
-    writeln('''red'', ''green'' && ''blue'' are on/off');
-    writeln('There should be a bar between slow-medium-fast groups and');
-    writeln(' red-green-blue groups.');
-    sred = on; /* set states */
-    sgreen = off;
-    sblue = off;
-    repeat
+    printf("Use sample menu above\n");
+    printf("'Walk' is disabled\n");
+    printf("'Sublist' is a dropdown\n");
+    printf("'slow', 'medium' and 'fast' are a one/of list\n");
+    printf("'red', 'green' and 'blue' are on/off\n");
+    printf("There should be a bar between slow-medium-fast groups and\n");
+    printf(" red-green-blue groups.\n");
+    sred = ON; /* set states */
+    sgreen = OFF;
+    sblue = OFF;
+    do {
 
-       pa_event(stdin, &er);
-       if er.etype == pa_etterm then longjmp(terminate_buf, 1);
-       if er.etype == pa_etmenus then {
+        pa_event(stdin, &er);
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
+        if (er.etype == pa_etmenus) {
 
-          write('Menu select: ');
-          case er.menuid of
+            printf("Menu select: ");
+            select (er.menuid) {
 
-             1:  writeln('Say hello');
-             2:  writeln('Bark');
-             3:  writeln('Walk');
-             4:  writeln('Sublist');
-             5:  { writeln('slow'); pa_menusel(5, on) };
-             6:  { writeln('medium'); pa_menusel(6, on) };
-             7:  { writeln('fast'); pa_menusel(7, on) };
-             8:  { writeln('red'); sred = ! sred; pa_menusel(8, sred) };
-             9:  { writeln('green'); sgreen = ! sgreen; pa_menusel(9, sgreen) };
-             10: { writeln('blue'); sblue = ! sblue; pa_menusel(10, sblue) }
+                case 1:  printf("Say hello\n"); break;
+                case 2:  printf("Bark\n"); break;
+                case 3:  printf("Walk\n"); break;
+                case 4:  printf("Sublist\n"); break;
+                case 5:  printf("slow\n"); pa_menusel(stdout, 5, ON); break;
+                case 6:  printf("medium\n"); pa_menusel(stdout, 6, ON); break;
+                case 7:  printf("fast\n"); pa_menusel(stdout, 7, ON); break;
+                case 8:  printf("red\n"); sred = !sred;
+                         pa_menusel(stdout, 8, sred); break;
+                case 9:  printf("green\n"); sgreen = !sgreen;
+                         pa_menusel(stdout, 9, sgreen); break;
+                case 10: printf("blue\n"); sblue = !sblue;
+                         pa_menusel(stdout, 10, sblue); break;
 
-          }
+            }
 
-       }
+        }
 
-    until (er.etype == pa_etenter) || (er.etype == pa_etterm);
-    pa_menu(nil);
+    } while (er.etype != pa_etenter && er.etype != pa_etterm);
+    pa_menu(stdout, NULL);
 
-    /* ****************************** Standard menu test *********************** */
+    /* ****************************** Standard menu test ******************** */
 
     putchar('\f');
-    pa_auto(on);
-    ml = nil; /* clear menu list */
-    newmenu(mp, false, false, off, smmax+1, 'one');
+    pa_auto(stdout, ON);
+    ml = NULL; /* clear menu list */
+    newmenu(mp, FALSE, FALSE, off, smmax+1, "one");
     appendmenu(ml, mp);
-    newmenu(mp, true, false,  on, smmax+2, 'two');
+    newmenu(mp, TRUE, FALSE,  ON, smmax+2, "two");
     appendmenu(ml, mp);
-    newmenu(mp, false, false, off, smmax+3, 'three');
+    newmenu(mp, FALSE, FALSE, OFF, smmax+3, "three");
     appendmenu(ml, mp);
-    pa_stdmenu([pa_smnew, pa_smopen, pa_smclose, pa_smsave, pa_smsaveas, pa_smpageset, pa_smprint, pa_smexit,
-             pa_smundo, pa_smcut, pa_smpaste, pa_smdelete, pa_smfind, pa_smfindnext, pa_smreplace,
-             pa_smgoto, pa_smselectall, pa_smnewwindow, pa_smtilehoriz, pa_smtilevert,
-             pa_smcascade, pa_smcloseall, pa_smhelptopic, pa_smabout], mp, ml);
-    pa_menu(mp);
-    writeln('Standard menu appears above');
-    writeln('Check our ''one'', ''two'', ''three'' buttons are in the program');
-    writeln('defined position');
-    repeat
+    pa_stdmenu(stdout, [PA_SMNEW, PA_SMOPEN, PA_SMCLOSE, PA_SMSAVE, PA_SMSAVEAS,
+                        PA_SMPAGESET, PA_SMPRINT, PA_SMEXIT, PA_SMUNDO,
+                        PA_SMCUT, PA_SMPASTE, PA_SMDELETE, PA_SMFIND,
+                        PA_SMFINDNEXT, PA_SMREPLACE, PA_SMGOTO, PA_SMSELECTALL,
+                        PA_SMNEWWINDOW, PA_SMTILEHORIZ, PA_SMTILEVERT,
+                        PA_SMCASCADE, PA_SMCLOSEALL, PA_SMHELPTOPIC,
+                        PA_SMABOUT], mp, ml);
+    pa_menu(stdout, mp);
+    printf("Standard menu appears above\n");
+    printf("Check our 'one', 'two', 'three' buttons are in the program\n");
+    printf("defined position\n");
+    do {
 
-       pa_event(stdin, er);
-       if er.etype == pa_etterm then longjmp(terminate_buf, 1);
-       if er.etype == pa_etmenus then {
+        pa_event(stdin, er);
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
+        if (er.etype == pa_etmenus) {
 
-          write('Menu select: ');
-          case er.menuid of
+            printf("Menu select: ");
+            select (er.menuid) {
 
-            pa_smnew:       writeln('new');
-            pa_smopen:      writeln('open');
-            pa_smclose:     writeln('close');
-            pa_smsave:      writeln('save');
-            pa_smsaveas:    writeln('saveas');
-            pa_smpageset:   writeln('pageset');
-            pa_smprint:     writeln('print');
-            pa_smexit:      writeln('exit');
-            pa_smundo:      writeln('undo');
-            pa_smcut:       writeln('cut');
-            pa_smpaste:     writeln('paste');
-            pa_smdelete:    writeln('delete');
-            pa_smfind:      writeln('find');
-            pa_smfindnext:  writeln('findnext');
-            pa_smreplace:   writeln('replace');
-            pa_smgoto:      writeln('goto');
-            pa_smselectall: writeln('selectall');
-            pa_smnewwindow: writeln('newwindow');
-            pa_smtilehoriz: writeln('tilehoriz');
-            pa_smtilevert:  writeln('tilevert');
-            pa_smcascade:   writeln('cascade');
-            pa_smcloseall:  writeln('closeall');
-            pa_smhelptopic: writeln('helptopic');
-            pa_smabout:     writeln('about');
-            smmax+1:     writeln('one');
-            smmax+2:     writeln('two');
-            smmax+3:     writeln('three');
+                case PA_SMNEW:       printf("new\n"); break;
+                case PA_SMOPEN:      printf("open\n"); break;
+                case PA_SMCLOSE:     printf("close\n"); break;
+                case PA_SMSAVE:      printf("save\n"); break;
+                case PA_SMSAVEAS:    printf("saveas\n"); break;
+                case PA_SMPAGESET:   printf("pageset\n"); break;
+                case PA_SMPRINT:     printf("print\n"); break;
+                case PA_SMEXIT:      printf("exit\n"); break;
+                case PA_SMUNDO:      printf("undo\n"); break;
+                case PA_SMCUT:       printf("cut\n"); break;
+                case PA_SMPASTE:     printf("paste\n"); break;
+                case PA_SMDELETE:    printf("delete\n"); break;
+                case PA_SMFIND:      printf("find\n"); break;
+                case PA_SMFINDNEXT:  printf("findnext\n"); break;
+                case PA_SMREPLACE:   printf("replace\n"); break;
+                case PA_SMGOTO:      printf("goto\n"); break;
+                case PA_SMSELECTALL: printf("selectall\n"); break;
+                case PA_SMNEWWINDOW: printf("newwindow\n"); break;
+                case PA_SMTILEHORIZ: printf("tilehoriz\n"); break;
+                case PA_SMTILEVERT:  printf("tilevert\n"); break;
+                case PA_SMCASCADE:   printf("cascade\n"); break;
+                case PA_SMCLOSEALL:  printf("closeall\n"); break;
+                case PA_SMHELPTOPIC: printf("helptopic\n"); break;
+                case PA_SMABOUT:     printf("about\n"); break;
+                case smmax+1:        printf("one\n"); break;
+                case smmax+2:        printf("two\n"); break;
+                case smmax+3:        printf("three\n"); break;
 
-         }
+            }
 
-      }
+        }
 
-    until (er.etype == pa_etenter) || (er.etype == pa_etterm);
-    pa_menu(nil);
+    } while (er.etype != pa_etenter && er.etype != pa_etterm);
+    pa_menu(stdout, NULL);
 
     /* ************************* Child windows test character ****************** */
 
     putchar('\f');
     chrgrid();
-    prtcen(pa_maxy(stdout), 'Child windows test character');
-    pa_openwin(stdin, win2, stdout, 2);
+    prtcen(pa_maxy(stdout), "Child windows test character");
+    pa_openwin(stdin, win2, stdout, 2, 0);
     pa_setpos(win2, 1, 10);
     pa_sizbuf(win2, 20, 10);
     pa_setsiz(win2, 20, 10);
-    pa_openwin(stdin, win3, stdout, 3);
+    pa_openwin(stdin, win3, stdout, 3, 0);
     pa_setpos(win3, 21, 10);
     pa_sizbuf(win3, 20, 10);
     pa_setsiz(win3, 20, 10);
-    pa_openwin(stdin, win4, stdout, 4);
+    pa_openwin(stdin, win4, stdout, 4, 0);
     pa_setpos(win4, 41, 10);
     pa_sizbuf(win4, 20, 10);
     pa_setsiz(win4, 20, 10);
     pa_bcolor(win2, pa_cyan);
-    page(win2);
-    writeln(win2, 'I am child window 1');
+    putc('\f', win2);
+    printf(win2, "I am child window 1\n");
     pa_bcolor(win3, pa_yellow);
-    page(win3);
-    writeln(win3, 'I am child window 2');
+    putc('\f', win3);
+    printf(win3, "I am child window 2\n");
     pa_bcolor(win4, pa_magenta);
-    page(win4);
-    writeln(win4, 'I am child window 3');
-    pa_home;
-    writeln('There should be 3 labeled child windows below, with frames   ');
+    putc('\f', win4);
+    printf(win4, "I am child window 3\n");
+    pa_home(stdout);
+    printf("There should be 3 labeled child windows below, with frames   \n");
     waitnext();
-    pa_frame(win2, off);
-    pa_frame(win3, off);
-    pa_frame(win4, off);
-    pa_home;
-    writeln('There should be 3 labeled child windows below, without frames');
+    pa_frame(win2, OFF);
+    pa_frame(win3, OFF);
+    pa_frame(win4, OFF);
+    pa_home(stdout);
+    printf("There should be 3 labeled child windows below, without frames\n");
     waitnext();
     fclose(win2);
     fclose(win3);
     fclose(win4);
-    pa_home;
-    writeln('Child windows should all be closed                           ');
+    pa_home(stdout);
+    printf("Child windows should all be closed                           \n");
     waitnext();
 
     /* *************************** Child windows test pixel ******************** */
 
     putchar('\f');
-    prtcen(maxy, 'Child windows test pixel');
+    prtcen(maxy, "Child windows test pixel");
     pa_openwin(stdin, win2, stdout, 2);
     pa_setposg(win2, 1, 100);
     pa_sizbufg(win2, 200, 200);
@@ -714,35 +721,35 @@ int main(void)
     pa_setposg(win4, 401, 100);
     pa_sizbufg(win4, 200, 200);
     pa_setsizg(win4, 200, 200);
-    pa_bcolor(win2, cyan);
-    page(win2);
-    writeln(win2, 'I am child window 1');
-    bcolor(win3, yellow);
-    page(win3);
-    writeln(win3, 'I am child window 2');
-    pa_bcolor(win4, magenta);
-    page(win4);
-    writeln(win4, 'I am child window 3');
+    pa_bcolor(win2, pa_cyan);
+    putc('\f', win2);
+    printf(win2, "I am child window 1\n");
+    bcolor(win3, pa_yellow);
+    putc('\f', win3);
+    printf(win3, "I am child window 2\n");
+    pa_bcolor(win4, pa_magenta);
+    putc('\f', win4);
+    printf(win4, "I am child window 3\n");
     pa_home(stdout);
-    writeln('There should be 3 labled child windows below, with frames   ');
+    printf("There should be 3 labled child windows below, with frames   \n");
     waitnext();
-    pa_frame(win2, off);
-    pa_frame(win3, off);
-    pa_frame(win4, off);
+    pa_frame(win2, OFF);
+    pa_frame(win3, OFF);
+    pa_frame(win4, OFF);
     pa_home(stdout);
-    writeln('There should be 3 labled child windows below, without frames');
+    printf("There should be 3 labled child windows below, without frames\n");
     waitnext();
     fclose(win2);
     fclose(win3);
     fclose(win4);
     pa_home(stdout);
-    writeln('Child windows should all be closed                          ');
+    printf("Child windows should all be closed                          \n");
     waitnext();
 
     /* ******************* Child windows stacking test pixel ******************* */
 
     putchar('\f');
-    prtcen(maxy, 'Child windows stacking test pixel');
+    prtcen(maxy(stdout), "Child windows stacking test pixel");
     pa_openwin(stdin, win2, stdout, 2);
     pa_setposg(win2, 50, 50);
     pa_sizbufg(win2, 200, 200);
@@ -755,44 +762,44 @@ int main(void)
     pa_setposg(win4, 250, 150);
     pa_sizbufg(win4, 200, 200);
     pa_setsizg(win4, 200, 200);
-    pa_bcolor(win2, cyan);
-    page(win2);
-    writeln(win2, 'I am child window 1');
-    pa_bcolor(win3, yellow);
-    page(win3);
-    writeln(win3, 'I am child window 2');
-    pa_bcolor(win4, magenta);
-    page(win4);
-    writeln(win4, 'I am child window 3');
+    pa_bcolor(win2, pa_cyan);
+    putc('\f', win2);
+    printf(win2, "I am child window 1\n");
+    pa_bcolor(win3, pa_yellow);
+    putc('\f', win3);
+    printf(win3, "I am child window 2\n");
+    pa_bcolor(win4, pa_magenta);
+    putc('\f', win4);
+    printf(win4, "I am child window 3\n");
     pa_home(stdout);
-    writeln('There should be 3 labled child windows below, overlapped,   ');
-    writeln('with child 1 on the bottom, child 2 middle, && child 3 top.');
+    printf("There should be 3 labled child windows below, overlapped,   \n");
+    printf("with child 1 on the bottom, child 2 middle, and child 3 top.\n");
     waitnext();
     pa_back(win2);
     pa_back(win3);
     pa_back(win4);
     pa_home(stdout);
-    writeln('Now the windows are reordered, with child 1 on top, child 2 ');
-    writeln('below that, && child 3 on the bottom.                      ');
+    printf("Now the windows are reordered, with child 1 on top, child 2 \n");
+    printf("below that, and child 3 on the bottom.                      \n");
     waitnext();
     pa_front(win2);
     pa_front(win3);
     pa_front(win4);
     pa_home(stdout);
-    writeln('Now the windows are reordered, with child 3 on top, child 2 ');
-    writeln('below that, && child 1 on the bottom.                      ');
+    printf("Now the windows are reordered, with child 3 on top, child 2 \n");
+    printf("below that, and child 1 on the bottom.                      \n");
     waitnext();
     fclose(win2);
     fclose(win3);
     fclose(win4);
     putchar('\f');
-    writeln('Child windows should all be closed                          ');
+    printf("Child windows should all be closed                          \n");
     waitnext();
 
     /* ************** Child windows stacking resize test pixel 1 *************** */
 
-    pa_buffer(off);
-    pa_auto(off);
+    pa_buffer(stdout, OFF);
+    pa_auto(stdout, OFF);
     pa_openwin(stdin, win2, stdout, 2);
     pa_setposg(win2, 50-25, 50-25);
     pa_sizbufg(win2, 200, 200);
@@ -806,42 +813,43 @@ int main(void)
     pa_sizbufg(win4, 200, 200);
     pa_setsizg(win4, maxxg(stdout)-150, maxyg(stdout)-150);
     pa_bcolor(win2, pa_cyan);
-    page(win2);
-    writeln(win2, 'I am child window 1');
+    putc('\f', win2);
+    printf(win2, "I am child window 1\n");
     pa_bcolor(win3, pa_yellow);
-    page(win3);
-    writeln(win3, 'I am child window 2');
+    putc('\f', win3);
+    printf(win3, "I am child window 2\n");
     pa_bcolor(win4, pa_magenta);
-    page(win4);
-    writeln(win4, 'I am child window 3');
-    repeat
+    putc('\f', win4);
+    printf(win4, "I am child window 3\n");
+    do {
 
-        pa_event(er);
-        if er.etype == pa_etredraw then {
+        pa_event(stdin, er);
+        if (er.etype == pa_etredraw) {
 
             putchar('\f');
-            prtceng(pa_maxyg(stdout)-pa_chrsizy(stdout), 'Child windows stacking resize test pixel 1');
-            prtceng(1, 'move and resize');
+            prtceng(pa_maxyg(stdout)-pa_chrsizy(stdout),
+                    "Child windows stacking resize test pixel 1");
+            prtceng(1, "move and resize");
             pa_setsizg(win3, pa_maxxg(stdout)-150, pa_maxyg(stdout)-150);
             pa_setsizg(win4, pa_maxxg(stdout)-150, pa_maxyg(stdout)-150);
             pa_setsizg(win2, pa_maxxg(stdout)-150, pa_maxyg(stdout)-150);
 
         }
-        if er.etype == pa_etterm then longjmp(terminate_buf, 1)
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1)
 
-    until er.etype == pa_etenter;
+    } while (er.etype != pa_etenter);
     fclose(win2);
     fclose(win3);
     fclose(win4);
 /*  ???????? There is a hole in the buffer after this gets enabled */
-    pa_buffer(on);
+    pa_buffer(stdout, ON);
     putchar('\f');
-    writeln('Child windows should all be closed                          ');
+    printf("Child windows should all be closed                          \n");
     waitnext();
 
     /* ************** Child windows stacking resize test pixel 2 *************** */
 
-    pa_buffer(off);
+    pa_buffer(stdout, off);
     pa_openwin(stdin, win2, stdout, 2);
     pa_setposg(win2, 50, 50);
     pa_sizbufg(win2, 200, 200);
@@ -855,278 +863,276 @@ int main(void)
     pa_sizbufg(win4, 200, 200);
     pa_setsizg(win4, maxxg(stdout)-300, maxyg(stdout)-300);
     pa_bcolor(win2, pa_cyan);
-    page(win2);
-    writeln(win2, 'I am child window 1');
+    putc('\f', win2);
+    printf(win2, "I am child window 1\n");
     pa_bcolor(win3, pa_yellow);
-    page(win3);
-    writeln(win3, 'I am child window 2');
+    putc('\f', win3);
+    printf(win3, "I am child window 2\n");
     pa_bcolor(win4, pa_magenta);
-    page(win4);
-    writeln(win4, 'I am child window 3');
-    repeat
+    putc('\f', win4);
+    printf(win4, "I am child window 3\n");
+    do {
 
-        pa_event(er);
-        if er.etype == pa_etredraw then {
+        pa_event(stdin, er);
+        if (er.etype == pa_etredraw) {
 
             putchar('\f');
-            prtceng(pa_maxyg(stdout)-pa_chrsizy(stdout), 'Child windows stacking resize test pixel 2');
-            prtceng(1, 'move and resize');
+            prtceng(pa_maxyg(stdout)-pa_chrsizy(stdout),
+                    "Child windows stacking resize test pixel 2");
+            prtceng(1, "move and resize");
             pa_setsizg(win3, pa_maxxg(stdout)-200, pa_maxyg(stdout)-200);
             pa_setsizg(win4, pa_maxxg(stdout)-300, pa_maxyg(stdout)-300);
             pa_setsizg(win2, pa_maxxg(stdout)-100, pa_maxyg(stdout)-100);
 
         }
-        if er.etype == pa_etterm then longjmp(terminate_buf, 1)
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
-    until er.etype == pa_etenter;
+    } while (er.etype != pa_etenter);
     fclose(win2);
     fclose(win3);
     fclose(win4);
-    pa_buffer(on);
+    pa_buffer(stdout, ON);
     putchar('\f');
-    writeln('Child windows should all be closed                          ');
+    printf("Child windows should all be closed                          \n");
     waitnext();
 
     /* ******************************* Buffer off test *********************** */
 
     putchar('\f');
-    pa_auto(off);
-    pa_buffer(off);
-    /* initalize prime size information */
+    pa_auto(stdout, OFF);
+    pa_buffer(stdout, OFF);
+    /* initialize prime size information */
     x = pa_maxxg(stdout);
     y = pa_maxyg(stdout);
-    linewidth(5); /* set large lines */
-    pa_font(font_sign);
+    linewidth(stdout, 5); /* set large lines */
+    pa_font(stdout, pa_signfont(stdout));
     pa_binvis(stdout);
-    repeat
+    do {
 
-       pa_event(er); /* get next event */
-       if er.etype == pa_etredraw then {
+        pa_event(stdin, er); /* get next event */
+        if (er.etype == pa_etredraw) {
 
-          /* clear screen without overwriting frame */
-          pa_fcolor(pa_white);
-          pa_frect(1+5, 1+5, x-5, y-5);
-          pa_fcolor(pa_black);
-          pa_fontsiz(y / 10);
-          prtceng(maxyg(stdout) / 2-pa_chrsizy(stdout) / 2, 'SIZE AND COVER ME !');
-          pa_rect(1+2, 1+2, x-2, y-2); /* frame the window */
+            /* clear screen without overwriting frame */
+            pa_fcolor(stdout, pa_white);
+            pa_frect(stdout, 1+5, 1+5, x-5, y-5);
+            pa_fcolor(stdout, pa_black);
+            pa_fontsiz(stdout, y / 10);
+            prtceng(pa_maxyg(stdout)/2-pa_chrsizy(stdout)/2,
+                    "SIZE AND COVER ME !");
+            pa_rect(stdout, 1+2, 1+2, x-2, y-2); /* frame the window */
 
-       };
-       if er.etype == pa_etresize then {
+        }
+        if (er.etype == pa_etresize) {
 
-          /* Save the new demensions, even if ! required. This way we must
-            get a resize notification for this test to work. */
-          x = pa_maxxg(stdout);
-          y = pa_maxyg(stdout);
+            /* Save the new demensions, even if not required. This way we must
+               get a resize notification for this test to work. */
+            x = pa_maxxg(stdout);
+            y = pa_maxyg(stdout);
 
-       };
-       if er.etype == pa_etterm then longjmp(terminate_buf, 1)
+        }
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1)
 
-    until er.etype == pa_etenter;
-    pa_buffer(on);
+    } while (er.etype != pa_etenter);
+    pa_buffer(stdout, ON);
 
     /* ******************************* min/max/norm test *********************** */
 
     putchar('\f');
-    pa_auto(off);
-    pa_buffer(off);
-    pa_font(font_term);
+    pa_auto(stdout, OFF);
+    pa_buffer(stdout, OFF);
+    pa_font(stdout, pa_termfont(stdout));
     mincnt = 0; /* clear minimize counter */
     maxcnt = 0; /* clear maximize counter */
     nrmcnt = 0; /* clear normalize counter */
-    repeat
+    do {
 
-       pa_event(er); /* get next event */
-       if er.etype == pa_etredraw then {
+        pa_event(stdin, er); /* get next event */
+        if (er.etype == pa_etredraw) {
 
-          putchar('\f');
-          writeln('Minimize, maximize && restore this window');
-          writeln;
-          writeln('Minimize count:  ', mincnt);
-          writeln('Maximize count:  ', maxcnt);
-          writeln('Normalize count: ', nrmcnt);
+            putchar('\f');
+            printf("Minimize, maximize and restore this window\n");
+            printf("\n");
+            printf("Minimize count:  %d\n", mincnt);
+            printf("Maximize count:  %d\n", maxcnt);
+            printf("Normalize count: %d\n", nrmcnt);
 
-       };
-       /* count minimize, maximize, normalize */
-       if er.etype == pa_etmax then maxcnt = maxcnt+1;
-       if er.etype == pa_etmin then mincnt = mincnt+1;
-       if er.etype == pa_etnorm then nrmcnt = nrmcnt+1;
+        }
+        /* count minimize, maximize, normalize */
+        if (er.etype == pa_etmax) maxcnt = maxcnt+1;
+        if (er.etype == pa_etmin) mincnt = mincnt+1;
+        if (er.etype == pa_etnorm) nrmcnt = nrmcnt+1;
 
-       if er.etype == pa_etterm then longjmp(terminate_buf, 1)
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
-    until er.etype == pa_etenter;
-    pa_buffer(on);
+    } while (er.etype != pa_etenter);
+    pa_buffer(stdout, ON);
 
     /* ************************ Window size calculate character ******************** */
 
     putchar('\f');
-    prtceng(pa_maxyg(stdout)-pa_chrsizy(stdout), 'Window size calculate character');
+    prtceng(pa_maxyg(stdout)-pa_chrsizy(stdout), "Window size calculate character");
     pa_home(stdout);
-    pa_openwin(stdin, win2, 2);
-    pa_linewidth(1);
+    pa_openwin(stdin, win2, 2, 0);
+    pa_linewidth(stdout, 1);
 
-    pa_winclient(20, 10, x, y, [pa_wmframe, pa_wmsize, pa_wmsysbar]);
-    writeln('For (20, 10) client, full frame, window size is: ', x:1, ',', y:1);
+    pa_winclient(stdout, 20, 10, x, y, [pa_wmframe, pa_wmsize, pa_wmsysbar]);
+    printf("For (20, 10) client, full frame, window size is: %d,%d\n", x, y);
     pa_setsiz(win2, x, y);
-    page(win2);
+    putc('\f', win2);
     pa_fcolor(win2, pa_black);
-    writeln(win2, '12345678901234567890');
-    writeln(win2, '2');
-    writeln(win2, '3');
-    writeln(win2, '4');
-    writeln(win2, '5');
-    writeln(win2, '6');
-    writeln(win2, '7');
-    writeln(win2, '8');
-    writeln(win2, '9');
-    writeln(win2, '0');
+    printf(win2, "12345678901234567890\n");
+    printf(win2, "2\n");
+    printf(win2, "3\n");
+    printf(win2, "4\n");
+    printf(win2, "5\n");
+    printf(win2, "6\n");
+    printf(win2, "7\n");
+    printf(win2, "8\n");
+    printf(win2, "9\n");
+    printf(win2, "0\n");
     pa_fcolor(win2, pa_cyan);
     pa_rect(win2, 1, 1, 20*pa_chrsizx(win2), 10*pa_chrsizy(win2));
     pa_line(win2, 1, 1, 20*pa_chrsizx(win2), 10*pa_chrsizy(win2));
     pa_line(win2, 1, 10*pa_chrsizy(win2), 20*pa_chrsizx(win2), 1);
-    pa_curvis(win2, off);
-    writeln('Check client window has (20, 10) surface');
+    pa_curvis(win2, OFF);
+    printf("Check client window has (20, 10) surface\n");
     waitnext();
 
-    writeln('System bar off');
-    pa_sysbar(win2, off);
-    pa_winclient(20, 10, x, y, [pa_wmframe, pa_wmsize]);
-    writeln('For (20, 10) client, no system bar, window size is: ', x:1, ',', y:1);
+    printf("System bar off\n");
+    pa_sysbar(win2, OFF);
+    pa_winclient(stdout, 20, 10, x, y, [pa_wmframe, pa_wmsize]);
+    printf("For (20, 10) client, no system bar, window size is: %d,%d\n", x, y);
     pa_setsiz(win2, x, y);
-    page(win2);
+    putc('\f', win2);
     pa_fcolor(win2, pa_black);
-    writeln(win2, '12345678901234567890');
-    writeln(win2, '2');
-    writeln(win2, '3');
-    writeln(win2, '4');
-    writeln(win2, '5');
-    writeln(win2, '6');
-    writeln(win2, '7');
-    writeln(win2, '8');
-    writeln(win2, '9');
-    writeln(win2, '0');
+    printf(win2, "12345678901234567890\n");
+    printf(win2, "2\n");
+    printf(win2, "3\n");
+    printf(win2, "4\n");
+    printf(win2, "5\n");
+    printf(win2, "6\n");
+    printf(win2, "7\n");
+    printf(win2, "8\n");
+    printf(win2, "9\n");
+    printf(win2, "0\n");
     pa_fcolor(win2, pa_cyan);
     pa_rect(win2, 1, 1, 20*pa_chrsizx(win2), 10*pa_chrsizy(win2));
     pa_line(win2, 1, 1, 20*pa_chrsizx(win2), 10*pa_chrsizy(win2));
     pa_line(win2, 1, 10*pa_chrsizy(win2), 20*pa_chrsizx(win2), 1);
-    pa_curvis(win2, off);
-    writeln('Check client window has (20, 10) surface');
+    pa_curvis(win2, OFF);
+    printf("Check client window has (20, 10) surface\n");
     waitnext();
 
-    writeln('Sizing bars off');
-    pa_sysbar(win2, on);
-    pa_sizable(win2, off);
-    pa_winclient(20, 10, x, y, [pa_wmframe, pa_wmsysbar]);
-    writeln('For (20, 10) client, no size bars, window size is: ', x:1, ',', y:1);
+    printf("Sizing bars off");
+    pa_sysbar(win2, ON);
+    pa_sizable(win2, OFF);
+    pa_winclient(stdout, 20, 10, x, y, [pa_wmframe, pa_wmsysbar]);
+    printf("For (20, 10) client, no size bars, window size is: %d,%d\n", x, y);
     pa_setsiz(win2, x, y);
-    page(win2);
+    putc('\f', win2);
     pa_fcolor(win2, pa_black);
-    writeln(win2, '12345678901234567890');
-    writeln(win2, '2');
-    writeln(win2, '3');
-    writeln(win2, '4');
-    writeln(win2, '5');
-    writeln(win2, '6');
-    writeln(win2, '7');
-    writeln(win2, '8');
-    writeln(win2, '9');
-    writeln(win2, '0');
+    printf(win2, "12345678901234567890\n");
+    printf(win2, "2\n");
+    printf(win2, "3\n");
+    printf(win2, "4\n");
+    printf(win2, "5\n");
+    printf(win2, "6\n");
+    printf(win2, "7\n");
+    printf(win2, "8\n");
+    printf(win2, "9\n");
+    printf(win2, "0\n");
     pa_fcolor(win2, pa_cyan);
     pa_rect(win2, 1, 1, 20*pa_chrsizx(win2), 10*pa_chrsizy(win2));
     pa_line(win2, 1, 1, 20*pa_chrsizx(win2), 10*pa_chrsizy(win2));
     pa_line(win2, 1, 10*pa_chrsizy(win2), 20*pa_chrsizx(win2), 1);
-    pa_curvis(win2, off);
-    writeln('Check client window has (20, 10) surface');
+    pa_curvis(win2, OFF);
+    printf("Check client window has (20, 10) surface\n");
     waitnext();
 
-    writeln('frame off');
-    pa_sysbar(win2, on);
-    pa_sizable(win2, on);
-    pa_frame(win2, off);
-    pa_winclient(20, 10, x, y, [pa_wmsize, pa_wmsysbar]);
-    writeln('For (20, 10) client, no frame, window size is: ', x:1, ',', y:1);
+    printf("frame off\n");
+    pa_sysbar(win2, ON);
+    pa_sizable(win2, ON);
+    pa_frame(win2, OFF);
+    pa_winclient(stdout, 20, 10, x, y, [pa_wmsize, pa_wmsysbar]);
+    printf("For (20, 10) client, no frame, window size is: %d,%d\n", x, y);
     pa_setsiz(win2, x, y);
-    page(win2);
+    putc('\f', win2);
     pa_fcolor(win2, pa_black);
-    writeln(win2, '12345678901234567890');
-    writeln(win2, '2');
-    writeln(win2, '3');
-    writeln(win2, '4');
-    writeln(win2, '5');
-    writeln(win2, '6');
-    writeln(win2, '7');
-    writeln(win2, '8');
-    writeln(win2, '9');
-    writeln(win2, '0');
-    fcolor(win2, cyan);
+    printf(win2, "12345678901234567890\n");
+    printf(win2, "2\n");
+    printf(win2, "3\n");
+    printf(win2, "4\n");
+    printf(win2, "5\n");
+    printf(win2, "6\n");
+    printf(win2, "7\n");
+    printf(win2, "8\n");
+    printf(win2, "9\n");
+    printf(win2, "0\n");
+    fcolor(win2, pa_cyan);
     pa_rect(win2, 1, 1, 20*pa_chrsizx(win2), 10*pa_chrsizy(win2));
     pa_line(win2, 1, 1, 20*pa_chrsizx(win2), 10*pa_chrsizy(win2));
     pa_line(win2, 1, 10*pa_chrsizy(win2), 20*pa_chrsizx(win2), 1);
-    pa_curvis(win2, off);
-    writeln('Check client window has (20, 10) surface');
+    pa_curvis(win2, OFF);
+    printf("Check client window has (20, 10) surface\n");
     waitnext();
 
-    close(win2);
+    fclose(win2);
 
     /* ************************ Window size calculate pixel ******************** */
 
     putchar('\f');
-    prtceng(pa_maxyg(stdout)-pa_chrsizy(stdout), 'Window size calculate pixel');
+    prtceng(pa_maxyg(stdout)-pa_chrsizy(stdout), "Window size calculate pixel");
     pa_home(stdout);
-    pa_openwin(stdin, win2, 2);
-    pa_linewidth(1);
+    pa_openwin(stdin, win2, 2, 0);
+    pa_linewidth(stdout, 1);
     pa_fcolor(win2, pa_cyan);
     pa_winclientg(200, 200, x, y, [pa_wmframe, pa_wmsize, pa_wmsysbar]);
-    writeln('For (200, 200) client, full frame, window size is: ',
-            x:1, ',', y:1);
+    printf("For (200, 200) client, full frame, window size is: %d,%d\n", x, y);
     pa_setsizg(win2, x, y);
     pa_rect(win2, 1, 1, 200, 200);
     pa_line(win2, 1, 1, 200, 200);
     pa_line(win2, 1, 200, 200, 1);
-    pa_curvis(win2, off);
-    writeln('Check client window has (200, 200) surface');
+    pa_curvis(win2, OFF);
+    printf("Check client window has (200, 200) surface\n");
     waitnext();
 
-    writeln('System bar off');
-    pa_sysbar(win2, off);
+    printf("System bar off\n");
+    pa_sysbar(win2, OFF);
     pa_winclientg(200, 200, x, y, [pa_wmframe, pa_wmsize]);
-    writeln('For (200, 200) client, no system bar, window size is: ',
-           x:1, ',', y:1);
+    printf("For (200, 200) client, no system bar, window size is: %d,%d\n", x, y);
     setsizg(win2, x, y);
-    page(win2);
+    putc('\f', win2);
     rect(win2, 1, 1, 200, 200);
     line(win2, 1, 1, 200, 200);
     line(win2, 1, 200, 200, 1);
-    writeln('Check client window has (200, 200) surface');
+    printf("Check client window has (200, 200) surface\n");
     waitnext();
 
-    writeln('Sizing bars off');
-    pa_sysbar(win2, on);
-    pa_sizable(win2, off);
+    printf("Sizing bars off");
+    pa_sysbar(win2, ON);
+    pa_sizable(win2, OFF);
     pa_winclientg(200, 200, x, y, [pa_wmframe, pa_wmsysbar]);
-    writeln('For (200, 200) client, no sizing, window size is: ',
-            x:1, ',', y:1);
+    printf("For (200, 200) client, no sizing, window size is: %d,%d\n", x, y);
     pa_setsizg(win2, x, y);
-    page(win2);
+    putc('\f', win2);
     pa_rect(win2, 1, 1, 200, 200);
     pa_line(win2, 1, 1, 200, 200);
     pa_line(win2, 1, 200, 200, 1);
-    writeln('Check client window has (200, 200) surface');
+    printf("Check client window has (200, 200) surface\n");
     waitnext();
 
-    writeln('frame off');
-    pa_sysbar(win2, on);
-    pa_sizable(win2, on);
-    pa_frame(win2, off);
+    printf("frame off");
+    pa_sysbar(win2, ON);
+    pa_sizable(win2, ON);
+    pa_frame(win2, OFF);
     pa_winclientg(200, 200, x, y, [pa_wmsize, pa_wmsysbar]);
-    writeln('For (200, 200) client, no frame, window size is: ',
-            x:1, ',', y:1);
+    printf("For (200, 200) client, no frame, window size is: %d,%d\n", x, y);
     pa_setsizg(win2, x, y);
-    page(win2);
+    putc('\f', win2);
     pa_rect(win2, 1, 1, 200, 200);
     pa_line(win2, 1, 1, 200, 200);
     pa_line(win2, 1, 200, 200, 1);
-    writeln('Check client window has (200, 200) surface');
+    printf("Check client window has (200, 200) surface\n");
     waitnext();
 
     fclose(win2);
@@ -1137,14 +1143,13 @@ int main(void)
 
 #if 0
     putchar('\f');
-    prtceng(maxyg(stdout)-chrsizy(stdout), 'Window size calculate minimum pixel');
+    prtceng(maxyg(stdout)-chrsizy(stdout), "Window size calculate minimum pixel");
     pa_home(stdout);
-    pa_openwin(stdin, win2, 2);
-    pa_linewidth(1);
+    pa_openwin(stdin, win2, 2, 0);
+    pa_linewidth(stdout, 1);
     pa_fcolor(win2, cyan);
-    pa_winclientg(1, 1, x, y, [pa_wmframe, pa_wmsize, pa_wmsysbar]);
-    writeln('For (200, 200) client, full frame, window size minimum is: ',
-            x:1, ',', y:1);
+    pa_winclientg(stdout, 1, 1, x, y, [pa_wmframe, pa_wmsize, pa_wmsysbar]);
+    printf("For (200, 200) client, full frame, window size minimum is: %d,%d\n", x, y);
     pa_setsizg(win2, 1, 1);
     pa_getsizg(win2, x2, y2);
     waitnext();
@@ -1156,7 +1161,7 @@ int main(void)
 
 /* ?????? Overflows memory on this test */
     putchar('\f');
-    writeln('Child windows torture test pixel');
+    printf("Child windows torture test pixel\n");
     for (i = 1; i <= 100; i++) {
 
         openwin(stdin, win2, stdout, 2);
@@ -1171,30 +1176,30 @@ int main(void)
         setposg(win4, 401, 100);
         sizbufg(win4, 200, 200);
         setsizg(win4, 200, 200);
-        bcolor(win2, cyan);
-        page(win2);
-        writeln(win2, 'I am child window 1');
-        bcolor(win3, yellow);
-        page(win3);
-        writeln(win3, 'I am child window 2');
-        bcolor(win4, magenta);
-        page(win4);
-        writeln(win4, 'I am child window 3');
+        bcolor(win2, pa_cyan);
+        putc('\f', win2);
+        printf(win2, "I am child window 1\n");
+        bcolor(win3, pa_yellow);
+        putc('\f', win3);
+        printf(win3, "I am child window 2\n");
+        bcolor(win4, pa_magenta);
+        putc('\f', win4);
+        printf(win4, "I am child window 3\n");
         fclose(win2);
         fclose(win3);
         fclose(win4);
 
     }
     pa_home(stdout);
-    write('Child windows should all be closed');
+    printf("Child windows should all be closed\n");
     waitnext();
 
     terminate: /* terminate */
 
     putchar('\f');
-    pa_auto(off);
-    pa_font(font_sign);
-    pa_fontsiz(50);
-    prtceng(maxyg(stdout) / 2-chrsizy(stdout) / 2, 'Test complete');
+    pa_auto(stdout, OFF);
+    pa_font(stdout, pa_signfont(stdout));
+    pa_fontsiz(stdout, 50);
+    prtceng(maxyg(stdout) / 2-chrsizy(stdout) / 2, "Test complete");
 
 }
