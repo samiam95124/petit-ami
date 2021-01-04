@@ -650,6 +650,12 @@ scntstg: $(GLIBSD) include/terminal.h tests/scntst.c include/services.h linux/se
 gratst: $(GLIBSD) include/terminal.h tests/gratst.c \
         include/services.h linux/services.c utils/config.c Makefile
 	$(CC) $(CFLAGS) tests/gratst.c utils/config.c $(GLIBS) -o bin/gratst 
+	
+#
+# Test windows management model compliant output
+#
+mantst: $(GLIBSD) tests/mantst.c Makefile
+	$(CC) $(CFLAGS) tests/mantst.c utils/config.c $(GLIBS) -o bin/mantst 
 
 #
 # Test sound model compliant input/output (uses console timers)
