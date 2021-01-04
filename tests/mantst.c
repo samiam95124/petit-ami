@@ -206,7 +206,7 @@ static void frametest(const string s)
             puts(s);
 
         }
-        if (er.etype == etresize then {
+        if (er.etype == etresize) {
 
             /* Save the new demensions, even if not required. This way we must
                get a resize notification for this test to work. */
@@ -385,7 +385,7 @@ int main(void)
 
         pa_setsizg(stdout, x, 200);
         pa_getsizg(stdout, x2, y2);
-        if (x2 != x) || (y2 != 200) then {
+        if (x2 != x || y2 != 200) {
 
             pa_setsiz(stdout, 80, 25);
             putchar('\f');

@@ -344,25 +344,25 @@ GLIBSD = bin/petit_ami_graph$(LIBEXT)
 #
 # Linux library components
 #
-linux/services.o: linux/services.c include/services.h
+linux/services.o: linux/services.c include/services.h Makefile
 	gcc -g3 -Iinclude -fPIC -c linux/services.c -o linux/services.o
 	
-linux/sound.o: linux/sound.c include/sound.h
+linux/sound.o: linux/sound.c include/sound.h Makefile
 	gcc -g3 -Iinclude -fPIC -c linux/sound.c -lasound -lm -pthread -o linux/sound.o
 	
-linux/network.o: linux/network.c include/network.h
+linux/network.o: linux/network.c include/network.h Makefile
 	gcc -g3 -Iinclude -fPIC -c linux/network.c -o linux/network.o
 	
-linux/fluidsynthplug.o: linux/fluidsynthplug.c include/sound.h
+linux/fluidsynthplug.o: linux/fluidsynthplug.c include/sound.h Makefile
 	gcc -g3 -Iinclude -fPIC -c linux/fluidsynthplug.c -lasound -lm -pthread -o linux/fluidsynthplug.o
 	
-linux/dumpsynthplug.o: linux/dumpsynthplug.c include/sound.h
+linux/dumpsynthplug.o: linux/dumpsynthplug.c include/sound.h Makefile
 	gcc -g3 -Iinclude -fPIC -c linux/dumpsynthplug.c -lasound -lm -pthread -o linux/dumpsynthplug.o
 	
-linux/xterm.o: linux/xterm.c include/terminal.h
+linux/xterm.o: linux/xterm.c include/terminal.h Makefile
 	gcc -g3 -Iinclude -fPIC -c linux/xterm.c -o linux/xterm.o
 	
-linux/graph_x.o: linux/graph_x.c include/graph.h
+linux/graph_x.o: linux/graph_x.c include/graph.h Makefile
 	gcc -g3 -Iinclude -fPIC -c linux/graph_x.c -o linux/graph_x.o
 	
 #
@@ -370,22 +370,22 @@ linux/graph_x.o: linux/graph_x.c include/graph.h
 #
 # Note that stub sources are not yet implemented
 #
-windows/stdio.o: libc/stdio.c libc/stdio.h
+windows/stdio.o: libc/stdio.c libc/stdio.h Makefile
 	gcc -g3 -Ilibc -c libc/stdio.c -o windows/stdio.o
 	
-windows/services.o: windows/services.c include/services.h
+windows/services.o: windows/services.c include/services.h Makefile
 	gcc -g3 -Ilibc -Iinclude -c windows/services.c -o windows/services.o
 	
-windows/sound.o: stub/sound.c include/sound.h
+windows/sound.o: stub/sound.c include/sound.h Makefile
 	gcc -g3 -Ilibc -Iinclude -c stub/sound.c -o windows/sound.o
 	
-windows/network.o: stub/network.c include/network.h
+windows/network.o: stub/network.c include/network.h Makefile
 	gcc -g3 -Ilibc -Iinclude -c stub/network.c -o windows/network.o
 	
-windows/console.o: windows/console.c include/terminal.h
+windows/console.o: windows/console.c include/terminal.h Makefile
 	gcc -g3 -Ilibc -Iinclude -c windows/console.c -o windows/console.o
 	
-windows/graph.o: windows/graph.c include/graph.h
+windows/graph.o: windows/graph.c include/graph.h Makefile
 	gcc -g3 -Ilibc -Iinclude -c windows/graph.c -o windows/graph.o
 
 #
@@ -395,30 +395,34 @@ windows/graph.o: windows/graph.c include/graph.h
 #
 # Mac OS X can use some of the same components as Linux.
 #
-macosx/stdio.o: libc/stdio.c libc/stdio.h
+macosx/stdio.o: libc/stdio.c libc/stdio.h Makefile
 	gcc -g3 -Ilibc -c libc/stdio.c -o macosx/stdio.o
 	
-macosx/services.o: linux/services.c include/services.h
+macosx/services.o: linux/services.c include/services.h Makefile
 	gcc -g3 -Ilibc -Iinclude -c linux/services.c -o macosx/services.o
 	
-macosx/sound.o: stub/sound.c include/sound.h
+macosx/sound.o: stub/sound.c include/sound.h Makefile
 	gcc -g3 -Ilibc -Iinclude -c stub/sound.c -o macosx/sound.o
 	
-macosx/network.o: stub/network.c include/network.h
+macosx/network.o: stub/network.c include/network.h Makefile
 	gcc -g3 -Ilibc -Iinclude -c stub/network.c -o macosx/network.o
 	
-macosx/xterm.o: linux/xterm.c include/terminal.h
+macosx/xterm.o: linux/xterm.c include/terminal.h Makefile
 	gcc -g3 -Ilibc -Iinclude -c linux/xterm.c -o macosx/xterm.o
 	
-macosx/graph.o: stub/graph.c include/graph.h
+macosx/graph.o: stub/graph.c include/graph.h Makefile
 	gcc -g3 -Ilibc -Iinclude -c stub/graph.c -o macosx/graph.o
 	
 #
 # Components in common to all systems
 #
 utils/config.o: utils/config.c include/localdefs.h include/services.h \
-	            include/config.h
+	            include/config.h Makefile
 	gcc -g3 -Iinclude -c utils/config.c -o utils/config.o
+	
+utils/option.o: utils/option.c include/localdefs.h include/services.h \
+	            include/option.h Makefile
+	gcc -g3 -Iinclude -c utils/option.c -o utils/option.o
 	
 ################################################################################
 #
@@ -438,19 +442,22 @@ ifeq ($(OSTYPE),Windows_NT)
 # Windows cannot use .so files, but rather uses statically linked files that
 # reference .dlls at runtime.
 #
-bin/petit_ami_plain.a: windows/services.o windows/sound.o windows/network.o utils/config.o windows/stdio.o
+bin/petit_ami_plain.a: windows/services.o windows/sound.o windows/network.o \
+	utils/option.o utils/config.o windows/stdio.o
 	ar rcs bin/petit_ami_plain.a windows/services.o windows/sound.o \
-        windows/network.o utils/config.o windows/stdio.o
+        windows/network.o utils/config.o utils/option.o windows/stdio.o
 	
 bin/petit_ami_term.a: windows/services.o windows/sound.o windows/network.o \
-    windows/console.o utils/config.o windows/stdio.o
+    windows/console.o utils/config.o utils/option.o windows/stdio.o
 	ar rcs bin/petit_ami_term.a windows/services.o windows/sound.o \
-	    windows/network.o windows/console.o utils/config.o windows/stdio.o
+	    windows/network.o windows/console.o utils/config.o utils/option.o \
+	    windows/stdio.o
 	
 bin/petit_ami_graph.a: windows/services.o windows/sound.o windows/network.o \
-    windows/graph.o utils/config.o windows/stdio.o
+    windows/graph.o utils/config.o utils/option.o windows/stdio.o
 	ar rcs bin/petit_ami_graph.a windows/services.o windows/sound.o \
-	    windows/network.o windows/graph.o utils/config.o windows/stdio.o
+	    windows/network.o windows/graph.o utils/config.o utils/option.o \
+	    windows/stdio.o
 	
 else ifeq ($(OSTYPE),Darwin)
 
@@ -459,19 +466,22 @@ else ifeq ($(OSTYPE),Darwin)
 #
 # Mac OS X cannot use .so files, but rather uses statically linked files.
 #
-bin/petit_ami_plain.a: macosx/services.o macosx/sound.o macosx/network.o utils/config.o macosx/stdio.o
+bin/petit_ami_plain.a: macosx/services.o macosx/sound.o macosx/network.o 
+	utils/config.o utils/option.o macosx/stdio.o
 	ar rcs bin/petit_ami_plain.a macosx/services.o macosx/sound.o \
-        macosx/network.o utils/config.o macosx/stdio.o
+        macosx/network.o utils/config.o utils/option.o macosx/stdio.o
 	
 bin/petit_ami_term.a: macosx/services.o macosx/sound.o macosx/network.o \
-    macosx/xterm.o utils/config.o macosx/stdio.o
+    macosx/xterm.o utils/config.o utils/option.o macosx/stdio.o
 	ar rcs bin/petit_ami_term.a macosx/services.o macosx/sound.o \
-	    macosx/network.o macosx/xterm.o utils/config.o macosx/stdio.o
+	    macosx/network.o macosx/xterm.o utils/config.o utils/option.o \
+	    macosx/stdio.o
 	
 petit_ami_graph.a: macosx/services.o macosx/sound.o macosx/network.o \
-    macosx/graph.o utils/config.o macosx/stdio.o
+    macosx/graph.o utils/config.o utils/option.o macosx/stdio.o
 	ar rcs bin/petit_ami_graph.a macosx/services.o macosx/sound.o \
-	    macosx/network.o macosx/graph.o utils/config.o macosx/stdio.o
+	    macosx/network.o macosx/graph.o utils/config.o utils/option.o \
+	    macosx/stdio.o
 	    
 else
 
@@ -487,40 +497,44 @@ else
 # to do things like midi to wave conversion.
 #
 bin/petit_ami_plain.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/network.o utils/config.o 
+    linux/dumpsynthplug.o linux/network.o utils/config.o utils/option.o
 	gcc -shared linux/services.o linux/sound.o linux/fluidsynthplug.o \
-	    linux/dumpsynthplug.o linux/network.o utils/config.o \
+	    linux/dumpsynthplug.o linux/network.o utils/config.o utils/option.o \
 	    -o bin/petit_ami_plain.so
 	
 bin/petit_ami_plain.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/network.o utils/config.o 
+    linux/dumpsynthplug.o linux/network.o utils/config.o utils/option.o
 	ar rcs bin/petit_ami_plain.a linux/services.o linux/sound.o \
 	    linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
-	    utils/config.o 
+	    utils/config.o utils/option.o
 	
 bin/petit_ami_term.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/network.o linux/xterm.o utils/config.o 
+    linux/dumpsynthplug.o linux/network.o linux/xterm.o utils/config.o \
+    utils/option.o 
 	gcc -shared linux/services.o linux/sound.o linux/fluidsynthplug.o \
 	    linux/dumpsynthplug.o  linux/network.o linux/xterm.o utils/config.o \
-	    -o bin/petit_ami_term.so 
+	    utils/option.o -o bin/petit_ami_term.so 
 	
 bin/petit_ami_term.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/network.o linux/xterm.o utils/config.o 
+    linux/dumpsynthplug.o linux/network.o linux/xterm.o utils/config.o \
+    utils/option.o
 	ar rcs bin/petit_ami_term.a linux/services.o linux/sound.o \
 		linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
-		linux/xterm.o utils/config.o 
+		linux/xterm.o utils/config.o utils/option.o 
 	
 petit_ami_graph.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/network.o linux/graph_x.o utils/config.o 
+    linux/dumpsynthplug.o linux/network.o linux/graph_x.o utils/config.o \
+    utils/option.o  
 	gcc linux/services.o linux/sound.o linux/fluidsynthplug.o \
 		linux/dumpsynthplug.o  linux/network.o linux/xterm.o utils/config.o \
-		-o bin/petit_ami_graph.so
+		utils/option.o -o bin/petit_ami_graph.so
 	
 petit_ami_graph.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/network.o linux/graph_x.o utils/config.o 
+    linux/dumpsynthplug.o linux/network.o linux/graph_x.o utils/config.o \
+    utils/option.o  
 	ar rcs bin/petit_ami_graph.a linux/services.o linux/sound.o \
 		linux/fluidsynthplug.o linux/dumpsynthplug.o  linux/network.o \
-		linux/xterm.o utils/config.o
+		linux/xterm.o utils/config.o utils/option.o 
 	
 endif
 
@@ -565,14 +579,14 @@ dumpmidi: utils/dumpmidi.c Makefile
 # the errors or comment this out. The test target will move out of the makefile
 # in time.
 #
-test: $(PLIBSD) include/config.h utils/config.c test.c Makefile
-	$(CC) $(CFLAGS) test.c utils/config.c $(PLIBS) -o test
+test: $(PLIBSD) test.c
+	$(CC) $(CFLAGS) test.c $(PLIBS) -o test
 	
-testc: $(CLIBSD) include/config.h utils/config.c test.c Makefile
-	$(CC) $(CFLAGS) test.c utils/config.c $(CLIBS) -o testc
+testc: $(CLIBSD) test.c
+	$(CC) $(CFLAGS) test.c $(CLIBS) -o testc
 	
-testg: $(GLIBSD) include/config.h utils/config.c test.c Makefile
-	$(CC) $(CFLAGS) test.c utils/config.c $(GLIBS) -o testg
+testg: $(GLIBSD) test.c
+	$(CC) $(CFLAGS) test.c $(GLIBS) -o testg
 	
 #
 # Target programs that use Petit-Ami, such as games, utilities, etc.
@@ -584,233 +598,230 @@ testg: $(GLIBSD) include/config.h utils/config.c test.c Makefile
 #
 # Play example songs in QBasic play format (uses console timers)
 # 	
-play: $(CLIBSD) include/terminal.h sound_programs/play.c Makefile
-	$(CC) $(CFLAGS) sound_programs/play.c utils/option.c $(CLIBS) -o bin/play
+play: $(CLIBSD) sound_programs/play.c
+	$(CC) $(CFLAGS) sound_programs/play.c $(CLIBS) -o bin/play
 
 #
 # Emulate a sound keyboard (uses console timers)
 #	
-keyboard: $(CLIBSD) include/terminal.h sound_programs/keyboard.c Makefile
-	$(CC) $(CFLAGS) sound_programs/keyboard.c utils/option.c $(CLIBS) -o bin/keyboard
+keyboard: $(CLIBSD) sound_programs/keyboard.c
+	$(CC) $(CFLAGS) sound_programs/keyboard.c $(CLIBS) -o bin/keyboard
 
 #
 # Play midi files
 #	
-playmidi: $(PLIBSD) include/terminal.h sound_programs/playmidi.c utils/option.c Makefile
-	$(CC) $(CFLAGS) sound_programs/playmidi.c utils/option.c $(PLIBS) -o bin/playmidi
+playmidi: $(PLIBSD) sound_programs/playmidi.c
+	$(CC) $(CFLAGS) sound_programs/playmidi.c $(PLIBS) -o bin/playmidi
 
 #
 # Play wave files
 #
-playwave: $(PLIBSD) include/terminal.h sound_programs/playwave.c Makefile
-	$(CC) $(CFLAGS) sound_programs/playwave.c utils/option.c $(PLIBS) -o bin/playwave
+playwave: $(PLIBSD) sound_programs/playwave.c
+	$(CC) $(CFLAGS) sound_programs/playwave.c $(PLIBS) -o bin/playwave
 
 #
 # Print a list of available sound devices
 #	
-printdev: $(PLIBSD) include/terminal.h sound_programs/printdev.c Makefile
+printdev: $(PLIBSD) sound_programs/printdev.c
 	$(CC) $(CFLAGS) sound_programs/printdev.c $(PLIBS) -o bin/printdev
 
 #
 # Connect Midi input port to Midi output port
 #
-connectmidi: $(PLIBSD) include/terminal.h sound_programs/connectmidi.c Makefile
+connectmidi: $(PLIBSD) sound_programs/connectmidi.c
 	$(CC) $(CFLAGS) sound_programs/connectmidi.c $(PLIBS) -o bin/connectmidi
 
 #
 # Connect wave input port to wave output port
 #	
-connectwave: $(PLIBSD) include/terminal.h sound_programs/connectwave.c Makefile
+connectwave: $(PLIBSD) sound_programs/connectwave.c
 	$(CC) $(CFLAGS) sound_programs/connectwave.c $(PLIBS) -o bin/connectwave
 
 #	
 # Play random notes
 #
-randomc: $(CLIBSD) include/terminal.h sound_programs/random.c Makefile
-	$(CC) $(CFLAGS) sound_programs/random.c utils/option.c $(CLIBS) -o bin/random
+randomc: $(CLIBSD) sound_programs/random.c
+	$(CC) $(CFLAGS) sound_programs/random.c $(CLIBS) -o bin/random
 
 #
 # Generate waveforms
 #	
-genwave: $(PLIBSD) include/terminal.h sound_programs/genwave.c Makefile
-	$(CC) $(CFLAGS) sound_programs/genwave.c utils/option.c $(PLIBS) -o bin/genwave
+genwave: $(PLIBSD) sound_programs/genwave.c
+	$(CC) $(CFLAGS) sound_programs/genwave.c $(PLIBS) -o bin/genwave
 
 #
 # Test console model compliant output
 #	
-scntst: $(CLIBSD) include/terminal.h tests/scntst.c include/services.h linux/services.c Makefile
+scntst: $(CLIBSD) tests/scntst.c
 	$(CC) $(CFLAGS) tests/scntst.c $(CLIBS) -o bin/scntst
 
-scntstg: $(GLIBSD) include/terminal.h tests/scntst.c include/services.h linux/services.c Makefile
+scntstg: $(GLIBSD) tests/scntst.c
 	$(CC) $(CFLAGS) tests/scntst.c $(GLIBS) -o bin/scntstg
 	
 #
 # Test graph model compliant output
 #
-gratst: $(GLIBSD) include/terminal.h tests/gratst.c \
-        include/services.h linux/services.c utils/config.c Makefile
-	$(CC) $(CFLAGS) tests/gratst.c utils/config.c $(GLIBS) -o bin/gratst 
+gratst: $(GLIBSD) tests/gratst.c
+	$(CC) $(CFLAGS) tests/gratst.c $(GLIBS) -o bin/gratst 
 	
 #
 # Test windows management model compliant output
 #
-mantst: $(GLIBSD) tests/mantst.c Makefile
-	$(CC) $(CFLAGS) tests/mantst.c utils/config.c $(GLIBS) -o bin/mantst 
+mantst: $(GLIBSD) tests/mantst.c
+	$(CC) $(CFLAGS) tests/mantst.c $(GLIBS) -o bin/mantst 
 
 #
 # Test sound model compliant input/output (uses console timers)
 #	
-sndtst: $(CLIBSD) include/terminal.h tests/sndtst.c \
-        include/services.h linux/services.c Makefile
-	$(CC) $(CFLAGS) tests/sndtst.c utils/option.c $(CLIBS) -o bin/sndtst 
+sndtst: $(CLIBSD) tests/sndtst.c
+	$(CC) $(CFLAGS) tests/sndtst.c $(CLIBS) -o bin/sndtst 
 	
 #
 # Test services module
 #
-svstst: $(PLIBSD) include/terminal.h tests/svstst.c \
-        include/services.h linux/services.c Makefile
+svstst: $(PLIBSD) tests/svstst.c
 	$(CC) $(CFLAGS) tests/svstst.c utils/option.c $(PLIBS) -o bin/svstst
 	$(CC) $(CFLAGS) tests/svstst1.c $(PLIBS) -o bin/svstst1
 
 #
 # Test event model (console and graph mode)
 #	
-event: $(CLIBSD) include/terminal.h tests/event.c Makefile
+event: $(CLIBSD) tests/event.c
 	$(CC) $(CFLAGS) tests/event.c $(CLIBS) -o bin/event
 	
-eventg: $(GLIBSD) include/terminal.h tests/event.c Makefile
+eventg: $(GLIBSD) tests/event.c
 	$(CC) $(CFLAGS) tests/event.c $(GLIBS) -o bin/eventg
 
 #
 # Test terminal characteristics (console and graph mode)
 #	
-term: $(GLIBSD) include/terminal.h tests/term.c Makefile
+term: $(GLIBSD) tests/term.c
 	$(CC) $(CFLAGS) tests/term.c $(CLIBS) -o bin/term
 	
-termg: $(GLIBSD) include/terminal.h tests/term.c Makefile
+termg: $(GLIBSD) tests/term.c
 	$(CC) $(CFLAGS) tests/term.c $(GLIBS) -o bin/termg
 	
 #
 # Snake game
 #	
-snake: $(CLIBSD) terminal_games/snake.c include/terminal.h Makefile
+snake: $(CLIBSD) terminal_games/snake.c
 	$(CC) $(CFLAGS) terminal_games/snake.c $(CLIBS) -o bin/snake
 	
-snakeg: $(GLIBSD) terminal_games/snake.c include/terminal.h Makefile
+snakeg: $(GLIBSD) terminal_games/snake.c
 	$(CC) $(CFLAGS) terminal_games/snake.c $(GLIBS) -o bin/snakeg
 
 #
 # Mine game
 #	
-mine: $(CLIBSD) terminal_games/mine.c include/terminal.h Makefile
+mine: $(CLIBSD) terminal_games/mine.c
 	$(CC) $(CFLAGS) terminal_games/mine.c $(CLIBS) -o bin/mine
 	
-mineg: $(GLIBSD) terminal_games/mine.c include/terminal.h Makefile
+mineg: $(GLIBSD) terminal_games/mine.c
 	$(CC) $(CFLAGS) terminal_games/mine.c $(GLIBS) -o bin/mineg
 
 #
 # Wator game/dazzler
 #	
-wator: $(CLIBSD) terminal_programs/wator.c include/terminal.h Makefile
+wator: $(CLIBSD) terminal_programs/wator.c
 	$(CC) $(CFLAGS) terminal_programs/wator.c $(CLIBS) -o bin/wator
 	
-watorg: $(GLIBSD) terminal_programs/wator.c include/terminal.h Makefile
+watorg: $(GLIBSD) terminal_programs/wator.c
 	$(CC) $(CFLAGS) terminal_programs/wator.c $(GLIBS) -o bin/watorg
 
 #
 # Pong game
 #	
-pong: $(CLIBSD) terminal_games/pong.c include/terminal.h Makefile
+pong: $(CLIBSD) terminal_games/pong.c
 	$(CC) $(CFLAGS) terminal_games/pong.c $(CLIBS) -o bin/pong
 	
-pongg: $(GLIBSD) terminal_games/pong.c include/terminal.h Makefile
+pongg: $(GLIBSD) terminal_games/pong.c
 	$(CC) $(CFLAGS) terminal_games/pong.c $(GLIBS) -o bin/pongg
 
 #
 # Text editor
 #	
-editor: $(CLIBSD) terminal_programs/editor.c include/terminal.h Makefile
+editor: $(CLIBSD) terminal_programs/editor.c
 	$(CC) $(CFLAGS) terminal_programs/editor.c $(CLIBS) -o bin/editor
 	
-editorg: $(GLIBSD) terminal_programs/editor.c include/terminal.h Makefile
+editorg: $(GLIBSD) terminal_programs/editor.c
 	$(CC) $(CFLAGS) terminal_programs/editor.c $(GLIBS) -o bin/editorg
 
 #
 # Get html/https page
 #	
-getpage: $(PLIBSD) network_programs/getpage.c Makefile
-	$(CC) $(CFLAGS) network_programs/getpage.c utils/option.c $(PLIBS) -o bin/getpage
+getpage: $(PLIBSD) network_programs/getpage.c
+	$(CC) $(CFLAGS) network_programs/getpage.c $(PLIBS) -o bin/getpage
 
 #
 # Get remote email
 #
-getmail: $(PLIBSD) network_programs/getmail.c Makefile
-	$(CC) $(CFLAGS) network_programs/getmail.c utils/option.c $(PLIBS) -o bin/getmail
+getmail: $(PLIBSD) network_programs/getmail.c
+	$(CC) $(CFLAGS) network_programs/getmail.c $(PLIBS) -o bin/getmail
 
 #
 # Gettysberg address server
 #	
-gettys: $(PLIBSD) network_programs/gettys.c Makefile
-	$(CC) $(CFLAGS) network_programs/gettys.c utils/option.c $(PLIBS) -o bin/gettys
+gettys: $(PLIBSD) network_programs/gettys.c
+	$(CC) $(CFLAGS) network_programs/gettys.c $(PLIBS) -o bin/gettys
 
 #
 # Message based networking test client
 #	
-msgclient: $(PLIBSD) network_programs/msgclient.c Makefile
-	$(CC) $(CFLAGS) network_programs/msgclient.c utils/option.c $(PLIBS) -o bin/msgclient
+msgclient: $(PLIBSD) network_programs/msgclient.c
+	$(CC) $(CFLAGS) network_programs/msgclient.c $(PLIBS) -o bin/msgclient
 
 #
 # Message based networking test server
 #	
-msgserver: $(PLIBSD) network_programs/msgserver.c Makefile
-	$(CC) $(CFLAGS) network_programs/msgserver.c utils/option.c $(PLIBS) -o bin/msgserver
+msgserver: $(PLIBSD) network_programs/msgserver.c
+	$(CC) $(CFLAGS) network_programs/msgserver.c $(PLIBS) -o bin/msgserver
 	
 #
 # Print TCPIP/TLS certificates
 #
-prtcertnet: $(PLIBSD) network_programs/prtcertnet.c Makefile
+prtcertnet: $(PLIBSD) network_programs/prtcertnet.c
 	$(CC) $(CFLAGS) network_programs/prtcertnet.c $(PLIBS) -o bin/prtcertnet
 
 #
 # Print message based certificates
 #	
-prtcertmsg: $(PLIBSD) network_programs/prtcertmsg.c Makefile
+prtcertmsg: $(PLIBSD) network_programs/prtcertmsg.c
 	$(CC) $(CFLAGS) network_programs/prtcertmsg.c $(PLIBS) -o bin/prtcertmsg
 
 #
-# This program is missing????
+# This program is missing???? check the linux machine.
 #	
-listcertnet: $(PLIBSD) network_programs/listcertnet.c Makefile
+listcertnet: $(PLIBSD) network_programs/listcertnet.c
 	$(CC) $(CFLAGS) network_programs/listcertnet.c $(PLIBS) -o bin/listcertnet
 
 #
 # Pixel set/reset dazzler
 #
-pixel: $(GLIBSD) include/terminal.h graph_programs/pixel.c Makefile
+pixel: $(GLIBSD) graph_programs/pixel.c
 	$(CC) $(CFLAGS) graph_programs/pixel.c $(GLIBS) -o bin/pixel
 
 #
 # Moving balls dazzlers
 #	
-ball1: $(GLIBSD) include/terminal.h graph_programs/ball1.c Makefile
+ball1: $(GLIBSD) graph_programs/ball1.c
 	$(CC) $(CFLAGS) graph_programs/ball1.c $(GLIBS) -o bin/ball1
 	
-ball2: $(GLIBSD) include/terminal.h graph_programs/ball2.c Makefile
+ball2: $(GLIBSD) graph_programs/ball2.c
 	$(CC) $(CFLAGS) graph_programs/ball2.c $(GLIBS) -o bin/ball2
 	
 #
 # Moving lines dazzlers
 #
-line1: $(GLIBSD) include/terminal.h graph_programs/line1.c Makefile
+line1: $(GLIBSD) graph_programs/line1.c
 	$(CC) $(CFLAGS) graph_programs/line1.c $(GLIBS) -o bin/line1
 
-line2: $(GLIBSD) include/terminal.h graph_programs/line2.c Makefile
+line2: $(GLIBSD) graph_programs/line2.c
 	$(CC) $(CFLAGS) graph_programs/line2.c $(GLIBS) -o bin/line2
 	
-line4: $(GLIBSD) include/terminal.h graph_programs/line4.c Makefile
+line4: $(GLIBSD) graph_programs/line4.c
 	$(CC) $(CFLAGS) graph_programs/line4.c $(GLIBS) -o bin/line4
 	
-line5: $(GLIBSD) include/terminal.h graph_programs/line5.c Makefile
+line5: $(GLIBSD) graph_programs/line5.c
 	$(CC) $(CFLAGS) graph_programs/line5.c $(GLIBS) -o bin/line5
 	
 ################################################################################
@@ -829,7 +840,8 @@ ifeq ($(OSTYPE),Windows_NT)
 #
 all: dumpmidi test play keyboard playmidi playwave \
     printdev connectmidi connectwave random genwave scntst sndtst svstst \
-    event term snake pong mine wator editor getpage getmail gettys
+    event term snake pong mine wator editor getpage getmail gettys gratst \
+    mantst
     
 else ifeq ($(OSTYPE),Darwin)
 
@@ -838,7 +850,8 @@ else ifeq ($(OSTYPE),Darwin)
 #
 all: dumpmidi test play keyboard playmidi playwave \
     printdev connectmidi connectwave random genwave scntst sndtst svstst \
-    event term snake pong mine wator editor getpage getmail gettys
+    event term snake pong mine wator editor getpage getmail gettys gratst \
+    mantst
     
 else
 
@@ -848,7 +861,7 @@ else
 all: lsalsadev alsaparms dumpmidi test play keyboard playmidi playwave \
     printdev connectmidi connectwave random genwave scntst sndtst svstst \
     event getkeys getmouse term snake mine pong wator editor getpage getmail \
-    gettys
+    gettys gratst mantst
     
 endif 
 
@@ -864,8 +877,7 @@ clean:
 	rm -f bin/random bin/genwave bin/scntst bin/sndtst bin/event bin/getkeys 
 	rm -f bin/getmouse bin/term bin/snake bin/mine bin/editor bin/getpage
 	rm -f bin/getmail bin/gettys bin/msgclient bin/msgserver bin/prtcertnet
-	rm -f bin/listcertnet
-	rm -f bin/prtcertmsg
+	rm -f bin/listcertnet bin/prtcertmsg bin/gratst bin/mantst
 	find . -name "*.o" -type f -delete
 	rm -f bin/*.a
 	rm -f bin/*.so
