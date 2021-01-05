@@ -416,9 +416,9 @@ typedef struct eqerec {
 } eqerec, *eqeptr;
 
 /* File tracking.
-  Files can be passthrough to syslib, || can be associated with a window. If
-  on a window, they can be output, || they can be input. In the case of
-  input, the file has its own input queue, && will receive input from all
+  Files can be passthrough to the OS, or can be associated with a window. If
+  on a window, they can be output, or they can be input. In the case of
+  input, the file has its own input queue, and will receive input from all
   windows that are attached to it. */
 typedef struct filrec {
 
@@ -2728,10 +2728,10 @@ static void winvis(winptr win)
 
     /* If we are making a child window visible, we have to also force its
        parent visible. This is recursive all the way up. */
-    if (win->parlfn) {
+    if (win->parlfn >= 0) {
 
         par = lfn2win(win->parlfn); /* get parent data */
-        if (!par->visible) winvis(par); /* make visible if ! */
+        if (!par->visible) winvis(par); /* make visible if not */
 
     }
     unlockmain(); /* end exclusive access */
@@ -9144,7 +9144,7 @@ static void opnwin(int fn, int pfn)
     win = lfn2win(fn); /* get a pointer to the window */
     /* find parent */
     win->parlfn = pfn; /* set parent logical number */
-    if (pfn) {
+    if (pfn >= 0) {
 
        pwin = lfn2win(pfn); /* index parent window */
        win->parhan = pwin->winhan; /* set parent window handle */
@@ -9200,7 +9200,7 @@ static void opnwin(int fn, int pfn)
     if (!win->screens[0]) error(enomem);
     win->curdsp = 1; /* set current display screen */
     win->curupd = 1; /* set current update screen */
-    win->visible = FALSE; /* set ! visible */
+    win->visible = FALSE; /* set not visible */
     /* now perform windows setup */
     /* set flags for window create */
     f = WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN;
@@ -9448,7 +9448,8 @@ Creates, opens and initalizes an input and output pair of files.
 
 *******************************************************************************/
 
-static void openio(int ifn, int ofn, int pfn, int wid)
+static void openio(FILE* infile, FILE* outfile, int ifn, int ofn, int pfn,
+                   int wid)
 
 {
 
@@ -9458,6 +9459,10 @@ static void openio(int ifn, int ofn, int pfn, int wid)
     if (!opnfil[ifn]) getfet(&opnfil[ifn]);
     opnfil[ofn]->inl = ifn; /* link output to input */
     opnfil[ifn]->inw = TRUE; /* set input is window handler */
+    /* set file descriptor locations (note this is only really used for input
+       files */
+    opnfil[ifn]->sfp = infile;
+    opnfil[ofn]->sfp = outfile;
     /* now see if it has a window attached */
     if (!opnfil[ofn]->win) {
 
@@ -9548,7 +9553,7 @@ static void iopenwin(FILE** infile, FILE** outfile, int pfn, int wid)
         if (opnfil[ofn]->inw || opnfil[ofn]->win)
             error(efinuse); /* file in use */
    /* establish all logical files and links, translation tables, and open window */
-   openio(ifn, ofn, pfn, wid);
+   openio(*infile, *outfile, ifn, ofn, pfn, wid);
 
 }
 
@@ -9559,8 +9564,12 @@ void pa_openwin(FILE* infile, FILE* outfile, FILE* parent, int wid)
     winptr win; /* window context pointer */
 
     lockmain(); /* start exclusive access */
-    win = txt2win(parent); /* validate parent is a window file */
-    iopenwin(&infile, &outfile, txt2lfn(parent), wid); /* process open */
+    if (parent) {
+
+        win = txt2win(parent); /* validate parent is a window file */
+        iopenwin(&infile, &outfile, txt2lfn(parent), wid); /* process open */
+
+    } else iopenwin(&infile, &outfile, -1, wid); /* process open */
     unlockmain(); /* end exclusive access */
 
 }
@@ -10179,7 +10188,7 @@ void pa_getsiz(FILE* f, int* x, int* y)
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window from file */
     igetsizg(win, x, y); /* execute */
-    if (win->parlfn) { /* has a parent */
+    if (win->parlfn >= 0) { /* has a parent */
 
         par = lfn2win(win->parlfn); /* index the parent */
         /* find character based sizes */
@@ -10252,7 +10261,7 @@ void pa_setsiz(FILE* f, int x, int y)
 
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window from file */
-    if (win->parlfn) { /* has a parent */
+    if (win->parlfn >= 0) { /* has a parent */
 
         par = lfn2win(win->parlfn); /* index the parent */
         /* find character based sizes */
@@ -10326,7 +10335,7 @@ void pa_setpos(FILE* f, int x, int y)
 
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window from file */
-    if (win->parlfn) { /* has a parent */
+    if (win->parlfn >= 0) { /* has a parent */
 
         par = lfn2win(win->parlfn); /* index the parent */
         /* find character based sizes */
@@ -10441,7 +10450,7 @@ void pa_winclient(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
     /* execute */
     iwinclientg(win, cx*win->charspace, cy*win->linespace, wx, wy, ms);
     /* find character based sizes */
-    if (win->parlfn) { /* has a parent */
+    if (win->parlfn >= 0) { /* has a parent */
 
         par = lfn2win(win->parlfn); /* index the parent */
         /* find character based sizes */
@@ -15455,7 +15464,7 @@ static void pa_init_graph()
     ifn = fileno(stdin); /* get logical id stdin */
     ofn = fileno(stdout); /* get logical id stdout */
     lockmain(); /* lock access */
-    openio(ifn, ofn, 0, 1); /* process open */
+    openio(stdin, stdout, ifn, ofn, -1, 1); /* process open */
     unlockmain(); /* unlock access */
     /* capture control handler so that ctl-c to main window cancels properly */
     SetConsoleCtrlHandler(conhan, TRUE);

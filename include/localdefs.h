@@ -14,6 +14,9 @@
 #define FALSE 0
 #define TRUE  1
 
+#define BIT(b) (1<<b) /* set bit from bit number */
+#define BITMSK(b) (~BIT(b)) /* mask out bit number */
+
 typedef char* string;  /* general string type */
 typedef unsigned char byte; /* byte */
 

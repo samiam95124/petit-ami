@@ -6,17 +6,19 @@
 #
 # Structure of makefile
 #
-# There are five sections to the makefile:
+# There are six sections to the makefile:
 #
 # 1. Establishing macros to make products according to OS and type of build.
 #
-# 2. Building individual components (libraries).
+# 2. Building individual components.
 #
-# 3. Building target programs (tests, demos, utilities, etc.)
+# 3. Build libraries.
 #
-# 4. Define build targets.
+# 4. Building target programs (tests, demos, utilities, etc.)
 #
-# 5. Define clean targets.
+# 5. Define build targets.
+#
+# 6. Define clean targets.
 #
 # The macros that are constructed are:
 #
