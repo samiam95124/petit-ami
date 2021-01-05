@@ -267,7 +267,7 @@ int main(void)
     printf("cursor follows\n");
     printf("\n");
     printf("Here is the cursor->");
-    pa_openwin(stdin, win2, NULL, 2);
+    pa_openwin(&stdin, &win2, NULL, 2);
     fprintf(win2, "This is the second window\n");
     fprintf(win2, "\n");
     fprintf(win2, "Here is the cursor->");
@@ -671,15 +671,15 @@ int main(void)
     putchar('\f');
     chrgrid();
     prtcen(pa_maxy(stdout), "Child windows test character");
-    pa_openwin(stdin, win2, stdout, 2);
+    pa_openwin(&stdin, &win2, stdout, 2);
     pa_setpos(win2, 1, 10);
     pa_sizbuf(win2, 20, 10);
     pa_setsiz(win2, 20, 10);
-    pa_openwin(stdin, win3, stdout, 3);
+    pa_openwin(&stdin, &win3, stdout, 3);
     pa_setpos(win3, 21, 10);
     pa_sizbuf(win3, 20, 10);
     pa_setsiz(win3, 20, 10);
-    pa_openwin(stdin, win4, stdout, 4);
+    pa_openwin(&stdin, &win4, stdout, 4);
     pa_setpos(win4, 41, 10);
     pa_sizbuf(win4, 20, 10);
     pa_setsiz(win4, 20, 10);
@@ -712,15 +712,15 @@ int main(void)
 
     putchar('\f');
     prtcen(pa_maxy(stdout), "Child windows test pixel");
-    pa_openwin(stdin, win2, stdout, 2);
+    pa_openwin(&stdin, &win2, stdout, 2);
     pa_setposg(win2, 1, 100);
     pa_sizbufg(win2, 200, 200);
     pa_setsizg(win2, 200, 200);
-    pa_openwin(stdin, win3, stdout, 3);
+    pa_openwin(&stdin, &win3, stdout, 3);
     pa_setposg(win3, 201, 100);
     pa_sizbufg(win3, 200, 200);
     pa_setsizg(win3, 200, 200);
-    pa_openwin(stdin, win4, stdout, 4);
+    pa_openwin(&stdin, &win4, stdout, 4);
     pa_setposg(win4, 401, 100);
     pa_sizbufg(win4, 200, 200);
     pa_setsizg(win4, 200, 200);
@@ -753,15 +753,15 @@ int main(void)
 
     putchar('\f');
     prtcen(pa_maxy(stdout), "Child windows stacking test pixel");
-    pa_openwin(stdin, win2, stdout, 2);
+    pa_openwin(&stdin, &win2, stdout, 2);
     pa_setposg(win2, 50, 50);
     pa_sizbufg(win2, 200, 200);
     pa_setsizg(win2, 200, 200);
-    pa_openwin(stdin, win3, stdout, 3);
+    pa_openwin(&stdin, &win3, stdout, 3);
     pa_setposg(win3, 150, 100);
     pa_sizbufg(win3, 200, 200);
     pa_setsizg(win3, 200, 200);
-    pa_openwin(stdin, win4, stdout, 4);
+    pa_openwin(&stdin, &win4, stdout, 4);
     pa_setposg(win4, 250, 150);
     pa_sizbufg(win4, 200, 200);
     pa_setsizg(win4, 200, 200);
@@ -803,15 +803,15 @@ int main(void)
 
     pa_buffer(stdout, OFF);
     pa_auto(stdout, OFF);
-    pa_openwin(stdin, win2, stdout, 2);
+    pa_openwin(&stdin, &win2, stdout, 2);
     pa_setposg(win2, 50-25, 50-25);
     pa_sizbufg(win2, 200, 200);
     pa_setsizg(win2, pa_maxxg(stdout)-150, pa_maxyg(stdout)-150);
-    pa_openwin(stdin, win3, stdout, 3);
+    pa_openwin(&stdin, &win3, stdout, 3);
     pa_setposg(win3, 100-25, 100-25);
     pa_sizbufg(win3, 200, 200);
     pa_setsizg(win3, pa_maxxg(stdout)-150, pa_maxyg(stdout)-150);
-    pa_openwin(stdin, win4, stdout, 4);
+    pa_openwin(&stdin, &win4, stdout, 4);
     pa_setposg(win4, 150-25, 150-25);
     pa_sizbufg(win4, 200, 200);
     pa_setsizg(win4, pa_maxxg(stdout)-150, pa_maxyg(stdout)-150);
@@ -853,15 +853,15 @@ int main(void)
     /* ************** Child windows stacking resize test pixel 2 *************** */
 
     pa_buffer(stdout, OFF);
-    pa_openwin(stdin, win2, stdout, 2);
+    pa_openwin(&stdin, &win2, stdout, 2);
     pa_setposg(win2, 50, 50);
     pa_sizbufg(win2, 200, 200);
     pa_setsizg(win2, pa_maxxg(stdout)-100, pa_maxyg(stdout)-100);
-    pa_openwin(stdin, win3, stdout, 3);
+    pa_openwin(&stdin, &win3, stdout, 3);
     pa_setposg(win3, 100, 100);
     pa_sizbufg(win3, 200, 200);
     pa_setsizg(win3, pa_maxxg(stdout)-200, pa_maxyg(stdout)-200);
-    pa_openwin(stdin, win4, stdout, 4);
+    pa_openwin(&stdin, &win4, stdout, 4);
     pa_setposg(win4, 150, 150);
     pa_sizbufg(win4, 200, 200);
     pa_setsizg(win4, pa_maxxg(stdout)-300, pa_maxyg(stdout)-300);
@@ -975,7 +975,7 @@ int main(void)
     putchar('\f');
     prtceng(pa_maxyg(stdout)-pa_chrsizy(stdout), "Window size calculate character");
     pa_home(stdout);
-    pa_openwin(stdin, win2, NULL, 2);
+    pa_openwin(&stdin, &win2, NULL, 2);
     pa_linewidth(stdout, 1);
 
     pa_winclient(stdout, 20, 10, &x, &y, BIT(pa_wmframe) | BIT(pa_wmsize) | BIT(pa_wmsysbar));
@@ -1086,7 +1086,7 @@ int main(void)
     putchar('\f');
     prtceng(pa_maxyg(stdout)-pa_chrsizy(stdout), "Window size calculate pixel");
     pa_home(stdout);
-    pa_openwin(stdin, win2, NULL, 2);
+    pa_openwin(&stdin, &win2, NULL, 2);
     pa_linewidth(stdout, 1);
     pa_fcolor(win2, pa_cyan);
     pa_winclientg(stdout, 200, 200, &x, &y, BIT(pa_wmframe) | BIT(pa_wmsize) | BIT(pa_wmsysbar));
@@ -1148,7 +1148,7 @@ int main(void)
     putchar('\f');
     prtceng(pa_maxyg(stdout)-chrsizy(stdout), "Window size calculate minimum pixel");
     pa_home(stdout);
-    pa_openwin(stdin, win2, NULL, 2);
+    pa_openwin(&stdin, &win2, NULL, 2);
     pa_linewidth(stdout, 1);
     pa_fcolor(win2, cyan);
     pa_winclientg(stdout, 1, 1, &x, &y, BIT(pa_wmframe) | BIT(pa_wmsize) | BIT(pa_wmsysbar));
@@ -1167,15 +1167,15 @@ int main(void)
     printf("Child windows torture test pixel\n");
     for (i = 1; i <= 100; i++) {
 
-        pa_openwin(stdin, win2, stdout, 2);
+        pa_openwin(&stdin, &win2, stdout, 2);
         pa_setposg(win2, 1, 100);
         pa_sizbufg(win2, 200, 200);
         pa_setsizg(win2, 200, 200);
-        pa_openwin(stdin, win3, stdout, 3);
+        pa_openwin(&stdin, &win3, stdout, 3);
         pa_setposg(win3, 201, 100);
         pa_sizbufg(win3, 200, 200);
         pa_setsizg(win3, 200, 200);
-        pa_openwin(stdin, win4, stdout, 4);
+        pa_openwin(&stdin, &win4, stdout, 4);
         pa_setposg(win4, 401, 100);
         pa_sizbufg(win4, 200, 200);
         pa_setsizg(win4, 200, 200);

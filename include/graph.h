@@ -400,7 +400,7 @@ void pa_scrollg(FILE* f, int x, int y);
 /* Window management functions */
 
 void pa_title(FILE* f, char* ts);
-void pa_openwin(FILE* infile, FILE* outfile, FILE* parent, int wid);
+void pa_openwin(FILE** infile, FILE** outfile, FILE* parent, int wid);
 void pa_buffer(FILE* f, int e);
 void pa_sizbuf(FILE* f, int x, int y);
 void pa_sizbufg(FILE* f, int x, int y);

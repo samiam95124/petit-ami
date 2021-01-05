@@ -9557,7 +9557,7 @@ static void iopenwin(FILE** infile, FILE** outfile, int pfn, int wid)
 
 }
 
-void pa_openwin(FILE* infile, FILE* outfile, FILE* parent, int wid)
+void pa_openwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
 
 {
 
@@ -9567,9 +9567,9 @@ void pa_openwin(FILE* infile, FILE* outfile, FILE* parent, int wid)
     if (parent) {
 
         win = txt2win(parent); /* validate parent is a window file */
-        iopenwin(&infile, &outfile, txt2lfn(parent), wid); /* process open */
+        iopenwin(infile, outfile, txt2lfn(parent), wid); /* process open */
 
-    } else iopenwin(&infile, &outfile, -1, wid); /* process open */
+    } else iopenwin(infile, outfile, -1, wid); /* process open */
     unlockmain(); /* end exclusive access */
 
 }
