@@ -276,18 +276,23 @@ int main(void)
     printf("Now enter characters to each window, then end with return\n");
     waitnextprint();
     fclose(win2);
+fprintf(stderr, "after fclose\n");
     putchar('\f');
     printf("Second window now closed\n");
     waitnext();
+fprintf(stderr, "after waitnext\n");
     pa_curvis(stdout, OFF);
     pa_auto(stdout, OFF);
 
     /* ********************* Resize buffer window character ******************** */
 
+fprintf(stderr, "Resize test\n");
     ox = pa_maxx(stdout);
     oy = pa_maxy(stdout);
     pa_bcolor(stdout, pa_cyan);
+fprintf(stderr, "Resize test: 1\n");
     pa_sizbuf(stdout, 50, 50);
+fprintf(stderr, "Resize test: 2\n");
     putchar('\f');
     for (x = 1; x <= pa_maxx(stdout); x++) printf("*");
     pa_cursor(stdout, 1, pa_maxy(stdout));

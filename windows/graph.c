@@ -1667,7 +1667,7 @@ static void igetmsg(MSG* msg)
 
         };
         /* retrive messages from the control queue first */
-        if (imsginp != imsgout)  { /* queue ! empty */
+        if (imsginp != imsgout)  { /* queue not empty */
 
             memcpy(msg, &imsgque[imsgout], sizeof(MSG)); /* get next message */
             imsgout = next(imsgout); /* advance output pointer */
@@ -9429,6 +9429,7 @@ static void closewin(int ofn)
     int ifn; /* input file id */
     int wid; /* window id */
 
+    lockmain(); /* begin exclusive access */
     wid = filwin[ofn]; /* get window id */
     ifn = opnfil[ofn]->inl; /* get the input file link */
     clswin(ofn); /* close the window */
@@ -9437,6 +9438,7 @@ static void closewin(int ofn)
     if (!inplnk(ifn)) clsfil(ifn);
     filwin[ofn] = 0; /* clear file to window translation */
     xltwin[wid-1] = 0; /* clear window to file translation */
+    unlockmain(); /* end exclusive access */
 
 }
 
