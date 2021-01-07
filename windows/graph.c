@@ -7492,8 +7492,8 @@ static void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
             }
             win->sizests = msg->wParam; /* save size status */
             /* process resize message */
-            win->gmaxxg = msg->lParam && 0xffff; /* set x size */
-            win->gmaxyg = msg->lParam / 65536 && 0xffff; /* set y size */
+            win->gmaxxg = msg->lParam & 0xffff; /* set x size */
+            win->gmaxyg = msg->lParam >> 16 & 0xffff; /* set y size */
             win->gmaxx = win->gmaxxg / win->charspace; /* find character size x */
             win->gmaxy = win->gmaxyg / win->linespace; /* find character size y */
             win->screens[win->curdsp-1]->maxx = win->gmaxx; /* copy to screen control */
@@ -7929,7 +7929,6 @@ static void ievent(int ifn, pa_evtrec* er)
 //dbg_printf(dlinfo, "Message: "); prtmsg(&msg);
         /* get the logical output file from Windows handle */
         ofn = hwn2lfn(msg.hwnd);
-/*;fprintf(stderr, "ofn: %08x", ofn); fprintf(stderr, " "); prtmsg(&msg);*/
         /* A message can have a window associated with it, or be sent anonymously.
            Anonymous messages are typically intertask housekeeping signals. */
         if (ofn > 0)  {
@@ -7940,7 +7939,7 @@ static void ievent(int ifn, pa_evtrec* er)
             if (!keep) sigevt(er, &msg, &keep); /* if not found, try intertask signal */
 
         } else sigevt(er, &msg, &keep); /* process signal */
-        if (keep && (ofn > 0))  { /* we have an event, and not main */
+        if (keep && (ofn >= 0))  { /* we have an event, and not main */
 
             /* check and error if no logical input file is linked to this output
                window */
@@ -9714,13 +9713,14 @@ static void ibuffer(winptr win, int e)
         for (si = 0; si < MAXCON; si++) if (si != win->curdsp-1)
            if (win->screens[si]) free(win->screens[si]);
         win->curupd = win->curdsp; /* unify the screens */
-        /* get actual size of onscreen window, && set that as client space */
+        /* get actual size of onscreen window, and set that as client space */
         b = GetClientRect(win->winhan, &r);
         if (!b) winerr(); /* process windows error */
         win->gmaxxg = r.right-r.left; /* return size */
         win->gmaxyg = r.bottom-r.top;
         win->gmaxx = win->gmaxxg / win->charspace; /* find character size x */
         win->gmaxy = win->gmaxyg / win->linespace; /* find character size y */
+
         /* tell the window to resize */
         b = PostMessage(win->winhan, WM_SIZE, SIZE_RESTORED,
                             win->gmaxyg*65536+win->gmaxxg);

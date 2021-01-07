@@ -191,8 +191,8 @@ static void frametest(const string s)
     pa_evtrec er;
     int       x, y;
 
-    x = 1; /* set default size */
-    y = 1;
+    x = pa_maxxg(stdout); /* set size */
+    y = pa_maxyg(stdout);
     do {
 
         pa_event(stdin, &er); /* get next event */
@@ -209,7 +209,7 @@ static void frametest(const string s)
         }
         if (er.etype == pa_etresize) {
 
-            /* Save the new demensions, even if not required. This way we must
+            /* Save the new dimensions, even if not required. This way we must
                get a resize notification for this test to work. */
             x = pa_maxxg(stdout);
             y = pa_maxyg(stdout);
@@ -247,6 +247,7 @@ int main(void)
     printf("Hit return in any window to continue for each test\n");
     waitnext();
 
+#if 0
     /* ************************** Window titling test ************************** */
 
     pa_title(stdout, "This is a mangement test window");
@@ -276,23 +277,18 @@ int main(void)
     printf("Now enter characters to each window, then end with return\n");
     waitnextprint();
     fclose(win2);
-fprintf(stderr, "after fclose\n");
     putchar('\f');
     printf("Second window now closed\n");
     waitnext();
-fprintf(stderr, "after waitnext\n");
     pa_curvis(stdout, OFF);
     pa_auto(stdout, OFF);
 
     /* ********************* Resize buffer window character ******************** */
 
-fprintf(stderr, "Resize test\n");
     ox = pa_maxx(stdout);
     oy = pa_maxy(stdout);
     pa_bcolor(stdout, pa_cyan);
-fprintf(stderr, "Resize test: 1\n");
     pa_sizbuf(stdout, 50, 50);
-fprintf(stderr, "Resize test: 2\n");
     putchar('\f');
     for (x = 1; x <= pa_maxx(stdout); x++) printf("*");
     pa_cursor(stdout, 1, pa_maxy(stdout));
@@ -477,6 +473,8 @@ fprintf(stderr, "Resize test: 2\n");
     pa_font(stdout, pa_termfont(stdout));
     pa_auto(stdout, ON);
 
+#endif
+
     /* ************************* Frame controls test buffered ****************** */
 
     putchar('\f');
@@ -508,7 +506,7 @@ fprintf(stderr, "Resize test: 2\n");
     waitnext();
     pa_bover(stdout);
 
-    /* ************************* Frame controls test buffered ****************** */
+    /* ************************* Frame controls test unbuffered ****************** */
 
     pa_buffer(stdout, OFF);
     frametest("Ready for frame controls unbuffered");
