@@ -7702,7 +7702,7 @@ static void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
         } else { /* it"s a menu select */
 
             er->etype = pa_etmenus; /* set menu select event */
-            er->menuid = msg->wParam && 0xffff; /* get menu id */
+            er->menuid = msg->wParam & 0xffff; /* get menu id */
             *keep = TRUE; /* set keep event */
 
         }

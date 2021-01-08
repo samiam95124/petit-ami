@@ -475,8 +475,6 @@ int main(void)
     pa_font(stdout, pa_termfont(stdout));
     pa_auto(stdout, ON);
 
-#endif
-
     /* ************************* Frame controls test buffered ****************** */
 
     putchar('\f');
@@ -526,6 +524,8 @@ int main(void)
     frametest("Size bars on");
     pa_buffer(stdout, ON);
 
+#endif
+
     /* ********************************* Menu test ***************************** */
 
     putchar('\f');
@@ -569,7 +569,7 @@ int main(void)
     printf("'slow', 'medium' and 'fast' are a one/of list\n");
     printf("'red', 'green' and 'blue' are on/off\n");
     printf("There should be a bar between slow-medium-fast groups and\n");
-    printf(" red-green-blue groups.\n");
+    printf("red-green-blue groups.\n");
     sred = ON; /* set states */
     sgreen = OFF;
     sblue = OFF;
