@@ -10601,7 +10601,7 @@ static void isizable(winptr win, int e)
     LONG r;
 
     win->size = e; /* set new status of size bars */
-    /* no point in making the change of framing is off entirely */
+    /* no point in making the change if framing is off entirely */
     if (win->frame) {
 
         /* set minimum style */
@@ -10641,7 +10641,7 @@ static void isizable(winptr win, int e)
             unlockmain(); /* end exclusive access */
             b = SetWindowPos(win->winhan, 0, 0, 0,
                              cr.right-cr.left, cr.bottom-cr.top,
-                             SWP_NOMOVE || SWP_NOZORDER);
+                             SWP_NOMOVE | SWP_NOZORDER);
             lockmain(); /* start exclusive access */
             if (!b) winerr(); /* process windows error */
 
@@ -10681,8 +10681,8 @@ static void isysbar(winptr win, int e)
     LONG r;
     BOOL b;
 
-    win->sysbar = e; /* set new status of size bars */
-    /* no point in making the change of framing is off entirely */
+    win->sysbar = e; /* set new status of system bar */
+    /* no point in making the change if framing is off entirely */
     if (win->frame) {
 
         /* set minimum style */

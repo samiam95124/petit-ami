@@ -204,7 +204,9 @@ static void frametest(const string s)
             pa_line(stdout, 1, 1, x, y);
             pa_line(stdout, 1, y, x, 1);
             pa_fcolor(stdout, pa_black);
+            pa_binvis(stdout);
             puts(s);
+            pa_bover(stdout);
 
         }
         if (er.etype == pa_etresize) {
@@ -509,7 +511,7 @@ int main(void)
     /* ************************* Frame controls test unbuffered ****************** */
 
     pa_buffer(stdout, OFF);
-    frametest("Ready for frame controls unbuffered");
+    frametest("Ready for frame controls unbuffered - Resize me!");
     pa_frame(stdout, OFF);
     frametest("Entire frame off");
     pa_frame(stdout, ON);
