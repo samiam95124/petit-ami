@@ -740,6 +740,12 @@ pongg: $(GLIBSD) terminal_games/pong.c
 	$(CC) $(CFLAGS) terminal_games/pong.c $(GLIBS) -o bin/pongg
 
 #
+# Breakout game for graphics
+#
+breakout: $(GLIBSD) graph_games/breakout.c
+	$(CC) $(CFLAGS) graph_games/breakout.c $(GLIBS) -o bin/breakout
+
+#
 # Text editor
 #	
 editor: $(CLIBSD) terminal_programs/editor.c

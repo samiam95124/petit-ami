@@ -327,7 +327,7 @@ void pa_restab(FILE* f, int t);
 void pa_clrtab(FILE* f);
 int pa_funkey(FILE* f);
 void pa_frametimer(FILE* f, int e);
-void pa_autohold(FILE* f, int e);
+void pa_autohold(int e);
 void pa_wrtstr(FILE* f, char* s);
 
 /* graphical */
