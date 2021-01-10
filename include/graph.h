@@ -277,10 +277,10 @@ typedef int pa_qfnopts;
 typedef enum { pa_qfrcase, pa_qfrup, pa_qfrre, pa_qfrfind, pa_qfrallfil, pa_qfralllin } pa_qfropt;
 typedef int pa_qfropts;
 /* effects in font query */
-typedef enum { qfteblink, pa_qftereverse, pa_qfteunderline, pa_qftesuperscript,
+typedef enum { pa_qfteblink, pa_qftereverse, pa_qfteunderline, pa_qftesuperscript,
                   pa_qftesubscript, pa_qfteitalic, pa_qftebold, pa_qftestrikeout,
                   pa_qftestandout, pa_qftecondensed, pa_qfteextended, pa_qftexlight,
-                  pa_qftelight, pa_qftexbold, pa_qftehollow, pa_qfteraised} qfteffect;
+                  pa_qftelight, pa_qftexbold, pa_qftehollow, pa_qfteraised} pa_qfteffect;
 typedef int pa_qfteffects;
 
 /* functions at this level */
@@ -327,7 +327,7 @@ void pa_restab(FILE* f, int t);
 void pa_clrtab(FILE* f);
 int pa_funkey(FILE* f);
 void pa_frametimer(FILE* f, int e);
-void pa_autohold(int e);
+void pa_autohold(FILE* f, int e);
 void pa_wrtstr(FILE* f, char* s);
 
 /* graphical */
@@ -488,7 +488,7 @@ void pa_dropbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id);
 void pa_dropboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id);
 void pa_dropeditboxsizg(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh);
 void pa_dropeditboxsiz(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh);
-void dropeditbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id);
+void pa_dropeditbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id);
 void pa_dropeditboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp,
                      int id);
 void pa_slidehorizsizg(FILE* f, int* w, int* h);

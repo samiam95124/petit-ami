@@ -249,7 +249,6 @@ int main(void)
     printf("Hit return in any window to continue for each test\n");
     waitnext();
 
-#if 0
     /* ************************** Window titling test ************************** */
 
     pa_title(stdout, "This is a mangement test window");
@@ -523,8 +522,6 @@ int main(void)
     pa_sizable(stdout, ON);
     frametest("Size bars on");
     pa_buffer(stdout, ON);
-
-#endif
 
     /* ********************************* Menu test ***************************** */
 
