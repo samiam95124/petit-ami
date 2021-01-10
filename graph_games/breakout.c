@@ -538,7 +538,7 @@ int main(void)
                 scrchg = FALSE; /* reset score change flag */
 
             }
-            do { pa_event(stdin, &er); /* wait relivant events */
+            do { pa_event(stdin, &er); /* wait relevant events */
             } while (er.etype != pa_etterm && er.etype != pa_etleft &&
                      er.etype != pa_etright && er.etype != pa_etfun &&
                      er.etype != pa_ettim && er.etype != pa_etjoymov);
@@ -662,7 +662,7 @@ int main(void)
 
                     }
                     /* if the ball timer is running, decrement it */
-                    if (baltim > 0) baltim++;
+                    if (baltim > 0) baltim--;
 
                 }
 
