@@ -78,9 +78,9 @@ int       bip;                        /* middle of ball intersection with
 
 /*******************************************************************************
 
-Write char* to screen
+Write string to screen
 
-Writes a char* to the indicated position on the screen.
+Writes a string to the indicated position on the screen.
 
 ********************************************************************************/
 
@@ -217,7 +217,7 @@ void drwbrect(rectangle* r, pa_color c)
 
 Offset rectangle
 
-Offsets a rectangle by an x && y difference.
+Offsets a rectangle by an x and y difference.
 
 ********************************************************************************/
 
@@ -402,7 +402,7 @@ void padpos(int x)
 
 Set brick WALL
 
-Initalizes the bricks in the wall coordinates.
+Initializes the bricks in the wall coordinates.
 
 ********************************************************************************/
 
@@ -455,8 +455,8 @@ void interbrick(void)
     int r, c; /* brick array indexes */
 
     brki = FALSE; /* set no brick intersection */
-    for (r = 1; r <= BRKROW; r++)
-        for (c = 1; c <= BRKCOL; c++) if (intersect(&ball, &bricks[r][c])) {
+    for (r = 0; r < BRKROW; r++)
+        for (c = 0; c < BRKCOL; c++) if (intersect(&ball, &bricks[r][c])) {
 
         brki = TRUE; /* set intersected */
         drwrect(&bricks[r][c], pa_white); /* erase from screen */
