@@ -14622,10 +14622,13 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam,
             case WM_MBUTTONUP: case WM_RBUTTONDOWN: case WM_RBUTTONUP: case WM_SIZE:
             case WM_CHAR: case WM_KEYDOWN: case WM_KEYUP: case WM_QUIT: case WM_CLOSE:
             case WM_MOUSEMOVE: case WM_TIMER: case WM_COMMAND: case WM_VSCROLL:
-            case WM_HSCROLL: case WM_NOTIFY:
+            case WM_HSCROLL: case WM_NOTIFY: case MM_JOY1MOVE: case MM_JOY2MOVE:
+            case MM_JOY1ZMOVE: case MM_JOY2ZMOVE: case MM_JOY1BUTTONDOWN:
+            case MM_JOY2BUTTONDOWN: case MM_JOY1BUTTONUP: case MM_JOY2BUTTONUP:
 
 /*
-fprintf(stderr, "wndproc: passed to main: msg: %d ", msgcnt); prtmsgu(hwnd, imsg, wparam, lparam); msgcnt = msgcnt+1;
+fprintf(stderr, "wndproc: passed to main: msg: %d ", msgcnt);
+prtmsgu(hwnd, imsg, wparam, lparam); msgcnt = msgcnt+1;
 */
                 putmsg(hwnd, imsg, wparam, lparam);
                 break;

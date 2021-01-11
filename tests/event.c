@@ -76,7 +76,8 @@ int main()
             case pa_etmoumov:  printf("mouse move, mouse: %d x: %d y: %d\n",
                                       er.mmoun, er.moupx, er.moupy); break;
             case pa_ettim:     printf("timer matures, timer: %d\n", er.timnum); break;
-            case pa_etjoyba:   printf("joystick button assertion, stick: %d button: %d", er.ajoyn, er.ajoybn); break;
+            case pa_etjoyba:   printf("joystick button assertion, stick: %d button: %d\n",
+                                      er.ajoyn, er.ajoybn); break;
             case pa_etjoybd:   printf("joystick button deassertion, stick: %d button: %d\n",
                                       er.djoyn, er.djoybn); break;
             case pa_etjoymov:  printf("joystick move, stick: %d x: %d y: %d z: %d\n",
