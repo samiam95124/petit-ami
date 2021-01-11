@@ -803,6 +803,12 @@ listcertnet: $(PLIBSD) network_programs/listcertnet.c
 	$(CC) $(CFLAGS) network_programs/listcertnet.c $(PLIBS) -o bin/listcertnet
 
 #
+# Print Petit-Ami configuration tree
+#	
+prtconfig: $(PLIBSD) utils/prtconfig.c
+	$(CC) $(CFLAGS) utils/prtconfig.c $(PLIBS) -o bin/prtconfig
+	
+#
 # Pixel set/reset dazzler
 #
 pixel: $(GLIBSD) graph_programs/pixel.c

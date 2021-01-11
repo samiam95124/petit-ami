@@ -2,7 +2,7 @@
 *                                                                              *
 *                                BREAKOUT GAME                                 *
 *                                                                              *
-*                       COPYRIGHT (C) 2002 S. A. MOORE                         *
+*                       COPYRIGHT (C) 2002 S. A. FRANCO                         *
 *                                                                              *
 * Plays breakout in graphical mode.                                            *
 *                                                                              *
