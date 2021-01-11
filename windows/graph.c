@@ -121,7 +121,10 @@ enum { /* debug levels */
 #define MAXXD     80 /* standard terminal, 80x25 */
 #define MAXYD     25
 
-#define DIALOGERR 1  /* send runtime errors to dialog */
+#define DIALOGERR 1     /* send runtime errors to dialog */
+#define MOUSEENB  TRUE  /* enable mouse */
+#define JOYENB    TRUE  /* enable joysticks */
+#define DMPMSG    FALSE /* enable dump messages (diagnostic, windows only) */
 
 /*
  * Enable/disable general lock
@@ -162,7 +165,7 @@ enum { /* debug levels */
 #define INPFIL    0     /* input */
 #define OUTFIL    1     /* output */
 #define ERRFIL    3     /* error */
-#define JOYENB    FALSE /*TRUE*/ /* enable joysticks, for debugging */
+
 /* foreground pen style */
 /* FPENSTL  ps_geometric | ps_}cap_flat | ps_solid */
 #define FPENSTL  (PS_GEOMETRIC | PS_ENDCAP_FLAT | PS_SOLID | PS_JOIN_MITER)
@@ -683,13 +686,13 @@ static imptr     freitm;       /* intratask message free list */
   looping. */
 static int       dblflt;       /* double fault flag */
 
-/* default window dimensions */
-
-static int  maxxd;
-static int  maxyd;
-
-/* send runtime errors to dialog */
-static int  dialogerr;
+/* config settable runtime options */
+static int maxxd;     /* default window dimensions */
+static int maxyd;
+static int dialogerr; /* send runtime errors to dialog */
+static int mouseenb;  /* enable mouse */
+static int joyenb;    /* enable joysticks */
+static int dmpmsg;    /* enable dump messages (diagnostic, windows only) */
 
 /*
  * Forward declarations.
@@ -7524,10 +7527,10 @@ static void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
         fend = TRUE; /* set } of program ordered */
         *keep = TRUE; /* set keep event */
 
-    } else if (msg->message == WM_MOUSEMOVE || msg->message == WM_LBUTTONDOWN ||
-               msg->message == WM_LBUTTONUP || msg->message == WM_MBUTTONDOWN ||
-               msg->message == WM_MBUTTONUP || msg->message == WM_RBUTTONDOWN ||
-               msg->message == WM_RBUTTONUP) {
+    } else if ((msg->message == WM_MOUSEMOVE || msg->message == WM_LBUTTONDOWN ||
+                msg->message == WM_LBUTTONUP || msg->message == WM_MBUTTONDOWN ||
+                msg->message == WM_MBUTTONUP || msg->message == WM_RBUTTONDOWN ||
+                msg->message == WM_RBUTTONUP) && mouseenb) {
 
         mouseevent(win, msg); /* mouse event */
         mouseupdate(win, er, keep); /* check any mouse details need processing */
@@ -9222,7 +9225,7 @@ static void opnwin(int fn, int pfn)
 
     /* Joysticks were captured with the window open. Set status of joysticks.
 
-      Do we need to release && recapture the joysticks each time we gain and
+      Do we need to release and recapture the joysticks each time we gain and
       loose focus ? Windows could have easily outgrown that need by copying
       the joystick messages. This needs testing. */
 
@@ -14425,7 +14428,12 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam,
     int     udw; /* up/down control width */
     RECT    cr;  /* client rectangle */
 
-//dbg_printf(dlinfo, "Message: "); prtmsgu(hwnd, imsg, wparam, lparam);
+    /* dump messages (diagnostic) */
+    if (dmpmsg) {
+
+        dbg_printf(dlinfo, "Message: "); prtmsgu(hwnd, imsg, wparam, lparam);
+
+    }
 
     if (imsg == WM_CREATE) {
 
@@ -14508,7 +14516,7 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam,
 
         stdwinj1c = FALSE; /* set no joysticks */
         stdwinj2c = FALSE;
-        if (JOYENB) {
+        if (joyenb) {
 
             r = joySetCapture(stdwinwin, JOYSTICKID1, 33, FALSE);
             stdwinj1c = r == 0; /* set joystick 1 was captured */
@@ -15369,6 +15377,9 @@ static void pa_init_graph()
     int       ofn, ifn;
     pa_valptr config_root; /* root for config block */
     pa_valptr term_root; /* root for terminal block */
+    pa_valptr graph_root; /* root for graphics block */
+    pa_valptr diag_root; /* root for diagnostics block */
+    pa_valptr win_root; /* root for windows */
     pa_valptr vp;
     char*     errstr;
 
@@ -15382,6 +15393,9 @@ static void pa_init_graph()
     maxxd = MAXXD; /* set default window dimensions */
     maxyd = MAXYD;
     dialogerr = DIALOGERR; /* send runtime errors to dialog */
+    mouseenb = MOUSEENB; /* enable mouse */
+    joyenb = JOYENB; /* enable joystick */
+    dmpmsg = DMPMSG; /* dump windows messages */
 
     fend = FALSE; /* set no end of program ordered */
     fautohold = TRUE; /* set automatically hold self terminators */
@@ -15393,6 +15407,7 @@ static void pa_init_graph()
     /* get setup configuration */
     config_root = NULL;
     pa_config(&config_root);
+
     /* find "terminal" block */
     term_root = pa_schlst("terminal", config_root);
     if (term_root && term_root->sublist) term_root = term_root->sublist;
@@ -15404,9 +15419,36 @@ static void pa_init_graph()
     vp = pa_schlst("maxyd", term_root);
     if (vp) maxyd = strtol(vp->value, &errstr, 10);
     if (*errstr) error(ecfgval);
-    vp = pa_schlst("dialogerr", term_root);
-    if (vp) dialogerr = strtol(vp->value, &errstr, 10);
-    if (*errstr) error(ecfgval);
+    vp = pa_schlst("joystick", term_root);
+    if (vp) joyenb = strtol(vp->value, &errstr, 10);
+    vp = pa_schlst("mouse", term_root);
+    if (vp) mouseenb = strtol(vp->value, &errstr, 10);
+
+    /* find graph block */
+    graph_root = pa_schlst("graph", config_root);
+    if (graph_root) {
+
+        vp = pa_schlst("dialogerr", graph_root);
+        if (vp) dialogerr = strtol(vp->value, &errstr, 10);
+        if (*errstr) error(ecfgval);
+
+        /* find windows subsection */
+        win_root = pa_schlst("windows", graph_root);
+        if (win_root) {
+
+            /* find diagnostic subsection */
+            diag_root = pa_schlst("diagnostics", win_root);
+            if (diag_root) {
+
+                vp = pa_schlst("dump_messages", diag_root);
+                if (vp) dmpmsg = strtol(vp->value, &errstr, 10);
+                if (*errstr) error(ecfgval);
+
+            }
+
+        }
+
+    }
 
     /* Set up private message queuing */
 
