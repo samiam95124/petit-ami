@@ -420,11 +420,11 @@ macosx/graph.o: stub/graph.c include/graph.h Makefile
 #
 utils/config.o: utils/config.c include/localdefs.h include/services.h \
 	            include/config.h Makefile
-	gcc -g3 -Iinclude -c utils/config.c -o utils/config.o
+	gcc -g3 -Ilibc -Iinclude -c utils/config.c -o utils/config.o
 	
 utils/option.o: utils/option.c include/localdefs.h include/services.h \
 	            include/option.h Makefile
-	gcc -g3 -Iinclude -c utils/option.c -o utils/option.o
+	gcc -g3 -Ilibc -Iinclude -c utils/option.c -o utils/option.o
 	
 ################################################################################
 #

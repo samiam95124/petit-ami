@@ -19,7 +19,8 @@ int main()
     printf("Petit-Ami configuration tree:\n");
     printf("\n");
 
+    root = NULL; /* clear root */
     pa_config(&root); /* parse and load the tree */
-    pa_prttre(root);
+    pa_prttre(root); /* print resulting tree */
 
 }

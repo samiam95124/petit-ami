@@ -104,6 +104,30 @@ a block for each plugin.
 #include <services.h>
 #include <config.h>
 
+/*
+ * Debug print system
+ *
+ * Example use:
+ *
+ * dbg_printf(dlinfo, "There was an error: string: %s\n", bark);
+ *
+ * mydir/test.c:myfunc():12: There was an error: somestring
+ *
+ */
+
+static enum { /* debug levels */
+
+    dlinfo, /* informational */
+    dlwarn, /* warnings */
+    dlfail, /* failure/critical */
+    dlnone  /* no messages */
+
+} dbglvl = dlnone;
+
+#define dbg_printf(lvl, fmt, ...) \
+        do { if (lvl >= dbglvl) fprintf(stderr, "%s:%s():%d: " fmt, __FILE__, \
+                                __func__, __LINE__, ##__VA_ARGS__); } while (0)
+
 #define MAXSTR 250 /* length of string buffers */
 #define MAXID  20  /* length of id words */
 #define INDENT 4   /* spaces to indent by */
@@ -223,6 +247,7 @@ static void parlst(
         p = fgets(linbuf, MAXSTR, f); /* get next line */
         if (p) { /* not EOF */
 
+            dbg_printf(dlinfo, "Next line: %s\n", linbuf);
             (*lc)++; /* increment line counter */
             ll = strlen(linbuf); /* find string length */
             /* remove trailing eoln */
@@ -253,6 +278,7 @@ static void parlst(
                         vp->value = NULL;
                         /* parse sublist */
                         parlst(fn, f, lc, &(vp->sublist));
+                        dbg_printf(dlinfo, "branch: name: %s\n", vp->name);
 
                     } else if (!strcmp(word, "end"))
                         /* end of list, we simply exit */
@@ -271,6 +297,8 @@ static void parlst(
                         vp->value = malloc(strlen(s)+1);
                         if (!vp->value) error(fn, *lc, "Out of memory");
                         strcpy(vp->value, s); /* copy value into place */
+                        dbg_printf(dlinfo, "value: name: %s value: %s\n",
+                                   vp->name, vp->value);
 
                     }
 
@@ -482,6 +510,8 @@ void pa_configfile(string fn, pa_valptr* root)
     /* line counter */     int    lc;
     /* new root pointer */ pa_valptr np;
 
+    dbg_printf(dlinfo, "filename: %s\n", fn);
+
     f = fopen(fn, "r");
     lc = 0; /* clear line count */
     np = NULL; /* clear new root */
@@ -490,6 +520,13 @@ void pa_configfile(string fn, pa_valptr* root)
         /* parse list of values */
         parlst(fn, f, &lc, &np);
         fclose(f);
+        if (dlinfo >= dbglvl) {
+
+            /* print intermediate tree */
+            dbg_printf(dlinfo, "Intermediate tree:\n");
+            pa_prttre(np);
+
+        }
         /* now merge old and new trees */
         pa_merge(root, np);
 

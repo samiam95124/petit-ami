@@ -99,7 +99,7 @@
  *
  */
 
-enum { /* debug levels */
+static enum { /* debug levels */
 
     dlinfo, /* informational */
     dlwarn, /* warnings */
