@@ -317,11 +317,11 @@ typedef enum {
     st_chorus, st_celeste, st_phaser, st_aftertouch, st_pressure,
     st_pitch, st_pitchrange, st_mono, st_poly, st_playsynth,
     st_playwave, st_volwave
-} seqtyp;
+} pa_seqtyp;
 
 /* sequencer message */
 
-typedef struct seqmsg {
+typedef struct pa_seqmsg {
 
     struct seqmsg* next; /* next message in list */
     int port; /* port to which message applies */
@@ -344,11 +344,11 @@ typedef struct seqmsg {
 
     };
 
-} seqmsg;
+} pa_seqmsg;
 
 /* pointer to message */
 
-typedef seqmsg* seqptr;
+typedef pa_seqmsg* pa_seqptr;
 
 /* functions at this level */
 

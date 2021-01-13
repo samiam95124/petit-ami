@@ -15431,19 +15431,19 @@ static void pa_init_graph()
     graph_root = pa_schlst("graph", config_root);
     if (graph_root) {
 
-        vp = pa_schlst("dialogerr", graph_root);
+        vp = pa_schlst("dialogerr", graph_root->sublist);
         if (vp) dialogerr = strtol(vp->value, &errstr, 10);
         if (*errstr) error(ecfgval);
 
         /* find windows subsection */
-        win_root = pa_schlst("windows", graph_root);
+        win_root = pa_schlst("windows", graph_root->sublist);
         if (win_root) {
 
             /* find diagnostic subsection */
-            diag_root = pa_schlst("diagnostics", win_root);
+            diag_root = pa_schlst("diagnostics", win_root->sublist);
             if (diag_root) {
 
-                vp = pa_schlst("dump_messages", diag_root);
+                vp = pa_schlst("dump_messages", diag_root->sublist);
                 if (vp) dmpmsg = strtol(vp->value, &errstr, 10);
                 if (*errstr) error(ecfgval);
 
