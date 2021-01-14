@@ -2,7 +2,7 @@
 *                                                                              *
 *                               SOUND LIBRARY                                  *
 *                                                                              *
-*                              11/02 S. A. Moore                               *
+*                              11/02 S. A. Franco                              *
 *                                                                              *
 * Sndlib is a combination of wave file and midi output and control functions.  *
 * Implements a set of midi controls and wave controls. Also includes a "flow   *
@@ -23,6 +23,37 @@
 * supposed to be an accurate event, but its going to have file lookup time     *
 * built into it, which could affect start time. A logical preload/cache        *
 * model would give this package the ability to do something about that.        *
+*                                                                              *
+*                          BSD LICENSE INFORMATION                             *
+*                                                                              *
+* Copyright (C) 2019 - Scott A. Franco                                         *
+*                                                                              *
+* All rights reserved.                                                         *
+*                                                                              *
+* Redistribution and use in source and binary forms, with or without           *
+* modification, are permitted provided that the following conditions           *
+* are met:                                                                     *
+*                                                                              *
+* 1. Redistributions of source code must retain the above copyright            *
+*    notice, this list of conditions and the following disclaimer.             *
+* 2. Redistributions in binary form must reproduce the above copyright         *
+*    notice, this list of conditions and the following disclaimer in the       *
+*    documentation and/or other materials provided with the distribution.      *
+* 3. Neither the name of the project nor the names of its contributors         *
+*    may be used to endorse or promote products derived from this software     *
+*    without specific prior written permission.                                *
+*                                                                              *
+* THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND      *
+* ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE        *
+* IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE   *
+* ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE     *
+* FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL   *
+* DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS      *
+* OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)        *
+* HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT   *
+* LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    *
+* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF       *
+* SUCH DAMAGE.                                                                 *
 *                                                                              *
 *******************************************************************************/
 
@@ -173,15 +204,17 @@
 #define CTLR_MONO_OPERATION                  126
 #define CTLR_POLY_OPERATION                  127
 
-static HMIDIOUT         midtab[MAXMIDP]; /* midi output device table */
-static int              i;               /* index for midi tables */
-static seqptr           seqlst;          /* active sequencer entries */
-static seqptr           seqfre;          /* free sequencer entries */
-static int              seqrun;          /* sequencer running */
-static DWORD            strtim;          /* start time for sequencer, in raw windows
+static HMIDIOUT         midtab[MAXMIDP];   /* midi output device table */
+static int              i;                 /* index for midi tables */
+static seqptr           seqlst;            /* active sequencer entries */
+static seqptr           seqfre;            /* free sequencer entries */
+static int              seqrun;            /* sequencer running */
+static DWORD            strtim;            /* start time for sequencer, in raw windows
                                             time */
-static MMRESULT         timhan;          /* handle for running timer */
-static CRITICAL_SECTION seqlock;         /* sequencer task lock */
+static MMRESULT         timhan;            /* handle for running timer */
+static CRITICAL_SECTION seqlock;           /* sequencer task lock */
+static string           synthnam[MAXMIDT]; /* midi track file names */
+static string           wavenam[MAXMIDT];  /* wave track file names */
 
 /*******************************************************************************
 
@@ -191,7 +224,7 @@ Outputs an error message, then halts.
 
 *******************************************************************************/
 
-void error(const string s)
+static void error(const string s)
 
 {
 
@@ -309,7 +342,7 @@ concatenating.
 
 ********************************************************************************/
 
-void maknam(
+static void maknam(
     /** file specification to build */ char *fn,
     /** file specification length */   int fnl,
     /** path */                        char *p,
@@ -357,7 +390,7 @@ Gets a sequencer message entry, either from the used list, or new.
 
 *******************************************************************************/
 
-void getseq(pa_seqptr* p)
+static void getseq(pa_seqptr* p)
 
 {
 
@@ -385,7 +418,7 @@ Puts a sequencer message entry to the free list for reuse.
 
 *******************************************************************************/
 
-void putseq(pa_seqptr p)
+static void putseq(pa_seqptr p)
 
 {
 
@@ -404,11 +437,11 @@ Inserts a sequencer message into the list, in asc}ing time order.
 
 *******************************************************************************/
 
-void insseq(p: seqptr);
-
-var lp, l: seqptr;
+static void insseq(p: seqptr);
 
 {
+
+    pa_seqotr lp, l;
 
     EnterCriticalSection(&seqlock); /* start exclusive access */
     /* check sequencer list empty */
@@ -455,7 +488,7 @@ sequencer bypass, which means its ok to loop back on the call.
 
 *******************************************************************************/
 
-void excseq(p: seqptr);
+static void excseq(p: seqptr);
 
 {
 
@@ -511,12 +544,11 @@ the results, instead of using comparisons, and -1 becomes the top value.
 
 *******************************************************************************/
 
-DWORD difftime(DWORD rt)
+static DWORD difftime(DWORD rt)
 
 {
 
     DWORD ct, et;
-
 
     ct = timeGetTime(); /* get current time */
     et = ct-rt; /* find difference assuming rt > ct */
@@ -544,7 +576,7 @@ until clear.
 
 *******************************************************************************/
 
-void nextseq(UINT id, UINT msg, DWORD_PTR usr, DWORD_PTR dw1, DWORD_PTR dw2)
+static void nextseq(UINT id, UINT msg, DWORD_PTR usr, DWORD_PTR dw1, DWORD_PTR dw2)
 
 {
 
@@ -587,11 +619,29 @@ Returns the total number of output midi ports.
 
 ********************************************************************************/
 
-int synthout(void)
+int pa_synthout(void)
 
 {
 
     return (midiOutGetNumDevs());
+
+}
+
+/*******************************************************************************
+
+Find number of input midi ports
+
+Returns the total number of input midi ports.
+
+*******************************************************************************/
+
+int pa_synthin(void)
+
+{
+
+    error("pa_synthin: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -606,7 +656,7 @@ midi chained devices outside the computer.
 
 ********************************************************************************/
 
-void opensynthout(int p)
+void pa_opensynthout(int p)
 
 {
 
@@ -623,7 +673,7 @@ Closes a previously opened midi output port.
 
 ********************************************************************************/
 
-void closesynthout(int p)
+void pa_closesynthout(int p)
 
 {
 
@@ -634,7 +684,7 @@ void closesynthout(int p)
 
 /********************************************************************************
 
-Start time
+Start time output
 
 Starts the sequencer function. The sequencer is cleared, and upcount {s
 after this call. Before a sequencer start, any notes marked as "sequenced" by
@@ -659,7 +709,7 @@ a sequenced event.
 
 ********************************************************************************/
 
-void starttime(void)
+void pa_starttimeout(void)
 
 {
 
@@ -670,14 +720,14 @@ void starttime(void)
 
 /********************************************************************************
 
-Stop time
+Stop time output
 
 Stops midi sequencer function. Any timers and buffers in use by the sequencer
 are cleared, and all pending events dropped.
 
 ********************************************************************************/
 
-void stoptime(void)
+void pa_stoptimeout(void)
 
 {
 
@@ -700,19 +750,73 @@ void stoptime(void)
 
 /********************************************************************************
 
-Get current time
+Get current time output
 
 Finds the current time for the sequencer, which is the elapsed time since the
 sequencer started.
 
 ********************************************************************************/
 
-int curtime(void)
+int pa_curtimeout(void)
 
 {
 
     if (!seqrun) error("Sequencer not running");
     curtime = difftime(strtim) /* return difference time */
+
+}
+
+/*******************************************************************************
+
+Start time input
+
+Marks the time basis for input midi streams. Normally, MIDI input streams are
+marked with 0 time, which means unsequenced. However, starting the input time
+will mark MIDI inputs with their arrival time, which can be used to sequence
+the MIDI commands. Stopping the time will return to marking 0 time.
+
+*******************************************************************************/
+
+void pa_starttimein(void)
+
+{
+
+    error("pa_starttimein: Is not implemented");
+
+}
+
+/*******************************************************************************
+
+Stop time input
+
+Simply sets that we are not marking input time anymore.
+
+*******************************************************************************/
+
+void pa_stoptimein(void)
+
+{
+
+    error("pa_stoptimein: Is not implemented");
+
+}
+
+/*******************************************************************************
+
+Get current time output
+
+Finds the current time for the sequencer, which is the elapsed time since the
+sequencer started.
+
+*******************************************************************************/
+
+int pa_curtimein(void)
+
+{
+
+    error("pa_curtimein: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -728,7 +832,7 @@ The velocity is set as 0 to INT_MAX.
 
 ********************************************************************************/
 
-void noteon(int p, int t, pa_channel c, pa_note n, int v)
+void pa_noteon(int p, int t, pa_channel c, pa_note n, int v)
 
 {
 
@@ -782,7 +886,7 @@ The velocity is set as 0 to INT_MAX.
 
 ********************************************************************************/
 
-void noteoff(int p, int t, pa_channel c, pa_note n, int v)
+void pa_noteoff(int p, int t, pa_channel c, pa_note n, int v)
 
 {
 
@@ -833,7 +937,7 @@ by Midi GM encoding, 1 to 128. Takes a time for sequencing.
 
 ********************************************************************************/
 
-void instchange(int p, int t, pa_channel c, pa_instrument i)
+void pa_instchange(int p, int t, pa_channel c, pa_instrument i)
 
 {
 
@@ -881,7 +985,7 @@ Processes a controller value set, from 0 to 127.
 
 ********************************************************************************/
 
-void ctlchg(int p, int t, pa_channel c, int cn, int v)
+static void ctlchg(int p, int t, pa_channel c, int cn, int v)
 
 {
 
@@ -902,7 +1006,7 @@ full on.
 
 ********************************************************************************/
 
-void attack(int p, int t, pa_channel c, int at)
+void pa_attack(int p, int t, pa_channel c, int at)
 
 {
 
@@ -948,7 +1052,7 @@ full on.
 
 ********************************************************************************/
 
-void release(int p, int t, pa_channel c, int rt)
+void pa_release(int p, int t, pa_channel c, int rt)
 
 {
 
@@ -993,7 +1097,7 @@ Sets the legato mode on/off.
 
 ********************************************************************************/
 
-void legato(int p, int t, pa_channel c, int b)
+void pa_legato(int p, int t, pa_channel c, int b)
 
 {
 
@@ -1040,7 +1144,7 @@ Sets the portamento mode on/off.
 
 ********************************************************************************/
 
-void portamento(int p, int t, pa_channel c, int b)
+void pa_portamento(int p, int t, pa_channel c, int b)
 
 {
 
@@ -1086,7 +1190,7 @@ Sets synthesizer volume, 0 to INT_MAX.
 
 ********************************************************************************/
 
-void volsynthchan(int p, int t, pa_channel c, int v)
+void pa_volsynthchan(int p, int t, pa_channel c, int v)
 
 {
 
@@ -1133,7 +1237,7 @@ INT_MAX is all right.
 
 ********************************************************************************/
 
-void balance(int p, int t, pa_channel c, int b)
+void pa_balance(int p, int t, pa_channel c, int b)
 
 {
 
@@ -1181,7 +1285,7 @@ Sets portamento time, 0 to INT_MAX.
 
 ********************************************************************************/
 
-void porttime(int p, int t, pa_channel c, int v)
+void pa_porttime(int p, int t, pa_channel c, int v)
 
 {
 
@@ -1228,7 +1332,7 @@ Sets modulaton value, 0 to INT_MAX.
 
 ********************************************************************************/
 
-void vibrato(int p, int t, pa_channel c, int v)
+void pa_vibrato(int p, int t, pa_channel c, int v)
 
 {
 
@@ -1276,7 +1380,7 @@ INT_MAX is hard right.
 
 ********************************************************************************/
 
-void pan(int p, int t, pa_channel c, int b)
+void pa_pan(int p, int t, pa_channel c, int b)
 
 {
 
@@ -1323,7 +1427,7 @@ Sets the sound timbre, 0 to INT_MAX.
 
 ********************************************************************************/
 
-void timbre(int p, int t, pa_channel c, int tb)
+void pa_timbre(int p, int t, pa_channel c, int tb)
 
 {
 
@@ -1368,7 +1472,7 @@ Sets the sound brightness, 0 to INT_MAX.
 
 ********************************************************************************/
 
-void brightness(int p, int t, pa_channel c, int b)
+void pa_brightness(int p, int t, pa_channel c, int b)
 
 {
 
@@ -1413,7 +1517,7 @@ Sets the sound reverb, 0 to INT_MAX.
 
 ********************************************************************************/
 
-void reverb(int p, int t, pa_channel c, int r)
+void pa_reverb(int p, int t, pa_channel c, int r)
 
 {
 
@@ -1458,7 +1562,7 @@ Sets the sound tremulo, 0 to INT_MAX.
 
 ********************************************************************************/
 
-void tremulo(int p, int t, pa_channel c, int tr)
+void pa_tremulo(int p, int t, pa_channel c, int tr)
 
 {
 
@@ -1503,7 +1607,7 @@ Sets the sound chorus, 0 to INT_MAX.
 
 ********************************************************************************/
 
-void chorus(int p, int t, pa_channel c, int cr)
+void pa_chorus(int p, int t, pa_channel c, int cr)
 
 {
 
@@ -1548,7 +1652,7 @@ Sets the sound celeste, 0 to INT_MAX.
 
 ********************************************************************************/
 
-void celeste(int p, int t, pa_channel c, int ce)
+void pa_celeste(int p, int t, pa_channel c, int ce)
 
 {
 
@@ -1593,7 +1697,7 @@ Sets the sound phaser, 0 to INT_MAX.
 
 ********************************************************************************/
 
-void phaser(int p, int t, pa_channel c, int ph)
+void pa_phaser(int p, int t, pa_channel c, int ph)
 
 {
 
@@ -1642,7 +1746,7 @@ could be reached with a slide, for example.
 
 ********************************************************************************/
 
-void pitchrange(int p, int t, pa_channel c, int v)
+void pa_pitchrange(int p, int t, pa_channel c, int v)
 
     pa_seqptr sp;   /* message pointer */
     DWORD     elap; /* current elapsed time */
@@ -1691,7 +1795,7 @@ with 0 being "allways select single note mode".
 
 ********************************************************************************/
 
-void mono(int p, int t, pa_channel c, int ch)
+void pa_mono(int p, int t, pa_channel c, int ch)
 
 {
 
@@ -1737,7 +1841,7 @@ Reenables polyphonic mode after a monophonic operation.
 
 ********************************************************************************/
 
-void poly(int p, int t, pa_channel c)
+void pa_poly(int p, int t, pa_channel c)
 
 {
 
@@ -1781,7 +1885,7 @@ Controls aftertouch, 0 to INT_MAX, on a note.
 
 ********************************************************************************/
 
-void aftertouch(int p, int t, pa_channel c, pa_note n, int at)
+void pa_aftertouch(int p, int t, pa_channel c, pa_note n, int at)
 
 {
 
@@ -1831,7 +1935,7 @@ Controls channel pressure, 0 to INT_MAX, on a note.
 
 ********************************************************************************/
 
-void pressure(int p, int t, pa_channel c, pa_note n, int pr)
+void pa_pressure(int p, int t, pa_channel c, pa_note n, int pr)
 
 {
 
@@ -1883,7 +1987,7 @@ is 4 half steps total. A "half step" is the difference between, say, C && C#.
 
 ********************************************************************************/
 
-void pitch(int p, int t, pa_channel c, int pt)
+void pa_pitch(int p, int t, pa_channel c, int pt)
 
 {
 
@@ -1924,6 +2028,60 @@ void pitch(int p, int t, pa_channel c, int pt)
 
 }
 
+/*******************************************************************************
+
+Load synthesizer file
+
+Loads a synthesizer control file, usually midi format, into a logical cache,
+from 1 to N. These are loaded up into memory for minimum latency. The file is
+specified by file name, and the file type is system dependent.
+
+Note that we support 100 synth files loaded, but the Petit-ami "rule of thumb"
+is no more than 10 synth files at a time.
+
+Windows does not need to preload files (although we could find later that a
+delay to play might require it). This implementation just saves the name for
+the subsequent play operation.
+
+*******************************************************************************/
+
+void pa_loadsynth(int s, string fn)
+
+{
+
+    if (s < 1 || s > MAXMIDT) error("Invalid logical synthesizer file number");
+    if (synthnam[s-1])
+        error("Synthesizer file already defined for logical number");
+    /* simply store the filename for later */
+    synthnam[s-1] = malloc(strlen(fn)+1); /* get a name entry */
+    if (!synthnam[s-1]) error("No memory");
+    strcpy(synthnam[s-1], fn);
+
+}
+
+/*******************************************************************************
+
+Delete synthesizer file
+
+Removes a synthesizer file from the caching table. This frees up the entry to be
+redefined.
+
+Attempting to delete a synthesizer entry that is actively being played will
+result in this routine blocking until it is complete.
+
+*******************************************************************************/
+
+void pa_delsynth(int s)
+
+{
+
+    if (s < 1 || s > MAXMIDT) error("Invalid logical synthesizer file number");
+    if (!synthnam[s-1])
+        error("No synthesizer file loaded for logical number");
+    free(synthnam[s-1]);
+
+}
+
 /********************************************************************************
 
 Play synthesizer file
@@ -1943,7 +2101,7 @@ it is open, then reopening it afterwards.
 
 ********************************************************************************/
 
-void playsynth(int p, int t, const string sf)
+void pa_playsynth(int p, int t, int s)
 
 {
 
@@ -1957,13 +2115,17 @@ void playsynth(int p, int t, const string sf)
 
     if (p <> 1) error("Must execute play on default output channel");
     if (midtab[p] < 0) error("Synth output channel not open");
+    if (s < 1 || s > MAXMIDT) error("Invalid logical synthesizer file number");
+    if (!synthnam[s-1])
+        error("No synthesizer file loaded for logical wave number");
     elap = difftime(strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
         closesynthout(1); /* close default output */
-        brknam(sf, fp, 100, fn, 100, fe, 100); /* break filename components */
-        if (fe[0] == ' ') strcpy(fe, "mid"); /* if no extension, place one */
+        /* break filename components */
+        brknam(synthnam[s-1], fp, 100, fn, 100, fe, 100);
+        if (fe[0] == ' ') strcpy(fe, "mid");
         maknam(sfb, 100, fp, fn, fe);
         mciSendString("close midi", NULL, 0, NULL);
         strpcy(b, "open ");
@@ -1994,6 +2156,37 @@ void playsynth(int p, int t, const string sf)
 
 }
 
+/*******************************************************************************
+
+Wait synthesizers complete
+
+Waits for all running sequencers to complete before returning.
+The synthesizers all play on a separate thread. Normally, if the parent program
+exits before the threads all complete, the synth plays stop, and this is usually
+the correct behavior. However, in some cases we want the synth sequencers to
+complete. for example a "play mymidi.mid" command should wait until the synth
+sequencers finish.
+
+This routine waits until ALL synth operations complete. There is no way to
+determine indivudual sequencer completions, since even the same track could have
+mutiple plays active at the same time. So we keep a counter of active plays, and
+wait until they all stop.
+
+The active sequencer count includes all sequencers, including syth (midi) file
+plays and individual notes/events sent to the midi "manual" interface. Thus this
+call only makes sense if the calling program has stopped sending events to the
+sequencer(s), including background tasks.
+
+*******************************************************************************/
+
+void pa_waitsynth(int p)
+
+{
+
+    error("pa_waitsynth: Is not implemented");
+
+}
+
 /********************************************************************************
 
 Find number of wave devices.
@@ -2003,11 +2196,29 @@ the one windows waveform device.
 
 ********************************************************************************/
 
-int waveout(void)
+int pa_waveout(void)
 
 {
 
     return (1);
+
+}
+
+/*******************************************************************************
+
+Find number of input wave devices.
+
+Returns the number of wave output devices available.
+
+*******************************************************************************/
+
+int pa_wavein(void)
+
+{
+
+    error("pa_wavein: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
 
 }
 
@@ -2020,7 +2231,7 @@ output device. This is presently a no-op for windows.
 
 ********************************************************************************/
 
-void openwaveout(int p)
+void pa_openwaveout(int p)
 
 {
 
@@ -2034,9 +2245,59 @@ Closes a wave output device by number. This is presently a no-op for windows.
 
 ********************************************************************************/
 
-void closewaveout(int p)
+void pa_closewaveout(int p)
 
 {
+
+}
+
+/*******************************************************************************
+
+Load waveform file
+
+Loads a waveform file to a logical cache, from 1 to N. These are loaded up into
+memory for minimum latency. The file is specified by file name, and the file
+type is system dependent.
+
+Note that we support 100 wave files loaded, but the Petit-ami "rule of thumb"
+is no more than 10 wave files at a time.
+
+Note that at present, we don't implement wave caching. This is mainly because on
+the test system, the latency to play is acceptable.
+
+*******************************************************************************/
+
+void pa_loadwave(int w, string fn)
+
+{
+
+    if (w < 1 || w > MAXWAVT) error("Invalid logical wave file number");
+    if (synthnam[w-1])
+        error("Wave file already defined for logical number");
+    /* simply store the filename for later */
+    wavenam[w-1] = malloc(strlen(fn)+1); /* get a name entry */
+    if (!wavenam[w-1]) error("No memory");
+    strcpy(wavenam[w-1], fn);
+
+}
+
+/*******************************************************************************
+
+Delete waveform file
+
+Removes a waveform file from the caching table. This frees up the entry to be
+redefined.
+
+*******************************************************************************/
+
+void pa_delwave(int w)
+
+{
+
+    if (w < 1 || w > MAXWAVT) error("Invalid logical wave file number");
+    if (!wavenam[w-1])
+        error("No wave file loaded for logical number");
+    free(synthnam[w-1]);
 
 }
 
@@ -2046,12 +2307,12 @@ Play waveform file
 
 Plays the waveform file to the indicated wave device. A sequencer time can also
 be indicated, in which case the play will be stored as a sequencer event. This
-allows wave files to be sequenced against other wave files && midi files.
-The file is specified by file name, && the file type is system dep}ent.
+allows wave files to be sequenced against other wave files and midi files.
+The file is specified by file name, and the file type is system dependent.
 
 ********************************************************************************/
 
-void playwave(int p, int t, const string sf)
+void pa_playwave(int p, int t, int w)
 
 {
 
@@ -2059,6 +2320,10 @@ void playwave(int p, int t, const string sf)
     DWORD      elap; /* current elapsed time */
     int        tact; /* timer active */
 
+
+    if (w < 1 || w > MAXWAVT) error("Invalid logical wave file number");
+    if (!wavenam[w-1])
+        error("No wave file loaded for logical number");
     elap = difftime(strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
@@ -2074,7 +2339,7 @@ void playwave(int p, int t, const string sf)
         sp->port = p; /* set port */
         sp->time = t; /* set time */
         sp->st = st_playwave; /* set type */
-        copy(sp->ps, sf); /* make copy of file char* to play */
+        strcpy(sp->ps, wavenam[w-1]); /* make copy of file string to play */
         insseq(sp); /* insert to sequencer list */
         if (!tact) /* activate timer */
             timhan = timeSetEvent((t-elap) / 10, 0, nextseq, 0,
@@ -2102,6 +2367,693 @@ void volwave(int p, int t, int v)
 
 /*******************************************************************************
 
+Wait waves complete
+
+Waits for all pending wave out operations to complete before returning.
+Wavefiles all play on a separate thread. Normally, if the parent program exits
+before the threads all complete, the wave plays stop, and this is usually the
+correct behavior. However, in some cases we want the wave to complete. for
+example a "play mywave.wav" command should wait until the wave finishes.
+
+This routine waits until ALL wave operations complete. There is no way to
+determine indivudual wave completions, since even the same track could have
+mutiple plays active at the same time. So we keep a counter of active plays, and
+wait until they all stop.
+
+*******************************************************************************/
+
+void pa_waitwave(int p)
+
+{
+
+    error("pa_waitwave: Is not implemented");
+
+}
+
+/*******************************************************************************
+
+Set the number of channels for a wave output device
+
+The given port will have its channel number set from the provided number. It
+must be a wave output port, and it must be open. Wave samples are always output
+in 24 bit samples, and the channels are interleaved. This means that the
+presentation will have channel 1 first, followed by channel 2, etc, then repeat
+for the next sample.
+
+*******************************************************************************/
+
+void pa_chanwaveout(int p, int c)
+
+{
+
+    error("pa_chanwaveout: Is not implemented");
+
+}
+
+/*******************************************************************************
+
+Set the rate for a wave output device
+
+The given port will have its rate set from the provided number, which is the
+number of samples per second that will be output. It must be a wave output port,
+and it must be open. Output samples are retimed for the rate. No matter how much
+data is written, each sample is timed to output at the given rate, buffering as
+required.
+
+*******************************************************************************/
+
+void pa_ratewaveout(int p, int r)
+
+{
+
+    error("pa_ratewaveout: Is not implemented");
+
+}
+
+/*******************************************************************************
+
+Set bit length for output wave device
+
+The given port has its bit length for samples set. Bit lengths are rounded up
+to the nearest byte. At the present time, bit numbers that are not divisible by
+8 are not supported, but the most likely would be to zero or 1 pad the msbs
+depending on signed status, effectively extending the samples. Thus the bit
+cound would mainly indicate precision only.
+
+*******************************************************************************/
+
+void pa_lenwaveout(int p, int l)
+
+{
+
+    error("pa_lenwaveout: Is not implemented");
+
+}
+
+/*******************************************************************************
+
+Set sign of wave output device samples
+
+The given port has its signed/no signed status changed. Note that all floating
+point formats are inherently signed.
+
+*******************************************************************************/
+
+void pa_sgnwaveout(int p, int s)
+
+{
+
+    error("pa_sgnwaveout: Is not implemented");
+
+}
+
+/*******************************************************************************
+
+Set floating/non-floating point format
+
+Sets the floating point/integer format for output sound samples.
+
+*******************************************************************************/
+
+void pa_fltwaveout(int p, int f)
+
+{
+
+    error("pa_fltwaveout: Is not implemented");
+
+}
+
+/*******************************************************************************
+
+Set big/little endian format
+
+Sets the big or little endian format for an output wave device. It is possible
+that an installation is fixed to the endian format of the host machine, in which
+case it is an error to set a format that is different.
+
+*******************************************************************************/
+
+void pa_endwaveout(int p, int e)
+
+{
+
+    error("pa_endwaveout: Is not implemented");
+
+}
+
+/*******************************************************************************
+
+Write wave data output
+
+Writes a buffer of wave data to the given output wave port. The data must be
+formatted according to the number of channels. It must be a wave output port,
+and it must be open. Wave samples are always output in 24 bit samples, and the
+channels are interleaved. This means that the presentation will have channel
+1 first, followed by channel 2, etc, then repeat for the next sample. The
+samples are converted as required from the 24 bit, big endian samples as
+required. The can be up or down converted according to size, and may be
+converted to floating point.
+
+This package does not control buffering dept. As much buffering a needed to keep
+the data is used without regard for realtime concerns. The nececessary buffering
+for real time is implemented by the user of this package, which is generally
+recommended to be 1ms or less (64 samples at a 44100 sample rate).
+
+*******************************************************************************/
+
+void pa_wrwave(int p, byte* buff, int len)
+
+{
+
+    error("pa_wrwave: Is not implemented");
+
+}
+
+/*******************************************************************************
+
+Open wave input device
+
+Opens a wave output device by number. By convention, wave in 1 is the default
+input device. The wave stream parameters are determined during enumeration,
+but we assert them here on open.
+
+*******************************************************************************/
+
+void pa_openwavein(int p)
+
+{
+
+    error("pa_openwavein: Is not implemented");
+
+}
+
+/*******************************************************************************
+
+CLose wave input device
+
+Closes a wave input device by number. This is presently a no-op for linux.
+
+*******************************************************************************/
+
+void pa_closewavein(int p)
+
+{
+
+    error("pa_closewavein: Is not implemented");
+
+}
+
+/*******************************************************************************
+
+Get the number of channels for a wave input device
+
+The given port will have its channel number read and returned. It must be a wave
+input port, and it must be open. Wave samples are always input in 24 bit
+samples, and the channels are interleaved. This means that the presentation will
+have channel 1 first, followed by channel 2, etc, then repeat for the next
+sample.
+
+*******************************************************************************/
+
+int pa_chanwavein(int p)
+
+{
+
+    error("pa_chanwavein: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
+
+}
+
+/*******************************************************************************
+
+Get the rate for a wave input device
+
+The given port will have its rate read and returned, which is the
+number of samples per second that will be input. It must be a wave output port,
+and it must be open. Input samples are timed at the rate.
+
+*******************************************************************************/
+
+int pa_ratewavein(int p)
+
+{
+
+    error("pa_ratewavein: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
+
+}
+
+/*******************************************************************************
+
+Get the bit length for a wave input device
+
+Returns the number of bits for a given input wave device. To find the number of
+bytes required for the format is:
+
+bytes = bits/8;
+if (bits%8) bytes++;
+
+This is then multipled by the number of channels to determine the size of a
+"sample", or unit of sound data transfer.
+
+At present, only whole byte format samples are supported, IE., 8, 16, 24, 32,
+etc. However, the caller should assume that partial bytes can be used and thus
+round up bit lengths as shown above.
+
+*******************************************************************************/
+
+int pa_lenwavein(int p)
+
+{
+
+    error("pa_lenwavein: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
+
+}
+
+/*******************************************************************************
+
+Get signed status of wave input device
+
+Returns true if the given wave input device has signed sampling. Note that
+signed sampling is always true if the samples are floating point.
+
+*******************************************************************************/
+
+int pa_sgnwavein(int p)
+
+{
+
+    error("pa_sgnwavein: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
+
+}
+
+/*******************************************************************************
+
+Get big endian status of wave input device
+
+Returns true if the given wave input device has big endian sampling.
+
+*******************************************************************************/
+
+int pa_endwavein(int p)
+
+{
+
+    error("pa_endwavein: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
+
+}
+
+/*******************************************************************************
+
+Get floating point status of wave input device
+
+Returns true if the given wave input device has floating point sampling.
+
+*******************************************************************************/
+
+int pa_fltwavein(int p)
+
+{
+
+    error("pa_fltwavein: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
+
+}
+
+/*******************************************************************************
+
+Read wave data input
+
+Reads a buffer of wave data from the given input wave port. The data is
+formatted according to the number of channels. It must be a wave input port,
+and it must be open. Wave samples are always input in 24 bit samples, and the
+channels are interleaved. This means that the presentation will have channel
+1 first, followed by channel 2, etc, then repeat for the next sample. The
+samples are converted as required from the 24 bit, big endian samples as
+required. The can be up or down converted according to size, and may be
+converted to floating point.
+
+The input device will be buffered according to the parameters of the input
+device and/or the device software. The hardware will have a given buffering
+amount, and the driver many change that to be higher or lower. Generally the
+buffering will be designed to keep the buffer latency below 1ms (64 samples at a
+44100 sample rate). Because the exact sample rate is unknown, the caller is
+recommended to provide a buffer that is greater than any possible buffer amount.
+Thus (for example) 1024*channels would be an appropriate buffer size. Not
+providing enough buffering will not cause an error, but will cause the read
+rate to fall behind the data rate.
+
+pa_rdwave() will return the actual number of bytes read, which will contain
+3*pa_chanwavein() bytes of samples. This will then be the actual buffer content.
+
+*******************************************************************************/
+
+int pa_rdwave(int p, byte* buff, int len)
+
+{
+
+    error("pa_rdwave: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
+
+}
+
+/*******************************************************************************
+
+Find device name of synthesizer output port
+
+Returns the ALSA device name of the given synthsizer output port.
+
+*******************************************************************************/
+
+void pa_synthoutname(int p, string name, int len)
+
+{
+
+    error("pa_synthoutname: Is not implemented");
+
+}
+
+/*******************************************************************************
+
+Find device name of synthesizer input port
+
+Returns the ALSA device name of the given synthsizer input port.
+
+*******************************************************************************/
+
+void pa_synthinname(int p, string name, int len)
+
+{
+
+    error("pa_synthinname: Is not implemented");
+
+}
+
+/*******************************************************************************
+
+Find device name of wave output port
+
+Returns the ALSA device name of the given wave output port.
+
+*******************************************************************************/
+
+void pa_waveoutname(int p, string name, int len)
+
+{
+
+    error("pa_waveoutname: Is not implemented");
+
+}
+
+/*******************************************************************************
+
+Find device name of wave input port
+
+Returns the ALSA device name of the given wave input port.
+
+*******************************************************************************/
+
+void pa_waveinname(int p, string name, int len)
+
+{
+
+    error("pa_waveinname: Is not implemented");
+
+}
+
+/*******************************************************************************
+
+Open a synthesizer input port.
+
+The given synthesizer port is opened and ready for reading.
+
+*******************************************************************************/
+
+void pa_opensynthin(int p)
+
+{
+
+    error("pa_opensynthin: Is not implemented");
+
+}
+
+/*******************************************************************************
+
+Close a synthesizer input port
+
+Closes the given synthsizer port for reading.
+
+*******************************************************************************/
+
+void pa_closesynthin(int p)
+
+{
+
+    error("pa_closesynthin: Is not implemented");
+
+}
+
+/*******************************************************************************
+
+Write synthesizer port
+
+Writes a given sequencer instruction entry the given output port. This is the
+same effect as the "constructor" entries, but means the user won't have to
+decode streaming MIDI devices.
+
+Note that if the entries are sequenced (time not 0) they will be entered into
+the sequencer list.
+
+The port numbers in the input are ignored and replaced with the port given as
+a parameter.
+
+*******************************************************************************/
+
+void pa_wrsynth(int p, seqptr sp)
+
+{
+
+    error("pa_wrsynth: Is not implemented");
+
+}
+
+/*******************************************************************************
+
+Read synthesizer port
+
+Reads and parses a midi instruction record from the given input port. ALSA midi
+input ports are assumed to be "time delimited", that is, input terminates if the
+input device takes to long to deliver the next byte. This makes the input self
+syncronising. This property will exist even if the traffic is burstly, IE.,
+since we parse a MIDI instruction and stop, we will keep sync as long as we
+can properly decode MIDI instructions.
+
+We return the next midi instruction as a sequencer record. The port is as the
+input, which is not useful except to document where the instruction came from.
+If a start time is set for the input, then the input is timestamped, otherwise
+the time will be set to 0 or "unsequenced".
+
+Note that this routine will read meta-instructions, but skip them. It is not
+a full MIDI decoder.
+
+*******************************************************************************/
+
+void pa_rdsynth(int p, seqptr sp)
+
+{
+
+    error("pa_rdsynth: Is not implemented");
+
+}
+
+/*******************************************************************************
+
+Get device parameter synth out
+
+Reads a device parameter by name. Device parameters are strings indexed by name.
+The device parameter is returned if it exists, otherwise an empty string is
+returned.
+
+Device parameters are generally implemented for plug-ins only. The set of
+parameters implemented on a particular device are dependent on that device.
+
+*******************************************************************************/
+
+void pa_getparamsynthout(int p, string name, string value, int len)
+
+{
+
+    error("pa_getparamsynthout: Is not implemented");
+
+}
+
+/*******************************************************************************
+
+Get device parameter synth in
+
+Reads a device parameter by name. Device parameters are strings indexed by name.
+The device parameter is returned if it exists, otherwise an empty string is
+returned.
+
+Device parameters are generally implemented for plug-ins only. The set of
+parameters implemented on a particular device are dependent on that device.
+
+*******************************************************************************/
+
+void pa_getparamsynthin(int p, string name, string value, int len)
+
+{
+
+    error("pa_getparamsynthin: Is not implemented");
+
+}
+
+/*******************************************************************************
+
+Get device parameter wave out
+
+Reads a device parameter by name. Device parameters are strings indexed by name.
+The device parameter is returned if it exists, otherwise an empty string is
+returned.
+
+Device parameters are generally implemented for plug-ins only. The set of
+parameters implemented on a particular device are dependent on that device.
+
+*******************************************************************************/
+
+void pa_getparamwaveout(int p, string name, string value, int len)
+
+{
+
+    error("pa_getparamwaveout: Is not implemented");
+
+}
+
+/*******************************************************************************
+
+Get device parameter wave in
+
+Reads a device parameter by name. Device parameters are strings indexed by name.
+The device parameter is returned if it exists, otherwise an empty string is
+returned.
+
+Device parameters are generally implemented for plug-ins only. The set of
+parameters implemented on a particular device are dependent on that device.
+
+*******************************************************************************/
+
+void pa_getparamwavein(int p, string name, string value, int len)
+
+{
+
+    error("pa_getparamwavein: Is not implemented");
+
+}
+
+/*******************************************************************************
+
+Set device parameter synth out
+
+Sets a device parameter by name. Device parameters are strings indexed by name.
+The device parameter is set if it exists, otherwise an error results.
+If the parameter was successfully set, a 0 is returned, otherwise 1.
+
+Device parameters are generally implemented for plug-ins only. The set of
+parameters implemented on a particular device are dependent on that device.
+
+*******************************************************************************/
+
+int pa_setparamsynthout(int p, string name, string value)
+
+{
+
+    error("pa_setparamsynthout: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
+
+}
+
+/*******************************************************************************
+
+Set device parameter synth in
+
+Sets a device parameter by name. Device parameters are strings indexed by name.
+The device parameter is set if it exists, otherwise an error results.
+If the parameter was successfully set, a 0 is returned, otherwise 1.
+
+Device parameters are generally implemented for plug-ins only. The set of
+parameters implemented on a particular device are dependent on that device.
+
+*******************************************************************************/
+
+int pa_setparamsynthin(int p, string name, string value)
+
+{
+
+    error("pa_setparamsynthin: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
+
+}
+
+/*******************************************************************************
+
+Set device parameter wave out
+
+Sets a device parameter by name. Device parameters are strings indexed by name.
+The device parameter is set if it exists, otherwise an error results.
+If the parameter was successfully set, a 0 is returned, otherwise 1.
+
+Device parameters are generally implemented for plug-ins only. The set of
+parameters implemented on a particular device are dependent on that device.
+
+*******************************************************************************/
+
+int pa_setparamwaveout(int p, string name, string value)
+
+{
+
+    error("pa_setparamwaveout: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
+
+}
+
+/*******************************************************************************
+
+Set device parameter wave in
+
+Sets a device parameter by name. Device parameters are strings indexed by name.
+The device parameter is set if it exists, otherwise an error results.
+If the parameter was successfully set, a 0 is returned, otherwise 1.
+
+Device parameters are generally implemented for plug-ins only. The set of
+parameters implemented on a particular device are dependent on that device.
+
+*******************************************************************************/
+
+int pa_setparamwavein(int p, string name, string value)
+
+{
+
+    error("pa_setparamwavein: Is not implemented");
+
+    return (1); /* this just shuts up compiler */
+
+}
+
+/*******************************************************************************
+
 Initialize sound module
 
 Clears sequencer lists, flags no timer active, clears the midi output port
@@ -2114,12 +3066,14 @@ static void pa_init_sound()
 
 {
 
-   seqlst = nil; /* clear active sequencer list */
-   seqfre = nil; /* clear free sequencer messages */
-   seqrun = false; /* set sequencer ! running */
-   strtim = 0; /* clear start time */
-   timhan = 0; /* set no timer active */
-   for i = 1 to maxmid do midtab[i] = -1; /* set no midi output ports open */
-   InitializeCriticalSection(&seqlock); /* initialize the sequencer lock */
+    int i;
+
+    seqlst = nil; /* clear active sequencer list */
+    seqfre = nil; /* clear free sequencer messages */
+    seqrun = false; /* set sequencer ! running */
+    strtim = 0; /* clear start time */
+    timhan = 0; /* set no timer active */
+    for (i = 0; i < MAXMID; i++) midtab[i] = -1; /* set no midi output ports open */
+    InitializeCriticalSection(&seqlock); /* initialize the sequencer lock */
 
 }

@@ -2,7 +2,7 @@
 *                                                                              *
 *                               SOUND LIBRARY                                  *
 *                                                                              *
-*                              11/02 S. A. Moore                               *
+*                              11/02 S. A. Franco                              *
 *                                                                              *
 * Sndlib is a combination of wave file and midi output and control functions.  *
 * Implements a set of midi controls and wave controls. Also includes a "flow   *
@@ -2521,7 +2521,7 @@ they are either:
 
 We mark sequencer start by recording the start base time, which is the
 windows free running time that all sequencer times will be measured from.
-That counter is 32 bits unsigned millisecond, which gives 49.71 days. We 
+That counter is 32 bits unsigned millisecond, which gives 49.71 days. We
 take half that, because we store as signed, so we are 24.855 days full
 sequencer time.
 
@@ -2643,7 +2643,7 @@ void pa_stoptimein(void)
 
 /*******************************************************************************
 
-Get current time output
+Get current time input
 
 Finds the current time for the sequencer, which is the elapsed time since the
 sequencer started.
@@ -4426,7 +4426,7 @@ void pa_loadsynth(int s, string fn)
     sp = syntab[s]; /* get existing entry */
     syntab[s] = seqlst; /* place new */
     pthread_mutex_unlock(&synlck); /* release lock */
-    if (sp) error("Wave file already defined for logical wave number");
+    if (sp) error("Synthesizer file already defined for logical number");
 
 }
 
