@@ -65,6 +65,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <math.h>
+#include <stdio.h>
 #include <windows.h>
 #include <commctrl.h>
 
@@ -206,15 +207,15 @@
 
 static HMIDIOUT         midtab[MAXMIDP];   /* midi output device table */
 static int              i;                 /* index for midi tables */
-static seqptr           seqlst;            /* active sequencer entries */
-static seqptr           seqfre;            /* free sequencer entries */
+static pa_seqptr        seqlst;            /* active sequencer entries */
+static pa_seqptr        seqfre;            /* free sequencer entries */
 static int              seqrun;            /* sequencer running */
 static DWORD            strtim;            /* start time for sequencer, in raw windows
                                             time */
 static MMRESULT         timhan;            /* handle for running timer */
 static CRITICAL_SECTION seqlock;           /* sequencer task lock */
 static string           synthnam[MAXMIDT]; /* midi track file names */
-static string           wavenam[MAXMIDT];  /* wave track file names */
+static string           wavenam[MAXWAVT];  /* wave track file names */
 
 /*******************************************************************************
 
@@ -231,6 +232,25 @@ static void error(const string s)
     fprintf(stderr, "*** Sound: %s\n", s);
 
     exit(1);
+
+}
+
+/*******************************************************************************
+
+Find path separator character
+
+Returns the character used to separate filename path sections.
+In windows/dos this is "\", in Unix/Linux it is '/'. One possible solution to
+pathing is to accept both characters as a path separator. This means that
+systems that use the '\' as a forcing character would need to represent the
+separator as '\\'.
+
+*******************************************************************************/
+
+char pa_pthchr(void)
+{
+
+    return ('\\');
 
 }
 
@@ -402,11 +422,11 @@ static void getseq(pa_seqptr* p)
     } else {
 
         /* else get a new entry, with full allocation */
-        *p = malloc(sizeof(seqmsg);
+        *p = malloc(sizeof(pa_seqmsg));
         if (!*p) error("No memory");
 
     }
-    *p->next = NULL; /* clear next */
+    (*p)->next = NULL; /* clear next */
 
 }
 
@@ -422,8 +442,6 @@ static void putseq(pa_seqptr p)
 
 {
 
-    /* dispose of any string */
-    if (p->st == st_playsynth || p->st == st_playwave) free(p->ps);
     p->next = seqfre; /* link to top of list */
     seqfre = p; /* push onto list */
 
@@ -437,15 +455,15 @@ Inserts a sequencer message into the list, in asc}ing time order.
 
 *******************************************************************************/
 
-static void insseq(p: seqptr);
+static void insseq(pa_seqptr p)
 
 {
 
-    pa_seqotr lp, l;
+    pa_seqptr lp, l;
 
     EnterCriticalSection(&seqlock); /* start exclusive access */
     /* check sequencer list empty */
-    if (!seqlst) seqlst = p /* place as first if so */
+    if (!seqlst) seqlst = p; /* place as first if so */
     /* check insert to start */
     else if (p->time < seqlst->time) {
 
@@ -488,44 +506,44 @@ sequencer bypass, which means its ok to loop back on the call.
 
 *******************************************************************************/
 
-static void excseq(p: seqptr);
+static void excseq(pa_seqptr p)
 
 {
 
-    switch (p->st) /* sequencer message type */
+    switch (p->st) { /* sequencer message type */
 
-        case st_noteon:       noteon(p->port, 0, p->ntc, p->ntn, p->ntv);
+        case st_noteon:       pa_noteon(p->port, 0, p->ntc, p->ntn, p->ntv);
                               break;
-        case st_noteoff:      noteoff(p->port, 0, p->ntc, p->ntn, p->ntv);
+        case st_noteoff:      pa_noteoff(p->port, 0, p->ntc, p->ntn, p->ntv);
                               break;
-        case st_instchange:   instchange(p->port, 0, p->icc, p->ici); break;
-        case st_attack:       attack(p->port, 0, p->vsc, p->vsv); break;
-        case st_release:      release(p->port, 0, p->vsc, p->vsv); break;
-        case st_legato:       legato(p->port, 0, p->bsc, p->bsb); break;
-        case st_portamento:   portamento(p->port, 0, p->bsc, p->bsb); break;
-        case st_vibrato:      vibrato(p->port, 0, p->vsc, p->vsv); break;
-        case st_volsynthchan: volsynthchan(p->port, 0, p->vsc, p->vsv); break;
-        case st_porttime:     porttime(p->port, 0, p->vsc, p->vsv); break;
-        case st_balance:      balance(p->port, 0, p->vsc, p->vsv); break;
-        case st_pan:          pan(p->port, 0, p->vsc, p->vsv); break;
-        case st_timbre:       timbre(p->port, 0, p->vsc, p->vsv); break;
-        case st_brightness:   brightness(p->port, 0, p->vsc, p->vsv); break;
-        case st_reverb:       reverb(p->port, 0, p->vsc, p->vsv); break;
-        case st_tremulo:      tremulo(p->port, 0, p->vsc, p->vsv); break;
-        case st_chorus:       chorus(p->port, 0, p->vsc, p->vsv); break;
-        case st_celeste:      celeste(p->port, 0, p->vsc, p->vsv); break;
-        case st_phaser:       phaser(p->port, 0, p->vsc, p->vsv); break;
-        case st_aftertouch:   aftertouch(p->port, 0, p->ntc, p->ntn, p->ntv);
+        case st_instchange:   pa_instchange(p->port, 0, p->icc, p->ici); break;
+        case st_attack:       pa_attack(p->port, 0, p->vsc, p->vsv); break;
+        case st_release:      pa_release(p->port, 0, p->vsc, p->vsv); break;
+        case st_legato:       pa_legato(p->port, 0, p->bsc, p->bsb); break;
+        case st_portamento:   pa_portamento(p->port, 0, p->bsc, p->bsb); break;
+        case st_vibrato:      pa_vibrato(p->port, 0, p->vsc, p->vsv); break;
+        case st_volsynthchan: pa_volsynthchan(p->port, 0, p->vsc, p->vsv); break;
+        case st_porttime:     pa_porttime(p->port, 0, p->vsc, p->vsv); break;
+        case st_balance:      pa_balance(p->port, 0, p->vsc, p->vsv); break;
+        case st_pan:          pa_pan(p->port, 0, p->vsc, p->vsv); break;
+        case st_timbre:       pa_timbre(p->port, 0, p->vsc, p->vsv); break;
+        case st_brightness:   pa_brightness(p->port, 0, p->vsc, p->vsv); break;
+        case st_reverb:       pa_reverb(p->port, 0, p->vsc, p->vsv); break;
+        case st_tremulo:      pa_tremulo(p->port, 0, p->vsc, p->vsv); break;
+        case st_chorus:       pa_chorus(p->port, 0, p->vsc, p->vsv); break;
+        case st_celeste:      pa_celeste(p->port, 0, p->vsc, p->vsv); break;
+        case st_phaser:       pa_phaser(p->port, 0, p->vsc, p->vsv); break;
+        case st_aftertouch:   pa_aftertouch(p->port, 0, p->ntc, p->ntn, p->ntv);
                               break;
-        case st_pressure:     pressure(p->port, 0, p->ntc, p->ntn, p->ntv);
+        case st_pressure:     pa_pressure(p->port, 0, p->ntc, p->ntv);
                               break;
-        case st_pitch:        pitch(p->port, 0, p->vsc, p->vsv); break;
-        case st_pitchrange:   pitchrange(p->port, 0, p->vsc, p->vsv); break;
-        case st_mono:         mono(p->port, 0, p->vsc, p->vsv); break;
-        case st_poly:         poly(p->port, 0, p->pc); break;
-        case st_playsynth:    playsynth(p->port, 0, p->ps^); break;
-        case st_playwave:     playwave(p->port, 0, p->ps^); break;
-        case st_volwave:      volwave(p->port, 0, p->wv); break;
+        case st_pitch:        pa_pitch(p->port, 0, p->vsc, p->vsv); break;
+        case st_pitchrange:   pa_pitchrange(p->port, 0, p->vsc, p->vsv); break;
+        case st_mono:         pa_mono(p->port, 0, p->vsc, p->vsv); break;
+        case st_poly:         pa_poly(p->port, 0, p->pc); break;
+        case st_playsynth:    pa_playsynth(p->port, 0, p->sid); break;
+        case st_playwave:     pa_playwave(p->port, 0, p->wt); break;
+        case st_volwave:      pa_volwave(p->port, 0, p->wv); break;
 
     }
 
@@ -553,7 +571,8 @@ static DWORD difftime(DWORD rt)
     ct = timeGetTime(); /* get current time */
     et = ct-rt; /* find difference assuming rt > ct */
     if (et < 0) et = -1-rt+ct;
-    difftime = et*10; /* correct 1 milliseconds to 100us */
+
+    return (et*10); /* correct 1 milliseconds to 100us */
 
 }
 
@@ -576,7 +595,8 @@ until clear.
 
 *******************************************************************************/
 
-static void nextseq(UINT id, UINT msg, DWORD_PTR usr, DWORD_PTR dw1, DWORD_PTR dw2)
+static void CALLBACK nextseq(UINT id, UINT msg, DWORD_PTR usr, DWORD_PTR dw1,
+                             DWORD_PTR dw2)
 
 {
 
@@ -585,7 +605,7 @@ static void nextseq(UINT id, UINT msg, DWORD_PTR usr, DWORD_PTR dw1, DWORD_PTR d
 
     if (seqrun) { /* sequencer is still running */
 
-        entercriticalsection(seqlock); /* start exclusive access */
+        EnterCriticalSection(&seqlock); /* start exclusive access */
         p = seqlst; /* index top of list */
         while (p) { /* process all past due messages */
 
@@ -597,15 +617,15 @@ static void nextseq(UINT id, UINT msg, DWORD_PTR usr, DWORD_PTR dw1, DWORD_PTR d
                 putseq(p); /* release entry */
                 p = seqlst; /* index top of list again */
 
-            } else p = nil; /* stop search */
+            } else p = NULL; /* stop search */
 
         }
         if (seqlst) /* start another timer */
             timhan = timeSetEvent((seqlst->time-elap)/10, 0, nextseq, 0,
-                                   TIME_CALLBACK_INT |
+                                   TIME_CALLBACK_FUNCTION |
                                    TIME_KILL_SYNCHRONOUS |
                                    TIME_ONESHOT);
-        leavecriticalsection(seqlock) /* end exclusive access */
+        LeaveCriticalSection(&seqlock); /* end exclusive access */
 
     }
 
@@ -661,7 +681,7 @@ void pa_opensynthout(int p)
 {
 
     /* open midi output device */
-    midiOutOpen(midtab[p], p-1, NULL, 0, CALLBACK_NULL);
+    midiOutOpen(&midtab[p], p-1, 0, 0, CALLBACK_NULL);
 
 }
 
@@ -678,7 +698,7 @@ void pa_closesynthout(int p)
 {
 
     midiOutClose(midtab[p]); /* close port */
-    midtab[p] = -1; /* set closed */
+    midtab[p] = (HMIDIOUT)-1; /* set closed */
 
 }
 
@@ -736,7 +756,7 @@ void pa_stoptimeout(void)
     strtim = 0; /* clear start time */
     seqrun = FALSE; /* set sequencer ! running */
     /* if there is a p}ing sequencer timer, kill it */
-    if (timhan) timekillevent(timhan);
+    if (timhan) timeKillEvent(timhan);
     /* now clear all p}ing events */
     while (seqlst) { /* clear */
 
@@ -762,7 +782,8 @@ int pa_curtimeout(void)
 {
 
     if (!seqrun) error("Sequencer not running");
-    curtime = difftime(strtim) /* return difference time */
+
+    return (difftime(strtim)); /* return difference time */
 
 }
 
@@ -856,7 +877,7 @@ void pa_noteon(int p, int t, pa_channel c, pa_note n, int v)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         tact = seqlst != NULL; /* flag if pending timers */
-        getseq(sp); /* get a sequencer message */
+        getseq(&sp); /* get a sequencer message */
         sp->port = p; /* set port */
         sp->time = t; /* set time */
         sp->st = st_noteon; /* set type */
@@ -866,7 +887,7 @@ void pa_noteon(int p, int t, pa_channel c, pa_note n, int v)
         insseq(sp); /* insert to sequencer list */
         if (!tact) /* activate timer */
             timhan = timeSetEvent((t-elap)/10, 0, nextseq, 0,
-                                   TIME_CALLBACK_INT |
+                                   TIME_CALLBACK_FUNCTION |
                                    TIME_KILL_SYNCHRONOUS |
                                    TIME_ONESHOT);
 
@@ -895,22 +916,22 @@ void pa_noteoff(int p, int t, pa_channel c, pa_note n, int v)
     int       tact; /* timer active */
     pa_seqptr sp;   /* message pointer */
 
-    if (c < 1 || c > 16) error('Bad channel number');
-    if (n < 1 || n > 128) error('Bad note number');
+    if (c < 1 || c > 16) error("Bad channel number");
+    if (n < 1 || n > 128) error("Bad note number");
     elap = difftime(strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
         /* construct midi message */
         msg = (v / 0x01000000)*65536+(n-1)*256+MESS_NOTE_OFF+(c-1);
-        r = midiOutShortMsg(midtab[p], msg);
+        midiOutShortMsg(midtab[p], msg);
 
     } else { /* sequence */
 
         /* check sequencer running */
-        if (!seqrun) error('Sequencer not running');
+        if (!seqrun) error("Sequencer not running");
         tact = seqlst != NULL; /* flag if pending timers */
-        getseq(sp); /* get a sequencer message */
+        getseq(&sp); /* get a sequencer message */
         sp->port = p; /* set port */
         sp->time = t; /* set time */
         sp->st = st_noteoff; /* set type */
@@ -920,7 +941,7 @@ void pa_noteoff(int p, int t, pa_channel c, pa_note n, int v)
         insseq(sp); /* insert to sequencer list */
         if (!tact) /* activate timer */
             timhan = timeSetEvent((t-elap)/10, 0, nextseq, 0,
-                                   TIME_CALLBACK_INT |
+                                   TIME_CALLBACK_FUNCTION |
                                    TIME_KILL_SYNCHRONOUS |
                                    TIME_ONESHOT);
 
@@ -953,14 +974,14 @@ void pa_instchange(int p, int t, pa_channel c, pa_instrument i)
     if (t == 0 || (t <= elap && seqrun)) {
 
         msg = (i-1)*256+MESS_PGM_CHG+(c-1); /* construct midi message */
-        midioutshortmsg(midtab[p], msg);
+        midiOutShortMsg(midtab[p], msg);
 
     } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         tact = seqlst != NULL; /* flag if pending timers */
-        getseq(sp); /* get a sequencer message */
+        getseq(&sp); /* get a sequencer message */
         sp->port = p; /* set port */
         sp->time = t; /* set time */
         sp->st = st_instchange; /* set type */
@@ -969,7 +990,7 @@ void pa_instchange(int p, int t, pa_channel c, pa_instrument i)
         insseq(sp); /* insert to sequencer list */
         if (!tact) /* activate timer */
             timhan = timeSetEvent((t-elap)/10, 0, nextseq, 0,
-                                   TIME_CALLBACK_INT |
+                                   TIME_CALLBACK_FUNCTION |
                                    TIME_KILL_SYNCHRONOUS |
                                    TIME_ONESHOT);
 
@@ -992,8 +1013,8 @@ static void ctlchg(int p, int t, pa_channel c, int cn, int v)
     DWORD msg;
 
     /* construct midi message */
-    msg = v*65536+cn*256+mess_ctrl_chg+(c-1);
-    midioutshortmsg(midtab[p], msg);
+    msg = v*65536+cn*256+MESS_CTRL_CHG+(c-1);
+    midiOutShortMsg(midtab[p], msg);
 
 }
 
@@ -1024,18 +1045,18 @@ void pa_attack(int p, int t, pa_channel c, int at)
     } else { /* sequence */
 
         /* check sequencer running */
-        if (!seqrun) then error("Sequencer not running");
+        if (!seqrun) error("Sequencer not running");
         tact = seqlst != NULL; /* flag if pending timers */
-        getseq(sp); /* get a sequencer message */
+        getseq(&sp); /* get a sequencer message */
         sp->port = p; /* set port */
         sp->time = t; /* set time */
         sp->st = st_attack; /* set type */
         sp->vsc = c; /* set channel */
         sp->vsv = at; /* set attack */
         insseq(sp); /* insert to sequencer list */
-        if (!tact) then /* activate timer */
+        if (!tact) /* activate timer */
             timhan = timeSetEvent((t-elap)/ 10, 0, nextseq, 0,
-                                   TIME_CALLBACK_INT |
+                                   TIME_CALLBACK_FUNCTION |
                                    TIME_KILL_SYNCHRONOUS |
                                    TIME_ONESHOT);
 
@@ -1072,7 +1093,7 @@ void pa_release(int p, int t, pa_channel c, int rt)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         tact = seqlst != NULL; /* flag if p}ing timers */
-        getseq(sp); /* get a sequencer message */
+        getseq(&sp); /* get a sequencer message */
         sp->port = p; /* set port */
         sp->time = t; /* set time */
         sp->st = st_release; /* set type */
@@ -1081,7 +1102,7 @@ void pa_release(int p, int t, pa_channel c, int rt)
         insseq(sp); /* insert to sequencer list */
         if (!tact) /* activate timer */
             timhan = timeSetEvent((t-elap)/10, 0, nextseq, 0,
-                                   TIME_CALLBACK_INT |
+                                   TIME_CALLBACK_FUNCTION |
                                    TIME_KILL_SYNCHRONOUS |
                                    TIME_ONESHOT);
 
@@ -1117,9 +1138,9 @@ void pa_legato(int p, int t, pa_channel c, int b)
     } else { /* sequence */
 
         /* check sequencer running */
-        if (!seqrun) then error("Sequencer not running");
+        if (!seqrun) error("Sequencer not running");
         tact = seqlst != NULL; /* flag if pending timers */
-        getseq(sp); /* get a sequencer message */
+        getseq(&sp); /* get a sequencer message */
         sp->port = p; /* set port */
         sp->time = t; /* set time */
         sp->st = st_legato; /* set type */
@@ -1128,7 +1149,7 @@ void pa_legato(int p, int t, pa_channel c, int b)
         insseq(sp); /* insert to sequencer list */
         if (!tact) /* activate timer */
             timhan = timeSetEvent((t-elap)/10, 0, nextseq, 0,
-                                   TIME_CALLBACK_INT |
+                                   TIME_CALLBACK_FUNCTION |
                                    TIME_KILL_SYNCHRONOUS |
                                    TIME_ONESHOT);
 
@@ -1158,14 +1179,14 @@ void pa_portamento(int p, int t, pa_channel c, int b)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        ctlchg(p, t, c, CTLR_PORTAMENTO, ord(b)*127);
+        ctlchg(p, t, c, CTLR_PORTAMENTO, !!b*127);
 
     } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         tact = seqlst != NULL; /* flag if pending timers */
-        getseq(sp); /* get a sequencer message */
+        getseq(&sp); /* get a sequencer message */
         sp->port = p; /* set port */
         sp->time = t; /* set time */
         sp->st = st_portamento; /* set type */
@@ -1174,7 +1195,7 @@ void pa_portamento(int p, int t, pa_channel c, int b)
         insseq(sp); /* insert to sequencer list */
         if (!tact) /* activate timer */
             timhan = timeSetEvent((t-elap)/10, 0, nextseq, 0,
-                                   TIME_CALLBACK_INT |
+                                   TIME_CALLBACK_FUNCTION |
                                    TIME_KILL_SYNCHRONOUS |
                                    TIME_ONESHOT);
 
@@ -1211,7 +1232,7 @@ void pa_volsynthchan(int p, int t, pa_channel c, int v)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         tact = seqlst != NULL; /* flag if pending timers */
-        getseq(sp); /* get a sequencer message */
+        getseq(&sp); /* get a sequencer message */
         sp->port = p; /* set port */
         sp->time = t; /* set time */
         sp->st = st_volsynthchan; /* set type */
@@ -1220,7 +1241,7 @@ void pa_volsynthchan(int p, int t, pa_channel c, int v)
         insseq(sp); /* insert to sequencer list */
         if (!tact) /* activate timer */
             timhan = timeSetEvent((t-elap)/10, 0, nextseq, 0,
-                                   TIME_CALLBACK_INT |
+                                   TIME_CALLBACK_FUNCTION |
                                    TIME_KILL_SYNCHRONOUS |
                                    TIME_ONESHOT);
 
@@ -1260,7 +1281,7 @@ void pa_balance(int p, int t, pa_channel c, int b)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         tact = seqlst != NULL; /* flag if pending timers */
-        getseq(sp); /* get a sequencer message */
+        getseq(&sp); /* get a sequencer message */
         sp->port = p; /* set port */
         sp->time = t; /* set time */
         sp->st = st_balance; /* set type */
@@ -1269,7 +1290,7 @@ void pa_balance(int p, int t, pa_channel c, int b)
         insseq(sp); /* insert to sequencer list */
         if (!tact) /* activate timer */
             timhan = timeSetEvent((t-elap)/10, 0, nextseq, 0,
-                                   TIME_CALLBACK_INT |
+                                   TIME_CALLBACK_FUNCTION |
                                    TIME_KILL_SYNCHRONOUS |
                                    TIME_ONESHOT);
 
@@ -1307,7 +1328,7 @@ void pa_porttime(int p, int t, pa_channel c, int v)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         tact = seqlst != NULL; /* flag if pending timers */
-        getseq(sp); /* get a sequencer message */
+        getseq(&sp); /* get a sequencer message */
         sp->port = p; /* set port */
         sp->time = t; /* set time */
         sp->st = st_porttime; /* set type */
@@ -1316,7 +1337,7 @@ void pa_porttime(int p, int t, pa_channel c, int v)
         insseq(sp); /* insert to sequencer list */
         if (!tact) /* activate timer */
             timhan = timeSetEvent((t-elap)/10, 0, nextseq, 0,
-                                   TIME_CALLBACK_INT |
+                                   TIME_CALLBACK_FUNCTION |
                                    TIME_KILL_SYNCHRONOUS |
                                    TIME_ONESHOT);
 
@@ -1354,7 +1375,7 @@ void pa_vibrato(int p, int t, pa_channel c, int v)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         tact = seqlst != NULL; /* flag if pending timers */
-        getseq(sp); /* get a sequencer message */
+        getseq(&sp); /* get a sequencer message */
         sp->port = p; /* set port */
         sp->time = t; /* set time */
         sp->st = st_vibrato; /* set type */
@@ -1363,7 +1384,7 @@ void pa_vibrato(int p, int t, pa_channel c, int v)
         insseq(sp); /* insert to sequencer list */
         if (!tact) /* activate timer */
             timhan = timeSetEvent((t-elap) / 10, 0, nextseq, 0,
-                                   TIME_CALLBACK_INT |
+                                   TIME_CALLBACK_FUNCTION |
                                    TIME_KILL_SYNCHRONOUS |
                                    TIME_ONESHOT);
 
@@ -1384,9 +1405,9 @@ void pa_pan(int p, int t, pa_channel c, int b)
 
 {
 
-    sp:   seqptr;  /* message pointer */
-    DWORD elap; /* current elapsed time */
-    int tact; /* timer active */
+    pa_seqptr sp;   /* message pointer */
+    DWORD     elap; /* current elapsed time */
+    int       tact; /* timer active */
 
     if (c < 1 || c > 16) error("Bad channel number");
     elap = difftime(strtim); /* find elapsed time */
@@ -1402,7 +1423,7 @@ void pa_pan(int p, int t, pa_channel c, int b)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         tact = seqlst != NULL; /* flag if pending timers */
-        getseq(sp); /* get a sequencer message */
+        getseq(&sp); /* get a sequencer message */
         sp->port = p; /* set port */
         sp->time = t; /* set time */
         sp->st = st_pan; /* set type */
@@ -1411,7 +1432,7 @@ void pa_pan(int p, int t, pa_channel c, int b)
         insseq(sp); /* insert to sequencer list */
         if (!tact) /* activate timer */
             timhan = timeSetEvent((t-elap) / 10, 0, nextseq, 0,
-                                   TIME_CALLBACK_INT |
+                                   TIME_CALLBACK_FUNCTION |
                                    TIME_KILL_SYNCHRONOUS |
                                    TIME_ONESHOT);
 
@@ -1431,9 +1452,9 @@ void pa_timbre(int p, int t, pa_channel c, int tb)
 
 {
 
-    pa_seqptr sp;    /* message pointer */
-    DWORD     elapt; /* current elapsed time */
-    int       tact;  /* timer active */
+    pa_seqptr sp;   /* message pointer */
+    DWORD     elap; /* current elapsed time */
+    int       tact; /* timer active */
 
     if (c < 1 || c > 16) error("Bad channel number");
     elap = difftime(strtim); /* find elapsed time */
@@ -1447,7 +1468,7 @@ void pa_timbre(int p, int t, pa_channel c, int tb)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         tact = seqlst != NULL; /* flag if pending timers */
-        getseq(sp); /* get a sequencer message */
+        getseq(&sp); /* get a sequencer message */
         sp->port = p; /* set port */
         sp->time = t; /* set time */
         sp->st = st_timbre; /* set type */
@@ -1456,7 +1477,7 @@ void pa_timbre(int p, int t, pa_channel c, int tb)
         insseq(sp); /* insert to sequencer list */
         if (!tact) /* activate timer */
             timhan = timeSetEvent((t-elap)/10, 0, nextseq, 0,
-                                    TIME_CALLBACK_INT |
+                                    TIME_CALLBACK_FUNCTION |
                                     TIME_KILL_SYNCHRONOUS |
                                     TIME_ONESHOT);
 
@@ -1492,7 +1513,7 @@ void pa_brightness(int p, int t, pa_channel c, int b)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         tact = seqlst != NULL; /* flag if pending timers */
-        getseq(sp); /* get a sequencer message */
+        getseq(&sp); /* get a sequencer message */
         sp->port = p; /* set port */
         sp->time = t; /* set time */
         sp->st = st_brightness; /* set type */
@@ -1501,7 +1522,7 @@ void pa_brightness(int p, int t, pa_channel c, int b)
         insseq(sp); /* insert to sequencer list */
         if (!tact) /* activate timer */
             timhan = timeSetEvent((t-elap) / 10, 0, nextseq, 0,
-                                   TIME_CALLBACK_INT |
+                                   TIME_CALLBACK_FUNCTION |
                                    TIME_KILL_SYNCHRONOUS |
                                    TIME_ONESHOT);
 
@@ -1537,7 +1558,7 @@ void pa_reverb(int p, int t, pa_channel c, int r)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         tact = seqlst != NULL; /* flag if pending timers */
-        getseq(sp); /* get a sequencer message */
+        getseq(&sp); /* get a sequencer message */
         sp->port = p; /* set port */
         sp->time = t; /* set time */
         sp->st = st_reverb; /* set type */
@@ -1546,7 +1567,7 @@ void pa_reverb(int p, int t, pa_channel c, int r)
         insseq(sp); /* insert to sequencer list */
         if (!tact) /* activate timer */
             timhan = timeSetEvent((t-elap)/10, 0, nextseq, 0,
-                                   TIME_CALLBACK_INT |
+                                   TIME_CALLBACK_FUNCTION |
                                    TIME_KILL_SYNCHRONOUS |
                                    TIME_ONESHOT);
 
@@ -1582,7 +1603,7 @@ void pa_tremulo(int p, int t, pa_channel c, int tr)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         tact = seqlst != NULL; /* flag if pending timers */
-        getseq(sp); /* get a sequencer message */
+        getseq(&sp); /* get a sequencer message */
         sp->port = p; /* set port */
         sp->time = t; /* set time */
         sp->st = st_tremulo; /* set type */
@@ -1591,7 +1612,7 @@ void pa_tremulo(int p, int t, pa_channel c, int tr)
         insseq(sp); /* insert to sequencer list */
         if (!tact) /* activate timer */
             timhan = timeSetEvent((t-elap) / 10, 0, nextseq, 0,
-                                   TIME_CALLBACK_INT |
+                                   TIME_CALLBACK_FUNCTION |
                                    TIME_KILL_SYNCHRONOUS |
                                    TIME_ONESHOT);
 
@@ -1627,7 +1648,7 @@ void pa_chorus(int p, int t, pa_channel c, int cr)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         tact = seqlst != NULL; /* flag if pending timers */
-        getseq(sp); /* get a sequencer message */
+        getseq(&sp); /* get a sequencer message */
         sp->port = p; /* set port */
         sp->time = t; /* set time */
         sp->st = st_chorus; /* set type */
@@ -1636,7 +1657,7 @@ void pa_chorus(int p, int t, pa_channel c, int cr)
         insseq(sp); /* insert to sequencer list */
         if (!tact) /* activate timer */
             timhan = timeSetEvent((t-elap) / 10, 0, nextseq, 0,
-                                   TIME_CALLBACK_INT |
+                                   TIME_CALLBACK_FUNCTION |
                                    TIME_KILL_SYNCHRONOUS |
                                    TIME_ONESHOT);
 
@@ -1672,7 +1693,7 @@ void pa_celeste(int p, int t, pa_channel c, int ce)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         tact = seqlst != NULL; /* flag if pending timers */
-        getseq(sp); /* get a sequencer message */
+        getseq(&sp); /* get a sequencer message */
         sp->port = p; /* set port */
         sp->time = t; /* set time */
         sp->st = st_celeste; /* set type */
@@ -1681,7 +1702,7 @@ void pa_celeste(int p, int t, pa_channel c, int ce)
         insseq(sp); /* insert to sequencer list */
         if (!tact) /* activate timer */
             timhan = timeSetEvent((t-elap)/10, 0, nextseq, 0,
-                                   TIME_CALLBACK_INT |
+                                   TIME_CALLBACK_FUNCTION |
                                    TIME_KILL_SYNCHRONOUS |
                                    TIME_ONESHOT);
 
@@ -1717,7 +1738,7 @@ void pa_phaser(int p, int t, pa_channel c, int ph)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         tact = seqlst != NULL; /* flag if pending timers */
-        getseq(sp); /* get a sequencer message */
+        getseq(&sp); /* get a sequencer message */
         sp->port = p; /* set port */
         sp->time = t; /* set time */
         sp->st = st_phaser; /* set type */
@@ -1726,7 +1747,7 @@ void pa_phaser(int p, int t, pa_channel c, int ph)
         insseq(sp); /* insert to sequencer list */
         if (!tact) /* activate timer */
             timhan = timeSetEvent((t-elap)/10, 0, nextseq, 0,
-                                   TIME_CALLBACK_INT |
+                                   TIME_CALLBACK_FUNCTION |
                                    TIME_KILL_SYNCHRONOUS |
                                    TIME_ONESHOT);
 
@@ -1748,6 +1769,8 @@ could be reached with a slide, for example.
 
 void pa_pitchrange(int p, int t, pa_channel c, int v)
 
+{
+
     pa_seqptr sp;   /* message pointer */
     DWORD     elap; /* current elapsed time */
     int       tact; /* timer active */
@@ -1768,7 +1791,7 @@ void pa_pitchrange(int p, int t, pa_channel c, int v)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         tact = seqlst != NULL; /* flag if pending timers */
-        getseq(sp); /* get a sequencer message */
+        getseq(&sp); /* get a sequencer message */
         sp->port = p; /* set port */
         sp->time = t; /* set time */
         sp->st = st_pitchrange; /* set type */
@@ -1777,7 +1800,7 @@ void pa_pitchrange(int p, int t, pa_channel c, int v)
         insseq(sp); /* insert to sequencer list */
         if (!tact) /* activate timer */
             timhan = timeSetEvent((t-elap)/10, 0, nextseq, 0,
-                                   TIME_CALLBACK_INT |
+                                   TIME_CALLBACK_FUNCTION |
                                    TIME_KILL_SYNCHRONOUS |
                                    TIME_ONESHOT);
 
@@ -1804,7 +1827,7 @@ void pa_mono(int p, int t, pa_channel c, int ch)
     int       tact; /* timer active */
 
     if (c < 1 || c > 16) error("Bad channel number");
-    if (ch < 0) || (c > 16) then error('Bad mono mode number');
+    if (ch < 0 || c > 16) error("Bad mono mode number");
     elap = difftime(strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
@@ -1816,7 +1839,7 @@ void pa_mono(int p, int t, pa_channel c, int ch)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         tact = seqlst != NULL; /* flag if pending timers */
-        getseq(sp); /* get a sequencer message */
+        getseq(&sp); /* get a sequencer message */
         sp->port = p; /* set port */
         sp->time = t; /* set time */
         sp->st = st_mono; /* set type */
@@ -1825,7 +1848,7 @@ void pa_mono(int p, int t, pa_channel c, int ch)
         insseq(sp); /* insert to sequencer list */
         if (!tact) /* activate timer */
             timhan = timeSetEvent((t-elap)/10, 0, nextseq, 0,
-                                   TIME_CALLBACK_INT |
+                                   TIME_CALLBACK_FUNCTION |
                                    TIME_KILL_SYNCHRONOUS |
                                    TIME_ONESHOT);
 
@@ -1854,14 +1877,14 @@ void pa_poly(int p, int t, pa_channel c)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        ctlchg(p, t, c, CTLR_POLY_OPERATION, 0) /* value dosen't matter */
+        ctlchg(p, t, c, CTLR_POLY_OPERATION, 0); /* value dosen't matter */
 
     } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         tact = seqlst != NULL; /* flag if pending timers */
-        getseq(sp); /* get a sequencer message */
+        getseq(&sp); /* get a sequencer message */
         sp->port = p; /* set port */
         sp->time = t; /* set time */
         sp->st = st_poly; /* set type */
@@ -1869,7 +1892,7 @@ void pa_poly(int p, int t, pa_channel c)
         insseq(sp); /* insert to sequencer list */
         if (!tact) /* activate timer */
             timhan = timeSetEvent((t-elap)/10, 0, nextseq, 0,
-                                   TIME_CALLBACK_INT |
+                                   TIME_CALLBACK_FUNCTION |
                                    TIME_KILL_SYNCHRONOUS |
                                    TIME_ONESHOT);
 
@@ -1895,21 +1918,21 @@ void pa_aftertouch(int p, int t, pa_channel c, pa_note n, int at)
     int tact;     /* timer active */
 
     if (c < 1 || c > 16) error("Bad channel number");
-    if (n < 1 || n > 128) error('Bad note number');
+    if (n < 1 || n > 128) error("Bad note number");
     elap = difftime(strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
         /* construct midi message */
-        msg = (at/0x01000000)*65536+(n-1)*256+mess_afttch+(c-1);
-        midioutshortmsg(midtab[p], msg);
+        msg = (at/0x01000000)*65536+(n-1)*256+MESS_AFTTCH+(c-1);
+        midiOutShortMsg(midtab[p], msg);
 
     } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         tact = seqlst != NULL; /* flag if pending timers */
-        getseq(sp); /* get a sequencer message */
+        getseq(&sp); /* get a sequencer message */
         sp->port = p; /* set port */
         sp->time = t; /* set time */
         sp->st = st_aftertouch; /* set type */
@@ -1919,7 +1942,7 @@ void pa_aftertouch(int p, int t, pa_channel c, pa_note n, int at)
         insseq(sp); /* insert to sequencer list */
         if (!tact) /* activate timer */
             timhan = timeSetEvent((t-elap)/10, 0, nextseq, 0,
-                                   TIME_CALLBACK_INT |
+                                   TIME_CALLBACK_FUNCTION |
                                    TIME_KILL_SYNCHRONOUS |
                                    TIME_ONESHOT);
 
@@ -1935,7 +1958,7 @@ Controls channel pressure, 0 to INT_MAX, on a note.
 
 ********************************************************************************/
 
-void pa_pressure(int p, int t, pa_channel c, pa_note n, int pr)
+void pa_pressure(int p, int t, pa_channel c, int pr)
 
 {
 
@@ -1945,31 +1968,29 @@ void pa_pressure(int p, int t, pa_channel c, pa_note n, int pr)
     int       tact; /* timer active */
 
     if (c < 1 || c > 16) error("Bad channel number");
-    if (n < 1) || (n > 128) then error('Bad note number');
     elap = difftime(strtim); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
         /* construct midi message */
-        msg = (pr/0x01000000)*65536+(n-1)*256+MESS_CHN_PRES+(c-1);
-        midioutshortmsg(midtab[p], msg);
+        msg = (pr/0x01000000)*256+MESS_CHN_PRES+(c-1);
+        midiOutShortMsg(midtab[p], msg);
 
     } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         tact = seqlst != NULL; /* flag if pending timers */
-        getseq(sp); /* get a sequencer message */
+        getseq(&sp); /* get a sequencer message */
         sp->port = p; /* set port */
         sp->time = t; /* set time */
         sp->st = st_pressure; /* set type */
         sp->ntc = c; /* set channel */
-        sp->ntn = n; /* set note */
         sp->ntv = pr; /* set pressure */
         insseq(sp); /* insert to sequencer list */
         if (!tact) /* activate timer */
             timhan = timeSetEvent((t-elap) / 10, 0, nextseq, 0,
-                                   TIME_CALLBACK_INT |
+                                   TIME_CALLBACK_FUNCTION |
                                    TIME_KILL_SYNCHRONOUS |
                                    TIME_ONESHOT);
 
@@ -2004,14 +2025,14 @@ void pa_pitch(int p, int t, pa_channel c, int pt)
         pt = pt/0x00040000+0x2000; /* reduce to 14 bits, positive only */
         /* construct midi message */
         msg = (pt/0x80)*65536+(pt && 0x7f)*256+MESS_PTCH_WHL+(c-1);
-        midioutshortmsg(midtab[p], msg);
+        midiOutShortMsg(midtab[p], msg);
 
     } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         tact = seqlst != NULL; /* flag if pending timers */
-        getseq(sp); /* get a sequencer message */
+        getseq(&sp); /* get a sequencer message */
         sp->port = p; /* set port */
         sp->time = t; /* set time */
         sp->st = st_pitch; /* set type */
@@ -2020,7 +2041,7 @@ void pa_pitch(int p, int t, pa_channel c, int pt)
         insseq(sp); /* insert to sequencer list */
         if (!tact) /* activate timer */
             timhan = timeSetEvent((t-elap)/10, 0, nextseq, 0,
-                                   TIME_CALLBACK_INT |
+                                   TIME_CALLBACK_FUNCTION |
                                    TIME_KILL_SYNCHRONOUS |
                                    TIME_ONESHOT);
 
@@ -2113,7 +2134,7 @@ void pa_playsynth(int p, int t, int s)
     DWORD     elap; /* current elapsed time */
     int       tact; /* timer active */
 
-    if (p <> 1) error("Must execute play on default output channel");
+    if (p != 1) error("Must execute play on default output channel");
     if (midtab[p] < 0) error("Synth output channel not open");
     if (s < 1 || s > MAXMIDT) error("Invalid logical synthesizer file number");
     if (!synthnam[s-1])
@@ -2122,33 +2143,33 @@ void pa_playsynth(int p, int t, int s)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        closesynthout(1); /* close default output */
+        pa_closesynthout(1); /* close default output */
         /* break filename components */
         brknam(synthnam[s-1], fp, 100, fn, 100, fe, 100);
         if (fe[0] == ' ') strcpy(fe, "mid");
         maknam(sfb, 100, fp, fn, fe);
         mciSendString("close midi", NULL, 0, NULL);
-        strpcy(b, "open ");
+        strcpy(b, "open ");
         strcat(b, sfb);
         strcat(b, " alias midi");
         mciSendString(b, NULL, 0, NULL);
         mciSendString("play midi", NULL, 0, NULL);
-        opensynthout(1); /* reopen default midi */
+        pa_opensynthout(1); /* reopen default midi */
 
     } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         tact = seqlst != NULL; /* flag if pending timers */
-        getseq(sp); /* get a sequencer message */
+        getseq(&sp); /* get a sequencer message */
         sp->port = p; /* set port */
         sp->time = t; /* set time */
         sp->st = st_playsynth; /* set type */
-        copy(sp->ps, sf); /* make copy of file char* to play */
+        sp->sid = s; /* place synth file id */
         insseq(sp); /* insert to sequencer list */
         if (!tact) /* activate timer */
             timhan = timeSetEvent((t-elap)/10, 0, nextseq, 0,
-                                   TIME_CALLBACK_INT |
+                                   TIME_CALLBACK_FUNCTION |
                                    TIME_KILL_SYNCHRONOUS |
                                    TIME_ONESHOT);
 
@@ -2316,9 +2337,9 @@ void pa_playwave(int p, int t, int w)
 
 {
 
-    pa_seqptrv sp;   /* message pointer */
-    DWORD      elap; /* current elapsed time */
-    int        tact; /* timer active */
+    pa_seqptr sp;   /* message pointer */
+    DWORD     elap; /* current elapsed time */
+    int       tact; /* timer active */
 
 
     if (w < 1 || w > MAXWAVT) error("Invalid logical wave file number");
@@ -2328,22 +2349,22 @@ void pa_playwave(int p, int t, int w)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        playsound(sf, 0, SND_FILENAME | SND_NODEFAULT | SND_ASYNC);
+        PlaySound(wavenam[w-1], 0, SND_FILENAME | SND_NODEFAULT | SND_ASYNC);
 
     } else { /* sequence */
 
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         tact = seqlst != NULL; /* flag if pending timers */
-        getseq(sp); /* get a sequencer message */
+        getseq(&sp); /* get a sequencer message */
         sp->port = p; /* set port */
         sp->time = t; /* set time */
         sp->st = st_playwave; /* set type */
-        strcpy(sp->ps, wavenam[w-1]); /* make copy of file string to play */
+        sp->wt = w; /* set logical track */
         insseq(sp); /* insert to sequencer list */
         if (!tact) /* activate timer */
             timhan = timeSetEvent((t-elap) / 10, 0, nextseq, 0,
-                                   TIME_CALLBACK_INT |
+                                   TIME_CALLBACK_FUNCTION |
                                    TIME_KILL_SYNCHRONOUS |
                                    TIME_ONESHOT);
 
@@ -2839,7 +2860,7 @@ a parameter.
 
 *******************************************************************************/
 
-void pa_wrsynth(int p, seqptr sp)
+void pa_wrsynth(int p, pa_seqptr sp)
 
 {
 
@@ -2868,7 +2889,7 @@ a full MIDI decoder.
 
 *******************************************************************************/
 
-void pa_rdsynth(int p, seqptr sp)
+void pa_rdsynth(int p, pa_seqptr sp)
 
 {
 
@@ -3068,12 +3089,14 @@ static void pa_init_sound()
 
     int i;
 
-    seqlst = nil; /* clear active sequencer list */
-    seqfre = nil; /* clear free sequencer messages */
-    seqrun = false; /* set sequencer ! running */
+    seqlst = NULL; /* clear active sequencer list */
+    seqfre = NULL; /* clear free sequencer messages */
+    seqrun = FALSE; /* set sequencer ! running */
     strtim = 0; /* clear start time */
     timhan = 0; /* set no timer active */
-    for (i = 0; i < MAXMID; i++) midtab[i] = -1; /* set no midi output ports open */
+    for (i = 0; i < MAXMIDP; i++) midtab[i] = (HMIDIOUT)-1; /* set no midi output ports open */
+    for (i = 0; i < MAXMIDT; i++) synthnam[i] = NULL; /* clear synth track list */
+    for (i = 0; i < MAXWAVT; i++) wavenam[i] = NULL; /* clear wave track list */
     InitializeCriticalSection(&seqlock); /* initialize the sequencer lock */
 
 }

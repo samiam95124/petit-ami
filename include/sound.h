@@ -323,10 +323,10 @@ typedef enum {
 
 typedef struct pa_seqmsg {
 
-    struct seqmsg* next; /* next message in list */
-    int port; /* port to which message applies */
-    int time; /* time to execute message */
-    seqtyp st; /* type of message */
+    struct pa_seqmsg* next; /* next message in list */
+    int               port; /* port to which message applies */
+    int               time; /* time to execute message */
+    pa_seqtyp         st;   /* type of message */
     union {
 
         /* st_noteon st_noteoff st_aftertouch st_pressure */
@@ -393,8 +393,8 @@ void pa_loadsynth(int s, string sf);
 void pa_playsynth(int p, int t, int s);
 void pa_delsynth(int s);
 void pa_waitsynth(int p);
-void pa_wrsynth(int p, seqptr sp);
-void pa_rdsynth(int p, seqptr sp);
+void pa_wrsynth(int p, pa_seqptr sp);
+void pa_rdsynth(int p, pa_seqptr sp);
 int pa_waveout(void);
 int pa_wavein(void);
 void pa_openwaveout(int p);
@@ -438,13 +438,13 @@ void pa_getparamswaveout(int p, string name, string value, int len);
 /* register synth plug ins */
 void _pa_synthoutplug(int addend, string name,
                       void (*opnseq)(int p), void (*clsseq)(int p),
-                      void (*wrseq)(int p, seqptr sp),
+                      void (*wrseq)(int p, pa_seqptr sp),
                       int (*setparam)(int p, string name, string value),
                       void (*getparam)(int p, string name, string value, int len)
                      );
 void _pa_synthinplug(int addend, string name,
                      void (*opnseq)(int p), void (*clsseq)(int p),
-                     void (*wrseq)(int p, seqptr sp),
+                     void (*wrseq)(int p, pa_seqptr sp),
                      int (*setparam)(int p, string name, string value),
                      void (*getparam)(int p, string name, string value, int len)
                     );
@@ -471,6 +471,6 @@ void _pa_waveinplug(int addend, string name,
                    );
 
 /* execute sequencer entry in main code */
-void _pa_excseq(int p, seqptr sp);
+void _pa_excseq(int p, pa_seqptr sp);
 
 #endif /* __SOUND_H__ */
