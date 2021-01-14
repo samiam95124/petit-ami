@@ -378,8 +378,8 @@ windows/stdio.o: libc/stdio.c libc/stdio.h Makefile
 windows/services.o: windows/services.c include/services.h Makefile
 	gcc -g3 -Ilibc -Iinclude -c windows/services.c -o windows/services.o
 	
-windows/sound.o: stub/sound.c include/sound.h Makefile
-	gcc -g3 -Ilibc -Iinclude -c stub/sound.c -o windows/sound.o
+windows/sound.o: windows/sound.c include/sound.h Makefile
+	gcc -g3 -Ilibc -Iinclude -c windows/sound.c -o windows/sound.o
 	
 windows/network.o: stub/network.c include/network.h Makefile
 	gcc -g3 -Ilibc -Iinclude -c stub/network.c -o windows/network.o
