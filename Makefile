@@ -604,7 +604,7 @@ play: $(CLIBSD) sound_programs/play.c
 	$(CC) $(CFLAGS) sound_programs/play.c $(CLIBS) -o bin/play
 	
 playg: $(GLIBSD) sound_programs/play.c
-	$(CC) $(CFLAGS) sound_programs/play.c $(GLIBS) -o bin/play
+	$(CC) $(CFLAGS) sound_programs/play.c $(GLIBS) -o bin/playg
 
 #
 # Emulate a sound keyboard (uses console timers)
@@ -613,7 +613,7 @@ keyboard: $(CLIBSD) sound_programs/keyboard.c
 	$(CC) $(CFLAGS) sound_programs/keyboard.c $(CLIBS) -o bin/keyboard
 	
 keyboardg: $(GLIBSD) sound_programs/keyboard.c
-	$(CC) $(CFLAGS) sound_programs/keyboard.c $(GLIBS) -o bin/keyboard
+	$(CC) $(CFLAGS) sound_programs/keyboard.c $(GLIBS) -o bin/keyboardg
 
 #
 # Play midi files
@@ -648,8 +648,11 @@ connectwave: $(PLIBSD) sound_programs/connectwave.c
 #	
 # Play random notes
 #
-randomc: $(CLIBSD) sound_programs/random.c
+random: $(CLIBSD) sound_programs/random.c
 	$(CC) $(CFLAGS) sound_programs/random.c $(CLIBS) -o bin/random
+	
+randomg: $(CLIBSD) sound_programs/random.c
+	$(CC) $(CFLAGS) sound_programs/random.c $(CLIBS) -o bin/randomg
 
 #
 # Generate waveforms

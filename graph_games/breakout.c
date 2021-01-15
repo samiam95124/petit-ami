@@ -16,9 +16,8 @@
 
 /* Petit-ami defines */
 #include <localdefs.h>
+#include <sound.h>
 #include <graph.h>
-
-#define SOUND 0 /* compile without sound */
 
 #define   SECOND      10000                   /* one second */
 #define   OSEC        (SECOND/8)              /* 1/8 second */
@@ -39,10 +38,10 @@
 #define   WALLCLR     pa_cyan                 /* wall pa_color */
 #define   PADCLR      pa_green                /* paddle pa_color */
 #define   BOUNCETIME  250                     /* time to play bounce note */
-#define   WALLNOTE    (pa_note_d+pa_octave_6) /* note to play off wall */
-#define   BRICKNOTE   (pa_note_e+pa_octave_7) /* note to play off brick */
+#define   WALLNOTE    (PA_NOTE_D+PA_OCTAVE_6) /* note to play off wall */
+#define   BRICKNOTE   (PA_NOTE_E+PA_OCTAVE_7) /* note to play off brick */
 #define   FAILTIME    1500                    /* note to play on failure */
-#define   FAILNOTE    (pa_note_c+pa_octave_4) /* note to play on fail */
+#define   FAILNOTE    (PA_NOTE_C+PA_OCTAVE_4) /* note to play on fail */
 #define   BRKROW      6                       /* number of brick rows */
 #define   BRKCOL      10                      /* number of brick columns */
 #define   BRKH        15                      /* brick height */
@@ -473,11 +472,9 @@ int main(void)
 
 {
 
-#if SOUND
-    pa_opensynthout(pa_synth_out); /* open synthesizer */
-    pa_instchange(pa_synth_out, 0, 1, pa_inst_lead_1_square);
-    pa_starttime(); /* start sequencer running */
-#endif
+    pa_opensynthout(PA_SYNTH_OUT); /* open synthesizer */
+    pa_instchange(PA_SYNTH_OUT, 0, 1, PA_INST_LEAD_1_SQUARE);
+    pa_starttimeout(); /* start sequencer running */
     jchr = INT_MAX/((pa_maxxg(stdout)-2)/2); /* find basic joystick increment */
     pa_curvis(stdout, FALSE); /* remove drawing cursor */
     pa_auto(stdout, FALSE); /* turn off scrolling */
@@ -564,22 +561,18 @@ int main(void)
                             ball = balsav; /* restore */
                             bdx = -bdx; /* change direction */
                             offrect(&ball, bdx, bdy); /* recalculate */
-#if SOUND
                             /* start bounce note */
-                            pa_noteon(pa_synth_out, 0, 1, WALLNOTE, INT_MAX);
-                            pa_noteoff(pa_synth_out, pa_curtime()+BOUNCETIME, 1, WALLNOTE, INT_MAX);
-#endif
+                            pa_noteon(PA_SYNTH_OUT, 0, 1, WALLNOTE, INT_MAX);
+                            pa_noteoff(PA_SYNTH_OUT, pa_curtimeout()+BOUNCETIME, 1, WALLNOTE, INT_MAX);
 
                         } else if (intersect(&ball, &wallt)) { /* hits top */
 
                             ball = balsav; /* restore */
                             bdy = -bdy; /* change direction */
                             offrect(&ball, bdx, bdy); /* recalculate */
-#if SOUND
                             /* start bounce note */
-                            pa_noteon(pa_synth_out, 0, 1, WALLNOTE, INT_MAX);
-                            pa_noteoff(pa_synth_out, curtime+BOUNCETIME, 1, WALLNOTE, INT_MAX);
-#endif
+                            pa_noteon(PA_SYNTH_OUT, 0, 1, WALLNOTE, INT_MAX);
+                            pa_noteoff(PA_SYNTH_OUT, pa_curtimeout()+BOUNCETIME, 1, WALLNOTE, INT_MAX);
 
                         } else if (intersect(&ball, &paddle)) {
 
@@ -605,11 +598,9 @@ int main(void)
                                it up until it is not */
                             if (ball.y2 >= paddle.y1)
                                 offrect(&ball, 0, -(ball.y2-paddle.y1+1));
-#if SOUND
                             /* start bounce note */
-                            pa_noteon(pa_synth_out, 0, 1, WALLNOTE, INT_MAX);
-                            pa_noteoff(pa_synth_out, pa_curtime()+BOUNCETIME, 1, WALLNOTE, INT_MAX);
-#endif
+                            pa_noteon(PA_SYNTH_OUT, 0, 1, WALLNOTE, INT_MAX);
+                            pa_noteoff(PA_SYNTH_OUT, pa_curtimeout()+BOUNCETIME, 1, WALLNOTE, INT_MAX);
 
                         } else { /* check brick hits */
 
@@ -619,11 +610,9 @@ int main(void)
                                 ball = balsav; /* restore */
                                 bdy = -bdy; /* change direction */
                                 offrect(&ball, bdx, bdy); /* recalculate */
-#if SOUND
                                 /* start bounce note */
-                                pa_noteon(pa_synth_out, 0, 1, BRICKNOTE, INT_MAX);
-                                pa_noteoff(pa_synth_out, pa_curtime()+BOUNCETIME, 1, BRICKNOTE, INT_MAX)
-#endif
+                                pa_noteon(PA_SYNTH_OUT, 0, 1, BRICKNOTE, INT_MAX);
+                                pa_noteoff(PA_SYNTH_OUT, pa_curtimeout()+BOUNCETIME, 1, BRICKNOTE, INT_MAX);
 
                             }
 
@@ -634,11 +623,9 @@ int main(void)
                             clrrect(&ball); /* set ball not on screen */
                             /* start time on new ball wait */
                             baltim = NEWBAL/BALMOV;
-#if SOUND
                             /* start fail note */
-                            pa_noteon(pa_synth_out, 0, 1, FAILNOTE, INT_MAX);
-                            pa_noteoff(pa_synth_out, pa_curtime()+FAILTIME, 1, FAILNOTE, INT_MAX)
-#endif
+                            pa_noteon(PA_SYNTH_OUT, 0, 1, FAILNOTE, INT_MAX);
+                            pa_noteoff(PA_SYNTH_OUT, pa_curtimeout()+FAILTIME, 1, FAILNOTE, INT_MAX);
 
                         } else { /* ball in play */
 
@@ -669,20 +656,18 @@ int main(void)
             }
 
         } while (fldbrk != BRKROW*BRKCOL); /* until bricks are cleared */
-#if SOUND
-        pa_noteon(synth_out,  0,                  1, pa_note_c+pa_octave_6, INT_MAX);
-        pa_noteoff(synth_out, pa_curtime+OSEC*2,  1, pa_note_c+pa_octave_6, INT_MAX);
-        pa_noteon(synth_out,  pa_curtime+OSEC*3,  1, pa_note_d+pa_octave_6, INT_MAX);
-        pa_noteoff(synth_out, pa_curtime+OSEC*4,  1, pa_note_d+pa_octave_6, INT_MAX);
-        pa_noteon(synth_out,  pa_curtime+OSEC*5,  1, pa_note_e+pa_octave_6, INT_MAX);
-        pa_noteoff(synth_out, pa_curtime+OSEC*6,  1, pa_note_e+pa_octave_6, INT_MAX);
-        pa_noteon(synth_out,  pa_curtime+OSEC*7,  1, pa_note_f+pa_octave_6, INT_MAX);
-        pa_noteoff(synth_out, pa_curtime+OSEC*8,  1, pa_note_f+pa_octave_6, INT_MAX);
-        pa_noteon(synth_out,  pa_curtime+OSEC*9,  1, pa_note_e+pa_octave_6, INT_MAX);
-        pa_noteoff(synth_out, pa_curtime+OSEC*10, 1, pa_note_e+pa_octave_6, INT_MAX);
-        pa_noteon(synth_out,  pa_curtime+OSEC*11, 1, pa_note_d+pa_octave_6, INT_MAX);
-        pa_noteoff(synth_out, pa_curtime+OSEC*13, 1, pa_note_d+pa_octave_6, INT_MAX);
- #endif
+        pa_noteon(PA_SYNTH_OUT,  0,                  1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
+        pa_noteoff(PA_SYNTH_OUT, pa_curtimeout()+OSEC*2,  1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
+        pa_noteon(PA_SYNTH_OUT,  pa_curtimeout()+OSEC*3,  1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
+        pa_noteoff(PA_SYNTH_OUT, pa_curtimeout()+OSEC*4,  1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
+        pa_noteon(PA_SYNTH_OUT,  pa_curtimeout()+OSEC*5,  1, PA_NOTE_E+PA_OCTAVE_6, INT_MAX);
+        pa_noteoff(PA_SYNTH_OUT, pa_curtimeout()+OSEC*6,  1, PA_NOTE_E+PA_OCTAVE_6, INT_MAX);
+        pa_noteon(PA_SYNTH_OUT,  pa_curtimeout()+OSEC*7,  1, PA_NOTE_F+PA_OCTAVE_6, INT_MAX);
+        pa_noteoff(PA_SYNTH_OUT, pa_curtimeout()+OSEC*8,  1, PA_NOTE_F+PA_OCTAVE_6, INT_MAX);
+        pa_noteon(PA_SYNTH_OUT,  pa_curtimeout()+OSEC*9,  1, PA_NOTE_E+PA_OCTAVE_6, INT_MAX);
+        pa_noteoff(PA_SYNTH_OUT, pa_curtimeout()+OSEC*10, 1, PA_NOTE_E+PA_OCTAVE_6, INT_MAX);
+        pa_noteon(PA_SYNTH_OUT,  pa_curtimeout()+OSEC*11, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
+        pa_noteoff(PA_SYNTH_OUT, pa_curtimeout()+OSEC*13, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
         baltim = (OSEC*13+NEWBAL)/BALMOV; /* wait fanfare */
         drwrect(&ball, pa_white); /* clear ball */
         clrrect(&ball); /* set ball not on screen */
@@ -691,9 +676,6 @@ int main(void)
 
     endgame:; /* exit game */
 
-#if SOUND
-    pa_closesynthout(pa_synth_out); /* close synthesizer */
-#endif
+    pa_closesynthout(PA_SYNTH_OUT); /* close synthesizer */
 
 }
-
