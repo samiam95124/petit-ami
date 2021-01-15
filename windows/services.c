@@ -1,4 +1,4 @@
-/*******************************************************************************
+/****************************f***************************************************
 *                                                                              *
 *                     WINDOWS EXTENDED FUNCTION LIBRARY                        *
 *                                                                              *
@@ -70,25 +70,31 @@
 #include <windows.h>
 #include <limits.h>
 
-/*
-#include <errno.h>
-#include <sys/types.h>
-#include <sys/status.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <sys/wait.h>
-#include <time.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <dirent.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <dirent.h>
-#include <limits.h>
-*/
-
 #include <services.h> /* the header for this file */
+
+/*
+ * Debug print system
+ *
+ * Example use:
+ *
+ * dbg_printf(dlinfo, "There was an error: string: %s\n", bark);
+ *
+ * mydir/test.c:myfunc():12: There was an error: somestring
+ *
+ */
+
+static enum { /* debug levels */
+
+    dlinfo, /* informational */
+    dlwarn, /* warnings */
+    dlfail, /* failure/critical */
+    dlnone  /* no messages */
+
+} dbglvl = dlinfo;
+
+#define dbg_printf(lvl, fmt, ...) \
+        do { if (lvl >= dbglvl) fprintf(stderr, "%s:%s():%d: " fmt, __FILE__, \
+                                __func__, __LINE__, ##__VA_ARGS__); } while (0)
 
 /* contains the program invocation path */
 extern char *program_invocation_name;
@@ -102,16 +108,12 @@ extern char **environ;
 /* Unix time adjustment for 1970 */
 #define UNIXADJ         (YEARSEC * 30 + DAYSEC * 7)
 
-/* maximum size of holding buffers (I had to make this very large for large
-   paths [sam]) */
-#define MAXSTR          500
+#define MAXSTR 500  /* maximum size of holding buffers */
+#define MAXPTH 5000 /* max size of path */
 
 typedef char bufstr[MAXSTR]; /* standard string buffer */
 
-#define MAXARG 1000 /* maximum number of argv strings */
-#define MAXENV 10000 /* maximum number of environment strings */
-
-static bufstr pthstr;   /* buffer for execution path */
+static char pthstr[MAXPTH]; /* buffer for execution path */
 static bufstr langstr;  /* buffer for language country string (locale) */
 
 static pa_envrec *envlst;   /* our environment list */
@@ -2928,7 +2930,7 @@ static void pa_init_services()
 
     }
 
-    pa_getenv("Path", pthstr, MAXSTR); /* load up the current path */
+    pa_getenv("Path", pthstr, MAXPTH); /* load up the current path */
     trim(pthstr); /* make sure left aligned */
 
     /* set default language and country */

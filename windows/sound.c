@@ -247,7 +247,7 @@ separator as '\\'.
 
 *******************************************************************************/
 
-char pa_pthchr(void)
+static char pthchr(void)
 {
 
     return ('\\');
@@ -298,7 +298,7 @@ static void brknam(
     /* skip spaces */
     while (*s1 && *s1 == ' ') s1++;
     /* find last '/' that will mark the path */
-    s2 = strrchr(s1, pa_pthchr());
+    s2 = strrchr(s1, pthchr());
     if (s2) {
 
         /* there was a path, store that */
@@ -380,10 +380,10 @@ static void maknam(
     /* check path properly terminated */
     i = strlen(p);   /* find length */
     if (*p) /* not null */
-        if (p[i-1] != pa_pthchr()) {
+        if (p[i-1] != pthchr()) {
 
         if (strlen(fn)+1 > fnl) error("String too large for destination");
-        s[0] = pa_pthchr(); /* set up path character as string */
+        s[0] = pthchr(); /* set up path character as string */
         s[1] = 0;
         strcat(fn, s); /* add path separator */
 
@@ -2380,7 +2380,7 @@ Adjusts the volume on waveform playback. The volume value is from 0 to INT_MAX.
 
 ********************************************************************************/
 
-void volwave(int p, int t, int v)
+void pa_volwave(int p, int t, int v)
 
 {
 

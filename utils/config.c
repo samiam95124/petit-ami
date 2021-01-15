@@ -197,7 +197,7 @@ Adds new list item to end of list.
 
 *******************************************************************************/
 
-void addend(
+static void addend(
     /* list */ pa_valptr* root,
     /* item */ pa_valptr  item
 )
