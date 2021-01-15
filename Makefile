@@ -602,12 +602,18 @@ testg: $(GLIBSD) test.c
 # 	
 play: $(CLIBSD) sound_programs/play.c
 	$(CC) $(CFLAGS) sound_programs/play.c $(CLIBS) -o bin/play
+	
+playg: $(GLIBSD) sound_programs/play.c
+	$(CC) $(CFLAGS) sound_programs/play.c $(GLIBS) -o bin/play
 
 #
 # Emulate a sound keyboard (uses console timers)
 #	
 keyboard: $(CLIBSD) sound_programs/keyboard.c
 	$(CC) $(CFLAGS) sound_programs/keyboard.c $(CLIBS) -o bin/keyboard
+	
+keyboardg: $(GLIBSD) sound_programs/keyboard.c
+	$(CC) $(CFLAGS) sound_programs/keyboard.c $(GLIBS) -o bin/keyboard
 
 #
 # Play midi files
