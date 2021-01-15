@@ -1,4 +1,4 @@
-/****************************f***************************************************
+/*******************************************************************************
 *                                                                              *
 *                     WINDOWS EXTENDED FUNCTION LIBRARY                        *
 *                                                                              *
@@ -1081,10 +1081,10 @@ static void cmdpth(
 )
 {
 
-    bufstr p, n, e; /* filename components */
-    bufstr pc;      /* path copy */
+    bufstr p, n, e;    /* filename components */
+    char   pc[MAXPTH]; /* path copy */
     bufstr ncn;
-    char *cp;
+    char*  cp;
 
     strcpy(ncn, cn); /* copy command to temp */
     if (!exists(cn)) {  /* does not exist in current form */
@@ -1582,12 +1582,12 @@ void pa_getpgm(
 )
 {
 
-    char*  cp;   /* command line holder */
-    bufstr cb;   /* command buffer */
-    bufstr n, e; /* path components */
-    bufstr path; /* execution path */
-    int    i;    /* index for path */
-    int    f;    /* path found */
+    char*  cp;           /* command line holder */
+    bufstr cb;           /* command buffer */
+    bufstr n, e;         /* path components */
+    char   path[MAXPTH]; /* execution path */
+    int    i;            /* index for path */
+    int    f;            /* path found */
 
     cp = GetCommandLine(); /* get the command line */
     fstwrd(cp, cb, MAXSTR); /* get command */
@@ -1599,7 +1599,7 @@ void pa_getpgm(
         pa_maknam(cb, MAXSTR, p, n, "exe"); /* construct name with that path */
         if (!exists(cb)) { /* try search path */
 
-            pa_getenv("Path", path, MAXSTR);
+            pa_getenv("Path", path, MAXPTH);
             f = 0; /* set path not found */
             while (*path && !f) { /* search path */
 
@@ -1613,7 +1613,7 @@ void pa_getpgm(
 
                     extract(p, pl, path, 0, i-1); /* place path */
                     /* extract the rest as remainer */
-                    extract(path, MAXSTR, path, i+1, strlen(path));
+                    extract(path, MAXPTH, path, i+1, strlen(path));
 
                 }
                 pa_maknam(cb, MAXSTR, p, n, "exe"); /* construct name with that path */

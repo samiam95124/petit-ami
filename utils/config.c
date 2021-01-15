@@ -118,6 +118,7 @@ a block for each plugin.
 static enum { /* debug levels */
 
     dlinfo, /* informational */
+    dldbg,  /* debug */
     dlwarn, /* warnings */
     dlfail, /* failure/critical */
     dlnone  /* no messages */
@@ -247,7 +248,7 @@ static void parlst(
         p = fgets(linbuf, MAXSTR, f); /* get next line */
         if (p) { /* not EOF */
 
-            dbg_printf(dlinfo, "Next line: %s\n", linbuf);
+            dbg_printf(dldbg, "Next line: %s\n", linbuf);
             (*lc)++; /* increment line counter */
             ll = strlen(linbuf); /* find string length */
             /* remove trailing eoln */
@@ -278,7 +279,7 @@ static void parlst(
                         vp->value = NULL;
                         /* parse sublist */
                         parlst(fn, f, lc, &(vp->sublist));
-                        dbg_printf(dlinfo, "branch: name: %s\n", vp->name);
+                        dbg_printf(dldbg, "branch: name: %s\n", vp->name);
 
                     } else if (!strcmp(word, "end"))
                         /* end of list, we simply exit */
@@ -297,7 +298,7 @@ static void parlst(
                         vp->value = malloc(strlen(s)+1);
                         if (!vp->value) error(fn, *lc, "Out of memory");
                         strcpy(vp->value, s); /* copy value into place */
-                        dbg_printf(dlinfo, "value: name: %s value: %s\n",
+                        dbg_printf(dldbg, "value: name: %s value: %s\n",
                                    vp->name, vp->value);
 
                     }
@@ -510,7 +511,7 @@ void pa_configfile(string fn, pa_valptr* root)
     /* line counter */     int    lc;
     /* new root pointer */ pa_valptr np;
 
-    dbg_printf(dlinfo, "filename: %s\n", fn);
+    dbg_printf(dldbg, "filename: %s\n", fn);
 
     f = fopen(fn, "r");
     lc = 0; /* clear line count */
@@ -523,7 +524,7 @@ void pa_configfile(string fn, pa_valptr* root)
         if (dlinfo >= dbglvl) {
 
             /* print intermediate tree */
-            dbg_printf(dlinfo, "Intermediate tree:\n");
+            dbg_printf(dldbg, "Intermediate tree:\n");
             pa_prttre(np);
 
         }
