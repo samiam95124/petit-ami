@@ -355,7 +355,7 @@ int main(void)
               	/* if the note timer is running, decrement it */
                 if (nottim > 0) {
 
-                  	nottim = nottim-1; /* derement */
+                  	nottim--; /* derement */
                    	if (nottim == 0) /* times up, turn note off */
                       	pa_noteoff(PA_SYNTH_OUT, 0, 1, WALLNOTE, INT_MAX);
 
