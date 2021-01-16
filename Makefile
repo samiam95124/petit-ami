@@ -745,8 +745,8 @@ watorg: $(GLIBSD) terminal_programs/wator.c
 pong: $(CLIBSD) terminal_games/pong.c
 	$(CC) $(CFLAGS) terminal_games/pong.c $(CLIBS) -o bin/pong
 	
-pongg: $(GLIBSD) terminal_games/pong.c
-	$(CC) $(CFLAGS) terminal_games/pong.c $(GLIBS) -o bin/pongg
+pongg: $(GLIBSD) graph_games/pong.c
+	$(CC) $(CFLAGS) graph_games/pong.c $(GLIBS) -o bin/pongg
 
 #
 # Breakout game for graphics

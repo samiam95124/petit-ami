@@ -2,7 +2,7 @@
 *                                                                              *
 *                                BREAKOUT GAME                                 *
 *                                                                              *
-*                       COPYRIGHT (C) 2002 S. A. FRANCO                         *
+*                       COPYRIGHT (C) 2002 S. A. FRANCO                        *
 *                                                                              *
 * Plays breakout in graphical mode.                                            *
 *                                                                              *
@@ -343,7 +343,7 @@ void drwscn(void)
     pa_fcolor(stdout, pa_black);
     wrtcen(pa_maxyg(stdout)-WALL+1, "BREAKOUT VS. 1.0");
 
-};
+}
 
 /*******************************************************************************
 
