@@ -310,6 +310,7 @@ ifeq ($(OSTYPE),Windows_NT)
     #
     # Windows
     #
+    PLIBS += -lwinmm
     CLIBS += -lwinmm -lgdi32
     GLIBS += -lwinmm -lgdi32 -lcomdlg32
 
@@ -686,6 +687,9 @@ mantst: $(GLIBSD) tests/mantst.c
 #	
 sndtst: $(CLIBSD) tests/sndtst.c
 	$(CC) $(CFLAGS) tests/sndtst.c $(CLIBS) -o bin/sndtst 
+	
+sndtstg: $(GLIBSD) tests/sndtst.c
+	$(CC) $(CFLAGS) tests/sndtst.c $(GLIBS) -o bin/sndtstg 
 	
 #
 # Test services module
