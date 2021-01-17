@@ -7,3 +7,5 @@ magnitude slower than before.
 
 3. Need to pick up cursor location from windows again, at the start. Otherwise
 the typing is not attached to the existing insert point.
+
+4. Does odd things when the buffer is very much greater than the screen size.

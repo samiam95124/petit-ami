@@ -63,6 +63,30 @@
 #include <windows.h>
 #include <terminal.h>
 
+/*
+ * Debug print system
+ *
+ * Example use:
+ *
+ * dbg_printf(dlinfo, "There was an error: string: %s\n", bark);
+ *
+ * mydir/test.c:myfunc():12: There was an error: somestring
+ *
+ */
+
+static enum { /* debug levels */
+
+    dlinfo, /* informational */
+    dlwarn, /* warnings */
+    dlfail, /* failure/critical */
+    dlnone  /* no messages */
+
+} dbglvl = dlinfo;
+
+#define dbg_printf(lvl, fmt, ...) \
+        do { if (lvl >= dbglvl) fprintf(stderr, "%s:%s():%d: " fmt, __FILE__, \
+                                __func__, __LINE__, ##__VA_ARGS__); } while (0)
+
 /* standard file handles */
 #define INPFIL 0   /* _input */
 #define OUTFIL 1   /* _output */
@@ -259,9 +283,6 @@ static void error(int e)
 
     }
     fprintf(stderr, "\n");
-
-    /* cancel control-c capture */
-    SetConsoleCtrlHandler(NULL, 0);
 
     exit(1);
 
@@ -2365,26 +2386,22 @@ static void readline(void)
         switch (er.etype) { /* event */
 
             case pa_etterm: exit(1); /* halt program */
-            case pa_etenter: { /* line terminate */
-
+            case pa_etenter: /* line terminate */
                 inpbuf[inpptr] = '\n'; /* return newline */
+                /* terminate the line for debug prints */
+                inpbuf[inpptr+1] = 0;
                 plcchr('\r'); /* output newline sequence */
                 plcchr('\n');
-
-            }
-            case pa_etchar: { /* character */
-
+                break;
+            case pa_etchar: /* character */
                 if (inpptr < MAXLIN) {
 
-                    inpbuf[inpptr] = er.echar; /* place real character */
+                    inpbuf[inpptr++] = er.echar; /* place real character */
                     plcchr(er.echar); /* echo the character */
 
                 }
-                if (inpptr < MAXLIN) inpptr++; /* next character */
-
-            }
-            case pa_etdelcb: { /* delete character backwards */
-
+                break;
+            case pa_etdelcb: /* delete character backwards */
                 if (inpptr > 0) { /* not at extreme left */
 
                     plcchr('\b'); /* backspace, spaceout then backspace again */
@@ -2393,12 +2410,11 @@ static void readline(void)
                     inpptr--; /* back up pointer */
 
                 }
-
-            }
+                break;
 
         }
 
-    } while (!er.etype == pa_etenter); /* until line terminate */
+    } while (er.etype != pa_etenter); /* until line terminate */
     inpptr = 0; /* set 1st position on active line */
 
 }
@@ -2499,7 +2515,7 @@ Read file
 
 If the file is the stdin file, we process that by reading from the event queue
 and returning any characters found. Any events besides character events are
-discarded, which is why reading from the stdin file is a downward compatible
+ discarded, which is why reading from the stdin file is a downward compatible
 operation.
 
 The input from user is line buffered and may be edited by the user.
