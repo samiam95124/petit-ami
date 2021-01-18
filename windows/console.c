@@ -2541,8 +2541,9 @@ static ssize_t iread(int fd, void* buff, size_t count)
             if (inpptr = -1) readline();
             *p = inpbuf[inpptr]; /* get and place next character */
             if (inpptr < MAXLIN) inpptr++; /* next */
-            /* if we have just read the last of that line, then flag buffer empty */
-            if (*p = '\n') inpptr = -1;
+            /* if we have just read the last of that line, then flag buffer
+               empty */
+            if (*p == '\n') inpptr = -1;
             p++; /* next character */
             cnt--; /* count characters */
 
