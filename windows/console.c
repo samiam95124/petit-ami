@@ -2535,7 +2535,7 @@ static ssize_t iread(int fd, void* buff, size_t count)
     if (fd == INPFIL) {
 
         /* get data from terminal */
-        while (cnt--) {
+        while (cnt) {
 
             /* if there is no line in the input buffer, get one */
             if (inpptr = -1) readline();
