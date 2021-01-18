@@ -273,7 +273,7 @@ int main(int argc, char **argv)
     printf("13: Dixie\n");
     printf("14: The Odd Couple\n");
     printf("15: Star Wars\n");
-    printf("16: Alex''s Theme (Beverly Hills Cop)\n");
+    printf("16: Alex's Theme (Beverly Hills Cop)\n");
     printf("17: Bagpipes\n");
     printf("18: Theme from Star Trek\n");
 

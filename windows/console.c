@@ -2538,7 +2538,7 @@ static ssize_t iread(int fd, void* buff, size_t count)
         while (cnt) {
 
             /* if there is no line in the input buffer, get one */
-            if (inpptr = -1) readline();
+            if (inpptr == -1) readline();
             *p = inpbuf[inpptr]; /* get and place next character */
             if (inpptr < MAXLIN) inpptr++; /* next */
             /* if we have just read the last of that line, then flag buffer

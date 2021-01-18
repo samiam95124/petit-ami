@@ -1912,7 +1912,7 @@ int vsscanfe(const char *s, const char *fmt, va_list ap, FILE *fd)
             dbl  = FALSE;   /* no double length modifier */
             cneg = FALSE;   /* no character match negation */
 
-            /* check for output supress */
+            /* check for output suppress */
             if (*fmt == '*') {
 
                 fmt++; /* skip '*' */
