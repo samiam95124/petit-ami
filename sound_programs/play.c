@@ -187,7 +187,7 @@ void play(string ms)
             i = strtol(ms, &ms, 10); /* get the note */
             if (i < 0 && i > 84) {
 
-                printf("*** Play: Invalid note number\n");
+                printf("\n*** Play: Invalid note number\n");
                 exit(1);
 
             }
@@ -213,7 +213,7 @@ void play(string ms)
                 tolower(*ms) != 's' && tolower(*ms) != 'f' &&
                 tolower(*ms) != 'b') {
 
-                printf("*** Play: command syntax error\n");
+                printf("\n*** Play: command syntax error\n");
                 exit(1);
 
             }
@@ -222,7 +222,7 @@ void play(string ms)
         } else if (*ms == ' ') ms++; /* skip spaces */
         else {
 
-            printf("*** Play: command syntax error\n");
+            printf("\n*** Play: command syntax error\n");
             exit(1);
 
         }
@@ -237,6 +237,7 @@ int main(int argc, char **argv)
 
     int song;
     int argi = 1;
+    char buff[20];
 
     /* parse user options */
     options(&argi, &argc, argv, opttbl, TRUE);
@@ -278,9 +279,9 @@ int main(int argc, char **argv)
     printf("18: Theme from Star Trek\n");
 
     printf("\n");
-    printf("Enter song to play:");
-    scanf("%d\n", &song);
-    printf("\n");
+    printf("Enter song to play: ");
+    fgets(buff, 20, stdin);
+    sscanf(buff, "%d", &song);
 
     if (--song == 0) {
 
@@ -314,7 +315,7 @@ int main(int argc, char **argv)
     play("O1 G2 O2 F2 E2 D4.E8 F4 A2");
     play("O3 C4 D2 C2");
     play("O2 E1 D2");
-    play("O3 G4.F8 E2 A4. G8 O2 B2 A2 G2 O3F2 E2 D4.E8 F4 A4 O4D4.C8");
+    play("O3 G4.F8 E2 A4. G8 O2 B2 A2 G2 O3F2 E2 D4.E8 F4 A4 O4 D4.C8");
     play("O3 E4 G4 C4.E8 D1 C1");
 
     } else if (--song == 0) {
