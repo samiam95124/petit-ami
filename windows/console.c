@@ -2378,11 +2378,9 @@ static void readline(void)
         do { ievent(&er); }
         while (er.etype != pa_etchar && er.etype != pa_etenter &&
                er.etype != pa_etterm && er.etype != pa_etdelcb);
-        /* if the event is line enter, place carriage return code,
-          otherwise place real character. note that we emulate a
-          terminal and return cr only, which is handled as appropriate
-          by a higher level. if the event is program terminate, then we
-          execute an organized halt */
+        /* if the event is line enter, place newline code,
+           otherwise place real character. if the event is program terminate,
+           we execute an organized halt */
         switch (er.etype) { /* event */
 
             case pa_etterm: exit(1); /* halt program */

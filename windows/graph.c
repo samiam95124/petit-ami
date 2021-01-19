@@ -385,7 +385,6 @@ typedef struct winrec {
     int      sdpmy;           /* display screen find dots per meter y */
     char     inpbuf[MAXLIN];  /* input line buffer */
     int      inpptr;          /* input line index */
-    int      inpend;          /* input line was terminated */
     int      frmrun;          /* framing timer is running */
     MMRESULT frmhan;          /* handle for framing timer */
     struct {
@@ -8577,35 +8576,38 @@ static void readline(int fn)
         do { ievent(fn, &er);
         } while (er.etype != pa_etchar && er.etype != pa_etenter &&
                  er.etype != pa_etterm && er.etype != pa_etdelcb);
-        win = lfn2win(xltwin[er.winid-1]); /* get the window from the id */
-        /* if the event is line enter, place carriage return code,
-           otherwise place real character. note that we emulate a
-           terminal && return cr only, which is handled as appropriate
-           by a higher level. if the event is program terminate,  we
-           execute an organized halt */
+        win = lwn2win(er.winid); /* get the window from the id */
+        /* if the event is line enter, place newline code,
+           otherwise place real character. if the event is program terminate,
+           we execute an organized halt */
         switch (er.etype) {/* event */
 
             case pa_etterm:  abortm; /* halt program */
             case pa_etenter: /* line terminate */
-                win->inpbuf[win->inpptr] = '\r'; /* return cr */
+                /* validate empty buffer */
+                if (win->inpptr < 0) win->inpptr = 0;
+                win->inpbuf[win->inpptr++] = '\n'; /* return newline */
+                /* terminate the line for debug prints */
+                win->inpbuf[win->inpptr] = 0;
                 plcchr(win, '\r'); /* output newline sequence */
                 plcchr(win, '\n');
-                win->inpend = TRUE; /* set line was terminated */
                 break;
 
             case pa_etchar: /* character */
+                /* validate empty buffer */
+                if (win->inpptr < 0) win->inpptr = 0;
                 if (win->inpptr < MAXLIN) {
 
                     /* place real character */
-                    win->inpbuf[win->inpptr] = er.echar;
+                    win->inpbuf[win->inpptr++] = er.echar;
                     plcchr(win, er.echar); /* echo the character */
 
                 }
-                if (win->inpptr < MAXLIN)
-                    win->inpptr = win->inpptr+1; /* next character */
                 break;
 
             case pa_etdelcb: /* delete character backwards */
+                /* validate empty buffer */
+                if (win->inpptr < 0) win->inpptr = 0;
                 if (win->inpptr) { /* not at extreme left */
 
                     /* backspace, spaceout  backspace again */
@@ -8613,6 +8615,8 @@ static void readline(int fn)
                     plcchr(win, ' ');
                     plcchr(win, '\b');
                     win->inpptr = win->inpptr-1; /* back up pointer */
+                    /* if completely erased, flag empty */
+                    if (!win->inpptr) win->inpptr = -1;
 
                 }
                 break;
@@ -9177,8 +9181,7 @@ static void opnwin(int fn, int pfn)
     win->joy2ys = 0;
     win->joy2zs = 0;
     win->numjoy = 0; /* set number of joysticks 0 */
-    win->inpptr = 0; /* set 1st character */
-    win->inpend = FALSE; /* set no line }ing */
+    win->inpptr = -1; /* set buffer empty */
     win->frmrun = FALSE; /* set framing timer ! running */
     win->bufmod = TRUE; /* set buffering on */
     win->menhan = 0; /* set no menu */
@@ -15254,13 +15257,10 @@ static int fndful(int fd) /* output window file */
     int ff; /* found file */
 
     ff = -1; /* set no file found */
-    for (fi = 0; fi < MAXFIL; fi++) if (opnfil[fi]) {
-
+    for (fi = 0; fi < MAXFIL; fi++) if (opnfil[fi])
         if (opnfil[fi]->inl == fd && opnfil[fi]->win != NULL)
             /* links the input file, and has a window */
-            if (opnfil[fi]->win->inpend) ff = fi; /* found one */
-
-    }
+            if (opnfil[fi]->win->inpptr >= 0) ff = fi; /* found one */
 
     return (ff); /* return result */
 
@@ -15292,19 +15292,14 @@ static ssize_t iread(int fd, void* buff, size_t count)
             else { /* read characters */
 
                 win = lfn2win(ofn); /* get the window */
-                while (win->inpptr && l) {
+                while (win->inpbuf[win->inpptr] && l) {
 
                     /* there is data in the buffer, and we need that data */
                     *ba = win->inpbuf[win->inpptr]; /* get and place next character */
                     if (win->inpptr < MAXLIN) win->inpptr++; /* next */
                     /* if we have just read the last of that line,  flag buffer
                        empty */
-                    if (*ba == '\r')  {
-
-                        win->inpptr = 0; /* set 1st character */
-                        win->inpend = FALSE; /* set no ending */
-
-                    }
+                    if (*ba == '\n') win->inpptr = -1;
                     l--; /* count characters */
 
                 }
