@@ -46,7 +46,7 @@ int main(void)
     y = 1;
     xd = +1;
     yd = +1;
-    while TRUE {
+    while (TRUE) {
 
         for (i = 1; i <= accel; i++) {
 

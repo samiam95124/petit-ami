@@ -26,7 +26,7 @@ https://www.qbasic.net/en/reference/qb11/Statement/PLAY-006.htm
 
 int dport = PA_SYNTH_OUT; /* set default synth out */
 
-optrec opttbl[] = {
+pa_optrec opttbl[] = {
 
     { "port",  NULL, &dport,  NULL, NULL },
     { "p",     NULL, &dport,  NULL, NULL },
@@ -240,7 +240,7 @@ int main(int argc, char **argv)
     char buff[20];
 
     /* parse user options */
-    options(&argi, &argc, argv, opttbl, TRUE);
+    pa_options(&argi, &argc, argv, opttbl, TRUE);
 
     if (argc != 1) {
 

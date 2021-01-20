@@ -27,7 +27,7 @@ late 1970's-early 1980's.
 int dport = PA_SYNTH_OUT; /* set default synth out */
 pa_instrument inst = PA_INST_ACOUSTIC_GRAND; /* set default instrument */
 
-optrec opttbl[] = {
+pa_optrec opttbl[] = {
 
     { "port", NULL, &dport,  NULL, NULL },
     { "p",    NULL, &dport,  NULL, NULL },
@@ -59,7 +59,7 @@ int main(int argc, char **argv)
 
 
     /* parse user options */
-    options(&argi, &argc, argv, opttbl, TRUE);
+    pa_options(&argi, &argc, argv, opttbl, TRUE);
 
     if (argc != 1) {
 

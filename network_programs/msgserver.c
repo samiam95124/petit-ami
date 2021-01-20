@@ -15,9 +15,9 @@ Accept message file connections and give simple test messages.
 
 #define BUFLEN 250
 
-boolean secure = false;
+int secure = FALSE;
 
-optrec opttbl[] = {
+pa_optrec opttbl[] = {
 
     { "secure", &secure, NULL,   NULL, NULL },
     { "s",      &secure, NULL,   NULL, NULL },
@@ -36,7 +36,7 @@ int main(int argc, char **argv)
     int port;
 
     /* parse user options */
-    options(&argi, &argc, argv, opttbl, true);
+    pa_options(&argi, &argc, argv, opttbl, TRUE);
 
     if (argc != 2) {
 

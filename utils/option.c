@@ -41,7 +41,7 @@ quotes are present, nothing is done.
 
 *******************************************************************************/
 
-void dequote(string s)
+void pa_dequote(string s)
 
 {
 
@@ -113,23 +113,23 @@ long mode options:
 
 *******************************************************************************/
 
-int option(
-    /* string to parse */                string s,
-    /* option table */                   optrec opts[],
-    /* allow single character options */ int    single
+int pa_option(
+    /* string to parse */                string    s,
+    /* option table */                   pa_optrec opts[],
+    /* allow single character options */ int       single
 )
 
 {
 
-    int r;             /* return value */
-    int longopt;   /* option is long ("--") */
-    char    buff[100]; /* buffer for character strings */
-    optptr  fp;        /* found option entry pointer */
-    string  ep;        /* end pointer */
-    optptr  op;        /* option table pointer */
-    int fo;        /* an option was found */
-    int mm;        /* mismatch found */
-    int i;
+    int       r;         /* return value */
+    int       longopt;   /* option is long ("--") */
+    char      buff[100]; /* buffer for character strings */
+    pa_optptr fp;        /* found option entry pointer */
+    string    ep;        /* end pointer */
+    pa_optptr op;        /* option table pointer */
+    int       fo;        /* an option was found */
+    int       mm;        /* mismatch found */
+    int       i;
 
     r = 1; /* set error by default */
     longopt = FALSE;
@@ -202,7 +202,7 @@ int option(
                     if (fp->str) {
 
                         strcpy(fp->str, s); /* get string */
-                        dequote(fp->str); /* remove any quotes */
+                        pa_dequote(fp->str); /* remove any quotes */
                         while (*s) s++; /* skip contents */
 
                     }
@@ -254,12 +254,12 @@ Returns 0 on success, 1 on failure.
 
 *******************************************************************************/
 
-int options(
-    /* argument index */                 int*    argi,
-    /* argument count */                 int*    argc,
-    /* arguments array */                char    **argv,
-    /* option table */                   optrec  opts[],
-    /* allow single character options */ int     single
+int pa_options(
+    /* argument index */                 int*      argi,
+    /* argument count */                 int*      argc,
+    /* arguments array */                char      **argv,
+    /* option table */                   pa_optrec opts[],
+    /* allow single character options */ int       single
 )
 
 {
@@ -269,7 +269,7 @@ int options(
     r = 0; /* set no error */
     while (*argc > 1 && argv[*argi][0] == '-' && !r) {
 
-        r = option(argv[*argi], opts, single); /* parse options */
+        r = pa_option(argv[*argi], opts, single); /* parse options */
         if (!r) { /* success */
 
             (*argi)++; /* advance index */

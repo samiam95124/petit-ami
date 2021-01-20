@@ -358,7 +358,7 @@ all: dumpmidi test play playg keyboard keyboardg playmidi playmidig playwave \
      sndtst sndtstg svstst event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout editor editorg getpage getpageg getmail \
      getmailg gettys gettysg msgclient msgclientg msgserver msgserverg \
-     prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
+     prtcertnet prtcertnetg prtcertmsg prtcertmsgg \
      prtconfig prtconfigg pixel ball1 ball2 line1 line2 line4 line5
     
 else ifeq ($(OSTYPE),Darwin)
@@ -778,7 +778,7 @@ sndtstg: $(GLIBSD) tests/sndtst.c
 # execute a separate program.
 #
 svstst: $(PLIBSD) tests/svstst.c
-	$(CC) $(CFLAGS) tests/svstst.c utils/option.c $(PLIBS) -o bin/svstst
+	$(CC) $(CFLAGS) tests/svstst.c $(PLIBS) -o bin/svstst
 	$(CC) $(CFLAGS) tests/svstst1.c $(PLIBS) -o bin/svstst1
 
 #

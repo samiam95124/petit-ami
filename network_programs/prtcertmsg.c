@@ -32,7 +32,7 @@ int main(int argc, char **argv)
     port = atoi(argv[2]);
 
     pa_addrnet(argv[1], &addr);
-    fn = pa_openmsg(addr, port, true);
+    fn = pa_openmsg(addr, port, TRUE);
 
     i = 1; /* set 1st certificate */
     do {

@@ -24,7 +24,7 @@ implementation.
 
 int dport = PA_SYNTH_OUT; /* set default synth out */
 
-optrec opttbl[] = {
+pa_optrec opttbl[] = {
 
     { "port",   NULL,    &dport, NULL, NULL },
     { "p",      NULL,    &dport, NULL, NULL },
@@ -202,7 +202,7 @@ int main(int argc, char *argv[])
     int           argi = 1;
 
     /* parse user options */
-    options(&argi, &argc, argv, opttbl, TRUE);
+    pa_options(&argi, &argc, argv, opttbl, TRUE);
 
     if (argc != 1) {
 

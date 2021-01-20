@@ -34,7 +34,7 @@ int secure = FALSE;
 /* use IPv6 or IPv4 */
 int ipv6 = FALSE;
 
-optrec opttbl[] = {
+pa_optrec opttbl[] = {
 
     { "secure", &secure, NULL, NULL, NULL },
     { "s",      &secure, NULL, NULL, NULL },
@@ -54,7 +54,7 @@ int main(int argc, char **argv)
     int argi = 1;
 
     /* parse user options */
-    options(&argi, &argc, argv, opttbl, FALSE);
+    pa_options(&argi, &argc, argv, opttbl, FALSE);
 
     if (argc < 3) {
 

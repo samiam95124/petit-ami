@@ -22,7 +22,7 @@ int main(int argc, char **argv)
     int key;
     int sport;
     int dport;
-    seqmsg sr;
+    pa_seqmsg sr;
 
     if (argc != 1 && argc != 3) {
 

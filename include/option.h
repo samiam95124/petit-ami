@@ -34,10 +34,10 @@ typedef struct {
     float*   fval; /* floating point value */
     string   str;  /* string value */
 
-} optrec, *optptr;
+} pa_optrec, *pa_optptr;
 
-void dequote(string s);
-int option(string s, optrec opts[], int single);
-int options(int* argi, int* argc, char **argv, optrec  opts[], int single);
+void pa_dequote(string s);
+int pa_option(string s, pa_optrec opts[], int single);
+int pa_options(int* argi, int* argc, char **argv, pa_optrec  opts[], int single);
 
 #endif /* __OPTION_H__ */
