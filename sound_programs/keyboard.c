@@ -41,7 +41,7 @@ void wait(int t)
 
     pa_evtrec er; /* event record */
 
-    pa_timer(stdin, 1, t, FALSE);
+    pa_timer(stdout, 1, t, FALSE);
     do { pa_event(stdin, &er); } while (er.etype != pa_ettim && er.etype != pa_etterm);
     if (er.etype == pa_etterm) exit(0);
 
@@ -180,7 +180,7 @@ int main(int argc, char **argv)
     chan = 1; /* set channel 1 */
     velo = INT_MAX; /* set velocity */
     for (ki = 1; ki <= 36; ki++) keycnt[ki] = 0; /* clear key down counts */
-    pa_timer(stdin, 1, SECOND/4/10, TRUE); /* set basic timer */
+    pa_timer(stdout, 1, SECOND/4/10, TRUE); /* set basic timer */
     do { /* events */
 
         pa_event(stdin, &er); /* get next event */

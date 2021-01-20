@@ -683,9 +683,7 @@ int pa_synthin(void)
 
 {
 
-    error("pa_synthin: Is not implemented");
-
-    return (1); /* this just shuts up compiler */
+    return (midiInGetNumDevs());
 
 }
 
@@ -2241,8 +2239,7 @@ void pa_waitsynth(int p)
 
 Find number of wave devices.
 
-Returns the number of wave output devices available. This is hardwared to 1 for
-the one windows waveform device.
+Returns the number of wave output devices available.
 
 ********************************************************************************/
 
@@ -2250,7 +2247,7 @@ int pa_waveout(void)
 
 {
 
-    return (1);
+    return (waveOutGetNumDevs());
 
 }
 
@@ -2266,9 +2263,7 @@ int pa_wavein(void)
 
 {
 
-    error("pa_wavein: Is not implemented");
-
-    return (1); /* this just shuts up compiler */
+    return (waveInGetNumDevs());
 
 }
 
@@ -2378,7 +2373,7 @@ void pa_playwave(int p, int t, int w)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        PlaySound(wavenam[w-1], 0, SND_FILENAME | SND_NODEFAULT | SND_ASYNC);
+        PlaySound(wavenam[w-1], 0, SND_FILENAME | SND_NODEFAULT /*| SND_ASYNC*/);
 
     } else { /* sequence */
 
@@ -2436,7 +2431,7 @@ void pa_waitwave(int p)
 
 {
 
-    error("pa_waitwave: Is not implemented");
+    //error("pa_waitwave: Is not implemented");
 
 }
 
@@ -2629,9 +2624,13 @@ int pa_chanwavein(int p)
 
 {
 
-    error("pa_chanwavein: Is not implemented");
+    MMRESULT r;
+    WAVEINCAPS pwic;
 
-    return (1); /* this just shuts up compiler */
+    r = waveInGetDevCaps(p-1, &pwic, sizeof(WAVEINCAPS));
+    if (r != MMSYSERR_NOERROR) error("Unable to get Midi device capabilities");
+
+    return (pwic.wChannels);
 
 }
 
@@ -2643,15 +2642,15 @@ The given port will have its rate read and returned, which is the
 number of samples per second that will be input. It must be a wave output port,
 and it must be open. Input samples are timed at the rate.
 
+Windows does not tell us the native format of devices, so we choose an "ideal".
+
 *******************************************************************************/
 
 int pa_ratewavein(int p)
 
 {
 
-    error("pa_ratewavein: Is not implemented");
-
-    return (1); /* this just shuts up compiler */
+    return (44100);
 
 }
 
@@ -2672,15 +2671,15 @@ At present, only whole byte format samples are supported, IE., 8, 16, 24, 32,
 etc. However, the caller should assume that partial bytes can be used and thus
 round up bit lengths as shown above.
 
+Windows does not tell us the native format of devices, so we choose an "ideal".
+
 *******************************************************************************/
 
 int pa_lenwavein(int p)
 
 {
 
-    error("pa_lenwavein: Is not implemented");
-
-    return (1); /* this just shuts up compiler */
+    return (16);
 
 }
 
@@ -2697,9 +2696,7 @@ int pa_sgnwavein(int p)
 
 {
 
-    error("pa_sgnwavein: Is not implemented");
-
-    return (1); /* this just shuts up compiler */
+    return (FALSE); /* this just shuts up compiler */
 
 }
 
@@ -2715,9 +2712,7 @@ int pa_endwavein(int p)
 
 {
 
-    error("pa_endwavein: Is not implemented");
-
-    return (1); /* this just shuts up compiler */
+    return (FALSE); /* this just shuts up compiler */
 
 }
 
@@ -2733,9 +2728,7 @@ int pa_fltwavein(int p)
 
 {
 
-    error("pa_fltwavein: Is not implemented");
-
-    return (1); /* this just shuts up compiler */
+    return (FALSE); /* this just shuts up compiler */
 
 }
 
@@ -2789,7 +2782,13 @@ void pa_synthoutname(int p, string name, int len)
 
 {
 
-    error("pa_synthoutname: Is not implemented");
+    MMRESULT r;
+    MIDIOUTCAPS pmoc;
+
+    r = midiOutGetDevCaps(p-1, &pmoc, sizeof(MIDIOUTCAPS));
+    if (r != MMSYSERR_NOERROR) error("Unable to get Midi device capabilities");
+    if (strlen(pmoc.szPname)+1 > len) error("String to large for destination");
+    strcpy(name, pmoc.szPname);
 
 }
 
@@ -2805,7 +2804,13 @@ void pa_synthinname(int p, string name, int len)
 
 {
 
-    error("pa_synthinname: Is not implemented");
+    MMRESULT r;
+    MIDIINCAPS pmic;
+
+    r = midiInGetDevCaps(p-1, &pmic, sizeof(MIDIINCAPS));
+    if (r != MMSYSERR_NOERROR) error("Unable to get Midi device capabilities");
+    if (strlen(pmic.szPname)+1 > len) error("String to large for destination");
+    strcpy(name, pmic.szPname);
 
 }
 
@@ -2821,7 +2826,13 @@ void pa_waveoutname(int p, string name, int len)
 
 {
 
-    error("pa_waveoutname: Is not implemented");
+    MMRESULT r;
+    WAVEOUTCAPS pwoc;
+
+    r = waveOutGetDevCaps(p-1, &pwoc, sizeof(WAVEOUTCAPS));
+    if (r != MMSYSERR_NOERROR) error("Unable to get wave device capabilities");
+    if (strlen(pwoc.szPname)+1 > len) error("String to large for destination");
+    strcpy(name, pwoc.szPname);
 
 }
 
@@ -2837,7 +2848,13 @@ void pa_waveinname(int p, string name, int len)
 
 {
 
-    error("pa_waveinname: Is not implemented");
+    MMRESULT r;
+    WAVEINCAPS pwic;
+
+    r = waveInGetDevCaps(p-1, &pwic, sizeof(WAVEINCAPS));
+    if (r != MMSYSERR_NOERROR) error("Unable to get Midi device capabilities");
+    if (strlen(pwic.szPname)+1 > len) error("String to large for destination");
+    strcpy(name, pwic.szPname);
 
 }
 
