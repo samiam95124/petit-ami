@@ -340,6 +340,60 @@ GLIBSD = bin/petit_ami_graph$(LIBEXT)
 
 ################################################################################
 #
+# Build targets
+#
+################################################################################
+
+#
+# Make all executables
+#        
+ifeq ($(OSTYPE),Windows_NT)
+
+#
+# Windows
+#
+all: dumpmidi test play playg keyboard keyboardg playmidi playmidig playwave \
+     playwaveg printdev printdevg connectmidi connectmidig connectwave \
+     connectwaveg random randomg genwave genwaveg scntst scntstg gratst mantst \
+     sndtst sndtstg svstst event eventg term termg snake snakeg mine mineg \
+     wator watorg pong pongg breakout editor editorg getpage getpageg getmail \
+     getmailg gettys gettysg msgclient msgclientg msgserver msgserverg \
+     prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
+     prtconfig prtconfigg pixel ball1 ball2 line1 line2 line4 line5
+    
+else ifeq ($(OSTYPE),Darwin)
+
+#
+# Mac OS X
+#
+all: dumpmidi test play playg keyboard keyboardg playmidi playmidig playwave \
+     playwaveg printdev printdevg connectmidi connectmidig connectwave \
+     connectwaveg random randomg genwave genwaveg scntst scntstg gratst mantst \
+     sndtst sndtstg svstst event eventg term termg snake snakeg mine mineg \
+     wator watorg pong pongg breakout editor editorg getpage getpageg getmail \
+     getmailg gettys gettysg msgclient msgclientg msgserver msgserverg \
+     prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
+     prtconfig prtconfigg pixel ball1 ball2 line1 line2 line4 line5
+    
+else
+
+#
+# Linux
+#
+all: lsalsadev alsaparms \
+     dumpmidi test play playg keyboard keyboardg playmidi playmidig playwave \
+     playwaveg printdev printdevg connectmidi connectmidig connectwave \
+     connectwaveg random randomg genwave genwaveg scntst scntstg gratst mantst \
+     sndtst sndtstg svstst event eventg term termg snake snakeg mine mineg \
+     wator watorg pong pongg breakout editor editorg getpage getpageg getmail \
+     getmailg gettys gettysg msgclient msgclientg msgserver msgserverg \
+     prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
+     prtconfig prtconfigg pixel ball1 ball2 line1 line2 line4 line5
+    
+endif 
+
+################################################################################
+#
 # Build individual components
 #
 ################################################################################
@@ -597,6 +651,14 @@ testg: $(GLIBSD) test.c
 # that ran on early S100 computers, and was a popular display demonstration from
 # those days.
 #
+# Note serial output model programs can be ported to each of the console or
+# graphical models, but generally the console model is skipped since the action
+# such a program would be identical to the serial model.
+#
+# The use case for graphical versions of serial model programs is not clear.
+# They serve as a test of the promotion model, and might be useful if only a
+# graphical model system is in use, like the file manager.
+#
 
 #
 # Play example songs in QBasic play format (uses console timers)
@@ -621,30 +683,45 @@ keyboardg: $(GLIBSD) sound_programs/keyboard.c
 #	
 playmidi: $(PLIBSD) sound_programs/playmidi.c
 	$(CC) $(CFLAGS) sound_programs/playmidi.c $(PLIBS) -o bin/playmidi
+	
+playmidig: $(GLIBSD) sound_programs/playmidi.c
+	$(CC) $(CFLAGS) sound_programs/playmidi.c $(GLIBS) -o bin/playmidig
 
 #
 # Play wave files
 #
 playwave: $(PLIBSD) sound_programs/playwave.c
 	$(CC) $(CFLAGS) sound_programs/playwave.c $(PLIBS) -o bin/playwave
+	
+playwaveg: $(GLIBSD) sound_programs/playwave.c
+	$(CC) $(CFLAGS) sound_programs/playwave.c $(GLIBS) -o bin/playwaveg
 
 #
 # Print a list of available sound devices
 #	
 printdev: $(PLIBSD) sound_programs/printdev.c
 	$(CC) $(CFLAGS) sound_programs/printdev.c $(PLIBS) -o bin/printdev
+	
+printdevg: $(GLIBSD) sound_programs/printdev.c
+	$(CC) $(CFLAGS) sound_programs/printdev.c $(GLIBS) -o bin/printdevg
 
 #
 # Connect Midi input port to Midi output port
 #
 connectmidi: $(PLIBSD) sound_programs/connectmidi.c
 	$(CC) $(CFLAGS) sound_programs/connectmidi.c $(PLIBS) -o bin/connectmidi
+	
+connectmidig: $(GLIBSD) sound_programs/connectmidi.c
+	$(CC) $(CFLAGS) sound_programs/connectmidi.c $(GLIBS) -o bin/connectmidig
 
 #
 # Connect wave input port to wave output port
 #	
 connectwave: $(PLIBSD) sound_programs/connectwave.c
 	$(CC) $(CFLAGS) sound_programs/connectwave.c $(PLIBS) -o bin/connectwave
+	
+connectwaveg: $(GLIBSD) sound_programs/connectwave.c
+	$(CC) $(CFLAGS) sound_programs/connectwave.c $(GLIBS) -o bin/connectwaveg
 
 #	
 # Play random notes
@@ -660,6 +737,9 @@ randomg: $(CLIBSD) sound_programs/random.c
 #	
 genwave: $(PLIBSD) sound_programs/genwave.c
 	$(CC) $(CFLAGS) sound_programs/genwave.c $(PLIBS) -o bin/genwave
+	
+genwaveg: $(GLIBSD) sound_programs/genwave.c
+	$(CC) $(CFLAGS) sound_programs/genwave.c $(GLIBS) -o bin/genwaveg
 
 #
 # Test console model compliant output
@@ -694,6 +774,9 @@ sndtstg: $(GLIBSD) tests/sndtst.c
 #
 # Test services module
 #
+# Note services test uses a separate program, svstst1, that tests the ability to
+# execute a separate program.
+#
 svstst: $(PLIBSD) tests/svstst.c
 	$(CC) $(CFLAGS) tests/svstst.c utils/option.c $(PLIBS) -o bin/svstst
 	$(CC) $(CFLAGS) tests/svstst1.c $(PLIBS) -o bin/svstst1
@@ -710,7 +793,7 @@ eventg: $(GLIBSD) tests/event.c
 #
 # Test terminal characteristics (console and graph mode)
 #	
-term: $(GLIBSD) tests/term.c
+term: $(CLIBSD) tests/term.c
 	$(CC) $(CFLAGS) tests/term.c $(CLIBS) -o bin/term
 	
 termg: $(GLIBSD) tests/term.c
@@ -745,6 +828,9 @@ watorg: $(GLIBSD) terminal_programs/wator.c
 
 #
 # Pong game
+#
+# Note pong is a different program in console vs. graphical mode, the graphical
+# version takes full advantage of the graphical model.
 #	
 pong: $(CLIBSD) terminal_games/pong.c
 	$(CC) $(CFLAGS) terminal_games/pong.c $(CLIBS) -o bin/pong
@@ -772,6 +858,9 @@ editorg: $(GLIBSD) terminal_programs/editor.c
 #	
 getpage: $(PLIBSD) network_programs/getpage.c
 	$(CC) $(CFLAGS) network_programs/getpage.c $(PLIBS) -o bin/getpage
+	
+getpageg: $(GLIBSD) network_programs/getpage.c
+	$(CC) $(CFLAGS) network_programs/getpage.c $(GLIBS) -o bin/getpageg
 
 #
 # Get remote email
@@ -779,17 +868,26 @@ getpage: $(PLIBSD) network_programs/getpage.c
 getmail: $(PLIBSD) network_programs/getmail.c
 	$(CC) $(CFLAGS) network_programs/getmail.c $(PLIBS) -o bin/getmail
 
+getmailg: $(GLIBSD) network_programs/getmail.c
+	$(CC) $(CFLAGS) network_programs/getmail.c $(GLIBS) -o bin/getmailg
+
 #
 # Gettysberg address server
 #	
 gettys: $(PLIBSD) network_programs/gettys.c
 	$(CC) $(CFLAGS) network_programs/gettys.c $(PLIBS) -o bin/gettys
+	
+gettysg: $(GLIBSD) network_programs/gettys.c
+	$(CC) $(CFLAGS) network_programs/gettys.c $(GLIBS) -o bin/gettysg
 
 #
 # Message based networking test client
 #	
 msgclient: $(PLIBSD) network_programs/msgclient.c
 	$(CC) $(CFLAGS) network_programs/msgclient.c $(PLIBS) -o bin/msgclient
+	
+msgclientg: $(GLIBSD) network_programs/msgclient.c
+	$(CC) $(CFLAGS) network_programs/msgclient.c $(GLIBS) -o bin/msgclientg
 
 #
 # Message based networking test server
@@ -797,29 +895,44 @@ msgclient: $(PLIBSD) network_programs/msgclient.c
 msgserver: $(PLIBSD) network_programs/msgserver.c
 	$(CC) $(CFLAGS) network_programs/msgserver.c $(PLIBS) -o bin/msgserver
 	
+msgserverg: $(GLIBSD) network_programs/msgserver.c
+	$(CC) $(CFLAGS) network_programs/msgserver.c $(GLIBS) -o bin/msgserverg
+	
 #
 # Print TCPIP/TLS certificates
 #
 prtcertnet: $(PLIBSD) network_programs/prtcertnet.c
 	$(CC) $(CFLAGS) network_programs/prtcertnet.c $(PLIBS) -o bin/prtcertnet
 
+prtcertnetg: $(GLIBSD) network_programs/prtcertnet.c
+	$(CC) $(CFLAGS) network_programs/prtcertnet.c $(GLIBS) -o bin/prtcertnetg
+
 #
 # Print message based certificates
 #	
 prtcertmsg: $(PLIBSD) network_programs/prtcertmsg.c
 	$(CC) $(CFLAGS) network_programs/prtcertmsg.c $(PLIBS) -o bin/prtcertmsg
+	
+prtcertmsgg: $(GLIBSD) network_programs/prtcertmsg.c
+	$(CC) $(CFLAGS) network_programs/prtcertmsg.c $(GLIBS) -o bin/prtcertmsgg
 
 #
 # This program is missing???? check the linux machine.
 #	
 listcertnet: $(PLIBSD) network_programs/listcertnet.c
 	$(CC) $(CFLAGS) network_programs/listcertnet.c $(PLIBS) -o bin/listcertnet
+	
+listcertnetg: $(GLIBSD) network_programs/listcertnet.c
+	$(CC) $(CFLAGS) network_programs/listcertnet.c $(GLIBS) -o bin/listcertnetg
 
 #
 # Print Petit-Ami configuration tree
 #	
 prtconfig: $(PLIBSD) utils/prtconfig.c
 	$(CC) $(CFLAGS) utils/prtconfig.c $(PLIBS) -o bin/prtconfig
+	
+prtconfigg: $(GLIBSD) utils/prtconfig.c
+	$(CC) $(CFLAGS) utils/prtconfig.c $(GLIBS) -o bin/prtconfigg
 	
 #
 # Pixel set/reset dazzler
@@ -853,58 +966,25 @@ line5: $(GLIBSD) graph_programs/line5.c
 	
 ################################################################################
 #
-# Build targets
-#
-################################################################################
-
-#
-# Make all executables
-#        
-ifeq ($(OSTYPE),Windows_NT)
-
-#
-# Windows
-#
-all: dumpmidi test play keyboard playmidi playwave \
-    printdev connectmidi connectwave random genwave scntst sndtst svstst \
-    event term snake pong mine wator editor getpage getmail gettys gratst \
-    mantst
-    
-else ifeq ($(OSTYPE),Darwin)
-
-#
-# Mac OS X
-#
-all: dumpmidi test play keyboard playmidi playwave \
-    printdev connectmidi connectwave random genwave scntst sndtst svstst \
-    event term snake pong mine wator editor getpage getmail gettys gratst \
-    mantst
-    
-else
-
-#
-# Linux
-#
-all: lsalsadev alsaparms dumpmidi test play keyboard playmidi playwave \
-    printdev connectmidi connectwave random genwave scntst sndtst svstst \
-    event getkeys getmouse term snake mine pong wator editor getpage getmail \
-    gettys gratst mantst
-    
-endif 
-
-################################################################################
-#
 # Clean target
 #
 ################################################################################
 
 clean:
-	rm -f bin/dumpmidi bin/lsalsadev bin/alsaparms test bin/play bin/keyboard 
-	rm -f bin/playmidi bin/playwave bin/printdev bin/connectmidi bin/connectwave 
-	rm -f bin/random bin/genwave bin/scntst bin/sndtst bin/event bin/getkeys 
-	rm -f bin/getmouse bin/term bin/snake bin/mine bin/editor bin/getpage
-	rm -f bin/getmail bin/gettys bin/msgclient bin/msgserver bin/prtcertnet
-	rm -f bin/listcertnet bin/prtcertmsg bin/gratst bin/mantst
+	rm -f lsalsadev alsaparms
+	rm -f bin/dumpmidi bin/test bin/play bin/playg bin/keyboard bin/keyboardg
+	rm -f bin/playmidi bin/playmidig bin/playwave bin/playwaveg bin/printdev
+	rm -f bin/printdevg bin/connectmidi bin/connectmidig bin/connectwave
+	rm -f bin/connectwaveg bin/random bin/randomg bin/genwave bin/genwaveg 
+	rm -f bin/scntst bin/scntstg bin/gratst bin/mantst bin/sndtst bin/sndtstg
+	rm -f bin/svstst bin/event bin/eventg bin/term bin/termg bin/snake 
+	rm -f bin/snakeg bin/mine bin/mineg bin/wator bin/watorg bin/pong bin/pongg
+	rm -f bin/breakout bin/editor bin/editorg bin/getpage bin/getpageg 
+	rm -f bin/getmail bin/getmailg bin/gettys bin/gettysg bin/msgclient 
+	rm -f bin/msgclientg bin/msgserver bin/msgserverg bin/prtcertnet
+	rm -f bin/prtcertnetg bin/prtcertmsg bin/prtcertmsgg bin/listcertnet 
+	rm -f bin/listcertnetg bin/prtconfig bin/prtconfigg bin/pixel bin/ball1
+	rm -f bin/ball2 bin/line1 bin/line2 bin/line4 bin/line5
 	find . -name "*.o" -type f -delete
 	rm -f bin/*.a
 	rm -f bin/*.so

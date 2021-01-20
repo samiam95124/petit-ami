@@ -2228,7 +2228,12 @@ void pa_waitsynth(int p)
 
 {
 
-    error("pa_waitsynth: Is not implemented");
+    TCHAR status[100];
+
+    /* This is a real waste of time but it works. Looking for a better
+       solution */
+    do { mciSendString("status midi mode", status, 100, NULL);
+    } while (!strcmp(status, "playing"));
 
 }
 
