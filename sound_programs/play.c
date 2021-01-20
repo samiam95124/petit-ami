@@ -45,7 +45,7 @@ void wait(int t)
 
     pa_evtrec er; /* event record */
 
-    pa_timer(stdin, 1, t, FALSE);
+    pa_timer(stdout, 1, t, FALSE);
     do { pa_event(stdin, &er); } while (er.etype != pa_ettim && er.etype != pa_etterm);
     if (er.etype == pa_etterm) exit(0);
 

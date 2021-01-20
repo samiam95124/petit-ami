@@ -1835,8 +1835,8 @@ static winptr lfn2win(int fn)
 
 {
 
-    if (fn < 0 || fn >= MAXFIL)  error(einvhan); /* invalid file handle */
-    if (!opnfil[fn])  error(einvhan); /* invalid handle */
+    if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
+    if (!opnfil[fn]) error(einvhan); /* invalid handle */
     if (!opnfil[fn]->win)
         error(efnotwin); /* not a window file */
 
