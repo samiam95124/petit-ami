@@ -196,11 +196,13 @@ static enum { /* debug levels */
 typedef struct snddev {
 
     HWAVEOUT hwo;    /* handle to wave output device */
+    HWAVEIN  hwi;    /* handle to wave input device */
     int      open;   /* device is open */
     int      init;   /* device is initialized */
     WAVEHDR  hdre;   /* wave data header even */
     WAVEHDR  hdro;   /* wave data header odd */
     int      oddevn; /* odd/even header/buffer selector */
+    int      parval; /* input device parameters valid */
     int      chan;   /* number of channels */
     int      bits;   /* preferred format bit size */
     int      rate;   /* sample rate */
@@ -214,6 +216,7 @@ typedef snddev* devptr; /* pointer to sound device */
 
 static HMIDIOUT         midtab[MAXMIDP];   /* midi output device table */
 static devptr           pcmout[MAXWAVP];   /* wave output device table */
+static devptr           pcmin[MAXWAVP];    /* wave input device table */
 static int              i;                 /* index for midi tables */
 static pa_seqptr        seqlst;            /* active sequencer entries */
 static pa_seqptr        seqfre;            /* free sequencer entries */
@@ -421,7 +424,7 @@ Note that the port number is not checked.
 
 *******************************************************************************/
 
-void makpcmout(int p)
+static void makpcmout(int p)
 
 {
 
@@ -431,6 +434,7 @@ void makpcmout(int p)
         pcmout[p-1] = malloc(sizeof(snddev));
         if (!pcmout[p-1]) error("No memory");
         /* set default values */
+        pcmout[p-1]->hwo = 0;
         pcmout[p-1]->chan = 2;
         pcmout[p-1]->bits = 16;
         pcmout[p-1]->rate = 44100;
@@ -440,6 +444,43 @@ void makpcmout(int p)
         pcmout[p-1]->open = FALSE;
         pcmout[p-1]->init = FALSE;
         pcmout[p-1]->oddevn = FALSE;
+
+    }
+
+}
+
+/*******************************************************************************
+
+Validate wave input table entry
+
+If the input device table for the given wave output port is empty, allocates a
+new device pointer for it and initializes it to default values.
+
+Note that the port number is not checked.
+
+*******************************************************************************/
+
+static void makpcmin(int p)
+
+{
+
+    if (!pcmin[p-1]) {
+
+        /* get new entry */
+        pcmin[p-1] = malloc(sizeof(snddev));
+        if (!pcmin[p-1]) error("No memory");
+        /* set default values */
+        pcmin[p-1]->hwi = 0;
+        pcmin[p-1]->chan = 2;
+        pcmin[p-1]->bits = 16;
+        pcmin[p-1]->rate = 44100;
+        pcmin[p-1]->sgn = FALSE;
+        pcmin[p-1]->flt = FALSE;
+        pcmin[p-1]->big = FALSE;
+        pcmin[p-1]->open = FALSE;
+        pcmin[p-1]->init = FALSE;
+        pcmin[p-1]->oddevn = FALSE;
+        pcmin[p-1]->parval = FALSE;
 
     }
 
@@ -616,6 +657,118 @@ static DWORD difftime(DWORD rt)
     if (et < 0) et = -1-rt+ct;
 
     return (et*10); /* correct 1 milliseconds to 100us */
+
+}
+
+/*******************************************************************************
+
+Find windows wave formats
+
+Converts wave format word into highest format specification. Takes the bit set
+for Windows possible formats, and returns the parameters from that, which are
+choosen to be the most capable format.
+
+*******************************************************************************/
+
+void fndwavfmt(
+    /* Windows format bit set */ DWORD format,
+    /* sample rate (returning) */  int* rate,
+    /* bit size (returning) */     int* bits,
+    /* channels (returning) */     int* chan,
+    /* signed (returning) */       int* sgn,
+    /* float (returning) */        int* flt,
+    /* big endian (returning) */   int* big
+)
+
+{
+
+#if 0
+// The 96 khz formats don't exist in mingw
+    if (format & WAVE_FORMAT_96S16)
+        { *rate = 96000; *chan = 2; *bits = 16; *sgn = TRUE; *flt = FALSE;
+          *big = FALSE; }
+    else if (format & WAVE_FORMAT_96S08)
+        { *rate = 96000; *chan = 2; *bits = 8; *sgn = FALSE; *flt = FALSE;
+          *big = FALSE; }
+    else if (format & WAVE_FORMAT_96M16)
+        { *rate = 96000; *chan = 2; *bits = 8; *sgn = FALSE; *flt = FALSE;
+          *big = FALSE; }
+    else if (format & WAVE_FORMAT_96M08)
+        { *rate = 96000; *chan = 2; *bits = 8; *sgn = FALSE; *flt = FALSE;
+          *big = FALSE; }
+    else
+#endif
+    if (format & WAVE_FORMAT_4S16)
+        { *rate = 44100; *chan = 2; *bits = 16; *sgn = TRUE; *flt = FALSE;
+          *big = FALSE; }
+    else if (format & WAVE_FORMAT_4S08)
+        { *rate = 44100; *chan = 2; *bits = 8; *sgn = FALSE; *flt = FALSE;
+          *big = FALSE; }
+    else if (format & WAVE_FORMAT_4M16)
+        { *rate = 44100; *chan = 1; *bits = 16; *sgn = TRUE; *flt = FALSE;
+          *big = FALSE; }
+    else if (format & WAVE_FORMAT_4M08)
+        { *rate = 44100; *chan = 1; *bits = 8; *sgn = FALSE; *flt = FALSE;
+          *big = FALSE; }
+    else if (format & WAVE_FORMAT_2S16)
+        { *rate = 22050; *chan = 2; *bits = 16; *sgn = TRUE; *flt = FALSE;
+          *big = FALSE; }
+    else if (format & WAVE_FORMAT_2S08)
+        { *rate = 22050; *chan = 2; *bits = 8; *sgn = FALSE; *flt = FALSE;
+          *big = FALSE; }
+    else if (format & WAVE_FORMAT_2M16)
+        { *rate = 22050; *chan = 1; *bits = 16; *sgn = TRUE; *flt = FALSE;
+          *big = FALSE; }
+    else if (format & WAVE_FORMAT_2M08)
+        { *rate = 22050; *chan = 1; *bits = 8; *sgn = FALSE; *flt = FALSE;
+          *big = FALSE; }
+    else if (format & WAVE_FORMAT_1S16)
+        { *rate = 11025; *chan = 2; *bits = 16; *sgn = TRUE; *flt = FALSE;
+          *big = FALSE; }
+    else if (format & WAVE_FORMAT_1S08)
+        { *rate = 11025; *chan = 2; *bits = 8; *sgn = FALSE; *flt = FALSE;
+          *big = FALSE;}
+    else if (format & WAVE_FORMAT_1M16)
+        { *rate = 11025; *chan = 1; *bits = 16; *sgn = TRUE; *flt = FALSE;
+          *big = FALSE; }
+    else if (format & WAVE_FORMAT_1M08)
+        { *rate = 11025; *chan = 1; *bits = 8; *sgn = FALSE; *flt = FALSE;
+          *big = FALSE; }
+
+}
+
+/*******************************************************************************
+
+Load wave input device parameters
+
+Checks if the input device parameters are defined, and loads them if not. We
+don't require that the input device is opened to read its parameters. Because
+such reads are not bracketed by open/close, we have to load them automatically.
+
+The device entry must already be allocated.
+
+*******************************************************************************/
+
+static void loadinpar(int p)
+
+{
+
+    MMRESULT   r;
+    WAVEINCAPS pwic;
+    devptr     dp;
+
+    dp = pcmin[p-1]; /* get the device */
+    if (!dp->parval) {
+
+        /* now get the dev characteristics */
+        r = waveInGetDevCaps(p-1, &pwic, sizeof(WAVEINCAPS));
+        if (r != MMSYSERR_NOERROR)
+            error("Unable to get Midi device capabilities");
+        fndwavfmt(pwic.dwFormats, &dp->rate, &dp->bits, &dp->chan, &dp->sgn,
+                  &dp->flt, &dp->big);
+        pcmin[p-1]->parval = TRUE; /* set values defined */
+
+    }
 
 }
 
@@ -2299,10 +2452,6 @@ void pa_openwaveout(int p)
 
 {
 
-    MMRESULT     r;
-    WAVEFORMATEX wf;
-    int          bytes;
-
     if (p < 1 || p > MAXWAVP) error("Invalid wave output port number");
     if (p > waveOutGetNumDevs()) error("No system wave output device exists");
     makpcmout(p); /* ensure device exists */
@@ -2743,7 +2892,16 @@ void pa_openwavein(int p)
 
 {
 
-    error("pa_openwavein: Is not implemented");
+    devptr     dp;
+
+    if (p < 1 || p > MAXWAVP) error("Invalid wave input port number");
+    if (p > waveInGetNumDevs()) error("No system wave input device exists");
+    makpcmin(p); /* ensure device exists */
+    dp = pcmin[p-1]; /* get device */
+    if (pcmin[p-1]->open) error("Wave input device is already open");
+    pcmin[p-1]->open = TRUE; /* set device open */
+    pcmin[p-1]->init = FALSE; /* set device not initialized */
+    loadinpar(p); /* validate parameters */
 
 }
 
@@ -2759,7 +2917,20 @@ void pa_closewavein(int p)
 
 {
 
-    error("pa_closewavein: Is not implemented");
+    MMRESULT r;
+
+    if (p < 1 || p > MAXWAVP) error("Invalid wave input port number");
+    if (p > waveInGetNumDevs()) error("No system wave input device exists");
+    if (!pcmin[p-1] || !pcmin[p-1]->open)
+        error("Wave input device is not open");
+    /* close the device */
+    if (pcmin[p-1]->hwi) {
+
+        r = waveInClose(pcmin[p-1]->hwi);
+        if (r != MMSYSERR_NOERROR) error("Couldn't close wave input device");
+
+    }
+    pcmin[p-1]->open = FALSE; /* set not open */
 
 }
 
@@ -2779,13 +2950,15 @@ int pa_chanwavein(int p)
 
 {
 
-    MMRESULT r;
-    WAVEINCAPS pwic;
+    devptr dp;
 
-    r = waveInGetDevCaps(p-1, &pwic, sizeof(WAVEINCAPS));
-    if (r != MMSYSERR_NOERROR) error("Unable to get Midi device capabilities");
+    if (p < 1 || p > MAXWAVP) error("Invalid wave input port number");
+    if (p > waveInGetNumDevs()) error("No system wave input device exists");
+    makpcmin(p); /* ensure device exists */
+    loadinpar(p); /* validate parameters */
+    dp = pcmin[p-1]; /* get device */
 
-    return (pwic.wChannels);
+    return (dp->chan);
 
 }
 
@@ -2805,7 +2978,15 @@ int pa_ratewavein(int p)
 
 {
 
-    return (44100);
+    devptr dp;
+
+    if (p < 1 || p > MAXWAVP) error("Invalid wave input port number");
+    if (p > waveInGetNumDevs()) error("No system wave input device exists");
+    makpcmin(p); /* ensure device exists */
+    loadinpar(p); /* validate parameters */
+    dp = pcmin[p-1]; /* get device */
+
+    return (dp->rate);
 
 }
 
@@ -2834,7 +3015,15 @@ int pa_lenwavein(int p)
 
 {
 
-    return (16);
+    devptr dp;
+
+    if (p < 1 || p > MAXWAVP) error("Invalid wave input port number");
+    if (p > waveInGetNumDevs()) error("No system wave input device exists");
+    makpcmin(p); /* ensure device exists */
+    loadinpar(p); /* validate parameters */
+    dp = pcmin[p-1]; /* get device */
+
+    return (dp->bits);
 
 }
 
@@ -2851,7 +3040,15 @@ int pa_sgnwavein(int p)
 
 {
 
-    return (FALSE); /* this just shuts up compiler */
+    devptr dp;
+
+    if (p < 1 || p > MAXWAVP) error("Invalid wave input port number");
+    if (p > waveInGetNumDevs()) error("No system wave input device exists");
+    makpcmin(p); /* ensure device exists */
+    loadinpar(p); /* validate parameters */
+    dp = pcmin[p-1]; /* get device */
+
+    return (dp->sgn);
 
 }
 
@@ -2867,7 +3064,15 @@ int pa_endwavein(int p)
 
 {
 
-    return (FALSE); /* this just shuts up compiler */
+    devptr dp;
+
+    if (p < 1 || p > MAXWAVP) error("Invalid wave input port number");
+    if (p > waveInGetNumDevs()) error("No system wave input device exists");
+    makpcmin(p); /* ensure device exists */
+    loadinpar(p); /* validate parameters */
+    dp = pcmin[p-1]; /* get device */
+
+    return (dp->big);
 
 }
 
@@ -2883,7 +3088,15 @@ int pa_fltwavein(int p)
 
 {
 
-    return (FALSE); /* this just shuts up compiler */
+    devptr dp;
+
+    if (p < 1 || p > MAXWAVP) error("Invalid wave input port number");
+    if (p > waveInGetNumDevs()) error("No system wave input device exists");
+    makpcmin(p); /* ensure device exists */
+    loadinpar(p); /* validate parameters */
+    dp = pcmin[p-1]; /* get device */
+
+    return (dp->flt);
 
 }
 
