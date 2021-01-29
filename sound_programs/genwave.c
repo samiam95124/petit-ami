@@ -28,16 +28,19 @@ Set square wave output (the default is sine wave).
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <limits.h>
 
 #include <sound.h>
 #include <option.h>
 
-#define SIZEBUF 2048
-//#define SIZEBUF 65536
+#define SIZEBUF 4096
+#define PI 3.14159
 
 int dport = PA_SYNTH_OUT; /* set default synth out */
 int freq = 440; /* set default frequency */
 int square = FALSE; /* set not square wave */
+
+double angle;
 
 pa_optrec opttbl[] = {
 
@@ -55,12 +58,8 @@ int main(int argc, char **argv)
 {
 
     int i;
-    double x;
-    double cost;
     unsigned int rate;
     short buf[SIZEBUF];
-    int n;
-    int val;
     int argi = 1;
 
     /* parse user options */
@@ -77,9 +76,11 @@ int main(int argc, char **argv)
 
     }
 
+    angle = 0; /* start sine angle */
+
     rate = 44100; /* set sample rate */
 
-    pa_openwaveout(dport); /* open output wave port */
+    pa_openwaveout(dport);         /* open output wave port */
     pa_chanwaveout(dport, 1);      /* one channel */
     pa_ratewaveout(dport, rate);   /* CD sample rate */
     pa_lenwaveout(dport,  16);     /* 16 bits */
@@ -87,20 +88,16 @@ int main(int argc, char **argv)
     pa_endwaveout(dport,  FALSE);  /* little endian */
     pa_fltwaveout(dport,  FALSE);  /* integer */
 
-    cost = 2.0 * M_PI * (double)freq / (double)rate;
-
-    n = 0;
     while (1) {
 
-        for (i = 1 ; i < SIZEBUF ; i++, n++) {
+        for (i = 0 ; i < SIZEBUF ; i++) {
 
-            x = sin(n * cost);
-            if (square) val = (x>0)? 32767: -32767;
-            else val = (short)(32767 * x);
-            buf[i] = val;
+            buf[i] = (short)(SHRT_MAX*sin (angle));
+            angle += 2*PI*freq/rate;
+            if (angle > 2 * PI) angle -= 2*PI;
 
         }
-        pa_wrwave(dport, (byte*)buf, SIZEBUF);
+        pa_wrwave(dport, (byte*)buf, SIZEBUF*sizeof(short));
 
     }
 

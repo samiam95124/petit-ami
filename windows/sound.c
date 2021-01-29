@@ -107,44 +107,6 @@ static enum { /* debug levels */
 #define DEFMIDITIM 5000 /* default midi quarter note (.5 seconds) */
 
 /*
- * Maximum rate number input
- *
- * The maximum rate, 44100, is derived from nyquist sampling theorem
- * that twice the frequency of the input will result in an accurate sample
- * of that input, provided that the input is band limited at the input
- * frequency. For human hearing, this is generally accepted at 20000hz.
- * The 4100hz extra over the ideal 40000 sampling rate is to accomodate
- * inaccuracies in the band pass filter. This was how CD sample rates
- * were set, and this became the standard.
- *
- * ALSA gives us effectively "infinite" sampling rates in inputs in cases
- * to be accomodating, but we limit these to the preferred rate for
- * practical reasons.
- */
-#define MAXINRATE 44100 /* preferred sample rate (CD player) */
-
-/*
- * Maximum channel number input
- *
- * ALSA sudo-devices can give any number of channels by duplicating
- * channel data. Similar to rates, these must be limited to reasonable
- * values. We use 8 channels as the standard limiting channel number,
- * since that accomodates 7.1 channel sound, currently the multichannel
- * sound premimum standard.
- *
- */
- #define MAXINCHAN 8
-
- /*
-  * Maximum bit size input
-  *
-  * Although some ALSA pseudo input devices can deliver 64 bits (64 bit float),
-  * most output devices cannot accomodate this format (even pseudo devices).
-  * So we limit to 32 bits.
-  */
-#define MAXINBITS 32
-
-/*
  * Print unknown midi event codes
  */
 #define MIDIUNKNOWN 1
@@ -229,13 +191,35 @@ static enum { /* debug levels */
 #define CTLR_MONO_OPERATION                  126
 #define CTLR_POLY_OPERATION                  127
 
+/* alsa device descriptor */
+
+typedef struct snddev {
+
+    HWAVEOUT hwo;    /* handle to wave output device */
+    int      open;   /* device is open */
+    int      init;   /* device is initialized */
+    WAVEHDR  hdre;   /* wave data header even */
+    WAVEHDR  hdro;   /* wave data header odd */
+    int      oddevn; /* odd/even header/buffer selector */
+    int      chan;   /* number of channels */
+    int      bits;   /* preferred format bit size */
+    int      rate;   /* sample rate */
+    int      sgn;    /* preferred format sign */
+    int      big;    /* preferred format big endian */
+    int      flt;    /* preferred format floating point */
+
+} snddev;
+
+typedef snddev* devptr; /* pointer to sound device */
+
 static HMIDIOUT         midtab[MAXMIDP];   /* midi output device table */
+static devptr           pcmout[MAXWAVP];   /* wave output device table */
 static int              i;                 /* index for midi tables */
 static pa_seqptr        seqlst;            /* active sequencer entries */
 static pa_seqptr        seqfre;            /* free sequencer entries */
 static int              seqrun;            /* sequencer running */
-static DWORD            strtim;            /* start time for sequencer, in raw windows
-                                            time */
+static DWORD            strtim;            /* start time for sequencer, in raw
+                                              windows time */
 static MMRESULT         timhan;            /* handle for running timer */
 static CRITICAL_SECTION seqlock;           /* sequencer task lock */
 static string           synthnam[MAXMIDT]; /* midi track file names */
@@ -421,6 +405,41 @@ static void maknam(
             error("String too large for destination");
         strcat(fn, "."); /* place '.' */
         strcat(fn, e); /* place extension */
+
+    }
+
+}
+
+/*******************************************************************************
+
+Validate wave output table entry
+
+If the output device table for the given wave output port is empty, allocates a
+new device pointer for it and initializes it to default values.
+
+Note that the port number is not checked.
+
+*******************************************************************************/
+
+void makpcmout(int p)
+
+{
+
+    if (!pcmout[p-1]) {
+
+        /* get new entry */
+        pcmout[p-1] = malloc(sizeof(snddev));
+        if (!pcmout[p-1]) error("No memory");
+        /* set default values */
+        pcmout[p-1]->chan = 2;
+        pcmout[p-1]->bits = 16;
+        pcmout[p-1]->rate = 44100;
+        pcmout[p-1]->sgn = FALSE;
+        pcmout[p-1]->flt = FALSE;
+        pcmout[p-1]->big = FALSE;
+        pcmout[p-1]->open = FALSE;
+        pcmout[p-1]->init = FALSE;
+        pcmout[p-1]->oddevn = FALSE;
 
     }
 
@@ -2280,6 +2299,17 @@ void pa_openwaveout(int p)
 
 {
 
+    MMRESULT     r;
+    WAVEFORMATEX wf;
+    int          bytes;
+
+    if (p < 1 || p > MAXWAVP) error("Invalid wave output port number");
+    if (p > waveOutGetNumDevs()) error("No system wave output device exists");
+    makpcmout(p); /* ensure device exists */
+    if (pcmout[p-1]->open) error("Wave output device is already open");
+    pcmout[p-1]->open = TRUE; /* set device open */
+    pcmout[p-1]->init = FALSE; /* set device not initialized */
+
 }
 
 /********************************************************************************
@@ -2293,6 +2323,18 @@ Closes a wave output device by number. This is presently a no-op for windows.
 void pa_closewaveout(int p)
 
 {
+
+    MMRESULT r;
+
+    if (p < 1 || p > MAXWAVP) error("Invalid wave output port number");
+    if (p > waveOutGetNumDevs()) error("No system wave output device exists");
+    if (!pcmout[p-1] || !pcmout[p-1]->open)
+        error("Wave output device is not open");
+    /* close the device */
+    r = waveOutClose(pcmout[p-1]->hwo);
+    if (r != MMSYSERR_NOERROR) error("Couldn't close wave output device");
+    pcmout[p-1]->open = FALSE; /* set not open */
+
 
 }
 
@@ -2451,7 +2493,12 @@ void pa_chanwaveout(int p, int c)
 
 {
 
-    error("pa_chanwaveout: Is not implemented");
+dbg_printf(dlinfo, "p: %d setting channels: %d\n", p, c);
+    if (p < 1 || p > MAXWAVP) error("Invalid wave output port number");
+    if (p > waveOutGetNumDevs()) error("No system wave output device exists");
+    if (!pcmout[p-1] || !pcmout[p-1]->open)
+        error("Wave output device is not open");
+    pcmout[p-1]->chan = c; /* set channel count */
 
 }
 
@@ -2471,7 +2518,11 @@ void pa_ratewaveout(int p, int r)
 
 {
 
-    error("pa_ratewaveout: Is not implemented");
+    if (p < 1 || p > MAXWAVP) error("Invalid wave output port number");
+    if (p > waveOutGetNumDevs()) error("No system wave output device exists");
+    if (!pcmout[p-1] || !pcmout[p-1]->open)
+        error("Wave output device is not open");
+    pcmout[p-1]->rate = r; /* set sample rate */
 
 }
 
@@ -2491,7 +2542,11 @@ void pa_lenwaveout(int p, int l)
 
 {
 
-    error("pa_lenwaveout: Is not implemented");
+    if (p < 1 || p > MAXWAVP) error("Invalid wave output port number");
+    if (p > waveOutGetNumDevs()) error("No system wave output device exists");
+    if (!pcmout[p-1] || !pcmout[p-1]->open)
+        error("Wave output device is not open");
+    pcmout[p-1]->bits = l; /* set bit length */
 
 }
 
@@ -2508,7 +2563,11 @@ void pa_sgnwaveout(int p, int s)
 
 {
 
-    error("pa_sgnwaveout: Is not implemented");
+    if (p < 1 || p > MAXWAVP) error("Invalid wave output port number");
+    if (p > waveOutGetNumDevs()) error("No system wave output device exists");
+    if (!pcmout[p-1] || !pcmout[p-1]->open)
+        error("Wave output device is not open");
+    pcmout[p-1]->sgn = !!s; /* set signed status */
 
 }
 
@@ -2524,7 +2583,11 @@ void pa_fltwaveout(int p, int f)
 
 {
 
-    error("pa_fltwaveout: Is not implemented");
+    if (p < 1 || p > MAXWAVP) error("Invalid wave output port number");
+    if (p > waveOutGetNumDevs()) error("No system wave output device exists");
+    if (!pcmout[p-1] || !pcmout[p-1]->open)
+        error("Wave output device is not open");
+    pcmout[p-1]->flt = !!f; /* set floating point status */
 
 }
 
@@ -2542,7 +2605,11 @@ void pa_endwaveout(int p, int e)
 
 {
 
-    error("pa_endwaveout: Is not implemented");
+    if (p < 1 || p > MAXWAVP) error("Invalid wave output port number");
+    if (p > waveOutGetNumDevs()) error("No system wave output device exists");
+    if (!pcmout[p-1] || !pcmout[p-1]->open)
+        error("Wave output device is not open");
+    pcmout[p-1]->big = !!e; /* set endian status */
 
 }
 
@@ -2560,9 +2627,12 @@ required. The can be up or down converted according to size, and may be
 converted to floating point.
 
 This package does not control buffering dept. As much buffering a needed to keep
-the data is used without regard for realtime concerns. The nececessary buffering
+the data is used without regard for realtime concerns. The necessary buffering
 for real time is implemented by the user of this package, which is generally
 recommended to be 1ms or less (64 samples at a 44100 sample rate).
+
+Windows note: using a demo program, it was determined that 26ms is the minimum
+for the waveOut interface API we are using.
 
 *******************************************************************************/
 
@@ -2570,7 +2640,92 @@ void pa_wrwave(int p, byte* buff, int len)
 
 {
 
-    error("pa_wrwave: Is not implemented");
+    MMRESULT     r;
+    WAVEFORMATEX wf;
+    int          bytes;
+    LPWAVEHDR    wp;
+    devptr       dp;
+
+    if (p < 1 || p > MAXWAVP) error("Invalid wave output port number");
+    if (p > waveOutGetNumDevs()) error("No system wave output device exists");
+    dp = pcmout[p-1]; /* index the device */
+    if (!dp || !dp->open) error("Wave output device not open");
+    if (!dp->init) {
+
+        /* first operation on device, set parameters and open */
+        wf.wFormatTag = WAVE_FORMAT_PCM; /* set one or two channel format */
+        wf.nChannels = dp->chan; /* set number of channels */
+        wf.nSamplesPerSec = dp->rate; /* set sample rate */
+        /* set block alignment */
+        bytes = dp->bits/8; /* find bytes per sample */
+        if (dp->bits&8) bytes++; /* round  up */
+        bytes *= dp->chan; /* find total channels size */
+        wf.nBlockAlign = bytes; /* set block align */
+        wf.nAvgBytesPerSec = bytes*dp->rate; /* find average bytes/sec */
+        wf.wBitsPerSample = dp->bits; /* set bits per sample */
+        wf.cbSize = 0; /* no added information */
+#if 1
+dbg_printf(dlinfo, "Channels: %d\n", wf.nChannels);
+dbg_printf(dlinfo, "nSamplesPerSec: %d\n", wf.nSamplesPerSec);
+dbg_printf(dlinfo, "nAvgBytesPerSec: %d\n", wf.nAvgBytesPerSec);
+dbg_printf(dlinfo, "nBlockAlign: %d\n", wf.nBlockAlign);
+dbg_printf(dlinfo, "wBitsPerSample: %d\n", wf.wBitsPerSample);
+#endif
+        /* open wave out channel */
+        r = waveOutOpen(&dp->hwo, p-1, &wf, 0, 0, CALLBACK_NULL);
+        if (r != MMSYSERR_NOERROR) error("Couldn't open wave output device");
+        dp->init = TRUE; /* set initialized */
+        dp->oddevn = FALSE; /* set even buffer active */
+        /* initialize 2 headers */
+        wp = &dp->hdro; /* index odd header */
+        wp->lpData = NULL; /* clear buffer */
+        wp->dwBufferLength = 0; /* clear length */
+        wp->dwBytesRecorded = 0;
+        wp->dwUser = 0;
+        wp->dwFlags = WHDR_DONE; /* clear flags, but set done */
+        wp->dwLoops = 1;
+        wp->lpNext = NULL;
+        wp->reserved = 0;
+        wp = &dp->hdre; /* index even header */
+        wp->lpData = NULL; /* clear buffer */
+        wp->dwBufferLength = 0; /* clear length */
+        wp->dwBytesRecorded = 0;
+        wp->dwUser = 0;
+        wp->dwFlags = WHDR_DONE; /* clear flags, but set done */
+        wp->dwLoops = 1;
+        wp->lpNext = NULL;
+        wp->reserved = 0;
+
+    }
+    if (dp->oddevn) wp = &dp->hdro; /* index odd header */
+    else wp = &dp->hdre; /* index even header */
+    /* if buffer is busy, wait until finished. This should be a signaled wait */
+    while (!(wp->dwFlags & WHDR_DONE));
+    if (wp->dwBufferLength != len) { /* buffer size does not match */
+
+        if (wp->lpData) {
+
+            /* prepare the header */
+            r = waveOutUnprepareHeader(dp->hwo, wp, sizeof(WAVEHDR));
+            if (r != MMSYSERR_NOERROR)
+                error("Couldn't prepare wave output device header");
+            free(wp->lpData); /* free previous buffer */
+
+        }
+        wp->lpData = malloc(len); /* get new buffer */
+        if (!wp->lpData) error("No memory");
+        wp->dwBufferLength = len; /* place length */
+        wp->dwFlags = 0; /* clear flags */
+        /* prepare the header */
+        r = waveOutPrepareHeader(dp->hwo, wp, sizeof(WAVEHDR));
+        if (r != MMSYSERR_NOERROR)
+            error("Couldn't prepare wave output device header");
+
+    }
+    memcpy(wp->lpData, buff, len); /* copy incoming data to buffer */
+    r = waveOutWrite(dp->hwo, wp, sizeof(WAVEHDR));
+    if (r != MMSYSERR_NOERROR) error("Couldn't write to wave output device");
+    dp->oddevn = !dp->oddevn; /* flip the buffers */
 
 }
 
@@ -3141,6 +3296,7 @@ static void pa_init_sound()
     strtim = 0; /* clear start time */
     timhan = 0; /* set no timer active */
     for (i = 0; i < MAXMIDP; i++) midtab[i] = (HMIDIOUT)-1; /* set no midi output ports open */
+    for (i = 0; i < MAXWAVP; i++) pcmout[i] = NULL; /* set no wave output ports open */
     for (i = 0; i < MAXMIDT; i++) synthnam[i] = NULL; /* clear synth track list */
     for (i = 0; i < MAXWAVT; i++) wavenam[i] = NULL; /* clear wave track list */
     InitializeCriticalSection(&seqlock); /* initialize the sequencer lock */

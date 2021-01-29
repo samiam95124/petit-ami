@@ -270,7 +270,7 @@ typedef struct snddev {
     byte           last;       /* last byte on midi input */
     int            pback;      /* pushback for input */
     int            sync;       /* midi channel synced */
-    /* These entries support plug in devices, but are also set for intenal devices */
+    /* These entries support plug in devices, but are also set for internal devices */
     void (*open)(int p);                  /* open port */
     void (*close)(int p);                 /* close port */
     void (*wrseq)(int p, seqptr sp);      /* write MIDI out device */
