@@ -33,7 +33,7 @@ Set square wave output (the default is sine wave).
 #include <sound.h>
 #include <option.h>
 
-#define SIZEBUF 4096
+#define SIZEBUF 2048
 #define PI 3.14159
 
 int dport = PA_SYNTH_OUT; /* set default synth out */
@@ -97,7 +97,7 @@ int main(int argc, char **argv)
             if (angle > 2 * PI) angle -= 2*PI;
 
         }
-        pa_wrwave(dport, (byte*)buf, SIZEBUF*sizeof(short));
+        pa_wrwave(dport, (byte*)buf, SIZEBUF);
 
     }
 

@@ -28,7 +28,7 @@ mixer or effects plug-in.
 #include <localdefs.h>
 #include <sound.h>
 
-#define BUFLEN 1024
+#define BUFLEN 2048 /* 46ms */
 
 /*******************************************************************************
 

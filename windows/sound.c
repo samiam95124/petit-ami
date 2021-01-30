@@ -103,6 +103,7 @@ static enum { /* debug levels */
 
 #define WAVBUF (16*1024) /* size of output wave buffer */
 #define MAXFIL 200 /* maximum size of wave table filename */
+#define INPSIZ 2048 /* size of wave input buffer, about 46ms */
 
 #define DEFMIDITIM 5000 /* default midi quarter note (.5 seconds) */
 
@@ -200,7 +201,9 @@ typedef struct snddev {
     int      open;   /* device is open */
     int      init;   /* device is initialized */
     WAVEHDR  hdre;   /* wave data header even */
+    unsigned reme;   /* buffer remainder even */
     WAVEHDR  hdro;   /* wave data header odd */
+    unsigned remo;   /* buffer remainder odd */
     int      oddevn; /* odd/even header/buffer selector */
     int      parval; /* input device parameters valid */
     int      chan;   /* number of channels */
@@ -209,6 +212,7 @@ typedef struct snddev {
     int      sgn;    /* preferred format sign */
     int      big;    /* preferred format big endian */
     int      flt;    /* preferred format floating point */
+    int      ssiz;   /* sample size */
 
 } snddev;
 
@@ -2809,6 +2813,7 @@ void pa_wrwave(int p, byte* buff, int len)
         bytes = dp->bits/8; /* find bytes per sample */
         if (dp->bits&8) bytes++; /* round  up */
         bytes *= dp->chan; /* find total channels size */
+        dp->ssiz = bytes; /* save sample size */
         wf.nBlockAlign = bytes; /* set block align */
         wf.nAvgBytesPerSec = bytes*dp->rate; /* find average bytes/sec */
         wf.wBitsPerSample = dp->bits; /* set bits per sample */
@@ -2846,6 +2851,7 @@ dbg_printf(dlinfo, "wBitsPerSample: %d\n", wf.wBitsPerSample);
         wp->reserved = 0;
 
     }
+    len *= dp->ssiz; /* scale length by sample size to find bytes */
     if (dp->oddevn) wp = &dp->hdro; /* index odd header */
     else wp = &dp->hdre; /* index even header */
     /* if buffer is busy, wait until finished. This should be a signaled wait */
@@ -3132,9 +3138,116 @@ int pa_rdwave(int p, byte* buff, int len)
 
 {
 
-    error("pa_rdwave: Is not implemented");
+    MMRESULT     r;
+    WAVEFORMATEX wf;
+    int          bytes;
+    LPWAVEHDR    wp;
+    devptr       dp;
+    unsigned*    rem;
 
-    return (1); /* this just shuts up compiler */
+    if (p < 1 || p > MAXWAVP) error("Invalid wave input port number");
+    if (p > waveInGetNumDevs()) error("No system wave input device exists");
+    dp = pcmin[p-1]; /* index the device */
+    if (!dp || !dp->open) error("Wave input device not open");
+    if (!dp->init) {
+
+        /* first operation on device, set parameters and open */
+        wf.wFormatTag = WAVE_FORMAT_PCM; /* set one or two channel format */
+        wf.nChannels = dp->chan; /* set number of channels */
+        wf.nSamplesPerSec = dp->rate; /* set sample rate */
+        /* set block alignment */
+        bytes = dp->bits/8; /* find bytes per sample */
+        if (dp->bits&8) bytes++; /* round  up */
+        bytes *= dp->chan; /* find total channels size */
+        dp->ssiz = bytes; /* save sample size */
+        wf.nBlockAlign = bytes; /* set block align */
+        wf.nAvgBytesPerSec = bytes*dp->rate; /* find average bytes/sec */
+        wf.wBitsPerSample = dp->bits; /* set bits per sample */
+        wf.cbSize = 0; /* no added information */
+dbg_printf(dlinfo, "Channels: %d\n", wf.nChannels);
+dbg_printf(dlinfo, "nSamplesPerSec: %d\n", wf.nSamplesPerSec);
+dbg_printf(dlinfo, "nAvgBytesPerSec: %d\n", wf.nAvgBytesPerSec);
+dbg_printf(dlinfo, "nBlockAlign: %d\n", wf.nBlockAlign);
+dbg_printf(dlinfo, "wBitsPerSample: %d\n", wf.wBitsPerSample);
+        /* open wave out channel */
+        r = waveInOpen(&dp->hwi, p-1, &wf, 0, 0, CALLBACK_NULL);
+        if (r != MMSYSERR_NOERROR) error("Couldn't open wave output device");
+        dp->init = TRUE; /* set initialized */
+        dp->oddevn = FALSE; /* set even buffer active */
+
+        /* initialize 2 headers */
+        wp = &dp->hdre; /* index even header */
+        wp->lpData = NULL; /* clear buffer */
+        wp->dwBufferLength = 0; /* clear length */
+        wp->dwBytesRecorded = 0;
+        wp->dwUser = 0;
+        wp->dwFlags = 0; /* clear flags */
+        wp->dwLoops = 1;
+        wp->lpNext = NULL;
+        wp->reserved = 0;
+        wp->lpData = malloc(INPSIZ); /* get new buffer */
+        if (!wp->lpData) error("No memory");
+        wp->dwBufferLength = INPSIZ; /* place length */
+        r = waveInPrepareHeader(dp->hwi, wp, sizeof(WAVEHDR));
+        if (r != MMSYSERR_NOERROR)
+            error("Couldn't prepare wave output device header");
+        /* note we preload the buffers into the input stream, in even then odd
+           order  */
+        r = waveInAddBuffer(dp->hwi, wp, sizeof(WAVEHDR));
+        if (r != MMSYSERR_NOERROR) error("Couldn't write to wave output device");
+        dp->reme = 0; /* arm the buffer */
+
+        wp = &dp->hdro; /* index odd header */
+        wp->lpData = NULL; /* clear buffer */
+        wp->dwBufferLength = 0; /* clear length */
+        wp->dwBytesRecorded = 0;
+        wp->dwUser = 0;
+        wp->dwFlags = 0; /* clear flags */
+        wp->dwLoops = 1;
+        wp->lpNext = NULL;
+        wp->reserved = 0;
+        wp->lpData = malloc(INPSIZ); /* get new buffer */
+        if (!wp->lpData) error("No memory");
+        wp->dwBufferLength = INPSIZ; /* place length */
+        r = waveInPrepareHeader(dp->hwi, wp, sizeof(WAVEHDR));
+        if (r != MMSYSERR_NOERROR)
+            error("Couldn't prepare wave output device header");
+        r = waveInAddBuffer(dp->hwi, wp, sizeof(WAVEHDR));
+        if (r != MMSYSERR_NOERROR) error("Couldn't write to wave output device");
+        dp->remo = 0; /* arm the buffer */
+
+    }
+    len *= dp->ssiz; /* scale length by sample size to find bytes */
+    while (len) { /* until read is satisfied */
+
+        if (dp->oddevn) { wp = &dp->hdro; rem = &dp->remo; } /* index odd header */
+        else { wp = &dp->hdre; rem = &dp->reme; } /* index even header */
+        /* if buffer is empty, wait until full. This should be a signaled wait */
+        while (!(wp->dwFlags & WHDR_DONE));
+        /* divide into partial buffer reads vs. whole buffer reads */
+        if (wp->dwBufferLength-*rem >= len) {
+
+            memcpy(buff, wp->lpData+*rem, len); /* copy incoming data to buffer */
+            *rem += len;
+
+        } else {
+
+            /* move whole buffer to caller */
+            memcpy(buff, wp->lpData+*rem, wp->dwBufferLength-*rem);
+            /* move on to next buffer */
+            dp->oddevn = !dp->oddevn; /* flip the buffers */
+
+        }
+        /* if the buffer is used up, rearm */
+        if (*rem >= wp->dwBufferLength) {
+
+            r = waveInAddBuffer(dp->hwi, wp, sizeof(WAVEHDR));
+            if (r != MMSYSERR_NOERROR)
+                error("Couldn't write to wave output device");
+
+        }
+
+    }
 
 }
 
