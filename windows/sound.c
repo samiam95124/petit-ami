@@ -3164,14 +3164,16 @@ int pa_rdwave(int p, byte* buff, int len)
         wf.nAvgBytesPerSec = bytes*dp->rate; /* find average bytes/sec */
         wf.wBitsPerSample = dp->bits; /* set bits per sample */
         wf.cbSize = 0; /* no added information */
+#if 0
 dbg_printf(dlinfo, "Channels: %d\n", wf.nChannels);
 dbg_printf(dlinfo, "nSamplesPerSec: %d\n", wf.nSamplesPerSec);
 dbg_printf(dlinfo, "nAvgBytesPerSec: %d\n", wf.nAvgBytesPerSec);
 dbg_printf(dlinfo, "nBlockAlign: %d\n", wf.nBlockAlign);
 dbg_printf(dlinfo, "wBitsPerSample: %d\n", wf.wBitsPerSample);
+#endif
         /* open wave out channel */
         r = waveInOpen(&dp->hwi, p-1, &wf, 0, 0, CALLBACK_NULL);
-        if (r != MMSYSERR_NOERROR) error("Couldn't open wave output device");
+        if (r != MMSYSERR_NOERROR) error("Couldn't open wave input device");
         dp->init = TRUE; /* set initialized */
         dp->oddevn = FALSE; /* set even buffer active */
 
@@ -3190,11 +3192,11 @@ dbg_printf(dlinfo, "wBitsPerSample: %d\n", wf.wBitsPerSample);
         wp->dwBufferLength = INPSIZ; /* place length */
         r = waveInPrepareHeader(dp->hwi, wp, sizeof(WAVEHDR));
         if (r != MMSYSERR_NOERROR)
-            error("Couldn't prepare wave output device header");
+            error("Couldn't prepare wave input device header");
         /* note we preload the buffers into the input stream, in even then odd
            order  */
         r = waveInAddBuffer(dp->hwi, wp, sizeof(WAVEHDR));
-        if (r != MMSYSERR_NOERROR) error("Couldn't write to wave output device");
+        if (r != MMSYSERR_NOERROR) error("Couldn't add buffer to wave input device");
         dp->reme = 0; /* arm the buffer */
 
         wp = &dp->hdro; /* index odd header */
@@ -3211,10 +3213,14 @@ dbg_printf(dlinfo, "wBitsPerSample: %d\n", wf.wBitsPerSample);
         wp->dwBufferLength = INPSIZ; /* place length */
         r = waveInPrepareHeader(dp->hwi, wp, sizeof(WAVEHDR));
         if (r != MMSYSERR_NOERROR)
-            error("Couldn't prepare wave output device header");
+            error("Couldn't prepare wave input device header");
         r = waveInAddBuffer(dp->hwi, wp, sizeof(WAVEHDR));
-        if (r != MMSYSERR_NOERROR) error("Couldn't write to wave output device");
+        if (r != MMSYSERR_NOERROR) error("Couldn't add buffer to wave output device");
         dp->remo = 0; /* arm the buffer */
+
+        /* start input channel */
+        r = waveInStart(dp->hwi);
+        if (r != MMSYSERR_NOERROR) error("Couldn't add buffer to wave input device");
 
     }
     len *= dp->ssiz; /* scale length by sample size to find bytes */
@@ -3229,11 +3235,16 @@ dbg_printf(dlinfo, "wBitsPerSample: %d\n", wf.wBitsPerSample);
 
             memcpy(buff, wp->lpData+*rem, len); /* copy incoming data to buffer */
             *rem += len;
+            len = 0;
+            if (wp->dwBufferLength == *rem)
+                /* data used, move on to next buffer */
+                dp->oddevn = !dp->oddevn; /* flip the buffers */
 
         } else {
 
             /* move whole buffer to caller */
             memcpy(buff, wp->lpData+*rem, wp->dwBufferLength-*rem);
+            len -= wp->dwBufferLength-*rem;
             /* move on to next buffer */
             dp->oddevn = !dp->oddevn; /* flip the buffers */
 
@@ -3243,7 +3254,8 @@ dbg_printf(dlinfo, "wBitsPerSample: %d\n", wf.wBitsPerSample);
 
             r = waveInAddBuffer(dp->hwi, wp, sizeof(WAVEHDR));
             if (r != MMSYSERR_NOERROR)
-                error("Couldn't write to wave output device");
+                error("Couldn't add buffer to wave input device");
+            *rem = 0; /* reset remainder */
 
         }
 
