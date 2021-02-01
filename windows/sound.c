@@ -539,7 +539,7 @@ static void putseq(pa_seqptr p)
 
 Insert sequencer message
 
-Inserts a sequencer message into the list, in asc}ing time order.
+Inserts a sequencer message into the list, in ascending time order.
 
 *******************************************************************************/
 
@@ -3397,7 +3397,7 @@ void pa_opensynthin(int p)
 
 Close a synthesizer input port
 
-Closes the given synthsizer port for reading.
+Closes the given synthesizer port for reading.
 
 *******************************************************************************/
 
@@ -3429,7 +3429,42 @@ void pa_wrsynth(int p, pa_seqptr sp)
 
 {
 
-    error("pa_wrsynth: Is not implemented");
+    DWORD     elap; /* current elapsed time */
+    int       tact; /* timer active */
+    pa_seqptr spp;  /* message pointer */
+
+    elap = difftime(strtim); /* find elapsed time */
+    if (sp->time || (sp->time <= elap && seqrun)) {
+
+        /* entry to be sequenced */
+        if (!seqrun) error("Sequencer not running");
+        tact = seqlst != NULL; /* flag if pending timers */
+        getseq(&spp); /* get a sequencer message */
+        /* make a copy of the command record */
+        memcpy(spp, sp, sizeof(pa_seqmsg));
+        spp->port = p; /* override the port number */
+        insseq(spp); /* insert to sequencer list */
+        if (!tact) /* activate timer */
+            timhan = timeSetEvent((sp->time-elap)/10, 0, nextseq, 0,
+                                   TIME_CALLBACK_FUNCTION |
+                                   TIME_KILL_SYNCHRONOUS |
+                                   TIME_ONESHOT);
+
+    } else  {
+
+        if (sp->port != p) {
+
+            /* the ports don't match, we need to override it. We won't modify
+               record given, but make a copy */
+            getseq(&spp); /* get a sequencer message */
+            /* make a copy of the command record */
+            memcpy(spp, sp, sizeof(pa_seqmsg));
+            spp->port = p; /* override the port number */
+            excseq(spp); /* output */
+
+        } else excseq(sp); /* execute the synth note */
+
+    }
 
 }
 
