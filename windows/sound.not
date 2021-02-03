@@ -1,0 +1,24 @@
+Windows sound notes
+
+1. Error checking is not good. For instance, the port number is not checked on
+most routines. See the linux version for examples of better checking.
+
+2. It needs to be multithread hardened.
+
+3. Its probably time to collect the errors as error numbers.
+
+4. Windows claims their timer for input midi messages is more accurate because
+they are timed on device driver input. We can use their timer mechanisim
+if we rescale the times.
+
+5. We don't handle system exclusive messages from windows (long format MIDI).
+See if we can add them, and also we need a way to generate them to test this.
+
+6. Integrate config data into sound.c.
+
+7. Improve the polling based waits in the module by use of signals.
+
+8. Implement volwave().
+
+9. Implement waitwave().
+
