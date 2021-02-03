@@ -96,14 +96,18 @@ static enum { /* debug levels */
         do { if (lvl >= dbglvl) fprintf(stderr, "%s:%s():%d: " fmt, __FILE__, \
                                 __func__, __LINE__, ##__VA_ARGS__); } while (0)
 
+//#define SHOWMIDIIN 1 /* show midi in dumps */
+
 #define MAXMIDP 100 /* maximum midi input/output devices */
 #define MAXWAVP 100 /* maximum wave input/output devices */
 #define MAXMIDT 100 /* maximum number of midi tracks that can be stored */
 #define MAXWAVT 100 /* maximum number of wave tracks that can be stored */
 
-#define WAVBUF (16*1024) /* size of output wave buffer */
-#define MAXFIL 200 /* maximum size of wave table filename */
-#define WAVSIZ 4096 /* size of wave input buffer, about 46ms */
+#define WAVBUF    (16*1024) /* size of output wave buffer */
+#define MAXFIL    200 /* maximum size of wave table filename */
+#define WAVSIZ    4096 /* size of wave input buffer, about 46ms */
+#define MIDMAX    1025 /* size of MIDI input message queue */
+#define MIDBUFSIZ 1024 /* MIDI message buffer */
 
 #define DEFMIDITIM 5000 /* default midi quarter note (.5 seconds) */
 
@@ -192,7 +196,7 @@ static enum { /* debug levels */
 #define CTLR_MONO_OPERATION                  126
 #define CTLR_POLY_OPERATION                  127
 
-/* alsa device descriptor */
+/* wave device descriptor */
 
 typedef struct snddev {
 
@@ -218,19 +222,48 @@ typedef struct snddev {
 
 typedef snddev* devptr; /* pointer to sound device */
 
-static HMIDIOUT         midtab[MAXMIDP];   /* midi output device table */
-static devptr           pcmout[MAXWAVP];   /* wave output device table */
-static devptr           pcmin[MAXWAVP];    /* wave input device table */
-static int              i;                 /* index for midi tables */
-static pa_seqptr        seqlst;            /* active sequencer entries */
-static pa_seqptr        seqfre;            /* free sequencer entries */
-static int              seqrun;            /* sequencer running */
-static DWORD            strtim;            /* start time for sequencer, in raw
-                                              windows time */
-static MMRESULT         timhan;            /* handle for running timer */
-static CRITICAL_SECTION seqlock;           /* sequencer task lock */
-static string           synthnam[MAXMIDT]; /* midi track file names */
-static string           wavenam[MAXWAVT];  /* wave track file names */
+/* windows message input format */
+
+typedef struct {
+
+    DWORD_PTR time; /* sequencer input time */
+    DWORD_PTR mmsg; /* MIDI message (packed format) */
+
+} winmidmsg;
+
+/* midi input device descriptor */
+
+typedef struct {
+
+    HMIDIIN       hmi;            /* midi device handle in */
+    winmidmsg     inpque[MIDMAX]; /* midi input queue */
+    int           inpptr;         /* queue input pointer */
+    int           outptr;         /* queue output pointer */
+    int           open;           /* device is open */
+    int           qovf;           /* input queue has overflowed */
+    MIDIHDR       mh1, mh2;       /* buffer headers */
+    unsigned char mb1[MIDBUFSIZ]; /* buffers */
+    unsigned char mb2[MIDBUFSIZ];
+
+} midinp, *midinpptr;
+
+static HMIDIOUT         midouttab[MAXMIDP]; /* MIDI output device table */
+static midinpptr        midinptab[MAXMIDP]; /* MIDI input device table */
+static devptr           pcmout[MAXWAVP];    /* wave output device table */
+static devptr           pcmin[MAXWAVP];     /* wave input device table */
+static int              i;                  /* index for midi tables */
+static pa_seqptr        seqlst;             /* active sequencer entries */
+static pa_seqptr        seqfre;             /* free sequencer entries */
+static int              seqrun;             /* sequencer running */
+static DWORD            strtim;             /* start time for sequencer, in raw
+                                               windows time */
+static MMRESULT         timhan;             /* handle for running timer */
+static int              sinrun;             /* input timer running */
+static DWORD            sintim;             /* start time input midi, in raw
+                                               windows time */
+static CRITICAL_SECTION seqlock;            /* sequencer task lock */
+static string           synthnam[MAXMIDT];  /* midi track file names */
+static string           wavenam[MAXWAVT];   /* wave track file names */
 
 /*******************************************************************************
 
@@ -492,6 +525,36 @@ static void makpcmin(int p)
 
 /*******************************************************************************
 
+Validate MIDI input table entry
+
+If the output device table for the given MIDI input port is empty, allocates a
+new device pointer for it and initializes it to default values.
+
+Note that the port number is not checked.
+
+*******************************************************************************/
+
+static void makmidinp(int p)
+
+{
+
+    if (!midinptab[p-1]) {
+
+        /* get new entry */
+        midinptab[p-1] = malloc(sizeof(midinp));
+        if (!midinptab[p-1]) error("No memory");
+        /* set default values */
+        midinptab[p-1]->inpptr = 0; /* set queue empty */
+        midinptab[p-1]->outptr = 0;
+        midinptab[p-1]->open = FALSE; /* set not open */
+        midinptab[p-1]->qovf = FALSE; /* reset queue overflow flag */
+
+    }
+
+}
+
+/*******************************************************************************
+
 Get sequencer message entry
 
 Gets a sequencer message entry, either from the used list, or new.
@@ -632,6 +695,156 @@ static void excseq(pa_seqptr p)
         case st_playsynth:    pa_playsynth(p->port, 0, p->sid); break;
         case st_playwave:     pa_playwave(p->port, 0, p->wt); break;
         case st_volwave:      pa_volwave(p->port, 0, p->wv); break;
+
+    }
+
+}
+
+/*******************************************************************************
+
+Dump sequencer list
+
+A diagnostic, dumps the given sequencer list in ASCII.
+
+*******************************************************************************/
+
+static void dmpseq(pa_seqptr p)
+
+{
+
+    switch (p->st) { /* sequencer message type */
+
+        case st_noteon:       printf("noteon: Time: %d Port: %d Channel: %d "
+                                     "Note: %d Velocity: %d\n",
+                                     p->time, p->port, p->ntc, p->ntn, p->ntv);
+                              break;
+        case st_noteoff:      printf("noteoff: Time: %d Port: %d Channel: %d "
+                                     "Note: %d Velocity: %d\n", p->time,
+                                     p->port, p->ntc, p->ntn, p->ntv);
+                              break;
+        case st_instchange:   printf("instchange: Time: %d Port: %d p->port "
+                                     "Channel: %d Instrument: %d\n", p->time,
+                                     p->port, p->icc, p->ici);
+                              break;
+        case st_attack:       printf("attack: Time: %d Port: %d Channel: %d "
+                                     "attack time: %d\n", p->time, p->port,
+                                     p->vsc, p->vsv);
+                              break;
+        case st_release:      printf("release: Time: %d Port: %d Channel: %d "
+                                     "release time: %d\n", p->time, p->port,
+                                     p->vsc, p->vsv);
+                              break;
+        case st_legato:       printf("legato: Time: %d Port: %d Channel: %d "
+                                     "legato on/off: %d\n", p->time, p->port,
+                                     p->bsc, p->bsb);
+                              break;
+        case st_portamento:   printf("portamento: Time: %d Port: %d Channel: %d "
+                                     "portamento on/off: %d\n", p->time, p->port,
+                                     p->bsc, p->bsb);
+                              break;
+        case st_vibrato:      printf("vibrato: Time: %d Port: %d Channel: %d "
+                                     "Vibrato: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_volsynthchan: printf("volsynthchan: Time: %d Port: %d Channel: %d "
+                                     "Volume: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_porttime:     printf("porttime: Time: %d Port: %d Channel: %d "
+                                     "Portamento time: %d\n", p->time, p->port,
+                                     p->vsc, p->vsv);
+                              break;
+        case st_balance:      printf("attack: Time: %d Port: %d Channel: %d "
+                                     "Ballance: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_pan:          printf("pan: Time: %d Port: %d Channel: %d "
+                                     "Pan: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_timbre:       printf("timbre: Time: %d Port: %d Channel: %d "
+                                     "Timbre: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_brightness:   printf("brightness: Time: %d Port: %d Channel: %d "
+                                     "Brightness: %d\n", p->time, p->port,
+                                     p->vsc, p->vsv);
+                              break;
+        case st_reverb:       printf("reverb: Time: %d Port: %d Channel: %d "
+                                     "Reverb: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_tremulo:      printf("tremulo: Time: %d Port: %d Channel: %d "
+                                     "Tremulo: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_chorus:       printf("chorus: Time: %d Port: %d Channel: %d "
+                                     "Chorus: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_celeste:      printf("celeste: Time: %d Port: %d Channel: %d "
+                                     "Celeste: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_phaser:       printf("Phaser: Time: %d Port: %d Channel: %d "
+                                     "Phaser: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_aftertouch:   printf("aftertouch: Time: %d Port: %d Channel: %d "
+                                     "Note: %d Aftertouch: %d\n", p->time,
+                                     p->port, p->ntc, p->ntn, p->ntv);
+                              break;
+        case st_pressure:     printf("pressure: Time: %d Port: %d Channel: %d "
+                                     "Pressure: %d\n", p->time, p->port, p->ntc,
+                                     p->ntv);
+                              break;
+        case st_pitch:        printf("pitch: Time: %d Port: %d Channel: %d "
+                                     "Pitch: %d\n", p->time, p->port, p->vsc,
+                                     p->vsv);
+                              break;
+        case st_pitchrange:   printf("pitchrange: Time: %d Port: %d Channel: %d "
+                                     "Pitch range: %d\n", p->time, p->port,
+                                     p->vsc, p->vsv);
+                              break;
+        case st_mono:         printf("mono: Time: %d Port: %d Channel: %d "
+                                     "Mono notes: %d\n", p->time, p->port,
+                                     p->vsc, p->vsv);
+                              break;
+        case st_poly:         printf("poly: Time: %d Port: %d Channel: %d\n",
+                                     p->time, p->port, p->pc);
+                              break;
+        case st_playsynth:    printf("playsynth: Time: %d Port: %d "
+                                     ".mid file id: %d\n", p->time, p->port,
+                                     p->sid);
+                              break;
+        case st_playwave:     printf("playwave: Time: %d Port: %d "
+                                     ".wav file logical number: %d\n", p->time,
+                                     p->port, p->wt);
+                              break;
+        case st_volwave:      printf("volwave: Time: %d Port: %d Volume: %d\n",
+                                     p->time, p->port, p->wv);
+                              break;
+
+    }
+
+}
+
+/*******************************************************************************
+
+Dump sequencer list
+
+A diagnostic, dumps the given sequencer list in ASCII.
+
+*******************************************************************************/
+
+static void dmpseqlst(pa_seqptr p)
+
+{
+
+    while (p) {
+
+        dmpseq(p);
+        p = p->next;
 
     }
 
@@ -879,7 +1092,7 @@ void pa_opensynthout(int p)
 {
 
     /* open midi output device */
-    midiOutOpen(&midtab[p], p-1, 0, 0, CALLBACK_NULL);
+    midiOutOpen(&midouttab[p], p-1, 0, 0, CALLBACK_NULL);
 
 }
 
@@ -895,8 +1108,8 @@ void pa_closesynthout(int p)
 
 {
 
-    midiOutClose(midtab[p]); /* close port */
-    midtab[p] = (HMIDIOUT)-1; /* set closed */
+    midiOutClose(midouttab[p]); /* close port */
+    midouttab[p] = (HMIDIOUT)-1; /* set closed */
 
 }
 
@@ -953,9 +1166,9 @@ void pa_stoptimeout(void)
 
     strtim = 0; /* clear start time */
     seqrun = FALSE; /* set sequencer ! running */
-    /* if there is a p}ing sequencer timer, kill it */
+    /* if there is a pending sequencer timer, kill it */
     if (timhan) timeKillEvent(timhan);
-    /* now clear all p}ing events */
+    /* now clear all pending events */
     while (seqlst) { /* clear */
 
         p = seqlst; /* index top of list */
@@ -1000,7 +1213,9 @@ void pa_starttimein(void)
 
 {
 
-    error("pa_starttimein: Is not implemented");
+
+    sintim = timeGetTime(); /* place current system time */
+    sinrun = TRUE; /* set sequencer running */
 
 }
 
@@ -1016,7 +1231,8 @@ void pa_stoptimein(void)
 
 {
 
-    error("pa_stoptimein: Is not implemented");
+    sintim = 0; /* clear start time */
+    sinrun = FALSE; /* set sequencer ! running */
 
 }
 
@@ -1033,9 +1249,9 @@ int pa_curtimein(void)
 
 {
 
-    error("pa_curtimein: Is not implemented");
+    if (!sinrun) error("Sequencer not running");
 
-    return (1); /* this just shuts up compiler */
+    return (difftime(sintim)); /* return difference time */
 
 }
 
@@ -1068,7 +1284,7 @@ void pa_noteon(int p, int t, pa_channel c, pa_note n, int v)
 
         /* construct midi message */
         msg = (v / 0x01000000)*65536+(n-1)*256+MESS_NOTE_ON+(c-1);
-        midiOutShortMsg(midtab[p], msg);
+        midiOutShortMsg(midouttab[p], msg);
 
     } else { /* sequence */
 
@@ -1122,7 +1338,7 @@ void pa_noteoff(int p, int t, pa_channel c, pa_note n, int v)
 
         /* construct midi message */
         msg = (v / 0x01000000)*65536+(n-1)*256+MESS_NOTE_OFF+(c-1);
-        midiOutShortMsg(midtab[p], msg);
+        midiOutShortMsg(midouttab[p], msg);
 
     } else { /* sequence */
 
@@ -1172,7 +1388,7 @@ void pa_instchange(int p, int t, pa_channel c, pa_instrument i)
     if (t == 0 || (t <= elap && seqrun)) {
 
         msg = (i-1)*256+MESS_PGM_CHG+(c-1); /* construct midi message */
-        midiOutShortMsg(midtab[p], msg);
+        midiOutShortMsg(midouttab[p], msg);
 
     } else { /* sequence */
 
@@ -1212,7 +1428,7 @@ static void ctlchg(int p, int t, pa_channel c, int cn, int v)
 
     /* construct midi message */
     msg = v*65536+cn*256+MESS_CTRL_CHG+(c-1);
-    midiOutShortMsg(midtab[p], msg);
+    midiOutShortMsg(midouttab[p], msg);
 
 }
 
@@ -2123,7 +2339,7 @@ void pa_aftertouch(int p, int t, pa_channel c, pa_note n, int at)
 
         /* construct midi message */
         msg = (at/0x01000000)*65536+(n-1)*256+MESS_AFTTCH+(c-1);
-        midiOutShortMsg(midtab[p], msg);
+        midiOutShortMsg(midouttab[p], msg);
 
     } else { /* sequence */
 
@@ -2172,7 +2388,7 @@ void pa_pressure(int p, int t, pa_channel c, int pr)
 
         /* construct midi message */
         msg = (pr/0x01000000)*256+MESS_CHN_PRES+(c-1);
-        midiOutShortMsg(midtab[p], msg);
+        midiOutShortMsg(midouttab[p], msg);
 
     } else { /* sequence */
 
@@ -2223,7 +2439,7 @@ void pa_pitch(int p, int t, pa_channel c, int pt)
         pt = pt/0x00040000+0x2000; /* reduce to 14 bits, positive only */
         /* construct midi message */
         msg = (pt/0x80)*65536+(pt && 0x7f)*256+MESS_PTCH_WHL+(c-1);
-        midiOutShortMsg(midtab[p], msg);
+        midiOutShortMsg(midouttab[p], msg);
 
     } else { /* sequence */
 
@@ -2333,7 +2549,7 @@ void pa_playsynth(int p, int t, int s)
     int       tact; /* timer active */
 
     if (p != 1) error("Must execute play on default output channel");
-    if (midtab[p] < 0) error("Synth output channel not open");
+    if (midouttab[p] < 0) error("Synth output channel not open");
     if (s < 1 || s > MAXMIDT) error("Invalid logical synthesizer file number");
     if (!synthnam[s-1])
         error("No synthesizer file loaded for logical wave number");
@@ -3379,6 +3595,52 @@ void pa_waveinname(int p, string name, int len)
 
 /*******************************************************************************
 
+MIDI input callback
+
+The callback messages important events on the MIDI device. We use it to enter
+MIDI data messages into a queue.
+Open a synthesizer input port.
+
+The given synthesizer port is opened and ready for reading.
+
+*******************************************************************************/
+
+void CALLBACK MidiInProc(
+   HMIDIIN   hMidiIn,
+   UINT      wMsg,
+   DWORD_PTR dwInstance,
+   DWORD_PTR dwParam1,
+   DWORD_PTR dwParam2
+)
+
+{
+
+    midinpptr dp;
+    int       nxtinp;
+
+    if (wMsg == MIM_DATA) {
+
+//        dbg_printf("Port: %d time: %ld msg: %02x:%02x:%02x\n", dwInstance,
+//                   dwParam2, dwParam1 & 0xff, dwParam1 >> 8 & 0xff,
+//                   dwParam1 >> 16 & 0xff);
+        dp = midinptab[dwInstance-1]; /* get device pointer */
+        nxtinp = dp->inpptr+1; /* get next input pointer */
+        if (nxtinp >= MIDMAX) nxtinp = 0; /* wrap input pointer */
+        if (nxtinp != dp->outptr) {
+
+            /* no overflow */
+            dp->inpque[dp->inpptr].time = dwParam2; /* place time */
+            dp->inpque[dp->inpptr].mmsg = dwParam1; /* place message */
+            dp->inpptr = nxtinp; /* advance input pointer */
+
+        } else dp->qovf = TRUE; /* flag queue overflow */
+
+    }
+
+}
+
+/*******************************************************************************
+
 Open a synthesizer input port.
 
 The given synthesizer port is opened and ready for reading.
@@ -3389,7 +3651,49 @@ void pa_opensynthin(int p)
 
 {
 
-    error("pa_opensynthin: Is not implemented");
+    midinpptr dp;
+    MMRESULT  r;
+
+dbg_printf(dlinfo, "begin\n");
+    if (p < 1 || p > MAXMIDP) error("Invalid MIDI input port number");
+    if (p > midiInGetNumDevs()) error("No system wave input device exists");
+    makmidinp(p); /* ensure device exists */
+    dp = midinptab[p-1]; /* get device pointer */
+    if (dp->open) error("Wave input device is already open");
+    dp->open = TRUE; /* set device open */
+
+    r = midiInOpen(&dp->hmi, 0, (DWORD_PTR)MidiInProc, p, CALLBACK_FUNCTION);
+    if (r != MMSYSERR_NOERROR) error("Cannot open midi device");
+
+    dp->mh1.lpData = dp->mb1;
+    dp->mh1.dwBufferLength = MIDBUFSIZ;
+    dp->mh1.dwBytesRecorded = 0;
+    dp->mh1.dwUser = 0;
+    dp->mh1.dwFlags = 0;
+    dp->mh1.dwOffset = 0;
+
+    r = midiInPrepareHeader(dp->hmi, &dp->mh1, sizeof(MIDIHDR));
+    if (r != MMSYSERR_NOERROR) error("Cannot prepare header");
+
+    r = midiInAddBuffer(dp->hmi, &dp->mh1, sizeof(MIDIHDR));
+    if (r != MMSYSERR_NOERROR) error("Cannot add buffer");
+
+    dp->mh2.lpData = dp->mb2;
+    dp->mh1.dwBufferLength = MIDBUFSIZ;
+    dp->mh1.dwBytesRecorded = 0;
+    dp->mh1.dwUser = 0;
+    dp->mh1.dwFlags = 0;
+    dp->mh1.dwOffset = 0;
+
+    r = midiInPrepareHeader(dp->hmi, &dp->mh1, sizeof(MIDIHDR));
+    if (r != MMSYSERR_NOERROR) error("Cannot prepare header");
+
+    r = midiInAddBuffer(dp->hmi, &dp->mh1, sizeof(MIDIHDR));
+    if (r != MMSYSERR_NOERROR) error("Cannot add buffer");
+
+    r = midiInStart(dp->hmi);
+    if (r != MMSYSERR_NOERROR) error("Cannot start input");
+dbg_printf(dlinfo, "end\n");
 
 }
 
@@ -3470,6 +3774,161 @@ void pa_wrsynth(int p, pa_seqptr sp)
 
 /*******************************************************************************
 
+Parse sequencer entry
+
+Parses a MIDI sequencer entry from the 1 to 3 bytes given in a Windows packed
+message. Windows is assumed to handle syncing the data stream, and also handling
+running status or repeats. Windows creates several whole MIDI messages in these
+cases.
+
+If system exclusive messages are processed, they go through a separate input
+system.
+
+Time stamping is presently done by stamping on entry. Windows documentation
+states that this can be wrong, and includes timestamps in MIDI messages that
+originates from the driver. This can be used as a further improvement on the
+Algorithm used here.
+
+*******************************************************************************/
+
+static void parseq(int p, pa_seqptr sp, byte b1, byte b2, byte b3)
+
+{
+
+    int t;
+    byte p1;
+    byte p2;
+    byte p3;
+    byte p4;
+    byte p5;
+    unsigned len;
+    int i;
+
+    t = 0; /* set no time */
+    if (sinrun) t = difftime(sintim); /* mark with current time */
+    switch (b1>>4) { /* command nybble */
+
+        case 0x8: /* note off */
+                  p1 = b2;
+                  p2 = b3;
+                  sp->port = p; /* set port */
+                  sp->time = t; /* set time */
+                  sp->st = st_noteoff; /* set type */
+                  sp->ntc = (b1&15)+1; /* set channel */
+                  sp->ntn = p1+1; /* set note */
+                  sp->ntv = p2*0x01000000; /* set velocity */
+                  break;
+        case 0x9: /* note on */
+                  p1 = b2;
+                  p2 = b3;
+                  sp->port = p; /* set port */
+                  sp->time = t; /* set time */
+                  sp->st = st_noteon; /* set type */
+                  sp->ntc = (b1&15)+1; /* set channel */
+                  sp->ntn = p1+1; /* set note */
+                  sp->ntv = p2*0x01000000; /* set velocity */
+                  break;
+        case 0xa: /* polyphonic key pressure */
+                  p1 = b2;
+                  p2 = b3;
+                  sp->port = p; /* set port */
+                  sp->time = t; /* set time */
+                  sp->st = st_aftertouch; /* set type */
+                  sp->ntc = (b1&15)+1; /* set channel */
+                  sp->ntn = p1+1; /* set note */
+                  sp->ntv = p2*0x01000000; /* set aftertouch */
+                  break;
+        case 0xb: /* controller change/channel mode */
+                  p1 = b2;
+                  p2 = b3;
+                  switch (p1) { /* channel mode messages */
+
+                      /* note we don't implement all controller messages */
+                      case CTLR_SOUND_ATTACK_TIME:
+                      case CTLR_SOUND_RELEASE_TIME:
+                      case CTLR_LEGATO_PEDAL:
+                      case CTLR_PORTAMENTO:
+                      case CTLR_VOLUME_COARSE:
+                      case CTLR_VOLUME_FINE:
+                      case CTLR_BALANCE_COARSE:
+                      case CTLR_BALANCE_FINE:
+                      case CTLR_PORTAMENTO_TIME_COARSE:
+                      case CTLR_PORTAMENTO_TIME_FINE:
+                      case CTLR_MODULATION_WHEEL_COARSE:
+                      case CTLR_MODULATION_WHEEL_FINE:
+                      case CTLR_PAN_POSITION_COARSE:
+                      case CTLR_PAN_POSITION_FINE:
+                      case CTLR_SOUND_TIMBRE:
+                      case CTLR_SOUND_BRIGHTNESS:
+                      case CTLR_EFFECTS_LEVEL:
+                      case CTLR_TREMULO_LEVEL:
+                      case CTLR_CHORUS_LEVEL:
+                      case CTLR_CELESTE_LEVEL:
+                      case CTLR_PHASER_LEVEL:
+                      case CTLR_REGISTERED_PARAMETER_COARSE:
+                      case CTLR_REGISTERED_PARAMETER_FINE:
+                      case CTLR_DATA_ENTRY_COARSE:
+                      case CTLR_DATA_ENTRY_FINE:
+                                 break;
+
+                      case CTLR_MONO_OPERATION: /* Mono mode on */
+                                 sp->port = p; /* set port */
+                                 sp->time = t; /* set time */
+                                 sp->st = st_mono; /* set type */
+                                 sp->vsc = (b1&15)+1; /* set channel */
+                                 sp->vsv = p2; /* set mono mode */
+                                 break;
+                      case CTLR_POLY_OPERATION: /* Poly mode on */
+                                 sp->port = p; /* set port */
+                                 sp->time = t; /* set time */
+                                 sp->st = st_poly; /* set type */
+                                 sp->pc = (b1&15)+1; /* set channel */
+                                 break;
+
+                  }
+                  break;
+        case 0xc: /* program change */
+                  p1 = b2;
+                  sp->port = p; /* set port */
+                  sp->time = t; /* set time */
+                  sp->st = st_instchange; /* set type */
+                  sp->icc = (b1&15)+1; /* set channel */
+                  sp->ici = p1+1; /* set instrument */
+                  break;
+        case 0xd: /* channel key pressure */
+                  p1 = b2;
+                  sp->port = p; /* set port */
+                  sp->time = t; /* set time */
+                  sp->st = st_pressure; /* set type */
+                  sp->ntc = (b1&15)+1; /* set channel */
+                  sp->ntv = p1*0x01000000; /* set pressure */
+                  break;
+        case 0xe: /* pitch bend */
+                  p1 = b2;
+                  p2 = b3;
+                  sp->port = p; /* set port */
+                  sp->time = t; /* set time */
+                  sp->st = st_pitch; /* set type */
+                  sp->vsc = (b1&15)+1; /* set channel */
+                  sp->vsv = p2<<7|p1; /* set pitch */
+                  break;
+        case 0xf: /* sysex/meta */
+                  /* windows sends system exclusive messages via the buffer
+                     so they should not show up here */
+                  error("System exclusive message encountered in common data");
+                  break;
+
+        default: error("Invalid MIDI format");
+
+    }
+#ifdef SHOWMIDIIN
+    dmpseq(sp); /* dump sequencer instruction */
+#endif
+
+}
+
+/*******************************************************************************
+
 Read synthesizer port
 
 Reads and parses a midi instruction record from the given input port. ALSA midi
@@ -3493,7 +3952,28 @@ void pa_rdsynth(int p, pa_seqptr sp)
 
 {
 
-    error("pa_rdsynth: Is not implemented");
+    midinpptr dp;
+    DWORD_PTR midins;
+    int       nxtout;
+    byte      b1, b2, b3;
+
+    if (p < 1 || p > MAXMIDP) error("Invalid MIDI input port number");
+    if (p > midiInGetNumDevs()) error("No system wave input device exists");
+    makmidinp(p); /* ensure device exists */
+    dp = midinptab[p-1]; /* get device pointer */
+    if (!dp->open) error("Wave input device is not open");
+    /* wait for data in queue */
+    while (dp->outptr == dp->inpptr);
+    midins = dp->inpque[dp->outptr].mmsg; /* get next MIDI message */
+    nxtout = dp->outptr+1; /* get next output pointer */
+    if (nxtout >= MIDMAX) nxtout = 0; /* wrap the output pointer */
+    dp->outptr = nxtout; /* update */
+    /* put MIDI instruction into bytes */
+    b1 = midins & 0xff;
+    b2 = midins >> 8 & 0xff;
+    b3 = midins >> 16 & 0xff;
+    /* now parse the sequencer entry */
+    parseq(p, sp, b1, b2, b3);
 
 }
 
@@ -3694,7 +4174,8 @@ static void pa_init_sound()
     seqrun = FALSE; /* set sequencer ! running */
     strtim = 0; /* clear start time */
     timhan = 0; /* set no timer active */
-    for (i = 0; i < MAXMIDP; i++) midtab[i] = (HMIDIOUT)-1; /* set no midi output ports open */
+    for (i = 0; i < MAXMIDP; i++) midouttab[i] = (HMIDIOUT)-1; /* set no midi output ports open */
+    for (i = 0; i < MAXMIDP; i++) midinptab[i] = NULL; /* set no midi output ports open */
     for (i = 0; i < MAXWAVP; i++) pcmout[i] = NULL; /* set no wave output ports open */
     for (i = 0; i < MAXMIDT; i++) synthnam[i] = NULL; /* clear synth track list */
     for (i = 0; i < MAXWAVT; i++) wavenam[i] = NULL; /* clear wave track list */
