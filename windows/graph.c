@@ -15527,6 +15527,14 @@ static void pa_deinit_graph(void)
 
 {
 
+    /* holding copies of system vectors */
+    pread_t cppread;
+    pwrite_t cppwrite;
+    popen_t cppopen;
+    pclose_t cppclose;
+    punlink_t cppunlink;
+    plseek_t cpplseek;
+
     winptr wp;
     int    fi;
 
@@ -15554,7 +15562,7 @@ static void pa_deinit_graph(void)
             if (!wp->sysbar) isysbar(wp, TRUE);
             /* change window label to alert user */
             unlockmain(); /* end exclusive access */
-            b = SetWindowText(wp->winhan, trmnam);
+            SetWindowText(wp->winhan, trmnam);
             lockmain(); /* start exclusive access */
             /* wait for a formal end */
             while (!fend) ievent(INPFIL, &er);
@@ -15575,5 +15583,19 @@ static void pa_deinit_graph(void)
     /* kill subthread */
     TerminateThread(threadhdl, 0);
     unlockmain(); /* end exclusive access */
+
+    /* swap old vectors for existing vectors */
+    ovr_read(ofpread, &cppread);
+    ovr_write(ofpwrite, &cppwrite);
+    ovr_open(ofpopen, &cppopen);
+    ovr_close(ofpclose, &cppclose);
+    ovr_unlink(ofpunlink, &cppunlink);
+    ovr_lseek(ofplseek, &cpplseek);
+    /* if we don't see our own vector flag an error */
+    if (cppread != iread || cppwrite != iwrite || cppopen != iopen ||
+        cppclose != iclose /* || cppunlink != iunlink */ || cpplseek != ilseek)
+        error(esystem);
+    /* release control handler */
+    SetConsoleCtrlHandler(NULL, FALSE);
 
 }
