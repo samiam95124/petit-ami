@@ -106,18 +106,18 @@ typedef struct filrec {
    pthread_mutex_t lock; /* lock for this structure */
    /* we don't use the network flag for much right now, except to indicate that
       the file is a socket. Linux treats them equally */
-   int net;  /* it's a network file */
-   int sec;  /* its a secure sockets file */
-   SSL*    ssl;  /* SSL data */
-   X509*   cert; /* peer certificate */
-   int     sfn;  /* shadow fid */
-   int opn;  /* file is open with Linux */
-   int msg;  /* is a message socket (udp/dtls) */
-   socket_struct saddr; /* socket address */
-   int v6addr; /* is an IPv6 address */
-   BIO*    bio;  /* bio for DTLS */
-   int sudp; /* its a secure udp */
-   struct filrec* next; /* next entry (when placed on free list) */
+   int             net;  /* it's a network file */
+   int             sec;  /* its a secure sockets file */
+   SSL*            ssl;  /* SSL data */
+   X509*           cert; /* peer certificate */
+   int             sfn;  /* shadow fid */
+   int             opn;  /* file is open with Linux */
+   int             msg;  /* is a message socket (udp/dtls) */
+   socket_struct   saddr; /* socket address */
+   int             v6addr; /* is an IPv6 address */
+   BIO*            bio;  /* bio for DTLS */
+   int             sudp; /* its a secure udp */
+   struct filrec*  next; /* next entry (when placed on free list) */
 
 
 } filrec;
@@ -125,6 +125,7 @@ typedef filrec* filptr; /* pointer to file record */
 
 /* error codes */
 typedef enum {
+
     ewskini,  /* cannot initialize winsock */
     einvhan,  /* invalid file handle */
     enetopn,  /* cannot reset or rewrite network file */
@@ -161,6 +162,7 @@ typedef enum {
     ebufovf,  /* Buffer overflow */
     ecertpar, /* Error parsing certificate data */
     esystem   /* System consistency check */
+
 } errcod;
 
 /* types of system vectors for override calls */
@@ -251,14 +253,14 @@ Prints the given error in ASCII text, then aborts the program.
 This needs to go to a dialog instead of the system error trap.
 
 *******************************************************************************/
- 
+
 static void error(errcod e)
 
 {
 
     switch (e) { /* error */
 
-        case ewskini:  netwrterr("Cannot initalize winsock"); break;
+        case ewskini:  netwrterr("Cannot initialize winsock"); break;
         case einvhan:  netwrterr("Invalid file number"); break;
         case enetopn:  netwrterr("Cannot reset or rewrite network file"); break;
         case enetpos:  netwrterr("Cannot position network file"); break;
@@ -613,81 +615,81 @@ int generate_cookie(SSL *ssl, unsigned char *cookie, unsigned int *cookie_len)
 
 {
 
-	unsigned char *buffer, result[EVP_MAX_MD_SIZE];
-	unsigned int length = 0, resultlength;
-	union {
-		struct sockaddr_storage ss;
-		struct sockaddr_in6 s6;
-		struct sockaddr_in s4;
-	} peer;
+    unsigned char *buffer, result[EVP_MAX_MD_SIZE];
+    unsigned int length = 0, resultlength;
+    union {
+        struct sockaddr_storage ss;
+        struct sockaddr_in6 s6;
+        struct sockaddr_in s4;
+    } peer;
 
-	/* Initialize a random secret */
-	if (!cookie_initialized)
-		{
-		if (!RAND_bytes(cookie_secret, COOKIE_SECRET_LENGTH))
-			{
-			printf("error setting random cookie secret\n");
-			return 0;
-			}
-		cookie_initialized = TRUE;
-		}
+    /* Initialize a random secret */
+    if (!cookie_initialized)
+        {
+        if (!RAND_bytes(cookie_secret, COOKIE_SECRET_LENGTH))
+            {
+            printf("error setting random cookie secret\n");
+            return 0;
+            }
+        cookie_initialized = TRUE;
+        }
 
-	/* Read peer information */
-	(void) BIO_dgram_get_peer(SSL_get_rbio(ssl), &peer);
+    /* Read peer information */
+    (void) BIO_dgram_get_peer(SSL_get_rbio(ssl), &peer);
 
-	/* Create buffer with peer's address and port */
-	length = 0;
-	switch (peer.ss.ss_family) {
-		case AF_INET:
-			length += sizeof(struct in_addr);
-			break;
-		case AF_INET6:
-			length += sizeof(struct in6_addr);
-			break;
-		default:
-			OPENSSL_assert(0);
-			break;
-	}
-	length += sizeof(in_port_t);
-	buffer = (unsigned char*) OPENSSL_malloc(length);
+    /* Create buffer with peer's address and port */
+    length = 0;
+    switch (peer.ss.ss_family) {
+        case AF_INET:
+            length += sizeof(struct in_addr);
+            break;
+        case AF_INET6:
+            length += sizeof(struct in6_addr);
+            break;
+        default:
+            OPENSSL_assert(0);
+            break;
+    }
+    length += sizeof(in_port_t);
+    buffer = (unsigned char*) OPENSSL_malloc(length);
 
-	if (buffer == NULL)
-		{
-		printf("out of memory\n");
-		return 0;
-		}
+    if (buffer == NULL)
+        {
+        printf("out of memory\n");
+        return 0;
+        }
 
-	switch (peer.ss.ss_family) {
-		case AF_INET:
-			memcpy(buffer,
-				   &peer.s4.sin_port,
-				   sizeof(in_port_t));
-			memcpy(buffer + sizeof(peer.s4.sin_port),
-				   &peer.s4.sin_addr,
-				   sizeof(struct in_addr));
-			break;
-		case AF_INET6:
-			memcpy(buffer,
-				   &peer.s6.sin6_port,
-				   sizeof(in_port_t));
-			memcpy(buffer + sizeof(in_port_t),
-				   &peer.s6.sin6_addr,
-				   sizeof(struct in6_addr));
-			break;
-		default:
-			OPENSSL_assert(0);
-			break;
-	}
+    switch (peer.ss.ss_family) {
+        case AF_INET:
+            memcpy(buffer,
+                   &peer.s4.sin_port,
+                   sizeof(in_port_t));
+            memcpy(buffer + sizeof(peer.s4.sin_port),
+                   &peer.s4.sin_addr,
+                   sizeof(struct in_addr));
+            break;
+        case AF_INET6:
+            memcpy(buffer,
+                   &peer.s6.sin6_port,
+                   sizeof(in_port_t));
+            memcpy(buffer + sizeof(in_port_t),
+                   &peer.s6.sin6_addr,
+                   sizeof(struct in6_addr));
+            break;
+        default:
+            OPENSSL_assert(0);
+            break;
+    }
 
-	/* Calculate HMAC of buffer using the secret */
-	HMAC(EVP_sha1(), (const void*) cookie_secret, COOKIE_SECRET_LENGTH,
-		 (const unsigned char*) buffer, length, result, &resultlength);
-	OPENSSL_free(buffer);
+    /* Calculate HMAC of buffer using the secret */
+    HMAC(EVP_sha1(), (const void*) cookie_secret, COOKIE_SECRET_LENGTH,
+         (const unsigned char*) buffer, length, result, &resultlength);
+    OPENSSL_free(buffer);
 
-	memcpy(cookie, result, resultlength);
-	*cookie_len = resultlength;
+    memcpy(cookie, result, resultlength);
+    *cookie_len = resultlength;
 
-	return 1;
+    return 1;
 
 }
 
@@ -709,74 +711,74 @@ int verify_cookie(SSL *ssl, const unsigned char *cookie, unsigned int cookie_len
 
 {
 
-	unsigned char *buffer, result[EVP_MAX_MD_SIZE];
-	unsigned int length = 0, resultlength;
-	union {
-		struct sockaddr_storage ss;
-		struct sockaddr_in6 s6;
-		struct sockaddr_in s4;
-	} peer;
+    unsigned char *buffer, result[EVP_MAX_MD_SIZE];
+    unsigned int length = 0, resultlength;
+    union {
+        struct sockaddr_storage ss;
+        struct sockaddr_in6 s6;
+        struct sockaddr_in s4;
+    } peer;
 
-	/* If secret isn't initialized yet, the cookie can't be valid */
-	if (!cookie_initialized)
-		return 0;
+    /* If secret isn't initialized yet, the cookie can't be valid */
+    if (!cookie_initialized)
+        return 0;
 
-	/* Read peer information */
-	(void) BIO_dgram_get_peer(SSL_get_rbio(ssl), &peer);
+    /* Read peer information */
+    (void) BIO_dgram_get_peer(SSL_get_rbio(ssl), &peer);
 
-	/* Create buffer with peer's address and port */
-	length = 0;
-	switch (peer.ss.ss_family) {
-		case AF_INET:
-			length += sizeof(struct in_addr);
-			break;
-		case AF_INET6:
-			length += sizeof(struct in6_addr);
-			break;
-		default:
-			OPENSSL_assert(0);
-			break;
-	}
-	length += sizeof(in_port_t);
-	buffer = (unsigned char*) OPENSSL_malloc(length);
+    /* Create buffer with peer's address and port */
+    length = 0;
+    switch (peer.ss.ss_family) {
+        case AF_INET:
+            length += sizeof(struct in_addr);
+            break;
+        case AF_INET6:
+            length += sizeof(struct in6_addr);
+            break;
+        default:
+            OPENSSL_assert(0);
+            break;
+    }
+    length += sizeof(in_port_t);
+    buffer = (unsigned char*) OPENSSL_malloc(length);
 
-	if (buffer == NULL)
-		{
-		printf("out of memory\n");
-		return 0;
-		}
+    if (buffer == NULL)
+        {
+        printf("out of memory\n");
+        return 0;
+        }
 
-	switch (peer.ss.ss_family) {
-		case AF_INET:
-			memcpy(buffer,
-				   &peer.s4.sin_port,
-				   sizeof(in_port_t));
-			memcpy(buffer + sizeof(in_port_t),
-				   &peer.s4.sin_addr,
-				   sizeof(struct in_addr));
-			break;
-		case AF_INET6:
-			memcpy(buffer,
-				   &peer.s6.sin6_port,
-				   sizeof(in_port_t));
-			memcpy(buffer + sizeof(in_port_t),
-				   &peer.s6.sin6_addr,
-				   sizeof(struct in6_addr));
-			break;
-		default:
-			OPENSSL_assert(0);
-			break;
-	}
+    switch (peer.ss.ss_family) {
+        case AF_INET:
+            memcpy(buffer,
+                   &peer.s4.sin_port,
+                   sizeof(in_port_t));
+            memcpy(buffer + sizeof(in_port_t),
+                   &peer.s4.sin_addr,
+                   sizeof(struct in_addr));
+            break;
+        case AF_INET6:
+            memcpy(buffer,
+                   &peer.s6.sin6_port,
+                   sizeof(in_port_t));
+            memcpy(buffer + sizeof(in_port_t),
+                   &peer.s6.sin6_addr,
+                   sizeof(struct in6_addr));
+            break;
+        default:
+            OPENSSL_assert(0);
+            break;
+    }
 
-	/* Calculate HMAC of buffer using the secret */
-	HMAC(EVP_sha1(), (const void*) cookie_secret, COOKIE_SECRET_LENGTH,
-		 (const unsigned char*) buffer, length, result, &resultlength);
-	OPENSSL_free(buffer);
+    /* Calculate HMAC of buffer using the secret */
+    HMAC(EVP_sha1(), (const void*) cookie_secret, COOKIE_SECRET_LENGTH,
+         (const unsigned char*) buffer, length, result, &resultlength);
+    OPENSSL_free(buffer);
 
-	if (cookie_len == resultlength && memcmp(result, cookie, resultlength) == 0)
-		return 1;
+    if (cookie_len == resultlength && memcmp(result, cookie, resultlength) == 0)
+        return 1;
 
-	return 0;
+    return 0;
 
 }
 
@@ -809,28 +811,28 @@ void pa_addrnet(string name, unsigned long* addr)
 
 {
 
-	struct addrinfo *p;
-	int r;
-	int af;
+    struct addrinfo *p;
+    int r;
+    int af;
 
     af = FALSE; /* set address not found */
-	r = getaddrinfo(name, NULL, NULL, &p);
-	if (r) netwrterr(gai_strerror(r));
-	while (p) {
+    r = getaddrinfo(name, NULL, NULL, &p);
+    if (r) netwrterr(gai_strerror(r));
+    while (p) {
 
-    	/* traverse the available addresses */
+        /* traverse the available addresses */
         if (p->ai_family == AF_INET && p->ai_socktype == SOCK_STREAM) {
 
             /* get the IPv4 address */
-	        *addr =
-	            ntohl(((struct sockaddr_in*)(p->ai_addr))->sin_addr.s_addr);
-	        af = TRUE; /* set an address found */
+            *addr =
+                ntohl(((struct sockaddr_in*)(p->ai_addr))->sin_addr.s_addr);
+            af = TRUE; /* set an address found */
 
-	    }
-	    p = p->ai_next;
+        }
+        p = p->ai_next;
 
-	}
-	if (!af) error(enetadr); /* no address found */
+    }
+    if (!af) error(enetadr); /* no address found */
 
 }
 
@@ -848,17 +850,17 @@ void pa_addrnetv6(string name, unsigned long long* addrh,
 
 {
 
-	struct addrinfo *p;
-	int r;
-	int af;
-	struct sockaddr_in6* sap;
+    struct addrinfo *p;
+    int r;
+    int af;
+    struct sockaddr_in6* sap;
 
     af = FALSE; /* set address not found */
-	r = getaddrinfo(name, NULL, NULL, &p);
-	if (r) netwrterr(gai_strerror(r));
-	while (p) {
+    r = getaddrinfo(name, NULL, NULL, &p);
+    if (r) netwrterr(gai_strerror(r));
+    while (p) {
 
-    	/* traverse the available addresses */
+        /* traverse the available addresses */
         if (p->ai_family == AF_INET6 && p->ai_socktype == SOCK_STREAM) {
 
             /* get the IPv6 address */
@@ -867,13 +869,13 @@ void pa_addrnetv6(string name, unsigned long long* addrh,
                     (unsigned long long) ntohl(sap->sin6_addr.__in6_u.__u6_addr32[1]);
             *addrl = (unsigned long long) ntohl(sap->sin6_addr.__in6_u.__u6_addr32[2]) << 32 |
                     (unsigned long long) ntohl(sap->sin6_addr.__in6_u.__u6_addr32[3]);
-	        af = TRUE; /* set an address found */
+            af = TRUE; /* set an address found */
 
-	    }
-	    p = p->ai_next;
+        }
+        p = p->ai_next;
 
-	}
-	if (!af) error(enetadr); /* no address found */
+    }
+    if (!af) error(enetadr); /* no address found */
 
 }
 
@@ -1083,7 +1085,7 @@ int pa_openmsg(
         /* clear local */
         memset((void *) &laddr, 0, sizeof(struct sockaddr_storage));
         laddr.s4.sin_family = AF_INET;
-	    laddr.s4.sin_port = htons(0);
+        laddr.s4.sin_port = htons(0);
         r = bind(fn, (const struct sockaddr *) &laddr, sizeof(struct sockaddr_in));
         if (r) linuxerror();
 
@@ -1096,20 +1098,20 @@ int pa_openmsg(
         r = connect(fn, (struct sockaddr *) &opnfil[fn]->saddr, sizeof(struct sockaddr_in));
         if (r) linuxerror();
 
-	    BIO_ctrl(opnfil[fn]->bio, BIO_CTRL_DGRAM_SET_CONNECTED, 0, &opnfil[fn]->saddr.ss);
+        BIO_ctrl(opnfil[fn]->bio, BIO_CTRL_DGRAM_SET_CONNECTED, 0, &opnfil[fn]->saddr.ss);
 
-	    SSL_set_bio(opnfil[fn]->ssl, opnfil[fn]->bio, opnfil[fn]->bio);
+        SSL_set_bio(opnfil[fn]->ssl, opnfil[fn]->bio, opnfil[fn]->bio);
 
-	    r = SSL_connect(opnfil[fn]->ssl);
-	    if (r <= 0) sslerror(opnfil[fn]->ssl, r);
+        r = SSL_connect(opnfil[fn]->ssl);
+        if (r <= 0) sslerror(opnfil[fn]->ssl, r);
 
-	    /* Set and activate timeouts */
-	    timeout.tv_sec = 3;
-	    timeout.tv_usec = 0;
-	    BIO_ctrl(opnfil[fn]->bio, BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
+        /* Set and activate timeouts */
+        timeout.tv_sec = 3;
+        timeout.tv_usec = 0;
+        BIO_ctrl(opnfil[fn]->bio, BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
 
-	    /* set secure udp */
-	    opnfil[fn]->sudp = TRUE;
+        /* set secure udp */
+        opnfil[fn]->sudp = TRUE;
 
     }
 
@@ -1171,7 +1173,7 @@ int pa_openmsgv6(
         /* clear local */
         memset((void *) &laddr, 0, sizeof(struct sockaddr_storage));
         laddr.s6.sin6_family = AF_INET6;
-	    laddr.s6.sin6_port = htons(0);
+        laddr.s6.sin6_port = htons(0);
         r = bind(fn, (const struct sockaddr *) &laddr, sizeof(struct sockaddr_in6));
         if (r) linuxerror();
 
@@ -1184,20 +1186,20 @@ int pa_openmsgv6(
         r = connect(fn, (struct sockaddr *) &opnfil[fn]->saddr, sizeof(struct sockaddr_in6));
         if (r) linuxerror();
 
-	    BIO_ctrl(opnfil[fn]->bio, BIO_CTRL_DGRAM_SET_CONNECTED, 0, &opnfil[fn]->saddr.ss);
+        BIO_ctrl(opnfil[fn]->bio, BIO_CTRL_DGRAM_SET_CONNECTED, 0, &opnfil[fn]->saddr.ss);
 
-	    SSL_set_bio(opnfil[fn]->ssl, opnfil[fn]->bio, opnfil[fn]->bio);
+        SSL_set_bio(opnfil[fn]->ssl, opnfil[fn]->bio, opnfil[fn]->bio);
 
-	    r = SSL_connect(opnfil[fn]->ssl);
-	    if (r <= 0) sslerror(opnfil[fn]->ssl, r);
+        r = SSL_connect(opnfil[fn]->ssl);
+        if (r <= 0) sslerror(opnfil[fn]->ssl, r);
 
-	    /* Set and activate timeouts */
-	    timeout.tv_sec = 3;
-	    timeout.tv_usec = 0;
-	    BIO_ctrl(opnfil[fn]->bio, BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
+        /* Set and activate timeouts */
+        timeout.tv_sec = 3;
+        timeout.tv_usec = 0;
+        BIO_ctrl(opnfil[fn]->bio, BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
 
-	    /* set secure udp */
-	    opnfil[fn]->sudp = TRUE;
+        /* set secure udp */
+        opnfil[fn]->sudp = TRUE;
 
     }
 
@@ -1262,50 +1264,50 @@ int pa_waitmsg(/* port number to wait on */ int port,
     /* set up for DTLS operation if selected */
     if (secure) {
 
-   		memset(&caddr, 0, sizeof(socket_struct));
+           memset(&caddr, 0, sizeof(socket_struct));
 
-		/* Create BIO */
-		opnfil[fn]->bio = BIO_new_dgram(fn, BIO_NOCLOSE);
+        /* Create BIO */
+        opnfil[fn]->bio = BIO_new_dgram(fn, BIO_NOCLOSE);
 
-		/* Set and activate timeouts */
-		timeout.tv_sec = 5;
-		timeout.tv_usec = 0;
-		BIO_ctrl(opnfil[fn]->bio, BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
+        /* Set and activate timeouts */
+        timeout.tv_sec = 5;
+        timeout.tv_usec = 0;
+        BIO_ctrl(opnfil[fn]->bio, BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
 
-		opnfil[fn]->ssl = SSL_new(server_dtls_ctx);
-		if (!opnfil[fn]->ssl) sslerrorqueue();
+        opnfil[fn]->ssl = SSL_new(server_dtls_ctx);
+        if (!opnfil[fn]->ssl) sslerrorqueue();
 
-		SSL_set_bio(opnfil[fn]->ssl, opnfil[fn]->bio, opnfil[fn]->bio);
-		SSL_set_options(opnfil[fn]->ssl, SSL_OP_COOKIE_EXCHANGE);
+        SSL_set_bio(opnfil[fn]->ssl, opnfil[fn]->bio, opnfil[fn]->bio);
+        SSL_set_options(opnfil[fn]->ssl, SSL_OP_COOKIE_EXCHANGE);
 
-		while (DTLSv1_listen(opnfil[fn]->ssl, (BIO_ADDR *) &caddr) <= 0);
+        while (DTLSv1_listen(opnfil[fn]->ssl, (BIO_ADDR *) &caddr) <= 0);
 
-	    fn2 = socket(AF_INET6, SOCK_DGRAM, 0);
-	    if (fn2 < 0) linuxerror();
+        fn2 = socket(AF_INET6, SOCK_DGRAM, 0);
+        if (fn2 < 0) linuxerror();
 
-	    setsockopt(fn2, SOL_SOCKET, SO_REUSEADDR, (const void*) &on, (socklen_t) sizeof(on));
-	    r = bind(fn2, (const struct sockaddr *) &opnfil[fn]->saddr.s6, sizeof(struct sockaddr_in6));
-	    if (r) linuxerror();
-	    r = connect(fn2, (struct sockaddr *) &caddr.s6, sizeof(struct sockaddr_in6));
-	    if (r) linuxerror();
+        setsockopt(fn2, SOL_SOCKET, SO_REUSEADDR, (const void*) &on, (socklen_t) sizeof(on));
+        r = bind(fn2, (const struct sockaddr *) &opnfil[fn]->saddr.s6, sizeof(struct sockaddr_in6));
+        if (r) linuxerror();
+        r = connect(fn2, (struct sockaddr *) &caddr.s6, sizeof(struct sockaddr_in6));
+        if (r) linuxerror();
 
-	    /* Set new fd and set BIO to connected */
-	    BIO_set_fd(SSL_get_rbio(opnfil[fn]->ssl), fn2, BIO_NOCLOSE);
-	    BIO_ctrl(SSL_get_rbio(opnfil[fn]->ssl), BIO_CTRL_DGRAM_SET_CONNECTED,
-	             0, &caddr.ss);
+        /* Set new fd and set BIO to connected */
+        BIO_set_fd(SSL_get_rbio(opnfil[fn]->ssl), fn2, BIO_NOCLOSE);
+        BIO_ctrl(SSL_get_rbio(opnfil[fn]->ssl), BIO_CTRL_DGRAM_SET_CONNECTED,
+                 0, &caddr.ss);
 
-	    /* Finish handshake */
-	    do { r = SSL_accept(opnfil[fn]->ssl); } while (r == 0);
-	    if (r < 0) sslerror(opnfil[fn]->ssl, r);
+        /* Finish handshake */
+        do { r = SSL_accept(opnfil[fn]->ssl); } while (r == 0);
+        if (r < 0) sslerror(opnfil[fn]->ssl, r);
 
-	    /* Set and activate timeouts */
-	    timeout.tv_sec = 5;
-	    timeout.tv_usec = 0;
-	    BIO_ctrl(SSL_get_rbio(opnfil[fn]->ssl), BIO_CTRL_DGRAM_SET_RECV_TIMEOUT,
-	             0, &timeout);
+        /* Set and activate timeouts */
+        timeout.tv_sec = 5;
+        timeout.tv_usec = 0;
+        BIO_ctrl(SSL_get_rbio(opnfil[fn]->ssl), BIO_CTRL_DGRAM_SET_RECV_TIMEOUT,
+                 0, &timeout);
 
-	    /* set secure udp */
-	    opnfil[fn]->sudp = TRUE;
+        /* set secure udp */
+        opnfil[fn]->sudp = TRUE;
 
     }
 
@@ -1341,12 +1343,12 @@ int pa_maxmsg(unsigned long addr)
 
     /* set up target address */
     memset(&saddr, 0, sizeof(saddr));
-	saddr.sin_family = AF_INET;
-	saddr.sin_addr.s_addr = htonl(addr);
+    saddr.sin_family = AF_INET;
+    saddr.sin_addr.s_addr = htonl(addr);
 
     /* create socket */
-	fn = socket(AF_INET, SOCK_DGRAM, 0);
-	if (fn < 0) linuxerror();
+    fn = socket(AF_INET, SOCK_DGRAM, 0);
+    if (fn < 0) linuxerror();
 
     /* connect to address */
     r = connect(fn, (struct sockaddr *)&saddr, sizeof(saddr));
@@ -1401,8 +1403,8 @@ int pa_maxmsgv6(unsigned long long addrh, unsigned long long addrl)
         (uint32_t) htonl(addrl & 0xffffffff);
 
     /* create socket */
-	fn = socket(AF_INET6, SOCK_DGRAM, 0);
-	if (fn < 0) linuxerror();
+    fn = socket(AF_INET6, SOCK_DGRAM, 0);
+    if (fn < 0) linuxerror();
 
     /* connect to address */
     r = connect(fn, (struct sockaddr *)&saddr, sizeof(saddr));
@@ -2328,15 +2330,15 @@ static int ivopen(popen_t opendc, const char* pathname, int flags, int perm)
     r = (*opendc)(pathname, flags, perm);
     if (r >= 0) {
 
-    	if (r < 0 || r > MAXFIL) error(einvhan); /* invalid file handle */
-    	if (opnfil[r]) { /* if not tracked, don't touch it */
+        if (r < 0 || r > MAXFIL) error(einvhan); /* invalid file handle */
+        if (opnfil[r]) { /* if not tracked, don't touch it */
 
-    	    makfil(r); /* create file entry as required */
-    	    /* open to close arguments on opposing threads can leave the open
-    	       indeterminate, but this is just a state issue. */
-    	    opnfil[r]->opn = TRUE; /* set open */
+            makfil(r); /* create file entry as required */
+            /* open to close arguments on opposing threads can leave the open
+               indeterminate, but this is just a state issue. */
+            opnfil[r]->opn = TRUE; /* set open */
 
-    	}
+        }
 
     }
 
@@ -2642,13 +2644,13 @@ static void pa_init_network()
     SSL_CTX_set_ecdh_auto(server_dtls_ctx, 1);
 
     /* Client has to authenticate */
-	SSL_CTX_set_verify(server_dtls_ctx,
-	                   SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE,
-	                   dtls_verify_callback);
+    SSL_CTX_set_verify(server_dtls_ctx,
+                       SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE,
+                       dtls_verify_callback);
 
     SSL_CTX_set_session_cache_mode(server_dtls_ctx, SSL_SESS_CACHE_OFF);
-	SSL_CTX_set_cookie_generate_cb(server_dtls_ctx, generate_cookie);
-	SSL_CTX_set_cookie_verify_cb(server_dtls_ctx, &verify_cookie);
+    SSL_CTX_set_cookie_generate_cb(server_dtls_ctx, generate_cookie);
+    SSL_CTX_set_cookie_verify_cb(server_dtls_ctx, &verify_cookie);
 
     /* set cookie uninitialized */
     cookie_initialized = FALSE;
@@ -2657,7 +2659,7 @@ static void pa_init_network()
 
 /*******************************************************************************
 
-Netlib shutdown
+Network shutdown
 
 *******************************************************************************/
 
