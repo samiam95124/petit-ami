@@ -6,15 +6,15 @@
 *                                                                              *
 *                              5/06 S. A. Franco                               *
 *                                                                              *
-* Implements access to internet functions, via tcp/ip. tcp/ip is implemented   *
-* via the "file" paradygm. An address and port is used to create a file, then  *
+* Implements access to Internet functions, via tcp/ip. tcp/ip is implemented   *
+* via the "file" paradigm. An address and port is used to create a file, then  *
 * normal C read and write statements are used to access it.                    *
 *                                                                              *
 * Also implement message or fixed length packet service for use in high        *
 * performance computing and applications that need to determine their own      *
 * reliable delivery protocols like audio and video data.                       *
 *                                                                              *
-* The linux version, and in fact probably all versions, rely on stacking atop  *
+* The Linux version, and in fact probably all versions, rely on stacking atop  *
 * openssl.                                                                     *
 *                                                                              *
 *                          BSD LICENSE INFORMATION                             *
