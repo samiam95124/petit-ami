@@ -48,6 +48,7 @@
 #define _WIN32_WINNT 0xA00
 
 /* Windows/mingw definitions */
+#include <sys/types.h>
 #include <stdio.h>
 #include <windows.h>
 
@@ -106,10 +107,9 @@ extern void ovr_lseek(plseek_t nfp, plseek_t* ofp);
    windows that are attached to it. */
 typedef struct {
 
-    int      net;   /* it's a network file */
-    filhdl   han;   /* handle to underlying I/O file */
-    int      sock;  /* handle to network socket */
-    sockaddr socka; /* socket address structure */
+    int                net;   /* it's a network file */
+    int                sock;  /* handle to network socket */
+    struct sockaddr_in socka; /* socket address structure */
 
 } filrec, *filptr;
 
@@ -145,7 +145,6 @@ static punlink_t ofpunlink;
 static plseek_t  ofplseek;
 
 filptr  opnfil[MAXFIL]; /* open files table */
-wsadata wsd: wsadata;   /* Winsock data structure */
 
 /* The double fault flag is set when exiting, so if we exit again, it
   is checked, then forces an immediate exit. This keeps faults from
@@ -247,6 +246,8 @@ static filptr getfil(void)
 
 {
 
+    filptr fp;
+
     /* get entry */
     fp = malloc(sizeof(filrec));
     if (!fp) error(enomem); /* didn't work */
@@ -338,26 +339,26 @@ FILE* pa_opennet(/* IP address */      unsigned long addr,
 
 {
 
-    FILE*  fp; /* file pointer */
-    int    fn; /* file number */
+    FILE*  fp;  /* file pointer */
+    int    fn;  /* file number */
     filptr fep; /* file tracking pointer */
+    int    r;   /* return value */
 
     /* open file handle as null */
     fp = fopen("nul", "w");
-    fn = fileno(*outfile); /* get logical file no. */
+    fn = fileno(fp); /* get logical file no. */
     newfil(fn); /* get/renew file entry */
     fep = opnfil[fn]; /* index that */
-    fep->net = true; /* set as network file */
+    fep->net = TRUE; /* set as network file */
 
-    inp = true; /* set its the input side */
     /* open socket as internet, stream */
     fep->sock = socket(AF_INET, SOCK_STREAM, 0);
     if (fep->sock == INVALID_SOCKET) wskerr(); /* process Winsock error */
     fep->socka.sin_family = PF_INET;
     /* note, parameters specified in big endian */
-    socka.sin_port = htons(port);
-    socka.sin_addr = htonl(addr);
-    r = connect(sock, socka, sizeof(sockaddr));
+    fep->socka.sin_port = htons(port);
+    fep->socka.sin_addr.S_un.S_addr = htonl(addr);
+    r = connect(fep->sock, (struct sockaddr*)&fep->socka, sizeof(struct sockaddr_in));
     if (r == SOCKET_ERROR) wskerr(); /* process Winsock error */
 
 }
@@ -775,13 +776,12 @@ void clsfil(filptr fr)
 
 {
 
-    fr->net   = false; /* set not network file */
-    fr->han   = 0;     /* clear out file table entry */
+    fr->net   = FALSE; /* set not network file */
     fr->sock  = 0;     /* clear out socket entry */
 
 }
 
-void iclose(int fn)
+int iclose(int fd)
 
 {
 
@@ -791,17 +791,19 @@ void iclose(int fn)
     if (fd < 0 || fd > MAXFIL) error(einvhan); /* invalid file handle */
     if (opnfil[fd]) { /* if not tracked, don't touch it */
 
-        if opnfil[fn]->net then { /* it's a network file */
+        if (opnfil[fd]->net) { /* it's a network file */
 
             /* b = disconnectex(sock, 0); */ /* disconnect socket */
             /* if ! b then wskerr; */ /* cannot disconnnect */
-            r = closesocket(opnfil[fn]->sock); /* close socket */
+            r = closesocket(opnfil[fd]->sock); /* close socket */
             if (r) wskerr(); /* cannot close socket */
 
         }
         clsfil(opnfil[fd]); /* close entry */
 
-    } r = (*closedc)(fd); /* normal file and socket close */
+    } r = (*ofpclose)(fd); /* normal file and socket close */
+
+    return (r);
 
 }
 
@@ -823,13 +825,15 @@ static ssize_t iread(int fd, void* buff, size_t count)
     if (fd < 0 || fd > MAXFIL) error(einvhan); /* invalid file handle */
     if (opnfil[fd]) { /* if not tracked, don't touch it */
 
-        if (opnfil[fn]->net) { /* process network file */
+        if (opnfil[fd]->net) { /* process network file */
 
-            r = recv(opnfil[fn]->sock, buff, count, 0); /* receive network data */
+            r = recv(opnfil[fd]->sock, buff, count, 0); /* receive network data */
             if (!r) error(esckeof); /* flag eof error */
             if (r != count) wskerr(); /* flag read error */
 
-    } r = (*readdc)(fd, buff, count); /* standard file and socket read */
+        }
+
+    } else r = (*ofpread)(fd, buff, count); /* standard file and socket read */
 
     return (r);
 
@@ -853,15 +857,17 @@ static ssize_t iwrite(int fd, const void* buff, size_t count)
     if (fd < 0 || fd > MAXFIL) error(einvhan); /* invalid file handle */
     if (opnfil[fd]) { /* if not tracked, don't touch it */
 
-        if (opnfil[fn]->net) { /* process network file */
+        if (opnfil[fd]->net) { /* process network file */
 
             /* transmit network data */
             r = send(opnfil[fd]->sock, buff, count, 0);
             if (r != count) wskerr(); /* flag write error */
 
+        }
+
     } else
         /* standard file and socket write */
-        r = (*writedc)(fd, buff, count);
+        r = (*ofpwrite)(fd, buff, count);
 
     return (r);
 
@@ -881,7 +887,7 @@ static off_t ilseek(int fd, off_t offset, int whence)
 
     if (fd < 0 || fd > MAXFIL) error(einvhan); /* invalid file handle */
 
-    return (*lseekdc)(fd, offset, whence);
+    return (*ofplseek)(fd, offset, whence);
 
 }
 
@@ -896,8 +902,9 @@ static void pa_init_network()
 
 {
 
-    int fi; /* index for file tables */
-    int r; /* result code */
+    int     fi;  /* index for file tables */
+    int     r;   /* result code */
+    WSADATA wsd; /* windows socket data */
 
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
@@ -906,13 +913,13 @@ static void pa_init_network()
     ovr_close(iclose, &ofpclose);
     ovr_lseek(ilseek, &ofplseek);
 
-    dblflt = false; /* set no double fault */
+    dblflt = FALSE; /* set no double fault */
 
     /* clear open files table */
     for (fi = 0; fi < MAXFIL; fi++) opnfil[fi] = NULL; /* set unoccupied */
 
     /* perform winsock startup */
-    r = WSAStartup(0x0002, wsd);
+    r = WSAStartup(0x0002, &wsd);
     if (r) wskerr(); /* can't initalize Winsock */
 
 }
@@ -922,6 +929,9 @@ static void pa_init_network()
 Network shutdown
 
 *******************************************************************************/
+
+static void pa_deinit_network (void) __attribute__((destructor (103)));
+static void pa_deinit_network()
 
 {
 
@@ -940,7 +950,7 @@ Network shutdown
         dblflt = TRUE; /* set we already exited */
         /* close all open files */
         for (fi = 0; fi < MAXFIL; fi++)
-            if (opnfil[fi] && (opnfil[fi]->han || opnfil[fi]->net)
+            if (opnfil[fi] && opnfil[fi]->net)
                 iclose(fi); /* close file */
 
     }
