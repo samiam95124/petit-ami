@@ -310,9 +310,9 @@ ifeq ($(OSTYPE),Windows_NT)
     #
     # Windows
     #
-    PLIBS += -lwinmm
-    CLIBS += -lwinmm -lgdi32
-    GLIBS += -lwinmm -lgdi32 -lcomdlg32
+    PLIBS += -lwinmm -lwsock32
+    CLIBS += -lwinmm -lgdi32 -lwsock32
+    GLIBS += -lwinmm -lgdi32 -lcomdlg32 -lwsock32
 
 else ifeq ($(OSTYPE),Darwin)
 
