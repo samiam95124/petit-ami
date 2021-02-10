@@ -81,6 +81,24 @@ static enum { /* debug levels */
 
 #define MAXFIL 100 /* maximum number of open files */
 
+/* types of system vectors for override calls */
+
+typedef ssize_t (*pread_t)(int, void*, size_t);
+typedef ssize_t (*pwrite_t)(int, const void*, size_t);
+typedef int     (*popen_t)(const char*, int, int);
+typedef int     (*pclose_t)(int);
+typedef int     (*punlink_t)(const char*);
+typedef off_t   (*plseek_t)(int, off_t, int);
+
+/* system override calls */
+
+extern void ovr_read(pread_t nfp, pread_t* ofp);
+extern void ovr_write(pwrite_t nfp, pwrite_t* ofp);
+extern void ovr_open(popen_t nfp, popen_t* ofp);
+extern void ovr_close(pclose_t nfp, pclose_t* ofp);
+extern void ovr_unlink(punlink_t nfp, punlink_t* ofp);
+extern void ovr_lseek(plseek_t nfp, plseek_t* ofp);
+
 /* File tracking.
    Files can be passthrough to syslib, or can be associated with a window. If
    on a window, they can be output, or they can be input. In the case of
@@ -89,21 +107,18 @@ static enum { /* debug levels */
 typedef struct {
 
     int      net;   /* it's a network file */
-    int      inp;   /* it's the input side of a network file */
     filhdl   han;   /* handle to underlying I/O file */
     int      sock;  /* handle to network socket */
     sockaddr socka; /* socket address structure */
-    filhdl   lnk;   /* link to other side of network pair */
-    int      autoc; /* entry was automatically closed as pair */
 
 } filrec, *filptr;
 
 /* error codes */
 typedef enum {
 
-    ewskini, /* cannot initalize winsock */
+    ewskini, /* cannot initialize winsock */
     einvhan, /* invalid file handle */
-    enetopn, /* cannot reset || rewrite network file */
+    enetopn, /* cannot open network file */
     enetpos, /* cannot position network file */
     enetloc, /* cannot find location network file */
     enetlen, /* cannot find length network file */
@@ -111,14 +126,25 @@ typedef enum {
     efinuse, /* file already in use */
     enetwrt, /* Attempt to write to input side of network pair */
     enomem,  /* Out of memory */
+    enoipv4, /* Cannot find IPV4 address */
+    enotimp, /* function not implemented */
     esystem  /* System consistency check */
 
 } errcod;
 
+/*
+ * Saved vectors to system calls. These vectors point to the old, existing
+ * vectors that were overridden by this module.
+ *
+ */
+static pread_t   ofpread;
+static pwrite_t  ofpwrite;
+static popen_t   ofpopen;
+static pclose_t  ofpclose;
+static punlink_t ofpunlink;
+static plseek_t  ofplseek;
+
 filptr  opnfil[MAXFIL]; /* open files table */
-filhdl  xltfil[MAXFIL]; /* window equivalence table */
-int     fi;             /* index for files table */
-int     r;              /* result */
 wsadata wsd: wsadata;   /* Winsock data structure */
 
 /* The double fault flag is set when exiting, so if we exit again, it
@@ -159,20 +185,22 @@ static void error(errcod e)
 
     switch (e) { /* error */
 
-        case ewskini:  netwrterr('Cannot initialize winsock'); break;
-        case einvhan:  netwrterr('Invalid file number'); break;
-        case enetopn:  netwrterr('Cannot reset or rewrite network file');
+        case ewskini:  netwrterr("Cannot initialize winsock"); break;
+        case einvhan:  netwrterr("Invalid file number"); break;
+        case enetopn:  netwrterr("Cannot reset or rewrite network file");
                        break;
-        case enetpos:  netwrterr('Cannot position network file'); break;
-        case enetloc:  netwrterr('Cannot find location network file'); break;
-        case enetlen:  netwrterr('Cannot find length network file'); break;
-        case esckeof:  netwrterr('End encountered on socket'); break;
-        case efinuse:  netwrterr('File already in use'); break;
+        case enetpos:  netwrterr("Cannot position network file"); break;
+        case enetloc:  netwrterr("Cannot find location network file"); break;
+        case enetlen:  netwrterr("Cannot find length network file"); break;
+        case esckeof:  netwrterr("End encountered on socket"); break;
+        case efinuse:  netwrterr("File already in use"); break;
         case enetwrt:
-            netwrterr('Attempt to write to input side of network pair'); break;
-        case enomem:   netwrterr('Out of memory'); break;
+            netwrterr("Attempt to write to input side of network pair"); break;
+        case enomem:   netwrterr("Out of memory"); break;
+        case enoipv4:  netwrterr("Cannot find IPV4 address"); break;
+        case enotimp:  netwrterr("Function not implemented"); break;
         case esystem:
-            netwrterr('System consistency check, please contact vendor'); break;
+            netwrterr("System consistency check, please contact vendor"); break;
 
     }
 
@@ -207,144 +235,526 @@ static void wskerr(void)
 
 Get file entry
 
-Allocates and initializes a new file entry. File entries are left in the opnfil
-array, so are recycled in place.
+Gets a file entry, either from the free stack or by allocation. Clears the
+fields in the file structure.
+
+Note that we assume the malloc() calls kernel functions, and so we should not
+call it with a lock.
 
 *******************************************************************************/
 
-void getfet(filptr* fp)
+static filptr getfil(void)
 
 {
 
-    *fp = malloc(sizeof(filrec)); /* get file entry */
-    if (!*fp) error(enomem); /* no memory error */
-    (*fp)->net   = FALSE; /* set ! a network file */
-    (*fp)->inp   = FALSE; /* set ! input side */
-    (*fp)->han   = 0;     /* set handle clear */
-    (*fp)->sock  = 0;     /* clear out socket entry */
-    (*fp)->lnk   = 0;     /* set no link */
-    (*fp)->autoc = FALSE; /* set no automatic close */
+    /* get entry */
+    fp = malloc(sizeof(filrec));
+    if (!fp) error(enomem); /* didn't work */
+    fp->net = FALSE; /* set not network file */
+
+    return (fp);
 
 }
 
 /*******************************************************************************
 
-Make file entry
+Get new file entry
 
-Indexes a present file entry or creates a new one. Looks for a free entry
-in the files table, indicated by 0. If found, that is returned, otherwise
-the file table is full.
-
-Note that the "predefined" file slots are never allocated.
+Checks the indicated file table entry, and allocates a new one if none is
+allocated. Then the file entry is initialized.
 
 *******************************************************************************/
 
-void makfil(filhdl* fn) /* file handle */
+void newfil(int fn)
 
 {
 
-    int fi; /* index for files table */
-    int ff; /* found file entry */
+    filptr fp;
 
-    /* find idle file slot (file with closed file entry) */
-    ff = -1; /* clear found file */
-    for (fi = 0; fi < MAXFIL; fi++) { /* search all file entries */
-
-        if (opnfil[fi] < 0) /* found an unallocated slot */
-            ff = fi; /* set found */
-        else
-            /* check if slot is allocated, but unoccupied */
-            if (opnfil[fi]->han == 0 && !opnfil[fi]->net)
-                ff = fi; /* set found */
-
-    }
-    if (ff < 0) error(einvhan); /* no empty file positions found */
-    if (!opnfil[ff]) getfet(opnfil[ff]); /* get and initialize the file entry */
-    fn = ff; /* set file id number */
+    /* See if the file entry is undefined, then get a file entry if not */
+    if (!opnfil[fn]) opnfil[fn] = getfil();
+    opnfil[fn]->net = FALSE;  /* set unoccupied */
 
 }
 
 /*******************************************************************************
 
-Get logical file number from file
+Get server address v4
 
-Gets the logical translated file number from a text file, and verifies it
-is valid.
+Retrieves a v4 server address by name. The name is given as a string. The
+address is returned as an integer.
 
 *******************************************************************************/
 
-int txt2lfn(FILE* f)
+void pa_addrnet(const string name, unsigned long* addr)
 
 {
 
-    int fn;
+    HOSTENT* hep; /* host entry struct */
 
-    fn = xltfil[getlfn(f)]; /* get and translate lfn */
-    if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
 
-    return (fn); /* return result */
+    hep = gethostbyname(name); /* get data structure for host address */
+    if (!hep) wskerr(); /* process Winsock error */
+    /* check ipv4 address */
+    if (hep->h_addrtype != AF_INET) error(enoipv4);
+    /* get first address */
+    *addr = *(u_long*)hep->h_addr_list[0];
 
 }
 
 /*******************************************************************************
 
-Check file entry open
+Get server address v6
 
-Checks if the given file handle corresponds to a file entry that is allocated,
-and open.
+Retrieves a v6 server address by name. The name is given as a string. The
+address is returned as an integer.
 
 *******************************************************************************/
 
-void chkopn(int fn)
+void pa_addrnetv6(string name, unsigned long long* addrh,
+                unsigned long long* addrl)
 
 {
 
-    if (!opnfil[fn]) error(einvhan); /* invalid handle */
-    if (!opnfil[fn]->han && !opnfil[fn]->net) error(einvhan);
+    error(enotimp);
 
 }
 
 /*******************************************************************************
 
-Open file for read
+Open network file
 
-Opens the file by name, and returns the file handle. Opens for read and write
-don't have any purpose for network files, because they are handled by opennet.
-The other files are passed through. If an openread is attempted on a net file,
-it is an error.
+Opens a network file with the given address and port. The file access is
+broken up into a read and write side, that work independently, can can be
+spread among different tasks. This is done because the Pascal file paradigm
+does not handle read/write on the same file well.
 
 *******************************************************************************/
 
-void fileopenread(int* fn, const string nm)
+FILE* pa_opennet(/* IP address */      unsigned long addr,
+                 /* port */            int port,
+                 /* link is secured */ int secure
+)
 
 {
 
-    makfil(*fn); /* find file slot */
-    if (strcmp(nm, '_input_network') /* open regular */
-      ss_old_openread(opnfil[fn]->han, nm, sav_openread)
+    FILE*  fp; /* file pointer */
+    int    fn; /* file number */
+    filptr fep; /* file tracking pointer */
+
+    /* open file handle as null */
+    fp = fopen("nul", "w");
+    fn = fileno(*outfile); /* get logical file no. */
+    newfil(fn); /* get/renew file entry */
+    fep = opnfil[fn]; /* index that */
+    fep->net = true; /* set as network file */
+
+    inp = true; /* set its the input side */
+    /* open socket as internet, stream */
+    fep->sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (fep->sock == INVALID_SOCKET) wskerr(); /* process Winsock error */
+    fep->socka.sin_family = PF_INET;
+    /* note, parameters specified in big endian */
+    socka.sin_port = htons(port);
+    socka.sin_addr = htonl(addr);
+    r = connect(sock, socka, sizeof(sockaddr));
+    if (r == SOCKET_ERROR) wskerr(); /* process Winsock error */
+
+}
+
+FILE* pa_opennetv6(
+    /* v6 address low */  unsigned long long addrh,
+    /* v6 address high */ unsigned long long addrl,
+    /* port */            int port,
+    /* link is secured */ int secure
+)
+
+{
+
+    error(enotimp);
 
 }
 
 /*******************************************************************************
 
-Open file for write
+Open message file
 
-Opens the file by name, && returns the file handle. Opens for read && write
-don't have any purpose for network files, because they are handled by opennet.
-The other files are passed through. If an openread is attempted on a net file,
-it is an error.
+Opens a message file with the given address, port and security. The file can be
+both written and read. The protocol used for the transfer is either UDP, or
+DTLS, with fixed length messages.
 
 *******************************************************************************/
 
-void fileopenwrite(var fn: ss_filhdl; view nm: char*);
+int pa_openmsg(
+    /* ip address */      unsigned long addr,
+    /* port */            int port,
+    /* link is secured */ int secure
+)
 
 {
 
-   makfil(fn); /* find file slot */
-   if ! compp(nm, '_output_network') then /* open regular */
-      ss_old_openwrite(opnfil[fn]->han, nm, sav_openwrite)
+    error(enotimp);
 
-};
+}
+
+int pa_openmsgv6(
+    /* v6 address low */  unsigned long long addrh,
+    /* v6 address high */ unsigned long long addrl,
+    /* port */            int port,
+    /* link is secured */ int secure
+)
+
+{
+
+    error(enotimp);
+
+}
+
+/*******************************************************************************
+
+Wait external message connection
+
+Waits for an external message socket connection on a given port address. If an
+external client connects to that port, then a socket file is opened and the file
+number returned. Note that any number of such connections can be active at one
+time. The program can invoke multiple tasks to handle each connection. If
+another program tries to take the same port, it is blocked.
+
+*******************************************************************************/
+
+int pa_waitmsg(/* port number to wait on */ int port,
+               /* secure mode */            int secure
+               )
+
+{
+
+    error(enotimp);
+
+}
+
+/*******************************************************************************
+
+Get maximum message size v4
+
+Returns the maximum size of messages in the system. This is typically 1500, or
+the maximum size of a UDP message, but can be larger, a so called "jumbo packet"
+at 64kb, or somewhere in between.
+
+We return the MTU reported by the interface. For a reliable network, this is
+the absolute packet size. For others, it will be the MTU of the interface, which
+packet breakage is possible.
+
+*******************************************************************************/
+
+int pa_maxmsg(unsigned long addr)
+
+{
+
+    error(enotimp);
+
+}
+
+/*******************************************************************************
+
+Get maximum message size v6
+
+Returns the maximum size of messages in the system. This is typically 1500, or
+the maximum size of a UDP message, but can be larger, a so called "jumbo packet"
+at 64kb, or somewhere in between.
+
+We return the MTU reported by the interface. For a reliable network, this is
+the absolute packet size. For others, it will be the MTU of the interface, which
+packet breakage is possible.
+
+*******************************************************************************/
+
+int pa_maxmsgv6(unsigned long long addrh, unsigned long long addrl)
+
+{
+
+    error(enotimp);
+
+}
+
+/*******************************************************************************
+
+Write message to message file
+
+Writes a message to the given message file. The message file must be open. Any
+size (including 0) up to pa_maxmsg() is allowed.
+
+*******************************************************************************/
+
+void pa_wrmsg(int fn, void* msg, unsigned long len)
+
+{
+
+    error(enotimp);
+
+}
+
+/*******************************************************************************
+
+Read message from message file
+
+Reads a message from the message file, of any length up to and including the
+specified buffer length. The actual length transferred is returned. The length
+of the buffer should be equal to maxmsg to pass all possible messages, unless it
+is known that a given message size will never be exceeded.
+
+*******************************************************************************/
+int pa_rdmsg(int fn, void* msg, unsigned long len)
+
+{
+
+    error(enotimp);
+
+}
+
+/*******************************************************************************
+
+Close message file
+
+Closes the given message file.
+
+*******************************************************************************/
+
+void pa_clsmsg(int fn)
+
+{
+
+    error(enotimp);
+
+}
+
+/*******************************************************************************
+
+Wait external network connection
+
+Waits for an external socket connection on a given port address. If an external
+client connects to that port, then a socket file is opened and the file number
+returned. Note that any number of such connections can be active at one time.
+The program can invoke multiple tasks to handle each connection. If another
+program tries to take the same port, it is blocked.
+
+*******************************************************************************/
+
+FILE* pa_waitnet(/* port number to wait on */ int port,
+                 /* secure mode */            int secure
+                )
+
+{
+
+    error(enotimp);
+
+}
+
+/*******************************************************************************
+
+Message files are reliable
+
+Returns true if the message files on this host are implemented with guaranteed
+delivery and in order. This is a property of high performance compute clusters,
+that the delivery of messages are guaranteed to arrive error free at their
+destination. If this property appears, the program can skip providing it's own
+retry or other error handling system.
+
+There are two versions of this routine, depending on if ipv4 or ipv6 addresses
+are used.
+
+At the moment, this is a test to see if the address is the local address of
+the host, meaning that it is a completely local connection that will not be
+carried on the wire. Thus it is reliable by definition.
+
+*******************************************************************************/
+
+int pa_relymsg(unsigned long addr)
+
+{
+
+    return (addr == 0x7f000001);
+
+}
+
+int pa_relymsgv6(unsigned long long addrh, unsigned long long addrl)
+
+{
+
+    return (addrh == 0 && addrl == 1); /* test local host */
+
+}
+
+/*******************************************************************************
+
+Get message certificate
+
+Fetches the SSL certificate for an DTLS connection. The file must contain
+an open and active DTLS connection. Retrieves on of the indicated
+certificates by number, from 1 to N where N is the maximum certificate in the
+chain. Certificate 1 is the certificate for the server connected. Certificate
+N is the CA or Certificate Authority's certificate, AKA the root certificate.
+The size of the certificate buffer is passed, and the actual length of the
+certificate is returned. If there is no certificate by a given number, the
+resulting length is zero.
+
+Certificates are in base64 format, the same as a PEM file, starting with the
+line "-----BEGIN CERTIFICATE-----" and ending with the line
+"-----END CERTIFICATE----". The buffer contains a whole
+certificate. Note that characters with value < 20 (control characters), may or
+may not be included in the certificate. Typically carriage returns, line feed
+or both may be used to break up lines in the certificate.
+
+Certificates are normally retrieved in numerical order, that is, 1, 2, 3...N.
+Thus the end of the certificate chain must be found by traversal.
+
+Note that this routine retrieves the peer certificate, or other end of the
+line. Servers are required to provide certificates. Clients are not.
+
+*******************************************************************************/
+
+int pa_certmsg(int fn, int which, string buff, int len)
+
+{
+
+    error(enotimp);
+
+}
+
+/*******************************************************************************
+
+Get network certificate
+
+Fetches the SSL certificate for an SSL connection. The file must contain an
+open and active SSL connection. Retrieves on of the indicated certificates by
+number, from 1 to N where N is the maximum certificate in the chain.
+Certificate 1 is the certificate for the server connected. Certificate N is the
+CA or Certificate Authority's certificate, AKA the root certificate. The size
+of the certificate buffer is passed, and the actual length of the certificate
+is returned. If there is no certificate by a given number, the resulting length
+is zero.
+
+Certificates are in base64 format, the same as a PEM file, except without the
+"BEGIN CERTIFICATE" and "END CERTIFICATE" lines. The buffer contains a whole
+certificate. Note that characters with value < 20 (control characters), may or
+may not be included in the certificate. Typically carriage returns, line feed
+or both may be used to break up lines in the certificate.
+
+Certificates are normally retrieved in numerical order, that is, 1, 2, 3...N.
+Thus the end of the certificate chain must be found by traversal.
+
+Note that this routine retrieves the peer certificate, or other end of the
+line. Servers are required to provide certificates. Clients are not.
+
+*******************************************************************************/
+
+int pa_certnet(FILE* f, int which, string buff, int len)
+
+{
+
+    error(enotimp);
+
+}
+
+/*******************************************************************************
+
+Get network certificate data list
+
+Retrieves a list of data fields from the given file by number. The file
+must contain an open and active SSL connection. The data list is a list of
+name - data pairs, both strings. The list can also have branches or forks,
+which make it able to contain complete trees. The certificate number is from
+1 to N where N is the maximum certificate in the chain. Certificate 1 is the
+certificate for the server connected. Certificate N is the CA or Certificate
+Authority's certificate, AKA the root certificate. If there is no certificate
+by that number, the resulting list is NULL.
+
+Certificates are normally retrieved in numerical order, that is, 1, 2, 3...N.
+Thus the end of the certificate chain must be found by traversal.
+
+Note that the list is allocated by this routine, and the caller is responsible
+for freeing the list as necessary.
+
+Note that this routine retrieves the peer certificate, or other end of the
+line. Servers are required to provide certificates. Clients are not.
+
+The formatting and tree structure mostly follows OpenSSL formatting. For
+example, the root is labeled "certificate" even if that it is fairly redundant,
+and is easy to prune off.
+
+*******************************************************************************/
+
+void pa_certlistnet(FILE *f, int which, pa_certptr* list)
+
+{
+
+    error(enotimp);
+
+}
+
+/*******************************************************************************
+
+Get message certificate data list
+
+Retrieves a list of data fields from the given file by number. The file
+must contain an open and active DTLS connection. The data list is a list of
+name - data pairs, both strings. The list can also have branches or forks, which
+make it able to contain complete trees. The certificate number is from 1 to N
+where N is the maximum certificate in the chain. Certificate 1 is the
+certificate for the server connected. Certificate N is the CA or Certificate
+Authority's certificate, AKA the root certificate. If there is no certificate
+by that number, the resulting list is NULL.
+
+Certificates are normally retrieved in numerical order, that is, 1, 2, 3...N.
+Thus the end of the certificate chain must be found by traversal.
+
+Note that the list is allocated by this routine, and the caller is responsible
+for freeing the list as necessary.
+
+Note that this routine retrieves the peer certificate, or other end of the
+line. Servers are required to provide certificates. Clients are not.
+
+*******************************************************************************/
+
+void pa_certlistmsg(int fn, int which, pa_certptr* list)
+
+{
+
+    error(enotimp);
+
+}
+
+/*******************************************************************************
+
+System call interdiction handlers
+
+The interdiction calls are the basic system calls used to implement stdio:
+
+read
+write
+open
+close
+lseek
+
+We use interdiction to allow network files to use stdio calls on network
+streams, but allow enhanced features to be implemented as well.
+
+*******************************************************************************/
+
+/*******************************************************************************
+
+Open
+
+We don't do anything for this, so pass it on.
+
+*******************************************************************************/
+
+static int iopen(const char* pathname, int flags, int perm)
+
+{
+
+    return (*ofpopen)(pathname, flags, perm);
+
+}
 
 /*******************************************************************************
 
@@ -353,81 +763,47 @@ Close file
 Closes the file. The file is closed at the system level, then we remove the
 table entry for the file.
 
-A file can be a normal file, the input side of a network connection, || the
-output side of a network connection. If its normal, it is passed on to the
-operating system. If it's the input || output side of a network connection,
-then the network connection is broken, && both the input && output sides
-are closed.
-
-We institute "automatic close forgiveness". Because network files are allocated
-in pairs, Paslib will attempt to close out its entire file entry table, and
-thus redundantly close these pairs. We flag the automatically closed side
-of a pair, which could be either side, && then forgive a call to close it.
-Being flagged automatically closed will ! prevent the entry from being
-reallocated on the next open, so this technique will only work for Paslib.
-It could create problems for multitask programs.
+A file can be a normal file or a network connection. If its normal, it is passed
+on to the operating system. If it's a network connection, then the network
+connection is broken, and both the input and output sides are closed.
 
 *******************************************************************************/
 
-void fileclose(fn: ss_filhdl);
+/* close and clear file entry */
 
-var r:        int;   /* result */
-    /* b:        boolean; */
-    ifn, ofn: ss_filhdl; /* input && output side ids */
-    acfn:     ss_filhdl; /* automatic close side */
-
-/* close && clear file entry */
-
-void clsfil(var fr: filrec);
+void clsfil(filptr fr)
 
 {
 
-   with fr do {
+    fr->net   = false; /* set not network file */
+    fr->han   = 0;     /* clear out file table entry */
+    fr->sock  = 0;     /* clear out socket entry */
 
-      net   = false; /* set ! network file */
-      inp   = false; /* set ! input side */
-      han   = 0;     /* clear out file table entry */
-      sock  = 0;     /* clear out socket entry */
-      lnk   = 0;     /* set no link */
-      autoc = false; /* set no automatic close */
+}
 
-   }
-
-};
+void iclose(int fn)
 
 {
 
-   if (fn < 1) || (fn > ss_maxhdl) then error(einvhan); /* invalid file handle */
-   if ! opnfil[fn]->autoc then chkopn(fn); /* check its open */
-   if opnfil[fn]->net then { /* it's a network file */
+    int r;   /* result */
+    int b;
 
-      acfn = opnfil[fn]->lnk; /* set which side will be automatically closed */
-      ifn = fn; /* set input side */
-      /* if we have the output side, link back to the input side */
-      if ! opnfil[fn]->inp then ifn = opnfil[fn]->lnk;
-      ofn = opnfil[ifn]->lnk; /* get output side id */
-      with opnfil[ifn]^ do { /* close the connection on socket */
+    if (fd < 0 || fd > MAXFIL) error(einvhan); /* invalid file handle */
+    if (opnfil[fd]) { /* if not tracked, don't touch it */
 
-         /* b = disconnectex(sock, 0); */ /* disconnect socket */
-         /* if ! b then wskerr; */ /* cannot disconnnect */
-         r = closesocket(sock); /* close socket */
-         if r <> 0 then wskerr /* cannot close socket */
+        if opnfil[fn]->net then { /* it's a network file */
 
-      };
-      clsfil(opnfil[ifn]^); /* close input side entry */
-      clsfil(opnfil[ofn]^); /* close output side entry */
-      opnfil[acfn]->autoc = true /* flag automatically closed side */
+            /* b = disconnectex(sock, 0); */ /* disconnect socket */
+            /* if ! b then wskerr; */ /* cannot disconnnect */
+            r = closesocket(opnfil[fn]->sock); /* close socket */
+            if (r) wskerr(); /* cannot close socket */
 
-   } else if ! opnfil[fn]->autoc then { /* standard file */
+        }
+        clsfil(opnfil[fd]); /* close entry */
 
-      chkopn(fn); /* check valid handle */
-      ss_old_close(opnfil[fn]->han, sav_close); /* close at lower level */
-      clsfil(opnfil[fn]^) /* close entry */
+    } r = (*closedc)(fd); /* normal file and socket close */
 
-   };
-   opnfil[fn]->autoc = false; /* remove automatic close status */
-
-};
+}
 
 /*******************************************************************************
 
@@ -438,27 +814,26 @@ If the file is a network file, we process a read on the associated socket.
 
 *******************************************************************************/
 
-void fileread(fn: ss_filhdl; var ba: bytarr);
-
-var r: int; /* int result */
+static ssize_t iread(int fd, void* buff, size_t count)
 
 {
 
-   if (fn < 1) || (fn > ss_maxhdl) then error(einvhan); /* invalid file handle */
-   if opnfil[fn]->net then { /* process network file */
+    int r; /* int result */
 
-      r = recv(opnfil[fn]->sock, ba, 0); /* receive network data */
-      if r == 0 then error(esckeof); /* flag eof error */
-      if r <> max(ba) then wskerr /* flag read error */
+    if (fd < 0 || fd > MAXFIL) error(einvhan); /* invalid file handle */
+    if (opnfil[fd]) { /* if not tracked, don't touch it */
 
-   } else {
+        if (opnfil[fn]->net) { /* process network file */
 
-      chkopn(fn); /* check valid handle */
-      ss_old_read(opnfil[fn]->han, ba, sav_read) /* pass to lower level */
+            r = recv(opnfil[fn]->sock, buff, count, 0); /* receive network data */
+            if (!r) error(esckeof); /* flag eof error */
+            if (r != count) wskerr(); /* flag read error */
 
-   }
+    } r = (*readdc)(fd, buff, count); /* standard file and socket read */
 
-};
+    return (r);
+
+}
 
 /*******************************************************************************
 
@@ -469,224 +844,46 @@ If the file is a network file, we process a write on the associated socket.
 
 *******************************************************************************/
 
-void filewrite(fn: ss_filhdl; view ba: bytarr);
-
-var r: int; /* int result */
+static ssize_t iwrite(int fd, const void* buff, size_t count)
 
 {
 
-   if (fn < 1) || (fn > ss_maxhdl) then error(einvhan); /* invalid file handle */
-   if opnfil[fn]->net then { /* process network file */
+    int r; /* int result */
 
-      if opnfil[fn]->inp then error(enetwrt); /* write to input side */
-      /* transmit network data */
-      r = s}(opnfil[opnfil[fn]->lnk]->sock, ba, 0);
-      if r <> max(ba) then wskerr /* flag write error */
+    if (fd < 0 || fd > MAXFIL) error(einvhan); /* invalid file handle */
+    if (opnfil[fd]) { /* if not tracked, don't touch it */
 
-   } else { /* standard file */
+        if (opnfil[fn]->net) { /* process network file */
 
-      chkopn(fn); /* check valid handle */
-      ss_old_write(opnfil[fn]->han, ba, sav_write) /* pass to lower level */
+            /* transmit network data */
+            r = send(opnfil[fd]->sock, buff, count, 0);
+            if (r != count) wskerr(); /* flag write error */
 
-   }
+    } else
+        /* standard file and socket write */
+        r = (*writedc)(fd, buff, count);
 
-};
+    return (r);
+
+}
 
 /*******************************************************************************
 
-Position file
+Lseek
 
-Positions the given file. Normal files are passed through. Network files give
-an error, since they have no specified location.
-
-*******************************************************************************/
-
-void fileposition(fn: ss_filhdl; p: int);
-
-{
-
-   if (fn < 1) || (fn > ss_maxhdl) then error(einvhan); /* invalid file handle */
-   chkopn(fn); /* check valid handle */
-   if opnfil[fn]->net then error(enetpos) /* cannot position this file */
-   else /* standard file */
-      ss_old_position(opnfil[fn]->han, p, sav_position) /* pass to lower level */
-
-};
-
-/*******************************************************************************
-
-Find location of file
-
-Find the location of the given file. Normal files are passed through. Network
-files give an error, since they have no specified location.
+Lseek is never possible on a network, so this just passed on.
 
 *******************************************************************************/
 
-int filelocation(fn: ss_filhdl): int;
+static off_t ilseek(int fd, off_t offset, int whence)
 
 {
 
-   if (fn < 1) || (fn > ss_maxhdl) then error(einvhan); /* invalid file handle */
-   chkopn(fn); /* check valid handle */
-   if opnfil[fn]->net then error(enetpos) /* cannot position this file */
-   else /* standard file */
-      filelocation =
-         ss_old_location(opnfil[fn]->han, sav_location) /* pass to lower level */
+    if (fd < 0 || fd > MAXFIL) error(einvhan); /* invalid file handle */
 
-};
+    return (*lseekdc)(fd, offset, whence);
 
-/*******************************************************************************
-
-Find length of file
-
-Find the length of the given file. Normal files are passed through. Network
-files give an error, since they have no specified length.
-
-*******************************************************************************/
-
-int filelength(fn: ss_filhdl): int;
-
-{
-
-   if (fn < 1) || (fn > ss_maxhdl) then error(einvhan); /* invalid file handle */
-   chkopn(fn); /* check valid handle */
-   if opnfil[fn]->net then error(enetpos) /* cannot position this file */
-   else /* standard file */
-      /* pass to lower level */
-      filelength = ss_old_length(opnfil[fn]->han, sav_length)
-
-};
-
-/*******************************************************************************
-
-Check eof of file
-
-Returns the eof status on the file. Normal files are passed through. Network
-files allways return false, because there is no specified eof signaling
-method.
-
-*******************************************************************************/
-
-int fileeof(fn: ss_filhdl): boolean;
-
-{
-
-   if (fn < 1) || (fn > ss_maxhdl) then error(einvhan); /* invalid file handle */
-   chkopn(fn); /* check valid handle */
-   if opnfil[fn]->net then fileeof = false /* network files never } */
-   else /* standard file */
-      fileeof = ss_old_eof(opnfil[fn]->han, sav_eof) /* pass to lower level */
-
-};
-
-/*******************************************************************************
-
-Open network file
-
-Opens a network file with the given address && port. The file access is
-broken up into a read && write side, that work indep}ently, can can be
-spread among different tasks. This is done because the Pascal file paradygm
-does ! handle read/write on the same file well.
-
-*******************************************************************************/
-
-void opennet(var infile, outfile: text; addr: int; port: int);
-
-var ifn, ofn: ss_filhdl; /* input && output file numbers */
-    r:        int;   /* return value */
-    i2b: record /* int to bytes converter */
-
-       case boolean of
-
-          false: (i: int);
-          true:  (b: array 4 of byte);
-
-       /* } */
-
-    };
-
-{
-
-   /* open input side */
-   if getlfn(infile) <> 0 then error(efinuse); /* file in use */
-   assign(infile, '_input_network'); /* assign special filename */
-   reset(infile); /* open file for reading */
-   ifn = txt2lfn(infile); /* index that entry */
-   opnfil[ifn]->net = true; /* set open network file */
-
-   /* open output side */
-   if getlfn(outfile) <> 0 then error(efinuse); /* file in use */
-   assign(outfile, '_output_network'); /* assign special filename */
-   rewrite(outfile); /* open file for writing */
-   ofn = txt2lfn(outfile); /* index that entry */
-   opnfil[ofn]->net = true; /* set open network file */
-
-   /* cross link the entries */
-   opnfil[ofn]->lnk = ifn; /* link output side to input side */
-   opnfil[ifn]->lnk = ofn; /* link input side to output side */
-
-   /* set up output side */
-   opnfil[ofn]->inp = false; /* set is output side */
-
-   /* Open socket && connect. We keep the parameters on the input side */
-   with opnfil[ifn]^ do { /* in file context */
-
-      inp = true; /* set its the input side */
-      /* open socket as internet, stream */
-      sock = socket(af_inet, sock_stream, 0);
-      if sock < 0 then wskerr; /* process Winsock error */
-      socka.sin_family = pf_inet;
-      /* note, parameters specified in big }ian */
-      socka.sin_port = port*0x100;
-      i2b.i = addr; /* convert address to bytes */
-      socka.sin_addr[0] = i2b.b[4];
-      socka.sin_addr[1] = i2b.b[3];
-      socka.sin_addr[2] = i2b.b[2];
-      socka.sin_addr[3] = i2b.b[1];
-      r = connect(sock, socka, sockaddr_len);
-      if r < 0 then wskerr /* process Winsock error */
-
-   }
-
-};
-
-/*******************************************************************************
-
-Get server address
-
-Retrives a server address by name. The name is given as a char*. The address
-is returned as an int.
-
-*******************************************************************************/
-
-void addrnet(view name: char*; var addr: int);
-
-var sp: hostent_ptr; /* host entry pointer */
-    i2b: record /* int to bytes converter */
-
-       case boolean of
-
-          false: (i: int);
-          true:  (b: array 4 of char);
-
-       /* } */
-
-    };
-
-{
-
-   sp = gethostbyname(name); /* get data structure for host address */
-   if sp == nil then wskerr; /* process Winsock error */
-   /* check at least one address present */
-   if sp->h_addr_list^[0] == nil then error(esystem);
-   i2b.b[4] = sp->h_addr_list^[0]^[0]; /* get 1st address in list */
-   i2b.b[3] = sp->h_addr_list^[0]^[1];
-   i2b.b[2] = sp->h_addr_list^[0]^[2];
-   i2b.b[1] = sp->h_addr_list^[0]^[3];
-
-   addr = i2b.i /* place result */
-
-};
+}
 
 /*******************************************************************************
 
@@ -699,6 +896,9 @@ static void pa_init_network()
 
 {
 
+    int fi; /* index for file tables */
+    int r; /* result code */
+
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
     ovr_write(iwrite, &ofpwrite);
@@ -706,18 +906,16 @@ static void pa_init_network()
     ovr_close(iclose, &ofpclose);
     ovr_lseek(ilseek, &ofplseek);
 
-   dblflt = false; /* set no double fault */
+    dblflt = false; /* set no double fault */
 
-   /* clear open files table */
-   for fi = 1 to ss_maxhdl do opnfil[fi] = nil; /* set unoccupied */
-   /* clear file logical number translator table */
-   for fi = 1 to ss_maxhdl do xltfil[fi] = 0; /* set unoccupied */
+    /* clear open files table */
+    for (fi = 0; fi < MAXFIL; fi++) opnfil[fi] = NULL; /* set unoccupied */
 
-   /* perform winsock startup */
-   r = wsastartup(0x0002, wsd);
-   if r <> 0 then error(ewskini); /* can't initalize Winsock */
+    /* perform winsock startup */
+    r = WSAStartup(0x0002, wsd);
+    if (r) wskerr(); /* can't initalize Winsock */
 
-};
+}
 
 /*******************************************************************************
 
@@ -727,15 +925,35 @@ Network shutdown
 
 {
 
-   if ! dblflt then { /* we haven't already exited */
+    /* holding copies of system vectors */
+    pread_t cppread;
+    pwrite_t cppwrite;
+    popen_t cppopen;
+    pclose_t cppclose;
+    punlink_t cppunlink;
+    plseek_t cpplseek;
 
-      dblflt = true; /* set we already exited */
-      /* close all open files && windows */
-      for fi = 1 to ss_maxhdl do
-         if opnfil[fi] <> nil then
-            if (opnfil[fi]->han <> 0) || (opnfil[fi]->net) then
-               with opnfil[fi]^ do fileclose(fi)
+    int fi; /* index for file tables */
 
-   }
+    if (!dblflt) { /* we haven't already exited */
 
-}.
+        dblflt = TRUE; /* set we already exited */
+        /* close all open files */
+        for (fi = 0; fi < MAXFIL; fi++)
+            if (opnfil[fi] && (opnfil[fi]->han || opnfil[fi]->net)
+                iclose(fi); /* close file */
+
+    }
+    /* swap old vectors for existing vectors */
+    ovr_read(ofpread, &cppread);
+    ovr_write(ofpwrite, &cppwrite);
+    ovr_open(ofpopen, &cppopen);
+    ovr_close(ofpclose, &cppclose);
+    ovr_unlink(ofpunlink, &cppunlink);
+    ovr_lseek(ofplseek, &cpplseek);
+    /* if we don't see our own vector flag an error */
+    if (cppread != iread || cppwrite != iwrite || cppopen != iopen ||
+        cppclose != iclose /* || cppunlink != iunlink */ || cpplseek != ilseek)
+        error(esystem);
+
+}

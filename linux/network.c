@@ -2524,8 +2524,7 @@ static ssize_t iwrite_nocancel(int fd, const void* buff, size_t count)
 
 Lseek
 
-Lseek is never possible on a terminal, so this is always an error on the stdin
-or stdout handle.
+Lseek is never possible on a network, so this just passed on.
 
 *******************************************************************************/
 

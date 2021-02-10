@@ -67,9 +67,9 @@ typedef struct pa_certfield {
 
 } pa_certfield, *pa_certptr;
 
-void pa_addrnet(string name, unsigned long* addr);
-void pa_addrnetv6(string name, unsigned long long* addrh,
-                unsigned long long* addrl);
+void pa_addrnet(const string name, unsigned long* addr);
+void pa_addrnetv6(const string name, unsigned long long* addrh,
+                  unsigned long long* addrl);
 FILE* pa_opennet(unsigned long addr, int port, int secure);
 FILE* pa_opennetv6(unsigned long long addrh, unsigned long long addrl,
                    int port, int secure);
