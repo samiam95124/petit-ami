@@ -436,7 +436,7 @@ windows/services.o: windows/services.c include/services.h Makefile
 windows/sound.o: windows/sound.c include/sound.h Makefile
 	gcc -g3 -Ilibc -Iinclude -c windows/sound.c -o windows/sound.o
 	
-windows/network.o: stub/network.c include/network.h Makefile
+windows/network.o: windows/network.c include/network.h Makefile
 	gcc -g3 -Ilibc -Iinclude -c windows/network.c -o windows/network.o
 	
 windows/console.o: windows/console.c include/terminal.h Makefile

@@ -299,7 +299,7 @@ void pa_addrnet(const string name, unsigned long* addr)
     /* check ipv4 address */
     if (hep->h_addrtype != AF_INET) error(enoipv4);
     /* get first address */
-    *addr = *(u_long*)hep->h_addr_list[0];
+    *addr = htonl(*(u_long*)hep->h_addr_list[0]);
 
 }
 
@@ -360,6 +360,8 @@ FILE* pa_opennet(/* IP address */      unsigned long addr,
     fep->socka.sin_addr.S_un.S_addr = htonl(addr);
     r = connect(fep->sock, (struct sockaddr*)&fep->socka, sizeof(struct sockaddr_in));
     if (r == SOCKET_ERROR) wskerr(); /* process Winsock error */
+
+    return (fp); /* exit with file */
 
 }
 
