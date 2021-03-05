@@ -95,7 +95,8 @@
 #include <stdio.h>
 
 /* local definitions */
-#include "graph.h"
+#include <localdefs.h>
+#include <graph.h>
 
 #define MAXTIM       10; /* maximum number of timers available */
 #define MAXBUF       10; /* maximum number of buffers available */
@@ -228,10 +229,10 @@ static       int pascreen;       /* current screen */
 XFontStruct* pafont;             /* current font */
 GC           pagracxt;           /* graphics context */
 Pixmap       pascnbuf;           /* pixmap for screen backing buffer */
-boolean      ctrll, ctrlr;       /* control key active */
-boolean      shiftl, shiftr;     /* shift key active */
-boolean      altl, altr;         /* alt key active */
-boolean      capslock;           /* caps lock key active */
+int      ctrll, ctrlr;       /* control key active */
+int      shiftl, shiftr;     /* shift key active */
+int      altl, altr;         /* alt key active */
+int      capslock;           /* caps lock key active */
 XEvent       evtexp;             /* expose event record */
 
 /* forwards (reduce me please) */
@@ -868,7 +869,7 @@ Graphical mode does not implement blink mode.
 
 *******************************************************************************/
 
-void pa_blink(FILE* f, boolean e)
+void pa_blink(FILE* f, int e)
 
 {
 
@@ -883,7 +884,7 @@ and foreground writing colors.
 
 *******************************************************************************/
 
-void pa_reverse(FILE* f, boolean e)
+void pa_reverse(FILE* f, int e)
 
 {
 
@@ -900,7 +901,7 @@ character drawn.
 
 *******************************************************************************/
 
-void pa_underline(FILE* f, boolean e)
+void pa_underline(FILE* f, int e)
 
 {
 
@@ -915,7 +916,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void pa_superscript(FILE* f, boolean e)
+void pa_superscript(FILE* f, int e)
 
 {
 
@@ -930,7 +931,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void pa_subscript(FILE* f, boolean e)
+void pa_subscript(FILE* f, int e)
 
 {
 
@@ -950,7 +951,7 @@ italic on fixed fonts.
 
 *******************************************************************************/
 
-void pa_italic(FILE* f, boolean e)
+void pa_italic(FILE* f, int e)
 
 {
 
@@ -968,7 +969,7 @@ colors, which an ATTRIBUTE command seems to mess with !
 
 *******************************************************************************/
 
-void pa_bold(FILE* f, boolean e)
+void pa_bold(FILE* f, int e)
 
 {
 
@@ -985,7 +986,7 @@ just placed.
 
 *******************************************************************************/
 
-void pa_strikeout(FILE* f, boolean e)
+void pa_strikeout(FILE* f, int e)
 
 {
 
@@ -1000,7 +1001,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void pa_standout(FILE* f, boolean e)
+void pa_standout(FILE* f, int e)
 
 {
 
@@ -1124,7 +1125,7 @@ anywhere.
 
 *******************************************************************************/
 
-void pa_auto(FILE* f, boolean e)
+void pa_auto(FILE* f, int e)
 
 {
 
@@ -1140,7 +1141,7 @@ Enable or disable cursor visibility.
 
 *******************************************************************************/
 
-void pa_curvis(FILE* f, boolean e)
+void pa_curvis(FILE* f, int e)
 
 {
 
@@ -1247,7 +1248,7 @@ such as controls are not suppressed.
 
 *******************************************************************************/
 
-void pa_wrtstr(FILE* f, string s)
+void pa_wrtstr(FILE* f, char* s)
 
 {
 
@@ -1624,7 +1625,7 @@ Returns the name of a font by number.
 
 *******************************************************************************/
 
-void pa_fontnam(FILE* f, int fc, string fns)
+void pa_fontnam(FILE* f, int fc, char* fns, int fnsl)
 
 {
 
@@ -1716,13 +1717,7 @@ character spacing and kerning.
 
 *******************************************************************************/
 
-int pa_strsiz(FILE* f, string s)
-
-{
-
-}
-
-int pa_strsizp(FILE* f, string s)
+int pa_strsiz(FILE* f, const char* s)
 
 {
 
@@ -1736,7 +1731,7 @@ Finds the pixel offset to the given character in the string.
 
 *******************************************************************************/
 
-int pa_chrpos(FILE* f, string s, int p)
+int pa_chrpos(FILE* f, const char* s, int p)
 
 {
 
@@ -1752,7 +1747,7 @@ the system font.
 
 *******************************************************************************/
 
-void pa_writejust(FILE* f, string s, int n)
+void pa_writejust(FILE* f, const char* s, int n)
 
 {
 
@@ -1770,7 +1765,7 @@ spaces, with the fractional part lost.
 
 *******************************************************************************/
 
-int pa_justpos(FILE* f, string s, int p, int n)
+int pa_justpos(FILE* f, const char* s, int p, int n)
 
 {
 
@@ -1789,7 +1784,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void pa_condensed(FILE* f, boolean e)
+void pa_condensed(FILE* f, int e)
 
 {
 
@@ -1808,7 +1803,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void pa_extended(FILE* f, boolean e)
+void pa_extended(FILE* f, int e)
 
 {
 
@@ -1827,7 +1822,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void pa_xlight(FILE* f, boolean e)
+void pa_xlight(FILE* f, int e)
 
 {
 
@@ -1846,7 +1841,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void pa_light(FILE* f, boolean e)
+void pa_light(FILE* f, int e)
 
 {
 
@@ -1865,7 +1860,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void pa_xbold(FILE* f, boolean e)
+void pa_xbold(FILE* f, int e)
 
 {
 
@@ -1884,7 +1879,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void pa_hollow(FILE* f, boolean e)
+void pa_hollow(FILE* f, int e)
 
 {
 
@@ -1903,7 +1898,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void pa_raised(FILE* f, boolean e)
+void pa_raised(FILE* f, int e)
 
 {
 
@@ -1931,7 +1926,7 @@ Loads a picture into a slot of the loadable pictures array.
 
 *******************************************************************************/
 
-void pa_loadpict(FILE* f, int p, string fn)
+void pa_loadpict(FILE* f, int p, char* fn)
 
 {
 
@@ -2041,13 +2036,13 @@ void pa_event(FILE* f, pa_evtrec* er)
 {
 
     XEvent e;
-    boolean evtfnd;
+    int evtfnd;
     KeySym ks;
-    boolean esck;
+    int esck;
 
 
-    evtfnd = false;
-    esck = false; /* set no previous escape */
+    evtfnd = FALSE;
+    esck = FALSE; /* set no previous escape */
     do {
 
         XNextEvent(padisplay, &e);
@@ -2067,7 +2062,7 @@ void pa_event(FILE* f, pa_evtrec* er)
                 /* set code, normal or shifted */
                 if (shiftl || shiftr) er->echar = !capslock?toupper(ks):ks;
                 else er->echar = capslock?toupper(ks):ks; /* set code */
-                evtfnd = true; /* set found */
+                evtfnd = TRUE; /* set found */
 
             } else {
 
@@ -2078,8 +2073,8 @@ void pa_event(FILE* f, pa_evtrec* er)
                     case XK_Tab:       er->etype = pa_ettab; break;
                     case XK_Return:    er->etype = pa_etenter; break;
                     case XK_Escape:    if (esck)
-                                           { er->etype = pa_etcan; esck = false; }
-                                       else esck = true;
+                                           { er->etype = pa_etcan; esck = FALSE; }
+                                       else esck = TRUE;
                                        break;
                     case XK_Delete:    if (shiftl || shiftr) er->etype = pa_etdel;
                                        else if (ctrll || ctrlr) er->etype = pa_etdell;
@@ -2159,17 +2154,17 @@ void pa_event(FILE* f, pa_evtrec* er)
                                            er->etype = pa_etinsert;
                                        break;
 
-                    case XK_Shift_L:   shiftl = true; break; /* Left shift */
-                    case XK_Shift_R:   shiftr = true; break; /* Right shift */
-                    case XK_Control_L: ctrll = true; break;  /* Left control */
-                    case XK_Control_R: ctrlr = true; break;  /* Right control */
-                    case XK_Alt_L:     altl = true; break;  /* Left alt */
-                    case XK_Alt_R:     altr = true; break;  /* Right alt */
+                    case XK_Shift_L:   shiftl = TRUE; break; /* Left shift */
+                    case XK_Shift_R:   shiftr = TRUE; break; /* Right shift */
+                    case XK_Control_L: ctrll = TRUE; break;  /* Left control */
+                    case XK_Control_R: ctrlr = TRUE; break;  /* Right control */
+                    case XK_Alt_L:     altl = TRUE; break;  /* Left alt */
+                    case XK_Alt_R:     altr = TRUE; break;  /* Right alt */
                     case XK_Caps_Lock: capslock = !capslock; /* Caps lock */
 
                 }
                 if (er->etype != pa_etchar)
-                    evtfnd = true; /* a control was found */
+                    evtfnd = TRUE; /* a control was found */
 
             }
 
@@ -2180,12 +2175,12 @@ void pa_event(FILE* f, pa_evtrec* er)
             ks = XLookupKeysym(&e.xkey, 0); /* find code */
             switch (ks) {
 
-                case XK_Shift_L:   shiftl = false; break; /* Left shift */
-                case XK_Shift_R:   shiftr = false; break; /* Right shift */
-                case XK_Control_L: ctrll = false; break;  /* Left control */
-                case XK_Control_R: ctrlr = false; break;  /* Right control */
-                case XK_Alt_L:     altl = false; break;  /* Left alt */
-                case XK_Alt_R:     altr = false; break;  /* Right alt */
+                case XK_Shift_L:   shiftl = FALSE; break; /* Left shift */
+                case XK_Shift_R:   shiftr = FALSE; break; /* Right shift */
+                case XK_Control_L: ctrll = FALSE; break;  /* Left control */
+                case XK_Control_R: ctrlr = FALSE; break;  /* Right control */
+                case XK_Alt_L:     altl = FALSE; break;  /* Left alt */
+                case XK_Alt_R:     altr = FALSE; break;  /* Right alt */
 
             }
 
@@ -2210,10 +2205,10 @@ the associated input file.
 
 *******************************************************************************/
 
-void pa_timer(FILE*   f, /* file to send event to */
-           timhan  i, /* timer handle */
-           int     t, /* number of tenth-milliseconds to run */
-           boolean r) /* timer is to rerun after completion */
+void pa_timer(FILE* f, /* file to send event to */
+              int   i, /* timer handle */
+              long  t, /* number of tenth-milliseconds to run */
+              int   r) /* timer is to rerun after completion */
 
 {
 
@@ -2228,7 +2223,7 @@ Kills a given timer, by it's id number. Only repeating timers should be killed.
 *******************************************************************************/
 
 void pa_killtimer(FILE*  f, /* file to kill timer on */
-               timhan i) /* handle of timer */
+               int i) /* handle of timer */
 
 {
 
@@ -2245,7 +2240,7 @@ of the blanking interval.
 
 *******************************************************************************/
 
-void pa_frametimer(FILE* f, boolean e)
+void pa_frametimer(FILE* f, int e)
 
 {
 
@@ -2266,7 +2261,7 @@ holding gralib unaware programs.
 
 *******************************************************************************/
 
-void pa_autohold(boolean e)
+void pa_autohold(int e)
 
 {
 
@@ -2280,7 +2275,7 @@ Returns the number of mice implemented. Windows supports only one mouse.
 
 *******************************************************************************/
 
-mounum pa_mouse(FILE* f)
+int pa_mouse(FILE* f)
 
 {
 
@@ -2295,7 +2290,7 @@ version.
 
 *******************************************************************************/
 
-moubut pa_mousebutton(FILE* f, mouhan m)
+int pa_mousebutton(FILE* f, int m)
 
 {
 
@@ -2309,7 +2304,7 @@ Return number of joysticks attached.
 
 *******************************************************************************/
 
-joynum pa_joystick(FILE* f)
+int pa_joystick(FILE* f)
 
 {
 
@@ -2323,7 +2318,7 @@ Returns the number of buttons on a given joystick.
 
 *******************************************************************************/
 
-joybtn pa_joybutton(FILE* f, joyhan j)
+int pa_joybutton(FILE* f, int j)
 
 {
 
@@ -2339,7 +2334,7 @@ joystick can be considered a slider without positional meaning.
 
 *******************************************************************************/
 
-joyaxn pa_joyaxis(FILE* f, joyhan j)
+int pa_joyaxis(FILE* f, int j)
 
 {
 
@@ -2426,7 +2421,7 @@ function keys as well.
 
 *******************************************************************************/
 
-funky pa_funkey(FILE* f)
+int pa_funkey(FILE* f)
 
 {
 
@@ -2440,7 +2435,7 @@ Sets the title of the current window.
 
 *******************************************************************************/
 
-void pa_title(FILE* f, string ts)
+void pa_title(FILE* f, char* ts)
 
 {
 
@@ -2502,7 +2497,7 @@ freed.
 
 *******************************************************************************/
 
-void pa_buffer(FILE* f, boolean e)
+void pa_buffer(FILE* f, int e)
 
 {
 
@@ -2533,7 +2528,7 @@ and will no longer send messages.
 
 *******************************************************************************/
 
-void pa_menuena(FILE* f, int id, boolean onoff)
+void pa_menuena(FILE* f, int id, int onoff)
 
 {
 
@@ -2548,7 +2543,7 @@ selected, with no check if not.
 
 *******************************************************************************/
 
-void pa_menusel(FILE* f, int id, boolean select)
+void pa_menusel(FILE* f, int id, int select)
 
 {
 
@@ -2749,7 +2744,7 @@ Turns the window frame on and off.
 
 *******************************************************************************/
 
-void pa_frame(FILE* f, boolean e)
+void pa_frame(FILE* f, int e)
 
 {
 
@@ -2763,7 +2758,7 @@ Turns the window sizing on and off.
 
 *******************************************************************************/
 
-void pa_sizable(FILE* f, boolean e)
+void pa_sizable(FILE* f, int e)
 
 {
 
@@ -2777,7 +2772,7 @@ Turns the system bar on and off.
 
 *******************************************************************************/
 
-void pa_sysbar(FILE* f, boolean e)
+void pa_sysbar(FILE* f, int e)
 
 {
 
@@ -2827,7 +2822,7 @@ Selects or deselects a widget.
 
 *******************************************************************************/
 
-void pa_selectwidget(FILE* f, int id, boolean e)
+void pa_selectwidget(FILE* f, int id, int e)
 
 {
 
@@ -2841,7 +2836,7 @@ Enables or disables a widget.
 
 *******************************************************************************/
 
-void pa_enablewidget(FILE* f, int id, boolean e)
+void pa_enablewidget(FILE* f, int id, int e)
 
 {
 
@@ -2857,7 +2852,7 @@ This error is currently unchecked.
 
 *******************************************************************************/
 
-void pa_getwidgettext(FILE* f, int id, string s)
+void pa_getwidgettext(FILE* f, int id, char* s, int sl)
 
 {
 
@@ -2871,7 +2866,7 @@ Places text into an edit box.
 
 *******************************************************************************/
 
-void pa_putwidgettext(FILE* f, int id, string s)
+void pa_putwidgettext(FILE* f, int id, char* s)
 
 {
 
@@ -2938,13 +2933,13 @@ a button is calculated and returned.
 
 *******************************************************************************/
 
-void pa_buttonsizg(FILE* f, string s, int* w, int* h)
+void pa_buttonsizg(FILE* f, char* s, int* w, int* h)
 
 {
 
 }
 
-void pa_buttonsiz(FILE* f, string s, int* w, int* h)
+void pa_buttonsiz(FILE* f, char* s, int* w, int* h)
 
 {
 
@@ -2958,13 +2953,13 @@ Creates a standard button within the specified rectangle, on the given window.
 
 *******************************************************************************/
 
-void pa_buttong(FILE* f, int x1, int y1, int x2, int y2, string s, int id)
+void pa_buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
 }
 
-void pa_button(FILE* f, int x1, int y1, int x2, int y2, string s, int id)
+void pa_button(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -2979,13 +2974,13 @@ a checkbox is calculated and returned.
 
 *******************************************************************************/
 
-void pa_checkboxsizg(FILE* f, string s, int* w, int* h)
+void pa_checkboxsizg(FILE* f, char* s, int* w, int* h)
 
 {
 
 }
 
-void pa_checkboxsiz(FILE* f, string s,  int* w, int* h)
+void pa_checkboxsiz(FILE* f, char* s,  int* w, int* h)
 
 {
 
@@ -3000,13 +2995,13 @@ window.
 
 *******************************************************************************/
 
-void pa_checkboxg(FILE* f, int x1, int y1, int x2, int y2, string s, int id)
+void pa_checkboxg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
 }
 
-void pa_checkbox(FILE* f, int x1, int y1, int x2, int y2, string s, int id)
+void pa_checkbox(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -3021,13 +3016,13 @@ size of a radio button is calculated and returned.
 
 *******************************************************************************/
 
-void pa_radiobuttonsizg(FILE* f, string s, int* w, int* h)
+void pa_radiobuttonsizg(FILE* f, char* s, int* w, int* h)
 
 {
 
 }
 
-void pa_radiobuttonsiz(FILE* f, string s, int* w, int* h)
+void pa_radiobuttonsiz(FILE* f, char* s, int* w, int* h)
 
 {
 
@@ -3042,13 +3037,13 @@ window.
 
 *******************************************************************************/
 
-void pa_radiobuttong(FILE* f, int x1, int y1, int x2, int y2, string s, int id)
+void pa_radiobuttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
 }
 
-void pa_radiobutton(FILE* f, int x1, int y1, int x2, int y2, string s, int id)
+void pa_radiobutton(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -3063,14 +3058,14 @@ size of a group is calculated and returned.
 
 *******************************************************************************/
 
-void pa_groupsizg(FILE* f, string s, int cw, int ch, int* w, int* h,
+void pa_groupsizg(FILE* f, char* s, int cw, int ch, int* w, int* h,
                int* ox, int* oy)
 
 {
 
 }
 
-void pa_groupsiz(FILE* f, string s, int cw, int ch, int* w, int* h,
+void pa_groupsiz(FILE* f, char* s, int cw, int ch, int* w, int* h,
               int* ox, int* oy)
 
 {
@@ -3086,13 +3081,13 @@ no messages. It is used as a background for other widgets.
 
 *******************************************************************************/
 
-void pa_groupg(FILE* f, int x1, int y1, int x2, int y2, string s, int id)
+void pa_groupg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
 }
 
-void pa_group(FILE* f, int x1, int y1, int x2, int y2, string s, int id)
+void pa_group(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -3279,13 +3274,13 @@ size of an edit box is calculated and returned.
 
 *******************************************************************************/
 
-void pa_editboxsizg(FILE* f, string s, int* w, int* h)
+void pa_editboxsizg(FILE* f, char* s, int* w, int* h)
 
 {
 
 }
 
-void pa_editboxsiz(FILE* f, string s, int* w, int* h)
+void pa_editboxsiz(FILE* f, char* s, int* w, int* h)
 
 {
 
@@ -3690,7 +3685,7 @@ Outputs a message dialog with the given title and message strings.
 
 *******************************************************************************/
 
-void pa_alert(string title, string message)
+void pa_alert(char* title, char* message)
 
 {
 
@@ -3728,7 +3723,7 @@ If the operation is cancelled, then a null string will be returned.
 
 *******************************************************************************/
 
-void pa_queryopen(pstring s)
+void pa_queryopen(char* s)
 
 {
 
@@ -3750,7 +3745,7 @@ If the operation is cancelled, then a null string will be returned.
 
 *******************************************************************************/
 
-void pa_querysave(pstring s)
+void pa_querysave(char* s)
 
 {
 
@@ -3781,7 +3776,7 @@ table this issue until later.
 
 *******************************************************************************/
 
-void pa_queryfind(pstring s, pa_qfnopts* opt)
+void pa_queryfind(char* s, pa_qfnopts* opt)
 
 {
 
@@ -3804,7 +3799,7 @@ Bug: See comment, queryfind.
 
 *******************************************************************************/
 
-void pa_queryfindrep(pstring s, pstring r, pa_qfropts* opt)
+void pa_queryfindrep(char* s, char* r, pa_qfropts* opt)
 
 {
 
@@ -3879,7 +3874,7 @@ static void plcchr(char c)
         evtexp.xexpose.y = curyg-1;
         evtexp.xexpose.width = curxg-1+char_x;
         evtexp.xexpose.height = curyg-1+char_y;
-        XSendEvent(padisplay, pawindow, false, ExposureMask, &evtexp);
+        XSendEvent(padisplay, pawindow, FALSE, ExposureMask, &evtexp);
 
         /* advance to next character */
         iright();
@@ -4052,16 +4047,16 @@ static void pa_init_graphics(int argc, char *argv[])
     cury = 1;
 
     /* set state of shift, control and alt keys */
-    ctrll = false;
-    ctrlr = false;
-    shiftl = false;
-    shiftr = false;
-    altl = false;
-    altr = false;
-    capslock = false;
+    ctrll = FALSE;
+    ctrlr = FALSE;
+    shiftl = FALSE;
+    shiftr = FALSE;
+    altl = FALSE;
+    altr = FALSE;
+    capslock = FALSE;
 
     /* set internal states */
-    autom = true; /* auto on */
+    autom = TRUE; /* auto on */
 
     /* find existing display */
 

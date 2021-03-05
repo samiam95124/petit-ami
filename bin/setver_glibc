@@ -40,5 +40,24 @@ echo "Version number: $version"
 
 cd bin
 
+#
+# Check versioned file exists
+#
+if [ ! -f "glibc/libc-ovr-$version.a" ]
+then
+
+	echo "*** libc override file by version $version does not exist"
+	exit 1
+	
+fi
+
+if [ ! -f "glibc/libc-ovr-$version.so" ]
+then
+
+	echo "*** libc override file by version $version does not exist"
+	exit 1
+	
+fi
+
 ln -sf glibc/libc-ovr-$version.a libc.a
 ln -sf glibc/libc-ovr-$version.so libc.so.6
