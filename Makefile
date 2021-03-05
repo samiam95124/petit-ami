@@ -326,8 +326,8 @@ else
     # Linux
     #
 	PLIBS += -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
-    GLIBS += -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
-    CLIBS += -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
+	CLIBS += -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
+	GLIBS += -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto -lX11
     
 endif
 
