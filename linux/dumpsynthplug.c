@@ -84,7 +84,7 @@ device in the table, then that is dumped and returned to the caller.
 
 *******************************************************************************/
 
-static void readdump(int p, seqptr sp)
+static void readdump(int p, pa_seqptr sp)
 
 {
 

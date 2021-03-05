@@ -1648,6 +1648,47 @@ void pa_fontsiz(FILE* f, int s)
 
 /*******************************************************************************
 
+Find standard font numbers
+
+Returns the font number of one of the standard font types, terminal, book,
+sign or technical.
+
+*******************************************************************************/
+
+int pa_termfont(FILE* f)
+
+{
+
+    return 1;
+
+}
+
+int pa_bookfont(FILE* f)
+
+{
+
+    return 1;
+
+}
+
+int pa_signfont(FILE* f)
+
+{
+
+    return 1;
+
+}
+
+int pa_techfont(FILE* f)
+
+{
+
+    return 1;
+
+}
+
+/*******************************************************************************
+
 Set character extra spacing y
 
 Sets the extra character space to be added between lines, also referred to
@@ -2454,7 +2495,7 @@ directly. These ids will be be opened as a pair anytime the "_input" or
 
 *******************************************************************************/
 
-void pa_openwin(FILE* infile, FILE* outfile, FILE* parent, int wid)
+void pa_openwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
 
 {
 
@@ -4037,7 +4078,7 @@ static void pa_init_graphics(int argc, char *argv[])
     ovr_write(iwrite, &ofpwrite);
     ovr_open(iopen, &ofpopen);
     ovr_close(iclose, &ofpclose);
-    ovr_unlink(iunlink, &ofpunlink);
+//    ovr_unlink(iunlink, &ofpunlink);
     ovr_lseek(ilseek, &ofplseek);
 
     /* set current graphical and character cursor locations */
@@ -4154,7 +4195,7 @@ static void pa_deinit_graphics()
     ovr_write(ofpwrite, &cppwrite);
     ovr_open(ofpopen, &cppopen);
     ovr_close(ofpclose, &cppclose);
-    ovr_unlink(ofpunlink, &cppunlink);
+//    ovr_unlink(ofpunlink, &cppunlink);
     ovr_lseek(ofplseek, &cpplseek);
 
     /* if we don't see our own vector flag an error */

@@ -475,11 +475,11 @@ macosx/graph.o: stub/graph.c include/graph.h Makefile
 #
 utils/config.o: utils/config.c include/localdefs.h include/services.h \
 	            include/config.h Makefile
-	gcc -g3 -Ilibc -Iinclude -c utils/config.c -o utils/config.o
+	gcc -g3 -fPIC -Ilibc -Iinclude -c utils/config.c -o utils/config.o
 	
 utils/option.o: utils/option.c include/localdefs.h include/services.h \
 	            include/option.h Makefile
-	gcc -g3 -Ilibc -Iinclude -c utils/option.c -o utils/option.o
+	gcc -g3 -fPIC -Ilibc -Iinclude -c utils/option.c -o utils/option.o
 	
 ################################################################################
 #
@@ -579,14 +579,14 @@ bin/petit_ami_term.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
 		linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
 		linux/xterm.o utils/config.o utils/option.o 
 	
-petit_ami_graph.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
+bin/petit_ami_graph.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
     linux/dumpsynthplug.o linux/network.o linux/graph_x.o utils/config.o \
     utils/option.o  
-	gcc linux/services.o linux/sound.o linux/fluidsynthplug.o \
-		linux/dumpsynthplug.o  linux/network.o linux/xterm.o utils/config.o \
+	gcc -shared linux/services.o linux/sound.o linux/fluidsynthplug.o \
+		linux/dumpsynthplug.o  linux/network.o linux/graph_x.o utils/config.o \
 		utils/option.o -o bin/petit_ami_graph.so
 	
-petit_ami_graph.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
+bin/petit_ami_graph.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
     linux/dumpsynthplug.o linux/network.o linux/graph_x.o utils/config.o \
     utils/option.o  
 	ar rcs bin/petit_ami_graph.a linux/services.o linux/sound.o \
