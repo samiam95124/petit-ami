@@ -11,9 +11,9 @@ Program to draw random lines on screen
 
 #define MAXLAG (200)
 
-static const int frametime = 156; /* time between frames, 60 cycle refresh */
-static const int accel = 5;
-static const int colorchange = 300;
+#define FRAMETIME   156 /* time between frames, 60 cycle refresh */
+#define ACCEL       5
+#define COLORCHANGE 300
 
 typedef struct {
 
@@ -35,7 +35,7 @@ static int wait(void)
     int cancel;
 
     cancel = FALSE;
-    pa_timer(stdout, 1, frametime, FALSE);
+    pa_timer(stdout, 1, FRAMETIME, FALSE);
     do { pa_event(stdin, &er); }
     while (er.etype != pa_ettim && er.etype != pa_etterm);
     if (er.etype == pa_etterm) cancel = TRUE;
@@ -93,7 +93,7 @@ int main(void)
     for (li = 0; li < MAXLAG; li++) last[li].x1 = 0;
     while (TRUE) {
 
-        for (i = 1; i <= accel; i++) {
+        for (i = 1; i <= ACCEL; i++) {
 
             pa_fcolor(stdout, pa_white);
             if (last[0].x1 > 0)
@@ -110,7 +110,7 @@ int main(void)
             pa_fcolor(stdout, clr);
             pa_line(stdout, x1, y1, x2, y2);
             cc = cc+1;
-            if (cc >= colorchange) {
+            if (cc >= COLORCHANGE) {
 
                 cc = 1;
                 clr = randn(pa_magenta+1-pa_red)+pa_red;

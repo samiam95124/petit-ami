@@ -9,9 +9,9 @@ Program to draw random lines on screen
 #include <localdefs.h>
 #include <graph.h>
 
-static const int frametime = 156; /* time between frames, 60 cycle refresh */
-static const int accel = 5;
-static const int colorchange = 300;
+#define FRAMETIME   156 /* time between frames, 60 cycle refresh */
+#define ACCEL       5
+#define COLORCHANGE 300
 
 static int x1, y1, xd1, yd1, i, x2, y2, xd2, yd2, lx1, ly1, lx2, ly2;
 static int cc; /* color counter */
@@ -27,7 +27,7 @@ static int chkbrk(void)
     int cancel;
 
     cancel = FALSE;
-    pa_timer(stdout, 1, frametime, FALSE);
+    pa_timer(stdout, 1, FRAMETIME, FALSE);
     do { pa_event(stdin, &er); }
     while (er.etype != pa_ettim && er.etype != pa_etterm);
     if (er.etype == pa_etterm) cancel = TRUE;
@@ -68,7 +68,7 @@ int main(void)
     clr = randn(pa_magenta+1-pa_red)+pa_red;
     while (TRUE) {
 
-        for (i = 1; i <= accel; i++) {
+        for (i = 1; i <= ACCEL; i++) {
 
             pa_fcolor(stdout, pa_white);
             pa_line(stdout, lx1, ly1, lx2, ly2);
@@ -87,7 +87,7 @@ int main(void)
             pa_fcolor(stdout, clr);
             pa_line(stdout, x1, y1, x2, y2);
             cc = cc+1;
-            if (cc >= colorchange) {
+            if (cc >= COLORCHANGE) {
 
                 cc = 1;
                 clr = randn(pa_magenta+1-pa_red)+pa_red;
