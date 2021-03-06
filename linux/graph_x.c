@@ -98,6 +98,30 @@
 #include <localdefs.h>
 #include <graph.h>
 
+/*
+ * Debug print system
+ *
+ * Example use:
+ *
+ * dbg_printf(dlinfo, "There was an error: string: %s\n", bark);
+ *
+ * mydir/test.c:myfunc():12: There was an error: somestring
+ *
+ */
+
+static enum { /* debug levels */
+
+    dlinfo, /* informational */
+    dlwarn, /* warnings */
+    dlfail, /* failure/critical */
+    dlnone  /* no messages */
+
+} dbglvl = dlinfo;
+
+#define dbg_printf(lvl, fmt, ...) \
+        do { if (lvl >= dbglvl) fprintf(stderr, "%s:%s():%d: " fmt, __FILE__, \
+                                __func__, __LINE__, ##__VA_ARGS__); } while (0)
+
 #define MAXTIM       10; /* maximum number of timers available */
 #define MAXBUF       10; /* maximum number of buffers available */
 #define IOWIN         1;  /* logical window number of input/output pair */
@@ -208,15 +232,17 @@ static plseek_t  ofplseek;
 
 /* X Windows globals */
 
-static int char_x; /* space in x for character cell */
-static int char_y; /* space in y for character cell */
-static int curxg;  /* location of cursor in x graphical */
-static int curyg;  /* location of cursor in y graphical */
-static int curx;   /* location of cursor in x textual */
-static int cury;   /* location of cursor in y textual */
-static int buff_x; /* width of buffer */
-static int buff_y; /* height of buffer */
-static int autom;  /* current status of auto */
+static int char_x;    /* space in x for character cell */
+static int char_y;    /* space in y for character cell */
+static int curxg;     /* location of cursor in x graphical */
+static int curyg;     /* location of cursor in y graphical */
+static int curx;      /* location of cursor in x textual */
+static int cury;      /* location of cursor in y textual */
+static int buff_x;    /* width of buffer */
+static int buff_y;    /* height of buffer */
+static int autom;     /* current status of auto */
+static int fend;      /* end of program ordered flag */
+static int fautohold; /* automatic hold on exit flag */
 
 /* X windows display characteristics.
  *
@@ -229,10 +255,10 @@ static       int pascreen;       /* current screen */
 XFontStruct* pafont;             /* current font */
 GC           pagracxt;           /* graphics context */
 Pixmap       pascnbuf;           /* pixmap for screen backing buffer */
-int      ctrll, ctrlr;       /* control key active */
-int      shiftl, shiftr;     /* shift key active */
-int      altl, altr;         /* alt key active */
-int      capslock;           /* caps lock key active */
+int          ctrll, ctrlr;       /* control key active */
+int          shiftl, shiftr;     /* shift key active */
+int          altl, altr;         /* alt key active */
+int          capslock;           /* caps lock key active */
 XEvent       evtexp;             /* expose event record */
 
 /* forwards (reduce me please) */
@@ -311,8 +337,7 @@ static void error(errcod e)
       case ewigdis:  fprintf(stderr, "Cannot disable this widget"); break;
       case estrato:  fprintf(stderr, "Cannot direct write string with auto on"); break;
       case etabsel:  fprintf(stderr, "Invalid tab select"); break;
-      case esystem:  fprintf(stderr, "System consistency check, please contact vendor"); break;
-
+      case esystem:  fprintf(stderr, "System consistency check"); break;
 
     }
     fprintf(stderr, "\n");
@@ -2167,7 +2192,12 @@ void pa_event(FILE* f, pa_evtrec* er)
                         break;
 
                     case XK_C:
-                    case XK_c:         if (ctrll || ctrlr) er->etype = pa_etterm;
+                    case XK_c:         if (ctrll || ctrlr) {
+
+                    				       er->etype = pa_etterm;
+                    				       fend = TRUE;
+
+                                       }
                                        else if (altl || altr) er->etype = pa_etcopy;
                                        break;
                     case XK_S:
@@ -3887,6 +3917,7 @@ static void plcchr(char c)
 
     char cb[2]; /* buffer for output character */
 
+ dbg_printf(dlinfo, "begin\n");
     if (c == '\r') {
 
         /* carriage return, position to extreme left */
@@ -3921,6 +3952,7 @@ static void plcchr(char c)
         iright();
 
     }
+dbg_printf(dlinfo, "end\n");
 
 }
 
@@ -4073,6 +4105,7 @@ static void pa_init_graphics(int argc, char *argv[])
     XColor color;
     int screen;
 
+dbg_printf(dlinfo, "begin\n");
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
     ovr_write(iwrite, &ofpwrite);
@@ -4098,6 +4131,8 @@ static void pa_init_graphics(int argc, char *argv[])
 
     /* set internal states */
     autom = TRUE; /* auto on */
+    fend = FALSE; /* set no end of program ordered */
+    fautohold = TRUE; /* set automatically hold self terminators */
 
     /* find existing display */
 
@@ -4165,6 +4200,7 @@ static void pa_init_graphics(int argc, char *argv[])
     evtexp.xexpose.width = buff_x;
     evtexp.xexpose.height = buff_y;
     evtexp.xexpose.count = 0;
+dbg_printf(dlinfo, "end\n");
 
 }
 
@@ -4187,6 +4223,18 @@ static void pa_deinit_graphics()
     punlink_t cppunlink;
     plseek_t cpplseek;
 
+    pa_evtrec er;
+
+dbg_printf(dlinfo, "begin\n");
+	/* if the program tries to exit when the user has not ordered an exit, it
+	   is assumed to be a windows "unaware" program. We stop before we exit
+	   these, so that their content may be viewed */
+	if (!fend && fautohold) { /* process automatic exit sequence */
+
+        /* wait for a formal end */
+		while (!fend) pa_event(stdin, &er);
+
+	}
     /* close X Window */
     XCloseDisplay(padisplay);
 
@@ -4202,5 +4250,6 @@ static void pa_deinit_graphics()
     if (cppread != iread || cppwrite != iwrite || cppopen != iopen ||
         cppclose != iclose || cppunlink != iunlink || cpplseek != ilseek)
         error(esystem);
+dbg_printf(dlinfo, "end\n");
 
 }

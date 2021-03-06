@@ -290,7 +290,7 @@ endif
 ifeq ($(LINK_TYPE),static)
     CLIBS += -Wl,--whole-archive bin/petit_ami_term.a -Wl,--no-whole-archive
 else
-    CLIBS += bin/petit_ami_term.so
+    CLIBS += stub/keeper.o bin/petit_ami_term.so 
 endif
 
 #
@@ -299,7 +299,7 @@ endif
 ifeq ($(LINK_TYPE),static)
 	GLIBS += -Wl,--whole-archive bin/petit_ami_graph.a -Wl,--no-whole-archive
 else
-    GLIBS += bin/petit_ami_graph.so
+    GLIBS += stub/keeper.o bin/petit_ami_graph.so
 endif
 
 #
@@ -335,8 +335,8 @@ endif
 # Create dependency macros
 #
 PLIBSD = bin/petit_ami_plain$(LIBEXT)
-CLIBSD = bin/petit_ami_term$(LIBEXT)
-GLIBSD = bin/petit_ami_graph$(LIBEXT)
+CLIBSD = bin/petit_ami_term$(LIBEXT) stub/keeper.o
+GLIBSD = bin/petit_ami_graph$(LIBEXT) stub/keeper.o
 
 ################################################################################
 #
@@ -480,6 +480,9 @@ utils/config.o: utils/config.c include/localdefs.h include/services.h \
 utils/option.o: utils/option.c include/localdefs.h include/services.h \
 	            include/option.h Makefile
 	gcc -g3 -fPIC -Ilibc -Iinclude -c utils/option.c -o utils/option.o
+	
+stub/keeper.o: stub/keeper.c
+	gcc -g3 -fPIC -Iinclude -c stub/keeper.c -o stub/keeper.o
 	
 ################################################################################
 #

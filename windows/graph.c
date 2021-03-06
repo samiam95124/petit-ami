@@ -635,7 +635,7 @@ static int       fautohold;    /* automatic hold on exit flag */
 static char*     pgmnam;       /* program name string */
 static char*     trmnam;       /* program termination string */
 /* These are duplicates from the windows record. They must be here because
-  Windows calls us back, and the results have to be passed via a global. */
+   Windows calls us back, and the results have to be passed via a global. */
 static fontptr   fntlst;       /* list of windows fonts */
 static int       fntcnt;       /* number of fonts in font list */
 static pa_evtrec er;           /* event record */
