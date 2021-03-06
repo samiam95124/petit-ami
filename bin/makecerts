@@ -1,0 +1,27 @@
+#!/bin/bash
+#
+# Generate certificate and key files for network module
+#
+# Generates a set of certificates and keys for each of:
+#
+# client TLS certificate
+# client DTLS certificate
+# server TLS certificate
+# server DTLS certificate
+# client TLS key
+# client DTLS key
+# server TLS key
+# server DTLS key
+#
+# These keys are needed to operate the network module in each of these secure
+# modes.
+#
+gencert
+cp cert.pem client_tls_cert.pem
+cp key.pem client_tls_key.pem
+cp cert.pem client_dtls_cert.pem
+cp key.pem client_dtls_key.pem
+cp cert.pem server_tls_cert.pem
+cp key.pem server_tls_key.pem
+cp cert.pem server_dtls_cert.pem
+cp key.pem server_dtls_key.pem
