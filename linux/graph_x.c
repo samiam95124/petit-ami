@@ -2266,7 +2266,7 @@ void pa_event(FILE* f, pa_evtrec* er)
 Set timer
 
 Sets an elapsed timer to run, as identified by a timer handle. From 1 to 10
-timers can be used. The elapsed time is 32 bit signed, in tenth milliseconds. 
+timers can be used. The elapsed time is 32 bit signed, in tenth milliseconds.
 This means that a bit more than 24 hours can be measured without using the
 sign.
 
@@ -3530,7 +3530,7 @@ void pa_dropbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 Find minimum/standard drop edit box size
 
 Finds the minimum size for a drop edit box. Given the face string, the minimum
-size of a drop edit box is calculated and returned, for both the "open" and 
+size of a drop edit box is calculated and returned, for both the "open" and
 "closed" case.
 
 The open sizing is used to create the widget. The reason for this is that the
@@ -3687,7 +3687,7 @@ void pa_tabbarsiz(FILE* f, pa_tabori tor, int cw, int ch, int * w, int* h,
 
 Find client from tabbar size
 
-Given a tabbar size and orientation, this routine gives the client size and 
+Given a tabbar size and orientation, this routine gives the client size and
 offset. This is used where the tabbar size is fixed, but the client area is
 flexible.
 
@@ -3917,7 +3917,6 @@ static void plcchr(char c)
 
     char cb[2]; /* buffer for output character */
 
- dbg_printf(dlinfo, "begin\n");
     if (c == '\r') {
 
         /* carriage return, position to extreme left */
@@ -3952,7 +3951,6 @@ static void plcchr(char c)
         iright();
 
     }
-dbg_printf(dlinfo, "end\n");
 
 }
 
@@ -4104,8 +4102,8 @@ static void pa_init_graphics(int argc, char *argv[])
     int r;
     XColor color;
     int screen;
+    int dw, dh, sn;
 
-dbg_printf(dlinfo, "begin\n");
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
     ovr_write(iwrite, &ofpwrite);
@@ -4144,9 +4142,22 @@ dbg_printf(dlinfo, "begin\n");
     }
     pascreen = DefaultScreen(padisplay);
 
+    /* find appropriate font for display. On high DPI displays, the old
+       technique of just using "fixed" no longer works */
+
+    /* get screen parameters */
+    sn = DefaultScreen(padisplay);
+    dw = DisplayWidth(padisplay, sn);
+    dh = DisplayHeight(padisplay, sn);
+
+    dbg_printf(dlinfo, "Display width: %d\n", dw);
+    dbg_printf(dlinfo, "Display height: %d\n", dh);
+
     /* Set fixed font, get context, and set characteristics from that */
 
-    pafont = XLoadQueryFont(padisplay, "fixed");
+    //pafont = XLoadQueryFont(padisplay, "fixed");
+    pafont = XLoadQueryFont(padisplay,
+        "-bitstream-courier 10 pitch-bold-r-normal--0-200-0-0-m-0-iso8859-1");
     if (!pafont) {
 
         fprintf(stderr, "*** No font ***\n");
@@ -4200,7 +4211,6 @@ dbg_printf(dlinfo, "begin\n");
     evtexp.xexpose.width = buff_x;
     evtexp.xexpose.height = buff_y;
     evtexp.xexpose.count = 0;
-dbg_printf(dlinfo, "end\n");
 
 }
 
@@ -4225,7 +4235,6 @@ static void pa_deinit_graphics()
 
     pa_evtrec er;
 
-dbg_printf(dlinfo, "begin\n");
 	/* if the program tries to exit when the user has not ordered an exit, it
 	   is assumed to be a windows "unaware" program. We stop before we exit
 	   these, so that their content may be viewed */
@@ -4250,6 +4259,5 @@ dbg_printf(dlinfo, "begin\n");
     if (cppread != iread || cppwrite != iwrite || cppopen != iopen ||
         cppclose != iclose || cppunlink != iunlink || cpplseek != ilseek)
         error(esystem);
-dbg_printf(dlinfo, "end\n");
 
 }
