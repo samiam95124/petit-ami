@@ -4256,7 +4256,7 @@ static void iauto(winptr win, int e)
     /* check we are transitioning to auto mode */
     if (e) {
 
-        /* check display is on grid && in bounds */
+        /* check display is on grid and in bounds */
         if (sc->curxg-1%win->charspace) error(eatoofg);
         if (sc->curxg-1%win->charspace) error(eatoofg);
         if (!icurbnd(sc)) error(eatoecb);
@@ -9451,7 +9451,7 @@ static void closewin(int ofn)
 
 Open an input and output pair
 
-Creates, opens and initalizes an input and output pair of files.
+Creates, opens and initializes an input and output pair of files.
 
 *******************************************************************************/
 
@@ -15339,7 +15339,7 @@ static ssize_t iwrite(int fd, const void* buff, size_t count)
     ssize_t rc;  /* return code */
     unsigned char* ba;
 
-    if (fd < 0 || fd >= MAXFIL)  error(einvhan); /* invalid file handle */
+    if (fd < 0 || fd >= MAXFIL) error(einvhan); /* invalid file handle */
     if (opnfil[fd] && opnfil[fd]->win) { /* process window output file */
 
         lockmain(); /* start exclusive access */

@@ -629,7 +629,7 @@ int main(void)
 
                         } else { /* ball in play */
 
-                            /* erase only the pa_left(stdout)over part of the old ball */
+                            /* erase only the leftover part of the old ball */
                             pa_fcolor(stdout, pa_white);
                             if (bdx < 0) /* ball move left */
                                 pa_frect(stdout, ball.x2+1, balsav.y1,
@@ -637,13 +637,13 @@ int main(void)
                             else /* move move right */
                                 pa_frect(stdout, balsav.x1, balsav.y1,
                                                  ball.x1-1, balsav.y2);
-                            if (bdy < 0) /* ball move up(stdout) */
+                            if (bdy < 0) /* ball move up */
                                 pa_frect(stdout, balsav.x1, ball.y2+1,
                                                  balsav.x2, balsav.y2);
-                            else /* move move pa_down(stdout) */
+                            else /* move move pa_down */
                                 pa_frect(stdout, balsav.x1, balsav.y1,
                                                  balsav.x2, ball.y1-1);
-                            drwrect(&ball, BALLCLR); /* pa_redraw the ball */
+                            drwrect(&ball, BALLCLR); /* redraw the ball */
 
                         }
 
