@@ -299,7 +299,7 @@ typedef struct scncon { /* screen context */
     int     offy;        /* viewport offset y */
     int     wextx;       /* window extent x */
     int     wexty;       /* window extent y */
-    int     vextx;       /* viewpor extent x */
+    int     vextx;       /* viewport extent x */
     int     vexty;       /* viewport extent y */
 
 } scncon, *scnptr;
@@ -3296,7 +3296,7 @@ static void iup(winptr win)
     scnptr sc;
 
     sc = win->screens[win->curupd-1];
-    /* check ! top of screen */
+    /* check not top of screen */
     if (sc->cury > 1) {
 
         /* update position */
@@ -9250,7 +9250,7 @@ static void opnwin(int fn, int pfn)
     /* remove fills */
     rv = SelectObject(win->devcon, GetStockObject(NULL_BRUSH));
     if (rv == HGDI_ERROR) error(enosel);
-    /* because this is an "open }ed" (no feedback) emulation, we must bring
+    /* because this is an "open ended" (no feedback) emulation, we must bring
       the terminal to a known state */
     win->gfhigh = FHEIGHT; /* set default font height */
     getfonts(win); /* get the global fonts list */

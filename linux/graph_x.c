@@ -1,4 +1,4 @@
-/*******************************************************************************
+/** ****************************************************************************
 *                                                                              *
 *                        GRAPHICAL MODE LIBRARY FOR X                          *
 *                                                                              *
@@ -6,7 +6,7 @@
 *                                                                              *
 *                            2019/05/17 S. A. Franco                           *
 *                                                                              *
-* Implements the graphical mode functions on X. Gralib is upward             *
+* Implements the graphical mode functions on X. Gralib is upward               *
 * compatible with trmlib functions.                                            *
 *                                                                              *
 * Proposed improvements:                                                       *
@@ -316,6 +316,7 @@ typedef struct scncon { /* screen context */
     int     autof;       /* current status of scroll and wrap */
     int     tab[MAXTAB]; /* tabbing array */
     int     curv;        /* cursor visible */
+    /* note that view offsets and scaling are experimental features */
     int     offx;        /* viewport offset x */
     int     offy;        /* viewport offset y */
     int     wextx;       /* window extent x */
@@ -324,7 +325,7 @@ typedef struct scncon { /* screen context */
     int     vexty;       /* viewport extent y */
 
     /* fields used by graphics subsystem */
-    GC           pagracxt;       /* graphics context */
+
 
 } scncon, *scnptr;
 
@@ -338,87 +339,94 @@ typedef struct pict { /* picture tracking record */
 /* window description */
 typedef struct winrec {
 
-    int      parlfn;          /* logical parent */
-    scnptr   screens[MAXCON]; /* screen contexts array */
-    int      curdsp;          /* index for current display screen */
-    int      curupd;          /* index for current update screen */
+    /* fields used by graph module */
+    int          parlfn;          /* logical parent */
+    scnptr       screens[MAXCON]; /* screen contexts array */
+    int          curdsp;          /* index for current display screen */
+    int          curupd;          /* index for current update screen */
     /* global sets. these are the global set parameters that apply to any new
       created screen buffer */
-    int      gmaxx;           /* maximum x size */
-    int      gmaxy;           /* maximum y size */
-    int      gmaxxg;          /* size of client area in x */
-    int      gmaxyg;          /* size of client area in y */
-    int      gattr;           /* current attributes */
-    int      gauto;           /* state of auto */
-    int      gfcrgb;          /* foreground color in rgb */
-    int      gbcrgb;          /* background color in rgb */
-    int      gcurv;           /* state of cursor visible */
-    fontptr  gcfont;          /* current font select */
-    int      gfhigh;          /* current font height */
-    mode     gfmod;           /* foreground mix mode */
-    mode     gbmod;           /* background mix mode */
-    int      goffx;           /* viewport offset x */
-    int      goffy;           /* viewport offset y */
-    int      gwextx;          /* window extent x */
-    int      gwexty;          /* window extent y */
-    int      gvextx;          /* viewpor extent x */
-    int      gvexty;          /* viewport extent y */
-    fontptr  fntlst;          /* list of windows fonts */
-    int      fntcnt;          /* number of fonts in font list */
-    int      termfnt;         /* terminal font number */
-    int      bookfnt;         /* book font number */
-    int      signfnt;         /* sign font number */
-    int      techfnt;         /* technical font number */
-    int      mb1;             /* mouse assert status button 1 */
-    int      mb2;             /* mouse assert status button 2 */
-    int      mb3;             /* mouse assert status button 3 */
-    int      mpx, mpy;        /* mouse current position */
-    int      mpxg, mpyg;      /* mouse current position graphical */
-    int      nmb1;            /* new mouse assert status button 1 */
-    int      nmb2;            /* new mouse assert status button 2 */
-    int      nmb3;            /* new mouse assert status button 3 */
-    int      nmpx, nmpy;      /* new mouse current position */
-    int      nmpxg, nmpyg;    /* new mouse current position graphical */
-    int      linespace;       /* line spacing in pixels */
-    int      charspace;       /* character spacing in pixels */
-    int      curspace;        /* size of cursor, in pixels */
-    int      baseoff;         /* font baseline offset from top */
-    int      shift;           /* state of shift key */
-    int      cntrl;           /* state of control key */
-    int      fcurdwn;         /* cursor on screen flag */
-    int      numjoy;          /* number of joysticks found */
-    int      joy1cap;         /* joystick 1 is captured */
-    int      joy2cap;         /* joystick 2 is captured */
-    int      joy1xs;          /* last joystick position 1x */
-    int      joy1ys;          /* last joystick position 1y */
-    int      joy1zs;          /* last joystick position 1z */
-    int      joy2xs;          /* last joystick position 2x */
-    int      joy2ys;          /* last joystick position 2y */
-    int      joy2zs;          /* last joystick position 2z */
-    int      shsize;          /* display screen size x in millimeters */
-    int      svsize;          /* display screen size y in millimeters */
-    int      shres;           /* display screen pixels in x */
-    int      svres;           /* display screen pixels in y */
-    int      sdpmx;           /* display screen find dots per meter x */
-    int      sdpmy;           /* display screen find dots per meter y */
-    char     inpbuf[MAXLIN];  /* input line buffer */
-    int      inpptr;          /* input line index */
-    int      frmrun;          /* framing timer is running */
+    int          gmaxx;           /* maximum x size */
+    int          gmaxy;           /* maximum y size */
+    int          gmaxxg;          /* size of client area in x */
+    int          gmaxyg;          /* size of client area in y */
+    int          gattr;           /* current attributes */
+    int          gauto;           /* state of auto */
+    int          gfcrgb;          /* foreground color in rgb */
+    int          gbcrgb;          /* background color in rgb */
+    int          gcurv;           /* state of cursor visible */
+    fontptr      gcfont;          /* current font select */
+    int          gfhigh;          /* current font height */
+    mode         gfmod;           /* foreground mix mode */
+    mode         gbmod;           /* background mix mode */
+    int          goffx;           /* viewport offset x */
+    int          goffy;           /* viewport offset y */
+    int          gwextx;          /* window extent x */
+    int          gwexty;          /* window extent y */
+    int          gvextx;          /* viewpor extent x */
+    int          gvexty;          /* viewport extent y */
+    fontptr      fntlst;          /* list of windows fonts */
+    int          fntcnt;          /* number of fonts in font list */
+    int          termfnt;         /* terminal font number */
+    int          bookfnt;         /* book font number */
+    int          signfnt;         /* sign font number */
+    int          techfnt;         /* technical font number */
+    int          mb1;             /* mouse assert status button 1 */
+    int          mb2;             /* mouse assert status button 2 */
+    int          mb3;             /* mouse assert status button 3 */
+    int          mpx, mpy;        /* mouse current position */
+    int          mpxg, mpyg;      /* mouse current position graphical */
+    int          nmb1;            /* new mouse assert status button 1 */
+    int          nmb2;            /* new mouse assert status button 2 */
+    int          nmb3;            /* new mouse assert status button 3 */
+    int          nmpx, nmpy;      /* new mouse current position */
+    int          nmpxg, nmpyg;    /* new mouse current position graphical */
+    int          linespace;       /* line spacing in pixels */
+    int          charspace;       /* character spacing in pixels */
+    int          curspace;        /* size of cursor, in pixels */
+    int          baseoff;         /* font baseline offset from top */
+    int          shift;           /* state of shift key */
+    int          cntrl;           /* state of control key */
+    int          fcurdwn;         /* cursor on screen flag */
+    int          numjoy;          /* number of joysticks found */
+    int          joy1cap;         /* joystick 1 is captured */
+    int          joy2cap;         /* joystick 2 is captured */
+    int          joy1xs;          /* last joystick position 1x */
+    int          joy1ys;          /* last joystick position 1y */
+    int          joy1zs;          /* last joystick position 1z */
+    int          joy2xs;          /* last joystick position 2x */
+    int          joy2ys;          /* last joystick position 2y */
+    int          joy2zs;          /* last joystick position 2z */
+    int          shsize;          /* display screen size x in millimeters */
+    int          svsize;          /* display screen size y in millimeters */
+    int          shres;           /* display screen pixels in x */
+    int          svres;           /* display screen pixels in y */
+    int          sdpmx;           /* display screen find dots per meter x */
+    int          sdpmy;           /* display screen find dots per meter y */
+    char         inpbuf[MAXLIN];  /* input line buffer */
+    int          inpptr;          /* input line index */
+    int          frmrun;          /* framing timer is running */
     struct {
 
        int      rep; /* timer repeat flag */
 
     } timers[10];
-    int      focus;           /* screen in focus */
-    pict     pictbl[MAXPIC];  /* loadable pictures table */
-    int      bufmod;          /* buffered screen mode */
-    metptr   metlst;          /* menu tracking list */
-    wigptr   wiglst;          /* widget tracking list */
-    int      frame;           /* frame on/off */
-    int      size;            /* size bars on/off */
-    int      sysbar;          /* system bar on/off */
-    int      sizests;         /* last resize status save */
-    int      visible;         /* window is visible */
+    int          focus;           /* screen in focus */
+    pict         pictbl[MAXPIC];  /* loadable pictures table */
+    int          bufmod;          /* buffered screen mode */
+    metptr       metlst;          /* menu tracking list */
+    wigptr       wiglst;          /* widget tracking list */
+    int          frame;           /* frame on/off */
+    int          size;            /* size bars on/off */
+    int          sysbar;          /* system bar on/off */
+    int          sizests;         /* last resize status save */
+    int          visible;         /* window is visible */
+
+    /* fields used by graphics subsystem */
+    Window       pawindow;        /* current window */
+    GC           pagracxt;       /* graphics context */
+    XFontStruct* pafont;         /* current font */
+    Pixmap       pascnbuf;       /* pixmap for screen backing buffer */
 
 } winrec, *winptr;
 
@@ -450,15 +458,6 @@ static plseek_t  ofplseek;
 
 /* X Windows globals */
 
-static int char_x;    /* space in x for character cell */
-static int char_y;    /* space in y for character cell */
-static int curxg;     /* location of cursor in x graphical */
-static int curyg;     /* location of cursor in y graphical */
-static int curx;      /* location of cursor in x textual */
-static int cury;      /* location of cursor in y textual */
-static int buff_x;    /* width of buffer */
-static int buff_y;    /* height of buffer */
-static int autom;     /* current status of auto */
 static int fend;      /* end of program ordered flag */
 static int fautohold; /* automatic hold on exit flag */
 
@@ -468,10 +467,7 @@ static int fautohold; /* automatic hold on exit flag */
  */
 
 static Display*     padisplay;      /* current display */
-static Window       pawindow;       /* current window */
 static int          pascreen;       /* current screen */
-static XFontStruct* pafont;         /* current font */
-static Pixmap       pascnbuf;       /* pixmap for screen backing buffer */
 static int          ctrll, ctrlr;   /* control key active */
 static int          shiftl, shiftr; /* shift key active */
 static int          altl, altr;     /* alt key active */
@@ -480,10 +476,6 @@ static XEvent       evtexp;         /* expose event record */
 static filptr       opnfil[MAXFIL]; /* open files table */
 static int          xltwin[MAXFIL]; /* window equivalence table */
 static int          filwin[MAXFIL]; /* file to window equivalence table */
-
-/* forwards (reduce me please) */
-
-static void plcchr(winptr win, char c);
 
 /** ****************************************************************************
 
@@ -599,7 +591,318 @@ int colnum(pa_color c)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
+
+Get file entry
+
+Allocates and initalizes a new file entry. File entries are left in the opnfil
+array, so are recycled in place.
+
+*******************************************************************************/
+
+static void getfet(filptr* fp)
+
+{
+
+    *fp = malloc(sizeof(filrec)); /* get new file entry */
+    if (!*fp) error(enomem); /* no more memory */
+    (*fp)->win = NULL; /* set no window */
+    (*fp)->inw = FALSE; /* clear input window link */
+    (*fp)->inl = -1; /* set no input file linked */
+    (*fp)->evt = NULL; /* set no queued events */
+
+}
+
+/** ****************************************************************************
+
+Restore screen
+
+Updates all the buffer and screen parameters from the display screen to the
+terminal.
+
+*******************************************************************************/
+
+static void restore(winptr win,   /* window to restore */
+                    int    whole) /* whole or part window */
+
+{
+
+}
+
+/** ****************************************************************************
+
+Initalize screen
+
+Clears all the parameters in the present screen context. Also, the backing
+buffer bitmap is created and cleared to the present colors.
+
+*******************************************************************************/
+
+static void iniscn(winptr win, scnptr sc)
+
+{
+
+    int      i, x;
+    int      r;
+
+    sc->maxx = win->gmaxx; /* set character dimensions */
+    sc->maxy = win->gmaxy;
+    sc->maxxg = win->gmaxxg; /* set pixel dimensions */
+    sc->maxyg = win->gmaxyg;
+    sc->curx = 1; /* set cursor at home */
+    sc->cury = 1;
+    sc->curxg = 1;
+    sc->curyg = 1;
+    sc->fcrgb = win->gfcrgb; /* set colors and attributes */
+    sc->bcrgb = win->gbcrgb;
+    sc->attr = win->gattr;
+    sc->autof = win->gauto; /* set auto scroll and wrap */
+    sc->curv = win->gcurv; /* set cursor visibility */
+    sc->lwidth = 1; /* set single pixel width */
+    sc->font = 0; /* set no font active */
+    sc->cfont = win->gcfont; /* set current font */
+    sc->fmod = win->gfmod; /* set mix modes */
+    sc->bmod = win->gbmod;
+    sc->offx = win->goffx; /* set viewport offset */
+    sc->offy = win->goffy;
+    sc->wextx = win->gwextx; /* set extents */
+    sc->wexty = win->gwexty;
+    sc->vextx = win->gvextx;
+    sc->vexty = win->gvexty;
+    /* set up tabbing to be on each 8th position */
+    i = 9; /* set 1st tab position */
+    x = 0; /* set 1st tab slot */
+    while (i < sc->maxx && x < MAXTAB) {
+
+        sc->tab[x] = (i-1)*win->charspace+1;  /* set tab */
+        i = i+8; /* next tab */
+        x = x+1;
+
+    }
+
+}
+
+/** ****************************************************************************
+
+Open and present window
+
+Given a windows file id and an (optional) parent window file id opens and
+presents the window associated with it. All of the screen buffer data is
+cleared, and a single buffer assigned to the window.
+
+*******************************************************************************/
+
+static void opnwin(int fn, int pfn)
+
+{
+
+    RECT        cr;   /* client rectangle holder */
+    int         r;    /* result holder */
+    int         b;    /* int result holder */
+    pa_evtrec   er;   /* event holding record */
+    int         ti;   /* index for repeat array */
+    int         pin;  /* index for loadable pictures array */
+    int         si;   /* index for current display screen */
+    TEXTMETRIC  tm;   /* TRUE type text metric structure */
+    winptr      win;  /* window pointer */
+    winptr      pwin; /* parent window pointer */
+    int         f;    /* window creation flags */
+    MSG         msg;  /* intertask message */
+    HGDIOBJ     rv;
+    const char* title = "";
+    int         depth;
+
+    win = lfn2win(fn); /* get a pointer to the window */
+    /* find parent */
+    win->parlfn = pfn; /* set parent logical number */
+    if (pfn >= 0) {
+
+       pwin = lfn2win(pfn); /* index parent window */
+       win->parhan = pwin->winhan; /* set parent window handle */
+
+    } else win->parhan = 0; /* set no parent */
+    win->mb1 = FALSE; /* set mouse as assumed no buttons down, at origin */
+    win->mb2 = FALSE;
+    win->mb3 = FALSE;
+    win->mpx = 1;
+    win->mpy = 1;
+    win->mpxg = 1;
+    win->mpyg = 1;
+    win->nmb1 = FALSE;
+    win->nmb2 = FALSE;
+    win->nmb3 = FALSE;
+    win->nmpx = 1;
+    win->nmpy = 1;
+    win->nmpxg = 1;
+    win->nmpyg = 1;
+    win->shift = FALSE; /* set no shift active */
+    win->cntrl = FALSE; /* set no control active */
+    win->fcurdwn = FALSE; /* set cursor is ! down */
+    win->focus = FALSE; /* set ! in focus */
+    win->joy1xs = 0; /* clear joystick saves */
+    win->joy1ys = 0;
+    win->joy1zs = 0;
+    win->joy2xs = 0;
+    win->joy2ys = 0;
+    win->joy2zs = 0;
+    win->numjoy = 0; /* set number of joysticks 0 */
+    win->inpptr = -1; /* set buffer empty */
+    win->frmrun = FALSE; /* set framing timer ! running */
+    win->bufmod = TRUE; /* set buffering on */
+    win->menhan = 0; /* set no menu */
+    win->metlst = NULL; /* clear menu tracking list */
+    win->wiglst = NULL; /* clear widget list */
+    win->frame = TRUE; /* set frame on */
+    win->size = TRUE; /* set size bars on */
+    win->sysbar = TRUE; /* set system bar on */
+    win->sizests = 0; /* clear last size status word */
+    /* clear timer repeat array */
+    for (ti = 0; ti < 10; ti++) {
+
+       win->timers[ti].han = 0; /* set no active timer */
+       win->timers[ti].rep = FALSE; /* set no repeat */
+
+    }
+    /* clear loadable pictures table */
+    for (pin = 0; pin < MAXPIC; pin++) win->pictbl[pin].han = 0;
+    for (si = 0; si < MAXCON; si++) win->screens[si] = NULL;
+    win->screens[0] = malloc(sizeof(scncon)); /* get the default screen */
+    if (!win->screens[0]) error(enomem);
+    win->curdsp = 1; /* set current display screen */
+    win->curupd = 1; /* set current update screen */
+    win->visible = FALSE; /* set not visible */
+
+    /* get screen parameters */
+    sn = DefaultScreen(padisplay);
+    win->shsize = WidthMMOfScreen(sn); /* size x in millimeters */
+    win->svsize = HeightMMOfScreen(sn); /* size y in millimeters */
+    win->shres = DisplayWidth(padisplay, sn);
+    win->svres = DisplayHeight(padisplay, sn);
+    win->sdpmx = win->shres/win->shsize*1000; /* find dots per meter x */
+    win->sdpmy = win->svres/win->svsize*1000; /* find dots per meter y */
+
+    dbg_printf(dlinfo, "Display width: %d\n", dw);
+    dbg_printf(dlinfo, "Display height: %d\n", dh);
+
+    /* choose courier font based on dpi, this works best on a variety of
+       display resolutions */
+    win->pafont = XLoadQueryFont(padisplay,
+        "-bitstream-courier 10 pitch-bold-r-normal--0-0-200-200-m-0-iso8859-1");
+    if (!win->pafont) {
+
+        fprintf(stderr, "*** No font ***\n");
+        exit(1);
+
+    }
+    win->pagracxt = XDefaultGC(padisplay, pascreen);
+    XSetFont (padisplay, win->pagracxt, pafont->fid);
+
+    /* find spacing in current font */
+
+    win->charspace = pafont->max_bounds.rbearing-pafont->min_bounds.lbearing;
+    win->linespace = pafont->max_bounds.ascent+pafont->max_bounds.descent;
+
+    /* set buffer size required for character spacing at default character grid
+       size */
+
+    win->gmaxxg = DEFXD*win->charspace;
+    win->gmaxyg = DEFYD*win->linespace;
+
+    /* create our window */
+
+    win->pawindow = XCreateSimpleWindow(padisplay, RootWindow(padisplay, pascreen),
+                                        10, 10, win->gmaxxg, win->gmaxyg, 1,
+                           BlackPixel(padisplay, pascreen),
+                           WhitePixel(padisplay, pascreen));
+    XSelectInput(padisplay, win->pawindow, ExposureMask | KeyPressMask | KeyReleaseMask);
+    XMapWindow(padisplay, win->pawindow);
+
+    XStoreName(padisplay, win->pawindow, title );
+    XSetIconName(padisplay, win->pawindow, title );
+
+    /* set up pixmap backing buffer for text grid */
+    depth = DefaultDepth(padisplay, pascreen);
+    win->pascnbuf = XCreatePixmap(padisplay, win->pawindow, win->gmaxxg, win->gmaxyg, depth);
+    XSetForeground(padisplay, win->pagracxt, WhitePixel(padisplay, pascreen));
+    XFillRectangle(padisplay, win->pascnbuf, win->pagracxt, 0, 0, win->gmaxx, win->gmaxy);
+    XSetForeground(padisplay, win->pagracxt, BlackPixel(padisplay, pascreen));
+
+    /* set up global buffer parameters */
+    win->gmaxx = maxxd; /* character max dimensions */
+    win->gmaxy = maxyd;
+    win->gattr = 0; /* no attribute */
+    win->gauto = TRUE; /* auto on */
+    win->gfcrgb = colnum(pa_black); /*foreground black */
+    win->gbcrgb = colnum(pa_white); /* background white */
+    win->gcurv = TRUE; /* cursor visible */
+    win->gfmod = mdnorm; /* set mix modes */
+    win->gbmod = mdnorm;
+    win->goffx = 0;  /* set 0 offset */
+    win->goffy = 0;
+    win->gwextx = 1; /* set 1:1 extents */
+    win->gwexty = 1;
+    win->gvextx = 1;
+    win->gvexty = 1;
+    iniscn(win, win->screens[0]); /* initalize screen buffer */
+    restore(win, TRUE); /* update to screen */
+
+}
+
+/** ****************************************************************************
+
+Open an input and output pair
+
+Creates, opens and initializes an input and output pair of files.
+
+*******************************************************************************/
+
+static void openio(FILE* infile, FILE* outfile, int ifn, int ofn, int pfn,
+                   int wid)
+
+{
+
+    /* if output was never opened, create it now */
+    if (!opnfil[ofn]) getfet(&opnfil[ofn]);
+    /* if input was never opened, create it now */
+    if (!opnfil[ifn]) getfet(&opnfil[ifn]);
+    opnfil[ofn]->inl = ifn; /* link output to input */
+    opnfil[ifn]->inw = TRUE; /* set input is window handler */
+    /* set file descriptor locations (note this is only really used for input
+       files */
+    opnfil[ifn]->sfp = infile;
+    opnfil[ofn]->sfp = outfile;
+    /* now see if it has a window attached */
+    if (!opnfil[ofn]->win) {
+
+        /* Haven't already started the main input/output window, so allocate
+           and start that. We tolerate multiple opens to the output file. */
+        opnfil[ofn]->win = malloc(sizeof(winrec));
+        if (!opnfil[ofn]->win) error(enomem);
+        opnwin(ofn, pfn); /* and start that up */
+
+    }
+    /* check if the window has been pinned to something else */
+    if (xltwin[wid-1] && xltwin[wid-1] != ofn) error(ewinuse); /* flag error */
+    xltwin[wid-1] = ofn; /* pin the window to the output file */
+    filwin[ofn] = wid;
+
+}
+
+/** ****************************************************************************
+
+Internal versions of external interface routines
+
+These routines both isolate lower level details from higher level details and
+also use internal data structures as parameters. This allows upper level
+to call down to common functions without having to find the internal data
+structures each time from a file handle.
+
+Each internal routine has the same name as an external routine (without
+coining), but with a leading "i".
+
+********************************************************************************
+
+/** ****************************************************************************
 
 Clear screen
 
@@ -608,21 +911,26 @@ characters on the screen to spaces with the current colors and attributes.
 
 *******************************************************************************/
 
-void iclear(void)
+void iclear(winptr win, void)
 
 {
 
-    curx = 1; /* set cursor at home */
-    cury = 1;
-    curxg = 1;
-    curyg = 1;
-    XSetForeground(padisplay, pagracxt, WhitePixel(padisplay, pascreen));
-    XFillRectangle(padisplay, pawindow, pagracxt, 0, 0, buff_x, buff_y);
-    XSetForeground(padisplay, pagracxt, BlackPixel(padisplay, pascreen));
+    scnptr sc;
+
+    sc = win->screens[win->curupd-1];
+    sc->curx = 1; /* set cursor at home */
+    sc->cury = 1;
+    sc->curxg = 1;
+    sc->curyg = 1;
+    XSetForeground(padisplay, win->pagracxt,
+                   WhitePixel(padisplay, pascreen));
+    XFillRectangle(padisplay, win->pawindow, win->pagracxt, 0, 0, buff_x, buff_y);
+    XSetForeground(padisplay, win->pagracxt,
+                   BlackPixel(padisplay, pascreen));
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Scroll screen
 
@@ -639,7 +947,7 @@ to the window.
 
 *******************************************************************************/
 
-void iscrollg(int x, int y)
+void iscrollg(winptr win, int x, int y)
 
 {
 
@@ -647,7 +955,7 @@ void iscrollg(int x, int y)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Position cursor
 
@@ -655,18 +963,21 @@ Moves the cursor to the specified x and y location.
 
 *******************************************************************************/
 
-void icursor(int x, int y)
+void icursor(winptr win, int x, int y)
 
 {
 
-    cury = y; /* set new position */
-    curx = x;
-    curxg = (x-1)*char_x+1;
-    curyg = (y-1)*char_y+1;
+    scnptr sc;
+
+    sc = win->screens[win->curupd-1];
+    sc->cury = y; /* set new position */
+    sc->curx = x;
+    sc->curxg = (x-1)*win->charspace+1;
+    sc->curyg = (y-1)*win->linespace+1;
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Position cursor graphical
 
@@ -674,18 +985,21 @@ Moves the cursor to the specified x and y location in pixels.
 
 *******************************************************************************/
 
-void icursorg(int x, int y)
+void icursorg(winptr win, int x, int y)
 
 {
 
-    curyg = y; /* set new position */
-    curxg = x;
-    curx = x/char_x;
-    cury = y/char_y;
+    scnptr sc;
+
+    sc = win->screens[win->curupd-1];
+    sc->curyg = y; /* set new position */
+    sc->curxg = x;
+    sc->curx = x/win->charspace+1;
+    sc->cury = y/win->linespace+1;
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Home cursor
 
@@ -693,19 +1007,23 @@ Moves the cursor to the home position at (1, 1), the upper right hand corner.
 
 *******************************************************************************/
 
-static void ihome(void)
+static void ihome(winptr win)
 
 {
 
+    scnptr sc;
+
+    sc = win->screens[win->curupd-1];
+
     /* reset cursors */
-    curx = 1;
-    cury = 1;
-    curxg = 1;
-    curyg = 1;
+    sc->curx = 1;
+    sc->cury = 1;
+    sc->curxg = 1;
+    sc->curyg = 1;
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Move cursor up internal
 
@@ -716,28 +1034,33 @@ negative space as long as it stays within the bounds -INT_MAX to INT_MAX.
 
 *******************************************************************************/
 
-static void iup(void)
+static void iup(winptr win)
 
 {
 
+    scnptr sc;
+
+    sc = win->screens[win->curupd-1];
+
     /* check not top of screen */
-    if (cury > 1) {
+    if (sc->cury > 1) {
 
-        cury = cury-1; /* update position */
-        curyg -= char_y; /* go last character line */
+        sc->cury--; /* update position */
+        sc->curyg -= win->linespace; /* go last character line */
 
-    } else if (autom) iscrollg(0*char_x, -1*char_y); /* scroll up */
+    } else if (sc->autof)
+        iscrollg(win, 0*win->charspace, -1*win->linespace); /* scroll up */
     /* check won't overflow */
-    else if (cury > -INT_MAX) {
+    else if (sc->cury > -INT_MAX) {
 
-        cury = cury-1; /* set new position */
-        curyg -= char_y;
+        sc->cury--; /* set new position */
+        sc->curyg -= win->linespace;
 
     }
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Move cursor down internal
 
@@ -748,27 +1071,31 @@ undrawn space as long as it stays within the bounds of -INT_MAX to INT_MAX.
 
 *******************************************************************************/
 
-static void idown(void)
+static void idown(winptr win)
 
 {
 
+    scnptr sc;
+
+    sc = win->screens[win->curupd-1];
+
     /* check not bottom of screen */
-    if (cury < pa_maxy(stdin)) {
+    if (sc->cury < sc->maxy) {
 
-        cury = cury+1; /* update position */
-        curyg += char_y; /* move to next character line */
+        sc->cury++; /* update position */
+        sc->curyg += win->linespace; /* move to next character line */
 
-    } else if (autom) iscrollg(0*char_x, +1*char_y); /* scroll down */
+    } else if (autof) iscrollg(win, 0*win->charspace, +1*win->linespace); /* scroll down */
     else if (cury < INT_MAX) {
 
-        cury = cury+1; /* set new position */
-        curyg += char_y; /* move to next text line */
+        sc->cury++; /* set new position */
+        sc->curyg += win->linespace; /* move to next text line */
 
     }
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Move cursor left internal
 
@@ -778,31 +1105,35 @@ the cursor will move into negative space, limited only by maxint.
 
 *******************************************************************************/
 
-static void ileft(void)
+static void ileft(winptr win)
 
 {
 
-    /* check not at extreme left */
-    if (curx > 1) {
+    scnptr sc;
 
-        curx--; /* update position */
-        curxg = curxg-char_x; /* back one character */
+    sc = win->screens[win->curupd-1];
+
+    /* check not at extreme left */
+    if (sc->curx > 1) {
+
+        sc->curx--; /* update position */
+        sc->curxg -= win->charspace; /* back one character */
 
     } else { /* wrap cursor motion */
 
-        if (autom) { /* autowrap is on */
+        if (sc->autof) { /* autowrap is on */
 
-            iup(); /* move cursor up one line */
-            curx = pa_maxx(stdin); /* set cursor to extreme right */
-            curxg = pa_maxxg(stdin)-char_x;
+            iup(win); /* move cursor up one line */
+            sc->curx = sc->maxx; /* set cursor to extreme right */
+            sc->curxg = sc->maxxg-win->charspace;
 
         } else {
 
             /* check won't overflow */
-            if (curx > -INT_MAX) {
+            if (sc->curx > -INT_MAX) {
 
-                curx--; /* update position */
-                curxg -= char_x;
+                sc->curx--; /* update position */
+                sc->curxg -= win->charspace;
 
             }
 
@@ -812,7 +1143,7 @@ static void ileft(void)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Move cursor right
 
@@ -820,31 +1151,35 @@ Moves the cursor one character right.
 
 *******************************************************************************/
 
-static void iright(void)
+static void iright(winptr win)
 
 {
 
-    /* check not at extreme right */
-    if (curx < pa_maxx(stdin)) {
+    scnptr sc;
 
-        curx++; /* update position */
-        curxg += char_x;
+    sc = win->screens[win->curupd-1];
+
+    /* check not at extreme right */
+    if (sc->curx < sc->maxx) {
+
+        sc->curx++; /* update position */
+        sc->curxg += win->charspace;
 
     } else { /* wrap cursor motion */
 
-        if (autom) { /* autowrap is on */
+        if (sc->autof) { /* autowrap is on */
 
-            idown(); /* move cursor up one line */
-            curx = 1; /* set cursor to extreme left */
-            curxg = 1;
+            idown(win); /* move cursor up one line */
+            sc->curx = 1; /* set cursor to extreme left */
+            sc->curxg = 1;
 
         /* check won't overflow */
         } else {
 
-            if (curx < INT_MAX) {
+            if (sc->curx < INT_MAX) {
 
-                curx++; /* update position */
-                curxg += curxg+char_x;
+                sc->curx++; /* update position */
+                sc->curxg += win->charspace;
 
             }
 
@@ -854,7 +1189,7 @@ static void iright(void)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Process tab
 
@@ -864,7 +1199,7 @@ cursor is moved to the tab stop.
 
 *******************************************************************************/
 
-static void itab(void)
+static void itab(winptr win)
 
 {
 
@@ -872,485 +1207,7 @@ static void itab(void)
 
 }
 
-/*******************************************************************************
-
-Scroll screen
-
-Scrolls the ANSI terminal screen by deltas in any given direction. If the scroll
-would move all content off the screen, the screen is simply blanked. Otherwise,
-we find the section of the screen that would remain after the scroll, determine
-its source and destination rectangles, and use a bitblt to move it.
-One speedup for the code would be to use non-overlapping fills for the x-y
-fill after the bitblt.
-
-In buffered mode, this routine works by scrolling the buffer, then restoring
-it to the current window. In non-buffered mode, the scroll is applied directly
-to the window.
-
-*******************************************************************************/
-
-void pa_scrollg(FILE* f, int x, int y)
-
-{
-
-    iscrollg(x, y); /* process */
-
-}
-
-void pa_scroll(FILE* f, int x, int y)
-
-{
-
-    iscrollg(x*char_x, y*char_y); /* process scroll */
-
-}
-
-/*******************************************************************************
-
-Position cursor
-
-Moves the cursor to the specified x and y location.
-
-*******************************************************************************/
-
-void pa_cursor(FILE* f, int x, int y)
-
-{
-
-    icursor(x, y); /* process */
-
-}
-
-/*******************************************************************************
-
-Position cursor graphical
-
-Moves the cursor to the specified x and y location in pixels.
-
-*******************************************************************************/
-
-void pa_cursorg(FILE* f, int x, int y)
-
-{
-
-    icursorg(x, y); /* process */
-
-}
-
-/*******************************************************************************
-
-Find character baseline
-
-Returns the offset, from the top of the current fonts character bounding box,
-to the font baseline. The baseline is the line all characters rest on.
-
-*******************************************************************************/
-
-int pa_baseline(FILE* f)
-
-{
-
-}
-
-/*******************************************************************************
-
-Return maximum x dimension
-
-Returns the maximum x dimension, also equal to the number of collumns in the
-display. Because ANSI has no information return capability, this is preset.
-
-*******************************************************************************/
-
-int pa_maxx(FILE* f)
-
-{
-
-    return (DEFXD);
-
-}
-
-/*******************************************************************************
-
-Return maximum y dimension
-
-Returns the maximum y dimension, also equal to the number of collumns in the
-display. Because ANSI has no information return capability, this is preset.
-
-*******************************************************************************/
-
-int pa_maxy(FILE* f)
-
-{
-
-    return (DEFYD);
-
-}
-
-/*******************************************************************************
-
-Return maximum x dimension graphical
-
-Returns the maximum x dimension, which is the width of the client surface in
-pixels.
-
-*******************************************************************************/
-
-int pa_maxxg(FILE* f)
-
-{
-
-    return (buff_x);
-
-}
-
-/*******************************************************************************
-
-Return maximum y dimension graphical
-
-Returns the maximum y dimension, which is the height of the client surface in
-pixels.
-
-*******************************************************************************/
-
-int pa_maxyg(FILE* f)
-
-{
-
-    return (buff_y);
-
-}
-
-/*******************************************************************************
-
-Home cursor
-
-Moves the cursor to the home position at (1, 1), the upper right hand corner.
-
-*******************************************************************************/
-
-void pa_home(FILE* f)
-
-{
-
-    ihome(); /* process */
-
-}
-
-/*******************************************************************************
-
-Move cursor up internal
-
-Moves the cursor position up one line.
-
-*******************************************************************************/
-
-void pa_up(FILE* f)
-
-{
-
-    iup(); /* process */
-
-}
-
-/*******************************************************************************
-
-Move cursor down internal
-
-Moves the cursor position down one line.
-
-*******************************************************************************/
-
-void pa_down(FILE* f)
-
-{
-
-    idown(); /* process */
-
-}
-
-/*******************************************************************************
-
-Move cursor left internal
-
-Moves the cursor one character left. If the cursor is at the extreme left and
-auto mode is on, the cursor will wrap to the right, up one line, otherwise
-the cursor will move into negative space, limited only by maxint.
-
-*******************************************************************************/
-
-void pa_left(FILE* f)
-
-{
-
-    ileft(); /* process */
-
-}
-
-/*******************************************************************************
-
-Move cursor right
-
-Moves the cursor one character right.
-
-*******************************************************************************/
-
-void pa_right(FILE* f)
-
-{
-
-    iright(); /* process */
-
-}
-
-/*******************************************************************************
-
-Turn on blink attribute
-
-Turns on/off the blink attribute.
-
-Note that the attributes can only be set singly.
-
-Graphical mode does not implement blink mode.
-
-*******************************************************************************/
-
-void pa_blink(FILE* f, int e)
-
-{
-
-}
-
-/*******************************************************************************
-
-Turn on reverse attribute
-
-Turns on/off the reverse attribute. Reverse is done by swapping the background
-and foreground writing colors.
-
-*******************************************************************************/
-
-void pa_reverse(FILE* f, int e)
-
-{
-
-}
-
-/*******************************************************************************
-
-Turn on underline attribute
-
-Turns on/off the underline attribute.
-Note that the attributes can only be set singly.
-This is not implemented, but could be done by drawing a line under each
-character drawn.
-
-*******************************************************************************/
-
-void pa_underline(FILE* f, int e)
-
-{
-
-}
-
-/*******************************************************************************
-
-Turn on superscript attribute
-
-Turns on/off the superscript attribute.
-Note that the attributes can only be set singly.
-
-*******************************************************************************/
-
-void pa_superscript(FILE* f, int e)
-
-{
-
-}
-
-/*******************************************************************************
-
-Turn on subscript attribute
-
-Turns on/off the subscript attribute.
-Note that the attributes can only be set singly.
-
-*******************************************************************************/
-
-void pa_subscript(FILE* f, int e)
-
-{
-
-}
-
-/*******************************************************************************
-
-Turn on italic attribute
-
-Turns on/off the italic attribute.
-Note that the attributes can only be set singly.
-
-Italic is causing problems with fixed mode on some fonts, and Windows does not
-seem to want to share with me just what the true width of an italic font is
-(without taking heroic measures like drawing and testing pixels). So we disable
-italic on fixed fonts.
-
-*******************************************************************************/
-
-void pa_italic(FILE* f, int e)
-
-{
-
-}
-
-/*******************************************************************************
-
-Turn on bold attribute
-
-Turns on/off the bold attribute.
-Note that the attributes can only be set singly.
-Basically, the only way that I have found to reliably change attributes
-on a PC is to turn it all off, then reset everything, including the
-colors, which an ATTRIBUTE command seems to mess with !
-
-*******************************************************************************/
-
-void pa_bold(FILE* f, int e)
-
-{
-
-}
-
-/*******************************************************************************
-
-Turn on strikeout attribute
-
-Turns on/off the strikeout attribute.
-Note that the attributes can only be set singly.
-Not implemented, but strikeout can be done by drawing a line through characters
-just placed.
-
-*******************************************************************************/
-
-void pa_strikeout(FILE* f, int e)
-
-{
-
-}
-
-/*******************************************************************************
-
-Turn on standout attribute
-
-Turns on/off the standout attribute. Standout is implemented as reverse video.
-Note that the attributes can only be set singly.
-
-*******************************************************************************/
-
-void pa_standout(FILE* f, int e)
-
-{
-
-}
-
-/*******************************************************************************
-
-Set foreground color
-
-Sets the foreground color from the universal primary code.
-
-*******************************************************************************/
-
-void pa_fcolor(FILE* f, pa_color c)
-
-{
-
-    int rgb;
-
-    rgb = colnum(c); /* translate color code to RGB */
-    XSetForeground(padisplay, pagracxt, rgb);
-
-}
-
-void pa_fcolorc(FILE* f, int r, int g, int b)
-
-{
-
-    XSetForeground(padisplay, pagracxt, r<<16 | g<<8 | b);
-
-}
-
-/*******************************************************************************
-
-Set foreground color graphical
-
-Sets the foreground color from RGB primaries. The RGB values are scaled from
-maxint, so 255 = maxint. This means that if the color resolution ever goes
-up, we will be ready.
-
-Fcolor exists as an overload to the text version, but we also provide an
-fcolorg for backward compatiblity to the days before overloads.
-
-*******************************************************************************/
-
-void pa_fcolorg(FILE* f, int r, int g, int b)
-
-{
-
-    XSetForeground(padisplay, pagracxt, r<<16 | g<<8 | b);
-
-}
-
-/*******************************************************************************
-
-Set background color
-
-Sets the background color from the universal primary code.
-
-*******************************************************************************/
-
-void pa_bcolor(FILE* f, pa_color c)
-
-{
-
-    int rgb;
-
-    rgb = colnum(c); /* translate color code to RGB */
-    XSetForeground(padisplay, pagracxt, rgb);
-
-}
-
-void pa_bcolorc(FILE* f, int r, int g, int b)
-
-{
-
-    XSetForeground(padisplay, pagracxt, r<<16 | g<<8 | b);
-
-}
-
-/*******************************************************************************
-
-Set background color graphical
-
-Sets the background color from RGB primaries. The RGB values are scaled from
-maxint, so 255 = maxint. This means that if the color resolution ever goes
-up, we will be ready.
-
-*******************************************************************************/
-
-void pa_bcolorg(FILE* f, int r, int g, int b)
-
-{
-
-    winptr win; /* windows record pointer */
-
-    win = txt2win(f); /* get window from file */
-
-    XSetForeground(padisplay, win->screens[win->curupd-1]->pagracxt,
-                   r<<16 | g<<8 | b);
-
-}
-
-/*******************************************************************************
+/** ****************************************************************************
 
 Find if cursor is in screen bounds
 
@@ -1367,19 +1224,7 @@ static int icurbnd(scnptr sc)
 
 }
 
-int pa_curbnd(FILE* f)
-
-{
-
-    winptr win; /* windows record pointer */
-
-    win = txt2win(f); /* get window from file */
-
-    return (icurbnd(win->screens[win->curupd-1]);
-
-}
-
-/*******************************************************************************
+/** ****************************************************************************
 
 Enable/disable automatic scroll and wrap
 
@@ -1425,6 +1270,789 @@ static void iauto(winptr win, int e)
 
 }
 
+/** ****************************************************************************
+
+Place next terminal character
+
+Places the given character to the current cursor position using the current
+colors and attribute.
+
+We handle some elementary control codes here, like newline, backspace and form
+feed. However, the idea is not to provide a parallel set of screen controls.
+That's what the API is for.
+
+*******************************************************************************/
+
+static void plcchr(winptr win, char c)
+
+{
+
+    scnptr sc;  /* pointer to current screen */
+
+    sc = win->screens[win->curupd-1]; /* index current screen */
+    if (c == '\r') {
+
+        /* carriage return, position to extreme left */
+        sc->curx = 1; /* set to extreme left */
+        sc->curxg = 1;
+
+    } else if (c == '\n') {
+
+        sc->curx = 1; /* set to extreme left */
+        sc->curxg = 1;
+        idown(win); /* line feed, move down */
+
+    } else if (c == '\b') ileft(win); /* back space, move left */
+    else if (c == '\f') iclear(win); /* clear screen */
+    else if (c == '\t') itab(win); /* process tab */
+    /* only output visible characters */
+    else if (c >= ' ' && c != 0x7f) {
+
+        /* place on buffer */
+        XDrawString(padisplay, pascnbuf, win->pagracxt, curxg-1, curyg-1+char_y, &c,
+                    1);
+
+        /* send exposure event back to window with mask over character */
+        evtexp.xexpose.x = sc->curxg-1;
+        evtexp.xexpose.y = sc->curyg-1;
+        evtexp.xexpose.width = sc->curxg-1+char_x;
+        evtexp.xexpose.height = sc->curyg-1+char_y;
+        XSendEvent(padisplay, pawindow, FALSE, ExposureMask, &evtexp);
+
+        /* advance to next character */
+        iright(win);
+
+    }
+
+}
+
+/** ****************************************************************************
+
+System call interdiction handlers
+
+The interdiction calls are the basic system calls used to implement stdio:
+
+read
+write
+open
+close
+unlink
+lseek
+
+We use interdiction to filter standard I/O calls towards the terminal. The
+0 (input) and 1 (output) files are interdicted. In ANSI terminal, we act as a
+filter, so this does not change the user ability to redirect the file handles
+elsewhere.
+
+*******************************************************************************/
+
+/** ****************************************************************************
+
+Read
+
+*******************************************************************************/
+
+static ssize_t iread(int fd, void* buff, size_t count)
+
+{
+
+    return (*ofpread)(fd, buff, count);
+
+}
+
+/** ****************************************************************************
+
+Write
+
+*******************************************************************************/
+
+static ssize_t iwrite(int fd, const void* buff, size_t count)
+
+{
+
+    ssize_t rc; /* return code */
+    char*   p = (char *)buff;
+    size_t  cnt = count;
+    winptr  win; /* pointer to window data */
+
+    if (fd < 0 || fd >= MAXFIL) error(einvhan); /* invalid file handle */
+    if (opnfil[fd] && opnfil[fd]->win) { /* process window output file */
+
+        win = opnfil[fd]->win; /* index window */
+        /* send data to terminal */
+        while (cnt--) plcchr(win, *p++);
+        rc = count; /* set return same as count */
+
+    } else rc = (*ofpwrite)(fd, buff, count);
+
+    return rc;
+
+}
+
+/** ****************************************************************************
+
+Open
+
+Terminal is assumed to be opened when the system starts, and closed when it
+shuts down. Thus we do nothing for this.
+
+*******************************************************************************/
+
+static int iopen(const char* pathname, int flags, int perm)
+
+{
+
+    return (*ofpopen)(pathname, flags, perm);
+
+}
+
+/** ****************************************************************************
+
+Close
+
+Does nothing but pass on.
+
+*******************************************************************************/
+
+static int iclose(int fd)
+
+{
+
+    return (*ofpclose)(fd);
+
+}
+
+/** ****************************************************************************
+
+Unlink
+
+Unlink has nothing to do with us, so we just pass it on.
+
+*******************************************************************************/
+
+static int iunlink(const char* pathname)
+
+{
+
+    return (*ofpunlink)(pathname);
+
+}
+
+/** ****************************************************************************
+
+Lseek
+
+Lseek is never possible on a terminal, so this is always an error on the stdin
+or stdout handle.
+
+*******************************************************************************/
+
+static off_t ilseek(int fd, off_t offset, int whence)
+
+{
+
+    /* check seeking on terminal attached file (input or output) and error
+       if so */
+    if (fd == INPFIL || fd == OUTFIL) error(efilopr);
+
+    return (*ofplseek)(fd, offset, whence);
+
+}
+
+/** ****************************************************************************
+
+External interface routines
+
+*******************************************************************************/
+
+/** ****************************************************************************
+
+Scroll screen
+
+Scrolls the ANSI terminal screen by deltas in any given direction. If the scroll
+would move all content off the screen, the screen is simply blanked. Otherwise,
+we find the section of the screen that would remain after the scroll, determine
+its source and destination rectangles, and use a bitblt to move it.
+One speedup for the code would be to use non-overlapping fills for the x-y
+fill after the bitblt.
+
+In buffered mode, this routine works by scrolling the buffer, then restoring
+it to the current window. In non-buffered mode, the scroll is applied directly
+to the window.
+
+*******************************************************************************/
+
+void pa_scrollg(FILE* f, int x, int y)
+
+{
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    iscrollg(win, x, y); /* process */
+
+}
+
+void pa_scroll(FILE* f, int x, int y)
+
+{
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+
+    iscrollg(x*win->charspace, y*win->linespace); /* process scroll */
+
+}
+
+/** ****************************************************************************
+
+Position cursor
+
+Moves the cursor to the specified x and y location.
+
+*******************************************************************************/
+
+void pa_cursor(FILE* f, int x, int y)
+
+{
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    icursor(win, x, y); /* process */
+
+}
+
+/** ****************************************************************************
+
+Position cursor graphical
+
+Moves the cursor to the specified x and y location in pixels.
+
+*******************************************************************************/
+
+void pa_cursorg(FILE* f, int x, int y)
+
+{
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    icursorg(win, x, y); /* process */
+
+}
+
+/** ****************************************************************************
+
+Find character baseline
+
+Returns the offset, from the top of the current fonts character bounding box,
+to the font baseline. The baseline is the line all characters rest on.
+
+*******************************************************************************/
+
+int pa_baseline(FILE* f)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Return maximum x dimension
+
+Returns the maximum x dimension, also equal to the number of collumns in the
+display. Because ANSI has no information return capability, this is preset.
+
+*******************************************************************************/
+
+int pa_maxx(FILE* f)
+
+{
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+
+    return (win->gmaxx);
+
+}
+
+/** ****************************************************************************
+
+Return maximum y dimension
+
+Returns the maximum y dimension, also equal to the number of collumns in the
+display. Because ANSI has no information return capability, this is preset.
+
+*******************************************************************************/
+
+int pa_maxy(FILE* f)
+
+{
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+
+    return (win->gmaxx);
+
+}
+
+/** ****************************************************************************
+
+Return maximum x dimension graphical
+
+Returns the maximum x dimension, which is the width of the client surface in
+pixels.
+
+*******************************************************************************/
+
+int pa_maxxg(FILE* f)
+
+{
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+
+    return (win->gmaxxg);
+
+}
+
+/** ****************************************************************************
+
+Return maximum y dimension graphical
+
+Returns the maximum y dimension, which is the height of the client surface in
+pixels.
+
+*******************************************************************************/
+
+int pa_maxyg(FILE* f)
+
+{
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+
+    return (win->gmaxyg);
+
+}
+
+/** ****************************************************************************
+
+Home cursor
+
+Moves the cursor to the home position at (1, 1), the upper right hand corner.
+
+*******************************************************************************/
+
+void pa_home(FILE* f)
+
+{
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    ihome(win); /* process */
+
+}
+
+/** ****************************************************************************
+
+Move cursor up internal
+
+Moves the cursor position up one line.
+
+*******************************************************************************/
+
+void pa_up(FILE* f)
+
+{
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    iup(win); /* process */
+
+}
+
+/** ****************************************************************************
+
+Move cursor down internal
+
+Moves the cursor position down one line.
+
+*******************************************************************************/
+
+void pa_down(FILE* f)
+
+{
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    idown(win); /* process */
+
+}
+
+/** ****************************************************************************
+
+Move cursor left internal
+
+Moves the cursor one character left. If the cursor is at the extreme left and
+auto mode is on, the cursor will wrap to the right, up one line, otherwise
+the cursor will move into negative space, limited only by maxint.
+
+*******************************************************************************/
+
+void pa_left(FILE* f)
+
+{
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    ileft(win); /* process */
+
+}
+
+/** ****************************************************************************
+
+Move cursor right
+
+Moves the cursor one character right.
+
+*******************************************************************************/
+
+void pa_right(FILE* f)
+
+{
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    iright(win); /* process */
+
+}
+
+/** ****************************************************************************
+
+Turn on blink attribute
+
+Turns on/off the blink attribute.
+
+Note that the attributes can only be set singly.
+
+Graphical mode does not implement blink mode.
+
+*******************************************************************************/
+
+void pa_blink(FILE* f, int e)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Turn on reverse attribute
+
+Turns on/off the reverse attribute. Reverse is done by swapping the background
+and foreground writing colors.
+
+*******************************************************************************/
+
+void pa_reverse(FILE* f, int e)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Turn on underline attribute
+
+Turns on/off the underline attribute.
+Note that the attributes can only be set singly.
+This is not implemented, but could be done by drawing a line under each
+character drawn.
+
+*******************************************************************************/
+
+void pa_underline(FILE* f, int e)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Turn on superscript attribute
+
+Turns on/off the superscript attribute.
+Note that the attributes can only be set singly.
+
+*******************************************************************************/
+
+void pa_superscript(FILE* f, int e)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Turn on subscript attribute
+
+Turns on/off the subscript attribute.
+Note that the attributes can only be set singly.
+
+*******************************************************************************/
+
+void pa_subscript(FILE* f, int e)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Turn on italic attribute
+
+Turns on/off the italic attribute.
+Note that the attributes can only be set singly.
+
+Italic is causing problems with fixed mode on some fonts, and Windows does not
+seem to want to share with me just what the true width of an italic font is
+(without taking heroic measures like drawing and testing pixels). So we disable
+italic on fixed fonts.
+
+*******************************************************************************/
+
+void pa_italic(FILE* f, int e)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Turn on bold attribute
+
+Turns on/off the bold attribute.
+Note that the attributes can only be set singly.
+Basically, the only way that I have found to reliably change attributes
+on a PC is to turn it all off, then reset everything, including the
+colors, which an ATTRIBUTE command seems to mess with !
+
+*******************************************************************************/
+
+void pa_bold(FILE* f, int e)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Turn on strikeout attribute
+
+Turns on/off the strikeout attribute.
+Note that the attributes can only be set singly.
+Not implemented, but strikeout can be done by drawing a line through characters
+just placed.
+
+*******************************************************************************/
+
+void pa_strikeout(FILE* f, int e)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Turn on standout attribute
+
+Turns on/off the standout attribute. Standout is implemented as reverse video.
+Note that the attributes can only be set singly.
+
+*******************************************************************************/
+
+void pa_standout(FILE* f, int e)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Set foreground color
+
+Sets the foreground color from the universal primary code.
+
+*******************************************************************************/
+
+void pa_fcolor(FILE* f, pa_color c)
+
+{
+
+    int rgb;
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    rgb = colnum(c); /* translate color code to RGB */
+    XSetForeground(padisplay, win->pagracxt, rgb);
+
+}
+
+/** ****************************************************************************
+
+Set foreground color
+
+Sets the foreground color from individual r, g, b values.
+
+*******************************************************************************/
+
+void pa_fcolorc(FILE* f, int r, int g, int b)
+
+{
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    XSetForeground(padisplay, win->pagracxt, r<<16 | g<<8 | b);
+
+}
+
+/** ****************************************************************************
+
+Set foreground color graphical
+
+Sets the foreground color from RGB primaries. The RGB values are scaled from
+maxint, so 255 = maxint. This means that if the color resolution ever goes
+up, we will be ready.
+
+Fcolor exists as an overload to the text version, but we also provide an
+fcolorg for backward compatiblity to the days before overloads.
+
+*******************************************************************************/
+
+void pa_fcolorg(FILE* f, int r, int g, int b)
+
+{
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    XSetForeground(padisplay, win->pagracxt, r<<16 | g<<8 | b);
+
+}
+
+/** ****************************************************************************
+
+Set background color
+
+Sets the background color from the universal primary code.
+
+*******************************************************************************/
+
+void pa_bcolor(FILE* f, pa_color c)
+
+{
+
+    int rgb;
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    rgb = colnum(c); /* translate color code to RGB */
+    XSetForeground(padisplay, win->pagracxt, rgb);
+
+}
+
+void pa_bcolorc(FILE* f, int r, int g, int b)
+
+{
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    XSetForeground(padisplay, win->pagracxt,
+                   r<<16 | g<<8 | b);
+
+}
+
+/** ****************************************************************************
+
+Set background color graphical
+
+Sets the background color from RGB primaries. The RGB values are scaled from
+maxint, so 255 = maxint. This means that if the color resolution ever goes
+up, we will be ready.
+
+*******************************************************************************/
+
+void pa_bcolorg(FILE* f, int r, int g, int b)
+
+{
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    XSetForeground(padisplay, win->pagracxt,
+                   r<<16 | g<<8 | b);
+
+}
+
+/** ****************************************************************************
+
+Find if cursor is in screen bounds
+
+Checks if the cursor lies in the current bounds, and returns TRUE if so.
+
+*******************************************************************************/
+
+int pa_curbnd(FILE* f)
+
+{
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+
+    return (icurbnd(win->screens[win->curupd-1]);
+
+}
+
+/** ****************************************************************************
+
+Enable/disable automatic scroll and wrap
+
+
+Enables or disables automatic screen scroll and end of line wrapping. When the
+cursor leaves the screen in automatic mode, the following occurs:
+
+up       Scroll down
+down     Scroll up
+right    Line down, start at left
+left     Line up, start at right
+
+These movements can be combined. Leaving the screen right from the lower right
+corner will both wrap and scroll up. Leaving the screen left from upper left
+will wrap and scroll down.
+
+With auto disabled, no automatic scrolling will occur, and any movement of the
+cursor off screen will simply cause the cursor to be undefined. In this
+package that means the cursor is off, and no characters are written. On a
+real terminal, it simply means that the position is undefined, and could be
+anywhere.
+
+*******************************************************************************/
+
 void pa_auto(FILE* f, int e)
 
 {
@@ -1436,7 +2064,7 @@ void pa_auto(FILE* f, int e)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Enable/disable cursor visibility
 
@@ -1450,7 +2078,7 @@ void pa_curvis(FILE* f, int e)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Get location of cursor in x
 
@@ -1470,7 +2098,7 @@ int pa_curx(FILE* f)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Get location of cursor in y
 
@@ -1490,7 +2118,7 @@ int pa_cury(FILE* f)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Get location of cursor in x graphical
 
@@ -1510,7 +2138,7 @@ int pa_curxg(FILE* f)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Get location of cursor in y graphical
 
@@ -1530,7 +2158,7 @@ int pa_curyg(FILE* f)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Select current screen
 
@@ -1550,7 +2178,7 @@ void pa_select(FILE* f, int u, int d)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Write string to current cursor position
 
@@ -1573,7 +2201,7 @@ void pa_wrtstr(FILE* f, char* s)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Delete last character
 
@@ -1592,7 +2220,7 @@ void pa_del(FILE* f)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Draw line
 
@@ -1606,7 +2234,7 @@ void pa_line(FILE* f, int x1, int y1, int x2, int y2)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Draw rectangle
 
@@ -1620,7 +2248,7 @@ void pa_rect(FILE* f, int x1, int y1, int x2, int y2)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Draw filled rectangle
 
@@ -1634,7 +2262,7 @@ void pa_frect(FILE* f, int x1, int y1, int x2, int y2)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Draw rounded rectangle
 
@@ -1648,7 +2276,7 @@ void pa_rrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Draw filled rounded rectangle
 
@@ -1662,7 +2290,7 @@ void pa_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Draw ellipse
 
@@ -1676,7 +2304,7 @@ void pa_ellipse(FILE* f, int x1, int y1, int x2, int y2)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Draw filled ellipse
 
@@ -1690,7 +2318,7 @@ void pa_fellipse(FILE* f, int x1, int y1, int x2, int y2)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Draw arc
 
@@ -1724,7 +2352,7 @@ void pa_arc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Draw filled arc
 
@@ -1739,7 +2367,7 @@ void pa_farc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Draw filled cord
 
@@ -1754,7 +2382,7 @@ void pa_fchord(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Draw filled triangle
 
@@ -1768,7 +2396,7 @@ void pa_ftriangle(FILE* f, int x1, int y1, int x2, int y2, int x3, int y3)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Set pixel
 
@@ -1782,7 +2410,7 @@ void pa_setpixel(FILE* f, int x, int y)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Set foreground to overwrite
 
@@ -1796,7 +2424,7 @@ void pa_fover(FILE* f)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Set background to overwrite
 
@@ -1810,7 +2438,7 @@ void pa_bover(FILE* f)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Set foreground to invisible
 
@@ -1824,7 +2452,7 @@ void pa_finvis(FILE* f)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Set background to invisible
 
@@ -1838,7 +2466,7 @@ void pa_binvis(FILE* f)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Set foreground to xor
 
@@ -1852,7 +2480,7 @@ void pa_fxor(FILE* f)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Set background to xor
 
@@ -1866,7 +2494,7 @@ void pa_bxor(FILE* f)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Set line width
 
@@ -1880,7 +2508,7 @@ void pa_linewidth(FILE* f, int w)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Find character size x
 
@@ -1894,7 +2522,7 @@ int pa_chrsizx(FILE* f)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Find character size y
 
@@ -1908,7 +2536,7 @@ int pa_chrsizy(FILE* f)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Find number of installed fonts
 
@@ -1922,7 +2550,7 @@ int pa_fonts(FILE* f)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Change fonts
 
@@ -1936,7 +2564,7 @@ void pa_font(FILE* f, int fc)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Find name of font
 
@@ -1950,7 +2578,7 @@ void pa_fontnam(FILE* f, int fc, char* fns, int fnsl)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Change font size
 
@@ -1965,7 +2593,7 @@ void pa_fontsiz(FILE* f, int s)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Find standard font numbers
 
@@ -2006,7 +2634,7 @@ int pa_techfont(FILE* f)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Set character extra spacing y
 
@@ -2023,7 +2651,7 @@ void pa_chrspcy(FILE* f, int s)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Sets extra character space x
 
@@ -2040,7 +2668,7 @@ void pa_chrspcx(FILE* f, int s)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Find dots per meter x
 
@@ -2054,7 +2682,7 @@ int pa_dpmx(FILE* f)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Find dots per meter y
 
@@ -2068,7 +2696,7 @@ int pa_dpmy(FILE* f)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Find string size in pixels
 
@@ -2083,7 +2711,7 @@ int pa_strsiz(FILE* f, const char* s)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Find character position in string
 
@@ -2097,7 +2725,7 @@ int pa_chrpos(FILE* f, const char* s, int p)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Write justified text
 
@@ -2113,7 +2741,7 @@ void pa_writejust(FILE* f, const char* s, int n)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Find justified character position
 
@@ -2131,7 +2759,7 @@ int pa_justpos(FILE* f, const char* s, int p, int n)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Turn on condensed attribute
 
@@ -2150,7 +2778,7 @@ void pa_condensed(FILE* f, int e)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Turn on extended attribute
 
@@ -2169,7 +2797,7 @@ void pa_extended(FILE* f, int e)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Turn on extra light attribute
 
@@ -2188,7 +2816,7 @@ void pa_xlight(FILE* f, int e)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Turn on light attribute
 
@@ -2207,7 +2835,7 @@ void pa_light(FILE* f, int e)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Turn on extra bold attribute
 
@@ -2226,7 +2854,7 @@ void pa_xbold(FILE* f, int e)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Turn on hollow attribute
 
@@ -2245,7 +2873,7 @@ void pa_hollow(FILE* f, int e)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Turn on raised attribute
 
@@ -2264,7 +2892,7 @@ void pa_raised(FILE* f, int e)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Delete picture
 
@@ -2278,7 +2906,7 @@ void pa_delpict(FILE* f, int p)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Load picture
 
@@ -2292,7 +2920,7 @@ void pa_loadpict(FILE* f, int p, char* fn)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Find size x of picture
 
@@ -2306,7 +2934,7 @@ int pa_pictsizx(FILE* f, int p)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Find size y of picture
 
@@ -2320,7 +2948,7 @@ int pa_pictsizy(FILE* f, int p)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Draw picture
 
@@ -2337,7 +2965,7 @@ void pa_picture(FILE* f, int p, int x1, int y1, int x2, int y2)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Set viewport offset graphical
 
@@ -2352,7 +2980,7 @@ void pa_viewoffg(FILE* f, int x, int y)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Set viewport scale
 
@@ -2378,7 +3006,7 @@ void pa_viewscale(FILE* f, float x, float y)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Acquire next input event
 
@@ -2408,7 +3036,8 @@ void pa_event(FILE* f, pa_evtrec* er)
         XNextEvent(padisplay, &e);
         if (e.type == Expose) {
 
-            XCopyArea(padisplay, pascnbuf, pawindow, pagracxt, 0, 0, DEFXD*char_x, DEFYD*char_y, 0, 0);
+            XCopyArea(padisplay, pascnbuf, pawindow, win->pagracxt, 0, 0,
+                      DEFXD*char_x, DEFYD*char_y, 0, 0);
 
         }
         if (e.type == KeyPress) {
@@ -2555,7 +3184,7 @@ void pa_event(FILE* f, pa_evtrec* er)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Set timer
 
@@ -2579,7 +3208,7 @@ void pa_timer(FILE* f, /* file to send event to */
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Kill timer
 
@@ -2594,7 +3223,7 @@ void pa_killtimer(FILE*  f, /* file to kill timer on */
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Set/kill framing timer
 
@@ -2611,7 +3240,7 @@ void pa_frametimer(FILE* f, int e)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Set automatic hold state
 
@@ -2634,7 +3263,7 @@ void pa_autohold(int e)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Return number of mice
 
@@ -2648,7 +3277,7 @@ int pa_mouse(FILE* f)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Return number of buttons on mouse
 
@@ -2663,7 +3292,7 @@ int pa_mousebutton(FILE* f, int m)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Return number of joysticks
 
@@ -2677,7 +3306,7 @@ int pa_joystick(FILE* f)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Return number of buttons on a joystick
 
@@ -2691,7 +3320,7 @@ int pa_joybutton(FILE* f, int j)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Return number of axies on a joystick
 
@@ -2707,7 +3336,7 @@ int pa_joyaxis(FILE* f, int j)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Set tab graphical
 
@@ -2721,7 +3350,7 @@ void pa_settabg(FILE* f, int t)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Set tab
 
@@ -2735,7 +3364,7 @@ void pa_settab(FILE* f, int t)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Reset tab graphical
 
@@ -2749,7 +3378,7 @@ void pa_restabg(FILE* f, int t)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Reset tab
 
@@ -2763,7 +3392,7 @@ void pa_restab(FILE* f, int t)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Clear all tabs
 
@@ -2778,7 +3407,7 @@ void pa_clrtab(FILE* f)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Find number of function keys
 
@@ -2794,7 +3423,7 @@ int pa_funkey(FILE* f)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Set window title
 
@@ -2808,7 +3437,7 @@ void pa_title(FILE* f, char* ts)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Open window
 
@@ -2827,7 +3456,7 @@ void pa_openwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Size buffer pixel
 
@@ -2841,7 +3470,7 @@ void pa_sizbufg(FILE* f, int x, int y)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Size buffer in characters
 
@@ -2855,7 +3484,7 @@ void pa_sizbuf(FILE* f, int x, int y)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Enable/disable buffered mode
 
@@ -2870,7 +3499,7 @@ void pa_buffer(FILE* f, int e)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Activate/distroy menu
 
@@ -2886,7 +3515,7 @@ void pa_menu(FILE* f, pa_menuptr m)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Enable/disable menu entry
 
@@ -2901,7 +3530,7 @@ void pa_menuena(FILE* f, int id, int onoff)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 select/deselect menu entry
 
@@ -2916,7 +3545,7 @@ void pa_menusel(FILE* f, int id, int select)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Bring window to front of the Z order
 
@@ -2930,7 +3559,7 @@ void pa_front(FILE* f)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Puts window to the back of the Z order
 
@@ -2944,7 +3573,7 @@ void pa_back(FILE* f)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Get window size graphical
 
@@ -2958,7 +3587,7 @@ void pa_getsizg(FILE* f, int* x, int* y)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Get window size character
 
@@ -2977,7 +3606,7 @@ void pa_getsiz(FILE* f, int* x, int* y)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Set window size graphical
 
@@ -2991,7 +3620,7 @@ void pa_setsizg(FILE* f, int x, int y)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Set window size character
 
@@ -3010,7 +3639,7 @@ void pa_setsiz(FILE* f, int x, int y)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Set window position graphical
 
@@ -3024,7 +3653,7 @@ void pa_setposg(FILE* f, int x, int y)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Set window position character
 
@@ -3043,7 +3672,7 @@ void pa_setpos(FILE* f, int x, int y)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Get screen size graphical
 
@@ -3057,7 +3686,7 @@ void pa_scnsizg(FILE* f, int* x, int* y)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Find window size from client
 
@@ -3086,7 +3715,7 @@ void pa_winclientg(FILE* f, int cx, int cy, int* wx, int* wy,
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Get screen size character
 
@@ -3103,7 +3732,7 @@ void pa_scnsiz(FILE* f, int* x, int* y)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Enable or disable window frame
 
@@ -3117,7 +3746,7 @@ void pa_frame(FILE* f, int e)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Enable or disable window sizing
 
@@ -3131,7 +3760,7 @@ void pa_sizable(FILE* f, int e)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Enable or disable window system bar
 
@@ -3145,7 +3774,7 @@ void pa_sysbar(FILE* f, int e)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Create standard menu
 
@@ -3167,7 +3796,7 @@ void pa_stdmenu(pa_stdmenusel sms, pa_menuptr* sm, pa_menuptr pm)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Kill widget
 
@@ -3181,7 +3810,7 @@ void pa_killwidget(FILE* f, int id)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Select/deselect widget
 
@@ -3195,7 +3824,7 @@ void pa_selectwidget(FILE* f, int id, int e)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Enable/disable widget
 
@@ -3209,7 +3838,7 @@ void pa_enablewidget(FILE* f, int id, int e)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Get widget text
 
@@ -3225,7 +3854,7 @@ void pa_getwidgettext(FILE* f, int id, char* s, int sl)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 put edit box text
 
@@ -3239,7 +3868,7 @@ void pa_putwidgettext(FILE* f, int id, char* s)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Resize widget
 
@@ -3253,7 +3882,7 @@ void pa_sizwidgetg(FILE* f, int id, int x, int y)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Reposition widget
 
@@ -3267,7 +3896,7 @@ void pa_poswidgetg(FILE* f, int id, int x, int y)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Place widget to back of Z order
 
@@ -3279,7 +3908,7 @@ void pa_backwidget(FILE* f, int id)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Place widget to back of Z order
 
@@ -3291,7 +3920,7 @@ void pa_frontwidget(FILE* f, int id)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Find minimum/standard button size
 
@@ -3312,7 +3941,7 @@ void pa_buttonsiz(FILE* f, char* s, int* w, int* h)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Create button
 
@@ -3332,7 +3961,7 @@ void pa_button(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Find minimum/standard checkbox size
 
@@ -3353,7 +3982,7 @@ void pa_checkboxsiz(FILE* f, char* s,  int* w, int* h)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Create checkbox
 
@@ -3374,7 +4003,7 @@ void pa_checkbox(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Find minimum/standard radio button size
 
@@ -3395,7 +4024,7 @@ void pa_radiobuttonsiz(FILE* f, char* s, int* w, int* h)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Create radio button
 
@@ -3416,7 +4045,7 @@ void pa_radiobutton(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Find minimum/standard group size
 
@@ -3439,7 +4068,7 @@ void pa_groupsiz(FILE* f, char* s, int cw, int ch, int* w, int* h,
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Create group box
 
@@ -3460,7 +4089,7 @@ void pa_group(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Create background box
 
@@ -3481,7 +4110,7 @@ void pa_background(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Find minimum/standard vertical scrollbar size
 
@@ -3502,7 +4131,7 @@ void pa_scrollvertsiz(FILE* f, int* w, int* h)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Create vertical scrollbar
 
@@ -3522,7 +4151,7 @@ void pa_scrollvert(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Find minimum/standard horizontal scrollbar size
 
@@ -3543,7 +4172,7 @@ void pa_scrollhorizsiz(FILE* f, int* w, int* h)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Create horizontal scrollbar
 
@@ -3563,7 +4192,7 @@ void pa_scrollhoriz(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Set scrollbar position
 
@@ -3577,7 +4206,7 @@ void pa_scrollpos(FILE* f, int id, int r)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Set scrollbar size
 
@@ -3591,7 +4220,7 @@ void pa_scrollsiz(FILE* f, int id, int r)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Find minimum/standard number select box size
 
@@ -3612,7 +4241,7 @@ void pa_numselboxsiz(FILE* f, int l, int u, int* w, int* h)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Create number selector
 
@@ -3632,7 +4261,7 @@ void pa_numselbox(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Find minimum/standard edit box size
 
@@ -3653,7 +4282,7 @@ void pa_editboxsiz(FILE* f, char* s, int* w, int* h)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Create edit box
 
@@ -3673,7 +4302,7 @@ void pa_editbox(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Find minimum/standard edit box size
 
@@ -3694,7 +4323,7 @@ void pa_progbarsiz(FILE* f, int* w, int* h)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Create progress bar
 
@@ -3708,13 +4337,13 @@ void pa_progbarg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void progbar(FILE* f, int x1, int y1, int x2, int y2, int id)
+void pa_progbar(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Set progress bar position
 
@@ -3728,7 +4357,7 @@ void pa_progbarpos(FILE* f, int id, int pos)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Find minimum/standard list box size
 
@@ -3756,7 +4385,7 @@ void pa_listboxsiz(FILE* f, pa_strptr sp, int* w, int* h)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Create list box
 
@@ -3776,7 +4405,7 @@ void pa_listbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Find minimum/standard dropbox size
 
@@ -3801,7 +4430,7 @@ void pa_dropboxsiz(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Create dropdown box
 
@@ -3821,7 +4450,7 @@ void pa_dropbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Find minimum/standard drop edit box size
 
@@ -3847,7 +4476,7 @@ void pa_dropeditboxsiz(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Create dropdown edit box
 
@@ -3870,7 +4499,7 @@ void pa_dropeditbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int i
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Find minimum/standard horizontal slider size
 
@@ -3891,7 +4520,7 @@ void pa_slidehorizsiz(FILE* f, int* w, int* h)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Create horizontal slider
 
@@ -3913,7 +4542,7 @@ void pa_slidehoriz(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Find minimum/standard vertical slider size
 
@@ -3934,7 +4563,7 @@ void pa_slidevertsiz(FILE* f, int* w, int* h)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Create vertical slider
 
@@ -3956,7 +4585,7 @@ void pa_slidevert(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Find minimum/standard tab bar size
 
@@ -3979,7 +4608,7 @@ void pa_tabbarsiz(FILE* f, pa_tabori tor, int cw, int ch, int * w, int* h,
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Find client from tabbar size
 
@@ -4003,7 +4632,7 @@ void pa_tabbarclient(FILE* f, pa_tabori tor, int w, int h, int* cw, int* ch,
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Create tab bar
 
@@ -4029,7 +4658,7 @@ void pa_tabbar(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp,
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Set tabbar current select
 
@@ -4044,7 +4673,7 @@ void pa_tabsel(FILE* f, int id, int tn)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Output message dialog
 
@@ -4058,7 +4687,7 @@ void pa_alert(char* title, char* message)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Display choose color dialog
 
@@ -4074,7 +4703,7 @@ void pa_querycolor(int* r, int* g, int* b)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Display choose file dialog for open
 
@@ -4096,7 +4725,7 @@ void pa_queryopen(char* s)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Display choose file dialog for save
 
@@ -4118,7 +4747,7 @@ void pa_querysave(char* s)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Display choose find text dialog
 
@@ -4149,7 +4778,7 @@ void pa_queryfind(char* s, pa_qfnopts* opt)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Display choose replace text dialog
 
@@ -4172,7 +4801,7 @@ void pa_queryfindrep(char* s, char* r, pa_qfropts* opt)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Display choose font dialog
 
@@ -4196,685 +4825,6 @@ void pa_queryfont(FILE* f, int* fc, int* s, int* fr, int* fg, int* fb,
 
 /** ****************************************************************************
 
-Place next terminal character
-
-Places the given character to the current cursor position using the current
-colors and attribute.
-
-We handle some elementary control codes here, like newline, backspace and form
-feed. However, the idea is not to provide a parallel set of screen controls.
-That's what the API is for.
-
-*******************************************************************************/
-
-static void plcchr(winptr win, char c)
-
-{
-
-    scnptr sc;  /* pointer to current screen */
-
-    sc = win->screens[win->curupd-1]; /* index current screen */
-    if (c == '\r') {
-
-        /* carriage return, position to extreme left */
-        sc->curx = 1; /* set to extreme left */
-        sc->curxg = 1;
-
-    } else if (c == '\n') {
-
-        sc->curx = 1; /* set to extreme left */
-        sc->curxg = 1;
-        idown(win); /* line feed, move down */
-
-    } else if (c == '\b') ileft(win); /* back space, move left */
-    else if (c == '\f') iclear(win); /* clear screen */
-    else if (c == '\t') itab(win); /* process tab */
-    /* only output visible characters */
-    else if (c >= ' ' && c != 0x7f) {
-
-        /* place on buffer */
-        XDrawString(padisplay, pascnbuf, pagracxt, curxg-1, curyg-1+char_y, &c, 1);
-
-        /* send exposure event back to window with mask over character */
-        evtexp.xexpose.x = sc->curxg-1;
-        evtexp.xexpose.y = sc->curyg-1;
-        evtexp.xexpose.width = sc->curxg-1+char_x;
-        evtexp.xexpose.height = sc->curyg-1+char_y;
-        XSendEvent(padisplay, pawindow, FALSE, ExposureMask, &evtexp);
-
-        /* advance to next character */
-        iright(win);
-
-    }
-
-}
-
-/*******************************************************************************
-
-Get file entry
-
-Allocates and initalizes a new file entry. File entries are left in the opnfil
-array, so are recycled in place.
-
-*******************************************************************************/
-
-static void getfet(filptr* fp)
-
-{
-
-    *fp = malloc(sizeof(filrec)); /* get new file entry */
-    if (!*fp) error(enomem); /* no more memory */
-    (*fp)->win = NULL; /* set no window */
-    (*fp)->inw = FALSE; /* clear input window link */
-    (*fp)->inl = -1; /* set no input file linked */
-    (*fp)->evt = NULL; /* set no queued events */
-
-}
-
-/*******************************************************************************
-
-Restore screen
-
-Updates all the buffer and screen parameters from the display screen to the
-terminal.
-
-*******************************************************************************/
-
-static void restore(winptr win,   /* window to restore */
-             int    whole) /* whole or part window */
-
-{
-
-    int b;        /* return value */
-    int r;        /* return value */
-    RECT cr, cr2; /* client rectangle */
-    HGDIOBJ oh;   /* old pen */
-    HBRUSH hb;    /* handle to brush */
-    SIZE s;       /* size holder */
-    int x, y;     /* x and y coordinates */
-    scnptr sc;
-
-    sc = win->screens[win->curdsp-1];
-    if (win->bufmod && win->visible)  { /* buffered mode is on, && visible */
-
-        curoff(win); /* hide the cursor for drawing */
-        /* set colors && attributes */
-        if (BIT(sarev) & sc->attr)  { /* reverse */
-
-            r = SetBkColor(win->devcon, sc->fcrgb);
-            if (r == -1) winerr(); /* process windows error */
-            r = SetTextColor(win->devcon, sc->bcrgb);
-            if (r == -1) winerr(); /* process windows error */
-
-        } else {
-
-            r = SetBkColor(win->devcon, sc->bcrgb);
-            if (r == -1) winerr(); /* process windows error */
-            r = SetTextColor(win->devcon, sc->fcrgb);
-            if (r == -1) winerr(); /* process windows error */
-
-        }
-        /* select any viewport offset to display */
-        b = SetViewportOrgEx(win->devcon, sc->offx, sc->offy, NULL);
-        if (!b)  winerr(); /* process windows error */
-        /* select the extents */
-        b = SetWindowExtEx(win->devcon, sc->wextx, sc->wexty, &s);
-        /* if (!b) winerr(); */ /* process windows error */
-        b = SetViewportExtEx(win->devcon, sc->vextx, sc->vexty, &s);
-        if (!b)  winerr(); /* process windows error */
-        oh = SelectObject(win->devcon, sc->font); /* select font to display */
-        if (oh == HGDI_ERROR) winerr();
-        oh = SelectObject(win->devcon, sc->fpen); /* select pen to display */
-        if (oh == HGDI_ERROR) winerr();
-        if (whole) { /* get whole client area */
-
-            b = GetClientRect(win->winhan, &cr);
-            if (!b) winerr(); /* process windows error */
-
-        } else /* get only update area */
-            b = GetUpdateRect(win->winhan, &cr, FALSE);
-        /* validate it so windows won"t send multiple notifications */
-        b = ValidateRgn(win->winhan, NULL); /* validate region */
-        if (cr.left != 0 || cr.top != 0 || cr.right != 0 || cr.bottom != 0) {
-            /* area is ! NULL */
-
-            /* convert to device coordinates */
-            cr.left = cr.left+sc->offx;
-            cr.top = cr.top+sc->offy;
-            cr.right = cr.right+sc->offx;
-            cr.bottom = cr.bottom+sc->offy;
-            /* clip update rectangle to buffer */
-            if (cr.left <= win->gmaxxg || cr.bottom <= win->gmaxyg)  {
-
-                /* It"s within the buffer. Now clip the right && bottom. */
-                x = cr.right; /* copy right && bottom sides */
-                y = cr.bottom;
-                if (x > win->gmaxxg) x = win->gmaxxg;
-                if (y > win->gmaxyg) y = win->gmaxyg;
-                /* copy backing bitmap to screen */
-                b = BitBlt(win->devcon, cr.left, cr.top, x-cr.left+1,
-                           y-cr.top+1, sc->bdc, cr.left, cr.top, SRCCOPY);
-
-            }
-            /* Now fill the right && left sides of the client beyond the
-               bitmap. */
-           hb = CreateSolidBrush(sc->bcrgb); /* get a brush for background */
-           if (hb == 0) winerr(); /* process windows error */
-           /* check right side fill */
-           cr2 = cr; /* copy update rectangle */
-           /* subtract overlapping space */
-           if (cr2.left <= win->gmaxxg) cr2.left = win->gmaxxg;
-           if (cr2.left <= cr2.right) /* still has width */
-                b = FillRect(win->devcon, &cr2, hb);
-           /* check bottom side fill */
-           cr2 = cr; /* copy update rectangle */
-           /* subtract overlapping space */
-           if (cr2.top <= win->gmaxyg) cr2.top = win->gmaxyg;
-           if (cr2.top <= cr2.bottom) /* still has height */
-                b = FillRect(win->devcon, &cr2, hb);
-            b = DeleteObject(hb); /* free the brush */
-            if (!b)  winerr(); /* process windows error */
-
-        }
-        setcur(win); /* show the cursor */
-
-    }
-
-}
-
-/*******************************************************************************
-
-Initalize screen
-
-Clears all the parameters in the present screen context. Also, the backing
-buffer bitmap is created and cleared to the present colors.
-
-*******************************************************************************/
-
-static void iniscn(winptr win, scnptr sc)
-
-{
-
-    int      i, x;
-    HBITMAP  hb;
-    LOGBRUSH lb;
-    int      r;
-    HGDIOBJ  rv;
-
-    sc->maxx = win->gmaxx; /* set character dimensions */
-    sc->maxy = win->gmaxy;
-    sc->maxxg = win->gmaxxg; /* set pixel dimensions */
-    sc->maxyg = win->gmaxyg;
-    sc->curx = 1; /* set cursor at home */
-    sc->cury = 1;
-    sc->curxg = 1;
-    sc->curyg = 1;
-    sc->fcrgb = win->gfcrgb; /* set colors and attributes */
-    sc->bcrgb = win->gbcrgb;
-    sc->attr = win->gattr;
-    sc->autof = win->gauto; /* set auto scroll and wrap */
-    sc->curv = win->gcurv; /* set cursor visibility */
-    sc->lwidth = 1; /* set single pixel width */
-    sc->font = 0; /* set no font active */
-    sc->cfont = win->gcfont; /* set current font */
-    sc->fmod = win->gfmod; /* set mix modes */
-    sc->bmod = win->gbmod;
-    sc->offx = win->goffx; /* set viewport offset */
-    sc->offy = win->goffy;
-    sc->wextx = win->gwextx; /* set extents */
-    sc->wexty = win->gwexty;
-    sc->vextx = win->gvextx;
-    sc->vexty = win->gvexty;
-    /* create a matching device context */
-    sc->bdc = CreateCompatibleDC(win->devcon);
-    if (!sc->bdc) winerr(); /* process windows error */
-    /* create a bitmap for that */
-    hb = CreateCompatibleBitmap(win->devcon, win->gmaxxg, win->gmaxyg);
-    if (!hb) winerr(); /* process windows error */
-    sc->bhn = SelectObject(sc->bdc, hb); /* select bitmap into dc */
-    if (sc->bhn == HGDI_ERROR) winerr(); /* process windows error */
-    newfont(win); /* create font for buffer */
-    /* set non-braindamaged stretch mode */
-    r = SetStretchBltMode(win->screens[win->curupd-1]->bdc, HALFTONE);
-    if (!r) winerr(); /* process windows error */
-    /* set pen to foreground */
-    lb.lbStyle = BS_SOLID;
-    lb.lbColor = sc->fcrgb;
-    lb.lbHatch = 0;
-    sc->fpen = ExtCreatePen(FPENSTL, sc->lwidth, &lb, 0, NULL);
-    if (!sc->fpen) winerr(); /* process windows error */
-    rv = SelectObject(sc->bdc, sc->fpen);
-    if (rv == HGDI_ERROR) error(enosel);
-    /* set brush to foreground */
-    sc->fbrush = CreateSolidBrush(sc->fcrgb);
-    if (!sc->fbrush) winerr(); /* process windows error */
-    /* remove fills */
-    rv = SelectObject(sc->bdc, GetStockObject(NULL_BRUSH));
-    if (rv == HGDI_ERROR) error(enosel);
-    /* set single pixel pen to foreground */
-    sc->fspen = CreatePen(FSPENSTL, 1, sc->fcrgb);
-    if (!sc->fspen) winerr(); /* process windows error */
-    /* set colors && attributes */
-    if (BIT(sarev) & sc->attr) { /* reverse */
-
-        r = SetBkColor(sc->bdc, sc->fcrgb);
-        if (r == -1) winerr(); /* process windows error */
-        r = SetTextColor(sc->bdc, sc->bcrgb);
-        if (r == -1) winerr(); /* process windows error */
-
-    } else {
-
-        r = SetBkColor(sc->bdc, sc->bcrgb);
-        if (r == -1) winerr(); /* process windows error */
-        r = SetTextColor(sc->bdc, sc->fcrgb);
-        if (r == -1) winerr(); /* process windows error */
-
-    }
-    clrbuf(win, sc); /* clear screen buffer with that */
-    /* set up tabbing to be on each 8th position */
-    i = 9; /* set 1st tab position */
-    x = 0; /* set 1st tab slot */
-    while (i < sc->maxx && x < MAXTAB) {
-
-        sc->tab[x] = (i-1)*win->charspace+1;  /* set tab */
-        i = i+8; /* next tab */
-        x = x+1;
-
-    }
-
-}
-
-/*******************************************************************************
-
-Open and present window
-
-Given a windows record, opens and presents the window associated with it. All
-of the screen buffer data is cleared, and a single buffer assigned to the
-window.
-
-*******************************************************************************/
-
-static void opnwin(int fn, int pfn)
-
-{
-
-    RECT       cr;   /* client rectangle holder */
-    int        r;    /* result holder */
-    int        b;    /* int result holder */
-    pa_evtrec  er;   /* event holding record */
-    int        ti;   /* index for repeat array */
-    int        pin;  /* index for loadable pictures array */
-    int        si;   /* index for current display screen */
-    TEXTMETRIC tm;   /* TRUE type text metric structure */
-    winptr     win;  /* window pointer */
-    winptr     pwin; /* parent window pointer */
-    int        f;    /* window creation flags */
-    MSG        msg;  /* intertask message */
-    HGDIOBJ    rv;
-
-    win = lfn2win(fn); /* get a pointer to the window */
-    /* find parent */
-    win->parlfn = pfn; /* set parent logical number */
-    if (pfn >= 0) {
-
-       pwin = lfn2win(pfn); /* index parent window */
-       win->parhan = pwin->winhan; /* set parent window handle */
-
-    } else win->parhan = 0; /* set no parent */
-    win->mb1 = FALSE; /* set mouse as assumed no buttons down, at origin */
-    win->mb2 = FALSE;
-    win->mb3 = FALSE;
-    win->mpx = 1;
-    win->mpy = 1;
-    win->mpxg = 1;
-    win->mpyg = 1;
-    win->nmb1 = FALSE;
-    win->nmb2 = FALSE;
-    win->nmb3 = FALSE;
-    win->nmpx = 1;
-    win->nmpy = 1;
-    win->nmpxg = 1;
-    win->nmpyg = 1;
-    win->shift = FALSE; /* set no shift active */
-    win->cntrl = FALSE; /* set no control active */
-    win->fcurdwn = FALSE; /* set cursor is ! down */
-    win->focus = FALSE; /* set ! in focus */
-    win->joy1xs = 0; /* clear joystick saves */
-    win->joy1ys = 0;
-    win->joy1zs = 0;
-    win->joy2xs = 0;
-    win->joy2ys = 0;
-    win->joy2zs = 0;
-    win->numjoy = 0; /* set number of joysticks 0 */
-    win->inpptr = -1; /* set buffer empty */
-    win->frmrun = FALSE; /* set framing timer ! running */
-    win->bufmod = TRUE; /* set buffering on */
-    win->menhan = 0; /* set no menu */
-    win->metlst = NULL; /* clear menu tracking list */
-    win->wiglst = NULL; /* clear widget list */
-    win->frame = TRUE; /* set frame on */
-    win->size = TRUE; /* set size bars on */
-    win->sysbar = TRUE; /* set system bar on */
-    win->sizests = 0; /* clear last size status word */
-    /* clear timer repeat array */
-    for (ti = 0; ti < 10; ti++) {
-
-       win->timers[ti].han = 0; /* set no active timer */
-       win->timers[ti].rep = FALSE; /* set no repeat */
-
-    }
-    /* clear loadable pictures table */
-    for (pin = 0; pin < MAXPIC; pin++) win->pictbl[pin].han = 0;
-    for (si = 0; si < MAXCON; si++) win->screens[si] = NULL;
-    win->screens[0] = malloc(sizeof(scncon)); /* get the default screen */
-    if (!win->screens[0]) error(enomem);
-    win->curdsp = 1; /* set current display screen */
-    win->curupd = 1; /* set current update screen */
-    win->visible = FALSE; /* set not visible */
-    /* now perform windows setup */
-    /* set flags for window create */
-    f = WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN;
-    /* add flags for child window */
-    if (win->parhan) f |= WS_CHILD | WS_CLIPSIBLINGS;
-    /* Create the window, using display task. */
-    stdwinflg = f;
-    stdwinx = 0x80000000;
-    stdwiny = 0x80000000;
-    stdwinw = 0x80000000;
-    stdwinh = 0x80000000;
-    stdwinpar = win->parhan;
-    /* order window to start */
-    b = PostMessage(dispwin, UMMAKWIN, 0, 0);
-    if (!b) winerr(); /* process windows error */
-    /* Wait for window start. */
-    do { igetmsg(&msg); } while (msg.message != UMWINSTR);
-    win->winhan = stdwinwin; /* get the new handle */
-    if (!win->winhan) winerr(); /* process windows error */
-
-    /* Joysticks were captured with the window open. Set status of joysticks.
-
-      Do we need to release and recapture the joysticks each time we gain and
-      loose focus ? Windows could have easily outgrown that need by copying
-      the joystick messages. This needs testing. */
-
-    win->numjoy = 0; /* clear joystick counter */
-    win->joy1cap = stdwinj1c; /* set joystick 1 capture status */
-    win->numjoy = win->numjoy+win->joy1cap; /* count that */
-    win->joy2cap = stdwinj2c; /* set joystick 1 capture status */
-    win->numjoy = win->numjoy+win->joy2cap; /* count that */
-
-    /* create a device context for the window */
-    win->devcon = GetDC(win->winhan); /* get device context */
-    if (!win->devcon) winerr(); /* process windows error */
-    /* set rescalable mode */
-    r = SetMapMode(win->devcon, MM_ANISOTROPIC);
-    if (!r) winerr(); /* process windows error */
-    /* set non-braindamaged stretch mode */
-    r = SetStretchBltMode(win->devcon, HALFTONE);
-    if (!r) winerr(); /* process windows error */
-    /* remove fills */
-    rv = SelectObject(win->devcon, GetStockObject(NULL_BRUSH));
-    if (rv == HGDI_ERROR) error(enosel);
-    /* because this is an "open }ed" (no feedback) emulation, we must bring
-      the terminal to a known state */
-    win->gfhigh = FHEIGHT; /* set default font height */
-    getfonts(win); /* get the global fonts list */
-    stdfont(win); /* mark/create the standard fonts */
-    /* index terminal font */
-    fndfnt(win, "System Fixed", TRUE, &win->gcfont);
-    /* set up system default parameters */
-    rv = SelectObject(win->devcon, GetStockObject(SYSTEM_FIXED_FONT));
-    if (rv == HGDI_ERROR) error(enosel);
-    b = GetTextMetrics(win->devcon, &tm); /* get the standard metrics */
-    if (!b) winerr(); /* process windows error */
-    /* calculate line spacing */
-    win->linespace = tm.tmHeight;
-    /* calculate character spacing */
-    win->charspace = tm.tmMaxCharWidth;
-    /* set cursor width */
-    win->curspace = tm.tmAveCharWidth;
-    /* find screen device parameters for dpm calculations */
-    win->shsize = GetDeviceCaps(win->devcon, HORZSIZE); /* size x in millimeters */
-    win->svsize = GetDeviceCaps(win->devcon, VERTSIZE); /* size y in millimeters */
-    win->shres = GetDeviceCaps(win->devcon, HORZRES); /* pixels in x */
-    win->svres = GetDeviceCaps(win->devcon, VERTRES); /* pixels in y */
-    win->sdpmx = win->shres/win->shsize*1000; /* find dots per meter x */
-    win->sdpmy = win->svres/win->svsize*1000; /* find dots per meter y */
-    /* find client area size */
-    win->gmaxxg = maxxd*win->charspace;
-    win->gmaxyg = maxyd*win->linespace;
-    cr.left = 0; /* set up desired client rectangle */
-    cr.top = 0;
-    cr.right = win->gmaxxg;
-    cr.bottom = win->gmaxyg;
-    /* find window size from client size */
-    b = AdjustWindowRectEx(&cr, WS_OVERLAPPEDWINDOW, FALSE, 0);
-    if (!b) winerr(); /* process windows error */
-    /* now, resize the window to just fit our character mode */
-    unlockmain(); /* end exclusive access */
-    b = SetWindowPos(win->winhan, 0, 0, 0, cr.right-cr.left, cr.bottom-cr.top,
-                         SWP_NOMOVE | SWP_NOZORDER);
-    if (!b) winerr(); /* process windows error */
-/* now handled in winvis */
-#if 0
-    /* present the window */
-    b = ShowWindow(win->winhan, SW_SHOWDEFAULT);
-    /* send first paint message */
-    b = UpdateWindow(win->winhan);
-#endif
-    lockmain(); /* start exclusive access */
-    /* set up global buffer parameters */
-    win->gmaxx = maxxd; /* character max dimensions */
-    win->gmaxy = maxyd;
-    win->gattr = 0; /* no attribute */
-    win->gauto = TRUE; /* auto on */
-    win->gfcrgb = colnum(pa_black); /*foreground black */
-    win->gbcrgb = colnum(pa_white); /* background white */
-    win->gcurv = TRUE; /* cursor visible */
-    win->gfmod = mdnorm; /* set mix modes */
-    win->gbmod = mdnorm;
-    win->goffx = 0;  /* set 0 offset */
-    win->goffy = 0;
-    win->gwextx = 1; /* set 1:1 extents */
-    win->gwexty = 1;
-    win->gvextx = 1;
-    win->gvexty = 1;
-    iniscn(win, win->screens[0]); /* initalize screen buffer */
-    restore(win, TRUE); /* update to screen */
-/* This next is taking needed messages out of the queue, and I don"t believe it
-  is needed anywmore with display tasking. */
-#if 0
-    /* have seen problems with actions being performed before events are pulled
-      from the queue, like the focus event. the answer to this is to wait a short
-      delay until these messages clear. in fact, all that is really required is
-      to reenter the OS so it can do the callback */
-    frmhan = TimeSetEvent(10, 0, timeout, fn*MAXTIM+1,
-                          TIME_CALLBACK_INT or
-                          TIME_KILL_SYNCHRONOUS or
-                          TIME_ONESHOT);
-    if (!frmhan) error(etimacc); /* no timer available */
-    do { ievent(opnfil[fn]->inl, er);
-    } while (er.etype != pa_ettim && er.etype != pa_etterm);
-    if (er.etype == pa_etterm) abortm();
-#endif
-
-}
-
-/*******************************************************************************
-
-Open an input and output pair
-
-Creates, opens and initializes an input and output pair of files.
-
-*******************************************************************************/
-
-static void openio(FILE* infile, FILE* outfile, int ifn, int ofn, int pfn,
-                   int wid)
-
-{
-
-    /* if output was never opened, create it now */
-    if (!opnfil[ofn]) getfet(&opnfil[ofn]);
-    /* if input was never opened, create it now */
-    if (!opnfil[ifn]) getfet(&opnfil[ifn]);
-    opnfil[ofn]->inl = ifn; /* link output to input */
-    opnfil[ifn]->inw = TRUE; /* set input is window handler */
-    /* set file descriptor locations (note this is only really used for input
-       files */
-    opnfil[ifn]->sfp = infile;
-    opnfil[ofn]->sfp = outfile;
-    /* now see if it has a window attached */
-    if (!opnfil[ofn]->win) {
-
-        /* Haven't already started the main input/output window, so allocate
-           and start that. We tolerate multiple opens to the output file. */
-        opnfil[ofn]->win = malloc(sizeof(winrec));
-        if (!opnfil[ofn]->win) error(enomem);
-        opnwin(ofn, pfn); /* and start that up */
-
-    }
-    /* check if the window has been pinned to something else */
-    if (xltwin[wid-1] && xltwin[wid-1] != ofn) error(ewinuse); /* flag error */
-    xltwin[wid-1] = ofn; /* pin the window to the output file */
-    filwin[ofn] = wid;
-
-}
-
-/*******************************************************************************
-
-System call interdiction handlers
-
-The interdiction calls are the basic system calls used to implement stdio:
-
-read
-write
-open
-close
-unlink
-lseek
-
-We use interdiction to filter standard I/O calls towards the terminal. The
-0 (input) and 1 (output) files are interdicted. In ANSI terminal, we act as a
-filter, so this does not change the user ability to redirect the file handles
-elsewhere.
-
-*******************************************************************************/
-
-/*******************************************************************************
-
-Read
-
-*******************************************************************************/
-
-static ssize_t iread(int fd, void* buff, size_t count)
-
-{
-
-    return (*ofpread)(fd, buff, count);
-
-}
-
-/*******************************************************************************
-
-Write
-
-*******************************************************************************/
-
-static ssize_t iwrite(int fd, const void* buff, size_t count)
-
-{
-
-    ssize_t rc; /* return code */
-    char*   p = (char *)buff;
-    size_t  cnt = count;
-    winptr  win; /* pointer to window data */
-
-    if (fd < 0 || fd >= MAXFIL) error(einvhan); /* invalid file handle */
-    if (opnfil[fd] && opnfil[fd]->win) { /* process window output file */
-
-        win = opnfil[fd]->win; /* index window */
-        /* send data to terminal */
-        while (cnt--) plcchr(win, *p++);
-        rc = count; /* set return same as count */
-
-    } else rc = (*ofpwrite)(fd, buff, count);
-
-    return rc;
-
-}
-
-/*******************************************************************************
-
-Open
-
-Terminal is assumed to be opened when the system starts, and closed when it
-shuts down. Thus we do nothing for this.
-
-*******************************************************************************/
-
-static int iopen(const char* pathname, int flags, int perm)
-
-{
-
-    return (*ofpopen)(pathname, flags, perm);
-
-}
-
-/*******************************************************************************
-
-Close
-
-Does nothing but pass on.
-
-*******************************************************************************/
-
-static int iclose(int fd)
-
-{
-
-    return (*ofpclose)(fd);
-
-}
-
-/*******************************************************************************
-
-Unlink
-
-Unlink has nothing to do with us, so we just pass it on.
-
-*******************************************************************************/
-
-static int iunlink(const char* pathname)
-
-{
-
-    return (*ofpunlink)(pathname);
-
-}
-
-/*******************************************************************************
-
-Lseek
-
-Lseek is never possible on a terminal, so this is always an error on the stdin
-or stdout handle.
-
-*******************************************************************************/
-
-static off_t ilseek(int fd, off_t offset, int whence)
-
-{
-
-    /* check seeking on terminal attached file (input or output) and error
-       if so */
-    if (fd == INPFIL || fd == OUTFIL) error(efilopr);
-
-    return (*ofplseek)(fd, offset, whence);
-
-}
-
-/*******************************************************************************
-
 Gralib startup
 
 *******************************************************************************/
@@ -4885,8 +4835,7 @@ static void pa_init_graphics(int argc, char *argv[])
 {
 
     XEvent e;
-    const char *msg = "Hello, World!";
-    const char *title = "Hello world";
+    const char *title = "";
     int depth;
     int r;
     XColor color;
@@ -4902,12 +4851,6 @@ static void pa_init_graphics(int argc, char *argv[])
 //    ovr_unlink(iunlink, &ofpunlink);
     ovr_lseek(ilseek, &ofplseek);
 
-    /* set current graphical and character cursor locations */
-    curxg = 1;
-    curyg = 1;
-    curx = 1;
-    cury = 1;
-
     /* set state of shift, control and alt keys */
     ctrll = FALSE;
     ctrlr = FALSE;
@@ -4918,7 +4861,6 @@ static void pa_init_graphics(int argc, char *argv[])
     capslock = FALSE;
 
     /* set internal states */
-    autom = TRUE; /* auto on */
     fend = FALSE; /* set no end of program ordered */
     fautohold = TRUE; /* set automatically hold self terminators */
 
@@ -4943,63 +4885,6 @@ static void pa_init_graphics(int argc, char *argv[])
     }
     pascreen = DefaultScreen(padisplay);
 
-    /* find appropriate font for display. On high DPI displays, the old
-       technique of just using "fixed" no longer works */
-
-    /* get screen parameters */
-    sn = DefaultScreen(padisplay);
-    dw = DisplayWidth(padisplay, sn);
-    dh = DisplayHeight(padisplay, sn);
-
-    dbg_printf(dlinfo, "Display width: %d\n", dw);
-    dbg_printf(dlinfo, "Display height: %d\n", dh);
-
-    /* choose courier font based on dpi, this works best on a variety of
-       display resolutions */
-    pafont = XLoadQueryFont(padisplay,
-        "-bitstream-courier 10 pitch-bold-r-normal--0-0-200-200-m-0-iso8859-1");
-    if (!pafont) {
-
-        fprintf(stderr, "*** No font ***\n");
-        exit(1);
-
-    }
-    pagracxt = XDefaultGC(padisplay, pascreen);
-    XSetFont (padisplay, pagracxt, pafont->fid);
-
-    /* find spacing in current font */
-
-    char_x = pafont->max_bounds.rbearing-pafont->min_bounds.lbearing;
-    char_y = pafont->max_bounds.ascent+pafont->max_bounds.descent;
-
-    /* set buffer size required for character spacing at default character grid
-       size */
-
-    buff_x = DEFXD*char_x;
-    buff_y = DEFYD*char_y;
-
-    /* create our window */
-
-    pawindow = XCreateSimpleWindow(padisplay, RootWindow(padisplay, pascreen),
-                                   10, 10, buff_x, buff_y, 1,
-                           BlackPixel(padisplay, pascreen),
-                           WhitePixel(padisplay, pascreen));
-    XSelectInput(padisplay, pawindow, ExposureMask | KeyPressMask | KeyReleaseMask);
-    XMapWindow(padisplay, pawindow);
-
-    XStoreName(padisplay, pawindow, title );
-    XSetIconName(padisplay, pawindow, title );
-
-    /* set up pixmap backing buffer for text grid */
-    depth = DefaultDepth(padisplay, pascreen);
-    pascnbuf = XCreatePixmap(padisplay, pawindow, buff_x, buff_y, depth);
-
-    XSetForeground(padisplay, pagracxt, WhitePixel(padisplay, pascreen));
-
-    XFillRectangle(padisplay, pascnbuf, pagracxt, 0, 0, buff_x, buff_y);
-
-    XSetForeground(padisplay, pagracxt, BlackPixel(padisplay, pascreen));
-
     /* set up the expose event to full buffer by default */
     evtexp.type = Expose;
     evtexp.xexpose.type = Expose;
@@ -5019,7 +4904,7 @@ static void pa_init_graphics(int argc, char *argv[])
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Gralib shutdown
 
