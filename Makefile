@@ -419,8 +419,8 @@ linux/dumpsynthplug.o: linux/dumpsynthplug.c include/sound.h Makefile
 linux/xterm.o: linux/xterm.c include/terminal.h Makefile
 	gcc -g3 -Iinclude -fPIC -c linux/xterm.c -o linux/xterm.o
 	
-linux/graph_x.o: linux/graph_x.c include/graph.h Makefile
-	gcc -g3 -Iinclude -fPIC -c linux/graph_x.c -o linux/graph_x.o
+linux/graphics.o: linux/graphics.c include/graph.h Makefile
+	gcc -g3 -Iinclude -fPIC -c linux/graphics.c -o linux/graphics.o
 	
 #
 # Windows library components
@@ -583,14 +583,14 @@ bin/petit_ami_term.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
 		linux/xterm.o utils/config.o utils/option.o 
 	
 bin/petit_ami_graph.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/network.o linux/graph_x.o utils/config.o \
+    linux/dumpsynthplug.o linux/network.o linux/graphics.o utils/config.o \
     utils/option.o  
 	gcc -shared linux/services.o linux/sound.o linux/fluidsynthplug.o \
-		linux/dumpsynthplug.o  linux/network.o linux/graph_x.o utils/config.o \
+		linux/dumpsynthplug.o  linux/network.o linux/graphics.o utils/config.o \
 		utils/option.o -o bin/petit_ami_graph.so
 	
 bin/petit_ami_graph.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/network.o linux/graph_x.o utils/config.o \
+    linux/dumpsynthplug.o linux/network.o linux/graphics.o utils/config.o \
     utils/option.o  
 	ar rcs bin/petit_ami_graph.a linux/services.o linux/sound.o \
 		linux/fluidsynthplug.o linux/dumpsynthplug.o  linux/network.o \

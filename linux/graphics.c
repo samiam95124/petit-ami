@@ -136,69 +136,6 @@ static enum { /* debug levels */
 #define DEFXD 80 /* default terminal size, 80x24, this is Linux standard */
 #define DEFYD 24
 
-typedef enum {
-
-    eftbful,  /* File table full */
-    ejoyacc,  /* Joystick access */
-    etimacc,  /* Timer access */
-    efilopr,  /* Cannot perform operation on special file */
-    einvscn,  /* Invalid screen number */
-    einvhan,  /* Invalid handle */
-    einvtab,  /* Invalid tab position */
-    eatopos,  /* Cannot position text by pixel with auto on */
-    eatocur,  /* Cannot position outside screen with auto on */
-    eatoofg,  /* Cannot reenable auto off grid */
-    eatoecb,  /* Cannot reenable auto outside screen */
-    einvftn,  /* Invalid font number */
-    etrmfnt,  /* Valid terminal font not found */
-    eatofts,  /* Cannot resize font with auto enabled */
-    eatoftc,  /* Cannot change fonts with auto enabled */
-    einvfnm,  /* Invalid logical font number */
-    efntemp,  /* Empty logical font */
-    etrmfts,  /* Cannot size terminal font */
-    etabful,  /* Too many tabs set */
-    eatotab,  /* Cannot use graphical tabs with auto on */
-    estrinx,  /* String index out of range */
-    epicfnf,  /* Picture file not found */
-    epicftl,  /* Picture filename too large */
-    etimnum,  /* Invalid timer number */
-    ejstsys,  /* Cannot justify system font */
-    efnotwin, /* File is not attached to a window */
-    ewinuse,  /* Window id in use */
-    efinuse,  /* File already in use */
-    einmode,  /* Input side of window in wrong mode */
-    edcrel,   /* Cannot release Windows device context */
-    einvsiz,  /* Invalid buffer size */
-    ebufoff,  /* buffered mode not enabled */
-    edupmen,  /* Menu id was duplicated */
-    emennf,   /* Meny id was not found */
-    ewignf,   /* Widget id was not found */
-    ewigdup,  /* Widget id was duplicated */
-    einvspos, /* Invalid scroll bar slider position */
-    einvssiz, /* Invalid scroll bar size */
-    ectlfal,  /* Attempt to create control fails */
-    eprgpos,  /* Invalid progress bar position */
-    estrspc,  /* Out of string space */
-    etabbar,  /* Unable to create tab in tab bar */
-    efildlg,  /* Unable to create file dialog */
-    efnddlg,  /* Unable to create find dialog */
-    efntdlg,  /* Unable to create font dialog */
-    efndstl,  /* Find/replace string too long */
-    einvwin,  /* Invalid window number */
-    einvjye,  /* Invalid joystick event */
-    ejoyqry,  /* Could not get information on joystick */
-    einvjoy,  /* Invalid joystick ID */
-    eclsinw,  /* Cannot directly close input side of window */
-    ewigsel,  /* Widget is not selectable */
-    ewigptxt, /* Cannot put text in this widget */
-    ewiggtxt, /* Cannot get text from this widget */
-    ewigdis,  /* Cannot disable this widget */
-    estrato,  /* Cannot direct write string with auto on */
-    etabsel,  /* Invalid tab select */
-    esystem   /* System consistency check */
-
-} errcod;
-
 /* file handle numbers at the system interface level */
 
 #define INPFIL 0 /* handle to standard input */
@@ -444,6 +381,70 @@ typedef struct filrec {
 
 } filrec, *filptr;
 
+typedef enum {
+
+    eftbful,  /* File table full */
+    ejoyacc,  /* Joystick access */
+    etimacc,  /* Timer access */
+    efilopr,  /* Cannot perform operation on special file */
+    einvscn,  /* Invalid screen number */
+    einvhan,  /* Invalid handle */
+    einvtab,  /* Invalid tab position */
+    eatopos,  /* Cannot position text by pixel with auto on */
+    eatocur,  /* Cannot position outside screen with auto on */
+    eatoofg,  /* Cannot reenable auto off grid */
+    eatoecb,  /* Cannot reenable auto outside screen */
+    einvftn,  /* Invalid font number */
+    etrmfnt,  /* Valid terminal font not found */
+    eatofts,  /* Cannot resize font with auto enabled */
+    eatoftc,  /* Cannot change fonts with auto enabled */
+    einvfnm,  /* Invalid logical font number */
+    efntemp,  /* Empty logical font */
+    etrmfts,  /* Cannot size terminal font */
+    etabful,  /* Too many tabs set */
+    eatotab,  /* Cannot use graphical tabs with auto on */
+    estrinx,  /* String index out of range */
+    epicfnf,  /* Picture file not found */
+    epicftl,  /* Picture filename too large */
+    etimnum,  /* Invalid timer number */
+    ejstsys,  /* Cannot justify system font */
+    efnotwin, /* File is not attached to a window */
+    ewinuse,  /* Window id in use */
+    efinuse,  /* File already in use */
+    einmode,  /* Input side of window in wrong mode */
+    edcrel,   /* Cannot release Windows device context */
+    einvsiz,  /* Invalid buffer size */
+    ebufoff,  /* buffered mode not enabled */
+    edupmen,  /* Menu id was duplicated */
+    emennf,   /* Meny id was not found */
+    ewignf,   /* Widget id was not found */
+    ewigdup,  /* Widget id was duplicated */
+    einvspos, /* Invalid scroll bar slider position */
+    einvssiz, /* Invalid scroll bar size */
+    ectlfal,  /* Attempt to create control fails */
+    eprgpos,  /* Invalid progress bar position */
+    estrspc,  /* Out of string space */
+    etabbar,  /* Unable to create tab in tab bar */
+    efildlg,  /* Unable to create file dialog */
+    efnddlg,  /* Unable to create find dialog */
+    efntdlg,  /* Unable to create font dialog */
+    efndstl,  /* Find/replace string too long */
+    einvwin,  /* Invalid window number */
+    einvjye,  /* Invalid joystick event */
+    ejoyqry,  /* Could not get information on joystick */
+    einvjoy,  /* Invalid joystick ID */
+    eclsinw,  /* Cannot directly close input side of window */
+    ewigsel,  /* Widget is not selectable */
+    ewigptxt, /* Cannot put text in this widget */
+    ewiggtxt, /* Cannot get text from this widget */
+    ewigdis,  /* Cannot disable this widget */
+    estrato,  /* Cannot direct write string with auto on */
+    etabsel,  /* Invalid tab select */
+    enomem,   /* Out of memory */
+    esystem   /* System consistency check */
+
+} errcod;
+
 /*
  * Saved vectors to system calls. These vectors point to the old, existing
  * vectors that were overriden by this module.
@@ -549,6 +550,7 @@ static void error(errcod e)
       case ewigdis:  fprintf(stderr, "Cannot disable this widget"); break;
       case estrato:  fprintf(stderr, "Cannot direct write string with auto on"); break;
       case etabsel:  fprintf(stderr, "Invalid tab select"); break;
+      case enomem:   fprintf(stderr, "Out of memory"); break;
       case esystem:  fprintf(stderr, "System consistency check"); break;
 
     }
