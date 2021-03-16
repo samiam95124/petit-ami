@@ -441,6 +441,7 @@ typedef enum {
     estrato,  /* Cannot direct write string with auto on */
     etabsel,  /* Invalid tab select */
     enomem,   /* Out of memory */
+    einvfil,  /* File is invalid */
     esystem   /* System consistency check */
 
 } errcod;
@@ -551,6 +552,7 @@ static void error(errcod e)
       case estrato:  fprintf(stderr, "Cannot direct write string with auto on"); break;
       case etabsel:  fprintf(stderr, "Invalid tab select"); break;
       case enomem:   fprintf(stderr, "Out of memory"); break;
+      case einvfil:  fprintf(stderr, "File is invalid"); break;
       case esystem:  fprintf(stderr, "System consistency check"); break;
 
     }
@@ -611,7 +613,59 @@ static void getfet(filptr* fp)
     (*fp)->win = NULL; /* set no window */
     (*fp)->inw = FALSE; /* clear input window link */
     (*fp)->inl = -1; /* set no input file linked */
-    (*fp)->evt = NULL; /* set no queued events */
+
+}
+
+/*******************************************************************************
+
+Index window from logical file number
+
+Finds the window associated with a logical file id. The file is checked
+Finds the window associated with a text file. Gets the logical top level
+filenumber for the file, converts this via its top to bottom alias,
+validates that an alias has been established. This effectively means the file
+was opened. , the window structure assigned to the file is fetched, and
+validated. That means that the file was opened as a window input or output
+file.
+
+*******************************************************************************/
+
+static winptr lfn2win(int fn)
+
+{
+
+    if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
+    if (!opnfil[fn]) error(einvhan); /* invalid handle */
+    if (!opnfil[fn]->win)
+        error(efnotwin); /* not a window file */
+
+    return (opnfil[fn]->win); /* return windows pointer */
+
+}
+
+/*******************************************************************************
+
+Index window from file
+
+Finds the window associated with a text file. Gets the logical top level
+filenumber for the file, converts this via its top to bottom alias,
+validates that an alias has been established. This effectively means the file
+was opened. , the window structure assigned to the file is fetched, and
+validated. That means that the file was opened as a window input or output
+file.
+
+*******************************************************************************/
+
+static winptr txt2win(FILE* f)
+
+{
+
+   int fn;
+
+   fn = fileno(f); /* get file number */
+   if (fn < 0) error(einvfil); /* file invalid */
+
+   return (lfn2win(fn)); /* get logical filenumber for file */
 
 }
 
@@ -661,7 +715,6 @@ static void iniscn(winptr win, scnptr sc)
     sc->autof = win->gauto; /* set auto scroll and wrap */
     sc->curv = win->gcurv; /* set cursor visibility */
     sc->lwidth = 1; /* set single pixel width */
-    sc->font = 0; /* set no font active */
     sc->cfont = win->gcfont; /* set current font */
     sc->fmod = win->gfmod; /* set mix modes */
     sc->bmod = win->gbmod;
@@ -698,21 +751,18 @@ static void opnwin(int fn, int pfn)
 
 {
 
-    RECT        cr;   /* client rectangle holder */
     int         r;    /* result holder */
     int         b;    /* int result holder */
     pa_evtrec   er;   /* event holding record */
     int         ti;   /* index for repeat array */
     int         pin;  /* index for loadable pictures array */
     int         si;   /* index for current display screen */
-    TEXTMETRIC  tm;   /* TRUE type text metric structure */
     winptr      win;  /* window pointer */
     winptr      pwin; /* parent window pointer */
     int         f;    /* window creation flags */
-    MSG         msg;  /* intertask message */
-    HGDIOBJ     rv;
     const char* title = "";
     int         depth;
+    int         sn;
 
     win = lfn2win(fn); /* get a pointer to the window */
     /* find parent */
@@ -720,9 +770,8 @@ static void opnwin(int fn, int pfn)
     if (pfn >= 0) {
 
        pwin = lfn2win(pfn); /* index parent window */
-       win->parhan = pwin->winhan; /* set parent window handle */
 
-    } else win->parhan = 0; /* set no parent */
+    }
     win->mb1 = FALSE; /* set mouse as assumed no buttons down, at origin */
     win->mb2 = FALSE;
     win->mb3 = FALSE;
@@ -751,7 +800,6 @@ static void opnwin(int fn, int pfn)
     win->inpptr = -1; /* set buffer empty */
     win->frmrun = FALSE; /* set framing timer ! running */
     win->bufmod = TRUE; /* set buffering on */
-    win->menhan = 0; /* set no menu */
     win->metlst = NULL; /* clear menu tracking list */
     win->wiglst = NULL; /* clear widget list */
     win->frame = TRUE; /* set frame on */
@@ -761,12 +809,9 @@ static void opnwin(int fn, int pfn)
     /* clear timer repeat array */
     for (ti = 0; ti < 10; ti++) {
 
-       win->timers[ti].han = 0; /* set no active timer */
        win->timers[ti].rep = FALSE; /* set no repeat */
 
     }
-    /* clear loadable pictures table */
-    for (pin = 0; pin < MAXPIC; pin++) win->pictbl[pin].han = 0;
     for (si = 0; si < MAXCON; si++) win->screens[si] = NULL;
     win->screens[0] = malloc(sizeof(scncon)); /* get the default screen */
     if (!win->screens[0]) error(enomem);
@@ -776,15 +821,17 @@ static void opnwin(int fn, int pfn)
 
     /* get screen parameters */
     sn = DefaultScreen(padisplay);
-    win->shsize = WidthMMOfScreen(sn); /* size x in millimeters */
-    win->svsize = HeightMMOfScreen(sn); /* size y in millimeters */
+    win->shsize = XDisplayWidth(padisplay, sn); /* size x in millimeters */
+    win->svsize = XDisplayHeightMM(padisplay, sn); /* size y in millimeters */
     win->shres = DisplayWidth(padisplay, sn);
     win->svres = DisplayHeight(padisplay, sn);
     win->sdpmx = win->shres/win->shsize*1000; /* find dots per meter x */
     win->sdpmy = win->svres/win->svsize*1000; /* find dots per meter y */
 
-    dbg_printf(dlinfo, "Display width: %d\n", dw);
-    dbg_printf(dlinfo, "Display height: %d\n", dh);
+    dbg_printf(dlinfo, "Display width in pixels: %d\n", win->shres);
+    dbg_printf(dlinfo, "Display height in pixels: %d\n", win->svres);
+    dbg_printf(dlinfo, "Display width in mm: %d\n", win->shsize);
+    dbg_printf(dlinfo, "Display height in mm: %d\n", win->svsize);
 
     /* choose courier font based on dpi, this works best on a variety of
        display resolutions */
@@ -797,12 +844,12 @@ static void opnwin(int fn, int pfn)
 
     }
     win->pagracxt = XDefaultGC(padisplay, pascreen);
-    XSetFont (padisplay, win->pagracxt, pafont->fid);
+    XSetFont (padisplay, win->pagracxt, win->pafont->fid);
 
     /* find spacing in current font */
 
-    win->charspace = pafont->max_bounds.rbearing-pafont->min_bounds.lbearing;
-    win->linespace = pafont->max_bounds.ascent+pafont->max_bounds.descent;
+    win->charspace = win->pafont->max_bounds.rbearing-win->pafont->min_bounds.lbearing;
+    win->linespace = win->pafont->max_bounds.ascent+win->pafont->max_bounds.descent;
 
     /* set buffer size required for character spacing at default character grid
        size */
@@ -830,8 +877,8 @@ static void opnwin(int fn, int pfn)
     XSetForeground(padisplay, win->pagracxt, BlackPixel(padisplay, pascreen));
 
     /* set up global buffer parameters */
-    win->gmaxx = maxxd; /* character max dimensions */
-    win->gmaxy = maxyd;
+    win->gmaxx = DEFXD; /* character max dimensions */
+    win->gmaxy = DEFYD;
     win->gattr = 0; /* no attribute */
     win->gauto = TRUE; /* auto on */
     win->gfcrgb = colnum(pa_black); /*foreground black */
@@ -913,7 +960,7 @@ characters on the screen to spaces with the current colors and attributes.
 
 *******************************************************************************/
 
-void iclear(winptr win, void)
+void iclear(winptr win)
 
 {
 
@@ -926,7 +973,8 @@ void iclear(winptr win, void)
     sc->curyg = 1;
     XSetForeground(padisplay, win->pagracxt,
                    WhitePixel(padisplay, pascreen));
-    XFillRectangle(padisplay, win->pawindow, win->pagracxt, 0, 0, buff_x, buff_y);
+    XFillRectangle(padisplay, win->pawindow, win->pagracxt, 0, 0,
+                   win->gmaxxg, win->gmaxyg);
     XSetForeground(padisplay, win->pagracxt,
                    BlackPixel(padisplay, pascreen));
 
@@ -1087,8 +1135,8 @@ static void idown(winptr win)
         sc->cury++; /* update position */
         sc->curyg += win->linespace; /* move to next character line */
 
-    } else if (autof) iscrollg(win, 0*win->charspace, +1*win->linespace); /* scroll down */
-    else if (cury < INT_MAX) {
+    } else if (sc->autof) iscrollg(win, 0*win->charspace, +1*win->linespace); /* scroll down */
+    else if (sc->cury < INT_MAX) {
 
         sc->cury++; /* set new position */
         sc->curyg += win->linespace; /* move to next text line */
@@ -1311,15 +1359,16 @@ static void plcchr(winptr win, char c)
     else if (c >= ' ' && c != 0x7f) {
 
         /* place on buffer */
-        XDrawString(padisplay, pascnbuf, win->pagracxt, curxg-1, curyg-1+char_y, &c,
+        XDrawString(padisplay, win->pascnbuf, win->pagracxt,
+                    sc->curxg-1, sc->curyg-1+win->charspace, &c,
                     1);
 
         /* send exposure event back to window with mask over character */
         evtexp.xexpose.x = sc->curxg-1;
         evtexp.xexpose.y = sc->curyg-1;
-        evtexp.xexpose.width = sc->curxg-1+char_x;
-        evtexp.xexpose.height = sc->curyg-1+char_y;
-        XSendEvent(padisplay, pawindow, FALSE, ExposureMask, &evtexp);
+        evtexp.xexpose.width = sc->curxg-1+win->charspace;
+        evtexp.xexpose.height = sc->curyg-1+win->linespace;
+        XSendEvent(padisplay, win->pawindow, FALSE, ExposureMask, &evtexp);
 
         /* advance to next character */
         iright(win);
@@ -1503,7 +1552,7 @@ void pa_scroll(FILE* f, int x, int y)
 
     win = txt2win(f); /* get window from file */
 
-    iscrollg(x*win->charspace, y*win->linespace); /* process scroll */
+    iscrollg(win, x*win->charspace, y*win->linespace); /* process scroll */
 
 }
 
@@ -2026,7 +2075,7 @@ int pa_curbnd(FILE* f)
 
     win = txt2win(f); /* get window from file */
 
-    return (icurbnd(win->screens[win->curupd-1]);
+    return (icurbnd(win->screens[win->curupd-1]));
 
 }
 
@@ -2216,9 +2265,12 @@ void pa_del(FILE* f)
 
 {
 
-    ileft(); /* back up cursor */
-    plcchr(' '); /* blank out */
-    ileft(); /* back up again */
+    winptr win; /* window record pointer */
+
+    win = txt2win(f); /* get window from file */
+    ileft(win); /* back up cursor */
+    plcchr(win, ' '); /* blank out */
+    ileft(win); /* back up again */
 
 }
 
@@ -3029,8 +3081,9 @@ void pa_event(FILE* f, pa_evtrec* er)
     int evtfnd;
     KeySym ks;
     int esck;
+    winptr win; /* window record pointer */
 
-
+    win = txt2win(f); /* get window from file */
     evtfnd = FALSE;
     esck = FALSE; /* set no previous escape */
     do {
@@ -3038,8 +3091,8 @@ void pa_event(FILE* f, pa_evtrec* er)
         XNextEvent(padisplay, &e);
         if (e.type == Expose) {
 
-            XCopyArea(padisplay, pascnbuf, pawindow, win->pagracxt, 0, 0,
-                      DEFXD*char_x, DEFYD*char_y, 0, 0);
+            XCopyArea(padisplay, win->pascnbuf, win->pawindow, win->pagracxt, 0, 0,
+                      DEFXD*win->charspace, DEFYD*win->linespace, 0, 0);
 
         }
         if (e.type == KeyPress) {
@@ -4836,14 +4889,10 @@ static void pa_init_graphics(int argc, char *argv[])
 
 {
 
-    XEvent e;
     const char *title = "";
-    int depth;
-    int r;
-    XColor color;
-    int screen;
-    int dw, dh, sn;
     int ofn, ifn;
+    int fi;
+    winptr win; /* windows record pointer */
 
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
@@ -4867,7 +4916,7 @@ static void pa_init_graphics(int argc, char *argv[])
     fautohold = TRUE; /* set automatically hold self terminators */
 
     /* clear open files tables */
-    for (fi = 0; i < MAXFIL; i++) {
+    for (fi = 0; fi < MAXFIL; fi++) {
 
         opnfil[fi] = NULL; /* set unoccupied */
         /* clear window logical number translator table */
@@ -4878,31 +4927,32 @@ static void pa_init_graphics(int argc, char *argv[])
     }
 
     /* find existing display */
-
     padisplay = XOpenDisplay(NULL);
     if (padisplay == NULL) {
 
         fprintf(stderr, "Cannot open display\n");
         exit(1);
+
     }
     pascreen = DefaultScreen(padisplay);
-
-    /* set up the expose event to full buffer by default */
-    evtexp.type = Expose;
-    evtexp.xexpose.type = Expose;
-    evtexp.xexpose.serial = 0;
-    evtexp.xexpose.send_event = 1;
-    evtexp.xexpose.window = pawindow;
-    evtexp.xexpose.x = 0;
-    evtexp.xexpose.y = 0;
-    evtexp.xexpose.width = buff_x;
-    evtexp.xexpose.height = buff_y;
-    evtexp.xexpose.count = 0;
 
     /* open stdin and stdout as I/O window set */
     ifn = fileno(stdin); /* get logical id stdin */
     ofn = fileno(stdout); /* get logical id stdout */
     openio(stdin, stdout, ifn, ofn, -1, 1); /* process open */
+
+    /* set up the expose event to full buffer by default */
+    win = lfn2win(ofn); /* get window from fid */
+    evtexp.type = Expose;
+    evtexp.xexpose.type = Expose;
+    evtexp.xexpose.serial = 0;
+    evtexp.xexpose.send_event = 1;
+    evtexp.xexpose.window = win->pawindow;
+    evtexp.xexpose.x = 0;
+    evtexp.xexpose.y = 0;
+    evtexp.xexpose.width = win->gmaxxg;
+    evtexp.xexpose.height = win->gmaxyg;
+    evtexp.xexpose.count = 0;
 
 }
 
