@@ -14,6 +14,8 @@ is closed, then an error is sent to main window.
 is clipping the buffer (window size smaller than buffer). This matches the behavior of
 (say) the windows console subsystem.
 
+4. xltwin and filwin are initialized to 0, and should be -1 (since fids are >= 0).
+
 *************************************************************************************
 
 The following are notes from the old (untranslated) version of graph.

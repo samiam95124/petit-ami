@@ -360,7 +360,7 @@ typedef struct winrec {
     int          visible;         /* window is visible */
 
     /* fields used by graphics subsystem */
-    Window       pawindow;        /* current window */
+    Window       xwhan;        /* current window */
     GC           pagracxt;       /* graphics context */
     XFontStruct* pafont;         /* current font */
     Pixmap       pascnbuf;       /* pixmap for screen backing buffer */
@@ -442,6 +442,7 @@ typedef enum {
     etabsel,  /* Invalid tab select */
     enomem,   /* Out of memory */
     einvfil,  /* File is invalid */
+    enotinp,  /* not input side of any window */
     esystem   /* System consistency check */
 
 } errcod;
@@ -491,7 +492,7 @@ static void error(errcod e)
 
 {
 
-    fprintf(stderr, "*** Error: graphx: ");
+    fprintf(stderr, "*** Error: graphics: ");
     switch (e) { /* error */
 
       case eftbful:  fprintf(stderr, "Too many files"); break;
@@ -553,6 +554,7 @@ static void error(errcod e)
       case etabsel:  fprintf(stderr, "Invalid tab select"); break;
       case enomem:   fprintf(stderr, "Out of memory"); break;
       case einvfil:  fprintf(stderr, "File is invalid"); break;
+      case enotinp:  fprintf(stderr, "Not input side of any window");
       case esystem:  fprintf(stderr, "System consistency check"); break;
 
     }
@@ -764,6 +766,7 @@ static void opnwin(int fn, int pfn)
     int         depth;
     int         sn;
 
+dbg_printf(dlinfo, "begin\n");
     win = lfn2win(fn); /* get a pointer to the window */
     /* find parent */
     win->parlfn = pfn; /* set parent logical number */
@@ -859,19 +862,19 @@ static void opnwin(int fn, int pfn)
 
     /* create our window */
 
-    win->pawindow = XCreateSimpleWindow(padisplay, RootWindow(padisplay, pascreen),
+    win->xwhan = XCreateSimpleWindow(padisplay, RootWindow(padisplay, pascreen),
                                         10, 10, win->gmaxxg, win->gmaxyg, 1,
                            BlackPixel(padisplay, pascreen),
                            WhitePixel(padisplay, pascreen));
-    XSelectInput(padisplay, win->pawindow, ExposureMask | KeyPressMask | KeyReleaseMask);
-    XMapWindow(padisplay, win->pawindow);
+    XSelectInput(padisplay, win->xwhan, ExposureMask | KeyPressMask | KeyReleaseMask);
+    XMapWindow(padisplay, win->xwhan);
 
-    XStoreName(padisplay, win->pawindow, title );
-    XSetIconName(padisplay, win->pawindow, title );
+    XStoreName(padisplay, win->xwhan, title );
+    XSetIconName(padisplay, win->xwhan, title );
 
     /* set up pixmap backing buffer for text grid */
     depth = DefaultDepth(padisplay, pascreen);
-    win->pascnbuf = XCreatePixmap(padisplay, win->pawindow, win->gmaxxg, win->gmaxyg, depth);
+    win->pascnbuf = XCreatePixmap(padisplay, win->xwhan, win->gmaxxg, win->gmaxyg, depth);
     XSetForeground(padisplay, win->pagracxt, WhitePixel(padisplay, pascreen));
     XFillRectangle(padisplay, win->pascnbuf, win->pagracxt, 0, 0, win->gmaxx, win->gmaxy);
     XSetForeground(padisplay, win->pagracxt, BlackPixel(padisplay, pascreen));
@@ -894,6 +897,7 @@ static void opnwin(int fn, int pfn)
     win->gvexty = 1;
     iniscn(win, win->screens[0]); /* initalize screen buffer */
     restore(win, TRUE); /* update to screen */
+dbg_printf(dlinfo, "end\n");
 
 }
 
@@ -910,6 +914,8 @@ static void openio(FILE* infile, FILE* outfile, int ifn, int ofn, int pfn,
 
 {
 
+dbg_printf(dlinfo, "begin\n");
+dbg_printf(dlinfo, "ifn: %d ofn: %d pfn: %d, wid: %d\n", ifn, ofn, pfn, wid);
     /* if output was never opened, create it now */
     if (!opnfil[ofn]) getfet(&opnfil[ofn]);
     /* if input was never opened, create it now */
@@ -931,9 +937,10 @@ static void openio(FILE* infile, FILE* outfile, int ifn, int ofn, int pfn,
 
     }
     /* check if the window has been pinned to something else */
-    if (xltwin[wid-1] && xltwin[wid-1] != ofn) error(ewinuse); /* flag error */
+    if (xltwin[wid-1] >= 0 && xltwin[wid-1] != ofn) error(ewinuse); /* flag error */
     xltwin[wid-1] = ofn; /* pin the window to the output file */
     filwin[ofn] = wid;
+dbg_printf(dlinfo, "end\n");
 
 }
 
@@ -973,7 +980,7 @@ void iclear(winptr win)
     sc->curyg = 1;
     XSetForeground(padisplay, win->pagracxt,
                    WhitePixel(padisplay, pascreen));
-    XFillRectangle(padisplay, win->pawindow, win->pagracxt, 0, 0,
+    XFillRectangle(padisplay, win->xwhan, win->pagracxt, 0, 0,
                    win->gmaxxg, win->gmaxyg);
     XSetForeground(padisplay, win->pagracxt,
                    BlackPixel(padisplay, pascreen));
@@ -1368,7 +1375,7 @@ static void plcchr(winptr win, char c)
         evtexp.xexpose.y = sc->curyg-1;
         evtexp.xexpose.width = sc->curxg-1+win->charspace;
         evtexp.xexpose.height = sc->curyg-1+win->linespace;
-        XSendEvent(padisplay, win->pawindow, FALSE, ExposureMask, &evtexp);
+        XSendEvent(padisplay, win->xwhan, FALSE, ExposureMask, &evtexp);
 
         /* advance to next character */
         iright(win);
@@ -3073,6 +3080,33 @@ Our event loop here is like an event to event translation.
 
 *******************************************************************************/
 
+/* Find window file corresponding to event. Note this can be made a hash
+   search if speed is required. */
+static int fndevt(Window w)
+
+{
+
+    int fi; /* index for file table */
+    int ff; /* found file */
+
+    fi = 0; /* start index */
+    ff = -1; /* set no file found */
+    while (fi < MAXFIL) {
+
+        if (opnfil[fi] && opnfil[fi]->win && opnfil[fi]->win->xwhan == w) {
+
+            ff = fi; /* set found */
+            fi = MAXFIL; /* terminate */
+
+        } else fi++; /* next entry */
+
+    }
+    if (ff < 0) error(enotinp); /* no corresponding window file found */
+
+    return (ff);
+
+}
+
 void pa_event(FILE* f, pa_evtrec* er)
 
 {
@@ -3082,20 +3116,23 @@ void pa_event(FILE* f, pa_evtrec* er)
     KeySym ks;
     int esck;
     winptr win; /* window record pointer */
+    int ofn; /* output lfn associated with window */
 
-    win = txt2win(f); /* get window from file */
+dbg_printf(dlinfo, "begin\n");
     evtfnd = FALSE;
     esck = FALSE; /* set no previous escape */
     do {
 
-        XNextEvent(padisplay, &e);
+        XNextEvent(padisplay, &e); /* get next event */
+        ofn = fndevt(e.xany.window); /* get output window lfn */
+        win = lfn2win(ofn); /* get window for that */
+        er->winid = filwin[ofn]; /* get window number */
         if (e.type == Expose) {
 
-            XCopyArea(padisplay, win->pascnbuf, win->pawindow, win->pagracxt, 0, 0,
+            XCopyArea(padisplay, win->pascnbuf, win->xwhan, win->pagracxt, 0, 0,
                       DEFXD*win->charspace, DEFYD*win->linespace, 0, 0);
 
-        }
-        if (e.type == KeyPress) {
+        } else if (e.type == KeyPress) {
 
             ks = XLookupKeysym(&e.xkey, 0);
             er->etype = pa_etchar; /* place default code */
@@ -4947,7 +4984,7 @@ static void pa_init_graphics(int argc, char *argv[])
     evtexp.xexpose.type = Expose;
     evtexp.xexpose.serial = 0;
     evtexp.xexpose.send_event = 1;
-    evtexp.xexpose.window = win->pawindow;
+    evtexp.xexpose.window = win->xwhan;
     evtexp.xexpose.x = 0;
     evtexp.xexpose.y = 0;
     evtexp.xexpose.width = win->gmaxxg;
@@ -4977,11 +5014,13 @@ static void pa_deinit_graphics()
 
     pa_evtrec er;
 
+dbg_printf(dlinfo, "begin\n");
 	/* if the program tries to exit when the user has not ordered an exit, it
 	   is assumed to be a windows "unaware" program. We stop before we exit
 	   these, so that their content may be viewed */
 	if (!fend && fautohold) { /* process automatic exit sequence */
 
+dbg_printf(dlinfo, "holding for window to complete\n");
         /* wait for a formal end */
 		while (!fend) pa_event(stdin, &er);
 
@@ -5001,5 +5040,6 @@ static void pa_deinit_graphics()
     if (cppread != iread || cppwrite != iwrite || cppopen != iopen ||
         cppclose != iclose || cppunlink != iunlink || cpplseek != ilseek)
         error(esystem);
+dbg_printf(dlinfo, "end\n");
 
 }

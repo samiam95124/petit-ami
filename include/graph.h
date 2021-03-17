@@ -236,7 +236,8 @@ typedef struct {
      };
 
 } pa_evtrec;
-     /* menu */
+
+/* menu */
 typedef struct pa_menurec* pa_menuptr;
 typedef struct pa_menurec {
 
