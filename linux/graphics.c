@@ -762,11 +762,9 @@ static void opnwin(int fn, int pfn)
     winptr      win;  /* window pointer */
     winptr      pwin; /* parent window pointer */
     int         f;    /* window creation flags */
-    const char* title = "";
+    const char* title = "hi!";
     int         depth;
-    int         sn;
 
-dbg_printf(dlinfo, "begin\n");
     win = lfn2win(fn); /* get a pointer to the window */
     /* find parent */
     win->parlfn = pfn; /* set parent logical number */
@@ -823,18 +821,17 @@ dbg_printf(dlinfo, "begin\n");
     win->visible = FALSE; /* set not visible */
 
     /* get screen parameters */
-    sn = DefaultScreen(padisplay);
-    win->shsize = XDisplayWidth(padisplay, sn); /* size x in millimeters */
-    win->svsize = XDisplayHeightMM(padisplay, sn); /* size y in millimeters */
-    win->shres = DisplayWidth(padisplay, sn);
-    win->svres = DisplayHeight(padisplay, sn);
+    win->shsize = XDisplayWidth(padisplay, pascreen); /* size x in millimeters */
+    win->svsize = XDisplayHeightMM(padisplay, pascreen); /* size y in millimeters */
+    win->shres = DisplayWidth(padisplay, pascreen);
+    win->svres = DisplayHeight(padisplay, pascreen);
     win->sdpmx = win->shres/win->shsize*1000; /* find dots per meter x */
     win->sdpmy = win->svres/win->svsize*1000; /* find dots per meter y */
 
-    dbg_printf(dlinfo, "Display width in pixels: %d\n", win->shres);
+    dbg_printf(dlinfo, "Display width in pixels:  %d\n", win->shres);
     dbg_printf(dlinfo, "Display height in pixels: %d\n", win->svres);
-    dbg_printf(dlinfo, "Display width in mm: %d\n", win->shsize);
-    dbg_printf(dlinfo, "Display height in mm: %d\n", win->svsize);
+    dbg_printf(dlinfo, "Display width in mm:      %d\n", win->shsize);
+    dbg_printf(dlinfo, "Display height in mm:     %d\n", win->svsize);
 
     /* choose courier font based on dpi, this works best on a variety of
        display resolutions */
@@ -876,7 +873,7 @@ dbg_printf(dlinfo, "begin\n");
     depth = DefaultDepth(padisplay, pascreen);
     win->pascnbuf = XCreatePixmap(padisplay, win->xwhan, win->gmaxxg, win->gmaxyg, depth);
     XSetForeground(padisplay, win->pagracxt, WhitePixel(padisplay, pascreen));
-    XFillRectangle(padisplay, win->pascnbuf, win->pagracxt, 0, 0, win->gmaxx, win->gmaxy);
+    XFillRectangle(padisplay, win->pascnbuf, win->pagracxt, 0, 0, win->gmaxxg, win->gmaxyg);
     XSetForeground(padisplay, win->pagracxt, BlackPixel(padisplay, pascreen));
 
     /* set up global buffer parameters */
@@ -897,7 +894,6 @@ dbg_printf(dlinfo, "begin\n");
     win->gvexty = 1;
     iniscn(win, win->screens[0]); /* initalize screen buffer */
     restore(win, TRUE); /* update to screen */
-dbg_printf(dlinfo, "end\n");
 
 }
 
@@ -914,8 +910,6 @@ static void openio(FILE* infile, FILE* outfile, int ifn, int ofn, int pfn,
 
 {
 
-dbg_printf(dlinfo, "begin\n");
-dbg_printf(dlinfo, "ifn: %d ofn: %d pfn: %d, wid: %d\n", ifn, ofn, pfn, wid);
     /* if output was never opened, create it now */
     if (!opnfil[ofn]) getfet(&opnfil[ofn]);
     /* if input was never opened, create it now */
@@ -940,7 +934,6 @@ dbg_printf(dlinfo, "ifn: %d ofn: %d pfn: %d, wid: %d\n", ifn, ofn, pfn, wid);
     if (xltwin[wid-1] >= 0 && xltwin[wid-1] != ofn) error(ewinuse); /* flag error */
     xltwin[wid-1] = ofn; /* pin the window to the output file */
     filwin[ofn] = wid;
-dbg_printf(dlinfo, "end\n");
 
 }
 
@@ -1367,7 +1360,7 @@ static void plcchr(winptr win, char c)
 
         /* place on buffer */
         XDrawString(padisplay, win->pascnbuf, win->pagracxt,
-                    sc->curxg-1, sc->curyg-1+win->charspace, &c,
+                    sc->curxg-1, sc->curyg-1+win->linespace, &c,
                     1);
 
         /* send exposure event back to window with mask over character */
@@ -3129,8 +3122,9 @@ dbg_printf(dlinfo, "begin\n");
         er->winid = filwin[ofn]; /* get window number */
         if (e.type == Expose) {
 
+dbg_printf(dlinfo, "expose: gmaxxg: %d gmaxyg: %d\n", win->gmaxxg, win->gmaxyg);
             XCopyArea(padisplay, win->pascnbuf, win->xwhan, win->pagracxt, 0, 0,
-                      DEFXD*win->charspace, DEFYD*win->linespace, 0, 0);
+                      win->gmaxxg, win->gmaxyg, 0, 0);
 
         } else if (e.type == KeyPress) {
 
@@ -5014,13 +5008,11 @@ static void pa_deinit_graphics()
 
     pa_evtrec er;
 
-dbg_printf(dlinfo, "begin\n");
 	/* if the program tries to exit when the user has not ordered an exit, it
 	   is assumed to be a windows "unaware" program. We stop before we exit
 	   these, so that their content may be viewed */
 	if (!fend && fautohold) { /* process automatic exit sequence */
 
-dbg_printf(dlinfo, "holding for window to complete\n");
         /* wait for a formal end */
 		while (!fend) pa_event(stdin, &er);
 
@@ -5040,6 +5032,5 @@ dbg_printf(dlinfo, "holding for window to complete\n");
     if (cppread != iread || cppwrite != iwrite || cppopen != iopen ||
         cppclose != iclose || cppunlink != iunlink || cpplseek != ilseek)
         error(esystem);
-dbg_printf(dlinfo, "end\n");
 
 }
