@@ -361,9 +361,9 @@ typedef struct winrec {
 
     /* fields used by graphics subsystem */
     Window       xwhan;        /* current window */
-    GC           pagracxt;       /* graphics context */
-    XFontStruct* pafont;         /* current font */
-    Pixmap       pascnbuf;       /* pixmap for screen backing buffer */
+    GC           xcxt;       /* graphics context */
+    XFontStruct* xfont;         /* current font */
+    Pixmap       xscnbuf;       /* pixmap for screen backing buffer */
 
 } winrec, *winptr;
 
@@ -762,7 +762,7 @@ static void opnwin(int fn, int pfn)
     winptr      win;  /* window pointer */
     winptr      pwin; /* parent window pointer */
     int         f;    /* window creation flags */
-    const char* title = "hi!";
+//    const char* title = "hi!";
     int         depth;
 
     win = lfn2win(fn); /* get a pointer to the window */
@@ -821,35 +821,37 @@ static void opnwin(int fn, int pfn)
     win->visible = FALSE; /* set not visible */
 
     /* get screen parameters */
-    win->shsize = XDisplayWidth(padisplay, pascreen); /* size x in millimeters */
+    win->shsize = XDisplayWidthMM(padisplay, pascreen); /* size x in millimeters */
     win->svsize = XDisplayHeightMM(padisplay, pascreen); /* size y in millimeters */
     win->shres = DisplayWidth(padisplay, pascreen);
     win->svres = DisplayHeight(padisplay, pascreen);
     win->sdpmx = win->shres/win->shsize*1000; /* find dots per meter x */
     win->sdpmy = win->svres/win->svsize*1000; /* find dots per meter y */
 
+#if 0
     dbg_printf(dlinfo, "Display width in pixels:  %d\n", win->shres);
     dbg_printf(dlinfo, "Display height in pixels: %d\n", win->svres);
     dbg_printf(dlinfo, "Display width in mm:      %d\n", win->shsize);
     dbg_printf(dlinfo, "Display height in mm:     %d\n", win->svsize);
+#endif
 
     /* choose courier font based on dpi, this works best on a variety of
        display resolutions */
-    win->pafont = XLoadQueryFont(padisplay,
+    win->xfont = XLoadQueryFont(padisplay,
         "-bitstream-courier 10 pitch-bold-r-normal--0-0-200-200-m-0-iso8859-1");
-    if (!win->pafont) {
+    if (!win->xfont) {
 
         fprintf(stderr, "*** No font ***\n");
         exit(1);
 
     }
-    win->pagracxt = XDefaultGC(padisplay, pascreen);
-    XSetFont (padisplay, win->pagracxt, win->pafont->fid);
+    win->xcxt = XDefaultGC(padisplay, pascreen);
+    XSetFont (padisplay, win->xcxt, win->xfont->fid);
 
     /* find spacing in current font */
 
-    win->charspace = win->pafont->max_bounds.rbearing-win->pafont->min_bounds.lbearing;
-    win->linespace = win->pafont->max_bounds.ascent+win->pafont->max_bounds.descent;
+    win->charspace = win->xfont->max_bounds.rbearing-win->xfont->min_bounds.lbearing;
+    win->linespace = win->xfont->max_bounds.ascent+win->xfont->max_bounds.descent;
 
     /* set buffer size required for character spacing at default character grid
        size */
@@ -866,15 +868,15 @@ static void opnwin(int fn, int pfn)
     XSelectInput(padisplay, win->xwhan, ExposureMask | KeyPressMask | KeyReleaseMask);
     XMapWindow(padisplay, win->xwhan);
 
-    XStoreName(padisplay, win->xwhan, title );
-    XSetIconName(padisplay, win->xwhan, title );
+//    XStoreName(padisplay, win->xwhan, title );
+//    XSetIconName(padisplay, win->xwhan, title );
 
     /* set up pixmap backing buffer for text grid */
     depth = DefaultDepth(padisplay, pascreen);
-    win->pascnbuf = XCreatePixmap(padisplay, win->xwhan, win->gmaxxg, win->gmaxyg, depth);
-    XSetForeground(padisplay, win->pagracxt, WhitePixel(padisplay, pascreen));
-    XFillRectangle(padisplay, win->pascnbuf, win->pagracxt, 0, 0, win->gmaxxg, win->gmaxyg);
-    XSetForeground(padisplay, win->pagracxt, BlackPixel(padisplay, pascreen));
+    win->xscnbuf = XCreatePixmap(padisplay, win->xwhan, win->gmaxxg, win->gmaxyg, depth);
+    XSetForeground(padisplay, win->xcxt, WhitePixel(padisplay, pascreen));
+    XFillRectangle(padisplay, win->xscnbuf, win->xcxt, 0, 0, win->gmaxxg, win->gmaxyg);
+    XSetForeground(padisplay, win->xcxt, BlackPixel(padisplay, pascreen));
 
     /* set up global buffer parameters */
     win->gmaxx = DEFXD; /* character max dimensions */
@@ -971,11 +973,11 @@ void iclear(winptr win)
     sc->cury = 1;
     sc->curxg = 1;
     sc->curyg = 1;
-    XSetForeground(padisplay, win->pagracxt,
+    XSetForeground(padisplay, win->xcxt,
                    WhitePixel(padisplay, pascreen));
-    XFillRectangle(padisplay, win->xwhan, win->pagracxt, 0, 0,
+    XFillRectangle(padisplay, win->xwhan, win->xcxt, 0, 0,
                    win->gmaxxg, win->gmaxyg);
-    XSetForeground(padisplay, win->pagracxt,
+    XSetForeground(padisplay, win->xcxt,
                    BlackPixel(padisplay, pascreen));
 
 }
@@ -1359,7 +1361,7 @@ static void plcchr(winptr win, char c)
     else if (c >= ' ' && c != 0x7f) {
 
         /* place on buffer */
-        XDrawString(padisplay, win->pascnbuf, win->pagracxt,
+        XDrawString(padisplay, win->xscnbuf, win->xcxt,
                     sc->curxg-1, sc->curyg-1+win->linespace, &c,
                     1);
 
@@ -1957,7 +1959,7 @@ void pa_fcolor(FILE* f, pa_color c)
 
     win = txt2win(f); /* get window from file */
     rgb = colnum(c); /* translate color code to RGB */
-    XSetForeground(padisplay, win->pagracxt, rgb);
+    XSetForeground(padisplay, win->xcxt, rgb);
 
 }
 
@@ -1976,7 +1978,7 @@ void pa_fcolorc(FILE* f, int r, int g, int b)
     winptr win; /* windows record pointer */
 
     win = txt2win(f); /* get window from file */
-    XSetForeground(padisplay, win->pagracxt, r<<16 | g<<8 | b);
+    XSetForeground(padisplay, win->xcxt, r<<16 | g<<8 | b);
 
 }
 
@@ -2000,7 +2002,7 @@ void pa_fcolorg(FILE* f, int r, int g, int b)
     winptr win; /* windows record pointer */
 
     win = txt2win(f); /* get window from file */
-    XSetForeground(padisplay, win->pagracxt, r<<16 | g<<8 | b);
+    XSetForeground(padisplay, win->xcxt, r<<16 | g<<8 | b);
 
 }
 
@@ -2021,7 +2023,7 @@ void pa_bcolor(FILE* f, pa_color c)
 
     win = txt2win(f); /* get window from file */
     rgb = colnum(c); /* translate color code to RGB */
-    XSetForeground(padisplay, win->pagracxt, rgb);
+    XSetForeground(padisplay, win->xcxt, rgb);
 
 }
 
@@ -2032,7 +2034,7 @@ void pa_bcolorc(FILE* f, int r, int g, int b)
     winptr win; /* windows record pointer */
 
     win = txt2win(f); /* get window from file */
-    XSetForeground(padisplay, win->pagracxt,
+    XSetForeground(padisplay, win->xcxt,
                    r<<16 | g<<8 | b);
 
 }
@@ -2054,7 +2056,7 @@ void pa_bcolorg(FILE* f, int r, int g, int b)
     winptr win; /* windows record pointer */
 
     win = txt2win(f); /* get window from file */
-    XSetForeground(padisplay, win->pagracxt,
+    XSetForeground(padisplay, win->xcxt,
                    r<<16 | g<<8 | b);
 
 }
@@ -3123,7 +3125,7 @@ dbg_printf(dlinfo, "begin\n");
         if (e.type == Expose) {
 
 dbg_printf(dlinfo, "expose: gmaxxg: %d gmaxyg: %d\n", win->gmaxxg, win->gmaxyg);
-            XCopyArea(padisplay, win->pascnbuf, win->xwhan, win->pagracxt, 0, 0,
+            XCopyArea(padisplay, win->xscnbuf, win->xwhan, win->xcxt, 0, 0,
                       win->gmaxxg, win->gmaxyg, 0, 0);
 
         } else if (e.type == KeyPress) {
