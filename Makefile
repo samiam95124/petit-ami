@@ -585,6 +585,9 @@ bin/petit_ami_term.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
 bin/petit_ami_graph.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
     linux/dumpsynthplug.o linux/network.o linux/graphics.o utils/config.o \
     utils/option.o  
+#	gcc -shared linux/services.o \
+#		linux/graphics.o utils/config.o \
+#		utils/option.o -o bin/petit_ami_graph.so
 	gcc -shared linux/services.o linux/sound.o linux/fluidsynthplug.o \
 		linux/dumpsynthplug.o  linux/network.o linux/graphics.o utils/config.o \
 		utils/option.o -o bin/petit_ami_graph.so
