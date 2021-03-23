@@ -3113,7 +3113,6 @@ void pa_event(FILE* f, pa_evtrec* er)
     winptr win; /* window record pointer */
     int ofn; /* output lfn associated with window */
 
-dbg_printf(dlinfo, "begin\n");
     evtfnd = FALSE;
     esck = FALSE; /* set no previous escape */
     do {
@@ -3124,7 +3123,6 @@ dbg_printf(dlinfo, "begin\n");
         er->winid = filwin[ofn]; /* get window number */
         if (e.type == Expose) {
 
-dbg_printf(dlinfo, "expose: gmaxxg: %d gmaxyg: %d\n", win->gmaxxg, win->gmaxyg);
             XCopyArea(padisplay, win->xscnbuf, win->xwhan, win->xcxt, 0, 0,
                       win->gmaxxg, win->gmaxyg, 0, 0);
 
@@ -4926,6 +4924,10 @@ static void pa_init_graphics(int argc, char *argv[])
     int ofn, ifn;
     int fi;
     winptr win; /* windows record pointer */
+
+    /* turn off I/O buffering */
+    setvbuf(stdin, NULL, _IONBF, 0);
+    setvbuf(stdout, NULL, _IONBF, 0);
 
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
