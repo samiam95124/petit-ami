@@ -360,10 +360,10 @@ typedef struct winrec {
     int          visible;         /* window is visible */
 
     /* fields used by graphics subsystem */
-    Window       xwhan;        /* current window */
-    GC           xcxt;       /* graphics context */
-    XFontStruct* xfont;         /* current font */
-    Pixmap       xscnbuf;       /* pixmap for screen backing buffer */
+    Window       xwhan;           /* current window */
+    GC           xcxt;            /* graphics context */
+    XFontStruct* xfont;           /* current font */
+    Pixmap       xscnbuf;         /* pixmap for screen backing buffer */
 
 } winrec, *winptr;
 
@@ -762,8 +762,8 @@ static void opnwin(int fn, int pfn)
     winptr      win;  /* window pointer */
     winptr      pwin; /* parent window pointer */
     int         f;    /* window creation flags */
-//    const char* title = "hi!";
     int         depth;
+    int         x, y;
 
     win = lfn2win(fn); /* get a pointer to the window */
     /* find parent */
@@ -848,10 +848,26 @@ static void opnwin(int fn, int pfn)
     win->xcxt = XDefaultGC(padisplay, pascreen);
     XSetFont (padisplay, win->xcxt, win->xfont->fid);
 
-    /* find spacing in current font */
+#if 0
+    dbg_printf(dlinfo, "Font min_bounds: lbearing: %d\n", win->xfont->min_bounds.lbearing);
+    dbg_printf(dlinfo, "Font min_bounds: rbearing: %d\n", win->xfont->min_bounds.rbearing);
+    dbg_printf(dlinfo, "Font min_bounds: width:    %d\n", win->xfont->min_bounds.width);
+    dbg_printf(dlinfo, "Font min_bounds: ascent:   %d\n", win->xfont->min_bounds.ascent);
+    dbg_printf(dlinfo, "Font min_bounds: descent:  %d\n", win->xfont->min_bounds.descent);
 
-    win->charspace = win->xfont->max_bounds.rbearing-win->xfont->min_bounds.lbearing;
+    dbg_printf(dlinfo, "Font max_bounds: lbearing: %d\n", win->xfont->max_bounds.lbearing);
+    dbg_printf(dlinfo, "Font max_bounds: rbearing: %d\n", win->xfont->max_bounds.rbearing);
+    dbg_printf(dlinfo, "Font max_bounds: width:    %d\n", win->xfont->max_bounds.width);
+    dbg_printf(dlinfo, "Font max_bounds: ascent:   %d\n", win->xfont->max_bounds.ascent);
+    dbg_printf(dlinfo, "Font max_bounds: descent:  %d\n", win->xfont->max_bounds.descent);
+#endif
+
+    /* find spacing in current font */
+    win->charspace = win->xfont->max_bounds.width;
     win->linespace = win->xfont->max_bounds.ascent+win->xfont->max_bounds.descent;
+
+    /* find base offset */
+    win->baseoff = win->xfont->ascent;
 
     /* set buffer size required for character spacing at default character grid
        size */
@@ -868,15 +884,27 @@ static void opnwin(int fn, int pfn)
     XSelectInput(padisplay, win->xwhan, ExposureMask | KeyPressMask | KeyReleaseMask);
     XMapWindow(padisplay, win->xwhan);
 
-//    XStoreName(padisplay, win->xwhan, title );
-//    XSetIconName(padisplay, win->xwhan, title );
-
     /* set up pixmap backing buffer for text grid */
     depth = DefaultDepth(padisplay, pascreen);
     win->xscnbuf = XCreatePixmap(padisplay, win->xwhan, win->gmaxxg, win->gmaxyg, depth);
     XSetForeground(padisplay, win->xcxt, WhitePixel(padisplay, pascreen));
     XFillRectangle(padisplay, win->xscnbuf, win->xcxt, 0, 0, win->gmaxxg, win->gmaxyg);
     XSetForeground(padisplay, win->xcxt, BlackPixel(padisplay, pascreen));
+
+    /* draw grid for character cell diagnosis */
+#if 0
+    XSetForeground(padisplay, win->xcxt, colnum(pa_cyan));
+    for (y = 0; y < win->gmaxyg; y += win->linespace)
+        XDrawLine(padisplay, win->xscnbuf, win->xcxt, 0, y, win->gmaxxg, y);
+    for (x = 0; x < win->gmaxxg; x += win->charspace)
+        XDrawLine(padisplay, win->xscnbuf, win->xcxt, x, 0, x, win->gmaxyg);
+    XSetForeground(padisplay, win->xcxt, colnum(pa_black));
+#endif
+
+    /* reveal the background (diagnostic) */
+#if 0
+    XSetBackground(padisplay, win->xcxt, colnum(pa_yellow));
+#endif
 
     /* set up global buffer parameters */
     win->gmaxx = DEFXD; /* character max dimensions */
@@ -1361,9 +1389,8 @@ static void plcchr(winptr win, char c)
     else if (c >= ' ' && c != 0x7f) {
 
         /* place on buffer */
-        XDrawString(padisplay, win->xscnbuf, win->xcxt,
-                    sc->curxg-1, sc->curyg-1+win->linespace, &c,
-                    1);
+        XDrawImageString(padisplay, win->xscnbuf, win->xcxt,
+                    sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
 
         /* send exposure event back to window with mask over character */
         evtexp.xexpose.x = sc->curxg-1;
@@ -3520,6 +3547,12 @@ Sets the title of the current window.
 void pa_title(FILE* f, char* ts)
 
 {
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    XStoreName(padisplay, win->xwhan, ts);
+    XSetIconName(padisplay, win->xwhan, ts);
 
 }
 
