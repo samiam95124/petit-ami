@@ -1468,6 +1468,25 @@ static void itab(winptr win)
 {
 
     /* implement me */
+        int i;
+    int x;
+    scnptr sc;
+
+    sc = win->screens[win->curupd-1];
+    curoff(win); /* hide the cursor */
+    /* first, find if next tab even exists */
+    x = sc->curxg+1; /* get just after the current x position */
+    if (x < 1)  x = 1; /* don"t bother to search to left of screen */
+    /* find tab || } of screen */
+    i = 0; /* set 1st tab position */
+    while (x > sc->tab[i] && sc->tab[i] && i < MAXTAB) i++;
+    if (sc->tab[i] && x < sc->tab[i]) { /* not off right of tabs */
+
+       sc->curxg = sc->tab[i]; /* set position to that tab */
+       sc->curx = sc->curxg/win->charspace+1;
+
+    }
+    curon(win); /* show the cursor */
 
 }
 
