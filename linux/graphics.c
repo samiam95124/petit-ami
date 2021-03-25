@@ -1289,23 +1289,25 @@ static void iup(winptr win)
     scnptr sc;
 
     sc = win->screens[win->curupd-1]; /* index screen */
-    curoff(win); /* hide the cursor */
     /* check not top of screen */
     if (sc->cury > 1) {
 
+        curoff(win); /* hide the cursor */
         sc->cury--; /* update position */
         sc->curyg -= win->linespace; /* go last character line */
+        curon(win); /* show the cursor */
 
     } else if (sc->autof)
         iscrollg(win, 0*win->charspace, -1*win->linespace); /* scroll up */
     /* check won't overflow */
     else if (sc->cury > -INT_MAX) {
 
+        curoff(win); /* hide the cursor */
         sc->cury--; /* set new position */
         sc->curyg -= win->linespace;
+        curon(win); /* show the cursor */
 
     }
-    curon(win); /* show the cursor */
 
 }
 
@@ -1327,21 +1329,23 @@ static void idown(winptr win)
     scnptr sc;
 
     sc = win->screens[win->curupd-1]; /* index screen */
-    curoff(win); /* hide the cursor */
     /* check not bottom of screen */
     if (sc->cury < sc->maxy) {
 
+        curoff(win); /* hide the cursor */
         sc->cury++; /* update position */
         sc->curyg += win->linespace; /* move to next character line */
+        curon(win); /* show the cursor */
 
     } else if (sc->autof) iscrollg(win, 0*win->charspace, +1*win->linespace); /* scroll down */
     else if (sc->cury < INT_MAX) {
 
+        curoff(win); /* hide the cursor */
         sc->cury++; /* set new position */
         sc->curyg += win->linespace; /* move to next text line */
+        curon(win); /* show the cursor */
 
     }
-    curon(win); /* show the cursor */
 
 }
 
@@ -1362,35 +1366,39 @@ static void ileft(winptr win)
     scnptr sc;
 
     sc = win->screens[win->curupd-1]; /* index screen */
-    curoff(win); /* hide the cursor */
     /* check not at extreme left */
     if (sc->curx > 1) {
 
+        curoff(win); /* hide the cursor */
         sc->curx--; /* update position */
         sc->curxg -= win->charspace; /* back one character */
+        curon(win); /* show the cursor */
 
     } else { /* wrap cursor motion */
 
         if (sc->autof) { /* autowrap is on */
 
             iup(win); /* move cursor up one line */
+            curoff(win); /* hide the cursor */
             sc->curx = sc->maxx; /* set cursor to extreme right */
             sc->curxg = sc->maxxg-win->charspace;
+            curon(win); /* show the cursor */
 
         } else {
 
             /* check won't overflow */
             if (sc->curx > -INT_MAX) {
 
+                curoff(win); /* hide the cursor */
                 sc->curx--; /* update position */
                 sc->curxg -= win->charspace;
+                curon(win); /* show the cursor */
 
             }
 
         }
 
     }
-    curon(win); /* show the cursor */
 
 }
 
@@ -1409,35 +1417,39 @@ static void iright(winptr win)
     scnptr sc;
 
     sc = win->screens[win->curupd-1]; /* index screen */
-    curoff(win); /* hide the cursor */
     /* check not at extreme right */
     if (sc->curx < sc->maxx) {
 
+        curoff(win); /* hide the cursor */
         sc->curx++; /* update position */
         sc->curxg += win->charspace;
+        curon(win); /* show the cursor */
 
     } else { /* wrap cursor motion */
 
         if (sc->autof) { /* autowrap is on */
 
             idown(win); /* move cursor up one line */
+            curoff(win); /* hide the cursor */
             sc->curx = 1; /* set cursor to extreme left */
             sc->curxg = 1;
+            curon(win); /* show the cursor */
 
         /* check won't overflow */
         } else {
 
             if (sc->curx < INT_MAX) {
 
+                curoff(win); /* hide the cursor */
                 sc->curx++; /* update position */
                 sc->curxg += win->charspace;
+                curon(win); /* show the cursor */
 
             }
 
         }
 
     }
-    curon(win); /* show the cursor */
 
 }
 
