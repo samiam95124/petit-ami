@@ -729,11 +729,13 @@ static void curdrw(winptr win)
     scnptr sc;  /* pointer to current screen */
 
     sc = win->screens[win->curupd-1]; /* index current screen */
+    XSetForeground(padisplay, win->xcxt, colnum(pa_white));
     XSetFunction(padisplay, win->xcxt, GXxor); /* set reverse */
     XFillRectangle(padisplay, win->xscnbuf, win->xcxt, sc->curxg, sc->curyg,
                    win->charspace, win->linespace);
     XSetFunction(padisplay, win->xcxt, GXcopy); /* set reverse */
     curexp(win); /* send expose event */
+    XSetForeground(padisplay, win->xcxt, colnum(pa_black));
 
 }
 
@@ -949,7 +951,7 @@ static void opnwin(int fn, int pfn)
     win->shift = FALSE; /* set no shift active */
     win->cntrl = FALSE; /* set no control active */
     win->fcurdwn = FALSE; /* set cursor is not down */
-    win->focus = FALSE; /* set not in focus */
+    win->focus = TRUE /*FALSE*/; /* set not in focus */
     win->joy1xs = 0; /* clear joystick saves */
     win->joy1ys = 0;
     win->joy1zs = 0;
@@ -1522,6 +1524,7 @@ static void plcchr(winptr win, char c)
 
     scnptr sc;  /* pointer to current screen */
 
+//dbg_printf(dlinfo, "placing char: %c:%d\n", c, c);
     sc = win->screens[win->curupd-1]; /* index current screen */
     if (c == '\r') {
 
