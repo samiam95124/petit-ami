@@ -735,7 +735,7 @@ static void curdrw(winptr win)
                    win->charspace, win->linespace);
     XSetFunction(padisplay, win->xcxt, GXcopy); /* set reverse */
     curexp(win); /* send expose event */
-    XSetForeground(padisplay, win->xcxt, colnum(pa_black));
+    XSetForeground(padisplay, win->xcxt, win->gfcrgb);
 
 }
 
@@ -1529,13 +1529,18 @@ static void plcchr(winptr win, char c)
     if (c == '\r') {
 
         /* carriage return, position to extreme left */
+        curoff(win); /* hide the cursor */
         sc->curx = 1; /* set to extreme left */
         sc->curxg = 1;
+        curon(win); /* show the cursor */
+
 
     } else if (c == '\n') {
 
+        curoff(win); /* hide the cursor */
         sc->curx = 1; /* set to extreme left */
         sc->curxg = 1;
+        curon(win); /* show the cursor */
         idown(win); /* line feed, move down */
 
     } else if (c == '\b') ileft(win); /* back space, move left */
