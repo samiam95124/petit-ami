@@ -673,6 +673,165 @@ static winptr txt2win(FILE* f)
 
 /** ****************************************************************************
 
+Find if cursor is in screen bounds
+
+Checks if the cursor lies in the current bounds, and returns TRUE if so.
+
+*******************************************************************************/
+
+static int icurbnd(scnptr sc)
+
+{
+
+   return (sc->curx >= 1 && sc->curx <= sc->maxx &&
+           sc->cury >= 1 && sc->cury <= sc->maxy);
+
+}
+
+/*******************************************************************************
+
+Send expose event for current cursor character
+
+Prepares an exposure event covering the rectangle of the current character at
+the cursor. This is is necessary to keep the display and the buffer in sync.
+
+*******************************************************************************/
+
+static void curexp(winptr win)
+
+{
+
+    scnptr sc;  /* pointer to current screen */
+
+    sc = win->screens[win->curupd-1]; /* index current screen */
+    /* send exposure event back to window with mask over character */
+    evtexp.xexpose.x = sc->curxg-1;
+    evtexp.xexpose.y = sc->curyg-1;
+    evtexp.xexpose.width = sc->curxg-1+win->charspace;
+    evtexp.xexpose.height = sc->curyg-1+win->linespace;
+    XSendEvent(padisplay, win->xwhan, FALSE, ExposureMask, &evtexp);
+
+}
+
+/*******************************************************************************
+
+Draw reversing cursor
+
+Draws a cursor rectangle in xor mode. This is used both to place and remove the
+cursor.
+
+*******************************************************************************/
+
+static void curdrw(winptr win)
+
+{
+
+    scnptr sc;  /* pointer to current screen */
+
+    sc = win->screens[win->curupd-1]; /* index current screen */
+    XSetFunction(padisplay, win->xcxt, GXxor); /* set reverse */
+    XFillRectangle(padisplay, win->xscnbuf, win->xcxt, sc->curxg, sc->curyg,
+                   win->charspace, win->linespace);
+    XSetFunction(padisplay, win->xcxt, GXcopy); /* set reverse */
+    curexp(win); /* send expose event */
+
+}
+
+/*******************************************************************************
+
+Set cursor visable
+
+Makes the cursor visible.
+
+*******************************************************************************/
+
+static void curon(winptr win)
+
+{
+
+    scnptr sc;  /* pointer to current screen */
+
+    sc = win->screens[win->curupd-1]; /* index current screen */
+    if (!win->fcurdwn && win->screens[win->curdsp-1]->curv &&
+        icurbnd(win->screens[win->curdsp-1]) && win->focus)  {
+
+        /* cursor not already down, cursor visible, cursor in bounds, screen
+           in focus */
+        curdrw(win);
+        win->fcurdwn = TRUE; /* set cursor on screen */
+
+    }
+
+}
+
+/*******************************************************************************
+
+Set cursor invisible
+
+Makes the cursor invisible.
+
+*******************************************************************************/
+
+static void curoff(winptr win)
+
+{
+
+    int b;
+
+    if (win->fcurdwn) { /* cursor visable */
+
+        curdrw(win); /* remove cursor */
+        win->fcurdwn = FALSE; /* set cursor not on screen */
+
+    }
+
+}
+
+/*******************************************************************************
+
+Set cursor status
+
+Changes the current cursor status. If the cursor is out of bounds, or not
+set as visible, it is set off. Otherwise, it is set on. Used to change status
+of cursor after position and visible status events. Acts as a combination of
+curon and curoff routines.
+
+*******************************************************************************/
+
+static void cursts(winptr win)
+
+{
+
+    int b;
+
+    if (win->screens[win->curdsp-1]->curv &&
+        icurbnd(win->screens[win->curdsp-1]) && win->focus) {
+
+        /* cursor should be visible */
+        if (!win->fcurdwn) { /* not already down */
+
+            /* cursor not already down, cursor visible, cursor in bounds */
+            curdrw(win); /* show cursor */
+            win->fcurdwn = TRUE; /* set cursor on screen */
+
+        }
+
+    } else {
+
+         /* cursor should not be visible */
+        if (win->fcurdwn) { /* cursor visable */
+
+            curdrw(win); /* remove cursor */
+            win->fcurdwn = FALSE; /* set cursor not on screen */
+
+        }
+
+    }
+
+}
+
+/** ****************************************************************************
+
 Restore screen
 
 Updates all the buffer and screen parameters from the display screen to the
@@ -789,8 +948,8 @@ static void opnwin(int fn, int pfn)
     win->nmpyg = 1;
     win->shift = FALSE; /* set no shift active */
     win->cntrl = FALSE; /* set no control active */
-    win->fcurdwn = FALSE; /* set cursor is ! down */
-    win->focus = FALSE; /* set ! in focus */
+    win->fcurdwn = FALSE; /* set cursor is not down */
+    win->focus = FALSE; /* set not in focus */
     win->joy1xs = 0; /* clear joystick saves */
     win->joy1ys = 0;
     win->joy1zs = 0;
@@ -799,7 +958,7 @@ static void opnwin(int fn, int pfn)
     win->joy2zs = 0;
     win->numjoy = 0; /* set number of joysticks 0 */
     win->inpptr = -1; /* set buffer empty */
-    win->frmrun = FALSE; /* set framing timer ! running */
+    win->frmrun = FALSE; /* set framing timer not running */
     win->bufmod = TRUE; /* set buffering on */
     win->metlst = NULL; /* clear menu tracking list */
     win->wiglst = NULL; /* clear widget list */
@@ -997,6 +1156,7 @@ void iclear(winptr win)
     scnptr sc;
 
     sc = win->screens[win->curupd-1];
+    curoff(win); /* hide the cursor */
     sc->curx = 1; /* set cursor at home */
     sc->cury = 1;
     sc->curxg = 1;
@@ -1007,6 +1167,7 @@ void iclear(winptr win)
                    win->gmaxxg, win->gmaxyg);
     XSetForeground(padisplay, win->xcxt,
                    BlackPixel(padisplay, pascreen));
+    curon(win); /* show the cursor */
 
 }
 
@@ -1049,11 +1210,13 @@ void icursor(winptr win, int x, int y)
 
     scnptr sc;
 
-    sc = win->screens[win->curupd-1];
+    sc = win->screens[win->curupd-1]; /* index screen */
+    curoff(win); /* hide the cursor */
     sc->cury = y; /* set new position */
     sc->curx = x;
     sc->curxg = (x-1)*win->charspace+1;
     sc->curyg = (y-1)*win->linespace+1;
+    curon(win); /* show the cursor */
 
 }
 
@@ -1071,11 +1234,13 @@ void icursorg(winptr win, int x, int y)
 
     scnptr sc;
 
-    sc = win->screens[win->curupd-1];
+    sc = win->screens[win->curupd-1]; /* index screen */
+    curoff(win); /* hide the cursor */
     sc->curyg = y; /* set new position */
     sc->curxg = x;
     sc->curx = x/win->charspace+1;
     sc->cury = y/win->linespace+1;
+    curon(win); /* show the cursor */
 
 }
 
@@ -1093,13 +1258,14 @@ static void ihome(winptr win)
 
     scnptr sc;
 
-    sc = win->screens[win->curupd-1];
-
+    sc = win->screens[win->curupd-1]; /* index screen */
+    curoff(win); /* hide the cursor */
     /* reset cursors */
     sc->curx = 1;
     sc->cury = 1;
     sc->curxg = 1;
     sc->curyg = 1;
+    curon(win); /* show the cursor */
 
 }
 
@@ -1120,8 +1286,8 @@ static void iup(winptr win)
 
     scnptr sc;
 
-    sc = win->screens[win->curupd-1];
-
+    sc = win->screens[win->curupd-1]; /* index screen */
+    curoff(win); /* hide the cursor */
     /* check not top of screen */
     if (sc->cury > 1) {
 
@@ -1137,6 +1303,7 @@ static void iup(winptr win)
         sc->curyg -= win->linespace;
 
     }
+    curon(win); /* show the cursor */
 
 }
 
@@ -1157,8 +1324,8 @@ static void idown(winptr win)
 
     scnptr sc;
 
-    sc = win->screens[win->curupd-1];
-
+    sc = win->screens[win->curupd-1]; /* index screen */
+    curoff(win); /* hide the cursor */
     /* check not bottom of screen */
     if (sc->cury < sc->maxy) {
 
@@ -1172,6 +1339,7 @@ static void idown(winptr win)
         sc->curyg += win->linespace; /* move to next text line */
 
     }
+    curon(win); /* show the cursor */
 
 }
 
@@ -1191,8 +1359,8 @@ static void ileft(winptr win)
 
     scnptr sc;
 
-    sc = win->screens[win->curupd-1];
-
+    sc = win->screens[win->curupd-1]; /* index screen */
+    curoff(win); /* hide the cursor */
     /* check not at extreme left */
     if (sc->curx > 1) {
 
@@ -1220,6 +1388,7 @@ static void ileft(winptr win)
         }
 
     }
+    curon(win); /* show the cursor */
 
 }
 
@@ -1237,8 +1406,8 @@ static void iright(winptr win)
 
     scnptr sc;
 
-    sc = win->screens[win->curupd-1];
-
+    sc = win->screens[win->curupd-1]; /* index screen */
+    curoff(win); /* hide the cursor */
     /* check not at extreme right */
     if (sc->curx < sc->maxx) {
 
@@ -1266,6 +1435,7 @@ static void iright(winptr win)
         }
 
     }
+    curon(win); /* show the cursor */
 
 }
 
@@ -1284,23 +1454,6 @@ static void itab(winptr win)
 {
 
     /* implement me */
-
-}
-
-/** ****************************************************************************
-
-Find if cursor is in screen bounds
-
-Checks if the cursor lies in the current bounds, and returns TRUE if so.
-
-*******************************************************************************/
-
-static int icurbnd(scnptr sc)
-
-{
-
-   return (sc->curx >= 1 && sc->curx <= sc->maxx &&
-           sc->cury >= 1 && sc->cury <= sc->maxy);
 
 }
 
@@ -1388,16 +1541,16 @@ static void plcchr(winptr win, char c)
     /* only output visible characters */
     else if (c >= ' ' && c != 0x7f) {
 
+        curoff(win); /* hide the cursor */
+
         /* place on buffer */
         XDrawImageString(padisplay, win->xscnbuf, win->xcxt,
                     sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
 
         /* send exposure event back to window with mask over character */
-        evtexp.xexpose.x = sc->curxg-1;
-        evtexp.xexpose.y = sc->curyg-1;
-        evtexp.xexpose.width = sc->curxg-1+win->charspace;
-        evtexp.xexpose.height = sc->curyg-1+win->linespace;
-        XSendEvent(padisplay, win->xwhan, FALSE, ExposureMask, &evtexp);
+        curexp(win);
+
+        curon(win); /* show the cursor */
 
         /* advance to next character */
         iright(win);
@@ -2155,6 +2308,13 @@ Enable or disable cursor visibility.
 void pa_curvis(FILE* f, int e)
 
 {
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    win->screens[win->curupd-1]->curv = e; /* set cursor visible status */
+    win->gcurv = e;
+    cursts(win); /* process any cursor status change */
 
 }
 

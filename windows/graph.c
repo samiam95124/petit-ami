@@ -1589,12 +1589,12 @@ static void getmsg(MSG* msg)
             unlockmain(); /* end exclusive access */
             r = WaitForSingleObject(msgrdy, -1); /* wait for next event */
             if (r == -1) winerr(); /* process windows error */
-            b = ResetEvent(msgrdy); /* flag message ! ready */
+            b = ResetEvent(msgrdy); /* flag message not ready */
             lockmain(); /* start exclusive access */
 
         }
         /* get messages from the standard queue */
-        if (msginp != msgout) { /* queue ! empty */
+        if (msginp != msgout) { /* queue not empty */
 
             memcpy(msg, &msgque[msgout], sizeof(MSG)); /* get next message */
             msgout = next(msgout); /* advance output pointer */
@@ -1654,7 +1654,7 @@ static void igetmsg(MSG* msg)
     DWORD r; /* result */
 
     f = FALSE; /* set no message found */
-    /* It should ! happen, but if we get a FALSE signal, loop waiting for
+    /* It should not happen, but if we get a FALSE signal, loop waiting for
        signal, and don"t leave until we get a TRUE message. */
     do { /* wait for message */
 
@@ -1664,7 +1664,7 @@ static void igetmsg(MSG* msg)
             unlockmain(); /* end exclusive access */
             r = WaitForSingleObject(imsgrdy, -1); /* wait for next event */
             if (r == -1) winerr(); /* process windows error */
-            b = ResetEvent(imsgrdy); /* flag message ! ready */
+            b = ResetEvent(imsgrdy); /* flag message not ready */
             lockmain(); /* start exclusive access */
 
         };
@@ -2388,7 +2388,7 @@ static void curoff(winptr win)
 
         b = HideCaret(win->winhan); /* hide the caret */
         if (!b) winerr(); /* process error */
-        win->fcurdwn = FALSE; /* set cursor ! on screen */
+        win->fcurdwn = FALSE; /* set cursor not on screen */
 
     }
 
@@ -2415,7 +2415,7 @@ static void cursts(winptr win)
         icurbnd(win->screens[win->curdsp-1]) && win->focus) {
 
         /* cursor should be visible */
-        if (!win->fcurdwn) { /* ! already down */
+        if (!win->fcurdwn) { /* not already down */
 
             /* cursor not already down, cursor visible, cursor in bounds */
             b = ShowCaret(win->winhan); /* show the caret */
@@ -2431,7 +2431,7 @@ static void cursts(winptr win)
 
             b = HideCaret(win->winhan); /* hide the caret */
             if (!b) winerr(); /* process error */
-            win->fcurdwn = FALSE; /* set cursor ! on screen */
+            win->fcurdwn = FALSE; /* set cursor not on screen */
 
         }
 
@@ -2490,7 +2490,7 @@ static void chgcur(winptr win)
         if (!b) winerr(); /* process error */
         b = CreateCaret(win->winhan, 0, win->curspace, 3); /* activate caret */
         if (!b) winerr(); /* process error */
-        win->fcurdwn = FALSE; /* set cursor ! down */
+        win->fcurdwn = FALSE; /* set cursor not down */
         setcur(win); /* replace it */
 
     }
@@ -2666,7 +2666,7 @@ static void restore(winptr win,   /* window to restore */
         /* validate it so windows won"t send multiple notifications */
         b = ValidateRgn(win->winhan, NULL); /* validate region */
         if (cr.left != 0 || cr.top != 0 || cr.right != 0 || cr.bottom != 0) {
-            /* area is ! NULL */
+            /* area is not NULL */
 
             /* convert to device coordinates */
             cr.left = cr.left+sc->offx;
@@ -6882,7 +6882,7 @@ static void ipicture(winptr win, int p, int x1, int y1, int x2, int y2)
         case mdxor:   rop = SRCINVERT; break; /* xor */
 
     }
-    if (win->screens[win->curupd-1]->fmod != mdinvis) { /* ! a no-op */
+    if (win->screens[win->curupd-1]->fmod != mdinvis) { /* not a no-op */
 
         if (win->bufmod) { /* buffer mode on */
 
@@ -7915,7 +7915,7 @@ static void ievent(int ifn, pa_evtrec* er)
         *er = ep->evt; /* get the queued event */
         /* if this is the last entry in the queue, just empty the list */
         if (ep->next == ep) opnfil[ifn]->evt = NULL;
-        else { /* ! last entry */
+        else { /* not last entry */
 
             ep->next->last = ep->last; /* link next to last */
             ep->last->next = ep->next; /* link last to next */
@@ -7995,7 +7995,7 @@ static void waitim(imcode m, imptr* ip)
     int done; /* done flag */
     MSG msg;  /* message */
 
-    done = FALSE; /* set ! done */
+    done = FALSE; /* set not done */
     do {
 
         igetmsg(&msg); /* get next message */
@@ -8168,7 +8168,7 @@ static void iframetimer(winptr win, int lf, int e)
 
     if (e) { /* enable framing timer */
 
-        if (!win->frmrun) { /* it is ! running */
+        if (!win->frmrun) { /* it is not running */
 
             /* set timer to run, 17ms */
             win->frmhan = timeSetEvent(17, 0, timeout, lf*PA_MAXTIM+FRMTIM,
@@ -8186,7 +8186,7 @@ static void iframetimer(winptr win, int lf, int e)
 
             r = timeKillEvent(win->frmhan); /* kill timer */
             if (r) error(etimacc); /* error */
-            win->frmrun = FALSE; /* set timer ! running */
+            win->frmrun = FALSE; /* set timer not running */
 
         }
 
@@ -8871,7 +8871,7 @@ static void delfnt(winptr win, fontptr fp)
     fontptr p;
 
     p = win->fntlst; /* index top of list */
-    if (!win->fntlst) error(esystem); /* should ! be null */
+    if (!win->fntlst) error(esystem); /* should not be null */
     if (win->fntlst == fp) win->fntlst = fp->next; /* gap first entry */
     else { /* mid entry */
 
@@ -9172,8 +9172,8 @@ static void opnwin(int fn, int pfn)
     win->nmpyg = 1;
     win->shift = FALSE; /* set no shift active */
     win->cntrl = FALSE; /* set no control active */
-    win->fcurdwn = FALSE; /* set cursor is ! down */
-    win->focus = FALSE; /* set ! in focus */
+    win->fcurdwn = FALSE; /* set cursor is not down */
+    win->focus = FALSE; /* set not in focus */
     win->joy1xs = 0; /* clear joystick saves */
     win->joy1ys = 0;
     win->joy1zs = 0;
@@ -9182,7 +9182,7 @@ static void opnwin(int fn, int pfn)
     win->joy2zs = 0;
     win->numjoy = 0; /* set number of joysticks 0 */
     win->inpptr = -1; /* set buffer empty */
-    win->frmrun = FALSE; /* set framing timer ! running */
+    win->frmrun = FALSE; /* set framing timer not running */
     win->bufmod = TRUE; /* set buffering on */
     win->menhan = 0; /* set no menu */
     win->metlst = NULL; /* clear menu tracking list */
@@ -10021,7 +10021,7 @@ static void imenusel(winptr win, int id, int select)
     if (mp->select) fl |= MF_CHECKED; /* select it */
     else fl |= MF_UNCHECKED; /* deselect it */
     r = CheckMenuItem(mp->han, mp->inx, fl); /* perform that */
-    if (r == -1) error(esystem); /* should ! happen */
+    if (r == -1) error(esystem); /* should not happen */
     unlockmain(); /* end exclusive access */
     b = DrawMenuBar(win->winhan); /* display menu */
     lockmain(); /* start exclusive access */
@@ -10805,8 +10805,8 @@ static void getmenu(pa_menuptr* m, int id, char* face)
     if (!*m) error(enomem);
     (*m)->next   = NULL; /* no next */
     (*m)->branch = NULL; /* no branch */
-    (*m)->onoff  = FALSE; /* ! an on/off value */
-    (*m)->oneof  = FALSE; /* ! a "one of" value */
+    (*m)->onoff  = FALSE; /* not an on/off value */
+    (*m)->oneof  = FALSE; /* not a "one of" value */
     (*m)->bar    = FALSE; /* no bar under */
     (*m)->id     = id;    /* no id */
     (*m)->face = str(face); /* place face string */
@@ -11085,7 +11085,7 @@ static void ikillwidget(winptr win, int id)
 
     if (!win->visible) winvis(win); /* make sure we are displayed */
     wp = fndwig(win, id); /* find widget */
-    if (!wp) error(ewignf); /* ! found */
+    if (!wp) error(ewignf); /* not found */
     kilwin(wp->han); /* kill window */
     if (wp->han2) kilwin(wp->han2); /* distroy buddy window */
     putwig(win, wp); /* release widget entry */
@@ -11122,7 +11122,7 @@ static void iselectwidget(winptr win, int id, int e)
 
     if (!win->visible) winvis(win); /* make sure we are displayed */
     wp = fndwig(win, id); /* find widget */
-    if (!wp) error(ewignf); /* ! found */
+    if (!wp) error(ewignf); /* not found */
     /* check this widget is selectable */
     if (wp->typ != wtcheckbox && wp->typ != wtradiobutton) error(ewigsel);
     unlockmain(); /* end exclusive access */
@@ -11160,7 +11160,7 @@ static void ienablewidget(winptr win, int id, int e)
 
     if (!win->visible) winvis(win); /* make sure we are displayed */
     wp = fndwig(win, id); /* find widget */
-    if (!wp) error(ewignf); /* ! found */
+    if (!wp) error(ewignf); /* not found */
     /* check this widget can get text */
     if (wp->typ != wtbutton && wp->typ != wtcheckbox &&
         wp->typ != wtradiobutton && wp->typ != wtgroup &&
@@ -11211,7 +11211,7 @@ static void igetwidgettext(winptr win, int id, char* s, int sl)
 
     if (!win->visible) winvis(win); /* make sure we are displayed */
     wp = fndwig(win, id); /* find widget */
-    if (!wp) error(ewignf); /* ! found */
+    if (!wp) error(ewignf); /* not found */
     /* check this widget can get text */
     if (wp->typ != wteditbox && wp->typ != wtdropeditbox) error(ewiggtxt);
     /* There is no real way to process an error, as listed in the
@@ -11292,7 +11292,7 @@ static void isizwidgetg(winptr win, int id,  int x, int y)
     wigptr wp; /* widget pointer */
 
     wp = fndwig(win, id); /* find widget */
-    if (!wp) error(ewignf); /* ! found */
+    if (!wp) error(ewignf); /* not found */
     unlockmain(); /* end exclusive access */
     b = SetWindowPos(wp->han, 0, 0, 0, x, y, SWP_NOMOVE | SWP_NOZORDER);
     lockmain(); /* start exclusive access */
@@ -12304,7 +12304,7 @@ static void iscrollpos(winptr win, int id, int r)
     if (r < 0) error(einvspos); /* invalid position */
     if (!win->visible) winvis(win); /* make sure we are displayed */
     wp = fndwig(win, id); /* find widget */
-    if (!wp) error(ewignf); /* ! found */
+    if (!wp) error(ewignf); /* not found */
     f = r; /* place position in float */
     /* clamp to max */
     if (f*(255-wp->siz)/INT_MAX > 255) p = 255;
@@ -12347,7 +12347,7 @@ static void iscrollsiz(winptr win, int id, int r)
     if (r < 0) error(einvssiz); /* invalid scrollbar size */
     if (!win->visible) winvis(win); /* make sure we are displayed */
     wp = fndwig(win, id); /* find widget */
-    if (!wp) error(ewignf); /* ! found */
+    if (!wp) error(ewignf); /* not found */
     si.cbSize = sizeof(SCROLLINFO); /* set size */
     si.fMask = SIF_PAGE; /* set page size */
     si.nMin = 0; /* no min */
@@ -12552,7 +12552,7 @@ static void inumselboxg(winptr win, int x1, int y1, int x2, int y2, int l, int u
     wp->high = u;
     /* get width of up/down control (same as scroll arrow) */
     udw = GetSystemMetrics(SM_CXHSCROLL);
-    /* If the width is ! enough for the control to appear, force it. */
+    /* If the width is not enough for the control to appear, force it. */
     if (x2-x1+1 < udw) x2 = x1+udw-1;
     getitm(&ip); /* get a im pointer */
     ip->im = imupdown; /* set is up/down control */
@@ -12929,7 +12929,7 @@ static void iprogbarpos(winptr win, int id, int pos)
    if (!win->visible) winvis(win); /* make sure we are displayed */
    if (pos < 0) error(eprgpos); /* bad position */
    wp = fndwig(win, id); /* find widget */
-   if (!wp) error(ewignf); /* ! found */
+   if (!wp) error(ewignf); /* not found */
    /* set the range */
    unlockmain(); /* end exclusive access */
    r = SendMessage(wp->han, PBM_SETPOS, pos, 0);
@@ -13243,7 +13243,7 @@ static void idropboxg(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp,
     unlockmain(); /* end exclusive access */
     r = SendMessage(wp->han, CB_SETCURSEL, 0, 0);
     lockmain(); /* start exclusive access */
-    if (r == -1)  error(esystem); /* should ! happen */
+    if (r == -1)  error(esystem); /* should not happen */
 
 }
 
@@ -14283,7 +14283,7 @@ Display choose replace text dialog
 
 Presents the choose replace text dialog,  returns the resulting string.
 A find/replace option set can be specified. The parameters are "flow through",
-meaning that you set them before the call, and they may or may ! be changed
+meaning that you set them before the call, and they may or may not be changed
 from these defaults after the call. In addition, the parameters are used to
 set the dialog.
 
@@ -14504,7 +14504,7 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam,
         if (ofn) { /* there is a window */
 
            win = lfn2win(ofn); /* index window from output file */
-           win->focus = FALSE; /* set screen ! in focus */
+           win->focus = FALSE; /* set screen not in focus */
            curoff(win); /* hide the cursor */
            b = DestroyCaret(); /* remove text cursor */
 
