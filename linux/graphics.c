@@ -554,13 +554,103 @@ static void error(errcod e)
       case etabsel:  fprintf(stderr, "Invalid tab select"); break;
       case enomem:   fprintf(stderr, "Out of memory"); break;
       case einvfil:  fprintf(stderr, "File is invalid"); break;
-      case enotinp:  fprintf(stderr, "Not input side of any window");
+      case enotinp:  fprintf(stderr, "Not input side of any window"); break;
       case esystem:  fprintf(stderr, "System consistency check"); break;
 
     }
     fprintf(stderr, "\n");
 
     exit(1);
+
+}
+
+/******************************************************************************
+
+Print event symbol
+
+A diagnostic, print the given event code as a symbol to the error file.
+
+******************************************************************************/
+
+void prtevt(pa_evtcod e)
+
+{
+
+    switch (e) {
+
+        case pa_etchar:    fprintf(stderr, "etchar"); break;
+        case pa_etup:      fprintf(stderr, "etup"); break;
+        case pa_etdown:    fprintf(stderr, "etdown"); break;
+        case pa_etleft:    fprintf(stderr, "etleft"); break;
+        case pa_etright:   fprintf(stderr, "etright"); break;
+        case pa_etleftw:   fprintf(stderr, "etleftw"); break;
+        case pa_etrightw:  fprintf(stderr, "etrightw"); break;
+        case pa_ethome:    fprintf(stderr, "ethome"); break;
+        case pa_ethomes:   fprintf(stderr, "ethomes"); break;
+        case pa_ethomel:   fprintf(stderr, "ethomel"); break;
+        case pa_etend:     fprintf(stderr, "etend"); break;
+        case pa_etends:    fprintf(stderr, "etends"); break;
+        case pa_etendl:    fprintf(stderr, "etendl"); break;
+        case pa_etscrl:    fprintf(stderr, "etscrl"); break;
+        case pa_etscrr:    fprintf(stderr, "etscrr"); break;
+        case pa_etscru:    fprintf(stderr, "etscru"); break;
+        case pa_etscrd:    fprintf(stderr, "etscrd"); break;
+        case pa_etpagd:    fprintf(stderr, "etpagd"); break;
+        case pa_etpagu:    fprintf(stderr, "etpagu"); break;
+        case pa_ettab:     fprintf(stderr, "ettab"); break;
+        case pa_etenter:   fprintf(stderr, "etenter"); break;
+        case pa_etinsert:  fprintf(stderr, "etinsert"); break;
+        case pa_etinsertl: fprintf(stderr, "etinsertl"); break;
+        case pa_etinsertt: fprintf(stderr, "etinsertt"); break;
+        case pa_etdel:     fprintf(stderr, "etdel"); break;
+        case pa_etdell:    fprintf(stderr, "etdell"); break;
+        case pa_etdelcf:   fprintf(stderr, "etdelcf"); break;
+        case pa_etdelcb:   fprintf(stderr, "etdelcb"); break;
+        case pa_etcopy:    fprintf(stderr, "etcopy"); break;
+        case pa_etcopyl:   fprintf(stderr, "etcopyl"); break;
+        case pa_etcan:     fprintf(stderr, "etcan"); break;
+        case pa_etstop:    fprintf(stderr, "etstop"); break;
+        case pa_etcont:    fprintf(stderr, "etcont"); break;
+        case pa_etprint:   fprintf(stderr, "etprint"); break;
+        case pa_etprintb:  fprintf(stderr, "etprintb"); break;
+        case pa_etprints:  fprintf(stderr, "etprints"); break;
+        case pa_etfun:     fprintf(stderr, "etfun"); break;
+        case pa_etmenu:    fprintf(stderr, "etmenu"); break;
+        case pa_etmouba:   fprintf(stderr, "etmouba"); break;
+        case pa_etmoubd:   fprintf(stderr, "etmoubd"); break;
+        case pa_etmoumov:  fprintf(stderr, "etmoumov"); break;
+        case pa_ettim:     fprintf(stderr, "ettim"); break;
+        case pa_etjoyba:   fprintf(stderr, "etjoyba"); break;
+        case pa_etjoybd:   fprintf(stderr, "etjoybd"); break;
+        case pa_etjoymov:  fprintf(stderr, "etjoymov"); break;
+        case pa_etresize:  fprintf(stderr, "etresize"); break;
+        case pa_etterm:    fprintf(stderr, "etterm"); break;
+        case pa_etmoumovg: fprintf(stderr, "etmoumovg"); break;
+        case pa_etframe:   fprintf(stderr, "etframe"); break;
+        case pa_etredraw:  fprintf(stderr, "etredraw"); break;
+        case pa_etmin:     fprintf(stderr, "etmin"); break;
+        case pa_etmax:     fprintf(stderr, "etmax"); break;
+        case pa_etnorm:    fprintf(stderr, "etnorm"); break;
+        case pa_etmenus:   fprintf(stderr, "etmenus"); break;
+        case pa_etbutton:  fprintf(stderr, "etbutton"); break;
+        case pa_etchkbox:  fprintf(stderr, "etchkbox"); break;
+        case pa_etradbut:  fprintf(stderr, "etradbut"); break;
+        case pa_etsclull:  fprintf(stderr, "etsclull"); break;
+        case pa_etscldrl:  fprintf(stderr, "etscldrl"); break;
+        case pa_etsclulp:  fprintf(stderr, "etsclulp"); break;
+        case pa_etscldrp:  fprintf(stderr, "etscldrp"); break;
+        case pa_etsclpos:  fprintf(stderr, "etsclpos"); break;
+        case pa_etedtbox:  fprintf(stderr, "etedtbox"); break;
+        case pa_etnumbox:  fprintf(stderr, "etnumbox"); break;
+        case pa_etlstbox:  fprintf(stderr, "etlstbox"); break;
+        case pa_etdrpbox:  fprintf(stderr, "etdrpbox"); break;
+        case pa_etdrebox:  fprintf(stderr, "etdrebox"); break;
+        case pa_etsldpos:  fprintf(stderr, "etsldpos"); break;
+        case pa_ettabbar:   fprintf(stderr, "ettabbar"); break;
+
+        default: fprintf(stderr, "???");
+
+    }
 
 }
 
@@ -841,10 +931,12 @@ terminal.
 
 *******************************************************************************/
 
-static void restore(winptr win,   /* window to restore */
-                    int    whole) /* whole or part window */
+static void restore(winptr win) /* window to restore */
 
 {
+
+    XCopyArea(padisplay, win->xscnbuf, win->xwhan, win->xcxt, 0, 0,
+              win->gmaxxg, win->gmaxyg, 0, 0);
 
 }
 
@@ -1084,7 +1176,7 @@ static void opnwin(int fn, int pfn)
     win->gvextx = 1;
     win->gvexty = 1;
     iniscn(win, win->screens[0]); /* initalize screen buffer */
-    restore(win, TRUE); /* update to screen */
+    restore(win); /* update to screen */
 
 }
 
@@ -1194,7 +1286,82 @@ void iscrollg(winptr win, int x, int y)
 
 {
 
-    /* implement me */
+    int dx, dy, dw, dh; /* destination coordinates and sizes */
+    int sx, sy, sw, sh; /* destination coordinates */
+    struct { /* fill rectangle */
+
+        int x, y; /* origin (left, top) */
+        int w, h; /* width, height */
+
+    } frx, fry; /* x fill, y fill */
+
+    /* scroll would result in complete clear, do it */
+    if (x <= -win->gmaxxg || x >= win->gmaxxg ||
+        y <= -win->gmaxyg || y >= win->gmaxyg)
+        iclear(win); /* clear the screen buffer */
+    else { /* scroll */
+
+        /* set y movement */
+        if (y >= 0)  { /* move up */
+
+            sy = y; /* from y lines down */
+            sh = win->gmaxyg-y; /* height minus lines to move */
+            dy = 0; /* move to top of screen */
+            fry.x = 0; /* set fill to y lines at bottom */
+            fry.w = win->gmaxxg-1;
+            fry.y = win->gmaxyg-y;
+            fry.h = win->gmaxyg-1;
+
+        } else { /* move down */
+
+            sy = 0; /* from top */
+            sh = win->gmaxyg-abs(y); /* height minus lines to move */
+            dy = abs(y); /* move to y lines down */
+            fry.x = 0; /* set fill to y lines at top */
+            fry.w = win->gmaxxg-1;
+            fry.y = 0;
+            fry.h = abs(y)-1;
+
+        }
+        /* set x movement */
+        if (x >= 0) { /* move text left */
+
+            sx = x; /* from x characters to the right */
+            sw = win->gmaxxg-x; /* width - x characters */
+            dx = 0; /* move to left side */
+            /* set fill x character collums at right */
+            frx.x = win->gmaxxg-x;
+            frx.w = win->gmaxxg-1;
+            frx.y = 0;
+            frx.h = win->gmaxyg-1;
+
+        } else { /* move text right */
+
+            sx = 0; /* from x left */
+            sw = win->gmaxxg-abs(x); /* width - x characters */
+            dx = abs(x); /* move from left side */
+            /* set fill x character collums at left */
+            frx.x = 0;
+            frx.w = abs(x)-1;
+            frx.y = 0;
+            frx.h = win->gmaxyg-1;
+
+        }
+        curoff(win); /* hide the cursor */
+        XCopyArea(padisplay, win->xscnbuf, win->xscnbuf, win->xcxt,
+                  sx, sy, sw, sh, dx, dy);
+        XSetForeground(padisplay, win->xcxt, win->gbcrgb);
+        /* fill vacated x */
+        if (x) XFillRectangle(padisplay, win->xscnbuf, win->xcxt, frx.x, frx.y,
+                              frx.w, frx.h);
+        /* fill vacated y */
+        if (y) XFillRectangle(padisplay, win->xscnbuf, win->xcxt, fry.x, fry.y,
+                              fry.w, fry.h);
+        XSetForeground(padisplay, win->xcxt, win->gfcrgb);
+        restore(win); /* move buffer to screen */
+        curon(win); /* show the cursor */
+
+    }
 
 }
 
@@ -3322,7 +3489,6 @@ static int fndevt(Window w)
         } else fi++; /* next entry */
 
     }
-    if (ff < 0) error(enotinp); /* no corresponding window file found */
 
     return (ff);
 
@@ -3345,6 +3511,7 @@ void pa_event(FILE* f, pa_evtrec* er)
 
         XNextEvent(padisplay, &e); /* get next event */
         ofn = fndevt(e.xany.window); /* get output window lfn */
+        if (ofn < 0) continue; /* not one of our windows, ignore */
         win = lfn2win(ofn); /* get window for that */
         er->winid = filwin[ofn]; /* get window number */
         if (e.type == Expose) {
@@ -5266,7 +5433,7 @@ static void pa_deinit_graphics()
 
     /* if we don't see our own vector flag an error */
     if (cppread != iread || cppwrite != iwrite || cppopen != iopen ||
-        cppclose != iclose || cppunlink != iunlink || cpplseek != ilseek)
+        cppclose != iclose || /* cppunlink != iunlink ||*/ cpplseek != ilseek)
         error(esystem);
 
 }
