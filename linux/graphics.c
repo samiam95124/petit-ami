@@ -1134,7 +1134,7 @@ static void opnwin(int fn, int pfn)
                                         10, 10, win->gmaxxg, win->gmaxyg, 1,
                            BlackPixel(padisplay, pascreen),
                            WhitePixel(padisplay, pascreen));
-    XSelectInput(padisplay, win->xwhan, ExposureMask | KeyPressMask | KeyReleaseMask);
+    XSelectInput(padisplay, win->xwhan, ExposureMask | KeyPressMask | KeyReleaseMask | PointerMotionMask);
     XMapWindow(padisplay, win->xwhan);
 
     /* set up pixmap backing buffer for text grid */
@@ -3494,6 +3494,52 @@ static int fndevt(Window w)
 
 }
 
+/* update mouse parameters */
+
+static void mouseupdate(winptr win, pa_evtrec* er, int* evtfnd)
+
+{
+
+    /* we prioritize events by: movements 1st, button clicks 2nd */
+    if (win->nmpx != win->mpx || win->nmpy != win->mpy) {
+
+        /* create movement event */
+        er->etype = pa_etmoumov; /* set movement event */
+        er->mmoun = 1; /* mouse 1 */
+        er->moupx = win->nmpx; /* set new mouse position */
+        er->moupy = win->nmpy;
+        win->mpx = win->nmpx; /* save new position */
+        win->mpy = win->nmpy;
+        *evtfnd = TRUE; /* set to keep */
+
+    } else if (win->nmpxg != win->mpxg || win->nmpyg != win->mpyg) {
+
+        /* create graphical movement event */
+        er->etype = pa_etmoumovg; /* set movement event */
+        er->mmoung = 1; /* mouse 1 */
+        er->moupxg = win->nmpxg; /* set new mouse position */
+        er->moupyg = win->nmpyg;
+        win->mpxg = win->nmpxg; /* save new position */
+        win->mpyg = win->nmpyg;
+       *evtfnd = TRUE; /* set to keep */
+
+    }
+
+}
+
+/* register mouse status */
+
+static void mouseevent(winptr win, XEvent* e)
+
+{
+
+    win->nmpx = e->xmotion.x/win->charspace+1; /* get mouse x */
+    win->nmpy = e->xmotion.y/win->linespace+1; /* get mouse y */
+    win->nmpxg = e->xmotion.x+1; /* get mouse graphical x */
+    win->nmpyg = e->xmotion.y+1; /* get mouse graphical y */
+
+}
+
 void pa_event(FILE* f, pa_evtrec* er)
 
 {
@@ -3656,6 +3702,12 @@ void pa_event(FILE* f, pa_evtrec* er)
                 case XK_Alt_R:     altr = FALSE; break;  /* Right alt */
 
             }
+
+        } else if (e.type == MotionNotify) {
+
+            mouseevent(win, &e); /* process mouse event */
+            /* check any mouse details need processing */
+            mouseupdate(win, er, &evtfnd);
 
         }
 
