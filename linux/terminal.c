@@ -36,6 +36,9 @@
 * improvements in the 1997 and on years. It was the library standard for       *
 * Pascaline, but I translated it to C.                                         *
 *                                                                              *
+* The first version of this package implemented the call set on a Wyse 80      *
+* terminal.                                                                    *
+*                                                                              *
 *                          BSD LICENSE INFORMATION                             *
 *                                                                              *
 * Copyright (C) 2019 - Scott A. Franco                                         *

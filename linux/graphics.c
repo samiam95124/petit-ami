@@ -84,7 +84,6 @@
 #include <ctype.h>
 
 /* linux definitions */
-#include <sys/timerfd.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
@@ -93,6 +92,7 @@
 #include <stdint.h>
 #include <limits.h>
 #include <stdio.h>
+#include <signal.h>
 
 /* local definitions */
 #include <localdefs.h>
@@ -345,9 +345,11 @@ typedef struct winrec {
     int          frmrun;          /* framing timer is running */
     struct {
 
+       int      act; /* timer is active */
        int      rep; /* timer repeat flag */
+       timer_t  id;  /* timer id */
 
-    } timers[10];
+    } timers[MAXTIM];
     int          focus;           /* screen in focus */
     pict         pictbl[MAXPIC];  /* loadable pictures table */
     int          bufmod;          /* buffered screen mode */
@@ -1063,6 +1065,7 @@ static void opnwin(int fn, int pfn)
     /* clear timer repeat array */
     for (ti = 0; ti < 10; ti++) {
 
+       win->timers[ti].act = FALSE; /* set no timer active */
        win->timers[ti].rep = FALSE; /* set no repeat */
 
     }
@@ -3805,6 +3808,40 @@ void pa_timer(FILE* f, /* file to send event to */
 
 {
 
+    winptr win; /* windows record pointer */
+    struct itimerspec ts;
+    struct sigevent se;
+    int    rv;
+    long   tl;
+
+    if (i < 1 || i > PA_MAXTIM) error(einvhan); /* invalid timer handle */
+    win = txt2win(f); /* get window from file */
+    if (!win->timers[i-1].act) { /* timer entry inactive, create a timer */
+
+        rv = timer_create(CLOCK_REALTIME, &se, &win->timers[i-1].id);
+        if (rv == -1) error(etimacc);
+
+    }
+
+    /* set timer run time */
+    tl = t;
+    ts.it_value.tv_sec = tl/10000; /* set number of seconds to run */
+    ts.it_value.tv_nsec = tl%10000*100000; /* set number of nanoseconds to run */
+
+    /* set if timer does not rerun */
+    ts.it_interval.tv_sec = 0;
+    ts.it_interval.tv_nsec = 0;
+
+    if (r) { /* timer reruns */
+
+        ts.it_interval.tv_sec = ts.it_value.tv_sec;
+        ts.it_interval.tv_nsec = ts.it_value.tv_nsec;
+
+    }
+
+    rv = timer_settime(win->timers[i-1].id, 0, &ts, NULL);
+    if (rv < 0) error(etimacc); /* could not set time */
+
 }
 
 /** ****************************************************************************
@@ -3815,10 +3852,22 @@ Kills a given timer, by it's id number. Only repeating timers should be killed.
 
 *******************************************************************************/
 
-void pa_killtimer(FILE*  f, /* file to kill timer on */
-               int i) /* handle of timer */
+void pa_killtimer(FILE* f, /* file to kill timer on */
+                  int   i  /* handle of timer */
+                 )
 
 {
+
+    winptr win; /* windows record pointer */
+    struct itimerspec ts;
+    int rv;
+
+    if (i < 1 || i > PA_MAXTIM) error(einvhan); /* invalid timer handle */
+    win = txt2win(f); /* get window from file */
+    if (!win->timers[i-1].act) error(etimacc); /* no such timer */
+
+    rv = timer_delete(win->timers[i-1].id);
+    if (rv < 0) error(etimacc); /* could not access */
 
 }
 
