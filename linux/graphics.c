@@ -1134,7 +1134,8 @@ static void opnwin(int fn, int pfn)
                                         10, 10, win->gmaxxg, win->gmaxyg, 1,
                            BlackPixel(padisplay, pascreen),
                            WhitePixel(padisplay, pascreen));
-    XSelectInput(padisplay, win->xwhan, ExposureMask | KeyPressMask | KeyReleaseMask | PointerMotionMask);
+    XSelectInput(padisplay, win->xwhan, ExposureMask | KeyPressMask |
+                 KeyReleaseMask | PointerMotionMask | ButtonPressMask | ButtonReleaseMask);
     XMapWindow(padisplay, win->xwhan);
 
     /* set up pixmap backing buffer for text grid */
@@ -3494,9 +3495,10 @@ static int fndevt(Window w)
 
 }
 
-/* update mouse parameters */
+/* Update mouse parameters.
+   Use state flags to create events. */
 
-static void mouseupdate(winptr win, pa_evtrec* er, int* evtfnd)
+static void mouseupdate(winptr win, pa_evtrec* er, int* keep)
 
 {
 
@@ -3510,7 +3512,7 @@ static void mouseupdate(winptr win, pa_evtrec* er, int* evtfnd)
         er->moupy = win->nmpy;
         win->mpx = win->nmpx; /* save new position */
         win->mpy = win->nmpy;
-        *evtfnd = TRUE; /* set to keep */
+        *keep = TRUE; /* set to keep */
 
     } else if (win->nmpxg != win->mpxg || win->nmpyg != win->mpyg) {
 
@@ -3521,22 +3523,87 @@ static void mouseupdate(winptr win, pa_evtrec* er, int* evtfnd)
         er->moupyg = win->nmpyg;
         win->mpxg = win->nmpxg; /* save new position */
         win->mpyg = win->nmpyg;
-       *evtfnd = TRUE; /* set to keep */
+       *keep = TRUE; /* set to keep */
+
+    } else if (win->nmb1 > win->mb1) {
+
+       er->etype = pa_etmouba; /* button 1 assert */
+       er->amoun = 1; /* mouse 1 */
+       er->amoubn = 1; /* button 1 */
+       win->mb1 = win->nmb1; /* update status */
+       *keep = TRUE; /* set to keep */
+
+    } else if (win->nmb2 > win->mb2) {
+
+       er->etype = pa_etmouba; /* button 2 assert */
+       er->amoun = 1; /* mouse 1 */
+       er->amoubn = 2; /* button 2 */
+       win->mb2 = win->nmb2; /* update status */
+       *keep = TRUE; /* set to keep */
+
+    } else if (win->nmb3 > win->mb3) {
+
+       er->etype = pa_etmouba; /* button 3 assert */
+       er->amoun = 1; /* mouse 1 */
+       er->amoubn = 3; /* button 3 */
+       win->mb3 = win->nmb3; /* update status */
+       *keep = TRUE; /* set to keep */
+
+    } else if (win->nmb1 < win->mb1) {
+
+       er->etype = pa_etmoubd; /* button 1 deassert */
+       er->dmoun = 1; /* mouse 1 */
+       er->dmoubn = 1; /* button 1 */
+       win->mb1 = win->nmb1; /* update status */
+       *keep = TRUE; /* set to keep */
+
+    } else if (win->nmb2 < win->mb2) {
+
+       er->etype = pa_etmoubd; /* button 2 deassert */
+       er->dmoun = 1; /* mouse 1 */
+       er->dmoubn = 2; /* button 2 */
+       win->mb2 = win->nmb2; /* update status */
+       *keep = TRUE; /* set to keep */
+
+    } else if (win->nmb3 < win->mb3) {
+
+       er->etype = pa_etmoubd; /* button 3 deassert */
+       er->dmoun = 1; /* mouse 1 */
+       er->dmoubn = 3; /* button 3 */
+       win->mb3 = win->nmb3; /* update status */
+       *keep = TRUE; /* set to keep */
 
     }
 
 }
 
-/* register mouse status */
+/* Register mouse status.
+   Get mouse status from XWindows event to window data flags. */
 
 static void mouseevent(winptr win, XEvent* e)
 
 {
 
-    win->nmpx = e->xmotion.x/win->charspace+1; /* get mouse x */
-    win->nmpy = e->xmotion.y/win->linespace+1; /* get mouse y */
-    win->nmpxg = e->xmotion.x+1; /* get mouse graphical x */
-    win->nmpyg = e->xmotion.y+1; /* get mouse graphical y */
+    if (e->type == MotionNotify) {
+
+        win->nmpx = e->xmotion.x/win->charspace+1; /* get mouse x */
+        win->nmpy = e->xmotion.y/win->linespace+1; /* get mouse y */
+        win->nmpxg = e->xmotion.x+1; /* get mouse graphical x */
+        win->nmpyg = e->xmotion.y+1; /* get mouse graphical y */
+
+    } else if (e->type == ButtonPress) {
+
+        if (e->xbutton.button == Button1) win->nmb1 = TRUE;
+        else if (e->xbutton.button == Button2) win->nmb2 = TRUE;
+        else if (e->xbutton.button == Button3) win->nmb3 = TRUE;
+
+    } else if (e->type = ButtonRelease) {
+
+        if (e->xbutton.button == Button1) win->nmb1 = FALSE;
+        else if (e->xbutton.button == Button2) win->nmb2 = FALSE;
+        else if (e->xbutton.button == Button3) win->nmb3 = FALSE;
+
+    }
 
 }
 
@@ -3545,13 +3612,13 @@ void pa_event(FILE* f, pa_evtrec* er)
 {
 
     XEvent e;
-    int evtfnd;
+    int keep;
     KeySym ks;
     int esck;
     winptr win; /* window record pointer */
     int ofn; /* output lfn associated with window */
 
-    evtfnd = FALSE;
+    keep = FALSE;
     esck = FALSE; /* set no previous escape */
     do {
 
@@ -3576,7 +3643,7 @@ void pa_event(FILE* f, pa_evtrec* er)
                 /* set code, normal or shifted */
                 if (shiftl || shiftr) er->echar = !capslock?toupper(ks):ks;
                 else er->echar = capslock?toupper(ks):ks; /* set code */
-                evtfnd = TRUE; /* set found */
+                keep = TRUE; /* set found */
 
             } else {
 
@@ -3683,7 +3750,7 @@ void pa_event(FILE* f, pa_evtrec* er)
 
                 }
                 if (er->etype != pa_etchar)
-                    evtfnd = TRUE; /* a control was found */
+                    keep = TRUE; /* a control was found */
 
             }
 
@@ -3703,15 +3770,16 @@ void pa_event(FILE* f, pa_evtrec* er)
 
             }
 
-        } else if (e.type == MotionNotify) {
+        } else if (e.type == MotionNotify || e.type == ButtonPress ||
+                   e.type == ButtonRelease) {
 
             mouseevent(win, &e); /* process mouse event */
             /* check any mouse details need processing */
-            mouseupdate(win, er, &evtfnd);
+            mouseupdate(win, er, &keep);
 
         }
 
-    } while (!evtfnd); /* until we have a client event */
+    } while (!keep); /* until we have a client event */
 
 }
 
