@@ -419,7 +419,7 @@ linux/dumpsynthplug.o: linux/dumpsynthplug.c include/sound.h Makefile
 linux/xterm.o: linux/xterm.c include/terminal.h Makefile
 	gcc -g3 -Iinclude -fPIC -c linux/xterm.c -o linux/xterm.o
 	
-linux/graphics.o: linux/graphics.c include/graph.h Makefile
+linux/graphics.o: linux/graphics.c include/graphics.h Makefile
 	gcc -g3 -Iinclude -fPIC -c linux/graphics.c -o linux/graphics.o
 	
 #
@@ -442,8 +442,8 @@ windows/network.o: windows/network.c include/network.h Makefile
 windows/console.o: windows/console.c include/terminal.h Makefile
 	gcc -g3 -Ilibc -Iinclude -c windows/console.c -o windows/console.o
 	
-windows/graph.o: windows/graph.c include/graph.h Makefile
-	gcc -g3 -Ilibc -Iinclude -c windows/graph.c -o windows/graph.o
+windows/graph.o: windows/graphics.c include/graphics.h Makefile
+	gcc -g3 -Ilibc -Iinclude -c windows/graphics.c -o windows/graph.o
 
 #
 # Mac OS X library components
@@ -467,8 +467,8 @@ macosx/network.o: stub/network.c include/network.h Makefile
 macosx/xterm.o: linux/xterm.c include/terminal.h Makefile
 	gcc -g3 -Ilibc -Iinclude -c linux/xterm.c -o macosx/xterm.o
 	
-macosx/graph.o: stub/graph.c include/graph.h Makefile
-	gcc -g3 -Ilibc -Iinclude -c stub/graph.c -o macosx/graph.o
+macosx/graph.o: stub/graphics.c include/graphics.h Makefile
+	gcc -g3 -Ilibc -Iinclude -c stub/graphics.c -o macosx/graph.o
 	
 #
 # Components in common to all systems

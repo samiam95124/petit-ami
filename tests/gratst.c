@@ -67,7 +67,7 @@
 /* Petit-ami defines */
 #include <localdefs.h>
 #include <services.h>
-#include <graph.h>
+#include <graphics.h>
 
 #define S1     "Moving string"
 #define S2     "Variable size string"

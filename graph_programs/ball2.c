@@ -9,7 +9,7 @@ demonstrate smooth animation.
 
 #include <stdio.h>
 #include <localdefs.h>
-#include <graph.h>
+#include <graphics.h>
 
 #define BALLSIZE  21
 #define HALFBALL  (BALLSIZE/2)

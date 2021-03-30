@@ -17,7 +17,7 @@
 /* Petit-ami defines */
 #include <localdefs.h>
 #include <sound.h>
-#include <graph.h>
+#include <graphics.h>
 
 #define   SECOND      10000                   /* one second */
 #define   OSEC        (SECOND/8)              /* 1/8 second */

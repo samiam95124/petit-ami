@@ -11,8 +11,8 @@
 *                                                                              *
 *******************************************************************************/
 
-#ifndef __GRAPH_H__
-#define __GRAPH_H__
+#ifndef __GRAPHICS_H__
+#define __GRAPHICS_H__
 
 #include <stdio.h>
 

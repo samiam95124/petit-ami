@@ -96,7 +96,7 @@
 
 /* local definitions */
 #include <localdefs.h>
-#include <graph.h>
+#include <graphics.h>
 
 /*
  * Debug print system

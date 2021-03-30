@@ -10,7 +10,7 @@ reversing to white, and cycles forever.
 #include <setjmp.h>
 #include <stdio.h>
 #include <localdefs.h>
-#include <graph.h>
+#include <graphics.h>
 
 #define ACCEL 20
 

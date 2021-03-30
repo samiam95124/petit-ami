@@ -7,7 +7,7 @@ Program to draw random lines on screen
 #include <stdio.h>
 #include <stdlib.h>
 #include <localdefs.h>
-#include <graph.h>
+#include <graphics.h>
 
 #define FRAMETIME 156 /* time between frames, 60 cycle refresh */
 

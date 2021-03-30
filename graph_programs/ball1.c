@@ -6,7 +6,7 @@ Program to bounce animated ball around screen
 
 #include <stdio.h>
 #include <localdefs.h>
-#include <graph.h>
+#include <graphics.h>
 
 #define BALLSIZE  21
 #define HALFBALL  (BALLSIZE/2)
