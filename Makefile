@@ -416,8 +416,8 @@ linux/fluidsynthplug.o: linux/fluidsynthplug.c include/sound.h Makefile
 linux/dumpsynthplug.o: linux/dumpsynthplug.c include/sound.h Makefile
 	gcc -g3 -Iinclude -fPIC -c linux/dumpsynthplug.c -lasound -lm -pthread -o linux/dumpsynthplug.o
 	
-linux/xterm.o: linux/xterm.c include/terminal.h Makefile
-	gcc -g3 -Iinclude -fPIC -c linux/xterm.c -o linux/xterm.o
+linux/terminal.o: linux/terminal.c include/terminal.h Makefile
+	gcc -g3 -Iinclude -fPIC -c linux/terminal.c -o linux/terminal.o
 	
 linux/graphics.o: linux/graphics.c include/graphics.h Makefile
 	gcc -g3 -Iinclude -fPIC -c linux/graphics.c -o linux/graphics.o
@@ -442,8 +442,8 @@ windows/network.o: windows/network.c include/network.h Makefile
 windows/console.o: windows/console.c include/terminal.h Makefile
 	gcc -g3 -Ilibc -Iinclude -c windows/console.c -o windows/console.o
 	
-windows/graph.o: windows/graphics.c include/graphics.h Makefile
-	gcc -g3 -Ilibc -Iinclude -c windows/graphics.c -o windows/graph.o
+windows/graphics.o: windows/graphics.c include/graphics.h Makefile
+	gcc -g3 -Ilibc -Iinclude -c windows/graphics.c -o windows/graphics.o
 
 #
 # Mac OS X library components
@@ -464,11 +464,11 @@ macosx/sound.o: stub/sound.c include/sound.h Makefile
 macosx/network.o: stub/network.c include/network.h Makefile
 	gcc -g3 -Ilibc -Iinclude -c stub/network.c -o macosx/network.o
 	
-macosx/xterm.o: linux/xterm.c include/terminal.h Makefile
-	gcc -g3 -Ilibc -Iinclude -c linux/xterm.c -o macosx/xterm.o
+macosx/terminal.o: linux/terminal.c include/terminal.h Makefile
+	gcc -g3 -Ilibc -Iinclude -c linux/terminal.c -o macosx/terminal.o
 	
-macosx/graph.o: stub/graphics.c include/graphics.h Makefile
-	gcc -g3 -Ilibc -Iinclude -c stub/graphics.c -o macosx/graph.o
+macosx/graphics.o: stub/graphics.c include/graphics.h Makefile
+	gcc -g3 -Ilibc -Iinclude -c stub/graphics.c -o macosx/graphics.o
 	
 #
 # Components in common to all systems
@@ -514,9 +514,9 @@ bin/petit_ami_term.a: windows/services.o windows/sound.o windows/network.o \
 	    windows/stdio.o
 	
 bin/petit_ami_graph.a: windows/services.o windows/sound.o windows/network.o \
-    windows/graph.o utils/config.o utils/option.o windows/stdio.o
+    windows/graphics.o utils/config.o utils/option.o windows/stdio.o
 	ar rcs bin/petit_ami_graph.a windows/services.o windows/sound.o \
-	    windows/network.o windows/graph.o utils/config.o utils/option.o \
+	    windows/network.o windows/graphics.o utils/config.o utils/option.o \
 	    windows/stdio.o
 	
 else ifeq ($(OSTYPE),Darwin)
@@ -532,15 +532,15 @@ bin/petit_ami_plain.a: macosx/services.o macosx/sound.o macosx/network.o
         macosx/network.o utils/config.o utils/option.o macosx/stdio.o
 	
 bin/petit_ami_term.a: macosx/services.o macosx/sound.o macosx/network.o \
-    macosx/xterm.o utils/config.o utils/option.o macosx/stdio.o
+    macosx/terminal.o utils/config.o utils/option.o macosx/stdio.o
 	ar rcs bin/petit_ami_term.a macosx/services.o macosx/sound.o \
-	    macosx/network.o macosx/xterm.o utils/config.o utils/option.o \
+	    macosx/network.o macosx/terminal.o utils/config.o utils/option.o \
 	    macosx/stdio.o
 	
 petit_ami_graph.a: macosx/services.o macosx/sound.o macosx/network.o \
-    macosx/graph.o utils/config.o utils/option.o macosx/stdio.o
+    macosx/graphics.o utils/config.o utils/option.o macosx/stdio.o
 	ar rcs bin/petit_ami_graph.a macosx/services.o macosx/sound.o \
-	    macosx/network.o macosx/graph.o utils/config.o utils/option.o \
+	    macosx/network.o macosx/graphics.o utils/config.o utils/option.o \
 	    macosx/stdio.o
 	    
 else
@@ -569,18 +569,18 @@ bin/petit_ami_plain.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
 	    utils/config.o utils/option.o
 	
 bin/petit_ami_term.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/network.o linux/xterm.o utils/config.o \
+    linux/dumpsynthplug.o linux/network.o linux/terminal.o utils/config.o \
     utils/option.o 
 	gcc -shared linux/services.o linux/sound.o linux/fluidsynthplug.o \
-	    linux/dumpsynthplug.o  linux/network.o linux/xterm.o utils/config.o \
+	    linux/dumpsynthplug.o  linux/network.o linux/terminal.o utils/config.o \
 	    utils/option.o -o bin/petit_ami_term.so 
 	
 bin/petit_ami_term.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/network.o linux/xterm.o utils/config.o \
+    linux/dumpsynthplug.o linux/network.o linux/terminal.o utils/config.o \
     utils/option.o
 	ar rcs bin/petit_ami_term.a linux/services.o linux/sound.o \
 		linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
-		linux/xterm.o utils/config.o utils/option.o 
+		linux/terminal.o utils/config.o utils/option.o 
 	
 bin/petit_ami_graph.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
     linux/dumpsynthplug.o linux/network.o linux/graphics.o utils/config.o \
@@ -594,7 +594,7 @@ bin/petit_ami_graph.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
     utils/option.o  
 	ar rcs bin/petit_ami_graph.a linux/services.o linux/sound.o \
 		linux/fluidsynthplug.o linux/dumpsynthplug.o  linux/network.o \
-		linux/xterm.o utils/config.o utils/option.o 
+		linux/terminal.o utils/config.o utils/option.o 
 	
 endif
 
