@@ -607,6 +607,7 @@ static void sig_handler(int signo, siginfo_t* si, void* ucxt)
          ev.xclient.data.s[0] = winno; /* place logical window number */
          ev.xclient.data.s[1] = timno; /* place logical timer number */
          XSendEvent(padisplay, win->xwhan, FALSE, ClientMessage, &ev);
+         XFlush(padisplay);
 
     }
 
@@ -3672,7 +3673,6 @@ void pa_event(FILE* f, pa_evtrec* er)
     do {
 
         XNextEvent(padisplay, &e); /* get next event */
-//dbg_printf(dlinfo, "e.type: %d\n", e.type);
         ofn = fndevt(e.xany.window); /* get output window lfn */
         if (ofn < 0) continue; /* not one of our windows, ignore */
         win = lfn2win(ofn); /* get window for that */
@@ -3831,9 +3831,9 @@ void pa_event(FILE* f, pa_evtrec* er)
 
             if (e.xclient.message_type == cm_timer) {
 
-//dbg_printf(dlinfo, "Window number: %d timer number: %d\n", e.xclient.data.s[0], e.xclient.data.s[1]);
                 er->etype = pa_ettim; /* set timer event */
                 er->timnum = e.xclient.data.s[1]; /* set timer number */
+                keep = TRUE; /* set keep */
 
             }
         }
