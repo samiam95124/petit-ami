@@ -383,6 +383,14 @@ typedef struct filrec {
 
 } filrec, *filptr;
 
+/* internal client messages */
+typedef enum {
+
+    cm_timer /* timer fires */
+
+} clientmessagecode;
+
+/* error codes */
 typedef enum {
 
     eftbful,  /* File table full */
@@ -563,6 +571,44 @@ static void error(errcod e)
     fprintf(stderr, "\n");
 
     exit(1);
+
+}
+
+/*******************************************************************************
+
+Handle signal from Linux
+
+Handle signal from linux kernel.
+
+*******************************************************************************/
+
+static void sig_handler(int signo, siginfo_t* si, void* ucxt)
+
+{
+
+    int    winno; /* window number */
+    int    timno; /* timer number */
+    XEvent ev;    /* X Windows event */
+    winptr win;   /* windows record pointer */
+
+    if (signo == SIGALRM) {
+
+         /* one of the timers has fired */
+         winno = si->si_value.sival_int >> 16; /* get window number */
+         timno = si->si_value.sival_int & 0xffff; /* get timer number */
+         win = opnfil[xltwin[winno-1]]->win; /* get window pointer */
+         /* set up event to XWindows */
+         ev.xclient.type = ClientMessage; /* set type */
+         ev.xclient.serial = 0;
+         ev.xclient.send_event = TRUE; /* set XSendEvent origin */
+         ev.xclient.window = win->xwhan; /* set XWindow handle */
+         ev.xclient.message_type = cm_timer; /* set timer fires */
+         ev.xclient.format = 16; /* shorts */
+         ev.xclient.data.s[0] = winno; /* place logical window number */
+         ev.xclient.data.s[1] = timno; /* place logical timer number */
+         XSendEvent(padisplay, win->xwhan, FALSE, ClientMessage, &ev);
+
+    }
 
 }
 
@@ -3626,6 +3672,7 @@ void pa_event(FILE* f, pa_evtrec* er)
     do {
 
         XNextEvent(padisplay, &e); /* get next event */
+//dbg_printf(dlinfo, "e.type: %d\n", e.type);
         ofn = fndevt(e.xany.window); /* get output window lfn */
         if (ofn < 0) continue; /* not one of our windows, ignore */
         win = lfn2win(ofn); /* get window for that */
@@ -3780,6 +3827,15 @@ void pa_event(FILE* f, pa_evtrec* er)
             /* check any mouse details need processing */
             mouseupdate(win, er, &keep);
 
+        } else if (e.type == ClientMessage) {
+
+            if (e.xclient.message_type == cm_timer) {
+
+//dbg_printf(dlinfo, "Window number: %d timer number: %d\n", e.xclient.data.s[0], e.xclient.data.s[1]);
+                er->etype = pa_ettim; /* set timer event */
+                er->timnum = e.xclient.data.s[1]; /* set timer number */
+
+            }
         }
 
     } while (!keep); /* until we have a client event */
@@ -3818,6 +3874,11 @@ void pa_timer(FILE* f, /* file to send event to */
     win = txt2win(f); /* get window from file */
     if (!win->timers[i-1].act) { /* timer entry inactive, create a timer */
 
+        se.sigev_notify = SIGEV_SIGNAL;
+        se.sigev_signo = SIGALRM;
+        /* pass the window number and the logical timer number */
+        se.sigev_value.sival_int = (filwin[fileno(f)] << 16)+i;
+dbg_printf(dlinfo, "win no: %d timer no: %d combined: %x\n", filwin[fileno(f)], i, se.sigev_value.sival_int);
         rv = timer_create(CLOCK_REALTIME, &se, &win->timers[i-1].id);
         if (rv == -1) error(etimacc);
 
@@ -5492,6 +5553,7 @@ static void pa_init_graphics(int argc, char *argv[])
     int ofn, ifn;
     int fi;
     winptr win; /* windows record pointer */
+    struct sigaction sact; /* action on signal (for timers) */
 
     /* turn off I/O buffering */
     setvbuf(stdin, NULL, _IONBF, 0);
@@ -5546,16 +5608,23 @@ static void pa_init_graphics(int argc, char *argv[])
 
     /* set up the expose event to full buffer by default */
     win = lfn2win(ofn); /* get window from fid */
-    evtexp.type = Expose;
     evtexp.xexpose.type = Expose;
     evtexp.xexpose.serial = 0;
-    evtexp.xexpose.send_event = 1;
+    evtexp.xexpose.send_event = TRUE;
     evtexp.xexpose.window = win->xwhan;
     evtexp.xexpose.x = 0;
     evtexp.xexpose.y = 0;
     evtexp.xexpose.width = win->gmaxxg;
     evtexp.xexpose.height = win->gmaxyg;
     evtexp.xexpose.count = 0;
+
+    /* catch signals. We don't care if it can't be caught, we would just be
+       ignoring the signal(s) in this case.  */
+    sact.sa_sigaction = sig_handler; /* set handler with extended info */
+    sact.sa_flags = SA_SIGINFO; /* set use sigaction handler */
+    sigemptyset(&sact.sa_mask); /* clear the mask */
+    //sact.sa_restorer = NULL; /* unused */
+    sigaction(SIGALRM, &sact, NULL); /* register that handler */
 
 }
 
