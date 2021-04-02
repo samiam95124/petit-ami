@@ -354,8 +354,8 @@ ifeq ($(OSTYPE),Windows_NT)
 #
 all: dumpmidi test play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
-     connectwaveg random randomg genwave genwaveg scntst scntstg gratst mantst \
-     sndtst sndtstg svstst event eventg term termg snake snakeg mine mineg \
+     connectwaveg random randomg genwave genwaveg terminal_test terminal_testg graphics_test management_test \
+     sound_test sound_testg services_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout editor editorg getpage getpageg getmail \
      getmailg gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg \
@@ -368,8 +368,8 @@ else ifeq ($(OSTYPE),Darwin)
 #
 all: dumpmidi test play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
-     connectwaveg random randomg genwave genwaveg scntst scntstg gratst mantst \
-     sndtst sndtstg svstst event eventg term termg snake snakeg mine mineg \
+     connectwaveg random randomg genwave genwaveg terminal_test terminal_testg graphics_test management_test \
+     sound_test sound_testg services_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout editor editorg getpage getpageg getmail \
      getmailg gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
@@ -380,11 +380,10 @@ else
 #
 # Linux
 #
-all: lsalsadev alsaparms \
-     dumpmidi test play playg keyboard keyboardg playmidi playmidig playwave \
+all: dumpmidi test play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
-     connectwaveg random randomg genwave genwaveg scntst scntstg gratst mantst \
-     sndtst sndtstg svstst event eventg term termg snake snakeg mine mineg \
+     connectwaveg random randomg genwave genwaveg terminal_test terminal_testg graphics_test management_test \
+     sound_test sound_testg services_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout editor editorg getpage getpageg getmail \
      getmailg gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
@@ -747,42 +746,42 @@ genwaveg: $(GLIBSD) sound_programs/genwave.c
 #
 # Test console model compliant output
 #	
-scntst: $(CLIBSD) tests/scntst.c
-	$(CC) $(CFLAGS) tests/scntst.c $(CLIBS) -o bin/scntst
+terminal_test: $(CLIBSD) tests/terminal_test.c
+	$(CC) $(CFLAGS) tests/terminal_test.c $(CLIBS) -o bin/terminal_test
 
-scntstg: $(GLIBSD) tests/scntst.c
-	$(CC) $(CFLAGS) tests/scntst.c $(GLIBS) -o bin/scntstg
+terminal_testg: $(GLIBSD) tests/terminal_test.c
+	$(CC) $(CFLAGS) tests/terminal_test.c $(GLIBS) -o bin/terminal_testg
 	
 #
 # Test graph model compliant output
 #
-gratst: $(GLIBSD) tests/gratst.c
-	$(CC) $(CFLAGS) tests/gratst.c $(GLIBS) -o bin/gratst 
+graphics_test: $(GLIBSD) tests/graphics_test.c
+	$(CC) $(CFLAGS) tests/graphics_test.c $(GLIBS) -o bin/graphics_test 
 	
 #
 # Test windows management model compliant output
 #
-mantst: $(GLIBSD) tests/mantst.c
-	$(CC) $(CFLAGS) tests/mantst.c $(GLIBS) -o bin/mantst 
+management_test: $(GLIBSD) tests/management_test.c
+	$(CC) $(CFLAGS) tests/management_test.c $(GLIBS) -o bin/management_test 
 
 #
 # Test sound model compliant input/output (uses console timers)
 #	
-sndtst: $(CLIBSD) tests/sndtst.c
-	$(CC) $(CFLAGS) tests/sndtst.c $(CLIBS) -o bin/sndtst 
+sound_test: $(CLIBSD) tests/sound_test.c
+	$(CC) $(CFLAGS) tests/sound_test.c $(CLIBS) -o bin/sound_test 
 	
-sndtstg: $(GLIBSD) tests/sndtst.c
-	$(CC) $(CFLAGS) tests/sndtst.c $(GLIBS) -o bin/sndtstg 
+sound_testg: $(GLIBSD) tests/sound_test.c
+	$(CC) $(CFLAGS) tests/sound_test.c $(GLIBS) -o bin/sound_testg 
 	
 #
 # Test services module
 #
-# Note services test uses a separate program, svstst1, that tests the ability to
+# Note services test uses a separate program, services_test1, that tests the ability to
 # execute a separate program.
 #
-svstst: $(PLIBSD) tests/svstst.c
-	$(CC) $(CFLAGS) tests/svstst.c $(PLIBS) -o bin/svstst
-	$(CC) $(CFLAGS) tests/svstst1.c $(PLIBS) -o bin/svstst1
+services_test: $(PLIBSD) tests/services_test.c
+	$(CC) $(CFLAGS) tests/services_test.c $(PLIBS) -o bin/services_test
+	$(CC) $(CFLAGS) tests/services_test1.c $(PLIBS) -o bin/services_test1
 
 #
 # Test event model (console and graph mode)
@@ -979,8 +978,9 @@ clean:
 	rm -f bin/playmidi bin/playmidig bin/playwave bin/playwaveg bin/printdev
 	rm -f bin/printdevg bin/connectmidi bin/connectmidig bin/connectwave
 	rm -f bin/connectwaveg bin/random bin/randomg bin/genwave bin/genwaveg 
-	rm -f bin/scntst bin/scntstg bin/gratst bin/mantst bin/sndtst bin/sndtstg
-	rm -f bin/svstst bin/event bin/eventg bin/term bin/termg bin/snake 
+	rm -f bin/terminal_test bin/terminal_testg bin/graphics_test 
+	rm -f bin/management_test bin/sound_test bin/sound_testg
+	rm -f bin/services_test bin/event bin/eventg bin/term bin/termg bin/snake 
 	rm -f bin/snakeg bin/mine bin/mineg bin/wator bin/watorg bin/pong bin/pongg
 	rm -f bin/breakout bin/editor bin/editorg bin/getpage bin/getpageg 
 	rm -f bin/getmail bin/getmailg bin/gettys bin/gettysg bin/msgclient 

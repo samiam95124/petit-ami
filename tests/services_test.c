@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-#include "../include/services.h"
+#include <services.h>
 
 #define MAXSTR 100
 #define SECOND 10000
@@ -131,12 +131,12 @@ int main(void)
     }
     printf("s/b <10 entries from the current environment>\n");
     printf("test24:\n");
-    pa_exec("svstst1");
+    pa_exec("services_test1");
     printf("waiting 5 seconds for program to start\n");
     waittime(SECOND*5);
     printf("s/b This is extst1 \"\" (empty string)\n");
     printf("test25:\n");
-    pa_execw("svstst1", &err);
+    pa_execw("services_test1", &err);
     printf("%d\n", err);
     printf("s/b\n");
     printf("This is extst1: """"\n");
@@ -148,12 +148,12 @@ int main(void)
     strcpy(ep->name, "bark");
     strcpy(ep->data, "hi there");
     ep->next = 0;
-    pa_exece("svstst1", ep);
+    pa_exece("services_test1", ep);
     printf("waiting 5 seconds\n");
     waittime(SECOND*5);
     printf("s/b This is extst1: \"hi there\"\n");
     printf("test27:\n");
-    pa_execew("svstst1", ep, &err);
+    pa_execew("services_test1", ep, &err);
     printf("%d\n", err);
     printf("s/b\n");
     printf("This is extst1: \"hi there\"\n");
