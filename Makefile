@@ -438,8 +438,8 @@ windows/sound.o: windows/sound.c include/sound.h Makefile
 windows/network.o: windows/network.c include/network.h Makefile
 	gcc -g3 -Ilibc -Iinclude -c windows/network.c -o windows/network.o
 	
-windows/console.o: windows/console.c include/terminal.h Makefile
-	gcc -g3 -Ilibc -Iinclude -c windows/console.c -o windows/console.o
+windows/terminal.o: windows/terminal.c include/terminal.h Makefile
+	gcc -g3 -Ilibc -Iinclude -c windows/terminal.c -o windows/terminal.o
 	
 windows/graphics.o: windows/graphics.c include/graphics.h Makefile
 	gcc -g3 -Ilibc -Iinclude -c windows/graphics.c -o windows/graphics.o
@@ -507,9 +507,9 @@ bin/petit_ami_plain.a: windows/services.o windows/sound.o windows/network.o \
         windows/network.o utils/config.o utils/option.o windows/stdio.o
 	
 bin/petit_ami_term.a: windows/services.o windows/sound.o windows/network.o \
-    windows/console.o utils/config.o utils/option.o windows/stdio.o
+    windows/terminal.o utils/config.o utils/option.o windows/stdio.o
 	ar rcs bin/petit_ami_term.a windows/services.o windows/sound.o \
-	    windows/network.o windows/console.o utils/config.o utils/option.o \
+	    windows/network.o windows/terminal.o utils/config.o utils/option.o \
 	    windows/stdio.o
 	
 bin/petit_ami_graph.a: windows/services.o windows/sound.o windows/network.o \

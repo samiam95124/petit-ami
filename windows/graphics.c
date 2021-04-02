@@ -86,7 +86,7 @@
 #include <commctrl.h>
 
 #include <config.h>
-#include <graph.h>
+#include <graphics.h>
 
 /*
  * Debug print system
