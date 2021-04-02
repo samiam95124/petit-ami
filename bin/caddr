@@ -1,7 +1,0 @@
-#
-# Compile addr program
-#
-
-#!/bin/bash
-
-gcc linux/addr.c -o bin/addr
