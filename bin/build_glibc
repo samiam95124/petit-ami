@@ -81,6 +81,35 @@ echo "Version number: $version"
 cd glibc
 
 #
+# Check required patch files exist
+#
+if [ "$patch" -eq "1" ]; then
+
+	#
+	# Check patch file exists by version
+	#
+	if [ ! -f glibc_"$version"_override.patch ]
+	then
+
+		echo "*** glibc override patch file by version $version does not exist"
+		exit 1
+	
+	fi
+	
+	#
+	# Check patch file exists by version
+	#
+	if [ ! -f libc_"$version"_.map.patch ]
+	then
+
+		echo "*** glibc override patch file by version $version does not exist"
+		exit 1
+	
+	fi
+
+fi
+
+#
 # Remove any previous directories
 #
 rm -rf glibc_source glibc_build glibc_local

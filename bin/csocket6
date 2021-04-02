@@ -1,7 +1,0 @@
-#
-# Compile socket program
-#
-
-#!/bin/bash
-
-gcc linux/socket6.c -o bin/socket6

@@ -19,7 +19,7 @@
 /* Petit-ami defines */
 #include <localdefs.h>
 #include <services.h>
-#include <graph.h>
+#include <graphics.h>
 
 #define SECOND 10000 /* one second timer */
 

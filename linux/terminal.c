@@ -36,6 +36,9 @@
 * improvements in the 1997 and on years. It was the library standard for       *
 * Pascaline, but I translated it to C.                                         *
 *                                                                              *
+* The first version of this package implemented the call set on a Wyse 80      *
+* terminal.                                                                    *
+*                                                                              *
 *                          BSD LICENSE INFORMATION                             *
 *                                                                              *
 * Copyright (C) 2019 - Scott A. Franco                                         *
@@ -85,6 +88,30 @@
 #include <signal.h>
 
 #include "terminal.h"
+
+/*
+ * Debug print system
+ *
+ * Example use:
+ *
+ * dbg_printf(dlinfo, "There was an error: string: %s\n", bark);
+ *
+ * mydir/test.c:myfunc():12: There was an error: somestring
+ *
+ */
+
+static enum { /* debug levels */
+
+    dlinfo, /* informational */
+    dlwarn, /* warnings */
+    dlfail, /* failure/critical */
+    dlnone  /* no messages */
+
+} dbglvl = dlinfo;
+
+#define dbg_printf(lvl, fmt, ...) \
+        do { if (lvl >= dbglvl) fprintf(stderr, "%s:%s():%d: " fmt, __FILE__, \
+                                __func__, __LINE__, ##__VA_ARGS__); } while (0)
 
 /* Default terminal size sets the geometry of the terminal if we cannot find
    out the geometry from the terminal itself. */

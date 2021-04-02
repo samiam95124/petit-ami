@@ -290,7 +290,7 @@ endif
 ifeq ($(LINK_TYPE),static)
     CLIBS += -Wl,--whole-archive bin/petit_ami_term.a -Wl,--no-whole-archive
 else
-    CLIBS += bin/petit_ami_term.so
+    CLIBS += stub/keeper.o bin/petit_ami_term.so 
 endif
 
 #
@@ -299,7 +299,7 @@ endif
 ifeq ($(LINK_TYPE),static)
 	GLIBS += -Wl,--whole-archive bin/petit_ami_graph.a -Wl,--no-whole-archive
 else
-    GLIBS += bin/petit_ami_graph.so
+    GLIBS += stub/keeper.o bin/petit_ami_graph.so
 endif
 
 #
@@ -326,8 +326,8 @@ else
     # Linux
     #
 	PLIBS += -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
-    GLIBS += -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
-    CLIBS += -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
+	CLIBS += -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
+	GLIBS += -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto -lX11
     
 endif
 
@@ -335,8 +335,8 @@ endif
 # Create dependency macros
 #
 PLIBSD = bin/petit_ami_plain$(LIBEXT)
-CLIBSD = bin/petit_ami_term$(LIBEXT)
-GLIBSD = bin/petit_ami_graph$(LIBEXT)
+CLIBSD = bin/petit_ami_term$(LIBEXT) stub/keeper.o
+GLIBSD = bin/petit_ami_graph$(LIBEXT) stub/keeper.o
 
 ################################################################################
 #
@@ -354,8 +354,8 @@ ifeq ($(OSTYPE),Windows_NT)
 #
 all: dumpmidi test play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
-     connectwaveg random randomg genwave genwaveg scntst scntstg gratst mantst \
-     sndtst sndtstg svstst event eventg term termg snake snakeg mine mineg \
+     connectwaveg random randomg genwave genwaveg terminal_test terminal_testg graphics_test management_test \
+     sound_test sound_testg services_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout editor editorg getpage getpageg getmail \
      getmailg gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg \
@@ -368,8 +368,8 @@ else ifeq ($(OSTYPE),Darwin)
 #
 all: dumpmidi test play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
-     connectwaveg random randomg genwave genwaveg scntst scntstg gratst mantst \
-     sndtst sndtstg svstst event eventg term termg snake snakeg mine mineg \
+     connectwaveg random randomg genwave genwaveg terminal_test terminal_testg graphics_test management_test \
+     sound_test sound_testg services_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout editor editorg getpage getpageg getmail \
      getmailg gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
@@ -380,11 +380,10 @@ else
 #
 # Linux
 #
-all: lsalsadev alsaparms \
-     dumpmidi test play playg keyboard keyboardg playmidi playmidig playwave \
+all: dumpmidi test play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
-     connectwaveg random randomg genwave genwaveg scntst scntstg gratst mantst \
-     sndtst sndtstg svstst event eventg term termg snake snakeg mine mineg \
+     connectwaveg random randomg genwave genwaveg terminal_test terminal_testg graphics_test management_test \
+     sound_test sound_testg services_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout editor editorg getpage getpageg getmail \
      getmailg gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
@@ -416,11 +415,11 @@ linux/fluidsynthplug.o: linux/fluidsynthplug.c include/sound.h Makefile
 linux/dumpsynthplug.o: linux/dumpsynthplug.c include/sound.h Makefile
 	gcc -g3 -Iinclude -fPIC -c linux/dumpsynthplug.c -lasound -lm -pthread -o linux/dumpsynthplug.o
 	
-linux/xterm.o: linux/xterm.c include/terminal.h Makefile
-	gcc -g3 -Iinclude -fPIC -c linux/xterm.c -o linux/xterm.o
+linux/terminal.o: linux/terminal.c include/terminal.h Makefile
+	gcc -g3 -Iinclude -fPIC -c linux/terminal.c -o linux/terminal.o
 	
-linux/graph_x.o: linux/graph_x.c include/graph.h Makefile
-	gcc -g3 -Iinclude -fPIC -c linux/graph_x.c -o linux/graph_x.o
+linux/graphics.o: linux/graphics.c include/graphics.h Makefile
+	gcc -g3 -Iinclude -fPIC -c linux/graphics.c -o linux/graphics.o
 	
 #
 # Windows library components
@@ -442,8 +441,8 @@ windows/network.o: windows/network.c include/network.h Makefile
 windows/console.o: windows/console.c include/terminal.h Makefile
 	gcc -g3 -Ilibc -Iinclude -c windows/console.c -o windows/console.o
 	
-windows/graph.o: windows/graph.c include/graph.h Makefile
-	gcc -g3 -Ilibc -Iinclude -c windows/graph.c -o windows/graph.o
+windows/graphics.o: windows/graphics.c include/graphics.h Makefile
+	gcc -g3 -Ilibc -Iinclude -c windows/graphics.c -o windows/graphics.o
 
 #
 # Mac OS X library components
@@ -464,22 +463,25 @@ macosx/sound.o: stub/sound.c include/sound.h Makefile
 macosx/network.o: stub/network.c include/network.h Makefile
 	gcc -g3 -Ilibc -Iinclude -c stub/network.c -o macosx/network.o
 	
-macosx/xterm.o: linux/xterm.c include/terminal.h Makefile
-	gcc -g3 -Ilibc -Iinclude -c linux/xterm.c -o macosx/xterm.o
+macosx/terminal.o: linux/terminal.c include/terminal.h Makefile
+	gcc -g3 -Ilibc -Iinclude -c linux/terminal.c -o macosx/terminal.o
 	
-macosx/graph.o: stub/graph.c include/graph.h Makefile
-	gcc -g3 -Ilibc -Iinclude -c stub/graph.c -o macosx/graph.o
+macosx/graphics.o: stub/graphics.c include/graphics.h Makefile
+	gcc -g3 -Ilibc -Iinclude -c stub/graphics.c -o macosx/graphics.o
 	
 #
 # Components in common to all systems
 #
 utils/config.o: utils/config.c include/localdefs.h include/services.h \
 	            include/config.h Makefile
-	gcc -g3 -Ilibc -Iinclude -c utils/config.c -o utils/config.o
+	gcc -g3 -fPIC -Ilibc -Iinclude -c utils/config.c -o utils/config.o
 	
 utils/option.o: utils/option.c include/localdefs.h include/services.h \
 	            include/option.h Makefile
-	gcc -g3 -Ilibc -Iinclude -c utils/option.c -o utils/option.o
+	gcc -g3 -fPIC -Ilibc -Iinclude -c utils/option.c -o utils/option.o
+	
+stub/keeper.o: stub/keeper.c
+	gcc -g3 -fPIC -Iinclude -c stub/keeper.c -o stub/keeper.o
 	
 ################################################################################
 #
@@ -511,9 +513,9 @@ bin/petit_ami_term.a: windows/services.o windows/sound.o windows/network.o \
 	    windows/stdio.o
 	
 bin/petit_ami_graph.a: windows/services.o windows/sound.o windows/network.o \
-    windows/graph.o utils/config.o utils/option.o windows/stdio.o
+    windows/graphics.o utils/config.o utils/option.o windows/stdio.o
 	ar rcs bin/petit_ami_graph.a windows/services.o windows/sound.o \
-	    windows/network.o windows/graph.o utils/config.o utils/option.o \
+	    windows/network.o windows/graphics.o utils/config.o utils/option.o \
 	    windows/stdio.o
 	
 else ifeq ($(OSTYPE),Darwin)
@@ -529,15 +531,15 @@ bin/petit_ami_plain.a: macosx/services.o macosx/sound.o macosx/network.o
         macosx/network.o utils/config.o utils/option.o macosx/stdio.o
 	
 bin/petit_ami_term.a: macosx/services.o macosx/sound.o macosx/network.o \
-    macosx/xterm.o utils/config.o utils/option.o macosx/stdio.o
+    macosx/terminal.o utils/config.o utils/option.o macosx/stdio.o
 	ar rcs bin/petit_ami_term.a macosx/services.o macosx/sound.o \
-	    macosx/network.o macosx/xterm.o utils/config.o utils/option.o \
+	    macosx/network.o macosx/terminal.o utils/config.o utils/option.o \
 	    macosx/stdio.o
 	
 petit_ami_graph.a: macosx/services.o macosx/sound.o macosx/network.o \
-    macosx/graph.o utils/config.o utils/option.o macosx/stdio.o
+    macosx/graphics.o utils/config.o utils/option.o macosx/stdio.o
 	ar rcs bin/petit_ami_graph.a macosx/services.o macosx/sound.o \
-	    macosx/network.o macosx/graph.o utils/config.o utils/option.o \
+	    macosx/network.o macosx/graphics.o utils/config.o utils/option.o \
 	    macosx/stdio.o
 	    
 else
@@ -566,32 +568,32 @@ bin/petit_ami_plain.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
 	    utils/config.o utils/option.o
 	
 bin/petit_ami_term.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/network.o linux/xterm.o utils/config.o \
+    linux/dumpsynthplug.o linux/network.o linux/terminal.o utils/config.o \
     utils/option.o 
 	gcc -shared linux/services.o linux/sound.o linux/fluidsynthplug.o \
-	    linux/dumpsynthplug.o  linux/network.o linux/xterm.o utils/config.o \
+	    linux/dumpsynthplug.o  linux/network.o linux/terminal.o utils/config.o \
 	    utils/option.o -o bin/petit_ami_term.so 
 	
 bin/petit_ami_term.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/network.o linux/xterm.o utils/config.o \
+    linux/dumpsynthplug.o linux/network.o linux/terminal.o utils/config.o \
     utils/option.o
 	ar rcs bin/petit_ami_term.a linux/services.o linux/sound.o \
 		linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
-		linux/xterm.o utils/config.o utils/option.o 
+		linux/terminal.o utils/config.o utils/option.o 
 	
-petit_ami_graph.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/network.o linux/graph_x.o utils/config.o \
+bin/petit_ami_graph.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
+    linux/dumpsynthplug.o linux/network.o linux/graphics.o utils/config.o \
     utils/option.o  
-	gcc linux/services.o linux/sound.o linux/fluidsynthplug.o \
-		linux/dumpsynthplug.o  linux/network.o linux/xterm.o utils/config.o \
+	gcc -shared linux/services.o linux/sound.o linux/fluidsynthplug.o \
+		linux/dumpsynthplug.o  linux/network.o linux/graphics.o utils/config.o \
 		utils/option.o -o bin/petit_ami_graph.so
 	
-petit_ami_graph.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/network.o linux/graph_x.o utils/config.o \
+bin/petit_ami_graph.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
+    linux/dumpsynthplug.o linux/network.o linux/graphics.o utils/config.o \
     utils/option.o  
 	ar rcs bin/petit_ami_graph.a linux/services.o linux/sound.o \
 		linux/fluidsynthplug.o linux/dumpsynthplug.o  linux/network.o \
-		linux/xterm.o utils/config.o utils/option.o 
+		linux/terminal.o utils/config.o utils/option.o 
 	
 endif
 
@@ -744,42 +746,42 @@ genwaveg: $(GLIBSD) sound_programs/genwave.c
 #
 # Test console model compliant output
 #	
-scntst: $(CLIBSD) tests/scntst.c
-	$(CC) $(CFLAGS) tests/scntst.c $(CLIBS) -o bin/scntst
+terminal_test: $(CLIBSD) tests/terminal_test.c
+	$(CC) $(CFLAGS) tests/terminal_test.c $(CLIBS) -o bin/terminal_test
 
-scntstg: $(GLIBSD) tests/scntst.c
-	$(CC) $(CFLAGS) tests/scntst.c $(GLIBS) -o bin/scntstg
+terminal_testg: $(GLIBSD) tests/terminal_test.c
+	$(CC) $(CFLAGS) tests/terminal_test.c $(GLIBS) -o bin/terminal_testg
 	
 #
 # Test graph model compliant output
 #
-gratst: $(GLIBSD) tests/gratst.c
-	$(CC) $(CFLAGS) tests/gratst.c $(GLIBS) -o bin/gratst 
+graphics_test: $(GLIBSD) tests/graphics_test.c
+	$(CC) $(CFLAGS) tests/graphics_test.c $(GLIBS) -o bin/graphics_test 
 	
 #
 # Test windows management model compliant output
 #
-mantst: $(GLIBSD) tests/mantst.c
-	$(CC) $(CFLAGS) tests/mantst.c $(GLIBS) -o bin/mantst 
+management_test: $(GLIBSD) tests/management_test.c
+	$(CC) $(CFLAGS) tests/management_test.c $(GLIBS) -o bin/management_test 
 
 #
 # Test sound model compliant input/output (uses console timers)
 #	
-sndtst: $(CLIBSD) tests/sndtst.c
-	$(CC) $(CFLAGS) tests/sndtst.c $(CLIBS) -o bin/sndtst 
+sound_test: $(CLIBSD) tests/sound_test.c
+	$(CC) $(CFLAGS) tests/sound_test.c $(CLIBS) -o bin/sound_test 
 	
-sndtstg: $(GLIBSD) tests/sndtst.c
-	$(CC) $(CFLAGS) tests/sndtst.c $(GLIBS) -o bin/sndtstg 
+sound_testg: $(GLIBSD) tests/sound_test.c
+	$(CC) $(CFLAGS) tests/sound_test.c $(GLIBS) -o bin/sound_testg 
 	
 #
 # Test services module
 #
-# Note services test uses a separate program, svstst1, that tests the ability to
+# Note services test uses a separate program, services_test1, that tests the ability to
 # execute a separate program.
 #
-svstst: $(PLIBSD) tests/svstst.c
-	$(CC) $(CFLAGS) tests/svstst.c $(PLIBS) -o bin/svstst
-	$(CC) $(CFLAGS) tests/svstst1.c $(PLIBS) -o bin/svstst1
+services_test: $(PLIBSD) tests/services_test.c
+	$(CC) $(CFLAGS) tests/services_test.c $(PLIBS) -o bin/services_test
+	$(CC) $(CFLAGS) tests/services_test1.c $(PLIBS) -o bin/services_test1
 
 #
 # Test event model (console and graph mode)
@@ -976,8 +978,9 @@ clean:
 	rm -f bin/playmidi bin/playmidig bin/playwave bin/playwaveg bin/printdev
 	rm -f bin/printdevg bin/connectmidi bin/connectmidig bin/connectwave
 	rm -f bin/connectwaveg bin/random bin/randomg bin/genwave bin/genwaveg 
-	rm -f bin/scntst bin/scntstg bin/gratst bin/mantst bin/sndtst bin/sndtstg
-	rm -f bin/svstst bin/event bin/eventg bin/term bin/termg bin/snake 
+	rm -f bin/terminal_test bin/terminal_testg bin/graphics_test 
+	rm -f bin/management_test bin/sound_test bin/sound_testg
+	rm -f bin/services_test bin/event bin/eventg bin/term bin/termg bin/snake 
 	rm -f bin/snakeg bin/mine bin/mineg bin/wator bin/watorg bin/pong bin/pongg
 	rm -f bin/breakout bin/editor bin/editorg bin/getpage bin/getpageg 
 	rm -f bin/getmail bin/getmailg bin/gettys bin/gettysg bin/msgclient 

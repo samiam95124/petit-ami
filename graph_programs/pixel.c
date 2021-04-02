@@ -10,9 +10,9 @@ reversing to white, and cycles forever.
 #include <setjmp.h>
 #include <stdio.h>
 #include <localdefs.h>
-#include <graph.h>
+#include <graphics.h>
 
-static const int accel = 20;
+#define ACCEL 20
 
 static int x, y, xd, yd, i;
 
@@ -48,7 +48,7 @@ int main(void)
     yd = +1;
     while (TRUE) {
 
-        for (i = 1; i <= accel; i++) {
+        for (i = 1; i <= ACCEL; i++) {
 
             pa_setpixel(stdout, x, y);
             x = x+xd;

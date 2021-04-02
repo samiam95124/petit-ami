@@ -273,8 +273,8 @@ typedef struct snddev {
     /* These entries support plug in devices, but are also set for internal devices */
     void (*open)(int p);                  /* open port */
     void (*close)(int p);                 /* close port */
-    void (*wrseq)(int p, seqptr sp);      /* write MIDI out device */
-    void (*rdseq)(int p, seqptr sp);      /* read MIDI in device */
+    void (*wrseq)(int p, pa_seqptr sp);      /* write MIDI out device */
+    void (*rdseq)(int p, pa_seqptr sp);      /* read MIDI in device */
     void (*wrwav)(int p, byte* buff, int len); /* write wave out device */
     int (*rdwav)(int p, byte* buff, int len); /* read wave in device */
     void (*chanwavout)(int p, int c);     /* channels for wave output */
@@ -307,8 +307,8 @@ typedef enum {
 
 } devtyp;
 
-static seqptr seqlst;                  /* active sequencer entries */
-static seqptr seqfre;                  /* free sequencer entries */
+static pa_seqptr seqlst;                  /* active sequencer entries */
+static pa_seqptr seqfre;                  /* free sequencer entries */
 static int seqrun;                     /* sequencer running */
 static struct timeval strtim;          /* start time for sequencer, in raw linux
                                           time */
@@ -334,7 +334,7 @@ static volatile string wavfil[MAXWAVT]; /* storage for wave track files */
 
 /* Synth track storage. Note this needs locking */
 static pthread_mutex_t synlck; /* synth track lock */
-static volatile seqptr syntab[MAXMIDT]; /* storage for synth track files */
+static volatile pa_seqptr syntab[MAXMIDT]; /* storage for synth track files */
 
 /* The active wave track counter uses both a lock and a condition to signal
    that it has returned to zero */
@@ -742,7 +742,7 @@ Its faster to recycle these from a private list.
 
 *******************************************************************************/
 
-static void getseq(seqptr* p)
+static void getseq(pa_seqptr* p)
 
 {
 
@@ -753,7 +753,7 @@ static void getseq(seqptr* p)
 
     } else
         /* else get a new entry, with full allocation */
-        *p = (seqptr) malloc(sizeof(seqmsg));
+        *p = (pa_seqptr) malloc(sizeof(pa_seqmsg));
     (*p)->next = NULL; /* clear next */
 
 }
@@ -766,7 +766,7 @@ Puts a sequencer message entry to the free list for reuse.
 
 *******************************************************************************/
 
-static void putseq(seqptr p)
+static void putseq(pa_seqptr p)
 
 {
 
@@ -783,7 +783,7 @@ A diagnostic, dumps the given sequencer list in ASCII.
 
 *******************************************************************************/
 
-static void dmpseq(seqptr p)
+static void dmpseq(pa_seqptr p)
 
 {
 
@@ -912,7 +912,7 @@ A diagnostic, dumps the given sequencer list in ASCII.
 
 *******************************************************************************/
 
-static void dmpseqlst(seqptr p)
+static void dmpseqlst(pa_seqptr p)
 
 {
 
@@ -933,11 +933,11 @@ Frees a sequencer instruction list.
 
 *******************************************************************************/
 
-static void putseqlst(seqptr p)
+static void putseqlst(pa_seqptr p)
 
 {
 
-    seqptr tp;
+    pa_seqptr tp;
 
     while (p) {
 
@@ -958,11 +958,11 @@ Inserts a sequencer message into the list, in ascending time order.
 
 *******************************************************************************/
 
-static void insseq(seqptr p)
+static void insseq(pa_seqptr p)
 
 {
 
-    seqptr lp, l;
+    pa_seqptr lp, l;
 
     pthread_mutex_lock(&seqlock); /* take sequencer data lock */
     /* check sequencer list empty */
@@ -1026,7 +1026,7 @@ device assocated with the port.
 
 *******************************************************************************/
 
-void _pa_excseq(int p, seqptr sp)
+void _pa_excseq(int p, pa_seqptr sp)
 
 {
 
@@ -1214,7 +1214,7 @@ static void rdsynthvar(devptr mp, unsigned int* v)
 
 }
 
-static void inpseq(int p, seqptr sp)
+static void inpseq(int p, pa_seqptr sp)
 
 {
 
@@ -1914,7 +1914,7 @@ Writes a sequencer entry to the device given by it's port.
 
 *******************************************************************************/
 
-static void wrtseq(seqptr sp)
+static void wrtseq(pa_seqptr sp)
 
 {
 
@@ -1930,7 +1930,7 @@ Reads a sequencer entry from the device given by it's port.
 
 *******************************************************************************/
 
-static void rdseq(seqptr sp)
+static void rdseq(pa_seqptr sp)
 
 {
 
@@ -1989,7 +1989,7 @@ void _pa_synthoutplug(
     /* name */          string name,
     /* open synth */    void (*open)(int p),
     /* close synth */   void (*close)(int p),
-    /* write synth */   void (*wrseq)(int p, seqptr sp),
+    /* write synth */   void (*wrseq)(int p, pa_seqptr sp),
     /* set parameter */ int (*setparam)(int p, string name, string value),
     /* get parameter */ void (*getparam)(int p, string name, string value,
                                          int len)
@@ -2047,7 +2047,7 @@ void _pa_synthinplug(
     /* name */            string name,
     /* open sequencer */  void (*open)(int p),
     /* close sequencer */ void (*close)(int p),
-    /* read sequencer */  void (*rdseq)(int p, seqptr sp),
+    /* read sequencer */  void (*rdseq)(int p, pa_seqptr sp),
     /* set parameter */   int (*setparam)(int p, string name, string value),
     /* get parameter */   void (*getparam)(int p, string name, string value,
                                            int len)
@@ -2361,7 +2361,7 @@ static void* sequencer_thread(void* data)
 
 {
 
-    seqptr p;             /* message entry pointer */
+    pa_seqptr p;             /* message entry pointer */
     int    elap;          /* elapsed time */
     struct itimerspec ts; /* timer data */
     long tl;
@@ -2555,7 +2555,7 @@ void pa_stoptimeout(void)
 
 {
 
-    seqptr p; /* message pointer */
+    pa_seqptr p; /* message pointer */
     struct itimerspec ts;
 
     strtim.tv_sec = 0; /* clear start time */
@@ -2680,7 +2680,7 @@ void pa_noteon(int p, int t, pa_channel c, pa_note n, int v)
 
     int     r;    /* return value */
     int     elap; /* current elapsed time */
-    seqptr  sp;   /* message pointer */
+    pa_seqptr  sp;   /* message pointer */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
@@ -2734,7 +2734,7 @@ void pa_noteoff(int p, int t, pa_channel c, pa_note n, int v)
 
     int r;
     int elap;  /* current elapsed time */
-    seqptr sp; /* message pointer */
+    pa_seqptr sp; /* message pointer */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
@@ -2784,7 +2784,7 @@ void pa_instchange(int p, int t, pa_channel c, pa_instrument i)
 
     int r;
     int elap;  /* current elapsed time */
-    seqptr sp; /* message pointer */
+    pa_seqptr sp; /* message pointer */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
@@ -2831,7 +2831,7 @@ void pa_attack(int p, int t, pa_channel c, int at)
 
 {
 
-    seqptr sp;   /* message pointer */
+    pa_seqptr sp;   /* message pointer */
     int    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
@@ -2878,7 +2878,7 @@ void pa_release(int p, int t, pa_channel c, int rt)
 
 {
 
-    seqptr sp; /* message pointer */
+    pa_seqptr sp; /* message pointer */
     int elap;  /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
@@ -2925,7 +2925,7 @@ void pa_legato(int p, int t, pa_channel c, int b)
 {
 
     int elap;  /* current elapsed time */
-    seqptr sp; /* message pointer */
+    pa_seqptr sp; /* message pointer */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
@@ -2971,7 +2971,7 @@ void pa_portamento(int p, int t, pa_channel c, int b)
 {
 
     int elap;  /* current elapsed time */
-    seqptr sp; /* message pointer */
+    pa_seqptr sp; /* message pointer */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
@@ -3016,7 +3016,7 @@ void pa_volsynthchan(int p, int t, pa_channel c, int v)
 
 {
 
-    seqptr sp; /* message pointer */
+    pa_seqptr sp; /* message pointer */
     int elap;  /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
@@ -3063,7 +3063,7 @@ void pa_balance(int p, int t, pa_channel c, int b)
 
 {
 
-    seqptr sp; /* message pointer */
+    pa_seqptr sp; /* message pointer */
     int elap;  /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
@@ -3109,7 +3109,7 @@ void pa_porttime(int p, int t, pa_channel c, int v)
 
 {
 
-    seqptr sp;   /* message pointer */
+    pa_seqptr sp;   /* message pointer */
     int    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
@@ -3155,7 +3155,7 @@ void pa_vibrato(int p, int t, pa_channel c, int v)
 
 {
 
-    seqptr sp; /* message pointer */
+    pa_seqptr sp; /* message pointer */
     int elap;  /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
@@ -3202,7 +3202,7 @@ void pa_pan(int p, int t, pa_channel c, int b)
 
 {
 
-    seqptr sp; /* message pointer */
+    pa_seqptr sp; /* message pointer */
     int elap;  /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
@@ -3248,7 +3248,7 @@ void pa_timbre(int p, int t, pa_channel c, int tb)
 
 {
 
-    seqptr sp; /* message pointer */
+    pa_seqptr sp; /* message pointer */
     int elap;  /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
@@ -3294,7 +3294,7 @@ void pa_brightness(int p, int t, pa_channel c, int b)
 
 {
 
-    seqptr sp;   /* message pointer */
+    pa_seqptr sp;   /* message pointer */
     int    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
@@ -3340,7 +3340,7 @@ void pa_reverb(int p, int t, pa_channel c, int r)
 
 {
 
-    seqptr sp;   /* message pointer */
+    pa_seqptr sp;   /* message pointer */
     int    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
@@ -3386,7 +3386,7 @@ void pa_tremulo(int p, int t, pa_channel c, int tr)
 
 {
 
-    seqptr sp;   /* message pointer */
+    pa_seqptr sp;   /* message pointer */
     int    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
@@ -3432,7 +3432,7 @@ void pa_chorus(int p, int t, pa_channel c, int cr)
 
 {
 
-    seqptr sp;  /* message pointer */
+    pa_seqptr sp;  /* message pointer */
     int elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
@@ -3478,7 +3478,7 @@ void pa_celeste(int p, int t, pa_channel c, int ce)
 
 {
 
-    seqptr sp;   /* message pointer */
+    pa_seqptr sp;   /* message pointer */
     int    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
@@ -3524,7 +3524,7 @@ void pa_phaser(int p, int t, pa_channel c, int ph)
 
 {
 
-    seqptr sp;   /* message pointer */
+    pa_seqptr sp;   /* message pointer */
     int    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
@@ -3574,7 +3574,7 @@ void pa_pitchrange(int p, int t, pa_channel c, int v)
 
 {
 
-    seqptr sp;   /* message pointer */
+    pa_seqptr sp;   /* message pointer */
     int    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
@@ -3622,7 +3622,7 @@ void pa_mono(int p, int t, pa_channel c, int ch)
 
 {
 
-    seqptr sp;   /* message pointer */
+    pa_seqptr sp;   /* message pointer */
     int    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
@@ -3669,7 +3669,7 @@ void pa_poly(int p, int t, pa_channel c)
 
 {
 
-    seqptr sp;   /* message pointer */
+    pa_seqptr sp;   /* message pointer */
     int    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
@@ -3714,7 +3714,7 @@ void pa_aftertouch(int p, int t, pa_channel c, pa_note n, int at)
 
 {
 
-    seqptr sp;   /* message pointer */
+    pa_seqptr sp;   /* message pointer */
     int    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
@@ -3762,7 +3762,7 @@ void pa_pressure(int p, int t, pa_channel c, int pr)
 
 {
 
-    seqptr sp;   /* message pointer */
+    pa_seqptr sp;   /* message pointer */
     int    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
@@ -3811,7 +3811,7 @@ void pa_pitch(int p, int t, pa_channel c, int pt)
 
 {
 
-    seqptr sp;  /* message pointer */
+    pa_seqptr sp;  /* message pointer */
     int elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
@@ -3859,8 +3859,8 @@ static void *alsaplaymidi(void* data)
 
     int               curtim;  /* current time in 100us */
     int               qnote;   /* number of 100us/quarter note */
-    seqptr            sp;      /* sequencer entry */
-    seqptr            seqlst;  /* sorted sequencer list */
+    pa_seqptr            sp;      /* sequencer entry */
+    pa_seqptr            seqlst;  /* sorted sequencer list */
     int               tfd;     /* timer file descriptor */
     struct itimerspec ts;      /* timer data */
     uint64_t          exp;     /* timer expire value */
@@ -4020,7 +4020,7 @@ static void prttxt(FILE* fh, unsigned int len)
 }
 
 static int dcdmidi(FILE* fh, byte b, int* endtrk, int p, int t, int* qnote,
-                   seqptr* rsp)
+                   pa_seqptr* rsp)
 
 {
 
@@ -4031,7 +4031,7 @@ static int dcdmidi(FILE* fh, byte b, int* endtrk, int p, int t, int* qnote,
     byte p5;
     unsigned len;
     int cnt;
-    seqptr sp;
+    pa_seqptr sp;
 
     cnt = 0;
     *endtrk = FALSE;
@@ -4262,10 +4262,10 @@ void pa_loadsynth(int s, string fn)
     unsigned int      id;           /* id */
     int               curtim;       /* current time in 100us */
     int               qnote;        /* number of 100us/quarter note */
-    seqptr            sp, sp2, sp3; /* sequencer entry */
-    seqptr            seqlst;       /* sorted sequencer list */
-    seqptr            trklst;       /* sorted track list */
-    seqptr            trklas;       /* track last entry */
+    pa_seqptr            sp, sp2, sp3; /* sequencer entry */
+    pa_seqptr            seqlst;       /* sorted sequencer list */
+    pa_seqptr            trklst;       /* sorted track list */
+    pa_seqptr            trklas;       /* track last entry */
     byte              b;
     int               i;
     int               r;
@@ -4446,7 +4446,7 @@ void pa_delsynth(int s)
 
 {
 
-    seqptr  p;
+    pa_seqptr  p;
     int     n;
     int accessed;
 
@@ -4502,7 +4502,7 @@ void pa_playsynth(int p, int t, int s)
 
 {
 
-    seqptr sp;   /* message pointer */
+    pa_seqptr sp;   /* message pointer */
     int    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Invalid synthesizer port");
@@ -4900,7 +4900,7 @@ void pa_playwave(int p, int t, int w)
 
 {
 
-    seqptr sp;   /* message pointer */
+    pa_seqptr sp;   /* message pointer */
     int    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave port");
@@ -5527,11 +5527,11 @@ a parameter.
 
 *******************************************************************************/
 
-void pa_wrsynth(int p, seqptr sp)
+void pa_wrsynth(int p, pa_seqptr sp)
 
 {
 
-    seqptr spp;
+    pa_seqptr spp;
 
     if (p < 1 || p > MAXMIDP) error("Invalid synthesizer port");
     if (!alsamidiout[p-1]) error("No synthesizer defined for logical port");
@@ -5543,7 +5543,7 @@ void pa_wrsynth(int p, seqptr sp)
         if (!seqrun) error("Sequencer not running");
         getseq(&spp); /* get a sequencer message */
         /* make a copy of the command record */
-        memcpy(spp, sp, sizeof(seqmsg));
+        memcpy(spp, sp, sizeof(pa_seqmsg));
         spp->port = p; /* override the port number */
         insseq(spp); /* insert to sequencer list */
         acttim(sp->time); /* kick timer if needed */
@@ -5556,7 +5556,7 @@ void pa_wrsynth(int p, seqptr sp)
                record given, but make a copy */
             getseq(&spp); /* get a sequencer message */
             /* make a copy of the command record */
-            memcpy(spp, sp, sizeof(seqmsg));
+            memcpy(spp, sp, sizeof(pa_seqmsg));
             spp->port = p; /* override the port number */
             wrtseq(spp); /* output */
 
@@ -5587,7 +5587,7 @@ a full MIDI decoder.
 
 *******************************************************************************/
 
-void pa_rdsynth(int p, seqptr sp)
+void pa_rdsynth(int p, pa_seqptr sp)
 
 {
 

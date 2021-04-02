@@ -17,7 +17,7 @@
 /* Petit-ami defines */
 #include <localdefs.h>
 #include <sound.h>
-#include <graph.h>
+#include <graphics.h>
 
 #define BALMOV   50                /* ball move timer */
 #define NEWBAL   (100*2)           /* wait for new ball time, 1 sec (in ball units) */

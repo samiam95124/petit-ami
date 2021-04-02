@@ -1,1 +1,0 @@
-gcc xtest.c -L/usr/X11R6/lib -lX11 -o xtest

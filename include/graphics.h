@@ -11,8 +11,8 @@
 *                                                                              *
 *******************************************************************************/
 
-#ifndef __GRAPH_H__
-#define __GRAPH_H__
+#ifndef __GRAPHICS_H__
+#define __GRAPHICS_H__
 
 #include <stdio.h>
 
@@ -236,7 +236,8 @@ typedef struct {
      };
 
 } pa_evtrec;
-     /* menu */
+
+/* menu */
 typedef struct pa_menurec* pa_menuptr;
 typedef struct pa_menurec {
 
@@ -384,8 +385,6 @@ void pa_hollow(FILE* f, int e);
 void pa_raised(FILE* f, int e);
 void pa_settabg(FILE* f, int t);
 void pa_restabg(FILE* f, int t);
-/* note since C has no overloads, we put the rgb sets for character fonts as a
-   different name function, with 'c' appended */
 void pa_fcolorg(FILE* f, int r, int g, int b);
 void pa_fcolorc(FILE* f, int r, int g, int b);
 void pa_bcolorg(FILE* f, int r, int g, int b);

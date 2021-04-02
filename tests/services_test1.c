@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-#include "../include/services.h"
+#include <services.h>
 
 #define MAXSTR 100
 
@@ -16,7 +16,7 @@ int main(void)
 
     pa_getenv("bark", s, MAXSTR);
 
-    printf("This is svstst1 \"%s\"\n", s);
+    printf("This is services_test1 \"%s\"\n", s);
 
     return (0);
 

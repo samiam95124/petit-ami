@@ -7,9 +7,9 @@ Program to draw random lines on screen
 #include <stdio.h>
 #include <stdlib.h>
 #include <localdefs.h>
-#include <graph.h>
+#include <graphics.h>
 
-const int frametime = 156; /* time between frames, 60 cycle refresh */
+#define FRAMETIME 156 /* time between frames, 60 cycle refresh */
 
 static int wait(void)
 
@@ -19,7 +19,7 @@ static int wait(void)
     int cancel;
 
     cancel = FALSE;
-    pa_timer(stdout, 1, frametime, FALSE);
+    pa_timer(stdout, 1, FRAMETIME, FALSE);
     do { pa_event(stdin, &er); }
     while (er.etype != pa_ettim && er.etype != pa_etterm);
     if (er.etype == pa_etterm) cancel = TRUE;
