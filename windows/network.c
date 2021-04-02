@@ -207,6 +207,23 @@ static void error(errcod e)
 
 /*******************************************************************************
 
+Print dotted address
+
+Prints an address in the form 1.2.3.4. A diagnostic.
+
+*******************************************************************************/
+
+static void prtadr(unsigned long addr)
+
+{
+
+    fprintf(stderr, "%d.%d.%d.%d", addr >> 24 & 0xff,
+            addr >> 16 & 0xff, addr >> 8 & 0xff, addr & 0xff);
+
+}
+
+/*******************************************************************************
+
 Handle Winsock error
 
 Only called if the last error variable is set. The text string for the error
@@ -344,6 +361,7 @@ FILE* pa_opennet(/* IP address */      unsigned long addr,
     filptr fep; /* file tracking pointer */
     int    r;   /* return value */
 
+dbg_printf(dlinfo, "begin: addr: "); prtadr(addr); fprintf(stderr, " port: %d\n", port);
     /* open file handle as null */
     fp = fopen("nul", "w");
     fn = fileno(fp); /* get logical file no. */
@@ -357,9 +375,10 @@ FILE* pa_opennet(/* IP address */      unsigned long addr,
     fep->socka.sin_family = PF_INET;
     /* note, parameters specified in big endian */
     fep->socka.sin_port = htons(port);
-    fep->socka.sin_addr.S_un.S_addr = htonl(addr);
+    fep->socka.sin_addr.s_addr = htonl(addr);
     r = connect(fep->sock, (struct sockaddr*)&fep->socka, sizeof(struct sockaddr_in));
     if (r == SOCKET_ERROR) wskerr(); /* process Winsock error */
+dbg_printf(dlinfo, "end\n");
 
     return (fp); /* exit with file */
 
@@ -795,8 +814,6 @@ int iclose(int fd)
 
         if (opnfil[fd]->net) { /* it's a network file */
 
-            /* b = disconnectex(sock, 0); */ /* disconnect socket */
-            /* if ! b then wskerr; */ /* cannot disconnnect */
             r = closesocket(opnfil[fd]->sock); /* close socket */
             if (r) wskerr(); /* cannot close socket */
 
@@ -895,6 +912,43 @@ static off_t ilseek(int fd, off_t offset, int whence)
 
 /*******************************************************************************
 
+Console control handler
+
+This procedure gets activated as a callback when Windows flags a termination
+event to console. We immediately abort.
+
+At the present time, we don't care what type of termination event it was,
+all generate an etterm signal.
+
+*******************************************************************************/
+
+static BOOL WINAPI conhan(DWORD ct)
+
+{
+
+    int fi; /* index for file tables */
+
+dbg_printf(dlinfo, "begin\n");
+WSACleanup();
+    /* shutdown the open connections here, because the winsock dll is already
+       shut down before the deinit handler gets executed */
+    if (!dblflt) { /* we haven't already exited */
+
+        dblflt = TRUE; /* set we already exited */
+        /* close all open files */
+        for (fi = 0; fi < MAXFIL; fi++)
+            if (opnfil[fi] && opnfil[fi]->net)
+                closesocket(opnfil[fi]->sock); /* close socket */
+
+    }
+dbg_printf(dlinfo, "end\n");
+
+    return (1); /* set event handled */
+
+}
+
+/*******************************************************************************
+
 Network startup
 
 *******************************************************************************/
@@ -923,6 +977,10 @@ static void pa_init_network()
     /* perform winsock startup */
     r = WSAStartup(0x0002, &wsd);
     if (r) wskerr(); /* can't initalize Winsock */
+    /* capture control handler so that ctl-c cancels properly. This is a
+       workaround because the winsock dll gets shutdown before we reach
+       the deinit function. */
+    SetConsoleCtrlHandler(conhan, TRUE);
 
 }
 
@@ -953,7 +1011,7 @@ static void pa_deinit_network()
         /* close all open files */
         for (fi = 0; fi < MAXFIL; fi++)
             if (opnfil[fi] && opnfil[fi]->net)
-                iclose(fi); /* close file */
+                closesocket(opnfil[fi]->sock); /* close socket */
 
     }
     /* swap old vectors for existing vectors */
@@ -967,5 +1025,7 @@ static void pa_deinit_network()
     if (cppread != iread || cppwrite != iwrite || cppopen != iopen ||
         cppclose != iclose /* || cppunlink != iunlink */ || cpplseek != ilseek)
         error(esystem);
+        /* release control handler */
+    SetConsoleCtrlHandler(NULL, FALSE);
 
 }
