@@ -122,7 +122,6 @@ static enum { /* debug levels */
         do { if (lvl >= dbglvl) fprintf(stderr, "%s:%s():%d: " fmt, __FILE__, \
                                 __func__, __LINE__, ##__VA_ARGS__); } while (0)
 
-#define MAXTIM 10  /* maximum number of timers available */
 #define MAXBUF 10  /* maximum number of buffers available */
 #define IOWIN  1   /* logical window number of input/output pair */
 #define MAXCON 10  /* number of screen contexts */
@@ -349,7 +348,7 @@ typedef struct winrec {
        int      rep; /* timer repeat flag */
        timer_t  id;  /* timer id */
 
-    } timers[MAXTIM];
+    } timers[PA_MAXTIM];
     int          focus;           /* screen in focus */
     pict         pictbl[MAXPIC];  /* loadable pictures table */
     int          bufmod;          /* buffered screen mode */
