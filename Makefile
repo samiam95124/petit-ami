@@ -352,7 +352,7 @@ ifeq ($(OSTYPE),Windows_NT)
 #
 # Windows
 #
-all: dumpmidi test play playg keyboard keyboardg playmidi playmidig playwave \
+all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testg graphics_test management_test \
      sound_test sound_testg services_test event eventg term termg snake snakeg mine mineg \
@@ -366,7 +366,7 @@ else ifeq ($(OSTYPE),Darwin)
 #
 # Mac OS X
 #
-all: dumpmidi test play playg keyboard keyboardg playmidi playmidig playwave \
+all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testg graphics_test management_test \
      sound_test sound_testg services_test event eventg term termg snake snakeg mine mineg \
@@ -380,7 +380,7 @@ else
 #
 # Linux
 #
-all: dumpmidi test play playg keyboard keyboardg playmidi playmidig playwave \
+all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testg graphics_test management_test \
      sound_test sound_testg services_test event eventg term termg snake snakeg mine mineg \
