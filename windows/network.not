@@ -1,0 +1,6 @@
+Network module notes
+
+1. Network suffers from the same shutdown problem as other modules, which is
+DLLs are being shutdown before it gets to the deinit call. This causes the
+closesocket() calls to fail. I have implemented a ctrl-c handler to work around
+this issue.
