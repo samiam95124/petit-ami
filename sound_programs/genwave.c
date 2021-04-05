@@ -50,7 +50,7 @@ pa_optrec opttbl[] = {
     { "f",      NULL,    &freq,  NULL, NULL },
     { "square", &square, NULL,   NULL, NULL },
     { "s",      &square, NULL,   NULL, NULL },
-    { NULL,     NULL,    NULL,    NULL, NULL }
+    { NULL,     NULL,    NULL,   NULL, NULL }
 
 };
 
