@@ -102,7 +102,7 @@ static enum { /* debug levels */
     dlfail, /* failure/critical */
     dlnone  /* no messages */
 
-} dbglvl = dlinfo;
+} dbglvl = dlwarn /*dlinfo*/;
 
 #define dbg_printf(lvl, fmt, ...) \
         do { if (lvl >= dbglvl) fprintf(stderr, "%s:%s():%d: " fmt, __FILE__, \
@@ -2003,7 +2003,7 @@ void fndkey(char buff[], char key[], char** ncp)
 
     char *icp, *ocp;
 
-printf("fndkey: buff: %s\n", buff);
+dbg_printf(dlinfo, "fndkey: buff: %s\n", buff);
     key[0] = 0; /* clear output key */
     icp = buff; /* index first character */
     ocp = key; /* index output buffer */
@@ -2027,7 +2027,7 @@ printf("fndkey: buff: %s\n", buff);
     if (!strcmp(key, "keyid") || !strcmp(key, "DNS") || !strcmp(key, "URI"))
        key[0] = 0; /* kill the key */
     if (key[0]) *ncp = icp; /* set new position after key */
-printf("fndkey: key: %s remaining: %s\n", key, icp);
+dbg_printf(dlinfo, "fndkey: key: %s remaining: %s\n", key, icp);
 
 }
 
@@ -2059,7 +2059,7 @@ static void getnamval(char* buff, pa_certptr* list, int ident)
     pa_certptr cdp; /* current name/val being worked on */
     int l;
 
-printf("getnamval: buff:\n%s\n", buff);
+dbg_printf(dlinfo, "getnamval: buff:\n%s\n", buff);
     cdp = NULL; /* clear list entry */
     while (*buff) { /* loop over all lines in buffer */
 
@@ -2069,7 +2069,7 @@ printf("getnamval: buff:\n%s\n", buff);
         fndkey(lbuff, name, &cp);
         if (name[0]) {
 
-printf("getnamval: key found: %s\n", name);
+dbg_printf(dlinfo, "getnamval: key found: %s\n", name);
             /* terminate any outstanding entry */
             remeol(vbuff); /* remove last \n, if exists */
             if (cdp) filldata(cdp, vbuff); /* place gathered data as value */
@@ -2249,14 +2249,14 @@ void pa_certlistnet(FILE *f, int which, pa_certptr* list)
             i2a_ASN1_OBJECT(bp, op);
             getbio(bp, buff, CVBUFSIZ);
             cdp = addend(&extensions->fork, buff);
-printf("Extension key: %s\n", buff);
+dbg_printf(dlinfo, "Extension key: %s\n", buff);
             cdp->critical = X509_EXTENSION_get_critical(ep);
             //r = ssl_X509V3_EXT_print(bp, ep, 0);
             r = X509V3_EXT_print(bp, ep, 0, 0);
             /* these appear all empty in practice */
             if (!r) ASN1_STRING_print(bp, X509_EXTENSION_get_data(ep));
             getbio(bp, buff, CVBUFSIZ);
-printf("Extension data: <start>\n%s\n<end>\n", buff);
+dbg_printf(dlinfo, "Extension data: <start>\n%s\n<end>\n", buff);
             //filldata(cdp, buff);
             getnamval(buff, &cdp->fork, 0); /* parse n/v tree */
 
