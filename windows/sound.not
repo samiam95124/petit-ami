@@ -22,3 +22,8 @@ See if we can add them, and also we need a way to generate them to test this.
 
 9. Implement waitwave().
 
+10. If you execute a noteon (or any sequenced instruction) with non-zero time
+and the sequencer is not running, its an error. However, if an external 
+sequencer is running, this may not be a good idea, since the external sequencer
+should get the instructions, and it will retime them.
+
