@@ -12,3 +12,4 @@ sudo apt-get -y install gawk
 sudo apt-get -y install bison
 sudo apt-get -y install git
 sudo apt-get -y install openssl
+sudo apt-get -y install libx11-dev
