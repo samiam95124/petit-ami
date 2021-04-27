@@ -2201,7 +2201,7 @@ static void rgbcol(int r, int g, int b, pa_color* c)
 Translate rgb to windows color
 
 Translates a ratioed INT_MAX graph color to the windows form, which is a 32
-bit word with blue, green && red bytes.
+bit word with blue, green and red bytes.
 
 *******************************************************************************/
 
@@ -2625,10 +2625,10 @@ static void restore(winptr win,   /* window to restore */
     scnptr sc;
 
     sc = win->screens[win->curdsp-1];
-    if (win->bufmod && win->visible)  { /* buffered mode is on, && visible */
+    if (win->bufmod && win->visible)  { /* buffered mode is on, and visible */
 
         curoff(win); /* hide the cursor for drawing */
-        /* set colors && attributes */
+        /* set colors and attributes */
         if (BIT(sarev) & sc->attr)  { /* reverse */
 
             r = SetBkColor(win->devcon, sc->fcrgb);
