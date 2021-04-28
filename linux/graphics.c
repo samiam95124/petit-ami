@@ -4153,13 +4153,15 @@ void pa_autohold(int e)
 
 Return number of mice
 
-Returns the number of mice implemented. Windows supports only one mouse.
+Returns the number of mice implemented. XWindows supports only one mouse.
 
 *******************************************************************************/
 
 int pa_mouse(FILE* f)
 
 {
+
+    return 1;
 
 }
 
@@ -4168,13 +4170,15 @@ int pa_mouse(FILE* f)
 Return number of buttons on mouse
 
 Returns the number of buttons on the mouse. There is only one mouse in this
-version.
+version. XWindows supports from 1 to 5 buttons, but we limit it to 3.
 
 *******************************************************************************/
 
 int pa_mousebutton(FILE* f, int m)
 
 {
+
+    return 3;
 
 }
 
@@ -4190,6 +4194,14 @@ int pa_joystick(FILE* f)
 
 {
 
+    winptr win; /* window pointer */
+    int    jn;  /* joystick number */
+
+    win = txt2win(f); /* get window pointer from text file */
+    jn = win->numjoy; /* two */
+
+    return (jn);
+
 }
 
 /** ****************************************************************************
@@ -4203,6 +4215,15 @@ Returns the number of buttons on a given joystick.
 int pa_joybutton(FILE* f, int j)
 
 {
+
+    winptr   win; /* window pointer */
+    int      nb;  /* number of buttons */
+
+    win = txt2win(f); /* get window pointer from text file */
+    if (j < 1 || j > win->numjoy) error(einvjoy); /* bad joystick id */
+    nb = 0; /* set no joysticks */
+
+    return (nb);
 
 }
 
