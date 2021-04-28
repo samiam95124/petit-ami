@@ -477,16 +477,16 @@ static int fautohold; /* automatic hold on exit flag */
  * Note that some of these are going to need to move to a per-window structure.
  */
 
-static Display*     padisplay;      /* current display */
-static int          pascreen;       /* current screen */
-static int          ctrll, ctrlr;   /* control key active */
-static int          shiftl, shiftr; /* shift key active */
-static int          altl, altr;     /* alt key active */
-static int          capslock;       /* caps lock key active */
-static XEvent       evtexp;         /* expose event record */
-static filptr       opnfil[MAXFIL]; /* open files table */
-static int          xltwin[MAXFIL]; /* window equivalence table */
-static int          filwin[MAXFIL]; /* file to window equivalence table */
+static Display* padisplay;      /* current display */
+static int      pascreen;       /* current screen */
+static int      ctrll, ctrlr;   /* control key active */
+static int      shiftl, shiftr; /* shift key active */
+static int      altl, altr;     /* alt key active */
+static int      capslock;       /* caps lock key active */
+static XEvent   evtexp;         /* expose event record */
+static filptr   opnfil[MAXFIL]; /* open files table */
+static int      xltwin[MAXFIL]; /* window equivalence table */
+static int      filwin[MAXFIL]; /* file to window equivalence table */
 
 /** ****************************************************************************
 
@@ -5783,13 +5783,19 @@ static void pa_deinit_graphics()
 
 {
 
+    extern char *program_invocation_short_name;
+
     /* holding copies of system vectors */
-    pread_t cppread;
-    pwrite_t cppwrite;
-    popen_t cppopen;
-    pclose_t cppclose;
+    pread_t   cppread;
+    pwrite_t  cppwrite;
+    popen_t   cppopen;
+    pclose_t  cppclose;
     punlink_t cppunlink;
-    plseek_t cpplseek;
+    plseek_t  cpplseek;
+
+    winptr win;    /* windows record pointer */
+    string trmnam; /* termination name */
+    char   fini[] = "Finished - ";
 
     pa_evtrec er;
 
@@ -5798,8 +5804,17 @@ static void pa_deinit_graphics()
 	   these, so that their content may be viewed */
 	if (!fend && fautohold) { /* process automatic exit sequence */
 
+        /* construct final name for window */
+        trmnam = malloc(strlen(fini)+strlen(program_invocation_short_name)+1);
+        if (!trmnam) error(enomem);
+        strcpy(trmnam, fini); /* place first part */
+        strcat(trmnam, program_invocation_short_name); /* place program name */
+        win = lfn2win(fileno(stdout)); /* get window from fid */
+        /* set window title */
+        XStoreName(padisplay, win->xwhan, trmnam);
         /* wait for a formal end */
 		while (!fend) pa_event(stdin, &er);
+		free(trmnam); /* free up termination name */
 
 	}
     /* close X Window */
