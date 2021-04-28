@@ -2178,7 +2178,7 @@ int pa_maxy(FILE* f)
 
     win = txt2win(f); /* get window from file */
 
-    return (win->gmaxx);
+    return (win->gmaxy);
 
 }
 
