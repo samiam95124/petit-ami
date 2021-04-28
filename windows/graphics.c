@@ -2611,7 +2611,7 @@ terminal.
 *******************************************************************************/
 
 static void restore(winptr win,   /* window to restore */
-             int    whole) /* whole or part window */
+                    int    whole) /* whole or part window */
 
 {
 

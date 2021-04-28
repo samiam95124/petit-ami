@@ -29,17 +29,16 @@
 * In 2005, gralib was upgraded to include the window mangement calls, and the  *
 * widget calls.                                                                *
 *                                                                              *
-* Gralib uses three different tasks. The main task is passed on to the         *
-* program, and two subthreads are created. The first one is to run the         *
-* display, and the second runs widgets. The Display task both isolates the     *
-* user interface from any hangs or slowdowns in the main thread, and also      *
-* allows the display task to be a completely regular windows message loop      *
-* with class handler, that just happens to communicate all of its results      *
-* back to the main thread. This solves several small problems with adapting    *
-* the X Windows/Mac OS style we use to Windows style. The main and the         *
-* display thread are "joined" such that they can both access the same          *
-* windows. The widget task is required because of this joining, and serves to  *
-* isolate the running of widgets from the main or display threads.             *
+* The XWindows version started at various times around 2018, the first try was *
+* an attempt at use of GTK.This encountered technical problems that seemed to  *
+* be a dead end, but later a solution was found. Irregardless, the rule from   *
+* the effort was "the shallower the depth of stacked APIs, the better".        *
+*                                                                              *
+* The XWindows version was created about the same time as the Windows version  *
+* was translated to C. An attempt was and is made to make the structure of the *
+* code to be as similar as possible between them. Never the less, there is no  *
+* attempt made to produce a universal code base between them. If for no other  *
+* reason, that is Petit-Ami's job description.                                 *
 *                                                                              *
 *                          BSD LICENSE INFORMATION                             *
 *                                                                              *
@@ -2814,6 +2813,35 @@ forces a screen refresh, which can be important when working on terminals.
 void pa_select(FILE* f, int u, int d)
 
 {
+
+    int    ld;  /* last display screen number save */
+    winptr win; /* window record pointer */
+
+    win = txt2win(f); /* get window from file */
+    if (!win->bufmod) error(ebufoff); /* error */
+    if (u < 1 || u > MAXCON || d < 1 || d > MAXCON)
+        error(einvscn); /* invalid screen number */
+    ld = win->curdsp; /* save the current display screen number */
+    win->curupd = u; /* set the current update screen */
+    if (!win->screens[win->curupd-1]) { /* no screen, create one */
+
+        /* get a new screen context */
+        win->screens[win->curupd-1] = malloc(sizeof(scncon));
+        if (!win->screens[win->curupd-1]) error(enomem);
+        iniscn(win, win->screens[win->curupd-1]); /* initalize that */
+
+    }
+    win->curdsp = d; /* set the current display screen */
+    if (!win->screens[win->curdsp-1]) { /* no screen, create one */
+
+        /* no current screen, create a new one */
+        win->screens[win->curdsp-1] = malloc(sizeof(scncon));
+        if (!win->screens[win->curdsp-1]) error(enomem);
+        iniscn(win, win->screens[win->curdsp-1]); /* initalize that */
+
+    }
+    /* if the screen has changed, restore it */
+    if (win->curdsp != ld) restore(win);
 
 }
 
