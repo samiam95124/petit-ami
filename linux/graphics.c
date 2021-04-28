@@ -97,6 +97,9 @@
 #include <localdefs.h>
 #include <graphics.h>
 
+/* external definitions */
+extern char *program_invocation_short_name;
+
 /*
  * Debug print system
  *
@@ -1296,6 +1299,9 @@ static void opnwin(int fn, int pfn)
     XSelectInput(padisplay, win->xwhan, ExposureMask | KeyPressMask |
                  KeyReleaseMask | PointerMotionMask | ButtonPressMask | ButtonReleaseMask);
     XMapWindow(padisplay, win->xwhan);
+
+    /* set window title from program name */
+    XStoreName(padisplay, win->xwhan, program_invocation_short_name);
 
     /* set up global buffer parameters */
     win->gmaxx = DEFXD; /* character max dimensions */
@@ -4050,7 +4056,6 @@ void pa_timer(FILE* f, /* file to send event to */
         se.sigev_signo = SIGALRM;
         /* pass the window number and the logical timer number */
         se.sigev_value.sival_int = (filwin[fileno(f)] << 16)+i;
-dbg_printf(dlinfo, "win no: %d timer no: %d combined: %x\n", filwin[fileno(f)], i, se.sigev_value.sival_int);
         rv = timer_create(CLOCK_REALTIME, &se, &win->timers[i-1].id);
         if (rv == -1) error(etimacc);
 
@@ -5810,8 +5815,6 @@ static void pa_deinit_graphics (void) __attribute__((destructor (102)));
 static void pa_deinit_graphics()
 
 {
-
-    extern char *program_invocation_short_name;
 
     /* holding copies of system vectors */
     pread_t   cppread;
