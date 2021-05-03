@@ -918,9 +918,8 @@ static void curon(winptr win)
 
     scnptr sc;  /* pointer to current screen */
 
-    sc = win->screens[win->curupd-1]; /* index current screen */
-    if (!win->fcurdwn && win->screens[win->curdsp-1]->curv &&
-        icurbnd(win->screens[win->curdsp-1]) && win->focus)  {
+    sc = win->screens[win->curdsp-1]; /* index current screen */
+    if (!win->fcurdwn && sc->curv && icurbnd(sc) && win->focus)  {
 
         /* cursor not already down, cursor visible, cursor in bounds, screen
            in focus */
@@ -943,9 +942,10 @@ static void curoff(winptr win)
 
 {
 
-    int b;
+    scnptr sc;  /* pointer to current screen */
 
-    if (win->fcurdwn) { /* cursor visable */
+    sc = win->screens[win->curdsp-1]; /* index current screen */
+    if (win->fcurdwn && sc->curv && icurbnd(sc) && win->focus)  {
 
         curdrw(win); /* remove cursor */
         win->fcurdwn = FALSE; /* set cursor not on screen */
@@ -1019,17 +1019,13 @@ static void restore(winptr win) /* window to restore */
         /* set colors and attributes */
         if (BIT(sarev) & sc->attr)  { /* reverse */
 
-            rgb = colnum(sc->bcrgb); /* translate color code to RGB */
-            XSetForeground(padisplay, sc->xcxt, rgb);
-            rgb = colnum(sc->fcrgb); /* translate color code to RGB */
-            XSetBackground(padisplay,sc->xcxt, rgb);
+            XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+            XSetBackground(padisplay, sc->xcxt, sc->fcrgb);
 
         } else {
 
-            rgb = colnum(sc->bcrgb); /* translate color code to RGB */
-            XSetBackground(padisplay, sc->xcxt, rgb);
-            rgb = colnum(sc->fcrgb); /* translate color code to RGB */
-            XSetForeground(padisplay, sc->xcxt, rgb);
+            XSetBackground(padisplay, sc->xcxt, sc->bcrgb);
+            XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
 
         }
 
