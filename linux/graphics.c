@@ -123,7 +123,8 @@ static enum { /* debug levels */
 
 #define dbg_printf(lvl, fmt, ...) \
         do { if (lvl >= dbglvl) fprintf(stderr, "%s:%s():%d: " fmt, __FILE__, \
-                                __func__, __LINE__, ##__VA_ARGS__); } while (0)
+                                __func__, __LINE__, ##__VA_ARGS__); \
+                                fflush(stderr); } while (0)
 
 #define MAXBUF 10  /* maximum number of buffers available */
 #define IOWIN  1   /* logical window number of input/output pair */
@@ -480,7 +481,6 @@ static int      ctrll, ctrlr;   /* control key active */
 static int      shiftl, shiftr; /* shift key active */
 static int      altl, altr;     /* alt key active */
 static int      capslock;       /* caps lock key active */
-static XEvent   evtexp;         /* expose event record */
 static filptr   opnfil[MAXFIL]; /* open files table */
 static int      xltwin[MAXFIL]; /* window equivalence table */
 static int      filwin[MAXFIL]; /* file to window equivalence table */
@@ -860,10 +860,16 @@ static void curexp(winptr win)
 
 {
 
-    scnptr sc;  /* pointer to current screen */
+    scnptr sc;            /* pointer to current screen */
+    static XEvent evtexp; /* expose event record */
 
     sc = win->screens[win->curupd-1]; /* index current screen */
     /* send exposure event back to window with mask over character */
+    evtexp.xexpose.type = Expose;
+    evtexp.xexpose.serial = 0;
+    evtexp.xexpose.send_event = TRUE;
+    evtexp.xexpose.window = win->xwhan;
+    evtexp.xexpose.count = 0;
     evtexp.xexpose.x = sc->curxg-1;
     evtexp.xexpose.y = sc->curyg-1;
     evtexp.xexpose.width = sc->curxg-1+win->charspace;
@@ -1283,7 +1289,7 @@ static void opnwin(int fn, int pfn)
     win->gvexty = 1;
     iniscn(win, win->screens[0]); /* initalize screen buffer */
     restore(win); /* update to screen */
-    win->visible = FALSE; /* set not visible */
+    win->visible = TRUE; /* set not visible */
 
 }
 
@@ -1833,7 +1839,6 @@ static void plcchr(winptr win, char c)
 
     scnptr sc;  /* pointer to current screen */
 
-//dbg_printf(dlinfo, "placing char: %c:%d\n", c, c);
     sc = win->screens[win->curupd-1]; /* index current screen */
     if (c == '\r') {
 
@@ -5776,6 +5781,7 @@ static void pa_init_graphics(int argc, char *argv[])
     /* turn off I/O buffering */
     setvbuf(stdin, NULL, _IONBF, 0);
     setvbuf(stdout, NULL, _IONBF, 0);
+    setvbuf(stderr, NULL, _IONBF, 0);
 
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
@@ -5825,18 +5831,6 @@ static void pa_init_graphics(int argc, char *argv[])
     ifn = fileno(stdin); /* get logical id stdin */
     ofn = fileno(stdout); /* get logical id stdout */
     openio(stdin, stdout, ifn, ofn, -1, 1); /* process open */
-
-    /* set up the expose event to full buffer by default */
-    win = lfn2win(ofn); /* get window from fid */
-    evtexp.xexpose.type = Expose;
-    evtexp.xexpose.serial = 0;
-    evtexp.xexpose.send_event = TRUE;
-    evtexp.xexpose.window = win->xwhan;
-    evtexp.xexpose.x = 0;
-    evtexp.xexpose.y = 0;
-    evtexp.xexpose.width = win->gmaxxg;
-    evtexp.xexpose.height = win->gmaxyg;
-    evtexp.xexpose.count = 0;
 
     /* clear input select set */
     FD_ZERO(&ifdseta);

@@ -55,6 +55,7 @@
 #include <string.h>
 #include <stdio.h>
 
+#include <stddef.h>
 #include <terminal.h>
 #include <services.h>
 
@@ -250,7 +251,7 @@ int main(int argc, char *argv[])
     pa_fcolor(stdout, pa_black);
     pa_bcolor(stdout, pa_white);
     printf("\f");
-    pa_curvis(stdout, 0);
+    pa_curvis(stdout, FALSE);
     prtban("Terminal mode screen test vs. 1.0");
     prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
