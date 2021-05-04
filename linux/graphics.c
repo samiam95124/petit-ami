@@ -128,6 +128,7 @@ static enum { /* debug levels */
 
 //#define PRTEVT  /* print outgoing PA events */
 //#define PRTXEVT /* print incoming X events */
+//#define EVTPOL /* poll for X events */
 
 #define MAXBUF 10  /* maximum number of buffers available */
 #define IOWIN  1   /* logical window number of input/output pair */
@@ -285,6 +286,7 @@ typedef struct winrec {
 
     /* fields used by graph module */
     int          parlfn;            /* logical parent */
+    int          wid;               /* this window logical id */
     scnptr       screens[MAXCON];   /* screen contexts array */
     int          curdsp;            /* index for current display screen */
     int          curupd;            /* index for current update screen */
@@ -375,11 +377,12 @@ typedef struct winrec {
   windows that are attached to it. */
 typedef struct filrec {
 
-      FILE* sfp;  /* file pointer used to establish entry, or NULL */
-      winptr win; /* associated window (if exists) */
-      int inw;    /* entry is input linked to window */
-      int inl;    /* this output file is linked to the input file, logical */
-      int tim;    /* fid has a timer associated with it */
+      FILE*  sfp;  /* file pointer used to establish entry, or NULL */
+      winptr win;  /* associated window (if exists) */
+      int    inw;  /* entry is input linked to window */
+      int    inl;  /* this output file is linked to the input file, logical */
+      int    tim;  /* fid has a timer associated with it */
+      winptr twin; /* window associated with timer */
 
 } filrec, *filptr;
 
@@ -831,6 +834,7 @@ static void getfet(filptr* fp)
     (*fp)->inw = FALSE; /* clear input window link */
     (*fp)->inl = -1; /* set no input file linked */
     (*fp)->tim = 0; /* set no timer associated with it */
+    (*fp)->twin = NULL; /* set no window for timer */
 
 }
 
@@ -1195,7 +1199,7 @@ cleared, and a single buffer assigned to the window.
 
 *******************************************************************************/
 
-static void opnwin(int fn, int pfn)
+static void opnwin(int fn, int pfn, int wid)
 
 {
 
@@ -1212,6 +1216,7 @@ static void opnwin(int fn, int pfn)
     win = lfn2win(fn); /* get a pointer to the window */
     /* find parent */
     win->parlfn = pfn; /* set parent logical number */
+    win->wid = wid; /* set window id */
     if (pfn >= 0) pwin = lfn2win(pfn); /* index parent window */
     win->mb1 = FALSE; /* set mouse as assumed no buttons down, at origin */
     win->mb2 = FALSE;
@@ -1376,7 +1381,7 @@ static void openio(FILE* infile, FILE* outfile, int ifn, int ofn, int pfn,
            and start that. We tolerate multiple opens to the output file. */
         opnfil[ofn]->win = malloc(sizeof(winrec));
         if (!opnfil[ofn]->win) error(enomem);
-        opnwin(ofn, pfn); /* and start that up */
+        opnwin(ofn, pfn, wid); /* and start that up */
 
     }
     /* check if the window has been pinned to something else */
@@ -4057,6 +4062,8 @@ void pa_event(FILE* f, pa_evtrec* er)
     int        dfid;     /* XWindows display FID */
     int        rv;       /* return value */
     static int ecnt = 0; /* PA event counter */
+    uint64_t   exp;      /* timer expiration time */
+    winptr     win;      /* window record pointer */
     int        i;
 
     keep = FALSE; /* set do not keep event */
@@ -4073,9 +4080,13 @@ void pa_event(FILE* f, pa_evtrec* er)
             FD_CLR(i, &ifdsets); /* remove event from input sets */
             if (opnfil[i] && opnfil[i]->tim) { /* do timer event */
 
+                win = opnfil[i]->twin; /* get window containing timer */
                 er->etype = pa_ettim; /* set timer event */
                 er->timnum = opnfil[i]->tim; /* set timer number */
+                er->winid = win->wid; /* set window number */
                 keep = TRUE; /* set keep */
+                /* clear the timer by reading it */
+                read(i, &exp, sizeof(uint64_t));
 
             } else if (i == dfid && XPending(padisplay))
                 xwinget(er, &keep);
@@ -4099,7 +4110,7 @@ void pa_event(FILE* f, pa_evtrec* er)
     } while (!keep); /* until we have a client event */
 
 #ifdef PRTEVT
-    dbg_printf(dlinfo, "PA Event: %5d ", ecnt++); prtevt(e->type);
+    dbg_printf(dlinfo, "PA Event: %5d ", ecnt++); prtevt(er->etype);
     fprintf(stderr, "\n"); fflush(stderr);
 #endif
 
@@ -4147,6 +4158,7 @@ void pa_timer(FILE* f, /* file to send event to */
         /* create entry in fid table */
         if (!opnfil[tfid]) getfet(&opnfil[tfid]); /* get fet if empty */
         opnfil[tfid]->tim = i; /* place timer equ number */
+        opnfil[tfid]->twin = win; /* place window containing timer */
 
     }
 
