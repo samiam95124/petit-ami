@@ -26,7 +26,8 @@
 * Should have speed tests adjust their length according to actual process     *
 * time to prevent tests from taking too long on slow cpu/display.             *
 *                                                                             *
-* Benchmark results for 80x25 screen:                                         *
+* Benchmark results for 80x25 screen, AMD® Ryzen 9 3950x 16-core processor ×  *
+* 32, NVIDIA GTX 3070 dual:                                                   *
 *                                                                             *
 * Windows console library (conlib):                                           *
 *                                                                             *
@@ -42,9 +43,15 @@
 *                                                                             *
 * Linux console/xterm with glibc:                                             *
 *                                                                             *
-* Character write speed: 0.0000133079 Sec. Per character.                     *
-* Scrolling speed:       0.0061 Sec. Per scroll.                              *
-* Buffer switch speed:   0.0079 Sec. per switch.                              *
+* Character write speed: 0.00000619 Sec. Per character.                       *
+* Scrolling speed:       0.00135647 Sec. Per scroll.                          *
+* Buffer switch speed:   0.00151633 Sec. per switch.                          *
+*                                                                             *
+* Linux XWindows graphical library (graphics):                                *
+*                                                                             *
+* Character write speed: 0.00000072 Sec. Per character.                       *
+* Scrolling speed:       0.00016763 Sec. Per scroll.                          *
+* Buffer switch speed:   0.00000066 Sec. per switch.                          *
 *                                                                             *
 *******************************************************************************/
 
