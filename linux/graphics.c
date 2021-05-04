@@ -126,6 +126,9 @@ static enum { /* debug levels */
                                 __func__, __LINE__, ##__VA_ARGS__); \
                                 fflush(stderr); } while (0)
 
+//#define PRTEVT  /* print outgoing PA events */
+//#define PRTXEVT /* print incoming X events */
+
 #define MAXBUF 10  /* maximum number of buffers available */
 #define IOWIN  1   /* logical window number of input/output pair */
 #define MAXCON 10  /* number of screen contexts */
@@ -662,6 +665,60 @@ void prtevt(pa_evtcod e)
         case pa_ettabbar:   fprintf(stderr, "ettabbar"); break;
 
         default: fprintf(stderr, "???");
+
+    }
+
+}
+
+/******************************************************************************
+
+Print XWindows event type
+
+A diagnostic. Prints the XWindows event type codes.
+
+******************************************************************************/
+
+void prtxevt(int type)
+
+{
+
+    switch (type) {
+
+        case 2:  fprintf(stderr, "KeyPress"); break;
+        case 3:  fprintf(stderr, "KeyRelease"); break;
+        case 4:  fprintf(stderr, "ButtonPress"); break;
+        case 5:  fprintf(stderr, "ButtonRelease"); break;
+        case 6:  fprintf(stderr, "MotionNotify"); break;
+        case 7:  fprintf(stderr, "EnterNotify"); break;
+        case 8:  fprintf(stderr, "LeaveNotify"); break;
+        case 9:  fprintf(stderr, "FocusIn"); break;
+        case 10: fprintf(stderr, "FocusOut"); break;
+        case 11: fprintf(stderr, "KeymapNotify"); break;
+        case 12: fprintf(stderr, "Expose"); break;
+        case 13: fprintf(stderr, "GraphicsExpose"); break;
+        case 14: fprintf(stderr, "NoExpose"); break;
+        case 15: fprintf(stderr, "VisibilityNotify"); break;
+        case 16: fprintf(stderr, "CreateNotify"); break;
+        case 17: fprintf(stderr, "DestroyNotify"); break;
+        case 18: fprintf(stderr, "UnmapNotify"); break;
+        case 19: fprintf(stderr, "MapNotify"); break;
+        case 20: fprintf(stderr, "MapRequest"); break;
+        case 21: fprintf(stderr, "ReparentNotify"); break;
+        case 22: fprintf(stderr, "ConfigureNotify"); break;
+        case 23: fprintf(stderr, "ConfigureRequest"); break;
+        case 24: fprintf(stderr, "GravityNotify"); break;
+        case 25: fprintf(stderr, "ResizeRequest"); break;
+        case 26: fprintf(stderr, "CirculateNotify"); break;
+        case 27: fprintf(stderr, "CirculateRequest"); break;
+        case 28: fprintf(stderr, "PropertyNotify"); break;
+        case 29: fprintf(stderr, "SelectionClear"); break;
+        case 30: fprintf(stderr, "SelectionRequest"); break;
+        case 31: fprintf(stderr, "SelectionNotify"); break;
+        case 32: fprintf(stderr, "ColormapNotify"); break;
+        case 33: fprintf(stderr, "ClientMessage"); break;
+        case 34: fprintf(stderr, "MappingNotify"); break;
+        case 35: fprintf(stderr, "GenericEvent"); break;
+        default: fprintf(stderr, "???"); break;
 
     }
 
@@ -3965,13 +4022,20 @@ static void xwinget(pa_evtrec* er, int* keep)
 
 {
 
-    XEvent e;   /* XWindows event record */
-    winptr win; /* window record pointer */
-    int    ofn; /* output lfn associated with window */
+    XEvent     e;        /* XWindows event record */
+    winptr     win;      /* window record pointer */
+    int        ofn;      /* output lfn associated with window */
+    static int xcnt = 0; /* XWindows event counter */
 
     if (XPending(padisplay)) {
 
         XNextEvent(padisplay, &e); /* get next event */
+#ifdef PRTXEVT
+if (e.type != NoExpose && e.type != Expose) {
+        dbg_printf(dlinfo, "X Event: %5d ", xcnt++); prtxevt(e.type);
+        fprintf(stderr, "\n"); fflush(stderr);
+}
+#endif
         ofn = fndevt(e.xany.window); /* get output window lfn */
         if (ofn >= 0) { /* its one of our windows */
 
@@ -3989,15 +4053,19 @@ void pa_event(FILE* f, pa_evtrec* er)
 
 {
 
-    int keep;   /* keep event flag */
-    int dfid;   /* XWindows display FID */
-    int rv;     /* return value */
-    int i;
+    int        keep;     /* keep event flag */
+    int        dfid;     /* XWindows display FID */
+    int        rv;       /* return value */
+    static int ecnt = 0; /* PA event counter */
+    int        i;
 
     keep = FALSE; /* set do not keep event */
     dfid = ConnectionNumber(padisplay); /* find XWindows display fid */
     do {
 
+#ifdef EVTPOL
+        xwinget(er, &keep); /* get next event */
+#else
         /* search for active event */
         for (i = 0; i < ifdmax && !keep; i++)
             if (FD_ISSET(i, &ifdsets)) {
@@ -4026,8 +4094,14 @@ void pa_event(FILE* f, pa_evtrec* er)
             if (rv < 0) FD_ZERO(&ifdsets);
 
         }
+#endif
 
     } while (!keep); /* until we have a client event */
+
+#ifdef PRTEVT
+    dbg_printf(dlinfo, "PA Event: %5d ", ecnt++); prtevt(e->type);
+    fprintf(stderr, "\n"); fflush(stderr);
+#endif
 
 }
 
