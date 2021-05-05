@@ -29,17 +29,16 @@
 * In 2005, gralib was upgraded to include the window mangement calls, and the  *
 * widget calls.                                                                *
 *                                                                              *
-* Gralib uses three different tasks. The main task is passed on to the         *
-* program, and two subthreads are created. The first one is to run the         *
-* display, and the second runs widgets. The Display task both isolates the     *
-* user interface from any hangs or slowdowns in the main thread, and also      *
-* allows the display task to be a completely regular windows message loop      *
-* with class handler, that just happens to communicate all of its results      *
-* back to the main thread. This solves several small problems with adapting    *
-* the X Windows/Mac OS style we use to Windows style. The main and the         *
-* display thread are "joined" such that they can both access the same          *
-* windows. The widget task is required because of this joining, and serves to  *
-* isolate the running of widgets from the main or display threads.             *
+* The XWindows version started at various times around 2018, the first try was *
+* an attempt at use of GTK.This encountered technical problems that seemed to  *
+* be a dead end, but later a solution was found. Irregardless, the rule from   *
+* the effort was "the shallower the depth of stacked APIs, the better".        *
+*                                                                              *
+* The XWindows version was created about the same time as the Windows version  *
+* was translated to C. An attempt was and is made to make the structure of the *
+* code to be as similar as possible between them. Never the less, there is no  *
+* attempt made to produce a universal code base between them. If for no other  *
+* reason, that is Petit-Ami's job description.                                 *
 *                                                                              *
 *                          BSD LICENSE INFORMATION                             *
 *                                                                              *
@@ -87,6 +86,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
+#include <sys/timerfd.h>
 #include <time.h>
 #include <unistd.h>
 #include <stdint.h>
@@ -97,6 +97,9 @@
 /* local definitions */
 #include <localdefs.h>
 #include <graphics.h>
+
+/* external definitions */
+extern char *program_invocation_short_name;
 
 /*
  * Debug print system
@@ -120,7 +123,12 @@ static enum { /* debug levels */
 
 #define dbg_printf(lvl, fmt, ...) \
         do { if (lvl >= dbglvl) fprintf(stderr, "%s:%s():%d: " fmt, __FILE__, \
-                                __func__, __LINE__, ##__VA_ARGS__); } while (0)
+                                __func__, __LINE__, ##__VA_ARGS__); \
+                                fflush(stderr); } while (0)
+
+//#define PRTEVT  /* print outgoing PA events */
+//#define PRTXEVT /* print incoming X events */
+//#define EVTPOL /* poll for X events */
 
 #define MAXBUF 10  /* maximum number of buffers available */
 #define IOWIN  1   /* logical window number of input/output pair */
@@ -261,7 +269,8 @@ typedef struct scncon { /* screen context */
     int     vexty;       /* viewport extent y */
 
     /* fields used by graphics subsystem */
-
+    GC      xcxt;        /* graphics context */
+    Pixmap  xbuf;        /* pixmap for screen backing buffer */
 
 } scncon, *scnptr;
 
@@ -276,95 +285,88 @@ typedef struct pict { /* picture tracking record */
 typedef struct winrec {
 
     /* fields used by graph module */
-    int          parlfn;          /* logical parent */
-    scnptr       screens[MAXCON]; /* screen contexts array */
-    int          curdsp;          /* index for current display screen */
-    int          curupd;          /* index for current update screen */
+    int          parlfn;            /* logical parent */
+    int          wid;               /* this window logical id */
+    scnptr       screens[MAXCON];   /* screen contexts array */
+    int          curdsp;            /* index for current display screen */
+    int          curupd;            /* index for current update screen */
     /* global sets. these are the global set parameters that apply to any new
       created screen buffer */
-    int          gmaxx;           /* maximum x size */
-    int          gmaxy;           /* maximum y size */
-    int          gmaxxg;          /* size of client area in x */
-    int          gmaxyg;          /* size of client area in y */
-    int          gattr;           /* current attributes */
-    int          gauto;           /* state of auto */
-    int          gfcrgb;          /* foreground color in rgb */
-    int          gbcrgb;          /* background color in rgb */
-    int          gcurv;           /* state of cursor visible */
-    fontptr      gcfont;          /* current font select */
-    int          gfhigh;          /* current font height */
-    mode         gfmod;           /* foreground mix mode */
-    mode         gbmod;           /* background mix mode */
-    int          goffx;           /* viewport offset x */
-    int          goffy;           /* viewport offset y */
-    int          gwextx;          /* window extent x */
-    int          gwexty;          /* window extent y */
-    int          gvextx;          /* viewpor extent x */
-    int          gvexty;          /* viewport extent y */
-    fontptr      fntlst;          /* list of windows fonts */
-    int          fntcnt;          /* number of fonts in font list */
-    int          termfnt;         /* terminal font number */
-    int          bookfnt;         /* book font number */
-    int          signfnt;         /* sign font number */
-    int          techfnt;         /* technical font number */
-    int          mb1;             /* mouse assert status button 1 */
-    int          mb2;             /* mouse assert status button 2 */
-    int          mb3;             /* mouse assert status button 3 */
-    int          mpx, mpy;        /* mouse current position */
-    int          mpxg, mpyg;      /* mouse current position graphical */
-    int          nmb1;            /* new mouse assert status button 1 */
-    int          nmb2;            /* new mouse assert status button 2 */
-    int          nmb3;            /* new mouse assert status button 3 */
-    int          nmpx, nmpy;      /* new mouse current position */
-    int          nmpxg, nmpyg;    /* new mouse current position graphical */
-    int          linespace;       /* line spacing in pixels */
-    int          charspace;       /* character spacing in pixels */
-    int          curspace;        /* size of cursor, in pixels */
-    int          baseoff;         /* font baseline offset from top */
-    int          shift;           /* state of shift key */
-    int          cntrl;           /* state of control key */
-    int          fcurdwn;         /* cursor on screen flag */
-    int          numjoy;          /* number of joysticks found */
-    int          joy1cap;         /* joystick 1 is captured */
-    int          joy2cap;         /* joystick 2 is captured */
-    int          joy1xs;          /* last joystick position 1x */
-    int          joy1ys;          /* last joystick position 1y */
-    int          joy1zs;          /* last joystick position 1z */
-    int          joy2xs;          /* last joystick position 2x */
-    int          joy2ys;          /* last joystick position 2y */
-    int          joy2zs;          /* last joystick position 2z */
-    int          shsize;          /* display screen size x in millimeters */
-    int          svsize;          /* display screen size y in millimeters */
-    int          shres;           /* display screen pixels in x */
-    int          svres;           /* display screen pixels in y */
-    int          sdpmx;           /* display screen find dots per meter x */
-    int          sdpmy;           /* display screen find dots per meter y */
-    char         inpbuf[MAXLIN];  /* input line buffer */
-    int          inpptr;          /* input line index */
-    int          frmrun;          /* framing timer is running */
-    struct {
-
-       int      act; /* timer is active */
-       int      rep; /* timer repeat flag */
-       timer_t  id;  /* timer id */
-
-    } timers[PA_MAXTIM];
-    int          focus;           /* screen in focus */
-    pict         pictbl[MAXPIC];  /* loadable pictures table */
-    int          bufmod;          /* buffered screen mode */
-    metptr       metlst;          /* menu tracking list */
-    wigptr       wiglst;          /* widget tracking list */
-    int          frame;           /* frame on/off */
-    int          size;            /* size bars on/off */
-    int          sysbar;          /* system bar on/off */
-    int          sizests;         /* last resize status save */
-    int          visible;         /* window is visible */
+    int          gmaxx;             /* maximum x size */
+    int          gmaxy;             /* maximum y size */
+    int          gmaxxg;            /* size of client area in x */
+    int          gmaxyg;            /* size of client area in y */
+    int          gattr;             /* current attributes */
+    int          gauto;             /* state of auto */
+    int          gfcrgb;            /* foreground color in rgb */
+    int          gbcrgb;            /* background color in rgb */
+    int          gcurv;             /* state of cursor visible */
+    fontptr      gcfont;            /* current font select */
+    int          gfhigh;            /* current font height */
+    mode         gfmod;             /* foreground mix mode */
+    mode         gbmod;             /* background mix mode */
+    int          goffx;             /* viewport offset x */
+    int          goffy;             /* viewport offset y */
+    int          gwextx;            /* window extent x */
+    int          gwexty;            /* window extent y */
+    int          gvextx;            /* viewpor extent x */
+    int          gvexty;            /* viewport extent y */
+    fontptr      fntlst;            /* list of windows fonts */
+    int          fntcnt;            /* number of fonts in font list */
+    int          termfnt;           /* terminal font number */
+    int          bookfnt;           /* book font number */
+    int          signfnt;           /* sign font number */
+    int          techfnt;           /* technical font number */
+    int          mb1;               /* mouse assert status button 1 */
+    int          mb2;               /* mouse assert status button 2 */
+    int          mb3;               /* mouse assert status button 3 */
+    int          mpx, mpy;          /* mouse current position */
+    int          mpxg, mpyg;        /* mouse current position graphical */
+    int          nmb1;              /* new mouse assert status button 1 */
+    int          nmb2;              /* new mouse assert status button 2 */
+    int          nmb3;              /* new mouse assert status button 3 */
+    int          nmpx, nmpy;        /* new mouse current position */
+    int          nmpxg, nmpyg;      /* new mouse current position graphical */
+    int          linespace;         /* line spacing in pixels */
+    int          charspace;         /* character spacing in pixels */
+    int          curspace;          /* size of cursor, in pixels */
+    int          baseoff;           /* font baseline offset from top */
+    int          shift;             /* state of shift key */
+    int          cntrl;             /* state of control key */
+    int          fcurdwn;           /* cursor on screen flag */
+    int          numjoy;            /* number of joysticks found */
+    int          joy1cap;           /* joystick 1 is captured */
+    int          joy2cap;           /* joystick 2 is captured */
+    int          joy1xs;            /* last joystick position 1x */
+    int          joy1ys;            /* last joystick position 1y */
+    int          joy1zs;            /* last joystick position 1z */
+    int          joy2xs;            /* last joystick position 2x */
+    int          joy2ys;            /* last joystick position 2y */
+    int          joy2zs;            /* last joystick position 2z */
+    int          shsize;            /* display screen size x in millimeters */
+    int          svsize;            /* display screen size y in millimeters */
+    int          shres;             /* display screen pixels in x */
+    int          svres;             /* display screen pixels in y */
+    int          sdpmx;             /* display screen find dots per meter x */
+    int          sdpmy;             /* display screen find dots per meter y */
+    char         inpbuf[MAXLIN];    /* input line buffer */
+    int          inpptr;            /* input line index */
+    int          frmrun;            /* framing timer is running */
+    int          timers[PA_MAXTIM]; /* timer id array */
+    int          focus;             /* screen in focus */
+    pict         pictbl[MAXPIC];    /* loadable pictures table */
+    int          bufmod;            /* buffered screen mode */
+    metptr       metlst;            /* menu tracking list */
+    wigptr       wiglst;            /* widget tracking list */
+    int          frame;             /* frame on/off */
+    int          size;              /* size bars on/off */
+    int          sysbar;            /* system bar on/off */
+    int          sizests;           /* last resize status save */
+    int          visible;           /* window is visible */
 
     /* fields used by graphics subsystem */
     Window       xwhan;           /* current window */
-    GC           xcxt;            /* graphics context */
     XFontStruct* xfont;           /* current font */
-    Pixmap       xscnbuf;         /* pixmap for screen backing buffer */
 
 } winrec, *winptr;
 
@@ -375,10 +377,12 @@ typedef struct winrec {
   windows that are attached to it. */
 typedef struct filrec {
 
-      FILE* sfp;  /* file pointer used to establish entry, or NULL */
-      winptr win; /* associated window (if exists) */
-      int inw;    /* entry is input linked to window */
-      int inl;    /* this output file is linked to the input file, logical */
+      FILE*  sfp;  /* file pointer used to establish entry, or NULL */
+      winptr win;  /* associated window (if exists) */
+      int    inw;  /* entry is input linked to window */
+      int    inl;  /* this output file is linked to the input file, logical */
+      int    tim;  /* fid has a timer associated with it */
+      winptr twin; /* window associated with timer */
 
 } filrec, *filptr;
 
@@ -477,17 +481,23 @@ static int fautohold; /* automatic hold on exit flag */
  *
  * Note that some of these are going to need to move to a per-window structure.
  */
+static Display* padisplay;      /* current display */
+static int      pascreen;       /* current screen */
+static int      ctrll, ctrlr;   /* control key active */
+static int      shiftl, shiftr; /* shift key active */
+static int      altl, altr;     /* alt key active */
+static int      capslock;       /* caps lock key active */
+static filptr   opnfil[MAXFIL]; /* open files table */
+static int      xltwin[MAXFIL]; /* window equivalence table */
+static int      filwin[MAXFIL]; /* file to window equivalence table */
+static int      esck;           /* previous key was escape */
 
-static Display*     padisplay;      /* current display */
-static int          pascreen;       /* current screen */
-static int          ctrll, ctrlr;   /* control key active */
-static int          shiftl, shiftr; /* shift key active */
-static int          altl, altr;     /* alt key active */
-static int          capslock;       /* caps lock key active */
-static XEvent       evtexp;         /* expose event record */
-static filptr       opnfil[MAXFIL]; /* open files table */
-static int          xltwin[MAXFIL]; /* window equivalence table */
-static int          filwin[MAXFIL]; /* file to window equivalence table */
+/**
+ * Set of input file ids for select
+ */
+static fd_set ifdseta; /* active sets */
+static fd_set ifdsets; /* signaled set */
+static int ifdmax;     /* maximum FID for select() */
 
 /** ****************************************************************************
 
@@ -570,45 +580,6 @@ static void error(errcod e)
     fprintf(stderr, "\n");
 
     exit(1);
-
-}
-
-/*******************************************************************************
-
-Handle signal from Linux
-
-Handle signal from linux kernel.
-
-*******************************************************************************/
-
-static void sig_handler(int signo, siginfo_t* si, void* ucxt)
-
-{
-
-    int    winno; /* window number */
-    int    timno; /* timer number */
-    XEvent ev;    /* X Windows event */
-    winptr win;   /* windows record pointer */
-
-    if (signo == SIGALRM) {
-
-         /* one of the timers has fired */
-         winno = si->si_value.sival_int >> 16; /* get window number */
-         timno = si->si_value.sival_int & 0xffff; /* get timer number */
-         win = opnfil[xltwin[winno-1]]->win; /* get window pointer */
-         /* set up event to XWindows */
-         ev.xclient.type = ClientMessage; /* set type */
-         ev.xclient.serial = 0;
-         ev.xclient.send_event = TRUE; /* set XSendEvent origin */
-         ev.xclient.window = win->xwhan; /* set XWindow handle */
-         ev.xclient.message_type = cm_timer; /* set timer fires */
-         ev.xclient.format = 16; /* shorts */
-         ev.xclient.data.s[0] = winno; /* place logical window number */
-         ev.xclient.data.s[1] = timno; /* place logical timer number */
-         XSendEvent(padisplay, win->xwhan, FALSE, ClientMessage, &ev);
-         XFlush(padisplay);
-
-    }
 
 }
 
@@ -704,9 +675,64 @@ void prtevt(pa_evtcod e)
 
 /******************************************************************************
 
+Print XWindows event type
+
+A diagnostic. Prints the XWindows event type codes.
+
+******************************************************************************/
+
+void prtxevt(int type)
+
+{
+
+    switch (type) {
+
+        case 2:  fprintf(stderr, "KeyPress"); break;
+        case 3:  fprintf(stderr, "KeyRelease"); break;
+        case 4:  fprintf(stderr, "ButtonPress"); break;
+        case 5:  fprintf(stderr, "ButtonRelease"); break;
+        case 6:  fprintf(stderr, "MotionNotify"); break;
+        case 7:  fprintf(stderr, "EnterNotify"); break;
+        case 8:  fprintf(stderr, "LeaveNotify"); break;
+        case 9:  fprintf(stderr, "FocusIn"); break;
+        case 10: fprintf(stderr, "FocusOut"); break;
+        case 11: fprintf(stderr, "KeymapNotify"); break;
+        case 12: fprintf(stderr, "Expose"); break;
+        case 13: fprintf(stderr, "GraphicsExpose"); break;
+        case 14: fprintf(stderr, "NoExpose"); break;
+        case 15: fprintf(stderr, "VisibilityNotify"); break;
+        case 16: fprintf(stderr, "CreateNotify"); break;
+        case 17: fprintf(stderr, "DestroyNotify"); break;
+        case 18: fprintf(stderr, "UnmapNotify"); break;
+        case 19: fprintf(stderr, "MapNotify"); break;
+        case 20: fprintf(stderr, "MapRequest"); break;
+        case 21: fprintf(stderr, "ReparentNotify"); break;
+        case 22: fprintf(stderr, "ConfigureNotify"); break;
+        case 23: fprintf(stderr, "ConfigureRequest"); break;
+        case 24: fprintf(stderr, "GravityNotify"); break;
+        case 25: fprintf(stderr, "ResizeRequest"); break;
+        case 26: fprintf(stderr, "CirculateNotify"); break;
+        case 27: fprintf(stderr, "CirculateRequest"); break;
+        case 28: fprintf(stderr, "PropertyNotify"); break;
+        case 29: fprintf(stderr, "SelectionClear"); break;
+        case 30: fprintf(stderr, "SelectionRequest"); break;
+        case 31: fprintf(stderr, "SelectionNotify"); break;
+        case 32: fprintf(stderr, "ColormapNotify"); break;
+        case 33: fprintf(stderr, "ClientMessage"); break;
+        case 34: fprintf(stderr, "MappingNotify"); break;
+        case 35: fprintf(stderr, "GenericEvent"); break;
+        default: fprintf(stderr, "???"); break;
+
+    }
+
+}
+
+/******************************************************************************
+
 Translate colors code
 
-Translates an independent to a terminal specific primary color code for Windows.
+Translates an independent to a terminal specific primary RGB color code for
+XWindows.
 
 ******************************************************************************/
 
@@ -735,6 +761,60 @@ int colnum(pa_color c)
 
 }
 
+/*******************************************************************************
+
+Translate rgb to XWindows color
+
+Translates a ratioed INT_MAX graph color to the XWindows form, which is a 32
+bit word with blue, green and red bytes.
+
+*******************************************************************************/
+
+static int rgb2xwin(int r, int g, int b)
+
+{
+
+   return ((r/8388608)*65536+(g/8388608)*256+(b/8388608));
+
+}
+
+/*******************************************************************************
+
+Check in display mode
+
+Checks if the current update screen is also the current display screen. Returns
+TRUE if so. If the screen is in display, it means that all of the actions to
+the update screen should also be reflected on the real screen.
+
+*******************************************************************************/
+
+static int indisp(winptr win)
+
+{
+
+    return (win->curupd == win->curdsp);
+
+}
+
+/*******************************************************************************
+
+Clear screen buffer
+
+Clears the entire screen buffer to spaces with the current colors and
+attributes.
+
+*******************************************************************************/
+
+static void clrbuf(scnptr sc)
+
+{
+
+    XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+    XFillRectangle(padisplay, sc->xbuf, sc->xcxt, 0, 0, sc->maxxg, sc->maxyg);
+    XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+
+}
+
 /** ****************************************************************************
 
 Get file entry
@@ -753,6 +833,8 @@ static void getfet(filptr* fp)
     (*fp)->win = NULL; /* set no window */
     (*fp)->inw = FALSE; /* clear input window link */
     (*fp)->inl = -1; /* set no input file linked */
+    (*fp)->tim = 0; /* set no timer associated with it */
+    (*fp)->twin = NULL; /* set no window for timer */
 
 }
 
@@ -839,10 +921,16 @@ static void curexp(winptr win)
 
 {
 
-    scnptr sc;  /* pointer to current screen */
+    scnptr sc;            /* pointer to current screen */
+    static XEvent evtexp; /* expose event record */
 
     sc = win->screens[win->curupd-1]; /* index current screen */
     /* send exposure event back to window with mask over character */
+    evtexp.xexpose.type = Expose;
+    evtexp.xexpose.serial = 0;
+    evtexp.xexpose.send_event = TRUE;
+    evtexp.xexpose.window = win->xwhan;
+    evtexp.xexpose.count = 0;
     evtexp.xexpose.x = sc->curxg-1;
     evtexp.xexpose.y = sc->curyg-1;
     evtexp.xexpose.width = sc->curxg-1+win->charspace;
@@ -866,14 +954,14 @@ static void curdrw(winptr win)
 
     scnptr sc;  /* pointer to current screen */
 
-    sc = win->screens[win->curupd-1]; /* index current screen */
-    XSetForeground(padisplay, win->xcxt, colnum(pa_white));
-    XSetFunction(padisplay, win->xcxt, GXxor); /* set reverse */
-    XFillRectangle(padisplay, win->xscnbuf, win->xcxt, sc->curxg, sc->curyg,
+    sc = win->screens[win->curupd-1]; /* index current update screen */
+    XSetForeground(padisplay, sc->xcxt, colnum(pa_white));
+    XSetFunction(padisplay, sc->xcxt, GXxor); /* set reverse */
+    XFillRectangle(padisplay, sc->xbuf, sc->xcxt, sc->curxg, sc->curyg,
                    win->charspace, win->linespace);
-    XSetFunction(padisplay, win->xcxt, GXcopy); /* set reverse */
+    XSetFunction(padisplay, sc->xcxt, GXcopy); /* set reverse */
     curexp(win); /* send expose event */
-    XSetForeground(padisplay, win->xcxt, win->gfcrgb);
+    XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
 
 }
 
@@ -891,9 +979,8 @@ static void curon(winptr win)
 
     scnptr sc;  /* pointer to current screen */
 
-    sc = win->screens[win->curupd-1]; /* index current screen */
-    if (!win->fcurdwn && win->screens[win->curdsp-1]->curv &&
-        icurbnd(win->screens[win->curdsp-1]) && win->focus)  {
+    sc = win->screens[win->curdsp-1]; /* index current screen */
+    if (!win->fcurdwn && sc->curv && icurbnd(sc) && win->focus)  {
 
         /* cursor not already down, cursor visible, cursor in bounds, screen
            in focus */
@@ -916,9 +1003,10 @@ static void curoff(winptr win)
 
 {
 
-    int b;
+    scnptr sc;  /* pointer to current screen */
 
-    if (win->fcurdwn) { /* cursor visable */
+    sc = win->screens[win->curdsp-1]; /* index current screen */
+    if (win->fcurdwn && sc->curv && icurbnd(sc) && win->focus)  {
 
         curdrw(win); /* remove cursor */
         win->fcurdwn = FALSE; /* set cursor not on screen */
@@ -983,8 +1071,29 @@ static void restore(winptr win) /* window to restore */
 
 {
 
-    XCopyArea(padisplay, win->xscnbuf, win->xwhan, win->xcxt, 0, 0,
-              win->gmaxxg, win->gmaxyg, 0, 0);
+    int rgb;
+    scnptr sc;
+
+    sc = win->screens[win->curdsp-1]; /* index screen */
+    if (win->bufmod && win->visible)  { /* buffered mode is on, and visible */
+
+        /* set colors and attributes */
+        if (BIT(sarev) & sc->attr)  { /* reverse */
+
+            XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+            XSetBackground(padisplay, sc->xcxt, sc->fcrgb);
+
+        } else {
+
+            XSetBackground(padisplay, sc->xcxt, sc->bcrgb);
+            XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+
+        }
+
+        XCopyArea(padisplay, sc->xbuf, win->xwhan, sc->xcxt, 0, 0,
+                  sc->maxxg, sc->maxyg, 0, 0);
+
+    }
 
 }
 
@@ -1003,6 +1112,7 @@ static void iniscn(winptr win, scnptr sc)
 
     int      i, x;
     int      r;
+    int      depth;
 
     sc->maxx = win->gmaxx; /* set character dimensions */
     sc->maxy = win->gmaxy;
@@ -1038,6 +1148,45 @@ static void iniscn(winptr win, scnptr sc)
 
     }
 
+    /* create graphics context for screen */
+    sc->xcxt = XDefaultGC(padisplay, pascreen);
+    XSetFont(padisplay, sc->xcxt, win->xfont->fid);
+
+    /* set colors && attributes */
+    if (BIT(sarev) & sc->attr) { /* reverse */
+
+        XSetBackground(padisplay, sc->xcxt, sc->bcrgb);
+        XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+
+    } else {
+
+        XSetBackground(padisplay, sc->xcxt, sc->bcrgb);
+        XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+
+    }
+
+    /* set up pixmap backing buffer */
+    depth = DefaultDepth(padisplay, pascreen);
+    sc->xbuf = XCreatePixmap(padisplay, win->xwhan, sc->maxxg, sc->maxyg, depth);
+
+    /* clear it */
+    clrbuf(sc);
+
+#if 0
+    /* draw grid for character cell diagnosis */
+    XSetForeground(padisplay, sc->xcxt, colnum(pa_cyan));
+    for (y = 0; y < sc->maxyg; y += win->linespace)
+        XDrawLine(padisplay, sc->xbuf, sc->xcxt, 0, y, sc->maxxg, y);
+    for (x = 0; x < sc->maxxg; x += win->charspace)
+        XDrawLine(padisplay, sc->xbuf, sc->xcxt, x, 0, x, sc->maxyg);
+    XSetForeground(padisplay, sc->xcxt, colnum(pa_black));
+#endif
+
+#if 0
+    /* reveal the background (diagnostic) */
+    XSetBackground(padisplay, sc->xcxt, colnum(pa_yellow));
+#endif
+
 }
 
 /** ****************************************************************************
@@ -1050,7 +1199,7 @@ cleared, and a single buffer assigned to the window.
 
 *******************************************************************************/
 
-static void opnwin(int fn, int pfn)
+static void opnwin(int fn, int pfn, int wid)
 
 {
 
@@ -1063,17 +1212,12 @@ static void opnwin(int fn, int pfn)
     winptr      win;  /* window pointer */
     winptr      pwin; /* parent window pointer */
     int         f;    /* window creation flags */
-    int         depth;
-    int         x, y;
 
     win = lfn2win(fn); /* get a pointer to the window */
     /* find parent */
     win->parlfn = pfn; /* set parent logical number */
-    if (pfn >= 0) {
-
-       pwin = lfn2win(pfn); /* index parent window */
-
-    }
+    win->wid = wid; /* set window id */
+    if (pfn >= 0) pwin = lfn2win(pfn); /* index parent window */
     win->mb1 = FALSE; /* set mouse as assumed no buttons down, at origin */
     win->mb2 = FALSE;
     win->mb3 = FALSE;
@@ -1109,12 +1253,8 @@ static void opnwin(int fn, int pfn)
     win->sysbar = TRUE; /* set system bar on */
     win->sizests = 0; /* clear last size status word */
     /* clear timer repeat array */
-    for (ti = 0; ti < 10; ti++) {
-
-       win->timers[ti].act = FALSE; /* set no timer active */
-       win->timers[ti].rep = FALSE; /* set no repeat */
-
-    }
+    for (ti = 0; ti < 10; ti++) win->timers[ti] = -1;
+    /* clear the screen array */
     for (si = 0; si < MAXCON; si++) win->screens[si] = NULL;
     win->screens[0] = malloc(sizeof(scncon)); /* get the default screen */
     if (!win->screens[0]) error(enomem);
@@ -1147,8 +1287,6 @@ static void opnwin(int fn, int pfn)
         exit(1);
 
     }
-    win->xcxt = XDefaultGC(padisplay, pascreen);
-    XSetFont (padisplay, win->xcxt, win->xfont->fid);
 
 #if 0
     dbg_printf(dlinfo, "Font min_bounds: lbearing: %d\n", win->xfont->min_bounds.lbearing);
@@ -1186,28 +1324,10 @@ static void opnwin(int fn, int pfn)
     XSelectInput(padisplay, win->xwhan, ExposureMask | KeyPressMask |
                  KeyReleaseMask | PointerMotionMask | ButtonPressMask | ButtonReleaseMask);
     XMapWindow(padisplay, win->xwhan);
+    XFlush(padisplay);
 
-    /* set up pixmap backing buffer for text grid */
-    depth = DefaultDepth(padisplay, pascreen);
-    win->xscnbuf = XCreatePixmap(padisplay, win->xwhan, win->gmaxxg, win->gmaxyg, depth);
-    XSetForeground(padisplay, win->xcxt, WhitePixel(padisplay, pascreen));
-    XFillRectangle(padisplay, win->xscnbuf, win->xcxt, 0, 0, win->gmaxxg, win->gmaxyg);
-    XSetForeground(padisplay, win->xcxt, BlackPixel(padisplay, pascreen));
-
-    /* draw grid for character cell diagnosis */
-#if 0
-    XSetForeground(padisplay, win->xcxt, colnum(pa_cyan));
-    for (y = 0; y < win->gmaxyg; y += win->linespace)
-        XDrawLine(padisplay, win->xscnbuf, win->xcxt, 0, y, win->gmaxxg, y);
-    for (x = 0; x < win->gmaxxg; x += win->charspace)
-        XDrawLine(padisplay, win->xscnbuf, win->xcxt, x, 0, x, win->gmaxyg);
-    XSetForeground(padisplay, win->xcxt, colnum(pa_black));
-#endif
-
-    /* reveal the background (diagnostic) */
-#if 0
-    XSetBackground(padisplay, win->xcxt, colnum(pa_yellow));
-#endif
+    /* set window title from program name */
+    XStoreName(padisplay, win->xwhan, program_invocation_short_name);
 
     /* set up global buffer parameters */
     win->gmaxx = DEFXD; /* character max dimensions */
@@ -1227,6 +1347,7 @@ static void opnwin(int fn, int pfn)
     win->gvexty = 1;
     iniscn(win, win->screens[0]); /* initalize screen buffer */
     restore(win); /* update to screen */
+    win->visible = TRUE; /* set not visible */
 
 }
 
@@ -1260,7 +1381,7 @@ static void openio(FILE* infile, FILE* outfile, int ifn, int ofn, int pfn,
            and start that. We tolerate multiple opens to the output file. */
         opnfil[ofn]->win = malloc(sizeof(winrec));
         if (!opnfil[ofn]->win) error(enomem);
-        opnwin(ofn, pfn); /* and start that up */
+        opnwin(ofn, pfn, wid); /* and start that up */
 
     }
     /* check if the window has been pinned to something else */
@@ -1299,19 +1420,20 @@ void iclear(winptr win)
 
     scnptr sc;
 
-    sc = win->screens[win->curupd-1];
-    curoff(win); /* hide the cursor */
+    sc = win->screens[win->curupd-1]; /* index current update screen */
     sc->curx = 1; /* set cursor at home */
     sc->cury = 1;
     sc->curxg = 1;
     sc->curyg = 1;
-    XSetForeground(padisplay, win->xcxt,
-                   WhitePixel(padisplay, pascreen));
-    XFillRectangle(padisplay, win->xwhan, win->xcxt, 0, 0,
-                   win->gmaxxg, win->gmaxyg);
-    XSetForeground(padisplay, win->xcxt,
-                   BlackPixel(padisplay, pascreen));
-    curon(win); /* show the cursor */
+    clrbuf(sc); /* clear screen buffer */
+    if (indisp) { /* also process to display */
+
+        curoff(win); /* hide the cursor */
+        XCopyArea(padisplay, sc->xbuf, win->xwhan, sc->xcxt, 0, 0,
+                  sc->maxxg, sc->maxyg, 0, 0);
+        curon(win); /* show the cursor */
+
+    }
 
 }
 
@@ -1344,10 +1466,12 @@ void iscrollg(winptr win, int x, int y)
         int w, h; /* width, height */
 
     } frx, fry; /* x fill, y fill */
+    scnptr sc;  /* pointer to current screen */
 
+    sc = win->screens[win->curupd-1]; /* index current screen */
     /* scroll would result in complete clear, do it */
-    if (x <= -win->gmaxxg || x >= win->gmaxxg ||
-        y <= -win->gmaxyg || y >= win->gmaxyg)
+    if (x <= -sc->maxxg || x >= sc->maxxg ||
+        y <= -sc->maxyg || y >= sc->maxyg)
         iclear(win); /* clear the screen buffer */
     else { /* scroll */
 
@@ -1355,20 +1479,20 @@ void iscrollg(winptr win, int x, int y)
         if (y >= 0)  { /* move up */
 
             sy = y; /* from y lines down */
-            sh = win->gmaxyg-y; /* height minus lines to move */
+            sh = sc->maxyg-y; /* height minus lines to move */
             dy = 0; /* move to top of screen */
             fry.x = 0; /* set fill to y lines at bottom */
-            fry.w = win->gmaxxg-1;
-            fry.y = win->gmaxyg-y;
-            fry.h = win->gmaxyg-1;
+            fry.w = sc->maxxg-1;
+            fry.y = sc->maxyg-y;
+            fry.h = sc->maxyg-1;
 
         } else { /* move down */
 
             sy = 0; /* from top */
-            sh = win->gmaxyg-abs(y); /* height minus lines to move */
+            sh = sc->maxyg-abs(y); /* height minus lines to move */
             dy = abs(y); /* move to y lines down */
             fry.x = 0; /* set fill to y lines at top */
-            fry.w = win->gmaxxg-1;
+            fry.w = sc->maxxg-1;
             fry.y = 0;
             fry.h = abs(y)-1;
 
@@ -1377,37 +1501,37 @@ void iscrollg(winptr win, int x, int y)
         if (x >= 0) { /* move text left */
 
             sx = x; /* from x characters to the right */
-            sw = win->gmaxxg-x; /* width - x characters */
+            sw = sc->maxxg-x; /* width - x characters */
             dx = 0; /* move to left side */
             /* set fill x character collums at right */
-            frx.x = win->gmaxxg-x;
-            frx.w = win->gmaxxg-1;
+            frx.x = sc->maxxg-x;
+            frx.w = sc->maxxg-1;
             frx.y = 0;
-            frx.h = win->gmaxyg-1;
+            frx.h = sc->maxyg-1;
 
         } else { /* move text right */
 
             sx = 0; /* from x left */
-            sw = win->gmaxxg-abs(x); /* width - x characters */
+            sw = sc->maxxg-abs(x); /* width - x characters */
             dx = abs(x); /* move from left side */
             /* set fill x character collums at left */
             frx.x = 0;
             frx.w = abs(x)-1;
             frx.y = 0;
-            frx.h = win->gmaxyg-1;
+            frx.h = sc->maxyg-1;
 
         }
         curoff(win); /* hide the cursor */
-        XCopyArea(padisplay, win->xscnbuf, win->xscnbuf, win->xcxt,
+        XCopyArea(padisplay, sc->xbuf, sc->xbuf, sc->xcxt,
                   sx, sy, sw, sh, dx, dy);
-        XSetForeground(padisplay, win->xcxt, win->gbcrgb);
+        XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
         /* fill vacated x */
-        if (x) XFillRectangle(padisplay, win->xscnbuf, win->xcxt, frx.x, frx.y,
+        if (x) XFillRectangle(padisplay, sc->xbuf, sc->xcxt, frx.x, frx.y,
                               frx.w, frx.h);
         /* fill vacated y */
-        if (y) XFillRectangle(padisplay, win->xscnbuf, win->xcxt, fry.x, fry.y,
+        if (y) XFillRectangle(padisplay, sc->xbuf, sc->xcxt, fry.x, fry.y,
                               fry.w, fry.h);
-        XSetForeground(padisplay, win->xcxt, win->gfcrgb);
+        XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
         restore(win); /* move buffer to screen */
         curon(win); /* show the cursor */
 
@@ -1429,7 +1553,7 @@ void icursor(winptr win, int x, int y)
 
     scnptr sc;
 
-    sc = win->screens[win->curupd-1]; /* index screen */
+    sc = win->screens[win->curupd-1]; /* index update screen */
     curoff(win); /* hide the cursor */
     sc->cury = y; /* set new position */
     sc->curx = x;
@@ -1554,7 +1678,8 @@ static void idown(winptr win)
         sc->curyg += win->linespace; /* move to next character line */
         curon(win); /* show the cursor */
 
-    } else if (sc->autof) iscrollg(win, 0*win->charspace, +1*win->linespace); /* scroll down */
+    } else if (sc->autof)
+        iscrollg(win, 0*win->charspace, +1*win->linespace); /* scroll down */
     else if (sc->cury < INT_MAX) {
 
         curoff(win); /* hide the cursor */
@@ -1772,7 +1897,6 @@ static void plcchr(winptr win, char c)
 
     scnptr sc;  /* pointer to current screen */
 
-//dbg_printf(dlinfo, "placing char: %c:%d\n", c, c);
     sc = win->screens[win->curupd-1]; /* index current screen */
     if (c == '\r') {
 
@@ -1800,7 +1924,7 @@ static void plcchr(winptr win, char c)
         curoff(win); /* hide the cursor */
 
         /* place on buffer */
-        XDrawImageString(padisplay, win->xscnbuf, win->xcxt,
+        XDrawImageString(padisplay, sc->xbuf, sc->xcxt,
                     sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
 
         /* send exposure event back to window with mask over character */
@@ -2085,7 +2209,7 @@ int pa_maxy(FILE* f)
 
     win = txt2win(f); /* get window from file */
 
-    return (win->gmaxx);
+    return (win->gmaxy);
 
 }
 
@@ -2392,10 +2516,20 @@ void pa_fcolor(FILE* f, pa_color c)
 
     int rgb;
     winptr win; /* windows record pointer */
+    scnptr sc;  /* screen pointer */
 
     win = txt2win(f); /* get window from file */
-    rgb = colnum(c); /* translate color code to RGB */
-    XSetForeground(padisplay, win->xcxt, rgb);
+    sc = win->screens[win->curupd-1]; /* index update screen */
+    sc->fcrgb = colnum(c); /* set color status */
+    win->gfcrgb = sc->fcrgb;
+    if (indisp(win)) { /* activate on screen */
+
+        rgb = colnum(c); /* translate color code to RGB */
+        /* set screen color according to reverse */
+        if (BIT(sarev) & sc->attr) XSetBackground(padisplay, sc->xcxt, rgb);
+        else XSetForeground(padisplay, sc->xcxt, rgb);
+
+    }
 
 }
 
@@ -2412,9 +2546,11 @@ void pa_fcolorc(FILE* f, int r, int g, int b)
 {
 
     winptr win; /* windows record pointer */
+    scnptr sc;  /* screen pointer */
 
     win = txt2win(f); /* get window from file */
-    XSetForeground(padisplay, win->xcxt, r<<16 | g<<8 | b);
+    sc = win->screens[win->curupd-1]; /* index update screen */
+    XSetForeground(padisplay, sc->xcxt, r<<16 | g<<8 | b);
 
 }
 
@@ -2436,9 +2572,11 @@ void pa_fcolorg(FILE* f, int r, int g, int b)
 {
 
     winptr win; /* windows record pointer */
+    scnptr sc;  /* screen pointer */
 
     win = txt2win(f); /* get window from file */
-    XSetForeground(padisplay, win->xcxt, r<<16 | g<<8 | b);
+    sc = win->screens[win->curupd-1]; /* index update screen */
+    XSetForeground(padisplay, sc->xcxt, r<<16 | g<<8 | b);
 
 }
 
@@ -2454,24 +2592,50 @@ void pa_bcolor(FILE* f, pa_color c)
 
 {
 
-    int rgb;
+    int rgb;    /* RBG color (32 bits) */
     winptr win; /* windows record pointer */
+    scnptr sc;  /* screen pointer */
 
     win = txt2win(f); /* get window from file */
-    rgb = colnum(c); /* translate color code to RGB */
-    XSetForeground(padisplay, win->xcxt, rgb);
+    sc = win->screens[win->curupd-1]; /* index update screen */
+    sc->bcrgb = colnum(c); /* set color status */
+    win->gbcrgb = sc->bcrgb;
+    if (indisp(win)) { /* activate on screen */
+
+        rgb = colnum(c); /* translate color code to RGB */
+        /* set screen color according to reverse */
+        if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, rgb);
+        else XSetBackground(padisplay, sc->xcxt, rgb);
+
+    }
 
 }
+
+/** ****************************************************************************
+
+Set foreground color
+
+Sets the foreground color from individual r, g, b values.
+
+*******************************************************************************/
 
 void pa_bcolorc(FILE* f, int r, int g, int b)
 
 {
 
     winptr win; /* windows record pointer */
+    scnptr sc;  /* screen pointer */
 
     win = txt2win(f); /* get window from file */
-    XSetForeground(padisplay, win->xcxt,
-                   r<<16 | g<<8 | b);
+    sc = win->screens[win->curupd-1]; /* index update screen */
+    if (indisp(win)) { /* activate on screen */
+
+        /* set screen color according to reverse */
+        if (BIT(sarev) & sc->attr)
+            XSetForeground(padisplay, sc->xcxt, r<<16 | g<<8 | b);
+        else XSetBackground(padisplay, sc->xcxt, r<<16 | g<<8 | b);
+
+    }
 
 }
 
@@ -2490,10 +2654,19 @@ void pa_bcolorg(FILE* f, int r, int g, int b)
 {
 
     winptr win; /* windows record pointer */
+    scnptr sc;  /* screen pointer */
 
     win = txt2win(f); /* get window from file */
-    XSetForeground(padisplay, win->xcxt,
-                   r<<16 | g<<8 | b);
+    sc = win->screens[win->curupd-1]; /* index update screen */
+    sc->bcrgb = rgb2xwin(r, g, b); /* set color status */
+    win->gbcrgb = sc->bcrgb; /* copy to master */
+    if (indisp(win))  { /* activate on screen */
+
+        /* set screen color according to reverse */
+        if (BIT(sarev) & sc->attr) XSetBackground(padisplay, sc->xcxt, sc->bcrgb);
+        else XSetBackground(padisplay, sc->xcxt, sc->bcrgb);
+
+    }
 
 }
 
@@ -2671,6 +2844,35 @@ forces a screen refresh, which can be important when working on terminals.
 void pa_select(FILE* f, int u, int d)
 
 {
+
+    int    ld;  /* last display screen number save */
+    winptr win; /* window record pointer */
+
+    win = txt2win(f); /* get window from file */
+    if (!win->bufmod) error(ebufoff); /* error */
+    if (u < 1 || u > MAXCON || d < 1 || d > MAXCON)
+        error(einvscn); /* invalid screen number */
+    ld = win->curdsp; /* save the current display screen number */
+    win->curupd = u; /* set the current update screen */
+    if (!win->screens[win->curupd-1]) { /* no screen, create one */
+
+        /* get a new screen context */
+        win->screens[win->curupd-1] = malloc(sizeof(scncon));
+        if (!win->screens[win->curupd-1]) error(enomem);
+        iniscn(win, win->screens[win->curupd-1]); /* initalize that */
+
+    }
+    win->curdsp = d; /* set the current display screen */
+    if (!win->screens[win->curdsp-1]) { /* no screen, create one */
+
+        /* no current screen, create a new one */
+        win->screens[win->curdsp-1] = malloc(sizeof(scncon));
+        if (!win->screens[win->curdsp-1]) error(enomem);
+        iniscn(win, win->screens[win->curdsp-1]); /* initalize that */
+
+    }
+    /* if the screen has changed, restore it */
+    if (win->curdsp != ld) restore(win);
 
 }
 
@@ -3656,188 +3858,261 @@ static void mouseevent(winptr win, XEvent* e)
 
 }
 
+/* XWindows event process */
+
+static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
+
+{
+
+    KeySym ks;
+    scnptr sc; /* screen pointer */
+
+    sc = win->screens[win->curdsp-1]; /* index screen */
+    if (e->type == Expose) {
+
+        XCopyArea(padisplay, sc->xbuf, win->xwhan, sc->xcxt, 0, 0,
+                  win->gmaxxg, win->gmaxyg, 0, 0);
+
+    } else if (e->type == KeyPress) {
+
+        ks = XLookupKeysym(&e->xkey, 0);
+        er->etype = pa_etchar; /* place default code */
+        if (ks >= ' ' && ks <= 0x7e && !ctrll && !ctrlr && !altl && !altr) {
+
+            /* issue standard key event */
+            er->etype = pa_etchar; /* set event */
+            /* set code, normal or shifted */
+            if (shiftl || shiftr) er->echar = !capslock?toupper(ks):ks;
+            else er->echar = capslock?toupper(ks):ks; /* set code */
+            *keep = TRUE; /* set found */
+
+        } else {
+
+            switch (ks) {
+
+                /* process control characters */
+                case XK_BackSpace: er->etype = pa_etdelcb; break;
+                case XK_Tab:       er->etype = pa_ettab; break;
+                case XK_Return:    er->etype = pa_etenter; break;
+                case XK_Escape:    if (esck)
+                                       { er->etype = pa_etcan; esck = FALSE; }
+                                   else esck = TRUE;
+                                   break;
+                case XK_Delete:    if (shiftl || shiftr) er->etype = pa_etdel;
+                                   else if (ctrll || ctrlr) er->etype = pa_etdell;
+                                   else er->etype = pa_etdelcf;
+                                   break;
+
+                case XK_Home:      if (ctrll || ctrlr) er->etype = pa_ethome;
+                                   else er->etype = pa_ethomel;
+                                   break;
+                case XK_Left:      if (ctrll || ctrlr) er->etype = pa_etleftw;
+                                   else er->etype = pa_etleft;
+                                   break;
+                case XK_Up:        if (ctrll || ctrlr) er->etype = pa_etscru;
+                                   else er->etype = pa_etup;
+                                   break;
+                case XK_Right:     if (ctrll || ctrlr) er->etype = pa_etrightw;
+                                   else er->etype = pa_etright; break;
+                case XK_Down:      if (ctrll || ctrlr) er->etype = pa_etscrd;
+                                   else er->etype = pa_etdown;
+                                   break;
+                case XK_Page_Up:   if (ctrll || ctrlr) er->etype = pa_etscrl;
+                                   else er->etype = pa_etpagu;
+                                   break;
+                case XK_Page_Down: if (ctrll || ctrlr) er->etype = pa_etscrr;
+                                   else er->etype = pa_etpagd;
+                                   break;
+                case XK_End:       if (ctrll || ctrlr) er->etype = pa_etend;
+                                   else er->etype = pa_etendl;
+                                   break;
+
+                case XK_Insert:    er->etype = pa_etinsertt; break;
+
+                case XK_F1:
+                case XK_F2:
+                case XK_F3:
+                case XK_F4:
+                case XK_F5:
+                case XK_F6:
+                case XK_F7:
+                case XK_F8:
+                case XK_F9:
+                case XK_F10:
+                case XK_F11:
+                case XK_F12:
+                    /* X11 gives us all 12 function keys for our use, plus
+                       are sequential */
+                    er->etype = pa_etfun; /* function key */
+                    er->fkey = ks-XK_F1+1;
+                    break;
+
+                case XK_C:
+                case XK_c:         if (ctrll || ctrlr) {
+
+                                       er->etype = pa_etterm;
+                                       fend = TRUE;
+
+                                   }
+                                   else if (altl || altr) er->etype = pa_etcopy;
+                                   break;
+                case XK_S:
+                case XK_s:         if (ctrll || ctrlr)
+                                       er->etype = pa_etstop;
+                                   break;
+                case XK_Q:
+                case XK_q:         if (ctrll || ctrlr)
+                                       er->etype = pa_etcont;
+                                   break;
+                case XK_P:
+                case XK_p:         if (ctrll || ctrlr)
+                                       er->etype = pa_etprint;
+                                   break;
+                case XK_H:
+                case XK_h:         if (ctrll || ctrlr)
+                                       er->etype = pa_ethomes;
+                                   break;
+                case XK_E:
+                case XK_e:         if (ctrll || ctrlr)
+                                       er->etype = pa_etends;
+                                   break;
+                case XK_V:
+                case XK_v:         if (ctrll || ctrlr)
+                                       er->etype = pa_etinsert;
+                                   break;
+
+                case XK_Shift_L:   shiftl = TRUE; break; /* Left shift */
+                case XK_Shift_R:   shiftr = TRUE; break; /* Right shift */
+                case XK_Control_L: ctrll = TRUE; break;  /* Left control */
+                case XK_Control_R: ctrlr = TRUE; break;  /* Right control */
+                case XK_Alt_L:     altl = TRUE; break;  /* Left alt */
+                case XK_Alt_R:     altr = TRUE; break;  /* Right alt */
+                case XK_Caps_Lock: capslock = !capslock; /* Caps lock */
+
+            }
+            if (er->etype != pa_etchar)
+                *keep = TRUE; /* a control was found */
+
+        }
+
+    } else if (e->type == KeyRelease) {
+
+        /* Petit-ami does not track key releases, but we need to account for
+          control and shift keys up/down */
+        ks = XLookupKeysym(&e->xkey, 0); /* find code */
+        switch (ks) {
+
+            case XK_Shift_L:   shiftl = FALSE; break; /* Left shift */
+            case XK_Shift_R:   shiftr = FALSE; break; /* Right shift */
+            case XK_Control_L: ctrll = FALSE; break;  /* Left control */
+            case XK_Control_R: ctrlr = FALSE; break;  /* Right control */
+            case XK_Alt_L:     altl = FALSE; break;  /* Left alt */
+            case XK_Alt_R:     altr = FALSE; break;  /* Right alt */
+
+        }
+
+    } else if (e->type == MotionNotify || e->type == ButtonPress ||
+               e->type == ButtonRelease) {
+
+        mouseevent(win, e); /* process mouse event */
+        /* check any mouse details need processing */
+        mouseupdate(win, er, keep);
+
+    }
+
+}
+
+/* get and process XWindows event */
+static void xwinget(pa_evtrec* er, int* keep)
+
+{
+
+    XEvent     e;        /* XWindows event record */
+    winptr     win;      /* window record pointer */
+    int        ofn;      /* output lfn associated with window */
+    static int xcnt = 0; /* XWindows event counter */
+
+    if (XPending(padisplay)) {
+
+        XNextEvent(padisplay, &e); /* get next event */
+#ifdef PRTXEVT
+if (e.type != NoExpose && e.type != Expose) {
+        dbg_printf(dlinfo, "X Event: %5d ", xcnt++); prtxevt(e.type);
+        fprintf(stderr, "\n"); fflush(stderr);
+}
+#endif
+        ofn = fndevt(e.xany.window); /* get output window lfn */
+        if (ofn >= 0) { /* its one of our windows */
+
+            win = lfn2win(ofn); /* get window for that */
+            er->winid = filwin[ofn]; /* get window number */
+            xwinevt(win, er, &e, keep); /* process XWindows event */
+
+        }
+
+    }
+
+}
+
 void pa_event(FILE* f, pa_evtrec* er)
 
 {
 
-    XEvent e;
-    int keep;
-    KeySym ks;
-    int esck;
-    winptr win; /* window record pointer */
-    int ofn; /* output lfn associated with window */
+    int        keep;     /* keep event flag */
+    int        dfid;     /* XWindows display FID */
+    int        rv;       /* return value */
+    static int ecnt = 0; /* PA event counter */
+    uint64_t   exp;      /* timer expiration time */
+    winptr     win;      /* window record pointer */
+    int        i;
 
-    keep = FALSE;
-    esck = FALSE; /* set no previous escape */
+    keep = FALSE; /* set do not keep event */
+    dfid = ConnectionNumber(padisplay); /* find XWindows display fid */
     do {
 
-        XNextEvent(padisplay, &e); /* get next event */
-        ofn = fndevt(e.xany.window); /* get output window lfn */
-        if (ofn < 0) continue; /* not one of our windows, ignore */
-        win = lfn2win(ofn); /* get window for that */
-        er->winid = filwin[ofn]; /* get window number */
-        if (e.type == Expose) {
+#ifdef EVTPOL
+        xwinget(er, &keep); /* get next event */
+#else
+        /* search for active event */
+        for (i = 0; i < ifdmax && !keep; i++)
+            if (FD_ISSET(i, &ifdsets)) {
 
-            XCopyArea(padisplay, win->xscnbuf, win->xwhan, win->xcxt, 0, 0,
-                      win->gmaxxg, win->gmaxyg, 0, 0);
+            FD_CLR(i, &ifdsets); /* remove event from input sets */
+            if (opnfil[i] && opnfil[i]->tim) { /* do timer event */
 
-        } else if (e.type == KeyPress) {
-
-            ks = XLookupKeysym(&e.xkey, 0);
-            er->etype = pa_etchar; /* place default code */
-            if (ks >= ' ' && ks <= 0x7e && !ctrll && !ctrlr && !altl && !altr) {
-
-                /* issue standard key event */
-                er->etype = pa_etchar; /* set event */
-                /* set code, normal or shifted */
-                if (shiftl || shiftr) er->echar = !capslock?toupper(ks):ks;
-                else er->echar = capslock?toupper(ks):ks; /* set code */
-                keep = TRUE; /* set found */
-
-            } else {
-
-                switch (ks) {
-
-                    /* process control characters */
-                    case XK_BackSpace: er->etype = pa_etdelcb; break;
-                    case XK_Tab:       er->etype = pa_ettab; break;
-                    case XK_Return:    er->etype = pa_etenter; break;
-                    case XK_Escape:    if (esck)
-                                           { er->etype = pa_etcan; esck = FALSE; }
-                                       else esck = TRUE;
-                                       break;
-                    case XK_Delete:    if (shiftl || shiftr) er->etype = pa_etdel;
-                                       else if (ctrll || ctrlr) er->etype = pa_etdell;
-                                       else er->etype = pa_etdelcf;
-                                       break;
-
-                    case XK_Home:      if (ctrll || ctrlr) er->etype = pa_ethome;
-                                       else er->etype = pa_ethomel;
-                                       break;
-                    case XK_Left:      if (ctrll || ctrlr) er->etype = pa_etleftw;
-                                       else er->etype = pa_etleft;
-                                       break;
-                    case XK_Up:        if (ctrll || ctrlr) er->etype = pa_etscru;
-                                       else er->etype = pa_etup;
-                                       break;
-                    case XK_Right:     if (ctrll || ctrlr) er->etype = pa_etrightw;
-                                       else er->etype = pa_etright; break;
-                    case XK_Down:      if (ctrll || ctrlr) er->etype = pa_etscrd;
-                                       else er->etype = pa_etdown;
-                                       break;
-                    case XK_Page_Up:   if (ctrll || ctrlr) er->etype = pa_etscrl;
-                                       else er->etype = pa_etpagu;
-                                       break;
-                    case XK_Page_Down: if (ctrll || ctrlr) er->etype = pa_etscrr;
-                                       else er->etype = pa_etpagd;
-                                       break;
-                    case XK_End:       if (ctrll || ctrlr) er->etype = pa_etend;
-                                       else er->etype = pa_etendl;
-                                       break;
-
-                    case XK_Insert:    er->etype = pa_etinsertt; break;
-
-                    case XK_F1:
-                    case XK_F2:
-                    case XK_F3:
-                    case XK_F4:
-                    case XK_F5:
-                    case XK_F6:
-                    case XK_F7:
-                    case XK_F8:
-                    case XK_F9:
-                    case XK_F10:
-                    case XK_F11:
-                    case XK_F12:
-                        /* X11 gives us all 12 function keys for our use, plus
-                           are sequential */
-                        er->etype = pa_etfun; /* function key */
-                        er->fkey = ks-XK_F1+1;
-                        break;
-
-                    case XK_C:
-                    case XK_c:         if (ctrll || ctrlr) {
-
-                    				       er->etype = pa_etterm;
-                    				       fend = TRUE;
-
-                                       }
-                                       else if (altl || altr) er->etype = pa_etcopy;
-                                       break;
-                    case XK_S:
-                    case XK_s:         if (ctrll || ctrlr)
-                                           er->etype = pa_etstop;
-                                       break;
-                    case XK_Q:
-                    case XK_q:         if (ctrll || ctrlr)
-                                           er->etype = pa_etcont;
-                                       break;
-                    case XK_P:
-                    case XK_p:         if (ctrll || ctrlr)
-                                           er->etype = pa_etprint;
-                                       break;
-                    case XK_H:
-                    case XK_h:         if (ctrll || ctrlr)
-                                           er->etype = pa_ethomes;
-                                       break;
-                    case XK_E:
-                    case XK_e:         if (ctrll || ctrlr)
-                                           er->etype = pa_etends;
-                                       break;
-                    case XK_V:
-                    case XK_v:         if (ctrll || ctrlr)
-                                           er->etype = pa_etinsert;
-                                       break;
-
-                    case XK_Shift_L:   shiftl = TRUE; break; /* Left shift */
-                    case XK_Shift_R:   shiftr = TRUE; break; /* Right shift */
-                    case XK_Control_L: ctrll = TRUE; break;  /* Left control */
-                    case XK_Control_R: ctrlr = TRUE; break;  /* Right control */
-                    case XK_Alt_L:     altl = TRUE; break;  /* Left alt */
-                    case XK_Alt_R:     altr = TRUE; break;  /* Right alt */
-                    case XK_Caps_Lock: capslock = !capslock; /* Caps lock */
-
-                }
-                if (er->etype != pa_etchar)
-                    keep = TRUE; /* a control was found */
-
-            }
-
-        } else if (e.type == KeyRelease) {
-
-            /* Petit-ami does not track key releases, but we need to account for
-              control and shift keys up/down */
-            ks = XLookupKeysym(&e.xkey, 0); /* find code */
-            switch (ks) {
-
-                case XK_Shift_L:   shiftl = FALSE; break; /* Left shift */
-                case XK_Shift_R:   shiftr = FALSE; break; /* Right shift */
-                case XK_Control_L: ctrll = FALSE; break;  /* Left control */
-                case XK_Control_R: ctrlr = FALSE; break;  /* Right control */
-                case XK_Alt_L:     altl = FALSE; break;  /* Left alt */
-                case XK_Alt_R:     altr = FALSE; break;  /* Right alt */
-
-            }
-
-        } else if (e.type == MotionNotify || e.type == ButtonPress ||
-                   e.type == ButtonRelease) {
-
-            mouseevent(win, &e); /* process mouse event */
-            /* check any mouse details need processing */
-            mouseupdate(win, er, &keep);
-
-        } else if (e.type == ClientMessage) {
-
-            if (e.xclient.message_type == cm_timer) {
-
+                win = opnfil[i]->twin; /* get window containing timer */
                 er->etype = pa_ettim; /* set timer event */
-                er->timnum = e.xclient.data.s[1]; /* set timer number */
+                er->timnum = opnfil[i]->tim; /* set timer number */
+                er->winid = win->wid; /* set window number */
                 keep = TRUE; /* set keep */
+                /* clear the timer by reading it */
+                read(i, &exp, sizeof(uint64_t));
 
-            }
+            } else if (i == dfid && XPending(padisplay))
+                xwinget(er, &keep);
+
         }
 
+        if (!keep) {
+
+            /* check the queue before select() */
+            xwinget(er, &keep);
+            /* we found no event, get a new select set */
+            ifdsets = ifdseta; /* set up request set */
+            rv = select(ifdmax, &ifdsets, NULL, NULL, NULL);
+            /* if error, the input set won't be modified and thus will appear as
+               if they were active. We clear them in this case */
+            if (rv < 0) FD_ZERO(&ifdsets);
+
+        }
+#endif
+
     } while (!keep); /* until we have a client event */
+
+#ifdef PRTEVT
+    dbg_printf(dlinfo, "PA Event: %5d ", ecnt++); prtevt(er->etype);
+    fprintf(stderr, "\n"); fflush(stderr);
+#endif
 
 }
 
@@ -3865,21 +4140,25 @@ void pa_timer(FILE* f, /* file to send event to */
 
     winptr win; /* windows record pointer */
     struct itimerspec ts;
-    struct sigevent se;
     int    rv;
     long   tl;
+    int    tfid;
 
     if (i < 1 || i > PA_MAXTIM) error(einvhan); /* invalid timer handle */
     win = txt2win(f); /* get window from file */
-    if (!win->timers[i-1].act) { /* timer entry inactive, create a timer */
+    if (win->timers[i-1] < 0) { /* timer entry inactive, create a timer */
 
-        se.sigev_notify = SIGEV_SIGNAL;
-        se.sigev_signo = SIGALRM;
-        /* pass the window number and the logical timer number */
-        se.sigev_value.sival_int = (filwin[fileno(f)] << 16)+i;
-dbg_printf(dlinfo, "win no: %d timer no: %d combined: %x\n", filwin[fileno(f)], i, se.sigev_value.sival_int);
-        rv = timer_create(CLOCK_REALTIME, &se, &win->timers[i-1].id);
-        if (rv == -1) error(etimacc);
+        tfid = timerfd_create(CLOCK_REALTIME, 0);
+        if (tfid == -1) error(etimacc);
+        win->timers[i-1] = tfid; /* place in timers equ */
+        /* place new file in active select set */
+        FD_SET(tfid, &ifdseta);
+        /* if the new file handle is greater than  any existing, set new max */
+        if (tfid+1 > ifdmax) ifdmax = tfid+1;
+        /* create entry in fid table */
+        if (!opnfil[tfid]) getfet(&opnfil[tfid]); /* get fet if empty */
+        opnfil[tfid]->tim = i; /* place timer equ number */
+        opnfil[tfid]->twin = win; /* place window containing timer */
 
     }
 
@@ -3899,7 +4178,7 @@ dbg_printf(dlinfo, "win no: %d timer no: %d combined: %x\n", filwin[fileno(f)], 
 
     }
 
-    rv = timer_settime(win->timers[i-1].id, 0, &ts, NULL);
+    rv = timerfd_settime(win->timers[i-1], 0, &ts, NULL);
     if (rv < 0) error(etimacc); /* could not set time */
 
 }
@@ -3924,10 +4203,16 @@ void pa_killtimer(FILE* f, /* file to kill timer on */
 
     if (i < 1 || i > PA_MAXTIM) error(einvhan); /* invalid timer handle */
     win = txt2win(f); /* get window from file */
-    if (!win->timers[i-1].act) error(etimacc); /* no such timer */
+    if (!win->timers[i-1] < 0) error(etimacc); /* no such timer */
 
-    rv = timer_delete(win->timers[i-1].id);
-    if (rv < 0) error(etimacc); /* could not access */
+    /* set timer run time to zero to kill it */
+    ts.it_value.tv_sec = 0;
+    ts.it_value.tv_nsec = 0;
+    ts.it_interval.tv_sec = 0;
+    ts.it_interval.tv_nsec = 0;
+
+    rv = timerfd_settime(win->timers[i-1], 0, &ts, NULL);
+    if (rv < 0) error(etimacc); /* could not set time */
 
 }
 
@@ -3975,13 +4260,15 @@ void pa_autohold(int e)
 
 Return number of mice
 
-Returns the number of mice implemented. Windows supports only one mouse.
+Returns the number of mice implemented. XWindows supports only one mouse.
 
 *******************************************************************************/
 
 int pa_mouse(FILE* f)
 
 {
+
+    return 1;
 
 }
 
@@ -3990,13 +4277,15 @@ int pa_mouse(FILE* f)
 Return number of buttons on mouse
 
 Returns the number of buttons on the mouse. There is only one mouse in this
-version.
+version. XWindows supports from 1 to 5 buttons, but we limit it to 3.
 
 *******************************************************************************/
 
 int pa_mousebutton(FILE* f, int m)
 
 {
+
+    return 3;
 
 }
 
@@ -4012,6 +4301,14 @@ int pa_joystick(FILE* f)
 
 {
 
+    winptr win; /* window pointer */
+    int    jn;  /* joystick number */
+
+    win = txt2win(f); /* get window pointer from text file */
+    jn = win->numjoy; /* two */
+
+    return (jn);
+
 }
 
 /** ****************************************************************************
@@ -4025,6 +4322,15 @@ Returns the number of buttons on a given joystick.
 int pa_joybutton(FILE* f, int j)
 
 {
+
+    winptr   win; /* window pointer */
+    int      nb;  /* number of buttons */
+
+    win = txt2win(f); /* get window pointer from text file */
+    if (j < 1 || j > win->numjoy) error(einvjoy); /* bad joystick id */
+    nb = 0; /* set no joysticks */
+
+    return (nb);
 
 }
 
@@ -5548,15 +5854,16 @@ static void pa_init_graphics(int argc, char *argv[])
 
 {
 
-    const char *title = "";
     int ofn, ifn;
     int fi;
-    winptr win; /* windows record pointer */
+    winptr win;            /* windows record pointer */
     struct sigaction sact; /* action on signal (for timers) */
+    int dfid;              /* XWindows display FID */
 
     /* turn off I/O buffering */
     setvbuf(stdin, NULL, _IONBF, 0);
     setvbuf(stdout, NULL, _IONBF, 0);
+    setvbuf(stderr, NULL, _IONBF, 0);
 
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
@@ -5574,6 +5881,8 @@ static void pa_init_graphics(int argc, char *argv[])
     altl = FALSE;
     altr = FALSE;
     capslock = FALSE;
+
+    esck = FALSE; /* set no previous escape */
 
     /* set internal states */
     fend = FALSE; /* set no end of program ordered */
@@ -5605,25 +5914,16 @@ static void pa_init_graphics(int argc, char *argv[])
     ofn = fileno(stdout); /* get logical id stdout */
     openio(stdin, stdout, ifn, ofn, -1, 1); /* process open */
 
-    /* set up the expose event to full buffer by default */
-    win = lfn2win(ofn); /* get window from fid */
-    evtexp.xexpose.type = Expose;
-    evtexp.xexpose.serial = 0;
-    evtexp.xexpose.send_event = TRUE;
-    evtexp.xexpose.window = win->xwhan;
-    evtexp.xexpose.x = 0;
-    evtexp.xexpose.y = 0;
-    evtexp.xexpose.width = win->gmaxxg;
-    evtexp.xexpose.height = win->gmaxyg;
-    evtexp.xexpose.count = 0;
+    /* clear input select set */
+    FD_ZERO(&ifdseta);
 
-    /* catch signals. We don't care if it can't be caught, we would just be
-       ignoring the signal(s) in this case.  */
-    sact.sa_sigaction = sig_handler; /* set handler with extended info */
-    sact.sa_flags = SA_SIGINFO; /* set use sigaction handler */
-    sigemptyset(&sact.sa_mask); /* clear the mask */
-    //sact.sa_restorer = NULL; /* unused */
-    sigaction(SIGALRM, &sact, NULL); /* register that handler */
+    /* select XWindows display file */
+    dfid = ConnectionNumber(padisplay);
+    FD_SET(dfid, &ifdseta);
+    ifdmax = dfid+1; /* set maximum fid for select() */
+
+    /* clear the signaling set */
+    FD_ZERO(&ifdsets);
 
 }
 
@@ -5639,12 +5939,16 @@ static void pa_deinit_graphics()
 {
 
     /* holding copies of system vectors */
-    pread_t cppread;
-    pwrite_t cppwrite;
-    popen_t cppopen;
-    pclose_t cppclose;
+    pread_t   cppread;
+    pwrite_t  cppwrite;
+    popen_t   cppopen;
+    pclose_t  cppclose;
     punlink_t cppunlink;
-    plseek_t cpplseek;
+    plseek_t  cpplseek;
+
+    winptr win;    /* windows record pointer */
+    string trmnam; /* termination name */
+    char   fini[] = "Finished - ";
 
     pa_evtrec er;
 
@@ -5653,8 +5957,17 @@ static void pa_deinit_graphics()
 	   these, so that their content may be viewed */
 	if (!fend && fautohold) { /* process automatic exit sequence */
 
+        /* construct final name for window */
+        trmnam = malloc(strlen(fini)+strlen(program_invocation_short_name)+1);
+        if (!trmnam) error(enomem);
+        strcpy(trmnam, fini); /* place first part */
+        strcat(trmnam, program_invocation_short_name); /* place program name */
+        win = lfn2win(fileno(stdout)); /* get window from fid */
+        /* set window title */
+        XStoreName(padisplay, win->xwhan, trmnam);
         /* wait for a formal end */
 		while (!fend) pa_event(stdin, &er);
+		free(trmnam); /* free up termination name */
 
 	}
     /* close X Window */

@@ -2132,7 +2132,7 @@ countryety countrytab[] = {
 
     /* Name                                                    A2   Country-code */
     { "Afghanistan",                                          "AF", 4   },
-    { "Ã…land Islands",                                        "AX", 248 },
+    { "Aland Islands",                                        "AX", 248 },
     { "Albania",                                              "AL", 8   },
     { "Algeria",                                              "DZ", 12  },
     { "American Samoa",                                       "AS", 16  },
@@ -2185,10 +2185,10 @@ countryety countrytab[] = {
     { "Congo, Democratic Republic of the",                    "CD", 180 },
     { "Cook Islands",                                         "CK", 184 },
     { "Costa Rica",                                           "CR", 188 },
-    { "CÃ´te d'Ivoire",                                        "CI", 384 },
+    { "Cote d'Ivoire",                                        "CI", 384 },
     { "Croatia",                                              "HR", 191 },
     { "Cuba",                                                 "CU", 192 },
-    { "CuraÃ§ao",                                              "CW", 531 },
+    { "Curacao",                                              "CW", 531 },
     { "Cyprus",                                               "CY", 196 },
     { "Czechia",                                              "CZ", 203 },
     { "Denmark",                                              "DK", 208 },
