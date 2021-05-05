@@ -1138,6 +1138,7 @@ static void iniscn(winptr win, scnptr sc)
     sc->wexty = win->gwexty;
     sc->vextx = win->gvextx;
     sc->vexty = win->gvexty;
+    for (i = 0; i < MAXTAB; i++) sc->tab[i] = 0; /* clear tab array */
     /* set up tabbing to be on each 8th position */
     i = 9; /* set 1st tab position */
     x = 0; /* set 1st tab slot */
@@ -1810,8 +1811,7 @@ static void itab(winptr win)
 
 {
 
-    /* implement me */
-        int i;
+    int i;
     int x;
     scnptr sc;
 
@@ -1819,10 +1819,10 @@ static void itab(winptr win)
     curoff(win); /* hide the cursor */
     /* first, find if next tab even exists */
     x = sc->curxg+1; /* get just after the current x position */
-    if (x < 1)  x = 1; /* don"t bother to search to left of screen */
+    if (x < 1) x = 1; /* don"t bother to search to left of screen */
     /* find tab || } of screen */
     i = 0; /* set 1st tab position */
-    while (x > sc->tab[i] && sc->tab[i] && i < MAXTAB) i++;
+    while (x > sc->tab[i] && sc->tab[i] && i < MAXTAB && x < sc->maxxg) i++;
     if (sc->tab[i] && x < sc->tab[i]) { /* not off right of tabs */
 
        sc->curxg = sc->tab[i]; /* set position to that tab */
@@ -1933,12 +1933,12 @@ static void plcchr(winptr win, char c)
 
             /* double line, may need justing for low DP displays */
             XDrawLine(padisplay, sc->xbuf, sc->xcxt,
-                      sc->curxg-1, sc->curyg-1+win->baseoff,
-                      sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff);
-                    if (sc->attr & BIT(saundl))
-            XDrawLine(padisplay, sc->xbuf, sc->xcxt,
                       sc->curxg-1, sc->curyg-1+win->baseoff+1,
                       sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff+1);
+                    if (sc->attr & BIT(saundl))
+            XDrawLine(padisplay, sc->xbuf, sc->xcxt,
+                      sc->curxg-1, sc->curyg-1+win->baseoff+2,
+                      sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff+2);
 
         }
 
