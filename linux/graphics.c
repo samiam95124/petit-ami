@@ -961,7 +961,8 @@ static void curdrw(winptr win)
                    win->charspace, win->linespace);
     XSetFunction(padisplay, sc->xcxt, GXcopy); /* set reverse */
     curexp(win); /* send expose event */
-    XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+    if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+    else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
 
 }
 
@@ -1927,6 +1928,32 @@ static void plcchr(winptr win, char c)
         XDrawImageString(padisplay, sc->xbuf, sc->xcxt,
                     sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
 
+        /* check draw underline */
+        if (sc->attr & BIT(saundl)){
+
+            /* double line, may need justing for low DP displays */
+            XDrawLine(padisplay, sc->xbuf, sc->xcxt,
+                      sc->curxg-1, sc->curyg-1+win->baseoff,
+                      sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff);
+                    if (sc->attr & BIT(saundl))
+            XDrawLine(padisplay, sc->xbuf, sc->xcxt,
+                      sc->curxg-1, sc->curyg-1+win->baseoff+1,
+                      sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff+1);
+
+        }
+
+        /* check draw strikeout */
+        if (sc->attr & BIT(sastkout)) {
+
+            XDrawLine(padisplay, sc->xbuf, sc->xcxt,
+                      sc->curxg-1, sc->curyg-1+win->baseoff/2,
+                      sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff/2);
+            XDrawLine(padisplay, sc->xbuf, sc->xcxt,
+                      sc->curxg-1, sc->curyg-1+win->baseoff/2+1,
+                      sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff/2+1);
+
+        }
+
         /* send exposure event back to window with mask over character */
         curexp(win);
 
@@ -2368,6 +2395,8 @@ void pa_blink(FILE* f, int e)
 
 {
 
+   /* no capability */
+
 }
 
 /** ****************************************************************************
@@ -2383,6 +2412,27 @@ void pa_reverse(FILE* f, int e)
 
 {
 
+    winptr win; /* windows record pointer */
+    scnptr sc; /* screen pointer */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    if (e) { /* reverse on */
+
+        sc->attr |= BIT(sarev); /* set attribute active */
+        win->gattr |= BIT(sarev);
+        XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+        XSetBackground(padisplay, sc->xcxt, sc->fcrgb);
+
+    } else { /* turn it off */
+
+        sc->attr &= ~BIT(sarev); /* set attribute inactive */
+        win->gattr &= ~BIT(sarev);
+        XSetBackground(padisplay, sc->xcxt, sc->bcrgb);
+        XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+
+    }
+
 }
 
 /** ****************************************************************************
@@ -2391,14 +2441,29 @@ Turn on underline attribute
 
 Turns on/off the underline attribute.
 Note that the attributes can only be set singly.
-This is not implemented, but could be done by drawing a line under each
-character drawn.
 
 *******************************************************************************/
 
 void pa_underline(FILE* f, int e)
 
 {
+
+    winptr win; /* windows record pointer */
+    scnptr sc;  /* screen pointer */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    if (e) { /* underline on */
+
+        sc->attr |= BIT(saundl); /* set attribute active */
+        win->gattr |= BIT(saundl);
+
+    } else { /* turn it off */
+
+        sc->attr &= ~BIT(saundl); /* set attribute inactive */
+        win->gattr &= ~BIT(saundl);
+
+    }
 
 }
 
@@ -2485,6 +2550,23 @@ void pa_strikeout(FILE* f, int e)
 
 {
 
+    winptr win; /* windows record pointer */
+    scnptr sc;  /* screen pointer */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    if (e) { /* strikeout on */
+
+       sc->attr |= BIT(sastkout); /* set attribute active */
+       win->gattr |= BIT(sastkout);
+
+    } else { /* turn it off */
+
+       sc->attr &= ~BIT(sastkout); /* set attribute inactive */
+       win->gattr &= ~BIT(sastkout);
+
+    }
+
 }
 
 /** ****************************************************************************
@@ -2500,6 +2582,8 @@ void pa_standout(FILE* f, int e)
 
 {
 
+   pa_reverse(f, e); /* implement as reverse */
+
 }
 
 /** ****************************************************************************
@@ -2514,7 +2598,6 @@ void pa_fcolor(FILE* f, pa_color c)
 
 {
 
-    int rgb;
     winptr win; /* windows record pointer */
     scnptr sc;  /* screen pointer */
 
@@ -2522,14 +2605,9 @@ void pa_fcolor(FILE* f, pa_color c)
     sc = win->screens[win->curupd-1]; /* index update screen */
     sc->fcrgb = colnum(c); /* set color status */
     win->gfcrgb = sc->fcrgb;
-    if (indisp(win)) { /* activate on screen */
-
-        rgb = colnum(c); /* translate color code to RGB */
-        /* set screen color according to reverse */
-        if (BIT(sarev) & sc->attr) XSetBackground(padisplay, sc->xcxt, rgb);
-        else XSetForeground(padisplay, sc->xcxt, rgb);
-
-    }
+    /* set screen color according to reverse */
+    if (BIT(sarev) & sc->attr) XSetBackground(padisplay, sc->xcxt, sc->fcrgb);
+    else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
 
 }
 
@@ -2592,7 +2670,6 @@ void pa_bcolor(FILE* f, pa_color c)
 
 {
 
-    int rgb;    /* RBG color (32 bits) */
     winptr win; /* windows record pointer */
     scnptr sc;  /* screen pointer */
 
@@ -2600,14 +2677,9 @@ void pa_bcolor(FILE* f, pa_color c)
     sc = win->screens[win->curupd-1]; /* index update screen */
     sc->bcrgb = colnum(c); /* set color status */
     win->gbcrgb = sc->bcrgb;
-    if (indisp(win)) { /* activate on screen */
-
-        rgb = colnum(c); /* translate color code to RGB */
-        /* set screen color according to reverse */
-        if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, rgb);
-        else XSetBackground(padisplay, sc->xcxt, rgb);
-
-    }
+    /* set screen color according to reverse */
+    if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+    else XSetBackground(padisplay, sc->xcxt, sc->bcrgb);
 
 }
 
@@ -2628,14 +2700,10 @@ void pa_bcolorc(FILE* f, int r, int g, int b)
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1]; /* index update screen */
-    if (indisp(win)) { /* activate on screen */
-
-        /* set screen color according to reverse */
-        if (BIT(sarev) & sc->attr)
-            XSetForeground(padisplay, sc->xcxt, r<<16 | g<<8 | b);
-        else XSetBackground(padisplay, sc->xcxt, r<<16 | g<<8 | b);
-
-    }
+    /* set screen color according to reverse */
+    if (BIT(sarev) & sc->attr)
+        XSetForeground(padisplay, sc->xcxt, r<<16 | g<<8 | b);
+    else XSetBackground(padisplay, sc->xcxt, r<<16 | g<<8 | b);
 
 }
 
@@ -2660,13 +2728,9 @@ void pa_bcolorg(FILE* f, int r, int g, int b)
     sc = win->screens[win->curupd-1]; /* index update screen */
     sc->bcrgb = rgb2xwin(r, g, b); /* set color status */
     win->gbcrgb = sc->bcrgb; /* copy to master */
-    if (indisp(win))  { /* activate on screen */
-
-        /* set screen color according to reverse */
-        if (BIT(sarev) & sc->attr) XSetBackground(padisplay, sc->xcxt, sc->bcrgb);
-        else XSetBackground(padisplay, sc->xcxt, sc->bcrgb);
-
-    }
+    /* set screen color according to reverse */
+    if (BIT(sarev) & sc->attr) XSetBackground(padisplay, sc->xcxt, sc->bcrgb);
+    else XSetBackground(padisplay, sc->xcxt, sc->bcrgb);
 
 }
 
