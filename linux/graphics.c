@@ -980,9 +980,9 @@ static void curdrw(winptr win)
     sc = win->screens[win->curupd-1]; /* index current update screen */
     XSetForeground(padisplay, sc->xcxt, colnum(pa_white));
     XSetFunction(padisplay, sc->xcxt, GXxor); /* set reverse */
-    XFillRectangle(padisplay, sc->xbuf, sc->xcxt, sc->curxg, sc->curyg,
+    XFillRectangle(padisplay, sc->xbuf, sc->xcxt, sc->curxg-1, sc->curyg-1,
                    win->charspace, win->linespace);
-    XSetFunction(padisplay, sc->xcxt, GXcopy); /* set reverse */
+    XSetFunction(padisplay, sc->xcxt, GXcopy); /* set overwrite */
     curexp(win, 1); /* send expose event */
     if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
     else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
@@ -1189,6 +1189,9 @@ static void iniscn(winptr win, scnptr sc)
         XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
 
     }
+
+    /* set line attributes */
+    XSetLineAttributes(padisplay, sc->xcxt, 1, LineSolid, CapButt, JoinMiter);
 
     /* set up pixmap backing buffer */
     depth = DefaultDepth(padisplay, pascreen);
@@ -3313,6 +3316,18 @@ void pa_setpixel(FILE* f, int x, int y)
 
 {
 
+    winptr win; /* window record pointer */
+    scnptr sc;  /* screen buffer */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    curoff(win); /* hide the cursor */
+    /* draw the line */
+    XDrawPoint(padisplay, sc->xbuf, sc->xcxt, x-1, y-1);
+    /* send exposure event back to window */
+    expevt(win, x, y, x, y);
+    curon(win); /* show the cursor */
+
 }
 
 /** ****************************************************************************
@@ -3326,6 +3341,13 @@ Sets the foreground write mode to overwrite.
 void pa_fover(FILE* f)
 
 {
+
+    winptr win; /* window record pointer */
+    scnptr sc;  /* screen buffer */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    XSetFunction(padisplay, sc->xcxt, GXcopy); /* set overwrite */
 
 }
 
@@ -3383,6 +3405,13 @@ void pa_fxor(FILE* f)
 
 {
 
+    winptr win; /* window record pointer */
+    scnptr sc;  /* screen buffer */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    XSetFunction(padisplay, sc->xcxt, GXxor); /* set overwrite */
+
 }
 
 /** ****************************************************************************
@@ -3416,7 +3445,7 @@ void pa_linewidth(FILE* f, int w)
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1]; /* index update screen */
-    XSetLineAttributes(padisplay, sc->xcxt, w, LineSolid, CapButt, JoinBevel);
+    XSetLineAttributes(padisplay, sc->xcxt, w, LineSolid, CapButt, JoinMiter);
 
 }
 
