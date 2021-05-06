@@ -917,7 +917,7 @@ the cursor. This is is necessary to keep the display and the buffer in sync.
 
 *******************************************************************************/
 
-static void curexp(winptr win, int l)
+static void expevt(winptr win, int x1, int y1, int x2, int y2)
 
 {
 
@@ -931,11 +931,34 @@ static void curexp(winptr win, int l)
     evtexp.xexpose.send_event = TRUE;
     evtexp.xexpose.window = win->xwhan;
     evtexp.xexpose.count = 0;
-    evtexp.xexpose.x = sc->curxg-1;
-    evtexp.xexpose.y = sc->curyg-1;
-    evtexp.xexpose.width = sc->curxg-1+win->charspace*l;
-    evtexp.xexpose.height = sc->curyg-1+win->linespace;
+    evtexp.xexpose.x = x1-1;
+    evtexp.xexpose.y = y1-1;
+    evtexp.xexpose.width = x2-x1+1;
+    evtexp.xexpose.height = y2-y2+1;
     XSendEvent(padisplay, win->xwhan, FALSE, ExposureMask, &evtexp);
+
+}
+
+/*******************************************************************************
+
+Send expose event for current cursor character(s)
+
+Prepares an exposure event covering the rectangle of the current character at
+the cursor. This is is necessary to keep the display and the buffer in sync.
+
+*******************************************************************************/
+
+static void curexp(winptr win, int l)
+
+{
+
+    scnptr sc;            /* pointer to current screen */
+    static XEvent evtexp; /* expose event record */
+
+    sc = win->screens[win->curupd-1]; /* index current screen */
+    /* send exposure event back to window with mask over character */
+    expevt(win, sc->curxg, sc->curyg,
+           sc->curxg+win->charspace*l-1, sc->curyg+win->linespace-1);
 
 }
 
@@ -3042,6 +3065,30 @@ void pa_line(FILE* f, int x1, int y1, int x2, int y2)
 
 {
 
+    winptr win; /* window record pointer */
+    scnptr sc;  /* screen buffer */
+    int tx, ty; /* temps */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    /* rationalize the line to right/down */
+    if (x1 > x2 || (x1 == x2 && y1 > y2)) { /* swap */
+
+       tx = x1;
+       ty = y1;
+       x1 = x2;
+       y1 = y2;
+       x2 = tx;
+       y2 = ty;
+
+    }
+    curoff(win); /* hide the cursor */
+    /* draw the line */
+    XDrawLine(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-1, y2-1);
+    /* send exposure event back to window with mask over character */
+    expevt(win, x1, y1, x2, y2);
+    curon(win); /* show the cursor */
+
 }
 
 /** ****************************************************************************
@@ -3056,6 +3103,30 @@ void pa_rect(FILE* f, int x1, int y1, int x2, int y2)
 
 {
 
+    winptr win; /* window record pointer */
+    scnptr sc;  /* screen buffer */
+    int tx, ty; /* temps */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    /* rationalize the rectangle to right/down */
+    if (x1 > x2 || (x1 == x2 && y1 > y2)) { /* swap */
+
+       tx = x1;
+       ty = y1;
+       x1 = x2;
+       y1 = y2;
+       x2 = tx;
+       y2 = ty;
+
+    }
+    curoff(win); /* hide the cursor */
+    /* draw the line */
+    XDrawRectangle(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1);
+    /* send exposure event back to window with mask over character */
+    expevt(win, x1, y1, x2, y2);
+    curon(win); /* show the cursor */
+
 }
 
 /** ****************************************************************************
@@ -3069,6 +3140,30 @@ Draws a filled rectangle in foreground color.
 void pa_frect(FILE* f, int x1, int y1, int x2, int y2)
 
 {
+
+    winptr win; /* window record pointer */
+    scnptr sc;  /* screen buffer */
+    int tx, ty; /* temps */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    /* rationalize the rectangle to right/down */
+    if (x1 > x2 || (x1 == x2 && y1 > y2)) { /* swap */
+
+       tx = x1;
+       ty = y1;
+       x1 = x2;
+       y1 = y2;
+       x2 = tx;
+       y2 = ty;
+
+    }
+    curoff(win); /* hide the cursor */
+    /* draw the line */
+    XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1);
+    /* send exposure event back to window with mask over character */
+    expevt(win, x1, y1, x2, y2);
+    curon(win); /* show the cursor */
 
 }
 
@@ -3315,6 +3410,13 @@ Sets the width of lines and several other figures.
 void pa_linewidth(FILE* f, int w)
 
 {
+
+    winptr win; /* windows record pointer */
+    scnptr sc;  /* screen pointer */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1]; /* index update screen */
+    XSetLineAttributes(padisplay, sc->xcxt, w, LineSolid, CapButt, JoinBevel);
 
 }
 
