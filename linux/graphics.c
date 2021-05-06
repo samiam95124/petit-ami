@@ -910,14 +910,14 @@ static int icurbnd(scnptr sc)
 
 /*******************************************************************************
 
-Send expose event for current cursor character
+Send expose event for current cursor character(s)
 
 Prepares an exposure event covering the rectangle of the current character at
 the cursor. This is is necessary to keep the display and the buffer in sync.
 
 *******************************************************************************/
 
-static void curexp(winptr win)
+static void curexp(winptr win, int l)
 
 {
 
@@ -933,7 +933,7 @@ static void curexp(winptr win)
     evtexp.xexpose.count = 0;
     evtexp.xexpose.x = sc->curxg-1;
     evtexp.xexpose.y = sc->curyg-1;
-    evtexp.xexpose.width = sc->curxg-1+win->charspace;
+    evtexp.xexpose.width = sc->curxg-1+win->charspace*l;
     evtexp.xexpose.height = sc->curyg-1+win->linespace;
     XSendEvent(padisplay, win->xwhan, FALSE, ExposureMask, &evtexp);
 
@@ -960,7 +960,7 @@ static void curdrw(winptr win)
     XFillRectangle(padisplay, sc->xbuf, sc->xcxt, sc->curxg, sc->curyg,
                    win->charspace, win->linespace);
     XSetFunction(padisplay, sc->xcxt, GXcopy); /* set reverse */
-    curexp(win); /* send expose event */
+    curexp(win, 1); /* send expose event */
     if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
     else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
 
@@ -1931,7 +1931,7 @@ static void plcchr(winptr win, char c)
         /* check draw underline */
         if (sc->attr & BIT(saundl)){
 
-            /* double line, may need justing for low DP displays */
+            /* double line, may need ajusting for low DP displays */
             XDrawLine(padisplay, sc->xbuf, sc->xcxt,
                       sc->curxg-1, sc->curyg-1+win->baseoff+1,
                       sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff+1);
@@ -1955,7 +1955,7 @@ static void plcchr(winptr win, char c)
         }
 
         /* send exposure event back to window with mask over character */
-        curexp(win);
+        curexp(win, 1);
 
         curon(win); /* show the cursor */
 
@@ -2960,6 +2960,51 @@ such as controls are not suppressed.
 void pa_wrtstr(FILE* f, char* s)
 
 {
+
+    winptr win; /* window record pointer */
+    scnptr sc;  /* screen buffer */
+    int    l;   /* length of string */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    if (sc->autof) error(estrato); /* autowrap is on */
+    curoff(win); /* hide the cursor */
+
+    /* place on buffer */
+    XDrawImageString(padisplay, sc->xbuf, sc->xcxt,
+                sc->curxg-1, sc->curyg-1+win->baseoff, s, strlen(s));
+
+    /* check draw underline */
+    if (sc->attr & BIT(saundl)){
+
+        /* double line, may need ajusting for low DP displays */
+        XDrawLine(padisplay, sc->xbuf, sc->xcxt,
+                  sc->curxg-1, sc->curyg-1+win->baseoff+1,
+                  sc->curxg-1+win->charspace*l, sc->curyg-1+win->baseoff+1);
+                if (sc->attr & BIT(saundl))
+        XDrawLine(padisplay, sc->xbuf, sc->xcxt,
+                  sc->curxg-1, sc->curyg-1+win->baseoff+2,
+                  sc->curxg-1+win->charspace*l, sc->curyg-1+win->baseoff+2);
+
+    }
+
+    /* check draw strikeout */
+    if (sc->attr & BIT(sastkout)) {
+
+        XDrawLine(padisplay, sc->xbuf, sc->xcxt,
+                  sc->curxg-1, sc->curyg-1+win->baseoff/2,
+                  sc->curxg-1+win->charspace*l, sc->curyg-1+win->baseoff/2);
+        XDrawLine(padisplay, sc->xbuf, sc->xcxt,
+                  sc->curxg-1, sc->curyg-1+win->baseoff/2+1,
+                  sc->curxg-1+win->charspace*l, sc->curyg-1+win->baseoff/2+1);
+
+    }
+
+    /* send exposure event back to window with mask over character */
+    curexp(win, l);
+
+    curon(win); /* show the cursor */
+
 
 }
 
