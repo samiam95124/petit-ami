@@ -2686,7 +2686,7 @@ static void restore(winptr win,   /* window to restore */
                            y-cr.top+1, sc->bdc, cr.left, cr.top, SRCCOPY);
 
             }
-            /* Now fill the right && left sides of the client beyond the
+            /* Now fill the right and left sides of the client beyond the
                bitmap. */
            hb = CreateSolidBrush(sc->bcrgb); /* get a brush for background */
            if (hb == 0) winerr(); /* process windows error */
@@ -2995,7 +2995,7 @@ static void iscrollg(winptr win, int x, int y)
           b = DeleteObject(hb); /* free the brush */
           if (!b) winerr; /* process windows error */
 
-       } else {
+       } else { /* scroll on screen */
 
           b = BitBlt(win->devcon, dx, dy, dw, dh, win->devcon, sx, sy, SRCCOPY);
           if (!b) winerr(); /* process windows error */
