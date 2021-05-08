@@ -3271,6 +3271,40 @@ void pa_ellipse(FILE* f, int x1, int y1, int x2, int y2)
 
 {
 
+    winptr win; /* window record pointer */
+    scnptr sc;  /* screen buffer */
+    int tx, ty; /* temps */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    /* rationalize the line to right/down */
+    if (x1 > x2 || (x1 == x2 && y1 > y2)) { /* swap */
+
+       tx = x1;
+       ty = y1;
+       x1 = x2;
+       y1 = y2;
+       x2 = tx;
+       y2 = ty;
+
+    }
+    if (win->bufmod) { /* buffer is active */
+
+        /* draw the ellipse */
+        XDrawArc(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
+                 0, 360*64);
+
+    }
+    if (indisp(win)) { /* do it again for the current screen */
+
+        curoff(win); /* hide the cursor */
+        /* draw the ellipse */
+        XDrawArc(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
+                 0, 360*64);
+        curon(win); /* show the cursor */
+
+    }
+
 }
 
 /** ****************************************************************************
@@ -3284,6 +3318,40 @@ Draws a filled ellipse with the current foreground color.
 void pa_fellipse(FILE* f, int x1, int y1, int x2, int y2)
 
 {
+
+    winptr win; /* window record pointer */
+    scnptr sc;  /* screen buffer */
+    int tx, ty; /* temps */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    /* rationalize the line to right/down */
+    if (x1 > x2 || (x1 == x2 && y1 > y2)) { /* swap */
+
+       tx = x1;
+       ty = y1;
+       x1 = x2;
+       y1 = y2;
+       x2 = tx;
+       y2 = ty;
+
+    }
+    if (win->bufmod) { /* buffer is active */
+
+        /* draw the ellipse */
+        XFillArc(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
+                 0, 360*64);
+
+    }
+    if (indisp(win)) { /* do it again for the current screen */
+
+        curoff(win); /* hide the cursor */
+        /* draw the ellipse */
+        XFillArc(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
+                 0, 360*64);
+        curon(win); /* show the cursor */
+
+    }
 
 }
 
@@ -3308,16 +3376,55 @@ represents, use cd := precis*2*pi. So, for example, precis = 100 means 628
 divisions of the circle.
 
 The end and start points can be negative.
-Note that Windows draws arcs counterclockwise, so our start and end points are
+Note that XWindows draws arcs counterclockwise, so our start and end points are
 swapped.
 
 Negative angles are allowed.
 
 *******************************************************************************/
 
+/* formula to convert to XWindows degrees */
+#define XARCINC (INT_MAX/(360*64))
+#define XARCCVT(a) (a/XARCINC+90*64)
+
 void pa_arc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
 
 {
+
+    winptr win; /* window record pointer */
+    scnptr sc;  /* screen buffer */
+    int tx, ty; /* temps */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    /* rationalize the line to right/down */
+    if (x1 > x2 || (x1 == x2 && y1 > y2)) { /* swap */
+
+       tx = x1;
+       ty = y1;
+       x1 = x2;
+       y1 = y2;
+       x2 = tx;
+       y2 = ty;
+
+    }
+    if (win->bufmod) { /* buffer is active */
+
+        /* draw the ellipse */
+        XDrawArc(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
+                 XARCCVT(ea), XARCCVT(sa));
+
+    }
+    if (indisp(win)) { /* do it again for the current screen */
+
+        curoff(win); /* hide the cursor */
+        /* draw the ellipse */
+dbg_printf(dlinfo, "a1: %d a2: %d\n", XARCCVT(ea), XARCCVT(sa));
+        XDrawArc(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
+                 XARCCVT(ea), XARCCVT(sa));
+        curon(win); /* show the cursor */
+
+    }
 
 }
 
@@ -4199,7 +4306,6 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
 
         XCopyArea(padisplay, sc->xbuf, win->xwhan, sc->xcxt, 0, 0,
                   win->gmaxxg, win->gmaxyg, 0, 0);
-XFlush(padisplay);
 
     } else if (e->type == KeyPress) {
 
