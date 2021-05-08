@@ -3237,11 +3237,75 @@ Draw rounded rectangle
 
 Draws a rounded rectangle in foreground color.
 
+In XWindows, this has to be constructed, since there is no equivalent function.
+
 *******************************************************************************/
 
 void pa_rrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
 
 {
+
+    winptr win; /* window record pointer */
+    scnptr sc;  /* screen buffer */
+    int tx, ty; /* temps */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    /* rationalize the rectangle to right/down */
+    if (x1 > x2 || (x1 == x2 && y1 > y2)) { /* swap */
+
+       tx = x1;
+       ty = y1;
+       x1 = x2;
+       y1 = y2;
+       x2 = tx;
+       y2 = ty;
+
+    }
+    /* adjust for X */
+    x1--;
+    y1--;
+    x2--;
+    y2--;
+    if (win->bufmod) { /* buffer is active */
+
+        /* stroke the sides */
+        XDrawLine(padisplay, sc->xbuf, sc->xcxt, x1, y1+ys/2, x1, y2-ys/2);
+        XDrawLine(padisplay, sc->xbuf, sc->xcxt, x2, y1+ys/2, x2, y2-ys/2);
+        XDrawLine(padisplay, sc->xbuf, sc->xcxt, x1+xs/2, y1, x2-xs/2, y1);
+        XDrawLine(padisplay, sc->xbuf, sc->xcxt, x1+xs/2, y2, x2-xs/2, y2);
+        /* draw corner arcs */
+        XDrawArc(padisplay, sc->xbuf, sc->xcxt, x1, y1, xs, ys, 90*64, 90*64);
+        XDrawArc(padisplay, sc->xbuf, sc->xcxt, x2-xs, y1, xs, ys, 0, 90*64);
+
+        XDrawArc(padisplay, sc->xbuf, sc->xcxt, x1, y2-ys, xs, ys, 180*64,
+                 90*64);
+
+        XDrawArc(padisplay, sc->xbuf, sc->xcxt, x2-xs, y2-ys, xs, ys, 270*64,
+                 90*64);
+
+    }
+    if (indisp(win)) { /* do it again for the current screen */
+
+        curoff(win); /* hide the cursor */
+        /* stroke the sides */
+        XDrawLine(padisplay, win->xwhan, sc->xcxt, x1, y1+ys/2, x1, y2-ys/2);
+        XDrawLine(padisplay, win->xwhan, sc->xcxt, x2, y1+ys/2, x2, y2-ys/2);
+        XDrawLine(padisplay, win->xwhan, sc->xcxt, x1+xs/2, y1, x2-xs/2, y1);
+        XDrawLine(padisplay, win->xwhan, sc->xcxt, x1+xs/2, y2, x2-xs/2, y2);
+        /* draw corner arcs */
+        XDrawArc(padisplay, win->xwhan, sc->xcxt, x1, y1, xs, ys,
+                 90*64, 90*64);
+        XDrawArc(padisplay, win->xwhan, sc->xcxt, x2-xs, y1, xs, ys,
+                 0, 90*64);
+        XDrawArc(padisplay, win->xwhan, sc->xcxt, x1, y2-ys, xs, ys, 180*64,
+                 90*64);
+
+        XDrawArc(padisplay, win->xwhan, sc->xcxt, x2-xs, y2-ys, xs, ys, 270*64,
+                 90*64);
+        curon(win); /* show the cursor */
+
+    }
 
 }
 
@@ -3250,6 +3314,8 @@ void pa_rrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
 Draw filled rounded rectangle
 
 Draws a filled rounded rectangle in foreground color.
+
+In XWindows, this has to be constructed, since there is no equivalent function.
 
 *******************************************************************************/
 
@@ -3410,7 +3476,7 @@ void pa_arc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
 
     if (win->bufmod) { /* buffer is active */
 
-        /* draw the ellipse */
+        /* draw the arc */
         XDrawArc(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
         		 a1, a2);
 
@@ -3418,7 +3484,7 @@ void pa_arc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
     if (indisp(win)) { /* do it again for the current screen */
 
         curoff(win); /* hide the cursor */
-        /* draw the ellipse */
+        /* draw the arc */
         XDrawArc(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
         		 a1, a2);
         curon(win); /* show the cursor */
