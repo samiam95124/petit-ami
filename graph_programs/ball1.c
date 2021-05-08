@@ -8,7 +8,7 @@ Program to bounce animated ball around screen
 #include <localdefs.h>
 #include <graphics.h>
 
-#define BALLSIZE  21
+#define BALLSIZE  51
 #define HALFBALL  (BALLSIZE/2)
 #define FRAMETIME 156          /* time between frames, 60 cycle refresh */
 #define BALLACCEL 5            /* ball acceleration */

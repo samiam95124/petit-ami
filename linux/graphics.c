@@ -3547,6 +3547,37 @@ void pa_ftriangle(FILE* f, int x1, int y1, int x2, int y2, int x3, int y3)
 
 {
 
+    winptr win; /* window record pointer */
+    scnptr sc;  /* screen buffer */
+    XPoint pa[3]; /* XWindows points array */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    /* place the triangle points in the X array */
+    pa[0].x = x1;
+    pa[0].y = y1;
+    pa[1].x = x2;
+    pa[1].y = y2;
+    pa[2].x = x3;
+    pa[2].y = y3;
+
+    if (win->bufmod) { /* buffer is active */
+
+        /* draw the triangle */
+        XFillPolygon(padisplay, sc->xbuf, sc->xcxt, pa, 3, Convex,
+                     CoordModeOrigin);
+
+    }
+    if (indisp(win)) { /* do it again for the current screen */
+
+        curoff(win); /* hide the cursor */
+        /* draw the ellipse */
+        XFillPolygon(padisplay, win->xwhan, sc->xcxt, pa, 3, Convex,
+                     CoordModeOrigin);
+        curon(win); /* show the cursor */
+
+    }
+
 }
 
 /** ****************************************************************************
