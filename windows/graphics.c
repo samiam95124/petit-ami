@@ -2686,7 +2686,7 @@ static void restore(winptr win,   /* window to restore */
                            y-cr.top+1, sc->bdc, cr.left, cr.top, SRCCOPY);
 
             }
-            /* Now fill the right && left sides of the client beyond the
+            /* Now fill the right and left sides of the client beyond the
                bitmap. */
            hb = CreateSolidBrush(sc->bcrgb); /* get a brush for background */
            if (hb == 0) winerr(); /* process windows error */
@@ -2836,6 +2836,7 @@ static void iniscn(winptr win, scnptr sc)
 
     }
     clrbuf(win, sc); /* clear screen buffer with that */
+    for (i = 0; i < MAXTAB; i++) sc->tab[i] = 0; /* clear tab array */
     /* set up tabbing to be on each 8th position */
     i = 9; /* set 1st tab position */
     x = 0; /* set 1st tab slot */
@@ -2994,7 +2995,7 @@ static void iscrollg(winptr win, int x, int y)
           b = DeleteObject(hb); /* free the brush */
           if (!b) winerr; /* process windows error */
 
-       } else {
+       } else { /* scroll on screen */
 
           b = BitBlt(win->devcon, dx, dy, dw, dh, win->devcon, sx, sy, SRCCOPY);
           if (!b) winerr(); /* process windows error */
@@ -3518,7 +3519,7 @@ static void itab(winptr win)
     if (x < 1)  x = 1; /* don"t bother to search to left of screen */
     /* find tab || } of screen */
     i = 0; /* set 1st tab position */
-    while (x > sc->tab[i] && sc->tab[i] && i < MAXTAB) i++;
+    while (x > sc->tab[i] && sc->tab[i] && i < MAXTAB && x < sc->maxxg) i++;
     if (sc->tab[i] && x < sc->tab[i]) { /* not off right of tabs */
 
        sc->curxg = sc->tab[i]; /* set position to that tab */
