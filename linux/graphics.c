@@ -3383,10 +3383,6 @@ Negative angles are allowed.
 
 *******************************************************************************/
 
-/* formula to convert to XWindows degrees */
-#define XARCINC (INT_MAX/(360*64))
-#define XARCCVT(a) (a/XARCINC+90*64)
-
 void pa_arc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
 
 {
@@ -3394,6 +3390,7 @@ void pa_arc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
     int tx, ty; /* temps */
+    int a1, a2; /* XWindows angles */
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
@@ -3408,20 +3405,23 @@ void pa_arc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
        y2 = ty;
 
     }
+    a1 = abs(ea-(INT_MAX/4))/(INT_MAX/(360*64));
+    a2 = abs(sa-(INT_MAX/4))/(INT_MAX/(360*64));
+
     if (win->bufmod) { /* buffer is active */
 
         /* draw the ellipse */
         XDrawArc(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
-                 XARCCVT(ea), XARCCVT(sa));
+        		 a1, a2);
 
     }
     if (indisp(win)) { /* do it again for the current screen */
 
         curoff(win); /* hide the cursor */
         /* draw the ellipse */
-dbg_printf(dlinfo, "a1: %d a2: %d\n", XARCCVT(ea), XARCCVT(sa));
+dbg_printf(dlinfo, "a1: %d a2: %d\n", a1, a2);
         XDrawArc(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
-                 XARCCVT(ea), XARCCVT(sa));
+        		 a1, a2);
         curon(win); /* show the cursor */
 
     }
