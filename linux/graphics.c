@@ -1917,8 +1917,17 @@ static void plcchr(winptr win, char c)
 
         if (win->bufmod) { /* buffer is active */
 
-            /* place on buffer */
-            XDrawImageString(padisplay, sc->xbuf, sc->xcxt,
+            /* set background to foreground to draw character background */
+            if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+            else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+            XFillRectangle(padisplay, sc->xbuf, sc->xcxt,
+                           sc->curxg-1, sc->curyg-1,
+                           win->charspace, win->linespace);
+            /* restore colors */
+            if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+            else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+            /* draw character */
+            XDrawString(padisplay, sc->xbuf, sc->xcxt,
                         sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
 
             /* check draw underline */
@@ -1951,8 +1960,18 @@ static void plcchr(winptr win, char c)
         if (indisp(win)) { /* do it again for the current screen */
 
             curoff(win); /* hide the cursor */
-            /* place on buffer */
-            XDrawImageString(padisplay, win->xwhan, sc->xcxt,
+
+            /* set background to foreground to draw character background */
+            if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+            else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+            XFillRectangle(padisplay, win->xwhan, sc->xcxt,
+                           sc->curxg-1, sc->curyg-1,
+                           win->charspace, win->linespace);
+            /* restore colors */
+            if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+            else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+            /* draw character */
+            XDrawString(padisplay, win->xwhan, sc->xcxt,
                         sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
 
             /* check draw underline */
