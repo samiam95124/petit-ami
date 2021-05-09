@@ -196,7 +196,7 @@ typedef struct fontrec {
 
 } fontrec, *fontptr;
 
-typedef enum { mdnorm, mdinvis, mdxor } mode; /* color mix modes */
+typedef enum { mdnorm, mdinvis, mdxor, mdand, mdor } mode; /* color mix modes */
 
 /* Menu tracking. This is a mirror image of the menu we were given by the
    user. However, we can do with less information than is in the original
@@ -3790,7 +3790,9 @@ void pa_fover(FILE* f)
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
-    XSetFunction(padisplay, sc->xcxt, GXcopy); /* set overwrite */
+    win->gfmod = mdnorm; /* set foreground mode overwrite */
+    sc->fmod = mdnorm;
+    //XSetFunction(padisplay, sc->xcxt, GXcopy); /* set overwrite */
 
 }
 
@@ -3806,6 +3808,14 @@ void pa_bover(FILE* f)
 
 {
 
+    winptr win; /* window record pointer */
+    scnptr sc;  /* screen buffer */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    win->gbmod = mdnorm; /* set background mode overwrite */
+    sc->bmod = mdnorm;
+
 }
 
 /** ****************************************************************************
@@ -3820,6 +3830,14 @@ void pa_finvis(FILE* f)
 
 {
 
+    winptr win; /* window record pointer */
+    scnptr sc;  /* screen buffer */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    win->gfmod = mdinvis; /* set foreground mode invisible */
+    sc->fmod = mdinvis;
+
 }
 
 /** ****************************************************************************
@@ -3833,6 +3851,14 @@ Sets the background write mode to invisible.
 void pa_binvis(FILE* f)
 
 {
+
+    winptr win; /* window record pointer */
+    scnptr sc;  /* screen buffer */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    win->gbmod = mdinvis; /* set background mode invisible */
+    sc->bmod = mdinvis;
 
 }
 
@@ -3853,7 +3879,9 @@ void pa_fxor(FILE* f)
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
-    XSetFunction(padisplay, sc->xcxt, GXxor); /* set overwrite */
+    win->gfmod = mdxor; /* set foreground mode xor */
+    sc->fmod = mdxor;
+    //XSetFunction(padisplay, sc->xcxt, GXxor); /* set overwrite */
 
 }
 
@@ -3868,6 +3896,104 @@ Sets the background write mode to xor.
 void pa_bxor(FILE* f)
 
 {
+
+    winptr win; /* window record pointer */
+    scnptr sc;  /* screen buffer */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    win->gfmod = mdxor; /* set background mode xor */
+    sc->fmod = mdxor;
+
+}
+
+/** ****************************************************************************
+
+Set foreground to and
+
+Sets the foreground write mode to and.
+
+*******************************************************************************/
+
+void pa_fand(FILE* f)
+
+{
+
+    winptr win; /* window record pointer */
+    scnptr sc;  /* screen buffer */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    win->gfmod = mdand; /* set foreground mode and */
+    sc->fmod = mdand;
+    //XSetFunction(padisplay, sc->xcxt, GXand); /* set and */
+
+}
+
+/** ****************************************************************************
+
+Set background to and
+
+Sets the background write mode to and.
+
+*******************************************************************************/
+
+void pa_band(FILE* f)
+
+{
+
+    winptr win; /* window record pointer */
+    scnptr sc;  /* screen buffer */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    win->gfmod = mdand; /* set background mode and */
+    sc->fmod = mdand;
+
+}
+
+/** ****************************************************************************
+
+Set foreground to or
+
+Sets the foreground write mode to or.
+
+*******************************************************************************/
+
+void pa_for(FILE* f)
+
+{
+
+    winptr win; /* window record pointer */
+    scnptr sc;  /* screen buffer */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    win->gfmod = mdor; /* set foreground mode or */
+    sc->fmod = mdor;
+    //XSetFunction(padisplay, sc->xcxt, GXand); /* set or */
+
+}
+
+/** ****************************************************************************
+
+Set background to or
+
+Sets the background write mode to or.
+
+*******************************************************************************/
+
+void pa_bor(FILE* f)
+
+{
+
+    winptr win; /* window record pointer */
+    scnptr sc;  /* screen buffer */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    win->gfmod = mdor; /* set background mode or */
+    sc->fmod = mdor;
 
 }
 
