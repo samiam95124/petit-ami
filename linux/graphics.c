@@ -1930,6 +1930,8 @@ static void plcchr(winptr win, char c)
 
             if (sc->bmod != mdinvis) { /* background is visible */
 
+                /* set background function */
+                XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->bmod]);
                 /* set background to foreground to draw character background */
                 if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
                 else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
@@ -1939,6 +1941,8 @@ static void plcchr(winptr win, char c)
                 /* restore colors */
                 if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
                 else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+                /* reset background function */
+                XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
 
             }
             if (sc->fmod != mdinvis) {
@@ -1985,6 +1989,8 @@ static void plcchr(winptr win, char c)
 
             if (sc->bmod != mdinvis) { /* background is visible */
 
+                /* set background function */
+                XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->bmod]);
                 /* set background to foreground to draw character background */
                 if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
                 else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
@@ -1994,6 +2000,8 @@ static void plcchr(winptr win, char c)
                 /* restore colors */
                 if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
                 else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+                /* reset background function */
+                XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
 
             }
             if (sc->fmod != mdinvis) {
@@ -3874,7 +3882,6 @@ void pa_fover(FILE* f)
     sc = win->screens[win->curupd-1];
     win->gfmod = mdnorm; /* set foreground mode overwrite */
     sc->fmod = mdnorm;
-    //XSetFunction(padisplay, sc->xcxt, GXcopy); /* set overwrite */
 
 }
 
@@ -3963,7 +3970,6 @@ void pa_fxor(FILE* f)
     sc = win->screens[win->curupd-1];
     win->gfmod = mdxor; /* set foreground mode xor */
     sc->fmod = mdxor;
-    //XSetFunction(padisplay, sc->xcxt, GXxor); /* set overwrite */
 
 }
 
@@ -3984,8 +3990,8 @@ void pa_bxor(FILE* f)
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
-    win->gfmod = mdxor; /* set background mode xor */
-    sc->fmod = mdxor;
+    win->gbmod = mdxor; /* set background mode xor */
+    sc->bmod = mdxor;
 
 }
 
@@ -4008,7 +4014,6 @@ void pa_fand(FILE* f)
     sc = win->screens[win->curupd-1];
     win->gfmod = mdand; /* set foreground mode and */
     sc->fmod = mdand;
-    //XSetFunction(padisplay, sc->xcxt, GXand); /* set and */
 
 }
 
@@ -4029,8 +4034,8 @@ void pa_band(FILE* f)
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
-    win->gfmod = mdand; /* set background mode and */
-    sc->fmod = mdand;
+    win->gbmod = mdand; /* set background mode and */
+    sc->bmod = mdand;
 
 }
 
@@ -4053,7 +4058,6 @@ void pa_for(FILE* f)
     sc = win->screens[win->curupd-1];
     win->gfmod = mdor; /* set foreground mode or */
     sc->fmod = mdor;
-    //XSetFunction(padisplay, sc->xcxt, GXand); /* set or */
 
 }
 
@@ -4074,8 +4078,8 @@ void pa_bor(FILE* f)
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
-    win->gfmod = mdor; /* set background mode or */
-    sc->fmod = mdor;
+    win->gbmod = mdor; /* set background mode or */
+    sc->bmod = mdor;
 
 }
 
