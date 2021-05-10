@@ -1938,9 +1938,12 @@ static void plcchr(winptr win, char c)
                 XFillRectangle(padisplay, sc->xbuf, sc->xcxt,
                                sc->curxg-1, sc->curyg-1,
                                win->charspace, win->linespace);
-                /* restore the surface under text */
-                XDrawString(padisplay, sc->xbuf, sc->xcxt,
-                            sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
+                /* xor is non-destructive, and we can restore it. And and or are
+                   destructive, and would require a combining buffer to perform */
+                if (sc->bmod == mdxor)
+                    /* restore the surface under text */
+                    XDrawString(padisplay, sc->xbuf, sc->xcxt,
+                                sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
                 /* restore colors */
                 if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
                 else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
@@ -2000,9 +2003,12 @@ static void plcchr(winptr win, char c)
                 XFillRectangle(padisplay, win->xwhan, sc->xcxt,
                                sc->curxg-1, sc->curyg-1,
                                win->charspace, win->linespace);
-                /* restore the surface under text */
-                XDrawString(padisplay, win->xwhan, sc->xcxt,
-                            sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
+                /* xor is non-destructive, and we can restore it. And and or are
+                   destructive, and would require a combining buffer to perform */
+                if (sc->bmod == mdxor)
+                    /* restore the surface under text */
+                    XDrawString(padisplay, win->xwhan, sc->xcxt,
+                                sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
                 /* restore colors */
                 if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
                 else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
