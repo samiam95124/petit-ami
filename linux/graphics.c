@@ -1928,42 +1928,49 @@ static void plcchr(winptr win, char c)
 
         if (win->bufmod) { /* buffer is active */
 
-            /* set background to foreground to draw character background */
-            if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
-            else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-            XFillRectangle(padisplay, sc->xbuf, sc->xcxt,
-                           sc->curxg-1, sc->curyg-1,
-                           win->charspace, win->linespace);
-            /* restore colors */
-            if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-            else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
-            /* draw character */
-            XDrawString(padisplay, sc->xbuf, sc->xcxt,
-                        sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
+            if (sc->bmod != mdinvis) { /* background is visible */
 
-            /* check draw underline */
-            if (sc->attr & BIT(saundl)){
-
-                /* double line, may need ajusting for low DP displays */
-                XDrawLine(padisplay, sc->xbuf, sc->xcxt,
-                          sc->curxg-1, sc->curyg-1+win->baseoff+1,
-                          sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff+1);
-                        if (sc->attr & BIT(saundl))
-                XDrawLine(padisplay, sc->xbuf, sc->xcxt,
-                          sc->curxg-1, sc->curyg-1+win->baseoff+2,
-                          sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff+2);
+                /* set background to foreground to draw character background */
+                if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+                else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+                XFillRectangle(padisplay, sc->xbuf, sc->xcxt,
+                               sc->curxg-1, sc->curyg-1,
+                               win->charspace, win->linespace);
+                /* restore colors */
+                if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+                else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
 
             }
+            if (sc->fmod != mdinvis) {
 
-            /* check draw strikeout */
-            if (sc->attr & BIT(sastkout)) {
+                /* draw character */
+                XDrawString(padisplay, sc->xbuf, sc->xcxt,
+                            sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
 
-                XDrawLine(padisplay, sc->xbuf, sc->xcxt,
-                          sc->curxg-1, sc->curyg-1+win->baseoff/2,
-                          sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff/2);
-                XDrawLine(padisplay, sc->xbuf, sc->xcxt,
-                          sc->curxg-1, sc->curyg-1+win->baseoff/2+1,
-                          sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff/2+1);
+                /* check draw underline */
+                if (sc->attr & BIT(saundl)){
+
+                    /* double line, may need ajusting for low DP displays */
+                    XDrawLine(padisplay, sc->xbuf, sc->xcxt,
+                              sc->curxg-1, sc->curyg-1+win->baseoff+1,
+                              sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff+1);
+                    XDrawLine(padisplay, sc->xbuf, sc->xcxt,
+                              sc->curxg-1, sc->curyg-1+win->baseoff+2,
+                              sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff+2);
+
+                }
+
+                /* check draw strikeout */
+                if (sc->attr & BIT(sastkout)) {
+
+                    XDrawLine(padisplay, sc->xbuf, sc->xcxt,
+                              sc->curxg-1, sc->curyg-1+win->baseoff/2,
+                              sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff/2);
+                    XDrawLine(padisplay, sc->xbuf, sc->xcxt,
+                              sc->curxg-1, sc->curyg-1+win->baseoff/2+1,
+                              sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff/2+1);
+
+                }
 
             }
 
@@ -1972,44 +1979,52 @@ static void plcchr(winptr win, char c)
 
             curoff(win); /* hide the cursor */
 
-            /* set background to foreground to draw character background */
-            if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
-            else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-            XFillRectangle(padisplay, win->xwhan, sc->xcxt,
-                           sc->curxg-1, sc->curyg-1,
-                           win->charspace, win->linespace);
-            /* restore colors */
-            if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-            else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
-            /* draw character */
-            XDrawString(padisplay, win->xwhan, sc->xcxt,
-                        sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
+            if (sc->bmod != mdinvis) { /* background is visible */
 
-            /* check draw underline */
-            if (sc->attr & BIT(saundl)){
+                /* set background to foreground to draw character background */
+                if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+                else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+                XFillRectangle(padisplay, win->xwhan, sc->xcxt,
+                               sc->curxg-1, sc->curyg-1,
+                               win->charspace, win->linespace);
+                /* restore colors */
+                if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+                else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
 
-                /* double line, may need ajusting for low DP displays */
-                XDrawLine(padisplay, win->xwhan, sc->xcxt,
-                          sc->curxg-1, sc->curyg-1+win->baseoff+1,
-                          sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff+1);
-                        if (sc->attr & BIT(saundl))
-                XDrawLine(padisplay, win->xwhan, sc->xcxt,
-                          sc->curxg-1, sc->curyg-1+win->baseoff+2,
-                          sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff+2);
+            }
+            if (sc->fmod != mdinvis) {
+
+                /* draw character */
+                XDrawString(padisplay, win->xwhan, sc->xcxt,
+                            sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
+
+                /* check draw underline */
+                if (sc->attr & BIT(saundl)){
+
+                    /* double line, may need ajusting for low DP displays */
+                    XDrawLine(padisplay, win->xwhan, sc->xcxt,
+                              sc->curxg-1, sc->curyg-1+win->baseoff+1,
+                              sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff+1);
+                    XDrawLine(padisplay, win->xwhan, sc->xcxt,
+                              sc->curxg-1, sc->curyg-1+win->baseoff+2,
+                              sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff+2);
+
+                }
+
+                /* check draw strikeout */
+                if (sc->attr & BIT(sastkout)) {
+
+                    XDrawLine(padisplay, win->xwhan, sc->xcxt,
+                              sc->curxg-1, sc->curyg-1+win->baseoff/2,
+                              sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff/2);
+                    XDrawLine(padisplay, win->xwhan, sc->xcxt,
+                              sc->curxg-1, sc->curyg-1+win->baseoff/2+1,
+                             sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff/2+1);
+
+                }
 
             }
 
-            /* check draw strikeout */
-            if (sc->attr & BIT(sastkout)) {
-
-                XDrawLine(padisplay, win->xwhan, sc->xcxt,
-                          sc->curxg-1, sc->curyg-1+win->baseoff/2,
-                          sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff/2);
-                XDrawLine(padisplay, win->xwhan, sc->xcxt,
-                          sc->curxg-1, sc->curyg-1+win->baseoff/2+1,
-                          sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff/2+1);
-
-            }
             curon(win); /* show the cursor */
 
         }
