@@ -460,6 +460,17 @@ typedef enum {
 
 } errcod;
 
+/* mode to function table */
+int mod2fnc[mdor+1] = {
+
+    GXcopy, /* mdnorm */
+    GXnoop, /* mdinvis */
+    GXxor,  /* mdxor */
+    GXand,  /* mdand */
+    GXor    /* mdor */
+
+};
+
 /*
  * Saved vectors to system calls. These vectors point to the old, existing
  * vectors that were overriden by this module.
@@ -3141,6 +3152,8 @@ void pa_line(FILE* f, int x1, int y1, int x2, int y2)
        y2 = ty;
 
     }
+    /* set foreground function */
+    XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
     if (win->bufmod) { /* buffer is active */
 
         /* draw the line */
@@ -3155,6 +3168,8 @@ void pa_line(FILE* f, int x1, int y1, int x2, int y2)
         curon(win); /* show the cursor */
 
     }
+    /* reset foreground function */
+    XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
 
 }
 
@@ -3187,6 +3202,8 @@ void pa_rect(FILE* f, int x1, int y1, int x2, int y2)
        y2 = ty;
 
     }
+    /* set foreground function */
+    XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
     if (win->bufmod) { /* buffer is active */
 
         /* draw the rectangle */
@@ -3201,6 +3218,8 @@ void pa_rect(FILE* f, int x1, int y1, int x2, int y2)
         curon(win); /* show the cursor */
 
     }
+    /* reset foreground function */
+    XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
 
 }
 
@@ -3233,6 +3252,8 @@ void pa_frect(FILE* f, int x1, int y1, int x2, int y2)
        y2 = ty;
 
     }
+    /* set foreground function */
+    XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
     if (win->bufmod) { /* buffer is active */
 
         /* draw the rectangle */
@@ -3247,6 +3268,8 @@ void pa_frect(FILE* f, int x1, int y1, int x2, int y2)
         curon(win); /* show the cursor */
 
     }
+    /* reset foreground function */
+    XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
 
 }
 
@@ -3286,6 +3309,8 @@ void pa_rrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
     y1--;
     x2--;
     y2--;
+    /* set foreground function */
+    XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
     if (win->bufmod) { /* buffer is active */
 
         /* stroke the sides */
@@ -3325,6 +3350,8 @@ void pa_rrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
         curon(win); /* show the cursor */
 
     }
+    /* reset foreground function */
+    XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
 
 }
 
@@ -3364,6 +3391,8 @@ void pa_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
     y1--;
     x2--;
     y2--;
+    /* set foreground function */
+    XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
     if (win->bufmod) { /* buffer is active */
 
         /* middle rectangle */
@@ -3413,6 +3442,8 @@ void pa_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
         curon(win); /* show the cursor */
 
     }
+    /* reset foreground function */
+    XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
 
 }
 
@@ -3445,6 +3476,8 @@ void pa_ellipse(FILE* f, int x1, int y1, int x2, int y2)
        y2 = ty;
 
     }
+    /* set foreground function */
+    XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
     if (win->bufmod) { /* buffer is active */
 
         /* draw the ellipse */
@@ -3461,6 +3494,8 @@ void pa_ellipse(FILE* f, int x1, int y1, int x2, int y2)
         curon(win); /* show the cursor */
 
     }
+    /* reset foreground function */
+    XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
 
 }
 
@@ -3493,6 +3528,8 @@ void pa_fellipse(FILE* f, int x1, int y1, int x2, int y2)
        y2 = ty;
 
     }
+    /* set foreground function */
+    XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
     if (win->bufmod) { /* buffer is active */
 
         /* draw the ellipse */
@@ -3509,6 +3546,8 @@ void pa_fellipse(FILE* f, int x1, int y1, int x2, int y2)
         curon(win); /* show the cursor */
 
     }
+    /* reset foreground function */
+    XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
 
 }
 
@@ -3565,6 +3604,8 @@ void pa_arc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
     a1 = abs(ea-(INT_MAX/4))/(INT_MAX/(360*64));
     a2 = abs(sa-(INT_MAX/4))/(INT_MAX/(360*64));
 
+    /* set foreground function */
+    XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
     if (win->bufmod) { /* buffer is active */
 
         /* draw the arc */
@@ -3581,6 +3622,8 @@ void pa_arc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
         curon(win); /* show the cursor */
 
     }
+    /* reset foreground function */
+    XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
 
 }
 
@@ -3618,6 +3661,8 @@ void pa_farc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
     a1 = abs(ea-(INT_MAX/4))/(INT_MAX/(360*64));
     a2 = abs(sa-(INT_MAX/4))/(INT_MAX/(360*64));
 
+    /* set foreground function */
+    XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
     if (win->bufmod) { /* buffer is active */
 
         /* draw the ellipse */
@@ -3634,6 +3679,8 @@ void pa_farc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
         curon(win); /* show the cursor */
 
     }
+    /* reset foreground function */
+    XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
 
 }
 
@@ -3671,6 +3718,8 @@ void pa_fchord(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
     a1 = abs(ea-(INT_MAX/4))/(INT_MAX/(360*64));
     a2 = abs(sa-(INT_MAX/4))/(INT_MAX/(360*64));
 
+    /* set foreground function */
+    XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
     XSetArcMode(padisplay, sc->xcxt, ArcChord); /* set chord mode */
     if (win->bufmod) { /* buffer is active */
 
@@ -3689,6 +3738,8 @@ void pa_fchord(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
 
     }
     XSetArcMode(padisplay, sc->xcxt, ArcPieSlice); /* set pie mode */
+    /* reset foreground function */
+    XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
 
 }
 
@@ -3718,6 +3769,8 @@ void pa_ftriangle(FILE* f, int x1, int y1, int x2, int y2, int x3, int y3)
     pa[2].x = x3;
     pa[2].y = y3;
 
+    /* set foreground function */
+    XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
     if (win->bufmod) { /* buffer is active */
 
         /* draw the triangle */
@@ -3734,6 +3787,8 @@ void pa_ftriangle(FILE* f, int x1, int y1, int x2, int y2, int x3, int y3)
         curon(win); /* show the cursor */
 
     }
+    /* reset foreground function */
+    XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
 
 }
 
@@ -3754,6 +3809,8 @@ void pa_setpixel(FILE* f, int x, int y)
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
+    /* set foreground function */
+    XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
     if (win->bufmod) { /* buffer is active */
 
         curoff(win); /* hide the cursor */
@@ -3770,6 +3827,8 @@ void pa_setpixel(FILE* f, int x, int y)
         curon(win); /* show the cursor */
 
     }
+    /* reset foreground function */
+    XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
 
 }
 
