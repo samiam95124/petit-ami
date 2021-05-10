@@ -1943,6 +1943,8 @@ static void plcchr(winptr win, char c)
             }
             if (sc->fmod != mdinvis) {
 
+                /* set foreground function */
+                XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
                 /* draw character */
                 XDrawString(padisplay, sc->xbuf, sc->xcxt,
                             sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
@@ -1971,6 +1973,8 @@ static void plcchr(winptr win, char c)
                               sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff/2+1);
 
                 }
+                /* reset foreground function */
+                XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
 
             }
 
@@ -1994,6 +1998,8 @@ static void plcchr(winptr win, char c)
             }
             if (sc->fmod != mdinvis) {
 
+                /* set foreground function */
+                XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
                 /* draw character */
                 XDrawString(padisplay, win->xwhan, sc->xcxt,
                             sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
@@ -2022,6 +2028,8 @@ static void plcchr(winptr win, char c)
                              sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff/2+1);
 
                 }
+                /* reset foreground function */
+                XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
 
             }
 
