@@ -43,6 +43,9 @@ int main(int argc, char **argv)
 
     }
 
+    /* enable this for debugging dump of incoming midi */
+    //pa_setparamsynthin(7, "connect", "6");
+
     /* open target ports */
     pa_opensynthin(sport);
     pa_opensynthout(dport);

@@ -16,7 +16,7 @@ to test MIDI in plugins.
 
 #define MAXINST 100 /* maximum allowed device instance (unused) */
 
-int sport; /* output port */
+int sport; /* input port */
 
 /*******************************************************************************
 
