@@ -192,6 +192,7 @@ typedef struct fontrec {
     char*           fn;   /* name of font */
     int             fix;  /* fixed pitch font flag */
     int             sys;  /* font is system fixed (default) */
+    int             attr; /* set of attribute capabilities */
     struct fontrec* next; /* next font in list */
 
 } fontrec, *fontptr;
@@ -502,6 +503,7 @@ static filptr   opnfil[MAXFIL]; /* open files table */
 static int      xltwin[MAXFIL]; /* window equivalence table */
 static int      filwin[MAXFIL]; /* file to window equivalence table */
 static int      esck;           /* previous key was escape */
+static fontptr  fntlst;         /* list of XWindows fonts */
 
 /**
  * Set of input file ids for select
@@ -786,6 +788,187 @@ static int rgb2xwin(int r, int g, int b)
 {
 
    return ((r/8388608)*65536+(g/8388608)*256+(b/8388608));
+
+}
+
+/*******************************************************************************
+
+Load fonts list
+
+Loads the XWindows font list. We only load scalable fonts, since PA has no
+ability to adapt to fonts that don't scale. The font names are stripped to
+their essential information, IE, the PA font names are not simply a copy of the
+XWindows font naming system. We keep the fields needed to differentiate the
+fonts. There is enough information in the font names (by defintion) to select
+the active font by filling in the missing fields with wildcards or specific
+sizing or attribute information.
+
+Looking at the XWindows font name description, these are the dispositions of the
+fields:
+
+-foundry-family-weight-slant-width-pixels-points-hres-vres-spacing-width-cset-#
+
+Foundry     Kept as part of the name.
+Family      Kept as part of the name.
+Weight      Selected as attribute.
+Slant       Selected as attribute.
+Width       Selected as attribute.
+Pixels      Selected in scaling.
+Points      Selected in scaling.
+Hres        Selected in scaling.
+Vres        Selected in scaling.
+Spacing     Selected as attribute.
+Width       Unused.
+Cset        Kept as part of the name.
+#           Kept as part of the name.
+
+See the XWindows font name description for more.
+
+*******************************************************************************/
+
+/* get field by number */
+string fldnum(string fp, int fn)
+
+{
+
+    int i;
+
+    fp++; /* index 1st field */
+    fn--;
+    while (fn) {
+
+        while (*fp && *fp != '-') fp++; /* skip to next '-' */
+        fp++; /* skip over '-' */
+        fn--; /* count */
+
+    }
+
+    return (fp); /* return with the string */
+}
+
+void getfonts(void)
+
+{
+
+    string* fl;   /* font list */
+    int     fc;   /* font count */
+    string* fp;   /* font pointer */
+    int     i;
+    char    buf[250]; /* buffer for string name */
+    string  sp, dp;
+    fontptr flp, fflp;
+    int     f;
+
+    /* load the fonts list */
+    fl = XListFonts(padisplay, "-*-*-*-*-*--0-0-0-0-?-0-*", INT_MAX, &fc);
+
+#if 0
+    /* print the raw XWindows font list */
+    fp = fl;
+    for (i = 1; i <= fc; i++) {
+
+        dbg_printf(dlinfo, "XWindows Font %d: %s\n", i, *fp);
+        fp++;
+
+    }
+#endif
+
+    fp = fl; /* index top of list */
+    fntlst = NULL; /* clear destination list */
+    for (i = 1; i <= fc; i++) { /* process all fonts */
+
+        dp = buf; /* index result buffer */
+        /* get foundry */
+        sp = fldnum(*fp, 1);
+        while (*sp && *sp != '-') *dp++ = *sp++; /* transfer character */
+        *dp++ = ' ';
+        /* get font family */
+        sp = fldnum(*fp, 2);
+        while (*sp && *sp != '-') *dp++ = *sp++; /* transfer character */
+        *dp++ = ' ';
+        /* get character set (2 parts) */
+        sp = fldnum(*fp, 13);
+        while (*sp && *sp != '-') *dp++ = *sp++; /* transfer character */
+        *dp++ = '-';
+        sp = fldnum(*fp, 14);
+        while (*sp && *sp != '-') *dp++ = *sp++; /* transfer character */
+        *dp++ = 0; /* terminate string */
+
+        /* Search for duplicates. Since we removed the attributes, many entries
+           will be duplicated. */
+        flp = fntlst;
+        f = FALSE;
+        while (flp) {
+
+            if (!strcmp(flp->fn, buf)) { f = TRUE; fflp = flp; } /* found */
+            flp = flp->next;
+
+        }
+
+        if (!f) { /* entry is unique */
+
+            /* create destination entry */
+            flp = (fontptr)malloc(sizeof(fontrec));
+            if (!flp) error(enomem); /* no memory */
+            flp->fn = (string)malloc(strlen(buf)+1); /* get name string */
+            if (!flp->fn) error(enomem); /* out of memory */
+            strcpy(flp->fn, buf); /* copy name into place */
+            sp = fldnum(*fp, 11); /* index spacing field */
+            flp->fix = *sp == 'm' || *sp == 'c'; /* set fixed space font */
+            /* this filter will need improvement */
+            flp->sys = !strcmp(buf, "bitstream-courier 10 pitch-iso8859-1");
+            flp->attr = 0; /* clear attribute capabilities */
+            /* push to destination */
+            flp->next = fntlst;
+            fntlst = flp;
+
+        } else flp = fflp;
+
+        /* transfer font attributes capabilties to flags */
+        sp = fldnum(*fp, 3); /* bold */
+        if (!strncmp(sp, "bold", 4)) flp->attr |= BIT(sabold);
+        sp = fldnum(*fp, 3); /* bold */
+        if (!strncmp(sp, "dark", 4)) flp->attr |= BIT(sabold);
+        sp = fldnum(*fp, 3); /* light */
+        if (!strncmp(sp, "light", 5)) flp->attr |= BIT(salight);
+        sp = fldnum(*fp, 4); /* italic */
+        if (!strncmp(sp, "i", 1)) flp->attr |= BIT(saital);
+        sp = fldnum(*fp, 5); /* condensed */
+        if (!strncmp(sp, "condensed", 9)) flp->attr |= BIT(sacondensed);
+        sp = fldnum(*fp, 5); /* condensed */
+        if (!strncmp(sp, "semicondensed", 13)) flp->attr |= BIT(sacondensed);
+
+        fp++; /* next source font entry */
+
+    }
+    XFreeFontNames(fl); /* release the font list */
+
+#if 1
+    /* print resulting font list */
+    flp = fntlst;
+    while (flp) {
+
+        dbg_printf(dlinfo, "Internal font: %s Capabilities: ", flp->fn);
+        if (flp->attr & BIT(sablink)) fprintf(stderr, " blink");
+        if (flp->attr & BIT(sarev)) fprintf(stderr, " reverse");
+        if (flp->attr & BIT(saundl)) fprintf(stderr, " underline");
+        if (flp->attr & BIT(sasuper)) fprintf(stderr, " superscript");
+        if (flp->attr & BIT(sasubs)) fprintf(stderr, " subscript");
+        if (flp->attr & BIT(saital)) fprintf(stderr, " italic");
+        if (flp->attr & BIT(sabold)) fprintf(stderr, " bold");
+        if (flp->attr & BIT(sastkout)) fprintf(stderr, " strikeout");
+        if (flp->attr & BIT(sacondensed)) fprintf(stderr, " condensed");
+        if (flp->attr & BIT(saextended)) fprintf(stderr, " extended");
+        if (flp->attr & BIT(saxlight)) fprintf(stderr, " xlight");
+        if (flp->attr & BIT(salight)) fprintf(stderr, " light");
+        if (flp->attr & BIT(saxbold)) fprintf(stderr, " xbold");
+        if (flp->attr & BIT(sahollow)) fprintf(stderr, " hollow");
+        if (flp->attr & BIT(saraised)) fprintf(stderr, " raised");
+        fprintf(stderr, "\n");
+        flp = flp->next;
+
+    }
+#endif
 
 }
 
@@ -1197,7 +1380,6 @@ static void opnwin(int fn, int pfn, int wid)
     int         si;   /* index for current display screen */
     winptr      win;  /* window pointer */
     winptr      pwin; /* parent window pointer */
-    int         f;    /* window creation flags */
 
     win = lfn2win(fn); /* get a pointer to the window */
     /* find parent */
@@ -4293,47 +4475,6 @@ void pa_fontsiz(FILE* f, int s)
 
 /** ****************************************************************************
 
-Find standard font numbers
-
-Returns the font number of one of the standard font types, terminal, book,
-sign or technical.
-
-*******************************************************************************/
-
-int pa_termfont(FILE* f)
-
-{
-
-    return 1;
-
-}
-
-int pa_bookfont(FILE* f)
-
-{
-
-    return 1;
-
-}
-
-int pa_signfont(FILE* f)
-
-{
-
-    return 1;
-
-}
-
-int pa_techfont(FILE* f)
-
-{
-
-    return 1;
-
-}
-
-/** ****************************************************************************
-
 Set character extra spacing y
 
 Sets the extra character space to be added between lines, also referred to
@@ -6851,11 +6992,11 @@ static void pa_init_graphics(int argc, char *argv[])
 
 {
 
-    int ofn, ifn;
-    int fi;
-    winptr win;            /* windows record pointer */
-    struct sigaction sact; /* action on signal (for timers) */
-    int dfid;              /* XWindows display FID */
+    int     ofn, ifn;
+    int     fi;
+    winptr  win;  /* windows record pointer */
+    int     dfid; /* XWindows display FID */
+    int     f;    /* window creation flags */
 
     /* turn off I/O buffering */
     setvbuf(stdin, NULL, _IONBF, 0);
@@ -6921,6 +7062,9 @@ static void pa_init_graphics(int argc, char *argv[])
 
     /* clear the signaling set */
     FD_ZERO(&ifdsets);
+
+    /* load the XWindows font set */
+    getfonts();
 
 }
 
