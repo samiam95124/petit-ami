@@ -169,6 +169,7 @@ extern void ovr_lseek(plseek_t nfp, plseek_t* ofp);
 
 /* screen text attribute */
 typedef enum {
+
     sablink,     /* blinking text (foreground) */
     sarev,       /* reverse video */
     saundl,      /* underline */
@@ -184,7 +185,28 @@ typedef enum {
     saxbold,     /* bold */
     sahollow,    /* hollow */
     saraised     /* raised */
+
 } scnatt;
+
+/* XWindows font attributes. These are similar, but not identical to the screen
+   text attributes. Its XWindows specific because we have to use these attibutes
+   to automatically recreate the font specifications. */
+typedef enum {
+
+    xcxlight,    /* extra light */
+    xclight,     /* light */
+    xcbold,      /* bold */
+    xcxbold,     /* extra bold */
+    xcital,      /* italic */
+    xcoblique,   /* oblique */
+    xcrital,     /* reverse italic */
+    xcroblique,  /* reverse oblique */
+    xcnarrow,    /* narrow */
+    xccondensed, /* condensed */
+    xcmonospace, /* monospaced */
+    xchar,       /* character spaced */
+
+};
 
 /* font description entry */
 typedef struct fontrec {
