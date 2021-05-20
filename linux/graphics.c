@@ -29,12 +29,12 @@
 * In 2005, gralib was upgraded to include the window mangement calls, and the  *
 * widget calls.                                                                *
 *                                                                              *
-* The XWindows version started at various times around 2018, the first try was *
+* The XWindow version started at various times around 2018, the first try was  *
 * an attempt at use of GTK.This encountered technical problems that seemed to  *
 * be a dead end, but later a solution was found. Irregardless, the rule from   *
 * the effort was "the shallower the depth of stacked APIs, the better".        *
 *                                                                              *
-* The XWindows version was created about the same time as the Windows version  *
+* The XWindow version was created about the same time as the Windows version   *
 * was translated to C. An attempt was and is made to make the structure of the *
 * code to be as similar as possible between them. Never the less, there is no  *
 * attempt made to produce a universal code base between them. If for no other  *
@@ -130,13 +130,19 @@ static enum { /* debug levels */
 //#define PRTXEVT /* print incoming X events */
 //#define EVTPOL /* poll for X events */
 
-#define MAXBUF 10  /* maximum number of buffers available */
-#define IOWIN  1   /* logical window number of input/output pair */
-#define MAXCON 10  /* number of screen contexts */
-#define MAXTAB 50  /* total number of tabs possible per screen */
-#define MAXPIC 50  /* total number of loadable pictures */
-#define MAXLIN 250 /* maximum length of input bufferred line */
-#define MAXFIL 100 /* maximum open files */
+#define MAXBUF 10      /* maximum number of buffers available */
+#define IOWIN  1       /* logical window number of input/output pair */
+#define MAXCON 10      /* number of screen contexts */
+#define MAXTAB 50      /* total number of tabs possible per screen */
+#define MAXPIC 50      /* total number of loadable pictures */
+#define MAXLIN 250     /* maximum length of input bufferred line */
+#define MAXFIL 100     /* maximum open files */
+
+/* To properly compensate for high DPI displays, we use actual height onscreen
+   to determine the ch
+ */
+#define POINT  (0.353) /* point size in mm */
+#define CONPNT 11      /* height of console font */
 
 /* Default terminal size sets the geometry of the terminal */
 
@@ -188,33 +194,46 @@ typedef enum {
 
 } scnatt;
 
-/* XWindows font attributes. These are similar, but not identical to the screen
-   text attributes. Its XWindows specific because we have to use these attibutes
-   to automatically recreate the font specifications. */
+/* XWindow font attributes. These are similar, but not identical to the screen
+   text attributes. Its XWindow specific because we have to use these attibutes
+   to automatically recreate the font specifications. They are mapped into PA
+   standard text attributes by each set routine. */
 typedef enum {
 
-    xcxlight,    /* extra light */
-    xclight,     /* light */
-    xcbold,      /* bold */
-    xcxbold,     /* extra bold */
-    xcital,      /* italic */
-    xcoblique,   /* oblique */
-    xcrital,     /* reverse italic */
-    xcroblique,  /* reverse oblique */
-    xcnarrow,    /* narrow */
-    xccondensed, /* condensed */
-    xcmonospace, /* monospaced */
-    xchar,       /* character spaced */
+    /* weights */
+    xcnormal,        /* normal */
+    xcmedium,        /* medium */
+    xcbold,          /* bold */
+    xcdemibold,      /* demi bold */
+    xcdark,          /* dark */
+    xclight,         /* light */
 
-};
+    /* slants */
+    xcroman,         /* no slant */
+    xcital,          /* italic */
+    xcoblique,       /* oblique */
+    xcrital,         /* reverse italic */
+    xcroblique,      /* reverse oblique */
+
+    /* widths */
+    xcnormalw,       /* normal */
+    xcnarrow,        /* narrow */
+    xccondensed,     /* condensed */
+    xcsemicondensed, /* semicondensed */
+
+    /* spacing */
+    xcproportional,  /* proportional */
+    xcmonospace,     /* monospaced */
+    xcchar           /* character spaced */
+
+} xwcaps;
 
 /* font description entry */
 typedef struct fontrec {
 
     char*           fn;   /* name of font */
     int             fix;  /* fixed pitch font flag */
-    int             sys;  /* font is system fixed (default) */
-    int             attr; /* set of attribute capabilities */
+    int             caps; /* set of XWindow font capabilities */
     struct fontrec* next; /* next font in list */
 
 } fontrec, *fontptr;
@@ -479,6 +498,7 @@ typedef enum {
     enomem,   /* Out of memory */
     einvfil,  /* File is invalid */
     enotinp,  /* not input side of any window */
+    estdfnt,  /* Cannot find standard font */
     esystem   /* System consistency check */
 
 } errcod;
@@ -525,7 +545,7 @@ static filptr   opnfil[MAXFIL]; /* open files table */
 static int      xltwin[MAXFIL]; /* window equivalence table */
 static int      filwin[MAXFIL]; /* file to window equivalence table */
 static int      esck;           /* previous key was escape */
-static fontptr  fntlst;         /* list of XWindows fonts */
+static fontptr  fntlst;         /* list of XWindow fonts */
 
 /**
  * Set of input file ids for select
@@ -609,6 +629,7 @@ static void error(errcod e)
       case enomem:   fprintf(stderr, "Out of memory"); break;
       case einvfil:  fprintf(stderr, "File is invalid"); break;
       case enotinp:  fprintf(stderr, "Not input side of any window"); break;
+      case estdfnt:  fprintf(stderr, "Cannot find standard font"); break;
       case esystem:  fprintf(stderr, "System consistency check"); break;
 
     }
@@ -710,9 +731,9 @@ void prtevt(pa_evtcod e)
 
 /******************************************************************************
 
-Print XWindows event type
+Print XWindow event type
 
-A diagnostic. Prints the XWindows event type codes.
+A diagnostic. Prints the XWindow event type codes.
 
 ******************************************************************************/
 
@@ -767,7 +788,7 @@ void prtxevt(int type)
 Translate colors code
 
 Translates an independent to a terminal specific primary RGB color code for
-XWindows.
+XWindow.
 
 ******************************************************************************/
 
@@ -798,9 +819,9 @@ int colnum(pa_color c)
 
 /*******************************************************************************
 
-Translate rgb to XWindows color
+Translate rgb to XWindow color
 
-Translates a ratioed INT_MAX graph color to the XWindows form, which is a 32
+Translates a ratioed INT_MAX graph color to the XWindow form, which is a 32
 bit word with blue, green and red bytes.
 
 *******************************************************************************/
@@ -815,17 +836,245 @@ static int rgb2xwin(int r, int g, int b)
 
 /*******************************************************************************
 
+Search font
+
+Searches for a font entry by font name.
+
+*******************************************************************************/
+
+fontptr schfnt(string sp)
+
+{
+
+    fontptr fp; /* font pointer */
+    fontptr ffp; /* found font */
+
+    fp = fntlst; /* index top of list */
+    ffp = NULL; /* clear found */
+    while (fp) { /* traverse list */
+
+        if (!strcmp(fp->fn, sp)) ffp = fp; /* found */
+        fp = fp->next;
+
+    }
+
+    return (ffp); /* return found */
+
+}
+
+/*******************************************************************************
+
+Delete font
+
+Deletes the given font entry from the global font list. Does not recycle it.
+
+*******************************************************************************/
+
+void delfnt(fontptr fp)
+
+{
+
+    fontptr flp;
+    fontptr fl;
+
+    if (fp == fntlst) fntlst = fntlst->next; /* gap from top of list */
+    else { /* search whole list */
+
+        /* find last pointer */
+        flp = fntlst;
+        fl = NULL; /* set no last */
+        while (flp && flp != fp) { /* find last */
+
+            fl = flp; /* set last */
+            flp = flp->next; /* go next */
+
+        }
+        if (!fl) error(esystem); /* should have found it */
+        fl->next = fp->next; /* gap over entry */
+
+    }
+
+}
+
+/*******************************************************************************
+
+Print font list
+
+A diagnostic, prints the internal font list.
+
+*******************************************************************************/
+
+void prtfnt(void)
+
+{
+
+    fontptr fp;
+    int     c;
+
+    fp = fntlst;
+    c = 1;
+    while (fp) {
+
+        dbg_printf(dlinfo, "Font %2d: %s Capabilities: ", c, fp->fn);
+        if (fp->caps & BIT(xcnormal)) fprintf(stderr, "normal ");
+        if (fp->caps & BIT(xcmedium)) fprintf(stderr, "medium ");
+        if (fp->caps & BIT(xcbold)) fprintf(stderr, "bold ");
+        if (fp->caps & BIT(xcdemibold)) fprintf(stderr, "demibold ");
+        if (fp->caps & BIT(xcdark)) fprintf(stderr, "dark ");
+        if (fp->caps & BIT(xclight)) fprintf(stderr, "light ");
+
+        if (fp->caps & BIT(xcroman)) fprintf(stderr, "roman ");
+        if (fp->caps & BIT(xcital)) fprintf(stderr, "italic ");
+        if (fp->caps & BIT(xcoblique)) fprintf(stderr, "oblique ");
+        if (fp->caps & BIT(xcrital)) fprintf(stderr, "ritalic ");
+        if (fp->caps & BIT(xcroblique)) fprintf(stderr, "roblique ");
+
+        if (fp->caps & BIT(xcnormalw)) fprintf(stderr, "normalw ");
+        if (fp->caps & BIT(xcnarrow)) fprintf(stderr, "narrow ");
+        if (fp->caps & BIT(xccondensed)) fprintf(stderr, "condensed ");
+        if (fp->caps & BIT(xcsemicondensed)) fprintf(stderr, "semicondensed ");
+
+        if (fp->caps & BIT(xcproportional)) fprintf(stderr, "proportional ");
+        if (fp->caps & BIT(xcmonospace)) fprintf(stderr, "monospace ");
+        if (fp->caps & BIT(xcchar)) fprintf(stderr, "char ");
+        fprintf(stderr, "\n");
+        fp = fp->next;
+        c++;
+
+    }
+
+}
+
+/*******************************************************************************
+
+Preselect standard fonts
+
+Selects the list of 1-4 standard fonts, and reorders the list so they are at the
+top.
+
+The standard fonts are selected by name in this version. This relies on XWindow
+having a standard series of fonts that it carries with it. They could also be
+selected by capabilities, but the sticking point there would be to determine
+serif/sans serif, which does not have a formal capability.
+
+We prefer 10646-1 (Unicode) fonts here, but will take 8859-1 (ISO international
+8 bit).
+
+It is an error in this version if we can't find all the standard fonts. This
+means that programs don't need to account for missing fonts as in old style PA.
+The programs that try to account for missing fonts still work, because the fonts
+will never be missing.
+
+In the current versions, the technical font is just a copy of the sign or sans
+serif font. It used to be a vector stroke font, but that is no longer necessary.
+We actually make a copy of the font entry to keep accounting correct. Its up to
+the user to remove that in lists as required, and perhaps alphabetize the fonts.
+
+Todo
+
+1. Need to check fonts have the correct capabilities, ie., roman/no slant, etc.
+
+*******************************************************************************/
+
+void stdfont(void)
+
+{
+
+    fontptr nfl; /* new font list */
+    fontptr fp; /* font pointer */
+    fontptr sp; /* sign font pointer */
+
+    /* select first 4 fonts for standard fonts */
+    nfl = NULL; /* clear target list */
+
+    /* search 1: terminal font */
+    fp = schfnt("bitstream: courier 10 pitch: iso10646-1");
+    if (fp) { /* found, enter as 1 */
+
+        delfnt(fp); /* remove from source list */
+        fp->next = nfl; /* insert to target list */
+        nfl = fp;
+
+    } else {
+
+        fp = schfnt("bitstream: courier 10 pitch: iso8859-1");
+        if (!fp) error(estdfnt); /* no font found */
+        delfnt(fp); /* remove from source list */
+        fp->next = nfl; /* insert to target list */
+        nfl = fp;
+
+    }
+
+    /* search 2: book (serif) font */
+    fp = schfnt("bitstream: bitstream charter: iso10646-1");
+    if (fp) { /* found, enter as 2 */
+
+        delfnt(fp); /* remove from source list */
+        fp->next = nfl; /* insert to target list */
+        nfl = fp;
+
+    } else {
+
+        fp = schfnt("bitstream: bitstream charter: iso8859-1");
+        if (!fp) error(estdfnt); /* no font found */
+        delfnt(fp); /* remove from source list */
+        fp->next = nfl; /* insert to target list */
+        nfl = fp;
+
+    }
+
+    /* search 3: sign (san serif) font */
+    fp = schfnt("unregistered: latin modern sans: iso8859-1");
+    if (!fp) error(estdfnt); /* no font found */
+    delfnt(fp); /* remove from source list */
+    fp->next = nfl; /* insert to target list */
+    nfl = fp;
+    sp = fp; /* save sign font */
+
+    /* search 4: technical font, make copy of sign */
+    fp = (fontptr)malloc(sizeof(fontrec));
+    if (!fp) error(enomem); /* no memory */
+    /* copy sign font parameters */
+    fp->fn = sp->fn;
+    fp->fix = sp->fix;
+    fp->caps = sp->caps;
+    fp->next = nfl; /* insert to target list */
+    nfl = fp;
+
+    /* transfer all remaining entries to the font list */
+    while (fntlst) {
+
+        fp = fntlst;
+        fntlst = fntlst->next; /* gap from list */
+        fp->next = nfl; /* insert to new list */
+        nfl = fp;
+
+    }
+    /* now insert back to master list, and reverse entries to order */
+    while (nfl) {
+
+        fp = nfl;
+        nfl = nfl->next; /* gap from list */
+        fp->next = fntlst; /* insert to new list */
+        fntlst = fp;
+
+    }
+
+}
+
+/*******************************************************************************
+
 Load fonts list
 
-Loads the XWindows font list. We only load scalable fonts, since PA has no
+Loads the XWindow font list. We only load scalable fonts, since PA has no
 ability to adapt to fonts that don't scale. The font names are stripped to
 their essential information, IE, the PA font names are not simply a copy of the
-XWindows font naming system. We keep the fields needed to differentiate the
+XWindow font naming system. We keep the fields needed to differentiate the
 fonts. There is enough information in the font names (by defintion) to select
 the active font by filling in the missing fields with wildcards or specific
 sizing or attribute information.
 
-Looking at the XWindows font name description, these are the dispositions of the
+Looking at the XWindow font name description, these are the dispositions of the
 fields:
 
 -foundry-family-weight-slant-width-pixels-points-hres-vres-spacing-width-cset-#
@@ -844,7 +1093,7 @@ Width       Unused.
 Cset        Kept as part of the name.
 #           Kept as part of the name.
 
-See the XWindows font name description for more.
+See the XWindow font name description for more.
 
 *******************************************************************************/
 
@@ -866,6 +1115,7 @@ string fldnum(string fp, int fn)
     }
 
     return (fp); /* return with the string */
+
 }
 
 void getfonts(void)
@@ -878,18 +1128,18 @@ void getfonts(void)
     int     i;
     char    buf[250]; /* buffer for string name */
     string  sp, dp;
-    fontptr flp, fflp;
-    int     f;
+    fontptr flp;
+    fontptr nfl;
 
     /* load the fonts list */
     fl = XListFonts(padisplay, "-*-*-*-*-*--0-0-0-0-?-0-*", INT_MAX, &fc);
 
 #if 0
-    /* print the raw XWindows font list */
+    /* print the raw XWindow font list */
     fp = fl;
     for (i = 1; i <= fc; i++) {
 
-        dbg_printf(dlinfo, "XWindows Font %d: %s\n", i, *fp);
+        dbg_printf(dlinfo, "XWindow Font %d: %s\n", i, *fp);
         fp++;
 
     }
@@ -903,10 +1153,12 @@ void getfonts(void)
         /* get foundry */
         sp = fldnum(*fp, 1);
         while (*sp && *sp != '-') *dp++ = *sp++; /* transfer character */
+        *dp++ = ':';
         *dp++ = ' ';
         /* get font family */
         sp = fldnum(*fp, 2);
         while (*sp && *sp != '-') *dp++ = *sp++; /* transfer character */
+        *dp++ = ':';
         *dp++ = ' ';
         /* get character set (2 parts) */
         sp = fldnum(*fp, 13);
@@ -918,16 +1170,9 @@ void getfonts(void)
 
         /* Search for duplicates. Since we removed the attributes, many entries
            will be duplicated. */
-        flp = fntlst;
-        f = FALSE;
-        while (flp) {
+        flp = schfnt(buf);
 
-            if (!strcmp(flp->fn, buf)) { f = TRUE; fflp = flp; } /* found */
-            flp = flp->next;
-
-        }
-
-        if (!f) { /* entry is unique */
+        if (!flp) { /* entry is unique */
 
             /* create destination entry */
             flp = (fontptr)malloc(sizeof(fontrec));
@@ -935,62 +1180,159 @@ void getfonts(void)
             flp->fn = (string)malloc(strlen(buf)+1); /* get name string */
             if (!flp->fn) error(enomem); /* out of memory */
             strcpy(flp->fn, buf); /* copy name into place */
-            sp = fldnum(*fp, 11); /* index spacing field */
-            flp->fix = *sp == 'm' || *sp == 'c'; /* set fixed space font */
-            /* this filter will need improvement */
-            flp->sys = !strcmp(buf, "bitstream-courier 10 pitch-iso8859-1");
-            flp->attr = 0; /* clear attribute capabilities */
+            flp->caps = 0; /* clear capabilities */
             /* push to destination */
             flp->next = fntlst;
             fntlst = flp;
 
-        } else flp = fflp;
+        }
 
-        /* transfer font attributes capabilties to flags */
-        sp = fldnum(*fp, 3); /* bold */
-        if (!strncmp(sp, "bold", 4)) flp->attr |= BIT(sabold);
-        sp = fldnum(*fp, 3); /* bold */
-        if (!strncmp(sp, "dark", 4)) flp->attr |= BIT(sabold);
-        sp = fldnum(*fp, 3); /* light */
-        if (!strncmp(sp, "light", 5)) flp->attr |= BIT(salight);
-        sp = fldnum(*fp, 4); /* italic */
-        if (!strncmp(sp, "i", 1)) flp->attr |= BIT(saital);
-        sp = fldnum(*fp, 5); /* condensed */
-        if (!strncmp(sp, "condensed", 9)) flp->attr |= BIT(sacondensed);
-        sp = fldnum(*fp, 5); /* condensed */
-        if (!strncmp(sp, "semicondensed", 13)) flp->attr |= BIT(sacondensed);
+        /* transfer font capabilties to flags */
+
+        /* weight */
+        sp = fldnum(*fp, 3);
+        if (!strncmp(sp, "normal", 6)) flp->caps |= BIT(xcnormal);
+        if (!strncmp(sp, "medium", 6)) flp->caps |= BIT(xcmedium);
+        if (!strncmp(sp, "bold", 4)) flp->caps |= BIT(xcbold);
+        if (!strncmp(sp, "demibold", 8)) flp->caps |= BIT(xcdemibold);
+        if (!strncmp(sp, "dark", 4)) flp->caps |= BIT(xcdark);
+        if (!strncmp(sp, "light", 5)) flp->caps |= BIT(xclight);
+
+        /* slants */
+        sp = fldnum(*fp, 4);
+        if (!strncmp(sp, "r", 1)) flp->caps |= BIT(xcroman);
+        if (!strncmp(sp, "i", 1)) flp->caps |= BIT(xcital);
+        if (!strncmp(sp, "o", 1)) flp->caps |= BIT(xcoblique);
+        if (!strncmp(sp, "ri", 2)) flp->caps |= BIT(xcrital);
+        if (!strncmp(sp, "ro", 2)) flp->caps |= BIT(xcroblique);
+
+        /* widths */
+        sp = fldnum(*fp, 5);
+        if (!strncmp(sp, "normal", 6)) flp->caps |= BIT(xcnormalw);
+        if (!strncmp(sp, "narrow", 6)) flp->caps |= BIT(xcnarrow);
+        if (!strncmp(sp, "condensed", 9)) flp->caps |= BIT(xccondensed);
+        if (!strncmp(sp, "semicondensed", 13)) flp->caps |= BIT(xcsemicondensed);
+
+        /* spacing */
+        sp = fldnum(*fp, 11); /* index spacing field */
+        if (!strncmp(sp, "p", 1)) flp->caps |= BIT(xcproportional);
+        if (!strncmp(sp, "m", 1)) flp->caps |= BIT(xcmonospace);
+        if (!strncmp(sp, "c", 1)) flp->caps |= BIT(xcchar);
+
+        /* set our font flags based on that */
+        flp->fix = flp->caps & BIT(xcmonospace) || flp->caps & BIT(xcchar);
 
         fp++; /* next source font entry */
 
     }
     XFreeFontNames(fl); /* release the font list */
 
+    /* select the standard fonts */
+    stdfont();
+
 #if 1
     /* print resulting font list */
-    flp = fntlst;
-    while (flp) {
-
-        dbg_printf(dlinfo, "Internal font: %s Capabilities: ", flp->fn);
-        if (flp->attr & BIT(sablink)) fprintf(stderr, " blink");
-        if (flp->attr & BIT(sarev)) fprintf(stderr, " reverse");
-        if (flp->attr & BIT(saundl)) fprintf(stderr, " underline");
-        if (flp->attr & BIT(sasuper)) fprintf(stderr, " superscript");
-        if (flp->attr & BIT(sasubs)) fprintf(stderr, " subscript");
-        if (flp->attr & BIT(saital)) fprintf(stderr, " italic");
-        if (flp->attr & BIT(sabold)) fprintf(stderr, " bold");
-        if (flp->attr & BIT(sastkout)) fprintf(stderr, " strikeout");
-        if (flp->attr & BIT(sacondensed)) fprintf(stderr, " condensed");
-        if (flp->attr & BIT(saextended)) fprintf(stderr, " extended");
-        if (flp->attr & BIT(saxlight)) fprintf(stderr, " xlight");
-        if (flp->attr & BIT(salight)) fprintf(stderr, " light");
-        if (flp->attr & BIT(saxbold)) fprintf(stderr, " xbold");
-        if (flp->attr & BIT(sahollow)) fprintf(stderr, " hollow");
-        if (flp->attr & BIT(saraised)) fprintf(stderr, " raised");
-        fprintf(stderr, "\n");
-        flp = flp->next;
-
-    }
+    dbg_printf(dlinfo, "Internal font list:\n");
+    prtfnt();
 #endif
+
+}
+
+/*******************************************************************************
+
+Select font
+
+Sets the currently selected font active. Processes all current attributes as
+applicable, if the XWindow font set has that capability. Capability must be an
+exact match, that is, capability indicates an actual XWindows font with that
+capability exists. If any capability is not found, we default to blank or no
+characters in the field.
+
+The translation of attributes to capabilities is done on a priority basis. For
+example, bold and light are mutually exclusive, and bold is prioritized.
+
+*******************************************************************************/
+
+void setfnt(winptr win)
+
+{
+
+    char  buf[250]; /* construction buffer for X font names */
+    char* bp;       /* buffer pointer */
+    char* np;       /* font name pointer */
+    fontptr fp;     /* pointer to new font */
+
+    fp = win->gcfont; /* get new font to select */
+    /* (re)construct XWindow font name */
+    bp = buf; /* index buffer */
+    np = fp->fn; /* index name */
+    *bp++ = '-'; /* start format */
+
+    /* foundry */
+    while (*np && *np != ':') *bp++ = *np++;
+    np += 2;
+    *bp++ = '-';
+
+    /* family name */
+    while (*np && *np != ':') *bp++ = *np++;
+    np += 2;
+    *bp++ = '-';
+
+    /* weight */
+    if (win->gattr & BIT(sabold) && fp->caps & BIT(xcbold))
+        { strcpy(bp, "bold"); bp += 4; }
+    else if (win->gattr & BIT(salight) && fp->caps & BIT(xclight))
+        { strcpy(bp, "light"); bp += 5; }
+    else if (fp->caps & BIT(xcnormal))
+        { strcpy(bp, "normal"); bp += 6; }
+    else if (fp->caps & BIT(xcmedium))
+        { strcpy(bp, "medium"); bp += 6; }
+    *bp++ = '-';
+
+    /* slant */
+    if (win->gattr & BIT(saital) && fp->caps & BIT(xcital))
+        { strcpy(bp, "i"); bp += 1; }
+    else if (fp->caps & BIT(xcroman))
+        { strcpy(bp, "r"); bp += 1; }
+    *bp++ = '-';
+
+    /* widths */
+    if (win->gattr & BIT(sacondensed) && fp->caps & BIT(xccondensed))
+        { strcpy(bp, "condensed"); bp += 9; }
+    else if (fp->caps & BIT(xcnormalw))
+        { strcpy(bp, "normal"); bp += 6; }
+    *bp++ = '-';
+
+    /* additional style (empty) */
+    *bp++ = '-';
+
+    /* pixel size */
+    bp += sprintf(bp, "%d", win->gfhigh);
+    *bp++ = '-';
+
+    /* point size */
+    *bp++ = '*';
+    *bp++ = '-';
+
+    /* resolution X */
+    *bp++ = '*';
+    *bp++ = '-';
+
+    /* resolution Y */
+    *bp++ = '*';
+    *bp++ = '-';
+
+    /* spacing  */
+    if (fp->caps & BIT(xcmonospace)) { strcpy(bp, "m"); bp += 1; }
+    else if (fp->caps & BIT(xcchar)) { strcpy(bp, "c"); bp += 1; }
+    else if (fp->caps & BIT(xcproportional)) { strcpy(bp, "p"); bp += 1; }
+    *bp++ = '-';
+
+    /* registry and encoding */
+    while (*np) *bp++ = *np++;
+
+    *bp = 0; /* terminate */
+dbg_printf(dlinfo, "XWindow font select: %s\n", buf);
 
 }
 
@@ -1453,24 +1795,35 @@ static void opnwin(int fn, int pfn, int wid)
     win->visible = FALSE; /* set not visible */
 
     /* get screen parameters */
-    win->shsize = XDisplayWidthMM(padisplay, pascreen); /* size x in millimeters */
-    win->svsize = XDisplayHeightMM(padisplay, pascreen); /* size y in millimeters */
+    win->shsize = DisplayWidthMM(padisplay, pascreen); /* size x in millimeters */
+    win->svsize = DisplayHeightMM(padisplay, pascreen); /* size y in millimeters */
     win->shres = DisplayWidth(padisplay, pascreen);
     win->svres = DisplayHeight(padisplay, pascreen);
     win->sdpmx = win->shres/win->shsize*1000; /* find dots per meter x */
     win->sdpmy = win->svres/win->svsize*1000; /* find dots per meter y */
 
-#if 0
+#if 1
     dbg_printf(dlinfo, "Display width in pixels:  %d\n", win->shres);
     dbg_printf(dlinfo, "Display height in pixels: %d\n", win->svres);
     dbg_printf(dlinfo, "Display width in mm:      %d\n", win->shsize);
     dbg_printf(dlinfo, "Display height in mm:     %d\n", win->svsize);
+    dbg_printf(dlinfo, "Dots per meter x:         %d\n", win->sdpmx);
+    dbg_printf(dlinfo, "Dots per meter y:         %d\n", win->sdpmy);
 #endif
+
+dbg_printf(dlinfo, "before set font: font height in pixels: %d\n",
+                   (int)(CONPNT*POINT*win->sdpmy/1000));
+dbg_printf(dlinfo, "before set font: font height in mm: %f\n",
+                   CONPNT*POINT);
+    win->gcfont = fntlst; /* index terminal font entry */
+    win->gfhigh = (int)(CONPNT*POINT*win->sdpmy/1000); /* set font height */
+    setfnt(win); /* select font */
 
     /* choose courier font based on dpi, this works best on a variety of
        display resolutions */
     win->xfont = XLoadQueryFont(padisplay,
-        "-bitstream-courier 10 pitch-bold-r-normal--0-0-200-200-m-0-iso8859-1");
+//        "-bitstream-courier 10 pitch-bold-r-normal--0-0-200-200-m-0-iso8859-1");
+        "-bitstream-courier 10 pitch-medium-r-normal--19-0-0-0-m-0-iso8859-1");
     if (!win->xfont) {
 
         fprintf(stderr, "*** No font ***\n");
@@ -1478,7 +1831,7 @@ static void opnwin(int fn, int pfn, int wid)
 
     }
 
-#if 0
+#if 1
     dbg_printf(dlinfo, "Font min_bounds: lbearing: %d\n", win->xfont->min_bounds.lbearing);
     dbg_printf(dlinfo, "Font min_bounds: rbearing: %d\n", win->xfont->min_bounds.rbearing);
     dbg_printf(dlinfo, "Font min_bounds: width:    %d\n", win->xfont->min_bounds.width);
@@ -1495,6 +1848,12 @@ static void opnwin(int fn, int pfn, int wid)
     /* find spacing in current font */
     win->charspace = win->xfont->max_bounds.width;
     win->linespace = win->xfont->max_bounds.ascent+win->xfont->max_bounds.descent;
+
+#if 1
+    dbg_printf(dlinfo, "Width of character cell: %d\n", win->charspace);
+    dbg_printf(dlinfo, "Height of character cell: %d\n", win->linespace);
+#endif
+
 
     /* find base offset */
     win->baseoff = win->xfont->ascent;
@@ -3600,7 +3959,7 @@ Draw rounded rectangle
 
 Draws a rounded rectangle in foreground color.
 
-In XWindows, this has to be constructed, since there is no equivalent function.
+In XWindow, this has to be constructed, since there is no equivalent function.
 
 *******************************************************************************/
 
@@ -3682,7 +4041,7 @@ Draw filled rounded rectangle
 
 Draws a filled rounded rectangle in foreground color.
 
-In XWindows, this has to be constructed, since there is no equivalent function.
+In XWindow, this has to be constructed, since there is no equivalent function.
 
 *******************************************************************************/
 
@@ -3893,7 +4252,7 @@ represents, use cd := precis*2*pi. So, for example, precis = 100 means 628
 divisions of the circle.
 
 The end and start points can be negative.
-Note that XWindows draws arcs counterclockwise, so our start and end points are
+Note that XWindow draws arcs counterclockwise, so our start and end points are
 swapped.
 
 Negative angles are allowed.
@@ -3907,7 +4266,7 @@ void pa_arc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
     int tx, ty; /* temps */
-    int a1, a2; /* XWindows angles */
+    int a1, a2; /* XWindow angles */
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
@@ -3964,7 +4323,7 @@ void pa_farc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
     int tx, ty; /* temps */
-    int a1, a2; /* XWindows angles */
+    int a1, a2; /* XWindow angles */
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
@@ -4021,7 +4380,7 @@ void pa_fchord(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
     int tx, ty; /* temps */
-    int a1, a2; /* XWindows angles */
+    int a1, a2; /* XWindow angles */
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
@@ -4078,7 +4437,7 @@ void pa_ftriangle(FILE* f, int x1, int y1, int x2, int y2, int x3, int y3)
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    XPoint pa[3]; /* XWindows points array */
+    XPoint pa[3]; /* XWindow points array */
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
@@ -4989,7 +5348,7 @@ static void mouseupdate(winptr win, pa_evtrec* er, int* keep)
 }
 
 /* Register mouse status.
-   Get mouse status from XWindows event to window data flags. */
+   Get mouse status from XWindow event to window data flags. */
 
 static void mouseevent(winptr win, XEvent* e)
 
@@ -5018,7 +5377,7 @@ static void mouseevent(winptr win, XEvent* e)
 
 }
 
-/* XWindows event process */
+/* XWindow event process */
 
 static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
 
@@ -5182,15 +5541,15 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
 
 }
 
-/* get and process XWindows event */
+/* get and process XWindow event */
 static void xwinget(pa_evtrec* er, int* keep)
 
 {
 
-    XEvent     e;        /* XWindows event record */
+    XEvent     e;        /* XWindow event record */
     winptr     win;      /* window record pointer */
     int        ofn;      /* output lfn associated with window */
-    static int xcnt = 0; /* XWindows event counter */
+    static int xcnt = 0; /* XWindow event counter */
 
     if (XPending(padisplay)) {
 
@@ -5206,7 +5565,7 @@ if (e.type != NoExpose && e.type != Expose) {
 
             win = lfn2win(ofn); /* get window for that */
             er->winid = filwin[ofn]; /* get window number */
-            xwinevt(win, er, &e, keep); /* process XWindows event */
+            xwinevt(win, er, &e, keep); /* process XWindow event */
 
         }
 
@@ -5219,7 +5578,7 @@ void pa_event(FILE* f, pa_evtrec* er)
 {
 
     int        keep;     /* keep event flag */
-    int        dfid;     /* XWindows display FID */
+    int        dfid;     /* XWindow display FID */
     int        rv;       /* return value */
     static int ecnt = 0; /* PA event counter */
     uint64_t   exp;      /* timer expiration time */
@@ -5227,7 +5586,7 @@ void pa_event(FILE* f, pa_evtrec* er)
     int        i;
 
     keep = FALSE; /* set do not keep event */
-    dfid = ConnectionNumber(padisplay); /* find XWindows display fid */
+    dfid = ConnectionNumber(padisplay); /* find XWindow display fid */
     do {
 
 #ifdef EVTPOL
@@ -5420,7 +5779,7 @@ void pa_autohold(int e)
 
 Return number of mice
 
-Returns the number of mice implemented. XWindows supports only one mouse.
+Returns the number of mice implemented. XWindow supports only one mouse.
 
 *******************************************************************************/
 
@@ -5437,7 +5796,7 @@ int pa_mouse(FILE* f)
 Return number of buttons on mouse
 
 Returns the number of buttons on the mouse. There is only one mouse in this
-version. XWindows supports from 1 to 5 buttons, but we limit it to 3.
+version. XWindow supports from 1 to 5 buttons, but we limit it to 3.
 
 *******************************************************************************/
 
@@ -7017,7 +7376,7 @@ static void pa_init_graphics(int argc, char *argv[])
     int     ofn, ifn;
     int     fi;
     winptr  win;  /* windows record pointer */
-    int     dfid; /* XWindows display FID */
+    int     dfid; /* XWindow display FID */
     int     f;    /* window creation flags */
 
     /* turn off I/O buffering */
@@ -7069,6 +7428,9 @@ static void pa_init_graphics(int argc, char *argv[])
     }
     pascreen = DefaultScreen(padisplay);
 
+    /* load the XWindow font set */
+    getfonts();
+
     /* open stdin and stdout as I/O window set */
     ifn = fileno(stdin); /* get logical id stdin */
     ofn = fileno(stdout); /* get logical id stdout */
@@ -7077,7 +7439,7 @@ static void pa_init_graphics(int argc, char *argv[])
     /* clear input select set */
     FD_ZERO(&ifdseta);
 
-    /* select XWindows display file */
+    /* select XWindow display file */
     dfid = ConnectionNumber(padisplay);
     FD_SET(dfid, &ifdseta);
     ifdmax = dfid+1; /* set maximum fid for select() */
@@ -7085,8 +7447,7 @@ static void pa_init_graphics(int argc, char *argv[])
     /* clear the signaling set */
     FD_ZERO(&ifdsets);
 
-    /* load the XWindows font set */
-    getfonts();
+
 
 }
 
