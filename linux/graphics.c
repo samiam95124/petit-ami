@@ -139,10 +139,10 @@ static enum { /* debug levels */
 #define MAXFIL 100     /* maximum open files */
 
 /* To properly compensate for high DPI displays, we use actual height onscreen
-   to determine the ch
- */
+   to determine the character height. Note the point size was choosen to most
+   closely match xterm. */
 #define POINT  (0.353) /* point size in mm */
-#define CONPNT 11      /* height of console font */
+#define CONPNT 11.5    /* height of console font */
 
 /* Default terminal size sets the geometry of the terminal */
 
@@ -1228,7 +1228,7 @@ void getfonts(void)
     XFreeFontNames(fl); /* release the font list */
 
     /* select the standard fonts */
-    stdfont();
+//    stdfont();
 
 #if 1
     /* print resulting font list */
@@ -1744,6 +1744,7 @@ static void opnwin(int fn, int pfn, int wid)
     int         si;   /* index for current display screen */
     winptr      win;  /* window pointer */
     winptr      pwin; /* parent window pointer */
+    char        buf[250];
 
     win = lfn2win(fn); /* get a pointer to the window */
     /* find parent */
@@ -1799,8 +1800,8 @@ static void opnwin(int fn, int pfn, int wid)
     win->svsize = DisplayHeightMM(padisplay, pascreen); /* size y in millimeters */
     win->shres = DisplayWidth(padisplay, pascreen);
     win->svres = DisplayHeight(padisplay, pascreen);
-    win->sdpmx = win->shres/win->shsize*1000; /* find dots per meter x */
-    win->sdpmy = win->svres/win->svsize*1000; /* find dots per meter y */
+    win->sdpmx = win->shres*1000/win->shsize; /* find dots per meter x */
+    win->sdpmy = win->svres*1000/win->svsize; /* find dots per meter y */
 
 #if 1
     dbg_printf(dlinfo, "Display width in pixels:  %d\n", win->shres);
@@ -1821,9 +1822,11 @@ dbg_printf(dlinfo, "before set font: font height in mm: %f\n",
 
     /* choose courier font based on dpi, this works best on a variety of
        display resolutions */
-    win->xfont = XLoadQueryFont(padisplay,
+    sprintf(buf, "-bitstream-courier 10 pitch-medium-r-normal--%d-0-0-0-m-0-iso8859-1", win->gfhigh);
+    dbg_printf(dlinfo, "Font: %s\n", buf);
+    win->xfont = XLoadQueryFont(padisplay, buf);
 //        "-bitstream-courier 10 pitch-bold-r-normal--0-0-200-200-m-0-iso8859-1");
-        "-bitstream-courier 10 pitch-medium-r-normal--19-0-0-0-m-0-iso8859-1");
+//        "-bitstream-courier 10 pitch-medium-r-normal--19-0-0-0-m-0-iso8859-1");
     if (!win->xfont) {
 
         fprintf(stderr, "*** No font ***\n");
