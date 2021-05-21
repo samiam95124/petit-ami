@@ -5820,7 +5820,8 @@ static void ifont(winptr win, int fc)
 
     fontptr fp;
 
-    if (win->screens[win->curupd-1]->autof) error(eatoftc); /* cannot perform with auto on */
+    if (win->screens[win->curupd-1]->autof)
+        error(eatoftc); /* cannot perform with auto on */
     if (fc < 1) error(einvfnm); /* invalid font number */
     /* find indicated font */
     fp = win->fntlst;

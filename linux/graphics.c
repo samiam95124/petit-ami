@@ -353,7 +353,6 @@ typedef struct winrec {
     int          gwexty;            /* window extent y */
     int          gvextx;            /* viewpor extent x */
     int          gvexty;            /* viewport extent y */
-    fontptr      fntlst;            /* list of windows fonts */
     int          fntcnt;            /* number of fonts in font list */
     int          termfnt;           /* terminal font number */
     int          bookfnt;           /* book font number */
@@ -499,6 +498,7 @@ typedef enum {
     einvfil,  /* File is invalid */
     enotinp,  /* not input side of any window */
     estdfnt,  /* Cannot find standard font */
+    eftntl,   /* font name too large */
     esystem   /* System consistency check */
 
 } errcod;
@@ -546,6 +546,7 @@ static int      xltwin[MAXFIL]; /* window equivalence table */
 static int      filwin[MAXFIL]; /* file to window equivalence table */
 static int      esck;           /* previous key was escape */
 static fontptr  fntlst;         /* list of XWindow fonts */
+static int      fntcnt;         /* number of fonts */
 
 /**
  * Set of input file ids for select
@@ -630,10 +631,12 @@ static void error(errcod e)
       case einvfil:  fprintf(stderr, "File is invalid"); break;
       case enotinp:  fprintf(stderr, "Not input side of any window"); break;
       case estdfnt:  fprintf(stderr, "Cannot find standard font"); break;
+      case eftntl:   fprintf(stderr, "Font name too large"); break;
       case esystem:  fprintf(stderr, "System consistency check"); break;
 
     }
     fprintf(stderr, "\n");
+    fflush(stderr); /* make sure error message is output */
 
     exit(1);
 
@@ -1040,6 +1043,7 @@ void stdfont(void)
     fp->caps = sp->caps;
     fp->next = nfl; /* insert to target list */
     nfl = fp;
+    fntcnt++; /* add to font count */
 
     /* transfer all remaining entries to the font list */
     while (fntlst) {
@@ -1227,10 +1231,12 @@ void getfonts(void)
     }
     XFreeFontNames(fl); /* release the font list */
 
+    fntcnt = fc; /* set font count */
+
     /* select the standard fonts */
     stdfont();
 
-#if 1
+#if 0
     /* print resulting font list */
     dbg_printf(dlinfo, "Internal font list:\n");
     prtfnt();
@@ -1279,7 +1285,6 @@ void setfnt(winptr win)
     *bp++ = '-';
 
     /* weight */
-dbg_printf(dlinfo, "win->gattr: %d\n", win->gattr);
     if (win->gattr & BIT(sabold) && fp->caps & BIT(xcbold))
         { strcpy(bp, "bold"); bp += 4; }
     else if (win->gattr & BIT(salight) && fp->caps & BIT(xclight))
@@ -1337,7 +1342,6 @@ dbg_printf(dlinfo, "win->gattr: %d\n", win->gattr);
     while (*np) *bp++ = *np++;
 
     *bp = 0; /* terminate */
-dbg_printf(dlinfo, "XWindow font select: %s\n", buf);
     win->xfont = XLoadQueryFont(padisplay, buf);
     if (!win->xfont) {
 
@@ -1345,6 +1349,32 @@ dbg_printf(dlinfo, "XWindow font select: %s\n", buf);
         exit(1);
 
     }
+
+#if 0
+    dbg_printf(dlinfo, "Font min_bounds: lbearing: %d\n", win->xfont->min_bounds.lbearing);
+    dbg_printf(dlinfo, "Font min_bounds: rbearing: %d\n", win->xfont->min_bounds.rbearing);
+    dbg_printf(dlinfo, "Font min_bounds: width:    %d\n", win->xfont->min_bounds.width);
+    dbg_printf(dlinfo, "Font min_bounds: ascent:   %d\n", win->xfont->min_bounds.ascent);
+    dbg_printf(dlinfo, "Font min_bounds: descent:  %d\n", win->xfont->min_bounds.descent);
+
+    dbg_printf(dlinfo, "Font max_bounds: lbearing: %d\n", win->xfont->max_bounds.lbearing);
+    dbg_printf(dlinfo, "Font max_bounds: rbearing: %d\n", win->xfont->max_bounds.rbearing);
+    dbg_printf(dlinfo, "Font max_bounds: width:    %d\n", win->xfont->max_bounds.width);
+    dbg_printf(dlinfo, "Font max_bounds: ascent:   %d\n", win->xfont->max_bounds.ascent);
+    dbg_printf(dlinfo, "Font max_bounds: descent:  %d\n", win->xfont->max_bounds.descent);
+#endif
+
+    /* find spacing in current font */
+    win->charspace = win->xfont->max_bounds.width;
+    win->linespace = win->xfont->max_bounds.ascent+win->xfont->max_bounds.descent;
+
+#if 0
+    dbg_printf(dlinfo, "Width of character cell: %d\n", win->charspace);
+    dbg_printf(dlinfo, "Height of character cell: %d\n", win->linespace);
+#endif
+
+    /* find base offset */
+    win->baseoff = win->xfont->ascent;
 
 }
 
@@ -1832,7 +1862,7 @@ static void opnwin(int fn, int pfn, int wid)
     win->sdpmx = win->shres*1000/win->shsize; /* find dots per meter x */
     win->sdpmy = win->svres*1000/win->svsize; /* find dots per meter y */
 
-#if 1
+#if 0
     dbg_printf(dlinfo, "Display width in pixels:  %d\n", win->shres);
     dbg_printf(dlinfo, "Display height in pixels: %d\n", win->svres);
     dbg_printf(dlinfo, "Display width in mm:      %d\n", win->shsize);
@@ -1841,40 +1871,9 @@ static void opnwin(int fn, int pfn, int wid)
     dbg_printf(dlinfo, "Dots per meter y:         %d\n", win->sdpmy);
 #endif
 
-dbg_printf(dlinfo, "before set font: font height in pixels: %d\n",
-                   (int)(CONPNT*POINT*win->sdpmy/1000));
-dbg_printf(dlinfo, "before set font: font height in mm: %f\n",
-                   CONPNT*POINT);
     win->gcfont = fntlst; /* index terminal font entry */
     win->gfhigh = (int)(CONPNT*POINT*win->sdpmy/1000); /* set font height */
     setfnt(win); /* select font */
-
-#if 1
-    dbg_printf(dlinfo, "Font min_bounds: lbearing: %d\n", win->xfont->min_bounds.lbearing);
-    dbg_printf(dlinfo, "Font min_bounds: rbearing: %d\n", win->xfont->min_bounds.rbearing);
-    dbg_printf(dlinfo, "Font min_bounds: width:    %d\n", win->xfont->min_bounds.width);
-    dbg_printf(dlinfo, "Font min_bounds: ascent:   %d\n", win->xfont->min_bounds.ascent);
-    dbg_printf(dlinfo, "Font min_bounds: descent:  %d\n", win->xfont->min_bounds.descent);
-
-    dbg_printf(dlinfo, "Font max_bounds: lbearing: %d\n", win->xfont->max_bounds.lbearing);
-    dbg_printf(dlinfo, "Font max_bounds: rbearing: %d\n", win->xfont->max_bounds.rbearing);
-    dbg_printf(dlinfo, "Font max_bounds: width:    %d\n", win->xfont->max_bounds.width);
-    dbg_printf(dlinfo, "Font max_bounds: ascent:   %d\n", win->xfont->max_bounds.ascent);
-    dbg_printf(dlinfo, "Font max_bounds: descent:  %d\n", win->xfont->max_bounds.descent);
-#endif
-
-    /* find spacing in current font */
-    win->charspace = win->xfont->max_bounds.width;
-    win->linespace = win->xfont->max_bounds.ascent+win->xfont->max_bounds.descent;
-
-#if 1
-    dbg_printf(dlinfo, "Width of character cell: %d\n", win->charspace);
-    dbg_printf(dlinfo, "Height of character cell: %d\n", win->linespace);
-#endif
-
-
-    /* find base offset */
-    win->baseoff = win->xfont->ascent;
 
     /* set buffer size required for character spacing at default character grid
        size */
@@ -4811,6 +4810,8 @@ int pa_fonts(FILE* f)
 
 {
 
+    return (fntcnt); /* just return the global font count */
+
 }
 
 /** ****************************************************************************
@@ -4825,6 +4826,33 @@ void pa_font(FILE* f, int fc)
 
 {
 
+    fontptr fp;  /* font pointer */
+    winptr  win; /* windows record pointer */
+    scnptr  sc;  /* screen pointer */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1]; /* index update screen */
+    if (win->screens[win->curupd-1]->autof)
+        error(eatoftc); /* cannot perform with auto on */
+    if (fc < 1) error(einvfnm); /* invalid font number */
+    /* find indicated font */
+    fp = fntlst;
+    while (fp != NULL && fc > 1) { /* search */
+
+       fp = fp->next; /* next font entry */
+       fc--; /* count */
+
+    }
+    if (fc > 1)  error(einvfnm); /* invalid font number */
+    if (!strlen(fp->fn)) error(efntemp); /* font is not assigned */
+    win->screens[win->curupd-1]->cfont = fp; /* place new font */
+    win->gcfont = fp;
+    setfnt(win); /* select the font */
+    /* select to context */
+    XSetFont(padisplay, sc->xcxt, win->xfont->fid);
+    curoff(win); /* reset the cursor to match the new geometry */
+    curon(win);
+
 }
 
 /** ****************************************************************************
@@ -4838,6 +4866,21 @@ Returns the name of a font by number.
 void pa_fontnam(FILE* f, int fc, char* fns, int fnsl)
 
 {
+
+    fontptr fp; /* pointer to font entries */
+    int i; /* string index */
+
+    if (fc <= 0) error(einvftn); /* invalid number */
+    fp = fntlst; /* index top of list */
+    while (fc > 1) { /* walk fonts */
+
+       fp = fp->next; /* next font */
+       fc = fc-1; /* count */
+       if (!fp) error(einvftn); /* check null */
+
+    }
+    if (strlen(fp->fn) > fnsl+1) error(eftntl);
+    strcpy(fns, fp->fn);
 
 }
 
@@ -7408,6 +7451,9 @@ static void pa_init_graphics(int argc, char *argv[])
     /* set internal states */
     fend = FALSE; /* set no end of program ordered */
     fautohold = TRUE; /* set automatically hold self terminators */
+
+    fntlst = NULL; /* clear font list */
+    fntcnt = 0;
 
     /* clear open files tables */
     for (fi = 0; fi < MAXFIL; fi++) {
