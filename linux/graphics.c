@@ -142,7 +142,7 @@ static enum { /* debug levels */
    to determine the character height. Note the point size was choosen to most
    closely match xterm. */
 #define POINT  (0.353) /* point size in mm */
-#define CONPNT 11.5    /* height of console font */
+#define CONPNT 15/*11.5*/    /* height of console font */
 
 /* Default terminal size sets the geometry of the terminal */
 
@@ -1228,7 +1228,7 @@ void getfonts(void)
     XFreeFontNames(fl); /* release the font list */
 
     /* select the standard fonts */
-//    stdfont();
+    stdfont();
 
 #if 1
     /* print resulting font list */
@@ -1279,6 +1279,7 @@ void setfnt(winptr win)
     *bp++ = '-';
 
     /* weight */
+dbg_printf(dlinfo, "win->gattr: %d\n", win->gattr);
     if (win->gattr & BIT(sabold) && fp->caps & BIT(xcbold))
         { strcpy(bp, "bold"); bp += 4; }
     else if (win->gattr & BIT(salight) && fp->caps & BIT(xclight))
@@ -1328,11 +1329,22 @@ void setfnt(winptr win)
     else if (fp->caps & BIT(xcproportional)) { strcpy(bp, "p"); bp += 1; }
     *bp++ = '-';
 
+    /* average width */
+    *bp++ = '*';
+    *bp++ = '-';
+
     /* registry and encoding */
     while (*np) *bp++ = *np++;
 
     *bp = 0; /* terminate */
 dbg_printf(dlinfo, "XWindow font select: %s\n", buf);
+    win->xfont = XLoadQueryFont(padisplay, buf);
+    if (!win->xfont) {
+
+        fprintf(stderr, "*** No font ***\n");
+        exit(1);
+
+    }
 
 }
 
@@ -1795,6 +1807,23 @@ static void opnwin(int fn, int pfn, int wid)
     win->curupd = 1; /* set current update screen */
     win->visible = FALSE; /* set not visible */
 
+    /* set up global buffer parameters */
+    win->gmaxx = DEFXD; /* character max dimensions */
+    win->gmaxy = DEFYD;
+    win->gattr = 0; /* no attribute */
+    win->gauto = TRUE; /* auto on */
+    win->gfcrgb = colnum(pa_black); /*foreground black */
+    win->gbcrgb = colnum(pa_white); /* background white */
+    win->gcurv = TRUE; /* cursor visible */
+    win->gfmod = mdnorm; /* set mix modes */
+    win->gbmod = mdnorm;
+    win->goffx = 0;  /* set 0 offset */
+    win->goffy = 0;
+    win->gwextx = 1; /* set 1:1 extents */
+    win->gwexty = 1;
+    win->gvextx = 1;
+    win->gvexty = 1;
+
     /* get screen parameters */
     win->shsize = DisplayWidthMM(padisplay, pascreen); /* size x in millimeters */
     win->svsize = DisplayHeightMM(padisplay, pascreen); /* size y in millimeters */
@@ -1819,20 +1848,6 @@ dbg_printf(dlinfo, "before set font: font height in mm: %f\n",
     win->gcfont = fntlst; /* index terminal font entry */
     win->gfhigh = (int)(CONPNT*POINT*win->sdpmy/1000); /* set font height */
     setfnt(win); /* select font */
-
-    /* choose courier font based on dpi, this works best on a variety of
-       display resolutions */
-    sprintf(buf, "-bitstream-courier 10 pitch-medium-r-normal--%d-0-0-0-m-0-iso8859-1", win->gfhigh);
-    dbg_printf(dlinfo, "Font: %s\n", buf);
-    win->xfont = XLoadQueryFont(padisplay, buf);
-//        "-bitstream-courier 10 pitch-bold-r-normal--0-0-200-200-m-0-iso8859-1");
-//        "-bitstream-courier 10 pitch-medium-r-normal--19-0-0-0-m-0-iso8859-1");
-    if (!win->xfont) {
-
-        fprintf(stderr, "*** No font ***\n");
-        exit(1);
-
-    }
 
 #if 1
     dbg_printf(dlinfo, "Font min_bounds: lbearing: %d\n", win->xfont->min_bounds.lbearing);
@@ -1881,22 +1896,6 @@ dbg_printf(dlinfo, "before set font: font height in mm: %f\n",
     /* set window title from program name */
     XStoreName(padisplay, win->xwhan, program_invocation_short_name);
 
-    /* set up global buffer parameters */
-    win->gmaxx = DEFXD; /* character max dimensions */
-    win->gmaxy = DEFYD;
-    win->gattr = 0; /* no attribute */
-    win->gauto = TRUE; /* auto on */
-    win->gfcrgb = colnum(pa_black); /*foreground black */
-    win->gbcrgb = colnum(pa_white); /* background white */
-    win->gcurv = TRUE; /* cursor visible */
-    win->gfmod = mdnorm; /* set mix modes */
-    win->gbmod = mdnorm;
-    win->goffx = 0;  /* set 0 offset */
-    win->goffy = 0;
-    win->gwextx = 1; /* set 1:1 extents */
-    win->gwexty = 1;
-    win->gvextx = 1;
-    win->gvexty = 1;
     iniscn(win, win->screens[0]); /* initalize screen buffer */
     restore(win); /* update to screen */
     win->visible = TRUE; /* set not visible */
