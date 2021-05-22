@@ -4520,29 +4520,29 @@ static void plcchr(winptr win, char c)
         /* update buffer */
         if (win->bufmod) { /* buffer is active */
 
-           /* draw character */
-           b = TextOut(sc->bdc, sc->curxg-1, sc->curyg-1+off, &c, 1);
-           if (!b) winerr(); /* process windows error */
+            /* draw character */
+            b = TextOut(sc->bdc, sc->curxg-1, sc->curyg-1+off, &c, 1);
+            if (!b) winerr(); /* process windows error */
 
         }
         if (indisp(win)) { /* activate on screen */
 
-           /* draw character on screen */
-           curoff(win); /* hide the cursor */
-           /* draw character */
-           b = TextOut(win->devcon, sc->curxg-1, sc->curyg-1+off, &c, 1);
-           if (!b) winerr(); /* process windows error */
-           curon(win); /* show the cursor */
+            /* draw character on screen */
+            curoff(win); /* hide the cursor */
+            /* draw character */
+            b = TextOut(win->devcon, sc->curxg-1, sc->curyg-1+off, &c, 1);
+            if (!b) winerr(); /* process windows error */
+            curon(win); /* show the cursor */
 
         }
         if (sc->cfont->sys) iright(win); /* move cursor right character */
         else { /* perform proportional version */
 
-           b = GetTextExtentPoint32(sc->bdc, &c, 1, &sz); /* get spacing */
-           if (!b) winerr(); /* process windows error */
-           sc->curxg = sc->curxg+sz.cx; /* advance the character width */
-           sc->curx = sc->curxg/win->charspace+1; /* recalculate character position */
-           if (indisp(win)) setcur(win); /* set cursor on screen */
+            b = GetTextExtentPoint32(sc->bdc, &c, 1, &sz); /* get spacing */
+            if (!b) winerr(); /* process windows error */
+            sc->curxg = sc->curxg+sz.cx; /* advance the character width */
+            sc->curx = sc->curxg/win->charspace+1; /* recalculate character position */
+            if (indisp(win)) setcur(win); /* set cursor on screen */
 
         }
 

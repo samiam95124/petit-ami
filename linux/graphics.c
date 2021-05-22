@@ -129,6 +129,7 @@ static enum { /* debug levels */
 //#define PRTEVT  /* print outgoing PA events */
 //#define PRTXEVT /* print incoming X events */
 //#define EVTPOL /* poll for X events */
+//#define PRTFTM /* print font metrics */
 
 #define MAXBUF 10      /* maximum number of buffers available */
 #define IOWIN  1       /* logical window number of input/output pair */
@@ -1154,80 +1155,87 @@ void getfonts(void)
     ifc = 0; /* clear internal font counter */
     for (i = 1; i <= fc; i++) { /* process all fonts */
 
-        dp = buf; /* index result buffer */
-        /* get foundry */
-        sp = fldnum(*fp, 1);
-        while (*sp && *sp != '-') *dp++ = *sp++; /* transfer character */
-        *dp++ = ':';
-        *dp++ = ' ';
-        /* get font family */
-        sp = fldnum(*fp, 2);
-        while (*sp && *sp != '-') *dp++ = *sp++; /* transfer character */
-        *dp++ = ':';
-        *dp++ = ' ';
-        /* get character set (2 parts) */
-        sp = fldnum(*fp, 13);
-        while (*sp && *sp != '-') *dp++ = *sp++; /* transfer character */
-        *dp++ = '-';
-        sp = fldnum(*fp, 14);
-        while (*sp && *sp != '-') *dp++ = *sp++; /* transfer character */
-        *dp++ = 0; /* terminate string */
+        /* reject character spaced fonts. I haven't seen reasonable metrics for
+           those */
+        sp = fldnum(*fp, 11); /* index spacing field */
+        if (strncmp(sp, "c", 1)) {
 
-        /* Search for duplicates. Since we removed the attributes, many entries
-           will be duplicated. */
-        flp = schfnt(buf);
+            dp = buf; /* index result buffer */
+            /* get foundry */
+            sp = fldnum(*fp, 1);
+            while (*sp && *sp != '-') *dp++ = *sp++; /* transfer character */
+            *dp++ = ':';
+            *dp++ = ' ';
+            /* get font family */
+            sp = fldnum(*fp, 2);
+            while (*sp && *sp != '-') *dp++ = *sp++; /* transfer character */
+            *dp++ = ':';
+            *dp++ = ' ';
+            /* get character set (2 parts) */
+            sp = fldnum(*fp, 13);
+            while (*sp && *sp != '-') *dp++ = *sp++; /* transfer character */
+            *dp++ = '-';
+            sp = fldnum(*fp, 14);
+            while (*sp && *sp != '-') *dp++ = *sp++; /* transfer character */
+            *dp++ = 0; /* terminate string */
 
-        if (!flp) { /* entry is unique */
+            /* Search for duplicates. Since we removed the attributes, many
+               entries will be duplicated. */
+            flp = schfnt(buf);
 
-            /* create destination entry */
-            flp = (fontptr)malloc(sizeof(fontrec));
-            if (!flp) error(enomem); /* no memory */
-            flp->fn = (string)malloc(strlen(buf)+1); /* get name string */
-            if (!flp->fn) error(enomem); /* out of memory */
-            strcpy(flp->fn, buf); /* copy name into place */
-            flp->caps = 0; /* clear capabilities */
-            /* push to destination */
-            flp->next = fntlst;
-            fntlst = flp;
-            ifc++; /* count internal fonts */
+            if (!flp) { /* entry is unique */
+
+                /* create destination entry */
+                flp = (fontptr)malloc(sizeof(fontrec));
+                if (!flp) error(enomem); /* no memory */
+                flp->fn = (string)malloc(strlen(buf)+1); /* get name string */
+                if (!flp->fn) error(enomem); /* out of memory */
+                strcpy(flp->fn, buf); /* copy name into place */
+                flp->caps = 0; /* clear capabilities */
+                /* push to destination */
+                flp->next = fntlst;
+                fntlst = flp;
+                ifc++; /* count internal fonts */
+
+            }
+
+            /* transfer font capabilties to flags */
+
+            /* weight */
+            sp = fldnum(*fp, 3);
+            if (!strncmp(sp, "normal", 6)) flp->caps |= BIT(xcnormal);
+            if (!strncmp(sp, "medium", 6)) flp->caps |= BIT(xcmedium);
+            if (!strncmp(sp, "bold", 4)) flp->caps |= BIT(xcbold);
+            if (!strncmp(sp, "demibold", 8)) flp->caps |= BIT(xcdemibold);
+            if (!strncmp(sp, "dark", 4)) flp->caps |= BIT(xcdark);
+            if (!strncmp(sp, "light", 5)) flp->caps |= BIT(xclight);
+
+            /* slants */
+            sp = fldnum(*fp, 4);
+            if (!strncmp(sp, "r", 1)) flp->caps |= BIT(xcroman);
+            if (!strncmp(sp, "i", 1)) flp->caps |= BIT(xcital);
+            if (!strncmp(sp, "o", 1)) flp->caps |= BIT(xcoblique);
+            if (!strncmp(sp, "ri", 2)) flp->caps |= BIT(xcrital);
+            if (!strncmp(sp, "ro", 2)) flp->caps |= BIT(xcroblique);
+
+            /* widths */
+            sp = fldnum(*fp, 5);
+            if (!strncmp(sp, "normal", 6)) flp->caps |= BIT(xcnormalw);
+            if (!strncmp(sp, "narrow", 6)) flp->caps |= BIT(xcnarrow);
+            if (!strncmp(sp, "condensed", 9)) flp->caps |= BIT(xccondensed);
+            if (!strncmp(sp, "semicondensed", 13))
+                flp->caps |= BIT(xcsemicondensed);
+
+            /* spacing */
+            sp = fldnum(*fp, 11); /* index spacing field */
+            if (!strncmp(sp, "p", 1)) flp->caps |= BIT(xcproportional);
+            if (!strncmp(sp, "m", 1)) flp->caps |= BIT(xcmonospace);
+            if (!strncmp(sp, "c", 1)) flp->caps |= BIT(xcchar);
+
+            /* set our font flags based on that */
+            flp->fix = flp->caps & BIT(xcmonospace) || flp->caps & BIT(xcchar);
 
         }
-
-        /* transfer font capabilties to flags */
-
-        /* weight */
-        sp = fldnum(*fp, 3);
-        if (!strncmp(sp, "normal", 6)) flp->caps |= BIT(xcnormal);
-        if (!strncmp(sp, "medium", 6)) flp->caps |= BIT(xcmedium);
-        if (!strncmp(sp, "bold", 4)) flp->caps |= BIT(xcbold);
-        if (!strncmp(sp, "demibold", 8)) flp->caps |= BIT(xcdemibold);
-        if (!strncmp(sp, "dark", 4)) flp->caps |= BIT(xcdark);
-        if (!strncmp(sp, "light", 5)) flp->caps |= BIT(xclight);
-
-        /* slants */
-        sp = fldnum(*fp, 4);
-        if (!strncmp(sp, "r", 1)) flp->caps |= BIT(xcroman);
-        if (!strncmp(sp, "i", 1)) flp->caps |= BIT(xcital);
-        if (!strncmp(sp, "o", 1)) flp->caps |= BIT(xcoblique);
-        if (!strncmp(sp, "ri", 2)) flp->caps |= BIT(xcrital);
-        if (!strncmp(sp, "ro", 2)) flp->caps |= BIT(xcroblique);
-
-        /* widths */
-        sp = fldnum(*fp, 5);
-        if (!strncmp(sp, "normal", 6)) flp->caps |= BIT(xcnormalw);
-        if (!strncmp(sp, "narrow", 6)) flp->caps |= BIT(xcnarrow);
-        if (!strncmp(sp, "condensed", 9)) flp->caps |= BIT(xccondensed);
-        if (!strncmp(sp, "semicondensed", 13)) flp->caps |= BIT(xcsemicondensed);
-
-        /* spacing */
-        sp = fldnum(*fp, 11); /* index spacing field */
-        if (!strncmp(sp, "p", 1)) flp->caps |= BIT(xcproportional);
-        if (!strncmp(sp, "m", 1)) flp->caps |= BIT(xcmonospace);
-        if (!strncmp(sp, "c", 1)) flp->caps |= BIT(xcchar);
-
-        /* set our font flags based on that */
-        flp->fix = flp->caps & BIT(xcmonospace) || flp->caps & BIT(xcchar);
-
         fp++; /* next source font entry */
 
     }
@@ -1352,7 +1360,7 @@ void setfnt(winptr win)
 
     }
 
-#if 0
+#ifdef PRTFTM
     dbg_printf(dlinfo, "Font min_bounds: lbearing: %d\n", win->xfont->min_bounds.lbearing);
     dbg_printf(dlinfo, "Font min_bounds: rbearing: %d\n", win->xfont->min_bounds.rbearing);
     dbg_printf(dlinfo, "Font min_bounds: width:    %d\n", win->xfont->min_bounds.width);
@@ -1370,13 +1378,34 @@ void setfnt(winptr win)
     win->charspace = win->xfont->max_bounds.width;
     win->linespace = win->xfont->max_bounds.ascent+win->xfont->max_bounds.descent;
 
-#if 0
+#ifdef PRTFTM
     dbg_printf(dlinfo, "Width of character cell: %d\n", win->charspace);
     dbg_printf(dlinfo, "Height of character cell: %d\n", win->linespace);
 #endif
 
     /* find base offset */
     win->baseoff = win->xfont->ascent;
+
+}
+
+/*******************************************************************************
+
+Find width of character in XWindow
+
+Finds and returns the width of a character in XWindow. Normally used for
+proportional fonts.
+
+*******************************************************************************/
+
+int xwidth(winptr win, char c)
+
+{
+
+    /* only use the simple calculation */
+    if (!win->xfont->per_char) error(esystem);
+    if (win->xfont->min_byte1) error(esystem);
+    if (win->xfont->min_char_or_byte2 != 0) error(esystem);
+    return (win->xfont->per_char[c].width);
 
 }
 
@@ -2623,7 +2652,18 @@ static void plcchr(winptr win, char c)
 
         }
         /* advance to next character */
-        iright(win);
+        if (sc->cfont->fix) iright(win); /* move cursor right character */
+        else { /* perform proportional version */
+
+            if (indisp(win)) curoff(win); /* remove cursor */
+            /* advance the character width */
+            sc->curxg = sc->curxg+xwidth(win, c);
+            /* the cursor x position really has no meaning with proportional
+               but we recalculate it using space anyways. */
+            sc->curx = sc->curxg/win->charspace+1;
+            if (indisp(win)) curon(win); /* set cursor on screen */
+
+        }
 
     }
 
