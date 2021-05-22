@@ -4847,13 +4847,13 @@ void pa_font(FILE* f, int fc)
     }
     if (fc > 1)  error(einvfnm); /* invalid font number */
     if (!strlen(fp->fn)) error(efntemp); /* font is not assigned */
+    curoff(win); /* remove cursor with old font characteristics */
     win->screens[win->curupd-1]->cfont = fp; /* place new font */
     win->gcfont = fp;
     setfnt(win); /* select the font */
     /* select to context */
     XSetFont(padisplay, sc->xcxt, win->xfont->fid);
-    curoff(win); /* reset the cursor to match the new geometry */
-    curon(win);
+    curon(win); /* replace cursor with new font characteristics */
 
 }
 
