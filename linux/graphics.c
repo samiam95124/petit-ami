@@ -5632,6 +5632,8 @@ void pa_event(FILE* f, pa_evtrec* er)
     winptr     win;      /* window record pointer */
     int        i;
 
+    /* make sure all drawing is complete before we take inputs */
+    XFlush(padisplay);
     keep = FALSE; /* set do not keep event */
     dfid = ConnectionNumber(padisplay); /* find XWindow display fid */
     do {
