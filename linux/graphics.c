@@ -353,7 +353,6 @@ typedef struct winrec {
     int          gwexty;            /* window extent y */
     int          gvextx;            /* viewpor extent x */
     int          gvexty;            /* viewport extent y */
-    int          fntcnt;            /* number of fonts in font list */
     int          termfnt;           /* terminal font number */
     int          bookfnt;           /* book font number */
     int          signfnt;           /* sign font number */
@@ -1126,11 +1125,12 @@ void getfonts(void)
 
 {
 
-    string* fl;   /* font list */
-    int     fc;   /* font count */
-    string* fp;   /* font pointer */
-    int     i;
+    string* fl;       /* font list */
+    int     fc;       /* font count */
+    string* fp;       /* font pointer */
+    int     ifc;      /* internal font count */
     char    buf[250]; /* buffer for string name */
+    int     i;
     string  sp, dp;
     fontptr flp;
     fontptr nfl;
@@ -1151,6 +1151,7 @@ void getfonts(void)
 
     fp = fl; /* index top of list */
     fntlst = NULL; /* clear destination list */
+    ifc = 0; /* clear internal font counter */
     for (i = 1; i <= fc; i++) { /* process all fonts */
 
         dp = buf; /* index result buffer */
@@ -1188,6 +1189,7 @@ void getfonts(void)
             /* push to destination */
             flp->next = fntlst;
             fntlst = flp;
+            ifc++; /* count internal fonts */
 
         }
 
@@ -1231,7 +1233,7 @@ void getfonts(void)
     }
     XFreeFontNames(fl); /* release the font list */
 
-    fntcnt = fc; /* set font count */
+    fntcnt = ifc; /* set internal font count */
 
     /* select the standard fonts */
     stdfont();
