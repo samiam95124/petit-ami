@@ -17,10 +17,6 @@
 * in the same buffer. Used to implement various features like intrabuffer      *
 * moves, off screen image chaching, special clipping, etc.                     *
 *                                                                              *
-* fand, band                                                                   *
-*                                                                              *
-* Used with move to implement arbitrary clips usng move, above.                *
-*                                                                              *
 * History:                                                                     *
 *                                                                              *
 * Gralib started in 1996 as a graphical window demonstrator as a twin to       *
@@ -370,6 +366,8 @@ typedef struct winrec {
     int          nmpxg, nmpyg;      /* new mouse current position graphical */
     int          linespace;         /* line spacing in pixels */
     int          charspace;         /* character spacing in pixels */
+    int          chrspcx;           /* extra space between characters */
+    int          chrspcy;           /* extra space between lines */
     int          curspace;          /* size of cursor, in pixels */
     int          baseoff;           /* font baseline offset from top */
     int          shift;             /* state of shift key */
@@ -1377,6 +1375,8 @@ void setfnt(winptr win)
     /* find spacing in current font */
     win->charspace = win->xfont->max_bounds.width;
     win->linespace = win->xfont->max_bounds.ascent+win->xfont->max_bounds.descent;
+    win->chrspcx = 0; /* reset leading and spacing */
+    win->chrspcy = 0;
 
 #ifdef PRTFTM
     dbg_printf(dlinfo, "Width of character cell: %d\n", win->charspace);
@@ -2276,7 +2276,7 @@ static void idown(winptr win)
 
         curoff(win); /* hide the cursor */
         sc->cury++; /* update position */
-        sc->curyg += win->linespace; /* move to next character line */
+        sc->curyg += win->linespace+win->chrspcy; /* move to next character line */
         curon(win); /* show the cursor */
 
     } else if (sc->autof)
@@ -2285,7 +2285,7 @@ static void idown(winptr win)
 
         curoff(win); /* hide the cursor */
         sc->cury++; /* set new position */
-        sc->curyg += win->linespace; /* move to next text line */
+        sc->curyg += win->linespace+win->chrspcy; /* move to next text line */
         curon(win); /* show the cursor */
 
     }
@@ -2657,7 +2657,7 @@ static void plcchr(winptr win, char c)
 
             if (indisp(win)) curoff(win); /* remove cursor */
             /* advance the character width */
-            sc->curxg = sc->curxg+xwidth(win, c);
+            sc->curxg = sc->curxg+xwidth(win, c)+win->chrspcx;
             /* the cursor x position really has no meaning with proportional
                but we recalculate it using space anyways. */
             sc->curx = sc->curxg/win->charspace+1;
@@ -3185,11 +3185,30 @@ Turn on superscript attribute
 Turns on/off the superscript attribute.
 Note that the attributes can only be set singly.
 
+Note that subscript is implemented by a reduced size and elevated font.
+
 *******************************************************************************/
 
 void pa_superscript(FILE* f, int e)
 
 {
+
+    winptr win; /* windows record pointer */
+    scnptr sc;  /* screen pointer */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    if (e) { /* strikeout on */
+
+       sc->attr |= BIT(sasuper); /* set attribute active */
+       win->gattr |= BIT(sasuper);
+
+    } else { /* turn it off */
+
+       sc->attr &= ~BIT(sasuper); /* set attribute inactive */
+       win->gattr &= ~BIT(sasuper);
+
+    }
 
 }
 
@@ -3200,11 +3219,30 @@ Turn on subscript attribute
 Turns on/off the subscript attribute.
 Note that the attributes can only be set singly.
 
+Note that subscript is implemented by a reduced size and lowered font.
+
 *******************************************************************************/
 
 void pa_subscript(FILE* f, int e)
 
 {
+
+    winptr win; /* windows record pointer */
+    scnptr sc;  /* screen pointer */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    if (e) { /* strikeout on */
+
+       sc->attr |= BIT(sasubs); /* set attribute active */
+       win->gattr |= BIT(sasubs);
+
+    } else { /* turn it off */
+
+       sc->attr &= ~BIT(sasubs); /* set attribute inactive */
+       win->gattr &= ~BIT(sasubs);
+
+    }
 
 }
 
@@ -3226,6 +3264,30 @@ void pa_italic(FILE* f, int e)
 
 {
 
+    winptr win; /* windows record pointer */
+    scnptr sc;  /* screen pointer */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    if (e) { /* strikeout on */
+
+       sc->attr |= BIT(saital); /* set attribute active */
+       win->gattr |= BIT(saital);
+
+    } else { /* turn it off */
+
+       sc->attr &= ~BIT(saital); /* set attribute inactive */
+       win->gattr &= ~BIT(saital);
+
+    }
+
+    /* this is a font changing event */
+    curoff(win); /* remove cursor with old font characteristics */
+    setfnt(win); /* select the font */
+    /* select to context */
+    XSetFont(padisplay, sc->xcxt, win->xfont->fid);
+    curon(win); /* replace cursor with new font characteristics */
+
 }
 
 /** ****************************************************************************
@@ -3243,6 +3305,30 @@ colors, which an ATTRIBUTE command seems to mess with !
 void pa_bold(FILE* f, int e)
 
 {
+
+    winptr win; /* windows record pointer */
+    scnptr sc;  /* screen pointer */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    if (e) { /* strikeout on */
+
+       sc->attr |= BIT(sabold); /* set attribute active */
+       win->gattr |= BIT(sabold);
+
+    } else { /* turn it off */
+
+       sc->attr &= ~BIT(sabold); /* set attribute inactive */
+       win->gattr &= ~BIT(sabold);
+
+    }
+
+    /* this is a font changing event */
+    curoff(win); /* remove cursor with old font characteristics */
+    setfnt(win); /* select the font */
+    /* select to context */
+    XSetFont(padisplay, sc->xcxt, win->xfont->fid);
+    curon(win); /* replace cursor with new font characteristics */
 
 }
 
@@ -4800,7 +4886,9 @@ void pa_linewidth(FILE* f, int w)
 
 Find character size x
 
-Returns the character width.
+Returns the character width. This only works if the font is fixed. If it is
+proportional, this just returns the width of a space, which is the widest
+character in the character set.
 
 *******************************************************************************/
 
@@ -4939,6 +5027,21 @@ void pa_fontsiz(FILE* f, int s)
 
 {
 
+    fontptr fp;  /* font pointer */
+    winptr  win; /* windows record pointer */
+    scnptr  sc;  /* screen pointer */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1]; /* index update screen */
+    if (win->screens[win->curupd-1]->autof)
+        error(eatoftc); /* cannot perform with auto on */
+    curoff(win); /* remove cursor with old font characteristics */
+    win->gfhigh = s; /* set new font height */
+    setfnt(win); /* select the font */
+    /* select to context */
+    XSetFont(padisplay, sc->xcxt, win->xfont->fid);
+    curon(win); /* replace cursor with new font characteristics */
+
 }
 
 /** ****************************************************************************
@@ -4946,15 +5049,18 @@ void pa_fontsiz(FILE* f, int s)
 Set character extra spacing y
 
 Sets the extra character space to be added between lines, also referred to
-as "ledding".
-
-Not implemented yet.
+as "leading".
 
 *******************************************************************************/
 
 void pa_chrspcy(FILE* f, int s)
 
 {
+
+    winptr  win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    win->chrspcy = s; /* set leading */
 
 }
 
@@ -4965,13 +5071,16 @@ Sets extra character space x
 Sets the extra character space to be added between characters, referred to
 as "spacing".
 
-Not implemented yet.
-
 *******************************************************************************/
 
 void pa_chrspcx(FILE* f, int s)
 
 {
+
+    winptr  win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    win->chrspcx = s; /* set ledding */
 
 }
 
@@ -4987,6 +5096,12 @@ int pa_dpmx(FILE* f)
 
 {
 
+    winptr win; /* window pointer */
+
+    win = txt2win(f); /* get window pointer from text file */
+
+    return (win->sdpmx); /* return value */
+
 }
 
 /** ****************************************************************************
@@ -5000,6 +5115,12 @@ Returns the number of dots per meter resolution in y.
 int pa_dpmy(FILE* f)
 
 {
+
+    winptr win; /* window pointer */
+
+    win = txt2win(f); /* get window pointer from text file */
+
+    return (win->sdpmy); /* return value */
 
 }
 
@@ -5083,6 +5204,30 @@ void pa_condensed(FILE* f, int e)
 
 {
 
+    winptr win; /* windows record pointer */
+    scnptr sc;  /* screen pointer */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    if (e) { /* strikeout on */
+
+       sc->attr |= BIT(sacondensed); /* set attribute active */
+       win->gattr |= BIT(sacondensed);
+
+    } else { /* turn it off */
+
+       sc->attr &= ~BIT(sacondensed); /* set attribute inactive */
+       win->gattr &= ~BIT(sacondensed);
+
+    }
+
+    /* this is a font changing event */
+    curoff(win); /* remove cursor with old font characteristics */
+    setfnt(win); /* select the font */
+    /* select to context */
+    XSetFont(padisplay, sc->xcxt, win->xfont->fid);
+    curon(win); /* replace cursor with new font characteristics */
+
 }
 
 /** ****************************************************************************
@@ -5101,6 +5246,30 @@ Not implemented yet.
 void pa_extended(FILE* f, int e)
 
 {
+
+    winptr win; /* windows record pointer */
+    scnptr sc;  /* screen pointer */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    if (e) { /* strikeout on */
+
+       sc->attr |= BIT(saextended); /* set attribute active */
+       win->gattr |= BIT(saextended);
+
+    } else { /* turn it off */
+
+       sc->attr &= ~BIT(saextended); /* set attribute inactive */
+       win->gattr &= ~BIT(saextended);
+
+    }
+
+    /* this is a font changing event */
+    curoff(win); /* remove cursor with old font characteristics */
+    setfnt(win); /* select the font */
+    /* select to context */
+    XSetFont(padisplay, sc->xcxt, win->xfont->fid);
+    curon(win); /* replace cursor with new font characteristics */
 
 }
 
@@ -5121,6 +5290,30 @@ void pa_xlight(FILE* f, int e)
 
 {
 
+    winptr win; /* windows record pointer */
+    scnptr sc;  /* screen pointer */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    if (e) { /* strikeout on */
+
+       sc->attr |= BIT(saxlight); /* set attribute active */
+       win->gattr |= BIT(saxlight);
+
+    } else { /* turn it off */
+
+       sc->attr &= ~BIT(saxlight); /* set attribute inactive */
+       win->gattr &= ~BIT(saxlight);
+
+    }
+
+    /* this is a font changing event */
+    curoff(win); /* remove cursor with old font characteristics */
+    setfnt(win); /* select the font */
+    /* select to context */
+    XSetFont(padisplay, sc->xcxt, win->xfont->fid);
+    curon(win); /* replace cursor with new font characteristics */
+
 }
 
 /** ****************************************************************************
@@ -5139,6 +5332,30 @@ Not implemented yet.
 void pa_light(FILE* f, int e)
 
 {
+
+    winptr win; /* windows record pointer */
+    scnptr sc;  /* screen pointer */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    if (e) { /* strikeout on */
+
+       sc->attr |= BIT(salight); /* set attribute active */
+       win->gattr |= BIT(salight);
+
+    } else { /* turn it off */
+
+       sc->attr &= ~BIT(salight); /* set attribute inactive */
+       win->gattr &= ~BIT(salight);
+
+    }
+
+    /* this is a font changing event */
+    curoff(win); /* remove cursor with old font characteristics */
+    setfnt(win); /* select the font */
+    /* select to context */
+    XSetFont(padisplay, sc->xcxt, win->xfont->fid);
+    curon(win); /* replace cursor with new font characteristics */
 
 }
 
@@ -5159,6 +5376,30 @@ void pa_xbold(FILE* f, int e)
 
 {
 
+    winptr win; /* windows record pointer */
+    scnptr sc;  /* screen pointer */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    if (e) { /* strikeout on */
+
+       sc->attr |= BIT(saxbold); /* set attribute active */
+       win->gattr |= BIT(saxbold);
+
+    } else { /* turn it off */
+
+       sc->attr &= ~BIT(saxbold); /* set attribute inactive */
+       win->gattr &= ~BIT(saxbold);
+
+    }
+
+    /* this is a font changing event */
+    curoff(win); /* remove cursor with old font characteristics */
+    setfnt(win); /* select the font */
+    /* select to context */
+    XSetFont(padisplay, sc->xcxt, win->xfont->fid);
+    curon(win); /* replace cursor with new font characteristics */
+
 }
 
 /** ****************************************************************************
@@ -5178,6 +5419,30 @@ void pa_hollow(FILE* f, int e)
 
 {
 
+    winptr win; /* windows record pointer */
+    scnptr sc;  /* screen pointer */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    if (e) { /* strikeout on */
+
+       sc->attr |= BIT(sahollow); /* set attribute active */
+       win->gattr |= BIT(sahollow);
+
+    } else { /* turn it off */
+
+       sc->attr &= ~BIT(sahollow); /* set attribute inactive */
+       win->gattr &= ~BIT(sahollow);
+
+    }
+
+    /* this is a font changing event */
+    curoff(win); /* remove cursor with old font characteristics */
+    setfnt(win); /* select the font */
+    /* select to context */
+    XSetFont(padisplay, sc->xcxt, win->xfont->fid);
+    curon(win); /* replace cursor with new font characteristics */
+
 }
 
 /** ****************************************************************************
@@ -5196,6 +5461,30 @@ Not implemented yet.
 void pa_raised(FILE* f, int e)
 
 {
+
+    winptr win; /* windows record pointer */
+    scnptr sc;  /* screen pointer */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    if (e) { /* strikeout on */
+
+       sc->attr |= BIT(saraised); /* set attribute active */
+       win->gattr |= BIT(saraised);
+
+    } else { /* turn it off */
+
+       sc->attr &= ~BIT(saraised); /* set attribute inactive */
+       win->gattr &= ~BIT(saraised);
+
+    }
+
+    /* this is a font changing event */
+    curoff(win); /* remove cursor with old font characteristics */
+    setfnt(win); /* select the font */
+    /* select to context */
+    XSetFont(padisplay, sc->xcxt, win->xfont->fid);
+    curon(win); /* replace cursor with new font characteristics */
 
 }
 
@@ -7568,6 +7857,8 @@ static void pa_deinit_graphics()
 
     pa_evtrec er;
 
+    win = lfn2win(fileno(stdout)); /* get window from fid */
+
 	/* if the program tries to exit when the user has not ordered an exit, it
 	   is assumed to be a windows "unaware" program. We stop before we exit
 	   these, so that their content may be viewed */
@@ -7578,7 +7869,6 @@ static void pa_deinit_graphics()
         if (!trmnam) error(enomem);
         strcpy(trmnam, fini); /* place first part */
         strcat(trmnam, program_invocation_short_name); /* place program name */
-        win = lfn2win(fileno(stdout)); /* get window from fid */
         /* set window title */
         XStoreName(padisplay, win->xwhan, trmnam);
         /* wait for a formal end */
@@ -7586,6 +7876,8 @@ static void pa_deinit_graphics()
 		free(trmnam); /* free up termination name */
 
 	}
+	/* destroy the main window */
+	XDestroyWindow(padisplay, win->xwhan);
     /* close X Window */
     XCloseDisplay(padisplay);
 
