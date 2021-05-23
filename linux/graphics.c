@@ -1405,6 +1405,7 @@ int xwidth(winptr win, char c)
     if (!win->xfont->per_char) error(esystem);
     if (win->xfont->min_byte1) error(esystem);
     if (win->xfont->min_char_or_byte2 != 0) error(esystem);
+
     return (win->xfont->per_char[c].width);
 
 }
@@ -5137,6 +5138,12 @@ int pa_strsiz(FILE* f, const char* s)
 
 {
 
+    winptr win; /* window pointer */
+
+    win = txt2win(f); /* get window pointer from text file */
+
+    return (XTextWidth(win->xfont, s, strlen(s))); /* return value */
+
 }
 
 /** ****************************************************************************
@@ -5150,6 +5157,12 @@ Finds the pixel offset to the given character in the string.
 int pa_chrpos(FILE* f, const char* s, int p)
 
 {
+
+    winptr win; /* window pointer */
+
+    win = txt2win(f); /* get window pointer from text file */
+
+    return (XTextWidth(win->xfont, s, p-1)); /* return value */
 
 }
 
