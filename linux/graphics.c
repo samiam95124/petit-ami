@@ -2525,7 +2525,7 @@ static void plcchr(winptr win, char c)
     else if (c >= ' ' && c != 0x7f) {
 
         /* find character spacing */
-        if (sc->cfont->fix) cs =  win->charspace;
+        if (sc->cfont->fix) cs = win->charspace;
         else cs = xwidth(win, c)+win->chrspcx;
         if (win->bufmod) { /* buffer is active */
 
@@ -5198,6 +5198,7 @@ void pa_writejust(FILE* f, const char* s, int n)
     int    ss;  /* spaces total size */
     int    sz;  /* critical size, chars+min space */
     int    cs;  /* size of characters only */
+    int    cbs; /* character background spacing */
     int    i;
     int    l;
 
@@ -5230,6 +5231,62 @@ void pa_writejust(FILE* f, const char* s, int n)
 
         if (s[i] == ' ') {
 
+            if (sc->cfont->fix) cbs = win->charspace;
+            else cbs = xwidth(win, s[i])+win->chrspcx;
+            /* draw in background */
+            if (win->bufmod) { /* buffer is active */
+
+                if (sc->bmod != mdinvis) { /* background is visible */
+
+                    /* set background function */
+                    XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->bmod]);
+                    /* set background to foreground to draw character background */
+                    if (BIT(sarev) & sc->attr)
+                        XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+                    else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+                    XFillRectangle(padisplay, sc->xbuf, sc->xcxt,
+                                   sc->curxg-1, sc->curyg-1,
+                                   cbs, win->linespace);
+                    /* restore colors */
+                    if (BIT(sarev) & sc->attr)
+                        XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+                    else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+                    /* reset background function */
+                    XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
+
+                }
+
+            }
+
+            if (indisp(win)) { /* do it again for the current screen */
+
+                curoff(win); /* hide the cursor */
+
+                if (sc->bmod != mdinvis) { /* background is visible */
+
+                    /* set background function */
+                    XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->bmod]);
+                    /* set background to foreground to draw character background */
+                    if (BIT(sarev) & sc->attr)
+                        XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+                    else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+                    XFillRectangle(padisplay, win->xwhan, sc->xcxt,
+                                   sc->curxg-1, sc->curyg-1,
+                                   cbs, win->linespace);
+                    /* restore colors */
+                    if (BIT(sarev) & sc->attr)
+                        XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+                    else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+                    /* reset background function */
+                    XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
+
+                }
+
+                curon(win); /* show the cursor */
+
+            }
+
+            /* now move forward */
             if (spc > ss) sc->curxg += ss; /* space off */
             else { sc->curxg += spc; ss -= spc; }
 
