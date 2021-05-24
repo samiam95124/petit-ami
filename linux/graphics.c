@@ -134,6 +134,7 @@ static enum { /* debug levels */
 #define MAXPIC 50      /* total number of loadable pictures */
 #define MAXLIN 250     /* maximum length of input bufferred line */
 #define MAXFIL 100     /* maximum open files */
+#define MINJST 1       /* minimum pixels for space in justification */
 
 /* To properly compensate for high DPI displays, we use actual height onscreen
    to determine the character height. Note the point size was choosen to most
@@ -2496,7 +2497,8 @@ static void plcchr(winptr win, char c)
 
 {
 
-    scnptr sc;  /* pointer to current screen */
+    scnptr sc; /* pointer to current screen */
+    int    cs; /* character spacing */
 
     sc = win->screens[win->curupd-1]; /* index current screen */
     if (c == '\r') {
@@ -2522,6 +2524,9 @@ static void plcchr(winptr win, char c)
     /* only output visible characters */
     else if (c >= ' ' && c != 0x7f) {
 
+        /* find character spacing */
+        if (sc->cfont->fix) cs =  win->charspace;
+        else cs = xwidth(win, c)+win->chrspcx;
         if (win->bufmod) { /* buffer is active */
 
             if (sc->bmod != mdinvis) { /* background is visible */
@@ -2533,7 +2538,7 @@ static void plcchr(winptr win, char c)
                 else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
                 XFillRectangle(padisplay, sc->xbuf, sc->xcxt,
                                sc->curxg-1, sc->curyg-1,
-                               win->charspace, win->linespace);
+                               cs, win->linespace);
                 /* xor is non-destructive, and we can restore it. And and or are
                    destructive, and would require a combining buffer to perform */
                 if (sc->bmod == mdxor)
@@ -2561,10 +2566,10 @@ static void plcchr(winptr win, char c)
                     /* double line, may need ajusting for low DP displays */
                     XDrawLine(padisplay, sc->xbuf, sc->xcxt,
                               sc->curxg-1, sc->curyg-1+win->baseoff+1,
-                              sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff+1);
+                              sc->curxg-1+cs, sc->curyg-1+win->baseoff+1);
                     XDrawLine(padisplay, sc->xbuf, sc->xcxt,
                               sc->curxg-1, sc->curyg-1+win->baseoff+2,
-                              sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff+2);
+                              sc->curxg-1+cs, sc->curyg-1+win->baseoff+2);
 
                 }
 
@@ -2573,10 +2578,10 @@ static void plcchr(winptr win, char c)
 
                     XDrawLine(padisplay, sc->xbuf, sc->xcxt,
                               sc->curxg-1, sc->curyg-1+win->baseoff/2,
-                              sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff/2);
+                              sc->curxg-1+cs, sc->curyg-1+win->baseoff/2);
                     XDrawLine(padisplay, sc->xbuf, sc->xcxt,
                               sc->curxg-1, sc->curyg-1+win->baseoff/2+1,
-                              sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff/2+1);
+                              sc->curxg-1+cs, sc->curyg-1+win->baseoff/2+1);
 
                 }
                 /* reset foreground function */
@@ -2598,7 +2603,7 @@ static void plcchr(winptr win, char c)
                 else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
                 XFillRectangle(padisplay, win->xwhan, sc->xcxt,
                                sc->curxg-1, sc->curyg-1,
-                               win->charspace, win->linespace);
+                               cs, win->linespace);
                 /* xor is non-destructive, and we can restore it. And and or are
                    destructive, and would require a combining buffer to perform */
                 if (sc->bmod == mdxor)
@@ -2626,10 +2631,10 @@ static void plcchr(winptr win, char c)
                     /* double line, may need ajusting for low DP displays */
                     XDrawLine(padisplay, win->xwhan, sc->xcxt,
                               sc->curxg-1, sc->curyg-1+win->baseoff+1,
-                              sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff+1);
+                              sc->curxg-1+cs, sc->curyg-1+win->baseoff+1);
                     XDrawLine(padisplay, win->xwhan, sc->xcxt,
                               sc->curxg-1, sc->curyg-1+win->baseoff+2,
-                              sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff+2);
+                              sc->curxg-1+cs, sc->curyg-1+win->baseoff+2);
 
                 }
 
@@ -2638,10 +2643,10 @@ static void plcchr(winptr win, char c)
 
                     XDrawLine(padisplay, win->xwhan, sc->xcxt,
                               sc->curxg-1, sc->curyg-1+win->baseoff/2,
-                              sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff/2);
+                              sc->curxg-1+cs, sc->curyg-1+win->baseoff/2);
                     XDrawLine(padisplay, win->xwhan, sc->xcxt,
                               sc->curxg-1, sc->curyg-1+win->baseoff/2+1,
-                             sc->curxg-1+win->charspace, sc->curyg-1+win->baseoff/2+1);
+                             sc->curxg-1+cs, sc->curyg-1+win->baseoff/2+1);
 
                 }
                 /* reset foreground function */
@@ -4017,14 +4022,14 @@ void pa_rect(FILE* f, int x1, int y1, int x2, int y2)
     if (win->bufmod) { /* buffer is active */
 
         /* draw the rectangle */
-        XDrawRectangle(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1);
+        XDrawRectangle(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1, y2-y1);
 
     }
     if (indisp(win)) { /* do it again for the current screen */
 
         curoff(win); /* hide the cursor */
         /* draw the rectangle */
-        XDrawRectangle(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1);
+        XDrawRectangle(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1, y2-y1);
         curon(win); /* show the cursor */
 
     }
@@ -5171,14 +5176,59 @@ int pa_chrpos(FILE* f, const char* s, int p)
 Write justified text
 
 Writes a string of text with justification. The string and the width in pixels
-is specified. Auto mode cannot be on for this function, nor can it be used on
-the system font.
+is specified. Auto mode cannot be on for this function.
+
+XWindow does not provide justification. We implement a simple algorithim that
+distributes the space amoung the spaces present in the string.
+
+Bugs:
+
+1. Does not consider backgrounds in this version.
 
 *******************************************************************************/
 
 void pa_writejust(FILE* f, const char* s, int n)
 
 {
+
+    winptr win; /* window pointer */
+    scnptr sc;  /* pointer to update screen */
+    int    spc; /* space of spaces */
+    int    ns;  /* number of spaces */
+    int    ss;  /* spaces total size */
+    int    sz;
+    int    i;
+    int    l;
+
+    win = txt2win(f); /* get window pointer from text file */
+    sc = win->screens[win->curupd-1]; /* index update screen */
+    if (sc->autof) error(eatopos); /* cannot perform with auto on */
+    l = strlen(s); /* find string length */
+    /* find critical spacing, that is, spaces are minimum */
+    sz = 0; /* clear size */
+    ns = 0; /* clear number of spaces */
+    for (i = 0; i < l; i++) {
+
+        if (s[i] == ' ') { sz += MINJST; ns++; }
+        else sz += xwidth(win, s[i]);
+
+    }
+    spc = MINJST; /* set minimum */
+    /* if space provided is greater than the minimum, distribute the extra space
+       amoung the existing spaces */
+    ss = ns*MINJST; /* set minimum distribution of space */
+    if (n > sz) { spc = (n-sz)/ns; ss = n-sz; }
+    /* Output the string with our choosen spacing */
+    for (i = 0; i < l; i++) {
+
+        if (s[i] == ' ') {
+
+            if (spc > ss) sc->curxg += ss; /* space off */
+            else { sc->curxg += spc; ss -= spc; }
+
+        } else plcchr(win, s[i]); /* print the character with natural spacing */
+
+    }
 
 }
 
