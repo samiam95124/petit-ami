@@ -5196,7 +5196,8 @@ void pa_writejust(FILE* f, const char* s, int n)
     int    spc; /* space of spaces */
     int    ns;  /* number of spaces */
     int    ss;  /* spaces total size */
-    int    sz;
+    int    sz;  /* critical size, chars+min space */
+    int    cs;  /* size of characters only */
     int    i;
     int    l;
 
@@ -5207,17 +5208,23 @@ void pa_writejust(FILE* f, const char* s, int n)
     /* find critical spacing, that is, spaces are minimum */
     sz = 0; /* clear size */
     ns = 0; /* clear number of spaces */
+    cs = 0; /* clear space in characters */
     for (i = 0; i < l; i++) {
 
         if (s[i] == ' ') { sz += MINJST; ns++; }
-        else sz += xwidth(win, s[i]);
+        else {
+
+            sz += xwidth(win, s[i]); /* calculate chars+min space */
+            cs += xwidth(win, s[i]); /* calculate chars only */
+
+        }
 
     }
     spc = MINJST; /* set minimum */
     /* if space provided is greater than the minimum, distribute the extra space
        amoung the existing spaces */
     ss = ns*MINJST; /* set minimum distribution of space */
-    if (n > sz) { spc = (n-sz)/ns; ss = n-sz; }
+    if (n > sz) { spc = (n-cs)/ns; ss = n-cs; }
     /* Output the string with our choosen spacing */
     for (i = 0; i < l; i++) {
 
