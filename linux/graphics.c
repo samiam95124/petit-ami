@@ -316,8 +316,9 @@ typedef struct scncon { /* screen context */
 
 typedef struct pict { /* picture tracking record */
 
-    int     sx;  /* size in x */
-    int     sy;  /* size in y */
+    int     sx; /* size in x */
+    int     sy; /* size in y */
+    XImage* xi; /* Xwindows image */
 
 } pict;
 
@@ -1866,6 +1867,8 @@ static void opnwin(int fn, int pfn, int wid)
     win->sizests = 0; /* clear last size status word */
     /* clear timer repeat array */
     for (ti = 0; ti < 10; ti++) win->timers[ti] = -1;
+    /* clear loadable pictures table */
+    for (pin = 0; pin < MAXPIC; pin++) win->pictbl[pin].xi = NULL;
     /* clear the screen array */
     for (si = 0; si < MAXCON; si++) win->screens[si] = NULL;
     win->screens[0] = malloc(sizeof(scncon)); /* get the default screen */
@@ -5683,6 +5686,14 @@ void pa_delpict(FILE* f, int p)
 
 {
 
+    winptr win; /* window pointer */
+
+    win = txt2win(f); /* get window pointer from text file */
+    if (p < 1 || p > MAXPIC) error(einvhan); /* bad picture handle */
+    if (!win->pictbl[p-1].xi) error(einvhan); /* bad picture handle */
+// Where is Xdestroyimage????
+//    XDestroyImage(win->pictbl[p-1].xi); /* recycle image data */
+
 }
 
 /** ****************************************************************************
@@ -5691,8 +5702,7 @@ Load picture
 
 Loads a picture into a slot of the loadable pictures array. In this version,
 only .png files (Portable Network Graphics) are loaded, and those must be in
-32 bit Truecolor and alpha format, even though we don't, at present, use the
-alpha channel.
+24 bit Truecolor.
 
 *******************************************************************************/
 
@@ -5730,6 +5740,7 @@ void pa_loadpict(FILE* f, int p, char* fn)
 
 {
 
+    winptr win; /* window pointer */
     FILE* pf; /* picture file */
     /* signature of PNG file */
     const byte signature[8] = { 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a,
@@ -5747,8 +5758,14 @@ void pa_loadpict(FILE* f, int p, char* fn)
     byte fm; /* filter method */
     byte im; /* interlace method */
     unsigned int li;
+    Visual* vi;
+    byte* frmdat;
 
+    win = txt2win(f); /* get window pointer from text file */
     if (p < 1 || p > MAXPIC)  error(einvhan); /* bad picture handle */
+    /* if the slot is already occupied, delete that picture */
+    if (win->pictbl[p-1].xi)
+        /*XDestroyImage(win->pictbl[p-1].xi)*/; /* recycle image data */
     pf = fopen(fn, "r"); /* open picture for read only */
     if (!pf) error(epicopn); /* cannot open picture file */
     for (i = 0; i < 8; i++) { /* read and compare signature */
@@ -5783,6 +5800,16 @@ void pa_loadpict(FILE* f, int p, char* fn)
             dbg_printf(dlinfo, "Filter method:     %u\n", fm);
             dbg_printf(dlinfo, "Interlace method:  %u\n", im);
             li = readbe(pf); /* read and dispose of CRC */
+            /* set picture size */
+            win->pictbl[p-1].sx = pw;
+            win->pictbl[p-1].sy = ph;
+            /* create image structure */
+            vi = DefaultVisual(padisplay, 0); /* define direct map color */
+            frmdat = (byte*)malloc(pw*ph*4); /* allocate image frame */
+            /* create truecolor image */
+            win->pictbl[p-1].xi =
+                XCreateImage(padisplay, vi, 24, ZPixmap, 0, frmdat, pw, ph, 32,
+                             0);
 
         } else if (t == 0x49444154) { /* IDAT */
 
@@ -5814,6 +5841,14 @@ int pa_pictsizx(FILE* f, int p)
 
 {
 
+    winptr win; /* window pointer */
+
+    win = txt2win(f); /* get window pointer from text file */
+    if (p < 1 || p > MAXPIC) error(einvhan); /* bad picture handle */
+    if (!win->pictbl[p-1].xi) error(einvhan); /* bad picture handle */
+
+    return (win->pictbl[p-1].sx); /* return x size */
+
 }
 
 /** ****************************************************************************
@@ -5827,6 +5862,14 @@ Returns the size in y of the logical picture.
 int pa_pictsizy(FILE* f, int p)
 
 {
+
+    winptr win; /* window pointer */
+
+    win = txt2win(f); /* get window pointer from text file */
+    if (p < 1 || p > MAXPIC) error(einvhan); /* bad picture handle */
+    if (!win->pictbl[p-1].xi) error(einvhan); /* bad picture handle */
+
+    return (win->pictbl[p-1].sy); /* return x size */
 
 }
 
@@ -5844,6 +5887,46 @@ Images will be kept in a rotating cache to prevent repeating reloads.
 void pa_picture(FILE* f, int p, int x1, int y1, int x2, int y2)
 
 {
+
+    winptr win; /* window record pointer */
+    scnptr sc;  /* screen buffer */
+    int tx, ty; /* temps */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    if (p < 1 || p > MAXPIC) error(einvhan); /* bad picture handle */
+    if (!win->pictbl[p-1].xi) error(einvhan); /* bad picture handle */
+    /* rationalize the rectangle to right/down */
+    if (x1 > x2 || (x1 == x2 && y1 > y2)) { /* swap */
+
+       tx = x1;
+       ty = y1;
+       x1 = x2;
+       y1 = y2;
+       x2 = tx;
+       y2 = ty;
+
+    }
+    /* set foreground function */
+    XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
+    if (win->bufmod) { /* buffer is active */
+
+        /* draw the picture */
+        XPutImage(padisplay, sc->xbuf, sc->xcxt, win->pictbl[p-1].xi, 0, 0,
+                             x1-1, y1-1, x2-x1+1, y2-y1+1);
+
+    }
+    if (indisp(win)) { /* do it again for the current screen */
+
+        curoff(win); /* hide the cursor */
+        /* draw the rectangle */
+        XPutImage(padisplay, win->xwhan, sc->xcxt, win->pictbl[p-1].xi, 0, 0,
+                             x1-1, y1-1, x2-x1+1, y2-y1+1);
+        curon(win); /* show the cursor */
+
+    }
+    /* reset foreground function */
+    XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
 
 }
 
