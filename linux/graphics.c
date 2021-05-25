@@ -497,7 +497,9 @@ typedef enum {
     einvfil,  /* File is invalid */
     enotinp,  /* not input side of any window */
     estdfnt,  /* Cannot find standard font */
-    eftntl,   /* font name too large */
+    eftntl,   /* Font name too large */
+    epicopn,  /* Cannot open picture file */
+    ebadfmt,  /* Bad format of picture file */
     esystem   /* System consistency check */
 
 } errcod;
@@ -631,6 +633,8 @@ static void error(errcod e)
       case enotinp:  fprintf(stderr, "Not input side of any window"); break;
       case estdfnt:  fprintf(stderr, "Cannot find standard font"); break;
       case eftntl:   fprintf(stderr, "Font name too large"); break;
+      case epicopn:  fprintf(stderr, "Cannot open picture file"); break;
+      case ebadfmt:  fprintf(stderr, "Bad format of picture file"); break;
       case esystem:  fprintf(stderr, "System consistency check"); break;
 
     }
@@ -5685,13 +5689,116 @@ void pa_delpict(FILE* f, int p)
 
 Load picture
 
-Loads a picture into a slot of the loadable pictures array.
+Loads a picture into a slot of the loadable pictures array. In this version,
+only .png files (Portable Network Graphics) are loaded, and those must be in
+32 bit Truecolor and alpha format, even though we don't, at present, use the
+alpha channel.
 
 *******************************************************************************/
+
+byte getbyt(FILE* f)
+
+{
+
+    byte b;
+
+    fread(&b, sizeof(byte), 1, f);
+
+    return (b);
+
+}
+
+unsigned long int readbe(FILE* f)
+
+{
+
+    union {
+
+        unsigned int i;
+        byte         b[4];
+
+    } be2b;
+    int i;
+
+    for (i = 3; i >= 0; i--) be2b.b[i] = getbyt(f);
+
+    return (be2b.i);
+
+}
 
 void pa_loadpict(FILE* f, int p, char* fn)
 
 {
+
+    FILE* pf; /* picture file */
+    /* signature of PNG file */
+    const byte signature[8] = { 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a,
+                                0x0a };
+    byte b;
+    int  i;
+    unsigned int l; /* chunk length */
+    unsigned int t; /* chunk type */
+    int cn; /* chunk number */
+    unsigned int pw; /* picture width */
+    unsigned int ph; /* picture height */
+    byte pd; /* pixel depth */
+    byte ct; /* color type */
+    byte cm; /* compression method */
+    byte fm; /* filter method */
+    byte im; /* interlace method */
+    unsigned int li;
+
+    if (p < 1 || p > MAXPIC)  error(einvhan); /* bad picture handle */
+    pf = fopen(fn, "r"); /* open picture for read only */
+    if (!pf) error(epicopn); /* cannot open picture file */
+    for (i = 0; i < 8; i++) { /* read and compare signature */
+
+        b = getbyt(pf); /* get next byte */
+        if (b != signature[i]) error(ebadfmt);
+
+    }
+    do { /* read file chunks */
+
+        l = readbe(pf); /* get the chunk length */
+        t = readbe(pf); /* get type */
+        /* make sure IHDR chunk is first */
+        if (t != 0x49484452 && cn == 1) error(ebadfmt);
+
+        /* now parse the sundry chunks */
+        if (t == 0x49484452) { /* IHDR */
+
+            if (l != 13) error(ebadfmt); /* must be 13 bytes in header */
+            pw = readbe(pf); /* get picture width */
+            ph = readbe(pf); /* get picture height */
+            pd = getbyt(pf); /* get pixel depth */
+            ct = getbyt(pf); /* get color type */
+            cm = getbyt(pf); /* get compression mode */
+            fm = getbyt(pf); /* get filter method */
+            im = getbyt(pf); /* get interlace method */
+            dbg_printf(dlinfo, "Width:             %u\n", pw);
+            dbg_printf(dlinfo, "Height:            %u\n", ph);
+            dbg_printf(dlinfo, "Pixel depth:       %u\n", pd);
+            dbg_printf(dlinfo, "Color type:        %u\n", ct);
+            dbg_printf(dlinfo, "Compression mode:  %u\n", cm);
+            dbg_printf(dlinfo, "Filter method:     %u\n", fm);
+            dbg_printf(dlinfo, "Interlace method:  %u\n", im);
+            li = readbe(pf); /* read and dispose of CRC */
+
+        } else if (t == 0x49444154) { /* IDAT */
+
+            /* read and dispose of data */
+            for (li = 0; li < l; li++) getbyt(pf);
+            li = readbe(pf); /* read and dispose of CRC */
+
+        } else if (t != 0x49454e44) {
+
+            /* read and dispose of data */
+            for (li = 0; li < l; li++) getbyt(pf);
+            li = readbe(pf); /* read and dispose of CRC */
+
+        }
+
+    } while (t != 0x49454e44); /* not end marker */
 
 }
 
