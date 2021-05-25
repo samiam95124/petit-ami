@@ -5181,10 +5181,6 @@ is specified. Auto mode cannot be on for this function.
 XWindow does not provide justification. We implement a simple algorithim that
 distributes the space amoung the spaces present in the string.
 
-Bugs:
-
-1. Does not consider backgrounds in this version.
-
 *******************************************************************************/
 
 void pa_writejust(FILE* f, const char* s, int n)
@@ -5311,6 +5307,62 @@ spaces, with the fractional part lost.
 int pa_justpos(FILE* f, const char* s, int p, int n)
 
 {
+
+    winptr win; /* window pointer */
+    scnptr sc;  /* pointer to update screen */
+    int    spc; /* space of spaces */
+    int    ns;  /* number of spaces */
+    int    ss;  /* spaces total size */
+    int    sz;  /* critical size, chars+min space */
+    int    cs;  /* size of characters only */
+    int    cbs; /* character background spacing */
+    int    cp;  /* character pixel position */
+    int    crp; /* character result position */
+    int    i;
+    int    l;
+
+    win = txt2win(f); /* get window pointer from text file */
+    sc = win->screens[win->curupd-1]; /* index update screen */
+    if (sc->autof) error(eatopos); /* cannot perform with auto on */
+    l = strlen(s); /* find string length */
+    if (p < 0 || p >= strlen(s))  error(estrinx); /* out of range */
+    /* find critical spacing, that is, spaces are minimum */
+    sz = 0; /* clear size */
+    ns = 0; /* clear number of spaces */
+    cs = 0; /* clear space in characters */
+    for (i = 0; i < l; i++) {
+
+        if (s[i] == ' ') { sz += MINJST; ns++; }
+        else {
+
+            sz += xwidth(win, s[i]); /* calculate chars+min space */
+            cs += xwidth(win, s[i]); /* calculate chars only */
+
+        }
+
+    }
+    spc = MINJST; /* set minimum */
+    /* if space provided is greater than the minimum, distribute the extra space
+       amoung the existing spaces */
+    ss = ns*MINJST; /* set minimum distribution of space */
+    if (n > sz) { spc = (n-cs)/ns; ss = n-cs; }
+    cp = 0; /* set 0 offset to character */
+    crp = 0; /* clear result position */
+    /* Output the string with our choosen spacing */
+    for (i = 0; i < l; i++) {
+
+        if (i == p) crp = cp;
+        if (s[i] == ' ') {
+
+            /* now move forward */
+            if (spc > ss) cp += ss; /* space off */
+            else { cp += spc; ss -= spc; }
+
+        } else cp += xwidth(win, s[i]); /* move forward character space */
+
+    }
+
+    return (crp); /* return result */
 
 }
 
