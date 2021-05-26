@@ -5840,9 +5840,9 @@ void pa_loadpict(FILE* f, int p, char* fn)
 
         for (x = 0; x < pw; x++) { /* fill left to right */
 
-            r = getbyt(pf); /* get red */
-            g = getbyt(pf); /* get green */
             b = getbyt(pf); /* get blue */
+            g = getbyt(pf); /* get green */
+            r = getbyt(pf); /* get red */
             *pp++ = b; /* place blue */
             *pp++ = g; /* place green */
             *pp++ = r; /* place red */
