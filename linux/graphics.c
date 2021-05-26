@@ -5701,8 +5701,7 @@ void pa_delpict(FILE* f, int p)
 Load picture
 
 Loads a picture into a slot of the loadable pictures array. In this version,
-only .png files (Portable Network Graphics) are loaded, and those must be in
-24 bit Truecolor.
+only .bmp files are loaded, and those must be in 24 bit Truecolor.
 
 *******************************************************************************/
 
@@ -5718,7 +5717,7 @@ byte getbyt(FILE* f)
 
 }
 
-unsigned long int readbe(FILE* f)
+unsigned int read32(FILE* f)
 
 {
 
@@ -5727,12 +5726,31 @@ unsigned long int readbe(FILE* f)
         unsigned int i;
         byte         b[4];
 
-    } be2b;
+    } i2b;
     int i;
 
-    for (i = 3; i >= 0; i--) be2b.b[i] = getbyt(f);
+    for (i = 0; i < 4; i++) i2b.b[i] = getbyt(f);
 
-    return (be2b.i);
+    return (i2b.i);
+
+}
+
+unsigned int read16(FILE* f)
+
+{
+
+    union {
+
+        unsigned int i;
+        byte         b[4];
+
+    } i2b;
+    int i;
+
+
+    for (i = 0; i < 2; i++) i2b.b[i] = getbyt(f);
+
+    return (i2b.i);
 
 }
 
@@ -5743,23 +5761,17 @@ void pa_loadpict(FILE* f, int p, char* fn)
     winptr win; /* window pointer */
     FILE* pf; /* picture file */
     /* signature of PNG file */
-    const byte signature[8] = { 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a,
-                                0x0a };
-    byte b;
-    int  i;
-    unsigned int l; /* chunk length */
-    unsigned int t; /* chunk type */
-    int cn; /* chunk number */
+    const byte signature[8] = { 0x42, 0x4d };
     unsigned int pw; /* picture width */
     unsigned int ph; /* picture height */
-    byte pd; /* pixel depth */
-    byte ct; /* color type */
-    byte cm; /* compression method */
-    byte fm; /* filter method */
-    byte im; /* interlace method */
-    unsigned int li;
+    byte r, g, b; /* colors */
+    int pad;
     Visual* vi;
     byte* frmdat;
+    byte* pp;
+    int x, y;
+    unsigned int t;
+    int i;
 
     win = txt2win(f); /* get window pointer from text file */
     if (p < 1 || p > MAXPIC)  error(einvhan); /* bad picture handle */
@@ -5768,64 +5780,65 @@ void pa_loadpict(FILE* f, int p, char* fn)
         /*XDestroyImage(win->pictbl[p-1].xi)*/; /* recycle image data */
     pf = fopen(fn, "r"); /* open picture for read only */
     if (!pf) error(epicopn); /* cannot open picture file */
-    for (i = 0; i < 8; i++) { /* read and compare signature */
+    for (i = 0; i < 2; i++) { /* read and compare signature */
 
         b = getbyt(pf); /* get next byte */
         if (b != signature[i]) error(ebadfmt);
 
     }
-    do { /* read file chunks */
+    read32(pf); /* size of bmp file */
+    read16(pf); /* reserved */
+    read16(pf); /* reserved */
+    read32(pf); /* offset */
+    read32(pf); /* size of header */
+    pw = read32(pf); /* image width */
+    ph = read32(pf); /* image height */
+dbg_printf(dlinfo, "image width: %d image height: %d\n", pw, ph);
+    t = read16(pf); /* get number of planes */
+    if (t != 1) error(ebadfmt); /* should be single plane */
+    t = read16(pf); /* get number of bits in pixel */
+    if (t != 24) error(ebadfmt); /* should be 24 bits */
+    t = read32(pf); /* compression type */
+    if (t != 0) error(ebadfmt); /* should be no compression */
+    read32(pf); /* image size */
+    read32(pf); /* pixels per meter x */
+    read32(pf); /* pixels per meter y */
+    t = read32(pf); /* Number of colors */
+    if (t != 0) error(ebadfmt); /* should be no palette */
+    read32(pf); /* important colors */
 
-        l = readbe(pf); /* get the chunk length */
-        t = readbe(pf); /* get type */
-        /* make sure IHDR chunk is first */
-        if (t != 0x49484452 && cn == 1) error(ebadfmt);
+    /* set picture size */
+    win->pictbl[p-1].sx = pw;
+    win->pictbl[p-1].sy = ph;
+    /* create image structure */
+    vi = DefaultVisual(padisplay, 0); /* define direct map color */
+    frmdat = (byte*)malloc(pw*ph*4); /* allocate image frame */
+    /* create truecolor image */
+    win->pictbl[p-1].xi =
+        XCreateImage(padisplay, vi, 24, ZPixmap, 0, frmdat, pw, ph, 32, 0);
 
-        /* now parse the sundry chunks */
-        if (t == 0x49484452) { /* IHDR */
+    pad = (pw*3) % 4; /* find end of row padding */
+    pp = frmdat+pw*ph*4-pw*4; /* index last line */
+    /* fill picture with data */
+    for (y = ph-1; y >= 0; y--) { /* fill bottom to top */
 
-            if (l != 13) error(ebadfmt); /* must be 13 bytes in header */
-            pw = readbe(pf); /* get picture width */
-            ph = readbe(pf); /* get picture height */
-            pd = getbyt(pf); /* get pixel depth */
-            ct = getbyt(pf); /* get color type */
-            cm = getbyt(pf); /* get compression mode */
-            fm = getbyt(pf); /* get filter method */
-            im = getbyt(pf); /* get interlace method */
-            dbg_printf(dlinfo, "Width:             %u\n", pw);
-            dbg_printf(dlinfo, "Height:            %u\n", ph);
-            dbg_printf(dlinfo, "Pixel depth:       %u\n", pd);
-            dbg_printf(dlinfo, "Color type:        %u\n", ct);
-            dbg_printf(dlinfo, "Compression mode:  %u\n", cm);
-            dbg_printf(dlinfo, "Filter method:     %u\n", fm);
-            dbg_printf(dlinfo, "Interlace method:  %u\n", im);
-            li = readbe(pf); /* read and dispose of CRC */
-            /* set picture size */
-            win->pictbl[p-1].sx = pw;
-            win->pictbl[p-1].sy = ph;
-            /* create image structure */
-            vi = DefaultVisual(padisplay, 0); /* define direct map color */
-            frmdat = (byte*)malloc(pw*ph*4); /* allocate image frame */
-            /* create truecolor image */
-            win->pictbl[p-1].xi =
-                XCreateImage(padisplay, vi, 24, ZPixmap, 0, frmdat, pw, ph, 32,
-                             0);
+        for (x = 0; x < pw; x++) { /* fill left to right */
 
-        } else if (t == 0x49444154) { /* IDAT */
-
-            /* read and dispose of data */
-            for (li = 0; li < l; li++) getbyt(pf);
-            li = readbe(pf); /* read and dispose of CRC */
-
-        } else if (t != 0x49454e44) {
-
-            /* read and dispose of data */
-            for (li = 0; li < l; li++) getbyt(pf);
-            li = readbe(pf); /* read and dispose of CRC */
+            r = getbyt(pf); /* get red */
+            g = getbyt(pf); /* get green */
+            b = getbyt(pf); /* get blue */
+            *pp++ = b; /* place blue */
+            *pp++ = g; /* place green */
+            *pp++ = r; /* place red */
+            pp++; /* skip alpha */
 
         }
+        /* remove padding */
+        for (i = 0; i < pad; i++) getbyt(pf);
+        pp -= pw*4*2; /* go back one line */
 
-    } while (t != 0x49454e44); /* not end marker */
+    }
+    fclose(pf); /* close the input file */
 
 }
 
