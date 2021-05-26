@@ -5710,8 +5710,10 @@ byte getbyt(FILE* f)
 {
 
     byte b;
+    size_t nb;
 
-    fread(&b, sizeof(byte), 1, f);
+    nb = fread(&b, sizeof(byte), 1, f);
+    if (nb != 1) error(ebadfmt);
 
     return (b);
 
@@ -5772,6 +5774,7 @@ void pa_loadpict(FILE* f, int p, char* fn)
     int x, y;
     unsigned int t;
     int i;
+    unsigned int hs;
 
     win = txt2win(f); /* get window pointer from text file */
     if (p < 1 || p > MAXPIC)  error(einvhan); /* bad picture handle */
@@ -5790,10 +5793,9 @@ void pa_loadpict(FILE* f, int p, char* fn)
     read16(pf); /* reserved */
     read16(pf); /* reserved */
     read32(pf); /* offset */
-    read32(pf); /* size of header */
+    hs = read32(pf); /* size of header */
     pw = read32(pf); /* image width */
     ph = read32(pf); /* image height */
-dbg_printf(dlinfo, "image width: %d image height: %d\n", pw, ph);
     t = read16(pf); /* get number of planes */
     if (t != 1) error(ebadfmt); /* should be single plane */
     t = read16(pf); /* get number of bits in pixel */
@@ -5806,6 +5808,8 @@ dbg_printf(dlinfo, "image width: %d image height: %d\n", pw, ph);
     t = read32(pf); /* Number of colors */
     if (t != 0) error(ebadfmt); /* should be no palette */
     read32(pf); /* important colors */
+    /* read and dispose of the rest of the header */
+    for (i = 0; i < hs-40; i++) getbyt(pf);
 
     /* set picture size */
     win->pictbl[p-1].sx = pw;
@@ -5816,6 +5820,18 @@ dbg_printf(dlinfo, "image width: %d image height: %d\n", pw, ph);
     /* create truecolor image */
     win->pictbl[p-1].xi =
         XCreateImage(padisplay, vi, 24, ZPixmap, 0, frmdat, pw, ph, 32, 0);
+
+    /* blank out for testing */
+    pp = frmdat;
+    for (y = 0; y < ph; y++)
+        for (x = 0; x < pw; x++) {
+
+        *pp++ = 0xff; /* place blue */
+        *pp++ = 0xff; /* place green */
+        *pp++ = 0xff; /* place red */
+        pp++; /* skip alpha */
+
+    }
 
     pad = (pw*3) % 4; /* find end of row padding */
     pp = frmdat+pw*ph*4-pw*4; /* index last line */
