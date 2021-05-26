@@ -5821,18 +5821,6 @@ void pa_loadpict(FILE* f, int p, char* fn)
     win->pictbl[p-1].xi =
         XCreateImage(padisplay, vi, 24, ZPixmap, 0, frmdat, pw, ph, 32, 0);
 
-    /* blank out for testing */
-    pp = frmdat;
-    for (y = 0; y < ph; y++)
-        for (x = 0; x < pw; x++) {
-
-        *pp++ = 0xff; /* place blue */
-        *pp++ = 0xff; /* place green */
-        *pp++ = 0xff; /* place red */
-        pp++; /* skip alpha */
-
-    }
-
     pad = (pw*3) % 4; /* find end of row padding */
     pp = frmdat+pw*ph*4-pw*4; /* index last line */
     /* fill picture with data */
@@ -5840,12 +5828,9 @@ void pa_loadpict(FILE* f, int p, char* fn)
 
         for (x = 0; x < pw; x++) { /* fill left to right */
 
-            b = getbyt(pf); /* get blue */
-            g = getbyt(pf); /* get green */
-            r = getbyt(pf); /* get red */
-            *pp++ = b; /* place blue */
-            *pp++ = g; /* place green */
-            *pp++ = r; /* place red */
+            *pp++ = getbyt(pf); /* get blue */
+            *pp++ = getbyt(pf); /* get green */
+            *pp++ = getbyt(pf); /* get red */
             pp++; /* skip alpha */
 
         }
