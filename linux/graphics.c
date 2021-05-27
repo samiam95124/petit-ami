@@ -72,6 +72,7 @@
 /* X11 definitions */
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
+#include <X11/Xutil.h>
 
 /* whitebook definitions */
 #include <stdlib.h>
@@ -316,11 +317,12 @@ typedef struct scncon { /* screen context */
 
 typedef struct pict { /* picture tracking record */
 
-    int     sx; /* size in x */
-    int     sy; /* size in y */
-    XImage* xi; /* Xwindows image */
+    struct pict* next; /* list of rescaled images */
+    int          sx; /* size in x */
+    int          sy; /* size in y */
+    XImage*      xi; /* Xwindows image */
 
-} pict;
+} pict, *picptr;
 
 /* window description */
 typedef struct winrec {
@@ -395,7 +397,7 @@ typedef struct winrec {
     int          frmrun;            /* framing timer is running */
     int          timers[PA_MAXTIM]; /* timer id array */
     int          focus;             /* screen in focus */
-    pict         pictbl[MAXPIC];    /* loadable pictures table */
+    picptr       pictbl[MAXPIC];    /* loadable pictures table */
     int          bufmod;            /* buffered screen mode */
     metptr       metlst;            /* menu tracking list */
     wigptr       wiglst;            /* widget tracking list */
@@ -549,6 +551,7 @@ static int      filwin[MAXFIL]; /* file to window equivalence table */
 static int      esck;           /* previous key was escape */
 static fontptr  fntlst;         /* list of XWindow fonts */
 static int      fntcnt;         /* number of fonts */
+static picptr   frepic;         /* free picture entries */
 
 /**
  * Set of input file ids for select
@@ -1476,6 +1479,82 @@ static void getfet(filptr* fp)
 
 }
 
+/** ****************************************************************************
+
+Get picture entry
+
+Allocates and returns a new picture entry.
+
+*******************************************************************************/
+
+static picptr getpic(void)
+
+{
+
+    picptr pp; /* pointer to picture entry */
+
+    if (frepic) { /* there is a free entry */
+
+        pp = frepic; /* index top free */
+        frepic = pp->next; /* gap out */
+
+    } else { /* allocate new one */
+
+        pp = malloc(sizeof(pict)); /* get new file entry */
+        if (!pp) error(enomem); /* no more memory */
+
+    }
+    pp->xi = NULL; /* set no image */
+    pp->next = NULL; /* set no next */
+
+    return (pp); /* return entry */
+
+}
+
+/** ****************************************************************************
+
+Put picture entry
+
+Frees a picture entry.
+
+*******************************************************************************/
+
+static void putpic(picptr pp)
+
+{
+
+    pp->next = frepic; /* push to free list */
+    frepic = pp;
+
+}
+
+/** ****************************************************************************
+
+Delete picture entries
+
+Deletes all the scaled copies of the picture by number. No error checking is
+done.
+
+*******************************************************************************/
+
+static void delpic(winptr win, int p)
+
+{
+
+    picptr pp; /* pointer to picture entries */
+
+    while (win->pictbl[p-1]) {
+
+        /* remove top entry */
+        pp = win->pictbl[p-1];
+        win->pictbl[p-1] = pp->next;
+        XDestroyImage(pp->xi); /* release image */
+        putpic(pp); /* release image entry */
+
+    }
+
+}
+
 /*******************************************************************************
 
 Index window from logical file number
@@ -1868,7 +1947,7 @@ static void opnwin(int fn, int pfn, int wid)
     /* clear timer repeat array */
     for (ti = 0; ti < 10; ti++) win->timers[ti] = -1;
     /* clear loadable pictures table */
-    for (pin = 0; pin < MAXPIC; pin++) win->pictbl[pin].xi = NULL;
+    for (pin = 0; pin < MAXPIC; pin++) win->pictbl[pin] = NULL;
     /* clear the screen array */
     for (si = 0; si < MAXCON; si++) win->screens[si] = NULL;
     win->screens[0] = malloc(sizeof(scncon)); /* get the default screen */
@@ -5687,12 +5766,12 @@ void pa_delpict(FILE* f, int p)
 {
 
     winptr win; /* window pointer */
+    picptr pp; /* image pointer */
 
     win = txt2win(f); /* get window pointer from text file */
     if (p < 1 || p > MAXPIC) error(einvhan); /* bad picture handle */
-    if (!win->pictbl[p-1].xi) error(einvhan); /* bad picture handle */
-// Where is Xdestroyimage????
-//    XDestroyImage(win->pictbl[p-1].xi); /* recycle image data */
+    if (!win->pictbl[p-1]->xi) error(einvhan); /* bad picture handle */
+    delpic(win, p); /* delete all of the scaled copies */
 
 }
 
@@ -5775,12 +5854,12 @@ void pa_loadpict(FILE* f, int p, char* fn)
     unsigned int t;
     int i;
     unsigned int hs;
+    picptr ip; /* image pointer */
 
     win = txt2win(f); /* get window pointer from text file */
     if (p < 1 || p > MAXPIC)  error(einvhan); /* bad picture handle */
     /* if the slot is already occupied, delete that picture */
-    if (win->pictbl[p-1].xi)
-        /*XDestroyImage(win->pictbl[p-1].xi)*/; /* recycle image data */
+    delpic(win, p);
     pf = fopen(fn, "r"); /* open picture for read only */
     if (!pf) error(epicopn); /* cannot open picture file */
     for (i = 0; i < 2; i++) { /* read and compare signature */
@@ -5811,15 +5890,17 @@ void pa_loadpict(FILE* f, int p, char* fn)
     /* read and dispose of the rest of the header */
     for (i = 0; i < hs-40; i++) getbyt(pf);
 
+    ip = getpic(); /* get new image entry */
+    ip->next = win->pictbl[p-1]; /* push to list */
+    win->pictbl[p-1] = ip;
     /* set picture size */
-    win->pictbl[p-1].sx = pw;
-    win->pictbl[p-1].sy = ph;
+    ip->sx = pw;
+    ip->sy = ph;
     /* create image structure */
     vi = DefaultVisual(padisplay, 0); /* define direct map color */
     frmdat = (byte*)malloc(pw*ph*4); /* allocate image frame */
     /* create truecolor image */
-    win->pictbl[p-1].xi =
-        XCreateImage(padisplay, vi, 24, ZPixmap, 0, frmdat, pw, ph, 32, 0);
+    ip->xi = XCreateImage(padisplay, vi, 24, ZPixmap, 0, frmdat, pw, ph, 32, 0);
 
     pad = (pw*3) % 4; /* find end of row padding */
     pp = frmdat+pw*ph*4-pw*4; /* index last line */
@@ -5859,9 +5940,9 @@ int pa_pictsizx(FILE* f, int p)
 
     win = txt2win(f); /* get window pointer from text file */
     if (p < 1 || p > MAXPIC) error(einvhan); /* bad picture handle */
-    if (!win->pictbl[p-1].xi) error(einvhan); /* bad picture handle */
+    if (!win->pictbl[p-1]->xi) error(einvhan); /* bad picture handle */
 
-    return (win->pictbl[p-1].sx); /* return x size */
+    return (win->pictbl[p-1]->sx); /* return x size */
 
 }
 
@@ -5881,9 +5962,9 @@ int pa_pictsizy(FILE* f, int p)
 
     win = txt2win(f); /* get window pointer from text file */
     if (p < 1 || p > MAXPIC) error(einvhan); /* bad picture handle */
-    if (!win->pictbl[p-1].xi) error(einvhan); /* bad picture handle */
+    if (!win->pictbl[p-1]->xi) error(einvhan); /* bad picture handle */
 
-    return (win->pictbl[p-1].sy); /* return x size */
+    return (win->pictbl[p-1]->sy); /* return x size */
 
 }
 
@@ -5904,12 +5985,14 @@ void pa_picture(FILE* f, int p, int x1, int y1, int x2, int y2)
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    int tx, ty; /* temps */
+    int    tx, ty; /* temps */
+    int    pw, ph; /* picture width and height */
+    picptr pp, fp; /* picture entry pointers */
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
     if (p < 1 || p > MAXPIC) error(einvhan); /* bad picture handle */
-    if (!win->pictbl[p-1].xi) error(einvhan); /* bad picture handle */
+    if (!win->pictbl[p-1]->xi) error(einvhan); /* bad picture handle */
     /* rationalize the rectangle to right/down */
     if (x1 > x2 || (x1 == x2 && y1 > y2)) { /* swap */
 
@@ -5921,20 +6004,37 @@ void pa_picture(FILE* f, int p, int x1, int y1, int x2, int y2)
        y2 = ty;
 
     }
+    /* set picture width and height */
+    pw = x2-x1+1;
+    ph = y2-y1+1;
+    pp = win->pictbl[p-1]; /* index top picture */
+    fp = NULL; /* set none found */
+    while (pp) { /* search for scale that matches */
+
+        if (pp->sx == pw && pp->sy == ph) fp = pp; /* found matching entry */
+        pp = pp->next; /* go next */
+
+    }
+    if (!fp) {
+
+        /* New scale does not match any previous. We create a new scaled
+           image. */
+
+    }
     /* set foreground function */
     XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
     if (win->bufmod) { /* buffer is active */
 
         /* draw the picture */
-        XPutImage(padisplay, sc->xbuf, sc->xcxt, win->pictbl[p-1].xi, 0, 0,
-                             x1-1, y1-1, x2-x1+1, y2-y1+1);
+        XPutImage(padisplay, sc->xbuf, sc->xcxt, fp->xi, 0, 0, x1-1, y1-1,
+                  x2-x1+1, y2-y1+1);
 
     }
     if (indisp(win)) { /* do it again for the current screen */
 
         curoff(win); /* hide the cursor */
         /* draw the rectangle */
-        XPutImage(padisplay, win->xwhan, sc->xcxt, win->pictbl[p-1].xi, 0, 0,
+        XPutImage(padisplay, win->xwhan, sc->xcxt, fp->xi, 0, 0,
                              x1-1, y1-1, x2-x1+1, y2-y1+1);
         curon(win); /* show the cursor */
 
@@ -8170,6 +8270,7 @@ static void pa_init_graphics(int argc, char *argv[])
 
     fntlst = NULL; /* clear font list */
     fntcnt = 0;
+    frepic = NULL; /* clear free pictures list */
 
     /* clear open files tables */
     for (fi = 0; fi < MAXFIL; fi++) {
