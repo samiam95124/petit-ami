@@ -2580,6 +2580,71 @@ static void itab(winptr win)
 
 }
 
+/*******************************************************************************
+
+Set tab graphical
+
+Sets a tab at the indicated pixel number.
+
+*******************************************************************************/
+
+static void isettabg(winptr win, int t)
+
+{
+
+    int i, x; /* tab index */
+    scncon* sc; /* screen context */
+
+    sc = win->screens[win->curupd-1];
+    if (sc->autof && (t-1)%win->charspace)
+        error(eatotab); /* cannot perform with auto on */
+    if (t < 1 || t > sc->maxxg) error(einvtab); /* bad tab position */
+    /* find free location or tab beyond position */
+    i = 0;
+    while (i < MAXTAB && sc->tab[i] && t > sc->tab[i]) i = i+1;
+    if (i == MAXTAB && t < sc->tab[i]) error(etabful); /* tab table full */
+    if (t != sc->tab[i])  { /* not the same tab yet again */
+
+        if (sc->tab[MAXTAB]) error(etabful); /* tab table full */
+        /* move tabs above us up */
+        for (x = MAXTAB; x > i; x--) sc->tab[x] = sc->tab[x-1];
+        sc->tab[i] = t; /* place tab in order */
+
+    }
+
+}
+
+/*******************************************************************************
+
+Reset tab graphical
+
+Resets the tab at the indicated pixel number.
+
+*******************************************************************************/
+
+static void irestabg(winptr win, int t)
+
+{
+
+    int     i;  /* tab index */
+    int     ft; /* found tab */
+    scncon* sc; /* screen context */
+
+    sc = win->screens[win->curupd-1];
+    if (t < 1 || t > sc->maxxg) error(einvtab); /* bad tab position */
+    /* search for that tab */
+    ft = 0; /* set not found */
+    for (i = 0; i < MAXTAB; i++) if (sc->tab[i] == t) ft = i; /* found */
+    if (ft != 0) { /* found the tab, remove it */
+
+       /* move all tabs down to gap out */
+       for (i = ft; i < MAXTAB-1; i++) sc->tab[i] = sc->tab[i+1];
+       sc->tab[MAXTAB] = 0; /* clear any last tab */
+
+    }
+
+}
+
 /** ****************************************************************************
 
 Enable/disable automatic scroll and wrap
@@ -6820,6 +6885,11 @@ void pa_settabg(FILE* f, int t)
 
 {
 
+    winptr win; /* window pointer */
+
+    win = txt2win(f); /* get window pointer from text file */
+    isettabg(win, t); /* translate to graphical call */
+
 }
 
 /** ****************************************************************************
@@ -6833,6 +6903,11 @@ Sets a tab at the indicated collumn number.
 void pa_settab(FILE* f, int t)
 
 {
+
+    winptr win; /* window pointer */
+
+    win = txt2win(f); /* get window pointer from text file */
+    isettabg(win, (t-1)*win->charspace+1); /* translate to graphical call */
 
 }
 
@@ -6848,6 +6923,11 @@ void pa_restabg(FILE* f, int t)
 
 {
 
+    winptr win; /* window pointer */
+
+    win = txt2win(f); /* get window pointer from text file */
+    irestabg(win, t); /* translate to graphical call */
+
 }
 
 /** ****************************************************************************
@@ -6861,6 +6941,11 @@ Resets the tab at the indicated collumn number.
 void pa_restab(FILE* f, int t)
 
 {
+
+    winptr win; /* window pointer */
+
+    win = txt2win(f); /* get window pointer from text file */
+    irestabg(win, (t-1)*win->charspace+1); /* translate to graphical call */
 
 }
 
@@ -6877,6 +6962,12 @@ void pa_clrtab(FILE* f)
 
 {
 
+    int    i;
+    winptr win; /* window pointer */
+
+    win = txt2win(f); /* get window pointer from text file */
+    for (i = 0; i < MAXTAB; i++) win->screens[win->curupd-1]->tab[i] = 0;
+
 }
 
 /** ****************************************************************************
@@ -6892,6 +6983,8 @@ function keys as well.
 int pa_funkey(FILE* f)
 
 {
+
+    return (12); /* number of function keys */
 
 }
 
