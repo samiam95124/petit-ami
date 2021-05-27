@@ -1608,6 +1608,66 @@ static winptr txt2win(FILE* f)
 
 }
 
+/*******************************************************************************
+
+Rescale XWindows image
+
+Rescales an image from the source to the destination. Both scaling up and down
+are possible, as well as changing the aspect ratio. Uses bilinear interpolation.
+
+*******************************************************************************/
+
+void rescale(XImage* dp, XImage* sp)
+
+{
+
+    unsigned int px1, px2, px3, px4;
+    int sx, sy, dx, dy;
+    float xr, yr;
+    int xd, yd;
+    int b, r, g;
+    unsigned int* src;
+    unsigned int* dest;
+    int si, di;
+
+    xr = ((float)(sp->width-1))/dp->width; /* find scaling ratio x */
+    yr = ((float)(sp->height-1))/dp->height; /* find scaling ratio y */
+    src = (unsigned int*)(sp->data); /* index source pixmap */
+    dest = (unsigned int*)(dp->data); /* index destination pixmap */
+    di = 0; /* set destination index */
+
+    /* copy and scale source to destination */
+    for (dy = 0; dy < dp->height; dy++) {
+
+        for (dx = 0; dx < dp->width; dx++) {
+
+            sx = xr*dx; /* find source x location */
+            sy = yr*dy; /* find source y location */
+            xd = (xr*dx)-sx;
+            yd = (yr*dy)-sy;
+            si = (sy*sp->width+sx); /* find net source index */
+            px1 = src[si]; /* get this pixel */
+            px2 = src[si+1]; /* get right pixel */
+            px3 = src[si+sp->width]; /* get down pixel */
+            px4 = src[si+sp->width+1]; /* get down/right pixel */
+
+            b = (px1&0xff)*(1-xd)*(1-yd)+(px2&0xff)*xd*(1-yd)+
+                   (px3&0xff)*yd*(1-xd)+(px4&0xff)*xd*yd;
+
+            g = ((px1>>8)&0xff)*(1-xd)*(1-yd)+((px2>>8)&0xff)*xd*(1-yd)+
+                    ((px3>>8)&0xff)*yd*(1-xd)+((px4>>8)&0xff)*xd*yd;
+
+            r = ((px1>>16)&0xff)*(1-xd)*(1-yd)+((px2>>16)&0xff)*xd*(1-yd)+
+                  ((px3>>16)&0xff)*(yd)*(1-xd)+((px4>>16)&0xff)*xd*yd;
+
+            dest[di++] = 0xff000000|r<<16&0xff0000|g<<8&0xff00|b;
+
+        }
+
+    }
+
+}
+
 /** ****************************************************************************
 
 Find if cursor is in screen bounds
@@ -5899,6 +5959,7 @@ void pa_loadpict(FILE* f, int p, char* fn)
     /* create image structure */
     vi = DefaultVisual(padisplay, 0); /* define direct map color */
     frmdat = (byte*)malloc(pw*ph*4); /* allocate image frame */
+    if (!frmdat) error(enomem); /* no memory */
     /* create truecolor image */
     ip->xi = XCreateImage(padisplay, vi, 24, ZPixmap, 0, frmdat, pw, ph, 32, 0);
 
@@ -5983,11 +6044,13 @@ void pa_picture(FILE* f, int p, int x1, int y1, int x2, int y2)
 
 {
 
-    winptr win; /* window record pointer */
-    scnptr sc;  /* screen buffer */
-    int    tx, ty; /* temps */
-    int    pw, ph; /* picture width and height */
-    picptr pp, fp; /* picture entry pointers */
+    winptr  win; /* window record pointer */
+    scnptr  sc;  /* screen buffer */
+    int     tx, ty; /* temps */
+    int     pw, ph; /* picture width and height */
+    picptr  pp, fp; /* picture entry pointers */
+    byte*   frmdat;
+    Visual* vi;
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
@@ -6019,6 +6082,21 @@ void pa_picture(FILE* f, int p, int x1, int y1, int x2, int y2)
 
         /* New scale does not match any previous. We create a new scaled
            image. */
+        pp = win->pictbl[p-1]; /* index top picture */
+        while (pp->next) pp = pp->next; /* go to bottom of list */
+        fp = getpic(); /* get new image entry */
+        fp->next = win->pictbl[p-1]; /* push to list */
+        win->pictbl[p-1] = fp;
+        /* set picture size */
+        fp->sx = pw;
+        fp->sy = ph;
+        /* create image structure */
+        vi = DefaultVisual(padisplay, 0); /* define direct map color */
+        frmdat = (byte*)malloc(pw*ph*4); /* allocate image frame */
+        if (!frmdat) error(enomem); /* no memory */
+        /* create truecolor image */
+        fp->xi = XCreateImage(padisplay, vi, 24, ZPixmap, 0, frmdat, pw, ph, 32, 0);
+        rescale(fp->xi, pp->xi); /* rescale to new image */
 
     }
     /* set foreground function */
