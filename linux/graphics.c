@@ -90,6 +90,9 @@
 #include <limits.h>
 #include <stdio.h>
 #include <signal.h>
+#include <linux/joystick.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 /* local definitions */
 #include <localdefs.h>
@@ -377,7 +380,6 @@ typedef struct winrec {
     int          shift;             /* state of shift key */
     int          cntrl;             /* state of control key */
     int          fcurdwn;           /* cursor on screen flag */
-    int          numjoy;            /* number of joysticks found */
     int          joy1cap;           /* joystick 1 is captured */
     int          joy2cap;           /* joystick 2 is captured */
     int          joy1xs;            /* last joystick position 1x */
@@ -552,6 +554,11 @@ static int      esck;           /* previous key was escape */
 static fontptr  fntlst;         /* list of XWindow fonts */
 static int      fntcnt;         /* number of fonts */
 static picptr   frepic;         /* free picture entries */
+static int      numjoy;         /* number of joysticks found */
+static int      joyfid;         /* joystick file id */
+static int      joyax;          /* joystick x axis save */
+static int      joyay;          /* joystick y axis save */
+static int      joyaz;          /* joystick z axis save */
 
 /**
  * Set of input file ids for select
@@ -1994,7 +2001,6 @@ static void opnwin(int fn, int pfn, int wid)
     win->joy2xs = 0;
     win->joy2ys = 0;
     win->joy2zs = 0;
-    win->numjoy = 0; /* set number of joysticks 0 */
     win->inpptr = -1; /* set buffer empty */
     win->frmrun = FALSE; /* set framing timer not running */
     win->bufmod = TRUE; /* set buffering on */
@@ -6267,6 +6273,58 @@ static int fndevt(Window w)
 
 }
 
+/* get and process a joystick event */
+static void joyevt(pa_evtrec* er, int* keep)
+
+{
+
+    struct js_event ev;
+
+    read(joyfid, &ev, sizeof(ev)); /* get next joystick event */
+    if (!(ev.type & JS_EVENT_INIT)) {
+
+        if (ev.type & JS_EVENT_BUTTON) {
+
+            /* we use Linux button numbering, because, what the heck */
+            if (ev.value) { /* assert */
+
+                er->etype = pa_etjoyba; /* set assert */
+                er->ajoyn = 1; /* set joystick 1 */
+                er->ajoybn = ev.number; /* set button number */
+
+            } else { /* deassert */
+
+                er->etype = pa_etjoybd; /* set assert */
+                er->djoyn = 1; /* set joystick 1 */
+                er->djoybn = ev.number; /* set button number */
+
+            }
+            *keep = TRUE; /* set keep event */
+
+        }
+        if (ev.type & JS_EVENT_AXIS) {
+
+            /* update the axies */
+            if (ev.number == 0) joyax = ev.value*(INT_MAX/32768);
+            else if (ev.number == 1) joyay = ev.value*(INT_MAX/32768);
+            else if (ev.number == 2) joyaz = ev.value*(INT_MAX/32768);
+
+            er->etype = pa_etjoymov; /* set joystick move */
+            er->mjoyn = 1; /* set joystick number */
+            er->joypx = joyax; /* place joystick axies */
+            er->joypy = -joyay; /* flip y axis */
+            er->joypz = joyaz;
+            *keep = TRUE; /* set keep event */
+
+
+
+
+        }
+
+    }
+
+}
+
 /* Update mouse parameters.
    Use state flags to create events. */
 
@@ -6613,6 +6671,8 @@ void pa_event(FILE* f, pa_evtrec* er)
 
             } else if (i == dfid && XPending(padisplay))
                 xwinget(er, &keep);
+            else if (i == joyfid)
+                joyevt(er, &keep); /* process joystick events */
 
         }
 
@@ -6828,7 +6888,7 @@ int pa_joystick(FILE* f)
     int    jn;  /* joystick number */
 
     win = txt2win(f); /* get window pointer from text file */
-    jn = win->numjoy; /* two */
+    jn = numjoy; /* set number of joysticks */
 
     return (jn);
 
@@ -6850,7 +6910,7 @@ int pa_joybutton(FILE* f, int j)
     int      nb;  /* number of buttons */
 
     win = txt2win(f); /* get window pointer from text file */
-    if (j < 1 || j > win->numjoy) error(einvjoy); /* bad joystick id */
+    if (j < 1 || j > numjoy) error(einvjoy); /* bad joystick id */
     nb = 0; /* set no joysticks */
 
     return (nb);
@@ -8405,11 +8465,12 @@ static void pa_init_graphics(int argc, char *argv[])
 
 {
 
-    int     ofn, ifn;
-    int     fi;
-    winptr  win;  /* windows record pointer */
-    int     dfid; /* XWindow display FID */
-    int     f;    /* window creation flags */
+    int    ofn;  /* standard output file number */
+    int    ifn;  /* standard input file number */
+    winptr win;  /* windows record pointer */
+    int    dfid; /* XWindow display FID */
+    int    f;    /* window creation flags */
+    int    fi;
 
     /* turn off I/O buffering */
     setvbuf(stdin, NULL, _IONBF, 0);
@@ -8480,10 +8541,25 @@ static void pa_init_graphics(int argc, char *argv[])
     FD_SET(dfid, &ifdseta);
     ifdmax = dfid+1; /* set maximum fid for select() */
 
+    /* open joystick if available */
+    numjoy = 0; /* set no joysticks */
+    joyfid = open("/dev/input/js0", O_RDONLY);
+    if (joyfid >= 0) { /* found */
+
+        numjoy++; /* set joystick active */
+        FD_SET(joyfid, &ifdseta);
+        if (joyfid+1 > ifdmax)
+            ifdmax = joyfid+1; /* set maximum fid for select() */
+
+    }
+
     /* clear the signaling set */
     FD_ZERO(&ifdsets);
 
-
+    /* clear joystick axis saves */
+    joyax = 0;
+    joyay = 0;
+    joyaz = 0;
 
 }
 
@@ -8535,6 +8611,9 @@ static void pa_deinit_graphics()
 	XDestroyWindow(padisplay, win->xwhan);
     /* close X Window */
     XCloseDisplay(padisplay);
+
+    /* close joystick */
+    close(joyfid);
 
     /* swap old vectors for existing vectors */
     ovr_read(ofpread, &cppread);
