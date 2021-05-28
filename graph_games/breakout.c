@@ -478,7 +478,7 @@ int main(void)
     jchr = INT_MAX/((pa_maxxg(stdout)-2)/2); /* find basic joystick increment */
     pa_curvis(stdout, FALSE); /* remove drawing cursor */
     pa_auto(stdout, FALSE); /* turn off scrolling */
-    pa_font(stdout, pa_signfont(stdout)); /* sign font */
+    pa_font(stdout, PA_FONT_SIGN); /* sign font */
     pa_bold(stdout, TRUE);
     pa_fontsiz(stdout, WALL-2); /* font fits in the WALL */
     pa_binvis(stdout); /* no background writes */

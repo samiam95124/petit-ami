@@ -6906,14 +6906,9 @@ int pa_joybutton(FILE* f, int j)
 
 {
 
-    winptr   win; /* window pointer */
-    int      nb;  /* number of buttons */
-
-    win = txt2win(f); /* get window pointer from text file */
     if (j < 1 || j > numjoy) error(einvjoy); /* bad joystick id */
-    nb = 0; /* set no joysticks */
 
-    return (nb);
+    return (3); /* return button number */
 
 }
 
@@ -6930,6 +6925,10 @@ joystick can be considered a slider without positional meaning.
 int pa_joyaxis(FILE* f, int j)
 
 {
+
+    if (j < 1 || j > numjoy) error(einvjoy); /* bad joystick id */
+
+    return (3); /* set axis number */
 
 }
 

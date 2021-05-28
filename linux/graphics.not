@@ -1,0 +1,8 @@
+             NOTES FOR GRAPHICS LIBRARY
+
+1. Graphics needs a TrueType facillity like FreeType to give it a reasonable 
+number of non-obsolete fonts.
+
+2. Need pa_joybutton() and pa_joyaxis() calls to get the real limits from the
+joystick ioctl interface.
+
