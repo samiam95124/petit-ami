@@ -498,7 +498,7 @@ static void graphtest(int lw) /* line width */
     int x, y;
 
     pa_auto(stdout, OFF);
-    pa_font(stdout, pa_signfont(stdout));
+    pa_font(stdout, PA_FONT_SIGN);
     fsiz = pa_chrsizy(stdout); /* save character size to restore */
     pa_fontsiz(stdout, 30);
     pa_bcolor(stdout, pa_yellow);
@@ -560,7 +560,7 @@ static void graphtest(int lw) /* line width */
     pa_fontsiz(stdout, fsiz); /* restore font size */
     pa_fcolor(stdout, pa_black);
     pa_bcolor(stdout, pa_white);
-    pa_font(stdout, pa_termfont(stdout));
+    pa_font(stdout, PA_FONT_TERM);
 
 }
 
@@ -1028,10 +1028,10 @@ int main(void)
     pa_auto(stdout, FALSE);
     pa_home(stdout);
     pa_binvis(stdout);
-    pa_fontnam(stdout, pa_termfont(stdout), fns, 100);
+    pa_fontnam(stdout, PA_FONT_TERM, fns, 100);
     if (strlen(fns) > 0) {
 
-        pa_font(stdout, pa_termfont(stdout));
+        pa_font(stdout, PA_FONT_TERM);
         printf("This is the terminal font: System name: \"%s\" Size x -> %d y -> %d\n",
                fns, pa_chrsizx(stdout), pa_chrsizy(stdout));
         prtall();
@@ -1043,10 +1043,10 @@ int main(void)
         printf("\n");
 
     }
-    pa_fontnam(stdout, pa_bookfont(stdout), fns, 100);
+    pa_fontnam(stdout, PA_FONT_BOOK, fns, 100);
     if (strlen(fns) > 0) {
 
-        pa_font(stdout, pa_bookfont(stdout));
+        pa_font(stdout, PA_FONT_BOOK);
         pa_fontsiz(stdout, 20);
         printf("This is the book font: System name: \"%s\" Size x -> %d y -> %d\n",
                fns, pa_chrsizx(stdout), pa_chrsizy(stdout));
@@ -1059,10 +1059,10 @@ int main(void)
         printf("\n");
 
     }
-    pa_fontnam(stdout, pa_signfont(stdout), fns, 100);
+    pa_fontnam(stdout, PA_FONT_SIGN, fns, 100);
     if (strlen(fns) > 0) {
 
-        pa_font(stdout, pa_signfont(stdout));
+        pa_font(stdout, PA_FONT_SIGN);
         pa_fontsiz(stdout, 20);
         printf("This is the sign font: System name: \"%s\" Size x -> %d y -> %d\n",
                fns, pa_chrsizx(stdout), pa_chrsizy(stdout));
@@ -1075,10 +1075,10 @@ int main(void)
         printf("\n");
 
     }
-    pa_fontnam(stdout, pa_techfont(stdout), fns, 100);
+    pa_fontnam(stdout, PA_FONT_TECH, fns, 100);
     if (strlen(fns) > 0) {
 
-        pa_font(stdout, pa_techfont(stdout));
+        pa_font(stdout, PA_FONT_TECH);
         pa_fontsiz(stdout, 20);
         printf("This is the technical font: System name: \"%s\" Size x -> %d y -> %d\n",
                 fns, pa_chrsizx(stdout), pa_chrsizy(stdout));
@@ -1091,7 +1091,7 @@ int main(void)
         printf("\n");
 
     }
-    pa_font(stdout, pa_termfont(stdout));
+    pa_font(stdout, PA_FONT_TERM);
     printf("Complete\n");
     waitnext();
 
@@ -2176,7 +2176,7 @@ int main(void)
     fsiz = pa_chrsizy(stdout); /* save character size to restore */
     h = 10;
     pa_auto(stdout, OFF);
-    pa_font(stdout, pa_signfont(stdout));
+    pa_font(stdout, PA_FONT_SIGN);
     c1 = pa_black;
     c2 = pa_blue;
     pa_bover(stdout);
@@ -2196,7 +2196,7 @@ int main(void)
     pa_fontsiz(stdout, fsiz); /* restore font size */
     pa_fcolor(stdout, pa_black);
     pa_bcolor(stdout, pa_white);
-    pa_font(stdout, pa_termfont(stdout));
+    pa_font(stdout, PA_FONT_TERM);
     pa_binvis(stdout);
     prtcen(pa_maxy(stdout), "Font sizing test");
     waitnext();
@@ -2257,7 +2257,7 @@ int main(void)
         printf("%d: %s\n", i, fns);
         if (pa_cury(stdout) >= pa_maxy(stdout)) { /* screen overflows */
 
-            pa_font(stdout, pa_termfont(stdout));
+            pa_font(stdout, PA_FONT_TERM);
             printf("Press return to continue");
             waitnext();
             pa_bcolor(stdout, pa_white);
@@ -2271,7 +2271,7 @@ int main(void)
 
     }
     pa_bcolor(stdout, pa_white);
-    pa_font(stdout, pa_termfont(stdout));
+    pa_font(stdout, PA_FONT_TERM);
     pa_binvis(stdout);
     printf("\n");
     printf("List complete\n");
@@ -2282,7 +2282,7 @@ int main(void)
     putchar('\f');
     grid();
     pa_auto(stdout, OFF);
-    pa_font(stdout, pa_signfont(stdout));
+    pa_font(stdout, PA_FONT_SIGN);
     pa_condensed(stdout, ON);
     printf("Condensed\n");
     pa_extended(stdout, ON);
@@ -2300,7 +2300,7 @@ int main(void)
     pa_raised(stdout, ON);
     printf("Raised\n");
     pa_raised(stdout, OFF);
-    pa_font(stdout, pa_termfont(stdout));
+    pa_font(stdout, PA_FONT_TERM);
     prtcen(pa_maxy(stdout), "Extended effects test");
     waitnext();
 
@@ -2310,7 +2310,7 @@ int main(void)
     grid();
     pa_auto(stdout, OFF);
     fsiz = pa_chrsizy(stdout); /* save character size to restore */
-    pa_font(stdout, pa_signfont(stdout));
+    pa_font(stdout, PA_FONT_SIGN);
     pa_fontsiz(stdout, 30);
     printf("Size of test string: %d\n", pa_strsiz(stdout, S3));
     printf("\n");
@@ -2337,7 +2337,7 @@ int main(void)
     justcenter(S4, l+80);
 
     pa_fontsiz(stdout, fsiz); /* restore font size */
-    pa_font(stdout, pa_termfont(stdout));
+    pa_font(stdout, PA_FONT_TERM);
     pa_binvis(stdout);
     prtcen(pa_maxy(stdout), "Character sizes and positions");
     waitnext();
@@ -2348,7 +2348,7 @@ int main(void)
     putchar('\f');
     grid();
     pa_auto(stdout, OFF);
-    pa_font(stdout, pa_termfont(stdout));
+    pa_font(stdout, PA_FONT_TERM);
     for (i = 1; i <= 5; i++) {
 
         for (x = 1; x <= i; x++) putchar('\t');
@@ -2744,7 +2744,7 @@ int main(void)
 
     putchar('\f');
     pa_auto(stdout, OFF);
-    pa_font(stdout, pa_signfont(stdout));
+    pa_font(stdout, PA_FONT_SIGN);
     pa_fontsiz(stdout, 50);
     prtceng(pa_maxy(stdout)/2, "Test complete");
 
