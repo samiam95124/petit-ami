@@ -2165,7 +2165,7 @@ void iclear(winptr win)
 
         curoff(win); /* hide the cursor */
         XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-        XFillRectangle(padisplay, sc->xbuf, sc->xcxt, 0, 0,
+        XFillRectangle(padisplay, win->xwhan, sc->xcxt, 0, 0,
                                   sc->maxxg, sc->maxyg);
         XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
         curon(win); /* show the cursor */
