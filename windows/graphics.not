@@ -16,6 +16,15 @@ is clipping the buffer (window size smaller than buffer). This matches the behav
 
 4. xltwin and filwin are initialized to 0, and should be -1 (since fids are >= 0).
 
+************************************************************************************
+TEST RESULTS
+************************************************************************************
+
+Terminal_test
+
+1. Joystick Z Axis does not work.
+
+
 *************************************************************************************
 
 The following are notes from the old (untranslated) version of graph.
