@@ -210,6 +210,7 @@ static void prtcen(int y, const char* s)
 {
 
    pa_cursor(stdout, (pa_maxx(stdout)/2)-(strlen(s)/2), y);
+fprintf(stderr, "prtcen: x: %ld y: %d\n", (pa_maxx(stdout)/2)-(strlen(s)/2), y); fflush(stderr);
    printf("%s", s);
 
 }
@@ -496,51 +497,74 @@ static void graphtest(int lw) /* line width */
 
     int fsiz;
     int x, y;
+    int xsize;   /* total space x for figures */
+    int xspace;  /* x space between figures */
+    int yspace;  /* y space between figures */
+    int xfigsiz; /* size of figure x */
+    int yfigsiz; /* size of figure y */
+    float yrat;  /* aspect ratio of y to x */
 
     pa_auto(stdout, OFF);
     pa_font(stdout, PA_FONT_SIGN);
     fsiz = pa_chrsizy(stdout); /* save character size to restore */
-    pa_fontsiz(stdout, 30);
+    pa_fontsiz(stdout, pa_maxyg(stdout)/20);
     pa_bcolor(stdout, pa_yellow);
     pa_cursorg(stdout, pa_maxxg(stdout)/2-pa_strsiz(stdout, S6)/2, pa_curyg(stdout));
     printf("%s\n", S6);
     putchar('\n');
+    /* note: after this we can't use text spacing */
+
+    /* we assume x > y */
+    yrat = pa_dpmy(stdout)/pa_dpmx(stdout); /* find aspect ratio */
+    xsize = pa_maxxg(stdout)/5; /* set spacing of figures */
+    xspace = xsize/5; /* set x space between figures */
+    xfigsiz = xsize-xspace; /* net y size of figure */
+    yfigsiz = xfigsiz*yrat; /* net y size of figure */
+    yspace = xspace*yrat; /* set y space between figures */
+
+    /* first row of figures */
     pa_fcolor(stdout, pa_magenta);
     pa_linewidth(stdout, lw);
-    y = 70;
-    x = 20;
-    pa_rect(stdout, x, y, x+100, y+100);
+    y = pa_curyg(stdout); /* set y location to current */
+    x = xspace/2; /* set x location to after space left */
+    pa_rect(stdout, x, y, x+xfigsiz-1, y+yfigsiz-1);
     pa_fcolor(stdout, pa_green);
-    x = x+120;
-    pa_frect(stdout, x, y, x+100, y+100);
+    x = x+xfigsiz+xspace;
+    pa_frect(stdout, x, y, x+xfigsiz-1, y+yfigsiz-1);
     pa_fcolor(stdout, pa_yellow);
-    x = x+120;
-    pa_ftriangle(stdout, x, y+100, x+50, y, x+100, y+100);
+    x = x+xfigsiz+xspace;
+    pa_ftriangle(stdout, x, y+yfigsiz-1, x+xfigsiz/2-1, y,
+                         x+xfigsiz-1, y+yfigsiz-1);
     pa_fcolor(stdout, pa_red);
-    x = x+120;
-    pa_rrect(stdout, x, y, x+100, y+100, 20, 20);
+    x = x+xfigsiz+xspace;
+    pa_rrect(stdout, x, y, x+xfigsiz-1, y+yfigsiz-1, 20, 20);
     pa_fcolor(stdout, pa_magenta);
-    x = x+120;
-    pa_arc(stdout, x, y, x+100, y+100, 0, INT_MAX/4);
+    x = x+xfigsiz+xspace;
+    pa_arc(stdout, x, y, x+xfigsiz-1, y+yfigsiz-1, 0, INT_MAX/4);
     pa_fcolor(stdout, pa_green);
-    pa_farc(stdout, x, y, x+100, y+100, INT_MAX/2, INT_MAX/2+INT_MAX/4);
-    y = y+120;
-    x = 20;
+    pa_farc(stdout, x, y, x+xfigsiz-1, y+xfigsiz-1,
+                          INT_MAX/2, INT_MAX/2+INT_MAX/4);
+    y = y+yfigsiz+yspace;
+    x = xspace/2;
+
+    /* second row of figures */
     pa_fcolor(stdout, pa_blue);
-    pa_frect(stdout, x, y, x+100, y+100);
-    x = x+120;
+    pa_frect(stdout, x, y, x+xfigsiz-1, y+yfigsiz-1);
+    x = x+xfigsiz+xspace;
     pa_fcolor(stdout, pa_magenta);
-    pa_frrect(stdout, x, y, x+100, y+100, 20, 20);
-    x = x+120;
+    pa_frrect(stdout, x, y, x+xfigsiz-1, y+yfigsiz-1, 20, 20);
+    x = x+xfigsiz+xspace;
     pa_fcolor(stdout, pa_green);
-    pa_ellipse(stdout, x, y, x+100, y+100);
-    x = x+120;
+    pa_ellipse(stdout, x, y, x+xfigsiz-1, y+yfigsiz-1);
+    x = x+xfigsiz+xspace;
     pa_fcolor(stdout, pa_yellow);
-    pa_fellipse(stdout, x, y, x+100, y+100);
-    x = x+120;
+    pa_fellipse(stdout, x, y, x+xfigsiz-1, y+yfigsiz-1);
+    x = x+xfigsiz+xspace;
     pa_fcolor(stdout, pa_blue);
-    pa_fchord(stdout, x, y, x+100, y+100, 0, INT_MAX / 2);
-    y = y+120;
+    pa_fchord(stdout, x, y, x+xfigsiz-1, y+yfigsiz-1, 0, INT_MAX/2);
+    y = y+xfigsiz+xspace;
+
+    /* third row of figures (lines) */
     pa_fcolor(stdout, pa_red);
     pa_linewidth(stdout, 1);
     pa_line(stdout, 20, y, pa_maxxg(stdout)-20, y);
@@ -958,6 +982,7 @@ int main(void)
 {
 
     if (setjmp(terminate_buf)) goto terminate;
+#if 1
     pa_curvis(stdout, FALSE);
     printf("Graphics screen test vs. 0.1\n");
     printf("\n");
@@ -1416,6 +1441,7 @@ int main(void)
 
     /* ******************** Filled rounded rectangle test 1 ******************** */
 
+#endif
     pa_binvis(stdout);
     r = 1;
     while (r < 100) {

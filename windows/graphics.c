@@ -181,7 +181,6 @@ typedef ssize_t (*pread_t)(int, void*, size_t);
 typedef ssize_t (*pwrite_t)(int, const void*, size_t);
 typedef int     (*popen_t)(const char*, int, int);
 typedef int     (*pclose_t)(int);
-typedef int     (*punlink_t)(const char*);
 typedef off_t   (*plseek_t)(int, off_t, int);
 
 /* system override calls */
@@ -190,7 +189,6 @@ extern void ovr_read(pread_t nfp, pread_t* ofp);
 extern void ovr_write(pwrite_t nfp, pwrite_t* ofp);
 extern void ovr_open(popen_t nfp, popen_t* ofp);
 extern void ovr_close(pclose_t nfp, pclose_t* ofp);
-extern void ovr_unlink(punlink_t nfp, punlink_t* ofp);
 extern void ovr_lseek(plseek_t nfp, plseek_t* ofp);
 
 /* screen text attribute */
@@ -622,7 +620,6 @@ static pread_t   ofpread;
 static pwrite_t  ofpwrite;
 static popen_t   ofpopen;
 static pclose_t  ofpclose;
-static punlink_t ofpunlink;
 static plseek_t  ofplseek;
 
 static filptr opnfil[MAXFIL]; /* open files table */
@@ -15204,22 +15201,6 @@ static int iclose(int fd)
 
 /*******************************************************************************
 
-Unlink
-
-Unlink has nothing to do with us, so we just pass it on.
-
-*******************************************************************************/
-
-static int iunlink(const char* pathname)
-
-{
-
-    return (*ofpunlink)(pathname);
-
-}
-
-/*******************************************************************************
-
 Lseek
 
 Lseek is passed on.
@@ -15534,7 +15515,6 @@ static void pa_deinit_graph(void)
     pwrite_t cppwrite;
     popen_t cppopen;
     pclose_t cppclose;
-    punlink_t cppunlink;
     plseek_t cpplseek;
 
     winptr wp;
@@ -15591,11 +15571,10 @@ static void pa_deinit_graph(void)
     ovr_write(ofpwrite, &cppwrite);
     ovr_open(ofpopen, &cppopen);
     ovr_close(ofpclose, &cppclose);
-    ovr_unlink(ofpunlink, &cppunlink);
     ovr_lseek(ofplseek, &cpplseek);
     /* if we don't see our own vector flag an error */
     if (cppread != iread || cppwrite != iwrite || cppopen != iopen ||
-        cppclose != iclose /* || cppunlink != iunlink */ || cpplseek != ilseek)
+        cppclose != iclose || cpplseek != ilseek)
         error(esystem);
     /* release control handler */
     SetConsoleCtrlHandler(NULL, FALSE);

@@ -96,6 +96,7 @@
 
 /* local definitions */
 #include <localdefs.h>
+#include <config.h>
 #include <graphics.h>
 
 /* external definitions */
@@ -127,7 +128,6 @@ static enum { /* debug levels */
                                 fflush(stderr); } while (0)
 
 //#define PRTEVT  /* print outgoing PA events */
-//#define PRTXEVT /* print incoming X events */
 //#define EVTPOL /* poll for X events */
 //#define PRTFTM /* print font metrics */
 
@@ -146,10 +146,19 @@ static enum { /* debug levels */
 #define POINT  (0.353) /* point size in mm */
 #define CONPNT 15/*11.5*/    /* height of console font */
 
-/* Default terminal size sets the geometry of the terminal */
+/*
+ * Configurable parameters
+ *
+ * These parameters can be configured here at compile time, or are overriden
+ * at runtime by values of the same name in the config files.
+ */
+#define MAXXD     80 /* standard terminal, 80x25 */
+#define MAXYD     25
 
-#define DEFXD 80 /* default terminal size, 80x24, this is Linux standard */
-#define DEFYD 24
+#define DIALOGERR 1     /* send runtime errors to dialog */
+#define MOUSEENB  TRUE  /* enable mouse */
+#define JOYENB    TRUE  /* enable joysticks */
+#define DMPMSG    FALSE /* enable dump messages (diagnostic, windows only) */
 
 /* file handle numbers at the system interface level */
 
@@ -163,7 +172,6 @@ typedef ssize_t (*pread_t)(int, void*, size_t);
 typedef ssize_t (*pwrite_t)(int, const void*, size_t);
 typedef int (*popen_t)(const char*, int, int);
 typedef int (*pclose_t)(int);
-typedef int (*punlink_t)(const char*);
 typedef off_t (*plseek_t)(int, off_t, int);
 
 /* system override calls */
@@ -172,7 +180,6 @@ extern void ovr_read(pread_t nfp, pread_t* ofp);
 extern void ovr_write(pwrite_t nfp, pwrite_t* ofp);
 extern void ovr_open(popen_t nfp, popen_t* ofp);
 extern void ovr_close(pclose_t nfp, pclose_t* ofp);
-extern void ovr_unlink(punlink_t nfp, punlink_t* ofp);
 extern void ovr_lseek(plseek_t nfp, plseek_t* ofp);
 
 /* screen text attribute */
@@ -505,6 +512,7 @@ typedef enum {
     eftntl,   /* Font name too large */
     epicopn,  /* Cannot open picture file */
     ebadfmt,  /* Bad format of picture file */
+    ecfgval,  /* invalid configuration value */
     esystem   /* System consistency check */
 
 } errcod;
@@ -529,7 +537,6 @@ static pread_t   ofpread;
 static pwrite_t  ofpwrite;
 static popen_t   ofpopen;
 static pclose_t  ofpclose;
-static punlink_t ofpunlink;
 static plseek_t  ofplseek;
 
 /* X Windows globals */
@@ -559,6 +566,14 @@ static int      joyfid;         /* joystick file id */
 static int      joyax;          /* joystick x axis save */
 static int      joyay;          /* joystick y axis save */
 static int      joyaz;          /* joystick z axis save */
+
+/* config settable runtime options */
+static int maxxd;     /* default window dimensions */
+static int maxyd;
+static int dialogerr; /* send runtime errors to dialog */
+static int mouseenb;  /* enable mouse */
+static int joyenb;    /* enable joysticks */
+static int dmpmsg;    /* enable dump messages (diagnostic, windows only) */
 
 /**
  * Set of input file ids for select
@@ -646,6 +661,7 @@ static void error(errcod e)
       case eftntl:   fprintf(stderr, "Font name too large"); break;
       case epicopn:  fprintf(stderr, "Cannot open picture file"); break;
       case ebadfmt:  fprintf(stderr, "Bad format of picture file"); break;
+      case ecfgval:  fprintf(stderr, "Invalid configuration value"); break;
       case esystem:  fprintf(stderr, "System consistency check"); break;
 
     }
@@ -1672,6 +1688,30 @@ void rescale(XImage* dp, XImage* sp)
 
 /** ****************************************************************************
 
+Convert Petit-Ami ratioed angles to XWindow 64ths angles
+
+PA uses 0 to INT_MAX clockwise angular measurements. Xwindows uses 64 degree
+measurements, with 0 degress at the 3'oclock position, and counterclockwise
+drawing direction. Converts PA angles to XWindow angles.
+
+*******************************************************************************/
+
+int rat2a64(int a)
+
+{
+
+    /* normalize for 90 degrees origin */
+    a -= INT_MAX/4; /* normalize for 90 degrees */
+    if (a < 0) a += INT_MAX;
+    a /= INT_MAX/(360*64); /* convert to 64ths degrees */
+    if (a) a = 360*64-a;
+
+    return (a); /* return counterclockwise */
+
+}
+
+/** ****************************************************************************
+
 Find if cursor is in screen bounds
 
 Checks if the cursor lies in the current bounds, and returns TRUE if so.
@@ -2018,8 +2058,8 @@ static void opnwin(int fn, int pfn, int wid)
     win->visible = FALSE; /* set not visible */
 
     /* set up global buffer parameters */
-    win->gmaxx = DEFXD; /* character max dimensions */
-    win->gmaxy = DEFYD;
+    win->gmaxx = maxxd; /* character max dimensions */
+    win->gmaxy = maxyd;
     win->gattr = 0; /* no attribute */
     win->gauto = TRUE; /* auto on */
     win->gfcrgb = colnum(pa_black); /*foreground black */
@@ -2058,8 +2098,8 @@ static void opnwin(int fn, int pfn, int wid)
     /* set buffer size required for character spacing at default character grid
        size */
 
-    win->gmaxxg = DEFXD*win->charspace;
-    win->gmaxyg = DEFYD*win->linespace;
+    win->gmaxxg = maxxd*win->charspace;
+    win->gmaxyg = maxyd*win->linespace;
 
     /* create our window */
 
@@ -2897,7 +2937,6 @@ read
 write
 open
 close
-unlink
 lseek
 
 We use interdiction to filter standard I/O calls towards the terminal. The
@@ -2980,22 +3019,6 @@ static int iclose(int fd)
 {
 
     return (*ofpclose)(fd);
-
-}
-
-/** ****************************************************************************
-
-Unlink
-
-Unlink has nothing to do with us, so we just pass it on.
-
-*******************************************************************************/
-
-static int iunlink(const char* pathname)
-
-{
-
-    return (*ofpunlink)(pathname);
 
 }
 
@@ -4637,8 +4660,9 @@ void pa_arc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
        y2 = ty;
 
     }
-    a1 = abs(ea-(INT_MAX/4))/(INT_MAX/(360*64));
-    a2 = abs(sa-(INT_MAX/4))/(INT_MAX/(360*64));
+    a1 = rat2a64(ea); /* convert angles */
+    a2 = rat2a64(sa);
+    a2 = abs(a2-a1); /* find difference */
 
     /* set foreground function */
     XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
@@ -4694,8 +4718,9 @@ void pa_farc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
        y2 = ty;
 
     }
-    a1 = abs(ea-(INT_MAX/4))/(INT_MAX/(360*64));
-    a2 = abs(sa-(INT_MAX/4))/(INT_MAX/(360*64));
+    a1 = rat2a64(ea); /* convert angles */
+    a2 = rat2a64(sa);
+    a2 = abs(a2-a1); /* find difference */
 
     /* set foreground function */
     XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
@@ -4751,8 +4776,10 @@ void pa_fchord(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
        y2 = ty;
 
     }
-    a1 = abs(ea-(INT_MAX/4))/(INT_MAX/(360*64));
-    a2 = abs(sa-(INT_MAX/4))/(INT_MAX/(360*64));
+
+    a1 = rat2a64(ea); /* convert angles */
+    a2 = rat2a64(sa);
+    a2 = abs(a2-a1); /* find difference */
 
     /* set foreground function */
     XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
@@ -6594,8 +6621,8 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
 
         }
 
-    } else if (e->type == MotionNotify || e->type == ButtonPress ||
-               e->type == ButtonRelease) {
+    } else if ((e->type == MotionNotify || e->type == ButtonPress ||
+               e->type == ButtonRelease) && mouseenb) {
 
         mouseevent(win, e); /* process mouse event */
         /* check any mouse details need processing */
@@ -6618,12 +6645,15 @@ static void xwinget(pa_evtrec* er, int* keep)
     if (XPending(padisplay)) {
 
         XNextEvent(padisplay, &e); /* get next event */
-#ifdef PRTXEVT
-if (e.type != NoExpose && e.type != Expose) {
-        dbg_printf(dlinfo, "X Event: %5d ", xcnt++); prtxevt(e.type);
-        fprintf(stderr, "\n"); fflush(stderr);
-}
-#endif
+        if (dmpmsg) {
+
+            if (e.type != NoExpose && e.type != Expose) {
+
+                dbg_printf(dlinfo, "X Event: %5d ", xcnt++); prtxevt(e.type);
+                fprintf(stderr, "\n"); fflush(stderr);
+            }
+
+        }
         ofn = fndevt(e.xany.window); /* get output window lfn */
         if (ofn >= 0) { /* its one of our windows */
 
@@ -6675,7 +6705,7 @@ void pa_event(FILE* f, pa_evtrec* er)
 
             } else if (i == dfid && XPending(padisplay))
                 xwinget(er, &keep);
-            else if (i == joyfid)
+            else if (i == joyfid && joyenb)
                 joyevt(er, &keep); /* process joystick events */
 
         }
@@ -8468,12 +8498,19 @@ static void pa_init_graphics(int argc, char *argv[])
 
 {
 
-    int    ofn;  /* standard output file number */
-    int    ifn;  /* standard input file number */
-    winptr win;  /* windows record pointer */
-    int    dfid; /* XWindow display FID */
-    int    f;    /* window creation flags */
-    int    fi;
+    int       ofn;  /* standard output file number */
+    int       ifn;  /* standard input file number */
+    winptr    win;  /* windows record pointer */
+    int       dfid; /* XWindow display FID */
+    int       f;    /* window creation flags */
+    pa_valptr config_root; /* root for config block */
+    pa_valptr term_root; /* root for terminal block */
+    pa_valptr graph_root; /* root for graphics block */
+    pa_valptr diag_root; /* root for diagnostics block */
+    pa_valptr xwin_root; /* root for xwindow */
+    pa_valptr vp;
+    char*     errstr;
+    int       fi;
 
     /* turn off I/O buffering */
     setvbuf(stdin, NULL, _IONBF, 0);
@@ -8485,8 +8522,15 @@ static void pa_init_graphics(int argc, char *argv[])
     ovr_write(iwrite, &ofpwrite);
     ovr_open(iopen, &ofpopen);
     ovr_close(iclose, &ofpclose);
-//    ovr_unlink(iunlink, &ofpunlink);
     ovr_lseek(ilseek, &ofplseek);
+
+    /* set internal configurable settings */
+    maxxd = MAXXD; /* set default window dimensions */
+    maxyd = MAXYD;
+    dialogerr = DIALOGERR; /* send runtime errors to dialog */
+    mouseenb = MOUSEENB; /* enable mouse */
+    joyenb = JOYENB; /* enable joystick */
+    dmpmsg = DMPMSG; /* dump XWindow messages */
 
     /* set state of shift, control and alt keys */
     ctrll = FALSE;
@@ -8518,6 +8562,52 @@ static void pa_init_graphics(int argc, char *argv[])
 
     }
 
+        /* get setup configuration */
+    config_root = NULL;
+    pa_config(&config_root);
+
+    /* find "terminal" block */
+    term_root = pa_schlst("terminal", config_root);
+    if (term_root && term_root->sublist) term_root = term_root->sublist;
+
+    /* find x an y max if they exist */
+    vp = pa_schlst("maxxd", term_root);
+    if (vp) maxxd = strtol(vp->value, &errstr, 10);
+    if (*errstr) error(ecfgval);
+    vp = pa_schlst("maxyd", term_root);
+    if (vp) maxyd = strtol(vp->value, &errstr, 10);
+    if (*errstr) error(ecfgval);
+    vp = pa_schlst("joystick", term_root);
+    if (vp) joyenb = strtol(vp->value, &errstr, 10);
+    vp = pa_schlst("mouse", term_root);
+    if (vp) mouseenb = strtol(vp->value, &errstr, 10);
+
+    /* find graph block */
+    graph_root = pa_schlst("graph", config_root);
+    if (graph_root) {
+
+        vp = pa_schlst("dialogerr", graph_root->sublist);
+        if (vp) dialogerr = strtol(vp->value, &errstr, 10);
+        if (*errstr) error(ecfgval);
+
+        /* find windows subsection */
+        xwin_root = pa_schlst("xwindow", graph_root->sublist);
+        if (xwin_root) {
+
+            /* find diagnostic subsection */
+            diag_root = pa_schlst("diagnostics", xwin_root->sublist);
+            if (diag_root) {
+
+                vp = pa_schlst("dump_messages", diag_root->sublist);
+                if (vp) dmpmsg = strtol(vp->value, &errstr, 10);
+                if (*errstr) error(ecfgval);
+
+            }
+
+        }
+
+    }
+
     /* find existing display */
     padisplay = XOpenDisplay(NULL);
     if (padisplay == NULL) {
@@ -8546,13 +8636,17 @@ static void pa_init_graphics(int argc, char *argv[])
 
     /* open joystick if available */
     numjoy = 0; /* set no joysticks */
-    joyfid = open("/dev/input/js0", O_RDONLY);
-    if (joyfid >= 0) { /* found */
+    if (joyenb) { /* if joystick is to be enabled */
 
-        numjoy++; /* set joystick active */
-        FD_SET(joyfid, &ifdseta);
-        if (joyfid+1 > ifdmax)
-            ifdmax = joyfid+1; /* set maximum fid for select() */
+        joyfid = open("/dev/input/js0", O_RDONLY);
+        if (joyfid >= 0) { /* found */
+
+            numjoy++; /* set joystick active */
+            FD_SET(joyfid, &ifdseta);
+            if (joyfid+1 > ifdmax)
+                ifdmax = joyfid+1; /* set maximum fid for select() */
+
+        }
 
     }
 
@@ -8582,7 +8676,6 @@ static void pa_deinit_graphics()
     pwrite_t  cppwrite;
     popen_t   cppopen;
     pclose_t  cppclose;
-    punlink_t cppunlink;
     plseek_t  cpplseek;
 
     winptr win;    /* windows record pointer */
@@ -8623,12 +8716,11 @@ static void pa_deinit_graphics()
     ovr_write(ofpwrite, &cppwrite);
     ovr_open(ofpopen, &cppopen);
     ovr_close(ofpclose, &cppclose);
-//    ovr_unlink(ofpunlink, &cppunlink);
     ovr_lseek(ofplseek, &cpplseek);
 
     /* if we don't see our own vector flag an error */
     if (cppread != iread || cppwrite != iwrite || cppopen != iopen ||
-        cppclose != iclose || /* cppunlink != iunlink ||*/ cpplseek != ilseek)
+        cppclose != iclose || cpplseek != ilseek)
         error(esystem);
 
 }
