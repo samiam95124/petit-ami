@@ -26,20 +26,20 @@
 * Should have speed tests adjust their length according to actual process     *
 * time to prevent tests from taking too long on slow cpu/display.             *
 *                                                                             *
-* Benchmark results for 80x25 screen, AMD® Ryzen 9 3950x 16-core processor ×  *
-* 32, NVIDIA GTX 3070 dual:                                                   *
+* Benchmark results for 80x25 screen, AMD® Ryzen 9 3950x NVIDIA GTX 3070     *
+* dual:                                                                       *
 *                                                                             *
 * Windows console library (conlib):                                           *
 *                                                                             *
-* Character write speed: 0.000031 Sec. Per character.                         *
-* Scrolling speed:       0.00144 Sec. Per scroll.                             *
-* Buffer switch speed:   0.00143 Sec. per switch.                             *
+* Character write speed: 0.00007291 Sec. Per character.                       *
+* Scrolling speed:       0.00067421 Sec. Per scroll.                          *
+* Buffer switch speed:   0.00041666 Sec. per switch.                          *
 *                                                                             *
 * Windows graphical library (gralib):                                         *
 *                                                                             *
-* Character write speed: 0.0000075 Sec. Per character.                        *
-* Scrolling speed:       0.000192 Sec. Per scroll.                            *
-* Buffer switch speed:   0.000126 Sec. per switch.                            *
+* Character write speed: 0.00002350 Sec. Per character.                       *
+* Scrolling speed:       0.00034526 Sec. Per scroll.                          *
+* Buffer switch speed:   0.00034666 Sec. per switch.                          *
 *                                                                             *
 * Linux console/xterm with glibc:                                             *
 *                                                                             *
