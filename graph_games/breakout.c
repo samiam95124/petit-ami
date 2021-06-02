@@ -23,17 +23,6 @@
 #define   OSEC        (SECOND/8)              /* 1/8 second */
 #define   BALMOV      50                      /* ball move timer */
 #define   NEWBAL      SECOND                  /* wait for new ball time */
-#define   WALL        21                      /* WALL thickness */
-#define   HWALL       (WALL/2)                /* half WALL thickness */
-#define   PADW        81                      /* width of paddle */
-#define   PADHW       (PADW/2)                /* half paddle */
-#define   PADQW       (PADW/4)                /* quarter paddle */
-#define   PADH        15                      /* height of paddle */
-#define   HPADW       (PADW/2)                /* half paddle width */
-#define   PWDIS       5                       /* distance of paddle from bottom
-                                                 wall */
-#define   BALLS       21                      /* size of the ball */
-#define   hBALLS      (BALLS/2)               /* half ball size */
 #define   BALLCLR     pa_blue                 /* ball pa_color */
 #define   WALLCLR     pa_cyan                 /* wall pa_color */
 #define   PADCLR      pa_green                /* paddle pa_color */
@@ -44,8 +33,6 @@
 #define   FAILNOTE    (PA_NOTE_C+PA_OCTAVE_4) /* note to play on fail */
 #define   BRKROW      6                       /* number of brick rows */
 #define   BRKCOL      10                      /* number of brick columns */
-#define   BRKH        15                      /* brick height */
-#define   BRKBRD      3                       /* brick border */
 
 typedef struct { /* rectangle */
 
@@ -74,6 +61,15 @@ int       brki;                       /* brick was intersected */
 int       fldbrk;                     /* bricks hit this field */
 int       bip;                        /* middle of ball intersection with
                                          paddle */
+int       wall;                       /* wall thickness */
+int       brkh;                       /* brick height */
+int       brkbrd;                     /* brick border */
+int       balls;                      /* ball size */
+int       hballs;                     /* half ball size */
+int       padh;                       /* height of paddle */
+int       pwdis;                      /* distance of paddle from bottom wall */
+int       padw;                       /* paddle width */
+int       hpadw;                      /* half paddle width */
 
 /*******************************************************************************
 
@@ -199,15 +195,15 @@ void drwbrect(rectangle* r, pa_color c)
     pa_fcolorg(stdout, mr, mg, mb); /* set brick body to midlight */
     pa_frect(stdout, r->x1, r->y1, r->x2, r->y2); /* draw brick */
     pa_fcolorg(stdout, hr, hg, hb); /* set hilight */
-    pa_frect(stdout, r->x1, r->y1, r->x1+BRKBRD-1, r->y2); /* border left */
-    pa_frect(stdout, r->x1, r->y1, r->x2, r->y1+BRKBRD-1); /* top */
+    pa_frect(stdout, r->x1, r->y1, r->x1+brkbrd-1, r->y2); /* border left */
+    pa_frect(stdout, r->x1, r->y1, r->x2, r->y1+brkbrd-1); /* top */
     /* set lowlight border color */
     pa_fcolorg(stdout, lr, lg, lb);
     /* border right */
-    for (i = 1; i <= BRKBRD; i++)
+    for (i = 1; i <= brkbrd; i++)
         pa_frect(stdout, r->x2-i+1, r->y1+i-1, r->x2, r->y2);
     /* border bottom */
-    for (i = 1; i <= BRKBRD; i++)
+    for (i = 1; i <= brkbrd; i++)
         pa_frect(stdout, r->x1+i-1, r->y2-i+1, r->x2, r->y2);
 
 }
@@ -341,7 +337,7 @@ void drwscn(void)
     drwrect(&wallr, WALLCLR); /* right */
     drwrect(&wallb, WALLCLR); /* bottom */
     pa_fcolor(stdout, pa_black);
-    wrtcen(pa_maxyg(stdout)-WALL+1, "BREAKOUT VS. 1.0");
+    wrtcen(pa_maxyg(stdout)-wall+1, "BREAKOUT VS. 1.0");
 
 }
 
@@ -384,15 +380,15 @@ void padpos(int x)
 
 {
 
-    if (x-HPADW <= walll.x2) x = walll.x2+HPADW+1; /* clip to ends */
-    if (x+HPADW >= wallr.x1) x = wallr.x1-HPADW-1;
+    if (x-hpadw <= walll.x2) x = walll.x2+hpadw+1; /* clip to ends */
+    if (x+hpadw >= wallr.x1) x = wallr.x1-hpadw-1;
     /* erase old location */
     pa_fcolor(stdout, pa_white);
-    pa_frect(stdout, padx-HPADW, pa_maxyg(stdout)-WALL-PADH-PWDIS,
-                     padx+HPADW, pa_maxyg(stdout)-WALL-PWDIS);
+    pa_frect(stdout, padx-hpadw, pa_maxyg(stdout)-wall-padh-pwdis,
+                     padx+hpadw, pa_maxyg(stdout)-wall-pwdis);
     padx = x; /* set new location */
-    setrect(&paddle, x-HPADW, pa_maxyg(stdout)-WALL-PADH-PWDIS,
-                    x+HPADW, pa_maxyg(stdout)-WALL-PWDIS);
+    setrect(&paddle, x-hpadw, pa_maxyg(stdout)-wall-padh-pwdis,
+                    x+hpadw, pa_maxyg(stdout)-wall-pwdis);
     drwrect(&paddle, PADCLR); /* draw paddle */
 
 }
@@ -416,8 +412,8 @@ void setwall(void)
     int co;     /* collumn offset */
     int rd;     /* remainder distributor */
 
-    brkw = (pa_maxxg(stdout)-2*WALL)/BRKCOL; /* find brick width */
-    brkr = (pa_maxxg(stdout)-2*WALL)%BRKCOL-1; /* find brick remainder */
+    brkw = (pa_maxxg(stdout)-2*wall)/BRKCOL; /* find brick width */
+    brkr = (pa_maxxg(stdout)-2*wall)%BRKCOL-1; /* find brick remainder */
     brkoff = pa_maxyg(stdout)/4; /* find brick wall offset */
     for (r = 0; r < BRKROW; r++) {
 
@@ -425,9 +421,9 @@ void setwall(void)
         rd = brkr; /* set remainder distributor */
         for (c = 0; c < BRKCOL; c++) {
 
-            setrect(&bricks[r][c], 1+co+WALL, 1+(r-1)*BRKH+brkoff,
-                                              1+co+brkw-1+WALL+(rd > 0),
-                                              1+(r-1)*BRKH+BRKH-1+brkoff);
+            setrect(&bricks[r][c], 1+co+wall, 1+(r-1)*brkh+brkoff,
+                                              1+co+brkw-1+wall+(rd > 0),
+                                              1+(r-1)*brkh+brkh-1+brkoff);
             co = co+brkw+(rd > 0); /* offset to next brick */
             if (brkr > 0) rd = rd-1; /* pa_reduce remainder */
 
@@ -479,8 +475,17 @@ int main(void)
     pa_curvis(stdout, FALSE); /* remove drawing cursor */
     pa_auto(stdout, FALSE); /* turn off scrolling */
     pa_font(stdout, PA_FONT_SIGN); /* sign font */
-    pa_bold(stdout, TRUE);
-    pa_fontsiz(stdout, WALL-2); /* font fits in the WALL */
+    wall = pa_maxyg(stdout)/20; /* set wall thickness */
+    brkh = pa_maxyg(stdout)/25; /* set brick thickness */
+    brkbrd = brkh/5; /* set brick border */
+    balls = pa_maxyg(stdout)/20; /* set ball size */
+    hballs = balls/2; /* set half ball size */
+    padh = pa_maxyg(stdout)/22; /* set paddle thickness */
+    pwdis = padh/4; /* set distance of paddle to wall */
+    padw = pa_maxxg(stdout)/8; /* set paddle width */
+    hpadw = padw/2; /* half paddle width */
+//    pa_bold(stdout, TRUE);
+    pa_fontsiz(stdout, wall-2); /* font fits in the wall */
     pa_binvis(stdout); /* no background writes */
     pa_timer(stdout, 1, BALMOV, TRUE); /* enable timer */
 
@@ -491,12 +496,12 @@ int main(void)
     clrrect(&ball); /* set ball not on screen */
     baltim = 0; /* set ball ready to start */
     /* set up wall rectangles */
-    setrect(&wallt, 1, 1, pa_maxxg(stdout), WALL); /* top */
-    setrect(&walll, 1, 1, WALL, pa_maxyg(stdout)); /* left */
+    setrect(&wallt, 1, 1, pa_maxxg(stdout), wall); /* top */
+    setrect(&walll, 1, 1, wall, pa_maxyg(stdout)); /* left */
     /* right */
-    setrect(&wallr, pa_maxxg(stdout)-WALL, 1, pa_maxxg(stdout), pa_maxyg(stdout));
+    setrect(&wallr, pa_maxxg(stdout)-wall, 1, pa_maxxg(stdout), pa_maxyg(stdout));
     /* bottom */
-    setrect(&wallb, 1, pa_maxyg(stdout)-WALL, pa_maxxg(stdout), pa_maxyg(stdout));
+    setrect(&wallb, 1, pa_maxyg(stdout)-wall, pa_maxxg(stdout), pa_maxyg(stdout));
     scrsiz = pa_strsiz(stdout, "SCORE 0000"); /* set nominal size of score string */
     scrchg = TRUE; /* set score changed */
     drwscn(); /* draw game screen */
@@ -512,8 +517,8 @@ int main(void)
             if (ball.x1 == 0 && baltim == 0) {
 
                 /* ball not on screen, and time to wait expired, send out ball */
-                setrect(&ball, WALL+1, pa_maxyg(stdout)-4*WALL-BALLS,
-                               WALL+1+BALLS, pa_maxyg(stdout)-4*WALL);
+                setrect(&ball, wall+1, pa_maxyg(stdout)-4*wall-balls,
+                               wall+1+balls, pa_maxyg(stdout)-4*wall);
                 bdx = +1; /* set direction of travel */
                 bdy = -2;
                 /* draw the ball */
@@ -527,7 +532,7 @@ int main(void)
                 /* erase score */
                 pa_fcolor(stdout, WALLCLR);
                 pa_frect(stdout, pa_maxxg(stdout)/2-scrsiz/2, 1,
-                                 pa_maxxg(stdout)/2+scrsiz/2, WALL);
+                                 pa_maxxg(stdout)/2+scrsiz/2, wall);
                 /* place updated score on screen */
                 pa_fcolor(stdout, pa_black);
                 pa_cursorg(stdout, pa_maxxg(stdout)/2-scrsiz/2, 2);
@@ -578,7 +583,7 @@ int main(void)
 
                             ball = balsav; /* restore */
                             /* find which 5th of the paddle was struck */
-                            bip = (ball.x1+hBALLS-paddle.x1)/(PADW/5);
+                            bip = (ball.x1+hballs-paddle.x1)/(padw/5);
                             /* clip to 5th */
                             if (bip < 0) bip = 0;
                             if (bip > 5) bip = 5;

@@ -62,6 +62,31 @@
 #include <localdefs.h>
 #include <sound.h>
 
+/*
+ * Debug print system
+ *
+ * Example use:
+ *
+ * dbg_printf(dlinfo, "There was an error: string: %s\n", bark);
+ *
+ * mydir/test.c:myfunc():12: There was an error: somestring
+ *
+ */
+
+static enum { /* debug levels */
+
+    dlinfo, /* informational */
+    dlwarn, /* warnings */
+    dlfail, /* failure/critical */
+    dlnone  /* no messages */
+
+} dbglvl = dlinfo;
+
+#define dbg_printf(lvl, fmt, ...) \
+        do { if (lvl >= dbglvl) fprintf(stderr, "%s:%s():%d: " fmt, __FILE__, \
+                                __func__, __LINE__, ##__VA_ARGS__); \
+                                fflush(stderr); } while (0)
+
 #define SILENTALSA 1 /* silence ALSA during init */
 //#define SHOWDEVTBL 1 /* show device tables after enumeration */
 //#define SHOWMIDIIN 1 /* show midi in dumps */
@@ -307,8 +332,8 @@ typedef enum {
 
 } devtyp;
 
-static pa_seqptr seqlst;                  /* active sequencer entries */
-static pa_seqptr seqfre;                  /* free sequencer entries */
+static pa_seqptr seqlst;               /* active sequencer entries */
+static pa_seqptr seqfre;               /* free sequencer entries */
 static int seqrun;                     /* sequencer running */
 static struct timeval strtim;          /* start time for sequencer, in raw linux
                                           time */
@@ -703,7 +728,7 @@ If the sequencer timer is not running, we activate it.
 
 *******************************************************************************/
 
-static void acttim(int t)
+static void acttim(void)
 
 {
 
@@ -711,10 +736,10 @@ static void acttim(int t)
     int    elap;          /* elapsed time */
     long tl;
 
-    if (!seqlst) { /* nothing in sequencer list, activate timer */
+    if (!seqtimact && seqlst) { /* sequencer list has contents, activate timer */
 
         elap = timediff(&strtim); /* find elapsed time since seq start */
-        tl = t-elap; /* set next time to run */
+        tl = seqlst->time-elap; /* set next time to run */
         ts.it_value.tv_sec = tl/10000; /* set number of seconds to run */
         /* set number of nanoseconds to run */
         ts.it_value.tv_nsec = tl%10000*100000;
@@ -2364,6 +2389,7 @@ static void* sequencer_thread(void* data)
     pa_seqptr p;             /* message entry pointer */
     int    elap;          /* elapsed time */
     struct itimerspec ts; /* timer data */
+    uint64_t   exp;      /* timer expiration time */
     long tl;
     int r;
 
@@ -2380,6 +2406,8 @@ static void* sequencer_thread(void* data)
             /* the sequencer timer went off */
             if (seqrun) { /* sequencer is still running */
 
+                /* clear the timer by reading it */
+                read(seqhan, &exp, sizeof(uint64_t));
                 pthread_mutex_lock(&seqlock); /* take sequencer data lock */
                 p = seqlst; /* index top of list */
                 elap = timediff(&strtim); /* find elapsed time since seq start */
@@ -2405,9 +2433,9 @@ static void* sequencer_thread(void* data)
                     timerfd_settime(seqhan, 0, &ts, NULL);
                     seqtimact = TRUE; /* set sequencer timer active */
 
-                } else seqtimact = FALSE; /* set quencer timer inactive */
+                } else seqtimact = FALSE; /* set sequencer timer inactive */
                 pthread_mutex_unlock(&seqlock);
-                if (!seqtimact) {
+                if (!seqtimact) { /* must have gone inactive above */
 
                     /* count active sequencer instances */
                     pthread_mutex_lock(&snmlck);
@@ -2710,7 +2738,7 @@ void pa_noteon(int p, int t, pa_channel c, pa_note n, int v)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         insseq(sp); /* insert to sequencer list */
-        acttim(t); /* kick timer if needed */
+        acttim(); /* kick timer if needed */
 
     }
 
@@ -2763,7 +2791,7 @@ void pa_noteoff(int p, int t, pa_channel c, pa_note n, int v)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         insseq(sp); /* insert to sequencer list */
-        acttim(t); /* kick timer if needed */
+        acttim(); /* kick timer if needed */
 
     }
 
@@ -2812,7 +2840,7 @@ void pa_instchange(int p, int t, pa_channel c, pa_instrument i)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         insseq(sp); /* insert to sequencer list */
-        acttim(t); /* kick timer if needed */
+        acttim(); /* kick timer if needed */
 
     }
 
@@ -2859,7 +2887,7 @@ void pa_attack(int p, int t, pa_channel c, int at)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         insseq(sp); /* insert to sequencer list */
-        acttim(t); /* kick timer if needed */
+        acttim(); /* kick timer if needed */
 
     }
 
@@ -2906,7 +2934,7 @@ void pa_release(int p, int t, pa_channel c, int rt)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         insseq(sp); /* insert to sequencer list */
-        acttim(t); /* kick timer if needed */
+        acttim(); /* kick timer if needed */
 
     }
 
@@ -2952,7 +2980,7 @@ void pa_legato(int p, int t, pa_channel c, int b)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         insseq(sp); /* insert to sequencer list */
-        acttim(t); /* kick timer if needed */
+        acttim(); /* kick timer if needed */
 
     }
 
@@ -2998,7 +3026,7 @@ void pa_portamento(int p, int t, pa_channel c, int b)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         insseq(sp); /* insert to sequencer list */
-        acttim(t); /* kick timer if needed */
+        acttim(); /* kick timer if needed */
 
     }
 
@@ -3044,7 +3072,7 @@ void pa_volsynthchan(int p, int t, pa_channel c, int v)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         insseq(sp); /* insert to sequencer list */
-        acttim(t); /* kick timer if needed */
+        acttim(); /* kick timer if needed */
 
     }
 
@@ -3091,7 +3119,7 @@ void pa_balance(int p, int t, pa_channel c, int b)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         insseq(sp); /* insert to sequencer list */
-        acttim(t); /* kick timer if needed */
+        acttim(); /* kick timer if needed */
 
     }
 
@@ -3137,7 +3165,7 @@ void pa_porttime(int p, int t, pa_channel c, int v)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         insseq(sp); /* insert to sequencer list */
-        acttim(t); /* kick timer if needed */
+        acttim(); /* kick timer if needed */
 
     }
 
@@ -3183,7 +3211,7 @@ void pa_vibrato(int p, int t, pa_channel c, int v)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         insseq(sp); /* insert to sequencer list */
-        acttim(t); /* kick timer if needed */
+        acttim(); /* kick timer if needed */
 
     }
 
@@ -3230,7 +3258,7 @@ void pa_pan(int p, int t, pa_channel c, int b)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         insseq(sp); /* insert to sequencer list */
-        acttim(t); /* kick timer if needed */
+        acttim(); /* kick timer if needed */
 
     }
 
@@ -3276,7 +3304,7 @@ void pa_timbre(int p, int t, pa_channel c, int tb)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         insseq(sp); /* insert to sequencer list */
-        acttim(t); /* kick timer if needed */
+        acttim(); /* kick timer if needed */
 
     }
 
@@ -3322,7 +3350,7 @@ void pa_brightness(int p, int t, pa_channel c, int b)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         insseq(sp); /* insert to sequencer list */
-        acttim(t); /* kick timer if needed */
+        acttim(); /* kick timer if needed */
 
    }
 
@@ -3368,7 +3396,7 @@ void pa_reverb(int p, int t, pa_channel c, int r)
        /* check sequencer running */
        if (!seqrun) error("Sequencer not running");
        insseq(sp); /* insert to sequencer list */
-       acttim(t); /* kick timer if needed */
+       acttim(); /* kick timer if needed */
 
     }
 
@@ -3414,7 +3442,7 @@ void pa_tremulo(int p, int t, pa_channel c, int tr)
         /* check sequencer running */
        if (!seqrun) error("Sequencer not running");
        insseq(sp); /* insert to sequencer list */
-       acttim(t); /* kick timer if needed */
+       acttim(); /* kick timer if needed */
 
     }
 
@@ -3460,7 +3488,7 @@ void pa_chorus(int p, int t, pa_channel c, int cr)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         insseq(sp); /* insert to sequencer list */
-        acttim(t); /* kick timer if needed */
+        acttim(); /* kick timer if needed */
 
     }
 
@@ -3506,7 +3534,7 @@ void pa_celeste(int p, int t, pa_channel c, int ce)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         insseq(sp); /* insert to sequencer list */
-        acttim(t); /* kick timer if needed */
+        acttim(); /* kick timer if needed */
 
     }
 
@@ -3552,7 +3580,7 @@ void pa_phaser(int p, int t, pa_channel c, int ph)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         insseq(sp); /* insert to sequencer list */
-        acttim(t); /* kick timer if needed */
+        acttim(); /* kick timer if needed */
 
     }
 
@@ -3602,7 +3630,7 @@ void pa_pitchrange(int p, int t, pa_channel c, int v)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         insseq(sp); /* insert to sequencer list */
-        acttim(t); /* kick timer if needed */
+        acttim(); /* kick timer if needed */
 
     }
 
@@ -3651,7 +3679,7 @@ void pa_mono(int p, int t, pa_channel c, int ch)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         insseq(sp); /* insert to sequencer list */
-        acttim(t); /* kick timer if needed */
+        acttim(); /* kick timer if needed */
 
     }
 
@@ -3696,7 +3724,7 @@ void pa_poly(int p, int t, pa_channel c)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         insseq(sp); /* insert to sequencer list */
-        acttim(t); /* kick timer if needed */
+        acttim(); /* kick timer if needed */
 
     }
 
@@ -3744,7 +3772,7 @@ void pa_aftertouch(int p, int t, pa_channel c, pa_note n, int at)
        /* check sequencer running */
        if (!seqrun) error("Sequencer not running");
        insseq(sp); /* insert to sequencer list */
-       acttim(t); /* kick timer if needed */
+       acttim(); /* kick timer if needed */
 
     }
 
@@ -3790,7 +3818,7 @@ void pa_pressure(int p, int t, pa_channel c, int pr)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         insseq(sp); /* insert to sequencer list */
-        acttim(t); /* kick timer if needed */
+        acttim(); /* kick timer if needed */
 
     }
 
@@ -3839,7 +3867,7 @@ void pa_pitch(int p, int t, pa_channel c, int pt)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         insseq(sp); /* insert to sequencer list */
-        acttim(t); /* kick timer if needed */
+        acttim(); /* kick timer if needed */
 
     }
 
@@ -3859,8 +3887,8 @@ static void *alsaplaymidi(void* data)
 
     int               curtim;  /* current time in 100us */
     int               qnote;   /* number of 100us/quarter note */
-    pa_seqptr            sp;      /* sequencer entry */
-    pa_seqptr            seqlst;  /* sorted sequencer list */
+    pa_seqptr         sp;      /* sequencer entry */
+    pa_seqptr         seqlst;  /* sorted sequencer list */
     int               tfd;     /* timer file descriptor */
     struct itimerspec ts;      /* timer data */
     uint64_t          exp;     /* timer expire value */
@@ -4528,7 +4556,7 @@ void pa_playsynth(int p, int t, int s)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         insseq(sp); /* insert to sequencer list */
-        acttim(t); /* kick timer if needed */
+        acttim(); /* kick timer if needed */
 
     }
 
@@ -4928,7 +4956,7 @@ void pa_playwave(int p, int t, int w)
         /* check sequencer running */
         if (!seqrun) error("Sequencer not running");
         insseq(sp); /* insert to sequencer list */
-        acttim(t); /* kick timer if needed */
+        acttim(); /* kick timer if needed */
 
     }
 
@@ -5546,7 +5574,7 @@ void pa_wrsynth(int p, pa_seqptr sp)
         memcpy(spp, sp, sizeof(pa_seqmsg));
         spp->port = p; /* override the port number */
         insseq(spp); /* insert to sequencer list */
-        acttim(sp->time); /* kick timer if needed */
+        acttim(); /* kick timer if needed */
 
     } else  {
 
@@ -6171,10 +6199,10 @@ static void pa_init_sound()
     FD_ZERO(&ifdseta);
 
     /* select input file */
-    FD_SET(0, &ifdseta);
+    FD_SET(seqhan, &ifdseta);
 
     /* set current max input fd */
-    ifdmax = 0+1;
+    ifdmax = seqhan+1;
 
     pthread_mutex_init(&seqlock, NULL); /* init sequencer lock */
 

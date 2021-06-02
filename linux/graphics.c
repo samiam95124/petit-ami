@@ -1367,12 +1367,7 @@ void setfnt(winptr win)
 
     *bp = 0; /* terminate */
     win->xfont = XLoadQueryFont(padisplay, buf);
-    if (!win->xfont) {
-
-        fprintf(stderr, "*** No font ***\n");
-        exit(1);
-
-    }
+    if (!win->xfont) error(esystem); /* should have found it */
 
 #ifdef PRTFTM
     dbg_printf(dlinfo, "Font min_bounds: lbearing: %d\n", win->xfont->min_bounds.lbearing);
@@ -3648,7 +3643,11 @@ void pa_fcolorc(FILE* f, int r, int g, int b)
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1]; /* index update screen */
-    XSetForeground(padisplay, sc->xcxt, r<<16 | g<<8 | b);
+    sc->fcrgb = rgb2xwin(r, g, b); /* set color status */
+    win->gfcrgb = sc->fcrgb;
+    /* set screen color according to reverse */
+    if (BIT(sarev) & sc->attr) XSetBackground(padisplay, sc->xcxt, sc->fcrgb);
+    else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
 
 }
 
@@ -3674,7 +3673,11 @@ void pa_fcolorg(FILE* f, int r, int g, int b)
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1]; /* index update screen */
-    XSetForeground(padisplay, sc->xcxt, r<<16 | g<<8 | b);
+    sc->fcrgb = rgb2xwin(r, g, b); /* set color status */
+    win->gfcrgb = sc->fcrgb;
+    /* set screen color according to reverse */
+    if (BIT(sarev) & sc->attr) XSetBackground(padisplay, sc->xcxt, sc->fcrgb);
+    else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
 
 }
 
@@ -3705,9 +3708,9 @@ void pa_bcolor(FILE* f, pa_color c)
 
 /** ****************************************************************************
 
-Set foreground color
+Set background color
 
-Sets the foreground color from individual r, g, b values.
+Sets the background color from individual r, g, b values.
 
 *******************************************************************************/
 
@@ -3720,10 +3723,11 @@ void pa_bcolorc(FILE* f, int r, int g, int b)
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1]; /* index update screen */
+    sc->bcrgb = rgb2xwin(r, g, b); /* set color status */
+    win->gbcrgb = sc->bcrgb;
     /* set screen color according to reverse */
-    if (BIT(sarev) & sc->attr)
-        XSetForeground(padisplay, sc->xcxt, r<<16 | g<<8 | b);
-    else XSetBackground(padisplay, sc->xcxt, r<<16 | g<<8 | b);
+    if (BIT(sarev) & sc->attr) XSetBackground(padisplay, sc->xcxt, sc->bcrgb);
+    else XSetBackground(padisplay, sc->xcxt, sc->bcrgb);
 
 }
 
