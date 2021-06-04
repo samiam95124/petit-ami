@@ -987,7 +987,7 @@ int main(void)
 {
 
     if (setjmp(terminate_buf)) goto terminate;
-#if 1
+#if 0
     pa_curvis(stdout, FALSE);
     printf("Graphics screen test vs. 0.1\n");
     printf("\n");
@@ -1053,6 +1053,7 @@ int main(void)
 
    /* ***************************** Standard Fonts test *********************** */
 
+#endif
     putchar('\f');
     chrgrid();
     prtcen(pa_maxy(stdout), "Standard fonts test");
@@ -1063,8 +1064,8 @@ int main(void)
     if (strlen(fns) > 0) {
 
         pa_font(stdout, PA_FONT_TERM);
-        printf("This is the terminal font: System name: \"%s\" Size x -> %d y -> %d\n",
-               fns, pa_chrsizx(stdout), pa_chrsizy(stdout));
+        printf("This is the terminal font: System name: \"%s\"\n", fns);
+        printf("Size x -> %d y -> %d\n", pa_chrsizx(stdout), pa_chrsizy(stdout));
         prtall();
         printf("\n");
 
@@ -1078,9 +1079,9 @@ int main(void)
     if (strlen(fns) > 0) {
 
         pa_font(stdout, PA_FONT_BOOK);
-        pa_fontsiz(stdout, 20);
-        printf("This is the book font: System name: \"%s\" Size x -> %d y -> %d\n",
-               fns, pa_chrsizx(stdout), pa_chrsizy(stdout));
+        //pa_fontsiz(stdout, 20);
+        printf("This is the book font: System name: \"%s\"\n", fns);
+        printf("Size x -> %d y -> %d\n", pa_chrsizx(stdout), pa_chrsizy(stdout));
         prtall();
         printf("\n");
 
@@ -1094,9 +1095,9 @@ int main(void)
     if (strlen(fns) > 0) {
 
         pa_font(stdout, PA_FONT_SIGN);
-        pa_fontsiz(stdout, 20);
-        printf("This is the sign font: System name: \"%s\" Size x -> %d y -> %d\n",
-               fns, pa_chrsizx(stdout), pa_chrsizy(stdout));
+        //pa_fontsiz(stdout, 20);
+        printf("This is the sign font: System name: \"%s\"\n", fns);
+        printf("Size x -> %d y -> %d\n", pa_chrsizx(stdout), pa_chrsizy(stdout));
         prtall();
         printf("\n");
 
@@ -1110,9 +1111,9 @@ int main(void)
     if (strlen(fns) > 0) {
 
         pa_font(stdout, PA_FONT_TECH);
-        pa_fontsiz(stdout, 20);
-        printf("This is the technical font: System name: \"%s\" Size x -> %d y -> %d\n",
-                fns, pa_chrsizx(stdout), pa_chrsizy(stdout));
+        //pa_fontsiz(stdout, 20);
+        printf("This is the technical font: System name: \"%s\"\n", fns);
+        printf("Size x -> %d y -> %d\n", pa_chrsizx(stdout), pa_chrsizy(stdout));
         prtall();
         printf("\n");
 
@@ -1447,7 +1448,6 @@ int main(void)
 
     /* ******************** Filled rounded rectangle test 1 ******************** */
 
-#endif
     pa_binvis(stdout);
     r = 1;
     while (r < 100) {

@@ -1445,7 +1445,9 @@ void setfnt(winptr win)
 
     /* find spacing in current font */
     win->charspace = win->xfont->max_bounds.width;
-    win->linespace = win->xfont->max_bounds.ascent+win->xfont->max_bounds.descent;
+    /* because the search solution above could find a font smaller than the given
+       bounding box, we use the requested vs. actual font height */
+    win->linespace = win->gfhigh;
     win->chrspcx = 0; /* reset leading and spacing */
     win->chrspcy = 0;
 
