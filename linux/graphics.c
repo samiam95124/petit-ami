@@ -129,7 +129,6 @@ static enum { /* debug levels */
 
 //#define PRTEVT  /* print outgoing PA events */
 //#define EVTPOL /* poll for X events */
-//#define PRTFTM /* print font metrics */
 
 #define MAXBUF 10      /* maximum number of buffers available */
 #define IOWIN  1       /* logical window number of input/output pair */
@@ -144,7 +143,7 @@ static enum { /* debug levels */
    to determine the character height. Note the point size was choosen to most
    closely match xterm. */
 #define POINT  (0.353) /* point size in mm */
-#define CONPNT 15/*11.5*/    /* height of console font */
+#define CONPNT 18/*11.5*/    /* height of console font */
 
 /*
  * Configurable parameters
@@ -158,7 +157,8 @@ static enum { /* debug levels */
 #define DIALOGERR 1     /* send runtime errors to dialog */
 #define MOUSEENB  TRUE  /* enable mouse */
 #define JOYENB    TRUE  /* enable joysticks */
-#define DMPMSG    FALSE /* enable dump messages (diagnostic, windows only) */
+#define DMPMSG    FALSE /* enable dump messages (diagnostic) */
+#define PRTFTM    FALSE /* print font metrics (diagnostic) */
 
 /* file handle numbers at the system interface level */
 
@@ -574,6 +574,7 @@ static int dialogerr; /* send runtime errors to dialog */
 static int mouseenb;  /* enable mouse */
 static int joyenb;    /* enable joysticks */
 static int dmpmsg;    /* enable dump messages (diagnostic, windows only) */
+static int prtftm;    /* print font metrics (diagnostic) */
 
 /**
  * Set of input file ids for select
@@ -1286,24 +1287,17 @@ void getfonts(void)
 
 /*******************************************************************************
 
-Select font
+Create XWindow XLFD font select string
 
-Sets the currently selected font active. Processes all current attributes as
-applicable, if the XWindow font set has that capability. Capability must be an
-exact match, that is, capability indicates an actual XWindows font with that
-capability exists. If any capability is not found, we default to blank or no
-characters in the field.
-
-The translation of attributes to capabilities is done on a priority basis. For
-example, bold and light are mutually exclusive, and bold is prioritized.
+Creates a font select string in XWindow XLFD format from the current attributes,
+font capabilities, and a given pixel height.
 
 *******************************************************************************/
 
-void setfnt(winptr win)
+void selxlfd(winptr win, string buf, int ht)
 
 {
 
-    char  buf[250]; /* construction buffer for X font names */
     char* bp;       /* buffer pointer */
     char* np;       /* font name pointer */
     fontptr fp;     /* pointer to new font */
@@ -1353,7 +1347,7 @@ void setfnt(winptr win)
     *bp++ = '-';
 
     /* pixel size */
-    bp += sprintf(bp, "%d", win->gfhigh);
+    bp += sprintf(bp, "%d", ht);
     *bp++ = '-';
 
     /* point size */
@@ -1382,22 +1376,72 @@ void setfnt(winptr win)
     while (*np) *bp++ = *np++;
 
     *bp = 0; /* terminate */
-    win->xfont = XLoadQueryFont(padisplay, buf);
-    if (!win->xfont) error(esystem); /* should have found it */
 
-#ifdef PRTFTM
-    dbg_printf(dlinfo, "Font min_bounds: lbearing: %d\n", win->xfont->min_bounds.lbearing);
-    dbg_printf(dlinfo, "Font min_bounds: rbearing: %d\n", win->xfont->min_bounds.rbearing);
-    dbg_printf(dlinfo, "Font min_bounds: width:    %d\n", win->xfont->min_bounds.width);
-    dbg_printf(dlinfo, "Font min_bounds: ascent:   %d\n", win->xfont->min_bounds.ascent);
-    dbg_printf(dlinfo, "Font min_bounds: descent:  %d\n", win->xfont->min_bounds.descent);
+}
 
-    dbg_printf(dlinfo, "Font max_bounds: lbearing: %d\n", win->xfont->max_bounds.lbearing);
-    dbg_printf(dlinfo, "Font max_bounds: rbearing: %d\n", win->xfont->max_bounds.rbearing);
-    dbg_printf(dlinfo, "Font max_bounds: width:    %d\n", win->xfont->max_bounds.width);
-    dbg_printf(dlinfo, "Font max_bounds: ascent:   %d\n", win->xfont->max_bounds.ascent);
-    dbg_printf(dlinfo, "Font max_bounds: descent:  %d\n", win->xfont->max_bounds.descent);
-#endif
+/*******************************************************************************
+
+Select font
+
+Sets the currently selected font active. Processes all current attributes as
+applicable, if the XWindow font set has that capability. Capability must be an
+exact match, that is, capability indicates an actual XWindows font with that
+capability exists. If any capability is not found, we default to blank or no
+characters in the field.
+
+The translation of attributes to capabilities is done on a priority basis. For
+example, bold and light are mutually exclusive, and bold is prioritized.
+
+*******************************************************************************/
+
+void setfnt(winptr win)
+
+{
+
+    char    buf[250]; /* construction buffer for X font names */
+    char*   bp;       /* buffer pointer */
+    char*   np;       /* font name pointer */
+    fontptr fp;       /* pointer to new font */
+    int     aht;      /* found height of font */
+    int     ht;       /* requested height of font */
+
+    /* release any existing font */
+    if (win->xfont) XFreeFont(padisplay, win->xfont);
+
+    /* XWindows does not select the pixel height by the true bounding box of the
+       font, defined by "a box that contains all pixels drawn by any character
+       in the font", so we must search to find the actual size. */
+    ht = win->gfhigh; /* set starting request size */
+    do { /* try font sizes */
+
+        selxlfd(win, buf, ht); /* form XLFD selection string */
+        win->xfont = XLoadQueryFont(padisplay, buf);
+        if (!win->xfont) error(esystem); /* should have found it */
+        aht = win->xfont->ascent+win->xfont->descent; /* find resulting height */
+        ht--;
+        /* if we are going to try again, free up the trial font */
+        if (aht > win->gfhigh) XFreeFont(padisplay, win->xfont);
+
+    } while (aht > win->gfhigh);
+
+    if (prtftm) {
+
+        dbg_printf(dlinfo, "Font ascent:  %d\n", win->xfont->ascent);
+        dbg_printf(dlinfo, "Font descent: %d\n", win->xfont->descent);
+
+        dbg_printf(dlinfo, "Font min_bounds: lbearing: %d\n", win->xfont->min_bounds.lbearing);
+        dbg_printf(dlinfo, "Font min_bounds: rbearing: %d\n", win->xfont->min_bounds.rbearing);
+        dbg_printf(dlinfo, "Font min_bounds: width:    %d\n", win->xfont->min_bounds.width);
+        dbg_printf(dlinfo, "Font min_bounds: ascent:   %d\n", win->xfont->min_bounds.ascent);
+        dbg_printf(dlinfo, "Font min_bounds: descent:  %d\n", win->xfont->min_bounds.descent);
+
+        dbg_printf(dlinfo, "Font max_bounds: lbearing: %d\n", win->xfont->max_bounds.lbearing);
+        dbg_printf(dlinfo, "Font max_bounds: rbearing: %d\n", win->xfont->max_bounds.rbearing);
+        dbg_printf(dlinfo, "Font max_bounds: width:    %d\n", win->xfont->max_bounds.width);
+        dbg_printf(dlinfo, "Font max_bounds: ascent:   %d\n", win->xfont->max_bounds.ascent);
+        dbg_printf(dlinfo, "Font max_bounds: descent:  %d\n", win->xfont->max_bounds.descent);
+
+    }
 
     /* find spacing in current font */
     win->charspace = win->xfont->max_bounds.width;
@@ -1405,13 +1449,16 @@ void setfnt(winptr win)
     win->chrspcx = 0; /* reset leading and spacing */
     win->chrspcy = 0;
 
-#ifdef PRTFTM
-    dbg_printf(dlinfo, "Width of character cell: %d\n", win->charspace);
-    dbg_printf(dlinfo, "Height of character cell: %d\n", win->linespace);
-#endif
-
     /* find base offset */
     win->baseoff = win->xfont->ascent;
+
+    if (prtftm) {
+
+        dbg_printf(dlinfo, "Width of character cell:  %d\n", win->charspace);
+        dbg_printf(dlinfo, "Height of character cell: %d\n", win->linespace);
+        dbg_printf(dlinfo, "Base offset:              %d\n", win->baseoff);
+
+    }
 
 }
 
@@ -2093,6 +2140,7 @@ static void opnwin(int fn, int pfn, int wid)
 
     win->gcfont = fntlst; /* index terminal font entry */
     win->gfhigh = (int)(CONPNT*POINT*win->sdpmy/1000); /* set font height */
+    win->xfont = NULL; /* clear current font */
     setfnt(win); /* select font */
 
     /* set buffer size required for character spacing at default character grid
@@ -8525,12 +8573,13 @@ static void pa_init_graphics(int argc, char *argv[])
     ovr_lseek(ilseek, &ofplseek);
 
     /* set internal configurable settings */
-    maxxd = MAXXD; /* set default window dimensions */
-    maxyd = MAXYD;
+    maxxd     = MAXXD;     /* set default window dimensions */
+    maxyd     = MAXYD;
     dialogerr = DIALOGERR; /* send runtime errors to dialog */
-    mouseenb = MOUSEENB; /* enable mouse */
-    joyenb = JOYENB; /* enable joystick */
-    dmpmsg = DMPMSG; /* dump XWindow messages */
+    mouseenb  = MOUSEENB;  /* enable mouse */
+    joyenb    = JOYENB;    /* enable joystick */
+    dmpmsg    = DMPMSG;    /* dump XWindow messages */
+    prtftm    = PRTFTM;    /* print font metrics on load */
 
     /* set state of shift, control and alt keys */
     ctrll = FALSE;
@@ -8600,6 +8649,10 @@ static void pa_init_graphics(int argc, char *argv[])
 
                 vp = pa_schlst("dump_messages", diag_root->sublist);
                 if (vp) dmpmsg = strtol(vp->value, &errstr, 10);
+                if (*errstr) error(ecfgval);
+
+                vp = pa_schlst("print_font_metrics", diag_root->sublist);
+                if (vp) prtftm = strtol(vp->value, &errstr, 10);
                 if (*errstr) error(ecfgval);
 
             }

@@ -210,7 +210,6 @@ static void prtcen(int y, const char* s)
 {
 
    pa_cursor(stdout, (pa_maxx(stdout)/2)-(strlen(s)/2), y);
-fprintf(stderr, "prtcen: x: %ld y: %d\n", (pa_maxx(stdout)/2)-(strlen(s)/2), y); fflush(stderr);
    printf("%s", s);
 
 }
@@ -336,28 +335,34 @@ static void justcenter(const char* s, int l)
 
 }
 
-/* draw 10"s grid */
+/* draw graphics grid */
 
 static void grid(void)
 
 {
 
-    int x, y;
+    int   x, y;
+    int   xspace;
+    int   yspace;
+    float yrat;
 
+    yrat = pa_dpmy(stdout)/pa_dpmx(stdout); /* find aspect ratio */
+    xspace = pa_maxxg(stdout)/60;
+    yspace = xspace*yrat;
     pa_linewidth(stdout, 1);
     pa_fcolor(stdout, pa_cyan);
     x = 10;
     while (x <= pa_maxxg(stdout)) {
 
         pa_line(stdout, x, 1, x, pa_maxyg(stdout));
-        x = x+10;
+        x = x+xspace;
 
     }
     y = 10;
     while (y <= pa_maxyg(stdout)) {
 
         pa_line(stdout, 1, y, pa_maxxg(stdout), y);
-        y = y+10;
+        y = y+yspace;
 
     }
     pa_fcolor(stdout, pa_black);
@@ -1001,6 +1006,7 @@ int main(void)
     /* ************************ Graphical figures test ************************* */
 
     putchar('\f');
+
     grid();
     printf("\n");
     pa_bover(stdout);
