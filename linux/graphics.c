@@ -4472,6 +4472,9 @@ Draws a filled rounded rectangle in foreground color.
 
 In XWindow, this has to be constructed, since there is no equivalent function.
 
+Note that if the interior of the figure is too small to draw, this degenerates
+to a filled circle.
+
 *******************************************************************************/
 
 void pa_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
@@ -4481,6 +4484,10 @@ void pa_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
     int tx, ty; /* temps */
+    int wm;     /* width of middle rectangle */
+    int hm;     /* height of middle rectangle */
+    int wtb;    /* width of top/bottom rectangle */
+    int htb;    /* height of top/bottom rectangle */
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
@@ -4500,20 +4507,33 @@ void pa_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
     y1--;
     x2--;
     y2--;
+//dbg_printf(dlinfo, "x1: %d y1: %d x2: %d y2: %d xs: %d ys: %d\n", x1, y1, x2, y2, xs, ys);
+    /* find the widths and heights of components, and find minimums */
+    wm = x2-x1; /* set width of middle */
+    if (wm < 1) wm = 1;
+    hm = y2-y1-ys; /* set height of middle */
+    if (hm < 1) hm = 1;
+    wtb = x2-x1-xs; /* set width of top and bottom */
+    if (wtb < 0) wtb = 0;
+    htb = ys/2; /* set height of top and bottom */
+    if (y2-y1-hm < htb) htb = y2-y1-hm;
+    if (htb < 0) htb = 0;
+    if (xs > x2-x1) xs = x2-x1; /* limit rounding elipse */
+    if (ys > y2-y1) ys = y2-y1;
+//dbg_printf(dlinfo, "wm: %d hm: %d wtb: %d htb: %d xs: %d ys: %d\n", wm, hm, wtb, htb, xs, ys);
     /* set foreground function */
     XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
     if (win->bufmod) { /* buffer is active */
 
         /* middle rectangle */
-        XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x1, y1+ys/2,
-                       x2-x1, y2-y1-ys/2*2);
+        XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x1, y1+ys/2, wm, hm);
+
         /* top */
-        XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x1+xs/2, y1,
-                       x2-x1-xs/2*2, ys/2);
+        XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x1+xs/2, y1, wtb, htb);
 
         /* bottom */
-        XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x1+xs/2, y2-ys/2,
-                       x2-x1-xs/2*2, ys/2);
+        XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x1+xs/2, y2-ys/2, wtb, htb);
+
         /* draw corner arcs */
         XFillArc(padisplay, sc->xbuf, sc->xcxt, x1, y1, xs, ys, 90*64, 90*64);
         XFillArc(padisplay, sc->xbuf, sc->xcxt, x2-xs, y1, xs, ys, 0, 90*64);
@@ -4529,15 +4549,14 @@ void pa_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
 
         curoff(win); /* hide the cursor */
         /* middle rectangle */
-        XFillRectangle(padisplay, win->xwhan, sc->xcxt, x1, y1+ys/2,
-                       x2-x1, y2-y1-ys/2*2);
+        XFillRectangle(padisplay, win->xwhan, sc->xcxt, x1, y1+ys/2, wm, hm);
+
         /* top */
-        XFillRectangle(padisplay, win->xwhan, sc->xcxt, x1+xs/2, y1,
-                       x2-x1-xs/2*2, ys/2);
+        XFillRectangle(padisplay, win->xwhan, sc->xcxt, x1+xs/2, y1, wtb, htb);
 
         /* bottom */
-        XFillRectangle(padisplay, win->xwhan, sc->xcxt, x1+xs/2, y2-ys/2,
-                       x2-x1-xs/2*2, ys/2);
+        XFillRectangle(padisplay, win->xwhan, sc->xcxt, x1+xs/2, y2-ys/2, wtb, htb);
+
         /* draw corner arcs */
         XFillArc(padisplay, win->xwhan, sc->xcxt, x1, y1, xs, ys,
                  90*64, 90*64);

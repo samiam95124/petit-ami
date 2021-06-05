@@ -515,7 +515,9 @@ static void graphtest(int lw) /* line width */
     pa_fontsiz(stdout, pa_maxyg(stdout)/20);
     pa_bcolor(stdout, pa_yellow);
     pa_cursorg(stdout, pa_maxxg(stdout)/2-pa_strsiz(stdout, S6)/2, pa_curyg(stdout));
+    pa_bover(stdout);
     printf("%s\n", S6);
+    pa_binvis(stdout);
     putchar('\n');
     /* note: after this we can't use text spacing */
 
@@ -986,9 +988,13 @@ int main(void)
 
 {
 
+    int yspace;
+    int xspace;
+
     if (setjmp(terminate_buf)) goto terminate;
-#if 0
     pa_curvis(stdout, FALSE);
+    pa_binvis(stdout);
+#if 0
     printf("Graphics screen test vs. 0.1\n");
     printf("\n");
     printf("Screen size in characters: x -> %d y -> %d\n", pa_maxx(stdout),
@@ -1018,42 +1024,33 @@ int main(void)
     putchar('\f');
     grid();
     printf("\n");
-    pa_bover(stdout);
     graphtest(2);
-    pa_binvis(stdout);
     prtcen(pa_maxy(stdout), "Graphical figures test, linewidth == 2");
     waitnext();
 
     putchar('\f');
     grid();
     printf("\n");
-    pa_bover(stdout);
     graphtest(3);
-    pa_binvis(stdout);
     prtcen(pa_maxy(stdout), "Graphical figures test, linewidth == 3");
     waitnext();
 
     putchar('\f');
     grid();
     printf("\n");
-    pa_bover(stdout);
     graphtest(5);
-    pa_binvis(stdout);
     prtcen(pa_maxy(stdout), "Graphical figures test, linewidth == 5");
     waitnext();
 
     putchar('\f');
     grid();
     printf("\n");
-    pa_bover(stdout);
     graphtest(11);
-    pa_binvis(stdout);
     prtcen(pa_maxy(stdout), "Graphical figures test, linewidth == 11");
     waitnext();
 
    /* ***************************** Standard Fonts test *********************** */
 
-#endif
     putchar('\f');
     chrgrid();
     prtcen(pa_maxy(stdout), "Standard fonts test");
@@ -1172,13 +1169,15 @@ int main(void)
     putchar('\f');
     grid();
     prtcen(pa_maxy(stdout), "Vertical lines test");
-    y = 20;
+    yspace = pa_maxyg(stdout)/20;
+    xspace = pa_maxxg(stdout)/50;
+    y = yspace;
     w = 1;
-    while (y < pa_maxyg(stdout)-30 && w < 15) {
+    while (y+w/2 < pa_maxyg(stdout)-pa_chrsizy(stdout)) {
 
         pa_linewidth(stdout, w);
-        pa_line(stdout, 20, y, pa_maxxg(stdout)-20, y);
-        y = y+30;
+        pa_line(stdout, xspace, y, pa_maxxg(stdout)-xspace, y);
+        y = y+yspace;
         w = w+1;
 
     }
@@ -1190,15 +1189,15 @@ int main(void)
     putchar('\f');
     grid();
     prtcen(pa_maxy(stdout), "Horizontal lines test");
-    x = 20;
+    yspace = pa_maxyg(stdout)/20;
+    xspace = pa_maxxg(stdout)/20;
+    x = xspace;
     w = 1;
-    y = pa_maxyg(stdout)-20;
-    y = y-y%10;
-    while (x < pa_maxxg(stdout)-20 && w < 30) {
+    while (x+w/2 < pa_maxxg(stdout)-20) {
 
         pa_linewidth(stdout, w);
-        pa_line(stdout, x, 20, x, y);
-        x = x+30;
+        pa_line(stdout, x, yspace, x, pa_maxyg(stdout)-pa_chrsizy(stdout));
+        x = x+xspace;
         w = w+1;
 
     }
@@ -1209,16 +1208,11 @@ int main(void)
 
     putchar('\f');
     grid();
-    pa_binvis(stdout);
     prtcen(pa_maxy(stdout), "Polar lines test");
-    pa_bover(stdout);
     x = pa_maxxg(stdout)/2;
-    x = x-(x%10);
     y = pa_maxyg(stdout)/2;
-    y = y-(y%10);
-    if (pa_maxxg(stdout) > pa_maxyg(stdout)) l = pa_maxyg(stdout)/2-40;
-    else l = pa_maxxg(stdout) / 2-40;
-    l = l-(l%10);
+    if (pa_maxxg(stdout) > pa_maxyg(stdout)) l = pa_maxyg(stdout)/2-pa_chrsizy(stdout);
+    else l = pa_maxxg(stdout)/2-pa_chrsizy(stdout);
     w = 1;
     pa_fcolor(stdout, pa_blue);
     pa_ellipse(stdout, x-l, y-l, x+l, y+l);
@@ -1275,7 +1269,10 @@ int main(void)
 
     }
     pa_fcolor(stdout, pa_black);
+    pa_bcolor(stdout, pa_white);
+    pa_bover(stdout);
     prtcen(pa_maxy(stdout), "Color test 1");
+    pa_binvis(stdout);
     waitnext();
 
     /* ******************************* Color test 2 ****************************** */
@@ -1291,7 +1288,10 @@ int main(void)
     }
     pa_binvis(stdout);
     pa_fcolor(stdout, pa_black);
+    pa_bcolor(stdout, pa_white);
+    pa_bover(stdout);
     prtcen(pa_maxy(stdout), "Color test 2");
+    pa_binvis(stdout);
     waitnext();
 
     /* ******************************* Color test 3 ****************************** */
@@ -1307,7 +1307,10 @@ int main(void)
     }
     pa_binvis(stdout);
     pa_fcolor(stdout, pa_black);
+    pa_bcolor(stdout, pa_white);
+    pa_bover(stdout);
     prtcen(pa_maxy(stdout), "Color test 3");
+    pa_binvis(stdout);
     waitnext();
 
     /* ******************************* Color test 4 ****************************** */
@@ -1323,7 +1326,10 @@ int main(void)
     }
     pa_binvis(stdout);
     pa_fcolor(stdout, pa_black);
+    pa_bcolor(stdout, pa_white);
+    pa_bover(stdout);
     prtcen(pa_maxy(stdout), "Color test 4");
+    pa_binvis(stdout);
     waitnext();
 
     /* ***************************** Rectangle test **************************** */
@@ -1333,11 +1339,9 @@ int main(void)
     l = 10;
     x = pa_maxxg(stdout)/2; /* find center */
     y = pa_maxyg(stdout)/2;
-    x = x-x%10;
-    y = y-y%10;
     w = 1;
     c = pa_black;
-    while (l < pa_maxxg(stdout) / 2 && l < pa_maxyg(stdout) / 2) {
+    while (l < pa_maxxg(stdout)/2 && l < pa_maxyg(stdout)/2-pa_chrsizy(stdout)) {
 
         pa_fcolor(stdout, c);
         pa_linewidth(stdout, w);
@@ -1359,15 +1363,12 @@ int main(void)
 
     putchar('\f');
     grid();
-    if (pa_maxxg(stdout) > pa_maxyg(stdout)) l = pa_maxyg(stdout) / 2-10;
-    else l = pa_maxxg(stdout)/2-10;
-    l = l-l % 10;
+    if (pa_maxxg(stdout) > pa_maxyg(stdout)) l = pa_maxyg(stdout)/2-pa_chrsizy(stdout);
+    else l = pa_maxxg(stdout)/2-pa_chrsizy(stdout);
     x = pa_maxxg(stdout)/2; /* find center */
     y = pa_maxyg(stdout)/2;
-    x = x-x%10;
-    y = y-y%10;
     c = pa_black;
-    while (l >= 10 && l < pa_maxyg(stdout) / 2) {
+    while (l >= 10) {
 
         pa_fcolor(stdout, c);
         pa_frect(stdout, x-l, y-l, x+l, y+l);
@@ -1390,9 +1391,9 @@ int main(void)
     x = 20;
     y = 20;
     c = pa_black;
-    while (y+l*2 < pa_maxyg(stdout)-20) {
+    while (y+l*2 < pa_maxyg(stdout)-pa_chrsizy(stdout)) {
 
-        while (x+l*2 < pa_maxxg(stdout)-20) {
+        while (x+l*2 < pa_maxxg(stdout)-pa_chrsizy(stdout)) {
 
             pa_fcolor(stdout, c);
             pa_frect(stdout, x, y, x+l*2, y+l*2);
@@ -1422,17 +1423,15 @@ int main(void)
         l = 10;
         x = pa_maxxg(stdout)/2; /* find center */
         y = pa_maxyg(stdout)/2;
-        x = x-x % 10;
-        y = y-y % 10;
         w = 1;
         c = pa_black;
         printf("r: %d\n", r);
-        while (l < pa_maxxg(stdout)/2 && l < pa_maxyg(stdout)/2) {
+        while (l+w/2 < pa_maxxg(stdout)/2 && l < pa_maxyg(stdout)/2-pa_chrsizy(stdout)) {
 
             pa_fcolor(stdout, c);
             pa_linewidth(stdout, w);
             pa_rrect(stdout, x-l, y-l, x+l, y+l, r, r);
-            l = l+20;
+            l = l+w;
             w = w+1;
             if (c < pa_magenta) c++; else c = pa_black;
             if (c == pa_white) c++;
@@ -1448,22 +1447,21 @@ int main(void)
 
     /* ******************** Filled rounded rectangle test 1 ******************** */
 
+#endif
     pa_binvis(stdout);
     r = 1;
     while (r < 100) {
 
+fprintf(stderr, "Draw\n"); fflush(stderr);
         putchar('\f');
         grid();
-        if (pa_maxxg(stdout) > pa_maxyg(stdout)) l = pa_maxyg(stdout)/2-10;
-        else l = pa_maxxg(stdout)/2-10;
-        l = l-l % 10;
+        if (pa_maxxg(stdout) > pa_maxyg(stdout)) l = pa_maxyg(stdout)/2-pa_chrsizy(stdout);
+        else l = pa_maxxg(stdout)/2-pa_chrsizy(stdout);
         x = pa_maxxg(stdout)/2; /* find center */
         y = pa_maxyg(stdout)/2;
-        x = x-x % 10;
-        y = y-y % 10;
         c = pa_black;
         printf("r: %d\n", r);
-        while (l >= 10 && l < pa_maxyg(stdout)/2) {
+        while (l >= 10) {
 
             pa_fcolor(stdout, c);
             pa_frrect(stdout, x-l, y-l, x+l, y+l, r, r);
