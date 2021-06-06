@@ -4472,8 +4472,8 @@ Draws a filled rounded rectangle in foreground color.
 
 In XWindow, this has to be constructed, since there is no equivalent function.
 
-Note that if the interior of the figure is too small to draw, this degenerates
-to a filled circle.
+The code compensates quite a bit for degenerative cases such as single line
+x or y sizes.
 
 *******************************************************************************/
 
@@ -4488,6 +4488,8 @@ void pa_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
     int hm;     /* height of middle rectangle */
     int wtb;    /* width of top/bottom rectangle */
     int htb;    /* height of top/bottom rectangle */
+    int wlr;    /* width of left/right rectangle */
+    int hlr;    /* height of left/right rectangle */
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
@@ -4505,69 +4507,129 @@ void pa_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
     /* adjust for X */
     x1--;
     y1--;
+
     x2--;
     y2--;
 //dbg_printf(dlinfo, "x1: %d y1: %d x2: %d y2: %d xs: %d ys: %d\n", x1, y1, x2, y2, xs, ys);
-    /* find the widths and heights of components, and find minimums */
-    wm = x2-x1; /* set width of middle */
-    if (wm < 1) wm = 1;
-    hm = y2-y1-ys; /* set height of middle */
-    if (hm < 1) hm = 1;
-    wtb = x2-x1-xs; /* set width of top and bottom */
-    if (wtb < 0) wtb = 0;
-    htb = ys/2; /* set height of top and bottom */
-    if (y2-y1-hm < htb) htb = y2-y1-hm;
-    if (htb < 0) htb = 0;
-    if (xs > x2-x1) xs = x2-x1; /* limit rounding elipse */
-    if (ys > y2-y1) ys = y2-y1;
-//dbg_printf(dlinfo, "wm: %d hm: %d wtb: %d htb: %d xs: %d ys: %d\n", wm, hm, wtb, htb, xs, ys);
     /* set foreground function */
     XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
-    if (win->bufmod) { /* buffer is active */
+    if (x2-x1 >= y2-y1) { /* x => y */
 
-        /* middle rectangle */
-        XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x1, y1+ys/2, wm, hm);
+        /* find the widths and heights of components, and find minimums */
+        wm = x2-x1; /* set width of middle */
+        if (wm < 1) wm = 1;
+        hm = y2-y1-ys; /* set height of middle */
+        if (hm < 1) hm = 1;
+        wtb = x2-x1-xs; /* set width of top and bottom */
+        if (wtb < 0) wtb = 0;
+        htb = ys/2; /* set height of top and bottom */
+        if (y2-y1-hm < htb) htb = y2-y1-hm;
+        if (htb < 0) htb = 0;
+        if (xs > x2-x1) xs = x2-x1; /* limit rounding elipse */
+        if (ys > y2-y1) ys = y2-y1;
+        if (win->bufmod) { /* buffer is active */
 
-        /* top */
-        XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x1+xs/2, y1, wtb, htb);
+            /* middle rectangle */
+            XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x1, y1+ys/2, wm, hm);
 
-        /* bottom */
-        XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x1+xs/2, y2-ys/2, wtb, htb);
+            /* top */
+            XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x1+xs/2, y1, wtb, htb);
 
-        /* draw corner arcs */
-        XFillArc(padisplay, sc->xbuf, sc->xcxt, x1, y1, xs, ys, 90*64, 90*64);
-        XFillArc(padisplay, sc->xbuf, sc->xcxt, x2-xs, y1, xs, ys, 0, 90*64);
+            /* bottom */
+            XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x1+xs/2, y2-ys/2, wtb, htb);
 
-        XFillArc(padisplay, sc->xbuf, sc->xcxt, x1, y2-ys, xs, ys, 180*64,
-                 90*64);
+            /* draw corner arcs */
+            XFillArc(padisplay, sc->xbuf, sc->xcxt, x1, y1, xs, ys, 90*64, 90*64);
+            XFillArc(padisplay, sc->xbuf, sc->xcxt, x2-xs, y1, xs, ys, 0, 90*64);
 
-        XFillArc(padisplay, sc->xbuf, sc->xcxt, x2-xs, y2-ys, xs, ys, 270*64,
-                 90*64);
+            XFillArc(padisplay, sc->xbuf, sc->xcxt, x1, y2-ys, xs, ys, 180*64,
+                     90*64);
 
-    }
-    if (indisp(win)) { /* do it again for the current screen */
+            XFillArc(padisplay, sc->xbuf, sc->xcxt, x2-xs, y2-ys, xs, ys, 270*64,
+                     90*64);
 
-        curoff(win); /* hide the cursor */
-        /* middle rectangle */
-        XFillRectangle(padisplay, win->xwhan, sc->xcxt, x1, y1+ys/2, wm, hm);
+        }
+        if (indisp(win)) { /* do it again for the current screen */
 
-        /* top */
-        XFillRectangle(padisplay, win->xwhan, sc->xcxt, x1+xs/2, y1, wtb, htb);
+            curoff(win); /* hide the cursor */
+            /* middle rectangle */
+            XFillRectangle(padisplay, win->xwhan, sc->xcxt, x1, y1+ys/2, wm, hm);
 
-        /* bottom */
-        XFillRectangle(padisplay, win->xwhan, sc->xcxt, x1+xs/2, y2-ys/2, wtb, htb);
+            /* top */
+            XFillRectangle(padisplay, win->xwhan, sc->xcxt, x1+xs/2, y1, wtb, htb);
 
-        /* draw corner arcs */
-        XFillArc(padisplay, win->xwhan, sc->xcxt, x1, y1, xs, ys,
-                 90*64, 90*64);
-        XFillArc(padisplay, win->xwhan, sc->xcxt, x2-xs, y1, xs, ys,
-                 0, 90*64);
-        XFillArc(padisplay, win->xwhan, sc->xcxt, x1, y2-ys, xs, ys, 180*64,
-                 90*64);
+            /* bottom */
+            XFillRectangle(padisplay, win->xwhan, sc->xcxt, x1+xs/2, y2-ys/2, wtb, htb);
 
-        XFillArc(padisplay, win->xwhan, sc->xcxt, x2-xs, y2-ys, xs, ys, 270*64,
-                 90*64);
-        curon(win); /* show the cursor */
+            /* draw corner arcs */
+            XFillArc(padisplay, win->xwhan, sc->xcxt, x1, y1, xs, ys,
+                     90*64, 90*64);
+            XFillArc(padisplay, win->xwhan, sc->xcxt, x2-xs, y1, xs, ys,
+                     0, 90*64);
+            XFillArc(padisplay, win->xwhan, sc->xcxt, x1, y2-ys, xs, ys, 180*64,
+                     90*64);
+            XFillArc(padisplay, win->xwhan, sc->xcxt, x2-xs, y2-ys, xs, ys, 270*64,
+                     90*64);
+            curon(win); /* show the cursor */
+
+        }
+
+    } else { /* y > x */
+
+        /* find the widths and heights of components, and find minimums */
+        wm = x2-x1-xs; /* set width of middle */
+        if (wm < 1) wm = 1;
+        hm = y2-y1; /* set height of middle */
+        if (hm < 1) hm = 1;
+        wlr = xs/2; /* set width of left and right */
+        if (x2-x1-wm < htb) wlr = x2-x1-wm;
+        if (wlr < 0) wlr = 0;
+        hlr = y2-y1-ys; /* set height of top and bottom */
+        if (hlr < 0) hlr = 0;
+        if (xs > x2-x1) xs = x2-x1; /* limit rounding elipse */
+        if (ys > y2-y1) ys = y2-y1;
+        if (win->bufmod) { /* buffer is active */
+
+            /* middle rectangle */
+            XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x1+xs/2, y1, wm, hm);
+
+            /* left */
+            XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x1, y1+ys/2, wlr, hlr);
+
+            /* right */
+            XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x2-xs/2, y1+ys/2, wlr, hlr);
+
+            /* draw corner arcs */
+            XFillArc(padisplay, sc->xbuf, sc->xcxt, x1, y1, xs, ys, 90*64, 90*64);
+            XFillArc(padisplay, sc->xbuf, sc->xcxt, x2-xs, y1, xs, ys, 0, 90*64);
+            XFillArc(padisplay, sc->xbuf, sc->xcxt, x1, y2-ys, xs, ys, 180*64,
+                     90*64);
+            XFillArc(padisplay, sc->xbuf, sc->xcxt, x2-xs, y2-ys, xs, ys, 270*64,
+                     90*64);
+
+        }
+        if (indisp(win)) { /* do it again for the current screen */
+
+            curoff(win); /* hide the cursor */
+            /* middle rectangle */
+            XFillRectangle(padisplay, win->xwhan, sc->xcxt, x1+xs/2, y1, wm, hm);
+
+            /* left */
+            XFillRectangle(padisplay, win->xwhan, sc->xcxt, x1, y1+ys/2, wlr, hlr);
+
+            /* right */
+            XFillRectangle(padisplay, win->xwhan, sc->xcxt, x2-xs/2, y1+ys/2, wlr, hlr);
+
+            /* draw corner arcs */
+            XFillArc(padisplay, win->xwhan, sc->xcxt, x1, y1, xs, ys, 90*64, 90*64);
+            XFillArc(padisplay, win->xwhan, sc->xcxt, x2-xs, y1, xs, ys, 0, 90*64);
+            XFillArc(padisplay, win->xwhan, sc->xcxt, x1, y2-ys, xs, ys, 180*64,
+                     90*64);
+            XFillArc(padisplay, win->xwhan, sc->xcxt, x2-xs, y2-ys, xs, ys, 270*64,
+                     90*64);
+            curon(win); /* show the cursor */
+
+        }
 
     }
     /* reset foreground function */
