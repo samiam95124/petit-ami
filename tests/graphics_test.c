@@ -990,6 +990,9 @@ int main(void)
 
     int yspace;
     int xspace;
+    int xsize;
+    int ysize;
+    int x1, y1, x2, y2;
 
     if (setjmp(terminate_buf)) goto terminate;
     pa_curvis(stdout, FALSE);
@@ -1452,7 +1455,6 @@ int main(void)
     r = 1;
     while (r < 100) {
 
-fprintf(stderr, "Draw\n"); fflush(stderr);
         putchar('\f');
         grid();
         if (pa_maxxg(stdout) > pa_maxyg(stdout)) l = pa_maxyg(stdout)/2-pa_chrsizy(stdout);
@@ -1513,6 +1515,72 @@ fprintf(stderr, "Draw\n"); fflush(stderr);
         r = r+10;
 
     }
+
+    /* ******************* rounded rectangle minimums test 2 **************** */
+
+    putchar('\f');
+    xsize = pa_maxxg(stdout)/20;
+    ysize = pa_maxyg(stdout)/20;
+
+    /* paint the grid */
+    pa_fcolor(stdout, pa_cyan);
+    x1 = 1;
+    while (x1 < pa_maxxg(stdout)) {
+
+        pa_line(stdout, x1, 1, x1, pa_maxyg(stdout));
+        x1 += xsize;
+
+    }
+    y1 = 1;
+    while (y1 < pa_maxyg(stdout)) {
+
+        pa_line(stdout, 1, y1, pa_maxxg(stdout), y1);
+        y1 += ysize;
+
+    }
+    pa_fcolor(stdout, pa_black);
+
+    /* draw vertical */
+    x1 = 1+xsize;
+    y1 = 1+ysize;
+    x2 = x1+xsize*2;
+    y2 = y1;
+    while (y2+ysize < pa_maxyg(stdout)) {
+
+        pa_frrect(stdout, x1, y1, x2, y2, 10, 10);
+        y1 = y1+ysize;
+        y2 = y2+ysize+1;
+
+    }
+
+    /* draw horizontal */
+    x1 = 1+xsize*4;
+    y1 = 1+ysize;
+    x2 = x1;
+    y2 = ysize*4;
+    while (x2+xsize < pa_maxxg(stdout)) {
+
+        pa_frrect(stdout, x1, y1, x2, y2, 10, 10);
+        x1 = x1+xsize;
+        x2 = x2+xsize+1;
+
+    }
+
+    /* draw boxes */
+    x1 = 1+xsize*4;
+    y1 = 1+ysize*6;
+    x2 = x1;
+    y2 = y1;
+    while (x2 < pa_maxxg(stdout)) {
+
+        pa_frrect(stdout, x1, y1, x2, y2, 10, 10);
+        x1 += xsize;
+        x2 += xsize+1;
+        y2++;
+
+    }
+    prtcen(pa_maxy(stdout), "Filled Rectangle Minimums Test");
+    waitnext();
 
     /* ****************************** Ellipse test ***************************** */
 

@@ -4507,26 +4507,26 @@ void pa_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
     /* adjust for X */
     x1--;
     y1--;
-
     x2--;
     y2--;
-//dbg_printf(dlinfo, "x1: %d y1: %d x2: %d y2: %d xs: %d ys: %d\n", x1, y1, x2, y2, xs, ys);
     /* set foreground function */
     XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
-    if (x2-x1 >= y2-y1) { /* x => y */
+    if (x2-x1 >= y2-y1) { /* x >= y */
 
         /* find the widths and heights of components, and find minimums */
-        wm = x2-x1; /* set width of middle */
+        wm = x2-x1+1; /* set width of middle */
         if (wm < 1) wm = 1;
-        hm = y2-y1-ys; /* set height of middle */
+        hm = y2-y1+1-ys; /* set height of middle */
+        if (ys%2) hm++; /* distribute fraction to middle */
         if (hm < 1) hm = 1;
-        wtb = x2-x1-xs; /* set width of top and bottom */
+        wtb = x2-x1+1-xs; /* set width of top and bottom */
+        if (xs%2) wtb++; /* distribute fraction to top and bottom width */
         if (wtb < 0) wtb = 0;
         htb = ys/2; /* set height of top and bottom */
-        if (y2-y1-hm < htb) htb = y2-y1-hm;
+        if (y2-y1+1-hm < htb) htb = y2-y1+1-hm;
         if (htb < 0) htb = 0;
-        if (xs > x2-x1) xs = x2-x1; /* limit rounding elipse */
-        if (ys > y2-y1) ys = y2-y1;
+        if (xs > x2-x1+1) xs = x2-x1+1; /* limit rounding elipse */
+        if (ys > y2-y1+1) ys = y2-y1+1;
         if (win->bufmod) { /* buffer is active */
 
             /* middle rectangle */
@@ -4536,16 +4536,16 @@ void pa_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
             XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x1+xs/2, y1, wtb, htb);
 
             /* bottom */
-            XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x1+xs/2, y2-ys/2, wtb, htb);
+            XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x1+xs/2, y2-ys/2+1, wtb, htb);
 
             /* draw corner arcs */
             XFillArc(padisplay, sc->xbuf, sc->xcxt, x1, y1, xs, ys, 90*64, 90*64);
-            XFillArc(padisplay, sc->xbuf, sc->xcxt, x2-xs, y1, xs, ys, 0, 90*64);
+            XFillArc(padisplay, sc->xbuf, sc->xcxt, x2-xs+1, y1, xs, ys, 0, 90*64);
 
-            XFillArc(padisplay, sc->xbuf, sc->xcxt, x1, y2-ys, xs, ys, 180*64,
+            XFillArc(padisplay, sc->xbuf, sc->xcxt, x1, y2-ys+1, xs, ys, 180*64,
                      90*64);
 
-            XFillArc(padisplay, sc->xbuf, sc->xcxt, x2-xs, y2-ys, xs, ys, 270*64,
+            XFillArc(padisplay, sc->xbuf, sc->xcxt, x2-xs+1, y2-ys+1, xs, ys, 270*64,
                      90*64);
 
         }
@@ -4559,16 +4559,16 @@ void pa_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
             XFillRectangle(padisplay, win->xwhan, sc->xcxt, x1+xs/2, y1, wtb, htb);
 
             /* bottom */
-            XFillRectangle(padisplay, win->xwhan, sc->xcxt, x1+xs/2, y2-ys/2, wtb, htb);
+            XFillRectangle(padisplay, win->xwhan, sc->xcxt, x1+xs/2, y2-ys/2+1, wtb, htb);
 
             /* draw corner arcs */
             XFillArc(padisplay, win->xwhan, sc->xcxt, x1, y1, xs, ys,
                      90*64, 90*64);
-            XFillArc(padisplay, win->xwhan, sc->xcxt, x2-xs, y1, xs, ys,
+            XFillArc(padisplay, win->xwhan, sc->xcxt, x2-xs+1, y1, xs, ys,
                      0, 90*64);
-            XFillArc(padisplay, win->xwhan, sc->xcxt, x1, y2-ys, xs, ys, 180*64,
+            XFillArc(padisplay, win->xwhan, sc->xcxt, x1, y2-ys+1, xs, ys, 180*64,
                      90*64);
-            XFillArc(padisplay, win->xwhan, sc->xcxt, x2-xs, y2-ys, xs, ys, 270*64,
+            XFillArc(padisplay, win->xwhan, sc->xcxt, x2-xs+1, y2-ys+1, xs, ys, 270*64,
                      90*64);
             curon(win); /* show the cursor */
 
@@ -4577,17 +4577,19 @@ void pa_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
     } else { /* y > x */
 
         /* find the widths and heights of components, and find minimums */
-        wm = x2-x1-xs; /* set width of middle */
+        wm = x2-x1+1-xs; /* set width of middle */
+        if (xs%2) wm++; /* distribute fraction to middle */
         if (wm < 1) wm = 1;
-        hm = y2-y1; /* set height of middle */
+        hm = y2-y1+1; /* set height of middle */
         if (hm < 1) hm = 1;
         wlr = xs/2; /* set width of left and right */
-        if (x2-x1-wm < htb) wlr = x2-x1-wm;
+        if (x2-x1+1-wm < wlr) wlr = x2-x1+1-wm;
         if (wlr < 0) wlr = 0;
-        hlr = y2-y1-ys; /* set height of top and bottom */
+        hlr = y2-y1+1-ys; /* set height of top and bottom */
+        if (ys%2) hlr++; /* distribute fraction to left and right height */
         if (hlr < 0) hlr = 0;
-        if (xs > x2-x1) xs = x2-x1; /* limit rounding elipse */
-        if (ys > y2-y1) ys = y2-y1;
+        if (xs > x2-x1+1) xs = x2-x1+1; /* limit rounding elipse */
+        if (ys > y2-y1+1) ys = y2-y1+1;
         if (win->bufmod) { /* buffer is active */
 
             /* middle rectangle */
@@ -4597,14 +4599,14 @@ void pa_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
             XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x1, y1+ys/2, wlr, hlr);
 
             /* right */
-            XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x2-xs/2, y1+ys/2, wlr, hlr);
+            XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x2-xs/2+1, y1+ys/2, wlr, hlr);
 
             /* draw corner arcs */
             XFillArc(padisplay, sc->xbuf, sc->xcxt, x1, y1, xs, ys, 90*64, 90*64);
-            XFillArc(padisplay, sc->xbuf, sc->xcxt, x2-xs, y1, xs, ys, 0, 90*64);
-            XFillArc(padisplay, sc->xbuf, sc->xcxt, x1, y2-ys, xs, ys, 180*64,
+            XFillArc(padisplay, sc->xbuf, sc->xcxt, x2-xs+1, y1, xs, ys, 0, 90*64);
+            XFillArc(padisplay, sc->xbuf, sc->xcxt, x1, y2-ys+1, xs, ys, 180*64,
                      90*64);
-            XFillArc(padisplay, sc->xbuf, sc->xcxt, x2-xs, y2-ys, xs, ys, 270*64,
+            XFillArc(padisplay, sc->xbuf, sc->xcxt, x2-xs-1, y2-ys, xs, ys, 270*64,
                      90*64);
 
         }
@@ -4618,14 +4620,14 @@ void pa_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
             XFillRectangle(padisplay, win->xwhan, sc->xcxt, x1, y1+ys/2, wlr, hlr);
 
             /* right */
-            XFillRectangle(padisplay, win->xwhan, sc->xcxt, x2-xs/2, y1+ys/2, wlr, hlr);
+            XFillRectangle(padisplay, win->xwhan, sc->xcxt, x2-xs/2+1, y1+ys/2, wlr, hlr);
 
             /* draw corner arcs */
             XFillArc(padisplay, win->xwhan, sc->xcxt, x1, y1, xs, ys, 90*64, 90*64);
-            XFillArc(padisplay, win->xwhan, sc->xcxt, x2-xs, y1, xs, ys, 0, 90*64);
-            XFillArc(padisplay, win->xwhan, sc->xcxt, x1, y2-ys, xs, ys, 180*64,
+            XFillArc(padisplay, win->xwhan, sc->xcxt, x2-xs+1, y1, xs, ys, 0, 90*64);
+            XFillArc(padisplay, win->xwhan, sc->xcxt, x1, y2-ys+1, xs, ys, 180*64,
                      90*64);
-            XFillArc(padisplay, win->xwhan, sc->xcxt, x2-xs, y2-ys, xs, ys, 270*64,
+            XFillArc(padisplay, win->xwhan, sc->xcxt, x2-xs+1, y2-ys+1, xs, ys, 270*64,
                      90*64);
             curon(win); /* show the cursor */
 
