@@ -4418,6 +4418,10 @@ void pa_rrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
     y1--;
     x2--;
     y2--;
+    /* limit the size of the corner circles if greater than the height or
+        width */
+    if (xs > x2-x1+1) xs = x2-x1+1; /* limit rounding elipse */
+    if (ys > y2-y1+1) ys = y2-y1+1;
     /* set foreground function */
     XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
     if (win->bufmod) { /* buffer is active */

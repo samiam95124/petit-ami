@@ -1447,10 +1447,74 @@ int main(void)
         r = r+10;
 
     }
+    /* ******************* rounded rectangle minimums test **************** */
+
+    putchar('\f');
+    xsize = pa_maxxg(stdout)/20;
+    ysize = pa_maxyg(stdout)/20;
+
+    /* paint the grid */
+    pa_fcolor(stdout, pa_cyan);
+    x1 = 1;
+    while (x1 < pa_maxxg(stdout)) {
+
+        pa_line(stdout, x1, 1, x1, pa_maxyg(stdout));
+        x1 += xsize;
+
+    }
+    y1 = 1;
+    while (y1 < pa_maxyg(stdout)) {
+
+        pa_line(stdout, 1, y1, pa_maxxg(stdout), y1);
+        y1 += ysize;
+
+    }
+    pa_fcolor(stdout, pa_black);
+
+    /* draw vertical */
+    x1 = 1+xsize;
+    y1 = 1+ysize;
+    x2 = x1+xsize*2;
+    y2 = y1;
+    while (y2+ysize < pa_maxyg(stdout)) {
+
+        pa_rrect(stdout, x1, y1, x2, y2, 10, 10);
+        y1 = y1+ysize;
+        y2 = y2+ysize+1;
+
+    }
+
+    /* draw horizontal */
+    x1 = 1+xsize*4;
+    y1 = 1+ysize;
+    x2 = x1;
+    y2 = ysize*4;
+    while (x2+xsize < pa_maxxg(stdout)) {
+
+        pa_rrect(stdout, x1, y1, x2, y2, 10, 10);
+        x1 = x1+xsize;
+        x2 = x2+xsize+1;
+
+    }
+
+    /* draw boxes */
+    x1 = 1+xsize*4;
+    y1 = 1+ysize*6;
+    x2 = x1;
+    y2 = y1;
+    while (x2 < pa_maxxg(stdout)) {
+
+        pa_rrect(stdout, x1, y1, x2, y2, 10, 10);
+        x1 += xsize;
+        x2 += xsize+1;
+        y2++;
+
+    }
+    prtcen(pa_maxy(stdout), "Rounded Rectangle Minimums Test");
+    waitnext();
 
     /* ******************** Filled rounded rectangle test 1 ******************** */
 
-#endif
     pa_binvis(stdout);
     r = 1;
     while (r < 100) {
@@ -1487,11 +1551,11 @@ int main(void)
 
         putchar('\f');
         grid();
+        printf("r: %d\n", r);
         l = 10;
         x = 20;
-        y = 20;
+        y = pa_curyg(stdout);
         c = pa_black;
-        printf("r: %d\n", r);
         while (y+l*2 < pa_maxyg(stdout)-20) {
 
             while (x+l*2 < pa_maxxg(stdout)-20) {
@@ -1516,7 +1580,7 @@ int main(void)
 
     }
 
-    /* ******************* rounded rectangle minimums test 2 **************** */
+    /* ******************* filled rounded rectangle minimums test **************** */
 
     putchar('\f');
     xsize = pa_maxxg(stdout)/20;
@@ -1592,7 +1656,7 @@ int main(void)
         grid();
         lx = pa_maxxg(stdout)/2-10;
         lx = lx-lx%10;
-        ly = pa_maxyg(stdout)/2-10;
+        ly = pa_maxyg(stdout)/2-10-pa_chrsizy(stdout);
         ly = ly-ly%10;
         x = pa_maxxg(stdout)/2; /* find center */
         y = pa_maxyg(stdout)/2;
@@ -1625,7 +1689,7 @@ int main(void)
     grid();
     lx = pa_maxxg(stdout)/2-10;
     lx = lx-lx%10;
-    ly = pa_maxyg(stdout)/2-10;
+    ly = pa_maxyg(stdout)/2-10-pa_chrsizy(stdout);
     ly = ly-ly%10;
     x = pa_maxxg(stdout)/2; /* find center */
     y = pa_maxyg(stdout)/2;
@@ -1687,14 +1751,15 @@ int main(void)
         c = pa_black;
         i = 10;
         printf("Linewidth: %d", w);
-        while (i < pa_maxxg(stdout)/2 && i < pa_maxyg(stdout)/2) {
+        while (i < pa_maxxg(stdout)/2 && i < (pa_maxyg(stdout)-pa_chrsizy(stdout))/2) {
 
             a = 0;
             while (a <= INT_MAX-INT_MAX/10) {
 
                 pa_fcolor(stdout, c);
                 pa_linewidth(stdout, w);
-                pa_arc(stdout, i, i, pa_maxxg(stdout)-i, pa_maxyg(stdout)-i, a, a+INT_MAX/10);
+                pa_arc(stdout, i, i, pa_maxxg(stdout)-i,
+                       pa_maxyg(stdout)-pa_chrsizy(stdout)-i, a, a+INT_MAX/10);
                 a = a+INT_MAX/5;
                 if (c < pa_magenta) c++; else c = pa_black;
                 if (c == pa_white) c++;
@@ -1718,13 +1783,13 @@ int main(void)
 
         putchar('\f');
         grid();
+        printf("Linewidth: %d\n", w);
         l = 10;
         x = 20;
-        y = 20;
+        y = pa_curyg(stdout);
         c = pa_black;
         aa = 0;
         ab = INT_MAX / 360*90;
-        printf("Linewidth: %d", w);
         while (y+l*2 < pa_maxyg(stdout)-20) {
 
             while (x+l*2 < pa_maxxg(stdout)-20) {
@@ -1754,13 +1819,13 @@ int main(void)
 
         putchar('\f');
         grid();
+        printf("Linewidth: %d\n", w);
         l = 30;
         x = 20;
-        y = 20;
+        y = pa_curyg(stdout);
         c = pa_black;
         aa = 0;
         ab = 10;
-        printf("Linewidth: %d", w);
         while (y+l*2 < pa_maxyg(stdout)-20 && ab <= 360) {
 
             while (x+l*2 < pa_maxxg(stdout)-20 && ab <= 360) {
@@ -1790,13 +1855,13 @@ int main(void)
 
         putchar('\f');
         grid();
+        printf("Linewidth: %d\n", w);
         l = 30;
         x = 20;
-        y = 20;
+        y = pa_curyg(stdout);
         c = pa_black;
         aa = 0;
         ab = 360;
-        printf("Linewidth: %d", w);
         while (y+l*2 < pa_maxyg(stdout)-20 && ab <= 360) {
 
             while (x+l*2 < pa_maxxg(stdout)-20 && ab <= 360) {
@@ -1827,7 +1892,7 @@ int main(void)
     a = 0;
     x = pa_maxxg(stdout)-10;
     x = x-x % 10;
-    y = pa_maxyg(stdout)-10;
+    y = pa_maxyg(stdout)-pa_chrsizy(stdout)-10;
     y = y-y % 10;
     while (a <= INT_MAX-INT_MAX/10) {
 
@@ -1933,7 +1998,7 @@ int main(void)
     }
     pa_binvis(stdout);
     pa_fcolor(stdout, pa_black);
-    prtcen(pa_maxy(stdout), "Arc test 3");
+    prtcen(pa_maxy(stdout), "Arc test 4");
     waitnext();
 
     /* *************************** Filled chord test 1 *************************** */
@@ -1946,7 +2011,7 @@ int main(void)
     i = 8;
     x = pa_maxxg(stdout)-10;
     x = x-x%10;
-    y = pa_maxyg(stdout)-10;
+    y = pa_maxyg(stdout)-pa_chrsizy(stdout)-10;
     y = y-y%10;
     while (a <= INT_MAX-INT_MAX/i) {
 
@@ -2051,7 +2116,7 @@ int main(void)
     }
     pa_binvis(stdout);
     pa_fcolor(stdout, pa_black);
-    prtcen(pa_maxy(stdout), "Filled chord test 3");
+    prtcen(pa_maxy(stdout), "Filled chord test 4");
     waitnext();
 
     /* ************************** Filled triangle test 1 ************************* */
@@ -2059,13 +2124,13 @@ int main(void)
     putchar('\f');
     grid();
     tx1 = 10;
-    ty1 = pa_maxyg(stdout)-10;
+    ty1 = pa_maxyg(stdout)-pa_chrsizy(stdout)-10;
     ty1 = ty1-ty1%10;
     tx2 = pa_maxxg(stdout)/2;
     ty2 = 10;
     tx3 = pa_maxxg(stdout)-10;
     tx3 = tx3-tx3%10;
-    ty3 = pa_maxyg(stdout)-10;
+    ty3 = pa_maxyg(stdout)-pa_chrsizy(stdout)-10;
     ty3 = ty3-ty3%10;
     c = pa_black;
     i = 40;
@@ -2335,6 +2400,7 @@ int main(void)
 
     /* *************************** Font examples test ************************** */
 
+#endif
     putchar('\f');
     grid();
     pa_auto(stdout, OFF);
@@ -2377,6 +2443,7 @@ int main(void)
 
     /* ************************** Extended effects test ************************ */
 
+#if 0
     putchar('\f');
     grid();
     pa_auto(stdout, OFF);
@@ -2401,6 +2468,7 @@ int main(void)
     pa_font(stdout, PA_FONT_TERM);
     prtcen(pa_maxy(stdout), "Extended effects test");
     waitnext();
+#endif
 
     /* ****************** Character sizes and positions test ******************* */
 
