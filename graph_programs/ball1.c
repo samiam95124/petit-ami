@@ -8,16 +8,16 @@ Program to bounce animated ball around screen
 #include <localdefs.h>
 #include <graphics.h>
 
-#define BALLSIZE  51
-#define HALFBALL  (BALLSIZE/2)
-#define FRAMETIME 156          /* time between frames, 60 cycle refresh */
-#define BALLACCEL 5            /* ball acceleration */
+#define FRAMETIME 156 /* time between frames, 60 cycle refresh */
+#define BALLACCEL 5   /* ball acceleration */
 
 int       x, y;
 int       nx, ny;
 int       xd, yd;
 pa_evtrec er;
 int       tc;
+int       ballsize;
+int       halfball;
 
 /* Wait time in 100 microseconds. Returns true if terminate. */
 
@@ -42,26 +42,28 @@ int main(void)
 {
 
     pa_curvis(stdout, FALSE); /* turn off cursor */
-    x = HALFBALL; /* set inital ball location */
-    y = HALFBALL;
+    ballsize = pa_maxyg(stdout)/20; /* set ball size */
+    halfball = ballsize/2; /* set half ball size */
+    x = halfball; /* set initial ball location */
+    y = halfball;
     xd = +1; /* set movements */
     yd = +1;
     while (TRUE) {
 
         /* place ball */
         pa_fcolor(stdout, pa_green);
-        pa_fellipse(stdout, x-HALFBALL+1, y-HALFBALL+1, x+HALFBALL-1, y+HALFBALL-1);
+        pa_fellipse(stdout, x-halfball+1, y-halfball+1, x+halfball-1, y+halfball-1);
         if (wait(FRAMETIME)) goto terminate; /* wait */
         /* erase ball */
         pa_fcolor(stdout, pa_white);
-        pa_fellipse(stdout, x-HALFBALL+1, y-HALFBALL+1, x+HALFBALL-1, y+HALFBALL-1);
+        pa_fellipse(stdout, x-halfball+1, y-halfball+1, x+halfball-1, y+halfball-1);
         for (tc = 1; tc <= BALLACCEL; tc++) { /* move ball */
 
             nx = x+xd; /* trial move ball */
             ny = y+yd;
             /* check out of bounds && reverse direction */
-            if (nx < HALFBALL || nx > pa_maxxg(stdout)-HALFBALL+1) xd = -xd;
-            if (ny < HALFBALL || ny > pa_maxyg(stdout)-HALFBALL+1) yd = -yd;
+            if (nx < halfball || nx > pa_maxxg(stdout)-halfball+1) xd = -xd;
+            if (ny < halfball || ny > pa_maxyg(stdout)-halfball+1) yd = -yd;
             x = x+xd; /* move ball */
             y = y+yd;
 

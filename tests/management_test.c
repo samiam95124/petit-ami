@@ -440,7 +440,7 @@ int main(void)
     printf("Position window for font/back test\n");
     printf("Then hit space to flip font/back status, or return to stop\n");
     fb = FALSE; /* clear front/back status */
-    pa_font(stdout, pa_signfont(stdout));
+    pa_font(stdout, PA_FONT_SIGN);
     pa_fontsiz(stdout, 50);
     do {
 
@@ -471,7 +471,7 @@ int main(void)
 
     } while (er.etype != pa_etenter);
     pa_home(stdout);
-    pa_font(stdout, pa_termfont(stdout));
+    pa_font(stdout, PA_FONT_TERM);
     pa_auto(stdout, ON);
 
     /* ************************* Frame controls test buffered ****************** */
@@ -910,7 +910,7 @@ int main(void)
     x = pa_maxxg(stdout);
     y = pa_maxyg(stdout);
     pa_linewidth(stdout, 5); /* set large lines */
-    pa_font(stdout, pa_signfont(stdout));
+    pa_font(stdout, PA_FONT_SIGN);
     pa_binvis(stdout);
     do {
 
@@ -945,7 +945,7 @@ int main(void)
     putchar('\f');
     pa_auto(stdout, OFF);
     pa_buffer(stdout, OFF);
-    pa_font(stdout, pa_termfont(stdout));
+    pa_font(stdout, PA_FONT_TERM);
     mincnt = 0; /* clear minimize counter */
     maxcnt = 0; /* clear maximize counter */
     nrmcnt = 0; /* clear normalize counter */
@@ -1203,7 +1203,7 @@ int main(void)
 
     putchar('\f');
     pa_auto(stdout, OFF);
-    pa_font(stdout, pa_signfont(stdout));
+    pa_font(stdout, PA_FONT_SIGN);
     pa_fontsiz(stdout, 50);
     prtceng(pa_maxyg(stdout)/2-pa_chrsizy(stdout)/2, "Test complete");
 

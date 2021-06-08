@@ -138,6 +138,7 @@ static enum { /* debug levels */
 #define MAXLIN 250     /* maximum length of input bufferred line */
 #define MAXFIL 100     /* maximum open files */
 #define MINJST 1       /* minimum pixels for space in justification */
+#define MAXFNM   250    /* number of filename characters in buffer */
 
 /* To properly compensate for high DPI displays, we use actual height onscreen
    to determine the character height. Note the point size was choosen to most
@@ -6083,6 +6084,30 @@ only .bmp files are loaded, and those must be in 24 bit Truecolor.
 
 *******************************************************************************/
 
+/* place extension on filename */
+static void setext(char* fnh, char* ext)
+
+{
+
+    char* ec; /* extension character location */
+    char* cp;
+
+    /* find extension or end */
+    cp = fnh;
+    ec = NULL;
+    while (*cp) {
+
+        if (*cp == '.' || !*cp) ec = cp;
+        cp++;
+
+    }
+    if (!*cp && !ec) ec = cp;
+    if (cp-fnh+strlen(ext) > MAXFNM)
+        error(epicftl); /* filename too large */
+    strcpy(ec, ext); /* place extention */
+
+}
+
 byte getbyt(FILE* f)
 
 {
@@ -6154,12 +6179,17 @@ void pa_loadpict(FILE* f, int p, char* fn)
     int i;
     unsigned int hs;
     picptr ip; /* image pointer */
+    char fnh[MAXFNM]; /* file name holder */
 
     win = txt2win(f); /* get window pointer from text file */
     if (p < 1 || p > MAXPIC)  error(einvhan); /* bad picture handle */
     /* if the slot is already occupied, delete that picture */
     delpic(win, p);
-    pf = fopen(fn, "r"); /* open picture for read only */
+    /* copy filename and add extension if required */
+    *fnh = 0; /* clear filename holding */
+    strcpy(fnh, fn); /* copy */
+    setext(fnh, ".bmp"); /* set or overwrite extension */
+    pf = fopen(fnh, "r"); /* open picture for read only */
     if (!pf) error(epicopn); /* cannot open picture file */
     for (i = 0; i < 2; i++) { /* read and compare signature */
 

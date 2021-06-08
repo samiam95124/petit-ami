@@ -2468,7 +2468,6 @@ int main(void)
     pa_font(stdout, PA_FONT_TERM);
     prtcen(pa_maxy(stdout), "Extended effects test");
     waitnext();
-#endif
 
     /* ****************** Character sizes and positions test ******************* */
 
@@ -2545,6 +2544,7 @@ int main(void)
 
     /* ************************** Picture draw test **************************** */
 
+#endif
     putchar('\f');
     grid();
     pa_loadpict(stdout, 1, "mypic");
