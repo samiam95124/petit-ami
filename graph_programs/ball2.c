@@ -58,7 +58,7 @@ int main(void)
     pa_curvis(stdout, FALSE); /* turn off cursor */
     ballsize = pa_maxyg(stdout)/20; /* set ball size */
     halfball = ballsize/2; /* set half ball size */
-    x = halfball; /* set inital ball location */
+    x = halfball; /* set initial ball location */
     y = halfball;
     xd = +1; /* set movements */
     yd = +1;

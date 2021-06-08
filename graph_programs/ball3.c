@@ -62,8 +62,8 @@ int main(void)
     while (TRUE) {
 
         drawball(randn(pa_magenta+1-pa_red)+pa_red,
-                 randn(pa_maxxg(stdout))-ballsize+halfball,
-                 randn(pa_maxxg(stdout))-ballsize+halfball);
+                 randn(pa_maxxg(stdout)-1)-ballsize+halfball+1,
+                 randn(pa_maxyg(stdout)-1)-ballsize+halfball+1);
         if (wait()) goto terminate; /* wait for a frametime */
 
    }

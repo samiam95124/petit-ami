@@ -359,7 +359,7 @@ all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
      wator watorg pong pongg breakout editor editorg getpage getpageg getmail \
      getmailg gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg \
-     prtconfig prtconfigg pixel ball1 ball2 ball3 line1 line2 line4 line5
+     prtconfig prtconfigg pixel ball1 ball2 ball3 ball4 line1 line2 line4 line5
     
 else ifeq ($(OSTYPE),Darwin)
 
@@ -373,7 +373,7 @@ all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
      wator watorg pong pongg breakout editor editorg getpage getpageg getmail \
      getmailg gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
-     prtconfig prtconfigg pixel ball1 ball2 ball3 line1 line2 line4 line5
+     prtconfig prtconfigg pixel ball1 ball2 ball3 ball4 line1 line2 line4 line5
     
 else
 
@@ -387,7 +387,7 @@ all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
      wator watorg pong pongg breakout editor editorg getpage getpageg getmail \
      getmailg gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
-     prtconfig prtconfigg pixel ball1 ball2 ball3 line1 line2 line4 line5
+     prtconfig prtconfigg pixel ball1 ball2 ball3 ball4 line1 line2 line4 line5
     
 endif 
 
@@ -954,6 +954,9 @@ ball2: $(GLIBSD) graph_programs/ball2.c
 ball3: $(GLIBSD) graph_programs/ball3.c
 	$(CC) $(CFLAGS) graph_programs/ball3.c $(GLIBS) -o bin/ball3
 	
+ball4: $(GLIBSD) graph_programs/ball4.c
+	$(CC) $(CFLAGS) graph_programs/ball4.c $(GLIBS) -o bin/ball4
+	
 #
 # Moving lines dazzlers
 #
@@ -990,7 +993,7 @@ clean:
 	rm -f bin/msgclientg bin/msgserver bin/msgserverg bin/prtcertnet
 	rm -f bin/prtcertnetg bin/prtcertmsg bin/prtcertmsgg bin/listcertnet 
 	rm -f bin/listcertnetg bin/prtconfig bin/prtconfigg bin/pixel bin/ball1
-	rm -f bin/ball2 bin/ball3 bin/line1 bin/line2 bin/line4 bin/line5
+	rm -f bin/ball2 bin/ball3 bin/ball4 bin/line1 bin/line2 bin/line4 bin/line5
 	find . -name "*.o" -type f -delete
 	rm -f bin/*.a
 	rm -f bin/*.so
