@@ -11,8 +11,6 @@ demonstrate smooth animation.
 #include <localdefs.h>
 #include <graphics.h>
 
-#define BALLSIZE  51
-#define HALFBALL  (BALLSIZE/2)
 #define FRAMETIME 156          /* time between frames, 60 cycle refresh */
 #define BALLACCEL 5            /* ball acceleration */
 
@@ -23,7 +21,8 @@ int       xd, yd;
 pa_evtrec er;
 int       tc;
 int       cd; /* current display flip select */
-
+int       ballsize;
+int       halfball;
 
 /* Wait time in 100 microseconds. Returns true if terminate. */
 
@@ -48,7 +47,7 @@ void drawball(pa_color c, int x, int y)
 {
 
     pa_fcolor(stdout, c); /* set color */
-    pa_fellipse(stdout, x-HALFBALL+1, y-HALFBALL+1, x+HALFBALL-1, y+HALFBALL-1);
+    pa_fellipse(stdout, x-halfball+1, y-halfball+1, x+halfball-1, y+halfball-1);
 
 }
 
@@ -57,8 +56,10 @@ int main(void)
 {
 
     pa_curvis(stdout, FALSE); /* turn off cursor */
-    x = HALFBALL; /* set inital ball location */
-    y = HALFBALL;
+    ballsize = pa_maxyg(stdout)/20; /* set ball size */
+    halfball = ballsize/2; /* set half ball size */
+    x = halfball; /* set inital ball location */
+    y = halfball;
     xd = +1; /* set movements */
     yd = +1;
     lx = x; /* set last position to same */
@@ -77,8 +78,8 @@ int main(void)
             nx = x+xd; /* trial move ball */
             ny = y+yd;
             /* check out of bounds and reverse direction */
-            if (nx < HALFBALL || nx > pa_maxxg(stdout)-HALFBALL+1) xd = -xd;
-            if (ny < HALFBALL || ny > pa_maxyg(stdout)-HALFBALL+1) yd = -yd;
+            if (nx < halfball || nx > pa_maxxg(stdout)-halfball+1) xd = -xd;
+            if (ny < halfball || ny > pa_maxyg(stdout)-halfball+1) yd = -yd;
             x = x+xd; /* move ball */
             y = y+yd;
 
