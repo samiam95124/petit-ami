@@ -65,7 +65,7 @@ int main(void)
     lx = x; /* set last position to same */
     ly = y;
     cd = FALSE; /* set 1st display */
-    drawball(pa_green, x, y); /* place ball at fisrt position */
+    drawball(pa_green, x, y); /* place ball at first position */
     while (TRUE) {
 
         /* select display and update surfaces */

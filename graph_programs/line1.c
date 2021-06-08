@@ -6,6 +6,7 @@ Program to draw random lines on screen
 
 #include <stdio.h>
 #include <stdlib.h>
+
 #include <localdefs.h>
 #include <graphics.h>
 
