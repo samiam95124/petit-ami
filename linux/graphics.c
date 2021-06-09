@@ -567,6 +567,7 @@ static int      joyfid;         /* joystick file id */
 static int      joyax;          /* joystick x axis save */
 static int      joyay;          /* joystick y axis save */
 static int      joyaz;          /* joystick z axis save */
+static int      frmfid;         /* framing timer fid */
 
 /* config settable runtime options */
 static int maxxd;     /* default window dimensions */
@@ -6514,9 +6515,6 @@ static void joyevt(pa_evtrec* er, int* keep)
             er->joypz = joyaz;
             *keep = TRUE; /* set keep event */
 
-
-
-
         }
 
     }
@@ -6874,6 +6872,14 @@ void pa_event(FILE* f, pa_evtrec* er)
                 xwinget(er, &keep);
             else if (i == joyfid && joyenb)
                 joyevt(er, &keep); /* process joystick events */
+            else if (i == frmfid) {
+
+                er->etype = pa_etframe; /* set frame event occurred */
+                keep = TRUE; /* set keep event */
+                /* clear the timer by reading it */
+                read(i, &exp, sizeof(uint64_t));
+
+            }
 
         }
 
@@ -7014,6 +7020,35 @@ of the blanking interval.
 void pa_frametimer(FILE* f, int e)
 
 {
+
+    struct itimerspec ts; /* linux timer structure */
+    int               rv; /* return value */
+
+    if (e) { /* set framing timer to run */
+
+        /* set timer run time */
+        ts.it_value.tv_sec = 0; /* set number of seconds to run */
+        ts.it_value.tv_nsec = 16666667; /* set number of nanoseconds to run */
+
+        /* set rerun time */
+        ts.it_interval.tv_sec = ts.it_value.tv_sec;
+        ts.it_interval.tv_nsec = ts.it_value.tv_nsec;
+
+        rv = timerfd_settime(frmfid, 0, &ts, NULL);
+        if (rv < 0) error(etimacc); /* could not set time */
+
+    } else {
+
+        /* set timer run time to zero to kill it */
+        ts.it_value.tv_sec = 0;
+        ts.it_value.tv_nsec = 0;
+        ts.it_interval.tv_sec = 0;
+        ts.it_interval.tv_nsec = 0;
+
+        rv = timerfd_settime(frmfid, 0, &ts, NULL);
+        if (rv < 0) error(etimacc); /* could not set time */
+
+    }
 
 }
 
@@ -8821,6 +8856,12 @@ static void pa_init_graphics(int argc, char *argv[])
         }
 
     }
+
+    /* create framing timer */
+    frmfid = timerfd_create(CLOCK_REALTIME, 0);
+    if (frmfid == -1) error(etimacc);
+    FD_SET(frmfid, &ifdseta);
+    if (frmfid+1 > ifdmax) ifdmax = frmfid+1; /* set maximum fid for select() */
 
     /* clear the signaling set */
     FD_ZERO(&ifdsets);

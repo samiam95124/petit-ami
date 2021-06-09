@@ -30,7 +30,7 @@ int wait(int t)
     cancel = FALSE;
     pa_timer(stdout, 1, t, FALSE);
     do { pa_event(stdin, &er); }
-    while (er.etype != pa_ettim && er.etype == pa_etterm);
+    while (er.etype != pa_ettim && er.etype != pa_etterm);
     if (er.etype == pa_etterm) cancel = TRUE;
 
     return (cancel);
