@@ -69,7 +69,7 @@ int main(void)
 
 {
 
-    ballsize = pa_maxyg(stdout)/20; /* set ball size */
+    ballsize = pa_maxyg(stdout)/5; /* set ball size */
     halfball = ballsize/2; /* set half ball size */
     /* initialize ball data */
     for (i = 0; i < MAXBALL; i++) {
@@ -86,20 +86,20 @@ int main(void)
     }
     pa_curvis(stdout, FALSE); /* turn off cursor */
     cd = FALSE; /* set 1st display */
-    /* place balls on display */
-    for (i = 0; i < MAXBALL; i++)
-        drawball(baltbl[i].c, baltbl[i].x, baltbl[i].y);
     rc = 0; /* count reps */
-    /* start frame timer for 60 cycle refresh */
+        /* start frame timer for 60 cycle refresh */
     pa_frametimer(stdout, TRUE);
     while (TRUE) {
 
         /* select display and update surfaces */
         pa_select(stdout, !cd+1, cd+1);
+        pa_fover(stdout); /* set overwrite */
+        /* erase balls at old positions */
+        for (i = 0; i < MAXBALL; i++)
+            drawball(pa_white, baltbl[i].lx, baltbl[i].ly);
+        pa_fxor(stdout); /* set xor mode */
         for (i = 0; i < MAXBALL; i++) { /* process balls */
 
-            /* erase ball at old position */
-            drawball(pa_white, baltbl[i].lx, baltbl[i].ly);
             baltbl[i].lx = baltbl[i].x; /* save last position */
             baltbl[i].ly = baltbl[i].y;
             nx = baltbl[i].x+baltbl[i].xd; /* trial move ball */
