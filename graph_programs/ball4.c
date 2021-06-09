@@ -11,7 +11,6 @@ Program to bounce animated balls around screen
 #include <graphics.h>
 
 #define MAXBALL   10
-#define FRAMETIME 156 /* time between frames, 60 cycle refresh */
 #define REPRATE   5   /* number of moves per frame, should be low */
 
 typedef struct balrec { /* ball data record */
@@ -40,7 +39,7 @@ int chkbrk(void)
 
     cancel = FALSE;
     do { pa_event(stdin, &er); }
-    while (er.etype != pa_ettim && er.etype == pa_etterm);
+    while (er.etype != pa_etframe && er.etype != pa_etterm);
     if (er.etype == pa_etterm) cancel = TRUE;
 
     return (cancel);
@@ -92,7 +91,7 @@ int main(void)
         drawball(baltbl[i].c, baltbl[i].x, baltbl[i].y);
     rc = 0; /* count reps */
     /* start frame timer for 60 cycle refresh */
-    pa_timer(stdout, 1, FRAMETIME, TRUE);
+    pa_frametimer(stdout, TRUE);
     while (TRUE) {
 
         /* select display and update surfaces */

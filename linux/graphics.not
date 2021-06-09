@@ -20,7 +20,5 @@ X connection to :0 broken (explicit kill or server shutdown).
 7. Cannot handle mutually exclusive font capabilities, like bold only appearing
 with condensed cannot match bold with normal.
 
-8. In ball4.c, running the mouse across the window changes the timing. Why?
-
-9. Joystick events and frame timer events must go to either a window or all 
+8. Joystick events and frame timer events must go to either a window or all 
 windows.

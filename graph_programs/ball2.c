@@ -11,8 +11,7 @@ demonstrate smooth animation.
 #include <localdefs.h>
 #include <graphics.h>
 
-#define FRAMETIME 156          /* time between frames, 60 cycle refresh */
-#define BALLACCEL 5            /* ball acceleration */
+#define BALLACCEL 5 /* ball acceleration */
 
 int       x, y;
 int       nx, ny;
@@ -24,18 +23,16 @@ int       cd; /* current display flip select */
 int       ballsize;
 int       halfball;
 
-/* Wait time in 100 microseconds. Returns true if terminate. */
-
-int wait(int t)
+int chkbrk(void)
 
 {
 
+    pa_evtrec er;
     int cancel;
 
     cancel = FALSE;
-    pa_timer(stdout, 1, t, FALSE);
     do { pa_event(stdin, &er); }
-    while (er.etype != pa_ettim && er.etype == pa_etterm);
+    while (er.etype != pa_etframe && er.etype != pa_etterm);
     if (er.etype == pa_etterm) cancel = TRUE;
 
     return (cancel);
@@ -65,6 +62,7 @@ int main(void)
     lx = x; /* set last position to same */
     ly = y;
     cd = FALSE; /* set 1st display */
+    pa_frametimer(stdout, TRUE); /* set frame timer */
     drawball(pa_green, x, y); /* place ball at first position */
     while (TRUE) {
 
@@ -86,7 +84,7 @@ int main(void)
         }
         drawball(pa_green, x, y); /* place ball at new position */
         cd = !cd; /* flip display and update surfaces */
-        if (wait(FRAMETIME)) goto terminate; /* wait */
+        if (chkbrk()) goto terminate; /* wait */
 
     }
 

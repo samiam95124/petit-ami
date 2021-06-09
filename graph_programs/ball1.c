@@ -8,7 +8,6 @@ Program to bounce animated ball around screen
 #include <localdefs.h>
 #include <graphics.h>
 
-#define FRAMETIME 156 /* time between frames, 60 cycle refresh */
 #define BALLACCEL 5   /* ball acceleration */
 
 int       x, y;
@@ -19,18 +18,16 @@ int       tc;
 int       ballsize;
 int       halfball;
 
-/* Wait time in 100 microseconds. Returns true if terminate. */
-
-int wait(int t)
+int chkbrk(void)
 
 {
 
+    pa_evtrec er;
     int cancel;
 
     cancel = FALSE;
-    pa_timer(stdout, 1, t, FALSE);
     do { pa_event(stdin, &er); }
-    while (er.etype != pa_ettim && er.etype != pa_etterm);
+    while (er.etype != pa_etframe && er.etype != pa_etterm);
     if (er.etype == pa_etterm) cancel = TRUE;
 
     return (cancel);
@@ -48,12 +45,13 @@ int main(void)
     y = halfball;
     xd = +1; /* set movements */
     yd = +1;
+    pa_frametimer(stdout, TRUE); /* start frame timer */
     while (TRUE) {
 
         /* place ball */
         pa_fcolor(stdout, pa_green);
         pa_fellipse(stdout, x-halfball+1, y-halfball+1, x+halfball-1, y+halfball-1);
-        if (wait(FRAMETIME)) goto terminate; /* wait */
+        if (chkbrk()) goto terminate; /* wait */
         /* erase ball */
         pa_fcolor(stdout, pa_white);
         pa_fellipse(stdout, x-halfball+1, y-halfball+1, x+halfball-1, y+halfball-1);
