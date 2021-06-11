@@ -4852,6 +4852,7 @@ static void* alsaplaywave(void* data)
 
     } while (len); /* not EOF */
 
+    snd_pcm_drain(pdh); /* drain partial frames */
     snd_pcm_close(pdh); /* close playback device */
     close(fh); /* close input file */
 
