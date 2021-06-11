@@ -12,7 +12,7 @@ reversing to white, and cycles forever.
 #include <localdefs.h>
 #include <graphics.h>
 
-#define ACCEL 20
+#define ACCEL 1000
 
 static int x, y, xd, yd, i;
 
@@ -24,11 +24,14 @@ static void wait(void)
 
     pa_evtrec er; /* event record */
 
-#if 0
+    /* This is a dirty trick with PA. We set minimum time and check for
+       user break because we want as much CPU time as possible to draw.
+       A better solution would be to use another thread and set a flag for
+       cancel. */
+    pa_timer(stdout, 1, 1, FALSE);
     do { pa_event(stdin, &er); }
-    while (er.etype != pa_etframe && er.etype != pa_etterm);
+    while (er.etype != pa_ettim && er.etype != pa_etterm);
     if (er.etype == pa_etterm) { longjmp(terminate_buf, 1); }
-#endif
 
 }
 
