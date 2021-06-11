@@ -102,6 +102,8 @@ static enum { /* debug levels */
 
 #define DEFMIDITIM 5000 /* default midi quarter note (.5 seconds) */
 
+#define MAXFNM 250 /* number of filename characters in buffer */
+
 /*
  * Maximum rate number input
  *
@@ -419,6 +421,39 @@ static void error(string s)
     fflush(stderr);
 
     exit(1);
+
+}
+
+/*******************************************************************************
+
+Place extension on filename
+
+Places, or replaces, an extension on the given filename. Finds either the last
+'.' in the filename, or the end, and adds the extention there. The filename
+buffer needs to have enough space to contain the extension, which would be the
+length of the extension.
+
+*******************************************************************************/
+
+static void setext(char* fnh, char* ext)
+
+{
+
+    char* ec; /* extension character location */
+    char* cp;
+
+    /* find extension or end */
+    cp = fnh;
+    ec = NULL;
+    while (*cp) {
+
+        if (*cp == '.' || !*cp) ec = cp;
+        cp++;
+
+    }
+    if (!*cp && !ec) ec = cp;
+    if (cp-fnh+strlen(ext) > MAXFNM) error("Filename too large");
+    strcpy(ec, ext); /* place extention */
 
 }
 
@@ -4277,31 +4312,35 @@ void pa_loadsynth(int s, string fn)
 
 {
 
-    FILE*             fh;           /* file handle */
-    unsigned int      rem;          /* remaining track length */
-    unsigned int      len;          /* length read */
-    unsigned int      hlen;         /* header length */
-    unsigned int      delta_time;   /* delta time */
-    int           endtrk;       /* end of track flag */
-    byte              last;         /* last command */
-    unsigned short    fmt;          /* format code */
-    unsigned short    tracks;       /* number of tracks */
-    unsigned short    division;     /* delta time */
-    int               found;        /* found our header */
-    unsigned int      id;           /* id */
-    int               curtim;       /* current time in 100us */
-    int               qnote;        /* number of 100us/quarter note */
-    pa_seqptr            sp, sp2, sp3; /* sequencer entry */
-    pa_seqptr            seqlst;       /* sorted sequencer list */
-    pa_seqptr            trklst;       /* sorted track list */
-    pa_seqptr            trklas;       /* track last entry */
-    byte              b;
-    int               i;
-    int               r;
+    FILE*          fh;           /* file handle */
+    unsigned int   rem;          /* remaining track length */
+    unsigned int   len;          /* length read */
+    unsigned int   hlen;         /* header length */
+    unsigned int   delta_time;   /* delta time */
+    int            endtrk;       /* end of track flag */
+    byte           last;         /* last command */
+    unsigned short fmt;          /* format code */
+    unsigned short tracks;       /* number of tracks */
+    unsigned short division;     /* delta time */
+    int            found;        /* found our header */
+    unsigned int   id;           /* id */
+    int            curtim;       /* current time in 100us */
+    int            qnote;        /* number of 100us/quarter note */
+    pa_seqptr      sp, sp2, sp3; /* sequencer entry */
+    pa_seqptr      seqlst;       /* sorted sequencer list */
+    pa_seqptr      trklst;       /* sorted track list */
+    pa_seqptr      trklas;       /* track last entry */
+    char           fnh[MAXFNM];  /* file name holder */
+    byte           b;
+    int            i;
+    int            r;
 
     if (s < 1 || s > MAXMIDT) error("Invalid logical synthesize file number");
 
-    fh = fopen(fn, "r");
+    /* copy filename and add extension if required */
+    strcpy(fnh, fn); /* copy */
+    setext(fnh, ".mid"); /* set or overwrite extension */
+    fh = fopen(fnh, "r");
     if (!fh) error("Cannot open input .mid file");
     id = read32be(fh); /* get header id */
 
@@ -4874,12 +4913,16 @@ void pa_loadwave(int w, string fn)
 {
 
     string p, p2;
+    char fnh[MAXFNM]; /* file name holder */
 
     if (w < 1 || w > MAXWAVT) error("Invalid logical wave number");
 
-    p = malloc(strlen(fn)+1); /* allocate filename for slot */
+    /* copy filename and add extension if required */
+    strcpy(fnh, fn); /* copy */
+    setext(fnh, ".wav"); /* set or overwrite extension */
+    p = malloc(strlen(fnh)+1); /* allocate filename for slot */
     if (!p) error("Could not alocate wave file");
-    strcpy(p, fn); /* place filename */
+    strcpy(p, fnh); /* place filename */
     pthread_mutex_lock(&wavlck); /* take wave table lock */
     p2 = wavfil[w]; /* get existing entry */
     wavfil[w] = p; /* place new */

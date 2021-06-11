@@ -223,8 +223,8 @@ int main(void)
 
     pa_openwaveout(1); /* open main wave output */
     /* load wave files to use */
-    pa_loadwave(1, "graph_programs/car_rev.wav");
-    pa_loadwave(2, "graph_programs/pong.wav");
+    pa_loadwave(1, "graph_programs/car_rev");
+    pa_loadwave(2, "graph_programs/pong");
     pa_playwave(1, 0, 1);
     wavtim = WAVSTR; /* place starting wave time (60 seconds) */
     ballsize = pa_maxyg(stdout)/10; /* set ball size */

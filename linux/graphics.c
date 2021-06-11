@@ -130,15 +130,15 @@ static enum { /* debug levels */
 //#define PRTEVT  /* print outgoing PA events */
 //#define EVTPOL /* poll for X events */
 
-#define MAXBUF 10      /* maximum number of buffers available */
-#define IOWIN  1       /* logical window number of input/output pair */
-#define MAXCON 10      /* number of screen contexts */
-#define MAXTAB 50      /* total number of tabs possible per screen */
-#define MAXPIC 50      /* total number of loadable pictures */
-#define MAXLIN 250     /* maximum length of input bufferred line */
-#define MAXFIL 100     /* maximum open files */
-#define MINJST 1       /* minimum pixels for space in justification */
-#define MAXFNM   250    /* number of filename characters in buffer */
+#define MAXBUF 10  /* maximum number of buffers available */
+#define IOWIN  1   /* logical window number of input/output pair */
+#define MAXCON 10  /* number of screen contexts */
+#define MAXTAB 50  /* total number of tabs possible per screen */
+#define MAXPIC 50  /* total number of loadable pictures */
+#define MAXLIN 250 /* maximum length of input bufferred line */
+#define MAXFIL 100 /* maximum open files */
+#define MINJST 1   /* minimum pixels for space in justification */
+#define MAXFNM 250 /* number of filename characters in buffer */
 
 /* To properly compensate for high DPI displays, we use actual height onscreen
    to determine the character height. Note the point size was choosen to most
@@ -6187,7 +6187,6 @@ void pa_loadpict(FILE* f, int p, char* fn)
     /* if the slot is already occupied, delete that picture */
     delpic(win, p);
     /* copy filename and add extension if required */
-    *fnh = 0; /* clear filename holding */
     strcpy(fnh, fn); /* copy */
     setext(fnh, ".bmp"); /* set or overwrite extension */
     pf = fopen(fnh, "r"); /* open picture for read only */
