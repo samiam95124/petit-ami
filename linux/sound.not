@@ -50,3 +50,5 @@ messages, so one way is just connect them to midi messages. On the keyboard I
 have, none of the labels appear to have a relationship to the MIDI function,
 so it seems they are arbitrary assignments. For this perhaps a mechanisim that
 maps them is in order.
+
+10. Add extension (.wav) as required to sound files.

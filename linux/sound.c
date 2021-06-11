@@ -416,6 +416,7 @@ static void error(string s)
 {
 
     fprintf(stderr, "\nError: Sound: %s\n", s);
+    fflush(stderr);
 
     exit(1);
 
