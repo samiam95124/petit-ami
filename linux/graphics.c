@@ -1747,6 +1747,8 @@ drawing direction. Converts PA angles to XWindow angles.
 
 *******************************************************************************/
 
+#define DEGREE (INT_MAX/360)
+
 int rat2a64(int a)
 
 {
@@ -4799,30 +4801,36 @@ void pa_arc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
        y2 = ty;
 
     }
-    a1 = rat2a64(ea); /* convert angles */
-    a2 = rat2a64(sa);
-    a2 = abs(a2-a1); /* find difference */
+    if (sa != ea) { /* not null */
 
-    /* set foreground function */
-    XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
-    if (win->bufmod) { /* buffer is active */
+        a1 = rat2a64(ea); /* convert angles */
+        a2 = rat2a64(sa);
+        /* find difference accounting for zero crossing */
+        if (a1 >= a2) a2 = 360*64-a1+a2;
+        else a2 = a2-a1;
 
-        /* draw the arc */
-        XDrawArc(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
-        		 a1, a2);
+        /* set foreground function */
+        XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
+        if (win->bufmod) { /* buffer is active */
+
+            /* draw the arc */
+            XDrawArc(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
+            		 a1, a2);
+
+        }
+        if (indisp(win)) { /* do it again for the current screen */
+
+            curoff(win); /* hide the cursor */
+            /* draw the arc */
+            XDrawArc(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
+            		 a1, a2);
+            curon(win); /* show the cursor */
+
+        }
+        /* reset foreground function */
+        XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
 
     }
-    if (indisp(win)) { /* do it again for the current screen */
-
-        curoff(win); /* hide the cursor */
-        /* draw the arc */
-        XDrawArc(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
-        		 a1, a2);
-        curon(win); /* show the cursor */
-
-    }
-    /* reset foreground function */
-    XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
 
 }
 
@@ -4857,30 +4865,36 @@ void pa_farc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
        y2 = ty;
 
     }
-    a1 = rat2a64(ea); /* convert angles */
-    a2 = rat2a64(sa);
-    a2 = abs(a2-a1); /* find difference */
+    if (sa != ea) { /* not null */
 
-    /* set foreground function */
-    XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
-    if (win->bufmod) { /* buffer is active */
+        a1 = rat2a64(ea); /* convert angles */
+        a2 = rat2a64(sa);
+        /* find difference accounting for zero crossing */
+        if (a1 >= a2) a2 = 360*64-a1+a2;
+        else a2 = a2-a1;
 
-        /* draw the ellipse */
-        XFillArc(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
-                 a1, a2);
+        /* set foreground function */
+        XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
+        if (win->bufmod) { /* buffer is active */
+
+            /* draw the ellipse */
+            XFillArc(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
+                     a1, a2);
+
+        }
+        if (indisp(win)) { /* do it again for the current screen */
+
+            curoff(win); /* hide the cursor */
+            /* draw the ellipse */
+            XFillArc(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
+                     a1, a2);
+            curon(win); /* show the cursor */
+
+        }
+        /* reset foreground function */
+        XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
 
     }
-    if (indisp(win)) { /* do it again for the current screen */
-
-        curoff(win); /* hide the cursor */
-        /* draw the ellipse */
-        XFillArc(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
-                 a1, a2);
-        curon(win); /* show the cursor */
-
-    }
-    /* reset foreground function */
-    XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
 
 }
 
@@ -4915,33 +4929,38 @@ void pa_fchord(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
        y2 = ty;
 
     }
+    if (sa != ea) { /* not null */
 
-    a1 = rat2a64(ea); /* convert angles */
-    a2 = rat2a64(sa);
-    a2 = abs(a2-a1); /* find difference */
+        a1 = rat2a64(ea); /* convert angles */
+        a2 = rat2a64(sa);
+        /* find difference accounting for zero crossing */
+        if (a1 >= a2) a2 = 360*64-a1+a2;
+        else a2 = a2-a1;
 
-    /* set foreground function */
-    XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
-    XSetArcMode(padisplay, sc->xcxt, ArcChord); /* set chord mode */
-    if (win->bufmod) { /* buffer is active */
+        /* set foreground function */
+        XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
+        XSetArcMode(padisplay, sc->xcxt, ArcChord); /* set chord mode */
+        if (win->bufmod) { /* buffer is active */
 
-        /* draw the ellipse */
-        XFillArc(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
-                 a1, a2);
+            /* draw the ellipse */
+            XFillArc(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
+                     a1, a2);
+
+        }
+        if (indisp(win)) { /* do it again for the current screen */
+
+            curoff(win); /* hide the cursor */
+            /* draw the ellipse */
+            XFillArc(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
+                     a1, a2);
+            curon(win); /* show the cursor */
+
+        }
+        XSetArcMode(padisplay, sc->xcxt, ArcPieSlice); /* set pie mode */
+        /* reset foreground function */
+        XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
 
     }
-    if (indisp(win)) { /* do it again for the current screen */
-
-        curoff(win); /* hide the cursor */
-        /* draw the ellipse */
-        XFillArc(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
-                 a1, a2);
-        curon(win); /* show the cursor */
-
-    }
-    XSetArcMode(padisplay, sc->xcxt, ArcPieSlice); /* set pie mode */
-    /* reset foreground function */
-    XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
 
 }
 
