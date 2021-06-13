@@ -1220,6 +1220,7 @@ int main(void)
     pa_fcolor(stdout, pa_blue);
     pa_ellipse(stdout, x-l, y-l, x+l, y+l);
     pa_fcolor(stdout, pa_black);
+    pa_bover(stdout);
     while (w < 10) {
 
         a = 0; /* set angle */
@@ -1235,6 +1236,7 @@ int main(void)
         waitnext();
 
     }
+    pa_binvis(stdout);
     pa_linewidth(stdout, 1);
 
     /* ******************************* Color test 1 ****************************** */
@@ -2400,7 +2402,6 @@ int main(void)
 
     /* *************************** Font examples test ************************** */
 
-#endif
     putchar('\f');
     grid();
     pa_auto(stdout, OFF);
@@ -2443,7 +2444,7 @@ int main(void)
 
     /* ************************** Extended effects test ************************ */
 
-#if 0
+#endif
     putchar('\f');
     grid();
     pa_auto(stdout, OFF);
@@ -2544,7 +2545,6 @@ int main(void)
 
     /* ************************** Picture draw test **************************** */
 
-#endif
     putchar('\f');
     grid();
     pa_loadpict(stdout, 1, "mypic");

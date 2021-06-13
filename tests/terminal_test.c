@@ -630,6 +630,9 @@ int main(int argc, char *argv[])
         pa_bold(stdout, 1);
         printf("Bold text\n");
         pa_bold(stdout, 0);
+        pa_strikeout(stdout, 1);
+        printf("Strikeout text\n");
+        pa_strikeout(stdout, 0);
         pa_standout(stdout, 1);
         printf("Standout text\n");
         pa_standout(stdout, 0);
