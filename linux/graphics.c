@@ -73,6 +73,7 @@
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
 #include <X11/Xutil.h>
+#include <X11/Xatom.h>
 
 /* whitebook definitions */
 #include <stdlib.h>
@@ -427,8 +428,9 @@ typedef struct winrec {
     int          visible;           /* window is visible */
 
     /* fields used by graphics subsystem */
-    Window       xwhan;           /* current window */
-    XFontStruct* xfont;           /* current font */
+    Window       xwhan;             /* current window */
+    XFontStruct* xfont;             /* current font */
+    Atom         delmsg;            /* windows manager delete window message */
 
 } winrec, *winptr;
 
@@ -2371,8 +2373,16 @@ static void opnwin(int fn, int pfn, int wid)
                                         10, 10, win->gmaxxg, win->gmaxyg, 1,
                            BlackPixel(padisplay, pascreen),
                            WhitePixel(padisplay, pascreen));
+
+    /* select what events we want */
     XSelectInput(padisplay, win->xwhan, ExposureMask | KeyPressMask |
                  KeyReleaseMask | PointerMotionMask | ButtonPressMask | ButtonReleaseMask);
+
+    /* hook close event from windows manager */
+    win->delmsg = XInternAtom(padisplay, "WM_DELETE_WINDOW", FALSE);
+    XSetWMProtocols(padisplay, win->xwhan, &win->delmsg, 1);
+
+    /* present the window onscreen */
     XMapWindow(padisplay, win->xwhan);
     XFlush(padisplay);
 
@@ -7020,6 +7030,18 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
         mouseevent(win, e); /* process mouse event */
         /* check any mouse details need processing */
         mouseupdate(win, er, keep);
+
+    } else if (e->type == ClientMessage){
+
+        /* windows manager has message for us */
+        if ((Atom)e->xclient.data.l[0] == win->delmsg) {
+
+            /* terminate client window */
+            er->etype = pa_etterm;
+            fend = TRUE;
+            *keep = TRUE;
+
+        }
 
     }
 

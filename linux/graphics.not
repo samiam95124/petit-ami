@@ -6,19 +6,14 @@ number of non-obsolete fonts.
 2. Need pa_joybutton() and pa_joyaxis() calls to get the real limits from the
 joystick ioctl interface.
 
-3. Implement configuration parameters.
+3. Implement multiple joystick handling.
 
-4. If a window is cancelled by the command bar method when it has finished, it
-shows:
+4. Need to implement multitask locking broadly across the code.
 
-X connection to :0 broken (explicit kill or server shutdown).
+5. Frame cancel on active window does not terminate.
 
-5. Need to implement multitask locking broadly across the code.
-
-6. Frame cancel on active window does not terminate.
-
-7. Cannot handle mutually exclusive font capabilities, like bold only appearing
+6. Cannot handle mutually exclusive font capabilities, like bold only appearing
 with condensed cannot match bold with normal.
 
-8. Joystick events and frame timer events must go to either a window or all 
+7. Joystick events and frame timer events must go to either a window or all 
 windows.
