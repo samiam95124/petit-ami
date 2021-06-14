@@ -94,6 +94,7 @@
 #include <linux/joystick.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <pthread.h>
 
 /* local definitions */
 #include <localdefs.h>
@@ -168,6 +169,10 @@ static enum { /* debug levels */
 #define INPFIL 0 /* handle to standard input */
 #define OUTFIL 1 /* handle to standard output */
 #define ERRFIL 2 /* handle to standard error */
+
+/* XWindows call lock/unlock */
+#define XWLOCK() pthread_mutex_lock(&xwlock)
+#define XWUNLOCK() pthread_mutex_unlock(&xwlock)
 
 /* types of system vectors for override calls */
 
@@ -555,6 +560,7 @@ static plseek_t  ofplseek;
 
 static int fend;      /* end of program ordered flag */
 static int fautohold; /* automatic hold on exit flag */
+static pthread_mutex_t xwlock; /* XWindow call lock */
 
 /* X windows display characteristics.
  *
@@ -1245,7 +1251,9 @@ void getfonts(void)
     xcaplst* xcl;
 
     /* load the fonts list */
+    XWLOCK();
     fl = XListFonts(padisplay, "-*-*-*-*-*--0-0-0-0-?-0-*", INT_MAX, &fc);
+    XWUNLOCK();
 
 #if 0
     /* print the raw XWindow font list */
@@ -1357,7 +1365,9 @@ void getfonts(void)
         fp++; /* next source font entry */
 
     }
+    XWLOCK();
     XFreeFontNames(fl); /* release the font list */
+    XWUNLOCK();
 
     fntcnt = ifc; /* set internal font count */
 
@@ -1616,7 +1626,13 @@ void setfnt(winptr win)
     int     caps;     /* XWindows capabilities set */
 
     /* release any existing font */
-    if (win->xfont) XFreeFont(padisplay, win->xfont);
+    if (win->xfont) {
+
+        XWLOCK();
+        XFreeFont(padisplay, win->xfont);
+        XWUNLOCK();
+
+    }
 
     /* Find matching XWindow capabilities set */
     caps = fndxcapp(win->gcfont, win->gattr);
@@ -1629,7 +1645,9 @@ void setfnt(winptr win)
 
         selxlfd(win, caps, buf, ht); /* form XLFD selection string */
 //dbg_printf(dlinfo, "XLFD font select string: %s\n", buf);
+        XWLOCK();
         win->xfont = XLoadQueryFont(padisplay, buf);
+        XWUNLOCK();
         if (!win->xfont) error(esystem); /* should have found it */
         aht = win->xfont->ascent+win->xfont->descent; /* find resulting height */
         ht--;
@@ -1731,9 +1749,11 @@ static void clrbuf(scnptr sc)
 
 {
 
+    XWLOCK();
     XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
     XFillRectangle(padisplay, sc->xbuf, sc->xcxt, 0, 0, sc->maxxg, sc->maxyg);
     XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+    XWUNLOCK();
 
 }
 
@@ -1829,7 +1849,9 @@ static void delpic(winptr win, int p)
         /* remove top entry */
         pp = win->pictbl[p-1];
         win->pictbl[p-1] = pp->next;
+        XWLOCK();
         XDestroyImage(pp->xi); /* release image */
+        XWUNLOCK();
         putpic(pp); /* release image entry */
 
     }
@@ -2008,6 +2030,7 @@ static void curdrw(winptr win)
     scnptr sc;  /* pointer to current screen */
 
     sc = win->screens[win->curupd-1]; /* index current update screen */
+    XWLOCK();
     XSetForeground(padisplay, sc->xcxt, colnum(pa_white));
     XSetFunction(padisplay, sc->xcxt, GXxor); /* set reverse */
     XFillRectangle(padisplay, win->xwhan, sc->xcxt, sc->curxg-1, sc->curyg-1,
@@ -2015,6 +2038,7 @@ static void curdrw(winptr win)
     XSetFunction(padisplay, sc->xcxt, GXcopy); /* set overwrite */
     if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
     else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+    XWUNLOCK();
 
 }
 
@@ -2134,18 +2158,24 @@ static void restore(winptr win) /* window to restore */
         /* set colors and attributes */
         if (BIT(sarev) & sc->attr)  { /* reverse */
 
+            XWLOCK();
             XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
             XSetBackground(padisplay, sc->xcxt, sc->fcrgb);
+            XWUNLOCK();
 
         } else {
 
+            XWLOCK();
             XSetBackground(padisplay, sc->xcxt, sc->bcrgb);
             XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+            XWUNLOCK();
 
         }
         /* copy buffer to screen */
+        XWLOCK();
         XCopyArea(padisplay, sc->xbuf, win->xwhan, sc->xcxt, 0, 0,
                   sc->maxxg, sc->maxyg, 0, 0);
+        XWUNLOCK();
         curon(win); /* show the cursor */
 
     }
@@ -2205,45 +2235,57 @@ static void iniscn(winptr win, scnptr sc)
     }
 
     /* create graphics context for screen */
+    XWLOCK();
     sc->xcxt = XDefaultGC(padisplay, pascreen);
     XSetFont(padisplay, sc->xcxt, win->xfont->fid);
+    XWUNLOCK();
 
     /* set colors && attributes */
     if (BIT(sarev) & sc->attr) { /* reverse */
 
+        XWLOCK();
         XSetBackground(padisplay, sc->xcxt, sc->bcrgb);
         XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+        XWUNLOCK();
 
     } else {
 
+        XWLOCK();
         XSetBackground(padisplay, sc->xcxt, sc->bcrgb);
         XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+        XWUNLOCK();
 
     }
 
+    XWLOCK();
     /* set line attributes */
     XSetLineAttributes(padisplay, sc->xcxt, 1, LineSolid, CapButt, JoinMiter);
 
     /* set up pixmap backing buffer */
     depth = DefaultDepth(padisplay, pascreen);
     sc->xbuf = XCreatePixmap(padisplay, win->xwhan, sc->maxxg, sc->maxyg, depth);
+    XWUNLOCK();
 
     /* clear it */
     clrbuf(sc);
 
 #if 0
     /* draw grid for character cell diagnosis */
+    XWLOCK();
     XSetForeground(padisplay, sc->xcxt, colnum(pa_cyan));
     for (y = 0; y < sc->maxyg; y += win->linespace)
         XDrawLine(padisplay, sc->xbuf, sc->xcxt, 0, y, sc->maxxg, y);
     for (x = 0; x < sc->maxxg; x += win->charspace)
         XDrawLine(padisplay, sc->xbuf, sc->xcxt, x, 0, x, sc->maxyg);
     XSetForeground(padisplay, sc->xcxt, colnum(pa_black));
+    XWUNLOCK();
 #endif
 
 #if 0
     /* reveal the background (diagnostic) */
+    XWLOCK();
     XSetBackground(padisplay, sc->xcxt, colnum(pa_yellow));
+    XWUNLOCK();
 #endif
 
 }
@@ -2340,10 +2382,12 @@ static void opnwin(int fn, int pfn, int wid)
     win->gvexty = 1;
 
     /* get screen parameters */
+    XWLOCK();
     win->shsize = DisplayWidthMM(padisplay, pascreen); /* size x in millimeters */
     win->svsize = DisplayHeightMM(padisplay, pascreen); /* size y in millimeters */
     win->shres = DisplayWidth(padisplay, pascreen);
     win->svres = DisplayHeight(padisplay, pascreen);
+    XWUNLOCK();
     win->sdpmx = win->shres*1000/win->shsize; /* find dots per meter x */
     win->sdpmy = win->svres*1000/win->svsize; /* find dots per meter y */
 
@@ -2369,6 +2413,7 @@ static void opnwin(int fn, int pfn, int wid)
 
     /* create our window */
 
+    XWLOCK();
     win->xwhan = XCreateSimpleWindow(padisplay, RootWindow(padisplay, pascreen),
                                         10, 10, win->gmaxxg, win->gmaxyg, 1,
                            BlackPixel(padisplay, pascreen),
@@ -2388,6 +2433,7 @@ static void opnwin(int fn, int pfn, int wid)
 
     /* set window title from program name */
     XStoreName(padisplay, win->xwhan, program_invocation_short_name);
+    XWUNLOCK();
 
     iniscn(win, win->screens[0]); /* initalize screen buffer */
     restore(win); /* update to screen */
@@ -2473,10 +2519,12 @@ void iclear(winptr win)
     if (indisp) { /* also process to display */
 
         curoff(win); /* hide the cursor */
+        XWLOCK();
         XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
         XFillRectangle(padisplay, win->xwhan, sc->xcxt, 0, 0,
                                   sc->maxxg, sc->maxyg);
         XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+        XWUNLOCK();
         curon(win); /* show the cursor */
 
     }
@@ -2569,6 +2617,7 @@ void iscrollg(winptr win, int x, int y)
         }
         if (win->bufmod) { /* apply to buffer */
 
+            XWLOCK();
             XCopyArea(padisplay, sc->xbuf, sc->xbuf, sc->xcxt,
                       sx, sy, sw, sh, dx, dy);
             XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
@@ -2579,10 +2628,12 @@ void iscrollg(winptr win, int x, int y)
             if (y) XFillRectangle(padisplay, sc->xbuf, sc->xcxt, fry.x, fry.y,
                                   fry.w, fry.h);
             XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+            XWUNLOCK();
 
         } else { /* scroll on screen */
 
             curoff(win); /* hide the cursor for drawing */
+            XWLOCK();
             XCopyArea(padisplay, win->xwhan, win->xwhan, sc->xcxt,
                       sx, sy, sw, sh, dx, dy);
             XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
@@ -2593,6 +2644,7 @@ void iscrollg(winptr win, int x, int y)
             if (y) XFillRectangle(padisplay, win->xwhan, sc->xcxt, fry.x, fry.y,
                                   fry.w, fry.h);
             XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+            XWUNLOCK();
             curon(win); /* show the cursor */
 
         }
@@ -3057,6 +3109,7 @@ static void plcchr(winptr win, char c)
 
             if (sc->bmod != mdinvis) { /* background is visible */
 
+                XWLOCK();
                 /* set background function */
                 XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->bmod]);
                 /* set background to foreground to draw character background */
@@ -3076,10 +3129,12 @@ static void plcchr(winptr win, char c)
                 else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
                 /* reset background function */
                 XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
+                XWUNLOCK();
 
             }
             if (sc->fmod != mdinvis) {
 
+                XWLOCK();
                 /* set foreground function */
                 XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
                 /* draw character */
@@ -3112,6 +3167,7 @@ static void plcchr(winptr win, char c)
                 }
                 /* reset foreground function */
                 XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
+                XWUNLOCK();
 
             }
 
@@ -3122,6 +3178,7 @@ static void plcchr(winptr win, char c)
 
             if (sc->bmod != mdinvis) { /* background is visible */
 
+                XWLOCK();
                 /* set background function */
                 XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->bmod]);
                 /* set background to foreground to draw character background */
@@ -3141,10 +3198,12 @@ static void plcchr(winptr win, char c)
                 else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
                 /* reset background function */
                 XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
+                XWUNLOCK();
 
             }
             if (sc->fmod != mdinvis) {
 
+                XWLOCK();
                 /* set foreground function */
                 XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
                 /* draw character */
@@ -3177,6 +3236,7 @@ static void plcchr(winptr win, char c)
                 }
                 /* reset foreground function */
                 XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
+                XWUNLOCK();
 
             }
 
@@ -3800,7 +3860,9 @@ void pa_italic(FILE* f, int e)
     curoff(win); /* remove cursor with old font characteristics */
     setfnt(win); /* select the font */
     /* select to context */
+    XWLOCK();
     XSetFont(padisplay, sc->xcxt, win->xfont->fid);
+    XWUNLOCK();
     curon(win); /* replace cursor with new font characteristics */
 
 }
@@ -3842,7 +3904,9 @@ void pa_bold(FILE* f, int e)
     curoff(win); /* remove cursor with old font characteristics */
     setfnt(win); /* select the font */
     /* select to context */
+    XWLOCK();
     XSetFont(padisplay, sc->xcxt, win->xfont->fid);
+    XWUNLOCK();
     curon(win); /* replace cursor with new font characteristics */
 
 }
@@ -3918,8 +3982,10 @@ void pa_fcolor(FILE* f, pa_color c)
     sc->fcrgb = colnum(c); /* set color status */
     win->gfcrgb = sc->fcrgb;
     /* set screen color according to reverse */
+    XWLOCK();
     if (BIT(sarev) & sc->attr) XSetBackground(padisplay, sc->xcxt, sc->fcrgb);
     else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+    XWUNLOCK();
 
 }
 
@@ -3943,8 +4009,10 @@ void pa_fcolorc(FILE* f, int r, int g, int b)
     sc->fcrgb = rgb2xwin(r, g, b); /* set color status */
     win->gfcrgb = sc->fcrgb;
     /* set screen color according to reverse */
+    XWLOCK();
     if (BIT(sarev) & sc->attr) XSetBackground(padisplay, sc->xcxt, sc->fcrgb);
     else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+    XWUNLOCK();
 
 }
 
@@ -3973,8 +4041,10 @@ void pa_fcolorg(FILE* f, int r, int g, int b)
     sc->fcrgb = rgb2xwin(r, g, b); /* set color status */
     win->gfcrgb = sc->fcrgb;
     /* set screen color according to reverse */
+    XWLOCK();
     if (BIT(sarev) & sc->attr) XSetBackground(padisplay, sc->xcxt, sc->fcrgb);
     else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+    XWUNLOCK();
 
 }
 
@@ -3997,9 +4067,11 @@ void pa_bcolor(FILE* f, pa_color c)
     sc = win->screens[win->curupd-1]; /* index update screen */
     sc->bcrgb = colnum(c); /* set color status */
     win->gbcrgb = sc->bcrgb;
+    XWLOCK();
     /* set screen color according to reverse */
     if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
     else XSetBackground(padisplay, sc->xcxt, sc->bcrgb);
+    XWUNLOCK();
 
 }
 
@@ -4022,9 +4094,11 @@ void pa_bcolorc(FILE* f, int r, int g, int b)
     sc = win->screens[win->curupd-1]; /* index update screen */
     sc->bcrgb = rgb2xwin(r, g, b); /* set color status */
     win->gbcrgb = sc->bcrgb;
+    XWLOCK();
     /* set screen color according to reverse */
     if (BIT(sarev) & sc->attr) XSetBackground(padisplay, sc->xcxt, sc->bcrgb);
     else XSetBackground(padisplay, sc->xcxt, sc->bcrgb);
+    XWUNLOCK();
 
 }
 
@@ -4049,9 +4123,11 @@ void pa_bcolorg(FILE* f, int r, int g, int b)
     sc = win->screens[win->curupd-1]; /* index update screen */
     sc->bcrgb = rgb2xwin(r, g, b); /* set color status */
     win->gbcrgb = sc->bcrgb; /* copy to master */
+    XWLOCK();
     /* set screen color according to reverse */
     if (BIT(sarev) & sc->attr) XSetBackground(padisplay, sc->xcxt, sc->bcrgb);
     else XSetBackground(padisplay, sc->xcxt, sc->bcrgb);
+    XWUNLOCK();
 
 }
 
@@ -4301,6 +4377,7 @@ void pa_wrtstr(FILE* f, char* s)
 
         if (sc->bmod != mdinvis) { /* background is visible */
 
+            XWLOCK();
             /* set background function */
             XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->bmod]);
             /* set background to foreground to draw character background */
@@ -4320,10 +4397,12 @@ void pa_wrtstr(FILE* f, char* s)
             else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
             /* reset background function */
             XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
+            XWUNLOCK();
 
         }
         if (sc->fmod != mdinvis) {
 
+            XWLOCK();
             /* set foreground function */
             XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
             /* draw character */
@@ -4356,6 +4435,7 @@ void pa_wrtstr(FILE* f, char* s)
             }
             /* reset foreground function */
             XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
+            XWUNLOCK();
 
         }
 
@@ -4365,6 +4445,7 @@ void pa_wrtstr(FILE* f, char* s)
         curoff(win); /* hide the cursor */
         if (sc->bmod != mdinvis) { /* background is visible */
 
+            XWLOCK();
             /* set background function */
             XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->bmod]);
             /* set background to foreground to draw character background */
@@ -4386,10 +4467,12 @@ void pa_wrtstr(FILE* f, char* s)
             else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
             /* reset background function */
             XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
+            XWUNLOCK();
 
         }
         if (sc->fmod != mdinvis) {
 
+            XWLOCK();
             /* set foreground function */
             XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
             /* draw character */
@@ -4426,6 +4509,7 @@ void pa_wrtstr(FILE* f, char* s)
             }
             /* reset foreground function */
             XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
+            XWUNLOCK();
 
         }
         curon(win); /* show the cursor */
@@ -4486,23 +4570,31 @@ void pa_line(FILE* f, int x1, int y1, int x2, int y2)
 
     }
     /* set foreground function */
+    XWLOCK();
     XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
+    XWUNLOCK();
     if (win->bufmod) { /* buffer is active */
 
         /* draw the line */
+        XWLOCK();
         XDrawLine(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-1, y2-1);
+        XWUNLOCK();
 
     }
     if (indisp(win)) { /* do it again for the current screen */
 
         curoff(win); /* hide the cursor */
+        XWLOCK();
         /* draw the line */
         XDrawLine(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-1, y2-1);
+        XWUNLOCK();
         curon(win); /* show the cursor */
 
     }
     /* reset foreground function */
+    XWLOCK();
     XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
+    XWUNLOCK();
 
 }
 
@@ -4536,23 +4628,31 @@ void pa_rect(FILE* f, int x1, int y1, int x2, int y2)
 
     }
     /* set foreground function */
+    XWLOCK();
     XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
+    XWUNLOCK();
     if (win->bufmod) { /* buffer is active */
 
         /* draw the rectangle */
+        XWLOCK();
         XDrawRectangle(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1, y2-y1);
+        XWUNLOCK();
 
     }
     if (indisp(win)) { /* do it again for the current screen */
 
         curoff(win); /* hide the cursor */
         /* draw the rectangle */
+        XWLOCK();
         XDrawRectangle(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1, y2-y1);
+        XWUNLOCK();
         curon(win); /* show the cursor */
 
     }
     /* reset foreground function */
+    XWLOCK();
     XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
+    XWUNLOCK();
 
 }
 
@@ -4586,23 +4686,31 @@ void pa_frect(FILE* f, int x1, int y1, int x2, int y2)
 
     }
     /* set foreground function */
+    XWLOCK();
     XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
+    XWUNLOCK();
     if (win->bufmod) { /* buffer is active */
 
         /* draw the rectangle */
+        XWLOCK();
         XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1);
+        XWUNLOCK();
 
     }
     if (indisp(win)) { /* do it again for the current screen */
 
         curoff(win); /* hide the cursor */
         /* draw the rectangle */
+        XWLOCK();
         XFillRectangle(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1);
+        XWUNLOCK();
         curon(win); /* show the cursor */
 
     }
     /* reset foreground function */
+    XWLOCK();
     XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
+    XWUNLOCK();
 
 }
 
@@ -4647,9 +4755,12 @@ void pa_rrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
     if (xs > x2-x1+1) xs = x2-x1+1; /* limit rounding elipse */
     if (ys > y2-y1+1) ys = y2-y1+1;
     /* set foreground function */
+    XWLOCK();
     XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
+    XWUNLOCK();
     if (win->bufmod) { /* buffer is active */
 
+        XWLOCK();
         /* stroke the sides */
         XDrawLine(padisplay, sc->xbuf, sc->xcxt, x1, y1+ys/2, x1, y2-ys/2);
         XDrawLine(padisplay, sc->xbuf, sc->xcxt, x2, y1+ys/2, x2, y2-ys/2);
@@ -4664,11 +4775,13 @@ void pa_rrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
 
         XDrawArc(padisplay, sc->xbuf, sc->xcxt, x2-xs, y2-ys, xs, ys, 270*64,
                  90*64);
+        XWUNLOCK();
 
     }
     if (indisp(win)) { /* do it again for the current screen */
 
         curoff(win); /* hide the cursor */
+        XWLOCK();
         /* stroke the sides */
         XDrawLine(padisplay, win->xwhan, sc->xcxt, x1, y1+ys/2, x1, y2-ys/2);
         XDrawLine(padisplay, win->xwhan, sc->xcxt, x2, y1+ys/2, x2, y2-ys/2);
@@ -4684,6 +4797,7 @@ void pa_rrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
 
         XDrawArc(padisplay, win->xwhan, sc->xcxt, x2-xs, y2-ys, xs, ys, 270*64,
                  90*64);
+        XWUNLOCK();
         curon(win); /* show the cursor */
 
     }
@@ -4738,7 +4852,9 @@ void pa_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
     x2--;
     y2--;
     /* set foreground function */
+    XWLOCK();
     XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
+    XWUNLOCK();
     if (x2-x1 >= y2-y1) { /* x >= y */
 
         /* find the widths and heights of components, and find minimums */
@@ -4757,6 +4873,7 @@ void pa_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
         if (ys > y2-y1+1) ys = y2-y1+1;
         if (win->bufmod) { /* buffer is active */
 
+            XWLOCK();
             /* middle rectangle */
             XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x1, y1+ys/2, wm, hm);
 
@@ -4775,11 +4892,13 @@ void pa_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
 
             XFillArc(padisplay, sc->xbuf, sc->xcxt, x2-xs+1, y2-ys+1, xs, ys, 270*64,
                      90*64);
+            XWUNLOCK();
 
         }
         if (indisp(win)) { /* do it again for the current screen */
 
             curoff(win); /* hide the cursor */
+            XWLOCK();
             /* middle rectangle */
             XFillRectangle(padisplay, win->xwhan, sc->xcxt, x1, y1+ys/2, wm, hm);
 
@@ -4798,6 +4917,7 @@ void pa_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
                      90*64);
             XFillArc(padisplay, win->xwhan, sc->xcxt, x2-xs+1, y2-ys+1, xs, ys, 270*64,
                      90*64);
+            XWUNLOCK();
             curon(win); /* show the cursor */
 
         }
@@ -4820,6 +4940,7 @@ void pa_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
         if (ys > y2-y1+1) ys = y2-y1+1;
         if (win->bufmod) { /* buffer is active */
 
+            XWLOCK();
             /* middle rectangle */
             XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x1+xs/2, y1, wm, hm);
 
@@ -4836,11 +4957,13 @@ void pa_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
                      90*64);
             XFillArc(padisplay, sc->xbuf, sc->xcxt, x2-xs-1, y2-ys, xs, ys, 270*64,
                      90*64);
+            XWUNLOCK();
 
         }
         if (indisp(win)) { /* do it again for the current screen */
 
             curoff(win); /* hide the cursor */
+            XWLOCK();
             /* middle rectangle */
             XFillRectangle(padisplay, win->xwhan, sc->xcxt, x1+xs/2, y1, wm, hm);
 
@@ -4857,13 +4980,16 @@ void pa_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
                      90*64);
             XFillArc(padisplay, win->xwhan, sc->xcxt, x2-xs+1, y2-ys+1, xs, ys, 270*64,
                      90*64);
+            XWUNLOCK();
             curon(win); /* show the cursor */
 
         }
 
     }
     /* reset foreground function */
+    XWLOCK();
     XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
+    XWUNLOCK();
 
 }
 
@@ -4897,25 +5023,33 @@ void pa_ellipse(FILE* f, int x1, int y1, int x2, int y2)
 
     }
     /* set foreground function */
+    XWLOCK();
     XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
+    XWUNLOCK();
     if (win->bufmod) { /* buffer is active */
 
         /* draw the ellipse */
+        XWLOCK();
         XDrawArc(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
                  0, 360*64);
+        XWUNLOCK();
 
     }
     if (indisp(win)) { /* do it again for the current screen */
 
         curoff(win); /* hide the cursor */
         /* draw the ellipse */
+        XWLOCK();
         XDrawArc(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
                  0, 360*64);
+        XWUNLOCK();
         curon(win); /* show the cursor */
 
     }
     /* reset foreground function */
+    XWLOCK();
     XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
+    XWUNLOCK();
 
 }
 
@@ -4949,25 +5083,33 @@ void pa_fellipse(FILE* f, int x1, int y1, int x2, int y2)
 
     }
     /* set foreground function */
+    XWLOCK();
     XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
+    XWUNLOCK();
     if (win->bufmod) { /* buffer is active */
 
         /* draw the ellipse */
+        XWLOCK();
         XFillArc(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
                  0, 360*64);
+        XWUNLOCK();
 
     }
     if (indisp(win)) { /* do it again for the current screen */
 
         curoff(win); /* hide the cursor */
         /* draw the ellipse */
+        XWLOCK();
         XFillArc(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
                  0, 360*64);
+        XWUNLOCK();
         curon(win); /* show the cursor */
 
     }
     /* reset foreground function */
+    XWLOCK();
     XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
+    XWUNLOCK();
 
 }
 
@@ -5030,25 +5172,33 @@ void pa_arc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
         else a2 = a2-a1;
 
         /* set foreground function */
+        XWLOCK();
         XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
+        XWUNLOCK();
         if (win->bufmod) { /* buffer is active */
 
             /* draw the arc */
+            XWLOCK();
             XDrawArc(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
             		 a1, a2);
+            XWUNLOCK();
 
         }
         if (indisp(win)) { /* do it again for the current screen */
 
             curoff(win); /* hide the cursor */
             /* draw the arc */
+            XWLOCK();
             XDrawArc(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
             		 a1, a2);
+            XWUNLOCK();
             curon(win); /* show the cursor */
 
         }
         /* reset foreground function */
+        XWLOCK();
         XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
+        XWUNLOCK();
 
     }
 
@@ -5094,25 +5244,33 @@ void pa_farc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
         else a2 = a2-a1;
 
         /* set foreground function */
+        XWLOCK();
         XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
+        XWUNLOCK();
         if (win->bufmod) { /* buffer is active */
 
             /* draw the ellipse */
+            XWLOCK();
             XFillArc(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
                      a1, a2);
+            XWUNLOCK();
 
         }
         if (indisp(win)) { /* do it again for the current screen */
 
             curoff(win); /* hide the cursor */
             /* draw the ellipse */
+            XWLOCK();
             XFillArc(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
                      a1, a2);
+            XWUNLOCK();
             curon(win); /* show the cursor */
 
         }
         /* reset foreground function */
+        XWLOCK();
         XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
+        XWUNLOCK();
 
     }
 
@@ -5158,27 +5316,35 @@ void pa_fchord(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
         else a2 = a2-a1;
 
         /* set foreground function */
+        XWLOCK();
         XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
         XSetArcMode(padisplay, sc->xcxt, ArcChord); /* set chord mode */
+        XWUNLOCK();
         if (win->bufmod) { /* buffer is active */
 
             /* draw the ellipse */
+            XWLOCK();
             XFillArc(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
                      a1, a2);
+            XWUNLOCK();
 
         }
         if (indisp(win)) { /* do it again for the current screen */
 
             curoff(win); /* hide the cursor */
             /* draw the ellipse */
+            XWLOCK();
             XFillArc(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
                      a1, a2);
+            XWUNLOCK();
             curon(win); /* show the cursor */
 
         }
+        XWLOCK();
         XSetArcMode(padisplay, sc->xcxt, ArcPieSlice); /* set pie mode */
         /* reset foreground function */
         XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
+        XWUNLOCK();
 
     }
 
@@ -5211,25 +5377,33 @@ void pa_ftriangle(FILE* f, int x1, int y1, int x2, int y2, int x3, int y3)
     pa[2].y = y3;
 
     /* set foreground function */
+    XWLOCK();
     XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
+    XWUNLOCK();
     if (win->bufmod) { /* buffer is active */
 
         /* draw the triangle */
+        XWLOCK();
         XFillPolygon(padisplay, sc->xbuf, sc->xcxt, pa, 3, Convex,
                      CoordModeOrigin);
+        XWUNLOCK();
 
     }
     if (indisp(win)) { /* do it again for the current screen */
 
         curoff(win); /* hide the cursor */
         /* draw the ellipse */
+        XWLOCK();
         XFillPolygon(padisplay, win->xwhan, sc->xcxt, pa, 3, Convex,
                      CoordModeOrigin);
+        XWUNLOCK();
         curon(win); /* show the cursor */
 
     }
     /* reset foreground function */
+    XWLOCK();
     XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
+    XWUNLOCK();
 
 }
 
@@ -5251,12 +5425,16 @@ void pa_setpixel(FILE* f, int x, int y)
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
     /* set foreground function */
+    XWLOCK();
     XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
+    XWUNLOCK();
     if (win->bufmod) { /* buffer is active */
 
         curoff(win); /* hide the cursor */
         /* draw the pixel */
+        XWLOCK();
         XDrawPoint(padisplay, sc->xbuf, sc->xcxt, x-1, y-1);
+        XWUNLOCK();
         curon(win); /* show the cursor */
 
     }
@@ -5264,12 +5442,16 @@ void pa_setpixel(FILE* f, int x, int y)
 
         curoff(win); /* hide the cursor */
         /* draw the pixel */
+        XWLOCK();
         XDrawPoint(padisplay, win->xwhan, sc->xcxt, x-1, y-1);
+        XWUNLOCK();
         curon(win); /* show the cursor */
 
     }
     /* reset foreground function */
+    XWLOCK();
     XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
+    XWUNLOCK();
 
 }
 
@@ -5510,7 +5692,9 @@ void pa_linewidth(FILE* f, int w)
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1]; /* index update screen */
+    XWLOCK();
     XSetLineAttributes(padisplay, sc->xcxt, w, LineSolid, CapButt, JoinMiter);
+    XWUNLOCK();
 
 }
 
@@ -5612,7 +5796,9 @@ void pa_font(FILE* f, int fc)
     win->gcfont = fp;
     setfnt(win); /* select the font */
     /* select to context */
+    XWLOCK();
     XSetFont(padisplay, sc->xcxt, win->xfont->fid);
+    XWUNLOCK();
     curon(win); /* replace cursor with new font characteristics */
 
 }
@@ -5671,7 +5857,9 @@ void pa_fontsiz(FILE* f, int s)
     win->gfhigh = s; /* set new font height */
     setfnt(win); /* select the font */
     /* select to context */
+    XWLOCK();
     XSetFont(padisplay, sc->xcxt, win->xfont->fid);
+    XWUNLOCK();
     curon(win); /* replace cursor with new font characteristics */
 
 }
@@ -5770,10 +5958,14 @@ int pa_strsiz(FILE* f, const char* s)
 {
 
     winptr win; /* window pointer */
+    int    rv;
 
     win = txt2win(f); /* get window pointer from text file */
+    XWLOCK();
+    rv = XTextWidth(win->xfont, s, strlen(s)); /* return value */
+    XWUNLOCK();
 
-    return (XTextWidth(win->xfont, s, strlen(s))); /* return value */
+    return (rv);
 
 }
 
@@ -5790,10 +5982,15 @@ int pa_chrpos(FILE* f, const char* s, int p)
 {
 
     winptr win; /* window pointer */
+    int    rv;
 
     win = txt2win(f); /* get window pointer from text file */
 
-    return (XTextWidth(win->xfont, s, p-1)); /* return value */
+    XWLOCK();
+    rv = XTextWidth(win->xfont, s, p-1); /* return value */
+    XWUNLOCK();
+
+    return (rv);
 
 }
 
@@ -5860,6 +6057,7 @@ void pa_writejust(FILE* f, const char* s, int n)
 
                 if (sc->bmod != mdinvis) { /* background is visible */
 
+                    XWLOCK();
                     /* set background function */
                     XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->bmod]);
                     /* set background to foreground to draw character background */
@@ -5875,6 +6073,7 @@ void pa_writejust(FILE* f, const char* s, int n)
                     else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
                     /* reset background function */
                     XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
+                    XWUNLOCK();
 
                 }
 
@@ -5886,6 +6085,7 @@ void pa_writejust(FILE* f, const char* s, int n)
 
                 if (sc->bmod != mdinvis) { /* background is visible */
 
+                    XWLOCK();
                     /* set background function */
                     XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->bmod]);
                     /* set background to foreground to draw character background */
@@ -5901,6 +6101,7 @@ void pa_writejust(FILE* f, const char* s, int n)
                     else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
                     /* reset background function */
                     XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
+                    XWUNLOCK();
 
                 }
 
@@ -6030,7 +6231,9 @@ void pa_condensed(FILE* f, int e)
     curoff(win); /* remove cursor with old font characteristics */
     setfnt(win); /* select the font */
     /* select to context */
+    XWLOCK();
     XSetFont(padisplay, sc->xcxt, win->xfont->fid);
+    XWUNLOCK();
     curon(win); /* replace cursor with new font characteristics */
 
 }
@@ -6073,7 +6276,9 @@ void pa_extended(FILE* f, int e)
     curoff(win); /* remove cursor with old font characteristics */
     setfnt(win); /* select the font */
     /* select to context */
+    XWLOCK();
     XSetFont(padisplay, sc->xcxt, win->xfont->fid);
+    XWUNLOCK();
     curon(win); /* replace cursor with new font characteristics */
 
 }
@@ -6116,7 +6321,9 @@ void pa_xlight(FILE* f, int e)
     curoff(win); /* remove cursor with old font characteristics */
     setfnt(win); /* select the font */
     /* select to context */
+    XWLOCK();
     XSetFont(padisplay, sc->xcxt, win->xfont->fid);
+    XWUNLOCK();
     curon(win); /* replace cursor with new font characteristics */
 
 }
@@ -6159,7 +6366,9 @@ void pa_light(FILE* f, int e)
     curoff(win); /* remove cursor with old font characteristics */
     setfnt(win); /* select the font */
     /* select to context */
+    XWLOCK();
     XSetFont(padisplay, sc->xcxt, win->xfont->fid);
+    XWUNLOCK();
     curon(win); /* replace cursor with new font characteristics */
 
 }
@@ -6202,7 +6411,9 @@ void pa_xbold(FILE* f, int e)
     curoff(win); /* remove cursor with old font characteristics */
     setfnt(win); /* select the font */
     /* select to context */
+    XWLOCK();
     XSetFont(padisplay, sc->xcxt, win->xfont->fid);
+    XWUNLOCK();
     curon(win); /* replace cursor with new font characteristics */
 
 }
@@ -6245,7 +6456,9 @@ void pa_hollow(FILE* f, int e)
     curoff(win); /* remove cursor with old font characteristics */
     setfnt(win); /* select the font */
     /* select to context */
+    XWLOCK();
     XSetFont(padisplay, sc->xcxt, win->xfont->fid);
+    XWUNLOCK();
     curon(win); /* replace cursor with new font characteristics */
 
 }
@@ -6288,7 +6501,9 @@ void pa_raised(FILE* f, int e)
     curoff(win); /* remove cursor with old font characteristics */
     setfnt(win); /* select the font */
     /* select to context */
+    XWLOCK();
     XSetFont(padisplay, sc->xcxt, win->xfont->fid);
+    XWUNLOCK();
     curon(win); /* replace cursor with new font characteristics */
 
 }
@@ -6469,7 +6684,9 @@ void pa_loadpict(FILE* f, int p, char* fn)
     frmdat = (byte*)malloc(pw*ph*4); /* allocate image frame */
     if (!frmdat) error(enomem); /* no memory */
     /* create truecolor image */
+    XWLOCK();
     ip->xi = XCreateImage(padisplay, vi, 24, ZPixmap, 0, frmdat, pw, ph, 32, 0);
+    XWUNLOCK();
 
     pad = (pw*3) % 4; /* find end of row padding */
     pp = frmdat+pw*ph*4-pw*4; /* index last line */
@@ -6603,30 +6820,40 @@ void pa_picture(FILE* f, int p, int x1, int y1, int x2, int y2)
         frmdat = (byte*)malloc(pw*ph*4); /* allocate image frame */
         if (!frmdat) error(enomem); /* no memory */
         /* create truecolor image */
+        XWLOCK();
         fp->xi = XCreateImage(padisplay, vi, 24, ZPixmap, 0, frmdat, pw, ph, 32, 0);
+        XWUNLOCK();
         rescale(fp->xi, pp->xi); /* rescale to new image */
 
     }
     /* set foreground function */
+    XWLOCK();
     XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
+    XWUNLOCK();
     if (win->bufmod) { /* buffer is active */
 
         /* draw the picture */
+        XWLOCK();
         XPutImage(padisplay, sc->xbuf, sc->xcxt, fp->xi, 0, 0, x1-1, y1-1,
                   x2-x1+1, y2-y1+1);
+        XWUNLOCK();
 
     }
     if (indisp(win)) { /* do it again for the current screen */
 
         curoff(win); /* hide the cursor */
         /* draw the rectangle */
+        XWLOCK();
         XPutImage(padisplay, win->xwhan, sc->xcxt, fp->xi, 0, 0,
                              x1-1, y1-1, x2-x1+1, y2-y1+1);
+        XWUNLOCK();
         curon(win); /* show the cursor */
 
     }
     /* reset foreground function */
+    XWLOCK();
     XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
+    XWUNLOCK();
 
 }
 
@@ -6883,12 +7110,16 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
     sc = win->screens[win->curdsp-1]; /* index screen */
     if (e->type == Expose) {
 
+        XWLOCK();
         XCopyArea(padisplay, sc->xbuf, win->xwhan, sc->xcxt, 0, 0,
                   win->gmaxxg, win->gmaxyg, 0, 0);
+        XWUNLOCK();
 
     } else if (e->type == KeyPress) {
 
+        XWLOCK();
         ks = XLookupKeysym(&e->xkey, 0);
+        XWUNLOCK();
         er->etype = pa_etchar; /* place default code */
         if (ks >= ' ' && ks <= 0x7e && !ctrll && !ctrlr && !altl && !altr) {
 
@@ -7012,7 +7243,9 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
 
         /* Petit-ami does not track key releases, but we need to account for
           control and shift keys up/down */
+        XWLOCK();
         ks = XLookupKeysym(&e->xkey, 0); /* find code */
+        XWUNLOCK();
         switch (ks) {
 
             case XK_Shift_L:   shiftl = FALSE; break; /* Left shift */
@@ -7056,10 +7289,16 @@ static void xwinget(pa_evtrec* er, int* keep)
     winptr     win;      /* window record pointer */
     int        ofn;      /* output lfn associated with window */
     static int xcnt = 0; /* XWindow event counter */
+    int        rv;
 
-    if (XPending(padisplay)) {
+    XWLOCK();
+    rv = XPending(padisplay);
+    XWUNLOCK();
+    if (rv) {
 
+        XWLOCK();
         XNextEvent(padisplay, &e); /* get next event */
+        XWUNLOCK();
         if (dmpmsg) {
 
             if (e.type != NoExpose && e.type != Expose) {
@@ -7095,7 +7334,9 @@ void pa_event(FILE* f, pa_evtrec* er)
     int        i;
 
     /* make sure all drawing is complete before we take inputs */
+    XWLOCK();
     XFlush(padisplay);
+    XWUNLOCK();
     keep = FALSE; /* set do not keep event */
     dfid = ConnectionNumber(padisplay); /* find XWindow display fid */
     do {
@@ -7108,6 +7349,9 @@ void pa_event(FILE* f, pa_evtrec* er)
             if (FD_ISSET(i, &ifdsets)) {
 
             FD_CLR(i, &ifdsets); /* remove event from input sets */
+            XWLOCK();
+            rv = XPending(padisplay);
+            XWUNLOCK();
             if (opnfil[i] && opnfil[i]->tim) { /* do timer event */
 
                 win = opnfil[i]->twin; /* get window containing timer */
@@ -7118,7 +7362,7 @@ void pa_event(FILE* f, pa_evtrec* er)
                 /* clear the timer by reading it */
                 read(i, &exp, sizeof(uint64_t));
 
-            } else if (i == dfid && XPending(padisplay))
+            } else if (i == dfid && rv)
                 xwinget(er, &keep);
             else if (i == joyfid && joyenb)
                 joyevt(er, &keep); /* process joystick events */
@@ -7548,8 +7792,10 @@ void pa_title(FILE* f, char* ts)
     winptr win; /* windows record pointer */
 
     win = txt2win(f); /* get window from file */
+    XWLOCK();
     XStoreName(padisplay, win->xwhan, ts);
     XSetIconName(padisplay, win->xwhan, ts);
+    XWUNLOCK();
 
 }
 
@@ -8964,6 +9210,9 @@ static void pa_init_graphics(int argc, char *argv[])
     char*     errstr;
     int       fi;
 
+    /* initialize the XWindow lock */
+    pthread_mutex_init(&xwlock, NULL);
+
     /* turn off I/O buffering */
     setvbuf(stdin, NULL, _IONBF, 0);
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -9015,7 +9264,7 @@ static void pa_init_graphics(int argc, char *argv[])
 
     }
 
-        /* get setup configuration */
+    /* get setup configuration */
     config_root = NULL;
     pa_config(&config_root);
 
@@ -9066,14 +9315,18 @@ static void pa_init_graphics(int argc, char *argv[])
     }
 
     /* find existing display */
+    XWLOCK();
     padisplay = XOpenDisplay(NULL);
+    XWUNLOCK();
     if (padisplay == NULL) {
 
         fprintf(stderr, "Cannot open display\n");
         exit(1);
 
     }
+    XWLOCK();
     pascreen = DefaultScreen(padisplay);
+    XWUNLOCK();
 
     /* load the XWindow font set */
     getfonts();
@@ -9087,7 +9340,9 @@ static void pa_init_graphics(int argc, char *argv[])
     FD_ZERO(&ifdseta);
 
     /* select XWindow display file */
+    XWLOCK();
     dfid = ConnectionNumber(padisplay);
+    XWUNLOCK();
     FD_SET(dfid, &ifdseta);
     ifdmax = dfid+1; /* set maximum fid for select() */
 
@@ -9166,10 +9421,12 @@ static void pa_deinit_graphics()
 		free(trmnam); /* free up termination name */
 
 	}
+	XWLOCK();
 	/* destroy the main window */
 	XDestroyWindow(padisplay, win->xwhan);
     /* close X Window */
     XCloseDisplay(padisplay);
+    XWUNLOCK();
 
     /* close joystick */
     close(joyfid);
@@ -9185,5 +9442,8 @@ static void pa_deinit_graphics()
     if (cppread != iread || cppwrite != iwrite || cppopen != iopen ||
         cppclose != iclose || cpplseek != ilseek)
         error(esystem);
+
+    /* release the XWindow call lock */
+    pthread_mutex_destroy(&xwlock);
 
 }

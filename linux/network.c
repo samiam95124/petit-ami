@@ -79,6 +79,7 @@
 #include <openssl/x509v3.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <pthread.h>
 
 /* Petit-Ami definitions */
 #include <localdefs.h>
