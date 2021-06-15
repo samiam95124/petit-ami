@@ -941,7 +941,7 @@ static void fpictspeed(int t, int* s)
     pa_auto(stdout, FALSE);
     pa_curvis(stdout, FALSE);
     putchar('\f');
-    pa_loadpict(stdout, 1, "mypic");
+    pa_loadpict(stdout, 1, "tests/mypic");
     c = pa_clock();
     for (i = 1; i <= t; i++) {
 
@@ -968,7 +968,7 @@ static void fpictnsspeed(int t, int* s)
     pa_auto(stdout, FALSE);
     pa_curvis(stdout, FALSE);
     putchar('\f');
-    pa_loadpict(stdout, 1, "mypic");
+    pa_loadpict(stdout, 1, "tests/mypic");
     xs = pa_pictsizx(stdout, 1);
     ys = pa_pictsizy(stdout, 1);
     c = pa_clock();
@@ -997,7 +997,7 @@ int main(void)
     if (setjmp(terminate_buf)) goto terminate;
     pa_curvis(stdout, FALSE);
     pa_binvis(stdout);
-#if 1
+#if 0
     printf("Graphics screen test vs. 0.1\n");
     printf("\n");
     printf("Screen size in characters: x -> %d y -> %d\n", pa_maxx(stdout),
@@ -1054,7 +1054,6 @@ int main(void)
 
    /* ***************************** Standard Fonts test *********************** */
 
-#endif
     putchar('\f');
     chrgrid();
     prtcen(pa_maxy(stdout), "Standard fonts test");
@@ -1779,29 +1778,35 @@ int main(void)
 
     pa_binvis(stdout);
     w = 1;
+    xspace = pa_maxxg(stdout)/40;
+    yspace = pa_maxyg(stdout)/40;
     while (w < 10) {
 
         putchar('\f');
         grid();
         printf("Linewidth: %d\n", w);
-        l = 10;
-        x = 20;
+        l = pa_maxxg(stdout)/40;
+        x = xspace;
         y = pa_curyg(stdout);
         c = pa_black;
         aa = 0;
         ab = INT_MAX / 360*90;
-        while (y+l*2 < pa_maxyg(stdout)-20) {
+        while (y+l*2 < pa_maxyg(stdout)-yspace) {
 
-            while (x+l*2 < pa_maxxg(stdout)-20) {
+            while (x+l*2 < pa_maxxg(stdout)-xspace) {
 
+                pa_fcolor(stdout, pa_red);
+                pa_linewidth(stdout, 1);
+                pa_rect(stdout, x, y, x+l*2, y+l*2);
+                pa_fcolor(stdout, pa_black);
                 pa_linewidth(stdout, w);
                 pa_arc(stdout, x, y, x+l*2, y+l*2, aa, ab);
-                x = x+l*2+20;
-                l = l+10;
+                x = x+l*2+xspace;
+                l = l+pa_maxxg(stdout)/60;
 
             }
-            x = 10;
-            y = y+l*2+10;
+            x = xspace;
+            y = y+l*2+yspace;
 
         }
         pa_binvis(stdout);
@@ -1813,31 +1818,38 @@ int main(void)
 
     /* ************************ Arc test 3 ************************ */
 
+#endif
     pa_binvis(stdout);
     w = 1;
+    xspace = pa_maxxg(stdout)/25;
+    yspace = xspace;
     while (w < 10) {
 
         putchar('\f');
         grid();
         printf("Linewidth: %d\n", w);
-        l = 30;
-        x = 20;
+        l = xspace;
+        x = xspace;
         y = pa_curyg(stdout);
         c = pa_black;
         aa = 0;
         ab = 10;
-        while (y+l*2 < pa_maxyg(stdout)-20 && ab <= 360) {
+        while (y+l*2 < pa_maxyg(stdout)-yspace && ab <= 360) {
 
-            while (x+l*2 < pa_maxxg(stdout)-20 && ab <= 360) {
+            while (x+l*2 < pa_maxxg(stdout)-xspace && ab <= 360) {
 
+                pa_fcolor(stdout, pa_red);
+                pa_linewidth(stdout, 1);
+                pa_rect(stdout, x, y, x+l*2, y+l*2);
+                pa_fcolor(stdout, pa_black);
                 pa_linewidth(stdout, w);
                 pa_arc(stdout, x, y, x+l*2, y+l*2, aa*DEGREE, ab*DEGREE);
-                x = x+l*2+20;
+                x = x+l*2+xspace;
                 ab = ab+10;
 
             }
-            x = 10;
-            y = y+l*2+20;
+            x = xspace;
+            y = y+l*2+yspace;
 
         }
         pa_binvis(stdout);
@@ -1851,29 +1863,35 @@ int main(void)
 
     pa_binvis(stdout);
     w = 1;
+    xspace = pa_maxxg(stdout)/25;
+    yspace = xspace;
     while (w < 10) {
 
         putchar('\f');
         grid();
         printf("Linewidth: %d\n", w);
-        l = 30;
-        x = 20;
+        l = xspace;
+        x = xspace;
         y = pa_curyg(stdout);
         c = pa_black;
         aa = 0;
         ab = 360;
-        while (y+l*2 < pa_maxyg(stdout)-20 && ab <= 360) {
+        while (y+l*2 < pa_maxyg(stdout)-yspace && aa < 360) {
 
-            while (x+l*2 < pa_maxxg(stdout)-20 && ab <= 360) {
+            while (x+l*2 < pa_maxxg(stdout)-xspace && aa < 360) {
 
+                pa_fcolor(stdout, pa_red);
+                pa_linewidth(stdout, 1);
+                pa_rect(stdout, x, y, x+l*2, y+l*2);
+                pa_fcolor(stdout, pa_black);
                 pa_linewidth(stdout, w);
                 pa_arc(stdout, x, y, x+l*2, y+l*2, aa*DEGREE, ab*DEGREE);
-                x = x+l*2+20;
+                x = x+l*2+xspace;
                 aa = aa+10;
 
             }
-            x = 10;
-            y = y+l*2+20;
+            x = xspace;
+            y = y+l*2+yspace;
 
         }
         pa_binvis(stdout);
@@ -2544,10 +2562,10 @@ int main(void)
 
     putchar('\f');
     grid();
-    pa_loadpict(stdout, 1, "mypic");
+    pa_loadpict(stdout, 1, "tests/mypic");
     printf("Picture size for 1: x: %d y: %d\n", pa_pictsizx(stdout, 1),
            pa_pictsizy(stdout, 1));
-    pa_loadpict(stdout, 2, "mypic1.bmp");
+    pa_loadpict(stdout, 2, "tests/mypic1.bmp");
     printf("Picture size for 2: x: %d y: %d\n", pa_pictsizx(stdout, 2),
            pa_pictsizy(stdout, 2));
     pa_picture(stdout, 1, 50, 50, 100, 100);
