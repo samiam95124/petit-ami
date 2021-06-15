@@ -997,7 +997,7 @@ int main(void)
     if (setjmp(terminate_buf)) goto terminate;
     pa_curvis(stdout, FALSE);
     pa_binvis(stdout);
-#if 0
+#if 1
     printf("Graphics screen test vs. 0.1\n");
     printf("\n");
     printf("Screen size in characters: x -> %d y -> %d\n", pa_maxx(stdout),
@@ -1054,6 +1054,7 @@ int main(void)
 
    /* ***************************** Standard Fonts test *********************** */
 
+#endif
     putchar('\f');
     chrgrid();
     prtcen(pa_maxy(stdout), "Standard fonts test");
@@ -1079,7 +1080,6 @@ int main(void)
     if (strlen(fns) > 0) {
 
         pa_font(stdout, PA_FONT_BOOK);
-        //pa_fontsiz(stdout, 20);
         printf("This is the book font: System name: \"%s\"\n", fns);
         printf("Size x -> %d y -> %d\n", pa_chrsizx(stdout), pa_chrsizy(stdout));
         prtall();
@@ -1095,7 +1095,6 @@ int main(void)
     if (strlen(fns) > 0) {
 
         pa_font(stdout, PA_FONT_SIGN);
-        //pa_fontsiz(stdout, 20);
         printf("This is the sign font: System name: \"%s\"\n", fns);
         printf("Size x -> %d y -> %d\n", pa_chrsizx(stdout), pa_chrsizy(stdout));
         prtall();
@@ -1111,7 +1110,6 @@ int main(void)
     if (strlen(fns) > 0) {
 
         pa_font(stdout, PA_FONT_TECH);
-        //pa_fontsiz(stdout, 20);
         printf("This is the technical font: System name: \"%s\"\n", fns);
         printf("Size x -> %d y -> %d\n", pa_chrsizx(stdout), pa_chrsizy(stdout));
         prtall();
@@ -2444,7 +2442,6 @@ int main(void)
 
     /* ************************** Extended effects test ************************ */
 
-#endif
     putchar('\f');
     grid();
     pa_auto(stdout, OFF);

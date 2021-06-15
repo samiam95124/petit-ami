@@ -1024,36 +1024,26 @@ void prtfnt(void)
 
 {
 
-    fontptr fp;
-    int     c;
+    fontptr  fp;
+    int      c;
+    xcaplst* cp;
 
     fp = fntlst;
     c = 1;
     while (fp) {
 
         dbg_printf(dlinfo, "Font %2d: %s Capabilities: ", c, fp->fn);
-        if (fp->caps & BIT(xcnormal)) fprintf(stderr, "normal ");
-        if (fp->caps & BIT(xcmedium)) fprintf(stderr, "medium ");
-        if (fp->caps & BIT(xcbold)) fprintf(stderr, "bold ");
-        if (fp->caps & BIT(xcdemibold)) fprintf(stderr, "demibold ");
-        if (fp->caps & BIT(xcdark)) fprintf(stderr, "dark ");
-        if (fp->caps & BIT(xclight)) fprintf(stderr, "light ");
-
-        if (fp->caps & BIT(xcroman)) fprintf(stderr, "roman ");
-        if (fp->caps & BIT(xcital)) fprintf(stderr, "italic ");
-        if (fp->caps & BIT(xcoblique)) fprintf(stderr, "oblique ");
-        if (fp->caps & BIT(xcrital)) fprintf(stderr, "ritalic ");
-        if (fp->caps & BIT(xcroblique)) fprintf(stderr, "roblique ");
-
-        if (fp->caps & BIT(xcnormalw)) fprintf(stderr, "normalw ");
-        if (fp->caps & BIT(xcnarrow)) fprintf(stderr, "narrow ");
-        if (fp->caps & BIT(xccondensed)) fprintf(stderr, "condensed ");
-        if (fp->caps & BIT(xcsemicondensed)) fprintf(stderr, "semicondensed ");
-
-        if (fp->caps & BIT(xcproportional)) fprintf(stderr, "proportional ");
-        if (fp->caps & BIT(xcmonospace)) fprintf(stderr, "monospace ");
-        if (fp->caps & BIT(xcchar)) fprintf(stderr, "char ");
+        prtxcset(fp->caps);
         fprintf(stderr, "\n");
+        cp = fp->caplst;
+        while (cp) {
+
+            fprintf(stderr, "    ");
+            prtxcset(cp->caps);
+            fprintf(stderr, "\n");
+            cp = cp->next;
+
+        }
         fp = fp->next;
         c++;
 
@@ -1154,6 +1144,7 @@ void stdfont(void)
     fp->fn = sp->fn;
     fp->fix = sp->fix;
     fp->caps = sp->caps;
+    fp->caplst = sp->caplst;
     fp->next = nfl; /* insert to target list */
     nfl = fp;
     fntcnt++; /* add to font count */
@@ -1378,6 +1369,7 @@ void getfonts(void)
     /* print resulting font list */
     dbg_printf(dlinfo, "Internal font list:\n");
     prtfnt();
+    fflush(stderr);
 #endif
 
 }
