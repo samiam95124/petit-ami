@@ -5022,7 +5022,7 @@ void pa_ellipse(FILE* f, int x1, int y1, int x2, int y2)
 
         /* draw the ellipse */
         XWLOCK();
-        XDrawArc(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
+        XDrawArc(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1, y2-y1,
                  0, 360*64);
         XWUNLOCK();
 
@@ -5032,7 +5032,7 @@ void pa_ellipse(FILE* f, int x1, int y1, int x2, int y2)
         curoff(win); /* hide the cursor */
         /* draw the ellipse */
         XWLOCK();
-        XDrawArc(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
+        XDrawArc(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1, y2-y1,
                  0, 360*64);
         XWUNLOCK();
         curon(win); /* show the cursor */
@@ -5171,7 +5171,7 @@ void pa_arc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
 
             /* draw the arc */
             XWLOCK();
-            XDrawArc(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
+            XDrawArc(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1, y2-y1,
             		 a1, a2);
             XWUNLOCK();
 
@@ -5181,7 +5181,7 @@ void pa_arc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
             curoff(win); /* hide the cursor */
             /* draw the arc */
             XWLOCK();
-            XDrawArc(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
+            XDrawArc(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1, y2-y1,
             		 a1, a2);
             XWUNLOCK();
             curon(win); /* show the cursor */
@@ -5202,6 +5202,9 @@ Draw filled arc
 
 Draws a filled arc in the current foreground color. The same comments apply
 as for the arc function above.
+
+Note: XWindows was found to be off the origin by 1, so we put corrections in for
+this.
 
 *******************************************************************************/
 
@@ -5243,8 +5246,8 @@ void pa_farc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
 
             /* draw the ellipse */
             XWLOCK();
-            XFillArc(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
-                     a1, a2);
+            XFillArc(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1+1,
+                     y2-y1+1, a1, a2);
             XWUNLOCK();
 
         }
@@ -5253,8 +5256,8 @@ void pa_farc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
             curoff(win); /* hide the cursor */
             /* draw the ellipse */
             XWLOCK();
-            XFillArc(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
-                     a1, a2);
+            XFillArc(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1+1,
+                     y2-y1+1, a1, a2);
             XWUNLOCK();
             curon(win); /* show the cursor */
 

@@ -1818,7 +1818,6 @@ int main(void)
 
     /* ************************ Arc test 3 ************************ */
 
-#endif
     pa_binvis(stdout);
     w = 1;
     xspace = pa_maxxg(stdout)/25;
@@ -1929,27 +1928,32 @@ int main(void)
     /* ************************ filled arc test 2 ************************ */
 
     putchar('\f');
+    xspace = pa_maxxg(stdout)/40;
+    yspace = pa_maxyg(stdout)/40;
     grid();
-    l = 10;
-    x = 20;
-    y = 20;
+    l = pa_maxxg(stdout)/50;
+    x = xspace;
+    y = yspace;
     c = pa_black;
     aa = 0;
     ab = INT_MAX / 360*90;
-    while (y+l*2 < pa_maxyg(stdout)-20) {
+    while (y+l*2 < pa_maxyg(stdout)-yspace) {
 
-        while (x+l*2 < pa_maxxg(stdout)-20) {
+        while (x+l*2 < pa_maxxg(stdout)-xspace) {
 
+            pa_fcolor(stdout, pa_red);
+            pa_linewidth(stdout, 1);
+            pa_rect(stdout, x, y, x+l*2, y+l*2);
             pa_fcolor(stdout, c);
             pa_farc(stdout, x, y, x+l*2, y+l*2, aa, ab);
-            x = x+l*2+20;
-            l = l+10;
+            x = x+l*2+xspace;
+            l = l+pa_maxxg(stdout)/40;
             if (c < pa_magenta) c++; else c = pa_black;
             if (c == pa_white) c++;
 
         }
-        x = 20;
-        y = y+l*2+10;
+        x = xspace;
+        y = y+l*2+yspace;
 
     }
     pa_binvis(stdout);
@@ -1960,27 +1964,29 @@ int main(void)
     /* ************************ Filled arc test 3 ************************ */
 
     putchar('\f');
+    xspace = pa_maxxg(stdout)/40;
+    yspace = pa_maxyg(stdout)/40;
     grid();
-    l = 30;
-    x = 20;
-    y = 20;
+    l = pa_maxxg(stdout)/21;
+    x = xspace;
+    y = yspace;
     c = pa_black;
     aa = 0;
     ab = 10;
-    while (y+l*2 < pa_maxyg(stdout)-20 && ab <= 360) {
+    while (y+l*2 < pa_maxyg(stdout)-yspace && ab <= 360) {
 
-        while (x+l*2 < pa_maxxg(stdout)-20 && ab <= 360) {
+        while (x+l*2 < pa_maxxg(stdout)-xspace && ab <= 360) {
 
             pa_fcolor(stdout, c);
             pa_farc(stdout, x, y, x+l*2, y+l*2, aa*DEGREE, ab*DEGREE);
-            x = x+l*2+20;
+            x = x+l*2+xspace;
             ab = ab+10;
             if (c < pa_magenta) c++; else c = pa_black;
             if (c == pa_white) c++;
 
         }
-        x = 20;
-        y = y+l*2+20;
+        x = xspace;
+        y = y+l*2+yspace;
 
     }
     pa_binvis(stdout);
@@ -1991,27 +1997,29 @@ int main(void)
     /* ************************ Filled arc test 4 ************************ */
 
     putchar('\f');
+    xspace = pa_maxxg(stdout)/40;
+    yspace = pa_maxyg(stdout)/40;
     grid();
-    l = 30;
-    x = 20;
-    y = 20;
+    l = pa_maxxg(stdout)/21;
+    x = xspace;
+    y = yspace;
     c = pa_black;
     aa = 0;
     ab = 360;
-    while (y+l*2 < pa_maxyg(stdout)-20 && ab <= 360) {
+    while (y+l*2 < pa_maxyg(stdout)-yspace && aa < 360) {
 
-        while (x+l*2 < pa_maxxg(stdout)-20 && ab <= 360) {
+        while (x+l*2 < pa_maxxg(stdout)-xspace && aa < 360) {
 
             pa_fcolor(stdout, c);
             pa_farc(stdout, x, y, x+l*2, y+l*2, aa*DEGREE, ab*DEGREE);
-            x = x+l*2+20;
+            x = x+l*2+xspace;
             aa = aa+10;
             if (c < pa_magenta) c++; else c = pa_black;
             if (c == pa_white) c++;
 
         }
-        x = 20;
-        y = y+l*2+20;
+        x = xspace;
+        y = y+l*2+yspace;
 
     }
     pa_binvis(stdout);
@@ -2047,27 +2055,29 @@ int main(void)
     /* ************************ filled chord test 2 ************************ */
 
     putchar('\f');
+    xspace = pa_maxxg(stdout)/50;
+    yspace = xspace;
     grid();
-    l = 10;
-    x = 20;
-    y = 20;
+    l = pa_maxxg(stdout)/100;
+    x = xspace;
+    y = yspace;
     c = pa_black;
     aa = 0;
     ab = INT_MAX/360*90;
-    while (y+l*2 < pa_maxyg(stdout)-20) {
+    while (y+l*2 < pa_maxyg(stdout)-yspace) {
 
-        while (x+l*2 < pa_maxxg(stdout)-20) {
+        while (x+l*2 < pa_maxxg(stdout)-xspace) {
 
             pa_fcolor(stdout, c);
             pa_fchord(stdout, x, y, x+l*2, y+l*2, aa, ab);
-            x = x+l*2+20;
-            l = l+10;
+            x = x+l*2+xspace;
+            l = l+pa_maxxg(stdout)/100;
             if (c < pa_magenta) c++; else c = pa_black;
             if (c == pa_white) c++;
 
         }
-        x = 20;
-        y = y+l*2+10;
+        x = xspace;
+        y = y+l*2+yspace;
 
     }
     pa_binvis(stdout);
@@ -2078,27 +2088,29 @@ int main(void)
     /* ************************ Filled chord test 3 ************************ */
 
     putchar('\f');
+    xspace = pa_maxxg(stdout)/50;
+    yspace = xspace;
     grid();
-    l = 30;
-    x = 20;
-    y = 20;
+    l = pa_maxxg(stdout)/20;
+    x = xspace;
+    y = yspace;
     c = pa_black;
     aa = 0;
     ab = 10;
-    while (y+l*2 < pa_maxyg(stdout)-20 && ab <= 360) {
+    while (y+l*2 < pa_maxyg(stdout)-yspace && ab <= 360) {
 
-        while (x+l*2 < pa_maxxg(stdout)-20 && ab <= 360) {
+        while (x+l*2 < pa_maxxg(stdout)-xspace && ab <= 360) {
 
             pa_fcolor(stdout, c);
             pa_fchord(stdout, x, y, x+l*2, y+l*2, aa*DEGREE, ab*DEGREE);
-            x = x+l*2+20;
+            x = x+l*2+xspace;
             ab = ab+10;
             if (c < pa_magenta) c++; else c = pa_black;
             if (c == pa_white) c++;
 
         }
-        x = 20;
-        y = y+l*2+20;
+        x = xspace;
+        y = y+l*2+yspace;
 
     }
     pa_binvis(stdout);
@@ -2109,27 +2121,29 @@ int main(void)
     /* ************************ Filled chord test 4 ************************ */
 
     putchar('\f');
+    xspace = pa_maxxg(stdout)/50;
+    yspace = xspace;
     grid();
-    l = 30;
-    x = 20;
-    y = 20;
+    l = pa_maxxg(stdout)/20;
+    x = xspace;
+    y = yspace;
     c = pa_black;
     aa = 0;
     ab = 360;
-    while (y+l*2 < pa_maxyg(stdout)-20 && ab <= 360) {
+    while (y+l*2 < pa_maxyg(stdout)-yspace && aa < 360) {
 
-        while (x+l*2 < pa_maxxg(stdout)-20 && ab <= 360) {
+        while (x+l*2 < pa_maxxg(stdout)-xspace && aa < 360) {
 
             pa_fcolor(stdout, c);
             pa_fchord(stdout, x, y, x+l*2, y+l*2, aa*DEGREE, ab*DEGREE);
-            x = x+l*2+20;
+            x = x+l*2+xspace;
             aa = aa+10;
             if (c < pa_magenta) c++; else c = pa_black;
             if (c == pa_white) c++;
 
         }
-        x = 20;
-        y = y+l*2+20;
+        x = xspace;
+        y = y+l*2+yspace;
 
     }
     pa_binvis(stdout);
@@ -2460,6 +2474,7 @@ int main(void)
 
     /* ************************** Extended effects test ************************ */
 
+#endif
     putchar('\f');
     grid();
     pa_auto(stdout, OFF);
