@@ -1324,7 +1324,7 @@ void getfonts(void)
             if (!strncmp(sp, "normal", 6)) xcl->caps |= BIT(xcnormal);
             if (!strncmp(sp, "medium", 6)) xcl->caps |= BIT(xcmedium);
             if (!strncmp(sp, "bold", 4)) xcl->caps |= BIT(xcbold);
-            if (!strncmp(sp, "demibold", 8)) xcl->caps |= BIT(xcdemibold);
+            if (!strncmp(sp, "demi bold", 9)) xcl->caps |= BIT(xcdemibold);
             if (!strncmp(sp, "dark", 4)) xcl->caps |= BIT(xcdark);
             if (!strncmp(sp, "light", 5)) xcl->caps |= BIT(xclight);
 
@@ -1416,7 +1416,7 @@ void selxlfd(winptr win, int caps, string buf, int ht)
     if (caps & BIT(xcnormal)) { strcpy(bp, "normal"); bp += 6; }
     else if (caps & BIT(xcmedium)) { strcpy(bp, "medium"); bp += 6; }
     else if (caps & BIT(xcbold)) { strcpy(bp, "bold"); bp += 4; }
-    else if (caps & BIT(xcdemibold)) { strcpy(bp, "demibold"); bp += 8; }
+    else if (caps & BIT(xcdemibold)) { strcpy(bp, "demi bold"); bp += 9; }
     else if (caps & BIT(xcdark)) { strcpy(bp, "dark"); bp += 4; }
     else if (caps & BIT(xclight)) { strcpy(bp, "light"); bp += 5; }
     *bp++ = '-';
@@ -6251,7 +6251,6 @@ void pa_condensed(FILE* f, int e)
     winptr win; /* windows record pointer */
     scnptr sc;  /* screen pointer */
 
-dbg_printf(dlinfo, "begin\n");
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
     if (e) { /* strikeout on */
@@ -6274,7 +6273,6 @@ dbg_printf(dlinfo, "begin\n");
     XSetFont(padisplay, sc->xcxt, win->xfont->fid);
     XWUNLOCK();
     curon(win); /* replace cursor with new font characteristics */
-dbg_printf(dlinfo, "end\n");
 
 }
 
