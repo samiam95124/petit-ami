@@ -2481,12 +2481,16 @@ int main(void)
     pa_font(stdout, PA_FONT_SIGN);
     pa_condensed(stdout, ON);
     printf("Condensed\n");
+    pa_condensed(stdout, OFF);
     pa_extended(stdout, ON);
     printf("Extended\n");
     pa_extended(stdout, OFF);
     pa_xlight(stdout, ON);
     printf("Extra light\n");
     pa_xlight(stdout, OFF);
+    pa_light(stdout, ON);
+    printf("Light\n");
+    pa_light(stdout, OFF);
     pa_xbold(stdout, ON);
     printf("Extra bold\n");
     pa_xbold(stdout, OFF);

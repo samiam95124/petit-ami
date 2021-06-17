@@ -131,6 +131,7 @@ static enum { /* debug levels */
 
 //#define PRTEVT  /* print outgoing PA events */
 //#define EVTPOL /* poll for X events */
+//#define PRTFNT /* print internal fonts list */
 
 #define MAXBUF 10  /* maximum number of buffers available */
 #define IOWIN  1   /* logical window number of input/output pair */
@@ -221,7 +222,7 @@ typedef enum {
     xcnormal,        /* normal */
     xcmedium,        /* medium */
     xcbold,          /* bold */
-    xcdemibold,      /* demi bold */
+    xcdemibold,      /* demibold */
     xcdark,          /* dark */
     xclight,         /* light */
 
@@ -237,6 +238,7 @@ typedef enum {
     xcnarrow,        /* narrow */
     xccondensed,     /* condensed */
     xcsemicondensed, /* semicondensed */
+    xcexpanded,      /* expanded */
 
     /* spacing */
     xcproportional,  /* proportional */
@@ -585,6 +587,7 @@ static int      joyax;          /* joystick x axis save */
 static int      joyay;          /* joystick y axis save */
 static int      joyaz;          /* joystick z axis save */
 static int      frmfid;         /* framing timer fid */
+static int      cfgcap;         /* "configuration" caps */
 
 /* config settable runtime options */
 static int maxxd;     /* default window dimensions */
@@ -893,6 +896,7 @@ void prtxcset(int caps)
     if (caps & BIT(xcnarrow)) fprintf(stderr, "narrw ");
     if (caps & BIT(xccondensed)) fprintf(stderr, "cond ");
     if (caps & BIT(xcsemicondensed)) fprintf(stderr, "scond ");
+    if (caps & BIT(xcexpanded)) fprintf(stderr, "exp ");
     if (caps & BIT(xcproportional)) fprintf(stderr, "prop ");
     if (caps & BIT(xcmonospace)) fprintf(stderr, "mono ");
     if (caps & BIT(xcchar)) fprintf(stderr, "char ");
@@ -1339,6 +1343,7 @@ void getfonts(void)
             if (!strncmp(sp, "condensed", 9)) xcl->caps |= BIT(xccondensed);
             if (!strncmp(sp, "semicondensed", 13))
                 xcl->caps |= BIT(xcsemicondensed);
+            if (!strncmp(sp, "expanded", 8)) xcl->caps |= BIT(xcexpanded);
 
             /* spacing */
             sp = fldnum(*fp, 11); /* index spacing field */
@@ -1365,7 +1370,7 @@ void getfonts(void)
     /* select the standard fonts */
     stdfont();
 
-#if 0
+#ifdef PRTFNT
     /* print resulting font list */
     dbg_printf(dlinfo, "Internal font list:\n");
     prtfnt();
@@ -1408,20 +1413,28 @@ void selxlfd(winptr win, int caps, string buf, int ht)
     *bp++ = '-';
 
     /* weight */
-    if (caps & BIT(xcbold)) { strcpy(bp, "bold"); bp += 4; }
-    else if (caps & BIT(xclight)) { strcpy(bp, "light"); bp += 5; }
-    else if (caps & BIT(xcnormal)) { strcpy(bp, "normal"); bp += 6; }
+    if (caps & BIT(xcnormal)) { strcpy(bp, "normal"); bp += 6; }
     else if (caps & BIT(xcmedium)) { strcpy(bp, "medium"); bp += 6; }
+    else if (caps & BIT(xcbold)) { strcpy(bp, "bold"); bp += 4; }
+    else if (caps & BIT(xcdemibold)) { strcpy(bp, "demibold"); bp += 8; }
+    else if (caps & BIT(xcdark)) { strcpy(bp, "dark"); bp += 4; }
+    else if (caps & BIT(xclight)) { strcpy(bp, "light"); bp += 5; }
     *bp++ = '-';
 
     /* slant */
+    if (caps & BIT(xcroman)) { strcpy(bp, "r"); bp += 1; }
     if (caps & BIT(xcital)) { strcpy(bp, "i"); bp += 1; }
-    else if (caps & BIT(xcroman)) { strcpy(bp, "r"); bp += 1; }
+    else if (caps & BIT(xcoblique)) { strcpy(bp, "o"); bp += 1; }
+    else if (caps & BIT(xcrital)) { strcpy(bp, "ri"); bp += 2; }
+    else if (caps & BIT(xcroblique)) { strcpy(bp, "ro"); bp += 2; }
     *bp++ = '-';
 
     /* widths */
-    if (caps & BIT(xccondensed)) { strcpy(bp, "condensed"); bp += 9; }
-    else if (caps & BIT(xcnormalw)) { strcpy(bp, "normal"); bp += 6; }
+    if (caps & BIT(xcnormalw)) { strcpy(bp, "normal"); bp += 6; }
+    else if (caps & BIT(xcnarrow)) { strcpy(bp, "narrow"); bp += 6; }
+    else if (caps & BIT(xccondensed)) { strcpy(bp, "condensed"); bp += 9; }
+    else if (caps & BIT(xcsemicondensed)) { strcpy(bp, "semicondensed"); bp += 13; }
+    else if (caps & BIT(xcexpanded)) { strcpy(bp, "expanded"); bp += 8; }
     *bp++ = '-';
 
     /* additional style (empty) */
@@ -1444,9 +1457,9 @@ void selxlfd(winptr win, int caps, string buf, int ht)
     *bp++ = '-';
 
     /* spacing  */
-    if (caps & BIT(xcmonospace)) { strcpy(bp, "m"); bp += 1; }
+    if (caps & BIT(xcproportional)) { strcpy(bp, "p"); bp += 1; }
+    else if (caps & BIT(xcmonospace)) { strcpy(bp, "m"); bp += 1; }
     else if (caps & BIT(xcchar)) { strcpy(bp, "c"); bp += 1; }
-    else if (caps & BIT(xcproportional)) { strcpy(bp, "p"); bp += 1; }
     *bp++ = '-';
 
     /* average width */
@@ -1462,10 +1475,10 @@ void selxlfd(winptr win, int caps, string buf, int ht)
 
 /*******************************************************************************
 
-Find matching XWindows font capabilities
+Find requested XWindows font capabilities
 
-Finds the set of matching font capabilities to the given attributes. Returns
-the set of XWindows font capabilities.
+Finds the set of XWindows capabilities that are requested in the set of PA
+attributes.
 
 *******************************************************************************/
 
@@ -1480,22 +1493,15 @@ int fndxcap(int caps, int at)
     /* weight */
     if (at & BIT(sabold) && caps & BIT(xcbold)) ncaps |= BIT(xcbold);
     else if (at & BIT(salight) && caps & BIT(xclight)) ncaps |= BIT(xclight);
-    else if (caps & BIT(xcnormal)) ncaps |= BIT(xcnormal);
-    else if (caps & BIT(xcmedium)) ncaps |= BIT(xcmedium);
 
     /* slant */
     if (at & BIT(saital) && caps & BIT(xcital)) ncaps |= BIT(xcital);
-    else if (caps & BIT(xcroman)) ncaps |= BIT(xcroman);
 
     /* widths */
     if (at & BIT(sacondensed) && caps & BIT(xccondensed))
         ncaps |= BIT(xccondensed);
-    else if (caps & BIT(xcnormalw)) ncaps |= BIT(xcnormalw);
-
-    /* spacing  */
-    if (caps & BIT(xcmonospace)) ncaps |= BIT(xcmonospace);
-    else if (caps & BIT(xcchar)) ncaps |= BIT(xcchar);
-    else if (caps & BIT(xcproportional)) ncaps |= BIT(xcproportional);
+    else if (at & BIT(saextended) && caps & BIT(xcexpanded))
+        ncaps |= BIT(xcexpanded);
 
     return (ncaps); /* return new capabilities */
 
@@ -1515,17 +1521,52 @@ Returns the resulting set of XWindow capabilities as a set.
 
 *******************************************************************************/
 
+/* find number of bits in set */
+int bitcnt(int i)
+
+{
+
+    int c, b;
+
+    c = 0;
+    b = 1;
+    while (b >= 0) { /* this will overflow negative */
+
+        if (i & b) c++;
+        b <<= 1;
+
+    }
+
+}
+
 /* find if capabilities set matches one from list */
-int matchcap(int caps, xcaplst* cl)
+int matchcap(int caps, xcaplst* cl, int* mc)
 
 {
 
     int fnd; /* found/not found flag */
+    int bn, bn2;  /* bit number */
 
     fnd = FALSE; /* set not found */
+    bn = INT_MAX; /* set bit number maximum */
     while (cl) {
 
-        if (cl->caps == caps) fnd = TRUE;
+        /* all of the requested capability bits must also exist in the target
+           capabilities */
+        if ((cl->caps&caps) == caps) {
+
+            /* find number of configuring bits in new set */
+            bn2 = bitcnt(cl->caps & cfgcap);
+            if (bn2 < bn) {
+
+                /* fewer side effects */
+                fnd = TRUE; /* set found */
+                *mc = cl->caps; /* return what was matched */
+                bn = bn2; /* set new minimum */
+
+            }
+
+        }
         cl = cl->next;
 
     }
@@ -1556,13 +1597,14 @@ int fndxcapp(fontptr fp, int at)
         saextended,  /* extended */
         saital,      /* italic text */
         sabold,      /* bold text */
-        0
+        INT_MAX      /* end */
 
     };
 
     int caps;
     int match;
-    int ia;
+    int ia, lia;
+    int mc;
 
     ia = 0;
     match = FALSE;
@@ -1573,20 +1615,24 @@ int fndxcapp(fontptr fp, int at)
         /* find capabilities from this set of attributes */
         caps = fndxcap(fp->caps, at);
 //dbg_printf(dlinfo, "caps: "); prtxcset(caps); fprintf(stderr, "\n"); fflush(stderr);
-        if (matchcap(caps, fp->caplst)) match = TRUE; /* found a match */
+        if (matchcap(caps, fp->caplst, &mc)) match = TRUE; /* found a match */
         else { /* try again */
 
+//dbg_printf(dlinfo, "Will remove: "); prtatset(BIT(cappri[ia])); fprintf(stderr, "\n"); fflush(stderr);
             at &= ~BIT(cappri[ia]); /* remove attribute by priority */
+            lia = ia; /* save select */
             ia++; /* next attribute */
 
         }
 
-    } while (!match && cappri[ia]); /* until found or no more attributes */
+    } while (!match &&
+             (cappri[lia] != INT_MAX)); /* until found or no more attributes */
     /* if we still have not found anything, it has to be a system error, since
        we all attributes */
     if (!match) error(esystem);
+//dbg_printf(dlinfo, "matching caps: "); prtxcset(mc); fprintf(stderr, "\n"); fflush(stderr);
 
-    return (caps); /* return matching caps */
+    return (mc); /* return matching caps */
 
 }
 
@@ -3865,9 +3911,6 @@ Turn on bold attribute
 
 Turns on/off the bold attribute.
 Note that the attributes can only be set singly.
-Basically, the only way that I have found to reliably change attributes
-on a PC is to turn it all off, then reset everything, including the
-colors, which an ATTRIBUTE command seems to mess with !
 
 *******************************************************************************/
 
@@ -6208,6 +6251,7 @@ void pa_condensed(FILE* f, int e)
     winptr win; /* windows record pointer */
     scnptr sc;  /* screen pointer */
 
+dbg_printf(dlinfo, "begin\n");
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
     if (e) { /* strikeout on */
@@ -6230,6 +6274,7 @@ void pa_condensed(FILE* f, int e)
     XSetFont(padisplay, sc->xcxt, win->xfont->fid);
     XWUNLOCK();
     curon(win); /* replace cursor with new font characteristics */
+dbg_printf(dlinfo, "end\n");
 
 }
 
@@ -9239,6 +9284,13 @@ static void pa_init_graphics(int argc, char *argv[])
     capslock = FALSE;
 
     esck = FALSE; /* set no previous escape */
+
+    /* set "configuration" XWindow font capabilities */
+    cfgcap = BIT(xcmedium) | BIT(xcbold) | BIT(xcdemibold) | BIT(xcdark) |
+             BIT(xclight) | BIT(xcital) | BIT(xcoblique) | BIT(xcrital) |
+             BIT(xcroblique) | BIT(xcnarrow) | BIT(xccondensed) |
+             BIT(xcsemicondensed) |
+             BIT(xcexpanded);
 
     /* set internal states */
     fend = FALSE; /* set no end of program ordered */
