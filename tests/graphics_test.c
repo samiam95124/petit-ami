@@ -370,11 +370,8 @@ static void grid(void)
 }
 
 /* This is the square2 program */
-
-#define SQUARESIZE (81)
-#define HALFSQUARE (SQUARESIZE/2)
 #define MAXSQUARE  (10)
-#define REPRATE    (1) /* number of moves per frame, should be low */
+#define REPRATE    (2) /* number of moves per frame, should be low */
 
 typedef struct { /* square data record */
 
@@ -384,6 +381,9 @@ typedef struct { /* square data record */
     pa_color c;      /* color */
 
 } balrec;
+
+int squaresize; /* size of square */
+int halfsquare; /* size of 1/2 square */
 
 static balrec baltbl[MAXSQUARE];
 
@@ -411,7 +411,7 @@ static void drawsquare(pa_color c, int x, int y)
 {
 
     pa_fcolor(stdout, c); /* set color */
-    pa_frect(stdout, x-HALFSQUARE+1, y-HALFSQUARE+1, x+HALFSQUARE-1, y+HALFSQUARE-1);
+    pa_frect(stdout, x-halfsquare+1, y-halfsquare+1, x+halfsquare-1, y+halfsquare-1);
 
 }
 
@@ -426,8 +426,8 @@ static void movesquare(int s)
     nx = bt->x+bt->xd; /* trial move square */
     ny = bt->y+bt->yd;
     /* check out of bounds and reverse direction */
-    if (nx < HALFSQUARE || nx > pa_maxxg(stdout)-HALFSQUARE+1) bt->xd = -bt->xd;
-    if (ny < HALFSQUARE || ny > pa_maxyg(stdout)-HALFSQUARE+1) bt->yd = -bt->yd;
+    if (nx < halfsquare || nx > pa_maxxg(stdout)-halfsquare+1) bt->xd = -bt->xd;
+    if (ny < halfsquare || ny > pa_maxyg(stdout)-halfsquare+1) bt->yd = -bt->yd;
     bt->x = bt->x+bt->xd; /* move square */
     bt->y = bt->y+bt->yd;
 
@@ -443,12 +443,14 @@ static void squares(void)
     int     done; /* done flag */
     balrec* bt;
 
+    squaresize = pa_maxyg(stdout)/5;
+    halfsquare = squaresize/2;
     /* initalize square data */
     for (i = 0; i < MAXSQUARE; i++) {
 
         bt = &baltbl[i];
-        bt->x = randn(pa_maxxg(stdout)-SQUARESIZE)+HALFSQUARE;
-        bt->y = randn(pa_maxyg(stdout)-SQUARESIZE)+HALFSQUARE;
+        bt->x = randn(pa_maxxg(stdout)-squaresize)+halfsquare;
+        bt->y = randn(pa_maxyg(stdout)-squaresize)+halfsquare;
         if (!randn(TRUE)) bt->xd = +1; else bt->xd = -1;
         if (!randn(TRUE)) bt->yd = +1; else bt->yd = -1;
         bt->lx = bt->x; /* set last position to same */
@@ -490,6 +492,7 @@ static void squares(void)
 
     }
     pa_select(stdout, 1, 1); /* restore buffer surfaces */
+    pa_fover(stdout); /* restore foreground overwrite */
 
 }
 
@@ -2782,7 +2785,7 @@ int main(void)
     printf("Seconds per rectangle %f", s*0.0001/i);
     waitnext();
 
-    i = 100000;
+    i = 1000;
     rrectspeed(1, i, &s);
     benchtab[bnrrect1].iter = i;
     benchtab[bnrrect1].time = s;
@@ -2790,7 +2793,7 @@ int main(void)
     printf("Seconds per rounded rectangle %f\n", s*0.0001/i);
     waitnext();
 
-    i = 100000;
+    i = 1000;
     rrectspeed(10, i, &s);
     benchtab[bnrrect10].iter = i;
     benchtab[bnrrect10].time = s;
@@ -2806,7 +2809,7 @@ int main(void)
     printf("Seconds per filled rectangle %f\n", s*0.0001/i);
     waitnext();
 
-    i = 100000;
+    i = 1000;
     frrectspeed(i, &s);
     benchtab[bnfrrect].iter = i;
     benchtab[bnfrrect].time = s;
@@ -2814,7 +2817,7 @@ int main(void)
     printf("Seconds per filled rounded rectangle %f\n", s*0.0001/i);
     waitnext();
 
-    i = 100000;
+    i = 10000;
     ellipsespeed(1, i, &s);
     benchtab[bnellipse1].iter = i;
     benchtab[bnellipse1].time = s;
@@ -2822,7 +2825,7 @@ int main(void)
     printf("Seconds per ellipse %f\n", s*0.0001/i);
     waitnext();
 
-    i = 100000;
+    i = 10000;
     ellipsespeed(10, i, &s);
     benchtab[bnellipse10].iter = i;
     benchtab[bnellipse10].time = s;
@@ -2830,7 +2833,7 @@ int main(void)
     printf("Seconds per ellipse %f\n", s*0.0001/i);
     waitnext();
 
-    i = 100000;
+    i = 10000;
     fellipsespeed(i, &s);
     benchtab[bnfellipse].iter = i;
     benchtab[bnfellipse].time = s;
