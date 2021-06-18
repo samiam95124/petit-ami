@@ -13,6 +13,8 @@ joystick ioctl interface.
 5. Joystick events and frame timer events must go to either a window or all 
 windows.
 
-6. Xor foreground does not work on text.
+6. Graphical scrolling test does not work (improper fill color to top and left).
 
-7. Graphical scrolling test does not work (improper fill color to top and left).
+7. Need to reconcille windows xor, and or modes with XWindows at some point. 
+Windows does not allow modes on text, reportedly because it does not work with
+antialiasing (it may have worked a long time ago).

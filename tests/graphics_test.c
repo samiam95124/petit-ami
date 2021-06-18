@@ -2611,7 +2611,6 @@ int main(void)
 
     /* ********************** Invisible foreground test ************************ */
 
-#endif
     putchar('\f');
     grid();
     printf("\n");
@@ -2668,6 +2667,7 @@ int main(void)
 
     /* ************************** Graphical scrolling test **************************** */
 
+#endif
     putchar('\f');
     grid();
     pa_binvis(stdout);

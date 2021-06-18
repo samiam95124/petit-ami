@@ -2573,10 +2573,11 @@ void iclear(winptr win)
 
 Scroll screen
 
-Scrolls the ANSI terminal screen by deltas in any given direction. If the scroll
-would move all content off the screen, the screen is simply blanked. Otherwise,
-we find the section of the screen that would remain after the scroll, determine
-its source and destination rectangles, and use a bitblt to move it.
+Scrolls the screen by deltas in any given direction. If the scroll would move
+all content off the screen, the screen is simply blanked. Otherwise, we find the
+section of the screen that would remain after the scroll, determine its source
+and destination rectangles, and use a bitblt to move it.
+
 One speedup for the code would be to use non-overlapping fills for the x-y
 fill after the bitblt.
 
@@ -2616,7 +2617,7 @@ void iscrollg(winptr win, int x, int y)
             fry.x = 0; /* set fill to y lines at bottom */
             fry.w = sc->maxxg-1;
             fry.y = sc->maxyg-y;
-            fry.h = sc->maxyg-1;
+            fry.h = y;
 
         } else { /* move down */
 
@@ -2626,29 +2627,29 @@ void iscrollg(winptr win, int x, int y)
             fry.x = 0; /* set fill to y lines at top */
             fry.w = sc->maxxg-1;
             fry.y = 0;
-            fry.h = abs(y)-1;
+            fry.h = abs(y);
 
         }
         /* set x movement */
-        if (x >= 0) { /* move text left */
+        if (x >= 0) { /* move left */
 
             sx = x; /* from x characters to the right */
             sw = sc->maxxg-x; /* width - x characters */
             dx = 0; /* move to left side */
             /* set fill x character collums at right */
             frx.x = sc->maxxg-x;
-            frx.w = sc->maxxg-1;
+            frx.w = x;
             frx.y = 0;
             frx.h = sc->maxyg-1;
 
-        } else { /* move text right */
+        } else { /* move right */
 
             sx = 0; /* from x left */
             sw = sc->maxxg-abs(x); /* width - x characters */
             dx = abs(x); /* move from left side */
             /* set fill x character collums at left */
             frx.x = 0;
-            frx.w = abs(x)-1;
+            frx.w = abs(x);
             frx.y = 0;
             frx.h = sc->maxyg-1;
 
