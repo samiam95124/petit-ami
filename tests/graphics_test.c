@@ -398,6 +398,7 @@ static int chkbrk(void)
     do { pa_event(stdin, &er); }
     while (er.etype != pa_etframe && er.etype != pa_etterm &&
            er.etype != pa_etchar && er.etype != pa_etenter);
+fprintf(stderr, "er.etype: %d\n", er.etype); fflush(stderr);
     if (er.etype == pa_etterm) { longjmp(terminate_buf, 1); }
     if (er.etype == pa_etchar || er.etype == pa_etenter)
         done = TRUE; /* terminate */
@@ -485,8 +486,10 @@ static void squares(void)
         /* draw squares */
         for (i = 0; i < MAXSQUARE; i++)
             drawsquare(baltbl[i].c, baltbl[i].x, baltbl[i].y);
-        cd = !cd; /* flip display && update surfaces */
-        done = chkbrk(); /* check complete */
+        cd = !cd; /* flip display and update surfaces */
+        //done = chkbrk(); /* check complete */
+waitnext();
+fprintf(stderr, "after chkbrk\n"); fflush(stderr);
 
     }
     pa_select(stdout, 1, 1); /* restore buffer surfaces */
@@ -2667,7 +2670,6 @@ int main(void)
 
     /* ************************** Graphical scrolling test **************************** */
 
-#endif
     putchar('\f');
     grid();
     pa_binvis(stdout);
@@ -2713,6 +2715,7 @@ int main(void)
 
     /* ************************** Animation test **************************** */
 
+#endif
     squares();
 
     /* ************************** View offset test **************************** */
