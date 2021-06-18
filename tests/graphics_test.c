@@ -2712,7 +2712,6 @@ int main(void)
 
     /* ************************** Animation test **************************** */
 
-#endif
     squares();
 
     /* ************************** View offset test **************************** */
@@ -2749,6 +2748,8 @@ int main(void)
 
     /* ************************** Benchmarks **************************** */
 
+#endif
+    pa_bover(stdout);
     i = 100000;
     linespeed(1, i, &s);
     benchtab[bnline1].iter = i;
