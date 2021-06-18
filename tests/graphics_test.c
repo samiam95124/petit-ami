@@ -993,6 +993,8 @@ int main(void)
     int xsize;
     int ysize;
     int x1, y1, x2, y2;
+    char fn[100];
+    int x, y;
 
     if (setjmp(terminate_buf)) goto terminate;
     pa_curvis(stdout, FALSE);
@@ -2474,7 +2476,6 @@ int main(void)
 
     /* ************************** Extended effects test ************************ */
 
-#endif
     putchar('\f');
     grid();
     pa_auto(stdout, OFF);
@@ -2511,7 +2512,7 @@ int main(void)
     pa_auto(stdout, OFF);
     fsiz = pa_chrsizy(stdout); /* save character size to restore */
     pa_font(stdout, PA_FONT_SIGN);
-    pa_fontsiz(stdout, 30);
+    pa_fontsiz(stdout, pa_maxyg(stdout)/12);
     printf("Size of test string: %d\n", pa_strsiz(stdout, S3));
     printf("\n");
     x = (pa_maxxg(stdout)/2)-(pa_strsiz(stdout, S3)/2);
@@ -2525,7 +2526,7 @@ int main(void)
     pa_fcolor(stdout, pa_black);
     pa_rect(stdout, x, pa_curyg(stdout), x+pa_strsiz(stdout, S3)-1,
             pa_curyg(stdout)+pa_chrsizy(stdout)-1);
-    for (i = 0; i < strlen(S3); i++)
+    for (i = 0; i <= strlen(S3); i++)
         pa_line(stdout, x+pa_chrpos(stdout, S3, i), pa_curyg(stdout),
                 x+pa_chrpos(stdout, S3, i),
                 pa_curyg(stdout)+pa_chrsizy(stdout)-1);
@@ -2579,20 +2580,33 @@ int main(void)
 
     /* ************************** Picture draw test **************************** */
 
+#endif
     putchar('\f');
     grid();
-    pa_loadpict(stdout, 1, "tests/mypic");
+    pa_maknam(fn, 100, "tests", "mypic", "");
+    pa_loadpict(stdout, 1, fn);
     printf("Picture size for 1: x: %d y: %d\n", pa_pictsizx(stdout, 1),
            pa_pictsizy(stdout, 1));
-    pa_loadpict(stdout, 2, "tests/mypic1.bmp");
+    pa_maknam(fn, 100, "tests", "mypic1", "bmp");
+    pa_loadpict(stdout, 2, fn);
     printf("Picture size for 2: x: %d y: %d\n", pa_pictsizx(stdout, 2),
            pa_pictsizy(stdout, 2));
-    pa_picture(stdout, 1, 50, 50, 100, 100);
-    pa_picture(stdout, 1, 100, 100, 200, 200);
-    pa_picture(stdout, 1, 50, 200, 100, 350);
-    pa_picture(stdout, 2, 200, 50, 250, 100);
-    pa_picture(stdout, 2, 250, 100, 350, 200);
-    pa_picture(stdout, 2, 250, 250, 450, 300);
+    printf("\n");
+    y = pa_curyg(stdout);
+    xspace = pa_maxxg(stdout)/20;
+    xsize = pa_maxxg(stdout)/6;
+    yspace = xspace;
+    ysize = xsize;
+    pa_picture(stdout, 1, xspace, y, xspace+xsize, y+ysize);
+    pa_picture(stdout, 1, xspace+xsize, y+ysize, xspace+xsize*2, y+ysize*2);
+    pa_picture(stdout, 1, xspace, y+ysize*2, xspace+xsize, y+ysize*3);
+    pa_picture(stdout, 2, xspace+pa_maxxg(stdout)/2, y,
+                          xspace+xsize+pa_maxxg(stdout)/2, y+ysize);
+    pa_picture(stdout, 2, xspace+xsize+pa_maxxg(stdout)/2, y+ysize,
+                          xspace+xsize*2+pa_maxxg(stdout)/2, y+ysize+ysize/2);
+
+    pa_picture(stdout, 2, xspace+pa_maxxg(stdout)/2, y+ysize*2,
+                          xspace+xsize/2+pa_maxxg(stdout)/2, y+ysize*3);
     pa_delpict(stdout, 1);
     pa_delpict(stdout, 2);
     prtcen(pa_maxy(stdout), "Picture draw test");

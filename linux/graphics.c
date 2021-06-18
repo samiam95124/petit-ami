@@ -1682,7 +1682,6 @@ void setfnt(winptr win)
     do { /* try font sizes */
 
         selxlfd(win, caps, buf, ht); /* form XLFD selection string */
-//dbg_printf(dlinfo, "XLFD font select string: %s\n", buf);
         XWLOCK();
         win->xfont = XLoadQueryFont(padisplay, buf);
         XWUNLOCK();
@@ -1694,6 +1693,7 @@ void setfnt(winptr win)
 
     } while (aht > win->gfhigh);
 
+//dbg_printf(dlinfo, "XLFD font select string: %s\n", buf);
     if (prtftm) {
 
         dbg_printf(dlinfo, "Font ascent:  %d\n", win->xfont->ascent);
@@ -6088,8 +6088,8 @@ void pa_writejust(FILE* f, const char* s, int n)
 
         if (s[i] == ' ') {
 
-            if (sc->cfont->fix) cbs = win->charspace;
-            else cbs = xwidth(win, s[i])+win->chrspcx;
+            if (spc > ss) cbs = ss; /* set space to next character */
+            else cbs = spc;
             /* draw in background */
             if (win->bufmod) { /* buffer is active */
 
@@ -6726,7 +6726,9 @@ void pa_loadpict(FILE* f, int p, char* fn)
     ip->xi = XCreateImage(padisplay, vi, 24, ZPixmap, 0, frmdat, pw, ph, 32, 0);
     XWUNLOCK();
 
-    pad = (pw*3) % 4; /* find end of row padding */
+    /* find end of row padding */
+    pad = 0;
+    if (pw*3%4) pad = 4-(pw*3%4);
     pp = frmdat+pw*ph*4-pw*4; /* index last line */
     /* fill picture with data */
     for (y = ph-1; y >= 0; y--) { /* fill bottom to top */
