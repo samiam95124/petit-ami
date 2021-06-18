@@ -2554,7 +2554,7 @@ void iclear(winptr win)
     sc->curxg = 1;
     sc->curyg = 1;
     clrbuf(sc); /* clear screen buffer */
-    if (indisp) { /* also process to display */
+    if (indisp(win)) { /* also process to display */
 
         curoff(win); /* hide the cursor */
         XWLOCK();
