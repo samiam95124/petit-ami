@@ -515,9 +515,7 @@ static void graphtest(int lw) /* line width */
     pa_fontsiz(stdout, pa_maxyg(stdout)/20);
     pa_bcolor(stdout, pa_yellow);
     pa_cursorg(stdout, pa_maxxg(stdout)/2-pa_strsiz(stdout, S6)/2, pa_curyg(stdout));
-    pa_bover(stdout);
     printf("%s\n", S6);
-    pa_binvis(stdout);
     putchar('\n');
     /* note: after this we can't use text spacing */
 
@@ -2580,7 +2578,6 @@ int main(void)
 
     /* ************************** Picture draw test **************************** */
 
-#endif
     putchar('\f');
     grid();
     pa_maknam(fn, 100, "tests", "mypic", "");
@@ -2614,6 +2611,7 @@ int main(void)
 
     /* ********************** Invisible foreground test ************************ */
 
+#endif
     putchar('\f');
     grid();
     printf("\n");
@@ -2621,6 +2619,7 @@ int main(void)
     pa_finvis(stdout);
     graphtest(1);
     pa_binvis(stdout);
+    pa_fover(stdout);
     prtcen(pa_maxy(stdout), "Invisible foreground test");
     waitnext();
     pa_fover(stdout);
@@ -2634,6 +2633,7 @@ int main(void)
     pa_fover(stdout);
     graphtest(1);
     pa_binvis(stdout);
+    pa_fover(stdout);
     prtcen(pa_maxy(stdout), "Invisible background test");
     waitnext();
     pa_bover(stdout);
@@ -2647,6 +2647,7 @@ int main(void)
     pa_fxor(stdout);
     graphtest(1);
     pa_binvis(stdout);
+    pa_fover(stdout);
     prtcen(pa_maxy(stdout), "Xor foreground test");
     waitnext();
     pa_fover(stdout);
@@ -2660,6 +2661,7 @@ int main(void)
     pa_fover(stdout);
     graphtest(1);
     pa_binvis(stdout);
+    pa_fover(stdout);
     prtcen(pa_maxy(stdout), "Xor background test");
     waitnext();
     pa_bover(stdout);

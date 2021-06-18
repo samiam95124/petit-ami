@@ -10,10 +10,9 @@ joystick ioctl interface.
 
 4. Need to implement multitask locking broadly across the code.
 
-5. Frame cancel on active window does not terminate.
-
-6. Cannot handle mutually exclusive font capabilities, like bold only appearing
-with condensed cannot match bold with normal.
-
-7. Joystick events and frame timer events must go to either a window or all 
+5. Joystick events and frame timer events must go to either a window or all 
 windows.
+
+6. Xor foreground does not work on text.
+
+7. Graphical scrolling test does not work (improper fill color to top and left).
