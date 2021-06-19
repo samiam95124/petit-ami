@@ -132,6 +132,7 @@ static enum { /* debug levels */
 //#define PRTEVT  /* print outgoing PA events */
 //#define EVTPOL /* poll for X events */
 //#define PRTFNT /* print internal fonts list */
+#define PRTMEM /* print memory allocations at exit */
 
 #define MAXBUF 10  /* maximum number of buffers available */
 #define IOWIN  1   /* logical window number of input/output pair */
@@ -588,6 +589,9 @@ static int      joyay;          /* joystick y axis save */
 static int      joyaz;          /* joystick z axis save */
 static int      frmfid;         /* framing timer fid */
 static int      cfgcap;         /* "configuration" caps */
+static unsigned long memusd;    /* total memory in use for malloc */
+static unsigned long memrty;    /* retries executed on malloc */
+static unsigned long maxrty;    /* maximum retry count */
 
 /* config settable runtime options */
 static int maxxd;     /* default window dimensions */
@@ -692,6 +696,60 @@ static void error(errcod e)
     fflush(stderr); /* make sure error message is output */
 
     exit(1);
+
+}
+
+/******************************************************************************
+
+Internal version of malloc/free
+
+This wrapper around malloc/free both handles errors and also gives us a chance
+to track memory useage. Running out of memory is a terminal event, so we don't
+need to return.
+
+Only allocated memory is tallied, no accounting is done for free(). The vast
+majority of memory used in this package is never returned.
+
+******************************************************************************/
+
+static void *imalloc(size_t size)
+
+{
+
+    int rt;
+
+    void* ptr;
+
+    rt = 0;
+    do {
+
+        ptr = malloc(size);
+        rt++;
+        memrty++;
+        if (memrty > maxrty) maxrty = memrty;
+
+    } while (rt < 100);
+    if (!ptr) {
+
+#ifdef PRTMEM
+        fprintf(stderr, "Malloc fail, memory used: %lu retries: %lu\n", memusd,
+                        memrty);
+        fprintf(stderr, "Maximum retry: %lu\n", maxrty);
+#endif
+        error(enomem);
+
+    }
+    memusd += size;
+
+    return ptr;
+
+}
+
+static void ifree(void* ptr)
+
+{
+
+    free(ptr);
 
 }
 
@@ -1142,8 +1200,7 @@ void stdfont(void)
     sp = fp; /* save sign font */
 
     /* search 4: technical font, make copy of sign */
-    fp = (fontptr)malloc(sizeof(fontrec));
-    if (!fp) error(enomem); /* no memory */
+    fp = (fontptr)imalloc(sizeof(fontrec));
     /* copy sign font parameters */
     fp->fn = sp->fn;
     fp->fix = sp->fix;
@@ -1297,10 +1354,8 @@ void getfonts(void)
             if (!flp) { /* entry is unique */
 
                 /* create destination entry */
-                flp = (fontptr)malloc(sizeof(fontrec));
-                if (!flp) error(enomem); /* no memory */
-                flp->fn = (string)malloc(strlen(buf)+1); /* get name string */
-                if (!flp->fn) error(enomem); /* out of memory */
+                flp = (fontptr)imalloc(sizeof(fontrec));
+                flp->fn = (string)imalloc(strlen(buf)+1); /* get name string */
                 strcpy(flp->fn, buf); /* copy name into place */
                 flp->caps = 0; /* clear capabilities */
                 flp->caplst = NULL; /* clear capabilities list */
@@ -1311,8 +1366,7 @@ void getfonts(void)
 
             }
 
-            xcl = (xcaplst*)malloc(sizeof(xcaplst));
-            if (!xcl) error(enomem); /* no memory */
+            xcl = (xcaplst*)imalloc(sizeof(xcaplst));
             xcl->caps = 0; /* clear capabilities */
             xcl->next = flp->caplst; /* push to font cap list */
             flp->caplst = xcl;
@@ -1808,8 +1862,7 @@ static void getfet(filptr* fp)
 
 {
 
-    *fp = malloc(sizeof(filrec)); /* get new file entry */
-    if (!*fp) error(enomem); /* no more memory */
+    *fp = imalloc(sizeof(filrec)); /* get new file entry */
     (*fp)->win = NULL; /* set no window */
     (*fp)->inw = FALSE; /* clear input window link */
     (*fp)->inl = -1; /* set no input file linked */
@@ -1837,12 +1890,8 @@ static picptr getpic(void)
         pp = frepic; /* index top free */
         frepic = pp->next; /* gap out */
 
-    } else { /* allocate new one */
-
-        pp = malloc(sizeof(pict)); /* get new file entry */
-        if (!pp) error(enomem); /* no more memory */
-
-    }
+    } else /* allocate new one */
+        pp = imalloc(sizeof(pict)); /* get new file entry */
     pp->xi = NULL; /* set no image */
     pp->next = NULL; /* set no next */
 
@@ -2396,8 +2445,7 @@ static void opnwin(int fn, int pfn, int wid)
     for (pin = 0; pin < MAXPIC; pin++) win->pictbl[pin] = NULL;
     /* clear the screen array */
     for (si = 0; si < MAXCON; si++) win->screens[si] = NULL;
-    win->screens[0] = malloc(sizeof(scncon)); /* get the default screen */
-    if (!win->screens[0]) error(enomem);
+    win->screens[0] = imalloc(sizeof(scncon)); /* get the default screen */
     win->curdsp = 1; /* set current display screen */
     win->curupd = 1; /* set current update screen */
     win->visible = FALSE; /* set not visible */
@@ -2507,8 +2555,7 @@ static void openio(FILE* infile, FILE* outfile, int ifn, int ofn, int pfn,
 
         /* Haven't already started the main input/output window, so allocate
            and start that. We tolerate multiple opens to the output file. */
-        opnfil[ofn]->win = malloc(sizeof(winrec));
-        if (!opnfil[ofn]->win) error(enomem);
+        opnfil[ofn]->win = imalloc(sizeof(winrec));
         opnwin(ofn, pfn, wid); /* and start that up */
 
     }
@@ -4354,8 +4401,7 @@ void pa_select(FILE* f, int u, int d)
     if (!win->screens[win->curupd-1]) { /* no screen, create one */
 
         /* get a new screen context */
-        win->screens[win->curupd-1] = malloc(sizeof(scncon));
-        if (!win->screens[win->curupd-1]) error(enomem);
+        win->screens[win->curupd-1] = imalloc(sizeof(scncon));
         iniscn(win, win->screens[win->curupd-1]); /* initalize that */
 
     }
@@ -4363,8 +4409,7 @@ void pa_select(FILE* f, int u, int d)
     if (!win->screens[win->curdsp-1]) { /* no screen, create one */
 
         /* no current screen, create a new one */
-        win->screens[win->curdsp-1] = malloc(sizeof(scncon));
-        if (!win->screens[win->curdsp-1]) error(enomem);
+        win->screens[win->curdsp-1] = imalloc(sizeof(scncon));
         iniscn(win, win->screens[win->curdsp-1]); /* initalize that */
 
     }
@@ -6720,8 +6765,7 @@ void pa_loadpict(FILE* f, int p, char* fn)
     ip->sy = ph;
     /* create image structure */
     vi = DefaultVisual(padisplay, 0); /* define direct map color */
-    frmdat = (byte*)malloc(pw*ph*4); /* allocate image frame */
-    if (!frmdat) error(enomem); /* no memory */
+    frmdat = (byte*)imalloc(pw*ph*4); /* allocate image frame */
     /* create truecolor image */
     XWLOCK();
     ip->xi = XCreateImage(padisplay, vi, 24, ZPixmap, 0, frmdat, pw, ph, 32, 0);
@@ -6858,8 +6902,7 @@ void pa_picture(FILE* f, int p, int x1, int y1, int x2, int y2)
         fp->sy = ph;
         /* create image structure */
         vi = DefaultVisual(padisplay, 0); /* define direct map color */
-        frmdat = (byte*)malloc(pw*ph*4); /* allocate image frame */
-        if (!frmdat) error(enomem); /* no memory */
+        frmdat = (byte*)imalloc(pw*ph*4); /* allocate image frame */
         /* create truecolor image */
         XWLOCK();
         fp->xi = XCreateImage(padisplay, vi, 24, ZPixmap, 0, frmdat, pw, ph, 32, 0);
@@ -9251,6 +9294,11 @@ static void pa_init_graphics(int argc, char *argv[])
     char*     errstr;
     int       fi;
 
+    /* clear malloc in use total */
+    memusd = 0;
+    memrty = 0;
+    maxrty = 0;
+
     /* initialize the XWindow lock */
     pthread_mutex_init(&xwlock, NULL);
 
@@ -9458,15 +9506,14 @@ static void pa_deinit_graphics()
 	if (!fend && fautohold) { /* process automatic exit sequence */
 
         /* construct final name for window */
-        trmnam = malloc(strlen(fini)+strlen(program_invocation_short_name)+1);
-        if (!trmnam) error(enomem);
+        trmnam = imalloc(strlen(fini)+strlen(program_invocation_short_name)+1);
         strcpy(trmnam, fini); /* place first part */
         strcat(trmnam, program_invocation_short_name); /* place program name */
         /* set window title */
         XStoreName(padisplay, win->xwhan, trmnam);
         /* wait for a formal end */
 		while (!fend) pa_event(stdin, &er);
-		free(trmnam); /* free up termination name */
+		ifree(trmnam); /* free up termination name */
 
 	}
 	XWLOCK();
@@ -9493,5 +9540,11 @@ static void pa_deinit_graphics()
 
     /* release the XWindow call lock */
     pthread_mutex_destroy(&xwlock);
+
+#ifdef PRTMEM
+    fprintf(stderr, "Total memory used: %lu Total retries on malloc(): %lu\n",
+            memusd, memrty);
+    fprintf(stderr, "Maximum retry: %lu\n", maxrty);
+#endif
 
 }

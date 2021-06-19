@@ -624,17 +624,17 @@ static void benchtest(
     long et;
     long s;
 
-    /* test how many interations we need to get a measurable timebase */
+    /* test how many iterations we need to get a measurable timebase */
     i = 10;
     do {
 
         t = pa_clock(); /* get base time */
         fp(w, i, &s); /* perform test */
         et = pa_elapsed(t); /* find time to execute */
-        i *= 10; /* scale for next pass */
+        i *= 2; /* scale for next pass */
 
     } while (et < 100); /* set minimum time to measure for stability */
-    i /= 10; /* remove last scale */
+    i /= 2; /* remove last scale */
     /* find iterations for 15 second run */
     i = (SECOND*15*0.0001)/(et*0.0001/i);
     fp(w, i, &s); /* run final test */
@@ -2808,112 +2808,96 @@ int main(void)
     s = benchtab[bnline1].time;
     printf("Line speed for width: 1, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per line %f\n", s*0.0001/i);
-    waitnext();
 
     benchtest(linespeed, bnline10, 10);
     i = benchtab[bnline10].iter;
     s = benchtab[bnline10].time;
     printf("Line speed for width: 10, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per line %f\n", s*0.0001/i);
-    waitnext();
 
     benchtest(rectspeed, bnrect1, 1);
     i = benchtab[bnrect1].iter;
     s = benchtab[bnrect1].time;
     printf("Rectangle speed for width: 1, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per rectangle %f\n", s*0.0001/i);
-    waitnext();
 
     benchtest(rectspeed, bnrect10, 10);
     i = benchtab[bnrect10].iter;
     s = benchtab[bnrect10].time;
     printf("Rectangle speed for width: 10, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per rectangle %f\n", s*0.0001/i);
-    waitnext();
 
     benchtest(rrectspeed, bnrrect1, 1);
     i = benchtab[bnrrect1].iter;
     s = benchtab[bnrrect1].time;
     printf("Rounded rectangle speed for width: 1, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per rounded rectangle %f\n", s*0.0001/i);
-    waitnext();
 
     benchtest(rrectspeed, bnrrect10, 10);
     i = benchtab[bnrrect10].iter;
     s = benchtab[bnrrect10].time;
     printf("Rounded rectangle speed for width: 10, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per rounded rectangle %f\n", s*0.0001/i);
-    waitnext();
 
     benchtest(frectspeed, bnfrect, 1);
     i = benchtab[bnfrect].iter;
     s = benchtab[bnfrect].time;
     printf("Filled rectangle speed, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per filled rectangle %f\n", s*0.0001/i);
-    waitnext();
 
     benchtest(frrectspeed, bnfrrect, 1);
     i = benchtab[bnfrrect].iter;
     s = benchtab[bnfrrect].time;
     printf("Filled rounded rectangle speed, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per filled rounded rectangle %f\n", s*0.0001/i);
-    waitnext();
 
     benchtest(ellipsespeed, bnellipse1, 1);
     i = benchtab[bnellipse1].iter;
     s = benchtab[bnellipse1].time;
     printf("Ellipse speed for width: 1, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per ellipse %f\n", s*0.0001/i);
-    waitnext();
 
     benchtest(ellipsespeed, bnellipse10, 10);
     i = benchtab[bnellipse10].iter;
     s = benchtab[bnellipse10].time;
     printf("Ellipse speed for width: 10, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per ellipse %f\n", s*0.0001/i);
-    waitnext();
 
     benchtest(fellipsespeed, bnfellipse, 1);
     i = benchtab[bnfellipse].iter;
     s = benchtab[bnfellipse].time;
     printf("Filled ellipse speed, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per filled ellipse %f\n", s*0.0001/i);
-    waitnext();
 
     benchtest(arcspeed, bnarc1, 1);
     i = benchtab[bnarc1].iter;
     s = benchtab[bnarc1].time;
     printf("Arc speed for width: 1, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per arc %f\n", s*0.0001/i);
-    waitnext();
 
     benchtest(arcspeed, bnarc10, 1);
     i = benchtab[bnarc10].iter;
     s = benchtab[bnarc10].time;
     printf("Arc speed for width: 10, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per arc %f\n", s*0.0001/i);
-    waitnext();
 
     benchtest(farcspeed, bnfarc, 1);
     i = benchtab[bnfarc].iter;
     s = benchtab[bnfarc].time;
     printf("Filled arc speed for width: 1, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per filled arc %f\n", s*0.0001/i);
-    waitnext();
 
     benchtest(fchordspeed, bnfchord, 1);
     i = benchtab[bnfchord].iter;
     s = benchtab[bnfchord].time;
     printf("Filled chord speed for width: 1, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per filled chord %f\n", s*0.0001/i);
-    waitnext();
 
     benchtest(ftrianglespeed, bnftriangle, 1);
     i = benchtab[bnftriangle].iter;
     s = benchtab[bnftriangle].time;
     printf("Filled triangle speed for width: 1, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per filled triangle %f\n", s*0.0001/i);
-    waitnext();
 
     pa_bover(stdout);
     pa_fover(stdout);
@@ -2923,7 +2907,6 @@ int main(void)
     pa_home(stdout);
     printf("Text speed, with overwrite, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per write %f\n", s*0.0001/i);
-    waitnext();
 
     pa_binvis(stdout);
     pa_fover(stdout);
@@ -2934,21 +2917,18 @@ int main(void)
     pa_bover(stdout);
     printf("Text speed, invisible background, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per write %f\n", s*0.0001/i);
-    waitnext();
 
     benchtest(fpictspeed, bnpict, 1);
     i = benchtab[bnpict].iter;
     s = benchtab[bnpict].time;
     printf("Picture draw speed for width: 1, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per picture %f\n", s*0.0001/i);
-    waitnext();
 
     benchtest(fpictnsspeed, bnpictns, 1);
     i = benchtab[bnpictns].iter;
     s = benchtab[bnpictns].time;
     printf("No scale picture draw speed for width: 1, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per picture %f\n", s*0.0001/i);
-    waitnext();
 
     /* output table */
 
