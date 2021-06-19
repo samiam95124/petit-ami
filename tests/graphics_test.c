@@ -80,6 +80,7 @@
 #define OFF    FALSE
 #define ON     TRUE
 #define DEGREE (INT_MAX/360)
+#define SECOND 10000 /* one second elapsed time */
 
 typedef enum {
 
@@ -596,9 +597,55 @@ static void graphtest(int lw) /* line width */
 
 }
 
+/* pointer to benchmark test */
+
+typedef void (*benchtestFP)(int w, int t, long* s);
+
+/* run benchmark test
+ *
+ * Since different processors take different amounts of time to run the tests,
+ * we normalize them to gather as much data as needed to run for 15 seconds
+ * per test. To find out how many test we need to run for that time, we measure
+ * a small number of tests, then extrapolate that time to 15 seconds. Since the
+ * test could iterate in a very short (unmeasurable) time, we run the tests at
+ * progressive orders of magnitude until we run at least 10ms of test time and
+ * at least 10 iterations.
+ */
+static void benchtest(
+    /* benchtest routine pointer */       benchtestFP fp,
+    /* number of test */                  bench       bn,
+    /* width of line (if applies) */      int         w
+    )
+
+{
+
+    int i;
+    long t;
+    long et;
+    long s;
+
+    /* test how many interations we need to get a measurable timebase */
+    i = 10;
+    do {
+
+        t = pa_clock(); /* get base time */
+        fp(w, i, &s); /* perform test */
+        et = pa_elapsed(t); /* find time to execute */
+        i *= 10; /* scale for next pass */
+
+    } while (et < 100); /* set minimum time to measure for stability */
+    i /= 10; /* remove last scale */
+    /* find iterations for 15 second run */
+    i = (SECOND*15*0.0001)/(et*0.0001/i);
+    fp(w, i, &s); /* run final test */
+    benchtab[bn].iter = i; /* place iterations */
+    benchtab[bn].time = s; /* place time to run */
+
+}
+
 /* test line speed */
 
-static void linespeed(int w, int t, int* s)
+static void linespeed(int w, int t, long* s)
 
 {
 
@@ -624,7 +671,7 @@ static void linespeed(int w, int t, int* s)
 
 /* test rectangle speed */
 
-static void rectspeed(int w, int t, int* s)
+static void rectspeed(int w, int t, long* s)
 
 {
 
@@ -650,7 +697,7 @@ static void rectspeed(int w, int t, int* s)
 
 /* test rounded rectangle speed */
 
-static void rrectspeed(int w, int t, int* s)
+static void rrectspeed(int w, int t, long* s)
 
 {
 
@@ -677,7 +724,7 @@ static void rrectspeed(int w, int t, int* s)
 
 /* test filled rectangle speed */
 
-static void frectspeed(int t, int* s)
+static void frectspeed(int w, int t, long* s)
 
 {
 
@@ -702,7 +749,7 @@ static void frectspeed(int t, int* s)
 
 /* test filled rounded rectangle speed */
 
-static void frrectspeed(int t, int* s)
+static void frrectspeed(int w, int t, long* s)
 
 {
 
@@ -728,7 +775,7 @@ static void frrectspeed(int t, int* s)
 
 /* test ellipse speed */
 
-static void ellipsespeed(int w, int t, int* s)
+static void ellipsespeed(int w, int t, long* s)
 
 {
 
@@ -754,7 +801,7 @@ static void ellipsespeed(int w, int t, int* s)
 
 /* test filled ellipse speed */
 
-static void fellipsespeed(int t, int* s)
+static void fellipsespeed(int w, int t, long* s)
 
 {
 
@@ -779,7 +826,7 @@ static void fellipsespeed(int t, int* s)
 
 /* test arc speed */
 
-static void arcspeed(int w, int t, int* s)
+static void arcspeed(int w, int t, long* s)
 
 {
 
@@ -813,7 +860,7 @@ static void arcspeed(int w, int t, int* s)
 
 /* test filled arc speed */
 
-static void farcspeed(int t, int* s)
+static void farcspeed(int w, int t, long* s)
 
 {
 
@@ -846,7 +893,7 @@ static void farcspeed(int t, int* s)
 
 /* test filled chord speed */
 
-static void fchordspeed(int t, int* s)
+static void fchordspeed(int w, int t, long* s)
 
 {
 
@@ -879,7 +926,7 @@ static void fchordspeed(int t, int* s)
 
 /* test filled triangle speed */
 
-static void ftrianglespeed(int t,  int* s)
+static void ftrianglespeed(int w, int t, long* s)
 
 {
 
@@ -905,7 +952,7 @@ static void ftrianglespeed(int t,  int* s)
 
 /* test text speed */
 
-static void ftextspeed(int t, int* s)
+static void ftextspeed(int w, int t, long* s)
 
 {
 
@@ -932,7 +979,7 @@ static void ftextspeed(int t, int* s)
 
 /* test picture draw speed */
 
-static void fpictspeed(int t, int* s)
+static void fpictspeed(int w, int t, long* s)
 
 {
 
@@ -957,7 +1004,7 @@ static void fpictspeed(int t, int* s)
 
 /* test picture draw speed, no scaling */
 
-static void fpictnsspeed(int t, int* s)
+static void fpictnsspeed(int w, int t, long* s)
 
 {
 
@@ -996,6 +1043,8 @@ int main(void)
     int x1, y1, x2, y2;
     char fn[100];
     int x, y;
+    long t, et;
+    float f;
 
     if (setjmp(terminate_buf)) goto terminate;
     pa_curvis(stdout, FALSE);
@@ -2753,174 +2802,155 @@ int main(void)
 
 #endif
     pa_bover(stdout);
-    i = 100000;
-    linespeed(1, i, &s);
-    benchtab[bnline1].iter = i;
-    benchtab[bnline1].time = s;
-    printf("Line speed for width: 1, %d lines %f seconds\n", i, s*0.0001);
+
+    benchtest(linespeed, bnline1, 1);
+    i = benchtab[bnline1].iter;
+    s = benchtab[bnline1].time;
+    printf("Line speed for width: 1, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per line %f\n", s*0.0001/i);
     waitnext();
 
-    i = 100000;
-    linespeed(10, i, &s);
-    benchtab[bnline10].iter = i;
-    benchtab[bnline10].time = s;
-    printf("Line speed for width: 10, %d lines %f seconds\n", i, s*0.0001);
+    benchtest(linespeed, bnline10, 10);
+    i = benchtab[bnline10].iter;
+    s = benchtab[bnline10].time;
+    printf("Line speed for width: 10, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per line %f\n", s*0.0001/i);
     waitnext();
 
-    i = 100000;
-    rectspeed(1, i, &s);
-    benchtab[bnrect1].iter = i;
-    benchtab[bnrect1].time = s;
-    printf("Rectangle speed for width: 1, %d lines %f seconds\n", i, s*0.0001);
+    benchtest(rectspeed, bnrect1, 1);
+    i = benchtab[bnrect1].iter;
+    s = benchtab[bnrect1].time;
+    printf("Rectangle speed for width: 1, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per rectangle %f\n", s*0.0001/i);
     waitnext();
 
-    i = 100000;
-    rectspeed(10, i, &s);
-    benchtab[bnrect10].iter = i;
-    benchtab[bnrect10].time = s;
-    printf("Rectangle speed for width: 10, %d lines %f seconds\n", i, s*0.0001);
-    printf("Seconds per rectangle %f", s*0.0001/i);
+    benchtest(rectspeed, bnrect10, 10);
+    i = benchtab[bnrect10].iter;
+    s = benchtab[bnrect10].time;
+    printf("Rectangle speed for width: 10, %d iterations %f seconds\n", i, s*0.0001);
+    printf("Seconds per rectangle %f\n", s*0.0001/i);
     waitnext();
 
-    i = 1000;
-    rrectspeed(1, i, &s);
-    benchtab[bnrrect1].iter = i;
-    benchtab[bnrrect1].time = s;
-    printf("Rounded rectangle speed for width: 1, %d lines %f seconds\n", i, s*0.0001);
+    benchtest(rrectspeed, bnrrect1, 1);
+    i = benchtab[bnrrect1].iter;
+    s = benchtab[bnrrect1].time;
+    printf("Rounded rectangle speed for width: 1, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per rounded rectangle %f\n", s*0.0001/i);
     waitnext();
 
-    i = 1000;
-    rrectspeed(10, i, &s);
-    benchtab[bnrrect10].iter = i;
-    benchtab[bnrrect10].time = s;
-    printf("Rounded rectangle speed for width: 10, %d lines %f seconds\n", i, s*0.0001);
+    benchtest(rrectspeed, bnrrect10, 10);
+    i = benchtab[bnrrect10].iter;
+    s = benchtab[bnrrect10].time;
+    printf("Rounded rectangle speed for width: 10, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per rounded rectangle %f\n", s*0.0001/i);
     waitnext();
 
-    i = 100000;
-    frectspeed(i, &s);
-    benchtab[bnfrect].iter = i;
-    benchtab[bnfrect].time = s;
-    printf("Filled rectangle speed, %d lines %f seconds\n", i, s*0.0001);
+    benchtest(frectspeed, bnfrect, 1);
+    i = benchtab[bnfrect].iter;
+    s = benchtab[bnfrect].time;
+    printf("Filled rectangle speed, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per filled rectangle %f\n", s*0.0001/i);
     waitnext();
 
-    i = 1000;
-    frrectspeed(i, &s);
-    benchtab[bnfrrect].iter = i;
-    benchtab[bnfrrect].time = s;
-    printf("Filled rounded rectangle speed, %d lines %f seconds\n", i, s*0.0001);
+    benchtest(frrectspeed, bnfrrect, 1);
+    i = benchtab[bnfrrect].iter;
+    s = benchtab[bnfrrect].time;
+    printf("Filled rounded rectangle speed, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per filled rounded rectangle %f\n", s*0.0001/i);
     waitnext();
 
-    i = 10000;
-    ellipsespeed(1, i, &s);
-    benchtab[bnellipse1].iter = i;
-    benchtab[bnellipse1].time = s;
-    printf("Ellipse speed for width: 1, %d lines %f seconds\n", i, s*0.0001);
+    benchtest(ellipsespeed, bnellipse1, 1);
+    i = benchtab[bnellipse1].iter;
+    s = benchtab[bnellipse1].time;
+    printf("Ellipse speed for width: 1, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per ellipse %f\n", s*0.0001/i);
     waitnext();
 
-    i = 10000;
-    ellipsespeed(10, i, &s);
-    benchtab[bnellipse10].iter = i;
-    benchtab[bnellipse10].time = s;
-    printf("Ellipse speed for width: 10, %d lines %f seconds\n", i, s*0.0001);
+    benchtest(ellipsespeed, bnellipse10, 10);
+    i = benchtab[bnellipse10].iter;
+    s = benchtab[bnellipse10].time;
+    printf("Ellipse speed for width: 10, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per ellipse %f\n", s*0.0001/i);
     waitnext();
 
-    i = 10000;
-    fellipsespeed(i, &s);
-    benchtab[bnfellipse].iter = i;
-    benchtab[bnfellipse].time = s;
-    printf("Filled ellipse speed, %d lines %f seconds\n", i, s*0.0001);
+    benchtest(fellipsespeed, bnfellipse, 1);
+    i = benchtab[bnfellipse].iter;
+    s = benchtab[bnfellipse].time;
+    printf("Filled ellipse speed, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per filled ellipse %f\n", s*0.0001/i);
     waitnext();
 
-    i = 100000;
-    arcspeed(1, i, &s);
-    benchtab[bnarc1].iter = i;
-    benchtab[bnarc1].time = s;
-    printf("Arc speed for width: 1, %d lines %f seconds\n", i, s*0.0001);
+    benchtest(arcspeed, bnarc1, 1);
+    i = benchtab[bnarc1].iter;
+    s = benchtab[bnarc1].time;
+    printf("Arc speed for width: 1, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per arc %f\n", s*0.0001/i);
     waitnext();
 
-    i = 100000;
-    arcspeed(10, i, &s);
-    benchtab[bnarc10].iter = i;
-    benchtab[bnarc10].time = s;
-    printf("Arc speed for width: 10, %d lines %f seconds\n", i, s*0.0001);
+    benchtest(arcspeed, bnarc10, 1);
+    i = benchtab[bnarc10].iter;
+    s = benchtab[bnarc10].time;
+    printf("Arc speed for width: 10, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per arc %f\n", s*0.0001/i);
     waitnext();
 
-    i = 100000;
-    farcspeed(i, &s);
-    benchtab[bnfarc].iter = i;
-    benchtab[bnfarc].time = s;
-    printf("Filled arc speed, %d lines %f seconds\n", i, s*0.0001);
+    benchtest(farcspeed, bnfarc, 1);
+    i = benchtab[bnfarc].iter;
+    s = benchtab[bnfarc].time;
+    printf("Filled arc speed for width: 1, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per filled arc %f\n", s*0.0001/i);
     waitnext();
 
-    i = 100000;
-    fchordspeed(i, &s);
-    benchtab[bnfchord].iter = i;
-    benchtab[bnfchord].time = s;
-    printf("Filled chord speed, %d lines %f seconds\n", i, s*0.0001);
+    benchtest(fchordspeed, bnfchord, 1);
+    i = benchtab[bnfchord].iter;
+    s = benchtab[bnfchord].time;
+    printf("Filled chord speed for width: 1, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per filled chord %f\n", s*0.0001/i);
     waitnext();
 
-    i = 100000;
-    ftrianglespeed(i, &s);
-    benchtab[bnftriangle].iter = i;
-    benchtab[bnftriangle].time = s;
-    printf("Filled triangle speed, %d lines %f seconds\n", i, s*0.0001);
+    benchtest(ftrianglespeed, bnftriangle, 1);
+    i = benchtab[bnftriangle].iter;
+    s = benchtab[bnftriangle].time;
+    printf("Filled triangle speed for width: 1, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per filled triangle %f\n", s*0.0001/i);
     waitnext();
 
     pa_bover(stdout);
     pa_fover(stdout);
-    i = 100000/4;
-    ftextspeed(i, &s);
-    benchtab[bntext].iter = i;
-    benchtab[bntext].time = s;
+    benchtest(ftextspeed, bntext, 1);
+    i = benchtab[bntext].iter;
+    s = benchtab[bntext].time;
     pa_home(stdout);
-    printf("Text speed, with overwrite, %d lines %f seconds\n", i, s*0.0001);
+    printf("Text speed, with overwrite, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per write %f\n", s*0.0001/i);
     waitnext();
 
     pa_binvis(stdout);
     pa_fover(stdout);
-    i = 100000/4;
-    ftextspeed(i, &s);
-    benchtab[bntextbi].iter = i;
-    benchtab[bntextbi].time = s;
+    benchtest(ftextspeed, bntextbi, 1);
+    i = benchtab[bntextbi].iter;
+    s = benchtab[bntextbi].time;
     pa_home(stdout);
     pa_bover(stdout);
-    printf("Text speed, invisible background, %d lines %f seconds\n", i, s*0.0001);
+    printf("Text speed, invisible background, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per write %f\n", s*0.0001/i);
     waitnext();
 
-    i = 10000;
-    fpictspeed(i, &s);
-    benchtab[bnpict].iter = i;
-    benchtab[bnpict].time = s;
-    printf("Picture draw speed, %d lines %f seconds\n", i, s*0.0001);
+    benchtest(fpictspeed, bnpict, 1);
+    i = benchtab[bnpict].iter;
+    s = benchtab[bnpict].time;
+    printf("Picture draw speed for width: 1, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per picture %f\n", s*0.0001/i);
     waitnext();
 
-    i = 10000;
-    fpictnsspeed(i, &s);
-    benchtab[bnpictns].iter = i;
-    benchtab[bnpictns].time = s;
-    printf("No scale picture draw speed, %d lines %f seconds\n", i, s*0.0001);
+    benchtest(fpictnsspeed, bnpictns, 1);
+    i = benchtab[bnpictns].iter;
+    s = benchtab[bnpictns].time;
+    printf("No scale picture draw speed for width: 1, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per picture %f\n", s*0.0001/i);
     waitnext();
 
-    /* stdout table */
+    /* output table */
 
     fprintf(stderr, "\n");
     fprintf(stderr, "Benchmark table\n");
