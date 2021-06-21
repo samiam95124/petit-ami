@@ -156,6 +156,18 @@ static int randr(int s, int e)
 
 }
 
+static int swap(int* a, int* b)
+
+{
+
+    int t;
+
+    t = *a;
+    *a = *b;
+    *b = t;
+
+}
+
 /* wait time in 100 microseconds */
 
 static void wait(long t)
@@ -985,6 +997,7 @@ static void fpictspeed(int w, int t, long* s)
 
     int i;
     int c;
+    int x1, y1, x2, y2;
 
     pa_auto(stdout, FALSE);
     pa_curvis(stdout, FALSE);
@@ -993,8 +1006,13 @@ static void fpictspeed(int w, int t, long* s)
     c = pa_clock();
     for (i = 1; i <= t; i++) {
 
-        pa_picture(stdout, 1, randr(1, pa_maxxg(stdout)), randr(1, pa_maxyg(stdout)),
-                              randr(1, pa_maxxg(stdout)), randr(1, pa_maxyg(stdout)));
+        x1 = randr(1, pa_maxxg(stdout));
+        x2 = randr(1, pa_maxxg(stdout));
+        if (x1 > x2) swap(&x1, &x2);
+        y1 = randr(1, pa_maxyg(stdout));
+        y2 = randr(1, pa_maxyg(stdout));
+        if (y1 > y2) swap(&y1, &y2);
+        pa_picture(stdout, 1, x1, y1, x2, y2);
 
    }
    *s = pa_elapsed(c);
@@ -2800,7 +2818,6 @@ int main(void)
 
     /* ************************** Benchmarks **************************** */
 
-#endif
     pa_bover(stdout);
 
     benchtest(linespeed, bnline1, 1);
@@ -2918,6 +2935,7 @@ int main(void)
     printf("Text speed, invisible background, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per write %f\n", s*0.0001/i);
 
+#endif
     benchtest(fpictspeed, bnpict, 1);
     i = benchtab[bnpict].iter;
     s = benchtab[bnpict].time;
