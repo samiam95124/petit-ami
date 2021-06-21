@@ -6,7 +6,7 @@
 *                                                                             *
 * Tests various single window, unmanaged graphics.                            *
 *                                                                             *
-* Benchmark results, Athlon 64 3200+, BFG 6800 overclock:                     *
+* Benchmark results, Windows, Athlon 64 3200+, BFG 6800 overclock:            *
 *                                                                             *
 * Type                        Seconds     Per fig                             *
 * --------------------------------------------------                          *
@@ -29,7 +29,7 @@
 * text                            10.922   .00010922                          *
 * background invisible text       10.703   .00010703                          *
 *                                                                             *
-* Benchmark results, AMD Phenom, 2.51 GHZ, Nvidia GeForce 9800 GT             *
+* Benchmark results, Windows, AMD Phenom, 2.51 GHZ, Nvidia GeForce 9800 GT    *
 *                                                                             *
 * Type                     Seconds   Per fig                                  *
 * --------------------------------------------------                          *
@@ -53,6 +53,31 @@
 * background invisible text   10.95    0.000438                               *
 * Picture draw                23.82    0.002382                               *
 * No scaling picture draw     13.82    0.001382                               *
+*                                                                             *
+* Benchmark results, Linux AMD Ryzen 9 3950x, Nvidia GTX 3070 Dual            *
+*                                                                             *
+* Type                        Seconds  Per fig                                *
+* --------------------------------------------------                          *
+* line width 1                 14.29     0.000008                             *
+* line width 10                16.66     0.000008                             *
+* rectangle width 1            28.87     0.000050                             *
+* rectangle width 10            0.57     0.000004                             *
+* rounded rectangle width 1    30.03     0.015296                             *
+* rounded rectangle width 10    9.61     0.015297                             *
+* filled rectangle              3.15     0.000648                             *
+* filled rounded rectangle     24.86     0.000515                             *
+* ellipse width 1               8.67     0.002041                             *
+* ellipse width 10              3.63     0.002612                             *
+* filled ellipse                3.12     0.001142                             *
+* arc width 1                 174.00     0.003408                             *
+* arc width 10                  1.92     0.002903                             *
+* filled arc                    2.76     0.001056                             *
+* filled chord                  1.19     0.000212                             *
+* filled triangle               2.69     0.000013                             *
+* text                         26.44     0.000056                             *
+* background invisible text    41.39     0.000067                             *
+* Picture draw                 15.04     0.004101                             *
+* No scaling picture draw       0.73     0.000134                             *                              *
 *                                                                             *
 *******************************************************************************/
 
@@ -2818,6 +2843,7 @@ int main(void)
 
     /* ************************** Benchmarks **************************** */
 
+#endif
     pa_bover(stdout);
 
     benchtest(linespeed, bnline1, 1);
@@ -2935,7 +2961,6 @@ int main(void)
     printf("Text speed, invisible background, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per write %f\n", s*0.0001/i);
 
-#endif
     benchtest(fpictspeed, bnpict, 1);
     i = benchtab[bnpict].iter;
     s = benchtab[bnpict].time;
@@ -2953,7 +2978,7 @@ int main(void)
     fprintf(stderr, "\n");
     fprintf(stderr, "Benchmark table\n");
     fprintf(stderr, "\n");
-    fprintf(stderr, "Type                        Seconds  Per fig\n");
+    fprintf(stderr, "Type                        Seconds   Per fig\n");
     fprintf(stderr, "--------------------------------------------------\n");
     for (bi = bnline1; bi <= bnpictns; bi++) {
 
@@ -2981,12 +3006,13 @@ int main(void)
             case bnpictns:    fprintf(stderr, "No scaling picture draw     "); break;
 
         };
-        fprintf(stderr, "%5.2f", benchtab[bi].time*0.0001);
+        fprintf(stderr, "%6.2f", benchtab[bi].time*0.0001);
         fprintf(stderr, "    ");
         fprintf(stderr, "%f", benchtab[bi].time*0.0001/benchtab[bi].iter);
         fprintf(stderr, "\n");
 
     }
+    fflush(stderr); /* force print */
 
     terminate: /* terminate */
 

@@ -18,3 +18,6 @@ windows.
 7. Need to reconcille windows xor, and or modes with XWindows at some point. 
 Windows does not allow modes on text, reportedly because it does not work with
 antialiasing (it may have worked a long time ago).
+
+8. Need to limit the number of cached pictures by paging out the oldest or
+smilar algorithim. Right now the storage allocation can climb to infinity.
