@@ -589,9 +589,23 @@ static int      joyay;          /* joystick y axis save */
 static int      joyaz;          /* joystick z axis save */
 static int      frmfid;         /* framing timer fid */
 static int      cfgcap;         /* "configuration" caps */
+
+/* memory statistics/diagnostics */
 static unsigned long memusd;    /* total memory in use for malloc */
 static unsigned long memrty;    /* retries executed on malloc */
 static unsigned long maxrty;    /* maximum retry count */
+static unsigned long fontcnt;   /* font entry counter */
+static unsigned long fonttot;   /* font entry total */
+static unsigned long filcnt;    /* file entry counter */
+static unsigned long filtot;    /* file entry total */
+static unsigned long piccnt;    /* picture entry counter */
+static unsigned long pictot;    /* picture entry total */
+static unsigned long scncnt;    /* screen struct counter */
+static unsigned long scntot;    /* screen struct total */
+static unsigned long wincnt;    /* windows structure counter */
+static unsigned long wintot;    /* windows structure total */
+static unsigned long imgcnt;    /* image frame counter */
+static unsigned long imgtot;    /* image frame total */
 
 /* config settable runtime options */
 static int maxxd;     /* default window dimensions */
@@ -735,6 +749,18 @@ static void *imalloc(size_t size)
         fprintf(stderr, "Malloc fail, memory used: %lu retries: %lu\n", memusd,
                         memrty);
         fprintf(stderr, "Maximum retry: %lu\n", maxrty);
+        fprintf(stderr, "Font entry counter:    %lu\n", fontcnt);
+        fprintf(stderr, "Font entry total:      %lu\n", fonttot);
+        fprintf(stderr, "File entry counter:    %lu\n", filcnt);
+        fprintf(stderr, "File entry total:      %lu\n", filtot);
+        fprintf(stderr, "Picture entry counter: %lu\n", piccnt);
+        fprintf(stderr, "Picture entry total:   %lu\n", pictot);
+        fprintf(stderr, "Screen entry counter:  %lu\n", scncnt);
+        fprintf(stderr, "Screen entry total:    %lu\n", scntot);
+        fprintf(stderr, "Window entry counter:  %lu\n", wincnt);
+        fprintf(stderr, "Window entry total:    %lu\n", wintot);
+        fprintf(stderr, "Image frame counter:   %lu\n", imgcnt);
+        fprintf(stderr, "Image frame total:     %lu\n", imgtot);
 #endif
         error(enomem);
 
@@ -1201,6 +1227,9 @@ void stdfont(void)
 
     /* search 4: technical font, make copy of sign */
     fp = (fontptr)imalloc(sizeof(fontrec));
+    fontcnt++;
+    fonttot += sizeof(fontrec);
+
     /* copy sign font parameters */
     fp->fn = sp->fn;
     fp->fix = sp->fix;
@@ -1355,6 +1384,8 @@ void getfonts(void)
 
                 /* create destination entry */
                 flp = (fontptr)imalloc(sizeof(fontrec));
+                fontcnt++;
+                fonttot += sizeof(fontrec);
                 flp->fn = (string)imalloc(strlen(buf)+1); /* get name string */
                 strcpy(flp->fn, buf); /* copy name into place */
                 flp->caps = 0; /* clear capabilities */
@@ -1863,6 +1894,8 @@ static void getfet(filptr* fp)
 {
 
     *fp = imalloc(sizeof(filrec)); /* get new file entry */
+    filcnt++;
+    filtot += sizeof(filrec);
     (*fp)->win = NULL; /* set no window */
     (*fp)->inw = FALSE; /* clear input window link */
     (*fp)->inl = -1; /* set no input file linked */
@@ -1890,8 +1923,13 @@ static picptr getpic(void)
         pp = frepic; /* index top free */
         frepic = pp->next; /* gap out */
 
-    } else /* allocate new one */
+    } else { /* allocate new one */
+
         pp = imalloc(sizeof(pict)); /* get new file entry */
+        piccnt++;
+        pictot += sizeof(pict);
+
+    }
     pp->xi = NULL; /* set no image */
     pp->next = NULL; /* set no next */
 
@@ -2446,6 +2484,8 @@ static void opnwin(int fn, int pfn, int wid)
     /* clear the screen array */
     for (si = 0; si < MAXCON; si++) win->screens[si] = NULL;
     win->screens[0] = imalloc(sizeof(scncon)); /* get the default screen */
+    scncnt++;
+    scntot += sizeof(scncon);
     win->curdsp = 1; /* set current display screen */
     win->curupd = 1; /* set current update screen */
     win->visible = FALSE; /* set not visible */
@@ -2556,6 +2596,8 @@ static void openio(FILE* infile, FILE* outfile, int ifn, int ofn, int pfn,
         /* Haven't already started the main input/output window, so allocate
            and start that. We tolerate multiple opens to the output file. */
         opnfil[ofn]->win = imalloc(sizeof(winrec));
+        wincnt++;
+        wintot += sizeof(winrec);
         opnwin(ofn, pfn, wid); /* and start that up */
 
     }
@@ -4402,6 +4444,8 @@ void pa_select(FILE* f, int u, int d)
 
         /* get a new screen context */
         win->screens[win->curupd-1] = imalloc(sizeof(scncon));
+        scncnt++;
+        scntot += sizeof(scncon);
         iniscn(win, win->screens[win->curupd-1]); /* initalize that */
 
     }
@@ -4410,6 +4454,8 @@ void pa_select(FILE* f, int u, int d)
 
         /* no current screen, create a new one */
         win->screens[win->curdsp-1] = imalloc(sizeof(scncon));
+        scncnt++;
+        scntot += sizeof(scncon);
         iniscn(win, win->screens[win->curdsp-1]); /* initalize that */
 
     }
@@ -4628,6 +4674,8 @@ Draw line
 Draws a single line in the foreground color.
 
 *******************************************************************************/
+
+typedef unsigned char lrgarr[100000];
 
 void pa_line(FILE* f, int x1, int y1, int x2, int y2)
 
@@ -6766,6 +6814,8 @@ void pa_loadpict(FILE* f, int p, char* fn)
     /* create image structure */
     vi = DefaultVisual(padisplay, 0); /* define direct map color */
     frmdat = (byte*)imalloc(pw*ph*4); /* allocate image frame */
+    imgcnt++;
+    imgtot += pw*ph*4;
     /* create truecolor image */
     XWLOCK();
     ip->xi = XCreateImage(padisplay, vi, 24, ZPixmap, 0, frmdat, pw, ph, 32, 0);
@@ -6903,6 +6953,8 @@ void pa_picture(FILE* f, int p, int x1, int y1, int x2, int y2)
         /* create image structure */
         vi = DefaultVisual(padisplay, 0); /* define direct map color */
         frmdat = (byte*)imalloc(pw*ph*4); /* allocate image frame */
+        imgcnt++;
+        imgtot += pw*ph*4;
         /* create truecolor image */
         XWLOCK();
         fp->xi = XCreateImage(padisplay, vi, 24, ZPixmap, 0, frmdat, pw, ph, 32, 0);
@@ -9295,9 +9347,21 @@ static void pa_init_graphics(int argc, char *argv[])
     int       fi;
 
     /* clear malloc in use total */
-    memusd = 0;
-    memrty = 0;
-    maxrty = 0;
+    memusd = 0; /* total memory in use *
+    memrty = 0; /* number of retries */
+    maxrty = 0; /* retry maximum */
+    fontcnt = 0; /* font entry counter */
+    fonttot = 0; /* font entry total */
+    filcnt = 0; /* file entry counter */
+    filtot = 0; /* file entry total */
+    piccnt = 0; /* picture entry counter */
+    pictot = 0; /* picture entry total */
+    scncnt = 0; /* screen struct counter */
+    scntot = 0; /* screen struct total */
+    wincnt = 0; /* windows structure counter */
+    wintot = 0; /* windows structure total */
+    imgcnt = 0; /* image frame counter */
+    imgtot = 0; /* image frame total */
 
     /* initialize the XWindow lock */
     pthread_mutex_init(&xwlock, NULL);
@@ -9545,6 +9609,19 @@ static void pa_deinit_graphics()
     fprintf(stderr, "Total memory used: %lu Total retries on malloc(): %lu\n",
             memusd, memrty);
     fprintf(stderr, "Maximum retry: %lu\n", maxrty);
+    fprintf(stderr, "Font entry counter:    %lu\n", fontcnt);
+    fprintf(stderr, "Font entry total:      %lu\n", fonttot);
+    fprintf(stderr, "File entry counter:    %lu\n", filcnt);
+    fprintf(stderr, "File entry total:      %lu\n", filtot);
+    fprintf(stderr, "Picture entry counter: %lu\n", piccnt);
+    fprintf(stderr, "Picture entry total:   %lu\n", pictot);
+    fprintf(stderr, "Screen entry counter:  %lu\n", scncnt);
+    fprintf(stderr, "Screen entry total:    %lu\n", scntot);
+    fprintf(stderr, "Window entry counter:  %lu\n", wincnt);
+    fprintf(stderr, "Window entry total:    %lu\n", wintot);
+    fprintf(stderr, "Image frame counter:   %lu\n", imgcnt);
+    fprintf(stderr, "Image frame total:     %lu\n", imgtot);
+
 #endif
 
 }
