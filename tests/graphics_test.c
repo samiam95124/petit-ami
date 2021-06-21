@@ -77,7 +77,32 @@
 * text                         26.44     0.000056                             *
 * background invisible text    41.39     0.000067                             *
 * Picture draw                 15.04     0.004101                             *
-* No scaling picture draw       0.73     0.000134                             *                              *
+* No scaling picture draw       0.73     0.000134                             *
+*                                                                             *
+* Benchmark results, Linux Intel I7-885U CPU 1.80 GHZ, Nvidia GPM108M         *
+*                                                                             *
+* Type                        Seconds   Per fig                               *
+* --------------------------------------------------                          *
+* line width 1                 16.04    0.000009                              *
+* line width 10                11.97    0.000009                              *
+* rectangle width 1           332.57    0.000051                              *
+* rectangle width 10            0.81    0.000004                              *
+* rounded rectangle width 1    29.90    0.023449                              *
+* rounded rectangle width 10    1.00    0.009552                              *
+* filled rectangle              0.00    0.000000                              *
+* filled rounded rectangle      1.37    0.003389                              *
+* ellipse width 1              70.63    0.003926                              *
+* ellipse width 10              8.46    0.003923                              *
+* filled ellipse                4.60    0.002363                              *
+* arc width 1                  90.90    0.004507                              *
+* arc width 10                  7.96    0.004288                              *
+* filled arc                    1.22    0.002628                              *
+* filled chord                  1.57    0.001941                              *
+* filled triangle               1.01    0.000020                              *
+* text                         31.97    0.000070                              *
+* background invisible text    36.30    0.000094                              *
+* Picture draw                  7.30    0.002764                              *
+* No scaling picture draw       2.61    0.000224                              *
 *                                                                             *
 *******************************************************************************/
 

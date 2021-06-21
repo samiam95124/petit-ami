@@ -132,7 +132,7 @@ static enum { /* debug levels */
 //#define PRTEVT  /* print outgoing PA events */
 //#define EVTPOL /* poll for X events */
 //#define PRTFNT /* print internal fonts list */
-#define PRTMEM /* print memory allocations at exit */
+//#define PRTMEM /* print memory allocations at exit */
 
 #define MAXBUF 10  /* maximum number of buffers available */
 #define IOWIN  1   /* logical window number of input/output pair */
