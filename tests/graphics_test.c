@@ -695,7 +695,7 @@ static void benchtest(
         et = pa_elapsed(t); /* find time to execute */
         i *= 2; /* scale for next pass */
 
-    } while (et < 100); /* set minimum time to measure for stability */
+    } while (et < SECOND); /* set minimum time to measure for stability */
     i /= 2; /* remove last scale */
     /* find iterations for 15 second run */
     i = (SECOND*15*0.0001)/(et*0.0001/i);
