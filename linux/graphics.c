@@ -6117,9 +6117,8 @@ int pa_chrpos(FILE* f, const char* s, int p)
     int    rv;
 
     win = txt2win(f); /* get window pointer from text file */
-
     XWLOCK();
-    rv = XTextWidth(win->xfont, s, p-1); /* return value */
+    rv = XTextWidth(win->xfont, s, p); /* return value */
     XWUNLOCK();
 
     return (rv);
