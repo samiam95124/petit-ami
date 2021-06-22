@@ -3100,9 +3100,9 @@ static void isettabg(winptr win, int t)
     if (i == MAXTAB && t < sc->tab[i]) error(etabful); /* tab table full */
     if (t != sc->tab[i])  { /* not the same tab yet again */
 
-        if (sc->tab[MAXTAB]) error(etabful); /* tab table full */
+        if (sc->tab[MAXTAB-1]) error(etabful); /* tab table full */
         /* move tabs above us up */
-        for (x = MAXTAB; x > i; x--) sc->tab[x] = sc->tab[x-1];
+        for (x = MAXTAB-1; x > i; x--) sc->tab[x] = sc->tab[x-1];
         sc->tab[i] = t; /* place tab in order */
 
     }
