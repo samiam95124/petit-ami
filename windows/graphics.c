@@ -8884,6 +8884,17 @@ void stdfont(void)
     nfl = NULL; /* clear target list */
 
     /* search 1: terminal font */
+#if 1
+    /* set up terminal font. terminal font is set to system default */
+    fp = malloc(sizeof(fontrec)); /* get a new entry */
+    if (!fp) error(enomem);
+    fp->fix = TRUE; /* set fixed */
+    fp->sys = TRUE; /* set system */
+    fp->fn = str("System Fixed");
+    fp->next = fntlst; /* push to fonts list */
+    fntlst = fp;
+    fntcnt = fntcnt+1; /* add to font count */
+#else
     fp = schstr(termfont, TRUE); /* search table */
     if (fp) { /* found */
 
@@ -8892,6 +8903,7 @@ void stdfont(void)
         nfl = fp;
 
     } else error(efntnf); /* no matching font found */
+#endif
 
     /* search 2: book (serif) font */
     fp = schstr(bookfont, FALSE); /* search table */
@@ -8918,8 +8930,8 @@ void stdfont(void)
     /* search 4: technical font, make copy of sign */
     fp = (fontptr)malloc(sizeof(fontrec));
 
-    /* copy sign font parameters */
-    fp->fn = sp->fn;
+    /* copy sign font parameters, but with new name */
+    fp->fn = str("Technical");
     fp->fix = sp->fix;
     fp->next = nfl; /* insert to target list */
     nfl = fp;
