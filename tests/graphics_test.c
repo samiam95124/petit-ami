@@ -1115,9 +1115,9 @@ int main(void)
     float f;
 
     if (setjmp(terminate_buf)) goto terminate;
+#if 1
     pa_curvis(stdout, FALSE);
     pa_binvis(stdout);
-#if 0
     printf("Graphics screen test vs. 0.1\n");
     printf("\n");
     printf("Screen size in characters: x -> %d y -> %d\n", pa_maxx(stdout),
@@ -2644,7 +2644,7 @@ int main(void)
     pa_fcolor(stdout, pa_black);
     pa_rect(stdout, x, pa_curyg(stdout), x+pa_strsiz(stdout, S3)-1,
             pa_curyg(stdout)+pa_chrsizy(stdout)-1);
-    for (i = 0; i <= strlen(S3); i++)
+    for (i = 0; i < strlen(S3); i++)
         pa_line(stdout, x+pa_chrpos(stdout, S3, i), pa_curyg(stdout),
                 x+pa_chrpos(stdout, S3, i),
                 pa_curyg(stdout)+pa_chrsizy(stdout)-1);
@@ -2698,6 +2698,7 @@ int main(void)
 
     /* ************************** Picture draw test **************************** */
 
+#endif
     putchar('\f');
     grid();
     pa_maknam(fn, 100, "tests", "mypic", "");
@@ -2868,7 +2869,6 @@ int main(void)
 
     /* ************************** Benchmarks **************************** */
 
-#endif
     pa_bover(stdout);
 
     benchtest(linespeed, bnline1, 1);

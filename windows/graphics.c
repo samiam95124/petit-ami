@@ -110,7 +110,8 @@ static enum { /* debug levels */
 
 #define dbg_printf(lvl, fmt, ...) \
         do { if (lvl >= dbglvl) fprintf(stderr, "%s:%s():%d: " fmt, __FILE__, \
-                                __func__, __LINE__, ##__VA_ARGS__); } while (0)
+                                __func__, __LINE__, ##__VA_ARGS__); \
+                                fflush(stderr); } while (0)
 
 /*
  * Configurable parameters
@@ -343,8 +344,6 @@ typedef struct winrec {
     int      gwexty;          /* window extent y */
     int      gvextx;          /* viewpor extent x */
     int      gvexty;          /* viewport extent y */
-    fontptr  fntlst;          /* list of windows fonts */
-    int      fntcnt;          /* number of fonts in font list */
     int      termfnt;         /* terminal font number */
     int      bookfnt;         /* book font number */
     int      signfnt;         /* sign font number */
@@ -607,6 +606,7 @@ typedef enum {
     enofnt,   /* Cannot create font */
     enosel,   /* Cannot select object */
     ecfgval,  /* invalid configuration value */
+    efntnf,   /* no matching font found */
     esystem   /* System consistency check */
 
 } errcod;
@@ -1120,6 +1120,7 @@ static void error(errcod e)
         case enofnt:   grawrterr("Cannot create font"); break;
         case enosel:   grawrterr("Cannot select object"); break;
         case ecfgval:  grawrterr("Invalid configuration value"); break;
+        case efntnf:   grawrterr("No matching font found"); break;
         case esystem:  grawrterr("System consistency check, please contact vendor");
 
     }
@@ -5791,15 +5792,7 @@ int pa_fonts(FILE* f)
 
 {
 
-    winptr win; /* window pointer */
-    int    ft;
-
-    lockmain(); /* start exclusive access */
-    win = txt2win(f); /* get window pointer from text file */
-    ft = win->fntcnt; /* return global font counter */
-    unlockmain(); /* end exclusive access */
-
-    return (ft);
+    return (fntcnt); /* return global font counter */
 
 }
 
@@ -5821,7 +5814,7 @@ static void ifont(winptr win, int fc)
         error(eatoftc); /* cannot perform with auto on */
     if (fc < 1) error(einvfnm); /* invalid font number */
     /* find indicated font */
-    fp = win->fntlst;
+    fp = fntlst;
     while (fp != NULL && fc > 1) { /* search */
 
        fp = fp->next; /* mext font entry */
@@ -5866,7 +5859,7 @@ static void ifontnam(winptr win, int fc, char* fns, int fnsl)
     int i; /* string index */
 
     if (fc <= 0) error(einvftn); /* invalid number */
-    fp = win->fntlst; /* index top of list */
+    fp = fntlst; /* index top of list */
     while (fc > 1) { /* walk fonts */
 
        fp = fp->next; /* next font */
@@ -5924,79 +5917,6 @@ void pa_fontsiz(FILE* f, int s)
     win = txt2win(f); /* get window pointer from text file */
     ifontsiz(win, s); /* set font size */
     unlockmain(); /* end exclusive access */
-
-}
-
-/*******************************************************************************
-
-Find standard font numbers
-
-Returns the font number of one of the standard font types, terminal, book,
-sign or technical.
-
-*******************************************************************************/
-
-int pa_termfont(FILE* f)
-
-{
-
-    winptr win;  /* windows record pointer */
-    int    fn;
-
-    lockmain(); /* start exclusive access */
-    win = txt2win(f); /* get window pointer from text file */
-    fn = win->termfnt; /* get font number */
-    unlockmain(); /* end exclusive access */
-
-    return (fn);
-
-}
-
-int pa_bookfont(FILE* f)
-
-{
-
-    winptr win;  /* windows record pointer */
-    int    fn;
-
-    lockmain(); /* start exclusive access */
-    win = txt2win(f); /* get window pointer from text file */
-    fn = win->bookfnt; /* get font number */
-    unlockmain(); /* end exclusive access */
-
-    return (fn);
-
-}
-
-int pa_signfont(FILE* f)
-
-{
-
-    winptr win;  /* windows record pointer */
-    int    fn;
-
-    lockmain(); /* start exclusive access */
-    win = txt2win(f); /* get window pointer from text file */
-    fn = win->signfnt; /* get font number */
-    unlockmain(); /* end exclusive access */
-
-    return (fn);
-
-}
-
-int pa_techfont(FILE* f)
-
-{
-
-    winptr win;  /* windows record pointer */
-    int    fn;
-
-    lockmain(); /* start exclusive access */
-    win = txt2win(f); /* get window pointer from text file */
-    fn = win->techfnt; /* get font number */
-    unlockmain(); /* end exclusive access */
-
-    return (fn);
 
 }
 
@@ -8714,57 +8634,63 @@ static void getpgm(void)
 
 /*******************************************************************************
 
-Sort font list
+Delete font
 
-Sorts the font list for alphabetical order, a-z. The font list does not need
-to be in a particular order (and indeed, can't be absolutely in order, because
-of the first 4 reserved entries), but sorting it makes listings neater if a
-program decides to dump the font names in order.
+Deletes the given font entry from the global font list. Does not recycle it.
 
 *******************************************************************************/
 
-static void sortfont(fontptr* fp)
+void delfnt(fontptr fp)
 
 {
 
-    fontptr nl, p, c, l;
+    fontptr flp;
+    fontptr fl;
 
-    nl = NULL; /* clear destination list */
-    while (*fp != NULL) { /* insertion sort */
+    if (fp == fntlst) fntlst = fntlst->next; /* gap from top of list */
+    else { /* search whole list */
 
-        p = *fp; /* index top */
-        *fp = (*fp)->next; /* remove that */
-        p->next = NULL; /* clear next */
-        c = nl; /* index new list */
-        l = NULL; /* clear last */
-        while (c) { /* find insertion point */
+        /* find last pointer */
+        flp = fntlst;
+        fl = NULL; /* set no last */
+        while (flp && flp != fp) { /* find last */
 
-            /* compare strings */
-            if (strcmp(p->fn, c->fn) <= 0) c = NULL; /* terminate */
-            else {
-
-                l = c; /* set last */
-                c = c->next; /* advance */
-
-            }
+            fl = flp; /* set last */
+            flp = flp->next; /* go next */
 
         }
-        if (!l) {
-
-            /* if no last, insert to start */
-            p->next = nl;
-            nl = p;
-
-        } else {
-
-            /* insert to middle/end */
-            p->next = l->next; /* set next */
-            l->next = p; /* link to last */
-
-        }
+        if (!fl) error(esystem); /* should have found it */
+        fl->next = fp->next; /* gap over entry */
 
     }
-    *fp = nl; /* place result */
+
+}
+
+/*******************************************************************************
+
+Print font list
+
+A diagnostic, prints the internal font list.
+
+*******************************************************************************/
+
+void prtfnt(void)
+
+{
+
+    fontptr  fp;
+    int      c;
+
+    fp = fntlst;
+    c = 1;
+    while (fp) {
+
+        dbg_printf(dlinfo, "Font %2d: %s Fix: %d Sys: %d\n", c, fp->fn, fp->fix,
+                   fp->sys);
+        fp = fp->next;
+        c++;
+
+    }
 
 }
 
@@ -8804,7 +8730,7 @@ static int CALLBACK enumfont(const LOGFONT* lfd, const TEXTMETRIC* pfd, DWORD ft
       fntlst = fp;
       fntcnt = fntcnt+1; /* count font */
       fp->fn = str(lfde->elfFullName); /* create string and copy */
-      fp->fix = !!(lfde->elfLogFont.lfPitchAndFamily & 3 == FIXED_PITCH);
+      fp->fix = (lfde->elfLogFont.lfPitchAndFamily & 3) == FIXED_PITCH;
       fp->sys = FALSE; /* set not system */
 
    }
@@ -8849,37 +8775,10 @@ static void getfonts(winptr win)
     lf.lfPitchAndFamily = 0; /* must be zero */
     lf.lfFaceName[0] = 0; /* match all typeface names */
     r = EnumFontFamiliesEx(win->devcon, &lf, enumfont, 0, 0);
-    win->fntlst = fntlst; /* place into windows record */
-    win->fntcnt = fntcnt;
 
-
-}
-
-/*******************************************************************************
-
-Remove font from font list
-
-Removes the indicated font from the font list. Does not dispose of the entry.
-
-*******************************************************************************/
-
-static void delfnt(winptr win, fontptr fp)
-
-{
-
-    fontptr p;
-
-    p = win->fntlst; /* index top of list */
-    if (!win->fntlst) error(esystem); /* should not be null */
-    if (win->fntlst == fp) win->fntlst = fp->next; /* gap first entry */
-    else { /* mid entry */
-
-        /* find entry before ours */
-        while (p->next != fp && p->next != NULL) p = p->next;
-        if (!p->next) error(esystem); /* not found */
-        p->next = fp->next; /* gap out */
-
-    }
+#if 0
+    prtfnt();
+#endif
 
 }
 
@@ -8891,32 +8790,23 @@ Finds a font in the list of fonts. Also matches fixed/no fixed pitch status.
 
 *******************************************************************************/
 
-static int fndfnt(winptr win, char* fn, int fix, fontptr* fp)
+static fontptr fndfnt(char* fn, int fix)
 
 {
 
     fontptr p;
-    int     fc;
-    int     ff;
+    fontptr fp;
 
-    ff = 0; /* set no font found */
-    *fp = NULL;
-    p = win->fntlst; /* index top of font list */
-    fc = 1; /* set first font number */
-    while (p) { /* traverse font list */
+    fp = NULL;
+    p = fntlst; /* index top of font list */
+    while (!fp && p) { /* traverse font list */
 
-        if (!strcmp(p->fn, fn) && p->fix == fix) {
-
-            *fp = p;
-            ff = fc; /* found, set */
-
-        }
-        p = p->next; /* next entry */
-        fc++;
+        if (!strcmp(p->fn, fn) && p->fix == fix) fp = p;
+        else p = p->next; /* next entry */
 
     }
 
-    return (ff); /* return found font */
+    return (fp); /* return found font */
 
 }
 
@@ -8931,93 +8821,132 @@ Note: could also default to style searching for book and sign fonts.
 
 *******************************************************************************/
 
-static void stdfont(winptr win)
+/* search string list */
+fontptr schstr(char** p, int fix)
 
 {
 
-    fontptr termfp, bookfp, signfp, techfp; /* standard font slots */
+    fontptr fp;
 
-    /* clear standard font numbers */
-    win->termfnt = 0;
-    win->bookfnt = 0;
-    win->signfnt = 0;
-    win->techfnt = 0;
+    fp = NULL;
+    while (!fp && *p) {
 
-    /* set up terminal font. terminal font is set to system default */
-    termfp = malloc(sizeof(fontrec)); /* get a new entry */
-    if (!termfp) error(enomem);
-    termfp->fix = TRUE; /* set fixed */
-    termfp->sys = TRUE; /* set system */
-    termfp->fn = str("System Fixed");
-    termfp->next = win->fntlst; /* push to fonts list */
-    win->fntlst = termfp;
-    win->fntcnt = win->fntcnt+1; /* add to font count */
-    sortfont(&win->fntlst); /* sort into alphabetical order */
-    win->termfnt = fndfnt(win, "System Fixed", TRUE, &termfp);
-    /* find book fonts */
-    win->bookfnt = fndfnt(win, "Times New Roman", FALSE, &bookfp);
-    if (!win->bookfnt) {
-
-        win->bookfnt = fndfnt(win, "Garamond", FALSE, &bookfp);
-        if (!win->bookfnt) {
-
-            win->bookfnt = fndfnt(win, "Book Antiqua", FALSE, &bookfp);
-            if (!win->bookfnt) {
-
-                win->bookfnt = fndfnt(win, "Georgia", FALSE, &bookfp);
-                if (!win->bookfnt) {
-
-                    win->bookfnt = fndfnt(win, "Palatino Linotype", FALSE,
-                                          &bookfp);
-                    if (!win->bookfnt)
-                        win->bookfnt = fndfnt(win, "Verdana", FALSE, &bookfp);
-
-                }
-
-            }
-
-        }
-
-    }
-    /* find sign fonts */
-
-    win->signfnt = fndfnt(win, "Tahoma", FALSE, &signfp);
-    if (!win->signfnt) {
-
-       win->signfnt = fndfnt(win, "Microsoft Sans Serif", FALSE, &signfp);
-       if (!win->signfnt) {
-
-          win->signfnt = fndfnt(win, "Arial", FALSE, &signfp);
-          if (!win->signfnt) {
-
-             win->signfnt = fndfnt(win, "News Gothic MT", FALSE, &signfp);
-             if (!win->signfnt) {
-
-                win->signfnt = fndfnt(win, "Century Gothic", FALSE, &signfp);
-                if (!win->signfnt) {
-
-                   win->signfnt = fndfnt(win, "Franklin Gothic", FALSE,
-                                         &signfp);
-                   if (!win->signfnt) {
-
-                      win->signfnt = fndfnt(win, "Trebuchet MS", FALSE,
-                                            &signfp);
-                      if (!win->signfnt) fndfnt(win, "Verdana", FALSE, &signfp);
-
-                   }
-
-                }
-
-             }
-
-          }
-
-       }
+        fp = fndfnt(*p, fix);
+        if (!fp) p++;
 
     }
 
-    /* set tech font equivalent to sign font */
-    win->techfnt = win->signfnt;
+    return (fp);
+
+}
+
+void stdfont(void)
+
+{
+
+    fontptr nfl; /* new font list */
+    fontptr fp; /* font pointer */
+    fontptr sp; /* sign font pointer */
+    char* p, f;
+    char* termfont[] = {
+
+        "System Fixed",
+        "Courier New",
+        "DejaVu Sans Mono",
+        "Liberation Mono",
+        "Lucida Sans Typewriter",
+        NULL
+
+    };
+    char* bookfont[] = {
+
+        "Times New Roman",
+        "Garamond",
+        "Book Antiqua",
+        "Georgia",
+        "Palatino Linotype",
+        NULL
+
+    };
+    char* signfont[] = {
+
+        "Tahoma",
+        "Microsoft Sans Serif",
+        "Arial",
+        "Century Gothic",
+        "Franklin Gothic",
+        "Trebuchet MS",
+        "Verdana",
+
+    };
+
+    /* select first 4 fonts for standard fonts */
+    nfl = NULL; /* clear target list */
+
+    /* search 1: terminal font */
+    fp = schstr(termfont, TRUE); /* search table */
+    if (fp) { /* found */
+
+        delfnt(fp); /* remove from source list */
+        fp->next = nfl; /* insert to target list */
+        nfl = fp;
+
+    } else error(efntnf); /* no matching font found */
+
+    /* search 2: book (serif) font */
+    fp = schstr(bookfont, FALSE); /* search table */
+    if (fp) { /* found */
+
+        delfnt(fp); /* remove from source list */
+        fp->next = nfl; /* insert to target list */
+        nfl = fp;
+
+    } else error(efntnf); /* no matching font found */
+
+    /* search 3: sign (san serif) font */
+    fp = schstr(signfont, FALSE); /* search table */
+    if (fp) { /* found */
+
+        delfnt(fp); /* remove from source list */
+        fp->next = nfl; /* insert to target list */
+        nfl = fp;
+
+    } else error(efntnf); /* no matching font found */
+
+    sp = fp; /* save sign font */
+
+    /* search 4: technical font, make copy of sign */
+    fp = (fontptr)malloc(sizeof(fontrec));
+
+    /* copy sign font parameters */
+    fp->fn = sp->fn;
+    fp->fix = sp->fix;
+    fp->next = nfl; /* insert to target list */
+    nfl = fp;
+    fntcnt++; /* add to font count */
+
+    /* transfer all remaining entries to the font list */
+    while (fntlst) {
+
+        fp = fntlst;
+        fntlst = fntlst->next; /* gap from list */
+        fp->next = nfl; /* insert to new list */
+        nfl = fp;
+
+    }
+    /* now insert back to master list, and reverse entries to order */
+    while (nfl) {
+
+        fp = nfl;
+        nfl = nfl->next; /* gap from list */
+        fp->next = fntlst; /* insert to new list */
+        fntlst = fp;
+
+    }
+
+#if 0
+    prtfnt();
+#endif
 
 }
 
@@ -9253,9 +9182,9 @@ static void opnwin(int fn, int pfn)
       the terminal to a known state */
     win->gfhigh = FHEIGHT; /* set default font height */
     getfonts(win); /* get the global fonts list */
-    stdfont(win); /* mark/create the standard fonts */
+    stdfont(); /* mark/create the standard fonts */
     /* index terminal font */
-    fndfnt(win, "System Fixed", TRUE, &win->gcfont);
+    win->gcfont = fndfnt("System Fixed", TRUE);
     /* set up system default parameters */
     rv = SelectObject(win->devcon, GetStockObject(SYSTEM_FIXED_FONT));
     if (rv == HGDI_ERROR) error(enosel);
@@ -9302,7 +9231,7 @@ static void opnwin(int fn, int pfn)
     win->gmaxy = maxyd;
     win->gattr = 0; /* no attribute */
     win->gauto = TRUE; /* auto on */
-    win->gfcrgb = colnum(pa_black); /*foreground black */
+    win->gfcrgb = colnum(pa_black); /* foreground black */
     win->gbcrgb = colnum(pa_white); /* background white */
     win->gcurv = TRUE; /* cursor visible */
     win->gfmod = mdnorm; /* set mix modes */
@@ -14341,7 +14270,7 @@ static int fndfntnum(winptr win, char* fns)
     fontptr fp;     /* pointer for fonts list */
     int     fc, ff; /* font counters */
 
-    fp = win->fntlst; /* index top of fonts */
+    fp = fntlst; /* index top of fonts */
     fc = 1; /* set 1st font */
     ff = 0; /* set no font found */
     while (fp) { /* traverse */

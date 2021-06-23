@@ -1040,29 +1040,29 @@ static int rgb2xwin(int r, int g, int b)
 
 /*******************************************************************************
 
-Search font
+Search for font by name
 
-Searches for a font entry by font name.
+Finds a font in the list of fonts. Also matches fixed/no fixed pitch status.
 
 *******************************************************************************/
 
-fontptr schfnt(string sp)
+static fontptr fndfnt(winptr win, char* fn, int fix)
 
 {
 
-    fontptr fp; /* font pointer */
-    fontptr ffp; /* found font */
+    fontptr p;
+    fontptr fp;
 
-    fp = fntlst; /* index top of list */
-    ffp = NULL; /* clear found */
-    while (fp) { /* traverse list */
+    fp = NULL;
+    p = fntlst; /* index top of font list */
+    while (!fp && p) { /* traverse font list */
 
-        if (!strcmp(fp->fn, sp)) ffp = fp; /* found */
-        fp = fp->next;
+        if (!strcmp(p->fn, fn) && p->fix == fix) fp = p;
+        else p = p->next; /* next entry */
 
     }
 
-    return (ffp); /* return found */
+    return (fp); /* return found font */
 
 }
 
@@ -1182,7 +1182,7 @@ void stdfont(void)
     nfl = NULL; /* clear target list */
 
     /* search 1: terminal font */
-    fp = schfnt("bitstream: courier 10 pitch: iso10646-1");
+    fp = fntfnt("bitstream: courier 10 pitch: iso10646-1", TRUE);
     if (fp) { /* found, enter as 1 */
 
         delfnt(fp); /* remove from source list */
@@ -1191,7 +1191,7 @@ void stdfont(void)
 
     } else {
 
-        fp = schfnt("bitstream: courier 10 pitch: iso8859-1");
+        fp = schfnt("bitstream: courier 10 pitch: iso8859-1", TRUE);
         if (!fp) error(estdfnt); /* no font found */
         delfnt(fp); /* remove from source list */
         fp->next = nfl; /* insert to target list */
@@ -1200,7 +1200,7 @@ void stdfont(void)
     }
 
     /* search 2: book (serif) font */
-    fp = schfnt("bitstream: bitstream charter: iso10646-1");
+    fp = schfnt("bitstream: bitstream charter: iso10646-1", FALSE);
     if (fp) { /* found, enter as 2 */
 
         delfnt(fp); /* remove from source list */
@@ -1209,7 +1209,7 @@ void stdfont(void)
 
     } else {
 
-        fp = schfnt("bitstream: bitstream charter: iso8859-1");
+        fp = schfnt("bitstream: bitstream charter: iso8859-1", FALSE);
         if (!fp) error(estdfnt); /* no font found */
         delfnt(fp); /* remove from source list */
         fp->next = nfl; /* insert to target list */
@@ -1218,7 +1218,7 @@ void stdfont(void)
     }
 
     /* search 3: sign (san serif) font */
-    fp = schfnt("unregistered: latin modern sans: iso8859-1");
+    fp = schfnt("unregistered: latin modern sans: iso8859-1", FALSE);
     if (!fp) error(estdfnt); /* no font found */
     delfnt(fp); /* remove from source list */
     fp->next = nfl; /* insert to target list */
