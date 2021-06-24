@@ -683,26 +683,26 @@ int main(void)
     pa_scrollsiz(stdout, 4, INT_MAX / 8);
     printf("Now should be four scrollbars, decending in size to the right.\n");
     printf("All of the scrollbars can be manipulated.\n");
-    repeat
+    do {
 
         pa_event(stdin, er);
-        if er.etype == pa_etsclull then
-            printf("Scrollbar: ", er.sclulid:1, " up/left line\n");
-        if er.etype == pa_etscldrl then
-            printf("Scrollbar: ", er.scldlid:1, " down/right line\n");
-        if er.etype == pa_etsclulp then
-            printf("Scrollbar: ", er.sclpa_up(stdout)id:1, " up/left page\n");
-        if er.etype == pa_etscldrp then
-            printf("Scrollbar: ", er.scldpid:1, " down/right page\n");
-        if er.etype == pa_etsclpos then {
+        if (er.etype == pa_etsclull)
+            printf("Scrollbar: %d up/left line\n", er.sclulid);
+        if (er.etype == pa_etscldrl)
+            printf("Scrollbar: %d down/right line\n", er.scldlid);
+        if (er.etype == pa_etsclulp)
+            printf("Scrollbar: %d up/left page\n", er.sclupid);
+        if (er.etype == pa_etscldrp)
+            printf("Scrollbar: %d down/right page\n", er.scldpid);
+        if (er.etype == pa_etsclpos) {
 
             pa_scrollpos(stdout, er.sclpid, er.sclpos); /* set new position for scrollbar */
-            printf("Scrollbar: ", er.sclpid:1, " position set: ", er.sclpos:1, "\n");
+            printf("Scrollbar: %d position set: %d\n", er.sclpid, er.sclpos);
 
         };
-        if er.etype == pa_etterm longjmp(terminate_buf, 1)
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1)
 
-    until er.etype == pa_etenter;
+    } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
     pa_killwidget(stdout, 2);
     pa_killwidget(stdout, 3);
@@ -719,26 +719,26 @@ int main(void)
     pa_scrollvert(stdout, 10, 10, 10+x-1, 10+y-1, 1);
     pa_scrollhorizsiz(stdout, x, y);
     pa_scrollhoriz(stdout, 15, 10, 15+x-1, 10+y-1, 2);
-    repeat
+    do {
 
         pa_event(stdin, er);
-        if er.etype == pa_etsclull then
+        if (er.etype == pa_etsclull)
             printf("Scrollbar: ", er.sclulid:1, " up/left line\n");
-        if er.etype == pa_etscldrl then
+        if (er.etype == pa_etscldrl)
             printf("Scrollbar: ", er.scldlid:1, " down/right line\n");
-        if er.etype == pa_etsclulp then
+        if (er.etype == pa_etsclulp)
             printf("Scrollbar: ", er.sclpa_up(stdout)id:1, " up/left page\n");
-        if er.etype == pa_etscldrp then
+        if (er.etype == pa_etscldrp)
             printf("Scrollbar: ", er.scldpid:1, " down/right page\n");
-        if er.etype == pa_etsclpos then {
+        if (er.etype == pa_etsclpos) {
 
             pa_scrollpos(stdout, er.sclpid, er.sclpos); /* set new position for scrollbar */
-            printf("Scrollbar: ", er.sclpid:1, " position set: ", er.sclpos:1,"\n");
+            printf("Scrollbar: %d position set: %d\n", er.sclpid, er.sclpos);
 
-        };
-        if er.etype == pa_etterm longjmp(terminate_buf, 1)
+        }
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
-    until er.etype == pa_etenter;
+    } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
     pa_killwidget(stdout, 2);
 
@@ -747,7 +747,7 @@ int main(void)
     printf("\f");
     chrgrid();
     pa_binvis(stdout);
-    printf("Terminal scroll bar fat && skinny bars test\n");
+    printf("Terminal scroll bar fat and skinny bars test\n");
     printf("\n");
     pa_scrollvertsiz(stdout, x, y);
     pa_scrollvert(stdout, 10, 10, 10, 10+10, 1);
@@ -755,26 +755,26 @@ int main(void)
     pa_scrollhorizsiz(stdout, x, y);
     pa_scrollhoriz(stdout, 30, 10, 30+20, 10, 2);
     pa_scrollhoriz(stdout, 30, 12, 30+20, 20, 4);
-    repeat
+    do {
 
         pa_event(stdin, er);
-        if er.etype == pa_etsclull then
-            printf("Scrollbar: ", er.sclulid:1, " up/left line\n");
-        if er.etype == pa_etscldrl then
-            printf("Scrollbar: ", er.scldlid:1, " down/right line\n");
-        if er.etype == pa_etsclulp then
-            printf("Scrollbar: ", er.sclpa_up(stdout)id:1, " up/left page\n");
-        if er.etype == pa_etscldrp then
-            printf("Scrollbar: ", er.scldpid:1, " down/right page\n");
-        if er.etype == pa_etsclpos then {
+        if (er.etype == pa_etsclull)
+            printf("Scrollbar: %d up/left line\n", er.sclulid");
+        if (er.etype == pa_etscldrl)
+            printf("Scrollbar: %d down/right line\n", er.scldlid);
+        if (er.etype == pa_etsclulp)
+            printf("Scrollbar: %d up/left page\n", er.sclupid);
+        if (er.etype == pa_etscldrp) then
+            printf("Scrollbar: %d down/right page\n", er.scldpid);
+        if (er.etype == pa_etsclpos) then {
 
             pa_scrollpos(stdout, er.sclpid, er.sclpos); /* set new position for scrollbar */
-            printf("Scrollbar: ", er.sclpid:1, " position set: ", er.sclpos:1, "\n");
+            printf("Scrollbar: %d position set: %d\n", er.sclpid, er.sclpos);
 
-        };
-        if er.etype == pa_etterm longjmp(terminate_buf, 1)
+        }
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
-    until er.etype == pa_etenter;
+    } while (er.etype == pa_etenter);
     pa_killwidget(stdout, 1);
     pa_killwidget(stdout, 2);
     pa_killwidget(stdout, 3);
@@ -789,26 +789,26 @@ int main(void)
     pa_scrollvertg(stdout, 100, 100, 100+x, 300, 1);
     pa_scrollhorizsizg(stdout, x, y);
     pa_scrollhorizg(stdout, 150, 100, 350, 100+y, 2);
-    repeat
+    do {
 
         pa_event(stdin, er);
-        if er.etype == pa_etsclull then
-            printf("Scrollbar: ", er.sclulid:1, " up/left line\n");
-        if er.etype == pa_etscldrl then
-            printf("Scrollbar: ", er.scldlid:1, " down/right line\n");
-        if er.etype == pa_etsclulp then
-            printf("Scrollbar: ", er.sclpa_up(stdout)id:1, " up/pa_left page\n");
-        if er.etype == pa_etscldrp then
-            printf("Scrollbar: ", er.scldpid:1, " down/right page\n");
-        if er.etype == pa_etsclpos then {
+        if (er.etype == pa_etsclull)
+            printf("Scrollbar: %d up/left line\n", er.sclulid);
+        if (er.etype == pa_etscldrl)
+            printf("Scrollbar: %d down/right line\n", er.scldlid);
+        if (er.etype == pa_etsclulp)
+            printf("Scrollbar: %d up/pa_left page\n", er.sclupid);
+        if (er.etype == pa_etscldrp)
+            printf("Scrollbar: %d down/right page\n", er.scldpid);
+        if (er.etype == pa_etsclpos) {
 
             pa_scrollpos(stdout, er.sclpid, er.sclpos); /* set new position for scrollbar */
-            printf("Scrollbar: ", er.sclpid:1, " position set: ", er.sclpos:1, "\n");
+            printf("Scrollbar: %d position set: %d\n", er.sclpid, er.sclpos);
 
-        };
-        if er.etype == pa_etterm longjmp(terminate_buf, 1)
+        }
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
-    until er.etype == pa_etenter;
+    } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
     pa_killwidget(stdout, 2);
 
@@ -827,26 +827,26 @@ int main(void)
     pa_scrollsiz(stdout, 4, INT_MAX / 8);
     printf("Now should be four scrollbars, dec}ing in size to the pa_right(stdout).\n");
     printf("All of the scrollbars can be manipulated.\n");
-    repeat
+    do {
 
         pa_event(stdin, er);
-        if er.etype == pa_etsclull then
-            printf("Scrollbar: ", er.sclulid:1, " up/left line\n");
-        if er.etype == pa_etscldrl then
-            printf("Scrollbar: ", er.scldlid:1, " down/right line\n");
-        if er.etype == pa_etsclulp then
-            printf("Scrollbar: ", er.sclpa_up(stdout)id:1, " up/pa_left page\n");
-        if er.etype == pa_etscldrp then
-            printf("Scrollbar: ", er.scldpid:1, " down/right page\n");
-        if er.etype == pa_etsclpos then {
+        if (er.etype == pa_etsclull) then
+            printf("Scrollbar: %d up/left line\n", er.sclulid);
+        if (er.etype == pa_etscldrl) then
+            printf("Scrollbar: %d down/right line\n", er.scldlid);
+        if (er.etype == pa_etsclulp) then
+            printf("Scrollbar: %d up/pa_left page\n", er.sclupid);
+        if (er.etype == pa_etscldrp) then
+            printf("Scrollbar: %d down/right page\n", er.scldpid);
+        if (er.etype == pa_etsclpos) then {
 
             pa_scrollpos(stdout, er.sclpid, er.sclpos); /* set new position for scrollbar */
-            printf("Scrollbar: ", er.sclpid:1, " position set: ", er.sclpos:1, "\n");
+            printf("Scrollbar: %d position set: %d", er.sclpid, er.sclpos);
 
-        };
-        if er.etype == pa_etterm longjmp(terminate_buf, 1)
+        }
+        if er.etype == pa_etterm longjmp(terminate_buf, 1);
 
-    until er.etype == pa_etenter;
+    } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
     pa_killwidget(stdout, 2);
     pa_killwidget(stdout, 3);
@@ -861,30 +861,30 @@ int main(void)
     pa_scrollvertg(stdout, 100, 100, 100+x, 100+y, 1);
     pa_scrollhorizsizg(stdout, x, y);
     pa_scrollhorizg(stdout, 150, 100, 150+x, 100+y, 2);
-    repeat
+    do {
 
         pa_event(stdin, er);
-        if er.etype == pa_etsclull then
-            printf("Scrollbar: ", er.sclulid:1, " up/left line\n");
-        if er.etype == pa_etscldrl then
-            printf("Scrollbar: ", er.scldlid:1, " down/right line\n");
-        if er.etype == pa_etsclulp then
-            printf("Scrollbar: ", er.sclpa_up(stdout)id:1, " up/left page\n");
-        if er.etype == pa_etscldrp then
-            printf("Scrollbar: ", er.scldpid:1, " down/right page\n");
-        if er.etype == pa_etsclpos then {
+        if (er.etype == pa_etsclull)
+            printf("Scrollbar: %d up/left line\n", er.sclulid);
+        if (er.etype == pa_etscldrl)
+            printf("Scrollbar: %d down/right line\n", er.scldlid);
+        if (er.etype == pa_etsclulp)
+            printf("Scrollbar: %d up/left page\n", er.sclupid);
+        if (er.etype == pa_etscldrp)
+            printf("Scrollbar: %d down/right page\n", er.scldpid);
+        if (er.etype == pa_etsclpos) {
 
             pa_scrollpos(stdout, er.sclpid, er.sclpos); /* set new position for scrollbar */
-            printf("Scrollbar: ", er.sclpid:1, " position set: ", er.sclpos:1, "\n");
+            printf("Scrollbar: %d position set: %d\n", er.sclpid, er.sclpos);
 
-        };
-        if er.etype == pa_etterm longjmp(terminate_buf, 1)
+        }
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
-    until er.etype == pa_etenter;
+    } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
     pa_killwidget(stdout, 2);
 
-    /* ************ Graphical scroll bar fat && skinny bars test ************** */
+    /* ************ Graphical scroll bar fat and skinny bars test ************** */
 
     printf("\f");
     printf("Graphical scroll bar fat && skinny bars test\n");
@@ -895,26 +895,26 @@ int main(void)
     pa_scrollhorizsizg(stdout, x, y);
     pa_scrollhorizg(stdout, 250, 100, 250+200, 100+y / 2, 2);
     pa_scrollhorizg(stdout, 250, 120, 250+200, 200, 4);
-    repeat
+    do {
 
         pa_event(stdin, er);
-        if er.etype == pa_etsclull then
-            printf("Scrollbar: ", er.sclulid:1, " up/left line\n");
-        if er.etype == pa_etscldrl then
-            printf("Scrollbar: ", er.scldlid:1, " down/right line\n");
-        if er.etype == pa_etsclulp then
-            printf("Scrollbar: ", er.sclpa_up(stdout)id:1, " up/left page\n");
-        if er.etype == pa_etscldrp then
-            printf("Scrollbar: ", er.scldpid:1, " down/right page\n");
-        if er.etype == pa_etsclpos then {
+        if (er.etype == pa_etsclull)
+            printf("Scrollbar: %d up/left line\n", er.sclulid);
+        if (er.etype == pa_etscldrl)
+            printf("Scrollbar: %d down/right line\n", er.scldlid);
+        if (er.etype == pa_etsclulp)
+            printf("Scrollbar: %d up/left page\n", er.sclupid);
+        if (er.etype == pa_etscldrp)
+            printf("Scrollbar: %d down/right page\n", er.scldpid);
+        if (er.etype == pa_etsclpos) {
 
             pa_scrollpos(stdout, er.sclpid, er.sclpos); /* set new position for scrollbar */
-            printf("Scrollbar: ", er.sclpid:1, " position set: ", er.sclpos:1, "\n");
+            printf("Scrollbar: %d position set: %d\n", er.sclpid, er.sclpos);
 
-        };
-        if er.etype == pa_etterm longjmp(terminate_buf, 1)
+        }
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
-    until er.etype == pa_etenter;
+    } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
     pa_killwidget(stdout, 2);
     pa_killwidget(stdout, 3);
@@ -929,15 +929,14 @@ int main(void)
     printf("\n");
     pa_numselboxsiz(stdout, 1, 10, x, y);
     pa_numselbox(stdout, 10, 10, 10+x-1, 10+y-1, 1, 10, 1);
-    repeat
+    do {
 
         pa_event(stdin, er);
-        if er.etype == pa_etnumbox then printf("You selected: ", er.numbsl:1, "\n");
-        if er.etype == pa_etterm longjmp(terminate_buf, 1)
+        if (er.etype == pa_etnumbox) printf("You selected: %d\n", er.numbsl);
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1)
 
-    until er.etype == pa_etenter;
+    } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
-
 
     /* ******************** Graphical number select box test ******************* */
 
@@ -946,13 +945,13 @@ int main(void)
     printf("\n");
     pa_numselboxsizg(stdout, 1, 10, x, y);
     pa_numselboxg(stdout, 100, 100, 100+x, 100+y, 1, 10, 1);
-    repeat
+    do {
 
         pa_event(stdin, er);
-        if er.etype == pa_etnumbox then printf("You selected: ", er.numbsl:1, "\n");
-        if er.etype == pa_etterm longjmp(terminate_buf, 1);
+        if (er.etype == pa_etnumbox) printf("You selected: %d\n", er.numbsl);
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
-    until er.etype == pa_etenter;
+    } while (er.etype == pa_etenter);
     pa_killwidget(stdout, 1);
 
     /* ************************* Terminal edit box test ************************ */
@@ -965,18 +964,18 @@ int main(void)
     pa_editboxsiz(stdout, "Hi there, george", x, y);
     pa_editbox(stdout, 10, 10, 10+x-1, 10+y-1, 1);
     pa_putwidgettext(stdout, 1, "Hi there, george");
-    repeat
+    do {
 
         pa_event(stdin, er);
-        if er.etype == pa_etedtbox then {
+        if (er.etype == pa_etedtbox) {
 
             pa_getwidgettext(stdout, 1, s);
-            printf("You entered: ", s^, "\n");
+            printf("You entered: %s\n", s);
 
-        };
+        }
         if er.etype == pa_etterm longjmp(terminate_buf, 1)
 
-    until er.etype == pa_etenter;
+    } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
 
     /* ************************* Graphical edit box test ************************ */
@@ -987,18 +986,18 @@ int main(void)
     pa_editboxsizg(stdout, "Hi there, george", x, y);
     pa_editboxg(stdout, 100, 100, 100+x-1, 100+y-1, 1);
     pa_putwidgettext(stdout, 1, "Hi there, george");
-    repeat
+    do {
 
         pa_event(stdin, er);
-        if er.etype == pa_etedtbox then {
+        if (er.etype == pa_etedtbox) {
 
             pa_getwidgettext(stdout, 1, s);
-            printf("You entepa_red: ", s^, "\n")
+            printf("You entered: %s\n", s);
 
-        };
-        if er.etype == pa_etterm longjmp(terminate_buf, 1)
+        }
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
-    until er.etype == pa_etenter;
+    } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
 
     /* *********************** Terminal progress bar test ********************* */
