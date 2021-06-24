@@ -45,8 +45,41 @@ static int           ox, oy;
 static int           i, cnt;
 static char          fns[100];
 
-/* wait return to be pressed, or handle terminate */
+/* allocate memory with error checking */
+static void *imalloc(size_t size)
 
+{
+
+    void* p;
+
+    p = malloc(size);
+    if (!p) {
+
+        fprintf(stderr, "*** Out of memory ***\n");
+        exit(1);
+
+    }
+
+    return (p);
+
+}
+
+/* get string in dynamic storage */
+static char* str(char* s)
+
+{
+
+    char* p;
+
+    p = malloc(strlen(s)+1);
+    if (!p) error(enomem);
+    strcpy(p, s);
+
+    return (p);
+
+}
+
+/* wait return to be pressed, or handle terminate */
 static void waitnext(void)
 
 {
@@ -60,7 +93,6 @@ static void waitnext(void)
 }
 
 /* draw a character grid */
-
 static void chrgrid(void)
 
 {
@@ -1009,31 +1041,31 @@ int main(void)
     printf("\n");
     pa_progbarsiz(stdout, x, y);
     pa_progbar(stdout, 10, 10, 10+x-1, 10+y-1, 1);
-    pa_timer(stdout, 1, second, true);
+    pa_timer(stdout, 1, SECOND, TRUE);
     prog = 1;
-    repeat
+    do {
 
         pa_event(stdin, er);
-        if er.etype == pa_ettim then {
+        if (er.etype == pa_ettim) {
 
-            if prog < 20 then {
+            if (prog < 20) {
 
                 pa_progbarpos(stdout, 1, INT_MAX-((20-prog)*(INT_MAX / 20)));
-                prog = prog+1 /* next progress value */
+                prog = prog+1; /* next progress value */
 
-            } else if prog == 20 then {
+            } else if (prog == 20) {
 
                 pa_progbarpos(stdout, 1, INT_MAX);
                 printf("Done !\n");
                 prog = 11;
-                killpa_timer(stdout, 1)
+                killpa_timer(stdout, 1);
 
             }
 
-        };
-        if er.etype == pa_etterm longjmp(terminate_buf, 1)
+        }
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
-    until er.etype == pa_etenter;
+    } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
 
     /* *********************** Graphical progress bar test ********************* */
@@ -1043,31 +1075,31 @@ int main(void)
     printf("\n");
     pa_progbarsizg(stdout, x, y);
     pa_progbarg(stdout, 100, 100, 100+x-1, 100+y-1, 1);
-    pa_timer(stdout, 1, second, true);
+    pa_timer(stdout, 1, SECOND, TRUE);
     prog = 1;
-    repeat
+    do {
 
         pa_event(stdin, er);
-        if er.etype == pa_ettim then {
+        if (er.etype == pa_ettim) {
 
-            if prog < 20 then {
+            if (prog < 20) {
 
                 pa_progbarpos(stdout, 1, INT_MAX-((20-prog)*(INT_MAX / 20)));
-                prog = prog+1 /* next progress value */
+                prog = prog+1; /* next progress value */
 
-            } else if prog == 20 then {
+            } else if (prog == 20) {
 
                 pa_progbarpos(stdout, 1, INT_MAX);
                 printf("Done !\n");
                 prog = 11;
-                killpa_timer(stdout, 1)
+                pa_killtimer(stdout, 1);
 
             }
 
-        };
-        if er.etype == pa_etterm longjmp(terminate_buf, 1)
+        }
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
-    until er.etype == pa_etenter;
+    } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
 
     /* ************************* Terminal list box test ************************ */
@@ -1080,37 +1112,37 @@ int main(void)
     printf("Note that it is normal for this box to ! fill to exact\n");
     printf("character cells.\n");
     printf("\n");
-    new(lp);
-    copy(lp->str, "Blue");
-    lp->next = nil;
-    new(sp);
-    copy(sp->str, "Red");
+    lp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    lp->str = str("Blue");
+    lp->next = NULL;
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str - str("Red");
     sp->next = lp;
     lp = sp;
-    new(sp);
-    copy(sp->str, "Green");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Green");
     sp->next = lp;
     lp = sp;
     pa_listboxsiz(stdout, lp, x, y);
     pa_listbox(stdout, 10, 10, 10+x-1, 10+y-1, lp, 1);
-    repeat
+    do {
 
         pa_event(stdin, er);
-        if er.etype == pa_etlstbox then {
+        if (er.etype == pa_etlstbox) {
 
-            case er.lstbsl of
+            switch (er.lstbsl) {
 
-                1: printf("You selected pa_green\n");
-                2: printf("You selected pa_red\n");
-                3: printf("You selected pa_blue\n");
-                else printf("!!! Bad select number !!!\n")
+                case 1: printf("You selected pa_green\n");
+                case 2: printf("You selected pa_red\n");
+                case 3: printf("You selected pa_blue\n");
+                default: printf("!!! Bad select number !!!\n");
 
             }
 
-        };
-        if er.etype == pa_etterm longjmp(terminate_buf, 1)
+        }
+        if er.etype == pa_etterm longjmp(terminate_buf, 1);
 
-    until er.etype == pa_etenter;
+    } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
 
     /* ************************* Graphical list box test ************************ */
