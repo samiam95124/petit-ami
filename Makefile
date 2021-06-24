@@ -355,7 +355,7 @@ ifeq ($(OSTYPE),Windows_NT)
 all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testg \
-     graphics_test management_test \
+     graphics_test management_test widget_test \
      sound_test sound_testg services_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout editor editorg getpage getpageg getmail \
      getmailg gettys gettysg msgclient msgclientg msgserver msgserverg \
@@ -371,7 +371,7 @@ else ifeq ($(OSTYPE),Darwin)
 all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testg \
-     graphics_test management_test \
+     graphics_test management_test widget_test \
      sound_test sound_testg services_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout editor editorg getpage getpageg getmail \
      getmailg gettys gettysg msgclient msgclientg msgserver msgserverg \
@@ -387,7 +387,7 @@ else
 all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testg \
-     graphics_test management_test \
+     graphics_test management_test widget_test \
      sound_test sound_testg services_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout editor editorg getpage getpageg getmail \
      getmailg gettys gettysg msgclient msgclientg msgserver msgserverg \
@@ -771,6 +771,12 @@ management_test: $(GLIBSD) tests/management_test.c
 	$(CC) $(CFLAGS) tests/management_test.c $(GLIBS) -o bin/management_test 
 
 #
+# Test windows widget compliant output
+#
+widget_test: $(GLIBSD) tests/widget_test.c
+	$(CC) $(CFLAGS) tests/widget_test.c $(GLIBS) -o bin/widget_test 
+	
+#
 # Test sound model compliant input/output (uses console timers)
 #	
 sound_test: $(CLIBSD) tests/sound_test.c
@@ -997,7 +1003,7 @@ clean:
 	rm -f bin/printdevg bin/connectmidi bin/connectmidig bin/connectwave
 	rm -f bin/connectwaveg bin/random bin/randomg bin/genwave bin/genwaveg 
 	rm -f bin/terminal_test bin/terminal_testg bin/graphics_test 
-	rm -f bin/management_test bin/sound_test bin/sound_testg
+	rm -f bin/management_test bin/widget_test bin/sound_test bin/sound_testg
 	rm -f bin/services_test bin/event bin/eventg bin/term bin/termg bin/snake 
 	rm -f bin/snakeg bin/mine bin/mineg bin/wator bin/watorg bin/pong bin/pongg
 	rm -f bin/breakout bin/editor bin/editorg bin/getpage bin/getpageg 
