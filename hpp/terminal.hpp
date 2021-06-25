@@ -40,11 +40,11 @@ void left(FILE* f);
 void left(void);
 void right(FILE* f);
 void right(void);
+void blink(FILE* f, int e);
 void blink(int e);
-void blink(int e);
+void reverse(FILE* f, int e);
 void reverse(int e);
-void reverse(int e);
-void underline(int e);
+void underline(FILE* f, int e);
 void underline(int e);
 void superscript(FILE* f, int e);
 void superscript(int e);
@@ -106,6 +106,57 @@ void autohold(FILE* f, int e);
 void autohold(int e);
 void wrtstr(FILE* f, char *s);
 void wrtstr(char *s);
+
+class term {
+    FILE* infile;
+    FILE* outfile;
+public:
+
+term();
+void cursor(int x, int y);
+int  maxx(void);
+int  maxy(void);
+void home(void);
+void del(void);
+void up(void);
+void down(void);
+void left(void);
+void right(void);
+void blink(int e);
+void reverse(int e);
+void underline(int e);
+void superscript(int e);
+void subscript(int e);
+void italic(int e);
+void bold(int e);
+void strikeout(int e);
+void standout(int e);
+void fcolor(color c);
+void bcolor(color c);
+void autom(int e);
+void curvis(int e);
+void scroll(int x, int y);
+int  curx(void);
+int  cury(void);
+int  curbnd(void);
+void select(int u, int d);
+void event(evtrec* er);
+void timer(int i, int t, int r);
+void killtimer(int i);
+int  mouse(void);
+int  mousebutton(int m);
+int  joystick(void);
+int  joybutton(int j);
+int  joyaxis(int j);
+void settab(int t);
+void restab(int t);
+void clrtab(void);
+int  funkey(void);
+void frametimer(int e);
+void autohold(int e);
+void wrtstr(char *s);
+
+};
 
 }
 

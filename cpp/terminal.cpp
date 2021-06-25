@@ -12,6 +12,17 @@
  *
  * 3. A terminal object can be used instead of individual calls.
  *
+ * Terminal has two distinct types of interfaces, the procedural and the object/
+ * class interfaces. The procedural interface expects the specification of
+ * what terminal surface we are talking to to be the first parameter of all
+ * procedures and functions (even if defaulted to stdin or stdout). The object/
+ * class interface keeps that as part of the object.
+ *
+ * Since the terminal, just as the graphics interface, only specifies the
+ * default interface (usually specified by stdin/stdout), the object/class
+ * interface does not get interesting until multiple screens/windows are used.
+ * This is a consequence of the upward compatible model.
+ *
  * Please see the Petit Ami documentation for more information.
  *
  ******************************************************************************/
@@ -28,6 +39,7 @@ extern "C" {
 
 namespace terminal {
 
+/* procedures and functions */
 void cursor(FILE* f, int x, int y) { pa_cursor(f, x, y); }
 void cursor(int x, int y) { pa_cursor(stdout, x, y); }
 int  maxx(FILE* f) { return pa_maxx(f); }
@@ -83,7 +95,7 @@ int  curbnd(void) { return pa_curbnd(stdout); }
 void select(FILE *f, int u, int d) { pa_select(f, u, d); }
 void select(int u, int d) { pa_select(stdout, u, d); }
 void event(FILE* f, evtrec* er) { pa_event(f, er); }
-void event(evtrec* er) { pa_event(stdout, er); }
+void event(evtrec* er) { pa_event(stdin, er); }
 void timer(FILE* f, int i, int t, int r) { pa_timer(f, i, t, r); }
 void timer(int i, int t, int r) { pa_timer(stdout, i, t, r); }
 void killtimer(FILE* f, int i) { pa_killtimer(f, i); }
@@ -112,5 +124,50 @@ void autohold(FILE* f, int e) { pa_autohold(f, e); }
 void autohold(int e) { pa_autohold(stdout, e); }
 void wrtstr(FILE* f, char *s) { pa_wrtstr(f, s); }
 void wrtstr(char *s) { pa_wrtstr(stdout, s); }
+
+/* methods */
+term::term(void) { infile = stdin; outfile = stdout; }
+void term::cursor(int x, int y) { pa_cursor(outfile, x, y); }
+int  term::maxx(void) { return pa_maxx(outfile); }
+int  term::maxy(void) { return pa_maxy(outfile); }
+void term::home(void) { pa_home(outfile); }
+void term::del(void) { pa_del(outfile); }
+void term::up(void) { pa_up(outfile); }
+void term::down(void) { pa_down(outfile); }
+void term::left(void) { pa_left(outfile); }
+void term::right(void) { pa_right(outfile); }
+void term::blink(int e) { pa_blink(outfile, e); }
+void term::reverse(int e) { pa_reverse(outfile, e); }
+void term::underline(int e) { pa_underline(outfile, e); }
+void term::superscript(int e) { pa_superscript(outfile, e); }
+void term::subscript(int e) { pa_subscript(outfile, e); }
+void term::italic(int e) { pa_italic(outfile, e); }
+void term::bold(int e) { pa_bold(outfile, e); }
+void term::strikeout(int e) { pa_strikeout(outfile, e); }
+void term::standout(int e) { pa_standout(outfile, e); }
+void term::fcolor(color c) { pa_fcolor(outfile, c); }
+void term::bcolor(color c) { pa_bcolor(outfile, c); }
+void term::autom(int e) { pa_auto(outfile, e); }
+void term::curvis(int e) { pa_curvis(outfile, e); }
+void term::scroll(int x, int y) { pa_scroll(outfile, x, y); }
+int  term::curx(void) { return pa_curx(outfile); }
+int  term::cury(void) { return pa_cury(outfile); }
+int  term::curbnd(void) { return pa_curbnd(outfile); }
+void term::select(int u, int d) { pa_select(outfile, u, d); }
+void term::event(evtrec* er) { pa_event(infile, er); }
+void term::timer(int i, int t, int r) { pa_timer(outfile, i, t, r); }
+void term::killtimer(int i) { pa_killtimer(outfile, i); }
+int  term::mouse(void) { return pa_mouse(outfile); }
+int  term::mousebutton(int m) { return pa_mousebutton(outfile, m); }
+int  term::joystick(void) { return pa_joystick(outfile); }
+int  term::joybutton(int j) { return pa_joybutton(outfile, j); }
+int  term::joyaxis(int j) { return pa_joyaxis(outfile, j); }
+void term::settab(int t) { pa_settab(outfile, t); }
+void term::restab(int t) { pa_restab(outfile, t); }
+void term::clrtab(void) { pa_clrtab(outfile); }
+int  term::funkey(void) { return pa_funkey(outfile); }
+void term::frametimer(int e) { pa_frametimer(outfile, e); }
+void term::autohold(int e) { pa_autohold(outfile, e); }
+void term::wrtstr(char *s) { pa_wrtstr(outfile, s); }
 
 }
