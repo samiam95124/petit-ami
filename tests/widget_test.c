@@ -1140,7 +1140,7 @@ int main(void)
             }
 
         }
-        if er.etype == pa_etterm longjmp(terminate_buf, 1);
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
