@@ -1,127 +1,26 @@
+/** ****************************************************************************
+ *
+ * Terminal library interface C++ wrapper header
+ *
+ * Redeclares terminal library definitions using the terminal namespace.
+ *
+ * Please see the Petit Ami documentation for more information.
+ *
+ ******************************************************************************/
+
 #ifndef __TERMINAL_HPP__
 #define __TERMINAL_HPP__
 
+#include <terminal.h>
+
 namespace terminal {
 
-#define MAXTIM 10 /**< maximum number of timers available */
+#define MAXTIM PA_MAXTIM /**< maximum number of timers available */
 
-/** colors displayable in text mode */
-typedef enum { black, white, red, green, blue, cyan,
-               yellow, magenta } color;
-
-/** events */
-typedef enum {
-
-    /** ANSI character returned */     etchar,
-    /** cursor up one line */          etup,
-    /** down one line */               etdown,
-    /** left one character */          etleft,
-    /** right one character */         etright,
-    /** left one word */               etleftw,
-    /** right one word */              etrightw,
-    /** home of document */            ethome,
-    /** home of screen */              ethomes,
-    /** home of line */                ethomel,
-    /** end of document */             etend,
-    /** end of screen */               etends,
-    /** end of line */                 etendl,
-    /** scroll left one character */   etscrl,
-    /** scroll right one character */  etscrr,
-    /** scroll up one line */          etscru,
-    /** scroll down one line */        etscrd,
-    /** page down */                   etpagd,
-    /** page up */                     etpagu,
-    /** tab */                         ettab,
-    /** enter line */                  etenter,
-    /** insert block */                etinsert,
-    /** insert line */                 etinsertl,
-    /** insert toggle */               etinsertt,
-    /** delete block */                etdel,
-    /** delete line */                 etdell,
-    /** delete character forward */    etdelcf,
-    /** delete character backward */   etdelcb,
-    /** copy block */                  etcopy,
-    /** copy line */                   etcopyl,
-    /** cancel current operation */    etcan,
-    /** stop current operation */      etstop,
-    /** continue current operation */  etcont,
-    /** print document */              etprint,
-    /** print block */                 etprintb,
-    /** print screen */                etprints,
-    /** function key */                etfun,
-    /** display menu */                etmenu,
-    /** mouse button assertion */      etmouba,
-    /** mouse button deassertion */    etmoubd,
-    /** mouse move */                  etmoumov,
-    /** timer matures */               ettim,
-    /** joystick button assertion */   etjoyba,
-    /** joystick button deassertion */ etjoybd,
-    /** joystick move */               etjoymov,
-    /** window was resized */          etresize,
-    /** terminate program */           etterm
-
-} evtcod;
-
-/** event record */
-
-typedef struct {
-
-    /* identifier of window for event */ int winid;
-    /* event type */                     evtcod etype;
-    /* event was handled */              int handled;
-    union {
-
-        /* these events require parameter data */
-
-        /** etchar: ANSI character returned */  char echar;
-        /** ettim: timer handle that matured */ int timnum;
-        /** etmoumov: */
-        struct {
-
-            /** mouse number */   int mmoun;
-            /** mouse movement */ int moupx, moupy;
-
-        };
-        /** etmouba */
-        struct {
-
-            /** mouse handle */  int amoun;
-            /** button number */ int amoubn;
-
-        };
-        /** etmoubd */
-        struct {
-
-            /** mouse handle */  int dmoun;
-            /** button number */ int dmoubn;
-
-        };
-        /** etjoyba */
-        struct {
-
-            /** joystick number */ int ajoyn;
-            /** button number */   int ajoybn;
-
-        };
-        /** etjoybd */
-        struct {
-
-            /** joystick number */ int djoyn;
-            /** button number */   int djoybn;
-
-        };
-        /** etjoymov */
-        struct {
-
-            /** joystick number */      int mjoyn;
-            /** joystick coordinates */ int joypx, joypy, joypz;
-
-        };
-        /** function key */ int fkey;
-
-     };
-
-} evtrec, *evtptr;
+typedef pa_color color;
+typedef pa_evtcod evtcod;
+typedef pa_evtrec evtrec;
+typedef pa_evtptr evtptr;
 
 void cursor(FILE* f, int x, int y);
 void cursor(int x, int y);

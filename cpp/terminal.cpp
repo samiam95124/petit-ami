@@ -64,10 +64,10 @@ void strikeout(FILE* f, int e) { pa_strikeout(f, e); }
 void strikeout(int e) { pa_strikeout(stdout, e); }
 void standout(FILE* f, int e) { pa_standout(f, e); }
 void standout(int e) { pa_standout(stdout, e); }
-void fcolor(FILE* f, color c) { pa_fcolor(f, (pa_color)c); }
-void fcolor(color c) { pa_fcolor(stdout, (pa_color)c); }
-void bcolor(FILE* f, color c) { pa_bcolor(f, (pa_color)c); }
-void bcolor(color c) { pa_bcolor(stdout, (pa_color)c); }
+void fcolor(FILE* f, color c) { pa_fcolor(f, c); }
+void fcolor(color c) { pa_fcolor(stdout, c); }
+void bcolor(FILE* f, color c) { pa_bcolor(f, c); }
+void bcolor(color c) { pa_bcolor(stdout, c); }
 void autom(FILE* f, int e) { pa_auto(f, e); }
 void autom(int e) { pa_auto(stdout, e); }
 void curvis(FILE* f, int e) { pa_curvis(f, e); }
@@ -82,8 +82,8 @@ int  curbnd(FILE* f) { return pa_curbnd(f); }
 int  curbnd(void) { return pa_curbnd(stdout); }
 void select(FILE *f, int u, int d) { pa_select(f, u, d); }
 void select(int u, int d) { pa_select(stdout, u, d); }
-void event(FILE* f, evtrec* er) { pa_event(f, (pa_evtrec*)er); }
-void event(evtrec* er) { pa_event(stdout, (pa_evtrec*)er); }
+void event(FILE* f, evtrec* er) { pa_event(f, er); }
+void event(evtrec* er) { pa_event(stdout, er); }
 void timer(FILE* f, int i, int t, int r) { pa_timer(f, i, t, r); }
 void timer(int i, int t, int r) { pa_timer(stdout, i, t, r); }
 void killtimer(FILE* f, int i) { pa_killtimer(f, i); }
