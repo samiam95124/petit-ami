@@ -12,6 +12,9 @@
  *
  * 3. A terminal object can be used instead of individual calls.
  *
+ * 4. Instead of registering callbacks in C, the term object features virtual
+ * functions for each event than can be individually overriden.
+ *
  * Terminal has two distinct types of interfaces, the procedural and the object/
  * class interfaces. The procedural interface expects the specification of
  * what terminal surface we are talking to to be the first parameter of all
@@ -38,6 +41,10 @@ extern "C" {
 #include "terminal.hpp"
 
 namespace terminal {
+
+/* hook for sending events back to methods */
+term* termoCB;
+pevthan termoeh;
 
 /* procedures and functions */
 void cursor(FILE* f, int x, int y) { pa_cursor(f, x, y); }
@@ -76,10 +83,10 @@ void strikeout(FILE* f, int e) { pa_strikeout(f, e); }
 void strikeout(int e) { pa_strikeout(stdout, e); }
 void standout(FILE* f, int e) { pa_standout(f, e); }
 void standout(int e) { pa_standout(stdout, e); }
-void fcolor(FILE* f, color c) { pa_fcolor(f, c); }
-void fcolor(color c) { pa_fcolor(stdout, c); }
-void bcolor(FILE* f, color c) { pa_bcolor(f, c); }
-void bcolor(color c) { pa_bcolor(stdout, c); }
+void fcolor(FILE* f, color c) { pa_fcolor(f, (pa_color)c); }
+void fcolor(color c) { pa_fcolor(stdout, (pa_color)c); }
+void bcolor(FILE* f, color c) { pa_bcolor(f, (pa_color)c); }
+void bcolor(color c) { pa_bcolor(stdout, (pa_color)c); }
 void autom(FILE* f, int e) { pa_auto(f, e); }
 void autom(int e) { pa_auto(stdout, e); }
 void curvis(FILE* f, int e) { pa_curvis(f, e); }
@@ -94,8 +101,8 @@ int  curbnd(FILE* f) { return pa_curbnd(f); }
 int  curbnd(void) { return pa_curbnd(stdout); }
 void select(FILE *f, int u, int d) { pa_select(f, u, d); }
 void select(int u, int d) { pa_select(stdout, u, d); }
-void event(FILE* f, evtrec* er) { pa_event(f, er); }
-void event(evtrec* er) { pa_event(stdin, er); }
+void event(FILE* f, evtrec* er) { pa_event(f, (pa_evtptr)er); }
+void event(evtrec* er) { pa_event(stdin, (pa_evtptr)er); }
 void timer(FILE* f, int i, int t, int r) { pa_timer(f, i, t, r); }
 void timer(int i, int t, int r) { pa_timer(stdout, i, t, r); }
 void killtimer(FILE* f, int i) { pa_killtimer(f, i); }
@@ -124,9 +131,21 @@ void autohold(FILE* f, int e) { pa_autohold(f, e); }
 void autohold(int e) { pa_autohold(stdout, e); }
 void wrtstr(FILE* f, char *s) { pa_wrtstr(f, s); }
 void wrtstr(char *s) { pa_wrtstr(stdout, s); }
+void eventover(evtcod e, pevthan eh, pevthan* oeh) { pa_eventover((pa_evtcod)e, (pa_pevthan)eh, (pa_pevthan*)oeh); }
+void eventsover(pevthan eh, pevthan* oeh) { pa_eventsover((pa_pevthan)eh, (pa_pevthan*)oeh); }
 
 /* methods */
-term::term(void) { infile = stdin; outfile = stdout; }
+term::term(void)
+
+{
+
+    infile = stdin;
+    outfile = stdout;
+    termoCB = this;
+    eventsover(termCB, &termoeh);
+
+}
+
 void term::cursor(int x, int y) { pa_cursor(outfile, x, y); }
 int  term::maxx(void) { return pa_maxx(outfile); }
 int  term::maxy(void) { return pa_maxy(outfile); }
@@ -145,8 +164,8 @@ void term::italic(int e) { pa_italic(outfile, e); }
 void term::bold(int e) { pa_bold(outfile, e); }
 void term::strikeout(int e) { pa_strikeout(outfile, e); }
 void term::standout(int e) { pa_standout(outfile, e); }
-void term::fcolor(color c) { pa_fcolor(outfile, c); }
-void term::bcolor(color c) { pa_bcolor(outfile, c); }
+void term::fcolor(color c) { pa_fcolor(outfile, (pa_color)c); }
+void term::bcolor(color c) { pa_bcolor(outfile, (pa_color)c); }
 void term::autom(int e) { pa_auto(outfile, e); }
 void term::curvis(int e) { pa_curvis(outfile, e); }
 void term::scroll(int x, int y) { pa_scroll(outfile, x, y); }
@@ -154,7 +173,7 @@ int  term::curx(void) { return pa_curx(outfile); }
 int  term::cury(void) { return pa_cury(outfile); }
 int  term::curbnd(void) { return pa_curbnd(outfile); }
 void term::select(int u, int d) { pa_select(outfile, u, d); }
-void term::event(evtrec* er) { pa_event(infile, er); }
+void term::event(evtrec* er) { pa_event(infile, (pa_evtptr)er); }
 void term::timer(int i, int t, int r) { pa_timer(outfile, i, t, r); }
 void term::killtimer(int i) { pa_killtimer(outfile, i); }
 int  term::mouse(void) { return pa_mouse(outfile); }
@@ -169,5 +188,125 @@ int  term::funkey(void) { return pa_funkey(outfile); }
 void term::frametimer(int e) { pa_frametimer(outfile, e); }
 void term::autohold(int e) { pa_autohold(outfile, e); }
 void term::wrtstr(char *s) { pa_wrtstr(outfile, s); }
+
+/* virtual callbacks */
+int term::evchar(char c) { return 0; }
+int term::evup(void) { return 0; }
+int term::evdown(void) { return 0; }
+int term::evleft(void) { return 0; }
+int term::evright(void) { return 0; }
+int term::evleftw(void) { return 0; }
+int term::evrightw(void) { return 0; }
+int term::evhome(void) { return 0; }
+int term::evhomes(void) { return 0; }
+int term::evhomel(void) { return 0; }
+int term::evend(void) { return 0; }
+int term::evends(void) { return 0; }
+int term::evendl(void) { return 0; }
+int term::evscrl(void) { return 0; }
+int term::evscrr(void) { return 0; }
+int term::evscru(void) { return 0; }
+int term::evscrd(void) { return 0; }
+int term::evpagd(void) { return 0; }
+int term::evpagu(void) { return 0; }
+int term::evtab(void) { return 0; }
+int term::eventer(void) { return 0; }
+int term::evinsert(void) { return 0; }
+int term::evinsertl(void) { return 0; }
+int term::evinsertt(void) { return 0; }
+int term::evdel(void) { return 0; }
+int term::evdell(void) { return 0; }
+int term::evdelcf(void) { return 0; }
+int term::evdelcb(void) { return 0; }
+int term::evcopy(void) { return 0; }
+int term::evcopyl(void) { return 0; }
+int term::evcan(void) { return 0; }
+int term::evstop(void) { return 0; }
+int term::evcont(void) { return 0; }
+int term::evprint(void) { return 0; }
+int term::evprintb(void) { return 0; }
+int term::evprints(void) { return 0; }
+int term::evfun(int k) { return 0; }
+int term::evmenu(void) { return 0; }
+int term::evmouba(int m, int b) { return 0; }
+int term::evmoubd(int m, int b) { return 0; }
+int term::evmoumov(int m, int x, int y) { return 0; }
+int term::evtim(int t) { return 0; }
+int term::evjoyba(int j, int b) { return 0; }
+int term::evjoybd(int j, int b) { return 0; }
+int term::evjoymov(int j, int x, int y, int z) { return 0; }
+int term::evresize(void) { return 0; }
+int term::evterm(void) { return 0; }
+
+void term::termCB(evtrec* er)
+
+{
+
+    int handled;
+
+    switch (er->etype) {
+
+        case etchar:    handled = termoCB->evchar(er->echar); break;
+        case etup:      handled = termoCB->evup(); break;
+        case etdown:    handled = termoCB->evdown(); break;
+        case etleft:    handled = termoCB->evleft(); break;
+        case etright:   handled = termoCB->evright(); break;
+        case etleftw:   handled = termoCB->evleftw(); break;
+        case etrightw:  handled = termoCB->evrightw(); break;
+        case ethome:    handled = termoCB->evhome(); break;
+        case ethomes:   handled = termoCB->evhomes(); break;
+        case ethomel:   handled = termoCB->evhomel(); break;
+        case etend:     handled = termoCB->evend(); break;
+        case etends:    handled = termoCB->evends(); break;
+        case etendl:    handled = termoCB->evendl(); break;
+        case etscrl:    handled = termoCB->evscrl(); break;
+        case etscrr:    handled = termoCB->evscrr(); break;
+        case etscru:    handled = termoCB->evscru(); break;
+        case etscrd:    handled = termoCB->evscrd(); break;
+        case etpagd:    handled = termoCB->evpagd(); break;
+        case etpagu:    handled = termoCB->evpagu(); break;
+        case ettab:     handled = termoCB->evtab(); break;
+        case etenter:   handled = termoCB->eventer(); break;
+        case etinsert:  handled = termoCB->evinsert(); break;
+        case etinsertl: handled = termoCB->evinsertl(); break;
+        case etinsertt: handled = termoCB->evinsertt(); break;
+        case etdel:     handled = termoCB->evdel(); break;
+        case etdell:    handled = termoCB->evdell(); break;
+        case etdelcf:   handled = termoCB->evdelcf(); break;
+        case etdelcb:   handled = termoCB->evdelcb(); break;
+        case etcopy:    handled = termoCB->evcopy(); break;
+        case etcopyl:   handled = termoCB->evcopyl(); break;
+        case etcan:     handled = termoCB->evcan(); break;
+        case etstop:    handled = termoCB->evstop(); break;
+        case etcont:    handled = termoCB->evcont(); break;
+        case etprint:   handled = termoCB->evprint(); break;
+        case etprintb:  handled = termoCB->evprintb(); break;
+        case etprints:  handled = termoCB->evprints(); break;
+        case etfun:     handled = termoCB->evfun(er->fkey); break;
+        case etmenu:    handled = termoCB->evmenu(); break;
+        case etmouba:   handled = termoCB->evmouba(er->amoun, er->amoubn);
+            break;
+        case etmoubd:   handled = termoCB->evmoubd(er->dmoun, er->dmoubn);
+            break;
+        case etmoumov:
+            handled = termoCB->evmoumov(er->mmoun, er->moupx, er->moupy);
+            break;
+        case ettim:     handled = termoCB->evtim(er->timnum); break;
+        case etjoyba:   handled = termoCB->evjoyba(er->ajoyn, er->ajoybn);
+            break;
+        case etjoybd:   handled = termoCB->evjoybd(er->djoyn, er->djoybn);
+            break;
+        case etjoymov:
+            handled = termoCB->evjoymov(er->mjoyn, er->joypx, er->joypy,
+                                        er->joypz);
+            break;
+        case  etresize: handled = termoCB->evresize(); break;
+        case etterm:    handled = termoCB->evterm(); break;
+
+    }
+
+    if (!handled) termoeh(er);
+
+}
 
 } /* namespace terminal */
