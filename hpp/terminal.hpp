@@ -22,6 +22,7 @@ typedef pa_evtcod evtcod;
 typedef pa_evtrec evtrec;
 typedef pa_evtptr evtptr;
 
+/* procedural interface */
 void cursor(FILE* f, int x, int y);
 void cursor(int x, int y);
 int  maxx(FILE* f);
@@ -107,12 +108,18 @@ void autohold(int e);
 void wrtstr(FILE* f, char *s);
 void wrtstr(char *s);
 
+/* object based interface */
 class term {
+
     FILE* infile;
     FILE* outfile;
+
 public:
 
+/* constructor */
 term();
+
+/* methods */
 void cursor(int x, int y);
 int  maxx(void);
 int  maxy(void);

@@ -170,4 +170,4 @@ void term::frametimer(int e) { pa_frametimer(outfile, e); }
 void term::autohold(int e) { pa_autohold(outfile, e); }
 void term::wrtstr(char *s) { pa_wrtstr(outfile, s); }
 
-}
+} /* namespace terminal */

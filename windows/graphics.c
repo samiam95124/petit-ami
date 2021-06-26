@@ -676,6 +676,8 @@ static int       stdwinj2c;    /* joystick 1 capture */
 /* lock for all global structures */
 CRITICAL_SECTION mainlock;     /* main task lock */
 static imptr     freitm;       /* intratask message free list */
+static pa_pevthan evthan[pa_etterm+1]; /* array of event handler routines */
+static pa_pevthan evtshan;     /* single master event handler routine */
 
 /* The double fault flag is set when exiting, so if we exit again, it
   is checked,  forces an immediate exit. This keeps faults from
@@ -1399,6 +1401,25 @@ static void prtmsgu(HWND hwnd, int imsg, int wparam, int lparam)
     fprintf(stderr, " wparam: %08x", wparam);
     fprintf(stderr, " lparam: %08x", lparam);
     fprintf(stderr, "\n");
+
+}
+
+/** ****************************************************************************
+
+Default event handler
+
+If we reach this event handler, it means none of the overriders has handled the
+event, but rather passed it down. We flag the event was not handled and return,
+which will cause the event to return to the event() caller.
+
+*******************************************************************************/
+
+static void defaultevent(pa_evtrec* ev)
+
+{
+
+    /* set not handled and exit */
+    ev->handled = 0;
 
 }
 
@@ -7890,10 +7911,63 @@ void pa_event(FILE* f, pa_evtrec* er)
 
 {
 
-    lockmain(); /* start exclusive access */
-    /* get logical input file number for input, and get the event for that. */
-    ievent(txt2lfn(f), er); /* process event */
-    unlockmain(); /* end exclusive access */
+    do { /* loop handling via event vectors */
+
+        lockmain(); /* start exclusive access */
+        /* get logical input file number for input, and get the event for that. */
+        ievent(txt2lfn(f), er); /* process event */
+        unlockmain(); /* end exclusive access */
+        er->handled = 1; /* set event is handled by default */
+        (evtshan)(er); /* call master event handler */
+        if (!er->handled) { /* send it to fanout */
+
+            er->handled = 1; /* set event is handled by default */
+            (*evthan[er->etype])(er); /* call event handler first */
+
+        }
+
+    } while (er->handled);
+    /* event not handled, return it to the caller */
+
+}
+
+/** ****************************************************************************
+
+Override event handler
+
+Overrides or "hooks" the indicated event handler. The existing event handler is
+given to the caller, and the new event handler becomes effective. If the event
+is called, and the overrider does not want to handle it, that overrider can
+call down into the stack by executing the overridden event.
+
+*******************************************************************************/
+
+void pa_eventover(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh)
+
+{
+
+    *oeh = evthan[e]; /* save existing event handler */
+    evthan[e] = eh; /* place new event handler */
+
+}
+
+/** ****************************************************************************
+
+Override master event handler
+
+Overrides or "hooks" the master event handler. The existing event handler is
+given to the caller, and the new event handler becomes effective. If the event
+is called, and the overrider does not want to handle it, that overrider can
+call down into the stack by executing the overridden event.
+
+*******************************************************************************/
+
+void pa_eventsover(pa_pevthan eh,  pa_pevthan* oeh)
+
+{
+
+    *oeh = evtshan; /* save existing event handler */
+    evtshan = eh; /* place new event handler */
 
 }
 
@@ -15307,6 +15381,7 @@ static void pa_init_graph()
     pa_valptr win_root; /* root for windows */
     pa_valptr vp;
     char*     errstr;
+    pa_evtcod e;
 
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
@@ -15388,6 +15463,10 @@ static void pa_init_graph()
     /* if mainlock == 0  winerr(); */ /* process windows error */
     fndrepmsg = 0; /* set no find/replace message active */
     for (i = 0; i < 16; i++) gcolorsav[i] = 0xffffff; /* set all to white */
+    /* clear event vector table */
+    evtshan = defaultevent;
+    for (e = pa_etchar; e <= pa_etterm; e++) evthan[e] = defaultevent;
+
     /* clear open files table */
     for (fi = 0; i < MAXFIL; i++) {
 
@@ -15398,6 +15477,7 @@ static void pa_init_graph()
         filwin[fi] = 0; /* set unoccupied */
 
     }
+
     /* Create dummy window for message handling. This is only required so that
       the main thread can be attached to the display thread */
     createdummy(wndprocmain, "mainthread", &mainwin);

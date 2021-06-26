@@ -244,6 +244,9 @@ typedef struct {
 
 } pa_evtrec, *pa_evtptr;
 
+/* event function pointer */
+typedef void (*pa_pevthan)(pa_evtrec*);
+
 /* menu */
 typedef struct pa_menurec* pa_menuptr;
 typedef struct pa_menurec {
@@ -337,6 +340,8 @@ int pa_funkey(FILE* f);
 void pa_frametimer(FILE* f, int e);
 void pa_autohold(int e);
 void pa_wrtstr(FILE* f, char* s);
+void pa_eventover(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh);
+void pa_eventsover(pa_pevthan eh,  pa_pevthan* oeh);
 
 /* graphical */
 
