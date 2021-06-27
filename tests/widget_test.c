@@ -1132,9 +1132,9 @@ int main(void)
 
             switch (er.lstbsl) {
 
-                case 1: printf("You selected pa_green\n");
-                case 2: printf("You selected pa_red\n");
-                case 3: printf("You selected pa_blue\n");
+                case 1: printf("You selected pa_green\n"); break;
+                case 2: printf("You selected pa_red\n"); break;
+                case 3: printf("You selected pa_blue\n"); break;
                 default: printf("!!! Bad select number !!!\n");
 
             }
@@ -1150,37 +1150,37 @@ int main(void)
     printf("\f");
     printf("Graphical list box test\n");
     printf("\n");
-    new(lp);
-    copy(lp->str, "Blue");
+    lp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    lp->str = str("Blue");
     lp->next = nil;
-    new(sp);
-    copy(sp->str, "Red");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str - str("Red");
     sp->next = lp;
     lp = sp;
-    new(sp);
-    copy(sp->str, "Green");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Green");
     sp->next = lp;
     lp = sp;
     pa_listboxsizg(stdout, lp, x, y);
     pa_listboxg(stdout, 100, 100, 100+x-1, 100+y-1, lp, 1);
-    repeat
+    do {
 
         pa_event(stdin, er);
-        if er.etype == pa_etlstbox then {
+        if (er.etype == pa_etlstbox) {
 
-            case er.lstbsl of
+            switch (er.lstbsl) {
 
-                1: printf("You selected pa_green\n");
-                2: printf("You selected pa_red\n");
-                3: printf("You selected pa_blue\n");
-                else printf("!!! Bad select number !!!\n")
+                case 1: printf("You selected pa_green\n"); break;
+                case 2: printf("You selected pa_red\n"); break;
+                case 3: printf("You selected pa_blue\n"); break;
+                default: printf("!!! Bad select number !!!\n");
 
             }
 
-        };
-        if er.etype == pa_etterm longjmp(terminate_buf, 1)
+        }
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
-    until er.etype == pa_etenter;
+    } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
 
     /* ************************* Terminal dropdown box test ************************ */
@@ -1193,75 +1193,75 @@ int main(void)
     printf("Note that it is normal for this box to not fill to exact\n");
     printf("character cells.\n");
     printf("\n");
-    new(lp);
-    copy(lp->str, "Dog");
+    lp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    lp->str = str("dog");
     lp->next = nil;
-    new(sp);
-    copy(sp->str, "Cat");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("cat");
     sp->next = lp;
     lp = sp;
-    new(sp);
-    copy(sp->str, "Bird");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("bird");
     sp->next = lp;
     lp = sp;
     pa_dropboxsiz(stdout, lp, cx, cy, ox, oy);
     pa_dropbox(stdout, 10, 10, 10+ox-1, 10+oy-1, lp, 1);
-    repeat
+    do {
 
         pa_event(stdin, er);
-        if er.etype == pa_etdrpbox then {
+        if (er.etype == pa_etdrpbox) {
 
-            case er.drpbsl of
+            switch (er.drpbsl) {
 
-                1: printf("You selected Bird\n");
-                2: printf("You selected Cat\n");
-                3: printf("You selected Dog\n");
-                else printf("!!! Bad select number !!!\n")
+                case 1: printf("You selected Bird\n"); break;
+                case 2: printf("You selected Cat\n"); break;
+                case 3: printf("You selected Dog\n"); break;
+                default: printf("!!! Bad select number !!!\n");
 
             }
 
-        };
-        if er.etype == pa_etterm longjmp(terminate_buf, 1)
+        }
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
-    until er.etype == pa_etenter;
+    } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
 
     /* ************************* Graphical dropdown box test ************************ */
 
     printf("\f");
-    printf("Graphical droppa_down(stdout) box test\n");
+    printf("Graphical dropdown box test\n");
     printf("\n");
-    new(lp);
-    copy(lp->str, "Dog");
+    lp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    lp->str = str("dog");
     lp->next = nil;
-    new(sp);
-    copy(sp->str, "Cat");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("cat");
     sp->next = lp;
     lp = sp;
-    new(sp);
-    copy(sp->str, "Bird");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("bird");
     sp->next = lp;
     lp = sp;
     pa_dropboxsizg(stdout, lp, cx, cy, ox, oy);
     pa_dropboxg(stdout, 100, 100, 100+ox-1, 100+oy-1, lp, 1);
-    repeat
+    do {
 
         pa_event(stdin, er);
-        if er.etype == pa_etdrpbox then {
+        if (er.etype == pa_etdrpbox) {
 
-            case er.drpbsl of
+            switch (er.drpbsl) {
 
-                1: printf("You selected Bird\n");
-                2: printf("You selected Cat\n");
-                3: printf("You selected Dog\n");
-                else printf("!!! Bad select number !!!\n")
+                case 1: printf("You selected Bird\n"); break;
+                case 2: printf("You selected Cat\n"); break;
+                case 3: printf("You selected Dog\n"); break;
+                default printf("!!! Bad select number !!!\n");
 
             }
 
         };
-       if er.etype == pa_etterm longjmp(terminate_buf, 1)
+       if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
-    until er.etype == pa_etenter;
+    } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
 
     /* ******************* Terminal dropdown edit box test ******************** */
@@ -1274,31 +1274,31 @@ int main(void)
     printf("Note that it is normal for this box to not fill to exact\n");
     printf("character cells.\n");
     printf("\n");
-    new(lp);
-    copy(lp->str, "Corn");
+    lp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    lp->str = str("corn");
     lp->next = nil;
-    new(sp);
-    copy(sp->str, "Flower");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("flower");
     sp->next = lp;
     lp = sp;
-    new(sp);
-    copy(sp->str, "Tortillas");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Tortillas");
     sp->next = lp;
     lp = sp;
     droppa_editboxsiz(stdout, lp, cx, cy, ox, oy);
     droppa_editbox(stdout, 10, 10, 10+ox-1, 10+oy-1, lp, 1);
-    repeat
+    do {
 
         pa_event(stdin, er);
-        if er.etype == pa_etdrebox then {
+        if (er.etype == pa_etdrebox) {
 
             pa_getwidgettext(stdout, 1, s);
-            printf("You selected: ", s^);
+            printf("You selected: %s", s);
 
-        };
-        if er.etype == pa_etterm longjmp(terminate_buf, 1)
+        }
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
-    until er.etype == pa_etenter;
+    } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
 
     /* ******************* Graphical dropdown edit box test ******************** */
@@ -1306,31 +1306,31 @@ int main(void)
     printf("\f");
     printf("Graphical dropdown edit box test\n");
     printf("\n");
-    new(lp);
-    copy(lp->str, "Corn");
+    lp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    lp->str = str("corn");
     lp->next = nil;
-    new(sp);
-    copy(sp->str, "Flower");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("flower");
     sp->next = lp;
     lp = sp;
-    new(sp);
-    copy(sp->str, "Tortillas");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Tortillas");
     sp->next = lp;
     lp = sp;
     droppa_editboxsizg(stdout, lp, cx, cy, ox, oy);
     droppa_editboxg(stdout, 100, 100, 100+ox-1, 100+oy-1, lp, 1);
-    repeat
+    do {
 
         pa_event(stdin, er);
-        if er.etype == pa_etdrebox then {
+        if (er.etype == pa_etdrebox) {
 
             pa_getwidgettext(stdout, 1, s);
-            printf("You selected: ", s^, "\n");
+            printf("You selected: %s\n", s);
 
-        };
-        if er.etype == pa_etterm longjmp(terminate_buf, 1)
+        }
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
-    until er.etype == pa_etenter;
+    } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
 
     /* ************************* Terminal slider test ************************ */
@@ -1346,14 +1346,14 @@ int main(void)
     pa_slidevert(stdout, 40, 10, 40+x-1, 10+y-1, 10, 3);
     pa_slidevert(stdout, 50, 10, 50+x-1, 10+y-1, 0, 4);
     printf("Bottom and right sliders should not have tick marks\n");
-    repeat
+    do {
 
-        pa_event(stdin, er);
-        if er.etype == pa_etsldpos then
-            printf("Slider id: ", er.sldpid:1, " position: ", er.sldpos:1, "\n");
-        if er.etype == pa_etterm longjmp(terminate_buf, 1)
+        pa_event(stdin, &er);
+        if (er.etype == pa_etsldpos)
+            printf("Slider id: %d position: %d\n", er.sldpid, er.sldpos);
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1)
 
-    until er.etype == pa_etenter;
+    } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
     pa_killwidget(stdout, 2);
     pa_killwidget(stdout, 3);
@@ -1370,14 +1370,14 @@ int main(void)
     pa_slidevertg(stdout, 400, 100, 400+x-1, 100+y-1, 10, 3);
     pa_slidevertg(stdout, 500, 100, 500+x-1, 100+y-1, 0, 4);
     printf("Bottom and right sliders should not have tick marks\n");
-    repeat
+    do {
 
         pa_event(stdin, er);
-        if er.etype == pa_etsldpos then
-            printf("Slider id: ", er.sldpid:1, " position: ", er.sldpos:1, "\n");
-        if er.etype == pa_etterm longjmp(terminate_buf, 1)
+        if (er.etype == pa_etsldpos)
+            printf("Slider id: %d position: %d\n", er.sldpid, er.sldpos);
+        if er.etype == pa_etterm longjmp(terminate_buf, 1);
 
-    until er.etype == pa_etenter;
+    } while (er.etype == pa_etenter);
     pa_killwidget(stdout, 1);
     pa_killwidget(stdout, 2);
     pa_killwidget(stdout, 3);
@@ -1390,101 +1390,102 @@ int main(void)
     pa_binvis(stdout);
     printf("Terminal tab bar test\n");
     printf("\n");
-    new(lp);
-    copy(lp->str, "Right");
+
+    lp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    lp->str = str("Right");
     lp->next = nil;
-    new(sp);
-    copy(sp->str, "Center");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Center");
     sp->next = lp;
     lp = sp;
-    new(sp);
-    copy(sp->str, "Left");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Left");
     sp->next = lp;
     lp = sp;
     pa_tabbarsiz(stdout, pa_totop, 20, 2, x, y, ox, oy);
     pa_tabbar(stdout, 15, 3, 15+x-1, 3+y-1, lp, pa_totop, 1);
 
-    new(lp);
-    copy(lp->str, "Bottom");
+    lp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    lp->str = str("Bottom");
     lp->next = nil;
-    new(sp);
-    copy(sp->str, "Center");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Center");
     sp->next = lp;
     lp = sp;
-    new(sp);
-    copy(sp->str, "Top");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Top");
     sp->next = lp;
     lp = sp;
     pa_tabbarsiz(stdout, pa_topa_right(stdout), 2, 12, x, y, ox, oy);
-    pa_tabbar(stdout, 40, 7, 40+x-1, 7+y-1, lp, pa_topa_right(stdout), 2);
+    pa_tabbar(stdout, 40, 7, 40+x-1, 7+y-1, lp, pa_toright, 2);
 
-    new(lp);
-    copy(lp->str, "Right");
+    lp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    lp->str = str("Right");
     lp->next = nil;
-    new(sp);
-    copy(sp->str, "Center");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Center");
     sp->next = lp;
     lp = sp;
-    new(sp);
-    copy(sp->str, "Left");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Left");
     sp->next = lp;
     lp = sp;
     pa_tabbarsiz(stdout, pa_tobottom, 20, 2, x, y, ox, oy);
     pa_tabbar(stdout, 15, 20, 15+x-1, 20+y-1, lp, pa_tobottom, 3);
 
-    new(lp);
-    copy(lp->str, "Bottom");
+    lp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    lp->str = str("Bottom");
     lp->next = nil;
-    new(sp);
-    copy(sp->str, "Center");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Center");
     sp->next = lp;
     lp = sp;
-    new(sp);
-    copy(sp->str, "Top");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Top");
     sp->next = lp;
     lp = sp;
-    pa_tabbarsiz(stdout, pa_topa_left(stdout), 2, 12, x, y, ox, oy);
-    pa_tabbar(stdout, 5, 7, 5+x-1, 7+y-1, lp, pa_topa_left(stdout), 4);
+    pa_tabbarsiz(stdout, pa_toleft, 2, 12, x, y, ox, oy);
+    pa_tabbar(stdout, 5, 7, 5+x-1, 7+y-1, lp, pa_toleft, 4);
 
-    repeat
+    do {
 
         pa_event(stdin, er);
-        if er.etype == pa_ettabbar then {
+        if (er.etype == pa_ettabbar) {
 
-            if er.tabid == 1 then case er.tabsel of
+            if (er.tabid == 1) switch (er.tabsel) {
 
-                1: printf("Top bar: You selected Left\n");
-                2: printf("Top bar: You selected Center\n");
-                3: printf("Top bar: You selected Right\n");
-                else printf("!!! Bad select number !!!\n")
+                case 1: printf("Top bar: You selected Left\n");
+                case 2: printf("Top bar: You selected Center\n");
+                case 3: printf("Top bar: You selected Right\n");
+                default: printf("!!! Bad select number !!!\n");
 
-            } else if er.tabid == 2 then case er.tabsel of
+            } else if (er.tabid == 2) switch (er.tabsel) {
 
-                1: printf("Right bar: You selected Top\n");
-                2: printf("Right bar: You selected Center\n");
-                3: printf("Right bar: You selected Bottom\n");
-                else printf("!!! Bad select number !!!\n")
+                case 1: printf("Right bar: You selected Top\n");
+                case 2: printf("Right bar: You selected Center\n");
+                case 3: printf("Right bar: You selected Bottom\n");
+                default: printf("!!! Bad select number !!!\n");
 
-            } else if er.tabid == 3 then case er.tabsel of
+            } else if (er.tabid == 3) switch (er.tabsel) {
 
-                1: printf("Bottom bar: You selected Left\n");
-                2: printf("Bottom bar: You selected Center\n");
-                3: printf("Bottom bar: You selected right\n");
-                else printf("!!! Bad select number !!!\n")
+                case 1: printf("Bottom bar: You selected Left\n");
+                case 2: printf("Bottom bar: You selected Center\n");
+                case 3: printf("Bottom bar: You selected right\n");
+                default: printf("!!! Bad select number !!!\n");
 
-            } else if er.tabid == 4 then case er.tabsel of
+            } else if (er.tabid == 4) switch (er.tabsel) {
 
-                1: printf("Left bar: You selected Top\n");
-                2: printf("Left bar: You selected Center\n");
-                3: printf("Left bar: You selected Bottom\n");
-                else printf("!!! Bad select number !!!\n")
+                case 1: printf("Left bar: You selected Top\n");
+                case 2: printf("Left bar: You selected Center\n");
+                case 3: printf("Left bar: You selected Bottom\n");
+                default: printf("!!! Bad select number !!!\n");
 
-            } else printf("!!! Bad tab id !!!\n")
+            } else printf("!!! Bad tab id !!!\n");
 
-        };
-        if er.etype == pa_etterm longjmp(terminate_buf, 1)
+        }
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
-    until er.etype == pa_etenter;
+    } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
     pa_killwidget(stdout, 2);
     pa_killwidget(stdout, 3);
@@ -1496,15 +1497,16 @@ pa_bcolor(stdout, pa_cyan);
     printf("\f");
     printf("Graphical tab bar test\n");
     printf("\n");
-    new(lp);
-    copy(lp->str, "Right");
+
+    lp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    lp->str = str("Right");
     lp->next = nil;
-    new(sp);
-    copy(sp->str, "Center");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Center");
     sp->next = lp;
     lp = sp;
-    new(sp);
-    copy(sp->str, "Left");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Left");
     sp->next = lp;
     lp = sp;
     pa_tabbarsizg(stdout, pa_totop, 200, 20, x, y, ox, oy);
@@ -1512,87 +1514,87 @@ pa_line(stdout, 1, 50, pa_maxxg(stdout), 50);
 pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     pa_tabbarg(stdout, 150, 50, 150+x-1, 50+y-1, lp, pa_totop, 1);
 
-    new(lp);
-    copy(lp->str, "Bottom");
+    lp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    lp->str = str("Bottom");
     lp->next = nil;
-    new(sp);
-    copy(sp->str, "Center");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Center");
     sp->next = lp;
     lp = sp;
-    new(sp);
-    copy(sp->str, "Top");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Top");
     sp->next = lp;
     lp = sp;
     pa_tabbarsizg(stdout, pa_toright, 20, 200, x, y, ox, oy);
     pa_tabbarg(stdout, 400, 100, 400+x-1, 100+y-1, lp, toright, 2);
 
-    new(lp);
-    copy(lp->str, "Right");
+    lp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    lp->str = str("Right");
     lp->next = nil;
-    new(sp);
-    copy(sp->str, "Center");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Center");
     sp->next = lp;
     lp = sp;
-    new(sp);
-    copy(sp->str, "Left");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Left");
     sp->next = lp;
     lp = sp;
     pa_tabbarsizg(stdout, pa_tobottom, 200, 20, x, y, ox, oy);
     pa_tabbarg(stdout, 150, 300, 150+x-1, 300+y-1, lp, pa_tobottom, 3);
 
-    new(lp);
-    copy(lp->str, "Bottom");
+    lp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    lp->str = str("Bottom");
     lp->next = nil;
-    new(sp);
-    copy(sp->str, "Center");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Center");
     sp->next = lp;
     lp = sp;
-    new(sp);
-    copy(sp->str, "Top");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Top");
     sp->next = lp;
     lp = sp;
     pa_tabbarsizg(stdout, pa_toleft, 20, 200, x, y, ox, oy);
     pa_tabbarg(stdout, 50, 100, 50+x-1, 100+y-1, lp, pa_toleft, 4);
 
-    repeat
+    do {
 
         pa_event(stdin, er);
-        if er.etype == pa_ettabbar then {
+        if (er.etype == pa_ettabbar) {
 
-            if er.tabid == 1 then case er.tabsel of
+            if (er.tabid == 1) switch (er.tabsel) {
 
-                1: printf("Top bar: You selected Left\n");
-                2: printf("Top bar: You selected Center\n");
-                3: printf("Top bar: You selected Right\n");
-                else printf("!!! Bad select number !!!\n")
+                case 1: printf("Top bar: You selected Left\n");
+                case 2: printf("Top bar: You selected Center\n");
+                case 3: printf("Top bar: You selected Right\n");
+                default: printf("!!! Bad select number !!!\n");
 
-            } else if er.tabid == 2 then case er.tabsel of
+            } else if (er.tabid == 2) switch (er.tabsel) {
 
-                1: printf("Right bar: You selected Top\n");
-                2: printf("Right bar: You selected Center\n");
-                3: printf("Right bar: You selected Bottom\n");
-                else printf("!!! Bad select number !!!\n")
+                case 1: printf("Right bar: You selected Top\n");
+                case 2: printf("Right bar: You selected Center\n");
+                case 3: printf("Right bar: You selected Bottom\n");
+                default: printf("!!! Bad select number !!!\n");
 
-            } else if er.tabid == 3 then case er.tabsel of
+            } else if (er.tabid == 3) switch (er.tabsel) {
 
-                1: printf("Bottom bar: You selected Left\n");
-                2: printf("Bottom bar: You selected Center\n");
-                3: printf("Bottom bar: You selected right\n");
-                else printf("!!! Bad select number !!!\n")
+                case 1: printf("Bottom bar: You selected Left\n");
+                case 2: printf("Bottom bar: You selected Center\n");
+                case 3: printf("Bottom bar: You selected right\n");
+                default: printf("!!! Bad select number !!!\n");
 
-            } else if er.tabid == 4 then case er.tabsel of
+            } else if (er.tabid == 4) switch (er.tabsel) {
 
-                1: printf("Left bar: You selected Top\n");
-                2: printf("Left bar: You selected Center\n");
-                3: printf("Left bar: You selected Bottom\n");
-                else printf("!!! Bad select number !!!\n")
+                case 1: printf("Left bar: You selected Top\n");
+                case 2: printf("Left bar: You selected Center\n");
+                case 3: printf("Left bar: You selected Bottom\n");
+                default: printf("!!! Bad select number !!!\n");
 
-            } else printf("!!! Bad tab id !!!\n")
+            } else printf("!!! Bad tab id !!!\n");
 
-        };
-        if er.etype == pa_etterm longjmp(terminate_buf, 1)
+        }
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
-    until er.etype == pa_etenter;
+    } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
     pa_killwidget(stdout, 2);
     pa_killwidget(stdout, 3);
@@ -1606,101 +1608,101 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     printf("Terminal overlaid tab bar test\n");
     printf("\n");
 
-    new(lp);
-    copy(lp->str, "Right");
+    lp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    lp->str = str("Right");
     lp->next = nil;
-    new(sp);
-    copy(sp->str, "Center");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Center");
     sp->next = lp;
     lp = sp;
-    new(sp);
-    copy(sp->str, "Left");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Left");
     sp->next = lp;
     lp = sp;
     pa_tabbarsiz(stdout, pa_totop, 30, 12, x, y, ox, oy);
     pa_tabbar(stdout, 20-ox, 7-oy, 20+x-ox-1, 7+y-oy-1, lp, pa_totop, 1);
 
-    new(lp);
-    copy(lp->str, "Bottom");
+    lp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    lp->str = str("Bottom");
     lp->next = nil;
-    new(sp);
-    copy(sp->str, "Center");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Center");
     sp->next = lp;
     lp = sp;
-    new(sp);
-    copy(sp->str, "Top");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Top");
     sp->next = lp;
     lp = sp;
     pa_tabbarsiz(stdout, pa_toright, 30, 12, x, y, ox, oy);
     pa_tabbar(stdout, 20-ox, 7-oy, 20+x-ox-1, 7+y-oy-1, lp, pa_toright, 2);
 
-    new(lp);
-    copy(lp->str, "Right");
+    lp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    lp->str = str("Right");
     lp->next = nil;
-    new(sp);
-    copy(sp->str, "Center");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Center");
     sp->next = lp;
     lp = sp;
-    new(sp);
-    copy(sp->str, "Left");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Left");
     sp->next = lp;
     lp = sp;
     pa_tabbarsiz(stdout, pa_tobottom, 30, 12, x, y, ox, oy);
     pa_tabbar(stdout, 20-ox, 7-oy, 20+x-ox-1, 7+y-oy-1, lp, pa_tobottom, 3);
 
-    new(lp);
-    copy(lp->str, "Bottom");
+    lp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    lp->str = str("Bottom");
     lp->next = nil;
-    new(sp);
-    copy(sp->str, "Center");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Center");
     sp->next = lp;
     lp = sp;
-    new(sp);
-    copy(sp->str, "Top");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Top");
     sp->next = lp;
     lp = sp;
     pa_tabbarsiz(stdout, pa_toleft, 30, 12, x, y, ox, oy);
     pa_tabbar(stdout, 20-ox, 7-oy, 20+x-ox-1, 7+y-oy-1, lp, pa_toleft, 4);
 
-    repeat
+    do {
 
         pa_event(stdin, er);
-        if er.etype == pa_ettabbar then {
+        if (er.etype == pa_ettabbar) {
 
-            if er.tabid == 1 then case er.tabsel of
+            if (er.tabid == 1) switch (er.tabsel) {
 
-                1: printf("Top bar: You selected Left\n");
-                2: printf("Top bar: You selected Center\n");
-                3: printf("Top bar: You selected Right\n");
-                else printf("!!! Bad select number !!!\n")
+                case 1: printf("Top bar: You selected Left\n");
+                case 2: printf("Top bar: You selected Center\n");
+                case 3: printf("Top bar: You selected Right\n");
+                default: printf("!!! Bad select number !!!\n");
 
-            } else if er.tabid == 2 then case er.tabsel of
+            } else if (er.tabid == 2) switch (er.tabsel) {
 
-                1: printf("Right bar: You selected Top\n");
-                2: printf("Right bar: You selected Center\n");
-                3: printf("Right bar: You selected Bottom\n");
-                else printf("!!! Bad select number !!!\n")
+                case 1: printf("Right bar: You selected Top\n");
+                case 2: printf("Right bar: You selected Center\n");
+                case 3: printf("Right bar: You selected Bottom\n");
+                default: printf("!!! Bad select number !!!\n");
 
-            } else if er.tabid == 3 then case er.tabsel of
+            } else if (er.tabid == 3) switch (er.tabsel) {
 
-                1: printf("Bottom bar: You selected Left\n");
-                2: printf("Bottom bar: You selected Center\n");
-                3: printf("Bottom bar: You selected right\n");
-                else printf("!!! Bad select number !!!\n")
+                case 1: printf("Bottom bar: You selected Left\n");
+                case 2: printf("Bottom bar: You selected Center\n");
+                case 3: printf("Bottom bar: You selected right\n");
+                default: printf("!!! Bad select number !!!\n");
 
-            } else if er.tabid == 4 then case er.tabsel of
+            } else if (er.tabid == 4) switch (er.tabsel) {
 
-                1: printf("Left bar: You selected Top\n");
-                2: printf("Left bar: You selected Center\n");
-                3: printf("Left bar: You selected Bottom\n");
-                else printf("!!! Bad select number !!!\n")
+                case 1: printf("Left bar: You selected Top\n");
+                case 2: printf("Left bar: You selected Center\n");
+                case 3: printf("Left bar: You selected Bottom\n");
+                default: printf("!!! Bad select number !!!\n");
 
-            } else printf("!!! Bad tab id !!!\n")
+            } else printf("!!! Bad tab id !!!\n");
 
-        };
-        if er.etype == pa_etterm longjmp(terminate_buf, 1)
+        }
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
-    until er.etype == pa_etenter;
+    } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
     pa_killwidget(stdout, 2);
     pa_killwidget(stdout, 3);
@@ -1711,101 +1713,101 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     printf("\f");
     printf("Graphical overlaid tab bar test\n");
     printf("\n");
-    new(lp);
-    copy(lp->str, "Right");
+    lp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    lp->str = str("Right");
     lp->next = nil;
-    new(sp);
-    copy(sp->str, "Center");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Center");
     sp->next = lp;
     lp = sp;
-    new(sp);
-    copy(sp->str, "Left");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Left");
     sp->next = lp;
     lp = sp;
     pa_tabbarsizg(stdout, pa_totop, 200, 200, x, y, ox, oy);
     pa_tabbarg(stdout, 200-ox, 100-oy, 200+x-ox, 100+y-oy, lp, pa_totop, 1);
 
-    new(lp);
-    copy(lp->str, "Bottom");
+    lp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    lp->str = str("Bottom");
     lp->next = nil;
-    new(sp);
-    copy(sp->str, "Center");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Center");
     sp->next = lp;
     lp = sp;
-    new(sp);
-    copy(sp->str, "Top");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Top");
     sp->next = lp;
     lp = sp;
     pa_tabbarsizg(stdout, pa_toright, 200, 200, x, y, ox, oy);
     pa_tabbarg(stdout, 200-ox, 100-oy, 200+x-ox, 100+y-oy, lp, pa_toright, 2);
 
-    new(lp);
-    copy(lp->str, "Right");
+    lp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    lp->str = str("Right");
     lp->next = nil;
-    new(sp);
-    copy(sp->str, "Center");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Center");
     sp->next = lp;
     lp = sp;
-    new(sp);
-    copy(sp->str, "Left");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Left");
     sp->next = lp;
     lp = sp;
     pa_tabbarsizg(stdout, pa_tobottom, 200, 200, x, y, ox, oy);
     pa_tabbarg(stdout, 200-ox, 100-oy, 200+x-ox, 100+y-oy, lp, pa_tobottom, 3);
 
-    new(lp);
-    copy(lp->str, "Bottom");
+    lp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    lp->str = str("Bottom");
     lp->next = nil;
-    new(sp);
-    copy(sp->str, "Center");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Center");
     sp->next = lp;
     lp = sp;
-    new(sp);
-    copy(sp->str, "Top");
+    sp = (pa_strptr)imalloc(sizeof(pa_strrec));
+    sp->str = str("Top");
     sp->next = lp;
     lp = sp;
     pa_tabbarsizg(stdout, pa_toleft, 200, 200, x, y, ox, oy);
     pa_tabbarg(stdout, 200-ox, 100-oy, 200+x-ox, 100+y-oy, lp, pa_toleft, 4);
 
-    repeat
+    do {
 
         pa_event(stdin, er);
-        if er.etype == pa_ettabbar then {
+        if (er.etype == pa_ettabbar) {
 
-            if er.tabid == 1 then case er.tabsel of
+            if (er.tabid == 1) switch (er.tabsel) {
 
-                1: printf("Top bar: You selected Left\n");
-                2: printf("Top bar: You selected Center\n");
-                3: printf("Top bar: You selected Right\n");
-                else printf("!!! Bad select number !!!\n")
+                case 1: printf("Top bar: You selected Left\n");
+                case 2: printf("Top bar: You selected Center\n");
+                case 3: printf("Top bar: You selected Right\n");
+                default: printf("!!! Bad select number !!!\n");
 
-            } else if er.tabid == 2 then case er.tabsel of
+            } else if (er.tabid == 2) switch (er.tabsel) {
 
-                1: printf("Right bar: You selected Top\n");
-                2: printf("Right bar: You selected Center\n");
-                3: printf("Right bar: You selected Bottom\n");
-                else printf("!!! Bad select number !!!\n")
+                case 1: printf("Right bar: You selected Top\n");
+                case 2: printf("Right bar: You selected Center\n");
+                case 3: printf("Right bar: You selected Bottom\n");
+                default: printf("!!! Bad select number !!!\n");
 
-            } else if er.tabid == 3 then case er.tabsel of
+            } else if (er.tabid == 3) switch (er.tabsel) {
 
-                1: printf("Bottom bar: You selected Left\n");
-                2: printf("Bottom bar: You selected Center\n");
-                3: printf("Bottom bar: You selected right\n");
-                else printf("!!! Bad select number !!!\n")
+                case 1: printf("Bottom bar: You selected Left\n");
+                case 2: printf("Bottom bar: You selected Center\n");
+                case 3: printf("Bottom bar: You selected right\n");
+                default: printf("!!! Bad select number !!!\n");
 
-            } else if er.tabid == 4 then case er.tabsel of
+            } else if (er.tabid == 4) switch (er.tabsel) {
 
-                1: printf("Left bar: You selected Top\n");
-                2: printf("Left bar: You selected Center\n");
-                3: printf("Left bar: You selected Bottom\n");
-                else printf("!!! Bad select number !!!\n")
+                case 1: printf("Left bar: You selected Top\n");
+                case 2: printf("Left bar: You selected Center\n");
+                case 3: printf("Left bar: You selected Bottom\n");
+                default: printf("!!! Bad select number !!!\n");
 
-            } else printf("!!! Bad tab id !!!\n")
+            } else printf("!!! Bad tab id !!!\n");
 
-        };
-        if er.etype == pa_etterm longjmp(terminate_buf, 1)
+        }
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
-    until er.etype == pa_etenter;
+    } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
     pa_killwidget(stdout, 2);
     pa_killwidget(stdout, 3);
@@ -1817,7 +1819,7 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     printf("Alert test\n");
     printf("\n");
     printf("There should be an pa_alert dialog\n");
-    printf("Both the dialog && this window should be fully reactive\n");
+    printf("Both the dialog and this window should be fully reactive\n");
     pa_alert("This is an important message", "There has been an event !\n");
     printf("\n");
     printf("Alert dialog should have completed now\n");
@@ -1829,7 +1831,7 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     printf("Color query test\n");
     printf("\n");
     printf("There should be an pa_color query dialog\n");
-    printf("Both the dialog && this window should be fully reactive\n");
+    printf("Both the dialog and this window should be fully reactive\n");
     printf("The pa_color pa_white should be the default selection\n");
     r = INT_MAX;
     g = INT_MAX;
@@ -1837,7 +1839,7 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     querypa_color(r, g, b);
     printf("\n");
     printf("Dialog should have completed now\n");
-    printf("Colors are: pa_red: ", r:1,  " pa_green: ", g:1, " pa_blue: ", b:1, "\n");
+    printf("Colors are: red: %d green: %d blue: %d\n", r, g, b);
     waitnext();
 
     /* ************************* Open file query test ************************ */
@@ -1847,12 +1849,12 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     printf("\n");
     printf("There should be an open file query dialog\n");
     printf("Both the dialog && this window should be fully reactive\n");
-    printf("The dialog should have "myfile.txt" as the default filename\n");
+    printf("The dialog should have \"myfile.txt\" as the default filename\n");
     copy(s, "myfile.txt\n");
     pa_queryopen(s);
     printf("\n");
     printf("Dialog should have completed now\n");
-    printf("Filename is: ", s^, "\n");
+    printf("Filename is: %s\n", s);
     waitnext();
 
     /* ************************* Save file query test ************************ */
@@ -1862,12 +1864,12 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     printf("\n");
     printf("There should be an save file query dialog\n");
     printf("Both the dialog && this window should be fully reactive\n");
-    printf("The dialog should have "myfile.txt" as the default filename\n");
+    printf("The dialog should have \"myfile.txt\" as the default filename\n");
     copy(s, "myfile.txt\n");
     pa_querysave(s);
     printf("\n");
     printf("Dialog should have completed now\n");
-    printf("Filename is: ", s^, "\n");
+    printf("Filename is: %d\n", s);
     waitnext();
 
     /* ************************* Find query test ************************ */
@@ -1877,18 +1879,18 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     printf("\n");
     printf("There should be a find query dialog\n");
     printf("Both the dialog and this window should be fully reactive\n");
-    printf("The dialog should have "mystuff" as the default search string\n");
+    printf("The dialog should have \"mystuff\" as the default search string\n");
     copy(s, "mystuff");
-    optf = [];
-    pa_queryfind(s, optf);
+    optf = 0;
+    pa_queryfind(s, &optf);
     printf("\n");
     printf("Dialog should have completed now\n");
-    printf("Search string is: """, s^, """\n");
-    if pa_qfncase in optf then printf("Case sensitive is on\n")
+    printf("Search string is: \"%s\"\n", s);
+    if (BIT(pa_qfncase)&optf) printf("Case sensitive is on\n")
     else printf("Case sensitive is off\n");
-    if pa_qfnpa_up(stdout) in optf then printf("Search up\n")
+    if (BIT(pa_qfnup)&optf) printf("Search up\n")
     else printf("Search down\n");
-    if pa_qfnre in optf then printf("Use regular expression\n")
+    if (BIT(pa_qfnre)&optf) printf("Use regular expression\n")
     else printf("Use literal expression\n");
     waitnext();
 
@@ -1899,27 +1901,27 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     printf("\n");
     printf("There should be a find/replace query dialog\n");
     printf("Both the dialog && this window should be fully reactive\n");
-    printf("The dialog should have "bark" as the default search string\n");
-    printf("and should have "sniff" as the default replacement string\n");
+    printf("The dialog should have \"bark\" as the default search string\n");
+    printf("and should have \"sniff\" as the default replacement string\n");
     copy(ss, "bark");
     copy(rs, "sniff");
-    optfr = [];
-    pa_queryfindrep (ss, rs, optfr);
+    optfr = 0;
+    pa_queryfindrep (ss, rs, &optfr);
     printf("\n");
     printf("Dialog should have completed now\n");
-    printf("Search char* is: """, ss^, """\n");
-    printf("Replace char* is: """, rs^, """\n");
-    if qfrcase in optfr then printf("Case sensitive is on\n")
+    printf("Search string is: \"%s\"\n", ss);
+    printf("Replace string is: \"%s\"\n", rs);
+    if (BIT(qfrcase)&optfr) printf("Case sensitive is on\n")
     else printf("Case sensitive is off\n");
-    if qfrpa_up(stdout) in optfr then printf("Search/replace up\n")
+    if (BIT(qfrup)&optfr) printf("Search/replace up\n")
     else printf("Search/replace down\n");
-    if qfrre in optfr then printf("Regular expressions are on\n")
+    if (BIT(qfrre)&optfr) printf("Regular expressions are on\n")
     else printf("Regular expressions are off\n");
-    if qfrfind in optfr then printf("Mode is find\n")
+    if (BIT(qfrfind)&optfr) printf("Mode is find\n")
     else printf("Mode is find/replace\n");
-    if qfrallfil in optfr then printf("Mode is find/replace all in file\n")
+    if (BIT(qfrallfil)&optfr) printf("Mode is find/replace all in file\n")
     else printf("Mode is find/replace first in file\n");
-    if qfralllin in optfr then printf("Mode is find/replace all on line(s)\n")
+    if (BIT(qfralllin)&optfr) printf("Mode is find/replace all on line(s)\n")
     else printf("Mode is find/replace first on line(s)\n");
     waitnext();
 
@@ -1930,7 +1932,7 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     printf("\n");
     printf("There should be a font query dialog\n");
     printf("Both the dialog && this window should be fully reactive\n");
-    fc = pa_font_book;
+    fc = PA_FONT_BOOK;
     fs = pa_chrsizy(stdout);
     fr = 0; /* set foreground to pa_black */
     fg = 0;
@@ -1938,30 +1940,30 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     br = INT_MAX; /* set pa_back(stdout)ground to pa_white */
     bg = INT_MAX;
     bb = INT_MAX;
-    fe = [];
-    querypa_font(stdout, output, fc, fs, fr, fg, fb, br, bg, bb, fe);
+    fe = 0;
+    querypa_font(stdout, fc, fs, fr, fg, fb, br, bg, bb, fe);
     printf("\n");
     printf("Dialog should have completed now\n");
-    printf("Font code: ", fc:1, "\n");
-    printf("Font size: ", fs:1, "\n");
-    printf("Foreground pa_color: Red: ", fr:1, " Green: ", fg:1, " Blue: ", fb:1, "\n");
-    printf("Background pa_color: Red: ", br:1, " Green: ", bg:1, " Blue: ", bb:1, "\n");
-    if qfteblink in fe then printf("Blink\n");
-    if qftereverse in fe then printf("Reverse\n");
-    if qfteunderline in fe then printf("Underline\n");
-    if qftespa_up(stdout)erscript in fe then printf("Superscript\n");
-    if qftesubscript in fe then printf("Subscript\n");
-    if qfteitalic in fe then printf("Italic\n");
-    if qftebold in fe then printf("Bold\n");
-    if qftestrikeout in fe then printf("Strikeout\n");
-    if qftestandout in fe then printf("Standout\n");
-    if qftecondensed in fe then printf("Condensed\n");
-    if qfteext}ed in fe then printf("Extended\n");
-    if qftexlight in fe then printf("Xlight\n");
-    if qftelight in fe then printf("Light\n");
-    if qftexbold in fe then printf("Xbold\n");
-    if qftehollow in fe then printf("Hollow\n");
-    if qfteraised in fe then printf("Raised\n");
+    printf("Font code: %d\n", fc);
+    printf("Font size: %d\n", fs);
+    printf("Foreground pa_color: Red: %d Green: %d Blue: %d\n", fr, fg, fb);
+    printf("Background pa_color: Red: %d Green: %d Blue: %d\n", br, bg, bb);
+    if (qfteblink in fe) printf("Blink\n");
+    if (qftereverse in fe) printf("Reverse\n");
+    if (qfteunderline in fe) printf("Underline\n");
+    if (qftesuperscript in fe) printf("Superscript\n");
+    if (qftesubscript in fe) printf("Subscript\n");
+    if (qfteitalic in fe) printf("Italic\n");
+    if (qftebold in fe) printf("Bold\n");
+    if (qftestrikeout in fe) printf("Strikeout\n");
+    if (qftestandout in fe) printf("Standout\n");
+    if (qftecondensed in fe) printf("Condensed\n");
+    if (qfteext}ed in fe) printf("Extended\n");
+    if (qftexlight in fe) printf("Xlight\n");
+    if (qftelight in fe) printf("Light\n");
+    if (qftexbold in fe) printf("Xbold\n");
+    if (qftehollow in fe) printf("Hollow\n");
+    if (qfteraised in fe) printf("Raised\n");
     waitnext();
 
     terminate:;

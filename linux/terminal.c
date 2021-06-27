@@ -325,10 +325,11 @@ char *keytab[pa_etterm+1+MAXFKEY] = {
 
 };
 
-/* screen contexts array */            static scnptr screens[MAXCON];
-/* index for current display screen */ static int curdsp;
-/* index for current update screen */  static int curupd;
-/* array of event handler routines */  static pa_pevthan evthan[pa_etterm+1];
+/* screen contexts array */               static scnptr screens[MAXCON];
+/* index for current display screen */    static int curdsp;
+/* index for current update screen */     static int curupd;
+/* array of event handler routines */     static pa_pevthan evthan[pa_etterm+1];
+/* single master event handler routine */ static pa_pevthan evtshan;
 
 /*
  * Saved vectors to system calls. These vectors point to the old, existing
@@ -2564,7 +2565,13 @@ void pa_event(FILE* f, pa_evtrec *er)
         /* get next input event */
         inpevt(er);
         er->handled = 1; /* set event is handled by default */
-        (*evthan[er->etype])(er); /* call event handler first */
+        (evtshan)(er); /* call master event handler */
+        if (!er->handled) { /* send it to fanout */
+
+            er->handled = 1; /* set event is handled by default */
+            (*evthan[er->etype])(er); /* call event handler first */
+
+        }
 
     } while (er->handled);
     /* event not handled, return it to the caller */
@@ -2754,7 +2761,7 @@ tab stop that is set. If there is no next tab stop, nothing will happen.
 
 *******************************************************************************/
 
-void settab(FILE* f, int t)
+void pa_settab(FILE* f, int t)
 
 {
 
@@ -2903,6 +2910,26 @@ void pa_eventover(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh)
 
 }
 
+/** ****************************************************************************
+
+Override master event handler
+
+Overrides or "hooks" the master event handler. The existing event handler is
+given to the caller, and the new event handler becomes effective. If the event
+is called, and the overrider does not want to handle it, that overrider can
+call down into the stack by executing the overridden event.
+
+*******************************************************************************/
+
+void pa_eventsover(pa_pevthan eh,  pa_pevthan* oeh)
+
+{
+
+    *oeh = evtshan; /* save existing event handler */
+    evtshan = eh; /* place new event handler */
+
+}
+
 /*******************************************************************************
 
 Module startup/shutdown
@@ -2965,6 +2992,8 @@ static void pa_init_terminal()
     iniscn(screens[curdsp-1]); /* initalize screen */
     restore(screens[curdsp-1]); /* place on display */
 
+    /* clear event vector table */
+    evtshan = defaultevent;
     for (e = pa_etchar; e <= pa_etterm; e++) evthan[e] = defaultevent;
 
     /* clear keyboard match buffer */

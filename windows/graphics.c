@@ -15463,6 +15463,7 @@ static void pa_init_graph()
     /* if mainlock == 0  winerr(); */ /* process windows error */
     fndrepmsg = 0; /* set no find/replace message active */
     for (i = 0; i < 16; i++) gcolorsav[i] = 0xffffff; /* set all to white */
+
     /* clear event vector table */
     evtshan = defaultevent;
     for (e = pa_etchar; e <= pa_etterm; e++) evthan[e] = defaultevent;

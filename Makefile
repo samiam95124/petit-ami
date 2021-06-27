@@ -569,39 +569,38 @@ bin/petit_ami_plain.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
     linux/dumpsynthplug.o linux/network.o utils/config.o utils/option.o
 	gcc -shared linux/services.o linux/sound.o linux/fluidsynthplug.o \
 	    linux/dumpsynthplug.o linux/network.o utils/config.o utils/option.o \
-	    cpp/terminal.o \
 	    -o bin/petit_ami_plain.so
 	
 bin/petit_ami_plain.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/network.o utils/config.o utils/option.o
+    linux/dumpsynthplug.o linux/network.o utils/config.o utils/option.o \
 	ar rcs bin/petit_ami_plain.a linux/services.o linux/sound.o \
 	    linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
-	    utils/config.o utils/option.o cpp/terminal.o
+	    utils/config.o utils/option.o
 	
 bin/petit_ami_term.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
     linux/dumpsynthplug.o linux/network.o linux/terminal.o utils/config.o \
-    utils/option.o 
+    utils/option.o cpp/terminal.o
 	gcc -shared linux/services.o linux/sound.o linux/fluidsynthplug.o \
 	    linux/dumpsynthplug.o  linux/network.o linux/terminal.o utils/config.o \
 	    utils/option.o cpp/terminal.o -o bin/petit_ami_term.so 
 	
 bin/petit_ami_term.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
     linux/dumpsynthplug.o linux/network.o linux/terminal.o utils/config.o \
-    utils/option.o
+    utils/option.o cpp/terminal.o
 	ar rcs bin/petit_ami_term.a linux/services.o linux/sound.o \
 		linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
 		linux/terminal.o utils/config.o utils/option.o cpp/terminal.o
 	
 bin/petit_ami_graph.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
     linux/dumpsynthplug.o linux/network.o linux/graphics.o utils/config.o \
-    utils/option.o  
+    utils/option.o cpp/terminal.o
 	gcc -shared linux/services.o linux/sound.o linux/fluidsynthplug.o \
 		linux/dumpsynthplug.o  linux/network.o linux/graphics.o utils/config.o \
 		utils/option.o cpp/terminal.o -o bin/petit_ami_graph.so
 	
 bin/petit_ami_graph.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
     linux/dumpsynthplug.o linux/network.o linux/graphics.o utils/config.o \
-    utils/option.o  
+    utils/option.o cpp/terminal.o
 	ar rcs bin/petit_ami_graph.a linux/services.o linux/sound.o \
 		linux/fluidsynthplug.o linux/dumpsynthplug.o  linux/network.o \
 		linux/terminal.o utils/config.o utils/option.o cpp/terminal.o
