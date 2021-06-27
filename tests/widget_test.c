@@ -26,8 +26,8 @@
 static jmp_buf       terminate_buf;
 static pa_evtrec     er;
 static int           chk, chk2, chk3;
-static string        s;
-static string        ss, rs;
+static char          s[100];
+static char          ss[100], rs[100];
 static int           prog;
 static pa_strptr     sp, lp;
 static int           x, y;
@@ -38,7 +38,7 @@ static int           fc;
 static int           fs;
 static int           fr, fg, fb;
 static int           br, bg, bb;
-static pa_qfteffects fe
+static pa_qfteffects fe;
 static int           cx, cy;
 static int           ox, oy;
 
@@ -71,8 +71,7 @@ static char* str(char* s)
 
     char* p;
 
-    p = malloc(strlen(s)+1);
-    if (!p) error(enomem);
+    p = imalloc(strlen(s)+1);
     strcpy(p, s);
 
     return (p);
@@ -86,7 +85,7 @@ static void waitnext(void)
 
     pa_evtrec er; /* event record */
 
-    do { pa_event(stdin, stdin, &er); }
+    do { pa_event(stdin, &er); }
     while (er.etype != pa_etenter && er.etype != pa_etterm);
     if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
@@ -99,11 +98,11 @@ static void chrgrid(void)
 
     int x, y;
 
-    pa_fpa_color(stdout, pa_yellow);
+    pa_fcolor(stdout, pa_yellow);
     y = 1;
     while (y < pa_maxyg(stdout)) {
 
-        pa_line(stdout, stdout, 1, y, pa_maxxg(stdout), y);
+        pa_line(stdout, 1, y, pa_maxxg(stdout), y);
         y = y+pa_chrsizy(stdout);
 
     }
@@ -146,36 +145,36 @@ int main(void)
     pa_binvis(stdout);
     printf("Terminal buttons test\n");
     printf("\n");
-    pa_buttonsiz(stdout, "Hello, there", x, y);
+    pa_buttonsiz(stdout, "Hello, there", &x, &y);
     pa_button(stdout, 10, 7, 10+x-1, 7+y-1, "Hello, there", 1);
-    pa_buttonsiz(stdout, "Bark!", x, y);
+    pa_buttonsiz(stdout, "Bark!", &x, &y);
     pa_button(stdout, 10, 10, 10+x-1, 10+y-1, "Bark!", 2);
-    pa_buttonsiz(stdout, "Sniff", x, y);
+    pa_buttonsiz(stdout, "Sniff", &x, &y);
     pa_button(stdout, 10, 13, 10+x-1, 13+y-1, "Sniff", 3);
     printf("Hit the buttons, or return to continue\n");
     printf("\n");
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_etbutton) {
 
             if (er.butid == 1) printf("Hello to you, too");
             else if (er.butid == 2) printf("Bark bark");
-            else if er.butid == 3 then printf("Sniff sniff");
+            else if (er.butid == 3) printf("Sniff sniff");
             else printf("!!! No button with id: %d !!!\n", er.butid);
 
         };
-        if (er.etype == pa_etterm) longjmp(terminate_buf, 1)
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != pa_etenter);
-    pa_enablewidget(stdout, 2, false);
+    pa_enablewidget(stdout, 2, FALSE);
     printf("Now the middle button is disabled, and should not be able to\n");
     printf("be pressed.\n");
     printf("Hit the buttons, or return to continue\n");
     printf("\n");
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_etbutton) {
 
             if (er.butid == 1) printf("Hello to you, too");
@@ -196,17 +195,17 @@ int main(void)
     printf("\f");
     printf("Graphical buttons test\n");
     printf("\n");
-    pa_buttonsizg(stdout, "Hello, there", x, y);
+    pa_buttonsizg(stdout, "Hello, there", &x, &y);
     pa_buttong(stdout, 100, 100, 100+x, 100+y, "Hello, there", 1);
-    pa_buttonsizg(stdout, "Bark!", x, y);
+    pa_buttonsizg(stdout, "Bark!", &x, &y);
     pa_buttong(stdout, 100, 150, 100+x, 150+y, "Bark!", 2);
-    pa_buttonsizg(stdout, "Sniff", x, y);
+    pa_buttonsizg(stdout, "Sniff", &x, &y);
     pa_buttong(stdout, 100, 200, 100+x, 200+y, "Sniff", 3);
     printf("Hit the buttons, or return to continue\n");
     printf("\n");
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_etbutton) {
 
             if (er.butid == 1) printf("Hello to you, too\n");
@@ -214,18 +213,18 @@ int main(void)
             else if (er.butid == 3) printf("Sniff sniff\n");
             else printf("!!! No button with id: %d\n !!!", er.butid);
 
-        };
+        }
         if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != pa_etenter);
-    pa_enablewidget(stdout, 2, false);
+    pa_enablewidget(stdout, 2, FALSE);
     printf("Now the middle button is disabled, and should not be able to\n");
     printf("be pressed.\n");
     printf("Hit the buttons, or return to continue\n");
     printf("\n");
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_etbutton) {
 
             if (er.butid == 1) printf("Hello to you, too\n");
@@ -233,7 +232,7 @@ int main(void)
             else if (er.butid == 3) printf("Sniff sniff\n");
             else printf("!!! No button with id: %d !!!\n", er.butid);
 
-        };
+        }
         if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != pa_etenter);
@@ -251,17 +250,17 @@ int main(void)
     chk = FALSE;
     chk2 = FALSE;
     chk3 = FALSE;
-    pa_checkboxsiz(stdout, "Pick me", x, y);
+    pa_checkboxsiz(stdout, "Pick me", &x, &y);
     pa_checkbox(stdout, 10, 7, 10+x-1, 7+y-1, "Pick me", 1);
-    pa_checkboxsiz(stdout, "Or me", x, y);
+    pa_checkboxsiz(stdout, "Or me", &x, &y);
     pa_checkbox(stdout, 10, 10, 10+x-1, 10+y-1, "Or me", 2);
-    pa_checkboxsiz(stdout, "No, me", x, y);
+    pa_checkboxsiz(stdout, "No, me", &x, &y);
     pa_checkbox(stdout, 10, 13, 10+x-1, 13+y-1, "No, me", 3);
     printf("Hit the checkbox, or return to continue\n");
     printf("\n");
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_etchkbox) {
 
             if (er.ckbxid == 1) {
@@ -284,8 +283,8 @@ int main(void)
 
             } else printf("!!! No button with id: %d !!!\n", er.butid);
 
-        };
-        if er.etype == pa_etterm longjmp(terminate_buf, 1);
+        }
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != pa_etenter);
     pa_enablewidget(stdout, 2, FALSE);
@@ -295,7 +294,7 @@ int main(void)
     printf("\n");
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_etchkbox) {
 
             if (er.ckbxid == 1) {
@@ -318,8 +317,8 @@ int main(void)
 
             } else printf("!!! No button with id: %d !!!\n", er.butid);
 
-        };
-        if er.etype == pa_etterm longjmp(terminate_buf, 1);
+        }
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
@@ -334,17 +333,17 @@ int main(void)
     chk = FALSE;
     chk2 = FALSE;
     chk3 = FALSE;
-    pa_checkboxsizg(stdout, "Pick me", x, y);
+    pa_checkboxsizg(stdout, "Pick me", &x, &y);
     pa_checkboxg(stdout, 100, 100, 100+x, 100+y, "Pick me", 1);
-    pa_checkboxsizg(stdout, "Or me", x, y);
+    pa_checkboxsizg(stdout, "Or me", &x, &y);
     pa_checkboxg(stdout, 100, 150, 100+x, 150+y, "Or me", 2);
-    pa_checkboxsizg(stdout, "No, me", x, y);
+    pa_checkboxsizg(stdout, "No, me", &x, &y);
     pa_checkboxg(stdout, 100, 200, 100+x, 200+y, "No, me", 3);
     printf("Hit the checkbox, or return to continue\n");
     printf("\n");
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_etchkbox) {
 
             if (er.ckbxid == 1) {
@@ -378,7 +377,7 @@ int main(void)
     printf("\n");
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_etchkbox) {
 
             if (er.ckbxid == 1) {
@@ -401,8 +400,8 @@ int main(void)
 
             } else printf("!!! No button with id: %d !!!\n", er.butid);
 
-        };
-        if (er.etype == pa_etterm) longjmp(terminate_buf, 1)
+        }
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
@@ -419,17 +418,17 @@ int main(void)
     chk = FALSE;
     chk2 = FALSE;
     chk3 = FALSE;
-    radiopa_buttonsiz(stdout, "Station 1", x, y);
-    radiopa_button(stdout, 10, 7, 10+x-1, 7+y-1, "Station 1", 1);
-    radiopa_buttonsiz(stdout, "Station 2", x, y);
-    radiopa_button(stdout, 10, 10, 10+x-1, 10+y-1, "Station 2", 2);
-    radiopa_buttonsiz(stdout, "Station 3", x, y);
-    radiopa_button(stdout, 10, 13, 10+x-1, 13+y-1, "Station 3", 3);
+    pa_radiobuttonsiz(stdout, "Station 1", &x, &y);
+    pa_radiobutton(stdout, 10, 7, 10+x-1, 7+y-1, "Station 1", 1);
+    pa_radiobuttonsiz(stdout, "Station 2", &x, &y);
+    pa_radiobutton(stdout, 10, 10, 10+x-1, 10+y-1, "Station 2", 2);
+    pa_radiobuttonsiz(stdout, "Station 3", &x, &y);
+    pa_radiobutton(stdout, 10, 13, 10+x-1, 13+y-1, "Station 3", 3);
     printf("Hit the radio button, or return to continue\n");
     printf("\n");
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_etradbut) {
 
             if (er.radbid == 1) {
@@ -448,23 +447,23 @@ int main(void)
 
                 printf("You selected the bottom checkbox\n");
                 chk3 = !chk3;
-                pa_selectwidget(stdout, 3, chk3)
+                pa_selectwidget(stdout, 3, chk3);
 
             } else printf("!!! No button with id: %d !!!", er.butid);
 
-        };
-        if (er.etype == pa_etterm) longjmp(terminate_buf, 1)
+        }
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != pa_etenter);
-    pa_enablewidget(stdout, 2, false);
+    pa_enablewidget(stdout, 2, FALSE);
     printf("Now the middle radio button is disabled, and should not be able\n");
     printf("to be pressed.\n");
     printf("Hit the radio button, or return to continue\n");
     printf("\n");
     do {
 
-        pa_event(stdin, er);
-        if er.etype == pa_etradbut then {
+        pa_event(stdin, &er);
+        if (er.etype == pa_etradbut) {
 
             if (er.radbid == 1) {
 
@@ -472,22 +471,22 @@ int main(void)
                 chk = !chk;
                 pa_selectwidget(stdout, 1, chk);
 
-            } else if (er.radbid == 2) then {
+            } else if (er.radbid == 2) {
 
                 printf("You selected the middle checkbox\n");
                 chk2 = !chk2;
                 pa_selectwidget(stdout, 2, chk2);
 
-            } else if (er.radbid == 3) then {
+            } else if (er.radbid == 3) {
 
                 printf("You selected the bottom checkbox\n");
                 chk3 = !chk3;
                 pa_selectwidget(stdout, 3, chk3);
 
-            } else printf("!!! No button with id: ", er.butid:1, " !!!\n")
+            } else printf("!!! No button with id: %d !!!\n", er.butid);
 
-        };
-        if er.etype == pa_etterm longjmp(terminate_buf, 1);
+        }
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
@@ -502,17 +501,17 @@ int main(void)
     chk = FALSE;
     chk2 = FALSE;
     chk3 = FALSE;
-    radiopa_buttonsizg(stdout, "Station 1", x, y);
-    radiopa_buttong(stdout, 100, 100, 100+x, 100+y, "Station 1", 1);
-    radiopa_buttonsizg(stdout, "Station 2", x, y);
-    radiopa_buttong(stdout, 100, 150, 100+x, 150+y, "Station 2", 2);
-    radiopa_buttonsizg(stdout, "Station 3", x, y);
-    radiopa_buttong(stdout, 100, 200, 100+x, 200+y, "Station 3", 3);
+    pa_radiobuttonsizg(stdout, "Station 1", &x, &y);
+    pa_radiobuttong(stdout, 100, 100, 100+x, 100+y, "Station 1", 1);
+    pa_radiobuttonsizg(stdout, "Station 2", &x, &y);
+    pa_radiobuttong(stdout, 100, 150, 100+x, 150+y, "Station 2", 2);
+    pa_radiobuttonsizg(stdout, "Station 3", &x, &y);
+    pa_radiobuttong(stdout, 100, 200, 100+x, 200+y, "Station 3", 3);
     printf("Hit the radio button, or return to continue\n");
     printf("\n");
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_etradbut) {
 
             if (er.radbid == 1) {
@@ -535,7 +534,7 @@ int main(void)
 
             } else printf("!!! No button with id: %d !!!\n", er.butid);
 
-        };
+        }
         if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != pa_etenter);
@@ -546,7 +545,7 @@ int main(void)
     printf("\n");
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_etradbut) {
 
             if (er.radbid == 1) {
@@ -555,7 +554,7 @@ int main(void)
                 chk = !chk;
                 pa_selectwidget(stdout, 1, chk);
 
-            } else (if er.radbid == 2) {
+            } else if (er.radbid == 2) {
 
                 printf("You selected the middle checkbox\n");
                 chk2 = !chk2;
@@ -569,7 +568,7 @@ int main(void)
 
             } else printf("!!! No button with id: %d !!!\n", er.butid);
 
-        };
+        }
         if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != pa_etenter);
@@ -585,20 +584,20 @@ int main(void)
     pa_binvis(stdout);
     printf("Terminal group box test\n");
     printf("\n");
-    gropa_up(stdout)siz("Hello there", 0, 0, x, y, ox, oy);
-    gropa_up(stdout)(10, 10, 10+x, 10+y, "Hello there", 1);
+    pa_groupsiz(stdout, "Hello there", 0, 0, &x, &y, &ox, &oy);
+    pa_group(stdout, 10, 10, 10+x, 10+y, "Hello there", 1);
     printf("This is a group box with a null client area\n");
     printf("Hit return to continue\n");
     waitnext();
     pa_killwidget(stdout, 1);
-    groupsiz("Hello there", 20, 10, x, y, ox, oy);
-    group(10, 10, 10+x, 10+y, "Hello there", 1);
+    pa_groupsiz(stdout, "Hello there", 20, 10, &x, &y, &ox, &oy);
+    pa_group(stdout, 10, 10, 10+x, 10+y, "Hello there", 1);
     printf("This is a group box with a 20,10 client area\n");
     printf("Hit return to continue\n");
     waitnext();
     pa_killwidget(stdout, 1);
-    gropa_up(stdout)siz("Hello there", 20, 10, x, y, ox, oy);
-    gropa_up(stdout)(10, 10, 10+x, 10+y, "Hello there", 1);
+    pa_groupsiz(stdout, "Hello there", 20, 10, &x, &y, &ox, &oy);
+    pa_group(stdout, 10, 10, 10+x, 10+y, "Hello there", 1);
     pa_button(stdout, 10+ox, 10+oy, 10+ox+20-1, 10+oy+10-1, "Bark, bark!", 2);
     printf("This is a group box with a 20,10 layered button\n");
     printf("Hit return to continue\n");
@@ -611,20 +610,20 @@ int main(void)
     printf("\f");
     printf("Graphical group box test\n");
     printf("\n");
-    groupsizg("Hello there", 0, 0, x, y, ox, oy);
-    groupg(100, 100, 100+x, 100+y, "Hello there", 1);
+    pa_groupsizg(stdout, "Hello there", 0, 0, &x, &y, &ox, &oy);
+    pa_groupg(stdout, 100, 100, 100+x, 100+y, "Hello there", 1);
     printf("This is a group box with a null client area\n");
     printf("Hit return to continue\n");
     waitnext();
     pa_killwidget(stdout, 1);
-    groupsizg("Hello there", 200, 200, x, y, ox, oy);
-    groupg(100, 100, 100+x, 100+y, "Hello there", 1);
+    pa_groupsizg(stdout, "Hello there", 200, 200, &x, &y, &ox, &oy);
+    pa_groupg(stdout, 100, 100, 100+x, 100+y, "Hello there", 1);
     printf("This is a group box with a 200,200 client area\n");
     printf("Hit return to continue\n");
     waitnext();
     pa_killwidget(stdout, 1);
-    groupsizg("Hello there", 200, 200, x, y, ox, oy);
-    groupg(100, 100, 100+x, 100+y, "Hello there", 1);
+    pa_groupsizg(stdout, "Hello there", 200, 200, &x, &y, &ox, &oy);
+    pa_groupg(stdout, 100, 100, 100+x, 100+y, "Hello there", 1);
     pa_buttong(stdout, 100+ox, 100+oy, 100+ox+200, 100+oy+200, "Bark, bark!", 2);
     printf("This is a group box with a 200,200 layered button\n");
     printf("Hit return to continue");
@@ -639,7 +638,7 @@ int main(void)
     pa_binvis(stdout);
     printf("Terminal background test\n");
     printf("\n");
-    pa_background(10, 10, 40, 20, 1);
+    pa_background(stdout, 10, 10, 40, 20, 1);
     printf("Hit return to continue\n");
     waitnext();
     pa_button(stdout, 11, 11, 39, 19, "Bark, bark!", 2);
@@ -654,7 +653,7 @@ int main(void)
     printf("\f");
     printf("Graphical background test\n");
     printf("\n");
-    pa_backgroundg(100, 100, 400, 200, 1);
+    pa_backgroundg(stdout, 100, 100, 400, 200, 1);
     printf("Hit return to continue\n");
     waitnext();
     pa_buttong(stdout, 110, 110, 390, 190, "Bark, bark!", 2);
@@ -671,13 +670,13 @@ int main(void)
     pa_binvis(stdout);
     printf("Terminal scroll bar test\n");
     printf("\n");
-    pa_scrollvertsiz(stdout, x, y);
+    pa_scrollvertsiz(stdout, &x, &y);
     pa_scrollvert(stdout, 10, 10, 10+x-1, 20, 1);
-    pa_scrollhorizsiz(stdout, x, y);
+    pa_scrollhorizsiz(stdout, &x, &y);
     pa_scrollhoriz(stdout, 15, 10, 35, 10+y-1, 2);
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_etsclull)
             printf("Scrollbar: %d up/left line\n", er.sclulid);
         if (er.etype == pa_etscldrl)
@@ -685,13 +684,13 @@ int main(void)
         if (er.etype == pa_etsclulp)
             printf("Scrollbar: %d up/left page\n", er.sclupid);
         if (er.etype == pa_etscldrp)
-            printf("Scrollbar: %d down/right page\n", er.scldpid:1);
+            printf("Scrollbar: %d down/right page\n", er.scldpid);
         if (er.etype == pa_etsclpos) {
 
             pa_scrollpos(stdout, er.sclpid, er.sclpos); /* set new position for scrollbar */
             printf("Scrollbar: %d position set: %d\n", er.sclpid, er.sclpos);
 
-        };
+        }
         if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != pa_etenter);
@@ -717,7 +716,7 @@ int main(void)
     printf("All of the scrollbars can be manipulated.\n");
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_etsclull)
             printf("Scrollbar: %d up/left line\n", er.sclulid);
         if (er.etype == pa_etscldrl)
@@ -731,8 +730,8 @@ int main(void)
             pa_scrollpos(stdout, er.sclpid, er.sclpos); /* set new position for scrollbar */
             printf("Scrollbar: %d position set: %d\n", er.sclpid, er.sclpos);
 
-        };
-        if (er.etype == pa_etterm) longjmp(terminate_buf, 1)
+        }
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
@@ -747,21 +746,21 @@ int main(void)
     pa_binvis(stdout);
     printf("Terminal scroll bar minimums test\n");
     printf("\n");
-    pa_scrollvertsiz(stdout, x, y);
+    pa_scrollvertsiz(stdout, &x, &y);
     pa_scrollvert(stdout, 10, 10, 10+x-1, 10+y-1, 1);
-    pa_scrollhorizsiz(stdout, x, y);
+    pa_scrollhorizsiz(stdout, &x, &y);
     pa_scrollhoriz(stdout, 15, 10, 15+x-1, 10+y-1, 2);
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_etsclull)
-            printf("Scrollbar: ", er.sclulid:1, " up/left line\n");
+            printf("Scrollbar: %d up/left line\n", er.sclulid);
         if (er.etype == pa_etscldrl)
-            printf("Scrollbar: ", er.scldlid:1, " down/right line\n");
+            printf("Scrollbar: %d down/right line\n", er.scldlid);
         if (er.etype == pa_etsclulp)
-            printf("Scrollbar: ", er.sclpa_up(stdout)id:1, " up/left page\n");
+            printf("Scrollbar: %d up/left page\n", er.sclupid);
         if (er.etype == pa_etscldrp)
-            printf("Scrollbar: ", er.scldpid:1, " down/right page\n");
+            printf("Scrollbar: %d down/right page\n", er.scldpid);
         if (er.etype == pa_etsclpos) {
 
             pa_scrollpos(stdout, er.sclpid, er.sclpos); /* set new position for scrollbar */
@@ -781,24 +780,24 @@ int main(void)
     pa_binvis(stdout);
     printf("Terminal scroll bar fat and skinny bars test\n");
     printf("\n");
-    pa_scrollvertsiz(stdout, x, y);
+    pa_scrollvertsiz(stdout, &x, &y);
     pa_scrollvert(stdout, 10, 10, 10, 10+10, 1);
     pa_scrollvert(stdout, 12, 10, 20, 10+10, 3);
-    pa_scrollhorizsiz(stdout, x, y);
+    pa_scrollhorizsiz(stdout, &x, &y);
     pa_scrollhoriz(stdout, 30, 10, 30+20, 10, 2);
     pa_scrollhoriz(stdout, 30, 12, 30+20, 20, 4);
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_etsclull)
-            printf("Scrollbar: %d up/left line\n", er.sclulid");
+            printf("Scrollbar: %d up/left line\n", er.sclulid);
         if (er.etype == pa_etscldrl)
             printf("Scrollbar: %d down/right line\n", er.scldlid);
         if (er.etype == pa_etsclulp)
             printf("Scrollbar: %d up/left page\n", er.sclupid);
-        if (er.etype == pa_etscldrp) then
+        if (er.etype == pa_etscldrp)
             printf("Scrollbar: %d down/right page\n", er.scldpid);
-        if (er.etype == pa_etsclpos) then {
+        if (er.etype == pa_etsclpos) {
 
             pa_scrollpos(stdout, er.sclpid, er.sclpos); /* set new position for scrollbar */
             printf("Scrollbar: %d position set: %d\n", er.sclpid, er.sclpos);
@@ -817,13 +816,13 @@ int main(void)
     printf("\f");
     printf("Graphical scroll bar test\n");
     printf("\n");
-    pa_scrollvertsizg(stdout, x, y);
+    pa_scrollvertsizg(stdout, &x, &y);
     pa_scrollvertg(stdout, 100, 100, 100+x, 300, 1);
-    pa_scrollhorizsizg(stdout, x, y);
+    pa_scrollhorizsizg(stdout, &x, &y);
     pa_scrollhorizg(stdout, 150, 100, 350, 100+y, 2);
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_etsclull)
             printf("Scrollbar: %d up/left line\n", er.sclulid);
         if (er.etype == pa_etscldrl)
@@ -861,22 +860,22 @@ int main(void)
     printf("All of the scrollbars can be manipulated.\n");
     do {
 
-        pa_event(stdin, er);
-        if (er.etype == pa_etsclull) then
+        pa_event(stdin, &er);
+        if (er.etype == pa_etsclull)
             printf("Scrollbar: %d up/left line\n", er.sclulid);
-        if (er.etype == pa_etscldrl) then
+        if (er.etype == pa_etscldrl)
             printf("Scrollbar: %d down/right line\n", er.scldlid);
-        if (er.etype == pa_etsclulp) then
+        if (er.etype == pa_etsclulp)
             printf("Scrollbar: %d up/pa_left page\n", er.sclupid);
-        if (er.etype == pa_etscldrp) then
+        if (er.etype == pa_etscldrp)
             printf("Scrollbar: %d down/right page\n", er.scldpid);
-        if (er.etype == pa_etsclpos) then {
+        if (er.etype == pa_etsclpos) {
 
             pa_scrollpos(stdout, er.sclpid, er.sclpos); /* set new position for scrollbar */
             printf("Scrollbar: %d position set: %d", er.sclpid, er.sclpos);
 
         }
-        if er.etype == pa_etterm longjmp(terminate_buf, 1);
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
@@ -889,13 +888,13 @@ int main(void)
     printf("\f");
     printf("Graphical scroll bar minimums test\n");
     printf("\n");
-    pa_scrollvertsizg(stdout, x, y);
+    pa_scrollvertsizg(stdout, &x, &y);
     pa_scrollvertg(stdout, 100, 100, 100+x, 100+y, 1);
-    pa_scrollhorizsizg(stdout, x, y);
+    pa_scrollhorizsizg(stdout, &x, &y);
     pa_scrollhorizg(stdout, 150, 100, 150+x, 100+y, 2);
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_etsclull)
             printf("Scrollbar: %d up/left line\n", er.sclulid);
         if (er.etype == pa_etscldrl)
@@ -921,15 +920,15 @@ int main(void)
     printf("\f");
     printf("Graphical scroll bar fat && skinny bars test\n");
     printf("\n");
-    pa_scrollvertsizg(stdout, x, y);
+    pa_scrollvertsizg(stdout, &x, &y);
     pa_scrollvertg(stdout, 100, 100, 100+x / 2, 100+200, 1);
     pa_scrollvertg(stdout, 120, 100, 200, 100+200, 3);
-    pa_scrollhorizsizg(stdout, x, y);
+    pa_scrollhorizsizg(stdout, &x, &y);
     pa_scrollhorizg(stdout, 250, 100, 250+200, 100+y / 2, 2);
     pa_scrollhorizg(stdout, 250, 120, 250+200, 200, 4);
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_etsclull)
             printf("Scrollbar: %d up/left line\n", er.sclulid);
         if (er.etype == pa_etscldrl)
@@ -959,13 +958,13 @@ int main(void)
     pa_binvis(stdout);
     printf("Terminal number select box test\n");
     printf("\n");
-    pa_numselboxsiz(stdout, 1, 10, x, y);
+    pa_numselboxsiz(stdout, 1, 10, &x, &y);
     pa_numselbox(stdout, 10, 10, 10+x-1, 10+y-1, 1, 10, 1);
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_etnumbox) printf("You selected: %d\n", er.numbsl);
-        if (er.etype == pa_etterm) longjmp(terminate_buf, 1)
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
@@ -975,11 +974,11 @@ int main(void)
     printf("\f");
     printf("Graphical number select box test\n");
     printf("\n");
-    pa_numselboxsizg(stdout, 1, 10, x, y);
+    pa_numselboxsizg(stdout, 1, 10, &x, &y);
     pa_numselboxg(stdout, 100, 100, 100+x, 100+y, 1, 10, 1);
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_etnumbox) printf("You selected: %d\n", er.numbsl);
         if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
@@ -993,19 +992,19 @@ int main(void)
     pa_binvis(stdout);
     printf("Terminal edit box test\n");
     printf("\n");
-    pa_editboxsiz(stdout, "Hi there, george", x, y);
+    pa_editboxsiz(stdout, "Hi there, george", &x, &y);
     pa_editbox(stdout, 10, 10, 10+x-1, 10+y-1, 1);
     pa_putwidgettext(stdout, 1, "Hi there, george");
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_etedtbox) {
 
-            pa_getwidgettext(stdout, 1, s);
+            pa_getwidgettext(stdout, 1, s, 100);
             printf("You entered: %s\n", s);
 
         }
-        if er.etype == pa_etterm longjmp(terminate_buf, 1)
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
@@ -1015,15 +1014,15 @@ int main(void)
     printf("\f");
     printf("Graphical edit box test\n");
     printf("\n");
-    pa_editboxsizg(stdout, "Hi there, george", x, y);
+    pa_editboxsizg(stdout, "Hi there, george", &x, &y);
     pa_editboxg(stdout, 100, 100, 100+x-1, 100+y-1, 1);
     pa_putwidgettext(stdout, 1, "Hi there, george");
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_etedtbox) {
 
-            pa_getwidgettext(stdout, 1, s);
+            pa_getwidgettext(stdout, 1, s, 100);
             printf("You entered: %s\n", s);
 
         }
@@ -1039,13 +1038,13 @@ int main(void)
     pa_binvis(stdout);
     printf("Terminal progress bar test\n");
     printf("\n");
-    pa_progbarsiz(stdout, x, y);
+    pa_progbarsiz(stdout, &x, &y);
     pa_progbar(stdout, 10, 10, 10+x-1, 10+y-1, 1);
     pa_timer(stdout, 1, SECOND, TRUE);
     prog = 1;
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_ettim) {
 
             if (prog < 20) {
@@ -1058,7 +1057,7 @@ int main(void)
                 pa_progbarpos(stdout, 1, INT_MAX);
                 printf("Done !\n");
                 prog = 11;
-                killpa_timer(stdout, 1);
+                pa_killtimer(stdout, 1);
 
             }
 
@@ -1073,13 +1072,13 @@ int main(void)
     printf("\f");
     printf("Graphical progress bar test\n");
     printf("\n");
-    pa_progbarsizg(stdout, x, y);
+    pa_progbarsizg(stdout, &x, &y);
     pa_progbarg(stdout, 100, 100, 100+x-1, 100+y-1, 1);
     pa_timer(stdout, 1, SECOND, TRUE);
     prog = 1;
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_ettim) {
 
             if (prog < 20) {
@@ -1123,11 +1122,11 @@ int main(void)
     sp->str = str("Green");
     sp->next = lp;
     lp = sp;
-    pa_listboxsiz(stdout, lp, x, y);
+    pa_listboxsiz(stdout, lp, &x, &y);
     pa_listbox(stdout, 10, 10, 10+x-1, 10+y-1, lp, 1);
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_etlstbox) {
 
             switch (er.lstbsl) {
@@ -1152,7 +1151,7 @@ int main(void)
     printf("\n");
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("Blue");
-    lp->next = nil;
+    lp->next = NULL;
     sp = (pa_strptr)imalloc(sizeof(pa_strrec));
     sp->str - str("Red");
     sp->next = lp;
@@ -1161,11 +1160,11 @@ int main(void)
     sp->str = str("Green");
     sp->next = lp;
     lp = sp;
-    pa_listboxsizg(stdout, lp, x, y);
+    pa_listboxsizg(stdout, lp, &x, &y);
     pa_listboxg(stdout, 100, 100, 100+x-1, 100+y-1, lp, 1);
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_etlstbox) {
 
             switch (er.lstbsl) {
@@ -1195,7 +1194,7 @@ int main(void)
     printf("\n");
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("dog");
-    lp->next = nil;
+    lp->next = NULL;
     sp = (pa_strptr)imalloc(sizeof(pa_strrec));
     sp->str = str("cat");
     sp->next = lp;
@@ -1204,11 +1203,11 @@ int main(void)
     sp->str = str("bird");
     sp->next = lp;
     lp = sp;
-    pa_dropboxsiz(stdout, lp, cx, cy, ox, oy);
+    pa_dropboxsiz(stdout, lp, &cx, &cy, &ox, &oy);
     pa_dropbox(stdout, 10, 10, 10+ox-1, 10+oy-1, lp, 1);
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_etdrpbox) {
 
             switch (er.drpbsl) {
@@ -1233,7 +1232,7 @@ int main(void)
     printf("\n");
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("dog");
-    lp->next = nil;
+    lp->next = NULL;
     sp = (pa_strptr)imalloc(sizeof(pa_strrec));
     sp->str = str("cat");
     sp->next = lp;
@@ -1242,11 +1241,11 @@ int main(void)
     sp->str = str("bird");
     sp->next = lp;
     lp = sp;
-    pa_dropboxsizg(stdout, lp, cx, cy, ox, oy);
+    pa_dropboxsizg(stdout, lp, &cx, &cy, &ox, &oy);
     pa_dropboxg(stdout, 100, 100, 100+ox-1, 100+oy-1, lp, 1);
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_etdrpbox) {
 
             switch (er.drpbsl) {
@@ -1254,12 +1253,12 @@ int main(void)
                 case 1: printf("You selected Bird\n"); break;
                 case 2: printf("You selected Cat\n"); break;
                 case 3: printf("You selected Dog\n"); break;
-                default printf("!!! Bad select number !!!\n");
+                default: printf("!!! Bad select number !!!\n");
 
             }
 
-        };
-       if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
+        }
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
@@ -1276,7 +1275,7 @@ int main(void)
     printf("\n");
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("corn");
-    lp->next = nil;
+    lp->next = NULL;
     sp = (pa_strptr)imalloc(sizeof(pa_strrec));
     sp->str = str("flower");
     sp->next = lp;
@@ -1285,14 +1284,14 @@ int main(void)
     sp->str = str("Tortillas");
     sp->next = lp;
     lp = sp;
-    droppa_editboxsiz(stdout, lp, cx, cy, ox, oy);
-    droppa_editbox(stdout, 10, 10, 10+ox-1, 10+oy-1, lp, 1);
+    pa_dropeditboxsiz(stdout, lp, &cx, &cy, &ox, &oy);
+    pa_dropeditbox(stdout, 10, 10, 10+ox-1, 10+oy-1, lp, 1);
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_etdrebox) {
 
-            pa_getwidgettext(stdout, 1, s);
+            pa_getwidgettext(stdout, 1, s, 100);
             printf("You selected: %s", s);
 
         }
@@ -1308,7 +1307,7 @@ int main(void)
     printf("\n");
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("corn");
-    lp->next = nil;
+    lp->next = NULL;
     sp = (pa_strptr)imalloc(sizeof(pa_strrec));
     sp->str = str("flower");
     sp->next = lp;
@@ -1317,14 +1316,14 @@ int main(void)
     sp->str = str("Tortillas");
     sp->next = lp;
     lp = sp;
-    droppa_editboxsizg(stdout, lp, cx, cy, ox, oy);
-    droppa_editboxg(stdout, 100, 100, 100+ox-1, 100+oy-1, lp, 1);
+    pa_dropeditboxsizg(stdout, lp, &cx, &cy, &ox, &oy);
+    pa_dropeditboxg(stdout, 100, 100, 100+ox-1, 100+oy-1, lp, 1);
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_etdrebox) {
 
-            pa_getwidgettext(stdout, 1, s);
+            pa_getwidgettext(stdout, 1, s, 100);
             printf("You selected: %s\n", s);
 
         }
@@ -1339,10 +1338,10 @@ int main(void)
     chrgrid();
     pa_binvis(stdout);
     printf("Terminal slider test\n");
-    pa_slidehorizsiz(stdout, x, y);
+    pa_slidehorizsiz(stdout, &x, &y);
     pa_slidehoriz(stdout, 10, 10, 10+x-1, 10+y-1, 10, 1);
     pa_slidehoriz(stdout, 10, 20, 10+x-1, 20+y-1, 0, 2);
-    pa_slidevertsiz(stdout, x, y);
+    pa_slidevertsiz(stdout, &x, &y);
     pa_slidevert(stdout, 40, 10, 40+x-1, 10+y-1, 10, 3);
     pa_slidevert(stdout, 50, 10, 50+x-1, 10+y-1, 0, 4);
     printf("Bottom and right sliders should not have tick marks\n");
@@ -1351,7 +1350,7 @@ int main(void)
         pa_event(stdin, &er);
         if (er.etype == pa_etsldpos)
             printf("Slider id: %d position: %d\n", er.sldpid, er.sldpos);
-        if (er.etype == pa_etterm) longjmp(terminate_buf, 1)
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
@@ -1363,19 +1362,19 @@ int main(void)
 
     printf("\f");
     printf("Graphical slider test\n");
-    pa_slidehorizsizg(stdout, x, y);
+    pa_slidehorizsizg(stdout, &x, &y);
     pa_slidehorizg(stdout, 100, 100, 100+x-1, 100+y-1, 10, 1);
     pa_slidehorizg(stdout, 100, 200, 100+x-1, 200+y-1, 0, 2);
-    pa_slidevertsizg(stdout, x, y);
+    pa_slidevertsizg(stdout, &x, &y);
     pa_slidevertg(stdout, 400, 100, 400+x-1, 100+y-1, 10, 3);
     pa_slidevertg(stdout, 500, 100, 500+x-1, 100+y-1, 0, 4);
     printf("Bottom and right sliders should not have tick marks\n");
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_etsldpos)
             printf("Slider id: %d position: %d\n", er.sldpid, er.sldpos);
-        if er.etype == pa_etterm longjmp(terminate_buf, 1);
+        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype == pa_etenter);
     pa_killwidget(stdout, 1);
@@ -1393,7 +1392,7 @@ int main(void)
 
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("Right");
-    lp->next = nil;
+    lp->next = NULL;
     sp = (pa_strptr)imalloc(sizeof(pa_strrec));
     sp->str = str("Center");
     sp->next = lp;
@@ -1402,12 +1401,12 @@ int main(void)
     sp->str = str("Left");
     sp->next = lp;
     lp = sp;
-    pa_tabbarsiz(stdout, pa_totop, 20, 2, x, y, ox, oy);
+    pa_tabbarsiz(stdout, pa_totop, 20, 2, &x, &y, &ox, &oy);
     pa_tabbar(stdout, 15, 3, 15+x-1, 3+y-1, lp, pa_totop, 1);
 
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("Bottom");
-    lp->next = nil;
+    lp->next = NULL;
     sp = (pa_strptr)imalloc(sizeof(pa_strrec));
     sp->str = str("Center");
     sp->next = lp;
@@ -1416,12 +1415,12 @@ int main(void)
     sp->str = str("Top");
     sp->next = lp;
     lp = sp;
-    pa_tabbarsiz(stdout, pa_topa_right(stdout), 2, 12, x, y, ox, oy);
+    pa_tabbarsiz(stdout, pa_toright, 2, 12, &x, &y, &ox, &oy);
     pa_tabbar(stdout, 40, 7, 40+x-1, 7+y-1, lp, pa_toright, 2);
 
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("Right");
-    lp->next = nil;
+    lp->next = NULL;
     sp = (pa_strptr)imalloc(sizeof(pa_strrec));
     sp->str = str("Center");
     sp->next = lp;
@@ -1430,12 +1429,12 @@ int main(void)
     sp->str = str("Left");
     sp->next = lp;
     lp = sp;
-    pa_tabbarsiz(stdout, pa_tobottom, 20, 2, x, y, ox, oy);
+    pa_tabbarsiz(stdout, pa_tobottom, 20, 2, &x, &y, &ox, &oy);
     pa_tabbar(stdout, 15, 20, 15+x-1, 20+y-1, lp, pa_tobottom, 3);
 
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("Bottom");
-    lp->next = nil;
+    lp->next = NULL;
     sp = (pa_strptr)imalloc(sizeof(pa_strrec));
     sp->str = str("Center");
     sp->next = lp;
@@ -1444,12 +1443,12 @@ int main(void)
     sp->str = str("Top");
     sp->next = lp;
     lp = sp;
-    pa_tabbarsiz(stdout, pa_toleft, 2, 12, x, y, ox, oy);
+    pa_tabbarsiz(stdout, pa_toleft, 2, 12, &x, &y, &ox, &oy);
     pa_tabbar(stdout, 5, 7, 5+x-1, 7+y-1, lp, pa_toleft, 4);
 
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_ettabbar) {
 
             if (er.tabid == 1) switch (er.tabsel) {
@@ -1500,7 +1499,7 @@ pa_bcolor(stdout, pa_cyan);
 
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("Right");
-    lp->next = nil;
+    lp->next = NULL;
     sp = (pa_strptr)imalloc(sizeof(pa_strrec));
     sp->str = str("Center");
     sp->next = lp;
@@ -1509,14 +1508,14 @@ pa_bcolor(stdout, pa_cyan);
     sp->str = str("Left");
     sp->next = lp;
     lp = sp;
-    pa_tabbarsizg(stdout, pa_totop, 200, 20, x, y, ox, oy);
+    pa_tabbarsizg(stdout, pa_totop, 200, 20, &x, &y, &ox, &oy);
 pa_line(stdout, 1, 50, pa_maxxg(stdout), 50);
 pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     pa_tabbarg(stdout, 150, 50, 150+x-1, 50+y-1, lp, pa_totop, 1);
 
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("Bottom");
-    lp->next = nil;
+    lp->next = NULL;
     sp = (pa_strptr)imalloc(sizeof(pa_strrec));
     sp->str = str("Center");
     sp->next = lp;
@@ -1525,12 +1524,12 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     sp->str = str("Top");
     sp->next = lp;
     lp = sp;
-    pa_tabbarsizg(stdout, pa_toright, 20, 200, x, y, ox, oy);
-    pa_tabbarg(stdout, 400, 100, 400+x-1, 100+y-1, lp, toright, 2);
+    pa_tabbarsizg(stdout, pa_toright, 20, 200, &x, &y, &ox, &oy);
+    pa_tabbarg(stdout, 400, 100, 400+x-1, 100+y-1, lp, pa_toright, 2);
 
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("Right");
-    lp->next = nil;
+    lp->next = NULL;
     sp = (pa_strptr)imalloc(sizeof(pa_strrec));
     sp->str = str("Center");
     sp->next = lp;
@@ -1539,12 +1538,12 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     sp->str = str("Left");
     sp->next = lp;
     lp = sp;
-    pa_tabbarsizg(stdout, pa_tobottom, 200, 20, x, y, ox, oy);
+    pa_tabbarsizg(stdout, pa_tobottom, 200, 20, &x, &y, &ox, &oy);
     pa_tabbarg(stdout, 150, 300, 150+x-1, 300+y-1, lp, pa_tobottom, 3);
 
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("Bottom");
-    lp->next = nil;
+    lp->next = NULL;
     sp = (pa_strptr)imalloc(sizeof(pa_strrec));
     sp->str = str("Center");
     sp->next = lp;
@@ -1553,12 +1552,12 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     sp->str = str("Top");
     sp->next = lp;
     lp = sp;
-    pa_tabbarsizg(stdout, pa_toleft, 20, 200, x, y, ox, oy);
+    pa_tabbarsizg(stdout, pa_toleft, 20, 200, &x, &y, &ox, &oy);
     pa_tabbarg(stdout, 50, 100, 50+x-1, 100+y-1, lp, pa_toleft, 4);
 
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_ettabbar) {
 
             if (er.tabid == 1) switch (er.tabsel) {
@@ -1610,7 +1609,7 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
 
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("Right");
-    lp->next = nil;
+    lp->next = NULL;
     sp = (pa_strptr)imalloc(sizeof(pa_strrec));
     sp->str = str("Center");
     sp->next = lp;
@@ -1619,12 +1618,12 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     sp->str = str("Left");
     sp->next = lp;
     lp = sp;
-    pa_tabbarsiz(stdout, pa_totop, 30, 12, x, y, ox, oy);
+    pa_tabbarsiz(stdout, pa_totop, 30, 12, &x, &y, &ox, &oy);
     pa_tabbar(stdout, 20-ox, 7-oy, 20+x-ox-1, 7+y-oy-1, lp, pa_totop, 1);
 
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("Bottom");
-    lp->next = nil;
+    lp->next = NULL;
     sp = (pa_strptr)imalloc(sizeof(pa_strrec));
     sp->str = str("Center");
     sp->next = lp;
@@ -1633,12 +1632,12 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     sp->str = str("Top");
     sp->next = lp;
     lp = sp;
-    pa_tabbarsiz(stdout, pa_toright, 30, 12, x, y, ox, oy);
+    pa_tabbarsiz(stdout, pa_toright, 30, 12, &x, &y, &ox, &oy);
     pa_tabbar(stdout, 20-ox, 7-oy, 20+x-ox-1, 7+y-oy-1, lp, pa_toright, 2);
 
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("Right");
-    lp->next = nil;
+    lp->next = NULL;
     sp = (pa_strptr)imalloc(sizeof(pa_strrec));
     sp->str = str("Center");
     sp->next = lp;
@@ -1647,12 +1646,12 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     sp->str = str("Left");
     sp->next = lp;
     lp = sp;
-    pa_tabbarsiz(stdout, pa_tobottom, 30, 12, x, y, ox, oy);
+    pa_tabbarsiz(stdout, pa_tobottom, 30, 12, &x, &y, &ox, &oy);
     pa_tabbar(stdout, 20-ox, 7-oy, 20+x-ox-1, 7+y-oy-1, lp, pa_tobottom, 3);
 
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("Bottom");
-    lp->next = nil;
+    lp->next = NULL;
     sp = (pa_strptr)imalloc(sizeof(pa_strrec));
     sp->str = str("Center");
     sp->next = lp;
@@ -1661,12 +1660,12 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     sp->str = str("Top");
     sp->next = lp;
     lp = sp;
-    pa_tabbarsiz(stdout, pa_toleft, 30, 12, x, y, ox, oy);
+    pa_tabbarsiz(stdout, pa_toleft, 30, 12, &x, &y, &ox, &oy);
     pa_tabbar(stdout, 20-ox, 7-oy, 20+x-ox-1, 7+y-oy-1, lp, pa_toleft, 4);
 
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_ettabbar) {
 
             if (er.tabid == 1) switch (er.tabsel) {
@@ -1715,7 +1714,7 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     printf("\n");
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("Right");
-    lp->next = nil;
+    lp->next = NULL;
     sp = (pa_strptr)imalloc(sizeof(pa_strrec));
     sp->str = str("Center");
     sp->next = lp;
@@ -1724,12 +1723,12 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     sp->str = str("Left");
     sp->next = lp;
     lp = sp;
-    pa_tabbarsizg(stdout, pa_totop, 200, 200, x, y, ox, oy);
+    pa_tabbarsizg(stdout, pa_totop, 200, 200, &x, &y, &ox, &oy);
     pa_tabbarg(stdout, 200-ox, 100-oy, 200+x-ox, 100+y-oy, lp, pa_totop, 1);
 
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("Bottom");
-    lp->next = nil;
+    lp->next = NULL;
     sp = (pa_strptr)imalloc(sizeof(pa_strrec));
     sp->str = str("Center");
     sp->next = lp;
@@ -1738,12 +1737,12 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     sp->str = str("Top");
     sp->next = lp;
     lp = sp;
-    pa_tabbarsizg(stdout, pa_toright, 200, 200, x, y, ox, oy);
+    pa_tabbarsizg(stdout, pa_toright, 200, 200, &x, &y, &ox, &oy);
     pa_tabbarg(stdout, 200-ox, 100-oy, 200+x-ox, 100+y-oy, lp, pa_toright, 2);
 
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("Right");
-    lp->next = nil;
+    lp->next = NULL;
     sp = (pa_strptr)imalloc(sizeof(pa_strrec));
     sp->str = str("Center");
     sp->next = lp;
@@ -1752,12 +1751,12 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     sp->str = str("Left");
     sp->next = lp;
     lp = sp;
-    pa_tabbarsizg(stdout, pa_tobottom, 200, 200, x, y, ox, oy);
+    pa_tabbarsizg(stdout, pa_tobottom, 200, 200, &x, &y, &ox, &oy);
     pa_tabbarg(stdout, 200-ox, 100-oy, 200+x-ox, 100+y-oy, lp, pa_tobottom, 3);
 
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("Bottom");
-    lp->next = nil;
+    lp->next = NULL;
     sp = (pa_strptr)imalloc(sizeof(pa_strrec));
     sp->str = str("Center");
     sp->next = lp;
@@ -1766,12 +1765,12 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     sp->str = str("Top");
     sp->next = lp;
     lp = sp;
-    pa_tabbarsizg(stdout, pa_toleft, 200, 200, x, y, ox, oy);
+    pa_tabbarsizg(stdout, pa_toleft, 200, 200, &x, &y, &ox, &oy);
     pa_tabbarg(stdout, 200-ox, 100-oy, 200+x-ox, 100+y-oy, lp, pa_toleft, 4);
 
     do {
 
-        pa_event(stdin, er);
+        pa_event(stdin, &er);
         if (er.etype == pa_ettabbar) {
 
             if (er.tabid == 1) switch (er.tabsel) {
@@ -1836,7 +1835,7 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     r = INT_MAX;
     g = INT_MAX;
     b = INT_MAX;
-    querypa_color(r, g, b);
+    pa_querycolor(&r, &g, &b);
     printf("\n");
     printf("Dialog should have completed now\n");
     printf("Colors are: red: %d green: %d blue: %d\n", r, g, b);
@@ -1850,7 +1849,7 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     printf("There should be an open file query dialog\n");
     printf("Both the dialog && this window should be fully reactive\n");
     printf("The dialog should have \"myfile.txt\" as the default filename\n");
-    copy(s, "myfile.txt\n");
+    strcpy(s, "myfile.txt");
     pa_queryopen(s);
     printf("\n");
     printf("Dialog should have completed now\n");
@@ -1865,11 +1864,11 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     printf("There should be an save file query dialog\n");
     printf("Both the dialog && this window should be fully reactive\n");
     printf("The dialog should have \"myfile.txt\" as the default filename\n");
-    copy(s, "myfile.txt\n");
+    strcpy(s, "myfile.txt");
     pa_querysave(s);
     printf("\n");
     printf("Dialog should have completed now\n");
-    printf("Filename is: %d\n", s);
+    printf("Filename is: %s\n", s);
     waitnext();
 
     /* ************************* Find query test ************************ */
@@ -1880,17 +1879,17 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     printf("There should be a find query dialog\n");
     printf("Both the dialog and this window should be fully reactive\n");
     printf("The dialog should have \"mystuff\" as the default search string\n");
-    copy(s, "mystuff");
+    strcpy(s, "mystuff");
     optf = 0;
     pa_queryfind(s, &optf);
     printf("\n");
     printf("Dialog should have completed now\n");
     printf("Search string is: \"%s\"\n", s);
-    if (BIT(pa_qfncase)&optf) printf("Case sensitive is on\n")
+    if (BIT(pa_qfncase)&optf) printf("Case sensitive is on\n");
     else printf("Case sensitive is off\n");
-    if (BIT(pa_qfnup)&optf) printf("Search up\n")
+    if (BIT(pa_qfnup)&optf) printf("Search up\n");
     else printf("Search down\n");
-    if (BIT(pa_qfnre)&optf) printf("Use regular expression\n")
+    if (BIT(pa_qfnre)&optf) printf("Use regular expression\n");
     else printf("Use literal expression\n");
     waitnext();
 
@@ -1903,25 +1902,25 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     printf("Both the dialog && this window should be fully reactive\n");
     printf("The dialog should have \"bark\" as the default search string\n");
     printf("and should have \"sniff\" as the default replacement string\n");
-    copy(ss, "bark");
-    copy(rs, "sniff");
+    strcpy(ss, "bark");
+    strcpy(rs, "sniff");
     optfr = 0;
     pa_queryfindrep (ss, rs, &optfr);
     printf("\n");
     printf("Dialog should have completed now\n");
     printf("Search string is: \"%s\"\n", ss);
     printf("Replace string is: \"%s\"\n", rs);
-    if (BIT(qfrcase)&optfr) printf("Case sensitive is on\n")
+    if (BIT(pa_qfrcase)&optfr) printf("Case sensitive is on\n");
     else printf("Case sensitive is off\n");
-    if (BIT(qfrup)&optfr) printf("Search/replace up\n")
+    if (BIT(pa_qfrup)&optfr) printf("Search/replace up\n");
     else printf("Search/replace down\n");
-    if (BIT(qfrre)&optfr) printf("Regular expressions are on\n")
+    if (BIT(pa_qfrre)&optfr) printf("Regular expressions are on\n");
     else printf("Regular expressions are off\n");
-    if (BIT(qfrfind)&optfr) printf("Mode is find\n")
+    if (BIT(pa_qfrfind)&optfr) printf("Mode is find\n");
     else printf("Mode is find/replace\n");
-    if (BIT(qfrallfil)&optfr) printf("Mode is find/replace all in file\n")
+    if (BIT(pa_qfrallfil)&optfr) printf("Mode is find/replace all in file\n");
     else printf("Mode is find/replace first in file\n");
-    if (BIT(qfralllin)&optfr) printf("Mode is find/replace all on line(s)\n")
+    if (BIT(pa_qfralllin)&optfr) printf("Mode is find/replace all on line(s)\n");
     else printf("Mode is find/replace first on line(s)\n");
     waitnext();
 
@@ -1941,29 +1940,29 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     bg = INT_MAX;
     bb = INT_MAX;
     fe = 0;
-    querypa_font(stdout, fc, fs, fr, fg, fb, br, bg, bb, fe);
+    pa_queryfont(stdout, &fc, &fs, &fr, &fg, &fb, &br, &bg, &bb, &fe);
     printf("\n");
     printf("Dialog should have completed now\n");
     printf("Font code: %d\n", fc);
     printf("Font size: %d\n", fs);
     printf("Foreground pa_color: Red: %d Green: %d Blue: %d\n", fr, fg, fb);
     printf("Background pa_color: Red: %d Green: %d Blue: %d\n", br, bg, bb);
-    if (qfteblink in fe) printf("Blink\n");
-    if (qftereverse in fe) printf("Reverse\n");
-    if (qfteunderline in fe) printf("Underline\n");
-    if (qftesuperscript in fe) printf("Superscript\n");
-    if (qftesubscript in fe) printf("Subscript\n");
-    if (qfteitalic in fe) printf("Italic\n");
-    if (qftebold in fe) printf("Bold\n");
-    if (qftestrikeout in fe) printf("Strikeout\n");
-    if (qftestandout in fe) printf("Standout\n");
-    if (qftecondensed in fe) printf("Condensed\n");
-    if (qfteext}ed in fe) printf("Extended\n");
-    if (qftexlight in fe) printf("Xlight\n");
-    if (qftelight in fe) printf("Light\n");
-    if (qftexbold in fe) printf("Xbold\n");
-    if (qftehollow in fe) printf("Hollow\n");
-    if (qfteraised in fe) printf("Raised\n");
+    if (BIT(pa_qfteblink)&fe) printf("Blink\n");
+    if (BIT(pa_qftereverse)&fe) printf("Reverse\n");
+    if (BIT(pa_qfteunderline)&fe) printf("Underline\n");
+    if (BIT(pa_qftesuperscript)&fe) printf("Superscript\n");
+    if (BIT(pa_qftesubscript)&fe) printf("Subscript\n");
+    if (BIT(pa_qfteitalic)&fe) printf("Italic\n");
+    if (BIT(pa_qftebold)&fe) printf("Bold\n");
+    if (BIT(pa_qftestrikeout)&fe) printf("Strikeout\n");
+    if (BIT(pa_qftestandout)&fe) printf("Standout\n");
+    if (BIT(pa_qftecondensed)&fe) printf("Condensed\n");
+    if (BIT(pa_qfteextended)&fe) printf("Extended\n");
+    if (BIT(pa_qftexlight)&fe) printf("Xlight\n");
+    if (BIT(pa_qftelight)&fe) printf("Light\n");
+    if (BIT(pa_qftexbold)&fe) printf("Xbold\n");
+    if (BIT(pa_qftehollow)&fe) printf("Hollow\n");
+    if (BIT(pa_qfteraised)&fe) printf("Raised\n");
     waitnext();
 
     terminate:;
