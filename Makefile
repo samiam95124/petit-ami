@@ -155,6 +155,7 @@ endif
 
 CC=gcc
 CFLAGS=-g3 -Iinclude
+CPP=g++
 
 #
 # Add flags by OS
@@ -488,6 +489,9 @@ utils/option.o: utils/option.c include/localdefs.h include/services.h \
 	
 stub/keeper.o: stub/keeper.c
 	gcc -g3 -fPIC -Iinclude -c stub/keeper.c -o stub/keeper.o
+
+cpp/terminal.o: cpp/terminal.cpp
+	g++ -g3 -fPIC -Iinclude -Ihpp -c cpp/terminal.cpp -o cpp/terminal.o
 	
 ################################################################################
 #
@@ -565,41 +569,42 @@ bin/petit_ami_plain.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
     linux/dumpsynthplug.o linux/network.o utils/config.o utils/option.o
 	gcc -shared linux/services.o linux/sound.o linux/fluidsynthplug.o \
 	    linux/dumpsynthplug.o linux/network.o utils/config.o utils/option.o \
+	    cpp/terminal.o \
 	    -o bin/petit_ami_plain.so
 	
 bin/petit_ami_plain.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
     linux/dumpsynthplug.o linux/network.o utils/config.o utils/option.o
 	ar rcs bin/petit_ami_plain.a linux/services.o linux/sound.o \
 	    linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
-	    utils/config.o utils/option.o
+	    utils/config.o utils/option.o cpp/terminal.o
 	
 bin/petit_ami_term.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
     linux/dumpsynthplug.o linux/network.o linux/terminal.o utils/config.o \
     utils/option.o 
 	gcc -shared linux/services.o linux/sound.o linux/fluidsynthplug.o \
 	    linux/dumpsynthplug.o  linux/network.o linux/terminal.o utils/config.o \
-	    utils/option.o -o bin/petit_ami_term.so 
+	    utils/option.o cpp/terminal.o -o bin/petit_ami_term.so 
 	
 bin/petit_ami_term.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
     linux/dumpsynthplug.o linux/network.o linux/terminal.o utils/config.o \
     utils/option.o
 	ar rcs bin/petit_ami_term.a linux/services.o linux/sound.o \
 		linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
-		linux/terminal.o utils/config.o utils/option.o 
+		linux/terminal.o utils/config.o utils/option.o cpp/terminal.o
 	
 bin/petit_ami_graph.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
     linux/dumpsynthplug.o linux/network.o linux/graphics.o utils/config.o \
     utils/option.o  
 	gcc -shared linux/services.o linux/sound.o linux/fluidsynthplug.o \
 		linux/dumpsynthplug.o  linux/network.o linux/graphics.o utils/config.o \
-		utils/option.o -o bin/petit_ami_graph.so
+		utils/option.o cpp/terminal.o -o bin/petit_ami_graph.so
 	
 bin/petit_ami_graph.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
     linux/dumpsynthplug.o linux/network.o linux/graphics.o utils/config.o \
     utils/option.o  
 	ar rcs bin/petit_ami_graph.a linux/services.o linux/sound.o \
 		linux/fluidsynthplug.o linux/dumpsynthplug.o  linux/network.o \
-		linux/terminal.o utils/config.o utils/option.o 
+		linux/terminal.o utils/config.o utils/option.o cpp/terminal.o
 	
 endif
 
@@ -652,6 +657,15 @@ testc: $(CLIBSD) test.c
 	
 testg: $(GLIBSD) test.c
 	$(CC) $(CFLAGS) test.c $(GLIBS) -o testg
+	
+test++: $(PLIBSD) test.cpp
+	$(CPP) $(CFLAGS) test.cpp $(PLIBS) -o test
+	
+testc++: $(CLIBSD) test.cpp
+	$(CPP) $(CFLAGS) test.cpp $(CLIBS) -o testc
+	
+testg++: $(GLIBSD) test.cpp
+	$(CPP) $(CFLAGS) test.cpp $(GLIBS) -o testg
 	
 #
 # Target programs that use Petit-Ami, such as games, utilities, etc.

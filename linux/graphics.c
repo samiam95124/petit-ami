@@ -569,26 +569,28 @@ static pthread_mutex_t xwlock; /* XWindow call lock */
  *
  * Note that some of these are going to need to move to a per-window structure.
  */
-static Display* padisplay;      /* current display */
-static int      pascreen;       /* current screen */
-static int      ctrll, ctrlr;   /* control key active */
-static int      shiftl, shiftr; /* shift key active */
-static int      altl, altr;     /* alt key active */
-static int      capslock;       /* caps lock key active */
-static filptr   opnfil[MAXFIL]; /* open files table */
-static int      xltwin[MAXFIL]; /* window equivalence table */
-static int      filwin[MAXFIL]; /* file to window equivalence table */
-static int      esck;           /* previous key was escape */
-static fontptr  fntlst;         /* list of XWindow fonts */
-static int      fntcnt;         /* number of fonts */
-static picptr   frepic;         /* free picture entries */
-static int      numjoy;         /* number of joysticks found */
-static int      joyfid;         /* joystick file id */
-static int      joyax;          /* joystick x axis save */
-static int      joyay;          /* joystick y axis save */
-static int      joyaz;          /* joystick z axis save */
-static int      frmfid;         /* framing timer fid */
-static int      cfgcap;         /* "configuration" caps */
+static Display*   padisplay;      /* current display */
+static int        pascreen;       /* current screen */
+static int        ctrll, ctrlr;   /* control key active */
+static int        shiftl, shiftr; /* shift key active */
+static int        altl, altr;     /* alt key active */
+static int        capslock;       /* caps lock key active */
+static filptr     opnfil[MAXFIL]; /* open files table */
+static int        xltwin[MAXFIL]; /* window equivalence table */
+static int        filwin[MAXFIL]; /* file to window equivalence table */
+static int        esck;           /* previous key was escape */
+static fontptr    fntlst;         /* list of XWindow fonts */
+static int        fntcnt;         /* number of fonts */
+static picptr     frepic;         /* free picture entries */
+static int        numjoy;         /* number of joysticks found */
+static int        joyfid;         /* joystick file id */
+static int        joyax;          /* joystick x axis save */
+static int        joyay;          /* joystick y axis save */
+static int        joyaz;          /* joystick z axis save */
+static int        frmfid;         /* framing timer fid */
+static int        cfgcap;         /* "configuration" caps */
+static pa_pevthan evthan[pa_etterm+1]; /* array of event handler routines */
+static pa_pevthan evtshan;        /* single master event handler routine */
 
 /* memory statistics/diagnostics */
 static unsigned long memusd;    /* total memory in use for malloc */
@@ -984,6 +986,25 @@ void prtxcset(int caps)
     if (caps & BIT(xcproportional)) fprintf(stderr, "prop ");
     if (caps & BIT(xcmonospace)) fprintf(stderr, "mono ");
     if (caps & BIT(xcchar)) fprintf(stderr, "char ");
+
+}
+
+/** ****************************************************************************
+
+Default event handler
+
+If we reach this event handler, it means none of the overriders has handled the
+event, but rather passed it down. We flag the event was not handled and return,
+which will cause the event to return to the event() caller.
+
+*******************************************************************************/
+
+static void defaultevent(pa_evtrec* ev)
+
+{
+
+    /* set not handled and exit */
+    ev->handled = 0;
 
 }
 
@@ -7485,7 +7506,7 @@ static void xwinget(pa_evtrec* er, int* keep)
 
 }
 
-void pa_event(FILE* f, pa_evtrec* er)
+static void ievent(FILE* f, pa_evtrec* er)
 
 {
 
@@ -7561,6 +7582,70 @@ void pa_event(FILE* f, pa_evtrec* er)
     dbg_printf(dlinfo, "PA Event: %5d ", ecnt++); prtevt(er->etype);
     fprintf(stderr, "\n"); fflush(stderr);
 #endif
+
+}
+
+/* external event interface */
+
+void pa_event(FILE* f, pa_evtrec* er)
+
+{
+
+    do { /* loop handling via event vectors */
+
+        /* get logical input file number for input, and get the event for that. */
+        ievent(f, er); /* process event */
+        er->handled = 1; /* set event is handled by default */
+        (evtshan)(er); /* call master event handler */
+        if (!er->handled) { /* send it to fanout */
+
+            er->handled = 1; /* set event is handled by default */
+            (*evthan[er->etype])(er); /* call event handler first */
+
+        }
+
+    } while (er->handled);
+    /* event not handled, return it to the caller */
+
+}
+
+/** ****************************************************************************
+
+Override event handler
+
+Overrides or "hooks" the indicated event handler. The existing event handler is
+given to the caller, and the new event handler becomes effective. If the event
+is called, and the overrider does not want to handle it, that overrider can
+call down into the stack by executing the overridden event.
+
+*******************************************************************************/
+
+void pa_eventover(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh)
+
+{
+
+    *oeh = evthan[e]; /* save existing event handler */
+    evthan[e] = eh; /* place new event handler */
+
+}
+
+/** ****************************************************************************
+
+Override master event handler
+
+Overrides or "hooks" the master event handler. The existing event handler is
+given to the caller, and the new event handler becomes effective. If the event
+is called, and the overrider does not want to handle it, that overrider can
+call down into the stack by executing the overridden event.
+
+*******************************************************************************/
+
+void pa_eventsover(pa_pevthan eh,  pa_pevthan* oeh)
+
+{
+
+    *oeh = evtshan; /* save existing event handler */
+    evtshan = eh; /* place new event handler */
 
 }
 
@@ -9373,6 +9458,7 @@ static void pa_init_graphics(int argc, char *argv[])
     pa_valptr vp;
     char*     errstr;
     int       fi;
+    pa_evtcod e;
 
     /* clear malloc in use total */
     memusd = 0; /* total memory in use *
@@ -9451,6 +9537,10 @@ static void pa_init_graphics(int argc, char *argv[])
         filwin[fi] = -1; /* set unoccupied */
 
     }
+
+    /* clear event vector table */
+    evtshan = defaultevent;
+    for (e = pa_etchar; e <= pa_etterm; e++) evthan[e] = defaultevent;
 
     /* get setup configuration */
     config_root = NULL;
