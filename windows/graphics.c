@@ -8965,8 +8965,8 @@ void stdfont(void)
     fp->fix = TRUE; /* set fixed */
     fp->sys = TRUE; /* set system */
     fp->fn = str("System Fixed");
-    fp->next = fntlst; /* push to fonts list */
-    fntlst = fp;
+    fp->next = nfl; /* push to fonts list */
+    nfl = fp;
     fntcnt = fntcnt+1; /* add to font count */
 #else
     fp = schstr(termfont, TRUE); /* search table */
@@ -9020,6 +9020,7 @@ void stdfont(void)
         nfl = fp;
 
     }
+
     /* now insert back to master list, and reverse entries to order */
     while (nfl) {
 

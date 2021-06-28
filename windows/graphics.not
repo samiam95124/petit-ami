@@ -16,14 +16,14 @@ is clipping the buffer (window size smaller than buffer). This matches the behav
 
 4. xltwin and filwin are initialized to 0, and should be -1 (since fids are >= 0).
 
+5. Windows appears to pick a different dpm depending on which font is selected
+for the system font.
+
 ************************************************************************************
 TEST RESULTS
 ************************************************************************************
 
 Terminal_test
-
-1. Joystick Z Axis does not work.
-
 
 *************************************************************************************
 

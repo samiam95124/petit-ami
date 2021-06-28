@@ -1,6 +1,8 @@
 C++ wrapper notes
 
-1. Can use references instead of passed pointers in parameters.
+1. Can use references instead of passed pointers in parameters. Note that this
+must stay %100 compatible with C, for example must take a pointer instead of a
+reference where provided. Hopefully this can be done with overloads.
 
 2. Research use of C++ string parameters instead of C strings.
 

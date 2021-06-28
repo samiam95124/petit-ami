@@ -1115,7 +1115,7 @@ int main(void)
     float f;
 
     if (setjmp(terminate_buf)) goto terminate;
-#if 1
+#if 0
     pa_curvis(stdout, FALSE);
     pa_binvis(stdout);
     printf("Graphics screen test vs. 0.1\n");
@@ -1174,10 +1174,12 @@ int main(void)
 
    /* ***************************** Standard Fonts test *********************** */
 
+#endif
     putchar('\f');
     chrgrid();
     prtcen(pa_maxy(stdout), "Standard fonts test");
     pa_auto(stdout, FALSE);
+#if 0
     pa_home(stdout);
     pa_binvis(stdout);
     pa_fontnam(stdout, PA_FONT_TERM, fns, 100);
@@ -1240,6 +1242,7 @@ int main(void)
         printf("\n");
 
     }
+#endif
     pa_font(stdout, PA_FONT_TERM);
     printf("Complete\n");
     waitnext();
@@ -1249,6 +1252,7 @@ int main(void)
     putchar('\f');
     pa_auto(stdout, FALSE);
     prtcen(pa_maxy(stdout), "Graphical cursor movement test");
+exit(0);
     x = 1;
     y = 1;
     i = 10000;
@@ -2698,7 +2702,6 @@ int main(void)
 
     /* ************************** Picture draw test **************************** */
 
-#endif
     putchar('\f');
     grid();
     pa_maknam(fn, 100, "tests", "mypic", "");
