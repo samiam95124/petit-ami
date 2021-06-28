@@ -572,7 +572,7 @@ bin/petit_ami_plain.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
 	    -o bin/petit_ami_plain.so
 	
 bin/petit_ami_plain.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/network.o utils/config.o utils/option.o \
+    linux/dumpsynthplug.o linux/network.o utils/config.o utils/option.o
 	ar rcs bin/petit_ami_plain.a linux/services.o linux/sound.o \
 	    linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
 	    utils/config.o utils/option.o
