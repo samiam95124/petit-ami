@@ -837,10 +837,6 @@ int main(int argc, char *argv[])
 
     putchar('\f');
     pa_auto(stdout, FALSE);
-    printf("Offscreen write test\n");
-    printf("\n");
-    printf("There should be a cross centered onscreen.\n");
-    printf("The display should not scroll.\n");
     /* right */
     x = pa_maxx(stdout)/2; /* find center screen */
     y = pa_maxy(stdout)/2;
@@ -871,6 +867,11 @@ int main(int argc, char *argv[])
         putchar('*');
 
     }
+    pa_home(stdout);
+    printf("Offscreen write test\n");
+    printf("\n");
+    printf("There should be a cross centered onscreen.\n");
+    printf("The display should not scroll.\n");
     waitnext();
 
     /* ************************** Offscreen scroll test ********************* */
@@ -888,6 +889,7 @@ int main(int argc, char *argv[])
     /* ************************** Buffer switching test ************************ */
 
     printf("\f");
+    pa_curvis(stdout, FALSE);
     for (b = 2; b <= 10; b++) {  /* prepare buffers */
 
         pa_select(stdout, b, 2);   /* select buffer */
@@ -1068,6 +1070,8 @@ int main(int argc, char *argv[])
                 x = pa_curx(stdout);
                 y = pa_cury(stdout);
                 printf("<- Mouse %d\n", er.mmoun);
+                prtcen(1, "Move the mouse, and hit buttons");
+                prtcen(pa_maxy(stdout), "Mouse test");
 
             }
             /* blank out button status line */
@@ -1078,6 +1082,8 @@ int main(int argc, char *argv[])
                 pa_cursor(stdout, 1, pa_maxy(stdout)-2);
                 printf("Mouse button assert, mouse: %d button: %d\n",
                        er.amoun, er.amoubn);
+                prtcen(1, "Move the mouse, and hit buttons");
+                prtcen(pa_maxy(stdout), "Mouse test");
 
             }
             if (er.etype == pa_etmoubd) {  /* mouse button assert */
@@ -1085,6 +1091,8 @@ int main(int argc, char *argv[])
                 pa_cursor(stdout, 1, pa_maxy(stdout) - 2);
                 printf("Mouse button deassert, mouse: %d button: %d\n",
                        er.dmoun, er.dmoubn);
+                prtcen(1, "Move the mouse, and hit buttons");
+                prtcen(pa_maxy(stdout), "Mouse test");
 
             }
 

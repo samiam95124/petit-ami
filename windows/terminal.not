@@ -9,3 +9,9 @@ magnitude slower than before.
 the typing is not attached to the existing insert point.
 
 4. Does odd things when the buffer is very much greater than the screen size.
+I believe PA needs to treat all positions above the display area as scrollback/
+history space.
+
+5. See why terminal_test.c, buffer switching test shows the cursor.
+
+6. Joystick Z assignments are different between Linux and Windows.
