@@ -1,0 +1,10 @@
+C++ wrapper notes
+
+1. Can use references instead of passed pointers in parameters.
+
+2. Research use of C++ string parameters instead of C strings.
+
+3. Windows fails on streams, because (apparently) streams don't go through the 
+standard libc package. Note that Linux does not have this issue.
+
+4. Implement exceptions after PA general package implements that as well.
