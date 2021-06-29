@@ -72,12 +72,11 @@
 *                                                                              *
 *******************************************************************************/
 
+/* linux definitions */
 #include <sys/timerfd.h>
-
 #include <termios.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
@@ -86,7 +85,10 @@
 #include <stdint.h>
 #include <limits.h>
 #include <signal.h>
+#include <linux/joystick.h>
+#include <fcntl.h>
 
+/* Petit-Ami definitions */
 #include "terminal.h"
 
 /*
@@ -112,6 +114,8 @@ static enum { /* debug levels */
 #define dbg_printf(lvl, fmt, ...) \
         do { if (lvl >= dbglvl) fprintf(stderr, "%s:%s():%d: " fmt, __FILE__, \
                                 __func__, __LINE__, ##__VA_ARGS__); } while (0)
+
+#define JOYENB TRUE /* enable joysticks */
 
 /* Default terminal size sets the geometry of the terminal if we cannot find
    out the geometry from the terminal itself. */
@@ -235,6 +239,7 @@ typedef enum {
     eoutdev,  /* output device error */
     einpdev,  /* input device error */
     einvtab,  /* invalid tab stop */
+    einvjoy,  /* Invalid joystick ID */
     esysflt   /* system fault */
 
 } errcod;
@@ -391,7 +396,15 @@ static int nmpy;
 static int winch;
 /* maximum power of 10 in integer */
 static int maxpow10;
+static int numjoy;   /* number of joysticks found */
+static int joyfid;   /* joystick file id */
+static int joyax;    /* joystick x axis save */
+static int joyay;    /* joystick y axis save */
+static int joyaz;    /* joystick z axis save */
+static int joyenb;   /* enable joysticks */
+static int frmfid;   /* framing timer fid */
 
+/* forwards */
 static void restore(scnptr sc);
 
 /** ****************************************************************************
@@ -422,6 +435,7 @@ static void error(errcod e)
         case eoutdev: fprintf(stderr, "Error in output device"); break;
         case einpdev: fprintf(stderr, "Error in input device"); break;
         case einvtab: fprintf(stderr, "Invalid tab stop position"); break;
+        case einvjoy: fprintf(stderr, "Invalid joystick ID"); break;
         case esysflt: fprintf(stderr, "System fault"); break;
 
     }
@@ -595,6 +609,55 @@ data.
 
 *******************************************************************************/
 
+/* get and process a joystick event */
+static void joyevt(pa_evtrec* er, int* keep)
+
+{
+
+    struct js_event ev;
+
+    read(joyfid, &ev, sizeof(ev)); /* get next joystick event */
+    if (!(ev.type & JS_EVENT_INIT)) {
+
+        if (ev.type & JS_EVENT_BUTTON) {
+
+            /* we use Linux button numbering, because, what the heck */
+            if (ev.value) { /* assert */
+
+                er->etype = pa_etjoyba; /* set assert */
+                er->ajoyn = 1; /* set joystick 1 */
+                er->ajoybn = ev.number; /* set button number */
+
+            } else { /* deassert */
+
+                er->etype = pa_etjoybd; /* set assert */
+                er->djoyn = 1; /* set joystick 1 */
+                er->djoybn = ev.number; /* set button number */
+
+            }
+            *keep = TRUE; /* set keep event */
+
+        }
+        if (ev.type & JS_EVENT_AXIS) {
+
+            /* update the axies */
+            if (ev.number == 0) joyax = ev.value*(INT_MAX/32768);
+            else if (ev.number == 1) joyay = ev.value*(INT_MAX/32768);
+            else if (ev.number == 2) joyaz = ev.value*(INT_MAX/32768);
+
+            er->etype = pa_etjoymov; /* set joystick move */
+            er->mjoyn = 1; /* set joystick number */
+            er->joypx = joyax; /* place joystick axies */
+            er->joypy = -joyay; /* flip y axis */
+            er->joypz = joyaz;
+            *keep = TRUE; /* set keep event */
+
+        }
+
+    }
+
+}
+
 static void inpevt(pa_evtrec* ev)
 
 {
@@ -719,6 +782,14 @@ static void inpevt(pa_evtrec* ev)
                 }
 
             }
+            /* check joystick is activated */
+            if (!evtfnd && FD_ISSET(joyfid, &ifdsets) && joyenb) {
+
+                evtsig = 1; /* set event signaled */
+                joyevt(ev, &evtfnd); /* process joystick */
+
+            }
+
 
         }
         if (!evtfnd) {
@@ -2699,7 +2770,6 @@ int pa_mousebutton(FILE *f, int m)
 Return number of joysticks
 
 Return number of joysticks attached.
-Note that Windows 95 has no joystick capability.
 
 *******************************************************************************/
 
@@ -2707,7 +2777,7 @@ int pa_joystick(FILE *f)
 
 {
 
-    return 0; /* none */
+    return (numjoy); /* set number of joysticks */
 
 }
 
@@ -2724,9 +2794,9 @@ int pa_joybutton(FILE *f, int j)
 
 {
 
-    error(ejoyacc); /* there are no joysticks */
+    if (j < 1 || j > numjoy) error(einvjoy); /* bad joystick id */
 
-    return 0; /* shut up compiler */
+    return (3); /* return button count */
 
 }
 
@@ -2745,9 +2815,9 @@ int pa_joyaxis(FILE *f, int j)
 
 {
 
-    error(ejoyacc); /* there are no joysticks */
+    if (j < 1 || j > numjoy) error(einvjoy); /* bad joystick id */
 
-    return 0; /* shut up compiler */
+    return (3); /* set axis number */
 
 }
 
@@ -2991,6 +3061,7 @@ static void pa_init_terminal()
     trm_curon(); /* and make sure that is so */
     iniscn(screens[curdsp-1]); /* initalize screen */
     restore(screens[curdsp-1]); /* place on display */
+    joyenb = JOYENB; /* enable joystick */
 
     /* clear event vector table */
     evtshan = defaultevent;
@@ -3041,6 +3112,22 @@ static void pa_init_terminal()
 
     /* clear the timers table */
     for (i = 0; i < PA_MAXTIM; i++) timtbl[i] = -1;
+
+    /* open joystick if available */
+    numjoy = 0; /* set no joysticks */
+    if (joyenb) { /* if joystick is to be enabled */
+
+        joyfid = open("/dev/input/js0", O_RDONLY);
+        if (joyfid >= 0) { /* found */
+
+            numjoy++; /* set joystick active */
+            FD_SET(joyfid, &ifdseta);
+            if (joyfid+1 > ifdmax)
+                ifdmax = joyfid+1; /* set maximum fid for select() */
+
+        }
+
+    }
 
     /* clear tabs and set to 8ths */
     for (i = 1; i <= dimx; i++) tabs[i-1] = ((i-1)%8 == 0) && (i != 1);
