@@ -676,7 +676,7 @@ static int       stdwinj2c;    /* joystick 1 capture */
 /* lock for all global structures */
 CRITICAL_SECTION mainlock;     /* main task lock */
 static imptr     freitm;       /* intratask message free list */
-static pa_pevthan evthan[pa_etterm+1]; /* array of event handler routines */
+static pa_pevthan evthan[pa_ettabbar+1]; /* array of event handler routines */
 static pa_pevthan evtshan;     /* single master event handler routine */
 
 /* The double fault flag is set when exiting, so if we exit again, it
@@ -15467,7 +15467,7 @@ static void pa_init_graph()
 
     /* clear event vector table */
     evtshan = defaultevent;
-    for (e = pa_etchar; e <= pa_etterm; e++) evthan[e] = defaultevent;
+    for (e = pa_etchar; e <= pa_ettabbar; e++) evthan[e] = defaultevent;
 
     /* clear open files table */
     for (fi = 0; i < MAXFIL; i++) {

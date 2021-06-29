@@ -589,7 +589,7 @@ static int        joyay;          /* joystick y axis save */
 static int        joyaz;          /* joystick z axis save */
 static int        frmfid;         /* framing timer fid */
 static int        cfgcap;         /* "configuration" caps */
-static pa_pevthan evthan[pa_etterm+1]; /* array of event handler routines */
+static pa_pevthan evthan[pa_ettabbar+1]; /* array of event handler routines */
 static pa_pevthan evtshan;        /* single master event handler routine */
 
 /* memory statistics/diagnostics */
@@ -9540,7 +9540,7 @@ static void pa_init_graphics(int argc, char *argv[])
 
     /* clear event vector table */
     evtshan = defaultevent;
-    for (e = pa_etchar; e <= pa_etterm; e++) evthan[e] = defaultevent;
+    for (e = pa_etchar; e <= pa_ettabbar; e++) evthan[e] = defaultevent;
 
     /* get setup configuration */
     config_root = NULL;
