@@ -786,6 +786,7 @@ static void inpevt(pa_evtrec* ev)
             if (!evtfnd && FD_ISSET(joyfid, &ifdsets) && joyenb) {
 
                 evtsig = 1; /* set event signaled */
+                FD_CLR(joyfid, &ifdsets); /* remove from input signals */
                 joyevt(ev, &evtfnd); /* process joystick */
 
             }

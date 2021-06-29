@@ -6,3 +6,5 @@ hit another digit.
 2. The other terminal modules treat tabbing as per buffer, that is, each buffer
 keeps track of separate tabbing drums. This is logical, since every other
 characteristic tracks with the buffer.
+
+3. Implement the framing timer. Also create a test for this in terminal_test.
