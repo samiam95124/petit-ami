@@ -106,8 +106,8 @@ typedef enum {
     pa_etjoymov,   /* joystick move */
     pa_etresize,   /* window was resized */
     pa_etterm,     /* terminate program */
-    pa_etmoumovg,  /* mouse move graphical */
     pa_etframe,    /* frame sync */
+    pa_etmoumovg,  /* mouse move graphical */
     pa_etredraw,   /* window redraw */
     pa_etmin,      /* window minimized */
     pa_etmax,      /* window maximized */

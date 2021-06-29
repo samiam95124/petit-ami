@@ -178,6 +178,38 @@ static void timetest(void)
 
 }
 
+static void frametest(void)
+
+{
+
+    int i, t, et, max, min;
+    long total;
+    pa_evtrec er;
+
+    printf("Framing timer test, measuring 10 occurances of the framing timer\n\n");
+    pa_frametimer(stdout, TRUE);
+        max = 0;
+    min = INT_MAX;
+    total = 0;
+    for (i = 1; i <= 100; i++) {
+
+        t = pa_clock();
+        do { putchar('*'); pa_event(stdin, &er); } while (er.etype != pa_etframe);
+        et = pa_elapsed(t);
+        total += pa_elapsed(t);
+        if (et > max) max = et;
+        if (et < min) min = et;
+
+    }
+    pa_frametimer(stdout, FALSE);
+    printf("\n");
+    printf("\n");
+    printf("Average time was: %ld00 Microseconds\n", total / 100);
+    printf("Minimum time was: %d00 Microseconds\n", min);
+    printf("Maximum time was: %d00 Microseconds\n", max);
+
+}
+
 /* plot joystick on screen */
 
 static void plotjoy(int line, int joy)
@@ -287,6 +319,8 @@ int main(int argc, char *argv[])
     waitnext();
     printf("\f");
     timetest();
+    printf("\n");
+    frametest();
     prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
     printf("\f");

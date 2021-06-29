@@ -790,6 +790,17 @@ static void inpevt(pa_evtrec* ev)
                 joyevt(ev, &evtfnd); /* process joystick */
 
             }
+            /* check framing timer is activated */
+            if (!evtfnd && FD_ISSET(frmfid, &ifdsets) && joyenb) {
+
+                evtsig = 1; /* set event signaled */
+                FD_CLR(frmfid, &ifdsets); /* remove from input signals */
+                ev->etype = pa_etframe; /* set frame event occurred */
+                evtfnd = TRUE; /* set event found */
+                /* clear the timer by reading it */
+                read(i, &exp, sizeof(uint64_t));
+
+            }
 
 
         }
@@ -2910,6 +2921,35 @@ void pa_frametimer(FILE* f, int e)
 
 {
 
+    struct itimerspec ts; /* linux timer structure */
+    int               rv; /* return value */
+
+    if (e) { /* set framing timer to run */
+
+        /* set timer run time */
+        ts.it_value.tv_sec = 0; /* set number of seconds to run */
+        ts.it_value.tv_nsec = 16666667; /* set number of nanoseconds to run */
+
+        /* set rerun time */
+        ts.it_interval.tv_sec = ts.it_value.tv_sec;
+        ts.it_interval.tv_nsec = ts.it_value.tv_nsec;
+
+        rv = timerfd_settime(frmfid, 0, &ts, NULL);
+        if (rv < 0) error(etimacc); /* could not set time */
+
+    } else {
+
+        /* set timer run time to zero to kill it */
+        ts.it_value.tv_sec = 0;
+        ts.it_value.tv_nsec = 0;
+        ts.it_interval.tv_sec = 0;
+        ts.it_interval.tv_nsec = 0;
+
+        rv = timerfd_settime(frmfid, 0, &ts, NULL);
+        if (rv < 0) error(etimacc); /* could not set time */
+
+    }
+
 }
 
 /** ****************************************************************************
@@ -2918,7 +2958,8 @@ Autohold
 
 Turns on or off automatic hold mode.
 
-We don't implement automatic hold here.
+We don't implement automatic hold here, it has no real use on a terminal, since
+we abort to the same window.
 
 *******************************************************************************/
 
@@ -3129,6 +3170,12 @@ static void pa_init_terminal()
         }
 
     }
+
+    /* create framing timer */
+    frmfid = timerfd_create(CLOCK_REALTIME, 0);
+    if (frmfid == -1) error(etimacc);
+    FD_SET(frmfid, &ifdseta);
+    if (frmfid+1 > ifdmax) ifdmax = frmfid+1; /* set maximum fid for select() */
 
     /* clear tabs and set to 8ths */
     for (i = 1; i <= dimx; i++) tabs[i-1] = ((i-1)%8 == 0) && (i != 1);
