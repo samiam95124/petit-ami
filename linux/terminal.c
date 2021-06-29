@@ -642,7 +642,7 @@ static void joyevt(pa_evtrec* er, int* keep)
 
             /* update the axies */
             if (ev.number == 0) joyax = ev.value*(INT_MAX/32768);
-            else if (ev.number == 1) joyay = ev.value*(INT_MAX/32768);
+            else if (ev.number == 1) joyay = -ev.value*(INT_MAX/32768);
             else if (ev.number == 2) joyaz = ev.value*(INT_MAX/32768);
 
             er->etype = pa_etjoymov; /* set joystick move */
