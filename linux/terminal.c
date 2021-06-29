@@ -798,10 +798,9 @@ static void inpevt(pa_evtrec* ev)
                 ev->etype = pa_etframe; /* set frame event occurred */
                 evtfnd = TRUE; /* set event found */
                 /* clear the timer by reading it */
-                read(i, &exp, sizeof(uint64_t));
+                read(frmfid, &exp, sizeof(uint64_t));
 
             }
-
 
         }
         if (!evtfnd) {

@@ -191,7 +191,7 @@ static void frametest(void)
         max = 0;
     min = INT_MAX;
     total = 0;
-    for (i = 1; i <= 100; i++) {
+    for (i = 1; i <= 10; i++) {
 
         t = pa_clock();
         do { putchar('*'); pa_event(stdin, &er); } while (er.etype != pa_etframe);
