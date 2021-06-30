@@ -92,6 +92,9 @@ static int i, b, tc, cnt;
 static long clk;
 static FILE *tf;   /* test file */
 static char tf_NAME[10/*_FNSIZE*/] = "testfile";
+static int eventflag1, eventflag2;
+static pa_pevthan oeh1;
+static pa_pevthan oeh2;
 
 /* draw box */
 
@@ -144,7 +147,6 @@ static void waitnext(void)
     if (er.etype == pa_etterm) { longjmp(terminate_buf, 1); }
 
 }
-
 
 static void timetest(void)
 {
@@ -296,6 +298,24 @@ static void prtban(char *s)
 
 }
 
+void event_vector_1(pa_evtptr er)
+
+{
+
+    if (er->etype != pa_etframe) er->handled = FALSE;
+    eventflag1 = TRUE;
+
+}
+
+void event_vector_2(pa_evtptr er)
+
+{
+
+    if (er->etype != pa_etframe) er->handled = FALSE;
+    eventflag2 = TRUE;
+
+}
+
 int main(int argc, char *argv[])
 {
 
@@ -305,6 +325,7 @@ int main(int argc, char *argv[])
     /* set black on white text */
     pa_fcolor(stdout, pa_black);
     pa_bcolor(stdout, pa_white);
+#if 0
     printf("\f");
     pa_curvis(stdout, FALSE);
     prtban("Terminal mode screen test vs. 1.0");
@@ -1151,6 +1172,39 @@ int main(int argc, char *argv[])
         if (er.etype == pa_etterm) goto terminate;
 
     }
+
+    /* ************************* Event vector test  **************************** */
+
+#endif
+    printf("\f");
+    prtcen(pa_maxy(stdout), "Event vector test");
+    pa_home(stdout);
+    /* since there is no facility to remove vectors, these tests have to be done
+       in order. */
+
+    eventflag1 = FALSE;
+    pa_eventover(pa_etframe, event_vector_1, &oeh1);
+    pa_frametimer(stdout, TRUE);
+    printf("Waiting for frame event, hit return to continue\n");
+    do { pa_event(stdin, &er); }
+    while (er.etype != pa_etterm && er.etype != pa_etframe && !eventflag1);
+    if (er.etype == pa_etterm) goto terminate;
+    if (er.etype == pa_etframe) printf("*** Event bled through! ***\n");
+    if (eventflag1) printf("Fanout event passes\n");
+    else printf("*** Fanout event fails! ***\n");
+
+    eventflag2 = FALSE;
+    pa_eventsover(event_vector_2, &oeh1);
+    printf("Waiting for frame event, hit return to continue\n");
+    do { pa_event(stdin, &er); }
+    while (er.etype != pa_etterm && er.etype != pa_etframe && !eventflag2);
+    if (er.etype == pa_etterm) goto terminate;
+    if (er.etype == pa_etframe) printf("*** Event bled through! ***\n");
+    if (eventflag2) printf("Master event passes\n");
+    else printf("*** Master event fails! ***\n");
+
+    pa_frametimer(stdout, FALSE);
+    waitnext();
 
     /* ********************** Character write speed test *********************** */
 

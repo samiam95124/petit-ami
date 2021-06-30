@@ -445,6 +445,75 @@ static void error(errcod e)
 
 }
 
+/******************************************************************************
+
+Print event symbol
+
+A diagnostic, print the given event code as a symbol to the error file.
+
+******************************************************************************/
+
+void prtevt(pa_evtcod e)
+
+{
+
+    switch (e) {
+
+        case pa_etchar:    fprintf(stderr, "etchar"); break;
+        case pa_etup:      fprintf(stderr, "etup"); break;
+        case pa_etdown:    fprintf(stderr, "etdown"); break;
+        case pa_etleft:    fprintf(stderr, "etleft"); break;
+        case pa_etright:   fprintf(stderr, "etright"); break;
+        case pa_etleftw:   fprintf(stderr, "etleftw"); break;
+        case pa_etrightw:  fprintf(stderr, "etrightw"); break;
+        case pa_ethome:    fprintf(stderr, "ethome"); break;
+        case pa_ethomes:   fprintf(stderr, "ethomes"); break;
+        case pa_ethomel:   fprintf(stderr, "ethomel"); break;
+        case pa_etend:     fprintf(stderr, "etend"); break;
+        case pa_etends:    fprintf(stderr, "etends"); break;
+        case pa_etendl:    fprintf(stderr, "etendl"); break;
+        case pa_etscrl:    fprintf(stderr, "etscrl"); break;
+        case pa_etscrr:    fprintf(stderr, "etscrr"); break;
+        case pa_etscru:    fprintf(stderr, "etscru"); break;
+        case pa_etscrd:    fprintf(stderr, "etscrd"); break;
+        case pa_etpagd:    fprintf(stderr, "etpagd"); break;
+        case pa_etpagu:    fprintf(stderr, "etpagu"); break;
+        case pa_ettab:     fprintf(stderr, "ettab"); break;
+        case pa_etenter:   fprintf(stderr, "etenter"); break;
+        case pa_etinsert:  fprintf(stderr, "etinsert"); break;
+        case pa_etinsertl: fprintf(stderr, "etinsertl"); break;
+        case pa_etinsertt: fprintf(stderr, "etinsertt"); break;
+        case pa_etdel:     fprintf(stderr, "etdel"); break;
+        case pa_etdell:    fprintf(stderr, "etdell"); break;
+        case pa_etdelcf:   fprintf(stderr, "etdelcf"); break;
+        case pa_etdelcb:   fprintf(stderr, "etdelcb"); break;
+        case pa_etcopy:    fprintf(stderr, "etcopy"); break;
+        case pa_etcopyl:   fprintf(stderr, "etcopyl"); break;
+        case pa_etcan:     fprintf(stderr, "etcan"); break;
+        case pa_etstop:    fprintf(stderr, "etstop"); break;
+        case pa_etcont:    fprintf(stderr, "etcont"); break;
+        case pa_etprint:   fprintf(stderr, "etprint"); break;
+        case pa_etprintb:  fprintf(stderr, "etprintb"); break;
+        case pa_etprints:  fprintf(stderr, "etprints"); break;
+        case pa_etfun:     fprintf(stderr, "etfun"); break;
+        case pa_etmenu:    fprintf(stderr, "etmenu"); break;
+        case pa_etmouba:   fprintf(stderr, "etmouba"); break;
+        case pa_etmoubd:   fprintf(stderr, "etmoubd"); break;
+        case pa_etmoumov:  fprintf(stderr, "etmoumov"); break;
+        case pa_ettim:     fprintf(stderr, "ettim"); break;
+        case pa_etjoyba:   fprintf(stderr, "etjoyba"); break;
+        case pa_etjoybd:   fprintf(stderr, "etjoybd"); break;
+        case pa_etjoymov:  fprintf(stderr, "etjoymov"); break;
+        case pa_etresize:  fprintf(stderr, "etresize"); break;
+        case pa_etterm:    fprintf(stderr, "etterm"); break;
+        case pa_etframe:   fprintf(stderr, "etframe"); break;
+
+        default: fprintf(stderr, "???");
+
+    }
+
+}
+
 /*******************************************************************************
 
 Handle signal from Linux
