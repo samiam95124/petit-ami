@@ -325,7 +325,6 @@ int main(int argc, char *argv[])
     /* set black on white text */
     pa_fcolor(stdout, pa_black);
     pa_bcolor(stdout, pa_white);
-#if 0
     printf("\f");
     pa_curvis(stdout, FALSE);
     prtban("Terminal mode screen test vs. 1.0");
@@ -1175,7 +1174,6 @@ int main(int argc, char *argv[])
 
     /* ************************* Event vector test  **************************** */
 
-#endif
     printf("\f");
     prtcen(pa_maxy(stdout), "Event vector test");
     pa_home(stdout);
