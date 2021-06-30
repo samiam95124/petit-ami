@@ -66,6 +66,22 @@
 #include <terminal.h>
 #include <services.h>
 
+typedef enum {
+
+    bncharw,     /* character write */
+    bnscroll,    /* scroll */
+    bnbuffer,    /* buffer flip */
+
+} bench;
+
+static struct { /* benchmark stats records */
+
+    int iter; /* number of iterations performed */
+    int time; /* time in 100us for test */
+
+} benchtab[bnbuffer+1];
+static bench bi;
+
 static int x, y, lx, ly, tx, ty, dx, dy, maxy, maxx;
 static char c;
 static int top, bottom, lside, rside; /* borders */
@@ -1139,6 +1155,7 @@ int main(int argc, char *argv[])
     /* ********************** Character write speed test *********************** */
 
     printf("\f");
+    pa_curvis(stdout, FALSE);
     clk = pa_clock();   /* get reference time */
     c = '\0';   /* initalize character value */
     cnt = 0;   /* clear character count */
@@ -1158,9 +1175,11 @@ int main(int argc, char *argv[])
 
     }
     clk = pa_elapsed(clk);   /* find elapsed time */
+    benchtab[bncharw].iter = cnt;
+    benchtab[bncharw].time = clk;
     printf("\f");
-    //printf("Character write speed: %.5E average seconds per character\n", (float)clk/cnt*0.0001);
-    printf("Character write speed: 0.%08ld average seconds per character\n", clk*10000/cnt);
+    printf("Character write speed %f seconds, per character %f\n",
+           (float)clk*0.0001, (float)clk/cnt*0.0001);
     waitnext();
 
     /* ************************** Scrolling speed test ************************* */
@@ -1204,9 +1223,11 @@ int main(int argc, char *argv[])
 
     }
     clk = pa_elapsed(clk);   /* find elapsed time */
+    benchtab[bnscroll].iter = cnt;
+    benchtab[bnscroll].time = clk;
     printf("\f");
-    //printf("Scrolling speed: %.5E average seconds per scroll\n", clk/cnt*0.0001);
-    printf("Scrolling speed: 0.%08ld average seconds per scroll\n", clk*10000/cnt);
+    printf("Scrolling speed: %f seconds, per scroll %f\n",
+           (float)clk*0.0001, (float)clk/cnt*0.0001);
     waitnext();
 
     /* ************************** Buffer flip speed test ************************* */
@@ -1231,10 +1252,12 @@ int main(int argc, char *argv[])
 
     }
     clk = pa_elapsed(clk);   /* find elapsed time */
+    benchtab[bnbuffer].iter = cnt;
+    benchtab[bnbuffer].time = clk;
     pa_select(stdout, 2, 2);   /* restore buffer select */
     printf("\f");
-    //printf("Buffer switch speed: %.5E average seconds per switch\n", clk/cnt*0.0001);
-    printf("Buffer switch speed: 0.%08ld average seconds per switch\n", clk*10000/cnt);
+    printf("Buffer switch speed: %f average seconds per switch %f\n",
+           (float)clk*0.0001, (float)clk/cnt*0.0001);
     waitnext();
 
 terminate: /* terminate */
@@ -1243,8 +1266,33 @@ terminate: /* terminate */
     pa_select(stdout, 1, 1); /* back to display buffer */
     pa_curvis(stdout, 1);     /* restore cursor */
     pa_auto(stdout, 1);   /* enable automatic screen wrap */
+    if (tf != NULL) fclose(tf);
     printf("\n");
     printf("Test complete\n");
-    if (tf != NULL) fclose(tf);
+    printf("\n");
+
+    /* output table */
+
+    fprintf(stderr, "\n");
+    fprintf(stderr, "Benchmark table\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "Type                   Seconds  Per fig\n");
+    fprintf(stderr, "--------------------------------------------\n");
+    for (bi = bncharw; bi <= bnbuffer; bi++) {
+
+        switch (bi) { /* benchmark type */
+
+            case bncharw:  fprintf(stderr, "character write speed "); break;
+            case bnscroll: fprintf(stderr, "Scroll speed          "); break;
+            case bnbuffer: fprintf(stderr, "Buffer flip speed     "); break;
+
+        };
+        fprintf(stderr, "%6.2f", benchtab[bi].time*0.0001);
+        fprintf(stderr, "    ");
+        fprintf(stderr, "%f", benchtab[bi].time*0.0001/benchtab[bi].iter);
+        fprintf(stderr, "\n");
+
+    }
+    fprintf(stderr, "\n");
 
 }
