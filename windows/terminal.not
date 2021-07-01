@@ -15,3 +15,5 @@ history space.
 5. See why terminal_test.c, buffer switching test shows the cursor.
 
 6. Joystick Z assignments are different between Linux and Windows.
+
+7. Not getting etterm (ctl-c) on terminal_test.

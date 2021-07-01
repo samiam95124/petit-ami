@@ -333,7 +333,7 @@ char *keytab[pa_etterm+1+MAXFKEY] = {
 /* screen contexts array */               static scnptr screens[MAXCON];
 /* index for current display screen */    static int curdsp;
 /* index for current update screen */     static int curupd;
-/* array of event handler routines */     static pa_pevthan evthan[pa_etterm+1];
+/* array of event handler routines */     static pa_pevthan evthan[pa_etframe+1];
 /* single master event handler routine */ static pa_pevthan evtshan;
 
 /*
@@ -3175,7 +3175,7 @@ static void pa_init_terminal()
 
     /* clear event vector table */
     evtshan = defaultevent;
-    for (e = pa_etchar; e <= pa_etterm; e++) evthan[e] = defaultevent;
+    for (e = pa_etchar; e <= pa_etframe; e++) evthan[e] = defaultevent;
 
     /* clear keyboard match buffer */
     keylen = 0;

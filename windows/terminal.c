@@ -244,6 +244,8 @@ int      cix;         /* index for display screens */
 int      frmrun;      /* framing timer is running */
 int      frmhan;      /* framing timer handle */
 DWORD    cmodes;      /* previous console mode settings */
+static pa_pevthan evthan[pa_etframe+1]; /* array of event handler routines */
+static pa_pevthan evtshan; /* single master event handler routine */
 
 /*******************************************************************************
 
@@ -314,6 +316,75 @@ static void winerr(void)
     fprintf(stderr, "\n*** Windows error: %s\n", (char*)lpMsgBuf);
 
     exit(1);
+
+}
+
+/******************************************************************************
+
+Print event symbol
+
+A diagnostic, print the given event code as a symbol to the error file.
+
+******************************************************************************/
+
+void prtevt(pa_evtcod e)
+
+{
+
+    switch (e) {
+
+        case pa_etchar:    fprintf(stderr, "etchar"); break;
+        case pa_etup:      fprintf(stderr, "etup"); break;
+        case pa_etdown:    fprintf(stderr, "etdown"); break;
+        case pa_etleft:    fprintf(stderr, "etleft"); break;
+        case pa_etright:   fprintf(stderr, "etright"); break;
+        case pa_etleftw:   fprintf(stderr, "etleftw"); break;
+        case pa_etrightw:  fprintf(stderr, "etrightw"); break;
+        case pa_ethome:    fprintf(stderr, "ethome"); break;
+        case pa_ethomes:   fprintf(stderr, "ethomes"); break;
+        case pa_ethomel:   fprintf(stderr, "ethomel"); break;
+        case pa_etend:     fprintf(stderr, "etend"); break;
+        case pa_etends:    fprintf(stderr, "etends"); break;
+        case pa_etendl:    fprintf(stderr, "etendl"); break;
+        case pa_etscrl:    fprintf(stderr, "etscrl"); break;
+        case pa_etscrr:    fprintf(stderr, "etscrr"); break;
+        case pa_etscru:    fprintf(stderr, "etscru"); break;
+        case pa_etscrd:    fprintf(stderr, "etscrd"); break;
+        case pa_etpagd:    fprintf(stderr, "etpagd"); break;
+        case pa_etpagu:    fprintf(stderr, "etpagu"); break;
+        case pa_ettab:     fprintf(stderr, "ettab"); break;
+        case pa_etenter:   fprintf(stderr, "etenter"); break;
+        case pa_etinsert:  fprintf(stderr, "etinsert"); break;
+        case pa_etinsertl: fprintf(stderr, "etinsertl"); break;
+        case pa_etinsertt: fprintf(stderr, "etinsertt"); break;
+        case pa_etdel:     fprintf(stderr, "etdel"); break;
+        case pa_etdell:    fprintf(stderr, "etdell"); break;
+        case pa_etdelcf:   fprintf(stderr, "etdelcf"); break;
+        case pa_etdelcb:   fprintf(stderr, "etdelcb"); break;
+        case pa_etcopy:    fprintf(stderr, "etcopy"); break;
+        case pa_etcopyl:   fprintf(stderr, "etcopyl"); break;
+        case pa_etcan:     fprintf(stderr, "etcan"); break;
+        case pa_etstop:    fprintf(stderr, "etstop"); break;
+        case pa_etcont:    fprintf(stderr, "etcont"); break;
+        case pa_etprint:   fprintf(stderr, "etprint"); break;
+        case pa_etprintb:  fprintf(stderr, "etprintb"); break;
+        case pa_etprints:  fprintf(stderr, "etprints"); break;
+        case pa_etfun:     fprintf(stderr, "etfun"); break;
+        case pa_etmenu:    fprintf(stderr, "etmenu"); break;
+        case pa_etmouba:   fprintf(stderr, "etmouba"); break;
+        case pa_etmoubd:   fprintf(stderr, "etmoubd"); break;
+        case pa_etmoumov:  fprintf(stderr, "etmoumov"); break;
+        case pa_ettim:     fprintf(stderr, "ettim"); break;
+        case pa_etjoyba:   fprintf(stderr, "etjoyba"); break;
+        case pa_etjoybd:   fprintf(stderr, "etjoybd"); break;
+        case pa_etjoymov:  fprintf(stderr, "etjoymov"); break;
+        case pa_etresize:  fprintf(stderr, "etresize"); break;
+        case pa_etterm:    fprintf(stderr, "etterm"); break;
+        case pa_etframe:   fprintf(stderr, "etframe"); break;
+
+        default: fprintf(stderr, "???");
+
+    }
 
 }
 
@@ -562,6 +633,25 @@ static void iniscn(scnptr sc)
     iclear(sc); /* clear screen buffer with that */
     /* set up tabbing to be on each 8th position */
     for (i = 0; i < sc->maxx; i++) sc->tab[i] = i%8 == 0;
+
+}
+
+/** ****************************************************************************
+
+Default event handler
+
+If we reach this event handler, it means none of the overriders has handled the
+event, but rather passed it down. We flag the event was not handled and return,
+which will cause the event to return to the event() caller.
+
+*******************************************************************************/
+
+static void defaultevent(pa_evtrec* ev)
+
+{
+
+    /* set not handled and exit */
+    ev->handled = 0;
 
 }
 
@@ -1857,9 +1947,14 @@ static void custevent(pa_evtptr er, INPUT_RECORD* inpevt, int* keep)
 
     if (inpevt->Event.KeyEvent.dwControlKeyState == UIV_TIM) { /* timer event */
 
-        er->etype = pa_ettim; /* set timer event occurred */
-        /* set what timer */
-        er->timnum = inpevt->Event.KeyEvent.wVirtualKeyCode;
+        if (inpevt->Event.KeyEvent.wVirtualKeyCode == FRMTIM) er->etype = pa_etframe;
+        else {
+
+            er->etype = pa_ettim; /* set timer event occurred */
+            /* set what timer */
+            er->timnum = inpevt->Event.KeyEvent.wVirtualKeyCode;
+
+        }
         *keep = 1; /* set to keep */
 
     } else if (inpevt->Event.KeyEvent.dwControlKeyState == UIV_JOY1MOVE ||
@@ -2016,7 +2111,61 @@ void pa_event(FILE* f, pa_evtptr er)
 
 {
 
-    ievent(er); /* process event */
+    do { /* loop handling via event vectors */
+
+        /* get next input event */
+        ievent(er);
+        er->handled = 1; /* set event is handled by default */
+        (evtshan)(er); /* call master event handler */
+        if (!er->handled) { /* send it to fanout */
+
+            er->handled = 1; /* set event is handled by default */
+            (*evthan[er->etype])(er); /* call event handler first */
+
+        }
+
+    } while (er->handled);
+    /* event not handled, return it to the caller */
+
+}
+
+/** ****************************************************************************
+
+Override event handler
+
+Overrides or "hooks" the indicated event handler. The existing even handler is
+given to the caller, and the new event handler becomes effective. If the event
+is called, and the overrider does not want to handle it, that overrider can
+call down into the stack by executing the overridden event.
+
+*******************************************************************************/
+
+void pa_eventover(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh)
+
+{
+
+    *oeh = evthan[e]; /* save existing event handler */
+    evthan[e] = eh; /* place new event handler */
+
+}
+
+/** ****************************************************************************
+
+Override master event handler
+
+Overrides or "hooks" the master event handler. The existing event handler is
+given to the caller, and the new event handler becomes effective. If the event
+is called, and the overrider does not want to handle it, that overrider can
+call down into the stack by executing the overridden event.
+
+*******************************************************************************/
+
+void pa_eventsover(pa_pevthan eh,  pa_pevthan* oeh)
+
+{
+
+    *oeh = evtshan; /* save existing event handler */
+    evtshan = eh; /* place new event handler */
 
 }
 
@@ -2828,6 +2977,7 @@ static void pa_init_terminal(void)
     HANDLE h;
     int    ssy;
     BOOL   b;
+    pa_evtcod e;
 
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
@@ -2867,6 +3017,11 @@ static void pa_init_terminal(void)
         timers[ti].rep = 0; /* set no repeat */
 
     }
+
+    /* clear event vector table */
+    evtshan = defaultevent;
+    for (e = pa_etchar; e <= pa_etframe; e++) evthan[e] = defaultevent;
+
     /* clear screen context table */
     for (cix = 0; cix < MAXCON; cix++) screens[cix] = NULL;
     /* get the default screen */

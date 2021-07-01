@@ -212,7 +212,7 @@ static void frametest(void)
     for (i = 1; i <= 10; i++) {
 
         t = pa_clock();
-        do { putchar('*'); pa_event(stdin, &er); } while (er.etype != pa_etframe);
+        do { putchar('.'); pa_event(stdin, &er); } while (er.etype != pa_etframe);
         et = pa_elapsed(t);
         total += pa_elapsed(t);
         if (et > max) max = et;
