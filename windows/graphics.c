@@ -125,7 +125,8 @@ static enum { /* debug levels */
 #define DIALOGERR 1     /* send runtime errors to dialog */
 #define MOUSEENB  TRUE  /* enable mouse */
 #define JOYENB    TRUE  /* enable joysticks */
-#define DMPMSG    FALSE /* enable dump messages (diagnostic, windows only) */
+#define DMPMSG    FALSE /* enable dump Windows API messages */
+#define DMPEVT    FALSE /* enable dump Petit-Ami messages */
 
 /*
  * Enable/disable general lock
@@ -690,7 +691,8 @@ static int maxyd;
 static int dialogerr; /* send runtime errors to dialog */
 static int mouseenb;  /* enable mouse */
 static int joyenb;    /* enable joysticks */
-static int dmpmsg;    /* enable dump messages (diagnostic, windows only) */
+static int dmpmsg;    /* enable dump Windows API messages */
+static int dmpevt;    /* enable dump Petit-Ami messages */
 
 /*
  * Forward declarations.
@@ -1401,6 +1403,96 @@ static void prtmsgu(HWND hwnd, int imsg, int wparam, int lparam)
     fprintf(stderr, " wparam: %08x", wparam);
     fprintf(stderr, " lparam: %08x", lparam);
     fprintf(stderr, "\n");
+
+}
+
+/******************************************************************************
+
+Print event symbol
+
+A diagnostic, print the given event code as a symbol to the error file.
+
+******************************************************************************/
+
+void prtevt(pa_evtcod e)
+
+{
+
+    switch (e) {
+
+        case pa_etchar:    fprintf(stderr, "etchar"); break;
+        case pa_etup:      fprintf(stderr, "etup"); break;
+        case pa_etdown:    fprintf(stderr, "etdown"); break;
+        case pa_etleft:    fprintf(stderr, "etleft"); break;
+        case pa_etright:   fprintf(stderr, "etright"); break;
+        case pa_etleftw:   fprintf(stderr, "etleftw"); break;
+        case pa_etrightw:  fprintf(stderr, "etrightw"); break;
+        case pa_ethome:    fprintf(stderr, "ethome"); break;
+        case pa_ethomes:   fprintf(stderr, "ethomes"); break;
+        case pa_ethomel:   fprintf(stderr, "ethomel"); break;
+        case pa_etend:     fprintf(stderr, "etend"); break;
+        case pa_etends:    fprintf(stderr, "etends"); break;
+        case pa_etendl:    fprintf(stderr, "etendl"); break;
+        case pa_etscrl:    fprintf(stderr, "etscrl"); break;
+        case pa_etscrr:    fprintf(stderr, "etscrr"); break;
+        case pa_etscru:    fprintf(stderr, "etscru"); break;
+        case pa_etscrd:    fprintf(stderr, "etscrd"); break;
+        case pa_etpagd:    fprintf(stderr, "etpagd"); break;
+        case pa_etpagu:    fprintf(stderr, "etpagu"); break;
+        case pa_ettab:     fprintf(stderr, "ettab"); break;
+        case pa_etenter:   fprintf(stderr, "etenter"); break;
+        case pa_etinsert:  fprintf(stderr, "etinsert"); break;
+        case pa_etinsertl: fprintf(stderr, "etinsertl"); break;
+        case pa_etinsertt: fprintf(stderr, "etinsertt"); break;
+        case pa_etdel:     fprintf(stderr, "etdel"); break;
+        case pa_etdell:    fprintf(stderr, "etdell"); break;
+        case pa_etdelcf:   fprintf(stderr, "etdelcf"); break;
+        case pa_etdelcb:   fprintf(stderr, "etdelcb"); break;
+        case pa_etcopy:    fprintf(stderr, "etcopy"); break;
+        case pa_etcopyl:   fprintf(stderr, "etcopyl"); break;
+        case pa_etcan:     fprintf(stderr, "etcan"); break;
+        case pa_etstop:    fprintf(stderr, "etstop"); break;
+        case pa_etcont:    fprintf(stderr, "etcont"); break;
+        case pa_etprint:   fprintf(stderr, "etprint"); break;
+        case pa_etprintb:  fprintf(stderr, "etprintb"); break;
+        case pa_etprints:  fprintf(stderr, "etprints"); break;
+        case pa_etfun:     fprintf(stderr, "etfun"); break;
+        case pa_etmenu:    fprintf(stderr, "etmenu"); break;
+        case pa_etmouba:   fprintf(stderr, "etmouba"); break;
+        case pa_etmoubd:   fprintf(stderr, "etmoubd"); break;
+        case pa_etmoumov:  fprintf(stderr, "etmoumov"); break;
+        case pa_ettim:     fprintf(stderr, "ettim"); break;
+        case pa_etjoyba:   fprintf(stderr, "etjoyba"); break;
+        case pa_etjoybd:   fprintf(stderr, "etjoybd"); break;
+        case pa_etjoymov:  fprintf(stderr, "etjoymov"); break;
+        case pa_etresize:  fprintf(stderr, "etresize"); break;
+        case pa_etterm:    fprintf(stderr, "etterm"); break;
+        case pa_etmoumovg: fprintf(stderr, "etmoumovg"); break;
+        case pa_etframe:   fprintf(stderr, "etframe"); break;
+        case pa_etredraw:  fprintf(stderr, "etredraw"); break;
+        case pa_etmin:     fprintf(stderr, "etmin"); break;
+        case pa_etmax:     fprintf(stderr, "etmax"); break;
+        case pa_etnorm:    fprintf(stderr, "etnorm"); break;
+        case pa_etmenus:   fprintf(stderr, "etmenus"); break;
+        case pa_etbutton:  fprintf(stderr, "etbutton"); break;
+        case pa_etchkbox:  fprintf(stderr, "etchkbox"); break;
+        case pa_etradbut:  fprintf(stderr, "etradbut"); break;
+        case pa_etsclull:  fprintf(stderr, "etsclull"); break;
+        case pa_etscldrl:  fprintf(stderr, "etscldrl"); break;
+        case pa_etsclulp:  fprintf(stderr, "etsclulp"); break;
+        case pa_etscldrp:  fprintf(stderr, "etscldrp"); break;
+        case pa_etsclpos:  fprintf(stderr, "etsclpos"); break;
+        case pa_etedtbox:  fprintf(stderr, "etedtbox"); break;
+        case pa_etnumbox:  fprintf(stderr, "etnumbox"); break;
+        case pa_etlstbox:  fprintf(stderr, "etlstbox"); break;
+        case pa_etdrpbox:  fprintf(stderr, "etdrpbox"); break;
+        case pa_etdrebox:  fprintf(stderr, "etdrebox"); break;
+        case pa_etsldpos:  fprintf(stderr, "etsldpos"); break;
+        case pa_ettabbar:   fprintf(stderr, "ettabbar"); break;
+
+        default: fprintf(stderr, "???");
+
+    }
 
 }
 
@@ -7389,7 +7481,6 @@ static void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
     float  f;          /* floating point temp */
     NMHDR* nhp;        /* notification header */
 
-//dbg_printf(dlinfo, "Message: "); prtmsg(msg);
     if (msg->message == WM_PAINT)  { /* window paint */
 
         if (!win->bufmod) { /* our client handles it"s own redraws */
@@ -7836,12 +7927,13 @@ static void ievent(int ifn, pa_evtrec* er)
 
 {
 
-    MSG    msg;  /* windows message */
-    int    keep; /* keep event flag */
-    winptr win;  /* pointer to windows structure */
-    int    ofn;  /* file handle from incoming message */
-    eqeptr ep;   /* event queuing pointer */
-    int    b;    /* return value */
+    MSG        msg;      /* windows message */
+    int        keep;     /* keep event flag */
+    winptr     win;      /* pointer to windows structure */
+    int        ofn;      /* file handle from incoming message */
+    eqeptr     ep;       /* event queuing pointer */
+    int        b;        /* return value */
+    static int ecnt = 0; /* PA event counter */
 
     /* Windows gdi caches, which can cause written graphics to pause uncompleted
        while we await user input. This next causes a sync-up. */
@@ -7868,7 +7960,7 @@ static void ievent(int ifn, pa_evtrec* er)
         keep = FALSE; /* set don"t keep by default */
         /* get next message */
         getmsg(&msg);
-//dbg_printf(dlinfo, "Message: "); prtmsg(&msg);
+//dbg_printf(dlinfo, "Intercom message: "); prtmsg(&msg);
         /* get the logical output file from Windows handle */
         ofn = hwn2lfn(msg.hwnd);
         /* A message can have a window associated with it, or be sent anonymously.
@@ -7902,6 +7994,14 @@ static void ievent(int ifn, pa_evtrec* er)
         }
 
     } while (!keep); /* until an event we want occurs */
+
+    /* do diagnostic dump of PA events */
+    if (dmpevt) {
+
+        dbg_printf(dlinfo, "PA Event: %5d ", ecnt++); prtevt(er->etype);
+        fprintf(stderr, "\n"); fflush(stderr);
+
+    }
 
 } /* ievent */
 
@@ -10570,24 +10670,20 @@ static void iframe(winptr win, int e)
     unlockmain(); /* end exclusive access */
     b = ShowWindow(win->winhan, SW_SHOWDEFAULT);
     lockmain(); /* start exclusive access */
-    if (win->bufmod)  { /* in buffer mode */
-
-        /* change window size to match new mode */
-        cr.left = 0; /* set up desired client rectangle */
-        cr.top = 0;
-        cr.right = win->gmaxxg;
-        cr.bottom = win->gmaxyg;
-        /* find window size from client size */
-        b = AdjustWindowRectEx(&cr, fl1, FALSE, 0);
-        if (!b) winerr(); /* process windows error */
-        unlockmain(); /* end exclusive access */
-        b = SetWindowPos(win->winhan, 0, 0, 0,
-                            cr.right-cr.left, cr.bottom-cr.top,
-                            SWP_NOMOVE | SWP_NOZORDER);
-        lockmain(); /* start exclusive access */
-        if (!b) winerr(); /* process windows error */
-
-    }
+    /* change window size to match new mode */
+    cr.left = 0; /* set up desired client rectangle */
+    cr.top = 0;
+    cr.right = win->gmaxxg;
+    cr.bottom = win->gmaxyg;
+    /* find window size from client size */
+    b = AdjustWindowRectEx(&cr, fl1, FALSE, 0);
+    if (!b) winerr(); /* process windows error */
+    unlockmain(); /* end exclusive access */
+    b = SetWindowPos(win->winhan, 0, 0, 0,
+                        cr.right-cr.left, cr.bottom-cr.top,
+                        SWP_NOMOVE | SWP_NOZORDER);
+    lockmain(); /* start exclusive access */
+    if (!b) winerr(); /* process windows error */
 
 }
 
@@ -10649,24 +10745,20 @@ static void isizable(winptr win, int e)
         unlockmain(); /* end exclusive access */
         b = ShowWindow(win->winhan, SW_SHOWDEFAULT);
         lockmain(); /* start exclusive access */
-        if (win->bufmod) { /* in buffer mode */
-
-            /* change window size to match new mode */
-            cr.left = 0; /* set up desired client rectangle */
-            cr.top = 0;
-            cr.right = win->gmaxxg;
-            cr.bottom = win->gmaxyg;
-            /* find window size from client size */
-            b = AdjustWindowRectEx(&cr, fl1, FALSE, 0);
-            if (!b) winerr(); /* process windows error */
-            unlockmain(); /* end exclusive access */
-            b = SetWindowPos(win->winhan, 0, 0, 0,
-                             cr.right-cr.left, cr.bottom-cr.top,
-                             SWP_NOMOVE | SWP_NOZORDER);
-            lockmain(); /* start exclusive access */
-            if (!b) winerr(); /* process windows error */
-
-        }
+        /* change window size to match new mode */
+        cr.left = 0; /* set up desired client rectangle */
+        cr.top = 0;
+        cr.right = win->gmaxxg;
+        cr.bottom = win->gmaxyg;
+        /* find window size from client size */
+        b = AdjustWindowRectEx(&cr, fl1, FALSE, 0);
+        if (!b) winerr(); /* process windows error */
+        unlockmain(); /* end exclusive access */
+        b = SetWindowPos(win->winhan, 0, 0, 0,
+                         cr.right-cr.left, cr.bottom-cr.top,
+                         SWP_NOMOVE | SWP_NOZORDER);
+        lockmain(); /* start exclusive access */
+        if (!b) winerr(); /* process windows error */
 
     }
 
@@ -10730,24 +10822,20 @@ static void isysbar(winptr win, int e)
         unlockmain(); /* end exclusive access */
         ShowWindow(win->winhan, SW_SHOWDEFAULT);
         lockmain(); /* start exclusive access */
-        if (win->bufmod) { /* in buffer mode */
-
-            /* change window size to match new mode */
-            cr.left = 0; /* set up desired client rectangle */
-            cr.top = 0;
-            cr.right = win->gmaxxg;
-            cr.bottom = win->gmaxyg;
-            /* find window size from client size */
-            b = AdjustWindowRectEx(&cr, fl1, FALSE, 0);
-            if (!b) winerr(); /* process windows error */
-            unlockmain(); /* end exclusive access */
-            b = SetWindowPos(win->winhan, 0, 0, 0,
-                                 cr.right-cr.left, cr.bottom-cr.top,
-                                 SWP_NOMOVE | SWP_NOZORDER);
-            lockmain(); /* start exclusive access */
-            if (!b) winerr(); /* process windows error */
-
-        }
+        /* change window size to match new mode */
+        cr.left = 0; /* set up desired client rectangle */
+        cr.top = 0;
+        cr.right = win->gmaxxg;
+        cr.bottom = win->gmaxyg;
+        /* find window size from client size */
+        b = AdjustWindowRectEx(&cr, fl1, FALSE, 0);
+        if (!b) winerr(); /* process windows error */
+        unlockmain(); /* end exclusive access */
+        b = SetWindowPos(win->winhan, 0, 0, 0,
+                             cr.right-cr.left, cr.bottom-cr.top,
+                             SWP_NOMOVE | SWP_NOZORDER);
+        lockmain(); /* start exclusive access */
+        if (!b) winerr(); /* process windows error */
 
     }
 
@@ -15396,7 +15484,8 @@ static void pa_init_graph()
     dialogerr = DIALOGERR; /* send runtime errors to dialog */
     mouseenb = MOUSEENB; /* enable mouse */
     joyenb = JOYENB; /* enable joystick */
-    dmpmsg = DMPMSG; /* dump windows messages */
+    dmpmsg = DMPMSG; /* dump windows API messages */
+    dmpevt = DMPEVT; /* dump Petit-Ami messages */
 
     fend = FALSE; /* set no end of program ordered */
     fautohold = TRUE; /* set automatically hold self terminators */
@@ -15424,9 +15513,11 @@ static void pa_init_graph()
     if (vp) joyenb = strtol(vp->value, &errstr, 10);
     vp = pa_schlst("mouse", term_root);
     if (vp) mouseenb = strtol(vp->value, &errstr, 10);
+    vp = pa_schlst("dump_event", term_root);
+    if (vp) dmpevt = strtol(vp->value, &errstr, 10);
 
     /* find graph block */
-    graph_root = pa_schlst("graph", config_root);
+    graph_root = pa_schlst("graphics", config_root);
     if (graph_root) {
 
         vp = pa_schlst("dialogerr", graph_root->sublist);

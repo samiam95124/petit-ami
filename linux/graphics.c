@@ -9563,7 +9563,7 @@ static void pa_init_graphics(int argc, char *argv[])
     if (vp) mouseenb = strtol(vp->value, &errstr, 10);
 
     /* find graph block */
-    graph_root = pa_schlst("graph", config_root);
+    graph_root = pa_schlst("graphics", config_root);
     if (graph_root) {
 
         vp = pa_schlst("dialogerr", graph_root->sublist);

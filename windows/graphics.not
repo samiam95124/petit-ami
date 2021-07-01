@@ -25,6 +25,22 @@ TEST RESULTS
 
 Terminal_test
 
+Management test
+
+1. During the ubuffered resize test, if you resize the window rapidly, it appears to
+lose the update messages. Seems to only happen if you resize in both x and y at
+once.
+
+2. Entire frame off leaves garbage on screen.
+
+3. Moving/resizing child windows in child windows test character leaves litter on 
+screen. Note this only happens outside of the 640x480 buffered draw area.
+
+4. In child windows stacking resize test pixel 1, resizing the window causes it
+to randomly change sizes. 
+
+5. In minimize/maximize test, maximizing or minimizing it causes it to bomb.
+
 *************************************************************************************
 
 The following are notes from the old (untranslated) version of graph.

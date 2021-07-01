@@ -231,6 +231,7 @@ int main(void)
 
     pa_auto(stdout, OFF);
     pa_curvis(stdout, OFF);
+#if 0
     printf("Managed screen test vs. 0.1\n");
     printf("\n");
     pa_scnsiz(stdout, &x, &y);
@@ -507,6 +508,7 @@ int main(void)
 
     /* ************************* Frame controls test unbuffered ****************** */
 
+#endif
     pa_buffer(stdout, OFF);
     frametest("Ready for frame controls unbuffered - Resize me!");
     pa_frame(stdout, OFF);
