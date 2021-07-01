@@ -26,7 +26,7 @@
 * Should have speed tests adjust their length according to actual process     *
 * time to prevent tests from taking too long on slow cpu/display.             *
 *                                                                             *
-* Benchmark results for 80x25 screen, AMD® Ryzen 9 3950x NVIDIA GTX 3070     *
+* Benchmark results for 80x25 screen, AMD Ryzen 9 3950x NVIDIA GTX 3070       *
 * dual:                                                                       *
 *                                                                             *
 * Windows console library (conlib):                                           *

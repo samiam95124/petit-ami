@@ -980,7 +980,7 @@ static void pa_init_network()
     /* capture control handler so that ctl-c cancels properly. This is a
        workaround because the winsock dll gets shutdown before we reach
        the deinit function. */
-    SetConsoleCtrlHandler(conhan, TRUE);
+    //SetConsoleCtrlHandler(conhan, TRUE);
 
 }
 
