@@ -9956,6 +9956,8 @@ static void imenu(winptr win, pa_menuptr m)
 
     BOOL   b;  /* int result */
     metptr mp; /* tracking entry pointer */
+    RECT cr;  /* client rectangle holder */
+    int  fl1; /* flag */
 
     if (win->menhan) { /* distroy previous menu */
 
@@ -9980,6 +9982,30 @@ static void imenu(winptr win, pa_menuptr m)
     if (!b) winerr(); /* process windows error */
     unlockmain(); /* end exclusive access */
     b = DrawMenuBar(win->winhan); /* display menu */
+    lockmain(); /* start exclusive access */
+    if (!b) winerr(); /* process windows error */
+
+    /* set minimum style */
+    fl1 = WS_OVERLAPPED | WS_CLIPCHILDREN;
+    /* add frame features */
+    if (win->size) fl1 |= WS_THICKFRAME;
+    else fl1 |= WS_BORDER;
+    if (win->sysbar)
+        fl1 |= WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
+    /* add flags for child window */
+    if (win->parhan) fl1 |= WS_CHILD | WS_CLIPSIBLINGS;
+    /* change window size to match new mode */
+    cr.left = 0; /* set up desired client rectangle */
+    cr.top = 0;
+    cr.right = win->gmaxxg;
+    cr.bottom = win->gmaxyg;
+    /* find window size from client size */
+    b = AdjustWindowRectEx(&cr, fl1, TRUE, 0);
+    if (!b) winerr(); /* process windows error */
+    unlockmain(); /* end exclusive access */
+    b = SetWindowPos(win->winhan, 0, 0, 0,
+                     cr.right-cr.left, cr.bottom-cr.top,
+                     SWP_NOMOVE | SWP_NOZORDER);
     lockmain(); /* start exclusive access */
     if (!b) winerr(); /* process windows error */
 

@@ -508,7 +508,6 @@ int main(void)
 
     /* ************************* Frame controls test unbuffered ****************** */
 
-#endif
     pa_buffer(stdout, OFF);
     frametest("Ready for frame controls unbuffered - Resize me!");
     pa_frame(stdout, OFF);
@@ -944,6 +943,7 @@ int main(void)
 
     /* ******************************* min/max/norm test *********************** */
 
+#endif
     putchar('\f');
     pa_auto(stdout, OFF);
     pa_buffer(stdout, OFF);
