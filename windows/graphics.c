@@ -7403,7 +7403,7 @@ static void enqueue(eqeptr* el, pa_evtrec* er)
     geteqe(&ep); /* get a new event container */
     memcpy(&ep->evt, er, sizeof(pa_evtrec)); /* copy event to container */
     /* insert into bubble list */
-    if (el == NULL) { /* list empty, place as first entry */
+    if (*el == NULL) { /* list empty, place as first entry */
 
         ep->last = ep; /* tie entry to itself */
         ep->next = ep;
