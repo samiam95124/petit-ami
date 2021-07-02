@@ -1330,6 +1330,17 @@ static void prtmsgstr(int mn)
         case 0x0232: fprintf(stderr, "WM_EXITSIZEMOVE"); break;
         case 0x0233: fprintf(stderr, "WM_DROPFILES"); break;
         case 0x0234: fprintf(stderr, "WM_MDIREFRESHMENU"); break;
+        case 0x0281: fprintf(stderr, "WM_IME_SETCONTEXT"); break;
+        case 0x0282: fprintf(stderr, "WM_IME_NOTIFY"); break;
+        case 0x0283: fprintf(stderr, "WM_IME_CONTROL"); break;
+        case 0x0284: fprintf(stderr, "WM_IME_COMPOSITIONFULL"); break;
+        case 0x0285: fprintf(stderr, "WM_IME_SELECT"); break;
+        case 0x0286: fprintf(stderr, "WM_IME_CHAR"); break;
+        case 0x0290: fprintf(stderr, "WM_IME_KEYDOWN"); break;
+        case 0x0291: fprintf(stderr, "WM_IME_KEYUP"); break;
+        case 0x02A1: fprintf(stderr, "WM_MOUSEHOVER"); break;
+        case 0x02A2: fprintf(stderr, "WM_NCMOUSELEAVE"); break;
+        case 0x02A3: fprintf(stderr, "WM_MOUSELEAVE"); break;
         case 0x0300: fprintf(stderr, "WM_CUT"); break;
         case 0x0301: fprintf(stderr, "WM_COPY"); break;
         case 0x0302: fprintf(stderr, "WM_PASTE"); break;
@@ -1351,6 +1362,8 @@ static void prtmsgstr(int mn)
         case 0x0312: fprintf(stderr, "WM_HOTKEY"); break;
         case 0x0380: fprintf(stderr, "WM_PENWINFIRST"); break;
         case 0x038F: fprintf(stderr, "WM_PENWINLAST"); break;
+        case 0x0390: fprintf(stderr, "WM_COALESCE_FIRST"); break;
+        case 0x039F: fprintf(stderr, "WM_COALESCE_LAST"); break;
         case 0x03A0: fprintf(stderr, "MM_JOY1MOVE"); break;
         case 0x03A1: fprintf(stderr, "MM_JOY2MOVE"); break;
         case 0x03A2: fprintf(stderr, "MM_JOY1ZMOVE"); break;
@@ -1359,6 +1372,18 @@ static void prtmsgstr(int mn)
         case 0x03B6: fprintf(stderr, "MM_JOY2BUTTONDOWN"); break;
         case 0x03B7: fprintf(stderr, "MM_JOY1BUTTONUP"); break;
         case 0x03B8: fprintf(stderr, "MM_JOY2BUTTONUP"); break;
+        case 0x03E0: fprintf(stderr, "WM_DDE_FIRST"); break;
+        /* case 0x03E0: fprintf(stderr, "WM_DDE_INITIATE"); break; */
+        case 0x03E1: fprintf(stderr, "WM_DDE_TERMINATE"); break;
+        case 0x03E2: fprintf(stderr, "WM_DDE_ADVISE"); break;
+        case 0x03E3: fprintf(stderr, "WM_DDE_UNADVISE"); break;
+        case 0x03E4: fprintf(stderr, "WM_DDE_ACK"); break;
+        case 0x03E5: fprintf(stderr, "WM_DDE_DATA"); break;
+        case 0x03E6: fprintf(stderr, "WM_DDE_REQUEST"); break;
+        case 0x03E7: fprintf(stderr, "WM_DDE_POKE"); break;
+        case 0x03E8: fprintf(stderr, "WM_DDE_EXECUTE"); break;
+        /* case 0x03E8: fprintf(stderr, "WM_DDE_LAST"); break; */
+
         default: fprintf(stderr, "???"); break;
 
     }

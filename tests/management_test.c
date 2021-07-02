@@ -231,7 +231,7 @@ int main(void)
 
     pa_auto(stdout, OFF);
     pa_curvis(stdout, OFF);
-#if 0
+#if 1
     printf("Managed screen test vs. 0.1\n");
     printf("\n");
     pa_scnsiz(stdout, &x, &y);
@@ -941,9 +941,8 @@ int main(void)
     } while (er.etype != pa_etenter);
     pa_buffer(stdout, ON);
 
-    /* ******************************* min/max/norm test *********************** */
+    /* ****************************** min/max/norm test ********************* */
 
-#endif
     putchar('\f');
     pa_auto(stdout, OFF);
     pa_buffer(stdout, OFF);
@@ -954,7 +953,12 @@ int main(void)
     do {
 
         pa_event(stdin, &er); /* get next event */
-        if (er.etype == pa_etredraw) {
+        /* count minimize, maximize, normalize */
+        if (er.etype == pa_etmax) maxcnt = maxcnt+1;
+        if (er.etype == pa_etmin) mincnt = mincnt+1;
+        if (er.etype == pa_etnorm) nrmcnt = nrmcnt+1;
+        if (er.etype == pa_etredraw || er.etype == pa_etmax ||
+            er.etype == pa_etmin || er.etype == pa_etnorm) {
 
             putchar('\f');
             printf("Minimize, maximize and restore this window\n");
@@ -964,17 +968,13 @@ int main(void)
             printf("Normalize count: %d\n", nrmcnt);
 
         }
-        /* count minimize, maximize, normalize */
-        if (er.etype == pa_etmax) maxcnt = maxcnt+1;
-        if (er.etype == pa_etmin) mincnt = mincnt+1;
-        if (er.etype == pa_etnorm) nrmcnt = nrmcnt+1;
 
         if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != pa_etenter);
     pa_buffer(stdout, ON);
 
-    /* ************************ Window size calculate character ******************** */
+    /* ******************** Window size calculate character ***************** */
 
     putchar('\f');
     prtceng(pa_maxyg(stdout)-pa_chrsizy(stdout), "Window size calculate character");
@@ -1030,7 +1030,7 @@ int main(void)
     printf("Check client window has (20, 10) surface\n");
     waitnext();
 
-    printf("Sizing bars off");
+    printf("Sizing bars off\n");
     pa_sysbar(win2, ON);
     pa_sizable(win2, OFF);
     pa_winclient(stdout, 20, 10, &x, &y, BIT(pa_wmframe) | BIT(pa_wmsysbar));
@@ -1115,7 +1115,7 @@ int main(void)
     printf("Check client window has (200, 200) surface\n");
     waitnext();
 
-    printf("Sizing bars off");
+    printf("Sizing bars off\n");
     pa_sysbar(win2, ON);
     pa_sizable(win2, OFF);
     pa_winclientg(stdout, 200, 200, &x, &y, BIT(pa_wmframe) | BIT(pa_wmsysbar));
@@ -1128,7 +1128,7 @@ int main(void)
     printf("Check client window has (200, 200) surface\n");
     waitnext();
 
-    printf("frame off");
+    printf("frame off\n");
     pa_sysbar(win2, ON);
     pa_sizable(win2, ON);
     pa_frame(win2, OFF);
@@ -1146,15 +1146,16 @@ int main(void)
 
     /* ******************* Window size calculate minimums pixel *************** */
 
+#endif
     /* this test does not work, winclient needs to return the minimums */
 
 #if 0
     putchar('\f');
-    prtceng(pa_maxyg(stdout)-chrsizy(stdout), "Window size calculate minimum pixel");
+    prtceng(pa_maxyg(stdout)-pa_chrsizy(stdout), "Window size calculate minimum pixel");
     pa_home(stdout);
     pa_openwin(&stdin, &win2, NULL, 2);
     pa_linewidth(stdout, 1);
-    pa_fcolor(win2, cyan);
+    pa_fcolor(win2, pa_cyan);
     pa_winclientg(stdout, 1, 1, &x, &y, BIT(pa_wmframe) | BIT(pa_wmsize) | BIT(pa_wmsysbar));
     printf("For (200, 200) client, full frame, window size minimum is: %d,%d\n", x, y);
     pa_setsizg(win2, 1, 1);
@@ -1166,7 +1167,6 @@ int main(void)
 
    /* ********************** Child windows torture test pixel ***************** */
 
-/* ?????? Overflows memory on this test */
     putchar('\f');
     printf("Child windows torture test pixel\n");
     for (i = 1; i <= 100; i++) {
