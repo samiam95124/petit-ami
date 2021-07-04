@@ -158,9 +158,9 @@ int main(void)
         pa_event(stdin, &er);
         if (er.etype == pa_etbutton) {
 
-            if (er.butid == 1) printf("Hello to you, too");
-            else if (er.butid == 2) printf("Bark bark");
-            else if (er.butid == 3) printf("Sniff sniff");
+            if (er.butid == 1) printf("Hello to you, too\n");
+            else if (er.butid == 2) printf("Bark bark\n");
+            else if (er.butid == 3) printf("Sniff sniff\n");
             else printf("!!! No button with id: %d !!!\n", er.butid);
 
         };
@@ -177,9 +177,9 @@ int main(void)
         pa_event(stdin, &er);
         if (er.etype == pa_etbutton) {
 
-            if (er.butid == 1) printf("Hello to you, too");
-            else if (er.butid == 2) printf("Bark bark");
-            else if (er.butid == 3) printf("Sniff sniff");
+            if (er.butid == 1) printf("Hello to you, too\n");
+            else if (er.butid == 2) printf("Bark bark\n");
+            else if (er.butid == 3) printf("Sniff sniff\n");
             else printf("!!! No button with id: %d !!!\n", er.butid);
 
         };

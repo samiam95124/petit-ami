@@ -148,36 +148,42 @@ typedef struct {
             /** mouse movement */ int moupx, moupy;
 
         };
+        /* etmouba */
         struct {
 
             /** mouse handle */  int amoun;
             /** button number */ int amoubn;
 
         };
+        /* etmoubd */
         struct {
 
             /** mouse handle */  int dmoun;
             /** button number */ int dmoubn;
 
         };
+        /* pa_etjoyba */
         struct {
 
             /** joystick number */ int ajoyn;
             /** button number */   int ajoybn;
 
         };
+        /* pa_etjoybd */
         struct {
 
             /** joystick number */ int djoyn;
             /** button number */   int djoybn;
 
         };
+        /* pa_etjoymov */
         struct {
 
             /** joystick number */      int mjoyn;
             /** joystick coordinates */ int joypx, joypy, joypz;
 
         };
+        /* pa_etfun */
         /** function key */ int fkey;
         /** etmoumovg: */
         struct {
@@ -193,46 +199,62 @@ typedef struct {
             int rsx, rsy, rex, rey;
 
         };
+        /* pa_etmenus */
         int menuid; /* menu item selected */
+        /* pa_etbutton */
         int butid; /* button id */
+        /* pa_etchkbox */
         int ckbxid; /* checkbox */
+        /* pa_etradbut */
         int radbid; /* radio button */
+        /* pa_etsclull */
         int sclulid; /* scroll up/left line */
+        /* pa_etscldrl */
         int scldlid; /* scroll down/right line */
+        /* pa_etsclulp */
         int sclupid; /* scroll up/left page */
+        /* pa_etscldrp */
         int scldpid; /* scroll down/right page */
+        /* pa_etsclpos */
         struct {
 
             int sclpid; /* scroll bar */
             int sclpos; /* scroll bar position */
 
         };
+        /* pa_etedtbox */
         int edtbid; /* edit box complete */
+        /* pa_etnumbox,   /* number select box signals done */
         struct {
 
             int numbid; /* num sel box select */
             int numbsl; /* num select value */
 
         };
+        /* pa_etlstbox */
         struct {
 
             int lstbid; /* list box select */
             int lstbsl; /* list box select number */
 
         };
+        /* pa_etdrpbox */
         struct {
 
             int drpbid; /* drop box select */
             int drpbsl; /* drop box select */
 
         };
+        /* pa_etdrebox */
         int drebid; /* drop edit box select */
+        /* pa_etsldpos */
         struct {
 
             int sldpid; /* slider position */
             int sldpos; /* slider position */
 
         };
+        /* pa_ettabbar */
         struct {
 
             int tabid;  /* tab bar */

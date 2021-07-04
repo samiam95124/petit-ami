@@ -1443,7 +1443,7 @@ A diagnostic, print the given event code as a symbol to the error file.
 
 ******************************************************************************/
 
-void prtevt(pa_evtcod e)
+void prtevtcod(pa_evtcod e)
 
 {
 
@@ -1524,6 +1524,90 @@ void prtevt(pa_evtcod e)
     }
 
 }
+
+/** ****************************************************************************
+
+Print event record
+
+A diagnostic, prints the given event with possible parameters.
+
+*******************************************************************************/
+
+static void prtevt(pa_evtrec* ev)
+
+{
+
+    prtevtcod(ev->etype);
+    fprintf(stderr, " Window: %d Handled: %d", ev->winid, ev->handled);
+    switch (ev->etype) {
+
+        case pa_etchar: fprintf(stderr, " Char: %c", ev->echar); break;
+        case pa_ettim: fprintf(stderr, " Timer: %d", ev->timnum); break;
+        case pa_etmoumov:
+            fprintf(stderr, " Mouse: %d x: %d y: %d", ev->mmoun, ev->moupx,
+                    ev->moupy);
+            break;
+        case pa_etmouba:
+            fprintf(stderr, " Mouse: %d Button: %d", ev->amoun, ev->amoubn);
+            break;
+        case pa_etmoubd:
+            fprintf(stderr, " Mouse: %d Button: %d", ev->dmoun, ev->dmoubn);
+            break;
+        case pa_etjoyba:
+            fprintf(stderr, " Joystick: %d Button: %d", ev->ajoyn, ev->ajoybn);
+            break;
+        case pa_etjoybd:
+            fprintf(stderr, " Joystick: %d Button: %d", ev->djoyn, ev->djoybn);
+            break;
+        case pa_etjoymov:
+            fprintf(stderr, " Joystick: %d x: %d y: %d z: %d", ev->mjoyn,
+                    ev->joypx, ev->joypy, ev->joypz);
+            break;
+        case pa_etfun: fprintf(stderr, " Function key: %d", ev->fkey);
+        case pa_etmoumovg:
+            fprintf(stderr, " Mouse: %d x: %d y: %d", ev->mmoung, ev->moupxg,
+                    ev->moupyg);
+            break;
+        case pa_etredraw:
+            fprintf(stderr, " bounds: sx: %d sy: %d ex: %d ey: %d", ev->rsx,
+                    ev->rsy, ev->rex, ev->rey);
+            break;
+        case pa_etmenus: fprintf(stderr, " Menu: %d", ev->menuid); break;
+        case pa_etbutton: fprintf(stderr, " Button: %d", ev->butid); break;
+        case pa_etchkbox: fprintf(stderr, " Checkbox: %d", ev->ckbxid); break;
+        case pa_etradbut: fprintf(stderr, " Button: %d", ev->radbid); break;
+        case pa_etsclull: fprintf(stderr, " Scroll bar: %d", ev->sclulid); break;
+        case pa_etscldrl: fprintf(stderr, " Scroll bar: %d", ev->scldlid); break;
+        case pa_etsclulp: fprintf(stderr, " Scroll bar: %d", ev->sclupid); break;
+        case pa_etscldrp: fprintf(stderr, " Scroll bar: %d", ev->scldpid); break;
+        case pa_etsclpos:
+            fprintf(stderr, " Scroll bar: %d position: %d", ev->sclpid,
+                    ev->sclpos);
+            break;
+        case pa_etedtbox: fprintf(stderr, " Edit box: %d", ev->edtbid); break;
+        case pa_etnumbox:
+            fprintf(stderr, " Number box: %d value: %d", ev->numbid,
+                    ev->numbsl);
+            break;
+        case pa_etlstbox:
+            fprintf(stderr, " List box: %d select: %d", ev->lstbid, ev->lstbsl);
+            break;
+        case pa_etdrpbox:
+            fprintf(stderr, " Drop box: %d select: %d", ev->drpbid, ev->drpbsl);
+            break;
+        case pa_etdrebox: fprintf(stderr, " Drop edit box: %d", ev->drebid);
+            break;
+        case pa_etsldpos:
+            fprintf(stderr, " Slider: %d position: %d", ev->sldpid, ev->sldpos);
+            break;
+        case pa_ettabbar:
+            fprintf(stderr, " Tab bar: %d select: %d", ev->tabid, ev->tabsel);
+            break;
+
+    }
+
+}
+
 
 /** ****************************************************************************
 
@@ -8033,7 +8117,7 @@ static void ievent(int ifn, pa_evtrec* er)
     /* do diagnostic dump of PA events */
     if (dmpevt) {
 
-        dbg_printf(dlinfo, "PA Event: %5d ", ecnt++); prtevt(er->etype);
+        dbg_printf(dlinfo, "PA Event: %5d ", ecnt++); prtevt(er);
         fprintf(stderr, "\n"); fflush(stderr);
 
     }
