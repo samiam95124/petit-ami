@@ -330,6 +330,10 @@ typedef struct winrec {
     int      gmaxy;           /* maximum y size */
     int      gmaxxg;          /* size of client area in x */
     int      gmaxyg;          /* size of client area in y */
+    int      bufx;            /* buffer size x characters */
+    int      bufy;            /* buffer size y characters */
+    int      bufxg;           /* buffer size x pixels */
+    int      bufyg;           /* buffer size y pixels */
     int      gattr;           /* current attributes */
     int      gauto;           /* state of auto */
     int      gfcrgb;          /* foreground color in rgb */
@@ -2797,7 +2801,9 @@ static void restore(winptr win,   /* window to restore */
             b = GetClientRect(win->winhan, &cr);
             if (!b) winerr(); /* process windows error */
 
-        } else /* get only update area */
+        } else
+            /* get only update area. This only happens during a WM_PAINT
+               operation. */
             b = GetUpdateRect(win->winhan, &cr, FALSE);
         /* validate it so windows won"t send multiple notifications */
         b = ValidateRgn(win->winhan, NULL); /* validate region */
@@ -2812,8 +2818,8 @@ static void restore(winptr win,   /* window to restore */
             /* clip update rectangle to buffer */
             if (cr.left <= win->gmaxxg || cr.bottom <= win->gmaxyg)  {
 
-                /* It"s within the buffer. Now clip the right && bottom. */
-                x = cr.right; /* copy right && bottom sides */
+                /* It's within the buffer. Now clip the right and bottom. */
+                x = cr.right; /* copy right and bottom sides */
                 y = cr.bottom;
                 if (x > win->gmaxxg) x = win->gmaxxg;
                 if (y > win->gmaxyg) y = win->gmaxyg;
@@ -2822,18 +2828,18 @@ static void restore(winptr win,   /* window to restore */
                            y-cr.top+1, sc->bdc, cr.left, cr.top, SRCCOPY);
 
             }
-            /* Now fill the right and left sides of the client beyond the
+            /* Now fill the right and bottom sides of the client beyond the
                bitmap. */
            hb = CreateSolidBrush(sc->bcrgb); /* get a brush for background */
            if (hb == 0) winerr(); /* process windows error */
            /* check right side fill */
-           cr2 = cr; /* copy update rectangle */
+           memcpy(&cr2, &cr, sizeof(RECT)); /* copy update rectangle */
            /* subtract overlapping space */
            if (cr2.left <= win->gmaxxg) cr2.left = win->gmaxxg;
            if (cr2.left <= cr2.right) /* still has width */
                 b = FillRect(win->devcon, &cr2, hb);
            /* check bottom side fill */
-           cr2 = cr; /* copy update rectangle */
+           memcpy(&cr2, &cr, sizeof(RECT)); /* copy update rectangle */
            /* subtract overlapping space */
            if (cr2.top <= win->gmaxyg) cr2.top = win->gmaxyg;
            if (cr2.top <= cr2.bottom) /* still has height */
@@ -2934,6 +2940,10 @@ static void iniscn(winptr win, scnptr sc)
     if (!hb) winerr(); /* process windows error */
     sc->bhn = SelectObject(sc->bdc, hb); /* select bitmap into dc */
     if (sc->bhn == HGDI_ERROR) winerr(); /* process windows error */
+    win->bufx = win->gmaxx; /* save as buffer size */
+    win->bufy = win->gmaxy;
+    win->bufxg = win->gmaxxg;
+    win->bufyg = win->gmaxyg;
     newfont(win); /* create font for buffer */
     /* set non-braindamaged stretch mode */
     r = SetStretchBltMode(win->screens[win->curupd-1]->bdc, HALFTONE);
@@ -9756,7 +9766,13 @@ static void isizbufg(winptr win, int x, int y)
     lockmain(); /* start exclusive access */
     if (!b) winerr(); /* process windows error */
     /* all the screen buffers are wrong, so tear them out */
-    for (si = 0; si < MAXCON; si++) disscn(win, win->screens[si]);
+    for (si = 0; si < MAXCON; si++) {
+
+        disscn(win, win->screens[si]);
+        free(win->screens[si]); /* free screen data */
+        win->screens[si] = NULL; /* clear screen data */
+
+    }
     win->screens[win->curdsp-1] = malloc(sizeof(scncon));
     if (!win->screens[win->curdsp-1]) error(enomem);
     iniscn(win, win->screens[win->curdsp-1]); /* initalize screen buffer */
@@ -9826,11 +9842,15 @@ static void ibuffer(winptr win, int e)
     if (e) { /* perform buffer on actions */
 
         win->bufmod = TRUE; /* turn buffer mode on */
-        /* restore size from current buffer */
-        win->gmaxxg = win->screens[win->curdsp-1]->maxxg; /* pixel size */
-        win->gmaxyg = win->screens[win->curdsp-1]->maxyg;
-        win->gmaxx = win->screens[win->curdsp-1]->maxx; /* character size */
-        win->gmaxy = win->screens[win->curdsp-1]->maxy;
+        /* restore last buffer size */
+        win->gmaxxg = win->bufxg; /* pixel size */
+        win->gmaxyg = win->bufyg;
+        win->gmaxx = win->bufx; /* character size */
+        win->gmaxy = win->bufy;
+        win->screens[win->curdsp-1]->maxxg = win->gmaxxg; /* pixel size */
+        win->screens[win->curdsp-1]->maxyg = win->gmaxyg;
+        win->screens[win->curdsp-1]->maxx = win->gmaxx; /* character size */
+        win->screens[win->curdsp-1]->maxy = win->gmaxy;
         r.left = 0; /* set up desired client rectangle */
         r.top = 0;
         r.right = win->gmaxxg;
@@ -9857,7 +9877,13 @@ static void ibuffer(winptr win, int e)
            if (si != win->curdsp) disscn(win, win->screens[si]);
         /* dispose of screen data structures */
         for (si = 0; si < MAXCON; si++) if (si != win->curdsp-1)
-           if (win->screens[si]) free(win->screens[si]);
+            if (win->screens[si]) {
+
+            disscn(win, win->screens[si]); /* free buffer data */
+            free(win->screens[si]); /* free screen data */
+            win->screens[si] = NULL; /* clear screen data */
+
+        }
         win->curupd = win->curdsp; /* unify the screens */
         /* get actual size of onscreen window, and set that as client space */
         b = GetClientRect(win->winhan, &r);
