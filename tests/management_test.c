@@ -231,7 +231,7 @@ int main(void)
 
     pa_auto(stdout, OFF);
     pa_curvis(stdout, OFF);
-#if 1
+#if 0
     printf("Managed screen test vs. 0.1\n");
     printf("\n");
     pa_scnsiz(stdout, &x, &y);
@@ -754,6 +754,7 @@ int main(void)
 
     /* ******************* Child windows stacking test pixel ******************* */
 
+#endif
     putchar('\f');
     prtcen(pa_maxy(stdout), "Child windows stacking test pixel");
     pa_openwin(&stdin, &win2, stdout, 2);
@@ -830,7 +831,7 @@ int main(void)
     do {
 
         pa_event(stdin, &er);
-        if (er.etype == pa_etredraw) {
+        if (er.etype == pa_etredraw || er.etype == pa_etresize) {
 
             putchar('\f');
             prtceng(pa_maxyg(stdout)-pa_chrsizy(stdout),
@@ -880,7 +881,7 @@ int main(void)
     do {
 
         pa_event(stdin, &er);
-        if (er.etype == pa_etredraw) {
+        if (er.etype == pa_etredraw  || er.etype == pa_etresize) {
 
             putchar('\f');
             prtceng(pa_maxyg(stdout)-pa_chrsizy(stdout),
@@ -916,7 +917,7 @@ int main(void)
     do {
 
         pa_event(stdin, &er); /* get next event */
-        if (er.etype == pa_etredraw) {
+        if (er.etype == pa_etredraw || er.etype == pa_etresize) {
 
             /* clear screen without overwriting frame */
             pa_fcolor(stdout, pa_white);
@@ -1146,7 +1147,6 @@ int main(void)
 
     /* ******************* Window size calculate minimums pixel *************** */
 
-#endif
     /* this test does not work, winclient needs to return the minimums */
 
 #if 0
