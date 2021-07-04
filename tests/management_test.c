@@ -231,7 +231,7 @@ int main(void)
 
     pa_auto(stdout, OFF);
     pa_curvis(stdout, OFF);
-#if 0
+#if 1
     printf("Managed screen test vs. 0.1\n");
     printf("\n");
     pa_scnsiz(stdout, &x, &y);
@@ -754,7 +754,6 @@ int main(void)
 
     /* ******************* Child windows stacking test pixel ******************* */
 
-#endif
     putchar('\f');
     prtcen(pa_maxy(stdout), "Child windows stacking test pixel");
     pa_openwin(&stdin, &win2, stdout, 2);
@@ -977,6 +976,7 @@ int main(void)
 
     /* ******************** Window size calculate character ***************** */
 
+#endif
     putchar('\f');
     prtceng(pa_maxyg(stdout)-pa_chrsizy(stdout), "Window size calculate character");
     pa_home(stdout);
@@ -1198,6 +1198,7 @@ int main(void)
 
     }
     pa_home(stdout);
+    pa_bover(stdout);
     printf("Child windows should all be closed\n");
     waitnext();
 

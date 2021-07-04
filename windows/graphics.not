@@ -27,19 +27,7 @@ Terminal_test
 
 Management test
 
-1. During the ubuffered resize test, if you resize the window rapidly, it appears to
-lose the update messages. Seems to only happen if you resize in both x and y at
-once.
-
-2. Moving/resizing child windows in child windows test character leaves litter on 
-screen. Note this only happens outside of the 640x480 buffered draw area.
-
-3. In child windows stacking resize test pixel 1, resizing the window causes it
-to randomly change sizes. 
-
-4. In minimize/maximize test, maximizing or minimizing it causes it to bomb.
-
-5. According to the documentation for AdjustWindowRectEx(), double row menus are
+1. According to the documentation for AdjustWindowRectEx(), double row menus are
 not correctly calculated. We need a test for this as well as a fix.
 
 *************************************************************************************
