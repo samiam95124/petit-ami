@@ -362,7 +362,7 @@ all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
      getmailg gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg \
      prtconfig prtconfigg pixel ball1 ball2 ball3 ball4 ball5 ball6 line1 line2 \
-     line4 line5
+     line4 line5 clock
     
 else ifeq ($(OSTYPE),Darwin)
 
@@ -378,7 +378,7 @@ all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
      getmailg gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
      prtconfig prtconfigg pixel ball1 ball2 ball3 ball4 ball5 ball6 line1 \
-     line2 line4 line5
+     line2 line4 line5 clock
     
 else
 
@@ -394,7 +394,7 @@ all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
      getmailg gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
      prtconfig prtconfigg pixel ball1 ball2 ball3 ball4 ball5 ball6 line1 \
-     line2 line4 line5
+     line2 line4 line5 clock
     
 endif 
 
@@ -1002,6 +1002,12 @@ line4: $(GLIBSD) graph_programs/line4.c
 	
 line5: $(GLIBSD) graph_programs/line5.c
 	$(CC) $(CFLAGS) graph_programs/line5.c $(GLIBS) -o bin/line5
+	
+#
+# Resizable clock
+#
+clock: $(GLIBSD) graph_programs/clock.c
+	$(CC) $(CFLAGS) graph_programs/clock.c $(GLIBS) -o bin/clock
 	
 ################################################################################
 #

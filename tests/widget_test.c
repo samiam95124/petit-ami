@@ -856,7 +856,7 @@ int main(void)
     pa_scrollsiz(stdout, 3, INT_MAX / 4);
     pa_scrollvertg(stdout, 100+150, 100, 120+150, 300, 4);
     pa_scrollsiz(stdout, 4, INT_MAX / 8);
-    printf("Now should be four scrollbars, dec}ing in size to the pa_right(stdout).\n");
+    printf("Now should be four scrollbars, decending in size to the right.\n");
     printf("All of the scrollbars can be manipulated.\n");
     do {
 
@@ -918,7 +918,7 @@ int main(void)
     /* ************ Graphical scroll bar fat and skinny bars test ************** */
 
     printf("\f");
-    printf("Graphical scroll bar fat && skinny bars test\n");
+    printf("Graphical scroll bar fat and skinny bars test\n");
     printf("\n");
     pa_scrollvertsizg(stdout, &x, &y);
     pa_scrollvertg(stdout, 100, 100, 100+x / 2, 100+200, 1);
