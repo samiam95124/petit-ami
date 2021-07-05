@@ -5,14 +5,13 @@
 * Analog clock program in Petit-Ami windowed graphical mode.                   *
 * Presents an analog clock at any scale. Clicking the mouse anywhere within    *
 * clock turns the move/size frame on and off. This allows the clock to be      *
-* placed at a convenient location and then have the frame removed.               *
+* placed at a convenient location and then have the frame removed.             *
 *                                                                              *
 ********************************************************************************/
 
 /* base C defines */
 #include <stdlib.h>
 #include <stdio.h>
-#include <limits.h>
 #include <math.h>
 
 /* Petit-ami defines */
