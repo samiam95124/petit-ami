@@ -667,7 +667,6 @@ int main(void)
 
     /* *********************** Terminal scroll bar test *********************** */
 
-#endif
     printf("\f");
     chrgrid();
     pa_binvis(stdout);
@@ -778,6 +777,7 @@ int main(void)
 
     /* ************ Terminal scroll bar fat and skinny bars test ************** */
 
+#endif
     printf("\f");
     chrgrid();
     pa_binvis(stdout);
@@ -808,7 +808,7 @@ int main(void)
         }
         if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
-    } while (er.etype == pa_etenter);
+    } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
     pa_killwidget(stdout, 2);
     pa_killwidget(stdout, 3);
@@ -875,7 +875,7 @@ int main(void)
         if (er.etype == pa_etsclpos) {
 
             pa_scrollpos(stdout, er.sclpid, er.sclpos); /* set new position for scrollbar */
-            printf("Scrollbar: %d position set: %d", er.sclpid, er.sclpos);
+            printf("Scrollbar: %d position set: %d\n", er.sclpid, er.sclpos);
 
         }
         if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
@@ -985,7 +985,7 @@ int main(void)
         if (er.etype == pa_etnumbox) printf("You selected: %d\n", er.numbsl);
         if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
-    } while (er.etype == pa_etenter);
+    } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
 
     /* ************************* Terminal edit box test ************************ */
@@ -1295,7 +1295,7 @@ int main(void)
         if (er.etype == pa_etdrebox) {
 
             pa_getwidgettext(stdout, 1, s, 100);
-            printf("You selected: %s", s);
+            printf("You selected: %s\n", s);
 
         }
         if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
@@ -1379,7 +1379,7 @@ int main(void)
             printf("Slider id: %d position: %d\n", er.sldpid, er.sldpos);
         if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
-    } while (er.etype == pa_etenter);
+    } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
     pa_killwidget(stdout, 2);
     pa_killwidget(stdout, 3);

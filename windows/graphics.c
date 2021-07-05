@@ -1265,6 +1265,7 @@ static void prtmsgstr(int mn)
         case 0x0085: fprintf(stderr, "WM_NCPAINT"); break;
         case 0x0086: fprintf(stderr, "WM_NCACTIVATE"); break;
         case 0x0087: fprintf(stderr, "WM_GETDLGCODE"); break;
+        case 0x0088: fprintf(stderr, "WM_SYNCPAINT"); break;
         case 0x00A0: fprintf(stderr, "WM_NCMOUSEMOVE"); break;
         case 0x00A1: fprintf(stderr, "WM_NCLBUTTONDOWN"); break;
         case 0x00A2: fprintf(stderr, "WM_NCLBUTTONUP"); break;
@@ -2458,9 +2459,9 @@ static void win2rgb(int wc, int* r, int* g, int* b)
 
 {
 
-   *r = wc && 0xff * 0x800000; /* get red value */
-   *g = wc / 256 && 0xff * 0x800000; /* get greeen value */
-   *b = wc / 65536 && 0xff * 0x800000; /* get blue value */
+   *r = wc & 0xff * 0x800000; /* get red value */
+   *g = wc / 256 & 0xff * 0x800000; /* get greeen value */
+   *b = wc / 65536 & 0xff * 0x800000; /* get blue value */
 
 }
 
@@ -2796,8 +2797,8 @@ static void newfont(winptr win)
         else if (BIT(salight) & attrc) w = FW_LIGHT;
         else if (BIT(sabold) & attrc) w = FW_BOLD;
         else if (BIT(saxbold) & attrc) w = FW_EXTRABOLD;
-        /* set normal height || half height for subscript/superscript */
-        if (BIT(sasuper) & attrc || BIT(sasubs) & attrc)
+        /* set normal height or half height for subscript/superscript */
+        if (BIT(sasuper) & attrc | BIT(sasubs) & attrc)
             h = trunc(win->gfhigh*0.75); else h = win->gfhigh;
         sc->font = CreateFont(h, 0, 0, 0, w, BIT(saital) & attrc,
                           BIT(saundl) & sc->attr, BIT(sastkout) & sc->attr, ANSI_CHARSET,
@@ -3058,7 +3059,7 @@ static void iniscn(winptr win, scnptr sc)
     /* set single pixel pen to foreground */
     sc->fspen = CreatePen(FSPENSTL, 1, sc->fcrgb);
     if (!sc->fspen) winerr(); /* process windows error */
-    /* set colors && attributes */
+    /* set colors and attributes */
     if (BIT(sarev) & sc->attr) { /* reverse */
 
         r = SetBkColor(sc->bdc, sc->fcrgb);
@@ -3147,7 +3148,7 @@ Scroll screen
 Scrolls the ANSI terminal screen by deltas in any given direction. If the scroll
 would move all content off the screen, the screen is simply blanked. Otherwise,
 we find the section of the screen that would remain after the scroll, determine
-its source && destination rectangles, && use a bitblt to move it.
+its source and destination rectangles, and use a bitblt to move it.
 One speedup for the code would be to use non-overlapping fills for the x-y
 fill after the bitblt.
 
@@ -3756,7 +3757,7 @@ static void itab(winptr win)
     /* first, find if next tab even exists */
     x = sc->curxg+1; /* get just after the current x position */
     if (x < 1)  x = 1; /* don"t bother to search to left of screen */
-    /* find tab || } of screen */
+    /* find tab or end of screen */
     i = 0; /* set 1st tab position */
     while (x > sc->tab[i] && sc->tab[i] && i < MAXTAB && x < sc->maxxg) i++;
     if (sc->tab[i] && x < sc->tab[i]) { /* not off right of tabs */
@@ -5155,8 +5156,8 @@ static void ifrrect(winptr win, int x1, int y1, int x2, int y2, int xs, int ys)
     sc = win->screens[win->curupd-1];
     if (win->bufmod) { /* buffer is active */
 
-       /* for filled ellipse, the pen && brush settings are all wrong. we need
-         a single pixel pen && a background brush. we set && restore these */
+       /* for filled ellipse, the pen and brush settings are all wrong. we need
+         a single pixel pen and a background brush. we set and restore these */
        r = SelectObject(sc->bdc, sc->fspen);
        if (r == HGDI_ERROR) error(enosel);
        r = SelectObject(sc->bdc, sc->fbrush);
@@ -5272,7 +5273,7 @@ static void ifellipse(winptr win, int x1, int y1, int x2, int y2)
     if (win->bufmod) { /* buffer is active */
 
         /* for filled ellipse, the pen and brush settings are all wrong. we need
-           a single pixel pen && a background brush. we set and restore these */
+           a single pixel pen and a background brush. we set and restore these */
         r = SelectObject(sc->bdc, sc->fspen);
         if (r == HGDI_ERROR) error(enosel);
         r = SelectObject(sc->bdc, sc->fbrush);
@@ -5356,7 +5357,7 @@ static void iarc(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
     const int precis = 1000; /* precision of circle calculation */
 
     float saf, eaf;       /* starting angles in radian float */
-    int   xs, ys, xe, ye; /* start && } coordinates */
+    int   xs, ys, xe, ye; /* start and end coordinates */
     int   xc, yc;         /* center point */
     int   t;              /* swapper */
     BOOL  b;              /* return value */
@@ -5364,7 +5365,7 @@ static void iarc(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
     /* rationalize rectangle for processing */
     if (x1 > x2) { t = x1; x1 = x2; x2 = t; };
     if (y1 > y2) { t = y1; y1 = y2; y2 = t; };
-    /* convert start && } to radian measure */
+    /* convert start and end to radian measure */
     saf = sa*2.0*PI/INT_MAX;
     eaf = ea*2.0*PI/INT_MAX;
     /* find center of ellipse */
@@ -6736,7 +6737,7 @@ void pa_xbold(FILE* f, int e)
 
 Turn on hollow attribute
 
-Turns on/off the hollow attribute. Hollow is an embossed || 3d effect that
+Turns on/off the hollow attribute. Hollow is an embossed or 3d effect that
 makes the characters appear sunken into the page.
 
 Note that the attributes can only be set singly.
@@ -6782,7 +6783,7 @@ void pa_hollow(FILE* f, int e)
 
 Turn on raised attribute
 
-Turns on/off the raised attribute. Raised is an embossed || 3d effect that
+Turns on/off the raised attribute. Raised is an embossed or 3d effect that
 makes the characters appear coming off the page.
 
 Note that the attributes can only be set singly.
@@ -7149,7 +7150,7 @@ static void iviewscale(winptr win, float x, float y)
 {
 
     /* in this starting simplistic formula, the ratio is set x*INT_MAX/INT_MAX.
-      it works, but can overflow for large coordinates || scales near 1 */
+      it works, but can overflow for large coordinates or scales near 1 */
     win->screens[win->curupd-1]->wextx = 100;
     win->screens[win->curupd-1]->wexty = 100;
     win->screens[win->curupd-1]->vextx = trunc(x*100);
@@ -7628,7 +7629,7 @@ static void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
 
         if (!win->bufmod) { /* main thread handles resizes */
 
-            /* check if maximize, minimize, || exit from either mode */
+            /* check if maximize, minimize, or exit from either mode */
             if (msg->wParam == SIZE_MAXIMIZED)  {
 
                 er->etype = pa_etmax; /* set maximize event */
@@ -7645,7 +7646,7 @@ static void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
                        (win->sizests == SIZE_MINIMIZED ||
                         win->sizests == SIZE_MAXIMIZED)) {
 
-                /* window is restored, && was minimized || maximized */
+                /* window is restored, and was minimized or maximized */
                 er->etype = pa_etnorm; /* set normalize event */
                 /* save the event ahead of the resize */
                 enqueue(&opnfil[opnfil[ofn]->inl]->evt, er); /* queue it */
@@ -7743,7 +7744,7 @@ static void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
         } else z = msg->lParam & 0xffff;
         /* We perform thresholding on the joystick right here, which is
            limited to 255 steps (same as joystick hardware. find joystick
-         diffs && update */
+         diffs and update */
         if (msg->message == MM_JOY1MOVE || msg->message == MM_JOY1ZMOVE) {
 
             dx = abs(win->joy1xs-x); /* find differences */
@@ -7766,7 +7767,7 @@ static void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
         /* now reject moves below the threshold */
         if (dx > 65535 / 255 || dy > 65535 / 255 || dz > 65535 / 255) {
 
-            /* scale axies between -INT_MAX..INT_MAX && place */
+            /* scale axies between -INT_MAX..INT_MAX and place */
             er->joypx = (x - 32767)*(INT_MAX/32768);
             er->joypy = (y - 32767)*(INT_MAX/32768);
             er->joypz = (z - 32767)*(INT_MAX/32768);
@@ -7870,7 +7871,7 @@ static void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
 
     } else if (msg->message == WM_VSCROLL)  {
 
-        v = msg->wParam && 0xffff; /* find subcommand */
+        v = msg->wParam & 0xffff; /* find subcommand */
         if (v == SB_THUMBTRACK ||
             v == SB_LINEUP || v == SB_LINEDOWN ||
             v == SB_PAGEUP || v == SB_PAGEDOWN) {
@@ -7906,7 +7907,7 @@ static void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
                     er->sclpid = wp->id; /* set widget id */
                     f = msg->wParam/0x10000; /* get current position to float */
                     /* clamp to INT_MAX */
-                    if (f*INT_MAX/(255-wp->siz) > INT_MAX) er->sclpos = INT_MAX;
+                    if (f*INT_MAX/(255-wp->siz) >= INT_MAX) er->sclpos = INT_MAX;
                     else er->sclpos = f*INT_MAX/(255-wp->siz);
                     /*er->sclpos = msg->wParam / 65536*0x800000*/ /* get position */
 
@@ -7936,7 +7937,7 @@ static void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
 
     } else if (msg->message == WM_HSCROLL) {
 
-        v = msg->wParam && 0xffff; /* find subcommand */
+        v = msg->wParam & 0xffff; /* find subcommand */
         if (v == SB_THUMBTRACK || v == SB_LINELEFT || v == SB_LINERIGHT ||
             v == SB_PAGELEFT || v == SB_PAGERIGHT) {
 
@@ -8245,7 +8246,7 @@ With that data, we  post a message back to the queue, containing the
 graph number of the timer that went off.
 
 The reason we multiplex the logical file number is because the windows handle,
-which we need, has a range determined by Windows, && we have to assume it
+which we need, has a range determined by Windows, and we have to assume it
 occupies a full word. The alternatives to multiplexing were to have the timer
 callback thunk be customized, which is a non-standard solution, or use one
 of the other parameters Windows passes to this function, which are not
@@ -8311,7 +8312,7 @@ static void itimer(winptr win, /* file to send event to */
     /* set repeat/one shot status */
     if (r) tf |= TIME_PERIODIC;
     else tf |= TIME_ONESHOT;
-    /* We need both the timer number, && the window number in the handler,
+    /* We need both the timer number, and the window number in the handler,
       but we only have a single callback parameter available. So we mux
       them together in a word. */
     win->timers[i].han = timeSetEvent(mt, 0, timeout, lf*PA_MAXTIM+i, tf);
@@ -10039,7 +10040,7 @@ static void mettrk(winptr win, HMENU han, int inx, pa_menuptr m)
     mp->select = FALSE; /* place status of select (off) */
     mp->id = m->id; /* place id */
     mp->oneof = NULL; /* set no "one of" */
-    /* We are walking backwards in the list, && we need the next list entry
+    /* We are walking backwards in the list, and we need the next list entry
       to know the "one of" chain. So we tie the entry to itself as a flag
       that it chains to the next entry. That chain will get fixed on the
       next entry. */
@@ -10540,7 +10541,7 @@ Set window size character
 Sets the onscreen window size, in character terms. If the window has a parent,
 the demensions are converted to the current character size there. Otherwise,
 the pixel based dementions are used. This occurs because the desktop does
-not have a fixed character aspect, so we make one up, && our logical character
+not have a fixed character aspect, so we make one up, and our logical character
 is "one pixel" high and wide. It works because it can only be used as a
 relative measurement.
 
@@ -11875,7 +11876,7 @@ static void icheckboxsizg(winptr win, char* s, int* w, int* h)
     b = GetTextExtentPoint32(dc, s, strlen(s), &sz); /* get sizing */
     if (!b) winerr(); /* process windows error */
     /* We needed to add a fudge factor for the space between the checkbox, the
-       left edge of the widget, && the left edge of the text. */
+       left edge of the widget, and the left edge of the text. */
     *w = sz.cx+GetSystemMetrics(SM_CXMENUCHECK)+6; /* return size */
     *h = sz.cy;
 
@@ -12440,7 +12441,7 @@ static void iscrollhorizsizg(winptr win, int* w, int* h)
 
 {
 
-    /* get system values for scroll bar arrow width && height, for which there
+    /* get system values for scroll bar arrow width and height, for which there
        are two. */
     *w = GetSystemMetrics(SM_CXHSCROLL)*2;
     *h = GetSystemMetrics(SM_CYHSCROLL);
@@ -12748,7 +12749,7 @@ static void inumselboxsizg(winptr win, int l, int u,  int* w, int* h)
     if (u > 9) b = GetTextExtentPoint32(dc, "00", 2, &sz); /* get sizing */
     else b = GetTextExtentPoint32(dc, "0", 1, &sz); /* get sizing */
     if (!b) winerr(); /* process windows error */
-    /* width of text, plus up/down arrows, && border && divider lines */
+    /* width of text, plus up/down arrows, and border and divider lines */
     *w = sz.cx+GetSystemMetrics(SM_CXVSCROLL)+4;
     *h = sz.cy+2; /* height of text plus border lines */
 
@@ -13856,7 +13857,7 @@ void pa_slidehoriz(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 Find minimum/standard vertical slider size
 
 Finds the minimum size for a vertical slider. The minimum size of a vertical
-slider is calculated && returned.
+slider is calculated and returned.
 
 *******************************************************************************/
 
@@ -13865,7 +13866,7 @@ static void islidevertsizg(winptr win, int* w, int* h)
 {
 
     /* The height is that of an average slider. The width is what is needed to
-       present the slider, tick marks, && 2 pixels of spacing around it. */
+       present the slider, tick marks, and 2 pixels of spacing around it. */
     *w = 32;
     *h = 200;
 
