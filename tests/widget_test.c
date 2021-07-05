@@ -123,6 +123,8 @@ int main(void)
 
     if (setjmp(terminate_buf)) goto terminate;
 
+    pa_curvis(stdout, FALSE);
+#if 0
     printf("Widget test vs. 0.1\n");
     printf("\n");
     printf("Hit return in any window to continue for each test\n");
@@ -665,6 +667,7 @@ int main(void)
 
     /* *********************** Terminal scroll bar test *********************** */
 
+#endif
     printf("\f");
     chrgrid();
     pa_binvis(stdout);

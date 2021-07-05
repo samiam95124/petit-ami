@@ -156,13 +156,13 @@ static enum { /* debug levels */
 #define MAXMSG    1000  /* size of input message queue */
  /* Messages defined in this module. The system message block runs from
    0x000-0x3ff, so the user mesage area starts at 0x400. */
-#define UMMAKWIN  0x404 /* create standard window */
-#define UMWINSTR  0x405 /* window was created */
-#define UMCLSWIN  0x406 /* close window */
-#define UMWINCLS  0x407 /* window was closed */
-#define UMIM      0x408 /* intratask message */
-#define UMEDITCR  0x409 /* edit widget sends cr */
-#define UMNUMCR   0x410 /* number select widget sends cr */
+#define UM_MAKWIN  0x404 /* create standard window */
+#define UM_WINSTR  0x405 /* window was created */
+#define UM_CLSWIN  0x406 /* close window */
+#define UM_WINCLS  0x407 /* window was closed */
+#define UM_IM      0x408 /* intratask message */
+#define UM_EDITCR  0x409 /* edit widget sends cr */
+#define UM_NUMCR   0x410 /* number select widget sends cr */
 /* standard file handles */
 #define INPFIL    0     /* input */
 #define OUTFIL    1     /* output */
@@ -1387,6 +1387,15 @@ static void prtmsgstr(int mn)
         case 0x03E7: fprintf(stderr, "WM_DDE_POKE"); break;
         case 0x03E8: fprintf(stderr, "WM_DDE_EXECUTE"); break;
         /* case 0x03E8: fprintf(stderr, "WM_DDE_LAST"); break; */
+
+        /* user defined codes (from this module) */
+        case UM_MAKWIN: fprintf(stderr, "UM_MAKWIN"); break;
+        case UM_WINSTR: fprintf(stderr, "UM_WINSTR"); break;
+        case UM_CLSWIN: fprintf(stderr, "UM_CLSWIN"); break;
+        case UM_WINCLS: fprintf(stderr, "UM_WINCLS"); break;
+        case UM_IM:     fprintf(stderr, "UM_IM"); break;
+        case UM_EDITCR: fprintf(stderr, "UM_EDITCR"); break;
+        case UM_NUMCR:  fprintf(stderr, "UM_NUMCR"); break;
 
         default: fprintf(stderr, "???"); break;
 
@@ -8007,7 +8016,7 @@ static void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
 
         }
 
-    } else if (msg->message == UMEDITCR) {
+    } else if (msg->message == UM_EDITCR) {
 
         wp = fndwig(win, msg->wParam); /* find widget tracking entry */
         if (!wp) error(esystem); /* should have been found */
@@ -8015,7 +8024,7 @@ static void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
         er->edtbid = wp->id; /* get widget id */
         *keep = TRUE; /* set keep event */
 
-    } else if (msg->message == UMNUMCR) {
+    } else if (msg->message == UM_NUMCR) {
 
         wp = fndwig(win, msg->wParam); /* find widget tracking entry */
         if (!wp) error(esystem); /* should have been found */
@@ -8211,7 +8220,7 @@ static void waitim(imcode m, imptr* ip)
     do {
 
         igetmsg(&msg); /* get next message */
-        if (msg.message == UMIM) { /* receive im */
+        if (msg.message == UM_IM) { /* receive im */
 
             *ip = (imptr)msg.wParam; /* get im pointer */
             if ((*ip)->im == m) done = TRUE; /* found it */
@@ -9346,10 +9355,10 @@ static void kilwin(HWND wh)
 
     stdwinwin = wh; /* place window handle */
     /* order window to close */
-    b = PostMessage(dispwin, UMCLSWIN, 0, 0);
+    b = PostMessage(dispwin, UM_CLSWIN, 0, 0);
     if (!b) winerr(); /* process windows error */
     /* Wait for window close. */
-    do { igetmsg(&msg); } while (msg.message != UMWINCLS);
+    do { igetmsg(&msg); } while (msg.message != UM_WINCLS);
 
 }
 
@@ -9453,10 +9462,10 @@ static void opnwin(int fn, int pfn)
     stdwinh = 0x80000000;
     stdwinpar = win->parhan;
     /* order window to start */
-    b = PostMessage(dispwin, UMMAKWIN, 0, 0);
+    b = PostMessage(dispwin, UM_MAKWIN, 0, 0);
     if (!b) winerr(); /* process windows error */
     /* Wait for window start. */
-    do { igetmsg(&msg); } while (msg.message != UMWINSTR);
+    do { igetmsg(&msg); } while (msg.message != UM_WINSTR);
     win->winhan = stdwinwin; /* get the new handle */
     if (!win->winhan) winerr(); /* process windows error */
 
@@ -11302,7 +11311,7 @@ static HWND createwidget(winptr win, wigtyp typ, int x1, int y1, int x2, int y2,
     ip->wigid = id; /* place id */
     ip->wigmod = GetModuleHandle(NULL); /* place module */
     /* order widget to start */
-    b = PostMessage(dispwin, UMIM, (WPARAM)ip, 0);
+    b = PostMessage(dispwin, UM_IM, (WPARAM)ip, 0);
     if (!b) winerr(); /* process windows error */
     /* Wait for widget start, this also keeps our window going. */
     waitim(imwidget, &ip); /* wait for the return */
@@ -12688,7 +12697,7 @@ static LRESULT CALLBACK wndprocnum(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM l
                 /* Send edit sends cr message to parent window, with widget logical
                    number embedded as wparam. */
                 if (!err && v >= wp->low && v <= wp->high)
-                    putmsg(wh, UMNUMCR, wp->id, v); /* send select message */
+                    putmsg(wh, UM_NUMCR, wp->id, v); /* send select message */
                 else
                     /* Send the message on to its owner, this will ring the bell in
                        Windows XP. */
@@ -12831,7 +12840,7 @@ static void inumselboxg(winptr win, int x1, int y1, int x2, int y2, int l, int u
     ip->udup = u;
     ip->udlow = l;
     ip->udpos = l;
-    br = PostMessage(dispwin, UMIM, (WPARAM)ip, 0);
+    br = PostMessage(dispwin, UM_IM, (WPARAM)ip, 0);
     if (!br) winerr(); /* process windows error */
     waitim(imupdown, &ip); /* wait for the return */
     wp->han = ip->udhan; /* place control handle */
@@ -12916,7 +12925,7 @@ static int wndprocedit(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
     if (imsg == WM_CHAR && wparam == '\r')
         /* Send edit sends cr message to parent window, with widget logical
            number embedded as wparam. */
-        putmsg(wh, UMEDITCR, wp->id, 0);
+        putmsg(wh, UM_EDITCR, wp->id, 0);
     else
         /* send the message on to its owner */
         r = CallWindowProc(wp->wprc, hwnd, imsg, wparam, lparam);
@@ -14001,7 +14010,7 @@ static void uselesswidget(winptr win)
     ip->wigid = 0;
     ip->wigmod = GetModuleHandle(NULL);
     /* order widget to start */
-    b = PostMessage(dispwin, UMIM, (WPARAM)ip, 0);
+    b = PostMessage(dispwin, UM_IM, (WPARAM)ip, 0);
     if (!b) winerr(); /* process windows error */
     /* Wait for widget start, this also keeps our window going. */
     waitim(imwidget, &ip); /* wait for the return */
@@ -14381,7 +14390,7 @@ void pa_alert(char* title, char* message)
     ip->im = imalert; /* set is alert */
     ip->alttit = title; /* copy strings */
     ip->altmsg = message;
-    b = PostMessage(dialogwin, UMIM, (WPARAM)ip, 0);
+    b = PostMessage(dialogwin, UM_IM, (WPARAM)ip, 0);
     if (!b) winerr(); /* process windows error */
     waitim(imalert, &ip); /* wait for the return */
     unlockmain(); /* end exclusive access */
@@ -14411,7 +14420,7 @@ void pa_querycolor(int* r, int* g, int* b)
     ip->clrred = *r; /* set colors */
     ip->clrgreen = *g;
     ip->clrblue = *b;
-    br = PostMessage(dialogwin, UMIM, (WPARAM)ip, 0);
+    br = PostMessage(dialogwin, UM_IM, (WPARAM)ip, 0);
     if (!br) winerr(); /* process windows error */
     waitim(imqcolor, &ip); /* wait for the return */
     *r = ip->clrred; /* set new colors */
@@ -14449,7 +14458,7 @@ void pa_queryopen(char* s)
     getitm(&ip); /* get a im pointer */
     ip->im = imqopen; /* set is open file query */
     ip->opnfil = s; /* set input string */
-    br = PostMessage(dialogwin, UMIM, (WPARAM)ip, 0);
+    br = PostMessage(dialogwin, UM_IM, (WPARAM)ip, 0);
     if (!br) winerr(); /* process windows error */
     waitim(imqopen, &ip); /* wait for the return */
     s = ip->opnfil; /* set output string */
@@ -14485,7 +14494,7 @@ void pa_querysave(char* s)
     getitm(&ip); /* get a im pointer */
     ip->im = imqsave; /* set is open file query */
     ip->opnfil = s; /* set input string */
-    br = PostMessage(dialogwin, UMIM, (WPARAM)ip, 0);
+    br = PostMessage(dialogwin, UM_IM, (WPARAM)ip, 0);
     if (!br)  winerr(); /* process windows error */
     waitim(imqsave, &ip); /* wait for the return */
     s = ip->savfil; /* set output string */
@@ -14531,7 +14540,7 @@ void pa_queryfind(char* s, int* opt)
     ip->im = imqfind; /* set is find query */
     ip->fndstr = s; /* set input string */
     ip->fndopt = *opt; /* set options */
-    br = PostMessage(dialogwin, UMIM, (WPARAM)ip, 0);
+    br = PostMessage(dialogwin, UM_IM, (WPARAM)ip, 0);
     if (!br) winerr(); /* process windows error */
     waitim(imqfind, &ip); /* wait for the return */
     s = ip->fndstr; /* set output string */
@@ -14571,7 +14580,7 @@ void pa_queryfindrep(char* s, char* r, int* opt)
     ip->fnrsch = s; /* set input find string */
     ip->fnrrep = r; /* set input replace string */
     ip->fnropt = *opt; /* set options */
-    br = PostMessage(dialogwin, UMIM, (WPARAM)ip, 0);
+    br = PostMessage(dialogwin, UM_IM, (WPARAM)ip, 0);
     if (!br) winerr(); /* process windows error */
     waitim(imqfindrep, &ip); /* wait for the return */
     s = ip->fnrsch; /* set output find string */
@@ -14646,7 +14655,7 @@ static void iqueryfont(winptr win, int* fc, int* s, int* fr, int* fg, int* fb,
     ip->fntbb = *bb;
     ip->fntsiz = *s; /* place font size */
     /* send request */
-    b = PostMessage(dialogwin, UMIM, (WPARAM)ip, 0);
+    b = PostMessage(dialogwin, UM_IM, (WPARAM)ip, 0);
     if (!b) winerr(); /* process windows error */
     waitim(imqfont, &ip); /* wait for the return */
     /* pull back the output parameters */
@@ -14777,7 +14786,7 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam,
         putmsg(hwnd, imsg, wparam, lparam); /* copy to main thread */
         r = 0;
 
-    } else if (imsg == UMMAKWIN) { /* create standard window */
+    } else if (imsg == UM_MAKWIN) { /* create standard window */
 
         /* create the window */
         stdwinwin = CreateWindow("StdWin", pgmnam, stdwinflg,
@@ -14796,15 +14805,15 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam,
         }
 
         /* signal we started window */
-        iputmsg(0, UMWINSTR, 0, 0);
+        iputmsg(0, UM_WINSTR, 0, 0);
         r = 0;
 
-    } else if (imsg == UMCLSWIN) { /* close standard window */
+    } else if (imsg == UM_CLSWIN) { /* close standard window */
 
         b = DestroyWindow(stdwinwin); /* remove window from screen */
 
         /* signal we closed window */
-        iputmsg(0, UMWINCLS, 0, 0);
+        iputmsg(0, UM_WINCLS, 0, 0);
         r = 0;
 
     } else if (imsg == WM_ERASEBKGND) {
@@ -14841,7 +14850,7 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam,
         putmsg(hwnd, imsg, wparam, lparam);
         r = DefWindowProc(hwnd, imsg, wparam, lparam);
 
-    } else if (imsg == UMIM) { /* intratask message */
+    } else if (imsg == UM_IM) { /* intratask message */
 
         ip = (imptr)wparam; /* get im pointer */
         switch (ip->im) { /* im type */
@@ -14864,7 +14873,7 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam,
                                         ip->udpos);
 #endif
                 /* signal complete */
-                iputmsg(0, UMIM, wparam, 0);
+                iputmsg(0, UM_IM, wparam, 0);
                 break;
 
             case imwidget: /* create widget */
@@ -14874,7 +14883,7 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam,
                                           ip->wigh, ip->wigpar, (HMENU)ip->wigid,
                                           ip->wigmod, NULL);
                 /* signal we started widget */
-                iputmsg(0, UMIM, wparam, 0);
+                iputmsg(0, UM_IM, wparam, 0);
                 break;
 
         }
@@ -15083,7 +15092,7 @@ static LRESULT CALLBACK wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam,
         PostQuitMessage(0);
         r = 0;
 
-    } else if (imsg == UMIM) { /* intratask message */
+    } else if (imsg == UM_IM) { /* intratask message */
 
         ip = (imptr)wparam; /* get im pointer */
         switch (ip->im) { /* im type */
@@ -15092,7 +15101,7 @@ static LRESULT CALLBACK wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam,
                 r = MessageBox(0, ip->altmsg, ip->alttit,
                                MB_OK | MB_SETFOREGROUND);
                 /* signal complete */
-                iputmsg(0, UMIM, wparam, 0);
+                iputmsg(0, UM_IM, wparam, 0);
                 break;
 
             case imqcolor:
@@ -15112,7 +15121,7 @@ static LRESULT CALLBACK wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam,
                 /* set resulting color */
                 win2rgb(cr.rgbResult, &ip->clrred, &ip->clrgreen, &ip->clrblue);
                 /* signal complete */
-                iputmsg(0, UMIM, wparam, 0);
+                iputmsg(0, UM_IM, wparam, 0);
                 break;
 
             case imqopen:
@@ -15166,7 +15175,7 @@ static LRESULT CALLBACK wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam,
 
                 }
                 /* signal complete */
-                iputmsg(0, UMIM, wparam, 0);
+                iputmsg(0, UM_IM, wparam, 0);
                 break;
 
             case imqfind:
@@ -15324,7 +15333,7 @@ static LRESULT CALLBACK wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam,
 
                 }
                 /* signal complete */
-                iputmsg(0, UMIM, wparam, 0);
+                iputmsg(0, UM_IM, wparam, 0);
                 break;
 
         }
@@ -15366,7 +15375,7 @@ static LRESULT CALLBACK wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam,
         }
         free(frrp); /* release find/replace entry */
         /* signal complete */
-        iputmsg(0, UMIM, (WPARAM)ip, 0);
+        iputmsg(0, UM_IM, (WPARAM)ip, 0);
 
     } else r = DefWindowProc(hwnd, imsg, wparam, lparam);
 
