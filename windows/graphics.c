@@ -830,22 +830,22 @@ static void prtwig(wigptr wp)
     fprintf(stderr, " Type: ");
     switch (wp->typ) { /* widget */
 
-        case wtbutton:      fprintf(stderr, "Button");
-        case wtcheckbox:    fprintf(stderr, "Checkbox");
-        case wtradiobutton: fprintf(stderr, "Radio Button");
-        case wtgroup:       fprintf(stderr, "Group Box");
-        case wtbackground:  fprintf(stderr, "Backgroun Box");
-        case wtscrollvert:  fprintf(stderr, "Vertical Scroll");
-        case wtscrollhoriz: fprintf(stderr, "Horizontal Scroll");
-        case wtnumselbox:   fprintf(stderr, "Number Select Box");
-        case wteditbox:     fprintf(stderr, "Edit Box");
-        case wtprogressbar: fprintf(stderr, "Progress Bar");
-        case wtlistbox:     fprintf(stderr, "List Box");
-        case wtdropbox:     fprintf(stderr, "Drop Box");
-        case wtdropeditbox: fprintf(stderr, "Drop Edit Box");
-        case wtslidehoriz:  fprintf(stderr, "Horizontal Slider");
-        case wtslidevert:   fprintf(stderr, "Vertical Slider");
-        case wttabbar:      fprintf(stderr, "Tab Bar");
+        case wtbutton:      fprintf(stderr, "Button"); break;
+        case wtcheckbox:    fprintf(stderr, "Checkbox"); break;
+        case wtradiobutton: fprintf(stderr, "Radio Button"); break;
+        case wtgroup:       fprintf(stderr, "Group Box"); break;
+        case wtbackground:  fprintf(stderr, "Backgroun Box"); break;
+        case wtscrollvert:  fprintf(stderr, "Vertical Scroll"); break;
+        case wtscrollhoriz: fprintf(stderr, "Horizontal Scroll"); break;
+        case wtnumselbox:   fprintf(stderr, "Number Select Box"); break;
+        case wteditbox:     fprintf(stderr, "Edit Box"); break;
+        case wtprogressbar: fprintf(stderr, "Progress Bar"); break;
+        case wtlistbox:     fprintf(stderr, "List Box"); break;
+        case wtdropbox:     fprintf(stderr, "Drop Box"); break;
+        case wtdropeditbox: fprintf(stderr, "Drop Edit Box"); break;
+        case wtslidehoriz:  fprintf(stderr, "Horizontal Slider"); break;
+        case wtslidevert:   fprintf(stderr, "Vertical Slider"); break;
+        case wttabbar:      fprintf(stderr, "Tab Bar"); break;
 
     }
     if (wp->typ == wtscrollvert || wp->typ == wtscrollhoriz)
@@ -7771,9 +7771,9 @@ static void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
                msg->message == MM_JOY2BUTTONUP) joymes(er, msg, ofn, keep);
     else if (msg->message == WM_COMMAND) {
 
-        if (msg->lParam) { /* it"s a widget */
+        if (msg->lParam) { /* it's a widget */
 
-            wp = fndwig(win, msg->wParam && 0xffff); /* find the widget */
+            wp = fndwig(win, msg->wParam & 0xffff); /* find the widget */
             if (wp == NULL) error(esystem); /* should be in the list */
             nm = msg->wParam / 0x10000; /* get notification message */
             switch (wp->typ) { /* widget type */
