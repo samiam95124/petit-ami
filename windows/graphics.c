@@ -14260,8 +14260,6 @@ static void itabbarg(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp,
     LRESULT r;
 
     if (!win->visible) winvis(win); /* make sure we are displayed */
-// windows f'ed this up
-#if 0
     fl = 0; /* clear parameter flags */
     if (tor == pa_toright || tor == pa_toleft) fl |= TCS_VERTICAL;
     if (tor == pa_toright) fl |= TCS_RIGHT;
@@ -14286,9 +14284,7 @@ static void itabbarg(winptr win, int x1, int y1, int x2, int y2, pa_strptr sp,
         inx++; /* next index */
 
     }
-#endif
-
-    uselesswidget(win); /* stop overwrite bug */
+    uselesswidget(win); /* stop overwrite bug in Windows */
 
 }
 

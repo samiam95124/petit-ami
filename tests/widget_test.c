@@ -1386,7 +1386,6 @@ int main(void)
 
     /* ************************* Terminal tab bar test ************************ */
 
-#endif
     printf("\f");
     chrgrid();
     pa_binvis(stdout);
@@ -1407,7 +1406,6 @@ int main(void)
     pa_tabbarsiz(stdout, pa_totop, 20, 2, &x, &y, &ox, &oy);
     pa_tabbar(stdout, 15, 3, 15+x-1, 3+y-1, lp, pa_totop, 1);
 
-#if 0
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("Bottom");
     lp->next = NULL;
@@ -1449,7 +1447,6 @@ int main(void)
     lp = sp;
     pa_tabbarsiz(stdout, pa_toleft, 2, 12, &x, &y, &ox, &oy);
     pa_tabbar(stdout, 5, 7, 5+x-1, 7+y-1, lp, pa_toleft, 4);
-#endif
 
     do {
 
@@ -1458,31 +1455,31 @@ int main(void)
 
             if (er.tabid == 1) switch (er.tabsel) {
 
-                case 1: printf("Top bar: You selected Left\n");
-                case 2: printf("Top bar: You selected Center\n");
-                case 3: printf("Top bar: You selected Right\n");
-                default: printf("!!! Bad select number !!!\n");
+                case 1: printf("Top bar: You selected Left\n"); break;
+                case 2: printf("Top bar: You selected Center\n"); break;
+                case 3: printf("Top bar: You selected Right\n"); break;
+                default: printf("!!! Bad select number !!!\n"); break;
 
             } else if (er.tabid == 2) switch (er.tabsel) {
 
-                case 1: printf("Right bar: You selected Top\n");
-                case 2: printf("Right bar: You selected Center\n");
-                case 3: printf("Right bar: You selected Bottom\n");
-                default: printf("!!! Bad select number !!!\n");
+                case 1: printf("Right bar: You selected Top\n"); break;
+                case 2: printf("Right bar: You selected Center\n"); break;
+                case 3: printf("Right bar: You selected Bottom\n"); break;
+                default: printf("!!! Bad select number !!!\n"); break;
 
             } else if (er.tabid == 3) switch (er.tabsel) {
 
-                case 1: printf("Bottom bar: You selected Left\n");
-                case 2: printf("Bottom bar: You selected Center\n");
-                case 3: printf("Bottom bar: You selected right\n");
-                default: printf("!!! Bad select number !!!\n");
+                case 1: printf("Bottom bar: You selected Left\n"); break;
+                case 2: printf("Bottom bar: You selected Center\n"); break;
+                case 3: printf("Bottom bar: You selected right\n"); break;
+                default: printf("!!! Bad select number !!!\n"); break;
 
             } else if (er.tabid == 4) switch (er.tabsel) {
 
-                case 1: printf("Left bar: You selected Top\n");
-                case 2: printf("Left bar: You selected Center\n");
-                case 3: printf("Left bar: You selected Bottom\n");
-                default: printf("!!! Bad select number !!!\n");
+                case 1: printf("Left bar: You selected Top\n"); break;
+                case 2: printf("Left bar: You selected Center\n"); break;
+                case 3: printf("Left bar: You selected Bottom\n"); break;
+                default: printf("!!! Bad select number !!!\n"); break;
 
             } else printf("!!! Bad tab id !!!\n");
 
@@ -1497,7 +1494,6 @@ int main(void)
 
    /* ************************* Graphical tab bar test ************************ */
 
-pa_bcolor(stdout, pa_cyan);
     printf("\f");
     printf("Graphical tab bar test\n");
     printf("\n");
@@ -1514,8 +1510,6 @@ pa_bcolor(stdout, pa_cyan);
     sp->next = lp;
     lp = sp;
     pa_tabbarsizg(stdout, pa_totop, 200, 20, &x, &y, &ox, &oy);
-pa_line(stdout, 1, 50, pa_maxxg(stdout), 50);
-pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
     pa_tabbarg(stdout, 150, 50, 150+x-1, 50+y-1, lp, pa_totop, 1);
 
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
@@ -1567,31 +1561,31 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
 
             if (er.tabid == 1) switch (er.tabsel) {
 
-                case 1: printf("Top bar: You selected Left\n");
-                case 2: printf("Top bar: You selected Center\n");
-                case 3: printf("Top bar: You selected Right\n");
-                default: printf("!!! Bad select number !!!\n");
+                case 1: printf("Top bar: You selected Left\n"); break;
+                case 2: printf("Top bar: You selected Center\n"); break;
+                case 3: printf("Top bar: You selected Right\n"); break;
+                default: printf("!!! Bad select number !!!\n"); break;
 
             } else if (er.tabid == 2) switch (er.tabsel) {
 
-                case 1: printf("Right bar: You selected Top\n");
-                case 2: printf("Right bar: You selected Center\n");
-                case 3: printf("Right bar: You selected Bottom\n");
-                default: printf("!!! Bad select number !!!\n");
+                case 1: printf("Right bar: You selected Top\n"); break;
+                case 2: printf("Right bar: You selected Center\n"); break;
+                case 3: printf("Right bar: You selected Bottom\n"); break;
+                default: printf("!!! Bad select number !!!\n"); break;
 
             } else if (er.tabid == 3) switch (er.tabsel) {
 
-                case 1: printf("Bottom bar: You selected Left\n");
-                case 2: printf("Bottom bar: You selected Center\n");
-                case 3: printf("Bottom bar: You selected right\n");
-                default: printf("!!! Bad select number !!!\n");
+                case 1: printf("Bottom bar: You selected Left\n"); break;
+                case 2: printf("Bottom bar: You selected Center\n"); break;
+                case 3: printf("Bottom bar: You selected right\n"); break;
+                default: printf("!!! Bad select number !!!\n"); break;
 
             } else if (er.tabid == 4) switch (er.tabsel) {
 
-                case 1: printf("Left bar: You selected Top\n");
-                case 2: printf("Left bar: You selected Center\n");
-                case 3: printf("Left bar: You selected Bottom\n");
-                default: printf("!!! Bad select number !!!\n");
+                case 1: printf("Left bar: You selected Top\n"); break;
+                case 2: printf("Left bar: You selected Center\n"); break;
+                case 3: printf("Left bar: You selected Bottom\n"); break;
+                default: printf("!!! Bad select number !!!\n"); break;
 
             } else printf("!!! Bad tab id !!!\n");
 
@@ -1675,31 +1669,31 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
 
             if (er.tabid == 1) switch (er.tabsel) {
 
-                case 1: printf("Top bar: You selected Left\n");
-                case 2: printf("Top bar: You selected Center\n");
-                case 3: printf("Top bar: You selected Right\n");
-                default: printf("!!! Bad select number !!!\n");
+                case 1: printf("Top bar: You selected Left\n"); break;
+                case 2: printf("Top bar: You selected Center\n"); break;
+                case 3: printf("Top bar: You selected Right\n"); break;
+                default: printf("!!! Bad select number !!!\n"); break;
 
             } else if (er.tabid == 2) switch (er.tabsel) {
 
-                case 1: printf("Right bar: You selected Top\n");
-                case 2: printf("Right bar: You selected Center\n");
-                case 3: printf("Right bar: You selected Bottom\n");
-                default: printf("!!! Bad select number !!!\n");
+                case 1: printf("Right bar: You selected Top\n"); break;
+                case 2: printf("Right bar: You selected Center\n"); break;
+                case 3: printf("Right bar: You selected Bottom\n"); break;
+                default: printf("!!! Bad select number !!!\n"); break;
 
             } else if (er.tabid == 3) switch (er.tabsel) {
 
-                case 1: printf("Bottom bar: You selected Left\n");
-                case 2: printf("Bottom bar: You selected Center\n");
-                case 3: printf("Bottom bar: You selected right\n");
-                default: printf("!!! Bad select number !!!\n");
+                case 1: printf("Bottom bar: You selected Left\n"); break;
+                case 2: printf("Bottom bar: You selected Center\n"); break;
+                case 3: printf("Bottom bar: You selected right\n"); break;
+                default: printf("!!! Bad select number !!!\n"); break;
 
             } else if (er.tabid == 4) switch (er.tabsel) {
 
-                case 1: printf("Left bar: You selected Top\n");
-                case 2: printf("Left bar: You selected Center\n");
-                case 3: printf("Left bar: You selected Bottom\n");
-                default: printf("!!! Bad select number !!!\n");
+                case 1: printf("Left bar: You selected Top\n"); break;
+                case 2: printf("Left bar: You selected Center\n"); break;
+                case 3: printf("Left bar: You selected Bottom\n"); break;
+                default: printf("!!! Bad select number !!!\n"); break;
 
             } else printf("!!! Bad tab id !!!\n");
 
@@ -1780,31 +1774,31 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
 
             if (er.tabid == 1) switch (er.tabsel) {
 
-                case 1: printf("Top bar: You selected Left\n");
-                case 2: printf("Top bar: You selected Center\n");
-                case 3: printf("Top bar: You selected Right\n");
-                default: printf("!!! Bad select number !!!\n");
+                case 1: printf("Top bar: You selected Left\n"); break;
+                case 2: printf("Top bar: You selected Center\n"); break;
+                case 3: printf("Top bar: You selected Right\n"); break;
+                default: printf("!!! Bad select number !!!\n"); break;
 
             } else if (er.tabid == 2) switch (er.tabsel) {
 
-                case 1: printf("Right bar: You selected Top\n");
-                case 2: printf("Right bar: You selected Center\n");
-                case 3: printf("Right bar: You selected Bottom\n");
-                default: printf("!!! Bad select number !!!\n");
+                case 1: printf("Right bar: You selected Top\n"); break;
+                case 2: printf("Right bar: You selected Center\n"); break;
+                case 3: printf("Right bar: You selected Bottom\n"); break;
+                default: printf("!!! Bad select number !!!\n"); break;
 
             } else if (er.tabid == 3) switch (er.tabsel) {
 
-                case 1: printf("Bottom bar: You selected Left\n");
-                case 2: printf("Bottom bar: You selected Center\n");
-                case 3: printf("Bottom bar: You selected right\n");
-                default: printf("!!! Bad select number !!!\n");
+                case 1: printf("Bottom bar: You selected Left\n"); break;
+                case 2: printf("Bottom bar: You selected Center\n"); break;
+                case 3: printf("Bottom bar: You selected right\n"); break;
+                default: printf("!!! Bad select number !!!\n"); break;
 
             } else if (er.tabid == 4) switch (er.tabsel) {
 
-                case 1: printf("Left bar: You selected Top\n");
-                case 2: printf("Left bar: You selected Center\n");
-                case 3: printf("Left bar: You selected Bottom\n");
-                default: printf("!!! Bad select number !!!\n");
+                case 1: printf("Left bar: You selected Top\n"); break;
+                case 2: printf("Left bar: You selected Center\n"); break;
+                case 3: printf("Left bar: You selected Bottom\n"); break;
+                default: printf("!!! Bad select number !!!\n"); break;
 
             } else printf("!!! Bad tab id !!!\n");
 
@@ -1831,6 +1825,7 @@ pa_line(stdout, 150, 1, 150, pa_maxyg(stdout));
 
     /* ************************* Color query test ************************ */
 
+#endif
     printf("\f");
     printf("Color query test\n");
     printf("\n");
