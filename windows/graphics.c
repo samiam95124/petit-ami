@@ -1200,7 +1200,7 @@ static void ifree(void* ptr)
 
 {
 
-    ifree(ptr);
+    free(ptr);
 
 }
 
