@@ -12750,7 +12750,7 @@ static void inumselboxsizg(winptr win, int l, int u,  int* w, int* h)
     else b = GetTextExtentPoint32(dc, "0", 1, &sz); /* get sizing */
     if (!b) winerr(); /* process windows error */
     /* width of text, plus up/down arrows, and border and divider lines */
-    *w = sz.cx+GetSystemMetrics(SM_CXVSCROLL)+4;
+    *w = sz.cx+GetSystemMetrics(SM_CXVSCROLL)+6;
     *h = sz.cy+2; /* height of text plus border lines */
 
 }
@@ -14857,22 +14857,23 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam,
         switch (ip->im) { /* im type */
 
             case imupdown: /* create up/down control */
-                /* get width of up/down control (same as scroll arrow) */
-                udw = GetSystemMetrics(SM_CXHSCROLL);
                 ip->udbuddy =
-                    CreateWindow("edit", "",
-                                 WS_CHILD | WS_VISIBLE | WS_BORDER |
-                                 ES_LEFT | ES_AUTOHSCROLL,
-                                 ip->udx, ip->udy, ip->udcx-udw-1, ip->udcy,
-                                 ip->udpar, (HMENU)ip->udid, ip->udinst, NULL);
-#if 0
-/* note this widget is listed as "obsolete" and does not link */
-                ip->udhan =
-                    CreateUpDownControl(ip->udflg, ip->udx+ip->udcx-udw-2, ip->udy, udw,
-                                        ip->udcy, ip->udpar, ip->udid, ip->udinst,
-                                        ip->udbuddy, ip->udup, ip->udlow,
-                                        ip->udpos);
-#endif
+                    CreateWindowEx(WS_EX_LEFT | WS_EX_CLIENTEDGE | WS_EX_CONTEXTHELP,
+                                      WC_EDIT,
+                                      NULL,
+                                      WS_CHILDWINDOW | WS_VISIBLE | WS_BORDER
+                                      | ES_NUMBER | ES_LEFT,
+                                      ip->udx, ip->udy, ip->udcx, ip->udcy,
+                                      ip->udpar, (HMENU)ip->udid, ip->udinst, NULL);
+                ip->udhan = CreateWindowEx(WS_EX_LEFT | WS_EX_LTRREADING,
+                    UPDOWN_CLASS,
+                    NULL,
+                    WS_CHILDWINDOW | WS_VISIBLE | WS_BORDER |
+                    UDS_AUTOBUDDY | UDS_SETBUDDYINT | UDS_ALIGNRIGHT |
+                    UDS_ARROWKEYS | UDS_HOTTRACK,
+                    0, 0, 0, 0,
+                    /*ip->udx, ip->udy, ip->udcx-udw-1, ip->udcy,*/
+                    ip->udpar, (HMENU)ip->udid, ip->udinst, NULL);
                 /* signal complete */
                 iputmsg(0, UM_IM, wparam, 0);
                 break;
