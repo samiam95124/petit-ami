@@ -12958,7 +12958,7 @@ static void ieditboxsizg(winptr win, char* s, int* w, int* h)
     if (!b) winerr(); /* process windows error */
     /* add borders to size */
     *w = sz.cx+4;
-    *h = sz.cy+2;
+    *h = sz.cy+4;
 
 }
 
