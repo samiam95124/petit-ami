@@ -496,7 +496,7 @@ typedef struct imrec { /* intermessage record */
         };
         struct { /* imqfont */
 
-            char* fntstr; /* font char* */
+            char* fntstr; /* font string */
             int fnteff;   /* font effects */
             int fntfr;    /* foreground red */
             int fntfg;    /* foreground green */
@@ -526,8 +526,8 @@ typedef struct imrec { /* intermessage record */
         };
         struct { /* imwidget */
 
-            char*   wigcls; /* class char* */
-            char*   wigtxt; /* text label char* */
+            char*   wigcls; /* class string */
+            char*   wigtxt; /* text label string */
             int     wigflg; /* flags */
             int     wigx;   /* origin x */
             int     wigy;   /* origin y */
@@ -1167,6 +1167,40 @@ static void winerr(void)
     lockmain(); /* resume exclusive access */
 
     abortm(); /* abort module */
+
+}
+
+/******************************************************************************
+
+Internal version of malloc/free
+
+This wrapper around malloc/free both handles errors and also gives us a chance
+to track memory useage. Running out of memory is a terminal event, so we don't
+need to return.
+
+Only allocated memory is tallied, no accounting is done for ifree(). The vast
+majority of memory used in this package is never returned.
+
+******************************************************************************/
+
+static void *imalloc(size_t size)
+
+{
+
+    void* ptr;
+
+    ptr = malloc(size);
+    if (!ptr) error(enomem);
+
+    return ptr;
+
+}
+
+static void ifree(void* ptr)
+
+{
+
+    ifree(ptr);
 
 }
 
@@ -1932,12 +1966,7 @@ static void getitm(imptr* p)
         *p = freitm; /* index that */
         freitm = freitm->next; /* gap out of free list */
 
-    } else {
-
-        *p = malloc(sizeof(struct imrec)); /* else get a new one */
-        if (!p) error(enomem); /* no memory */
-
-    }
+    } else *p = imalloc(sizeof(struct imrec)); /* else get a new one */
     (*p)->next = NULL; /* clear next */
 
 }
@@ -1972,8 +2001,7 @@ static void getfet(filptr* fp)
 
 {
 
-    *fp = malloc(sizeof(filrec)); /* get new file entry */
-    if (!*fp) error(enomem); /* no more memory */
+    *fp = imalloc(sizeof(filrec)); /* get new file entry */
     (*fp)->win = NULL; /* set no window */
     (*fp)->inw = FALSE; /* clear input window link */
     (*fp)->inl = -1; /* set no input file linked */
@@ -2194,12 +2222,7 @@ static void geteqe(eqeptr* ep)
       *ep = eqefre; /* index top of list */
       eqefre = eqefre->next; /* gap out of list */
 
-   } else {
-
-       *ep = malloc(sizeof(eqerec));
-       if (!*ep) error(enomem);
-
-   }
+   } else *ep = imalloc(sizeof(eqerec));
    (*ep)->last = NULL; /* clear pointers */
    (*ep)->next = NULL;
 
@@ -2240,12 +2263,7 @@ static void getwig(winptr win, wigptr* wp)
         *wp = wigfre; /* index top entry */
         wigfre = wigfre->next; /* gap out */
 
-   } else {
-
-       *wp = malloc(sizeof(wigrec)); /* get entry */
-       if (!*wp) error(enomem); /* no memory */
-
-   }
+   } else *wp = imalloc(sizeof(wigrec)); /* get entry */
    (*wp)->next = win->wiglst; /* push onto list */
    win->wiglst = *wp;
    (*wp)->han = 0; /* clear handles */
@@ -4676,8 +4694,7 @@ static void iselect(winptr win, int u, int d)
     if (!win->screens[win->curupd-1]) { /* no screen, create one */
 
         /* get a new screen context */
-        win->screens[win->curupd-1] = malloc(sizeof(scncon));
-        if (!win->screens[win->curupd-1]) error(enomem);
+        win->screens[win->curupd-1] = imalloc(sizeof(scncon));
         iniscn(win, win->screens[win->curupd-1]); /* initalize that */
 
     }
@@ -4685,8 +4702,7 @@ static void iselect(winptr win, int u, int d)
     if (!win->screens[win->curdsp-1]) { /* no screen, create one */
 
         /* no current screen, create a new one */
-        win->screens[win->curdsp-1] = malloc(sizeof(scncon));
-        if (!win->screens[win->curdsp-1]) error(enomem);
+        win->screens[win->curdsp-1] = imalloc(sizeof(scncon));
         iniscn(win, win->screens[win->curdsp-1]); /* initalize that */
 
     }
@@ -6377,8 +6393,7 @@ static void iwritejust(winptr win, const char* s, int n)
     /* new(ra.lpoutstring); */
     ra.lpOutString = NULL;
     ra.lpOrder = NULL;
-    ra.lpDx = malloc(strlen(s)*sizeof(int));
-    if (!ra.lpDx) error(enomem); /* no memory */
+    ra.lpDx = imalloc(strlen(s)*sizeof(int));
     ra.lpCaretPos = NULL;
     ra.lpClass = NULL;
     ra.lpGlyphs = NULL;
@@ -6410,7 +6425,7 @@ static void iwritejust(winptr win, const char* s, int n)
     sc->curxg = sc->curxg+n; /* advance the character width */
     sc->curx = sc->curxg / win->charspace+1; /* recalculate character position */
     if (indisp(win)) setcur(win); /* set cursor on screen */
-    free(ra.lpDx);
+    ifree(ra.lpDx);
 
 }
 
@@ -6461,8 +6476,7 @@ static int ijustpos(winptr win, const char* s, int p, int n)
           ra.lpOutString = NULL;
           ra.lpOrder = NULL;
           /* allocate size array */
-          ra.lpDx = malloc(strlen(s)*sizeof(int));
-          if (!ra.lpDx) error(enomem); /* no memory */
+          ra.lpDx = imalloc(strlen(s)*sizeof(int));
           ra.lpCaretPos = NULL;
           ra.lpClass = NULL;
           ra.lpGlyphs = NULL;
@@ -6475,7 +6489,7 @@ static int ijustpos(winptr win, const char* s, int p, int n)
           off = 0; /* clear offset */
           /* add in all widths to the left of position to offset */
           for (i = 0; i < p; i++) off = off+ra.lpDx[i];
-          free(ra.lpDx);
+          ifree(ra.lpDx);
 
        }
 
@@ -8865,8 +8879,7 @@ static char* str(char* s)
 
     char* p;
 
-    p = malloc(strlen(s)+1);
-    if (!p) error(enomem);
+    p = imalloc(strlen(s)+1);
     strcpy(p, s);
 
     return (p);
@@ -8921,15 +8934,13 @@ static void getpgm(void)
     s = s2; /* index program name */
     /* count off length to end or extension */
     while (*s && *s != '.' && *s != ' ') { s++; l++; }
-    pgmnam = malloc(l+1);
-    if (!pgmnam) error(enomem);
+    pgmnam = imalloc(l+1);
     s = s2; /* index program name */
     s2 = pgmnam; /* index 1st character */
     while (*s && *s != '.' && *s != ' ') *s2++ = *s++; /* place characters */
     *s2 = 0; /* place terminator */
     /* form the name for termination */
-    trmnam = malloc(strlen(pgmnam)+strlen(fini)+1); /* get the holding string */
-    if (!trmnam) error(enomem);
+    trmnam = imalloc(strlen(pgmnam)+strlen(fini)+1); /* get the holding string */
     strcpy(trmnam, fini); /* place first part */
     strcat(trmnam, pgmnam); /* place program name */
 
@@ -9027,8 +9038,7 @@ static int CALLBACK enumfont(const LOGFONT* lfd, const TEXTMETRIC* pfd, DWORD ft
          lfde->elfLogFont.lfCharSet == DEFAULT_CHARSET))  {
 
       /* ansi character set, record it */
-      fp = malloc(sizeof(fontrec)); /* get a font entry */
-      if (!fp) error(enomem);
+      fp = imalloc(sizeof(fontrec)); /* get a font entry */
       fp->next = fntlst; /* push to list */
       fntlst = fp;
       fntcnt = fntcnt+1; /* count font */
@@ -9189,8 +9199,7 @@ void stdfont(void)
     /* search 1: terminal font */
 #if 1
     /* set up terminal font. terminal font is set to system default */
-    fp = malloc(sizeof(fontrec)); /* get a new entry */
-    if (!fp) error(enomem);
+    fp = imalloc(sizeof(fontrec)); /* get a new entry */
     fp->fix = TRUE; /* set fixed */
     fp->sys = TRUE; /* set system */
     fp->fn = str("System Fixed");
@@ -9231,7 +9240,7 @@ void stdfont(void)
     sp = fp; /* save sign font */
 
     /* search 4: technical font, make copy of sign */
-    fp = (fontptr)malloc(sizeof(fontrec));
+    fp = (fontptr)imalloc(sizeof(fontrec));
 
     /* copy sign font parameters, but with new name */
     fp->fn = str("Technical");
@@ -9445,8 +9454,7 @@ static void opnwin(int fn, int pfn)
     /* clear loadable pictures table */
     for (pin = 0; pin < MAXPIC; pin++) win->pictbl[pin].han = 0;
     for (si = 0; si < MAXCON; si++) win->screens[si] = NULL;
-    win->screens[0] = malloc(sizeof(scncon)); /* get the default screen */
-    if (!win->screens[0]) error(enomem);
+    win->screens[0] = imalloc(sizeof(scncon)); /* get the default screen */
     win->curdsp = 1; /* set current display screen */
     win->curupd = 1; /* set current update screen */
     win->visible = FALSE; /* set not visible */
@@ -9638,8 +9646,8 @@ static void clsfil(int fn)
     fp = opnfil[fn];
     /* release all of the screen buffers */
     for (si = 0; si < MAXCON; si++)
-        if (fp->win->screens[si]) free(fp->win->screens[si]);
-    free(fp->win); /* release the window data */
+        if (fp->win->screens[si]) ifree(fp->win->screens[si]);
+    ifree(fp->win); /* release the window data */
     fp->win = NULL; /* set end open */
     fp->inw = FALSE;
     fp->inl = -1;
@@ -9649,7 +9657,7 @@ static void clsfil(int fn)
         if (fp->evt->next == fp->evt)
             fp->evt = NULL; /* last entry, clear list */
         else fp->evt = fp->evt->next; /* gap out entry */
-        free(ep); /* release */
+        ifree(ep); /* release */
 
     }
 
@@ -9719,8 +9727,7 @@ static void openio(FILE* infile, FILE* outfile, int ifn, int ofn, int pfn,
 
         /* Haven't already started the main input/output window, so allocate
            and start that. We tolerate multiple opens to the output file. */
-        opnfil[ofn]->win = malloc(sizeof(winrec));
-        if (!opnfil[ofn]->win) error(enomem);
+        opnfil[ofn]->win = imalloc(sizeof(winrec));
         opnwin(ofn, pfn); /* and start that up */
 
     }
@@ -9863,18 +9870,16 @@ static void isizbufg(winptr win, int x, int y)
     for (si = 0; si < MAXCON; si++) {
 
         disscn(win, win->screens[si]);
-        free(win->screens[si]); /* free screen data */
+        ifree(win->screens[si]); /* free screen data */
         win->screens[si] = NULL; /* clear screen data */
 
     }
-    win->screens[win->curdsp-1] = malloc(sizeof(scncon));
-    if (!win->screens[win->curdsp-1]) error(enomem);
+    win->screens[win->curdsp-1] = imalloc(sizeof(scncon));
     iniscn(win, win->screens[win->curdsp-1]); /* initalize screen buffer */
     restore(win, TRUE); /* update to screen */
     if (win->curdsp != win->curupd) { /* also create the update buffer */
 
-        win->screens[win->curupd-1] = malloc(sizeof(scncon)); /* get the display screen */
-        if (!win->screens[win->curupd-1]) error(enomem);
+        win->screens[win->curupd-1] = imalloc(sizeof(scncon)); /* get the display screen */
         iniscn(win, win->screens[win->curupd-1]); /* initalize screen buffer */
 
     }
@@ -9974,7 +9979,7 @@ static void ibuffer(winptr win, int e)
             if (win->screens[si]) {
 
             disscn(win, win->screens[si]); /* free buffer data */
-            free(win->screens[si]); /* free screen data */
+            ifree(win->screens[si]); /* free screen data */
             win->screens[si] = NULL; /* clear screen data */
 
         }
@@ -10030,8 +10035,7 @@ static void mettrk(winptr win, HMENU han, int inx, pa_menuptr m)
 
     metptr mp; /* menu tracking entry pointer */
 
-    mp = malloc(sizeof(metrec)); /* get a new tracking entry */
-    if (!mp) error(enomem);
+    mp = imalloc(sizeof(metrec)); /* get a new tracking entry */
     mp->next = win->metlst; /* push onto tracking list */
     win->metlst = mp;
     mp->han = han; /* place menu handle */
@@ -10113,7 +10117,7 @@ static void imenu(winptr win, pa_menuptr m)
 
             mp = win->metlst; /* remove top entry */
             win->metlst = win->metlst->next; /* gap out */
-            free(mp); /* free the entry */
+            ifree(mp); /* free the entry */
 
         }
         win->menhan = 0; /* set no menu active */
@@ -11075,8 +11079,7 @@ static void getmenu(pa_menuptr* m, int id, char* face)
 
 {
 
-    *m = malloc(sizeof(pa_menurec));
-    if (!*m) error(enomem);
+    *m = imalloc(sizeof(pa_menurec));
     (*m)->next   = NULL; /* no next */
     (*m)->branch = NULL; /* no branch */
     (*m)->onoff  = FALSE; /* not an on/off value */
@@ -11317,8 +11320,8 @@ static HWND createwidget(winptr win, wigtyp typ, int x1, int y1, int x2, int y2,
     /* Wait for widget start, this also keeps our window going. */
     waitim(imwidget, &ip); /* wait for the return */
     wh = ip->wigwin; /* place handle to widget */
-    free(ip->wigcls); /* release class string */
-    free(ip->wigtxt); /* release face text string */
+    ifree(ip->wigcls); /* release class string */
+    ifree(ip->wigtxt); /* release face text string */
     putitm(ip); /* release im */
 
     return (wh); /* return handle */
@@ -14000,8 +14003,8 @@ static void uselesswidget(winptr win)
 
     getitm(&ip); /* get a im pointer */
     ip->im = imwidget; /* set type is widget */
-    strcpy(ip->wigcls, "static");
-    strcpy(ip->wigtxt, "");
+    ip->wigcls = str("static");
+    ip->wigtxt = str("");
     ip->wigflg = WS_CHILD /*or WS_VISIBLE*/;
     ip->wigx = 50;
     ip->wigy = 50;
@@ -14016,8 +14019,8 @@ static void uselesswidget(winptr win)
     /* Wait for widget start, this also keeps our window going. */
     waitim(imwidget, &ip); /* wait for the return */
     kilwin(ip->wigwin); /* kill widget */
-    free(ip->wigcls); /* release class string */
-    free(ip->wigtxt); /* release face text string */
+    ifree(ip->wigcls); /* release class string */
+    ifree(ip->wigtxt); /* release face text string */
     putitm(ip); /* release im */
 
 }
@@ -15132,9 +15135,7 @@ static LRESULT CALLBACK wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam,
                 if (ip->im == imqopen) sl = strlen(ip->opnfil)+1;
                 else sl = strlen(ip->savfil)+1;
                 if (sl < 256) sl = 256;
-                bs = malloc(sl); /* get string buffer */
-                if (!bs) error(enomem);
-                strcpy(bs, ip->opnfil); /* copy input string to buffer */
+                bs = str(ip->opnfil); /* copy input string to buffer */
                 /* now index the temp buffer */
                 if (ip->im == imqopen) ip->opnfil = bs;
                 else ip->savfil = bs;
@@ -15184,12 +15185,9 @@ static LRESULT CALLBACK wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam,
                 sl = strlen(ip->fndstr)+1; /* find length of input */
                 /* must be >= 80 characters */
                 if (sl < 80) sl = 80;
-                bs = malloc(sl); /* get string buffer */
-                if (!bs) error(enomem);
-                strcpy(bs, ip->fndstr); /* copy input string to buffer */
+                bs = str(ip->fndstr); /* copy input string to buffer */
                 ip->fndstr = bs; /* index buffer for return */
-                frrp = malloc(sizeof(FINDREPLACE)); /* get find/replace entry */
-                if (!frrp) error(enomem);
+                frrp = imalloc(sizeof(FINDREPLACE)); /* get find/replace entry */
                 frrp->lStructSize = sizeof(FINDREPLACE); /* set size */
                 frrp->hwndOwner = dialogwin; /* set owner */
                 frrp->hInstance = 0; /* no instance */
@@ -15221,17 +15219,12 @@ static LRESULT CALLBACK wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam,
                 /* find length of search string */
                 fsl =strlen(ip->fnrsch);
                 if (fsl < 80) fsl = 80; /* ensure >= 80 */
-                fs = malloc(fsl);
-                if (!fs) error(enomem);
-                strcpy(fs, ip->fnrsch);
+                fs = str(ip->fnrrep); /* copy string */
                 /* find length of replacement string */
                 rsl =strlen(ip->fnrrep);
                 if (rsl < 80) rsl = 80; /* ensure >= 80 */
-                rs = malloc(rsl);
-                if (!rs) error(enomem);
-                strcpy(rs, ip->fnrrep);
-                frrp = malloc(sizeof(FINDREPLACE)); /* get find/replace entry */
-                if (!frrp) error(enomem);
+                rs = str(ip->fnrrep); /* copy string */
+                frrp = imalloc(sizeof(FINDREPLACE)); /* get find/replace entry */
                 frrp->lStructSize = sizeof(FINDREPLACE); /* set size */
                 frrp->hwndOwner = dialogwin; /* set owner */
                 frrp->hInstance = 0; /* no instance */
@@ -15258,8 +15251,7 @@ static LRESULT CALLBACK wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam,
                 break;
 
             case imqfont:
-                lf = malloc(sizeof(LOGFONT)); /* get a logical font structure */
-                if (!lf) error(enomem);
+                lf = imalloc(sizeof(LOGFONT)); /* get a logical font structure */
                 /* initalize logical font structure */
                 lf->lfHeight = ip->fntsiz; /* use default height */
                 lf->lfWidth = 0; /* use default width */
@@ -15309,8 +15301,7 @@ static LRESULT CALLBACK wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam,
                     /* Since the main code is expecting us to make a new string for
                        the result, we must copy the input to the output so that it"s
                        disposal will be valid. */
-                    ip->fntstr = malloc(1);
-                    if (!ip->fntstr) error(enomem);
+                    ip->fntstr = imalloc(1);
                     *(ip->fntstr) = 0;
 
                 } else { /* set what the dialog changed */
@@ -15375,7 +15366,7 @@ static LRESULT CALLBACK wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam,
             ip->fnrrep = frrp->lpstrReplaceWith;
 
         }
-        free(frrp); /* release find/replace entry */
+        ifree(frrp); /* release find/replace entry */
         /* signal complete */
         iputmsg(0, UM_IM, (WPARAM)ip, 0);
 

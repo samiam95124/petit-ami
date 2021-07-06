@@ -777,7 +777,6 @@ int main(void)
 
     /* ************ Terminal scroll bar fat and skinny bars test ************** */
 
-#endif
     printf("\f");
     chrgrid();
     pa_binvis(stdout);
@@ -1111,14 +1110,14 @@ int main(void)
     pa_binvis(stdout);
     printf("Terminal list box test\n");
     printf("\n");
-    printf("Note that it is normal for this box to ! fill to exact\n");
+    printf("Note that it is normal for this box to not fill to exact\n");
     printf("character cells.\n");
     printf("\n");
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("Blue");
     lp->next = NULL;
     sp = (pa_strptr)imalloc(sizeof(pa_strrec));
-    sp->str - str("Red");
+    sp->str = str("Red");
     sp->next = lp;
     lp = sp;
     sp = (pa_strptr)imalloc(sizeof(pa_strrec));
@@ -1156,7 +1155,7 @@ int main(void)
     lp->str = str("Blue");
     lp->next = NULL;
     sp = (pa_strptr)imalloc(sizeof(pa_strrec));
-    sp->str - str("Red");
+    sp->str = str("Red");
     sp->next = lp;
     lp = sp;
     sp = (pa_strptr)imalloc(sizeof(pa_strrec));
@@ -1271,7 +1270,7 @@ int main(void)
     printf("\f");
     chrgrid();
     pa_binvis(stdout);
-    printf("Terminal droppa_down(stdout) edit box test\n");
+    printf("Terminal dropdown edit box test\n");
     printf("\n");
     printf("Note that it is normal for this box to not fill to exact\n");
     printf("character cells.\n");
@@ -1387,6 +1386,7 @@ int main(void)
 
     /* ************************* Terminal tab bar test ************************ */
 
+#endif
     printf("\f");
     chrgrid();
     pa_binvis(stdout);
@@ -1407,6 +1407,7 @@ int main(void)
     pa_tabbarsiz(stdout, pa_totop, 20, 2, &x, &y, &ox, &oy);
     pa_tabbar(stdout, 15, 3, 15+x-1, 3+y-1, lp, pa_totop, 1);
 
+#if 0
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("Bottom");
     lp->next = NULL;
@@ -1448,6 +1449,7 @@ int main(void)
     lp = sp;
     pa_tabbarsiz(stdout, pa_toleft, 2, 12, &x, &y, &ox, &oy);
     pa_tabbar(stdout, 5, 7, 5+x-1, 7+y-1, lp, pa_toleft, 4);
+#endif
 
     do {
 

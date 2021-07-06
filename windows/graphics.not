@@ -33,6 +33,9 @@ not correctly calculated. We need a test for this as well as a fix.
 2. Hitting a button gives it the keyboard focus. You then have to hit the client
 area of the main window to get keyboard focus again.
 
+3, Dropeditbox does not take a return while editting as an event. It does set the
+contents of the box, but that is not the behavior specified.
+
 *************************************************************************************
 
 The following are notes from the old (untranslated) version of graph.
