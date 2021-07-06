@@ -2477,9 +2477,9 @@ static void win2rgb(int wc, int* r, int* g, int* b)
 
 {
 
-   *r = wc & 0xff * 0x800000; /* get red value */
-   *g = wc / 256 & 0xff * 0x800000; /* get greeen value */
-   *b = wc / 65536 & 0xff * 0x800000; /* get blue value */
+   *r = (wc&0xff)*0x800000; /* get red value */
+   *g = (wc>>8&0xff)*0x800000; /* get greeen value */
+   *b = (wc>>16&0xff)*0x800000; /* get blue value */
 
 }
 
@@ -15702,7 +15702,6 @@ static void pa_init_graph()
     }
 
     /* Set up private message queuing */
-
     msginp = 0; /* clear message input queue */
     msgout = 0;
     msgrdy = CreateEvent(NULL, TRUE, FALSE, NULL); /* create message event */
