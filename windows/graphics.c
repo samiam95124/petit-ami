@@ -12709,7 +12709,7 @@ static LRESULT CALLBACK wndprocnum(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM l
                 /* Check valid numerical character, with backspace control. If not,
                    replace with carriage return. This will cause the control to emit
                    an error, a bell in Windows XP. */
-                if (!((wparam >= '0' && wparam < '9') || wparam == '+' ||
+                if (!((wparam >= '0' && wparam <= '9') || wparam == '+' ||
                       wparam == '-' || wparam == '\b'))
                     wparam = '\r';
                 r = CallWindowProc(wp->wprc, hwnd, imsg, wparam, lparam);
@@ -14858,11 +14858,11 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam,
 
             case imupdown: /* create up/down control */
                 ip->udbuddy =
-                    CreateWindowEx(WS_EX_LEFT | WS_EX_CLIENTEDGE | WS_EX_CONTEXTHELP,
+                    CreateWindowEx(WS_EX_LEFT | WS_EX_CLIENTEDGE,
                                       WC_EDIT,
                                       NULL,
-                                      WS_CHILDWINDOW | WS_VISIBLE | WS_BORDER
-                                      | ES_NUMBER | ES_LEFT,
+                                      WS_CHILDWINDOW | WS_VISIBLE | WS_BORDER |
+                                      ES_NUMBER | ES_LEFT,
                                       ip->udx, ip->udy, ip->udcx, ip->udcy,
                                       ip->udpar, (HMENU)ip->udid, ip->udinst, NULL);
                 ip->udhan = CreateWindowEx(WS_EX_LEFT | WS_EX_LTRREADING,
