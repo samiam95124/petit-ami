@@ -1,109 +1,134 @@
 /*******************************************************************************
-*                                                                             *
-*                           GRAPHICS TEST PROGRAM                             *
-*                                                                             *
-*                    Copyright (C) 2005 Scott A. Franco                       *
-*                                                                             *
-* Tests various single window, unmanaged graphics.                            *
-*                                                                             *
-* Benchmark results, Windows, Athlon 64 3200+, BFG 6800 overclock:            *
-*                                                                             *
-* Type                        Seconds     Per fig                             *
-* --------------------------------------------------                          *
-* line width 1                     7.484    7.484e-5                          *
-* line width 10                   10.906   .00010906                          *
-* rectangle width 1                7.313    7.313e-5                          *
-* rectangle width 10               8.219    8.219e-5                          *
-* rounded rectangle width 1       12.781   .00012781                          *
-* rounded rectangle width 10      15.953   .00015953                          *
-* filled rectangle                15.516   1.5516e-5                          *
-* filled rounded rectangle         8.906    8.906e-5                          *
-* ellipse width 1                 17.437   .00017437                          *
-* ellipse width 10                22.078   .00022078                          *
-* filled ellipse                  13.297   .00013297                          *
-* arc width 1                      9.719    9.719e-5                          *
-* arc width 10                    12.125   .00012125                          *
-* filled arc                      10.422   .00010422                          *
-* filled chord                      8.89     8.89e-5                          *
-* filled triangle                 19.172   1.9172e-5                          *
-* text                            10.922   .00010922                          *
-* background invisible text       10.703   .00010703                          *
-*                                                                             *
-* Benchmark results, Windows, AMD Phenom, 2.51 GHZ, Nvidia GeForce 9800 GT    *
-*                                                                             *
-* Type                     Seconds   Per fig                                  *
-* --------------------------------------------------                          *
-* line width 1                 6.71    0.000067                               *
-* line width 10                7.37    0.000073                               *
-* rectangle width 1           10.45    0.000104                               *
-* rectangle width 10          11.98    0.000119                               *
-* rounded rectangle width 1   13.35    0.000133                               *
-* rounded rectangle width 10  16.00    0.000160                               *
-* filled rectangle             8.20    0.000082                               *
-* filled rounded rectangle    20.98    0.000209                               *
-* ellipse width 1             14.96    0.000149                               *
-* ellipse width 10            17.62    0.000176                               *
-* filled ellipse              22.76    0.000227                               *
-* arc width 1                 11.03    0.000110                               *
-* arc width 10                12.78    0.000127                               *
-* filled arc                  16.15    0.000161                               *
-* filled chord                14.53    0.000145                               *
-* filled triangle             24.14    0.000241                               *
-* text                        10.89    0.000435                               *
-* background invisible text   10.95    0.000438                               *
-* Picture draw                23.82    0.002382                               *
-* No scaling picture draw     13.82    0.001382                               *
-*                                                                             *
-* Benchmark results, Linux AMD Ryzen 9 3950x, Nvidia GTX 3070 Dual            *
-*                                                                             *
-* Type                        Seconds  Per fig                                *
-* --------------------------------------------------                          *
-* line width 1                 14.29     0.000008                             *
-* line width 10                16.66     0.000008                             *
-* rectangle width 1            28.87     0.000050                             *
-* rectangle width 10            0.57     0.000004                             *
-* rounded rectangle width 1    30.03     0.015296                             *
-* rounded rectangle width 10    9.61     0.015297                             *
-* filled rectangle              3.15     0.000648                             *
-* filled rounded rectangle     24.86     0.000515                             *
-* ellipse width 1               8.67     0.002041                             *
-* ellipse width 10              3.63     0.002612                             *
-* filled ellipse                3.12     0.001142                             *
-* arc width 1                 174.00     0.003408                             *
-* arc width 10                  1.92     0.002903                             *
-* filled arc                    2.76     0.001056                             *
-* filled chord                  1.19     0.000212                             *
-* filled triangle               2.69     0.000013                             *
-* text                         26.44     0.000056                             *
-* background invisible text    41.39     0.000067                             *
-* Picture draw                 15.04     0.004101                             *
-* No scaling picture draw       0.73     0.000134                             *
-*                                                                             *
-* Benchmark results, Linux Intel I7-885U CPU 1.80 GHZ, Nvidia GPM108M         *
-*                                                                             *
-* Type                        Seconds   Per fig                               *
-* --------------------------------------------------                          *
-* line width 1                 16.04    0.000009                              *
-* line width 10                11.97    0.000009                              *
-* rectangle width 1           332.57    0.000051                              *
-* rectangle width 10            0.81    0.000004                              *
-* rounded rectangle width 1    29.90    0.023449                              *
-* rounded rectangle width 10    1.00    0.009552                              *
-* filled rectangle              0.00    0.000000                              *
-* filled rounded rectangle      1.37    0.003389                              *
-* ellipse width 1              70.63    0.003926                              *
-* ellipse width 10              8.46    0.003923                              *
-* filled ellipse                4.60    0.002363                              *
-* arc width 1                  90.90    0.004507                              *
-* arc width 10                  7.96    0.004288                              *
-* filled arc                    1.22    0.002628                              *
-* filled chord                  1.57    0.001941                              *
-* filled triangle               1.01    0.000020                              *
-* text                         31.97    0.000070                              *
-* background invisible text    36.30    0.000094                              *
-* Picture draw                  7.30    0.002764                              *
-* No scaling picture draw       2.61    0.000224                              *
-*                                                                             *
+*                                                                              *
+*                           GRAPHICS TEST PROGRAM                              *
+*                                                                              *
+*                    Copyright (C) 2021 Scott A. Franco                        *
+*                                                                              *
+* Tests various single window, unmanaged graphics.                             *
+*                                                                              *
+* Benchmark results, Windows, Athlon 64 3200+, BFG 6800 overclock:             *
+*                                                                              *
+* Type                        Seconds     Per fig                              *
+* --------------------------------------------------                           *
+* line width 1                     7.484    7.484e-5                           *
+* line width 10                   10.906   .00010906                           *
+* rectangle width 1                7.313    7.313e-5                           *
+* rectangle width 10               8.219    8.219e-5                           *
+* rounded rectangle width 1       12.781   .00012781                           *
+* rounded rectangle width 10      15.953   .00015953                           *
+* filled rectangle                15.516   1.5516e-5                           *
+* filled rounded rectangle         8.906    8.906e-5                           *
+* ellipse width 1                 17.437   .00017437                           *
+* ellipse width 10                22.078   .00022078                           *
+* filled ellipse                  13.297   .00013297                           *
+* arc width 1                      9.719    9.719e-5                           *
+* arc width 10                    12.125   .00012125                           *
+* filled arc                      10.422   .00010422                           *
+* filled chord                      8.89     8.89e-5                           *
+* filled triangle                 19.172   1.9172e-5                           *
+* text                            10.922   .00010922                           *
+* background invisible text       10.703   .00010703                           *
+*                                                                              *
+* Benchmark results, Windows, AMD Phenom, 2.51 GHZ, Nvidia GeForce 9800 GT     *
+*                                                                              *
+* Type                     Seconds   Per fig                                   *
+* --------------------------------------------------                           *
+* line width 1                 6.71    0.000067                                *
+* line width 10                7.37    0.000073                                *
+* rectangle width 1           10.45    0.000104                                *
+* rectangle width 10          11.98    0.000119                                *
+* rounded rectangle width 1   13.35    0.000133                                *
+* rounded rectangle width 10  16.00    0.000160                                *
+* filled rectangle             8.20    0.000082                                *
+* filled rounded rectangle    20.98    0.000209                                *
+* ellipse width 1             14.96    0.000149                                *
+* ellipse width 10            17.62    0.000176                                *
+* filled ellipse              22.76    0.000227                                *
+* arc width 1                 11.03    0.000110                                *
+* arc width 10                12.78    0.000127                                *
+* filled arc                  16.15    0.000161                                *
+* filled chord                14.53    0.000145                                *
+* filled triangle             24.14    0.000241                                *
+* text                        10.89    0.000435                                *
+* background invisible text   10.95    0.000438                                *
+* Picture draw                23.82    0.002382                                *
+* No scaling picture draw     13.82    0.001382                                *
+*                                                                              *
+* Benchmark results, Linux AMD Ryzen 9 3950x, Nvidia GTX 3070 Dual             *
+*                                                                              *
+* Type                        Seconds  Per fig                                 *
+* --------------------------------------------------                           *
+* line width 1                 14.29     0.000008                              *
+* line width 10                16.66     0.000008                              *
+* rectangle width 1            28.87     0.000050                              *
+* rectangle width 10            0.57     0.000004                              *
+* rounded rectangle width 1    30.03     0.015296                              *
+* rounded rectangle width 10    9.61     0.015297                              *
+* filled rectangle              3.15     0.000648                              *
+* filled rounded rectangle     24.86     0.000515                              *
+* ellipse width 1               8.67     0.002041                              *
+* ellipse width 10              3.63     0.002612                              *
+* filled ellipse                3.12     0.001142                              *
+* arc width 1                 174.00     0.003408                              *
+* arc width 10                  1.92     0.002903                              *
+* filled arc                    2.76     0.001056                              *
+* filled chord                  1.19     0.000212                              *
+* filled triangle               2.69     0.000013                              *
+* text                         26.44     0.000056                              *
+* background invisible text    41.39     0.000067                              *
+* Picture draw                 15.04     0.004101                              *
+* No scaling picture draw       0.73     0.000134                              *
+*                                                                              *
+* Benchmark results, Linux Intel I7-885U CPU 1.80 GHZ, Nvidia GPM108M          *
+*                                                                              *
+* Type                        Seconds   Per fig                                *
+* --------------------------------------------------                           *
+* line width 1                 16.04    0.000009                               *
+* line width 10                11.97    0.000009                               *
+* rectangle width 1           332.57    0.000051                               *
+* rectangle width 10            0.81    0.000004                               *
+* rounded rectangle width 1    29.90    0.023449                               *
+* rounded rectangle width 10    1.00    0.009552                               *
+* filled rectangle              0.00    0.000000                               *
+* filled rounded rectangle      1.37    0.003389                               *
+* ellipse width 1              70.63    0.003926                               *
+* ellipse width 10              8.46    0.003923                               *
+* filled ellipse                4.60    0.002363                               *
+* arc width 1                  90.90    0.004507                               *
+* arc width 10                  7.96    0.004288                               *
+* filled arc                    1.22    0.002628                               *
+* filled chord                  1.57    0.001941                               *
+* filled triangle               1.01    0.000020                               *
+* text                         31.97    0.000070                               *
+* background invisible text    36.30    0.000094                               *
+* Picture draw                  7.30    0.002764                               *
+* No scaling picture draw       2.61    0.000224                               *
+*                                                                              *
+* Benchmark results, Windows AMD Ryzen 9 3950x, Nvidia GTX 3070 Dual           *
+*                                                                              *
+* Type                        Seconds   Per fig                                *
+* --------------------------------------------------                           *
+* line width 1                 15.07    0.000046                               *
+* line width 10                14.70    0.000049                               *
+* rectangle width 1            15.10    0.000065                               *
+* rectangle width 10           15.00    0.000072                               *
+* rounded rectangle width 1    14.93    0.000077                               *
+* rounded rectangle width 10   14.93    0.000090                               *
+* filled rectangle             14.95    0.000048                               *
+* filled rounded rectangle     14.90    0.000088                               *
+* ellipse width 1              15.06    0.000088                               *
+* ellipse width 10             14.73    0.000103                               *
+* filled ellipse               14.98    0.000108                               *
+* arc width 1                  15.06    0.000066                               *
+* arc width 10                 15.01    0.000066                               *
+* filled arc                   15.09    0.000075                               *
+* filled chord                 14.78    0.000071                               *
+* filled triangle              14.93    0.000106                               *
+* text                         15.29    0.000304                               *
+* background invisible text    15.01    0.000305                               *
+* Picture draw                 15.07    0.010894                               *
+* No scaling picture draw      14.56    0.000971                               *
+*                                                                              *
 *******************************************************************************/
 
 /* base C defines */

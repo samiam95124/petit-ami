@@ -2,7 +2,7 @@
 *                                                                             *
 *                           SCREEN TEST PROGRAM                               *
 *                                                                             *
-*                    Copyright (C) 1997 Scott A. Moore                        *
+*                    Copyright (C) 2021 Scott A. Franco                       *
 *                                                                             *
 * This program performs a reasonably complete test of common features in the  *
 * terminal level standard.                                                    *
@@ -29,17 +29,34 @@
 * Benchmark results for 80x25 screen, AMD Ryzen 9 3950x NVIDIA GTX 3070       *
 * dual:                                                                       *
 *                                                                             *
-* Windows console library (conlib):                                           *
+* Windows console library (terminal):                                         *
 *                                                                             *
 * Character write speed: 0.00007291 Sec. Per character.                       *
 * Scrolling speed:       0.00067421 Sec. Per scroll.                          *
 * Buffer switch speed:   0.00041666 Sec. per switch.                          *
 *                                                                             *
-* Windows graphical library (gralib):                                         *
+* Windows graphical library (graphics):                                       *
 *                                                                             *
 * Character write speed: 0.00002350 Sec. Per character.                       *
 * Scrolling speed:       0.00034526 Sec. Per scroll.                          *
 * Buffer switch speed:   0.00034666 Sec. per switch.                          *
+*                                                                             *
+* Windows graphical library (graphics), AMD 3950X 3.8ghz, Nvidia 3070 Dual,   *
+* scaling off.                                                                *
+*                                                                             *
+* Type                   Seconds  Per fig                                     *
+* --------------------------------------------                                *
+* character write speed   0.06    0.000031                                    *
+* Scroll speed            0.75    0.000394                                    *
+* Buffer flip speed       0.18    0.000208                                    *
+*                                                                             *
+* Same as above with scaling on:                                              *
+*                                                                             *
+* Type                   Seconds  Per fig                                     *
+* --------------------------------------------                                *
+* character write speed   0.06    0.000031                                    *
+* Scroll speed            0.57    0.000304                                    *
+* Buffer flip speed       0.14    0.000155                                    *
 *                                                                             *
 * Linux console/xterm with glibc:                                             *
 *                                                                             *

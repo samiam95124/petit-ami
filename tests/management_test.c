@@ -340,7 +340,7 @@ int main(void)
 
             pa_setsiz(stdout, 80, 25);
             putchar('\f');
-            printf("*** Getsiz does ! match setsiz\n");
+            printf("*** Getsiz does not match setsiz\n");
             waitnext();
             longjmp(terminate_buf, 1);
 
