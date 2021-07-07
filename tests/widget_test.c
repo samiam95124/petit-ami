@@ -1825,7 +1825,6 @@ int main(void)
 
     /* ************************* Color query test ************************ */
 
-#endif
     printf("\f");
     printf("Color query test\n");
     printf("\n");
@@ -1847,10 +1846,10 @@ int main(void)
     printf("Open file query test\n");
     printf("\n");
     printf("There should be an open file query dialog\n");
-    printf("Both the dialog && this window should be fully reactive\n");
+    printf("Both the dialog and this window should be fully reactive\n");
     printf("The dialog should have \"myfile.txt\" as the default filename\n");
     strcpy(s, "myfile.txt");
-    pa_queryopen(s);
+    pa_queryopen(s, 100);
     printf("\n");
     printf("Dialog should have completed now\n");
     printf("Filename is: %s\n", s);
@@ -1862,15 +1861,16 @@ int main(void)
     printf("Save file query test\n");
     printf("\n");
     printf("There should be an save file query dialog\n");
-    printf("Both the dialog && this window should be fully reactive\n");
+    printf("Both the dialog and this window should be fully reactive\n");
     printf("The dialog should have \"myfile.txt\" as the default filename\n");
     strcpy(s, "myfile.txt");
-    pa_querysave(s);
+    pa_querysave(s, 100);
     printf("\n");
     printf("Dialog should have completed now\n");
     printf("Filename is: %s\n", s);
     waitnext();
 
+#endif
     /* ************************* Find query test ************************ */
 
     printf("\f");
@@ -1881,7 +1881,7 @@ int main(void)
     printf("The dialog should have \"mystuff\" as the default search string\n");
     strcpy(s, "mystuff");
     optf = 0;
-    pa_queryfind(s, &optf);
+    pa_queryfind(s, 100, &optf);
     printf("\n");
     printf("Dialog should have completed now\n");
     printf("Search string is: \"%s\"\n", s);
@@ -1899,13 +1899,13 @@ int main(void)
     printf("Find/replace query test\n");
     printf("\n");
     printf("There should be a find/replace query dialog\n");
-    printf("Both the dialog && this window should be fully reactive\n");
+    printf("Both the dialog and this window should be fully reactive\n");
     printf("The dialog should have \"bark\" as the default search string\n");
     printf("and should have \"sniff\" as the default replacement string\n");
     strcpy(ss, "bark");
     strcpy(rs, "sniff");
     optfr = 0;
-    pa_queryfindrep (ss, rs, &optfr);
+    pa_queryfindrep (ss, 100, rs, 100, &optfr);
     printf("\n");
     printf("Dialog should have completed now\n");
     printf("Search string is: \"%s\"\n", ss);
@@ -1930,7 +1930,7 @@ int main(void)
     printf("Font query test\n");
     printf("\n");
     printf("There should be a font query dialog\n");
-    printf("Both the dialog && this window should be fully reactive\n");
+    printf("Both the dialog and this window should be fully reactive\n");
     fc = PA_FONT_BOOK;
     fs = pa_chrsizy(stdout);
     fr = 0; /* set foreground to pa_black */

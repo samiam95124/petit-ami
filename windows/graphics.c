@@ -14435,19 +14435,21 @@ void pa_querycolor(int* r, int* g, int* b)
 
 Display choose file dialog for open
 
-Presents the choose file dialog,  returns the file string as a dynamic
-string. The default string passed in is presented in the dialog, and a new
-string replaces it. The caller is responsible for disposing of the input
-string and the output string.
+Presents the choose open file dialog. The input string is used to fill the filename
+to start, which could be empty. Returns the resulting file string in the same
+buffer.
 
 If a wildcard is passed as the default, this will be used to filter the files
 in the current directory into a list.
 
 If the operation is cancelled, a null string will be returned.
 
+It is an error if the passed string buffer is not big enough to contain the
+result.
+
 *******************************************************************************/
 
-void pa_queryopen(char* s)
+void pa_queryopen(char* s, int sl)
 
 {
 
@@ -14457,11 +14459,13 @@ void pa_queryopen(char* s)
     lockmain(); /* start exclusive access */
     getitm(&ip); /* get a im pointer */
     ip->im = imqopen; /* set is open file query */
-    ip->opnfil = s; /* set input string */
+    ip->opnfil = str(s); /* copy input string */
     br = PostMessage(dialogwin, UM_IM, (WPARAM)ip, 0);
     if (!br) winerr(); /* process windows error */
     waitim(imqopen, &ip); /* wait for the return */
-    s = ip->opnfil; /* set output string */
+    if (strlen(ip->opnfil) > sl) error(estrtl); /* string overflow */
+    strcpy(s, ip->opnfil); /* set output string */
+    ifree(ip->opnfil); /* free the temp string */
     putitm(ip); /* release im */
     unlockmain(); /* end exclusive access */
 
@@ -14471,19 +14475,24 @@ void pa_queryopen(char* s)
 
 Display choose file dialog for save
 
-Presents the choose file dialog,  returns the file string as a dynamic
-string. The default string passed in is presented in the dialog, and a new
-string replaces it. The caller is responsible for disposing of the input
-string and the output string.
+Presents the choose save file dialog. The input string is used to fill the filename
+to start, which could be empty. Returns the resulting file string in the same
+buffer.
 
 If a wildcard is passed as the default, this will be used to filter the files
 in the current directory into a list.
 
-If the operation is cancelled,  a null string will be returned.
+If the operation is cancelled, a null string will be returned.
+
+It is an error if the passed string buffer is not big enough to contain the
+result.
+
+It is an error if the passed string buffer is not big enough to contain the
+result.
 
 *******************************************************************************/
 
-void pa_querysave(char* s)
+void pa_querysave(char* s, int sl)
 
 {
 
@@ -14493,11 +14502,13 @@ void pa_querysave(char* s)
     lockmain(); /* start exclusive access */
     getitm(&ip); /* get a im pointer */
     ip->im = imqsave; /* set is open file query */
-    ip->opnfil = s; /* set input string */
+    ip->opnfil = str(s); /* set input string */
     br = PostMessage(dialogwin, UM_IM, (WPARAM)ip, 0);
     if (!br)  winerr(); /* process windows error */
     waitim(imqsave, &ip); /* wait for the return */
-    s = ip->savfil; /* set output string */
+    if (strlen(ip->savfil) > sl) error(estrtl); /* string overflow */
+    strcpy(s, ip->savfil); /* set output string */
+    ifree(ip->savfil); /* free the temp string */
     putitm(ip); /* release im */
     unlockmain(); /* end exclusive access */
 
@@ -14523,12 +14534,12 @@ would need to hook (or subclass) the find dialog.
 After note: tried hooking the window. The issue is that the cancel button is
 just a simple button that gets pressed. Trying to rely on the button id
 sounds very system dep}ent, since that could change. One method might be
-to retrive the button text, but this is still fairly system dep}ent. We
+to retrive the button text, but this is still fairly system dependent. We
 table this issue until later.
 
 *******************************************************************************/
 
-void pa_queryfind(char* s, int* opt)
+void pa_queryfind(char* s, int sl, int* opt)
 
 {
 
@@ -14567,7 +14578,7 @@ Bug: See comment, queryfind.
 
 *******************************************************************************/
 
-void pa_queryfindrep(char* s, char* r, int* opt)
+void pa_queryfindrep(char* s, int sl, char* r, int rl, int* opt)
 
 {
 
@@ -15131,10 +15142,20 @@ static LRESULT CALLBACK wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam,
                 if (ip->im == imqopen) sl = strlen(ip->opnfil)+1;
                 else sl = strlen(ip->savfil)+1;
                 if (sl < 256) sl = 256;
-                bs = str(ip->opnfil); /* copy input string to buffer */
-                /* now index the temp buffer */
-                if (ip->im == imqopen) ip->opnfil = bs;
-                else ip->savfil = bs;
+                bs = imalloc(sl); /* get string */
+                if (ip->im == imqopen) { /* it's open */
+
+                    strcpy(bs, ip->opnfil); /* copy to new string */
+                    ifree(ip->opnfil); /* free the passed string */
+                    ip->opnfil = bs; /* return result in this string */
+
+                } else { /* it's save */
+
+                    strcpy(bs, ip->savfil); /* copy to new string */
+                    ifree(ip->savfil); /* free the passed string */
+                    ip->savfil = bs; /* return result in this string */
+
+                }
                 fr.lStructSize = sizeof(OPENFILENAME); /* set size */
                 fr.hwndOwner = 0;
                 fr.hInstance = 0;
@@ -15181,7 +15202,8 @@ static LRESULT CALLBACK wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam,
                 sl = strlen(ip->fndstr)+1; /* find length of input */
                 /* must be >= 80 characters */
                 if (sl < 80) sl = 80;
-                bs = str(ip->fndstr); /* copy input string to buffer */
+                bs = imalloc(sl); /* get string */
+                strcpy(bs, ip->fndstr); /* copy input string to buffer */
                 ip->fndstr = bs; /* index buffer for return */
                 frrp = imalloc(sizeof(FINDREPLACE)); /* get find/replace entry */
                 frrp->lStructSize = sizeof(FINDREPLACE); /* set size */
@@ -15630,6 +15652,7 @@ static void pa_init_graph()
     pa_valptr vp;
     char*     errstr;
     pa_evtcod e;
+    BOOL      r;
 
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);

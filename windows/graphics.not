@@ -36,6 +36,11 @@ area of the main window to get keyboard focus again.
 3, Dropeditbox does not take a return while editting as an event. It does set the
 contents of the box, but that is not the behavior specified.
 
+4. querycolor(), querysave(), queryfind(), and queryfindrep() need their 
+descriptions updated.
+
+5. tabbar() and tabbarclient() need their descriptions updated. 
+
 *************************************************************************************
 
 The following are notes from the old (untranslated) version of graph.

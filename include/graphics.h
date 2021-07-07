@@ -547,10 +547,10 @@ void pa_tabbarg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp,
 void pa_tabsel(FILE* f, int id, int tn);
 void pa_alert(char* title, char* message);
 void pa_querycolor(int* r, int* g, int* b);
-void pa_queryopen(char* s);
-void pa_querysave(char* s);
-void pa_queryfind(char* s, pa_qfnopts* opt);
-void pa_queryfindrep(char* s, char* r, pa_qfropts* opt);
+void pa_queryopen(char* s, int sl);
+void pa_querysave(char* s, int sl);
+void pa_queryfind(char* s, int sl, pa_qfnopts* opt);
+void pa_queryfindrep(char* s, int sl, char* r, int rl, pa_qfropts* opt);
 void pa_queryfont(FILE* f, int* fc, int* s, int* fr, int* fg, int* fb, int* br,
                   int* bg, int* bb, pa_qfteffects* effect);
 
