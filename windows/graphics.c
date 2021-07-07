@@ -121,12 +121,12 @@ static enum { /* debug levels */
  */
 #define MAXXD     80 /* standard terminal, 80x25 */
 #define MAXYD     25
-
 #define DIALOGERR 1     /* send runtime errors to dialog */
 #define MOUSEENB  TRUE  /* enable mouse */
 #define JOYENB    TRUE  /* enable joysticks */
 #define DMPMSG    FALSE /* enable dump Windows API messages */
 #define DMPEVT    FALSE /* enable dump Petit-Ami messages */
+#define SCALING   FALSE /* use Windows scaling mode (off is high DPI) */
 
 /*
  * Enable/disable general lock
@@ -697,6 +697,7 @@ static int mouseenb;  /* enable mouse */
 static int joyenb;    /* enable joysticks */
 static int dmpmsg;    /* enable dump Windows API messages */
 static int dmpevt;    /* enable dump Petit-Ami messages */
+static int scaling;   /* use Windows scaling mode/use high DPI display */
 
 /*
  * Forward declarations.
@@ -15636,6 +15637,14 @@ Graph startup
 
 *******************************************************************************/
 
+DECLARE_HANDLE(DPI_AWARENESS_CONTEXT);
+
+/* function call for direct to dll */
+typedef BOOL (WINAPI *PGNSI)(DPI_AWARENESS_CONTEXT);
+
+/* select for highest DPI */
+#define DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 ((DPI_AWARENESS_CONTEXT)-4)
+
 static void pa_init_graph (void) __attribute__((constructor (103)));
 static void pa_init_graph()
 
@@ -15653,6 +15662,7 @@ static void pa_init_graph()
     char*     errstr;
     pa_evtcod e;
     BOOL      r;
+    PGNSI     pGNSI;
 
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
@@ -15675,6 +15685,7 @@ static void pa_init_graph()
     dblflt = FALSE; /* set no double fault */
     wigfre = NULL; /* set free widget tracking list empty */
     freitm = NULL; /* clear intratask message free list */
+
 
     /* get setup configuration */
     config_root = NULL;
@@ -15710,6 +15721,9 @@ static void pa_init_graph()
         win_root = pa_schlst("windows", graph_root->sublist);
         if (win_root) {
 
+            vp = pa_schlst("scaling", win_root->sublist);
+            if (vp) scaling = strtol(vp->value, &errstr, 10);
+
             /* find diagnostic subsection */
             diag_root = pa_schlst("diagnostics", win_root->sublist);
             if (diag_root) {
@@ -15719,6 +15733,21 @@ static void pa_init_graph()
                 if (*errstr) error(ecfgval);
 
             }
+
+        }
+
+    }
+
+    /* turn off scaling. The following call gets around the lack of a
+       declaration in mingw */
+    if (!scaling) {
+
+        pGNSI = (PGNSI) GetProcAddress(GetModuleHandle(TEXT("user32.dll")),
+                                       "SetProcessDpiAwarenessContext");
+        if (NULL != pGNSI) {
+
+            r = pGNSI(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+            if (!r) winerr();
 
         }
 
