@@ -92,9 +92,6 @@ window to keep the client area over the full buffer. Note that this is not
 trivial, since the amount of y area covered by the window can vary when the
 window is small in x and the menu wraps.
 
-13. In querycolor, I can't get the dialog to accept the input as the default
-selection.
-
 14. In queryfind and queryfindrep, the proper behavior is to return an empty
 string if cancel is pressed. This is necessary since find and/or replace is
 an action, and the caller needs to know if it has been canceled. The problem

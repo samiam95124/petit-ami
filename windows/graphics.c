@@ -14550,12 +14550,14 @@ void pa_queryfind(char* s, int sl, int* opt)
     lockmain(); /* start exclusive access */
     getitm(&ip); /* get a im pointer */
     ip->im = imqfind; /* set is find query */
-    ip->fndstr = s; /* set input string */
+    ip->fndstr = str(s); /* set input string */
     ip->fndopt = *opt; /* set options */
     br = PostMessage(dialogwin, UM_IM, (WPARAM)ip, 0);
     if (!br) winerr(); /* process windows error */
     waitim(imqfind, &ip); /* wait for the return */
-    s = ip->fndstr; /* set output string */
+    if (strlen(ip->fndstr) > sl) error(estrtl); /* string overflow */
+    strcpy(s, ip->fndstr); /* set output string */
+    ifree(ip->fndstr); /* free the temp string */
     *opt = ip->fndopt; /* set output options */
     putitm(ip); /* release im */
     unlockmain(); /* end exclusive access */
@@ -14589,14 +14591,18 @@ void pa_queryfindrep(char* s, int sl, char* r, int rl, int* opt)
     lockmain(); /* start exclusive access */
     getitm(&ip); /* get a im pointer */
     ip->im = imqfindrep; /* set is find/replace query */
-    ip->fnrsch = s; /* set input find string */
-    ip->fnrrep = r; /* set input replace string */
+    ip->fnrsch = str(s); /* set input find string */
+    ip->fnrrep = str(r); /* set input replace string */
     ip->fnropt = *opt; /* set options */
     br = PostMessage(dialogwin, UM_IM, (WPARAM)ip, 0);
     if (!br) winerr(); /* process windows error */
     waitim(imqfindrep, &ip); /* wait for the return */
-    s = ip->fnrsch; /* set output find string */
-    r = ip->fnrrep;
+    if (strlen(ip->fnrsch) > sl) error(estrtl); /* string overflow */
+    strcpy(s, ip->fnrsch); /* set output find string */
+    ifree(ip->fnrsch); /* free the temp string */
+    if (strlen(ip->fnrrep) > rl) error(estrtl); /* string overflow */
+    strcpy(r, ip->fnrrep);
+    ifree(ip->fnrrep); /* free the temp string */
     *opt = ip->fnropt; /* set output options */
     putitm(ip); /* release im */
     unlockmain(); /* end exclusive access */
@@ -15203,9 +15209,10 @@ static LRESULT CALLBACK wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam,
                 sl = strlen(ip->fndstr)+1; /* find length of input */
                 /* must be >= 80 characters */
                 if (sl < 80) sl = 80;
-                bs = imalloc(sl); /* get string */
-                strcpy(bs, ip->fndstr); /* copy input string to buffer */
-                ip->fndstr = bs; /* index buffer for return */
+                fs = imalloc(sl); /* get string */
+                strcpy(fs, ip->fndstr); /* copy input string to buffer */
+                ifree(ip->fndstr); /* free the passed string */
+                ip->fndstr = fs; /* index buffer for return */
                 frrp = imalloc(sizeof(FINDREPLACE)); /* get find/replace entry */
                 frrp->lStructSize = sizeof(FINDREPLACE); /* set size */
                 frrp->hwndOwner = dialogwin; /* set owner */
@@ -15238,11 +15245,17 @@ static LRESULT CALLBACK wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam,
                 /* find length of search string */
                 fsl =strlen(ip->fnrsch);
                 if (fsl < 80) fsl = 80; /* ensure >= 80 */
-                fs = str(ip->fnrrep); /* copy string */
+                fs = imalloc(sl); /* get string */
+                strcpy(fs, ip->fnrsch); /* copy input string to buffer */
+                ifree(ip->fnrsch); /* free the passed string */
+                ip->fnrsch = fs; /* index buffer for return */
                 /* find length of replacement string */
-                rsl =strlen(ip->fnrrep);
+                rsl = strlen(ip->fnrrep);
                 if (rsl < 80) rsl = 80; /* ensure >= 80 */
-                rs = str(ip->fnrrep); /* copy string */
+                rs = imalloc(sl); /* get string */
+                strcpy(rs, ip->fnrrep); /* copy input string to buffer */
+                ifree(ip->fnrrep); /* free the passed string */
+                ip->fnrrep = rs; /* index buffer for return */
                 frrp = imalloc(sizeof(FINDREPLACE)); /* get find/replace entry */
                 frrp->lStructSize = sizeof(FINDREPLACE); /* set size */
                 frrp->hwndOwner = dialogwin; /* set owner */
@@ -15363,26 +15376,29 @@ static LRESULT CALLBACK wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam,
             b = DestroyWindow(ip->fndhan); /* destroy the dialog */
             /* check and set case match mode */
             if (frrp->Flags & FR_MATCHCASE) ip->fndopt |= BIT(pa_qfncase);
-            /* check and set cas up/down mode */
+            else ip->fndopt &= ~BIT(pa_qfncase);
+            /* check and set up/down mode */
             if (frrp->Flags & FR_DOWN) ip->fndopt &= ~BIT(pa_qfnup);
             else ip->fndopt |= BIT(pa_qfnup);
-            ip->fndstr = frrp->lpstrFindWhat; /* place result string */
 
         } else { /* it's a find/replace */
 
             b = DestroyWindow(ip->fnrhan); /* destroy the dialog */
             /* check and set case match mode */
             if (frrp->Flags & FR_MATCHCASE) ip->fnropt |= BIT(pa_qfrcase);
+            else ip->fnropt &= ~BIT(pa_qfrcase);
             /* check and set find mode */
-            if (frrp->Flags & FR_FINDNEXT) ip->fnropt |= BIT(pa_qfrfind);
+            if (frrp->Flags & FR_FINDNEXT)
+                ip->fnropt = (ip->fnropt & ~BIT(pa_qfrallfil) &
+                              ~BIT(pa_qfralllin)) | BIT(pa_qfrfind);
             /* check and set replace mode */
             if (frrp->Flags & FR_REPLACE)
-                ip->fnropt = ip->fnropt & ~(BIT(pa_qfrfind) & ~BIT(pa_qfrallfil));
+                ip->fnropt = (ip->fnropt & ~BIT(pa_qfrfind) &
+                              ~BIT(pa_qfrallfil) & ~BIT(pa_qfralllin));
             /* check and set replace all mode */
             if (frrp->Flags & FR_REPLACEALL)
-                ip->fnropt = ip->fnropt & ~BIT(pa_qfrfind) | BIT(pa_qfrallfil);
-            ip->fnrsch = frrp->lpstrFindWhat;
-            ip->fnrrep = frrp->lpstrReplaceWith;
+                ip->fnropt = (ip->fnropt & ~BIT(pa_qfrfind) &
+                              ~BIT(pa_qfralllin)) | BIT(pa_qfrallfil);
 
         }
         ifree(frrp); /* release find/replace entry */

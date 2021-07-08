@@ -124,7 +124,7 @@ int main(void)
     if (setjmp(terminate_buf)) goto terminate;
 
     pa_curvis(stdout, FALSE);
-#if 1
+#if 0
     printf("Widget test vs. 0.1\n");
     printf("\n");
     printf("Hit return in any window to continue for each test\n");
@@ -1870,7 +1870,6 @@ int main(void)
     printf("Filename is: %s\n", s);
     waitnext();
 
-#endif
     /* ************************* Find query test ************************ */
 
     printf("\f");
@@ -1924,6 +1923,7 @@ int main(void)
     else printf("Mode is find/replace first on line(s)\n");
     waitnext();
 
+#endif
     /* ************************* Font query test ************************ */
 
     printf("\f");
@@ -1941,9 +1941,11 @@ int main(void)
     bb = INT_MAX;
     fe = 0;
     pa_queryfont(stdout, &fc, &fs, &fr, &fg, &fb, &br, &bg, &bb, &fe);
+    strcpy(s, "");
+    pa_fontnam(stdout, fc, s, 100);
     printf("\n");
     printf("Dialog should have completed now\n");
-    printf("Font code: %d\n", fc);
+    printf("Font code: %d(%s)\n", fc, s);
     printf("Font size: %d\n", fs);
     printf("Foreground pa_color: Red: %d Green: %d Blue: %d\n", fr, fg, fb);
     printf("Background pa_color: Red: %d Green: %d Blue: %d\n", br, bg, bb);
