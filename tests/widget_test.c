@@ -124,7 +124,7 @@ int main(void)
     if (setjmp(terminate_buf)) goto terminate;
 
     pa_curvis(stdout, FALSE);
-#if 0
+#if 1
     printf("Widget test vs. 0.1\n");
     printf("\n");
     printf("Hit return in any window to continue for each test\n");
@@ -1267,6 +1267,7 @@ int main(void)
 
     /* ******************* Terminal dropdown edit box test ******************** */
 
+#endif
     printf("\f");
     chrgrid();
     pa_binvis(stdout);
@@ -1300,7 +1301,10 @@ int main(void)
         if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != pa_etenter);
+    pa_getwidgettext(stdout, 1, s, 100);
+    printf("Final text is: %s\n", s);
     pa_killwidget(stdout, 1);
+    waitnext();
 
     /* ******************* Graphical dropdown edit box test ******************** */
 
@@ -1332,7 +1336,10 @@ int main(void)
         if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != pa_etenter);
+    pa_getwidgettext(stdout, 1, s, 100);
+    printf("Final text is: %s\n", s);
     pa_killwidget(stdout, 1);
+    waitnext();
 
     /* ************************* Terminal slider test ************************ */
 
@@ -1923,7 +1930,6 @@ int main(void)
     else printf("Mode is find/replace first on line(s)\n");
     waitnext();
 
-#endif
     /* ************************* Font query test ************************ */
 
     printf("\f");

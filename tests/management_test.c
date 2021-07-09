@@ -231,7 +231,7 @@ int main(void)
 
     pa_auto(stdout, OFF);
     pa_curvis(stdout, OFF);
-#if 1
+#if 0
     printf("Managed screen test vs. 0.1\n");
     printf("\n");
     pa_scnsiz(stdout, &x, &y);
@@ -330,6 +330,7 @@ int main(void)
 
     /* ****************** Resize screen with buffer on character *************** */
 
+#endif
     ox = pa_maxxg(stdout);
     oy = pa_maxyg(stdout);
     for (x = 20; x <= 80; x++) {
@@ -976,7 +977,6 @@ int main(void)
 
     /* ******************** Window size calculate character ***************** */
 
-#endif
     putchar('\f');
     prtceng(pa_maxyg(stdout)-pa_chrsizy(stdout), "Window size calculate character");
     pa_home(stdout);

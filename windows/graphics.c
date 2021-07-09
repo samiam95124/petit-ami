@@ -9528,9 +9528,26 @@ static void opnwin(int fn, int pfn)
     win->svres = GetDeviceCaps(win->devcon, VERTRES); /* pixels in y */
     win->sdpmx = win->shres/win->shsize*1000; /* find dots per meter x */
     win->sdpmy = win->svres/win->svsize*1000; /* find dots per meter y */
-    /* find client area size */
-    win->gmaxxg = maxxd*win->charspace;
-    win->gmaxyg = maxyd*win->linespace;
+    win->gmaxxg = maxxd*win->charspace; /* find client size x */
+    win->gmaxyg = maxyd*win->linespace; /* find client size y */
+    win->gmaxx = maxxd; /* character max x */
+    win->gmaxy = maxyd; /* character max y */
+
+#if 0
+    dbg_printf(dlinfo, "Display width in pixels:  %d\n", win->shres);
+    dbg_printf(dlinfo, "Display height in pixels: %d\n", win->svres);
+    dbg_printf(dlinfo, "Display width in mm:      %d\n", win->shsize);
+    dbg_printf(dlinfo, "Display height in mm:     %d\n", win->svsize);
+    dbg_printf(dlinfo, "Dots per meter x:         %d\n", win->sdpmx);
+    dbg_printf(dlinfo, "Dots per meter y:         %d\n", win->sdpmy);
+    dbg_printf(dlinfo, "Client width in pixels:   %d\n", win->gmaxxg);
+    dbg_printf(dlinfo, "Client height in pixels:  %d\n", win->gmaxyg);
+    dbg_printf(dlinfo, "Characters in x:          %d\n", win->gmaxx);
+    dbg_printf(dlinfo, "Characters in y:          %d\n", win->gmaxy);
+    dbg_printf(dlinfo, "Character size x:         %d\n", win->charspace);
+    dbg_printf(dlinfo, "Character size y:         %d\n", win->linespace);
+#endif
+
     cr.left = 0; /* set up desired client rectangle */
     cr.top = 0;
     cr.right = win->gmaxxg;
@@ -9552,8 +9569,7 @@ static void opnwin(int fn, int pfn)
 #endif
     lockmain(); /* start exclusive access */
     /* set up global buffer parameters */
-    win->gmaxx = maxxd; /* character max dimensions */
-    win->gmaxy = maxyd;
+
     win->gattr = 0; /* no attribute */
     win->gauto = TRUE; /* auto on */
     win->gfcrgb = colnum(pa_black); /* foreground black */
