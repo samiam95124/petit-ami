@@ -38,24 +38,16 @@ widget test
 area of the main window to get keyboard focus again. [what is the point of giving
 a button keyboard focus? it cannot input keys?]
 
-2, Dropeditbox does not take a return while editting as an event. It does set the
-contents of the box, but that is not the behavior specified.
-
-3. querycolor(), querysave(), queryfind(), and queryfindrep() need their 
+2. querycolor(), querysave(), queryfind(), and queryfindrep() need their 
 descriptions updated.
 
-4. tabbar() and tabbarclient() need their descriptions updated.
+3. tabbar() and tabbarclient() need their descriptions updated.
 
-5. queryfont() should really talk to the user in terms of points. That makes it
+4. queryfont() should really talk to the user in terms of points. That makes it
 a floating point number. This is especially odd considering the windows dialog
 does not take fractional values.
 
-6. Occasionally the entry boxes simply abort the test.
-
-7. On dropdown edit boxes, if you enter or modify text, how does it select? It does
-not take returns. [Windows expects that you get the text from the control as a
-result from another event, so the specified behavior does not match. Possibly
-subclass the control?]
+5. Occasionally the entry boxes simply abort the test.
 
 *************************************************************************************
 

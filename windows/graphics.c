@@ -26,7 +26,7 @@
 * graph started in 1996 as a graphical window demonstrator as a twin to        *
 * ansilib, the ANSI control character based terminal mode library.             *
 * In 2003, graph was upgraded to the graphical terminal standard.              *
-* In 2005, graph was upgraded to include the window mangement calls, and the  *
+* In 2005, graph was upgraded to include the window mangement calls, and the   *
 * widget calls.                                                                *
 *                                                                              *
 * graph uses three different tasks. The main task is passed on to the          *
@@ -1318,6 +1318,52 @@ static void prtmsgstr(int mn)
         case 0x00A7: fprintf(stderr, "WM_NCMBUTTONDOWN"); break;
         case 0x00A8: fprintf(stderr, "WM_NCMBUTTONUP"); break;
         case 0x00A9: fprintf(stderr, "WM_NCMBUTTONDBLCLK"); break;
+        case 0x00B0: fprintf(stderr, "EM_GETSEL"); break;
+        case 0x00B1: fprintf(stderr, "EM_SETSEL"); break;
+        case 0x00B2: fprintf(stderr, "EM_GETRECT"); break;
+        case 0x00B3: fprintf(stderr, "EM_SETRECT"); break;
+        case 0x00B4: fprintf(stderr, "EM_SETRECTNP"); break;
+        case 0x00B5: fprintf(stderr, "EM_SCROLL"); break;
+        case 0x00B6: fprintf(stderr, "EM_LINESCROLL"); break;
+        case 0x00B7: fprintf(stderr, "EM_SCROLLCARET"); break;
+        case 0x00B8: fprintf(stderr, "EM_GETMODIFY"); break;
+        case 0x00B9: fprintf(stderr, "EM_SETMODIFY"); break;
+        case 0x00BA: fprintf(stderr, "EM_GETLINECOUNT"); break;
+        case 0x00BB: fprintf(stderr, "EM_LINEINDEX"); break;
+        case 0x00BC: fprintf(stderr, "EM_SETHANDLE"); break;
+        case 0x00BD: fprintf(stderr, "EM_GETHANDLE"); break;
+        case 0x00BE: fprintf(stderr, "EM_GETTHUMB"); break;
+        case 0x00C1: fprintf(stderr, "EM_LINELENGTH"); break;
+        case 0x00C2: fprintf(stderr, "EM_REPLACESEL"); break;
+        case 0x00C4: fprintf(stderr, "EM_GETLINE"); break;
+        case 0x00C5: fprintf(stderr, "EM_LIMITTEXT"); break;
+        case 0x00C6: fprintf(stderr, "EM_CANUNDO"); break;
+        case 0x00C7: fprintf(stderr, "EM_UNDO"); break;
+        case 0x00C8: fprintf(stderr, "EM_FMTLINES"); break;
+        case 0x00C9: fprintf(stderr, "EM_LINEFROMCHAR"); break;
+        case 0x00CB: fprintf(stderr, "EM_SETTABSTOPS"); break;
+        case 0x00CC: fprintf(stderr, "EM_SETPASSWORDCHAR"); break;
+        case 0x00CD: fprintf(stderr, "EM_EMPTYUNDOBUFFER"); break;
+        case 0x00CE: fprintf(stderr, "EM_GETFIRSTVISIBLELINE"); break;
+        case 0x00CF: fprintf(stderr, "EM_SETREADONLY"); break;
+        case 0x00D0: fprintf(stderr, "EM_SETWORDBREAKPROC"); break;
+        case 0x00D1: fprintf(stderr, "EM_GETWORDBREAKPROC"); break;
+        case 0x00D2: fprintf(stderr, "EM_GETPASSWORDCHAR"); break;
+        case 0x00D3: fprintf(stderr, "EM_SETMARGINS"); break;
+        case 0x00D4: fprintf(stderr, "EM_GETMARGINS"); break;
+        case 0x00D5: fprintf(stderr, "EM_GETLIMITTEXT"); break;
+        case 0x00D6: fprintf(stderr, "EM_POSFROMCHAR"); break;
+        case 0x00D7: fprintf(stderr, "EM_CHARFROMPOS"); break;
+        case 0x00D8: fprintf(stderr, "EM_SETIMESTATUS"); break;
+        case 0x00D9: fprintf(stderr, "EM_GETIMESTATUS"); break;
+        case 0x00F0: fprintf(stderr, "BM_GETCHECK"); break;
+        case 0x00F1: fprintf(stderr, "BM_SETCHECK"); break;
+        case 0x00F2: fprintf(stderr, "BM_GETSTATE"); break;
+        case 0x00F3: fprintf(stderr, "BM_SETSTATE"); break;
+        case 0x00F4: fprintf(stderr, "BM_SETSTYLE"); break;
+        case 0x00F5: fprintf(stderr, "BM_CLICK"); break;
+        case 0x00F6: fprintf(stderr, "BM_GETIMAGE"); break;
+        case 0x00F7: fprintf(stderr, "BM_SETIMAGE"); break;
     /*  case 0x0100: fprintf(stderr, "WM_KEYFIRST"); break;*/
         case 0x0100: fprintf(stderr, "WM_KEYDOWN"); break;
         case 0x0101: fprintf(stderr, "WM_KEYUP"); break;
@@ -1400,6 +1446,11 @@ static void prtmsgstr(int mn)
         case 0x0210: fprintf(stderr, "WM_PARENTNOTIFY"); break;
         case 0x0211: fprintf(stderr, "WM_ENTERMENULOOP"); break;
         case 0x0212: fprintf(stderr, "WM_EXITMENULOOP"); break;
+        case 0x0213: fprintf(stderr, "WM_NEXTMENU"); break;
+        case 0x0214: fprintf(stderr, "WM_SIZING"); break;
+        case 0x0215: fprintf(stderr, "WM_CAPTURECHANGED"); break;
+        case 0x0216: fprintf(stderr, "WM_MOVING"); break;
+        case 0x0218: fprintf(stderr, "WM_POWERBROADCAST"); break;
         case 0x0220: fprintf(stderr, "WM_MDICREATE"); break;
         case 0x0221: fprintf(stderr, "WM_MDIDESTROY"); break;
         case 0x0222: fprintf(stderr, "WM_MDIACTIVATE"); break;
