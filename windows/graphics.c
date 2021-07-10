@@ -453,6 +453,7 @@ typedef struct imrec { /* intermessage record */
 
     struct imrec* next; /* next message in list */
     imcode im; /* message type */
+    wigtyp wt; /* widget type */
     union { /* intermessage type */
 
         struct { /* imalert */
@@ -536,6 +537,7 @@ typedef struct imrec { /* intermessage record */
             int     wigid;  /* widget id */
             HMODULE wigmod; /* module */
             HWND    wigwin; /* handle to widget */
+            HWND    wigscl; /* handle to superclass window */
 
         };
 
@@ -1338,6 +1340,44 @@ static void prtmsgstr(int mn)
         case 0x0136: fprintf(stderr, "WM_CTLCOLORDLG"); break;
         case 0x0137: fprintf(stderr, "WM_CTLCOLORSCROLLBAR"); break;
         case 0x0138: fprintf(stderr, "WM_CTLCOLORSTATIC"); break;
+
+        case 0x140: fprintf(stderr, "CB_GETEDITSEL"); break;
+        case 0x141: fprintf(stderr, "CB_LIMITTEXT"); break;
+        case 0x142: fprintf(stderr, "CB_SETEDITSEL"); break;
+        case 0x143: fprintf(stderr, "CB_ADDSTRING"); break;
+        case 0x144: fprintf(stderr, "CB_DELETESTRING"); break;
+        case 0x145: fprintf(stderr, "CB_DIR"); break;
+        case 0x146: fprintf(stderr, "CB_GETCOUNT"); break;
+        case 0x147: fprintf(stderr, "CB_GETCURSEL"); break;
+        case 0x148: fprintf(stderr, "CB_GETLBTEXT"); break;
+        case 0x149: fprintf(stderr, "CB_GETLBTEXTLEN"); break;
+        case 0x14A: fprintf(stderr, "CB_INSERTSTRING"); break;
+        case 0x14B: fprintf(stderr, "CB_RESETCONTENT"); break;
+        case 0x14C: fprintf(stderr, "CB_FINDSTRING"); break;
+        case 0x14D: fprintf(stderr, "CB_SELECTSTRING"); break;
+        case 0x14E: fprintf(stderr, "CB_SETCURSEL"); break;
+        case 0x14F: fprintf(stderr, "CB_SHOWDROPDOWN"); break;
+        case 0x150: fprintf(stderr, "CB_GETITEMDATA"); break;
+        case 0x151: fprintf(stderr, "CB_SETITEMDATA"); break;
+        case 0x152: fprintf(stderr, "CB_GETDROPPEDCONTROLRECT"); break;
+        case 0x153: fprintf(stderr, "CB_SETITEMHEIGHT"); break;
+        case 0x154: fprintf(stderr, "CB_GETITEMHEIGHT"); break;
+        case 0x155: fprintf(stderr, "CB_SETEXTENDEDUI"); break;
+        case 0x156: fprintf(stderr, "CB_GETEXTENDEDUI"); break;
+        case 0x157: fprintf(stderr, "CB_GETDROPPEDSTATE"); break;
+        case 0x158: fprintf(stderr, "CB_FINDSTRINGEXACT"); break;
+        case 0x159: fprintf(stderr, "CB_SETLOCALE"); break;
+        case 0x15A: fprintf(stderr, "CB_GETLOCALE"); break;
+        case 0x15B: fprintf(stderr, "CB_GETTOPINDEX"); break;
+        case 0x15C: fprintf(stderr, "CB_SETTOPINDEX"); break;
+        case 0x15D: fprintf(stderr, "CB_GETHORIZONTALEXTENT"); break;
+        case 0x15E: fprintf(stderr, "CB_SETHORIZONTALEXTENT"); break;
+        case 0x15F: fprintf(stderr, "CB_GETDROPPEDWIDTH"); break;
+        case 0x160: fprintf(stderr, "CB_SETDROPPEDWIDTH"); break;
+        case 0x161: fprintf(stderr, "CB_INITSTORAGE"); break;
+        case 0x163: fprintf(stderr, "CB_MULTIPLEADDSTRING"); break;
+        case 0x164: fprintf(stderr, "CB_GETCOMBOBOXINFO"); break;
+
      /*   case 0x0200: fprintf(stderr, "WM_MOUSEFIRST"); break; */
         case 0x0200: fprintf(stderr, "WM_MOUSEMOVE"); break;
         case 0x0201: fprintf(stderr, "WM_LBUTTONDOWN"); break;
@@ -7623,6 +7663,7 @@ static void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
     float  f;          /* floating point temp */
     NMHDR* nhp;        /* notification header */
 
+//dbg_printf(dlinfo, "message: "); prtmsg(msg); fprintf(stderr, "\n"); fflush(stderr);
     if (msg->message == WM_PAINT)  { /* window paint */
 
         if (!win->bufmod) { /* our client handles it"s own redraws */
@@ -11319,6 +11360,7 @@ static HWND createwidget(winptr win, wigtyp typ, int x1, int y1, int x2, int y2,
     /* create an intertask message to start the widget */
     getitm(&ip); /* get a im pointer */
     ip->im = imwidget; /* set type is widget */
+    ip->wt = typ; /* set type of widget */
     ip->wigcls = clsstr; /* place class string */
     ip->wigtxt = str(s); /* place face text */
     ip->wigflg = WS_CHILD | WS_VISIBLE | fl;
@@ -14718,6 +14760,35 @@ void pa_queryfont(FILE* f, int* fc, int* s, int* fr, int* fg, int* fb,
 
 }
 
+WNDPROC lpfnEditWndProc;
+
+/*******************************************************************************
+
+Window procedure for subclassed window
+
+Handles subclassing the drop edit box widget.
+
+*******************************************************************************/
+
+static LRESULT CALLBACK SubClassProc(HWND hwnd, UINT msg, WPARAM wparam,
+                                     LPARAM lparam)
+
+{
+
+    wigptr wp;
+
+//dbg_printf(dlinfo, "Superclass: Message: "); prtmsgu(hwnd, msg, wparam, lparam);
+    if (msg == CB_GETDROPPEDSTATE) {
+
+        wp = fndwighan(lfn2win(hwn2lfn(GetParent(hwnd))), hwnd);
+        putmsg(GetParent(hwnd), WM_COMMAND, CBN_SELENDOK*0x10000 | wp->id, 1);
+        return (0);
+
+    }
+    return CallWindowProc(lpfnEditWndProc, hwnd, msg, wparam, lparam);
+
+}
+
 /*******************************************************************************
 
 Window procedure for display thread
@@ -14738,6 +14809,7 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam,
     imptr   ip;  /* intratask message pointer */
     int     udw; /* up/down control width */
     RECT    cr;  /* client rectangle */
+    POINT   pt;  /* single pixel location */
 
     /* dump messages (diagnostic) */
     if (dmpmsg) {
@@ -14915,6 +14987,17 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam,
                                           ip->wigx, ip->wigy, ip->wigw,
                                           ip->wigh, ip->wigpar, (HMENU)ip->wigid,
                                           ip->wigmod, NULL);
+                if (ip->wt == wtdropeditbox) {
+
+                    /* create superclass of window */
+                    pt.x = 1;
+                    pt.y = 1;
+                    ip->wigscl = ChildWindowFromPoint(ip->wigwin, pt);
+                    lpfnEditWndProc =
+                        (WNDPROC)SetWindowLongPtr(ip->wigscl, GWLP_WNDPROC,
+                                                  (LONG_PTR)SubClassProc);
+
+                }
                 /* signal we started widget */
                 iputmsg(0, UM_IM, wparam, 0);
                 break;

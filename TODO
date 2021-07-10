@@ -1,13 +1,14 @@
 To do list for Petit-ami
 
-1. Add floating point conversions to stdio.
+1. Implement read of rc file from each of program, user and current location.
 
-2. Enable floating point speed calculations based on #1.
+2. See if there is a solution to static linking.
 
-3. Implement joysticks and test with multiple joysticks.
+3. Need to allow buffer zero to keep the 0 screen data.
 
-4. Implement read of rc file from each of program, user and current location.
+Note:
 
-5. See if there is a solution to static linking.
+Most of the TODO data is distributed around the system in individual .not files
+with the primary being the name of the module the notes are for, for example:
 
-6. Need to allow buffer zero to keep the 0 screen data.
+linux/graphics.not
