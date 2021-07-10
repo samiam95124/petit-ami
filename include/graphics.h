@@ -125,7 +125,7 @@ typedef enum {
     pa_etnumbox,   /* number select box signals done */
     pa_etlstbox,   /* list box selection */
     pa_etdrpbox,   /* drop box selection */
-    pa_etdrebox,   /* drop edit box selection */
+    pa_etdrebox,   /* drop edit box signals done */
     pa_etsldpos,   /* slider position */
     pa_ettabbar    /* tab bar select */
 } pa_evtcod;

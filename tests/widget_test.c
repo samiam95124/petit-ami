@@ -989,6 +989,7 @@ int main(void)
 
     /* ************************* Terminal edit box test ************************ */
 
+#endif
     printf("\f");
     chrgrid();
     pa_binvis(stdout);
@@ -1010,6 +1011,7 @@ int main(void)
 
     } while (er.etype != pa_etenter);
     pa_killwidget(stdout, 1);
+#if 0
 
     /* ************************* Graphical edit box test ************************ */
 

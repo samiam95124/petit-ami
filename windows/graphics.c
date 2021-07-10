@@ -7864,11 +7864,11 @@ static void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
                     *keep = TRUE; /* set keep event */
                     break;
 
-                case wtgroup: ; /* group box, gives no messages */
-                case wtbackground: ; /* background box, gives no messages */
-                case wtscrollvert: ; /* scrollbar, gives no messages */
-                case wtscrollhoriz: ; /* scrollbar, gives no messages */
-                case wteditbox: ; /* edit box, requires no messages */
+                case wtgroup: break; /* group box, gives no messages */
+                case wtbackground: break; /* background box, gives no messages */
+                case wtscrollvert: break; /* scrollbar, gives no messages */
+                case wtscrollhoriz: break; /* scrollbar, gives no messages */
+                case wteditbox: break; /* edit box, requires no messages */
                 case wtlistbox: /* list box */
                     if (nm == LBN_DBLCLK) {
 
@@ -7899,19 +7899,10 @@ static void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
                     }
                     break;
 
-                case wtdropeditbox: /* drop edit box */
-                    if (nm == CBN_SELENDOK)  {
-
-                        er->etype = pa_etdrebox; /* set list box select event */
-                        er->drebid = wp->id; /* get widget id */
-                        *keep = TRUE; /* set keep event */
-
-                    }
-                    break;
-
-                case wtslidehoriz: break;;
-                case wtslidevert: break;;
-                case wtnumselbox: break;;
+                case wtdropeditbox: break; /* drop edit box */
+                case wtslidehoriz: break;
+                case wtslidevert: break;
+                case wtnumselbox: break;
 
             }
 
@@ -8075,8 +8066,17 @@ static void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
 
         wp = fndwig(win, msg->wParam); /* find widget tracking entry */
         if (!wp) error(esystem); /* should have been found */
-        er->etype = pa_etedtbox; /* set edit box complete event */
-        er->edtbid = wp->id; /* get widget id */
+        if (wp->typ == wteditbox) {
+
+             er->etype = pa_etedtbox; /* set edit box complete event */
+             er->edtbid = wp->id; /* get widget id */
+
+        } else {
+
+            er->etype = pa_etdrebox; /* set drop edit box complete event */
+            er->drebid = wp->id; /* get widget id */
+
+        }
         *keep = TRUE; /* set keep event */
 
     } else if (msg->message == UM_NUMCR) {
@@ -12974,9 +12974,7 @@ static int wndprocedit(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
     winptr  win; /* parent window data */
     wigptr  wp;  /* widget pointer */
 
-/*;fprintf(stderr, "wndprocedit: msg: ");
-;prtmsgu(hwnd, imsg, wparam, lparam);*/
-
+//dbg_printf(dlinfo, "Message: "); prtmsgu(hwnd, imsg, wparam, lparam);
     /* We need to find out who we are talking to. */
     wh = GetParent(hwnd); /* get the widget parent handle */
     lfn = hwn2lfn(wh); /* get the logical window number */
@@ -12986,6 +12984,9 @@ static int wndprocedit(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
     if (imsg == WM_CHAR && wparam == '\r')
         /* Send edit sends cr message to parent window, with widget logical
            number embedded as wparam. */
+        putmsg(wh, UM_EDITCR, wp->id, 0);
+    else if (imsg == CB_GETDROPPEDSTATE)
+        /* drop edit box signals done */
         putmsg(wh, UM_EDITCR, wp->id, 0);
     else
         /* send the message on to its owner */
@@ -13076,7 +13077,7 @@ static void ieditboxg(winptr win, int x1, int y1, int x2, int y2, int id)
 
     if (!win->visible) winvis(win); /* make sure we are displayed */
     widget(win, x1, y1, x2, y2, "", id, wteditbox, 0, &wp);
-    /* get the windows internal void for subclassing */
+    /* get the windows internal procedure for subclassing */
     wp->wprc = (WNDPROC)GetWindowLongPtr(wp->han, GWL_WNDPROC);
     if (!wp->wprc) winerr(); /* process windows error */
     r = SetWindowLong(wp->han, GWL_WNDPROC, (LONG)wndprocedit);
@@ -13735,6 +13736,11 @@ static void idropeditboxg(winptr win, int x1, int y1, int x2, int y2, pa_strptr 
 
     if (!win->visible) winvis(win); /* make sure we are displayed */
     widget(win, x1, y1, x2, y2, "", id, wtdropeditbox, 0, &wp);
+    /* get the windows internal procedure for subclassing */
+    wp->wprc = (WNDPROC)GetWindowLongPtr(wp->han, GWL_WNDPROC);
+    if (!wp->wprc) winerr(); /* process windows error */
+    r = SetWindowLong(wp->han, GWL_WNDPROC, (LONG)wndprocedit);
+    if (!r) winerr(); /* process windows error */
     sp1 = sp; /* index top of string list */
     while (sp1) { /* add strings to list */
 
@@ -14760,35 +14766,6 @@ void pa_queryfont(FILE* f, int* fc, int* s, int* fr, int* fg, int* fb,
 
 }
 
-WNDPROC lpfnEditWndProc;
-
-/*******************************************************************************
-
-Window procedure for subclassed window
-
-Handles subclassing the drop edit box widget.
-
-*******************************************************************************/
-
-static LRESULT CALLBACK SubClassProc(HWND hwnd, UINT msg, WPARAM wparam,
-                                     LPARAM lparam)
-
-{
-
-    wigptr wp;
-
-//dbg_printf(dlinfo, "Superclass: Message: "); prtmsgu(hwnd, msg, wparam, lparam);
-    if (msg == CB_GETDROPPEDSTATE) {
-
-        wp = fndwighan(lfn2win(hwn2lfn(GetParent(hwnd))), hwnd);
-        putmsg(GetParent(hwnd), WM_COMMAND, CBN_SELENDOK*0x10000 | wp->id, 1);
-        return (0);
-
-    }
-    return CallWindowProc(lpfnEditWndProc, hwnd, msg, wparam, lparam);
-
-}
-
 /*******************************************************************************
 
 Window procedure for display thread
@@ -14809,7 +14786,6 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam,
     imptr   ip;  /* intratask message pointer */
     int     udw; /* up/down control width */
     RECT    cr;  /* client rectangle */
-    POINT   pt;  /* single pixel location */
 
     /* dump messages (diagnostic) */
     if (dmpmsg) {
@@ -14987,17 +14963,6 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam,
                                           ip->wigx, ip->wigy, ip->wigw,
                                           ip->wigh, ip->wigpar, (HMENU)ip->wigid,
                                           ip->wigmod, NULL);
-                if (ip->wt == wtdropeditbox) {
-
-                    /* create superclass of window */
-                    pt.x = 1;
-                    pt.y = 1;
-                    ip->wigscl = ChildWindowFromPoint(ip->wigwin, pt);
-                    lpfnEditWndProc =
-                        (WNDPROC)SetWindowLongPtr(ip->wigscl, GWLP_WNDPROC,
-                                                  (LONG_PTR)SubClassProc);
-
-                }
                 /* signal we started widget */
                 iputmsg(0, UM_IM, wparam, 0);
                 break;
