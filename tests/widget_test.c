@@ -1303,10 +1303,7 @@ int main(void)
         if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != pa_etenter);
-    pa_getwidgettext(stdout, 1, s, 100);
-    printf("Final text is: %s\n", s);
     pa_killwidget(stdout, 1);
-    waitnext();
 
     /* ******************* Graphical dropdown edit box test ******************** */
 
@@ -1338,10 +1335,7 @@ int main(void)
         if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != pa_etenter);
-    pa_getwidgettext(stdout, 1, s, 100);
-    printf("Final text is: %s\n", s);
     pa_killwidget(stdout, 1);
-    waitnext();
 
     /* ************************* Terminal slider test ************************ */
 

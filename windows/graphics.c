@@ -12981,14 +12981,20 @@ static int wndprocedit(HWND hwnd, UINT imsg, WPARAM wparam, LPARAM lparam)
     win = lfn2win(lfn); /* index window from logical number */
     wp = fndwighan(win, hwnd); /* find the widget from that */
     /* check control is receiving a carriage return */
-    if (imsg == WM_CHAR && wparam == '\r')
+    if (imsg == WM_CHAR && wparam == '\r') {
+
         /* Send edit sends cr message to parent window, with widget logical
            number embedded as wparam. */
         putmsg(wh, UM_EDITCR, wp->id, 0);
-    else if (imsg == CB_GETDROPPEDSTATE)
+        SetFocus(wh); /* send keyboard focus back to parent */
+
+    } else if (imsg == CB_GETDROPPEDSTATE) {
+
         /* drop edit box signals done */
         putmsg(wh, UM_EDITCR, wp->id, 0);
-    else
+        SetFocus(wh); /* send keyboard focus back to parent */
+
+    } else
         /* send the message on to its owner */
         r = CallWindowProc(wp->wprc, hwnd, imsg, wparam, lparam);
 
