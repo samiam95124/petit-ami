@@ -113,6 +113,9 @@ static enum { /* debug levels */
                                 __func__, __LINE__, ##__VA_ARGS__); \
                                 fflush(stderr); } while (0)
 
+/* enter debugger on fail */
+#define ENTDBG 1
+
 /*
  * Configurable parameters
  *
@@ -1045,6 +1048,10 @@ static void abortm(void)
     unlockmain(); /* end exclusive access */
     fend = TRUE; /* set exit ordered */
 
+/* for debugging, cause a system exception to route to the debugger */
+#ifdef ENTDBG
+    { int a, b; a = b = 0; a = a/b; }
+#endif
     exit(1); /* exit */
 
 }
