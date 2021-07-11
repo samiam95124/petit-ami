@@ -2266,7 +2266,7 @@ static int hwn2lfn(HWND hw)
 
 {
 
-    int f;  /* index for file handles */
+    int fi;  /* index for file handles */
     int fn; /* resulting file number */
 
     fn = -1; /* set no file found */
