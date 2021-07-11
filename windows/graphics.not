@@ -1,24 +1,5 @@
 Notes for graph.c
 
-1. When a program finishes, and is in autohold, it cannot be cancelled with
-ctl-c. I studied the issue, and apparently by the time it function pa_deinit_graph
-function is executed, something has occurred to damage the input queue such that
-characters typed to the input queue are not serviced, and thus the window locks
-as unresponsive. This was proved by moving the hold code into a function "softshutdown()"
-then call that from main program, and it works fine.
-
-2. When error send to dialog is enabled, I have seen double faults where the dialog
-is closed, then an error is sent to main window.
-
-3. In buffered mode, there should be arrangements to insert scroll bars if the window
-is clipping the buffer (window size smaller than buffer). This matches the behavior of
-(say) the windows console subsystem.
-
-4. xltwin and filwin are initialized to 0, and should be -1 (since fids are >= 0).
-
-5. Windows appears to pick a different dpm depending on which font is selected
-for the system font.
-
 ************************************************************************************
 TEST RESULTS
 ************************************************************************************
@@ -55,25 +36,39 @@ The following are notes from the old (untranslated) version of graph.
 
 *************************************************************************************
 
-1. Inserting a readln after child windows create in ipide, then canceling
+1. When a program finishes, and is in autohold, it cannot be cancelled with
+ctl-c. I studied the issue, and apparently by the time it function pa_deinit_graph
+function is executed, something has occurred to damage the input queue such that
+characters typed to the input queue are not serviced, and thus the window locks
+as unresponsive. This was proved by moving the hold code into a function "softshutdown()"
+then call that from main program, and it works fine.
+
+2. When error send to dialog is enabled, I have seen double faults where the dialog
+is closed, then an error is sent to main window.
+
+3. In buffered mode, there should be arrangements to insert scroll bars if the window
+is clipping the buffer (window size smaller than buffer). This matches the behavior of
+(say) the windows console subsystem.
+
+4. Inserting a readln after child windows create in ipide, then canceling
 that, causes a "windows no error" to occur. Also happens in other circumstances.
 
-2. Line endings on non-orthogonal lines are a first attempt approximation,
+5. Line endings on non-orthogonal lines are a first attempt approximation,
 and could use improvement.
 
-3. Cannot do text foreground/background text xor. One method to do this would
+6. Cannot do text foreground/background text xor. One method to do this would
 be to copy the text to a buffer, then perform the xor as a bitblt back to the
 main buffer and screen.
 
-4. Implement charspace and linespace (blank space) functions.
+7. Implement charspace and linespace (blank space) functions.
 
-5. As part of the viewoff/viewscale enhancement, when painting text in
+8. As part of the viewoff/viewscale enhancement, when painting text in
 non-orthogonal scaling, the text as drawn does not follow the asymetrical
 scaling (although the point size does), but it is correct in the buffer. The
 answer is to paint text into the buffer, then paint back from the buffer for
 these modes.
 
-6. When closing the main window with the find dialog in progress, the query
+9. When closing the main window with the find dialog in progress, the query
 find routine returns with a termination event signaled, then can error when
 the program again tries to use the (now closed) window. The problem is that
 the wm_quit message happens AFTER the window is already closed so any writes
@@ -82,18 +77,18 @@ during the dialog, and even putting back the event won't accomplish anything,
 since the app cannot poll that.
 This could be related to (8).
 
-7. On queryfind, when the dialog appears, hitting the main window does not
+10. On queryfind, when the dialog appears, hitting the main window does not
 make the cursor appear, but hitting the dialog, then hitting the main window
 does.
 
-8, Have to make sure a find dialog is canceled for any of the abnormal
+11, Have to make sure a find dialog is canceled for any of the abnormal
 conditions, like main window cancelled, or whole program aborted.
 
-9. In gratst, during the benchmark sections, covering and uncovering the
+12. In gratst, during the benchmark sections, covering and uncovering the
 window when paused between benchmarks, the screen as redrawn becomes
 "noise" except for the text, very odd.
 
-11. Turning on a menu with a buffered surface should change the size of the
+13. Turning on a menu with a buffered surface should change the size of the
 window to keep the client area over the full buffer. Note that this is not
 trivial, since the amount of y area covered by the window can vary when the
 window is small in x and the menu wraps.
@@ -143,22 +138,19 @@ provided by buttonsiz and similar sizing routines. As it is, the interface
 encourages the user to modify the sizing results for actual use, which might
 be a problem later.
 
-22. Drop edit box should be subclassed to give an event when the user hits
-return.
-
-23. The new "autohold" routine gives a solution to exiting without tripping
+22. The new "autohold" routine gives a solution to exiting without tripping
 the autohold (the installer gives a good example of this need). However,
 any program that uses event calls should be given this privledge. Perhaps
 event() should also set it off.
 
-24. Placing a scrollbar ontop of a tabbar causes the scrollbar to not get
+23. Placing a scrollbar ontop of a tabbar causes the scrollbar to not get
 redrawn properly on hides/reveals. Probally related to the various tabbar
 redraw issues discovered.
 
-25. When using tabbars, the square generated by "uselesswidget" is showing
+24. When using tabbars, the square generated by "uselesswidget" is showing
 up onscreen, and not getting killed.
 
-26. When compiling a program that had a "error" file use, but was a detached
+25. When compiling a program that had a "error" file use, but was a detached
 windows graphical, I get a "file not open" type error in a dialog. Then,
 there is a zombie process in the log.
 

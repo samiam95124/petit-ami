@@ -2275,7 +2275,7 @@ static int hwn2lfn(HWND hw)
         if (opnfil[fi] && opnfil[fi]->win && opnfil[fi]->win->winhan == hw)
             fn = fi; /* found */
 
-   return (fn); /* return result */
+    return (fn); /* return result */
 
 }
 
@@ -9807,8 +9807,8 @@ static void closewin(int ofn)
     clsfil(ofn); /* flush and close output file */
     /* if no remaining links exist, flush and close input file */
     if (!inplnk(ifn)) clsfil(ifn);
-    filwin[ofn] = 0; /* clear file to window translation */
-    xltwin[wid-1] = 0; /* clear window to file translation */
+    filwin[ofn] = -1; /* clear file to window translation */
+    xltwin[wid-1] = -1; /* clear window to file translation */
     unlockmain(); /* end exclusive access */
 
 }
@@ -9846,7 +9846,7 @@ static void openio(FILE* infile, FILE* outfile, int ifn, int ofn, int pfn,
 
     }
     /* check if the window has been pinned to something else */
-    if (xltwin[wid-1] && xltwin[wid-1] != ofn) error(ewinuse); /* flag error */
+    if (xltwin[wid-1] >= 0 && xltwin[wid-1] != ofn) error(ewinuse); /* flag error */
     xltwin[wid-1] = ofn; /* pin the window to the output file */
     filwin[ofn] = wid;
 
@@ -9899,7 +9899,7 @@ static void iopenwin(FILE** infile, FILE** outfile, int pfn, int wid)
     /* check valid window handle */
     if (wid < 1 || wid > MAXFIL) error(einvwin);
     /* check if the window id is already in use */
-    if (xltwin[wid-1]) error(ewinuse); /* error */
+    if (xltwin[wid-1] >= 0) error(ewinuse); /* error */
     ifn = fndfil(*infile); /* find previous open input side */
     if (ifn < 0) { /* no other input file, open new */
 
@@ -15885,13 +15885,13 @@ static void pa_init_graph()
     for (e = pa_etchar; e <= pa_ettabbar; e++) evthan[e] = defaultevent;
 
     /* clear open files table */
-    for (fi = 0; i < MAXFIL; i++) {
+    for (fi = 0; fi < MAXFIL; fi++) {
 
         opnfil[fi] = NULL; /* set unoccupied */
         /* clear window logical number translator table */
-        xltwin[fi] = 0; /* set unoccupied */
+        xltwin[fi] = -1; /* set unoccupied */
         /* clear file to window logical number translator table */
-        filwin[fi] = 0; /* set unoccupied */
+        filwin[fi] = -1; /* set unoccupied */
 
     }
 
