@@ -5,23 +5,20 @@ everything may not work perfectly.
 
 Steps to install
 
-1. execute:
+Linux:
 
-$ . setpath
+. setpath [recommended]
+./configure
+make
 
-To set up the binaries for execution.
+Windows:
 
-2. Perform the install script. This makes sure you have the required packages:
-
-$ install
-
-3. Set the version of libc override you have:
-
-$ setver_glibc
+setpath [recommended]
+configure
+make
 
 If you get something like:
 
-$ setver_glibc
 Version number: 2.31
 *** libc override file by version 2.31 does not exist
 

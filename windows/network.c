@@ -361,7 +361,7 @@ FILE* pa_opennet(/* IP address */      unsigned long addr,
     filptr fep; /* file tracking pointer */
     int    r;   /* return value */
 
-dbg_printf(dlinfo, "begin: addr: "); prtadr(addr); fprintf(stderr, " port: %d\n", port);
+    if (secure) error(enotimp);
     /* open file handle as null */
     fp = fopen("nul", "w");
     fn = fileno(fp); /* get logical file no. */
@@ -378,7 +378,6 @@ dbg_printf(dlinfo, "begin: addr: "); prtadr(addr); fprintf(stderr, " port: %d\n"
     fep->socka.sin_addr.s_addr = htonl(addr);
     r = connect(fep->sock, (struct sockaddr*)&fep->socka, sizeof(struct sockaddr_in));
     if (r == SOCKET_ERROR) wskerr(); /* process Winsock error */
-dbg_printf(dlinfo, "end\n");
 
     return (fp); /* exit with file */
 

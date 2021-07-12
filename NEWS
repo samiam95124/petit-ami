@@ -1,1 +1,69 @@
-This is a placeholder for the NEWS file.
+********************** VERSION 0.1 (BETA) RELEASE OF PETIT-AMI *****************
+
+This is a beta/prerelease version of Petit-Ami. Its purpose is to provide early
+experience of the product to users, as well as for me to get an idea how much
+interest exists for it.
+
+There are several major limits to Petit-Ami, and many minor ones. The major 
+limits are listed here, and both major and minor limits appear in the Windows/
+and Linux/ directories under the particular module, with a .not file ending.
+
+The most important thing is READ THE MANUAL. I try to keep the manual as updated
+as possible, but of course the release notes here, and product .not files many
+have information that is not in the manual.
+
+WINDOWS
+
+All of the Windows modules save one are functionally complete. The incomplete
+module is network. The incomplete calls are:
+
+pa_addrnetv6()
+pa_opennet() in secure mode (insecure mode works).
+pa_opennetv6()
+pa_openmsg()
+pa_openmsgv6()
+pa_waitmsg()
+pa_maxmsg()
+pa_maxmsgv6()
+pa_wrmsg()
+pa_rdmsg()
+pa_clsmsg()
+pa_waitnet()
+pa_relymsg()
+pa_relymsgv6()
+pa_certmsg()
+pa_certnet()
+pa_certlistnet()
+pa_certlistmsg()
+
+LINUX
+
+The Linux version is tested on Ubuntu 20.04. Running with other version will
+probably necessitate adaption work at this time.
+
+THe Linux graphics.c module has achieved graphics level. To be done are managed
+windows mode and widget mode.
+
+The linux subsystem uses a patched version of GLIBC that can have the read(),
+write(), open() and close() calls overridden. GLIBC must match the kernel 
+version in use. I have generated many common kernel versions of glibc under
+Ubuntu. The command setver_glibc should be able to automatically find and
+configure such versions, and it is automatically executed as part of 
+./configure.
+
+If the kernel version of glibc your system is not precompiled, then you can 
+generate one for your system using build_glibc, which takes care of the entire
+process of fetching glibc source, patching it and building it.
+
+If that still does not work, send me email.
+
+The override version of glibc is necessary only on the Linux version. It was
+needed because some programs expect glibc code to be in use, and use 
+undocumented code and data structures in glibc. Such programs include gdb.
+Its a heavy handed solution to a difficult problem, but I hope to find a
+better workaround in the future.
+ 
+ Thanks,
+ 
+ Scott A. Franco
+ San Jose, CA

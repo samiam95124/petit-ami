@@ -1,1 +1,100 @@
-This is a placeholder for the configure file.
+#!/bin/bash
+################################################################################
+#
+# Configure scipt for Pascal-P5
+#
+# Sets up the complete Pascal-P5 project.
+#
+################################################################################
+
+################################################################################
+#
+# Routines
+#
+
+#
+# Check command exists
+#
+# Uses the bash "command" built in.
+#
+function checkexists {
+
+    command -v $1 >/dev/null
+    rc=$?
+    if [[ $rc != 0 ]] ; then
+
+        echo "*** No $1 was found"
+
+    fi
+
+}
+
+################################################################################
+#
+# Set default variables
+#
+compiler="gcc"
+bits="32"
+host="linux"
+
+################################################################################
+#
+# Determine if needed programs exist. The only fatal one is gcc, because we
+# need that to compile Petit-Ami. The rest will impact the running of various
+# test and build scripts.
+#
+checkexists grep
+checkexists diff
+checkexists sed
+checkexists rm
+checkexists cp
+checkexists mv
+checkexists ls
+checkexists tar
+checkexists flip
+checkexists cpp
+
+#
+# Fail on no grep found
+#
+checkexists gcc > /dev/null
+if [[ $rc != 0 ]] ; then
+
+    echo "*** Aborting: cannot complete without gcc"
+    exit 1
+
+fi
+
+#
+# Check user arguments
+#
+for var in "$@"
+do
+
+    if [ $var = "--help" ]
+    then
+
+        echo "Configure program for Petit-Ami"
+        exit 0
+
+    else
+
+        echo "*** Option not recognized"
+        echo "Terminating"
+        exit 0
+
+    fi
+
+done
+
+#
+# Run the install script
+#
+bin/install
+
+#
+# Set the version of libc override that is needed.
+#
+setver_glibc
+
+echo "Configure completed!"
