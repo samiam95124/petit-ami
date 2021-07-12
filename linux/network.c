@@ -157,7 +157,7 @@ typedef enum {
     enetpos,  /* cannot position network file */
     enetloc,  /* cannot find location network file */
     enetlen,  /* cannot find length network file */
-    esckeof,  /* } encountered on socket */
+    esckeof,  /* end encountered on socket */
     efinuse,  /* file already in use */
     enetwrt,  /* Attempt to write to input side of network pair */
     enetadr,  /* cannot determine address of server */
@@ -2131,6 +2131,8 @@ void pa_certlistnet(FILE *f, int which, pa_certptr* list)
     pa_certptr extensions;
     pa_certptr cdp, cdp2;
 
+    error(eunimp);
+
     fn = fileno(f); /* get fid */
     if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
     if (which < 1) error(einvctn); /* invalid certificate number */
@@ -2314,6 +2316,8 @@ line. Servers are required to provide certificates. Clients are not.
 void pa_certlistmsg(int fn, int which, pa_certptr* list)
 
 {
+
+    error(eunimp);
 
 }
 

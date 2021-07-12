@@ -42,7 +42,13 @@ The Linux version is tested on Ubuntu 20.04. Running with other version will
 probably necessitate adaption work at this time.
 
 THe Linux graphics.c module has achieved graphics level. To be done are managed
-windows mode and widget mode.
+windows mode and widget mode. This leaves only clock.c that cannot be tested
+in the graph_programs directory.
+
+The network module lacks the following calls:
+
+pa_certlistnet()
+pa_certlistmsg()
 
 The linux subsystem uses a patched version of GLIBC that can have the read(),
 write(), open() and close() calls overridden. GLIBC must match the kernel 
@@ -62,8 +68,17 @@ needed because some programs expect glibc code to be in use, and use
 undocumented code and data structures in glibc. Such programs include gdb.
 Its a heavy handed solution to a difficult problem, but I hope to find a
 better workaround in the future.
+
+C++
+
+The cpp and hpp directories contain an initial implementation of the C++
+wrapper should you wish to play around with it. It is for terminal mode only.
+It works well, and time permitting I plan to extend it. It is undocumented
+except for having the source itself at this time.
+
+Hopefully this will be sufficient to get an idea what the system can do.
  
- Thanks,
+Thanks,
  
- Scott A. Franco
- San Jose, CA
+Scott A. Franco
+San Jose, CA
