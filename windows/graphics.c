@@ -4767,8 +4767,9 @@ int pa_curyg(FILE* f)
 
 Select current screen
 
-Selects one of the screens to set active. If the screen has never been used,
- a new screen is allocated and cleared.
+Selects one of the screens to set active. If the screen has never been used, a
+new screen is allocated and cleared.
+
 The most common use of the screen selection system is to be able to save the
 initial screen to be restored on exit. This is a moot point in this
 application, since we cannot save the entry screen in any case.
@@ -4804,7 +4805,12 @@ static void iselect(winptr win, int u, int d)
 
     }
     /* if the screen has changed, restore it */
-    if (win->curdsp != ld) restore(win, TRUE);
+    if (win->curdsp != ld) {
+
+        if (!win->visible) winvis(win); /* make sure we are displayed */
+        else restore(win, TRUE);
+
+    }
 
 }
 
