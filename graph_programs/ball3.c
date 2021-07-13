@@ -54,7 +54,7 @@ int main(void)
 
     pa_auto(stdout, FALSE);
     pa_curvis(stdout, FALSE);
-    ballsize = pa_maxyg(stdout)/20; /* set ball size */
+    ballsize = pa_maxyg(stdout)/10; /* set ball size */
     halfball = ballsize/2; /* set half ball size */
     pa_frametimer(stdout, TRUE); /* start frame timer */
     while (TRUE) {

@@ -69,7 +69,7 @@ int main(void)
 
 {
 
-    ballsize = pa_maxyg(stdout)/20; /* set ball size */
+    ballsize = pa_maxyg(stdout)/10; /* set ball size */
     halfball = ballsize/2; /* set half ball size */
     /* initialize ball data */
     for (i = 0; i < MAXBALL; i++) {
