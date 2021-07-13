@@ -144,7 +144,7 @@ void drawsball(int x, int y, int size, int o, int steps, int r, int g, int b)
 
         pa_fcolorg(stdout, level(r, steps, shad, i), level(g, steps, shad, i),
                    level(b, steps, shad, i));
-        k = round((i-1)*(size/steps));
+        k = round((i-1)*((float)size/steps));
         q = round((i-1)*(offs/steps));
         drawball(x-q, y-q, size-k);
 
@@ -199,7 +199,7 @@ void movbal(int b)
 
     nx = baltbl[b].x+baltbl[b].xd; /* trial move ball */
     ny = baltbl[b].y+baltbl[b].yd;
-    /* check out of bounds && reverse direction */
+    /* check out of bounds and reverse direction */
     if (nx < halfball || nx > pa_maxxg(stdout)-halfball+1) {
 
        bounce = TRUE; /* set bounce occurred */
