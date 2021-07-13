@@ -2784,7 +2784,7 @@ void pa_playwave(int p, int t, int w)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        PlaySound(wavenam[w-1], 0, SND_FILENAME | SND_NODEFAULT /*| SND_ASYNC*/);
+        PlaySound(wavenam[w-1], 0, SND_FILENAME | SND_NODEFAULT | SND_ASYNC);
 
     } else { /* sequence */
 
