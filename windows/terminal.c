@@ -85,7 +85,8 @@ static enum { /* debug levels */
 
 #define dbg_printf(lvl, fmt, ...) \
         do { if (lvl >= dbglvl) fprintf(stderr, "%s:%s():%d: " fmt, __FILE__, \
-                                __func__, __LINE__, ##__VA_ARGS__); } while (0)
+                                __func__, __LINE__, ##__VA_ARGS__); \
+                                fflush(stderr); } while (0)
 
 /* standard file handles */
 #define INPFIL 0   /* _input */
@@ -394,6 +395,7 @@ Set colors
 
 Sets the current background and foreground colors in windows attribute format
 from the coded colors and the "reverse" attribute.
+
 Despite the name, also sets the attributes. We obey reverse coloring, and
 set the following "substitute" attributes:
 
@@ -440,6 +442,7 @@ static void setcolor(scnptr sc)
     else /* set normal colors */
         sc->sattr = colnum(sc->backc, (sc->attr == saundl || sc->attr == sabold))*16+
                     colnum(sc->forec, (sc->attr == saital || sc->attr == sabold));
+    gattr = sc->attr; /* set global to match */
 
 }
 
@@ -1213,6 +1216,7 @@ void pa_fcolor(FILE* f, pa_color c)
 {
 
     screens[curupd-1]->forec = c; /* set color status */
+    gforec = c; /* set global as well */
     setcolor(screens[curupd-1]); /* activate */
 
 }
@@ -1230,6 +1234,7 @@ void pa_bcolor(FILE* f, pa_color c)
 {
 
     screens[curupd-1]->backc = c; /* set color status */
+    gbackc = c; /* set global as well */
     setcolor(screens[curupd-1]); /* activate */
 
 }
@@ -1242,7 +1247,7 @@ Enable/disable automatic scroll and wrap
 Enables or disables automatic screen scroll and } of line wrapping. When the
 cursor leaves the screen in automatic mode, the following occurs:
 
-up         Scroll down
+up        Scroll down
 down      Scroll up
 right     Line down, start at left
 left      Line up, start at right
@@ -1263,7 +1268,8 @@ void pa_auto(FILE* f, int e)
 
 {
 
-    screens[curupd-1]->autof = e; /* set line wrap status */
+    screens[curupd-1]->autof = e; /* set auto status */
+    gautof = e; /* set global as well */
 
 }
 
@@ -1280,6 +1286,7 @@ void pa_curvis(FILE* f, int e)
 {
 
     screens[curupd-1]->curv = e; /* set cursor visible status */
+    gcurv = e; /* set global as well */
     cursts(screens[curupd-1]); /* update cursor status */
 
 }
@@ -3034,12 +3041,17 @@ static void pa_init_terminal(void)
     b = GetConsoleScreenBufferInfo(screens[curupd-1]->han, &bi);
     /* Compensate for windows scrollback buffer by placing us in the display
        area */
+#if 0
+dbg_printf(dlinfo, "Display area: left: %d top: %d bottom: %d right: %d cursor: x: %d y: %d\n",
+        bi.srWindow.Left, bi.srWindow.Top, bi.srWindow.Bottom, bi.srWindow.Right,
+        bi.dwCursorPosition.X, bi.dwCursorPosition.Y);
+#endif
     ssy = bi.srWindow.Bottom-bi.srWindow.Top+1; /* find displayed y size */
     screens[curupd-1]->maxx = bi.dwSize.X; /* place maximum sizes */
     screens[curupd-1]->maxy = ssy; /* set y is displayed only */
-    screens[curupd-1]->offy = bi.dwSize.Y-ssy; /* then set offset to area */
+    screens[curupd-1]->offy = bi.srWindow.Top+1; /* then set offset to area */
     screens[curupd-1]->curx = bi.dwCursorPosition.X+1; /* place cursor position */
-    screens[curupd-1]->cury = bi.dwCursorPosition.Y+1;
+    screens[curupd-1]->cury = bi.dwCursorPosition.Y-bi.srWindow.Top+1;
     screens[curupd-1]->sattr = bi.wAttributes; /* place default attributes */
     /* place max setting for all screens */
     gmaxx = screens[curupd-1]->maxx;

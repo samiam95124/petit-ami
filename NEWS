@@ -50,6 +50,8 @@ The network module lacks the following calls:
 pa_certlistnet()
 pa_certlistmsg()
 
+The linux terminal.c module does not support transparent mode.
+
 The linux subsystem uses a patched version of GLIBC that can have the read(),
 write(), open() and close() calls overridden. GLIBC must match the kernel 
 version in use. I have generated many common kernel versions of glibc under
