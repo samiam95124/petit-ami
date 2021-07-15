@@ -556,7 +556,7 @@ static void setcur(scnptr sc)
 
         /* set cursor position */
         xy.X = sc->curx-1;
-        xy.Y = sc->cury-1;
+        xy.Y = sc->cury+sc->offy-1;
         b = SetConsoleCursorPosition(sc->han, xy);
         /* error occurs because our version of maxx/maxy is behind real window
            size */
@@ -698,7 +698,7 @@ static void iscroll(int x, int y)
             sr.Left = 0;
             sr.Right = sc->maxx-1;
             sr.Top = y;
-            sr.Bottom = sc->maxy-1;
+            sr.Bottom = sc->maxy+sc->offy-1;
             xy.X = 0;
             xy.Y = 0;
             b = ScrollConsoleScreenBuffer(sc->han, &sr, NULL, xy, &f);
@@ -708,7 +708,7 @@ static void iscroll(int x, int y)
             sr.Left = 0;
             sr.Right = sc->maxx-1;
             sr.Top = 0;
-            sr.Bottom = sc->maxy-1;
+            sr.Bottom = sc->maxy+sc->offy-1;
             xy.X = 0;
             xy.Y = abs(y);
             b = ScrollConsoleScreenBuffer(sc->han, &sr, NULL, xy, &f);
@@ -720,7 +720,7 @@ static void iscroll(int x, int y)
             sr.Left = x;
             sr.Right = sc->maxx-1;
             sr.Top = 0;
-            sr.Bottom = sc->maxy-1;
+            sr.Bottom = sc->maxy+sc->offy-1;
             xy.X = 0;
             xy.Y = 0;
             b = ScrollConsoleScreenBuffer(sc->han, &sr, NULL, xy, &f);
@@ -730,7 +730,7 @@ static void iscroll(int x, int y)
             sr.Left = 0;
             sr.Right = sc->maxx-1;
             sr.Top = 0;
-            sr.Bottom = sc->maxy-1;
+            sr.Bottom = sc->maxy+sc->offy-1;
             xy.X = abs(x);
             xy.Y = 0;
             b = ScrollConsoleScreenBuffer(sc->han, &sr, NULL, xy, &f);
@@ -3049,7 +3049,7 @@ dbg_printf(dlinfo, "Display area: left: %d top: %d bottom: %d right: %d cursor: 
     ssy = bi.srWindow.Bottom-bi.srWindow.Top+1; /* find displayed y size */
     screens[curupd-1]->maxx = bi.dwSize.X; /* place maximum sizes */
     screens[curupd-1]->maxy = ssy; /* set y is displayed only */
-    screens[curupd-1]->offy = bi.srWindow.Top+1; /* then set offset to area */
+    screens[curupd-1]->offy = bi.srWindow.Top; /* then set offset to area */
     screens[curupd-1]->curx = bi.dwCursorPosition.X+1; /* place cursor position */
     screens[curupd-1]->cury = bi.dwCursorPosition.Y-bi.srWindow.Top+1;
     screens[curupd-1]->sattr = bi.wAttributes; /* place default attributes */

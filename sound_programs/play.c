@@ -264,7 +264,7 @@ int main(int argc, char **argv)
     printf("3: Da Da Dida Dida\n");
     printf("4: Revilie\n");
     printf("5: Taps\n");
-    printf("6: Beethoven''s Fifth\n");
+    printf("6: Beethoven's Fifth\n");
     printf("7: Football song\n");
     printf("8: Anchors Away\n");
     printf("9: America The Beautiful\n");
@@ -344,7 +344,7 @@ int main(int argc, char **argv)
 
     } else if (--song == 0) {
 
-    printf("Beethoven''s Fifth\n");
+    printf("Beethoven's Fifth\n");
     play("T180 o2 P2 P8 L8 GGG L2 E-");
     play("P24 P8 L8 FFF L2 D");
 
@@ -458,7 +458,7 @@ int main(int argc, char **argv)
 
     } else if (--song == 0) {
 
-    printf("Alex''s Theme (Beverly Hills Cop)\n");
+    printf("Alex's Theme (Beverly Hills Cop)\n");
     play("mbo3l8f#p8a8.mlf#16mnf#16f#16b8f#ef#p8o4c#8.o3mlf#16mnf#16f#16");
     play("o4dc#o3af#o4c#F#o3f#16mle16mne16e16c#g#mlf#f#4p4p3");
     play("mbo3l8f#p8a8.mlf#16mnf#16f#16b8f#ef#p8o4c#8.o3mlf#16mnf#16f#16");
