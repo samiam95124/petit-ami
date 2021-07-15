@@ -891,14 +891,43 @@ static void idown(void)
 
 {
 
-    scnptr sc;
+    scnptr                     sc; /* screen data pointer */
+    CONSOLE_SCREEN_BUFFER_INFO bi; /* screen buffer info structure */
+    SMALL_RECT                 sr; /* scroll rectangle */
+    COORD                      xy; /* point */
+    CHAR_INFO                  f;  /* fill character info */
 
     sc = screens[curupd-1];
     if (sc->autof) { /* auto mode is on */
 
         /* check not bottom of screen */
         if (sc->cury < sc->maxy) sc->cury++; /* update position */
-        else iscroll(0, +1); /* scroll down */
+        else {
+
+            /* see if we have room between us and end of buffer */
+            GetConsoleScreenBufferInfo(sc->han, &bi);
+            if (bi.srWindow.Bottom < bi.dwSize.Y-1) {
+
+                bi.srWindow.Top++; /* move display down */
+                bi.srWindow.Bottom++;
+                SetConsoleWindowInfo(sc->han, TRUE, &bi.srWindow);
+                sc->offy++; /* and increase our offset */
+
+            } else { /* scroll down */
+
+                xy.X = 0;
+                xy.Y = 0;
+                sr.Top = 1; /* specify the last of the buffer minus one line */
+                sr.Bottom = bi.dwSize.Y-1;
+                sr.Left = 0;
+                sr.Right = bi.dwSize.X;
+                f.Char.AsciiChar = ' '; /* set fill values */
+                f.Attributes = sc->sattr;
+                ScrollConsoleScreenBuffer(sc->han, &sr, NULL, xy, &f);
+
+            }
+
+        }
 
     } else /* auto mode is off */
         /* prevent overflow, but otherwise increment unlimited */
