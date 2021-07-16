@@ -90,7 +90,7 @@ int main(void)
         lp = lp->next;
 
     }
-    printf("s/b <the listing for the current directory\n");
+    printf("s/b <the listing for the current directory>\n");
     pa_times(s, MAXSTR, pa_time());
     printf("test 3: %s s/b <the current time in zulu>\n", s);
     pa_times(s, MAXSTR, pa_local(pa_time()));

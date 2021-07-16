@@ -19,7 +19,7 @@
 * pa_timesep(), pa_currchar(), pa_timeorder(), pa_numbersep(), pa_decimal(),   *
 * pa_time24hour().                                                             *
 *
-* 3. The Unix emulation layer treats .exe and similar endings as having set    *
+* 3. The Unix emulation layer treats .axe and similar endings as having set    *
 * the executable flag, which is a good goal. Similarly, it treats '.' and '..' *
 * directory entries as setting the "hidden" flag, although notably, windows    *
 * itself does not (they are visible in dir listings).                          *
@@ -94,7 +94,8 @@ static enum { /* debug levels */
 
 #define dbg_printf(lvl, fmt, ...) \
         do { if (lvl >= dbglvl) fprintf(stderr, "%s:%s():%d: " fmt, __FILE__, \
-                                __func__, __LINE__, ##__VA_ARGS__); } while (0)
+                                __func__, __LINE__, ##__VA_ARGS__); \
+                                fflush(stderr); } while (0)
 
 /* contains the program invocation path */
 extern char *program_invocation_name;
@@ -1107,7 +1108,7 @@ static void cmdpth(
                 } else { /* copy partial */
 
                     extract(p, MAXSTR, pc, 0, cp-pc-1);   /* get left side to path */
-                    extract(pc, MAXSTR, pc, cp-pc+1, strlen(pc)); /* remove from path */
+                    extract(pc, MAXPTH, pc, cp-pc+1, strlen(pc)); /* remove from path */
                     trim(pc); /* make sure left aligned */
 
                 }
