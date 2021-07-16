@@ -6,12 +6,18 @@ TEST RESULTS
 
 Terminal_test
 
-1. With scaling off, the attributes test does odd things on subscript text.
+1. The attributes test does odd things on subscript text.
+
+Graphics test
+
+1. Normalize the .bmp sizes so that the benchmarks have a predictable run time.
 
 Management test
 
 1. According to the documentation for AdjustWindowRectEx(), double row menus are
 not correctly calculated. We need a test for this as well as a fix.
+
+2. I am seeing resize events missed on rapid window resizes.
 
 widget test
 
@@ -27,12 +33,12 @@ descriptions updated.
 4. queryfont() should really talk to the user in terms of points. That makes it
 a floating point number. This is especially odd considering the windows dialog
 does not take fractional values.
-
-5. Occasionally the entry boxes simply abort the test.
+[Windows won't accept fractions. The docs say "1/10ths of a point". This quirk
+can be isolated to the widget.]
 
 *************************************************************************************
 
-The following are notes from the old (untranslated) version of graph.
+General notes
 
 *************************************************************************************
 

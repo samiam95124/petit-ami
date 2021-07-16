@@ -4,91 +4,93 @@ Version: 0.1
 
 Date tests finished:
 
-Windows Linux
-[X]     [ ]   services_test.c PASS/FAIL:
+Windows Linux  Test               Status            Notes
+[X]     [ ]    services_test.c    PASS/FAIL: PASS
 
-[ ]     [ ]   terminal_test.c PASS/FAIL:
+[X]     [ ]    terminal_testc.c   PASS/FAIL: PASS
 
-[ ]     [ ]   graphics_test.c PASS/FAIL:
+[X]     [ ]    terminal_testg.c   PASS/FAIL: PASS
+  
+[X]     [ ]    graphics_test.c    PASS/FAIL: PASS
+ 
+[X]     [ ]    management_test.c  PASS/FAIL: PASS
 
-[ ]     [ ]   management_test.c PASS/FAIL:
+[X]     [ ]    widget_test.c      PASS/FAIL: PASS
 
-[ ]     [ ]   widget_test.c PASS/FAIL:
+[X]     [ ]    sound_test.c       PASS/FAIL: PASS
 
-[ ]     [ ]   sound_test.c PASS/FAIL:
+[ ]     [ ]    network_test.c     PASS/FAIL:        This test needs recode.
 
-[ ]     [ ]   network_test.c PASS/FAIL:
+[X]     [ ]    breakout.c         PASS/FAIL: PASS
 
-[ ]     [ ]   breakout.c PASS/FAIL:
+[X]     [ ]    pongg.c            PASS/FAIL: PASS
 
-[ ]     [ ]   pongg.c PASS/FAIL:
+[X]     [ ]    ball1.c            PASS/FAIL: PASS
 
-[ ]     [ ]   ball1.c PASS/FAIL:
+[X]     [ ]    ball2.c            PASS/FAIL: PASS
 
-[ ]     [ ]   ball2.c PASS/FAIL:
+[X]     [ ]    ball3.c            PASS/FAIL: PASS
 
-[ ]     [ ]   ball3.c PASS/FAIL:
+[X]     [ ]    ball4.c            PASS/FAIL: PASS
 
-[ ]     [ ]   ball4.c PASS/FAIL:
+[X]     [ ]    ball5.c            PASS/FAIL: PASS
 
-[ ]     [ ]   ball5.c PASS/FAIL:
+[X]     [ ]    ball6.c            PASS/FAIL: PASS
 
-[ ]     [ ]   ball6.c PASS/FAIL:
+[X]     [ ]    clock.c            PASS/FAIL: PASS
 
-[ ]     [ ]   clock.c PASS/FAIL:
+[X]     [ ]    line1.c            PASS/FAIL: PASS
 
-[ ]     [ ]   line1.c PASS/FAIL:
+[X]     [ ]    line2.c            PASS/FAIL: PASS
 
-[ ]     [ ]   line2.c PASS/FAIL:
+[X]     [ ]    line4.c            PASS/FAIL: PASS
 
-[ ]     [ ]   line4.c PASS/FAIL:
+[X]     [ ]    line5.c            PASS/FAIL: PASS
 
-[ ]     [ ]   line5.c PASS/FAIL:
+[X]     [ ]    pixel.c            PASS/FAIL: PASS
 
-[ ]     [ ]   pixel.c PASS/FAIL:
+[ ]     [ ]    getmail.c          PASS/FAIL:        No insecure server for Windows.
 
-[ ]     [ ]   getmail.c PASS/FAIL:
+[X]     [ ]    getpage.c          PASS/FAIL: PASS
 
-[ ]     [ ]   getpage.c PASS/FAIL:
+[ ]     [ ]    getttys.c          PASS/FAIL:        No implement Windows.
 
-[ ]     [ ]   getttys.c PASS/FAIL:
+[ ]     [ ]    listcert.c         PASS/FAIL:        No implement Windows.
 
-[ ]     [ ]   listcert.c PASS/FAIL:
+[ ]     [ ]    msgclient.c        PASS/FAIL:        No implement Windows.
 
-[ ]     [ ]   msgclient.c PASS/FAIL:
+[ ]     [ ]    msgserver.c        PASS/FAIL:        No implement Windows.
 
-[ ]     [ ]   msgserver.c PASS/FAIL:
+[ ]     [ ]    prtcertmsg.c       PASS/FAIL:        No implement Windows.
 
-[ ]     [ ]   prtcertmsg.c PASS/FAIL:
+[ ]     [ ]    prtcertnet.c       PASS/FAIL:        No implement Windows.
 
-[ ]     [ ]   prtcertnet.c PASS/FAIL:
+[X]     [ ]    connectmidi.c      PASS/FAIL: PASS
 
-[ ]     [ ]   connectmidi.c PASS/FAIL:
+[ ]     [ ]    connectwave.c      PASS/FAIL: FAIL
 
-[ ]     [ ]   connectwave.c PASS/FAIL:
+[ ]     [ ]    genwave.c          PASS/FAIL: FAIL   Does not take options
 
-[ ]     [ ]   genwave.c PASS/FAIL:
+[X]     [ ]    keyboard.c         PASS/FAIL: PASS
 
-[ ]     [ ]   keyboard.c PASS/FAIL:
+[X]     [ ]    play.c             PASS/FAIL: PASS
 
-[ ]     [ ]   play.c PASS/FAIL:
+[X]     [ ]    playmidi.c         PASS/FAIL: PASS
 
-[ ]     [ ]   playmidi.c PASS/FAIL:
+[ ]     [X]    playwave.c         PASS/FAIL: FAIL
 
-[ ]     [ ]   playwave.c PASS/FAIL:
+[X]     [ ]    printdev.c         PASS/FAIL: PASS
 
-[ ]     [ ]   printdev.c PASS/FAIL:
+[X]     [ ]    random.c           PASS/FAIL: PASS
 
-[ ]     [ ]   random.c PASS/FAIL:
+[X]     [ ]    mine.c             PASS/FAIL: PASS
 
-[ ]     [ ]   mine.c PASS/FAIL:
+[X]     [ ]    pongc.c            PASS/FAIL: PASS
 
-[ ]     [ ]   pongc.c PASS/FAIL:
+[X]     [ ]    snake.c            PASS/FAIL: PASS
 
-[ ]     [ ]   snake.c PASS/FAIL:
+[X]     [ ]    editor.c           PASS/FAIL: PASS
 
-[ ]     [ ]   editor.c PASS/FAIL:
+[X]     [ ]    wator.c            PASS/FAIL:        Hard of hearing (ctl-c)
 
-[ ]     [ ]   wator.c PASS/FAIL:
-
-[ ]     [ ]   prtconfig.c PASS/FAIL:
+[X]     [ ]    prtconfig.c        PASS/FAIL: PASS
