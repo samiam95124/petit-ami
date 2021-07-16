@@ -4,90 +4,91 @@ Version: 0.1
 
 Date tests finished:
 
-[ ] services_test.c PASS/FAIL:
+Windows Linux
+[X]     [ ]   services_test.c PASS/FAIL:
 
-[ ] terminal_test.c PASS/FAIL:
+[ ]     [ ]   terminal_test.c PASS/FAIL:
 
-[ ] graphics_test.c PASS/FAIL:
+[ ]     [ ]   graphics_test.c PASS/FAIL:
 
-[ ] management_test.c PASS/FAIL:
+[ ]     [ ]   management_test.c PASS/FAIL:
 
-[ ] widget_test.c PASS/FAIL:
+[ ]     [ ]   widget_test.c PASS/FAIL:
 
-[ ] sound_test.c PASS/FAIL:
+[ ]     [ ]   sound_test.c PASS/FAIL:
 
-[ ] network_test.c PASS/FAIL:
+[ ]     [ ]   network_test.c PASS/FAIL:
 
-[ ] breakout.c PASS/FAIL:
+[ ]     [ ]   breakout.c PASS/FAIL:
 
-[ ] pongg.c PASS/FAIL:
+[ ]     [ ]   pongg.c PASS/FAIL:
 
-[ ] ball1.c PASS/FAIL:
+[ ]     [ ]   ball1.c PASS/FAIL:
 
-[ ] ball2.c PASS/FAIL:
+[ ]     [ ]   ball2.c PASS/FAIL:
 
-[ ] ball3.c PASS/FAIL:
+[ ]     [ ]   ball3.c PASS/FAIL:
 
-[ ] ball4.c PASS/FAIL:
+[ ]     [ ]   ball4.c PASS/FAIL:
 
-[ ] ball5.c PASS/FAIL:
+[ ]     [ ]   ball5.c PASS/FAIL:
 
-[ ] ball6.c PASS/FAIL:
+[ ]     [ ]   ball6.c PASS/FAIL:
 
-[ ] clock.c PASS/FAIL:
+[ ]     [ ]   clock.c PASS/FAIL:
 
-[ ] line1.c PASS/FAIL:
+[ ]     [ ]   line1.c PASS/FAIL:
 
-[ ] line2.c PASS/FAIL:
+[ ]     [ ]   line2.c PASS/FAIL:
 
-[ ] line4.c PASS/FAIL:
+[ ]     [ ]   line4.c PASS/FAIL:
 
-[ ] line5.c PASS/FAIL:
+[ ]     [ ]   line5.c PASS/FAIL:
 
-[ ] pixel.c PASS/FAIL:
+[ ]     [ ]   pixel.c PASS/FAIL:
 
-[ ] getmail.c PASS/FAIL:
+[ ]     [ ]   getmail.c PASS/FAIL:
 
-[ ] getpage.c PASS/FAIL:
+[ ]     [ ]   getpage.c PASS/FAIL:
 
-[ ] getttys.c PASS/FAIL:
+[ ]     [ ]   getttys.c PASS/FAIL:
 
-[ ] listcert.c PASS/FAIL:
+[ ]     [ ]   listcert.c PASS/FAIL:
 
-[ ] msgclient.c PASS/FAIL:
+[ ]     [ ]   msgclient.c PASS/FAIL:
 
-[ ] msgserver.c PASS/FAIL:
+[ ]     [ ]   msgserver.c PASS/FAIL:
 
-[ ] prtcertmsg.c PASS/FAIL:
+[ ]     [ ]   prtcertmsg.c PASS/FAIL:
 
-[ ] prtcertnet.c PASS/FAIL:
+[ ]     [ ]   prtcertnet.c PASS/FAIL:
 
-[ ] connectmidi.c PASS/FAIL:
+[ ]     [ ]   connectmidi.c PASS/FAIL:
 
-[ ] connectwave.c PASS/FAIL:
+[ ]     [ ]   connectwave.c PASS/FAIL:
 
-[ ] genwave.c PASS/FAIL:
+[ ]     [ ]   genwave.c PASS/FAIL:
 
-[ ] keyboard.c PASS/FAIL:
+[ ]     [ ]   keyboard.c PASS/FAIL:
 
-[ ] play.c PASS/FAIL:
+[ ]     [ ]   play.c PASS/FAIL:
 
-[ ] playmidi.c PASS/FAIL:
+[ ]     [ ]   playmidi.c PASS/FAIL:
 
-[ ] playwave.c PASS/FAIL:
+[ ]     [ ]   playwave.c PASS/FAIL:
 
-[ ] printdev.c PASS/FAIL:
+[ ]     [ ]   printdev.c PASS/FAIL:
 
-[ ] random.c PASS/FAIL:
+[ ]     [ ]   random.c PASS/FAIL:
 
-[ ] mine.c PASS/FAIL:
+[ ]     [ ]   mine.c PASS/FAIL:
 
-[ ] pongc.c PASS/FAIL:
+[ ]     [ ]   pongc.c PASS/FAIL:
 
-[ ] snake.c PASS/FAIL:
+[ ]     [ ]   snake.c PASS/FAIL:
 
-[ ] editor.c PASS/FAIL:
+[ ]     [ ]   editor.c PASS/FAIL:
 
-[ ] wator.c PASS/FAIL:
+[ ]     [ ]   wator.c PASS/FAIL:
 
-[ ] prtconfig.c PASS/FAIL:
+[ ]     [ ]   prtconfig.c PASS/FAIL:
