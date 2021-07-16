@@ -3654,7 +3654,6 @@ void pa_opensynthin(int p)
     midinpptr dp;
     MMRESULT  r;
 
-dbg_printf(dlinfo, "begin\n");
     if (p < 1 || p > MAXMIDP) error("Invalid MIDI input port number");
     if (p > midiInGetNumDevs()) error("No system wave input device exists");
     makmidinp(p); /* ensure device exists */
@@ -3693,7 +3692,6 @@ dbg_printf(dlinfo, "begin\n");
 
     r = midiInStart(dp->hmi);
     if (r != MMSYSERR_NOERROR) error("Cannot start input");
-dbg_printf(dlinfo, "end\n");
 
 }
 

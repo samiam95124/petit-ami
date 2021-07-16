@@ -27,3 +27,8 @@ and the sequencer is not running, its an error. However, if an external
 sequencer is running, this may not be a good idea, since the external sequencer
 should get the instructions, and it will retime them.
 
+11. Notes from a keyboard controller to a synth with connectmidi sound delayed
+to my ear.
+
+12. Neither the headset mic nor the camera mic sound ok on the desktop machine,
+try laptop IO's.
