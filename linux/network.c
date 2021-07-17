@@ -186,6 +186,7 @@ typedef enum {
     enomem,   /* Cannot allocate memory */
     ebufovf,  /* Buffer overflow */
     ecertpar, /* Error parsing certificate data */
+    eunimp,   /* Feature not implemented */
     esystem   /* System consistency check */
 
 } errcod;
@@ -322,6 +323,7 @@ static void error(errcod e)
         case enomem:   netwrterr("Cannot allocate memory"); break;
         case ebufovf:  netwrterr("Buffer overflow"); break;
         case ecertpar: netwrterr("Error parsing certificate data"); break;
+        case eunimp:   netwrterr("Feature not implemented"); break;
         case esystem:  netwrterr("System consistency check, please contact "
                                  "support"); break;
 

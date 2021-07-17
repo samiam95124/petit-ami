@@ -9330,7 +9330,7 @@ If the operation is cancelled, then a null string will be returned.
 
 *******************************************************************************/
 
-void pa_queryopen(char* s)
+void pa_queryopen(char* s, int sl)
 
 {
 
@@ -9352,7 +9352,7 @@ If the operation is cancelled, then a null string will be returned.
 
 *******************************************************************************/
 
-void pa_querysave(char* s)
+void pa_querysave(char* s, int sl)
 
 {
 
@@ -9383,7 +9383,7 @@ table this issue until later.
 
 *******************************************************************************/
 
-void pa_queryfind(char* s, pa_qfnopts* opt)
+void pa_queryfind(char* s, int sl, pa_qfnopts* opt)
 
 {
 
@@ -9406,7 +9406,7 @@ Bug: See comment, queryfind.
 
 *******************************************************************************/
 
-void pa_queryfindrep(char* s, char* r, pa_qfropts* opt)
+void pa_queryfindrep(char* s, int sl, char* r, int rl, pa_qfropts* opt)
 
 {
 
