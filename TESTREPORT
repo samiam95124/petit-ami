@@ -4,8 +4,8 @@ Version: 0.1
 
 Date tests finished:
 
-Windows Linux  Test               Status            Notes
-[X]     [ ]    services_test.c    PASS/FAIL: PASS
+Windows Linux  Test               Status     Windows Linux      Notes
+[X]     [ ]    services_test.c    PASS/FAIL: PASS    FAIL
 
 [X]     [ ]    terminal_testc.c   PASS/FAIL: PASS
 
@@ -19,7 +19,7 @@ Windows Linux  Test               Status            Notes
 
 [X]     [ ]    sound_test.c       PASS/FAIL: PASS
 
-[ ]     [ ]    network_test.c     PASS/FAIL:        This test needs recode.
+[ ]     [ ]    network_test.c     PASS/FAIL:                    This test needs recode.
 
 [X]     [ ]    breakout.c         PASS/FAIL: PASS
 
@@ -49,21 +49,21 @@ Windows Linux  Test               Status            Notes
 
 [X]     [ ]    pixel.c            PASS/FAIL: PASS
 
-[ ]     [ ]    getmail.c          PASS/FAIL:        No insecure server for Windows.
+[ ]     [ ]    getmail.c          PASS/FAIL:                    No insecure server for Windows.
 
 [X]     [ ]    getpage.c          PASS/FAIL: PASS
 
-[ ]     [ ]    getttys.c          PASS/FAIL:        No implement Windows.
+[ ]     [ ]    getttys.c          PASS/FAIL:                    No implement Windows.
 
-[ ]     [ ]    listcert.c         PASS/FAIL:        No implement Windows.
+[ ]     [ ]    listcert.c         PASS/FAIL:                    No implement Windows.
 
-[ ]     [ ]    msgclient.c        PASS/FAIL:        No implement Windows.
+[ ]     [ ]    msgclient.c        PASS/FAIL:                    No implement Windows.
 
-[ ]     [ ]    msgserver.c        PASS/FAIL:        No implement Windows.
+[ ]     [ ]    msgserver.c        PASS/FAIL:                    No implement Windows.
 
-[ ]     [ ]    prtcertmsg.c       PASS/FAIL:        No implement Windows.
+[ ]     [ ]    prtcertmsg.c       PASS/FAIL:                    No implement Windows.
 
-[ ]     [ ]    prtcertnet.c       PASS/FAIL:        No implement Windows.
+[ ]     [ ]    prtcertnet.c       PASS/FAIL:                    No implement Windows.
 
 [X]     [ ]    connectmidi.c      PASS/FAIL: PASS
 
@@ -77,7 +77,7 @@ Windows Linux  Test               Status            Notes
 
 [X]     [ ]    playmidi.c         PASS/FAIL: PASS
 
-[ ]     [ ]    playwave.c         PASS/FAIL: FAIL   This needs waitwave(), unimplemented.
+[ ]     [ ]    playwave.c         PASS/FAIL: FAIL               This needs waitwave(), unimplemented.
 
 [X]     [ ]    printdev.c         PASS/FAIL: PASS
 

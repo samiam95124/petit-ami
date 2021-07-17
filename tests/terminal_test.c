@@ -217,7 +217,8 @@ static void frametest(void)
 
 {
 
-    int i, t, et, max, min;
+    int i, t;
+    long et, max, min;
     long total;
     pa_evtrec er;
 
@@ -239,9 +240,9 @@ static void frametest(void)
     pa_frametimer(stdout, FALSE);
     printf("\n");
     printf("\n");
-    printf("Average time was: %ld00 Microseconds\n", total / 100);
-    printf("Minimum time was: %d00 Microseconds\n", min);
-    printf("Maximum time was: %d00 Microseconds\n", max);
+    printf("Average time was: %ld00 Microseconds\n", total / 10);
+    printf("Minimum time was: %ld00 Microseconds\n", min);
+    printf("Maximum time was: %ld00 Microseconds\n", max);
 
 }
 

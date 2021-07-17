@@ -1,0 +1,4 @@
+***************************** Notes for services.c module *************************
+
+1. On Ubuntu 20.04, you don't get correct local time unless you set TZ in the
+environment.
