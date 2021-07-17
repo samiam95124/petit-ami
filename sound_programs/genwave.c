@@ -92,7 +92,8 @@ int main(int argc, char **argv)
 
         for (i = 0 ; i < SIZEBUF ; i++) {
 
-            buf[i] = (short)(SHRT_MAX*sin (angle));
+            if (square) buf[i] = (short)(SHRT_MAX*(sin (angle) < .5));
+            else buf[i] = (short)(SHRT_MAX*sin (angle));
             angle += 2*PI*freq/rate;
             if (angle > 2 * PI) angle -= 2*PI;
 

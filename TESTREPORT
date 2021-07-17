@@ -91,6 +91,6 @@ Windows Linux  Test               Status            Notes
 
 [X]     [ ]    editor.c           PASS/FAIL: PASS
 
-[X]     [ ]    wator.c            PASS/FAIL:        Hard of hearing (ctl-c)
+[X]     [ ]    wator.c            PASS/FAIL: PASS
 
 [X]     [ ]    prtconfig.c        PASS/FAIL: PASS

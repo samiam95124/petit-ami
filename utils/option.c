@@ -141,7 +141,9 @@ int pa_option(
             longopt = TRUE; /* set long option */
             s++; /* skip '-' */
 
-        }
+        } else if (pa_optchr() != '-')
+            /* all other option characters besides '-' signify long */
+            longopt = TRUE;
         if (*s && single && !longopt) { /* parse singles */
 
             fo = FALSE; /* no option found */
@@ -267,7 +269,7 @@ int pa_options(
     int r;
 
     r = 0; /* set no error */
-    while (*argc > 1 && argv[*argi][0] == '-' && !r) {
+    while (*argc > 1 && argv[*argi][0] == pa_optchr() && !r) {
 
         r = pa_option(argv[*argi], opts, single); /* parse options */
         if (!r) { /* success */
