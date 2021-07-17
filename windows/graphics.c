@@ -76,6 +76,7 @@
 
 #define WINVER 0x0A00
 #define _WIN32_WINNT 0xA00
+#define _WIN32_IE 0xA00
 
 #include <sys/types.h>
 #include <limits.h>
