@@ -35,3 +35,6 @@ try laptop IO's.
 
 13. Using connectmidi, there seems to be a lot of delay between the time a key
 is hit and the sound is heard.
+
+14. The latency of the input wave function is bad. MS claims there is a lower
+latency interface, which is (of course) incompatible with the old interface.

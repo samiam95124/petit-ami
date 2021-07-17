@@ -105,7 +105,7 @@ static enum { /* debug levels */
 
 #define WAVBUF    (16*1024) /* size of output wave buffer */
 #define MAXFIL    200 /* maximum size of wave table filename */
-#define WAVSIZ    4096 /* size of wave input buffer, about 46ms */
+#define WAVSIZ    8192 /*4096*/ /* size of wave input buffer, about 46ms */
 #define MIDMAX    1025 /* size of MIDI input message queue */
 #define MIDBUFSIZ 1024 /* MIDI message buffer */
 

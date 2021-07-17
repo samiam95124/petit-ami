@@ -67,7 +67,7 @@ Windows Linux  Test               Status            Notes
 
 [X]     [ ]    connectmidi.c      PASS/FAIL: PASS
 
-[ ]     [ ]    connectwave.c      PASS/FAIL: FAIL
+[ ]     [ ]    connectwave.c      PASS/FAIL: PASS
 
 [X]     [ ]    genwave.c          PASS/FAIL: PASS
 
