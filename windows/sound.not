@@ -32,3 +32,6 @@ to my ear.
 
 12. Neither the headset mic nor the camera mic sound ok on the desktop machine,
 try laptop IO's.
+
+13. Using connectmidi, there seems to be a lot of delay between the time a key
+is hit and the sound is heard.

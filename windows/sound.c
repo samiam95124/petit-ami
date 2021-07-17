@@ -2775,7 +2775,7 @@ void pa_playwave(int p, int t, int w)
     pa_seqptr sp;   /* message pointer */
     DWORD     elap; /* current elapsed time */
     int       tact; /* timer active */
-
+    BOOL      b;
 
     if (w < 1 || w > MAXWAVT) error("Invalid logical wave file number");
     if (!wavenam[w-1])
@@ -2784,7 +2784,8 @@ void pa_playwave(int p, int t, int w)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        PlaySound(wavenam[w-1], 0, SND_FILENAME | SND_NODEFAULT | SND_ASYNC);
+        b = PlaySound(wavenam[w-1], 0, SND_FILENAME | SND_NODEFAULT | SND_ASYNC);
+        if (!b) error("Could not play wave file");
 
     } else { /* sequence */
 
