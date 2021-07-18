@@ -7161,7 +7161,7 @@ static void joyevt(pa_evtrec* er, int* keep)
             er->etype = pa_etjoymov; /* set joystick move */
             er->mjoyn = 1; /* set joystick number */
             er->joypx = joyax; /* place joystick axies */
-            er->joypy = -joyay; /* flip y axis */
+            er->joypy = joyay;
             er->joypz = joyaz;
             *keep = TRUE; /* set keep event */
 

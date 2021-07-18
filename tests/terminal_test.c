@@ -1032,7 +1032,7 @@ int main(int argc, char *argv[])
 
         printf("\f");
         prtcen(1, "Move the joystick(s) X, Y and Z, and hit buttons");
-        prtcen(pa_maxy(stdout), "Joystick test test");
+        prtcen(pa_maxy(stdout), "Joystick test");
         do {   /* gather joystick events */
 
             /* we do up to 4 joysticks */
@@ -1042,7 +1042,7 @@ int main(int argc, char *argv[])
                 if (er.mjoyn == 1) {  /* joystick 1 */
 
                     pa_cursor(stdout, 1, 3);
-                    printf("joystick: %d x: %d y: %d z: %d",
+                    printf("joystick: %3d x: %11d y: %11d z: %11d",
                            er.mjoyn, er.joypx, er.joypy, er.joypz);
                     plotjoy(4, er.joypx);
                     plotjoy(5, er.joypy);
@@ -1051,7 +1051,7 @@ int main(int argc, char *argv[])
                 } else if (er.mjoyn == 2) {  /* joystick 2 */
 
                     pa_cursor(stdout, 1, 7);
-                    printf("joystick: %d x: %d y: %d z: %d",
+                    printf("joystick: %3d x: %11d y: %11d z: %11d",
                            er.mjoyn, er.joypx, er.joypy, er.joypz);
                     plotjoy(8, er.joypx);
                     plotjoy(9, er.joypy);
@@ -1060,7 +1060,7 @@ int main(int argc, char *argv[])
                 } else if (er.mjoyn == 3) {  /* joystick 3 */
 
                     pa_cursor(stdout, 1, 11);
-                    printf("joystick: %d x: %d y: %d z: %d",
+                    printf("joystick: %3d x: %11d y: %11d z: %11d",
                            er.mjoyn, er.joypx, er.joypy, er.joypz);
                     plotjoy(11, er.joypx);
                     plotjoy(12, er.joypy);
@@ -1069,7 +1069,7 @@ int main(int argc, char *argv[])
                 } else if (er.mjoyn == 4) {  /* joystick 4 */
 
                     pa_cursor(stdout, 1, 14);
-                    printf("joystick: %d x: %d y: %d z: %d",
+                    printf("joystick: %3d x: %11d y: %11d z: %11d",
                            er.mjoyn, er.joypx, er.joypy, er.joypz);
                     plotjoy(15, er.joypx);
                     plotjoy(16, er.joypy);

@@ -7,90 +7,86 @@ Date tests finished:
 Windows Linux  Test               Status     Windows Linux      Notes
 [X]     [ ]    services_test.c    PASS/FAIL: PASS    FAIL
 
-[X]     [ ]    terminal_testc.c   PASS/FAIL: PASS
+[X]     [X]    terminal_testc.c   PASS/FAIL: PASS    PASS
 
-[X]     [ ]    terminal_testg.c   PASS/FAIL: PASS
+[X]     [X]    terminal_testg.c   PASS/FAIL: PASS    PASS
   
-[X]     [ ]    graphics_test.c    PASS/FAIL: PASS
+[X]     [X]    graphics_test.c    PASS/FAIL: PASS    PASS
  
-[X]     [ ]    management_test.c  PASS/FAIL: PASS
+[X]     [ ]    management_test.c  PASS/FAIL: PASS               No implement Linux
 
-[X]     [ ]    widget_test.c      PASS/FAIL: PASS
+[X]     [ ]    widget_test.c      PASS/FAIL: PASS               No implement Linux
 
-[X]     [ ]    sound_test.c       PASS/FAIL: PASS
+[X]     [X]    sound_test.c       PASS/FAIL: PASS    PASS
 
-[ ]     [ ]    network_test.c     PASS/FAIL:                    This test needs recode.
+[X]     [X]    breakout.c         PASS/FAIL: PASS    PASS       Linux version seems slow.
 
-[X]     [ ]    breakout.c         PASS/FAIL: PASS
+[X]     [X]    pongg.c            PASS/FAIL: PASS    PASS       Linux version slow and not scaled.
 
-[X]     [ ]    pongg.c            PASS/FAIL: PASS
+[X]     [X]    ball1.c            PASS/FAIL: PASS    PASS
 
-[X]     [ ]    ball1.c            PASS/FAIL: PASS
+[X]     [X]    ball2.c            PASS/FAIL: PASS    PASS
 
-[X]     [ ]    ball2.c            PASS/FAIL: PASS
+[X]     [X]    ball3.c            PASS/FAIL: PASS    PASS
 
-[X]     [ ]    ball3.c            PASS/FAIL: PASS
+[X]     [X]    ball4.c            PASS/FAIL: PASS    PASS
 
-[X]     [ ]    ball4.c            PASS/FAIL: PASS
+[X]     [X]    ball5.c            PASS/FAIL: PASS    PASS
 
-[X]     [ ]    ball5.c            PASS/FAIL: PASS
+[X]     [X]    ball6.c            PASS/FAIL: PASS    PASS
 
-[X]     [ ]    ball6.c            PASS/FAIL: PASS
+[X]     [ ]    clock.c            PASS/FAIL: PASS               No implement Linux  
 
-[X]     [ ]    clock.c            PASS/FAIL: PASS
+[X]     [X]    line1.c            PASS/FAIL: PASS    PASS
 
-[X]     [ ]    line1.c            PASS/FAIL: PASS
+[X]     [X]    line2.c            PASS/FAIL: PASS    PASS
 
-[X]     [ ]    line2.c            PASS/FAIL: PASS
+[X]     [X]    line4.c            PASS/FAIL: PASS    PASS
 
-[X]     [ ]    line4.c            PASS/FAIL: PASS
+[X]     [X]    line5.c            PASS/FAIL: PASS    PASS
 
-[X]     [ ]    line5.c            PASS/FAIL: PASS
+[X]     [X]    pixel.c            PASS/FAIL: PASS    PASS
 
-[X]     [ ]    pixel.c            PASS/FAIL: PASS
+[ ]     [X]    getmail.c          PASS/FAIL:         FAIL       No insecure server for Windows.
 
-[ ]     [ ]    getmail.c          PASS/FAIL:                    No insecure server for Windows.
+[X]     [X]    getpage.c          PASS/FAIL: PASS    PASS       Windows cannot access https sites.
 
-[X]     [ ]    getpage.c          PASS/FAIL: PASS
+[ ]     [X]    getttys.c          PASS/FAIL:         PASS       No implement Windows.
 
-[ ]     [ ]    getttys.c          PASS/FAIL:                    No implement Windows.
+[ ]     [X]    msgclient.c        PASS/FAIL:         PASS       No implement Windows.
 
-[ ]     [ ]    listcert.c         PASS/FAIL:                    No implement Windows.
+[ ]     [X]    msgserver.c        PASS/FAIL:         PASS       No implement Windows.
 
-[ ]     [ ]    msgclient.c        PASS/FAIL:                    No implement Windows.
+[ ]     [X]    prtcertmsg.c       PASS/FAIL:         PASS       No implement Windows.
 
-[ ]     [ ]    msgserver.c        PASS/FAIL:                    No implement Windows.
+[ ]     [X]    prtcertnet.c       PASS/FAIL:         PASS       No implement Windows.
 
-[ ]     [ ]    prtcertmsg.c       PASS/FAIL:                    No implement Windows.
+[X]     [X]    connectmidi.c      PASS/FAIL: PASS    PASS
 
-[ ]     [ ]    prtcertnet.c       PASS/FAIL:                    No implement Windows.
+[X]     [ ]    connectwave.c      PASS/FAIL: PASS
 
-[X]     [ ]    connectmidi.c      PASS/FAIL: PASS
+[X]     [X]    genwave.c          PASS/FAIL: PASS    PASS
 
-[ ]     [ ]    connectwave.c      PASS/FAIL: PASS
+[X]     [X]    keyboard.c         PASS/FAIL: PASS    FAIL       No sound on linux
 
-[X]     [ ]    genwave.c          PASS/FAIL: PASS
+[X]     [X]    play.c             PASS/FAIL: PASS    PASS       Extremely slow response on Linux
 
-[X]     [ ]    keyboard.c         PASS/FAIL: PASS
+[X]     [X]    playmidi.c         PASS/FAIL: PASS    PASS
 
-[X]     [ ]    play.c             PASS/FAIL: PASS
+[ ]     [X]    playwave.c         PASS/FAIL: FAIL    PASS       This needs waitwave(), unimplemented.
 
-[X]     [ ]    playmidi.c         PASS/FAIL: PASS
+[X]     [X]    printdev.c         PASS/FAIL: PASS    PASS
 
-[ ]     [ ]    playwave.c         PASS/FAIL: FAIL               This needs waitwave(), unimplemented.
+[X]     [X]    random.c           PASS/FAIL: PASS    PASS
 
-[X]     [ ]    printdev.c         PASS/FAIL: PASS
+[X]     [X]    mine.c             PASS/FAIL: PASS    PASS
 
-[X]     [ ]    random.c           PASS/FAIL: PASS
+[X]     [X]    pongc.c            PASS/FAIL: PASS    PASS
 
-[X]     [ ]    mine.c             PASS/FAIL: PASS
+[X]     [X]    snake.c            PASS/FAIL: PASS    PASS
 
-[X]     [ ]    pongc.c            PASS/FAIL: PASS
+[X]     [X]    editor.c           PASS/FAIL: PASS    PASS
 
-[X]     [ ]    snake.c            PASS/FAIL: PASS
+[X]     [X]    wator.c            PASS/FAIL: PASS    PASS
 
-[X]     [ ]    editor.c           PASS/FAIL: PASS
-
-[X]     [ ]    wator.c            PASS/FAIL: PASS
-
-[X]     [ ]    prtconfig.c        PASS/FAIL: PASS
+[X]     [X]    prtconfig.c        PASS/FAIL: PASS    PASS
