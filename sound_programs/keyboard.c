@@ -21,10 +21,8 @@ Yes, its the standard annoying utility to turn your keyoard into an organ.
 pa_evtrec  er;    /* event record */
 pa_channel chan;  /* channel */
 int        velo;  /* velocity */
-int        port;  /* synth port to output to */
 int        keycnt[36];
 int        ki;
-
 int port = PA_SYNTH_OUT; /* set default synth out */
 
 pa_optrec opttbl[] = {
@@ -149,7 +147,7 @@ void tick(void)
 
     int i;
 
-    for (i = 1; i <= 36; i++) /* scan keys */
+    for (i = 0; i < 36; i++) /* scan keys */
         if (keycnt[i] > 0) { /* there is an active key */
 
         keycnt[i]--; /* count */
@@ -179,7 +177,7 @@ int main(int argc, char **argv)
     pa_opensynthout(port); /* open main synthesiser */
     chan = 1; /* set channel 1 */
     velo = INT_MAX; /* set velocity */
-    for (ki = 1; ki <= 36; ki++) keycnt[ki] = 0; /* clear key down counts */
+    for (ki = 0; ki < 36; ki++) keycnt[ki] = 0; /* clear key down counts */
     pa_timer(stdout, 1, SECOND/4/10, TRUE); /* set basic timer */
     do { /* events */
 

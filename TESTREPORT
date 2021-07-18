@@ -67,7 +67,7 @@ Windows Linux  Test               Status     Windows Linux      Notes
 
 [X]     [X]    genwave.c          PASS/FAIL: PASS    PASS
 
-[X]     [X]    keyboard.c         PASS/FAIL: PASS    FAIL       No sound on linux
+[X]     [X]    keyboard.c         PASS/FAIL: PASS    PASS
 
 [X]     [X]    play.c             PASS/FAIL: PASS    PASS       Extremely slow response on Linux
 
