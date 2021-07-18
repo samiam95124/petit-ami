@@ -5,7 +5,7 @@ Version: 0.1
 Date tests finished:
 
 Windows Linux  Test               Status     Windows Linux      Notes
-[X]     [ ]    services_test.c    PASS/FAIL: PASS    FAIL
+[X]     [X]    services_test.c    PASS/FAIL: PASS    PASS
 
 [X]     [X]    terminal_testc.c   PASS/FAIL: PASS    PASS
 
@@ -13,9 +13,9 @@ Windows Linux  Test               Status     Windows Linux      Notes
   
 [X]     [X]    graphics_test.c    PASS/FAIL: PASS    PASS
  
-[X]     [ ]    management_test.c  PASS/FAIL: PASS               No implement Linux
+[X]     [ ]    management_test.c  PASS/FAIL: PASS               not implemented Linux
 
-[X]     [ ]    widget_test.c      PASS/FAIL: PASS               No implement Linux
+[X]     [ ]    widget_test.c      PASS/FAIL: PASS               not implemented Linux
 
 [X]     [X]    sound_test.c       PASS/FAIL: PASS    PASS
 
@@ -35,7 +35,7 @@ Windows Linux  Test               Status     Windows Linux      Notes
 
 [X]     [X]    ball6.c            PASS/FAIL: PASS    PASS
 
-[X]     [ ]    clock.c            PASS/FAIL: PASS               No implement Linux  
+[X]     [ ]    clock.c            PASS/FAIL: PASS               not implemented Linux  
 
 [X]     [X]    line1.c            PASS/FAIL: PASS    PASS
 
@@ -51,15 +51,15 @@ Windows Linux  Test               Status     Windows Linux      Notes
 
 [X]     [X]    getpage.c          PASS/FAIL: PASS    PASS       Windows cannot access https sites.
 
-[ ]     [X]    getttys.c          PASS/FAIL:         PASS       No implement Windows.
+[ ]     [X]    getttys.c          PASS/FAIL:         PASS       not implemented Windows.
 
-[ ]     [X]    msgclient.c        PASS/FAIL:         PASS       No implement Windows.
+[ ]     [X]    msgclient.c        PASS/FAIL:         PASS       not implemented Windows.
 
-[ ]     [X]    msgserver.c        PASS/FAIL:         PASS       No implement Windows.
+[ ]     [X]    msgserver.c        PASS/FAIL:         PASS       not implemented Windows.
 
-[ ]     [X]    prtcertmsg.c       PASS/FAIL:         PASS       No implement Windows.
+[ ]     [X]    prtcertmsg.c       PASS/FAIL:         PASS       not implemented Windows.
 
-[ ]     [X]    prtcertnet.c       PASS/FAIL:         PASS       No implement Windows.
+[ ]     [X]    prtcertnet.c       PASS/FAIL:         PASS       not implemented Windows.
 
 [X]     [X]    connectmidi.c      PASS/FAIL: PASS    PASS
 

@@ -182,6 +182,8 @@ int main(void)
     printf("test 40: %s s/b <the user path>\n", s);
     fp = fopen("junk", "w");
     fclose(fp);
+    /* Linux cannot set or reset attributes */
+#ifndef __linux
     printf("test 42: ");
     pa_setatr("junk", BIT(pa_atarc));
     pa_list("junk", &fla);
@@ -202,6 +204,7 @@ int main(void)
     pa_list("junk", &fla);
     if (fla != 0) printf("%s %d", fla->name, INISET(fla->attr, pa_atsys));
     printf(" s/b junk 0\n");
+#endif
     printf("test 46: ");
     pa_setuper("junk", BIT(pa_pmwrite));
     pa_list("junk", &fla);

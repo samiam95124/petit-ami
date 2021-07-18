@@ -52,3 +52,6 @@ so it seems they are arbitrary assignments. For this perhaps a mechanisim that
 maps them is in order.
 
 10. Add extension (.wav) as required to sound files.
+
+11. I can't make heads or tails out of the ALSA device names. aplay and arecord
+know how to get better descriptions, can we also get those?

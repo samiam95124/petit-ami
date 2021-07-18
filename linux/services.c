@@ -447,23 +447,23 @@ void pa_list(
                    them are true */
                 if (sr.st_mode & S_IXUSR) fp->attr |= BIT(pa_atexec);
                 /* set execute permissions to user */
-                if (sr.st_mode & S_IXUSR) fp->user &= ~BIT(pa_pmexec);
+                if (!(sr.st_mode & S_IXUSR)) fp->user &= ~BIT(pa_pmexec);
                 /* set read permissions to user */
-                if (sr.st_mode & S_IRUSR) fp->user &= ~BIT(pa_pmread);
+                if (!(sr.st_mode & S_IRUSR)) fp->user &= ~BIT(pa_pmread);
                 /* set write permissions to user */
-                if (sr.st_mode & S_IWUSR) fp->user &= ~BIT(pa_pmwrite);
+                if (!(sr.st_mode & S_IWUSR)) fp->user &= ~BIT(pa_pmwrite);
                 /* set execute permissions to group */
-                if (sr.st_mode & S_IXGRP) fp->group &= ~BIT(pa_pmexec);
+                if (!(sr.st_mode & S_IXGRP)) fp->group &= ~BIT(pa_pmexec);
                 /* set read permissions to group */
-                if (sr.st_mode & S_IRGRP) fp->group &= ~BIT(pa_pmread);
+                if (!(sr.st_mode & S_IRGRP)) fp->group &= ~BIT(pa_pmread);
                 /* set write permissions to group */
-                if (sr.st_mode & S_IWGRP) fp->group &= ~BIT(pa_pmwrite);
+                if (!(sr.st_mode & S_IWGRP)) fp->group &= ~BIT(pa_pmwrite);
                 /* set execute permissions to other */
-                if (sr.st_mode & S_IXOTH) fp->other = fp->group & (~BIT(pa_pmexec));
+                if (!(sr.st_mode & S_IXOTH)) fp->other &= ~BIT(pa_pmexec);
                 /* set read permissions to other */
-                if (sr.st_mode & S_IROTH) fp->other = fp->group & (~BIT(pa_pmread));
+                if (!(sr.st_mode & S_IROTH)) fp->other &= ~BIT(pa_pmread);
                 /* set write permissions to other */
-                if (sr.st_mode & S_IWOTH) fp->other = fp->group & (~BIT(pa_pmwrite));
+                if (!(sr.st_mode & S_IWOTH)) fp->other &= ~BIT(pa_pmwrite);
                 /* set times */
                 fp->create = sr.st_ctime-UNIXADJ;
                 fp->modify = sr.st_mtime-UNIXADJ;
@@ -2468,8 +2468,6 @@ int pa_timezone(void)
     gmtime_r(&t, &gmt); /* get gmt */
     localtime_r(&t, &lcl); /* get local */
     nt = (lcl.tm_hour-gmt.tm_hour)*HOURSEC-(!!lcl.tm_isdst*HOURSEC);
-    /* adjust for GMT ahead of local */
-    if (lcl.tm_mday == gmt.tm_mday) nt -= 24*HOURSEC;
 
     /* return hour difference */
     return nt;
