@@ -284,6 +284,7 @@ typedef portid* portidptr;
 typedef struct snddev {
 
     string         name;       /* alsa name of device (sufficient to open) */
+    string         desc;       /* alsa description of device */
     snd_rawmidi_t* midi;       /* MIDI device handle */
     snd_pcm_t*     pcm;        /* PCM device handle */
     int            chan;       /* number of channels */
@@ -488,10 +489,11 @@ void prtparm(devptr p, int wave)
 {
 
     if (wave)
-        printf("%-20s chan: %d bits: %d rate: %d sgn: %d big: %d flt: %d\n",
-               p->name, p->chan, p->bits, p->rate, p->sgn, p->big, p->flt);
+        printf("%s-%s chan: %d bits: %d rate: %d sgn: %d big: %d flt: %d\n",
+               p->name, p->desc, p->chan, p->bits, p->rate, p->sgn, p->big,
+               p->flt);
     else
-        printf("%-20s\n", p->name);
+        printf("%s-%s\n", p->name, p->desc);
 
 }
 
@@ -5454,6 +5456,20 @@ int pa_rdwave(int p, byte* buff, int len)
 
 /*******************************************************************************
 
+Replace \n with '-' in string
+
+*******************************************************************************/
+
+static void rplnxl(char* s)
+
+{
+
+    while (*s) { if (*s == '\n') *s = '-'; s++; }
+
+}
+
+/*******************************************************************************
+
 Find device name of synthesizer output port
 
 Returns the ALSA device name of the given synthsizer output port.
@@ -5464,13 +5480,24 @@ void pa_synthoutname(int p, string name, int len)
 
 {
 
+    size_t l;
+
     if (p < 1 || p > MAXMIDP) error("Invalid MIDI output port");
     if (!alsamidiout[p-1])
         error("No MIDI output device defined at logical number");
 
-    if (strlen(alsamidiout[p-1]->name)+1 > len)
+    l = 0;
+    if (alsamidiout[p-1]->desc) l = strlen(alsamidiout[p-1]->desc)+1;
+    if (strlen(alsamidiout[p-1]->name)+l+1 > len)
         error("Device name too large for destination");
     strcpy(name, alsamidiout[p-1]->name);
+    if (alsamidiout[p-1]->desc) {
+
+        strcat(name, "-");
+        strcat(name, alsamidiout[p-1]->desc);
+        rplnxl(name);
+
+    }
 
 }
 
@@ -5486,13 +5513,24 @@ void pa_synthinname(int p, string name, int len)
 
 {
 
+    size_t l;
+
     if (p < 1 || p > MAXMIDP) error("Invalid MIDI input port");
     if (!alsamidiin[p-1])
         error("No MIDI input device defined at logical number");
 
-    if (strlen(alsamidiin[p-1]->name)+1 > len)
+    l = 0;
+    if (alsamidiin[p-1]->desc) l = strlen(alsamidiin[p-1]->desc)+1;
+    if (strlen(alsamidiin[p-1]->name)+l+1 > len)
         error("Device name too large for destination");
     strcpy(name, alsamidiin[p-1]->name);
+    if (alsamidiin[p-1]->desc) {
+
+        strcat(name, "-");
+        strcat(name, alsamidiin[p-1]->desc);
+        rplnxl(name);
+
+    }
 
 }
 
@@ -5508,13 +5546,24 @@ void pa_waveoutname(int p, string name, int len)
 
 {
 
+    size_t l;
+
     if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
     if (!alsapcmout[p-1])
         error("No wave output device defined at logical number");
 
-    if (strlen(alsapcmout[p-1]->name)+1 > len)
+    l = 0;
+    if (alsapcmout[p-1]->desc) l = strlen(alsapcmout[p-1]->desc)+1;
+    if (strlen(alsapcmout[p-1]->name)+l+1 > len)
         error("Device name too large for destination");
     strcpy(name, alsapcmout[p-1]->name);
+    if (alsapcmout[p-1]->desc) {
+
+        strcat(name, "-");
+        strcat(name, alsapcmout[p-1]->desc);
+        rplnxl(name);
+
+    }
 
 }
 
@@ -5530,13 +5579,24 @@ void pa_waveinname(int p, string name, int len)
 
 {
 
+    size_t l;
+
     if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
     if (!alsapcmin[p-1])
         error("No wave input device defined at logical number");
 
-    if (strlen(alsapcmin[p-1]->name)+1 > len)
+    l = 0;
+    if (alsapcmin[p-1]->desc) l = strlen(alsapcmin[p-1]->desc)+1;
+    if (strlen(alsapcmin[p-1]->name)+l+1 > len)
         error("Device name too large for destination");
     strcpy(name, alsapcmin[p-1]->name);
+    if (alsapcmin[p-1]->desc) {
+
+        strcat(name, "-");
+        strcat(name, alsapcmin[p-1]->desc);
+        rplnxl(name);
+
+    }
 
 }
 
@@ -6066,6 +6126,7 @@ static void readalsadev(devptr table[], string devt, string iotyp, int tabmax,
     char** hi;
     char*  devn;
     char*  iot;
+    char*  desc;
     int    r;
     int    i;
     snd_pcm_stream_t stream;
@@ -6082,6 +6143,7 @@ static void readalsadev(devptr table[], string devt, string iotyp, int tabmax,
         /* if table overflows, just keep first entries */
         devn = snd_device_name_get_hint(*hi, "NAME");
         iot = snd_device_name_get_hint(*hi, "IOID");
+        desc = snd_device_name_get_hint(*hi, "DESC");
         /* fix up incorrectly typed ALSA devices (plugins) */
         if (!strncmp(devn, "dmix:", 5)) {
 
@@ -6124,6 +6186,7 @@ static void readalsadev(devptr table[], string devt, string iotyp, int tabmax,
 
             table[i] = malloc(sizeof(snddev)); /* create new device entry */
             table[i]->name = devn; /* place name of device */
+            table[i]->desc = desc; /* place description of device */
             table[i]->last = 0; /* clear last byte */
             table[i]->pback = -1; /* set no pushback */
             table[i]->sync = FALSE; /* set channel not syncronized */

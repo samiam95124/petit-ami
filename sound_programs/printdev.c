@@ -32,7 +32,6 @@ int main(int argc, char **argv)
 
     }
 
-
     printf("\nOutput synthesizer devices:\n\n");
     for (i = 1; i <= pa_synthout(); i++) {
 
