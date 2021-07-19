@@ -484,7 +484,7 @@ int main(void)
     pwdis = padh/4; /* set distance of paddle to wall */
     padw = pa_maxxg(stdout)/8; /* set paddle width */
     hpadw = padw/2; /* half paddle width */
-//    pa_bold(stdout, TRUE);
+    pa_bold(stdout, TRUE);
     pa_fontsiz(stdout, wall-2); /* font fits in the wall */
     pa_binvis(stdout); /* no background writes */
     pa_timer(stdout, 1, BALMOV, TRUE); /* enable timer */
@@ -519,8 +519,8 @@ int main(void)
                 /* ball not on screen, and time to wait expired, send out ball */
                 setrect(&ball, wall+1, pa_maxyg(stdout)-4*wall-balls,
                                wall+1+balls, pa_maxyg(stdout)-4*wall);
-                bdx = +1; /* set direction of travel */
-                bdy = -2;
+                bdx = +pa_maxxg(stdout)/300; /* set direction of travel */
+                bdy = -pa_maxyg(stdout)/150;
                 /* draw the ball */
                 pa_fcolor(stdout, BALLCLR);
                 drwrect(&ball, BALLCLR);
