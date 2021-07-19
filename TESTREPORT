@@ -19,7 +19,7 @@ Windows Linux  Test               Status     Windows Linux      Notes
 
 [X]     [X]    sound_test.c       PASS/FAIL: PASS    PASS
 
-[X]     [X]    breakout.c         PASS/FAIL: PASS    PASS       Linux version seems slow.
+[X]     [X]    breakout.c         PASS/FAIL: PASS    PASS
 
 [X]     [X]    pongg.c            PASS/FAIL: PASS    PASS       Linux version slow and not scaled.
 
