@@ -69,7 +69,7 @@ Windows Linux  Test               Status     Windows Linux      Notes
 
 [X]     [X]    keyboard.c         PASS/FAIL: PASS    PASS
 
-[X]     [X]    play.c             PASS/FAIL: PASS    PASS       Extremely slow response on Linux
+[X]     [X]    play.c             PASS/FAIL: PASS    PASS
 
 [X]     [X]    playmidi.c         PASS/FAIL: PASS    PASS
 

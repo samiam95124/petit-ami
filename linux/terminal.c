@@ -113,7 +113,8 @@ static enum { /* debug levels */
 
 #define dbg_printf(lvl, fmt, ...) \
         do { if (lvl >= dbglvl) fprintf(stderr, "%s:%s():%d: " fmt, __FILE__, \
-                                __func__, __LINE__, ##__VA_ARGS__); } while (0)
+                                __func__, __LINE__, ##__VA_ARGS__); \
+                                fflush(stderr); } while (0)
 
 #define JOYENB TRUE /* enable joysticks */
 
@@ -128,6 +129,7 @@ static enum { /* debug levels */
 #define MAXYD 250  /**< Maximum terminal size y */
 
 #define MAXCON 10 /**< number of screen contexts */
+#define MAXLIN 250 /* maximum length of input buffered line */
 
 #define MAXFKEY 10 /**< maximum number of function keys */
 
@@ -369,40 +371,42 @@ static int timtbl[PA_MAXTIM];
  * Key matching input buffer
  */
 static char keybuf[10]; /* buffer */
-static int keylen; /* number of characters in buffer */
+static int keylen;      /* number of characters in buffer */
 static int tabs[MAXXD]; /* tabs set */
-static int dimx; /* actual width of screen */
-static int dimy; /* actual height of screen */
-static int curon; /* current on/off state of cursor */
-static int curx; /* cursor position on screen */
+static int dimx;        /* actual width of screen */
+static int dimy;        /* actual height of screen */
+static int curon;       /* current on/off state of cursor */
+static int curx;        /* cursor position on screen */
 static int cury;
 static int curval; /* physical cursor position valid */
 /* global scroll enable. This does not reflect the physical state, we never
    turn on automatic scroll. */
 static int scroll;
 /* current tracking states of mouse */
-static int button1; /* button 1 state: 0=assert, 1=deassert */
-static int button2; /* button 2 state: 0=assert, 1=deassert */
-static int button3; /* button 3 state: 0=assert, 1=deassert */
-static int mpx; /* mouse x/y current position */
+static int button1;     /* button 1 state: 0=assert, 1=deassert */
+static int button2;     /* button 2 state: 0=assert, 1=deassert */
+static int button3;     /* button 3 state: 0=assert, 1=deassert */
+static int mpx;         /* mouse x/y current position */
 static int mpy;
 /* new, incoming states of mouse */
-static int nbutton1; /* button 1 state: 0=assert, 1=deassert */
-static int nbutton2; /* button 2 state: 0=assert, 1=deassert */
-static int nbutton3; /* button 3 state: 0=assert, 1=deassert */
-static int nmpx; /* mouse x/y current position */
+static int nbutton1;    /* button 1 state: 0=assert, 1=deassert */
+static int nbutton2;    /* button 2 state: 0=assert, 1=deassert */
+static int nbutton3;    /* button 3 state: 0=assert, 1=deassert */
+static int nmpx;        /* mouse x/y current position */
 static int nmpy;
 /* flag for windows change signal */
 static int winch;
 /* maximum power of 10 in integer */
 static int maxpow10;
-static int numjoy;   /* number of joysticks found */
-static int joyfid;   /* joystick file id */
-static int joyax;    /* joystick x axis save */
-static int joyay;    /* joystick y axis save */
-static int joyaz;    /* joystick z axis save */
-static int joyenb;   /* enable joysticks */
-static int frmfid;   /* framing timer fid */
+static int numjoy;      /* number of joysticks found */
+static int joyfid;      /* joystick file id */
+static int joyax;       /* joystick x axis save */
+static int joyay;       /* joystick y axis save */
+static int joyaz;       /* joystick z axis save */
+static int joyenb;      /* enable joysticks */
+static int frmfid;      /* framing timer fid */
+char   inpbuf[MAXLIN];  /* input line buffer */
+int    inpptr;          /* input line index */
 
 /* forwards */
 static void restore(scnptr sc);
@@ -577,8 +581,8 @@ static char getchr(void)
     ssize_t rc; /* return code */
 
     /* receive character to the next hander in the override chain */
-    // rc = (*ofpread)(INPFIL, &c, 1);
-    rc = read(INPFIL, &c, 1);
+    rc = (*ofpread)(INPFIL, &c, 1);
+    // rc = read(INPFIL, &c, 1);
     if (rc != 1) error(einpdev); /* input device error */
 
     return c; /* return character */
@@ -727,7 +731,7 @@ static void joyevt(pa_evtrec* er, int* keep)
 
 }
 
-static void inpevt(pa_evtrec* ev)
+static void ievent(pa_evtrec* ev)
 
 {
 
@@ -1931,6 +1935,71 @@ static void plcchr(scnptr sc, char c)
 
 /*******************************************************************************
 
+Process input line
+
+Reads an input line with full echo and editing. The line is placed into the
+input line buffer.
+
+The upgrade for this is to implement a full set of editing features.
+
+*******************************************************************************/
+
+static void readline(void)
+
+{
+
+    pa_evtrec er; /* event record */
+
+    inpptr = 0; /* set 1st character position */
+    do { /* get line characters */
+
+        /* get events until an "interesting" event occurs */
+        do { ievent(&er); }
+        while (er.etype != pa_etchar && er.etype != pa_etenter &&
+               er.etype != pa_etterm && er.etype != pa_etdelcb);
+        /* if the event is line enter, place newline code,
+           otherwise place real character. if the event is program terminate,
+           we execute an organized halt */
+        switch (er.etype) { /* event */
+
+            case pa_etterm: exit(1); /* halt program */
+            case pa_etenter: /* line terminate */
+                inpbuf[inpptr] = '\n'; /* return newline */
+                /* terminate the line for debug prints */
+                inpbuf[inpptr+1] = 0;
+                plcchr(screens[curupd-1], '\r'); /* output newline sequence */
+                plcchr(screens[curupd-1], '\n');
+                break;
+            case pa_etchar: /* character */
+                if (inpptr < MAXLIN) {
+
+                    inpbuf[inpptr++] = er.echar; /* place real character */
+                    /* echo the character */
+                    plcchr(screens[curupd-1], er.echar);
+
+                }
+                break;
+            case pa_etdelcb: /* delete character backwards */
+                if (inpptr > 0) { /* not at extreme left */
+
+                    /* backspace, spaceout then backspace again */
+                    plcchr(screens[curupd-1], '\b');
+                    plcchr(screens[curupd-1], ' ');
+                    plcchr(screens[curupd-1], '\b');
+                    inpptr--; /* back up pointer */
+
+                }
+                break;
+
+        }
+
+    } while (er.etype != pa_etenter); /* until line terminate */
+    inpptr = 0; /* set 1st position on active line */
+
+}
+
+/*******************************************************************************
+
 System call interdiction handlers
 
 The interdiction calls are the basic system calls used to implement stdio:
@@ -1949,9 +2018,19 @@ elsewhere.
 
 *******************************************************************************/
 
+
 /*******************************************************************************
 
-Read
+Read file
+
+If the file is the stdin file, we process that by reading from the event queue
+and returning any characters found. Any events besides character events are
+ discarded, which is why reading from the stdin file is a downward compatible
+operation.
+
+The input from user is line buffered and may be edited by the user.
+
+All other files are passed on to the system level.
 
 *******************************************************************************/
 
@@ -1959,7 +2038,31 @@ static ssize_t iread(int fd, void* buff, size_t count)
 
 {
 
-    return (*ofpread)(fd, buff, count);
+    ssize_t rc; /* return code */
+    char *p = (char *)buff;
+    size_t cnt = count;
+
+    if (fd == INPFIL) {
+
+        /* get data from terminal */
+        while (cnt) {
+
+            /* if there is no line in the input buffer, get one */
+            if (inpptr == -1) readline();
+            *p = inpbuf[inpptr]; /* get and place next character */
+            if (inpptr < MAXLIN) inpptr++; /* next */
+            /* if we have just read the last of that line, then flag buffer
+               empty */
+            if (*p == '\n') inpptr = -1;
+            p++; /* next character */
+            cnt--; /* count characters */
+
+        }
+        rc = count; /* set return same as count */
+
+    } else rc = (*ofpread)(fd, buff, count);
+
+    return rc;
 
 }
 
@@ -2714,7 +2817,7 @@ void pa_event(FILE* f, pa_evtrec *er)
     do { /* loop handling via event vectors */
 
         /* get next input event */
-        inpevt(er);
+        ievent(er);
         er->handled = 1; /* set event is handled by default */
         (evtshan)(er); /* call master event handler */
         if (!er->handled) { /* send it to fanout */
@@ -3172,6 +3275,7 @@ static void pa_init_terminal()
     iniscn(screens[curdsp-1]); /* initalize screen */
     restore(screens[curdsp-1]); /* place on display */
     joyenb = JOYENB; /* enable joystick */
+    inpptr = -1; /* set no input line active */
 
     /* clear event vector table */
     evtshan = defaultevent;
