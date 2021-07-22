@@ -1594,7 +1594,8 @@ static void openalsapcmin(int p)
     r = snd_pcm_hw_params_any(alsapcmin[p-1]->pcm, hw_params);
     if (r < 0) alsaerror(r);
 
-    r = snd_pcm_hw_params_set_access(alsapcmin[p-1]->pcm, hw_params, SND_PCM_ACCESS_RW_INTERLEAVED);
+    r = snd_pcm_hw_params_set_access(alsapcmin[p-1]->pcm, hw_params,
+                                     SND_PCM_ACCESS_RW_INTERLEAVED);
     if (r < 0) alsaerror(r);
 
     fmt = params2alsa(alsapcmin[p-1]); /* find equivalent ALSA format code */
@@ -1602,10 +1603,12 @@ static void openalsapcmin(int p)
     if (r < 0) alsaerror(r);
 
     rate = alsapcmin[p-1]->rate;
-    r = snd_pcm_hw_params_set_rate_near(alsapcmin[p-1]->pcm, hw_params, &rate, 0);
+    r = snd_pcm_hw_params_set_rate_near(alsapcmin[p-1]->pcm, hw_params, &rate,
+                                        0);
     if (r < 0) alsaerror(r);
 
-    r = snd_pcm_hw_params_set_channels(alsapcmin[p-1]->pcm, hw_params, alsapcmin[p-1]->chan);
+    r = snd_pcm_hw_params_set_channels(alsapcmin[p-1]->pcm, hw_params,
+                                       alsapcmin[p-1]->chan);
     if (r < 0) alsaerror(r);
 
     r = snd_pcm_hw_params(alsapcmin[p-1]->pcm, hw_params);
