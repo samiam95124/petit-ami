@@ -306,6 +306,13 @@ else
 endif
 
 #
+# Create dependency macros
+#
+PLIBSD = bin/petit_ami_plain$(LIBEXT)
+CLIBSD = bin/petit_ami_term$(LIBEXT) stub/keeper.o
+GLIBSD = bin/petit_ami_graph$(LIBEXT) stub/keeper.o
+
+#
 # add external packages
 #
 ifeq ($(OSTYPE),Windows_NT)
@@ -328,18 +335,19 @@ else
     #
     # Linux
     #
-	PLIBS += linux/sound.o -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
-	CLIBS += linux/sound.o -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
-	GLIBS += linux/sound.o -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto -lX11
+	PLIBS += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o \
+	         -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
+	CLIBS += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o \
+	         -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
+	GLIBS += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o \
+	         -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto -lX11
+	PLIBSD += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o
+    CLIBSD += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o
+	GLIBSD += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o
     
 endif
 
-#
-# Create dependency macros
-#
-PLIBSD = bin/petit_ami_plain$(LIBEXT)
-CLIBSD = bin/petit_ami_term$(LIBEXT) stub/keeper.o
-GLIBSD = bin/petit_ami_graph$(LIBEXT) stub/keeper.o
+
 
 ################################################################################
 #
@@ -567,10 +575,9 @@ else
 # The linux build uses fluidsynth, and uses a series of runtime plug-ins
 # to do things like midi to wave conversion.
 #
-bin/petit_ami_plain.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/network.o utils/config.o utils/option.o
-	gcc -shared linux/services.o linux/fluidsynthplug.o \
-	    linux/dumpsynthplug.o linux/network.o utils/config.o utils/option.o \
+bin/petit_ami_plain.so: linux/services.o linux/network.o utils/config.o \
+    utils/option.o
+	gcc -shared linux/services.o linux/network.o utils/config.o utils/option.o \
 	    -o bin/petit_ami_plain.so
 	
 bin/petit_ami_plain.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
@@ -579,12 +586,10 @@ bin/petit_ami_plain.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
 	    linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
 	    utils/config.o utils/option.o
 	
-bin/petit_ami_term.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/network.o linux/terminal.o utils/config.o \
-    utils/option.o cpp/terminal.o
-	gcc -shared linux/services.o linux/fluidsynthplug.o \
-	    linux/dumpsynthplug.o  linux/network.o linux/terminal.o utils/config.o \
-	    utils/option.o cpp/terminal.o -o bin/petit_ami_term.so 
+bin/petit_ami_term.so: linux/services.o linux/network.o linux/terminal.o \
+    utils/config.o utils/option.o cpp/terminal.o
+	gcc -shared linux/services.o linux/network.o linux/terminal.o \
+	    utils/config.o utils/option.o cpp/terminal.o -o bin/petit_ami_term.so 
 	
 bin/petit_ami_term.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
     linux/dumpsynthplug.o linux/network.o linux/terminal.o utils/config.o \
@@ -593,12 +598,10 @@ bin/petit_ami_term.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
 		linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
 		linux/terminal.o utils/config.o utils/option.o cpp/terminal.o
 	
-bin/petit_ami_graph.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/network.o linux/graphics.o utils/config.o \
-    utils/option.o cpp/terminal.o
-	gcc -shared linux/services.o linux/fluidsynthplug.o \
-		linux/dumpsynthplug.o  linux/network.o linux/graphics.o utils/config.o \
-		utils/option.o cpp/terminal.o -o bin/petit_ami_graph.so
+bin/petit_ami_graph.so: linux/services.o linux/network.o linux/graphics.o \
+    utils/config.o utils/option.o cpp/terminal.o
+	gcc -shared linux/services.o linux/network.o linux/graphics.o \
+	    utils/config.o utils/option.o cpp/terminal.o -o bin/petit_ami_graph.so
 	
 bin/petit_ami_graph.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
     linux/dumpsynthplug.o linux/network.o linux/graphics.o utils/config.o \
