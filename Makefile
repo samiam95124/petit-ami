@@ -109,6 +109,8 @@ ifndef STDIO_SOURCE
         STDIO_SOURCE=stdio    
     else
         #
+        # Linux
+        #
         # glibc assumes that this is a patched glibc with override calls.
         #
         STDIO_SOURCE=glibc
@@ -326,9 +328,9 @@ else
     #
     # Linux
     #
-	PLIBS += -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
-	CLIBS += -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
-	GLIBS += -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto -lX11
+	PLIBS += linux/sound.o -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
+	CLIBS += linux/sound.o -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
+	GLIBS += linux/sound.o -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto -lX11
     
 endif
 
@@ -567,7 +569,7 @@ else
 #
 bin/petit_ami_plain.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
     linux/dumpsynthplug.o linux/network.o utils/config.o utils/option.o
-	gcc -shared linux/services.o linux/sound.o linux/fluidsynthplug.o \
+	gcc -shared linux/services.o linux/fluidsynthplug.o \
 	    linux/dumpsynthplug.o linux/network.o utils/config.o utils/option.o \
 	    -o bin/petit_ami_plain.so
 	
@@ -580,7 +582,7 @@ bin/petit_ami_plain.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
 bin/petit_ami_term.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
     linux/dumpsynthplug.o linux/network.o linux/terminal.o utils/config.o \
     utils/option.o cpp/terminal.o
-	gcc -shared linux/services.o linux/sound.o linux/fluidsynthplug.o \
+	gcc -shared linux/services.o linux/fluidsynthplug.o \
 	    linux/dumpsynthplug.o  linux/network.o linux/terminal.o utils/config.o \
 	    utils/option.o cpp/terminal.o -o bin/petit_ami_term.so 
 	
@@ -594,7 +596,7 @@ bin/petit_ami_term.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
 bin/petit_ami_graph.so: linux/services.o linux/sound.o linux/fluidsynthplug.o \
     linux/dumpsynthplug.o linux/network.o linux/graphics.o utils/config.o \
     utils/option.o cpp/terminal.o
-	gcc -shared linux/services.o linux/sound.o linux/fluidsynthplug.o \
+	gcc -shared linux/services.o linux/fluidsynthplug.o \
 		linux/dumpsynthplug.o  linux/network.o linux/graphics.o utils/config.o \
 		utils/option.o cpp/terminal.o -o bin/petit_ami_graph.so
 	
@@ -612,24 +614,6 @@ endif
 # Build final programs
 #
 ################################################################################
-
-#
-# Linux specific tools
-#
-# These will be removed as things settle down. These were/are used to model
-# Linux specific code and solve problems specific to Linux.
-#	
-lsalsadev: linux/lsalsadev.c Makefile
-	gcc linux/lsalsadev.c -lasound -o bin/lsalsadev
-	
-alsaparms: linux/alsaparms.c Makefile
-	gcc linux/alsaparms.c -lasound -o bin/alsaparms
-	
-getkeys: linux/getkeys.c Makefile
-	$(CC) $(CFLAGS) linux/getkeys.c -lm -o bin/getkeys
-	
-getmouse: linux/getmouse.c Makefile
-	$(CC) $(CFLAGS) linux/getmouse.c -lm -o bin/getmouse
 
 #
 # Cross system tools - These work on any Petit-Ami compliant environment
