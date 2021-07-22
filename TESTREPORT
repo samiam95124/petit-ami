@@ -5,6 +5,7 @@ Version: 0.1
 Date tests finished:
 
 Windows Linux  Test               Status     Windows Linux      Notes
+================================================================================
 [X]     [X]    services_test.c    PASS/FAIL: PASS    PASS
 
 [X]     [X]    terminal_testc.c   PASS/FAIL: PASS    PASS
@@ -21,7 +22,7 @@ Windows Linux  Test               Status     Windows Linux      Notes
 
 [X]     [X]    breakout.c         PASS/FAIL: PASS    PASS
 
-[X]     [X]    pongg.c            PASS/FAIL: PASS    PASS       Linux version slow and not scaled.
+[X]     [X]    pongg.c            PASS/FAIL: PASS    PASS
 
 [X]     [X]    ball1.c            PASS/FAIL: PASS    PASS
 

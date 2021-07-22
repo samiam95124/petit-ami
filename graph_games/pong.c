@@ -21,14 +21,6 @@
 
 #define BALMOV   50                /* ball move timer */
 #define NEWBAL   (100*2)           /* wait for new ball time, 1 sec (in ball units) */
-#define WALL     21                /* WALL thickness */
-#define HWALL    (WALL/2)          /* half WALL thickness */
-#define PADW     81                /* width of paddle */
-#define PADH     15                /* height of paddle */
-#define HPADW    (PADW/2)          /* half paddle width */
-#define PWDIS    5                 /* distance of paddle from bottom WALL */
-#define BALLS    21                /* size of the ball */
-#define HBALLS   (BALLS/2)         /* half ball size */
 #define BALLCLR  pa_blue              /* ball color */
 #define WALLCLR  pa_cyan              /* WALL color */
 #define PADCLR   pa_green             /* paddle color */
@@ -43,6 +35,13 @@ typedef struct { /* rectangle */
 
 } rectangle;
 
+int       wall;                       /* wall thickness */
+int       balls;                      /* ball size */
+int       hballs;                     /* half ball size */
+int       padh;                       /* height of paddle */
+int       pwdis;                      /* distance of paddle from bottom wall */
+int       padw;                       /* paddle width */
+int       hpadw;                      /* half paddle width */
 int         padx;         /* paddle position x */
 int         bdx;          /* ball direction x */
 int         bdy;          /* ball direction y */
@@ -246,7 +245,7 @@ void drwscn(void)
     drwrect(&wallr, WALLCLR); /* right */
     drwrect(&wallb, WALLCLR); /* bottom */
     pa_fcolor(stdout, pa_black);
-    wrtcen(pa_maxyg(stdout)-WALL+1, "PONG VS. 1.0");
+    wrtcen(pa_maxyg(stdout)-wall+1, "PONG VS. 1.0");
 
 }
 
@@ -262,15 +261,15 @@ void padpos(int x)
 
 {
 
-    if (x-HPADW <= walll.x2) x = walll.x2+HPADW+1; /* clip to ends */
-    if (x+HPADW >= wallr.x1) x = wallr.x1-HPADW-1;
+    if (x-hpadw <= walll.x2) x = walll.x2+hpadw+1; /* clip to ends */
+    if (x+hpadw >= wallr.x1) x = wallr.x1-hpadw-1;
     /* erase old location */
     pa_fcolor(stdout, pa_white);
-    pa_frect(stdout, padx-HPADW, pa_maxyg(stdout)-WALL-PADH-PWDIS,
-                     padx+HPADW, pa_maxyg(stdout)-WALL-PWDIS);
+    pa_frect(stdout, padx-hpadw, pa_maxyg(stdout)-wall-padh-pwdis,
+                     padx+hpadw, pa_maxyg(stdout)-wall-pwdis);
     padx = x; /* set new location */
-    setrect(&paddle, x-HPADW, pa_maxyg(stdout)-WALL-PADH-PWDIS,
-                    x+HPADW, pa_maxyg(stdout)-WALL-PWDIS);
+    setrect(&paddle, x-hpadw, pa_maxyg(stdout)-wall-padh-pwdis,
+                    x+hpadw, pa_maxyg(stdout)-wall-pwdis);
     drwrect(&paddle, PADCLR); /* draw paddle */
 
 }
@@ -287,8 +286,15 @@ int main(void)
     pa_curvis(stdout, FALSE); /* remove drawing cursor */
     pa_auto(stdout, FALSE); /* turn off scrolling */
     pa_font(stdout, PA_FONT_SIGN); /* sign font */
+    wall = pa_maxyg(stdout)/20; /* set wall thickness */
+    balls = pa_maxyg(stdout)/20; /* set ball size */
+    hballs = balls/2; /* set half ball size */
+    padh = pa_maxyg(stdout)/22; /* set paddle thickness */
+    pwdis = padh/4; /* set distance of paddle to wall */
+    padw = pa_maxxg(stdout)/8; /* set paddle width */
+    hpadw = padw/2; /* half paddle width */
     pa_bold(stdout, TRUE);
-    pa_fontsiz(stdout, WALL-2); /* font fits in the wall */
+    pa_fontsiz(stdout, wall-2); /* font fits in the wall */
     pa_binvis(stdout); /* no background writes */
     pa_timer(stdout, 1, BALMOV, TRUE); /* enable timer */
 
@@ -298,13 +304,13 @@ int main(void)
     padpos(padx); /* display paddle */
     clrrect(&ball); /* set ball not on screen */
     baltim = 0; /* set ball ready to start */
-    /* set up WALL rectangles */
-    setrect(&wallt, 1, 1, pa_maxxg(stdout), WALL); /* top */
-    setrect(&walll, 1, 1, WALL, pa_maxyg(stdout)); /* left */
+    /* set up wall rectangles */
+    setrect(&wallt, 1, 1, pa_maxxg(stdout), wall); /* top */
+    setrect(&walll, 1, 1, wall, pa_maxyg(stdout)); /* left */
     /* right */
-    setrect(&wallr, pa_maxxg(stdout)-WALL, 1, pa_maxxg(stdout), pa_maxyg(stdout));
+    setrect(&wallr, pa_maxxg(stdout)-wall, 1, pa_maxxg(stdout), pa_maxyg(stdout));
     /* bottom */
-    setrect(&wallb, 1, pa_maxyg(stdout)-WALL, pa_maxxg(stdout), pa_maxyg(stdout));
+    setrect(&wallb, 1, pa_maxyg(stdout)-wall, pa_maxxg(stdout), pa_maxyg(stdout));
     scrsiz = pa_strsiz(stdout, "SCORE 0000"); /* set nominal size of score string */
     scrchg = TRUE; /* set score changed */
     drwscn(); /* draw game screen */
@@ -313,10 +319,10 @@ int main(void)
         if (ball.x1 == 0 && baltim == 0) {
  
             /* ball not on screen, and time to wait expired, send out ball */
-            setrect(&ball, WALL+1, pa_maxyg(stdout)-4*WALL-BALLS,
-                          WALL+1+BALLS, pa_maxyg(stdout)-4*WALL);
-            bdx = +1; /* set direction of travel */
-            bdy = -2;
+            setrect(&ball, wall+1, pa_maxyg(stdout)-4*wall-balls,
+                          wall+1+balls, pa_maxyg(stdout)-4*wall);
+            bdx = +pa_maxxg(stdout)/300; /* set direction of travel */
+            bdy = -pa_maxyg(stdout)/150;
             /* draw the ball */
             pa_fcolor(stdout, BALLCLR);
             drwrect(&ball, BALLCLR);
@@ -329,7 +335,7 @@ int main(void)
             /* erase score */
             pa_fcolor(stdout, WALLCLR);
             pa_frect(stdout, pa_maxxg(stdout)/2-scrsiz/2, 1,
-                          pa_maxxg(stdout)/2+scrsiz/2, WALL);
+                          pa_maxxg(stdout)/2+scrsiz/2, wall);
             /* place updated score on screen */
             pa_fcolor(stdout, pa_black);
             pa_cursorg(stdout, pa_maxxg(stdout)/2-scrsiz/2, 2);
@@ -397,8 +403,8 @@ int main(void)
                       	/* hits paddle. now the ball can hit left, center or right.
                            left goes left, right goes right, and center reflects */
                       	ball = balsav; /* restore */
-                      	if (ball.x1+HBALLS < padx-PADH/2) bdx = -1; /* left */
-                      	else if (ball.x1+HBALLS > padx+PADH/2) bdx = +1; /* right */
+                      	if (ball.x1+hballs < padx-padh/2) bdx = -1; /* left */
+                      	else if (ball.x1+hballs > padx+padh/2) bdx = +1; /* right */
                       	else if (bdx < 0) bdx = -1; else bdx = +1; /* center */
                       	bdy = -bdy; /* reflect y */
                       	offrect(&ball, bdx, bdy); /* recalculate */
