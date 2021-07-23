@@ -52,6 +52,9 @@ pa_certlistmsg()
 
 The linux terminal.c module does not support transparent mode.
 
+The buffer follow mode discussed in the documentation is still experimental and
+needs further work.
+
 The linux subsystem uses a patched version of GLIBC that can have the read(),
 write(), open() and close() calls overridden. GLIBC must match the kernel 
 version in use. I have generated many common kernel versions of glibc under
