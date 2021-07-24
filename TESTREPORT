@@ -48,7 +48,7 @@ Windows Linux  Test               Status     Windows Linux      Notes
 
 [X]     [X]    pixel.c            PASS/FAIL: PASS    PASS
 
-[ ]     [X]    getmail.c          PASS/FAIL:         PASS       No insecure server for Windows.
+[ ]     [X]    getmail.c          PASS/FAIL:         PASS       No insecure mail server for Windows.
 
 [X]     [X]    getpage.c          PASS/FAIL: PASS    PASS       Windows cannot access https sites.
 
@@ -74,7 +74,7 @@ Windows Linux  Test               Status     Windows Linux      Notes
 
 [X]     [X]    playmidi.c         PASS/FAIL: PASS    PASS
 
-[ ]     [X]    playwave.c         PASS/FAIL: FAIL    PASS       This needs waitwave(), unimplemented.
+[X]     [X]    playwave.c         PASS/FAIL: PASS    PASS
 
 [X]     [X]    printdev.c         PASS/FAIL: PASS    PASS
 

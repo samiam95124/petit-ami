@@ -264,6 +264,8 @@ static DWORD            sintim;             /* start time input midi, in raw
 static CRITICAL_SECTION seqlock;            /* sequencer task lock */
 static string           synthnam[MAXMIDT];  /* midi track file names */
 static string           wavenam[MAXWAVT];   /* wave track file names */
+static HANDLE           playwavecomplete;   /* wave end event handle */
+static int              wavcnt;             /* count outstanding wave starts */
 
 /*******************************************************************************
 
@@ -2768,6 +2770,19 @@ The file is specified by file name, and the file type is system dependent.
 
 ********************************************************************************/
 
+static DWORD WINAPI waveplaythread(LPVOID lpParameter)
+
+{
+
+    int w = (int)lpParameter; /* get wave number */
+
+    /* play sound without error checking, wait complete */
+    PlaySound(wavenam[w-1], 0, SND_FILENAME | SND_NODEFAULT | SND_SYNC);
+    wavcnt--; /* set wave complete */
+    SetEvent(playwavecomplete); /* flag play has finished */
+
+}
+
 void pa_playwave(int p, int t, int w)
 
 {
@@ -2784,8 +2799,8 @@ void pa_playwave(int p, int t, int w)
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
-        b = PlaySound(wavenam[w-1], 0, SND_FILENAME | SND_NODEFAULT | SND_ASYNC);
-        if (!b) error("Could not play wave file");
+        CreateThread(NULL, 0, waveplaythread, (void*)w, 0, NULL);
+        wavcnt++; /* count active wave starts */
 
     } else { /* sequence */
 
@@ -2820,6 +2835,9 @@ void pa_volwave(int p, int t, int v)
 
 {
 
+    error("pa_wolwave: Is not implemented");
+
+
 }
 
 /*******************************************************************************
@@ -2843,7 +2861,15 @@ void pa_waitwave(int p)
 
 {
 
-    //error("pa_waitwave: Is not implemented");
+    DWORD r;
+
+    /* this is MT questionable */
+    while (wavcnt) {
+
+        WaitForSingleObject(playwavecomplete, -1); /* wait for thread to start */
+        if (r == -1) error("Could not wait for wave complete");
+
+    }
 
 }
 
@@ -4173,11 +4199,14 @@ static void pa_init_sound()
     seqrun = FALSE; /* set sequencer ! running */
     strtim = 0; /* clear start time */
     timhan = 0; /* set no timer active */
+    wavcnt = 0; /* clear wave start count */
     for (i = 0; i < MAXMIDP; i++) midouttab[i] = (HMIDIOUT)-1; /* set no midi output ports open */
     for (i = 0; i < MAXMIDP; i++) midinptab[i] = NULL; /* set no midi output ports open */
     for (i = 0; i < MAXWAVP; i++) pcmout[i] = NULL; /* set no wave output ports open */
     for (i = 0; i < MAXMIDT; i++) synthnam[i] = NULL; /* clear synth track list */
     for (i = 0; i < MAXWAVT; i++) wavenam[i] = NULL; /* clear wave track list */
     InitializeCriticalSection(&seqlock); /* initialize the sequencer lock */
+    /* initialize wave play complete signal */
+    playwavecomplete = CreateEvent(NULL, TRUE, FALSE, NULL);
 
 }
