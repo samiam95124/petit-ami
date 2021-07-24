@@ -2870,6 +2870,7 @@ void pa_waitwave(int p)
         if (r == -1) error("Could not wait for wave complete");
 
     }
+    ResetEvent(playwavecomplete); /* clear event */
 
 }
 
