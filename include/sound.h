@@ -444,7 +444,7 @@ void _pa_synthoutplug(int addend, string name,
                      );
 void _pa_synthinplug(int addend, string name,
                      void (*opnseq)(int p), void (*clsseq)(int p),
-                     void (*wrseq)(int p, pa_seqptr sp),
+                     void (*rdseq)(int p, pa_seqptr sp),
                      int (*setparam)(int p, string name, string value),
                      void (*getparam)(int p, string name, string value, int len)
                     );

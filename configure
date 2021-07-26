@@ -39,10 +39,28 @@ host="linux"
 
 ################################################################################
 #
+# Make sure used packages are installed.
+#
+sudo apt-get -y install alsa alsa-tools
+sudo apt-get -y install libasound2-dev
+sudo apt-get -y install openssl
+sudo apt-get -y install libssl-dev
+sudo apt-get -y install fluidsynth
+sudo apt-get -y install libfluidsynth-dev
+sudo apt-get -y install gawk
+sudo apt-get -y install bison
+sudo apt-get -y install git
+sudo apt-get -y install openssl
+sudo apt-get -y install libx11-dev
+
+################################################################################
+#
 # Determine if needed programs exist. The only fatal one is gcc, because we
 # need that to compile Petit-Ami. The rest will impact the running of various
 # test and build scripts.
 #
+
+
 checkexists grep
 checkexists diff
 checkexists sed
