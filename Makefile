@@ -70,6 +70,12 @@
 # simpler, because they use prebuilt libraries. Please see those examples.
 #
 
+#
+# Version
+#
+VERMAJOR=0
+VERMINOR=1
+
 ################################################################################
 #
 # Establish build macros
@@ -1023,3 +1029,21 @@ clean:
 	rm -f bin/*.a
 	rm -f bin/*.so
 	rm -f bin/*.exe
+	
+################################################################################
+#
+# Make distribution/release
+#
+# Does not work, go up a directory and execute:
+#
+# tar --exclude=.* -czvf petit_ami_M.m.tar.gz petit_ami
+#
+# Where M.m is major minor version.
+#
+################################################################################
+
+#dist:
+#	rm -f petit_ami_*.tar.gz
+#	echo "Parent directory: $(shell dirname $(shell pwd))"
+#	tar --exclude=.* -czvf petit_ami_$(VERMAJOR).$(VERMINOR).tar.gz \
+#	$(shell dirname $(shell pwd))/petit_ami
