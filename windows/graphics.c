@@ -1719,7 +1719,7 @@ static void prtevt(pa_evtrec* ev)
         case pa_etchkbox: fprintf(stderr, " Checkbox: %d", ev->ckbxid); break;
         case pa_etradbut: fprintf(stderr, " Button: %d", ev->radbid); break;
         case pa_etsclull: fprintf(stderr, " Scroll bar: %d", ev->sclulid); break;
-        case pa_etscldrl: fprintf(stderr, " Scroll bar: %d", ev->scldlid); break;
+        case pa_etscldrl: fprintf(stderr, " Scroll bar: %d", ev->scldrid); break;
         case pa_etsclulp: fprintf(stderr, " Scroll bar: %d", ev->sclupid); break;
         case pa_etscldrp: fprintf(stderr, " Scroll bar: %d", ev->scldpid); break;
         case pa_etsclpos:
@@ -7999,7 +7999,7 @@ static void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
                 } else if (v == SB_LINEDOWN) {
 
                     er->etype = pa_etscldrl; /* line down */
-                    er->scldlid = wp->id;
+                    er->scldrid = wp->id;
 
                 } else if (v == SB_PAGEUP) {
 
@@ -8064,7 +8064,7 @@ static void winevt(winptr win, pa_evtrec* er, MSG* msg, int ofn, int* keep)
                 } else if (v == SB_LINERIGHT) {
 
                     er->etype = pa_etscldrl; /* line down */
-                    er->scldlid = wp->id;
+                    er->scldrid = wp->id;
 
                 } else if (v == SB_PAGELEFT) {
 

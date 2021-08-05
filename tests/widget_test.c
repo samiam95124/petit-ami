@@ -682,7 +682,7 @@ int main(void)
         if (er.etype == pa_etsclull)
             printf("Scrollbar: %d up/left line\n", er.sclulid);
         if (er.etype == pa_etscldrl)
-            printf("Scrollbar: %d down/right line\n", er.scldlid);
+            printf("Scrollbar: %d down/right line\n", er.scldrid);
         if (er.etype == pa_etsclulp)
             printf("Scrollbar: %d up/left page\n", er.sclupid);
         if (er.etype == pa_etscldrp)
@@ -722,7 +722,7 @@ int main(void)
         if (er.etype == pa_etsclull)
             printf("Scrollbar: %d up/left line\n", er.sclulid);
         if (er.etype == pa_etscldrl)
-            printf("Scrollbar: %d down/right line\n", er.scldlid);
+            printf("Scrollbar: %d down/right line\n", er.scldrid);
         if (er.etype == pa_etsclulp)
             printf("Scrollbar: %d up/left page\n", er.sclupid);
         if (er.etype == pa_etscldrp)
@@ -758,7 +758,7 @@ int main(void)
         if (er.etype == pa_etsclull)
             printf("Scrollbar: %d up/left line\n", er.sclulid);
         if (er.etype == pa_etscldrl)
-            printf("Scrollbar: %d down/right line\n", er.scldlid);
+            printf("Scrollbar: %d down/right line\n", er.scldrid);
         if (er.etype == pa_etsclulp)
             printf("Scrollbar: %d up/left page\n", er.sclupid);
         if (er.etype == pa_etscldrp)
@@ -794,7 +794,7 @@ int main(void)
         if (er.etype == pa_etsclull)
             printf("Scrollbar: %d up/left line\n", er.sclulid);
         if (er.etype == pa_etscldrl)
-            printf("Scrollbar: %d down/right line\n", er.scldlid);
+            printf("Scrollbar: %d down/right line\n", er.scldrid);
         if (er.etype == pa_etsclulp)
             printf("Scrollbar: %d up/left page\n", er.sclupid);
         if (er.etype == pa_etscldrp)
@@ -828,7 +828,7 @@ int main(void)
         if (er.etype == pa_etsclull)
             printf("Scrollbar: %d up/left line\n", er.sclulid);
         if (er.etype == pa_etscldrl)
-            printf("Scrollbar: %d down/right line\n", er.scldlid);
+            printf("Scrollbar: %d down/right line\n", er.scldrid);
         if (er.etype == pa_etsclulp)
             printf("Scrollbar: %d up/pa_left page\n", er.sclupid);
         if (er.etype == pa_etscldrp)
@@ -866,7 +866,7 @@ int main(void)
         if (er.etype == pa_etsclull)
             printf("Scrollbar: %d up/left line\n", er.sclulid);
         if (er.etype == pa_etscldrl)
-            printf("Scrollbar: %d down/right line\n", er.scldlid);
+            printf("Scrollbar: %d down/right line\n", er.scldrid);
         if (er.etype == pa_etsclulp)
             printf("Scrollbar: %d up/pa_left page\n", er.sclupid);
         if (er.etype == pa_etscldrp)
@@ -900,7 +900,7 @@ int main(void)
         if (er.etype == pa_etsclull)
             printf("Scrollbar: %d up/left line\n", er.sclulid);
         if (er.etype == pa_etscldrl)
-            printf("Scrollbar: %d down/right line\n", er.scldlid);
+            printf("Scrollbar: %d down/right line\n", er.scldrid);
         if (er.etype == pa_etsclulp)
             printf("Scrollbar: %d up/left page\n", er.sclupid);
         if (er.etype == pa_etscldrp)
@@ -934,7 +934,7 @@ int main(void)
         if (er.etype == pa_etsclull)
             printf("Scrollbar: %d up/left line\n", er.sclulid);
         if (er.etype == pa_etscldrl)
-            printf("Scrollbar: %d down/right line\n", er.scldlid);
+            printf("Scrollbar: %d down/right line\n", er.scldrid);
         if (er.etype == pa_etsclulp)
             printf("Scrollbar: %d up/left page\n", er.sclupid);
         if (er.etype == pa_etscldrp)

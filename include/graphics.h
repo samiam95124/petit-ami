@@ -210,7 +210,7 @@ typedef struct {
         /* pa_etsclull */
         int sclulid; /* scroll up/left line */
         /* pa_etscldrl */
-        int scldlid; /* scroll down/right line */
+        int scldrid; /* scroll down/right line */
         /* pa_etsclulp */
         int sclupid; /* scroll up/left page */
         /* pa_etscldrp */
