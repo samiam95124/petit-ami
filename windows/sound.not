@@ -38,3 +38,5 @@ is hit and the sound is heard.
 
 14. The latency of the input wave function is bad. MS claims there is a lower
 latency interface, which is (of course) incompatible with the old interface.
+
+15. On ball6, the sounds don't appear to be sequencing correctly.
