@@ -2,3 +2,6 @@
 
 1. On Ubuntu 20.04, you don't get correct local time unless you set TZ in the
 environment.
+
+2. The date is still one day off. I think that was the full day compensation
+I removed.
