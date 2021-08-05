@@ -2,6 +2,11 @@ Installing Petit-ami
 
 First of all, remember that petit-ami is in development. This means that 
 everything may not work perfectly.
+ 
+Second, the configure script does several automated installs of needed
+tools. For each one you will be asked if you want to install the tools.
+If you would prefer to do this manually, see the "make sure used packages are
+installed." section in configure.
 
 Steps to install
 

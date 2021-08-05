@@ -1040,10 +1040,13 @@ clean:
 #
 # Where M.m is major minor version.
 #
+# The formula below places the .gz one directory up. I have not found a way to
+# exclude the tar.gz itself.
+#
 ################################################################################
 
 #dist:
+#	cd ..
 #	rm -f petit_ami_*.tar.gz
-#	echo "Parent directory: $(shell dirname $(shell pwd))"
-#	tar --exclude=.* -czvf petit_ami_$(VERMAJOR).$(VERMINOR).tar.gz \
-#	$(shell dirname $(shell pwd))/petit_ami
+#	echo "will execute: tar --exclude=.* --exclude=*.gz -czvf petit_ami_$(VERMAJOR).$(VERMINOR).tar.gz petit_ami"
+#	tar --exclude=.* --exclude=*.gz -czvf petit_ami_$(VERMAJOR).$(VERMINOR).tar.gz petit_ami

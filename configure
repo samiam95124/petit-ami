@@ -73,7 +73,7 @@ checkexists flip
 checkexists cpp
 
 #
-# Fail on no grep found
+# Fail on no gcc found
 #
 checkexists gcc > /dev/null
 if [[ $rc != 0 ]] ; then
@@ -104,11 +104,6 @@ do
     fi
 
 done
-
-#
-# Run the install script
-#
-bin/install
 
 #
 # Set the version of libc override that is needed.
