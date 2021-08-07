@@ -219,6 +219,67 @@ static void addend(
 
 /**//***************************************************************************
 
+Get text line from file
+
+This is identical to libc fgets(), but tolerates any line ending:
+
+/lf
+/cr
+/lf/cr
+/cr/lf
+
+Note that since fgets() places the line ending in the string, we change a /cr
+first ending to /lf to match fgets().
+
+Note that this whole routine could be placed back into stdio.c to make it OS
+agnostic. If that occurs, it should be accompanied by a revision of the whole
+file with respect to line endings.
+
+*******************************************************************************/
+
+char *fgetsale(char *s, int n, FILE *stream)
+
+{
+
+    int c, c1; /* input character holder */
+    char *s1; /* input array holder */
+    int cc;   /* character count */
+
+    s1 = s; /* save array to return */
+    cc = 0; /* clear character count */
+    do { /* read characters */
+
+        c = fgetc(stream); /* get next character */
+        if (c == EOF) { /* end of file */
+
+            *s = '\0'; /* for neatness, we terminate the string */
+            if (cc) return (s1); /* characters were read */
+            else return NULL; /* no characters read, return null string */
+
+        }
+        *s = c; /* place character */
+        if (c == '\r') *s = '\n'; /* change /cr ending to /lf */
+        s++; /* next character */
+        cc++; /* count characters */
+
+    } while
+        (c != '\n' && c != '\r' && n--); /* not newline, and not past limit */
+    *s = '\0';
+    /* see if line ending is followed by an opposite and dispose if so */
+    if (c == '\n' || c == '\r') {
+
+        c1 = fgetc(stream); /* get next */
+        if (!((c1 == '\r' && c == '\n') || (c1 == '\n' && c == '\r')))
+            ungetc(c1, stream);
+
+    }
+
+    return (s1); /* exit with input array */
+
+}
+
+/**//***************************************************************************
+
 Parse config list
 
 Parses a linear list of configuration lines.
@@ -245,7 +306,7 @@ static void parlst(
     end = FALSE; /* set not at end */
     while (!end) { /* not eof */
 
-        p = fgets(linbuf, MAXSTR, f); /* get next line */
+        p = fgetsale(linbuf, MAXSTR, f); /* get next line */
         if (p) { /* not EOF */
 
             dbg_printf(dldbg, "Next line: %s\n", linbuf);
