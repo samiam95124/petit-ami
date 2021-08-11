@@ -8123,6 +8123,7 @@ void pa_openwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
         /* open input file */
         *infile = fopen("/dev/null", "r"); /* open null as read only */
         if (!*infile) error(enoopn); /* can't open */
+        setvbuf(*infile, NULL, _IONBF, 0); /* turn off buffering */
 
     }
     /* open output file */
@@ -8130,6 +8131,7 @@ void pa_openwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
     ofn = fileno(*outfile); /* get logical file no. */
     if (ofn == -1) error(esystem);
     if (!*outfile) error(enoopn); /* can't open */
+    setvbuf(*outfile, NULL, _IONBF, 0); /* turn off buffering */
 
     /* check either input is unused, or is already an input side of a window */
     if (opnfil[ifn]) /* entry exists */
