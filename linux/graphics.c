@@ -533,6 +533,7 @@ typedef enum {
     epicopn,  /* Cannot open picture file */
     ebadfmt,  /* Bad format of picture file */
     ecfgval,  /* invalid configuration value */
+    enoopn,   /* Cannot open file */
     esystem   /* System consistency check */
 
 } errcod;
@@ -705,6 +706,7 @@ static void error(errcod e)
       case epicopn:  fprintf(stderr, "Cannot open picture file"); break;
       case ebadfmt:  fprintf(stderr, "Bad format of picture file"); break;
       case ecfgval:  fprintf(stderr, "Invalid configuration value"); break;
+      case enoopn:   fprintf(stderr, "Cannot open file"); break;
       case esystem:  fprintf(stderr, "System consistency check"); break;
 
     }
@@ -2082,6 +2084,28 @@ static winptr txt2win(FILE* f)
    if (fn < 0) error(einvfil); /* file invalid */
 
    return (lfn2win(fn)); /* get logical filenumber for file */
+
+}
+
+/*******************************************************************************
+
+Get logical file number from file
+
+Gets the logical translated file number from a text file, and verifies it
+is valid.
+
+*******************************************************************************/
+
+static int txt2lfn(FILE* f)
+
+{
+
+    int fn;
+
+    fn = fileno(f); /* get file id */
+    if (fn < 0) error(einvfil); /* invalid */
+
+    return (fn); /* return result */
 
 }
 
@@ -8061,9 +8085,61 @@ directly. These ids will be be opened as a pair anytime the "_input" or
 
 *******************************************************************************/
 
+/* check file is already in use */
+static int fndfil(FILE* fp)
+
+{
+
+    int fi; /* file index */
+    int ff; /* found file */
+
+    ff = -1; /* set no file found */
+    for (fi = 0; fi < MAXFIL; fi++)
+        if (opnfil[fi] && opnfil[fi]->sfp == fp) ff = fi; /* set found */
+
+    return (ff);
+
+}
+
 void pa_openwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
 
 {
+
+    int ifn, ofn, pfn; /* file logical handles */
+
+    /* check valid window handle */
+    if (wid < 1 || wid > MAXFIL) error(einvwin);
+    /* check if the window id is already in use */
+    if (xltwin[wid-1] >= 0) error(ewinuse); /* error */
+    if (parent) {
+
+        txt2win(parent); /* validate parent is a window file */
+        pfn = txt2lfn(parent); /* get logical parent */
+
+    } else pfn = -1; /* set no parent */
+    ifn = fndfil(*infile); /* find previous open input side */
+    if (ifn < 0) { /* no other input file, open new */
+
+        /* open input file */
+        *infile = fopen("/dev/null", "r"); /* open null as read only */
+        if (!*infile) error(enoopn); /* can't open */
+
+    }
+    /* open output file */
+    *outfile = fopen("/dev/null", "w");
+    ofn = fileno(*outfile); /* get logical file no. */
+    if (ofn == -1) error(esystem);
+    if (!*outfile) error(enoopn); /* can't open */
+
+    /* check either input is unused, or is already an input side of a window */
+    if (opnfil[ifn]) /* entry exists */
+        if (!opnfil[ifn]->inw || opnfil[ifn]->win) error(einmode); /* wrong mode */
+    /* check output file is in use for input or output from window */
+    if (opnfil[ofn]) /* entry exists */
+        if (opnfil[ofn]->inw || opnfil[ofn]->win)
+            error(efinuse); /* file in use */
+    /* establish all logical files and links, translation tables, and open window */
+    openio(*infile, *outfile, ifn, ofn, pfn, wid);
 
 }
 
