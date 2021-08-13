@@ -129,10 +129,11 @@ static enum { /* debug levels */
                                 __func__, __LINE__, ##__VA_ARGS__); \
                                 fflush(stderr); } while (0)
 
-//#define PRTEVT  /* print outgoing PA events */
+//#define PRTEVT /* print outgoing PA events */
 //#define EVTPOL /* poll for X events */
 //#define PRTFNT /* print internal fonts list */
 //#define PRTMEM /* print memory allocations at exit */
+//#define PRTWPM /* print window parameters on open */
 
 #define MAXBUF 10  /* maximum number of buffers available */
 #define IOWIN  1   /* logical window number of input/output pair */
@@ -2616,7 +2617,7 @@ static void opnwin(int fn, int pfn, int wid)
     win->sdpmx = win->shres*1000/win->shsize; /* find dots per meter x */
     win->sdpmy = win->svres*1000/win->svsize; /* find dots per meter y */
 
-#if 0
+#ifdef PRTPWM
     dbg_printf(dlinfo, "Display width in pixels:  %d\n", win->shres);
     dbg_printf(dlinfo, "Display height in pixels: %d\n", win->svres);
     dbg_printf(dlinfo, "Display width in mm:      %d\n", win->shsize);
