@@ -10093,8 +10093,6 @@ static void ibuffer(winptr win, int e)
            update to point to it as well. This single buffer  serves as
            a "template" for the real pixels on screen. */
         win->bufmod = FALSE; /* turn buffer mode off */
-        for (si = 0; si < MAXCON; si++)
-           if (si != win->curdsp) disscn(win, win->screens[si]);
         /* dispose of screen data structures */
         for (si = 0; si < MAXCON; si++) if (si != win->curdsp-1)
             if (win->screens[si]) {
@@ -10130,7 +10128,7 @@ void pa_buffer(FILE* f, int e)
 
 {
 
-     winptr win; /* pointer to windows context */
+    winptr win; /* pointer to windows context */
 
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window context */

@@ -183,6 +183,12 @@ typedef struct {
             /** joystick coordinates */ int joypx, joypy, joypz;
 
         };
+        /* pa_etresize */
+        struct {
+
+            int rszx, rszy, rszxg, rszyg;
+
+        };
         /* pa_etfun */
         /** function key */ int fkey;
         /** etmoumovg: */

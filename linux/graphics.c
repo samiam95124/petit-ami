@@ -368,6 +368,10 @@ typedef struct winrec {
     int          gmaxy;             /* maximum y size */
     int          gmaxxg;            /* size of client area in x */
     int          gmaxyg;            /* size of client area in y */
+    int          bufx;              /* buffer size x characters */
+    int          bufy;              /* buffer size y characters */
+    int          bufxg;             /* buffer size x pixels */
+    int          bufyg;             /* buffer size y pixels */
     int          gattr;             /* current attributes */
     int          gauto;             /* state of auto */
     int          gfcrgb;            /* foreground color in rgb */
@@ -2464,6 +2468,12 @@ static void iniscn(winptr win, scnptr sc)
     sc->xbuf = XCreatePixmap(padisplay, win->xwhan, sc->maxxg, sc->maxyg, depth);
     XWUNLOCK();
 
+    /* save buffer size */
+    win->bufx = win->gmaxx;
+    win->bufy = win->gmaxy;
+    win->bufxg = win->gmaxxg;
+    win->bufyg = win->gmaxyg;
+
     /* clear it */
     clrbuf(sc);
 
@@ -2485,6 +2495,22 @@ static void iniscn(winptr win, scnptr sc)
     XSetBackground(padisplay, sc->xcxt, colnum(pa_yellow));
     XWUNLOCK();
 #endif
+
+}
+
+/*******************************************************************************
+
+Disinitalize screen
+
+Removes all data for the given screen buffer.
+
+*******************************************************************************/
+
+static void disscn(winptr win, scnptr sc)
+
+{
+
+    /* need to do disposals here */
 
 }
 
@@ -7319,10 +7345,49 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
     sc = win->screens[win->curdsp-1]; /* index screen */
     if (e->type == Expose) {
 
-        XWLOCK();
-        XCopyArea(padisplay, sc->xbuf, win->xwhan, sc->xcxt, 0, 0,
+        if (win->bufmod) { /* use buffer to satisfy event */
+
+            XWLOCK();
+            XCopyArea(padisplay, sc->xbuf, win->xwhan, sc->xcxt, 0, 0,
                   win->gmaxxg, win->gmaxyg, 0, 0);
-        XWUNLOCK();
+            XWUNLOCK();
+
+        } else { /* let the client handle it */
+
+            er->etype = pa_etredraw; /* set redraw event */
+            er->rsx = e->xexpose.x+1; /* set redraw rectangle */
+            er->rsy = e->xexpose.y+1;
+            er->rex = e->xexpose.x+e->xexpose.width;
+            er->rey = e->xexpose.y+e->xexpose.height;
+            *keep = TRUE; /* set found */
+
+        }
+
+    } else if (e->type == ConfigureNotify) {
+
+        if (e->xconfigure.width != win->gmaxxg ||
+            e->xconfigure.height != win->gmaxyg) {
+
+            /* size of window has changed, send event */
+            er->etype = pa_etresize; /* set resize event */
+            er->rszxg = e->xconfigure.width; /* set graphics size */
+            er->rszyg = e->xconfigure.height;
+            er->rszx = e->xconfigure.width/win->charspace; /* set character size */
+            er->rszy = e->xconfigure.height/win->linespace;
+            *keep = TRUE; /* set found */
+            if (!win->bufmod) {
+
+                /* reset tracking sizes */
+                win->gmaxxg = er->rszxg; /* graphics x */
+                win->gmaxyg = er->rszyg; /* graphics y */
+                /* find character size x */
+                win->gmaxx = win->gmaxxg/win->charspace;
+                /* find character size y */
+                win->gmaxy = win->gmaxyg/win->linespace;
+
+            }
+
+        }
 
     } else if (e->type == KeyPress) {
 
@@ -8078,10 +8143,9 @@ Open window
 
 Opens a window to an input/output pair. The window is opened and initalized.
 If a parent is provided, the window becomes a child window of the parent.
-The window id can be from 1 to ss_maxhdl, but the input and output file ids
-of 1 and 2 are reserved for the input and output files, and cannot be used
-directly. These ids will be be opened as a pair anytime the "_input" or
-"_output" file names are seen.
+
+The window id can be from 1 to MAXFIL, but 1 is reserved for the main I/O
+window.
 
 *******************************************************************************/
 
@@ -8185,6 +8249,72 @@ freed.
 void pa_buffer(FILE* f, int e)
 
 {
+
+    winptr            win; /* pointer to windows context */
+    XWindowChanges    xwc; /* XWindow values */
+    XWindowAttributes xwa; /* XWindow attributes */
+    XEvent            xe;  /* XWindow event */
+    int               si;  /* index for screens */
+
+    win = txt2win(f); /* get window context */
+    if (e) { /* perform buffer on actions */
+
+        win->bufmod = TRUE; /* turn buffer mode on */
+        /* restore last buffer size */
+        win->gmaxxg = win->bufxg; /* pixel size */
+        win->gmaxyg = win->bufyg;
+        win->gmaxx = win->bufx; /* character size */
+        win->gmaxy = win->bufy;
+        win->screens[win->curdsp-1]->maxxg = win->gmaxxg; /* pixel size */
+        win->screens[win->curdsp-1]->maxyg = win->gmaxyg;
+        win->screens[win->curdsp-1]->maxx = win->gmaxx; /* character size */
+        win->screens[win->curdsp-1]->maxy = win->gmaxy;
+        xwc.width = win->gmaxxg; /* set XWindow width and height */
+        xwc.height = win->gmaxyg;
+        XWLOCK();
+        XConfigureWindow(padisplay, win->xwhan, CWWidth|CWHeight, &xwc);
+        XWUNLOCK();
+        restore(win); /* restore buffer to screen */
+
+    } else if (win->bufmod) { /* perform buffer off actions */
+
+        /* The screen buffer contains a lot of drawing information, so we have
+           to keep one of them. We keep the current display, and force the
+           update to point to it as well. This single buffer  serves as
+           a "template" for the real pixels on screen. */
+        win->bufmod = FALSE; /* turn buffer mode off */
+        /* dispose of screen data structures */
+        for (si = 0; si < MAXCON; si++) if (si != win->curdsp-1)
+            if (win->screens[si]) {
+
+            disscn(win, win->screens[si]); /* free buffer data */
+            ifree(win->screens[si]); /* free screen data */
+            win->screens[si] = NULL; /* clear screen data */
+
+        }
+        win->curupd = win->curdsp; /* unify the screens */
+        /* get actual size of onscreen window, and set that as client space */
+        XWLOCK();
+        XGetWindowAttributes(padisplay, win->xwhan, &xwa);
+        XWUNLOCK();
+        win->gmaxxg = xwa.width; /* return size */
+        win->gmaxyg = xwa.height;
+        win->gmaxx = win->gmaxxg/win->charspace; /* find character size x */
+        win->gmaxy = win->gmaxyg/win->linespace; /* find character size y */
+        /* tell the window to resize */
+        xe.type = ConfigureNotify;
+        xe.xconfigure.width = win->gmaxxg;
+        xe.xconfigure.height = win->gmaxyg;
+        XSendEvent(padisplay, win->xwhan, FALSE, 0, &xe);
+        /* tell the window to repaint */
+        xe.type = Expose;
+        xe.xexpose.x = 0;
+        xe.xexpose.y = 0;
+        xe.xexpose.width = win->gmaxxg;
+        xe.xexpose.height = win->gmaxyg;
+        XSendEvent(padisplay, win->xwhan, FALSE, 0, &xe);
+
+    }
 
 }
 
