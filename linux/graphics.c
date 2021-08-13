@@ -2645,8 +2645,9 @@ static void opnwin(int fn, int pfn, int wid)
                            WhitePixel(padisplay, pascreen));
 
     /* select what events we want */
-    XSelectInput(padisplay, win->xwhan, ExposureMask | KeyPressMask |
-                 KeyReleaseMask | PointerMotionMask | ButtonPressMask | ButtonReleaseMask);
+    XSelectInput(padisplay, win->xwhan, ExposureMask|KeyPressMask|
+                 KeyReleaseMask|PointerMotionMask|ButtonPressMask|
+                 ButtonReleaseMask|StructureNotifyMask);
 
     /* hook close event from windows manager */
     win->delmsg = XInternAtom(padisplay, "WM_DELETE_WINDOW", FALSE);
