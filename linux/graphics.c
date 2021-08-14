@@ -8223,6 +8223,40 @@ void pa_sizbufg(FILE* f, int x, int y)
 
 {
 
+    int            si;  /* index for current display screen */
+    XWindowChanges xwc; /* XWindow values */
+    winptr         win; /* pointer to windows context */
+
+    if (x < 1 || y < 1)  error(einvsiz); /* invalid buffer size */
+    win = txt2win(f); /* get window context */
+    /* set buffer size */
+    win->gmaxx = x/win->charspace; /* find character size x */
+    win->gmaxy = y/win->linespace; /* find character size y */
+    win->gmaxxg = x; /* set size in pixels x */
+    win->gmaxyg = y; /* set size in pixels y */
+    /* all the screen buffers are wrong, so tear them out */
+    for (si = 0; si < MAXCON; si++) {
+
+        disscn(win, win->screens[si]);
+        ifree(win->screens[si]); /* free screen data */
+        win->screens[si] = NULL; /* clear screen data */
+
+    }
+    win->screens[win->curdsp-1] = imalloc(sizeof(scncon));
+    iniscn(win, win->screens[win->curdsp-1]); /* initalize screen buffer */
+    if (win->curdsp != win->curupd) { /* also create the update buffer */
+
+        win->screens[win->curupd-1] = imalloc(sizeof(scncon)); /* get the display screen */
+        iniscn(win, win->screens[win->curupd-1]); /* initalize screen buffer */
+
+    }
+    xwc.width = win->gmaxxg; /* set XWindow width and height */
+    xwc.height = win->gmaxyg;
+    XWLOCK();
+    XConfigureWindow(padisplay, win->xwhan, CWWidth|CWHeight, &xwc);
+    XWUNLOCK();
+    restore(win); /* restore buffer to screen */
+
 }
 
 /** ****************************************************************************
@@ -8236,6 +8270,12 @@ Sets or resets the size of the buffer surface, in character counts.
 void pa_sizbuf(FILE* f, int x, int y)
 
 {
+
+    winptr win; /* pointer to windows context */
+
+    win = txt2win(f); /* get window context */
+    /* just translate from characters to pixels and do the resize in pixels. */
+    pa_sizbufg(f, x*win->charspace, y*win->linespace);
 
 }
 
