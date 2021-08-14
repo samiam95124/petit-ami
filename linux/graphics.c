@@ -7445,7 +7445,10 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
                 /* check any result */
                 if (!zerorect(&rr) || !zerorect(&rb)) {
 
-                    XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+                    /* set background color to foreground */
+                    if (BIT(sarev) & sc->attr)
+                        XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+                    else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
                     /* paint right */
                     if (!zerorect(&rr))
                         XFillRectangle(padisplay, win->xwhan, sc->xcxt,
@@ -7456,6 +7459,10 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
                         XFillRectangle(padisplay, win->xwhan, sc->xcxt,
                                        rb.x1, rb.y1,
                                        rb.x2-rb.x1+1, rb.y2-rb.y1+1);
+                    /* restore foreground color */
+                    if (BIT(sarev) & sc->attr)
+                        XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+                    else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
 
                 }
                 XWUNLOCK();
@@ -7695,11 +7702,8 @@ static void xwinget(pa_evtrec* er, int* keep)
         XWUNLOCK();
         if (dmpmsg) {
 
-            if (e.type != NoExpose && e.type != Expose) {
-
-                dbg_printf(dlinfo, "X Event: %5d ", xcnt++); prtxevt(e.type);
-                fprintf(stderr, "\n"); fflush(stderr);
-            }
+            dbg_printf(dlinfo, "X Event: %5d ", xcnt++); prtxevt(e.type);
+            fprintf(stderr, "\n"); fflush(stderr);
 
         }
         ofn = fndevt(e.xany.window); /* get output window lfn */
@@ -8465,6 +8469,7 @@ void pa_buffer(FILE* f, int e)
         xe.type = ConfigureNotify;
         xe.xconfigure.width = win->gmaxxg;
         xe.xconfigure.height = win->gmaxyg;
+        xe.xconfigure.window = win->xwhan;
         XSendEvent(padisplay, win->xwhan, FALSE, 0, &xe);
         /* tell the window to repaint */
         xe.type = Expose;
@@ -8472,6 +8477,7 @@ void pa_buffer(FILE* f, int e)
         xe.xexpose.y = 0;
         xe.xexpose.width = win->gmaxxg;
         xe.xexpose.height = win->gmaxyg;
+        xe.xexpose.window = win->xwhan;
         XSendEvent(padisplay, win->xwhan, FALSE, 0, &xe);
 
     }
