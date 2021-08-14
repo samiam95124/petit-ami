@@ -2529,15 +2529,16 @@ static void opnwin(int fn, int pfn, int wid)
 
 {
 
-    int         r;    /* result holder */
-    int         b;    /* int result holder */
-    pa_evtrec   er;   /* event holding record */
-    int         ti;   /* index for repeat array */
-    int         pin;  /* index for loadable pictures array */
-    int         si;   /* index for current display screen */
-    winptr      win;  /* window pointer */
-    winptr      pwin; /* parent window pointer */
-    char        buf[250];
+    int                  r;    /* result holder */
+    int                  b;    /* int result holder */
+    pa_evtrec            er;   /* event holding record */
+    int                  ti;   /* index for repeat array */
+    int                  pin;  /* index for loadable pictures array */
+    int                  si;   /* index for current display screen */
+    winptr               win;  /* window pointer */
+    winptr               pwin; /* parent window pointer */
+    XSetWindowAttributes xwa;  /* XWindow attributes */
+    char                 buf[250];
 
     win = lfn2win(fn); /* get a pointer to the window */
     /* find parent */
@@ -2637,13 +2638,12 @@ static void opnwin(int fn, int pfn, int wid)
     win->gmaxxg = maxxd*win->charspace;
     win->gmaxyg = maxyd*win->linespace;
 
-    /* create our window */
-
+    /* create our window with no background */
     XWLOCK();
-    win->xwhan = XCreateSimpleWindow(padisplay, RootWindow(padisplay, pascreen),
-                                        10, 10, win->gmaxxg, win->gmaxyg, 1,
-                           BlackPixel(padisplay, pascreen),
-                           WhitePixel(padisplay, pascreen));
+    win->xwhan = XCreateWindow(padisplay, RootWindow(padisplay, pascreen),
+                               10, 10, win->gmaxxg, win->gmaxyg, 1,
+                               CopyFromParent, InputOutput, CopyFromParent, 0,
+                               &xwa);
 
     /* select what events we want */
     XSelectInput(padisplay, win->xwhan, ExposureMask|KeyPressMask|
@@ -7335,6 +7335,85 @@ static void mouseevent(winptr win, XEvent* e)
 
 }
 
+/* rectangle */
+typedef struct { int x1, y1, x2, y2; } rectangle;
+
+/* set rectangle to values */
+void setrect(rectangle* r, int x1, int y1, int x2, int y2)
+
+{
+
+    r->x1 = x1;
+    r->y1 = y1;
+    r->x2 = x2;
+    r->y2 = y2;
+
+}
+
+/* find if rectangles intersect */
+int intersect(rectangle* r1, rectangle* r2)
+
+{
+
+    return ((*r1).x2 >= (*r2).x1 && (*r1).x1 <= (*r2).x2 &&
+            (*r1).y2 >= (*r2).y1 && (*r1).y1 <= (*r2).y2);
+
+}
+
+/* find intersection of rectangles as a rectangle (meaningless if they don't
+   intersect) */
+void intersection(rectangle* ri, rectangle* r1, rectangle* r2)
+
+{
+
+    /* copy to destination */
+    ri->x1 = r1->x1;
+    ri->x2 = r1->x2;
+    ri->y1 = r1->y1;
+    ri->y2 = r1->y2;
+
+    /* find intersection */
+    if (r1->x1 < r2->x1) ri->x1 = r2->x1;
+    if (r1->x2 > r2->x2) ri->x2 = r2->x2;
+    if (r1->y1 < r2->y1) ri->y1 = r2->y1;
+    if (r1->y2 > r2->y2) ri->y2 = r2->y2;
+
+}
+
+/* find rectangle is null */
+
+int zerorect(rectangle* r)
+
+{
+
+    return (!(r->x1 | r->x2 | r->y1 | r->y2));
+
+}
+
+/* Subtract rectangles. Relies on the rectangles to be rational and
+   intersecting. */
+void subrect(rectangle* r1, rectangle* r2, rectangle* rr, rectangle* rb)
+
+{
+
+    /* right full */
+    rr->x1 = r1->x2+1;
+    rr->x2 = r2->x2;
+    rr->y1 = r2->y1;
+    rr->y2 = r2->y2;
+
+    /* bottom partial */
+    rb->x1 = r2->x1;
+    rb->x2 = r2->x2;
+    rb->y1 = r1->y2+1;
+    rb->y2 = r2->y2;
+
+    /* if null, zero out */
+    if (rr->x1 > rr->x2) rr->x1 = rr->x2 = rr->y1 = rr->y2 = 0;
+    if (rb->y1 > rb->y2) rb->x1 = rb->x2 = rb->y1 = rb->y2 = 0;
+
+}
+
 /* XWindow event process */
 
 static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
@@ -7343,16 +7422,55 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
 
     KeySym ks;
     scnptr sc; /* screen pointer */
+    rectangle r1, r2, ri, rr, rb;
 
     sc = win->screens[win->curdsp-1]; /* index screen */
     if (e->type == Expose) {
 
         if (win->bufmod) { /* use buffer to satisfy event */
 
-            XWLOCK();
-            XCopyArea(padisplay, sc->xbuf, win->xwhan, sc->xcxt, 0, 0,
-                  win->gmaxxg, win->gmaxyg, 0, 0);
-            XWUNLOCK();
+            /* make expose mask into rectangle */
+            setrect(&r1, e->xexpose.x, e->xexpose.y,
+                    e->xexpose.x+e->xexpose.width-1,
+                    e->xexpose.y+e->xexpose.height-1);
+            /* make buffer into 0,0 rectangle */
+            setrect(&r2, 0, r2.y1 = 0, win->gmaxxg-1, win->gmaxyg-1);
+            if (intersect(&r1, &r2)) {
+
+                intersection(&ri, &r1, &r2); /* find intersection of those */
+                XWLOCK();
+                XCopyArea(padisplay, sc->xbuf, win->xwhan, sc->xcxt, ri.x1, ri.y1,
+                      ri.x2-ri.x1+1, ri.y2-ri.y1+1, ri.x1, ri.y1);
+                subrect(&r2, &r1, &rr, &rb); /* find subtraction r1-r2 */
+                /* check any result */
+                if (!zerorect(&rr) || !zerorect(&rb)) {
+
+                    XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+                    /* paint right */
+                    if (!zerorect(&rr))
+                        XFillRectangle(padisplay, win->xwhan, sc->xcxt,
+                                       rr.x1, rr.y1,
+                                       rr.x2-rr.x1+1, rr.y2-rr.y1+1);
+                    /* paint bottom */
+                    if (!zerorect(&rb))
+                        XFillRectangle(padisplay, win->xwhan, sc->xcxt,
+                                       rb.x1, rb.y1,
+                                       rb.x2-rb.x1+1, rb.y2-rb.y1+1);
+
+                }
+                XWUNLOCK();
+
+            } else {
+
+                /* paint right or bottom off buffer space */
+                XWLOCK();
+                XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+                XFillRectangle(padisplay, win->xwhan, sc->xcxt,
+                               e->xexpose.x, e->xexpose.y,
+                               e->xexpose.width, e->xexpose.height);
+                XWUNLOCK();
+
+            }
 
         } else { /* let the client handle it */
 
