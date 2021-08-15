@@ -129,7 +129,6 @@ static enum { /* debug levels */
                                 __func__, __LINE__, ##__VA_ARGS__); \
                                 fflush(stderr); } while (0)
 
-//#define PRTEVT /* print outgoing PA events */
 //#define PRTFNT /* print internal fonts list */
 //#define PRTMEM /* print memory allocations at exit */
 //#define PRTWPM /* print window parameters on open */
@@ -163,11 +162,11 @@ static enum { /* debug levels */
  */
 #define MAXXD     80 /* standard terminal, 80x25 */
 #define MAXYD     25
-
 #define DIALOGERR 1     /* send runtime errors to dialog */
 #define MOUSEENB  TRUE  /* enable mouse */
 #define JOYENB    TRUE  /* enable joysticks */
 #define DMPMSG    FALSE /* enable dump messages (diagnostic) */
+#define DMPEVT    FALSE /* enable dump Petit-Ami messages */
 #define PRTFTM    FALSE /* print font metrics (diagnostic) */
 
 /* file handle numbers at the system interface level */
@@ -627,6 +626,7 @@ static int dialogerr; /* send runtime errors to dialog */
 static int mouseenb;  /* enable mouse */
 static int joyenb;    /* enable joysticks */
 static int dmpmsg;    /* enable dump messages (diagnostic, windows only) */
+static int dmpevt;    /* enable dump Petit-Ami messages */
 static int prtftm;    /* print font metrics (diagnostic) */
 
 /**
@@ -7800,10 +7800,14 @@ static void ievent(FILE* f, pa_evtrec* er)
 
     } while (!keep); /* until we have a client event */
 
-#ifdef PRTEVT
-    dbg_printf(dlinfo, "PA Event: %5d ", ecnt++); prtevt(er->etype);
-    fprintf(stderr, "\n"); fflush(stderr);
-#endif
+
+    /* do diagnostic dump of PA events */
+    if (dmpevt) {
+
+        dbg_printf(dlinfo, "PA Event: %5d ", ecnt++); prtevt(er->etype);
+        fprintf(stderr, "\n"); fflush(stderr);
+
+    }
 
 }
 
@@ -9925,6 +9929,7 @@ static void pa_init_graphics(int argc, char *argv[])
     mouseenb  = MOUSEENB;  /* enable mouse */
     joyenb    = JOYENB;    /* enable joystick */
     dmpmsg    = DMPMSG;    /* dump XWindow messages */
+    dmpevt    = DMPEVT;    /* dump Petit-Ami messages */
     prtftm    = PRTFTM;    /* print font metrics on load */
 
     /* set state of shift, control and alt keys */
@@ -9987,6 +9992,8 @@ static void pa_init_graphics(int argc, char *argv[])
     if (vp) joyenb = strtol(vp->value, &errstr, 10);
     vp = pa_schlst("mouse", term_root);
     if (vp) mouseenb = strtol(vp->value, &errstr, 10);
+    vp = pa_schlst("dump_event", term_root);
+    if (vp) dmpevt = strtol(vp->value, &errstr, 10);
 
     /* find graph block */
     graph_root = pa_schlst("graphics", config_root);
