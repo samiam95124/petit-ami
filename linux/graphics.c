@@ -130,11 +130,14 @@ static enum { /* debug levels */
                                 fflush(stderr); } while (0)
 
 //#define PRTEVT /* print outgoing PA events */
-//#define EVTPOL /* poll for X events */
 //#define PRTFNT /* print internal fonts list */
 //#define PRTMEM /* print memory allocations at exit */
 //#define PRTWPM /* print window parameters on open */
 
+/* the "standard character" sizes are used to form a pseudo-size for desktop
+   character measurements in a graphical system. */
+#define STDCHRX   8
+#define STDCHRY   12
 #define MAXBUF 10  /* maximum number of buffers available */
 #define IOWIN  1   /* logical window number of input/output pair */
 #define MAXCON 10  /* number of screen contexts */
@@ -444,6 +447,8 @@ typedef struct winrec {
     Window       xwhan;             /* current window */
     XFontStruct* xfont;             /* current font */
     Atom         delmsg;            /* windows manager delete window message */
+    int          dispxg;            /* display size x */
+    int          dispyg;            /* display size y */
 
 } winrec, *winptr;
 
@@ -2644,6 +2649,11 @@ static void opnwin(int fn, int pfn, int wid)
                                10, 10, win->gmaxxg, win->gmaxyg, 1,
                                CopyFromParent, InputOutput, CopyFromParent, 0,
                                &xwa);
+
+    /* since XGetWindowAttibutes sometimes does not give accurate results,
+       we track the size from events */
+    win->dispxg = win->gmaxxg;
+    win->dispyg = win->gmaxyg;
 
     /* select what events we want */
     XSelectInput(padisplay, win->xwhan, ExposureMask|KeyPressMask|
@@ -7492,6 +7502,9 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
 
     } else if (e->type == ConfigureNotify) {
 
+        /* save current display size */
+        win->dispxg = e->xconfigure.width;
+        win->dispyg = e->xconfigure.height;
         if (e->xconfigure.width != win->gmaxxg ||
             e->xconfigure.height != win->gmaxyg) {
 
@@ -7739,9 +7752,6 @@ static void ievent(FILE* f, pa_evtrec* er)
     dfid = ConnectionNumber(padisplay); /* find XWindow display fid */
     do {
 
-#ifdef EVTPOL
-        xwinget(er, &keep); /* get next event */
-#else
         /* search for active event */
         for (i = 0; i < ifdmax && !keep; i++)
             if (FD_ISSET(i, &ifdsets)) {
@@ -7787,7 +7797,6 @@ static void ievent(FILE* f, pa_evtrec* er)
             if (rv < 0) FD_ZERO(&ifdsets);
 
         }
-#endif
 
     } while (!keep); /* until we have a client event */
 
@@ -8379,6 +8388,11 @@ void pa_sizbufg(FILE* f, int x, int y)
     XWUNLOCK();
     restore(win); /* restore buffer to screen */
 
+    /* kludge: XWindow has a delay in the round trip time to register a window
+       size change, so we set the new size now */
+    win->dispxg = win->gmaxxg;
+    win->dispyg = win->gmaxyg;
+
 }
 
 /** ****************************************************************************
@@ -8570,6 +8584,24 @@ void pa_getsizg(FILE* f, int* x, int* y)
 
 {
 
+    XWindowAttributes xwa; /* XWindow attributes */
+    winptr            win; /* pointer to windows context */
+
+    win = txt2win(f); /* get window context */
+    /* get actual size of onscreen window, and set that as client space */
+    /*
+    XWLOCK();
+    XGetWindowAttributes(padisplay, win->xwhan, &xwa);
+    XWUNLOCK();
+    *x = xwa.width;
+    *y = xwa.height;
+    */
+
+    /* kludge: XWindow has a delay in the round trip time to register a window
+       size change, so we get the size from internal tracking */
+    *x = win->dispxg;
+    *y = win->dispyg;
+
 }
 
 /** ****************************************************************************
@@ -8588,6 +8620,26 @@ relative measurement.
 void pa_getsiz(FILE* f, int* x, int* y)
 
 {
+
+    winptr win; /* pointer to windows context */
+    winptr par; /* pointer to parent windows context */
+    int    gx, gy;
+
+    pa_getsizg(f, &gx, &gy); /* get graphics size */
+    if (win->parlfn >= 0) { /* has a parent */
+
+        par = lfn2win(win->parlfn); /* index the parent */
+        /* find character based sizes */
+        *x = gx/par->charspace;
+        *y = gy/par->linespace;
+
+    } else {
+
+        /* find character based sizes */
+        *x = gx/STDCHRX;
+        *y = gy/STDCHRY;
+
+    }
 
 }
 
