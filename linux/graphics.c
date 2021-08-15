@@ -7789,12 +7789,16 @@ static void ievent(FILE* f, pa_evtrec* er)
 
             /* check the queue before select() */
             xwinget(er, &keep);
-            /* we found no event, get a new select set */
-            ifdsets = ifdseta; /* set up request set */
-            rv = select(ifdmax, &ifdsets, NULL, NULL, NULL);
-            /* if error, the input set won't be modified and thus will appear as
-               if they were active. We clear them in this case */
-            if (rv < 0) FD_ZERO(&ifdsets);
+            if (!keep) { /* still no event */
+
+                /* we found no event, get a new select set */
+                ifdsets = ifdseta; /* set up request set */
+                rv = select(ifdmax, &ifdsets, NULL, NULL, NULL);
+                /* if error, the input set won't be modified and thus will
+                   appear as if they were active. We clear them in this case */
+                if (rv < 0) FD_ZERO(&ifdsets);
+
+            }
 
         }
 
