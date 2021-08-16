@@ -446,8 +446,12 @@ typedef struct winrec {
     Window       xwhan;             /* current window */
     XFontStruct* xfont;             /* current font */
     Atom         delmsg;            /* windows manager delete window message */
-    int          dispxg;            /* display size x */
-    int          dispyg;            /* display size y */
+    int          pfw;               /* parent/frame width (extra) */
+    int          pfh;               /* parent frame height (extra) */
+    int          cwox;              /* client window offset from parent
+                                       origin x */
+    int          cwoy;              /* client window offset from parent
+                                       origin y */
 
 } winrec, *winptr;
 
@@ -2534,16 +2538,21 @@ static void opnwin(int fn, int pfn, int wid)
 
 {
 
-    int                  r;    /* result holder */
-    int                  b;    /* int result holder */
-    pa_evtrec            er;   /* event holding record */
-    int                  ti;   /* index for repeat array */
-    int                  pin;  /* index for loadable pictures array */
-    int                  si;   /* index for current display screen */
-    winptr               win;  /* window pointer */
-    winptr               pwin; /* parent window pointer */
-    XSetWindowAttributes xwa;  /* XWindow attributes */
+    int                  r;     /* result holder */
+    int                  b;     /* int result holder */
+    pa_evtrec            er;    /* event holding record */
+    int                  ti;    /* index for repeat array */
+    int                  pin;   /* index for loadable pictures array */
+    int                  si;    /* index for current display screen */
+    winptr               win;   /* window pointer */
+    winptr               pwin;  /* parent window pointer */
+    XSetWindowAttributes xwsa;  /* XWindow set attributes */
+    XWindowAttributes    xwga, xpwga; /* XWindow get attributes */
     char                 buf[250];
+    Window               pw, rw;
+    Window*              cwl;
+    int                  ncw;
+    XEvent               e;
 
     win = lfn2win(fn); /* get a pointer to the window */
     /* find parent */
@@ -2646,14 +2655,9 @@ static void opnwin(int fn, int pfn, int wid)
     /* create our window with no background */
     XWLOCK();
     win->xwhan = XCreateWindow(padisplay, RootWindow(padisplay, pascreen),
-                               10, 10, win->gmaxxg, win->gmaxyg, 1,
+                               0, 0, win->gmaxxg, win->gmaxyg, 1,
                                CopyFromParent, InputOutput, CopyFromParent, 0,
-                               &xwa);
-
-    /* since XGetWindowAttibutes sometimes does not give accurate results,
-       we track the size from events */
-    win->dispxg = win->gmaxxg;
-    win->dispyg = win->gmaxyg;
+                               &xwsa);
 
     /* select what events we want */
     XSelectInput(padisplay, win->xwhan, ExposureMask|KeyPressMask|
@@ -2667,6 +2671,29 @@ static void opnwin(int fn, int pfn, int wid)
     /* present the window onscreen */
     XMapWindow(padisplay, win->xwhan);
     XFlush(padisplay);
+
+    /* wait for the window to be displayed (this should have timeout) */
+    do { XNextEvent(padisplay, &e); } while (e.type != MapNotify);
+
+    /* find and save the frame parameters from the immediate/parent window.
+       This may not work on some window managers */
+    XQueryTree(padisplay, win->xwhan, &rw, &pw, &cwl, &ncw);
+    XGetWindowAttributes(padisplay, pw, &xpwga);
+    XGetWindowAttributes(padisplay, win->xwhan, &xwga);
+
+    /* find net extra width of frame from client area */
+    win->pfw = xpwga.width-xwga.width;
+    win->pfh = xpwga.height-xwga.height;
+    /* find offset from parent origin to client origin */
+    win->cwox = xwga.x;
+    win->cwoy = xwga.y;
+
+#if 0
+    dbg_printf(dlinfo, "Frame extra width: %d\n", win->pfw);
+    dbg_printf(dlinfo, "Frame extra height: %d\n", win->pfh);
+    dbg_printf(dlinfo, "Parent to client offset: x: %d y: %d\n",
+               win->cwox, win->cwoy);
+#endif
 
     /* set window title from program name */
     XStoreName(padisplay, win->xwhan, program_invocation_short_name);
@@ -7503,8 +7530,6 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
     } else if (e->type == ConfigureNotify) {
 
         /* save current display size */
-        win->dispxg = e->xconfigure.width;
-        win->dispyg = e->xconfigure.height;
         if (e->xconfigure.width != win->gmaxxg ||
             e->xconfigure.height != win->gmaxyg) {
 
@@ -8365,6 +8390,7 @@ void pa_sizbufg(FILE* f, int x, int y)
     int            si;  /* index for current display screen */
     XWindowChanges xwc; /* XWindow values */
     winptr         win; /* pointer to windows context */
+    XEvent         e;
 
     if (x < 1 || y < 1)  error(einvsiz); /* invalid buffer size */
     win = txt2win(f); /* get window context */
@@ -8394,12 +8420,14 @@ void pa_sizbufg(FILE* f, int x, int y)
     XWLOCK();
     XConfigureWindow(padisplay, win->xwhan, CWWidth|CWHeight, &xwc);
     XWUNLOCK();
-    restore(win); /* restore buffer to screen */
 
-    /* kludge: XWindow has a delay in the round trip time to register a window
-       size change, so we set the new size now */
-    win->dispxg = win->gmaxxg;
-    win->dispyg = win->gmaxyg;
+    /* I need a better solution to this. This event pull could discard
+       events like keystrokes */
+
+    /* wait for the window to be configured (this should have timeout) */
+    do { XNextEvent(padisplay, &e); } while (e.type != ConfigureNotify);
+
+    restore(win); /* restore buffer to screen */
 
 }
 
@@ -8594,21 +8622,19 @@ void pa_getsizg(FILE* f, int* x, int* y)
 
     XWindowAttributes xwa; /* XWindow attributes */
     winptr            win; /* pointer to windows context */
+    Window            cw, pw, rw;
+    Window*           cwl;
+    int               ncw;
 
     win = txt2win(f); /* get window context */
-    /* get actual size of onscreen window, and set that as client space */
-    /*
     XWLOCK();
-    XGetWindowAttributes(padisplay, win->xwhan, &xwa);
+    /* find parent */
+    XQueryTree(padisplay, win->xwhan, &rw, &pw, &cwl, &ncw);
+    /* get parent parametgers */
+    XGetWindowAttributes(padisplay, pw, &xwa);
     XWUNLOCK();
     *x = xwa.width;
     *y = xwa.height;
-    */
-
-    /* kludge: XWindow has a delay in the round trip time to register a window
-       size change, so we get the size from internal tracking */
-    *x = win->dispxg;
-    *y = win->dispyg;
 
 }
 
