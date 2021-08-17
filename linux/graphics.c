@@ -8604,6 +8604,28 @@ void pa_menusel(FILE* f, int id, int select)
 
 /** ****************************************************************************
 
+Create standard menu
+
+Creates a standard menu set. Given a set of standard items selected in a set,
+and a program added menu list, creates a new standard menu.
+
+On this windows version, the standard lists are:
+
+file edit <program> window help
+
+That is, all of the standard items are sorted into the lists at the start and
+end of the menu, then the program selections placed in the menu.
+
+*******************************************************************************/
+
+void pa_stdmenu(pa_stdmenusel sms, pa_menuptr* sm, pa_menuptr pm)
+
+{
+
+}
+
+/** ****************************************************************************
+
 Bring window to front of the Z order
 
 Brings the indicated window to the front of the Z order.
@@ -8613,6 +8635,13 @@ Brings the indicated window to the front of the Z order.
 void pa_front(FILE* f)
 
 {
+
+    winptr win; /* pointer to windows context */
+
+    win = txt2win(f); /* get window context */
+    XWLOCK();
+    XRaiseWindow(padisplay, win->xwhan);
+    XWUNLOCK();
 
 }
 
@@ -8627,6 +8656,13 @@ Puts the indicated window to the back of the Z order.
 void pa_back(FILE* f)
 
 {
+
+    winptr win; /* pointer to windows context */
+
+    win = txt2win(f); /* get window context */
+    XWLOCK();
+    XLowerWindow(padisplay, win->xwhan);
+    XWUNLOCK();
 
 }
 
@@ -8953,28 +8989,6 @@ Turns the system bar on and off.
 *******************************************************************************/
 
 void pa_sysbar(FILE* f, int e)
-
-{
-
-}
-
-/** ****************************************************************************
-
-Create standard menu
-
-Creates a standard menu set. Given a set of standard items selected in a set,
-and a program added menu list, creates a new standard menu.
-
-On this windows version, the standard lists are:
-
-file edit <program> window help
-
-That is, all of the standard items are sorted into the lists at the start and
-end of the menu, then the program selections placed in the menu.
-
-*******************************************************************************/
-
-void pa_stdmenu(pa_stdmenusel sms, pa_menuptr* sm, pa_menuptr pm)
 
 {
 
