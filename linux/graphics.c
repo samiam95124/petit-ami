@@ -8845,6 +8845,46 @@ void pa_scnsizg(FILE* f, int* x, int* y)
 
 {
 
+    XWindowAttributes xwa; /* XWindow attributes */
+    winptr            win; /* pointer to windows context */
+    Window            cw, pw, rw;
+    Window*           cwl;
+    int               ncw;
+
+    win = txt2win(f); /* get window context */
+    XWLOCK();
+    /* find parent */
+    XQueryTree(padisplay, win->xwhan, &rw, &pw, &cwl, &ncw);
+    /* get root parameters */
+    XGetWindowAttributes(padisplay, rw, &xwa);
+    XWUNLOCK();
+    *x = xwa.width;
+    *y = xwa.height;
+
+}
+
+/** ****************************************************************************
+
+Get screen size character
+
+Gets the desktopsize, in character terms. Returns the pixel size of the screen
+This occurs because the desktop does not have a fixed character aspect, so we
+make one up, and our logical character is "one pixel" high and wide. It works
+because it can only be used as a relative measurement.
+
+*******************************************************************************/
+
+void pa_scnsiz(FILE* f, int* x, int* y)
+
+{
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    pa_scnsizg(f, x, y); /* execute */
+    *x = *x/STDCHRX; /* convert to "standard character" size */
+    *y = *y/STDCHRY;
+
 }
 
 /** ****************************************************************************
@@ -8871,23 +8911,6 @@ void pa_winclient(FILE* f, int cx, int cy, int* wx, int* wy,
 
 void pa_winclientg(FILE* f, int cx, int cy, int* wx, int* wy,
                 pa_winmodset ms)
-
-{
-
-}
-
-/** ****************************************************************************
-
-Get screen size character
-
-Gets the desktopsize, in character terms. Returns the pixel size of the screen
-This occurs because the desktop does not have a fixed character aspect, so we
-make one up, and our logical character is "one pixel" high and wide. It works
-because it can only be used as a relative measurement.
-
-*******************************************************************************/
-
-void pa_scnsiz(FILE* f, int* x, int* y)
 
 {
 
