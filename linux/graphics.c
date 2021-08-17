@@ -2211,6 +2211,29 @@ int rat2a64(int a)
 
 /** ****************************************************************************
 
+Wait response message
+
+Looks into the XWindows events until a given respose is found. Discards all
+other events until the correct one is found.
+
+Should have timeouts.
+
+*******************************************************************************/
+
+void waitxevt(int type)
+
+{
+
+    XEvent e; /* XEvent holder */
+
+    XWLOCK();
+    do { XNextEvent(padisplay, &e); } while (e.type != type);
+    XWUNLOCK();
+
+}
+
+/** ****************************************************************************
+
 Find if cursor is in screen bounds
 
 Checks if the cursor lies in the current bounds, and returns TRUE if so.
@@ -2552,7 +2575,6 @@ static void opnwin(int fn, int pfn, int wid)
     Window               pw, rw;
     Window*              cwl;
     int                  ncw;
-    XEvent               e;
 
     win = lfn2win(fn); /* get a pointer to the window */
     /* find parent */
@@ -2671,12 +2693,14 @@ static void opnwin(int fn, int pfn, int wid)
     /* present the window onscreen */
     XMapWindow(padisplay, win->xwhan);
     XFlush(padisplay);
+    XWUNLOCK();
 
-    /* wait for the window to be displayed (this should have timeout) */
-    do { XNextEvent(padisplay, &e); } while (e.type != MapNotify);
+    /* wait for the window to be displayed */
+    waitxevt(MapNotify);
 
     /* find and save the frame parameters from the immediate/parent window.
        This may not work on some window managers */
+    XWLOCK();
     XQueryTree(padisplay, win->xwhan, &rw, &pw, &cwl, &ncw);
     XGetWindowAttributes(padisplay, pw, &xpwga);
     XGetWindowAttributes(padisplay, win->xwhan, &xwga);
@@ -8390,7 +8414,6 @@ void pa_sizbufg(FILE* f, int x, int y)
     int            si;  /* index for current display screen */
     XWindowChanges xwc; /* XWindow values */
     winptr         win; /* pointer to windows context */
-    XEvent         e;
 
     if (x < 1 || y < 1)  error(einvsiz); /* invalid buffer size */
     win = txt2win(f); /* get window context */
@@ -8421,11 +8444,8 @@ void pa_sizbufg(FILE* f, int x, int y)
     XConfigureWindow(padisplay, win->xwhan, CWWidth|CWHeight, &xwc);
     XWUNLOCK();
 
-    /* I need a better solution to this. This event pull could discard
-       events like keystrokes */
-
-    /* wait for the window to be configured (this should have timeout) */
-    do { XNextEvent(padisplay, &e); } while (e.type != ConfigureNotify);
+    /* wait for the configure response */
+    waitxevt(ConfigureNotify);
 
     restore(win); /* restore buffer to screen */
 
