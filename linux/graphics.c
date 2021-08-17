@@ -2703,7 +2703,9 @@ static void opnwin(int fn, int pfn, int wid)
     XWLOCK();
     XQueryTree(padisplay, win->xwhan, &rw, &pw, &cwl, &ncw);
     XGetWindowAttributes(padisplay, pw, &xpwga);
+//dbg_printf(dlinfo, "Parent window: x: %d y: %d width: %d height: %d\n", xpwga.x, xpwga.y, xpwga.width, xpwga.height);
     XGetWindowAttributes(padisplay, win->xwhan, &xwga);
+//dbg_printf(dlinfo, "Client window: x: %d y: %d width: %d height: %d\n", xwga.x, xwga.y, xwga.width, xwga.height);
 
     /* find net extra width of frame from client area */
     win->pfw = xpwga.width-xwga.width;
@@ -8650,7 +8652,7 @@ void pa_getsizg(FILE* f, int* x, int* y)
     XWLOCK();
     /* find parent */
     XQueryTree(padisplay, win->xwhan, &rw, &pw, &cwl, &ncw);
-    /* get parent parametgers */
+    /* get parent parameters */
     XGetWindowAttributes(padisplay, pw, &xwa);
     XWUNLOCK();
     *x = xwa.width;
@@ -8679,6 +8681,7 @@ void pa_getsiz(FILE* f, int* x, int* y)
     winptr par; /* pointer to parent windows context */
     int    gx, gy;
 
+    win = txt2win(f); /* get window context */
     pa_getsizg(f, &gx, &gy); /* get graphics size */
     if (win->parlfn >= 0) { /* has a parent */
 
@@ -8709,6 +8712,21 @@ void pa_setsizg(FILE* f, int x, int y)
 
 {
 
+    winptr win; /* pointer to windows context */
+    XWindowChanges xwc; /* XWindow values */
+
+    win = txt2win(f); /* get window context */
+    xwc.width = x-win->pfw; /* change to client terms */
+    xwc.height = y-win->pfh;
+
+    /* reconfigure window */
+    XWLOCK();
+    XConfigureWindow(padisplay, win->xwhan, CWWidth|CWHeight, &xwc);
+    XWUNLOCK();
+
+    /* wait for the configure response */
+    waitxevt(ConfigureNotify);
+
 }
 
 /** ****************************************************************************
@@ -8728,6 +8746,26 @@ void pa_setsiz(FILE* f, int x, int y)
 
 {
 
+
+    winptr win, par; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    if (win->parlfn >= 0) { /* has a parent */
+
+        par = lfn2win(win->parlfn); /* index the parent */
+        /* find character based sizes */
+        x = x*par->charspace;
+        y = y*par->linespace;
+
+    } else {
+
+        /* find character based sizes */
+        x = x*STDCHRX;
+        y = y*STDCHRY;
+
+    }
+    pa_setsizg(f, x, y); /* execute */
+
 }
 
 /** ****************************************************************************
@@ -8741,6 +8779,19 @@ Sets the onscreen window to the given position in its parent.
 void pa_setposg(FILE* f, int x, int y)
 
 {
+
+    winptr win; /* pointer to windows context */
+    XWindowChanges xwc; /* XWindow values */
+
+    win = txt2win(f); /* get window context */
+
+    /* reconfigure window */
+    XWLOCK();
+    XMoveWindow(padisplay, win->xwhan, x-1, y-1);
+    XWUNLOCK();
+
+    /* wait for the configure response */
+    waitxevt(ConfigureNotify);
 
 }
 
@@ -8760,6 +8811,25 @@ relative measurement.
 void pa_setpos(FILE* f, int x, int y)
 
 {
+
+    winptr win, par; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    if (win->parlfn >= 0) { /* has a parent */
+
+        par = lfn2win(win->parlfn); /* index the parent */
+        /* find character based position */
+        x = (x-1)*par->charspace+1;
+        y = (y-1)*par->linespace+1;
+
+    } else {
+
+        /* find character based position */
+        x = (x-1)*STDCHRX+1;
+        y = (y-1)*STDCHRY+1;
+
+    }
+    pa_setposg(f, x, y); /* execute */
 
 }
 
