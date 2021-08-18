@@ -1024,6 +1024,27 @@ static void defaultevent(pa_evtrec* ev)
 
 }
 
+/*******************************************************************************
+
+Place string in storage
+
+Places the given string into dynamic storage, and returns that.
+
+*******************************************************************************/
+
+static char* str(char* s)
+
+{
+
+    char* p;
+
+    p = imalloc(strlen(s)+1);
+    strcpy(p, s);
+
+    return (p);
+
+}
+
 /******************************************************************************
 
 Translate colors code
@@ -1903,6 +1924,35 @@ int xwidth(winptr win, char c)
     if (win->xfont->min_char_or_byte2 != 0) error(esystem);
 
     return (win->xfont->per_char[c].width);
+
+}
+
+/*******************************************************************************
+
+Append menu entry
+
+Appends a new menu entry to the given list.
+
+*******************************************************************************/
+
+static void appendmenu(pa_menuptr* list, pa_menuptr m)
+
+{
+
+    pa_menuptr lp;
+
+    /* clear these links for insurance */
+    m->next = NULL; /* clear next */
+    m->branch = NULL; /* clear branch */
+    if (!*list) *list = m; /* list empty, set as first entry */
+    else { /* list non-empty */
+
+        /* find last entry in list */
+        lp = *list; /* index 1st on list */
+        while (lp->next) lp = lp->next;
+        lp->next = m; /* append at end */
+
+    }
 
 }
 
@@ -8618,9 +8668,125 @@ end of the menu, then the program selections placed in the menu.
 
 *******************************************************************************/
 
+/* get menu entry */
+static void getmenu(pa_menuptr* m, int id, char* face)
+
+{
+
+    *m = imalloc(sizeof(pa_menurec));
+    (*m)->next   = NULL; /* no next */
+    (*m)->branch = NULL; /* no branch */
+    (*m)->onoff  = FALSE; /* not an on/off value */
+    (*m)->oneof  = FALSE; /* not a "one of" value */
+    (*m)->bar    = FALSE; /* no bar under */
+    (*m)->id     = id;    /* no id */
+    (*m)->face = str(face); /* place face string */
+
+}
+
+/* add standard list item */
+static void additem(pa_stdmenusel sms, int i, pa_menuptr* m, pa_menuptr* l,
+                    char* s, int b)
+
+{
+
+    if (BIT(i) & sms) { /* this item is active */
+
+        getmenu(m, i, s); /* get menu item */
+        appendmenu(l, *m); /* add to list */
+        (*m)->bar = b; /* set bar status */
+
+    }
+
+}
+
 void pa_stdmenu(pa_stdmenusel sms, pa_menuptr* sm, pa_menuptr pm)
 
 {
+
+    pa_menuptr m, hm; /* pointer for menu entries */
+
+    *sm = NULL; /* clear menu */
+
+    /* check and perform "file" menu */
+
+    if (sms & (BIT(PA_SMNEW) | BIT(PA_SMOPEN) | BIT(PA_SMCLOSE) |
+               BIT(PA_SMSAVE) | BIT(PA_SMSAVEAS) | BIT(PA_SMPAGESET) |
+               BIT(PA_SMPRINT) | BIT(PA_SMEXIT))) { /* file menu */
+
+        getmenu(&hm, 0, "File"); /* get entry */
+        appendmenu(sm, hm);
+
+        additem(sms, PA_SMNEW, &m, &hm->branch, "New", FALSE);
+        additem(sms, PA_SMOPEN, &m, &hm->branch, "Open", FALSE);
+        additem(sms, PA_SMCLOSE, &m, &hm->branch, "Close", FALSE);
+        additem(sms, PA_SMSAVE, &m, &hm->branch, "Save", FALSE);
+        additem(sms, PA_SMSAVEAS, &m, &hm->branch, "Save As", TRUE);
+        additem(sms, PA_SMPAGESET, &m, &hm->branch, "Page Setup", FALSE);
+        additem(sms, PA_SMPRINT, &m, &hm->branch, "Print", TRUE);
+        additem(sms, PA_SMEXIT, &m, &hm->branch, "Exit", FALSE);
+
+   }
+
+   /* check and perform "edit" menu */
+
+   if (sms&(BIT(PA_SMUNDO) | BIT(PA_SMCUT) | BIT(PA_SMPASTE) |
+            BIT(PA_SMDELETE) | BIT(PA_SMFIND) | BIT(PA_SMFINDNEXT) |
+            BIT(PA_SMREPLACE) | BIT(PA_SMGOTO) | BIT(PA_SMSELECTALL))) {
+
+        /* file menu */
+        getmenu(&hm, 0, "Edit"); /* get entry */
+        appendmenu(sm, hm);
+
+        additem(sms, PA_SMUNDO, &m, &hm->branch, "Undo", TRUE);
+        additem(sms, PA_SMCUT, &m, &hm->branch, "Cut", FALSE);
+        additem(sms, PA_SMPASTE, &m, &hm->branch, "Paste", FALSE);
+        additem(sms, PA_SMDELETE, &m, &hm->branch, "Delete", TRUE);
+        additem(sms, PA_SMFIND, &m, &hm->branch, "Find", FALSE);
+        additem(sms, PA_SMFINDNEXT, &m, &hm->branch, "Find Next", FALSE);
+        additem(sms, PA_SMREPLACE, &m, &hm->branch, "Replace", FALSE);
+        additem(sms, PA_SMGOTO, &m, &hm->branch, "Goto", TRUE);
+        additem(sms, PA_SMSELECTALL, &m, &hm->branch, "Select All", FALSE);
+
+   }
+
+   /* insert custom menu */
+
+   while (pm) { /* insert entries */
+
+        m = pm; /* index top button */
+        pm = pm->next; /* next button */
+        appendmenu(sm, m);
+
+   }
+
+   /* check and perform "window" menu */
+
+   if (sms & (BIT(PA_SMNEWWINDOW) | BIT(PA_SMTILEHORIZ) | BIT(PA_SMTILEVERT) |
+              BIT(PA_SMCASCADE) | BIT(PA_SMCLOSEALL)))  { /* file menu */
+
+        getmenu(&hm, 0, "Window"); /* get entry */
+        appendmenu(sm, hm);
+
+        additem(sms, PA_SMNEWWINDOW, &m, &hm->branch, "New Window", TRUE);
+        additem(sms, PA_SMTILEHORIZ, &m, &hm->branch, "Tile Horizontally", FALSE);
+        additem(sms, PA_SMTILEVERT, &m, &hm->branch, "Tile Vertically", FALSE);
+        additem(sms, PA_SMCASCADE, &m, &hm->branch, "Cascade", TRUE);
+        additem(sms, PA_SMCLOSEALL, &m, &hm->branch, "Close All", FALSE);
+
+   }
+
+   /* check and perform "help" menu */
+
+   if (sms & (BIT(PA_SMHELPTOPIC) | BIT(PA_SMABOUT))) { /* file menu */
+
+        getmenu(&hm, 0, "Help"); /* get entry */
+        appendmenu(sm, hm);
+
+        additem(sms, PA_SMHELPTOPIC, &m, &hm->branch, "Help Topics", TRUE);
+        additem(sms, PA_SMABOUT, &m, &hm->branch, "About", FALSE);
+
+    }
 
 }
 
@@ -8993,21 +9159,40 @@ Turns the window frame on and off.
 
 *******************************************************************************/
 
+struct MwmHints {
+    unsigned long flags;
+    unsigned long functions;
+    unsigned long decorations;
+    long input_mode;
+    unsigned long status;
+};
+enum {
+    MWM_HINTS_FUNCTIONS = (1L << 0),
+    MWM_HINTS_DECORATIONS =  (1L << 1),
+
+    MWM_FUNC_ALL = (1L << 0),
+    MWM_FUNC_RESIZE = (1L << 1),
+    MWM_FUNC_MOVE = (1L << 2),
+    MWM_FUNC_MINIMIZE = (1L << 3),
+    MWM_FUNC_MAXIMIZE = (1L << 4),
+    MWM_FUNC_CLOSE = (1L << 5)
+};
+
 void pa_frame(FILE* f, int e)
 
 {
 
     winptr win; /* pointer to windows context */
-    Atom window_type;
-    long value;
+    Atom mwmHintsProperty;
+    struct MwmHints hints;
 
     win = txt2win(f); /* get window context */
     XWLOCK();
-    window_type = XInternAtom(padisplay, "_NET_WM_WINDOW_TYPE", False);
-    if (e) value = XInternAtom(padisplay, "_NET_WM_WINDOW_TYPE_NORMAL", False);
-    else value = XInternAtom(padisplay, "_NET_WM_WINDOW_TYPE_DOCK", False);
-    XChangeProperty(padisplay, win->xwhan, window_type, XA_ATOM, 32,
-                    PropModeReplace, (unsigned char *) &value, 1);
+    mwmHintsProperty = XInternAtom(padisplay, "_MOTIF_WM_HINTS", 0);
+    hints.flags = MWM_HINTS_DECORATIONS;
+    hints.decorations = !!e;
+    XChangeProperty(padisplay, win->xwhan, mwmHintsProperty, mwmHintsProperty,
+                    32, PropModeReplace, (unsigned char *)&hints, 5);
     XWUNLOCK();
 
 }
