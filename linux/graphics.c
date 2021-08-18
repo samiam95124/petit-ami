@@ -8938,17 +8938,50 @@ Do we also need a menu style type ?
 
 *******************************************************************************/
 
-void pa_winclient(FILE* f, int cx, int cy, int* wx, int* wy,
-               pa_winmodset msset)
+void pa_winclientg(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
 
 {
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    if (BIT(pa_wmframe) & ms) { /* if the frame is on */
+
+        *wx = cx+win->pfw; /* add width to frame */
+        *wy = cy+win->pfh; /* add height to frame */
+
+    } else { /* no frame, thus no edge */
+
+        *wx = cx;
+        *wy = cy;
+    }
 
 }
 
-void pa_winclientg(FILE* f, int cx, int cy, int* wx, int* wy,
-                pa_winmodset ms)
+void pa_winclient(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
 
 {
+
+    winptr win, par; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    /* execute */
+    pa_winclientg(f, cx*win->charspace, cy*win->linespace, wx, wy, ms);
+    /* find character based sizes */
+    if (win->parlfn >= 0) { /* has a parent */
+
+        par = lfn2win(win->parlfn); /* index the parent */
+        /* find character based sizes */
+        *wx = (*wx-1) / par->charspace+1;
+        *wy = (*wy-1) / par->linespace+1;
+
+    } else {
+
+        /* find character based sizes */
+        *wx = (*wx-1) / STDCHRX+1;
+        *wy = (*wy-1) / STDCHRY+1;
+
+    }
 
 }
 
@@ -8985,6 +9018,9 @@ Enable or disable window sizing
 
 Turns the window sizing on and off.
 
+I don't think XWindow can do this separately. Instead, the frame() function is
+used to create component windows.
+
 *******************************************************************************/
 
 void pa_sizable(FILE* f, int e)
@@ -8998,6 +9034,9 @@ void pa_sizable(FILE* f, int e)
 Enable or disable window system bar
 
 Turns the system bar on and off.
+
+I don't think XWindow can do this separately. Instead, the frame() function is
+used to create component windows.
 
 *******************************************************************************/
 
