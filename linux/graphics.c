@@ -8964,6 +8964,19 @@ void pa_frame(FILE* f, int e)
 
 {
 
+    winptr win; /* pointer to windows context */
+    Atom window_type;
+    long value;
+
+    win = txt2win(f); /* get window context */
+    XWLOCK();
+    window_type = XInternAtom(padisplay, "_NET_WM_WINDOW_TYPE", False);
+    if (e) value = XInternAtom(padisplay, "_NET_WM_WINDOW_TYPE_NORMAL", False);
+    else value = XInternAtom(padisplay, "_NET_WM_WINDOW_TYPE_DOCK", False);
+    XChangeProperty(padisplay, win->xwhan, window_type, XA_ATOM, 32,
+                    PropModeReplace, (unsigned char *) &value, 1);
+    XWUNLOCK();
+
 }
 
 /** ****************************************************************************
