@@ -9159,24 +9159,29 @@ Turns the window frame on and off.
 
 *******************************************************************************/
 
-struct MwmHints {
-    unsigned long flags;
-    unsigned long functions;
-    unsigned long decorations;
-    long input_mode;
-    unsigned long status;
-};
-enum {
-    MWM_HINTS_FUNCTIONS = (1L << 0),
-    MWM_HINTS_DECORATIONS =  (1L << 1),
+/* these were defined in motif, which no longer exists */
+typedef struct
+{
+    unsigned long       flags;
+    unsigned long       functions;
+    unsigned long       decorations;
+    long                inputmode;
+    unsigned long       status;
 
-    MWM_FUNC_ALL = (1L << 0),
-    MWM_FUNC_RESIZE = (1L << 1),
-    MWM_FUNC_MOVE = (1L << 2),
-    MWM_FUNC_MINIMIZE = (1L << 3),
-    MWM_FUNC_MAXIMIZE = (1L << 4),
-    MWM_FUNC_CLOSE = (1L << 5)
-};
+} mwmhints;
+
+#define MWM_HINTS_FUNCTIONS     (1L << 0)
+#define MWM_HINTS_DECORATIONS   (1L << 1)
+#define MWM_HINTS_INPUT_MODE    (1L << 2)
+#define MWM_HINTS_STATUS        (1L << 3)
+
+#define MWM_DECOR_ALL           (1L << 0)
+#define MWM_DECOR_BORDER        (1L << 1)
+#define MWM_DECOR_RESIZEH       (1L << 2)
+#define MWM_DECOR_TITLE         (1L << 3)
+#define MWM_DECOR_MENU          (1L << 4)
+#define MWM_DECOR_MINIMIZE      (1L << 5)
+#define MWM_DECOR_MAXIMIZE      (1L << 6)
 
 void pa_frame(FILE* f, int e)
 
@@ -9184,13 +9189,14 @@ void pa_frame(FILE* f, int e)
 
     winptr win; /* pointer to windows context */
     Atom mwmHintsProperty;
-    struct MwmHints hints;
+    mwmhints hints;
 
     win = txt2win(f); /* get window context */
     XWLOCK();
     mwmHintsProperty = XInternAtom(padisplay, "_MOTIF_WM_HINTS", 0);
     hints.flags = MWM_HINTS_DECORATIONS;
-    hints.decorations = !!e;
+    if (e) hints.decorations = MWM_DECOR_ALL;
+    else hints.decorations = 0; /* everything off */
     XChangeProperty(padisplay, win->xwhan, mwmHintsProperty, mwmHintsProperty,
                     32, PropModeReplace, (unsigned char *)&hints, 5);
     XWUNLOCK();
@@ -9203,14 +9209,30 @@ Enable or disable window sizing
 
 Turns the window sizing on and off.
 
-I don't think XWindow can do this separately. Instead, the frame() function is
-used to create component windows.
+On GNOME/Ubuntu 20.04 with GDM3 window manager, we are not capable of turning
+off the size bars alone, so this is a no-op. It may work on other window
+managers.
 
 *******************************************************************************/
 
 void pa_sizable(FILE* f, int e)
 
 {
+
+    winptr win; /* pointer to windows context */
+    Atom mwmHintsProperty;
+    mwmhints hints;
+
+    win = txt2win(f); /* get window context */
+    XWLOCK();
+    mwmHintsProperty = XInternAtom(padisplay, "_MOTIF_WM_HINTS", 0);
+    hints.flags = MWM_HINTS_DECORATIONS;
+    if (e) hints.decorations = MWM_DECOR_ALL;
+    else hints.decorations = MWM_DECOR_TITLE|MWM_DECOR_MENU|MWM_DECOR_MINIMIZE|
+                             MWM_DECOR_MAXIMIZE;
+    XChangeProperty(padisplay, win->xwhan, mwmHintsProperty, mwmHintsProperty,
+                    32, PropModeReplace, (unsigned char *)&hints, 5);
+    XWUNLOCK();
 
 }
 
@@ -9228,6 +9250,20 @@ used to create component windows.
 void pa_sysbar(FILE* f, int e)
 
 {
+
+    winptr win; /* pointer to windows context */
+    Atom mwmHintsProperty;
+    mwmhints hints;
+
+    win = txt2win(f); /* get window context */
+    XWLOCK();
+    mwmHintsProperty = XInternAtom(padisplay, "_MOTIF_WM_HINTS", 0);
+    hints.flags = MWM_HINTS_DECORATIONS;
+    if (e) hints.decorations = MWM_DECOR_ALL;
+    else hints.decorations = MWM_DECOR_BORDER;
+    XChangeProperty(padisplay, win->xwhan, mwmHintsProperty, mwmHintsProperty,
+                    32, PropModeReplace, (unsigned char *)&hints, 5);
+    XWUNLOCK();
 
 }
 
