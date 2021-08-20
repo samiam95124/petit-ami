@@ -2630,6 +2630,7 @@ static void opnwin(int fn, int pfn, int wid)
     /* find parent */
     win->parlfn = pfn; /* set parent logical number */
     win->wid = wid; /* set window id */
+    pwin = NULL; /* set no parent */
     if (pfn >= 0) pwin = lfn2win(pfn); /* index parent window */
     win->mb1 = FALSE; /* set mouse as assumed no buttons down, at origin */
     win->mb2 = FALSE;
@@ -2724,10 +2725,13 @@ static void opnwin(int fn, int pfn, int wid)
     win->gmaxxg = maxxd*win->charspace;
     win->gmaxyg = maxyd*win->linespace;
 
+    /* set parent window, either the given or the root window */
+    if (pwin) pw = pwin->xwhan; /* given */
+    else pw = RootWindow(padisplay, pascreen); /* root */
+
     /* create our window with no background */
     XWLOCK();
-    win->xwhan = XCreateWindow(padisplay, RootWindow(padisplay, pascreen),
-                               0, 0, win->gmaxxg, win->gmaxyg, 1,
+    win->xwhan = XCreateWindow(padisplay, pw, 0, 0, win->gmaxxg, win->gmaxyg, 1,
                                CopyFromParent, InputOutput, CopyFromParent, 0,
                                &xwsa);
 
@@ -8917,9 +8921,12 @@ void pa_setsizg(FILE* f, int x, int y)
     winptr win; /* pointer to windows context */
     XWindowChanges xwc; /* XWindow values */
 
+dbg_printf(dlinfo, "x: %d y: %d\n", x, y);
     win = txt2win(f); /* get window context */
-    xwc.width = x-win->pfw; /* change to client terms */
-    xwc.height = y-win->pfh;
+    /* change to client terms with zero clip */
+    if (x >= win->pfw) xwc.width = x-win->pfw; else xwc.width = 0;
+    if (y >= win->pfh) xwc.height = y-win->pfh; else xwc.height = 0;
+dbg_printf(dlinfo, "Extra space x: %d y: %d\n", win->pfw, win->pfh);
 
     /* reconfigure window */
     XWLOCK();
@@ -9423,6 +9430,13 @@ Creates a standard button within the specified rectangle, on the given window.
 void pa_buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
+
+    FILE* wf;
+
+    pa_openwin(&stdin, &wf, f, 10); /* open widget window */
+    pa_setposg(wf, x1, y1); /* place at position */
+    pa_setsizg(wf, x2-x1+1, y2-y1+1); /* set size */
+    fprintf(wf, "%s", s); /* place button title */
 
 }
 
