@@ -8921,12 +8921,10 @@ void pa_setsizg(FILE* f, int x, int y)
     winptr win; /* pointer to windows context */
     XWindowChanges xwc; /* XWindow values */
 
-dbg_printf(dlinfo, "x: %d y: %d\n", x, y);
     win = txt2win(f); /* get window context */
     /* change to client terms with zero clip */
     if (x >= win->pfw) xwc.width = x-win->pfw; else xwc.width = 0;
     if (y >= win->pfh) xwc.height = y-win->pfh; else xwc.height = 0;
-dbg_printf(dlinfo, "Extra space x: %d y: %d\n", win->pfw, win->pfh);
 
     /* reconfigure window */
     XWLOCK();
