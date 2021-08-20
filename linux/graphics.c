@@ -562,6 +562,15 @@ int mod2fnc[mdor+1] = {
 
 };
 
+/* XEvent queue structure. Its a bubble list. */
+typedef struct xevtque {
+
+    struct xevtque* next; /* next in list */
+    struct xevtque* last; /* last in list */
+    XEvent          evt;  /* event data */
+
+} xevtque;
+
 /*
  * Saved vectors to system calls. These vectors point to the old, existing
  * vectors that were overriden by this module.
@@ -605,6 +614,8 @@ static int        frmfid;         /* framing timer fid */
 static int        cfgcap;         /* "configuration" caps */
 static pa_pevthan evthan[pa_ettabbar+1]; /* array of event handler routines */
 static pa_pevthan evtshan;        /* single master event handler routine */
+static xevtque*   freque;         /* free queue entries list */
+static xevtque*   evtque;         /* XWindows input save queue */
 
 /* memory statistics/diagnostics */
 static unsigned long memusd;    /* total memory in use for malloc */
@@ -2261,24 +2272,131 @@ int rat2a64(int a)
 
 /** ****************************************************************************
 
+Get freed/new queue entry
+
+Either gets a new entry from malloc or returns a previously freed entry.
+
+*******************************************************************************/
+
+static xevtque* getxevt(void)
+
+{
+
+    xevtque* p;
+
+    if (freque) { /* there is a freed entry */
+
+        p = freque; /* index top entry */
+        freque = p->next; /* gap from list */
+
+    } else p = (xevtque*)malloc(sizeof(xevtque));
+
+    return (p);
+
+}
+
+/** ****************************************************************************
+
+Get freed/new queue entry
+
+Either gets a new entry from malloc or returns a previously freed entry.
+
+*******************************************************************************/
+
+static void putxevt(xevtque* p)
+
+{
+
+    p->next = freque; /* push to list */
+    freque = p;
+
+}
+
+/** ****************************************************************************
+
+Place XEvent into input queue
+
+*******************************************************************************/
+
+static void quexevt(XEvent* e)
+
+{
+
+    xevtque* p;
+
+    p = getxevt(); /* get a queue entry */
+    memcpy(&p->evt, e, sizeof(XEvent)); /* copy event to queue entry */
+    if (evtque) { /* there are entries in queue */
+
+        /* we push TO next (current) and take FROM last (final) */
+        p->next = evtque; /* link next to current entry */
+        p->last = evtque->last; /* link last to final entry */
+        evtque->last = p; /* link current to this */
+        p->last->next = p; /* link final to this */
+
+    } else { /* queue is empty */
+
+        p->next = p; /* link to self */
+        p->last = p;
+        evtque = p; /* place in list */
+
+    }
+
+}
+
+/** ****************************************************************************
+
+Remove XEvent from input queue
+
+*******************************************************************************/
+
+static void dequexevt(XEvent* e)
+
+{
+
+    xevtque* p;
+
+    if (!evtque) error(esystem); /* should not be called empty */
+    /* we push TO next (current) and take FROM last (final) */
+    p = evtque->last; /* index final entry */
+    if (p->next == p->last) evtque = NULL; /* only one entry, clear list */
+    else { /* other entries */
+
+        p->last = p->next; /* point last at current */
+        p->next->last = p->last; /* point current at last */
+
+    }
+    memcpy(e, &p->evt, sizeof(XEvent)); /* copy out to caller */
+    putxevt(p); /* release queue entry to free */
+
+}
+
+/** ****************************************************************************
+
 Wait response message
 
-Looks into the XWindows events until a given respose is found. Discards all
-other events until the correct one is found.
+Looks into the XWindows events until a given respose is found. Events are placed
+back into the input via a queue so that we don't discard important events like
+expose.
 
 Should have timeouts.
 
 *******************************************************************************/
 
-void waitxevt(int type)
+static void waitxevt(int type)
 
 {
 
     XEvent e; /* XEvent holder */
 
-    XWLOCK();
-    do { XNextEvent(padisplay, &e); } while (e.type != type);
-    XWUNLOCK();
+    do {
+
+        XWLOCK();
+        XNextEvent(padisplay, &e); /* get next event */
+        XWUNLOCK();
+        quexevt(&e); /* place in input queue */
+
+    } while (e.type != type);
 
 }
 
@@ -7799,16 +7917,40 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
 
 }
 
+/* prepare and process XWindow event */
+static void xwinprep(XEvent* e, pa_evtrec* er, int* keep)
+
+{
+
+    winptr     win;      /* window record pointer */
+    int        ofn;      /* output lfn associated with window */
+    static int xcnt = 0; /* XWindow event counter */
+    int        rv;
+
+    if (dmpmsg) {
+
+        dbg_printf(dlinfo, "X Event: %5d ", xcnt++); prtxevt(e->type);
+        fprintf(stderr, "\n"); fflush(stderr);
+
+    }
+    ofn = fndevt(e->xany.window); /* get output window lfn */
+    if (ofn >= 0) { /* its one of our windows */
+
+        win = lfn2win(ofn); /* get window for that */
+        er->winid = filwin[ofn]; /* get window number */
+        xwinevt(win, er, e, keep); /* process XWindow event */
+
+    }
+
+}
+
 /* get and process XWindow event */
 static void xwinget(pa_evtrec* er, int* keep)
 
 {
 
-    XEvent     e;        /* XWindow event record */
-    winptr     win;      /* window record pointer */
-    int        ofn;      /* output lfn associated with window */
-    static int xcnt = 0; /* XWindow event counter */
-    int        rv;
+    XEvent e;  /* XWindow event record */
+    int    rv;
 
     XWLOCK();
     rv = XPending(padisplay);
@@ -7818,20 +7960,7 @@ static void xwinget(pa_evtrec* er, int* keep)
         XWLOCK();
         XNextEvent(padisplay, &e); /* get next event */
         XWUNLOCK();
-        if (dmpmsg) {
-
-            dbg_printf(dlinfo, "X Event: %5d ", xcnt++); prtxevt(e.type);
-            fprintf(stderr, "\n"); fflush(stderr);
-
-        }
-        ofn = fndevt(e.xany.window); /* get output window lfn */
-        if (ofn >= 0) { /* its one of our windows */
-
-            win = lfn2win(ofn); /* get window for that */
-            er->winid = filwin[ofn]; /* get window number */
-            xwinevt(win, er, &e, keep); /* process XWindow event */
-
-        }
+        xwinprep(&e, er, keep); /* pass to processing */
 
     }
 
@@ -7847,6 +7976,7 @@ static void ievent(FILE* f, pa_evtrec* er)
     static int ecnt = 0; /* PA event counter */
     uint64_t   exp;      /* timer expiration time */
     winptr     win;      /* window record pointer */
+    XEvent     e;        /* XWindow event */
     int        i;
 
     /* make sure all drawing is complete before we take inputs */
@@ -7857,9 +7987,18 @@ static void ievent(FILE* f, pa_evtrec* er)
     dfid = ConnectionNumber(padisplay); /* find XWindow display fid */
     do {
 
+        /* check input queue has events */
+        if (evtque) {
+
+            dequexevt(&e); /* remove event from queue */
+            xwinprep(&e, er, &keep); /* process */
+
+        }
+
         /* search for active event */
-        for (i = 0; i < ifdmax && !keep; i++)
-            if (FD_ISSET(i, &ifdsets)) {
+        if (!keep)
+            for (i = 0; i < ifdmax && !keep; i++)
+                if (FD_ISSET(i, &ifdsets)) {
 
             FD_CLR(i, &ifdsets); /* remove event from input sets */
             XWLOCK();
