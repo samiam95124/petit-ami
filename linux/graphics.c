@@ -2853,7 +2853,7 @@ static void opnwin(int fn, int pfn, int wid)
 
     /* create our window with no background */
     XWLOCK();
-    win->xwhan = XCreateWindow(padisplay, pw, 0, 0, win->gmaxxg, win->gmaxyg, 1,
+    win->xwhan = XCreateWindow(padisplay, pw, 0, 0, win->gmaxxg, win->gmaxyg, 0,
                                CopyFromParent, InputOutput, CopyFromParent, 0,
                                &xwsa);
 
