@@ -2362,7 +2362,7 @@ static void dequexevt(XEvent* e)
     if (p->next == p->last) evtque = NULL; /* only one entry, clear list */
     else { /* other entries */
 
-        p->last = p->next; /* point last at current */
+        p->last->next = p->next; /* point last at current */
         p->next->last = p->last; /* point current at last */
 
     }
@@ -2394,6 +2394,10 @@ static void waitxevt(int type)
         XWLOCK();
         XNextEvent(padisplay, &e); /* get next event */
         XWUNLOCK();
+        /* there is another diagnostic in pa_event(), but you might want to see
+           these events immediately */
+        //dbg_printf(dlinfo, "X Event: "); prtxevt(e->type);
+        //fprintf(stderr, "\n"); fflush(stderr);
         quexevt(&e); /* place in input queue */
 
     } while (e.type != type);
@@ -7918,7 +7922,7 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
 }
 
 /* prepare and process XWindow event */
-static void xwinprep(XEvent* e, pa_evtrec* er, int* keep)
+static void xwinprc(XEvent* e, pa_evtrec* er, int* keep)
 
 {
 
@@ -7929,7 +7933,10 @@ static void xwinprep(XEvent* e, pa_evtrec* er, int* keep)
 
     if (dmpmsg) {
 
-        dbg_printf(dlinfo, "X Event: %5d ", xcnt++); prtxevt(e->type);
+        /* note we don't print XEvent diagnostics until they get extracted from
+           the input queue */
+        dbg_printf(dlinfo, "X Event: %5d Window: %lx ", xcnt++, e->xany.window);
+                   prtxevt(e->type);
         fprintf(stderr, "\n"); fflush(stderr);
 
     }
@@ -7960,7 +7967,7 @@ static void xwinget(pa_evtrec* er, int* keep)
         XWLOCK();
         XNextEvent(padisplay, &e); /* get next event */
         XWUNLOCK();
-        xwinprep(&e, er, keep); /* pass to processing */
+        xwinprc(&e, er, keep); /* pass to processing */
 
     }
 
@@ -7991,7 +7998,7 @@ static void ievent(FILE* f, pa_evtrec* er)
         if (evtque) {
 
             dequexevt(&e); /* remove event from queue */
-            xwinprep(&e, er, &keep); /* process */
+            xwinprc(&e, er, &keep); /* process */
 
         }
 
@@ -8029,6 +8036,7 @@ static void ievent(FILE* f, pa_evtrec* er)
 
         }
 
+        /* no more active selects, get a new select set */
         if (!keep) {
 
             /* check the queue before select() */
@@ -10538,6 +10546,8 @@ static void pa_init_graphics(int argc, char *argv[])
     fntlst = NULL; /* clear font list */
     fntcnt = 0;
     frepic = NULL; /* clear free pictures list */
+    freque = NULL; /* clear free input queues */
+    evtque = NULL; /* clear event input queue */
 
     /* clear open files tables */
     for (fi = 0; fi < MAXFIL; fi++) {
