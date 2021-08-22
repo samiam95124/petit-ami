@@ -2903,7 +2903,6 @@ static void opnwin(int fn, int pfn, int wid)
     win->xwhan = XCreateWindow(padisplay, pw, 0, 0, win->gmaxxg, win->gmaxyg, 0,
                                CopyFromParent, InputOutput, CopyFromParent, 0,
                                &xwsa);
-dbg_printf(dlinfo, "win: %p xwin: %lx\n", win, win->xwhan);
 
     /* select what events we want */
     XSelectInput(padisplay, win->xwhan, ExposureMask|KeyPressMask|
@@ -2927,9 +2926,7 @@ dbg_printf(dlinfo, "win: %p xwin: %lx\n", win, win->xwhan);
     XWLOCK();
     XQueryTree(padisplay, win->xwhan, &rw, &pw, &cwl, &ncw);
     XGetWindowAttributes(padisplay, pw, &xpwga);
-//dbg_printf(dlinfo, "Parent window: x: %d y: %d width: %d height: %d\n", xpwga.x, xpwga.y, xpwga.width, xpwga.height);
     XGetWindowAttributes(padisplay, win->xwhan, &xwga);
-//dbg_printf(dlinfo, "Client window: x: %d y: %d width: %d height: %d\n", xwga.x, xwga.y, xwga.width, xwga.height);
 
     /* find net extra width of frame from client area */
     win->pfw = xpwga.width-xwga.width;
@@ -4058,7 +4055,6 @@ int pa_maxxg(FILE* f)
     winptr win; /* windows record pointer */
 
     win = txt2win(f); /* get window from file */
-dbg_printf(dlinfo, "window: %p maxxg: %d\n", win, win->gmaxxg);
 
     return (win->gmaxxg);
 
@@ -5276,7 +5272,6 @@ void pa_rrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
     XWLOCK();
     XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
     XWUNLOCK();
-dbg_printf(dlinfo, "x1: %d y1: %d x2: %d y2: %d\n", x1, y1, x2, y2);
     if (win->bufmod) { /* buffer is active */
 
         XWLOCK();
@@ -7759,7 +7754,6 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
         if (e->xconfigure.width != win->gmaxxg ||
             e->xconfigure.height != win->gmaxyg) {
 
-dbg_printf(dlinfo, "ConfigureNotify: win: %p width: %d height: %d\n", win, e->xconfigure.width, e->xconfigure.height);
             /* size of window has changed, send event */
             er->etype = pa_etresize; /* set resize event */
             er->rszxg = e->xconfigure.width; /* set graphics size */
@@ -8020,7 +8014,6 @@ static void ievent(FILE* f, pa_evtrec* er)
         while (evtque && !keep) {
 
             dequexevt(&e); /* remove event from queue */
-dbg_printf(dlinfo, ""); prtxevt(&e);
             xwinprc(&e, er, &keep); /* process */
 
         }
@@ -9098,13 +9091,11 @@ void pa_setsizg(FILE* f, int x, int y)
     XWindowChanges xwc; /* XWindow values */
     XEvent e; /* Xwindow event */
 
-dbg_printf(dlinfo, "begin\n");
     win = txt2win(f); /* get window context */
     /* change to client terms with zero clip */
     if (x >= win->pfw) xwc.width = x-win->pfw; else xwc.width = 0;
     if (y >= win->pfh) xwc.height = y-win->pfh; else xwc.height = 0;
 
-dbg_printf(dlinfo, "Width: %d Height: %d\n", xwc.width, xwc.height);
     /* reconfigure window */
     XWLOCK();
     XConfigureWindow(padisplay, win->xwhan, CWWidth|CWHeight, &xwc);
@@ -9625,23 +9616,54 @@ Creates a standard button within the specified rectangle, on the given window.
 
 *******************************************************************************/
 
+static FILE* button_file;
+
+static char* button_title;
+
+static pa_pevthan button_event_old;
+
+static void button_event(pa_evtrec* ev)
+
+{
+
+    /* if not our window, send it on */
+    if (ev->winid != 10) button_event_old(ev);
+    else { /* handle it here */
+
+        if (ev->etype == pa_etredraw) { /* redraw the window */
+
+            /* color the background */
+            pa_fcolor(button_file, pa_white);
+            pa_frect(button_file, 1, 1, pa_maxxg(button_file),
+                      pa_maxyg(button_file));
+            /* outline */
+            pa_fcolorg(button_file, INT_MAX/4, INT_MAX/4, INT_MAX/4);
+            pa_rrect(button_file, 2, 2, pa_maxxg(button_file)-1,
+                     pa_maxyg(button_file)-1, 20, 20);
+            pa_fcolor(button_file, pa_black);
+            fprintf(button_file, "%s", button_title); /* place button title */
+
+        }
+
+    }
+
+}
+
 void pa_buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
-    FILE* wf;
-
-    pa_openwin(&stdin, &wf, f, 10); /* open widget window */
-    pa_buffer(wf, FALSE); /* turn off buffering */
-    pa_setposg(wf, x1, y1); /* place at position */
-    pa_setsizg(wf, x2-x1+1, y2-y1+1); /* set size */
-    pa_frame(wf, FALSE); /* turn off frame */
-    pa_binvis(wf);
-    pa_linewidth(wf, 3);
-    pa_fcolorg(wf, INT_MAX/4, INT_MAX/4, INT_MAX/4);
-    pa_rrect(wf, 2, 2, pa_maxxg(wf)-1, pa_maxyg(wf)-1, 20, 20);
-    pa_fcolor(wf, pa_black);
-    fprintf(wf, "%s", s); /* place button title */
+    /* override the event handler */
+    pa_eventsover(button_event, &button_event_old);
+    button_title = s; /* place title */
+    pa_openwin(&stdin, &button_file, f, 10); /* open widget window */
+    pa_buffer(button_file, FALSE); /* turn off buffering */
+    pa_curvis(button_file, FALSE); /* turn off cursor */
+    pa_setposg(button_file, x1, y1); /* place at position */
+    pa_setsizg(button_file, x2-x1, y2-y1); /* set size */
+    pa_frame(button_file, FALSE); /* turn off frame */
+    pa_binvis(button_file); /* no background write */
+    pa_linewidth(button_file, 3); /* thicker lines */
 
 }
 
