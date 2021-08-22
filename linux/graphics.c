@@ -906,7 +906,7 @@ A diagnostic. Prints the XWindow event type codes.
 
 ******************************************************************************/
 
-void prtxevt(int type)
+void prtxevtt(int type)
 
 {
 
@@ -2270,6 +2270,25 @@ int rat2a64(int a)
 
 }
 
+
+/** ****************************************************************************
+
+Print XEvent message
+
+A diagnostic, prints fields in an XEvent message.
+
+*******************************************************************************/
+
+void prtxevt(XEvent* e)
+
+{
+
+        fprintf(stderr, "X Event: %5ld Window: %lx ", e->xany.serial,
+                e->xany.window);
+        prtxevtt(e->type); fprintf(stderr, "\n"); fflush(stderr);
+
+}
+
 /** ****************************************************************************
 
 Get freed/new queue entry
@@ -2333,6 +2352,7 @@ static void quexevt(XEvent* e)
         p->last = evtque->last; /* link last to final entry */
         evtque->last = p; /* link current to this */
         p->last->next = p; /* link final to this */
+        evtque = p; /* point to new entry */
 
     } else { /* queue is empty */
 
@@ -2359,7 +2379,7 @@ static void dequexevt(XEvent* e)
     if (!evtque) error(esystem); /* should not be called empty */
     /* we push TO next (current) and take FROM last (final) */
     p = evtque->last; /* index final entry */
-    if (p->next == p->last) evtque = NULL; /* only one entry, clear list */
+    if (p->next == p) evtque = NULL; /* only one entry, clear list */
     else { /* other entries */
 
         p->last->next = p->next; /* point last at current */
@@ -2368,6 +2388,39 @@ static void dequexevt(XEvent* e)
     }
     memcpy(e, &p->evt, sizeof(XEvent)); /* copy out to caller */
     putxevt(p); /* release queue entry to free */
+
+}
+
+/** ****************************************************************************
+
+Find window output file number from XWindow handle
+
+Search file table for XWindow handle and returns the table index corresponding,
+or -1 if not found.
+
+*******************************************************************************/
+
+static int fndevt(Window w)
+
+{
+
+    int fi; /* index for file table */
+    int ff; /* found file */
+
+    fi = 0; /* start index */
+    ff = -1; /* set no file found */
+    while (fi < MAXFIL) {
+
+        if (opnfil[fi] && opnfil[fi]->win && opnfil[fi]->win->xwhan == w) {
+
+            ff = fi; /* set found */
+            fi = MAXFIL; /* terminate */
+
+        } else fi++; /* next entry */
+
+    }
+
+    return (ff);
 
 }
 
@@ -2383,24 +2436,17 @@ Should have timeouts.
 
 *******************************************************************************/
 
-static void waitxevt(int type)
+static void peekxevt(XEvent* e)
 
 {
 
-    XEvent e; /* XEvent holder */
-
-    do {
-
-        XWLOCK();
-        XNextEvent(padisplay, &e); /* get next event */
-        XWUNLOCK();
-        /* there is another diagnostic in pa_event(), but you might want to see
-           these events immediately */
-        //dbg_printf(dlinfo, "X Event: "); prtxevt(e->type);
-        //fprintf(stderr, "\n"); fflush(stderr);
-        quexevt(&e); /* place in input queue */
-
-    } while (e.type != type);
+    XWLOCK();
+    XNextEvent(padisplay, e); /* get next event */
+    XWUNLOCK();
+    quexevt(e); /* place in input queue */
+    /* there is another diagnostic in pa_event(), but you might want to see
+       these events immediately */
+    dbg_printf(dlinfo, ""); prtxevt(e);
 
 }
 
@@ -2743,6 +2789,7 @@ static void opnwin(int fn, int pfn, int wid)
     winptr               pwin;  /* parent window pointer */
     XSetWindowAttributes xwsa;  /* XWindow set attributes */
     XWindowAttributes    xwga, xpwga; /* XWindow get attributes */
+    XEvent               e;           /* XWindow event */
     char                 buf[250];
     Window               pw, rw;
     Window*              cwl;
@@ -2856,6 +2903,7 @@ static void opnwin(int fn, int pfn, int wid)
     win->xwhan = XCreateWindow(padisplay, pw, 0, 0, win->gmaxxg, win->gmaxyg, 0,
                                CopyFromParent, InputOutput, CopyFromParent, 0,
                                &xwsa);
+dbg_printf(dlinfo, "win: %p xwin: %lx\n", win, win->xwhan);
 
     /* select what events we want */
     XSelectInput(padisplay, win->xwhan, ExposureMask|KeyPressMask|
@@ -2872,7 +2920,7 @@ static void opnwin(int fn, int pfn, int wid)
     XWUNLOCK();
 
     /* wait for the window to be displayed */
-    waitxevt(MapNotify);
+    do { peekxevt(&e); } while (e.type !=  MapNotify);
 
     /* find and save the frame parameters from the immediate/parent window.
        This may not work on some window managers */
@@ -4010,6 +4058,7 @@ int pa_maxxg(FILE* f)
     winptr win; /* windows record pointer */
 
     win = txt2win(f); /* get window from file */
+dbg_printf(dlinfo, "window: %p maxxg: %d\n", win, win->gmaxxg);
 
     return (win->gmaxxg);
 
@@ -5227,6 +5276,7 @@ void pa_rrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
     XWLOCK();
     XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
     XWUNLOCK();
+dbg_printf(dlinfo, "x1: %d y1: %d x2: %d y2: %d\n", x1, y1, x2, y2);
     if (win->bufmod) { /* buffer is active */
 
         XWLOCK();
@@ -7387,32 +7437,6 @@ Our event loop here is like an event to event translation.
 
 *******************************************************************************/
 
-/* Find window file corresponding to event. Note this can be made a hash
-   search if speed is required. */
-static int fndevt(Window w)
-
-{
-
-    int fi; /* index for file table */
-    int ff; /* found file */
-
-    fi = 0; /* start index */
-    ff = -1; /* set no file found */
-    while (fi < MAXFIL) {
-
-        if (opnfil[fi] && opnfil[fi]->win && opnfil[fi]->win->xwhan == w) {
-
-            ff = fi; /* set found */
-            fi = MAXFIL; /* terminate */
-
-        } else fi++; /* next entry */
-
-    }
-
-    return (ff);
-
-}
-
 /* get and process a joystick event */
 static void joyevt(pa_evtrec* er, int* keep)
 
@@ -7735,6 +7759,7 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
         if (e->xconfigure.width != win->gmaxxg ||
             e->xconfigure.height != win->gmaxyg) {
 
+dbg_printf(dlinfo, "ConfigureNotify: win: %p width: %d height: %d\n", win, e->xconfigure.width, e->xconfigure.height);
             /* size of window has changed, send event */
             er->etype = pa_etresize; /* set resize event */
             er->rszxg = e->xconfigure.width; /* set graphics size */
@@ -7926,18 +7951,15 @@ static void xwinprc(XEvent* e, pa_evtrec* er, int* keep)
 
 {
 
-    winptr     win;      /* window record pointer */
-    int        ofn;      /* output lfn associated with window */
-    static int xcnt = 0; /* XWindow event counter */
+    winptr     win; /* window record pointer */
+    int        ofn; /* output lfn associated with window */
     int        rv;
 
     if (dmpmsg) {
 
         /* note we don't print XEvent diagnostics until they get extracted from
            the input queue */
-        dbg_printf(dlinfo, "X Event: %5d Window: %lx ", xcnt++, e->xany.window);
-                   prtxevt(e->type);
-        fprintf(stderr, "\n"); fflush(stderr);
+        prtxevt(e);
 
     }
     ofn = fndevt(e->xany.window); /* get output window lfn */
@@ -7995,9 +8017,10 @@ static void ievent(FILE* f, pa_evtrec* er)
     do {
 
         /* check input queue has events */
-        if (evtque) {
+        while (evtque && !keep) {
 
             dequexevt(&e); /* remove event from queue */
+dbg_printf(dlinfo, ""); prtxevt(&e);
             xwinprc(&e, er, &keep); /* process */
 
         }
@@ -8617,6 +8640,7 @@ void pa_sizbufg(FILE* f, int x, int y)
     int            si;  /* index for current display screen */
     XWindowChanges xwc; /* XWindow values */
     winptr         win; /* pointer to windows context */
+    XEvent         e;   /* XWindow event */
 
     if (x < 1 || y < 1)  error(einvsiz); /* invalid buffer size */
     win = txt2win(f); /* get window context */
@@ -8647,8 +8671,13 @@ void pa_sizbufg(FILE* f, int x, int y)
     XConfigureWindow(padisplay, win->xwhan, CWWidth|CWHeight, &xwc);
     XWUNLOCK();
 
-    /* wait for the configure response */
-    waitxevt(ConfigureNotify);
+    /* wait for the configure response with correct sizes */
+    do {
+
+        peekxevt(&e); /* peek next event */
+
+    } while (e.type != ConfigureNotify && e.xconfigure.width != x &&
+             e.xconfigure.height != y);
 
     restore(win); /* restore buffer to screen */
 
@@ -9067,19 +9096,37 @@ void pa_setsizg(FILE* f, int x, int y)
 
     winptr win; /* pointer to windows context */
     XWindowChanges xwc; /* XWindow values */
+    XEvent e; /* Xwindow event */
 
+dbg_printf(dlinfo, "begin\n");
     win = txt2win(f); /* get window context */
     /* change to client terms with zero clip */
     if (x >= win->pfw) xwc.width = x-win->pfw; else xwc.width = 0;
     if (y >= win->pfh) xwc.height = y-win->pfh; else xwc.height = 0;
 
+dbg_printf(dlinfo, "Width: %d Height: %d\n", xwc.width, xwc.height);
     /* reconfigure window */
     XWLOCK();
     XConfigureWindow(padisplay, win->xwhan, CWWidth|CWHeight, &xwc);
     XWUNLOCK();
 
-    /* wait for the configure response */
-    waitxevt(ConfigureNotify);
+    /* wait for the configure response with correct sizes */
+    do { peekxevt(&e); /* peek next event */
+    } while (e.type != ConfigureNotify || e.xconfigure.width != x ||
+             e.xconfigure.height != y);
+    /* because this event may not reach pa_event() for some time, we have to
+       set the dimensions now */
+    if (!win->bufmod) {
+
+        /* reset tracking sizes */
+        win->gmaxxg = e.xconfigure.width; /* graphics x */
+        win->gmaxyg = e.xconfigure.height; /* graphics y */
+        /* find character size x */
+        win->gmaxx = win->gmaxxg/win->charspace;
+        /* find character size y */
+        win->gmaxy = win->gmaxyg/win->linespace;
+
+    }
 
 }
 
@@ -9136,6 +9183,7 @@ void pa_setposg(FILE* f, int x, int y)
 
     winptr win; /* pointer to windows context */
     XWindowChanges xwc; /* XWindow values */
+    XEvent         e;   /* XWindow event */
 
     win = txt2win(f); /* get window context */
 
@@ -9145,7 +9193,12 @@ void pa_setposg(FILE* f, int x, int y)
     XWUNLOCK();
 
     /* wait for the configure response */
-    waitxevt(ConfigureNotify);
+    do {
+
+        peekxevt(&e); /* peek next event */
+
+    } while (e.type != ConfigureNotify && e.xconfigure.x != x &&
+             e.xconfigure.y != y);
 
 }
 
@@ -9579,8 +9632,15 @@ void pa_buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
     FILE* wf;
 
     pa_openwin(&stdin, &wf, f, 10); /* open widget window */
+    pa_buffer(wf, FALSE); /* turn off buffering */
     pa_setposg(wf, x1, y1); /* place at position */
     pa_setsizg(wf, x2-x1+1, y2-y1+1); /* set size */
+    pa_frame(wf, FALSE); /* turn off frame */
+    pa_binvis(wf);
+    pa_linewidth(wf, 3);
+    pa_fcolorg(wf, INT_MAX/4, INT_MAX/4, INT_MAX/4);
+    pa_rrect(wf, 2, 2, pa_maxxg(wf)-1, pa_maxyg(wf)-1, 20, 20);
+    pa_fcolor(wf, pa_black);
     fprintf(wf, "%s", s); /* place button title */
 
 }
