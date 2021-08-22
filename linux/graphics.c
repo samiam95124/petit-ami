@@ -2446,7 +2446,7 @@ static void peekxevt(XEvent* e)
     quexevt(e); /* place in input queue */
     /* there is another diagnostic in pa_event(), but you might want to see
        these events immediately */
-    dbg_printf(dlinfo, ""); prtxevt(e);
+    //dbg_printf(dlinfo, ""); prtxevt(e);
 
 }
 
@@ -8076,8 +8076,8 @@ static void ievent(FILE* f, pa_evtrec* er)
     /* do diagnostic dump of PA events */
     if (dmpevt) {
 
-        dbg_printf(dlinfo, "PA Event: %5d ", ecnt++); prtevt(er->etype);
-        fprintf(stderr, "\n"); fflush(stderr);
+        dbg_printf(dlinfo, "PA Event: %5d Window: %d ", ecnt++, er->winid);
+        prtevt(er->etype); fprintf(stderr, "\n"); fflush(stderr);
 
     }
 
@@ -9616,6 +9616,8 @@ Creates a standard button within the specified rectangle, on the given window.
 
 *******************************************************************************/
 
+static int button_pressed;
+
 static FILE* button_file;
 
 static char* button_title;
@@ -9640,7 +9642,35 @@ static void button_event(pa_evtrec* ev)
             pa_fcolorg(button_file, INT_MAX/4, INT_MAX/4, INT_MAX/4);
             pa_rrect(button_file, 2, 2, pa_maxxg(button_file)-1,
                      pa_maxyg(button_file)-1, 20, 20);
+            if (button_pressed) pa_fcolor(button_file, pa_red);
+            else pa_fcolor(button_file, pa_black);
+            pa_cursorg(button_file,
+                       pa_maxxg(button_file)/2-pa_strsiz(button_file, button_title)/2,
+                       pa_maxyg(button_file)/2-pa_chrsizy(button_file)/2);
+            fprintf(button_file, "%s", button_title); /* place button title */
+
+        } else if (ev->etype == pa_etmouba) {
+
+            button_pressed = TRUE;
             pa_fcolor(button_file, pa_black);
+            pa_frrect(button_file, 3, 3, pa_maxxg(button_file)-3,
+                     pa_maxyg(button_file)-3, 20, 20);
+            pa_fcolor(button_file, pa_white);
+            pa_cursorg(button_file,
+                       pa_maxxg(button_file)/2-pa_strsiz(button_file, button_title)/2,
+                       pa_maxyg(button_file)/2-pa_chrsizy(button_file)/2);
+            fprintf(button_file, "%s", button_title); /* place button title */
+
+        } else if (ev->etype == pa_etmoubd) {
+
+            button_pressed = FALSE;
+            pa_fcolor(button_file, pa_white);
+            pa_frrect(button_file, 3, 3, pa_maxxg(button_file)-3,
+                     pa_maxyg(button_file)-3, 20, 20);
+            pa_fcolor(button_file, pa_black);
+            pa_cursorg(button_file,
+                       pa_maxxg(button_file)/2-pa_strsiz(button_file, button_title)/2,
+                       pa_maxyg(button_file)/2-pa_chrsizy(button_file)/2);
             fprintf(button_file, "%s", button_title); /* place button title */
 
         }
@@ -9658,7 +9688,10 @@ void pa_buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
     button_title = s; /* place title */
     pa_openwin(&stdin, &button_file, f, 10); /* open widget window */
     pa_buffer(button_file, FALSE); /* turn off buffering */
+    pa_auto(button_file, FALSE); /* turn off auto */
     pa_curvis(button_file, FALSE); /* turn off cursor */
+    pa_font(button_file, PA_FONT_SIGN); /* set button font */
+    pa_bold(button_file, TRUE); /* set bold font */
     pa_setposg(button_file, x1, y1); /* place at position */
     pa_setsizg(button_file, x2-x1, y2-y1); /* set size */
     pa_frame(button_file, FALSE); /* turn off frame */
