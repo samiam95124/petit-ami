@@ -582,6 +582,19 @@ typedef struct paevtque {
 
 } paevtque;
 
+/* Widget control structure */
+typedef struct widget {
+
+    struct widget* next;    /* chain next */
+    int            pressed; /* in the pressed state */
+    FILE*          wf;      /* output file for the widget window */
+    char*          title;   /* title text */
+    FILE*          parent;  /* parent window */
+    int            id;      /* id number */
+    int            wid;     /* widget window id */
+
+} widget;
+
 /*
  * Saved vectors to system calls. These vectors point to the old, existing
  * vectors that were overriden by this module.
@@ -9809,18 +9822,8 @@ Creates a standard button within the specified rectangle, on the given window.
 
 *******************************************************************************/
 
-/* these all get moved to a structure in the final code */
-static int button_pressed;
-
-static FILE* button_file;
-
-static char* button_title;
-
-static FILE* button_parent;
-
-static int button_id;
-
-static int button_wid;
+/* button control structure */
+widget buttonw;
 
 static pa_pevthan button_event_old;
 
@@ -9831,55 +9834,55 @@ static void button_event(pa_evtrec* ev)
     pa_evtrec er; /* outbound button event */
 
     /* if not our window, send it on */
-    if (ev->winid != button_wid) button_event_old(ev);
+    if (ev->winid != buttonw.wid) button_event_old(ev);
     else { /* handle it here */
 
         if (ev->etype == pa_etredraw) { /* redraw the window */
 
             /* color the background */
-            pa_fcolor(button_file, pa_white);
-            pa_frect(button_file, 1, 1, pa_maxxg(button_file),
-                      pa_maxyg(button_file));
+            pa_fcolor(buttonw.wf, pa_white);
+            pa_frect(buttonw.wf, 1, 1, pa_maxxg(buttonw.wf),
+                      pa_maxyg(buttonw.wf));
             /* outline */
-            pa_fcolorg(button_file, INT_MAX/4, INT_MAX/4, INT_MAX/4);
-            pa_rrect(button_file, 2, 2, pa_maxxg(button_file)-1,
-                     pa_maxyg(button_file)-1, 20, 20);
-            if (button_pressed) pa_fcolor(button_file, pa_red);
-            else pa_fcolor(button_file, pa_black);
-            pa_cursorg(button_file,
-                       pa_maxxg(button_file)/2-pa_strsiz(button_file, button_title)/2,
-                       pa_maxyg(button_file)/2-pa_chrsizy(button_file)/2);
-            fprintf(button_file, "%s", button_title); /* place button title */
+            pa_fcolorg(buttonw.wf, INT_MAX/4, INT_MAX/4, INT_MAX/4);
+            pa_rrect(buttonw.wf, 2, 2, pa_maxxg(buttonw.wf)-1,
+                     pa_maxyg(buttonw.wf)-1, 20, 20);
+            if (buttonw.pressed) pa_fcolor(buttonw.wf, pa_red);
+            else pa_fcolor(buttonw.wf, pa_black);
+            pa_cursorg(buttonw.wf,
+                       pa_maxxg(buttonw.wf)/2-pa_strsiz(buttonw.wf, buttonw.title)/2,
+                       pa_maxyg(buttonw.wf)/2-pa_chrsizy(buttonw.wf)/2);
+            fprintf(buttonw.wf, "%s", buttonw.title); /* place button title */
 
         } else if (ev->etype == pa_etmouba && ev->amoubn) {
 
             /* send event back to parent window */
             er.etype = pa_etbutton; /* set button event */
-            er.butid = button_id; /* set id */
-            pa_sendevent(button_parent, &er); /* send the event to the parent */
+            er.butid = buttonw.id; /* set id */
+            pa_sendevent(buttonw.parent, &er); /* send the event to the parent */
 
             /* process button press */
-            button_pressed = TRUE;
-            pa_fcolor(button_file, pa_black);
-            pa_frrect(button_file, 3, 3, pa_maxxg(button_file)-3,
-                     pa_maxyg(button_file)-3, 20, 20);
-            pa_fcolor(button_file, pa_white);
-            pa_cursorg(button_file,
-                       pa_maxxg(button_file)/2-pa_strsiz(button_file, button_title)/2,
-                       pa_maxyg(button_file)/2-pa_chrsizy(button_file)/2);
-            fprintf(button_file, "%s", button_title); /* place button title */
+            buttonw.pressed = TRUE;
+            pa_fcolor(buttonw.wf, pa_black);
+            pa_frrect(buttonw.wf, 3, 3, pa_maxxg(buttonw.wf)-3,
+                     pa_maxyg(buttonw.wf)-3, 20, 20);
+            pa_fcolor(buttonw.wf, pa_white);
+            pa_cursorg(buttonw.wf,
+                       pa_maxxg(buttonw.wf)/2-pa_strsiz(buttonw.wf, buttonw.title)/2,
+                       pa_maxyg(buttonw.wf)/2-pa_chrsizy(buttonw.wf)/2);
+            fprintf(buttonw.wf, "%s", buttonw.title); /* place button title */
 
         } else if (ev->etype == pa_etmoubd) {
 
-            button_pressed = FALSE;
-            pa_fcolor(button_file, pa_white);
-            pa_frrect(button_file, 3, 3, pa_maxxg(button_file)-3,
-                     pa_maxyg(button_file)-3, 20, 20);
-            pa_fcolor(button_file, pa_black);
-            pa_cursorg(button_file,
-                       pa_maxxg(button_file)/2-pa_strsiz(button_file, button_title)/2,
-                       pa_maxyg(button_file)/2-pa_chrsizy(button_file)/2);
-            fprintf(button_file, "%s", button_title); /* place button title */
+            buttonw.pressed = FALSE;
+            pa_fcolor(buttonw.wf, pa_white);
+            pa_frrect(buttonw.wf, 3, 3, pa_maxxg(buttonw.wf)-3,
+                     pa_maxyg(buttonw.wf)-3, 20, 20);
+            pa_fcolor(buttonw.wf, pa_black);
+            pa_cursorg(buttonw.wf,
+                       pa_maxxg(buttonw.wf)/2-pa_strsiz(buttonw.wf, buttonw.title)/2,
+                       pa_maxyg(buttonw.wf)/2-pa_chrsizy(buttonw.wf)/2);
+            fprintf(buttonw.wf, "%s", buttonw.title); /* place button title */
 
         }
 
@@ -9893,21 +9896,21 @@ void pa_buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
     /* override the event handler */
     pa_eventsover(button_event, &button_event_old);
-    button_title = s; /* place title */
-    button_wid = pa_getwid(); /* allocate a buried wid */
-    pa_openwin(&stdin, &button_file, f, button_wid); /* open widget window */
-    button_parent = f; /* save parent file */
-    button_id = id; /* set button widget id */
-    pa_buffer(button_file, FALSE); /* turn off buffering */
-    pa_auto(button_file, FALSE); /* turn off auto */
-    pa_curvis(button_file, FALSE); /* turn off cursor */
-    pa_font(button_file, PA_FONT_SIGN); /* set button font */
-    pa_bold(button_file, TRUE); /* set bold font */
-    pa_setposg(button_file, x1, y1); /* place at position */
-    pa_setsizg(button_file, x2-x1, y2-y1); /* set size */
-    pa_frame(button_file, FALSE); /* turn off frame */
-    pa_binvis(button_file); /* no background write */
-    pa_linewidth(button_file, 3); /* thicker lines */
+    buttonw.title = s; /* place title */
+    buttonw.wid = pa_getwid(); /* allocate a buried wid */
+    pa_openwin(&stdin, &buttonw.wf, f, buttonw.wid); /* open widget window */
+    buttonw.parent = f; /* save parent file */
+    buttonw.id = id; /* set button widget id */
+    pa_buffer(buttonw.wf, FALSE); /* turn off buffering */
+    pa_auto(buttonw.wf, FALSE); /* turn off auto */
+    pa_curvis(buttonw.wf, FALSE); /* turn off cursor */
+    pa_font(buttonw.wf, PA_FONT_SIGN); /* set button font */
+    pa_bold(buttonw.wf, TRUE); /* set bold font */
+    pa_setposg(buttonw.wf, x1, y1); /* place at position */
+    pa_setsizg(buttonw.wf, x2-x1, y2-y1); /* set size */
+    pa_frame(buttonw.wf, FALSE); /* turn off frame */
+    pa_binvis(buttonw.wf); /* no background write */
+    pa_linewidth(buttonw.wf, 3); /* thicker lines */
 
 }
 

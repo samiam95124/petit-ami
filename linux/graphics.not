@@ -13,25 +13,16 @@ joystick ioctl interface.
 5. Joystick events and frame timer events must go to either a window or all 
 windows.
 
-6. Graphical scrolling test does not work (improper fill color to top and left).
-
-7. Need to reconcille windows xor, and or modes with XWindows at some point. 
+6. Need to reconcille windows xor, and or modes with XWindows at some point. 
 Windows does not allow modes on text, reportedly because it does not work with
 antialiasing (it may have worked a long time ago).
 
-8. Need to limit the number of cached pictures by paging out the oldest or
+7. Need to limit the number of cached pictures by paging out the oldest or
 smilar algorithim. Right now the storage allocation can climb to infinity.
 
-9. In both opnwin() and sizbufg(), we wait for the window manager to respond to
-requests. The issue here is that we are receiving and discarding input events
-looking for those requests. This could discard important events. One solution
-is to queue up all events like the Windows version does, and allow pulling all
-pending events and looking through them. The remaining issue then would be
-positively identifying what response belongs to our request, which is not 
-obvious. One suggestion was to send a "flag card" event into the event input,
-then look for that. It would have to be verified as the one we wrote (sequential
-numbers?).
-
-10. Presently we assume the parent of our window holds the frame, which is true
+8. Presently we assume the parent of our window holds the frame, which is true
 in Ubuntu. We can introduce a mode to verify if holds the _NET_FRAME_EXTENTS
 property. Note that not all window managers obey this standard.
+
+9. Turning bold on in the button window also appears to turn on bold in the
+main window.
