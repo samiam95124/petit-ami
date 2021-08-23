@@ -8204,10 +8204,12 @@ void pa_event(FILE* f, pa_evtrec* er)
 
 {
 
-    do { /* loop handling via event vectors */
+    do { /* loop handling via event vectors and queuing */
 
+        /* check input PA queue */
+        if (paqevt) dequepaevt(er);
         /* get logical input file number for input, and get the event for that. */
-        ievent(f, er); /* process event */
+        else ievent(f, er); /* process event */
         er->handled = 1; /* set event is handled by default */
         (evtshan)(er); /* call master event handler */
         if (!er->handled) { /* send it to fanout */
