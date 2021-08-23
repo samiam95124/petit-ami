@@ -370,6 +370,7 @@ void pa_autohold(int e);
 void pa_wrtstr(FILE* f, char* s);
 void pa_eventover(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh);
 void pa_eventsover(pa_pevthan eh,  pa_pevthan* oeh);
+void pa_sendevent(FILE* f, pa_evtrec* er);
 
 /* graphical */
 

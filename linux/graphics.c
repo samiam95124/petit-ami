@@ -547,6 +547,7 @@ typedef enum {
     ebadfmt,  /* Bad format of picture file */
     ecfgval,  /* invalid configuration value */
     enoopn,   /* Cannot open file */
+    enoinps,  /* no input side for this window */
     esystem   /* System consistency check */
 
 } errcod;
@@ -570,6 +571,15 @@ typedef struct xevtque {
     XEvent          evt;  /* event data */
 
 } xevtque;
+
+/* PA queue structure. Its a bubble list. */
+typedef struct paevtque {
+
+    struct paevtque* next; /* next in list */
+    struct paevtque* last; /* last in list */
+    pa_evtrec       evt;  /* event data */
+
+} paevtque;
 
 /*
  * Saved vectors to system calls. These vectors point to the old, existing
@@ -614,8 +624,10 @@ static int        frmfid;         /* framing timer fid */
 static int        cfgcap;         /* "configuration" caps */
 static pa_pevthan evthan[pa_ettabbar+1]; /* array of event handler routines */
 static pa_pevthan evtshan;        /* single master event handler routine */
-static xevtque*   freque;         /* free queue entries list */
-static xevtque*   evtque;         /* XWindows input save queue */
+static xevtque*   freque;         /* free XEvent queue entries list */
+static xevtque*   evtque;         /* XEvent input save queue */
+static paevtque*  paqfre;         /* free XEvent queue entries list */
+static paevtque*  paqevt;         /* XEvent input save queue */
 
 /* memory statistics/diagnostics */
 static unsigned long memusd;    /* total memory in use for malloc */
@@ -732,6 +744,7 @@ static void error(errcod e)
       case ebadfmt:  fprintf(stderr, "Bad format of picture file"); break;
       case ecfgval:  fprintf(stderr, "Invalid configuration value"); break;
       case enoopn:   fprintf(stderr, "Cannot open file"); break;
+      case enoinps:  fprintf(stderr, "No input side for this window"); break;
       case esystem:  fprintf(stderr, "System consistency check"); break;
 
     }
@@ -2337,7 +2350,7 @@ Place XEvent into input queue
 
 *******************************************************************************/
 
-static void quexevt(XEvent* e)
+static void enquexevt(XEvent* e)
 
 {
 
@@ -2443,10 +2456,112 @@ static void peekxevt(XEvent* e)
     XWLOCK();
     XNextEvent(padisplay, e); /* get next event */
     XWUNLOCK();
-    quexevt(e); /* place in input queue */
+    enquexevt(e); /* place in input queue */
     /* there is another diagnostic in pa_event(), but you might want to see
        these events immediately */
     //dbg_printf(dlinfo, ""); prtxevt(e);
+
+}
+
+/** ****************************************************************************
+
+Get freed/new PA queue entry
+
+Either gets a new entry from malloc or returns a previously freed entry.
+
+*******************************************************************************/
+
+static paevtque* getpaevt(void)
+
+{
+
+    paevtque* p;
+
+    if (paqfre) { /* there is a freed entry */
+
+        p = paqfre; /* index top entry */
+        paqfre = p->next; /* gap from list */
+
+    } else p = (paevtque*)malloc(sizeof(paevtque));
+
+    return (p);
+
+}
+
+/** ****************************************************************************
+
+Get freed/new PA queue entry
+
+Either gets a new entry from malloc or returns a previously freed entry.
+
+*******************************************************************************/
+
+static void putpaevt(paevtque* p)
+
+{
+
+    p->next = paqfre; /* push to list */
+    paqfre = p;
+
+}
+
+/** ****************************************************************************
+
+Place PA event into input queue
+
+*******************************************************************************/
+
+static void enquepaevt(pa_evtrec* e)
+
+{
+
+    paevtque* p;
+
+    p = getpaevt(); /* get a queue entry */
+    memcpy(&p->evt, e, sizeof(pa_evtrec)); /* copy event to queue entry */
+    if (paqevt) { /* there are entries in queue */
+
+        /* we push TO next (current) and take FROM last (final) */
+        p->next = paqevt; /* link next to current entry */
+        p->last = paqevt->last; /* link last to final entry */
+        paqevt->last = p; /* link current to this */
+        p->last->next = p; /* link final to this */
+        paqevt = p; /* point to new entry */
+
+    } else { /* queue is empty */
+
+        p->next = p; /* link to self */
+        p->last = p;
+        paqevt = p; /* place in list */
+
+    }
+
+}
+
+/** ****************************************************************************
+
+Remove XEvent from input queue
+
+*******************************************************************************/
+
+static void dequepaevt(pa_evtrec* e)
+
+{
+
+    paevtque* p;
+
+    if (!paqevt) error(esystem); /* should not be called empty */
+    /* we push TO next (current) and take FROM last (final) */
+    p = paqevt->last; /* index final entry */
+    if (p->next == p) paqevt = NULL; /* only one entry, clear list */
+    else { /* other entries */
+
+        p->last->next = p->next; /* point last at current */
+        p->next->last = p->last; /* point current at last */
+
+    }
+    memcpy(e, &p->evt, sizeof(pa_evtrec)); /* copy out to caller */
+    putpaevt(p); /* release queue entry to free */
 
 }
 
@@ -8109,6 +8224,39 @@ void pa_event(FILE* f, pa_evtrec* er)
 
 /** ****************************************************************************
 
+Send event to window
+
+Send an event to the given window. The event is placed into the queue for the
+given window. Note that the input side of the window is found, and the event
+spooled for that side. Note that any window number given the event is
+overwritten with the proper window id after a copy is made.
+
+The difference between this and inserting to the event chain is that this
+routine enters to the top of the chain, and specifies the input side of the
+window. Thus it is a more complete send of the event.
+
+*******************************************************************************/
+
+void pa_sendevent(FILE* f, pa_evtrec* er)
+
+{
+
+    winptr win;   /* pointer to windows context */
+    int fn;       /* logical file number */
+    pa_evtrec ec; /* copy of event record */
+
+    fn = fileno(f); /* find find number */
+    if (fn < 0) error(einvfil); /* file invalid */
+    if (opnfil[fn]->inl < 0) error(enoinps); /* no input side for window */
+    win = lfn2win(fn); /* index window for file */
+    memcpy(&ec, er, sizeof(pa_evtrec));
+    ec.winid = win->wid; /* overwrite window id */
+    enquepaevt(&ec); /* send to queue */
+
+}
+
+/** ****************************************************************************
+
 Override event handler
 
 Overrides or "hooks" the indicated event handler. The existing event handler is
@@ -9616,17 +9764,24 @@ Creates a standard button within the specified rectangle, on the given window.
 
 *******************************************************************************/
 
+/* these all get moved to a structure in the final code */
 static int button_pressed;
 
 static FILE* button_file;
 
 static char* button_title;
 
+static FILE* button_parent;
+
+static int button_id;
+
 static pa_pevthan button_event_old;
 
 static void button_event(pa_evtrec* ev)
 
 {
+
+    pa_evtrec er; /* outbound button event */
 
     /* if not our window, send it on */
     if (ev->winid != 10) button_event_old(ev);
@@ -9649,8 +9804,14 @@ static void button_event(pa_evtrec* ev)
                        pa_maxyg(button_file)/2-pa_chrsizy(button_file)/2);
             fprintf(button_file, "%s", button_title); /* place button title */
 
-        } else if (ev->etype == pa_etmouba) {
+        } else if (ev->etype == pa_etmouba && ev->amoubn) {
 
+            /* send event back to parent window */
+            er.etype = pa_etbutton; /* set button event */
+            er.butid = button_id; /* set id */
+            pa_sendevent(button_parent, &er); /* send the event to the parent */
+
+            /* process button press */
             button_pressed = TRUE;
             pa_fcolor(button_file, pa_black);
             pa_frrect(button_file, 3, 3, pa_maxxg(button_file)-3,
@@ -9687,6 +9848,8 @@ void pa_buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
     pa_eventsover(button_event, &button_event_old);
     button_title = s; /* place title */
     pa_openwin(&stdin, &button_file, f, 10); /* open widget window */
+    button_parent = f; /* save parent file */
+    button_id = id; /* save id */
     pa_buffer(button_file, FALSE); /* turn off buffering */
     pa_auto(button_file, FALSE); /* turn off auto */
     pa_curvis(button_file, FALSE); /* turn off cursor */
@@ -10661,8 +10824,10 @@ static void pa_init_graphics(int argc, char *argv[])
     fntlst = NULL; /* clear font list */
     fntcnt = 0;
     frepic = NULL; /* clear free pictures list */
-    freque = NULL; /* clear free input queues */
-    evtque = NULL; /* clear event input queue */
+    freque = NULL; /* clear free x input queues */
+    evtque = NULL; /* clear x event input queue */
+    paqfre = NULL; /* clear pa event free queue */
+    paqevt = NULL; /* clear pa event input queue */
 
     /* clear open files tables */
     for (fi = 0; fi < MAXFIL; fi++) {
