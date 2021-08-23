@@ -9820,6 +9820,8 @@ static FILE* button_parent;
 
 static int button_id;
 
+static int button_wid;
+
 static pa_pevthan button_event_old;
 
 static void button_event(pa_evtrec* ev)
@@ -9829,7 +9831,7 @@ static void button_event(pa_evtrec* ev)
     pa_evtrec er; /* outbound button event */
 
     /* if not our window, send it on */
-    if (ev->winid != button_id) button_event_old(ev);
+    if (ev->winid != button_wid) button_event_old(ev);
     else { /* handle it here */
 
         if (ev->etype == pa_etredraw) { /* redraw the window */
@@ -9892,9 +9894,10 @@ void pa_buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
     /* override the event handler */
     pa_eventsover(button_event, &button_event_old);
     button_title = s; /* place title */
-    button_id = pa_getwid(); /* allocate a buried wid */
-    pa_openwin(&stdin, &button_file, f, button_id); /* open widget window */
+    button_wid = pa_getwid(); /* allocate a buried wid */
+    pa_openwin(&stdin, &button_file, f, button_wid); /* open widget window */
     button_parent = f; /* save parent file */
+    button_id = id; /* set button widget id */
     pa_buffer(button_file, FALSE); /* turn off buffering */
     pa_auto(button_file, FALSE); /* turn off auto */
     pa_curvis(button_file, FALSE); /* turn off cursor */
