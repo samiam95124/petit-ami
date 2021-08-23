@@ -8719,6 +8719,9 @@ client isn't supposed to know about.
 Note that the wid entry will actually be opened by openwin(), and will be closed
 by closewin(), so there is no need to deallocate this wid.
 
+Note also that this routine is not particularly multitask friendly, since
+another task could swoop in and take the wid away.
+
 *******************************************************************************/
 
 int pa_getwid(void)
@@ -8727,9 +8730,9 @@ int pa_getwid(void)
 
     int wid; /* window id */
 
-    wid = MAXFIL-1; /* start at -1 */
+    wid = -1; /* start at -1 */
     /* find any open entry */
-    while (wid > -MAXFIL && xltwin[wid] >= 0);
+    while (wid > -MAXFIL && xltwin[wid+MAXFIL] >= 0) wid--;
     if (wid == -MAXFIL) error(enowid); /* ran out of buried wids */
 
     return (wid); /* return the wid */
@@ -8771,7 +8774,7 @@ void pa_openwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
     int ifn, ofn, pfn; /* file logical handles */
 
     /* check valid window handle */
-    if (wid < 1 || wid > MAXFIL) error(einvwin);
+    if (!wid || wid < -MAXFIL || wid > MAXFIL) error(einvwin);
     /* check if the window id is already in use */
     if (xltwin[wid+MAXFIL] >= 0) error(ewinuse); /* error */
     if (parent) {
@@ -9826,7 +9829,7 @@ static void button_event(pa_evtrec* ev)
     pa_evtrec er; /* outbound button event */
 
     /* if not our window, send it on */
-    if (ev->winid != 10) button_event_old(ev);
+    if (ev->winid != button_id) button_event_old(ev);
     else { /* handle it here */
 
         if (ev->etype == pa_etredraw) { /* redraw the window */
@@ -9889,9 +9892,9 @@ void pa_buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
     /* override the event handler */
     pa_eventsover(button_event, &button_event_old);
     button_title = s; /* place title */
-    pa_openwin(&stdin, &button_file, f, 10); /* open widget window */
+    button_id = pa_getwid(); /* allocate a buried wid */
+    pa_openwin(&stdin, &button_file, f, button_id); /* open widget window */
     button_parent = f; /* save parent file */
-    button_id = id; /* save id */
     pa_buffer(button_file, FALSE); /* turn off buffering */
     pa_auto(button_file, FALSE); /* turn off auto */
     pa_curvis(button_file, FALSE); /* turn off cursor */
