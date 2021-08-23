@@ -548,6 +548,7 @@ typedef enum {
     ecfgval,  /* invalid configuration value */
     enoopn,   /* Cannot open file */
     enoinps,  /* no input side for this window */
+    enowid,   /* No more window ids available */
     esystem   /* System consistency check */
 
 } errcod;
@@ -609,7 +610,8 @@ static int        shiftl, shiftr; /* shift key active */
 static int        altl, altr;     /* alt key active */
 static int        capslock;       /* caps lock key active */
 static filptr     opnfil[MAXFIL]; /* open files table */
-static int        xltwin[MAXFIL]; /* window equivalence table */
+static int        xltwin[MAXFIL*2+1]; /* window equivalence table, includes
+                                         negatives and 0 */
 static int        filwin[MAXFIL]; /* file to window equivalence table */
 static int        esck;           /* previous key was escape */
 static fontptr    fntlst;         /* list of XWindow fonts */
@@ -745,6 +747,7 @@ static void error(errcod e)
       case ecfgval:  fprintf(stderr, "Invalid configuration value"); break;
       case enoopn:   fprintf(stderr, "Cannot open file"); break;
       case enoinps:  fprintf(stderr, "No input side for this window"); break;
+      case enowid:   fprintf(stderr, "No more window ids available"); break;
       case esystem:  fprintf(stderr, "System consistency check"); break;
 
     }
@@ -3102,8 +3105,8 @@ static void openio(FILE* infile, FILE* outfile, int ifn, int ofn, int pfn,
 
     }
     /* check if the window has been pinned to something else */
-    if (xltwin[wid-1] >= 0 && xltwin[wid-1] != ofn) error(ewinuse); /* flag error */
-    xltwin[wid-1] = ofn; /* pin the window to the output file */
+    if (xltwin[wid+MAXFIL] >= 0 && xltwin[wid+MAXFIL] != ofn) error(ewinuse); /* flag error */
+    xltwin[wid+MAXFIL] = ofn; /* pin the window to the output file */
     filwin[ofn] = wid;
 
 }
@@ -8698,6 +8701,43 @@ void pa_title(FILE* f, char* ts)
 
 /** ****************************************************************************
 
+Allocate buried window id
+
+Allocates and returns a "buried" window id. The window id numbers are assigned
+by the client program. However, there a an alternative set of ids that are
+allocated as needed. Graphics keeps track of which buried ids have been
+allocated and which have been freed.
+
+The implementation here is to assign buried window ids negative numbers,
+starting with -1 and proceeding downwards. 0 is never assigned. The calls that
+take window ids will recognize those ids as special. The use of negative ids
+insure that the normal wids will never overlap any buried wids.
+
+The main use of buried wids is in widgets, the internal workings of which the
+client isn't supposed to know about.
+
+Note that the wid entry will actually be opened by openwin(), and will be closed
+by closewin(), so there is no need to deallocate this wid.
+
+*******************************************************************************/
+
+int pa_getwid(void)
+
+{
+
+    int wid; /* window id */
+
+    wid = MAXFIL-1; /* start at -1 */
+    /* find any open entry */
+    while (wid > -MAXFIL && xltwin[wid] >= 0);
+    if (wid == -MAXFIL) error(enowid); /* ran out of buried wids */
+
+    return (wid); /* return the wid */
+
+}
+
+/** ****************************************************************************
+
 Open window
 
 Opens a window to an input/output pair. The window is opened and initalized.
@@ -8733,7 +8773,7 @@ void pa_openwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
     /* check valid window handle */
     if (wid < 1 || wid > MAXFIL) error(einvwin);
     /* check if the window id is already in use */
-    if (xltwin[wid-1] >= 0) error(ewinuse); /* error */
+    if (xltwin[wid+MAXFIL] >= 0) error(ewinuse); /* error */
     if (parent) {
 
         txt2win(parent); /* validate parent is a window file */
@@ -10835,10 +10875,16 @@ static void pa_init_graphics(int argc, char *argv[])
     for (fi = 0; fi < MAXFIL; fi++) {
 
         opnfil[fi] = NULL; /* set unoccupied */
-        /* clear window logical number translator table */
-        xltwin[fi] = -1; /* set unoccupied */
         /* clear file to window logical number translator table */
         filwin[fi] = -1; /* set unoccupied */
+
+    }
+
+    /* clear window equivalence table */
+    for (fi = 0; fi < MAXFIL*2+1; fi++) {
+
+        /* clear window logical number translator table */
+        xltwin[fi] = -1; /* set unoccupied */
 
     }
 
