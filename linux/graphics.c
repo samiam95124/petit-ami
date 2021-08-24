@@ -261,15 +261,27 @@ typedef struct xcaplst {
 /* font description entry */
 typedef struct fontrec {
 
-    char*           fn;   /* name of font */
-    int             fix;  /* fixed pitch font flag */
-    int             caps; /* set of XWindow font capabilities */
+    char*           fn;     /* name of font */
+    int             fix;    /* fixed pitch font flag */
+    int             caps;   /* set of XWindow font capabilities */
     xcaplst*        caplst; /* list of all XWindow font capabilities */
-    struct fontrec* next; /* next font in list */
+    struct fontrec* next;   /* next font in list */
 
 } fontrec, *fontptr;
 
 typedef enum { mdnorm, mdinvis, mdxor, mdand, mdor } mode; /* color mix modes */
+
+/* Widget control structure */
+typedef struct widget {
+
+    int            pressed; /* in the pressed state */
+    FILE*          wf;      /* output file for the widget window */
+    char*          title;   /* title text */
+    FILE*          parent;  /* parent window */
+    int            id;      /* id number */
+    int            wid;     /* widget window id */
+
+} widget;
 
 /* Menu tracking. This is a mirror image of the menu we were given by the
    user. However, we can do with less information than is in the original
@@ -284,29 +296,9 @@ typedef struct metrec {
     int            select; /* the current on/off state of the highlight */
     struct metrec* oneof;  /* "one of" chain pointer */
     int            id;     /* user id of item */
+    widget         wg;     /* widget window */
 
 } metrec, *metptr;
-
-/* widget type */
-typedef enum  {
-    wtbutton, wtcheckbox, wtradiobutton, wtgroup, wtbackground,
-    wtscrollvert, wtscrollhoriz, wtnumselbox, wteditbox,
-    wtprogressbar, wtlistbox, wtdropbox, wtdropeditbox,
-    wtslidehoriz, wtslidevert, wttabbar
-} wigtyp;
-
-/* widget tracking entry */
-typedef struct wigrec {
-
-    struct wigrec* next; /* next entry in list */
-    int            id;   /* logical id of widget */
-    wigtyp         typ;  /* type of widget */
-    int            siz;  /* size of slider in scroll widget, in windows terms */
-    int            low;  /* low limit of up/down control */
-    int            high; /* high limit of up/down control */
-    int            enb;  /* widget is enabled */
-
-} wigrec, *wigptr;
 
 typedef struct scncon { /* screen context */
 
@@ -435,7 +427,6 @@ typedef struct winrec {
     picptr       pictbl[MAXPIC];    /* loadable pictures table */
     int          bufmod;            /* buffered screen mode */
     metptr       metlst;            /* menu tracking list */
-    wigptr       wiglst;            /* widget tracking list */
     int          frame;             /* frame on/off */
     int          size;              /* size bars on/off */
     int          sysbar;            /* system bar on/off */
@@ -582,19 +573,6 @@ typedef struct paevtque {
 
 } paevtque;
 
-/* Widget control structure */
-typedef struct widget {
-
-    struct widget* next;    /* chain next */
-    int            pressed; /* in the pressed state */
-    FILE*          wf;      /* output file for the widget window */
-    char*          title;   /* title text */
-    FILE*          parent;  /* parent window */
-    int            id;      /* id number */
-    int            wid;     /* widget window id */
-
-} widget;
-
 /*
  * Saved vectors to system calls. These vectors point to the old, existing
  * vectors that were overriden by this module.
@@ -625,6 +603,7 @@ static int        capslock;       /* caps lock key active */
 static filptr     opnfil[MAXFIL]; /* open files table */
 static int        xltwin[MAXFIL*2+1]; /* window equivalence table, includes
                                          negatives and 0 */
+static metptr     xltmnu[MAXFIL*2+1]; /* menu entry equivalence table */
 static int        filwin[MAXFIL]; /* file to window equivalence table */
 static int        esck;           /* previous key was escape */
 static fontptr    fntlst;         /* list of XWindow fonts */
@@ -2960,7 +2939,6 @@ static void opnwin(int fn, int pfn, int wid)
     win->frmrun = FALSE; /* set framing timer not running */
     win->bufmod = TRUE; /* set buffering on */
     win->metlst = NULL; /* clear menu tracking list */
-    win->wiglst = NULL; /* clear widget list */
     win->frame = TRUE; /* set frame on */
     win->size = TRUE; /* set size bars on */
     win->sysbar = TRUE; /* set system bar on */
@@ -8995,9 +8973,217 @@ deleted.
 
 *******************************************************************************/
 
+/* create menu tracking entry */
+static void mettrk(winptr win, int inx, pa_menuptr m)
+
+{
+
+    metptr mp; /* menu tracking entry pointer */
+
+    mp = imalloc(sizeof(metrec)); /* get a new tracking entry */
+    mp->next = win->metlst; /* push onto tracking list */
+    win->metlst = mp;
+    mp->inx = inx; /* place menu index */
+    mp->onoff = m->onoff; /* place on/off highlighter */
+    mp->select = FALSE; /* place status of select (off) */
+    mp->id = m->id; /* place id */
+    mp->oneof = NULL; /* set no "one of" */
+    /* set up the button properties */
+    mp->wg.pressed = FALSE; /* not pressed */
+    mp->wg.title = str(m->face); /* copy face string */
+    /* We are walking backwards in the list, and we need the next list entry
+      to know the "one of" chain. So we tie the entry to itself as a flag
+      that it chains to the next entry. That chain will get fixed on the
+      next entry. */
+    if (m->oneof) mp->oneof = mp;
+    /* now tie the last entry to this if indicated */
+    if (mp->next) /* there is a next entry */
+        if (mp->next->oneof == mp->next) mp->next->oneof = mp;
+
+}
+
+/* create menu list */
+static void createmenu(winptr win, pa_menuptr m)
+
+{
+
+    int   inx; /* index number for this menu */
+
+    inx = 0; /* set first in sequence */
+    while (m) { /* add menu item */
+
+        if (m->branch) { /* handle submenu */
+
+            createmenu(win, m->branch); /* create submenu */
+            mettrk(win, inx, m); /* enter that into tracking */
+
+        } else { /* handle terminal menu */
+
+            mettrk(win, inx, m); /* enter that into tracking */
+
+        }
+        if (m->bar) { /* add separator bar */
+
+            /* a separator bar is a blank entry that will never be referenced */
+            inx = inx+1; /* next in sequence */
+
+        }
+        m = m->next; /* next menu entry */
+        inx++; /* next in sequence */
+
+    }
+
+}
+
+static pa_pevthan menu_event_oeh;
+
+static void menu_event(pa_evtrec* ev)
+
+{
+
+    pa_evtrec er; /* outbound menu event */
+    metptr    mp; /* tracking entry for meny entries */
+
+    /* if not our window, send it on */
+    mp = xltmnu[ev->winid+MAXFIL]; /* get possible menu entry */
+    if (!mp) menu_event_oeh(ev); /* pass on if not a menu entry */
+    else { /* handle it here */
+
+        if (ev->etype == pa_etredraw) { /* redraw the window */
+
+            /* color the background */
+            pa_fcolor(mp->wg.wf, pa_white);
+            pa_frect(mp->wg.wf, 1, 1, pa_maxxg(mp->wg.wf),
+                      pa_maxyg(mp->wg.wf));
+            /* outline */
+            pa_fcolor(mp->wg.wf, pa_black);
+            pa_cursorg(mp->wg.wf,
+                       pa_maxxg(mp->wg.wf)/2-pa_strsiz(mp->wg.wf, mp->wg.title)/2,
+                       pa_maxyg(mp->wg.wf)/2-pa_chrsizy(mp->wg.wf)/2);
+            fprintf(mp->wg.wf, "%s", mp->wg.title); /* place button title */
+
+        } else if (ev->etype == pa_etmouba && ev->amoubn) {
+
+            /* send event back to parent window */
+            er.etype = pa_etbutton; /* set button event */
+            er.butid = mp->wg.id; /* set id */
+            pa_sendevent(mp->wg.parent, &er); /* send the event to the parent */
+
+            /* process button press */
+            mp->wg.pressed = TRUE;
+            pa_fcolor(mp->wg.wf, pa_black);
+            pa_frrect(mp->wg.wf, 3, 3, pa_maxxg(mp->wg.wf)-3,
+                     pa_maxyg(mp->wg.wf)-3, 20, 20);
+            pa_fcolor(mp->wg.wf, pa_white);
+            pa_cursorg(mp->wg.wf,
+                       pa_maxxg(mp->wg.wf)/2-pa_strsiz(mp->wg.wf, mp->wg.title)/2,
+                       pa_maxyg(mp->wg.wf)/2-pa_chrsizy(mp->wg.wf)/2);
+            fprintf(mp->wg.wf, "%s", mp->wg.title); /* place button title */
+
+        } else if (ev->etype == pa_etmoubd) {
+
+            mp->wg.pressed = FALSE;
+            pa_fcolor(mp->wg.wf, pa_white);
+            pa_frrect(mp->wg.wf, 3, 3, pa_maxxg(mp->wg.wf)-3,
+                     pa_maxyg(mp->wg.wf)-3, 20, 20);
+            pa_fcolor(mp->wg.wf, pa_black);
+            pa_cursorg(mp->wg.wf,
+                       pa_maxxg(mp->wg.wf)/2-pa_strsiz(mp->wg.wf, mp->wg.title)/2,
+                       pa_maxyg(mp->wg.wf)/2-pa_chrsizy(mp->wg.wf)/2);
+            fprintf(mp->wg.wf, "%s", mp->wg.title); /* place button title */
+
+        }
+
+    }
+
+}
+
+/* open menu widget onscreen */
+void openmenu(FILE* f, int x1, int y1, int x2, int y2, metptr mp)
+
+{
+
+    mp->wg.wid = pa_getwid(); /* allocate a buried wid */
+    pa_openwin(&stdin, &mp->wg.wf, f, mp->wg.wid); /* open widget window */
+    mp->wg.parent = f; /* set parent file */
+    mp->wg.id = mp->id; /* set button widget id */
+    xltmnu[mp->wg.wid+MAXFIL] = mp; /* set the tracking entry for window */
+    pa_buffer(mp->wg.wf, FALSE); /* turn off buffering */
+    pa_auto(mp->wg.wf, FALSE); /* turn off auto */
+    pa_curvis(mp->wg.wf, FALSE); /* turn off cursor */
+    pa_font(mp->wg.wf, PA_FONT_SIGN); /* set button font */
+    pa_bold(mp->wg.wf, TRUE); /* set bold font */
+    pa_setposg(mp->wg.wf, x1, y1); /* place at position */
+    pa_setsizg(mp->wg.wf, x2-x1, y2-y1); /* set size */
+    pa_frame(mp->wg.wf, FALSE); /* turn off frame */
+    pa_binvis(mp->wg.wf); /* no background write */
+    pa_linewidth(mp->wg.wf, 3); /* thicker lines */
+
+}
+
+/* activate the top level menu onscreen */
+void actmenu(FILE* f)
+
+{
+
+    winptr win; /* pointer to windows context */
+
+    win = txt2win(f); /* get window context */
+
+    metptr mp; /* menu pointer */
+    int x, y;  /* running position of menu entries */
+    int w;     /* width of menu face text */
+
+    x = 1; /* set initial meny bar position */
+    y = 1;
+    mp = win->metlst; /* index top of menu list */
+    while (mp) { /* traverse top level list */
+
+/* this is not correct, we need the size of sign font */
+        w = pa_strsiz(f, mp->wg.title); /* find width of face text */
+        if (x+w+10 > pa_maxxg(f))  { /* too big, skip to next line */
+
+            y = y+win->linespace+10; /* next line */
+            x = 1; /* start of line */
+
+        }
+        /* open menu item here */
+        openmenu(f, x, y, x+w+10, y+win->linespace+10, mp);
+        x = x+w+10; /* go next menu position */
+        mp = mp->next; /* next top menu item */
+
+    }
+
+}
+
 void pa_menu(FILE* f, pa_menuptr m)
 
 {
+
+    winptr win; /* pointer to windows context */
+    metptr mp;  /* pointer to menu tracking entry */
+
+    win = txt2win(f); /* get window context */
+    if (win->metlst) { /* distroy previous menu */
+
+        /* dispose of menu tracking entries */
+        while (win->metlst) {
+
+            mp = win->metlst; /* remove top entry */
+            win->metlst = win->metlst->next; /* gap out */
+            ifree(mp); /* free the entry */
+
+        }
+
+    }
+    if (m) { /* there is a new menu to activate */
+
+        /* make internal copy of menu */
+        createmenu(win, m);
+        /* activate top level menu */
+        actmenu(f);
+
+    }
 
 }
 
@@ -10894,6 +11080,7 @@ static void pa_init_graphics(int argc, char *argv[])
 
         /* clear window logical number translator table */
         xltwin[fi] = -1; /* set unoccupied */
+        xltmnu[fi] = NULL; /* set no menu entry */
 
     }
 
@@ -11014,6 +11201,9 @@ static void pa_init_graphics(int argc, char *argv[])
     joyax = 0;
     joyay = 0;
     joyaz = 0;
+
+    /* override the event handler for menus */
+    pa_eventsover(menu_event, &menu_event_oeh);
 
 }
 
