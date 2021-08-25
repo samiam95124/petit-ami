@@ -3009,7 +3009,7 @@ static void opnwin(int fn, int pfn, int wid)
 
     /* set menu line spacing now, from our choosen font sized from the window.
        This then won't be reset by the client. */
-    win->menuspcy = win->charspace+EXTRAMENUY;
+    win->menuspcy = win->linespace+EXTRAMENUY;
 
     /* set parent window, either the given or the root window */
     if (pwin) pw = pwin->xwhan; /* given */
@@ -3227,35 +3227,23 @@ static void actmenu(FILE* f)
 
     winptr win; /* pointer to windows context */
     metptr mp;  /* menu pointer */
-    int x, y;   /* running position of menu entries */
+    int x;      /* running position of menu entries */
     int w;      /* width of menu face text */
-    int first;  /* first entry on line */
 
     win = txt2win(f); /* get window context */
-    x = 1; /* set initial meny bar position */
-    y = 1;
+    x = 1; /* set initial menu bar position */
     mp = win->metlst; /* index top of menu list */
-    first = TRUE; /* set first on line */
     while (mp) { /* traverse top level list */
 
         w = pa_strsiz(f, mp->wg.title); /* find width of face text */
-        if (x+w+EXTRAMENUX > pa_maxxg(f))  { /* too big, skip to next line */
-
-            y = y+win->menuspcy; /* next line */
-            x = 1; /* start of line */
-            first = TRUE; /* set first on line */
-
-        }
         /* open menu item here */
-        openmenu(f, x, y, x+w+EXTRAMENUX, y+win->menuspcy, mp);
+        openmenu(f, x, 1, x+w+EXTRAMENUX, win->menuspcy, mp);
         x = x+w+EXTRAMENUX; /* go next menu position */
         mp = mp->next; /* next top menu item */
-        first = FALSE; /* set not first on line */
 
     }
-    if (!first) y = y+win->linespace+EXTRAMENUX; /* next line */
     /* draw separator line */
-    pa_line(f, 1, y, pa_maxxg(f), y);
+    pa_line(f, 1, win->menuspcy, pa_maxxg(f), win->menuspcy);
 
 }
 
@@ -9158,6 +9146,7 @@ static void mettrk(metptr* root, int inx, pa_menuptr m, metptr* nm)
 
     mp = imalloc(sizeof(metrec)); /* get a new tracking entry */
     insend(root, mp); /* insert to end */
+    mp->branch = NULL; /* clear branch */
     mp->inx = inx; /* place menu index */
     mp->onoff = m->onoff; /* place on/off highlighter */
     mp->select = FALSE; /* place status of select (off) */
