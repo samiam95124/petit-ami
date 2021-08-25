@@ -291,6 +291,7 @@ typedef struct widget {
 typedef struct metrec {
 
     struct metrec* next;   /* next entry */
+    struct metrec* branch; /* menu branch */
     int            inx;    /* index position, 0-n, of item */
     int            onoff;  /* the item is on-off highlighted */
     int            select; /* the current on/off state of the highlight */
@@ -622,6 +623,7 @@ static xevtque*   freque;         /* free XEvent queue entries list */
 static xevtque*   evtque;         /* XEvent input save queue */
 static paevtque*  paqfre;         /* free XEvent queue entries list */
 static paevtque*  paqevt;         /* XEvent input save queue */
+static pa_pevthan menu_event_oeh; /* event callback save for menus */
 
 /* memory statistics/diagnostics */
 static unsigned long memusd;    /* total memory in use for malloc */
@@ -3099,6 +3101,157 @@ static void openio(FILE* infile, FILE* outfile, int ifn, int ofn, int pfn,
     if (xltwin[wid+MAXFIL] >= 0 && xltwin[wid+MAXFIL] != ofn) error(ewinuse); /* flag error */
     xltwin[wid+MAXFIL] = ofn; /* pin the window to the output file */
     filwin[ofn] = wid;
+
+}
+
+/** ****************************************************************************
+
+Menu event handler
+
+This routine is called as a plug-in to the event handler chain. The events for
+a menu item widget are performed.
+
+*******************************************************************************/
+
+static void menu_event(pa_evtrec* ev)
+
+{
+
+    pa_evtrec er; /* outbound menu event */
+    metptr    mp; /* tracking entry for meny entries */
+
+    /* if not our window, send it on */
+    mp = xltmnu[ev->winid+MAXFIL]; /* get possible menu entry */
+    if (!mp) menu_event_oeh(ev); /* pass on if not a menu entry */
+    else { /* handle it here */
+
+        if (ev->etype == pa_etredraw) { /* redraw the window */
+
+            /* color the background */
+            pa_fcolor(mp->wg.wf, pa_white);
+            pa_frect(mp->wg.wf, 1, 1, pa_maxxg(mp->wg.wf),
+                      pa_maxyg(mp->wg.wf));
+            /* outline */
+            pa_fcolor(mp->wg.wf, pa_black);
+            pa_cursorg(mp->wg.wf,
+                       pa_maxxg(mp->wg.wf)/2-pa_strsiz(mp->wg.wf, mp->wg.title)/2,
+                       pa_maxyg(mp->wg.wf)/2-pa_chrsizy(mp->wg.wf)/2);
+            fprintf(mp->wg.wf, "%s", mp->wg.title); /* place button title */
+
+        } else if (ev->etype == pa_etmouba && ev->amoubn) {
+
+            if (mp->branch) {
+            /* send event back to parent window */
+            er.etype = pa_etmenus; /* set button event */
+            er.butid = mp->wg.id; /* set id */
+            pa_sendevent(mp->wg.parent, &er); /* send the event to the parent */
+
+            /* process button press */
+            mp->wg.pressed = TRUE;
+            pa_fcolor(mp->wg.wf, pa_black);
+            pa_frect(mp->wg.wf, 1, 1, pa_maxxg(mp->wg.wf), pa_maxyg(mp->wg.wf));
+            pa_fcolor(mp->wg.wf, pa_white);
+            pa_cursorg(mp->wg.wf,
+                       pa_maxxg(mp->wg.wf)/2-pa_strsiz(mp->wg.wf, mp->wg.title)/2,
+                       pa_maxyg(mp->wg.wf)/2-pa_chrsizy(mp->wg.wf)/2);
+            fprintf(mp->wg.wf, "%s", mp->wg.title); /* place button title */
+
+        } else if (ev->etype == pa_etmoubd) {
+
+            mp->wg.pressed = FALSE;
+            pa_fcolor(mp->wg.wf, pa_white);
+            pa_frect(mp->wg.wf, 1, 1, pa_maxxg(mp->wg.wf), pa_maxyg(mp->wg.wf));
+            pa_fcolor(mp->wg.wf, pa_black);
+            pa_cursorg(mp->wg.wf,
+                       pa_maxxg(mp->wg.wf)/2-pa_strsiz(mp->wg.wf, mp->wg.title)/2,
+                       pa_maxyg(mp->wg.wf)/2-pa_chrsizy(mp->wg.wf)/2);
+            fprintf(mp->wg.wf, "%s", mp->wg.title); /* place button title */
+
+        }
+
+    }
+
+}
+
+/** ****************************************************************************
+
+Open menu item as window
+
+The onscreen menu consists of a series of widgets representing menu items, each
+in its own window. This routine opens a window at the given location on screen,
+then prepares it to act as a widget. The actual drawing of the contents and
+running event actions is left to the menu event handler.
+
+*******************************************************************************/
+
+void openmenu(FILE* f, int x1, int y1, int x2, int y2, metptr mp)
+
+{
+
+    mp->wg.wid = pa_getwid(); /* allocate a buried wid */
+    pa_openwin(&stdin, &mp->wg.wf, f, mp->wg.wid); /* open widget window */
+    mp->wg.parent = f; /* set parent file */
+    mp->wg.id = mp->id; /* set button widget id */
+    xltmnu[mp->wg.wid+MAXFIL] = mp; /* set the tracking entry for window */
+    pa_buffer(mp->wg.wf, FALSE); /* turn off buffering */
+    pa_auto(mp->wg.wf, FALSE); /* turn off auto */
+    pa_curvis(mp->wg.wf, FALSE); /* turn off cursor */
+    pa_font(mp->wg.wf, PA_FONT_SIGN); /* set button font */
+    pa_bold(mp->wg.wf, TRUE); /* set bold font */
+    pa_setposg(mp->wg.wf, x1, y1); /* place at position */
+    pa_setsizg(mp->wg.wf, x2-x1, y2-y1); /* set size */
+    pa_frame(mp->wg.wf, FALSE); /* turn off frame */
+    pa_binvis(mp->wg.wf); /* no background write */
+    pa_linewidth(mp->wg.wf, 3); /* thicker lines */
+
+}
+
+/** ****************************************************************************
+
+Activate onscreen menu for window
+
+Takes a window file. The onscreen menu for the window, if it exists, is
+presented in the window. Only the top level menu items are presented. The lower
+level menus are activated as needed by the menu event handler.
+
+*******************************************************************************/
+
+void actmenu(FILE* f)
+
+{
+
+    winptr win; /* pointer to windows context */
+    metptr mp;  /* menu pointer */
+    int x, y;   /* running position of menu entries */
+    int w;      /* width of menu face text */
+    int first;  /* first entry on line */
+
+    win = txt2win(f); /* get window context */
+    x = 1; /* set initial meny bar position */
+    y = 1;
+    mp = win->metlst; /* index top of menu list */
+    first = TRUE; /* set first on line */
+    while (mp) { /* traverse top level list */
+
+/* this is not correct, we need the size of sign font */
+        w = pa_strsiz(f, mp->wg.title); /* find width of face text */
+        if (x+w+10 > pa_maxxg(f))  { /* too big, skip to next line */
+
+            y = y+win->linespace+10; /* next line */
+            x = 1; /* start of line */
+            first = TRUE; /* set first on line */
+
+        }
+        /* open menu item here */
+        openmenu(f, x, y, x+w+10, y+win->linespace+10, mp);
+        x = x+w+10; /* go next menu position */
+        mp = mp->next; /* next top menu item */
+        first = FALSE; /* set not first on line */
+
+    }
+    if (!first) y = y+win->linespace+10; /* next line */
+    /* draw separator line */
+    pa_line(f, 1, y, pa_maxxg(f), y);
 
 }
 
@@ -8973,16 +9126,34 @@ deleted.
 
 *******************************************************************************/
 
+/* insert at list end */
+static void insend(metptr* root, metptr mp)
+
+{
+
+    metptr lp; /* last entry */
+
+    mp->next = NULL; /* clear next */
+    if (*root) {
+
+        /* find last entry */
+        lp = *root;
+        while (lp->next) lp = lp->next;
+        lp->next = mp; /* set new last */
+
+    } else *root = mp; /* insert only entry */
+
+}
+
 /* create menu tracking entry */
-static void mettrk(winptr win, int inx, pa_menuptr m)
+static void mettrk(metptr* root, int inx, pa_menuptr m, metptr* nm)
 
 {
 
     metptr mp; /* menu tracking entry pointer */
 
     mp = imalloc(sizeof(metrec)); /* get a new tracking entry */
-    mp->next = win->metlst; /* push onto tracking list */
-    win->metlst = mp;
+    insend(root, mp); /* insert to end */
     mp->inx = inx; /* place menu index */
     mp->onoff = m->onoff; /* place on/off highlighter */
     mp->select = FALSE; /* place status of select (off) */
@@ -8999,27 +9170,29 @@ static void mettrk(winptr win, int inx, pa_menuptr m)
     /* now tie the last entry to this if indicated */
     if (mp->next) /* there is a next entry */
         if (mp->next->oneof == mp->next) mp->next->oneof = mp;
+    *nm = mp; /* pass back created entry */
 
 }
 
 /* create menu list */
-static void createmenu(winptr win, pa_menuptr m)
+static void createmenu(metptr* root, pa_menuptr m)
 
 {
 
-    int   inx; /* index number for this menu */
+    int    inx; /* index number for this menu */
+    metptr mp;  /* pointer to menu tracking entry */
 
     inx = 0; /* set first in sequence */
     while (m) { /* add menu item */
 
         if (m->branch) { /* handle submenu */
 
-            createmenu(win, m->branch); /* create submenu */
-            mettrk(win, inx, m); /* enter that into tracking */
+            mettrk(root, inx, m, &mp); /* enter that into tracking */
+            createmenu(&mp->branch, m->branch); /* create submenu */
 
         } else { /* handle terminal menu */
 
-            mettrk(win, inx, m); /* enter that into tracking */
+            mettrk(root, inx, m, &mp); /* enter that into tracking */
 
         }
         if (m->bar) { /* add separator bar */
@@ -9030,127 +9203,6 @@ static void createmenu(winptr win, pa_menuptr m)
         }
         m = m->next; /* next menu entry */
         inx++; /* next in sequence */
-
-    }
-
-}
-
-static pa_pevthan menu_event_oeh;
-
-static void menu_event(pa_evtrec* ev)
-
-{
-
-    pa_evtrec er; /* outbound menu event */
-    metptr    mp; /* tracking entry for meny entries */
-
-    /* if not our window, send it on */
-    mp = xltmnu[ev->winid+MAXFIL]; /* get possible menu entry */
-    if (!mp) menu_event_oeh(ev); /* pass on if not a menu entry */
-    else { /* handle it here */
-
-        if (ev->etype == pa_etredraw) { /* redraw the window */
-
-            /* color the background */
-            pa_fcolor(mp->wg.wf, pa_white);
-            pa_frect(mp->wg.wf, 1, 1, pa_maxxg(mp->wg.wf),
-                      pa_maxyg(mp->wg.wf));
-            /* outline */
-            pa_fcolor(mp->wg.wf, pa_black);
-            pa_cursorg(mp->wg.wf,
-                       pa_maxxg(mp->wg.wf)/2-pa_strsiz(mp->wg.wf, mp->wg.title)/2,
-                       pa_maxyg(mp->wg.wf)/2-pa_chrsizy(mp->wg.wf)/2);
-            fprintf(mp->wg.wf, "%s", mp->wg.title); /* place button title */
-
-        } else if (ev->etype == pa_etmouba && ev->amoubn) {
-
-            /* send event back to parent window */
-            er.etype = pa_etbutton; /* set button event */
-            er.butid = mp->wg.id; /* set id */
-            pa_sendevent(mp->wg.parent, &er); /* send the event to the parent */
-
-            /* process button press */
-            mp->wg.pressed = TRUE;
-            pa_fcolor(mp->wg.wf, pa_black);
-            pa_frrect(mp->wg.wf, 3, 3, pa_maxxg(mp->wg.wf)-3,
-                     pa_maxyg(mp->wg.wf)-3, 20, 20);
-            pa_fcolor(mp->wg.wf, pa_white);
-            pa_cursorg(mp->wg.wf,
-                       pa_maxxg(mp->wg.wf)/2-pa_strsiz(mp->wg.wf, mp->wg.title)/2,
-                       pa_maxyg(mp->wg.wf)/2-pa_chrsizy(mp->wg.wf)/2);
-            fprintf(mp->wg.wf, "%s", mp->wg.title); /* place button title */
-
-        } else if (ev->etype == pa_etmoubd) {
-
-            mp->wg.pressed = FALSE;
-            pa_fcolor(mp->wg.wf, pa_white);
-            pa_frrect(mp->wg.wf, 3, 3, pa_maxxg(mp->wg.wf)-3,
-                     pa_maxyg(mp->wg.wf)-3, 20, 20);
-            pa_fcolor(mp->wg.wf, pa_black);
-            pa_cursorg(mp->wg.wf,
-                       pa_maxxg(mp->wg.wf)/2-pa_strsiz(mp->wg.wf, mp->wg.title)/2,
-                       pa_maxyg(mp->wg.wf)/2-pa_chrsizy(mp->wg.wf)/2);
-            fprintf(mp->wg.wf, "%s", mp->wg.title); /* place button title */
-
-        }
-
-    }
-
-}
-
-/* open menu widget onscreen */
-void openmenu(FILE* f, int x1, int y1, int x2, int y2, metptr mp)
-
-{
-
-    mp->wg.wid = pa_getwid(); /* allocate a buried wid */
-    pa_openwin(&stdin, &mp->wg.wf, f, mp->wg.wid); /* open widget window */
-    mp->wg.parent = f; /* set parent file */
-    mp->wg.id = mp->id; /* set button widget id */
-    xltmnu[mp->wg.wid+MAXFIL] = mp; /* set the tracking entry for window */
-    pa_buffer(mp->wg.wf, FALSE); /* turn off buffering */
-    pa_auto(mp->wg.wf, FALSE); /* turn off auto */
-    pa_curvis(mp->wg.wf, FALSE); /* turn off cursor */
-    pa_font(mp->wg.wf, PA_FONT_SIGN); /* set button font */
-    pa_bold(mp->wg.wf, TRUE); /* set bold font */
-    pa_setposg(mp->wg.wf, x1, y1); /* place at position */
-    pa_setsizg(mp->wg.wf, x2-x1, y2-y1); /* set size */
-    pa_frame(mp->wg.wf, FALSE); /* turn off frame */
-    pa_binvis(mp->wg.wf); /* no background write */
-    pa_linewidth(mp->wg.wf, 3); /* thicker lines */
-
-}
-
-/* activate the top level menu onscreen */
-void actmenu(FILE* f)
-
-{
-
-    winptr win; /* pointer to windows context */
-
-    win = txt2win(f); /* get window context */
-
-    metptr mp; /* menu pointer */
-    int x, y;  /* running position of menu entries */
-    int w;     /* width of menu face text */
-
-    x = 1; /* set initial meny bar position */
-    y = 1;
-    mp = win->metlst; /* index top of menu list */
-    while (mp) { /* traverse top level list */
-
-/* this is not correct, we need the size of sign font */
-        w = pa_strsiz(f, mp->wg.title); /* find width of face text */
-        if (x+w+10 > pa_maxxg(f))  { /* too big, skip to next line */
-
-            y = y+win->linespace+10; /* next line */
-            x = 1; /* start of line */
-
-        }
-        /* open menu item here */
-        openmenu(f, x, y, x+w+10, y+win->linespace+10, mp);
-        x = x+w+10; /* go next menu position */
-        mp = mp->next; /* next top menu item */
 
     }
 
@@ -9179,7 +9231,7 @@ void pa_menu(FILE* f, pa_menuptr m)
     if (m) { /* there is a new menu to activate */
 
         /* make internal copy of menu */
-        createmenu(win, m);
+        createmenu(&win->metlst, m);
         /* activate top level menu */
         actmenu(f);
 
