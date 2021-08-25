@@ -151,8 +151,10 @@ static enum { /* debug levels */
    to determine the character height. Note the point size was choosen to most
    closely match xterm. */
 #define POINT  (0.353) /* point size in mm */
-#define CONPNT 18/*11.5*/    /* height of console font */
-#define STRIKE (1.5)  /* strikeout percentage (from top of cell to baseline */
+#define CONPNT 18/*11.5*/ /* height of console font */
+#define STRIKE (1.5)      /* strikeout percentage (from top of cell to baseline */
+#define EXTRAMENUY 10     /* extra space for menu bar y */
+#define EXTRAMENUX 10     /* extra space for menu bar x */
 
 /*
  * Configurable parameters
@@ -403,6 +405,7 @@ typedef struct winrec {
     int          chrspcy;           /* extra space between lines */
     int          curspace;          /* size of cursor, in pixels */
     int          baseoff;           /* font baseline offset from top */
+    int          menuspcy;          /* amount of space for menu in y (if exists) */
     int          shift;             /* state of shift key */
     int          cntrl;             /* state of control key */
     int          fcurdwn;           /* cursor on screen flag */
@@ -3001,9 +3004,12 @@ static void opnwin(int fn, int pfn, int wid)
 
     /* set buffer size required for character spacing at default character grid
        size */
-
     win->gmaxxg = maxxd*win->charspace;
     win->gmaxyg = maxyd*win->linespace;
+
+    /* set menu line spacing now, from our choosen font sized from the window.
+       This then won't be reset by the client. */
+    win->menuspcy = win->charspace+EXTRAMENUY;
 
     /* set parent window, either the given or the root window */
     if (pwin) pw = pwin->xwhan; /* given */
@@ -3140,7 +3146,6 @@ static void menu_event(pa_evtrec* ev)
 
         } else if (ev->etype == pa_etmouba && ev->amoubn) {
 
-            if (mp->branch) {
             /* send event back to parent window */
             er.etype = pa_etmenus; /* set button event */
             er.butid = mp->wg.id; /* set id */
@@ -3184,7 +3189,7 @@ running event actions is left to the menu event handler.
 
 *******************************************************************************/
 
-void openmenu(FILE* f, int x1, int y1, int x2, int y2, metptr mp)
+static void openmenu(FILE* f, int x1, int y1, int x2, int y2, metptr mp)
 
 {
 
@@ -3216,7 +3221,7 @@ level menus are activated as needed by the menu event handler.
 
 *******************************************************************************/
 
-void actmenu(FILE* f)
+static void actmenu(FILE* f)
 
 {
 
@@ -3233,23 +3238,22 @@ void actmenu(FILE* f)
     first = TRUE; /* set first on line */
     while (mp) { /* traverse top level list */
 
-/* this is not correct, we need the size of sign font */
         w = pa_strsiz(f, mp->wg.title); /* find width of face text */
-        if (x+w+10 > pa_maxxg(f))  { /* too big, skip to next line */
+        if (x+w+EXTRAMENUX > pa_maxxg(f))  { /* too big, skip to next line */
 
-            y = y+win->linespace+10; /* next line */
+            y = y+win->menuspcy; /* next line */
             x = 1; /* start of line */
             first = TRUE; /* set first on line */
 
         }
         /* open menu item here */
-        openmenu(f, x, y, x+w+10, y+win->linespace+10, mp);
-        x = x+w+10; /* go next menu position */
+        openmenu(f, x, y, x+w+EXTRAMENUX, y+win->menuspcy, mp);
+        x = x+w+EXTRAMENUX; /* go next menu position */
         mp = mp->next; /* next top menu item */
         first = FALSE; /* set not first on line */
 
     }
-    if (!first) y = y+win->linespace+10; /* next line */
+    if (!first) y = y+win->linespace+EXTRAMENUX; /* next line */
     /* draw separator line */
     pa_line(f, 1, y, pa_maxxg(f), y);
 
@@ -3278,7 +3282,7 @@ characters on the screen to spaces with the current colors and attributes.
 
 *******************************************************************************/
 
-void iclear(winptr win)
+static void iclear(winptr win)
 
 {
 
@@ -3323,7 +3327,7 @@ to the window.
 
 *******************************************************************************/
 
-void iscrollg(winptr win, int x, int y)
+static void iscrollg(winptr win, int x, int y)
 
 {
 
@@ -3438,7 +3442,7 @@ Moves the cursor to the specified x and y location.
 
 *******************************************************************************/
 
-void icursor(winptr win, int x, int y)
+static void icursor(winptr win, int x, int y)
 
 {
 
@@ -3462,7 +3466,7 @@ Moves the cursor to the specified x and y location in pixels.
 
 *******************************************************************************/
 
-void icursorg(winptr win, int x, int y)
+static void icursorg(winptr win, int x, int y)
 
 {
 
