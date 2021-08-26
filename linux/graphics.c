@@ -2750,6 +2750,23 @@ static void restore(winptr win) /* window to restore */
 
 }
 
+/*******************************************************************************
+
+Display window
+
+Presents a window, and sends it a first paint message. Used to process the
+delayed window display function.
+
+*******************************************************************************/
+
+static void winvis(winptr win)
+
+{
+
+    /* placeholder */
+
+}
+
 /** ****************************************************************************
 
 Initalize screen
@@ -3846,6 +3863,8 @@ static void plcchr(winptr win, char c)
     int    cs; /* character spacing */
 
     sc = win->screens[win->curupd-1]; /* index current screen */
+    if (!win->visible) winvis(win); /* make sure we are displayed */
+    /* handle special character cases first */
     if (c == '\r') {
 
         /* carriage return, position to extreme left */
@@ -5099,7 +5118,12 @@ void pa_select(FILE* f, int u, int d)
 
     }
     /* if the screen has changed, restore it */
-    if (win->curdsp != ld) restore(win);
+    if (win->curdsp != ld) {
+
+        if (!win->visible) winvis(win); /* make sure we are displayed */
+        else restore(win);
+
+    }
 
 }
 
@@ -5138,6 +5162,7 @@ void pa_wrtstr(FILE* f, char* s)
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
     if (sc->autof) error(estrato); /* autowrap is on */
+    if (!win->visible) winvis(win); /* make sure we are displayed */
     l = strlen(s); /* get length of string */
     if (win->bufmod) { /* buffer is active */
 
@@ -5314,8 +5339,6 @@ Draws a single line in the foreground color.
 
 *******************************************************************************/
 
-typedef unsigned char lrgarr[100000];
-
 void pa_line(FILE* f, int x1, int y1, int x2, int y2)
 
 {
@@ -5351,6 +5374,7 @@ void pa_line(FILE* f, int x1, int y1, int x2, int y2)
     }
     if (indisp(win)) { /* do it again for the current screen */
 
+        if (!win->visible) winvis(win); /* make sure we are displayed */
         curoff(win); /* hide the cursor */
         XWLOCK();
         /* draw the line */
@@ -5409,6 +5433,7 @@ void pa_rect(FILE* f, int x1, int y1, int x2, int y2)
     }
     if (indisp(win)) { /* do it again for the current screen */
 
+        if (!win->visible) winvis(win); /* make sure we are displayed */
         curoff(win); /* hide the cursor */
         /* draw the rectangle */
         XWLOCK();
@@ -5467,6 +5492,7 @@ void pa_frect(FILE* f, int x1, int y1, int x2, int y2)
     }
     if (indisp(win)) { /* do it again for the current screen */
 
+        if (!win->visible) winvis(win); /* make sure we are displayed */
         curoff(win); /* hide the cursor */
         /* draw the rectangle */
         XWLOCK();
@@ -5548,6 +5574,7 @@ void pa_rrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
     }
     if (indisp(win)) { /* do it again for the current screen */
 
+        if (!win->visible) winvis(win); /* make sure we are displayed */
         curoff(win); /* hide the cursor */
         XWLOCK();
         /* stroke the sides */
@@ -5665,6 +5692,7 @@ void pa_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
         }
         if (indisp(win)) { /* do it again for the current screen */
 
+            if (!win->visible)  winvis(win); /* make sure we are displayed */
             curoff(win); /* hide the cursor */
             XWLOCK();
             /* middle rectangle */
@@ -5730,6 +5758,7 @@ void pa_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
         }
         if (indisp(win)) { /* do it again for the current screen */
 
+            if (!win->visible)  winvis(win); /* make sure we are displayed */
             curoff(win); /* hide the cursor */
             XWLOCK();
             /* middle rectangle */
@@ -5805,6 +5834,7 @@ void pa_ellipse(FILE* f, int x1, int y1, int x2, int y2)
     }
     if (indisp(win)) { /* do it again for the current screen */
 
+        if (!win->visible) winvis(win); /* make sure we are displayed */
         curoff(win); /* hide the cursor */
         /* draw the ellipse */
         XWLOCK();
@@ -5865,6 +5895,7 @@ void pa_fellipse(FILE* f, int x1, int y1, int x2, int y2)
     }
     if (indisp(win)) { /* do it again for the current screen */
 
+        if (!win->visible) winvis(win); /* make sure we are displayed */
         curoff(win); /* hide the cursor */
         /* draw the ellipse */
         XWLOCK();
@@ -5954,6 +5985,7 @@ void pa_arc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
         }
         if (indisp(win)) { /* do it again for the current screen */
 
+            if (!win->visible) winvis(win); /* make sure we are displayed */
             curoff(win); /* hide the cursor */
             /* draw the arc */
             XWLOCK();
@@ -6029,6 +6061,7 @@ void pa_farc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
         }
         if (indisp(win)) { /* do it again for the current screen */
 
+            if (!win->visible) winvis(win); /* make sure we are displayed */
             curoff(win); /* hide the cursor */
             /* draw the ellipse */
             XWLOCK();
@@ -6102,6 +6135,7 @@ void pa_fchord(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
         }
         if (indisp(win)) { /* do it again for the current screen */
 
+            if (!win->visible) winvis(win); /* make sure we are displayed */
             curoff(win); /* hide the cursor */
             /* draw the ellipse */
             XWLOCK();
@@ -6162,6 +6196,7 @@ void pa_ftriangle(FILE* f, int x1, int y1, int x2, int y2, int x3, int y3)
     }
     if (indisp(win)) { /* do it again for the current screen */
 
+        if (!win->visible) winvis(win); /* make sure we are displayed */
         curoff(win); /* hide the cursor */
         /* draw the ellipse */
         XWLOCK();
@@ -6211,6 +6246,7 @@ void pa_setpixel(FILE* f, int x, int y)
     }
     if (indisp(win)) { /* do it again for the current screen */
 
+        if (!win->visible) winvis(win); /* make sure we are displayed */
         curoff(win); /* hide the cursor */
         /* draw the pixel */
         XWLOCK();
@@ -6852,8 +6888,8 @@ void pa_writejust(FILE* f, const char* s, int n)
 
             if (indisp(win)) { /* do it again for the current screen */
 
+                if (!win->visible) winvis(win); /* make sure we are displayed */
                 curoff(win); /* hide the cursor */
-
                 if (sc->bmod != mdinvis) { /* background is visible */
 
                     XWLOCK();
@@ -6875,7 +6911,6 @@ void pa_writejust(FILE* f, const char* s, int n)
                     XWUNLOCK();
 
                 }
-
                 curon(win); /* show the cursor */
 
             }
@@ -7616,6 +7651,7 @@ void pa_picture(FILE* f, int p, int x1, int y1, int x2, int y2)
     }
     if (indisp(win)) { /* do it again for the current screen */
 
+        if (!win->visible) winvis(win); /* make sure we are displayed */
         curoff(win); /* hide the cursor */
         /* draw the rectangle */
         XWLOCK();
@@ -10125,6 +10161,10 @@ void pa_buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
+    winptr win; /* window record pointer */
+
+    win = txt2win(f); /* get window from file */
+    if (!win->visible) winvis(win); /* make sure we are displayed */
     /* override the event handler */
     pa_eventsover(button_event, &button_event_old);
     buttonw.title = s; /* place title */
@@ -11283,6 +11323,7 @@ static void pa_deinit_graphics()
 	   these, so that their content may be viewed */
 	if (!fend && fautohold) { /* process automatic exit sequence */
 
+        if (!win->visible) winvis(win); /* make sure we are displayed */
         /* construct final name for window */
         trmnam = imalloc(strlen(fini)+strlen(program_invocation_short_name)+1);
         strcpy(trmnam, fini); /* place first part */

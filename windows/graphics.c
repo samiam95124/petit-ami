@@ -5043,12 +5043,12 @@ static void iline(winptr win, int x1, int y1, int x2, int y2)
     /* rationalize the line to right/down */
     if (x1 > x2 || (x1 == x2 && y1 > y2)) { /* swap */
 
-       tx = x1;
-       ty = y1;
-       x1 = x2;
-       y1 = y2;
-       x2 = tx;
-       y2 = ty;
+        tx = x1;
+        ty = y1;
+        x1 = x2;
+        y1 = y2;
+        x2 = tx;
+        y2 = ty;
 
     }
     /* Try to compensate for windows not drawing line endings. */
@@ -5059,22 +5059,22 @@ static void iline(winptr win, int x1, int y1, int x2, int y2)
     else dx = +1;
     if (win->bufmod) { /* buffer is active */
 
-       /* set current position of origin */
-       b = MoveToEx(sc->bdc, x1-1, y1-1, NULL);
-       if (!b) winerr(); /* process windows error */
-       b = LineTo(sc->bdc, x2-1+dx, y2-1+dy);
-       if (!b) winerr(); /* process windows error */
+        /* set current position of origin */
+        b = MoveToEx(sc->bdc, x1-1, y1-1, NULL);
+        if (!b) winerr(); /* process windows error */
+        b = LineTo(sc->bdc, x2-1+dx, y2-1+dy);
+        if (!b) winerr(); /* process windows error */
 
     }
     if (indisp(win)) { /* do it again for the current screen */
 
-       if (!win->visible) winvis(win); /* make sure we are displayed */
-       curoff(win);
-       b = MoveToEx(win->devcon, x1-1, y1-1, NULL);
-       if (!b) winerr(); /* process windows error */
-       b = LineTo(win->devcon, x2-1+dx, y2-1+dy);
-       if (!b) winerr(); /* process windows error */
-       curon(win);
+        if (!win->visible) winvis(win); /* make sure we are displayed */
+        curoff(win);
+        b = MoveToEx(win->devcon, x1-1, y1-1, NULL);
+        if (!b) winerr(); /* process windows error */
+        b = LineTo(win->devcon, x2-1+dx, y2-1+dy);
+        if (!b) winerr(); /* process windows error */
+        curon(win);
 
     }
 
@@ -5159,38 +5159,38 @@ static void ifrect(winptr win, int x1, int y1, int x2, int y2)
     sc = win->screens[win->curupd-1];
     if (win->bufmod) { /* buffer is active */
 
-       /* for filled ellipse, the pen and brush settings are all wrong. we need
-         a single pixel pen and a background brush. we set and restore these */
-       r = SelectObject(sc->bdc, sc->fspen);
-       if (r == HGDI_ERROR) error(enosel);
-       r = SelectObject(sc->bdc, sc->fbrush);
-       if (r == HGDI_ERROR) error(enosel);
-       /* draw to buffer */
-       b = Rectangle(sc->bdc, x1-1, y1-1, x2, y2);
-       if (!b)  winerr(); /* process windows error */
-       /* restore */
-       r = SelectObject(sc->bdc, sc->fpen);
-       if (r == HGDI_ERROR) error(enosel);
-       r = SelectObject(sc->bdc, GetStockObject(NULL_BRUSH));
-       if (r == HGDI_ERROR) error(enosel);
+        /* for filled ellipse, the pen and brush settings are all wrong. we need
+           a single pixel pen and a background brush. we set and restore these */
+        r = SelectObject(sc->bdc, sc->fspen);
+        if (r == HGDI_ERROR) error(enosel);
+        r = SelectObject(sc->bdc, sc->fbrush);
+        if (r == HGDI_ERROR) error(enosel);
+        /* draw to buffer */
+        b = Rectangle(sc->bdc, x1-1, y1-1, x2, y2);
+        if (!b)  winerr(); /* process windows error */
+        /* restore */
+        r = SelectObject(sc->bdc, sc->fpen);
+        if (r == HGDI_ERROR) error(enosel);
+        r = SelectObject(sc->bdc, GetStockObject(NULL_BRUSH));
+        if (r == HGDI_ERROR) error(enosel);
 
     }
     /* draw to screen */
     if (indisp(win)) {
 
-       if (!win->visible) winvis(win); /* make sure we are displayed */
-       r = SelectObject(win->devcon, sc->fspen);
-       if (r == HGDI_ERROR) error(enosel);
-       r = SelectObject(win->devcon, sc->fbrush);
-       if (r == HGDI_ERROR) error(enosel);
-       curoff(win);
-       b = Rectangle(win->devcon, x1-1, y1-1, x2, y2);
-       if (!b) winerr(); /* process windows error */
-       curon(win);
-       r = SelectObject(win->devcon, sc->fpen);
-       if (r == HGDI_ERROR) error(enosel);
-       r = SelectObject(win->devcon, GetStockObject(NULL_BRUSH));
-       if (r == HGDI_ERROR) error(enosel);
+        if (!win->visible) winvis(win); /* make sure we are displayed */
+        r = SelectObject(win->devcon, sc->fspen);
+        if (r == HGDI_ERROR) error(enosel);
+        r = SelectObject(win->devcon, sc->fbrush);
+        if (r == HGDI_ERROR) error(enosel);
+        curoff(win);
+        b = Rectangle(win->devcon, x1-1, y1-1, x2, y2);
+        if (!b) winerr(); /* process windows error */
+        curon(win);
+        r = SelectObject(win->devcon, sc->fpen);
+        if (r == HGDI_ERROR) error(enosel);
+        r = SelectObject(win->devcon, GetStockObject(NULL_BRUSH));
+        if (r == HGDI_ERROR) error(enosel);
 
     }
 
@@ -5342,19 +5342,19 @@ static void iellipse(winptr win, int x1, int y1, int x2, int y2)
 
     if (win->bufmod) { /* buffer is active */
 
-       /* draw to buffer */
-       b = Ellipse(win->screens[win->curupd-1]->bdc, x1-1, y1-1, x2, y2);
-       if (!b) winerr(); /* process windows error */
+        /* draw to buffer */
+        b = Ellipse(win->screens[win->curupd-1]->bdc, x1-1, y1-1, x2, y2);
+        if (!b) winerr(); /* process windows error */
 
     }
     /* draw to screen */
     if (indisp(win)) {
 
-       if (!win->visible) winvis(win); /* make sure we are displayed */
-       curoff(win);
-       b = Ellipse(win->devcon, x1-1, y1-1, x2, y2);
-       if (!b) winerr(); /* process windows error */
-       curon(win);
+        if (!win->visible) winvis(win); /* make sure we are displayed */
+        curoff(win);
+        b = Ellipse(win->devcon, x1-1, y1-1, x2, y2);
+        if (!b) winerr(); /* process windows error */
+        curon(win);
 
     }
 
@@ -5738,38 +5738,38 @@ static void iftriangle(winptr win, int x1, int y1, int x2, int y2, int x3, int y
     pa[2].y = y3-1;
     if (win->bufmod) { /* buffer is active */
 
-       /* for filled shape, the pen and brush settings are all wrong. we need
-         a single pixel pen and a background brush. we set and restore these */
-       r = SelectObject(sc->bdc, sc->fspen);
-       if (r == HGDI_ERROR) error(enosel);
-       r = SelectObject(sc->bdc, sc->fbrush);
-       if (r == HGDI_ERROR) error(enosel);
-       /* draw to buffer */
-       b = Polygon(sc->bdc, pa, 3);
-       if (!b) winerr(); /* process windows error */
-       /* restore */
-       r = SelectObject(sc->bdc, sc->fpen);
-       if (r == HGDI_ERROR) error(enosel);
-       r = SelectObject(sc->bdc, GetStockObject(NULL_BRUSH));
-       if (r == HGDI_ERROR) error(enosel);
+        /* for filled shape, the pen and brush settings are all wrong. we need
+           a single pixel pen and a background brush. we set and restore these */
+        r = SelectObject(sc->bdc, sc->fspen);
+        if (r == HGDI_ERROR) error(enosel);
+        r = SelectObject(sc->bdc, sc->fbrush);
+        if (r == HGDI_ERROR) error(enosel);
+        /* draw to buffer */
+        b = Polygon(sc->bdc, pa, 3);
+        if (!b) winerr(); /* process windows error */
+        /* restore */
+        r = SelectObject(sc->bdc, sc->fpen);
+        if (r == HGDI_ERROR) error(enosel);
+        r = SelectObject(sc->bdc, GetStockObject(NULL_BRUSH));
+        if (r == HGDI_ERROR) error(enosel);
 
     }
     /* draw to screen */
     if (indisp(win)) {
 
-       if (!win->visible) winvis(win); /* make sure we are displayed */
-       r = SelectObject(win->devcon, sc->fspen);
-       if (r == HGDI_ERROR) error(enosel);
-       r = SelectObject(win->devcon, sc->fbrush);
-       if (r == HGDI_ERROR) error(enosel);
-       curoff(win);
-       b = Polygon(win->devcon, pa, 3);
-       if (!b) winerr(); /* process windows error */
-       curon(win);
-       r = SelectObject(win->devcon, sc->fpen);
-       if (r == HGDI_ERROR) error(enosel);
-       r = SelectObject(win->devcon, GetStockObject(NULL_BRUSH));
-       if (r == HGDI_ERROR) error(enosel);
+        if (!win->visible) winvis(win); /* make sure we are displayed */
+        r = SelectObject(win->devcon, sc->fspen);
+        if (r == HGDI_ERROR) error(enosel);
+        r = SelectObject(win->devcon, sc->fbrush);
+        if (r == HGDI_ERROR) error(enosel);
+        curoff(win);
+        b = Polygon(win->devcon, pa, 3);
+        if (!b) winerr(); /* process windows error */
+        curon(win);
+        r = SelectObject(win->devcon, sc->fpen);
+        if (r == HGDI_ERROR) error(enosel);
+        r = SelectObject(win->devcon, GetStockObject(NULL_BRUSH));
+        if (r == HGDI_ERROR) error(enosel);
 
     }
 
@@ -5804,20 +5804,20 @@ static void isetpixel(winptr win, int x, int y)
 
     if (win->bufmod)  { /* buffer is active */
 
-       /* paint buffer */
-       r = SetPixel(win->screens[win->curupd-1]->bdc, x-1, y-1,
-                    win->screens[win->curupd-1]->fcrgb);
-       if (r == -1) winerr(); /* process windows error */
+        /* paint buffer */
+        r = SetPixel(win->screens[win->curupd-1]->bdc, x-1, y-1,
+                     win->screens[win->curupd-1]->fcrgb);
+        if (r == -1) winerr(); /* process windows error */
 
     }
     /* paint screen */
     if (indisp(win)) {
 
-       if (!win->visible) winvis(win); /* make sure we are displayed */
-       curoff(win);
-       r = SetPixel(win->devcon, x-1, y-1, win->screens[win->curupd-1]->fcrgb);
-       if (r == -1) winerr(); /* process windows error */
-       curon(win);
+        if (!win->visible) winvis(win); /* make sure we are displayed */
+        curoff(win);
+        r = SetPixel(win->devcon, x-1, y-1, win->screens[win->curupd-1]->fcrgb);
+        if (r == -1) winerr(); /* process windows error */
+        curon(win);
 
     }
 
