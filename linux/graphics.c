@@ -2804,7 +2804,7 @@ static void iniscn(winptr win, scnptr sc)
 
     /* create graphics context for screen */
     XWLOCK();
-    sc->xcxt = XDefaultGC(padisplay, pascreen);
+    sc->xcxt = XCreateGC(padisplay, win->xwhan, 0, NULL);
     XSetFont(padisplay, sc->xcxt, win->xfont->fid);
     XWUNLOCK();
 
