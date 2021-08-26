@@ -9664,6 +9664,7 @@ static void opnwin(int fn, int pfn)
     b = SetWindowPos(win->winhan, 0, 0, 0, cr.right-cr.left, cr.bottom-cr.top,
                          SWP_NOMOVE | SWP_NOZORDER);
     if (!b) winerr(); /* process windows error */
+
 /* now handled in winvis */
 #if 0
     /* present the window */
@@ -9671,6 +9672,7 @@ static void opnwin(int fn, int pfn)
     /* send first paint message */
     b = UpdateWindow(win->winhan);
 #endif
+
     lockmain(); /* start exclusive access */
     /* set up global buffer parameters */
 

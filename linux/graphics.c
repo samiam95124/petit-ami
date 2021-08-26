@@ -2763,7 +2763,19 @@ static void winvis(winptr win)
 
 {
 
-    /* placeholder */
+    XEvent e; /* XWindow event */
+
+    /* present the window onscreen */
+    XWLOCK();
+    XMapWindow(padisplay, win->xwhan);
+    XFlush(padisplay);
+    XWUNLOCK();
+
+    /* wait for the window to be displayed */
+    do { peekxevt(&e); } while (e.type !=  MapNotify);
+
+    win->visible = TRUE; /* set now visible */
+    restore(win); /* restore window */
 
 }
 
@@ -2921,7 +2933,7 @@ static void opnwin(int fn, int pfn, int wid)
     winptr               pwin;  /* parent window pointer */
     XSetWindowAttributes xwsa;  /* XWindow set attributes */
     XWindowAttributes    xwga, xpwga; /* XWindow get attributes */
-    XEvent               e;           /* XWindow event */
+    XEvent               e;     /* XWindow event */
     char                 buf[250];
     Window               pw, rw;
     Window*              cwl;
@@ -3046,14 +3058,19 @@ static void opnwin(int fn, int pfn, int wid)
     /* hook close event from windows manager */
     win->delmsg = XInternAtom(padisplay, "WM_DELETE_WINDOW", FALSE);
     XSetWMProtocols(padisplay, win->xwhan, &win->delmsg, 1);
+    XWUNLOCK();
 
+/* now handled in winvis */
+#if 0
     /* present the window onscreen */
+    XWLOCK();
     XMapWindow(padisplay, win->xwhan);
     XFlush(padisplay);
     XWUNLOCK();
 
     /* wait for the window to be displayed */
     do { peekxevt(&e); } while (e.type !=  MapNotify);
+#endif
 
     /* find and save the frame parameters from the immediate/parent window.
        This may not work on some window managers */
@@ -3082,7 +3099,6 @@ static void opnwin(int fn, int pfn, int wid)
 
     iniscn(win, win->screens[0]); /* initalize screen buffer */
     restore(win); /* update to screen */
-    win->visible = TRUE; /* set not visible */
 
 }
 
