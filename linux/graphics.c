@@ -3179,10 +3179,14 @@ static void menu_event(pa_evtrec* ev)
 
         } else if (ev->etype == pa_etmouba && ev->amoubn) {
 
-            /* send event back to parent window */
-            er.etype = pa_etmenus; /* set button event */
-            er.butid = mp->wg.id; /* set id */
-            pa_sendevent(mp->wg.parent, &er); /* send the event to the parent */
+            if (!mp->branch) { /* not a branch entry */
+
+                /* send event back to parent window */
+                er.etype = pa_etmenus; /* set button event */
+                er.butid = mp->wg.id; /* set id */
+                pa_sendevent(mp->wg.parent, &er); /* send the event to the parent */
+
+            }
 
             /* process button press */
             mp->wg.pressed = TRUE;
@@ -3240,7 +3244,6 @@ static void openmenu(FILE* f, int x1, int y1, int x2, int y2, metptr mp)
     pa_setsizg(mp->wg.wf, x2-x1, y2-y1); /* set size */
     pa_frame(mp->wg.wf, FALSE); /* turn off frame */
     pa_binvis(mp->wg.wf); /* no background write */
-    pa_linewidth(mp->wg.wf, 3); /* thicker lines */
 
 }
 
