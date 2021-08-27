@@ -132,6 +132,7 @@ static enum { /* debug levels */
 //#define PRTFNT /* print internal fonts list */
 //#define PRTMEM /* print memory allocations at exit */
 //#define PRTWPM /* print window parameters on open */
+//#define NOWDELAY /* don't delay window presentation until drawn */
 
 /* the "standard character" sizes are used to form a pseudo-size for desktop
    character measurements in a graphical system. */
@@ -2767,6 +2768,7 @@ static void winvis(winptr win)
 
     XEvent e; /* XWindow event */
 
+#ifndef NOWDELAY
     /* present the window onscreen */
     XWLOCK();
     XMapWindow(padisplay, win->xwhan);
@@ -2778,6 +2780,7 @@ static void winvis(winptr win)
 
     win->visible = TRUE; /* set now visible */
     restore(win); /* restore window */
+#endif
 
 }
 
@@ -3063,7 +3066,7 @@ static void opnwin(int fn, int pfn, int wid)
     XWUNLOCK();
 
 /* now handled in winvis */
-#if 0
+#ifdef NOWDELAY
     /* present the window onscreen */
     XWLOCK();
     XMapWindow(padisplay, win->xwhan);
@@ -3080,6 +3083,7 @@ static void opnwin(int fn, int pfn, int wid)
     XQueryTree(padisplay, win->xwhan, &rw, &pw, &cwl, &ncw);
     XGetWindowAttributes(padisplay, pw, &xpwga);
     XGetWindowAttributes(padisplay, win->xwhan, &xwga);
+    XWUNLOCK();
 
     /* find net extra width of frame from client area */
     win->pfw = xpwga.width-xwga.width;
@@ -3096,6 +3100,7 @@ static void opnwin(int fn, int pfn, int wid)
 #endif
 
     /* set window title from program name */
+    XWLOCK();
     XStoreName(padisplay, win->xwhan, program_invocation_short_name);
     XWUNLOCK();
 
@@ -3227,10 +3232,14 @@ static void menu_event(pa_evtrec* ev)
                 fprintf(mp->wg.wf, "%s", mp->wg.title); /* place button title */
 
             }
-            if (mp == par->menu)
+            if (mp == par->menu) {
+
                 /* draw separator line at menu bottom */
+                pa_fcolor(mp->wg.wf, pa_black);
                 pa_line(mp->wg.wf, 1, pa_maxyg(mp->wg.wf), pa_maxxg(mp->wg.wf),
                         pa_maxyg(mp->wg.wf));
+
+            }
 
         } else if (ev->etype == pa_etmouba && ev->amoubn == 1) {
 
@@ -3330,15 +3339,18 @@ static void actmenu(FILE* f)
     metptr mp;  /* menu pointer */
     int x;      /* running position of menu entries */
     int w;      /* width of menu face text */
+    FILE* bf;   /* menu bar file */
 
     win = txt2win(f); /* get window context */
     /* open the menu bar */
-    openmenu(f, x, 1, pa_maxxg(f), win->menuspcy, win->menu);
+    openmenu(f, 1, 1, pa_maxxg(f), win->menuspcy+1, win->menu);
+    bf = win->menu->wg.wf; /* get the menu bar file */
     x = 1; /* set initial menu bar position */
     mp = win->metlst; /* index top of menu list */
     while (mp) { /* traverse top level list */
 
-        w = pa_strsiz(f, mp->wg.title); /* find width of face text */
+        /* find width of face text in menu bar terms */
+        w = pa_strsiz(bf, mp->wg.title);
         /* open menu item here */
         openmenu(f, x, 1, x+w+EXTRAMENUX, win->menuspcy, mp);
         x = x+w+EXTRAMENUX; /* go next menu position */
@@ -9668,6 +9680,7 @@ void pa_setsizg(FILE* f, int x, int y)
     do { peekxevt(&e); /* peek next event */
     } while (e.type != ConfigureNotify || e.xconfigure.width != x ||
              e.xconfigure.height != y);
+
     /* because this event may not reach pa_event() for some time, we have to
        set the dimensions now */
     if (!win->bufmod) {
