@@ -3202,27 +3202,39 @@ static void menu_event(pa_evtrec* ev)
 
     pa_evtrec er; /* outbound menu event */
     metptr    mp; /* tracking entry for meny entries */
+    winptr    par; /* window parent */
+
 
     /* if not our window, send it on */
     mp = xltmnu[ev->winid+MAXFIL]; /* get possible menu entry */
     if (!mp) menu_event_oeh(ev); /* pass on if not a menu entry */
     else { /* handle it here */
 
+        par = txt2win(mp->wg.parent); /* index parent window */
         if (ev->etype == pa_etredraw) { /* redraw the window */
 
             /* color the background */
             pa_fcolor(mp->wg.wf, pa_white);
             pa_frect(mp->wg.wf, 1, 1, pa_maxxg(mp->wg.wf),
                       pa_maxyg(mp->wg.wf));
-            /* outline */
-            pa_fcolor(mp->wg.wf, pa_black);
-            pa_cursorg(mp->wg.wf,
-                       pa_maxxg(mp->wg.wf)/2-pa_strsiz(mp->wg.wf, mp->wg.title)/2,
-                       pa_maxyg(mp->wg.wf)/2-pa_chrsizy(mp->wg.wf)/2);
-            fprintf(mp->wg.wf, "%s", mp->wg.title); /* place button title */
+            if (mp->wg.title) { /* there is a title */
 
-        } else if (ev->etype == pa_etmouba && ev->amoubn) {
+                /* place the title */
+                pa_fcolor(mp->wg.wf, pa_black);
+                pa_cursorg(mp->wg.wf,
+                           pa_maxxg(mp->wg.wf)/2-pa_strsiz(mp->wg.wf, mp->wg.title)/2,
+                           pa_maxyg(mp->wg.wf)/2-pa_chrsizy(mp->wg.wf)/2);
+                fprintf(mp->wg.wf, "%s", mp->wg.title); /* place button title */
 
+            }
+            if (mp == par->menu)
+                /* draw separator line at menu bottom */
+                pa_line(mp->wg.wf, 1, pa_maxyg(mp->wg.wf), pa_maxxg(mp->wg.wf),
+                        pa_maxyg(mp->wg.wf));
+
+        } else if (ev->etype == pa_etmouba && ev->amoubn == 1) {
+
+            /* mouse button 1 activation in window */
             if (!mp->branch) { /* not a branch entry */
 
                 /* send event back to parent window */
@@ -3232,26 +3244,35 @@ static void menu_event(pa_evtrec* ev)
 
             }
 
-            /* process button press */
-            mp->wg.pressed = TRUE;
-            pa_fcolor(mp->wg.wf, pa_black);
-            pa_frect(mp->wg.wf, 1, 1, pa_maxxg(mp->wg.wf), pa_maxyg(mp->wg.wf));
-            pa_fcolor(mp->wg.wf, pa_white);
-            pa_cursorg(mp->wg.wf,
-                       pa_maxxg(mp->wg.wf)/2-pa_strsiz(mp->wg.wf, mp->wg.title)/2,
-                       pa_maxyg(mp->wg.wf)/2-pa_chrsizy(mp->wg.wf)/2);
-            fprintf(mp->wg.wf, "%s", mp->wg.title); /* place button title */
+            if (mp != par->menu) { /* not the menu bar */
 
-        } else if (ev->etype == pa_etmoubd) {
+                /* process button press */
+                mp->wg.pressed = TRUE;
+                pa_fcolor(mp->wg.wf, pa_black);
+                pa_frect(mp->wg.wf, 1, 1, pa_maxxg(mp->wg.wf), pa_maxyg(mp->wg.wf));
+                pa_fcolor(mp->wg.wf, pa_white);
+                pa_cursorg(mp->wg.wf,
+                           pa_maxxg(mp->wg.wf)/2-pa_strsiz(mp->wg.wf, mp->wg.title)/2,
+                           pa_maxyg(mp->wg.wf)/2-pa_chrsizy(mp->wg.wf)/2);
+                fprintf(mp->wg.wf, "%s", mp->wg.title); /* place button title */
 
-            mp->wg.pressed = FALSE;
-            pa_fcolor(mp->wg.wf, pa_white);
-            pa_frect(mp->wg.wf, 1, 1, pa_maxxg(mp->wg.wf), pa_maxyg(mp->wg.wf));
-            pa_fcolor(mp->wg.wf, pa_black);
-            pa_cursorg(mp->wg.wf,
-                       pa_maxxg(mp->wg.wf)/2-pa_strsiz(mp->wg.wf, mp->wg.title)/2,
-                       pa_maxyg(mp->wg.wf)/2-pa_chrsizy(mp->wg.wf)/2);
-            fprintf(mp->wg.wf, "%s", mp->wg.title); /* place button title */
+            }
+
+        } else if (ev->etype == pa_etmoubd && ev->dmoubn == 1) {
+
+            /* mouse button 1 deactivation in window */
+            if (mp != par->menu) { /* not the menu bar */
+
+                mp->wg.pressed = FALSE;
+                pa_fcolor(mp->wg.wf, pa_white);
+                pa_frect(mp->wg.wf, 1, 1, pa_maxxg(mp->wg.wf), pa_maxyg(mp->wg.wf));
+                pa_fcolor(mp->wg.wf, pa_black);
+                pa_cursorg(mp->wg.wf,
+                           pa_maxxg(mp->wg.wf)/2-pa_strsiz(mp->wg.wf, mp->wg.title)/2,
+                           pa_maxyg(mp->wg.wf)/2-pa_chrsizy(mp->wg.wf)/2);
+                fprintf(mp->wg.wf, "%s", mp->wg.title); /* place button title */
+
+            }
 
         }
 
@@ -3311,6 +3332,8 @@ static void actmenu(FILE* f)
     int w;      /* width of menu face text */
 
     win = txt2win(f); /* get window context */
+    /* open the menu bar */
+    openmenu(f, x, 1, pa_maxxg(f), win->menuspcy, win->menu);
     x = 1; /* set initial menu bar position */
     mp = win->metlst; /* index top of menu list */
     while (mp) { /* traverse top level list */
@@ -3322,8 +3345,6 @@ static void actmenu(FILE* f)
         mp = mp->next; /* next top menu item */
 
     }
-    /* draw separator line */
-    pa_line(f, 1, win->menuspcy, pa_maxxg(f), win->menuspcy);
 
 }
 
@@ -9311,6 +9332,7 @@ void pa_menu(FILE* f, pa_menuptr m)
     if (win->metlst) { /* distroy previous menu */
 
         /* dispose of menu tracking entries */
+        putmet(win->menu); /* release menu bar */
         while (win->metlst) {
 
             mp = win->metlst; /* remove top entry */
@@ -9322,6 +9344,11 @@ void pa_menu(FILE* f, pa_menuptr m)
     }
     if (m) { /* there is a new menu to activate */
 
+        /* get an entry for the menu bar */
+        win->menu = getmet();
+        win->menu->next = NULL; /* clear next */
+        win->menu->branch = win->menu; /* set not to generate event */
+        win->menu->wg.title = NULL; /* set no face string */
         /* make internal copy of menu */
         createmenu(&win->metlst, m);
         /* activate top level menu */
