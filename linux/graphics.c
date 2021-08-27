@@ -431,6 +431,7 @@ typedef struct winrec {
     picptr       pictbl[MAXPIC];    /* loadable pictures table */
     int          bufmod;            /* buffered screen mode */
     metptr       metlst;            /* menu tracking list */
+    metptr       menu;              /* "faux menu" bar */
     int          frame;             /* frame on/off */
     int          size;              /* size bars on/off */
     int          sysbar;            /* system bar on/off */
@@ -627,6 +628,7 @@ static xevtque*   evtque;         /* XEvent input save queue */
 static paevtque*  paqfre;         /* free XEvent queue entries list */
 static paevtque*  paqevt;         /* XEvent input save queue */
 static pa_pevthan menu_event_oeh; /* event callback save for menus */
+static metptr     fremet;         /* free menu entrys list */
 
 /* memory statistics/diagnostics */
 static unsigned long memusd;    /* total memory in use for malloc */
@@ -2321,7 +2323,7 @@ static xevtque* getxevt(void)
         p = freque; /* index top entry */
         freque = p->next; /* gap from list */
 
-    } else p = (xevtque*)malloc(sizeof(xevtque));
+    } else p = (xevtque*)imalloc(sizeof(xevtque));
 
     return (p);
 
@@ -2482,7 +2484,7 @@ static paevtque* getpaevt(void)
         p = paqfre; /* index top entry */
         paqfre = p->next; /* gap from list */
 
-    } else p = (paevtque*)malloc(sizeof(paevtque));
+    } else p = (paevtque*)imalloc(sizeof(paevtque));
 
     return (p);
 
@@ -3140,6 +3142,48 @@ static void openio(FILE* infile, FILE* outfile, int ifn, int ofn, int pfn,
     if (xltwin[wid+MAXFIL] >= 0 && xltwin[wid+MAXFIL] != ofn) error(ewinuse); /* flag error */
     xltwin[wid+MAXFIL] = ofn; /* pin the window to the output file */
     filwin[ofn] = wid;
+
+}
+
+/** ****************************************************************************
+
+Get freed/new menu tracking entry
+
+Either gets a new entry from malloc or returns a previously freed entry.
+
+*******************************************************************************/
+
+static metptr getmet(void)
+
+{
+
+    metptr p;
+
+    if (fremet) { /* there is a freed entry */
+
+        p = fremet; /* index top entry */
+        fremet = p->next; /* gap from list */
+
+    } else p = (metptr)imalloc(sizeof(metrec));
+
+    return (p);
+
+}
+
+/** ****************************************************************************
+
+Get freed/new PA queue entry
+
+Either gets a new entry from malloc or returns a previously freed entry.
+
+*******************************************************************************/
+
+static void putmet(metptr p)
+
+{
+
+    p->next = fremet; /* push to list */
+    fremet = p;
 
 }
 
@@ -9199,7 +9243,7 @@ static void mettrk(metptr* root, int inx, pa_menuptr m, metptr* nm)
 
     metptr mp; /* menu tracking entry pointer */
 
-    mp = imalloc(sizeof(metrec)); /* get a new tracking entry */
+    mp = getmet(); /* get a new tracking entry */
     insend(root, mp); /* insert to end */
     mp->branch = NULL; /* clear branch */
     mp->inx = inx; /* place menu index */
@@ -9271,7 +9315,7 @@ void pa_menu(FILE* f, pa_menuptr m)
 
             mp = win->metlst; /* remove top entry */
             win->metlst = win->metlst->next; /* gap out */
-            ifree(mp); /* free the entry */
+            putmet(mp); /* free the entry */
 
         }
 
@@ -11169,6 +11213,7 @@ static void pa_init_graphics(int argc, char *argv[])
     evtque = NULL; /* clear x event input queue */
     paqfre = NULL; /* clear pa event free queue */
     paqevt = NULL; /* clear pa event input queue */
+    fremet = NULL; /* clear free menu tracking entries */
 
     /* clear open files tables */
     for (fi = 0; fi < MAXFIL; fi++) {
