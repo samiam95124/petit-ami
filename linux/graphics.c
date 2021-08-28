@@ -440,6 +440,7 @@ typedef struct winrec {
     int          visible;           /* window is visible */
 
     /* fields used by graphics subsystem */
+    Window       xmwhan;            /* master window */
     Window       xwhan;             /* current window */
     XFontStruct* xfont;             /* current font */
     Atom         delmsg;            /* windows manager delete window message */
@@ -2427,7 +2428,8 @@ static int fndevt(Window w)
     ff = -1; /* set no file found */
     while (fi < MAXFIL) {
 
-        if (opnfil[fi] && opnfil[fi]->win && opnfil[fi]->win->xwhan == w) {
+        if (opnfil[fi] && opnfil[fi]->win &&
+            (opnfil[fi]->win->xmwhan == w || opnfil[fi]->win->xwhan == w)) {
 
             ff = fi; /* set found */
             fi = MAXFIL; /* terminate */
@@ -2769,7 +2771,16 @@ static void winvis(winptr win)
     XEvent e; /* XWindow event */
 
 #ifndef NOWDELAY
-    /* present the window onscreen */
+    /* present the master window onscreen */
+    XWLOCK();
+    XMapWindow(padisplay, win->xmwhan);
+    XFlush(padisplay);
+    XWUNLOCK();
+
+    /* wait for the window to be displayed */
+    do { peekxevt(&e); } while (e.type !=  MapNotify);
+
+    /* present the subclient window onscreen */
     XWLOCK();
     XMapWindow(padisplay, win->xwhan);
     XFlush(padisplay);
@@ -2924,6 +2935,42 @@ cleared, and a single buffer assigned to the window.
 
 *******************************************************************************/
 
+/* create window without background draw */
+
+static Window createwindow(Window parent, int x, int y)
+
+{
+
+    Window w; /* XWindow handle */
+    XEvent e; /* XWindow event */
+
+    /* create our window with no background */
+    XWLOCK();
+    w = XCreateWindow(padisplay, parent, 0, 0, x, y, 0, CopyFromParent,
+                      InputOutput, CopyFromParent, 0, NULL);
+
+    /* select what events we want */
+    XSelectInput(padisplay, w, ExposureMask|KeyPressMask|
+                 KeyReleaseMask|PointerMotionMask|ButtonPressMask|
+                 ButtonReleaseMask|StructureNotifyMask);
+    XWUNLOCK();
+
+/* now handled in winvis */
+#ifdef NOWDELAY
+    /* present the window onscreen */
+    XWLOCK();
+    XMapWindow(padisplay, w);
+    XFlush(padisplay);
+    XWUNLOCK();
+
+    /* wait for the window to be displayed */
+    do { peekxevt(&e); } while (e.type !=  MapNotify);
+#endif
+
+    return (w);
+
+}
+
 static void opnwin(int fn, int pfn, int wid)
 
 {
@@ -3049,40 +3096,24 @@ static void opnwin(int fn, int pfn, int wid)
     if (pwin) pw = pwin->xwhan; /* given */
     else pw = RootWindow(padisplay, pascreen); /* root */
 
-    /* create our window with no background */
-    XWLOCK();
-    win->xwhan = XCreateWindow(padisplay, pw, 0, 0, win->gmaxxg, win->gmaxyg, 0,
-                               CopyFromParent, InputOutput, CopyFromParent, 0,
-                               &xwsa);
-
-    /* select what events we want */
-    XSelectInput(padisplay, win->xwhan, ExposureMask|KeyPressMask|
-                 KeyReleaseMask|PointerMotionMask|ButtonPressMask|
-                 ButtonReleaseMask|StructureNotifyMask);
+    /* create master window */
+    win->xmwhan = createwindow(pw, win->gmaxxg, win->gmaxyg);
 
     /* hook close event from windows manager */
-    win->delmsg = XInternAtom(padisplay, "WM_DELETE_WINDOW", FALSE);
-    XSetWMProtocols(padisplay, win->xwhan, &win->delmsg, 1);
-    XWUNLOCK();
-
-/* now handled in winvis */
-#ifdef NOWDELAY
-    /* present the window onscreen */
     XWLOCK();
-    XMapWindow(padisplay, win->xwhan);
-    XFlush(padisplay);
+    win->delmsg = XInternAtom(padisplay, "WM_DELETE_WINDOW", FALSE);
+    XSetWMProtocols(padisplay, win->xmwhan, &win->delmsg, 1);
     XWUNLOCK();
 
-    /* wait for the window to be displayed */
-    do { peekxevt(&e); } while (e.type !=  MapNotify);
-#endif
+    /* create subclient window */
+    win->xwhan = createwindow(win->xmwhan, win->gmaxxg, win->gmaxyg);
 
     /* find and save the frame parameters from the immediate/parent window.
        This may not work on some window managers */
     XWLOCK();
-    XQueryTree(padisplay, win->xwhan, &rw, &pw, &cwl, &ncw);
+    XQueryTree(padisplay, win->xmwhan, &rw, &pw, &cwl, &ncw);
     XGetWindowAttributes(padisplay, pw, &xpwga);
-    XGetWindowAttributes(padisplay, win->xwhan, &xwga);
+    XGetWindowAttributes(padisplay, win->xmwhan, &xwga);
     XWUNLOCK();
 
     /* find net extra width of frame from client area */
@@ -9364,7 +9395,7 @@ void pa_menu(FILE* f, pa_menuptr m)
         /* make internal copy of menu */
         createmenu(&win->metlst, m);
         /* activate top level menu */
-        actmenu(f);
+        //actmenu(f);
 
     }
 
@@ -9673,7 +9704,7 @@ void pa_setsizg(FILE* f, int x, int y)
 
     /* reconfigure window */
     XWLOCK();
-    XConfigureWindow(padisplay, win->xwhan, CWWidth|CWHeight, &xwc);
+    XConfigureWindow(padisplay, win->xmwhan, CWWidth|CWHeight, &xwc);
     XWUNLOCK();
 
     /* wait for the configure response with correct sizes */
@@ -9756,7 +9787,7 @@ void pa_setposg(FILE* f, int x, int y)
 
     /* reconfigure window */
     XWLOCK();
-    XMoveWindow(padisplay, win->xwhan, x-1, y-1);
+    XMoveWindow(padisplay, win->xmwhan, x-1, y-1);
     XWUNLOCK();
 
     /* wait for the configure response */
