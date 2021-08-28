@@ -3132,7 +3132,7 @@ static void opnwin(int fn, int pfn, int wid)
 
     /* set window title from program name */
     XWLOCK();
-    XStoreName(padisplay, win->xwhan, program_invocation_short_name);
+    XStoreName(padisplay, win->xmwhan, program_invocation_short_name);
     XWUNLOCK();
 
     iniscn(win, win->screens[0]); /* initalize screen buffer */
@@ -8992,7 +8992,7 @@ void pa_title(FILE* f, char* ts)
 
     win = txt2win(f); /* get window from file */
     XWLOCK();
-    XStoreName(padisplay, win->xwhan, ts);
+    XStoreName(padisplay, win->xmwhan, ts);
     XSetIconName(padisplay, win->xwhan, ts);
     XWUNLOCK();
 
@@ -11464,7 +11464,7 @@ static void pa_deinit_graphics()
         strcpy(trmnam, fini); /* place first part */
         strcat(trmnam, program_invocation_short_name); /* place program name */
         /* set window title */
-        XStoreName(padisplay, win->xwhan, trmnam);
+        XStoreName(padisplay, win->xmwhan, trmnam);
         /* wait for a formal end */
 		while (!fend) pa_event(stdin, &er);
 		ifree(trmnam); /* free up termination name */
