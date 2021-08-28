@@ -132,7 +132,7 @@ static enum { /* debug levels */
 //#define PRTFNT /* print internal fonts list */
 //#define PRTMEM /* print memory allocations at exit */
 //#define PRTWPM /* print window parameters on open */
-//#define NOWDELAY /* don't delay window presentation until drawn */
+#define NOWDELAY /* don't delay window presentation until drawn */
 
 /* the "standard character" sizes are used to form a pseudo-size for desktop
    character measurements in a graphical system. */
@@ -3093,7 +3093,7 @@ static void opnwin(int fn, int pfn, int wid)
     win->menuspcy = win->linespace+EXTRAMENUY;
 
     /* set parent window, either the given or the root window */
-    if (pwin) pw = pwin->xwhan; /* given */
+    if (pwin) pw = pwin->xmwhan; /* given */
     else pw = RootWindow(padisplay, pascreen); /* root */
 
     /* create master window */
@@ -9709,8 +9709,8 @@ void pa_setsizg(FILE* f, int x, int y)
 
     /* wait for the configure response with correct sizes */
     do { peekxevt(&e); /* peek next event */
-    } while (e.type != ConfigureNotify || e.xconfigure.width != x ||
-             e.xconfigure.height != y);
+    } while (e.type != ConfigureNotify || e.xconfigure.width != xwc.width ||
+             e.xconfigure.height != xwc.height);
 
     /* because this event may not reach pa_event() for some time, we have to
        set the dimensions now */
