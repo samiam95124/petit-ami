@@ -3341,13 +3341,13 @@ static void openmenu(FILE* f, int x1, int y1, int x2, int y2, metptr mp)
     mp->wg.id = mp->id; /* set button widget id */
     xltmnu[mp->wg.wid+MAXFIL] = mp; /* set the tracking entry for window */
     pa_buffer(mp->wg.wf, FALSE); /* turn off buffering */
+    pa_frame(mp->wg.wf, FALSE); /* turn off frame */
     pa_auto(mp->wg.wf, FALSE); /* turn off auto */
     pa_curvis(mp->wg.wf, FALSE); /* turn off cursor */
     pa_font(mp->wg.wf, PA_FONT_SIGN); /* set button font */
     pa_bold(mp->wg.wf, TRUE); /* set bold font */
     pa_setposg(mp->wg.wf, x1, y1); /* place at position */
     pa_setsizg(mp->wg.wf, x2-x1, y2-y1); /* set size */
-    pa_frame(mp->wg.wf, FALSE); /* turn off frame */
     pa_binvis(mp->wg.wf); /* no background write */
 
 }
@@ -9370,6 +9370,7 @@ void pa_menu(FILE* f, pa_menuptr m)
 
     winptr win; /* pointer to windows context */
     metptr mp;  /* pointer to menu tracking entry */
+    XEvent e;   /* XWindow event */
 
     win = txt2win(f); /* get window context */
     if (win->metlst) { /* distroy previous menu */
@@ -9387,6 +9388,23 @@ void pa_menu(FILE* f, pa_menuptr m)
     }
     if (m) { /* there is a new menu to activate */
 
+        if (!win->menu) {
+
+            /* no previous menu active, resize the master window and activate the menu
+               bar */
+            pa_setsizg(f, win->gmaxxg, win->gmaxyg+win->menuspcy+1+1);
+            /* move subclient window down past menu bar */
+            XWLOCK();
+            XMoveWindow(padisplay, win->xwhan, 0, win->menuspcy+1);
+            XWUNLOCK();
+
+            /* wait for the configure response */
+            do { peekxevt(&e); /* peek next event */
+            } while (e.type != ConfigureNotify && e.xconfigure.x != 0 &&
+                     e.xconfigure.y != win->menuspcy+1);
+            restore(win);
+
+        }
         /* get an entry for the menu bar */
         win->menu = getmet();
         win->menu->next = NULL; /* clear next */
@@ -9395,7 +9413,7 @@ void pa_menu(FILE* f, pa_menuptr m)
         /* make internal copy of menu */
         createmenu(&win->metlst, m);
         /* activate top level menu */
-        //actmenu(f);
+        actmenu(f);
 
     }
 
@@ -9698,9 +9716,15 @@ void pa_setsizg(FILE* f, int x, int y)
     XEvent e; /* Xwindow event */
 
     win = txt2win(f); /* get window context */
-    /* change to client terms with zero clip */
-    if (x >= win->pfw) xwc.width = x-win->pfw; else xwc.width = 0;
-    if (y >= win->pfh) xwc.height = y-win->pfh; else xwc.height = 0;
+    xwc.width = x; /* set frameless offset to client */
+    xwc.height = y;
+    if (win->frame) { /* if frame is enabled, calculate offset to client */
+
+        /* change to client terms with zero clip */
+        if (x >= win->pfw) xwc.width = x-win->pfw; else xwc.width = 0;
+        if (y >= win->pfh) xwc.height = y-win->pfh; else xwc.height = 0;
+
+    }
 
     /* reconfigure window */
     XWLOCK();
@@ -9779,7 +9803,7 @@ void pa_setposg(FILE* f, int x, int y)
 
 {
 
-    winptr win; /* pointer to windows context */
+    winptr win;         /* pointer to windows context */
     XWindowChanges xwc; /* XWindow values */
     XEvent         e;   /* XWindow event */
 
@@ -9791,12 +9815,9 @@ void pa_setposg(FILE* f, int x, int y)
     XWUNLOCK();
 
     /* wait for the configure response */
-    do {
-
-        peekxevt(&e); /* peek next event */
-
-    } while (e.type != ConfigureNotify && e.xconfigure.x != x &&
-             e.xconfigure.y != y);
+    do { peekxevt(&e); /* peek next event */
+    } while (e.type != ConfigureNotify && e.xconfigure.x != x-1 &&
+             e.xconfigure.y != y-1);
 
 }
 
@@ -9995,6 +10016,7 @@ void pa_frame(FILE* f, int e)
     mwmhints hints;
 
     win = txt2win(f); /* get window context */
+    win->frame = e; /* set new status of frame */
     XWLOCK();
     mwmHintsProperty = XInternAtom(padisplay, "_MOTIF_WM_HINTS", 0);
     hints.flags = MWM_HINTS_DECORATIONS;
@@ -10027,6 +10049,7 @@ void pa_sizable(FILE* f, int e)
     mwmhints hints;
 
     win = txt2win(f); /* get window context */
+    win->size = e; /* set new status of size bars */
     XWLOCK();
     mwmHintsProperty = XInternAtom(padisplay, "_MOTIF_WM_HINTS", 0);
     hints.flags = MWM_HINTS_DECORATIONS;
@@ -10059,6 +10082,7 @@ void pa_sysbar(FILE* f, int e)
     mwmhints hints;
 
     win = txt2win(f); /* get window context */
+    win->sysbar = e; /* set new status of system bar */
     XWLOCK();
     mwmHintsProperty = XInternAtom(padisplay, "_MOTIF_WM_HINTS", 0);
     hints.flags = MWM_HINTS_DECORATIONS;
