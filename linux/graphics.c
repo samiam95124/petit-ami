@@ -450,6 +450,8 @@ typedef struct winrec {
                                        origin x */
     int          cwoy;              /* client window offset from parent
                                        origin y */
+    int          dw;                /* display width x */
+    int          dh;                /* display height */
 
 } winrec, *winptr;
 
@@ -3059,6 +3061,9 @@ static void opnwin(int fn, int pfn, int wid)
     win->gvextx = 1;
     win->gvexty = 1;
 
+    win->xmwhan = 0; /* clear the XWindow handles */
+    win->xwhan = 0;
+
     /* get screen parameters */
     XWLOCK();
     win->shsize = DisplayWidthMM(padisplay, pascreen); /* size x in millimeters */
@@ -3088,6 +3093,10 @@ static void opnwin(int fn, int pfn, int wid)
     win->gmaxxg = maxxd*win->charspace;
     win->gmaxyg = maxyd*win->linespace;
 
+    /* set XWindow display size */
+    win->dw = win->gmaxxg;
+    win->dh = win->gmaxyg;
+
     /* set menu line spacing now, from our choosen font sized from the window.
        This then won't be reset by the client. */
     win->menuspcy = win->linespace+EXTRAMENUY;
@@ -3115,6 +3124,7 @@ static void opnwin(int fn, int pfn, int wid)
     XGetWindowAttributes(padisplay, pw, &xpwga);
     XGetWindowAttributes(padisplay, win->xmwhan, &xwga);
     XWUNLOCK();
+//dbg_printf(dlinfo, "master window: %lx subclient window: %lx\n", win->xmwhan, win->xwhan);
 
     /* find net extra width of frame from client area */
     win->pfw = xpwga.width-xwga.width;
@@ -8095,12 +8105,14 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
 
 {
 
-    KeySym ks;
-    scnptr sc; /* screen pointer */
-    rectangle r1, r2, ri, rr, rb;
+    KeySym         ks;
+    scnptr         sc;  /* screen pointer */
+    rectangle      r1, r2, ri, rr, rb;
+    XWindowChanges xwc; /* XWindow values */
+    XEvent         xe;
 
     sc = win->screens[win->curdsp-1]; /* index screen */
-    if (e->type == Expose) {
+    if (e->type == Expose && win->xmwhan != e->xany.window) {
 
         if (win->bufmod) { /* use buffer to satisfy event */
 
@@ -8108,6 +8120,7 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
             setrect(&r1, e->xexpose.x, e->xexpose.y,
                     e->xexpose.x+e->xexpose.width-1,
                     e->xexpose.y+e->xexpose.height-1);
+//dbg_printf(dlinfo, "expose: buffer: x1 %d y1: %d x2: %d y2: %d\n", r1.x1, r1.y1, r1.x2, r1.y2);
             /* make buffer into 0,0 rectangle */
             setrect(&r2, 0, r2.y1 = 0, win->gmaxxg-1, win->gmaxyg-1);
             if (intersect(&r1, &r2)) {
@@ -8138,6 +8151,9 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
                     if (BIT(sarev) & sc->attr)
                         XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
                     else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+                    /* we shouldn't need to do this, but I have seen unpainted
+                       of the window if not while resizing */
+                    XFlush(padisplay);
 
                 }
                 XWUNLOCK();
@@ -8167,28 +8183,48 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
 
     } else if (e->type == ConfigureNotify) {
 
-        /* save current display size */
-        if (e->xconfigure.width != win->gmaxxg ||
-            e->xconfigure.height != win->gmaxyg) {
+        if (e->xconfigure.width != win->dw ||
+            e->xconfigure.height != win->dh) {
 
-            /* size of window has changed, send event */
-            er->etype = pa_etresize; /* set resize event */
-            er->rszxg = e->xconfigure.width; /* set graphics size */
-            er->rszyg = e->xconfigure.height;
-            er->rszx = e->xconfigure.width/win->charspace; /* set character size */
-            er->rszy = e->xconfigure.height/win->linespace;
-            *keep = TRUE; /* set found */
-            if (!win->bufmod) {
+            if (win->xmwhan == e->xany.window) { /* it's the master window */
 
-                /* reset tracking sizes */
-                win->gmaxxg = er->rszxg; /* graphics x */
-                win->gmaxyg = er->rszyg; /* graphics y */
-                /* find character size x */
-                win->gmaxx = win->gmaxxg/win->charspace;
-                /* find character size y */
-                win->gmaxy = win->gmaxyg/win->linespace;
+//dbg_printf(dlinfo, "ConfigureNotify: master: e->xconfigure.width: %d e->xconfigure.height: %d\n",
+//           e->xconfigure.width, e->xconfigure.height);
+                /* recalculate and send the resize on to the subclient */
+                xwc.width = e->xconfigure.width; /* set frameless offset to client */
+                xwc.height = e->xconfigure.height;
+                XWLOCK();
+                XConfigureWindow(padisplay, win->xwhan, CWWidth|CWHeight, &xwc);
+                XWUNLOCK();
+                /* wait for the configure response with correct sizes */
+                do { peekxevt(&xe); /* peek next event */
+                } while (xe.type != ConfigureNotify || xe.xconfigure.width != xwc.width ||
+                         xe.xconfigure.height != xwc.height);
+
+            } else { /* its the subclient window */
+
+                /* size of window has changed, send event */
+                er->etype = pa_etresize; /* set resize event */
+                er->rszxg = e->xconfigure.width; /* set graphics size */
+                er->rszyg = e->xconfigure.height;
+                er->rszx = e->xconfigure.width/win->charspace; /* set character size */
+                er->rszy = e->xconfigure.height/win->linespace;
+                *keep = TRUE; /* set found */
+                if (!win->bufmod) {
+
+                    /* reset tracking sizes */
+                    win->gmaxxg = er->rszxg; /* graphics x */
+                    win->gmaxyg = er->rszyg; /* graphics y */
+                    /* find character size x */
+                    win->gmaxx = win->gmaxxg/win->charspace;
+                    /* find character size y */
+                    win->gmaxy = win->gmaxyg/win->linespace;
+
+                }
 
             }
+            win->dw = e->xconfigure.width;
+            win->dh = e->xconfigure.height;
 
         }
 
