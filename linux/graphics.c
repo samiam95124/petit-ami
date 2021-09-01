@@ -9776,37 +9776,43 @@ void pa_setsizg(FILE* f, int x, int y)
     XEvent e; /* Xwindow event */
 
     win = txt2win(f); /* get window context */
-    xwc.width = x; /* set frameless offset to client */
-    xwc.height = y;
-    if (win->frame) { /* if frame is enabled, calculate offset to client */
+    /* Check repeated sizing. This prevents hangups due to the window manager
+       ignoring such sets. */
+    if (x != win->dw || y != win->dh) {
 
-        /* change to client terms with zero clip */
-        if (x >= win->pfw) xwc.width = x-win->pfw; else xwc.width = 0;
-        if (y >= win->pfh) xwc.height = y-win->pfh; else xwc.height = 0;
+        xwc.width = x; /* set frameless offset to client */
+        xwc.height = y;
+        if (win->frame) { /* if frame is enabled, calculate offset to client */
 
-    }
+            /* change to client terms with zero clip */
+            if (x >= win->pfw) xwc.width = x-win->pfw; else xwc.width = 0;
+            if (y >= win->pfh) xwc.height = y-win->pfh; else xwc.height = 0;
 
-    /* reconfigure window */
-    XWLOCK();
-    XConfigureWindow(padisplay, win->xmwhan, CWWidth|CWHeight, &xwc);
-    XWUNLOCK();
+        }
 
-    /* wait for the configure response with correct sizes */
-    do { peekxevt(&e); /* peek next event */
-    } while (e.type != ConfigureNotify || e.xconfigure.width != xwc.width ||
-             e.xconfigure.height != xwc.height || e.xany.window != win->xmwhan);
+        /* reconfigure window */
+        XWLOCK();
+        XConfigureWindow(padisplay, win->xmwhan, CWWidth|CWHeight, &xwc);
+        XWUNLOCK();
 
-    /* because this event may not reach pa_event() for some time, we have to
-       set the dimensions now */
-    if (!win->bufmod) {
+        /* wait for the configure response with correct sizes */
+        do { peekxevt(&e); /* peek next event */
+        } while (e.type != ConfigureNotify || e.xconfigure.width != xwc.width ||
+                 e.xconfigure.height != xwc.height || e.xany.window != win->xmwhan);
 
-        /* reset tracking sizes */
-        win->gmaxxg = e.xconfigure.width; /* graphics x */
-        win->gmaxyg = e.xconfigure.height; /* graphics y */
-        /* find character size x */
-        win->gmaxx = win->gmaxxg/win->charspace;
-        /* find character size y */
-        win->gmaxy = win->gmaxyg/win->linespace;
+        /* because this event may not reach pa_event() for some time, we have to
+           set the dimensions now */
+        if (!win->bufmod) {
+
+            /* reset tracking sizes */
+            win->gmaxxg = e.xconfigure.width; /* graphics x */
+            win->gmaxyg = e.xconfigure.height; /* graphics y */
+            /* find character size x */
+            win->gmaxx = win->gmaxxg/win->charspace;
+            /* find character size y */
+            win->gmaxy = win->gmaxyg/win->linespace;
+
+        }
 
     }
 
