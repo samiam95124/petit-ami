@@ -9765,6 +9765,9 @@ Set window size graphical
 
 Sets the onscreen window to the given size.
 
+Note: XWindow, or at least the window manager, apparently accepts a width of 1
+and height of 1 as the minimum size window.
+
 *******************************************************************************/
 
 void pa_setsizg(FILE* f, int x, int y)
@@ -9785,8 +9788,8 @@ void pa_setsizg(FILE* f, int x, int y)
         if (win->frame) { /* if frame is enabled, calculate offset to client */
 
             /* change to client terms with zero clip */
-            if (x >= win->pfw) xwc.width = x-win->pfw; else xwc.width = 0;
-            if (y >= win->pfh) xwc.height = y-win->pfh; else xwc.height = 0;
+            if (x >= win->pfw) xwc.width = x-win->pfw; else xwc.width = 1;
+            if (y >= win->pfh) xwc.height = y-win->pfh; else xwc.height = 1;
 
         }
 
@@ -9872,8 +9875,6 @@ void pa_setposg(FILE* f, int x, int y)
     winptr win;         /* pointer to windows context */
     XWindowChanges xwc; /* XWindow values */
     XEvent         e;   /* XWindow event */
-
-    XWindowAttributes xwga;
 
     win = txt2win(f); /* get window context */
 
