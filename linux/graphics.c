@@ -452,6 +452,8 @@ typedef struct winrec {
                                        origin y */
     int          dw;                /* display width x */
     int          dh;                /* display height */
+    int          ox;                /* origin x */
+    int          oy;                /* origin y */
 
 } winrec, *winptr;
 
@@ -2780,7 +2782,8 @@ static void winvis(winptr win)
     XWUNLOCK();
 
     /* wait for the window to be displayed */
-    do { peekxevt(&e); } while (e.type !=  MapNotify);
+    do { peekxevt(&e);
+    } while (e.type !=  MapNotify || e.xany.window != win->xmwhan);
 
     /* present the subclient window onscreen */
     XWLOCK();
@@ -2789,7 +2792,7 @@ static void winvis(winptr win)
     XWUNLOCK();
 
     /* wait for the window to be displayed */
-    do { peekxevt(&e); } while (e.type !=  MapNotify);
+    do { peekxevt(&e); } while (e.type !=  MapNotify || e.xany.window != win->xwhan);
 
     win->visible = TRUE; /* set now visible */
     restore(win); /* restore window */
@@ -2966,7 +2969,7 @@ static Window createwindow(Window parent, int x, int y)
     XWUNLOCK();
 
     /* wait for the window to be displayed */
-    do { peekxevt(&e); } while (e.type !=  MapNotify);
+    do { peekxevt(&e); } while (e.type !=  MapNotify || e.xany.window != w);
 #endif
 
     return (w);
@@ -3027,6 +3030,7 @@ static void opnwin(int fn, int pfn, int wid)
     win->frmrun = FALSE; /* set framing timer not running */
     win->bufmod = TRUE; /* set buffering on */
     win->metlst = NULL; /* clear menu tracking list */
+    win->menu = NULL; /* set menu bar not active */
     win->frame = TRUE; /* set frame on */
     win->size = TRUE; /* set size bars on */
     win->sysbar = TRUE; /* set system bar on */
@@ -3097,6 +3101,10 @@ static void opnwin(int fn, int pfn, int wid)
     win->dw = win->gmaxxg;
     win->dh = win->gmaxyg;
 
+    /* set origin impossible */
+    win->ox = -1;
+    win->oy = -1;
+
     /* set menu line spacing now, from our choosen font sized from the window.
        This then won't be reset by the client. */
     win->menuspcy = win->linespace+EXTRAMENUY;
@@ -3124,7 +3132,6 @@ static void opnwin(int fn, int pfn, int wid)
     XGetWindowAttributes(padisplay, pw, &xpwga);
     XGetWindowAttributes(padisplay, win->xmwhan, &xwga);
     XWUNLOCK();
-//dbg_printf(dlinfo, "master window: %lx subclient window: %lx\n", win->xmwhan, win->xwhan);
 
     /* find net extra width of frame from client area */
     win->pfw = xpwga.width-xwga.width;
@@ -8110,6 +8117,7 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
     rectangle      r1, r2, ri, rr, rb;
     XWindowChanges xwc; /* XWindow values */
     XEvent         xe;
+    winptr         mwin;
 
     sc = win->screens[win->curdsp-1]; /* index screen */
     if (e->type == Expose && win->xmwhan != e->xany.window) {
@@ -8120,7 +8128,6 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
             setrect(&r1, e->xexpose.x, e->xexpose.y,
                     e->xexpose.x+e->xexpose.width-1,
                     e->xexpose.y+e->xexpose.height-1);
-//dbg_printf(dlinfo, "expose: buffer: x1 %d y1: %d x2: %d y2: %d\n", r1.x1, r1.y1, r1.x2, r1.y2);
             /* make buffer into 0,0 rectangle */
             setrect(&r2, 0, r2.y1 = 0, win->gmaxxg-1, win->gmaxyg-1);
             if (intersect(&r1, &r2)) {
@@ -8188,18 +8195,34 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
 
             if (win->xmwhan == e->xany.window) { /* it's the master window */
 
-//dbg_printf(dlinfo, "ConfigureNotify: master: e->xconfigure.width: %d e->xconfigure.height: %d\n",
-//           e->xconfigure.width, e->xconfigure.height);
-                /* recalculate and send the resize on to the subclient */
+                /* recalculate and send the configure on to the subclient */
                 xwc.width = e->xconfigure.width; /* set frameless offset to client */
                 xwc.height = e->xconfigure.height;
+                if (win->menu) /* if menu is active, remove that space from subclient */
+                    xwc.height = e->xconfigure.height-(win->menuspcy+1);
                 XWLOCK();
                 XConfigureWindow(padisplay, win->xwhan, CWWidth|CWHeight, &xwc);
                 XWUNLOCK();
                 /* wait for the configure response with correct sizes */
                 do { peekxevt(&xe); /* peek next event */
                 } while (xe.type != ConfigureNotify || xe.xconfigure.width != xwc.width ||
-                         xe.xconfigure.height != xwc.height);
+                         xe.xconfigure.height != xwc.height || xe.xany.window != win->xwhan);
+
+                /* if menu bar is active, also send a configure to it */
+                if (win->menu) {
+
+                    xwc.width = e->xconfigure.width; /* width is client */
+                    xwc.height = win->menuspcy+1; /* height is menu text plus divider line */
+                    mwin = txt2win(win->menu->wg.wf); /* index window */
+                    XWLOCK();
+                    XConfigureWindow(padisplay, mwin->xwhan, CWWidth|CWHeight, &xwc);
+                    XWUNLOCK();
+                    /* wait for the configure response with correct sizes */
+                    do { peekxevt(&xe); /* peek next event */
+                    } while (xe.type != ConfigureNotify || xe.xconfigure.width != xwc.width ||
+                             xe.xconfigure.height != xwc.height || xe.xany.window != mwin->xwhan);
+
+                }
 
             } else { /* its the subclient window */
 
@@ -9197,8 +9220,8 @@ void pa_sizbufg(FILE* f, int x, int y)
 
         peekxevt(&e); /* peek next event */
 
-    } while (e.type != ConfigureNotify && e.xconfigure.width != x &&
-             e.xconfigure.height != y);
+    } while (e.type != ConfigureNotify && e.xconfigure.width != x ||
+             e.xconfigure.height != y || e.xany.window != win->xwhan);
 
     restore(win); /* restore buffer to screen */
 
@@ -9436,8 +9459,9 @@ void pa_menu(FILE* f, pa_menuptr m)
 
             /* wait for the configure response */
             do { peekxevt(&e); /* peek next event */
-            } while (e.type != ConfigureNotify && e.xconfigure.x != 0 &&
-                     e.xconfigure.y != win->menuspcy+1);
+            } while (e.type != ConfigureNotify || e.xconfigure.x != 0 ||
+                     e.xconfigure.y != win->menuspcy+1 ||
+                     e.xany.window != win->xwhan);
             restore(win);
 
         }
@@ -9770,7 +9794,7 @@ void pa_setsizg(FILE* f, int x, int y)
     /* wait for the configure response with correct sizes */
     do { peekxevt(&e); /* peek next event */
     } while (e.type != ConfigureNotify || e.xconfigure.width != xwc.width ||
-             e.xconfigure.height != xwc.height);
+             e.xconfigure.height != xwc.height || e.xany.window != win->xmwhan);
 
     /* because this event may not reach pa_event() for some time, we have to
        set the dimensions now */
@@ -9843,17 +9867,27 @@ void pa_setposg(FILE* f, int x, int y)
     XWindowChanges xwc; /* XWindow values */
     XEvent         e;   /* XWindow event */
 
+    XWindowAttributes xwga;
+
     win = txt2win(f); /* get window context */
 
-    /* reconfigure window */
-    XWLOCK();
-    XMoveWindow(padisplay, win->xmwhan, x-1, y-1);
-    XWUNLOCK();
+    /* don't repeat positions, it will cause a no-op in windows manager */
+    if (x-1 != win->ox || y-1 != win->oy) {
 
-    /* wait for the configure response */
-    do { peekxevt(&e); /* peek next event */
-    } while (e.type != ConfigureNotify && e.xconfigure.x != x-1 &&
-             e.xconfigure.y != y-1);
+        /* reconfigure window */
+        XWLOCK();
+        XMoveWindow(padisplay, win->xmwhan, x-1, y-1);
+        XWUNLOCK();
+
+        /* wait for the configure response */
+        do { peekxevt(&e); /* peek next event */
+        } while (e.type != ConfigureNotify || e.xany.window != win->xmwhan);
+
+        /* set origin for next time */
+        win->ox = x-1;
+        win->oy = y-1;
+
+    }
 
 }
 
