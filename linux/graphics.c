@@ -3102,8 +3102,8 @@ static void opnwin(int fn, int pfn, int wid)
     win->dh = win->gmaxyg;
 
     /* set origin impossible */
-    win->ox = -1;
-    win->oy = -1;
+    win->ox = 0;
+    win->oy = 0;
 
     /* set menu line spacing now, from our choosen font sized from the window.
        This then won't be reset by the client. */
