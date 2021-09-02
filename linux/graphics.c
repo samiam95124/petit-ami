@@ -352,6 +352,14 @@ typedef struct pict { /* picture tracking record */
 
 } pict, *picptr;
 
+/* XWindow style rectangle */
+typedef struct {
+
+    int         x, y; /* origin */
+    int         w, h; /* width/height */
+
+} xrect;
+
 /* window description */
 typedef struct winrec {
 
@@ -441,7 +449,9 @@ typedef struct winrec {
 
     /* fields used by graphics subsystem */
     Window       xmwhan;            /* master window */
-    Window       xwhan;             /* current window */
+    Window       xwhan;             /* subclient window */
+    xrect        xmwr;              /* master window rectangle */
+    xrect        xwr;               /* subclient window rectangle */
     XFontStruct* xfont;             /* current font */
     Atom         delmsg;            /* windows manager delete window message */
     int          pfw;               /* parent/frame width (extra) */
@@ -450,10 +460,6 @@ typedef struct winrec {
                                        origin x */
     int          cwoy;              /* client window offset from parent
                                        origin y */
-    int          dw;                /* display width x */
-    int          dh;                /* display height */
-    int          ox;                /* origin x */
-    int          oy;                /* origin y */
 
 } winrec, *winptr;
 
@@ -3097,13 +3103,16 @@ static void opnwin(int fn, int pfn, int wid)
     win->gmaxxg = maxxd*win->charspace;
     win->gmaxyg = maxyd*win->linespace;
 
-    /* set XWindow display size */
-    win->dw = win->gmaxxg;
-    win->dh = win->gmaxyg;
+    /* set XWindow display origins sizes and sizes */
+    win->xmwr.x = 0;
+    win->xmwr.y = 0;
+    win->xmwr.w = win->gmaxxg;
+    win->xmwr.h = win->gmaxyg;
 
-    /* set origin impossible */
-    win->ox = 0;
-    win->oy = 0;
+    win->xwr.x = 0;
+    win->xwr.y = 0;
+    win->xwr.w = win->gmaxxg;
+    win->xwr.h = win->gmaxyg;
 
     /* set menu line spacing now, from our choosen font sized from the window.
        This then won't be reset by the client. */
@@ -8190,10 +8199,11 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
 
     } else if (e->type == ConfigureNotify) {
 
-        if (e->xconfigure.width != win->dw ||
-            e->xconfigure.height != win->dh) {
+        if (win->xmwhan == e->xany.window) { /* it's the master window */
 
-            if (win->xmwhan == e->xany.window) { /* it's the master window */
+            /* check master window has changed size */
+            if (e->xconfigure.width != win->xwr.w ||
+                e->xconfigure.height != win->xwr.h) {
 
                 /* recalculate and send the configure on to the subclient */
                 xwc.width = e->xconfigure.width; /* set frameless offset to client */
@@ -8207,47 +8217,57 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
                 do { peekxevt(&xe); /* peek next event */
                 } while (xe.type != ConfigureNotify || xe.xconfigure.width != xwc.width ||
                          xe.xconfigure.height != xwc.height || xe.xany.window != win->xwhan);
+                /* change saved size to match */
+                win->xwr.w = e->xconfigure.width;
+                win->xwr.h = e->xconfigure.height;
 
-                /* if menu bar is active, also send a configure to it */
-                if (win->menu) {
+            }
+
+            /* if menu bar is active, also send a configure to it */
+            if (win->menu) {
+
+                mwin = txt2win(win->menu->wg.wf); /* index window */
+                /* check master window has changed size */
+                if (e->xconfigure.width != mwin->xmwr.w ||
+                    e->xconfigure.height != mwin->xmwr.h) {
 
                     xwc.width = e->xconfigure.width; /* width is client */
                     xwc.height = win->menuspcy+1; /* height is menu text plus divider line */
-                    mwin = txt2win(win->menu->wg.wf); /* index window */
                     XWLOCK();
-                    XConfigureWindow(padisplay, mwin->xwhan, CWWidth|CWHeight, &xwc);
+                    XConfigureWindow(padisplay, mwin->xmwhan, CWWidth|CWHeight, &xwc);
                     XWUNLOCK();
                     /* wait for the configure response with correct sizes */
                     do { peekxevt(&xe); /* peek next event */
                     } while (xe.type != ConfigureNotify || xe.xconfigure.width != xwc.width ||
-                             xe.xconfigure.height != xwc.height || xe.xany.window != mwin->xwhan);
-
-                }
-
-            } else { /* its the subclient window */
-
-                /* size of window has changed, send event */
-                er->etype = pa_etresize; /* set resize event */
-                er->rszxg = e->xconfigure.width; /* set graphics size */
-                er->rszyg = e->xconfigure.height;
-                er->rszx = e->xconfigure.width/win->charspace; /* set character size */
-                er->rszy = e->xconfigure.height/win->linespace;
-                *keep = TRUE; /* set found */
-                if (!win->bufmod) {
-
-                    /* reset tracking sizes */
-                    win->gmaxxg = er->rszxg; /* graphics x */
-                    win->gmaxyg = er->rszyg; /* graphics y */
-                    /* find character size x */
-                    win->gmaxx = win->gmaxxg/win->charspace;
-                    /* find character size y */
-                    win->gmaxy = win->gmaxyg/win->linespace;
+                             xe.xconfigure.height != xwc.height || xe.xany.window != mwin->xmwhan);
+                    /* change saved size to match */
+                    win->xmwr.w = e->xconfigure.width;
+                    win->xmwr.h = e->xconfigure.height;
 
                 }
 
             }
-            win->dw = e->xconfigure.width;
-            win->dh = e->xconfigure.height;
+
+        } else { /* its the subclient window */
+
+            /* size of window has changed, send event */
+            er->etype = pa_etresize; /* set resize event */
+            er->rszxg = e->xconfigure.width; /* set graphics size */
+            er->rszyg = e->xconfigure.height;
+            er->rszx = e->xconfigure.width/win->charspace; /* set character size */
+            er->rszy = e->xconfigure.height/win->linespace;
+            *keep = TRUE; /* set found */
+            if (!win->bufmod) {
+
+                /* reset tracking sizes */
+                win->gmaxxg = er->rszxg; /* graphics x */
+                win->gmaxyg = er->rszyg; /* graphics y */
+                /* find character size x */
+                win->gmaxx = win->gmaxxg/win->charspace;
+                /* find character size y */
+                win->gmaxy = win->gmaxyg/win->linespace;
+
+            }
 
         }
 
@@ -9781,7 +9801,7 @@ void pa_setsizg(FILE* f, int x, int y)
     win = txt2win(f); /* get window context */
     /* Check repeated sizing. This prevents hangups due to the window manager
        ignoring such sets. */
-    if (x != win->dw || y != win->dh) {
+    if (x != win->xmwr.w || y != win->xmwr.h) {
 
         xwc.width = x; /* set frameless offset to client */
         xwc.height = y;
@@ -9797,6 +9817,10 @@ void pa_setsizg(FILE* f, int x, int y)
         XWLOCK();
         XConfigureWindow(padisplay, win->xmwhan, CWWidth|CWHeight, &xwc);
         XWUNLOCK();
+
+        /* set new size */
+        win->xmwr.w = x;
+        win->xmwr.h = y;
 
         /* wait for the configure response with correct sizes */
         do { peekxevt(&e); /* peek next event */
@@ -9879,7 +9903,7 @@ void pa_setposg(FILE* f, int x, int y)
     win = txt2win(f); /* get window context */
 
     /* don't repeat positions, it will cause a no-op in windows manager */
-    if (x-1 != win->ox || y-1 != win->oy) {
+    if (x-1 != win->xmwr.x || y-1 != win->xmwr.y) {
 
         /* reconfigure window */
         XWLOCK();
@@ -9891,8 +9915,8 @@ void pa_setposg(FILE* f, int x, int y)
         } while (e.type != ConfigureNotify || e.xany.window != win->xmwhan);
 
         /* set origin for next time */
-        win->ox = x-1;
-        win->oy = y-1;
+        win->xmwr.x = x-1;
+        win->xmwr.y = y-1;
 
     }
 
