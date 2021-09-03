@@ -8208,6 +8208,7 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
             xwc.height = e->xconfigure.height;
             if (win->menu) /* if menu is active, remove that space from subclient */
                 xwc.height = e->xconfigure.height-(win->menuspcy+1);
+            if (xwc.height <= 0) xwc.height = 1; /* set minimum height */
             /* check master window has changed size */
             if (xwc.width != win->xwr.w || xwc.height != win->xwr.h) {
 

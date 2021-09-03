@@ -26,3 +26,8 @@ property. Note that not all window managers obey this standard.
 
 9. Turning bold on in the button window also appears to turn on bold in the
 main window.
+
+10. Delayed presentation of windows was turned off, because in XWindows, you
+can't find characteristics of a window until you map it. This means that you
+get to watch the window reconfigure, and that takes time, too. This needs
+research to solve.
