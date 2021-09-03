@@ -3315,13 +3315,16 @@ static void menu_event(pa_evtrec* ev)
 
                 /* process button press */
                 mp->wg.pressed = TRUE;
-                pa_fcolor(mp->wg.wf, pa_black);
+                pa_fcolorg(mp->wg.wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
                 pa_frect(mp->wg.wf, 1, 1, pa_maxxg(mp->wg.wf), pa_maxyg(mp->wg.wf));
                 pa_fcolor(mp->wg.wf, pa_white);
                 pa_cursorg(mp->wg.wf,
                            pa_maxxg(mp->wg.wf)/2-pa_strsiz(mp->wg.wf, mp->wg.title)/2,
                            pa_maxyg(mp->wg.wf)/2-pa_chrsizy(mp->wg.wf)/2);
                 fprintf(mp->wg.wf, "%s", mp->wg.title); /* place button title */
+                /* draw underbar */
+                pa_fcolorg(mp->wg.wf, INT_MAX/256*233, INT_MAX/256*84, INT_MAX/256*32);
+                pa_frect(mp->wg.wf, 1, pa_maxyg(mp->wg.wf)-4, pa_maxxg(mp->wg.wf), pa_maxyg(mp->wg.wf));
 
             }
 
@@ -3372,7 +3375,6 @@ static void openmenu(FILE* f, int x1, int y1, int x2, int y2, metptr mp)
     pa_auto(mp->wg.wf, FALSE); /* turn off auto */
     pa_curvis(mp->wg.wf, FALSE); /* turn off cursor */
     pa_font(mp->wg.wf, PA_FONT_SIGN); /* set button font */
-    pa_bold(mp->wg.wf, TRUE); /* set bold font */
     pa_setposg(mp->wg.wf, x1, y1); /* place at position */
     pa_setsizg(mp->wg.wf, x2-x1, y2-y1); /* set size */
     pa_binvis(mp->wg.wf); /* no background write */
