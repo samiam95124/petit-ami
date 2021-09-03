@@ -3134,6 +3134,7 @@ static void opnwin(int fn, int pfn, int wid)
     /* create subclient window */
     win->xwhan = createwindow(win->xmwhan, win->gmaxxg, win->gmaxyg);
 
+//dbg_printf(dlinfo, "master: %lx subclient: %lx\n", win->xmwhan, win->xwhan);
     /* find and save the frame parameters from the immediate/parent window.
        This may not work on some window managers */
     XWLOCK();
@@ -8182,6 +8183,7 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
                 XFillRectangle(padisplay, win->xwhan, sc->xcxt,
                                e->xexpose.x, e->xexpose.y,
                                e->xexpose.width, e->xexpose.height);
+                XFlush(padisplay);
                 XWUNLOCK();
 
             }
@@ -8201,15 +8203,14 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
 
         if (win->xmwhan == e->xany.window) { /* it's the master window */
 
+            /* find size of subclient */
+            xwc.width = e->xconfigure.width; /* set frameless offset to client */
+            xwc.height = e->xconfigure.height;
+            if (win->menu) /* if menu is active, remove that space from subclient */
+                xwc.height = e->xconfigure.height-(win->menuspcy+1);
             /* check master window has changed size */
-            if (e->xconfigure.width != win->xwr.w ||
-                e->xconfigure.height != win->xwr.h) {
+            if (xwc.width != win->xwr.w || xwc.height != win->xwr.h) {
 
-                /* recalculate and send the configure on to the subclient */
-                xwc.width = e->xconfigure.width; /* set frameless offset to client */
-                xwc.height = e->xconfigure.height;
-                if (win->menu) /* if menu is active, remove that space from subclient */
-                    xwc.height = e->xconfigure.height-(win->menuspcy+1);
                 XWLOCK();
                 XConfigureWindow(padisplay, win->xwhan, CWWidth|CWHeight, &xwc);
                 XWUNLOCK();
@@ -8218,8 +8219,8 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
                 } while (xe.type != ConfigureNotify || xe.xconfigure.width != xwc.width ||
                          xe.xconfigure.height != xwc.height || xe.xany.window != win->xwhan);
                 /* change saved size to match */
-                win->xwr.w = e->xconfigure.width;
-                win->xwr.h = e->xconfigure.height;
+                win->xwr.w = xwc.width;
+                win->xwr.h = xwc.height;
 
             }
 
@@ -8227,12 +8228,12 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
             if (win->menu) {
 
                 mwin = txt2win(win->menu->wg.wf); /* index window */
-                /* check master window has changed size */
-                if (e->xconfigure.width != mwin->xmwr.w ||
-                    e->xconfigure.height != mwin->xmwr.h) {
+                /* find resulting size of menu bar */
+                xwc.width = e->xconfigure.width; /* width is client */
+                xwc.height = win->menuspcy+1; /* height is menu text plus divider line */
+                /* check menu bar has changed size */
+                if (xwc.width != mwin->xmwr.w || xwc.height != mwin->xmwr.h) {
 
-                    xwc.width = e->xconfigure.width; /* width is client */
-                    xwc.height = win->menuspcy+1; /* height is menu text plus divider line */
                     XWLOCK();
                     XConfigureWindow(padisplay, mwin->xmwhan, CWWidth|CWHeight, &xwc);
                     XWUNLOCK();
@@ -8241,8 +8242,8 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
                     } while (xe.type != ConfigureNotify || xe.xconfigure.width != xwc.width ||
                              xe.xconfigure.height != xwc.height || xe.xany.window != mwin->xmwhan);
                     /* change saved size to match */
-                    win->xmwr.w = e->xconfigure.width;
-                    win->xmwr.h = e->xconfigure.height;
+                    mwin->xmwr.w = xwc.width;
+                    mwin->xmwr.h = xwc.height;
 
                 }
 
