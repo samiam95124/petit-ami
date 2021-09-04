@@ -8210,7 +8210,7 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
             if (win->menu) /* if menu is active, remove that space from subclient */
                 xwc.height = e->xconfigure.height-(win->menuspcy+1);
             if (xwc.height <= 0) xwc.height = 1; /* set minimum height */
-            /* check master window has changed size */
+            /* check subclient window has changed size */
             if (xwc.width != win->xwr.w || xwc.height != win->xwr.h) {
 
                 XWLOCK();
@@ -9453,6 +9453,7 @@ void pa_menu(FILE* f, pa_menuptr m)
     winptr win; /* pointer to windows context */
     metptr mp;  /* pointer to menu tracking entry */
     XEvent e;   /* XWindow event */
+    int wx, wy; /* window sizes */
 
     win = txt2win(f); /* get window context */
     if (win->metlst) { /* distroy previous menu */
@@ -9474,7 +9475,10 @@ void pa_menu(FILE* f, pa_menuptr m)
 
             /* no previous menu active, resize the master window and activate the menu
                bar */
-            pa_setsizg(f, win->gmaxxg, win->gmaxyg+win->menuspcy+1+1);
+            pa_winclientg(f, win->gmaxxg, win->gmaxyg+win->menuspcy+1+1, &wx, &wy,
+                          BIT(pa_wmframe)*win->frame|BIT(pa_wmsize)*win->size|
+                          BIT(pa_wmsysbar)*win->sysbar);
+            pa_setsizg(f, wx, wy);
             /* move subclient window down past menu bar */
             XWLOCK();
             XMoveWindow(padisplay, win->xwhan, 0, win->menuspcy+1);
@@ -10120,7 +10124,7 @@ void pa_frame(FILE* f, int e)
     mwmhints hints;
 
     win = txt2win(f); /* get window context */
-    win->frame = e; /* set new status of frame */
+    win->frame = !!e; /* set new status of frame */
     XWLOCK();
     mwmHintsProperty = XInternAtom(padisplay, "_MOTIF_WM_HINTS", 0);
     hints.flags = MWM_HINTS_DECORATIONS;
@@ -10153,7 +10157,7 @@ void pa_sizable(FILE* f, int e)
     mwmhints hints;
 
     win = txt2win(f); /* get window context */
-    win->size = e; /* set new status of size bars */
+    win->size = !!e; /* set new status of size bars */
     XWLOCK();
     mwmHintsProperty = XInternAtom(padisplay, "_MOTIF_WM_HINTS", 0);
     hints.flags = MWM_HINTS_DECORATIONS;
@@ -10186,7 +10190,7 @@ void pa_sysbar(FILE* f, int e)
     mwmhints hints;
 
     win = txt2win(f); /* get window context */
-    win->sysbar = e; /* set new status of system bar */
+    win->sysbar = !!e; /* set new status of system bar */
     XWLOCK();
     mwmHintsProperty = XInternAtom(padisplay, "_MOTIF_WM_HINTS", 0);
     hints.flags = MWM_HINTS_DECORATIONS;
