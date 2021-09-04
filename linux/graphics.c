@@ -9475,7 +9475,7 @@ void pa_menu(FILE* f, pa_menuptr m)
 
             /* no previous menu active, resize the master window and activate the menu
                bar */
-            pa_winclientg(f, win->gmaxxg, win->gmaxyg+win->menuspcy+1+1, &wx, &wy,
+            pa_winclientg(f, win->gmaxxg, win->gmaxyg+win->menuspcy+1, &wx, &wy,
                           BIT(pa_wmframe)*win->frame|BIT(pa_wmsize)*win->size|
                           BIT(pa_wmsysbar)*win->sysbar);
             pa_setsizg(f, wx, wy);
