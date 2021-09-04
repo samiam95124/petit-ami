@@ -3289,6 +3289,14 @@ static void menu_event(pa_evtrec* ev)
                 fprintf(mp->wg.wf, "%s", mp->wg.title); /* place button title */
 
             }
+            if (mp != par->menu) { /* draw divider line */
+
+                pa_fcolorg(mp->wg.wf,
+                           INT_MAX/256*223, INT_MAX/256*223, INT_MAX/256*223);
+                pa_frect(mp->wg.wf, 1, pa_maxyg(mp->wg.wf)-1,
+                                    pa_maxxg(mp->wg.wf), pa_maxyg(mp->wg.wf));
+
+            }
 
         } else if (ev->etype == pa_etmouba && ev->amoubn == 1) {
 
