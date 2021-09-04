@@ -3335,11 +3335,19 @@ static void menu_event(pa_evtrec* ev)
                 mp->wg.pressed = FALSE;
                 pa_fcolor(mp->wg.wf, pa_white);
                 pa_frect(mp->wg.wf, 1, 1, pa_maxxg(mp->wg.wf), pa_maxyg(mp->wg.wf));
-                pa_fcolor(mp->wg.wf, pa_black);
-                pa_cursorg(mp->wg.wf,
-                           pa_maxxg(mp->wg.wf)/2-pa_strsiz(mp->wg.wf, mp->wg.title)/2,
-                           pa_maxyg(mp->wg.wf)/2-pa_chrsizy(mp->wg.wf)/2);
-                fprintf(mp->wg.wf, "%s", mp->wg.title); /* place button title */
+                if (mp->wg.title) { /* there is a title */
+
+                    pa_fcolor(mp->wg.wf, pa_black);
+                    pa_cursorg(mp->wg.wf,
+                               pa_maxxg(mp->wg.wf)/2-pa_strsiz(mp->wg.wf, mp->wg.title)/2,
+                               pa_maxyg(mp->wg.wf)/2-pa_chrsizy(mp->wg.wf)/2);
+                    fprintf(mp->wg.wf, "%s", mp->wg.title); /* place button title */
+
+                }
+                pa_fcolorg(mp->wg.wf,
+                           INT_MAX/256*223, INT_MAX/256*223, INT_MAX/256*223);
+                pa_frect(mp->wg.wf, 1, pa_maxyg(mp->wg.wf)-1,
+                                    pa_maxxg(mp->wg.wf), pa_maxyg(mp->wg.wf));
 
             }
 
