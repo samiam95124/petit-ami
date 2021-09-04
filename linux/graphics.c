@@ -3316,11 +3316,15 @@ static void menu_event(pa_evtrec* ev)
                 mp->wg.pressed = TRUE;
                 pa_fcolorg(mp->wg.wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
                 pa_frect(mp->wg.wf, 1, 1, pa_maxxg(mp->wg.wf), pa_maxyg(mp->wg.wf));
-                pa_fcolor(mp->wg.wf, pa_black);
-                pa_cursorg(mp->wg.wf,
-                           pa_maxxg(mp->wg.wf)/2-pa_strsiz(mp->wg.wf, mp->wg.title)/2,
-                           pa_maxyg(mp->wg.wf)/2-pa_chrsizy(mp->wg.wf)/2);
-                fprintf(mp->wg.wf, "%s", mp->wg.title); /* place button title */
+                if (mp->wg.title) { /* there is a title */
+
+                    pa_fcolor(mp->wg.wf, pa_black);
+                    pa_cursorg(mp->wg.wf,
+                               pa_maxxg(mp->wg.wf)/2-pa_strsiz(mp->wg.wf, mp->wg.title)/2,
+                            pa_maxyg(mp->wg.wf)/2-pa_chrsizy(mp->wg.wf)/2);
+                    fprintf(mp->wg.wf, "%s", mp->wg.title); /* place button title */
+
+                }
                 /* draw underbar */
                 pa_fcolorg(mp->wg.wf, INT_MAX/256*233, INT_MAX/256*84, INT_MAX/256*32);
                 pa_frect(mp->wg.wf, 1, pa_maxyg(mp->wg.wf)-4, pa_maxxg(mp->wg.wf), pa_maxyg(mp->wg.wf));
