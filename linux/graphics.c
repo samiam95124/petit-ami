@@ -3289,14 +3289,6 @@ static void menu_event(pa_evtrec* ev)
                 fprintf(mp->wg.wf, "%s", mp->wg.title); /* place button title */
 
             }
-            if (mp == par->menu) {
-
-                /* draw separator line at menu bottom */
-                pa_fcolor(mp->wg.wf, pa_black);
-                pa_line(mp->wg.wf, 1, pa_maxyg(mp->wg.wf), pa_maxxg(mp->wg.wf),
-                        pa_maxyg(mp->wg.wf));
-
-            }
 
         } else if (ev->etype == pa_etmouba && ev->amoubn == 1) {
 
@@ -3402,7 +3394,7 @@ static void actmenu(FILE* f)
 
     win = txt2win(f); /* get window context */
     /* open the menu bar */
-    openmenu(f, 1, 1, pa_maxxg(f), win->menuspcy+1, win->menu);
+    openmenu(f, 1, 1, pa_maxxg(f), win->menuspcy, win->menu);
     bf = win->menu->wg.wf; /* get the menu bar file */
     x = 1; /* set initial menu bar position */
     mp = win->metlst; /* index top of menu list */
@@ -8208,7 +8200,7 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
             xwc.width = e->xconfigure.width; /* set frameless offset to client */
             xwc.height = e->xconfigure.height;
             if (win->menu) /* if menu is active, remove that space from subclient */
-                xwc.height = e->xconfigure.height-(win->menuspcy+1);
+                xwc.height = e->xconfigure.height-win->menuspcy;
             if (xwc.height <= 0) xwc.height = 1; /* set minimum height */
             /* check subclient window has changed size */
             if (xwc.width != win->xwr.w || xwc.height != win->xwr.h) {
@@ -8232,7 +8224,7 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
                 mwin = txt2win(win->menu->wg.wf); /* index window */
                 /* find resulting size of menu bar */
                 xwc.width = e->xconfigure.width; /* width is client */
-                xwc.height = win->menuspcy+1; /* height is menu text plus divider line */
+                xwc.height = win->menuspcy; /* height is menu text */
                 /* check menu bar has changed size */
                 if (xwc.width != mwin->xmwr.w || xwc.height != mwin->xmwr.h) {
 
@@ -9475,19 +9467,19 @@ void pa_menu(FILE* f, pa_menuptr m)
 
             /* no previous menu active, resize the master window and activate the menu
                bar */
-            pa_winclientg(f, win->gmaxxg, win->gmaxyg+win->menuspcy+1, &wx, &wy,
+            pa_winclientg(f, win->gmaxxg, win->gmaxyg+win->menuspcy, &wx, &wy,
                           BIT(pa_wmframe)*win->frame|BIT(pa_wmsize)*win->size|
                           BIT(pa_wmsysbar)*win->sysbar);
             pa_setsizg(f, wx, wy);
             /* move subclient window down past menu bar */
             XWLOCK();
-            XMoveWindow(padisplay, win->xwhan, 0, win->menuspcy+1);
+            XMoveWindow(padisplay, win->xwhan, 0, win->menuspcy);
             XWUNLOCK();
 
             /* wait for the configure response */
             do { peekxevt(&e); /* peek next event */
             } while (e.type != ConfigureNotify || e.xconfigure.x != 0 ||
-                     e.xconfigure.y != win->menuspcy+1 ||
+                     e.xconfigure.y != win->menuspcy ||
                      e.xany.window != win->xwhan);
             restore(win);
 
