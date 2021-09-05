@@ -15630,6 +15630,7 @@ static int iclose(int fd)
     if (fd < 0 || fd >= MAXFIL) error(einvhan); /* invalid file handle */
     /* check if the file is an output window, and close if so */
     if (opnfil[fd] && opnfil[fd]->win) closewin(fd);
+
     return (*ofpclose)(fd);
 
 }

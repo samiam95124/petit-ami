@@ -3195,6 +3195,96 @@ static void opnwin(int fn, int pfn, int wid)
 
 }
 
+/*******************************************************************************
+
+Close window
+
+Shuts down, removes and releases a window.
+
+*******************************************************************************/
+
+static void clswin(int fn)
+
+{
+
+    int    r;   /* result holder */
+    int    b;   /* int result holder */
+    winptr win; /* window pointer */
+
+    win = lfn2win(fn); /* get a pointer to the window */
+    XWLOCK();
+    /* destroy the window */
+    XDestroyWindow(padisplay, win->xwhan);
+    /* close X Window */
+    XCloseDisplay(padisplay);
+    XWUNLOCK();
+
+}
+
+/*******************************************************************************
+
+Close window
+
+Closes an open window pair. Accepts an output window. The window is closed, and
+the window and file handles are freed. The input file is freed only if no other
+window also links it.
+
+*******************************************************************************/
+
+/* flush and close file */
+
+static void clsfil(int fn)
+
+{
+
+    int    si; /* index for screens */
+    filptr fp;
+
+    fp = opnfil[fn];
+    /* release all of the screen buffers */
+    for (si = 0; si < MAXCON; si++)
+        if (fp->win->screens[si]) ifree(fp->win->screens[si]);
+    ifree(fp->win); /* release the window data */
+    fp->win = NULL; /* set end open */
+    fp->inw = FALSE;
+    fp->inl = -1;
+
+}
+
+static int inplnk(int fn)
+
+{
+
+    int fi; /* index for files */
+    int fc; /* counter for files */
+
+    fc = 0; /* clear count */
+    for (fi = 0; fi < MAXFIL; fi++) /* traverse files */
+        if (opnfil[fi]) /* entry is occupied */
+            if (opnfil[fi]->inl == fn) fc++; /* count the file link */
+
+    return (fc); /* return result */
+
+}
+
+static void closewin(int ofn)
+
+{
+
+    int ifn; /* input file id */
+    int wid; /* window id */
+
+    wid = filwin[ofn]; /* get window id */
+    ifn = opnfil[ofn]->inl; /* get the input file link */
+    clswin(ofn); /* close the window */
+    clsfil(ofn); /* flush and close output file */
+    /* if no remaining links exist, flush and close input file */
+    if (!inplnk(ifn)) clsfil(ifn);
+    filwin[ofn] = -1; /* clear file to window translation */
+    xltwin[wid-1] = -1; /* clear window to file translation */
+
+}
+
 /** ****************************************************************************
 
 Open an input and output pair
@@ -4415,6 +4505,10 @@ Does nothing but pass on.
 static int iclose(int fd)
 
 {
+
+    if (fd < 0 || fd >= MAXFIL) error(einvhan); /* invalid file handle */
+    /* check if the file is an output window, and close if so */
+    if (opnfil[fd] && opnfil[fd]->win) closewin(fd);
 
     return (*ofpclose)(fd);
 
