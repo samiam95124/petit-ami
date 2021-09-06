@@ -3228,6 +3228,7 @@ static void clswin(int fn)
     XWLOCK();
     /* destroy the window */
     XDestroyWindow(padisplay, win->xwhan);
+    XDestroyWindow(padisplay, win->xmwhan);
     XWUNLOCK();
 
 }
@@ -3631,7 +3632,7 @@ static void menu_event(pa_evtrec* ev)
 
                     /* second press on floating menu */
                     menu_release(mp); /* release the button */
-                    remmen(mp->head); /* remove all floating menus */
+                    remmen(mp->branch); /* remove floating menus */
 
                 }
 
