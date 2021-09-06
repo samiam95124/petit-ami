@@ -103,11 +103,14 @@ static enum { /* debug levels */
     dlfail, /* failure/critical */
     dlnone  /* no messages */
 
-} dbglvl = dlwarn /*dlinfo*/;
+} dbglvl = dlinfo;
 
 #define dbg_printf(lvl, fmt, ...) \
         do { if (lvl >= dbglvl) fprintf(stderr, "%s:%s():%d: " fmt, __FILE__, \
-                                __func__, __LINE__, ##__VA_ARGS__); } while (0)
+                                __func__, __LINE__, ##__VA_ARGS__); \
+                                fflush(stderr); } while (0)
+
+#define NOCANCEL /* include nocancel overrides */
 
 #define MAXFIL 100 /* maximum number of open files */
 #define COOKIE_SECRET_LENGTH 16 /* length of secret cookie */
@@ -2718,7 +2721,6 @@ static void pa_deinit_network()
     ovr_open(ofpopen, &cppopen);
     ovr_close(ofpclose, &cppclose);
     ovr_lseek(ofplseek, &cpplseek);
-
 #ifdef NOCANCEL
     ovr_read_nocancel(ofpread_nocancel, &cppread_nocancel);
     ovr_write_nocancel(ofpwrite_nocancel, &cppwrite_nocancel);

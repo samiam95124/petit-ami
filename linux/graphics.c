@@ -133,6 +133,7 @@ static enum { /* debug levels */
 //#define PRTMEM /* print memory allocations at exit */
 //#define PRTWPM /* print window parameters on open */
 #define NOWDELAY /* don't delay window presentation until drawn */
+#define NOCANCEL /* include nocancel overrides */
 
 /* the "standard character" sizes are used to form a pseudo-size for desktop
    character measurements in a graphical system. */
@@ -197,6 +198,13 @@ extern void ovr_write(pwrite_t nfp, pwrite_t* ofp);
 extern void ovr_open(popen_t nfp, popen_t* ofp);
 extern void ovr_close(pclose_t nfp, pclose_t* ofp);
 extern void ovr_lseek(plseek_t nfp, plseek_t* ofp);
+
+#ifdef NOCANCEL
+extern void ovr_read_nocancel(pread_t nfp, pread_t* ofp);
+extern void ovr_write_nocancel(pwrite_t nfp, pwrite_t* ofp);
+extern void ovr_open_nocancel(popen_t nfp, popen_t* ofp);
+extern void ovr_close_nocancel(pclose_t nfp, pclose_t* ofp);
+#endif
 
 /* screen text attribute */
 typedef enum {
@@ -599,9 +607,13 @@ typedef struct paevtque {
  *
  */
 static pread_t   ofpread;
+static pread_t   ofpread_nocancel;
 static pwrite_t  ofpwrite;
+static pwrite_t  ofpwrite_nocancel;
 static popen_t   ofpopen;
+static popen_t   ofpopen_nocancel;
 static pclose_t  ofpclose;
+static pclose_t  ofpclose_nocancel;
 static plseek_t  ofplseek;
 
 /* X Windows globals */
@@ -3485,6 +3497,17 @@ static void remmen(metptr mp)
 
 {
 
+    /* close any open entry in this chain */
+    while (mp) {
+
+        /* if window file is open, close it */
+        if (mp->wg.wf) fclose(mp->wg.wf);
+        /* and close any submenus */
+        if (mp->branch) remmen(mp->branch);
+        mp = mp->next; /* next menu entry */
+
+    }
+
 }
 
 /* handle menu button press */
@@ -4477,11 +4500,27 @@ Read
 
 *******************************************************************************/
 
+static ssize_t ivread(pread_t readdc, int fd, void* buff, size_t count)
+
+{
+
+    return (*readdc)(fd, buff, count);
+
+}
+
 static ssize_t iread(int fd, void* buff, size_t count)
 
 {
 
-    return (*ofpread)(fd, buff, count);
+    ivread(ofpread, fd, buff, count);
+
+}
+
+static ssize_t iread_nocancel(int fd, void* buff, size_t count)
+
+{
+
+    ivread(ofpread_nocancel, fd, buff, count);
 
 }
 
@@ -4491,7 +4530,7 @@ Write
 
 *******************************************************************************/
 
-static ssize_t iwrite(int fd, const void* buff, size_t count)
+static ssize_t ivwrite(pwrite_t writedc, int fd, const void* buff, size_t count)
 
 {
 
@@ -4508,9 +4547,25 @@ static ssize_t iwrite(int fd, const void* buff, size_t count)
         while (cnt--) plcchr(win, *p++);
         rc = count; /* set return same as count */
 
-    } else rc = (*ofpwrite)(fd, buff, count);
+    } else rc = (*writedc)(fd, buff, count);
 
     return rc;
+
+}
+
+static ssize_t iwrite(int fd, const void* buff, size_t count)
+
+{
+
+    ivwrite(ofpwrite, fd, buff, count);
+
+}
+
+static ssize_t iwrite_nocancel(int fd, const void* buff, size_t count)
+
+{
+
+    ivwrite(ofpwrite_nocancel, fd, buff, count);
 
 }
 
@@ -4523,11 +4578,27 @@ shuts down. Thus we do nothing for this.
 
 *******************************************************************************/
 
+static int ivopen(popen_t opendc, const char* pathname, int flags, int perm)
+
+{
+
+    return (*opendc)(pathname, flags, perm);
+
+}
+
 static int iopen(const char* pathname, int flags, int perm)
 
 {
 
-    return (*ofpopen)(pathname, flags, perm);
+    ivopen(ofpopen, pathname, flags, perm);
+
+}
+
+static int iopen_nocancel(const char* pathname, int flags, int perm)
+
+{
+
+    ivopen(ofpopen_nocancel, pathname, flags, perm);
 
 }
 
@@ -4535,11 +4606,12 @@ static int iopen(const char* pathname, int flags, int perm)
 
 Close
 
-Does nothing but pass on.
+If the file is attached to an output window, closes the window file. Otherwise,
+the close is just passed on.
 
 *******************************************************************************/
 
-static int iclose(int fd)
+static int ivclose(pclose_t closedc, int fd)
 
 {
 
@@ -4547,7 +4619,23 @@ static int iclose(int fd)
     /* check if the file is an output window, and close if so */
     if (opnfil[fd] && opnfil[fd]->win) closewin(fd);
 
-    return (*ofpclose)(fd);
+    return (*closedc)(fd);
+
+}
+
+static int iclose(int fd)
+
+{
+
+    ivclose(ofpclose, fd);
+
+}
+
+static int iclose_nocancel(int fd)
+
+{
+
+    ivclose(ofpclose_nocancel, fd);
 
 }
 
@@ -4560,7 +4648,7 @@ or stdout handle.
 
 *******************************************************************************/
 
-static off_t ilseek(int fd, off_t offset, int whence)
+static off_t ivlseek(plseek_t lseekdc, int fd, off_t offset, int whence)
 
 {
 
@@ -4568,7 +4656,15 @@ static off_t ilseek(int fd, off_t offset, int whence)
        if so */
     if (fd == INPFIL || fd == OUTFIL) error(efilopr);
 
-    return (*ofplseek)(fd, offset, whence);
+    return (*lseekdc)(fd, offset, whence);
+
+}
+
+static off_t ilseek(int fd, off_t offset, int whence)
+
+{
+
+    ivlseek(ofplseek, fd, offset, whence);
 
 }
 
@@ -9658,6 +9754,7 @@ static void mettrk(
     mp->oneof = NULL; /* set no "one of" */
     /* set up the button properties */
     mp->wg.pressed = FALSE; /* not pressed */
+    mp->wg.wf = NULL; /* set no window file attached */
     mp->wg.title = str(m->face); /* copy face string */
     mp->wg.evtfil = f; /* set menu event post file */
     /* We are walking backwards in the list, and we need the next list entry
@@ -11633,6 +11730,12 @@ static void pa_init_graphics(int argc, char *argv[])
     ovr_open(iopen, &ofpopen);
     ovr_close(iclose, &ofpclose);
     ovr_lseek(ilseek, &ofplseek);
+#ifdef NOCANCEL
+    ovr_read_nocancel(iread_nocancel, &ofpread_nocancel);
+    ovr_write_nocancel(iwrite_nocancel, &ofpwrite_nocancel);
+    ovr_open_nocancel(iopen_nocancel, &ofpopen_nocancel);
+    ovr_close_nocancel(iclose_nocancel, &ofpclose_nocancel);
+#endif
 
     /* set internal configurable settings */
     maxxd     = MAXXD;     /* set default window dimensions */
@@ -11828,11 +11931,15 @@ static void pa_deinit_graphics()
 {
 
     /* holding copies of system vectors */
-    pread_t   cppread;
-    pwrite_t  cppwrite;
-    popen_t   cppopen;
-    pclose_t  cppclose;
-    plseek_t  cpplseek;
+    pread_t cppread;
+    pread_t cppread_nocancel;
+    pwrite_t cppwrite;
+    pwrite_t cppwrite_nocancel;
+    popen_t cppopen;
+    popen_t cppopen_nocancel;
+    pclose_t cppclose;
+    pclose_t cppclose_nocancel;
+    plseek_t cpplseek;
 
     winptr win;    /* windows record pointer */
     string trmnam; /* termination name */
@@ -11875,6 +11982,12 @@ static void pa_deinit_graphics()
     ovr_open(ofpopen, &cppopen);
     ovr_close(ofpclose, &cppclose);
     ovr_lseek(ofplseek, &cpplseek);
+#ifdef NOCANCEL
+    ovr_read_nocancel(ofpread_nocancel, &cppread_nocancel);
+    ovr_write_nocancel(ofpwrite_nocancel, &cppwrite_nocancel);
+    ovr_open_nocancel(ofpopen_nocancel, &cppopen_nocancel);
+    ovr_close_nocancel(ofpclose_nocancel, &cppclose_nocancel);
+#endif
 
     /* if we don't see our own vector flag an error */
     if (cppread != iread || cppwrite != iwrite || cppopen != iopen ||
