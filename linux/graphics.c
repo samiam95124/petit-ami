@@ -3228,8 +3228,6 @@ static void clswin(int fn)
     XWLOCK();
     /* destroy the window */
     XDestroyWindow(padisplay, win->xwhan);
-    /* close X Window */
-    XCloseDisplay(padisplay);
     XWUNLOCK();
 
 }
@@ -3294,7 +3292,7 @@ static void closewin(int ofn)
     /* if no remaining links exist, flush and close input file */
     if (!inplnk(ifn)) clsfil(ifn);
     filwin[ofn] = -1; /* clear file to window translation */
-    xltwin[wid-1] = -1; /* clear window to file translation */
+    xltwin[wid+MAXFIL] = -1; /* clear window to file translation */
 
 }
 
