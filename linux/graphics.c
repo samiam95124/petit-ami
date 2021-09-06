@@ -292,19 +292,20 @@ typedef struct widget {
    tree as passed. The menu items are a linear list, since they contain
    both the menu handle and the relative number 0-n of the item, neither
    the lack of tree structure nor the order of the list matters. */
+typedef struct metrec* metptr;
 typedef struct metrec {
 
-    struct metrec* next;   /* next entry */
-    struct metrec* branch; /* menu branch */
-    int            bar;    /* is the menu bar */
-    int            inx;    /* index position, 0-n, of item */
-    int            onoff;  /* the item is on-off highlighted */
-    int            select; /* the current on/off state of the highlight */
-    struct metrec* oneof;  /* "one of" chain pointer */
-    int            id;     /* user id of item */
-    widget         wg;     /* widget window */
+    metptr next;   /* next entry */
+    metptr branch; /* menu branch */
+    metptr  head;  /* head of menu pointer */
+    int    bar;    /* is the menu bar */
+    int    onoff;  /* the item is on-off highlighted */
+    int    select; /* the current on/off state of the highlight */
+    metptr oneof;  /* "one of" chain pointer */
+    int    id;     /* user id of item */
+    widget wg;     /* widget window */
 
-} metrec, *metptr;
+} metrec;
 
 typedef struct scncon { /* screen context */
 
@@ -9600,7 +9601,11 @@ static void insend(metptr* root, metptr mp)
 }
 
 /* create menu tracking entry */
-static void mettrk(FILE* f, metptr* root, int inx, pa_menuptr m, metptr* nm)
+static void mettrk(
+    /** window file for menu */          FILE* f,
+    /** root of menu list */             metptr* root,
+    /** client side menu tree pointer */ pa_menuptr m,
+    /** new entry created */             metptr* nm)
 
 {
 
@@ -9609,8 +9614,8 @@ static void mettrk(FILE* f, metptr* root, int inx, pa_menuptr m, metptr* nm)
     mp = getmet(); /* get a new tracking entry */
     insend(root, mp); /* insert to end */
     mp->branch = NULL; /* clear branch */
+    mp->head = *root; /* point back to root (used for floating menus) */
     mp->bar = FALSE; /* set not menu bar */
-    mp->inx = inx; /* place menu index */
     mp->onoff = m->onoff; /* place on/off highlighter */
     mp->select = FALSE; /* place status of select (off) */
     mp->id = m->id; /* place id */
@@ -9636,30 +9641,26 @@ static void createmenu(FILE* f, metptr* root, pa_menuptr m)
 
 {
 
-    int    inx; /* index number for this menu */
     metptr mp;  /* pointer to menu tracking entry */
 
-    inx = 0; /* set first in sequence */
     while (m) { /* add menu item */
 
         if (m->branch) { /* handle submenu */
 
-            mettrk(f, root, inx, m, &mp); /* enter that into tracking */
+            mettrk(f, root, m, &mp); /* enter that into tracking */
             createmenu(f, &mp->branch, m->branch); /* create submenu */
 
         } else { /* handle terminal menu */
 
-            mettrk(f, root, inx, m, &mp); /* enter that into tracking */
+            mettrk(f, root, m, &mp); /* enter that into tracking */
 
         }
         if (m->bar) { /* add separator bar */
 
             /* a separator bar is a blank entry that will never be referenced */
-            inx = inx+1; /* next in sequence */
 
         }
         m = m->next; /* next menu entry */
-        inx++; /* next in sequence */
 
     }
 
