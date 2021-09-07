@@ -3500,7 +3500,12 @@ static void remmen(metptr mp, int branch)
     while (mp) {
 
         /* if window file is open, close it */
-        if (mp->wg.wf && !branch) fclose(mp->wg.wf);
+        if (mp->wg.wf && !branch) {
+
+            fclose(mp->wg.wf); /* close */
+            mp->wg.wf = NULL; /* clear file link */
+
+        }
         /* and close any submenus */
         if (mp->branch) remmen(mp->branch, FALSE);
         mp = mp->next; /* next menu entry */
