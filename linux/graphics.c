@@ -303,16 +303,23 @@ typedef struct widget {
 typedef struct metrec* metptr;
 typedef struct metrec {
 
-    metptr next;   /* next entry */
-    metptr branch; /* menu branch */
-    metptr head;   /* head of menu pointer */
-    int    bar;    /* is the menu bar */
-    int    onoff;  /* the item is on-off highlighted */
-    int    select; /* the current on/off state of the highlight */
-    metptr oneof;  /* "one of" chain pointer */
-    int    id;     /* user id of item */
-    widget wg;     /* widget window */
-    int    x, y;   /* subclient position of window */
+    metptr next;    /* next entry */
+    metptr branch;  /* menu branch */
+    metptr head;    /* head of menu pointer */
+    int    bar;     /* is the menu bar */
+    int    onoff;   /* the item is on-off highlighted */
+    int    select;  /* the current on/off state of the highlight */
+    metptr oneof;   /* "one of" chain pointer */
+    int    id;      /* user id of item */
+    widget wg;      /* widget window */
+    int    x, y;    /* subclient position of window */
+    int    prime;   /* is a prime (onscreen) entry */
+    int    pressed; /* in the pressed state */
+    FILE*  wf;      /* output file for the menu window */
+    char*  title;   /* title text */
+    FILE*  parent;  /* parent window */
+    FILE*  evtfil;  /* file to post menu events to */
+    int    wid;     /* menu window id */
 
 } metrec;
 
@@ -3466,18 +3473,17 @@ static void openmenu(
 {
 
     mp->wg.wid = pa_getwid(); /* allocate a buried wid */
-    pa_openwin(&f, &mp->wg.wf, p, mp->wg.wid); /* open widget window */
-    mp->wg.parent = p; /* set parent file */
-    mp->wg.id = mp->id; /* set button widget id */
+    pa_openwin(&f, &mp->wf, p, mp->wg.wid); /* open widget window */
+    mp->parent = p; /* set parent file */
     xltmnu[mp->wg.wid+MAXFIL] = mp; /* set the tracking entry for window */
-    pa_buffer(mp->wg.wf, FALSE); /* turn off buffering */
-    pa_frame(mp->wg.wf, FALSE); /* turn off frame */
-    pa_auto(mp->wg.wf, FALSE); /* turn off auto */
-    pa_curvis(mp->wg.wf, FALSE); /* turn off cursor */
-    pa_font(mp->wg.wf, PA_FONT_SIGN); /* set button font */
-    pa_setposg(mp->wg.wf, x1, y1); /* place at position */
-    pa_setsizg(mp->wg.wf, x2-x1+1, y2-y1+1); /* set size */
-    pa_binvis(mp->wg.wf); /* no background write */
+    pa_buffer(mp->wf, FALSE); /* turn off buffering */
+    pa_frame(mp->wf, FALSE); /* turn off frame */
+    pa_auto(mp->wf, FALSE); /* turn off auto */
+    pa_curvis(mp->wf, FALSE); /* turn off cursor */
+    pa_font(mp->wf, PA_FONT_SIGN); /* set button font */
+    pa_setposg(mp->wf, x1, y1); /* place at position */
+    pa_setsizg(mp->wf, x2-x1+1, y2-y1+1); /* set size */
+    pa_binvis(mp->wf); /* no background write */
 
 }
 
@@ -3506,7 +3512,7 @@ static void fltmen(FILE* f, metptr mp, int x, int y)
     mw = 0; /* set no width */
     while (p) { /* traverse */
 
-        w = w = pa_strsiz(f, mp->wg.title); /* get width this entry */
+        w = w = pa_strsiz(f, mp->title); /* get width this entry */
         if (w > mw) mw = w; /* find maximum */
         p = p->next; /* next in list */
 
@@ -3517,7 +3523,7 @@ static void fltmen(FILE* f, metptr mp, int x, int y)
     while (p) { /* traverse */
 
         /* open menu item */
-        openmenu(out2inp(f), mp->wg.evtfil, x, y, x+mw, y+win->menuspcy, p);
+        openmenu(out2inp(f), mp->evtfil, x, y, x+mw, y+win->menuspcy, p);
         p = p->next; /* next entry */
         y += win->menuspcy; /* next location */
 
@@ -3534,10 +3540,10 @@ static void remmen(metptr mp, int branch)
     while (mp) {
 
         /* if window file is open, close it */
-        if (mp->wg.wf && !branch) {
+        if (mp->wf && !branch) {
 
-            fclose(mp->wg.wf); /* close */
-            mp->wg.wf = NULL; /* clear file link */
+            fclose(mp->wf); /* close */
+            mp->wf = NULL; /* clear file link */
 
         }
         /* and close any submenus */
@@ -3557,29 +3563,29 @@ static void menu_press(metptr mp)
     int x, y;
 
     par = NULL; /* set no parent (floating menu) */
-    if (mp->wg.parent) par = txt2win(mp->wg.parent); /* index parent window */
+    if (mp->parent) par = txt2win(mp->parent); /* index parent window */
     /* process button press */
-    mp->wg.pressed = TRUE;
-    pa_fcolorg(mp->wg.wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
-    pa_frect(mp->wg.wf, 1, 1, pa_maxxg(mp->wg.wf), pa_maxyg(mp->wg.wf));
-    if (mp->wg.title) { /* there is a title */
+    mp->pressed = TRUE;
+    pa_fcolorg(mp->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
+    pa_frect(mp->wf, 1, 1, pa_maxxg(mp->wf), pa_maxyg(mp->wf));
+    if (mp->title) { /* there is a title */
 
-        pa_fcolor(mp->wg.wf, pa_black);
-        pa_cursorg(mp->wg.wf,
-                   pa_maxxg(mp->wg.wf)/2-pa_strsiz(mp->wg.wf, mp->wg.title)/2,
-                pa_maxyg(mp->wg.wf)/2-pa_chrsizy(mp->wg.wf)/2);
-        fprintf(mp->wg.wf, "%s", mp->wg.title); /* place button title */
+        pa_fcolor(mp->wf, pa_black);
+        pa_cursorg(mp->wf,
+                   pa_maxxg(mp->wf)/2-pa_strsiz(mp->wf, mp->title)/2,
+                pa_maxyg(mp->wf)/2-pa_chrsizy(mp->wf)/2);
+        fprintf(mp->wf, "%s", mp->title); /* place button title */
 
     }
     /* draw underbar */
-    pa_fcolorg(mp->wg.wf, INT_MAX/256*233, INT_MAX/256*84, INT_MAX/256*32);
-    pa_frect(mp->wg.wf, 1, pa_maxyg(mp->wg.wf)-4, pa_maxxg(mp->wg.wf), pa_maxyg(mp->wg.wf));
+    pa_fcolorg(mp->wf, INT_MAX/256*233, INT_MAX/256*84, INT_MAX/256*32);
+    pa_frect(mp->wf, 1, pa_maxyg(mp->wf)-4, pa_maxxg(mp->wf), pa_maxyg(mp->wf));
     /* if it is a branch, present floating menu */
     if (mp->branch) {
 
         x = mp->x; /* find location of button bottom */
         y = mp->y+par->menuspcy;
-        fltmen(mp->wg.wf, mp, x, y);
+        fltmen(mp->wf, mp, x, y);
 
     }
 
@@ -3590,22 +3596,22 @@ static void menu_release(metptr mp)
 
 {
 
-    mp->wg.pressed = FALSE;
-    pa_fcolor(mp->wg.wf, pa_white);
-    pa_frect(mp->wg.wf, 1, 1, pa_maxxg(mp->wg.wf), pa_maxyg(mp->wg.wf));
-    if (mp->wg.title) { /* there is a title */
+    mp->pressed = FALSE;
+    pa_fcolor(mp->wf, pa_white);
+    pa_frect(mp->wf, 1, 1, pa_maxxg(mp->wf), pa_maxyg(mp->wf));
+    if (mp->title) { /* there is a title */
 
-        pa_fcolor(mp->wg.wf, pa_black);
-        pa_cursorg(mp->wg.wf,
-                   pa_maxxg(mp->wg.wf)/2-pa_strsiz(mp->wg.wf, mp->wg.title)/2,
-                   pa_maxyg(mp->wg.wf)/2-pa_chrsizy(mp->wg.wf)/2);
-        fprintf(mp->wg.wf, "%s", mp->wg.title); /* place button title */
+        pa_fcolor(mp->wf, pa_black);
+        pa_cursorg(mp->wf,
+                   pa_maxxg(mp->wf)/2-pa_strsiz(mp->wf, mp->title)/2,
+                   pa_maxyg(mp->wf)/2-pa_chrsizy(mp->wf)/2);
+        fprintf(mp->wf, "%s", mp->title); /* place button title */
 
     }
-    pa_fcolorg(mp->wg.wf,
+    pa_fcolorg(mp->wf,
                INT_MAX/256*223, INT_MAX/256*223, INT_MAX/256*223);
-    pa_frect(mp->wg.wf, 1, pa_maxyg(mp->wg.wf)-1,
-                        pa_maxxg(mp->wg.wf), pa_maxyg(mp->wg.wf));
+    pa_frect(mp->wf, 1, pa_maxyg(mp->wf)-1,
+                        pa_maxxg(mp->wf), pa_maxyg(mp->wf));
 
 }
 
@@ -3617,7 +3623,7 @@ static void menu_release_all(metptr mp)
     /* close any open entry in this chain */
     while (mp) {
 
-        if (mp->wg.pressed) menu_release(mp); /* release this menu */
+        if (mp->pressed) menu_release(mp); /* release this menu */
         mp = mp->next; /* next menu entry */
 
     }
@@ -3639,28 +3645,28 @@ static void menu_event(pa_evtrec* ev)
     else { /* handle it here */
 
         par = NULL; /* set no parent (floating menu) */
-        if (mp->wg.parent) par = txt2win(mp->wg.parent); /* index parent window */
+        if (mp->parent) par = txt2win(mp->parent); /* index parent window */
         if (ev->etype == pa_etredraw) { /* redraw the window */
 
             /* color the background */
-            pa_fcolor(mp->wg.wf, pa_white);
-            pa_frect(mp->wg.wf, 1, 1, pa_maxxg(mp->wg.wf), pa_maxyg(mp->wg.wf));
-            if (mp->wg.title) { /* there is a title */
+            pa_fcolor(mp->wf, pa_white);
+            pa_frect(mp->wf, 1, 1, pa_maxxg(mp->wf), pa_maxyg(mp->wf));
+            if (mp->title) { /* there is a title */
 
                 /* place the title */
-                pa_fcolor(mp->wg.wf, pa_black);
-                pa_cursorg(mp->wg.wf,
-                           pa_maxxg(mp->wg.wf)/2-pa_strsiz(mp->wg.wf, mp->wg.title)/2,
-                           pa_maxyg(mp->wg.wf)/2-pa_chrsizy(mp->wg.wf)/2);
-                fprintf(mp->wg.wf, "%s", mp->wg.title); /* place button title */
+                pa_fcolor(mp->wf, pa_black);
+                pa_cursorg(mp->wf,
+                           pa_maxxg(mp->wf)/2-pa_strsiz(mp->wf, mp->title)/2,
+                           pa_maxyg(mp->wf)/2-pa_chrsizy(mp->wf)/2);
+                fprintf(mp->wf, "%s", mp->title); /* place button title */
 
             }
             if (!mp->bar) { /* draw divider line */
 
-                pa_fcolorg(mp->wg.wf,
+                pa_fcolorg(mp->wf,
                            INT_MAX/256*223, INT_MAX/256*223, INT_MAX/256*223);
-                pa_frect(mp->wg.wf, 1, pa_maxyg(mp->wg.wf)-1,
-                                    pa_maxxg(mp->wg.wf), pa_maxyg(mp->wg.wf));
+                pa_frect(mp->wf, 1, pa_maxyg(mp->wf)-1,
+                                    pa_maxxg(mp->wf), pa_maxyg(mp->wf));
 
             }
 
@@ -3670,7 +3676,7 @@ static void menu_event(pa_evtrec* ev)
             if (!mp->bar) { /* if not the menu bar */
 
                 /* if button not pressed */
-                if (!mp->wg.pressed) menu_press(mp); /* process menu press */
+                if (!mp->pressed) menu_press(mp); /* process menu press */
                 else if (mp->branch) {
 
                     /* second press on floating menu */
@@ -3685,8 +3691,8 @@ static void menu_event(pa_evtrec* ev)
 
                 /* send event back to parent window */
                 er.etype = pa_etmenus; /* set button event */
-                er.butid = mp->wg.id; /* set id */
-                pa_sendevent(mp->wg.evtfil/*parent*/, &er); /* send the event to the parent */
+                er.butid = mp->id; /* set id */
+                pa_sendevent(mp->evtfil/*parent*/, &er); /* send the event to the parent */
                 remmen(mp->head, TRUE); /* remove all floating menus but bar */
                 menu_release_all(mp->head); /* remove all top level presses */
 
@@ -3729,17 +3735,18 @@ static void actmenu(FILE* f)
     inf = out2inp(f); /* get input file for window */
     /* open the menu bar */
     openmenu(inf, f, 1, 1, pa_maxxg(f), win->menuspcy, win->menu);
-    bf = win->menu->wg.wf; /* get the menu bar file */
+    bf = win->menu->wf; /* get the menu bar file */
     x = 1; /* set initial menu bar position */
     mp = win->metlst; /* index top of menu list */
     while (mp) { /* traverse top level list */
 
         /* find width of face text in menu bar terms */
-        w = pa_strsiz(bf, mp->wg.title);
+        w = pa_strsiz(bf, mp->title);
         /* open menu item here */
         openmenu(inf, f, x, 1, x+w+EXTRAMENUX, win->menuspcy, mp);
         mp->x = x; /* save position */
         mp->y = 1;
+        mp->prime = TRUE; /* set is a prime (onscreen) menu */
         x = x+w+EXTRAMENUX; /* go next menu position */
         mp = mp->next; /* next top menu item */
 
@@ -8634,7 +8641,7 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
             /* if menu bar is active, also send a configure to it */
             if (win->menu) {
 
-                mwin = txt2win(win->menu->wg.wf); /* index window */
+                mwin = txt2win(win->menu->wf); /* index window */
                 /* find resulting size of menu bar */
                 xwc.width = e->xconfigure.width; /* width is client */
                 xwc.height = win->menuspcy; /* height is menu text */
@@ -9809,10 +9816,11 @@ static void mettrk(
     mp->id = m->id; /* place id */
     mp->oneof = NULL; /* set no "one of" */
     /* set up the button properties */
-    mp->wg.pressed = FALSE; /* not pressed */
-    mp->wg.wf = NULL; /* set no window file attached */
-    mp->wg.title = str(m->face); /* copy face string */
-    mp->wg.evtfil = f; /* set menu event post file */
+    mp->pressed = FALSE; /* not pressed */
+    mp->wf = NULL; /* set no window file attached */
+    mp->title = str(m->face); /* copy face string */
+    mp->evtfil = f; /* set menu event post file */
+    mp->prime = FALSE; /* set not prime menu */
     /* We are walking backwards in the list, and we need the next list entry
       to know the "one of" chain. So we tie the entry to itself as a flag
       that it chains to the next entry. That chain will get fixed on the
