@@ -3492,7 +3492,7 @@ static void fltmen(FILE* f, metptr mp, int x, int y)
 }
 
 /* remove floating menus */
-static void remmen(metptr mp)
+static void remmen(metptr mp, int branch)
 
 {
 
@@ -3500,9 +3500,9 @@ static void remmen(metptr mp)
     while (mp) {
 
         /* if window file is open, close it */
-        if (mp->wg.wf) fclose(mp->wg.wf);
+        if (mp->wg.wf && !branch) fclose(mp->wg.wf);
         /* and close any submenus */
-        if (mp->branch) remmen(mp->branch);
+        if (mp->branch) remmen(mp->branch, FALSE);
         mp = mp->next; /* next menu entry */
 
     }
@@ -3620,6 +3620,7 @@ static void menu_event(pa_evtrec* ev)
                 er.etype = pa_etmenus; /* set button event */
                 er.butid = mp->wg.id; /* set id */
                 pa_sendevent(mp->wg.evtfil/*parent*/, &er); /* send the event to the parent */
+                remmen(mp->head, TRUE); /* remove all floating menus but bar */
 
             }
 
@@ -3632,7 +3633,7 @@ static void menu_event(pa_evtrec* ev)
 
                     /* second press on floating menu */
                     menu_release(mp); /* release the button */
-                    remmen(mp->branch); /* remove floating menus */
+                    remmen(mp->branch, FALSE); /* remove floating menus */
 
                 }
 
@@ -9733,10 +9734,11 @@ static void insend(metptr* root, metptr mp)
 
 /* create menu tracking entry */
 static void mettrk(
-    /** window file for menu */          FILE* f,
-    /** root of menu list */             metptr* root,
+    /** window file for menu */          FILE*      f,
+    /** window structure */              winptr     win,
+    /** root of menu list */             metptr*    root,
     /** client side menu tree pointer */ pa_menuptr m,
-    /** new entry created */             metptr* nm)
+    /** new entry created */             metptr*    nm)
 
 {
 
@@ -9745,7 +9747,7 @@ static void mettrk(
     mp = getmet(); /* get a new tracking entry */
     insend(root, mp); /* insert to end */
     mp->branch = NULL; /* clear branch */
-    mp->head = *root; /* point back to root (used for floating menus) */
+    mp->head = win->metlst; /* point back to root (used for floating menus) */
     mp->bar = FALSE; /* set not menu bar */
     mp->onoff = m->onoff; /* place on/off highlighter */
     mp->select = FALSE; /* place status of select (off) */
@@ -9769,7 +9771,7 @@ static void mettrk(
 }
 
 /* create menu list */
-static void createmenu(FILE* f, metptr* root, pa_menuptr m)
+static void createmenu(FILE* f, winptr win, metptr* root, pa_menuptr m)
 
 {
 
@@ -9779,12 +9781,12 @@ static void createmenu(FILE* f, metptr* root, pa_menuptr m)
 
         if (m->branch) { /* handle submenu */
 
-            mettrk(f, root, m, &mp); /* enter that into tracking */
-            createmenu(f, &mp->branch, m->branch); /* create submenu */
+            mettrk(f, win, root, m, &mp); /* enter that into tracking */
+            createmenu(f, win, &mp->branch, m->branch); /* create submenu */
 
         } else { /* handle terminal menu */
 
-            mettrk(f, root, m, &mp); /* enter that into tracking */
+            mettrk(f, win, root, m, &mp); /* enter that into tracking */
 
         }
         if (m->bar) { /* add separator bar */
@@ -9851,7 +9853,7 @@ void pa_menu(FILE* f, pa_menuptr m)
         win->menu->bar = TRUE; /* flag is menu bar */
         win->menu->wg.title = NULL; /* set no face string */
         /* make internal copy of menu */
-        createmenu(f, &win->metlst, m);
+        createmenu(f, win, &win->metlst, m);
         /* activate top level menu */
         actmenu(f);
 
