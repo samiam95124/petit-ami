@@ -3576,6 +3576,21 @@ static void menu_release(metptr mp)
 
 }
 
+/* remove any top level menu press states */
+static void menu_release_all(metptr mp)
+
+{
+
+    /* close any open entry in this chain */
+    while (mp) {
+
+        if (mp->wg.pressed) menu_release(mp); /* release this menu */
+        mp = mp->next; /* next menu entry */
+
+    }
+
+}
+
 static void menu_event(pa_evtrec* ev)
 
 {
@@ -3640,6 +3655,7 @@ static void menu_event(pa_evtrec* ev)
                 er.butid = mp->wg.id; /* set id */
                 pa_sendevent(mp->wg.evtfil/*parent*/, &er); /* send the event to the parent */
                 remmen(mp->head, TRUE); /* remove all floating menus but bar */
+                menu_release_all(mp->head); /* remove all top level presses */
 
             }
 
