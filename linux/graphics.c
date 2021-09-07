@@ -315,6 +315,7 @@ typedef struct metrec {
 
 } metrec;
 
+typedef struct scncon* scnptr;
 typedef struct scncon { /* screen context */
 
     /* fields used by graph module */
@@ -352,8 +353,9 @@ typedef struct scncon { /* screen context */
     GC      xcxt;        /* graphics context */
     Pixmap  xbuf;        /* pixmap for screen backing buffer */
 
-} scncon, *scnptr;
+} scncon;
 
+typedef struct pict* picptr;
 typedef struct pict { /* picture tracking record */
 
     struct pict* next; /* list of rescaled images */
@@ -361,7 +363,7 @@ typedef struct pict { /* picture tracking record */
     int          sy; /* size in y */
     XImage*      xi; /* Xwindows image */
 
-} pict, *picptr;
+} pict;
 
 /* XWindow style rectangle */
 typedef struct {
@@ -372,8 +374,10 @@ typedef struct {
 } xrect;
 
 /* window description */
+typedef struct winrec* winptr;
 typedef struct winrec {
 
+    winptr       next;              /* next entry (for free list) */
     /* fields used by graph module */
     int          parlfn;            /* logical parent */
     int          wid;               /* this window logical id */
@@ -472,7 +476,7 @@ typedef struct winrec {
     int          cwoy;              /* client window offset from parent
                                        origin y */
 
-} winrec, *winptr;
+} winrec;
 
 /* File tracking.
   Files can be passthrough to the OS, or can be associated with a window. If
@@ -656,6 +660,7 @@ static paevtque*  paqfre;         /* free XEvent queue entries list */
 static paevtque*  paqevt;         /* XEvent input save queue */
 static pa_pevthan menu_event_oeh; /* event callback save for menus */
 static metptr     fremet;         /* free menu entrys list */
+static winptr     winfre;         /* free windows structure list */
 
 /* memory statistics/diagnostics */
 static unsigned long memusd;    /* total memory in use for malloc */
@@ -673,6 +678,8 @@ static unsigned long wincnt;    /* windows structure counter */
 static unsigned long wintot;    /* windows structure total */
 static unsigned long imgcnt;    /* image frame counter */
 static unsigned long imgtot;    /* image frame total */
+static unsigned long metcnt;    /* menu entries counter */
+static unsigned long mettot;    /* menu entries total */
 
 /* config settable runtime options */
 static int maxxd;     /* default window dimensions */
@@ -832,6 +839,8 @@ static void *imalloc(size_t size)
         fprintf(stderr, "Window entry total:    %lu\n", wintot);
         fprintf(stderr, "Image frame counter:   %lu\n", imgcnt);
         fprintf(stderr, "Image frame total:     %lu\n", imgtot);
+        fprintf(stderr, "Menu entries counter:  %lu\n", metcnt);
+        fprintf(stderr, "Menu entries total:    %lu\n", mettot);
 #endif
         error(enomem);
 
@@ -2359,6 +2368,54 @@ void prtxevt(XEvent* e)
 
 /** ****************************************************************************
 
+Get freed/new window structure
+
+Either gets a new entry from malloc or returns a previously freed entry.
+
+*******************************************************************************/
+
+static winptr getwin(void)
+
+{
+
+    winptr p;
+
+    if (winfre) { /* there is a freed entry */
+
+        p = winfre; /* index top entry */
+        winfre = p->next; /* gap from list */
+
+    } else {
+
+        p = imalloc(sizeof(winrec));
+        wincnt++; /* count entries */
+        wintot += sizeof(winrec); /* add to total memory used */
+
+    }
+
+    return (p);
+
+}
+
+/** ****************************************************************************
+
+Get freed/new window structure
+
+Either gets a new entry from malloc or returns a previously freed entry.
+
+*******************************************************************************/
+
+static void putwin(winptr p)
+
+{
+
+    p->next = winfre; /* push to list */
+    winfre = p;
+
+}
+
+/** ****************************************************************************
+
 Get freed/new queue entry
 
 Either gets a new entry from malloc or returns a previously freed entry.
@@ -3004,7 +3061,7 @@ static Window createwindow(Window parent, int x, int y)
     /* select what events we want */
     XSelectInput(padisplay, w, ExposureMask|KeyPressMask|
                  KeyReleaseMask|PointerMotionMask|ButtonPressMask|
-                 ButtonReleaseMask|StructureNotifyMask);
+                 ButtonReleaseMask|StructureNotifyMask|FocusChangeMask);
     XWUNLOCK();
 
 /* now handled in winvis */
@@ -3256,7 +3313,7 @@ static void clsfil(int fn)
     /* release all of the screen buffers */
     for (si = 0; si < MAXCON; si++)
         if (fp->win->screens[si]) ifree(fp->win->screens[si]);
-    ifree(fp->win); /* release the window data */
+    putwin(fp->win); /* release the window data */
     fp->win = NULL; /* set end open */
     fp->inw = FALSE;
     fp->inl = -1;
@@ -3325,9 +3382,7 @@ static void openio(FILE* infile, FILE* outfile, int ifn, int ofn, int pfn,
 
         /* Haven't already started the main input/output window, so allocate
            and start that. We tolerate multiple opens to the output file. */
-        opnfil[ofn]->win = imalloc(sizeof(winrec));
-        wincnt++;
-        wintot += sizeof(winrec);
+        opnfil[ofn]->win = getwin();
         opnwin(ofn, pfn, wid); /* and start that up */
 
     }
@@ -3357,7 +3412,13 @@ static metptr getmet(void)
         p = fremet; /* index top entry */
         fremet = p->next; /* gap from list */
 
-    } else p = (metptr)imalloc(sizeof(metrec));
+    } else {
+
+        p = (metptr)imalloc(sizeof(metrec));
+        metcnt++; /* count entries */
+        mettot += sizeof(metrec); /* add to total memory used */
+
+    }
 
     return (p);
 
@@ -3365,7 +3426,7 @@ static metptr getmet(void)
 
 /** ****************************************************************************
 
-Get freed/new PA queue entry
+Get freed/new menu entry
 
 Either gets a new entry from malloc or returns a previously freed entry.
 
@@ -11736,6 +11797,8 @@ static void pa_init_graphics(int argc, char *argv[])
     wintot = 0; /* windows structure total */
     imgcnt = 0; /* image frame counter */
     imgtot = 0; /* image frame total */
+    metcnt = 0; /* menu entries counter */
+    mettot = 0; /* menu entries total space */
 
     /* initialize the XWindow lock */
     pthread_mutex_init(&xwlock, NULL);
@@ -11798,6 +11861,7 @@ static void pa_init_graphics(int argc, char *argv[])
     paqfre = NULL; /* clear pa event free queue */
     paqevt = NULL; /* clear pa event input queue */
     fremet = NULL; /* clear free menu tracking entries */
+    winfre = NULL; /* clear free windows structure list */
 
     /* clear open files tables */
     for (fi = 0; fi < MAXFIL; fi++) {
