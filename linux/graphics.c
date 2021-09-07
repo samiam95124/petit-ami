@@ -312,6 +312,7 @@ typedef struct metrec {
     metptr oneof;  /* "one of" chain pointer */
     int    id;     /* user id of item */
     widget wg;     /* widget window */
+    int    x, y;   /* subclient position of window */
 
 } metrec;
 
@@ -3443,34 +3444,6 @@ static void putmet(metptr p)
 
 /** ****************************************************************************
 
-Translate client to parent coordinates
-
-Given an XWindow handle, and an x,y coordinate, finds the coordinates in parent
-terms.
-
-*******************************************************************************/
-
-static void fndloc(Window w, int *x, int *y)
-
-{
-
-    XWindowAttributes xwa;    /* XWindow attributes */
-    Window            pw, rw;
-    Window*           cwl;
-    int               ncw;
-    Window            child;
-    int               dx, dy;
-
-    XQueryTree(padisplay, w, &rw, &pw, &cwl, &ncw);
-    XTranslateCoordinates(padisplay, w, rw, 0, 0, &dx, &dy, &child );
-    XGetWindowAttributes(padisplay, w, &xwa);
-    *x += dx+xwa.x;
-    *y += dy+xwa.y;
-
-}
-
-/** ****************************************************************************
-
 Open menu item as window
 
 The onscreen menu consists of a series of widgets representing menu items, each
@@ -3544,7 +3517,7 @@ static void fltmen(FILE* f, metptr mp, int x, int y)
     while (p) { /* traverse */
 
         /* open menu item */
-        openmenu(out2inp(f), NULL, x, y, x+mw, y+win->menuspcy, p);
+        openmenu(out2inp(f), mp->wg.evtfil, x, y, x+mw, y+win->menuspcy, p);
         p = p->next; /* next entry */
         y += win->menuspcy; /* next location */
 
@@ -3604,9 +3577,8 @@ static void menu_press(metptr mp)
     /* if it is a branch, present floating menu */
     if (mp->branch) {
 
-        x = 1; /* find location of button bottom */
-        y = par->menuspcy;
-        fndloc(par->xmwhan, &x, &y);
+        x = mp->x; /* find location of button bottom */
+        y = mp->y+par->menuspcy;
         fltmen(mp->wg.wf, mp, x, y);
 
     }
@@ -3766,6 +3738,8 @@ static void actmenu(FILE* f)
         w = pa_strsiz(bf, mp->wg.title);
         /* open menu item here */
         openmenu(inf, f, x, 1, x+w+EXTRAMENUX, win->menuspcy, mp);
+        mp->x = x; /* save position */
+        mp->y = 1;
         x = x+w+EXTRAMENUX; /* go next menu position */
         mp = mp->next; /* next top menu item */
 
