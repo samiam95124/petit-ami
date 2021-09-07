@@ -3614,18 +3614,7 @@ static void menu_event(pa_evtrec* ev)
         } else if (ev->etype == pa_etmouba && ev->amoubn == 1) {
 
             /* mouse button 1 activation in window */
-            if (!mp->branch) { /* not a branch entry */
-
-                /* send event back to parent window */
-                er.etype = pa_etmenus; /* set button event */
-                er.butid = mp->wg.id; /* set id */
-                pa_sendevent(mp->wg.evtfil/*parent*/, &er); /* send the event to the parent */
-                remmen(mp->head, TRUE); /* remove all floating menus but bar */
-
-            }
-
-            /* if not the menu bar */
-            if (!mp->bar) {
+            if (!mp->bar) { /* if not the menu bar */
 
                 /* if button not pressed */
                 if (!mp->wg.pressed) menu_press(mp); /* process menu press */
@@ -3636,6 +3625,16 @@ static void menu_event(pa_evtrec* ev)
                     remmen(mp->branch, FALSE); /* remove floating menus */
 
                 }
+
+            }
+
+            if (!mp->branch) { /* not a branch entry */
+
+                /* send event back to parent window */
+                er.etype = pa_etmenus; /* set button event */
+                er.butid = mp->wg.id; /* set id */
+                pa_sendevent(mp->wg.evtfil/*parent*/, &er); /* send the event to the parent */
+                remmen(mp->head, TRUE); /* remove all floating menus but bar */
 
             }
 
