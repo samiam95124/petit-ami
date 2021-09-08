@@ -3472,10 +3472,10 @@ static void openmenu(
 
 {
 
-    mp->wg.wid = pa_getwid(); /* allocate a buried wid */
-    pa_openwin(&f, &mp->wf, p, mp->wg.wid); /* open widget window */
+    mp->wid = pa_getwid(); /* allocate a buried wid */
+    pa_openwin(&f, &mp->wf, p, mp->wid); /* open widget window */
     mp->parent = p; /* set parent file */
-    xltmnu[mp->wg.wid+MAXFIL] = mp; /* set the tracking entry for window */
+    xltmnu[mp->wid+MAXFIL] = mp; /* set the tracking entry for window */
     pa_buffer(mp->wf, FALSE); /* turn off buffering */
     pa_frame(mp->wf, FALSE); /* turn off frame */
     pa_auto(mp->wf, FALSE); /* turn off auto */
