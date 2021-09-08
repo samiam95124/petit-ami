@@ -305,8 +305,10 @@ typedef struct metrec {
 
     metptr next;    /* next entry */
     metptr branch;  /* menu branch */
+    metptr frame;   /* frame for pulldown menu */
     metptr head;    /* head of menu pointer */
     int    bar;     /* is the menu bar */
+    int    frm;     /* is a frame */
     int    onoff;   /* the item is on-off highlighted */
     int    select;  /* the current on/off state of the highlight */
     metptr oneof;   /* "one of" chain pointer */
@@ -3504,33 +3506,41 @@ static void fltmen(FILE* f, metptr mp, int x, int y)
     metptr p;  /* pointer to menu entries */
     int    w;
     winptr win;
+    int    fx, fy;
+    int    wc;
 
     win = txt2win(f); /* index window structure */
     /* find cumulative width of branch entries */
     p = mp->branch; /* index first in list */
     mw = 0; /* set no width */
+    wc = 0; /* clear window count */
     while (p) { /* traverse */
 
         w = pa_strsiz(f, p->title); /* get width this entry */
         if (w > mw) mw = w; /* find maximum */
+        wc++; /* count windows */
         p = p->next; /* next in list */
 
     }
     mw += 20; /* pad to sides */
-    /* present the branch list */
+    /* present frame */
+    openmenu(out2inp(f), mp->evtfil, x, y, x+mw+2, y+wc*win->menuspcy+2, mp->frame);
+    /* present the branch list as children of the frame */
     p = mp->branch;
+    fx = 2; /* set frame coordinates, upper left+1 */
+    fy = 2;
     while (p) { /* traverse */
 
         /* open menu item */
-        openmenu(out2inp(f), mp->evtfil, x, y, x+mw, y+win->menuspcy, p);
+        openmenu(out2inp(f), mp->frame->wf, fx, fy, fx+mw, fy+win->menuspcy, p);
         p = p->next; /* next entry */
-        y += win->menuspcy; /* next location */
+        fy += win->menuspcy; /* next location */
 
     }
 
 }
 
-/* remove floating menus */
+/* remove pulldown menus */
 static void remmen(metptr mp, int branch)
 
 {
@@ -3547,6 +3557,8 @@ static void remmen(metptr mp, int branch)
         }
         /* and close any submenus */
         if (mp->branch) remmen(mp->branch, FALSE);
+        /* close frame, if exists */
+        if (mp->branch) remmen(mp->frame, FALSE);
         mp = mp->next; /* next menu entry */
 
     }
@@ -3660,12 +3672,18 @@ static void menu_event(pa_evtrec* ev)
                 fprintf(mp->wf, "%s", mp->title); /* place button title */
 
             }
-            if (!mp->bar && mp->prime) { /* draw divider line */
+            if (mp->prime) { /* draw divider line */
 
                 pa_fcolorg(mp->wf,
                            INT_MAX/256*223, INT_MAX/256*223, INT_MAX/256*223);
                 pa_frect(mp->wf, 1, pa_maxyg(mp->wf)-1,
                                     pa_maxxg(mp->wf), pa_maxyg(mp->wf));
+
+            }
+            if (mp->frm) { /* box the frame */
+
+                pa_fcolor(mp->wf, pa_black);
+                pa_rect(mp->wf, 1, 1, pa_maxxg(mp->wf), pa_maxyg(mp->wf));
 
             }
 
@@ -9808,23 +9826,28 @@ static void mettrk(
     mp = getmet(); /* get a new tracking entry */
     insend(root, mp); /* insert to end */
     mp->branch = NULL; /* clear branch */
+    mp->frame = NULL; /* clear frame */
     mp->head = win->metlst; /* point back to root (used for floating menus) */
     mp->bar = FALSE; /* set not menu bar */
-    mp->onoff = m->onoff; /* place on/off highlighter */
+    mp->frm = FALSE; /* set not frame */
+    mp->onoff = FALSE; /* set no on/off highlighter */
+    if (m) mp->onoff = m->onoff; /* place on/off highlighter */
     mp->select = FALSE; /* place status of select (off) */
-    mp->id = m->id; /* place id */
+    mp->id = 0; /* set invalid id */
+    if (m) mp->id = m->id; /* place id */
     mp->oneof = NULL; /* set no "one of" */
     /* set up the button properties */
     mp->pressed = FALSE; /* not pressed */
     mp->wf = NULL; /* set no window file attached */
-    mp->title = str(m->face); /* copy face string */
+    mp->title = NULL; /* set no title */
+    if (m) mp->title = str(m->face); /* copy face string */
     mp->evtfil = f; /* set menu event post file */
     mp->prime = FALSE; /* set not prime menu */
     /* We are walking backwards in the list, and we need the next list entry
       to know the "one of" chain. So we tie the entry to itself as a flag
       that it chains to the next entry. That chain will get fixed on the
       next entry. */
-    if (m->oneof) mp->oneof = mp;
+    if (m) if (m->oneof) mp->oneof = mp;
     /* now tie the last entry to this if indicated */
     if (mp->next) /* there is a next entry */
         if (mp->next->oneof == mp->next) mp->next->oneof = mp;
@@ -9837,7 +9860,7 @@ static void createmenu(FILE* f, winptr win, metptr* root, pa_menuptr m)
 
 {
 
-    metptr mp;  /* pointer to menu tracking entry */
+    metptr mp, mp2;  /* pointer to menu tracking entry */
 
     while (m) { /* add menu item */
 
@@ -9845,6 +9868,8 @@ static void createmenu(FILE* f, winptr win, metptr* root, pa_menuptr m)
 
             mettrk(f, win, root, m, &mp); /* enter that into tracking */
             createmenu(f, win, &mp->branch, m->branch); /* create submenu */
+            mettrk(f, win, &mp->frame, NULL, &mp2); /* create frame for submenu */
+            mp2->frm = TRUE; /* set is frame */
 
         } else { /* handle terminal menu */
 
@@ -9913,6 +9938,8 @@ void pa_menu(FILE* f, pa_menuptr m)
         win->menu->next = NULL; /* clear next */
         win->menu->branch = win->menu; /* set not to generate event */
         win->menu->bar = TRUE; /* flag is menu bar */
+        win->menu->frm = FALSE; /* not frame */
+        win->menu->prime = FALSE; /* not prime */
         win->menu->title = NULL; /* set no face string */
         /* make internal copy of menu */
         createmenu(f, win, &win->metlst, m);
