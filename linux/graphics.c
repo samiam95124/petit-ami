@@ -3524,11 +3524,11 @@ static void fltmen(FILE* f, metptr mp, int x, int y)
     }
     mw += 20; /* pad to sides */
     /* present frame */
-    openmenu(out2inp(f), mp->evtfil, x, y, x+mw+2, y+wc*win->menuspcy+2, mp->frame);
+    openmenu(out2inp(f), mp->evtfil, x, y, x+mw+4, y+wc*win->menuspcy+4, mp->frame);
     /* present the branch list as children of the frame */
     p = mp->branch;
-    fx = 2; /* set frame coordinates, upper left+1 */
-    fy = 2;
+    fx = 4; /* set frame coordinates, upper left+1 */
+    fy = 4;
     while (p) { /* traverse */
 
         /* open menu item */
@@ -3672,7 +3672,13 @@ static void menu_event(pa_evtrec* ev)
                 fprintf(mp->wf, "%s", mp->title); /* place button title */
 
             }
-            if (mp->prime) { /* draw divider line */
+            if (mp->pressed) {
+
+                /* draw underbar */
+                pa_fcolorg(mp->wf, INT_MAX/256*233, INT_MAX/256*84, INT_MAX/256*32);
+                pa_frect(mp->wf, 1, pa_maxyg(mp->wf)-4, pa_maxxg(mp->wf), pa_maxyg(mp->wf));
+
+            } else if (mp->prime) { /* draw divider line */
 
                 pa_fcolorg(mp->wf,
                            INT_MAX/256*223, INT_MAX/256*223, INT_MAX/256*223);
@@ -3682,8 +3688,10 @@ static void menu_event(pa_evtrec* ev)
             }
             if (mp->frm) { /* box the frame */
 
-                pa_fcolor(mp->wf, pa_black);
+                pa_fcolorg(mp->wf,
+                           INT_MAX/256*150, INT_MAX/256*150, INT_MAX/256*150);
                 pa_rect(mp->wf, 1, 1, pa_maxxg(mp->wf), pa_maxyg(mp->wf));
+                pa_rect(mp->wf, 2, 2, pa_maxxg(mp->wf)-1, pa_maxyg(mp->wf)-1);
 
             }
 
@@ -3711,7 +3719,8 @@ static void menu_event(pa_evtrec* ev)
                 er.butid = mp->id; /* set id */
                 pa_sendevent(mp->evtfil/*parent*/, &er); /* send the event to the parent */
                 remmen(mp->head, TRUE); /* remove all floating menus but bar */
-                menu_release_all(mp->head); /* remove all top level presses */
+                if (!mp->prime)
+                    menu_release_all(mp->head); /* remove all top level presses */
 
             }
 
@@ -9941,6 +9950,7 @@ void pa_menu(FILE* f, pa_menuptr m)
         win->menu->frm = FALSE; /* not frame */
         win->menu->prime = FALSE; /* not prime */
         win->menu->title = NULL; /* set no face string */
+        win->menu->pressed = FALSE; /* set not pressed */
         /* make internal copy of menu */
         createmenu(f, win, &win->metlst, m);
         /* activate top level menu */
