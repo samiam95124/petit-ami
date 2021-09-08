@@ -311,7 +311,6 @@ typedef struct metrec {
     int    select;  /* the current on/off state of the highlight */
     metptr oneof;   /* "one of" chain pointer */
     int    id;      /* user id of item */
-    widget wg;      /* widget window */
     int    x, y;    /* subclient position of window */
     int    prime;   /* is a prime (onscreen) entry */
     int    pressed; /* in the pressed state */
@@ -3512,12 +3511,12 @@ static void fltmen(FILE* f, metptr mp, int x, int y)
     mw = 0; /* set no width */
     while (p) { /* traverse */
 
-        w = w = pa_strsiz(f, mp->title); /* get width this entry */
+        w = pa_strsiz(f, p->title); /* get width this entry */
         if (w > mw) mw = w; /* find maximum */
         p = p->next; /* next in list */
 
     }
-    mw += 200; /* pad to sides */
+    mw += 20; /* pad to sides */
     /* present the branch list */
     p = mp->branch;
     while (p) { /* traverse */
@@ -3661,7 +3660,7 @@ static void menu_event(pa_evtrec* ev)
                 fprintf(mp->wf, "%s", mp->title); /* place button title */
 
             }
-            if (!mp->bar) { /* draw divider line */
+            if (!mp->bar && mp->prime) { /* draw divider line */
 
                 pa_fcolorg(mp->wf,
                            INT_MAX/256*223, INT_MAX/256*223, INT_MAX/256*223);
@@ -9914,7 +9913,7 @@ void pa_menu(FILE* f, pa_menuptr m)
         win->menu->next = NULL; /* clear next */
         win->menu->branch = win->menu; /* set not to generate event */
         win->menu->bar = TRUE; /* flag is menu bar */
-        win->menu->wg.title = NULL; /* set no face string */
+        win->menu->title = NULL; /* set no face string */
         /* make internal copy of menu */
         createmenu(f, win, &win->metlst, m);
         /* activate top level menu */
