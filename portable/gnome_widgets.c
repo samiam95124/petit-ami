@@ -87,19 +87,229 @@ static enum { /* debug levels */
                                 __func__, __LINE__, ##__VA_ARGS__); \
                                 fflush(stderr); } while (0)
 
+#define MAXFIL 100 /* maximum open files */
+#define MAXWIG 100 /* maximum widgets per window */
+
+/* widget type */
+typedef enum  {
+    wtbutton, wtcheckbox, wtradiobutton, wtgroup, wtbackground,
+    wtscrollvert, wtscrollhoriz, wtnumselbox, wteditbox,
+    wtprogressbar, wtlistbox, wtdropbox, wtdropeditbox,
+    wtslidehoriz, wtslidevert, wttabbar
+} wigtyp;
+
 /* Widget control structure */
-typedef struct widget* widptr;
+typedef struct widget* wigptr;
 typedef struct widget {
 
-    int            pressed; /* in the pressed state */
-    FILE*          wf;      /* output file for the widget window */
-    char*          title;   /* title text */
-    FILE*          parent;  /* parent window */
-    FILE*          evtfil;  /* file to post menu events to */
-    int            id;      /* id number */
-    int            wid;     /* widget window id */
+    wigptr next; /* next entry in list */
+    int    pressed; /* in the pressed state */
+    FILE*  wf;      /* output file for the widget window */
+    char*  title;   /* title text */
+    FILE*  parent;  /* parent window */
+    FILE*  evtfil;  /* file to post menu events to */
+    int    id;      /* id number */
+    int    wid;     /* widget window id */
 
 } widget;
+
+/* File tracking.
+  Files can be passthrough to the OS, or can be associated with a window. If
+  on a window, they can be output, or they can be input. In the case of
+  input, the file has its own input queue, and will receive input from all
+  windows that are attached to it. */
+typedef struct filrec* filptr;
+typedef struct filrec {
+
+    wigptr widgets[MAXWIG]; /* table of widgets in window */
+
+} filrec;
+
+static pa_pevthan widget_event_old;   /* previous event vector save */
+static wigptr     wigfre;             /* free widget entry list */
+static filptr     opnfil[MAXFIL];     /* open files table */
+static wigptr     xltwig[MAXFIL*2+1]; /* widget entry equivalence table */
+
+/** ****************************************************************************
+
+Process error
+
+*******************************************************************************/
+
+static void error(char* es)
+
+{
+
+    fprintf(stderr, "Error: widgets: %s\n", es);
+    fflush(stderr);
+
+    exit(1);
+
+}
+
+/** ****************************************************************************
+
+Get file entry
+
+Allocates and initalizes a new file entry. File entries are left in the opnfil
+array, so are recycled in place.
+
+*******************************************************************************/
+
+static filptr getfil(void)
+
+{
+
+    filptr fp;
+    int    i;
+
+    fp = malloc(sizeof(filrec)); /* get new file entry */
+    /* clear widget table */
+    for (i = 0; i < MAXWIG; i++) fp->widgets[i] = NULL;
+
+    return (fp); /* exit with file entry */
+
+}
+
+/** ****************************************************************************
+
+Make file entry
+
+If the indicated file does not contain a file control structure, one is created.
+Otherwise it is a no-op.
+
+*******************************************************************************/
+
+static void makfil(FILE* f)
+
+{
+
+    int fn;
+
+    if (!f) error("Invalid window file");
+    fn = fileno(f); /* get the file logical number */
+    if (fn > MAXFIL) error("Invalid file number");
+    /* check table empty */
+    if (!opnfil[fn]) opnfil[fn] = getfil(); /* allocate file entry */
+
+}
+
+/*******************************************************************************
+
+Get widget
+
+Get a widget and place into the window tracking list. If a free widget entry
+is available, that will be used, otherwise a new entry is allocated.
+
+*******************************************************************************/
+
+static wigptr getwig(void)
+
+{
+
+    wigptr wp; /* widget pointer */
+
+    if (wigfre) { /* used entry exists, get that */
+
+        wp = wigfre; /* index top entry */
+        wigfre = wigfre->next; /* gap out */
+
+    } else wp = malloc(sizeof(widget)); /* get entry */
+
+    return wp; /* return entry */
+
+}
+
+/*******************************************************************************
+
+Put widget
+
+Removes the widget from the window list, and releases the widget entry to free
+list.
+
+*******************************************************************************/
+
+static void putwig(wigptr wp)
+
+{
+
+    wp->next = wigfre; /* push to free list */
+    wigfre = wp;
+
+}
+
+/** ****************************************************************************
+
+Widget event handler
+
+Handles the events posted to widgets.
+
+*******************************************************************************/
+
+static void widget_event(pa_evtrec* ev)
+
+{
+
+    pa_evtrec er; /* outbound button event */
+    wigptr    wg; /* pointer to widget */
+
+    /* if not our window, send it on */
+    wg = xltwig[ev->winid+MAXFIL]; /* get possible widget entry */
+    if (!wg) widget_event_old(ev);
+    else { /* handle it here */
+
+        if (ev->etype == pa_etredraw) { /* redraw the window */
+
+            /* color the background */
+            pa_fcolor(wg->wf, pa_white);
+            pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf),
+                      pa_maxyg(wg->wf));
+            /* outline */
+            pa_fcolorg(wg->wf, INT_MAX/4, INT_MAX/4, INT_MAX/4);
+            pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1,
+                     pa_maxyg(wg->wf)-1, 20, 20);
+            if (wg->pressed) pa_fcolor(wg->wf, pa_red);
+            else pa_fcolor(wg->wf, pa_black);
+            pa_cursorg(wg->wf,
+                       pa_maxxg(wg->wf)/2-pa_strsiz(wg->wf, wg->title)/2,
+                       pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
+            fprintf(wg->wf, "%s", wg->title); /* place button title */
+
+        } else if (ev->etype == pa_etmouba && ev->amoubn) {
+
+            /* send event back to parent window */
+            er.etype = pa_etbutton; /* set button event */
+            er.butid = wg->id; /* set id */
+            pa_sendevent(wg->parent, &er); /* send the event to the parent */
+
+            /* process button press */
+            wg->pressed = TRUE;
+            pa_fcolor(wg->wf, pa_black);
+            pa_frrect(wg->wf, 3, 3, pa_maxxg(wg->wf)-3,
+                     pa_maxyg(wg->wf)-3, 20, 20);
+            pa_fcolor(wg->wf, pa_white);
+            pa_cursorg(wg->wf,
+                       pa_maxxg(wg->wf)/2-pa_strsiz(wg->wf, wg->title)/2,
+                       pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
+            fprintf(wg->wf, "%s", wg->title); /* place button title */
+
+        } else if (ev->etype == pa_etmoubd) {
+
+            wg->pressed = FALSE;
+            pa_fcolor(wg->wf, pa_white);
+            pa_frrect(wg->wf, 3, 3, pa_maxxg(wg->wf)-3,
+                     pa_maxyg(wg->wf)-3, 20, 20);
+            pa_fcolor(wg->wf, pa_black);
+            pa_cursorg(wg->wf,
+                       pa_maxxg(wg->wf)/2-pa_strsiz(wg->wf, wg->title)/2,
+                       pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
+            fprintf(wg->wf, "%s", wg->title); /* place button title */
+
+        }
+
+    }
+
+}
 
 /** ****************************************************************************
 
@@ -254,95 +464,39 @@ Creates a standard button within the specified rectangle, on the given window.
 
 *******************************************************************************/
 
-/* button control structure */
-widget buttonw;
-
-static pa_pevthan button_event_old;
-
-static void button_event(pa_evtrec* ev)
-
-{
-
-    pa_evtrec er; /* outbound button event */
-
-    /* if not our window, send it on */
-    if (ev->winid != buttonw.wid) button_event_old(ev);
-    else { /* handle it here */
-
-        if (ev->etype == pa_etredraw) { /* redraw the window */
-
-            /* color the background */
-            pa_fcolor(buttonw.wf, pa_white);
-            pa_frect(buttonw.wf, 1, 1, pa_maxxg(buttonw.wf),
-                      pa_maxyg(buttonw.wf));
-            /* outline */
-            pa_fcolorg(buttonw.wf, INT_MAX/4, INT_MAX/4, INT_MAX/4);
-            pa_rrect(buttonw.wf, 2, 2, pa_maxxg(buttonw.wf)-1,
-                     pa_maxyg(buttonw.wf)-1, 20, 20);
-            if (buttonw.pressed) pa_fcolor(buttonw.wf, pa_red);
-            else pa_fcolor(buttonw.wf, pa_black);
-            pa_cursorg(buttonw.wf,
-                       pa_maxxg(buttonw.wf)/2-pa_strsiz(buttonw.wf, buttonw.title)/2,
-                       pa_maxyg(buttonw.wf)/2-pa_chrsizy(buttonw.wf)/2);
-            fprintf(buttonw.wf, "%s", buttonw.title); /* place button title */
-
-        } else if (ev->etype == pa_etmouba && ev->amoubn) {
-
-            /* send event back to parent window */
-            er.etype = pa_etbutton; /* set button event */
-            er.butid = buttonw.id; /* set id */
-            pa_sendevent(buttonw.parent, &er); /* send the event to the parent */
-
-            /* process button press */
-            buttonw.pressed = TRUE;
-            pa_fcolor(buttonw.wf, pa_black);
-            pa_frrect(buttonw.wf, 3, 3, pa_maxxg(buttonw.wf)-3,
-                     pa_maxyg(buttonw.wf)-3, 20, 20);
-            pa_fcolor(buttonw.wf, pa_white);
-            pa_cursorg(buttonw.wf,
-                       pa_maxxg(buttonw.wf)/2-pa_strsiz(buttonw.wf, buttonw.title)/2,
-                       pa_maxyg(buttonw.wf)/2-pa_chrsizy(buttonw.wf)/2);
-            fprintf(buttonw.wf, "%s", buttonw.title); /* place button title */
-
-        } else if (ev->etype == pa_etmoubd) {
-
-            buttonw.pressed = FALSE;
-            pa_fcolor(buttonw.wf, pa_white);
-            pa_frrect(buttonw.wf, 3, 3, pa_maxxg(buttonw.wf)-3,
-                     pa_maxyg(buttonw.wf)-3, 20, 20);
-            pa_fcolor(buttonw.wf, pa_black);
-            pa_cursorg(buttonw.wf,
-                       pa_maxxg(buttonw.wf)/2-pa_strsiz(buttonw.wf, buttonw.title)/2,
-                       pa_maxyg(buttonw.wf)/2-pa_chrsizy(buttonw.wf)/2);
-            fprintf(buttonw.wf, "%s", buttonw.title); /* place button title */
-
-        }
-
-    }
-
-}
 
 void pa_buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
-    /* override the event handler */
-    pa_eventsover(button_event, &button_event_old);
-    buttonw.title = s; /* place title */
-    buttonw.wid = pa_getwid(); /* allocate a buried wid */
-    pa_openwin(&stdin, &buttonw.wf, f, buttonw.wid); /* open widget window */
-    buttonw.parent = f; /* save parent file */
-    buttonw.id = id; /* set button widget id */
-    pa_buffer(buttonw.wf, FALSE); /* turn off buffering */
-    pa_auto(buttonw.wf, FALSE); /* turn off auto */
-    pa_curvis(buttonw.wf, FALSE); /* turn off cursor */
-    pa_font(buttonw.wf, PA_FONT_SIGN); /* set button font */
-    pa_bold(buttonw.wf, TRUE); /* set bold font */
-    pa_setposg(buttonw.wf, x1, y1); /* place at position */
-    pa_setsizg(buttonw.wf, x2-x1, y2-y1); /* set size */
-    pa_frame(buttonw.wf, FALSE); /* turn off frame */
-    pa_binvis(buttonw.wf); /* no background write */
-    pa_linewidth(buttonw.wf, 3); /* thicker lines */
+    int fn; /* file number */
+    wigptr wg; /* widget entry pointer */
+
+dbg_printf(dlinfo, "begin\n");
+    if (id <=0 || id > MAXWIG) error("Invalid widget id");
+    makfil(f); /* ensure there is a file entry and validate */
+    fn = fileno(f); /* get the file index */
+    if (opnfil[fn]->widgets[id]) error("Widget by id already in use");
+    opnfil[fn]->widgets[id] = getwig(); /* get widget entry */
+    wg = opnfil[fn]->widgets[id]; /* index that */
+
+    wg->title = s; /* place title */
+    wg->wid = pa_getwid(); /* allocate a buried wid */
+    pa_openwin(&stdin, &wg->wf, f, wg->wid); /* open widget window */
+    wg->parent = f; /* save parent file */
+    xltwig[wg->wid+MAXFIL] = wg; /* set the tracking entry for the window */
+    wg->id = id; /* set button widget id */
+    pa_buffer(wg->wf, FALSE); /* turn off buffering */
+    pa_auto(wg->wf, FALSE); /* turn off auto */
+    pa_curvis(wg->wf, FALSE); /* turn off cursor */
+    pa_font(wg->wf, PA_FONT_SIGN); /* set button font */
+    pa_bold(wg->wf, TRUE); /* set bold font */
+    pa_setposg(wg->wf, x1, y1); /* place at position */
+    pa_setsizg(wg->wf, x2-x1, y2-y1); /* set size */
+    pa_frame(wg->wf, FALSE); /* turn off frame */
+    pa_binvis(wg->wf); /* no background write */
+    pa_linewidth(wg->wf, 3); /* thicker lines */
+dbg_printf(dlinfo, "end\n");
 
 }
 
@@ -1216,7 +1370,7 @@ void pa_queryfont(FILE* f, int* fc, int* s, int* fr, int* fg, int* fb,
 
 /** ****************************************************************************
 
-Gralib startup
+Widgets startup
 
 *******************************************************************************/
 
@@ -1225,12 +1379,26 @@ static void pa_init_widgets(int argc, char *argv[])
 
 {
 
+    int fn; /* file number */
+
+    /* override the event handler */
+    pa_eventsover(widget_event, &widget_event_old);
+
+    wigfre = NULL; /* clear widget free list */
+
+    /* clear open files table */
+    for (fn = 0; fn < MAXFIL; fn++) opnfil[fn] = NULL;
+
+    /* clear window equivalence table */
+    for (fn = 0; fn < MAXFIL*2+1; fn++)
+        /* clear window logical number translator table */
+        xltwig[fn] = NULL; /* set no widget entry */
 
 }
 
 /** ****************************************************************************
 
-Gralib shutdown
+Widgets shutdown
 
 *******************************************************************************/
 

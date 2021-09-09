@@ -492,6 +492,7 @@ typedef struct winrec {
   on a window, they can be output, or they can be input. In the case of
   input, the file has its own input queue, and will receive input from all
   windows that are attached to it. */
+typedef struct filrec* filptr;
 typedef struct filrec {
 
       FILE*  sfp;  /* file pointer used to establish entry, or NULL */
@@ -501,7 +502,7 @@ typedef struct filrec {
       int    tim;  /* fid has a timer associated with it */
       winptr twin; /* window associated with timer */
 
-} filrec, *filptr;
+} filrec;
 
 /* internal client messages */
 typedef enum {
@@ -2075,7 +2076,7 @@ array, so are recycled in place.
 
 *******************************************************************************/
 
-static void getfet(filptr* fp)
+static void getfil(filptr* fp)
 
 {
 
@@ -3385,9 +3386,9 @@ static void openio(FILE* infile, FILE* outfile, int ifn, int ofn, int pfn,
 {
 
     /* if output was never opened, create it now */
-    if (!opnfil[ofn]) getfet(&opnfil[ofn]);
+    if (!opnfil[ofn]) getfil(&opnfil[ofn]);
     /* if input was never opened, create it now */
-    if (!opnfil[ifn]) getfet(&opnfil[ifn]);
+    if (!opnfil[ifn]) getfil(&opnfil[ifn]);
     opnfil[ofn]->inl = ifn; /* link output to input */
     opnfil[ifn]->inw = TRUE; /* set input is window handler */
     /* set file descriptor locations (note this is only really used for input
@@ -9169,7 +9170,7 @@ void pa_timer(FILE* f, /* file to send event to */
         /* if the new file handle is greater than  any existing, set new max */
         if (tfid+1 > ifdmax) ifdmax = tfid+1;
         /* create entry in fid table */
-        if (!opnfil[tfid]) getfet(&opnfil[tfid]); /* get fet if empty */
+        if (!opnfil[tfid]) getfil(&opnfil[tfid]); /* get fet if empty */
         opnfil[tfid]->tim = i; /* place timer equ number */
         opnfil[tfid]->twin = win; /* place window containing timer */
 
