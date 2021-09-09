@@ -3707,6 +3707,7 @@ static void menu_event(pa_evtrec* ev)
                     /* second press on floating menu */
                     menu_release(mp); /* release the button */
                     remmen(mp->branch, FALSE); /* remove floating menus */
+                    remmen(mp->frame, FALSE); /* remove frame */
 
                 }
 
