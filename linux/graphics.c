@@ -132,7 +132,7 @@ static enum { /* debug levels */
 //#define PRTFNT /* print internal fonts list */
 //#define PRTMEM /* print memory allocations at exit */
 //#define PRTWPM /* print window parameters on open */
-#define NOWDELAY /* don't delay window presentation until drawn */
+//#define NOWDELAY /* don't delay window presentation until drawn */
 #define NOCANCEL /* include nocancel overrides */
 
 /* the "standard character" sizes are used to form a pseudo-size for desktop
@@ -3245,9 +3245,17 @@ static void opnwin(int fn, int pfn, int wid)
     /* find and save the frame parameters from the immediate/parent window.
        This may not work on some window managers */
     XWLOCK();
+#ifndef NOWDELAY
+    XMapWindow(padisplay, win->xmwhan);
+    XMapWindow(padisplay, win->xwhan);
+#endif
     XQueryTree(padisplay, win->xmwhan, &rw, &pw, &cwl, &ncw);
     XGetWindowAttributes(padisplay, pw, &xpwga);
     XGetWindowAttributes(padisplay, win->xmwhan, &xwga);
+#ifndef NOWDELAY
+    XUnmapWindow(padisplay, win->xwhan);
+    XUnmapWindow(padisplay, win->xmwhan);
+#endif
     XWUNLOCK();
 
     /* find net extra width of frame from client area */
@@ -3559,6 +3567,7 @@ static void remmen(metptr mp, int branch)
         if (mp->branch) remmen(mp->branch, FALSE);
         /* close frame, if exists */
         if (mp->branch) remmen(mp->frame, FALSE);
+        mp->pressed = FALSE; /* remove any press status */
         mp = mp->next; /* next menu entry */
 
     }
