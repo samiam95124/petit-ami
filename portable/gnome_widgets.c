@@ -99,10 +99,11 @@ typedef enum  {
 } wigtyp;
 
 /* Widget control structure */
-typedef struct widget* wigptr;
-typedef struct widget {
+typedef struct wigrec* wigptr;
+typedef struct wigrec {
 
-    wigptr next; /* next entry in list */
+    wigptr next;    /* next entry in list */
+    wigtyp typ;     /* type of widget */
     int    pressed; /* in the pressed state */
     FILE*  wf;      /* output file for the widget window */
     char*  title;   /* title text */
@@ -111,7 +112,7 @@ typedef struct widget {
     int    id;      /* id number */
     int    wid;     /* widget window id */
 
-} widget;
+} wigrec;
 
 /* File tracking.
   Files can be passthrough to the OS, or can be associated with a window. If
@@ -214,7 +215,7 @@ static wigptr getwig(void)
         wp = wigfre; /* index top entry */
         wigfre = wigfre->next; /* gap out */
 
-    } else wp = malloc(sizeof(widget)); /* get entry */
+    } else wp = malloc(sizeof(wigrec)); /* get entry */
 
     return wp; /* return entry */
 
@@ -308,6 +309,52 @@ static void widget_event(pa_evtrec* ev)
         }
 
     }
+
+}
+
+/*******************************************************************************
+
+Create widget
+
+Creates a widget within the given window, within the specified bounding box,
+and using the face string and type, and the given id. The string may or may not
+be used.
+
+Widgets use the subthread to buffer them. There were various problems from
+trying to start them on the main window.
+
+*******************************************************************************/
+
+static void widget(FILE* f, int x1, int y1, int x2, int y2, char* s, int id,
+                   wigtyp typ, wigptr* wp)
+
+{
+
+    int fn; /* logical file name */
+
+    if (id <=0 || id > MAXWIG) error("Invalid widget id");
+    makfil(f); /* ensure there is a file entry and validate */
+    fn = fileno(f); /* get the file index */
+    if (opnfil[fn]->widgets[id]) error("Widget by id already in use");
+    opnfil[fn]->widgets[id] = getwig(); /* get widget entry */
+    *wp = opnfil[fn]->widgets[id]; /* index that */
+
+    (*wp)->title = s; /* place title */
+    (*wp)->wid = pa_getwid(); /* allocate a buried wid */
+    pa_openwin(&stdin, &(*wp)->wf, f, (*wp)->wid); /* open widget window */
+    (*wp)->parent = f; /* save parent file */
+    xltwig[(*wp)->wid+MAXFIL] = *wp; /* set the tracking entry for the window */
+    (*wp)->id = id; /* set button widget id */
+    pa_buffer((*wp)->wf, FALSE); /* turn off buffering */
+    pa_auto((*wp)->wf, FALSE); /* turn off auto */
+    pa_curvis((*wp)->wf, FALSE); /* turn off cursor */
+    pa_font((*wp)->wf, PA_FONT_SIGN); /* set sign font */
+    pa_bold((*wp)->wf, TRUE); /* set bold font */
+    pa_setposg((*wp)->wf, x1, y1); /* place at position */
+    pa_setsizg((*wp)->wf, x2-x1, y2-y1); /* set size */
+    pa_frame((*wp)->wf, FALSE); /* turn off frame */
+    pa_binvis((*wp)->wf); /* no background write */
+    (*wp)->typ = typ; /* place type */
 
 }
 
@@ -464,39 +511,15 @@ Creates a standard button within the specified rectangle, on the given window.
 
 *******************************************************************************/
 
-
 void pa_buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
     int fn; /* file number */
-    wigptr wg; /* widget entry pointer */
+    wigptr wp; /* widget entry pointer */
 
-dbg_printf(dlinfo, "begin\n");
-    if (id <=0 || id > MAXWIG) error("Invalid widget id");
-    makfil(f); /* ensure there is a file entry and validate */
-    fn = fileno(f); /* get the file index */
-    if (opnfil[fn]->widgets[id]) error("Widget by id already in use");
-    opnfil[fn]->widgets[id] = getwig(); /* get widget entry */
-    wg = opnfil[fn]->widgets[id]; /* index that */
-
-    wg->title = s; /* place title */
-    wg->wid = pa_getwid(); /* allocate a buried wid */
-    pa_openwin(&stdin, &wg->wf, f, wg->wid); /* open widget window */
-    wg->parent = f; /* save parent file */
-    xltwig[wg->wid+MAXFIL] = wg; /* set the tracking entry for the window */
-    wg->id = id; /* set button widget id */
-    pa_buffer(wg->wf, FALSE); /* turn off buffering */
-    pa_auto(wg->wf, FALSE); /* turn off auto */
-    pa_curvis(wg->wf, FALSE); /* turn off cursor */
-    pa_font(wg->wf, PA_FONT_SIGN); /* set button font */
-    pa_bold(wg->wf, TRUE); /* set bold font */
-    pa_setposg(wg->wf, x1, y1); /* place at position */
-    pa_setsizg(wg->wf, x2-x1, y2-y1); /* set size */
-    pa_frame(wg->wf, FALSE); /* turn off frame */
-    pa_binvis(wg->wf); /* no background write */
-    pa_linewidth(wg->wf, 3); /* thicker lines */
-dbg_printf(dlinfo, "end\n");
+    widget(f, x1, y1, x2, y2, s, id, wtbutton, &wp);
+    pa_linewidth(wp->wf, 3); /* thicker lines */
 
 }
 
