@@ -509,6 +509,9 @@ stub/keeper.o: stub/keeper.c
 cpp/terminal.o: cpp/terminal.cpp
 	g++ -g3 -fPIC -Iinclude -Ihpp -c cpp/terminal.cpp -o cpp/terminal.o
 	
+portable/gnome_widgets.o: portable/gnome_widgets.c
+	gcc -g3 -fPIC -Iinclude -c portable/gnome_widgets.c -o portable/gnome_widgets.o
+	
 ################################################################################
 #
 # Build libraries
@@ -605,16 +608,18 @@ bin/petit_ami_term.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
 		linux/terminal.o utils/config.o utils/option.o cpp/terminal.o
 	
 bin/petit_ami_graph.so: linux/services.o linux/network.o linux/graphics.o \
-    utils/config.o utils/option.o cpp/terminal.o
+    portable/gnome_widgets.o utils/config.o utils/option.o cpp/terminal.o
 	gcc -shared linux/services.o linux/network.o linux/graphics.o \
-	    utils/config.o utils/option.o cpp/terminal.o -o bin/petit_ami_graph.so
+		portable/gnome_widgets.o utils/config.o utils/option.o cpp/terminal.o \
+		-o bin/petit_ami_graph.so
 	
 bin/petit_ami_graph.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/network.o linux/graphics.o utils/config.o \
-    utils/option.o cpp/terminal.o
+    linux/dumpsynthplug.o linux/network.o linux/graphics.o \
+    portable/gnome_widgets.o utils/config.o utils/option.o cpp/terminal.o
 	ar rcs bin/petit_ami_graph.a linux/services.o linux/sound.o \
 		linux/fluidsynthplug.o linux/dumpsynthplug.o  linux/network.o \
-		linux/terminal.o utils/config.o utils/option.o cpp/terminal.o
+		linux/graphics.o portable/gnome_widgets.o utils/config.o \
+		utils/option.o cpp/terminal.o
 	
 endif
 
