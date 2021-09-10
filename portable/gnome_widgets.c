@@ -95,7 +95,10 @@ typedef enum  {
     wtbutton, wtcheckbox, wtradiobutton, wtgroup, wtbackground,
     wtscrollvert, wtscrollhoriz, wtnumselbox, wteditbox,
     wtprogressbar, wtlistbox, wtdropbox, wtdropeditbox,
-    wtslidehoriz, wtslidevert, wttabbar
+    wtslidehoriz, wtslidevert, wttabbar, wtalert, wtquerycolor,
+    wtqueryopen, wtquerysave, wtqueryfind, wtqueryfindrep,
+    wtqueryfont,
+
 } wigtyp;
 
 /* Widget control structure */
@@ -145,6 +148,27 @@ static void error(char* es)
     fflush(stderr);
 
     exit(1);
+
+}
+
+/*******************************************************************************
+
+Place string in storage
+
+Places the given string into dynamic storage, and returns that.
+
+*******************************************************************************/
+
+static char* str(char* s)
+
+{
+
+    char* p;
+
+    p = malloc(strlen(s)+1);
+    strcpy(p, s);
+
+    return (p);
 
 }
 
@@ -339,7 +363,7 @@ static void widget(FILE* f, int x1, int y1, int x2, int y2, char* s, int id,
     opnfil[fn]->widgets[id] = getwig(); /* get widget entry */
     *wp = opnfil[fn]->widgets[id]; /* index that */
 
-    (*wp)->title = s; /* place title */
+    (*wp)->title = str(s); /* place title */
     (*wp)->wid = pa_getwid(); /* allocate a buried wid */
     pa_openwin(&stdin, &(*wp)->wf, f, (*wp)->wid); /* open widget window */
     (*wp)->parent = f; /* save parent file */
@@ -515,7 +539,6 @@ void pa_buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
-    int fn; /* file number */
     wigptr wp; /* widget entry pointer */
 
     widget(f, x1, y1, x2, y2, s, id, wtbutton, &wp);
@@ -526,6 +549,13 @@ void pa_buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 void pa_button(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
+
+    /* form graphical from character coordinates */
+    x1 = (x1-1)*pa_chrsizx(f)+1;
+    y1 = (y1-1)*pa_chrsizy(f)+1;
+    x2 = (x2)*pa_chrsizx(f);
+    y2 = (y2)*pa_chrsizy(f);
+    pa_buttong(f, x1, y1, x2, y2, s, id); /* create button graphical */
 
 }
 
@@ -563,11 +593,22 @@ void pa_checkboxg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
+    wigptr wp; /* widget entry pointer */
+
+    widget(f, x1, y1, x2, y2, s, id, wtcheckbox, &wp);
+
 }
 
 void pa_checkbox(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
+
+    /* form graphical from character coordinates */
+    x1 = (x1-1)*pa_chrsizx(f)+1;
+    y1 = (y1-1)*pa_chrsizy(f)+1;
+    x2 = (x2)*pa_chrsizx(f);
+    y2 = (y2)*pa_chrsizy(f);
+    pa_checkboxg(f, x1, y1, x2, y2, s, id); /* create button graphical */
 
 }
 
@@ -605,11 +646,22 @@ void pa_radiobuttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
+    wigptr wp; /* widget entry pointer */
+
+    widget(f, x1, y1, x2, y2, s, id, wtradiobutton, &wp);
+
 }
 
 void pa_radiobutton(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
+
+    /* form graphical from character coordinates */
+    x1 = (x1-1)*pa_chrsizx(f)+1;
+    y1 = (y1-1)*pa_chrsizy(f)+1;
+    x2 = (x2)*pa_chrsizx(f);
+    y2 = (y2)*pa_chrsizy(f);
+    pa_radiobuttong(f, x1, y1, x2, y2, s, id); /* create button graphical */
 
 }
 
@@ -649,11 +701,22 @@ void pa_groupg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
+    wigptr wp; /* widget entry pointer */
+
+    widget(f, x1, y1, x2, y2, s, id, wtgroup, &wp);
+
 }
 
 void pa_group(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
+
+    /* form graphical from character coordinates */
+    x1 = (x1-1)*pa_chrsizx(f)+1;
+    y1 = (y1-1)*pa_chrsizy(f)+1;
+    x2 = (x2)*pa_chrsizx(f);
+    y2 = (y2)*pa_chrsizy(f);
+    pa_groupg(f, x1, y1, x2, y2, s, id); /* create button graphical */
 
 }
 
@@ -670,11 +733,22 @@ void pa_backgroundg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
 
+    wigptr wp; /* widget entry pointer */
+
+    widget(f, x1, y1, x2, y2, "", id, wtbackground, &wp);
+
 }
 
 void pa_background(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
+
+    /* form graphical from character coordinates */
+    x1 = (x1-1)*pa_chrsizx(f)+1;
+    y1 = (y1-1)*pa_chrsizy(f)+1;
+    x2 = (x2)*pa_chrsizx(f);
+    y2 = (y2)*pa_chrsizy(f);
+    pa_backgroundg(f, x1, y1, x2, y2, id); /* create button graphical */
 
 }
 
@@ -711,11 +785,22 @@ void pa_scrollvertg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
 
+    wigptr wp; /* widget entry pointer */
+
+    widget(f, x1, y1, x2, y2, "", id, wtscrollvert, &wp);
+
 }
 
 void pa_scrollvert(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
+
+    /* form graphical from character coordinates */
+    x1 = (x1-1)*pa_chrsizx(f)+1;
+    y1 = (y1-1)*pa_chrsizy(f)+1;
+    x2 = (x2)*pa_chrsizx(f);
+    y2 = (y2)*pa_chrsizy(f);
+    pa_scrollvertg(f, x1, y1, x2, y2, id); /* create button graphical */
 
 }
 
@@ -752,11 +837,22 @@ void pa_scrollhorizg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
 
+    wigptr wp; /* widget entry pointer */
+
+    widget(f, x1, y1, x2, y2, "", id, wtscrollhoriz, &wp);
+
 }
 
 void pa_scrollhoriz(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
+
+    /* form graphical from character coordinates */
+    x1 = (x1-1)*pa_chrsizx(f)+1;
+    y1 = (y1-1)*pa_chrsizy(f)+1;
+    x2 = (x2)*pa_chrsizx(f);
+    y2 = (y2)*pa_chrsizy(f);
+    pa_scrollhorizg(f, x1, y1, x2, y2, id); /* create button graphical */
 
 }
 
@@ -821,11 +917,22 @@ void pa_numselboxg(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id
 
 {
 
+    wigptr wp; /* widget entry pointer */
+
+    widget(f, x1, y1, x2, y2, "", id, wtnumselbox, &wp);
+
 }
 
 void pa_numselbox(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id)
 
 {
+
+    /* form graphical from character coordinates */
+    x1 = (x1-1)*pa_chrsizx(f)+1;
+    y1 = (y1-1)*pa_chrsizy(f)+1;
+    x2 = (x2)*pa_chrsizx(f);
+    y2 = (y2)*pa_chrsizy(f);
+    pa_numselboxg(f, x1, y1, x2, y2, l, u, id); /* create button graphical */
 
 }
 
@@ -862,11 +969,22 @@ void pa_editboxg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
 
+    wigptr wp; /* widget entry pointer */
+
+    widget(f, x1, y1, x2, y2, "", id, wteditbox, &wp);
+
 }
 
 void pa_editbox(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
+
+    /* form graphical from character coordinates */
+    x1 = (x1-1)*pa_chrsizx(f)+1;
+    y1 = (y1-1)*pa_chrsizy(f)+1;
+    x2 = (x2)*pa_chrsizx(f);
+    y2 = (y2)*pa_chrsizy(f);
+    pa_editboxg(f, x1, y1, x2, y2, id); /* create button graphical */
 
 }
 
@@ -903,11 +1021,22 @@ void pa_progbarg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
 
+    wigptr wp; /* widget entry pointer */
+
+    widget(f, x1, y1, x2, y2, "", id, wtprogressbar, &wp);
+
 }
 
 void pa_progbar(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 {
+
+    /* form graphical from character coordinates */
+    x1 = (x1-1)*pa_chrsizx(f)+1;
+    y1 = (y1-1)*pa_chrsizy(f)+1;
+    x2 = (x2)*pa_chrsizx(f);
+    y2 = (y2)*pa_chrsizy(f);
+    pa_progbarg(f, x1, y1, x2, y2, id); /* create button graphical */
 
 }
 
@@ -965,11 +1094,22 @@ void pa_listboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 {
 
+    wigptr wp; /* widget entry pointer */
+
+    widget(f, x1, y1, x2, y2, "", id, wtlistbox, &wp);
+
 }
 
 void pa_listbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 {
+
+    /* form graphical from character coordinates */
+    x1 = (x1-1)*pa_chrsizx(f)+1;
+    y1 = (y1-1)*pa_chrsizy(f)+1;
+    x2 = (x2)*pa_chrsizx(f);
+    y2 = (y2)*pa_chrsizy(f);
+    pa_listboxg(f, x1, y1, x2, y2, sp, id); /* create button graphical */
 
 }
 
@@ -1010,11 +1150,22 @@ void pa_dropboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 {
 
+    wigptr wp; /* widget entry pointer */
+
+    widget(f, x1, y1, x2, y2, "", id, wtdropbox, &wp);
+
 }
 
 void pa_dropbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 {
+
+    /* form graphical from character coordinates */
+    x1 = (x1-1)*pa_chrsizx(f)+1;
+    y1 = (y1-1)*pa_chrsizy(f)+1;
+    x2 = (x2)*pa_chrsizx(f);
+    y2 = (y2)*pa_chrsizy(f);
+    pa_dropboxg(f, x1, y1, x2, y2, sp, id); /* create button graphical */
 
 }
 
@@ -1059,11 +1210,22 @@ void pa_dropeditboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int 
 
 {
 
+    wigptr wp; /* widget entry pointer */
+
+    widget(f, x1, y1, x2, y2, "", id, wtdropeditbox, &wp);
+
 }
 
 void pa_dropeditbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 {
+
+    /* form graphical from character coordinates */
+    x1 = (x1-1)*pa_chrsizx(f)+1;
+    y1 = (y1-1)*pa_chrsizy(f)+1;
+    x2 = (x2)*pa_chrsizx(f);
+    y2 = (y2)*pa_chrsizy(f);
+    pa_dropeditboxg(f, x1, y1, x2, y2, sp, id); /* create button graphical */
 
 }
 
@@ -1102,11 +1264,22 @@ void pa_slidehorizg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 
 {
 
+    wigptr wp; /* widget entry pointer */
+
+    widget(f, x1, y1, x2, y2, "", id, wtslidehoriz, &wp);
+
 }
 
 void pa_slidehoriz(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 
 {
+
+    /* form graphical from character coordinates */
+    x1 = (x1-1)*pa_chrsizx(f)+1;
+    y1 = (y1-1)*pa_chrsizy(f)+1;
+    x2 = (x2)*pa_chrsizx(f);
+    y2 = (y2)*pa_chrsizy(f);
+    pa_slidehorizg(f, x1, y1, x2, y2, mark, id); /* create button graphical */
 
 }
 
@@ -1145,11 +1318,22 @@ void pa_slidevertg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 
 {
 
+    wigptr wp; /* widget entry pointer */
+
+    widget(f, x1, y1, x2, y2, "", id, wtslidevert, &wp);
+
 }
 
 void pa_slidevert(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 
 {
+
+    /* form graphical from character coordinates */
+    x1 = (x1-1)*pa_chrsizx(f)+1;
+    y1 = (y1-1)*pa_chrsizy(f)+1;
+    x2 = (x2)*pa_chrsizx(f);
+    y2 = (y2)*pa_chrsizy(f);
+    pa_slidevertg(f, x1, y1, x2, y2, mark, id); /* create button graphical */
 
 }
 
@@ -1217,12 +1401,23 @@ void pa_tabbarg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp,
 
 {
 
+    wigptr wp; /* widget entry pointer */
+
+    widget(f, x1, y1, x2, y2, "", id, wttabbar, &wp);
+
 }
 
 void pa_tabbar(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp,
             pa_tabori tor, int id)
 
 {
+
+    /* form graphical from character coordinates */
+    x1 = (x1-1)*pa_chrsizx(f)+1;
+    y1 = (y1-1)*pa_chrsizy(f)+1;
+    x2 = (x2)*pa_chrsizx(f);
+    y2 = (y2)*pa_chrsizy(f);
+    pa_tabbarg(f, x1, y1, x2, y2, sp, tor, id); /* create button graphical */
 
 }
 
@@ -1253,6 +1448,10 @@ void pa_alert(char* title, char* message)
 
 {
 
+    wigptr wp; /* widget entry pointer */
+
+    //widget(f, x1, y1, x2, y2, message, id, wtalert, &wp);
+
 }
 
 /** ****************************************************************************
@@ -1268,6 +1467,10 @@ Bug: does not take the input color as the default.
 void pa_querycolor(int* r, int* g, int* b)
 
 {
+
+    wigptr wp; /* widget entry pointer */
+
+    //widget(f, x1, y1, x2, y2, "", id, wtquerycolor, &wp);
 
 }
 
@@ -1291,6 +1494,10 @@ void pa_queryopen(char* s, int sl)
 
 {
 
+    wigptr wp; /* widget entry pointer */
+
+    //widget(f, x1, y1, x2, y2, s, id, wtqueryopen, &wp);
+
 }
 
 /** ****************************************************************************
@@ -1312,6 +1519,10 @@ If the operation is cancelled, then a null string will be returned.
 void pa_querysave(char* s, int sl)
 
 {
+
+    wigptr wp; /* widget entry pointer */
+
+    //widget(f, x1, y1, x2, y2, s, id, wtquerysave, &wp);
 
 }
 
@@ -1344,6 +1555,10 @@ void pa_queryfind(char* s, int sl, pa_qfnopts* opt)
 
 {
 
+    wigptr wp; /* widget entry pointer */
+
+    //widget(f, x1, y1, x2, y2, s, id, wtqueryfind, &wp);
+
 }
 
 /** ****************************************************************************
@@ -1367,6 +1582,10 @@ void pa_queryfindrep(char* s, int sl, char* r, int rl, pa_qfropts* opt)
 
 {
 
+    wigptr wp; /* widget entry pointer */
+
+    //widget(f, x1, y1, x2, y2, s, id, wtqueryfindrep, &wp);
+
 }
 
 /** ****************************************************************************
@@ -1388,6 +1607,10 @@ void pa_queryfont(FILE* f, int* fc, int* s, int* fr, int* fg, int* fb,
                int* br, int* bg, int* bb, pa_qfteffects* effect)
 
 {
+
+    wigptr wp; /* widget entry pointer */
+
+    //widget(f, x1, y1, x2, y2, "", id, wtqueryfont, &wp);
 
 }
 
