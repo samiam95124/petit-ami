@@ -92,12 +92,13 @@ static enum { /* debug levels */
 
 /* widget type */
 typedef enum  {
+
     wtbutton, wtcheckbox, wtradiobutton, wtgroup, wtbackground,
     wtscrollvert, wtscrollhoriz, wtnumselbox, wteditbox,
     wtprogressbar, wtlistbox, wtdropbox, wtdropeditbox,
     wtslidehoriz, wtslidevert, wttabbar, wtalert, wtquerycolor,
     wtqueryopen, wtquerysave, wtqueryfind, wtqueryfindrep,
-    wtqueryfont,
+    wtqueryfont
 
 } wigtyp;
 
@@ -265,6 +266,71 @@ static void putwig(wigptr wp)
 
 /** ****************************************************************************
 
+Button event handler
+
+Handles the events posted to buttons.
+
+*******************************************************************************/
+
+static void button_event(pa_evtrec* ev, wigptr wg)
+
+{
+
+    pa_evtrec er; /* outbound button event */
+
+    if (ev->etype == pa_etredraw) { /* redraw the window */
+
+        /* color the background */
+        pa_fcolor(wg->wf, pa_white);
+        pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf),
+                  pa_maxyg(wg->wf));
+        /* outline */
+        pa_fcolorg(wg->wf, INT_MAX/4, INT_MAX/4, INT_MAX/4);
+        pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1,
+                 pa_maxyg(wg->wf)-1, 20, 20);
+        if (wg->pressed) pa_fcolor(wg->wf, pa_red);
+        else pa_fcolor(wg->wf, pa_black);
+        pa_cursorg(wg->wf,
+                   pa_maxxg(wg->wf)/2-pa_strsiz(wg->wf, wg->title)/2,
+                   pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
+        fprintf(wg->wf, "%s", wg->title); /* place button title */
+
+    } else if (ev->etype == pa_etmouba && ev->amoubn) {
+
+        /* send event back to parent window */
+        er.etype = pa_etbutton; /* set button event */
+        er.butid = wg->id; /* set id */
+        pa_sendevent(wg->parent, &er); /* send the event to the parent */
+
+        /* process button press */
+        wg->pressed = TRUE;
+        pa_fcolor(wg->wf, pa_black);
+        pa_frrect(wg->wf, 3, 3, pa_maxxg(wg->wf)-3,
+                 pa_maxyg(wg->wf)-3, 20, 20);
+        pa_fcolor(wg->wf, pa_white);
+        pa_cursorg(wg->wf,
+                   pa_maxxg(wg->wf)/2-pa_strsiz(wg->wf, wg->title)/2,
+                   pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
+        fprintf(wg->wf, "%s", wg->title); /* place button title */
+
+    } else if (ev->etype == pa_etmoubd) {
+
+        wg->pressed = FALSE;
+        pa_fcolor(wg->wf, pa_white);
+        pa_frrect(wg->wf, 3, 3, pa_maxxg(wg->wf)-3,
+                 pa_maxyg(wg->wf)-3, 20, 20);
+        pa_fcolor(wg->wf, pa_black);
+        pa_cursorg(wg->wf,
+                   pa_maxxg(wg->wf)/2-pa_strsiz(wg->wf, wg->title)/2,
+                   pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
+        fprintf(wg->wf, "%s", wg->title); /* place button title */
+
+    }
+
+}
+
+/** ****************************************************************************
+
 Widget event handler
 
 Handles the events posted to widgets.
@@ -275,62 +341,36 @@ static void widget_event(pa_evtrec* ev)
 
 {
 
-    pa_evtrec er; /* outbound button event */
-    wigptr    wg; /* pointer to widget */
+    wigptr wg; /* pointer to widget */
 
     /* if not our window, send it on */
     wg = xltwig[ev->winid+MAXFIL]; /* get possible widget entry */
     if (!wg) widget_event_old(ev);
-    else { /* handle it here */
+    else switch (wg->typ) { /* handle according to type */
 
-        if (ev->etype == pa_etredraw) { /* redraw the window */
-
-            /* color the background */
-            pa_fcolor(wg->wf, pa_white);
-            pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf),
-                      pa_maxyg(wg->wf));
-            /* outline */
-            pa_fcolorg(wg->wf, INT_MAX/4, INT_MAX/4, INT_MAX/4);
-            pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1,
-                     pa_maxyg(wg->wf)-1, 20, 20);
-            if (wg->pressed) pa_fcolor(wg->wf, pa_red);
-            else pa_fcolor(wg->wf, pa_black);
-            pa_cursorg(wg->wf,
-                       pa_maxxg(wg->wf)/2-pa_strsiz(wg->wf, wg->title)/2,
-                       pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
-            fprintf(wg->wf, "%s", wg->title); /* place button title */
-
-        } else if (ev->etype == pa_etmouba && ev->amoubn) {
-
-            /* send event back to parent window */
-            er.etype = pa_etbutton; /* set button event */
-            er.butid = wg->id; /* set id */
-            pa_sendevent(wg->parent, &er); /* send the event to the parent */
-
-            /* process button press */
-            wg->pressed = TRUE;
-            pa_fcolor(wg->wf, pa_black);
-            pa_frrect(wg->wf, 3, 3, pa_maxxg(wg->wf)-3,
-                     pa_maxyg(wg->wf)-3, 20, 20);
-            pa_fcolor(wg->wf, pa_white);
-            pa_cursorg(wg->wf,
-                       pa_maxxg(wg->wf)/2-pa_strsiz(wg->wf, wg->title)/2,
-                       pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
-            fprintf(wg->wf, "%s", wg->title); /* place button title */
-
-        } else if (ev->etype == pa_etmoubd) {
-
-            wg->pressed = FALSE;
-            pa_fcolor(wg->wf, pa_white);
-            pa_frrect(wg->wf, 3, 3, pa_maxxg(wg->wf)-3,
-                     pa_maxyg(wg->wf)-3, 20, 20);
-            pa_fcolor(wg->wf, pa_black);
-            pa_cursorg(wg->wf,
-                       pa_maxxg(wg->wf)/2-pa_strsiz(wg->wf, wg->title)/2,
-                       pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
-            fprintf(wg->wf, "%s", wg->title); /* place button title */
-
-        }
+        case wtbutton:       button_event(ev, wg); break;
+        case wtcheckbox:     break;
+        case wtradiobutton:  break;
+        case wtgroup:        break;
+        case wtbackground:   break;
+        case wtscrollvert:   break;
+        case wtscrollhoriz:  break;
+        case wtnumselbox:    break;
+        case wteditbox:      break;
+        case wtprogressbar:  break;
+        case wtlistbox:      break;
+        case wtdropbox:      break;
+        case wtdropeditbox:  break;
+        case wtslidehoriz:   break;
+        case wtslidevert:    break;
+        case wttabbar:       break;
+        case wtalert:        break;
+        case wtquerycolor:   break;
+        case wtqueryopen:    break;
+        case wtquerysave:    break;
+        case wtqueryfind:    break;
+        case wtqueryfindrep: break;
+        case wtqueryfont:    break;
 
     }
 
