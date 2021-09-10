@@ -285,11 +285,10 @@ static void button_event(pa_evtrec* ev, wigptr wg)
         pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf),
                   pa_maxyg(wg->wf));
         /* outline */
-        pa_fcolorg(wg->wf, INT_MAX/4, INT_MAX/4, INT_MAX/4);
+        pa_fcolorg(wg->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
         pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1,
                  pa_maxyg(wg->wf)-1, 20, 20);
-        if (wg->pressed) pa_fcolor(wg->wf, pa_red);
-        else pa_fcolor(wg->wf, pa_black);
+        pa_fcolor(wg->wf, pa_black);
         pa_cursorg(wg->wf,
                    pa_maxxg(wg->wf)/2-pa_strsiz(wg->wf, wg->title)/2,
                    pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
@@ -305,9 +304,13 @@ static void button_event(pa_evtrec* ev, wigptr wg)
         /* process button press */
         wg->pressed = TRUE;
         pa_fcolor(wg->wf, pa_black);
+        pa_fcolorg(wg->wf, INT_MAX-INT_MAX/8, INT_MAX-INT_MAX/8,
+                   INT_MAX-INT_MAX/8);
         pa_frrect(wg->wf, 3, 3, pa_maxxg(wg->wf)-3,
                  pa_maxyg(wg->wf)-3, 20, 20);
-        pa_fcolor(wg->wf, pa_white);
+        pa_fcolorg(wg->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
+        pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1, pa_maxyg(wg->wf)-1, 20, 20);
+        pa_fcolor(wg->wf, pa_black);
         pa_cursorg(wg->wf,
                    pa_maxxg(wg->wf)/2-pa_strsiz(wg->wf, wg->title)/2,
                    pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);

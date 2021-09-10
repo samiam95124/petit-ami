@@ -3550,7 +3550,7 @@ static void fltmen(FILE* f, metptr mp, int x, int y)
 }
 
 /* remove pulldown menus */
-static void remmen(metptr mp, int branch)
+static void remmen(metptr mp)
 
 {
 
@@ -3558,22 +3558,24 @@ static void remmen(metptr mp, int branch)
     while (mp) {
 
         /* if window file is open, close it */
-        if (mp->wf && !branch) {
+        if (mp->wf && !mp->prime) {
 
             fclose(mp->wf); /* close */
             mp->wf = NULL; /* clear file link */
+            mp->pressed = FALSE; /* remove any press status */
 
         }
         /* and close any submenus */
-        if (mp->branch) remmen(mp->branch, FALSE);
+        if (mp->branch) remmen(mp->branch);
         /* close frame, if exists */
-        if (mp->branch) remmen(mp->frame, FALSE);
-        mp->pressed = FALSE; /* remove any press status */
+        if (mp->branch) remmen(mp->frame);
         mp = mp->next; /* next menu entry */
 
     }
 
 }
+
+static void menu_release_all(metptr mp, metptr skip);
 
 /* handle menu button press */
 static void menu_press(metptr mp)
@@ -3606,7 +3608,9 @@ static void menu_press(metptr mp)
 
         x = mp->x; /* find location of button bottom */
         y = mp->y+par->menuspcy;
-        fltmen(mp->wf, mp, x, y);
+        remmen(mp->head); /* remove any other pulldowns */
+        menu_release_all(mp->head, mp); /* release other menus */
+        fltmen(mp->wf, mp, x, y); /* present this pulldown */
 
     }
 
@@ -3637,14 +3641,14 @@ static void menu_release(metptr mp)
 }
 
 /* remove any top level menu press states */
-static void menu_release_all(metptr mp)
+static void menu_release_all(metptr mp, metptr skip)
 
 {
 
     /* close any open entry in this chain */
     while (mp) {
 
-        if (mp->pressed) menu_release(mp); /* release this menu */
+        if (mp->pressed && mp != skip) menu_release(mp); /* release this menu */
         mp = mp->next; /* next menu entry */
 
     }
@@ -3716,8 +3720,8 @@ static void menu_event(pa_evtrec* ev)
 
                     /* second press on floating menu */
                     menu_release(mp); /* release the button */
-                    remmen(mp->branch, FALSE); /* remove floating menus */
-                    remmen(mp->frame, FALSE); /* remove frame */
+                    remmen(mp->branch); /* remove floating menus */
+                    remmen(mp->frame); /* remove frame */
 
                 }
 
@@ -3729,9 +3733,8 @@ static void menu_event(pa_evtrec* ev)
                 er.etype = pa_etmenus; /* set button event */
                 er.butid = mp->id; /* set id */
                 pa_sendevent(mp->evtfil/*parent*/, &er); /* send the event to the parent */
-                remmen(mp->head, TRUE); /* remove all floating menus but bar */
-                if (!mp->prime)
-                    menu_release_all(mp->head); /* remove all top level presses */
+                remmen(mp->head); /* remove all floating menus but bar */
+                menu_release_all(mp->head, mp); /* remove all top level presses */
 
             }
 
