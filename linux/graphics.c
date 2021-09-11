@@ -307,11 +307,12 @@ typedef struct metrec {
     metptr branch;  /* menu branch */
     metptr frame;   /* frame for pulldown menu */
     metptr head;    /* head of menu pointer */
-    int    bar;     /* is the menu bar */
+    int    menubar; /* is the menu bar */
     int    frm;     /* is a frame */
     int    onoff;   /* the item is on-off highlighted */
     int    select;  /* the current on/off state of the highlight */
     metptr oneof;   /* "one of" chain pointer */
+    int    bar;     /* has bar under */
     int    id;      /* user id of item */
     int    x, y;    /* subclient position of window */
     int    prime;   /* is a prime (onscreen) entry */
@@ -3533,17 +3534,17 @@ static void fltmen(FILE* f, metptr mp, int x, int y)
     }
     mw += 20; /* pad to sides */
     /* present frame */
-    openmenu(out2inp(f), mp->evtfil, x, y, x+mw+4, y+wc*win->menuspcy+4, mp->frame);
+    openmenu(out2inp(f), mp->evtfil, x, y, x+mw+4, y+wc*win->menuspcy+4+8, mp->frame);
     /* present the branch list as children of the frame */
     p = mp->branch;
-    fx = 4; /* set frame coordinates, upper left+1 */
-    fy = 4;
+    fx = 3; /* set frame coordinates, upper left+2 */
+    fy = 3;
     while (p) { /* traverse */
 
         /* open menu item */
         openmenu(out2inp(f), mp->frame->wf, fx, fy, fx+mw, fy+win->menuspcy, p);
         p = p->next; /* next entry */
-        fy += win->menuspcy; /* next location */
+        fy += win->menuspcy+1; /* next location */
 
     }
 
@@ -3708,11 +3709,19 @@ static void menu_event(pa_evtrec* ev)
                 pa_rect(mp->wf, 2, 2, pa_maxxg(mp->wf)-1, pa_maxyg(mp->wf)-1);
 
             }
+            if (mp->bar) { /* draw bar under */
+
+                pa_fcolorg(mp->wf,
+                           INT_MAX/256*150, INT_MAX/256*150, INT_MAX/256*150);
+                pa_line(mp->wf, 1, pa_maxyg(mp->wf), pa_maxxg(mp->wf),
+                        pa_maxyg(mp->wf));
+
+            }
 
         } else if (ev->etype == pa_etmouba && ev->amoubn == 1) {
 
             /* mouse button 1 activation in window */
-            if (!mp->bar) { /* if not the menu bar */
+            if (!mp->menubar) { /* if not the menu bar */
 
                 /* if button not pressed */
                 if (!mp->pressed) menu_press(mp); /* process menu press */
@@ -3741,7 +3750,7 @@ static void menu_event(pa_evtrec* ev)
         } else if (ev->etype == pa_etmoubd && ev->dmoubn == 1) {
 
             /* mouse button 1 deactivation in window */
-            if (!mp->bar && !mp->branch) /* not the menu bar and not branch */
+            if (!mp->menubar && !mp->branch) /* not the menu bar and not branch */
                 menu_release(mp); /* release menu button */
 
         }
@@ -9851,7 +9860,7 @@ static void mettrk(
     mp->branch = NULL; /* clear branch */
     mp->frame = NULL; /* clear frame */
     mp->head = win->metlst; /* point back to root (used for floating menus) */
-    mp->bar = FALSE; /* set not menu bar */
+    mp->menubar = FALSE; /* set not menu bar */
     mp->frm = FALSE; /* set not frame */
     mp->onoff = FALSE; /* set no on/off highlighter */
     if (m) mp->onoff = m->onoff; /* place on/off highlighter */
@@ -9859,6 +9868,8 @@ static void mettrk(
     mp->id = 0; /* set invalid id */
     if (m) mp->id = m->id; /* place id */
     mp->oneof = NULL; /* set no "one of" */
+    mp->bar = FALSE; /* set no bar under */
+    if (m) mp->bar = m->bar; /* place bar state */
     /* set up the button properties */
     mp->pressed = FALSE; /* not pressed */
     mp->wf = NULL; /* set no window file attached */
@@ -9897,11 +9908,6 @@ static void createmenu(FILE* f, winptr win, metptr* root, pa_menuptr m)
         } else { /* handle terminal menu */
 
             mettrk(f, win, root, m, &mp); /* enter that into tracking */
-
-        }
-        if (m->bar) { /* add separator bar */
-
-            /* a separator bar is a blank entry that will never be referenced */
 
         }
         m = m->next; /* next menu entry */
@@ -9960,8 +9966,9 @@ void pa_menu(FILE* f, pa_menuptr m)
         win->menu = getmet();
         win->menu->next = NULL; /* clear next */
         win->menu->branch = win->menu; /* set not to generate event */
-        win->menu->bar = TRUE; /* flag is menu bar */
+        win->menu->menubar = TRUE; /* flag is menu bar */
         win->menu->frm = FALSE; /* not frame */
+        win->menu->bar = FALSE; /* no bar (underline) */
         win->menu->prime = FALSE; /* not prime */
         win->menu->title = NULL; /* set no face string */
         win->menu->pressed = FALSE; /* set not pressed */
