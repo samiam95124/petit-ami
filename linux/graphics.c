@@ -3534,7 +3534,7 @@ static void fltmen(FILE* f, metptr mp, int x, int y)
     }
     mw += 20; /* pad to sides */
     /* present frame */
-    openmenu(out2inp(f), mp->evtfil, x, y, x+mw+4, y+wc*win->menuspcy+4+8, mp->frame);
+    openmenu(out2inp(f), mp->evtfil, x, y, x+mw+4-1, y+wc*win->menuspcy+4-1, mp->frame);
     /* present the branch list as children of the frame */
     p = mp->branch;
     fx = 3; /* set frame coordinates, upper left+2 */
@@ -3542,9 +3542,9 @@ static void fltmen(FILE* f, metptr mp, int x, int y)
     while (p) { /* traverse */
 
         /* open menu item */
-        openmenu(out2inp(f), mp->frame->wf, fx, fy, fx+mw, fy+win->menuspcy, p);
+        openmenu(out2inp(f), mp->frame->wf, fx, fy, fx+mw-1, fy+win->menuspcy-1, p);
         p = p->next; /* next entry */
-        fy += win->menuspcy+1; /* next location */
+        fy += win->menuspcy; /* next location */
 
     }
 
@@ -3709,7 +3709,7 @@ static void menu_event(pa_evtrec* ev)
                 pa_rect(mp->wf, 2, 2, pa_maxxg(mp->wf)-1, pa_maxyg(mp->wf)-1);
 
             }
-            if (mp->bar) { /* draw bar under */
+            if (mp->bar && !mp->prime) { /* draw bar under */
 
                 pa_fcolorg(mp->wf,
                            INT_MAX/256*150, INT_MAX/256*150, INT_MAX/256*150);
