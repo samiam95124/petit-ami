@@ -290,25 +290,25 @@ typedef enum { mdnorm, mdinvis, mdxor, mdand, mdor } mode; /* color mix modes */
 typedef struct metrec* metptr;
 typedef struct metrec {
 
-    metptr next;    /* next entry */
-    metptr branch;  /* menu branch */
-    metptr frame;   /* frame for pulldown menu */
-    metptr head;    /* head of menu pointer */
-    int    menubar; /* is the menu bar */
-    int    frm;     /* is a frame */
-    int    onoff;   /* the item is on-off highlighted */
-    int    select;  /* the current on/off state of the highlight */
-    metptr oneof;   /* "one of" chain pointer */
-    int    bar;     /* has bar under */
-    int    id;      /* user id of item */
-    int    x, y;    /* subclient position of window */
-    int    prime;   /* is a prime (onscreen) entry */
-    int    pressed; /* in the pressed state */
-    FILE*  wf;      /* output file for the menu window */
-    char*  title;   /* title text */
-    FILE*  parent;  /* parent window */
-    FILE*  evtfil;  /* file to post menu events to */
-    int    wid;     /* menu window id */
+    metptr next;               /* next entry */
+    metptr branch;             /* menu branch */
+    metptr frame;              /* frame for pulldown menu */
+    metptr head;               /* head of menu pointer */
+    int    menubar;            /* is the menu bar */
+    int    frm;                /* is a frame */
+    int    onoff;              /* the item is on-off highlighted */
+    int    select;             /* the current on/off state of the highlight */
+    metptr oneof;              /* "one of" chain pointer */
+    int    bar;                /* has bar under */
+    int    id;                 /* user id of item */
+    int    fx1, fy1, fx2, fy2; /* subclient position of window */
+    int    prime;              /* is a prime (onscreen) entry */
+    int    pressed;            /* in the pressed state */
+    FILE*  wf;                 /* output file for the menu window */
+    char*  title;              /* title text */
+    FILE*  parent;             /* parent window */
+    FILE*  evtfil;             /* file to post menu events to */
+    int    wid;                /* menu window id */
 
 } metrec;
 
@@ -3495,7 +3495,11 @@ a menu item widget are performed.
 *******************************************************************************/
 
 /* present pulldown menu */
-static void pulmen(FILE* f, metptr mp, int x, int y)
+static void pulmen(
+    /** window containing menu */    FILE* f,
+    /** menu containing branch */    metptr mp,
+    /** location in client window */ int x, int y
+)
 
 {
 
@@ -3530,10 +3534,13 @@ static void pulmen(FILE* f, metptr mp, int x, int y)
 
         /* open menu item */
         openmenu(out2inp(f), mp->frame->wf, fx, fy, fx+mw-1, fy+win->menuspcy-1, p);
-        p->x = fx-3+1; /* set base location in frame */
-        p->y = fy-3+1;
+        p->fx1 = x; /* set base location in client  */
+        p->fy1 = y;
+        p->fx2 = x+mw+4-1;
+        p->fy2 = y+win->menuspcy-1;
         p = p->next; /* next entry */
         fy += win->menuspcy; /* next location */
+        y += win->menuspcy;
 
     }
 
@@ -3562,31 +3569,6 @@ static void remmen(metptr mp)
         mp = mp->next; /* next menu entry */
 
     }
-
-}
-
-/* find nearest containing pulldown menu frame */
-static metptr fndfrm(metptr hp, metptr mp)
-
-{
-
-    metptr fp, fp2, hp2;
-
-    fp = NULL;
-    hp2 = hp;
-    /* search this list */
-    while (hp2) {
-
-        if (hp2 == mp) fp = hp;
-        /* search branch */
-        fp2 = fndfrm(hp2->branch, mp);
-        if (fp2) fp = fp2; /* set if found */
-        hp2 = hp2->next;
-
-    }
-    if (fp) hp = hp->frame;
-
-    return (hp); /* return the containing frame */
 
 }
 
@@ -3622,18 +3604,18 @@ static void menu_press(metptr mp)
     /* if it is a branch, present floating menu */
     if (mp->branch) {
 
-        x = mp->x; /* find location of button bottom */
-        y = mp->y+par->menuspcy;
         if (mp->prime) {
 
             /* we are starting a pulldown tree, remove any others */
             remmen(mp->head); /* remove any other pulldowns */
             menu_release_all(mp->head, mp); /* release other menus */
+            x = mp->fx1; /* find location of button bottom in client terms */
+            y = mp->fy1+par->menuspcy;
 
         } else {
 
-            fp = fndfrm(mp->head, mp); /* find the containing frame */
-            x += pa_maxxg(fp->wf);
+            x = mp->fx2+1; /* find location of button in client terms */
+            y = mp->fy1;
 
         }
         pulmen(mp->wf, mp, x, y); /* present this pulldown */
@@ -3818,8 +3800,8 @@ static void actmenu(FILE* f)
         w = pa_strsiz(bf, mp->title);
         /* open menu item here */
         openmenu(inf, f, x, 1, x+w+EXTRAMENUX, win->menuspcy, mp);
-        mp->x = x; /* save position */
-        mp->y = 1;
+        mp->fx1 = x; /* save rectangle */
+        mp->fy1 = 1;
         mp->prime = TRUE; /* set is a prime (onscreen) menu */
         x = x+w+EXTRAMENUX; /* go next menu position */
         mp = mp->next; /* next top menu item */
