@@ -3508,7 +3508,7 @@ a menu item widget are performed.
 *******************************************************************************/
 
 /* present pulldown menu */
-static void fltmen(FILE* f, metptr mp, int x, int y)
+static void pulmen(FILE* f, metptr mp, int x, int y)
 
 {
 
@@ -3649,7 +3649,7 @@ static void menu_press(metptr mp)
             x += pa_maxxg(fp->wf);
 
         }
-        fltmen(mp->wf, mp, x, y); /* present this pulldown */
+        pulmen(mp->wf, mp, x, y); /* present this pulldown */
 
     }
 
