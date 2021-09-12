@@ -3688,9 +3688,7 @@ static void menu_event(pa_evtrec* ev)
 
                 /* place the title */
                 pa_fcolor(mp->wf, pa_black);
-                pa_cursorg(mp->wf,
-                           pa_maxxg(mp->wf)/2-pa_strsiz(mp->wf, mp->title)/2,
-                           pa_maxyg(mp->wf)/2-pa_chrsizy(mp->wf)/2);
+                pa_cursorg(mp->wf, 1, pa_maxyg(mp->wf)/2-pa_chrsizy(mp->wf)/2);
                 fprintf(mp->wf, "%s", mp->title); /* place button title */
 
             }
