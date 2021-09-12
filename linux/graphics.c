@@ -3507,7 +3507,7 @@ a menu item widget are performed.
 
 *******************************************************************************/
 
-/* present floating menu */
+/* present pulldown menu */
 static void fltmen(FILE* f, metptr mp, int x, int y)
 
 {
@@ -3543,6 +3543,8 @@ static void fltmen(FILE* f, metptr mp, int x, int y)
 
         /* open menu item */
         openmenu(out2inp(f), mp->frame->wf, fx, fy, fx+mw-1, fy+win->menuspcy-1, p);
+        p->x = fx-3+1; /* set base location in frame */
+        p->y = fy-3+1;
         p = p->next; /* next entry */
         fy += win->menuspcy; /* next location */
 
@@ -3576,6 +3578,31 @@ static void remmen(metptr mp)
 
 }
 
+/* find nearest containing pulldown menu frame */
+static metptr fndfrm(metptr hp, metptr mp)
+
+{
+
+    metptr fp, fp2, hp2;
+
+    fp = NULL;
+    hp2 = hp;
+    /* search this list */
+    while (hp2) {
+
+        if (hp2 == mp) fp = hp;
+        /* search branch */
+        fp2 = fndfrm(hp2->branch, mp);
+        if (fp2) fp = fp2; /* set if found */
+        hp2 = hp2->next;
+
+    }
+    if (fp) hp = hp->frame;
+
+    return (hp); /* return the containing frame */
+
+}
+
 static void menu_release_all(metptr mp, metptr skip);
 
 /* handle menu button press */
@@ -3585,6 +3612,7 @@ static void menu_press(metptr mp)
 
     winptr par; /* window parent */
     int x, y;
+    metptr fp;
 
     par = NULL; /* set no parent (floating menu) */
     if (mp->parent) par = txt2win(mp->parent); /* index parent window */
@@ -3609,8 +3637,18 @@ static void menu_press(metptr mp)
 
         x = mp->x; /* find location of button bottom */
         y = mp->y+par->menuspcy;
-        remmen(mp->head); /* remove any other pulldowns */
-        menu_release_all(mp->head, mp); /* release other menus */
+        if (mp->prime) {
+
+            /* we are starting a pulldown tree, remove any others */
+            remmen(mp->head); /* remove any other pulldowns */
+            menu_release_all(mp->head, mp); /* release other menus */
+
+        } else {
+
+            fp = fndfrm(mp->head, mp); /* find the containing frame */
+            x += pa_maxxg(fp->wf);
+
+        }
         fltmen(mp->wf, mp, x, y); /* present this pulldown */
 
     }
