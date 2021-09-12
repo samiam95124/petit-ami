@@ -282,19 +282,6 @@ typedef struct fontrec {
 
 typedef enum { mdnorm, mdinvis, mdxor, mdand, mdor } mode; /* color mix modes */
 
-/* Widget control structure */
-typedef struct widget {
-
-    int            pressed; /* in the pressed state */
-    FILE*          wf;      /* output file for the widget window */
-    char*          title;   /* title text */
-    FILE*          parent;  /* parent window */
-    FILE*          evtfil;  /* file to post menu events to */
-    int            id;      /* id number */
-    int            wid;     /* widget window id */
-
-} widget;
-
 /* Menu tracking. This is a mirror image of the menu we were given by the
    user. However, we can do with less information than is in the original
    tree as passed. The menu items are a linear list, since they contain
