@@ -24,10 +24,8 @@ smilar algorithim. Right now the storage allocation can climb to infinity.
 in Ubuntu. We can introduce a mode to verify if holds the _NET_FRAME_EXTENTS
 property. Note that not all window managers obey this standard.
 
-9. Turning bold on in the button window also appears to turn on bold in the
-main window.
+10. The delayed window presentation code improves the time to display windows,
+but the delay still shows up in stacked menus. We can do better by delaying most
+of the window parameters for an open call when it is really required.
 
-10. Delayed presentation of windows was turned off, because in XWindows, you
-can't find characteristics of a window until you map it. This means that you
-get to watch the window reconfigure, and that takes time, too. This needs
-research to solve.
+11. The cursor seems to be getting erased by menus.
