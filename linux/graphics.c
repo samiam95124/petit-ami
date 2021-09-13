@@ -3523,7 +3523,7 @@ static void pulmen(
         p = p->next; /* next in list */
 
     }
-    mw += 20; /* pad to sides */
+    mw += 40; /* pad to sides */
     /* present frame */
     openmenu(out2inp(f), mp->evtfil, x, y, x+mw+4-1, y+wc*win->menuspcy+4-1, mp->frame);
     /* present the branch list as children of the frame */
@@ -3720,6 +3720,14 @@ static void menu_event(pa_evtrec* ev)
                            INT_MAX/256*150, INT_MAX/256*150, INT_MAX/256*150);
                 pa_line(mp->wf, 1, pa_maxyg(mp->wf), pa_maxxg(mp->wf),
                         pa_maxyg(mp->wf));
+
+            }
+            if (!mp->prime && mp->branch && !mp->menubar) {
+
+                pa_fcolor(mp->wf, pa_black);
+                pa_ftriangle(mp->wf, pa_maxxg(mp->wf)-pa_maxyg(mp->wf)/2, pa_maxyg(mp->wf)/3,
+                                     pa_maxxg(mp->wf)-pa_maxyg(mp->wf)/4, pa_maxyg(mp->wf)/2,
+                                     pa_maxxg(mp->wf)-pa_maxyg(mp->wf)/2, pa_maxyg(mp->wf)-pa_maxyg(mp->wf)/3);
 
             }
 
