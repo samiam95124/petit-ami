@@ -299,6 +299,7 @@ typedef struct metrec {
     int    onoff;              /* the item is on-off highlighted */
     int    select;             /* the current on/off state of the highlight */
     metptr oneof;              /* "one of" chain pointer */
+    int    ena;                /* enabled/disabled */
     int    bar;                /* has bar under */
     int    id;                 /* user id of item */
     int    fx1, fy1, fx2, fy2; /* subclient position of window */
@@ -3447,6 +3448,59 @@ static void putmet(metptr p)
 
 }
 
+/*******************************************************************************
+
+Find menu entry
+
+Finds a menu entry by id. If the entry is not found, it generates an error.
+If the entry exists more than once, it generates an error.
+
+*******************************************************************************/
+
+/* search subtree for meny entry */
+static metptr fndmenu_tree(metptr mp, int id)
+
+{
+
+    metptr fp, fp2; /* found entry pointer */
+
+    fp = NULL; /* set no entry found */
+    while (mp) { /* traverse */
+
+        if (mp->id == id) { /* found */
+
+            if (fp) error(edupmen); /* menu entry is duplicated */
+            fp = mp; /* set found entry */
+
+        }
+        fp2 = fndmenu_tree(mp->branch, id);
+        if (fp2) { /* found in subtree */
+
+            if (fp) error(edupmen); /* menu entry is duplicated */
+            fp = fp2; /* set found entry */
+
+        }
+        mp = mp->next; /* next entry */
+
+    }
+
+    return (fp); /* return entry */
+
+}
+
+static metptr fndmenu(winptr win, int id)
+
+{
+
+    metptr fp; /* found entry pointer */
+
+    fp = fndmenu_tree(win->metlst, id); /* find entry in list */
+    if (!fp) error(emennf); /* no menu entry found with id */
+
+    return (fp); /* return entry */
+
+}
+
 /** ****************************************************************************
 
 Open menu item as window
@@ -3591,10 +3645,10 @@ static void menu_press(metptr mp)
     pa_frect(mp->wf, 1, 1, pa_maxxg(mp->wf), pa_maxyg(mp->wf));
     if (mp->title) { /* there is a title */
 
-        pa_fcolor(mp->wf, pa_black);
-        pa_cursorg(mp->wf,
-                   pa_maxxg(mp->wf)/2-pa_strsiz(mp->wf, mp->title)/2,
-                pa_maxyg(mp->wf)/2-pa_chrsizy(mp->wf)/2);
+        if (mp->ena) pa_fcolor(mp->wf, pa_black);
+        else pa_fcolorg(mp->wf, INT_MAX/256*150, INT_MAX/256*150,
+                               INT_MAX/256*150);
+        pa_cursorg(mp->wf, 1, pa_maxyg(mp->wf)/2-pa_chrsizy(mp->wf)/2);
         fprintf(mp->wf, "%s", mp->title); /* place button title */
 
     }
@@ -3634,10 +3688,10 @@ static void menu_release(metptr mp)
     pa_frect(mp->wf, 1, 1, pa_maxxg(mp->wf), pa_maxyg(mp->wf));
     if (mp->title) { /* there is a title */
 
-        pa_fcolor(mp->wf, pa_black);
-        pa_cursorg(mp->wf,
-                   pa_maxxg(mp->wf)/2-pa_strsiz(mp->wf, mp->title)/2,
-                   pa_maxyg(mp->wf)/2-pa_chrsizy(mp->wf)/2);
+        if (mp->ena) pa_fcolor(mp->wf, pa_black);
+        else pa_fcolorg(mp->wf, INT_MAX/256*150, INT_MAX/256*150,
+                                INT_MAX/256*150);
+        pa_cursorg(mp->wf, 1, pa_maxyg(mp->wf)/2-pa_chrsizy(mp->wf)/2);
         fprintf(mp->wf, "%s", mp->title); /* place button title */
 
     }
@@ -3687,7 +3741,9 @@ static void menu_event(pa_evtrec* ev)
             if (mp->title) { /* there is a title */
 
                 /* place the title */
-                pa_fcolor(mp->wf, pa_black);
+                if (mp->ena) pa_fcolor(mp->wf, pa_black);
+                else pa_fcolorg(mp->wf, INT_MAX/256*150, INT_MAX/256*150,
+                                        INT_MAX/256*150);
                 pa_cursorg(mp->wf, 1, pa_maxyg(mp->wf)/2-pa_chrsizy(mp->wf)/2);
                 fprintf(mp->wf, "%s", mp->title); /* place button title */
 
@@ -3749,7 +3805,7 @@ static void menu_event(pa_evtrec* ev)
 
             }
 
-            if (!mp->branch) { /* not a branch entry */
+            if (!mp->branch && mp->ena) { /* not a branch entry */
 
                 /* send event back to parent window */
                 er.etype = pa_etmenus; /* set button event */
@@ -9803,7 +9859,6 @@ void pa_buffer(FILE* f, int e)
         /* get actual size of onscreen window, and set that as client space */
         XWLOCK();
         XGetWindowAttributes(padisplay, win->xwhan, &xwa);
-        XWUNLOCK();
         win->gmaxxg = xwa.width; /* return size */
         win->gmaxyg = xwa.height;
         win->gmaxx = win->gmaxxg/win->charspace; /* find character size x */
@@ -9822,6 +9877,7 @@ void pa_buffer(FILE* f, int e)
         xe.xexpose.height = win->gmaxyg;
         xe.xexpose.window = win->xwhan;
         XSendEvent(padisplay, win->xwhan, FALSE, 0, &xe);
+        XWUNLOCK();
 
     }
 
@@ -9881,6 +9937,7 @@ static void mettrk(
     mp->id = 0; /* set invalid id */
     if (m) mp->id = m->id; /* place id */
     mp->oneof = NULL; /* set no "one of" */
+    mp->ena = TRUE; /* set enabled */
     mp->bar = FALSE; /* set no bar under */
     if (m) mp->bar = m->bar; /* place bar state */
     /* set up the button properties */
@@ -10006,6 +10063,24 @@ and will no longer send messages.
 void pa_menuena(FILE* f, int id, int onoff)
 
 {
+
+    winptr win; /* pointer to windows context */
+    XEvent xe;  /* XWindow event */
+    metptr mp;  /* menu entry pointer */
+
+    win = txt2win(f); /* get window context */
+    mp = fndmenu(win, id); /* find the menu entry */
+    mp->ena = !!onoff; /* set state of enable */
+    /* tell the window to repaint */
+    xe.type = Expose;
+    xe.xexpose.x = 0;
+    xe.xexpose.y = 0;
+    xe.xexpose.width = win->gmaxxg;
+    xe.xexpose.height = win->gmaxyg;
+    xe.xexpose.window = win->xwhan;
+    XWLOCK();
+    XSendEvent(padisplay, win->xwhan, FALSE, 0, &xe);
+    XWUNLOCK();
 
 }
 
