@@ -3646,6 +3646,17 @@ static void menu_draw(metptr mp)
         else pa_cursorg(mp->wf, pa_maxyg(mp->wf),
                                 pa_maxyg(mp->wf)/2-pa_chrsizy(mp->wf)/2);
         fprintf(mp->wf, "%s", mp->title); /* place button title */
+        if (mp->select && !mp->prime) {
+
+            pa_fcolor(mp->wf, pa_black);
+            pa_linewidth(mp->wf, 4);
+            pa_line(mp->wf, pa_maxyg(mp->wf)/4, pa_maxyg(mp->wf)/2,
+                            pa_maxyg(mp->wf)/2, pa_maxyg(mp->wf)-pa_maxyg(mp->wf)/3);
+            pa_line(mp->wf, pa_maxyg(mp->wf)/2, pa_maxyg(mp->wf)-pa_maxyg(mp->wf)/3,
+                            pa_maxyg(mp->wf)-pa_maxyg(mp->wf)/6, pa_maxyg(mp->wf)/3);
+            pa_linewidth(mp->wf, 1);
+
+        }
 
     }
 
@@ -10094,6 +10105,24 @@ selected, with no check if not.
 void pa_menusel(FILE* f, int id, int select)
 
 {
+
+    winptr win; /* pointer to windows context */
+    XEvent xe;  /* XWindow event */
+    metptr mp;  /* menu entry pointer */
+
+    win = txt2win(f); /* get window context */
+    mp = fndmenu(win, id); /* find the menu entry */
+    mp->select = !!select; /* set state of select */
+    /* tell the window to repaint */
+    xe.type = Expose;
+    xe.xexpose.x = 0;
+    xe.xexpose.y = 0;
+    xe.xexpose.width = win->gmaxxg;
+    xe.xexpose.height = win->gmaxyg;
+    xe.xexpose.window = win->xwhan;
+    XWLOCK();
+    XSendEvent(padisplay, win->xwhan, FALSE, 0, &xe);
+    XWUNLOCK();
 
 }
 
