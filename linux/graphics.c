@@ -3577,7 +3577,9 @@ static void pulmen(
         p = p->next; /* next in list */
 
     }
-    mw += 40; /* pad to sides */
+    /* pad to sides, 2 squares, left for select, right for branch arrows),
+       plus extra padding */
+    mw += win->menuspcy*2+win->menuspcy/2;
     /* present frame */
     openmenu(out2inp(f), mp->evtfil, x, y, x+mw+4-1, y+wc*win->menuspcy+4-1, mp->frame);
     /* present the branch list as children of the frame */
@@ -3648,7 +3650,11 @@ static void menu_press(metptr mp)
         if (mp->ena) pa_fcolor(mp->wf, pa_black);
         else pa_fcolorg(mp->wf, INT_MAX/256*150, INT_MAX/256*150,
                                INT_MAX/256*150);
-        pa_cursorg(mp->wf, 1, pa_maxyg(mp->wf)/2-pa_chrsizy(mp->wf)/2);
+        if (mp->prime)
+            pa_cursorg(mp->wf, 1,
+                       pa_maxyg(mp->wf)/2-pa_chrsizy(mp->wf)/2);
+        else pa_cursorg(mp->wf, pa_maxyg(mp->wf),
+                                pa_maxyg(mp->wf)/2-pa_chrsizy(mp->wf)/2);
         fprintf(mp->wf, "%s", mp->title); /* place button title */
 
     }
@@ -3691,7 +3697,11 @@ static void menu_release(metptr mp)
         if (mp->ena) pa_fcolor(mp->wf, pa_black);
         else pa_fcolorg(mp->wf, INT_MAX/256*150, INT_MAX/256*150,
                                 INT_MAX/256*150);
-        pa_cursorg(mp->wf, 1, pa_maxyg(mp->wf)/2-pa_chrsizy(mp->wf)/2);
+        if (mp->prime)
+            pa_cursorg(mp->wf, 1,
+                       pa_maxyg(mp->wf)/2-pa_chrsizy(mp->wf)/2);
+        else pa_cursorg(mp->wf, pa_maxyg(mp->wf),
+                                pa_maxyg(mp->wf)/2-pa_chrsizy(mp->wf)/2);
         fprintf(mp->wf, "%s", mp->title); /* place button title */
 
     }
@@ -3744,7 +3754,11 @@ static void menu_event(pa_evtrec* ev)
                 if (mp->ena) pa_fcolor(mp->wf, pa_black);
                 else pa_fcolorg(mp->wf, INT_MAX/256*150, INT_MAX/256*150,
                                         INT_MAX/256*150);
-                pa_cursorg(mp->wf, 1, pa_maxyg(mp->wf)/2-pa_chrsizy(mp->wf)/2);
+                if (mp->prime)
+                    pa_cursorg(mp->wf, 1,
+                               pa_maxyg(mp->wf)/2-pa_chrsizy(mp->wf)/2);
+                else pa_cursorg(mp->wf, pa_maxyg(mp->wf),
+                                pa_maxyg(mp->wf)/2-pa_chrsizy(mp->wf)/2);
                 fprintf(mp->wf, "%s", mp->title); /* place button title */
 
             }
