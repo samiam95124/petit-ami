@@ -3630,6 +3630,27 @@ static void remmen(metptr mp)
 
 static void menu_release_all(metptr mp, metptr skip);
 
+/* draw menu button title */
+static void menu_draw(metptr mp)
+
+{
+
+    if (mp->title) { /* there is a title */
+
+        if (mp->ena) pa_fcolor(mp->wf, pa_black);
+        else pa_fcolorg(mp->wf, INT_MAX/256*150, INT_MAX/256*150,
+                               INT_MAX/256*150);
+        if (mp->prime)
+            pa_cursorg(mp->wf, 1,
+                       pa_maxyg(mp->wf)/2-pa_chrsizy(mp->wf)/2);
+        else pa_cursorg(mp->wf, pa_maxyg(mp->wf),
+                                pa_maxyg(mp->wf)/2-pa_chrsizy(mp->wf)/2);
+        fprintf(mp->wf, "%s", mp->title); /* place button title */
+
+    }
+
+}
+
 /* handle menu button press */
 static void menu_press(metptr mp)
 
@@ -3645,19 +3666,7 @@ static void menu_press(metptr mp)
     mp->pressed = TRUE;
     pa_fcolorg(mp->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
     pa_frect(mp->wf, 1, 1, pa_maxxg(mp->wf), pa_maxyg(mp->wf));
-    if (mp->title) { /* there is a title */
-
-        if (mp->ena) pa_fcolor(mp->wf, pa_black);
-        else pa_fcolorg(mp->wf, INT_MAX/256*150, INT_MAX/256*150,
-                               INT_MAX/256*150);
-        if (mp->prime)
-            pa_cursorg(mp->wf, 1,
-                       pa_maxyg(mp->wf)/2-pa_chrsizy(mp->wf)/2);
-        else pa_cursorg(mp->wf, pa_maxyg(mp->wf),
-                                pa_maxyg(mp->wf)/2-pa_chrsizy(mp->wf)/2);
-        fprintf(mp->wf, "%s", mp->title); /* place button title */
-
-    }
+    menu_draw(mp); /* draw menu title */
     /* draw underbar */
     pa_fcolorg(mp->wf, INT_MAX/256*233, INT_MAX/256*84, INT_MAX/256*32);
     pa_frect(mp->wf, 1, pa_maxyg(mp->wf)-4, pa_maxxg(mp->wf), pa_maxyg(mp->wf));
@@ -3692,19 +3701,7 @@ static void menu_release(metptr mp)
     mp->pressed = FALSE;
     pa_fcolor(mp->wf, pa_white);
     pa_frect(mp->wf, 1, 1, pa_maxxg(mp->wf), pa_maxyg(mp->wf));
-    if (mp->title) { /* there is a title */
-
-        if (mp->ena) pa_fcolor(mp->wf, pa_black);
-        else pa_fcolorg(mp->wf, INT_MAX/256*150, INT_MAX/256*150,
-                                INT_MAX/256*150);
-        if (mp->prime)
-            pa_cursorg(mp->wf, 1,
-                       pa_maxyg(mp->wf)/2-pa_chrsizy(mp->wf)/2);
-        else pa_cursorg(mp->wf, pa_maxyg(mp->wf),
-                                pa_maxyg(mp->wf)/2-pa_chrsizy(mp->wf)/2);
-        fprintf(mp->wf, "%s", mp->title); /* place button title */
-
-    }
+    menu_draw(mp); /* draw menu title */
     pa_fcolorg(mp->wf,
                INT_MAX/256*223, INT_MAX/256*223, INT_MAX/256*223);
     pa_frect(mp->wf, 1, pa_maxyg(mp->wf)-1,
@@ -3748,20 +3745,7 @@ static void menu_event(pa_evtrec* ev)
             /* color the background */
             pa_fcolor(mp->wf, pa_white);
             pa_frect(mp->wf, 1, 1, pa_maxxg(mp->wf), pa_maxyg(mp->wf));
-            if (mp->title) { /* there is a title */
-
-                /* place the title */
-                if (mp->ena) pa_fcolor(mp->wf, pa_black);
-                else pa_fcolorg(mp->wf, INT_MAX/256*150, INT_MAX/256*150,
-                                        INT_MAX/256*150);
-                if (mp->prime)
-                    pa_cursorg(mp->wf, 1,
-                               pa_maxyg(mp->wf)/2-pa_chrsizy(mp->wf)/2);
-                else pa_cursorg(mp->wf, pa_maxyg(mp->wf),
-                                pa_maxyg(mp->wf)/2-pa_chrsizy(mp->wf)/2);
-                fprintf(mp->wf, "%s", mp->title); /* place button title */
-
-            }
+            menu_draw(mp); /* draw menu title */
             if (mp->pressed) {
 
                 /* draw underbar */
