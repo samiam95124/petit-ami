@@ -299,6 +299,7 @@ typedef struct metrec {
     int    onoff;              /* the item is on-off highlighted */
     int    select;             /* the current on/off state of the highlight */
     metptr oneof;              /* "one of" chain pointer */
+    metptr chnhd;              /* head of "one of" chain */
     int    ena;                /* enabled/disabled */
     int    bar;                /* has bar under */
     int    id;                 /* user id of item */
@@ -9904,19 +9905,18 @@ deleted.
 *******************************************************************************/
 
 /* insert at list end */
-static void insend(metptr* root, metptr mp)
+static void insend(metptr* root, metptr mp, metptr* lp)
 
 {
 
-    metptr lp; /* last entry */
-
     mp->next = NULL; /* clear next */
+    *lp = NULL; /* clear last */
     if (*root) {
 
         /* find last entry */
-        lp = *root;
-        while (lp->next) lp = lp->next;
-        lp->next = mp; /* set new last */
+        *lp = *root;
+        while ((*lp)->next) *lp = (*lp)->next;
+        (*lp)->next = mp; /* set new last */
 
     } else *root = mp; /* insert only entry */
 
@@ -9933,9 +9933,10 @@ static void mettrk(
 {
 
     metptr mp; /* menu tracking entry pointer */
+    metptr lp; /* last entry */
 
     mp = getmet(); /* get a new tracking entry */
-    insend(root, mp); /* insert to end */
+    insend(root, mp, &lp); /* insert to end */
     mp->branch = NULL; /* clear branch */
     mp->frame = NULL; /* clear frame */
     mp->head = win->metlst; /* point back to root (used for floating menus) */
@@ -9947,6 +9948,7 @@ static void mettrk(
     mp->id = 0; /* set invalid id */
     if (m) mp->id = m->id; /* place id */
     mp->oneof = NULL; /* set no "one of" */
+    mp->chnhd = mp; /* point "one of" head to self */
     mp->ena = TRUE; /* set enabled */
     mp->bar = FALSE; /* set no bar under */
     if (m) mp->bar = m->bar; /* place bar state */
@@ -9963,8 +9965,13 @@ static void mettrk(
       next entry. */
     if (m) if (m->oneof) mp->oneof = mp;
     /* now tie the last entry to this if indicated */
-    if (mp->next) /* there is a next entry */
-        if (mp->next->oneof == mp->next) mp->next->oneof = mp;
+    if (lp) /* there is a next entry */
+        if (lp->oneof == lp) { /* it indexes itself */
+
+        lp->oneof = mp; /* link last to this entry */
+        mp->chnhd = lp->chnhd; /* copy the last entry head to this */
+
+    }
     *nm = mp; /* pass back created entry */
 
 }
@@ -10129,23 +10136,6 @@ static void menu_repaint(metptr mp)
 
 }
 
-/* find top of "one of" list */
-static metptr fndtop(metptr mp)
-
-{
-
-    if (mp->next) /* there is a next */
-        if (mp->next->oneof == mp) { /* next entry links this one */
-
-        mp = mp->next; /* go to next entry */
-        mp = fndtop(mp); /* try again */
-
-   }
-
-   return (mp); /* return result */
-
-}
-
 /* clear "one of" select list */
 static void clrlst(metptr mp)
 
@@ -10170,7 +10160,8 @@ void pa_menusel(FILE* f, int id, int select)
 
     win = txt2win(f); /* get window context */
     mp = fndmenu(win, id); /* find the menu entry */
-    clrlst(fndtop(mp)); /* clear "one of" group */
+    if (mp->chnhd->oneof != mp->chnhd) /* is a "one of" chain */
+        clrlst(mp->chnhd); /* clear "one of" group */
     mp->select = !!select; /* set state of select */
     menu_repaint(mp); /* tell the window to repaint */
 
