@@ -3816,7 +3816,7 @@ static void menu_event(pa_evtrec* ev)
 
             }
 
-            if (!mp->branch && mp->ena) { /* not a branch entry */
+            if (!mp->menubar && !mp->branch && mp->ena) { /* not a branch entry */
 
                 /* send event back to parent window */
                 er.etype = pa_etmenus; /* set button event */
@@ -9112,7 +9112,6 @@ static void ievent(FILE* f, pa_evtrec* er)
 
     } while (!keep); /* until we have a client event */
 
-
     /* do diagnostic dump of PA events */
     if (dmpevt) {
 
@@ -10022,50 +10021,69 @@ static void menu_close(metptr mp)
 
 }
 
+/* configure window for menu on */
+static void menu_resize(FILE* f, winptr win, int menuon)
+
+{
+
+    XEvent e;   /* XWindow event */
+    int wx, wy; /* window sizes */
+    int yes;    /* y extra size */
+
+    yes = 0; /* set no menu extra size */
+    if (menuon) yes = win->menuspcy; /* set menu extra y size */
+    /* resize the master window and activate the menu bar */
+    pa_winclientg(f, win->gmaxxg, win->gmaxyg+yes, &wx, &wy,
+                  BIT(pa_wmframe)*win->frame|BIT(pa_wmsize)*win->size|
+                  BIT(pa_wmsysbar)*win->sysbar);
+    pa_setsizg(f, wx, wy);
+    /* move subclient window down past menu bar */
+    XWLOCK();
+    XMoveWindow(padisplay, win->xwhan, 0, yes);
+    XWUNLOCK();
+
+    /* wait for the configure response */
+    do { peekxevt(&e); /* peek next event */
+    } while (e.type != ConfigureNotify || e.xconfigure.x != 0 ||
+             e.xconfigure.y != yes ||
+             e.xany.window != win->xwhan);
+    restore(win);
+
+}
+
 void pa_menu(FILE* f, pa_menuptr m)
 
 {
 
-    winptr win; /* pointer to windows context */
-    metptr mp;  /* pointer to menu tracking entry */
-    XEvent e;   /* XWindow event */
-    int wx, wy; /* window sizes */
+    winptr win;  /* pointer to windows context */
+    metptr mp;   /* pointer to menu tracking entry */
+    XEvent e;    /* XWindow event */
+    int wx, wy;  /* window sizes */
+    int menuact; /* is a menu active */
 
     win = txt2win(f); /* get window context */
+    menuact = FALSE; /* set no menu active */
     if (win->metlst) { /* destroy previous menu */
 
+        menuact = TRUE; /* set menu active */
         /* dispose of menu tracking entries */
         menu_close(win->menu); /* release menu bar */
+        win->menu = NULL; /* clear */
         menu_close(win->metlst); /* close menu list */
+        win->metlst = NULL; /* clear */
+        /* if there is no new menu, restore window without menu bar */
+        if (!m) menu_resize(f, win, FALSE);
 
     }
     if (m) { /* there is a new menu to activate */
 
-        if (!win->menu) {
-
-            /* no previous menu active, resize the master window and activate the menu
-               bar */
-            pa_winclientg(f, win->gmaxxg, win->gmaxyg+win->menuspcy, &wx, &wy,
-                          BIT(pa_wmframe)*win->frame|BIT(pa_wmsize)*win->size|
-                          BIT(pa_wmsysbar)*win->sysbar);
-            pa_setsizg(f, wx, wy);
-            /* move subclient window down past menu bar */
-            XWLOCK();
-            XMoveWindow(padisplay, win->xwhan, 0, win->menuspcy);
-            XWUNLOCK();
-
-            /* wait for the configure response */
-            do { peekxevt(&e); /* peek next event */
-            } while (e.type != ConfigureNotify || e.xconfigure.x != 0 ||
-                     e.xconfigure.y != win->menuspcy ||
-                     e.xany.window != win->xwhan);
-            restore(win);
-
-        }
+        /* no previous menu active, resize the master window and activate the
+           menu bar */
+        if (!menuact) menu_resize(f, win, TRUE);
         /* get an entry for the menu bar */
         win->menu = getmet();
         win->menu->next = NULL; /* clear next */
-        win->menu->branch = win->menu; /* set not to generate event */
+        win->menu->branch = NULL; /* branch */
         win->menu->menubar = TRUE; /* flag is menu bar */
         win->menu->frm = FALSE; /* not frame */
         win->menu->bar = FALSE; /* no bar (underline) */
