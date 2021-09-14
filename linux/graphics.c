@@ -3646,7 +3646,8 @@ static void menu_draw(metptr mp)
         else pa_cursorg(mp->wf, pa_maxyg(mp->wf),
                                 pa_maxyg(mp->wf)/2-pa_chrsizy(mp->wf)/2);
         fprintf(mp->wf, "%s", mp->title); /* place button title */
-        if (mp->select && !mp->prime) {
+        /* if selected and on/off highlighted, place checkmark */
+        if (mp->select && mp->onoff && !mp->prime) {
 
             pa_fcolor(mp->wf, pa_black);
             pa_linewidth(mp->wf, 4);
@@ -10102,27 +10103,76 @@ selected, with no check if not.
 
 *******************************************************************************/
 
-void pa_menusel(FILE* f, int id, int select)
+/* repaint menu button */
+static void menu_repaint(metptr mp)
 
 {
 
     winptr win; /* pointer to windows context */
     XEvent xe;  /* XWindow event */
+
+    if (mp->wf) { /* check menu file is active */
+
+        win = txt2win(mp->wf); /* get window context */
+        /* tell the window to repaint */
+        xe.type = Expose;
+        xe.xexpose.x = 0;
+        xe.xexpose.y = 0;
+        xe.xexpose.width = win->gmaxxg;
+        xe.xexpose.height = win->gmaxyg;
+        xe.xexpose.window = win->xwhan;
+        XWLOCK();
+        XSendEvent(padisplay, win->xwhan, FALSE, 0, &xe);
+        XWUNLOCK();
+
+    }
+
+}
+
+/* find top of "one of" list */
+static metptr fndtop(metptr mp)
+
+{
+
+    if (mp->next) /* there is a next */
+        if (mp->next->oneof == mp) { /* next entry links this one */
+
+        mp = mp->next; /* go to next entry */
+        mp = fndtop(mp); /* try again */
+
+   }
+
+   return (mp); /* return result */
+
+}
+
+/* clear "one of" select list */
+static void clrlst(metptr mp)
+
+{
+
+    do { /* items in list */
+
+        mp->select = FALSE; /* remove select */
+        menu_repaint(mp); /* display that */
+        mp = mp->oneof; /* link next */
+
+    } while (mp); /* no more */
+
+}
+
+void pa_menusel(FILE* f, int id, int select)
+
+{
+
+    winptr win; /* pointer to windows context */
     metptr mp;  /* menu entry pointer */
 
     win = txt2win(f); /* get window context */
     mp = fndmenu(win, id); /* find the menu entry */
+    clrlst(fndtop(mp)); /* clear "one of" group */
     mp->select = !!select; /* set state of select */
-    /* tell the window to repaint */
-    xe.type = Expose;
-    xe.xexpose.x = 0;
-    xe.xexpose.y = 0;
-    xe.xexpose.width = win->gmaxxg;
-    xe.xexpose.height = win->gmaxyg;
-    xe.xexpose.window = win->xwhan;
-    XWLOCK();
-    XSendEvent(padisplay, win->xwhan, FALSE, 0, &xe);
-    XWUNLOCK();
+    menu_repaint(mp); /* tell the window to repaint */
 
 }
 
