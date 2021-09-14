@@ -10003,6 +10003,25 @@ static void createmenu(FILE* f, winptr win, metptr* root, pa_menuptr m)
 
 }
 
+/* close and free menu list */
+static void menu_close(metptr mp)
+
+{
+
+    metptr np; /* next pointer */
+
+    while (mp) {
+
+        menu_close(mp->branch); /* clear submenus */
+        if (mp->wf) fclose(mp->wf); /* close window file if open */
+        np = mp->next; /* get next entry before dispose */
+        putmet(mp); /* dispose entry */
+        mp = np; /* set next */
+
+    }
+
+}
+
 void pa_menu(FILE* f, pa_menuptr m)
 
 {
@@ -10013,17 +10032,11 @@ void pa_menu(FILE* f, pa_menuptr m)
     int wx, wy; /* window sizes */
 
     win = txt2win(f); /* get window context */
-    if (win->metlst) { /* distroy previous menu */
+    if (win->metlst) { /* destroy previous menu */
 
         /* dispose of menu tracking entries */
-        putmet(win->menu); /* release menu bar */
-        while (win->metlst) {
-
-            mp = win->metlst; /* remove top entry */
-            win->metlst = win->metlst->next; /* gap out */
-            putmet(mp); /* free the entry */
-
-        }
+        menu_close(win->menu); /* release menu bar */
+        menu_close(win->metlst); /* close menu list */
 
     }
     if (m) { /* there is a new menu to activate */
