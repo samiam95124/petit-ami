@@ -2714,8 +2714,20 @@ static void curdrw(winptr win)
     XWLOCK();
     XSetForeground(padisplay, sc->xcxt, colnum(pa_white));
     XSetFunction(padisplay, sc->xcxt, GXxor); /* set reverse */
-    XFillRectangle(padisplay, win->xwhan, sc->xcxt, sc->curxg-1, sc->curyg-1,
-                   win->charspace, win->linespace);
+    if (win->focus)
+        XFillRectangle(padisplay, win->xwhan, sc->xcxt,
+                       sc->curxg-1, sc->curyg-1,
+                       win->charspace, win->linespace);
+    else {
+
+        XDrawRectangle(padisplay, win->xwhan, sc->xcxt,
+                       sc->curxg-1, sc->curyg-1,
+                       win->charspace, win->linespace);
+        XDrawRectangle(padisplay, win->xwhan, sc->xcxt,
+                       sc->curxg-1+1, sc->curyg-1+1,
+                       win->charspace-2, win->linespace-2);
+
+    }
     XSetFunction(padisplay, sc->xcxt, GXcopy); /* set overwrite */
     if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
     else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
@@ -2738,7 +2750,7 @@ static void curon(winptr win)
     scnptr sc;  /* pointer to current screen */
 
     sc = win->screens[win->curdsp-1]; /* index current screen */
-    if (!win->fcurdwn && sc->curv && icurbnd(sc) && win->focus)  {
+    if (!win->fcurdwn && sc->curv && icurbnd(sc))  {
 
         /* cursor not already down, cursor visible, cursor in bounds, screen
            in focus */
@@ -2764,7 +2776,7 @@ static void curoff(winptr win)
     scnptr sc;  /* pointer to current screen */
 
     sc = win->screens[win->curdsp-1]; /* index current screen */
-    if (win->fcurdwn && sc->curv && icurbnd(sc) && win->focus)  {
+    if (win->fcurdwn && sc->curv && icurbnd(sc))  {
 
         curdrw(win); /* remove cursor */
         win->fcurdwn = FALSE; /* set cursor not on screen */
@@ -2791,7 +2803,7 @@ static void cursts(winptr win)
     int b;
 
     if (win->screens[win->curdsp-1]->curv &&
-        icurbnd(win->screens[win->curdsp-1]) && win->focus) {
+        icurbnd(win->screens[win->curdsp-1])) {
 
         /* cursor should be visible */
         if (!win->fcurdwn) { /* not already down */
@@ -3123,7 +3135,7 @@ static void opnwin(int fn, int pfn, int wid)
     win->shift = FALSE; /* set no shift active */
     win->cntrl = FALSE; /* set no control active */
     win->fcurdwn = FALSE; /* set cursor is not down */
-    win->focus = TRUE /*FALSE*/; /* set not in focus */
+    win->focus = FALSE; /* set not in focus */
     win->joy1xs = 0; /* clear joystick saves */
     win->joy1ys = 0;
     win->joy1zs = 0;
@@ -8963,6 +8975,19 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
         mouseevent(win, e); /* process mouse event */
         /* check any mouse details need processing */
         mouseupdate(win, er, keep);
+
+    } else if (e->type == FocusOut) {
+
+        curoff(win); /* remove cursor */
+        win->focus = FALSE; /* remove focus */
+        curon(win); /* replace cursor */
+
+
+    } else if (e->type == FocusIn) {
+
+        curoff(win); /* remove cursor */
+        win->focus = TRUE; /* put focus */
+        curon(win); /* replace cursor */
 
     } else if (e->type == ClientMessage){
 
