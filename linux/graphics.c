@@ -4580,7 +4580,6 @@ static void plcchr(winptr win, char c)
         if (indisp(win)) { /* do it again for the current screen */
 
             curoff(win); /* hide the cursor */
-
             if (sc->bmod != mdinvis) { /* background is visible */
 
                 XWLOCK();
@@ -4644,7 +4643,6 @@ static void plcchr(winptr win, char c)
                 XWUNLOCK();
 
             }
-
             curon(win); /* show the cursor */
 
         }
@@ -8676,6 +8674,7 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
 
         if (win->bufmod) { /* use buffer to satisfy event */
 
+            curoff(win); /* remove cursor */
             /* make expose mask into rectangle */
             setrect(&r1, e->xexpose.x, e->xexpose.y,
                     e->xexpose.x+e->xexpose.width-1,
@@ -8729,6 +8728,7 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
                 XWUNLOCK();
 
             }
+            curon(win); /* replace cursor */
 
         } else { /* let the client handle it */
 
