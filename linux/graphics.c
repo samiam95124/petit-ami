@@ -8981,13 +8981,16 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
         curoff(win); /* remove cursor */
         win->focus = FALSE; /* remove focus */
         curon(win); /* replace cursor */
-
+        er->etype = pa_nofocus; /* set no focus event */
+        *keep = TRUE; /* set found */
 
     } else if (e->type == FocusIn) {
 
         curoff(win); /* remove cursor */
         win->focus = TRUE; /* put focus */
         curon(win); /* replace cursor */
+        er->etype = pa_focus; /* set focus event */
+        *keep = TRUE; /* set found */
 
     } else if (e->type == ClientMessage){
 

@@ -112,6 +112,8 @@ typedef enum {
     pa_etmin,      /* window minimized */
     pa_etmax,      /* window maximized */
     pa_etnorm,     /* window normalized */
+    pa_focus,      /* window has focus */
+    pa_nofocus,    /* window lost focus */
     pa_etmenus,    /* menu item selected */
     pa_etbutton,   /* button assert */
     pa_etchkbox,   /* checkbox click */
