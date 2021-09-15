@@ -926,6 +926,10 @@ void prtevt(pa_evtcod e)
         case pa_etmin:     fprintf(stderr, "etmin"); break;
         case pa_etmax:     fprintf(stderr, "etmax"); break;
         case pa_etnorm:    fprintf(stderr, "etnorm"); break;
+        case pa_etfocus:   fprintf(stderr, "etfocus"); break;
+        case pa_etnofocus: fprintf(stderr, "etnofocus"); break;
+        case pa_ethover:   fprintf(stderr, "ethover"); break;
+        case pa_etnohover: fprintf(stderr, "etnohover"); break;
         case pa_etmenus:   fprintf(stderr, "etmenus"); break;
         case pa_etbutton:  fprintf(stderr, "etbutton"); break;
         case pa_etchkbox:  fprintf(stderr, "etchkbox"); break;
@@ -3073,7 +3077,8 @@ static Window createwindow(Window parent, int x, int y)
     /* select what events we want */
     XSelectInput(padisplay, w, ExposureMask|KeyPressMask|
                  KeyReleaseMask|PointerMotionMask|ButtonPressMask|
-                 ButtonReleaseMask|StructureNotifyMask|FocusChangeMask);
+                 ButtonReleaseMask|StructureNotifyMask|FocusChangeMask|
+                 EnterWindowMask|LeaveWindowMask);
     XWUNLOCK();
 
 /* now handled in winvis */
@@ -8981,7 +8986,7 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
         curoff(win); /* remove cursor */
         win->focus = FALSE; /* remove focus */
         curon(win); /* replace cursor */
-        er->etype = pa_nofocus; /* set no focus event */
+        er->etype = pa_etnofocus; /* set no focus event */
         *keep = TRUE; /* set found */
 
     } else if (e->type == FocusIn) {
@@ -8989,7 +8994,17 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
         curoff(win); /* remove cursor */
         win->focus = TRUE; /* put focus */
         curon(win); /* replace cursor */
-        er->etype = pa_focus; /* set focus event */
+        er->etype = pa_etfocus; /* set focus event */
+        *keep = TRUE; /* set found */
+
+    } else if (e->type == EnterNotify) {
+
+        er->etype = pa_ethover; /* set hover event */
+        *keep = TRUE; /* set found */
+
+    } else if (e->type == LeaveNotify) {
+
+        er->etype = pa_etnohover; /* set no hover event */
         *keep = TRUE; /* set found */
 
     } else if (e->type == ClientMessage){
