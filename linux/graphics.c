@@ -3569,6 +3569,7 @@ static void openmenu(
     pa_auto(mp->wf, FALSE); /* turn off auto */
     pa_curvis(mp->wf, FALSE); /* turn off cursor */
     pa_font(mp->wf, PA_FONT_SIGN); /* set button font */
+    pa_bold(mp->wf, TRUE); /* set bold */
     pa_setposg(mp->wf, x1, y1); /* place at position */
     pa_setsizg(mp->wf, x2-x1+1, y2-y1+1); /* set size */
     pa_binvis(mp->wf); /* no background write */
@@ -3683,7 +3684,7 @@ static void menu_draw(metptr mp)
                                 pa_maxyg(mp->wf)/2-pa_chrsizy(mp->wf)/2);
         fprintf(mp->wf, "%s", mp->title); /* place button title */
         /* if selected and on/off highlighted, place checkmark */
-        if (mp->select && mp->onoff && !mp->prime) {
+        if (mp->select && !mp->prime) {
 
             pa_fcolor(mp->wf, pa_black);
             pa_linewidth(mp->wf, 4);
@@ -8845,6 +8846,11 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
                 win->gmaxx = win->gmaxxg/win->charspace;
                 /* find character size y */
                 win->gmaxy = win->gmaxyg/win->linespace;
+                /* set screen sizes */
+                win->screens[win->curdsp-1]->maxxg = win->gmaxxg; /* pixel size */
+                win->screens[win->curdsp-1]->maxyg = win->gmaxyg;
+                win->screens[win->curdsp-1]->maxx = win->gmaxx; /* character size */
+                win->screens[win->curdsp-1]->maxy = win->gmaxy;
 
             }
 

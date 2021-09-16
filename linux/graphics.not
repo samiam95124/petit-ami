@@ -38,4 +38,5 @@ space is left to right and bottom.
 
 14. Management test, frame controls buffered, text seems very large.
 
-15. Management test, frame controls unbuffered, refresh does not work.
+15. Management test, frame controls unbuffered, refresh does not work. Easy to
+move the window and see unpainted sections.

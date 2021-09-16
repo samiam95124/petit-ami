@@ -529,7 +529,6 @@ int main(void)
     waitnext();
     pa_bover(stdout);
 
-#endif
     /* ************************* Frame controls test unbuffered ****************** */
 
     pa_buffer(stdout, OFF);
@@ -548,8 +547,10 @@ int main(void)
     frametest("Size bars on");
     pa_buffer(stdout, ON);
 
+#endif
     /* ********************************* Menu test ***************************** */
 
+    pa_auto(stdout, ON);
     putchar('\f');
     pa_fcolor(stdout, pa_cyan);
     pa_rect(stdout, 1, 1, pa_maxxg(stdout), pa_maxyg(stdout));
