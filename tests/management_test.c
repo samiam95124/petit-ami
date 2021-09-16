@@ -43,6 +43,7 @@ static int        maxcnt;       /* maximize counter */
 static int        nrmcnt;       /* normalize counter */
 static int        i;
 static int        xs, ys;
+static int        cs;
 
 /* wait return to be pressed, or handle terminate */
 
@@ -456,6 +457,7 @@ int main(void)
     pa_scnsizg(stdout, &xs, &ys);
     if (xs > ys) { ys /= 32; xs = ys; } /* square */
     else { xs /= 32; ys = xs; }
+    cs = pa_chrsizy(stdout); /* save the character size */
     putchar('\f');
     pa_auto(stdout, OFF);
     printf("Position window for font/back test\n");
@@ -493,6 +495,7 @@ int main(void)
     } while (er.etype != pa_etenter);
     pa_home(stdout);
     pa_font(stdout, PA_FONT_TERM);
+    pa_fontsiz(stdout, cs);
     pa_auto(stdout, ON);
 
     /* ************************* Frame controls test buffered ****************** */
