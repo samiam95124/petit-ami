@@ -10413,7 +10413,7 @@ void pa_front(FILE* f)
 
     win = txt2win(f); /* get window context */
     XWLOCK();
-    XRaiseWindow(padisplay, win->xwhan);
+    XRaiseWindow(padisplay, win->xmwhan);
     XWUNLOCK();
 
 }
@@ -10434,7 +10434,7 @@ void pa_back(FILE* f)
 
     win = txt2win(f); /* get window context */
     XWLOCK();
-    XLowerWindow(padisplay, win->xwhan);
+    XLowerWindow(padisplay, win->xmwhan);
     XWUNLOCK();
 
 }

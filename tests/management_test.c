@@ -310,7 +310,6 @@ int main(void)
 
     /* *********************** Resize buffer window pixel ********************** */
 
-#endif
     ox = pa_maxxg(stdout);
     oy = pa_maxyg(stdout);
     /* ratio by screen smallest x-y, then square it up */
@@ -450,16 +449,20 @@ int main(void)
     waitnext();
     pa_winclientg(stdout, ox, oy, &ox, &oy, BIT(pa_wmframe) | BIT(pa_wmsize) | BIT(pa_wmsysbar));
     pa_setsizg(stdout, ox, oy);
-
+#endif
     /* ********************************* Front/back test *********************** */
 
+    /* ratio by screen smallest x-y, then square it up */
+    pa_scnsizg(stdout, &xs, &ys);
+    if (xs > ys) { ys /= 32; xs = ys; } /* square */
+    else { xs /= 32; ys = xs; }
     putchar('\f');
     pa_auto(stdout, OFF);
     printf("Position window for font/back test\n");
     printf("Then hit space to flip font/back status, or return to stop\n");
     fb = FALSE; /* clear front/back status */
     pa_font(stdout, PA_FONT_SIGN);
-    pa_fontsiz(stdout, 50);
+    pa_fontsiz(stdout, ys);
     do {
 
         pa_event(stdin, &er);

@@ -29,3 +29,13 @@ but the delay still shows up in stacked menus. We can do better by delaying most
 of the window parameters for an open call when it is really required.
 
 11. The cursor seems to be getting erased by menus.
+
+12. Lots of black space in the management_test.c x and y progressive resize 
+tests. Why is the refresh so slow?
+
+13. Management test, frame controls buffered, turning entire frame on, black
+space is left to right and bottom.
+
+14. Management test, frame controls buffered, text seems very large.
+
+15. Management test, frame controls unbuffered, refresh does not work.
