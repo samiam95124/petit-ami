@@ -661,6 +661,8 @@ static paevtque*  paqevt;         /* XEvent input save queue */
 static pa_pevthan menu_event_oeh; /* event callback save for menus */
 static metptr     fremet;         /* free menu entrys list */
 static winptr     winfre;         /* free windows structure list */
+static int        stdchrx;        /* standard/reference character size x */
+static int        stdchry;        /* standard/reference character size y */
 
 /* memory statistics/diagnostics */
 static unsigned long memusd;    /* total memory in use for malloc */
@@ -3213,6 +3215,10 @@ static void opnwin(int fn, int pfn, int wid)
     win->xfont = NULL; /* clear current font */
     setfnt(win); /* select font */
 
+    /* set standard/reference font sizes */
+    stdchrx = win->charspace;
+    stdchry = win->linespace;
+
     /* set buffer size required for character spacing at default character grid
        size */
     win->gmaxxg = maxxd*win->charspace;
@@ -3252,19 +3258,31 @@ static void opnwin(int fn, int pfn, int wid)
 //dbg_printf(dlinfo, "master: %lx subclient: %lx\n", win->xmwhan, win->xwhan);
     /* find and save the frame parameters from the immediate/parent window.
        This may not work on some window managers */
-    XWLOCK();
 #ifndef NOWDELAY
+    XWLOCK();
     XMapWindow(padisplay, win->xmwhan);
+    XFlush(padisplay);
+    XWUNLOCK();
+    do { peekxevt(&e); }
+    while (e.type !=  MapNotify || e.xany.window != win->xmwhan);
+    XWLOCK();
     XMapWindow(padisplay, win->xwhan);
+    XFlush(padisplay);
+    XWUNLOCK();
+    do { peekxevt(&e); }
+    while (e.type !=  MapNotify || e.xany.window != win->xwhan);
 #endif
+    XWLOCK();
     XQueryTree(padisplay, win->xmwhan, &rw, &pw, &cwl, &ncw);
     XGetWindowAttributes(padisplay, pw, &xpwga);
     XGetWindowAttributes(padisplay, win->xmwhan, &xwga);
+    XWUNLOCK();
 #ifndef NOWDELAY
+    XWLOCK();
     XUnmapWindow(padisplay, win->xwhan);
     XUnmapWindow(padisplay, win->xmwhan);
-#endif
     XWUNLOCK();
+#endif
 
     /* find net extra width of frame from client area */
     win->pfw = xpwga.width-xwga.width;
@@ -10446,8 +10464,8 @@ void pa_getsizg(FILE* f, int* x, int* y)
     /* get parent parameters */
     XGetWindowAttributes(padisplay, pw, &xwa);
     XWUNLOCK();
-    *x = xwa.width;
-    *y = xwa.height;
+    *x = xwa.width+win->pfw;
+    *y = xwa.height+win->pfh;
 
 }
 
@@ -10484,8 +10502,8 @@ void pa_getsiz(FILE* f, int* x, int* y)
     } else {
 
         /* find character based sizes */
-        *x = gx/STDCHRX;
-        *y = gy/STDCHRY;
+        *x = gx/stdchrx;
+        *y = gy/stdchry;
 
     }
 
@@ -10588,8 +10606,8 @@ void pa_setsiz(FILE* f, int x, int y)
     } else {
 
         /* find character based sizes */
-        x = x*STDCHRX;
-        y = y*STDCHRY;
+        x = x*stdchrx;
+        y = y*stdchry;
 
     }
     pa_setsizg(f, x, y); /* execute */
@@ -10664,8 +10682,8 @@ void pa_setpos(FILE* f, int x, int y)
     } else {
 
         /* find character based position */
-        x = (x-1)*STDCHRX+1;
-        y = (y-1)*STDCHRY+1;
+        x = (x-1)*stdchrx+1;
+        y = (y-1)*stdchry+1;
 
     }
     pa_setposg(f, x, y); /* execute */
@@ -10721,8 +10739,8 @@ void pa_scnsiz(FILE* f, int* x, int* y)
 
     win = txt2win(f); /* get window from file */
     pa_scnsizg(f, x, y); /* execute */
-    *x = *x/STDCHRX; /* convert to "standard character" size */
-    *y = *y/STDCHRY;
+    *x = *x/stdchrx; /* convert to "standard character" size */
+    *y = *y/stdchry;
 
 }
 
@@ -10781,8 +10799,8 @@ void pa_winclient(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
     } else {
 
         /* find character based sizes */
-        *wx = (*wx-1) / STDCHRX+1;
-        *wy = (*wy-1) / STDCHRY+1;
+        *wx = (*wx-1) / stdchrx+1;
+        *wy = (*wy-1) / stdchry+1;
 
     }
 
@@ -11014,6 +11032,9 @@ static void pa_init_graphics(int argc, char *argv[])
     paqevt = NULL; /* clear pa event input queue */
     fremet = NULL; /* clear free menu tracking entries */
     winfre = NULL; /* clear free windows structure list */
+
+    stdchrx = stdchrx; /* set default for standard/reference character size x */
+    stdchry = stdchry; /* set default for standard/reference character size y */
 
     /* clear open files tables */
     for (fi = 0; fi < MAXFIL; fi++) {

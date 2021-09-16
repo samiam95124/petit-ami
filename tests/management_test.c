@@ -42,6 +42,7 @@ static int        mincnt;       /* minimize counter */
 static int        maxcnt;       /* maximize counter */
 static int        nrmcnt;       /* normalize counter */
 static int        i;
+static int        xs, ys;
 
 /* wait return to be pressed, or handle terminate */
 
@@ -231,6 +232,7 @@ int main(void)
 
     pa_auto(stdout, OFF);
     pa_curvis(stdout, OFF);
+#if 0
     printf("Managed screen test vs. 0.1\n");
     printf("\n");
     pa_scnsiz(stdout, &x, &y);
@@ -308,17 +310,22 @@ int main(void)
 
     /* *********************** Resize buffer window pixel ********************** */
 
+#endif
     ox = pa_maxxg(stdout);
     oy = pa_maxyg(stdout);
+    /* ratio by screen smallest x-y, then square it up */
+    pa_scnsizg(stdout, &xs, &ys);
+    if (xs > ys) { ys /= 4; xs = ys; } /* square */
+    else { xs /= 4; ys = xs; }
     pa_bcolor(stdout, pa_cyan);
-    pa_sizbufg(stdout, 400, 400);
+    pa_sizbufg(stdout, xs, ys);
     putchar('\f');
     pa_linewidth(stdout, 20);
     pa_line(stdout, 1, 1, pa_maxxg(stdout), 1);
     pa_line(stdout, 1, 1, 1, pa_maxyg(stdout));
     pa_line(stdout, 1, pa_maxyg(stdout), pa_maxxg(stdout), pa_maxyg(stdout));
     pa_line(stdout, pa_maxxg(stdout), 1, pa_maxxg(stdout), pa_maxyg(stdout));
-    printf("Buffer should now be 400 by 400 pixels, and\n");
+    printf("Buffer should now be %d by %d pixels, and\n", xs, ys);
     printf("painted blue\n");
     printf("maxxg: %d maxyg: %d\n", pa_maxxg(stdout), pa_maxyg(stdout));
     printf("Open up window to verify this\n");
@@ -339,7 +346,8 @@ int main(void)
 
             pa_setsiz(stdout, 80, 25);
             putchar('\f');
-            printf("*** Getsiz does not match setsiz\n");
+            printf("*** Getsiz does not match setsiz, x: %d y: %d vs. x: %d y: %d\n",
+                   x2, y2, x, 25);
             waitnext();
             longjmp(terminate_buf, 1);
 
@@ -354,7 +362,7 @@ int main(void)
     printf("\n");
     printf("Complete");
     waitnext();
-    for (y = 10; y <= 80; y++) {
+    for (y = 10; y <= 50; y++) {
 
         pa_setsiz(stdout, 80, y);
         pa_getsiz(stdout, &x2, &y2);
@@ -362,6 +370,8 @@ int main(void)
 
             pa_setsiz(stdout, 80, 25);
             putchar('\f');
+            printf("*** Getsiz does not match setsiz, x: %d y: %d vs. x: %d y: %d\n",
+                   x2, y2, 80, y);
             printf("*** Getsiz does not match setsiz\n");
             waitnext();
             longjmp(terminate_buf, 1);
@@ -384,14 +394,20 @@ int main(void)
 
     ox = pa_maxxg(stdout);
     oy = pa_maxyg(stdout);
-    for (x = 200; x <= 800; x++) {
+    /* ratio by screen smallest x-y, then square it up */
+    pa_scnsizg(stdout, &xs, &ys);
+    if (xs > ys) { ys /= 8; xs = ys; } /* square */
+    else { xs /= 8; ys = xs; }
+    for (x = xs; x <= xs*4; x += xs/64) {
 
-        pa_setsizg(stdout, x, 200);
+        pa_setsizg(stdout, x, ys);
         pa_getsizg(stdout, &x2, &y2);
-        if (x2 != x || y2 != 200) {
+        if (x2 != x || y2 != ys) {
 
             pa_setsiz(stdout, 80, 25);
             putchar('\f');
+            printf("*** Getsiz does not match setsiz, x: %d y: %d vs. x: %d y: %d\n",
+                   x2, y2, x, ys);
             printf("*** Getsiz does ! match setsiz\n");
             waitnext();
             longjmp(terminate_buf, 1);
@@ -407,14 +423,16 @@ int main(void)
     printf("\n");
     printf("Complete\n");
     waitnext();
-    for (y = 100; y <= 800; y++) {
+    for (y = ys; y <= ys*4; y += ys/64) {
 
-        pa_setsizg(stdout, 300, y);
+        pa_setsizg(stdout, xs, y);
         pa_getsizg(stdout, &x2, &y2);
-        if (x2 != 300 || y2 != y) {
+        if (x2 != xs || y2 != y) {
 
             pa_setsiz(stdout, 80, 25);
             putchar('\f');
+            printf("*** Getsiz does not match setsiz, x: %d y: %d vs. x: %d y: %d\n",
+                   x2, y2, 300, y);
             printf("*** Getsiz does ! match setsiz\n");
             waitnext();
             longjmp(terminate_buf, 1);
