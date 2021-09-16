@@ -450,7 +450,7 @@ int main(void)
     waitnext();
     pa_winclientg(stdout, ox, oy, &ox, &oy, BIT(pa_wmframe) | BIT(pa_wmsize) | BIT(pa_wmsysbar));
     pa_setsizg(stdout, ox, oy);
-#endif
+
     /* ********************************* Front/back test *********************** */
 
     /* ratio by screen smallest x-y, then square it up */
@@ -529,6 +529,7 @@ int main(void)
     waitnext();
     pa_bover(stdout);
 
+#endif
     /* ************************* Frame controls test unbuffered ****************** */
 
     pa_buffer(stdout, OFF);
