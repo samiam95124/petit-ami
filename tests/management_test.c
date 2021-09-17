@@ -186,6 +186,22 @@ static void chrgrid(void)
 
 /* display frame test */
 
+static void frameinside(const string s, int x, int y)
+
+{
+
+    putchar('\f');
+    pa_fcolor(stdout, pa_cyan);
+    pa_rect(stdout, 1, 1, x, y);
+    pa_line(stdout, 1, 1, x, y);
+    pa_line(stdout, 1, y, x, 1);
+    pa_fcolor(stdout, pa_black);
+    pa_binvis(stdout);
+    puts(s);
+    pa_bover(stdout);
+
+}
+
 static void frametest(const string s)
 
 {
@@ -195,22 +211,11 @@ static void frametest(const string s)
 
     x = pa_maxxg(stdout); /* set size */
     y = pa_maxyg(stdout);
+    frameinside(s, x, y);
     do {
 
         pa_event(stdin, &er); /* get next event */
-        if (er.etype == pa_etredraw) {
-
-            putchar('\f');
-            pa_fcolor(stdout, pa_cyan);
-            pa_rect(stdout, 1, 1, x, y);
-            pa_line(stdout, 1, 1, x, y);
-            pa_line(stdout, 1, y, x, 1);
-            pa_fcolor(stdout, pa_black);
-            pa_binvis(stdout);
-            puts(s);
-            pa_bover(stdout);
-
-        }
+        if (er.etype == pa_etredraw) frameinside(s, x, y);
         if (er.etype == pa_etresize) {
 
             /* Save the new dimensions, even if not required. This way we must
@@ -547,7 +552,6 @@ int main(void)
     frametest("Size bars on");
     pa_buffer(stdout, ON);
 
-#endif
     /* ********************************* Menu test ***************************** */
 
     pa_auto(stdout, ON);
@@ -694,6 +698,7 @@ int main(void)
     } while (er.etype != pa_etenter && er.etype != pa_etterm);
     pa_menu(stdout, NULL);
 
+#endif
     /* ************************* Child windows test character ****************** */
 
     putchar('\f');
