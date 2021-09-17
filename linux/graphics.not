@@ -40,3 +40,9 @@ space is left to right and bottom.
 
 15. Management test, frame controls unbuffered, refresh does not work. Easy to
 move the window and see unpainted sections.
+
+16. Management test/child windows test character, if the cursors are left on,
+the child windows don't accept focus.
+
+17. Management test/child windows test character, turn off cursor in child 
+windows.

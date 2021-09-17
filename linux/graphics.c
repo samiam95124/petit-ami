@@ -9859,6 +9859,10 @@ void pa_sizbufg(FILE* f, int x, int y)
     } while (e.type != ConfigureNotify && e.xconfigure.width != x ||
              e.xconfigure.height != y || e.xany.window != win->xmwhan);
 
+    /* set new size */
+    win->xmwr.w = win->gmaxxg;
+    win->xmwr.h = win->gmaxyg;
+
     restore(win); /* restore buffer to screen */
 
 }
