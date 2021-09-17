@@ -9150,7 +9150,9 @@ static void ievent(FILE* f, pa_evtrec* er)
                 joyevt(er, &keep); /* process joystick events */
             else if (i == frmfid) {
 
+                win = opnfil[i]->twin; /* get window containing timer */
                 er->etype = pa_etframe; /* set frame event occurred */
+                er->winid = win->wid; /* set window number */
                 keep = TRUE; /* set keep event */
                 /* clear the timer by reading it */
                 read(i, &exp, sizeof(uint64_t));
@@ -9403,9 +9405,11 @@ void pa_frametimer(FILE* f, int e)
 
 {
 
-    struct itimerspec ts; /* linux timer structure */
-    int               rv; /* return value */
+    struct itimerspec ts;  /* linux timer structure */
+    int               rv;  /* return value */
+    winptr            win; /* windows record pointer */
 
+    win = txt2win(f); /* get window from file */
     if (e) { /* set framing timer to run */
 
         /* set timer run time */
@@ -9418,6 +9422,8 @@ void pa_frametimer(FILE* f, int e)
 
         rv = timerfd_settime(frmfid, 0, &ts, NULL);
         if (rv < 0) error(etimacc); /* could not set time */
+
+        opnfil[frmfid]->twin = win; /* place window containing timer */
 
     } else {
 
@@ -11169,6 +11175,8 @@ static void pa_init_graphics(int argc, char *argv[])
     if (frmfid == -1) error(etimacc);
     FD_SET(frmfid, &ifdseta);
     if (frmfid+1 > ifdmax) ifdmax = frmfid+1; /* set maximum fid for select() */
+    /* create file entry for framing timer */
+    getfil(&opnfil[frmfid]);
 
     /* clear the signaling set */
     FD_ZERO(&ifdsets);
