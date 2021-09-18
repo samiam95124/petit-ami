@@ -517,6 +517,7 @@ int main(void)
     pa_fcolor(stdout, pa_black);
     pa_binvis(stdout);
     printf("Ready for frame controls buffered\n");
+    printf("(Note system may not implement all -- or any frame controls)\n");
     waitnext();
     pa_frame(stdout, OFF);
     printf("Entire frame off\n");
@@ -542,6 +543,7 @@ int main(void)
 
     pa_buffer(stdout, OFF);
     frametest("Ready for frame controls unbuffered - Resize me!");
+    printf("(Note system may not implement all -- or any frame controls)\n");
     pa_frame(stdout, OFF);
     frametest("Entire frame off");
     pa_frame(stdout, ON);
@@ -944,6 +946,7 @@ int main(void)
     /* ******************************* Buffer off test *********************** */
 
     putchar('\f');
+    cs = pa_chrsizy(stdout); /* save the character size */
     pa_auto(stdout, OFF);
     pa_buffer(stdout, OFF);
     /* initialize prime size information */
@@ -979,6 +982,10 @@ int main(void)
 
     } while (er.etype != pa_etenter);
     pa_buffer(stdout, ON);
+    pa_font(stdout, PA_FONT_TERM);
+    pa_fontsiz(stdout, cs);
+    pa_home(stdout);
+    pa_auto(stdout, ON);
 
     /* ****************************** min/max/norm test ********************* */
 
