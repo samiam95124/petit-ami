@@ -379,6 +379,7 @@ typedef struct winrec {
     winptr       next;              /* next entry (for free list) */
     /* fields used by graph module */
     int          parlfn;            /* logical parent */
+    winptr       parwin;            /* link to parent (or NULL for parentless) */
     int          wid;               /* this window logical id */
     scnptr       screens[MAXCON];   /* screen contexts array */
     int          curdsp;            /* index for current display screen */
@@ -787,6 +788,25 @@ static void error(errcod e)
 
     }
     fprintf(stderr, "\n");
+    fflush(stderr); /* make sure error message is output */
+
+    exit(1);
+
+}
+
+/******************************************************************************
+
+XWindow error handler
+
+Receives errors from XLIB and handles them here.
+
+******************************************************************************/
+
+static int xerror(Display* d, XErrorEvent* e)
+
+{
+
+    fprintf(stderr, "XWindow error\n");
     fflush(stderr); /* make sure error message is output */
 
     exit(1);
@@ -3125,6 +3145,7 @@ static void opnwin(int fn, int pfn, int wid)
     win->wid = wid; /* set window id */
     pwin = NULL; /* set no parent */
     if (pfn >= 0) pwin = lfn2win(pfn); /* index parent window */
+    win->parwin = pwin; /* copy link to windows structure */
     win->mb1 = FALSE; /* set mouse as assumed no buttons down, at origin */
     win->mb2 = FALSE;
     win->mb3 = FALSE;
@@ -11125,6 +11146,9 @@ static void pa_init_graphics(int argc, char *argv[])
         }
 
     }
+
+    /* capture the XWindow errors */
+    XSetErrorHandler(xerror);
 
     /* find existing display */
     XWLOCK();
