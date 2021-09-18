@@ -230,6 +230,19 @@ static void frametest(const string s)
 
 }
 
+/* determine aspect ratio of screen, then find a portion of it squared and set
+   that in x and y */
+static void sqrrat(int* xs, int* ys, float rat)
+
+{
+
+    /* ratio by screen smallest x-y, then square it up */
+    pa_getsizg(stdout, xs, ys);
+    if (*xs > *ys) { *ys /= rat; *xs = *ys; } /* square */
+    else { *xs /= rat; *ys = *xs; }
+
+}
+
 int main(void)
 
 {
@@ -318,10 +331,7 @@ int main(void)
 
     ox = pa_maxxg(stdout);
     oy = pa_maxyg(stdout);
-    /* ratio by screen smallest x-y, then square it up */
-    pa_scnsizg(stdout, &xs, &ys);
-    if (xs > ys) { ys /= 4; xs = ys; } /* square */
-    else { xs /= 4; ys = xs; }
+    sqrrat(&xs, &ys, 4); /* find square ratio */
     pa_bcolor(stdout, pa_cyan);
     pa_sizbufg(stdout, xs, ys);
     putchar('\f');
@@ -399,10 +409,7 @@ int main(void)
 
     ox = pa_maxxg(stdout);
     oy = pa_maxyg(stdout);
-    /* ratio by screen smallest x-y, then square it up */
-    pa_scnsizg(stdout, &xs, &ys);
-    if (xs > ys) { ys /= 8; xs = ys; } /* square */
-    else { xs /= 8; ys = xs; }
+    sqrrat(&xs, &ys, 8); /* find square ratio */
     for (x = xs; x <= xs*4; x += xs/64) {
 
         pa_setsizg(stdout, x, ys);
@@ -458,10 +465,7 @@ int main(void)
 
     /* ********************************* Front/back test *********************** */
 
-    /* ratio by screen smallest x-y, then square it up */
-    pa_scnsizg(stdout, &xs, &ys);
-    if (xs > ys) { ys /= 32; xs = ys; } /* square */
-    else { xs /= 32; ys = xs; }
+    sqrrat(&xs, &ys, 32); /* find square ratio */
     cs = pa_chrsizy(stdout); /* save the character size */
     putchar('\f');
     pa_auto(stdout, OFF);
@@ -698,7 +702,6 @@ int main(void)
     } while (er.etype != pa_etenter && er.etype != pa_etterm);
     pa_menu(stdout, NULL);
 
-#endif
     /* ************************* Child windows test character ****************** */
 
     putchar('\f');
@@ -744,19 +747,20 @@ int main(void)
     /* *************************** Child windows test pixel ******************** */
 
     putchar('\f');
+    sqrrat(&xs, &ys, 2.5); /* find square ratio */
     prtcen(pa_maxy(stdout), "Child windows test pixel");
     pa_openwin(&stdin, &win2, stdout, 2);
-    pa_setposg(win2, 1, 100);
-    pa_sizbufg(win2, 200, 200);
-    pa_setsizg(win2, 200, 200);
+    pa_setposg(win2, xs*0+1, ys/2.5);
+    pa_sizbufg(win2, xs, ys);
+    pa_setsizg(win2, xs, ys);
     pa_openwin(&stdin, &win3, stdout, 3);
-    pa_setposg(win3, 201, 100);
-    pa_sizbufg(win3, 200, 200);
-    pa_setsizg(win3, 200, 200);
+    pa_setposg(win3, xs*1+1, ys/2.5);
+    pa_sizbufg(win3, xs, ys);
+    pa_setsizg(win3, xs, ys);
     pa_openwin(&stdin, &win4, stdout, 4);
-    pa_setposg(win4, 401, 100);
-    pa_sizbufg(win4, 200, 200);
-    pa_setsizg(win4, 200, 200);
+    pa_setposg(win4, xs*2+1, ys/2.5);
+    pa_sizbufg(win4, xs, ys);
+    pa_setsizg(win4, xs, ys);
     pa_bcolor(win2, pa_cyan);
     putc('\f', win2);
     fprintf(win2, "I am child window 1\n");
@@ -768,36 +772,41 @@ int main(void)
     fprintf(win4, "I am child window 3\n");
     pa_home(stdout);
     printf("There should be 3 labled child windows below, with frames   \n");
+    printf("(the system may not implement frames on child windows)      \n");
     waitnext();
     pa_frame(win2, OFF);
     pa_frame(win3, OFF);
     pa_frame(win4, OFF);
     pa_home(stdout);
     printf("There should be 3 labled child windows below, without frames\n");
+    printf("(the system may not implement frames on child windows)      \n");
     waitnext();
     fclose(win2);
     fclose(win3);
     fclose(win4);
     pa_home(stdout);
     printf("Child windows should all be closed                          \n");
+    printf("                                                            \n");
     waitnext();
 
+#endif
     /* ******************* Child windows stacking test pixel ******************* */
 
     putchar('\f');
+    sqrrat(&xs, &ys, 2.5); /* find square ratio */
     prtcen(pa_maxy(stdout), "Child windows stacking test pixel");
     pa_openwin(&stdin, &win2, stdout, 2);
-    pa_setposg(win2, 50, 50);
-    pa_sizbufg(win2, 200, 200);
-    pa_setsizg(win2, 200, 200);
+    pa_setposg(win2, xs/2*0+xs/5, ys/2.5+ys*0/4);
+    pa_sizbufg(win2, xs, ys);
+    pa_setsizg(win2, xs, ys);
     pa_openwin(&stdin, &win3, stdout, 3);
-    pa_setposg(win3, 150, 100);
-    pa_sizbufg(win3, 200, 200);
-    pa_setsizg(win3, 200, 200);
+    pa_setposg(win3, xs/2*1+xs/5, ys/2.5+ys*1/4);
+    pa_sizbufg(win3, xs, ys);
+    pa_setsizg(win3, xs, ys);
     pa_openwin(&stdin, &win4, stdout, 4);
-    pa_setposg(win4, 250, 150);
-    pa_sizbufg(win4, 200, 200);
-    pa_setsizg(win4, 200, 200);
+    pa_setposg(win4, xs/2*2+xs/5, ys/2.5+ys*2/4);
+    pa_sizbufg(win4, xs, ys);
+    pa_setsizg(win4, xs, ys);
     pa_bcolor(win2, pa_cyan);
     putc('\f', win2);
     fprintf(win2, "I am child window 1\n");
