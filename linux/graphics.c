@@ -701,6 +701,9 @@ static fd_set ifdseta; /* active sets */
 static fd_set ifdsets; /* signaled set */
 static int ifdmax;     /* maximum FID for select() */
 
+static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, int wid,
+                     int subclient);
+
 /** ****************************************************************************
 
 Print error
@@ -3119,7 +3122,7 @@ static Window createwindow(Window parent, int x, int y)
 
 }
 
-static void opnwin(int fn, int pfn, int wid)
+static void opnwin(int fn, int pfn, int wid, int subclient)
 
 {
 
@@ -3261,8 +3264,12 @@ static void opnwin(int fn, int pfn, int wid)
     win->menuspcy = win->linespace+EXTRAMENUY;
 
     /* set parent window, either the given or the root window */
-    if (pwin) pw = pwin->xmwhan; /* given */
-    else pw = RootWindow(padisplay, pascreen); /* root */
+    if (pwin) { /* there is a parent window */
+
+        if (subclient) pw = pwin->xwhan; /* make child of subclient */
+        else pw = pwin->xmwhan; /* make child of master (menu components) */
+
+    } else pw = RootWindow(padisplay, pascreen); /* root */
 
     /* create master window */
     win->xmwhan = createwindow(pw, win->gmaxxg, win->gmaxyg);
@@ -3427,7 +3434,7 @@ Creates, opens and initializes an input and output pair of files.
 *******************************************************************************/
 
 static void openio(FILE* infile, FILE* outfile, int ifn, int ofn, int pfn,
-                   int wid)
+                   int wid, int subclient)
 
 {
 
@@ -3447,11 +3454,12 @@ static void openio(FILE* infile, FILE* outfile, int ifn, int ofn, int pfn,
         /* Haven't already started the main input/output window, so allocate
            and start that. We tolerate multiple opens to the output file. */
         opnfil[ofn]->win = getwin();
-        opnwin(ofn, pfn, wid); /* and start that up */
+        opnwin(ofn, pfn, wid, subclient); /* and start that up */
 
     }
     /* check if the window has been pinned to something else */
-    if (xltwin[wid+MAXFIL] >= 0 && xltwin[wid+MAXFIL] != ofn) error(ewinuse); /* flag error */
+    if (xltwin[wid+MAXFIL] >= 0 && xltwin[wid+MAXFIL] != ofn)
+        error(ewinuse); /* flag error */
     xltwin[wid+MAXFIL] = ofn; /* pin the window to the output file */
     filwin[ofn] = wid;
 
@@ -3582,7 +3590,7 @@ static void openmenu(
 {
 
     mp->wid = pa_getwid(); /* allocate a buried wid */
-    pa_openwin(&f, &mp->wf, p, mp->wid); /* open widget window */
+    iopenwin(&f, &mp->wf, p, mp->wid, FALSE); /* open widget window */
     mp->parent = p; /* set parent file */
     xltmnu[mp->wid+MAXFIL] = mp; /* set the tracking entry for window */
     pa_buffer(mp->wf, FALSE); /* turn off buffering */
@@ -9782,7 +9790,8 @@ static int fndfil(FILE* fp)
 
 }
 
-void pa_openwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
+static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, int wid,
+                     int subclient)
 
 {
 
@@ -9822,7 +9831,16 @@ void pa_openwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
         if (opnfil[ofn]->inw || opnfil[ofn]->win)
             error(efinuse); /* file in use */
     /* establish all logical files and links, translation tables, and open window */
-    openio(*infile, *outfile, ifn, ofn, pfn, wid);
+    openio(*infile, *outfile, ifn, ofn, pfn, wid, subclient);
+
+}
+
+void pa_openwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
+
+{
+
+    /* open as child of client window */
+    iopenwin(infile, outfile, parent, wid, TRUE);
 
 }
 
@@ -11170,7 +11188,7 @@ static void pa_init_graphics(int argc, char *argv[])
     /* open stdin and stdout as I/O window set */
     ifn = fileno(stdin); /* get logical id stdin */
     ofn = fileno(stdout); /* get logical id stdout */
-    openio(stdin, stdout, ifn, ofn, -1, 1); /* process open */
+    openio(stdin, stdout, ifn, ofn, -1, 1, FALSE); /* process open */
 
     /* clear input select set */
     FD_ZERO(&ifdseta);
