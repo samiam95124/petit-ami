@@ -230,8 +230,8 @@ static void frametest(const string s)
 
 }
 
-/* determine aspect ratio of screen, then find a portion of it squared and set
-   that in x and y */
+/* Finds the largest square that fits into the screen, then applies a ratio to
+   that. Used to determine a relative size that fits the screen. */
 static void sqrrat(int* xs, int* ys, float rat)
 
 {
@@ -251,7 +251,7 @@ int main(void)
 
     pa_auto(stdout, OFF);
     pa_curvis(stdout, OFF);
-#if 0
+#if 1
     printf("Managed screen test vs. 0.1\n");
     printf("\n");
     pa_scnsiz(stdout, &x, &y);
@@ -331,7 +331,7 @@ int main(void)
 
     ox = pa_maxxg(stdout);
     oy = pa_maxyg(stdout);
-    sqrrat(&xs, &ys, 4); /* find square ratio */
+    sqrrat(&xs, &ys, 1.3); /* find square ratio */
     pa_bcolor(stdout, pa_cyan);
     pa_sizbufg(stdout, xs, ys);
     putchar('\f');
@@ -409,7 +409,7 @@ int main(void)
 
     ox = pa_maxxg(stdout);
     oy = pa_maxyg(stdout);
-    sqrrat(&xs, &ys, 8); /* find square ratio */
+    sqrrat(&xs, &ys, 1.5); /* find square ratio */
     for (x = xs; x <= xs*4; x += xs/64) {
 
         pa_setsizg(stdout, x, ys);
@@ -463,9 +463,10 @@ int main(void)
     pa_winclientg(stdout, ox, oy, &ox, &oy, BIT(pa_wmframe) | BIT(pa_wmsize) | BIT(pa_wmsysbar));
     pa_setsizg(stdout, ox, oy);
 
+#endif
     /* ********************************* Front/back test *********************** */
 
-    sqrrat(&xs, &ys, 32); /* find square ratio */
+    sqrrat(&xs, &ys, 8); /* find square ratio */
     cs = pa_chrsizy(stdout); /* save the character size */
     putchar('\f');
     pa_auto(stdout, OFF);
@@ -732,12 +733,14 @@ int main(void)
     fprintf(win4, "I am child window 3\n");
     pa_home(stdout);
     printf("There should be 3 labeled child windows below, with frames   \n");
+    printf("(the system may not implement frames on child windows)      \n");
     waitnext();
     pa_frame(win2, OFF);
     pa_frame(win3, OFF);
     pa_frame(win4, OFF);
     pa_home(stdout);
     printf("There should be 3 labeled child windows below, without frames\n");
+    printf("                                                            \n");
     waitnext();
     fclose(win2);
     fclose(win3);
@@ -781,7 +784,7 @@ int main(void)
     pa_frame(win4, OFF);
     pa_home(stdout);
     printf("There should be 3 labled child windows below, without frames\n");
-    printf("(the system may not implement frames on child windows)      \n");
+    printf("                                                            \n");
     waitnext();
     fclose(win2);
     fclose(win3);
@@ -791,7 +794,6 @@ int main(void)
     printf("                                                            \n");
     waitnext();
 
-#endif
     /* ******************* Child windows stacking test pixel ******************* */
 
     putchar('\f');
