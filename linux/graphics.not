@@ -46,3 +46,5 @@ the child windows don't accept focus.
 
 17. Management test/child windows test character, turn off cursor in child 
 windows.
+
+18. setsizg() below minimums gives XWindows error.

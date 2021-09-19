@@ -251,7 +251,7 @@ int main(void)
 
     pa_auto(stdout, OFF);
     pa_curvis(stdout, OFF);
-#if 1
+#if 0
     printf("Managed screen test vs. 0.1\n");
     printf("\n");
     pa_scnsiz(stdout, &x, &y);
@@ -463,7 +463,6 @@ int main(void)
     pa_winclientg(stdout, ox, oy, &ox, &oy, BIT(pa_wmframe) | BIT(pa_wmsize) | BIT(pa_wmsysbar));
     pa_setsizg(stdout, ox, oy);
 
-#endif
     /* ********************************* Front/back test *********************** */
 
     sqrrat(&xs, &ys, 8); /* find square ratio */
@@ -845,28 +844,33 @@ int main(void)
     printf("Child windows should all be closed                          \n");
     waitnext();
 
+#endif
     /* ************** Child windows stacking resize test pixel 1 *************** */
 
+    sqrrat(&xs, &ys, 5); /* find square ratio */
     pa_buffer(stdout, OFF);
     pa_auto(stdout, OFF);
     pa_openwin(&stdin, &win2, stdout, 2);
-    pa_setposg(win2, 50-25, 50-25);
-    pa_sizbufg(win2, 200, 200);
-    pa_setsizg(win2, pa_maxxg(stdout)-150, pa_maxyg(stdout)-150);
+    pa_setposg(win2, xs/2*1, ys/2*1);
+    pa_sizbufg(win2, pa_maxxg(stdout)-xs*2, pa_maxyg(stdout)-ys*2);
+    pa_setsizg(win2, pa_maxxg(stdout)-xs*2, pa_maxyg(stdout)-ys*2);
     pa_openwin(&stdin, &win3, stdout, 3);
-    pa_setposg(win3, 100-25, 100-25);
-    pa_sizbufg(win3, 200, 200);
-    pa_setsizg(win3, pa_maxxg(stdout)-150, pa_maxyg(stdout)-150);
+    pa_setposg(win3, xs/2*2, ys/2*2);
+    pa_sizbufg(win3, pa_maxxg(stdout)-xs*2, pa_maxyg(stdout)-ys*2);
+    pa_setsizg(win3, pa_maxxg(stdout)-xs*2, pa_maxyg(stdout)-ys*2);
     pa_openwin(&stdin, &win4, stdout, 4);
-    pa_setposg(win4, 150-25, 150-25);
-    pa_sizbufg(win4, 200, 200);
-    pa_setsizg(win4, pa_maxxg(stdout)-150, pa_maxyg(stdout)-150);
+    pa_setposg(win4, xs/2*3, ys/2*3);
+    pa_sizbufg(win4, pa_maxxg(stdout)-xs*2, pa_maxyg(stdout)-ys*2);
+    pa_setsizg(win4, pa_maxxg(stdout)-xs*2, pa_maxyg(stdout)-ys*2);
+    pa_curvis(win2, OFF);
     pa_bcolor(win2, pa_cyan);
     putc('\f', win2);
     fprintf(win2, "I am child window 1\n");
+    pa_curvis(win3, OFF);
     pa_bcolor(win3, pa_yellow);
     putc('\f', win3);
     fprintf(win3, "I am child window 2\n");
+    pa_curvis(win4, OFF);
     pa_bcolor(win4, pa_magenta);
     putc('\f', win4);
     fprintf(win4, "I am child window 3\n");
@@ -879,9 +883,9 @@ int main(void)
             prtceng(pa_maxyg(stdout)-pa_chrsizy(stdout),
                     "Child windows stacking resize test pixel 1");
             prtceng(1, "move and resize");
-            pa_setsizg(win3, pa_maxxg(stdout)-150, pa_maxyg(stdout)-150);
-            pa_setsizg(win4, pa_maxxg(stdout)-150, pa_maxyg(stdout)-150);
-            pa_setsizg(win2, pa_maxxg(stdout)-150, pa_maxyg(stdout)-150);
+            pa_setsizg(win3, pa_maxxg(stdout)-xs*2, pa_maxyg(stdout)-ys*2);
+            pa_setsizg(win4, pa_maxxg(stdout)-xs*2, pa_maxyg(stdout)-ys*2);
+            pa_setsizg(win2, pa_maxxg(stdout)-xs*2, pa_maxyg(stdout)-ys*2);
 
         }
         if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
@@ -890,7 +894,6 @@ int main(void)
     fclose(win2);
     fclose(win3);
     fclose(win4);
-/*  ???????? There is a hole in the buffer after this gets enabled */
     pa_buffer(stdout, ON);
     putchar('\f');
     printf("Child windows should all be closed                          \n");
