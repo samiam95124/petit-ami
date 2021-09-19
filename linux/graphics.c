@@ -9897,21 +9897,25 @@ void pa_sizbufg(FILE* f, int x, int y)
     }
     xwc.width = win->gmaxxg; /* set XWindow width and height */
     xwc.height = win->gmaxyg;
-    XWLOCK();
-    XConfigureWindow(padisplay, win->xmwhan, CWWidth|CWHeight, &xwc);
-    XWUNLOCK();
+    if (xwc.width != win->xmwr.w || xwc.height != win->xmwr.h) {
 
-    /* wait for the configure response with correct sizes */
-    do {
+        XWLOCK();
+        XConfigureWindow(padisplay, win->xmwhan, CWWidth|CWHeight, &xwc);
+        XWUNLOCK();
 
-        peekxevt(&e); /* peek next event */
+        /* wait for the configure response with correct sizes */
+        do {
 
-    } while (e.type != ConfigureNotify && e.xconfigure.width != x ||
-             e.xconfigure.height != y || e.xany.window != win->xmwhan);
+            peekxevt(&e); /* peek next event */
 
-    /* set new size */
-    win->xmwr.w = win->gmaxxg;
-    win->xmwr.h = win->gmaxyg;
+        } while (e.type != ConfigureNotify && e.xconfigure.width != x ||
+                 e.xconfigure.height != y || e.xany.window != win->xmwhan);
+
+        /* set new size */
+        win->xmwr.w = win->gmaxxg;
+        win->xmwr.h = win->gmaxyg;
+
+    }
 
     restore(win); /* restore buffer to screen */
 
