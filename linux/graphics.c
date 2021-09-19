@@ -8789,10 +8789,17 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
 
                 /* paint right or bottom off buffer space */
                 XWLOCK();
-                XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+                /* set background color to foreground */
+                if (BIT(sarev) & sc->attr)
+                    XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+                else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
                 XFillRectangle(padisplay, win->xwhan, sc->xcxt,
                                e->xexpose.x, e->xexpose.y,
                                e->xexpose.width, e->xexpose.height);
+                /* restore foreground color */
+                if (BIT(sarev) & sc->attr)
+                    XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+                else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
                 XFlush(padisplay);
                 XWUNLOCK();
 
