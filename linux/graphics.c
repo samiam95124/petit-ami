@@ -10017,7 +10017,9 @@ void pa_buffer(FILE* f, int e)
         xe.xexpose.width = win->gmaxxg;
         xe.xexpose.height = win->gmaxyg;
         xe.xexpose.window = win->xwhan;
-        XSendEvent(padisplay, win->xwhan, FALSE, 0, &xe);
+        /* I don't know why, but the XSendEvent() call does nothing here */
+        enquexevt(&xe);
+        //XSendEvent(padisplay, win->xmwhan, FALSE, 0, &xe);
         XWUNLOCK();
 
     }

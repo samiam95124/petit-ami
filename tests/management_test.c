@@ -793,7 +793,6 @@ int main(void)
     printf("                                                            \n");
     waitnext();
 
-#endif
     /* ******************* Child windows stacking test pixel ******************* */
 
     putchar('\f');
@@ -1222,6 +1221,7 @@ int main(void)
     fclose(win2);
 #endif
 
+#endif
    /* ********************** Child windows torture test pixel ***************** */
 
     putchar('\f');
