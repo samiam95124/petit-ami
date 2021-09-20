@@ -48,3 +48,6 @@ the child windows don't accept focus.
 windows.
 
 18. setsizg() below minimums gives XWindows error.
+
+19. Windows rejects attempts to size the terminal font, Linux should do the 
+same.

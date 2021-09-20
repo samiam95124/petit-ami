@@ -503,8 +503,8 @@ int main(void)
 
     } while (er.etype != pa_etenter);
     pa_home(stdout);
-    pa_font(stdout, PA_FONT_TERM);
     pa_fontsiz(stdout, cs);
+    pa_font(stdout, PA_FONT_TERM);
     pa_auto(stdout, ON);
 
     /* ************************* Frame controls test buffered ****************** */
@@ -793,6 +793,7 @@ int main(void)
     printf("                                                            \n");
     waitnext();
 
+#endif
     /* ******************* Child windows stacking test pixel ******************* */
 
     putchar('\f');
@@ -898,7 +899,6 @@ int main(void)
     printf("Child windows should all be closed                          \n");
     waitnext();
 
-#endif
     /* ************** Child windows stacking resize test pixel 2 *************** */
 
     sqrrat(&xs, &ys, 20); /* find square ratio */
@@ -994,8 +994,8 @@ int main(void)
 
     } while (er.etype != pa_etenter);
     pa_buffer(stdout, ON);
-    pa_font(stdout, PA_FONT_TERM);
     pa_fontsiz(stdout, cs);
+    pa_font(stdout, PA_FONT_TERM);
     pa_home(stdout);
     pa_auto(stdout, ON);
 
