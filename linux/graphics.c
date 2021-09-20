@@ -3589,7 +3589,6 @@ static void openmenu(
 
 {
 
-dbg_printf(dlinfo, "begin\n");
     mp->wid = pa_getwid(); /* allocate a buried wid */
     iopenwin(&f, &mp->wf, p, mp->wid, FALSE); /* open widget window */
     mp->parent = p; /* set parent file */
@@ -3600,12 +3599,9 @@ dbg_printf(dlinfo, "begin\n");
     pa_curvis(mp->wf, FALSE); /* turn off cursor */
     pa_font(mp->wf, PA_FONT_SIGN); /* set button font */
     pa_bold(mp->wf, TRUE); /* set bold */
-dbg_printf(dlinfo, "1\n");
     pa_setposg(mp->wf, x1, y1); /* place at position */
     pa_setsizg(mp->wf, x2-x1+1, y2-y1+1); /* set size */
-dbg_printf(dlinfo, "2\n");
     pa_binvis(mp->wf); /* no background write */
-dbg_printf(dlinfo, "end\n");
 
 }
 

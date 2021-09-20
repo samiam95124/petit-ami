@@ -44,6 +44,8 @@ static int        nrmcnt;       /* normalize counter */
 static int        i;
 static int        xs, ys;
 static int        cs;
+static long       t, et;
+static pa_color   c1, c2, c3;
 
 /* wait return to be pressed, or handle terminate */
 
@@ -243,6 +245,17 @@ static void sqrrat(int* xs, int* ys, float rat)
 
 }
 
+static pa_color nextcolor(pa_color c)
+
+{
+
+    c++;
+    if (c > pa_magenta) c = pa_red;
+
+    return (c);
+
+}
+
 int main(void)
 
 {
@@ -251,7 +264,6 @@ int main(void)
 
     pa_auto(stdout, OFF);
     pa_curvis(stdout, OFF);
-#if 0
     printf("Managed screen test vs. 0.1\n");
     printf("\n");
     pa_scnsiz(stdout, &x, &y);
@@ -1221,32 +1233,41 @@ int main(void)
     fclose(win2);
 #endif
 
-#endif
-   /* ********************** Child windows torture test pixel ***************** */
+    /* ********************** Child windows torture test pixel ***************** */
 
+    pa_getsizg(stdout, &xs, &ys); /* get window size */
+    if (xs > ys) { xs /= 3.5; ys = xs; }
+    else { ys /= 3.5; xs = ys; }
+    c1 = pa_red;
+    c2 = pa_green;
+    c3 = pa_blue;
     putchar('\f');
     printf("Child windows torture test pixel\n");
+    t = pa_clock(); /* get base time */
     for (i = 1; i <= 100; i++) {
 
         pa_openwin(&stdin, &win2, stdout, 2);
-        pa_setposg(win2, 1, 100);
-        pa_sizbufg(win2, 200, 200);
-        pa_setsizg(win2, 200, 200);
+        pa_setposg(win2, xs/10, ys/5);
+        pa_sizbufg(win2, xs, ys);
+        pa_setsizg(win2, xs, ys);
         pa_openwin(&stdin, &win3, stdout, 3);
-        pa_setposg(win3, 201, 100);
-        pa_sizbufg(win3, 200, 200);
-        pa_setsizg(win3, 200, 200);
+        pa_setposg(win3, xs/10+xs, ys/5);
+        pa_sizbufg(win3, xs, ys);
+        pa_setsizg(win3, xs, ys);
         pa_openwin(&stdin, &win4, stdout, 4);
-        pa_setposg(win4, 401, 100);
-        pa_sizbufg(win4, 200, 200);
-        pa_setsizg(win4, 200, 200);
-        pa_bcolor(win2, pa_cyan);
+        pa_setposg(win4, xs/10+xs*2, ys/5);
+        pa_sizbufg(win4, xs, ys);
+        pa_setsizg(win4, xs, ys);
+        pa_bcolor(win2, c1);
+        c1 = nextcolor(c1);
         putc('\f', win2);
         fprintf(win2, "I am child window 1\n");
-        pa_bcolor(win3, pa_yellow);
+        pa_bcolor(win3, c2);
+        c2 = nextcolor(c2);
         putc('\f', win3);
         fprintf(win3, "I am child window 2\n");
-        pa_bcolor(win4, pa_magenta);
+        pa_bcolor(win4, c3);
+        c3 = nextcolor(c3);
         putc('\f', win4);
         fprintf(win4, "I am child window 3\n");
         fclose(win2);
@@ -1254,9 +1275,14 @@ int main(void)
         fclose(win4);
 
     }
+    et = pa_elapsed(t);
     pa_home(stdout);
     pa_bover(stdout);
     printf("Child windows should all be closed\n");
+    printf("\n");
+    printf("Child windows place and remove %d iterations %f seconds\n", 100,
+           et*0.0001);
+    printf("%f per iteration\n", et*0.0001/100);
     waitnext();
 
     terminate: /* terminate */
