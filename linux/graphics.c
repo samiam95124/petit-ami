@@ -721,11 +721,16 @@ static void errdlg(
 
 {
 
-    Window       w;
-    GC           gracxt;
-    XEvent       e;
-    XFontStruct* font;
-    int          mw, wd;
+    Window            w;
+    GC                cxt;
+    XEvent            e;
+    XFontStruct*      font;
+    int               mw, wd;
+    char              cb[] = "Close";
+    int               ww, wh;
+    int               cw;
+    int               bx1, by1, bx2, by2;
+    XWindowAttributes xwa;
 
     XWLOCK();
     font = XLoadQueryFont(padisplay,
@@ -736,29 +741,71 @@ static void errdlg(
     wd = XTextWidth(font, s, strlen(s)); /* minimum width for dialog contents */
     if (wd > mw) mw = wd; /* set minimum overall */
 
-    w = XCreateSimpleWindow(padisplay, RootWindow(padisplay, pascreen), 10, 10,
-                            mw+40, 100, 5,
+    /* find screen placement */
+    XGetWindowAttributes(padisplay, RootWindow(padisplay, pascreen), &xwa);
+
+    ww = mw+40; /* set dialog width and height */
+    wh = 200;
+    /* create dialog window centered on screen */
+    w = XCreateSimpleWindow(padisplay, RootWindow(padisplay, pascreen), 0, 0,
+                            ww, wh, 5,
                             BlackPixel(padisplay, pascreen),
                             WhitePixel(padisplay, pascreen));
-    XSelectInput(padisplay, w, ExposureMask|KeyPressMask);
+    XSelectInput(padisplay, w, ExposureMask|KeyPressMask|ButtonPressMask);
     XMapWindow(padisplay, w);
-    gracxt = XCreateGC(padisplay, w, 0, NULL);
-    XSetFont(padisplay, gracxt, font->fid);
+    /* centering works well unless you have dual screens */
+    XMoveWindow(padisplay, w, xwa.width/2-ww/2, 0/*xwa.height/2-wh/2*/);
+    cxt = XCreateGC(padisplay, w, 0, NULL);
+    XSetFont(padisplay, cxt, font->fid);
 
     XStoreName(padisplay, w, t);
     XSetIconName(padisplay, w, t);
     XWUNLOCK();
+
+    cw = XTextWidth(font, cb, strlen(cb))+50;
+    /* set button rectangle */
+    bx1 = ww-cw-20;
+    by1 = 125;
+    bx2 = bx1+cw-1;
+    by2 = by1+40-1;
 
     do {
 
         XWLOCK();
         XNextEvent(padisplay, &e);
         XWUNLOCK();
-        if (e.type == Expose && e.xany.window == w)
-            XDrawString(padisplay, e.xany.window, gracxt, mw/2-wd/2, 50, s, strlen(s));
-        else if (e.type == KeyPress) break; /* exit on any key */
+        if (e.type == Expose && e.xany.window == w) {
 
-    } while (e.type != KeyPress); /* exit on any key */
+            /* set background color to grey */
+            XSetForeground(padisplay, cxt, 0xe0e0e0);
+            XFillRectangle(padisplay, w, cxt, e.xexpose.x, e.xexpose.y,
+                           e.xexpose.width, e.xexpose.height);
+            /* draw error circle */
+            XSetForeground(padisplay, cxt, 0xce3c30);
+            XFillArc(padisplay, w, cxt, 20, 20, 80, 80, 0, 360*64);
+            /* draw dash */
+            XSetForeground(padisplay, cxt, 0xffffff);
+            XFillRectangle(padisplay, w, cxt, 35, 60-5, 50, 10);
+            /* set text color */
+            XSetForeground(padisplay, cxt, 0x000000);
+            XDrawString(padisplay, w, cxt, mw/2-wd/2, 50, s, strlen(s));
+            /* place close button */
+            XSetForeground(padisplay, cxt, 0xffffff);
+            XFillRectangle(padisplay, w, cxt, ww-cw-20, 125, cw, 40);
+            XSetForeground(padisplay, cxt, 0x000000);
+            XDrawRectangle(padisplay, w, cxt, ww-cw-20, 125, cw, 40);
+            XDrawString(padisplay, w, cxt, ww-cw-20+15, 155, cb, strlen(cb));
+
+        } else if (e.type == ButtonPress) {
+
+            /* close button press, exit */
+            if (e.xbutton.x >= bx1 && e.xbutton.x <= bx2 &&
+                e.xbutton.y >= by1 && e.xbutton.y <= by2) break;
+
+        }
+
+    } while (1);
+
     XWLOCK();
     XDestroyWindow(padisplay, w);
     XWUNLOCK();
