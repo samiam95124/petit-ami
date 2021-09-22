@@ -264,6 +264,7 @@ int main(void)
 
     pa_auto(stdout, OFF);
     pa_curvis(stdout, OFF);
+#if 0
     printf("Managed screen test vs. 0.1\n");
     printf("\n");
     pa_scnsiz(stdout, &x, &y);
@@ -519,6 +520,7 @@ int main(void)
     pa_font(stdout, PA_FONT_TERM);
     pa_auto(stdout, ON);
 
+#endif
     /* ************************* Frame controls test buffered ****************** */
 
     putchar('\f');

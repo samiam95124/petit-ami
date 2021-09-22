@@ -664,6 +664,7 @@ static metptr     fremet;         /* free menu entrys list */
 static winptr     winfre;         /* free windows structure list */
 static int        stdchrx;        /* standard/reference character size x */
 static int        stdchry;        /* standard/reference character size y */
+static int        errflg;         /* an error has been flagged */
 
 /* memory statistics/diagnostics */
 static unsigned long memusd;    /* total memory in use for malloc */
@@ -792,6 +793,7 @@ static void error(errcod e)
     }
     fprintf(stderr, "\n");
     fflush(stderr); /* make sure error message is output */
+    errflg = TRUE; /* flag error occurred */
 
     exit(1);
 
@@ -811,6 +813,7 @@ static int xerror(Display* d, XErrorEvent* e)
 
     fprintf(stderr, "XWindow error\n");
     fflush(stderr); /* make sure error message is output */
+    errflg = TRUE; /* flag error occurred */
 
     exit(1);
 
@@ -11111,6 +11114,8 @@ static void pa_init_graphics(int argc, char *argv[])
     stdchrx = stdchrx; /* set default for standard/reference character size x */
     stdchry = stdchry; /* set default for standard/reference character size y */
 
+    errflg = FALSE; /* set no error occurred */
+
     /* clear open files tables */
     for (fi = 0; fi < MAXFIL; fi++) {
 
@@ -11290,7 +11295,7 @@ static void pa_deinit_graphics()
 	/* if the program tries to exit when the user has not ordered an exit, it
 	   is assumed to be a windows "unaware" program. We stop before we exit
 	   these, so that their content may be viewed */
-	if (!fend && fautohold) { /* process automatic exit sequence */
+	if (!errflg && !fend && fautohold) { /* process automatic exit sequence */
 
         if (!win->visible) winvis(win); /* make sure we are displayed */
         /* construct final name for window */
