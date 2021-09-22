@@ -707,6 +707,141 @@ static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, int wid,
 
 /** ****************************************************************************
 
+Present dialog
+
+Presents the given text in a dialog. Used for graphical errors. Tries to be
+standalone, using little or no other resources in the system.
+
+*******************************************************************************/
+
+static void dialog(char* s)
+
+{
+
+    Window       w;
+    GC           gracxt;
+    XEvent       e;
+    XFontStruct* font;
+
+    w = XCreateSimpleWindow(padisplay, RootWindow(padisplay, pascreen), 10, 10,
+                            1000, 100, 5,
+                            BlackPixel(padisplay, pascreen), WhitePixel(padisplay, pascreen));
+    XSelectInput(padisplay, w, ExposureMask|KeyPressMask);
+    XMapWindow(padisplay, w);
+    gracxt = XCreateGC(padisplay
+    , w, 0, NULL);
+
+    font = XLoadQueryFont(padisplay,
+        "-unregistered-latin modern sans-bold-o-normal--0-0-200-200-p-0-iso8859-1");
+    XSetFont(padisplay, gracxt, font->fid);
+
+    do {
+
+        XNextEvent(padisplay, &e);
+        if (e.type == Expose)
+            XDrawString(padisplay, e.xany.window, gracxt, 10, 50, s, strlen(s));
+        else if (e.type == KeyPress) break; /* exit on any key */
+
+    } while (e.type != KeyPress); /* exit on any key */
+    XDestroyWindow(padisplay, w);
+
+}
+
+/** ****************************************************************************
+
+Get error string
+
+Returns the error string corresponding to the error code given.
+
+*******************************************************************************/
+
+static char* errstr(errcod e)
+
+{
+
+    char* s;
+
+    switch (e) { /* error */
+
+      case eftbful:  s = "Too many files"; break;
+      case ejoyacc:  s = "No joystick access available"; break;
+      case etimacc:  s = "No timer access available"; break;
+      case einvhan:  s = "Invalid file number"; break;
+      case efilopr:  s = "Cannot perform operation on special file"; break;
+      case einvscn:  s = "Invalid screen number"; break;
+      case einvtab:  s = "Tab position specified off screen"; break;
+      case eatopos:  s = "Cannot position text by pixel with auto on"; break;
+      case eatocur:  s = "Cannot position outside screen with auto on"; break;
+      case eatoofg:  s = "Cannot reenable auto off grid"; break;
+      case eatoecb:  s = "Cannot reenable auto outside screen"; break;
+      case einvftn:  s = "Invalid font number"; break;
+      case etrmfnt:  s = "No valid terminal font was found"; break;
+      case eatofts:  s = "Cannot resize font with auto enabled"; break;
+      case eatoftc:  s = "Cannot change fonts with auto enabled"; break;
+      case einvfnm:  s = "Invalid logical font number"; break;
+      case efntemp:  s = "Logical font number has no assigned font"; break;
+      case etrmfts:  s = "Cannot size terminal font"; break;
+      case etabful:  s = "Too many tabs set"; break;
+      case eatotab:  s = "Cannot set off grid tabs with auto on"; break;
+      case estrinx:  s = "String index out of range"; break;
+      case epicfnf:  s = "Picture file not found"; break;
+      case epicftl:  s = "Picture filename too large"; break;
+      case etimnum:  s = "Invalid timer number"; break;
+      case ejstsys:  s = "Cannot justify system font"; break;
+      case efnotwin: s = "File is not attached to a window"; break;
+      case ewinuse:  s = "Window id in use"; break;
+      case efinuse:  s = "File already in use"; break;
+      case einmode:  s = "Input side of window in wrong mode"; break;
+      case edcrel:   s = "Cannot release Windows device context"; break;
+      case einvsiz:  s = "Invalid buffer size"; break;
+      case ebufoff:  s = "Buffered mode not enabled"; break;
+      case edupmen:  s = "Menu id was duplicated"; break;
+      case emennf:   s = "Menu id was not found"; break;
+      case ewignf:   s = "Widget id was not found"; break;
+      case ewigdup:  s = "Widget id was duplicated"; break;
+      case einvspos: s = "Invalid scroll bar slider position"; break;
+      case einvssiz: s = "Invalid scroll bar slider size"; break;
+      case ectlfal:  s = "Attempt to create control fails"; break;
+      case eprgpos:  s = "Invalid progress bar position"; break;
+      case estrspc:  s = "Out of string space"; break;
+      case etabbar:  s = "Unable to create tab in tab bar"; break;
+      case efildlg:  s = "Unable to create file dialog"; break;
+      case efnddlg:  s = "Unable to create find dialog"; break;
+      case efntdlg:  s = "Unable to create font dialog"; break;
+      case efndstl:  s = "Find/replace string too long"; break;
+      case einvwin:  s = "Invalid window number"; break;
+      case einvjye:  s = "Invalid joystick event"; break;
+      case ejoyqry:  s = "Could not get information on joystick"; break;
+      case einvjoy:  s = "Invalid joystick ID"; break;
+      case eclsinw:  s = "Cannot directly close input side of window"; break;
+      case ewigsel:  s = "Widget is not selectable"; break;
+      case ewigptxt: s = "Cannot put text in this widget"; break;
+      case ewiggtxt: s = "Cannot get text from this widget"; break;
+      case ewigdis:  s = "Cannot disable this widget"; break;
+      case estrato:  s = "Cannot direct write string with auto on"; break;
+      case etabsel:  s = "Invalid tab select"; break;
+      case enomem:   s = "Out of memory"; break;
+      case einvfil:  s = "File is invalid"; break;
+      case enotinp:  s = "Not input side of any window"; break;
+      case estdfnt:  s = "Cannot find standard font"; break;
+      case eftntl:   s = "Font name too large"; break;
+      case epicopn:  s = "Cannot open picture file"; break;
+      case ebadfmt:  s = "Bad format of picture file"; break;
+      case ecfgval:  s = "Invalid configuration value"; break;
+      case enoopn:   s = "Cannot open file"; break;
+      case enoinps:  s = "No input side for this window"; break;
+      case enowid:   s = "No more window ids available"; break;
+      case esystem:  s = "System consistency check"; break;
+      default:       s = "Unknown error"; break;
+
+    }
+
+    return (s); /* return error string */
+
+}
+
+/** ****************************************************************************
+
 Print error
 
 Prints the given error in ASCII text, then aborts the program.
@@ -717,82 +852,22 @@ static void error(errcod e)
 
 {
 
-    fprintf(stderr, "*** Error: graphics: ");
-    switch (e) { /* error */
+    char cb[100]; /* buffer for dialog string */
 
-      case eftbful:  fprintf(stderr, "Too many files"); break;
-      case ejoyacc:  fprintf(stderr, "No joystick access available"); break;
-      case etimacc:  fprintf(stderr, "No timer access available"); break;
-      case einvhan:  fprintf(stderr, "Invalid file number"); break;
-      case efilopr:  fprintf(stderr, "Cannot perform operation on special file"); break;
-      case einvscn:  fprintf(stderr, "Invalid screen number"); break;
-      case einvtab:  fprintf(stderr, "Tab position specified off screen"); break;
-      case eatopos:  fprintf(stderr, "Cannot position text by pixel with auto on"); break;
-      case eatocur:  fprintf(stderr, "Cannot position outside screen with auto on"); break;
-      case eatoofg:  fprintf(stderr, "Cannot reenable auto off grid"); break;
-      case eatoecb:  fprintf(stderr, "Cannot reenable auto outside screen"); break;
-      case einvftn:  fprintf(stderr, "Invalid font number"); break;
-      case etrmfnt:  fprintf(stderr, "No valid terminal font was found"); break;
-      case eatofts:  fprintf(stderr, "Cannot resize font with auto enabled"); break;
-      case eatoftc:  fprintf(stderr, "Cannot change fonts with auto enabled"); break;
-      case einvfnm:  fprintf(stderr, "Invalid logical font number"); break;
-      case efntemp:  fprintf(stderr, "Logical font number has no assigned font"); break;
-      case etrmfts:  fprintf(stderr, "Cannot size terminal font"); break;
-      case etabful:  fprintf(stderr, "Too many tabs set"); break;
-      case eatotab:  fprintf(stderr, "Cannot set off grid tabs with auto on"); break;
-      case estrinx:  fprintf(stderr, "String index out of range"); break;
-      case epicfnf:  fprintf(stderr, "Picture file not found"); break;
-      case epicftl:  fprintf(stderr, "Picture filename too large"); break;
-      case etimnum:  fprintf(stderr, "Invalid timer number"); break;
-      case ejstsys:  fprintf(stderr, "Cannot justify system font"); break;
-      case efnotwin: fprintf(stderr, "File is not attached to a window"); break;
-      case ewinuse:  fprintf(stderr, "Window id in use"); break;
-      case efinuse:  fprintf(stderr, "File already in use"); break;
-      case einmode:  fprintf(stderr, "Input side of window in wrong mode"); break;
-      case edcrel:   fprintf(stderr, "Cannot release Windows device context"); break;
-      case einvsiz:  fprintf(stderr, "Invalid buffer size"); break;
-      case ebufoff:  fprintf(stderr, "Buffered mode not enabled"); break;
-      case edupmen:  fprintf(stderr, "Menu id was duplicated"); break;
-      case emennf:   fprintf(stderr, "Menu id was not found"); break;
-      case ewignf:   fprintf(stderr, "Widget id was not found"); break;
-      case ewigdup:  fprintf(stderr, "Widget id was duplicated"); break;
-      case einvspos: fprintf(stderr, "Invalid scroll bar slider position"); break;
-      case einvssiz: fprintf(stderr, "Invalid scroll bar slider size"); break;
-      case ectlfal:  fprintf(stderr, "Attempt to create control fails"); break;
-      case eprgpos:  fprintf(stderr, "Invalid progress bar position"); break;
-      case estrspc:  fprintf(stderr, "Out of string space"); break;
-      case etabbar:  fprintf(stderr, "Unable to create tab in tab bar"); break;
-      case efildlg:  fprintf(stderr, "Unable to create file dialog"); break;
-      case efnddlg:  fprintf(stderr, "Unable to create find dialog"); break;
-      case efntdlg:  fprintf(stderr, "Unable to create font dialog"); break;
-      case efndstl:  fprintf(stderr, "Find/replace string too long"); break;
-      case einvwin:  fprintf(stderr, "Invalid window number"); break;
-      case einvjye:  fprintf(stderr, "Invalid joystick event"); break;
-      case ejoyqry:  fprintf(stderr, "Could not get information on joystick"); break;
-      case einvjoy:  fprintf(stderr, "Invalid joystick ID"); break;
-      case eclsinw:  fprintf(stderr, "Cannot directly close input side of window"); break;
-      case ewigsel:  fprintf(stderr, "Widget is not selectable"); break;
-      case ewigptxt: fprintf(stderr, "Cannot put text in this widget"); break;
-      case ewiggtxt: fprintf(stderr, "Cannot get text from this widget"); break;
-      case ewigdis:  fprintf(stderr, "Cannot disable this widget"); break;
-      case estrato:  fprintf(stderr, "Cannot direct write string with auto on"); break;
-      case etabsel:  fprintf(stderr, "Invalid tab select"); break;
-      case enomem:   fprintf(stderr, "Out of memory"); break;
-      case einvfil:  fprintf(stderr, "File is invalid"); break;
-      case enotinp:  fprintf(stderr, "Not input side of any window"); break;
-      case estdfnt:  fprintf(stderr, "Cannot find standard font"); break;
-      case eftntl:   fprintf(stderr, "Font name too large"); break;
-      case epicopn:  fprintf(stderr, "Cannot open picture file"); break;
-      case ebadfmt:  fprintf(stderr, "Bad format of picture file"); break;
-      case ecfgval:  fprintf(stderr, "Invalid configuration value"); break;
-      case enoopn:   fprintf(stderr, "Cannot open file"); break;
-      case enoinps:  fprintf(stderr, "No input side for this window"); break;
-      case enowid:   fprintf(stderr, "No more window ids available"); break;
-      case esystem:  fprintf(stderr, "System consistency check"); break;
+    if (dialogerr) {
+
+        /* send error to dialog */
+        strcpy(cb, "*** Error: graphics: ");
+        strcat(cb, errstr(e));
+        dialog(cb);
+
+    } else {
+
+        /* send error to console */
+        fprintf(stderr, "*** Error: graphics: %s\n", errstr(e));
+        fflush(stderr); /* make sure error message is output */
 
     }
-    fprintf(stderr, "\n");
-    fflush(stderr); /* make sure error message is output */
     errflg = TRUE; /* flag error occurred */
 
     exit(1);
@@ -811,8 +886,18 @@ static int xerror(Display* d, XErrorEvent* e)
 
 {
 
-    fprintf(stderr, "XWindow error\n");
-    fflush(stderr); /* make sure error message is output */
+    if (dialogerr) {
+
+        /* send error to dialog */
+        dialog("*** Error: XWindows: General error");
+
+    } else {
+
+        /* send error to console */
+        fprintf(stderr, "XWindow error\n");
+        fflush(stderr); /* make sure error message is output */
+
+    }
     errflg = TRUE; /* flag error occurred */
 
     exit(1);
