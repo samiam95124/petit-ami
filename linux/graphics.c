@@ -723,23 +723,23 @@ static void dialog(char* s)
     XEvent       e;
     XFontStruct* font;
 
-    w = XCreateSimpleWindow(padisplay, RootWindow(padisplay, pascreen), 10, 10,
-                            1000, 100, 5,
-                            BlackPixel(padisplay, pascreen), WhitePixel(padisplay, pascreen));
-    XSelectInput(padisplay, w, ExposureMask|KeyPressMask);
-    XMapWindow(padisplay, w);
-    gracxt = XCreateGC(padisplay
-    , w, 0, NULL);
 
     font = XLoadQueryFont(padisplay,
         "-unregistered-latin modern sans-bold-o-normal--0-0-200-200-p-0-iso8859-1");
+
+    w = XCreateSimpleWindow(padisplay, RootWindow(padisplay, pascreen), 10, 10,
+                            XTextWidth(font, s, strlen(s))+40, 100, 5,
+                            BlackPixel(padisplay, pascreen), WhitePixel(padisplay, pascreen));
+    XSelectInput(padisplay, w, ExposureMask|KeyPressMask);
+    XMapWindow(padisplay, w);
+    gracxt = XCreateGC(padisplay, w, 0, NULL);
     XSetFont(padisplay, gracxt, font->fid);
 
     do {
 
         XNextEvent(padisplay, &e);
         if (e.type == Expose)
-            XDrawString(padisplay, e.xany.window, gracxt, 10, 50, s, strlen(s));
+            XDrawString(padisplay, e.xany.window, gracxt, 20, 50, s, strlen(s));
         else if (e.type == KeyPress) break; /* exit on any key */
 
     } while (e.type != KeyPress); /* exit on any key */
