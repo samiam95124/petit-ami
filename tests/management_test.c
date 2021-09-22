@@ -264,7 +264,7 @@ int main(void)
 
     pa_auto(stdout, OFF);
     pa_curvis(stdout, OFF);
-#if 0
+#if 1
     printf("Managed screen test vs. 0.1\n");
     printf("\n");
     pa_scnsiz(stdout, &x, &y);
@@ -724,14 +724,17 @@ int main(void)
     chrgrid();
     prtcen(pa_maxy(stdout), "Child windows test character");
     pa_openwin(&stdin, &win2, stdout, 2);
+    pa_curvis(win2, OFF);
     pa_setpos(win2, 1, 10);
     pa_sizbuf(win2, 20, 10);
     pa_setsiz(win2, 20, 10);
     pa_openwin(&stdin, &win3, stdout, 3);
+    pa_curvis(win3, OFF);
     pa_setpos(win3, 21, 10);
     pa_sizbuf(win3, 20, 10);
     pa_setsiz(win3, 20, 10);
     pa_openwin(&stdin, &win4, stdout, 4);
+    pa_curvis(win4, OFF);
     pa_setpos(win4, 41, 10);
     pa_sizbuf(win4, 20, 10);
     pa_setsiz(win4, 20, 10);
@@ -768,14 +771,17 @@ int main(void)
     sqrrat(&xs, &ys, 2.5); /* find square ratio */
     prtcen(pa_maxy(stdout), "Child windows test pixel");
     pa_openwin(&stdin, &win2, stdout, 2);
+    pa_curvis(win2, OFF);
     pa_setposg(win2, xs*0+1, ys/2.5);
     pa_sizbufg(win2, xs, ys);
     pa_setsizg(win2, xs, ys);
     pa_openwin(&stdin, &win3, stdout, 3);
+    pa_curvis(win3, OFF);
     pa_setposg(win3, xs*1+1, ys/2.5);
     pa_sizbufg(win3, xs, ys);
     pa_setsizg(win3, xs, ys);
     pa_openwin(&stdin, &win4, stdout, 4);
+    pa_curvis(win4, OFF);
     pa_setposg(win4, xs*2+1, ys/2.5);
     pa_sizbufg(win4, xs, ys);
     pa_setsizg(win4, xs, ys);
@@ -813,14 +819,17 @@ int main(void)
     sqrrat(&xs, &ys, 2.5); /* find square ratio */
     prtcen(pa_maxy(stdout), "Child windows stacking test pixel");
     pa_openwin(&stdin, &win2, stdout, 2);
+    pa_curvis(win2, OFF);
     pa_setposg(win2, xs/2*0+xs/5, ys/2.5+ys*0/4);
     pa_sizbufg(win2, xs, ys);
     pa_setsizg(win2, xs, ys);
     pa_openwin(&stdin, &win3, stdout, 3);
+    pa_curvis(win3, OFF);
     pa_setposg(win3, xs/2*1+xs/5, ys/2.5+ys*1/4);
     pa_sizbufg(win3, xs, ys);
     pa_setsizg(win3, xs, ys);
     pa_openwin(&stdin, &win4, stdout, 4);
+    pa_curvis(win4, OFF);
     pa_setposg(win4, xs/2*2+xs/5, ys/2.5+ys*2/4);
     pa_sizbufg(win4, xs, ys);
     pa_setsizg(win4, xs, ys);

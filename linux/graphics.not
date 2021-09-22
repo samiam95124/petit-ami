@@ -37,17 +37,13 @@ space is left to right and bottom.
 12. Management test/child windows test character, if the cursors are left on,
 the child windows don't accept focus.
 
-13. Management test/child windows test character, turn off cursor in child 
-windows.
+13. setsizg() below minimums gives XWindows error.
 
-14. setsizg() below minimums gives XWindows error.
-
-15. Windows rejects attempts to size the terminal font, Linux should do the 
+14. Windows rejects attempts to size the terminal font, Linux should do the 
 same.
 
-16. Management test/In "child windows stacking resize test pixel 2", reducing
+15. Management test/In "child windows stacking resize test pixel 2", reducing
 the size of the window to minimum hangs. 
 
-17. Management test/Minimize/Maximize test does not work, and there is no
+16. Management test/Minimize/Maximize test does not work, and there is no
 mechanisim for this at present. I am researching it.
-
