@@ -10753,19 +10753,18 @@ void pa_setsizg(FILE* f, int x, int y)
     XEvent e; /* Xwindow event */
 
     win = txt2win(f); /* get window context */
+    xwc.width = x; /* set frameless offset to client */
+    xwc.height = y;
+    if (win->frame) { /* if frame is enabled, calculate offset to client */
+
+        /* change to client terms with zero clip */
+        if (x > win->pfw) xwc.width = x-win->pfw; else xwc.width = 1;
+        if (y > win->pfh) xwc.height = y-win->pfh; else xwc.height = 1;
+
+    }
     /* Check repeated sizing. This prevents hangups due to the window manager
        ignoring such sets. */
-    if (x != win->xmwr.w || y != win->xmwr.h) {
-
-        xwc.width = x; /* set frameless offset to client */
-        xwc.height = y;
-        if (win->frame) { /* if frame is enabled, calculate offset to client */
-
-            /* change to client terms with zero clip */
-            if (x >= win->pfw) xwc.width = x-win->pfw; else xwc.width = 1;
-            if (y >= win->pfh) xwc.height = y-win->pfh; else xwc.height = 1;
-
-        }
+    if (xwc.width != win->xmwr.w || xwc.height != win->xmwr.h) {
 
         /* reconfigure window */
         XWLOCK();
@@ -10773,8 +10772,8 @@ void pa_setsizg(FILE* f, int x, int y)
         XWUNLOCK();
 
         /* set new size */
-        win->xmwr.w = x;
-        win->xmwr.h = y;
+        win->xmwr.w = xwc.width;
+        win->xmwr.h = xwc.height;
 
         /* wait for the configure response with correct sizes */
         do { peekxevt(&e); /* peek next event */
