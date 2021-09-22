@@ -9972,8 +9972,15 @@ void pa_buffer(FILE* f, int e)
         xwc.width = win->gmaxxg; /* set XWindow width and height */
         xwc.height = win->gmaxyg;
         XWLOCK();
-        XConfigureWindow(padisplay, win->xwhan, CWWidth|CWHeight, &xwc);
+        XConfigureWindow(padisplay, win->xmwhan, CWWidth|CWHeight, &xwc);
         XWUNLOCK();
+        /* change saved size to match */
+        win->xmwr.w = xwc.width;
+        win->xmwr.h = xwc.height;
+        /* wait for the configure response with correct sizes */
+        do { peekxevt(&xe); /* peek next event */
+        } while (xe.type != ConfigureNotify || xe.xconfigure.width != xwc.width ||
+                 xe.xconfigure.height != xwc.height || xe.xany.window != win->xmwhan);
         restore(win); /* restore buffer to screen */
 
     } else if (win->bufmod) { /* perform buffer off actions */

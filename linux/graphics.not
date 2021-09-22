@@ -58,5 +58,3 @@ the size of the window to minimum hangs.
 21. Management test/Minimize/Maximize test does not work, and there is no
 mechanisim for this at present. I am researching it.
 
-22. Management test/The Child windows torture test does not appear to do 
-anything.
