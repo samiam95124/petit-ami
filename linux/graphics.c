@@ -707,14 +707,17 @@ static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, int wid,
 
 /** ****************************************************************************
 
-Present dialog
+Present error dialog
 
 Presents the given text in a dialog. Used for graphical errors. Tries to be
 standalone, using little or no other resources in the system.
 
 *******************************************************************************/
 
-static void dialog(char* s)
+static void errdlg(
+    /** dialog title */    char* t,
+    /** dialog contents */ char* s
+)
 
 {
 
@@ -722,28 +725,43 @@ static void dialog(char* s)
     GC           gracxt;
     XEvent       e;
     XFontStruct* font;
+    int          mw, wd;
 
-
+    XWLOCK();
     font = XLoadQueryFont(padisplay,
         "-unregistered-latin modern sans-bold-o-normal--0-0-200-200-p-0-iso8859-1");
 
+    /* minimum width for dialog system bar */
+    mw = XTextWidth(font, t, strlen(t))+200; /* minimum width for dialog system bar */
+    wd = XTextWidth(font, s, strlen(s)); /* minimum width for dialog contents */
+    if (wd > mw) mw = wd; /* set minimum overall */
+
     w = XCreateSimpleWindow(padisplay, RootWindow(padisplay, pascreen), 10, 10,
-                            XTextWidth(font, s, strlen(s))+40, 100, 5,
-                            BlackPixel(padisplay, pascreen), WhitePixel(padisplay, pascreen));
+                            mw+40, 100, 5,
+                            BlackPixel(padisplay, pascreen),
+                            WhitePixel(padisplay, pascreen));
     XSelectInput(padisplay, w, ExposureMask|KeyPressMask);
     XMapWindow(padisplay, w);
     gracxt = XCreateGC(padisplay, w, 0, NULL);
     XSetFont(padisplay, gracxt, font->fid);
 
+    XStoreName(padisplay, w, t);
+    XSetIconName(padisplay, w, t);
+    XWUNLOCK();
+
     do {
 
+        XWLOCK();
         XNextEvent(padisplay, &e);
-        if (e.type == Expose)
-            XDrawString(padisplay, e.xany.window, gracxt, 20, 50, s, strlen(s));
+        XWUNLOCK();
+        if (e.type == Expose && e.xany.window == w)
+            XDrawString(padisplay, e.xany.window, gracxt, mw/2-wd/2, 50, s, strlen(s));
         else if (e.type == KeyPress) break; /* exit on any key */
 
     } while (e.type != KeyPress); /* exit on any key */
+    XWLOCK();
     XDestroyWindow(padisplay, w);
+    XWUNLOCK();
 
 }
 
@@ -852,14 +870,10 @@ static void error(errcod e)
 
 {
 
-    char cb[100]; /* buffer for dialog string */
-
     if (dialogerr) {
 
         /* send error to dialog */
-        strcpy(cb, "*** Error: graphics: ");
-        strcat(cb, errstr(e));
-        dialog(cb);
+        errdlg("Graphics Module", errstr(e));
 
     } else {
 
@@ -889,12 +903,12 @@ static int xerror(Display* d, XErrorEvent* e)
     if (dialogerr) {
 
         /* send error to dialog */
-        dialog("*** Error: XWindows: General error");
+        errdlg("Graphics Module", "XWindow error");
 
     } else {
 
         /* send error to console */
-        fprintf(stderr, "XWindow error\n");
+        fprintf(stderr, "*** Error: graphics: XWindow error\n");
         fflush(stderr); /* make sure error message is output */
 
     }

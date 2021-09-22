@@ -1010,10 +1010,10 @@ static void grawrterr(char* es)
 {
 
     unlockmain(); /* end exclusive access */
-    if (dialogerr) pa_alert("Graph Module", es);
+    if (dialogerr) pa_alert("Graphics Module", es);
     else {
 
-        fprintf(stderr, "\nError: Graph: ");
+        fprintf(stderr, "\nError: Graphics: ");
         fprintf(stderr, es);
         fprintf(stderr, "\n");
 
