@@ -24,37 +24,30 @@ smilar algorithim. Right now the storage allocation can climb to infinity.
 in Ubuntu. We can introduce a mode to verify if holds the _NET_FRAME_EXTENTS
 property. Note that not all window managers obey this standard.
 
-10. The delayed window presentation code improves the time to display windows,
+9. The delayed window presentation code improves the time to display windows,
 but the delay still shows up in stacked menus. We can do better by delaying most
 of the window parameters for an open call when it is really required.
 
-11. The cursor seems to be getting erased by menus.
-
-12. Lots of black space in the management_test.c x and y progressive resize 
+10. Lots of black space in the management_test.c x and y progressive resize 
 tests. Why is the refresh so slow?
 
-13. Management test, frame controls buffered, turning entire frame on, black
+11. Management test, frame controls buffered, turning entire frame on, black
 space is left to right and bottom.
 
-14. Management test, frame controls buffered, text seems very large.
-
-15. Management test, frame controls unbuffered, refresh does not work. Easy to
-move the window and see unpainted sections.
-
-16. Management test/child windows test character, if the cursors are left on,
+12. Management test/child windows test character, if the cursors are left on,
 the child windows don't accept focus.
 
-17. Management test/child windows test character, turn off cursor in child 
+13. Management test/child windows test character, turn off cursor in child 
 windows.
 
-18. setsizg() below minimums gives XWindows error.
+14. setsizg() below minimums gives XWindows error.
 
-19. Windows rejects attempts to size the terminal font, Linux should do the 
+15. Windows rejects attempts to size the terminal font, Linux should do the 
 same.
 
-20. Management test/In "child windows stacking resize test pixel 2", reducing
+16. Management test/In "child windows stacking resize test pixel 2", reducing
 the size of the window to minimum hangs. 
 
-21. Management test/Minimize/Maximize test does not work, and there is no
+17. Management test/Minimize/Maximize test does not work, and there is no
 mechanisim for this at present. I am researching it.
 
