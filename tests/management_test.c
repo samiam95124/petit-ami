@@ -812,6 +812,117 @@ int main(void)
     printf("                                                            \n");
     waitnext();
 
+    /* *************** Child windows independent test character ************ */
+
+    putchar('\f');
+    chrgrid();
+    prtcen(pa_maxy(stdout), "Child windows independent test character");
+    pa_openwin(&stdin, &win2, stdout, 2);
+    pa_setpos(win2, 11, 10);
+    pa_sizbuf(win2, 30, 10);
+    pa_setsiz(win2, 30, 10);
+    pa_openwin(&stdin, &win3, stdout, 3);
+    pa_setpos(win3, 41, 10);
+    pa_sizbuf(win3, 30, 10);
+    pa_setsiz(win3, 30, 10);
+    pa_bcolor(win2, pa_cyan);
+    putc('\f', win2);
+    fprintf(win2, "I am child window 1\n");
+    pa_bcolor(win3, pa_yellow);
+    putc('\f', win3);
+    fprintf(win3, "I am child window 2\n");
+    pa_home(stdout);
+    printf("There should be 3 labeled child windows below, with frames   \n");
+    printf("(the system may not implement frames on child windows)       \n");
+    printf("Test focus can be moved between windows, test windows can be \n");
+    printf("minimized and maximized (if framed), test entering           \n");
+    printf("characters to windows.                                       \n");
+    do {
+
+        pa_event(stdin, &er); /* get next event */
+        if (er.etype == pa_etchar) {
+
+            if (er.winid == 2) fputc(er.echar, win2);
+            else if (er.winid == 3) fputc(er.echar, win3);
+
+        } else if (er.etype == pa_etenter) {
+
+            /* translate the crs so we can test scrolling */
+            if (er.winid == 2) fputc('\n', win2);
+            else if (er.winid == 3) fputc('\n', win3);
+
+        } else if (er.etype == pa_etterm && er.winid == 1)
+            /* only take terminations from main window */
+            longjmp(terminate_buf, 1);
+
+    /* terminate on cr to the main window only */
+    } while (er.etype != pa_etenter || er.winid != 1);
+    fclose(win2);
+    fclose(win3);
+    pa_home(stdout);
+    printf("Child windows should all be closed                           \n");
+    printf("                                                             \n");
+    printf("                                                             \n");
+    printf("                                                             \n");
+    printf("                                                             \n");
+    waitnext();
+
+#endif
+    /* ******************** Child windows independent test pixel ************** */
+
+    putchar('\f');
+    sqrrat(&xs, &ys, 2); /* find square ratio */
+    prtcen(pa_maxy(stdout), "Child windows test pixel");
+    pa_openwin(&stdin, &win2, stdout, 2);
+    pa_setposg(win2, xs*0+xs/5, ys/2);
+    pa_sizbufg(win2, xs, ys);
+    pa_setsizg(win2, xs, ys);
+    pa_openwin(&stdin, &win3, stdout, 3);
+    pa_setposg(win3, xs*1+xs/5, ys/2);
+    pa_sizbufg(win3, xs, ys);
+    pa_setsizg(win3, xs, ys);
+    pa_bcolor(win2, pa_cyan);
+    putc('\f', win2);
+    fprintf(win2, "I am child window 1\n");
+    pa_bcolor(win3, pa_yellow);
+    putc('\f', win3);
+    fprintf(win3, "I am child window 2\n");
+    pa_home(stdout);
+    printf("There should be 3 labled child windows below, with frames   \n");
+    printf("(the system may not implement frames on child windows)      \n");
+    printf("Test focus can be moved between windows, test windows can be \n");
+    printf("minimized and maximized (if framed), test entering           \n");
+    printf("characters to windows.                                       \n");
+    do {
+
+        pa_event(stdin, &er); /* get next event */
+        if (er.etype == pa_etchar) {
+
+            if (er.winid == 2) fputc(er.echar, win2);
+            else if (er.winid == 3) fputc(er.echar, win3);
+
+        } else if (er.etype == pa_etenter) {
+
+            /* translate the crs so we can test scrolling */
+            if (er.winid == 2) fputc('\n', win2);
+            else if (er.winid == 3) fputc('\n', win3);
+
+        } else if (er.etype == pa_etterm && er.winid == 1)
+            /* only take terminations from main window */
+            longjmp(terminate_buf, 1);
+
+    /* terminate on cr to the main window only */
+    } while (er.etype != pa_etenter || er.winid != 1);
+    fclose(win2);
+    fclose(win3);
+    pa_home(stdout);
+    printf("Child windows should all be closed                          \n");
+    printf("                                                            \n");
+    printf("                                                            \n");
+    printf("                                                            \n");
+    printf("                                                            \n");
+    waitnext();
+
     /* ******************* Child windows stacking test pixel ******************* */
 
     putchar('\f');
@@ -920,7 +1031,6 @@ int main(void)
     printf("Child windows should all be closed                          \n");
     waitnext();
 
-#endif
     /* ************** Child windows stacking resize test pixel 2 *************** */
 
     sqrrat(&xs, &ys, 20); /* find square ratio */

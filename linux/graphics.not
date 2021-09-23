@@ -31,19 +31,19 @@ of the window parameters for an open call when it is really required.
 10. Lots of black space in the management_test.c x and y progressive resize 
 tests. Why is the refresh so slow?
 
+I suspect the WM communication in the path is slowing it down.
+
 11. Management test, frame controls buffered, turning entire frame on, black
 space is left to right and bottom.
 
-12. Management test/child windows test character, if the cursors are left on,
-the child windows don't accept focus.
+12. Management test/child windows independent test character, if the cursors are
+left on, the child windows don't accept focus.
 
-13. setsizg() below minimums gives XWindows error.
+The child window does not appear to get a focus event, even if clicked, but does
+get keyboard input. Thus this is non-sensical. It cannot send keys to the given
+window unless it got focus, but the event is supressed. May have to do our own
+focus event generation based on enter and leave events. Post a example to
+stack overflow before trying this.
 
-14. Windows rejects attempts to size the terminal font, Linux should do the 
-same.
-
-15. Management test/In "child windows stacking resize test pixel 2", reducing
-the size of the window to minimum hangs. 
-
-16. Management test/Minimize/Maximize test does not work, and there is no
+14. Management test/Minimize/Maximize test does not work, and there is no
 mechanisim for this at present. I am researching it.
