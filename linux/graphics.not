@@ -6,37 +6,35 @@ number of non-obsolete fonts.
 2. Need pa_joybutton() and pa_joyaxis() calls to get the real limits from the
 joystick ioctl interface.
 
-3. Implement multiple joystick handling.
+3. Need to implement multitask locking broadly across the code.
 
-4. Need to implement multitask locking broadly across the code.
-
-5. Joystick events and frame timer events must go to either a window or all 
+4. Joystick events and frame timer events must go to either a window or all 
 windows.
 
-6. Need to reconcille windows xor, and or modes with XWindows at some point. 
+5. Need to reconcille windows xor, and or modes with XWindows at some point. 
 Windows does not allow modes on text, reportedly because it does not work with
 antialiasing (it may have worked a long time ago).
 
-7. Need to limit the number of cached pictures by paging out the oldest or
+6. Need to limit the number of cached pictures by paging out the oldest or
 smilar algorithim. Right now the storage allocation can climb to infinity.
 
-8. Presently we assume the parent of our window holds the frame, which is true
+7. Presently we assume the parent of our window holds the frame, which is true
 in Ubuntu. We can introduce a mode to verify if holds the _NET_FRAME_EXTENTS
 property. Note that not all window managers obey this standard.
 
-9. The delayed window presentation code improves the time to display windows,
+8. The delayed window presentation code improves the time to display windows,
 but the delay still shows up in stacked menus. We can do better by delaying most
 of the window parameters for an open call when it is really required.
 
-10. Lots of black space in the management_test.c x and y progressive resize 
+9. Lots of black space in the management_test.c x and y progressive resize 
 tests. Why is the refresh so slow?
 
 I suspect the WM communication in the path is slowing it down.
 
-11. Management test, frame controls buffered, turning entire frame on, black
+10. Management test, frame controls buffered, turning entire frame on, black
 space is left to right and bottom.
 
-12. Management test/child windows independent test character, if the cursors are
+11. Management test/child windows independent test character, if the cursors are
 left on, the child windows don't accept focus.
 
 The child window does not appear to get a focus event, even if clicked, but does
@@ -45,5 +43,5 @@ window unless it got focus, but the event is supressed. May have to do our own
 focus event generation based on enter and leave events. Post a example to
 stack overflow before trying this.
 
-14. Management test/Minimize/Maximize test does not work, and there is no
+12. Management test/Minimize/Maximize test does not work, and there is no
 mechanisim for this at present. I am researching it.

@@ -8656,12 +8656,14 @@ static void joyevt(pa_evtrec* er, int* keep, joyptr jp)
             if (ev.value) { /* assert */
 
                 er->etype = pa_etjoyba; /* set assert */
+                er->winid = 0; /* set impossible window number */
                 er->ajoyn = jp->joyno; /* set logical joystick number */
                 er->ajoybn = ev.number; /* set button number */
 
             } else { /* deassert */
 
                 er->etype = pa_etjoybd; /* set assert */
+                er->winid = 0; /* set impossible window number */
                 er->djoyn = jp->joyno; /* set logical joystick number */
                 er->djoybn = ev.number; /* set button number */
 
@@ -8677,7 +8679,8 @@ static void joyevt(pa_evtrec* er, int* keep, joyptr jp)
             else if (ev.number == 2) jp->joyaz = ev.value*(INT_MAX/32768);
 
             er->etype = pa_etjoymov; /* set joystick move */
-            er->mjoyn = 1; /* set joystick number */
+            er->winid = 0; /* set impossible window number */
+            er->mjoyn = jp->joyno; /* set joystick number */
             er->joypx = jp->joyax; /* place joystick axies */
             er->joypy = jp->joyay;
             er->joypz = jp->joyaz;
@@ -11429,7 +11432,7 @@ static void pa_init_graphics(int argc, char *argv[])
 
             }
 
-        } while (numjoy < MAXJOY && joytab[numjoy]->joyfid >= 0); /* no more joysticks */
+        } while (numjoy < MAXJOY && joyfid >= 0); /* no more joysticks */
 
     }
 
