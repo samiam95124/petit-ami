@@ -19,6 +19,10 @@ not correctly calculated. We need a test for this as well as a fix.
 
 2. I am seeing resize events missed on rapid window resizes.
 
+3. In child windows independent test character, if you fill the window with
+multiple lines, it does not scroll until you go off the bottom, as if the
+surface is bigger than the window.
+
 widget test
 
 1. Hitting a button gives it the keyboard focus. You then have to hit the client
