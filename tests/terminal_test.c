@@ -345,6 +345,7 @@ int main(int argc, char *argv[])
     pa_bcolor(stdout, pa_white);
     printf("\f");
     pa_curvis(stdout, FALSE);
+#if 0
     prtban("Terminal mode screen test vs. 1.0");
     prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
@@ -1026,6 +1027,7 @@ int main(int argc, char *argv[])
     printf("This is a test file\n");
     waitnext();
 
+#endif
     /* ****************************** Joystick test **************************** */
 
     if (pa_joystick(stdout) > 0) {  /* joystick test */
@@ -1039,68 +1041,42 @@ int main(int argc, char *argv[])
             pa_event(stdin, &er);
             if (er.etype == pa_etjoymov) {  /* joystick movement */
 
-                if (er.mjoyn == 1) {  /* joystick 1 */
-
-                    pa_cursor(stdout, 1, 3);
-                    printf("joystick: %3d x: %11d y: %11d z: %11d",
-                           er.mjoyn, er.joypx, er.joypy, er.joypz);
-                    plotjoy(4, er.joypx);
-                    plotjoy(5, er.joypy);
-                    plotjoy(6, er.joypz);
-
-                } else if (er.mjoyn == 2) {  /* joystick 2 */
-
-                    pa_cursor(stdout, 1, 7);
-                    printf("joystick: %3d x: %11d y: %11d z: %11d",
-                           er.mjoyn, er.joypx, er.joypy, er.joypz);
-                    plotjoy(8, er.joypx);
-                    plotjoy(9, er.joypy);
-                    plotjoy(10, er.joypz);
-
-                } else if (er.mjoyn == 3) {  /* joystick 3 */
-
-                    pa_cursor(stdout, 1, 11);
-                    printf("joystick: %3d x: %11d y: %11d z: %11d",
-                           er.mjoyn, er.joypx, er.joypy, er.joypz);
-                    plotjoy(11, er.joypx);
-                    plotjoy(12, er.joypy);
-                    plotjoy(13, er.joypz);
-
-                } else if (er.mjoyn == 4) {  /* joystick 4 */
-
-                    pa_cursor(stdout, 1, 14);
-                    printf("joystick: %3d x: %11d y: %11d z: %11d",
-                           er.mjoyn, er.joypx, er.joypy, er.joypz);
-                    plotjoy(15, er.joypx);
-                    plotjoy(16, er.joypy);
-                    plotjoy(17, er.joypz);
-
-                }
+                pa_cursor(stdout, 1, 3);
+                printf("joystick: %3d x: %11d y: %11d z: %11d\n",
+                       er.mjoyn, er.joypx, er.joypy, er.joypz);
+                printf("              4: %11d 5: %11d 6: %11d\n",
+                       er.joyp4, er.joyp5, er.joyp6);
+                plotjoy(5, er.joypx);
+                plotjoy(6, er.joypy);
+                plotjoy(7, er.joypz);
+                plotjoy(8, er.joyp4);
+                plotjoy(9, er.joyp5);
+                plotjoy(10, er.joyp6);
 
             } else if (er.etype == pa_etjoyba) {  /* joystick button assert */
 
                 if (er.ajoyn == 1) {  /* joystick 1 */
 
                     pa_cursor(stdout, 1, 18);
-                    printf("joystick: %d button assert:   %d",
+                    printf("joystick: %d button assert:   %2d",
                            er.ajoyn, er.ajoybn);
 
                 } else if (er.ajoyn == 2) {  /* joystick 2 */
 
                     pa_cursor(stdout, 1, 19);
-                    printf("joystick: %d button assert:   %d",
+                    printf("joystick: %d button assert:   %2d",
                            er.ajoyn, er.ajoybn);
 
                 } else if (er.ajoyn == 3) {  /* joystick 3 */
 
                     pa_cursor(stdout, 1, 20);
-                    printf("joystick: %d button assert:   %d",
+                    printf("joystick: %d button assert:   %2d",
                            er.ajoyn, er.ajoybn);
 
                 } else if (er.ajoyn == 4) {  /* joystick 4 */
 
                     pa_cursor(stdout, 1, 21);
-                    printf("joystick: %d button assert:   %d",
+                    printf("joystick: %d button assert:   %2d",
                            er.ajoyn, er.ajoybn);
 
                 }
@@ -1110,25 +1086,25 @@ int main(int argc, char *argv[])
                 if (er.djoyn == 1) {  /* joystick 1 */
 
                     pa_cursor(stdout, 1, 18);
-                    printf("joystick: %d button deassert: %d",
+                    printf("joystick: %d button deassert: %2d",
                            er.djoyn, er.djoybn);
 
                 } else if (er.djoyn == 2) {  /* joystick 2 */
 
                     pa_cursor(stdout, 1, 19);
-                    printf("joystick: %d button deassert: %d",
+                    printf("joystick: %d button deassert: %2d",
                            er.djoyn, er.djoybn);
 
                 } else if (er.djoyn == 3) {  /* joystick 3 */
 
                     pa_cursor(stdout, 1, 20);
-                    printf("joystick: %d button deassert: %d",
+                    printf("joystick: %d button deassert: %2d",
                            er.djoyn, er.djoybn);
 
                 } else if (er.djoyn == 4) {  /* joystick 4 */
 
                     pa_cursor(stdout, 1, 21);
-                    printf("joystick: %d button deassert: %d",
+                    printf("joystick: %d button deassert: %2d",
                            er.djoyn, er.djoybn);
 
                 }

@@ -185,6 +185,7 @@ typedef struct {
 
             /** joystick number */      int mjoyn;
             /** joystick coordinates */ int joypx, joypy, joypz;
+                                        int joyp4, joyp5, joyp6;
 
         };
         /* pa_etresize */

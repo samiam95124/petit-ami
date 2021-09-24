@@ -621,6 +621,9 @@ typedef struct joyrec {
     int ax;     /* joystick x axis save */
     int ay;     /* joystick y axis save */
     int az;     /* joystick z axis save */
+    int a4;     /* joystick axis 4 save */
+    int a5;     /* joystick axis 5 save */
+    int a6;     /* joystick axis 6 save */
     int no;     /* logical number of joystick, 1-n */
 
 } joyrec;
@@ -8668,14 +8671,14 @@ static void joyevt(pa_evtrec* er, int* keep, joyptr jp)
                 er->etype = pa_etjoyba; /* set assert */
                 er->winid = 0; /* set impossible window number */
                 er->ajoyn = jp->no; /* set logical joystick number */
-                er->ajoybn = ev.number; /* set button number */
+                er->ajoybn = ev.number+1; /* set button number */
 
             } else { /* deassert */
 
                 er->etype = pa_etjoybd; /* set assert */
                 er->winid = 0; /* set impossible window number */
                 er->djoyn = jp->no; /* set logical joystick number */
-                er->djoybn = ev.number; /* set button number */
+                er->djoybn = ev.number+1; /* set button number */
 
             }
             *keep = TRUE; /* set keep event */
@@ -8687,14 +8690,26 @@ static void joyevt(pa_evtrec* er, int* keep, joyptr jp)
             if (ev.number == 0) jp->ax = ev.value*(INT_MAX/32768);
             else if (ev.number == 1) jp->ay = ev.value*(INT_MAX/32768);
             else if (ev.number == 2) jp->az = ev.value*(INT_MAX/32768);
+            else if (ev.number == 3) jp->a4 = ev.value*(INT_MAX/32768);
+            else if (ev.number == 4) jp->a5 = ev.value*(INT_MAX/32768);
+            else if (ev.number == 5) jp->a6 = ev.value*(INT_MAX/32768);
 
-            er->etype = pa_etjoymov; /* set joystick move */
-            er->winid = 0; /* set impossible window number */
-            er->mjoyn = jp->no; /* set joystick number */
-            er->joypx = jp->ax; /* place joystick axies */
-            er->joypy = jp->ay;
-            er->joypz = jp->az;
-            *keep = TRUE; /* set keep event */
+            /* we support up to 6 axes on a joystick. After 6, they get thrown
+               out, leaving just the buttons to respond */
+            if (ev.number < 6) {
+
+                er->etype = pa_etjoymov; /* set joystick move */
+                er->winid = 0; /* set impossible window number */
+                er->mjoyn = jp->no; /* set joystick number */
+                er->joypx = jp->ax; /* place joystick axies */
+                er->joypy = jp->ay;
+                er->joypz = jp->az;
+                er->joyp4 = jp->a4;
+                er->joyp5 = jp->a5;
+                er->joyp6 = jp->a6;
+                *keep = TRUE; /* set keep event */
+
+            }
 
         }
 
@@ -9812,10 +9827,15 @@ int pa_joyaxis(FILE* f, int j)
 
 {
 
+    int ja;
+
     if (j < 1 || j > numjoy) error(einvjoy); /* bad joystick id */
     if (!joytab[j-1]) error(esystem); /* should be a table entry */
 
-    return (joytab[j-1]->axis); /* set axis number */
+    ja = joytab[j-1]->axis; /* get axis number */
+    if (ja > 6) ja = 6; /* limit to 6 maximum */
+
+    return (ja); /* set axis number */
 
 }
 
@@ -11476,6 +11496,9 @@ static void pa_init_graphics(int argc, char *argv[])
                 joytab[numjoy]->ax = 0; /* clear joystick axis saves */
                 joytab[numjoy]->ay = 0;
                 joytab[numjoy]->az = 0;
+                joytab[numjoy]->a4 = 0;
+                joytab[numjoy]->a5 = 0;
+                joytab[numjoy]->a6 = 0;
                 joytab[numjoy]->no = numjoy+1; /* set logical number */
                 /* get number of axes */
                 ioctl(joyfid, JSIOCGAXES, &jc);
