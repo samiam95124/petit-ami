@@ -1,0 +1,11 @@
+                                       Management test notes
+                                       
+1. Need test for focus events.
+
+2. Need test for hover events.
+
+3. Tests for window configuration changes with menu on. This includes things
+like frame off/on, etc. Make sure that the client area and menu are maintained
+during these changes.
+
+4. Need tests for buffer follow mode.
