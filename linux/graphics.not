@@ -3,12 +3,9 @@
 1. Graphics needs a TrueType facillity like FreeType to give it a reasonable 
 number of non-obsolete fonts.
 
-2. Need pa_joybutton() and pa_joyaxis() calls to get the real limits from the
-joystick ioctl interface.
+2. Need to implement multitask locking broadly across the code.
 
-3. Need to implement multitask locking broadly across the code.
-
-4. Joystick events and frame timer events must go to either a window or all 
+3. Joystick events and frame timer events must go to either a window or all 
 windows.
 
 The first one to call pa_event() eats the joystick event, so there would have
@@ -18,30 +15,30 @@ a test in management_test using multiple input files and multiple queues.
 For frame timer, that is set per window, and would only fail if the actual
 source of it was a scan interrupt, which does not exist.
 
-5. Need to reconcille windows xor, and or modes with XWindows at some point. 
+4. Need to reconcille windows xor, and or modes with XWindows at some point. 
 Windows does not allow modes on text, reportedly because it does not work with
 antialiasing (it may have worked a long time ago).
 
-6. Need to limit the number of cached pictures by paging out the oldest or
+5. Need to limit the number of cached pictures by paging out the oldest or
 smilar algorithim. Right now the storage allocation can climb to infinity.
 
-7. Presently we assume the parent of our window holds the frame, which is true
+6. Presently we assume the parent of our window holds the frame, which is true
 in Ubuntu. We can introduce a mode to verify if holds the _NET_FRAME_EXTENTS
 property. Note that not all window managers obey this standard.
 
-8. The delayed window presentation code improves the time to display windows,
+7. The delayed window presentation code improves the time to display windows,
 but the delay still shows up in stacked menus. We can do better by delaying most
 of the window parameters for an open call when it is really required.
 
-9. Lots of black space in the management_test.c x and y progressive resize 
+8. Lots of black space in the management_test.c x and y progressive resize 
 tests. Why is the refresh so slow?
 
 I suspect the WM communication in the path is slowing it down.
 
-10. Management test, frame controls buffered, turning entire frame on, black
+9. Management test, frame controls buffered, turning entire frame on, black
 space is left to right and bottom.
 
-11. Management test/child windows independent test character, if the cursors are
+10. Management test/child windows independent test character, if the cursors are
 left on, the child windows don't accept focus.
 
 The child window does not appear to get a focus event, even if clicked, but does
@@ -50,5 +47,5 @@ window unless it got focus, but the event is supressed. May have to do our own
 focus event generation based on enter and leave events. Post a example to
 stack overflow before trying this.
 
-12. Management test/Minimize/Maximize test does not work, and there is no
+11. Management test/Minimize/Maximize test does not work, and there is no
 mechanisim for this at present. I am researching it.

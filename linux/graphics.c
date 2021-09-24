@@ -615,11 +615,13 @@ typedef struct paevtque {
 typedef struct joyrec* joyptr; /* pointer to joystick record */
 typedef struct joyrec {
 
-    int joyfid; /* joystick file id */
-    int joyax;  /* joystick x axis save */
-    int joyay;  /* joystick y axis save */
-    int joyaz;  /* joystick z axis save */
-    int joyno;  /* logical number of joystick, 1-n */
+    int fid;    /* joystick file id */
+    int axis;   /* number of joystick axes */
+    int button; /* number of joystick buttons */
+    int ax;     /* joystick x axis save */
+    int ay;     /* joystick y axis save */
+    int az;     /* joystick z axis save */
+    int no;     /* logical number of joystick, 1-n */
 
 } joyrec;
 
@@ -8655,7 +8657,7 @@ static void joyevt(pa_evtrec* er, int* keep, joyptr jp)
 
     struct js_event ev;
 
-    read(jp->joyfid, &ev, sizeof(ev)); /* get next joystick event */
+    read(jp->fid, &ev, sizeof(ev)); /* get next joystick event */
     if (!(ev.type & JS_EVENT_INIT)) {
 
         if (ev.type & JS_EVENT_BUTTON) {
@@ -8665,14 +8667,14 @@ static void joyevt(pa_evtrec* er, int* keep, joyptr jp)
 
                 er->etype = pa_etjoyba; /* set assert */
                 er->winid = 0; /* set impossible window number */
-                er->ajoyn = jp->joyno; /* set logical joystick number */
+                er->ajoyn = jp->no; /* set logical joystick number */
                 er->ajoybn = ev.number; /* set button number */
 
             } else { /* deassert */
 
                 er->etype = pa_etjoybd; /* set assert */
                 er->winid = 0; /* set impossible window number */
-                er->djoyn = jp->joyno; /* set logical joystick number */
+                er->djoyn = jp->no; /* set logical joystick number */
                 er->djoybn = ev.number; /* set button number */
 
             }
@@ -8682,16 +8684,16 @@ static void joyevt(pa_evtrec* er, int* keep, joyptr jp)
         if (ev.type & JS_EVENT_AXIS) {
 
             /* update the axies */
-            if (ev.number == 0) jp->joyax = ev.value*(INT_MAX/32768);
-            else if (ev.number == 1) jp->joyay = ev.value*(INT_MAX/32768);
-            else if (ev.number == 2) jp->joyaz = ev.value*(INT_MAX/32768);
+            if (ev.number == 0) jp->ax = ev.value*(INT_MAX/32768);
+            else if (ev.number == 1) jp->ay = ev.value*(INT_MAX/32768);
+            else if (ev.number == 2) jp->az = ev.value*(INT_MAX/32768);
 
             er->etype = pa_etjoymov; /* set joystick move */
             er->winid = 0; /* set impossible window number */
-            er->mjoyn = jp->joyno; /* set joystick number */
-            er->joypx = jp->joyax; /* place joystick axies */
-            er->joypy = jp->joyay;
-            er->joypz = jp->joyaz;
+            er->mjoyn = jp->no; /* set joystick number */
+            er->joypx = jp->ax; /* place joystick axies */
+            er->joypy = jp->ay;
+            er->joypz = jp->az;
             *keep = TRUE; /* set keep event */
 
         }
@@ -9348,7 +9350,7 @@ static joyptr schjoy(int fid)
 
     jp = NULL; /* set no entry */
     for (ji = 0; ji < numjoy; ji++)
-        if (joytab[ji] && joytab[ji]->joyfid == fid) jp = joytab[ji];
+        if (joytab[ji] && joytab[ji]->fid == fid) jp = joytab[ji];
 
     return (jp);
 
@@ -9790,8 +9792,9 @@ int pa_joybutton(FILE* f, int j)
 {
 
     if (j < 1 || j > numjoy) error(einvjoy); /* bad joystick id */
+    if (!joytab[j-1]) error(esystem); /* should be a table entry */
 
-    return (3); /* return button number */
+    return (joytab[j-1]->button); /* return button number */
 
 }
 
@@ -9810,8 +9813,9 @@ int pa_joyaxis(FILE* f, int j)
 {
 
     if (j < 1 || j > numjoy) error(einvjoy); /* bad joystick id */
+    if (!joytab[j-1]) error(esystem); /* should be a table entry */
 
-    return (3); /* set axis number */
+    return (joytab[j-1]->axis); /* set axis number */
 
 }
 
@@ -11250,6 +11254,7 @@ static void pa_init_graphics(int argc, char *argv[])
     int       ji;
     char      joyfil[] = "/dev/input/js0";
     int       joyfid;
+    char      jc;
 
     /* clear malloc in use total */
     memusd = 0; /* total memory in use *
@@ -11467,11 +11472,17 @@ static void pa_init_graphics(int argc, char *argv[])
                     ifdmax = joyfid+1; /* set maximum fid for select() */
                 /* get a joystick table entry */
                 joytab[numjoy] = imalloc(sizeof(joyrec));
-                joytab[numjoy]->joyfid = joyfid; /* set fid */
-                joytab[numjoy]->joyax = 0; /* clear joystick axis saves */
-                joytab[numjoy]->joyay = 0;
-                joytab[numjoy]->joyaz = 0;
-                joytab[numjoy]->joyno = numjoy+1; /* set logical number */
+                joytab[numjoy]->fid = joyfid; /* set fid */
+                joytab[numjoy]->ax = 0; /* clear joystick axis saves */
+                joytab[numjoy]->ay = 0;
+                joytab[numjoy]->az = 0;
+                joytab[numjoy]->no = numjoy+1; /* set logical number */
+                /* get number of axes */
+                ioctl(joyfid, JSIOCGAXES, &jc);
+                joytab[numjoy]->axis = jc;
+                /* get number of buttons */
+                ioctl(joyfid, JSIOCGBUTTONS, &jc);
+                joytab[numjoy]->button = jc;
                 numjoy++; /* count joysticks */
 
             }
@@ -11552,7 +11563,7 @@ static void pa_deinit_graphics()
     XWUNLOCK();
 
     /* close joysticks */
-    for (ji = 0; ji < MAXJOY; ji++) if (joytab[ji]) close(joytab[ji]->joyfid);
+    for (ji = 0; ji < MAXJOY; ji++) if (joytab[ji]) close(joytab[ji]->fid);
 
     /* swap old vectors for existing vectors */
     ovr_read(ofpread, &cppread);

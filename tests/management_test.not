@@ -9,3 +9,5 @@ like frame off/on, etc. Make sure that the client area and menu are maintained
 during these changes.
 
 4. Need tests for buffer follow mode.
+
+5. Test for multiple input queues.
