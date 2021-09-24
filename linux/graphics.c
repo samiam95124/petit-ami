@@ -417,11 +417,15 @@ typedef struct winrec {
     int          mb1;               /* mouse assert status button 1 */
     int          mb2;               /* mouse assert status button 2 */
     int          mb3;               /* mouse assert status button 3 */
+    int          mb4;               /* mouse assert status button 4 */
+    int          mb5;               /* mouse assert status button 5 */
     int          mpx, mpy;          /* mouse current position */
     int          mpxg, mpyg;        /* mouse current position graphical */
     int          nmb1;              /* new mouse assert status button 1 */
     int          nmb2;              /* new mouse assert status button 2 */
     int          nmb3;              /* new mouse assert status button 3 */
+    int          nmb4;              /* new mouse assert status button 4 */
+    int          nmb5;              /* new mouse assert status button 5 */
     int          nmpx, nmpy;        /* new mouse current position */
     int          nmpxg, nmpyg;      /* new mouse current position graphical */
     int          linespace;         /* line spacing in pixels */
@@ -3311,6 +3315,8 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
     win->mb1 = FALSE; /* set mouse as assumed no buttons down, at origin */
     win->mb2 = FALSE;
     win->mb3 = FALSE;
+    win->mb4 = FALSE;
+    win->mb5 = FALSE;
     win->mpx = 1;
     win->mpy = 1;
     win->mpxg = 1;
@@ -3318,6 +3324,8 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
     win->nmb1 = FALSE;
     win->nmb2 = FALSE;
     win->nmb3 = FALSE;
+    win->nmb4 = FALSE;
+    win->nmb5 = FALSE;
     win->nmpx = 1;
     win->nmpy = 1;
     win->nmpxg = 1;
@@ -8746,6 +8754,22 @@ static void mouseupdate(winptr win, pa_evtrec* er, int* keep)
        win->mb3 = win->nmb3; /* update status */
        *keep = TRUE; /* set to keep */
 
+    } else if (win->nmb4 > win->mb4) {
+
+       er->etype = pa_etmouba; /* button 4 assert */
+       er->amoun = 1; /* mouse 1 */
+       er->amoubn = 4; /* button 3 */
+       win->mb4 = win->nmb4; /* update status */
+       *keep = TRUE; /* set to keep */
+
+    } else if (win->nmb5 > win->mb5) {
+
+       er->etype = pa_etmouba; /* button 5 assert */
+       er->amoun = 1; /* mouse 1 */
+       er->amoubn = 5; /* button 3 */
+       win->mb5 = win->nmb5; /* update status */
+       *keep = TRUE; /* set to keep */
+
     } else if (win->nmb1 < win->mb1) {
 
        er->etype = pa_etmoubd; /* button 1 deassert */
@@ -8768,6 +8792,22 @@ static void mouseupdate(winptr win, pa_evtrec* er, int* keep)
        er->dmoun = 1; /* mouse 1 */
        er->dmoubn = 3; /* button 3 */
        win->mb3 = win->nmb3; /* update status */
+       *keep = TRUE; /* set to keep */
+
+    } else if (win->nmb4 < win->mb4) {
+
+       er->etype = pa_etmoubd; /* button 4 deassert */
+       er->dmoun = 1; /* mouse 1 */
+       er->dmoubn = 4; /* button 3 */
+       win->mb4 = win->nmb4; /* update status */
+       *keep = TRUE; /* set to keep */
+
+    } else if (win->nmb5 < win->mb5) {
+
+       er->etype = pa_etmoubd; /* button 5 deassert */
+       er->dmoun = 1; /* mouse 1 */
+       er->dmoubn = 5; /* button 3 */
+       win->mb5 = win->nmb5; /* update status */
        *keep = TRUE; /* set to keep */
 
     }
@@ -8793,12 +8833,16 @@ static void mouseevent(winptr win, XEvent* e)
         if (e->xbutton.button == Button1) win->nmb1 = TRUE;
         else if (e->xbutton.button == Button2) win->nmb2 = TRUE;
         else if (e->xbutton.button == Button3) win->nmb3 = TRUE;
+        else if (e->xbutton.button == Button4) win->nmb4 = TRUE;
+        else if (e->xbutton.button == Button5) win->nmb5 = TRUE;
 
     } else if (e->type = ButtonRelease) {
 
         if (e->xbutton.button == Button1) win->nmb1 = FALSE;
         else if (e->xbutton.button == Button2) win->nmb2 = FALSE;
         else if (e->xbutton.button == Button3) win->nmb3 = FALSE;
+        else if (e->xbutton.button == Button4) win->nmb4 = FALSE;
+        else if (e->xbutton.button == Button5) win->nmb5 = FALSE;
 
     }
 
@@ -9699,7 +9743,7 @@ int pa_mouse(FILE* f)
 Return number of buttons on mouse
 
 Returns the number of buttons on the mouse. There is only one mouse in this
-version. XWindow supports from 1 to 5 buttons, but we limit it to 3.
+version. XWindow supports from 1 to 5 buttons.
 
 *******************************************************************************/
 
@@ -9707,7 +9751,7 @@ int pa_mousebutton(FILE* f, int m)
 
 {
 
-    return 3;
+    return 5;
 
 }
 

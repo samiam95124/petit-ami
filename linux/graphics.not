@@ -11,6 +11,13 @@ joystick ioctl interface.
 4. Joystick events and frame timer events must go to either a window or all 
 windows.
 
+The first one to call pa_event() eats the joystick event, so there would have
+to be some tricks to this, like queuing copies to all active inputs. It needs
+a test in management_test using multiple input files and multiple queues.
+
+For frame timer, that is set per window, and would only fail if the actual
+source of it was a scan interrupt, which does not exist.
+
 5. Need to reconcille windows xor, and or modes with XWindows at some point. 
 Windows does not allow modes on text, reportedly because it does not work with
 antialiasing (it may have worked a long time ago).
