@@ -284,7 +284,11 @@ endif
 # PLIBS     Petit-Ami libraries without console or graphics.
 #
 ifeq ($(LINK_TYPE),static)
-    PLIBS += -Wl,--whole-archive bin/petit_ami_plain.a -Wl,--no-whole-archive
+    ifeq ($(OSTYPE),Darwin)
+    	PLIBS += bin/petit_ami_plain.a
+    else
+    	PLIBS += -Wl,--whole-archive bin/petit_ami_plain.a -Wl,--no-whole-archive
+    endif
 else
     PLIBS += bin/petit_ami_plain.so
 endif
@@ -297,7 +301,11 @@ endif
 # Terminal model API
 #
 ifeq ($(LINK_TYPE),static)
-    CLIBS += -Wl,--whole-archive bin/petit_ami_term.a -Wl,--no-whole-archive
+    ifeq ($(OSTYPE),Darwin)
+    	PLIBS += bin/petit_ami_plain.a
+    else
+    	PLIBS += -Wl,--whole-archive bin/petit_ami_term.a -Wl,--no-whole-archive
+    endif
 else
     CLIBS += stub/keeper.o bin/petit_ami_term.so 
 endif
@@ -306,7 +314,11 @@ endif
 # Graphical model API
 #
 ifeq ($(LINK_TYPE),static)
-	GLIBS += -Wl,--whole-archive bin/petit_ami_graph.a -Wl,--no-whole-archive
+    ifeq ($(OSTYPE),Darwin)
+    	PLIBS += bin/petit_ami_plain.a
+    else
+    	PLIBS += -Wl,--whole-archive bin/petit_ami_graph.a -Wl,--no-whole-archive
+    endif
 else
     GLIBS += stub/keeper.o bin/petit_ami_graph.so
 endif
