@@ -68,7 +68,7 @@
 #include <dirent.h>
 #include <limits.h>
 
-#ifdef __MACH__
+#ifdef __MACH__ /* Mac OS X */
 #include <mach-o/dyld.h>
 #endif
 
@@ -100,7 +100,7 @@ static enum { /* debug levels */
                                 fflush(stderr); } while (0)
 
 /* contains the program invocation path */
-#if defined(__linux) || defined(__MINGW32__)
+#if defined(__linux) || defined(__MINGW32__) /* Linux, Windows */
 extern char *program_invocation_name;
 #endif
 
@@ -1645,9 +1645,9 @@ void pa_getpgm(
     bufstr   n, e; /* name component holders */
     unsigned bl;   /* length of buffer holder */
 
-#if defined(__linux) || defined(__MINGW32__)
+#if defined(__linux) || defined(__MINGW32__) /* linux, Windows */
     strcpy(pn, program_invocation_name); /* copy invoke name to path */
-#else
+#else /* Mac OS X */
     bl = MAXSTR;
     _NSGetExecutablePath(pn, &bl);
 //    strcpy(pn, getprogname());
