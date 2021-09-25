@@ -1411,7 +1411,7 @@ a parameter.
 
 *******************************************************************************/
 
-void pa_wrsynth(int p, seqptr sp)
+void pa_wrsynth(int p, pa_seqptr sp)
 
 {
 
@@ -1440,7 +1440,7 @@ a full MIDI decoder.
 
 *******************************************************************************/
 
-void pa_rdsynth(int p, seqptr sp)
+void pa_rdsynth(int p, pa_seqptr sp)
 
 {
 

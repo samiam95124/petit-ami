@@ -554,7 +554,7 @@ else ifeq ($(OSTYPE),Darwin)
 #
 # Mac OS X cannot use .so files, but rather uses statically linked files.
 #
-bin/petit_ami_plain.a: macosx/services.o macosx/sound.o macosx/network.o 
+bin/petit_ami_plain.a: macosx/services.o macosx/sound.o macosx/network.o \
 	utils/config.o utils/option.o macosx/stdio.o
 	ar rcs bin/petit_ami_plain.a macosx/services.o macosx/sound.o \
         macosx/network.o utils/config.o utils/option.o macosx/stdio.o
