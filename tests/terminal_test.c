@@ -345,7 +345,6 @@ int main(int argc, char *argv[])
     pa_bcolor(stdout, pa_white);
     printf("\f");
     pa_curvis(stdout, FALSE);
-#if 0
     prtban("Terminal mode screen test vs. 1.0");
     prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
@@ -1027,7 +1026,6 @@ int main(int argc, char *argv[])
     printf("This is a test file\n");
     waitnext();
 
-#endif
     /* ****************************** Joystick test **************************** */
 
     if (pa_joystick(stdout) > 0) {  /* joystick test */

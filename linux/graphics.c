@@ -9784,13 +9784,7 @@ int pa_joystick(FILE* f)
 
 {
 
-    winptr win; /* window pointer */
-    int    jn;  /* joystick number */
-
-    win = txt2win(f); /* get window pointer from text file */
-    jn = numjoy; /* set number of joysticks */
-
-    return (jn);
+    return (numjoy); /* set number of joysticks */
 
 }
 

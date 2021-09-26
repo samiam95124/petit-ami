@@ -130,8 +130,8 @@ static enum { /* debug levels */
 
 #define MAXCON 10 /**< number of screen contexts */
 #define MAXLIN 250 /* maximum length of input buffered line */
-
 #define MAXFKEY 10 /**< maximum number of function keys */
+#define MAXJOY 10  /* number of joysticks possible */
 
 /* file handle numbers at the system interface level */
 
@@ -226,6 +226,24 @@ typedef struct { /* screen context */
 
 } scncon;
 /** pointer to screen context block */ typedef scncon* scnptr;
+
+/* Joystick tracking structure */
+typedef struct joyrec* joyptr; /* pointer to joystick record */
+typedef struct joyrec {
+
+    int fid;    /* joystick file id */
+    int axis;   /* number of joystick axes */
+    int button; /* number of joystick buttons */
+    int ax;     /* joystick x axis save */
+    int ay;     /* joystick y axis save */
+    int az;     /* joystick z axis save */
+    int a4;     /* joystick axis 4 save */
+    int a5;     /* joystick axis 5 save */
+    int a6;     /* joystick axis 6 save */
+    int no;     /* logical number of joystick, 1-n */
+
+} joyrec;
+
 /** Error codes this module */
 typedef enum {
 
@@ -242,7 +260,7 @@ typedef enum {
     einpdev,  /* input device error */
     einvtab,  /* invalid tab stop */
     einvjoy,  /* Invalid joystick ID */
-    esysflt   /* system fault */
+    esystem   /* system fault */
 
 } errcod;
 
@@ -370,43 +388,40 @@ static int timtbl[PA_MAXTIM];
 /**
  * Key matching input buffer
  */
-static char keybuf[10]; /* buffer */
-static int keylen;      /* number of characters in buffer */
-static int tabs[MAXXD]; /* tabs set */
-static int dimx;        /* actual width of screen */
-static int dimy;        /* actual height of screen */
-static int curon;       /* current on/off state of cursor */
-static int curx;        /* cursor position on screen */
-static int cury;
-static int curval; /* physical cursor position valid */
+static char   keybuf[10]; /* buffer */
+static int    keylen;      /* number of characters in buffer */
+static int    tabs[MAXXD]; /* tabs set */
+static int    dimx;        /* actual width of screen */
+static int    dimy;        /* actual height of screen */
+static int    curon;       /* current on/off state of cursor */
+static int    curx;        /* cursor position on screen */
+static int    cury;
+static int    curval; /* physical cursor position valid */
 /* global scroll enable. This does not reflect the physical state, we never
    turn on automatic scroll. */
-static int scroll;
+static int    scroll;
 /* current tracking states of mouse */
-static int button1;     /* button 1 state: 0=assert, 1=deassert */
-static int button2;     /* button 2 state: 0=assert, 1=deassert */
-static int button3;     /* button 3 state: 0=assert, 1=deassert */
-static int mpx;         /* mouse x/y current position */
-static int mpy;
+static int    button1;     /* button 1 state: 0=assert, 1=deassert */
+static int    button2;     /* button 2 state: 0=assert, 1=deassert */
+static int    button3;     /* button 3 state: 0=assert, 1=deassert */
+static int    mpx;         /* mouse x/y current position */
+static int    mpy;
 /* new, incoming states of mouse */
-static int nbutton1;    /* button 1 state: 0=assert, 1=deassert */
-static int nbutton2;    /* button 2 state: 0=assert, 1=deassert */
-static int nbutton3;    /* button 3 state: 0=assert, 1=deassert */
-static int nmpx;        /* mouse x/y current position */
-static int nmpy;
+static int    nbutton1;    /* button 1 state: 0=assert, 1=deassert */
+static int    nbutton2;    /* button 2 state: 0=assert, 1=deassert */
+static int    nbutton3;    /* button 3 state: 0=assert, 1=deassert */
+static int    nmpx;        /* mouse x/y current position */
+static int    nmpy;
 /* flag for windows change signal */
-static int winch;
+static int    winch;
 /* maximum power of 10 in integer */
-static int maxpow10;
-static int numjoy;      /* number of joysticks found */
-static int joyfid;      /* joystick file id */
-static int joyax;       /* joystick x axis save */
-static int joyay;       /* joystick y axis save */
-static int joyaz;       /* joystick z axis save */
-static int joyenb;      /* enable joysticks */
-static int frmfid;      /* framing timer fid */
-char   inpbuf[MAXLIN];  /* input line buffer */
-int    inpptr;          /* input line index */
+static int    maxpow10;
+static int    numjoy;      /* number of joysticks found */
+static int    joyenb;      /* enable joysticks */
+static int    frmfid;      /* framing timer fid */
+char          inpbuf[MAXLIN];  /* input line buffer */
+int           inpptr;          /* input line index */
+static joyptr joytab[MAXJOY]; /* joystick control table */
 
 /* forwards */
 static void restore(scnptr sc);
@@ -440,7 +455,7 @@ static void error(errcod e)
         case einpdev: fprintf(stderr, "Error in input device"); break;
         case einvtab: fprintf(stderr, "Invalid tab stop position"); break;
         case einvjoy: fprintf(stderr, "Invalid joystick ID"); break;
-        case esysflt: fprintf(stderr, "System fault"); break;
+        case esystem: fprintf(stderr, "System fault"); break;
 
     }
     fprintf(stderr, "\n");
@@ -683,13 +698,13 @@ data.
 *******************************************************************************/
 
 /* get and process a joystick event */
-static void joyevt(pa_evtrec* er, int* keep)
+static void joyevt(pa_evtrec* er, int* keep, joyptr jp)
 
 {
 
     struct js_event ev;
 
-    read(joyfid, &ev, sizeof(ev)); /* get next joystick event */
+    read(jp->fid, &ev, sizeof(ev)); /* get next joystick event */
     if (!(ev.type & JS_EVENT_INIT)) {
 
         if (ev.type & JS_EVENT_BUTTON) {
@@ -698,14 +713,14 @@ static void joyevt(pa_evtrec* er, int* keep)
             if (ev.value) { /* assert */
 
                 er->etype = pa_etjoyba; /* set assert */
-                er->ajoyn = 1; /* set joystick 1 */
-                er->ajoybn = ev.number; /* set button number */
+                er->ajoyn = jp->no; /* set joystick 1 */
+                er->ajoybn = ev.number+1; /* set button number */
 
             } else { /* deassert */
 
                 er->etype = pa_etjoybd; /* set assert */
-                er->djoyn = 1; /* set joystick 1 */
-                er->djoybn = ev.number; /* set button number */
+                er->djoyn = jp->no; /* set joystick 1 */
+                er->djoybn = ev.number+1; /* set button number */
 
             }
             *keep = TRUE; /* set keep event */
@@ -714,20 +729,48 @@ static void joyevt(pa_evtrec* er, int* keep)
         if (ev.type & JS_EVENT_AXIS) {
 
             /* update the axies */
-            if (ev.number == 0) joyax = ev.value*(INT_MAX/32768);
-            else if (ev.number == 1) joyay = -ev.value*(INT_MAX/32768);
-            else if (ev.number == 2) joyaz = ev.value*(INT_MAX/32768);
+            if (ev.number == 0) jp->ax = ev.value*(INT_MAX/32768);
+            else if (ev.number == 1) jp->ay = ev.value*(INT_MAX/32768);
+            else if (ev.number == 2) jp->az = ev.value*(INT_MAX/32768);
+            else if (ev.number == 3) jp->a4 = ev.value*(INT_MAX/32768);
+            else if (ev.number == 4) jp->a5 = ev.value*(INT_MAX/32768);
+            else if (ev.number == 5) jp->a6 = ev.value*(INT_MAX/32768);
 
-            er->etype = pa_etjoymov; /* set joystick move */
-            er->mjoyn = 1; /* set joystick number */
-            er->joypx = joyax; /* place joystick axies */
-            er->joypy = -joyay; /* flip y axis */
-            er->joypz = joyaz;
-            *keep = TRUE; /* set keep event */
+            /* we support up to 6 axes on a joystick. After 6, they get thrown
+               out, leaving just the buttons to respond */
+            if (ev.number < 6) {
+
+                er->etype = pa_etjoymov; /* set joystick move */
+                er->mjoyn = jp->no; /* set joystick number */
+                er->joypx = jp->ax; /* place joystick axies */
+                er->joypy = jp->ay;
+                er->joypz = jp->az;
+                er->joyp4 = jp->a4;
+                er->joyp5 = jp->a5;
+                er->joyp6 = jp->a6;
+                *keep = TRUE; /* set keep event */
+
+            }
 
         }
 
     }
+
+}
+
+/* search joystick table for signaling joystick */
+static joyptr schjoy(void)
+
+{
+
+    int    ji;
+    joyptr jp;
+
+    jp = NULL; /* set no entry */
+    for (ji = 0; ji < numjoy; ji++)
+        if (joytab[ji] && FD_ISSET(joytab[ji]->fid, &ifdsets)) jp = joytab[ji];
+
+    return (jp);
 
 }
 
@@ -746,6 +789,7 @@ static void ievent(pa_evtrec* ev)
     enum { mnone, mbutton, mx, my } mousts; /* mouse state variable */
     int       dimxs;   /* save for screen size */
     int       dimys;
+    joyptr    jp;
 
     mousts = mnone; /* set no mouse event being processed */
     do { /* match input events */
@@ -856,11 +900,11 @@ static void ievent(pa_evtrec* ev)
 
             }
             /* check joystick is activated */
-            if (!evtfnd && FD_ISSET(joyfid, &ifdsets) && joyenb) {
+            if (!evtfnd && (jp = schjoy()) && joyenb) {
 
                 evtsig = 1; /* set event signaled */
-                FD_CLR(joyfid, &ifdsets); /* remove from input signals */
-                joyevt(ev, &evtfnd); /* process joystick */
+                FD_CLR(jp->fid, &ifdsets); /* remove from input signals */
+                joyevt(ev, &evtfnd, jp); /* process joystick */
 
             }
             /* check framing timer is activated */
@@ -2978,8 +3022,9 @@ int pa_joybutton(FILE *f, int j)
 {
 
     if (j < 1 || j > numjoy) error(einvjoy); /* bad joystick id */
+    if (!joytab[j-1]) error(esystem); /* should be a table entry */
 
-    return (3); /* return button count */
+    return (joytab[j-1]->button); /* return button count */
 
 }
 
@@ -2998,9 +3043,15 @@ int pa_joyaxis(FILE *f, int j)
 
 {
 
-    if (j < 1 || j > numjoy) error(einvjoy); /* bad joystick id */
+    int ja;
 
-    return (3); /* set axis number */
+    if (j < 1 || j > numjoy) error(einvjoy); /* bad joystick id */
+    if (!joytab[j-1]) error(esystem); /* should be a table entry */
+
+    ja = joytab[j-1]->axis; /* get axis number */
+    if (ja > 6) ja = 6; /* limit to 6 maximum */
+
+    return (ja); /* set axis number */
 
 }
 
@@ -3236,10 +3287,14 @@ static void pa_init_terminal()
 
 {
 
-    /** index for events */            pa_evtcod e;
+    /** index for events */            pa_evtcod      e;
     /** build new terminal settings */ struct termios raw;
-    /** index */                       int i;
-    /** digit count integer */         int dci;
+    /** index */                       int            i;
+    /** digit count integer */         int            dci;
+    /** joystick index */              int            ji;
+    /** joystick file id */            int            joyfid;
+    /** joystick device name */        char           joyfil[] = "/dev/input/js0";
+    /** joystick parameter read */     char           jc;
 
     /* turn off I/O buffering */
     setvbuf(stdin, NULL, _IONBF, 0);
@@ -3327,19 +3382,45 @@ static void pa_init_terminal()
     /* clear the timers table */
     for (i = 0; i < PA_MAXTIM; i++) timtbl[i] = -1;
 
+    /* clear joystick table */
+    for (ji = 0; ji < MAXJOY; ji++) joytab[ji] = NULL;
+
+    strcpy(joyfil, "/dev/input/js0"); /* set name of joystick file */
+
     /* open joystick if available */
     numjoy = 0; /* set no joysticks */
     if (joyenb) { /* if joystick is to be enabled */
 
-        joyfid = open("/dev/input/js0", O_RDONLY);
-        if (joyfid >= 0) { /* found */
+        do { /* find joysticks */
 
-            numjoy++; /* set joystick active */
-            FD_SET(joyfid, &ifdseta);
-            if (joyfid+1 > ifdmax)
-                ifdmax = joyfid+1; /* set maximum fid for select() */
+            joyfil[13] = numjoy+'0'; /* set number of joystick to find */
+            joyfid = open(joyfil, O_RDONLY);
+            if (joyfid >= 0) { /* found */
 
-        }
+                FD_SET(joyfid, &ifdseta);
+                if (joyfid+1 > ifdmax)
+                    ifdmax = joyfid+1; /* set maximum fid for select() */
+                /* get a joystick table entry */
+                joytab[numjoy] = malloc(sizeof(joyrec));
+                joytab[numjoy]->fid = joyfid; /* set fid */
+                joytab[numjoy]->ax = 0; /* clear joystick axis saves */
+                joytab[numjoy]->ay = 0;
+                joytab[numjoy]->az = 0;
+                joytab[numjoy]->a4 = 0;
+                joytab[numjoy]->a5 = 0;
+                joytab[numjoy]->a6 = 0;
+                joytab[numjoy]->no = numjoy+1; /* set logical number */
+                /* get number of axes */
+                ioctl(joyfid, JSIOCGAXES, &jc);
+                joytab[numjoy]->axis = jc;
+                /* get number of buttons */
+                ioctl(joyfid, JSIOCGBUTTONS, &jc);
+                joytab[numjoy]->button = jc;
+                numjoy++; /* count joysticks */
+
+            }
+
+        } while (numjoy < MAXJOY && joyfid >= 0); /* no more joysticks */
 
     }
 
@@ -3420,7 +3501,7 @@ static void pa_deinit_terminal()
     /* if we don't see our own vector flag an error */
     if (cppread != iread || cppwrite != iwrite || cppopen != iopen ||
         cppclose != iclose /* || cppunlink != iunlink */ || cpplseek != ilseek)
-        error(esysflt);
+        error(esystem);
 
     /* back to normal buffer on xterm */
     printf("\033[?1049l"); fflush(stdout);
