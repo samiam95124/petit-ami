@@ -125,13 +125,14 @@ static enum { /* debug levels */
 
 /* The maximum dimensions are used to set the size of the holding arrays.
    These should be reasonable values to prevent becoming a space hog. */
-#define MAXXD 250  /**< Maximum terminal size x */
-#define MAXYD 250  /**< Maximum terminal size y */
+#define MAXXD 250     /**< Maximum terminal size x */
+#define MAXYD 250     /**< Maximum terminal size y */
 
-#define MAXCON 10 /**< number of screen contexts */
-#define MAXLIN 250 /* maximum length of input buffered line */
-#define MAXFKEY 10 /**< maximum number of function keys */
-#define MAXJOY 10  /* number of joysticks possible */
+#define MAXCON  10    /**< number of screen contexts */
+#define MAXLIN  250   /* maximum length of input buffered line */
+#define MAXFKEY 10    /**< maximum number of function keys */
+#define MAXJOY  10    /* number of joysticks possible */
+#define DMPEVT  FALSE /* enable dump Petit-Ami messages */
 
 /* file handle numbers at the system interface level */
 
@@ -243,6 +244,26 @@ typedef struct joyrec {
     int no;     /* logical number of joystick, 1-n */
 
 } joyrec;
+
+/* system event types */
+typedef enum {
+
+    se_none, /* no event */
+    se_key,  /* input key received */
+    se_tim,  /* timer fires */
+    se_frm,  /* frame timer fires */
+    se_joy,  /* joystick event */
+    se_wsiz  /* window resize event */
+
+} sevttyp;
+
+typedef struct sysevt* sevptr; /* pointer to system event */
+typedef struct sysevt {
+
+    sevttyp typ; /* system event type */
+    int     no;  /* what timer or joystick */
+
+} sysevt;
 
 /** Error codes this module */
 typedef enum {
@@ -380,6 +401,8 @@ static fd_set ifdseta; /* active sets */
 static fd_set ifdsets; /* signaled set */
 static int ifdmax;
 
+static sigset_t sigset; /* signal mask */
+
 /**
  * Active timers table
  */
@@ -422,6 +445,7 @@ static int    frmfid;      /* framing timer fid */
 char          inpbuf[MAXLIN];  /* input line buffer */
 int           inpptr;          /* input line index */
 static joyptr joytab[MAXJOY]; /* joystick control table */
+static int    dmpevt;    /* enable dump Petit-Ami messages */
 
 /* forwards */
 static void restore(scnptr sc);
@@ -679,6 +703,161 @@ static void wrtint(int i)
 
 /** *****************************************************************************
 
+Initialize system event handler
+
+Sets up the system event handler.
+
+*******************************************************************************/
+
+void inisevt(void)
+
+{
+
+    /* clear input select set */
+    FD_ZERO(&ifdseta);
+
+    /* clear current max input fd */
+    ifdmax = 0;
+
+    /* clear the signaling set */
+    FD_ZERO(&ifdsets);
+
+    /* clear the set of signals we capture */
+    sigemptyset(&sigset);
+
+}
+
+/** *****************************************************************************
+
+Add file id to system event handler
+
+Adds the given logical file id to the system event handler set.
+
+*******************************************************************************/
+
+void addsefid(int fid)
+
+{
+
+    FD_SET(fid, &ifdseta); /* add to active set */
+    if (fid+1 > ifdmax) ifdmax = fid+1; /* set maximum fid for pselect() */
+
+}
+
+/** *****************************************************************************
+
+Add signal to system event handler
+
+Adds the given signal number to the system event handler set.
+
+*******************************************************************************/
+
+void addsesig(int sig)
+
+{
+
+    /* add this signal to set */
+    sigaddset(&sigset, sig);
+
+}
+
+/** *****************************************************************************
+
+Get system event
+
+Get the next system event that occurs. One of an input key, a timer, a frame
+timer, or a joystick event occurs, and we return this. The event that is
+returned is cleared.
+
+*******************************************************************************/
+
+void getsevt(sevptr ev)
+
+{
+
+    int rv; /* return value */
+    int ti; /* index for timers */
+    int ji; /* index for joysticks */
+
+    ev->typ = se_none; /* set key event occurred */
+    do { /* find an active event */
+
+        if (FD_ISSET(0, &ifdsets)) {
+
+            ev->typ = se_key; /* set key event occurred */
+            FD_CLR(0, &ifdsets); /* remove from input signals */
+
+        } else if (FD_ISSET(frmfid, &ifdsets)) {
+
+            ev->typ = se_frm; /* set frame timer event occurred */
+            FD_CLR(frmfid, &ifdsets); /* remove from input signals */
+
+        } else if (winch) { /* window resize event */
+
+            ev->typ = se_wsiz; /* set window resize event occurred */
+
+        } else { /* search tables */
+
+            /* look in timer set */
+            for (ti = 0; ti < PA_MAXTIM && ev->typ == se_none; ti++) {
+
+                if (FD_ISSET(timtbl[ti], &ifdsets) && ev->typ == se_none) {
+
+                    /* timer found, set as event */
+                    ev->typ = se_tim; /* set timer event occurred */
+                    ev->no = ti+1; /* set timer number */
+                    /* remove from input signals */
+                    FD_CLR(timtbl[ti], &ifdsets);
+
+                }
+
+            }
+            if (ev->typ == se_none) {
+
+                /* look in joystick set */
+                for (ji = 0; ji < numjoy; ji++)
+                    if (joytab[ji] && FD_ISSET(joytab[ji]->fid, &ifdsets) &&
+                        ev->typ == se_none) {
+
+                    /* joystick found, set as event */
+                    ev->typ = se_joy; /* set joystick event occurred */
+                    ev->no = ji+1; /* set joystick number */
+                    /* remove from input signals */
+                    FD_CLR(joytab[ji]->fid, &ifdsets);
+
+                }
+
+            }
+
+        }
+        if (ev->typ == se_none) {
+
+            /* no input is active, load a new signaler set */
+            ifdsets = ifdseta; /* set up request set */
+            rv = pselect(ifdmax, &ifdsets, NULL, NULL, NULL, &sigset);
+            /* if error, the input set won't be modified and thus will appear as
+               if they were active. We clear them in this case */
+            if (rv < 0) FD_ZERO(&ifdsets);
+
+        }
+
+    } while (ev->typ == se_none);
+#if 0
+switch (ev->typ) {
+    case se_none: fprintf(stderr, "None\n"); break;
+    case se_key:  fprintf(stderr, "Key\n"); break;
+    case se_tim:  fprintf(stderr, "Timer: %d\n", ev->no); break;
+    case se_frm:  fprintf(stderr, "Frame timer\n"); break;
+    case se_joy:  fprintf(stderr, "Joystick: %d\n", ev->no); break;
+    case se_wsiz: fprintf(stderr, "Window resize\n"); break;
+}
+fflush(stderr);
+#endif
+
+}
+
+/** *****************************************************************************
+
 Get keyboard code control match or other event
 
 Performs a successive match to keyboard input. A keyboard character is read,
@@ -758,22 +937,6 @@ static void joyevt(pa_evtrec* er, int* keep, joyptr jp)
 
 }
 
-/* search joystick table for signaling joystick */
-static joyptr schjoy(void)
-
-{
-
-    int    ji;
-    joyptr jp;
-
-    jp = NULL; /* set no entry */
-    for (ji = 0; ji < numjoy; ji++)
-        if (joytab[ji] && FD_ISSET(joytab[ji]->fid, &ifdsets)) jp = joytab[ji];
-
-    return (jp);
-
-}
-
 static void ievent(pa_evtrec* ev)
 
 {
@@ -787,8 +950,9 @@ static void ievent(pa_evtrec* ev)
     ssize_t   rl;     /* read length */
     uint64_t  exp;    /* timer expiration time */
     enum { mnone, mbutton, mx, my } mousts; /* mouse state variable */
-    int       dimxs;   /* save for screen size */
+    int       dimxs;  /* save for screen size */
     int       dimys;
+    sysevt    sev;    /* system event */
     joyptr    jp;
 
     mousts = mnone; /* set no mouse event being processed */
@@ -796,12 +960,12 @@ static void ievent(pa_evtrec* ev)
 
         evtfnd = 0; /* set no event found */
         evtsig = 0; /* set no event signaled */
+        getsevt(&sev); /* get the next system event */
         /* check one of the read files has signaled */
-        if (FD_ISSET(0, &ifdsets)) {
+        if (sev.typ == se_key) {
 
             /* keyboard (standard input) */
             evtsig = 1; /* event signaled */
-            FD_CLR(0, &ifdsets); /* remove from input signals */
             keybuf[keylen++] = getchr(); /* get next character to match buffer */
             if (mousts == mnone) { /* do table matching */
 
@@ -881,45 +1045,43 @@ static void ievent(pa_evtrec* ev)
 
             }
 
-        } else {
+        } else if (sev.typ == se_tim) {
 
-            /* look in timer set */
-            for (ti = 0; ti < PA_MAXTIM && !evtfnd; ti++) {
+            /* timer found, set as event */
+            evtsig = 1; /* set event signaled */
+            ev->etype = pa_ettim; /* set timer type */
+            ev->timnum = sev.no; /* set timer number */
+            evtfnd = 1; /* set event found */
+            rl = read(timtbl[sev.no-1], &exp, sizeof(uint64_t));
 
-                if (FD_ISSET(timtbl[ti], &ifdsets)) {
-
-                    /* timer found, set as event */
-                    evtsig = 1; /* set event signaled */
-                    FD_CLR(timtbl[ti], &ifdsets); /* remove from input signals */
-                    ev->etype = pa_ettim; /* set timer type */
-                    ev->timnum = ti+1; /* set timer number */
-                    evtfnd = 1; /* set event found */
-                    rl = read(timtbl[ti], &exp, sizeof(uint64_t));
-
-                }
-
-            }
-            /* check joystick is activated */
-            if (!evtfnd && (jp = schjoy()) && joyenb) {
+        } else if (sev.typ == se_joy && joyenb) {
 
                 evtsig = 1; /* set event signaled */
-                FD_CLR(jp->fid, &ifdsets); /* remove from input signals */
-                joyevt(ev, &evtfnd, jp); /* process joystick */
+                joyevt(ev, &evtfnd, joytab[sev.no-1]); /* process joystick */
 
-            }
-            /* check framing timer is activated */
-            if (!evtfnd && FD_ISSET(frmfid, &ifdsets) && joyenb) {
+        } else if (sev.typ == se_frm) {
 
                 evtsig = 1; /* set event signaled */
-                FD_CLR(frmfid, &ifdsets); /* remove from input signals */
                 ev->etype = pa_etframe; /* set frame event occurred */
                 evtfnd = TRUE; /* set event found */
                 /* clear the timer by reading it */
                 read(frmfid, &exp, sizeof(uint64_t));
 
-            }
+        } else if (sev.typ == se_wsiz) {
+
+            ev->etype = pa_etresize;
+            evtfnd = 1;
+            winch = 0;
+            /* save current window size */
+            dimxs = dimx;
+            dimys = dimy;
+            /* recalculate window size */
+            findsize();
+            /* now find if we have exposed any new areas, then redraw if so */
+            if (dimx > dimxs || dimy > dimys) restore(screens[curdsp-1]);
 
         }
+
         if (!evtfnd) {
 
             /* check any mouse states have changed, flag and remove */
@@ -982,30 +1144,6 @@ static void ievent(pa_evtrec* ev)
                 mpy = nmpy;
 
             }
-
-        }
-        if (!evtfnd && winch) {
-
-            ev->etype = pa_etresize;
-            evtfnd = 1;
-            winch = 0;
-            /* save current window size */
-            dimxs = dimx;
-            dimys = dimy;
-            /* recalculate window size */
-            findsize();
-            /* now find if we have exposed any new areas, then redraw if so */
-            if (dimx > dimxs || dimy > dimys) restore(screens[curdsp-1]);
-
-        }
-        if (!evtsig && !evtfnd) {
-
-            /* no input is active, load a new signaler set */
-            ifdsets = ifdseta; /* set up request set */
-            rv = select(ifdmax, &ifdsets, NULL, NULL, NULL);
-            /* if error, the input set won't be modified and thus will appear as
-               if they were active. We clear them in this case */
-            if (rv < 0) FD_ZERO(&ifdsets);
 
         }
 
@@ -2858,6 +2996,8 @@ void pa_event(FILE* f, pa_evtrec *er)
 
 {
 
+    static int ecnt = 0; /* PA event counter */
+
     do { /* loop handling via event vectors */
 
         /* get next input event */
@@ -2873,6 +3013,14 @@ void pa_event(FILE* f, pa_evtrec *er)
 
     } while (er->handled);
     /* event not handled, return it to the caller */
+
+    /* do diagnostic dump of PA events */
+    if (dmpevt) {
+
+        dbg_printf(dlinfo, "PA Event: %5d Window: %d ", ecnt++, er->winid);
+        prtevt(er->etype); fprintf(stderr, "\n"); fflush(stderr);
+
+    }
 
 }
 
@@ -2898,9 +3046,7 @@ void pa_timer(/* file to send event to */              FILE *f,
 
         timtbl[i-1] = timerfd_create(CLOCK_REALTIME, 0);
         if (timtbl[i-1] == -1) error(etimacc);
-        FD_SET(timtbl[i-1], &ifdseta); /* place new file in active select set */
-        /* if the new file handle is greater than  any existing, set new max */
-        if (timtbl[i-1]+1 > ifdmax) ifdmax = timtbl[i-1]+1;
+        addsefid(timtbl[i-1]); /* add to system events */
 
     }
 
@@ -3311,6 +3457,8 @@ static void pa_init_terminal()
 //    ovr_unlink(iunlink, &ofpunlink);
     ovr_lseek(ilseek, &ofplseek);
 
+    dmpevt    = DMPEVT;    /* dump Petit-Ami messages */
+
     /* set default screen geometry */
     dimx = DEFXD;
     dimy = DEFYD;
@@ -3367,11 +3515,11 @@ static void pa_init_terminal()
        backspace, ^U,...),  no extended functions, no signal chars (^Z,^C) */
     raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
 
-    /* clear input select set */
-    FD_ZERO(&ifdseta);
+    /* initialize system event handler */
+    inisevt();
 
-    /* select input file */
-    FD_SET(0, &ifdseta);
+    /* add input file event */
+    addsefid(0);
 
     /* set current max input fd */
     ifdmax = 0+1;
@@ -3397,9 +3545,7 @@ static void pa_init_terminal()
             joyfid = open(joyfil, O_RDONLY);
             if (joyfid >= 0) { /* found */
 
-                FD_SET(joyfid, &ifdseta);
-                if (joyfid+1 > ifdmax)
-                    ifdmax = joyfid+1; /* set maximum fid for select() */
+                addsefid(joyfid); /* add this fid to system events */
                 /* get a joystick table entry */
                 joytab[numjoy] = malloc(sizeof(joyrec));
                 joytab[numjoy]->fid = joyfid; /* set fid */
@@ -3427,8 +3573,7 @@ static void pa_init_terminal()
     /* create framing timer */
     frmfid = timerfd_create(CLOCK_REALTIME, 0);
     if (frmfid == -1) error(etimacc);
-    FD_SET(frmfid, &ifdseta);
-    if (frmfid+1 > ifdmax) ifdmax = frmfid+1; /* set maximum fid for select() */
+    addsefid(frmfid); /* add to system events */
 
     /* clear tabs and set to 8ths */
     for (i = 1; i <= dimx; i++) tabs[i-1] = ((i-1)%8 == 0) && (i != 1);
@@ -3452,6 +3597,9 @@ static void pa_init_terminal()
     /* catch signals. We don't care if it can't be caught, we would just be
        ignoring the signal(s) in this case.  */
     signal(SIGWINCH, sig_handler);
+
+    /* add signal to system events */
+    addsesig(SIGWINCH);
 
     /* restore terminal state after flushing */
     tcsetattr(0,TCSAFLUSH,&raw);
