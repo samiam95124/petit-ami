@@ -729,6 +729,25 @@ void inisevt(void)
 
 /** *****************************************************************************
 
+Deinitialize system event handler
+
+Tears down the system event handler.
+
+*******************************************************************************/
+
+void deinisevt(void)
+
+{
+
+    int ti; /* index for timers */
+
+    /* close any open timers */
+    for (ti = 0; ti < PA_MAXTIM; ti++) if (timtbl[ti] != -1) close(timtbl[ti]);
+
+}
+
+/** *****************************************************************************
+
 Add file id to system event handler
 
 Adds the given logical file id to the system event handler set.
@@ -758,6 +777,80 @@ void addsesig(int sig)
 
     /* add this signal to set */
     sigaddset(&sigset, sig);
+
+}
+
+/** *****************************************************************************
+
+Activate timer entry
+
+Sets the given logical timer to run with the number of 100us counts, and a
+repeat status.
+
+*******************************************************************************/
+
+void addsetim(int i, int t, int r)
+
+{
+
+    struct itimerspec ts;
+    int  rv;
+    long tl;
+
+    if (timtbl[i-1] < 0) { /* timer entry inactive, create a timer */
+
+        timtbl[i-1] = timerfd_create(CLOCK_REALTIME, 0);
+        if (timtbl[i-1] == -1) error(etimacc);
+        addsefid(timtbl[i-1]); /* add to system events */
+
+    }
+
+    /* set timer run time */
+    tl = t;
+    ts.it_value.tv_sec = tl/10000; /* set number of seconds to run */
+    ts.it_value.tv_nsec = tl%10000*100000; /* set number of nanoseconds to run */
+
+    /* set if timer does not rerun */
+    ts.it_interval.tv_sec = 0;
+    ts.it_interval.tv_nsec = 0;
+
+    if (r) { /* timer reruns */
+
+        ts.it_interval.tv_sec = ts.it_value.tv_sec;
+        ts.it_interval.tv_nsec = ts.it_value.tv_nsec;
+
+    }
+
+    rv = timerfd_settime(timtbl[i-1], 0, &ts, NULL);
+    if (rv < 0) error(etimacc); /* could not set time */
+
+}
+
+/** *****************************************************************************
+
+Deactivate timer entry
+
+Kills a given timer, by it's id number. Only repeating timers should be killed.
+Killed timers are not removed. Once a timer is set active, it is always set
+in reserve.
+
+*******************************************************************************/
+
+void deasetim(int i)
+
+{
+
+    struct itimerspec ts;
+    int rv;
+
+    /* set timer run time to zero to kill it */
+    ts.it_value.tv_sec = 0;
+    ts.it_value.tv_nsec = 0;
+    ts.it_interval.tv_sec = 0;
+    ts.it_interval.tv_nsec = 0;
+
+    rv = timerfd_settime(timtbl[i-1], 0, &ts, NULL);
+    if (rv < 0) error(etimacc); /* could not set time */
 
 }
 
@@ -3037,37 +3130,8 @@ void pa_timer(/* file to send event to */              FILE *f,
 
 {
 
-    struct itimerspec ts;
-    int  rv;
-    long tl;
-
     if (i < 1 || i > PA_MAXTIM) error(einvhan); /* invalid timer handle */
-    if (timtbl[i-1] < 0) { /* timer entry inactive, create a timer */
-
-        timtbl[i-1] = timerfd_create(CLOCK_REALTIME, 0);
-        if (timtbl[i-1] == -1) error(etimacc);
-        addsefid(timtbl[i-1]); /* add to system events */
-
-    }
-
-    /* set timer run time */
-    tl = t;
-    ts.it_value.tv_sec = tl/10000; /* set number of seconds to run */
-    ts.it_value.tv_nsec = tl%10000*100000; /* set number of nanoseconds to run */
-
-    /* set if timer does not rerun */
-    ts.it_interval.tv_sec = 0;
-    ts.it_interval.tv_nsec = 0;
-
-    if (r) { /* timer reruns */
-
-        ts.it_interval.tv_sec = ts.it_value.tv_sec;
-        ts.it_interval.tv_nsec = ts.it_value.tv_nsec;
-
-    }
-
-    rv = timerfd_settime(timtbl[i-1], 0, &ts, NULL);
-    if (rv < 0) error(etimacc); /* could not set time */
+    addsetim(i, t, r); /* activate that timer */
 
 }
 
@@ -3086,20 +3150,10 @@ void pa_killtimer(/* file to kill timer on */ FILE *f,
 
 {
 
-    struct itimerspec ts;
-    int rv;
-
     if (i < 1 || i > PA_MAXTIM) error(einvhan); /* invalid timer handle */
     if (timtbl[i-1] < 0) error(etimacc); /* no such timer */
 
-    /* set timer run time to zero to kill it */
-    ts.it_value.tv_sec = 0;
-    ts.it_value.tv_nsec = 0;
-    ts.it_interval.tv_sec = 0;
-    ts.it_interval.tv_nsec = 0;
-
-    rv = timerfd_settime(timtbl[i-1], 0, &ts, NULL);
-    if (rv < 0) error(etimacc); /* could not set time */
+    deasetim(i); /* stop timer */
 
 }
 
@@ -3629,16 +3683,15 @@ static void pa_deinit_terminal()
     punlink_t cppunlink;
     plseek_t cpplseek;
 
-    int ti; /* index for timers */
-
     /* restore terminal */
     tcsetattr(0,TCSAFLUSH,&trmsav);
 
     /* turn off mouse tracking */
     putstr("\33[?1003l");
 
-    /* close any open timers */
-    for (ti = 0; ti < PA_MAXTIM; ti++) if (timtbl[ti] != -1) close(timtbl[ti]);
+    /* deinitialize system events */
+    deinisevt();
+
     /* swap old vectors for existing vectors */
     ovr_read(ofpread, &cppread);
     ovr_write(ofpwrite, &cppwrite);
