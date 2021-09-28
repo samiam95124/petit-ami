@@ -90,6 +90,7 @@
 
 /* Petit-Ami definitions */
 #include "terminal.h"
+#include "system_event.h"
 
 /*
  * Debug print system
@@ -233,6 +234,7 @@ typedef struct joyrec* joyptr; /* pointer to joystick record */
 typedef struct joyrec {
 
     int fid;    /* joystick file id */
+    int sid;    /* system event id */
     int axis;   /* number of joystick axes */
     int button; /* number of joystick buttons */
     int ax;     /* joystick x axis save */
@@ -244,26 +246,6 @@ typedef struct joyrec {
     int no;     /* logical number of joystick, 1-n */
 
 } joyrec;
-
-/* system event types */
-typedef enum {
-
-    se_none, /* no event */
-    se_key,  /* input key received */
-    se_tim,  /* timer fires */
-    se_frm,  /* frame timer fires */
-    se_joy,  /* joystick event */
-    se_wsiz  /* window resize event */
-
-} sevttyp;
-
-typedef struct sysevt* sevptr; /* pointer to system event */
-typedef struct sysevt {
-
-    sevttyp typ; /* system event type */
-    int     no;  /* what timer or joystick */
-
-} sysevt;
 
 /** Error codes this module */
 typedef enum {
@@ -395,15 +377,6 @@ static plseek_t  ofplseek;
 static struct termios trmsav;
 
 /**
- * Set of input file ids for select
- */
-static fd_set ifdseta; /* active sets */
-static fd_set ifdsets; /* signaled set */
-static int ifdmax;
-
-static sigset_t sigset; /* signal mask */
-
-/**
  * Active timers table
  */
 static int timtbl[PA_MAXTIM];
@@ -435,8 +408,6 @@ static int    nbutton2;    /* button 2 state: 0=assert, 1=deassert */
 static int    nbutton3;    /* button 3 state: 0=assert, 1=deassert */
 static int    nmpx;        /* mouse x/y current position */
 static int    nmpy;
-/* flag for windows change signal */
-static int    winch;
 /* maximum power of 10 in integer */
 static int    maxpow10;
 static int    numjoy;      /* number of joysticks found */
@@ -445,7 +416,10 @@ static int    frmfid;      /* framing timer fid */
 char          inpbuf[MAXLIN];  /* input line buffer */
 int           inpptr;          /* input line index */
 static joyptr joytab[MAXJOY]; /* joystick control table */
-static int    dmpevt;    /* enable dump Petit-Ami messages */
+static int    dmpevt;      /* enable dump Petit-Ami messages */
+static int    inpsev;      /* keyboard input system event number */
+static int    frmsev;      /* frame timer system event number */
+static int    winchsev;    /* windows change system event number */
 
 /* forwards */
 static void restore(scnptr sc);
@@ -554,22 +528,6 @@ void prtevt(pa_evtcod e)
         default: fprintf(stderr, "???");
 
     }
-
-}
-
-/*******************************************************************************
-
-Handle signal from Linux
-
-Handle signal from linux kernel.
-
-*******************************************************************************/
-
-static void sig_handler(int signo)
-
-{
-
-    if (signo == SIGWINCH) winch = 1;
 
 }
 
@@ -703,254 +661,6 @@ static void wrtint(int i)
 
 /** *****************************************************************************
 
-Initialize system event handler
-
-Sets up the system event handler.
-
-*******************************************************************************/
-
-void inisevt(void)
-
-{
-
-    /* clear input select set */
-    FD_ZERO(&ifdseta);
-
-    /* clear current max input fd */
-    ifdmax = 0;
-
-    /* clear the signaling set */
-    FD_ZERO(&ifdsets);
-
-    /* clear the set of signals we capture */
-    sigemptyset(&sigset);
-
-}
-
-/** *****************************************************************************
-
-Deinitialize system event handler
-
-Tears down the system event handler.
-
-*******************************************************************************/
-
-void deinisevt(void)
-
-{
-
-    int ti; /* index for timers */
-
-    /* close any open timers */
-    for (ti = 0; ti < PA_MAXTIM; ti++) if (timtbl[ti] != -1) close(timtbl[ti]);
-
-}
-
-/** *****************************************************************************
-
-Add file id to system event handler
-
-Adds the given logical file id to the system event handler set.
-
-*******************************************************************************/
-
-void addsefid(int fid)
-
-{
-
-    FD_SET(fid, &ifdseta); /* add to active set */
-    if (fid+1 > ifdmax) ifdmax = fid+1; /* set maximum fid for pselect() */
-
-}
-
-/** *****************************************************************************
-
-Add signal to system event handler
-
-Adds the given signal number to the system event handler set.
-
-*******************************************************************************/
-
-void addsesig(int sig)
-
-{
-
-    /* add this signal to set */
-    sigaddset(&sigset, sig);
-
-}
-
-/** *****************************************************************************
-
-Activate timer entry
-
-Sets the given logical timer to run with the number of 100us counts, and a
-repeat status.
-
-*******************************************************************************/
-
-void addsetim(int i, int t, int r)
-
-{
-
-    struct itimerspec ts;
-    int  rv;
-    long tl;
-
-    if (timtbl[i-1] < 0) { /* timer entry inactive, create a timer */
-
-        timtbl[i-1] = timerfd_create(CLOCK_REALTIME, 0);
-        if (timtbl[i-1] == -1) error(etimacc);
-        addsefid(timtbl[i-1]); /* add to system events */
-
-    }
-
-    /* set timer run time */
-    tl = t;
-    ts.it_value.tv_sec = tl/10000; /* set number of seconds to run */
-    ts.it_value.tv_nsec = tl%10000*100000; /* set number of nanoseconds to run */
-
-    /* set if timer does not rerun */
-    ts.it_interval.tv_sec = 0;
-    ts.it_interval.tv_nsec = 0;
-
-    if (r) { /* timer reruns */
-
-        ts.it_interval.tv_sec = ts.it_value.tv_sec;
-        ts.it_interval.tv_nsec = ts.it_value.tv_nsec;
-
-    }
-
-    rv = timerfd_settime(timtbl[i-1], 0, &ts, NULL);
-    if (rv < 0) error(etimacc); /* could not set time */
-
-}
-
-/** *****************************************************************************
-
-Deactivate timer entry
-
-Kills a given timer, by it's id number. Only repeating timers should be killed.
-Killed timers are not removed. Once a timer is set active, it is always set
-in reserve.
-
-*******************************************************************************/
-
-void deasetim(int i)
-
-{
-
-    struct itimerspec ts;
-    int rv;
-
-    /* set timer run time to zero to kill it */
-    ts.it_value.tv_sec = 0;
-    ts.it_value.tv_nsec = 0;
-    ts.it_interval.tv_sec = 0;
-    ts.it_interval.tv_nsec = 0;
-
-    rv = timerfd_settime(timtbl[i-1], 0, &ts, NULL);
-    if (rv < 0) error(etimacc); /* could not set time */
-
-}
-
-/** *****************************************************************************
-
-Get system event
-
-Get the next system event that occurs. One of an input key, a timer, a frame
-timer, or a joystick event occurs, and we return this. The event that is
-returned is cleared.
-
-*******************************************************************************/
-
-void getsevt(sevptr ev)
-
-{
-
-    int rv; /* return value */
-    int ti; /* index for timers */
-    int ji; /* index for joysticks */
-
-    ev->typ = se_none; /* set key event occurred */
-    do { /* find an active event */
-
-        if (FD_ISSET(0, &ifdsets)) {
-
-            ev->typ = se_key; /* set key event occurred */
-            FD_CLR(0, &ifdsets); /* remove from input signals */
-
-        } else if (FD_ISSET(frmfid, &ifdsets)) {
-
-            ev->typ = se_frm; /* set frame timer event occurred */
-            FD_CLR(frmfid, &ifdsets); /* remove from input signals */
-
-        } else if (winch) { /* window resize event */
-
-            ev->typ = se_wsiz; /* set window resize event occurred */
-
-        } else { /* search tables */
-
-            /* look in timer set */
-            for (ti = 0; ti < PA_MAXTIM && ev->typ == se_none; ti++) {
-
-                if (FD_ISSET(timtbl[ti], &ifdsets) && ev->typ == se_none) {
-
-                    /* timer found, set as event */
-                    ev->typ = se_tim; /* set timer event occurred */
-                    ev->no = ti+1; /* set timer number */
-                    /* remove from input signals */
-                    FD_CLR(timtbl[ti], &ifdsets);
-
-                }
-
-            }
-            if (ev->typ == se_none) {
-
-                /* look in joystick set */
-                for (ji = 0; ji < numjoy; ji++)
-                    if (joytab[ji] && FD_ISSET(joytab[ji]->fid, &ifdsets) &&
-                        ev->typ == se_none) {
-
-                    /* joystick found, set as event */
-                    ev->typ = se_joy; /* set joystick event occurred */
-                    ev->no = ji+1; /* set joystick number */
-                    /* remove from input signals */
-                    FD_CLR(joytab[ji]->fid, &ifdsets);
-
-                }
-
-            }
-
-        }
-        if (ev->typ == se_none) {
-
-            /* no input is active, load a new signaler set */
-            ifdsets = ifdseta; /* set up request set */
-            rv = pselect(ifdmax, &ifdsets, NULL, NULL, NULL, &sigset);
-            /* if error, the input set won't be modified and thus will appear as
-               if they were active. We clear them in this case */
-            if (rv < 0) FD_ZERO(&ifdsets);
-
-        }
-
-    } while (ev->typ == se_none);
-#if 0
-switch (ev->typ) {
-    case se_none: fprintf(stderr, "None\n"); break;
-    case se_key:  fprintf(stderr, "Key\n"); break;
-    case se_tim:  fprintf(stderr, "Timer: %d\n", ev->no); break;
-    case se_frm:  fprintf(stderr, "Frame timer\n"); break;
-    case se_joy:  fprintf(stderr, "Joystick: %d\n", ev->no); break;
-    case se_wsiz: fprintf(stderr, "Window resize\n"); break;
-}
-fflush(stderr);
-#endif
-
-}
-
-/** *****************************************************************************
-
 Get keyboard code control match or other event
 
 Performs a successive match to keyboard input. A keyboard character is read,
@@ -961,11 +671,6 @@ If the match never results in a full match, the buffered characters are simply
 discarded, and matching goes on with the next input character. Such "stillborn"
 matches are either the result of ill considered input key equivalences, or of
 a user typing in keys manually that happen to evaluate to special keys.
-
-If another event is multiplexed input the input select() mask, that event is
-also input. The set ifdseta indicates what input channels by file descriptor
-are active, and the set ifdsets indicates what input channels currently have
-data.
 
 *******************************************************************************/
 
@@ -1040,8 +745,7 @@ static void ievent(pa_evtrec* ev)
     int       evtfnd; /* found an event */
     int       evtsig; /* event signaled */
     int       ti;     /* index for timers */
-    ssize_t   rl;     /* read length */
-    uint64_t  exp;    /* timer expiration time */
+    int       ji;     /* index for joysticks */
     enum { mnone, mbutton, mx, my } mousts; /* mouse state variable */
     int       dimxs;  /* save for screen size */
     int       dimys;
@@ -1053,9 +757,9 @@ static void ievent(pa_evtrec* ev)
 
         evtfnd = 0; /* set no event found */
         evtsig = 0; /* set no event signaled */
-        getsevt(&sev); /* get the next system event */
-        /* check one of the read files has signaled */
-        if (sev.typ == se_key) {
+        system_event_getsevt(&sev); /* get the next system event */
+        /* check the read file has signaled */
+        if (sev.typ == se_inp && sev.lse == inpsev) {
 
             /* keyboard (standard input) */
             evtsig = 1; /* event signaled */
@@ -1140,31 +844,47 @@ static void ievent(pa_evtrec* ev)
 
         } else if (sev.typ == se_tim) {
 
-            /* timer found, set as event */
-            evtsig = 1; /* set event signaled */
-            ev->etype = pa_ettim; /* set timer type */
-            ev->timnum = sev.no; /* set timer number */
-            evtfnd = 1; /* set event found */
-            rl = read(timtbl[sev.no-1], &exp, sizeof(uint64_t));
+            /* look in timer set */
+            for (ti = 0; ti < PA_MAXTIM && !evtfnd; ti++) {
 
-        } else if (sev.typ == se_joy && joyenb) {
+                if (timtbl[ti] == sev.lse) {
 
-                evtsig = 1; /* set event signaled */
-                joyevt(ev, &evtfnd, joytab[sev.no-1]); /* process joystick */
+                    /* timer found, set as event */
+                    evtsig = 1; /* set event signaled */
+                    ev->etype = pa_ettim; /* set timer type */
+                    ev->timnum = ti+1; /* set timer number */
+                    evtfnd = 1; /* set event found */
 
-        } else if (sev.typ == se_frm) {
+                }
+
+            }
+            /* could also be the frame timer */
+            if (!evtfnd && sev.lse == frmsev) {
 
                 evtsig = 1; /* set event signaled */
                 ev->etype = pa_etframe; /* set frame event occurred */
                 evtfnd = TRUE; /* set event found */
-                /* clear the timer by reading it */
-                read(frmfid, &exp, sizeof(uint64_t));
 
-        } else if (sev.typ == se_wsiz) {
+            }
+
+        } else if (sev.typ == se_inp && !evtfnd && joyenb) {
+
+            /* look in joystick set */
+            for (ji = 0; ji < numjoy && !evtfnd; ji++) {
+
+                if (joytab[ji] && joytab[ji]->sid == sev.lse) {
+
+                    evtsig = 1; /* set event signaled */
+                    joyevt(ev, &evtfnd, joytab[ji]); /* process joystick */
+
+                }
+
+            }
+
+        } else if (sev.typ == se_sig && !evtfnd && sev.lse == winchsev) {
 
             ev->etype = pa_etresize;
             evtfnd = 1;
-            winch = 0;
             /* save current window size */
             dimxs = dimx;
             dimys = dimy;
@@ -3131,7 +2851,7 @@ void pa_timer(/* file to send event to */              FILE *f,
 {
 
     if (i < 1 || i > PA_MAXTIM) error(einvhan); /* invalid timer handle */
-    addsetim(i, t, r); /* activate that timer */
+    timtbl[i-1] = system_event_addsetim(timtbl[i-1], t, r);
 
 }
 
@@ -3151,9 +2871,8 @@ void pa_killtimer(/* file to kill timer on */ FILE *f,
 {
 
     if (i < 1 || i > PA_MAXTIM) error(einvhan); /* invalid timer handle */
-    if (timtbl[i-1] < 0) error(etimacc); /* no such timer */
-
-    deasetim(i); /* stop timer */
+    if (timtbl[i-1] <= 0) error(etimacc); /* no such timer */
+    system_event_deasetim(timtbl[i-1]); /* deactivate timer */
 
 }
 
@@ -3348,27 +3067,11 @@ void pa_frametimer(FILE* f, int e)
 
     if (e) { /* set framing timer to run */
 
-        /* set timer run time */
-        ts.it_value.tv_sec = 0; /* set number of seconds to run */
-        ts.it_value.tv_nsec = 16666667; /* set number of nanoseconds to run */
-
-        /* set rerun time */
-        ts.it_interval.tv_sec = ts.it_value.tv_sec;
-        ts.it_interval.tv_nsec = ts.it_value.tv_nsec;
-
-        rv = timerfd_settime(frmfid, 0, &ts, NULL);
-        if (rv < 0) error(etimacc); /* could not set time */
+        frmsev = system_event_addsetim(frmsev, 166, TRUE);
 
     } else {
 
-        /* set timer run time to zero to kill it */
-        ts.it_value.tv_sec = 0;
-        ts.it_value.tv_nsec = 0;
-        ts.it_interval.tv_sec = 0;
-        ts.it_interval.tv_nsec = 0;
-
-        rv = timerfd_settime(frmfid, 0, &ts, NULL);
-        if (rv < 0) error(etimacc); /* could not set time */
+        system_event_deasetim(frmsev);
 
     }
 
@@ -3569,20 +3272,11 @@ static void pa_init_terminal()
        backspace, ^U,...),  no extended functions, no signal chars (^Z,^C) */
     raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
 
-    /* initialize system event handler */
-    inisevt();
-
     /* add input file event */
-    addsefid(0);
-
-    /* set current max input fd */
-    ifdmax = 0+1;
-
-    /* clear the signaling set */
-    FD_ZERO(&ifdsets);
+    inpsev = system_event_addseinp(0);
 
     /* clear the timers table */
-    for (i = 0; i < PA_MAXTIM; i++) timtbl[i] = -1;
+    for (i = 0; i < PA_MAXTIM; i++) timtbl[i] = 0;
 
     /* clear joystick table */
     for (ji = 0; ji < MAXJOY; ji++) joytab[ji] = NULL;
@@ -3599,10 +3293,11 @@ static void pa_init_terminal()
             joyfid = open(joyfil, O_RDONLY);
             if (joyfid >= 0) { /* found */
 
-                addsefid(joyfid); /* add this fid to system events */
                 /* get a joystick table entry */
                 joytab[numjoy] = malloc(sizeof(joyrec));
                 joytab[numjoy]->fid = joyfid; /* set fid */
+                /* enable system event */
+                joytab[numjoy]->sid = system_event_addseinp(joyfid);
                 joytab[numjoy]->ax = 0; /* clear joystick axis saves */
                 joytab[numjoy]->ay = 0;
                 joytab[numjoy]->az = 0;
@@ -3624,11 +3319,6 @@ static void pa_init_terminal()
 
     }
 
-    /* create framing timer */
-    frmfid = timerfd_create(CLOCK_REALTIME, 0);
-    if (frmfid == -1) error(etimacc);
-    addsefid(frmfid); /* add to system events */
-
     /* clear tabs and set to 8ths */
     for (i = 1; i <= dimx; i++) tabs[i-1] = ((i-1)%8 == 0) && (i != 1);
 
@@ -3645,15 +3335,8 @@ static void pa_init_terminal()
     /* now signal xterm we want all mouse events including all movements */
     putstr("\33[?1003h");
 
-    /* clear the windows change signal */
-    winch = 0;
-
-    /* catch signals. We don't care if it can't be caught, we would just be
-       ignoring the signal(s) in this case.  */
-    signal(SIGWINCH, sig_handler);
-
-    /* add signal to system events */
-    addsesig(SIGWINCH);
+    /* enable windows change signal */
+    winchsev = system_event_addsesig(SIGWINCH);
 
     /* restore terminal state after flushing */
     tcsetattr(0,TCSAFLUSH,&raw);
@@ -3688,9 +3371,6 @@ static void pa_deinit_terminal()
 
     /* turn off mouse tracking */
     putstr("\33[?1003l");
-
-    /* deinitialize system events */
-    deinisevt();
 
     /* swap old vectors for existing vectors */
     ovr_read(ofpread, &cppread);

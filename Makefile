@@ -456,6 +456,9 @@ linux/terminal.o: linux/terminal.c include/terminal.h Makefile
 linux/graphics.o: linux/graphics.c include/graphics.h Makefile
 	gcc -g3 -Iinclude -fPIC -c linux/graphics.c -o linux/graphics.o
 	
+linux/system_event.o: linux/system_event.c linux/system_event.h Makefile
+	gcc -g3 -Iinclude -fPIC -c linux/system_event.c -o linux/system_event.o
+	
 #
 # Windows library components
 #
@@ -608,16 +611,18 @@ bin/petit_ami_plain.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
 	    utils/config.o utils/option.o
 	
 bin/petit_ami_term.so: linux/services.o linux/network.o linux/terminal.o \
-    utils/config.o utils/option.o cpp/terminal.o
+    linux/system_event.o utils/config.o utils/option.o cpp/terminal.o
 	gcc -shared linux/services.o linux/network.o linux/terminal.o \
-	    utils/config.o utils/option.o cpp/terminal.o -o bin/petit_ami_term.so 
+	    linux/system_event.o utils/config.o utils/option.o cpp/terminal.o \
+	    -o bin/petit_ami_term.so 
 	
 bin/petit_ami_term.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/network.o linux/terminal.o utils/config.o \
-    utils/option.o cpp/terminal.o
+    linux/dumpsynthplug.o linux/network.o linux/terminal.o \
+    linux/system_event.o utils/config.o utils/option.o cpp/terminal.o
 	ar rcs bin/petit_ami_term.a linux/services.o linux/sound.o \
 		linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
-		linux/terminal.o utils/config.o utils/option.o cpp/terminal.o
+		linux/terminal.o linux/system_event.o utils/config.o utils/option.o \
+		cpp/terminal.o
 	
 bin/petit_ami_graph.so: linux/services.o linux/network.o linux/graphics.o \
     portable/gnome_widgets.o utils/config.o utils/option.o cpp/terminal.o
