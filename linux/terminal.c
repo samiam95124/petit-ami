@@ -73,7 +73,6 @@
 *******************************************************************************/
 
 /* linux definitions */
-#include <sys/timerfd.h>
 #include <termios.h>
 #include <stdlib.h>
 #include <string.h>
@@ -85,7 +84,9 @@
 #include <stdint.h>
 #include <limits.h>
 #include <signal.h>
+#ifndef __MACH__ /* Mac OS X */
 #include <linux/joystick.h>
+#endif
 #include <fcntl.h>
 
 /* Petit-Ami definitions */
@@ -679,6 +680,7 @@ static void joyevt(pa_evtrec* er, int* keep, joyptr jp)
 
 {
 
+#ifndef __MACH__ /* Mac OS X */
     struct js_event ev;
 
     read(jp->fid, &ev, sizeof(ev)); /* get next joystick event */
@@ -732,6 +734,7 @@ static void joyevt(pa_evtrec* er, int* keep, joyptr jp)
         }
 
     }
+#endif
 
 }
 
@@ -1985,6 +1988,7 @@ static void readline(void)
 
                 }
                 break;
+            default: ;
 
         }
 
@@ -3062,9 +3066,6 @@ void pa_frametimer(FILE* f, int e)
 
 {
 
-    struct itimerspec ts; /* linux timer structure */
-    int               rv; /* return value */
-
     if (e) { /* set framing timer to run */
 
         frmsev = system_event_addsetim(frmsev, 166, TRUE);
@@ -3305,12 +3306,14 @@ static void pa_init_terminal()
                 joytab[numjoy]->a5 = 0;
                 joytab[numjoy]->a6 = 0;
                 joytab[numjoy]->no = numjoy+1; /* set logical number */
+#ifndef __MACH__ /* Mac OS X */
                 /* get number of axes */
                 ioctl(joyfid, JSIOCGAXES, &jc);
                 joytab[numjoy]->axis = jc;
                 /* get number of buttons */
                 ioctl(joyfid, JSIOCGBUTTONS, &jc);
                 joytab[numjoy]->button = jc;
+#endif
                 numjoy++; /* count joysticks */
 
             }

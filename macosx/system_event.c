@@ -87,11 +87,11 @@
 #include <sys/event.h>
 #include <signal.h>
 #include <stdlib.h>
-#include <sys/timerfd.h>
 #include <unistd.h>
 #include <stdint.h>
 
-#include "system_event.h"
+/* somewhat kludgy, but there should be only one include file for this */
+#include "../linux/system_event.h"
 
 /*
  * Debug print system
@@ -134,13 +134,6 @@ typedef struct systrk {
 /* logical system event tracking array */
 static sevtptr systab[MAXSYS];
 static int sysno; /* number of system event ids allocated */
-
-/**
- * Set of input file ids for select
- */
-static fd_set ifdseta; /* active sets */
-static fd_set ifdsets; /* signaled set */
-static int ifdmax;
 
 static sigset_t sigmsk; /* signal mask */
 static sigset_t sigact; /* signal active */
@@ -229,7 +222,6 @@ int system_event_addseinp(int fid)
 {
 
     int sid; /* system logical event id */
-    struct kevent chgevt;
 
     sid = getsys(); /* get a new system event id */
     systab[sid-1]->typ = se_inp; /* set type */
@@ -244,7 +236,7 @@ int system_event_addseinp(int fid)
     }
 
     /* construct event for fid */
-    EV_SET(chgevt[nchg], fid, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, 0);
+    EV_SET(&chgevt[nchg], fid, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, 0);
     systab[sid-1]->ei = nchg; /* link to event entry */
     nchg++; /* count events registered */
 
@@ -281,7 +273,7 @@ int system_event_addsesig(int sig)
     signal(sig, sig_handler);
 
     /* construct event for fid */
-    EV_SET(chgevt[nchg], sig, EVFILT_SIGNAL, EV_ADD | EV_ENABLE, 0, 0, 0);
+    EV_SET(&chgevt[nchg], sig, EVFILT_SIGNAL, EV_ADD | EV_ENABLE, 0, 0, 0);
     systab[sid-1]->ei = nchg; /* link to event entry */
     nchg++; /* count events registered */
 
@@ -308,22 +300,14 @@ int system_event_addsetim(int sid, int t, int r)
 
         sid = getsys(); /* get a new system event id */
         systab[sid-1]->typ = se_tim; /* set type */
-        systab[sid-1]->fid = timerfd_create(CLOCK_REALTIME, 0);
-        if (systab[sid-1]->fid == -1) {
-
-            fprintf(stderr, "*** System event: Cannot create timer\n");
-            fflush(stderr);
-            exit(1);
-
-        }
         systab[sid-1]->ei = nchg; /* link to event entry */
         nchg++; /* count events registered */
 
     }
 
     /* construct timer event */
-    EV_SET(chgevt[systab[sid-1]->ei], fid, EVFILT_TIMER, EV_ADD | EV_ENABLE |
-           !rr*EV_ONESHOT, NOTE_USECONDS, (int64_t)t*100, 0);
+    EV_SET(&chgevt[systab[sid-1]->ei], sid, EVFILT_TIMER, EV_ADD | EV_ENABLE |
+           !!r*EV_ONESHOT, NOTE_USECONDS, (int64_t)t*100, 0);
 
     return (sid);
 
@@ -343,9 +327,6 @@ void system_event_deasetim(int sid)
 
 {
 
-    struct itimerspec ts;
-    int rv;
-
     if (sid <= 0 || !systab[sid-1]) {
 
         fprintf(stderr, "*** System event: Invalid system event id\n");
@@ -355,7 +336,7 @@ void system_event_deasetim(int sid)
     }
 
     /* construct timer event */
-    EV_SET(chgevt[systab[sid-1]->ei], fid, EVFILT_TIMER, EV_ADD | EV_DISABLE,
+    EV_SET(&chgevt[systab[sid-1]->ei], sid, EVFILT_TIMER, EV_ADD | EV_DISABLE,
            0, 0, 0);
 
 }
@@ -391,7 +372,7 @@ void system_event_getsevt(sevptr ev)
         if (ei >= nev) {
 
             /* out of events, read the next ones */
-            nev = kevent(kq, &chgevt, nchg, &events, MAXSYS, NULL);
+            nev = kevent(kerque, chgevt, nchg, events, MAXSYS, NULL);
             if (nev <= 0) {
 
                 fprintf(stderr, "*** System event: Error reading next event\n");
@@ -408,7 +389,7 @@ void system_event_getsevt(sevptr ev)
 
                 for (si = 0; si < sysno; si++) if (systab[si])
                     if (systab[si]->fid >= 0 && systab[si]->typ == se_inp &&
-                        events[ei].ident == systab[si]->fid)) {
+                        events[ei].ident == systab[si]->fid) {
 
                     /* fid has flagged */
                     ev->typ = systab[si]->typ; /* set key event occurred */
@@ -416,7 +397,7 @@ void system_event_getsevt(sevptr ev)
 
                 }
 
-            } else (events[ei].filter == EVFILT_SIGNAL) { /* it's a signal */
+            } else if (events[ei].filter == EVFILT_SIGNAL) { /* it's a signal */
 
                 for (si = 0; si < sysno; si++) if (systab[si])
                     if (systab[si]->typ == se_sig && systab[si]->sig > 0 &&
@@ -427,7 +408,9 @@ void system_event_getsevt(sevptr ev)
                     ev->lse = si+1; /* set system logical event no */
                     sigdelset(&sigact, systab[si]->sig); /* remove signal */
 
-            } else (events[ei].filter == EVFILT_TIMER) {
+                }
+
+            } else if (events[ei].filter == EVFILT_TIMER) {
 
                 /* ident carries the sid */
                 ev->typ = systab[si]->typ; /* set key event occurred */

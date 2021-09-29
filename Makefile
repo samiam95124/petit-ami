@@ -302,9 +302,9 @@ endif
 #
 ifeq ($(LINK_TYPE),static)
     ifeq ($(OSTYPE),Darwin)
-    	PLIBS += bin/petit_ami_plain.a
+    	CLIBS += bin/petit_ami_term.a
     else
-    	PLIBS += -Wl,--whole-archive bin/petit_ami_term.a -Wl,--no-whole-archive
+    	CLIBS += -Wl,--whole-archive bin/petit_ami_term.a -Wl,--no-whole-archive
     endif
 else
     CLIBS += stub/keeper.o bin/petit_ami_term.so 
@@ -315,9 +315,9 @@ endif
 #
 ifeq ($(LINK_TYPE),static)
     ifeq ($(OSTYPE),Darwin)
-    	PLIBS += bin/petit_ami_plain.a
+    	GLIBS += bin/petit_ami_graph.a
     else
-    	PLIBS += -Wl,--whole-archive bin/petit_ami_graph.a -Wl,--no-whole-archive
+    	GLIBS += -Wl,--whole-archive bin/petit_ami_graph.a -Wl,--no-whole-archive
     endif
 else
     GLIBS += stub/keeper.o bin/petit_ami_graph.so
@@ -508,7 +508,7 @@ macosx/graphics.o: stub/graphics.c include/graphics.h Makefile
 	gcc -g3 -Ilibc -Iinclude -c stub/graphics.c -o macosx/graphics.o
 	
 macosx/system_event.o: macosx/system_event.c linux/system_event.h Makefile
-	gcc -g3 -Iinclude -fPIC -c macos/system_event.c -o macosx/system_event.o
+	gcc -g3 -Iinclude -fPIC -c macosx/system_event.c -o macosx/system_event.o
 	
 #
 # Components in common to all systems
