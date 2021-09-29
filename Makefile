@@ -507,6 +507,9 @@ macosx/terminal.o: linux/terminal.c include/terminal.h Makefile
 macosx/graphics.o: stub/graphics.c include/graphics.h Makefile
 	gcc -g3 -Ilibc -Iinclude -c stub/graphics.c -o macosx/graphics.o
 	
+macosx/system_event.o: macosx/system_event.c linux/system_event.h Makefile
+	gcc -g3 -Iinclude -fPIC -c macos/system_event.c -o macosx/system_event.o
+	
 #
 # Components in common to all systems
 #
@@ -575,10 +578,11 @@ bin/petit_ami_plain.a: macosx/services.o macosx/sound.o macosx/network.o \
         macosx/network.o utils/config.o utils/option.o macosx/stdio.o
 	
 bin/petit_ami_term.a: macosx/services.o macosx/sound.o macosx/network.o \
-    macosx/terminal.o utils/config.o utils/option.o macosx/stdio.o
+    macosx/terminal.o macosx/system_event.o utils/config.o utils/option.o \
+    macosx/stdio.o
 	ar rcs bin/petit_ami_term.a macosx/services.o macosx/sound.o \
-	    macosx/network.o macosx/terminal.o utils/config.o utils/option.o \
-	    macosx/stdio.o
+	    macosx/network.o macosx/terminal.o macosx/system_event.o \
+	    utils/config.o utils/option.o macosx/stdio.o
 	
 petit_ami_graph.a: macosx/services.o macosx/sound.o macosx/network.o \
     macosx/graphics.o utils/config.o utils/option.o macosx/stdio.o
