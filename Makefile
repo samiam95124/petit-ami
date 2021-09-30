@@ -578,10 +578,10 @@ bin/petit_ami_plain.a: macosx/services.o macosx/sound.o macosx/network.o \
         macosx/network.o utils/config.o utils/option.o macosx/stdio.o
 	
 bin/petit_ami_term.a: macosx/services.o macosx/sound.o macosx/network.o \
-    macosx/terminal.o macosx/system_event.o utils/config.o utils/option.o \
+    macosx/system_event.o macosx/terminal.o utils/config.o utils/option.o \
     macosx/stdio.o
 	ar rcs bin/petit_ami_term.a macosx/services.o macosx/sound.o \
-	    macosx/network.o macosx/terminal.o macosx/system_event.o \
+	    macosx/network.o macosx/system_event.o macosx/terminal.o \
 	    utils/config.o utils/option.o macosx/stdio.o
 	
 petit_ami_graph.a: macosx/services.o macosx/sound.o macosx/network.o \

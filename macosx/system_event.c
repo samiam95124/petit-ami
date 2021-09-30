@@ -421,7 +421,7 @@ void system_event_getsevt(sevptr ev)
         }
 
     } while (ev->typ == se_none);
-#if 0
+#if 1
 switch (ev->typ) {
     case se_none: fprintf(stderr, "lse: %d None\n", ev->lse); break;
     case se_inp:  fprintf(stderr, "lse: %d Input file ready\n", ev->lse); break;
