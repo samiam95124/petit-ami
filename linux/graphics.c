@@ -84,14 +84,18 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
+#ifndef __MACH__ /* Mac OS X */
 #include <sys/timerfd.h>
+#endif
 #include <time.h>
 #include <unistd.h>
 #include <stdint.h>
 #include <limits.h>
 #include <stdio.h>
 #include <signal.h>
+#ifndef __MACH__ /* Mac OS X */
 #include <linux/joystick.h>
+#endif
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <pthread.h>

@@ -108,11 +108,11 @@ ifndef STDIO_SOURCE
         # Windows builds must use stdio since they don't use glibc.
         #
         STDIO_SOURCE=stdio
-    else ifeq ($(OSTYPE),Darwn)
+    else ifeq ($(OSTYPE),Darwin)
         #
         # Mac OS x builds must use stdio since they don't use glibc.
         #
-        STDIO_SOURCE=stdio    
+        STDIO_SOURCE=stdio
     else
         #
         # Linux
@@ -671,6 +671,7 @@ test: $(PLIBSD) test.c
 	$(CC) $(CFLAGS) test.c $(PLIBS) -o test
 	
 testc: $(CLIBSD) test.c
+	echo "CFLAGS: $(CFLAGS) STDIO_SOURCE: $(STDIO_SOURCE)"
 	$(CC) $(CFLAGS) test.c $(CLIBS) -o testc
 	
 testg: $(GLIBSD) test.c

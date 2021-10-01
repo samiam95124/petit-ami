@@ -7,6 +7,8 @@ hit another digit. [or is very very slow]
 keeps track of separate tabbing drums. This is logical, since every other
 characteristic tracks with the buffer.
 
-3. Implement the framing timer. Also create a test for this in terminal_test.
+3. Still looks like we are not getting true white on the background.
 
-4. Still looks like we are not getting true white on the background.
+4. In the Mac OS X version, the final benchmark tallys are getting erased. I 
+suspect this comes down to different treatment by xterms of the "restore normal
+buffer" command in deinit().
