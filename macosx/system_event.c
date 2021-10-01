@@ -128,6 +128,7 @@ typedef struct systrk {
     int     fid; /* logical file id if used */
     int     sig; /* signal number */
     int     ei;  /* event index */
+    int     rep; /* timer repeats (timer type only) */
 
 } systrk;
 
@@ -201,6 +202,7 @@ static int getsys(void)
     systab[fid]->typ = se_none; /* set no type */
     systab[fid]->fid = -1; /* set no file id */
     systab[fid]->sig = -1; /* set no signal id */
+    systab[fid]->rep = 0; /* set no repeat */
 
     sysno++; /* count active entries */
 
@@ -301,13 +303,14 @@ int system_event_addsetim(int sid, int t, int r)
         sid = getsys(); /* get a new system event id */
         systab[sid-1]->typ = se_tim; /* set type */
         systab[sid-1]->ei = nchg; /* link to event entry */
+        systab[sid-1]->rep = !!r; /* save repeat flag */
         nchg++; /* count events registered */
 
     }
 
     /* construct timer event */
-    EV_SET(&chgevt[systab[sid-1]->ei], sid, EVFILT_TIMER, EV_ADD | EV_ENABLE |
-           !!r*EV_ONESHOT, NOTE_USECONDS, (int64_t)t*100, 0);
+    EV_SET(&chgevt[systab[sid-1]->ei], sid, EVFILT_TIMER, EV_ADD | EV_ENABLE,
+           NOTE_USECONDS, (int64_t)t*100, 0);
 
     return (sid);
 
@@ -412,8 +415,13 @@ void system_event_getsevt(sevptr ev)
 
             } else if (events[ei].filter == EVFILT_TIMER) {
 
+                if (!systab[events[ei].ident-1]->rep)
+                    /* the EV_ONESHOT flag appears to do nothing on the Mac, so we
+                       disable it instead */
+                    EV_SET(&chgevt[events[ei].ident-1], events[ei].ident,
+                           EVFILT_TIMER, EV_ADD | EV_DISABLE, 0, 0, 0);
                 /* ident carries the sid */
-                ev->typ = systab[si]->typ; /* set key event occurred */
+                ev->typ = systab[events[ei].ident-1]->typ; /* set key event occurred */
                 ev->lse = events[ei].ident; /* set system logical event no */
 
             }
@@ -421,7 +429,7 @@ void system_event_getsevt(sevptr ev)
         }
 
     } while (ev->typ == se_none);
-#if 1
+#if 0
 switch (ev->typ) {
     case se_none: fprintf(stderr, "lse: %d None\n", ev->lse); break;
     case se_inp:  fprintf(stderr, "lse: %d Input file ready\n", ev->lse); break;
