@@ -275,7 +275,7 @@ The colors are not saved or restored.
 
 *******************************************************************************/
 
-int tbox(int sx, int sy, /* coordinates of box upper left */
+void tbox(int sx, int sy, /* coordinates of box upper left */
          int ex, int ey, /* coordinates of box lower left */
          char c,         /* character to draw */
          pa_color  bclr, /* background color of character */
@@ -410,7 +410,7 @@ Main process
 
 *******************************************************************************/
 
-void main(void)
+int main(void)
 
 {
 
@@ -482,11 +482,14 @@ void main(void)
                 break;
 
             }
+            default: ;
 
         }
 
     } while (!done && er.etype != pa_etterm); /* game complete */
     pa_auto(stdout, TRUE); /* automatic terminal off */
     pa_select(stdout, 1, 1); /* restore screen */
+
+    return (0); /* exit no error */
 
 }

@@ -372,7 +372,7 @@ redisplay the board && update the clock.
 
 *******************************************************************************/
 
-void main(void)
+int main(void)
 
 {
 
@@ -402,5 +402,7 @@ void main(void)
     pa_curvis(stdout, TRUE); /* turn cursor back on */
     pa_auto(stdout, TRUE); /* turn on scrolling */
     putchar('\f'); /* clear screen */
+
+    return (0); /* exit no error */
 
 }

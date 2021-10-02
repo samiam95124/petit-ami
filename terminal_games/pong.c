@@ -49,39 +49,6 @@ int       failtimer; /* fail note timer */
 
 /*******************************************************************************
 
-Wait time
-
-Waits for the elapsed time, in 100 microseconds. Ignores other timers.
-
-********************************************************************************/
-
-void wait(int t)
-
-{
-
-    pa_evtrec er; /* event record */
-
-    pa_timer(stdin, 2, t, FALSE); /* set timer */
-    /* wait event */
-    do {
-
-        do { pa_event(stdin, &er); }
-        while (er.etype != pa_ettim && er.etype != pa_etterm);
-        if (er.etype == pa_etterm) {
-
-            pa_curvis(stdout, TRUE); /* restore drawing cursor */
-            pa_auto(stdout, TRUE); /* turn scrolling back on */
-            pa_select(stdout, 1, 1); /* restore screen */
-            exit(1); /* terminate */
-
-        }
-
-    } while (er.timnum != 2); /* this is our timer */
-
-}
-
-/*******************************************************************************
-
 Write string to screen
 
 Writes a sgtring to the indicated position on the screen.
@@ -162,7 +129,7 @@ void padpos(int x)
 
 }
 
-void main(void)
+int main(void)
 
 {
 
@@ -181,7 +148,7 @@ void main(void)
 
     start: /* start new game */
 
-    drwscn; /* draw game screen */
+    drwscn(); /* draw game screen */
     padx = pa_maxx(stdout)/2; /* find intial paddle position */
     writexy(padx-3, pa_maxy(stdout)-1, "======="); /* place paddle */
     ballx = 0; /* set ball ! on screen */
@@ -319,5 +286,7 @@ void main(void)
     #if SOUND
     pa_closesynthout(PA_SYNTH_OUT); /* close synthesizer */
     #endif
+
+    return (0); /* exit no error */
 
 }

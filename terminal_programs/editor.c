@@ -1316,7 +1316,7 @@ void delbwd(void)
         y = pa_cury(stdout); /* save location y */
         /* gap character */
         for (i = poschr; i <= MAXLIN; i++) inpbuf[i-1] = inpbuf[i];
-        inpbuf[MAXLIN] = ' '; /* fill last position */
+        inpbuf[MAXLIN-1] = ' '; /* fill last position */
         poschr--; /* set new character position */
         pa_left(stdout); /* move cursor left */
         l = strlen(inpbuf); /* find length of input buffer */
@@ -1354,7 +1354,7 @@ void delfwd(void)
         y = pa_cury(stdout); /* save location y */
         /* gap character */
         for (i = poschr; i <= MAXLIN-1; i++) inpbuf[i] = inpbuf[i+1];
-        inpbuf[MAXLIN] = ' '; /* fill last position */
+        inpbuf[MAXLIN-1] = ' '; /* fill last position */
         l = strlen(inpbuf); /* find length of input buffer */
         pa_curvis(stdout, FALSE); /* turn off cursor */
         for (i = poschr; i <= l; i++) putchar(inpbuf[i]); /* replace line */
@@ -1447,7 +1447,7 @@ the function keys.
 
 *******************************************************************************/
 
-void main(int argc, char *argv[])
+int main(int argc, char *argv[])
 
 {
 
@@ -1536,6 +1536,7 @@ void main(int argc, char *argv[])
             case pa_etmoumov:  moumov(); break; /* mouse move */
             case pa_etresize:  update(FALSE); break; /* resize window */
             case pa_etterm:    break; /* terminate program */
+            default:;
 
         }
 
@@ -1544,5 +1545,7 @@ void main(int argc, char *argv[])
    pa_select(stdout, 1, 1); /* return to normal screen */
 
    stopprog: ; /* exit program */
+
+   return (0); /* exit no error */
 
 }

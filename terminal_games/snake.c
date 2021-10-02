@@ -306,6 +306,7 @@ void movesnake(pa_evtcod usrmov)
             case pa_etup:    y--; break; /* move up */
             case pa_etleft:  x--; break; /* move left */
             case pa_etright: x++; break; /* move right */
+            default:;
 
         }
         /* if we are directly backing up into ourselves, ignore the move */
@@ -434,7 +435,7 @@ Besides the direction keys, the user has avalible restart and cancel game keys.
 
 *******************************************************************************/
 
-void main(void) /* snake */
+int main(void) /* snake */
 
 {
 
@@ -508,5 +509,7 @@ void main(void) /* snake */
    pa_curvis(stdout, TRUE); /* restore drawing cursor */
    pa_auto(stdout, TRUE); /* restore automatic scrolling */
    pa_select(stdout, 1, 1); /* back to original screen */
+
+   return (0); /* exit no error */
 
 }

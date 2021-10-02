@@ -39,7 +39,7 @@ pa_note octave; /* current octave */
 int     deftim; /* default note time */
 int     i;
 
-void wait(int t)
+static void waittime(int t)
 
 {
 
@@ -51,18 +51,18 @@ void wait(int t)
 
 }
 
-void playnote(pa_note n, int nt)
+static void playnote(pa_note n, int nt)
 
 {
 
 /*printf("Note: %d Time: %d\n", n, nt);*/
    pa_noteon(dport, 0, 1, n, INT_MAX); /* turn on the note */
-   wait(nt); /* wait time */
+   waittime(nt); /* wait time */
    pa_noteoff(dport, 0, 1, n, INT_MAX); /* turn off the note */
 
 }
 
-void settim(int* t, int ln)
+static void settim(int* t, int ln)
 
 {
 
@@ -77,7 +77,7 @@ void settim(int* t, int ln)
 
 }
 
-void setoct(int on)
+static void setoct(int on)
 
 {
 
@@ -104,7 +104,7 @@ void setoct(int on)
 
 /* Qbasic compatible "play" string command */
 
-void play(string ms)
+static void play(string ms)
 
 {
 
@@ -191,14 +191,14 @@ void play(string ms)
                 exit(1);
 
             }
-            if (i == 0) wait(ntime); /* rest */
+            if (i == 0) waittime(ntime); /* rest */
             else playnote(i-1+PA_OCTAVE_2, deftim); /* play note */
 
         } else if (tolower(*ms) == 'p') { /* pause */
 
             ms++; /* advance */
             settim(&x, strtol(ms, &ms, 10)); /* get time */
-            wait(x); /* wait for that time */
+            waittime(x); /* wait for that time */
 
         } else if (tolower(*ms) == 't') { /* tempo */
 
