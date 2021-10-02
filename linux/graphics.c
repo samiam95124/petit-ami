@@ -106,7 +106,9 @@
 #include <graphics.h>
 
 /* external definitions */
+#ifndef __MACH__ /* Mac OS X */
 extern char *program_invocation_short_name;
+#endif
 
 /*
  * Debug print system
@@ -137,7 +139,9 @@ static enum { /* debug levels */
 //#define PRTMEM /* print memory allocations at exit */
 //#define PRTWPM /* print window parameters on open */
 //#define NOWDELAY /* don't delay window presentation until drawn */
+#ifndef __MACH__ /* Mac OS X */
 #define NOCANCEL /* include nocancel overrides */
+#endif
 
 /* the "standard character" sizes are used to form a pseudo-size for desktop
    character measurements in a graphical system. */
@@ -1568,11 +1572,23 @@ void stdfont(void)
 
     /* search 3: sign (san serif) font */
     fp = fndfnt("unregistered: latin modern sans: iso8859-1", FALSE);
-    if (!fp) error(estdfnt); /* no font found */
-    delfnt(fp); /* remove from source list */
-    fp->next = nfl; /* insert to target list */
-    nfl = fp;
-    sp = fp; /* save sign font */
+    if (fp) { /* found, enter as 3 */
+
+        delfnt(fp); /* remove from source list */
+        fp->next = nfl; /* insert to target list */
+        nfl = fp;
+        sp = fp; /* save sign font */
+
+    } else {
+
+        fp = fndfnt("bitstream: bitstream vera sans: iso8859-1", FALSE);
+        if (!fp) error(estdfnt); /* no font found */
+        delfnt(fp); /* remove from source list */
+        fp->next = nfl; /* insert to target list */
+        nfl = fp;
+        sp = fp; /* save sign font */
+
+    }
 
     /* search 4: technical font, make copy of sign */
     fp = (fontptr)imalloc(sizeof(fontrec));
@@ -1970,6 +1986,8 @@ int bitcnt(int i)
         b <<= 1;
 
     }
+
+    return (c); /* return bit count */
 
 }
 
@@ -3312,7 +3330,7 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
     char                 buf[250];
     Window               pw, rw;
     Window*              cwl;
-    int                  ncw;
+    unsigned             ncw;
 
     win = lfn2win(fn); /* get a pointer to the window */
     /* find parent */
@@ -3503,9 +3521,11 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
 #endif
 
     /* set window title from program name */
+#ifndef __MACH__ /* Mac OS X */
     XWLOCK();
     XStoreName(padisplay, win->xmwhan, program_invocation_short_name);
     XWUNLOCK();
+#endif
 
     iniscn(win, win->screens[0]); /* initalize screen buffer */
     restore(win); /* update to screen */
@@ -4136,7 +4156,7 @@ structures each time from a file handle.
 Each internal routine has the same name as an external routine (without
 coining), but with a leading "i".
 
-********************************************************************************
+*******************************************************************************/
 
 /** ****************************************************************************
 
@@ -4650,7 +4670,7 @@ static void irestabg(winptr win, int t)
 
        /* move all tabs down to gap out */
        for (i = ft; i < MAXTAB-1; i++) sc->tab[i] = sc->tab[i+1];
-       sc->tab[MAXTAB] = 0; /* clear any last tab */
+       sc->tab[MAXTAB-1] = 0; /* clear any last tab */
 
     }
 
@@ -4942,7 +4962,7 @@ static ssize_t iread(int fd, void* buff, size_t count)
 
 {
 
-    ivread(ofpread, fd, buff, count);
+    return ivread(ofpread, fd, buff, count);
 
 }
 
@@ -4950,7 +4970,7 @@ static ssize_t iread_nocancel(int fd, void* buff, size_t count)
 
 {
 
-    ivread(ofpread_nocancel, fd, buff, count);
+    return ivread(ofpread_nocancel, fd, buff, count);
 
 }
 
@@ -4987,7 +5007,7 @@ static ssize_t iwrite(int fd, const void* buff, size_t count)
 
 {
 
-    ivwrite(ofpwrite, fd, buff, count);
+    return ivwrite(ofpwrite, fd, buff, count);
 
 }
 
@@ -4995,7 +5015,7 @@ static ssize_t iwrite_nocancel(int fd, const void* buff, size_t count)
 
 {
 
-    ivwrite(ofpwrite_nocancel, fd, buff, count);
+    return ivwrite(ofpwrite_nocancel, fd, buff, count);
 
 }
 
@@ -5020,7 +5040,7 @@ static int iopen(const char* pathname, int flags, int perm)
 
 {
 
-    ivopen(ofpopen, pathname, flags, perm);
+    return ivopen(ofpopen, pathname, flags, perm);
 
 }
 
@@ -5028,7 +5048,7 @@ static int iopen_nocancel(const char* pathname, int flags, int perm)
 
 {
 
-    ivopen(ofpopen_nocancel, pathname, flags, perm);
+    return ivopen(ofpopen_nocancel, pathname, flags, perm);
 
 }
 
@@ -5057,7 +5077,7 @@ static int iclose(int fd)
 
 {
 
-    ivclose(ofpclose, fd);
+    return ivclose(ofpclose, fd);
 
 }
 
@@ -5065,7 +5085,7 @@ static int iclose_nocancel(int fd)
 
 {
 
-    ivclose(ofpclose_nocancel, fd);
+    return ivclose(ofpclose_nocancel, fd);
 
 }
 
@@ -5094,7 +5114,7 @@ static off_t ilseek(int fd, off_t offset, int whence)
 
 {
 
-    ivlseek(ofplseek, fd, offset, whence);
+    return ivlseek(ofplseek, fd, offset, whence);
 
 }
 
@@ -8427,7 +8447,8 @@ void pa_loadpict(FILE* f, int p, char* fn)
     imgtot += pw*ph*4;
     /* create truecolor image */
     XWLOCK();
-    ip->xi = XCreateImage(padisplay, vi, 24, ZPixmap, 0, frmdat, pw, ph, 32, 0);
+    ip->xi = XCreateImage(padisplay, vi, 24, ZPixmap, 0, (char*)frmdat,
+                          pw, ph, 32, 0);
     XWUNLOCK();
 
     /* find end of row padding */
@@ -8566,7 +8587,8 @@ void pa_picture(FILE* f, int p, int x1, int y1, int x2, int y2)
         imgtot += pw*ph*4;
         /* create truecolor image */
         XWLOCK();
-        fp->xi = XCreateImage(padisplay, vi, 24, ZPixmap, 0, frmdat, pw, ph, 32, 0);
+        fp->xi = XCreateImage(padisplay, vi, 24, ZPixmap, 0, (char*)frmdat,
+                              pw, ph, 32, 0);
         XWUNLOCK();
         rescale(fp->xi, pp->xi); /* rescale to new image */
 
@@ -8662,6 +8684,7 @@ static void joyevt(pa_evtrec* er, int* keep, joyptr jp)
 
 {
 
+#ifndef __MACH__ /* Mac OS X */
     struct js_event ev;
 
     read(jp->fid, &ev, sizeof(ev)); /* get next joystick event */
@@ -8718,6 +8741,7 @@ static void joyevt(pa_evtrec* er, int* keep, joyptr jp)
         }
 
     }
+#endif
 
 }
 
@@ -8857,7 +8881,7 @@ static void mouseevent(winptr win, XEvent* e)
         else if (e->xbutton.button == Button4) win->nmb4 = TRUE;
         else if (e->xbutton.button == Button5) win->nmb5 = TRUE;
 
-    } else if (e->type = ButtonRelease) {
+    } else if (e->type == ButtonRelease) {
 
         if (e->xbutton.button == Button1) win->nmb1 = FALSE;
         else if (e->xbutton.button == Button2) win->nmb2 = FALSE;
@@ -9592,6 +9616,7 @@ void pa_timer(FILE* f, /* file to send event to */
 
 {
 
+#ifndef __MACH__ /* Mac OS X */
     winptr win; /* windows record pointer */
     struct itimerspec ts;
     int    rv;
@@ -9634,6 +9659,7 @@ void pa_timer(FILE* f, /* file to send event to */
 
     rv = timerfd_settime(win->timers[i-1], 0, &ts, NULL);
     if (rv < 0) error(etimacc); /* could not set time */
+#endif
 
 }
 
@@ -9651,6 +9677,7 @@ void pa_killtimer(FILE* f, /* file to kill timer on */
 
 {
 
+#ifndef __MACH__ /* Mac OS X */
     winptr win; /* windows record pointer */
     struct itimerspec ts;
     int rv;
@@ -9667,6 +9694,7 @@ void pa_killtimer(FILE* f, /* file to kill timer on */
 
     rv = timerfd_settime(win->timers[i-1], 0, &ts, NULL);
     if (rv < 0) error(etimacc); /* could not set time */
+#endif
 
 }
 
@@ -9685,6 +9713,7 @@ void pa_frametimer(FILE* f, int e)
 
 {
 
+#ifndef __MACH__ /* Mac OS X */
     struct itimerspec ts;  /* linux timer structure */
     int               rv;  /* return value */
     winptr            win; /* windows record pointer */
@@ -9717,6 +9746,7 @@ void pa_frametimer(FILE* f, int e)
         if (rv < 0) error(etimacc); /* could not set time */
 
     }
+#endif
 
 }
 
@@ -10775,7 +10805,7 @@ void pa_getsizg(FILE* f, int* x, int* y)
     winptr            win; /* pointer to windows context */
     Window            cw, pw, rw;
     Window*           cwl;
-    int               ncw;
+    unsigned          ncw;
 
     win = txt2win(f); /* get window context */
     XWLOCK();
@@ -11025,7 +11055,7 @@ void pa_scnsizg(FILE* f, int* x, int* y)
     winptr            win; /* pointer to windows context */
     Window            cw, pw, rw;
     Window*           cwl;
-    int               ncw;
+    unsigned          ncw;
 
     win = txt2win(f); /* get window context */
     XWLOCK();
@@ -11275,7 +11305,7 @@ static void pa_init_graphics(int argc, char *argv[])
     char      jc;
 
     /* clear malloc in use total */
-    memusd = 0; /* total memory in use *
+    memusd = 0; /* total memory in use */
     memrty = 0; /* number of retries */
     maxrty = 0; /* retry maximum */
     fontcnt = 0; /* font entry counter */
@@ -11498,12 +11528,14 @@ static void pa_init_graphics(int argc, char *argv[])
                 joytab[numjoy]->a5 = 0;
                 joytab[numjoy]->a6 = 0;
                 joytab[numjoy]->no = numjoy+1; /* set logical number */
+#ifndef __MACH__ /* Mac OS X */
                 /* get number of axes */
                 ioctl(joyfid, JSIOCGAXES, &jc);
                 joytab[numjoy]->axis = jc;
                 /* get number of buttons */
                 ioctl(joyfid, JSIOCGBUTTONS, &jc);
                 joytab[numjoy]->button = jc;
+#endif
                 numjoy++; /* count joysticks */
 
             }
@@ -11512,6 +11544,7 @@ static void pa_init_graphics(int argc, char *argv[])
 
     }
 
+#ifndef __MACH__ /* Mac OS X */
     /* create framing timer */
     frmfid = timerfd_create(CLOCK_REALTIME, 0);
     if (frmfid == -1) error(etimacc);
@@ -11519,6 +11552,7 @@ static void pa_init_graphics(int argc, char *argv[])
     if (frmfid+1 > ifdmax) ifdmax = frmfid+1; /* set maximum fid for select() */
     /* create file entry for framing timer */
     getfil(&opnfil[frmfid]);
+#endif
 
     /* clear the signaling set */
     FD_ZERO(&ifdsets);
@@ -11565,12 +11599,14 @@ static void pa_deinit_graphics()
 	if (!errflg && !fend && fautohold) { /* process automatic exit sequence */
 
         if (!win->visible) winvis(win); /* make sure we are displayed */
+#ifndef __MACH__ /* Mac OS X */
         /* construct final name for window */
         trmnam = imalloc(strlen(fini)+strlen(program_invocation_short_name)+1);
         strcpy(trmnam, fini); /* place first part */
         strcat(trmnam, program_invocation_short_name); /* place program name */
         /* set window title */
         XStoreName(padisplay, win->xmwhan, trmnam);
+#endif
         /* wait for a formal end */
 		while (!fend) pa_event(stdin, &er);
 		ifree(trmnam); /* free up termination name */

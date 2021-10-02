@@ -235,8 +235,8 @@ typedef struct {
         };
         /* pa_etedtbox */
         int edtbid; /* edit box complete */
-        /* pa_etnumbox,   /* number select box signals done */
-        struct {
+        /* pa_etnumbox */
+        struct { /* number select box signals done */
 
             int numbid; /* num sel box select */
             int numbsl; /* num select value */
