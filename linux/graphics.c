@@ -11418,7 +11418,7 @@ static void pa_init_graphics(int argc, char *argv[])
     XWLOCK();
     dfid = ConnectionNumber(padisplay);
     XWUNLOCK();
-    dspsev = system_event_addseinp(0);
+    dspsev = system_event_addseinp(dfid);
 
     /* clear joystick table */
     for (ji = 0; ji < MAXJOY; ji++) joytab[ji] = NULL;
