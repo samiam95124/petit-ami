@@ -4,7 +4,7 @@ Please see the following documents to get started in Petit-Ami
 
 doc/petit_ami.docx	The "grand unified" document of what it is, how to install
                     it, etc.
-INSTALL				The basic install procedure.
+INSTALL             The basic install procedure.
 
 The project is presented as a complete within a single tree. The format is
 along the lines of GNU projects, IE, with a configure, Makefile, README, etc.
