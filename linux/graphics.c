@@ -92,7 +92,6 @@
 #include <stdint.h>
 #include <limits.h>
 #include <stdio.h>
-#include <signal.h>
 #ifndef __MACH__ /* Mac OS X */
 #include <linux/joystick.h>
 #endif
@@ -104,6 +103,7 @@
 #include <localdefs.h>
 #include <config.h>
 #include <graphics.h>
+#include "system_event.h"
 
 /* external definitions */
 #ifndef __MACH__ /* Mac OS X */
@@ -464,6 +464,7 @@ typedef struct winrec {
     int          inpptr;            /* input line index */
     int          frmrun;            /* framing timer is running */
     int          timers[PA_MAXTIM]; /* timer id array */
+    int          frmsev;            /* frame timer system event */
     int          focus;             /* screen in focus */
     picptr       pictbl[MAXPIC];    /* loadable pictures table */
     int          bufmod;            /* buffered screen mode */
@@ -624,6 +625,7 @@ typedef struct joyrec* joyptr; /* pointer to joystick record */
 typedef struct joyrec {
 
     int fid;    /* joystick file id */
+    int sid;    /* system event id */
     int axis;   /* number of joystick axes */
     int button; /* number of joystick buttons */
     int ax;     /* joystick x axis save */
@@ -692,6 +694,7 @@ static winptr     winfre;         /* free windows structure list */
 static int        stdchrx;        /* standard/reference character size x */
 static int        stdchry;        /* standard/reference character size y */
 static int        errflg;         /* an error has been flagged */
+static int        dspsev;         /* XWindows display system event */
 
 /* memory statistics/diagnostics */
 static unsigned long memusd;    /* total memory in use for malloc */
@@ -721,13 +724,6 @@ static int joyenb;    /* enable joysticks */
 static int dmpmsg;    /* enable dump messages (diagnostic, windows only) */
 static int dmpevt;    /* enable dump Petit-Ami messages */
 static int prtftm;    /* print font metrics (diagnostic) */
-
-/**
- * Set of input file ids for select
- */
-static fd_set ifdseta; /* active sets */
-static fd_set ifdsets; /* signaled set */
-static int ifdmax;     /* maximum FID for select() */
 
 static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, int wid,
                      int subclient);
@@ -3376,8 +3372,9 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
     win->size = TRUE; /* set size bars on */
     win->sysbar = TRUE; /* set system bar on */
     win->sizests = 0; /* clear last size status word */
-    /* clear timer repeat array */
-    for (ti = 0; ti < 10; ti++) win->timers[ti] = -1;
+    /* clear timer array */
+    for (ti = 0; ti < 10; ti++) win->timers[ti] = 0;
+    win->frmsev = 0; /* clear frame timer */
     /* clear loadable pictures table */
     for (pin = 0; pin < MAXPIC; pin++) win->pictbl[pin] = NULL;
     /* clear the screen array */
@@ -9616,50 +9613,11 @@ void pa_timer(FILE* f, /* file to send event to */
 
 {
 
-#ifndef __MACH__ /* Mac OS X */
     winptr win; /* windows record pointer */
-    struct itimerspec ts;
-    int    rv;
-    long   tl;
-    int    tfid;
 
     if (i < 1 || i > PA_MAXTIM) error(einvhan); /* invalid timer handle */
     win = txt2win(f); /* get window from file */
-    if (win->timers[i-1] < 0) { /* timer entry inactive, create a timer */
-
-        tfid = timerfd_create(CLOCK_REALTIME, 0);
-        if (tfid == -1) error(etimacc);
-        win->timers[i-1] = tfid; /* place in timers equ */
-        /* place new file in active select set */
-        FD_SET(tfid, &ifdseta);
-        /* if the new file handle is greater than  any existing, set new max */
-        if (tfid+1 > ifdmax) ifdmax = tfid+1;
-        /* create entry in fid table */
-        if (!opnfil[tfid]) getfil(&opnfil[tfid]); /* get fet if empty */
-        opnfil[tfid]->tim = i; /* place timer equ number */
-        opnfil[tfid]->twin = win; /* place window containing timer */
-
-    }
-
-    /* set timer run time */
-    tl = t;
-    ts.it_value.tv_sec = tl/10000; /* set number of seconds to run */
-    ts.it_value.tv_nsec = tl%10000*100000; /* set number of nanoseconds to run */
-
-    /* set if timer does not rerun */
-    ts.it_interval.tv_sec = 0;
-    ts.it_interval.tv_nsec = 0;
-
-    if (r) { /* timer reruns */
-
-        ts.it_interval.tv_sec = ts.it_value.tv_sec;
-        ts.it_interval.tv_nsec = ts.it_value.tv_nsec;
-
-    }
-
-    rv = timerfd_settime(win->timers[i-1], 0, &ts, NULL);
-    if (rv < 0) error(etimacc); /* could not set time */
-#endif
+    win->timers[i-1] = system_event_addsetim(timers[i-1], t, r);
 
 }
 
@@ -9677,24 +9635,12 @@ void pa_killtimer(FILE* f, /* file to kill timer on */
 
 {
 
-#ifndef __MACH__ /* Mac OS X */
     winptr win; /* windows record pointer */
-    struct itimerspec ts;
-    int rv;
 
     if (i < 1 || i > PA_MAXTIM) error(einvhan); /* invalid timer handle */
     win = txt2win(f); /* get window from file */
     if (!win->timers[i-1] < 0) error(etimacc); /* no such timer */
-
-    /* set timer run time to zero to kill it */
-    ts.it_value.tv_sec = 0;
-    ts.it_value.tv_nsec = 0;
-    ts.it_interval.tv_sec = 0;
-    ts.it_interval.tv_nsec = 0;
-
-    rv = timerfd_settime(win->timers[i-1], 0, &ts, NULL);
-    if (rv < 0) error(etimacc); /* could not set time */
-#endif
+    system_event_deasetim(win->timers[i-1]); /* deactivate timer */
 
 }
 
@@ -9713,40 +9659,18 @@ void pa_frametimer(FILE* f, int e)
 
 {
 
-#ifndef __MACH__ /* Mac OS X */
-    struct itimerspec ts;  /* linux timer structure */
-    int               rv;  /* return value */
-    winptr            win; /* windows record pointer */
+    winptr win; /* windows record pointer */
 
     win = txt2win(f); /* get window from file */
     if (e) { /* set framing timer to run */
 
-        /* set timer run time */
-        ts.it_value.tv_sec = 0; /* set number of seconds to run */
-        ts.it_value.tv_nsec = 16666667; /* set number of nanoseconds to run */
-
-        /* set rerun time */
-        ts.it_interval.tv_sec = ts.it_value.tv_sec;
-        ts.it_interval.tv_nsec = ts.it_value.tv_nsec;
-
-        rv = timerfd_settime(frmfid, 0, &ts, NULL);
-        if (rv < 0) error(etimacc); /* could not set time */
-
-        opnfil[frmfid]->twin = win; /* place window containing timer */
+        win->frmsev = system_event_addsetim(frmsev, 166, TRUE);
 
     } else {
 
-        /* set timer run time to zero to kill it */
-        ts.it_value.tv_sec = 0;
-        ts.it_value.tv_nsec = 0;
-        ts.it_interval.tv_sec = 0;
-        ts.it_interval.tv_nsec = 0;
-
-        rv = timerfd_settime(frmfid, 0, &ts, NULL);
-        if (rv < 0) error(etimacc); /* could not set time */
+        system_event_deasetim(win->frmsev);
 
     }
-#endif
 
 }
 
@@ -11490,15 +11414,11 @@ static void pa_init_graphics(int argc, char *argv[])
     ofn = fileno(stdout); /* get logical id stdout */
     openio(stdin, stdout, ifn, ofn, -1, 1, FALSE); /* process open */
 
-    /* clear input select set */
-    FD_ZERO(&ifdseta);
-
     /* select XWindow display file */
     XWLOCK();
     dfid = ConnectionNumber(padisplay);
     XWUNLOCK();
-    FD_SET(dfid, &ifdseta);
-    ifdmax = dfid+1; /* set maximum fid for select() */
+    dspsev = system_event_addseinp(0);
 
     /* clear joystick table */
     for (ji = 0; ji < MAXJOY; ji++) joytab[ji] = NULL;
@@ -11515,12 +11435,11 @@ static void pa_init_graphics(int argc, char *argv[])
             joyfid = open(joyfil, O_RDONLY);
             if (joyfid >= 0) { /* found */
 
-                FD_SET(joyfid, &ifdseta);
-                if (joyfid+1 > ifdmax)
-                    ifdmax = joyfid+1; /* set maximum fid for select() */
                 /* get a joystick table entry */
                 joytab[numjoy] = imalloc(sizeof(joyrec));
                 joytab[numjoy]->fid = joyfid; /* set fid */
+                /* enable system event */
+                joytab[numjoy]->sid = system_event_addseinp(joyfid);
                 joytab[numjoy]->ax = 0; /* clear joystick axis saves */
                 joytab[numjoy]->ay = 0;
                 joytab[numjoy]->az = 0;
@@ -11553,9 +11472,6 @@ static void pa_init_graphics(int argc, char *argv[])
     /* create file entry for framing timer */
     getfil(&opnfil[frmfid]);
 #endif
-
-    /* clear the signaling set */
-    FD_ZERO(&ifdsets);
 
     /* override the event handler for menus */
     pa_eventsover(menu_event, &menu_event_oeh);
