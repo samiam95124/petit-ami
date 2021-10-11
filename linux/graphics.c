@@ -9407,6 +9407,7 @@ static void ievent(FILE* f, pa_evtrec* er)
     uint64_t   exp;      /* timer expiration time */
     winptr     win;      /* window record pointer */
     XEvent     e;        /* XWindow event */
+    sysevt     sev;      /* system event */
     joyptr     jp;
     int        i;
 
@@ -9426,6 +9427,23 @@ static void ievent(FILE* f, pa_evtrec* er)
 
         }
 
+        if (!keep) {
+
+			system_event_getsevt(&sev); /* get the next system event */
+			/* check display event occurred */
+			if (sev.typ == se_inp && sev.lse == inpsev) {
+
+				/* check XWindows event is pending */
+				XWLOCK();
+				rv = XPending(padisplay);
+				XWUNLOCK();
+				if (rv) xwinget(er, &keep);
+
+			}
+
+        }
+
+**********
         /* search for active event */
         if (!keep)
             for (i = 0; i < ifdmax && !keep; i++)
