@@ -629,18 +629,21 @@ bin/petit_ami_term.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
 		cpp/terminal.o
 	
 bin/petit_ami_graph.so: linux/services.o linux/network.o linux/graphics.o \
-    portable/gnome_widgets.o utils/config.o utils/option.o cpp/terminal.o
+    linux/system_event.o portable/gnome_widgets.o utils/config.o \
+    utils/option.o cpp/terminal.o
 	gcc -shared linux/services.o linux/network.o linux/graphics.o \
-		portable/gnome_widgets.o utils/config.o utils/option.o cpp/terminal.o \
+		linux/system_event.o portable/gnome_widgets.o utils/config.o \
+		utils/option.o cpp/terminal.o \
 		-o bin/petit_ami_graph.so
 	
 bin/petit_ami_graph.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
     linux/dumpsynthplug.o linux/network.o linux/graphics.o \
-    portable/gnome_widgets.o utils/config.o utils/option.o cpp/terminal.o
+    linux/system_event.o portable/gnome_widgets.o utils/config.o \
+    utils/option.o cpp/terminal.o
 	ar rcs bin/petit_ami_graph.a linux/services.o linux/sound.o \
 		linux/fluidsynthplug.o linux/dumpsynthplug.o  linux/network.o \
-		linux/graphics.o portable/gnome_widgets.o utils/config.o \
-		utils/option.o cpp/terminal.o
+		linux/graphics.o linux/system_event.o portable/gnome_widgets.o \
+		utils/config.o utils/option.o cpp/terminal.o
 	
 endif
 
