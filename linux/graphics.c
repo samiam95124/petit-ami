@@ -9449,34 +9449,40 @@ static void ievent(FILE* f, pa_evtrec* er)
 
         if (!keep) {
 
-			system_event_getsevt(&sev); /* get the next system event */
-			/* check display event occurred */
-			if (sev.typ == se_inp) {
+            /* check XWindows event queue before we wait on system events */
+            xwinget(er, &keep);
+            if (!keep) {
 
-			    if (sev.lse == dspsev) xwinget(er, &keep);
-				else if (sidtab[sev.lse-1] && sidtab[sev.lse-1]->joy && joyenb)
-				    /* process joystick event */
-				    joyevt(er,  &keep, joytab[sidtab[sev.lse-1]->joy-1]);
+                system_event_getsevt(&sev); /* get the next system event */
+                /* check display event occurred */
+                if (sev.typ == se_inp) {
 
-			} else if (sev.typ == se_tim) {
+                    if (sev.lse == dspsev) xwinget(er, &keep);
+                    else if (sidtab[sev.lse-1] && sidtab[sev.lse-1]->joy && joyenb)
+                        /* process joystick event */
+                        joyevt(er,  &keep, joytab[sidtab[sev.lse-1]->joy-1]);
 
-                if (sidtab[sev.lse-1]->frm) {
+                } else if (sev.typ == se_tim) {
 
-                    /* frame event */
-                    er->etype = pa_etframe; /* set frame event occurred */
-                    /* set window number */
-                    er->winid = sidtab[sev.lse-1]->win->wid;
-                    keep = TRUE; /* set event found */
+                    if (sidtab[sev.lse-1]->frm) {
 
-                } else {
+                        /* frame event */
+                        er->etype = pa_etframe; /* set frame event occurred */
+                        /* set window number */
+                        er->winid = sidtab[sev.lse-1]->win->wid;
+                        keep = TRUE; /* set event found */
 
-                    /* timer event */
-                    er->etype = pa_ettim; /* set timer type */
-                    /* set timer number */
-                    er->timnum = sidtab[sev.lse-1]->tim;
-                    /* set window number */
-                    er->winid = sidtab[sev.lse-1]->win->wid;
-                    keep = TRUE; /* set event found */
+                    } else {
+
+                        /* timer event */
+                        er->etype = pa_ettim; /* set timer type */
+                        /* set timer number */
+                        er->timnum = sidtab[sev.lse-1]->tim;
+                        /* set window number */
+                        er->winid = sidtab[sev.lse-1]->win->wid;
+                        keep = TRUE; /* set event found */
+
+                    }
 
                 }
 

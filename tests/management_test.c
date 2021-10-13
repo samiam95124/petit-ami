@@ -264,7 +264,6 @@ int main(void)
 
     pa_auto(stdout, OFF);
     pa_curvis(stdout, OFF);
-#if 0
     printf("Managed screen test vs. 0.1\n");
     printf("\n");
     pa_scnsiz(stdout, &x, &y);
@@ -568,13 +567,11 @@ int main(void)
     pa_sizable(stdout, OFF);
     frametest("Size bars off");
     pa_sizable(stdout, ON);
-#endif
     frametest("Size bars on");
     pa_buffer(stdout, ON);
 
     /* ********************************* Menu test ***************************** */
 
-#if 0
     pa_auto(stdout, ON);
     putchar('\f');
     pa_fcolor(stdout, pa_cyan);
@@ -719,7 +716,6 @@ int main(void)
     } while (er.etype != pa_etenter && er.etype != pa_etterm);
     pa_menu(stdout, NULL);
 
-#endif
     /* ************************* Child windows test character ****************** */
 
     putchar('\f');
