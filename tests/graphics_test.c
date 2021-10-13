@@ -231,7 +231,7 @@ static int randr(int s, int e)
 
 }
 
-static int swap(int* a, int* b)
+static void swap(int* a, int* b)
 
 {
 
@@ -240,21 +240,6 @@ static int swap(int* a, int* b)
     t = *a;
     *a = *b;
     *b = t;
-
-}
-
-/* wait time in 100 microseconds */
-
-static void wait(long t)
-
-{
-
-    pa_evtrec er;
-
-    pa_timer(stdout, 1, t, FALSE);
-    do { pa_event(stdin, &er); }
-    while (er.etype != pa_ettim && er.etype != pa_etterm);
-    if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
 }
 
