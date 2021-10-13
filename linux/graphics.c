@@ -9656,7 +9656,7 @@ void pa_killtimer(FILE* f, /* file to kill timer on */
 
     if (i < 1 || i > PA_MAXTIM) error(einvhan); /* invalid timer handle */
     win = txt2win(f); /* get window from file */
-    if (!win->timers[i-1] < 0) error(etimacc); /* no such timer */
+    if (!win->timers[i-1]) error(etimacc); /* no such timer */
     system_event_deasetim(win->timers[i-1]); /* deactivate timer */
 
 }
