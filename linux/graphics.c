@@ -9480,7 +9480,7 @@ static void ievent(FILE* f, pa_evtrec* er)
 				} else if (sidtab[sev.lse-1] && sidtab[sev.lse-1]->joy &&
 				           joyenb)
 				    /* process joystick event */
-				    joyevt(er,  &keep, joytab[sidtab[sev.lse-1]->joy]);
+				    joyevt(er,  &keep, joytab[sidtab[sev.lse-1]->joy-1]);
 
 			} else if (sev.typ == se_tim) {
 
