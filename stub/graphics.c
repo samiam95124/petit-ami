@@ -324,7 +324,7 @@ Graphical mode does not implement blink mode.
 
 *******************************************************************************/
 
-void pa_blink(FILE* f, boolean e)
+void pa_blink(FILE* f, int e)
 
 {
 
@@ -341,7 +341,7 @@ and foreground writing colors.
 
 *******************************************************************************/
 
-void pa_reverse(FILE* f, boolean e)
+void pa_reverse(FILE* f, int e)
 
 {
 
@@ -360,7 +360,7 @@ character drawn.
 
 *******************************************************************************/
 
-void pa_underline(FILE* f, boolean e)
+void pa_underline(FILE* f, int e)
 
 {
 
@@ -377,7 +377,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void pa_superscript(FILE* f, boolean e)
+void pa_superscript(FILE* f, int e)
 
 {
 
@@ -394,7 +394,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void pa_subscript(FILE* f, boolean e)
+void pa_subscript(FILE* f, int e)
 
 {
 
@@ -416,7 +416,7 @@ italic on fixed fonts.
 
 *******************************************************************************/
 
-void pa_italic(FILE* f, boolean e)
+void pa_italic(FILE* f, int e)
 
 {
 
@@ -436,7 +436,7 @@ colors, which an ATTRIBUTE command seems to mess with !
 
 *******************************************************************************/
 
-void pa_bold(FILE* f, boolean e)
+void pa_bold(FILE* f, int e)
 
 {
 
@@ -454,7 +454,7 @@ just placed.
 
 *******************************************************************************/
 
-void pa_strikeout(FILE* f, boolean e)
+void pa_strikeout(FILE* f, int e)
 
 {
 
@@ -471,7 +471,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void pa_standout(FILE* f, boolean e)
+void pa_standout(FILE* f, int e)
 
 {
 
@@ -591,7 +591,7 @@ anywhere.
 
 *******************************************************************************/
 
-void pa_auto(FILE* f, boolean e)
+void pa_auto(FILE* f, int e)
 
 {
 
@@ -607,7 +607,7 @@ Enable or disable cursor visibility.
 
 *******************************************************************************/
 
-void pa_curvis(FILE* f, boolean e)
+void pa_curvis(FILE* f, int e)
 
 {
 
@@ -726,7 +726,7 @@ such as controls are not suppressed.
 
 *******************************************************************************/
 
-void pa_wrtstr(FILE* f, string s)
+void pa_wrtstr(FILE* f, char* s)
 
 {
 
@@ -1155,7 +1155,7 @@ Returns the name of a font by number.
 
 *******************************************************************************/
 
-void pa_fontnam(FILE* f, int fc, string fns)
+void pa_fontnam(FILE* f, int fc, char* fns)
 
 {
 
@@ -1263,7 +1263,7 @@ character spacing and kerning.
 
 *******************************************************************************/
 
-int pa_strsiz(FILE* f, string s)
+int pa_strsiz(FILE* f, char* s)
 
 {
 
@@ -1281,7 +1281,7 @@ Finds the pixel offset to the given character in the string.
 
 *******************************************************************************/
 
-int pa_chrpos(FILE* f, string s, int p)
+int pa_chrpos(FILE* f, char* s, int p)
 
 {
 
@@ -1301,7 +1301,7 @@ the system font.
 
 *******************************************************************************/
 
-void pa_writejust(FILE* f, string s, int n)
+void pa_writejust(FILE* f, char* s, int n)
 
 {
 
@@ -1321,7 +1321,7 @@ spaces, with the fractional part lost.
 
 *******************************************************************************/
 
-int pa_justpos(FILE* f, string s, int p, int n)
+int pa_justpos(FILE* f, char* s, int p, int n)
 
 {
 
@@ -1344,7 +1344,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void pa_condensed(FILE* f, boolean e)
+void pa_condensed(FILE* f, int e)
 
 {
 
@@ -1365,7 +1365,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void pa_extended(FILE* f, boolean e)
+void pa_extended(FILE* f, int e)
 
 {
 
@@ -1386,7 +1386,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void pa_xlight(FILE* f, boolean e)
+void pa_xlight(FILE* f, int e)
 
 {
 
@@ -1407,7 +1407,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void pa_light(FILE* f, boolean e)
+void pa_light(FILE* f, int e)
 
 {
 
@@ -1428,7 +1428,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void pa_xbold(FILE* f, boolean e)
+void pa_xbold(FILE* f, int e)
 
 {
 
@@ -1449,7 +1449,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void pa_hollow(FILE* f, boolean e)
+void pa_hollow(FILE* f, int e)
 
 {
 
@@ -1470,7 +1470,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void pa_raised(FILE* f, boolean e)
+void pa_raised(FILE* f, int e)
 
 {
 
@@ -1502,7 +1502,7 @@ Loads a picture into a slot of the loadable pictures array.
 
 *******************************************************************************/
 
-void pa_loadpict(FILE* f, int p, string fn)
+void pa_loadpict(FILE* f, int p, char* fn)
 
 {
 
@@ -1647,9 +1647,9 @@ the associated input file.
 *******************************************************************************/
 
 void pa_timer(FILE*   f, /* file to send event to */
-           timhan  i, /* timer handle */
-           int     t, /* number of tenth-milliseconds to run */
-           boolean r) /* timer is to rerun after completion */
+              timhan  i, /* timer handle */
+              int     t, /* number of tenth-milliseconds to run */
+              int     r) /* timer is to rerun after completion */
 
 {
 
@@ -1685,7 +1685,7 @@ of the blanking interval.
 
 *******************************************************************************/
 
-void pa_frametimer(FILE* f, boolean e)
+void pa_frametimer(FILE* f, int e)
 
 {
 
@@ -1708,7 +1708,7 @@ holding gralib unaware programs.
 
 *******************************************************************************/
 
-void pa_autohold(boolean e)
+void pa_autohold(int e)
 
 {
 
@@ -1918,7 +1918,7 @@ Sets the title of the current window.
 
 *******************************************************************************/
 
-void pa_title(FILE* f, string ts)
+void pa_title(FILE* f, char* ts)
 
 {
 
@@ -1988,7 +1988,7 @@ freed.
 
 *******************************************************************************/
 
-void pa_buffer(FILE* f, boolean e)
+void pa_buffer(FILE* f, int e)
 
 {
 
@@ -2023,7 +2023,7 @@ and will no longer send messages.
 
 *******************************************************************************/
 
-void pa_menuena(FILE* f, int id, boolean onoff)
+void pa_menuena(FILE* f, int id, int onoff)
 
 {
 
@@ -2040,7 +2040,7 @@ selected, with no check if not.
 
 *******************************************************************************/
 
-void pa_menusel(FILE* f, int id, boolean select)
+void pa_menusel(FILE* f, int id, int select)
 
 {
 
@@ -2267,7 +2267,7 @@ Turns the window frame on and off.
 
 *******************************************************************************/
 
-void pa_frame(FILE* f, boolean e)
+void pa_frame(FILE* f, int e)
 
 {
 
@@ -2283,7 +2283,7 @@ Turns the window sizing on and off.
 
 *******************************************************************************/
 
-void pa_sizable(FILE* f, boolean e)
+void pa_sizable(FILE* f, int e)
 
 {
 
@@ -2299,7 +2299,7 @@ Turns the system bar on and off.
 
 *******************************************************************************/
 
-void pa_sysbar(FILE* f, boolean e)
+void pa_sysbar(FILE* f, int e)
 
 {
 
@@ -2355,7 +2355,7 @@ Selects or deselects a widget.
 
 *******************************************************************************/
 
-void pa_selectwidget(FILE* f, int id, boolean e)
+void pa_selectwidget(FILE* f, int id, int e)
 
 {
 
@@ -2371,7 +2371,7 @@ Enables or disables a widget.
 
 *******************************************************************************/
 
-void pa_enablewidget(FILE* f, int id, boolean e)
+void pa_enablewidget(FILE* f, int id, int e)
 
 {
 
@@ -2389,7 +2389,7 @@ This error is currently unchecked.
 
 *******************************************************************************/
 
-void pa_getwidgettext(FILE* f, int id, string s)
+void pa_getwidgettext(FILE* f, int id, char* s)
 
 {
 
@@ -2405,7 +2405,7 @@ Places text into an edit box.
 
 *******************************************************************************/
 
-void pa_putwidgettext(FILE* f, int id, string s)
+void pa_putwidgettext(FILE* f, int id, char* s)
 
 {
 
@@ -2482,7 +2482,7 @@ a button is calculated and returned.
 
 *******************************************************************************/
 
-void pa_buttonsizg(FILE* f, string s, int* w, int* h)
+void pa_buttonsizg(FILE* f, char* s, int* w, int* h)
 
 {
 
@@ -2490,7 +2490,7 @@ void pa_buttonsizg(FILE* f, string s, int* w, int* h)
 
 }
 
-void pa_buttonsiz(FILE* f, string s, int* w, int* h)
+void pa_buttonsiz(FILE* f, char* s, int* w, int* h)
 
 {
 
@@ -2506,7 +2506,7 @@ Creates a standard button within the specified rectangle, on the given window.
 
 *******************************************************************************/
 
-void pa_buttong(FILE* f, int x1, int y1, int x2, int y2, string s, int id)
+void pa_buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -2514,7 +2514,7 @@ void pa_buttong(FILE* f, int x1, int y1, int x2, int y2, string s, int id)
 
 }
 
-void pa_button(FILE* f, int x1, int y1, int x2, int y2, string s, int id)
+void pa_button(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -2531,7 +2531,7 @@ a checkbox is calculated and returned.
 
 *******************************************************************************/
 
-void pa_checkboxsizg(FILE* f, string s, int* w, int* h)
+void pa_checkboxsizg(FILE* f, char* s, int* w, int* h)
 
 {
 
@@ -2539,7 +2539,7 @@ void pa_checkboxsizg(FILE* f, string s, int* w, int* h)
 
 }
 
-void pa_checkboxsiz(FILE* f, string s,  int* w, int* h)
+void pa_checkboxsiz(FILE* f, char* s,  int* w, int* h)
 
 {
 
@@ -2556,7 +2556,7 @@ window.
 
 *******************************************************************************/
 
-void pa_checkboxg(FILE* f, int x1, int y1, int x2, int y2, string s, int id)
+void pa_checkboxg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -2564,7 +2564,7 @@ void pa_checkboxg(FILE* f, int x1, int y1, int x2, int y2, string s, int id)
 
 }
 
-void pa_checkbox(FILE* f, int x1, int y1, int x2, int y2, string s, int id)
+void pa_checkbox(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -2581,7 +2581,7 @@ size of a radio button is calculated and returned.
 
 *******************************************************************************/
 
-void pa_radiobuttonsizg(FILE* f, string s, int* w, int* h)
+void pa_radiobuttonsizg(FILE* f, char* s, int* w, int* h)
 
 {
 
@@ -2589,7 +2589,7 @@ void pa_radiobuttonsizg(FILE* f, string s, int* w, int* h)
 
 }
 
-void pa_radiobuttonsiz(FILE* f, string s, int* w, int* h)
+void pa_radiobuttonsiz(FILE* f, char* s, int* w, int* h)
 
 {
 
@@ -2606,7 +2606,7 @@ window.
 
 *******************************************************************************/
 
-void pa_radiobuttong(FILE* f, int x1, int y1, int x2, int y2, string s, int id)
+void pa_radiobuttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -2614,7 +2614,7 @@ void pa_radiobuttong(FILE* f, int x1, int y1, int x2, int y2, string s, int id)
 
 }
 
-void pa_radiobutton(FILE* f, int x1, int y1, int x2, int y2, string s, int id)
+void pa_radiobutton(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -2631,7 +2631,7 @@ size of a group is calculated and returned.
 
 *******************************************************************************/
 
-void pa_groupsizg(FILE* f, string s, int cw, int ch, int* w, int* h,
+void pa_groupsizg(FILE* f, char* s, int cw, int ch, int* w, int* h,
                int* ox, int* oy)
 
 {
@@ -2640,7 +2640,7 @@ void pa_groupsizg(FILE* f, string s, int cw, int ch, int* w, int* h,
 
 }
 
-void pa_groupsiz(FILE* f, string s, int cw, int ch, int* w, int* h,
+void pa_groupsiz(FILE* f, char* s, int cw, int ch, int* w, int* h,
               int* ox, int* oy)
 
 {
@@ -2658,7 +2658,7 @@ no messages. It is used as a background for other widgets.
 
 *******************************************************************************/
 
-void pa_groupg(FILE* f, int x1, int y1, int x2, int y2, string s, int id)
+void pa_groupg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -2666,7 +2666,7 @@ void pa_groupg(FILE* f, int x1, int y1, int x2, int y2, string s, int id)
 
 }
 
-void pa_group(FILE* f, int x1, int y1, int x2, int y2, string s, int id)
+void pa_group(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 {
 
@@ -2887,7 +2887,7 @@ size of an edit box is calculated and returned.
 
 *******************************************************************************/
 
-void pa_editboxsizg(FILE* f, string s, int* w, int* h)
+void pa_editboxsizg(FILE* f, char* s, int* w, int* h)
 
 {
 
@@ -2895,7 +2895,7 @@ void pa_editboxsizg(FILE* f, string s, int* w, int* h)
 
 }
 
-void pa_editboxsiz(FILE* f, string s, int* w, int* h)
+void pa_editboxsiz(FILE* f, char* s, int* w, int* h)
 
 {
 
@@ -3370,7 +3370,7 @@ Outputs a message dialog with the given title and message strings.
 
 *******************************************************************************/
 
-void pa_alert(string title, string message)
+void pa_alert(char* title, char* message)
 
 {
 

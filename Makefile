@@ -504,8 +504,8 @@ macosx/network.o: stub/network.c include/network.h Makefile
 macosx/terminal.o: linux/terminal.c include/terminal.h Makefile
 	gcc -g3 -Ilibc -Iinclude -c linux/terminal.c -o macosx/terminal.o
 	
-macosx/graphics.o: stub/graphics.c include/graphics.h Makefile
-	gcc -g3 -Ilibc -Iinclude -c stub/graphics.c -o macosx/graphics.o
+macosx/graphics.o: linux/graphics.c include/graphics.h Makefile
+	gcc -g3 -Ilibc -Iinclude -c linux/graphics.c -o macosx/graphics.o
 	
 macosx/system_event.o: macosx/system_event.c linux/system_event.h Makefile
 	gcc -g3 -Iinclude -fPIC -c macosx/system_event.c -o macosx/system_event.o
