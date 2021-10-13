@@ -9417,22 +9417,6 @@ static void xwinget(pa_evtrec* er, int* keep)
 
 }
 
-/* search joystick table for fid */
-static joyptr schjoy(int fid)
-
-{
-
-    int    ji;
-    joyptr jp;
-
-    jp = NULL; /* set no entry */
-    for (ji = 0; ji < numjoy; ji++)
-        if (joytab[ji] && joytab[ji]->fid == fid) jp = joytab[ji];
-
-    return (jp);
-
-}
-
 static void ievent(FILE* f, pa_evtrec* er)
 
 {
@@ -9469,16 +9453,8 @@ static void ievent(FILE* f, pa_evtrec* er)
 			/* check display event occurred */
 			if (sev.typ == se_inp) {
 
-			    if (sev.lse == dspsev) {
-
-                    /* check XWindows event is pending */
-                    XWLOCK();
-                    rv = XPending(padisplay);
-                    XWUNLOCK();
-                    if (rv) xwinget(er, &keep);
-
-				} else if (sidtab[sev.lse-1] && sidtab[sev.lse-1]->joy &&
-				           joyenb)
+			    if (sev.lse == dspsev) xwinget(er, &keep);
+				else if (sidtab[sev.lse-1] && sidtab[sev.lse-1]->joy && joyenb)
 				    /* process joystick event */
 				    joyevt(er,  &keep, joytab[sidtab[sev.lse-1]->joy-1]);
 
