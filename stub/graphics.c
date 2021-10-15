@@ -1155,7 +1155,7 @@ Returns the name of a font by number.
 
 *******************************************************************************/
 
-void pa_fontnam(FILE* f, int fc, char* fns)
+void pa_fontnam(FILE* f, int fc, char* fns, int fnsl)
 
 {
 
@@ -1263,7 +1263,7 @@ character spacing and kerning.
 
 *******************************************************************************/
 
-int pa_strsiz(FILE* f, char* s)
+int pa_strsiz(FILE* f, const char* s)
 
 {
 
@@ -1281,7 +1281,7 @@ Finds the pixel offset to the given character in the string.
 
 *******************************************************************************/
 
-int pa_chrpos(FILE* f, char* s, int p)
+int pa_chrpos(FILE* f, const char* s, int p)
 
 {
 
@@ -1301,7 +1301,7 @@ the system font.
 
 *******************************************************************************/
 
-void pa_writejust(FILE* f, char* s, int n)
+void pa_writejust(FILE* f, const char* s, int n)
 
 {
 
@@ -1321,7 +1321,7 @@ spaces, with the fractional part lost.
 
 *******************************************************************************/
 
-int pa_justpos(FILE* f, char* s, int p, int n)
+int pa_justpos(FILE* f, const char* s, int p, int n)
 
 {
 
@@ -1646,10 +1646,10 @@ the associated input file.
 
 *******************************************************************************/
 
-void pa_timer(FILE*   f, /* file to send event to */
-              timhan  i, /* timer handle */
-              int     t, /* number of tenth-milliseconds to run */
-              int     r) /* timer is to rerun after completion */
+void pa_timer(FILE* f, /* file to send event to */
+              int   i, /* timer handle */
+              long  t, /* number of tenth-milliseconds to run */
+              int   r) /* timer is to rerun after completion */
 
 {
 
@@ -1666,7 +1666,7 @@ Kills a given timer, by it's id number. Only repeating timers should be killed.
 *******************************************************************************/
 
 void pa_killtimer(FILE*  f, /* file to kill timer on */
-               timhan i) /* handle of timer */
+                  int    i) /* handle of timer */
 
 {
 
@@ -1724,7 +1724,7 @@ Returns the number of mice implemented. Windows supports only one mouse.
 
 *******************************************************************************/
 
-mounum pa_mouse(FILE* f)
+int pa_mouse(FILE* f)
 
 {
 
@@ -1743,7 +1743,7 @@ version.
 
 *******************************************************************************/
 
-moubut pa_mousebutton(FILE* f, mouhan m)
+int pa_mousebutton(FILE* f, int m)
 
 {
 
@@ -1761,7 +1761,7 @@ Return number of joysticks attached.
 
 *******************************************************************************/
 
-joynum pa_joystick(FILE* f)
+int pa_joystick(FILE* f)
 
 {
 
@@ -1779,7 +1779,7 @@ Returns the number of buttons on a given joystick.
 
 *******************************************************************************/
 
-joybtn pa_joybutton(FILE* f, joyhan j)
+int pa_joybutton(FILE* f, int j)
 
 {
 
@@ -1799,7 +1799,7 @@ joystick can be considered a slider without positional meaning.
 
 *******************************************************************************/
 
-joyaxn pa_joyaxis(FILE* f, joyhan j)
+int pa_joyaxis(FILE* f, int j)
 
 {
 
@@ -1900,7 +1900,7 @@ function keys as well.
 
 *******************************************************************************/
 
-funky pa_funkey(FILE* f)
+int pa_funkey(FILE* f)
 
 {
 
@@ -1939,7 +1939,7 @@ directly. These ids will be be opened as a pair anytime the "_input" or
 
 *******************************************************************************/
 
-void pa_openwin(FILE* infile, FILE* outfile, FILE* parent, int wid)
+void pa_openwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
 
 {
 
@@ -2389,7 +2389,7 @@ This error is currently unchecked.
 
 *******************************************************************************/
 
-void pa_getwidgettext(FILE* f, int id, char* s)
+void pa_getwidgettext(FILE* f, int id, char* s, int sl)
 
 {
 
@@ -3412,7 +3412,7 @@ If the operation is cancelled, then a null string will be returned.
 
 *******************************************************************************/
 
-void pa_queryopen(pstring s)
+void pa_queryopen(char* s, int sl)
 
 {
 
@@ -3436,7 +3436,7 @@ If the operation is cancelled, then a null string will be returned.
 
 *******************************************************************************/
 
-void pa_querysave(pstring s)
+void pa_querysave(char* s, int sl)
 
 {
 
@@ -3469,7 +3469,7 @@ table this issue until later.
 
 *******************************************************************************/
 
-void pa_queryfind(pstring s, pa_qfnopts* opt)
+void pa_queryfind(char* s, int sl, pa_qfnopts* opt)
 
 {
 
@@ -3494,7 +3494,7 @@ Bug: See comment, queryfind.
 
 *******************************************************************************/
 
-void pa_queryfindrep(pstring s, pstring r, pa_qfropts* opt)
+void pa_queryfindrep(char* s, int sl, char* r, int rl, pa_qfropts* opt)
 
 {
 
