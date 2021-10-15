@@ -155,8 +155,6 @@ void pa_home(FILE *f)
 
     error("pa_home: Is not implemented");
 
-    return (1); /* this just shuts up compiler */
-
 }
 
 /** ****************************************************************************
