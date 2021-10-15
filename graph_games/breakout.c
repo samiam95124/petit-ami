@@ -19,6 +19,9 @@
 #include <sound.h>
 #include <graphics.h>
 
+/* enable sounds */
+//#define SOUND 1
+
 #define   SECOND      10000                   /* one second */
 #define   OSEC        (SECOND/8)              /* 1/8 second */
 #define   BALMOV      50                      /* ball move timer */
@@ -134,6 +137,7 @@ void log2rgb(pa_color c, int* r, int* g, int* b)
         case pa_cyan:    *r = 0;       *g = INT_MAX; *b = INT_MAX; break;
         case pa_yellow:  *r = INT_MAX; *g = INT_MAX; *b = 0;       break;
         case pa_magenta: *r = INT_MAX; *g = 0;       *b = INT_MAX; break;
+        default: ;
 
     }
 
@@ -267,7 +271,7 @@ Checks if two rectangles intersect. Returns true if so.
 
 ********************************************************************************/
 
-int intersect(rectangle* r1, rectangle* r2)
+int intsec(rectangle* r1, rectangle* r2)
 
 {
 
@@ -288,7 +292,7 @@ Sets the rectangle to the given values.
 
 ********************************************************************************/
 
-void setrect(rectangle* r, int x1, int y1, int x2, int y2)
+void setrct(rectangle* r, int x1, int y1, int x2, int y2)
 
 {
 
@@ -387,7 +391,7 @@ void padpos(int x)
     pa_frect(stdout, padx-hpadw, pa_maxyg(stdout)-wall-padh-pwdis,
                      padx+hpadw, pa_maxyg(stdout)-wall-pwdis);
     padx = x; /* set new location */
-    setrect(&paddle, x-hpadw, pa_maxyg(stdout)-wall-padh-pwdis,
+    setrct(&paddle, x-hpadw, pa_maxyg(stdout)-wall-padh-pwdis,
                     x+hpadw, pa_maxyg(stdout)-wall-pwdis);
     drwrect(&paddle, PADCLR); /* draw paddle */
 
@@ -421,7 +425,7 @@ void setwall(void)
         rd = brkr; /* set remainder distributor */
         for (c = 0; c < BRKCOL; c++) {
 
-            setrect(&bricks[r][c], 1+co+wall, 1+(r-1)*brkh+brkoff,
+            setrct(&bricks[r][c], 1+co+wall, 1+(r-1)*brkh+brkoff,
                                               1+co+brkw-1+wall+(rd > 0),
                                               1+(r-1)*brkh+brkh-1+brkoff);
             co = co+brkw+(rd > 0); /* offset to next brick */
@@ -451,7 +455,7 @@ void interbrick(void)
 
     brki = FALSE; /* set no brick intersection */
     for (r = 0; r < BRKROW; r++)
-        for (c = 0; c < BRKCOL; c++) if (intersect(&ball, &bricks[r][c])) {
+        for (c = 0; c < BRKCOL; c++) if (intsec(&ball, &bricks[r][c])) {
 
         brki = TRUE; /* set intersected */
         drwrect(&bricks[r][c], pa_white); /* erase from screen */
@@ -468,9 +472,11 @@ int main(void)
 
 {
 
+#ifdef SOUND
     pa_opensynthout(PA_SYNTH_OUT); /* open synthesizer */
     pa_instchange(PA_SYNTH_OUT, 0, 1, PA_INST_LEAD_1_SQUARE);
     pa_starttimeout(); /* start sequencer running */
+#endif
     jchr = INT_MAX/((pa_maxxg(stdout)-2)/2); /* find basic joystick increment */
     pa_curvis(stdout, FALSE); /* remove drawing cursor */
     pa_auto(stdout, FALSE); /* turn off scrolling */
@@ -496,12 +502,12 @@ int main(void)
     clrrect(&ball); /* set ball not on screen */
     baltim = 0; /* set ball ready to start */
     /* set up wall rectangles */
-    setrect(&wallt, 1, 1, pa_maxxg(stdout), wall); /* top */
-    setrect(&walll, 1, 1, wall, pa_maxyg(stdout)); /* left */
+    setrct(&wallt, 1, 1, pa_maxxg(stdout), wall); /* top */
+    setrct(&walll, 1, 1, wall, pa_maxyg(stdout)); /* left */
     /* right */
-    setrect(&wallr, pa_maxxg(stdout)-wall, 1, pa_maxxg(stdout), pa_maxyg(stdout));
+    setrct(&wallr, pa_maxxg(stdout)-wall, 1, pa_maxxg(stdout), pa_maxyg(stdout));
     /* bottom */
-    setrect(&wallb, 1, pa_maxyg(stdout)-wall, pa_maxxg(stdout), pa_maxyg(stdout));
+    setrct(&wallb, 1, pa_maxyg(stdout)-wall, pa_maxxg(stdout), pa_maxyg(stdout));
     scrsiz = pa_strsiz(stdout, "SCORE 0000"); /* set nominal size of score string */
     scrchg = TRUE; /* set score changed */
     drwscn(); /* draw game screen */
@@ -517,7 +523,7 @@ int main(void)
             if (ball.x1 == 0 && baltim == 0) {
 
                 /* ball not on screen, and time to wait expired, send out ball */
-                setrect(&ball, wall+1, pa_maxyg(stdout)-4*wall-balls,
+                setrct(&ball, wall+1, pa_maxyg(stdout)-4*wall-balls,
                                wall+1+balls, pa_maxyg(stdout)-4*wall);
                 bdx = +pa_maxxg(stdout)/300; /* set direction of travel */
                 bdy = -pa_maxyg(stdout)/150;
@@ -560,26 +566,30 @@ int main(void)
                         balsav = ball; /* save ball position */
                         offrect(&ball, bdx, bdy); /* move the ball */
                         /* check off screen motions */
-                        if (intersect(&ball, &walll) || intersect(&ball, &wallr)) {
+                        if (intsec(&ball, &walll) || intsec(&ball, &wallr)) {
 
                             /* hit left or right wall */
                             ball = balsav; /* restore */
                             bdx = -bdx; /* change direction */
                             offrect(&ball, bdx, bdy); /* recalculate */
+#ifdef SOUND
                             /* start bounce note */
                             pa_noteon(PA_SYNTH_OUT, 0, 1, WALLNOTE, INT_MAX);
                             pa_noteoff(PA_SYNTH_OUT, pa_curtimeout()+BOUNCETIME, 1, WALLNOTE, INT_MAX);
+#endif
 
-                        } else if (intersect(&ball, &wallt)) { /* hits top */
+                        } else if (intsec(&ball, &wallt)) { /* hits top */
 
                             ball = balsav; /* restore */
                             bdy = -bdy; /* change direction */
                             offrect(&ball, bdx, bdy); /* recalculate */
+#ifdef SOUND
                             /* start bounce note */
                             pa_noteon(PA_SYNTH_OUT, 0, 1, WALLNOTE, INT_MAX);
                             pa_noteoff(PA_SYNTH_OUT, pa_curtimeout()+BOUNCETIME, 1, WALLNOTE, INT_MAX);
+#endif
 
-                        } else if (intersect(&ball, &paddle)) {
+                        } else if (intsec(&ball, &paddle)) {
 
                             ball = balsav; /* restore */
                             /* find which 5th of the paddle was struck */
@@ -603,9 +613,11 @@ int main(void)
                                it up until it is not */
                             if (ball.y2 >= paddle.y1)
                                 offrect(&ball, 0, -(ball.y2-paddle.y1+1));
+#ifdef SOUND
                             /* start bounce note */
                             pa_noteon(PA_SYNTH_OUT, 0, 1, WALLNOTE, INT_MAX);
                             pa_noteoff(PA_SYNTH_OUT, pa_curtimeout()+BOUNCETIME, 1, WALLNOTE, INT_MAX);
+#endif
 
                         } else { /* check brick hits */
 
@@ -615,22 +627,26 @@ int main(void)
                                 ball = balsav; /* restore */
                                 bdy = -bdy; /* change direction */
                                 offrect(&ball, bdx, bdy); /* recalculate */
+#ifdef SOUND
                                 /* start bounce note */
                                 pa_noteon(PA_SYNTH_OUT, 0, 1, BRICKNOTE, INT_MAX);
                                 pa_noteoff(PA_SYNTH_OUT, pa_curtimeout()+BOUNCETIME, 1, BRICKNOTE, INT_MAX);
+#endif
 
                             }
 
                         };
-                        if (intersect(&ball, &wallb)) { /* ball out of bounds */
+                        if (intsec(&ball, &wallb)) { /* ball out of bounds */
 
                             drwrect(&balsav, pa_white);
                             clrrect(&ball); /* set ball not on screen */
                             /* start time on new ball wait */
                             baltim = NEWBAL/BALMOV;
+#ifdef SOUND
                             /* start fail note */
                             pa_noteon(PA_SYNTH_OUT, 0, 1, FAILNOTE, INT_MAX);
                             pa_noteoff(PA_SYNTH_OUT, pa_curtimeout()+FAILTIME, 1, FAILNOTE, INT_MAX);
+#endif
 
                         } else { /* ball in play */
 
@@ -661,6 +677,7 @@ int main(void)
             }
 
         } while (fldbrk != BRKROW*BRKCOL); /* until bricks are cleared */
+#ifdef SOUND
         pa_noteon(PA_SYNTH_OUT,  0,                  1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
         pa_noteoff(PA_SYNTH_OUT, pa_curtimeout()+OSEC*2,  1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
         pa_noteon(PA_SYNTH_OUT,  pa_curtimeout()+OSEC*3,  1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
@@ -673,6 +690,7 @@ int main(void)
         pa_noteoff(PA_SYNTH_OUT, pa_curtimeout()+OSEC*10, 1, PA_NOTE_E+PA_OCTAVE_6, INT_MAX);
         pa_noteon(PA_SYNTH_OUT,  pa_curtimeout()+OSEC*11, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
         pa_noteoff(PA_SYNTH_OUT, pa_curtimeout()+OSEC*13, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
+#endif
         baltim = (OSEC*13+NEWBAL)/BALMOV; /* wait fanfare */
         drwrect(&ball, pa_white); /* clear ball */
         clrrect(&ball); /* set ball not on screen */
@@ -681,6 +699,8 @@ int main(void)
 
     endgame:; /* exit game */
 
+#ifdef SOUND
     pa_closesynthout(PA_SYNTH_OUT); /* close synthesizer */
+#endif
 
 }
