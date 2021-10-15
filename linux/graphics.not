@@ -54,3 +54,9 @@ mechanisim for this at present. I am researching it.
 on, then open up the window beyond the default. In the child windows test, the
 child windows open with the wrong size, which is progressively smaller 
 proportional to the amount you open the window, until they disappear completely.
+
+13. In Mac OS X/Quartz emulation, lower right move square covers up last 
+character position onscreen in text modes. Suspect it needs right scrollbar to
+be added.
+
+14. Mac OS X/XQuartz, the total size of the terminal window seems too large.

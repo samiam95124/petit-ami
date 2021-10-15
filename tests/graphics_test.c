@@ -144,6 +144,31 @@
 #include <services.h>
 #include <graphics.h>
 
+/*
+ * Debug print system
+ *
+ * Example use:
+ *
+ * dbg_printf(dlinfo, "There was an error: string: %s\n", bark);
+ *
+ * mydir/test.c:myfunc():12: There was an error: somestring
+ *
+ */
+
+static enum { /* debug levels */
+
+    dlinfo, /* informational */
+    dlwarn, /* warnings */
+    dlfail, /* failure/critical */
+    dlnone  /* no messages */
+
+} dbglvl = dlinfo;
+
+#define dbg_printf(lvl, fmt, ...) \
+        do { if (lvl >= dbglvl) fprintf(stderr, "%s:%s():%d: " fmt, __FILE__, \
+                                __func__, __LINE__, ##__VA_ARGS__); \
+                                fflush(stderr); } while (0)
+
 #define S1     "Moving string"
 #define S2     "Variable size string"
 #define S3     "Sizing test string"
@@ -231,7 +256,7 @@ static int randr(int s, int e)
 
 }
 
-static int swap(int* a, int* b)
+static void swap(int* a, int* b)
 
 {
 
@@ -240,21 +265,6 @@ static int swap(int* a, int* b)
     t = *a;
     *a = *b;
     *b = t;
-
-}
-
-/* wait time in 100 microseconds */
-
-static void wait(long t)
-
-{
-
-    pa_evtrec er;
-
-    pa_timer(stdout, 1, t, FALSE);
-    do { pa_event(stdin, &er); }
-    while (er.etype != pa_ettim && er.etype != pa_etterm);
-    if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
 
 }
 
@@ -434,7 +444,7 @@ static void grid(void)
     int   yspace;
     float yrat;
 
-    yrat = pa_dpmy(stdout)/pa_dpmx(stdout); /* find aspect ratio */
+    yrat = (double)pa_dpmy(stdout)/pa_dpmx(stdout); /* find aspect ratio */
     xspace = pa_maxxg(stdout)/60;
     yspace = xspace*yrat;
     pa_linewidth(stdout, 1);
@@ -611,7 +621,7 @@ static void graphtest(int lw) /* line width */
     /* note: after this we can't use text spacing */
 
     /* we assume x > y */
-    yrat = pa_dpmy(stdout)/pa_dpmx(stdout); /* find aspect ratio */
+    yrat = (double)pa_dpmy(stdout)/pa_dpmx(stdout); /* find aspect ratio */
     xsize = pa_maxxg(stdout)/5; /* set spacing of figures */
     xspace = xsize/5; /* set x space between figures */
     xfigsiz = xsize-xspace; /* net y size of figure */
@@ -1140,7 +1150,7 @@ int main(void)
     float f;
 
     if (setjmp(terminate_buf)) goto terminate;
-#if 1
+#if 0
     pa_curvis(stdout, FALSE);
     pa_binvis(stdout);
     printf("Graphics screen test vs. 0.1\n");
@@ -2575,6 +2585,7 @@ int main(void)
     printf("List complete\n");
     waitnext();
 
+#endif
     /* *************************** Font examples test ************************** */
 
     putchar('\f');
@@ -2857,7 +2868,6 @@ int main(void)
 
     /* ************************** Animation test **************************** */
 
-#endif
     squares();
 
     /* ************************** View offset test **************************** */

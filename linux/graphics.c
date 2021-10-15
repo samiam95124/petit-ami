@@ -772,6 +772,10 @@ static void errdlg(
     font = XLoadQueryFont(padisplay,
         "-unregistered-latin modern sans-bold-o-normal--0-0-200-200-p-0-iso8859-1");
 
+    if (!font) /* try another font */
+        font = XLoadQueryFont(padisplay,
+        "-bitstream-bitstream vera sans-bold-o-normal--0-0-200-200-p-0-iso8859-1");
+
     /* minimum width for dialog system bar */
     mw = XTextWidth(font, t, strlen(t))+200; /* minimum width for dialog system bar */
     wd = XTextWidth(font, s, strlen(s)); /* minimum width for dialog contents */
@@ -2143,6 +2147,7 @@ void setfnt(winptr win)
     do { /* try font sizes */
 
         selxlfd(win, caps, buf, ht); /* form XLFD selection string */
+//dbg_printf(dlinfo, "try font size: %d font string: %s\n", ht, buf);
         XWLOCK();
         win->xfont = XLoadQueryFont(padisplay, buf);
         XWUNLOCK();
@@ -9656,7 +9661,7 @@ void pa_killtimer(FILE* f, /* file to kill timer on */
 
     if (i < 1 || i > PA_MAXTIM) error(einvhan); /* invalid timer handle */
     win = txt2win(f); /* get window from file */
-    if (!win->timers[i-1] < 0) error(etimacc); /* no such timer */
+    if (!win->timers[i-1]) error(etimacc); /* no such timer */
     system_event_deasetim(win->timers[i-1]); /* deactivate timer */
 
 }

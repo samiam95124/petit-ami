@@ -345,8 +345,9 @@ ifeq ($(OSTYPE),Windows_NT)
 else ifeq ($(OSTYPE),Darwin)
 
     #
-    # Nothing needed for Mac OS X
+    # Mac OS X: Add quartz emulator library
     #
+    GLIBS += /opt/X11/lib/libX11.6.dylib
     
 else
 
@@ -505,7 +506,8 @@ macosx/terminal.o: linux/terminal.c include/terminal.h Makefile
 	gcc -g3 -Ilibc -Iinclude -c linux/terminal.c -o macosx/terminal.o
 	
 macosx/graphics.o: linux/graphics.c include/graphics.h Makefile
-	gcc -g3 -Ilibc -Iinclude -c linux/graphics.c -o macosx/graphics.o
+	gcc -g3 -Ilibc -Iinclude -I/opt/X11/include -c linux/graphics.c \
+	-o macosx/graphics.o
 	
 macosx/system_event.o: macosx/system_event.c linux/system_event.h Makefile
 	gcc -g3 -Iinclude -fPIC -c macosx/system_event.c -o macosx/system_event.o
@@ -584,7 +586,7 @@ bin/petit_ami_term.a: macosx/services.o macosx/sound.o macosx/network.o \
 	    macosx/network.o macosx/system_event.o macosx/terminal.o \
 	    utils/config.o utils/option.o macosx/stdio.o
 	
-petit_ami_graph.a: macosx/services.o macosx/sound.o macosx/network.o \
+bin/petit_ami_graph.a: macosx/services.o macosx/sound.o macosx/network.o \
     macosx/system_event.o macosx/graphics.o utils/config.o utils/option.o \
     macosx/stdio.o
 	ar rcs bin/petit_ami_graph.a macosx/services.o macosx/sound.o \
