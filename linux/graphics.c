@@ -250,6 +250,7 @@ typedef enum {
     xcdemibold,      /* demibold */
     xcdark,          /* dark */
     xclight,         /* light */
+    xcblack,         /* black */
 
     /* slants */
     xcroman,         /* no slant */
@@ -1284,6 +1285,7 @@ void prtxcset(int caps)
     if (caps & BIT(xcbold)) fprintf(stderr, "bold ");
     if (caps & BIT(xcdemibold)) fprintf(stderr, "dbold ");
     if (caps & BIT(xcdark)) fprintf(stderr, "dark ");
+    if (caps & BIT(xcblack)) fprintf(stderr, "black ");
     if (caps & BIT(xclight)) fprintf(stderr, "light ");
     if (caps & BIT(xcroman)) fprintf(stderr, "rom ");
     if (caps & BIT(xcital)) fprintf(stderr, "ital ");
@@ -1806,6 +1808,7 @@ void getfonts(void)
             if (!strncmp(sp, "demi bold", 9)) xcl->caps |= BIT(xcdemibold);
             if (!strncmp(sp, "dark", 4)) xcl->caps |= BIT(xcdark);
             if (!strncmp(sp, "light", 5)) xcl->caps |= BIT(xclight);
+            if (!strncmp(sp, "black", 5)) xcl->caps |= BIT(xcblack);
 
             /* slants */
             sp = fldnum(*fp, 4);
@@ -1898,6 +1901,7 @@ void selxlfd(winptr win, int caps, string buf, int ht)
     else if (caps & BIT(xcdemibold)) { strcpy(bp, "demi bold"); bp += 9; }
     else if (caps & BIT(xcdark)) { strcpy(bp, "dark"); bp += 4; }
     else if (caps & BIT(xclight)) { strcpy(bp, "light"); bp += 5; }
+    else if (caps & BIT(xcblack)) { strcpy(bp, "black"); bp += 5; }
     *bp++ = '-';
 
     /* slant */
@@ -11335,10 +11339,9 @@ static void pa_init_graphics(int argc, char *argv[])
 
     /* set "configuration" XWindow font capabilities */
     cfgcap = BIT(xcmedium) | BIT(xcbold) | BIT(xcdemibold) | BIT(xcdark) |
-             BIT(xclight) | BIT(xcital) | BIT(xcoblique) | BIT(xcrital) |
-             BIT(xcroblique) | BIT(xcnarrow) | BIT(xccondensed) |
-             BIT(xcsemicondensed) |
-             BIT(xcexpanded);
+             BIT(xclight) | BIT(xcblack) | BIT(xcital) | BIT(xcoblique) |
+             BIT(xcrital) | BIT(xcroblique) | BIT(xcnarrow) | BIT(xccondensed) |
+             BIT(xcsemicondensed) | BIT(xcexpanded);
 
     /* set internal states */
     fend = FALSE; /* set no end of program ordered */
