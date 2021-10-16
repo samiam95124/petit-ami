@@ -748,9 +748,12 @@ Present error dialog
 Presents the given text in a dialog. Used for graphical errors. Tries to be
 standalone, using little or no other resources in the system.
 
+If an error dialog cannot be presented to font not found or other error, returns
+1, otherwise returns 0 on success.
+
 *******************************************************************************/
 
-static void errdlg(
+static int errdlg(
     /** dialog title */    char* t,
     /** dialog contents */ char* s
 )
@@ -775,7 +778,12 @@ static void errdlg(
     if (!font) /* try another font */
         font = XLoadQueryFont(padisplay,
         "-bitstream-bitstream vera sans-bold-o-normal--0-0-200-200-p-0-iso8859-1");
+    XWUNLOCK();
 
+    /* if we can't find a font, exit to stderr handler */
+    if (!font) return (1); /* indicate display error */
+
+    XWLOCK();
     /* minimum width for dialog system bar */
     mw = XTextWidth(font, t, strlen(t))+200; /* minimum width for dialog system bar */
     wd = XTextWidth(font, s, strlen(s)); /* minimum width for dialog contents */
@@ -849,6 +857,8 @@ static void errdlg(
     XWLOCK();
     XDestroyWindow(padisplay, w);
     XWUNLOCK();
+
+    return (0); /* exit no error */
 
 }
 
@@ -957,14 +967,17 @@ static void error(errcod e)
 
 {
 
+    int r; /* error return */
+
+    r = 1; /* set error not displayed */
     if (dialogerr) {
 
         /* send error to dialog */
-        errdlg("Graphics Module", errstr(e));
+        r = errdlg("Graphics Module", errstr(e));
 
-    } else {
+    }
+    if (r) { /* send error to console */
 
-        /* send error to console */
         fprintf(stderr, "*** Error: graphics: %s\n", errstr(e));
         fflush(stderr); /* make sure error message is output */
 
