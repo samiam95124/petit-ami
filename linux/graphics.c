@@ -1000,14 +1000,17 @@ static int xerror(Display* d, XErrorEvent* e)
 
 {
 
+    int r; /* error return */
+
+    r = 1; /* set error not displayed */
     if (dialogerr) {
 
         /* send error to dialog */
         errdlg("Graphics Module", "XWindow error");
 
-    } else {
+    }
+    if (r) { /* send error to console */
 
-        /* send error to console */
         fprintf(stderr, "*** Error: graphics: XWindow error\n");
         fflush(stderr); /* make sure error message is output */
 
