@@ -1002,17 +1002,23 @@ static int xerror(Display* d, XErrorEvent* e)
 {
 
     int r; /* error return */
+    char ebuf[250]; /* buffer for error string */
 
+    /* by definition the XWindows lock is active, since xerror() will only be
+       called from within XWindows */
+    XWUNLOCK();
+    /* get text of error */
+    XGetErrorText(padisplay, e->error_code, ebuf, 250);
     r = 1; /* set error not displayed */
     if (dialogerr) {
 
         /* send error to dialog */
-        errdlg("Graphics Module", "XWindow error");
+        errdlg("Graphics Module: XWindow", ebuf);
 
     }
     if (r) { /* send error to console */
 
-        fprintf(stderr, "*** Error: graphics: XWindow error\n");
+        fprintf(stderr, "*** Error: Graphics: XWindow: %s\n", ebuf);
         fflush(stderr); /* make sure error message is output */
 
     }
