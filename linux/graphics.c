@@ -4806,6 +4806,7 @@ static void plcchr(winptr win, char c)
 
     scnptr sc; /* pointer to current screen */
     int    cs; /* character spacing */
+    int    ce; /* character exists */
 
     sc = win->screens[win->curupd-1]; /* index current screen */
     if (!win->visible) winvis(win); /* make sure we are displayed */
@@ -4836,6 +4837,14 @@ static void plcchr(winptr win, char c)
         /* find character spacing */
         if (sc->cfont->fix) cs = win->charspace;
         else cs = xwidth(win, c)+win->chrspcx;
+        ce = TRUE; /* set character exists */
+        if (!cs) { /* character does not exist */
+
+            cs = win->charspace; /* set spacing of cell */
+            ce = FALSE; /* set character does not exist */
+
+        }
+dbg_printf(dlinfo, "c: %c cs: %d ce: %d\n", c, cs, ce);
         if (win->bufmod) { /* buffer is active */
 
             if (sc->bmod != mdinvis) { /* background is visible */
@@ -4851,10 +4860,18 @@ static void plcchr(winptr win, char c)
                                cs, win->linespace);
                 /* xor is non-destructive, and we can restore it. And and or are
                    destructive, and would require a combining buffer to perform */
-                if (sc->bmod == mdxor)
-                    /* restore the surface under text */
-                    XDrawString(padisplay, sc->xbuf, sc->xcxt,
-                                sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
+                if (sc->bmod == mdxor) {
+
+                    if (ce) /* character exists */
+                        /* draw character */
+                        XDrawString(padisplay, sc->xbuf, sc->xcxt,
+                                    sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
+                    else /* does not exist, draw missing character box */
+                        XDrawRectangle(padisplay, sc->xbuf, sc->xcxt,
+                                       sc->curxg-1, sc->curyg-1,
+                                       cs-1, win->linespace-1);
+
+                }
                 /* restore colors */
                 if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
                 else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
@@ -4868,10 +4885,14 @@ static void plcchr(winptr win, char c)
                 XWLOCK();
                 /* set foreground function */
                 XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
-                /* draw character */
-                XDrawString(padisplay, sc->xbuf, sc->xcxt,
-                            sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
-
+                if (ce) /* character exists */
+                    /* draw character */
+                    XDrawString(padisplay, sc->xbuf, sc->xcxt,
+                                sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
+                else /* does not exist, draw missing character box */
+                    XDrawRectangle(padisplay, sc->xbuf, sc->xcxt,
+                                   sc->curxg-1, sc->curyg-1,
+                                   cs-1, win->linespace-1);
                 /* check draw underline */
                 if (sc->attr & BIT(saundl)){
 
@@ -4919,10 +4940,18 @@ static void plcchr(winptr win, char c)
                                cs, win->linespace);
                 /* xor is non-destructive, and we can restore it. And and or are
                    destructive, and would require a combining buffer to perform */
-                if (sc->bmod == mdxor)
-                    /* restore the surface under text */
-                    XDrawString(padisplay, win->xwhan, sc->xcxt,
-                                sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
+                if (sc->bmod == mdxor) {
+
+                    if (ce) /* character exists */
+                        /* draw character */
+                        XDrawString(padisplay, win->xwhan, sc->xcxt,
+                                    sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
+                    else /* does not exist, draw missing character box */
+                        XDrawRectangle(padisplay, win->xwhan, sc->xcxt,
+                                       sc->curxg-1, sc->curyg-1,
+                                       cs-1, win->linespace-1);
+
+                }
                 /* restore colors */
                 if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
                 else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
@@ -4936,10 +4965,14 @@ static void plcchr(winptr win, char c)
                 XWLOCK();
                 /* set foreground function */
                 XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
-                /* draw character */
-                XDrawString(padisplay, win->xwhan, sc->xcxt,
-                            sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
-
+                if (ce) /* character exists */
+                    /* draw character */
+                    XDrawString(padisplay, win->xwhan, sc->xcxt,
+                                sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
+                else /* does not exist, draw missing character box */
+                    XDrawRectangle(padisplay, win->xwhan, sc->xcxt,
+                                   sc->curxg-1, sc->curyg-1,
+                                   cs-1, win->linespace-1);
                 /* check draw underline */
                 if (sc->attr & BIT(saundl)){
 
@@ -4977,8 +5010,7 @@ static void plcchr(winptr win, char c)
         else { /* perform proportional version */
 
             if (indisp(win)) curoff(win); /* remove cursor */
-            /* advance the character width */
-            sc->curxg = sc->curxg+xwidth(win, c)+win->chrspcx;
+            sc->curxg += cs; /* advance the character width */
             /* the cursor x position really has no meaning with proportional
                but we recalculate it using space anyways. */
             sc->curx = sc->curxg/win->charspace+1;
@@ -11626,3 +11658,4 @@ static void pa_deinit_graphics()
 #endif
 
 }
+
