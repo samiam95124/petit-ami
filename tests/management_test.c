@@ -104,7 +104,7 @@ static void prtceng(int y, const char* s)
 
 /* wait time in 100 microseconds */
 
-static void wait(int t)
+static void waittime(int t)
 
 {
 
@@ -383,7 +383,7 @@ int main(void)
         printf("Resize screen buffered character\n");
         printf("\n");
         printf("Moving in x\n");
-        wait(1000);
+        waittime(1000);
 
     }
     printf("\n");
@@ -408,7 +408,7 @@ int main(void)
         printf("Resize screen buffered character\n");
         printf("\n");
         printf("Moving in y\n");
-        wait(1000);
+        waittime(1000);
 
     }
     printf("\n");
@@ -441,7 +441,7 @@ int main(void)
         printf("Resize screen buffered graphical\n");
         printf("\n");
         printf("Moving in x\n");
-        wait(100);
+        waittime(100);
 
     }
     printf("\n");
@@ -466,7 +466,7 @@ int main(void)
         printf("Resize screen buffered graphical\n");
         printf("\n");
         printf("Moving in y\n");
-        wait(100);
+        waittime(100);
 
     }
     printf("\n");

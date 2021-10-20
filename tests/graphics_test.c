@@ -2585,7 +2585,6 @@ int main(void)
     printf("List complete\n");
     waitnext();
 
-#endif
     /* *************************** Font examples test ************************** */
 
     putchar('\f');
@@ -2700,6 +2699,7 @@ int main(void)
 
     /* ************************* Graphical tabbing test ************************ */
 
+#endif
     putchar('\f');
     grid();
     pa_auto(stdout, OFF);

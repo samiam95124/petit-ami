@@ -709,6 +709,7 @@ static int        stdchry;        /* standard/reference character size y */
 static int        errflg;         /* an error has been flagged */
 static int        dspsev;         /* XWindows display system event */
 static sevtptr    sidtab[MAXSID]; /* system event table */
+static int        xerrbyp;        /* bypass the xerror() handler */
 
 /* memory statistics/diagnostics */
 static unsigned long memusd;    /* total memory in use for malloc */
@@ -1003,6 +1004,9 @@ static int xerror(Display* d, XErrorEvent* e)
 
     int r; /* error return */
     char ebuf[250]; /* buffer for error string */
+
+    /* if the bypass flag is on, just return ignoring the error */
+    if (xerrbyp) return (0);
 
     /* by definition the XWindows lock is active, since xerror() will only be
        called from within XWindows */
@@ -1722,16 +1726,17 @@ void getfonts(void)
 
 {
 
-    string*  fl;       /* font list */
-    int      fc;       /* font count */
-    string*  fp;       /* font pointer */
-    int      ifc;      /* internal font count */
-    char     buf[250]; /* buffer for string name */
-    int      i;
-    string   sp, dp;
-    fontptr  flp;
-    fontptr  nfl;
-    xcaplst* xcl;
+    string*      fl;       /* font list */
+    int          fc;       /* font count */
+    string*      fp;       /* font pointer */
+    int          ifc;      /* internal font count */
+    char         buf[250]; /* buffer for string name */
+    int          i;
+    string       sp, dp;
+    fontptr      flp;
+    fontptr      nfl;
+    xcaplst*     xcl;
+    XFontStruct* font;
 
     /* load the fonts list */
     XWLOCK();
@@ -1754,10 +1759,16 @@ void getfonts(void)
     ifc = 0; /* clear internal font counter */
     for (i = 1; i <= fc; i++) { /* process all fonts */
 
+        /* probe errors in font */
+        XWLOCK();
+        xerrbyp = TRUE; /* bypass xerror */
+        font = XLoadQueryFont(padisplay, *fp);
+        xerrbyp = FALSE; /* reset bypass */
+        XWUNLOCK();
         /* reject character spaced fonts. I haven't seen reasonable metrics for
            those */
         sp = fldnum(*fp, 11); /* index spacing field */
-        if (strncmp(sp, "c", 1)) {
+        if (strncmp(sp, "c", 1) && font) { /* not character space, no errors */
 
             dp = buf; /* index result buffer */
             /* get foundry */
@@ -4844,7 +4855,6 @@ static void plcchr(winptr win, char c)
             ce = FALSE; /* set character does not exist */
 
         }
-dbg_printf(dlinfo, "c: %c cs: %d ce: %d\n", c, cs, ce);
         if (win->bufmod) { /* buffer is active */
 
             if (sc->bmod != mdinvis) { /* background is visible */
@@ -11475,7 +11485,8 @@ static void pa_init_graphics(int argc, char *argv[])
     }
 
     /* capture the XWindow errors */
-    XSetErrorHandler(xerror);
+    xerrbyp = FALSE; /* set no xerror() bypass */
+    XSetErrorHandler(xerror); /* establish handler */
 
     /* find existing display */
     XWLOCK();
