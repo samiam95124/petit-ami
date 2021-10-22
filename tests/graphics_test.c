@@ -2593,7 +2593,7 @@ int main(void)
     pa_auto(stdout, OFF);
     pa_bcolor(stdout, pa_cyan);
     pa_bover(stdout);
-    i = 5/*1*/;
+    i = 1;
     cnt = pa_fonts(stdout);
     while (cnt) {
 
@@ -2619,7 +2619,6 @@ int main(void)
         }
         i++; /* next font code */
         cnt--; /* count fonts */
-waitnext();
 
     }
     pa_bcolor(stdout, pa_white);

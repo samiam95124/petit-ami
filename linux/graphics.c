@@ -4907,8 +4907,7 @@ static void plcchr(winptr win, char c)
                         XDrawRectangle(padisplay, sc->xbuf, sc->xcxt,
                                        sc->curxg-1+win->misoffx,
                                        sc->curyg-1+win->misoffy,
-                                       sc->curxg-1+win->misoffx+win->mischrx-1,
-                                       sc->curyg-1+win->misoffy+win->mischry-1);
+                                       win->mischrx, win->mischry);
 
                 }
                 /* restore colors */
@@ -4932,8 +4931,7 @@ static void plcchr(winptr win, char c)
                     XDrawRectangle(padisplay, sc->xbuf, sc->xcxt,
                                    sc->curxg-1+win->misoffx,
                                    sc->curyg-1+win->misoffy,
-                                   sc->curxg-1+win->misoffx+win->mischrx-1,
-                                   sc->curyg-1+win->misoffy+win->mischry-1);
+                                   win->mischrx, win->mischry);
                 /* check draw underline */
                 if (sc->attr & BIT(saundl)){
 
@@ -4991,8 +4989,7 @@ static void plcchr(winptr win, char c)
                         XDrawRectangle(padisplay, win->xwhan, sc->xcxt,
                                        sc->curxg-1+win->misoffx,
                                        sc->curyg-1+win->misoffy,
-                                       sc->curxg-1+win->misoffx+win->mischrx-1,
-                                       sc->curyg-1+win->misoffy+win->mischry-1);
+                                       win->mischrx, win->mischry);
 
                 }
                 /* restore colors */
@@ -5016,8 +5013,7 @@ static void plcchr(winptr win, char c)
                     XDrawRectangle(padisplay, win->xwhan, sc->xcxt,
                                    sc->curxg-1+win->misoffx,
                                    sc->curyg-1+win->misoffy,
-                                   sc->curxg-1+win->misoffx+win->mischrx-1,
-                                   sc->curyg-1+win->misoffy+win->mischry-1);
+                                   win->mischrx, win->mischry);
                 /* check draw underline */
                 if (sc->attr & BIT(saundl)){
 
