@@ -2587,12 +2587,13 @@ int main(void)
 
     /* *************************** Font examples test ************************** */
 
+#endif
     putchar('\f');
     grid();
     pa_auto(stdout, OFF);
     pa_bcolor(stdout, pa_cyan);
     pa_bover(stdout);
-    i = 1;
+    i = 5/*1*/;
     cnt = pa_fonts(stdout);
     while (cnt) {
 
@@ -2618,6 +2619,7 @@ int main(void)
         }
         i++; /* next font code */
         cnt--; /* count fonts */
+waitnext();
 
     }
     pa_bcolor(stdout, pa_white);
@@ -2699,7 +2701,6 @@ int main(void)
 
     /* ************************* Graphical tabbing test ************************ */
 
-#endif
     putchar('\f');
     grid();
     pa_auto(stdout, OFF);

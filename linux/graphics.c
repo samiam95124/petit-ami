@@ -171,10 +171,17 @@ static enum { /* debug levels */
    to determine the character height. Note the point size was choosen to most
    closely match xterm. */
 #define POINT  (0.353) /* point size in mm */
-
 #define STRIKE (1.5)   /* strikeout percentage (from top of cell to baseline */
 #define EXTRAMENUY 10  /* extra space for menu bar y */
 #define EXTRAMENUX 10  /* extra space for menu bar x */
+
+/* Size and offset of missing font character in cell y fractions. We define this
+   here because the character set may or may not have such a character. It is
+   a Unicode white square */
+#define MISCHRX 0.5  /* size x */
+#define MISCHRY 0.75 /* size y */
+#define MISOFFX 0.2  /* offset x */
+#define MISOFFY 0.2  /* offset y */
 
 /*
  * Configurable parameters
@@ -421,6 +428,10 @@ typedef struct winrec {
     int          gcurv;             /* state of cursor visible */
     fontptr      gcfont;            /* current font select */
     int          gfhigh;            /* current font height */
+    int          mischrx;           /* missing font character x */
+    int          mischry;           /* missing font character y */
+    int          misoffx;           /* missing font offset x */
+    int          misoffy;           /* missing font offset y */
     mode         gfmod;             /* foreground mix mode */
     mode         gbmod;             /* background mix mode */
     int          goffx;             /* viewport offset x */
@@ -3516,6 +3527,11 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
 
     win->gcfont = fntlst; /* index terminal font entry */
     win->gfhigh = (int)(conpnt*POINT*win->sdpmy/1000); /* set font height */
+    /* set parameters of missing font character */
+    win->mischrx = win->gfhigh*MISCHRX; /* set size x */
+    win->mischry = win->gfhigh*MISCHRY; /* set size y */
+    win->misoffx = win->gfhigh*MISOFFX; /* set offset x */
+    win->misoffy = win->gfhigh*MISOFFY; /* set offset x */
     win->xfont = NULL; /* clear current font */
     setfnt(win); /* select font */
 
@@ -4861,7 +4877,8 @@ static void plcchr(winptr win, char c)
         ce = TRUE; /* set character exists */
         if (!cs) { /* character does not exist */
 
-            cs = win->charspace; /* set spacing of cell */
+            /* set spacing of cell */
+            cs = win->misoffx+win->mischrx+win->misoffx+1;
             ce = FALSE; /* set character does not exist */
 
         }
@@ -4888,8 +4905,10 @@ static void plcchr(winptr win, char c)
                                     sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
                     else /* does not exist, draw missing character box */
                         XDrawRectangle(padisplay, sc->xbuf, sc->xcxt,
-                                       sc->curxg-1, sc->curyg-1,
-                                       cs-1, win->linespace-1);
+                                       sc->curxg-1+win->misoffx,
+                                       sc->curyg-1+win->misoffy,
+                                       sc->curxg-1+win->misoffx+win->mischrx-1,
+                                       sc->curyg-1+win->misoffy+win->mischry-1);
 
                 }
                 /* restore colors */
@@ -4911,8 +4930,10 @@ static void plcchr(winptr win, char c)
                                 sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
                 else /* does not exist, draw missing character box */
                     XDrawRectangle(padisplay, sc->xbuf, sc->xcxt,
-                                   sc->curxg-1, sc->curyg-1,
-                                   cs-1, win->linespace-1);
+                                   sc->curxg-1+win->misoffx,
+                                   sc->curyg-1+win->misoffy,
+                                   sc->curxg-1+win->misoffx+win->mischrx-1,
+                                   sc->curyg-1+win->misoffy+win->mischry-1);
                 /* check draw underline */
                 if (sc->attr & BIT(saundl)){
 
@@ -4968,8 +4989,10 @@ static void plcchr(winptr win, char c)
                                     sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
                     else /* does not exist, draw missing character box */
                         XDrawRectangle(padisplay, win->xwhan, sc->xcxt,
-                                       sc->curxg-1, sc->curyg-1,
-                                       cs-1, win->linespace-1);
+                                       sc->curxg-1+win->misoffx,
+                                       sc->curyg-1+win->misoffy,
+                                       sc->curxg-1+win->misoffx+win->mischrx-1,
+                                       sc->curyg-1+win->misoffy+win->mischry-1);
 
                 }
                 /* restore colors */
@@ -4991,8 +5014,10 @@ static void plcchr(winptr win, char c)
                                 sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
                 else /* does not exist, draw missing character box */
                     XDrawRectangle(padisplay, win->xwhan, sc->xcxt,
-                                   sc->curxg-1, sc->curyg-1,
-                                   cs-1, win->linespace-1);
+                                   sc->curxg-1+win->misoffx,
+                                   sc->curyg-1+win->misoffy,
+                                   sc->curxg-1+win->misoffx+win->mischrx-1,
+                                   sc->curyg-1+win->misoffy+win->mischry-1);
                 /* check draw underline */
                 if (sc->attr & BIT(saundl)){
 
@@ -7734,6 +7759,11 @@ void pa_fontsiz(FILE* f, int s)
         error(eatoftc); /* cannot perform with auto on */
     curoff(win); /* remove cursor with old font characteristics */
     win->gfhigh = s; /* set new font height */
+    /* set parameters of missing font character */
+    win->mischrx = win->gfhigh*MISCHRX; /* set size x */
+    win->mischry = win->gfhigh*MISCHRY; /* set size y */
+    win->misoffx = win->gfhigh*MISOFFX; /* set offset x */
+    win->misoffy = win->gfhigh*MISOFFY; /* set offset x */
     setfnt(win); /* select the font */
     /* select to context */
     XWLOCK();
