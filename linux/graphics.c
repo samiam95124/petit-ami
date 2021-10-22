@@ -158,6 +158,14 @@ static enum { /* debug levels */
 #define MAXFNM 250 /* number of filename characters in buffer */
 #define MAXJOY 10  /* number of joysticks possible */
 #define MAXSID 100 /* number of possible logical system events */
+/* extra space to add in x/y for initial window */
+#ifdef __MACH__ /* Mac OS X */
+/* in XQuartz XWindows emulation, there is a move square in the lower right hand
+   corner that we have to avoid. We fill in scroll bars around it */
+#define EXTSPC 15
+#else
+#define EXTSPC 0
+#endif
 
 /* To properly compensate for high DPI displays, we use actual height onscreen
    to determine the character height. Note the point size was choosen to most
@@ -3544,7 +3552,7 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
     } else pw = RootWindow(padisplay, pascreen); /* root */
 
     /* create master window */
-    win->xmwhan = createwindow(pw, win->gmaxxg, win->gmaxyg);
+    win->xmwhan = createwindow(pw, win->gmaxxg+EXTSPC, win->gmaxyg+EXTSPC);
 
     /* hook close event from windows manager */
     XWLOCK();
