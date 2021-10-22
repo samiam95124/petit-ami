@@ -137,7 +137,7 @@ static enum { /* debug levels */
 
 //#define PRTFNT /* print internal fonts list */
 //#define PRTMEM /* print memory allocations at exit */
-//#define PRTWPM /* print window parameters on open */
+#define PRTPWM /* print window parameters on open */
 //#define NOWDELAY /* don't delay window presentation until drawn */
 #ifndef __MACH__ /* Mac OS X */
 #define NOCANCEL /* include nocancel overrides */
@@ -163,10 +163,10 @@ static enum { /* debug levels */
    to determine the character height. Note the point size was choosen to most
    closely match xterm. */
 #define POINT  (0.353) /* point size in mm */
-#define CONPNT 18/*11.5*/ /* height of console font */
-#define STRIKE (1.5)      /* strikeout percentage (from top of cell to baseline */
-#define EXTRAMENUY 10     /* extra space for menu bar y */
-#define EXTRAMENUX 10     /* extra space for menu bar x */
+
+#define STRIKE (1.5)   /* strikeout percentage (from top of cell to baseline */
+#define EXTRAMENUY 10  /* extra space for menu bar y */
+#define EXTRAMENUX 10  /* extra space for menu bar x */
 
 /*
  * Configurable parameters
@@ -182,6 +182,7 @@ static enum { /* debug levels */
 #define DMPMSG    FALSE /* enable dump messages (diagnostic) */
 #define DMPEVT    FALSE /* enable dump Petit-Ami messages */
 #define PRTFTM    FALSE /* print font metrics (diagnostic) */
+#define CONPNT    11    /* height of console font */
 
 /* file handle numbers at the system interface level */
 
@@ -739,6 +740,7 @@ static int joyenb;    /* enable joysticks */
 static int dmpmsg;    /* enable dump messages (diagnostic, windows only) */
 static int dmpevt;    /* enable dump Petit-Ami messages */
 static int prtftm;    /* print font metrics (diagnostic) */
+static int conpnt;    /* size of console font in points */
 
 static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, int wid,
                      int subclient);
@@ -3505,7 +3507,7 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
 #endif
 
     win->gcfont = fntlst; /* index terminal font entry */
-    win->gfhigh = (int)(CONPNT*POINT*win->sdpmy/1000); /* set font height */
+    win->gfhigh = (int)(conpnt*POINT*win->sdpmy/1000); /* set font height */
     win->xfont = NULL; /* clear current font */
     setfnt(win); /* select font */
 
@@ -11373,6 +11375,7 @@ static void pa_init_graphics(int argc, char *argv[])
     dmpmsg    = DMPMSG;    /* dump XWindow messages */
     dmpevt    = DMPEVT;    /* dump Petit-Ami messages */
     prtftm    = PRTFTM;    /* print font metrics on load */
+    conpnt    = CONPNT;    /* point size of console font */
 
     /* set state of shift, control and alt keys */
     ctrll = FALSE;
@@ -11457,6 +11460,10 @@ static void pa_init_graphics(int argc, char *argv[])
     /* find graph block */
     graph_root = pa_schlst("graphics", config_root);
     if (graph_root) {
+
+        vp = pa_schlst("console_points", graph_root->sublist);
+        if (vp) conpnt = strtol(vp->value, &errstr, 10);
+        if (*errstr) error(ecfgval);
 
         vp = pa_schlst("dialogerr", graph_root->sublist);
         if (vp) dialogerr = strtol(vp->value, &errstr, 10);

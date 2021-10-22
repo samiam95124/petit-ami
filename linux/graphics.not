@@ -60,3 +60,8 @@ character position onscreen in text modes. Suspect it needs right scrollbar to
 be added.
 
 14. Mac OS X/XQuartz, the total size of the terminal window seems too large.
+
+15. Mac OS X/XQuartz, has odd halting problem during tabs test of graphics_test.
+
+16. I don't think the "missing character" glyph should occupy a full character
+cell. Prefer smaller box.
