@@ -64,3 +64,6 @@ space.
 halts the animation. I verified this does not happen in Linux.
 
 16. Mac OS X/XQuartz, seeing some memory errors flagged.
+
+17. Mac OS X/XQuartz, management test, front/back test does not work.
+

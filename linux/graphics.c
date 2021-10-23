@@ -137,7 +137,7 @@ static enum { /* debug levels */
 
 //#define PRTFNT /* print internal fonts list */
 //#define PRTMEM /* print memory allocations at exit */
-#define PRTPWM /* print window parameters on open */
+//#define PRTPWM /* print window parameters on open */
 //#define NOWDELAY /* don't delay window presentation until drawn */
 #ifndef __MACH__ /* Mac OS X */
 #define NOCANCEL /* include nocancel overrides */
