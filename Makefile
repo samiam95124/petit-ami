@@ -345,9 +345,15 @@ ifeq ($(OSTYPE),Windows_NT)
 else ifeq ($(OSTYPE),Darwin)
 
     #
-    # Mac OS X: Add quartz emulator library
+    # Mac OS X
     #
-    GLIBS += /opt/X11/lib/libX11.6.dylib
+    PLIBS += /usr/local/Cellar/openssl@3/3.0.0_1/lib/libssl.dylib \
+             /usr/local/Cellar/openssl@3/3.0.0_1/lib/libcrypto.dylib
+    CLIBS += /usr/local/Cellar/openssl@3/3.0.0_1/lib/libssl.dylib \
+             /usr/local/Cellar/openssl@3/3.0.0_1/lib/libcrypto.dylib
+    GLIBS += /opt/X11/lib/libX11.6.dylib \
+             /usr/local/Cellar/openssl@3/3.0.0_1/lib/libssl.dylib \
+             /usr/local/Cellar/openssl@3/3.0.0_1/lib/libcrypto.dylib
     
 else
 

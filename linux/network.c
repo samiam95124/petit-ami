@@ -70,9 +70,6 @@
 #include <string.h>
 #include <errno.h>
 #include <arpa/inet.h>
-#ifndef __MACH__ /* Mac OS X */
-#include <linux/types.h>
-#endif
 #include <stdio.h>
 #include <netdb.h>
 #include <openssl/ssl.h>
@@ -112,7 +109,10 @@ static enum { /* debug levels */
                                 __func__, __LINE__, ##__VA_ARGS__); \
                                 fflush(stderr); } while (0)
 
+
+#ifndef __MACH__ /* Mac OS X */
 #define NOCANCEL /* include nocancel overrides */
+#endif
 
 #define MAXFIL 100 /* maximum number of open files */
 #define COOKIE_SECRET_LENGTH 16 /* length of secret cookie */
@@ -535,7 +535,7 @@ allocated. Then the file entry is initialized.
 
 *******************************************************************************/
 
-void newfil(int fn)
+static void newfil(int fn)
 
 {
 
@@ -576,7 +576,7 @@ Recycles or allocates a name/value entry.
 
 *******************************************************************************/
 
-pa_certptr getcert(void)
+static pa_certptr getcert(void)
 
 {
 
@@ -613,7 +613,7 @@ If a tree structured entry is passed, then the entire tree is freed.
 
 *******************************************************************************/
 
-void putcert(pa_certptr cp)
+static void putcert(pa_certptr cp)
 
 {
 
@@ -648,7 +648,7 @@ https://github.com/nplab/DTLS-Examples
 
 *******************************************************************************/
 
-int generate_cookie(SSL *ssl, unsigned char *cookie, unsigned int *cookie_len)
+static int generate_cookie(SSL *ssl, unsigned char *cookie, unsigned int *cookie_len)
 
 {
 
@@ -744,7 +744,7 @@ https://github.com/nplab/DTLS-Examples
 
 *******************************************************************************/
 
-int verify_cookie(SSL *ssl, const unsigned char *cookie, unsigned int cookie_len)
+static int verify_cookie(SSL *ssl, const unsigned char *cookie, unsigned int cookie_len)
 
 {
 
@@ -827,7 +827,7 @@ Currently unused. Returns verified always.
 
 *******************************************************************************/
 
-int dtls_verify_callback (int ok, X509_STORE_CTX *ctx)
+static int dtls_verify_callback (int ok, X509_STORE_CTX *ctx)
 
 {
 
@@ -875,6 +875,70 @@ void pa_addrnet(string name, unsigned long* addr)
 
 /*******************************************************************************
 
+Get 128 bit v6 address to 64 bit high/low
+
+Gets a 128 bit v6 address from a high/low 64 bit address value.
+Accommodates the difference between Linux and Mach/BSD structures.
+
+*******************************************************************************/
+
+void get128t64(struct sockaddr_in6* sap, unsigned long long* addrh,
+              unsigned long long* addrl)
+
+{
+
+#ifndef __MACH__ /* Mac OS X */
+    *addrh = (unsigned long long) ntohl(sap->sin6_addr.__in6_u.__u6_addr32[0]) << 32 |
+            (unsigned long long) ntohl(sap->sin6_addr.__in6_u.__u6_addr32[1]);
+    *addrl = (unsigned long long) ntohl(sap->sin6_addr.__in6_u.__u6_addr32[2]) << 32 |
+            (unsigned long long) ntohl(sap->sin6_addr.__in6_u.__u6_addr32[3]);
+#else
+    *addrh = (unsigned long long) ntohl(sap->sin6_addr.__u6_addr.__u6_addr32[0]) << 32 |
+            (unsigned long long) ntohl(sap->sin6_addr.__u6_addr.__u6_addr32[1]);
+    *addrl = (unsigned long long) ntohl(sap->sin6_addr.__u6_addr.__u6_addr32[2]) << 32 |
+            (unsigned long long) ntohl(sap->sin6_addr.__u6_addr.__u6_addr32[3]);
+#endif
+
+}
+
+/*******************************************************************************
+
+Get 64 bit high/low v6 address to 128 bit
+
+Gets a 128 bit v6 address from a 64 bit high/low address.
+Accommodates the difference between Linux and Mach/BSD structures.
+
+*******************************************************************************/
+
+void get64t128(unsigned long long addrh, unsigned long long addrl,
+               struct sockaddr_in6* sap)
+
+{
+
+#ifndef __MACH__ /* Mac OS X */
+    sap->sin6_addr.__in6_u.__u6_addr32[0] =
+        (uint32_t) htonl(addrh >> 32 & 0xffffffff);
+    sap->sin6_addr.__in6_u.__u6_addr32[1] =
+        (uint32_t) htonl(addrh & 0xffffffff);
+    sap->sin6_addr.__in6_u.__u6_addr32[2] =
+        (uint32_t) htonl(addrl >> 32 & 0xffffffff);
+    sap->sin6_addr.__in6_u.__u6_addr32[3] =
+        (uint32_t) htonl(addrl & 0xffffffff);
+#else
+    sap->sin6_addr.__u6_addr.__u6_addr32[0] =
+        (uint32_t) htonl(addrh >> 32 & 0xffffffff);
+    sap->sin6_addr.__u6_addr.__u6_addr32[1] =
+        (uint32_t) htonl(addrh & 0xffffffff);
+    sap->sin6_addr.__u6_addr.__u6_addr32[2] =
+        (uint32_t) htonl(addrl >> 32 & 0xffffffff);
+    sap->sin6_addr.__u6_addr.__u6_addr32[3] =
+        (uint32_t) htonl(addrl & 0xffffffff);
+#endif
+
+}
+
+/*******************************************************************************
+
 Get server address v6
 
 Retrieves a v6 server address by name. The name is given as a string. The
@@ -902,17 +966,7 @@ void pa_addrnetv6(string name, unsigned long long* addrh,
 
             /* get the IPv6 address */
             sap = (struct sockaddr_in6*)(p->ai_addr);
-#ifndef __MACH__ /* Mac OS X */
-            *addrh = (unsigned long long) ntohl(sap->sin6_addr.__in6_u.__u6_addr32[0]) << 32 |
-                    (unsigned long long) ntohl(sap->sin6_addr.__in6_u.__u6_addr32[1]);
-            *addrl = (unsigned long long) ntohl(sap->sin6_addr.__in6_u.__u6_addr32[2]) << 32 |
-                    (unsigned long long) ntohl(sap->sin6_addr.__in6_u.__u6_addr32[3]);
-#else
-            *addrh = (unsigned long long) ntohl(sap->sin6_addr.__u6_addr.__u6_addr32[0]) << 32 |
-                    (unsigned long long) ntohl(sap->sin6_addr.__u6_addr.__u6_addr32[1]);
-            *addrl = (unsigned long long) ntohl(sap->sin6_addr.__u6_addr.__u6_addr32[2]) << 32 |
-                    (unsigned long long) ntohl(sap->sin6_addr.__u6_addr.__u6_addr32[3]);
-#endif
+            get128t64(sap, addrh, addrl); /* convert 128 bit to high/low 64 */
             af = TRUE; /* set an address found */
 
         }
@@ -1050,25 +1104,7 @@ FILE* pa_opennetv6(
     /* set up address */
     memset(&saddr, 0, sizeof(struct sockaddr_in6));
     saddr.sin6_family = AF_INET6;
-#ifndef __MACH__ /* Mac OS X */
-    saddr.sin6_addr.__in6_u.__u6_addr32[0] =
-        (uint32_t) htonl(addrh >> 32 & 0xffffffff);
-    saddr.sin6_addr.__in6_u.__u6_addr32[1] =
-        (uint32_t) htonl(addrh & 0xffffffff);
-    saddr.sin6_addr.__in6_u.__u6_addr32[2] =
-        (uint32_t) htonl(addrl >> 32 & 0xffffffff);
-    saddr.sin6_addr.__in6_u.__u6_addr32[3] =
-        (uint32_t) htonl(addrl & 0xffffffff);
-#else
-    saddr.sin6_addr.__u6_addr.__u6_addr32[0] =
-        (uint32_t) htonl(addrh >> 32 & 0xffffffff);
-    saddr.sin6_addr.__u6_addr.__u6_addr32[1] =
-        (uint32_t) htonl(addrh & 0xffffffff);
-    saddr.sin6_addr.__u6_addr.__u6_addr32[2] =
-        (uint32_t) htonl(addrl >> 32 & 0xffffffff);
-    saddr.sin6_addr.__u6_addr.__u6_addr32[3] =
-        (uint32_t) htonl(addrl & 0xffffffff);
-#endif
+    get64t128(addrh, addrl, &saddr);
     saddr.sin6_port = htons(port);
 
     /* connect the socket */
@@ -1191,27 +1227,8 @@ int pa_openmsgv6(
 
     /* set up address */
     saddr.sin6_family = AF_INET6;
-#ifndef __MACH__ /* Mac OS X */
-    saddr.sin6_addr.__in6_u.__u6_addr32[0] =
-        (uint32_t) htonl(addrh >> 32 & 0xffffffff);
-    saddr.sin6_addr.__in6_u.__u6_addr32[1] =
-        (uint32_t) htonl(addrh & 0xffffffff);
-    saddr.sin6_addr.__in6_u.__u6_addr32[2] =
-        (uint32_t) htonl(addrl >> 32 & 0xffffffff);
-    saddr.sin6_addr.__in6_u.__u6_addr32[3] =
-        (uint32_t) htonl(addrl & 0xffffffff);
+    get64t128(addrh, addrl, &saddr);
     saddr.sin6_port = htons(port);
-#else
-    saddr.sin6_addr.__u6_addr.__u6_addr32[0] =
-        (uint32_t) htonl(addrh >> 32 & 0xffffffff);
-    saddr.sin6_addr.__u6_addr.__u6_addr32[1] =
-        (uint32_t) htonl(addrh & 0xffffffff);
-    saddr.sin6_addr.__u6_addr.__u6_addr32[2] =
-        (uint32_t) htonl(addrl >> 32 & 0xffffffff);
-    saddr.sin6_addr.__u6_addr.__u6_addr32[3] =
-        (uint32_t) htonl(addrl & 0xffffffff);
-    saddr.sin6_port = htons(port);
-#endif
 
     /* connect the socket */
     fn = socket(AF_INET6, SOCK_DGRAM, 0);
@@ -1460,25 +1477,7 @@ int pa_maxmsgv6(unsigned long long addrh, unsigned long long addrl)
     /* set up target address */
     memset(&saddr, 0, sizeof(saddr));
     saddr.sin6_family = AF_INET6;
-#ifndef __MACH__ /* Mac OS X */
-    saddr.sin6_addr.__in6_u.__u6_addr32[0] =
-        (uint32_t) htonl(addrh >> 32 & 0xffffffff);
-    saddr.sin6_addr.__in6_u.__u6_addr32[1] =
-        (uint32_t) htonl(addrh & 0xffffffff);
-    saddr.sin6_addr.__in6_u.__u6_addr32[2] =
-        (uint32_t) htonl(addrl >> 32 & 0xffffffff);
-    saddr.sin6_addr.__in6_u.__u6_addr32[3] =
-        (uint32_t) htonl(addrl & 0xffffffff);
-#else
-    saddr.sin6_addr.__u6_addr.__u6_addr32[0] =
-        (uint32_t) htonl(addrh >> 32 & 0xffffffff);
-    saddr.sin6_addr.__u6_addr.__u6_addr32[1] =
-        (uint32_t) htonl(addrh & 0xffffffff);
-    saddr.sin6_addr.__u6_addr.__u6_addr32[2] =
-        (uint32_t) htonl(addrl >> 32 & 0xffffffff);
-    saddr.sin6_addr.__u6_addr.__u6_addr32[3] =
-        (uint32_t) htonl(addrl & 0xffffffff);
-#endif
+    get64t128(addrh, addrl, &saddr);
 
     /* create socket */
     fn = socket(AF_INET6, SOCK_DGRAM, 0);
@@ -2051,13 +2050,13 @@ but spaces within the key are kept.
 
 */
 
-void fndkey(char buff[], char key[], char** ncp)
+static void fndkey(char buff[], char key[], char** ncp)
 
 {
 
     char *icp, *ocp;
 
-dbg_printf(dlinfo, "fndkey: buff: %s\n", buff);
+//dbg_printf(dlinfo, "fndkey: buff: %s\n", buff);
     key[0] = 0; /* clear output key */
     icp = buff; /* index first character */
     ocp = key; /* index output buffer */
@@ -2081,7 +2080,7 @@ dbg_printf(dlinfo, "fndkey: buff: %s\n", buff);
     if (!strcmp(key, "keyid") || !strcmp(key, "DNS") || !strcmp(key, "URI"))
        key[0] = 0; /* kill the key */
     if (key[0]) *ncp = icp; /* set new position after key */
-dbg_printf(dlinfo, "fndkey: key: %s remaining: %s\n", key, icp);
+//dbg_printf(dlinfo, "fndkey: key: %s remaining: %s\n", key, icp);
 
 }
 
@@ -2305,14 +2304,14 @@ void pa_certlistnet(FILE *f, int which, pa_certptr* list)
             i2a_ASN1_OBJECT(bp, op);
             getbio(bp, buff, CVBUFSIZ);
             cdp = addend(&extensions->fork, buff);
-dbg_printf(dlinfo, "Extension key: %s\n", buff);
+//dbg_printf(dlinfo, "Extension key: %s\n", buff);
             cdp->critical = X509_EXTENSION_get_critical(ep);
             //r = ssl_X509V3_EXT_print(bp, ep, 0);
             r = X509V3_EXT_print(bp, ep, 0, 0);
             /* these appear all empty in practice */
             if (!r) ASN1_STRING_print(bp, X509_EXTENSION_get_data(ep));
             getbio(bp, buff, CVBUFSIZ);
-dbg_printf(dlinfo, "Extension data: <start>\n%s\n<end>\n", buff);
+//dbg_printf(dlinfo, "Extension data: <start>\n%s\n<end>\n", buff);
             //filldata(cdp, buff);
             getnamval(buff, &cdp->fork, 0); /* parse n/v tree */
 
