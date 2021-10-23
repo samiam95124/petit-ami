@@ -70,7 +70,9 @@
 #include <string.h>
 #include <errno.h>
 #include <arpa/inet.h>
+#ifndef __MACH__ /* Mac OS X */
 #include <linux/types.h>
+#endif
 #include <stdio.h>
 #include <netdb.h>
 #include <openssl/ssl.h>
@@ -115,6 +117,11 @@ static enum { /* debug levels */
 #define MAXFIL 100 /* maximum number of open files */
 #define COOKIE_SECRET_LENGTH 16 /* length of secret cookie */
 #define CVBUFSIZ 4096 /* certificate value buffer size */
+
+/* this is missing from Mac OS X */
+#ifdef __MACH__ /* Mac OS X */
+#define IP_MTU 14 /* int */
+#endif
 
 /* socket structures */
 typedef union {
@@ -895,10 +902,17 @@ void pa_addrnetv6(string name, unsigned long long* addrh,
 
             /* get the IPv6 address */
             sap = (struct sockaddr_in6*)(p->ai_addr);
+#ifndef __MACH__ /* Mac OS X */
             *addrh = (unsigned long long) ntohl(sap->sin6_addr.__in6_u.__u6_addr32[0]) << 32 |
                     (unsigned long long) ntohl(sap->sin6_addr.__in6_u.__u6_addr32[1]);
             *addrl = (unsigned long long) ntohl(sap->sin6_addr.__in6_u.__u6_addr32[2]) << 32 |
                     (unsigned long long) ntohl(sap->sin6_addr.__in6_u.__u6_addr32[3]);
+#else
+            *addrh = (unsigned long long) ntohl(sap->sin6_addr.__u6_addr.__u6_addr32[0]) << 32 |
+                    (unsigned long long) ntohl(sap->sin6_addr.__u6_addr.__u6_addr32[1]);
+            *addrl = (unsigned long long) ntohl(sap->sin6_addr.__u6_addr.__u6_addr32[2]) << 32 |
+                    (unsigned long long) ntohl(sap->sin6_addr.__u6_addr.__u6_addr32[3]);
+#endif
             af = TRUE; /* set an address found */
 
         }
@@ -1036,6 +1050,7 @@ FILE* pa_opennetv6(
     /* set up address */
     memset(&saddr, 0, sizeof(struct sockaddr_in6));
     saddr.sin6_family = AF_INET6;
+#ifndef __MACH__ /* Mac OS X */
     saddr.sin6_addr.__in6_u.__u6_addr32[0] =
         (uint32_t) htonl(addrh >> 32 & 0xffffffff);
     saddr.sin6_addr.__in6_u.__u6_addr32[1] =
@@ -1044,6 +1059,16 @@ FILE* pa_opennetv6(
         (uint32_t) htonl(addrl >> 32 & 0xffffffff);
     saddr.sin6_addr.__in6_u.__u6_addr32[3] =
         (uint32_t) htonl(addrl & 0xffffffff);
+#else
+    saddr.sin6_addr.__u6_addr.__u6_addr32[0] =
+        (uint32_t) htonl(addrh >> 32 & 0xffffffff);
+    saddr.sin6_addr.__u6_addr.__u6_addr32[1] =
+        (uint32_t) htonl(addrh & 0xffffffff);
+    saddr.sin6_addr.__u6_addr.__u6_addr32[2] =
+        (uint32_t) htonl(addrl >> 32 & 0xffffffff);
+    saddr.sin6_addr.__u6_addr.__u6_addr32[3] =
+        (uint32_t) htonl(addrl & 0xffffffff);
+#endif
     saddr.sin6_port = htons(port);
 
     /* connect the socket */
@@ -1166,6 +1191,7 @@ int pa_openmsgv6(
 
     /* set up address */
     saddr.sin6_family = AF_INET6;
+#ifndef __MACH__ /* Mac OS X */
     saddr.sin6_addr.__in6_u.__u6_addr32[0] =
         (uint32_t) htonl(addrh >> 32 & 0xffffffff);
     saddr.sin6_addr.__in6_u.__u6_addr32[1] =
@@ -1175,6 +1201,17 @@ int pa_openmsgv6(
     saddr.sin6_addr.__in6_u.__u6_addr32[3] =
         (uint32_t) htonl(addrl & 0xffffffff);
     saddr.sin6_port = htons(port);
+#else
+    saddr.sin6_addr.__u6_addr.__u6_addr32[0] =
+        (uint32_t) htonl(addrh >> 32 & 0xffffffff);
+    saddr.sin6_addr.__u6_addr.__u6_addr32[1] =
+        (uint32_t) htonl(addrh & 0xffffffff);
+    saddr.sin6_addr.__u6_addr.__u6_addr32[2] =
+        (uint32_t) htonl(addrl >> 32 & 0xffffffff);
+    saddr.sin6_addr.__u6_addr.__u6_addr32[3] =
+        (uint32_t) htonl(addrl & 0xffffffff);
+    saddr.sin6_port = htons(port);
+#endif
 
     /* connect the socket */
     fn = socket(AF_INET6, SOCK_DGRAM, 0);
@@ -1423,6 +1460,7 @@ int pa_maxmsgv6(unsigned long long addrh, unsigned long long addrl)
     /* set up target address */
     memset(&saddr, 0, sizeof(saddr));
     saddr.sin6_family = AF_INET6;
+#ifndef __MACH__ /* Mac OS X */
     saddr.sin6_addr.__in6_u.__u6_addr32[0] =
         (uint32_t) htonl(addrh >> 32 & 0xffffffff);
     saddr.sin6_addr.__in6_u.__u6_addr32[1] =
@@ -1431,6 +1469,16 @@ int pa_maxmsgv6(unsigned long long addrh, unsigned long long addrl)
         (uint32_t) htonl(addrl >> 32 & 0xffffffff);
     saddr.sin6_addr.__in6_u.__u6_addr32[3] =
         (uint32_t) htonl(addrl & 0xffffffff);
+#else
+    saddr.sin6_addr.__u6_addr.__u6_addr32[0] =
+        (uint32_t) htonl(addrh >> 32 & 0xffffffff);
+    saddr.sin6_addr.__u6_addr.__u6_addr32[1] =
+        (uint32_t) htonl(addrh & 0xffffffff);
+    saddr.sin6_addr.__u6_addr.__u6_addr32[2] =
+        (uint32_t) htonl(addrl >> 32 & 0xffffffff);
+    saddr.sin6_addr.__u6_addr.__u6_addr32[3] =
+        (uint32_t) htonl(addrl & 0xffffffff);
+#endif
 
     /* create socket */
     fn = socket(AF_INET6, SOCK_DGRAM, 0);
@@ -1868,7 +1916,7 @@ and is easy to prune off.
 
 /* print contents of bio */
 
-static int prtbio(BIO *bp)
+static void prtbio(BIO *bp)
 
 {
 
@@ -2384,7 +2432,7 @@ static int iopen(const char* pathname, int flags, int perm)
 
 {
 
-    ivopen(ofpopen, pathname, flags, perm);
+    return ivopen(ofpopen, pathname, flags, perm);
 
 }
 
@@ -2392,7 +2440,7 @@ static int iopen_nocancel(const char* pathname, int flags, int perm)
 
 {
 
-    ivopen(ofpopen_nocancel, pathname, flags, perm);
+    return ivopen(ofpopen_nocancel, pathname, flags, perm);
 
 }
 
@@ -2447,7 +2495,7 @@ static int iclose(int fd)
 
 {
 
-    ivclose(ofpclose, fd);
+    return ivclose(ofpclose, fd);
 
 }
 
@@ -2455,7 +2503,7 @@ static int iclose_nocancel(int fd)
 
 {
 
-    ivclose(ofpclose_nocancel, fd);
+    return ivclose(ofpclose_nocancel, fd);
 
 }
 
@@ -2494,7 +2542,7 @@ static ssize_t iread(int fd, void* buff, size_t count)
 
 {
 
-    ivread(ofpread, fd, buff, count);
+    return ivread(ofpread, fd, buff, count);
 
 }
 
@@ -2502,7 +2550,7 @@ static ssize_t iread_nocancel(int fd, void* buff, size_t count)
 
 {
 
-    ivread(ofpread_nocancel, fd, buff, count);
+    return ivread(ofpread_nocancel, fd, buff, count);
 
 }
 
@@ -2542,7 +2590,7 @@ static ssize_t iwrite(int fd, const void* buff, size_t count)
 
 {
 
-    ivwrite(ofpwrite, fd, buff, count);
+    return ivwrite(ofpwrite, fd, buff, count);
 
 }
 
@@ -2550,7 +2598,7 @@ static ssize_t iwrite_nocancel(int fd, const void* buff, size_t count)
 
 {
 
-    ivwrite(ofpwrite_nocancel, fd, buff, count);
+    return ivwrite(ofpwrite_nocancel, fd, buff, count);
 
 }
 
@@ -2576,7 +2624,7 @@ static off_t ilseek(int fd, off_t offset, int whence)
 
 {
 
-    ivlseek(ofplseek, fd, offset, whence);
+    return ivlseek(ofplseek, fd, offset, whence);
 
 }
 

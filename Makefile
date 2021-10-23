@@ -499,8 +499,9 @@ macosx/services.o: linux/services.c include/services.h Makefile
 macosx/sound.o: stub/sound.c include/sound.h Makefile
 	gcc -g3 -Ilibc -Iinclude -c stub/sound.c -o macosx/sound.o
 	
-macosx/network.o: stub/network.c include/network.h Makefile
-	gcc -g3 -Ilibc -Iinclude -c stub/network.c -o macosx/network.o
+macosx/network.o: linux/network.c include/network.h Makefile
+	gcc -g3 -Ilibc -Iinclude -I/usr/local/Cellar/openssl@3/3.0.0_1/include \
+		-c linux/network.c -o macosx/network.o
 	
 macosx/terminal.o: linux/terminal.c include/terminal.h Makefile
 	gcc -g3 -Ilibc -Iinclude -c linux/terminal.c -o macosx/terminal.o
