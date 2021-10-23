@@ -62,3 +62,5 @@ space.
 
 15. Mac OS X/XQuartz, in animation test, moving the mouse within the window 
 halts the animation. I verified this does not happen in Linux.
+
+16. Mac OS X/XQuartz, seeing some memory errors flagged.
