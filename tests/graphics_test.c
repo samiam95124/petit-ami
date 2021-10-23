@@ -129,6 +129,32 @@
 * Picture draw                 15.07    0.010894                               *
 * No scaling picture draw      14.56    0.000971                               *
 *                                                                              *
+* Benchmark results, Mac OS X/Mac Mini, X86 core, via XQuartz XWindows         *
+* emulation                                                                    *
+*                                                                              *
+* Type                        Seconds   Per fig                                *
+* --------------------------------------------------                           *
+* line width 1                 13.08    0.000058                               *
+* line width 10                11.62    0.000068                               *
+* rectangle width 1            16.14    0.000016                               *
+* rectangle width 10           14.05    0.000045                               *
+* rounded rectangle width 1    14.63    0.080387                               *
+* rounded rectangle width 10    0.00    0.000001                               *
+* filled rectangle              7.98    0.009935                               *
+* filled rounded rectangle     14.24    0.003286                               *
+* ellipse width 1              55.30    0.007777                               *
+* ellipse width 10              8.00    0.007349                               *
+* filled ellipse                9.07    0.008989                               *
+* arc width 1                  19.86    0.009687                               *
+* arc width 10                  0.00    0.000000                               *
+* filled arc                    6.30    0.006423                               *
+* filled chord                 15.86    0.000769                               *
+* filled triangle              18.54    0.000163                               *
+* text                         16.35    0.000114                               *
+* background invisible text    13.68    0.000061                               *
+* Picture draw                  0.32    0.002281                               *
+* No scaling picture draw       5.66    0.002523                               *
+*                                                                              *
 *******************************************************************************/
 
 /* base C defines */
@@ -1150,7 +1176,6 @@ int main(void)
     float f;
 
     if (setjmp(terminate_buf)) goto terminate;
-#if 0
     pa_curvis(stdout, FALSE);
     pa_binvis(stdout);
     printf("Graphics screen test vs. 0.1\n");
@@ -2587,7 +2612,6 @@ int main(void)
 
     /* *************************** Font examples test ************************** */
 
-#endif
     putchar('\f');
     grid();
     pa_auto(stdout, OFF);
