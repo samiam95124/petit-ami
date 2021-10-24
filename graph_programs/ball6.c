@@ -27,9 +27,9 @@ typedef struct balrec { /* ball data record */
     int      lx, ly; /* last position */
     int      xd, yd; /* deltas */
     pa_color c;      /* pa_color */
-   
+
 } balrec;
-   
+
 int      cd;              /* current display flip select */
 balrec   baltbl[MAXBALL]; /* ball data table */
 int      i;               /* index for table */
@@ -41,20 +41,6 @@ pa_color cc;              /* pa_color assignment counter */
 pa_note  n;               /* note variable */
 int      bounce;          /* a bounce took place */
 int      wavtim;          /* wave output timer */
-
-/* wait time in 100 microseconds */
-
-void wait(long t)
-
-{
-
-    pa_evtrec er; /* event record */
-
-    pa_timer(stdout, 1, t, FALSE);
-    do { pa_event(stdin, &er); }
-    while (er.etype != pa_ettim);
-
-}
 
 int chkbrk(void)
 

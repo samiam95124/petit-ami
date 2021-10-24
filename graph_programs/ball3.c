@@ -13,7 +13,7 @@ Place random balls
 int ballsize;
 int halfball;
 
-int wait(void)
+int waitframe(void)
 
 {
 
@@ -62,7 +62,7 @@ int main(void)
         drawball(randn(pa_magenta+1-pa_red)+pa_red,
                  randn(pa_maxxg(stdout)-1-ballsize)+halfball+1,
                  randn(pa_maxyg(stdout)-1-ballsize)+halfball+1);
-        if (wait()) goto terminate; /* wait for a frametime */
+        if (waitframe()) goto terminate; /* wait for a frametime */
 
    }
 

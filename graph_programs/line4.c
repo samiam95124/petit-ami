@@ -11,7 +11,7 @@ Program to draw random lines on screen
 
 #define FRAMETIME 156 /* time between frames, 60 cycle refresh */
 
-static int wait(void)
+static int waitframe(void)
 
 {
 
@@ -55,7 +55,7 @@ int main(void)
         pa_fcolor(stdout, randn(pa_magenta+1-pa_red)+pa_red);
         pa_line(stdout, randn(pa_maxxg(stdout)-1)+1, randn(pa_maxyg(stdout)-1)+1,
                         randn(pa_maxxg(stdout)-1)+1, randn(pa_maxyg(stdout)-1)+1);
-        if (wait()) goto terminate;
+        if (waitframe()) goto terminate;
 
     }
 

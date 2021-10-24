@@ -37,7 +37,7 @@ pa_optrec opttbl[] = {
 
 };
 
-void wait(int t)
+void waittime(int t)
 
 {
 
@@ -80,7 +80,7 @@ int main(int argc, char **argv)
         /* Play a note */
         pa_noteon(dport, 0, 1, key, INT_MAX);
         /* Sleep for .1 second */
-        wait(SECOND/10);
+        waittime(SECOND/10);
         /* Stop the note */
         pa_noteoff(dport, 0, 1, key, 0);
 

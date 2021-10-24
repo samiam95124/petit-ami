@@ -27,7 +27,7 @@ static pa_color clr;
 static linrec   last[MAXLAG];
 static int      li;
 
-static int wait(void)
+static int waitframe(void)
 
 {
 
@@ -118,7 +118,7 @@ int main(void)
             }
 
         }
-        if (wait()) goto terminate;
+        if (waitframe()) goto terminate;
 
     }
 

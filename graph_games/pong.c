@@ -175,7 +175,7 @@ Checks if two rectangles intersect. Returns true if so.
 
 ********************************************************************************/
 
-int intersect(rectangle* r1, rectangle* r2)
+int intrect(rectangle* r1, rectangle* r2)
 
 {
 
@@ -196,7 +196,7 @@ Sets the rectangle to the given values.
 
 ********************************************************************************/
 
-void setrect(rectangle* r, int x1, int y1, int x2, int y2)
+void setrct(rectangle* r, int x1, int y1, int x2, int y2)
 
 {
 
@@ -268,7 +268,7 @@ void padpos(int x)
     pa_frect(stdout, padx-hpadw, pa_maxyg(stdout)-wall-padh-pwdis,
                      padx+hpadw, pa_maxyg(stdout)-wall-pwdis);
     padx = x; /* set new location */
-    setrect(&paddle, x-hpadw, pa_maxyg(stdout)-wall-padh-pwdis,
+    setrct(&paddle, x-hpadw, pa_maxyg(stdout)-wall-padh-pwdis,
                     x+hpadw, pa_maxyg(stdout)-wall-pwdis);
     drwrect(&paddle, PADCLR); /* draw paddle */
 
@@ -305,21 +305,21 @@ int main(void)
     clrrect(&ball); /* set ball not on screen */
     baltim = 0; /* set ball ready to start */
     /* set up wall rectangles */
-    setrect(&wallt, 1, 1, pa_maxxg(stdout), wall); /* top */
-    setrect(&walll, 1, 1, wall, pa_maxyg(stdout)); /* left */
+    setrct(&wallt, 1, 1, pa_maxxg(stdout), wall); /* top */
+    setrct(&walll, 1, 1, wall, pa_maxyg(stdout)); /* left */
     /* right */
-    setrect(&wallr, pa_maxxg(stdout)-wall, 1, pa_maxxg(stdout), pa_maxyg(stdout));
+    setrct(&wallr, pa_maxxg(stdout)-wall, 1, pa_maxxg(stdout), pa_maxyg(stdout));
     /* bottom */
-    setrect(&wallb, 1, pa_maxyg(stdout)-wall, pa_maxxg(stdout), pa_maxyg(stdout));
+    setrct(&wallb, 1, pa_maxyg(stdout)-wall, pa_maxxg(stdout), pa_maxyg(stdout));
     scrsiz = pa_strsiz(stdout, "SCORE 0000"); /* set nominal size of score string */
     scrchg = TRUE; /* set score changed */
     drwscn(); /* draw game screen */
     do { /* game loop */
 
         if (ball.x1 == 0 && baltim == 0) {
- 
+
             /* ball not on screen, and time to wait expired, send out ball */
-            setrect(&ball, wall+1, pa_maxyg(stdout)-4*wall-balls,
+            setrct(&ball, wall+1, pa_maxyg(stdout)-4*wall-balls,
                           wall+1+balls, pa_maxyg(stdout)-4*wall);
             bdx = +pa_maxxg(stdout)/300; /* set direction of travel */
             bdy = -pa_maxyg(stdout)/150;
@@ -379,7 +379,7 @@ int main(void)
                    	balsav = ball; /* save ball position */
                    	offrect(&ball, bdx, bdy); /* move the ball */
                    	/* check off screen motions */
-                   	if (intersect(&ball, &walll) || intersect(&ball, &wallr)) {
+                   	if (intrect(&ball, &walll) || intrect(&ball, &wallr)) {
 
                      	/* hit left or right wall */
                      	ball = balsav; /* restore */
@@ -389,7 +389,7 @@ int main(void)
                       	pa_noteon(PA_SYNTH_OUT, 0, 1, WALLNOTE, INT_MAX);
                       	nottim = BNCENOTE; /* set timer */
 
-                   } else if (intersect(&ball, &wallt)) { /* hits top */
+                   } else if (intrect(&ball, &wallt)) { /* hits top */
 
                       	ball = balsav; /* restore */
                       	bdy = -bdy; /* change direction */
@@ -398,7 +398,7 @@ int main(void)
                       	pa_noteon(PA_SYNTH_OUT, 0, 1, WALLNOTE, INT_MAX);
                       	nottim = BNCENOTE; /* set timer */
 
-                   } else if (intersect(&ball, &paddle)) {
+                   } else if (intrect(&ball, &paddle)) {
 
                       	/* hits paddle. now the ball can hit left, center or right.
                            left goes left, right goes right, and center reflects */
@@ -415,7 +415,7 @@ int main(void)
                       	nottim = BNCENOTE; /* set timer */
 
                    }
-                   if (intersect(&ball, &wallb)) { /* ball out of bounds */
+                   if (intrect(&ball, &wallb)) { /* ball out of bounds */
 
                         drwrect(&balsav, pa_white);
                         clrrect(&ball); /* set ball not on screen */
@@ -459,5 +459,5 @@ int main(void)
     pa_closesynthout(PA_SYNTH_OUT); /* close synthesizer */
 
 }
-            
-                
+
+

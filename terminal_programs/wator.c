@@ -283,44 +283,47 @@ void doshark(void)
 
     for (x = 0; x < pa_maxx(stdout); x++)
         for (y = 0; y < pa_maxy(stdout); y++)
-            if (world[x][y].typ == shark && !world[x][y].moved)
-                if (world[x][y].hunger == STARVE) world[x][y].typ = none;
-                else {
+            if (world[x][y].typ == shark && !world[x][y].moved) {
 
-        nx = x;
-        ny = y;
-        fndadj(&nx, &ny, fish);
-        if (world[nx][ny].typ == fish) {
-
-            world[nx][ny].typ = world[x][y].typ;
-            world[nx][ny].age = world[x][y].age;
-            world[nx][ny].moved = TRUE;
-            if (world[x][y].age == SBREED) {
-
-                world[x][y].age = 0;
-                world[x][y].hunger = 0;
-                world[nx][ny].age = 0;
-
-            } else world[x][y].typ = none;
-            world[nx][ny].hunger = 0;
-
-        } else {
+        if (world[x][y].hunger == STARVE) world[x][y].typ = none;
+        else {
 
             nx = x;
             ny = y;
-            fndadj(&nx, &ny, none);
-            if (world[nx][ny].typ == none) {
+            fndadj(&nx, &ny, fish);
+            if (world[nx][ny].typ == fish) {
 
                 world[nx][ny].typ = world[x][y].typ;
                 world[nx][ny].age = world[x][y].age;
-                world[nx][ny].hunger = world[x][y].hunger;
                 world[nx][ny].moved = TRUE;
                 if (world[x][y].age == SBREED) {
 
                     world[x][y].age = 0;
+                    world[x][y].hunger = 0;
                     world[nx][ny].age = 0;
 
                 } else world[x][y].typ = none;
+                world[nx][ny].hunger = 0;
+
+            } else {
+
+                nx = x;
+                ny = y;
+                fndadj(&nx, &ny, none);
+                if (world[nx][ny].typ == none) {
+
+                    world[nx][ny].typ = world[x][y].typ;
+                    world[nx][ny].age = world[x][y].age;
+                    world[nx][ny].hunger = world[x][y].hunger;
+                    world[nx][ny].moved = TRUE;
+                    if (world[x][y].age == SBREED) {
+
+                        world[x][y].age = 0;
+                        world[nx][ny].age = 0;
+
+                    } else world[x][y].typ = none;
+
+                }
 
             }
 

@@ -43,7 +43,7 @@ wait time in 100 microseconds.
 
 *******************************************************************************/
 
-static void wait(int t)
+static void waittime(int t)
 
 {
 
@@ -117,11 +117,11 @@ void playrand(int port, int notes)
         /* Play a note */
         pa_noteon(port, 0, 1, key, INT_MAX);
         /* Sleep for 1/10 second */
-        wait(SECOND/20);
+        waittime(SECOND/20);
         /* Stop the note */
         pa_noteoff(port, 0, 1, key, 0);
         /* Sleep for 1/10 second */
-        wait(SECOND/20);
+        waittime(SECOND/20);
 
     }
 
@@ -140,9 +140,9 @@ void playnote(int port, pa_note n)
 {
 
     pa_noteon(port, 0, 1, n, INT_MAX); /* play middle C */
-    wait(SECOND/4);
+    waittime(SECOND/4);
     pa_noteoff(port, 0, 1, n, 0);
-    wait(SECOND/4);
+    waittime(SECOND/4);
 
 }
 
@@ -160,33 +160,33 @@ void playscale(int port, int t)
 {
 
     pa_noteon(port, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
-    wait(t);
+    waittime(t);
     pa_noteoff(port, 0, 1, PA_NOTE_C+PA_OCTAVE_6, 0);
-    wait(SECOND/4);
+    waittime(SECOND/4);
     pa_noteon(port, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
-    wait(t);
+    waittime(t);
     pa_noteoff(port, 0, 1, PA_NOTE_D+PA_OCTAVE_6, 0);
-    wait(SECOND/4);
+    waittime(SECOND/4);
     pa_noteon(port, 0, 1, PA_NOTE_E+PA_OCTAVE_6, INT_MAX);
-    wait(t);
+    waittime(t);
     pa_noteoff(port, 0, 1, PA_NOTE_E+PA_OCTAVE_6, 0);
-    wait(SECOND/4);
+    waittime(SECOND/4);
     pa_noteon(port, 0, 1, PA_NOTE_F+PA_OCTAVE_6, INT_MAX);
-    wait(t);
+    waittime(t);
     pa_noteoff(port, 0, 1, PA_NOTE_F+PA_OCTAVE_6, 0);
-    wait(SECOND/4);
+    waittime(SECOND/4);
     pa_noteon(port, 0, 1, PA_NOTE_G+PA_OCTAVE_6, INT_MAX);
-    wait(t);
+    waittime(t);
     pa_noteoff(port, 0, 1, PA_NOTE_G+PA_OCTAVE_6, 0);
-    wait(SECOND/4);
+    waittime(SECOND/4);
     pa_noteon(port, 0, 1, PA_NOTE_A+PA_OCTAVE_6, INT_MAX);
-    wait(t);
+    waittime(t);
     pa_noteoff(port, 0, 1, PA_NOTE_A+PA_OCTAVE_6, 0);
-    wait(SECOND/4);
+    waittime(SECOND/4);
     pa_noteon(port, 0, 1, PA_NOTE_B+PA_OCTAVE_6, INT_MAX);
-    wait(t);
+    waittime(t);
     pa_noteoff(port, 0, 1, PA_NOTE_B+PA_OCTAVE_6, 0);
-    wait(SECOND/4);
+    waittime(SECOND/4);
 
 }
 
@@ -237,7 +237,7 @@ int main(int argc, char *argv[])
 
         printf("%d ", n);
         pa_noteon(dport, 0, 1, n, INT_MAX);
-        wait(SECOND/10);
+        waittime(SECOND/10);
         pa_noteoff(dport, 0, 1, n, 0);
 
     }
@@ -253,9 +253,9 @@ int main(int argc, char *argv[])
         printf("%d ", ins);
         pa_instchange(dport, 0, 1, ins);
         pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
-        wait(SECOND/10);
+        waittime(SECOND/10);
         pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, 0);
-        wait(SECOND/10);
+        waittime(SECOND/10);
 
     }
     printf("\n");
@@ -270,9 +270,9 @@ int main(int argc, char *argv[])
 
         printf("%d ", n);
         pa_noteon(dport, 0, 10, n, INT_MAX);
-        wait(SECOND/10);
+        waittime(SECOND/10);
         pa_noteoff(dport, 0, 10, n, 0);
-        wait(SECOND/10);
+        waittime(SECOND/10);
 
     }
     printf("\n");
@@ -295,9 +295,9 @@ int main(int argc, char *argv[])
     for (i = 0; i < 20; i++) {
 
         pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, i*(INT_MAX/20));
-        wait(SECOND/4);
+        waittime(SECOND/4);
         pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, 0);
-        wait(SECOND/4);
+        waittime(SECOND/4);
 
     }
     printf("Complete\n");
@@ -403,18 +403,18 @@ int main(int argc, char *argv[])
     pa_instchange(dport, 0, 1, PA_INST_ACOUSTIC_GRAND);
     pa_legato(dport, 0, 1, FALSE);
     pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX); /* play middle C */
-    wait(SECOND/4);
+    waittime(SECOND/4);
     pa_noteon(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX); /* play D */
-    wait(SECOND/4);
+    waittime(SECOND/4);
     /* turn off both */
     pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
     pa_noteoff(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
     /* now repeat with legato on */
     pa_legato(dport, 0, 1, TRUE);
     pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX); /* play middle C */
-    wait(SECOND/4);
+    waittime(SECOND/4);
     pa_noteon(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX); /* play D */
-    wait(SECOND/4);
+    waittime(SECOND/4);
     /* turn off both */
     pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
     pa_noteoff(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
@@ -427,18 +427,18 @@ int main(int argc, char *argv[])
     pa_instchange(dport, 0, 1, PA_INST_DRAWBAR_ORGAN);
     pa_legato(dport, 0, 1, FALSE);
     pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX); /* play middle C */
-    wait(SECOND/4);
+    waittime(SECOND/4);
     pa_noteon(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX); /* play D */
-    wait(SECOND/4);
+    waittime(SECOND/4);
     /* turn off both */
     pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
     pa_noteoff(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
     /* now repeat with legato on */
     pa_legato(dport, 0, 1, TRUE);
     pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX); /* play middle C */
-    wait(SECOND/4);
+    waittime(SECOND/4);
     pa_noteon(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX); /* play D */
-    wait(SECOND/4);
+    waittime(SECOND/4);
     /* turn off both */
     pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
     pa_noteoff(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
@@ -457,18 +457,18 @@ int main(int argc, char *argv[])
         pa_porttime(dport, 0, 1, i*(INT_MAX/10));
         pa_portamento(dport, 0, 1, FALSE);
         pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX); /* play middle C */
-        wait(SECOND/4);
+        waittime(SECOND/4);
         pa_noteon(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX); /* play D */
-        wait(SECOND/4);
+        waittime(SECOND/4);
         /* turn off both */
         pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
         pa_noteoff(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
         /* now repeat with portamento on */
         pa_portamento(dport, 0, 1, TRUE);
         pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX); /* play middle C */
-        wait(SECOND/4);
+        waittime(SECOND/4);
         pa_noteon(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX); /* play D */
-        wait(SECOND/4);
+        waittime(SECOND/4);
         /* turn off both */
         pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
         pa_noteoff(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
@@ -486,18 +486,18 @@ int main(int argc, char *argv[])
         printf("Portamento time: %d\n", i*(INT_MAX/10));
         pa_portamento(dport, 0, 1, FALSE);
         pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX); /* play middle C */
-        wait(SECOND/4);
+        waittime(SECOND/4);
         pa_noteon(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX); /* play D */
-        wait(SECOND/4);
+        waittime(SECOND/4);
         /* turn off both */
         pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
         pa_noteoff(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
         /* now repeat with portamento on */
         pa_portamento(dport, 0, 1, TRUE);
         pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX); /* play middle C */
-        wait(SECOND/4);
+        waittime(SECOND/4);
         pa_noteon(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX); /* play D */
-        wait(SECOND/4);
+        waittime(SECOND/4);
         /* turn off both */
         pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
         pa_noteoff(dport, 0, 1, PA_NOTE_D+PA_OCTAVE_6, INT_MAX);
@@ -515,7 +515,7 @@ int main(int argc, char *argv[])
 
         printf("Volume: %d\n", i*(INT_MAX/20));
         pa_volsynthchan(dport, 0, 1, i*(INT_MAX/20));
-        wait(SECOND/4);
+        waittime(SECOND/4);
 
     }
     pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
@@ -533,7 +533,7 @@ int main(int argc, char *argv[])
 
         printf("Balance: %d\n", -INT_MAX+(i*(INT_MAX/20*2)));
         pa_balance(dport, 0, 1, -INT_MAX+(i*(INT_MAX/20*2)));
-        wait(SECOND/4);
+        waittime(SECOND/4);
 
     }
     pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
@@ -550,7 +550,7 @@ int main(int argc, char *argv[])
 
         printf("Vibrato: %d\n", i*(INT_MAX/20));
         pa_vibrato(dport, 0, 1, i*(INT_MAX/20));
-        wait(SECOND);
+        waittime(SECOND);
 
     }
     pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
@@ -568,7 +568,7 @@ int main(int argc, char *argv[])
 
         printf("Pan: %d\n", -INT_MAX+(i*(INT_MAX/20*2)));
         pa_pan(dport, 0, 1, -INT_MAX+(i*(INT_MAX/20*2)));
-        wait(SECOND/4);
+        waittime(SECOND/4);
 
     }
     pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
@@ -585,9 +585,9 @@ int main(int argc, char *argv[])
         printf("Timbre: %d\n", i*(INT_MAX/20));
         pa_timbre(dport, 0, 1, i*(INT_MAX/20));
         pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
-        wait(SECOND/4);
+        waittime(SECOND/4);
         pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, 0);
-        wait(SECOND/4);
+        waittime(SECOND/4);
 
     }
     /* reset channel timbre */
@@ -603,9 +603,9 @@ int main(int argc, char *argv[])
         printf("Brightness: %d\n", i*(INT_MAX/20));
         pa_brightness(dport, 0, 1, i*(INT_MAX/20));
         pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
-        wait(SECOND/4);
+        waittime(SECOND/4);
         pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, 0);
-        wait(SECOND/4);
+        waittime(SECOND/4);
 
     }
     /* reset channel brightness */
@@ -621,9 +621,9 @@ int main(int argc, char *argv[])
         printf("Reverb: %d\n", i*(INT_MAX/20));
         pa_reverb(dport, 0, 1, i*(INT_MAX/20));
         pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
-        wait(SECOND/4);
+        waittime(SECOND/4);
         pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, 0);
-        wait(SECOND/4);
+        waittime(SECOND/4);
 
     }
     /* reset channel reverb */
@@ -640,9 +640,9 @@ int main(int argc, char *argv[])
         printf("Tremulo: %d\n", i*(INT_MAX/20));
         pa_tremulo(dport, 0, 1, i*(INT_MAX/20));
         pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
-        wait(SECOND/4);
+        waittime(SECOND/4);
         pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, 0);
-        wait(SECOND/4);
+        waittime(SECOND/4);
 
     }
     /* reset channel tremulo */
@@ -659,9 +659,9 @@ int main(int argc, char *argv[])
         printf("Chorus: %d\n", i*(INT_MAX/20));
         pa_chorus(dport, 0, 1, i*(INT_MAX/20));
         pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
-        wait(SECOND/4);
+        waittime(SECOND/4);
         pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, 0);
-        wait(SECOND/4);
+        waittime(SECOND/4);
 
     }
     /* reset channel chorus */
@@ -677,9 +677,9 @@ int main(int argc, char *argv[])
         printf("Celeste: %d\n", i*(INT_MAX/20));
         pa_celeste(dport, 0, 1, i*(INT_MAX/20));
         pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
-        wait(SECOND/4);
+        waittime(SECOND/4);
         pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, 0);
-        wait(SECOND/4);
+        waittime(SECOND/4);
 
     }
     /* reset channel celeste */
@@ -695,9 +695,9 @@ int main(int argc, char *argv[])
         printf("Phaser: %d\n", i*(INT_MAX/20));
         pa_phaser(dport, 0, 1, i*(INT_MAX/20));
         pa_noteon(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, INT_MAX);
-        wait(SECOND/4);
+        waittime(SECOND/4);
         pa_noteoff(dport, 0, 1, PA_NOTE_C+PA_OCTAVE_6, 0);
-        wait(SECOND/4);
+        waittime(SECOND/4);
 
     }
     /* reset channel phaser */
@@ -719,7 +719,7 @@ int main(int argc, char *argv[])
 
             printf("Pitch: %d\n", -INT_MAX+(i*(INT_MAX/10*2)));
             pa_pitch(dport, 0, 1, -INT_MAX+(i*(INT_MAX/10*2)));
-            wait(SECOND/100);
+            waittime(SECOND/100);
 
         }
 

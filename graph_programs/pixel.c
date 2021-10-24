@@ -18,7 +18,7 @@ static int x, y, xd, yd, i;
 
 static jmp_buf terminate_buf;
 
-static void wait(void)
+static void chkbrk(void)
 
 {
 
@@ -60,7 +60,7 @@ int main(void)
             if (y == 1 || y == pa_maxyg(stdout)) yd = -yd;
 
         }
-        wait();
+        chkbrk();
 
     }
 

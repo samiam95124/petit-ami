@@ -87,6 +87,7 @@ int main()
                 printf("New size: x: %d y: %d\n", pa_maxx(stdout), pa_maxy(stdout));
                 break;
             case pa_etterm:    printf("terminate program\n"); break;
+            default: ;
 
         }
 
