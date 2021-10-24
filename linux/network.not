@@ -20,3 +20,6 @@ and is a non-trivial algorithim. For this it needs a target address parameter.
 5. The certs routines need a verify procedure.
 
 6. On Mac OS X, gettys flags error "protocol not available".
+
+7. On Mac OS X, msgserver/msgclient with -s (secure) option throws "address 
+already in use" error on server.

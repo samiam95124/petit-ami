@@ -15,13 +15,16 @@ for the check. Obviously it would be ideal if there were a test pop server that
 just gives single test message, either found on the internet or created as a
 program.
 
+It is possible to run against a non-secure email server, but good luck finding
+one of those these days.
+
 getpage ========================================================================
 
 Run getpage on a http, and then an https server. The example is:
 
-> getpage example.com
+> getpage example.com /
 
-> getpage -s example.com
+> getpage -s example.com /
 
 It should contain the text:
 
