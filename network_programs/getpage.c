@@ -60,6 +60,7 @@ int main(int argc, char **argv)
 
         fprintf(stderr, "Usage: getpage [--secure|-s] [--v6] <website> <page> [<port>]\n");
         exit(1);
+
     }
 
     /* set default port */

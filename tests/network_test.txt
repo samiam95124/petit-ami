@@ -1,0 +1,115 @@
+************************** MANUAL NETWORK TESTS ********************************
+
+No automated test exists for the network at present. These tests are performed
+manually. This file details how to do it.
+
+getmail ========================================================================
+
+Run getmail against a server. The example is:
+
+> getmail -s pop.secureserver.net samiam@moorecad.com <password>
+
+The result is a list of emails on the server. That is my pop email server. I 
+can't (obviously) give you my password, but you can run it against your own server
+for the check. Obviously it would be ideal if there were a test pop server that
+just gives single test message, either found on the internet or created as a
+program.
+
+getpage ========================================================================
+
+Run getpage on a http, and then an https server. The example is:
+
+> getpage example.com
+
+> getpage -s example.com
+
+It should contain the text:
+
+Example Domain
+This domain is for use in illustrative examples in documents. You may use this
+domain in literature without prior coordination or asking for permission
+
+It returns the same result for secure as non-secure server. Its difficult to 
+find a good https server simply because of how complex most pages are these 
+days. Since the page is html encoded, if it contains a bunch of crap, its hard
+to tell what is going on.
+
+gettys =========================================================================
+
+Tests ability to create a telnet or ssl server. The example is:
+
+> gettys 
+
+In one console, then:
+
+> telnet 127.0.0.1 4433
+
+In another. The result will be a dump of the gettysberg address. Try it again in
+TLS mode:
+
+> gettys -s
+
+Then in other console:
+
+> openssl s_client -connect 127.0.0.1:4433
+
+The result will be a ton of certificate dumps and finally, again, the gettysberg
+address. You would think you could ssh to it, but nooooooo, that is yet another,
+incompatible, protocol.
+
+msgserver/msgclient ============================================================
+
+Tests ability to pass message or UDP datagrams. The example is:
+
+> msgserver 4433
+
+In another console:
+
+> msgclient 127.0.0.1 4433
+
+They will exchange messages, then print:
+
+The message from client was: Hello, server
+
+On the server side, and:
+
+The message from server was: Hello, client
+
+Again in secure mode:
+
+> msgserver -s 4433
+
+In another console:
+
+> msgclient -s 127.0.0.1 4433
+
+Same result. You can try a secure server, and client in the clear, or vice
+versa. It will fail the handshake.
+
+prtcertnet =====================================================================
+
+Prints the raw certificate from a secure server. The example is:
+
+> prtcertnet yahoo.com 443
+
+The result is it will print the certificate in raw bytes. Yahoo has two certs,
+one for itself and another for the root or provider (agency that issued the
+certificate).
+
+Note that listcertnet prints the cert in decoded tree form, but openssl has made
+that soooo freaking difficult I don't have it completely working yet (they made
+up for it by not documenting it).
+
+prtcertmsg =====================================================================
+
+Prints the raw certificate from a secure message server. Not operational at the
+moment.
+
+Notes:
+
+1. All of the above commands have IPV6 forms. I need to research them and add 
+test examples.
+
+2. All of the above could be automated, but typically this would involve 
+creating a bunch of test servers or relying on a realllllly stable external
+server. Its on the agenda.
