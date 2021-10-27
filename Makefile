@@ -394,7 +394,7 @@ all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
      graphics_test management_test widget_test \
      sound_test sound_testg services_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout editor editorg getpage getpageg getmail \
-     getmailg gettys gettysg msgclient msgclientg msgserver msgserverg \
+     getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg \
      prtconfig prtconfigg pixel ball1 ball2 ball3 ball4 ball5 ball6 line1 line2 \
      line4 line5 clock
@@ -410,7 +410,7 @@ all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
      graphics_test management_test widget_test \
      sound_test sound_testg services_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout editor editorg getpage getpageg getmail \
-     getmailg gettys gettysg msgclient msgclientg msgserver msgserverg \
+     getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
      prtconfig prtconfigg pixel ball1 ball2 ball3 ball4 ball5 ball6 line1 \
      line2 line4 line5 clock
@@ -426,7 +426,7 @@ all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
      graphics_test management_test widget_test \
      sound_test sound_testg services_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout editor editorg getpage getpageg getmail \
-     getmailg gettys gettysg msgclient msgclientg msgserver msgserverg \
+     getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
      prtconfig prtconfigg pixel ball1 ball2 ball3 ball4 ball5 ball6 line1 \
      line2 line4 line5 clock
@@ -930,6 +930,15 @@ getmail: $(PLIBSD) network_programs/getmail.c
 
 getmailg: $(GLIBSD) network_programs/getmail.c
 	$(CC) $(CFLAGS) network_programs/getmail.c $(GLIBS) -o bin/getmailg
+
+#
+# Fake email server
+#
+fakemail: $(PLIBSD) network_programs/fakemail.c
+	$(CC) $(CFLAGS) network_programs/fakemail.c $(PLIBS) -o bin/fakemail
+
+fakemailg: $(GLIBSD) network_programs/fakemail.c
+	$(CC) $(CFLAGS) network_programs/fakemail.c $(GLIBS) -o bin/fakemailg
 
 #
 # Gettysberg address server
