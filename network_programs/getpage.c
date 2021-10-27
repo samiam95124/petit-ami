@@ -19,9 +19,12 @@ both).
 
 *******************************************************************************/
 
+/* posix includes */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
+/* Petit-Ami includes */
 #include <localdefs.h>
 #include <network.h>
 #include <option.h>
@@ -34,11 +37,15 @@ int secure = FALSE;
 /* use IPv6 or IPv4 */
 int ipv6 = FALSE;
 
+/* do not check html end of file */
+int ncend = FALSE;
+
 pa_optrec opttbl[] = {
 
     { "secure", &secure, NULL, NULL, NULL },
     { "s",      &secure, NULL, NULL, NULL },
     { "v6",     &ipv6,   NULL, NULL, NULL },
+    { "ne",     &ncend,  NULL, NULL, NULL },
     { NULL,     NULL,    NULL, NULL, NULL }
 
 };
@@ -52,6 +59,7 @@ int main(int argc, char **argv)
     unsigned long long addrh, addrl;
     int port;
     int argi = 1;
+    int end;
 
     /* parse user options */
     pa_options(&argi, &argc, argv, opttbl, FALSE);
@@ -87,8 +95,10 @@ int main(int argc, char **argv)
     fprintf(fp, "GET %s HTTP/1.1\r\n", argv[argi+1]);
     fprintf(fp, "Host: %s\r\n\r\n", argv[argi]);
 
+    end = FALSE; /* set not at html end */
+
     /* print result */
-    while (!feof(fp)) {
+    while (!feof(fp) && (!end || ncend)) {
 
         if (fgets(buff, BUFLEN, fp)) {
 
@@ -97,6 +107,8 @@ int main(int argc, char **argv)
                This is frequently necessary if the server does not time out
                automatically. This only matters if the output is piped. */
             fflush(stdout);
+            /* set end of html data */
+            end = !strcmp(buff, "</html>\n");
 
         }
 
