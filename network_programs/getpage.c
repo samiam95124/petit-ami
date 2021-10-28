@@ -8,14 +8,30 @@ be used.
 
 Note that this version does not automatically clip the header info.
 
-getpage [--secure|-s] [--v6] <website> <page> [<port>]
+getpage [--secure|-s] [--v6] [--ne] [--html] <website> <page> [<port>]
+
+Options:
+
+--secure|-s
 
 If secure is specified, an SSL connection will be created, otherwise plaintext.
 the port number defaults to 443 for a https connection, otherwise 80.
 
+--v6
+
 Either the IPv4 address or IPv6 address can be selected. Note that the IPv6
 address will only work if the server has IPv6 addressing (many servers will do
 both).
+
+--ne
+
+Normally getpage stops if it sees the </html> or end tag. This option overrides
+that.
+
+--html
+
+Only print the html tagged content. Otherwise all content is printed, usually
+including the html page statistics.
 
 *******************************************************************************/
 
@@ -40,13 +56,17 @@ int ipv6 = FALSE;
 /* do not check html end of file */
 int ncend = FALSE;
 
+/* only print html content */
+int htmlonly = FALSE;
+
 pa_optrec opttbl[] = {
 
-    { "secure", &secure, NULL, NULL, NULL },
-    { "s",      &secure, NULL, NULL, NULL },
-    { "v6",     &ipv6,   NULL, NULL, NULL },
-    { "ne",     &ncend,  NULL, NULL, NULL },
-    { NULL,     NULL,    NULL, NULL, NULL }
+    { "secure", &secure,   NULL, NULL, NULL },
+    { "s",      &secure,   NULL, NULL, NULL },
+    { "v6",     &ipv6,     NULL, NULL, NULL },
+    { "ne",     &ncend,    NULL, NULL, NULL },
+    { "html",   &htmlonly, NULL, NULL, NULL },
+    { NULL,     NULL,      NULL, NULL, NULL }
 
 };
 
@@ -60,13 +80,14 @@ int main(int argc, char **argv)
     int port;
     int argi = 1;
     int end;
+    int inhtml;
 
     /* parse user options */
-    pa_options(&argi, &argc, argv, opttbl, FALSE);
+    pa_options(&argi, &argc, argv, opttbl, TRUE);
 
     if (argc < 3) {
 
-        fprintf(stderr, "Usage: getpage [--secure|-s] [--v6] [--ne] <website> <page> [<port>]\n");
+        fprintf(stderr, "Usage: getpage [--secure|-s] [--v6] [--ne] [--html] <website> <page> [<port>]\n");
         exit(1);
 
     }
@@ -96,13 +117,18 @@ int main(int argc, char **argv)
     fprintf(fp, "Host: %s\r\n\r\n", argv[argi]);
 
     end = FALSE; /* set not at html end */
+    inhtml = FALSE; /* set not in html contents */
 
     /* print result */
     while (!feof(fp) && (!end || ncend)) {
 
         if (fgets(buff, BUFLEN, fp)) {
 
-            printf("%s", buff);
+            if (!strcmp(buff, "<html>\n"))
+                inhtml = TRUE; /* set in html content */
+            if (!htmlonly || inhtml) printf("%s", buff);
+            if (!strcmp(buff, "</html>\n"))
+                inhtml = FALSE; /* set not in html content */
             /* this flush forces the printout even if we cancel out of the run.
                This is frequently necessary if the server does not time out
                automatically. This only matters if the output is piped. */

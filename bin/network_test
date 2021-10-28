@@ -1,0 +1,105 @@
+#!/bin/bash
+################################################################################
+#                                                                              #
+#                             NETWORK TEST                                     #
+#                                                                              #
+# Tests the network.c module                                                   #
+#                                                                              #
+################################################################################
+
+################################################################################
+#
+# Test mail server/client
+#
+# This tests both client and server network connections (TCP/IP)
+#
+################################################################################
+
+echo "Mail server/client test, unsecured **************************************"
+
+#
+# Start fake email server
+#
+fakemail &
+sleep 5
+
+#
+# Get fake email and store
+#
+getmail --port=4433 127.0.0.1 testuser testpass > testout.txt
+diff -s testout.txt tests/fakemail.txt
+echo Should be "Files are identical"
+
+#
+# remove server
+#
+killall fakemail
+
+################################################################################
+#
+# Test mail server/client
+#
+# This tests both client and server network connections (TCP/IP).
+# This is the TLS secured version.
+#
+################################################################################
+
+echo "Mail server/client test, secured ****************************************"
+
+#
+# Start fake email server
+#
+fakemail -s &
+sleep 5
+
+#
+# Get fake email and store
+#
+getmail --secure --sport=4433 127.0.0.1 testuser testpass > testout.txt
+diff -s testout.txt tests/fakemail.txt
+echo Should be "Files are identical"
+
+#
+# remove server
+#
+killall fakemail
+
+################################################################################
+#
+# Test access to http server
+#
+# This tests client network connections (TCP/IP)
+#
+################################################################################
+
+echo "HTTP client test, unsecured **************************************"
+
+#
+# Get page and store
+#
+getpage --html example.com / > testout.txt
+diff -s testout.txt tests/getpage.txt
+echo Should be "Files are identical"
+
+################################################################################
+#
+# Test access to http server
+#
+# This tests client network connections (TCP/IP)
+# This is the TLS secured version.
+#
+################################################################################
+
+echo "HTTP client test, secured **************************************"
+
+#
+# Get page and store
+#
+getpage --html --secure example.com / > testout.txt
+diff -s testout.txt tests/getpage.txt
+echo Should be "Files are identical"
+
+
+
+
+
