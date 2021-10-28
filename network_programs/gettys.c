@@ -3,7 +3,7 @@
 Getty server
 
 Simple server example that produces Lincon's Gettysberg address when connected
-to, using port 42 (of course).
+to, using port 42 (of course). Copied from online example.
 
 *******************************************************************************/
 

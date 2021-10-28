@@ -1,0 +1,9 @@
+Mail server access test program
+
+Message: 0
+
+From: <test@testserver.com>
+To: tester@test.com>
+Subject: Test success!
+
+This is a test email message

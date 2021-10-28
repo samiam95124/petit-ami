@@ -99,6 +99,63 @@ getpage --html --secure example.com / > testout.txt
 diff -s testout.txt tests/getpage.txt
 echo Should be "Files are identical"
 
+################################################################################
+#
+# Test gettys server/client
+#
+# This tests both client and server network connections (TCP/IP)
+#
+################################################################################
+
+echo "Gettys server/client test, unsecured **************************************"
+
+#
+# Start getty server
+#
+gettys &
+sleep 5
+
+#
+# Get output and store
+#
+connectnet 127.0.0.1 4433 > testout.txt
+diff -s testout.txt tests/gettys.txt
+echo Should be "Files are identical"
+
+#
+# remove server
+#
+killall gettys
+
+################################################################################
+#
+# Test gettys server/client
+#
+# This tests both client and server network connections (TCP/IP)
+# This is the TLS secured version.
+#
+################################################################################
+
+echo "Gettys server/client test, secured **************************************"
+
+#
+# Start getty server
+#
+gettys -s &
+sleep 5
+
+#
+# Get output and store
+#
+connectnet -s 127.0.0.1 4433 > testout.txt
+diff -s testout.txt tests/gettys.txt
+echo Should be "Files are identical"
+
+#
+# remove server
+#
+killall gettys
+
 
 
 

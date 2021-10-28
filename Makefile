@@ -941,6 +941,15 @@ fakemailg: $(GLIBSD) network_programs/fakemail.c
 	$(CC) $(CFLAGS) network_programs/fakemail.c $(GLIBS) -o bin/fakemailg
 
 #
+# Network connection program
+#
+connectnet: $(PLIBSD) network_programs/connectnet.c
+	$(CC) $(CFLAGS) network_programs/connectnet.c $(PLIBS) -o bin/connectnet
+
+connectnetg: $(GLIBSD) network_programs/connectnet.c
+	$(CC) $(CFLAGS) network_programs/connectnet.c $(GLIBS) -o bin/connectnetg
+	
+#
 # Gettysberg address server
 #	
 gettys: $(PLIBSD) network_programs/gettys.c
