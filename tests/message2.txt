@@ -1,0 +1,1 @@
+The message from server was: Hello, client

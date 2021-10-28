@@ -156,6 +156,58 @@ echo Should be "Files are identical"
 #
 killall gettys
 
+################################################################################
+#
+# Test message server/client
+#
+# This tests both client and server for message based connections (UDP).
+#
+################################################################################
+
+echo "Message server/client test, unsecured ***********************************"
+
+#
+# Start message server
+#
+msgserver 4433 > testout1.txt &
+sleep 5
+
+#
+# Get output and store
+#
+msgclient 127.0.0.1 4433 > testout2.txt
+diff -s testout1.txt tests/message1.txt
+diff -s testout2.txt tests/message2.txt
+echo Should be "Files are identical"
+
+################################################################################
+#
+# Test gettys server/client
+#
+# This tests both client and server network connections (TCP/IP)
+# This is the TLS secured version.
+#
+################################################################################
+
+echo "prtcertnet test *********************************************************"
+
+#
+# Start getty server
+#
+gettys -s &
+sleep 5
+
+#
+# Get output and store
+#
+prtcertnet 127.0.0.1 4433 > testout.txt
+diff -s testout.txt tests/prtcertnet.txt
+echo Should be "Files are identical"
+
+#
+# remove server
+#
+killall gettys
 
 
 
