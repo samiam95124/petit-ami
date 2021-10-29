@@ -47,6 +47,16 @@ window unless it got focus, but the event is supressed. May have to do our own
 focus event generation based on enter and leave events. Post a example to
 stack overflow before trying this.
 
+Follow up:
+
+Focus events work very strangely on X. Only the top level window gets them.
+Clicking on a child window first generates a focus event for the parent window.
+That is even though the child window gets character input, and the parent
+window does not. I think it may be necessary to emulate "focus follows window"
+behavior despite X, to make it regular. This would have the unfortunate side
+effect that X or the window manager does not get to choose focus policy, since
+we would be generating focus based on clicks.
+
 11. Management test/Minimize/Maximize test does not work, and there is no
 mechanisim for this at present. I am researching it.
 
