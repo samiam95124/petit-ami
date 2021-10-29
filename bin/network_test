@@ -182,10 +182,34 @@ echo Should be "Files are identical"
 
 ################################################################################
 #
-# Test gettys server/client
+# Test message server/client
 #
-# This tests both client and server network connections (TCP/IP)
+# This tests both client and server for message based connections (UDP).
 # This is the TLS secured version.
+#
+################################################################################
+
+echo "Message server/client test, secured ***********************************"
+
+#
+# Start message server
+#
+msgserver -s 4433 > testout1.txt &
+sleep 5
+
+#
+# Get output and store
+#
+msgclient -s 127.0.0.1 4433 > testout2.txt
+diff -s testout1.txt tests/message1.txt
+diff -s testout2.txt tests/message2.txt
+echo Should be "Files are identical"
+
+################################################################################
+#
+# Test print certificate
+#
+# Tests ability to print certificates from a secured network server (TCP/IP).
 #
 ################################################################################
 

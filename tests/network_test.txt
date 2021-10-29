@@ -1,5 +1,7 @@
 ************************** MANUAL NETWORK TESTS ********************************
 
+[NOTE: this procedure is superceeded by network_test in bin directory]
+
 No automated test exists for the network at present. These tests are performed
 manually. This file details how to do it.
 
