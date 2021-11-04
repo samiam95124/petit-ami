@@ -109,6 +109,7 @@ typedef struct wigrec {
     wigptr next;    /* next entry in list */
     wigtyp typ;     /* type of widget */
     int    pressed; /* in the pressed state */
+    int    select;  /* the current on/off state */
     FILE*  wf;      /* output file for the widget window */
     char*  title;   /* title text */
     FILE*  parent;  /* parent window */
@@ -177,7 +178,7 @@ static char* str(char* s)
 
 Get file entry
 
-Allocates and initalizes a new file entry. File entries are left in the opnfil
+Allocates and initializes a new file entry. File entries are left in the opnfil
 array, so are recycled in place.
 
 *******************************************************************************/
@@ -334,6 +335,151 @@ static void button_event(pa_evtrec* ev, wigptr wg)
 
 /** ****************************************************************************
 
+Checkbox event handler
+
+Handles the events posted to checkboxes.
+
+*******************************************************************************/
+
+static void checkbox_draw(wigptr wg)
+
+{
+
+    int sq; /* size of checkbox square */
+    int sqm; /* center x of checkbox square */
+    int sqo; /* checkbox offset left */
+    int md; /* checkbox center line */
+    int cb; /* bounding box of check figure */
+
+    /* color the background */
+    pa_fcolor(wg->wf, pa_backcolor);
+    pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
+    pa_fcolor(wg->wf, pa_black);
+    pa_cursorg(wg->wf, pa_chrsizy(wg->wf)+pa_chrsizy(wg->wf)/2,
+                       pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
+    fprintf(wg->wf, "%s", wg->title); /* place button title */
+    /* set size of square as ratio of font height */
+    sq = 0.80*pa_chrsizy(wg->wf);
+    md = pa_maxyg(wg->wf)/2; /* set middle line of checkbox */
+    sqo = pa_maxyg(wg->wf)/4; /* set offset of square from left */
+    sqm = sqo+sq/2; /* set square middle x */
+    cb = sq*.70; /* set bounding box of check figure */
+
+    if (wg->select) {
+
+        /* place selected checkmark */
+        pa_fcolorg(wg->wf, INT_MAX/256*146, INT_MAX/256*77, INT_MAX/256*139);
+        pa_frrect(wg->wf, sqo, md-sq/2, sqo+sq, md+sq/2, 10, 10);
+        pa_fcolor(wg->wf, pa_white);
+        pa_linewidth(wg->wf, 4);
+        pa_line(wg->wf, sqm-cb/2, md-cb*.10,
+                        sqm, md+cb*.25);
+        pa_line(wg->wf, sqm-1, md+cb*.25-1,
+                        sqm+cb/2, md-cb*.4);
+        pa_linewidth(wg->wf, 1);
+
+    } else {
+
+        /* place non-selected chkmark background */
+        pa_fcolor(wg->wf, pa_white);
+        pa_frrect(wg->wf, sqo, md-sq/2, sqo+sq, md+sq/2, 10, 10);
+        pa_linewidth(wg->wf, 2);
+        pa_fcolorg(wg->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
+        pa_rrect(wg->wf, sqo, md-sq/2, sqo+sq, md+sq/2, 10, 10);
+
+    }
+
+}
+
+static void checkbox_event(pa_evtrec* ev, wigptr wg)
+
+{
+
+    pa_evtrec er; /* outbound checkbox event */
+
+    if (ev->etype == pa_etmouba && ev->amoubn) {
+
+        /* send event back to parent window */
+        er.etype = pa_etchkbox; /* set checkbox event */
+        er.butid = wg->id; /* set id */
+        pa_sendevent(wg->parent, &er); /* send the event to the parent */
+
+    }
+    checkbox_draw(wg);
+
+}
+
+/** ****************************************************************************
+
+Radio button event handler
+
+Handles the events posted to radiobuttons.
+
+*******************************************************************************/
+
+static void radiobutton_draw(wigptr wg)
+
+{
+
+    int cr; /* size of radiobutton circle */
+    int crm; /* center x of radiobutton circle */
+    int cro; /* radiobutton offset left */
+    int md; /* radiobutton center line */
+
+    /* color the background */
+    pa_fcolor(wg->wf, pa_backcolor);
+    pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
+    pa_fcolor(wg->wf, pa_black);
+    pa_cursorg(wg->wf, pa_chrsizy(wg->wf)+pa_chrsizy(wg->wf)/2,
+                       pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
+    fprintf(wg->wf, "%s", wg->title); /* place button title */
+    /* set size of circle as ratio of font height */
+    cr = 0.80*pa_chrsizy(wg->wf);
+    md = pa_maxyg(wg->wf)/2; /* set middle line of radiobutton */
+    cro = pa_maxyg(wg->wf)/4; /* set offset of circle from left */
+    crm = cro+cr/2; /* set circle middle x */
+
+    if (wg->select) {
+
+        /* place select figure */
+        pa_fcolorg(wg->wf, INT_MAX/256*146, INT_MAX/256*77, INT_MAX/256*139);
+        pa_fellipse(wg->wf, cro, md-cr/2, cro+cr, md+cr/2);
+        pa_fcolor(wg->wf, pa_white);
+        pa_fellipse(wg->wf, crm-cr/6, md-cr/6, crm+cr/6, md+cr/6);
+
+    } else {
+
+        /* place non-selected background */
+        pa_fcolor(wg->wf, pa_white);
+        pa_fellipse(wg->wf, cro, md-cr/2, cro+cr, md+cr/2);
+        pa_linewidth(wg->wf, 2);
+        pa_fcolorg(wg->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
+        pa_ellipse(wg->wf, cro, md-cr/2, cro+cr, md+cr/2);
+
+    }
+
+}
+
+static void radiobutton_event(pa_evtrec* ev, wigptr wg)
+
+{
+
+    pa_evtrec er; /* outbound radiobutton event */
+
+    if (ev->etype == pa_etmouba && ev->amoubn) {
+
+        /* send event back to parent window */
+        er.etype = pa_etradbut; /* set button event */
+        er.butid = wg->id; /* set id */
+        pa_sendevent(wg->parent, &er); /* send the event to the parent */
+
+    }
+    radiobutton_draw(wg);
+
+}
+
+/** ****************************************************************************
+
 Widget event handler
 
 Handles the events posted to widgets.
@@ -352,8 +498,8 @@ static void widget_event(pa_evtrec* ev)
     else switch (wg->typ) { /* handle according to type */
 
         case wtbutton:       button_event(ev, wg); break;
-        case wtcheckbox:     break;
-        case wtradiobutton:  break;
+        case wtcheckbox:     checkbox_event(ev, wg); break;
+        case wtradiobutton:  radiobutton_event(ev, wg); break;
         case wtgroup:        break;
         case wtbackground:   break;
         case wtscrollvert:   break;
@@ -422,6 +568,8 @@ static void widget(FILE* f, int x1, int y1, int x2, int y2, char* s, int id,
     pa_frame((*wp)->wf, FALSE); /* turn off frame */
     pa_binvis((*wp)->wf); /* no background write */
     (*wp)->typ = typ; /* place type */
+    (*wp)->pressed = FALSE; /* set not pressed */
+    (*wp)->select = FALSE; /* set not selected */
 
 }
 
@@ -450,6 +598,25 @@ Selects or deselects a widget.
 void pa_selectwidget(FILE* f, int id, int e)
 
 {
+
+    int       fn;  /* logical file name */
+    wigptr    wp;  /* widget entry pointer */
+    int       chg; /* widget state changes */
+    pa_evtrec ev;  /* outbound menu event */
+
+    if (id <=0 || id > MAXWIG) error("Invalid widget id");
+    fn = fileno(f); /* get the file index */
+    if (fn > MAXFIL) error("Invalid file number");
+    if (!opnfil[fn]->widgets[id]) error("No widget by given id");
+    wp = opnfil[fn]->widgets[id]; /* index that */
+    /* check this widget is selectable */
+    if (wp->typ != wtcheckbox && wp->typ != wtradiobutton)
+        error("Widget is not selectable");
+    chg = wp->select != !!e; /* check select state changes */
+    wp->select = !!e; /* set select state */
+    /* if the select changes, refresh the checkbox */
+    ev.etype = pa_etredraw; /* set redraw event */
+    pa_sendevent(wp->wf, &ev); /* send to widget window */
 
 }
 

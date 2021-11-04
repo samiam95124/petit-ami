@@ -1400,7 +1400,7 @@ int colnum(pa_color c)
         case pa_cyan:      n = 0x00ffff; break;
         case pa_yellow:    n = 0xffff00; break;
         case pa_magenta:   n = 0xff00ff; break;
-        case pa_backcolor: n = 0xeae9d8; break;
+        case pa_backcolor: n = 0xf7f7f7; break;
 
     }
 
