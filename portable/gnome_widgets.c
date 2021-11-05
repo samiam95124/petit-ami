@@ -111,11 +111,12 @@ typedef struct wigrec {
     int    pressed; /* in the pressed state */
     int    select;  /* the current on/off state */
     FILE*  wf;      /* output file for the widget window */
-    char*  title;   /* title text */
+    char*  face;   /* face text */
     FILE*  parent;  /* parent window */
     FILE*  evtfil;  /* file to post menu events to */
     int    id;      /* id number */
     int    wid;     /* widget window id */
+    int    enb;     /* widget is enabled */
 
 } wigrec;
 
@@ -265,6 +266,53 @@ static void putwig(wigptr wp)
 
 }
 
+/*******************************************************************************
+
+Find widget
+
+Given a file specification and a widget id, returns a pointer to the given
+widget. Validates the file and the widget number.
+
+*******************************************************************************/
+
+static wigptr fndwig(FILE* f, int id)
+
+{
+
+    int       fn;  /* logical file name */
+    wigptr    wp;  /* widget entry pointer */
+
+    if (id <= 0 || id > MAXWIG) error("Invalid widget id");
+    fn = fileno(f); /* get the file index */
+    if (fn < 0 || fn > MAXFIL) error("Invalid file number");
+    if (!opnfil[fn]->widgets[id]) error("No widget by given id");
+    wp = opnfil[fn]->widgets[id]; /* index that */
+
+    return (wp); /* return the widget pointer */
+
+}
+
+/*******************************************************************************
+
+Send redraw to window
+
+Sends a redraw request to the given window. The common workflow with widgets
+is to reconfigure it by changing the parameters of it, then sending it a redraw
+to update itself with the new parameters.
+
+*******************************************************************************/
+
+static void widget_redraw(FILE* f)
+
+{
+
+    pa_evtrec ev;  /* outbound menu event */
+
+    ev.etype = pa_etredraw; /* set redraw event */
+    pa_sendevent(f, &ev); /* send to widget window */
+
+}
+
 /** ****************************************************************************
 
 Button event handler
@@ -291,9 +339,9 @@ static void button_event(pa_evtrec* ev, wigptr wg)
                  pa_maxyg(wg->wf)-1, 20, 20);
         pa_fcolor(wg->wf, pa_black);
         pa_cursorg(wg->wf,
-                   pa_maxxg(wg->wf)/2-pa_strsiz(wg->wf, wg->title)/2,
+                   pa_maxxg(wg->wf)/2-pa_strsiz(wg->wf, wg->face)/2,
                    pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
-        fprintf(wg->wf, "%s", wg->title); /* place button title */
+        fprintf(wg->wf, "%s", wg->face); /* place button face */
 
     } else if (ev->etype == pa_etmouba && ev->amoubn) {
 
@@ -313,9 +361,9 @@ static void button_event(pa_evtrec* ev, wigptr wg)
         pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1, pa_maxyg(wg->wf)-1, 20, 20);
         pa_fcolor(wg->wf, pa_black);
         pa_cursorg(wg->wf,
-                   pa_maxxg(wg->wf)/2-pa_strsiz(wg->wf, wg->title)/2,
+                   pa_maxxg(wg->wf)/2-pa_strsiz(wg->wf, wg->face)/2,
                    pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
-        fprintf(wg->wf, "%s", wg->title); /* place button title */
+        fprintf(wg->wf, "%s", wg->face); /* place button face */
 
     } else if (ev->etype == pa_etmoubd) {
 
@@ -325,9 +373,9 @@ static void button_event(pa_evtrec* ev, wigptr wg)
                  pa_maxyg(wg->wf)-3, 20, 20);
         pa_fcolor(wg->wf, pa_black);
         pa_cursorg(wg->wf,
-                   pa_maxxg(wg->wf)/2-pa_strsiz(wg->wf, wg->title)/2,
+                   pa_maxxg(wg->wf)/2-pa_strsiz(wg->wf, wg->face)/2,
                    pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
-        fprintf(wg->wf, "%s", wg->title); /* place button title */
+        fprintf(wg->wf, "%s", wg->face); /* place button face */
 
     }
 
@@ -357,7 +405,7 @@ static void checkbox_draw(wigptr wg)
     pa_fcolor(wg->wf, pa_black);
     pa_cursorg(wg->wf, pa_chrsizy(wg->wf)+pa_chrsizy(wg->wf)/2,
                        pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
-    fprintf(wg->wf, "%s", wg->title); /* place button title */
+    fprintf(wg->wf, "%s", wg->face); /* place button face */
     /* set size of square as ratio of font height */
     sq = 0.80*pa_chrsizy(wg->wf);
     md = pa_maxyg(wg->wf)/2; /* set middle line of checkbox */
@@ -432,7 +480,7 @@ static void radiobutton_draw(wigptr wg)
     pa_fcolor(wg->wf, pa_black);
     pa_cursorg(wg->wf, pa_chrsizy(wg->wf)+pa_chrsizy(wg->wf)/2,
                        pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
-    fprintf(wg->wf, "%s", wg->title); /* place button title */
+    fprintf(wg->wf, "%s", wg->face); /* place button face */
     /* set size of circle as ratio of font height */
     cr = 0.80*pa_chrsizy(wg->wf);
     md = pa_maxyg(wg->wf)/2; /* set middle line of radiobutton */
@@ -533,9 +581,6 @@ Creates a widget within the given window, within the specified bounding box,
 and using the face string and type, and the given id. The string may or may not
 be used.
 
-Widgets use the subthread to buffer them. There were various problems from
-trying to start them on the main window.
-
 *******************************************************************************/
 
 static void widget(FILE* f, int x1, int y1, int x2, int y2, char* s, int id,
@@ -552,7 +597,7 @@ static void widget(FILE* f, int x1, int y1, int x2, int y2, char* s, int id,
     opnfil[fn]->widgets[id] = getwig(); /* get widget entry */
     *wp = opnfil[fn]->widgets[id]; /* index that */
 
-    (*wp)->title = str(s); /* place title */
+    (*wp)->face = str(s); /* place face */
     (*wp)->wid = pa_getwid(); /* allocate a buried wid */
     pa_openwin(&stdin, &(*wp)->wf, f, (*wp)->wid); /* open widget window */
     (*wp)->parent = f; /* save parent file */
@@ -570,6 +615,7 @@ static void widget(FILE* f, int x1, int y1, int x2, int y2, char* s, int id,
     (*wp)->typ = typ; /* place type */
     (*wp)->pressed = FALSE; /* set not pressed */
     (*wp)->select = FALSE; /* set not selected */
+    (*wp)->enb = TRUE; /* set is enabled */
 
 }
 
@@ -585,6 +631,15 @@ void pa_killwidget(FILE* f, int id)
 
 {
 
+    wigptr wp; /* widget entry pointer */
+    int    fn; /* logical file name */
+
+    wp = fndwig(f, id); /* index the widget */
+    close(wp->wf); /* close the window file */
+    fn = fileno(f); /* get the logical file number */
+    opnfil[fn]->widgets[id] = NULL; /* clear widget slot  */
+    putwig(wp); /* release widget data */
+
 }
 
 /** ****************************************************************************
@@ -599,24 +654,17 @@ void pa_selectwidget(FILE* f, int id, int e)
 
 {
 
-    int       fn;  /* logical file name */
     wigptr    wp;  /* widget entry pointer */
     int       chg; /* widget state changes */
-    pa_evtrec ev;  /* outbound menu event */
 
-    if (id <=0 || id > MAXWIG) error("Invalid widget id");
-    fn = fileno(f); /* get the file index */
-    if (fn > MAXFIL) error("Invalid file number");
-    if (!opnfil[fn]->widgets[id]) error("No widget by given id");
-    wp = opnfil[fn]->widgets[id]; /* index that */
+    wp = fndwig(f, id); /* index the widget */
     /* check this widget is selectable */
     if (wp->typ != wtcheckbox && wp->typ != wtradiobutton)
         error("Widget is not selectable");
     chg = wp->select != !!e; /* check select state changes */
     wp->select = !!e; /* set select state */
     /* if the select changes, refresh the checkbox */
-    ev.etype = pa_etredraw; /* set redraw event */
-    pa_sendevent(wp->wf, &ev); /* send to widget window */
+    if (chg) widget_redraw(f); /* send redraw to widget */
 
 }
 
@@ -631,6 +679,19 @@ Enables or disables a widget.
 void pa_enablewidget(FILE* f, int id, int e)
 
 {
+
+    wigptr    wp;  /* widget entry pointer */
+    int       chg; /* widget state changes */
+
+    wp = fndwig(f, id); /* index the widget */
+    /* check this widget can be enabled/disabled */
+    if (wp->typ != wtbutton && wp->typ != wtcheckbox &&
+        wp->typ != wtradiobutton)
+        error("Widget is not selectable");
+    chg = wp->enb != !!e; /* check enable state changes */
+    wp->enb = !!e; /* set enable state */
+    /* if the select changes, refresh the checkbox */
+    if (chg) widget_redraw(f); /* send redraw to widget */
 
 }
 
@@ -648,6 +709,16 @@ void pa_getwidgettext(FILE* f, int id, char* s, int sl)
 
 {
 
+    wigptr    wp;  /* widget entry pointer */
+
+    wp = fndwig(f, id); /* index the widget */
+    /* check this widget can have face text read */
+    if (wp->typ != wteditbox && wp->typ != wtdropeditbox)
+        error("Widget content cannot be read");
+    /* check face text too large for buffer */
+    if (strlen(wp->face) >= sl) error("Face text too large for result");
+    strcpy(s, wp->face); /* copy face text to result */
+
 }
 
 /** ****************************************************************************
@@ -661,6 +732,15 @@ Places text into an edit box.
 void pa_putwidgettext(FILE* f, int id, char* s)
 
 {
+
+    wigptr    wp;  /* widget entry pointer */
+
+    wp = fndwig(f, id); /* index the widget */
+    /* check this widget can have face text read */
+    if (wp->typ != wteditbox && wp->typ != wtdropeditbox)
+        error("Widget contents cannot be written");
+    free(wp->face); /* dispose of previous face string */
+    wp->face = str(s); /* place new face */
 
 }
 
@@ -676,6 +756,11 @@ void pa_sizwidgetg(FILE* f, int id, int x, int y)
 
 {
 
+    wigptr    wp;  /* widget entry pointer */
+
+    wp = fndwig(f, id); /* index the widget */
+    pa_setsizg(wp->wf, x, y); /* set size */
+
 }
 
 /** ****************************************************************************
@@ -690,6 +775,11 @@ void pa_poswidgetg(FILE* f, int id, int x, int y)
 
 {
 
+    wigptr    wp;  /* widget entry pointer */
+
+    wp = fndwig(f, id); /* index the widget */
+    pa_setposg(wp->wf, x, y); /* set size */
+
 }
 
 /** ****************************************************************************
@@ -702,6 +792,11 @@ void pa_backwidget(FILE* f, int id)
 
 {
 
+    wigptr    wp;  /* widget entry pointer */
+
+    wp = fndwig(f, id); /* index the widget */
+    pa_back(wp->wf); /* place to back */
+
 }
 
 /** ****************************************************************************
@@ -713,6 +808,11 @@ Place widget to back of Z order
 void pa_frontwidget(FILE* f, int id)
 
 {
+
+    wigptr    wp;  /* widget entry pointer */
+
+    wp = fndwig(f, id); /* index the widget */
+    pa_front(wp->wf); /* place to front */
 
 }
 

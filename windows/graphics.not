@@ -178,6 +178,8 @@ no longer being drawn.
 30. Repeatedly setting a single shot timer causes a windows timer overflow
 error after 16 such sets. See L. Tunnicliffe's program.
 
+31. Where is sizwidget() and poswidget()?
+
 ********************* Enhancement/Feature proposals ****************************
 
 1. It makes sense to have scrollbars be an attribute of a window, as well as
