@@ -635,7 +635,7 @@ void pa_killwidget(FILE* f, int id)
     int    fn; /* logical file name */
 
     wp = fndwig(f, id); /* index the widget */
-    close(wp->wf); /* close the window file */
+    fclose(wp->wf); /* close the window file */
     fn = fileno(f); /* get the logical file number */
     opnfil[fn]->widgets[id] = NULL; /* clear widget slot  */
     putwig(wp); /* release widget data */
@@ -763,6 +763,20 @@ void pa_sizwidgetg(FILE* f, int id, int x, int y)
 
 }
 
+void pa_sizwidget(FILE* f, int id, int x, int y)
+
+{
+
+    wigptr    wp;  /* widget entry pointer */
+
+    wp = fndwig(f, id); /* index the widget */
+    /* form graphical from character size */
+    x = (x-1)*pa_chrsizx(f)+1;
+    y = (y-1)*pa_chrsizy(f)+1;
+    pa_setsizg(wp->wf, x, y); /* set size */
+
+}
+
 /** ****************************************************************************
 
 Reposition widget
@@ -778,6 +792,20 @@ void pa_poswidgetg(FILE* f, int id, int x, int y)
     wigptr    wp;  /* widget entry pointer */
 
     wp = fndwig(f, id); /* index the widget */
+    pa_setposg(wp->wf, x, y); /* set size */
+
+}
+
+void pa_poswidget(FILE* f, int id, int x, int y)
+
+{
+
+    wigptr    wp;  /* widget entry pointer */
+
+    wp = fndwig(f, id); /* index the widget */
+    /* form graphical from character coordinates */
+    x = (x-1)*pa_chrsizx(f)+1;
+    y = (y-1)*pa_chrsizy(f)+1;
     pa_setposg(wp->wf, x, y); /* set size */
 
 }
@@ -835,6 +863,11 @@ void pa_buttonsiz(FILE* f, char* s, int* w, int* h)
 
 {
 
+    pa_buttonsizg(f, s, w, h); /* get size */
+    /* change graphical size to character */
+    *w = (*w-1) / pa_chrsizx(f)+1;
+    *h = (*h-1) / pa_chrsizy(f)+1;
+
 }
 
 /** ****************************************************************************
@@ -888,6 +921,11 @@ void pa_checkboxsiz(FILE* f, char* s,  int* w, int* h)
 
 {
 
+    pa_checkboxsizg(f, s, w, h); /* get size */
+    /* change graphical size to character */
+    *w = (*w-1) / pa_chrsizx(f)+1;
+    *h = (*h-1) / pa_chrsizy(f)+1;
+
 }
 
 /** ****************************************************************************
@@ -940,6 +978,11 @@ void pa_radiobuttonsizg(FILE* f, char* s, int* w, int* h)
 void pa_radiobuttonsiz(FILE* f, char* s, int* w, int* h)
 
 {
+
+    pa_radiobuttonsizg(f, s, w, h); /* get size */
+    /* change graphical size to character */
+    *w = (*w-1) / pa_chrsizx(f)+1;
+    *h = (*h-1) / pa_chrsizy(f)+1;
 
 }
 
@@ -995,6 +1038,16 @@ void pa_groupsiz(FILE* f, char* s, int cw, int ch, int* w, int* h,
               int* ox, int* oy)
 
 {
+
+    /* convert client sizes to graphical */
+    cw = cw*pa_chrsizx(f);
+    ch = ch*pa_chrsizy(f);
+    pa_groupsizg(f, s, cw, ch, w, h, ox, oy); /* get size */
+    /* change graphical size to character */
+    *w = (*w-1)/pa_chrsizx(f)+1;
+    *h = (*h-1)/pa_chrsizy(f)+1;
+    *ox = (*ox-1)/pa_chrsizx(f)+1;
+    *oy = (*oy-1)/pa_chrsizy(f)+1;
 
 }
 
@@ -1213,6 +1266,11 @@ void pa_numselboxsiz(FILE* f, int l, int u, int* w, int* h)
 
 {
 
+    pa_numselboxsizg(f, l, u, w, h); /* get size */
+    /* change graphical size to character */
+    *w = (*w-1) / pa_chrsizx(f)+1;
+    *h = (*h-1) / pa_chrsizy(f)+1;
+
 }
 
 /** ****************************************************************************
@@ -1265,6 +1323,11 @@ void pa_editboxsiz(FILE* f, char* s, int* w, int* h)
 
 {
 
+    pa_editboxsizg(f, s, w, h); /* get size */
+    /* change graphical size to character */
+    *w = (*w-1) / pa_chrsizx(f)+1;
+    *h = (*h-1) / pa_chrsizy(f)+1;
+
 }
 
 /** ****************************************************************************
@@ -1316,6 +1379,11 @@ void pa_progbarsizg(FILE* f, int* w, int* h)
 void pa_progbarsiz(FILE* f, int* w, int* h)
 
 {
+
+    pa_progbarsizg(f, w, h); /* get size */
+    /* change graphical size to character */
+    *w = (*w-1)/pa_chrsizx(f)+1;
+    *h = (*h-1)/pa_chrsizy(f)+1;
 
 }
 
@@ -1390,6 +1458,11 @@ void pa_listboxsiz(FILE* f, pa_strptr sp, int* w, int* h)
 
 {
 
+    pa_listboxsizg(f, sp, w, h); /* get size */
+    /* change graphical size to character */
+    *w = (*w-1)/pa_chrsizx(f)+1;
+    *h = (*h-1)/pa_chrsizy(f)+1;
+
 }
 
 /** ****************************************************************************
@@ -1445,6 +1518,13 @@ void pa_dropboxsizg(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
 void pa_dropboxsiz(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
 
 {
+
+    pa_dropboxsizg(f, sp, cw, ch, ow, oh); /* get size */
+    /* change graphical size to character */
+    *cw = (*cw-1)/pa_chrsizx(f)+1;
+    *ch = (*ch-1)/pa_chrsizy(f)+1;
+    *ow = (*ow-1)/pa_chrsizx(f)+1;
+    *oh = (*oh-1)/pa_chrsizy(f)+1;
 
 }
 
@@ -1503,6 +1583,13 @@ void pa_dropeditboxsiz(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh
 
 {
 
+    pa_dropeditboxsizg(f, sp, cw, ch, ow, oh); /* get size */
+    /* change graphical size to character */
+    *cw = (*cw-1)/pa_chrsizx(f)+1;
+    *ch = (*ch-1)/pa_chrsizy(f)+1;
+    *ow = (*ow-1)/pa_chrsizx(f)+1;
+    *oh = (*oh-1)/pa_chrsizy(f)+1;
+
 }
 
 /** ****************************************************************************
@@ -1558,6 +1645,11 @@ void pa_slidehorizsiz(FILE* f, int* w, int* h)
 
 {
 
+    pa_slidehorizsizg(f, w, h); /* get size */
+    /* change graphical size to character */
+    *w = (*w-1)/pa_chrsizx(f)+1;
+    *h = (*h-1)/pa_chrsizy(f)+1;
+
 }
 
 /** ****************************************************************************
@@ -1611,6 +1703,11 @@ void pa_slidevertsizg(FILE* f, int* w, int* h)
 void pa_slidevertsiz(FILE* f, int* w, int* h)
 
 {
+
+    pa_slidevertsizg(f, w, h); /* get size */
+    /* change graphical size to character */
+    *w = (*w-1)/pa_chrsizx(f)+1;
+    *h = (*h-1)/pa_chrsizy(f)+1;
 
 }
 
@@ -1668,6 +1765,18 @@ void pa_tabbarsiz(FILE* f, pa_tabori tor, int cw, int ch, int * w, int* h,
 
 {
 
+    int gw, gh, gox, goy;
+
+    /* convert client sizes to graphical */
+    cw = cw*pa_chrsizx(f);
+    ch = ch*pa_chrsizy(f);
+    pa_tabbarsizg(f, tor, cw, ch, &gw, &gh, &gox, &goy); /* get size */
+    /* change graphical size to character */
+    *w = (gw-1) / pa_chrsizx(f)+1;
+    *h = (gh-1) / pa_chrsizy(f)+1;
+    *ox = (gox-1) / pa_chrsizx(f)+1;
+    *oy = (goy-1) / pa_chrsizy(f)+1;
+
 }
 
 /** ****************************************************************************
@@ -1691,6 +1800,18 @@ void pa_tabbarclient(FILE* f, pa_tabori tor, int w, int h, int* cw, int* ch,
                   int* ox, int* oy)
 
 {
+
+    int gw, gh, gox, goy;
+
+    /* convert sizes to graphical */
+    w = w*pa_chrsizx(f);
+    h = h*pa_chrsizy(f);
+    pa_tabbarsizg(f, tor, w, h, &gw, &gh, &gox, &goy); /* get size */
+    /* change graphical size to character */
+    *cw = (gw-1)/pa_chrsizx(f)+1;
+    *ch = (gh-1)/pa_chrsizy(f)+1;
+    *ox = (gox-1)/pa_chrsizx(f)+1;
+    *oy = (goy-1)/pa_chrsizy(f)+1;
 
 }
 
