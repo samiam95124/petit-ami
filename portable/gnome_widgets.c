@@ -338,7 +338,8 @@ static void button_event(pa_evtrec* ev, wigptr wg)
         pa_fcolorg(wg->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
         pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1,
                  pa_maxyg(wg->wf)-1, 20, 20);
-        pa_fcolor(wg->wf, pa_black);
+        if (wg->enb) pa_fcolor(wg->wf, pa_black);
+        else pa_fcolorg(wg->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
         pa_cursorg(wg->wf,
                    pa_maxxg(wg->wf)/2-pa_strsiz(wg->wf, wg->face)/2,
                    pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
@@ -353,14 +354,14 @@ static void button_event(pa_evtrec* ev, wigptr wg)
 
         /* process button press */
         wg->pressed = TRUE;
-        pa_fcolor(wg->wf, pa_black);
         pa_fcolorg(wg->wf, INT_MAX-INT_MAX/8, INT_MAX-INT_MAX/8,
                    INT_MAX-INT_MAX/8);
         pa_frrect(wg->wf, 3, 3, pa_maxxg(wg->wf)-3,
                  pa_maxyg(wg->wf)-3, 20, 20);
         pa_fcolorg(wg->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
         pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1, pa_maxyg(wg->wf)-1, 20, 20);
-        pa_fcolor(wg->wf, pa_black);
+        if (wg->enb) pa_fcolor(wg->wf, pa_black);
+        else pa_fcolorg(wg->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
         pa_cursorg(wg->wf,
                    pa_maxxg(wg->wf)/2-pa_strsiz(wg->wf, wg->face)/2,
                    pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
@@ -372,7 +373,8 @@ static void button_event(pa_evtrec* ev, wigptr wg)
         pa_fcolor(wg->wf, pa_white);
         pa_frrect(wg->wf, 3, 3, pa_maxxg(wg->wf)-3,
                  pa_maxyg(wg->wf)-3, 20, 20);
-        pa_fcolor(wg->wf, pa_black);
+        if (wg->enb) pa_fcolor(wg->wf, pa_black);
+        else pa_fcolorg(wg->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
         pa_cursorg(wg->wf,
                    pa_maxxg(wg->wf)/2-pa_strsiz(wg->wf, wg->face)/2,
                    pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
@@ -477,7 +479,6 @@ static void radiobutton_draw(wigptr wg)
     int cro; /* radiobutton offset left */
     int md; /* radiobutton center line */
 
-dbg_printf(dlinfo, "enable: %d\n", wg->enb);
     /* color the background */
     pa_fcolor(wg->wf, pa_backcolor);
     pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
@@ -696,7 +697,6 @@ void pa_enablewidget(FILE* f, int id, int e)
         error("Widget is not disablable");
     chg = wp->enb != e; /* check enable state changes */
     wp->enb = e; /* set enable state */
-dbg_printf(dlinfo, "enable: %d chg: %d\n", wp->enb, chg);
     /* if the select changes, refresh the checkbox */
     if (chg) widget_redraw(wp->wf); /* send redraw to widget */
 
