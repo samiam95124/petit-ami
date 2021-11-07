@@ -322,63 +322,55 @@ Handles the events posted to buttons.
 
 *******************************************************************************/
 
+static void button_draw(wigptr wg)
+
+{
+
+    /* color the background */
+    if (wg->pressed)
+        pa_fcolorg(wg->wf, INT_MAX/256*224, INT_MAX/256*224, INT_MAX/256*224);
+    else pa_fcolor(wg->wf, pa_white);
+    pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf),
+              pa_maxyg(wg->wf));
+    /* outline */
+    pa_fcolorg(wg->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
+    pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1,
+             pa_maxyg(wg->wf)-1, 20, 20);
+    if (wg->enb) pa_fcolor(wg->wf, pa_black);
+    else pa_fcolorg(wg->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
+    pa_cursorg(wg->wf,
+               pa_maxxg(wg->wf)/2-pa_strsiz(wg->wf, wg->face)/2,
+               pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
+    fprintf(wg->wf, "%s", wg->face); /* place button face */
+
+}
+
 static void button_event(pa_evtrec* ev, wigptr wg)
 
 {
 
     pa_evtrec er; /* outbound button event */
 
-    if (ev->etype == pa_etredraw) { /* redraw the window */
+    if (ev->etype == pa_etredraw) button_draw(wg); /* redraw the window */
+    else if (ev->etype == pa_etmouba && ev->amoubn == 1) {
 
-        /* color the background */
-        pa_fcolor(wg->wf, pa_white);
-        pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf),
-                  pa_maxyg(wg->wf));
-        /* outline */
-        pa_fcolorg(wg->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
-        pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1,
-                 pa_maxyg(wg->wf)-1, 20, 20);
-        if (wg->enb) pa_fcolor(wg->wf, pa_black);
-        else pa_fcolorg(wg->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
-        pa_cursorg(wg->wf,
-                   pa_maxxg(wg->wf)/2-pa_strsiz(wg->wf, wg->face)/2,
-                   pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
-        fprintf(wg->wf, "%s", wg->face); /* place button face */
+        if (wg->enb) { /* enabled */
 
-    } else if (ev->etype == pa_etmouba && ev->amoubn == 1) {
+            /* send event back to parent window */
+            er.etype = pa_etbutton; /* set button event */
+            er.butid = wg->id; /* set id */
+            pa_sendevent(wg->parent, &er); /* send the event to the parent */
 
-        /* send event back to parent window */
-        er.etype = pa_etbutton; /* set button event */
-        er.butid = wg->id; /* set id */
-        pa_sendevent(wg->parent, &er); /* send the event to the parent */
+        }
 
         /* process button press */
         wg->pressed = TRUE;
-        pa_fcolorg(wg->wf, INT_MAX-INT_MAX/8, INT_MAX-INT_MAX/8,
-                   INT_MAX-INT_MAX/8);
-        pa_frrect(wg->wf, 3, 3, pa_maxxg(wg->wf)-3,
-                 pa_maxyg(wg->wf)-3, 20, 20);
-        pa_fcolorg(wg->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
-        pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1, pa_maxyg(wg->wf)-1, 20, 20);
-        if (wg->enb) pa_fcolor(wg->wf, pa_black);
-        else pa_fcolorg(wg->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
-        pa_cursorg(wg->wf,
-                   pa_maxxg(wg->wf)/2-pa_strsiz(wg->wf, wg->face)/2,
-                   pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
-        fprintf(wg->wf, "%s", wg->face); /* place button face */
+        button_draw(wg); /* redraw the window */
 
     } else if (ev->etype == pa_etmoubd) {
 
         wg->pressed = FALSE;
-        pa_fcolor(wg->wf, pa_white);
-        pa_frrect(wg->wf, 3, 3, pa_maxxg(wg->wf)-3,
-                 pa_maxyg(wg->wf)-3, 20, 20);
-        if (wg->enb) pa_fcolor(wg->wf, pa_black);
-        else pa_fcolorg(wg->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
-        pa_cursorg(wg->wf,
-                   pa_maxxg(wg->wf)/2-pa_strsiz(wg->wf, wg->face)/2,
-                   pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
-        fprintf(wg->wf, "%s", wg->face); /* place button face */
+        button_draw(wg); /* redraw the window */
 
     }
 
@@ -452,10 +444,14 @@ static void checkbox_event(pa_evtrec* ev, wigptr wg)
     if (ev->etype == pa_etredraw) checkbox_draw(wg); /* redraw the window */
     else if (ev->etype == pa_etmouba && ev->amoubn == 1) {
 
-        /* send event back to parent window */
-        er.etype = pa_etchkbox; /* set checkbox event */
-        er.butid = wg->id; /* set id */
-        pa_sendevent(wg->parent, &er); /* send the event to the parent */
+        if (wg->enb) { /* enabled */
+
+            /* send event back to parent window */
+            er.etype = pa_etchkbox; /* set checkbox event */
+            er.butid = wg->id; /* set id */
+            pa_sendevent(wg->parent, &er); /* send the event to the parent */
+
+        }
         checkbox_draw(wg);
 
     } else if (ev->etype == pa_etmoubd) checkbox_draw(wg);
@@ -523,10 +519,14 @@ static void radiobutton_event(pa_evtrec* ev, wigptr wg)
     if (ev->etype == pa_etredraw) radiobutton_draw(wg); /* redraw the window */
     if (ev->etype == pa_etmouba && ev->amoubn == 1) {
 
-        /* send event back to parent window */
-        er.etype = pa_etradbut; /* set button event */
-        er.butid = wg->id; /* set id */
-        pa_sendevent(wg->parent, &er); /* send the event to the parent */
+        if (wg->enb) { /* enabled */
+
+            /* send event back to parent window */
+            er.etype = pa_etradbut; /* set button event */
+            er.butid = wg->id; /* set id */
+            pa_sendevent(wg->parent, &er); /* send the event to the parent */
+
+        }
         radiobutton_draw(wg);
 
     } else if (ev->etype == pa_etmoubd) radiobutton_draw(wg);
