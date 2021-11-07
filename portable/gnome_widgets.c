@@ -535,6 +535,68 @@ static void radiobutton_event(pa_evtrec* ev, wigptr wg)
 
 /** ****************************************************************************
 
+Group box event handler
+
+Handles the events posted to group boxes.
+
+*******************************************************************************/
+
+static void group_draw(wigptr wg)
+
+{
+
+    /* color the background */
+    pa_fcolor(wg->wf, pa_backcolor);
+    pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
+    pa_fcolorg(wg->wf, INT_MAX/256*196, INT_MAX/256*196, INT_MAX/256*196);
+    pa_linewidth(wg->wf, 2);
+    pa_rect(wg->wf, 2, pa_chrsizy(wg->wf)/2, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
+    pa_fcolor(wg->wf, pa_black);
+    pa_cursorg(wg->wf, 1, 1);
+    pa_bover(wg->wf);
+    pa_bcolor(wg->wf, pa_backcolor);
+    fprintf(wg->wf, "%s", wg->face); /* place button face */
+
+
+}
+
+static void group_event(pa_evtrec* ev, wigptr wg)
+
+{
+
+    if (ev->etype == pa_etredraw) group_draw(wg); /* redraw the window */
+
+}
+
+/** ****************************************************************************
+
+Group box event handler
+
+Handles the events posted to group boxes.
+
+*******************************************************************************/
+
+static void background_draw(wigptr wg)
+
+{
+
+    /* color the background */
+    pa_fcolor(wg->wf, pa_backcolor);
+    pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
+    pa_fcolor(wg->wf, pa_black);
+
+}
+
+static void background_event(pa_evtrec* ev, wigptr wg)
+
+{
+
+    if (ev->etype == pa_etredraw) background_draw(wg); /* redraw the window */
+
+}
+
+/** ****************************************************************************
+
 Widget event handler
 
 Handles the events posted to widgets.
@@ -555,8 +617,8 @@ static void widget_event(pa_evtrec* ev)
         case wtbutton:       button_event(ev, wg); break;
         case wtcheckbox:     checkbox_event(ev, wg); break;
         case wtradiobutton:  radiobutton_event(ev, wg); break;
-        case wtgroup:        break;
-        case wtbackground:   break;
+        case wtgroup:        group_event(ev, wg); break;
+        case wtbackground:   background_event(ev, wg); break;
         case wtscrollvert:   break;
         case wtscrollhoriz:  break;
         case wtnumselbox:    break;
@@ -1052,6 +1114,13 @@ void pa_groupsizg(FILE* f, char* s, int cw, int ch, int* w, int* h,
                int* ox, int* oy)
 
 {
+
+    *h = pa_chrsizy(win0)+ch+5; /* set height */
+    *w = pa_strsiz(win0, s);
+    /* if string is less than client, width is client */
+    if (*w < cw+7) *w = cw+7;
+    *ox = 4; /* set offset to client */
+    *oy = pa_chrsizy(win0);
 
 }
 

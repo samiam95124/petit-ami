@@ -839,7 +839,7 @@ static void prtwig(wigptr wp)
         case wtcheckbox:    fprintf(stderr, "Checkbox"); break;
         case wtradiobutton: fprintf(stderr, "Radio Button"); break;
         case wtgroup:       fprintf(stderr, "Group Box"); break;
-        case wtbackground:  fprintf(stderr, "Backgroun Box"); break;
+        case wtbackground:  fprintf(stderr, "Background Box"); break;
         case wtscrollvert:  fprintf(stderr, "Vertical Scroll"); break;
         case wtscrollhoriz: fprintf(stderr, "Horizontal Scroll"); break;
         case wtnumselbox:   fprintf(stderr, "Number Select Box"); break;
