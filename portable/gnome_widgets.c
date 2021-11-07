@@ -136,6 +136,7 @@ static pa_pevthan widget_event_old;   /* previous event vector save */
 static wigptr     wigfre;             /* free widget entry list */
 static filptr     opnfil[MAXFIL];     /* open files table */
 static wigptr     xltwig[MAXFIL*2+1]; /* widget entry equivalence table */
+static FILE*      win0;               /* "window zero" dummy window */
 
 /** ****************************************************************************
 
@@ -343,7 +344,7 @@ static void button_event(pa_evtrec* ev, wigptr wg)
                    pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
         fprintf(wg->wf, "%s", wg->face); /* place button face */
 
-    } else if (ev->etype == pa_etmouba && ev->amoubn) {
+    } else if (ev->etype == pa_etmouba && ev->amoubn == 1) {
 
         /* send event back to parent window */
         er.etype = pa_etbutton; /* set button event */
@@ -402,7 +403,8 @@ static void checkbox_draw(wigptr wg)
     /* color the background */
     pa_fcolor(wg->wf, pa_backcolor);
     pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
-    pa_fcolor(wg->wf, pa_black);
+    if (wg->enb) pa_fcolor(wg->wf, pa_black);
+    else pa_fcolorg(wg->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
     pa_cursorg(wg->wf, pa_chrsizy(wg->wf)+pa_chrsizy(wg->wf)/2,
                        pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
     fprintf(wg->wf, "%s", wg->face); /* place button face */
@@ -445,15 +447,16 @@ static void checkbox_event(pa_evtrec* ev, wigptr wg)
 
     pa_evtrec er; /* outbound checkbox event */
 
-    if (ev->etype == pa_etmouba && ev->amoubn) {
+    if (ev->etype == pa_etredraw) checkbox_draw(wg); /* redraw the window */
+    else if (ev->etype == pa_etmouba && ev->amoubn == 1) {
 
         /* send event back to parent window */
         er.etype = pa_etchkbox; /* set checkbox event */
         er.butid = wg->id; /* set id */
         pa_sendevent(wg->parent, &er); /* send the event to the parent */
+        checkbox_draw(wg);
 
-    }
-    checkbox_draw(wg);
+    } else if (ev->etype == pa_etmoubd) checkbox_draw(wg);
 
 }
 
@@ -474,10 +477,12 @@ static void radiobutton_draw(wigptr wg)
     int cro; /* radiobutton offset left */
     int md; /* radiobutton center line */
 
+dbg_printf(dlinfo, "enable: %d\n", wg->enb);
     /* color the background */
     pa_fcolor(wg->wf, pa_backcolor);
     pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
-    pa_fcolor(wg->wf, pa_black);
+    if (wg->enb) pa_fcolor(wg->wf, pa_black);
+    else pa_fcolorg(wg->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
     pa_cursorg(wg->wf, pa_chrsizy(wg->wf)+pa_chrsizy(wg->wf)/2,
                        pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
     fprintf(wg->wf, "%s", wg->face); /* place button face */
@@ -514,15 +519,16 @@ static void radiobutton_event(pa_evtrec* ev, wigptr wg)
 
     pa_evtrec er; /* outbound radiobutton event */
 
-    if (ev->etype == pa_etmouba && ev->amoubn) {
+    if (ev->etype == pa_etredraw) radiobutton_draw(wg); /* redraw the window */
+    if (ev->etype == pa_etmouba && ev->amoubn == 1) {
 
         /* send event back to parent window */
         er.etype = pa_etradbut; /* set button event */
         er.butid = wg->id; /* set id */
         pa_sendevent(wg->parent, &er); /* send the event to the parent */
+        radiobutton_draw(wg);
 
-    }
-    radiobutton_draw(wg);
+    } else if (ev->etype == pa_etmoubd) radiobutton_draw(wg);
 
 }
 
@@ -590,7 +596,7 @@ static void widget(FILE* f, int x1, int y1, int x2, int y2, char* s, int id,
 
     int fn; /* logical file name */
 
-    if (id <=0 || id > MAXWIG) error("Invalid widget id");
+    if (id <= 0 || id > MAXWIG) error("Invalid widget id");
     makfil(f); /* ensure there is a file entry and validate */
     fn = fileno(f); /* get the file index */
     if (opnfil[fn]->widgets[id]) error("Widget by id already in use");
@@ -607,7 +613,6 @@ static void widget(FILE* f, int x1, int y1, int x2, int y2, char* s, int id,
     pa_auto((*wp)->wf, FALSE); /* turn off auto */
     pa_curvis((*wp)->wf, FALSE); /* turn off cursor */
     pa_font((*wp)->wf, PA_FONT_SIGN); /* set sign font */
-    pa_bold((*wp)->wf, TRUE); /* set bold font */
     pa_setposg((*wp)->wf, x1, y1); /* place at position */
     pa_setsizg((*wp)->wf, x2-x1, y2-y1); /* set size */
     pa_frame((*wp)->wf, FALSE); /* turn off frame */
@@ -664,7 +669,7 @@ void pa_selectwidget(FILE* f, int id, int e)
     chg = wp->select != !!e; /* check select state changes */
     wp->select = !!e; /* set select state */
     /* if the select changes, refresh the checkbox */
-    if (chg) widget_redraw(f); /* send redraw to widget */
+    if (chg) widget_redraw(wp->wf); /* send redraw to widget */
 
 }
 
@@ -683,15 +688,17 @@ void pa_enablewidget(FILE* f, int id, int e)
     wigptr    wp;  /* widget entry pointer */
     int       chg; /* widget state changes */
 
+    e = !!e; /* clean the enable value */
     wp = fndwig(f, id); /* index the widget */
     /* check this widget can be enabled/disabled */
     if (wp->typ != wtbutton && wp->typ != wtcheckbox &&
         wp->typ != wtradiobutton)
-        error("Widget is not selectable");
-    chg = wp->enb != !!e; /* check enable state changes */
-    wp->enb = !!e; /* set enable state */
+        error("Widget is not disablable");
+    chg = wp->enb != e; /* check enable state changes */
+    wp->enb = e; /* set enable state */
+dbg_printf(dlinfo, "enable: %d chg: %d\n", wp->enb, chg);
     /* if the select changes, refresh the checkbox */
-    if (chg) widget_redraw(f); /* send redraw to widget */
+    if (chg) widget_redraw(wp->wf); /* send redraw to widget */
 
 }
 
@@ -741,6 +748,7 @@ void pa_putwidgettext(FILE* f, int id, char* s)
         error("Widget contents cannot be written");
     free(wp->face); /* dispose of previous face string */
     wp->face = str(s); /* place new face */
+    widget_redraw(wp->wf); /* send redraw to widget */
 
 }
 
@@ -848,14 +856,19 @@ void pa_frontwidget(FILE* f, int id)
 
 Find minimum/standard button size
 
-Finds the minimum size for a button. Given the face string, the minimum size of
-a button is calculated and returned.
+Finds the minimum size for a button. Given the face string, the minimum/ideal
+size of a button is calculated and returned.
+
+Note the spacing is copied from gnome defaults.
 
 *******************************************************************************/
 
 void pa_buttonsizg(FILE* f, char* s, int* w, int* h)
 
 {
+
+    *h = pa_chrsizy(win0)*2; /* set height */
+    *w = pa_strsiz(win0, s)+pa_chrsizy(win0)*2;
 
 }
 
@@ -906,14 +919,18 @@ void pa_button(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 Find minimum/standard checkbox size
 
-Finds the minimum size for a checkbox. Given the face string, the minimum size of
-a checkbox is calculated and returned.
+Finds the minimum size for a checkbox. Given the face string, the minimum size
+of a checkbox is calculated and returned.
 
 *******************************************************************************/
 
 void pa_checkboxsizg(FILE* f, char* s, int* w, int* h)
 
 {
+
+    *h = pa_chrsizy(win0)*2; /* set height */
+    *w = pa_chrsizy(win0)+pa_chrsizy(win0)/2+pa_strsiz(win0, s)+
+         pa_chrsizy(win0)/2;
 
 }
 
@@ -972,6 +989,10 @@ size of a radio button is calculated and returned.
 void pa_radiobuttonsizg(FILE* f, char* s, int* w, int* h)
 
 {
+
+    *h = pa_chrsizy(win0)*2; /* set height */
+    *w = pa_chrsizy(win0)+pa_chrsizy(win0)/2+pa_strsiz(win0, s)+
+         pa_chrsizy(win0)/2;
 
 }
 
@@ -1821,10 +1842,6 @@ Create tab bar
 
 Creates a tab bar with the given orientation.
 
-Bug: has strange overwrite mode where when the widget is first created, it
-allows itself to be overwritten by the main window. This is worked around by
-creating and distroying another widget.
-
 *******************************************************************************/
 
 void pa_tabbarg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp,
@@ -2057,6 +2074,7 @@ static void pa_init_widgets(int argc, char *argv[])
 {
 
     int fn; /* file number */
+    int wid; /* window id */
 
     /* override the event handler */
     pa_eventsover(widget_event, &widget_event_old);
@@ -2071,6 +2089,13 @@ static void pa_init_widgets(int argc, char *argv[])
         /* clear window logical number translator table */
         xltwig[fn] = NULL; /* set no widget entry */
 
+    /* open "window 0" dummy window */
+    pa_openwin(&stdin, &win0, NULL, pa_getwid()); /* open window */
+    pa_buffer(win0, FALSE); /* turn off buffering */
+    pa_auto(win0, FALSE); /* turn off auto (for font change) */
+    pa_font(win0, PA_FONT_SIGN); /* set sign font */
+    pa_frame(win0, FALSE); /* turn off frame */
+
 }
 
 /** ****************************************************************************
@@ -2083,5 +2108,7 @@ static void pa_deinit_widgets(void) __attribute__((destructor (102)));
 static void pa_deinit_widgets()
 
 {
+
+    /* should shut down all widgets */
 
 }
