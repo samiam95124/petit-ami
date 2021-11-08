@@ -535,10 +535,6 @@ static void radiobutton_event(pa_evtrec* ev, wigptr wg)
 
 }
 
-
-
-
-
 /** ****************************************************************************
 
 Vertical scrollbar event handler
@@ -550,6 +546,7 @@ Handles the events posted to vertical scrollbars.
 static void scrollvert_draw(wigptr wg)
 
 {
+
     int sclsizp; /* size of slider in pixels */
     int sclposp; /* offset of slider in pixels */
     int remsizp; /* remaining space after slider in pixels */
@@ -577,6 +574,48 @@ static void scrollvert_event(pa_evtrec* ev, wigptr wg)
 {
 
     if (ev->etype == pa_etredraw) scrollvert_draw(wg); /* redraw the window */
+
+}
+
+/** ****************************************************************************
+
+Horizontal scrollbar event handler
+
+Handles the events posted to horizontal scrollbars.
+
+*******************************************************************************/
+
+static void scrollhoriz_draw(wigptr wg)
+
+{
+
+    int sclsizp; /* size of slider in pixels */
+    int sclposp; /* offset of slider in pixels */
+    int remsizp; /* remaining space after slider in pixels */
+    int totsizp; /* total size of slider space after padding */
+
+    totsizp = pa_maxxg(wg->wf)-6-6; /* find net total slider space */
+    /* find size of slider in pixels */
+    sclsizp = (double)totsizp*wg->sclsiz/INT_MAX;
+    /* find remaining size after slider */
+    remsizp = totsizp-sclsizp;
+    /* find position of top of slider in pixels offset */
+    sclposp = (double)remsizp*wg->sclpos/INT_MAX;
+
+    /* color the background */
+    pa_fcolorg(wg->wf, INT_MAX/256*210, INT_MAX/256*210, INT_MAX/256*210);
+    pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
+    pa_fcolorg(wg->wf, INT_MAX/256*135, INT_MAX/256*135, INT_MAX/256*135);
+    pa_frrect(wg->wf, 6+sclposp, 6, 6+sclposp+sclsizp, pa_maxyg(wg->wf)-6,
+              10, 10);
+
+}
+
+static void scrollhoriz_event(pa_evtrec* ev, wigptr wg)
+
+{
+
+    if (ev->etype == pa_etredraw) scrollhoriz_draw(wg); /* redraw the window */
 
 }
 
@@ -667,7 +706,7 @@ static void widget_event(pa_evtrec* ev)
         case wtgroup:        group_event(ev, wg); break;
         case wtbackground:   background_event(ev, wg); break;
         case wtscrollvert:   scrollvert_event(ev, wg); break;
-        case wtscrollhoriz:  break;
+        case wtscrollhoriz:  scrollhoriz_event(ev, wg); break;
         case wtnumselbox:    break;
         case wteditbox:      break;
         case wtprogressbar:  break;
