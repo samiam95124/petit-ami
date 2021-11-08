@@ -117,6 +117,8 @@ typedef struct wigrec {
     int    id;      /* id number */
     int    wid;     /* widget window id */
     int    enb;     /* widget is enabled */
+    int    sclsiz;  /* scrollbar size in MAXINT ratio */
+    int    sclpos;  /* scrollbar position in MAXINT ratio */
 
 } wigrec;
 
@@ -533,6 +535,51 @@ static void radiobutton_event(pa_evtrec* ev, wigptr wg)
 
 }
 
+
+
+
+
+/** ****************************************************************************
+
+Vertical scrollbar event handler
+
+Handles the events posted to vertical scrollbars.
+
+*******************************************************************************/
+
+static void scrollvert_draw(wigptr wg)
+
+{
+    int sclsizp; /* size of slider in pixels */
+    int sclposp; /* offset of slider in pixels */
+    int remsizp; /* remaining space after slider in pixels */
+    int totsizp; /* total size of slider space after padding */
+
+    totsizp = pa_maxyg(wg->wf)-6-6; /* find net total slider space */
+    /* find size of slider in pixels */
+    sclsizp = (double)totsizp*wg->sclsiz/INT_MAX;
+    /* find remaining size after slider */
+    remsizp = totsizp-sclsizp;
+    /* find position of top of slider in pixels offset */
+    sclposp = (double)remsizp*wg->sclpos/INT_MAX;
+
+    /* color the background */
+    pa_fcolorg(wg->wf, INT_MAX/256*210, INT_MAX/256*210, INT_MAX/256*210);
+    pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
+    pa_fcolorg(wg->wf, INT_MAX/256*135, INT_MAX/256*135, INT_MAX/256*135);
+    pa_frrect(wg->wf, 6, 6+sclposp, pa_maxxg(wg->wf)-6, 6+sclposp+sclsizp,
+              10, 10);
+
+}
+
+static void scrollvert_event(pa_evtrec* ev, wigptr wg)
+
+{
+
+    if (ev->etype == pa_etredraw) scrollvert_draw(wg); /* redraw the window */
+
+}
+
 /** ****************************************************************************
 
 Group box event handler
@@ -619,7 +666,7 @@ static void widget_event(pa_evtrec* ev)
         case wtradiobutton:  radiobutton_event(ev, wg); break;
         case wtgroup:        group_event(ev, wg); break;
         case wtbackground:   background_event(ev, wg); break;
-        case wtscrollvert:   break;
+        case wtscrollvert:   scrollvert_event(ev, wg); break;
         case wtscrollhoriz:  break;
         case wtnumselbox:    break;
         case wteditbox:      break;
@@ -684,6 +731,8 @@ static void widget(FILE* f, int x1, int y1, int x2, int y2, char* s, int id,
     (*wp)->pressed = FALSE; /* set not pressed */
     (*wp)->select = FALSE; /* set not selected */
     (*wp)->enb = TRUE; /* set is enabled */
+    (*wp)->sclsiz = INT_MAX; /* set maximum size scrollbar */
+    (*wp)->sclpos = 0; /* set scrollbar position top/left */
 
 }
 
@@ -1321,6 +1370,16 @@ void pa_scrollpos(FILE* f, int id, int r)
 
 {
 
+    wigptr wp;  /* widget entry pointer */
+
+    if (r < 0) error("Invalid scroll bar postition");
+    wp = fndwig(f, id); /* index the widget */
+    /* check this widget is a scrollbar */
+    if (wp->typ != wtscrollvert && wp->typ != wtscrollhoriz)
+        error("Widget not a scroll bar");
+    wp->sclpos = r; /* set scroll bar postition */
+    widget_redraw(wp->wf); /* send redraw to widget */
+
 }
 
 /** ****************************************************************************
@@ -1334,6 +1393,16 @@ Sets the current size of a scrollbar slider.
 void pa_scrollsiz(FILE* f, int id, int r)
 
 {
+
+    wigptr wp;  /* widget entry pointer */
+
+    if (r < 0) error("Invalid scroll bar size");
+    wp = fndwig(f, id); /* index the widget */
+    /* check this widget is a scrollbar */
+    if (wp->typ != wtscrollvert && wp->typ != wtscrollhoriz)
+        error("Widget not a scroll bar");
+    wp->sclsiz = r; /* set scroll bar size */
+    widget_redraw(wp->wf); /* send redraw to widget */
 
 }
 
