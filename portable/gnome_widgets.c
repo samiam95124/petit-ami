@@ -106,19 +106,21 @@ typedef enum  {
 typedef struct wigrec* wigptr;
 typedef struct wigrec {
 
-    wigptr next;    /* next entry in list */
-    wigtyp typ;     /* type of widget */
-    int    pressed; /* in the pressed state */
-    int    select;  /* the current on/off state */
-    FILE*  wf;      /* output file for the widget window */
-    char*  face;   /* face text */
-    FILE*  parent;  /* parent window */
-    FILE*  evtfil;  /* file to post menu events to */
-    int    id;      /* id number */
-    int    wid;     /* widget window id */
-    int    enb;     /* widget is enabled */
-    int    sclsiz;  /* scrollbar size in MAXINT ratio */
-    int    sclpos;  /* scrollbar position in MAXINT ratio */
+    wigptr next;     /* next entry in list */
+    wigtyp typ;      /* type of widget */
+    int    pressed;  /* in the pressed state */
+    int    lpressed; /* last pressed state */
+    int    select;   /* the current on/off state */
+    FILE*  wf;       /* output file for the widget window */
+    char*  face;     /* face text */
+    FILE*  parent;   /* parent window */
+    FILE*  evtfil;   /* file to post menu events to */
+    int    id;       /* id number */
+    int    wid;      /* widget window id */
+    int    enb;      /* widget is enabled */
+    int    sclsiz;   /* scrollbar size in MAXINT ratio */
+    int    sclpos;   /* scrollbar position in MAXINT ratio */
+    int    mpx, mpy; /* mouse tracking in widget */
 
 } wigrec;
 
@@ -519,7 +521,7 @@ static void radiobutton_event(pa_evtrec* ev, wigptr wg)
     pa_evtrec er; /* outbound radiobutton event */
 
     if (ev->etype == pa_etredraw) radiobutton_draw(wg); /* redraw the window */
-    if (ev->etype == pa_etmouba && ev->amoubn == 1) {
+    else if (ev->etype == pa_etmouba && ev->amoubn == 1) {
 
         if (wg->enb) { /* enabled */
 
@@ -551,6 +553,10 @@ static void scrollvert_draw(wigptr wg)
     int sclposp; /* offset of slider in pixels */
     int remsizp; /* remaining space after slider in pixels */
     int totsizp; /* total size of slider space after padding */
+    int botposp; /* bottom position of slider */
+    int midposp; /* middle position of slider */
+    int inbar;   /* mouse is in scroll bar */
+    int y;
 
     totsizp = pa_maxyg(wg->wf)-6-6; /* find net total slider space */
     /* find size of slider in pixels */
@@ -559,11 +565,35 @@ static void scrollvert_draw(wigptr wg)
     remsizp = totsizp-sclsizp;
     /* find position of top of slider in pixels offset */
     sclposp = (double)remsizp*wg->sclpos/INT_MAX;
+    /* find bottom of slider in pixels offset */
+    botposp = sclposp+sclsizp-1;
+    /* find middle of slider in pixels offset */
+    midposp = sclposp+sclsizp/2-1;
+    inbar = wg->mpy >= sclposp+6 && wg->mpy <= botposp+6;
+
+    /* process off bar click */
+    if (!inbar && wg->pressed && !wg->lpressed) {
+
+        /* find new top if click is middle */
+        y = wg->mpy+6-midposp;
+        if (y < 6) y = 6; /* limit top travel */
+        else if ( y+sclsizp > pa_maxyg(wg->wf)-6);
+        /* find new ratioed position */
+        wg->sclpos = (double)INT_MAX*y/totsizp;
+        /* find position of top of slider in pixels offset */
+        sclposp = (double)remsizp*wg->sclpos/INT_MAX;
+
+    }
 
     /* color the background */
     pa_fcolorg(wg->wf, INT_MAX/256*210, INT_MAX/256*210, INT_MAX/256*210);
     pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
-    pa_fcolorg(wg->wf, INT_MAX/256*135, INT_MAX/256*135, INT_MAX/256*135);
+    if (wg->pressed && inbar)
+        /* color as pressed */
+        pa_fcolorg(wg->wf, INT_MAX/256*195, INT_MAX/256*65, INT_MAX/256*19);
+    else
+        /* color as not pressed */
+        pa_fcolorg(wg->wf, INT_MAX/256*135, INT_MAX/256*135, INT_MAX/256*135);
     pa_frrect(wg->wf, 6, 6+sclposp, pa_maxxg(wg->wf)-6, 6+sclposp+sclsizp,
               10, 10);
 
@@ -574,6 +604,25 @@ static void scrollvert_event(pa_evtrec* ev, wigptr wg)
 {
 
     if (ev->etype == pa_etredraw) scrollvert_draw(wg); /* redraw the window */
+    else if (ev->etype == pa_etmouba && ev->amoubn == 1) {
+
+        wg->lpressed = wg->pressed; /* save last pressed state */
+        wg->pressed = TRUE; /* set is pressed */
+        scrollvert_draw(wg);
+
+    } else if (ev->etype == pa_etmoubd) {
+
+        wg->lpressed = wg->pressed; /* save last pressed state */
+        wg->pressed = FALSE; /* set not pressed */
+        scrollvert_draw(wg);
+
+    } else if (ev->etype == pa_etmoumovg) {
+
+        /* mouse moved, track position */
+        wg->mpx = ev->moupxg;
+        wg->mpy = ev->moupyg;
+
+    }
 
 }
 
