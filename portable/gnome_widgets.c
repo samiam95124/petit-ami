@@ -545,20 +545,23 @@ Handles the events posted to vertical scrollbars.
 
 *******************************************************************************/
 
+#define ENDSPACE 6
 static void scrollvert_draw(wigptr wg)
 
 {
 
-    int sclsizp; /* size of slider in pixels */
-    int sclposp; /* offset of slider in pixels */
-    int remsizp; /* remaining space after slider in pixels */
-    int totsizp; /* total size of slider space after padding */
-    int botposp; /* bottom position of slider */
-    int midposp; /* middle position of slider */
-    int inbar;   /* mouse is in scroll bar */
+    int       sclsizp; /* size of slider in pixels */
+    int       sclposp; /* offset of slider in pixels */
+    int       remsizp; /* remaining space after slider in pixels */
+    int       totsizp; /* total size of slider space after padding */
+    int       botposp; /* bottom position of slider */
+    int       midposp; /* middle position of slider */
+    int       inbar;   /* mouse is in scroll bar */
+    int       sclpos;  /* new scrollbar position */
+    pa_evtrec er;      /* outbound button event */
     int y;
 
-    totsizp = pa_maxyg(wg->wf)-6-6; /* find net total slider space */
+    totsizp = pa_maxyg(wg->wf)-ENDSPACE-ENDSPACE; /* find net total slider space */
     /* find size of slider in pixels */
     sclsizp = (double)totsizp*wg->sclsiz/INT_MAX;
     /* find remaining size after slider */
@@ -569,19 +572,22 @@ static void scrollvert_draw(wigptr wg)
     botposp = sclposp+sclsizp-1;
     /* find middle of slider in pixels offset */
     midposp = sclposp+sclsizp/2-1;
-    inbar = wg->mpy >= sclposp+6 && wg->mpy <= botposp+6;
+    inbar = wg->mpy >= sclposp+ENDSPACE && wg->mpy <= botposp+ENDSPACE;
 
     /* process off bar click */
     if (!inbar && wg->pressed && !wg->lpressed) {
 
         /* find new top if click is middle */
-        y = wg->mpy+6-midposp;
-        if (y < 6) y = 6; /* limit top travel */
-        else if ( y+sclsizp > pa_maxyg(wg->wf)-6);
+        y = wg->mpy-sclsizp/2;
+        if (y < ENDSPACE) y = ENDSPACE; /* limit top travel */
+        else if (y+sclsizp > pa_maxyg(wg->wf)-ENDSPACE) y = pa_maxyg(wg->wf)-sclsizp-ENDSPACE;
         /* find new ratioed position */
-        wg->sclpos = (double)INT_MAX*y/totsizp;
-        /* find position of top of slider in pixels offset */
-        sclposp = (double)remsizp*wg->sclpos/INT_MAX;
+        sclpos = (double)INT_MAX*(y-ENDSPACE)/remsizp;
+        /* send event back to parent window */
+        er.etype = pa_etsclpos; /* set scroll position event */
+        er.sclpid = wg->id; /* set id */
+        er.sclpos = sclpos; /* set scrollbar position */
+        pa_sendevent(wg->parent, &er); /* send the event to the parent */
 
     }
 
@@ -594,7 +600,7 @@ static void scrollvert_draw(wigptr wg)
     else
         /* color as not pressed */
         pa_fcolorg(wg->wf, INT_MAX/256*135, INT_MAX/256*135, INT_MAX/256*135);
-    pa_frrect(wg->wf, 6, 6+sclposp, pa_maxxg(wg->wf)-6, 6+sclposp+sclsizp,
+    pa_frrect(wg->wf, ENDSPACE, ENDSPACE+sclposp, pa_maxxg(wg->wf)-ENDSPACE, ENDSPACE+sclposp+sclsizp,
               10, 10);
 
 }
