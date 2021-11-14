@@ -90,6 +90,8 @@ static enum { /* debug levels */
 
 #define MAXFIL 100 /* maximum open files */
 #define MAXWIG 100 /* maximum widgets per window */
+/* amount of space in pixels to add around scrollbar sliders */
+#define ENDSPACE 6
 
 /* widget type */
 typedef enum  {
@@ -547,7 +549,6 @@ Handles the events posted to vertical scrollbars.
 
 *******************************************************************************/
 
-#define ENDSPACE 6
 static void scrollvert_draw(wigptr wg)
 
 {
@@ -557,11 +558,10 @@ static void scrollvert_draw(wigptr wg)
     int       remsizp; /* remaining space after slider in pixels */
     int       totsizp; /* total size of slider space after padding */
     int       botposp; /* bottom position of slider */
-    int       midposp; /* middle position of slider */
     int       inbar;   /* mouse is in scroll bar */
     int       sclpos;  /* new scrollbar position */
     pa_evtrec er;      /* outbound button event */
-    int y;
+    int       y;
 
     totsizp = pa_maxyg(wg->wf)-ENDSPACE-ENDSPACE; /* find net total slider space */
     /* find size of slider in pixels */
@@ -572,8 +572,7 @@ static void scrollvert_draw(wigptr wg)
     sclposp = round((double)remsizp*wg->sclpos/INT_MAX);
     /* find bottom of slider in pixels offset */
     botposp = sclposp+sclsizp-1;
-    /* find middle of slider in pixels offset */
-    midposp = sclposp+sclsizp/2-1;
+    /* set status of mouse inside the bar */
     inbar = wg->mpy >= sclposp+ENDSPACE && wg->mpy <= botposp+ENDSPACE;
 
     /* process off bar click */
@@ -667,24 +666,70 @@ static void scrollhoriz_draw(wigptr wg)
 
 {
 
-    int sclsizp; /* size of slider in pixels */
-    int sclposp; /* offset of slider in pixels */
-    int remsizp; /* remaining space after slider in pixels */
-    int totsizp; /* total size of slider space after padding */
+    int       sclsizp; /* size of slider in pixels */
+    int       sclposp; /* offset of slider in pixels */
+    int       remsizp; /* remaining space after slider in pixels */
+    int       totsizp; /* total size of slider space after padding */
+    int       botposp; /* bottom position of slider */
+    int       inbar;   /* mouse is in scroll bar */
+    int       sclpos;  /* new scrollbar position */
+    pa_evtrec er;      /* outbound button event */
+    int       x;
 
-    totsizp = pa_maxxg(wg->wf)-6-6; /* find net total slider space */
+    totsizp = pa_maxxg(wg->wf)-ENDSPACE-ENDSPACE; /* find net total slider space */
     /* find size of slider in pixels */
-    sclsizp = (double)totsizp*wg->sclsiz/INT_MAX;
+    sclsizp = round((double)totsizp*wg->sclsiz/INT_MAX);
     /* find remaining size after slider */
     remsizp = totsizp-sclsizp;
     /* find position of top of slider in pixels offset */
-    sclposp = (double)remsizp*wg->sclpos/INT_MAX;
+    sclposp = round((double)remsizp*wg->sclpos/INT_MAX);
+    /* find bottom of slider in pixels offset */
+    botposp = sclposp+sclsizp-1;
+    /* set status of mouse inside the bar */
+    inbar = wg->mpx >= sclposp+ENDSPACE && wg->mpx <= botposp+ENDSPACE;
+
+    /* process off bar click */
+    if (!inbar && wg->pressed && !wg->lpressed) {
+
+        /* find new top if click is middle */
+        x = wg->mpx-sclsizp/2;
+        if (x < ENDSPACE) x = ENDSPACE; /* limit top travel */
+        else if (x+sclsizp > pa_maxxg(wg->wf)-ENDSPACE)
+            x = pa_maxxg(wg->wf)-sclsizp-ENDSPACE;
+        /* find new ratioed position */
+        sclpos = round((double)INT_MAX*(x-ENDSPACE)/remsizp);
+        /* send event back to parent window */
+        er.etype = pa_etsclpos; /* set scroll position event */
+        er.sclpid = wg->id; /* set id */
+        er.sclpos = sclpos; /* set scrollbar position */
+        pa_sendevent(wg->parent, &er); /* send the event to the parent */
+
+    } else if (inbar && wg->pressed && wg->lpressed && wg->mpx != wg->lmpx) {
+
+        /* mouse bar drag, process */
+        x = sclposp+(wg->mpx-wg->lmpx); /* find difference in pixel location */
+        if (x < 0) x = 0; /* limit to zero */
+        if (x > remsizp) x = remsizp; /* limit to max */
+        /* find new ratioed position */
+        sclpos = round((double)INT_MAX*x/remsizp);
+        /* send event back to parent window */
+        er.etype = pa_etsclpos; /* set scroll position event */
+        er.sclpid = wg->id; /* set id */
+        er.sclpos = sclpos; /* set scrollbar position */
+        pa_sendevent(wg->parent, &er); /* send the event to the parent */
+
+    }
 
     /* color the background */
     pa_fcolorg(wg->wf, INT_MAX/256*210, INT_MAX/256*210, INT_MAX/256*210);
     pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
-    pa_fcolorg(wg->wf, INT_MAX/256*135, INT_MAX/256*135, INT_MAX/256*135);
-    pa_frrect(wg->wf, 6+sclposp, 6, 6+sclposp+sclsizp, pa_maxyg(wg->wf)-6,
+    if (wg->pressed && inbar)
+        /* color as pressed */
+        pa_fcolorg(wg->wf, INT_MAX/256*195, INT_MAX/256*65, INT_MAX/256*19);
+    else
+        /* color as not pressed */
+        pa_fcolorg(wg->wf, INT_MAX/256*135, INT_MAX/256*135, INT_MAX/256*135);
+    pa_frrect(wg->wf, ENDSPACE+sclposp, ENDSPACE, ENDSPACE+sclposp+sclsizp, pa_maxyg(wg->wf)-ENDSPACE,
               10, 10);
 
 }
@@ -694,6 +739,31 @@ static void scrollhoriz_event(pa_evtrec* ev, wigptr wg)
 {
 
     if (ev->etype == pa_etredraw) scrollhoriz_draw(wg); /* redraw the window */
+    else if (ev->etype == pa_etmouba && ev->amoubn == 1) {
+
+        wg->lpressed = wg->pressed; /* save last pressed state */
+        wg->pressed = TRUE; /* set is pressed */
+        scrollhoriz_draw(wg);
+
+    } else if (ev->etype == pa_etmoubd) {
+
+        wg->lpressed = wg->pressed; /* save last pressed state */
+        wg->pressed = FALSE; /* set not pressed */
+        scrollhoriz_draw(wg);
+
+    } else if (ev->etype == pa_etmoumovg) {
+
+        wg->lpressed = wg->pressed; /* save last pressed state */
+        /* mouse moved, track position */
+        wg->lmpx = wg->mpx; /* move present to last */
+        wg->lmpy = wg->mpy;
+        wg->mpx = ev->moupxg; /* set present position */
+        wg->mpy = ev->moupyg;
+        scrollhoriz_draw(wg);
+        wg->lmpx = wg->mpx; /* now set equal to cancel move */
+        wg->lmpy = wg->mpy;
+
+    }
 
 }
 
