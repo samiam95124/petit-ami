@@ -121,6 +121,7 @@ typedef struct wigrec {
     int    sclsiz;   /* scrollbar size in MAXINT ratio */
     int    sclpos;   /* scrollbar position in MAXINT ratio */
     int    mpx, mpy; /* mouse tracking in widget */
+    int    lmpx, lmpy; /* last mouse position */
 
 } wigrec;
 
@@ -580,9 +581,25 @@ static void scrollvert_draw(wigptr wg)
         /* find new top if click is middle */
         y = wg->mpy-sclsizp/2;
         if (y < ENDSPACE) y = ENDSPACE; /* limit top travel */
-        else if (y+sclsizp > pa_maxyg(wg->wf)-ENDSPACE) y = pa_maxyg(wg->wf)-sclsizp-ENDSPACE;
+        else if (y+sclsizp > pa_maxyg(wg->wf)-ENDSPACE)
+            y = pa_maxyg(wg->wf)-sclsizp-ENDSPACE;
         /* find new ratioed position */
         sclpos = (double)INT_MAX*(y-ENDSPACE)/remsizp;
+        /* send event back to parent window */
+        er.etype = pa_etsclpos; /* set scroll position event */
+        er.sclpid = wg->id; /* set id */
+        er.sclpos = sclpos; /* set scrollbar position */
+        pa_sendevent(wg->parent, &er); /* send the event to the parent */
+
+    } else if (inbar && wg->pressed && wg->lpressed && wg->mpy != wg->lmpy) {
+
+        /* mouse bar drag, process */
+        y = sclposp+(wg->mpy-wg->lmpy); /* find difference in pixel location */
+        if (y < ENDSPACE) y = ENDSPACE; /* limit top travel */
+        else if (y+sclsizp > pa_maxyg(wg->wf)-ENDSPACE)
+            y = pa_maxyg(wg->wf)-sclsizp-ENDSPACE;
+        /* find new ratioed position */
+        sclpos = (double)INT_MAX*y/remsizp;
         /* send event back to parent window */
         er.etype = pa_etsclpos; /* set scroll position event */
         er.sclpid = wg->id; /* set id */
@@ -624,9 +641,15 @@ static void scrollvert_event(pa_evtrec* ev, wigptr wg)
 
     } else if (ev->etype == pa_etmoumovg) {
 
+        wg->lpressed = wg->pressed; /* save last pressed state */
         /* mouse moved, track position */
-        wg->mpx = ev->moupxg;
+        wg->lmpx = wg->mpx; /* move present to last */
+        wg->lmpy = wg->mpy;
+        wg->mpx = ev->moupxg; /* set present position */
         wg->mpy = ev->moupyg;
+        scrollvert_draw(wg);
+        wg->lmpx = wg->mpx; /* now set equal to cancel move */
+        wg->lmpy = wg->mpy;
 
     }
 
