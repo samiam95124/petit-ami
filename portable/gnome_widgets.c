@@ -50,6 +50,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <math.h>
 
 /* linux definitions */
 #include <limits.h>
@@ -564,11 +565,11 @@ static void scrollvert_draw(wigptr wg)
 
     totsizp = pa_maxyg(wg->wf)-ENDSPACE-ENDSPACE; /* find net total slider space */
     /* find size of slider in pixels */
-    sclsizp = (double)totsizp*wg->sclsiz/INT_MAX;
+    sclsizp = round((double)totsizp*wg->sclsiz/INT_MAX);
     /* find remaining size after slider */
     remsizp = totsizp-sclsizp;
     /* find position of top of slider in pixels offset */
-    sclposp = (double)remsizp*wg->sclpos/INT_MAX;
+    sclposp = round((double)remsizp*wg->sclpos/INT_MAX);
     /* find bottom of slider in pixels offset */
     botposp = sclposp+sclsizp-1;
     /* find middle of slider in pixels offset */
@@ -584,7 +585,7 @@ static void scrollvert_draw(wigptr wg)
         else if (y+sclsizp > pa_maxyg(wg->wf)-ENDSPACE)
             y = pa_maxyg(wg->wf)-sclsizp-ENDSPACE;
         /* find new ratioed position */
-        sclpos = (double)INT_MAX*(y-ENDSPACE)/remsizp;
+        sclpos = round((double)INT_MAX*(y-ENDSPACE)/remsizp);
         /* send event back to parent window */
         er.etype = pa_etsclpos; /* set scroll position event */
         er.sclpid = wg->id; /* set id */
@@ -595,11 +596,10 @@ static void scrollvert_draw(wigptr wg)
 
         /* mouse bar drag, process */
         y = sclposp+(wg->mpy-wg->lmpy); /* find difference in pixel location */
-        if (y < ENDSPACE) y = ENDSPACE; /* limit top travel */
-        else if (y+sclsizp > pa_maxyg(wg->wf)-ENDSPACE)
-            y = pa_maxyg(wg->wf)-sclsizp-ENDSPACE;
+        if (y < 0) y = 0; /* limit to zero */
+        if (y > remsizp) y = remsizp; /* limit to max */
         /* find new ratioed position */
-        sclpos = (double)INT_MAX*y/remsizp;
+        sclpos = round((double)INT_MAX*y/remsizp);
         /* send event back to parent window */
         er.etype = pa_etsclpos; /* set scroll position event */
         er.sclpid = wg->id; /* set id */
