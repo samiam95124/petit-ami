@@ -831,6 +831,204 @@ static void background_event(pa_evtrec* ev, wigptr wg)
 
 /** ****************************************************************************
 
+Number select box event handler
+
+Handles the events posted to number select boxes.
+
+*******************************************************************************/
+
+static void numselbox_draw(wigptr wg)
+
+{
+
+}
+
+static void numselbox_event(pa_evtrec* ev, wigptr wg)
+
+{
+
+    if (ev->etype == pa_etredraw) numselbox_draw(wg); /* redraw the window */
+
+}
+
+/** ****************************************************************************
+
+Edit box event handler
+
+Handles the events posted to edit boxes.
+
+*******************************************************************************/
+
+static void editbox_draw(wigptr wg)
+
+{
+
+}
+
+static void editbox_event(pa_evtrec* ev, wigptr wg)
+
+{
+
+    if (ev->etype == pa_etredraw) editbox_draw(wg); /* redraw the window */
+
+}
+
+/** ****************************************************************************
+
+Progress bar event handler
+
+Handles the events posted to progress bars.
+
+*******************************************************************************/
+
+static void progressbar_draw(wigptr wg)
+
+{
+
+}
+
+static void progressbar_event(pa_evtrec* ev, wigptr wg)
+
+{
+
+    if (ev->etype == pa_etredraw) progressbar_draw(wg); /* redraw the window */
+
+}
+
+/** ****************************************************************************
+
+List box event handler
+
+Handles the events posted to list boxes.
+
+*******************************************************************************/
+
+static void listbox_draw(wigptr wg)
+
+{
+
+}
+
+static void listbox_event(pa_evtrec* ev, wigptr wg)
+
+{
+
+    if (ev->etype == pa_etredraw) listbox_draw(wg); /* redraw the window */
+
+}
+
+/** ****************************************************************************
+
+Drop box event handler
+
+Handles the events posted to drop boxes.
+
+*******************************************************************************/
+
+static void dropbox_draw(wigptr wg)
+
+{
+
+}
+
+static void dropbox_event(pa_evtrec* ev, wigptr wg)
+
+{
+
+    if (ev->etype == pa_etredraw) dropbox_draw(wg); /* redraw the window */
+
+}
+
+/** ****************************************************************************
+
+Drop edit box event handler
+
+Handles the events posted to drop edit boxes.
+
+*******************************************************************************/
+
+static void dropeditbox_draw(wigptr wg)
+
+{
+
+}
+
+static void dropeditbox_event(pa_evtrec* ev, wigptr wg)
+
+{
+
+    if (ev->etype == pa_etredraw) dropeditbox_draw(wg); /* redraw the window */
+
+}
+
+/** ****************************************************************************
+
+Horizontal slider event handler
+
+Handles the events posted to a horizontal slider.
+
+*******************************************************************************/
+
+static void slidehoriz_draw(wigptr wg)
+
+{
+
+}
+
+static void slidehoriz_event(pa_evtrec* ev, wigptr wg)
+
+{
+
+    if (ev->etype == pa_etredraw) slidehoriz_draw(wg); /* redraw the window */
+
+}
+
+/** ****************************************************************************
+
+Vertical slider event handler
+
+Handles the events posted to a vertical slider.
+
+*******************************************************************************/
+
+static void slidevert_draw(wigptr wg)
+
+{
+
+}
+
+static void slidevert_event(pa_evtrec* ev, wigptr wg)
+
+{
+
+    if (ev->etype == pa_etredraw) slidevert_draw(wg); /* redraw the window */
+
+}
+
+/** ****************************************************************************
+
+Tab bar event handler
+
+Handles the events posted to a tab bar.
+
+*******************************************************************************/
+
+static void tabbar_draw(wigptr wg)
+
+{
+
+}
+
+static void tabbar_event(pa_evtrec* ev, wigptr wg)
+
+{
+
+    if (ev->etype == pa_etredraw) tabbar_draw(wg); /* redraw the window */
+
+}
+
+/** ****************************************************************************
+
 Widget event handler
 
 Handles the events posted to widgets.
@@ -855,15 +1053,15 @@ static void widget_event(pa_evtrec* ev)
         case wtbackground:   background_event(ev, wg); break;
         case wtscrollvert:   scrollvert_event(ev, wg); break;
         case wtscrollhoriz:  scrollhoriz_event(ev, wg); break;
-        case wtnumselbox:    break;
-        case wteditbox:      break;
-        case wtprogressbar:  break;
-        case wtlistbox:      break;
-        case wtdropbox:      break;
-        case wtdropeditbox:  break;
-        case wtslidehoriz:   break;
-        case wtslidevert:    break;
-        case wttabbar:       break;
+        case wtnumselbox:    numselbox_event(ev, wg); break;
+        case wteditbox:      editbox_event(ev, wg); break;
+        case wtprogressbar:  progressbar_event(ev, wg); break;
+        case wtlistbox:      listbox_event(ev, wg); break;
+        case wtdropbox:      dropbox_event(ev, wg); break;
+        case wtdropeditbox:  dropeditbox_event(ev, wg); break;
+        case wtslidehoriz:   slidehoriz_event(ev, wg); break;
+        case wtslidevert:    slidevert_event(ev, wg); break;
+        case wttabbar:       tabbar_event(ev, wg); break;
         case wtalert:        break;
         case wtquerycolor:   break;
         case wtqueryopen:    break;
