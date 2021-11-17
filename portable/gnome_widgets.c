@@ -109,22 +109,23 @@ typedef enum  {
 typedef struct wigrec* wigptr;
 typedef struct wigrec {
 
-    wigptr next;     /* next entry in list */
-    wigtyp typ;      /* type of widget */
-    int    pressed;  /* in the pressed state */
-    int    lpressed; /* last pressed state */
-    int    select;   /* the current on/off state */
-    FILE*  wf;       /* output file for the widget window */
-    char*  face;     /* face text */
-    FILE*  parent;   /* parent window */
-    FILE*  evtfil;   /* file to post menu events to */
-    int    id;       /* id number */
-    int    wid;      /* widget window id */
-    int    enb;      /* widget is enabled */
-    int    sclsiz;   /* scrollbar size in MAXINT ratio */
-    int    sclpos;   /* scrollbar position in MAXINT ratio */
-    int    mpx, mpy; /* mouse tracking in widget */
+    wigptr next;       /* next entry in list */
+    wigtyp typ;        /* type of widget */
+    int    pressed;    /* in the pressed state */
+    int    lpressed;   /* last pressed state */
+    int    select;     /* the current on/off state */
+    FILE*  wf;         /* output file for the widget window */
+    char*  face;       /* face text */
+    FILE*  parent;     /* parent window */
+    FILE*  evtfil;     /* file to post menu events to */
+    int    id;         /* id number */
+    int    wid;        /* widget window id */
+    int    enb;        /* widget is enabled */
+    int    sclsiz;     /* scrollbar size in MAXINT ratio */
+    int    sclpos;     /* scrollbar position in MAXINT ratio */
+    int    mpx, mpy;   /* mouse tracking in widget */
     int    lmpx, lmpy; /* last mouse position */
+    int    curs;       /* text cursor */
 
 } wigrec;
 
@@ -863,13 +864,41 @@ static void editbox_draw(wigptr wg)
 
 {
 
+    /* color the background */
+    pa_fcolor(wg->wf, pa_white);
+    pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
+    /* outline */
+    pa_linewidth(wg->wf, 2);
+    pa_fcolorg(wg->wf, INT_MAX/256*196, INT_MAX/256*196, INT_MAX/256*196);
+    pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1,
+             pa_maxyg(wg->wf)-1, 20, 20);
+    if (wg->enb) pa_fcolor(wg->wf, pa_black);
+    else pa_fcolorg(wg->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
+    pa_cursorg(wg->wf, ENDSPACE, pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
+    fprintf(wg->wf, "%s", wg->face); /* place button face */
+
 }
 
 static void editbox_event(pa_evtrec* ev, wigptr wg)
 
 {
 
+    char* s; /* temp string */
+    int   l; /* length */
+
     if (ev->etype == pa_etredraw) editbox_draw(wg); /* redraw the window */
+    else if (ev->etype == pa_etchar) { /* character */
+
+        l = strlen(wg->face); /* get length of existing face string */
+        s = malloc(l+1+1); /* get new face string */
+        strcpy(s, wg->face); /* copy old string into place */
+        free(wg->face); /* release previous string */
+        s[l] = ev->echar; /* place new character */
+        s[l+1] = 0; /* terminate */
+        wg->face = s; /* place new string */
+        editbox_draw(wg); /* redraw the window */
+
+    }
 
 }
 
@@ -1118,6 +1147,7 @@ static void widget(FILE* f, int x1, int y1, int x2, int y2, char* s, int id,
     (*wp)->enb = TRUE; /* set is enabled */
     (*wp)->sclsiz = INT_MAX; /* set maximum size scrollbar */
     (*wp)->sclpos = 0; /* set scrollbar position top/left */
+    (*wp)->curs = 0; /* set text cursor */
 
 }
 
@@ -1889,6 +1919,7 @@ void pa_editboxg(FILE* f, int x1, int y1, int x2, int y2, int id)
     wigptr wp; /* widget entry pointer */
 
     widget(f, x1, y1, x2, y2, "", id, wteditbox, &wp);
+    pa_curvis(wp->wf, FALSE); /* turn on cursor */
 
 }
 
