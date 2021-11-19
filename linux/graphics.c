@@ -139,6 +139,7 @@ static enum { /* debug levels */
 //#define PRTMEM /* print memory allocations at exit */
 //#define PRTPWM /* print window parameters on open */
 //#define NOWDELAY /* don't delay window presentation until drawn */
+//#define NOFAKEFOCUS /* don't fake focus for child windows */
 #ifndef __MACH__ /* Mac OS X */
 #define NOCANCEL /* include nocancel overrides */
 #endif
@@ -4826,6 +4827,33 @@ static void iauto(winptr win, int e)
 
 /** ****************************************************************************
 
+Send event to window
+
+Send an event to the given window. The event is placed into the queue for the
+given window. Note that the input side of the window is found, and the event
+spooled for that side. Note that any window number given the event is
+overwritten with the proper window id after a copy is made.
+
+The difference between this and inserting to the event chain is that this
+routine enters to the top of the chain, and specifies the input side of the
+window. Thus it is a more complete send of the event.
+
+*******************************************************************************/
+
+static void isendevent(winptr win, pa_evtrec* er)
+
+{
+
+    pa_evtrec ec; /* copy of event record */
+
+    memcpy(&ec, er, sizeof(pa_evtrec));
+    ec.winid = win->wid; /* overwrite window id */
+    enquepaevt(&ec); /* send to queue */
+
+}
+
+/** ****************************************************************************
+
 Place next terminal character
 
 Places the given character to the current cursor position using the current
@@ -9127,6 +9155,8 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
     XWindowChanges xwc; /* XWindow values */
     XEvent         xe;
     winptr         mwin;
+    pa_evtrec      er2;
+    winptr         wp;
 
     sc = win->screens[win->curdsp-1]; /* index screen */
     if (e->type == Expose && win->xmwhan != e->xany.window) {
@@ -9434,6 +9464,30 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
         mouseevent(win, e); /* process mouse event */
         /* check any mouse details need processing */
         mouseupdate(win, er, keep);
+#ifndef NOFAKEFOCUS
+        /* Check we fake focus here. This is a mouse button 1 click in a child
+           window. */
+        if (*keep && er->etype == pa_etmouba && er->amoubn && win->parwin) {
+
+            /* We will fake focus. We still need to process the mouse click, so
+               we will send the focus event on ahead. */
+            wp = win->parwin; /* index this window's parent */
+            /* link to the ultimate parent window to remove it's focus */
+            while (wp->parwin) wp = wp->parwin;
+            er2.etype = pa_etnofocus; /* send defocus to parent */
+            isendevent(wp, &er2); /* send it */
+            curoff(wp); /* remove cursor */
+            wp->focus = FALSE; /* remove focus */
+            curon(wp); /* replace cursor */
+            /* now put the focus on the child */
+            er2.etype = pa_etfocus; /* set focus event */
+            isendevent(win, &er2); /* send it */
+            curoff(win); /* remove cursor */
+            win->focus = TRUE; /* put focus */
+            curon(win); /* replace cursor */
+
+        }
+#endif
 
     } else if (e->type == FocusOut) {
 
@@ -9658,15 +9712,12 @@ void pa_sendevent(FILE* f, pa_evtrec* er)
 
     winptr win;   /* pointer to windows context */
     int fn;       /* logical file number */
-    pa_evtrec ec; /* copy of event record */
 
     fn = fileno(f); /* find find number */
     if (fn < 0) error(einvfil); /* file invalid */
     if (opnfil[fn]->inl < 0) error(enoinps); /* no input side for window */
     win = lfn2win(fn); /* index window for file */
-    memcpy(&ec, er, sizeof(pa_evtrec));
-    ec.winid = win->wid; /* overwrite window id */
-    enquepaevt(&ec); /* send to queue */
+    isendevent(win, er); /* send it */
 
 }
 
