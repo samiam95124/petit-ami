@@ -3437,7 +3437,6 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
     win->wid = wid; /* set window id */
     pwin = NULL; /* set no parent */
     if (pfn >= 0) pwin = lfn2win(pfn); /* index parent window */
-dbg_printf(dlinfo, "Window: %p Parent: %p\n", win, pwin);
     win->parwin = pwin; /* copy link to windows structure */
     win->childwin = NULL; /* clear the child window list */
     win->childlst = NULL; /* clear child member list pointer */
@@ -9540,6 +9539,7 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
 
     } else if (e->type == FocusOut) {
 
+        remfocus(win); /* remove focus from child window if it has it */
         curoff(win); /* remove cursor */
         win->focus = FALSE; /* remove focus */
         curon(win); /* replace cursor */

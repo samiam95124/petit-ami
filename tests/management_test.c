@@ -813,6 +813,7 @@ int main(void)
 
     /* *************** Child windows independent test character ************ */
 
+    pa_curvis(stdout, ON);
     putchar('\f');
     chrgrid();
     prtcen(pa_maxy(stdout), "Child windows independent test character");
@@ -833,9 +834,9 @@ int main(void)
     pa_home(stdout);
     printf("There should be 3 labeled child windows below, with frames   \n");
     printf("(the system may not implement frames on child windows)       \n");
-    printf("Test focus can be moved between windows, test windows can be \n");
-    printf("minimized and maximized (if framed), test entering           \n");
-    printf("characters to windows.                                       \n");
+    printf("Test focus can be moved between windows, including the main  \n");
+    printf("window. Test windows can be minimized and maximized          \n");
+    printf("(if framed), test entering characters to windows.            \n");
     do {
 
         pa_event(stdin, &er); /* get next event */
@@ -864,6 +865,7 @@ int main(void)
     printf("                                                             \n");
     printf("                                                             \n");
     printf("                                                             \n");
+    pa_curvis(stdout, OFF);
     waitnext();
 
     /* ******************** Child windows independent test pixel ************** */
