@@ -38,15 +38,6 @@ I suspect the WM communication in the path is slowing it down.
 9. Management test, frame controls buffered, turning entire frame on, black
 space is left to right and bottom.
 
-10. Management test/child windows independent test character, if the cursors are
-left on, the child windows don't accept focus.
-
-The child window does not appear to get a focus event, even if clicked, but does
-get keyboard input. Thus this is non-sensical. It cannot send keys to the given
-window unless it got focus, but the event is supressed. May have to do our own
-focus event generation based on enter and leave events. Post a example to
-stack overflow before trying this.
-
 Follow up:
 
 Focus events work very strangely on X. Only the top level window gets them.
