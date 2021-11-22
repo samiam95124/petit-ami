@@ -500,6 +500,9 @@ typedef struct winrec {
     int          sysbar;            /* system bar on/off */
     int          sizests;           /* last resize status save */
     int          visible;           /* window is visible */
+    /* window state, 0 = normal, 1 = maximized, 2 = minimized */
+    int          winstate;
+    int          lwinstate;         /* last window state */
 
     /* fields used by graphics subsystem */
     Window       xmwhan;            /* master window */
@@ -733,6 +736,12 @@ static int        errflg;         /* an error has been flagged */
 static int        dspsev;         /* XWindows display system event */
 static sevtptr    sidtab[MAXSID]; /* system event table */
 static int        xerrbyp;        /* bypass the xerror() handler */
+
+/* code storage for XWindow state atoms */
+Atom cmaxhorz; /* horizontally maximized */
+Atom cmaxvert; /* vertically maximized */
+Atom cfocused; /* focused */
+Atom chidden;  /* hidden (iconized) */
 
 /* memory statistics/diagnostics */
 static unsigned long memusd;    /* total memory in use for malloc */
@@ -3392,7 +3401,7 @@ static Window createwindow(Window parent, int x, int y)
     XSelectInput(padisplay, w, ExposureMask|KeyPressMask|
                  KeyReleaseMask|PointerMotionMask|ButtonPressMask|
                  ButtonReleaseMask|StructureNotifyMask|FocusChangeMask|
-                 EnterWindowMask|LeaveWindowMask);
+                 EnterWindowMask|LeaveWindowMask|PropertyChangeMask);
     XWUNLOCK();
 
 /* now handled in winvis */
@@ -3496,6 +3505,7 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
     win->curdsp = 1; /* set current display screen */
     win->curupd = 1; /* set current update screen */
     win->visible = FALSE; /* set not visible */
+    win->winstate = 0; /* set normal window */
 
     /* set up global buffer parameters */
     win->gmaxx = maxxd; /* character max dimensions */
@@ -9194,6 +9204,91 @@ static int remfocus(winptr win)
 
 }
 
+/* process Xwindow status messages */
+static void winstat(winptr win, pa_evtrec* er, XEvent* e, int* keep)
+
+{
+
+    int            maxhorz;
+    int            maxvert;
+    int            focused;
+    int            hidden;
+    int            status;
+    Atom           prop;
+    Atom           type;
+    int            format;
+    unsigned long  length;
+    unsigned long  after;
+    unsigned char* dp;
+
+    if (!strcmp(XGetAtomName(padisplay, e->xproperty.atom), "_NET_WM_STATE")) {
+
+        after = 1L;
+        focused = 0;
+        maxhorz = 0;
+        maxvert = 0;
+        hidden = 0;
+        do {
+
+            status = XGetWindowProperty(padisplay, win->xwhan, e->xproperty.atom,
+                                        0L, after, 0,
+                                        4/*XA_ATOM*/, &type, &format,
+                                        &length, &after, &dp);
+            if (status == Success && type == 4/*XA_ATOM*/ && dp && format == 32 && length) {
+
+                for (int i = 0; i < length; i++) {
+
+                    prop = ((Atom*)dp)[i];
+
+                    if (prop == cfocused) focused = 1;
+                    if (prop == cmaxhorz) maxhorz = 1;
+                    if (prop == cmaxvert) maxvert = 1;
+                    if (prop == chidden) hidden = 1;
+
+                }
+
+            }
+
+        } while (after);
+        if (hidden) {
+
+            win->lwinstate = win->winstate;
+            win->winstate = 2;
+            if (win->lwinstate != win->winstate) {
+
+                er->etype = pa_etmin; /* set minimize event */
+                *keep = TRUE;
+
+            }
+
+        } else if (maxhorz || maxvert) {
+
+            win->lwinstate = win->winstate;
+            win->winstate = 1;
+            if (win->lwinstate != win->winstate) {
+
+                er->etype = pa_etmax; /* set maximize event */
+                *keep = TRUE;
+
+            }
+
+        } else if (focused) {
+
+            win->lwinstate = win->winstate;
+            win->winstate = 0;
+            if (win->lwinstate != win->winstate) {
+
+                er->etype = pa_etnorm; /* set normalize event */
+                *keep = TRUE;
+
+            }
+
+        }
+
+    }
+
+}
+
 /* XWindow event process */
 
 static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
@@ -9577,7 +9672,9 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
 
         }
 
-    }
+    } else if (e->type == PropertyNotify)
+        /* process windows status messages */
+        winstat(win, er, e, keep);
 
 }
 
@@ -11707,6 +11804,12 @@ static void pa_init_graphics(int argc, char *argv[])
 
     /* override the event handler for menus */
     pa_eventsover(menu_event, &menu_event_oeh);
+
+    /* get the codes for windows state atoms */
+    cfocused = XInternAtom(padisplay, "_NET_WM_STATE_FOCUSED", 1);
+    cmaxhorz = XInternAtom(padisplay, "_NET_WM_STATE_MAXIMIZED_HORZ", 1);
+    cmaxvert = XInternAtom(padisplay, "_NET_WM_STATE_MAXIMIZED_VERT", 1);
+    chidden = XInternAtom(padisplay, "_NET_WM_STATE_HIDDEN", 1);
 
 }
 
