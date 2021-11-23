@@ -3506,6 +3506,7 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
     win->curupd = 1; /* set current update screen */
     win->visible = FALSE; /* set not visible */
     win->winstate = 0; /* set normal window */
+    win->lwinstate = 0;
 
     /* set up global buffer parameters */
     win->gmaxx = maxxd; /* character max dimensions */
@@ -9230,7 +9231,7 @@ static void winstat(winptr win, pa_evtrec* er, XEvent* e, int* keep)
         hidden = 0;
         do {
 
-            status = XGetWindowProperty(padisplay, win->xwhan, e->xproperty.atom,
+            status = XGetWindowProperty(padisplay, win->xmwhan, e->xproperty.atom,
                                         0L, after, 0,
                                         4/*XA_ATOM*/, &type, &format,
                                         &length, &after, &dp);
