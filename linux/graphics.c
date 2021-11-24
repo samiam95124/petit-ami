@@ -2687,9 +2687,22 @@ void prtxevt(XEvent* e)
 
 {
 
-        fprintf(stderr, "X Event: %5ld Window: %lx ", e->xany.serial,
-                e->xany.window);
-        prtxevtt(e->type); fprintf(stderr, "\n"); fflush(stderr);
+    fprintf(stderr, "X Event: %5ld Window: %lx ", e->xany.serial,
+            e->xany.window);
+    prtxevtt(e->type);
+    switch (e->type) {
+
+        case Expose: fprintf(stderr, ": x: %d y: %d w: %d h: %d",
+                             e->xexpose.x, e->xexpose.y,
+                             e->xexpose.width, e->xexpose.height); break;
+        case ConfigureNotify: fprintf(stderr, ": x: %d y: %d w: %d h: %d",
+                             e->xconfigure.x, e->xconfigure.y,
+                             e->xconfigure.width, e->xconfigure.height); break;
+        case MotionNotify: fprintf(stderr, ": x: %d y: %d",
+                                   e->xmotion.x, e->xmotion.y); break;
+
+    }
+    fprintf(stderr, "\n"); fflush(stderr);
 
 }
 
@@ -9807,7 +9820,59 @@ static void ievent(FILE* f, pa_evtrec* er)
     if (dmpevt) {
 
         dbg_printf(dlinfo, "PA Event: %5d Window: %d ", ecnt++, er->winid);
-        prtevt(er->etype); fprintf(stderr, "\n"); fflush(stderr);
+        prtevt(er->etype);
+        switch (er->etype) {
+
+            case pa_etchar: fprintf(stderr, ": char: %c", er->echar); break;
+            case pa_ettim: fprintf(stderr, ": timer: %d", er->timnum); break;
+            case pa_etmoumov: fprintf(stderr, ": mouse: %d x: %d y: %d",
+                                      er->mmoun, er->moupx, er->moupy); break;
+            case pa_etmouba: fprintf(stderr, ": mouse: %d button: %d",
+                                     er->amoun, er->amoubn); break;
+            case pa_etmoubd: fprintf(stderr, ": mouse: %d button: %d",
+                                     er->dmoun, er->dmoubn); break;
+            case pa_etjoyba: fprintf(stderr, ": joystick: %d button: %d",
+                                     er->ajoyn, er->ajoybn); break;
+            case pa_etjoybd: fprintf(stderr, ": joystick: %d button: %d",
+                                     er->djoyn, er->djoybn); break;
+            case pa_etjoymov: fprintf(stderr, ": joystick: %d x: %d y: %d z: %d "
+                                      "a4: %d a5: %d a6: %d", er->mjoyn,
+                                      er->joypx, er->joypy, er->joypz,
+                                      er->joyp4, er->joyp5, er->joyp6); break;
+            case pa_etresize: fprintf(stderr, ": x: %d y: %d xg: %d yg: %d",
+                                      er->rszx, er->rszy,
+                                      er->rszxg, er->rszyg); break;
+            case pa_etfun: fprintf(stderr, ": key: %d", er->fkey); break;
+            case pa_etmoumovg: fprintf(stderr, ": mouse: %d x: %d y: %d",
+                                       er->mmoung, er->moupxg, er->moupyg); break;
+            case pa_etredraw: fprintf(stderr, ": sx: %d sy: %d ex: %d ey: %d",
+                                      er->rsx, er->rsy, er->rex, er->rey); break;
+            case pa_etmenus: fprintf(stderr, ": id: %d", er->menuid); break;
+            case pa_etbutton: fprintf(stderr, ": id: %d", er->butid); break;
+            case pa_etchkbox: fprintf(stderr, ": id: %d", er->ckbxid); break;
+            case pa_etradbut: fprintf(stderr, ": id: %d", er->radbid); break;
+            case pa_etsclull: fprintf(stderr, ": id: %d", er->sclulid); break;
+            case pa_etscldrl: fprintf(stderr, ": id: %d", er->scldrid); break;
+            case pa_etsclulp: fprintf(stderr, ": id: %d", er->sclupid); break;
+            case pa_etscldrp: fprintf(stderr, ": id: %d", er->scldpid); break;
+            case pa_etsclpos: fprintf(stderr, ": id: %d position: %d",
+                                      er->sclpid, er->sclpos); break;
+            case pa_etedtbox: fprintf(stderr, ": id: %d", er->edtbid); break;
+            case pa_etnumbox: fprintf(stderr, ": id: %d number: %d",
+                                      er->numbid, er->numbsl); break;
+            case pa_etlstbox: fprintf(stderr, ": id: %d select: %d",
+                                      er->lstbid, er->lstbsl); break;
+            case pa_etdrpbox: fprintf(stderr, ": id: %d select: %d",
+                                      er->drpbid, er->drpbsl); break;
+            case pa_etdrebox: fprintf(stderr, ": id: %d", er->drebid); break;
+            case pa_etsldpos: fprintf(stderr, ": id: %d postion: %d",
+                                      er->sldpid, er->sldpos); break;
+            case pa_ettabbar: fprintf(stderr, ": id: %d select: %d",
+                                      er->tabid, er->tabsel); break;
+            default: ;
+
+        }
+        fprintf(stderr, "\n"); fflush(stderr);
 
     }
 
