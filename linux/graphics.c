@@ -1358,6 +1358,38 @@ void prtxevtt(int type)
 
 }
 
+/** ****************************************************************************
+
+Print XEvent message
+
+A diagnostic, prints fields in an XEvent message.
+
+*******************************************************************************/
+
+void prtxevt(XEvent* e)
+
+{
+
+    fprintf(stderr, "X Event: %5ld Window: %lx ", e->xany.serial,
+            e->xany.window);
+    prtxevtt(e->type);
+    switch (e->type) {
+
+        case Expose: fprintf(stderr, ": x: %d y: %d w: %d h: %d",
+                             e->xexpose.x, e->xexpose.y,
+                             e->xexpose.width, e->xexpose.height); break;
+        case ConfigureNotify: fprintf(stderr, ": x: %d y: %d w: %d h: %d",
+                             e->xconfigure.x, e->xconfigure.y,
+                             e->xconfigure.width, e->xconfigure.height); break;
+        case MotionNotify: fprintf(stderr, ": x: %d y: %d",
+                                   e->xmotion.x, e->xmotion.y); break;
+        case PropertyNotify: fprintf(stderr, ": atom: %s",
+                                     XGetAtomName(padisplay, e->xproperty.atom));
+
+    }
+
+}
+
 /******************************************************************************
 
 Print attributes set
@@ -2751,38 +2783,6 @@ int rat2a64(int a)
 
 }
 
-
-/** ****************************************************************************
-
-Print XEvent message
-
-A diagnostic, prints fields in an XEvent message.
-
-*******************************************************************************/
-
-void prtxevt(XEvent* e)
-
-{
-
-    fprintf(stderr, "X Event: %5ld Window: %lx ", e->xany.serial,
-            e->xany.window);
-    prtxevtt(e->type);
-    switch (e->type) {
-
-        case Expose: fprintf(stderr, ": x: %d y: %d w: %d h: %d",
-                             e->xexpose.x, e->xexpose.y,
-                             e->xexpose.width, e->xexpose.height); break;
-        case ConfigureNotify: fprintf(stderr, ": x: %d y: %d w: %d h: %d",
-                             e->xconfigure.x, e->xconfigure.y,
-                             e->xconfigure.width, e->xconfigure.height); break;
-        case MotionNotify: fprintf(stderr, ": x: %d y: %d",
-                                   e->xmotion.x, e->xmotion.y); break;
-
-    }
-    fprintf(stderr, "\n"); fflush(stderr);
-
-}
-
 /** ****************************************************************************
 
 Get freed/new window structure
@@ -2989,7 +2989,7 @@ static void peekxevt(XEvent* e)
     enquexevt(e); /* place in input queue */
     /* there is another diagnostic in pa_event(), but you might want to see
        these events immediately */
-    //dbg_printf(dlinfo, ""); prtxevt(e);
+    //dbg_printf(dlinfo, ""); prtxevt(e); fprintf(stderr, "\n"); fflush(stderr);
 
 }
 
@@ -9314,8 +9314,12 @@ static void winstat(winptr win, pa_evtrec* er, XEvent* e, int* keep)
     pa_evtrec         er2;
     XWindowAttributes xwa; /* XWindow attributes */
     XEvent            xe;  /* XWindow event */
+    int               m;
 
-    if (!strcmp(XGetAtomName(padisplay, e->xproperty.atom), "_NET_WM_STATE")) {
+    XWLOCK();
+    m = !strcmp(XGetAtomName(padisplay, e->xproperty.atom), "_NET_WM_STATE");
+    XWUNLOCK();
+    if (m) {
 
         after = 1L;
         focused = 0;
@@ -9324,10 +9328,12 @@ static void winstat(winptr win, pa_evtrec* er, XEvent* e, int* keep)
         hidden = 0;
         do {
 
+            XWLOCK();
             status = XGetWindowProperty(padisplay, win->xmwhan, e->xproperty.atom,
                                         0L, after, 0,
                                         4/*XA_ATOM*/, &type, &format,
                                         &length, &after, &dp);
+            XWUNLOCK();
             if (status == Success && type == 4/*XA_ATOM*/ && dp && format == 32 && length) {
 
                 for (int i = 0; i < length; i++) {
@@ -9361,33 +9367,6 @@ static void winstat(winptr win, pa_evtrec* er, XEvent* e, int* keep)
             win->winstate = 1;
             if (win->lwinstate != win->winstate) {
 
-#if 0
-                /* Xwindow does not always give us a configure on maximize. We
-                   to generate one */
-                XWLOCK();
-                XGetWindowAttributes(padisplay, win->xwhan, &xwa);
-                win->gmaxxg = xwa.width; /* return size */
-                win->gmaxyg = xwa.height;
-                win->gmaxx = win->gmaxxg/win->charspace; /* find character size x */
-                win->gmaxy = win->gmaxyg/win->linespace; /* find character size y */
-                /* tell the window to resize */
-                xe.type = ConfigureNotify;
-                xe.xconfigure.width = win->gmaxxg;
-                xe.xconfigure.height = win->gmaxyg;
-                xe.xconfigure.window = win->xwhan;
-                XSendEvent(padisplay, win->xwhan, FALSE, 0, &xe);
-                /* tell the window to repaint */
-                xe.type = Expose;
-                xe.xexpose.x = 0;
-                xe.xexpose.y = 0;
-                xe.xexpose.width = win->gmaxxg;
-                xe.xexpose.height = win->gmaxyg;
-                xe.xexpose.window = win->xwhan;
-                /* I don't know why, but the XSendEvent() call does nothing here */
-                enquexevt(&xe);
-                //XSendEvent(padisplay, win->xmwhan, FALSE, 0, &xe);
-                XWUNLOCK();
-#endif
                 er->etype = pa_etmax; /* set maximize event */
                 *keep = TRUE;
 
@@ -9813,6 +9792,8 @@ static void xwinprc(XEvent* e, pa_evtrec* er, int* keep)
         /* note we don't print XEvent diagnostics until they get extracted from
            the input queue */
         prtxevt(e);
+        fprintf(stderr, "\n");
+        fflush(stderr);
 
     }
     ofn = fndevt(e->xany.window); /* get output window lfn */
