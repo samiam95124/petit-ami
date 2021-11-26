@@ -9818,12 +9818,15 @@ static void xwinget(pa_evtrec* er, int* keep)
     XWLOCK();
     rv = XPending(padisplay);
     XWUNLOCK();
-    if (rv) {
+    while (rv) {
 
         XWLOCK();
         XNextEvent(padisplay, &e); /* get next event */
         XWUNLOCK();
         xwinprc(&e, er, keep); /* pass to processing */
+        XWLOCK();
+        rv = XPending(padisplay);
+        XWUNLOCK();
 
     }
 
