@@ -9817,15 +9817,27 @@ static void xwinget(pa_evtrec* er, int* keep)
 
     do {
 
-        XWLOCK();
-        rv = XPending(padisplay);
-        XWUNLOCK();
-        if (rv) {
+        rv = 0;
+        /* check input queue has events */
+        while (evtque && !*keep) {
+
+            dequexevt(&e); /* remove event from queue */
+            xwinprc(&e, er, keep); /* process */
+
+        }
+        if (!*keep) {
 
             XWLOCK();
-            XNextEvent(padisplay, &e); /* get next event */
+            rv = XPending(padisplay);
             XWUNLOCK();
-            xwinprc(&e, er, keep); /* pass to processing */
+            if (rv) {
+
+                XWLOCK();
+                XNextEvent(padisplay, &e); /* get next event */
+                XWUNLOCK();
+                xwinprc(&e, er, keep); /* pass to processing */
+
+            }
 
         }
 
@@ -9854,50 +9866,38 @@ static void ievent(FILE* f, pa_evtrec* er)
     dfid = ConnectionNumber(padisplay); /* find XWindow display fid */
     do {
 
-        /* check input queue has events */
-        while (evtque && !keep) {
-
-            dequexevt(&e); /* remove event from queue */
-            xwinprc(&e, er, &keep); /* process */
-
-        }
-
+        /* check XWindows event queue before we wait on system events */
+        xwinget(er, &keep);
         if (!keep) {
 
-            /* check XWindows event queue before we wait on system events */
-            xwinget(er, &keep);
-            if (!keep) {
+            system_event_getsevt(&sev); /* get the next system event */
+            /* check display event occurred */
+            if (sev.typ == se_inp) {
 
-                system_event_getsevt(&sev); /* get the next system event */
-                /* check display event occurred */
-                if (sev.typ == se_inp) {
+                if (sev.lse == dspsev) xwinget(er, &keep);
+                else if (sidtab[sev.lse-1] && sidtab[sev.lse-1]->joy && joyenb)
+                    /* process joystick event */
+                    joyevt(er,  &keep, joytab[sidtab[sev.lse-1]->joy-1]);
 
-                    if (sev.lse == dspsev) xwinget(er, &keep);
-                    else if (sidtab[sev.lse-1] && sidtab[sev.lse-1]->joy && joyenb)
-                        /* process joystick event */
-                        joyevt(er,  &keep, joytab[sidtab[sev.lse-1]->joy-1]);
+            } else if (sev.typ == se_tim) {
 
-                } else if (sev.typ == se_tim) {
+                if (sidtab[sev.lse-1]->frm) {
 
-                    if (sidtab[sev.lse-1]->frm) {
+                    /* frame event */
+                    er->etype = pa_etframe; /* set frame event occurred */
+                    /* set window number */
+                    er->winid = sidtab[sev.lse-1]->win->wid;
+                    keep = TRUE; /* set event found */
 
-                        /* frame event */
-                        er->etype = pa_etframe; /* set frame event occurred */
-                        /* set window number */
-                        er->winid = sidtab[sev.lse-1]->win->wid;
-                        keep = TRUE; /* set event found */
+                } else {
 
-                    } else {
-
-                        /* timer event */
-                        er->etype = pa_ettim; /* set timer type */
-                        /* set timer number */
-                        er->timnum = sidtab[sev.lse-1]->tim;
-                        /* set window number */
-                        er->winid = sidtab[sev.lse-1]->win->wid;
-                        keep = TRUE; /* set event found */
-
-                    }
+                    /* timer event */
+                    er->etype = pa_ettim; /* set timer type */
+                    /* set timer number */
+                    er->timnum = sidtab[sev.lse-1]->tim;
+                    /* set window number */
+                    er->winid = sidtab[sev.lse-1]->win->wid;
+                    keep = TRUE; /* set event found */
 
                 }
 
