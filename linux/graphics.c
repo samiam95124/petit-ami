@@ -3037,6 +3037,32 @@ static void putpaevt(paevtque* p)
 
 /** ****************************************************************************
 
+Print contents of PA queue
+
+A diagnostic, prints the contents of the PA queue.
+
+*******************************************************************************/
+
+static void prtquepaevt(void)
+
+{
+
+    paevtque* p;
+
+    p = paqevt; /* index root entry */
+    while (p) {
+
+        prtevt(&p->evt); /* print this entry */
+        fprintf(stderr, "\n"); fflush(stderr);
+        p = p->next; /* link next */
+        if (p == paqevt) p = NULL; /* end of queue, terminate */
+
+    }
+
+}
+
+/** ****************************************************************************
+
 Place PA event into input queue
 
 *******************************************************************************/
@@ -3070,7 +3096,7 @@ static void enquepaevt(pa_evtrec* e)
 
 /** ****************************************************************************
 
-Remove XEvent from input queue
+Remove PA event from input queue
 
 *******************************************************************************/
 
@@ -3092,6 +3118,51 @@ static void dequepaevt(pa_evtrec* e)
     }
     memcpy(e, &p->evt, sizeof(pa_evtrec)); /* copy out to caller */
     putpaevt(p); /* release queue entry to free */
+
+}
+
+/** ****************************************************************************
+
+Remove all matching window PA events from input queue
+
+*******************************************************************************/
+
+static void remquepawin(int winid)
+
+{
+
+    paevtque* p;
+    paevtque* p2;
+
+    p = paqevt; /* index root entry */
+    while (p) {
+
+        if (p->evt.winid == winid) {
+
+            /* delete this entry */
+            if (p == p->next) {
+
+                paqevt = NULL; /* only one entry, clear queue */
+                p2 = NULL; /* set no next */
+
+            } else { /* list delete */
+
+                p->last->next = p->next; /* point last at current */
+                p->next->last = p->last; /* point current at last */
+                p2 = p->next; /* go next */
+
+            }
+            putpaevt(p); /* release queue entry to free */
+            p = p2; /* step to next */
+
+        } else {
+
+            p = p->next; /* index next */
+            if (p == paqevt) p = NULL; /* wrapped around queue, stop */
+
+        }
+
+    }
 
 }
 
@@ -3781,6 +3852,8 @@ window also links it.
 
 *******************************************************************************/
 
+//??? Need to remove link from child window tree.
+
 /* flush and close file */
 
 static void clsfil(int fn)
@@ -3832,6 +3905,7 @@ static void closewin(int ofn)
     if (!inplnk(ifn)) clsfil(ifn);
     filwin[ofn] = -1; /* clear file to window translation */
     xltwin[wid+MAXFIL] = -1; /* clear window to file translation */
+    remquepawin(wid); /* remove any pending PA queue entries */
 
 }
 
@@ -9907,13 +9981,6 @@ static void ievent(FILE* f, pa_evtrec* er)
 
     } while (!keep); /* until we have a client event */
 
-    if (dmpevt) {
-
-        prtevt(er); /* do diagnostic dump of PA events */
-        fprintf(stderr, "\n"); fflush(stderr);
-
-    }
-
 }
 
 /* external event interface */
@@ -9928,6 +9995,12 @@ void pa_event(FILE* f, pa_evtrec* er)
         if (paqevt) dequepaevt(er);
         /* get logical input file number for input, and get the event for that. */
         else ievent(f, er); /* process event */
+        if (dmpevt) {
+
+            prtevt(er); /* do diagnostic dump of PA events */
+            fprintf(stderr, "\n"); fflush(stderr);
+
+        }
         er->handled = 1; /* set event is handled by default */
         (evtshan)(er); /* call master event handler */
         if (!er->handled) { /* send it to fanout */
