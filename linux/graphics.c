@@ -787,7 +787,14 @@ standalone, using little or no other resources in the system.
 If an error dialog cannot be presented to font not found or other error, returns
 1, otherwise returns 0 on success.
 
+Notes:
+
+Obviously this could use better ratios and less magic numbers.
+
 *******************************************************************************/
+
+#define NEGCIRCLE    80 /* negative sign circle size */
+#define NEGCIRCLESPC 20 /* space around negative circle */
 
 static int errdlg(
     /** dialog title */    char* t,
@@ -822,7 +829,8 @@ static int errdlg(
     XWLOCK();
     /* minimum width for dialog system bar */
     mw = XTextWidth(font, t, strlen(t))+200; /* minimum width for dialog system bar */
-    wd = XTextWidth(font, s, strlen(s)); /* minimum width for dialog contents */
+    /* minimum width for dialog contents */
+    wd = NEGCIRCLESPC+NEGCIRCLE+NEGCIRCLESPC+XTextWidth(font, s, strlen(s));
     if (wd > mw) mw = wd; /* set minimum overall */
 
     /* find screen placement */
@@ -866,13 +874,16 @@ static int errdlg(
                            e.xexpose.width, e.xexpose.height);
             /* draw error circle */
             XSetForeground(padisplay, cxt, 0xce3c30);
-            XFillArc(padisplay, w, cxt, 20, 20, 80, 80, 0, 360*64);
+            XFillArc(padisplay, w, cxt, NEGCIRCLESPC, NEGCIRCLESPC,
+                     NEGCIRCLE, NEGCIRCLE, 0, 360*64);
             /* draw dash */
             XSetForeground(padisplay, cxt, 0xffffff);
             XFillRectangle(padisplay, w, cxt, 35, 60-5, 50, 10);
             /* set text color */
             XSetForeground(padisplay, cxt, 0x000000);
-            XDrawString(padisplay, w, cxt, mw/2-wd/2, 50, s, strlen(s));
+            /* center text on circle to the right */
+            XDrawString(padisplay, w, cxt, NEGCIRCLESPC+NEGCIRCLE+NEGCIRCLESPC,
+                        NEGCIRCLESPC+NEGCIRCLE/2, s, strlen(s));
             /* place close button */
             XSetForeground(padisplay, cxt, 0xffffff);
             XFillRectangle(padisplay, w, cxt, ww-cw-20, 125, cw, 40);
@@ -3890,12 +3901,42 @@ static int inplnk(int fn)
 
 }
 
+/* remove window from child window list */
+static void remchlwin(winptr par, winptr win)
+
+{
+
+    winptr p; /* pointer to window */
+    winptr l; /* pointer to last */
+    winptr f; /* found entry */
+
+    p = par->childwin; /* index top of list */
+    /* if top of list, link parent to next to gap it */
+    if (p == win) par->childwin = p->childlst;
+    else {
+
+        f = NULL; /* set no entry found */
+        while (p) { /* traverse the list */
+
+            l = p; /* set last window */
+            if (p == win) f = p; /* set entry found */
+            p = p->childlst; /* link next */
+
+        }
+        if (!f) error(esystem); /* should have found the window */
+        l->childlst = f->childlst; /* gap over entry */
+
+    }
+
+}
+
 static void closewin(int ofn)
 
 {
 
-    int ifn; /* input file id */
-    int wid; /* window id */
+    int    ifn; /* input file id */
+    int    wid; /* window id */
+    winptr win; /* window data structure */
 
     wid = filwin[ofn]; /* get window id */
     ifn = opnfil[ofn]->inl; /* get the input file link */
@@ -3906,6 +3947,9 @@ static void closewin(int ofn)
     filwin[ofn] = -1; /* clear file to window translation */
     xltwin[wid+MAXFIL] = -1; /* clear window to file translation */
     remquepawin(wid); /* remove any pending PA queue entries */
+    win = lfn2win(ofn); /* get a pointer to the window */
+    /* if window is child, remove from parent tree */
+    if (win->parwin) remchlwin(win->parwin, win);
 
 }
 
