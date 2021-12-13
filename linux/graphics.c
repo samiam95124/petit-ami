@@ -3916,7 +3916,7 @@ static void remchlwin(winptr par, winptr win)
     else {
 
         f = NULL; /* set no entry found */
-        while (p) { /* traverse the list */
+        while (p && !f) { /* traverse the list */
 
             l = p; /* set last window */
             if (p == win) f = p; /* set entry found */
@@ -3940,6 +3940,7 @@ static void closewin(int ofn)
 
     wid = filwin[ofn]; /* get window id */
     ifn = opnfil[ofn]->inl; /* get the input file link */
+    win = lfn2win(ofn); /* get a pointer to the window */
     clswin(ofn); /* close the window */
     clsfil(ofn); /* flush and close output file */
     /* if no remaining links exist, flush and close input file */
@@ -3947,7 +3948,6 @@ static void closewin(int ofn)
     filwin[ofn] = -1; /* clear file to window translation */
     xltwin[wid+MAXFIL] = -1; /* clear window to file translation */
     remquepawin(wid); /* remove any pending PA queue entries */
-    win = lfn2win(ofn); /* get a pointer to the window */
     /* if window is child, remove from parent tree */
     if (win->parwin) remchlwin(win->parwin, win);
 
