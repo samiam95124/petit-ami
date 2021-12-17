@@ -3179,6 +3179,33 @@ static void remquepawin(int winid)
 
 /** ****************************************************************************
 
+Send event to window
+
+Send an event to the given window. The event is placed into the queue for the
+given window. Note that the input side of the window is found, and the event
+spooled for that side. Note that any window number given the event is
+overwritten with the proper window id after a copy is made.
+
+The difference between this and inserting to the event chain is that this
+routine enters to the top of the chain, and specifies the input side of the
+window. Thus it is a more complete send of the event.
+
+*******************************************************************************/
+
+static void isendevent(winptr win, pa_evtrec* er)
+
+{
+
+    pa_evtrec ec; /* copy of event record */
+
+    memcpy(&ec, er, sizeof(pa_evtrec));
+    ec.winid = win->wid; /* overwrite window id */
+    enquepaevt(&ec); /* send to queue */
+
+}
+
+/** ****************************************************************************
+
 Find if cursor is in screen bounds
 
 Checks if the cursor lies in the current bounds, and returns TRUE if so.
@@ -3863,8 +3890,6 @@ window also links it.
 
 *******************************************************************************/
 
-//??? Need to remove link from child window tree.
-
 /* flush and close file */
 
 static void clsfil(int fn)
@@ -3934,9 +3959,11 @@ static void closewin(int ofn)
 
 {
 
-    int    ifn; /* input file id */
-    int    wid; /* window id */
-    winptr win; /* window data structure */
+    int       ifn;  /* input file id */
+    int       wid;  /* window id */
+    winptr    win;  /* window data structure */
+    winptr    pwin; /* parent window */
+    pa_evtrec er;   /* PA event record */
 
     wid = filwin[ofn]; /* get window id */
     ifn = opnfil[ofn]->inl; /* get the input file link */
@@ -3948,8 +3975,23 @@ static void closewin(int ofn)
     filwin[ofn] = -1; /* clear file to window translation */
     xltwin[wid+MAXFIL] = -1; /* clear window to file translation */
     remquepawin(wid); /* remove any pending PA queue entries */
-    /* if window is child, remove from parent tree */
-    if (win->parwin) remchlwin(win->parwin, win);
+    if (win->parwin) { /* is child window */
+
+        if (win->focus) { /* child has focus */
+
+            /* move focus to parent */
+            pwin = win->parwin; /* index parent */
+            er.etype = pa_etfocus; /* set focus event */
+            isendevent(pwin, &er); /* send it */
+            curoff(pwin); /* remove cursor */
+            pwin->focus = TRUE; /* put focus */
+            curon(pwin); /* replace cursor */
+
+        }
+        /* remove from parent tree */
+        remchlwin(win->parwin, win);
+
+    }
 
 }
 
@@ -5051,33 +5093,6 @@ static void iauto(winptr win, int e)
     }
     sc->autof = e; /* set auto status */
     win->gauto = e;
-
-}
-
-/** ****************************************************************************
-
-Send event to window
-
-Send an event to the given window. The event is placed into the queue for the
-given window. Note that the input side of the window is found, and the event
-spooled for that side. Note that any window number given the event is
-overwritten with the proper window id after a copy is made.
-
-The difference between this and inserting to the event chain is that this
-routine enters to the top of the chain, and specifies the input side of the
-window. Thus it is a more complete send of the event.
-
-*******************************************************************************/
-
-static void isendevent(winptr win, pa_evtrec* er)
-
-{
-
-    pa_evtrec ec; /* copy of event record */
-
-    memcpy(&ec, er, sizeof(pa_evtrec));
-    ec.winid = win->wid; /* overwrite window id */
-    enquepaevt(&ec); /* send to queue */
 
 }
 
