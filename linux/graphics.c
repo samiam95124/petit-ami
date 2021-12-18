@@ -3161,6 +3161,8 @@ static void remquepawin(int winid)
                 p->last->next = p->next; /* point last at current */
                 p->next->last = p->last; /* point current at last */
                 p2 = p->next; /* go next */
+                /* if deleting the root entry, skip to next */
+                if (paqevt == p) paqevt = p->next;
 
             }
             putpaevt(p); /* release queue entry to free */
