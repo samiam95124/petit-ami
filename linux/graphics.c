@@ -1466,6 +1466,47 @@ void prtxcset(int caps)
 
 }
 
+/******************************************************************************
+
+Print windows tree
+
+Prints the tree structure of child windows. Automatically finds the top of the
+tree.
+
+******************************************************************************/
+
+void prtwinety(winptr wp, int indent)
+
+{
+
+    winptr cp; /* child window pointer */
+
+    if (wp) {
+
+        fprintf(stderr, "%*cWindow: %p Master: %lx Subclient: %lx\n",
+                        indent, ' ', wp, wp->xmwhan, wp->xwhan);
+        indent += 4; /* index next level */
+        cp = wp->childwin; /* index child window list */
+        while (cp) {
+
+            prtwinety(cp, indent); /* print this entry */
+            cp = cp->childlst;  /* next child entry */
+
+        }
+
+    }
+
+}
+
+void prtwintre(winptr wp)
+
+{
+
+    fprintf(stderr, "Windows tree:\n");
+    while (wp->parwin) wp = wp->parwin; /* find top of tree */
+    prtwinety(wp, 0); /* print tree */
+
+}
 /** ****************************************************************************
 
 Default event handler
@@ -3945,9 +3986,17 @@ static void remchlwin(winptr par, winptr win)
         f = NULL; /* set no entry found */
         while (p && !f) { /* traverse the list */
 
-            l = p; /* set last window */
-            if (p == win) f = p; /* set entry found */
-            p = p->childlst; /* link next */
+            if (p == win) {
+
+                f = p; /* set entry found */
+                p = NULL; /* terminate */
+
+            } else {
+
+                l = p; /* set last window */
+                p = p->childlst; /* link next */
+
+            }
 
         }
         if (!f) error(esystem); /* should have found the window */
@@ -9427,6 +9476,7 @@ static int remfocus(winptr win)
     }
 
     return (ff); /* exit with focus found */
+
 
 }
 
