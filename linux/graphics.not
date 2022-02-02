@@ -30,14 +30,6 @@ property. Note that not all window managers obey this standard.
 but the delay still shows up in stacked menus. We can do better by delaying most
 of the window parameters for an open call when it is really required.
 
-8. Lots of black space in the management_test.c x and y progressive resize 
-tests. Why is the refresh so slow?
-
-I suspect the WM communication in the path is slowing it down.
-
-9. Management test, frame controls buffered, turning entire frame on, black
-space is left to right and bottom.
-
 Follow up:
 
 Focus events work very strangely on X. Only the top level window gets them.
@@ -47,9 +39,6 @@ window does not. I think it may be necessary to emulate "focus follows window"
 behavior despite X, to make it regular. This would have the unfortunate side
 effect that X or the window manager does not get to choose focus policy, since
 we would be generating focus based on clicks.
-
-11. Management test/Minimize/Maximize test does not work, and there is no
-mechanisim for this at present. I am researching it.
 
 12. Management test/child windows test character. Leave the previous frametest
 on, then open up the window beyond the default. In the child windows test, the
