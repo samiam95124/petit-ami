@@ -3446,6 +3446,50 @@ static void restore(winptr win) /* window to restore */
 
 /*******************************************************************************
 
+Create window without background draw
+
+Creates a window with the given parent, width and height. Returns the Xwindow
+handle. If "no window delay" flag is set, presents the window immediately.
+
+*******************************************************************************/
+
+static Window createwindow(Window parent, int x, int y, int w, int h)
+
+{
+
+    Window wh; /* XWindow handle */
+    XEvent e; /* XWindow event */
+
+    /* create our window with no background */
+    XWLOCK();
+    wh = XCreateWindow(padisplay, parent, 0, 0, w, h, 0, CopyFromParent,
+                      InputOutput, CopyFromParent, 0, NULL);
+
+    /* select what events we want */
+    XSelectInput(padisplay, wh, ExposureMask|KeyPressMask|
+                 KeyReleaseMask|PointerMotionMask|ButtonPressMask|
+                 ButtonReleaseMask|StructureNotifyMask|FocusChangeMask|
+                 EnterWindowMask|LeaveWindowMask|PropertyChangeMask);
+    XWUNLOCK();
+
+/* now handled in winvis */
+#ifdef NOWDELAY
+    /* present the window onscreen */
+    XWLOCK();
+    XMapWindow(padisplay, wh);
+    XFlush(padisplay);
+    XWUNLOCK();
+
+    /* wait for the window to be displayed */
+    do { peekxevt(&e); } while (e.type !=  MapNotify || e.xany.window != wh);
+#endif
+
+    return (wh);
+
+}
+
+/*******************************************************************************
+
 Display window
 
 Presents a window, and sends it a first paint message. Used to process the
@@ -3625,43 +3669,6 @@ cleared, and a single buffer assigned to the window.
 
 *******************************************************************************/
 
-/* create window without background draw */
-
-static Window createwindow(Window parent, int x, int y)
-
-{
-
-    Window w; /* XWindow handle */
-    XEvent e; /* XWindow event */
-
-    /* create our window with no background */
-    XWLOCK();
-    w = XCreateWindow(padisplay, parent, 0, 0, x, y, 0, CopyFromParent,
-                      InputOutput, CopyFromParent, 0, NULL);
-
-    /* select what events we want */
-    XSelectInput(padisplay, w, ExposureMask|KeyPressMask|
-                 KeyReleaseMask|PointerMotionMask|ButtonPressMask|
-                 ButtonReleaseMask|StructureNotifyMask|FocusChangeMask|
-                 EnterWindowMask|LeaveWindowMask|PropertyChangeMask);
-    XWUNLOCK();
-
-/* now handled in winvis */
-#ifdef NOWDELAY
-    /* present the window onscreen */
-    XWLOCK();
-    XMapWindow(padisplay, w);
-    XFlush(padisplay);
-    XWUNLOCK();
-
-    /* wait for the window to be displayed */
-    do { peekxevt(&e); } while (e.type !=  MapNotify || e.xany.window != w);
-#endif
-
-    return (w);
-
-}
-
 static void opnwin(int fn, int pfn, int wid, int subclient)
 
 {
@@ -3832,7 +3839,12 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
     } else pw = RootWindow(padisplay, pascreen); /* root */
 
     /* create master window */
-    win->xmwhan = createwindow(pw, win->gmaxxg+EXTSPC, win->gmaxyg+EXTSPC);
+    win->xmwr.x = 0; /* set current rectangle */
+    win->xmwr.y = 0;
+    win->xmwr.w = win->gmaxxg+EXTSPC;
+    win->xmwr.h = win->gmaxyg+EXTSPC;
+    win->xmwhan = createwindow(pw, win->xmwr.x, win->xmwr.y,
+                                 win->xmwr.w, win->xmwr.h);
 
     /* hook close event from windows manager */
     XWLOCK();
@@ -3841,7 +3853,12 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
     XWUNLOCK();
 
     /* create subclient window */
-    win->xwhan = createwindow(win->xmwhan, win->gmaxxg, win->gmaxyg);
+    win->xwr.x = 0; /* set current rectangle */
+    win->xwr.y = 0;
+    win->xwr.w = win->gmaxxg;
+    win->xwr.h = win->gmaxyg;
+    win->xwhan = createwindow(win->xmwhan, win->xwr.x, win->xwr.y,
+                                           win->xwr.w, win->xwr.h);
 
 //dbg_printf(dlinfo, "master: %lx subclient: %lx\n", win->xmwhan, win->xwhan);
     /* find and save the frame parameters from the immediate/parent window.
