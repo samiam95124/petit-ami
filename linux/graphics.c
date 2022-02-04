@@ -744,6 +744,12 @@ Atom cmaxvert; /* vertically maximized */
 Atom cfocused; /* focused */
 Atom chidden;  /* hidden (iconized) */
 
+/* XWindow frame characteristics */
+int               frmextwdt;   /* frame extra width */
+int               frmexthgt;   /* frame extra height */
+int               frmoffx;     /* frame offset to client x */
+int               frmoffy;     /* frame offset to client y */
+
 /* memory statistics/diagnostics */
 static unsigned long memusd;    /* total memory in use for malloc */
 static unsigned long memrty;    /* retries executed on malloc */
@@ -1507,6 +1513,74 @@ void prtwintre(winptr wp)
     prtwinety(wp, 0); /* print tree */
 
 }
+
+/** ****************************************************************************
+
+Find Xwindow frame specifications
+
+Finds the extra width, height, and offset to client of a XWindows frame. These
+characteristics are the same in all windows. We find them by creating a test
+window and measuring the difference between the outer (frame) window and the
+client window.
+
+
+*******************************************************************************/
+
+void fndfrm(void)
+
+{
+
+    Window            wh;
+    XEvent            xe;
+    Window            pw, rw;
+    Window*           cwl;
+    unsigned          ncw;
+    XWindowAttributes xwga, xpwga; /* XWindow get attributes */
+
+    /* measure window frame characteristics */
+    XWLOCK();
+    wh = XCreateWindow(padisplay, RootWindow(padisplay, pascreen), 0, 0, 1, 1,
+                       0, CopyFromParent, InputOutput, CopyFromParent, 0, NULL);
+
+    /* select what events we want */
+    XSelectInput(padisplay, wh, ExposureMask|KeyPressMask|
+                 KeyReleaseMask|PointerMotionMask|ButtonPressMask|
+                 ButtonReleaseMask|StructureNotifyMask|FocusChangeMask|
+                 EnterWindowMask|LeaveWindowMask|PropertyChangeMask);
+    XMapWindow(padisplay, wh);
+    XFlush(padisplay);
+    XWUNLOCK();
+
+    /* wait window present */
+    do {
+
+        XWLOCK();
+        XNextEvent(padisplay, &xe); /* get next event */
+        XWUNLOCK();
+
+    } while (xe.type != MapNotify || xe.xany.window != wh);
+
+    /* get frame measurements */
+    XWLOCK();
+    XQueryTree(padisplay, wh, &rw, &pw, &cwl, &ncw);
+    XGetWindowAttributes(padisplay, pw, &xpwga);
+    XGetWindowAttributes(padisplay, wh, &xwga);
+    XUnmapWindow(padisplay, wh);
+    XWUNLOCK();
+
+    /* find net extra width of frame from client area */
+    frmextwdt = xpwga.width-xwga.width;
+    frmexthgt = xpwga.height-xwga.height;
+    /* find offset from parent origin to client origin */
+    frmoffx = xwga.x;
+    frmoffy = xwga.y;
+
+    dbg_printf(dlinfo, "Frame extra width: %d\n", frmextwdt);
+    dbg_printf(dlinfo, "Frame extra height: %d\n", frmexthgt);
+    dbg_printf(dlinfo, "Parent to client offset: x: %d y: %d\n", frmoffx, frmoffy);
+
+}
+
 /** ****************************************************************************
 
 Default event handler
@@ -3863,45 +3937,13 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
 //dbg_printf(dlinfo, "master: %lx subclient: %lx\n", win->xmwhan, win->xwhan);
     /* find and save the frame parameters from the immediate/parent window.
        This may not work on some window managers */
-#ifndef NOWDELAY
-    XWLOCK();
-    XMapWindow(padisplay, win->xmwhan);
-    XFlush(padisplay);
-    XWUNLOCK();
-    do { peekxevt(&e); }
-    while (e.type !=  MapNotify || e.xany.window != win->xmwhan);
-    XWLOCK();
-    XMapWindow(padisplay, win->xwhan);
-    XFlush(padisplay);
-    XWUNLOCK();
-    do { peekxevt(&e); }
-    while (e.type !=  MapNotify || e.xany.window != win->xwhan);
-#endif
-    XWLOCK();
-    XQueryTree(padisplay, win->xmwhan, &rw, &pw, &cwl, &ncw);
-    XGetWindowAttributes(padisplay, pw, &xpwga);
-    XGetWindowAttributes(padisplay, win->xmwhan, &xwga);
-    XWUNLOCK();
-#ifndef NOWDELAY
-    XWLOCK();
-    XUnmapWindow(padisplay, win->xwhan);
-    XUnmapWindow(padisplay, win->xmwhan);
-    XWUNLOCK();
-#endif
 
     /* find net extra width of frame from client area */
-    win->pfw = xpwga.width-xwga.width;
-    win->pfh = xpwga.height-xwga.height;
+    win->pfw = frmextwdt;
+    win->pfh = frmexthgt;
     /* find offset from parent origin to client origin */
-    win->cwox = xwga.x;
-    win->cwoy = xwga.y;
-
-#if 0
-    dbg_printf(dlinfo, "Frame extra width: %d\n", win->pfw);
-    dbg_printf(dlinfo, "Frame extra height: %d\n", win->pfh);
-    dbg_printf(dlinfo, "Parent to client offset: x: %d y: %d\n",
-               win->cwox, win->cwoy);
-#endif
+    win->cwox = frmoffx;
+    win->cwoy = frmoffy;
 
     /* set window title from program name */
 #ifndef __MACH__ /* Mac OS X */
@@ -12116,6 +12158,9 @@ static void pa_init_graphics(int argc, char *argv[])
     cmaxhorz = XInternAtom(padisplay, "_NET_WM_STATE_MAXIMIZED_HORZ", 1);
     cmaxvert = XInternAtom(padisplay, "_NET_WM_STATE_MAXIMIZED_VERT", 1);
     chidden = XInternAtom(padisplay, "_NET_WM_STATE_HIDDEN", 1);
+
+    /* find frame characteristics */
+    fndfrm();
 
 }
 
