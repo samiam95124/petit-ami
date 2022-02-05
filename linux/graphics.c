@@ -138,6 +138,7 @@ static enum { /* debug levels */
 //#define PRTFNT /* print internal fonts list */
 //#define PRTMEM /* print memory allocations at exit */
 //#define PRTPWM /* print window parameters on open */
+//#define PRTFRM /* print Xwindow frame parameters */
 //#define NOWDELAY /* don't delay window presentation until drawn */
 //#define NOFAKEFOCUS /* don't fake focus for child windows */
 #ifndef __MACH__ /* Mac OS X */
@@ -1575,9 +1576,11 @@ void fndfrm(void)
     frmoffx = xwga.x;
     frmoffy = xwga.y;
 
+#ifdef PRTFRM
     dbg_printf(dlinfo, "Frame extra width: %d\n", frmextwdt);
     dbg_printf(dlinfo, "Frame extra height: %d\n", frmexthgt);
     dbg_printf(dlinfo, "Parent to client offset: x: %d y: %d\n", frmoffx, frmoffy);
+#endif
 
 }
 
@@ -12092,6 +12095,9 @@ static void pa_init_graphics(int argc, char *argv[])
     /* load the XWindow font set */
     getfonts();
 
+    /* find frame characteristics */
+    fndfrm();
+
     /* open stdin and stdout as I/O window set */
     ifn = fileno(stdin); /* get logical id stdin */
     ofn = fileno(stdout); /* get logical id stdout */
@@ -12158,9 +12164,6 @@ static void pa_init_graphics(int argc, char *argv[])
     cmaxhorz = XInternAtom(padisplay, "_NET_WM_STATE_MAXIMIZED_HORZ", 1);
     cmaxvert = XInternAtom(padisplay, "_NET_WM_STATE_MAXIMIZED_VERT", 1);
     chidden = XInternAtom(padisplay, "_NET_WM_STATE_HIDDEN", 1);
-
-    /* find frame characteristics */
-    fndfrm();
 
 }
 
