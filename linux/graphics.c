@@ -1576,11 +1576,17 @@ void fndfrm(void)
     frmoffx = xwga.x;
     frmoffy = xwga.y;
 
+<<<<<<< HEAD
 #ifdef PRTFRM
     dbg_printf(dlinfo, "Frame extra width: %d\n", frmextwdt);
     dbg_printf(dlinfo, "Frame extra height: %d\n", frmexthgt);
     dbg_printf(dlinfo, "Parent to client offset: x: %d y: %d\n", frmoffx, frmoffy);
 #endif
+=======
+    dbg_printf(dlinfo, "Frame extra width: %d\n", frmextwdt);
+    dbg_printf(dlinfo, "Frame extra height: %d\n", frmexthgt);
+    dbg_printf(dlinfo, "Parent to client offset: x: %d y: %d\n", frmoffx, frmoffy);
+>>>>>>> 0e9eab82ab943918392df37c929520485e863a43
 
 }
 
@@ -12164,6 +12170,9 @@ static void pa_init_graphics(int argc, char *argv[])
     cmaxhorz = XInternAtom(padisplay, "_NET_WM_STATE_MAXIMIZED_HORZ", 1);
     cmaxvert = XInternAtom(padisplay, "_NET_WM_STATE_MAXIMIZED_VERT", 1);
     chidden = XInternAtom(padisplay, "_NET_WM_STATE_HIDDEN", 1);
+
+    /* find frame characteristics */
+    fndfrm();
 
 }
 
