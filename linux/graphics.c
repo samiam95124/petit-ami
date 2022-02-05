@@ -1576,17 +1576,11 @@ void fndfrm(void)
     frmoffx = xwga.x;
     frmoffy = xwga.y;
 
-<<<<<<< HEAD
 #ifdef PRTFRM
     dbg_printf(dlinfo, "Frame extra width: %d\n", frmextwdt);
     dbg_printf(dlinfo, "Frame extra height: %d\n", frmexthgt);
     dbg_printf(dlinfo, "Parent to client offset: x: %d y: %d\n", frmoffx, frmoffy);
 #endif
-=======
-    dbg_printf(dlinfo, "Frame extra width: %d\n", frmextwdt);
-    dbg_printf(dlinfo, "Frame extra height: %d\n", frmexthgt);
-    dbg_printf(dlinfo, "Parent to client offset: x: %d y: %d\n", frmoffx, frmoffy);
->>>>>>> 0e9eab82ab943918392df37c929520485e863a43
 
 }
 
