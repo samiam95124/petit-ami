@@ -12165,9 +12165,6 @@ static void pa_init_graphics(int argc, char *argv[])
     cmaxvert = XInternAtom(padisplay, "_NET_WM_STATE_MAXIMIZED_VERT", 1);
     chidden = XInternAtom(padisplay, "_NET_WM_STATE_HIDDEN", 1);
 
-    /* find frame characteristics */
-    fndfrm();
-
 }
 
 /** ****************************************************************************
