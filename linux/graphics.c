@@ -138,7 +138,7 @@ static enum { /* debug levels */
 //#define PRTFNT /* print internal fonts list */
 //#define PRTMEM /* print memory allocations at exit */
 //#define PRTPWM /* print window parameters on open */
-//#define PRTFRM /* print Xwindow frame parameters */
+#define PRTFRM /* print Xwindow frame parameters */
 //#define NOWDELAY /* don't delay window presentation until drawn */
 //#define NOFAKEFOCUS /* don't fake focus for child windows */
 #ifndef __MACH__ /* Mac OS X */
@@ -210,6 +210,21 @@ static enum { /* debug levels */
 /* XWindows call lock/unlock */
 #define XWLOCK() pthread_mutex_lock(&xwlock)
 #define XWUNLOCK() pthread_mutex_unlock(&xwlock)
+
+/* motif window manager decoration bits, used to enable or disable windows
+   decorations. These are no longer defined in XLIB, but are operative. */
+#define MWM_HINTS_FUNCTIONS     (1L << 0)
+#define MWM_HINTS_DECORATIONS   (1L << 1)
+#define MWM_HINTS_INPUT_MODE    (1L << 2)
+#define MWM_HINTS_STATUS        (1L << 3)
+
+#define MWM_DECOR_ALL           (1L << 0)
+#define MWM_DECOR_BORDER        (1L << 1)
+#define MWM_DECOR_RESIZEH       (1L << 2)
+#define MWM_DECOR_TITLE         (1L << 3)
+#define MWM_DECOR_MENU          (1L << 4)
+#define MWM_DECOR_MINIMIZE      (1L << 5)
+#define MWM_DECOR_MAXIMIZE      (1L << 6)
 
 /* types of system vectors for override calls */
 
@@ -677,6 +692,18 @@ typedef struct systrk {
     int     joy; /* joystick number associated with this event */
 
 } systrk;
+
+/* motif property decoration hints data structure. This is no longer defined
+   in XLIB, but is still operative.  */
+typedef struct
+{
+    unsigned long       flags;
+    unsigned long       functions;
+    unsigned long       decorations;
+    long                inputmode;
+    unsigned long       status;
+
+} mwmhints;
 
 /*
  * Saved vectors to system calls. These vectors point to the old, existing
@@ -1512,6 +1539,92 @@ void prtwintre(winptr wp)
     fprintf(stderr, "Windows tree:\n");
     while (wp->parwin) wp = wp->parwin; /* find top of tree */
     prtwinety(wp, 0); /* print tree */
+
+}
+
+/** ****************************************************************************
+
+Enable or disable window frame
+
+Turns the window frame on and off. Expects the Xwindow handle, and an on/off
+flag. Note that decoration properties can only be set/reset one at a time.
+
+*******************************************************************************/
+
+void enbxfrm(Window xwh, int e)
+
+{
+
+    Atom mwmHintsProperty;
+    mwmhints hints;
+
+    XWLOCK();
+    mwmHintsProperty = XInternAtom(padisplay, "_MOTIF_WM_HINTS", 0);
+    hints.flags = MWM_HINTS_DECORATIONS;
+    if (e) hints.decorations = MWM_DECOR_ALL;
+    else hints.decorations = 0; /* everything off */
+    XChangeProperty(padisplay, xwh, mwmHintsProperty, mwmHintsProperty,
+                    32, PropModeReplace, (unsigned char *)&hints, 5);
+    XWUNLOCK();
+
+}
+
+/** ****************************************************************************
+
+Enable or disable window size bars
+
+Turns the window size bars on and off. Expects the Xwindow handle, and an on/off
+flag. Note that decoration properties can only be set/reset one at a time.
+
+On GNOME/Ubuntu 20.04 with GDM3 window manager, we are not capable of turning
+off the size bars alone, so this is a no-op. It may work on other window
+managers.
+
+*******************************************************************************/
+
+void enbxsiz(Window xwh, int e)
+
+{
+
+    Atom mwmHintsProperty;
+    mwmhints hints;
+
+    XWLOCK();
+    mwmHintsProperty = XInternAtom(padisplay, "_MOTIF_WM_HINTS", 0);
+    hints.flags = MWM_HINTS_DECORATIONS;
+    if (e) hints.decorations = MWM_DECOR_ALL;
+    else hints.decorations = MWM_DECOR_TITLE|MWM_DECOR_MENU|MWM_DECOR_MINIMIZE|
+                             MWM_DECOR_MAXIMIZE;
+    XChangeProperty(padisplay, xwh, mwmHintsProperty, mwmHintsProperty,
+                    32, PropModeReplace, (unsigned char *)&hints, 5);
+    XWUNLOCK();
+
+}
+
+/** ****************************************************************************
+
+Enable or disable window system bar
+
+Turns the window system bar on and off. Expects the Xwindow handle, and an on/off
+flag. Note that decoration properties can only be set/reset one at a time.
+
+*******************************************************************************/
+
+void enbxsys(Window xwh, int e)
+
+{
+
+    Atom mwmHintsProperty;
+    mwmhints hints;
+
+    XWLOCK();
+    mwmHintsProperty = XInternAtom(padisplay, "_MOTIF_WM_HINTS", 0);
+    hints.flags = MWM_HINTS_DECORATIONS;
+    if (e) hints.decorations = MWM_DECOR_ALL;
+    else hints.decorations = MWM_DECOR_BORDER;
+    XChangeProperty(padisplay, xwh, mwmHintsProperty, mwmHintsProperty,
+                    32, PropModeReplace, (unsigned char *)&hints, 5);
+    XWUNLOCK();
 
 }
 
@@ -11767,30 +11880,6 @@ Turns the window frame on and off.
 
 *******************************************************************************/
 
-/* these were defined in motif, which no longer exists */
-typedef struct
-{
-    unsigned long       flags;
-    unsigned long       functions;
-    unsigned long       decorations;
-    long                inputmode;
-    unsigned long       status;
-
-} mwmhints;
-
-#define MWM_HINTS_FUNCTIONS     (1L << 0)
-#define MWM_HINTS_DECORATIONS   (1L << 1)
-#define MWM_HINTS_INPUT_MODE    (1L << 2)
-#define MWM_HINTS_STATUS        (1L << 3)
-
-#define MWM_DECOR_ALL           (1L << 0)
-#define MWM_DECOR_BORDER        (1L << 1)
-#define MWM_DECOR_RESIZEH       (1L << 2)
-#define MWM_DECOR_TITLE         (1L << 3)
-#define MWM_DECOR_MENU          (1L << 4)
-#define MWM_DECOR_MINIMIZE      (1L << 5)
-#define MWM_DECOR_MAXIMIZE      (1L << 6)
-
 void pa_frame(FILE* f, int e)
 
 {
@@ -11801,14 +11890,7 @@ void pa_frame(FILE* f, int e)
 
     win = txt2win(f); /* get window context */
     win->frame = !!e; /* set new status of frame */
-    XWLOCK();
-    mwmHintsProperty = XInternAtom(padisplay, "_MOTIF_WM_HINTS", 0);
-    hints.flags = MWM_HINTS_DECORATIONS;
-    if (e) hints.decorations = MWM_DECOR_ALL;
-    else hints.decorations = 0; /* everything off */
-    XChangeProperty(padisplay, win->xmwhan, mwmHintsProperty, mwmHintsProperty,
-                    32, PropModeReplace, (unsigned char *)&hints, 5);
-    XWUNLOCK();
+    enbxfrm(win->xmwhan, e); /* enable/disable frame */
 
 }
 
@@ -11834,15 +11916,7 @@ void pa_sizable(FILE* f, int e)
 
     win = txt2win(f); /* get window context */
     win->size = !!e; /* set new status of size bars */
-    XWLOCK();
-    mwmHintsProperty = XInternAtom(padisplay, "_MOTIF_WM_HINTS", 0);
-    hints.flags = MWM_HINTS_DECORATIONS;
-    if (e) hints.decorations = MWM_DECOR_ALL;
-    else hints.decorations = MWM_DECOR_TITLE|MWM_DECOR_MENU|MWM_DECOR_MINIMIZE|
-                             MWM_DECOR_MAXIMIZE;
-    XChangeProperty(padisplay, win->xmwhan, mwmHintsProperty, mwmHintsProperty,
-                    32, PropModeReplace, (unsigned char *)&hints, 5);
-    XWUNLOCK();
+    enbxsiz(win->xmwhan, e); /* enable/disable size bars */
 
 }
 
@@ -11867,14 +11941,7 @@ void pa_sysbar(FILE* f, int e)
 
     win = txt2win(f); /* get window context */
     win->sysbar = !!e; /* set new status of system bar */
-    XWLOCK();
-    mwmHintsProperty = XInternAtom(padisplay, "_MOTIF_WM_HINTS", 0);
-    hints.flags = MWM_HINTS_DECORATIONS;
-    if (e) hints.decorations = MWM_DECOR_ALL;
-    else hints.decorations = MWM_DECOR_BORDER;
-    XChangeProperty(padisplay, win->xmwhan, mwmHintsProperty, mwmHintsProperty,
-                    32, PropModeReplace, (unsigned char *)&hints, 5);
-    XWUNLOCK();
+    enbxsys(win->xmwhan, e); /* enable/disable system bar */
 
 }
 
