@@ -705,6 +705,16 @@ typedef struct
 
 } mwmhints;
 
+/* top level frame parameters */
+typedef enum {
+
+    frmcfgall, /* all frame components on */
+    frmcfgfrm, /* frame all off */
+    frmcfgsiz, /* sizebars off */
+    frmcfgsys, /* system bar off */
+
+} frmcfg;
+
 /*
  * Saved vectors to system calls. These vectors point to the old, existing
  * vectors that were overriden by this module.
@@ -773,10 +783,10 @@ Atom cfocused; /* focused */
 Atom chidden;  /* hidden (iconized) */
 
 /* XWindow frame characteristics */
-int               frmextwdt;   /* frame extra width */
-int               frmexthgt;   /* frame extra height */
-int               frmoffx;     /* frame offset to client x */
-int               frmoffy;     /* frame offset to client y */
+int               frmextwdt[frmcfgsys+1];   /* frame extra width */
+int               frmexthgt[frmcfgsys+1];   /* frame extra height */
+int               frmoffx[frmcfgsys+1];     /* frame offset to client x */
+int               frmoffy[frmcfgsys+1];     /* frame offset to client y */
 
 /* memory statistics/diagnostics */
 static unsigned long memusd;    /* total memory in use for malloc */
@@ -1630,6 +1640,52 @@ void enbxsys(Window xwh, int e)
 
 /** ****************************************************************************
 
+Get window frame measurements
+
+Uses the difference between the given window and it's parent window to find the
+extra width, extra height, and offset to client of the child window.
+
+*******************************************************************************/
+
+void fndfrmdif(Window xw, int* ew, int* eh, int* ox, int* oy)
+
+{
+
+    XWindowAttributes xwga, xpwga; /* XWindow get attributes */
+    Window            pw, rw;
+    Window*           cwl;
+    unsigned          ncw;
+
+    /* get frame measurements */
+    XWLOCK();
+    XQueryTree(padisplay, xw, &rw, &pw, &cwl, &ncw);
+    XGetWindowAttributes(padisplay, pw, &xpwga);
+    XGetWindowAttributes(padisplay, xw, &xwga);
+    XWUNLOCK();
+
+    /* find net extra width of frame from client area */
+    *ew = xpwga.width-xwga.width;
+    *eh = xpwga.height-xwga.height;
+    /* find offset from parent origin to client origin */
+    *ox = xwga.x;
+    *oy = xwga.y;
+
+dbg_printf(dlinfo, "Client origin: (%d,%d) client width: %d client height: %d\n",
+           xwga.x, xwga.y, xwga.width, xwga.height);
+dbg_printf(dlinfo, "Parent origin: (%d,%d) parent width: %d parent height: %d\n",
+           xpwga.x, xpwga.y, xpwga.width, xpwga.height);
+
+#ifdef PRTFRM
+    dbg_printf(dlinfo, "Frame extra width all: %d\n", frmextwdt[frmcfgall]);
+    dbg_printf(dlinfo, "Frame extra height all: %d\n", frmexthgt[frmcfgall]);
+    dbg_printf(dlinfo, "Parent to client offset all: x: %d y: %d\n",
+                       frmoffx[frmcfgall], frmoffy[frmcfgall]);
+#endif
+
+}
+
+/** ****************************************************************************
+
 Find Xwindow frame specifications
 
 Finds the extra width, height, and offset to client of a XWindows frame. These
@@ -1639,6 +1695,8 @@ client window.
 
 
 *******************************************************************************/
+
+int colnum(pa_color c);
 
 void fndfrm(void)
 
@@ -1650,12 +1708,12 @@ void fndfrm(void)
     Window*           cwl;
     unsigned          ncw;
     XWindowAttributes xwga, xpwga; /* XWindow get attributes */
+    GC                xcxt;
 
     /* measure window frame characteristics */
     XWLOCK();
     wh = XCreateWindow(padisplay, RootWindow(padisplay, pascreen), 0, 0, 1, 1,
                        0, CopyFromParent, InputOutput, CopyFromParent, 0, NULL);
-
     /* select what events we want */
     XSelectInput(padisplay, wh, ExposureMask|KeyPressMask|
                  KeyReleaseMask|PointerMotionMask|ButtonPressMask|
@@ -1675,25 +1733,32 @@ void fndfrm(void)
     } while (xe.type != MapNotify || xe.xany.window != wh);
 
     /* get frame measurements */
+    fndfrmdif(wh, &frmextwdt[frmcfgall], &frmexthgt[frmcfgall],
+                  &frmoffx[frmcfgall], &frmoffy[frmcfgall]);
+
+    /* adjust and unmap window */
     XWLOCK();
-    XQueryTree(padisplay, wh, &rw, &pw, &cwl, &ncw);
-    XGetWindowAttributes(padisplay, pw, &xpwga);
-    XGetWindowAttributes(padisplay, wh, &xwga);
-    XUnmapWindow(padisplay, wh);
+    XMoveWindow(padisplay, wh, 0, 0);
+//    XUnmapWindow(padisplay, wh);
     XWUNLOCK();
 
-    /* find net extra width of frame from client area */
-    frmextwdt = xpwga.width-xwga.width;
-    frmexthgt = xpwga.height-xwga.height;
-    /* find offset from parent origin to client origin */
-    frmoffx = xwga.x;
-    frmoffy = xwga.y;
+    /* turn off frame */
+    enbxfrm(wh, FALSE);
+    /* get frame measurements */
+    fndfrmdif(wh, &frmextwdt[frmcfgfrm], &frmexthgt[frmcfgfrm],
+                  &frmoffx[frmcfgfrm], &frmoffy[frmcfgfrm]);
 
-#ifdef PRTFRM
-    dbg_printf(dlinfo, "Frame extra width: %d\n", frmextwdt);
-    dbg_printf(dlinfo, "Frame extra height: %d\n", frmexthgt);
-    dbg_printf(dlinfo, "Parent to client offset: x: %d y: %d\n", frmoffx, frmoffy);
-#endif
+    /* turn off the sizebars */
+    enbxsiz(wh, FALSE);
+    /* get frame measurements */
+    fndfrmdif(wh, &frmextwdt[frmcfgsiz], &frmexthgt[frmcfgsiz],
+                  &frmoffx[frmcfgsiz], &frmoffy[frmcfgsiz]);
+
+    /* turn off the system bar */
+    enbxsys(wh, FALSE);
+    /* get frame measurements */
+    fndfrmdif(wh, &frmextwdt[frmcfgsys], &frmexthgt[frmcfgsys],
+                  &frmoffx[frmcfgsys], &frmoffy[frmcfgsys]);
 
 }
 
@@ -4055,11 +4120,11 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
        This may not work on some window managers */
 
     /* find net extra width of frame from client area */
-    win->pfw = frmextwdt;
-    win->pfh = frmexthgt;
+    win->pfw = frmextwdt[frmcfgall];
+    win->pfh = frmexthgt[frmcfgall];
     /* find offset from parent origin to client origin */
-    win->cwox = frmoffx;
-    win->cwoy = frmoffy;
+    win->cwox = frmoffx[frmcfgall];
+    win->cwoy = frmoffy[frmcfgall];
 
     /* set window title from program name */
 #ifndef __MACH__ /* Mac OS X */
