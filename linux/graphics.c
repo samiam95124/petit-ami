@@ -138,7 +138,7 @@ static enum { /* debug levels */
 //#define PRTFNT /* print internal fonts list */
 //#define PRTMEM /* print memory allocations at exit */
 //#define PRTPWM /* print window parameters on open */
-#define PRTFRM /* print Xwindow frame parameters */
+//#define PRTFRM /* print Xwindow frame parameters */
 //#define NOWDELAY /* don't delay window presentation until drawn */
 //#define NOFAKEFOCUS /* don't fake focus for child windows */
 #ifndef __MACH__ /* Mac OS X */
@@ -1693,10 +1693,7 @@ characteristics are the same in all windows. We find them by creating a test
 window and measuring the difference between the outer (frame) window and the
 client window.
 
-
 *******************************************************************************/
-
-int colnum(pa_color c);
 
 void fndfrm(void)
 
@@ -1739,8 +1736,30 @@ void fndfrm(void)
     /* adjust and unmap window */
     XWLOCK();
     XMoveWindow(padisplay, wh, 0, 0);
-//    XUnmapWindow(padisplay, wh);
+    XUnmapWindow(padisplay, wh);
     XWUNLOCK();
+
+    /* set frame off parameters to all zeros */
+    frmextwdt[frmcfgfrm] = 0;
+    frmexthgt[frmcfgfrm] = 0;
+    frmoffx[frmcfgfrm] = 0;
+    frmoffy[frmcfgfrm] = 0;
+
+    /* set sizebars off parameters to same as normal (no-op) */
+    frmextwdt[frmcfgsiz] = frmextwdt[frmcfgfrm] = 0;
+    frmexthgt[frmcfgsiz] = frmexthgt[frmcfgfrm] = 0;
+    frmoffx[frmcfgsiz] = frmoffx[frmcfgfrm] = 0;
+    frmoffy[frmcfgsiz] = frmoffy[frmcfgfrm] = 0;
+
+    /* set system bar off parameters to all zeros */
+    frmextwdt[frmcfgsys] = 0;
+    frmexthgt[frmcfgsys] = 0;
+    frmoffx[frmcfgsys] = 0;
+    frmoffy[frmcfgsys] = 0;
+
+#if 0
+
+    /* I have not been able to automatically determine frame mode parameters */
 
     /* turn off frame */
     enbxfrm(wh, FALSE);
@@ -1759,6 +1778,8 @@ void fndfrm(void)
     /* get frame measurements */
     fndfrmdif(wh, &frmextwdt[frmcfgsys], &frmexthgt[frmcfgsys],
                   &frmoffx[frmcfgsys], &frmoffy[frmcfgsys]);
+
+#endif
 
 }
 
@@ -11661,15 +11682,9 @@ void pa_setsizg(FILE* f, int x, int y)
     XEvent e; /* Xwindow event */
 
     win = txt2win(f); /* get window context */
-    xwc.width = x; /* set frameless offset to client */
-    xwc.height = y;
-    if (win->frame) { /* if frame is enabled, calculate offset to client */
-
-        /* change to client terms with zero clip */
-        if (x > win->pfw) xwc.width = x-win->pfw; else xwc.width = 1;
-        if (y > win->pfh) xwc.height = y-win->pfh; else xwc.height = 1;
-
-    }
+    /* change to client terms with zero clip */
+    xwc.width = x-win->pfw; if (xwc.width < 1) xwc.width = 1;
+    xwc.height = y-win->pfh; if (xwc.height < 1) xwc.height = 1;
     /* Check repeated sizing. This prevents hangups due to the window manager
        ignoring such sets. */
     if (xwc.width != win->xmwr.w || xwc.height != win->xmwr.h) {
@@ -11897,15 +11912,25 @@ void pa_winclientg(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
     winptr win; /* windows record pointer */
 
     win = txt2win(f); /* get window from file */
-    if (BIT(pa_wmframe) & ms) { /* if the frame is on */
+    *wx = cx+frmextwdt[frmcfgall]; /* find framed size */
+    *wy = cy+frmexthgt[frmcfgall];
+    /* we only allow one frame mode at a time, so we process here in priority
+       order */
+    if (!(BIT(pa_wmframe) & ms)) {
 
-        *wx = cx+win->pfw; /* add width to frame */
-        *wy = cy+win->pfh; /* add height to frame */
+        *wx = cx+frmextwdt[frmcfgfrm]; /* find no frame size */
+        *wy = cy+frmexthgt[frmcfgfrm];
 
-    } else { /* no frame, thus no edge */
+    } else if (!(BIT(pa_wmsize) & ms)) {
 
-        *wx = cx;
-        *wy = cy;
+        *wx = cx+frmextwdt[frmcfgsiz]; /* find no size bar size */
+        *wy = cy+frmexthgt[frmcfgsiz];
+
+    } else if (!(BIT(pa_wmsysbar) & ms)) {
+
+        *wx = cx+frmextwdt[frmcfgsys]; /* find no system bar size */
+        *wy = cy+frmexthgt[frmcfgsys];
+
     }
 
 }
@@ -11954,8 +11979,31 @@ void pa_frame(FILE* f, int e)
     mwmhints hints;
 
     win = txt2win(f); /* get window context */
+    win->frame = FALSE; /* turn off all frame configures */
+    win->size = FALSE;
+    win->sysbar = FALSE;
     win->frame = !!e; /* set new status of frame */
     enbxfrm(win->xmwhan, e); /* enable/disable frame */
+
+    if (e) {
+
+        /* find net extra width of frame from client area */
+        win->pfw = frmextwdt[frmcfgall];
+        win->pfh = frmexthgt[frmcfgall];
+        /* find offset from parent origin to client origin */
+        win->cwox = frmoffx[frmcfgall];
+        win->cwoy = frmoffy[frmcfgall];
+
+    } else {
+
+        /* find net extra width of frame from client area */
+        win->pfw = frmextwdt[frmcfgfrm];
+        win->pfh = frmexthgt[frmcfgfrm];
+        /* find offset from parent origin to client origin */
+        win->cwox = frmoffx[frmcfgfrm];
+        win->cwoy = frmoffy[frmcfgfrm];
+
+    }
 
 }
 
@@ -11980,8 +12028,31 @@ void pa_sizable(FILE* f, int e)
     mwmhints hints;
 
     win = txt2win(f); /* get window context */
+    win->frame = FALSE; /* turn off all frame configures */
+    win->size = FALSE;
+    win->sysbar = FALSE;
     win->size = !!e; /* set new status of size bars */
     enbxsiz(win->xmwhan, e); /* enable/disable size bars */
+
+    if (e) {
+
+        /* find net extra width of frame from client area */
+        win->pfw = frmextwdt[frmcfgall];
+        win->pfh = frmexthgt[frmcfgall];
+        /* find offset from parent origin to client origin */
+        win->cwox = frmoffx[frmcfgall];
+        win->cwoy = frmoffy[frmcfgall];
+
+    } else {
+
+        /* find net extra width of frame from client area */
+        win->pfw = frmextwdt[frmcfgsiz];
+        win->pfh = frmexthgt[frmcfgsiz];
+        /* find offset from parent origin to client origin */
+        win->cwox = frmoffx[frmcfgsiz];
+        win->cwoy = frmoffy[frmcfgsiz];
+
+    }
 
 }
 
@@ -12005,8 +12076,31 @@ void pa_sysbar(FILE* f, int e)
     mwmhints hints;
 
     win = txt2win(f); /* get window context */
+    win->frame = FALSE; /* turn off all frame configures */
+    win->size = FALSE;
+    win->sysbar = FALSE;
     win->sysbar = !!e; /* set new status of system bar */
     enbxsys(win->xmwhan, e); /* enable/disable system bar */
+
+    if (e) {
+
+        /* find net extra width of frame from client area */
+        win->pfw = frmextwdt[frmcfgall];
+        win->pfh = frmexthgt[frmcfgall];
+        /* find offset from parent origin to client origin */
+        win->cwox = frmoffx[frmcfgall];
+        win->cwoy = frmoffy[frmcfgall];
+
+    } else {
+
+        /* find net extra width of frame from client area */
+        win->pfw = frmextwdt[frmcfgsys];
+        win->pfh = frmexthgt[frmcfgsys];
+        /* find offset from parent origin to client origin */
+        win->cwox = frmoffx[frmcfgsys];
+        win->cwoy = frmoffy[frmcfgsys];
+
+    }
 
 }
 

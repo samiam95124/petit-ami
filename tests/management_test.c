@@ -47,6 +47,31 @@ static int        cs;
 static long       t, et;
 static pa_color   c1, c2, c3;
 
+/*
+ * Debug print system
+ *
+ * Example use:
+ *
+ * dbg_printf(dlinfo, "There was an error: string: %s\n", bark);
+ *
+ * mydir/test.c:myfunc():12: There was an error: somestring
+ *
+ */
+
+static enum { /* debug levels */
+
+    dlinfo, /* informational */
+    dlwarn, /* warnings */
+    dlfail, /* failure/critical */
+    dlnone  /* no messages */
+
+} dbglvl = dlinfo;
+
+#define dbg_printf(lvl, fmt, ...) \
+        do { if (lvl >= dbglvl) fprintf(stderr, "%s:%s():%d: " fmt, __FILE__, \
+                                __func__, __LINE__, ##__VA_ARGS__); \
+                                fflush(stderr); } while (0)
+
 /* wait return to be pressed, or handle terminate */
 
 static void waitnext(void)
@@ -259,6 +284,8 @@ static pa_color nextcolor(pa_color c)
 int main(void)
 
 {
+
+    int xr;
 
     if (setjmp(terminate_buf)) goto terminate;
 
@@ -832,7 +859,7 @@ int main(void)
     putc('\f', win3);
     fprintf(win3, "I am child window 2\n");
     pa_home(stdout);
-    printf("There should be 3 labeled child windows below, with frames   \n");
+    printf("There should be 2 labeled child windows below, with frames   \n");
     printf("(the system may not implement frames on child windows)       \n");
     printf("Test focus can be moved between windows, including the main  \n");
     printf("window. Test windows can be minimized and maximized          \n");
@@ -888,7 +915,7 @@ int main(void)
     putc('\f', win3);
     fprintf(win3, "I am child window 2\n");
     pa_home(stdout);
-    printf("There should be 3 labled child windows below, with frames   \n");
+    printf("There should be 2 labeled child windows below, with frames   \n");
     printf("(the system may not implement frames on child windows)      \n");
     printf("Test focus can be moved between windows, test windows can be \n");
     printf("minimized and maximized (if framed), test entering           \n");
@@ -1278,58 +1305,59 @@ int main(void)
     /* ************************ Window size calculate pixel ******************** */
 
     putchar('\f');
+    xr = pa_maxxg(stdout)/3; /* ratio window but parent */
     prtceng(pa_maxyg(stdout)-pa_chrsizy(stdout), "Window size calculate pixel");
     pa_home(stdout);
     pa_openwin(&stdin, &win2, NULL, 2);
     pa_linewidth(stdout, 1);
     pa_fcolor(win2, pa_cyan);
-    pa_winclientg(stdout, 200, 200, &x, &y, BIT(pa_wmframe) | BIT(pa_wmsize) | BIT(pa_wmsysbar));
-    printf("For (200, 200) client, full frame, window size is: %d,%d\n", x, y);
+    pa_winclientg(stdout, xr, xr, &x, &y, BIT(pa_wmframe) | BIT(pa_wmsize) | BIT(pa_wmsysbar));
+    printf("For (%d, %d) client, full frame, window size is: %d,%d\n", xr, xr, x, y);
     pa_setsizg(win2, x, y);
-    pa_rect(win2, 1, 1, 200, 200);
-    pa_line(win2, 1, 1, 200, 200);
-    pa_line(win2, 1, 200, 200, 1);
+    pa_rect(win2, 1, 1, xr, xr);
+    pa_line(win2, 1, 1, xr, xr);
+    pa_line(win2, 1, xr, xr, 1);
     pa_curvis(win2, OFF);
-    printf("Check client window has (200, 200) surface\n");
+    printf("Check client window has (%d, %d) surface\n", xr, xr);
     waitnext();
 
     printf("System bar off\n");
     pa_sysbar(win2, OFF);
-    pa_winclientg(stdout, 200, 200, &x, &y, BIT(pa_wmframe) | BIT(pa_wmsize));
-    printf("For (200, 200) client, no system bar, window size is: %d,%d\n", x, y);
+    pa_winclientg(stdout, xr, xr, &x, &y, BIT(pa_wmframe) | BIT(pa_wmsize));
+    printf("For (%d, %d) client, no system bar, window size is: %d,%d\n", xr, xr, x, y);
     pa_setsizg(win2, x, y);
     putc('\f', win2);
-    pa_rect(win2, 1, 1, 200, 200);
-    pa_line(win2, 1, 1, 200, 200);
-    pa_line(win2, 1, 200, 200, 1);
-    printf("Check client window has (200, 200) surface\n");
+    pa_rect(win2, 1, 1, xr, xr);
+    pa_line(win2, 1, 1, xr, xr);
+    pa_line(win2, 1, xr, xr, 1);
+    printf("Check client window has (%d, %d) surface\n", xr, xr);
     waitnext();
 
     printf("Sizing bars off\n");
     pa_sysbar(win2, ON);
     pa_sizable(win2, OFF);
-    pa_winclientg(stdout, 200, 200, &x, &y, BIT(pa_wmframe) | BIT(pa_wmsysbar));
-    printf("For (200, 200) client, no sizing, window size is: %d,%d\n", x, y);
+    pa_winclientg(stdout, xr, xr, &x, &y, BIT(pa_wmframe) | BIT(pa_wmsysbar));
+    printf("For (%d, %d) client, no sizing, window size is: %d,%d\n", xr, xr, x, y);
     pa_setsizg(win2, x, y);
     putc('\f', win2);
-    pa_rect(win2, 1, 1, 200, 200);
-    pa_line(win2, 1, 1, 200, 200);
-    pa_line(win2, 1, 200, 200, 1);
-    printf("Check client window has (200, 200) surface\n");
+    pa_rect(win2, 1, 1, xr, xr);
+    pa_line(win2, 1, 1, xr, xr);
+    pa_line(win2, 1, xr, xr, 1);
+    printf("Check client window has (%d, %d) surface\n", xr, xr);
     waitnext();
 
     printf("frame off\n");
     pa_sysbar(win2, ON);
     pa_sizable(win2, ON);
     pa_frame(win2, OFF);
-    pa_winclientg(stdout, 200, 200, &x, &y, BIT(pa_wmsize) | BIT(pa_wmsysbar));
-    printf("For (200, 200) client, no frame, window size is: %d,%d\n", x, y);
+    pa_winclientg(stdout, xr, xr, &x, &y, BIT(pa_wmsize) | BIT(pa_wmsysbar));
+    printf("For (%d, %d) client, no frame, window size is: %d,%d\n", xr, xr, x, y);
     pa_setsizg(win2, x, y);
     putc('\f', win2);
-    pa_rect(win2, 1, 1, 200, 200);
-    pa_line(win2, 1, 1, 200, 200);
-    pa_line(win2, 1, 200, 200, 1);
-    printf("Check client window has (200, 200) surface\n");
+    pa_rect(win2, 1, 1, xr, xr);
+    pa_line(win2, 1, 1, xr, xr);
+    pa_line(win2, 1, xr, xr, 1);
+    printf("Check client window has (%d, %d) surface\n", xr, xr);
     waitnext();
 
     fclose(win2);
