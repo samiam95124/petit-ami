@@ -1670,11 +1670,6 @@ void fndfrmdif(Window xw, int* ew, int* eh, int* ox, int* oy)
     *ox = xwga.x;
     *oy = xwga.y;
 
-dbg_printf(dlinfo, "Client origin: (%d,%d) client width: %d client height: %d\n",
-           xwga.x, xwga.y, xwga.width, xwga.height);
-dbg_printf(dlinfo, "Parent origin: (%d,%d) parent width: %d parent height: %d\n",
-           xpwga.x, xpwga.y, xpwga.width, xpwga.height);
-
 #ifdef PRTFRM
     dbg_printf(dlinfo, "Frame extra width all: %d\n", frmextwdt[frmcfgall]);
     dbg_printf(dlinfo, "Frame extra height all: %d\n", frmexthgt[frmcfgall]);
@@ -1737,6 +1732,8 @@ void fndfrm(void)
     XWLOCK();
     XMoveWindow(padisplay, wh, 0, 0);
     XUnmapWindow(padisplay, wh);
+    /* destroy the window */
+    XDestroyWindow(padisplay, wh);
     XWUNLOCK();
 
     /* set frame off parameters to all zeros */
@@ -1756,30 +1753,6 @@ void fndfrm(void)
     frmexthgt[frmcfgsys] = 0;
     frmoffx[frmcfgsys] = 0;
     frmoffy[frmcfgsys] = 0;
-
-#if 0
-
-    /* I have not been able to automatically determine frame mode parameters */
-
-    /* turn off frame */
-    enbxfrm(wh, FALSE);
-    /* get frame measurements */
-    fndfrmdif(wh, &frmextwdt[frmcfgfrm], &frmexthgt[frmcfgfrm],
-                  &frmoffx[frmcfgfrm], &frmoffy[frmcfgfrm]);
-
-    /* turn off the sizebars */
-    enbxsiz(wh, FALSE);
-    /* get frame measurements */
-    fndfrmdif(wh, &frmextwdt[frmcfgsiz], &frmexthgt[frmcfgsiz],
-                  &frmoffx[frmcfgsiz], &frmoffy[frmcfgsiz]);
-
-    /* turn off the system bar */
-    enbxsys(wh, FALSE);
-    /* get frame measurements */
-    fndfrmdif(wh, &frmextwdt[frmcfgsys], &frmexthgt[frmcfgsys],
-                  &frmoffx[frmcfgsys], &frmoffy[frmcfgsys]);
-
-#endif
 
 }
 
@@ -11977,8 +11950,11 @@ void pa_frame(FILE* f, int e)
     winptr win; /* pointer to windows context */
     Atom mwmHintsProperty;
     mwmhints hints;
+    XWindowChanges xwc; /* XWindow values */
+    int chg;            /* geometry change */
 
     win = txt2win(f); /* get window context */
+    chg = win->frame != !!e; /* set frame has changed */
     win->frame = FALSE; /* turn off all frame configures */
     win->size = FALSE;
     win->sysbar = FALSE;
@@ -12005,6 +11981,22 @@ void pa_frame(FILE* f, int e)
 
     }
 
+    if (chg) { /* geometry has changed */
+
+        xwc.width = win->gmaxxg; /* set XWindow width and height */
+        xwc.height = win->gmaxyg;
+        XWLOCK();
+        XConfigureWindow(padisplay, win->xmwhan, CWWidth|CWHeight, &xwc);
+        XWUNLOCK();
+
+        /* set new size */
+        win->xmwr.w = win->gmaxxg;
+        win->xmwr.h = win->gmaxyg;
+
+        restore(win); /* restore buffer to screen */
+
+    }
+
 }
 
 /** ****************************************************************************
@@ -12026,8 +12018,11 @@ void pa_sizable(FILE* f, int e)
     winptr win; /* pointer to windows context */
     Atom mwmHintsProperty;
     mwmhints hints;
+    XWindowChanges xwc; /* XWindow values */
+    int chg;            /* geometry change */
 
     win = txt2win(f); /* get window context */
+    chg = win->size != !!e; /* set size has changed */
     win->frame = FALSE; /* turn off all frame configures */
     win->size = FALSE;
     win->sysbar = FALSE;
@@ -12054,6 +12049,22 @@ void pa_sizable(FILE* f, int e)
 
     }
 
+    if (chg) { /* geometry has changed */
+
+        xwc.width = win->gmaxxg; /* set XWindow width and height */
+        xwc.height = win->gmaxyg;
+        XWLOCK();
+        XConfigureWindow(padisplay, win->xmwhan, CWWidth|CWHeight, &xwc);
+        XWUNLOCK();
+
+        /* set new size */
+        win->xmwr.w = win->gmaxxg;
+        win->xmwr.h = win->gmaxyg;
+
+        restore(win); /* restore buffer to screen */
+
+    }
+
 }
 
 /** ****************************************************************************
@@ -12074,8 +12085,11 @@ void pa_sysbar(FILE* f, int e)
     winptr win; /* pointer to windows context */
     Atom mwmHintsProperty;
     mwmhints hints;
+    XWindowChanges xwc; /* XWindow values */
+    int chg;            /* geometry change */
 
     win = txt2win(f); /* get window context */
+    chg = win->sysbar != !!e; /* set sysbar has changed */
     win->frame = FALSE; /* turn off all frame configures */
     win->size = FALSE;
     win->sysbar = FALSE;
@@ -12099,6 +12113,22 @@ void pa_sysbar(FILE* f, int e)
         /* find offset from parent origin to client origin */
         win->cwox = frmoffx[frmcfgsys];
         win->cwoy = frmoffy[frmcfgsys];
+
+    }
+
+    if (chg) { /* geometry has changed */
+
+        xwc.width = win->gmaxxg; /* set XWindow width and height */
+        xwc.height = win->gmaxyg;
+        XWLOCK();
+        XConfigureWindow(padisplay, win->xmwhan, CWWidth|CWHeight, &xwc);
+        XWUNLOCK();
+
+        /* set new size */
+        win->xmwr.w = win->gmaxxg;
+        win->xmwr.h = win->gmaxyg;
+
+        restore(win); /* restore buffer to screen */
 
     }
 
