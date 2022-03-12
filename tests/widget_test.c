@@ -21,6 +21,31 @@
 #include <services.h>
 #include <graphics.h>
 
+/*
+ * Debug print system
+ *
+ * Example use:
+ *
+ * dbg_printf(dlinfo, "There was an error: string: %s\n", bark);
+ *
+ * mydir/test.c:myfunc():12: There was an error: somestring
+ *
+ */
+
+static enum { /* debug levels */
+
+    dlinfo, /* informational */
+    dlwarn, /* warnings */
+    dlfail, /* failure/critical */
+    dlnone  /* no messages */
+
+} dbglvl = dlinfo;
+
+#define dbg_printf(lvl, fmt, ...) \
+        do { if (lvl >= dbglvl) fprintf(stderr, "%s:%s():%d: " fmt, __FILE__, \
+                                __func__, __LINE__, ##__VA_ARGS__); \
+                                fflush(stderr); } while (0)
+
 #define SECOND 10000 /* one second timer */
 
 static jmp_buf       terminate_buf;

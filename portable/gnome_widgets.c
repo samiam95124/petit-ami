@@ -1137,9 +1137,9 @@ static void widget(FILE* f, int x1, int y1, int x2, int y2, char* s, int id,
     pa_auto((*wp)->wf, FALSE); /* turn off auto */
     pa_curvis((*wp)->wf, FALSE); /* turn off cursor */
     pa_font((*wp)->wf, PA_FONT_SIGN); /* set sign font */
+    pa_frame((*wp)->wf, FALSE); /* turn off frame */
     pa_setposg((*wp)->wf, x1, y1); /* place at position */
     pa_setsizg((*wp)->wf, x2-x1, y2-y1); /* set size */
-    pa_frame((*wp)->wf, FALSE); /* turn off frame */
     pa_binvis((*wp)->wf); /* no background write */
     (*wp)->typ = typ; /* place type */
     (*wp)->pressed = FALSE; /* set not pressed */
