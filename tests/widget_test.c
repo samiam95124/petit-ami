@@ -55,7 +55,7 @@ static char          s[100];
 static char          ss[100], rs[100];
 static int           prog;
 static pa_strptr     sp, lp;
-static int           x, y;
+static int           x, y, lm;
 static int           r, g, b;
 static pa_qfnopts    optf;
 static pa_qfropts    optfr;
@@ -149,6 +149,7 @@ int main(void)
     if (setjmp(terminate_buf)) goto terminate;
 
     pa_curvis(stdout, FALSE);
+#if 0
     printf("Widget test vs. 0.1\n");
     printf("\n");
     printf("Hit return in any window to continue for each test\n");
@@ -216,19 +217,24 @@ int main(void)
     pa_killwidget(stdout, 2);
     pa_killwidget(stdout, 3);
 
-    /* ************************* Graphical Button test ************************* */
+#endif
+    /* ************************* Graphical Buttons test ************************* */
 
     printf("\f");
     printf("Graphical buttons test\n");
     printf("\n");
-    pa_buttonsizg(stdout, "Hello, there", &x, &y);
-    pa_buttong(stdout, 100, 100, 100+x, 100+y, "Hello, there", 1);
-    pa_buttonsizg(stdout, "Bark!", &x, &y);
-    pa_buttong(stdout, 100, 150, 100+x, 150+y, "Bark!", 2);
-    pa_buttonsizg(stdout, "Sniff", &x, &y);
-    pa_buttong(stdout, 100, 200, 100+x, 200+y, "Sniff", 3);
     printf("Hit the buttons, or return to continue\n");
     printf("\n");
+    lm = pa_maxxg(stdout)/20; /* set left margin */
+    i = pa_curyg(stdout); /* set y position buttons */
+    pa_buttonsizg(stdout, "Hello, there", &x, &y);
+    pa_buttong(stdout, lm, i, lm+x, i+y, "Hello, there", 1);
+    i += y+y/2; /* set increment between buttons */
+    pa_buttonsizg(stdout, "Bark!", &x, &y);
+    pa_buttong(stdout, lm, i, lm+x, i+y, "Bark!", 2);
+    i += y+y/2; /* set increment between buttons */
+    pa_buttonsizg(stdout, "Sniff", &x, &y);
+    pa_buttong(stdout, lm, i, lm+x, i+y, "Sniff", 3);
     do {
 
         pa_event(stdin, &er);
