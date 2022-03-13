@@ -3,6 +3,9 @@
 1. Graphics needs a TrueType facillity like FreeType to give it a reasonable 
 number of non-obsolete fonts.
 
+Note an alternative is to pick up some fonts from XQuartz, which seems to have
+a lot of them.
+
 2. Need to implement multitask locking broadly across the code.
 
 3. Joystick events and frame timer events must go to either a window or all 
@@ -30,6 +33,18 @@ property. Note that not all window managers obey this standard.
 but the delay still shows up in stacked menus. We can do better by delaying most
 of the window parameters for an open call when it is really required.
 
+The code presently delays the PRESENTATION of the window, but not the open call.
+Hard to see how X could take significant time to configure a window that is not
+presented. Thus I don't believe this is valuable.
+
+8, The sizing and position calls wait for a response from the windows manager.
+I suspect this is not needed, since we use local cached parameters, and it would
+be a system error if the Window manager didn't follow through in any case.
+
+Note also this wold remove the need to check redundant sets, because if the 
+request is redundant and ignored, we don't care. It does, however, remove the
+need to run the communication, and the time required.
+
 Follow up:
 
 12. Management test/child windows test character. Leave the previous frametest
@@ -48,4 +63,3 @@ halts the animation. I verified this does not happen in Linux.
 16. Mac OS X/XQuartz, seeing some memory errors flagged.
 
 17. Mac OS X/XQuartz, management test, front/back test does not work.
-
