@@ -55,7 +55,7 @@ static char          s[100];
 static char          ss[100], rs[100];
 static int           prog;
 static pa_strptr     sp, lp;
-static int           x, y, lm;
+static int           x, y, lm, xs, ys, bx, by;
 static int           r, g, b;
 static pa_qfnopts    optf;
 static pa_qfropts    optfr;
@@ -217,7 +217,6 @@ int main(void)
     pa_killwidget(stdout, 2);
     pa_killwidget(stdout, 3);
 
-#endif
     /* ************************* Graphical Buttons test ************************* */
 
     printf("\f");
@@ -362,17 +361,22 @@ int main(void)
     printf("\f");
     printf("Graphical checkbox test\n");
     printf("\n");
+    printf("Hit the checkbox, or return to continue\n");
+    printf("\n");
+    lm = pa_maxxg(stdout)/20; /* set left margin */
+    i = pa_curyg(stdout); /* set y position buttons */
     chk = FALSE;
     chk2 = FALSE;
     chk3 = FALSE;
     pa_checkboxsizg(stdout, "Pick me", &x, &y);
-    pa_checkboxg(stdout, 100, 100, 100+x, 100+y, "Pick me", 1);
+    pa_checkboxg(stdout, lm, i, lm+x, i+y, "Pick me", 1);
+        i += y+y/2; /* set increment between checkboxes */
     pa_checkboxsizg(stdout, "Or me", &x, &y);
-    pa_checkboxg(stdout, 100, 150, 100+x, 150+y, "Or me", 2);
+    pa_checkboxg(stdout, lm, i, lm+x, i+y, "Or me", 2);
+        i += y+y/2; /* set increment between checkboxes */
     pa_checkboxsizg(stdout, "No, me", &x, &y);
-    pa_checkboxg(stdout, 100, 200, 100+x, 200+y, "No, me", 3);
-    printf("Hit the checkbox, or return to continue\n");
-    printf("\n");
+    pa_checkboxg(stdout, lm, i, lm+x, i+y, "No, me", 3);
+
     do {
 
         pa_event(stdin, &er);
@@ -530,17 +534,22 @@ int main(void)
     printf("\f");
     printf("Graphical radio button test\n");
     printf("\n");
+    printf("Hit the radio button, or return to continue\n");
+    printf("\n");
+    lm = pa_maxxg(stdout)/20; /* set left margin */
+    i = pa_curyg(stdout); /* set y position buttons */
     chk = FALSE;
     chk2 = FALSE;
     chk3 = FALSE;
     pa_radiobuttonsizg(stdout, "Station 1", &x, &y);
-    pa_radiobuttong(stdout, 100, 100, 100+x, 100+y, "Station 1", 1);
+    pa_radiobuttong(stdout, lm, i, lm+x, i+y, "Station 1", 1);
+    i += y+y/2; /* set increment between buttons */
     pa_radiobuttonsizg(stdout, "Station 2", &x, &y);
-    pa_radiobuttong(stdout, 100, 150, 100+x, 150+y, "Station 2", 2);
+    pa_radiobuttong(stdout, lm, i, lm+x, i+y, "Station 2", 2);
+    i += y+y/2; /* set increment between buttons */
     pa_radiobuttonsizg(stdout, "Station 3", &x, &y);
-    pa_radiobuttong(stdout, 100, 200, 100+x, 200+y, "Station 3", 3);
-    printf("Hit the radio button, or return to continue\n");
-    printf("\n");
+    pa_radiobuttong(stdout, lm, i, lm+x, i+y, "Station 3", 3);
+
     do {
 
         pa_event(stdin, &er);
@@ -642,23 +651,30 @@ int main(void)
     printf("\f");
     printf("Graphical group box test\n");
     printf("\n");
-    pa_groupsizg(stdout, "Hello there", 0, 0, &x, &y, &ox, &oy);
-    pa_groupg(stdout, 100, 100, 100+x, 100+y, "Hello there", 1);
     printf("This is a group box with a null client area\n");
     printf("Hit return to continue\n");
+    printf("\n");
+    xs = pa_maxxg(stdout)/10; /* set size of group client */
+    ys = xs;
+    lm = pa_maxxg(stdout)/20; /* set left margin */
+    i = pa_curyg(stdout)+7*pa_chrsizy(stdout); /* set y position buttons */
+    pa_groupsizg(stdout, "Hello there", 0, 0, &x, &y, &ox, &oy);
+    pa_groupg(stdout, lm, i, lm+x, i+y, "Hello there", 1);
     waitnext();
     pa_killwidget(stdout, 1);
-    pa_groupsizg(stdout, "Hello there", 200, 200, &x, &y, &ox, &oy);
-    pa_groupg(stdout, 100, 100, 100+x, 100+y, "Hello there", 1);
-    printf("This is a group box with a 200,200 client area\n");
+    printf("This is a group box with a %d,%d client area\n", xs, ys);
     printf("Hit return to continue\n");
+    printf("\n");
+    pa_groupsizg(stdout, "Hello there", xs, ys, &x, &y, &ox, &oy);
+    pa_groupg(stdout, lm, i, lm+x, i+y, "Hello there", 1);
     waitnext();
     pa_killwidget(stdout, 1);
-    pa_groupsizg(stdout, "Hello there", 200, 200, &x, &y, &ox, &oy);
-    pa_groupg(stdout, 100, 100, 100+x, 100+y, "Hello there", 1);
-    pa_buttong(stdout, 100+ox, 100+oy, 100+ox+200, 100+oy+200, "Bark, bark!", 2);
-    printf("This is a group box with a 200,200 layered button\n");
+    printf("This is a group box with a %d,%d layered button\n", xs, ys);
     printf("Hit return to continue");
+    printf("\n");
+    pa_groupsizg(stdout, "Hello there", xs, ys, &x, &y, &ox, &oy);
+    pa_groupg(stdout, lm, i, lm+x, i+y, "Hello there", 1);
+    pa_buttong(stdout, lm+ox, i+oy, lm+ox+xs, i+oy+ys, "Bark, bark!", 2);
     waitnext();
     pa_killwidget(stdout, 1);
     pa_killwidget(stdout, 2);
@@ -685,10 +701,17 @@ int main(void)
     printf("\f");
     printf("Graphical background test\n");
     printf("\n");
-    pa_backgroundg(stdout, 100, 100, 400, 200, 1);
     printf("Hit return to continue\n");
+    printf("\n");
+    xs = pa_maxxg(stdout)/5; /* set size of group client */
+    ys = xs;
+    bx = xs/10;
+    by = bx;
+    lm = pa_maxxg(stdout)/20; /* set left margin */
+    i = pa_curyg(stdout)+pa_chrsizy(stdout)*3; /* set y position buttons */
+    pa_backgroundg(stdout, lm, i, lm+xs, i+ys, 1);
     waitnext();
-    pa_buttong(stdout, 110, 110, 390, 190, "Bark, bark!", 2);
+    pa_buttong(stdout, lm+bx, i+by, lm+xs-bx, i+ys-by, "Bark, bark!", 2);
     printf("This is a background with a layered button\n");
     printf("Hit return to continue\n");
     waitnext();
@@ -697,11 +720,17 @@ int main(void)
 
     /* *********************** Terminal scroll bar test *********************** */
 
+#endif
     printf("\f");
     chrgrid();
     pa_binvis(stdout);
     printf("Terminal scroll bar test\n");
     printf("\n");
+    xs = pa_maxxg(stdout)/5; /* set size of group client */
+    ys = xs;
+    bx = xs/10;
+    by = bx;
+    lm = pa_maxxg(stdout)/20; /* set left margin */
     pa_scrollvertsiz(stdout, &x, &y);
     pa_scrollvert(stdout, 10, 10, 10+x-1, 20, 1);
     pa_scrollhorizsiz(stdout, &x, &y);

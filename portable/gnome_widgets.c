@@ -1682,11 +1682,19 @@ void pa_scrollvertsizg(FILE* f, int* w, int* h)
 
 {
 
+    *w = 10;
+    *h = 10;
+
 }
 
 void pa_scrollvertsiz(FILE* f, int* w, int* h)
 
 {
+
+    pa_scrollvertsizg(f, w, h); /* get in graphics terms */
+    /* change graphical size to character */
+    *w = (*w-1)/pa_chrsizx(f)+1;
+    *h = (*h-1)/pa_chrsizy(f)+1;
 
 }
 
@@ -1734,11 +1742,19 @@ void pa_scrollhorizsizg(FILE* f, int* w, int* h)
 
 {
 
+    *w = 10;
+    *h = 10;
+
 }
 
 void pa_scrollhorizsiz(FILE* f, int* w, int* h)
 
 {
+
+    pa_scrollhorizsizg(f, w, h); /* get in graphics terms */
+    /* change graphical size to character */
+    *w = (*w-1)/pa_chrsizx(f)+1;
+    *h = (*h-1)/pa_chrsizy(f)+1;
 
 }
 
