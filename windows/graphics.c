@@ -116,6 +116,7 @@ static enum { /* debug levels */
 
 /* enter debugger on fail */
 #define ENTDBG 1
+//#define WAITCANCEL /* wait for user cancel on uncommanded exit */
 
 /*
  * Configurable parameters
@@ -15967,6 +15968,9 @@ static void pa_deinit_graph(void)
     int    fi;
 
     lockmain(); /* start exclusive access */
+    /* using mingw, the graphics .dlls will be exited by the time we reach here,
+       so we cannot perform the wait uncommanded exit */
+#ifdef WAITCANCEL
     /* if the program tries to exit when the user has not ordered an exit, it
        is assumed to be a windows "unaware" program. We stop before we exit
        these, so that their content may be viewed */
@@ -15998,6 +16002,7 @@ static void pa_deinit_graph(void)
         }
 
     }
+
     /* close any open windows */
     if (!dblflt)  { /* we haven"t already exited */
 
@@ -16008,6 +16013,7 @@ static void pa_deinit_graph(void)
                 clswin(fi); /* close open window */
 
     }
+#endif
     /* kill subthread */
     TerminateThread(threadhdl, 0);
     unlockmain(); /* end exclusive access */

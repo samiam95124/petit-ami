@@ -29,6 +29,10 @@ widget test
 area of the main window to get keyboard focus again. [what is the point of giving
 a button keyboard focus? it cannot input keys?]
 
+This matches the behavior of Xwindows. I think the answer is to advise the user of
+this, and advise it is best to define a "next" button or other method to continue,
+instead of relying on CRs.
+
 2. querycolor(), querysave(), queryfind(), and queryfindrep() need their 
 descriptions updated.
 
@@ -52,6 +56,9 @@ function is executed, something has occurred to damage the input queue such that
 characters typed to the input queue are not serviced, and thus the window locks
 as unresponsive. This was proved by moving the hold code into a function "softshutdown()"
 then call that from main program, and it works fine.
+
+This was caused by mingw/windows shutting down the graphics .dll before the deinit
+procedure is executed. The workaround is to not do autohold.
 
 2. When error send to dialog is enabled, I have seen double faults where the dialog
 is closed, then an error is sent to main window.
