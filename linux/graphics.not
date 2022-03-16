@@ -45,6 +45,12 @@ Note also this wold remove the need to check redundant sets, because if the
 request is redundant and ignored, we don't care. It does, however, remove the
 need to run the communication, and the time required.
 
+9. In the scrollbar minimums test, the scrollbars are difficult to grab and 
+move.
+
+10. In the scrollbar minimums test, positioning the bar occasionally makes it
+lock up sending messages.
+
 Follow up:
 
 12. Management test/child windows test character. Leave the previous frametest

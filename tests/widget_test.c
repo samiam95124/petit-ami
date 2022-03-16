@@ -55,7 +55,7 @@ static char          s[100];
 static char          ss[100], rs[100];
 static int           prog;
 static pa_strptr     sp, lp;
-static int           x, y, lm, xs, ys, bx, by;
+static int           x, y, lm, xs, ys, bx, by, ix,iy;
 static int           r, g, b;
 static pa_qfnopts    optf;
 static pa_qfropts    optfr;
@@ -720,7 +720,6 @@ int main(void)
 
     /* *********************** Terminal scroll bar test *********************** */
 
-#endif
     printf("\f");
     chrgrid();
     pa_binvis(stdout);
@@ -877,10 +876,15 @@ int main(void)
     printf("\f");
     printf("Graphical scroll bar test\n");
     printf("\n");
+    lm = pa_maxxg(stdout)/20; /* set left margin */
+    iy = pa_curyg(stdout); /* set y increment */
+    ys = pa_maxyg(stdout)/4;
+    xs = ys;
     pa_scrollvertsizg(stdout, &x, &y);
-    pa_scrollvertg(stdout, 100, 100, 100+x, 300, 1);
+    pa_scrollvertg(stdout, lm, iy, lm+x, iy+ys, 1);
     pa_scrollhorizsizg(stdout, &x, &y);
-    pa_scrollhorizg(stdout, 150, 100, 350, 100+y, 2);
+    pa_scrollhorizg(stdout, lm+x+pa_chrsizx(stdout), iy,
+                            lm+x+pa_chrsizx(stdout)+xs, iy+y, 2);
     do {
 
         pa_event(stdin, &er);
@@ -909,16 +913,22 @@ int main(void)
     printf("\f");
     printf("Graphical scroll bar sizing test\n");
     printf("\n");
-    pa_scrollvertg(stdout, 100, 100, 120, 300, 1);
-    pa_scrollsiz(stdout, 1, (INT_MAX / 4)*3);
-    pa_scrollvertg(stdout, 100+50, 100, 120+50, 300, 2);
-    pa_scrollsiz(stdout, 2, INT_MAX / 2);
-    pa_scrollvertg(stdout, 100+100, 100, 120+100, 300, 3);
-    pa_scrollsiz(stdout, 3, INT_MAX / 4);
-    pa_scrollvertg(stdout, 100+150, 100, 120+150, 300, 4);
-    pa_scrollsiz(stdout, 4, INT_MAX / 8);
     printf("Now should be four scrollbars, decending in size to the right.\n");
     printf("All of the scrollbars can be manipulated.\n");
+    printf("\n");
+    lm = pa_maxxg(stdout)/20; /* set left margin */
+    iy = pa_curyg(stdout); /* set y increment */
+    ys = pa_maxyg(stdout)/4;
+    xs = pa_maxxg(stdout)/30;
+    pa_scrollvertsizg(stdout, &x, &y);
+    pa_scrollvertg(stdout, lm, iy, lm+x, iy+ys, 1);
+    pa_scrollsiz(stdout, 1, (INT_MAX / 4)*3);
+    pa_scrollvertg(stdout, lm+xs, iy, lm+xs+x, iy+ys, 2);
+    pa_scrollsiz(stdout, 2, INT_MAX / 2);
+    pa_scrollvertg(stdout, lm+xs*2, iy, lm+xs*2+x, iy+ys, 3);
+    pa_scrollsiz(stdout, 3, INT_MAX / 4);
+    pa_scrollvertg(stdout, lm+xs*3, iy, lm+xs*3+x, iy+ys, 4);
+    pa_scrollsiz(stdout, 4, INT_MAX / 8);
     do {
 
         pa_event(stdin, &er);
@@ -949,10 +959,15 @@ int main(void)
     printf("\f");
     printf("Graphical scroll bar minimums test\n");
     printf("\n");
+    lm = pa_maxxg(stdout)/20; /* set left margin */
+    iy = pa_curyg(stdout); /* set y increment */
+    xs = pa_maxxg(stdout)/30;
     pa_scrollvertsizg(stdout, &x, &y);
-    pa_scrollvertg(stdout, 100, 100, 100+x, 100+y, 1);
+    pa_scrollvertg(stdout, lm, iy, lm+x, iy+y, 1);
+    pa_scrollsiz(stdout, 1, (INT_MAX/2));
     pa_scrollhorizsizg(stdout, &x, &y);
-    pa_scrollhorizg(stdout, 150, 100, 150+x, 100+y, 2);
+    pa_scrollhorizg(stdout, lm+xs, iy, lm+xs+x, iy+y, 2);
+    pa_scrollsiz(stdout, 2, (INT_MAX/2));
     do {
 
         pa_event(stdin, &er);
@@ -978,15 +993,23 @@ int main(void)
 
     /* ************ Graphical scroll bar fat and skinny bars test ************** */
 
+#endif
     printf("\f");
     printf("Graphical scroll bar fat and skinny bars test\n");
     printf("\n");
+    lm = pa_maxxg(stdout)/20; /* set left margin */
+    iy = pa_curyg(stdout); /* set y increment */
+    ix = pa_maxxg(stdout)/30; /* set x increment */
+    xs = pa_maxxg(stdout)/4;
+    ys = xs;
     pa_scrollvertsizg(stdout, &x, &y);
-    pa_scrollvertg(stdout, 100, 100, 100+x / 2, 100+200, 1);
-    pa_scrollvertg(stdout, 120, 100, 200, 100+200, 3);
+    pa_scrollvertg(stdout, lm, iy, lm+x, iy+ys, 1);
+    pa_scrollvertg(stdout, lm+ix, iy, lm+ix+pa_maxxg(stdout)/10, iy+ys, 3);
+    lm = lm+ix+pa_maxxg(stdout)/10+pa_maxxg(stdout)/20;
     pa_scrollhorizsizg(stdout, &x, &y);
-    pa_scrollhorizg(stdout, 250, 100, 250+200, 100+y / 2, 2);
-    pa_scrollhorizg(stdout, 250, 120, 250+200, 200, 4);
+    pa_scrollhorizg(stdout, lm, iy, lm+xs, iy+y, 2);
+    pa_scrollhorizg(stdout, lm, iy+ix, lm+xs, iy+y+ix+pa_maxxg(stdout)/10, 4);
+    //pa_scrollhorizg(stdout, 250, 120, 250+200, 200, 4);
     do {
 
         pa_event(stdin, &er);

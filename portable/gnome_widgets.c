@@ -1145,7 +1145,7 @@ static void widget(FILE* f, int x1, int y1, int x2, int y2, char* s, int id,
     (*wp)->pressed = FALSE; /* set not pressed */
     (*wp)->select = FALSE; /* set not selected */
     (*wp)->enb = TRUE; /* set is enabled */
-    (*wp)->sclsiz = INT_MAX; /* set maximum size scrollbar */
+    (*wp)->sclsiz = INT_MAX/10; /* set default size scrollbar */
     (*wp)->sclpos = 0; /* set scrollbar position top/left */
     (*wp)->curs = 0; /* set text cursor */
 
@@ -1682,8 +1682,8 @@ void pa_scrollvertsizg(FILE* f, int* w, int* h)
 
 {
 
-    *w = 10;
-    *h = 10;
+    *w = 20;
+    *h = 40;
 
 }
 
@@ -1742,8 +1742,8 @@ void pa_scrollhorizsizg(FILE* f, int* w, int* h)
 
 {
 
-    *w = 10;
-    *h = 10;
+    *w = 40;
+    *h = 20;
 
 }
 
