@@ -126,6 +126,7 @@ typedef struct wigrec {
     int    mpx, mpy;   /* mouse tracking in widget */
     int    lmpx, lmpy; /* last mouse position */
     int    curs;       /* text cursor */
+    int    focus;      /* focused */
 
 } wigrec;
 
@@ -876,6 +877,16 @@ static void editbox_draw(wigptr wg)
     else pa_fcolorg(wg->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
     pa_cursorg(wg->wf, ENDSPACE, pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
     fprintf(wg->wf, "%s", wg->face); /* place button face */
+    if (wg->focus) { /* if in focus, draw the cursor */
+
+        pa_linewidth(wg->wf, 2); /* set line size */
+        pa_line(wg->wf, ENDSPACE+pa_chrpos(wg->wf, wg->face, wg->curs),
+                        pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2,
+                        ENDSPACE+pa_chrpos(wg->wf, wg->face, wg->curs),
+                        pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2+
+                        pa_chrsizy(wg->wf));
+
+    }
 
 }
 
@@ -897,6 +908,36 @@ static void editbox_event(pa_evtrec* ev, wigptr wg)
         s[l+1] = 0; /* terminate */
         wg->face = s; /* place new string */
         editbox_draw(wg); /* redraw the window */
+
+    } else if (ev->etype == pa_etfocus) {
+
+        wg->focus = 1; /* in focus */
+        editbox_draw(wg); /* redraw */
+
+    } else if (ev->etype == pa_etnofocus) {
+
+        wg->focus = 0; /* out of focus */
+        editbox_draw(wg); /* redraw */
+
+    } else if (ev->etype == pa_etright) {
+
+        /* not extreme right, go right */
+        if (wg->curs < strlen(wg->face)) {
+
+            wg->curs++;
+            editbox_draw(wg); /* redraw */
+
+        }
+
+    } else if (ev->etype == pa_etleft) {
+
+        /* not extreme right, go right */
+        if (wg->curs > 0) {
+
+            wg->curs--;
+            editbox_draw(wg); /* redraw */
+
+        }
 
     }
 
@@ -1148,6 +1189,7 @@ static void widget(FILE* f, int x1, int y1, int x2, int y2, char* s, int id,
     (*wp)->sclsiz = INT_MAX/10; /* set default size scrollbar */
     (*wp)->sclpos = 0; /* set scrollbar position top/left */
     (*wp)->curs = 0; /* set text cursor */
+    (*wp)->focus = 0; /* set not focused */
 
 }
 
@@ -1906,6 +1948,9 @@ size of an edit box is calculated and returned.
 void pa_editboxsizg(FILE* f, char* s, int* w, int* h)
 
 {
+
+    *h = pa_chrsizy(win0)*1.5; /* set height */
+    *w = pa_strsiz(win0, s);
 
 }
 

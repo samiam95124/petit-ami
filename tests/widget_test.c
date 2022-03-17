@@ -993,7 +993,6 @@ int main(void)
 
     /* ************ Graphical scroll bar fat and skinny bars test ************** */
 
-#endif
     printf("\f");
     printf("Graphical scroll bar fat and skinny bars test\n");
     printf("\n");
@@ -1009,7 +1008,6 @@ int main(void)
     pa_scrollhorizsizg(stdout, &x, &y);
     pa_scrollhorizg(stdout, lm, iy, lm+xs, iy+y, 2);
     pa_scrollhorizg(stdout, lm, iy+ix, lm+xs, iy+y+ix+pa_maxxg(stdout)/10, 4);
-    //pa_scrollhorizg(stdout, 250, 120, 250+200, 200, 4);
     do {
 
         pa_event(stdin, &er);
@@ -1071,6 +1069,7 @@ int main(void)
 
     /* ************************* Terminal edit box test ************************ */
 
+#endif
     printf("\f");
     chrgrid();
     pa_binvis(stdout);
