@@ -8446,7 +8446,7 @@ int pa_chrpos(FILE* f, const char* s, int p)
     winptr win; /* window pointer */
     int    rv;
 
-    if (p < 0 || p >= strlen(s)) error(estrinx); /* out of range */
+    if (p < 0 || p > strlen(s)) error(estrinx); /* out of range */
     win = txt2win(f); /* get window pointer from text file */
     XWLOCK();
     rv = XTextWidth(win->xfont, s, p); /* return value */
