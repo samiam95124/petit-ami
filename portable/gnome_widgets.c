@@ -896,6 +896,7 @@ static void editbox_event(pa_evtrec* ev, wigptr wg)
 
     char* s; /* temp string */
     int   l; /* length */
+    int   i;
 
     if (ev->etype == pa_etredraw) editbox_draw(wg); /* redraw the window */
     else if (ev->etype == pa_etchar) { /* character */
@@ -935,6 +936,31 @@ static void editbox_event(pa_evtrec* ev, wigptr wg)
         if (wg->curs > 0) {
 
             wg->curs--;
+            editbox_draw(wg); /* redraw */
+
+        }
+
+    } else if (ev->etype == pa_etdelcb) {
+
+        /* not extreme left, delete left */
+        if (wg->curs > 0) {
+
+            l = strlen(wg->face); /* get length of existing face string */
+            /* back up right characters past cursor */
+            for (i = wg->curs-1; i < l; i++) wg->face[i] = wg->face[i+1];
+            wg->curs--;
+            editbox_draw(wg); /* redraw */
+
+        }
+
+    } else if (ev->etype == pa_etdelcf) {
+
+        /* not extreme right, go right */
+        if (wg->curs > 0) {
+
+            l = strlen(wg->face); /* get length of existing face string */
+            /* back up right characters past cursor */
+            for (i = wg->curs; i < l; i++) wg->face[i] = wg->face[i+1];
             editbox_draw(wg); /* redraw */
 
         }
