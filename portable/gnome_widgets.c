@@ -92,6 +92,7 @@ static enum { /* debug levels */
 #define MAXWIG 100 /* maximum widgets per window */
 /* amount of space in pixels to add around scrollbar sliders */
 #define ENDSPACE 6
+#define ENDLEDSPC 10 /* space at start and end of text edit box */
 
 /* widget type */
 typedef enum  {
@@ -875,14 +876,14 @@ static void editbox_draw(wigptr wg)
              pa_maxyg(wg->wf)-1, 20, 20);
     if (wg->enb) pa_fcolor(wg->wf, pa_black);
     else pa_fcolorg(wg->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
-    pa_cursorg(wg->wf, ENDSPACE, pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
+    pa_cursorg(wg->wf, ENDLEDSPC, pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
     fprintf(wg->wf, "%s", wg->face); /* place button face */
     if (wg->focus) { /* if in focus, draw the cursor */
 
         pa_linewidth(wg->wf, 2); /* set line size */
-        pa_line(wg->wf, ENDSPACE+pa_chrpos(wg->wf, wg->face, wg->curs),
+        pa_line(wg->wf, ENDLEDSPC+pa_chrpos(wg->wf, wg->face, wg->curs),
                         pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2,
-                        ENDSPACE+pa_chrpos(wg->wf, wg->face, wg->curs),
+                        ENDLEDSPC+pa_chrpos(wg->wf, wg->face, wg->curs),
                         pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2+
                         pa_chrsizy(wg->wf));
 
@@ -894,8 +895,10 @@ static void editbox_event(pa_evtrec* ev, wigptr wg)
 
 {
 
-    char* s; /* temp string */
-    int   l; /* length */
+    char* s;    /* temp string */
+    int   l;    /* length */
+    int   span; /* span between characters */
+    int   off;  /* offset from last character */
     int   i;
 
     if (ev->etype == pa_etredraw) editbox_draw(wg); /* redraw the window */
@@ -966,6 +969,33 @@ static void editbox_event(pa_evtrec* ev, wigptr wg)
             editbox_draw(wg); /* redraw */
 
         }
+
+    } else if (ev->etype == pa_etmoumovg) {
+
+        /* mouse moved, track position */
+        wg->mpx = ev->moupxg; /* set present position */
+        wg->mpy = ev->moupyg;
+
+    } else if (ev->etype == pa_etmouba && ev->amoubn == 1) {
+
+        /* mouse click, select character it indexes */
+        l = strlen(wg->face); /* get length of existing face string */
+        i = 0;
+        /* find first character beyond click */
+        while (ENDLEDSPC+pa_chrpos(wg->wf, wg->face, i) < wg->mpx && i < l) i++;
+        if (i) {
+
+            /* find span between last and next characters */
+            span = pa_chrpos(wg->wf, wg->face, i)-
+                   pa_chrpos(wg->wf, wg->face, i-1);
+            /* find offset last to mouse click */
+            off = wg->mpx-(ENDLEDSPC+pa_chrpos(wg->wf, wg->face, i-1));
+            /* if mouse click is closer to last, index last */
+            if (off < span/2) i--;
+
+        }
+        wg->curs = i; /* set final position */
+        editbox_draw(wg); /* redraw */
 
     }
 
