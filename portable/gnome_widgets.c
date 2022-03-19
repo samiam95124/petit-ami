@@ -905,9 +905,11 @@ static void editbox_event(pa_evtrec* ev, wigptr wg)
         s = malloc(l+1+1); /* get new face string */
         strcpy(s, wg->face); /* copy old string into place */
         free(wg->face); /* release previous string */
-        s[l] = ev->echar; /* place new character */
-        s[l+1] = 0; /* terminate */
+        /* move characters after cursor up */
+        for (i = l+1; i >= wg->curs; i--) s[i+1] = s[i];
+        s[wg->curs] = ev->echar; /* place new character */
         wg->face = s; /* place new string */
+        wg->curs++; /* position after character inserted */
         editbox_draw(wg); /* redraw the window */
 
     } else if (ev->etype == pa_etfocus) {
