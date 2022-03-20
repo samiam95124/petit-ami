@@ -10010,7 +10010,9 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
         ks = XLookupKeysym(&e->xkey, 0);
         XWUNLOCK();
         er->etype = pa_etchar; /* place default code */
-        fwin = fndfocus(win->parwin); /* find focus window */
+        fwin = win; /* set parent to self */
+        if (!fwin) fwin = win->parwin; /* set parent of child window */
+        fwin = fndfocus(fwin); /* find focus window */
         if (fwin) er->winid = fwin->wid; /* send keys to focus window */
         if (ks >= ' ' && ks <= 0x7e && !ctrll && !ctrlr && !altl && !altr) {
 
