@@ -895,11 +895,12 @@ static void editbox_event(pa_evtrec* ev, wigptr wg)
 
 {
 
-    char* s;    /* temp string */
-    int   l;    /* length */
-    int   span; /* span between characters */
-    int   off;  /* offset from last character */
-    int   i;
+    char*     s;    /* temp string */
+    int       l;    /* length */
+    int       span; /* span between characters */
+    int       off;  /* offset from last character */
+    pa_evtrec er; /* outbound button event */
+    int       i;
 
     if (ev->etype == pa_etredraw) editbox_draw(wg); /* redraw the window */
     else if (ev->etype == pa_etchar) { /* character */
@@ -997,7 +998,15 @@ static void editbox_event(pa_evtrec* ev, wigptr wg)
         wg->curs = i; /* set final position */
         editbox_draw(wg); /* redraw */
 
+    } else if (ev->etype == pa_etenter) {
+
+        /* send event back to parent window */
+        er.etype = pa_etedtbox; /* set button event */
+        er.edtbid = wg->id; /* set id */
+        pa_sendevent(wg->parent, &er); /* send the event to the parent */
+
     }
+
 
 }
 
