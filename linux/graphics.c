@@ -9672,6 +9672,28 @@ void subrect(rectangle* r1, rectangle* r2, rectangle* rr, rectangle* rb)
 
 }
 
+/* find focus in subtree. Searches the given tree for the window marked as
+   having focus, and returns that, or NULL. */
+static winptr fndfocus(winptr win)
+
+{
+
+    winptr fwin; /* focus window found */
+
+    fwin = NULL; /* set no focus window found */
+    while (win && !fwin) {
+
+        if (win->focus) fwin = win; /* found focus */
+        /* find focus in children of this window */
+        else fwin = fndfocus(win->childwin);
+        win = win->childlst; /* link next child */
+
+    }
+
+    return (fwin); /* exit with focus found */
+
+}
+
 /* Remove focus from window. Searches from the given window down the tree until
    the window containing focus is found. The focus is them removed by sending a
    defocus event, removing focus status, and repainting the cursor. */
@@ -9710,7 +9732,6 @@ static int remfocus(winptr win)
     }
 
     return (ff); /* exit with focus found */
-
 
 }
 
@@ -9823,6 +9844,7 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
     pa_evtrec      er2;
     winptr         wp;
     int            ff;  /* found focus flag */
+    winptr         fwin; /* focus window */
 
     sc = win->screens[win->curdsp-1]; /* index screen */
     if (e->type == Expose && win->xmwhan != e->xany.window) {
@@ -9988,6 +10010,8 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
         ks = XLookupKeysym(&e->xkey, 0);
         XWUNLOCK();
         er->etype = pa_etchar; /* place default code */
+        fwin = fndfocus(win->parwin); /* find focus window */
+        if (fwin) er->winid = fwin->wid; /* send keys to focus window */
         if (ks >= ' ' && ks <= 0x7e && !ctrll && !ctrlr && !altl && !altr) {
 
             /* issue standard key event */
