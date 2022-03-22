@@ -902,6 +902,8 @@ static void editbox_draw(wigptr wg)
              pa_chrpos(wg->wf, wg->face, wg->tleft);
 
     }
+//??? cut face string out of range
+//??? implement insert/overwrite toggle (and block/line cursor)
     fprintf(wg->wf, "%s", &wg->face[wg->tleft]); /* place button face */
     if (wg->focus) { /* if in focus, draw the cursor */
 

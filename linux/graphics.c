@@ -10007,7 +10007,7 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
     } else if (e->type == KeyPress) {
 
         XWLOCK();
-        ks = XLookupKeysym(&e->xkey, 0);
+        ks = XLookupKeysym(&e->xkey, ((e->xkey.state & ShiftMask) == 0 ? 0 : 1));
         XWUNLOCK();
         er->etype = pa_etchar; /* place default code */
         fwin = win; /* set parent to self */
