@@ -129,6 +129,7 @@ typedef struct wigrec {
     int    curs;       /* text cursor */
     int    tleft;      /* text left side index */
     int    focus;      /* focused */
+    int    ins;        /* insert/overwrite mode */
 
 } wigrec;
 
@@ -904,6 +905,7 @@ static void editbox_draw(wigptr wg)
     }
 //??? cut face string out of range
 //??? implement insert/overwrite toggle (and block/line cursor)
+//??? light up edge on focus
     fprintf(wg->wf, "%s", &wg->face[wg->tleft]); /* place button face */
     if (wg->focus) { /* if in focus, draw the cursor */
 
@@ -934,13 +936,17 @@ static void editbox_event(pa_evtrec* ev, wigptr wg)
     else if (ev->etype == pa_etchar) { /* character */
 
         l = strlen(wg->face); /* get length of existing face string */
-        s = malloc(l+1+1); /* get new face string */
-        strcpy(s, wg->face); /* copy old string into place */
-        free(wg->face); /* release previous string */
-        /* move characters after cursor up */
-        for (i = l+1; i >= wg->curs; i--) s[i+1] = s[i];
-        s[wg->curs] = ev->echar; /* place new character */
-        wg->face = s; /* place new string */
+        if (!wg->ins || wg->curs >= l) { /* insert mode or end */
+
+            s = malloc(l+1+1); /* get new face string */
+            strcpy(s, wg->face); /* copy old string into place */
+            free(wg->face); /* release previous string */
+            /* move characters after cursor up */
+            for (i = l+1; i >= wg->curs; i--) s[i+1] = s[i];
+            wg->face = s; /* place new string */
+
+        }
+        wg->face[wg->curs] = ev->echar; /* place new character */
         wg->curs++; /* position after character inserted */
         editbox_draw(wg); /* redraw the window */
 
@@ -1035,18 +1041,35 @@ static void editbox_event(pa_evtrec* ev, wigptr wg)
 
     } else if (ev->etype == pa_ethomel) {
 
+        /* beginning of line */
         wg->curs = 0;
         editbox_draw(wg); /* redraw */
 
     } else if (ev->etype == pa_etendl) {
 
+        /* end of line */
         wg->curs = strlen(wg->face);
         editbox_draw(wg); /* redraw */
 
     } else if (ev->etype == pa_etinsertt) {
 
-    }
+        /* toggle insert mode */
+        wg->ins = !wg->ins;
+        editbox_draw(wg); /* redraw */
 
+    } else if (ev->etype == pa_etdell) {
+
+        /* delete whole line */
+        wg->curs = 0;
+        wg->face[0] = 0;
+        editbox_draw(wg); /* redraw */
+
+    } else if (ev->etype == pa_etleftw) {
+
+
+    } else if (ev->etype == pa_etrightw) {
+
+    }
 
 }
 
@@ -1298,6 +1321,7 @@ static void widget(FILE* f, int x1, int y1, int x2, int y2, char* s, int id,
     (*wp)->curs = 0; /* set text cursor */
     (*wp)->tleft = 0; /* set text left side in edit box */
     (*wp)->focus = 0; /* set not focused */
+    (*wp)->ins = 0; /* set insert mode */
 
 }
 
