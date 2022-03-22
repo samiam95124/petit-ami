@@ -1033,6 +1033,18 @@ static void editbox_event(pa_evtrec* ev, wigptr wg)
         er.edtbid = wg->id; /* set id */
         pa_sendevent(wg->parent, &er); /* send the event to the parent */
 
+    } else if (ev->etype == pa_ethomel) {
+
+        wg->curs = 0;
+        editbox_draw(wg); /* redraw */
+
+    } else if (ev->etype == pa_etendl) {
+
+        wg->curs = strlen(wg->face);
+        editbox_draw(wg); /* redraw */
+
+    } else if (ev->etype == pa_etinsertt) {
+
     }
 
 
