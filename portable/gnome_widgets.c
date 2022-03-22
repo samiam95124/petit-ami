@@ -127,6 +127,7 @@ typedef struct wigrec {
     int    mpx, mpy;   /* mouse tracking in widget */
     int    lmpx, lmpy; /* last mouse position */
     int    curs;       /* text cursor */
+    int    tleft;      /* text left side index */
     int    focus;      /* focused */
 
 } wigrec;
@@ -866,6 +867,9 @@ static void editbox_draw(wigptr wg)
 
 {
 
+    int cl;
+    int x;
+
     /* color the background */
     pa_fcolor(wg->wf, pa_white);
     pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
@@ -877,14 +881,36 @@ static void editbox_draw(wigptr wg)
     if (wg->enb) pa_fcolor(wg->wf, pa_black);
     else pa_fcolorg(wg->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
     pa_cursorg(wg->wf, ENDLEDSPC, pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
-    fprintf(wg->wf, "%s", wg->face); /* place button face */
+    /* check cursor in box */
+    cl = ENDLEDSPC+pa_chrpos(wg->wf, wg->face, wg->curs)-
+         pa_chrpos(wg->wf, wg->face, wg->tleft);
+    while (cl < ENDLEDSPC && wg->tleft > 0) {
+
+        /* cursor out of field left */
+        wg->tleft--; /* back up left margin */
+        /* recalculate */
+        cl = ENDLEDSPC+pa_chrpos(wg->wf, wg->face, wg->curs)-
+             pa_chrpos(wg->wf, wg->face, wg->tleft);
+
+    }
+    while (cl > pa_maxxg(wg->wf)-ENDLEDSPC && wg->tleft < strlen(wg->face)) {
+
+        /* cursor out of field right */
+        wg->tleft++; /* advance left margin */
+        /* recalculate */
+        cl = ENDLEDSPC+pa_chrpos(wg->wf, wg->face, wg->curs)-
+             pa_chrpos(wg->wf, wg->face, wg->tleft);
+
+    }
+    fprintf(wg->wf, "%s", &wg->face[wg->tleft]); /* place button face */
     if (wg->focus) { /* if in focus, draw the cursor */
 
         pa_linewidth(wg->wf, 2); /* set line size */
-        pa_line(wg->wf, ENDLEDSPC+pa_chrpos(wg->wf, wg->face, wg->curs),
-                        pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2,
-                        ENDLEDSPC+pa_chrpos(wg->wf, wg->face, wg->curs),
-                        pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2+
+        /* find x location */
+        x = ENDLEDSPC+pa_chrpos(wg->wf, wg->face, wg->curs)-
+            pa_chrpos(wg->wf, wg->face, wg->tleft);
+        pa_line(wg->wf, x, pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2,
+                        x, pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2+
                         pa_chrsizy(wg->wf));
 
     }
@@ -899,7 +925,7 @@ static void editbox_event(pa_evtrec* ev, wigptr wg)
     int       l;    /* length */
     int       span; /* span between characters */
     int       off;  /* offset from last character */
-    pa_evtrec er; /* outbound button event */
+    pa_evtrec er;   /* outbound button event */
     int       i;
 
     if (ev->etype == pa_etredraw) editbox_draw(wg); /* redraw the window */
@@ -938,7 +964,7 @@ static void editbox_event(pa_evtrec* ev, wigptr wg)
 
     } else if (ev->etype == pa_etleft) {
 
-        /* not extreme right, go right */
+        /* not extreme left, go left */
         if (wg->curs > 0) {
 
             wg->curs--;
@@ -962,7 +988,7 @@ static void editbox_event(pa_evtrec* ev, wigptr wg)
     } else if (ev->etype == pa_etdelcf) {
 
         /* not extreme right, go right */
-        if (wg->curs > 0) {
+        if (wg->curs < strlen(wg->face)) {
 
             l = strlen(wg->face); /* get length of existing face string */
             /* back up right characters past cursor */
@@ -1256,6 +1282,7 @@ static void widget(FILE* f, int x1, int y1, int x2, int y2, char* s, int id,
     (*wp)->sclsiz = INT_MAX/10; /* set default size scrollbar */
     (*wp)->sclpos = 0; /* set scrollbar position top/left */
     (*wp)->curs = 0; /* set text cursor */
+    (*wp)->tleft = 0; /* set text left side in edit box */
     (*wp)->focus = 0; /* set not focused */
 
 }
