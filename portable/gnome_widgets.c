@@ -914,7 +914,6 @@ static void editbox_draw(wigptr wg)
 
     }
 //??? cut face string out of range.
-//??? implement left/right word.
     fprintf(wg->wf, "%s", &wg->face[wg->tleft]); /* place button face */
     if (wg->focus) { /* if in focus, draw the cursor */
 
@@ -1094,9 +1093,20 @@ static void editbox_event(pa_evtrec* ev, wigptr wg)
             break;
 
         case pa_etleftw: /* left word */
+            /* back over any spaces */
+            while (wg->curs > 0 && wg->face[wg->curs-1] == ' ') wg->curs--;
+            /* now back over any non-space */
+            while (wg->curs > 0 && wg->face[wg->curs-1] != ' ') wg->curs--;
+            editbox_draw(wg); /* redraw */
             break;
 
         case pa_etrightw: /* right word */
+            l = strlen(wg->face); /* get string length */
+            /* advance over any non-space */
+            while (wg->curs < l && wg->face[wg->curs] != ' ') wg->curs++;
+            /* advance over any spaces */
+            while (wg->curs < l && wg->face[wg->curs] == ' ') wg->curs++;
+            editbox_draw(wg); /* redraw */
             break;
 
     }
