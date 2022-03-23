@@ -875,8 +875,17 @@ static void editbox_draw(wigptr wg)
     pa_fcolor(wg->wf, pa_white);
     pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
     /* outline */
-    pa_linewidth(wg->wf, 2);
-    pa_fcolorg(wg->wf, INT_MAX/256*196, INT_MAX/256*196, INT_MAX/256*196);
+    if (wg->focus) {
+
+        pa_linewidth(wg->wf, 4);
+        pa_fcolorg(wg->wf, INT_MAX/256*236, INT_MAX/256*174, INT_MAX/256*152);
+
+    } else {
+
+        pa_linewidth(wg->wf, 2);
+        pa_fcolorg(wg->wf, INT_MAX/256*196, INT_MAX/256*196, INT_MAX/256*196);
+
+    }
     pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1,
              pa_maxyg(wg->wf)-1, 20, 20);
     if (wg->enb) pa_fcolor(wg->wf, pa_black);
@@ -905,7 +914,6 @@ static void editbox_draw(wigptr wg)
 
     }
 //??? cut face string out of range.
-//??? light up edge on focus.
 //??? implement left/right word.
     fprintf(wg->wf, "%s", &wg->face[wg->tleft]); /* place button face */
     if (wg->focus) { /* if in focus, draw the cursor */
