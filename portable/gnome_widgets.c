@@ -961,7 +961,7 @@ static void editbox_event(pa_evtrec* ev, wigptr wg)
                 strcpy(s, wg->face); /* copy old string into place */
                 free(wg->face); /* release previous string */
                 /* move characters after cursor up */
-                for (i = l+1; i >= wg->curs; i--) s[i+1] = s[i];
+                for (i = l; i >= wg->curs; i--) s[i+1] = s[i];
                 wg->face = s; /* place new string */
 
             }
