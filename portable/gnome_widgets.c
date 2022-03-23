@@ -903,9 +903,11 @@ static void editbox_draw(wigptr wg)
              pa_chrpos(wg->wf, wg->face, wg->tleft);
 
     }
-//??? cut face string out of range
-//??? implement insert/overwrite toggle (and block/line cursor)
-//??? light up edge on focus
+//??? cut face string out of range.
+//??? implement block/line cursor.
+//??? light up edge on focus.
+//??? should send tab keys back to parent.
+//??? implement left/right word.
     fprintf(wg->wf, "%s", &wg->face[wg->tleft]); /* place button face */
     if (wg->focus) { /* if in focus, draw the cursor */
 
@@ -932,142 +934,147 @@ static void editbox_event(pa_evtrec* ev, wigptr wg)
     pa_evtrec er;   /* outbound button event */
     int       i;
 
-    if (ev->etype == pa_etredraw) editbox_draw(wg); /* redraw the window */
-    else if (ev->etype == pa_etchar) { /* character */
+    switch (ev->etype) {
 
-        l = strlen(wg->face); /* get length of existing face string */
-        if (!wg->ins || wg->curs >= l) { /* insert mode or end */
-
-            s = malloc(l+1+1); /* get new face string */
-            strcpy(s, wg->face); /* copy old string into place */
-            free(wg->face); /* release previous string */
-            /* move characters after cursor up */
-            for (i = l+1; i >= wg->curs; i--) s[i+1] = s[i];
-            wg->face = s; /* place new string */
-
-        }
-        wg->face[wg->curs] = ev->echar; /* place new character */
-        wg->curs++; /* position after character inserted */
-        editbox_draw(wg); /* redraw the window */
-
-    } else if (ev->etype == pa_etfocus) {
-
-        wg->focus = 1; /* in focus */
-        editbox_draw(wg); /* redraw */
-
-    } else if (ev->etype == pa_etnofocus) {
-
-        wg->focus = 0; /* out of focus */
-        editbox_draw(wg); /* redraw */
-
-    } else if (ev->etype == pa_etright) {
-
-        /* not extreme right, go right */
-        if (wg->curs < strlen(wg->face)) {
-
-            wg->curs++;
-            editbox_draw(wg); /* redraw */
-
-        }
-
-    } else if (ev->etype == pa_etleft) {
-
-        /* not extreme left, go left */
-        if (wg->curs > 0) {
-
-            wg->curs--;
-            editbox_draw(wg); /* redraw */
-
-        }
-
-    } else if (ev->etype == pa_etdelcb) {
-
-        /* not extreme left, delete left */
-        if (wg->curs > 0) {
-
+        case pa_etredraw: /* redraw window */
+            editbox_draw(wg); /* redraw the window */
+            break;
+        case pa_etchar: /* enter character */
             l = strlen(wg->face); /* get length of existing face string */
-            /* back up right characters past cursor */
-            for (i = wg->curs-1; i < l; i++) wg->face[i] = wg->face[i+1];
-            wg->curs--;
+            if (!wg->ins || wg->curs >= l) { /* insert mode or end */
+
+                s = malloc(l+1+1); /* get new face string */
+                strcpy(s, wg->face); /* copy old string into place */
+                free(wg->face); /* release previous string */
+                /* move characters after cursor up */
+                for (i = l+1; i >= wg->curs; i--) s[i+1] = s[i];
+                wg->face = s; /* place new string */
+
+            }
+            wg->face[wg->curs] = ev->echar; /* place new character */
+            wg->curs++; /* position after character inserted */
+            editbox_draw(wg); /* redraw the window */
+            break;
+
+        case pa_etfocus: /* gain focus */
+            wg->focus = 1; /* in focus */
             editbox_draw(wg); /* redraw */
+            break;
 
-        }
-
-    } else if (ev->etype == pa_etdelcf) {
-
-        /* not extreme right, go right */
-        if (wg->curs < strlen(wg->face)) {
-
-            l = strlen(wg->face); /* get length of existing face string */
-            /* back up right characters past cursor */
-            for (i = wg->curs; i < l; i++) wg->face[i] = wg->face[i+1];
+        case pa_etnofocus: /* lose focus */
+            wg->focus = 0; /* out of focus */
             editbox_draw(wg); /* redraw */
+            break;
 
-        }
+        case pa_etright: /* right character */
+            /* not extreme right, go right */
+            if (wg->curs < strlen(wg->face)) {
 
-    } else if (ev->etype == pa_etmoumovg) {
+                wg->curs++;
+                editbox_draw(wg); /* redraw */
 
-        /* mouse moved, track position */
-        wg->mpx = ev->moupxg; /* set present position */
-        wg->mpy = ev->moupyg;
+            }
+            break;
 
-    } else if (ev->etype == pa_etmouba && ev->amoubn == 1) {
+        case pa_etleft: /* left character */
+            /* not extreme left, go left */
+            if (wg->curs > 0) {
 
-        /* mouse click, select character it indexes */
-        l = strlen(wg->face); /* get length of existing face string */
-        i = 0;
-        /* find first character beyond click */
-        while (ENDLEDSPC+pa_chrpos(wg->wf, wg->face, i) < wg->mpx && i < l) i++;
-        if (i) {
+                wg->curs--;
+                editbox_draw(wg); /* redraw */
 
-            /* find span between last and next characters */
-            span = pa_chrpos(wg->wf, wg->face, i)-
-                   pa_chrpos(wg->wf, wg->face, i-1);
-            /* find offset last to mouse click */
-            off = wg->mpx-(ENDLEDSPC+pa_chrpos(wg->wf, wg->face, i-1));
-            /* if mouse click is closer to last, index last */
-            if (off < span/2) i--;
+            }
+            break;
 
-        }
-        wg->curs = i; /* set final position */
-        editbox_draw(wg); /* redraw */
+        case pa_etdelcb: /* delete character backward */
+            /* not extreme left, delete left */
+            if (wg->curs > 0) {
 
-    } else if (ev->etype == pa_etenter) {
+                l = strlen(wg->face); /* get length of existing face string */
+                /* back up right characters past cursor */
+                for (i = wg->curs-1; i < l; i++) wg->face[i] = wg->face[i+1];
+                wg->curs--;
+                editbox_draw(wg); /* redraw */
 
-        /* send event back to parent window */
-        er.etype = pa_etedtbox; /* set button event */
-        er.edtbid = wg->id; /* set id */
-        pa_sendevent(wg->parent, &er); /* send the event to the parent */
+            }
+            break;
 
-    } else if (ev->etype == pa_ethomel) {
+        case pa_etdelcf: /* delete character forward */
+            /* not extreme right, go right */
+            if (wg->curs < strlen(wg->face)) {
 
-        /* beginning of line */
-        wg->curs = 0;
-        editbox_draw(wg); /* redraw */
+                l = strlen(wg->face); /* get length of existing face string */
+                /* back up right characters past cursor */
+                for (i = wg->curs; i < l; i++) wg->face[i] = wg->face[i+1];
+                editbox_draw(wg); /* redraw */
 
-    } else if (ev->etype == pa_etendl) {
+            }
+            break;
 
-        /* end of line */
-        wg->curs = strlen(wg->face);
-        editbox_draw(wg); /* redraw */
+        case pa_etmoumovg: /* mouse moved *
+            /* track position */
+            wg->mpx = ev->moupxg; /* set present position */
+            wg->mpy = ev->moupyg;
+            break;
 
-    } else if (ev->etype == pa_etinsertt) {
+        case pa_etmouba: /* mouse click */
+            if (ev->amoubn == 1) {
 
-        /* toggle insert mode */
-        wg->ins = !wg->ins;
-        editbox_draw(wg); /* redraw */
+                /* mouse click, select character it indexes */
+                l = strlen(wg->face); /* get length of existing face string */
+                i = 0;
+                /* find first character beyond click */
+                while (ENDLEDSPC+pa_chrpos(wg->wf, wg->face, i) < wg->mpx && i < l) i++;
+                if (i) {
 
-    } else if (ev->etype == pa_etdell) {
+                    /* find span between last and next characters */
+                    span = pa_chrpos(wg->wf, wg->face, i)-
+                           pa_chrpos(wg->wf, wg->face, i-1);
+                    /* find offset last to mouse click */
+                    off = wg->mpx-(ENDLEDSPC+pa_chrpos(wg->wf, wg->face, i-1));
+                    /* if mouse click is closer to last, index last */
+                    if (off < span/2) i--;
 
-        /* delete whole line */
-        wg->curs = 0;
-        wg->face[0] = 0;
-        editbox_draw(wg); /* redraw */
+                }
+                wg->curs = i; /* set final position */
+                editbox_draw(wg); /* redraw */
 
-    } else if (ev->etype == pa_etleftw) {
+            }
+            break;
 
+        case pa_etenter: /* signal entry done */
+            /* send event back to parent window */
+            er.etype = pa_etedtbox; /* set button event */
+            er.edtbid = wg->id; /* set id */
+            pa_sendevent(wg->parent, &er); /* send the event to the parent */
+            break;
 
-    } else if (ev->etype == pa_etrightw) {
+        case pa_ethomel: /* beginning of line */
+            wg->curs = 0;
+            editbox_draw(wg); /* redraw */
+            break;
+
+        case pa_etendl: /* end of line */
+            wg->curs = strlen(wg->face);
+            editbox_draw(wg); /* redraw */
+            break;
+
+        case pa_etinsertt: /* toggle insert mode */
+            wg->ins = !wg->ins;
+            editbox_draw(wg); /* redraw */
+            break;
+
+        case pa_etdell: /* delete whole line */
+            wg->curs = 0;
+            wg->face[0] = 0;
+            editbox_draw(wg); /* redraw */
+            break;
+
+        case pa_etleftw: /* left word */
+            break;
+
+        case pa_etrightw: /* right word */
+            break;
 
     }
 

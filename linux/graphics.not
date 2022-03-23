@@ -29,14 +29,6 @@ smilar algorithim. Right now the storage allocation can climb to infinity.
 in Ubuntu. We can introduce a mode to verify if holds the _NET_FRAME_EXTENTS
 property. Note that not all window managers obey this standard.
 
-7. The delayed window presentation code improves the time to display windows,
-but the delay still shows up in stacked menus. We can do better by delaying most
-of the window parameters for an open call when it is really required.
-
-The code presently delays the PRESENTATION of the window, but not the open call.
-Hard to see how X could take significant time to configure a window that is not
-presented. Thus I don't believe this is valuable.
-
 8, The sizing and position calls wait for a response from the windows manager.
 I suspect this is not needed, since we use local cached parameters, and it would
 be a system error if the Window manager didn't follow through in any case.
@@ -50,6 +42,8 @@ move.
 
 10. In the scrollbar minimums test, positioning the bar occasionally makes it
 lock up sending messages.
+
+11. Need to find out how to implement cut and paste in Xwindow for edit boxes.
 
 Follow up:
 
