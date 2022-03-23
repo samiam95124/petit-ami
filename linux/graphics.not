@@ -45,6 +45,11 @@ lock up sending messages.
 
 11. Need to find out how to implement cut and paste in Xwindow for edit boxes.
 
+12. To implement tab to next field/widget, I think the best way is to leave this
+to the parent what the tab means. This means at least sending the tab back to
+parent, then implementing a focus() command to be able to select what 
+widget/window gets focus.
+
 Follow up:
 
 12. Management test/child windows test character. Leave the previous frametest

@@ -904,20 +904,34 @@ static void editbox_draw(wigptr wg)
 
     }
 //??? cut face string out of range.
-//??? implement block/line cursor.
 //??? light up edge on focus.
-//??? should send tab keys back to parent.
 //??? implement left/right word.
     fprintf(wg->wf, "%s", &wg->face[wg->tleft]); /* place button face */
     if (wg->focus) { /* if in focus, draw the cursor */
 
-        pa_linewidth(wg->wf, 2); /* set line size */
-        /* find x location */
+        /* find x location of cursor */
         x = ENDLEDSPC+pa_chrpos(wg->wf, wg->face, wg->curs)-
             pa_chrpos(wg->wf, wg->face, wg->tleft);
-        pa_line(wg->wf, x, pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2,
-                        x, pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2+
-                        pa_chrsizy(wg->wf));
+        if (wg->ins) { /* in overwrite mode */
+
+            pa_reverse(wg->wf, TRUE); /* set reverse mode */
+            pa_bover(wg->wf); /* paint background */
+            /* index cursor character */
+            pa_cursorg(wg->wf, x, pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
+            /* if off the end of string, use space to reverse */
+            if (wg->curs >= strlen(wg->face)) fputc(' ', wg->wf);
+            else fputc(wg->face[wg->curs], wg->wf);
+            pa_reverse(wg->wf, FALSE); /* reset reverse mode */
+            pa_binvis(wg->wf); /* remove background */
+
+        } else { /* in insert mode */
+
+            pa_linewidth(wg->wf, 2); /* set line size */
+            pa_line(wg->wf, x, pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2,
+                            x, pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2+
+                            pa_chrsizy(wg->wf));
+
+        }
 
     }
 
