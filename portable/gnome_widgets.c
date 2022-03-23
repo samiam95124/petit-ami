@@ -883,6 +883,7 @@ static void editbox_draw(wigptr wg)
     else pa_fcolorg(wg->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
     pa_cursorg(wg->wf, ENDLEDSPC, pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
     /* check cursor in box */
+    if (wg->tleft > strlen(wg->face)) wg->tleft = 0;
     cl = ENDLEDSPC+pa_chrpos(wg->wf, wg->face, wg->curs)-
          pa_chrpos(wg->wf, wg->face, wg->tleft);
     while (cl < ENDLEDSPC && wg->tleft > 0) {
