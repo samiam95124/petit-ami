@@ -9701,37 +9701,21 @@ static int remfocus(winptr win)
 
 {
 
-    winptr    fwin; /* focus window found */
-    int       ff;   /* found focus flag */
     pa_evtrec er;   /* event record */
 
-    fwin = NULL; /* set no focus window found */
-    ff = FALSE; /* set no subfocus */
-    while (win) {
+    win = fndfocus(win); /* find focused window */
+    if (win) { /* found */
 
-        ff = remfocus(win->childwin); /* find focus in children of this window */
-        if (ff) win = NULL;
-        else if (win->focus) { fwin = win; win = NULL; } /* found focus */
-        else win = win->childlst; /* link next child */
-
-    }
-    if (!ff) { /* subfocus not found */
-
-        if (fwin) {
-
-            /* found the focus window */
-            er.etype = pa_etnofocus; /* send defocus to parent */
-            isendevent(fwin, &er); /* send it */
-            curoff(fwin); /* remove cursor */
-            fwin->focus = FALSE; /* remove focus */
-            curon(fwin); /* replace cursor */
-            ff = TRUE; /* set we found focus */
-
-        }
+        /* found the focus window */
+        er.etype = pa_etnofocus; /* send defocus to parent */
+        isendevent(win, &er); /* send it */
+        curoff(win); /* remove cursor */
+        win->focus = FALSE; /* remove focus */
+        curon(win); /* replace cursor */
 
     }
 
-    return (ff); /* exit with focus found */
+    return (!!win); /* exit with focus found */
 
 }
 
