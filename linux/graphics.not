@@ -50,6 +50,8 @@ to the parent what the tab means. This means at least sending the tab back to
 parent, then implementing a focus() command to be able to select what 
 widget/window gets focus.
 
+13. Find a way to tie widgets to GTK theming.
+
 Follow up:
 
 12. Management test/child windows test character. Leave the previous frametest

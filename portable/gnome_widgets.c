@@ -868,8 +868,9 @@ static void editbox_draw(wigptr wg)
 
 {
 
-    int cl;
-    int x;
+    int   cl;
+    int   x;
+    char* s;
 
     /* color the background */
     pa_fcolor(wg->wf, pa_white);
@@ -913,8 +914,11 @@ static void editbox_draw(wigptr wg)
              pa_chrpos(wg->wf, wg->face, wg->tleft);
 
     }
-//??? cut face string out of range.
-    fprintf(wg->wf, "%s", &wg->face[wg->tleft]); /* place button face */
+    /* display only characters that completely fit the field */
+    s = &wg->face[wg->tleft]; /* index displayable string */
+    while (*s && pa_curxg(wg->wf)+pa_chrpos(wg->wf, s, 1) <
+                 pa_maxxg(wg->wf)-ENDLEDSPC)
+        fputc(*s++, wg->wf);
     if (wg->focus) { /* if in focus, draw the cursor */
 
         /* find x location of cursor */
