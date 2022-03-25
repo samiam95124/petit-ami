@@ -94,6 +94,33 @@ static enum { /* debug levels */
 #define ENDSPACE 6
 #define ENDLEDSPC 10 /* space at start and end of text edit box */
 
+/* macro to make a color from RGB values */
+#define RGB(r, g, b) (r<<16|g<<8|b)
+
+/* macros to unpack color table entries to INT_MAX ratioed numbers */
+#define RED(v)   (INT_MAX/256*(v >> 16))       /* red */
+#define GREEN(v) (INT_MAX/256*(v >> 8 & 0xff)) /* green */
+#define BLUE(v)  (INT_MAX/256*(v & 0xff))      /* blue */
+
+/* default values for color table. Note these can be overridden. */
+#define BUTTBACKPRESSED RGB(224, 224, 224) /* button background pressed */
+#define BUTTBACK        RGB(255, 255, 255) /* button background not pressed */
+#define BUTTOUT         RGB(191, 191, 191) /* button outline */
+#define BUTTTXT         RGB(0, 0, 0)       /* button face text */
+#define BUTTTXTDIS      RGB(191, 191, 191) /* button face text */
+
+/* values table ids */
+
+typedef enum {
+
+    buttbackpressed, /* button background when pressed */
+    buttback,        /* button background when not pressed */
+    buttout,         /* button outline */
+    butttxt,         /* button face text enabled */
+    butttxtdis       /* button face text disabled */
+
+} themeindex;
+
 /* widget type */
 typedef enum  {
 
@@ -145,11 +172,13 @@ typedef struct filrec {
 
 } filrec;
 
-static pa_pevthan widget_event_old;   /* previous event vector save */
-static wigptr     wigfre;             /* free widget entry list */
-static filptr     opnfil[MAXFIL];     /* open files table */
-static wigptr     xltwig[MAXFIL*2+1]; /* widget entry equivalence table */
-static FILE*      win0;               /* "window zero" dummy window */
+static pa_pevthan    widget_event_old;   /* previous event vector save */
+static wigptr        wigfre;             /* free widget entry list */
+static filptr        opnfil[MAXFIL];     /* open files table */
+static wigptr        xltwig[MAXFIL*2+1]; /* widget entry equivalence table */
+static FILE*         win0;               /* "window zero" dummy window */
+/* table of colors or other theme values */
+static unsigned long themetable[butttxtdis+1];
 
 /** ****************************************************************************
 
@@ -329,6 +358,42 @@ static void widget_redraw(FILE* f)
 
 /** ****************************************************************************
 
+Draw foreground color from theme table
+
+Takes a file and a theme index, and sets the foreground color from the theme
+table.
+
+*******************************************************************************/
+
+static void fcolort(FILE* f, themeindex t)
+
+{
+
+    pa_fcolorg(f, RED(themetable[t]), GREEN(themetable[t]),
+                  BLUE(themetable[t]));
+
+}
+
+/** ****************************************************************************
+
+Draw background color from theme table
+
+Takes a file and a theme index, and sets the background color from the theme
+table.
+
+*******************************************************************************/
+
+static void bcolort(FILE* f, themeindex t)
+
+{
+
+    pa_bcolorg(f, RED(themetable[t]), GREEN(themetable[t]),
+                  BLUE(themetable[t]));
+
+}
+
+/** ****************************************************************************
+
 Button event handler
 
 Handles the events posted to buttons.
@@ -340,17 +405,16 @@ static void button_draw(wigptr wg)
 {
 
     /* color the background */
-    if (wg->pressed)
-        pa_fcolorg(wg->wf, INT_MAX/256*224, INT_MAX/256*224, INT_MAX/256*224);
-    else pa_fcolor(wg->wf, pa_white);
+    if (wg->pressed) fcolort(wg->wf, buttbackpressed);
+    else fcolort(wg->wf, buttback);
     pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf),
               pa_maxyg(wg->wf));
     /* outline */
-    pa_fcolorg(wg->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
+    fcolort(wg->wf, buttout);
     pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1,
              pa_maxyg(wg->wf)-1, 20, 20);
-    if (wg->enb) pa_fcolor(wg->wf, pa_black);
-    else pa_fcolorg(wg->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
+    if (wg->enb) fcolort(wg->wf, butttxt);
+    else fcolort(wg->wf, butttxtdis);
     pa_cursorg(wg->wf,
                pa_maxxg(wg->wf)/2-pa_strsiz(wg->wf, wg->face)/2,
                pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
@@ -2886,6 +2950,13 @@ static void pa_init_widgets(int argc, char *argv[])
     pa_auto(win0, FALSE); /* turn off auto (for font change) */
     pa_font(win0, PA_FONT_SIGN); /* set sign font */
     pa_frame(win0, FALSE); /* turn off frame */
+
+    /* fill out the theme table defaults */
+    themetable[buttbackpressed] = BUTTBACKPRESSED;
+    themetable[buttback]        = BUTTBACK;
+    themetable[buttout]         = BUTTOUT;
+    themetable[butttxt]         = BUTTTXT;
+    themetable[butttxtdis]      = BUTTTXTDIS;
 
 }
 
