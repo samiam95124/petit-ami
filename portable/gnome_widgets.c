@@ -108,6 +108,7 @@ static enum { /* debug levels */
 #define BUTTOUT         RGB(191, 191, 191) /* button outline */
 #define BUTTTXT         RGB(0, 0, 0)       /* button face text */
 #define BUTTTXTDIS      RGB(191, 191, 191) /* button face text */
+#define BUTTFOCUS       RGB(236, 174, 152) /* button focused outline */
 
 /* values table ids */
 
@@ -117,7 +118,9 @@ typedef enum {
     buttback,        /* button background when not pressed */
     buttout,         /* button outline */
     butttxt,         /* button face text enabled */
-    butttxtdis       /* button face text disabled */
+    butttxtdis,      /* button face text disabled */
+    buttfocus,       /* button focused outline */
+    endmarker
 
 } themeindex;
 
@@ -178,7 +181,7 @@ static filptr        opnfil[MAXFIL];     /* open files table */
 static wigptr        xltwig[MAXFIL*2+1]; /* widget entry equivalence table */
 static FILE*         win0;               /* "window zero" dummy window */
 /* table of colors or other theme values */
-static unsigned long themetable[butttxtdis+1];
+static unsigned long themetable[endmarker];
 
 /** ****************************************************************************
 
@@ -410,7 +413,8 @@ static void button_draw(wigptr wg)
     pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf),
               pa_maxyg(wg->wf));
     /* outline */
-    fcolort(wg->wf, buttout);
+    if (wg->focus) fcolort(wg->wf, buttfocus);
+    else fcolort(wg->wf, buttout);
     pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1,
              pa_maxyg(wg->wf)-1, 20, 20);
     if (wg->enb) fcolort(wg->wf, butttxt);
@@ -447,6 +451,16 @@ static void button_event(pa_evtrec* ev, wigptr wg)
     } else if (ev->etype == pa_etmoubd) {
 
         wg->pressed = FALSE;
+        button_draw(wg); /* redraw the window */
+
+    } else if (ev->etype == pa_etfocus) {
+
+        wg->focus = 1; /* in focus */
+        button_draw(wg); /* redraw the window */
+
+    } else if (ev->etype == pa_etnofocus) {
+
+        wg->focus = 0; /* out of focus */
         button_draw(wg); /* redraw the window */
 
     }
@@ -2957,6 +2971,7 @@ static void pa_init_widgets(int argc, char *argv[])
     themetable[buttout]         = BUTTOUT;
     themetable[butttxt]         = BUTTTXT;
     themetable[butttxtdis]      = BUTTTXTDIS;
+    themetable[buttfocus]       = BUTTFOCUS;
 
 }
 
