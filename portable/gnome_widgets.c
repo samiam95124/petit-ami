@@ -413,6 +413,7 @@ static void button_draw(wigptr wg)
     pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf),
               pa_maxyg(wg->wf));
     /* outline */
+    pa_linewidth(wg->wf, 4);
     if (wg->focus) fcolort(wg->wf, buttfocus);
     else fcolort(wg->wf, buttout);
     pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1,
@@ -448,7 +449,7 @@ static void button_event(pa_evtrec* ev, wigptr wg)
         wg->pressed = TRUE;
         button_draw(wg); /* redraw the window */
 
-    } else if (ev->etype == pa_etmoubd) {
+    } else if (ev->etype == pa_etmoubd  && ev->dmoubn == 1) {
 
         wg->pressed = FALSE;
         button_draw(wg); /* redraw the window */
@@ -488,6 +489,16 @@ static void checkbox_draw(wigptr wg)
     /* color the background */
     pa_fcolor(wg->wf, pa_backcolor);
     pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
+    /* outline */
+    pa_linewidth(wg->wf, 4);
+    if (wg->focus) {
+
+        fcolort(wg->wf, buttfocus);
+        pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1,
+                 pa_maxyg(wg->wf)-1, 20, 20);
+
+    }
+    /* draw text */
     if (wg->enb) pa_fcolor(wg->wf, pa_black);
     else pa_fcolorg(wg->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
     pa_cursorg(wg->wf, pa_chrsizy(wg->wf)+pa_chrsizy(wg->wf)/2,
@@ -545,7 +556,18 @@ static void checkbox_event(pa_evtrec* ev, wigptr wg)
         }
         checkbox_draw(wg);
 
-    } else if (ev->etype == pa_etmoubd) checkbox_draw(wg);
+    } else if (ev->etype == pa_etmoubd && ev->amoubn == 1) checkbox_draw(wg);
+    else if (ev->etype == pa_etfocus) {
+
+        wg->focus = 1; /* in focus */
+        checkbox_draw(wg); /* redraw the window */
+
+    } else if (ev->etype == pa_etnofocus) {
+
+        wg->focus = 0; /* out of focus */
+        checkbox_draw(wg); /* redraw the window */
+
+    }
 
 }
 
