@@ -229,10 +229,6 @@ static enum { /* debug levels */
 #define CONPNT    11    /* height of console font in points */
 #endif
 
-#ifndef STDWIN
-#define STDWIN FALSE/*TRUE*/ /* connect stdin and stdout to window */
-#endif
-
 /* file handle numbers at the system interface level */
 
 #define INPFIL 0 /* handle to standard input */
@@ -849,7 +845,6 @@ static int dmpmsg;    /* enable dump messages (diagnostic, windows only) */
 static int dmpevt;    /* enable dump Petit-Ami messages */
 static int prtftm;    /* print font metrics (diagnostic) */
 static int conpnt;    /* size of console font in points */
-static int stdwin;    /* connect stdin and stdout to window */
 
 static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, int wid,
                      int subclient);
@@ -12258,7 +12253,6 @@ static void pa_init_graphics(int argc, char *argv[])
     dmpevt    = DMPEVT;    /* dump Petit-Ami messages */
     prtftm    = PRTFTM;    /* print font metrics on load */
     conpnt    = CONPNT;    /* point size of console font */
-    stdwin    = STDWIN;    /* connect stdin and stdout to window */
 
     /* set state of shift, control and alt keys */
     ctrll = FALSE;
@@ -12398,14 +12392,10 @@ static void pa_init_graphics(int argc, char *argv[])
     /* find frame characteristics */
     fndfrm();
 
-    if (stdwin) {
-
-        /* open stdin and stdout as I/O window set */
-        ifn = fileno(stdin); /* get logical id stdin */
-        ofn = fileno(stdout); /* get logical id stdout */
-        openio(stdin, stdout, ifn, ofn, -1, 1, FALSE); /* process open */
-
-    }
+    /* open stdin and stdout as I/O window set */
+    ifn = fileno(stdin); /* get logical id stdin */
+    ofn = fileno(stdout); /* get logical id stdout */
+    openio(stdin, stdout, ifn, ofn, -1, 1, FALSE); /* process open */
 
     /* select XWindow display file */
     XWLOCK();
