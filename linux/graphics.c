@@ -141,6 +141,7 @@ static enum { /* debug levels */
 //#define PRTFRM /* print Xwindow frame parameters */
 //#define NOWDELAY /* don't delay window presentation until drawn */
 //#define NOFAKEFOCUS /* don't fake focus for child windows */
+
 #ifndef __MACH__ /* Mac OS X */
 #define NOCANCEL /* include nocancel overrides */
 #endif
@@ -190,16 +191,47 @@ static enum { /* debug levels */
  *
  * These parameters can be configured here at compile time, or are overriden
  * at runtime by values of the same name in the config files.
+ * The values are overriddable.
  */
+#ifndef MAXXD
 #define MAXXD     80 /* standard terminal, 80x25 */
+#endif
+
+#ifndef MAXYD
 #define MAXYD     25
+#endif
+
+#ifndef DIALOGERR
 #define DIALOGERR 1     /* send runtime errors to dialog */
+#endif
+
+#ifndef MOUSEENB
 #define MOUSEENB  TRUE  /* enable mouse */
+#endif
+
+#ifndef JOYENB
 #define JOYENB    TRUE  /* enable joysticks */
+#endif
+
+#ifndef DMPMSG
 #define DMPMSG    FALSE /* enable dump messages (diagnostic) */
+#endif
+
+#ifndef DMPEVT
 #define DMPEVT    FALSE /* enable dump Petit-Ami messages */
+#endif
+
+#ifndef PRTFTM
 #define PRTFTM    FALSE /* print font metrics (diagnostic) */
-#define CONPNT    11    /* height of console font */
+#endif
+
+#ifndef CONPNT
+#define CONPNT    11    /* height of console font in points */
+#endif
+
+#ifndef STDWIN
+#define STDWIN TRUE /* connect stdin and stdout to window */
+#endif
 
 /* file handle numbers at the system interface level */
 
@@ -817,6 +849,7 @@ static int dmpmsg;    /* enable dump messages (diagnostic, windows only) */
 static int dmpevt;    /* enable dump Petit-Ami messages */
 static int prtftm;    /* print font metrics (diagnostic) */
 static int conpnt;    /* size of console font in points */
+static int stdwin;    /* connect stdin and stdout to window */
 
 static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, int wid,
                      int subclient);
@@ -12225,6 +12258,7 @@ static void pa_init_graphics(int argc, char *argv[])
     dmpevt    = DMPEVT;    /* dump Petit-Ami messages */
     prtftm    = PRTFTM;    /* print font metrics on load */
     conpnt    = CONPNT;    /* point size of console font */
+    stdwin    = STDWIN;    /* connect stdin and stdout to window */
 
     /* set state of shift, control and alt keys */
     ctrll = FALSE;
@@ -12364,10 +12398,14 @@ static void pa_init_graphics(int argc, char *argv[])
     /* find frame characteristics */
     fndfrm();
 
-    /* open stdin and stdout as I/O window set */
-    ifn = fileno(stdin); /* get logical id stdin */
-    ofn = fileno(stdout); /* get logical id stdout */
-    openio(stdin, stdout, ifn, ofn, -1, 1, FALSE); /* process open */
+    if (stdwin) {
+
+        /* open stdin and stdout as I/O window set */
+        ifn = fileno(stdin); /* get logical id stdin */
+        ofn = fileno(stdout); /* get logical id stdout */
+        openio(stdin, stdout, ifn, ofn, -1, 1, FALSE); /* process open */
+
+    }
 
     /* select XWindow display file */
     XWLOCK();

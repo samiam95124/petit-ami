@@ -499,8 +499,8 @@ static void checkbox_draw(wigptr wg)
 
     }
     /* draw text */
-    if (wg->enb) pa_fcolor(wg->wf, pa_black);
-    else pa_fcolorg(wg->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
+    if (wg->enb) fcolort(wg->wf, butttxt);
+    else fcolort(wg->wf, butttxtdis);
     pa_cursorg(wg->wf, pa_chrsizy(wg->wf)+pa_chrsizy(wg->wf)/2,
                        pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
     fprintf(wg->wf, "%s", wg->face); /* place button face */
@@ -526,7 +526,7 @@ static void checkbox_draw(wigptr wg)
 
     } else {
 
-        /* place non-selected chkmark background */
+        /* place non-selected checkmark background */
         pa_fcolor(wg->wf, pa_white);
         pa_frrect(wg->wf, sqo, md-sq/2, sqo+sq, md+sq/2, 10, 10);
         pa_linewidth(wg->wf, 2);
