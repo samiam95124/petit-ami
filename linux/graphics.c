@@ -230,7 +230,7 @@ static enum { /* debug levels */
 #endif
 
 #ifndef STDWIN
-#define STDWIN TRUE /* connect stdin and stdout to window */
+#define STDWIN FALSE/*TRUE*/ /* connect stdin and stdout to window */
 #endif
 
 /* file handle numbers at the system interface level */
@@ -12497,36 +12497,46 @@ static void pa_deinit_graphics()
     string trmnam; /* termination name */
     char   fini[] = "Finished - ";
     int    ji;
+    int    fn;
 
     pa_evtrec er;
 
-    win = lfn2win(fileno(stdout)); /* get window from fid */
+    /* try to get window from stdout */
+    win = NULL; /* set no window */
+    fn = fileno(stdout); /* get fid */
+    if (fn >= 0 && fn < MAXFIL && opnfil[fn]) win = opnfil[fn]->win;
+    if (win) { /* if stdout is attached to a window */
 
-	/* if the program tries to exit when the user has not ordered an exit, it
-	   is assumed to be a windows "unaware" program. We stop before we exit
-	   these, so that their content may be viewed */
-	if (!errflg && !fend && fautohold) { /* process automatic exit sequence */
+        /* if the program tries to exit when the user has not ordered an exit,
+           it is assumed to be a windows "unaware" program. We stop before we
+           exit these, so that their content may be viewed */
+        if (!errflg && !fend && fautohold) {
 
-        if (!win->visible) winvis(win); /* make sure we are displayed */
+            /* process automatic exit sequence */
+            if (!win->visible) winvis(win); /* make sure we are displayed */
 #ifndef __MACH__ /* Mac OS X */
-        /* construct final name for window */
-        trmnam = imalloc(strlen(fini)+strlen(program_invocation_short_name)+1);
-        strcpy(trmnam, fini); /* place first part */
-        strcat(trmnam, program_invocation_short_name); /* place program name */
-        /* set window title */
-        XStoreName(padisplay, win->xmwhan, trmnam);
+            /* construct final name for window */
+            trmnam = imalloc(strlen(fini)+
+                             strlen(program_invocation_short_name)+1);
+            strcpy(trmnam, fini); /* place first part */
+            /* place program name */
+            strcat(trmnam, program_invocation_short_name);
+            /* set window title */
+            XStoreName(padisplay, win->xmwhan, trmnam);
 #endif
-        /* wait for a formal end */
-		while (!fend) pa_event(stdin, &er);
-		ifree(trmnam); /* free up termination name */
+            /* wait for a formal end */
+            while (!fend) pa_event(stdin, &er);
+            ifree(trmnam); /* free up termination name */
 
-	}
-	XWLOCK();
-	/* destroy the main window */
-	XDestroyWindow(padisplay, win->xwhan);
-    /* close X Window */
-    XCloseDisplay(padisplay);
-    XWUNLOCK();
+        }
+        XWLOCK();
+        /* destroy the main window */
+        XDestroyWindow(padisplay, win->xwhan);
+        /* close X Window */
+        XCloseDisplay(padisplay);
+        XWUNLOCK();
+
+    }
 
     /* close joysticks */
     for (ji = 0; ji < MAXJOY; ji++) if (joytab[ji]) close(joytab[ji]->fid);
