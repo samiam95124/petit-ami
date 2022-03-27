@@ -1938,8 +1938,6 @@ Process input line
 Reads an input line with full echo and editing. The line is placed into the
 input line buffer.
 
-The upgrade for this is to implement a full set of editing features.
-
 *******************************************************************************/
 
 static void readline(void)
@@ -1947,47 +1945,126 @@ static void readline(void)
 {
 
     pa_evtrec er; /* event record */
+    scnptr    sc; /* pointer to current screen */
+    int       i;
 
+    sc = screens[curupd-1]; /* index current screen */
     inpptr = 0; /* set 1st character position */
+    inpbuf[0] = 0; /* terminate line */
     do { /* get line characters */
 
-        /* get events until an "interesting" event occurs */
-        do { ievent(&er); }
-        while (er.etype != pa_etchar && er.etype != pa_etenter &&
-               er.etype != pa_etterm && er.etype != pa_etdelcb);
-        /* if the event is line enter, place newline code,
-           otherwise place real character. if the event is program terminate,
-           we execute an organized halt */
+        ievent(&er); /* get next event */
         switch (er.etype) { /* event */
 
             case pa_etterm: exit(1); /* halt program */
             case pa_etenter: /* line terminate */
+                while (inpbuf[inpptr]) inpptr++; /* advance to end */
                 inpbuf[inpptr] = '\n'; /* return newline */
                 /* terminate the line for debug prints */
                 inpbuf[inpptr+1] = 0;
-                plcchr(screens[curupd-1], '\r'); /* output newline sequence */
-                plcchr(screens[curupd-1], '\n');
+                plcchr(sc, '\r'); /* output newline sequence */
+                plcchr(sc, '\n');
                 break;
             case pa_etchar: /* character */
-                if (inpptr < MAXLIN) {
+                if (inpptr < MAXLIN-2) {
 
-                    inpbuf[inpptr++] = er.echar; /* place real character */
-                    /* echo the character */
-                    plcchr(screens[curupd-1], er.echar);
+                    i = inpptr; /* find end */
+                    while (inpbuf[i]) i++;
+                    /* move line up */
+                    while (inpptr < i) { inpbuf[i+1] = inpbuf[i]; i--; }
+                    inpbuf[inpptr] = er.echar; /* place new character */
+                    /* reprint line */
+                    i = inpptr;
+                    while (inpbuf[i]) plcchr(sc, inpbuf[i++]);
+                    /* back up */
+                    i = inpptr;
+                    while (inpbuf[i++]) plcchr(sc, '\b');
+                    /* forward and next char */
+                    plcchr(sc, inpbuf[inpptr]);
+                    inpptr++;
 
                 }
                 break;
             case pa_etdelcb: /* delete character backwards */
                 if (inpptr > 0) { /* not at extreme left */
 
-                    /* backspace, spaceout then backspace again */
-                    plcchr(screens[curupd-1], '\b');
-                    plcchr(screens[curupd-1], ' ');
-                    plcchr(screens[curupd-1], '\b');
+                    inpptr--; /* back up pointer */
+                    /* move characters back */
+                    i = inpptr;
+                    while (inpbuf[i]) { inpbuf[i] = inpbuf[i+1]; i++; }
+                    plcchr(sc, '\b'); /* move cursor back */
+                    /* repaint line */
+                    i = inpptr;
+                    while (inpbuf[i]) plcchr(sc, inpbuf[i++]);
+                    plcchr(sc, ' '); /* blank last */
+                    /* back up */
+                    plcchr(sc, '\b');
+                    i = inpptr;
+                    while (inpbuf[i++]) plcchr(sc, '\b');
+
+                }
+                break;
+            case pa_etdelcf: /* delete character forward */
+                if (inpbuf[inpptr]) { /* not at extreme right */
+
+                    /* move characters down */
+                    i = inpptr;
+                    while (inpbuf[i]) { inpbuf[i] = inpbuf[i+1]; i++; }
+                    /* repaint right */
+                    i = inpptr;
+                    while (inpbuf[i]) plcchr(sc, inpbuf[i++]);
+                    plcchr(sc, ' '); /* blank last */
+                    /* back up */
+                    plcchr(sc, '\b');
+                    i = inpptr;
+                    while (inpbuf[i++]) plcchr(sc, '\b');
+
+                }
+                break;
+            case pa_etright: /* right character */
+                /* not at extreme right, go right */
+                if (inpbuf[inpptr]) {
+
+                    plcchr(sc, inpbuf[inpptr]);
+                    inpptr++; /* advance input */
+
+                }
+                break;
+
+            case pa_etleft: /* left character */
+                /* not at extreme left, go left */
+                if (inpptr > 0) {
+
+                    plcchr(sc, '\b');
                     inpptr--; /* back up pointer */
 
                 }
                 break;
+
+            case pa_etmoumov: /* mouse moved */
+                break;
+
+            case pa_etmouba: /* mouse click */
+                break;
+
+            case pa_ethomel: /* beginning of line */
+                break;
+
+            case pa_etendl: /* end of line */
+                break;
+
+            case pa_etinsertt: /* toggle insert mode */
+                break;
+
+            case pa_etdell: /* delete whole line */
+                break;
+
+            case pa_etleftw: /* left word */
+                break;
+
+            case pa_etrightw: /* right word */
+                break;
+
             default: ;
 
         }

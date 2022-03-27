@@ -1137,7 +1137,7 @@ static void editbox_event(pa_evtrec* ev, wigptr wg)
             }
             break;
 
-        case pa_etmoumovg: /* mouse moved *
+        case pa_etmoumovg: /* mouse moved */
             /* track position */
             wg->mpx = ev->moupxg; /* set present position */
             wg->mpy = ev->moupyg;

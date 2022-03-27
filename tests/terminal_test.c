@@ -100,7 +100,7 @@ static struct { /* benchmark stats records */
 static bench bi;
 
 static int x, y, lx, ly, tx, ty, dx, dy, maxy, maxx;
-static char c;
+static int c;
 static int top, bottom, lside, rside; /* borders */
 static enum { dup, ddown, dleft, dright } direction; /* writing direction */
 static int count, t1, t2, delay, minlen;   /* maximum direction, x or y */
@@ -112,6 +112,7 @@ static char tf_NAME[10/*_FNSIZE*/] = "testfile";
 static int eventflag1, eventflag2;
 static pa_pevthan oeh1;
 static pa_pevthan oeh2;
+static char line[250];
 
 /* draw box */
 
@@ -371,6 +372,7 @@ int main(int argc, char *argv[])
     }
     prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
+#if 0
     printf("\f");
     timetest();
     printf("\n");
@@ -393,6 +395,32 @@ int main(int argc, char *argv[])
     printf("\n");
     prtcen(pa_maxy(stdout),
            "Press return to start test (and to pass each pattern)");
+    waitnext();
+
+#endif
+    /* *********************** Console standard text entry ********************* */
+
+   printf("\f");
+   pa_curvis(stdout, 1);
+   printf("Standard input line enter test\n");
+   printf("\n");
+   printf("Enter text below. The line editor may have common line edit features\n");
+   printf("installed, such as back up cursor, delete backwards/forwards, start\n");
+   printf("and end of line, etc. Read the local system manual and try them.\n");
+   printf("\n");
+   line[0] = 0;
+   i = 0;
+   do {
+
+        c = getchar();
+        if (c != EOF && c != '\n') line[i++] = c;
+
+    } while (c != EOF && c != '\n');
+    printf("\n");
+    printf("You typed:\n");
+    printf("\n");
+    printf("%s", line);
+    prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
 
     /* ************************* Test last line problem ************************ */
