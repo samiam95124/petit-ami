@@ -1946,11 +1946,13 @@ static void readline(void)
 
     pa_evtrec er; /* event record */
     scnptr    sc; /* pointer to current screen */
+    int       ins; /* insert/overwrite mode */
     int       i;
 
     sc = screens[curupd-1]; /* index current screen */
     inpptr = 0; /* set 1st character position */
     inpbuf[0] = 0; /* terminate line */
+    ins = 1;
     do { /* get line characters */
 
         ievent(&er); /* get next event */
@@ -1968,20 +1970,33 @@ static void readline(void)
             case pa_etchar: /* character */
                 if (inpptr < MAXLIN-2) {
 
-                    i = inpptr; /* find end */
-                    while (inpbuf[i]) i++;
-                    /* move line up */
-                    while (inpptr < i) { inpbuf[i+1] = inpbuf[i]; i--; }
-                    inpbuf[inpptr] = er.echar; /* place new character */
-                    /* reprint line */
-                    i = inpptr;
-                    while (inpbuf[i]) plcchr(sc, inpbuf[i++]);
-                    /* back up */
-                    i = inpptr;
-                    while (inpbuf[i++]) plcchr(sc, '\b');
-                    /* forward and next char */
-                    plcchr(sc, inpbuf[inpptr]);
-                    inpptr++;
+                    if (ins) { /* insert */
+
+                        i = inpptr; /* find end */
+                        while (inpbuf[i]) i++;
+                        /* move line up */
+                        while (inpptr < i) { inpbuf[i+1] = inpbuf[i]; i--; }
+                        inpbuf[inpptr] = er.echar; /* place new character */
+                        /* reprint line */
+                        i = inpptr;
+                        while (inpbuf[i]) plcchr(sc, inpbuf[i++]);
+                        /* back up */
+                        i = inpptr;
+                        while (inpbuf[i++]) plcchr(sc, '\b');
+                        /* forward and next char */
+                        plcchr(sc, inpbuf[inpptr]);
+                        inpptr++;
+
+                    } else { /* overwrite */
+
+                        /* if end, move end marker */
+                        if (!inpbuf[inpptr]) inpbuf[inpptr+1] = 0;
+                        inpbuf[inpptr] = er.echar; /* place new character */
+                        /* forward and next char */
+                        plcchr(sc, inpbuf[inpptr]);
+                        inpptr++;
+
+                    }
 
                 }
                 break;
@@ -2042,27 +2057,82 @@ static void readline(void)
                 break;
 
             case pa_etmoumov: /* mouse moved */
+                /* we can track this internally */
                 break;
 
             case pa_etmouba: /* mouse click */
+                if (er.amoubn == 1) {
+
+                    /* mouse click button 1 */
+                    if (sc->cury == nmpy && inpptr+1 >= nmpx)
+                        /* mouse position is within buffer space, set
+                           position */
+                        icursor(sc, nmpx, sc->cury);
+
+                }
                 break;
 
             case pa_ethomel: /* beginning of line */
+                /* back up to start of line */
+                while (inpptr) {
+
+                    plcchr(sc, '\b');
+                    inpptr--;
+
+                }
                 break;
 
             case pa_etendl: /* end of line */
+                /* go to end of line */
+                while (inpbuf[inpptr]) {
+
+                    plcchr(sc, inpbuf[inpptr]);
+                    inpptr++;
+
+                }
                 break;
 
             case pa_etinsertt: /* toggle insert mode */
+                ins = !ins; /* toggle insert mode */
                 break;
 
             case pa_etdell: /* delete whole line */
+                /* back up to start of line */
+                while (inpptr) {
+
+                    plcchr(sc, '\b');
+                    inpptr--;
+
+                }
+                /* erase line on screen */
+                while (inpbuf[inpptr]) {
+
+                    plcchr(sc, ' ');
+                    inpptr++;
+
+                }
+                /* back up again */
+                while (inpptr) {
+
+                    plcchr(sc, '\b');
+                    inpptr--;
+
+                }
+                inpbuf[inpptr] = 0; /* clear line */
                 break;
 
             case pa_etleftw: /* left word */
+                /* back over any spaces */
+                while (inpptr && inpbuf[inpptr-1] == ' ') inpptr--;
+                /* now back over any non-space */
+                while (inpptr && inpbuf[inpptr-1] != ' ') inpptr--;
                 break;
 
             case pa_etrightw: /* right word */
+                /* advance over any non-space */
+                while (inpbuf[inpptr] && inpbuf[inpptr] != ' ') inpptr++;
+                /* advance over any spaces */
+                while (inpbuf[inpptr] && inpbuf[inpptr] == ' ') inpptr++;
                 break;
 
             default: ;
