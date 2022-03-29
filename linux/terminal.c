@@ -1975,7 +1975,7 @@ static void readline(void)
                         i = inpptr; /* find end */
                         while (inpbuf[i]) i++;
                         /* move line up */
-                        while (inpptr < i) { inpbuf[i+1] = inpbuf[i]; i--; }
+                        while (inpptr <= i) { inpbuf[i+1] = inpbuf[i]; i--; }
                         inpbuf[inpptr] = er.echar; /* place new character */
                         /* reprint line */
                         i = inpptr;
@@ -2123,16 +2123,36 @@ static void readline(void)
 
             case pa_etleftw: /* left word */
                 /* back over any spaces */
-                while (inpptr && inpbuf[inpptr-1] == ' ') inpptr--;
+                while (inpptr && inpbuf[inpptr-1] == ' ') {
+
+                    plcchr(sc, '\b');
+                    inpptr--;
+
+                }
                 /* now back over any non-space */
-                while (inpptr && inpbuf[inpptr-1] != ' ') inpptr--;
+                while (inpptr && inpbuf[inpptr-1] != ' ') {
+
+                    plcchr(sc, '\b');
+                    inpptr--;
+
+                }
                 break;
 
             case pa_etrightw: /* right word */
                 /* advance over any non-space */
-                while (inpbuf[inpptr] && inpbuf[inpptr] != ' ') inpptr++;
+                while (inpbuf[inpptr] && inpbuf[inpptr] != ' ') {
+
+                    plcchr(sc, inpbuf[inpptr]);
+                    inpptr++;
+
+                }
                 /* advance over any spaces */
-                while (inpbuf[inpptr] && inpbuf[inpptr] == ' ') inpptr++;
+                while (inpbuf[inpptr] && inpbuf[inpptr] == ' ') {
+
+                    plcchr(sc, inpbuf[inpptr]);
+                    inpptr++;
+
+                }
                 break;
 
             default: ;
