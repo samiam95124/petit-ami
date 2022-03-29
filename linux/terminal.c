@@ -1944,15 +1944,18 @@ static void readline(void)
 
 {
 
-    pa_evtrec er; /* event record */
-    scnptr    sc; /* pointer to current screen */
-    int       ins; /* insert/overwrite mode */
+    pa_evtrec er;   /* event record */
+    scnptr    sc;   /* pointer to current screen */
+    int       ins;  /* insert/overwrite mode */
+    int       xoff; /* x starting line offset */
+    int       l;    /* buffer length */
     int       i;
 
     sc = screens[curupd-1]; /* index current screen */
     inpptr = 0; /* set 1st character position */
     inpbuf[0] = 0; /* terminate line */
     ins = 1;
+    xoff = sc->curx; /* save starting line offset */
     do { /* get line characters */
 
         ievent(&er); /* get next event */
@@ -2063,13 +2066,13 @@ static void readline(void)
             case pa_etmouba: /* mouse click */
                 if (er.amoubn == 1) {
 
-                    /* mouse click button 1 */
-                    if (sc->cury == nmpy && inpptr+1 >= nmpx) {
+                    l = strlen(inpbuf);
+                    if (sc->cury == nmpy && xoff <= nmpx && xoff+l >= nmpx) {
 
                         /* mouse position is within buffer space, set
                            position */
                         icursor(sc, nmpx, sc->cury);
-                        inpptr = nmpx-1;
+                        inpptr = nmpx-xoff;
 
                     }
 

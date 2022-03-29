@@ -397,7 +397,6 @@ int main(int argc, char *argv[])
            "Press return to start test (and to pass each pattern)");
     waitnext();
 
-#endif
     /* *********************** Console standard text entry ********************* */
 
    printf("\f");
@@ -408,6 +407,33 @@ int main(int argc, char *argv[])
    printf("installed, such as back up cursor, delete backwards/forwards, start\n");
    printf("and end of line, etc. Read the local system manual and try them.\n");
    printf("\n");
+   line[0] = 0;
+   i = 0;
+   do {
+
+        c = getchar();
+        if (c != EOF && c != '\n') line[i++] = c;
+
+    } while (c != EOF && c != '\n');
+    printf("\n");
+    printf("You typed:\n");
+    printf("\n");
+    printf("%s", line);
+    prtcen(pa_maxy(stdout), "Press return to continue");
+    waitnext();
+
+#endif
+    /* **************** Console standard text entry with offset ************* */
+
+   printf("\f");
+   pa_curvis(stdout, 1);
+   printf("Standard input line enter with offset test\n");
+   printf("\n");
+   printf("Enter text below. The line editor may have common line edit features\n");
+   printf("installed, such as back up cursor, delete backwards/forwards, start\n");
+   printf("and end of line, etc. Read the local system manual and try them.\n");
+   printf("\n");
+   printf("===========>");
    line[0] = 0;
    i = 0;
    do {
