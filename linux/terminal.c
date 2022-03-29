@@ -2064,10 +2064,14 @@ static void readline(void)
                 if (er.amoubn == 1) {
 
                     /* mouse click button 1 */
-                    if (sc->cury == nmpy && inpptr+1 >= nmpx)
+                    if (sc->cury == nmpy && inpptr+1 >= nmpx) {
+
                         /* mouse position is within buffer space, set
                            position */
                         icursor(sc, nmpx, sc->cury);
+                        inpptr = nmpx-1;
+
+                    }
 
                 }
                 break;
