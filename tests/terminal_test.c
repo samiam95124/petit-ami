@@ -344,6 +344,7 @@ int main(int argc, char *argv[])
     /* set black on white text */
     pa_fcolor(stdout, pa_black);
     pa_bcolor(stdout, pa_white);
+#if 0
     printf("\f");
     pa_curvis(stdout, FALSE);
     prtban("Terminal mode screen test vs. 1.0");
@@ -372,7 +373,6 @@ int main(int argc, char *argv[])
     }
     prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
-#if 0
     printf("\f");
     timetest();
     printf("\n");
@@ -399,6 +399,7 @@ int main(int argc, char *argv[])
 
     /* *********************** Console standard text entry ********************* */
 
+#endif
    printf("\f");
    pa_curvis(stdout, 1);
    printf("Standard input line enter test\n");
@@ -422,7 +423,6 @@ int main(int argc, char *argv[])
     prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
 
-#endif
     /* **************** Console standard text entry with offset ************* */
 
    printf("\f");
