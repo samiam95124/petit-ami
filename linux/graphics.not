@@ -52,6 +52,14 @@ widget/window gets focus.
 
 13. Find a way to tie widgets to GTK theming.
 
+14. If standard input is performed from multiple windows, the system has a
+method for arbitrating which window gets the input, and can even manage multiple
+windows at the same time. The first window that gets a line enter will yeild the
+data. The issue with this is how does the system know what window is intended to
+perform input? Any window can have text/controls entered, and it will edit at
+wherever the cursor happens to be. This means either multiple windows are an
+error, or the user should be warned about input with multiple output windows.
+
 Follow up:
 
 12. Management test/child windows test character. Leave the previous frametest

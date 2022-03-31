@@ -4033,6 +4033,7 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
     win->joy2ys = 0;
     win->joy2zs = 0;
     win->inpptr = -1; /* set buffer empty */
+    win->inpbuf[0] = 0;
     win->frmrun = FALSE; /* set framing timer not running */
     win->bufmod = TRUE; /* set buffering on */
     win->metlst = NULL; /* clear menu tracking list */
@@ -5928,7 +5929,6 @@ static void readline(int fd)
 
     } while (!lcmp); /* until line complete */
     win->inpptr = 0; /* set 1st position on active line */
-dbg_printf(dlinfo, "end\n");
 
 }
 
@@ -5970,7 +5970,7 @@ static int fndful(int fd) /* output window file */
     for (fi = 0; fi < MAXFIL; fi++) if (opnfil[fi])
         if (opnfil[fi]->inl == fd && opnfil[fi]->win != NULL)
             /* links the input file, and has a window */
-            if (opnfil[fi]->win->inpptr >= 0) ff = fi; /* found one */
+            if (strlen(opnfil[fi]->win->inpbuf) > 0) ff = fi; /* found one */
 
     return (ff); /* return result */
 
@@ -6008,7 +6008,12 @@ static ssize_t ivread(pread_t readdc, int fd, void* buff, size_t count)
                     if (win->inpptr < MAXLIN) win->inpptr++; /* next */
                     /* if we have just read the last of that line, flag buffer
                        empty */
-                    if (*ba == '\n') win->inpptr = -1;
+                    if (*ba == '\n') {
+
+                        win->inpptr = -1;
+                        win->inpbuf[0] = 0;
+
+                    }
                     l--; /* count characters */
 
                 }
@@ -11278,7 +11283,6 @@ void pa_openwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
 
 {
 
-dbg_printf(dlinfo, "\n");
     /* open as child of client window */
     iopenwin(infile, outfile, parent, wid, TRUE);
 
