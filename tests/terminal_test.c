@@ -416,6 +416,7 @@ int main(int argc, char *argv[])
         if (c != EOF && c != '\n') line[i++] = c;
 
     } while (c != EOF && c != '\n');
+    line[i] = 0;
     printf("\n");
     printf("You typed:\n");
     printf("\n");
@@ -442,6 +443,7 @@ int main(int argc, char *argv[])
         if (c != EOF && c != '\n') line[i++] = c;
 
     } while (c != EOF && c != '\n');
+    line[i] = 0;
     printf("\n");
     printf("You typed:\n");
     printf("\n");

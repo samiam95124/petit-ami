@@ -5720,7 +5720,7 @@ static void readline(int fd)
                     while (win->inpbuf[win->inpptr])
                         win->inpptr++; /* advance to end */
                     win->inpbuf[win->inpptr] = '\n'; /* return newline */
-                    /* terminate the line for debug prints */
+                    /* terminate the line */
                     win->inpbuf[win->inpptr+1] = 0;
                     plcchr(win, '\r'); /* output newline sequence */
                     plcchr(win, '\n');
