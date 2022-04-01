@@ -8905,68 +8905,246 @@ buffer is completed by hitting "enter",  we return.
 
 *******************************************************************************/
 
-static void readline(int fn)
+static void readline(int fd)
 
 {
 
-    pa_evtrec er;  /* event record */
-    winptr    win; /* window pointer */
+    pa_evtrec er;   /* event record */
+    scnptr    sc;   /* pointer to current screen */
+    winptr    win;  /* window pointer */
+    int       ins;  /* insert/overwrite mode */
+    int       xoff; /* x starting line offset */
+    int       l;    /* buffer length */
+    int       ofn;  /* logical output file */
+    int       lcmp; /* line complete */
+    int       i;
 
+    lcmp = FALSE; /* set line not complete */
     do { /* get line characters */
 
-        /* get events until an "interesting" event occurs */
-        do { ievent(fn, &er);
-        } while (er.etype != pa_etchar && er.etype != pa_etenter &&
-                 er.etype != pa_etterm && er.etype != pa_etdelcb);
+        ievent(fd, &er); /* get next event */
         win = lwn2win(er.winid); /* get the window from the id */
-        /* if the event is line enter, place newline code,
-           otherwise place real character. if the event is program terminate,
-           we execute an organized halt */
-        switch (er.etype) {/* event */
+        if (win->inpptr < 0) { /* buffer is flagged empty */
 
-            case pa_etterm:  abortm; /* halt program */
+            win->inpptr = 0; /* reset input */
+            win->inpbuf[win->inpptr] = 0; /* and terminate buffer */
+            ins = 1;
+            xoff = sc->curx; /* save starting line offset */
+
+        }
+        switch (er.etype) { /* event */
+
+            case pa_etterm: exit(1); /* halt program */
             case pa_etenter: /* line terminate */
-                /* validate empty buffer */
-                if (win->inpptr < 0) win->inpptr = 0;
-                win->inpbuf[win->inpptr++] = '\n'; /* return newline */
-                /* terminate the line for debug prints */
-                win->inpbuf[win->inpptr] = 0;
+                while (win->inpbuf[win->inpptr])
+                    win->inpptr++; /* advance to end */
+                win->inpbuf[win->inpptr] = '\n'; /* return newline */
+                /* terminate the line */
+                win->inpbuf[win->inpptr+1] = 0;
                 plcchr(win, '\r'); /* output newline sequence */
                 plcchr(win, '\n');
+                lcmp = TRUE; /* set line complete */
                 break;
-
             case pa_etchar: /* character */
-                /* validate empty buffer */
-                if (win->inpptr < 0) win->inpptr = 0;
-                if (win->inpptr < MAXLIN) {
+                if (win->inpptr < MAXLIN-2) {
 
-                    /* place real character */
-                    win->inpbuf[win->inpptr++] = er.echar;
-                    plcchr(win, er.echar); /* echo the character */
+                    if (ins) { /* insert */
+
+                        i = win->inpptr; /* find end */
+                        while (win->inpbuf[i]) i++;
+                        /* move line up */
+                        while (win->inpptr <= i)
+                            { win->inpbuf[i+1] = win->inpbuf[i]; i--; }
+                        /* place new character */
+                        win->inpbuf[win->inpptr] = er.echar;
+                        /* reprint line */
+                        i = win->inpptr;
+                        while (win->inpbuf[i])
+                            plcchr(win, win->inpbuf[i++]);
+                        /* back up */
+                        i = win->inpptr;
+                        while (win->inpbuf[i++]) plcchr(win, '\b');
+                        /* forward and next char */
+                        plcchr(win, win->inpbuf[win->inpptr]);
+                        win->inpptr++;
+
+                    } else { /* overwrite */
+
+                        /* if end, move end marker */
+                        if (!win->inpbuf[win->inpptr]) win->inpbuf[win->inpptr+1] = 0;
+                        win->inpbuf[win->inpptr] = er.echar; /* place new character */
+                        /* forward and next char */
+                        plcchr(win, win->inpbuf[win->inpptr]);
+                        win->inpptr++;
+
+                    }
 
                 }
                 break;
-
             case pa_etdelcb: /* delete character backwards */
-                /* validate empty buffer */
-                if (win->inpptr < 0) win->inpptr = 0;
-                if (win->inpptr) { /* not at extreme left */
+                if (win->inpptr > 0) { /* not at extreme left */
 
-                    /* backspace, spaceout  backspace again */
+                    win->inpptr--; /* back up pointer */
+                    /* move characters back */
+                    i = win->inpptr;
+                    while (win->inpbuf[i]) { win->inpbuf[i] = win->inpbuf[i+1]; i++; }
+                    plcchr(win, '\b'); /* move cursor back */
+                    /* repaint line */
+                    i = win->inpptr;
+                    while (win->inpbuf[i]) plcchr(win, win->inpbuf[i++]);
+                    plcchr(win, ' '); /* blank last */
+                    /* back up */
                     plcchr(win, '\b');
-                    plcchr(win, ' ');
-                    plcchr(win, '\b');
-                    win->inpptr = win->inpptr-1; /* back up pointer */
-                    /* if completely erased, flag empty */
-                    if (!win->inpptr) win->inpptr = -1;
+                    i = win->inpptr;
+                    while (win->inpbuf[i++]) plcchr(win, '\b');
 
                 }
                 break;
+            case pa_etdelcf: /* delete character forward */
+                if (win->inpbuf[win->inpptr]) { /* not at extreme right */
+
+                    /* move characters down */
+                    i = win->inpptr;
+                    while (win->inpbuf[i]) { win->inpbuf[i] = win->inpbuf[i+1]; i++; }
+                    /* repaint right */
+                    i = win->inpptr;
+                    while (win->inpbuf[i]) plcchr(win, win->inpbuf[i++]);
+                    plcchr(win, ' '); /* blank last */
+                    /* back up */
+                    plcchr(win, '\b');
+                    i = win->inpptr;
+                    while (win->inpbuf[i++]) plcchr(win, '\b');
+
+                }
+                break;
+            case pa_etright: /* right character */
+                /* not at extreme right, go right */
+                if (win->inpbuf[win->inpptr]) {
+
+                    plcchr(win, win->inpbuf[win->inpptr]);
+                    win->inpptr++; /* advance input */
+
+                }
+                break;
+
+            case pa_etleft: /* left character */
+                /* not at extreme left, go left */
+                if (win->inpptr > 0) {
+
+                    plcchr(win, '\b');
+                    win->inpptr--; /* back up pointer */
+
+                }
+                break;
+
+            case pa_etmoumov: /* mouse moved */
+                /* we can track this internally */
+                break;
+
+            case pa_etmouba: /* mouse click */
+                if (er.amoubn == 1) {
+
+                    l = strlen(win->inpbuf);
+                    if (sc->cury == win->mpy && xoff <= win->mpx && xoff+l >= win->mpx) {
+
+                        /* mouse position is within buffer space, set
+                           position */
+                        icursor(win, win->mpx, sc->cury);
+                        win->inpptr = win->mpx-xoff;
+
+                    }
+
+                }
+                break;
+
+            case pa_ethomel: /* beginning of line */
+                /* back up to start of line */
+                while (win->inpptr) {
+
+                    plcchr(win, '\b');
+                    win->inpptr--;
+
+                }
+                break;
+
+            case pa_etendl: /* end of line */
+                /* go to end of line */
+                while (win->inpbuf[win->inpptr]) {
+
+                    plcchr(win, win->inpbuf[win->inpptr]);
+                    win->inpptr++;
+
+                }
+                break;
+
+            case pa_etinsertt: /* toggle insert mode */
+                ins = !ins; /* toggle insert mode */
+                break;
+
+            case pa_etdell: /* delete whole line */
+                /* back up to start of line */
+                while (win->inpptr) {
+
+                    plcchr(win, '\b');
+                    win->inpptr--;
+
+                }
+                /* erase line on screen */
+                while (win->inpbuf[win->inpptr]) {
+
+                    plcchr(win, ' ');
+                    win->inpptr++;
+
+                }
+                /* back up again */
+                while (win->inpptr) {
+
+                    plcchr(win, '\b');
+                    win->inpptr--;
+
+                }
+                win->inpbuf[win->inpptr] = 0; /* clear line */
+                break;
+
+            case pa_etleftw: /* left word */
+                /* back over any spaces */
+                while (win->inpptr && win->inpbuf[win->inpptr-1] == ' ') {
+
+                    plcchr(win, '\b');
+                    win->inpptr--;
+
+                }
+                /* now back over any non-space */
+                while (win->inpptr && win->inpbuf[win->inpptr-1] != ' ') {
+
+                    plcchr(win, '\b');
+                    win->inpptr--;
+
+                }
+                break;
+
+            case pa_etrightw: /* right word */
+                /* advance over any non-space */
+                while (win->inpbuf[win->inpptr] && win->inpbuf[win->inpptr] != ' ') {
+
+                    plcchr(win, win->inpbuf[win->inpptr]);
+                    win->inpptr++;
+
+                }
+                /* advance over any spaces */
+                while (win->inpbuf[win->inpptr] && win->inpbuf[win->inpptr] == ' ') {
+
+                    plcchr(win, win->inpbuf[win->inpptr]);
+                    win->inpptr++;
+
+                }
+                break;
+
+            default: ;
 
         }
 
-    } while (er.etype != pa_etenter); /* until line terminate */
-    /* note we still are indexing the last window that gave us the enter */
+    } while (!lcmp); /* until line complete */
     win->inpptr = 0; /* set 1st position on active line */
 
 }
