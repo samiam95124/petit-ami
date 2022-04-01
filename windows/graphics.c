@@ -8924,6 +8924,7 @@ static void readline(int fd)
 
         ievent(fd, &er); /* get next event */
         win = lwn2win(er.winid); /* get the window from the id */
+        sc = win->screens[win->curupd-1]; /* index current screen */
         if (win->inpptr < 0) { /* buffer is flagged empty */
 
             win->inpptr = 0; /* reset input */

@@ -1046,7 +1046,7 @@ static void itab(void)
     /* first, find if next tab even exists */
     i = screens[curupd-1]->curx+1; /* get the current x position +1 */
     if (i < 1) i = 1; /* don't bother to search to left of screen */
-    /* find tab or } of screen */
+    /* find tab or end of screen */
     while (i < screens[curupd-1]->maxx && !screens[curupd-1]->tab[i-1]) i++;
     if (screens[curupd-1]->tab[i-1]) /* we found a tab */
         while (screens[curupd-1]->curx < i) iright(); /* go to the tab */
@@ -1273,7 +1273,7 @@ void pa_bcolor(FILE* f, pa_color c)
 Enable/disable automatic scroll and wrap
 
 
-Enables or disables automatic screen scroll and } of line wrapping. When the
+Enables or disables automatic screen scroll and end of line wrapping. When the
 cursor leaves the screen in automatic mode, the following occurs:
 
 up        Scroll down
@@ -1495,7 +1495,7 @@ void pa_del(FILE* f)
 
 /*******************************************************************************
 
-Aquire next input event
+Acquire next input event
 
 Waits for and returns the next event. For now, the input file is ignored, and
 the standard input handle allways used.
@@ -1624,7 +1624,7 @@ static void keyevent(pa_evtptr er, INPUT_RECORD* inpevt, int* keep)
             else if (inpevt->Event.KeyEvent.uChar.AsciiChar == '\t')
                 er->etype = pa_ettab; /* set tab */
             else if (inpevt->Event.KeyEvent.uChar.AsciiChar == 'C'-64)
-                er->etype = pa_etterm; /* set } program */
+                er->etype = pa_etterm; /* set end program */
             else if (inpevt->Event.KeyEvent.uChar.AsciiChar == 'S'-64)
                 er->etype = pa_etstop; /* set stop program */
             else if (inpevt->Event.KeyEvent.uChar.AsciiChar == 'Q'-64)
@@ -2979,7 +2979,7 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
         y = HIWORD(lparam);
         inpevt.Event.KeyEvent.wVirtualKeyCode = x; /* place */
         inpevt.Event.KeyEvent.wVirtualScanCode = y; /* place */
-        WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
+        WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* send */
 
     } else if (msg == MM_JOY1ZMOVE) {
 
@@ -2988,7 +2988,7 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
         inpevt.Event.KeyEvent.dwControlKeyState = UIV_JOY1ZMOVE;
         z = LOWORD(lparam); /* get z for joystick */
         inpevt.Event.KeyEvent.wVirtualKeyCode = z; /* place */
-        WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
+        WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* send */
 
     } else if (msg == MM_JOY2MOVE) {
 
@@ -2999,7 +2999,7 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
         y = HIWORD(lparam);
         inpevt.Event.KeyEvent.wVirtualKeyCode = x; /* place */
         inpevt.Event.KeyEvent.wVirtualScanCode = y; /* place */
-        WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
+        WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* send */
 
     } else if (msg == MM_JOY2ZMOVE) {
 
@@ -3008,7 +3008,7 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
         inpevt.Event.KeyEvent.dwControlKeyState = UIV_JOY2ZMOVE;
         z = LOWORD(lparam); /* get z for joystick */
         inpevt.Event.KeyEvent.wVirtualKeyCode = z; /* place */
-        WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
+        WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* send */
 
     } else if (msg == MM_JOY1BUTTONDOWN) {
 
@@ -3016,7 +3016,7 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
         /* set joystick move code */
         inpevt.Event.KeyEvent.dwControlKeyState = UIV_JOY1BUTTONDOWN;
         inpevt.Event.KeyEvent.wVirtualKeyCode = wparam; /* place buttons */
-        WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
+        WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* send */
 
     } else if (msg == MM_JOY2BUTTONDOWN) {
 
@@ -3024,7 +3024,7 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
         /* set joystick move code */
         inpevt.Event.KeyEvent.dwControlKeyState = UIV_JOY2BUTTONDOWN;
         inpevt.Event.KeyEvent.wVirtualKeyCode = wparam; /* place buttons */
-        WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
+        WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* send */
 
     } else if (msg == MM_JOY1BUTTONUP) {
 
@@ -3032,7 +3032,7 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
         /* set joystick move code */
         inpevt.Event.KeyEvent.dwControlKeyState = UIV_JOY1BUTTONUP;
         inpevt.Event.KeyEvent.wVirtualKeyCode = wparam; /* place buttons */
-        WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
+        WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* send */
 
     } else if (msg == MM_JOY2BUTTONUP) {
 
@@ -3040,7 +3040,7 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
         /* set joystick move code */
         inpevt.Event.KeyEvent.dwControlKeyState = UIV_JOY2BUTTONUP;
         inpevt.Event.KeyEvent.wVirtualKeyCode = wparam; /* place buttons */
-        WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* s} */
+        WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* send */
 
     } else if (msg == WM_DESTROY) {
 
