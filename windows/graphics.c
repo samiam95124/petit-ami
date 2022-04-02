@@ -173,7 +173,7 @@ static enum { /* debug levels */
 #define ERRFIL    3     /* error */
 
 /* foreground pen style */
-/* FPENSTL  ps_geometric | ps_}cap_flat | ps_solid */
+/* FPENSTL  ps_geometric | ps_endcap_flat | ps_solid */
 #define FPENSTL  (PS_GEOMETRIC | PS_ENDCAP_FLAT | PS_SOLID | PS_JOIN_MITER)
 /* foreground single pixel pen style */
 #define FSPENSTL  PS_SOLID
