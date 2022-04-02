@@ -4617,8 +4617,8 @@ static void iauto(winptr win, int e)
     if (e) {
 
         /* check display is on grid and in bounds */
-        if (sc->curxg-1%win->charspace) error(eatoofg);
-        if (sc->curxg-1%win->charspace) error(eatoofg);
+        if ((sc->curxg-1)%win->charspace || (sc->curyg-1)%win->linespace)
+            error(eatoofg);
         if (!icurbnd(sc)) error(eatoecb);
 
     }
