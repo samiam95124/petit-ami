@@ -618,6 +618,7 @@ typedef enum {
     enosel,   /* Cannot select object */
     ecfgval,  /* invalid configuration value */
     efntnf,   /* no matching font found */
+    einvpff,  /* invalid picture file format */
     esystem   /* System consistency check */
 
 } errcod;
@@ -1139,6 +1140,7 @@ static void error(errcod e)
         case enosel:   grawrterr("Cannot select object"); break;
         case ecfgval:  grawrterr("Invalid configuration value"); break;
         case efntnf:   grawrterr("No matching font found"); break;
+        case einvpff:  grawrterr("Invalid picture file format"); break;
         case esystem:  grawrterr("System consistency check, please contact vendor");
 
     }
@@ -7055,7 +7057,15 @@ static void iloadpict(winptr win, int p, char* fn)
     /* load the image into memory */
     win->pictbl[p-1].han =
        LoadImage(NULL, fnh, IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
-    if (!win->pictbl[p-1].han) winerr(); /* process windows error */
+    if (!win->pictbl[p-1].han) {
+
+        /* Windows is particular about it's .bmp formats, and unfortuantely
+           returns "no error" status for this problem. So we flag the error
+           ourselves */
+        if (GetLastError() == ERROR_SUCCESS) error(einvpff);
+        else winerr(); /* process windows error */
+
+    }
     /* put it into a device context */
     win->pictbl[p-1].hdc = CreateCompatibleDC(win->devcon);
     if (!win->pictbl[p-1].hdc) winerr(); /* process windows error */

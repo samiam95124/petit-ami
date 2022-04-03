@@ -8,6 +8,8 @@ Terminal_test
 
 1. The attributes test does odd things on subscript text.
 
+2. The mouse buttons are not numbered the same as in terminal.c.
+
 Graphics test
 
 1. Normalize the .bmp sizes so that the benchmarks have a predictable run time.
@@ -25,20 +27,12 @@ surface is bigger than the window.
 
 widget test
 
-1. Hitting a button gives it the keyboard focus. You then have to hit the client
-area of the main window to get keyboard focus again. [what is the point of giving
-a button keyboard focus? it cannot input keys?]
-
-This matches the behavior of Xwindows. I think the answer is to advise the user of
-this, and advise it is best to define a "next" button or other method to continue,
-instead of relying on CRs.
-
-2. querycolor(), querysave(), queryfind(), and queryfindrep() need their 
+1. querycolor(), querysave(), queryfind(), and queryfindrep() need their 
 descriptions updated.
 
-3. tabbar() and tabbarclient() need their descriptions updated.
+2. tabbar() and tabbarclient() need their descriptions updated.
 
-4. queryfont() should really talk to the user in terms of points. That makes it
+3. queryfont() should really talk to the user in terms of points. That makes it
 a floating point number. This is especially odd considering the windows dialog
 does not take fractional values.
 [Windows won't accept fractions. The docs say "1/10ths of a point". This quirk
@@ -58,7 +52,8 @@ as unresponsive. This was proved by moving the hold code into a function "softsh
 then call that from main program, and it works fine.
 
 This was caused by mingw/windows shutting down the graphics .dll before the deinit
-procedure is executed. The workaround is to not do autohold.
+procedure is executed. The workaround is to not do autohold. This was implemented as
+a configuration parameter.
 
 2. When error send to dialog is enabled, I have seen double faults where the dialog
 is closed, then an error is sent to main window.
@@ -186,6 +181,8 @@ no longer being drawn.
 error after 16 such sets. See L. Tunnicliffe's program.
 
 31. Where is sizwidget() and poswidget()?
+
+32. Can route winerr() to a dialog on the dialogerr flag.
 
 ********************* Enhancement/Feature proposals ****************************
 
