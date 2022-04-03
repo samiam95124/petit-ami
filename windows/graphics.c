@@ -4041,7 +4041,7 @@ static void isuperscript(winptr win, int e)
     scnptr sc;
 
     sc = win->screens[win->curupd-1];
-    if (e)  { /* superscript on */
+    if (e && !sc->autof)  { /* superscript on */
 
         sc->attr |= BIT(sasuper); /* set attribute active */
         win->gattr |= BIT(sasuper);
@@ -4085,7 +4085,7 @@ static void isubscript(winptr win, int e)
     scnptr sc;
 
     sc = win->screens[win->curupd-1];
-    if (e) { /* subscript on */
+    if (e && !sc->autof) { /* subscript on */
 
         sc->attr |= BIT(sasubs); /* set attribute active */
         win->gattr |= BIT(sasubs);
