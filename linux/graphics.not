@@ -29,7 +29,7 @@ smilar algorithim. Right now the storage allocation can climb to infinity.
 in Ubuntu. We can introduce a mode to verify if holds the _NET_FRAME_EXTENTS
 property. Note that not all window managers obey this standard.
 
-8, The sizing and position calls wait for a response from the windows manager.
+7, The sizing and position calls wait for a response from the windows manager.
 I suspect this is not needed, since we use local cached parameters, and it would
 be a system error if the Window manager didn't follow through in any case.
 
@@ -37,22 +37,22 @@ Note also this wold remove the need to check redundant sets, because if the
 request is redundant and ignored, we don't care. It does, however, remove the
 need to run the communication, and the time required.
 
-9. In the scrollbar minimums test, the scrollbars are difficult to grab and 
+8. In the scrollbar minimums test, the scrollbars are difficult to grab and 
 move.
 
 10. In the scrollbar minimums test, positioning the bar occasionally makes it
 lock up sending messages.
 
-11. Need to find out how to implement cut and paste in Xwindow for edit boxes.
+9. Need to find out how to implement cut and paste in Xwindow for edit boxes.
 
-12. To implement tab to next field/widget, I think the best way is to leave this
+10. To implement tab to next field/widget, I think the best way is to leave this
 to the parent what the tab means. This means at least sending the tab back to
 parent, then implementing a focus() command to be able to select what 
 widget/window gets focus.
 
-13. Find a way to tie widgets to GTK theming.
+11. Find a way to tie widgets to GTK theming.
 
-14. If standard input is performed from multiple windows, the system has a
+12. If standard input is performed from multiple windows, the system has a
 method for arbitrating which window gets the input, and can even manage multiple
 windows at the same time. The first window that gets a line enter will yeild the
 data. The issue with this is how does the system know what window is intended to
@@ -61,11 +61,6 @@ wherever the cursor happens to be. This means either multiple windows are an
 error, or the user should be warned about input with multiple output windows.
 
 Follow up:
-
-12. Management test/child windows test character. Leave the previous frametest
-on, then open up the window beyond the default. In the child windows test, the
-child windows open with the wrong size, which is progressively smaller 
-proportional to the amount you open the window, until they disappear completely.
 
 13. Mac OS X/XQuartz, has odd halting problem during tabs test of graphics_test.
 

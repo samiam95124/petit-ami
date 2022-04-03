@@ -1,14 +1,11 @@
              NOTES FOR XTERM TERMINAL LIBRARY
 
-1. In the program "play", hitting a number like "1" does not take effect until you
-hit another digit. [or is very very slow]
-
-2. The other terminal modules treat tabbing as per buffer, that is, each buffer
+1. The other terminal modules treat tabbing as per buffer, that is, each buffer
 keeps track of separate tabbing drums. This is logical, since every other
 characteristic tracks with the buffer.
 
-3. Still looks like we are not getting true white on the background.
+2. Still looks like we are not getting true white on the background.
 
-4. In the Mac OS X version, the final benchmark tallys are getting erased. I 
+3. In the Mac OS X version, the final benchmark tallys are getting erased. I 
 suspect this comes down to different treatment by xterms of the "restore normal
 buffer" command in deinit().
