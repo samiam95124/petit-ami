@@ -105,7 +105,7 @@ static enum { /* debug levels */
 /* default values for color table. Note these can be overridden. */
 #define TD_BUTTBACKPRESSED  RGB(211, 211, 211) /* button background pressed */
 #define TD_BUTTBACK         RGB(252, 252, 252) /* button background not pressed */
-#define TD_BUTTOUT          RGB(196, 196, 196) /* button outline */
+#define TD_OUTLINE          RGB(196, 196, 196) /* button outline */
 #define TD_TEXT             RGB(61, 61, 61)    /* widget face text */
 #define TD_TEXTDIS          RGB(191, 191, 191) /* widget face text disabled */
 #define TD_FOCUS            RGB(236, 174, 152) /* widget focused outline */
@@ -121,7 +121,7 @@ typedef enum {
 
     th_buttbackpressed,  /* button background when pressed */
     th_buttback,         /* button background when not pressed */
-    th_buttout,          /* button outline */
+    th_outline,          /* button outline */
     th_text,             /* button face text enabled */
     th_textdis,          /* button face text disabled */
     th_focus,            /* button focused outline */
@@ -425,7 +425,7 @@ static void button_draw(wigptr wg)
     /* outline */
     pa_linewidth(wg->wf, 4);
     if (wg->focus) fcolort(wg->wf, th_focus);
-    else fcolort(wg->wf, th_buttout);
+    else fcolort(wg->wf, th_outline);
     pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1,
              pa_maxyg(wg->wf)-1, 20, 20);
     if (wg->enb) fcolort(wg->wf, th_text);
@@ -917,7 +917,7 @@ static void group_draw(wigptr wg)
     /* color the background */
     pa_fcolor(wg->wf, pa_backcolor);
     pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
-    fcolort(wg->wf, th_buttout);
+    fcolort(wg->wf, th_outline);
     pa_linewidth(wg->wf, 2);
     pa_rect(wg->wf, 2, pa_chrsizy(wg->wf)/2, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
     pa_fcolor(wg->wf, pa_black);
@@ -1009,18 +1009,18 @@ static void editbox_draw(wigptr wg)
     if (wg->focus) {
 
         pa_linewidth(wg->wf, 4);
-        pa_fcolorg(wg->wf, INT_MAX/256*236, INT_MAX/256*174, INT_MAX/256*152);
+        fcolort(wg->wf, th_focus);
 
     } else {
 
         pa_linewidth(wg->wf, 2);
-        pa_fcolorg(wg->wf, INT_MAX/256*196, INT_MAX/256*196, INT_MAX/256*196);
+        fcolort(wg->wf, th_outline);
 
     }
     pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1,
              pa_maxyg(wg->wf)-1, 20, 20);
-    if (wg->enb) pa_fcolor(wg->wf, pa_black);
-    else pa_fcolorg(wg->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
+    if (wg->enb) fcolort(wg->wf, th_text);
+    else fcolort(wg->wf, th_textdis);
     pa_cursorg(wg->wf, ENDLEDSPC, pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
     /* check cursor in box */
     if (wg->tleft > strlen(wg->face)) wg->tleft = 0;
@@ -3020,7 +3020,7 @@ static void pa_init_widgets(int argc, char *argv[])
     /* fill out the theme table defaults */
     themetable[th_buttbackpressed]  = TD_BUTTBACKPRESSED;
     themetable[th_buttback]         = TD_BUTTBACK;
-    themetable[th_buttout]          = TD_BUTTOUT;
+    themetable[th_outline]          = TD_OUTLINE;
     themetable[th_text]             = TD_TEXT;
     themetable[th_textdis]          = TD_TEXTDIS;
     themetable[th_focus]            = TD_FOCUS;
