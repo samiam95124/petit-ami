@@ -103,24 +103,34 @@ static enum { /* debug levels */
 #define BLUE(v)  (INT_MAX/256*(v & 0xff))      /* blue */
 
 /* default values for color table. Note these can be overridden. */
-#define BUTTBACKPRESSED RGB(224, 224, 224) /* button background pressed */
-#define BUTTBACK        RGB(255, 255, 255) /* button background not pressed */
-#define BUTTOUT         RGB(191, 191, 191) /* button outline */
-#define BUTTTXT         RGB(0, 0, 0)       /* button face text */
-#define BUTTTXTDIS      RGB(191, 191, 191) /* button face text */
-#define BUTTFOCUS       RGB(236, 174, 152) /* button focused outline */
+#define TD_BUTTBACKPRESSED  RGB(211, 211, 211) /* button background pressed */
+#define TD_BUTTBACK         RGB(252, 252, 252) /* button background not pressed */
+#define TD_BUTTOUT          RGB(196, 196, 196) /* button outline */
+#define TD_TEXT             RGB(61, 61, 61)    /* widget face text */
+#define TD_TEXTDIS          RGB(191, 191, 191) /* widget face text disabled */
+#define TD_FOCUS            RGB(236, 174, 152) /* widget focused outline */
+#define TD_CHKRAD           RGB(146, 77, 139)  /* checkbox/radio button selected */
+#define TD_CHKRADOUT        RGB(186, 186, 186) /* checkbox/radio button outline */
+#define TD_SCROLLBACK       RGB(210, 210, 210) /* scrollbar background */
+#define TD_SCROLLBAR        RGB(135, 135, 135) /* scrollbar not pressed */
+#define TD_SCROLLBARPRESSED RGB(195, 65, 19)   /* scrollbar pressed */
 
 /* values table ids */
 
 typedef enum {
 
-    buttbackpressed, /* button background when pressed */
-    buttback,        /* button background when not pressed */
-    buttout,         /* button outline */
-    butttxt,         /* button face text enabled */
-    butttxtdis,      /* button face text disabled */
-    buttfocus,       /* button focused outline */
-    endmarker
+    th_buttbackpressed,  /* button background when pressed */
+    th_buttback,         /* button background when not pressed */
+    th_buttout,          /* button outline */
+    th_text,             /* button face text enabled */
+    th_textdis,          /* button face text disabled */
+    th_focus,            /* button focused outline */
+    th_chkrad,           /* checkbox/radio button selected */
+    th_chkradout,        /* checkbox/radio button outline */
+    th_scrollback,       /* scrollbar background */
+    th_scrollbar,        /* scrollbar not pressed */
+    th_scrollbarpressed, /* scrollbar pressed */
+    th_endmarker         /* end of theme entries */
 
 } themeindex;
 
@@ -181,7 +191,7 @@ static filptr        opnfil[MAXFIL];     /* open files table */
 static wigptr        xltwig[MAXFIL*2+1]; /* widget entry equivalence table */
 static FILE*         win0;               /* "window zero" dummy window */
 /* table of colors or other theme values */
-static unsigned long themetable[endmarker];
+static unsigned long themetable[th_endmarker];
 
 /** ****************************************************************************
 
@@ -408,18 +418,18 @@ static void button_draw(wigptr wg)
 {
 
     /* color the background */
-    if (wg->pressed) fcolort(wg->wf, buttbackpressed);
-    else fcolort(wg->wf, buttback);
+    if (wg->pressed) fcolort(wg->wf, th_buttbackpressed);
+    else fcolort(wg->wf, th_buttback);
     pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf),
               pa_maxyg(wg->wf));
     /* outline */
     pa_linewidth(wg->wf, 4);
-    if (wg->focus) fcolort(wg->wf, buttfocus);
-    else fcolort(wg->wf, buttout);
+    if (wg->focus) fcolort(wg->wf, th_focus);
+    else fcolort(wg->wf, th_buttout);
     pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1,
              pa_maxyg(wg->wf)-1, 20, 20);
-    if (wg->enb) fcolort(wg->wf, butttxt);
-    else fcolort(wg->wf, butttxtdis);
+    if (wg->enb) fcolort(wg->wf, th_text);
+    else fcolort(wg->wf, th_textdis);
     pa_cursorg(wg->wf,
                pa_maxxg(wg->wf)/2-pa_strsiz(wg->wf, wg->face)/2,
                pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
@@ -493,14 +503,14 @@ static void checkbox_draw(wigptr wg)
     pa_linewidth(wg->wf, 4);
     if (wg->focus) {
 
-        fcolort(wg->wf, buttfocus);
+        fcolort(wg->wf, th_focus);
         pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1,
                  pa_maxyg(wg->wf)-1, 20, 20);
 
     }
     /* draw text */
-    if (wg->enb) fcolort(wg->wf, butttxt);
-    else fcolort(wg->wf, butttxtdis);
+    if (wg->enb) fcolort(wg->wf, th_text);
+    else fcolort(wg->wf, th_textdis);
     pa_cursorg(wg->wf, pa_chrsizy(wg->wf)+pa_chrsizy(wg->wf)/2,
                        pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
     fprintf(wg->wf, "%s", wg->face); /* place button face */
@@ -514,7 +524,7 @@ static void checkbox_draw(wigptr wg)
     if (wg->select) {
 
         /* place selected checkmark */
-        pa_fcolorg(wg->wf, INT_MAX/256*146, INT_MAX/256*77, INT_MAX/256*139);
+        fcolort(wg->wf, th_chkrad);
         pa_frrect(wg->wf, sqo, md-sq/2, sqo+sq, md+sq/2, 10, 10);
         pa_fcolor(wg->wf, pa_white);
         pa_linewidth(wg->wf, 4);
@@ -530,7 +540,7 @@ static void checkbox_draw(wigptr wg)
         pa_fcolor(wg->wf, pa_white);
         pa_frrect(wg->wf, sqo, md-sq/2, sqo+sq, md+sq/2, 10, 10);
         pa_linewidth(wg->wf, 2);
-        pa_fcolorg(wg->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
+        fcolort(wg->wf, th_chkradout);
         pa_rrect(wg->wf, sqo, md-sq/2, sqo+sq, md+sq/2, 10, 10);
 
     }
@@ -591,8 +601,18 @@ static void radiobutton_draw(wigptr wg)
     /* color the background */
     pa_fcolor(wg->wf, pa_backcolor);
     pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
-    if (wg->enb) pa_fcolor(wg->wf, pa_black);
-    else pa_fcolorg(wg->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
+    /* outline */
+    pa_linewidth(wg->wf, 4);
+    if (wg->focus) {
+
+        fcolort(wg->wf, th_focus);
+        pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1,
+                 pa_maxyg(wg->wf)-1, 20, 20);
+
+    }
+    /* draw text */
+    if (wg->enb) fcolort(wg->wf, th_text);
+    else fcolort(wg->wf, th_textdis);
     pa_cursorg(wg->wf, pa_chrsizy(wg->wf)+pa_chrsizy(wg->wf)/2,
                        pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
     fprintf(wg->wf, "%s", wg->face); /* place button face */
@@ -605,7 +625,7 @@ static void radiobutton_draw(wigptr wg)
     if (wg->select) {
 
         /* place select figure */
-        pa_fcolorg(wg->wf, INT_MAX/256*146, INT_MAX/256*77, INT_MAX/256*139);
+        fcolort(wg->wf, th_chkrad);
         pa_fellipse(wg->wf, cro, md-cr/2, cro+cr, md+cr/2);
         pa_fcolor(wg->wf, pa_white);
         pa_fellipse(wg->wf, crm-cr/6, md-cr/6, crm+cr/6, md+cr/6);
@@ -616,7 +636,7 @@ static void radiobutton_draw(wigptr wg)
         pa_fcolor(wg->wf, pa_white);
         pa_fellipse(wg->wf, cro, md-cr/2, cro+cr, md+cr/2);
         pa_linewidth(wg->wf, 2);
-        pa_fcolorg(wg->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
+        fcolort(wg->wf, th_chkradout);
         pa_ellipse(wg->wf, cro, md-cr/2, cro+cr, md+cr/2);
 
     }
@@ -643,7 +663,17 @@ static void radiobutton_event(pa_evtrec* ev, wigptr wg)
         radiobutton_draw(wg);
 
     } else if (ev->etype == pa_etmoubd) radiobutton_draw(wg);
+    else if (ev->etype == pa_etfocus) {
 
+        wg->focus = 1; /* in focus */
+        radiobutton_draw(wg); /* redraw the window */
+
+    } else if (ev->etype == pa_etnofocus) {
+
+        wg->focus = 0; /* out of focus */
+        radiobutton_draw(wg); /* redraw the window */
+
+    }
 }
 
 /** ****************************************************************************
@@ -713,14 +743,14 @@ static void scrollvert_draw(wigptr wg)
     }
 
     /* color the background */
-    pa_fcolorg(wg->wf, INT_MAX/256*210, INT_MAX/256*210, INT_MAX/256*210);
+    fcolort(wg->wf, th_scrollback);
     pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
     if (wg->pressed && inbar)
         /* color as pressed */
-        pa_fcolorg(wg->wf, INT_MAX/256*195, INT_MAX/256*65, INT_MAX/256*19);
+        fcolort(wg->wf, th_scrollbarpressed);
     else
         /* color as not pressed */
-        pa_fcolorg(wg->wf, INT_MAX/256*135, INT_MAX/256*135, INT_MAX/256*135);
+        fcolort(wg->wf, th_scrollbar);
     pa_frrect(wg->wf, ENDSPACE, ENDSPACE+sclposp, pa_maxxg(wg->wf)-ENDSPACE, ENDSPACE+sclposp+sclsizp,
               10, 10);
 
@@ -826,14 +856,14 @@ static void scrollhoriz_draw(wigptr wg)
     }
 
     /* color the background */
-    pa_fcolorg(wg->wf, INT_MAX/256*210, INT_MAX/256*210, INT_MAX/256*210);
+    fcolort(wg->wf, th_scrollback);
     pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
     if (wg->pressed && inbar)
         /* color as pressed */
-        pa_fcolorg(wg->wf, INT_MAX/256*195, INT_MAX/256*65, INT_MAX/256*19);
+        fcolort(wg->wf, th_scrollbarpressed);
     else
         /* color as not pressed */
-        pa_fcolorg(wg->wf, INT_MAX/256*135, INT_MAX/256*135, INT_MAX/256*135);
+        fcolort(wg->wf, th_scrollbar);
     pa_frrect(wg->wf, ENDSPACE+sclposp, ENDSPACE, ENDSPACE+sclposp+sclsizp, pa_maxyg(wg->wf)-ENDSPACE,
               10, 10);
 
@@ -887,7 +917,7 @@ static void group_draw(wigptr wg)
     /* color the background */
     pa_fcolor(wg->wf, pa_backcolor);
     pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
-    pa_fcolorg(wg->wf, INT_MAX/256*196, INT_MAX/256*196, INT_MAX/256*196);
+    fcolort(wg->wf, th_buttout);
     pa_linewidth(wg->wf, 2);
     pa_rect(wg->wf, 2, pa_chrsizy(wg->wf)/2, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
     pa_fcolor(wg->wf, pa_black);
@@ -2988,12 +3018,17 @@ static void pa_init_widgets(int argc, char *argv[])
     pa_frame(win0, FALSE); /* turn off frame */
 
     /* fill out the theme table defaults */
-    themetable[buttbackpressed] = BUTTBACKPRESSED;
-    themetable[buttback]        = BUTTBACK;
-    themetable[buttout]         = BUTTOUT;
-    themetable[butttxt]         = BUTTTXT;
-    themetable[butttxtdis]      = BUTTTXTDIS;
-    themetable[buttfocus]       = BUTTFOCUS;
+    themetable[th_buttbackpressed]  = TD_BUTTBACKPRESSED;
+    themetable[th_buttback]         = TD_BUTTBACK;
+    themetable[th_buttout]          = TD_BUTTOUT;
+    themetable[th_text]             = TD_TEXT;
+    themetable[th_textdis]          = TD_TEXTDIS;
+    themetable[th_focus]            = TD_FOCUS;
+    themetable[th_chkrad]           = TD_CHKRAD;
+    themetable[th_chkradout]        = TD_CHKRADOUT;
+    themetable[th_scrollback]       = TD_SCROLLBACK;
+    themetable[th_scrollbar]        = TD_SCROLLBAR;
+    themetable[th_scrollbarpressed] = TD_SCROLLBARPRESSED;
 
 }
 
