@@ -3804,27 +3804,34 @@ static void winvis(winptr win)
     XEvent e; /* XWindow event */
 
 #ifndef NOWDELAY
-    /* present the master window onscreen */
-    XWLOCK();
-    XMapWindow(padisplay, win->xmwhan);
-    XFlush(padisplay);
-    XWUNLOCK();
+   if (!win->visible) { /* not already visible */
 
-    /* wait for the window to be displayed */
-    do { peekxevt(&e);
-    } while (e.type !=  MapNotify || e.xany.window != win->xmwhan);
+        /* first make all parents visible */
+        if (win->parwin) winvis(win->parwin);
 
-    /* present the subclient window onscreen */
-    XWLOCK();
-    XMapWindow(padisplay, win->xwhan);
-    XFlush(padisplay);
-    XWUNLOCK();
+        /* present the master window onscreen */
+        XWLOCK();
+        XMapWindow(padisplay, win->xmwhan);
+        XFlush(padisplay);
+        XWUNLOCK();
 
-    /* wait for the window to be displayed */
-    do { peekxevt(&e); } while (e.type !=  MapNotify || e.xany.window != win->xwhan);
+        /* wait for the window to be displayed */
+        do { peekxevt(&e);
+        } while (e.type !=  MapNotify || e.xany.window != win->xmwhan);
 
-    win->visible = TRUE; /* set now visible */
-    restore(win); /* restore window */
+        /* present the subclient window onscreen */
+        XWLOCK();
+        XMapWindow(padisplay, win->xwhan);
+        XFlush(padisplay);
+        XWUNLOCK();
+
+        /* wait for the window to be displayed */
+        do { peekxevt(&e); } while (e.type !=  MapNotify || e.xany.window != win->xwhan);
+
+        win->visible = TRUE; /* set now visible */
+        restore(win); /* restore window */
+
+    }
 #endif
 
 }
