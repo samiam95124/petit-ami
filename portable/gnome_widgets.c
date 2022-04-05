@@ -982,7 +982,13 @@ static void numselbox_event(pa_evtrec* ev, wigptr wg)
 
 {
 
-    if (ev->etype == pa_etredraw) numselbox_draw(wg); /* redraw the window */
+    switch (ev->etype) {
+
+        case pa_etredraw: /* redraw window */
+            numselbox_draw(wg); /* redraw the window */
+            break;
+
+    }
 
 }
 
@@ -1459,43 +1465,46 @@ be used.
 *******************************************************************************/
 
 static void widget(FILE* f, int x1, int y1, int x2, int y2, char* s, int id,
-                   wigtyp typ, wigptr* wp)
+                   wigtyp typ, wigptr* wpr)
 
 {
 
     int fn; /* logical file name */
+    wigptr wp;
 
     if (id <= 0 || id > MAXWIG) error("Invalid widget id");
     makfil(f); /* ensure there is a file entry and validate */
     fn = fileno(f); /* get the file index */
     if (opnfil[fn]->widgets[id]) error("Widget by id already in use");
     opnfil[fn]->widgets[id] = getwig(); /* get widget entry */
-    *wp = opnfil[fn]->widgets[id]; /* index that */
+    wp = opnfil[fn]->widgets[id]; /* index that */
 
-    (*wp)->face = str(s); /* place face */
-    (*wp)->wid = pa_getwid(); /* allocate a buried wid */
-    pa_openwin(&stdin, &(*wp)->wf, f, (*wp)->wid); /* open widget window */
-    (*wp)->parent = f; /* save parent file */
-    xltwig[(*wp)->wid+MAXFIL] = *wp; /* set the tracking entry for the window */
-    (*wp)->id = id; /* set button widget id */
-    pa_buffer((*wp)->wf, FALSE); /* turn off buffering */
-    pa_auto((*wp)->wf, FALSE); /* turn off auto */
-    pa_curvis((*wp)->wf, FALSE); /* turn off cursor */
-    pa_font((*wp)->wf, PA_FONT_SIGN); /* set sign font */
-    pa_frame((*wp)->wf, FALSE); /* turn off frame */
-    pa_setposg((*wp)->wf, x1, y1); /* place at position */
-    pa_setsizg((*wp)->wf, x2-x1, y2-y1); /* set size */
-    pa_binvis((*wp)->wf); /* no background write */
-    (*wp)->typ = typ; /* place type */
-    (*wp)->pressed = FALSE; /* set not pressed */
-    (*wp)->select = FALSE; /* set not selected */
-    (*wp)->enb = TRUE; /* set is enabled */
-    (*wp)->sclsiz = INT_MAX/10; /* set default size scrollbar */
-    (*wp)->sclpos = 0; /* set scrollbar position top/left */
-    (*wp)->curs = 0; /* set text cursor */
-    (*wp)->tleft = 0; /* set text left side in edit box */
-    (*wp)->focus = 0; /* set not focused */
-    (*wp)->ins = 0; /* set insert mode */
+    wp->face = str(s); /* place face */
+    wp->wid = pa_getwid(); /* allocate a buried wid */
+    pa_openwin(&stdin, &wp->wf, f, wp->wid); /* open widget window */
+    wp->parent = f; /* save parent file */
+    xltwig[wp->wid+MAXFIL] = wp; /* set the tracking entry for the window */
+    wp->id = id; /* set button widget id */
+    pa_buffer(wp->wf, FALSE); /* turn off buffering */
+    pa_auto(wp->wf, FALSE); /* turn off auto */
+    pa_curvis(wp->wf, FALSE); /* turn off cursor */
+    pa_font(wp->wf, PA_FONT_SIGN); /* set sign font */
+    pa_frame(wp->wf, FALSE); /* turn off frame */
+    pa_setposg(wp->wf, x1, y1); /* place at position */
+    pa_setsizg(wp->wf, x2-x1, y2-y1); /* set size */
+    pa_binvis(wp->wf); /* no background write */
+    wp->typ = typ; /* place type */
+    wp->pressed = FALSE; /* set not pressed */
+    wp->select = FALSE; /* set not selected */
+    wp->enb = TRUE; /* set is enabled */
+    wp->sclsiz = INT_MAX/10; /* set default size scrollbar */
+    wp->sclpos = 0; /* set scrollbar position top/left */
+    wp->curs = 0; /* set text cursor */
+    wp->tleft = 0; /* set text left side in edit box */
+    wp->focus = 0; /* set not focused */
+    wp->ins = 0; /* set insert mode */
+
+    *wpr = wp; /* copy back to caller */
 
 }
 
@@ -2198,6 +2207,9 @@ void pa_numselboxsizg(FILE* f, int l, int u, int* w, int* h)
 
 {
 
+    *h = pa_chrsizy(win0)*1.5; /* set height */
+    *w = pa_strsiz(win0, "00");
+
 }
 
 void pa_numselboxsiz(FILE* f, int l, int u, int* w, int* h)
@@ -2226,6 +2238,8 @@ void pa_numselboxg(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id
     wigptr wp; /* widget entry pointer */
 
     widget(f, x1, y1, x2, y2, "", id, wtnumselbox, &wp);
+    /* subclass an edit control */
+    pa_editboxg(wp->wf, 1, 1, pa_maxxg(wp->wf), pa_maxyg(wp->wf), 1);
 
 }
 
