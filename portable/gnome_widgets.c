@@ -158,7 +158,6 @@ typedef struct wigrec {
     FILE*  wf;         /* output file for the widget window */
     char*  face;       /* face text */
     FILE*  parent;     /* parent window */
-    FILE*  evtfil;     /* file to post menu events to */
     int    id;         /* id number */
     int    wid;        /* widget window id */
     int    enb;        /* widget is enabled */
@@ -170,6 +169,10 @@ typedef struct wigrec {
     int    tleft;      /* text left side index */
     int    focus;      /* focused */
     int    ins;        /* insert/overwrite mode */
+    int    subcls;     /* widget is subclassed */
+    int    num;        /* allow only numeric entry */
+    int    lbnd;       /* low bound of number */
+    int    ubnd;       /* upper bound of number */
 
 } wigrec;
 
@@ -299,6 +302,23 @@ static wigptr getwig(void)
         wigfre = wigfre->next; /* gap out */
 
     } else wp = malloc(sizeof(wigrec)); /* get entry */
+    wp->pressed = FALSE; /* set not pressed */
+    wp->lpressed = FALSE;
+    wp->select = FALSE; /* set not selected */
+    wp->enb = FALSE; /* set not enabled */
+    wp->sclpos = 0; /* set scrollbar position top/left */
+    wp->curs = 0; /* set text cursor */
+    wp->tleft = 0; /* set text left side in edit box */
+    wp->focus = 0; /* set not focused */
+    wp->ins = 0; /* set insert mode */
+    wp->mpx = 0; /* clear mouse position */
+    wp->mpy = 0;
+    wp->lmpx = 0;
+    wp->lmpy = 0;
+    wp->subcls = FALSE; /* set not a subclassed widget */
+    wp->num = FALSE; /* set any character entry */
+    wp->lbnd = -INT_MAX; /* set low bound */
+    wp->ubnd = INT_MAX; /* set high bound */
 
     return wp; /* return entry */
 
@@ -976,6 +996,9 @@ static void numselbox_draw(wigptr wg)
 
 {
 
+    pa_fcolor(wg->wf, pa_cyan);
+    pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
+
 }
 
 static void numselbox_event(pa_evtrec* ev, wigptr wg)
@@ -1462,6 +1485,11 @@ Creates a widget within the given window, within the specified bounding box,
 and using the face string and type, and the given id. The string may or may not
 be used.
 
+A predefined widget entry can be passed in. This allows subclassing widgets. The
+subclasser uses the pass-in to set parameters to control the subclassing. If the
+pass-in is NULL, then a new entry will be created. This, or the predefined entry
+will be passed back to the user.
+
 *******************************************************************************/
 
 static void widget(FILE* f, int x1, int y1, int x2, int y2, char* s, int id,
@@ -1475,9 +1503,10 @@ static void widget(FILE* f, int x1, int y1, int x2, int y2, char* s, int id,
     if (id <= 0 || id > MAXWIG) error("Invalid widget id");
     makfil(f); /* ensure there is a file entry and validate */
     fn = fileno(f); /* get the file index */
+    wp = *wpr; /* get any predefined widget entry */
+    if (!wp) wp = getwig(); /* get widget entry if none passed in */
     if (opnfil[fn]->widgets[id]) error("Widget by id already in use");
-    opnfil[fn]->widgets[id] = getwig(); /* get widget entry */
-    wp = opnfil[fn]->widgets[id]; /* index that */
+    opnfil[fn]->widgets[id] = wp; /* set widget entry */
 
     wp->face = str(s); /* place face */
     wp->wid = pa_getwid(); /* allocate a buried wid */
@@ -1494,15 +1523,8 @@ static void widget(FILE* f, int x1, int y1, int x2, int y2, char* s, int id,
     pa_setsizg(wp->wf, x2-x1, y2-y1); /* set size */
     pa_binvis(wp->wf); /* no background write */
     wp->typ = typ; /* place type */
-    wp->pressed = FALSE; /* set not pressed */
-    wp->select = FALSE; /* set not selected */
     wp->enb = TRUE; /* set is enabled */
     wp->sclsiz = INT_MAX/10; /* set default size scrollbar */
-    wp->sclpos = 0; /* set scrollbar position top/left */
-    wp->curs = 0; /* set text cursor */
-    wp->tleft = 0; /* set text left side in edit box */
-    wp->focus = 0; /* set not focused */
-    wp->ins = 0; /* set insert mode */
 
     *wpr = wp; /* copy back to caller */
 
@@ -1780,6 +1802,7 @@ void pa_buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
     wigptr wp; /* widget entry pointer */
 
+    wp = NULL; /* set no predefinition */
     widget(f, x1, y1, x2, y2, s, id, wtbutton, &wp);
     pa_linewidth(wp->wf, 3); /* thicker lines */
 
@@ -1843,6 +1866,7 @@ void pa_checkboxg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
     wigptr wp; /* widget entry pointer */
 
+    wp = NULL; /* set no predefinition */
     widget(f, x1, y1, x2, y2, s, id, wtcheckbox, &wp);
 
 }
@@ -1905,6 +1929,7 @@ void pa_radiobuttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
     wigptr wp; /* widget entry pointer */
 
+    wp = NULL; /* set no predefinition */
     widget(f, x1, y1, x2, y2, s, id, wtradiobutton, &wp);
 
 }
@@ -1977,6 +2002,7 @@ void pa_groupg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
     wigptr wp; /* widget entry pointer */
 
+    wp = NULL; /* set no predefinition */
     widget(f, x1, y1, x2, y2, s, id, wtgroup, &wp);
 
 }
@@ -2009,6 +2035,7 @@ void pa_backgroundg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
     wigptr wp; /* widget entry pointer */
 
+    wp = NULL; /* set no predefinition */
     widget(f, x1, y1, x2, y2, "", id, wtbackground, &wp);
 
 }
@@ -2069,6 +2096,7 @@ void pa_scrollvertg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
     wigptr wp; /* widget entry pointer */
 
+    wp = NULL; /* set no predefinition */
     widget(f, x1, y1, x2, y2, "", id, wtscrollvert, &wp);
 
 }
@@ -2129,6 +2157,7 @@ void pa_scrollhorizg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
     wigptr wp; /* widget entry pointer */
 
+    wp = NULL; /* set no predefinition */
     widget(f, x1, y1, x2, y2, "", id, wtscrollhoriz, &wp);
 
 }
@@ -2203,12 +2232,48 @@ select box is calculated and returned.
 
 *******************************************************************************/
 
+/* find number of digits in value */
+static int digits(int v)
+
+{
+
+    int p; /* power */
+    int c; /* count */
+
+    p = 1; /* set first power */
+    c = 1; /* set initial count (at least one digit) */
+    while (p < INT_MAX/10 && p < v) { /* will not overflow */
+
+        p *= 10; /* advance power */
+        c++; /* count digits */
+
+    }
+
+    return (c); /* return digits */
+
+}
+
 void pa_numselboxsizg(FILE* f, int l, int u, int* w, int* h)
 
 {
 
+    int mv; /* maximum value */
+    int dc; /* digit count */
+    int udspc; /* up/down control space */
+
+    /* first determine the number of digit places, including the sign */
+    mv = u; /* set upper value */
+    if (abs(l) > abs(u)) mv = l; /* find maximum digits */
+    dc = digits(abs(mv)); /* find the digit count */
+    if (mv < 0) dc++; /* add the sign */
+dbg_printf(dlinfo, "digits: %d\n", dc);
+
+    udspc = pa_chrsizy(win0)*1.9; /* square space for up/down control */
+
     *h = pa_chrsizy(win0)*1.5; /* set height */
-    *w = pa_strsiz(win0, "00");
+    /* width is number of digits, two chry size boxes, and .5 of chry for each
+       side for spacing */
+    *w = pa_strsiz(win0, "0")*dc+udspc*2+pa_chrsizy(win0); /* set total width */
 
 }
 
@@ -2236,10 +2301,19 @@ void pa_numselboxg(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id
 {
 
     wigptr wp; /* widget entry pointer */
+    int udspc; /* up/down control space */
 
+    udspc = pa_chrsizy(win0)*1.9; /* square space for up/down control */
+
+    wp = getwig(); /* get widget entry */
+    wp->subcls = TRUE; /* set as subclass widget */
+    wp->num = TRUE; /* set numeric only */
+    wp->lbnd = l; /* set lower bound */
+    wp->ubnd = u; /* set upper bound */
     widget(f, x1, y1, x2, y2, "", id, wtnumselbox, &wp);
-    /* subclass an edit control */
-    pa_editboxg(wp->wf, 1, 1, pa_maxxg(wp->wf), pa_maxyg(wp->wf), 1);
+    /* subclass an edit control,leaving space for up/down controls */
+    pa_editboxg(wp->wf, 1, 1,
+                pa_maxxg(wp->wf)-udspc*2, pa_maxyg(wp->wf), 1);
 
 }
 
@@ -2299,6 +2373,7 @@ void pa_editboxg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
     wigptr wp; /* widget entry pointer */
 
+    wp = NULL; /* set no predefinition */
     widget(f, x1, y1, x2, y2, "", id, wteditbox, &wp);
     pa_curvis(wp->wf, FALSE); /* turn on cursor */
 
@@ -2357,6 +2432,7 @@ void pa_progbarg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
     wigptr wp; /* widget entry pointer */
 
+    wp = NULL; /* set no predefinition */
     widget(f, x1, y1, x2, y2, "", id, wtprogressbar, &wp);
 
 }
@@ -2435,6 +2511,7 @@ void pa_listboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
     wigptr wp; /* widget entry pointer */
 
+    wp = NULL; /* set no predefinition */
     widget(f, x1, y1, x2, y2, "", id, wtlistbox, &wp);
 
 }
@@ -2498,6 +2575,7 @@ void pa_dropboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
     wigptr wp; /* widget entry pointer */
 
+    wp = NULL; /* set no predefinition */
     widget(f, x1, y1, x2, y2, "", id, wtdropbox, &wp);
 
 }
@@ -2565,6 +2643,7 @@ void pa_dropeditboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int 
 
     wigptr wp; /* widget entry pointer */
 
+    wp = NULL; /* set no predefinition */
     widget(f, x1, y1, x2, y2, "", id, wtdropeditbox, &wp);
 
 }
@@ -2624,6 +2703,7 @@ void pa_slidehorizg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 
     wigptr wp; /* widget entry pointer */
 
+    wp = NULL; /* set no predefinition */
     widget(f, x1, y1, x2, y2, "", id, wtslidehoriz, &wp);
 
 }
@@ -2683,6 +2763,7 @@ void pa_slidevertg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 
     wigptr wp; /* widget entry pointer */
 
+    wp = NULL; /* set no predefinition */
     widget(f, x1, y1, x2, y2, "", id, wtslidevert, &wp);
 
 }
@@ -2786,6 +2867,7 @@ void pa_tabbarg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp,
 
     wigptr wp; /* widget entry pointer */
 
+    wp = NULL; /* set no predefinition */
     widget(f, x1, y1, x2, y2, "", id, wttabbar, &wp);
 
 }
