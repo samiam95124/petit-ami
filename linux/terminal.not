@@ -6,6 +6,12 @@ characteristic tracks with the buffer.
 
 2. Still looks like we are not getting true white on the background.
 
-3. In the Mac OS X version, the final benchmark tallys are getting erased. I 
+MACOSX/Quartz version ============================================================
+
+1. In the Mac OS X version, the final benchmark tallys are getting erased. I 
 suspect this comes down to different treatment by xterms of the "restore normal
 buffer" command in deinit().
+
+2. INS key does not work in edit mode.
+
+3. Forward and backward word to not work.

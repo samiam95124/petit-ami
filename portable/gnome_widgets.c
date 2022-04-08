@@ -1064,6 +1064,8 @@ static void numselbox_event(pa_evtrec* ev, wigptr wg)
             editbox_event(ev, wg->cw);
             break;
 
+        default: ;
+
     }
 
 }
@@ -1329,6 +1331,8 @@ static void editbox_event(pa_evtrec* ev, wigptr wg)
             while (wg->curs < l && wg->face[wg->curs] == ' ') wg->curs++;
             editbox_draw(wg); /* redraw */
             break;
+
+        default: ;
 
     }
 
