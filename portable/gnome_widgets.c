@@ -114,6 +114,8 @@ static enum { /* debug levels */
 #define TD_SCROLLBACK       RGB(210, 210, 210) /* scrollbar background */
 #define TD_SCROLLBAR        RGB(135, 135, 135) /* scrollbar not pressed */
 #define TD_SCROLLBARPRESSED RGB(195, 65, 19)   /* scrollbar pressed */
+#define TD_NUMSELDIV        RGB(239, 239, 239) /* numselbox divider */
+#define TD_NUMSELUD         RGB(164, 164, 164) /* numselbox up/down figures */
 
 /* values table ids */
 
@@ -130,6 +132,8 @@ typedef enum {
     th_scrollback,       /* scrollbar background */
     th_scrollbar,        /* scrollbar not pressed */
     th_scrollbarpressed, /* scrollbar pressed */
+    th_numseldiv,        /* numselbox divider */
+    th_numselud,         /* numselbox up/down figures */
     th_endmarker         /* end of theme entries */
 
 } themeindex;
@@ -173,6 +177,7 @@ typedef struct wigrec {
     int    num;        /* allow only numeric entry */
     int    lbnd;       /* low bound of number */
     int    ubnd;       /* upper bound of number */
+    wigptr cw;         /* child/subclassed widget */
 
 } wigrec;
 
@@ -991,13 +996,47 @@ Number select box event handler
 Handles the events posted to number select boxes.
 
 *******************************************************************************/
+static void editbox_event(pa_evtrec* ev, wigptr wg);
 
 static void numselbox_draw(wigptr wg)
 
 {
 
-    pa_fcolor(wg->wf, pa_cyan);
+    int udspc; /* up/down control space */
+    int figsiz; /* size of up/down figures */
+
+    udspc = pa_chrsizy(win0)*1.9; /* square space for up/down control */
+    /* color the background */
+    pa_fcolor(wg->wf, pa_white);
     pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
+    /* draw divider lines */
+    fcolort(wg->wf, th_numseldiv);
+    pa_line(wg->wf, pa_maxxg(wg->wf)-udspc, 1,
+                    pa_maxxg(wg->wf)-udspc, pa_maxyg(wg->wf));
+    pa_line(wg->wf, pa_maxxg(wg->wf)-udspc*2, 1,
+                    pa_maxxg(wg->wf)-udspc*2, pa_maxyg(wg->wf));
+    /* draw up/down figures */
+    figsiz = pa_maxyg(wg->wf)/2; /* set figure size */
+    fcolort(wg->wf, th_numselud);
+    pa_line(wg->wf, pa_maxxg(wg->wf)-udspc*1.5-figsiz/2.75, pa_maxyg(wg->wf)/2,
+                    pa_maxxg(wg->wf)-udspc*1.5+figsiz/2.75, pa_maxyg(wg->wf)/2);
+    pa_line(wg->wf, pa_maxxg(wg->wf)-udspc*0.5-figsiz/2.75, pa_maxyg(wg->wf)/2,
+                    pa_maxxg(wg->wf)-udspc*0.5+figsiz/2.75, pa_maxyg(wg->wf)/2);
+    pa_line(wg->wf, pa_maxxg(wg->wf)-udspc*0.5, pa_maxyg(wg->wf)/2-figsiz/2.75,
+                    pa_maxxg(wg->wf)-udspc*0.5, pa_maxyg(wg->wf)/2+figsiz/2.75);
+    /* outline */
+    if (wg->focus) {
+
+        pa_linewidth(wg->wf, 4);
+        fcolort(wg->wf, th_focus);
+
+    } else {
+
+        pa_linewidth(wg->wf, 2);
+        fcolort(wg->wf, th_outline);
+
+    }
+    pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1, pa_maxyg(wg->wf)-1, 20, 20);
 
 }
 
@@ -1009,6 +1048,20 @@ static void numselbox_event(pa_evtrec* ev, wigptr wg)
 
         case pa_etredraw: /* redraw window */
             numselbox_draw(wg); /* redraw the window */
+            break;
+
+        case pa_etfocus: /* gain focus */
+            wg->focus = 1; /* in focus */
+            numselbox_draw(wg); /* redraw */
+            /* share focus status with child */
+            editbox_event(ev, wg->cw);
+            break;
+
+        case pa_etnofocus: /* lose focus */
+            wg->focus = 0; /* out of focus */
+            numselbox_draw(wg); /* redraw */
+            /* share focus status with child */
+            editbox_event(ev, wg->cw);
             break;
 
     }
@@ -1034,20 +1087,25 @@ static void editbox_draw(wigptr wg)
     /* color the background */
     pa_fcolor(wg->wf, pa_white);
     pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
-    /* outline */
-    if (wg->focus) {
+    if (!wg->subcls) { /* if not subclassed, draw background and outline */
 
-        pa_linewidth(wg->wf, 4);
-        fcolort(wg->wf, th_focus);
+        /* outline */
+        if (wg->focus) {
 
-    } else {
+            pa_linewidth(wg->wf, 4);
+            fcolort(wg->wf, th_focus);
 
-        pa_linewidth(wg->wf, 2);
-        fcolort(wg->wf, th_outline);
+        } else {
+
+            pa_linewidth(wg->wf, 2);
+            fcolort(wg->wf, th_outline);
+
+        }
+        pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1,
+                 pa_maxyg(wg->wf)-1, 20, 20);
 
     }
-    pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1,
-             pa_maxyg(wg->wf)-1, 20, 20);
+    /* text */
     if (wg->enb) fcolort(wg->wf, th_text);
     else fcolort(wg->wf, th_textdis);
     pa_cursorg(wg->wf, ENDLEDSPC, pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
@@ -2301,19 +2359,25 @@ void pa_numselboxg(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id
 {
 
     wigptr wp; /* widget entry pointer */
+    wigptr wps; /* widget subclass entry pointer */
     int udspc; /* up/down control space */
 
     udspc = pa_chrsizy(win0)*1.9; /* square space for up/down control */
 
-    wp = getwig(); /* get widget entry */
-    wp->subcls = TRUE; /* set as subclass widget */
-    wp->num = TRUE; /* set numeric only */
-    wp->lbnd = l; /* set lower bound */
-    wp->ubnd = u; /* set upper bound */
+    wp = NULL; /* set no predefinition */
     widget(f, x1, y1, x2, y2, "", id, wtnumselbox, &wp);
+
+    /* set up a subclass entry */
+    wps = getwig(); /* get widget entry */
+    wps->subcls = TRUE; /* set as subclass widget */
+    wps->num = TRUE; /* set numeric only */
+    wps->lbnd = l; /* set lower bound */
+    wps->ubnd = u; /* set upper bound */
     /* subclass an edit control,leaving space for up/down controls */
-    pa_editboxg(wp->wf, 1, 1,
-                pa_maxxg(wp->wf)-udspc*2, pa_maxyg(wp->wf), 1);
+    widget(wp->wf, 1+4, 1+4, pa_maxxg(wp->wf)-udspc*2-4, pa_maxyg(wp->wf)-4, "", 1,
+           wteditbox, &wps);
+    pa_curvis(wps->wf, FALSE); /* turn on cursor */
+    wp->cw = wps; /* give the master its child window */
 
 }
 
@@ -3125,6 +3189,8 @@ static void pa_init_widgets(int argc, char *argv[])
     themetable[th_scrollback]       = TD_SCROLLBACK;
     themetable[th_scrollbar]        = TD_SCROLLBAR;
     themetable[th_scrollbarpressed] = TD_SCROLLBARPRESSED;
+    themetable[th_numseldiv]        = TD_NUMSELDIV;
+    themetable[th_numselud]         = TD_NUMSELUD;
 
 }
 
