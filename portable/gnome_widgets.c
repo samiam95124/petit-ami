@@ -991,85 +991,6 @@ static void background_event(pa_evtrec* ev, wigptr wg)
 
 /** ****************************************************************************
 
-Number select box event handler
-
-Handles the events posted to number select boxes.
-
-*******************************************************************************/
-static void editbox_event(pa_evtrec* ev, wigptr wg);
-
-static void numselbox_draw(wigptr wg)
-
-{
-
-    int udspc; /* up/down control space */
-    int figsiz; /* size of up/down figures */
-
-    udspc = pa_chrsizy(win0)*1.9; /* square space for up/down control */
-    /* color the background */
-    pa_fcolor(wg->wf, pa_white);
-    pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
-    /* draw divider lines */
-    fcolort(wg->wf, th_numseldiv);
-    pa_line(wg->wf, pa_maxxg(wg->wf)-udspc, 1,
-                    pa_maxxg(wg->wf)-udspc, pa_maxyg(wg->wf));
-    pa_line(wg->wf, pa_maxxg(wg->wf)-udspc*2, 1,
-                    pa_maxxg(wg->wf)-udspc*2, pa_maxyg(wg->wf));
-    /* draw up/down figures */
-    figsiz = pa_maxyg(wg->wf)/2; /* set figure size */
-    fcolort(wg->wf, th_numselud);
-    pa_line(wg->wf, pa_maxxg(wg->wf)-udspc*1.5-figsiz/2.75, pa_maxyg(wg->wf)/2,
-                    pa_maxxg(wg->wf)-udspc*1.5+figsiz/2.75, pa_maxyg(wg->wf)/2);
-    pa_line(wg->wf, pa_maxxg(wg->wf)-udspc*0.5-figsiz/2.75, pa_maxyg(wg->wf)/2,
-                    pa_maxxg(wg->wf)-udspc*0.5+figsiz/2.75, pa_maxyg(wg->wf)/2);
-    pa_line(wg->wf, pa_maxxg(wg->wf)-udspc*0.5, pa_maxyg(wg->wf)/2-figsiz/2.75,
-                    pa_maxxg(wg->wf)-udspc*0.5, pa_maxyg(wg->wf)/2+figsiz/2.75);
-    /* outline */
-    if (wg->focus) {
-
-        pa_linewidth(wg->wf, 4);
-        fcolort(wg->wf, th_focus);
-
-    } else {
-
-        pa_linewidth(wg->wf, 2);
-        fcolort(wg->wf, th_outline);
-
-    }
-    pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1, pa_maxyg(wg->wf)-1, 20, 20);
-
-}
-
-static void numselbox_event(pa_evtrec* ev, wigptr wg)
-
-{
-
-    switch (ev->etype) {
-
-        case pa_etredraw: /* redraw window */
-            numselbox_draw(wg); /* redraw the window */
-            break;
-
-        case pa_etfocus: /* gain focus */
-            wg->focus = 1; /* in focus */
-            numselbox_draw(wg); /* redraw */
-            /* share focus status with child */
-            editbox_event(ev, wg->cw);
-            break;
-
-        case pa_etnofocus: /* lose focus */
-            wg->focus = 0; /* out of focus */
-            numselbox_draw(wg); /* redraw */
-            /* share focus status with child */
-            editbox_event(ev, wg->cw);
-            break;
-
-    }
-
-}
-
-/** ****************************************************************************
-
 Edit box event handler
 
 Handles the events posted to edit boxes.
@@ -1183,20 +1104,24 @@ static void editbox_event(pa_evtrec* ev, wigptr wg)
             editbox_draw(wg); /* redraw the window */
             break;
         case pa_etchar: /* enter character */
-            l = strlen(wg->face); /* get length of existing face string */
-            if (!wg->ins || wg->curs >= l) { /* insert mode or end */
+            if (!wg->num || isdigit(ev->echar)) {
 
-                s = malloc(l+1+1); /* get new face string */
-                strcpy(s, wg->face); /* copy old string into place */
-                free(wg->face); /* release previous string */
-                /* move characters after cursor up */
-                for (i = l; i >= wg->curs; i--) s[i+1] = s[i];
-                wg->face = s; /* place new string */
+                l = strlen(wg->face); /* get length of existing face string */
+                if (!wg->ins || wg->curs >= l) { /* insert mode or end */
+
+                    s = malloc(l+1+1); /* get new face string */
+                    strcpy(s, wg->face); /* copy old string into place */
+                    free(wg->face); /* release previous string */
+                    /* move characters after cursor up */
+                    for (i = l; i >= wg->curs; i--) s[i+1] = s[i];
+                    wg->face = s; /* place new string */
+
+                }
+                wg->face[wg->curs] = ev->echar; /* place new character */
+                wg->curs++; /* position after character inserted */
+                editbox_draw(wg); /* redraw the window */
 
             }
-            wg->face[wg->curs] = ev->echar; /* place new character */
-            wg->curs++; /* position after character inserted */
-            editbox_draw(wg); /* redraw the window */
             break;
 
         case pa_etfocus: /* gain focus */
@@ -1328,6 +1253,124 @@ static void editbox_event(pa_evtrec* ev, wigptr wg)
             /* advance over any spaces */
             while (wg->curs < l && wg->face[wg->curs] == ' ') wg->curs++;
             editbox_draw(wg); /* redraw */
+            break;
+
+    }
+
+}
+
+/** ****************************************************************************
+
+Number select box event handler
+
+Handles the events posted to number select boxes.
+
+*******************************************************************************/
+
+static void numselbox_draw(wigptr wg)
+
+{
+
+    int udspc; /* up/down control space */
+    int figsiz; /* size of up/down figures */
+
+    udspc = pa_chrsizy(win0)*1.9; /* square space for up/down control */
+    /* color the background */
+    pa_fcolor(wg->wf, pa_white);
+    pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
+    /* draw divider lines */
+    fcolort(wg->wf, th_numseldiv);
+    pa_line(wg->wf, pa_maxxg(wg->wf)-udspc, 1,
+                    pa_maxxg(wg->wf)-udspc, pa_maxyg(wg->wf));
+    pa_line(wg->wf, pa_maxxg(wg->wf)-udspc*2, 1,
+                    pa_maxxg(wg->wf)-udspc*2, pa_maxyg(wg->wf));
+    /* draw up/down figures */
+    figsiz = pa_maxyg(wg->wf)/2; /* set figure size */
+    fcolort(wg->wf, th_numselud);
+    pa_line(wg->wf, pa_maxxg(wg->wf)-udspc*1.5-figsiz/2.75, pa_maxyg(wg->wf)/2,
+                    pa_maxxg(wg->wf)-udspc*1.5+figsiz/2.75, pa_maxyg(wg->wf)/2);
+    pa_line(wg->wf, pa_maxxg(wg->wf)-udspc*0.5-figsiz/2.75, pa_maxyg(wg->wf)/2,
+                    pa_maxxg(wg->wf)-udspc*0.5+figsiz/2.75, pa_maxyg(wg->wf)/2);
+    pa_line(wg->wf, pa_maxxg(wg->wf)-udspc*0.5, pa_maxyg(wg->wf)/2-figsiz/2.75,
+                    pa_maxxg(wg->wf)-udspc*0.5, pa_maxyg(wg->wf)/2+figsiz/2.75);
+    /* outline */
+    if (wg->focus) {
+
+        pa_linewidth(wg->wf, 4);
+        fcolort(wg->wf, th_focus);
+
+    } else {
+
+        pa_linewidth(wg->wf, 2);
+        fcolort(wg->wf, th_outline);
+
+    }
+    pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1, pa_maxyg(wg->wf)-1, 20, 20);
+
+}
+
+static void numselbox_event(pa_evtrec* ev, wigptr wg)
+
+{
+
+    int  udspc; /* up/down control space */
+    char buff[20]; /* buffer for number entered */
+    int  v;
+
+    udspc = pa_chrsizy(win0)*1.9; /* square space for up/down control */
+    switch (ev->etype) {
+
+        case pa_etredraw: /* redraw window */
+            numselbox_draw(wg); /* redraw the window */
+            break;
+
+        case pa_etfocus: /* gain focus */
+            wg->focus = 1; /* in focus */
+            numselbox_draw(wg); /* redraw */
+            /* share focus status with child */
+            editbox_event(ev, wg->cw);
+            break;
+
+        case pa_etnofocus: /* lose focus */
+            wg->focus = 0; /* out of focus */
+            numselbox_draw(wg); /* redraw */
+            /* share focus status with child */
+            editbox_event(ev, wg->cw);
+            break;
+
+        case pa_etmoumovg: /* mouse moved */
+            /* track position */
+            wg->mpx = ev->moupxg; /* set present position */
+            wg->mpy = ev->moupyg;
+            break;
+
+        case pa_etmouba: /* mouse click */
+            if (ev->amoubn == 1) {
+
+                if (wg->mpx >= pa_maxxg(wg->wf)-udspc*2 &&
+                    wg->mpx < pa_maxxg(wg->wf)-udspc) {
+
+                    /* down control */
+                    pa_getwidgettext(wg->wf, wg->cw->id, buff, 20);
+                    v = atoi(buff);
+                    if (v > wg->cw->lbnd) v--;
+                    sprintf(buff, "%d", v);
+                    pa_putwidgettext(wg->wf, wg->cw->id, buff);
+                    editbox_draw(wg->cw);
+
+                } else if (wg->mpx >= pa_maxxg(wg->wf)-udspc) {
+
+                    /* up control */
+                    pa_getwidgettext(wg->wf, wg->cw->id, buff, 20);
+                    v = atoi(buff);
+                    if (v < wg->cw->ubnd) v++;
+                    sprintf(buff, "%d", v);
+                    pa_putwidgettext(wg->wf, wg->cw->id, buff);
+                    editbox_draw(wg->cw);
+
+                }
+
+            }
             break;
 
     }
@@ -2324,7 +2367,6 @@ void pa_numselboxsizg(FILE* f, int l, int u, int* w, int* h)
     if (abs(l) > abs(u)) mv = l; /* find maximum digits */
     dc = digits(abs(mv)); /* find the digit count */
     if (mv < 0) dc++; /* add the sign */
-dbg_printf(dlinfo, "digits: %d\n", dc);
 
     udspc = pa_chrsizy(win0)*1.9; /* square space for up/down control */
 
