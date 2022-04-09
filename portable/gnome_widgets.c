@@ -1255,6 +1255,8 @@ static void editbox_event(pa_evtrec* ev, wigptr wg)
             editbox_draw(wg); /* redraw */
             break;
 
+        default: ;
+
     }
 
 }

@@ -273,7 +273,6 @@ int main(void)
 
     /* ************************** Terminal Checkbox test ************************** */
 
-#endif
     printf("\f");
     chrgrid();
     pa_binvis(stdout);
@@ -1054,6 +1053,7 @@ int main(void)
 
     /* ******************** Graphical number select box test ******************* */
 
+#endif
     printf("\f");
     printf("Graphical number select box test\n");
     printf("\n");

@@ -1,5 +1,7 @@
              NOTES FOR GRAPHICS LIBRARY
 
+Linux/Ubuntu ===============================================================
+
 1. Graphics needs a TrueType facillity like FreeType to give it a reasonable 
 number of non-obsolete fonts.
 
@@ -60,16 +62,28 @@ perform input? Any window can have text/controls entered, and it will edit at
 wherever the cursor happens to be. This means either multiple windows are an
 error, or the user should be warned about input with multiple output windows.
 
-Follow up:
+MACOSX/Quartz ==================================================================
 
-13. Mac OS X/XQuartz, has odd halting problem during tabs test of graphics_test.
+1. Mac OS X/XQuartz, has odd halting problem during tabs test of graphics_test.
 
-14. Mac OS X/XQuartz, colors in the color test are bleeding into the scrollbar
-space.
+2. Mac OS X/XQuartz, colors in the color test are bleeding into the scrollbar
+space. [actually, a couple of the tests do]
 
-15. Mac OS X/XQuartz, in animation test, moving the mouse within the window 
+3. Mac OS X/XQuartz, in animation test, moving the mouse within the window 
 halts the animation. I verified this does not happen in Linux.
 
-16. Mac OS X/XQuartz, seeing some memory errors flagged.
+4. Mac OS X/XQuartz, seeing some memory errors flagged.
 
-17. Mac OS X/XQuartz, management test, front/back test does not work.
+Specifically:
+
+graphics_test(80053,0x105193dc0) malloc: *** error for object 0xb8acf0550396007a: pointer being freed was not allocated
+
+At end of graphics_test.
+
+5. Management test hangs up at character window sizing test.
+
+6. Mac OS X/XQuartz, management test, front/back test does not work.
+
+7. In widget_test, dies on first test with "no input side for this window".
+
+8. In widget_test, the error alert dialog text is too large.
