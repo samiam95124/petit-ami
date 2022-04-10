@@ -1389,6 +1389,8 @@ static void numselbox_event(pa_evtrec* ev, wigptr wg)
                         if (v < wg->cw->ubnd) v++;
                         sprintf(buff, "%d", v);
                         pa_putwidgettext(wg->wf, wg->cw->id, buff);
+                        if (wg->cw->curs > strlen(wg->cw->face))
+                            wg->cw->curs = strlen(wg->cw->face);
                         editbox_draw(wg->cw);
 
                     }
