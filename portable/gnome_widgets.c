@@ -116,6 +116,7 @@ static enum { /* debug levels */
 #define TD_SCROLLBARPRESSED RGB(195, 65, 19)   /* scrollbar pressed */
 #define TD_NUMSELDIV        RGB(239, 239, 239) /* numselbox divider */
 #define TD_NUMSELUD         RGB(164, 164, 164) /* numselbox up/down figures */
+#define TD_TEXTERR          RGB(255, 61, 61)   /* widget face text in error */
 
 /* values table ids */
 
@@ -134,6 +135,7 @@ typedef enum {
     th_scrollbarpressed, /* scrollbar pressed */
     th_numseldiv,        /* numselbox divider */
     th_numselud,         /* numselbox up/down figures */
+    th_texterr,          /* widget face text in error */
     th_endmarker         /* end of theme entries */
 
 } themeindex;
@@ -1004,7 +1006,17 @@ static void editbox_draw(wigptr wg)
     int   cl;
     int   x;
     char* s;
+    int   err;
+    int   v;
 
+    /* see if the numeric contents are in range */
+    err = FALSE; /* set no error */
+    if (wg->num) {
+
+        v = atoi(wg->face); /* get the value */
+        if (v < wg->lbnd || v > wg->ubnd) err = TRUE;
+
+    }
     /* color the background */
     pa_fcolor(wg->wf, pa_white);
     pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
@@ -1027,8 +1039,12 @@ static void editbox_draw(wigptr wg)
 
     }
     /* text */
-    if (wg->enb) fcolort(wg->wf, th_text);
-    else fcolort(wg->wf, th_textdis);
+    if (wg->enb) {
+
+        if (err) fcolort(wg->wf, th_texterr);
+        else fcolort(wg->wf, th_text);
+
+    } else fcolort(wg->wf, th_textdis);
     pa_cursorg(wg->wf, ENDLEDSPC, pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
     /* check cursor in box */
     if (wg->tleft > strlen(wg->face)) wg->tleft = 0;
@@ -1057,8 +1073,9 @@ static void editbox_draw(wigptr wg)
     while (*s && pa_curxg(wg->wf)+pa_chrpos(wg->wf, s, 1) <
                  pa_maxxg(wg->wf)-ENDLEDSPC)
         fputc(*s++, wg->wf);
-    if (wg->focus) { /* if in focus, draw the cursor */
+    if (wg->focus && wg->enb) { /* if in focus and enabled, draw the cursor */
 
+        fcolort(wg->wf, th_text); /* set color */
         /* find x location of cursor */
         x = ENDLEDSPC+pa_chrpos(wg->wf, wg->face, wg->curs)-
             pa_chrpos(wg->wf, wg->face, wg->tleft);
@@ -1349,26 +1366,32 @@ static void numselbox_event(pa_evtrec* ev, wigptr wg)
         case pa_etmouba: /* mouse click */
             if (ev->amoubn == 1) {
 
-                if (wg->mpx >= pa_maxxg(wg->wf)-udspc*2 &&
-                    wg->mpx < pa_maxxg(wg->wf)-udspc) {
+                if (wg->cw->face[0]) {
 
-                    /* down control */
-                    pa_getwidgettext(wg->wf, wg->cw->id, buff, 20);
-                    v = atoi(buff);
-                    if (v > wg->cw->lbnd) v--;
-                    sprintf(buff, "%d", v);
-                    pa_putwidgettext(wg->wf, wg->cw->id, buff);
-                    editbox_draw(wg->cw);
+                    if (wg->mpx >= pa_maxxg(wg->wf)-udspc*2 &&
+                        wg->mpx < pa_maxxg(wg->wf)-udspc) {
 
-                } else if (wg->mpx >= pa_maxxg(wg->wf)-udspc) {
+                        /* down control */
+                        pa_getwidgettext(wg->wf, wg->cw->id, buff, 20);
+                        v = atoi(buff);
+                        if (v > wg->cw->lbnd) v--;
+                        sprintf(buff, "%d", v);
+                        pa_putwidgettext(wg->wf, wg->cw->id, buff);
+                        if (wg->cw->curs > strlen(wg->cw->face))
+                            wg->cw->curs = strlen(wg->cw->face);
+                        editbox_draw(wg->cw);
 
-                    /* up control */
-                    pa_getwidgettext(wg->wf, wg->cw->id, buff, 20);
-                    v = atoi(buff);
-                    if (v < wg->cw->ubnd) v++;
-                    sprintf(buff, "%d", v);
-                    pa_putwidgettext(wg->wf, wg->cw->id, buff);
-                    editbox_draw(wg->cw);
+                    } else if (wg->mpx >= pa_maxxg(wg->wf)-udspc) {
+
+                        /* up control */
+                        pa_getwidgettext(wg->wf, wg->cw->id, buff, 20);
+                        v = atoi(buff);
+                        if (v < wg->cw->ubnd) v++;
+                        sprintf(buff, "%d", v);
+                        pa_putwidgettext(wg->wf, wg->cw->id, buff);
+                        editbox_draw(wg->cw);
+
+                    }
 
                 }
 
@@ -3235,6 +3258,7 @@ static void pa_init_widgets(int argc, char *argv[])
     themetable[th_scrollbarpressed] = TD_SCROLLBARPRESSED;
     themetable[th_numseldiv]        = TD_NUMSELDIV;
     themetable[th_numselud]         = TD_NUMSELUD;
+    themetable[th_texterr]          = TD_TEXTERR;
 
 }
 
