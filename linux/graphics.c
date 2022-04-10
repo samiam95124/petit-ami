@@ -12529,6 +12529,27 @@ void pa_sysbar(FILE* f, int e)
 
 /** ****************************************************************************
 
+Set window focus
+
+Sends the focus, or which window gets input characters, to a given window.
+
+*******************************************************************************/
+
+void pa_focus(FILE* f)
+
+{
+
+    winptr win; /* pointer to windows context */
+
+    win = txt2win(f); /* get window context */
+    XWLOCK();
+    XSetInputFocus(padisplay, win->xmwhan, RevertToNone, CurrentTime);
+    XWUNLOCK();
+
+}
+
+/** ****************************************************************************
+
 Gralib startup
 
 *******************************************************************************/

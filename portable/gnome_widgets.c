@@ -180,6 +180,7 @@ typedef struct wigrec {
     int    lbnd;       /* low bound of number */
     int    ubnd;       /* upper bound of number */
     wigptr cw;         /* child/subclassed widget */
+    wigptr pw;         /* parent widget */
 
 } wigrec;
 
@@ -999,6 +1000,8 @@ Handles the events posted to edit boxes.
 
 *******************************************************************************/
 
+static void numselbox_draw(wigptr wg);
+
 static void editbox_draw(wigptr wg)
 
 {
@@ -1144,11 +1147,15 @@ static void editbox_event(pa_evtrec* ev, wigptr wg)
         case pa_etfocus: /* gain focus */
             wg->focus = 1; /* in focus */
             editbox_draw(wg); /* redraw */
+            /* if subclassed, also redraw parent */
+            if (wg->subcls) numselbox_draw(wg->pw);
             break;
 
         case pa_etnofocus: /* lose focus */
             wg->focus = 0; /* out of focus */
             editbox_draw(wg); /* redraw */
+            /* if subclassed, also redraw parent */
+            if (wg->subcls) numselbox_draw(wg->pw);
             break;
 
         case pa_etright: /* right character */
@@ -1313,7 +1320,7 @@ static void numselbox_draw(wigptr wg)
     pa_line(wg->wf, pa_maxxg(wg->wf)-udspc*0.5, pa_maxyg(wg->wf)/2-figsiz/2.75,
                     pa_maxxg(wg->wf)-udspc*0.5, pa_maxyg(wg->wf)/2+figsiz/2.75);
     /* outline */
-    if (wg->focus) {
+    if (wg->focus | wg->cw->focus) {
 
         pa_linewidth(wg->wf, 4);
         fcolort(wg->wf, th_focus);
@@ -1346,15 +1353,13 @@ static void numselbox_event(pa_evtrec* ev, wigptr wg)
         case pa_etfocus: /* gain focus */
             wg->focus = 1; /* in focus */
             numselbox_draw(wg); /* redraw */
-            /* share focus status with child */
-            editbox_event(ev, wg->cw);
+            /* if we get focus, send it on to subclassed edit window */
+            pa_focus(wg->cw->wf);
             break;
 
         case pa_etnofocus: /* lose focus */
             wg->focus = 0; /* out of focus */
             numselbox_draw(wg); /* redraw */
-            /* share focus status with child */
-            editbox_event(ev, wg->cw);
             break;
 
         case pa_etmoumovg: /* mouse moved */
@@ -1374,7 +1379,7 @@ static void numselbox_event(pa_evtrec* ev, wigptr wg)
                         /* down control */
                         pa_getwidgettext(wg->wf, wg->cw->id, buff, 20);
                         v = atoi(buff);
-                        if (v > wg->cw->lbnd) v--;
+                        if (wg->cw->lbnd < v && v <= wg->cw->ubnd) v--;
                         sprintf(buff, "%d", v);
                         pa_putwidgettext(wg->wf, wg->cw->id, buff);
                         if (wg->cw->curs > strlen(wg->cw->face))
@@ -1386,7 +1391,7 @@ static void numselbox_event(pa_evtrec* ev, wigptr wg)
                         /* up control */
                         pa_getwidgettext(wg->wf, wg->cw->id, buff, 20);
                         v = atoi(buff);
-                        if (v < wg->cw->ubnd) v++;
+                        if (wg->cw->lbnd <= v && v < wg->cw->ubnd) v++;
                         sprintf(buff, "%d", v);
                         pa_putwidgettext(wg->wf, wg->cw->id, buff);
                         if (wg->cw->curs > strlen(wg->cw->face))
@@ -2447,6 +2452,7 @@ void pa_numselboxg(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id
            wteditbox, &wps);
     pa_curvis(wps->wf, FALSE); /* turn on cursor */
     wp->cw = wps; /* give the master its child window */
+    wps->pw = wp; /* give the child its master */
 
 }
 
