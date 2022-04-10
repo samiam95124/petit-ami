@@ -181,6 +181,8 @@ typedef struct wigrec {
     int    ubnd;       /* upper bound of number */
     wigptr cw;         /* child/subclassed widget */
     wigptr pw;         /* parent widget */
+    int    uppress;    /* up button pressed */
+    int    downpress;  /* down buton pressed */
 
 } wigrec;
 
@@ -327,6 +329,10 @@ static wigptr getwig(void)
     wp->num = FALSE; /* set any character entry */
     wp->lbnd = -INT_MAX; /* set low bound */
     wp->ubnd = INT_MAX; /* set high bound */
+    wp->cw = NULL; /* clear child */
+    wp->pw = NULL; /* clear parent */
+    wp->uppress = FALSE; /* set up not pressed */
+    wp->downpress = FALSE; /* set down not pressed */
 
     return wp; /* return entry */
 
@@ -1304,6 +1310,19 @@ static void numselbox_draw(wigptr wg)
     /* color the background */
     pa_fcolor(wg->wf, pa_white);
     pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
+    if (wg->downpress) {
+
+        fcolort(wg->wf, th_buttbackpressed);
+        pa_frect(wg->wf, pa_maxxg(wg->wf)-udspc*2, 1,
+                        pa_maxxg(wg->wf)-udspc*1-1, pa_maxyg(wg->wf));
+
+    } else if (wg->uppress) {
+
+        fcolort(wg->wf, th_buttbackpressed);
+        pa_frect(wg->wf, pa_maxxg(wg->wf)-udspc*1, 1,
+                        pa_maxxg(wg->wf), pa_maxyg(wg->wf));
+
+    }
     /* draw divider lines */
     fcolort(wg->wf, th_numseldiv);
     pa_line(wg->wf, pa_maxxg(wg->wf)-udspc, 1,
@@ -1352,14 +1371,12 @@ static void numselbox_event(pa_evtrec* ev, wigptr wg)
 
         case pa_etfocus: /* gain focus */
             wg->focus = 1; /* in focus */
-            numselbox_draw(wg); /* redraw */
             /* if we get focus, send it on to subclassed edit window */
             pa_focus(wg->cw->wf);
             break;
 
         case pa_etnofocus: /* lose focus */
             wg->focus = 0; /* out of focus */
-            numselbox_draw(wg); /* redraw */
             break;
 
         case pa_etmoumovg: /* mouse moved */
@@ -1385,6 +1402,8 @@ static void numselbox_event(pa_evtrec* ev, wigptr wg)
                         if (wg->cw->curs > strlen(wg->cw->face))
                             wg->cw->curs = strlen(wg->cw->face);
                         editbox_draw(wg->cw);
+                        wg->downpress = TRUE; /* set down pressed */
+                        numselbox_draw(wg); /* redraw */
 
                     } else if (wg->mpx >= pa_maxxg(wg->wf)-udspc) {
 
@@ -1397,6 +1416,8 @@ static void numselbox_event(pa_evtrec* ev, wigptr wg)
                         if (wg->cw->curs > strlen(wg->cw->face))
                             wg->cw->curs = strlen(wg->cw->face);
                         editbox_draw(wg->cw);
+                        wg->uppress = TRUE; /* set up pressed */
+                        numselbox_draw(wg); /* redraw */
 
                     }
 
@@ -1404,6 +1425,15 @@ static void numselbox_event(pa_evtrec* ev, wigptr wg)
 
             }
             break;
+
+        case pa_etmoubd: /* mouse click */
+            if (ev->dmoubn == 1) {
+
+                wg->downpress = FALSE; /* set none pressed */
+                wg->uppress = FALSE;
+                numselbox_draw(wg); /* redraw */
+
+            }
 
     }
 
