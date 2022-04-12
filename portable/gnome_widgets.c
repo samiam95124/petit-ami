@@ -117,6 +117,10 @@ static enum { /* debug levels */
 #define TD_NUMSELDIV        RGB(239, 239, 239) /* numselbox divider */
 #define TD_NUMSELUD         RGB(164, 164, 164) /* numselbox up/down figures */
 #define TD_TEXTERR          RGB(255, 61, 61)   /* widget face text in error */
+#define TD_PROGINACEN       RGB(222, 222, 222) /* progress bar inactive center */
+#define TD_PROGINAEDG       RGB(196, 196, 196) /* progress bar inactive edge */
+#define TD_PROGACTCEN       RGB(146, 77, 139)  /* progress bar active center */
+#define TD_PROGACTEDG       RGB(129, 68, 123)  /* progress bar active edge */
 
 /* values table ids */
 
@@ -136,6 +140,10 @@ typedef enum {
     th_numseldiv,        /* numselbox divider */
     th_numselud,         /* numselbox up/down figures */
     th_texterr,          /* widget face text in error */
+    th_proginacen,       /* progress bar inactive center */
+    th_proginaedg,       /* progress bar inactive edge */
+    th_progactcen,       /* progress bar active center */
+    th_progactedg,       /* progress bar active edge */
     th_endmarker         /* end of theme entries */
 
 } themeindex;
@@ -145,7 +153,7 @@ typedef enum  {
 
     wtbutton, wtcheckbox, wtradiobutton, wtgroup, wtbackground,
     wtscrollvert, wtscrollhoriz, wtnumselbox, wteditbox,
-    wtprogressbar, wtlistbox, wtdropbox, wtdropeditbox,
+    wtprogbar, wtlistbox, wtdropbox, wtdropeditbox,
     wtslidehoriz, wtslidevert, wttabbar, wtalert, wtquerycolor,
     wtqueryopen, wtquerysave, wtqueryfind, wtqueryfindrep,
     wtqueryfont
@@ -183,6 +191,7 @@ typedef struct wigrec {
     wigptr pw;         /* parent widget */
     int    uppress;    /* up button pressed */
     int    downpress;  /* down buton pressed */
+    int    ppos;       /* progress bar position */
 
 } wigrec;
 
@@ -333,6 +342,7 @@ static wigptr getwig(void)
     wp->pw = NULL; /* clear parent */
     wp->uppress = FALSE; /* set up not pressed */
     wp->downpress = FALSE; /* set down not pressed */
+    wp->ppos = 0; /* progress bar extreme left */
 
     return wp; /* return entry */
 
@@ -1130,7 +1140,8 @@ static void editbox_event(pa_evtrec* ev, wigptr wg)
             editbox_draw(wg); /* redraw the window */
             break;
         case pa_etchar: /* enter character */
-            if (!wg->num || isdigit(ev->echar)) {
+            if (!wg->num || isdigit(ev->echar) || ev->echar == '-' ||
+                ev->echar == '=') {
 
                 l = strlen(wg->face); /* get length of existing face string */
                 if (!wg->ins || wg->curs >= l) { /* insert mode or end */
@@ -1358,8 +1369,9 @@ static void numselbox_event(pa_evtrec* ev, wigptr wg)
 
 {
 
-    int  udspc; /* up/down control space */
+    int  udspc;    /* up/down control space */
     char buff[20]; /* buffer for number entered */
+    pa_evtrec er;  /* outbound button event */
     int  v;
 
     udspc = pa_chrsizy(win0)*1.9; /* square space for up/down control */
@@ -1377,6 +1389,14 @@ static void numselbox_event(pa_evtrec* ev, wigptr wg)
 
         case pa_etnofocus: /* lose focus */
             wg->focus = 0; /* out of focus */
+            break;
+
+        case pa_etedtbox: /* signal entry done */
+            /* send event back to parent window */
+            er.etype = pa_etnumbox; /* set button event */
+            er.numbid = wg->id; /* set id */
+            er.numbsl = atoi(wg->cw->face); /* set value */
+            pa_sendevent(wg->parent, &er); /* send the event to the parent */
             break;
 
         case pa_etmoumovg: /* mouse moved */
@@ -1447,17 +1467,36 @@ Handles the events posted to progress bars.
 
 *******************************************************************************/
 
-static void progressbar_draw(wigptr wg)
+static void progbar_draw(wigptr wg)
 
 {
+
+    int pbpp; /* prog bar pixel position right side */
+
+    /* draw inactive background */
+    fcolort(wg->wf, th_proginacen);
+    pa_linewidth(wg->wf, 2);
+    pa_frrect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf), 10, 10);
+    /* draw inactive edget */
+    fcolort(wg->wf, th_proginaedg);
+    pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1, pa_maxyg(wg->wf)-1, 10, 10);
+    /* find right side of prog bar */
+    pbpp = (long long)wg->ppos*pa_maxxg(wg->wf)/INT_MAX;
+    /* now draw active */
+    fcolort(wg->wf, th_progactcen);
+    pa_linewidth(wg->wf, 2);
+    pa_frrect(wg->wf, 1, 1, pbpp, pa_maxyg(wg->wf), 10, 10);
+    /* draw inactive edget */
+    fcolort(wg->wf, th_progactedg);
+    pa_rrect(wg->wf, 2, 2,pbpp-1, pa_maxyg(wg->wf)-1, 10, 10);
 
 }
 
-static void progressbar_event(pa_evtrec* ev, wigptr wg)
+static void progbar_event(pa_evtrec* ev, wigptr wg)
 
 {
 
-    if (ev->etype == pa_etredraw) progressbar_draw(wg); /* redraw the window */
+    if (ev->etype == pa_etredraw) progbar_draw(wg); /* redraw the window */
 
 }
 
@@ -1621,7 +1660,7 @@ static void widget_event(pa_evtrec* ev)
         case wtscrollhoriz:  scrollhoriz_event(ev, wg); break;
         case wtnumselbox:    numselbox_event(ev, wg); break;
         case wteditbox:      editbox_event(ev, wg); break;
-        case wtprogressbar:  progressbar_event(ev, wg); break;
+        case wtprogbar:  progbar_event(ev, wg); break;
         case wtlistbox:      listbox_event(ev, wg); break;
         case wtdropbox:      dropbox_event(ev, wg); break;
         case wtdropeditbox:  dropeditbox_event(ev, wg); break;
@@ -1784,7 +1823,7 @@ void pa_getwidgettext(FILE* f, int id, char* s, int sl)
 
 {
 
-    wigptr    wp;  /* widget entry pointer */
+    wigptr wp;  /* widget entry pointer */
 
     wp = fndwig(f, id); /* index the widget */
     /* check this widget can have face text read */
@@ -2563,16 +2602,20 @@ void pa_editbox(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 /** ****************************************************************************
 
-Find minimum/standard edit box size
+Find minimum/standard progress bar size
 
-Finds the minimum size for an edit box. Given a sample face string, the minimum
-size of an edit box is calculated and returned.
+Progress bars are fairly arbitrary, and the dimensions given are more of a
+suggestion. The height is based on character size, which is a pretty good base
+measure, but the width is really up to the caller.
 
 *******************************************************************************/
 
 void pa_progbarsizg(FILE* f, int* w, int* h)
 
 {
+
+    *w = 400;
+    *h = pa_chrsizy(win0);
 
 }
 
@@ -2602,7 +2645,7 @@ void pa_progbarg(FILE* f, int x1, int y1, int x2, int y2, int id)
     wigptr wp; /* widget entry pointer */
 
     wp = NULL; /* set no predefinition */
-    widget(f, x1, y1, x2, y2, "", id, wtprogressbar, &wp);
+    widget(f, x1, y1, x2, y2, "", id, wtprogbar, &wp);
 
 }
 
@@ -2630,6 +2673,14 @@ Sets the position of a progress bar, from 0 to maxint.
 void pa_progbarpos(FILE* f, int id, int pos)
 
 {
+
+    wigptr wp;  /* widget entry pointer */
+
+    wp = fndwig(f, id); /* index the widget */
+    if (wp->typ != wtprogbar) error("Type of widget is not progress bar");
+    if (pos < 0) error("Invalid progress bar position");
+    wp->ppos = pos; /* set progress bar position */
+    progbar_draw(wp); /* redraw the widget with that */
 
 }
 
@@ -3297,6 +3348,10 @@ static void pa_init_widgets(int argc, char *argv[])
     themetable[th_numseldiv]        = TD_NUMSELDIV;
     themetable[th_numselud]         = TD_NUMSELUD;
     themetable[th_texterr]          = TD_TEXTERR;
+    themetable[th_proginacen]       = TD_PROGINACEN;
+    themetable[th_proginaedg]       = TD_PROGINAEDG;
+    themetable[th_progactcen]       = TD_PROGACTCEN;
+    themetable[th_progactedg]       = TD_PROGACTEDG;
 
 }
 
