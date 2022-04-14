@@ -1627,6 +1627,45 @@ static void dropbox_draw(wigptr wg)
 
 {
 
+    int       udspc;  /* up/down control space */
+    int       figsiz; /* size of up/down figures */
+    pa_strptr sp;
+    int       sc;
+    int       aw;
+    int       ah;
+
+    udspc = pa_chrsizy(win0)*1.9; /* square space for dropdown control */
+    aw = udspc*0.2; /* set dropdown arrow width */
+    ah = udspc*0.2; /* set dropdown arrow height */
+    /* color the background */
+    pa_fcolor(wg->wf, pa_white);
+    pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
+    /* outline */
+    pa_linewidth(wg->wf, 2);
+    fcolort(wg->wf, th_outline);
+    pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1, pa_maxyg(wg->wf)-1, 20, 20);
+    /* draw divider lines */
+    fcolort(wg->wf, th_numseldiv);
+    pa_line(wg->wf, pa_maxxg(wg->wf)-udspc, 1,
+                    pa_maxxg(wg->wf)-udspc, pa_maxyg(wg->wf));
+    /* draw dropbox arrow */
+    pa_fcolor(wg->wf, pa_black);
+    pa_ftriangle(wg->wf, pa_maxxg(wg->wf)-udspc*0.5-aw*0.5,
+                         pa_maxyg(wg->wf)*0.5-ah*0.5,
+                         pa_maxxg(wg->wf)-udspc*0.5+aw*0.5,
+                         pa_maxyg(wg->wf)*0.5-ah*0.5,
+                         pa_maxxg(wg->wf)-udspc*0.5,
+                         pa_maxyg(wg->wf)*0.5-ah*0.5+ah*0.5);
+
+    /* draw current select */
+    sp = wg->strlst;
+    sc = wg->ss;
+    /* find selected string */
+    while (sc > 1 && sp) { sp = sp->next; sc--; }
+    pa_fcolor(wg->wf, pa_black);
+    pa_cursorg(wg->wf, pa_chrsizy(wg->wf)*0.5, pa_chrsizy(wg->wf)*0.5);
+    fprintf(wg->wf, "%s", sp->str); /* place string */
+
 }
 
 static void dropbox_event(pa_evtrec* ev, wigptr wg)
@@ -2907,6 +2946,19 @@ void pa_dropboxsizg(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
 
 {
 
+    int lbw, lbh;
+
+    /* find listbox sizing first */
+    pa_listboxsizg(f, sp, &lbw, &lbh);
+
+    /* closed size is width of listbox plus down arrow, height is character */
+    *cw = lbw+pa_chrsizy(win0)*1.9; /* find closed width */
+    *ch = pa_chrsizy(win0)*1.5; /* find closed height */
+
+    /* open size is same width, height of list plus edit box */
+    *ow = *cw;
+    *oh = lbh+*ch;
+
 }
 
 void pa_dropboxsiz(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
@@ -2934,9 +2986,37 @@ void pa_dropboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 {
 
-    wigptr wp; /* widget entry pointer */
+    wigptr    wp;  /* widget entry pointer */
+    pa_strptr sp1;
+    pa_strptr lh, lhs, p;
 
-    wp = NULL; /* set no predefinition */
+    /* make a copy of the list */
+    lh = NULL;
+    while (sp) { /* traverse the list */
+
+        sp1 = malloc(sizeof(pa_strrec)); /* get string entry */
+        sp1->str = str(sp->str); /* copy the string */
+        sp1->next = lh; /* push to list */
+        lh = sp1;
+        sp = sp->next; /* next entry */
+
+    }
+    /* reverse the list */
+    lhs = lh;
+    lh = NULL;
+    while (lhs) {
+
+        p = lhs; /* pick top entry */
+        lhs = lhs->next; /* gap out */
+        p->next = lh; /* push to new list */
+        lh = p;
+
+    }
+
+    /* create the widget */
+    wp = getwig(); /* predef so we can plant list before display */
+    wp->strlst = lh; /* plant the list */
+    wp->ss = 1; /* select first entry */
     widget(f, x1, y1, x2, y2, "", id, wtdropbox, &wp);
 
 }
