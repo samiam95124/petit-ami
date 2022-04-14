@@ -121,6 +121,7 @@ static enum { /* debug levels */
 #define TD_PROGINAEDG       RGB(196, 196, 196) /* progress bar inactive edge */
 #define TD_PROGACTCEN       RGB(146, 77, 139)  /* progress bar active center */
 #define TD_PROGACTEDG       RGB(129, 68, 123)  /* progress bar active edge */
+#define TD_LSTHOV           RGB(230, 230, 230) /* list background for hover */
 
 /* values table ids */
 
@@ -144,6 +145,7 @@ typedef enum {
     th_proginaedg,       /* progress bar inactive edge */
     th_progactcen,       /* progress bar active center */
     th_progactedg,       /* progress bar active edge */
+    th_lsthov,           /* list background for hover */
     th_endmarker         /* end of theme entries */
 
 } themeindex;
@@ -182,6 +184,7 @@ typedef struct wigrec {
     int    curs;       /* text cursor */
     int    tleft;      /* text left side index */
     int    focus;      /* focused */
+    int    hover;      /* hovered */
     int    ins;        /* insert/overwrite mode */
     int    subcls;     /* widget is subclassed */
     int    num;        /* allow only numeric entry */
@@ -192,6 +195,8 @@ typedef struct wigrec {
     int    uppress;    /* up button pressed */
     int    downpress;  /* down buton pressed */
     int    ppos;       /* progress bar position */
+    pa_strptr strlst;  /* string list */
+    int    ss;         /* string selected, 0 if none */
 
 } wigrec;
 
@@ -329,6 +334,7 @@ static wigptr getwig(void)
     wp->curs = 0; /* set text cursor */
     wp->tleft = 0; /* set text left side in edit box */
     wp->focus = 0; /* set not focused */
+    wp->hover = 0; /* set no hover */
     wp->ins = 0; /* set insert mode */
     wp->mpx = 0; /* clear mouse position */
     wp->mpy = 0;
@@ -343,6 +349,8 @@ static wigptr getwig(void)
     wp->uppress = FALSE; /* set up not pressed */
     wp->downpress = FALSE; /* set down not pressed */
     wp->ppos = 0; /* progress bar extreme left */
+    wp->strlst = NULL; /* clear string list */
+    wp->ss = 0; /* no string selected */
 
     return wp; /* return entry */
 
@@ -1512,13 +1520,98 @@ static void listbox_draw(wigptr wg)
 
 {
 
+    pa_strptr sp;
+    int       y;
+    int       sc;
+
+    /* draw background */
+    pa_fcolor(wg->wf, pa_white);
+    pa_frrect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf), 10, 10);
+    /* draw outline */
+    fcolort(wg->wf, th_outline);
+    pa_linewidth(wg->wf, 2);
+    pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1, pa_maxyg(wg->wf)-1, 10, 10);
+    sp = wg->strlst; /* index top of stringlist */
+    y = pa_chrsizy(wg->wf)*0.5; /* space to first string */
+    pa_fcolor(wg->wf, pa_black);
+    sc = 1; /* set first string */
+    while (sp) { /* traverse and paint */
+
+        if (wg->hover && sc == wg->ss) {
+
+            /* draw in hover background */
+            fcolort(wg->wf, th_lsthov); /* set hover background */
+            pa_frect(wg->wf, 1, y, pa_maxxg(wg->wf), y+pa_chrsizy(wg->wf)-1);
+
+        }
+        pa_fcolor(wg->wf, pa_black);
+        pa_cursorg(wg->wf, pa_chrsizy(wg->wf)*0.5, y);
+        fprintf(wg->wf, "%s", sp->str); /* place string */
+        y += pa_chrsizy(wg->wf); /* next line */
+        sp = sp->next; /* next string */
+        sc++; /* next select */
+
+    }
+
 }
 
 static void listbox_event(pa_evtrec* ev, wigptr wg)
 
 {
 
+    pa_evtrec er; /* outbound button event */
+    int       y;
+    int       sc;
+    pa_strptr sp;
+
     if (ev->etype == pa_etredraw) listbox_draw(wg); /* redraw the window */
+    else if (ev->etype == pa_etmouba && ev->amoubn == 1) {
+
+        /* note that if there is a click in the window, there must have also
+           a mouse move */
+        if (wg->ss) { /* there is a string select */
+
+            /* send event back to parent window */
+            er.etype = pa_etlstbox; /* set button event */
+            er.lstbid = wg->id; /* set id */
+            er.lstbsl = wg->ss; /* set string select */
+            pa_sendevent(wg->parent, &er); /* send the event to the parent */
+
+        }
+
+    } else if (ev->etype == pa_etmoumovg) {
+
+        /* track position */
+        wg->mpx = ev->moupxg; /* set present position */
+        wg->mpy = ev->moupyg;
+
+        /* find which string the mouse is over */
+        y = pa_chrsizy(wg->wf)*0.5; /* space to first string */
+        sp = wg->strlst; /* index top of string list */
+        sc = 1; /* set first string */
+        wg->ss = 0; /* set no string selected */
+        while (sp) { /* traverse string list */
+
+            /* if within the string bounding box, select it */
+            if (wg->mpy >= y && wg->mpy <= y+pa_chrsizy(wg->wf)) wg->ss = sc;
+            y += pa_chrsizy(wg->wf); /* next line */
+            sc++; /* next select */
+            sp = sp->next; /* next string */
+
+        }
+        listbox_draw(wg); /* redraw the window */
+
+    } else if (ev->etype == pa_ethover) {
+
+        wg->hover = 1; /* hovered */
+        listbox_draw(wg); /* redraw the window */
+
+    } else if (ev->etype == pa_etnohover) {
+
+        wg->hover = 0; /* not hovered */
+        listbox_draw(wg); /* redraw the window */
+
+    }
 
 }
 
@@ -2704,6 +2797,27 @@ void pa_listboxsizg(FILE* f, pa_strptr sp, int* w, int* h)
 
 {
 
+    int       lc;   /* line counter */
+    int       maxp; /* maximum pixel length */
+    int       pl;   /* pixel length */
+    pa_strptr sp1;
+
+    lc = 0; /* set no lines */
+    maxp = 0; /* set no maximum */
+    if (!sp) error("Lines in listbox must be greater than zero");
+    sp1 = sp; /* index top of list */
+    /* traverse the list */
+    while (sp1) {
+
+        lc++; /* count entries */
+        pl = pa_strsiz(win0, sp1->str); /* find pixel length this string */
+        if (pl > maxp) maxp = pl; /* find maximum */
+        sp1 = sp1->next; /* link next */
+
+    }
+    *w = maxp+pa_chrsizy(win0); /* set width */
+    *h = (lc+1)*pa_chrsizy(win0); /* set height */
+
 }
 
 void pa_listboxsiz(FILE* f, pa_strptr sp, int* w, int* h)
@@ -2729,9 +2843,36 @@ void pa_listboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 {
 
-    wigptr wp; /* widget entry pointer */
+    wigptr    wp;  /* widget entry pointer */
+    pa_strptr sp1;
+    pa_strptr lh, lhs, p;
 
-    wp = NULL; /* set no predefinition */
+    /* make a copy of the list */
+    lh = NULL;
+    while (sp) { /* traverse the list */
+
+        sp1 = malloc(sizeof(pa_strrec)); /* get string entry */
+        sp1->str = str(sp->str); /* copy the string */
+        sp1->next = lh; /* push to list */
+        lh = sp1;
+        sp = sp->next; /* next entry */
+
+    }
+    /* reverse the list */
+    lhs = lh;
+    lh = NULL;
+    while (lhs) {
+
+        p = lhs; /* pick top entry */
+        lhs = lhs->next; /* gap out */
+        p->next = lh; /* push to new list */
+        lh = p;
+
+    }
+
+    /* create the widget */
+    wp = getwig(); /* predef so we can plant list before display */
+    wp->strlst = lh; /* plant the list */
     widget(f, x1, y1, x2, y2, "", id, wtlistbox, &wp);
 
 }
@@ -3352,6 +3493,7 @@ static void pa_init_widgets(int argc, char *argv[])
     themetable[th_proginaedg]       = TD_PROGINAEDG;
     themetable[th_progactcen]       = TD_PROGACTCEN;
     themetable[th_progactedg]       = TD_PROGACTEDG;
+    themetable[th_lsthov]           = TD_LSTHOV;
 
 }
 
