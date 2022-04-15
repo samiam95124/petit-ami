@@ -192,11 +192,13 @@ typedef struct wigrec {
     int    ubnd;       /* upper bound of number */
     wigptr cw;         /* child/subclassed widget */
     wigptr pw;         /* parent widget */
+    FILE*  pf;         /* parent file (used to send subclass messages) */
     int    uppress;    /* up button pressed */
     int    downpress;  /* down buton pressed */
     int    ppos;       /* progress bar position */
     pa_strptr strlst;  /* string list */
     int    ss;         /* string selected, 0 if none */
+    int    px, py;     /* position of widget in parent */
 
 } wigrec;
 
@@ -255,6 +257,48 @@ static char* str(char* s)
     strcpy(p, s);
 
     return (p);
+
+}
+
+/** ****************************************************************************
+
+Copy string list
+
+Makes a copy of a string list
+
+*******************************************************************************/
+
+static void cpystrlst(pa_strptr* dp, pa_strptr sp)
+
+{
+
+    pa_strptr sp1;
+    pa_strptr lh, lhs, p;
+
+    /* make a copy of the list */
+    lh = NULL;
+    while (sp) { /* traverse the list */
+
+        sp1 = malloc(sizeof(pa_strrec)); /* get string entry */
+        sp1->str = str(sp->str); /* copy the string */
+        sp1->next = lh; /* push to list */
+        lh = sp1;
+        sp = sp->next; /* next entry */
+
+    }
+    /* reverse the list */
+    lhs = lh;
+    lh = NULL;
+    while (lhs) {
+
+        p = lhs; /* pick top entry */
+        lhs = lhs->next; /* gap out */
+        p->next = lh; /* push to new list */
+        lh = p;
+
+    }
+
+    *dp = lh; /* return the copied list */
 
 }
 
@@ -1575,7 +1619,12 @@ static void listbox_event(pa_evtrec* ev, wigptr wg)
             er.etype = pa_etlstbox; /* set button event */
             er.lstbid = wg->id; /* set id */
             er.lstbsl = wg->ss; /* set string select */
-            pa_sendevent(wg->parent, &er); /* send the event to the parent */
+            if (wg->subcls)
+                /* send the event to the superclass widget */
+                pa_sendevent(wg->pf, &er);
+            else
+                /* send the event to the parent */
+                pa_sendevent(wg->parent, &er);
 
         }
 
@@ -1623,20 +1672,23 @@ Handles the events posted to drop boxes.
 
 *******************************************************************************/
 
+static void widget(FILE* f, int x1, int y1, int x2, int y2, char* s, int id,
+                   wigtyp typ, wigptr* wpr);
+
 static void dropbox_draw(wigptr wg)
 
 {
 
-    int       udspc;  /* up/down control space */
+    int       ddspc;  /* up/down control space */
     int       figsiz; /* size of up/down figures */
     pa_strptr sp;
     int       sc;
     int       aw;
     int       ah;
 
-    udspc = pa_chrsizy(win0)*1.9; /* square space for dropdown control */
-    aw = udspc*0.2; /* set dropdown arrow width */
-    ah = udspc*0.2; /* set dropdown arrow height */
+    ddspc = pa_chrsizy(win0)*1.9; /* square space for dropdown control */
+    aw = ddspc*0.2; /* set dropdown arrow width */
+    ah = ddspc*0.2; /* set dropdown arrow height */
     /* color the background */
     pa_fcolor(wg->wf, pa_white);
     pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
@@ -1646,15 +1698,15 @@ static void dropbox_draw(wigptr wg)
     pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1, pa_maxyg(wg->wf)-1, 20, 20);
     /* draw divider lines */
     fcolort(wg->wf, th_numseldiv);
-    pa_line(wg->wf, pa_maxxg(wg->wf)-udspc, 1,
-                    pa_maxxg(wg->wf)-udspc, pa_maxyg(wg->wf));
+    pa_line(wg->wf, pa_maxxg(wg->wf)-ddspc, 1,
+                    pa_maxxg(wg->wf)-ddspc, pa_maxyg(wg->wf));
     /* draw dropbox arrow */
     pa_fcolor(wg->wf, pa_black);
-    pa_ftriangle(wg->wf, pa_maxxg(wg->wf)-udspc*0.5-aw*0.5,
+    pa_ftriangle(wg->wf, pa_maxxg(wg->wf)-ddspc*0.5-aw*0.5,
                          pa_maxyg(wg->wf)*0.5-ah*0.5,
-                         pa_maxxg(wg->wf)-udspc*0.5+aw*0.5,
+                         pa_maxxg(wg->wf)-ddspc*0.5+aw*0.5,
                          pa_maxyg(wg->wf)*0.5-ah*0.5,
-                         pa_maxxg(wg->wf)-udspc*0.5,
+                         pa_maxxg(wg->wf)-ddspc*0.5,
                          pa_maxyg(wg->wf)*0.5-ah*0.5+ah*0.5);
 
     /* draw current select */
@@ -1672,7 +1724,53 @@ static void dropbox_event(pa_evtrec* ev, wigptr wg)
 
 {
 
+    int udspc;    /* up/down control space */
+    int lbw, lbh; /* listbox sizing */
+    int w, h;     /* net width and height */
+    pa_evtrec er; /* outbound button event */
+    wigptr wp;
+
+    udspc = pa_chrsizy(win0)*1.9; /* square space for up/down control */
     if (ev->etype == pa_etredraw) dropbox_draw(wg); /* redraw the window */
+    else if (ev->etype == pa_etmoumovg) { /* mouse moved */
+
+            /* track position */
+            wg->mpx = ev->moupxg; /* set present position */
+            wg->mpy = ev->moupyg;
+
+    } else if (ev->etype == pa_etmouba && ev->amoubn == 1) { /* mouse click */
+
+        if (wg->mpx >= pa_maxxg(wg->wf)-udspc) { /* dropdown control */
+
+            pa_listboxsizg(wg->wf, wg->strlst, &lbw, &lbh); /* find dimensions */
+            w = pa_maxxg(wg->wf); /* set width as same */
+            h = lbh;
+
+            /* create the list subwidget */
+            wp = getwig(); /* predef so we can plant list before display */
+            wp->strlst = wg->strlst; /* plant the list */
+            wp->subcls = TRUE; /* set as subclass */
+            /* set to send messages to us (and not logical parent) */
+            wp->pf = wg->wf;
+            wg->cw = wp; /* set child widget */
+            /* open listbox */
+            widget(wg->parent, wg->px, wg->py+pa_maxyg(wg->wf)-1,
+                               wg->px+w, wg->py+pa_maxyg(wg->wf)-1+h,
+                               "", 10, wtlistbox, &wp);
+
+        }
+
+    } if (ev->etype == pa_etlstbox) {
+
+        /* send event back to parent window */
+        er.etype = pa_etdrpbox; /* set button event */
+        er.drpbid = ev->lstbid; /* set id */
+        er.drpbsl = ev->lstbsl; /* set string select */
+        /* send the event to the parent */
+        pa_sendevent(wg->parent, &er);
+        pa_killwidget(wg->parent, 10); /* close the widget */
+
+    }
 
 }
 
@@ -1859,6 +1957,8 @@ static void widget(FILE* f, int x1, int y1, int x2, int y2, char* s, int id,
     wp->typ = typ; /* place type */
     wp->enb = TRUE; /* set is enabled */
     wp->sclsiz = INT_MAX/10; /* set default size scrollbar */
+    wp->px = x1; /* set widget position in parent */
+    wp->py = y1;
 
     *wpr = wp; /* copy back to caller */
 
@@ -2882,36 +2982,15 @@ void pa_listboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 {
 
-    wigptr    wp;  /* widget entry pointer */
-    pa_strptr sp1;
-    pa_strptr lh, lhs, p;
+    wigptr    wp; /* widget entry pointer */
+    pa_strptr nl; /* new string list */
 
     /* make a copy of the list */
-    lh = NULL;
-    while (sp) { /* traverse the list */
-
-        sp1 = malloc(sizeof(pa_strrec)); /* get string entry */
-        sp1->str = str(sp->str); /* copy the string */
-        sp1->next = lh; /* push to list */
-        lh = sp1;
-        sp = sp->next; /* next entry */
-
-    }
-    /* reverse the list */
-    lhs = lh;
-    lh = NULL;
-    while (lhs) {
-
-        p = lhs; /* pick top entry */
-        lhs = lhs->next; /* gap out */
-        p->next = lh; /* push to new list */
-        lh = p;
-
-    }
+    cpystrlst(&nl, sp);
 
     /* create the widget */
     wp = getwig(); /* predef so we can plant list before display */
-    wp->strlst = lh; /* plant the list */
+    wp->strlst = nl; /* plant the list */
     widget(f, x1, y1, x2, y2, "", id, wtlistbox, &wp);
 
 }
@@ -2986,36 +3065,15 @@ void pa_dropboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 {
 
-    wigptr    wp;  /* widget entry pointer */
-    pa_strptr sp1;
-    pa_strptr lh, lhs, p;
+    wigptr    wp; /* widget entry pointer */
+    pa_strptr nl; /* new string list */
 
     /* make a copy of the list */
-    lh = NULL;
-    while (sp) { /* traverse the list */
-
-        sp1 = malloc(sizeof(pa_strrec)); /* get string entry */
-        sp1->str = str(sp->str); /* copy the string */
-        sp1->next = lh; /* push to list */
-        lh = sp1;
-        sp = sp->next; /* next entry */
-
-    }
-    /* reverse the list */
-    lhs = lh;
-    lh = NULL;
-    while (lhs) {
-
-        p = lhs; /* pick top entry */
-        lhs = lhs->next; /* gap out */
-        p->next = lh; /* push to new list */
-        lh = p;
-
-    }
+    cpystrlst(&nl, sp);
 
     /* create the widget */
     wp = getwig(); /* predef so we can plant list before display */
-    wp->strlst = lh; /* plant the list */
+    wp->strlst = nl; /* plant the list */
     wp->ss = 1; /* select first entry */
     widget(f, x1, y1, x2, y2, "", id, wtdropbox, &wp);
 
