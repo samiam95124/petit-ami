@@ -4503,7 +4503,7 @@ static void openmenu(
 
 {
 
-    mp->wid = pa_getwid(); /* allocate a buried wid */
+    mp->wid = pa_getwinid(); /* allocate a buried wid */
     iopenwin(&f, &mp->wf, p, mp->wid, FALSE); /* open widget window */
     mp->parent = p; /* set parent file */
     xltmnu[mp->wid+MAXFIL] = mp; /* set the tracking entry for window */
@@ -11198,7 +11198,7 @@ another task could swoop in and take the wid away.
 
 *******************************************************************************/
 
-int pa_getwid(void)
+int pa_getwinid(void)
 
 {
 

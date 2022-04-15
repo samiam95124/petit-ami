@@ -1943,7 +1943,7 @@ static void widget(FILE* f, int x1, int y1, int x2, int y2, char* s, int id,
     opnfil[fn]->widgets[id] = wp; /* set widget entry */
 
     wp->face = str(s); /* place face */
-    wp->wid = pa_getwid(); /* allocate a buried wid */
+    wp->wid = pa_getwinid(); /* allocate a buried wid */
     pa_openwin(&stdin, &wp->wf, f, wp->wid); /* open widget window */
     wp->parent = f; /* save parent file */
     xltwig[wp->wid+MAXFIL] = wp; /* set the tracking entry for the window */
@@ -3608,7 +3608,7 @@ static void pa_init_widgets(int argc, char *argv[])
         xltwig[fn] = NULL; /* set no widget entry */
 
     /* open "window 0" dummy window */
-    pa_openwin(&stdin, &win0, NULL, pa_getwid()); /* open window */
+    pa_openwin(&stdin, &win0, NULL, pa_getwinid()); /* open window */
     pa_buffer(win0, FALSE); /* turn off buffering */
     pa_auto(win0, FALSE); /* turn off auto (for font change) */
     pa_font(win0, PA_FONT_SIGN); /* set sign font */

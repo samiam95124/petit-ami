@@ -468,7 +468,7 @@ void pa_menu(FILE* f, pa_menuptr m);
 void pa_menuena(FILE* f, int id, int onoff);
 void pa_menusel(FILE* f, int id, int select);
 void pa_stdmenu(pa_stdmenusel sms, pa_menuptr* sm, pa_menuptr pm);
-int pa_getwid(void);
+int pa_getwinid(void);
 void pa_focus(FILE* f);
 
 /* widgets/controls */

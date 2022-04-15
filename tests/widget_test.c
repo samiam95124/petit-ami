@@ -1053,7 +1053,6 @@ int main(void)
 
     /* ******************** Graphical number select box test ******************* */
 
-#endif
     printf("\f");
     printf("Graphical number select box test\n");
     printf("\n");
@@ -1267,6 +1266,7 @@ int main(void)
 
     /* ************************* Terminal dropdown box test ************************ */
 
+#endif
     printf("\f");
     chrgrid();
     pa_binvis(stdout);
@@ -1287,7 +1287,7 @@ int main(void)
     sp->next = lp;
     lp = sp;
     pa_dropboxsiz(stdout, lp, &cx, &cy, &ox, &oy);
-    pa_dropbox(stdout, 10, 10, 10+ox-1, 10+oy-1, lp, 1);
+    pa_dropbox(stdout, 10, 10, 10+cx-1, 10+cy-1, lp, 1);
     do {
 
         pa_event(stdin, &er);
