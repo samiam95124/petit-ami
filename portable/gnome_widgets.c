@@ -1764,11 +1764,13 @@ static void dropbox_event(pa_evtrec* ev, wigptr wg)
 
         /* send event back to parent window */
         er.etype = pa_etdrpbox; /* set button event */
-        er.drpbid = ev->lstbid; /* set id */
+        er.drpbid = wg->id; /* set id */
         er.drpbsl = ev->lstbsl; /* set string select */
         /* send the event to the parent */
         pa_sendevent(wg->parent, &er);
         pa_killwidget(wg->parent, 10); /* close the widget */
+        wg->ss = ev->lstbsl; /* set our new select */
+        dropbox_draw(wg); /* redraw our widget */
 
     }
 
