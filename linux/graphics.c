@@ -2993,7 +2993,7 @@ static winptr lwn2win(int wid)
     int    ofn; /* output file handle */
     winptr win; /* window context pointer */
 
-    if (wid < -MAXFIL || wid >= MAXFIL)  error(einvhan); /* error */
+    if (wid < -MAXFIL || wid >= MAXFIL || !wid)  error(einvhan); /* error */
     ofn = xltwin[wid+MAXFIL]; /* get the output file handle */
     win = lfn2win(ofn); /* index window context */
 
@@ -11175,26 +11175,21 @@ void pa_title(FILE* f, char* ts)
 
 /** ****************************************************************************
 
-Allocate buried window id
+Allocate anonymous window id
 
-Allocates and returns a "buried" window id. The window id numbers are assigned
+Allocates and returns an "anonymous" window id. The window id numbers are assigned
 by the client program. However, there a an alternative set of ids that are
-allocated as needed. Graphics keeps track of which buried ids have been
+allocated as needed. Graphics keeps track of which anonymous ids have been
 allocated and which have been freed.
 
-The implementation here is to assign buried window ids negative numbers,
-starting with -1 and proceeding downwards. 0 is never assigned. The calls that
-take window ids will recognize those ids as special. The use of negative ids
-insure that the normal wids will never overlap any buried wids.
-
-The main use of buried wids is in widgets, the internal workings of which the
-client isn't supposed to know about.
+The implementation here is to assign anonymous window ids negative numbers,
+starting with -1 and proceeding downwards. 0 is never assigned. The use of
+negative ids insure that the normal window ids will never overlap any anonyous
+window ids.
 
 Note that the wid entry will actually be opened by openwin(), and will be closed
-by closewin(), so there is no need to deallocate this wid.
-
-Note also that this routine is not particularly multitask friendly, since
-another task could swoop in and take the wid away.
+by closewin(), so there is no need to deallocate this wid. Once an anonymous id
+is allocated, it is reserved until it is used and removed by killwidget().
 
 *******************************************************************************/
 

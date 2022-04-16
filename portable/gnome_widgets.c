@@ -210,7 +210,8 @@ typedef struct wigrec {
 typedef struct filrec* filptr;
 typedef struct filrec {
 
-    wigptr widgets[MAXWIG]; /* table of widgets in window */
+    /* table of widgets in window, includes negatives and 0 */
+    wigptr widgets[MAXWIG*2+1];
 
 } filrec;
 
@@ -320,7 +321,7 @@ static filptr getfil(void)
 
     fp = malloc(sizeof(filrec)); /* get new file entry */
     /* clear widget table */
-    for (i = 0; i < MAXWIG; i++) fp->widgets[i] = NULL;
+    for (i = 0; i < MAXWIG*2+1; i++) fp->widgets[i] = NULL;
 
     return (fp); /* exit with file entry */
 
@@ -434,11 +435,11 @@ static wigptr fndwig(FILE* f, int id)
     int       fn;  /* logical file name */
     wigptr    wp;  /* widget entry pointer */
 
-    if (id <= 0 || id > MAXWIG) error("Invalid widget id");
+    if (id <= -MAXWIG || id > MAXWIG || !id) error("Invalid widget id");
     fn = fileno(f); /* get the file index */
     if (fn < 0 || fn > MAXFIL) error("Invalid file number");
-    if (!opnfil[fn]->widgets[id]) error("No widget by given id");
-    wp = opnfil[fn]->widgets[id]; /* index that */
+    if (!opnfil[fn]->widgets[id+MAXWIG]) error("No widget by given id");
+    wp = opnfil[fn]->widgets[id+MAXWIG]; /* index that */
 
     return (wp); /* return the widget pointer */
 
@@ -1934,13 +1935,13 @@ static void widget(FILE* f, int x1, int y1, int x2, int y2, char* s, int id,
     int fn; /* logical file name */
     wigptr wp;
 
-    if (id <= 0 || id > MAXWIG) error("Invalid widget id");
+    if (id <= -MAXWIG || id > MAXWIG || !id) error("Invalid widget id");
     makfil(f); /* ensure there is a file entry and validate */
     fn = fileno(f); /* get the file index */
     wp = *wpr; /* get any predefined widget entry */
     if (!wp) wp = getwig(); /* get widget entry if none passed in */
-    if (opnfil[fn]->widgets[id]) error("Widget by id already in use");
-    opnfil[fn]->widgets[id] = wp; /* set widget entry */
+    if (opnfil[fn]->widgets[id+MAXWIG]) error("Widget by id already in use");
+    opnfil[fn]->widgets[id+MAXWIG] = wp; /* set widget entry */
 
     wp->face = str(s); /* place face */
     wp->wid = pa_getwinid(); /* allocate a buried wid */
@@ -1968,6 +1969,45 @@ static void widget(FILE* f, int x1, int y1, int x2, int y2, char* s, int id,
 
 /** ****************************************************************************
 
+Allocate anonymous widget id
+
+Allocates and returns an "anonymous" widget id for the given window. Normal
+widget ids are assigned by the client program. However, there a an alternative
+set of ids that are allocated as needed. Graphics keeps track of which anonymous
+ids have been allocated and which have been freed.
+
+The implementation here is to assign anonymous ids negative numbers,
+starting with -1 and proceeding downwards. 0 is never assigned. The use of
+negative ids insure that the normal widget ids will never overlap any anonymous
+widget ids.
+
+Note that the widget id entry will actually be opened by a widget create call,
+and will be closed by killwidget(), so there is no need to deallocate this
+widget id. Once an anonymous id is allocated, it is reserved until it is used
+and removed by killwidget().
+
+*******************************************************************************/
+
+int pa_getwigid(FILE* f)
+
+{
+
+    int fn;  /* logical file name */
+    int wid; /* widget id */
+
+    fn = fileno(f); /* get the logical file number */
+    wid = -1; /* start at -1 */
+    /* find any open entry */
+    while (wid > -MAXWIG && opnfil[fn]->widgets[wid+MAXWIG] >= 0) wid--;
+    if (wid == -MAXWIG)
+        error("No more anonymous widget IDs"); /* ran out of anonymous wids */
+
+    return (wid); /* return the wid */
+
+}
+
+/** ****************************************************************************
+
 Kill widget
 
 Removes the widget by id from the window.
@@ -1984,7 +2024,7 @@ void pa_killwidget(FILE* f, int id)
     wp = fndwig(f, id); /* index the widget */
     fclose(wp->wf); /* close the window file */
     fn = fileno(f); /* get the logical file number */
-    opnfil[fn]->widgets[id] = NULL; /* clear widget slot  */
+    opnfil[fn]->widgets[id+MAXWIG] = NULL; /* clear widget slot  */
     putwig(wp); /* release widget data */
 
 }

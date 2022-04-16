@@ -473,6 +473,7 @@ void pa_focus(FILE* f);
 
 /* widgets/controls */
 
+int pa_getwigid(FILE* f);
 void pa_killwidget(FILE* f, int id);
 void pa_selectwidget(FILE* f, int id, int e);
 void pa_enablewidget(FILE* f, int id, int e);
