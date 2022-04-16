@@ -97,39 +97,45 @@ static enum { /* debug levels */
 /* macro to make a color from RGB values */
 #define RGB(r, g, b) (r<<16|g<<8|b)
 
+/* macro to make a black and white value */
+#define BW(v) (v<<16|v<<8|v)
+
 /* macros to unpack color table entries to INT_MAX ratioed numbers */
 #define RED(v)   (INT_MAX/256*(v >> 16))       /* red */
 #define GREEN(v) (INT_MAX/256*(v >> 8 & 0xff)) /* green */
 #define BLUE(v)  (INT_MAX/256*(v & 0xff))      /* blue */
 
 /* default values for color table. Note these can be overridden. */
-#define TD_BUTTBACKPRESSED  RGB(211, 211, 211) /* button background pressed */
-#define TD_BUTTBACK         RGB(252, 252, 252) /* button background not pressed */
-#define TD_OUTLINE          RGB(196, 196, 196) /* button outline */
-#define TD_TEXT             RGB(61, 61, 61)    /* widget face text */
-#define TD_TEXTDIS          RGB(191, 191, 191) /* widget face text disabled */
-#define TD_FOCUS            RGB(236, 174, 152) /* widget focused outline */
-#define TD_CHKRAD           RGB(146, 77, 139)  /* checkbox/radio button selected */
-#define TD_CHKRADOUT        RGB(186, 186, 186) /* checkbox/radio button outline */
-#define TD_SCROLLBACK       RGB(210, 210, 210) /* scrollbar background */
-#define TD_SCROLLBAR        RGB(135, 135, 135) /* scrollbar not pressed */
-#define TD_SCROLLBARPRESSED RGB(195, 65, 19)   /* scrollbar pressed */
-#define TD_NUMSELDIV        RGB(239, 239, 239) /* numselbox divider */
-#define TD_NUMSELUD         RGB(164, 164, 164) /* numselbox up/down figures */
-#define TD_TEXTERR          RGB(255, 61, 61)   /* widget face text in error */
-#define TD_PROGINACEN       RGB(222, 222, 222) /* progress bar inactive center */
-#define TD_PROGINAEDG       RGB(196, 196, 196) /* progress bar inactive edge */
-#define TD_PROGACTCEN       RGB(146, 77, 139)  /* progress bar active center */
-#define TD_PROGACTEDG       RGB(129, 68, 123)  /* progress bar active edge */
-#define TD_LSTHOV           RGB(230, 230, 230) /* list background for hover */
+#define TD_BACKPRESSED      BW(211)             /* button background pressed */
+#define TD_BACK             BW(252)             /* button background not pressed */
+#define TD_OUTLINE1         BW(196)             /* button outline */
+#define TD_TEXT             BW(61)              /* widget face text */
+#define TD_TEXTDIS          BW(191)             /* widget face text disabled */
+#define TD_FOCUS            RGB(236, 174, 152)  /* widget focused outline */
+#define TD_CHKRAD           RGB(146, 77,  139)  /* checkbox/radio button selected */
+#define TD_CHKRADOUT        BW(186)             /* checkbox/radio button outline */
+#define TD_SCROLLBACK       BW(210)             /* scrollbar background */
+#define TD_SCROLLBAR        BW(135)             /* scrollbar not pressed */
+#define TD_SCROLLBARPRESSED RGB(195, 65,  19)   /* scrollbar pressed */
+#define TD_NUMSELDIV        BW(239)             /* numselbox divider */
+#define TD_NUMSELUD         BW(164)             /* numselbox up/down figures */
+#define TD_TEXTERR          RGB(255, 61,  61)   /* widget face text in error */
+#define TD_PROGINACEN       BW(222)             /* progress bar inactive center */
+#define TD_PROGINAEDG       BW(196)             /* progress bar inactive edge */
+#define TD_PROGACTCEN       RGB(146, 77,  139)  /* progress bar active center */
+#define TD_PROGACTEDG       RGB(129, 68,  123)  /* progress bar active edge */
+#define TD_LSTHOV           BW(230)             /* list background for hover */
+#define TD_OUTLINE2         BW(206)             /* numselbox, dropbox outline */
+#define TD_DROPARROW        BW(61)              /* dropbox arrow */
+#define TD_DROPTEXT         BW(0)               /* dropbox text */
 
 /* values table ids */
 
 typedef enum {
 
-    th_buttbackpressed,  /* button background when pressed */
-    th_buttback,         /* button background when not pressed */
-    th_outline,          /* button outline */
+    th_backpressed,      /* button background when pressed */
+    th_back,             /* button background when not pressed */
+    th_outline1,         /* button outline */
     th_text,             /* button face text enabled */
     th_textdis,          /* button face text disabled */
     th_focus,            /* button focused outline */
@@ -146,6 +152,9 @@ typedef enum {
     th_progactcen,       /* progress bar active center */
     th_progactedg,       /* progress bar active edge */
     th_lsthov,           /* list background for hover */
+    th_outline2,         /* numselbox, dropbox outline */
+    th_droparrow,        /* dropbox arrow */
+    th_droptext,         /* dropbox text */
     th_endmarker         /* end of theme entries */
 
 } themeindex;
@@ -519,14 +528,14 @@ static void button_draw(wigptr wg)
 {
 
     /* color the background */
-    if (wg->pressed) fcolort(wg->wf, th_buttbackpressed);
-    else fcolort(wg->wf, th_buttback);
+    if (wg->pressed) fcolort(wg->wf, th_backpressed);
+    else fcolort(wg->wf, th_back);
     pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf),
               pa_maxyg(wg->wf));
     /* outline */
     pa_linewidth(wg->wf, 4);
     if (wg->focus) fcolort(wg->wf, th_focus);
-    else fcolort(wg->wf, th_outline);
+    else fcolort(wg->wf, th_outline1);
     pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1,
              pa_maxyg(wg->wf)-1, 20, 20);
     if (wg->enb) fcolort(wg->wf, th_text);
@@ -1018,7 +1027,7 @@ static void group_draw(wigptr wg)
     /* color the background */
     pa_fcolor(wg->wf, pa_backcolor);
     pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
-    fcolort(wg->wf, th_outline);
+    fcolort(wg->wf, th_outline1);
     pa_linewidth(wg->wf, 2);
     pa_rect(wg->wf, 2, pa_chrsizy(wg->wf)/2, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
     pa_fcolor(wg->wf, pa_black);
@@ -1107,7 +1116,7 @@ static void editbox_draw(wigptr wg)
         } else {
 
             pa_linewidth(wg->wf, 2);
-            fcolort(wg->wf, th_outline);
+            fcolort(wg->wf, th_outline1);
 
         }
         pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1,
@@ -1380,13 +1389,13 @@ static void numselbox_draw(wigptr wg)
     pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
     if (wg->downpress) {
 
-        fcolort(wg->wf, th_buttbackpressed);
+        fcolort(wg->wf, th_backpressed);
         pa_frect(wg->wf, pa_maxxg(wg->wf)-udspc*2, 1,
                         pa_maxxg(wg->wf)-udspc*1-1, pa_maxyg(wg->wf));
 
     } else if (wg->uppress) {
 
-        fcolort(wg->wf, th_buttbackpressed);
+        fcolort(wg->wf, th_backpressed);
         pa_frect(wg->wf, pa_maxxg(wg->wf)-udspc*1, 1,
                         pa_maxxg(wg->wf), pa_maxyg(wg->wf));
 
@@ -1415,7 +1424,7 @@ static void numselbox_draw(wigptr wg)
     } else {
 
         pa_linewidth(wg->wf, 2);
-        fcolort(wg->wf, th_outline);
+        fcolort(wg->wf, th_outline1);
 
     }
     pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1, pa_maxyg(wg->wf)-1, 20, 20);
@@ -1577,7 +1586,7 @@ static void listbox_draw(wigptr wg)
     pa_fcolor(wg->wf, pa_white);
     pa_frrect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf), 10, 10);
     /* draw outline */
-    fcolort(wg->wf, th_outline);
+    fcolort(wg->wf, th_outline1);
     pa_linewidth(wg->wf, 2);
     pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1, pa_maxyg(wg->wf)-1, 10, 10);
     sp = wg->strlst; /* index top of stringlist */
@@ -1690,36 +1699,34 @@ static void dropbox_draw(wigptr wg)
     int       sc;
     int       aw;
     int       ah;
+    int       cx;
+    int       cy;
 
     ddspc = pa_chrsizy(win0)*1.9; /* square space for dropdown control */
-    aw = ddspc*0.2; /* set dropdown arrow width */
-    ah = ddspc*0.2; /* set dropdown arrow height */
+    aw = ddspc*0.3; /* set dropdown arrow width */
+    ah = ddspc*0.15; /* set dropdown arrow height */
+    cx = pa_maxxg(wg->wf)-ddspc*0.5; /* center dropdown arrow */
+    cy = pa_maxyg(wg->wf)*0.5-pa_maxyg(wg->wf)*0.05;
     /* color the background */
-    pa_fcolor(wg->wf, pa_white);
+    fcolort(wg->wf, th_back);
     pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
     /* outline */
     pa_linewidth(wg->wf, 2);
-    fcolort(wg->wf, th_outline);
+    fcolort(wg->wf, th_outline2);
     pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1, pa_maxyg(wg->wf)-1, 20, 20);
     /* draw divider lines */
-    fcolort(wg->wf, th_numseldiv);
     pa_line(wg->wf, pa_maxxg(wg->wf)-ddspc, 1,
                     pa_maxxg(wg->wf)-ddspc, pa_maxyg(wg->wf));
     /* draw dropbox arrow */
-    pa_fcolor(wg->wf, pa_black);
-    pa_ftriangle(wg->wf, pa_maxxg(wg->wf)-ddspc*0.5-aw*0.5,
-                         pa_maxyg(wg->wf)*0.5-ah*0.5,
-                         pa_maxxg(wg->wf)-ddspc*0.5+aw*0.5,
-                         pa_maxyg(wg->wf)*0.5-ah*0.5,
-                         pa_maxxg(wg->wf)-ddspc*0.5,
-                         pa_maxyg(wg->wf)*0.5-ah*0.5+ah*0.5);
+    fcolort(wg->wf, th_droparrow);
+    pa_ftriangle(wg->wf, cx-aw*0.5, cy, cx+aw*0.5, cy, cx, cy+ah);
 
     /* draw current select */
     sp = wg->strlst;
     sc = wg->ss;
     /* find selected string */
     while (sc > 1 && sp) { sp = sp->next; sc--; }
-    pa_fcolor(wg->wf, pa_black);
+    fcolort(wg->wf, th_droptext);
     pa_cursorg(wg->wf, pa_chrsizy(wg->wf)*0.5, pa_chrsizy(wg->wf)*0.5);
     fprintf(wg->wf, "%s", sp->str); /* place string */
 
@@ -3660,9 +3667,9 @@ static void pa_init_widgets(int argc, char *argv[])
     pa_frame(win0, FALSE); /* turn off frame */
 
     /* fill out the theme table defaults */
-    themetable[th_buttbackpressed]  = TD_BUTTBACKPRESSED;
-    themetable[th_buttback]         = TD_BUTTBACK;
-    themetable[th_outline]          = TD_OUTLINE;
+    themetable[th_backpressed]      = TD_BACKPRESSED;
+    themetable[th_back]             = TD_BACK;
+    themetable[th_outline1]         = TD_OUTLINE1;
     themetable[th_text]             = TD_TEXT;
     themetable[th_textdis]          = TD_TEXTDIS;
     themetable[th_focus]            = TD_FOCUS;
@@ -3679,6 +3686,9 @@ static void pa_init_widgets(int argc, char *argv[])
     themetable[th_progactcen]       = TD_PROGACTCEN;
     themetable[th_progactedg]       = TD_PROGACTEDG;
     themetable[th_lsthov]           = TD_LSTHOV;
+    themetable[th_outline2]         = TD_OUTLINE2;
+    themetable[th_droparrow]        = TD_DROPARROW;
+    themetable[th_droptext]         = TD_DROPTEXT;
 
 }
 
