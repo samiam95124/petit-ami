@@ -199,6 +199,7 @@ typedef struct wigrec {
     pa_strptr strlst;  /* string list */
     int    ss;         /* string selected, 0 if none */
     int    px, py;     /* position of widget in parent */
+    int    cid;        /* child window id */
 
 } wigrec;
 
@@ -396,6 +397,9 @@ static wigptr getwig(void)
     wp->ppos = 0; /* progress bar extreme left */
     wp->strlst = NULL; /* clear string list */
     wp->ss = 0; /* no string selected */
+    wp->px = 0; /* clear origin in parent */
+    wp->py = 0;
+    wp->cid = 0; /* clear child id */
 
     return wp; /* return entry */
 
@@ -1755,9 +1759,10 @@ static void dropbox_event(pa_evtrec* ev, wigptr wg)
             wp->pf = wg->wf;
             wg->cw = wp; /* set child widget */
             /* open listbox */
+            wg->cid = pa_getwigid(wg->parent); /* get anonymous widget id */
             widget(wg->parent, wg->px, wg->py+pa_maxyg(wg->wf)-1,
                                wg->px+w, wg->py+pa_maxyg(wg->wf)-1+h,
-                               "", 10, wtlistbox, &wp);
+                               "", wg->cid, wtlistbox, &wp);
 
         }
 
@@ -1769,7 +1774,7 @@ static void dropbox_event(pa_evtrec* ev, wigptr wg)
         er.drpbsl = ev->lstbsl; /* set string select */
         /* send the event to the parent */
         pa_sendevent(wg->parent, &er);
-        pa_killwidget(wg->parent, 10); /* close the widget */
+        pa_killwidget(wg->parent, wg->cid); /* close the widget */
         wg->ss = ev->lstbsl; /* set our new select */
         dropbox_draw(wg); /* redraw our widget */
 
@@ -1998,7 +2003,7 @@ int pa_getwigid(FILE* f)
     fn = fileno(f); /* get the logical file number */
     wid = -1; /* start at -1 */
     /* find any open entry */
-    while (wid > -MAXWIG && opnfil[fn]->widgets[wid+MAXWIG] >= 0) wid--;
+    while (wid > -MAXWIG && opnfil[fn]->widgets[wid+MAXWIG]) wid--;
     if (wid == -MAXWIG)
         error("No more anonymous widget IDs"); /* ran out of anonymous wids */
 
