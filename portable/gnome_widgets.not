@@ -1,0 +1,3 @@
+                             NOTES FOR WIDGETS LIBRARY
+
+1. error() does not exit, despite the exit(1) call at the end.
