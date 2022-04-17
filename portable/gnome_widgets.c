@@ -315,6 +315,31 @@ static void cpystrlst(pa_strptr* dp, pa_strptr sp)
 
 /** ****************************************************************************
 
+Dispose string list
+
+Recycles a string list
+
+*******************************************************************************/
+
+static void frestrlst(pa_strptr sp)
+
+{
+
+    pa_strptr sp1;
+
+    while (sp) { /* list not empty */
+
+        sp1 = sp; /* index top */
+        sp = sp->next; /* gap */
+        free(sp1->str); /* free string */
+        free(sp1); /* free entry */
+
+    }
+
+}
+
+/** ****************************************************************************
+
 Get file entry
 
 Allocates and initializes a new file entry. File entries are left in the opnfil
@@ -427,6 +452,8 @@ static void putwig(wigptr wp)
 
 {
 
+    /* if not a subclass widget, free string list */
+    if (!wp->subcls) frestrlst(wp->strlst);
     wp->next = wigfre; /* push to free list */
     wigfre = wp;
 
@@ -1782,6 +1809,7 @@ static void dropbox_event(pa_evtrec* ev, wigptr wg)
         /* send the event to the parent */
         pa_sendevent(wg->parent, &er);
         pa_killwidget(wg->parent, wg->cid); /* close the widget */
+        wg->cw = NULL; /* set no child window */
         wg->ss = ev->lstbsl; /* set our new select */
         dropbox_draw(wg); /* redraw our widget */
 
@@ -2034,6 +2062,8 @@ void pa_killwidget(FILE* f, int id)
     int    fn; /* logical file name */
 
     wp = fndwig(f, id); /* index the widget */
+    /* if there is a subwidget, kill that as well */
+    if (wp->cw) pa_killwidget(wp->cw->pw->wf, wp->cw->id);
     fclose(wp->wf); /* close the window file */
     fn = fileno(f); /* get the logical file number */
     opnfil[fn]->widgets[id+MAXWIG] = NULL; /* clear widget slot  */
@@ -3086,7 +3116,7 @@ void pa_dropboxsizg(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
 
     /* closed size is width of listbox plus down arrow, height is character */
     *cw = lbw+pa_chrsizy(win0)*1.9; /* find closed width */
-    *ch = pa_chrsizy(win0)*1.5; /* find closed height */
+    *ch = pa_chrsizy(win0)*2; /* find closed height */
 
     /* open size is same width, height of list plus edit box */
     *ow = *cw;

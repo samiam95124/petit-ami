@@ -47,14 +47,7 @@ lock up sending messages.
 
 9. Need to find out how to implement cut and paste in Xwindow for edit boxes.
 
-10. To implement tab to next field/widget, I think the best way is to leave this
-to the parent what the tab means. This means at least sending the tab back to
-parent, then implementing a focus() command to be able to select what 
-widget/window gets focus.
-
-11. Find a way to tie widgets to GTK theming.
-
-12. If standard input is performed from multiple windows, the system has a
+10. If standard input is performed from multiple windows, the system has a
 method for arbitrating which window gets the input, and can even manage multiple
 windows at the same time. The first window that gets a line enter will yeild the
 data. The issue with this is how does the system know what window is intended to

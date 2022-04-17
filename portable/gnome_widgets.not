@@ -1,3 +1,13 @@
                              NOTES FOR WIDGETS LIBRARY
 
 1. error() does not exit, despite the exit(1) call at the end.
+
+2. A full close of the window would leave the widget space abandoned. Need to 
+hook the close call to fix this.
+
+3. To implement tab to next field/widget, I think the best way is to leave this
+to the parent what the tab means. This means at least sending the tab back to
+parent, then implementing a focus() command to be able to select what 
+widget/window gets focus.
+
+4. Find a way to tie widgets to GTK theming.

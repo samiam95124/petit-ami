@@ -1035,6 +1035,7 @@ int main(void)
 
     /* ******************** Terminal number select box test ******************* */
 
+#endif
     printf("\f");
     chrgrid();
     pa_binvis(stdout);
@@ -1266,7 +1267,6 @@ int main(void)
 
     /* ************************* Terminal dropdown box test ************************ */
 
-#endif
     printf("\f");
     chrgrid();
     pa_binvis(stdout);
@@ -1325,7 +1325,7 @@ int main(void)
     sp->next = lp;
     lp = sp;
     pa_dropboxsizg(stdout, lp, &cx, &cy, &ox, &oy);
-    pa_dropboxg(stdout, 100, 100, 100+ox-1, 100+oy-1, lp, 1);
+    pa_dropboxg(stdout, 100, 100, 100+cx-1, 100+cy-1, lp, 1);
     do {
 
         pa_event(stdin, &er);
