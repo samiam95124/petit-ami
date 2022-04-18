@@ -11,3 +11,28 @@ parent, then implementing a focus() command to be able to select what
 widget/window gets focus.
 
 4. Find a way to tie widgets to GTK theming.
+
+5. Should not show focus highlighting on disabled button.
+
+This may be difficult, since management determines focus. One way is to pass
+focus back to parent.
+
+Note Windows does this (denys focus).
+
+6. Should have a focuswidget() call like focus().
+
+7. Shold clear select on disabled widgets (checkbox/radiobutton).
+
+Note Windows does not do this.
+
+8. Grabbing a scrollbar and moving it quickly down the scale loses the grip on
+the bar.
+
+9. On numselbox, incrementing or decrementing the number looses the ability to
+focus the background window. Clicking outside the window fixes it.
+
+10. Windows does not allow focus on widgets like backgrounds. Is there a way to
+do this in Linux?
+
+11. Dropdown boxes don't match windows behavior, which is to use the open sizes
+to present the widget.

@@ -502,6 +502,10 @@ static void widget_redraw(FILE* f)
     pa_evtrec ev;  /* outbound menu event */
 
     ev.etype = pa_etredraw; /* set redraw event */
+    ev.rsx = 1; /* set extent */
+    ev.rsy = 1;
+    ev.rex = pa_maxxg(f);
+    ev.rey = pa_maxyg(f);
     pa_sendevent(f, &ev); /* send to widget window */
 
 }
