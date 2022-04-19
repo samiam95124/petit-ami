@@ -1482,10 +1482,12 @@ static void numselbox_event(pa_evtrec* ev, wigptr wg)
             wg->focus = 1; /* in focus */
             /* if we get focus, send it on to subclassed edit window */
             pa_focus(wg->cw->wf);
+            numselbox_draw(wg); /* redraw */
             break;
 
         case pa_etnofocus: /* lose focus */
             wg->focus = 0; /* out of focus */
+            numselbox_draw(wg); /* redraw */
             break;
 
         case pa_etedtbox: /* signal entry done */
