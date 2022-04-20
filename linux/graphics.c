@@ -11476,12 +11476,14 @@ void pa_buffer(FILE* f, int e)
         win->gmaxy = win->gmaxyg/win->linespace; /* find character size y */
         /* tell the window to resize */
         xe.type = ConfigureNotify;
+        xe.xany.serial = 0;
         xe.xconfigure.width = win->gmaxxg;
         xe.xconfigure.height = win->gmaxyg;
         xe.xconfigure.window = win->xwhan;
         XSendEvent(padisplay, win->xwhan, FALSE, 0, &xe);
         /* tell the window to repaint */
         xe.type = Expose;
+        xe.xany.serial = 0;
         xe.xexpose.x = 0;
         xe.xexpose.y = 0;
         xe.xexpose.width = win->gmaxxg;
@@ -11724,6 +11726,7 @@ void pa_menuena(FILE* f, int id, int onoff)
     mp->ena = !!onoff; /* set state of enable */
     /* tell the window to repaint */
     xe.type = Expose;
+    xe.xany.serial = 0;
     xe.xexpose.x = 0;
     xe.xexpose.y = 0;
     xe.xexpose.width = win->gmaxxg;
@@ -11757,6 +11760,7 @@ static void menu_repaint(metptr mp)
         win = txt2win(mp->wf); /* get window context */
         /* tell the window to repaint */
         xe.type = Expose;
+        xe.xany.serial = 0;
         xe.xexpose.x = 0;
         xe.xexpose.y = 0;
         xe.xexpose.width = win->gmaxxg;
