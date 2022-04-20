@@ -10568,6 +10568,9 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
             curoff(win); /* remove cursor */
             win->focus = TRUE; /* put focus */
             curon(win); /* replace cursor */
+            XWLOCK();
+            XSetInputFocus(padisplay, win->xmwhan, RevertToNone, CurrentTime);
+            XWUNLOCK();
 
         }
 #endif
