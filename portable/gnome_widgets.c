@@ -1792,22 +1792,32 @@ static void dropbox_event(pa_evtrec* ev, wigptr wg)
 
         if (wg->mpx >= pa_maxxg(wg->wf)-udspc) { /* dropdown control */
 
-            pa_listboxsizg(wg->wf, wg->strlst, &lbw, &lbh); /* find dimensions */
-            w = pa_maxxg(wg->wf); /* set width as same */
-            h = lbh;
+            if (!wg->cw) { /* not already in dropdown mode */
 
-            /* create the list subwidget */
-            wp = getwig(); /* predef so we can plant list before display */
-            wp->strlst = wg->strlst; /* plant the list */
-            wp->subcls = TRUE; /* set as subclass */
-            /* set to send messages to us (and not logical parent) */
-            wp->pf = wg->wf;
-            wg->cw = wp; /* set child widget */
-            /* open listbox */
-            wg->cid = pa_getwigid(wg->parent); /* get anonymous widget id */
-            widget(wg->parent, wg->px, wg->py+pa_maxyg(wg->wf)-1,
-                               wg->px+w, wg->py+pa_maxyg(wg->wf)-1+h,
-                               "", wg->cid, wtlistbox, &wp);
+                /* find dimensions */
+                pa_listboxsizg(wg->wf, wg->strlst, &lbw, &lbh);
+                w = pa_maxxg(wg->wf); /* set width as same */
+                h = lbh;
+
+                /* create the list subwidget */
+                wp = getwig(); /* predef so we can plant list before display */
+                wp->strlst = wg->strlst; /* plant the list */
+                wp->subcls = TRUE; /* set as subclass */
+                /* set to send messages to us (and not logical parent) */
+                wp->pf = wg->wf;
+                wg->cw = wp; /* set child widget */
+                /* open listbox */
+                wg->cid = pa_getwigid(wg->parent); /* get anonymous widget id */
+                widget(wg->parent, wg->px, wg->py+pa_maxyg(wg->wf)-1,
+                                   wg->px+w, wg->py+pa_maxyg(wg->wf)-1+h,
+                                   "", wg->cid, wtlistbox, &wp);
+
+            } else { /* already in dropdown mode */
+
+                pa_killwidget(wg->parent, wg->cid); /* close the widget */
+                wg->cw = NULL; /* set no child window */
+
+            }
 
         }
 
