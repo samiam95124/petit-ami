@@ -2288,6 +2288,23 @@ void pa_frontwidget(FILE* f, int id)
 
 /** ****************************************************************************
 
+Place input focus on a given widget
+
+*******************************************************************************/
+
+void pa_focuswidget(FILE* f, int id)
+
+{
+
+    wigptr    wp;  /* widget entry pointer */
+
+    wp = fndwig(f, id); /* index the widget */
+    pa_focus(wp->wf); /* send focus to that window */
+
+}
+
+/** ****************************************************************************
+
 Find minimum/standard button size
 
 Finds the minimum size for a button. Given the face string, the minimum/ideal

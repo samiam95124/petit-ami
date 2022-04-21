@@ -19,14 +19,12 @@ focus back to parent.
 
 Note Windows does this (denys focus).
 
-6. Should have a focuswidget() call like focus().
-
-7. Shold clear select on disabled widgets (checkbox/radiobutton).
+6. Shold clear select on disabled widgets (checkbox/radiobutton).
 
 Note Windows does not do this.
 
-10. Windows does not allow focus on widgets like backgrounds. Is there a way to
+7. Windows does not allow focus on widgets like backgrounds. Is there a way to
 do this in Linux?
 
-11. Dropdown boxes don't match windows behavior, which is to use the open sizes
+8. Dropdown boxes don't match windows behavior, which is to use the open sizes
 to present the widget.
