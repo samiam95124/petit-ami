@@ -25,12 +25,6 @@ Note Windows does this (denys focus).
 
 Note Windows does not do this.
 
-8. Grabbing a scrollbar and moving it quickly down the scale loses the grip on
-the bar.
-
-9. On numselbox, incrementing or decrementing the number looses the ability to
-focus the background window. Clicking outside the window fixes it.
-
 10. Windows does not allow focus on widgets like backgrounds. Is there a way to
 do this in Linux?
 

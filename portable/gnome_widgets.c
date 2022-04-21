@@ -209,6 +209,7 @@ typedef struct wigrec {
     int    ss;         /* string selected, 0 if none */
     int    px, py;     /* position of widget in parent */
     int    cid;        /* child window id */
+    int    grab;       /* mouse grabs scrollbar/slider */
 
 } wigrec;
 
@@ -434,6 +435,7 @@ static wigptr getwig(void)
     wp->px = 0; /* clear origin in parent */
     wp->py = 0;
     wp->cid = 0; /* clear child id */
+    wp->grab = FALSE; /* set no scrollbar/slider grab */
 
     return wp; /* return entry */
 
@@ -867,7 +869,7 @@ static void scrollvert_draw(wigptr wg)
         er.sclpos = sclpos; /* set scrollbar position */
         pa_sendevent(wg->parent, &er); /* send the event to the parent */
 
-    } else if (inbar && wg->pressed && wg->lpressed && wg->mpy != wg->lmpy) {
+    } else if ((inbar || wg->grab) && wg->pressed && wg->lpressed && wg->mpy != wg->lmpy) {
 
         /* mouse bar drag, process */
         y = sclposp+(wg->mpy-wg->lmpy); /* find difference in pixel location */
@@ -880,8 +882,9 @@ static void scrollvert_draw(wigptr wg)
         er.sclpid = wg->id; /* set id */
         er.sclpos = sclpos; /* set scrollbar position */
         pa_sendevent(wg->parent, &er); /* send the event to the parent */
+        wg->grab = TRUE; /* set we grabbed the scrollbar */
 
-    }
+    } else if (!wg->pressed) wg->grab = FALSE;
 
     /* color the background */
     fcolort(wg->wf, th_scrollback);
@@ -980,7 +983,8 @@ static void scrollhoriz_draw(wigptr wg)
         er.sclpos = sclpos; /* set scrollbar position */
         pa_sendevent(wg->parent, &er); /* send the event to the parent */
 
-    } else if (inbar && wg->pressed && wg->lpressed && wg->mpx != wg->lmpx) {
+    } else if ((inbar || wg->grab) && wg->pressed && wg->lpressed &&
+               wg->mpx != wg->lmpx) {
 
         /* mouse bar drag, process */
         x = sclposp+(wg->mpx-wg->lmpx); /* find difference in pixel location */
@@ -993,8 +997,9 @@ static void scrollhoriz_draw(wigptr wg)
         er.sclpid = wg->id; /* set id */
         er.sclpos = sclpos; /* set scrollbar position */
         pa_sendevent(wg->parent, &er); /* send the event to the parent */
+        wg->grab = TRUE; /* set we grabbed the scrollbar */
 
-    }
+    } else if (!wg->pressed) wg->grab = FALSE;
 
     /* color the background */
     fcolort(wg->wf, th_scrollback);

@@ -720,6 +720,7 @@ int main(void)
 
     /* *********************** Terminal scroll bar test *********************** */
 
+#endif
     printf("\f");
     chrgrid();
     pa_binvis(stdout);
@@ -1035,7 +1036,6 @@ int main(void)
 
     /* ******************** Terminal number select box test ******************* */
 
-#endif
     printf("\f");
     chrgrid();
     pa_binvis(stdout);
