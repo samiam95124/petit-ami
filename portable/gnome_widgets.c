@@ -889,7 +889,7 @@ static void scrollvert_draw(wigptr wg)
     /* color the background */
     fcolort(wg->wf, th_scrollback);
     pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
-    if (wg->pressed && inbar)
+    if (wg->pressed && (inbar || wg->grab))
         /* color as pressed */
         fcolort(wg->wf, th_scrollbarpressed);
     else
@@ -1004,7 +1004,7 @@ static void scrollhoriz_draw(wigptr wg)
     /* color the background */
     fcolort(wg->wf, th_scrollback);
     pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
-    if (wg->pressed && inbar)
+    if (wg->pressed && (inbar || wg->grab))
         /* color as pressed */
         fcolort(wg->wf, th_scrollbarpressed);
     else
