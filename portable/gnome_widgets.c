@@ -3189,15 +3189,20 @@ void pa_dropboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
     wigptr    wp; /* widget entry pointer */
     pa_strptr nl; /* new string list */
+    int       ch; /* closed height */
 
     /* make a copy of the list */
     cpystrlst(&nl, sp);
+
+    /* although the dropbox is specified with its open size, we place the
+       window as closed size */
+    ch = pa_chrsizy(win0)*2; /* find closed height */
 
     /* create the widget */
     wp = getwig(); /* predef so we can plant list before display */
     wp->strlst = nl; /* plant the list */
     wp->ss = 1; /* select first entry */
-    widget(f, x1, y1, x2, y2, "", id, wtdropbox, &wp);
+    widget(f, x1, y1, x2, y1+ch-1, "", id, wtdropbox, &wp);
 
 }
 

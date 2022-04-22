@@ -1286,7 +1286,7 @@ int main(void)
     sp->next = lp;
     lp = sp;
     pa_dropboxsiz(stdout, lp, &cx, &cy, &ox, &oy);
-    pa_dropbox(stdout, 10, 10, 10+cx-1, 10+cy-1, lp, 1);
+    pa_dropbox(stdout, 10, 10, 10+ox-1, 10+oy-1, lp, 1);
     do {
 
         pa_event(stdin, &er);
@@ -1325,7 +1325,7 @@ int main(void)
     sp->next = lp;
     lp = sp;
     pa_dropboxsizg(stdout, lp, &cx, &cy, &ox, &oy);
-    pa_dropboxg(stdout, 100, 100, 100+cx-1, 100+cy-1, lp, 1);
+    pa_dropboxg(stdout, 100, 100, 100+ox-1, 100+oy-1, lp, 1);
     do {
 
         pa_event(stdin, &er);
