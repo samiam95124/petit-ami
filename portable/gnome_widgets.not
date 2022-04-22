@@ -25,6 +25,3 @@ Note Windows does not do this.
 
 7. Windows does not allow focus on widgets like backgrounds. Is there a way to
 do this in Linux?
-
-8. Dropdown boxes don't match windows behavior, which is to use the open sizes
-to present the widget.
