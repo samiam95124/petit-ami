@@ -1778,6 +1778,8 @@ static void dropbox_event(pa_evtrec* ev, wigptr wg)
     int lbw, lbh; /* listbox sizing */
     int w, h;     /* net width and height */
     pa_evtrec er; /* outbound button event */
+    FILE* par;    /* ultimate parent */
+    int   px,py;  /* position of widget in ultimate parent */
     wigptr wp;
 
     udspc = pa_chrsizy(win0)*1.9; /* square space for up/down control */
@@ -1792,6 +1794,18 @@ static void dropbox_event(pa_evtrec* ev, wigptr wg)
 
         if (wg->mpx >= pa_maxxg(wg->wf)-udspc) { /* dropdown control */
 
+            /* find parent parameters, since subwidget displays in that
+               parent */
+            par = wg->parent; /* set near parent */
+            px = wg->px; /* set near origin */
+            py = wg->py;
+            if (wg->subcls) { /* if we are subclass, parent is up one */
+
+                par = wg->pw->parent; /* set near parent */
+                px = wg->pw->px; /* set near origin */
+                py = wg->pw->py;
+
+            }
             if (!wg->cw) { /* not already in dropdown mode */
 
                 /* find dimensions */
@@ -1807,14 +1821,14 @@ static void dropbox_event(pa_evtrec* ev, wigptr wg)
                 wp->pf = wg->wf;
                 wg->cw = wp; /* set child widget */
                 /* open listbox */
-                wg->cid = pa_getwigid(wg->parent); /* get anonymous widget id */
-                widget(wg->parent, wg->px, wg->py+pa_maxyg(wg->wf)-1,
-                                   wg->px+w, wg->py+pa_maxyg(wg->wf)-1+h,
-                                   "", wg->cid, wtlistbox, &wp);
+                wg->cid = pa_getwigid(par); /* get anonymous widget id */
+                widget(par, px, py+pa_maxyg(wg->wf)-1,
+                            px+w, py+pa_maxyg(wg->wf)-1+h,
+                       "", wg->cid, wtlistbox, &wp);
 
             } else { /* already in dropdown mode */
 
-                pa_killwidget(wg->parent, wg->cid); /* close the widget */
+                pa_killwidget(par, wg->cid); /* close the widget */
                 wg->cw = NULL; /* set no child window */
 
             }
@@ -1823,13 +1837,17 @@ static void dropbox_event(pa_evtrec* ev, wigptr wg)
 
     } if (ev->etype == pa_etlstbox) {
 
+        /* find parent parameters, since subwidget displays in that
+           parent */
+        par = wg->parent; /* set near parent */
+        if (wg->subcls) par = wg->pw->parent; /* set near parent up one */
         /* send event back to parent window */
         er.etype = pa_etdrpbox; /* set button event */
         er.drpbid = wg->id; /* set id */
         er.drpbsl = ev->lstbsl; /* set string select */
-        /* send the event to the parent */
+        /* send the event to the near parent */
         pa_sendevent(wg->parent, &er);
-        pa_killwidget(wg->parent, wg->cid); /* close the widget */
+        pa_killwidget(par, wg->cid); /* close the widget in far parent */
         wg->cw = NULL; /* set no child window */
         wg->ss = ev->lstbsl; /* set our new select */
         dropbox_draw(wg); /* redraw our widget */
@@ -1857,6 +1875,11 @@ static void dropeditbox_event(pa_evtrec* ev, wigptr wg)
 {
 
     if (ev->etype == pa_etredraw) dropeditbox_draw(wg); /* redraw the window */
+    else if (ev->etype == pa_etdrpbox) {
+
+dbg_printf(dlinfo, "dropbox yeilds select\n");
+
+    }
 
 }
 
@@ -1954,7 +1977,7 @@ static void widget_event(pa_evtrec* ev)
         case wtscrollhoriz:  scrollhoriz_event(ev, wg); break;
         case wtnumselbox:    numselbox_event(ev, wg); break;
         case wteditbox:      editbox_event(ev, wg); break;
-        case wtprogbar:  progbar_event(ev, wg); break;
+        case wtprogbar:      progbar_event(ev, wg); break;
         case wtlistbox:      listbox_event(ev, wg); break;
         case wtdropbox:      dropbox_event(ev, wg); break;
         case wtdropeditbox:  dropeditbox_event(ev, wg); break;
@@ -3237,6 +3260,9 @@ void pa_dropeditboxsizg(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* o
 
 {
 
+    /* the dimensions are identical to a dropbox */
+    pa_dropboxsizg(f, sp, cw, ch, ow, oh);
+
 }
 
 void pa_dropeditboxsiz(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
@@ -3267,10 +3293,31 @@ void pa_dropeditboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int 
 
 {
 
-    wigptr wp; /* widget entry pointer */
+    wigptr    wp;     /* widget entry pointer */
+    wigptr    wps;    /* widget subclass entry pointer */
+    pa_strptr nl;     /* new string list */
+    int       cw, ch; /* closed dimensions */
+    int       ow, oh; /* open dimensions */
+
+    /* find (refind) the dimensions of the subclass box */
+    pa_dropboxsizg(f, sp, &cw, &ch, &ow, &oh);
+
+    /* make a copy of the list */
+    cpystrlst(&nl, sp);
 
     wp = NULL; /* set no predefinition */
-    widget(f, x1, y1, x2, y2, "", id, wtdropeditbox, &wp);
+    widget(f, x1, y1, x2, y1+ch-1, "", id, wtdropeditbox, &wp);
+
+    /* set up a subclass entry */
+    wps = getwig(); /* get widget entry */
+    wps->subcls = TRUE; /* set as subclass widget */
+    wps->strlst = nl; /* set up string list */
+    wps->ss = 1; /* select first entry */
+    /* subclass drop/edit control */
+    widget(wp->wf, 1, 1, cw, ch, "", 1, wtdropbox, &wps);
+
+    wp->cw = wps; /* give the master its child window */
+    wps->pw = wp; /* give the child its master */
 
 }
 

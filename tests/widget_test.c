@@ -1309,7 +1309,6 @@ int main(void)
 
     /* ************************* Graphical dropdown box test ************************ */
 
-#endif
     printf("\f");
     printf("Graphical dropdown box test\n");
     printf("\n");
@@ -1385,6 +1384,7 @@ int main(void)
 
     /* ******************* Graphical dropdown edit box test ******************** */
 
+#endif
     printf("\f");
     printf("Graphical dropdown edit box test\n");
     printf("\n");
