@@ -1,0 +1,208 @@
+Portable widgets module
+
+Theory of operation
+
+Background
+
+The portable widgets module was need to replace the widgets functionality in X
+Windows. The appearance of a widgets layer has a long history in X Windows. X
+was designed to use a plug-in window manager, and to leave widgets presentation
+to a separate module than the original XLIB. The module that was created, XT or
+"X intrinsics", was basically a module designed to enable object oriented design
+atop ANSI standard C to fufill the preceived "need" to fit object oriented
+constructs for graphics design.
+
+XT was followed by an extensive implementation of widgets and a window manager
+with Motif, as well as others, some using XT and some not (most famously the
+OpenLook project). Motif was an outstanding visual design for its time, and 
+indeed I have imitated its design in another one of my projects.
+
+XT fell out of favor for many reasons, perhaps because it introduced one 
+particular model of object oriented "imitation", although many other TKs have
+done the same. As a result, there is no one model of widgets implementation, and
+those that exist are married to a particular TK (GTK and KDE/QT being prime
+examples).
+
+Thus it turned out to be simpler to implement widgets on PA using a separate and
+unique model to PA, similar to what was done in other TKs.
+
+Look and feel
+
+The PA portable widgets library is portable within the PA system, but is 
+(presently) specific to GTK's "look and feel". That is, it imitates the GTK 
+appearance, but does not call GTK anywhere. If it did, this would imply 
+inclusion of all of GTK, and this would be a large and unecessary inclusion to 
+PA.
+
+The PA widgets module takes advantage of the higher level drawing and management
+interface provided by the graphics and windows modules of PA. It is expressed
+entirely within the PA API.
+
+Thus the PA widget module lives in a place inbetween. It is portable to any PA
+system, Windows, Mac or other, but bears the look and feel of GTK/GNOME. It's
+unlikely anyone will have a use for a GTK/Gnome look and feel outside of the
+Gnome environment.
+
+The cost of PA widgets is it is more expensive than a simple wrapper to and
+existing widgets package. The advantage of it is that it is relatively simple
+to adapt to other look and feels, for example KDE/QT. In addition, it is an
+OS independent package that can be used for a stand-alone or embedded PA
+implementation.
+
+Function
+
+Because of its implementation using the standard PA API, widgets in the portable
+widget module usually have a simple form and take about one page (66 lines) of
+code. No backdoor APIs are used, although PA certainly has them. Also, the 
+package is not object oriented, although it uses a few OO concepts.
+
+Event overrides and anonymous windows
+
+Widgets uses the event override call eventsover(), which is the master override
+for the PA events system. This means it gets all of the events processed by the
+graphics module. In order to not pollute the client window id space, widgets 
+uses anonymous window ids.
+
+Widgets keeps a table of open files. For each file (FILE*) that widgets sees via
+a call to it, it keeps a table that tracks the widgets in use under that file.
+Each file corresponds to a window in the PA system. Wigets also keeps a 
+translation table to determine which widget by window id corresponds to the 
+logical parent window by id. Thus widgets can quickly determine if an event is
+directed to a widget by doing a single table lookup.
+
+Widget handlers
+
+Each widget is a window, and each widget has an associated data block with it.
+After the widow for a widget is created, it can receive events, and all events
+assocated with that window are routed to the routine for it. By convention, the
+handler routines to run a widget are named:
+
+<widget>_draw - Draws the widget onscreen.
+<widget>_event - Handles events directed to the widget.
+
+for example:
+
+button_draw()
+button_event()
+
+The event handling system only calls the *_event() handler. The *_draw() 
+function is a convience routine, but is regularly implemented across all 
+widgets. In general, everything the *_draw() function needs to be able to draw
+the widget at its current state will be in the widget data block. Widgets does
+try to "get tricky" and draw only the parts of the widget currently needed, but
+rather completely draws the widget from scratch. This makes the division of work
+very clean. The *_event() handler processes any changes, and calls the *_draw()
+routine any time the changes need to be reflected in the widget onscreen. The
+most obvious example of this is the etredraw event, which usually causes an 
+immediate call to the *_draw() handler. 
+
+External API
+
+The external API calls for widget handle the creation, manipulation and teardown
+of widgets. If a routine needs to manipulate a widget in a way that will change
+its appearance, it calls a routine to issue a redraw request to it. Otherwise it
+just finds and changes the data block for the widget.
+
+The majority of widget API calls create a widget. As per usual with PA, there is
+both a character mode and a graphical mode interface to each widget. Each of the
+character mode widget calls just convert the given character region 
+specifications and converts them to graphical coordinates, then calls the 
+graphical version with the correct parameters. Be careful! Calling, say, 
+button() when buttong() is meant, or vice versa, is a common mistake in PA, and
+usually produces puzzling results.
+
+For each widget call, a shortcut handler routine exists, widget(). This call 
+takes a region for the widget, an optional face string, a widget logical id, a
+widget type code, and a pointer to the widget data block that is both an input
+and an output parameter for reasons that will become apparent. It is usually set
+to NULL on entry.
+
+The widget() routine performs the majority of work needed to set up and run each
+widget. It gets a widget data block and registers it, allocates an anonymous 
+window id for it, opens the underlying window for the widget, then sets up 
+commonly used states for the widget window, including:
+
+- Buffering off.
+- Auto off.
+- Cursor invisible.
+- Sign font.
+- Window frame off.
+- Given position.
+- given size.
+
+Then widget() returns the widget data pointer to the caller.
+
+Widget windows "relativity"
+
+One thing to be careful of with the wigets package is that wigets are true 
+windows. All of the drawing parameters for the widget are self-relative. The
+dimensions are 1,1 to maxxg(wf),maxyg(wf) where wf is the widget windows file.
+All the colors and properties are that of the window. This actually makes it
+easier in most cases, since you don't have to worry about anything but what is
+in the current state of the widget/window.
+
+Pass-up events
+
+Besides handling its own events, a widget must sent events to the parent window.
+For this the "parent" datafield in the widget data block is used along with the
+sendevent() standard call to process the event. The *_event() handler constructs
+an event, then sends that to the parent.
+
+Anonymous widget ids
+
+Widgets are given ids private to the window they are created in. Thus a widget 
+with id 1 in logical window 1 is unique to id 1 in logical window 2. However, 
+there are cases where widgets are included in a client window where the widget
+module is not in control of the id numbering for widgets. For that the call 
+getwigid() exists. This is the analog of the getwinid() for windows. It returns
+an anonymous widget id for the given window (by FILE*). This is used only in one
+widget, the dropdown and dropedit widgets, which create a "floating" menu in the
+client window that created them.
+
+Subclass widgets
+
+Widgets often can be constructed by incorporating other widgets. In the simplest
+version of subclassing, a widget is created with an empty draw routine, and 
+simply exists to intercept and manipulate events sent by other widgets.
+
+To create subclassed widgets, the superclass calls widget() with a predefined
+widget data block. this allows the superclass to predefine fields in the child
+widget. It must do this before the widget() call, because the window created for
+the child window will become reactive and sent events immediately after it's
+creation.
+
+the superclass widget can then create its own widget, and link the subclassed
+widget to it.
+
+To enable communication between widgets, the fields in the widget data block are
+defined:
+
+pw - Links the parent widget of a subclassed widget.
+cw - Links the superclass widget to its child.
+
+Thus, subclassed widgets are represented by a list of chained widget data 
+blocks, starting with a NULL pw, and ending with a NULL cw. For most widgets,
+this is all that is needed to perform as a subclass or superclass is indicated
+via these links. If the pw link is NULL, a class is not a subclass widget. If cw
+is NULL, there is no subclass widget. A subclass widget can deterine the type
+and parameters of its superclass by looking one block up in the chain, and a
+superclass can determine what is going on with its subclass widget, or even
+manipulate it, via the cw link.
+
+Defacto transparency
+
+DT becomes a big factor in widget construction by subclassing. Defacto 
+transparency means you can draw a window that overlaps another window, and what
+is not drawn on the top window simply "shows through" to the bottom window. This
+is very useful for drawing widgets, and I verified it works on X Windows.
+
+The dirty secret of DT is that it is very easy for the existing windows manager
+to defeat. If the windows manager assumes that if part or all of a window is
+overlapped by another, the overlapped window or part of it need not be redrawn.
+This means the underlying window the top window is supposed to be transparent to
+may not be drawn, or may contain old garbage from the screen if the window is
+moved.
+
+Thus you might not always be able to count on defacto transparency working. I 
+plan to include a test for defacto transparency in the management test to 
+determine if it works on the current implementation (whatever that is).
