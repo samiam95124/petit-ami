@@ -200,6 +200,7 @@ typedef struct wigrec {
     int    lbnd;       /* low bound of number */
     int    ubnd;       /* upper bound of number */
     wigptr cw;         /* child/subclassed widget */
+    wigptr cw2;        /* child/subclassed widget 2 */
     wigptr pw;         /* parent widget */
     FILE*  pf;         /* parent file (used to send subclass messages) */
     int    uppress;    /* up button pressed */
@@ -425,7 +426,8 @@ static wigptr getwig(void)
     wp->num = FALSE; /* set any character entry */
     wp->lbnd = -INT_MAX; /* set low bound */
     wp->ubnd = INT_MAX; /* set high bound */
-    wp->cw = NULL; /* clear child */
+    wp->cw = NULL; /* clear children */
+    wp->cw2 = NULL;
     wp->pw = NULL; /* clear parent */
     wp->uppress = FALSE; /* set up not pressed */
     wp->downpress = FALSE; /* set down not pressed */
@@ -456,6 +458,7 @@ static void putwig(wigptr wp)
 
     /* if not a subclass widget, free string list */
     if (!wp->subcls) frestrlst(wp->strlst);
+    if (wp->face) free(wp->face); /* free face string if exists */
     wp->next = wigfre; /* push to free list */
     wigfre = wp;
 
@@ -1874,10 +1877,30 @@ static void dropeditbox_event(pa_evtrec* ev, wigptr wg)
 
 {
 
+    pa_evtrec er; /* outbound button event */
+    pa_strptr sp;
+    int       sc;
+
     if (ev->etype == pa_etredraw) dropeditbox_draw(wg); /* redraw the window */
     else if (ev->etype == pa_etdrpbox) {
 
-dbg_printf(dlinfo, "dropbox yeilds select\n");
+        /* find current select */
+        sp = wg->cw->strlst;
+        sc = ev->drpbsl;
+        /* find selected string */
+        while (sc > 1 && sp) { sp = sp->next; sc--; }
+        free(wg->cw2->face); /* free existing face string in edit */
+        wg->cw2->face = str(sp->str); /* copy selected to edit */
+        editbox_draw(wg->cw2); /* redraw edit widget */
+
+    } else if (ev->etype == pa_etedtbox) {
+
+        free(wg->face); /* release previous face string */
+        wg->face = str(wg->cw2->face); /* copy the resulting string */
+        /* send event back to parent window */
+        er.etype = pa_etdrebox; /* set drop edit completion event */
+        er.drebid = wg->id; /* set id */
+        pa_sendevent(wg->parent, &er); /* send the event to the parent */
 
     }
 
@@ -3308,7 +3331,7 @@ void pa_dropeditboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int 
     wp = NULL; /* set no predefinition */
     widget(f, x1, y1, x2, y1+ch-1, "", id, wtdropeditbox, &wp);
 
-    /* set up a subclass entry */
+    /* set up a subclass entry for dropbox */
     wps = getwig(); /* get widget entry */
     wps->subcls = TRUE; /* set as subclass widget */
     wps->strlst = nl; /* set up string list */
@@ -3317,6 +3340,18 @@ void pa_dropeditboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int 
     widget(wp->wf, 1, 1, cw, ch, "", 1, wtdropbox, &wps);
 
     wp->cw = wps; /* give the master its child window */
+    wps->pw = wp; /* give the child its master */
+
+    /* set up a subclass entry for edit */
+    wps = getwig(); /* get widget entry */
+    wps->subcls = TRUE; /* set as subclass widget */
+    /* subclass an edit control,leaving space for dropbox control */
+    widget(wp->wf, 1+4, 1+4,
+                   pa_maxxg(wp->wf)-pa_chrsizy(win0)*1.9-4,
+                   pa_maxyg(wp->wf)-4,
+                   "", 2, wteditbox, &wps);
+    pa_curvis(wps->wf, FALSE); /* turn on cursor */
+    wp->cw2 = wps; /* give the master its child window */
     wps->pw = wp; /* give the child its master */
 
 }

@@ -215,60 +215,60 @@ typedef struct {
         /* pa_etbutton */
         int butid; /* button id */
         /* pa_etchkbox */
-        int ckbxid; /* checkbox */
+        int ckbxid; /* checkbox id */
         /* pa_etradbut */
-        int radbid; /* radio button */
+        int radbid; /* radio button id */
         /* pa_etsclull */
-        int sclulid; /* scroll up/left line */
+        int sclulid; /* scroll up/left line id*/
         /* pa_etscldrl */
-        int scldrid; /* scroll down/right line */
+        int scldrid; /* scroll down/right line id */
         /* pa_etsclulp */
-        int sclupid; /* scroll up/left page */
+        int sclupid; /* scroll up/left page id */
         /* pa_etscldrp */
-        int scldpid; /* scroll down/right page */
+        int scldpid; /* scroll down/right page id */
         /* pa_etsclpos */
         struct {
 
-            int sclpid; /* scroll bar */
+            int sclpid; /* scroll bar id */
             int sclpos; /* scroll bar position */
 
         };
         /* pa_etedtbox */
-        int edtbid; /* edit box complete */
+        int edtbid; /* edit box complete id */
         /* pa_etnumbox */
         struct { /* number select box signals done */
 
-            int numbid; /* num sel box select */
+            int numbid; /* num sel box id */
             int numbsl; /* num select value */
 
         };
         /* pa_etlstbox */
         struct {
 
-            int lstbid; /* list box select */
+            int lstbid; /* list box id */
             int lstbsl; /* list box select number */
 
         };
         /* pa_etdrpbox */
         struct {
 
-            int drpbid; /* drop box select */
+            int drpbid; /* drop box id */
             int drpbsl; /* drop box select */
 
         };
         /* pa_etdrebox */
-        int drebid; /* drop edit box select */
+        int drebid; /* drop edit box id */
         /* pa_etsldpos */
         struct {
 
-            int sldpid; /* slider position */
+            int sldpid; /* slider id */
             int sldpos; /* slider position */
 
         };
         /* pa_ettabbar */
         struct {
 
-            int tabid;  /* tab bar */
+            int tabid;  /* tab bar id */
             int tabsel; /* tab select */
 
         };
