@@ -490,15 +490,15 @@ static wigptr fndwig(FILE* f, int id)
 
 /*******************************************************************************
 
-Send redraw to window
+Send redraw to widget
 
-Sends a redraw request to the given window. The common workflow with widgets
+Sends a redraw request to the given widget. The common workflow with widgets
 is to reconfigure it by changing the parameters of it, then sending it a redraw
 to update itself with the new parameters.
 
 *******************************************************************************/
 
-static void widget_redraw(FILE* f)
+static void widget_redraw(wigptr wp)
 
 {
 
@@ -507,9 +507,9 @@ static void widget_redraw(FILE* f)
     ev.etype = pa_etredraw; /* set redraw event */
     ev.rsx = 1; /* set extent */
     ev.rsy = 1;
-    ev.rex = pa_maxxg(f);
-    ev.rey = pa_maxyg(f);
-    pa_sendevent(f, &ev); /* send to widget window */
+    ev.rex = pa_maxxg(wp->wf);
+    ev.rey = pa_maxyg(wp->wf);
+    pa_sendevent(wp->wf, &ev); /* send to widget window */
 
 }
 
@@ -1268,14 +1268,14 @@ static void editbox_event(pa_evtrec* ev, wigptr wg)
             wg->focus = 1; /* in focus */
             editbox_draw(wg); /* redraw */
             /* if subclassed, also redraw parent */
-            if (wg->pw) numselbox_draw(wg->pw);
+            if (wg->pw) widget_redraw(wg->pw);
             break;
 
         case pa_etnofocus: /* lose focus */
             wg->focus = 0; /* out of focus */
             editbox_draw(wg); /* redraw */
             /* if subclassed, also redraw parent */
-            if (wg->pw) numselbox_draw(wg->pw);
+            if (wg->pw) widget_redraw(wg->pw);
             break;
 
         case pa_etright: /* right character */
@@ -1869,6 +1869,8 @@ static void dropeditbox_draw(wigptr wg)
 
 {
 
+    /* everything in this widget is drawn by subclassed widgets */
+
 }
 
 static void dropeditbox_event(pa_evtrec* ev, wigptr wg)
@@ -2159,7 +2161,7 @@ void pa_selectwidget(FILE* f, int id, int e)
     chg = wp->select != !!e; /* check select state changes */
     wp->select = !!e; /* set select state */
     /* if the select changes, refresh the checkbox */
-    if (chg) widget_redraw(wp->wf); /* send redraw to widget */
+    if (chg) widget_redraw(wp); /* send redraw to widget */
 
 }
 
@@ -2187,7 +2189,7 @@ void pa_enablewidget(FILE* f, int id, int e)
     chg = wp->enb != e; /* check enable state changes */
     wp->enb = e; /* set enable state */
     /* if the select changes, refresh the checkbox */
-    if (chg) widget_redraw(wp->wf); /* send redraw to widget */
+    if (chg) widget_redraw(wp); /* send redraw to widget */
 
 }
 
@@ -2237,7 +2239,7 @@ void pa_putwidgettext(FILE* f, int id, char* s)
         error("Widget contents cannot be written");
     free(wp->face); /* dispose of previous face string */
     wp->face = str(s); /* place new face */
-    widget_redraw(wp->wf); /* send redraw to widget */
+    widget_redraw(wp); /* send redraw to widget */
 
 }
 
@@ -2796,7 +2798,7 @@ void pa_scrollpos(FILE* f, int id, int r)
     if (wp->typ != wtscrollvert && wp->typ != wtscrollhoriz)
         error("Widget not a scroll bar");
     wp->sclpos = r; /* set scroll bar postition */
-    widget_redraw(wp->wf); /* send redraw to widget */
+    widget_redraw(wp); /* send redraw to widget */
 
 }
 
@@ -2820,7 +2822,7 @@ void pa_scrollsiz(FILE* f, int id, int r)
     if (wp->typ != wtscrollvert && wp->typ != wtscrollhoriz)
         error("Widget not a scroll bar");
     wp->sclsiz = r; /* set scroll bar size */
-    widget_redraw(wp->wf); /* send redraw to widget */
+    widget_redraw(wp); /* send redraw to widget */
 
 }
 
