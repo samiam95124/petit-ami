@@ -195,7 +195,6 @@ typedef struct wigrec {
     int    focus;      /* focused */
     int    hover;      /* hovered */
     int    ins;        /* insert/overwrite mode */
-    int    subcls;     /* widget is subclassed */
     int    num;        /* allow only numeric entry */
     int    lbnd;       /* low bound of number */
     int    ubnd;       /* upper bound of number */
@@ -422,7 +421,6 @@ static wigptr getwig(void)
     wp->mpy = 0;
     wp->lmpx = 0;
     wp->lmpy = 0;
-    wp->subcls = FALSE; /* set not a subclassed widget */
     wp->num = FALSE; /* set any character entry */
     wp->lbnd = -INT_MAX; /* set low bound */
     wp->ubnd = INT_MAX; /* set high bound */
@@ -457,7 +455,7 @@ static void putwig(wigptr wp)
 {
 
     /* if not a subclass widget, free string list */
-    if (!wp->subcls) frestrlst(wp->strlst);
+    if (!wp->pw) frestrlst(wp->strlst);
     if (wp->face) free(wp->face); /* free face string if exists */
     wp->next = wigfre; /* push to free list */
     wigfre = wp;
@@ -1144,7 +1142,7 @@ static void editbox_draw(wigptr wg)
     /* color the background */
     pa_fcolor(wg->wf, pa_white);
     pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
-    if (!wg->subcls) { /* if not subclassed, draw background and outline */
+    if (!wg->pw) { /* if not subclassed, draw background and outline */
 
         /* outline */
         if (wg->focus) {
@@ -1270,14 +1268,14 @@ static void editbox_event(pa_evtrec* ev, wigptr wg)
             wg->focus = 1; /* in focus */
             editbox_draw(wg); /* redraw */
             /* if subclassed, also redraw parent */
-            if (wg->subcls) numselbox_draw(wg->pw);
+            if (wg->pw) numselbox_draw(wg->pw);
             break;
 
         case pa_etnofocus: /* lose focus */
             wg->focus = 0; /* out of focus */
             editbox_draw(wg); /* redraw */
             /* if subclassed, also redraw parent */
-            if (wg->subcls) numselbox_draw(wg->pw);
+            if (wg->pw) numselbox_draw(wg->pw);
             break;
 
         case pa_etright: /* right character */
@@ -1674,7 +1672,7 @@ static void listbox_event(pa_evtrec* ev, wigptr wg)
             er.etype = pa_etlstbox; /* set button event */
             er.lstbid = wg->id; /* set id */
             er.lstbsl = wg->ss; /* set string select */
-            if (wg->subcls)
+            if (wg->pw)
                 /* send the event to the superclass widget */
                 pa_sendevent(wg->pf, &er);
             else
@@ -1802,7 +1800,7 @@ static void dropbox_event(pa_evtrec* ev, wigptr wg)
             par = wg->parent; /* set near parent */
             px = wg->px; /* set near origin */
             py = wg->py;
-            if (wg->subcls) { /* if we are subclass, parent is up one */
+            if (wg->pw) { /* if we are subclass, parent is up one */
 
                 par = wg->pw->parent; /* set near parent */
                 px = wg->pw->px; /* set near origin */
@@ -1819,10 +1817,10 @@ static void dropbox_event(pa_evtrec* ev, wigptr wg)
                 /* create the list subwidget */
                 wp = getwig(); /* predef so we can plant list before display */
                 wp->strlst = wg->strlst; /* plant the list */
-                wp->subcls = TRUE; /* set as subclass */
                 /* set to send messages to us (and not logical parent) */
                 wp->pf = wg->wf;
                 wg->cw = wp; /* set child widget */
+                wp->pw = wg; /* set parent widget */
                 /* open listbox */
                 wg->cid = pa_getwigid(par); /* get anonymous widget id */
                 widget(par, px, py+pa_maxyg(wg->wf)-1,
@@ -1843,7 +1841,7 @@ static void dropbox_event(pa_evtrec* ev, wigptr wg)
         /* find parent parameters, since subwidget displays in that
            parent */
         par = wg->parent; /* set near parent */
-        if (wg->subcls) par = wg->pw->parent; /* set near parent up one */
+        if (wg->pw) par = wg->pw->parent; /* set near parent up one */
         /* send event back to parent window */
         er.etype = pa_etdrpbox; /* set button event */
         er.drpbid = wg->id; /* set id */
@@ -2131,6 +2129,7 @@ void pa_killwidget(FILE* f, int id)
     wp = fndwig(f, id); /* index the widget */
     /* if there is a subwidget, kill that as well */
     if (wp->cw) pa_killwidget(wp->cw->pw->wf, wp->cw->id);
+    if (wp->cw2) pa_killwidget(wp->cw2->pw->wf, wp->cw2->id);
     fclose(wp->wf); /* close the window file */
     fn = fileno(f); /* get the logical file number */
     opnfil[fn]->widgets[id+MAXWIG] = NULL; /* clear widget slot  */
@@ -2912,7 +2911,6 @@ void pa_numselboxg(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id
 
     /* set up a subclass entry */
     wps = getwig(); /* get widget entry */
-    wps->subcls = TRUE; /* set as subclass widget */
     wps->num = TRUE; /* set numeric only */
     wps->lbnd = l; /* set lower bound */
     wps->ubnd = u; /* set upper bound */
@@ -3333,7 +3331,6 @@ void pa_dropeditboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int 
 
     /* set up a subclass entry for dropbox */
     wps = getwig(); /* get widget entry */
-    wps->subcls = TRUE; /* set as subclass widget */
     wps->strlst = nl; /* set up string list */
     wps->ss = 1; /* select first entry */
     /* subclass drop/edit control */
@@ -3344,7 +3341,6 @@ void pa_dropeditboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int 
 
     /* set up a subclass entry for edit */
     wps = getwig(); /* get widget entry */
-    wps->subcls = TRUE; /* set as subclass widget */
     /* subclass an edit control,leaving space for dropbox control */
     widget(wp->wf, 1+4, 1+4,
                    pa_maxxg(wp->wf)-pa_chrsizy(win0)*1.9-4,
