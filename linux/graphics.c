@@ -659,6 +659,7 @@ typedef enum {
     enoopn,   /* Cannot open file */
     enoinps,  /* no input side for this window */
     enowid,   /* No more window ids available */
+    evecaxe,  /* cannot vector auxillary event */
     esystem   /* System consistency check */
 
 } errcod;
@@ -1065,6 +1066,7 @@ static char* errstr(errcod e)
       case enoopn:   s = "Cannot open file"; break;
       case enoinps:  s = "No input side for this window"; break;
       case enowid:   s = "No more window ids available"; break;
+      case evecaxe:  s = "Cannot vector auxillary event"; break;
       case esystem:  s = "System consistency check"; break;
       default:       s = "Unknown error"; break;
 
@@ -10772,7 +10774,7 @@ void pa_event(FILE* f, pa_evtrec* er)
         }
         er->handled = 1; /* set event is handled by default */
         (evtshan)(er); /* call master event handler */
-        if (!er->handled) { /* send it to fanout */
+        if (!er->handled && er->etype <= pa_ettabbar) { /* send it to fanout */
 
             er->handled = 1; /* set event is handled by default */
             (*evthan[er->etype])(er); /* call event handler first */
@@ -10829,6 +10831,7 @@ void pa_eventover(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh)
 
 {
 
+    if (e > pa_ettabbar) error(evecaxe); /* cannot vector auxillary event */
     *oeh = evthan[e]; /* save existing event handler */
     evthan[e] = eh; /* place new event handler */
 

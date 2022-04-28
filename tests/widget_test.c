@@ -1035,7 +1035,6 @@ int main(void)
 
     /* ******************** Terminal number select box test ******************* */
 
-#endif
     printf("\f");
     chrgrid();
     pa_binvis(stdout);
@@ -1348,6 +1347,7 @@ int main(void)
 
     /* ******************* Terminal dropdown edit box test ******************** */
 
+#endif
     printf("\f");
     chrgrid();
     pa_binvis(stdout);

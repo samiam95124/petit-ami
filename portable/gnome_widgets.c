@@ -93,6 +93,9 @@ static enum { /* debug levels */
 /* amount of space in pixels to add around scrollbar sliders */
 #define ENDSPACE 6
 #define ENDLEDSPC 10 /* space at start and end of text edit box */
+/* user defined messages */
+#define WMC_LGTFOC pa_etwidget+0 /* widget message code: light up focus */
+#define WMC_DRKFOC pa_etwidget+1 /* widget message code: turn off focus */
 
 /* macro to make a color from RGB values */
 #define RGB(r, g, b) (r<<16|g<<8|b)
@@ -1267,15 +1270,16 @@ static void editbox_event(pa_evtrec* ev, wigptr wg)
         case pa_etfocus: /* gain focus */
             wg->focus = 1; /* in focus */
             editbox_draw(wg); /* redraw */
-            /* if subclassed, also redraw parent */
-            if (wg->pw) widget_redraw(wg->pw);
+            /* send light focus event to parent */
+            er.etype = WMC_LGTFOC; /* set light up */
+            pa_sendevent(wg->parent, &er); /* send the event to the parent */
             break;
 
         case pa_etnofocus: /* lose focus */
             wg->focus = 0; /* out of focus */
             editbox_draw(wg); /* redraw */
-            /* if subclassed, also redraw parent */
-            if (wg->pw) widget_redraw(wg->pw);
+            er.etype = WMC_DRKFOC; /* set go dark */
+            pa_sendevent(wg->parent, &er); /* send the event to the parent */
             break;
 
         case pa_etright: /* right character */
@@ -1749,11 +1753,24 @@ static void dropbox_draw(wigptr wg)
     /* color the background */
     fcolort(wg->wf, th_back);
     pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
+
     /* outline */
+    if (wg->pw && wg->focus) { /* superclassed by dropeditbox and in focus */
+
+        pa_linewidth(wg->wf, 4);
+        fcolort(wg->wf, th_focus);
+
+    } else {
+
+        pa_linewidth(wg->wf, 2);
+        fcolort(wg->wf, th_outline2);
+
+    }
+    pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1, pa_maxyg(wg->wf)-1, 20, 20);
+
+    /* draw divider lines */
     pa_linewidth(wg->wf, 2);
     fcolort(wg->wf, th_outline2);
-    pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1, pa_maxyg(wg->wf)-1, 20, 20);
-    /* draw divider lines */
     pa_line(wg->wf, pa_maxxg(wg->wf)-ddspc, 1,
                     pa_maxxg(wg->wf)-ddspc, pa_maxyg(wg->wf));
     /* draw dropbox arrow */
@@ -1778,14 +1795,26 @@ static void dropbox_event(pa_evtrec* ev, wigptr wg)
     int udspc;    /* up/down control space */
     int lbw, lbh; /* listbox sizing */
     int w, h;     /* net width and height */
-    pa_evtrec er; /* outbound button event */
+    pa_evtrec er; /* outbound event */
     FILE* par;    /* ultimate parent */
     int   px,py;  /* position of widget in ultimate parent */
     wigptr wp;
 
     udspc = pa_chrsizy(win0)*1.9; /* square space for up/down control */
     if (ev->etype == pa_etredraw) dropbox_draw(wg); /* redraw the window */
-    else if (ev->etype == pa_etmoumovg) { /* mouse moved */
+    else if (ev->etype == WMC_LGTFOC) { /* light focus */
+
+        /* light focus, but we don't really have it */
+        wg->focus = 1; /* in focus */
+        dropbox_draw(wg); /* redraw */
+
+    } else if (ev->etype == WMC_DRKFOC) { /* lose focus */
+
+        /* dark focus */
+        wg->focus = 0; /* out of focus */
+        dropbox_draw(wg); /* redraw */
+
+    } else if (ev->etype == pa_etmoumovg) { /* mouse moved */
 
             /* track position */
             wg->mpx = ev->moupxg; /* set present position */
@@ -1877,12 +1906,24 @@ static void dropeditbox_event(pa_evtrec* ev, wigptr wg)
 
 {
 
-    pa_evtrec er; /* outbound button event */
+    pa_evtrec er; /* outbound event */
     pa_strptr sp;
     int       sc;
 
     if (ev->etype == pa_etredraw) dropeditbox_draw(wg); /* redraw the window */
-    else if (ev->etype == pa_etdrpbox) {
+    else if (ev->etype == WMC_LGTFOC) { /* light focus */
+
+        /* edit box got focus, wants us to light it up, cross to dropbox */
+        er.etype = WMC_LGTFOC; /* send light focus event */
+        pa_sendevent(wg->cw->wf, &er); /* send to dropbox */
+
+    } else if (ev->etype == WMC_DRKFOC) { /* dark focus */
+
+        /* edit box got focus, wants us to turn it off, cross to dropbox */
+        er.etype = WMC_DRKFOC; /* set dark focus event */
+        pa_sendevent(wg->cw->wf, &er); /* send to child */
+
+    } else if (ev->etype == pa_etdrpbox) {
 
         /* find current select */
         sp = wg->cw->strlst;
