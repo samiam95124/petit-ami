@@ -1271,15 +1271,26 @@ static void editbox_event(pa_evtrec* ev, wigptr wg)
             wg->focus = 1; /* in focus */
             editbox_draw(wg); /* redraw */
             /* send light focus event to parent */
-            er.etype = WMC_LGTFOC; /* set light up */
-            pa_sendevent(wg->parent, &er); /* send the event to the parent */
+            if (wg->pw) { /* if subclassed */
+
+                /* send the event to the parent */
+                er.etype = WMC_LGTFOC; /* set light up */
+                pa_sendevent(wg->pw->wf, &er);
+
+            }
             break;
 
         case pa_etnofocus: /* lose focus */
             wg->focus = 0; /* out of focus */
             editbox_draw(wg); /* redraw */
-            er.etype = WMC_DRKFOC; /* set go dark */
-            pa_sendevent(wg->parent, &er); /* send the event to the parent */
+            /* send light focus event to parent */
+            if (wg->pw) { /* if subclassed */
+
+                /* send the event to the parent */
+                er.etype = WMC_DRKFOC; /* set light up */
+                pa_sendevent(wg->pw->wf, &er);
+
+            }
             break;
 
         case pa_etright: /* right character */
@@ -1909,6 +1920,7 @@ static void dropeditbox_event(pa_evtrec* ev, wigptr wg)
     pa_evtrec er; /* outbound event */
     pa_strptr sp;
     int       sc;
+    int       l;
 
     if (ev->etype == pa_etredraw) dropeditbox_draw(wg); /* redraw the window */
     else if (ev->etype == WMC_LGTFOC) { /* light focus */
@@ -1932,6 +1944,9 @@ static void dropeditbox_event(pa_evtrec* ev, wigptr wg)
         while (sc > 1 && sp) { sp = sp->next; sc--; }
         free(wg->cw2->face); /* free existing face string in edit */
         wg->cw2->face = str(sp->str); /* copy selected to edit */
+        l = strlen(sp->str); /* find string length */
+        /* if cursor past string, clip it */
+        if (wg->cw2->curs > l) wg->cw2->curs = l;
         editbox_draw(wg->cw2); /* redraw edit widget */
 
     } else if (ev->etype == pa_etedtbox) {
