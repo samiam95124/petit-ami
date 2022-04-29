@@ -131,6 +131,7 @@ static enum { /* debug levels */
 #define TD_OUTLINE2         BW(206)             /* numselbox, dropbox outline */
 #define TD_DROPARROW        BW(61)              /* dropbox arrow */
 #define TD_DROPTEXT         BW(0)               /* dropbox text */
+#define TD_SLDINT           BW(233)             /* slider track internal */
 
 /* values table ids */
 
@@ -158,7 +159,8 @@ typedef enum {
     th_outline2,         /* numselbox, dropbox outline */
     th_droparrow,        /* dropbox arrow */
     th_droptext,         /* dropbox text */
-    th_endmarker         /* end of theme entries */
+    th_sldint            /* slider track internal */
+    th_endmarker,        /* end of theme entries */
 
 } themeindex;
 
@@ -956,7 +958,7 @@ static void scrollhoriz_draw(wigptr wg)
     int       botposp; /* bottom position of slider */
     int       inbar;   /* mouse is in scroll bar */
     int       sclpos;  /* new scrollbar position */
-    pa_evtrec er;      /* outbound button event */
+    pa_evtrec er;      /* outbound event */
     int       x;
 
     totsizp = pa_maxxg(wg->wf)-ENDSPACE-ENDSPACE; /* find net total slider space */
@@ -976,7 +978,7 @@ static void scrollhoriz_draw(wigptr wg)
 
         /* find new top if click is middle */
         x = wg->mpx-sclsizp/2;
-        if (x < ENDSPACE) x = ENDSPACE; /* limit top travel */
+        if (x < ENDSPACE) x = ENDSPACE; /* limit left travel */
         else if (x+sclsizp > pa_maxxg(wg->wf)-ENDSPACE)
             x = pa_maxxg(wg->wf)-sclsizp-ENDSPACE;
         /* find new ratioed position */
@@ -1974,6 +1976,85 @@ static void slidehoriz_draw(wigptr wg)
 
 {
 
+    int sldsizp;  /* size of slider in pixels */
+    int sldposp;  /* position of slider in pixels */
+    int mid;      /* y midpoint */
+    int thk;      /* slider y thickness */
+    int margin;   /* margin at slider edges */
+    int trksizp;  /* track size in pixels */
+    int insld;    /* mouse is in slider */
+    int sldpos;   /* slider position */
+    pa_evtrec er; /* outbound event */
+    int x;
+
+    mid = pa_maxyg(wg->wf)*0.5; /* find y midpoint */
+    thk = pa_chrsizy(wg->wf)*0.14; /* find slider track thickness */
+    sldsizp = pa_chrsizy(wg->wf)*1.0; /* find slider size in pixels */
+    margin = sldsizp*0.5+ENDSPACE; /* set edge margins */
+    trksizp = pa_maxxg(wg->wf)-margin*2; /* set track width */
+    sldposp = margin+round((double)trksizp*wg->sclpos/INT_MAX);
+
+    /* set status of mouse inside the slider */
+    insld = wg->mpx >= sldposp-margin && wg->mpx <= sldposp+margin;
+
+    /* process off slider click */
+    if (!insld && wg->pressed && !wg->lpressed) {
+
+        /* find new top if click is middle */
+        x = wg->mpx;
+        if (x < margin) x = margin; /* limit travel */
+        else if (x+sldsizp > pa_maxxg(wg->wf)-margin)
+            x = pa_maxxg(wg->wf)-margin;
+        /* find new ratioed position */
+        sldpos = round((double)INT_MAX*(x-margin)/sldsizp);
+        /* send event back to parent window */
+        er.etype = pa_etsldpos; /* set scroll position event */
+        er.sldpid = wg->id; /* set id */
+        er.sldpos = sldpos; /* set scrollbar position */
+        pa_sendevent(wg->parent, &er); /* send the event to the parent */
+
+    } else if ((insld || wg->grab) && wg->pressed && wg->lpressed &&
+               wg->mpx != wg->lmpx) {
+
+        /* mouse bar drag, process */
+        x = sldposp+(wg->mpx-wg->lmpx); /* find difference in pixel location */
+        if (x < 0) x = 0; /* limit to zero */
+        if (x > sldsizp) x = sldsizp; /* limit to max */
+        /* find new ratioed position */
+        sldpos = round((double)INT_MAX*x/sldsizp);
+        /* send event back to parent window */
+        er.etype = pa_etsldpos; /* set scroll position event */
+        er.sldpid = wg->id; /* set id */
+        er.sldpos = sldpos; /* set scrollbar position */
+        pa_sendevent(wg->parent, &er); /* send the event to the parent */
+        wg->grab = TRUE; /* set we grabbed the scrollbar */
+
+    } else if (!wg->pressed) wg->grab = FALSE;
+
+    /* color the background */
+    pa_fcolor(wg->wf, pa_white);
+    pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
+    /* color scale track */
+    fcolort(wg->wf, th_sldint);
+    pa_frrect(wg->wf, margin, mid-thk*0.5, pa_maxxg(wg->wf)-margin,
+              mid+thk*0.5, 10, 10);
+    pa_linewidth(wg->wf, 2);
+    fcolort(wg->wf, th_outline2);
+    pa_rrect(wg->wf, margin, mid-thk*0.5, pa_maxxg(wg->wf)-margin,
+             mid+thk*0.5, 10, 10);
+    /* draw slider */
+    pa_fcolor(wg->wf, pa_white);
+    pa_fellipse(wg->wf, sldposp-sldsizp*0.5, mid-sldsizp*0.5,
+                       sldposp+sldsizp*0.5, mid+sldsizp*0.5);
+    if (wg->pressed && (insld || wg->grab))
+        /* color as pressed */
+        fcolort(wg->wf, th_outline1);
+    else
+        /* color as not pressed */
+        fcolort(wg->wf, th_outline2);
+    pa_ellipse(wg->wf, sldposp-sldsizp*0.5, mid-sldsizp*0.5,
+                      sldposp+sldsizp*0.5, mid+sldsizp*0.5);
+
 }
 
 static void slidehoriz_event(pa_evtrec* ev, wigptr wg)
@@ -1981,6 +2062,31 @@ static void slidehoriz_event(pa_evtrec* ev, wigptr wg)
 {
 
     if (ev->etype == pa_etredraw) slidehoriz_draw(wg); /* redraw the window */
+    else if (ev->etype == pa_etmouba && ev->amoubn == 1) {
+
+        wg->lpressed = wg->pressed; /* save last pressed state */
+        wg->pressed = TRUE; /* set is pressed */
+        slidehoriz_draw(wg);
+
+    } else if (ev->etype == pa_etmoubd) {
+
+        wg->lpressed = wg->pressed; /* save last pressed state */
+        wg->pressed = FALSE; /* set not pressed */
+        slidehoriz_draw(wg);
+
+    } else if (ev->etype == pa_etmoumovg) {
+
+        wg->lpressed = wg->pressed; /* save last pressed state */
+        /* mouse moved, track position */
+        wg->lmpx = wg->mpx; /* move present to last */
+        wg->lmpy = wg->mpy;
+        wg->mpx = ev->moupxg; /* set present position */
+        wg->mpy = ev->moupyg;
+        slidehoriz_draw(wg);
+        wg->lmpx = wg->mpx; /* now set equal to cancel move */
+        wg->lmpy = wg->mpy;
+
+    }
 
 }
 
@@ -3436,6 +3542,9 @@ void pa_slidehorizsizg(FILE* f, int * w, int* h)
 
 {
 
+    *w = 40;
+    *h = pa_chrsizy(win0)*1.5;
+
 }
 
 void pa_slidehorizsiz(FILE* f, int* w, int* h)
@@ -3898,6 +4007,7 @@ static void pa_init_widgets(int argc, char *argv[])
     themetable[th_outline2]         = TD_OUTLINE2;
     themetable[th_droparrow]        = TD_DROPARROW;
     themetable[th_droptext]         = TD_DROPTEXT;
+    themetable[th_sldint]           = TD_SLDINT;
 
 }
 
