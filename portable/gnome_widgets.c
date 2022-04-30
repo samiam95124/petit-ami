@@ -215,6 +215,7 @@ typedef struct wigrec {
     int    px, py;     /* position of widget in parent */
     int    cid;        /* child window id */
     int    grab;       /* mouse grabs scrollbar/slider */
+    int    ticks;      /* tick marks on slider */
 
 } wigrec;
 
@@ -441,6 +442,7 @@ static wigptr getwig(void)
     wp->py = 0;
     wp->cid = 0; /* clear child id */
     wp->grab = FALSE; /* set no scrollbar/slider grab */
+    wp->ticks = 0; /* set no tick marks on slider */
 
     return wp; /* return entry */
 
@@ -3688,7 +3690,8 @@ void pa_slidehorizg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 
     wigptr wp; /* widget entry pointer */
 
-    wp = NULL; /* set no predefinition */
+    wp = getwig(); /* predef so we can plant ticks before display */
+    wp->ticks = mark; /* set tick marks */
     widget(f, x1, y1, x2, y2, "", id, wtslidehoriz, &wp);
 
 }
@@ -3751,7 +3754,8 @@ void pa_slidevertg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 
     wigptr wp; /* widget entry pointer */
 
-    wp = NULL; /* set no predefinition */
+    wp = getwig(); /* predef so we can plant ticks before display */
+    wp->ticks = mark; /* set tick marks */
     widget(f, x1, y1, x2, y2, "", id, wtslidevert, &wp);
 
 }

@@ -1347,7 +1347,6 @@ int main(void)
 
     /* ******************* Terminal dropdown edit box test ******************** */
 
-#endif
     printf("\f");
     chrgrid();
     pa_binvis(stdout);
@@ -1443,15 +1442,29 @@ int main(void)
 
     /* ************************* Graphical slider test ************************ */
 
+#endif
     printf("\f");
     printf("Graphical slider test\n");
-    pa_slidehorizsizg(stdout, &x, &y);
-    pa_slidehorizg(stdout, 100, 100, 100+x-1, 100+y-1, 10, 1);
-    pa_slidehorizg(stdout, 100, 200, 100+x-1, 200+y-1, 0, 2);
-    pa_slidevertsizg(stdout, &x, &y);
-    pa_slidevertg(stdout, 400, 100, 400+x-1, 100+y-1, 10, 3);
-    pa_slidevertg(stdout, 500, 100, 500+x-1, 100+y-1, 0, 4);
+    printf("\n");
     printf("Bottom and right sliders should not have tick marks\n");
+    printf("\n");
+    ox = pa_maxyg(stdout)*0.125;
+    oy = pa_curyg(stdout);
+    pa_slidehorizsizg(stdout, &xs, &ys);
+    xs = pa_maxxg(stdout)*0.25;
+    pa_slidehorizg(stdout, ox, oy, ox+xs-1, oy+ys-1, 10, 1);
+    oy += pa_maxyg(stdout)*0.25;
+    pa_slidehorizg(stdout, ox, oy, ox+xs-1, oy+ys-1, 0, 2);
+    x = xs; /* save slider size x */
+    pa_slidevertsizg(stdout, &xs, &ys);
+
+    ox += x+ox; /* offset past horizontals */
+    oy = pa_curyg(stdout); /* reset to top */
+    ys = pa_maxxg(stdout)*0.25;
+
+    pa_slidevertg(stdout, ox, oy, ox+xs-1, oy+ys-1, 10, 3);
+    ox += pa_maxxg(stdout)*0.125;
+    pa_slidevertg(stdout, ox, oy, ox+xs-1, oy+ys-1, 0, 4);
     do {
 
         pa_event(stdin, &er);
