@@ -159,8 +159,8 @@ typedef enum {
     th_outline2,         /* numselbox, dropbox outline */
     th_droparrow,        /* dropbox arrow */
     th_droptext,         /* dropbox text */
-    th_sldint            /* slider track internal */
-    th_endmarker,        /* end of theme entries */
+    th_sldint,           /* slider track internal */
+    th_endmarker        /* end of theme entries */
 
 } themeindex;
 
@@ -2006,7 +2006,8 @@ static void slidehoriz_draw(wigptr wg)
         else if (x+sldsizp > pa_maxxg(wg->wf)-margin)
             x = pa_maxxg(wg->wf)-margin;
         /* find new ratioed position */
-        sldpos = round((double)INT_MAX*(x-margin)/sldsizp);
+        sldpos = round((double)INT_MAX*(x-margin)/trksizp);
+        wg->sclpos = sldpos; /* place to widget data */
         /* send event back to parent window */
         er.etype = pa_etsldpos; /* set scroll position event */
         er.sldpid = wg->id; /* set id */
@@ -2017,11 +2018,12 @@ static void slidehoriz_draw(wigptr wg)
                wg->mpx != wg->lmpx) {
 
         /* mouse bar drag, process */
-        x = sldposp+(wg->mpx-wg->lmpx); /* find difference in pixel location */
+        x = sldposp+(wg->mpx-wg->lmpx)-margin; /* find difference in pixel location */
         if (x < 0) x = 0; /* limit to zero */
-        if (x > sldsizp) x = sldsizp; /* limit to max */
+        if (x > trksizp) x = trksizp; /* limit to max */
         /* find new ratioed position */
-        sldpos = round((double)INT_MAX*x/sldsizp);
+        sldpos = round((double)INT_MAX*x/trksizp);
+        wg->sclpos = sldpos; /* place to widget data */
         /* send event back to parent window */
         er.etype = pa_etsldpos; /* set scroll position event */
         er.sldpid = wg->id; /* set id */
@@ -2030,6 +2032,9 @@ static void slidehoriz_draw(wigptr wg)
         wg->grab = TRUE; /* set we grabbed the scrollbar */
 
     } else if (!wg->pressed) wg->grab = FALSE;
+
+    /* recalculate for any slide movements */
+    sldposp = margin+round((double)trksizp*wg->sclpos/INT_MAX);
 
     /* color the background */
     pa_fcolor(wg->wf, pa_white);
@@ -2048,7 +2053,7 @@ static void slidehoriz_draw(wigptr wg)
                        sldposp+sldsizp*0.5, mid+sldsizp*0.5);
     if (wg->pressed && (insld || wg->grab))
         /* color as pressed */
-        fcolort(wg->wf, th_outline1);
+        fcolort(wg->wf, th_droptext);
     else
         /* color as not pressed */
         fcolort(wg->wf, th_outline2);
