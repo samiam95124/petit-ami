@@ -1978,15 +1978,17 @@ static void slidehoriz_draw(wigptr wg)
 
 {
 
-    int sldsizp;  /* size of slider in pixels */
-    int sldposp;  /* position of slider in pixels */
-    int mid;      /* y midpoint */
-    int thk;      /* slider y thickness */
-    int margin;   /* margin at slider edges */
-    int trksizp;  /* track size in pixels */
-    int insld;    /* mouse is in slider */
-    int sldpos;   /* slider position */
-    pa_evtrec er; /* outbound event */
+    int sldsizp;    /* size of slider in pixels */
+    int sldposp;    /* position of slider in pixels */
+    int mid;        /* y midpoint */
+    int thk;        /* slider y thickness */
+    int margin;     /* margin at slider edges */
+    int trksizp;    /* track size in pixels */
+    int insld;      /* mouse is in slider */
+    int sldpos;     /* slider position */
+    pa_evtrec er;   /* outbound event */
+    double tiksizp; /* space between ticks in pixels */
+    int tickno;     /* ticks counter */
     int x;
 
     mid = pa_maxyg(wg->wf)*0.5; /* find y midpoint */
@@ -2062,6 +2064,23 @@ static void slidehoriz_draw(wigptr wg)
     pa_ellipse(wg->wf, sldposp-sldsizp*0.5, mid-sldsizp*0.5,
                       sldposp+sldsizp*0.5, mid+sldsizp*0.5);
 
+    /* place tickmarks */
+    if (wg->ticks) {
+
+        tiksizp = trksizp/(wg->ticks-1); /* find number of pixels between ticks */
+        tickno = 0; /* start at left */
+        x = margin+tiksizp*tickno; /* set location */
+        pa_fcolor(wg->wf, pa_black); /* set color */
+        while (x <= margin+trksizp) { /* place tick marks */
+
+            pa_line(wg->wf, x, 1, x, mid-sldsizp*0.5); /* draw tick */
+            tickno++; /* count ticks */
+            x = margin+tiksizp*tickno; /* next location */
+
+        }
+
+    }
+
 }
 
 static void slidehoriz_event(pa_evtrec* ev, wigptr wg)
@@ -2118,6 +2137,8 @@ static void slidevert_draw(wigptr wg)
     int insld;    /* mouse is in slider */
     int sldpos;   /* slider position */
     pa_evtrec er; /* outbound event */
+    double tiksizp; /* space between ticks in pixels */
+    int tickno;     /* ticks counter */
     int y;
 
     mid = pa_maxxg(wg->wf)*0.5; /* find x midpoint */
@@ -2192,6 +2213,23 @@ static void slidevert_draw(wigptr wg)
         fcolort(wg->wf, th_outline2);
     pa_ellipse(wg->wf, mid-sldsizp*0.5, sldposp-sldsizp*0.5,
                       mid+sldsizp*0.5, sldposp+sldsizp*0.5);
+
+    /* place tickmarks */
+    if (wg->ticks) {
+
+        tiksizp = trksizp/(wg->ticks-1); /* find number of pixels between ticks */
+        tickno = 0; /* start at left */
+        y = margin+tiksizp*tickno; /* set location */
+        pa_fcolor(wg->wf, pa_black); /* set color */
+        while (y <= margin+trksizp) { /* place tick marks */
+
+            pa_line(wg->wf, 1, y, mid-sldsizp*0.5, y); /* draw tick */
+            tickno++; /* count ticks */
+            y = margin+tiksizp*tickno; /* next location */
+
+        }
+
+    }
 
 }
 
