@@ -2107,6 +2107,90 @@ static void slidevert_draw(wigptr wg)
 
 {
 
+    int sldsizp;  /* size of slider in pixels */
+    int sldposp;  /* position of slider in pixels */
+    int mid;      /* y midpoint */
+    int thk;      /* slider y thickness */
+    int margin;   /* margin at slider edges */
+    int trksizp;  /* track size in pixels */
+    int insld;    /* mouse is in slider */
+    int sldpos;   /* slider position */
+    pa_evtrec er; /* outbound event */
+    int y;
+
+    mid = pa_maxxg(wg->wf)*0.5; /* find x midpoint */
+    thk = pa_chrsizy(wg->wf)*0.14; /* find slider track thickness */
+    sldsizp = pa_chrsizy(wg->wf)*1.0; /* find slider size in pixels */
+    margin = sldsizp*0.5+ENDSPACE; /* set edge margins */
+    trksizp = pa_maxyg(wg->wf)-margin*2; /* set track width */
+    sldposp = margin+round((double)trksizp*wg->sclpos/INT_MAX);
+
+    /* set status of mouse inside the slider */
+    insld = wg->mpy >= sldposp-margin && wg->mpy <= sldposp+margin;
+
+    /* process off slider click */
+    if (!insld && wg->pressed && !wg->lpressed) {
+
+        /* find new top if click is middle */
+        y = wg->mpy;
+        if (y < margin) y = margin; /* limit travel */
+        else if (y+sldsizp > pa_maxyg(wg->wf)-margin)
+            y = pa_maxyg(wg->wf)-margin;
+        /* find new ratioed position */
+        sldpos = round((double)INT_MAX*(y-margin)/trksizp);
+        wg->sclpos = sldpos; /* place to widget data */
+        /* send event back to parent window */
+        er.etype = pa_etsldpos; /* set scroll position event */
+        er.sldpid = wg->id; /* set id */
+        er.sldpos = sldpos; /* set scrollbar position */
+        pa_sendevent(wg->parent, &er); /* send the event to the parent */
+
+    } else if ((insld || wg->grab) && wg->pressed && wg->lpressed &&
+               wg->mpy != wg->lmpy) {
+
+        /* mouse bar drag, process */
+        y = sldposp+(wg->mpy-wg->lmpy)-margin; /* find difference in pixel location */
+        if (y < 0) y = 0; /* limit to zero */
+        if (y > trksizp) y = trksizp; /* limit to max */
+        /* find new ratioed position */
+        sldpos = round((double)INT_MAX*y/trksizp);
+        wg->sclpos = sldpos; /* place to widget data */
+        /* send event back to parent window */
+        er.etype = pa_etsldpos; /* set scroll position event */
+        er.sldpid = wg->id; /* set id */
+        er.sldpos = sldpos; /* set scrollbar position */
+        pa_sendevent(wg->parent, &er); /* send the event to the parent */
+        wg->grab = TRUE; /* set we grabbed the scrollbar */
+
+    } else if (!wg->pressed) wg->grab = FALSE;
+
+    /* recalculate for any slide movements */
+    sldposp = margin+round((double)trksizp*wg->sclpos/INT_MAX);
+
+    /* color the background */
+    pa_fcolor(wg->wf, pa_white);
+    pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
+    /* color scale track */
+    fcolort(wg->wf, th_sldint);
+    pa_frrect(wg->wf, mid-thk*0.5, margin, mid+thk*0.5,
+              pa_maxyg(wg->wf)-margin, 10, 10);
+    pa_linewidth(wg->wf, 2);
+    fcolort(wg->wf, th_outline2);
+    pa_rrect(wg->wf, mid-thk*0.5, margin, mid+thk*0.5,
+             pa_maxyg(wg->wf)-margin, 10, 10);
+    /* draw slider */
+    pa_fcolor(wg->wf, pa_white);
+    pa_fellipse(wg->wf, mid-sldsizp*0.5, sldposp-sldsizp*0.5,
+                       mid+sldsizp*0.5, sldposp+sldsizp*0.5);
+    if (wg->pressed && (insld || wg->grab))
+        /* color as pressed */
+        fcolort(wg->wf, th_droptext);
+    else
+        /* color as not pressed */
+        fcolort(wg->wf, th_outline2);
+    pa_ellipse(wg->wf, mid-sldsizp*0.5, sldposp-sldsizp*0.5,
+                      mid+sldsizp*0.5, sldposp+sldsizp*0.5);
+
 }
 
 static void slidevert_event(pa_evtrec* ev, wigptr wg)
@@ -2114,6 +2198,31 @@ static void slidevert_event(pa_evtrec* ev, wigptr wg)
 {
 
     if (ev->etype == pa_etredraw) slidevert_draw(wg); /* redraw the window */
+    else if (ev->etype == pa_etmouba && ev->amoubn == 1) {
+
+        wg->lpressed = wg->pressed; /* save last pressed state */
+        wg->pressed = TRUE; /* set is pressed */
+        slidevert_draw(wg);
+
+    } else if (ev->etype == pa_etmoubd) {
+
+        wg->lpressed = wg->pressed; /* save last pressed state */
+        wg->pressed = FALSE; /* set not pressed */
+        slidevert_draw(wg);
+
+    } else if (ev->etype == pa_etmoumovg) {
+
+        wg->lpressed = wg->pressed; /* save last pressed state */
+        /* mouse moved, track position */
+        wg->lmpx = wg->mpx; /* move present to last */
+        wg->lmpy = wg->mpy;
+        wg->mpx = ev->moupxg; /* set present position */
+        wg->mpy = ev->moupyg;
+        slidevert_draw(wg);
+        wg->lmpx = wg->mpx; /* now set equal to cancel move */
+        wg->lmpy = wg->mpy;
+
+    }
 
 }
 
@@ -3609,6 +3718,9 @@ slider is calculated and returned.
 void pa_slidevertsizg(FILE* f, int* w, int* h)
 
 {
+
+    *w = pa_chrsizy(win0)*1.5;
+    *h = 40;
 
 }
 
