@@ -2218,12 +2218,12 @@ static void slidevert_draw(wigptr wg)
     if (wg->ticks) {
 
         tiksizp = trksizp/(wg->ticks-1); /* find number of pixels between ticks */
-        tickno = 0; /* start at left */
+        tickno = 0; /* start at top */
         y = margin+tiksizp*tickno; /* set location */
         pa_fcolor(wg->wf, pa_black); /* set color */
         while (y <= margin+trksizp) { /* place tick marks */
 
-            pa_line(wg->wf, 1, y, mid-sldsizp*0.5, y); /* draw tick */
+            pa_line(wg->wf, mid+sldsizp*0.5, y, pa_maxxg(wg->wf), y); /* draw tick */
             tickno++; /* count ticks */
             y = margin+tiksizp*tickno; /* next location */
 
