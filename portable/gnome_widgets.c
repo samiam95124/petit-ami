@@ -2051,6 +2051,9 @@ static void slidehoriz_draw(wigptr wg)
     fcolort(wg->wf, th_outline2);
     pa_rrect(wg->wf, margin, mid-thk*0.5, pa_maxxg(wg->wf)-margin,
              mid+thk*0.5, 10, 10);
+    /* color active side */
+    fcolort(wg->wf, th_progactcen);
+    pa_frrect(wg->wf, margin, mid-thk*0.5, sldposp, mid+thk*0.5, 10, 10);
     /* draw slider */
     pa_fcolor(wg->wf, pa_white);
     pa_fellipse(wg->wf, sldposp-sldsizp*0.5, mid-sldsizp*0.5,
@@ -2201,6 +2204,9 @@ static void slidevert_draw(wigptr wg)
     fcolort(wg->wf, th_outline2);
     pa_rrect(wg->wf, mid-thk*0.5, margin, mid+thk*0.5,
              pa_maxyg(wg->wf)-margin, 10, 10);
+    /* color active side */
+    fcolort(wg->wf, th_progactcen);
+    pa_frrect(wg->wf, mid-thk*0.5, margin, mid+thk*0.5, sldposp, 10, 10);
     /* draw slider */
     pa_fcolor(wg->wf, pa_white);
     pa_fellipse(wg->wf, mid-sldsizp*0.5, sldposp-sldsizp*0.5,
