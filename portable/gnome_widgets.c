@@ -3831,6 +3831,18 @@ void pa_tabbarsizg(FILE* f, pa_tabori tor, int cw, int ch, int* w, int* h,
 
 {
 
+    /* find width */
+    if (tor == pa_toleft || tor == pa_toright) *w = cw+pa_chrsizx(win0)*1.5;
+    else *w = cw;
+    /* find height */
+    if (tor == pa_toleft || tor == pa_toright) *w = ch;
+    else *w = cw+pa_chrsizy(win0)*1.5;
+    /* find client offset */
+    if (tor == pa_toleft) *ox = pa_chrsizy(win0)*1.5;
+    else *ox = 0;
+    if (tor == pa_totop) *oy = pa_chrsizx(win0)*1.5;
+    else *oy = 0;
+
 }
 
 void pa_tabbarsiz(FILE* f, pa_tabori tor, int cw, int ch, int * w, int* h,
@@ -3867,6 +3879,18 @@ void pa_tabbarclientg(FILE* f, pa_tabori tor, int w, int h, int* cw, int* ch,
 
 {
 
+    /* find width */
+    if (tor == pa_toleft || tor == pa_toright) *cw = w-pa_chrsizx(win0)*1.5;
+    else *cw = w;
+    /* find height */
+    if (tor == pa_toleft || tor == pa_toright) *cw = h;
+    else *cw = w-pa_chrsizy(win0)*1.5;
+    /* find client offset */
+    if (tor == pa_toleft) *ox = pa_chrsizy(win0)*1.5;
+    else *ox = 0;
+    if (tor == pa_totop) *oy = pa_chrsizx(win0)*1.5;
+    else *oy = 0;
+
 }
 
 void pa_tabbarclient(FILE* f, pa_tabori tor, int w, int h, int* cw, int* ch,
@@ -3902,8 +3926,15 @@ void pa_tabbarg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp,
 {
 
     wigptr wp; /* widget entry pointer */
+    pa_strptr nl; /* new string list */
 
-    wp = NULL; /* set no predefinition */
+    /* make a copy of the list */
+    cpystrlst(&nl, sp);
+
+    /* create the widget */
+    wp = getwig(); /* predef so we can plant list before display */
+    wp->strlst = nl; /* plant the list */
+    wp->ss = 1; /* select first entry */
     widget(f, x1, y1, x2, y2, "", id, wttabbar, &wp);
 
 }
@@ -3934,6 +3965,27 @@ of the tab.
 void pa_tabsel(FILE* f, int id, int tn)
 
 {
+
+    wigptr    wp;  /* widget entry pointer */
+    int       chg; /* widget state changes */
+    pa_strptr sp;
+    int       ss;
+
+    wp = fndwig(f, id); /* index the widget */
+    /* check this widget is tab bar */
+    if (wp->typ != wttabbar) error("Widget is not a tab bar");
+    sp = wp->strlst; /* index top of string list */
+    ss = 1;
+    /* find indicated tab */
+    while (ss != tn && sp) { sp = sp->next; ss++; }
+    if (!sp) error("No tab exists by logical number");
+    if (wp->ss != ss) { /* if select has changed */
+
+        wp->ss = ss; /* set select */
+        /* refresh */
+        widget_redraw(wp); /* send redraw to widget */
+
+    }
 
 }
 
