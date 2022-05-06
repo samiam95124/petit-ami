@@ -136,6 +136,7 @@ static enum { /* debug levels */
 #define TD_TABDIS           BW(154)             /* tab unselected text */
 #define TD_TABBACK          BW(247)             /* tab background */
 #define TD_TABSEL           RGB(233, 84, 32)    /* tab selected underbar */
+#define TD_TABFOCUS         (TD_TABSEL+BW(20))  /* tab focus box */
 
 /* values table ids */
 
@@ -167,6 +168,7 @@ typedef enum {
     th_tabdis,           /* tab unselected text */
     th_tabback,          /* tab background */
     th_tabsel,           /* tab selected underbar */
+    th_tabfocus,         /* tab focus box */
     th_endmarker         /* end of theme entries */
 
 } themeindex;
@@ -2304,8 +2306,7 @@ static void tabbar_draw(wigptr wg)
     /* outline */
     pa_linewidth(wg->wf, 2);
     fcolort(wg->wf, th_outline1);
-    pa_rect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1,
-             pa_maxyg(wg->wf)-1);
+    pa_rect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1, pa_maxyg(wg->wf)-1);
     pa_line(wg->wf, 1, pa_chrsizy(wg->wf)*TABHGT,
                     pa_maxxg(wg->wf), pa_chrsizy(wg->wf)*TABHGT);
     /* draw tab text */
@@ -2324,6 +2325,16 @@ static void tabbar_draw(wigptr wg)
                             pa_curxg(wg->wf)+pa_strsiz(wg->wf, sp->str)+
                                      pa_chrsizy(wg->wf)*0.5,
                             pa_chrsizy(wg->wf)*TABHGT-3);
+
+        }
+        if (sc == wg->ss && wg->focus) { /* draw focus box */
+
+            pa_linewidth(wg->wf, 2);
+            fcolort(wg->wf, th_tabfocus);
+            pa_rrect(wg->wf, pa_curxg(wg->wf)-pa_chrsizy(wg->wf)*0.5,
+                             5, pa_curxg(wg->wf)+pa_strsiz(wg->wf, sp->str)+
+                             pa_chrsizy(wg->wf)*0.5, pa_chrsizy(wg->wf)*TABHGT-3,
+                             10, 10);
 
         }
         fcolort(wg->wf, th_tabdis); /* set color disabled */
@@ -2398,6 +2409,16 @@ static void tabbar_event(pa_evtrec* ev, wigptr wg)
     } else if (ev->etype == pa_etnohover) {
 
         wg->hover = 0; /* not hovered */
+        tabbar_draw(wg); /* redraw the window */
+
+    } else if (ev->etype == pa_etfocus) {
+
+        wg->focus = 1; /* in focus */
+        tabbar_draw(wg); /* redraw the window */
+
+    } else if (ev->etype == pa_etnofocus) {
+
+        wg->focus = 0; /* out of focus */
         tabbar_draw(wg); /* redraw the window */
 
     }
@@ -4338,6 +4359,7 @@ static void pa_init_widgets(int argc, char *argv[])
     themetable[th_tabdis]           = TD_TABDIS;
     themetable[th_tabback]          = TD_TABBACK;
     themetable[th_tabsel]           = TD_TABSEL;
+    themetable[th_tabfocus]         = TD_TABFOCUS;
 
 }
 
