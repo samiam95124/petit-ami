@@ -2309,7 +2309,7 @@ static void tabbar_draw(wigptr wg)
     pa_line(wg->wf, 1, pa_chrsizy(wg->wf)*TABHGT,
                     pa_maxxg(wg->wf), pa_chrsizy(wg->wf)*TABHGT);
     /* draw tab text */
-    pa_cursorg(wg->wf, pa_chrsizx(wg->wf)*1.0, pa_chrsizy(wg->wf)*0.5);
+    pa_cursorg(wg->wf, pa_chrsizy(wg->wf), pa_chrsizy(wg->wf)*0.5);
     sp = wg->strlst; /* index tab string list */
     sc = 1; /* set first string */
     while (sp && pa_curxg(wg->wf) <= pa_maxxg(wg->wf)) {
@@ -2319,16 +2319,18 @@ static void tabbar_draw(wigptr wg)
             pa_linewidth(wg->wf, 6);
             if (sc == wg->ss) fcolort(wg->wf, th_tabsel);
             else fcolort(wg->wf, th_outline1);
-            pa_line(wg->wf, pa_curxg(wg->wf)-pa_chrsizx(wg->wf),
+            pa_line(wg->wf, pa_curxg(wg->wf)-pa_chrsizy(wg->wf)*0.5,
                             pa_chrsizy(wg->wf)*TABHGT-3,
                             pa_curxg(wg->wf)+pa_strsiz(wg->wf, sp->str)+
-                                     pa_chrsizx(wg->wf),
+                                     pa_chrsizy(wg->wf)*0.5,
                             pa_chrsizy(wg->wf)*TABHGT-3);
 
         }
         fcolort(wg->wf, th_tabdis); /* set color disabled */
         fprintf(wg->wf, "%s", sp->str); /* place button face */
-        if (sp->next) fprintf(wg->wf, "   "); /* space off */
+        /* space off between tabs */
+        if (sp->next) pa_cursorg(wg->wf, pa_curxg(wg->wf)+pa_chrsizy(wg->wf),
+                      pa_curyg(wg->wf));
         sp = sp->next; /* next tab */
         sc++; /* count */
 
@@ -3939,7 +3941,7 @@ void pa_tabbarsizg(FILE* f, pa_tabori tor, int cw, int ch, int* w, int* h,
 {
 
     /* find width */
-    if (tor == pa_toleft || tor == pa_toright) *w = cw+pa_chrsizx(win0)*TABHGT;
+    if (tor == pa_toleft || tor == pa_toright) *w = cw+pa_chrsizy(win0)*TABHGT;
     else *w = cw;
     /* find height */
     if (tor == pa_toleft || tor == pa_toright) *w = ch;
@@ -3947,7 +3949,7 @@ void pa_tabbarsizg(FILE* f, pa_tabori tor, int cw, int ch, int* w, int* h,
     /* find client offset */
     if (tor == pa_toleft) *ox = pa_chrsizy(win0)*TABHGT;
     else *ox = 0;
-    if (tor == pa_totop) *oy = pa_chrsizx(win0)*TABHGT;
+    if (tor == pa_totop) *oy = pa_chrsizy(win0)*TABHGT;
     else *oy = 0;
 
 }
@@ -3987,15 +3989,15 @@ void pa_tabbarclientg(FILE* f, pa_tabori tor, int w, int h, int* cw, int* ch,
 {
 
     /* find width */
-    if (tor == pa_toleft || tor == pa_toright) *cw = w-pa_chrsizx(win0)*1.5;
+    if (tor == pa_toleft || tor == pa_toright) *cw = w-pa_chrsizy(win0)*TABHGT;
     else *cw = w;
     /* find height */
     if (tor == pa_toleft || tor == pa_toright) *cw = h;
-    else *cw = w-pa_chrsizy(win0)*1.5;
+    else *cw = w-pa_chrsizy(win0)*TABHGT;
     /* find client offset */
-    if (tor == pa_toleft) *ox = pa_chrsizy(win0)*1.5;
+    if (tor == pa_toleft) *ox = pa_chrsizy(win0)*TABHGT;
     else *ox = 0;
-    if (tor == pa_totop) *oy = pa_chrsizx(win0)*1.5;
+    if (tor == pa_totop) *oy = pa_chrsizy(win0)*TABHGT;
     else *oy = 0;
 
 }
