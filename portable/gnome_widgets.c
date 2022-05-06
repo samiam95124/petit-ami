@@ -2312,12 +2312,13 @@ static void tabbar_draw(wigptr wg)
     pa_cursorg(wg->wf, pa_chrsizx(wg->wf)*1.0, pa_chrsizy(wg->wf)*0.5);
     sp = wg->strlst; /* index tab string list */
     sc = 1; /* set first string */
-    while (sp) {
+    while (sp && pa_curxg(wg->wf) <= pa_maxxg(wg->wf)) {
 
-        if (sc == wg->ss) { /* draw select */
+        if (sc == wg->ss || sc == wg->sh) { /* draw select/hover */
 
             pa_linewidth(wg->wf, 6);
-            fcolort(wg->wf, th_tabsel);
+            if (sc == wg->ss) fcolort(wg->wf, th_tabsel);
+            else fcolort(wg->wf, th_outline1);
             pa_line(wg->wf, pa_curxg(wg->wf)-pa_chrsizx(wg->wf),
                             pa_chrsizy(wg->wf)*TABHGT-3,
                             pa_curxg(wg->wf)+pa_strsiz(wg->wf, sp->str)+
