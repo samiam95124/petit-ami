@@ -2372,17 +2372,18 @@ static void tabbar_event(pa_evtrec* ev, wigptr wg)
         wg->mpy = ev->moupyg;
 
         /* find which string the mouse is over */
-        x = pa_chrsizx(wg->wf)*1.0; /* space to first string */
+        x = pa_chrsizy(wg->wf); /* space to first string */
         sp = wg->strlst; /* index top of string list */
         sc = 1; /* set first string */
         wg->sh = 0; /* set no string selected */
         while (sp) { /* traverse string list */
 
             /* if within the string bounding box, select it */
-            if (wg->mpx >= x && wg->mpx <= x+pa_strsiz(wg->wf, sp->str))
+            if (wg->mpx >= x-pa_chrsizy(wg->wf)*0.5 &&
+                wg->mpx <= x+pa_strsiz(wg->wf, sp->str)+pa_chrsizy(wg->wf)*0.5)
                 wg->sh = sc;
             /* next tab */
-            x += pa_strsiz(wg->wf, sp->str)+pa_strsiz(wg->wf, "   ");
+            x += pa_strsiz(wg->wf, sp->str)+pa_chrsizy(wg->wf);
             sc++; /* next select */
             sp = sp->next; /* next string */
 
