@@ -96,6 +96,7 @@ static enum { /* debug levels */
 /* user defined messages */
 #define WMC_LGTFOC pa_etwidget+0 /* widget message code: light up focus */
 #define WMC_DRKFOC pa_etwidget+1 /* widget message code: turn off focus */
+#define TABHGT 2 /* tab bar tab height /* char size y */
 
 /* macro to make a color from RGB values */
 #define RGB(r, g, b) (r<<16|g<<8|b)
@@ -132,6 +133,9 @@ static enum { /* debug levels */
 #define TD_DROPARROW        BW(61)              /* dropbox arrow */
 #define TD_DROPTEXT         BW(0)               /* dropbox text */
 #define TD_SLDINT           BW(233)             /* slider track internal */
+#define TD_TABDIS           BW(154)             /* tab unselected text */
+#define TD_TABBACK          BW(247)             /* tab background */
+#define TD_TABSEL           RGB(233, 84, 32)    /* tab selected underbar */
 
 /* values table ids */
 
@@ -160,7 +164,10 @@ typedef enum {
     th_droparrow,        /* dropbox arrow */
     th_droptext,         /* dropbox text */
     th_sldint,           /* slider track internal */
-    th_endmarker        /* end of theme entries */
+    th_tabdis,           /* tab unselected text */
+    th_tabback,          /* tab background */
+    th_tabsel,           /* tab selected underbar */
+    th_endmarker         /* end of theme entries */
 
 } themeindex;
 
@@ -2284,6 +2291,46 @@ static void tabbar_draw(wigptr wg)
 
 {
 
+    pa_strptr sp; /* string list pointer */
+    int       sc;
+
+    /* color the background */
+    pa_fcolor(wg->wf, pa_white);
+    pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
+    fcolort(wg->wf, th_tabback);
+    pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_chrsizy(wg->wf)*TABHGT);
+    /* outline */
+    pa_linewidth(wg->wf, 2);
+    fcolort(wg->wf, th_outline1);
+    pa_rect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1,
+             pa_maxyg(wg->wf)-1);
+    pa_line(wg->wf, 1, pa_chrsizy(wg->wf)*TABHGT,
+                    pa_maxxg(wg->wf), pa_chrsizy(wg->wf)*TABHGT);
+    /* draw tab text */
+    pa_cursorg(wg->wf, pa_chrsizx(wg->wf)*1.0, pa_chrsizy(wg->wf)*0.5);
+    sp = wg->strlst; /* index tab string list */
+    sc = 1; /* set first string */
+    while (sp) {
+
+        if (sc == wg->ss) { /* draw select */
+
+            pa_linewidth(wg->wf, 6);
+            fcolort(wg->wf, th_tabsel);
+            pa_line(wg->wf, pa_curxg(wg->wf)-pa_chrsizx(wg->wf),
+                            pa_chrsizy(wg->wf)*TABHGT-3,
+                            pa_curxg(wg->wf)+pa_strsiz(wg->wf, sp->str)+
+                                     pa_chrsizx(wg->wf),
+                            pa_chrsizy(wg->wf)*TABHGT-3);
+
+        }
+        fcolort(wg->wf, th_tabdis); /* set color disabled */
+        fprintf(wg->wf, "%s", sp->str); /* place button face */
+        if (sp->next) fprintf(wg->wf, "   "); /* space off */
+        sp = sp->next; /* next tab */
+        sc++; /* count */
+
+    }
+
 }
 
 static void tabbar_event(pa_evtrec* ev, wigptr wg)
@@ -3832,15 +3879,15 @@ void pa_tabbarsizg(FILE* f, pa_tabori tor, int cw, int ch, int* w, int* h,
 {
 
     /* find width */
-    if (tor == pa_toleft || tor == pa_toright) *w = cw+pa_chrsizx(win0)*1.5;
+    if (tor == pa_toleft || tor == pa_toright) *w = cw+pa_chrsizx(win0)*TABHGT;
     else *w = cw;
     /* find height */
     if (tor == pa_toleft || tor == pa_toright) *w = ch;
-    else *w = cw+pa_chrsizy(win0)*1.5;
+    else *h = ch+pa_chrsizy(win0)*TABHGT;
     /* find client offset */
-    if (tor == pa_toleft) *ox = pa_chrsizy(win0)*1.5;
+    if (tor == pa_toleft) *ox = pa_chrsizy(win0)*TABHGT;
     else *ox = 0;
-    if (tor == pa_totop) *oy = pa_chrsizx(win0)*1.5;
+    if (tor == pa_totop) *oy = pa_chrsizx(win0)*TABHGT;
     else *oy = 0;
 
 }
@@ -4225,6 +4272,9 @@ static void pa_init_widgets(int argc, char *argv[])
     themetable[th_droparrow]        = TD_DROPARROW;
     themetable[th_droptext]         = TD_DROPTEXT;
     themetable[th_sldint]           = TD_SLDINT;
+    themetable[th_tabdis]           = TD_TABDIS;
+    themetable[th_tabback]          = TD_TABBACK;
+    themetable[th_tabsel]           = TD_TABSEL;
 
 }
 

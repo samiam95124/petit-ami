@@ -1442,7 +1442,6 @@ int main(void)
 
     /* ************************* Graphical slider test ************************ */
 
-#endif
     printf("\f");
     printf("Graphical slider test\n");
     printf("\n");
@@ -1588,6 +1587,7 @@ int main(void)
 
    /* ************************* Graphical tab bar test ************************ */
 
+#endif
     printf("\f");
     printf("Graphical tab bar test\n");
     printf("\n");
@@ -1603,8 +1603,9 @@ int main(void)
     sp->str = str("Left");
     sp->next = lp;
     lp = sp;
-    pa_tabbarsizg(stdout, pa_totop, 200, 20, &x, &y, &ox, &oy);
-    pa_tabbarg(stdout, 150, 50, 150+x-1, 50+y-1, lp, pa_totop, 1);
+    pa_tabbarsizg(stdout, pa_totop, 400/*200*/, 400/*20*/, &x, &y, &ox, &oy);
+    pa_tabbarg(stdout, 100, 100, 100+x-1, 100+y-1, lp, pa_totop, 1);
+waitnext();
 
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("Bottom");
