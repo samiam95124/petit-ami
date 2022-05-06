@@ -1605,8 +1605,8 @@ int main(void)
     lp = sp;
     pa_tabbarsizg(stdout, pa_totop, 400/*200*/, 400/*20*/, &x, &y, &ox, &oy);
     pa_tabbarg(stdout, 100, 100, 100+x-1, 100+y-1, lp, pa_totop, 1);
-waitnext();
 
+#if 0
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("Bottom");
     lp->next = NULL;
@@ -1648,6 +1648,7 @@ waitnext();
     lp = sp;
     pa_tabbarsizg(stdout, pa_toleft, 20, 200, &x, &y, &ox, &oy);
     pa_tabbarg(stdout, 50, 100, 50+x-1, 100+y-1, lp, pa_toleft, 4);
+#endif
 
     do {
 

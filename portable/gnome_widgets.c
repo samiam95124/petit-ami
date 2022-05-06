@@ -219,6 +219,7 @@ typedef struct wigrec {
     int    ppos;       /* progress bar position */
     pa_strptr strlst;  /* string list */
     int    ss;         /* string selected, 0 if none */
+    int    sh;         /* string hovered, 0 if none */
     int    px, py;     /* position of widget in parent */
     int    cid;        /* child window id */
     int    grab;       /* mouse grabs scrollbar/slider */
@@ -445,6 +446,7 @@ static wigptr getwig(void)
     wp->ppos = 0; /* progress bar extreme left */
     wp->strlst = NULL; /* clear string list */
     wp->ss = 0; /* no string selected */
+    wp->sh = 0; /* no string hovered */
     wp->px = 0; /* clear origin in parent */
     wp->py = 0;
     wp->cid = 0; /* clear child id */
@@ -2337,7 +2339,64 @@ static void tabbar_event(pa_evtrec* ev, wigptr wg)
 
 {
 
+    pa_evtrec er; /* outbound button event */
+    int       x;
+    int       sc;
+    pa_strptr sp;
+
     if (ev->etype == pa_etredraw) tabbar_draw(wg); /* redraw the window */
+    else if (ev->etype == pa_etmouba && ev->amoubn == 1) {
+
+        /* note that if there is a click in the window, there must have also
+           a mouse move */
+        if (wg->sh) { /* there is a string hover */
+
+            wg->ss = wg->sh; /* set hover as select */
+            /* send event back to parent window */
+            er.etype = pa_ettabbar; /* set tabbar event */
+            er.tabid = wg->id; /* set id */
+            er.tabsel = wg->sh; /* set string select */
+            /* send the event to the parent */
+            pa_sendevent(wg->parent, &er);
+            tabbar_draw(wg); /* redraw the window */
+
+        }
+
+    } else if (ev->etype == pa_etmoumovg) {
+
+        /* track position */
+        wg->mpx = ev->moupxg; /* set present position */
+        wg->mpy = ev->moupyg;
+
+        /* find which string the mouse is over */
+        x = pa_chrsizx(wg->wf)*1.0; /* space to first string */
+        sp = wg->strlst; /* index top of string list */
+        sc = 1; /* set first string */
+        wg->sh = 0; /* set no string selected */
+        while (sp) { /* traverse string list */
+
+            /* if within the string bounding box, select it */
+            if (wg->mpx >= x && wg->mpx <= x+pa_strsiz(wg->wf, sp->str))
+                wg->sh = sc;
+            /* next tab */
+            x += pa_strsiz(wg->wf, sp->str)+pa_strsiz(wg->wf, "   ");
+            sc++; /* next select */
+            sp = sp->next; /* next string */
+
+        }
+        tabbar_draw(wg); /* redraw the window */
+
+    } else if (ev->etype == pa_ethover) {
+
+        wg->hover = 1; /* hovered */
+        tabbar_draw(wg); /* redraw the window */
+
+    } else if (ev->etype == pa_etnohover) {
+
+        wg->hover = 0; /* not hovered */
+        tabbar_draw(wg); /* redraw the window */
+
+    }
 
 }
 
