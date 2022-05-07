@@ -2391,7 +2391,8 @@ static void tabbar_event(pa_evtrec* ev, wigptr wg)
 
             /* if within the string bounding box, select it */
             if (wg->mpx >= x-pa_chrsizy(wg->wf)*0.5 &&
-                wg->mpx <= x+pa_strsiz(wg->wf, sp->str)+pa_chrsizy(wg->wf)*0.5)
+                wg->mpx <= x+pa_strsiz(wg->wf, sp->str)+pa_chrsizy(wg->wf)*0.5 &&
+                wg->mpy <= pa_chrsizy(wg->wf)*TABHGT)
                 wg->sh = sc;
             /* next tab */
             x += pa_strsiz(wg->wf, sp->str)+pa_chrsizy(wg->wf);
