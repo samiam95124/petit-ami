@@ -2369,7 +2369,7 @@ static void tabbar_event(pa_evtrec* ev, wigptr wg)
             /* send event back to parent window */
             er.etype = pa_ettabbar; /* set tabbar event */
             er.tabid = wg->id; /* set id */
-            er.tabsel = wg->sh; /* set string select */
+            er.tabsel = wg->ss; /* set string select */
             /* send the event to the parent */
             pa_sendevent(wg->parent, &er);
             tabbar_draw(wg); /* redraw the window */
@@ -2420,6 +2420,52 @@ static void tabbar_event(pa_evtrec* ev, wigptr wg)
 
         wg->focus = 0; /* out of focus */
         tabbar_draw(wg); /* redraw the window */
+
+    } else if (ev->etype == pa_etleft) {
+
+        if (wg->focus && sp) {
+
+            /* in focus, there is a list */
+            wg->ss--; /* back up */
+            if (wg->ss < 1) { /* off end, go to last entry */
+
+                sp = wg->strlst; /* index top of string list */
+                sc = 1; /* set first string */
+                /* find last */
+                while (sp->next) { sp = sp->next; sc++; }
+                wg->ss = sc;
+
+            }
+            /* send event back to parent window */
+            er.etype = pa_ettabbar; /* set tabbar event */
+            er.tabid = wg->id; /* set id */
+            er.tabsel = wg->ss; /* set string select */
+            /* send the event to the parent */
+            pa_sendevent(wg->parent, &er);
+            tabbar_draw(wg); /* redraw the window */
+
+        }
+
+    } else if (ev->etype == pa_etright) {
+
+        if (wg->focus && sp) { /* in focus, there is a list */
+
+            /* find last entry */
+            sp = wg->strlst; /* index top of string list */
+            sc = 1; /* set first string */
+            /* find last */
+            while (sp->next) { sp = sp->next; sc++; }
+            wg->ss++; /* next tab */
+            if (wg->ss > sc) wg->ss = 1; /* off end, wrap */
+            /* send event back to parent window */
+            er.etype = pa_ettabbar; /* set tabbar event */
+            er.tabid = wg->id; /* set id */
+            er.tabsel = wg->ss; /* set string select */
+            /* send the event to the parent */
+            pa_sendevent(wg->parent, &er);
+            tabbar_draw(wg); /* redraw the window */
+
+        }
 
     }
 
