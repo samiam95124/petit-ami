@@ -1,10 +1,12 @@
 /** ****************************************************************************
 
-                           WIDGETS PACKAGE FOR GNOME APPEARANCE
+\file
 
-                            Copyright (C) 2021 Scott A. Franco
+\brief WIDGETS PACKAGE FOR GNOME APPEARANCE
 
-                                2021/08/08 S. A. Franco
+Copyright (C) 2021 Scott A. Franco
+
+2021/08/08 S. A. Franco
 
 This is the Gnome look and feel widget package for Petit-Ami. This is used for
 systems that don't have a standard widget package, like XWindows. It uses
@@ -256,7 +258,10 @@ Process error
 
 *******************************************************************************/
 
-static void error(char* es)
+static void error(
+    /** Error string */ char* es
+)
+
 
 {
 
@@ -264,6 +269,172 @@ static void error(char* es)
     fflush(stderr);
 
     exit(1);
+
+}
+
+/******************************************************************************
+
+Print event type
+
+A diagnostic, print the given event code as a symbol to the error file.
+
+******************************************************************************/
+
+static void prtevtt(pa_evtcod e)
+
+{
+
+    switch (e) {
+
+        case pa_etchar:    fprintf(stderr, "etchar   "); break;
+        case pa_etup:      fprintf(stderr, "etup     "); break;
+        case pa_etdown:    fprintf(stderr, "etdown   "); break;
+        case pa_etleft:    fprintf(stderr, "etleft   "); break;
+        case pa_etright:   fprintf(stderr, "etright  "); break;
+        case pa_etleftw:   fprintf(stderr, "etleftw  "); break;
+        case pa_etrightw:  fprintf(stderr, "etrightw "); break;
+        case pa_ethome:    fprintf(stderr, "ethome   "); break;
+        case pa_ethomes:   fprintf(stderr, "ethomes  "); break;
+        case pa_ethomel:   fprintf(stderr, "ethomel  "); break;
+        case pa_etend:     fprintf(stderr, "etend    "); break;
+        case pa_etends:    fprintf(stderr, "etends   "); break;
+        case pa_etendl:    fprintf(stderr, "etendl   "); break;
+        case pa_etscrl:    fprintf(stderr, "etscrl   "); break;
+        case pa_etscrr:    fprintf(stderr, "etscrr   "); break;
+        case pa_etscru:    fprintf(stderr, "etscru   "); break;
+        case pa_etscrd:    fprintf(stderr, "etscrd   "); break;
+        case pa_etpagd:    fprintf(stderr, "etpagd   "); break;
+        case pa_etpagu:    fprintf(stderr, "etpagu   "); break;
+        case pa_ettab:     fprintf(stderr, "ettab    "); break;
+        case pa_etenter:   fprintf(stderr, "etenter  "); break;
+        case pa_etinsert:  fprintf(stderr, "etinsert "); break;
+        case pa_etinsertl: fprintf(stderr, "etinsertl"); break;
+        case pa_etinsertt: fprintf(stderr, "etinsertt"); break;
+        case pa_etdel:     fprintf(stderr, "etdel    "); break;
+        case pa_etdell:    fprintf(stderr, "etdell   "); break;
+        case pa_etdelcf:   fprintf(stderr, "etdelcf  "); break;
+        case pa_etdelcb:   fprintf(stderr, "etdelcb  "); break;
+        case pa_etcopy:    fprintf(stderr, "etcopy   "); break;
+        case pa_etcopyl:   fprintf(stderr, "etcopyl  "); break;
+        case pa_etcan:     fprintf(stderr, "etcan    "); break;
+        case pa_etstop:    fprintf(stderr, "etstop   "); break;
+        case pa_etcont:    fprintf(stderr, "etcont   "); break;
+        case pa_etprint:   fprintf(stderr, "etprint  "); break;
+        case pa_etprintb:  fprintf(stderr, "etprintb "); break;
+        case pa_etprints:  fprintf(stderr, "etprints "); break;
+        case pa_etfun:     fprintf(stderr, "etfun    "); break;
+        case pa_etmenu:    fprintf(stderr, "etmenu   "); break;
+        case pa_etmouba:   fprintf(stderr, "etmouba  "); break;
+        case pa_etmoubd:   fprintf(stderr, "etmoubd  "); break;
+        case pa_etmoumov:  fprintf(stderr, "etmoumov "); break;
+        case pa_ettim:     fprintf(stderr, "ettim    "); break;
+        case pa_etjoyba:   fprintf(stderr, "etjoyba  "); break;
+        case pa_etjoybd:   fprintf(stderr, "etjoybd  "); break;
+        case pa_etjoymov:  fprintf(stderr, "etjoymov "); break;
+        case pa_etresize:  fprintf(stderr, "etresize "); break;
+        case pa_etterm:    fprintf(stderr, "etterm   "); break;
+        case pa_etmoumovg: fprintf(stderr, "etmoumovg"); break;
+        case pa_etframe:   fprintf(stderr, "etframe  "); break;
+        case pa_etredraw:  fprintf(stderr, "etredraw "); break;
+        case pa_etmin:     fprintf(stderr, "etmin    "); break;
+        case pa_etmax:     fprintf(stderr, "etmax    "); break;
+        case pa_etnorm:    fprintf(stderr, "etnorm   "); break;
+        case pa_etfocus:   fprintf(stderr, "etfocus  "); break;
+        case pa_etnofocus: fprintf(stderr, "etnofocus"); break;
+        case pa_ethover:   fprintf(stderr, "ethover  "); break;
+        case pa_etnohover: fprintf(stderr, "etnohover"); break;
+        case pa_etmenus:   fprintf(stderr, "etmenus  "); break;
+        case pa_etbutton:  fprintf(stderr, "etbutton "); break;
+        case pa_etchkbox:  fprintf(stderr, "etchkbox "); break;
+        case pa_etradbut:  fprintf(stderr, "etradbut "); break;
+        case pa_etsclull:  fprintf(stderr, "etsclull "); break;
+        case pa_etscldrl:  fprintf(stderr, "etscldrl "); break;
+        case pa_etsclulp:  fprintf(stderr, "etsclulp "); break;
+        case pa_etscldrp:  fprintf(stderr, "etscldrp "); break;
+        case pa_etsclpos:  fprintf(stderr, "etsclpos "); break;
+        case pa_etedtbox:  fprintf(stderr, "etedtbox "); break;
+        case pa_etnumbox:  fprintf(stderr, "etnumbox "); break;
+        case pa_etlstbox:  fprintf(stderr, "etlstbox "); break;
+        case pa_etdrpbox:  fprintf(stderr, "etdrpbox "); break;
+        case pa_etdrebox:  fprintf(stderr, "etdrebox "); break;
+        case pa_etsldpos:  fprintf(stderr, "etsldpos "); break;
+        case pa_ettabbar:  fprintf(stderr, "ettabbar "); break;
+
+        default: fprintf(stderr, "???");
+
+    }
+
+}
+
+/******************************************************************************
+
+Print Petit-Ami event diagnostic
+
+Prints a decoded version of PA events on one line, including paraemters. Only
+prints if the dump PA event flag is true. Does not terminate the line.
+
+Note: does not output a debugging preamble. If that is required, print it
+before calling this routine.
+
+******************************************************************************/
+
+static void prtevt(pa_evtptr er)
+
+{
+
+    fprintf(stderr, "PA Event: Window: %d ", er->winid);
+    prtevtt(er->etype);
+    switch (er->etype) {
+
+        case pa_etchar: fprintf(stderr, ": char: %c", er->echar); break;
+        case pa_ettim: fprintf(stderr, ": timer: %d", er->timnum); break;
+        case pa_etmoumov: fprintf(stderr, ": mouse: %d x: %4d y: %4d",
+                                  er->mmoun, er->moupx, er->moupy); break;
+        case pa_etmouba: fprintf(stderr, ": mouse: %d button: %d",
+                                 er->amoun, er->amoubn); break;
+        case pa_etmoubd: fprintf(stderr, ": mouse: %d button: %d",
+                                 er->dmoun, er->dmoubn); break;
+        case pa_etjoyba: fprintf(stderr, ": joystick: %d button: %d",
+                                 er->ajoyn, er->ajoybn); break;
+        case pa_etjoybd: fprintf(stderr, ": joystick: %d button: %d",
+                                 er->djoyn, er->djoybn); break;
+        case pa_etjoymov: fprintf(stderr, ": joystick: %d x: %4d y: %4d z: %4d "
+                                  "a4: %4d a5: %4d a6: %4d", er->mjoyn,
+                                  er->joypx, er->joypy, er->joypz,
+                                  er->joyp4, er->joyp5, er->joyp6); break;
+        case pa_etresize: fprintf(stderr, ": x: %d y: %d xg: %d yg: %d",
+                                  er->rszx, er->rszy,
+                                  er->rszxg, er->rszyg); break;
+        case pa_etfun: fprintf(stderr, ": key: %d", er->fkey); break;
+        case pa_etmoumovg: fprintf(stderr, ": mouse: %d x: %4d y: %4d",
+                                   er->mmoung, er->moupxg, er->moupyg); break;
+        case pa_etredraw: fprintf(stderr, ": sx: %4d sy: %4d ex: %4d ey: %4d",
+                                  er->rsx, er->rsy, er->rex, er->rey); break;
+        case pa_etmenus: fprintf(stderr, ": id: %d", er->menuid); break;
+        case pa_etbutton: fprintf(stderr, ": id: %d", er->butid); break;
+        case pa_etchkbox: fprintf(stderr, ": id: %d", er->ckbxid); break;
+        case pa_etradbut: fprintf(stderr, ": id: %d", er->radbid); break;
+        case pa_etsclull: fprintf(stderr, ": id: %d", er->sclulid); break;
+        case pa_etscldrl: fprintf(stderr, ": id: %d", er->scldrid); break;
+        case pa_etsclulp: fprintf(stderr, ": id: %d", er->sclupid); break;
+        case pa_etscldrp: fprintf(stderr, ": id: %d", er->scldpid); break;
+        case pa_etsclpos: fprintf(stderr, ": id: %d position: %d",
+                                  er->sclpid, er->sclpos); break;
+        case pa_etedtbox: fprintf(stderr, ": id: %d", er->edtbid); break;
+        case pa_etnumbox: fprintf(stderr, ": id: %d number: %d",
+                                  er->numbid, er->numbsl); break;
+        case pa_etlstbox: fprintf(stderr, ": id: %d select: %d",
+                                  er->lstbid, er->lstbsl); break;
+        case pa_etdrpbox: fprintf(stderr, ": id: %d select: %d",
+                                  er->drpbid, er->drpbsl); break;
+        case pa_etdrebox: fprintf(stderr, ": id: %d", er->drebid); break;
+        case pa_etsldpos: fprintf(stderr, ": id: %d postion: %d",
+                                  er->sldpid, er->sldpos); break;
+        case pa_ettabbar: fprintf(stderr, ": id: %d select: %d",
+                                  er->tabid, er->tabsel); break;
+        default: ;
+
+    }
 
 }
 
@@ -275,7 +446,9 @@ Places the given string into dynamic storage, and returns that.
 
 *******************************************************************************/
 
-static char* str(char* s)
+static char* str(
+    /** String to place in storage */ char* s
+)
 
 {
 
@@ -296,7 +469,10 @@ Makes a copy of a string list
 
 *******************************************************************************/
 
-static void cpystrlst(pa_strptr* dp, pa_strptr sp)
+static void cpystrlst(
+    /** Destination string list */ pa_strptr* dp,
+    /** Source string list */      pa_strptr sp
+)
 
 {
 
@@ -2424,7 +2600,7 @@ static void tabbar_event(pa_evtrec* ev, wigptr wg)
 
     } else if (ev->etype == pa_etleft) {
 
-        if (wg->focus && sp) {
+        if (wg->focus && wg->strlst) {
 
             /* in focus, there is a list */
             wg->ss--; /* back up */
