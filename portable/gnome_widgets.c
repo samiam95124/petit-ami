@@ -191,43 +191,44 @@ typedef enum  {
 typedef struct wigrec* wigptr;
 typedef struct wigrec {
 
-    wigptr next;       /* next entry in list */
-    wigtyp typ;        /* type of widget */
-    int    pressed;    /* in the pressed state */
-    int    lpressed;   /* last pressed state */
-    int    select;     /* the current on/off state */
-    FILE*  wf;         /* output file for the widget window */
-    char*  face;       /* face text */
-    FILE*  parent;     /* parent window */
-    int    id;         /* id number */
-    int    wid;        /* widget window id */
-    int    enb;        /* widget is enabled */
-    int    sclsiz;     /* scrollbar size in MAXINT ratio */
-    int    sclpos;     /* scrollbar position in MAXINT ratio */
-    int    mpx, mpy;   /* mouse tracking in widget */
-    int    lmpx, lmpy; /* last mouse position */
-    int    curs;       /* text cursor */
-    int    tleft;      /* text left side index */
-    int    focus;      /* focused */
-    int    hover;      /* hovered */
-    int    ins;        /* insert/overwrite mode */
-    int    num;        /* allow only numeric entry */
-    int    lbnd;       /* low bound of number */
-    int    ubnd;       /* upper bound of number */
-    wigptr cw;         /* child/subclassed widget */
-    wigptr cw2;        /* child/subclassed widget 2 */
-    wigptr pw;         /* parent widget */
-    FILE*  pf;         /* parent file (used to send subclass messages) */
-    int    uppress;    /* up button pressed */
-    int    downpress;  /* down buton pressed */
-    int    ppos;       /* progress bar position */
-    pa_strptr strlst;  /* string list */
-    int    ss;         /* string selected, 0 if none */
-    int    sh;         /* string hovered, 0 if none */
-    int    px, py;     /* position of widget in parent */
-    int    cid;        /* child window id */
-    int    grab;       /* mouse grabs scrollbar/slider */
-    int    ticks;      /* tick marks on slider */
+    /* next entry in list */                 wigptr    next;
+    /* type of widget */                     wigtyp    typ;
+    /* in the pressed state */               int       pressed;
+    /* last pressed state */                 int       lpressed;
+    /* the current on/off state */           int       select;
+    /* output file for the widget window */  FILE*     wf;
+    /* face text */                          char*     face;
+    /* parent window */                      FILE*     parent;
+    /* id number */                          int       id;
+    /* widget window id */                   int       wid;
+    /* widget is enabled */                  int       enb;
+    /* scrollbar size in MAXINT ratio */     int       sclsiz;
+    /* scrollbar position in MAXINT ratio */ int       sclpos;
+    /* mouse tracking in widget */           int       mpx, mpy;
+    /* last mouse position */                int       lmpx, lmpy;
+    /* text cursor */                        int       curs;
+    /* text left side index */               int       tleft;
+    /* focused */                            int       focus;
+    /* hovered */                            int       hover;
+    /* insert/overwrite mode */              int       ins;
+    /* allow only numeric entry */           int       num;
+    /* low bound of number */                int       lbnd;
+    /* upper bound of number */              int       ubnd;
+    /* child/subclassed widget */            wigptr    cw;
+    /* child/subclassed widget 2 */          wigptr    cw2;
+    /* parent widget */                      wigptr    pw;
+    /* parent file (used to send subclass
+       messages) */                          FILE*     pf;
+    /* up button pressed */                  int       uppress;
+    /* down buton pressed */                 int       downpress;
+    /* progress bar position */              int       ppos;
+    /* string list */                        pa_strptr strlst;
+    /* string selected, 0 if none */         int       ss;
+    /* string hovered, 0 if none */          int       sh;
+    /* position of widget in parent */       int       px, py;
+    /* child window id */                    int       cid;
+    /* mouse grabs scrollbar/slider */       int       grab;
+    /* tick marks on slider */               int       ticks;
 
 } wigrec;
 
@@ -272,7 +273,7 @@ static void error(
 
 }
 
-/******************************************************************************
+/** ***************************************************************************
 
 Print event type
 
@@ -280,7 +281,9 @@ A diagnostic, print the given event code as a symbol to the error file.
 
 ******************************************************************************/
 
-static void prtevtt(pa_evtcod e)
+static void prtevtt(
+    /** Error code */ pa_evtcod e
+)
 
 {
 
@@ -366,7 +369,7 @@ static void prtevtt(pa_evtcod e)
 
 }
 
-/******************************************************************************
+/** ***************************************************************************
 
 Print Petit-Ami event diagnostic
 
@@ -378,7 +381,9 @@ before calling this routine.
 
 ******************************************************************************/
 
-static void prtevt(pa_evtptr er)
+static void prtevt(
+    /** Event record */ pa_evtptr er
+)
 
 {
 
@@ -438,11 +443,13 @@ static void prtevt(pa_evtptr er)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Place string in storage
 
 Places the given string into dynamic storage, and returns that.
+
+\returns Pointer to string copy in storage.
 
 *******************************************************************************/
 
@@ -471,7 +478,7 @@ Makes a copy of a string list
 
 static void cpystrlst(
     /** Destination string list */ pa_strptr* dp,
-    /** Source string list */      pa_strptr sp
+    /** Source string list */      pa_strptr  sp
 )
 
 {
@@ -514,7 +521,9 @@ Recycles a string list
 
 *******************************************************************************/
 
-static void frestrlst(pa_strptr sp)
+static void frestrlst(
+    /** String list */ pa_strptr sp
+)
 
 {
 
@@ -537,6 +546,8 @@ Get file entry
 
 Allocates and initializes a new file entry. File entries are left in the opnfil
 array, so are recycled in place.
+
+\returns Pointer to new file entry.
 
 *******************************************************************************/
 
@@ -564,7 +575,9 @@ Otherwise it is a no-op.
 
 *******************************************************************************/
 
-static void makfil(FILE* f)
+static void makfil(
+    /** File entry pointer */ FILE* f
+)
 
 {
 
@@ -578,12 +591,14 @@ static void makfil(FILE* f)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Get widget
 
 Get a widget and place into the window tracking list. If a free widget entry
 is available, that will be used, otherwise a new entry is allocated.
+
+\returns Pointer to new widget.
 
 *******************************************************************************/
 
@@ -635,7 +650,7 @@ static wigptr getwig(void)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Put widget
 
@@ -644,7 +659,8 @@ list.
 
 *******************************************************************************/
 
-static void putwig(wigptr wp)
+static void putwig(
+    /** Pointer to wiget to free */ wigptr wp)
 
 {
 
@@ -656,16 +672,21 @@ static void putwig(wigptr wp)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Find widget
 
 Given a file specification and a widget id, returns a pointer to the given
 widget. Validates the file and the widget number.
 
+\returns Pointer to found widget.
+
 *******************************************************************************/
 
-static wigptr fndwig(FILE* f, int id)
+static wigptr fndwig(
+    /** Window file pointer */ FILE* f,
+    /** Logical wiget id */    int id
+)
 
 {
 
@@ -682,7 +703,7 @@ static wigptr fndwig(FILE* f, int id)
 
 }
 
-/*******************************************************************************
+/** ****************************************************************************
 
 Send redraw to widget
 
@@ -692,7 +713,9 @@ to update itself with the new parameters.
 
 *******************************************************************************/
 
-static void widget_redraw(wigptr wp)
+static void widget_redraw(
+    /** Widget data block pointer */ wigptr wp
+)
 
 {
 
@@ -716,7 +739,10 @@ table.
 
 *******************************************************************************/
 
-static void fcolort(FILE* f, themeindex t)
+static void fcolort(
+    /** Window file pointer */ FILE*      f,
+    /** Theme color index */   themeindex t
+)
 
 {
 
@@ -734,12 +760,44 @@ table.
 
 *******************************************************************************/
 
-static void bcolort(FILE* f, themeindex t)
+static void bcolort(
+    /** Window file pointer */ FILE*      f,
+    /** Theme color index */   themeindex t
+)
 
 {
 
     pa_bcolorg(f, RED(themetable[t]), GREEN(themetable[t]),
                   BLUE(themetable[t]));
+
+}
+
+/** ****************************************************************************
+
+Find number of digits in value
+
+Finds the number of digits required to represent a decimal value. Does not
+consider the sign.
+
+*******************************************************************************/
+
+static int digits(int v)
+
+{
+
+    int p; /* power */
+    int c; /* count */
+
+    p = 1; /* set first power */
+    c = 1; /* set initial count (at least one digit) */
+    while (p < INT_MAX/10 && p < v) { /* will not overflow */
+
+        p *= 10; /* advance power */
+        c++; /* count digits */
+
+    }
+
+    return (c); /* return digits */
 
 }
 
@@ -751,7 +809,9 @@ Handles the events posted to buttons.
 
 *******************************************************************************/
 
-static void button_draw(wigptr wg)
+static void button_draw(
+    /** Widget data pointer */ wigptr wg
+)
 
 {
 
@@ -775,7 +835,10 @@ static void button_draw(wigptr wg)
 
 }
 
-static void button_event(pa_evtrec* ev, wigptr wg)
+static void button_event(
+    /** Event record pointer */ pa_evtrec* ev,
+    /** Widget data pointer */  wigptr     wg
+)
 
 {
 
@@ -824,7 +887,9 @@ Handles the events posted to checkboxes.
 
 *******************************************************************************/
 
-static void checkbox_draw(wigptr wg)
+static void checkbox_draw(
+    /** Widget data pointer */ wigptr wg
+)
 
 {
 
@@ -885,7 +950,10 @@ static void checkbox_draw(wigptr wg)
 
 }
 
-static void checkbox_event(pa_evtrec* ev, wigptr wg)
+static void checkbox_event(
+    /** Event record pointer */ pa_evtrec* ev,
+    /** Widget data pointer */  wigptr     wg
+)
 
 {
 
@@ -927,7 +995,9 @@ Handles the events posted to radiobuttons.
 
 *******************************************************************************/
 
-static void radiobutton_draw(wigptr wg)
+static void radiobutton_draw(
+    /** Widget data pointer */ wigptr wg
+)
 
 {
 
@@ -981,7 +1051,10 @@ static void radiobutton_draw(wigptr wg)
 
 }
 
-static void radiobutton_event(pa_evtrec* ev, wigptr wg)
+static void radiobutton_event(
+    /** Event record pointer */ pa_evtrec* ev,
+    /** Widget data pointer */  wigptr     wg
+)
 
 {
 
@@ -1022,7 +1095,9 @@ Handles the events posted to vertical scrollbars.
 
 *******************************************************************************/
 
-static void scrollvert_draw(wigptr wg)
+static void scrollvert_draw(
+    /** Widget data pointer */ wigptr wg
+)
 
 {
 
@@ -1095,7 +1170,10 @@ static void scrollvert_draw(wigptr wg)
 
 }
 
-static void scrollvert_event(pa_evtrec* ev, wigptr wg)
+static void scrollvert_event(
+    /** Event record pointer */ pa_evtrec* ev,
+    /** Widget data pointer */  wigptr     wg
+)
 
 {
 
@@ -1136,7 +1214,9 @@ Handles the events posted to horizontal scrollbars.
 
 *******************************************************************************/
 
-static void scrollhoriz_draw(wigptr wg)
+static void scrollhoriz_draw(
+    /** Widget data pointer */ wigptr wg
+)
 
 {
 
@@ -1210,7 +1290,10 @@ static void scrollhoriz_draw(wigptr wg)
 
 }
 
-static void scrollhoriz_event(pa_evtrec* ev, wigptr wg)
+static void scrollhoriz_event(
+    /** Event record pointer */ pa_evtrec* ev,
+    /** Widget data pointer */  wigptr     wg
+)
 
 {
 
@@ -1251,7 +1334,9 @@ Handles the events posted to group boxes.
 
 *******************************************************************************/
 
-static void group_draw(wigptr wg)
+static void group_draw(
+    /** Widget data pointer */ wigptr wg
+)
 
 {
 
@@ -1270,7 +1355,10 @@ static void group_draw(wigptr wg)
 
 }
 
-static void group_event(pa_evtrec* ev, wigptr wg)
+static void group_event(
+    /** Event record pointer */ pa_evtrec* ev,
+    /** Widget data pointer */  wigptr     wg
+)
 
 {
 
@@ -1286,7 +1374,9 @@ Handles the events posted to group boxes.
 
 *******************************************************************************/
 
-static void background_draw(wigptr wg)
+static void background_draw(
+    /** Widget data pointer */ wigptr wg
+)
 
 {
 
@@ -1297,7 +1387,10 @@ static void background_draw(wigptr wg)
 
 }
 
-static void background_event(pa_evtrec* ev, wigptr wg)
+static void background_event(
+    /** Event record pointer */ pa_evtrec* ev,
+    /** Widget data pointer */  wigptr     wg
+)
 
 {
 
@@ -1315,7 +1408,9 @@ Handles the events posted to edit boxes.
 
 static void numselbox_draw(wigptr wg);
 
-static void editbox_draw(wigptr wg)
+static void editbox_draw(
+    /** Widget data pointer */ wigptr wg
+)
 
 {
 
@@ -1420,7 +1515,10 @@ static void editbox_draw(wigptr wg)
 
 }
 
-static void editbox_event(pa_evtrec* ev, wigptr wg)
+static void editbox_event(
+    /** Event record pointer */ pa_evtrec* ev,
+    /** Widget data pointer */  wigptr     wg
+)
 
 {
 
@@ -1619,7 +1717,9 @@ Handles the events posted to number select boxes.
 
 *******************************************************************************/
 
-static void numselbox_draw(wigptr wg)
+static void numselbox_draw(
+    /** Widget data pointer */ wigptr wg
+)
 
 {
 
@@ -1674,7 +1774,10 @@ static void numselbox_draw(wigptr wg)
 
 }
 
-static void numselbox_event(pa_evtrec* ev, wigptr wg)
+static void numselbox_event(
+    /** Event record pointer */ pa_evtrec* ev,
+    /** Widget data pointer */  wigptr     wg
+)
 
 {
 
@@ -1772,13 +1875,15 @@ static void numselbox_event(pa_evtrec* ev, wigptr wg)
 
 /** ****************************************************************************
 
-Progress bar event handler
+Progress bar display handler
 
-Handles the events posted to progress bars.
+Handles the display of progress bars.
 
 *******************************************************************************/
 
-static void progbar_draw(wigptr wg)
+static void progbar_draw(
+    /** Widget data pointer */ wigptr wg
+)
 
 {
 
@@ -1803,7 +1908,18 @@ static void progbar_draw(wigptr wg)
 
 }
 
-static void progbar_event(pa_evtrec* ev, wigptr wg)
+/** ****************************************************************************
+
+Progress bar event handler
+
+Handles the events posted to progress bars.
+
+*******************************************************************************/
+
+static void progbar_event(
+    /** Event record pointer */ pa_evtrec* ev,
+    /** Widget data pointer */  wigptr     wg
+)
 
 {
 
@@ -1819,7 +1935,9 @@ Handles the events posted to list boxes.
 
 *******************************************************************************/
 
-static void listbox_draw(wigptr wg)
+static void listbox_draw(
+    /** Widget data pointer */ wigptr wg
+)
 
 {
 
@@ -1858,7 +1976,10 @@ static void listbox_draw(wigptr wg)
 
 }
 
-static void listbox_event(pa_evtrec* ev, wigptr wg)
+static void listbox_event(
+    /** Event record pointer */ pa_evtrec* ev,
+    /** Widget data pointer */  wigptr wg
+)
 
 {
 
@@ -1934,7 +2055,9 @@ Handles the events posted to drop boxes.
 static void widget(FILE* f, int x1, int y1, int x2, int y2, char* s, int id,
                    wigtyp typ, wigptr* wpr);
 
-static void dropbox_draw(wigptr wg)
+static void dropbox_draw(
+    /** Widget data pointer */ wigptr wg
+)
 
 {
 
@@ -1990,7 +2113,10 @@ static void dropbox_draw(wigptr wg)
 
 }
 
-static void dropbox_event(pa_evtrec* ev, wigptr wg)
+static void dropbox_event(
+    /** Event record pointer */ pa_evtrec* ev,
+    /** Widget data pointer */  wigptr wg
+)
 
 {
 
@@ -2096,7 +2222,9 @@ Handles the events posted to drop edit boxes.
 
 *******************************************************************************/
 
-static void dropeditbox_draw(wigptr wg)
+static void dropeditbox_draw(
+    /** Widget data pointer */ wigptr wg
+)
 
 {
 
@@ -2104,7 +2232,10 @@ static void dropeditbox_draw(wigptr wg)
 
 }
 
-static void dropeditbox_event(pa_evtrec* ev, wigptr wg)
+static void dropeditbox_event(
+    /** Event record pointer */ pa_evtrec* ev,
+    /** Widget data pointer */  wigptr wg
+)
 
 {
 
@@ -2161,7 +2292,9 @@ Handles the events posted to a horizontal slider.
 
 *******************************************************************************/
 
-static void slidehoriz_draw(wigptr wg)
+static void slidehoriz_draw(
+    /** Widget data pointer */ wigptr wg
+)
 
 {
 
@@ -2273,7 +2406,10 @@ static void slidehoriz_draw(wigptr wg)
 
 }
 
-static void slidehoriz_event(pa_evtrec* ev, wigptr wg)
+static void slidehoriz_event(
+    /** Event record pointer */ pa_evtrec* ev,
+    /** Widget data pointer */  wigptr wg
+)
 
 {
 
@@ -2314,7 +2450,9 @@ Handles the events posted to a vertical slider.
 
 *******************************************************************************/
 
-static void slidevert_draw(wigptr wg)
+static void slidevert_draw(
+    /** Widget data pointer */ wigptr wg
+)
 
 {
 
@@ -2426,7 +2564,10 @@ static void slidevert_draw(wigptr wg)
 
 }
 
-static void slidevert_event(pa_evtrec* ev, wigptr wg)
+static void slidevert_event(
+    /** Event record pointer */ pa_evtrec* ev,
+    /** Widget data pointer */  wigptr wg
+)
 
 {
 
@@ -2467,7 +2608,9 @@ Handles the events posted to a tab bar.
 
 *******************************************************************************/
 
-static void tabbar_draw(wigptr wg)
+static void tabbar_draw(
+    /** Widget data pointer */ wigptr wg
+)
 
 {
 
@@ -2525,7 +2668,10 @@ static void tabbar_draw(wigptr wg)
 
 }
 
-static void tabbar_event(pa_evtrec* ev, wigptr wg)
+static void tabbar_event(
+    /** Event record pointer */ pa_evtrec* ev,
+    /** Widget data pointer */  wigptr wg
+)
 
 {
 
@@ -2656,7 +2802,9 @@ Handles the events posted to widgets.
 
 *******************************************************************************/
 
-static void widget_event(pa_evtrec* ev)
+static void widget_event(
+    /** Event record pointer */ pa_evtrec* ev
+)
 
 {
 
@@ -2710,8 +2858,14 @@ will be passed back to the user.
 
 *******************************************************************************/
 
-static void widget(FILE* f, int x1, int y1, int x2, int y2, char* s, int id,
-                   wigtyp typ, wigptr* wpr)
+static void widget(
+    /** Parent window file */              FILE* f,
+    /** Containing rectangle for widget */ int x1, int y1, int x2, int y2,
+    /** Face string (if exists) */         char* s,
+    /** logical id for widget */           int id,
+    /** type code for widget */            wigtyp typ,
+    /** Widget I/O pointer */              wigptr* wpr
+)
 
 {
 
@@ -2769,9 +2923,13 @@ and will be closed by killwidget(), so there is no need to deallocate this
 widget id. Once an anonymous id is allocated, it is reserved until it is used
 and removed by killwidget().
 
+\returns File pointer for widget.
+
 *******************************************************************************/
 
-int pa_getwigid(FILE* f)
+int pa_getwigid(
+    /** Window file */ FILE* f
+)
 
 {
 
@@ -2797,7 +2955,10 @@ Removes the widget by id from the window.
 
 *******************************************************************************/
 
-void pa_killwidget(FILE* f, int id)
+void pa_killwidget(
+    /** Window file */       FILE* f,
+    /** Logical widget id */ int id
+)
 
 {
 
@@ -2823,7 +2984,11 @@ Selects or deselects a widget.
 
 *******************************************************************************/
 
-void pa_selectwidget(FILE* f, int id, int e)
+void pa_selectwidget(
+    /** Window file */       FILE* f,
+    /** Logical widget id */ int id,
+    /** On/off for select */ int e
+)
 
 {
 
@@ -2849,7 +3014,11 @@ Enables or disables a widget.
 
 *******************************************************************************/
 
-void pa_enablewidget(FILE* f, int id, int e)
+void pa_enablewidget(
+    /** Window file */       FILE* f,
+    /** Logical widget id */ int   id,
+    /** On/off for enable */ int   e
+)
 
 {
 
@@ -2873,13 +3042,18 @@ void pa_enablewidget(FILE* f, int id, int e)
 
 Get widget text
 
-Retrives the text from a widget. The widget must be one that contains text.
+Retrieves the text from a widget. The widget must be one that contains text.
 It is an error if this call is used on a widget that does not contain text.
 This error is currently unchecked.
 
 *******************************************************************************/
 
-void pa_getwidgettext(FILE* f, int id, char* s, int sl)
+void pa_getwidgettext(
+    /** Window file */                   FILE* f,
+    /** Logical widget id */             int   id,
+    /** Output pointer to widget text */ char* s,
+    /** Length of string buffer */       int   sl
+)
 
 {
 
@@ -2903,7 +3077,11 @@ Places text into an edit box.
 
 *******************************************************************************/
 
-void pa_putwidgettext(FILE* f, int id, char* s)
+void pa_putwidgettext(
+    /** Window file */       FILE* f,
+    /** Logical widget id */ int   id,
+    /** Text to place */     char* s
+)
 
 {
 
@@ -2927,7 +3105,12 @@ Changes the size of a widget.
 
 *******************************************************************************/
 
-void pa_sizwidgetg(FILE* f, int id, int x, int y)
+void pa_sizwidgetg(
+    /** Window file */         FILE* f,
+    /** Logical widget id */   int   id,
+    /** New size for widget */ int   x,
+                               int   y
+)
 
 {
 
@@ -2938,7 +3121,12 @@ void pa_sizwidgetg(FILE* f, int id, int x, int y)
 
 }
 
-void pa_sizwidget(FILE* f, int id, int x, int y)
+void pa_sizwidget(
+    /** Window file */         FILE* f,
+    /** Logical widget id */   int   id,
+    /** New size for widget */ int   x,
+                               int   y
+)
 
 {
 
@@ -2960,18 +3148,28 @@ Changes the parent position of a widget.
 
 *******************************************************************************/
 
-void pa_poswidgetg(FILE* f, int id, int x, int y)
+void pa_poswidgetg(
+    /** Window file */             FILE* f,
+    /** Logical widget id */       int   id,
+    /** New position for widget */ int   x,
+                                   int   y
+)
 
 {
 
-    wigptr    wp;  /* widget entry pointer */
+    wigptr wp;  /* widget entry pointer */
 
     wp = fndwig(f, id); /* index the widget */
     pa_setposg(wp->wf, x, y); /* set size */
 
 }
 
-void pa_poswidget(FILE* f, int id, int x, int y)
+void pa_poswidget(
+    /** Window file */             FILE* f,
+    /** Logical widget id */       int   id,
+    /** New position for widget */ int   x,
+                                   int   y
+)
 
 {
 
@@ -2991,11 +3189,14 @@ Place widget to back of Z order
 
 *******************************************************************************/
 
-void pa_backwidget(FILE* f, int id)
+void pa_backwidget(
+    /** Window file */       FILE* f,
+    /** Logical widget id */ int   id
+)
 
 {
 
-    wigptr    wp;  /* widget entry pointer */
+    wigptr wp;  /* widget entry pointer */
 
     wp = fndwig(f, id); /* index the widget */
     pa_back(wp->wf); /* place to back */
@@ -3008,7 +3209,10 @@ Place widget to back of Z order
 
 *******************************************************************************/
 
-void pa_frontwidget(FILE* f, int id)
+void pa_frontwidget(
+    /** Window file */       FILE* f,
+    /** Logical widget id */ int   id
+)
 
 {
 
@@ -3025,7 +3229,10 @@ Place input focus on a given widget
 
 *******************************************************************************/
 
-void pa_focuswidget(FILE* f, int id)
+void pa_focuswidget(
+    /** Window file */       FILE* f,
+    /** Logical widget id */ int   id
+)
 
 {
 
@@ -3047,7 +3254,12 @@ Note the spacing is copied from gnome defaults.
 
 *******************************************************************************/
 
-void pa_buttonsizg(FILE* f, char* s, int* w, int* h)
+void pa_buttonsizg(
+    /** Window file */           FILE* f,
+    /** Face string */           char* s,
+    /** Minimum width return */  int*  w,
+    /** Minimum height return */ int*  h
+)
 
 {
 
@@ -3056,7 +3268,12 @@ void pa_buttonsizg(FILE* f, char* s, int* w, int* h)
 
 }
 
-void pa_buttonsiz(FILE* f, char* s, int* w, int* h)
+void pa_buttonsiz(
+    /** Window file */           FILE* f,
+    /** Face string */           char* s,
+    /** Minimum width return */  int*  w,
+    /** Minimum height return */ int*  h
+)
 
 {
 
@@ -3075,7 +3292,15 @@ Creates a standard button within the specified rectangle, on the given window.
 
 *******************************************************************************/
 
-void pa_buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void pa_buttong(
+    /** Window file */         FILE* f,
+    /** Placement rectangle */ int   x1,
+                               int   y1,
+                               int   x2,
+                               int   y2,
+    /** Face string */         char* s,
+    /** logical widget id */   int   id
+)
 
 {
 
@@ -3087,7 +3312,15 @@ void pa_buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-void pa_button(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void pa_button(
+    /** Window file */         FILE* f,
+    /** Placement rectangle */ int   x1,
+                               int   y1,
+                               int   x2,
+                               int   y2,
+    /** Face string */         char* s,
+    /** logical widget id */   int   id
+)
 
 {
 
@@ -3109,7 +3342,12 @@ of a checkbox is calculated and returned.
 
 *******************************************************************************/
 
-void pa_checkboxsizg(FILE* f, char* s, int* w, int* h)
+void pa_checkboxsizg(
+    /** Window file */   FILE* f,
+    /** Face string */   char* s,
+    /** Return width */  int*  w,
+    /** Return height */ int*  h
+)
 
 {
 
@@ -3119,7 +3357,12 @@ void pa_checkboxsizg(FILE* f, char* s, int* w, int* h)
 
 }
 
-void pa_checkboxsiz(FILE* f, char* s,  int* w, int* h)
+void pa_checkboxsiz(
+    /** Window file */   FILE* f,
+    /** Face string */   char* s,
+    /** Return width */  int*  w,
+    /** return height */ int*  h
+)
 
 {
 
@@ -3139,7 +3382,14 @@ window.
 
 *******************************************************************************/
 
-void pa_checkboxg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void pa_checkboxg(
+    /** Window file */         FILE* f,
+    /** Placement rectangle */ int   x1,
+                               int   y1,
+                               int   x2,
+                               int   y2,
+    /** Face string */         char* s,
+    /** Logical widget id */   int   id)
 
 {
 
@@ -3150,7 +3400,15 @@ void pa_checkboxg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-void pa_checkbox(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void pa_checkbox(
+    /** Window file */         FILE* f,
+    /** Placement rectangle */ int   x1,
+                               int   y1,
+                               int   x2,
+                               int   y2,
+    /** Face string */         char* s,
+    /** logical widget id */   int   id
+)
 
 {
 
@@ -3172,7 +3430,11 @@ size of a radio button is calculated and returned.
 
 *******************************************************************************/
 
-void pa_radiobuttonsizg(FILE* f, char* s, int* w, int* h)
+void pa_radiobuttonsizg(
+    /** Window file */   FILE* f,
+    /** Face string */   char* s,
+    /** Return width */  int*  w,
+    /** Return height */ int*  h)
 
 {
 
@@ -3182,7 +3444,12 @@ void pa_radiobuttonsizg(FILE* f, char* s, int* w, int* h)
 
 }
 
-void pa_radiobuttonsiz(FILE* f, char* s, int* w, int* h)
+void pa_radiobuttonsiz(
+    /** Window file */   FILE* f,
+    /** Face string */   char* s,
+    /** Return width */  int*  w,
+    /** Return height */ int*  h
+)
 
 {
 
@@ -3202,7 +3469,15 @@ window.
 
 *******************************************************************************/
 
-void pa_radiobuttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void pa_radiobuttong(
+    /** Window file */         FILE* f,
+    /** Placement rectangle */ int   x1,
+                               int   y1,
+                               int   x2,
+                               int   y2,
+    /** Face string */         char* s,
+    /** logical widget id */   int   id
+)
 
 {
 
@@ -3213,7 +3488,15 @@ void pa_radiobuttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-void pa_radiobutton(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void pa_radiobutton(
+    /** Window file */ FILE* f,
+    /** Placement rectangle */ int   x1,
+                               int   y1,
+                               int   x2,
+                               int   y2,
+    /** Face string */         char* s,
+    /** logical widget id */   int   id
+)
 
 {
 
@@ -3235,8 +3518,16 @@ size of a group is calculated and returned.
 
 *******************************************************************************/
 
-void pa_groupsizg(FILE* f, char* s, int cw, int ch, int* w, int* h,
-               int* ox, int* oy)
+void pa_groupsizg(
+    /** Window file */           FILE* f,
+    /** Face string */           char* s,
+    /** Client width */          int   cw,
+    /** Client height */         int   ch,
+    /** Returns width */         int*  w,
+    /** Returns height */        int*  h,
+    /** Returns client origin */ int*  ox,
+                                 int*  oy
+)
 
 {
 
@@ -3249,8 +3540,16 @@ void pa_groupsizg(FILE* f, char* s, int cw, int ch, int* w, int* h,
 
 }
 
-void pa_groupsiz(FILE* f, char* s, int cw, int ch, int* w, int* h,
-              int* ox, int* oy)
+void pa_groupsiz(
+    /** Window file */           FILE* f,
+    /** Face string */           char* s,
+    /** Client width */          int cw,
+    /** Client height */         int ch,
+    /** Returns width */         int* w,
+    /** Returns height */        int* h,
+    /** Returns client origin */ int* ox,
+                                 int* oy
+)
 
 {
 
@@ -3275,7 +3574,15 @@ no messages. It is used as a background for other widgets.
 
 *******************************************************************************/
 
-void pa_groupg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void pa_groupg(
+    /** Window file */         FILE* f,
+    /** Placement rectangle */ int   x1,
+                               int   y1,
+                               int   x2,
+                               int   y2,
+    /** Face string */         char* s,
+    /** logical widget id */   int   id
+)
 
 {
 
@@ -3286,7 +3593,14 @@ void pa_groupg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-void pa_group(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void pa_group(
+    /** Window file */         FILE* f,
+    /** Placement rectangle */ int   x1,
+                               int   y1,
+                               int   x2,
+                               int   y2,
+    /** Face string */         char* s,
+    /** logical widget id */   int   id)
 
 {
 
@@ -3308,7 +3622,14 @@ generates no messages. It is used as a background for other widgets.
 
 *******************************************************************************/
 
-void pa_backgroundg(FILE* f, int x1, int y1, int x2, int y2, int id)
+void pa_backgroundg(
+    /** Window file */         FILE* f,
+    /** Placement rectangle */ int   x1,
+                               int   y1,
+                               int   x2,
+                               int   y2,
+    /** logical widget id */   int   id
+)
 
 {
 
@@ -3319,7 +3640,14 @@ void pa_backgroundg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void pa_background(FILE* f, int x1, int y1, int x2, int y2, int id)
+void pa_background(
+    /** Window file */         FILE* f,
+    /** Placement rectangle */ int   x1,
+                               int   y1,
+                               int   x2,
+                               int   y2,
+    /** logical widget id */   int   id
+)
 
 {
 
@@ -3341,7 +3669,11 @@ scrollbar is calculated and returned.
 
 *******************************************************************************/
 
-void pa_scrollvertsizg(FILE* f, int* w, int* h)
+void pa_scrollvertsizg(
+    /** Window file */    FILE* f,
+    /** Returns width */  int*  w,
+    /** Returns height */ int*  h
+)
 
 {
 
@@ -3350,7 +3682,11 @@ void pa_scrollvertsizg(FILE* f, int* w, int* h)
 
 }
 
-void pa_scrollvertsiz(FILE* f, int* w, int* h)
+void pa_scrollvertsiz(
+    /** Window file */    FILE* f,
+    /** Returns width */  int*  w,
+    /** Returns height */ int*  h
+)
 
 {
 
@@ -3369,7 +3705,14 @@ Creates a vertical scrollbar.
 
 *******************************************************************************/
 
-void pa_scrollvertg(FILE* f, int x1, int y1, int x2, int y2, int id)
+void pa_scrollvertg(
+    /** Window file */         FILE* f,
+    /** Placement rectangle */ int   x1,
+                               int   y1,
+                               int   x2,
+                               int   y2,
+    /** logical widget id */   int   id
+)
 
 {
 
@@ -3380,7 +3723,14 @@ void pa_scrollvertg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void pa_scrollvert(FILE* f, int x1, int y1, int x2, int y2, int id)
+void pa_scrollvert(
+    /** Window file */         FILE* f,
+    /** Placement rectangle */ int   x1,
+                               int   y1,
+                               int   x2,
+                               int   y2,
+    /** logical widget id */   int   id
+)
 
 {
 
@@ -3402,7 +3752,11 @@ horizontal scrollbar is calculated and returned.
 
 *******************************************************************************/
 
-void pa_scrollhorizsizg(FILE* f, int* w, int* h)
+void pa_scrollhorizsizg(
+    /** Window file */   FILE* f,
+    /** Return width */  int*  w,
+    /** Return height */ int*  h
+)
 
 {
 
@@ -3411,7 +3765,11 @@ void pa_scrollhorizsizg(FILE* f, int* w, int* h)
 
 }
 
-void pa_scrollhorizsiz(FILE* f, int* w, int* h)
+void pa_scrollhorizsiz(
+    /** Window file */   FILE* f,
+    /** Return width */  int*  w,
+    /** Return height */ int*  h
+)
 
 {
 
@@ -3430,7 +3788,14 @@ Creates a horizontal scrollbar.
 
 *******************************************************************************/
 
-void pa_scrollhorizg(FILE* f, int x1, int y1, int x2, int y2, int id)
+void pa_scrollhorizg(
+    /** Window file */         FILE* f,
+    /** Placement rectangle */ int   x1,
+                               int   y1,
+                               int   x2,
+                               int   y2,
+    /** logical widget id */   int   id
+)
 
 {
 
@@ -3441,7 +3806,14 @@ void pa_scrollhorizg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void pa_scrollhoriz(FILE* f, int x1, int y1, int x2, int y2, int id)
+void pa_scrollhoriz(
+    /** Window file */         FILE* f,
+    /** Placement rectangle */ int   x1,
+                               int   y1,
+                               int   x2,
+                               int   y2,
+    /** logical widget id */   int   id
+)
 
 {
 
@@ -3462,7 +3834,11 @@ Sets the current position of a scrollbar slider.
 
 *******************************************************************************/
 
-void pa_scrollpos(FILE* f, int id, int r)
+void pa_scrollpos(
+    /** Window file */             FILE* f,
+    /** Logical widget id */       int id,
+    /** Ratioed slider position */ int r
+)
 
 {
 
@@ -3486,7 +3862,11 @@ Sets the current size of a scrollbar slider.
 
 *******************************************************************************/
 
-void pa_scrollsiz(FILE* f, int id, int r)
+void pa_scrollsiz(
+    /** Window file */       FILE* f,
+    /** Logical widget id */ int   id,
+    /** Ratioed size */      int   r
+)
 
 {
 
@@ -3511,28 +3891,13 @@ select box is calculated and returned.
 
 *******************************************************************************/
 
-/* find number of digits in value */
-static int digits(int v)
-
-{
-
-    int p; /* power */
-    int c; /* count */
-
-    p = 1; /* set first power */
-    c = 1; /* set initial count (at least one digit) */
-    while (p < INT_MAX/10 && p < v) { /* will not overflow */
-
-        p *= 10; /* advance power */
-        c++; /* count digits */
-
-    }
-
-    return (c); /* return digits */
-
-}
-
-void pa_numselboxsizg(FILE* f, int l, int u, int* w, int* h)
+void pa_numselboxsizg(
+    /** Window file */    FILE* f,
+    /** Lower bound */    int   l,
+    /** Upper bound */    int   u,
+    /** Returns width */  int*  w,
+    /** Returns height */ int*  h
+)
 
 {
 
@@ -3555,7 +3920,13 @@ void pa_numselboxsizg(FILE* f, int l, int u, int* w, int* h)
 
 }
 
-void pa_numselboxsiz(FILE* f, int l, int u, int* w, int* h)
+void pa_numselboxsiz(
+    /** Window file */    FILE* f,
+    /** Lower bound */    int   l,
+    /** Upper bound */    int   u,
+    /** Returns width */  int*  w,
+    /** Returns height */ int*  h
+)
 
 {
 
@@ -3574,7 +3945,16 @@ Creates an up/down control for numeric selection.
 
 *******************************************************************************/
 
-void pa_numselboxg(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id)
+void pa_numselboxg(
+    /** Window file */         FILE* f,
+    /** Placement rectangle */ int   x1,
+                               int   y1,
+                               int   x2,
+                               int   y2,
+    /** Lower bound */         int   l,
+    /** Upper bound */         int   u,
+    /** Logical widget id */   int   id
+)
 
 {
 
@@ -3601,7 +3981,15 @@ void pa_numselboxg(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id
 
 }
 
-void pa_numselbox(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id)
+void pa_numselbox(
+    /** Window file */         FILE* f,
+    /** Placement rectangle */ int   x1,
+                               int   y1,
+                               int   x2,
+                               int   y2,
+    /** Lower bound */         int   l,
+    /** Upper bound */         int   u,
+    /** Logical widget id */   int   id)
 
 {
 
@@ -3623,7 +4011,12 @@ size of an edit box is calculated and returned.
 
 *******************************************************************************/
 
-void pa_editboxsizg(FILE* f, char* s, int* w, int* h)
+void pa_editboxsizg(
+    /** Window file */        FILE* f,
+    /** Sample face string */ char* s,
+    /** Returns width */      int*  w,
+    /** Returns height */     int*  h
+)
 
 {
 
@@ -3632,7 +4025,12 @@ void pa_editboxsizg(FILE* f, char* s, int* w, int* h)
 
 }
 
-void pa_editboxsiz(FILE* f, char* s, int* w, int* h)
+void pa_editboxsiz(
+    /** Window file */        FILE* f,
+    /** Sample face string */ char* s,
+    /** Returns width */      int*  w,
+    /** Returns height */     int*  h
+)
 
 {
 
@@ -3651,7 +4049,14 @@ Creates single line edit box
 
 *******************************************************************************/
 
-void pa_editboxg(FILE* f, int x1, int y1, int x2, int y2, int id)
+void pa_editboxg(
+    /** Window file */         FILE* f,
+    /** Placement rectangle */ int   x1,
+                               int   y1,
+                               int   x2,
+                               int   y2,
+    /** logical widget id */   int   id
+)
 
 {
 
@@ -3663,7 +4068,14 @@ void pa_editboxg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void pa_editbox(FILE* f, int x1, int y1, int x2, int y2, int id)
+void pa_editbox(
+    /** Window file */         FILE* f,
+    /** Placement rectangle */ int   x1,
+                               int   y1,
+                               int   x2,
+                               int   y2,
+    /** logical widget id */   int   id
+)
 
 {
 
@@ -3686,7 +4098,11 @@ measure, but the width is really up to the caller.
 
 *******************************************************************************/
 
-void pa_progbarsizg(FILE* f, int* w, int* h)
+void pa_progbarsizg(
+    /** Window file */   FILE* f,
+    /** Return width */  int*  w,
+    /** Return height */ int*  h
+)
 
 {
 
@@ -3695,7 +4111,11 @@ void pa_progbarsizg(FILE* f, int* w, int* h)
 
 }
 
-void pa_progbarsiz(FILE* f, int* w, int* h)
+void pa_progbarsiz(
+    /** Window file */   FILE* f,
+    /** Return width */  int*  w,
+    /** Return height */ int*  h
+)
 
 {
 
@@ -3714,7 +4134,14 @@ Creates a progress bar.
 
 *******************************************************************************/
 
-void pa_progbarg(FILE* f, int x1, int y1, int x2, int y2, int id)
+void pa_progbarg(
+    /** Window file */         FILE* f,
+    /** Placement rectangle */ int   x1,
+                               int   y1,
+                               int   x2,
+                               int   y2,
+    /** logical widget id */   int   id
+)
 
 {
 
@@ -3725,7 +4152,14 @@ void pa_progbarg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void pa_progbar(FILE* f, int x1, int y1, int x2, int y2, int id)
+void pa_progbar(
+    /** Window file */         FILE* f,
+    /** Placement rectangle */ int   x1,
+                               int   y1,
+                               int   x2,
+                               int   y2,
+    /** logical widget id */   int   id
+)
 
 {
 
@@ -3746,7 +4180,10 @@ Sets the position of a progress bar, from 0 to maxint.
 
 *******************************************************************************/
 
-void pa_progbarpos(FILE* f, int id, int pos)
+void pa_progbarpos(
+    /** Window file */       FILE* f,
+    /** logical widget id */ int id,
+    /** Ratioed position */  int pos)
 
 {
 
@@ -3776,7 +4213,12 @@ specified rectangle, one way or another.
 
 *******************************************************************************/
 
-void pa_listboxsizg(FILE* f, pa_strptr sp, int* w, int* h)
+void pa_listboxsizg(
+    /** Window file */         FILE*     f,
+    /** string list pointer */ pa_strptr sp,
+    /** Return width */        int*      w,
+    /** Return height */       int*      h
+)
 
 {
 
@@ -3803,7 +4245,12 @@ void pa_listboxsizg(FILE* f, pa_strptr sp, int* w, int* h)
 
 }
 
-void pa_listboxsiz(FILE* f, pa_strptr sp, int* w, int* h)
+void pa_listboxsiz(
+    /** Window file */         FILE*     f,
+    /** string list pointer */ pa_strptr sp,
+    /** Return width */        int*      w,
+    /** Return height */       int*      h
+)
 
 {
 
@@ -3822,7 +4269,15 @@ Creates a list box. Fills it with the string list provided.
 
 *******************************************************************************/
 
-void pa_listboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
+void pa_listboxg(
+    /** Window file */         FILE*     f,
+    /** Placement rectangle */ int       x1,
+                               int       y1,
+                               int       x2,
+                               int       y2,
+    /** String list pointer */ pa_strptr sp,
+    /** Logical widget id */   int       id
+)
 
 {
 
@@ -3839,7 +4294,15 @@ void pa_listboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 }
 
-void pa_listbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
+void pa_listbox(
+    /** Window file */         FILE*     f,
+    /** Placement rectangle */ int       x1,
+                               int       y1,
+                               int       x2,
+                               int       y2,
+    /** String list pointer */ pa_strptr sp,
+    /** logical widget id */   int       id
+)
 
 {
 
@@ -3865,7 +4328,14 @@ selections can be scrolled.
 
 *******************************************************************************/
 
-void pa_dropboxsizg(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
+void pa_dropboxsizg(
+    /** Window file */         FILE*     f,
+    /** String list pointer */ pa_strptr sp,
+    /** Closed width */        int*      cw,
+    /** Closed height */       int*      ch,
+    /** Open width */          int*      ow,
+    /** Open height */         int*      oh
+)
 
 {
 
@@ -3884,7 +4354,14 @@ void pa_dropboxsizg(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
 
 }
 
-void pa_dropboxsiz(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
+void pa_dropboxsiz(
+    /** Window file */         FILE*     f,
+    /** String list pointer */ pa_strptr sp,
+    /** Closed width */        int*      cw,
+    /** Closed height */       int*      ch,
+    /** Open width */          int*      ow,
+    /** Open height */         int*      oh
+)
 
 {
 
@@ -3905,7 +4382,15 @@ Creates a dropdown box. Fills it with the string list provided.
 
 *******************************************************************************/
 
-void pa_dropboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
+void pa_dropboxg(
+    /** Window file */         FILE*     f,
+    /** Placement rectangle */ int       x1,
+                               int       y1,
+                               int       x2,
+                               int       y2,
+    /** String list pointer */ pa_strptr sp,
+    /** Logical widget id */   int       id
+)
 
 {
 
@@ -3928,7 +4413,15 @@ void pa_dropboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 
 }
 
-void pa_dropbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
+void pa_dropbox(
+    /** Window file */         FILE*     f,
+    /** Placement rectangle */ int       x1,
+                               int       y1,
+                               int       x2,
+                               int       y2,
+    /** String list pointer */ pa_strptr sp,
+    /** Logical widget id */   int       id
+)
 
 {
 
@@ -3955,7 +4448,14 @@ selections can be scrolled.
 
 *******************************************************************************/
 
-void pa_dropeditboxsizg(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
+void pa_dropeditboxsizg(
+    /** Window file */          FILE*     f,
+    /** string list pointer */  pa_strptr sp,
+    /** Return closed width */  int*      cw,
+    /** Return closed height */ int*      ch,
+    /** Return open width */    int*      ow,
+    /** Return open height */   int*      oh
+)
 
 {
 
@@ -3964,7 +4464,14 @@ void pa_dropeditboxsizg(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* o
 
 }
 
-void pa_dropeditboxsiz(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
+void pa_dropeditboxsiz(
+    /** Window file */          FILE*     f,
+    /** string list pointer */  pa_strptr sp,
+    /** Return closed width */  int*      cw,
+    /** Return closed height */ int*      ch,
+    /** Return open width */    int*      ow,
+    /** Return open height */   int*      oh
+)
 
 {
 
@@ -3988,7 +4495,15 @@ box.
 
 *******************************************************************************/
 
-void pa_dropeditboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
+void pa_dropeditboxg(
+    /** Window file */         FILE*     f,
+    /** Placement rectangle */ int       x1,
+                               int       y1,
+                               int       x2,
+                               int       y2,
+    /** String list pointer */ pa_strptr sp,
+    /** Logical widget id */   int       id
+)
 
 {
 
@@ -4030,7 +4545,15 @@ void pa_dropeditboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int 
 
 }
 
-void pa_dropeditbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
+void pa_dropeditbox(
+    /** Window file */         FILE*     f,
+    /** Placement rectangle */ int       x1,
+                               int       y1,
+                               int       x2,
+                               int       y2,
+    /** String list pointer */ pa_strptr sp,
+    /** Logical widget id */   int       id
+)
 
 {
 
@@ -4052,7 +4575,11 @@ slider is calculated and returned.
 
 *******************************************************************************/
 
-void pa_slidehorizsizg(FILE* f, int * w, int* h)
+void pa_slidehorizsizg(
+    /** Window file */   FILE* f,
+    /** Return width */  int*  w,
+    /** Return height */ int*  h
+)
 
 {
 
@@ -4061,7 +4588,11 @@ void pa_slidehorizsizg(FILE* f, int * w, int* h)
 
 }
 
-void pa_slidehorizsiz(FILE* f, int* w, int* h)
+void pa_slidehorizsiz(
+    /** Window file */   FILE* f,
+    /** Return width */  int*  w,
+    /** Return height */ int*  h
+)
 
 {
 
@@ -4078,11 +4609,17 @@ Create horizontal slider
 
 Creates a horizontal slider.
 
-Bugs: The tick marks should be in pixel terms, not logical terms.
-
 *******************************************************************************/
 
-void pa_slidehorizg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+void pa_slidehorizg(
+    /** Window file */         FILE* f,
+    /** Placement rectangle */ int   x1,
+                               int   y1,
+                               int   x2,
+                               int   y2,
+    /** Tick mark interval */  int   mark,
+    /** logical widget id */   int   id
+)
 
 {
 
@@ -4094,7 +4631,15 @@ void pa_slidehorizg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 
 }
 
-void pa_slidehoriz(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+void pa_slidehoriz(
+    /** Window file */         FILE* f,
+    /** Placement rectangle */ int   x1,
+                               int   y1,
+                               int   x2,
+                               int   y2,
+    /** Tick mark interval */  int   mark,
+    /** logical widget id */   int   id
+)
 
 {
 
@@ -4116,7 +4661,11 @@ slider is calculated and returned.
 
 *******************************************************************************/
 
-void pa_slidevertsizg(FILE* f, int* w, int* h)
+void pa_slidevertsizg(
+    /** Window file */   FILE* f,
+    /** Return width */  int*  w,
+    /** Return height */ int*  h
+)
 
 {
 
@@ -4125,7 +4674,11 @@ void pa_slidevertsizg(FILE* f, int* w, int* h)
 
 }
 
-void pa_slidevertsiz(FILE* f, int* w, int* h)
+void pa_slidevertsiz(
+    /** Window file */   FILE* f,
+    /** Return width */  int*  w,
+    /** Return height */ int*  h
+)
 
 {
 
@@ -4146,7 +4699,15 @@ Bugs: The tick marks should be in pixel terms, not logical terms.
 
 *******************************************************************************/
 
-void pa_slidevertg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+void pa_slidevertg(
+    /** Window file */         FILE* f,
+    /** Placement rectangle */ int   x1,
+                               int   y1,
+                               int   x2,
+                               int   y2,
+    /** Tick mark interval */  int   mark,
+    /** logical widget id */   int   id
+)
 
 {
 
@@ -4158,7 +4719,15 @@ void pa_slidevertg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 
 }
 
-void pa_slidevert(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+void pa_slidevert(
+    /** Window file */         FILE* f,
+    /** Placement rectangle */ int   x1,
+                               int   y1,
+                               int   x2,
+                               int   y2,
+    /** Tick mark interval */  int   mark,
+    /** logical widget id */   int   id
+)
 
 {
 
@@ -4180,8 +4749,16 @@ calculated and returned.
 
 *******************************************************************************/
 
-void pa_tabbarsizg(FILE* f, pa_tabori tor, int cw, int ch, int* w, int* h,
-                int* ox, int* oy)
+void pa_tabbarsizg(
+    /** Window file */            FILE* f,
+    /** Tab orientation */        pa_tabori tor,
+    /** Client width */           int cw,
+    /** Client height */          int ch,
+    /** Return width */           int*  w,
+    /** Return height */          int*  h,
+    /** Return client offset x */ int *ox,
+    /** Return client offset x */ int *oy
+)
 
 {
 
@@ -4199,8 +4776,16 @@ void pa_tabbarsizg(FILE* f, pa_tabori tor, int cw, int ch, int* w, int* h,
 
 }
 
-void pa_tabbarsiz(FILE* f, pa_tabori tor, int cw, int ch, int * w, int* h,
-               int* ox, int* oy)
+void pa_tabbarsiz(
+    /** Window file */            FILE* f,
+    /** Tab orientation */        pa_tabori tor,
+    /** Client width */           int cw,
+    /** Client height */          int ch,
+    /** Return width */           int*  w,
+    /** Return height */          int*  h,
+    /** Return client offset x */ int *ox,
+    /** Return client offset x */ int *oy
+)
 
 {
 
@@ -4228,8 +4813,16 @@ flexible.
 
 *******************************************************************************/
 
-void pa_tabbarclientg(FILE* f, pa_tabori tor, int w, int h, int* cw, int* ch,
-                   int* ox, int* oy)
+void pa_tabbarclientg(
+    /** Window file */            FILE*     f,
+    /** Tab orientation */        pa_tabori tor,
+    /** Return client width */    int       w,
+    /** Return client height */   int       h,
+    /** Width */                  int*      cw,
+    /** Height */                 int*      ch,
+    /** Return client offset x */ int*      ox,
+    /** Return client offset x */ int*      oy
+)
 
 {
 
@@ -4247,8 +4840,16 @@ void pa_tabbarclientg(FILE* f, pa_tabori tor, int w, int h, int* cw, int* ch,
 
 }
 
-void pa_tabbarclient(FILE* f, pa_tabori tor, int w, int h, int* cw, int* ch,
-                  int* ox, int* oy)
+void pa_tabbarclient(
+    /** Window file */            FILE*     f,
+    /** Tab orientation */        pa_tabori tor,
+    /** Return client width */    int       w,
+    /** Return client height */   int       h,
+    /** Width */                  int*      cw,
+    /** Height */                 int*      ch,
+    /** Return client offset x */ int*      ox,
+    /** Return client offset x */ int*      oy
+)
 
 {
 
@@ -4274,8 +4875,16 @@ Creates a tab bar with the given orientation.
 
 *******************************************************************************/
 
-void pa_tabbarg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp,
-             pa_tabori tor, int id)
+void pa_tabbarg(
+    /** Window file */         FILE*     f,
+    /** Placement rectangle */ int       x1,
+                               int       y1,
+                               int       x2,
+                               int       y2,
+    /** Tab string list */     pa_strptr sp,
+    /** Tab orientation */     pa_tabori tor,
+    /** logical widget id */   int       id
+)
 
 {
 
@@ -4293,8 +4902,16 @@ void pa_tabbarg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp,
 
 }
 
-void pa_tabbar(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp,
-            pa_tabori tor, int id)
+void pa_tabbar(
+    /** Window file */         FILE*     f,
+    /** Placement rectangle */ int       x1,
+                               int       y1,
+                               int       x2,
+                               int       y2,
+    /** Tab string list */     pa_strptr sp,
+    /** Tab orientation */     pa_tabori tor,
+    /** logical widget id */   int       id
+)
 
 {
 
@@ -4316,7 +4933,11 @@ of the tab.
 
 *******************************************************************************/
 
-void pa_tabsel(FILE* f, int id, int tn)
+void pa_tabsel(
+    /** Window file */         FILE* f,
+    /** logical widget id */   int   id,
+    /** Logical tab number */  int   tn
+)
 
 {
 
@@ -4351,7 +4972,10 @@ Outputs a message dialog with the given title and message strings.
 
 *******************************************************************************/
 
-void pa_alert(char* title, char* message)
+void pa_alert(
+    /** Title string */ char* title,
+    /** Message string */ char* message
+)
 
 {
 
@@ -4367,11 +4991,13 @@ Display choose color dialog
 
 Presents the choose color dialog, then returns the resulting color.
 
-Bug: does not take the input color as the default.
-
 *******************************************************************************/
 
-void pa_querycolor(int* r, int* g, int* b)
+void pa_querycolor(
+    /** Input/Output for red ratioed color */   int* r,
+    /** Input/Output for green ratioed color */ int* g,
+    /** Input/Output for blue ratioed color */  int* b
+)
 
 {
 
@@ -4397,7 +5023,10 @@ If the operation is cancelled, then a null string will be returned.
 
 *******************************************************************************/
 
-void pa_queryopen(char* s, int sl)
+void pa_queryopen(
+    /** Input/output for filename string */ char* s,
+    /** Length of filename string buffer */ int sl
+)
 
 {
 
@@ -4423,7 +5052,10 @@ If the operation is cancelled, then a null string will be returned.
 
 *******************************************************************************/
 
-void pa_querysave(char* s, int sl)
+void pa_querysave(
+    /** Input/output for filename string */ char* s,
+    /** Length of filename string buffer */ int sl
+)
 
 {
 
@@ -4458,7 +5090,11 @@ table this issue until later.
 
 *******************************************************************************/
 
-void pa_queryfind(char* s, int sl, pa_qfnopts* opt)
+void pa_queryfind(
+    /** Input/output for search string */   char* s,
+    /** Length of search string buffer */ int sl,
+    /** Set of find/replace options */      pa_qfnopts* opt
+)
 
 {
 
@@ -4485,7 +5121,13 @@ Bug: See comment, queryfind.
 
 *******************************************************************************/
 
-void pa_queryfindrep(char* s, int sl, char* r, int rl, pa_qfropts* opt)
+void pa_queryfindrep(
+    /** Input/output for search string */  char* s,
+    /** Length of search string buffer */  int sl,
+    /** Input/output for replace string */ char* r,
+    /** Length of replace string buffer */ int rl,
+    /** Set of find/replace options */     pa_qfnopts* opt
+)
 
 {
 
@@ -4510,8 +5152,18 @@ user as the defaults.
 
 *******************************************************************************/
 
-void pa_queryfont(FILE* f, int* fc, int* s, int* fr, int* fg, int* fb,
-               int* br, int* bg, int* bb, pa_qfteffects* effect)
+void pa_queryfont(
+    /** Window file */                   FILE*          f,
+    /** Input/output font code */        int*           fc,
+    /** Input/output point size */       int*           s,
+    /** Input/output foreground red */   int*           fr,
+    /** Input/output foreground green */ int*           fg,
+    /** Input/output foreground blue */  int*           fb,
+    /** Input/output background red */   int*           br,
+    /** Input/output background green */ int*           bg,
+    /** Input/output background blue */  int*           bb,
+    /** Input/output font effects */     pa_qfteffects* effect
+)
 
 {
 
@@ -4527,8 +5179,15 @@ Widgets startup
 
 *******************************************************************************/
 
-static void pa_init_widgets(int argc, char *argv[]) __attribute__((constructor (102)));
-static void pa_init_widgets(int argc, char *argv[])
+static void pa_init_widgets(
+    /** argument count */ int argc,
+    /** argument list */ char *argv[]
+) __attribute__((constructor (102)));
+
+static void pa_init_widgets(
+    /** argument count */ int argc,
+    /** argument list */ char *argv[]
+)
 
 {
 

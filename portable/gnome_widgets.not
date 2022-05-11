@@ -25,3 +25,6 @@ Note Windows does not do this.
 
 7. Windows does not allow focus on widgets like backgrounds. Is there a way to
 do this in Linux?
+
+8. In scroll bar minimums test, clicking at the same line of y as the minimized
+scroll bar, but not IN the bar, causes widgets to enter a loop.
