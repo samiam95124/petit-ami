@@ -803,9 +803,9 @@ static int digits(int v)
 
 /** ****************************************************************************
 
-Button event handler
+Button draw handler
 
-Handles the events posted to buttons.
+Handles drawing buttons.
 
 *******************************************************************************/
 
@@ -834,6 +834,14 @@ static void button_draw(
     fprintf(wg->wf, "%s", wg->face); /* place button face */
 
 }
+
+/** ****************************************************************************
+
+Button event handler
+
+Handles the events posted to buttons.
+
+*******************************************************************************/
 
 static void button_event(
     /** Event record pointer */ pa_evtrec* ev,
@@ -881,9 +889,9 @@ static void button_event(
 
 /** ****************************************************************************
 
-Checkbox event handler
+Checkbox draw handler
 
-Handles the events posted to checkboxes.
+Handles drawing checkboxes.
 
 *******************************************************************************/
 
@@ -949,6 +957,14 @@ static void checkbox_draw(
     }
 
 }
+
+/** ****************************************************************************
+
+Checkbox event handler
+
+Handles the events posted to checkboxes.
+
+*******************************************************************************/
 
 static void checkbox_event(
     /** Event record pointer */ pa_evtrec* ev,
@@ -4600,6 +4616,7 @@ void pa_slidehorizsiz(
     /* change graphical size to character */
     *w = (*w-1)/pa_chrsizx(f)+1;
     *h = (*h-1)/pa_chrsizy(f)+1;
+
 
 }
 

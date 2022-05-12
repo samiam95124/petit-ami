@@ -149,7 +149,7 @@ int main(void)
     if (setjmp(terminate_buf)) goto terminate;
 
     pa_curvis(stdout, FALSE);
-#if 1
+#if 0
     printf("Widget test vs. 0.1\n");
     printf("\n");
     printf("Hit return in any window to continue for each test\n");
@@ -1416,14 +1416,17 @@ int main(void)
 
     /* ************************* Terminal slider test ************************ */
 
+#endif
     printf("\f");
     chrgrid();
     pa_binvis(stdout);
     printf("Terminal slider test\n");
     pa_slidehorizsiz(stdout, &x, &y);
+    x = 20;
     pa_slidehoriz(stdout, 10, 10, 10+x-1, 10+y-1, 10, 1);
     pa_slidehoriz(stdout, 10, 20, 10+x-1, 20+y-1, 0, 2);
     pa_slidevertsiz(stdout, &x, &y);
+    y = 10;
     pa_slidevert(stdout, 40, 10, 40+x-1, 10+y-1, 10, 3);
     pa_slidevert(stdout, 50, 10, 50+x-1, 10+y-1, 0, 4);
     printf("Bottom and right sliders should not have tick marks\n");
@@ -1587,7 +1590,6 @@ int main(void)
 
    /* ************************* Graphical tab bar test ************************ */
 
-#endif
     printf("\f");
     printf("Graphical tab bar test\n");
     printf("\n");
