@@ -1105,9 +1105,9 @@ static void radiobutton_event(
 
 /** ****************************************************************************
 
-Vertical scrollbar event handler
+Vertical scrollbar draw handler
 
-Handles the events posted to vertical scrollbars.
+Handles draws vertical scrollbars.
 
 *******************************************************************************/
 
@@ -1176,6 +1176,14 @@ static void scrollvert_draw(
 
 }
 
+/** ****************************************************************************
+
+Vertical scrollbar event handler
+
+Handles the events posted to vertical scrollbars.
+
+*******************************************************************************/
+
 static void scrollvert_event(
     /** Event record pointer */ pa_evtrec* ev,
     /** Widget data pointer */  wigptr     wg
@@ -1239,9 +1247,9 @@ static void scrollvert_event(
 
 /** ****************************************************************************
 
-Horizontal scrollbar event handler
+Horizontal scrollbar draw handler
 
-Handles the events posted to horizontal scrollbars.
+Handles drawing horizontal scrollbars.
 
 *******************************************************************************/
 
@@ -1307,6 +1315,14 @@ static void scrollhoriz_draw(
 
 }
 
+/** ****************************************************************************
+
+Horizontal scrollbar event handler
+
+Handles the events posted to horizontal scrollbars.
+
+*******************************************************************************/
+
 static void scrollhoriz_event(
     /** Event record pointer */ pa_evtrec* ev,
     /** Widget data pointer */  wigptr     wg
@@ -1370,9 +1386,9 @@ static void scrollhoriz_event(
 
 /** ****************************************************************************
 
-Group box event handler
+Group box draw handler
 
-Handles the events posted to group boxes.
+Handles drawing group boxes.
 
 *******************************************************************************/
 
@@ -1397,6 +1413,14 @@ static void group_draw(
 
 }
 
+/** ****************************************************************************
+
+Group box event handler
+
+Handles the events posted to group boxes.
+
+*******************************************************************************/
+
 static void group_event(
     /** Event record pointer */ pa_evtrec* ev,
     /** Widget data pointer */  wigptr     wg
@@ -1410,9 +1434,9 @@ static void group_event(
 
 /** ****************************************************************************
 
-Group box event handler
+Background draw handler
 
-Handles the events posted to group boxes.
+Handles drawing backgrounds.
 
 *******************************************************************************/
 
@@ -1429,6 +1453,14 @@ static void background_draw(
 
 }
 
+/** ****************************************************************************
+
+Background event handler
+
+Handles the events posted to backgrounds.
+
+*******************************************************************************/
+
 static void background_event(
     /** Event record pointer */ pa_evtrec* ev,
     /** Widget data pointer */  wigptr     wg
@@ -1442,9 +1474,9 @@ static void background_event(
 
 /** ****************************************************************************
 
-Edit box event handler
+Edit box draw handler
 
-Handles the events posted to edit boxes.
+Handles drawing edit boxes.
 
 *******************************************************************************/
 
@@ -1556,6 +1588,14 @@ static void editbox_draw(
     }
 
 }
+
+/** ****************************************************************************
+
+Edit box event handler
+
+Handles the events posted to edit boxes.
+
+*******************************************************************************/
 
 static void editbox_event(
     /** Event record pointer */ pa_evtrec* ev,
@@ -1753,9 +1793,9 @@ static void editbox_event(
 
 /** ****************************************************************************
 
-Number select box event handler
+Number select box draw handler
 
-Handles the events posted to number select boxes.
+Handles drawing number select boxes.
 
 *******************************************************************************/
 
@@ -1815,6 +1855,14 @@ static void numselbox_draw(
     pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1, pa_maxyg(wg->wf)-1, 20, 20);
 
 }
+
+/** ****************************************************************************
+
+Number select box event handler
+
+Handles the events posted to number select boxes.
+
+*******************************************************************************/
 
 static void numselbox_event(
     /** Event record pointer */ pa_evtrec* ev,
@@ -1971,9 +2019,9 @@ static void progbar_event(
 
 /** ****************************************************************************
 
-List box event handler
+List box draw handler
 
-Handles the events posted to list boxes.
+Handles drawing list boxes.
 
 *******************************************************************************/
 
@@ -2017,6 +2065,14 @@ static void listbox_draw(
     }
 
 }
+
+/** ****************************************************************************
+
+List box event handler
+
+Handles the events posted to list boxes.
+
+*******************************************************************************/
 
 static void listbox_event(
     /** Event record pointer */ pa_evtrec* ev,
@@ -2088,9 +2144,9 @@ static void listbox_event(
 
 /** ****************************************************************************
 
-Drop box event handler
+Drop box draw handler
 
-Handles the events posted to drop boxes.
+Handles drawing drop boxes.
 
 *******************************************************************************/
 
@@ -2154,6 +2210,14 @@ static void dropbox_draw(
     fprintf(wg->wf, "%s", sp->str); /* place string */
 
 }
+
+/** ****************************************************************************
+
+Drop box event handler
+
+Handles the events posted to drop boxes.
+
+*******************************************************************************/
 
 static void dropbox_event(
     /** Event record pointer */ pa_evtrec* ev,
@@ -2258,9 +2322,9 @@ static void dropbox_event(
 
 /** ****************************************************************************
 
-Drop edit box event handler
+Drop edit box draw handler
 
-Handles the events posted to drop edit boxes.
+Handles drawing drop edit boxes.
 
 *******************************************************************************/
 
@@ -2273,6 +2337,14 @@ static void dropeditbox_draw(
     /* everything in this widget is drawn by subclassed widgets */
 
 }
+
+/** ****************************************************************************
+
+Drop edit box event handler
+
+Handles the events posted to drop edit boxes.
+
+*******************************************************************************/
 
 static void dropeditbox_event(
     /** Event record pointer */ pa_evtrec* ev,
@@ -2328,9 +2400,9 @@ static void dropeditbox_event(
 
 /** ****************************************************************************
 
-Horizontal slider event handler
+Horizontal slider draw handler
 
-Handles the events posted to a horizontal slider.
+Handles drawing the horizontal slider.
 
 *******************************************************************************/
 
@@ -2448,6 +2520,14 @@ static void slidehoriz_draw(
 
 }
 
+/** ****************************************************************************
+
+Horizontal slider event handler
+
+Handles the events posted to a horizontal slider.
+
+*******************************************************************************/
+
 static void slidehoriz_event(
     /** Event record pointer */ pa_evtrec* ev,
     /** Widget data pointer */  wigptr wg
@@ -2486,9 +2566,9 @@ static void slidehoriz_event(
 
 /** ****************************************************************************
 
-Vertical slider event handler
+Vertical slider draw handler
 
-Handles the events posted to a vertical slider.
+Handles drawing a vertical slider.
 
 *******************************************************************************/
 
@@ -2606,6 +2686,14 @@ static void slidevert_draw(
 
 }
 
+/** ****************************************************************************
+
+Vertical slider event handler
+
+Handles the events posted to a vertical slider.
+
+*******************************************************************************/
+
 static void slidevert_event(
     /** Event record pointer */ pa_evtrec* ev,
     /** Widget data pointer */  wigptr wg
@@ -2644,9 +2732,9 @@ static void slidevert_event(
 
 /** ****************************************************************************
 
-Tab bar event handler
+Tab bar draw handler
 
-Handles the events posted to a tab bar.
+Handles drawing a tab bar.
 
 *******************************************************************************/
 
@@ -2709,6 +2797,14 @@ static void tabbar_draw(
     }
 
 }
+
+/** ****************************************************************************
+
+Tab bar event handler
+
+Handles the events posted to a tab bar.
+
+*******************************************************************************/
 
 static void tabbar_event(
     /** Event record pointer */ pa_evtrec* ev,
@@ -3141,9 +3237,9 @@ void pa_putwidgettext(
 
 /** ****************************************************************************
 
-Resize widget
+Resize widget graphical
 
-Changes the size of a widget.
+Changes the size of a graphical widget.
 
 *******************************************************************************/
 
@@ -3162,6 +3258,14 @@ void pa_sizwidgetg(
     pa_setsizg(wp->wf, x, y); /* set size */
 
 }
+
+/** ****************************************************************************
+
+Resize widget text
+
+Changes the size of a text widget.
+
+*******************************************************************************/
 
 void pa_sizwidget(
     /** Window file */         FILE* f,
@@ -3184,9 +3288,9 @@ void pa_sizwidget(
 
 /** ****************************************************************************
 
-Reposition widget
+Reposition widget graphical
 
-Changes the parent position of a widget.
+Changes the parent position of a graphical widget.
 
 *******************************************************************************/
 
@@ -3205,6 +3309,14 @@ void pa_poswidgetg(
     pa_setposg(wp->wf, x, y); /* set size */
 
 }
+
+/** ****************************************************************************
+
+Reposition widget text
+
+Changes the parent position of a text widget.
+
+*******************************************************************************/
 
 void pa_poswidget(
     /** Window file */             FILE* f,
@@ -3287,10 +3399,10 @@ void pa_focuswidget(
 
 /** ****************************************************************************
 
-Find minimum/standard button size
+Find minimum/standard button size graphical
 
-Finds the minimum size for a button. Given the face string, the minimum/ideal
-size of a button is calculated and returned.
+Finds the minimum size for a graphical button. Given the face string, the
+minimum/ideal size of a button is calculated and returned.
 
 Note the spacing is copied from gnome defaults.
 
@@ -3310,6 +3422,17 @@ void pa_buttonsizg(
 
 }
 
+/** ****************************************************************************
+
+Find minimum/standard button size text
+
+Finds the minimum size for a text button. Given the face string, the
+minimum/ideal size of a button is calculated and returned.
+
+Note the spacing is copied from gnome defaults.
+
+*******************************************************************************/
+
 void pa_buttonsiz(
     /** Window file */           FILE* f,
     /** Face string */           char* s,
@@ -3328,9 +3451,10 @@ void pa_buttonsiz(
 
 /** ****************************************************************************
 
-Create button
+Create button graphical
 
-Creates a standard button within the specified rectangle, on the given window.
+Creates a standard graphical button within the specified rectangle, on the given
+window.
 
 *******************************************************************************/
 
@@ -3353,6 +3477,15 @@ void pa_buttong(
     pa_linewidth(wp->wf, 3); /* thicker lines */
 
 }
+
+/** ****************************************************************************
+
+Create button text
+
+Creates a standard text button within the specified rectangle, on the given
+window.
+
+*******************************************************************************/
 
 void pa_button(
     /** Window file */         FILE* f,
@@ -3377,10 +3510,10 @@ void pa_button(
 
 /** ****************************************************************************
 
-Find minimum/standard checkbox size
+Find minimum/standard checkbox size graphical
 
-Finds the minimum size for a checkbox. Given the face string, the minimum size
-of a checkbox is calculated and returned.
+Finds the minimum size for a graphical checkbox. Given the face string, the
+minimum size of a checkbox is calculated and returned.
 
 *******************************************************************************/
 
@@ -3398,6 +3531,15 @@ void pa_checkboxsizg(
          pa_chrsizy(win0)/2;
 
 }
+
+/** ****************************************************************************
+
+Find minimum/standard checkbox size text
+
+Finds the minimum size for a text checkbox. Given the face string, the minimum
+size of a checkbox is calculated and returned.
+
+*******************************************************************************/
 
 void pa_checkboxsiz(
     /** Window file */   FILE* f,
@@ -3417,10 +3559,10 @@ void pa_checkboxsiz(
 
 /** ****************************************************************************
 
-Create checkbox
+Create checkbox graphical
 
-Creates a standard checkbox within the specified rectangle, on the given
-window.
+Creates a standard graphical checkbox within the specified rectangle, on the
+given window.
 
 *******************************************************************************/
 
@@ -3441,6 +3583,15 @@ void pa_checkboxg(
     widget(f, x1, y1, x2, y2, s, id, wtcheckbox, &wp);
 
 }
+
+/** ****************************************************************************
+
+Create checkbox text
+
+Creates a standard text checkbox within the specified rectangle, on the given
+window.
+
+*******************************************************************************/
 
 void pa_checkbox(
     /** Window file */         FILE* f,
@@ -3465,10 +3616,10 @@ void pa_checkbox(
 
 /** ****************************************************************************
 
-Find minimum/standard radio button size
+Find minimum/standard radio button size graphical
 
-Finds the minimum size for a radio button. Given the face string, the minimum
-size of a radio button is calculated and returned.
+Finds the minimum size for a graphical radio button. Given the face string, the
+minimum size of a radio button is calculated and returned.
 
 *******************************************************************************/
 
@@ -3485,6 +3636,15 @@ void pa_radiobuttonsizg(
          pa_chrsizy(win0)/2;
 
 }
+
+/** ****************************************************************************
+
+Find minimum/standard radio button size text
+
+Finds the minimum size for a text radio button. Given the face string, the
+minimum size of a radio button is calculated and returned.
+
+*******************************************************************************/
 
 void pa_radiobuttonsiz(
     /** Window file */   FILE* f,
@@ -3504,10 +3664,10 @@ void pa_radiobuttonsiz(
 
 /** ****************************************************************************
 
-Create radio button
+Create radio button graphical
 
-Creates a standard radio button within the specified rectangle, on the given
-window.
+Creates a standard graphical radio button within the specified rectangle, on the
+given window.
 
 *******************************************************************************/
 
@@ -3529,6 +3689,15 @@ void pa_radiobuttong(
     widget(f, x1, y1, x2, y2, s, id, wtradiobutton, &wp);
 
 }
+
+/** ****************************************************************************
+
+Create radio button text
+
+Creates a standard text radio button within the specified rectangle, on the
+given window.
+
+*******************************************************************************/
 
 void pa_radiobutton(
     /** Window file */ FILE* f,
@@ -3553,9 +3722,9 @@ void pa_radiobutton(
 
 /** ****************************************************************************
 
-Find minimum/standard group size
+Find minimum/standard group size graphical
 
-Finds the minimum size for a group. Given the face string, the minimum
+Finds the minimum size for a graphical group. Given the face string, the minimum
 size of a group is calculated and returned.
 
 *******************************************************************************/
@@ -3581,6 +3750,15 @@ void pa_groupsizg(
     *oy = pa_chrsizy(win0);
 
 }
+
+/** ****************************************************************************
+
+Find minimum/standard group size text
+
+Finds the minimum size for a text group. Given the face string, the minimum
+size of a group is calculated and returned.
+
+*******************************************************************************/
 
 void pa_groupsiz(
     /** Window file */           FILE* f,
@@ -3609,10 +3787,10 @@ void pa_groupsiz(
 
 /** ****************************************************************************
 
-Create group box
+Create group box graphical
 
-Creates a group box, which is really just a decorative feature that gererates
-no messages. It is used as a background for other widgets.
+Creates a graphical group box, which is really just a decorative feature that
+gererates no messages. It is used as a background for other widgets.
 
 *******************************************************************************/
 
@@ -3634,6 +3812,15 @@ void pa_groupg(
     widget(f, x1, y1, x2, y2, s, id, wtgroup, &wp);
 
 }
+
+/** ****************************************************************************
+
+Create group box text
+
+Creates a text group box, which is really just a decorative feature that
+gererates no messages. It is used as a background for other widgets.
+
+*******************************************************************************/
 
 void pa_group(
     /** Window file */         FILE* f,
@@ -3657,10 +3844,10 @@ void pa_group(
 
 /** ****************************************************************************
 
-Create background box
+Create background box graphical
 
-Creates a background box, which is really just a decorative feature that
-generates no messages. It is used as a background for other widgets.
+Creates a graphical background box, which is really just a decorative feature
+that generates no messages. It is used as a background for other widgets.
 
 *******************************************************************************/
 
@@ -3681,6 +3868,15 @@ void pa_backgroundg(
     widget(f, x1, y1, x2, y2, "", id, wtbackground, &wp);
 
 }
+
+/** ****************************************************************************
+
+Create background box text
+
+Creates a text background box, which is really just a decorative feature that
+generates no messages. It is used as a background for other widgets.
+
+*******************************************************************************/
 
 void pa_background(
     /** Window file */         FILE* f,
@@ -3704,10 +3900,10 @@ void pa_background(
 
 /** ****************************************************************************
 
-Find minimum/standard vertical scrollbar size
+Find minimum/standard vertical scrollbar size graphical
 
-Finds the minimum size for a vertical scrollbar. The minimum size of a vertical
-scrollbar is calculated and returned.
+Finds the minimum size for a graphical vertical scrollbar. The minimum size of a
+vertical scrollbar is calculated and returned.
 
 *******************************************************************************/
 
@@ -3723,6 +3919,15 @@ void pa_scrollvertsizg(
     *h = 40;
 
 }
+
+/** ****************************************************************************
+
+Find minimum/standard vertical scrollbar size text
+
+Finds the minimum size for a text vertical scrollbar. The minimum size of a
+vertical scrollbar is calculated and returned.
+
+*******************************************************************************/
 
 void pa_scrollvertsiz(
     /** Window file */    FILE* f,
@@ -3741,9 +3946,9 @@ void pa_scrollvertsiz(
 
 /** ****************************************************************************
 
-Create vertical scrollbar
+Create vertical scrollbar graphical
 
-Creates a vertical scrollbar.
+Creates a graphical vertical scrollbar.
 
 *******************************************************************************/
 
@@ -3764,6 +3969,14 @@ void pa_scrollvertg(
     widget(f, x1, y1, x2, y2, "", id, wtscrollvert, &wp);
 
 }
+
+/** ****************************************************************************
+
+Create vertical scrollbar text
+
+Creates a text vertical scrollbar.
+
+*******************************************************************************/
 
 void pa_scrollvert(
     /** Window file */         FILE* f,
