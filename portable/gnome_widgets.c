@@ -253,6 +253,9 @@ static FILE*         win0;               /* "window zero" dummy window */
 /* table of colors or other theme values */
 static unsigned long themetable[th_endmarker];
 
+/* forwards */
+static void numselbox_draw(wigptr wg);
+
 /** ****************************************************************************
 
 Process error
@@ -1541,8 +1544,6 @@ Handles drawing edit boxes.
 
 *******************************************************************************/
 
-static void numselbox_draw(wigptr wg);
-
 static void editbox_draw(
     /** Widget data pointer */ wigptr wg
 )
@@ -2210,9 +2211,6 @@ Drop box draw handler
 Handles drawing drop boxes.
 
 *******************************************************************************/
-
-static void widget(FILE* f, int x1, int y1, int x2, int y2, char* s, int id,
-                   wigtyp typ, wigptr* wpr);
 
 static void dropbox_draw(
     /** Widget data pointer */ wigptr wg
