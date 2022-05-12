@@ -1127,7 +1127,8 @@ static void scrollvert_draw(
     pa_evtrec er;      /* outbound button event */
     int       y;
 
-    totsizp = pa_maxyg(wg->wf)-ENDSPACE-ENDSPACE; /* find net total slider space */
+    /* find net total slider space */
+    totsizp = pa_maxyg(wg->wf)-ENDSPACE-ENDSPACE;
     /* find size of slider in pixels */
     sclsizp = round((double)totsizp*wg->sclsiz/INT_MAX);
     /* find remaining size after slider */
@@ -1139,36 +1140,25 @@ static void scrollvert_draw(
     /* set status of mouse inside the bar */
     inbar = wg->mpy >= sclposp+ENDSPACE && wg->mpy <= botposp+ENDSPACE;
 
-    /* process off bar click */
-    if (!inbar && wg->pressed && !wg->lpressed) {
-
-        /* find new top if click is middle */
-        y = wg->mpy-sclsizp/2;
-        if (y < ENDSPACE) y = ENDSPACE; /* limit top travel */
-        else if (y+sclsizp > pa_maxyg(wg->wf)-ENDSPACE)
-            y = pa_maxyg(wg->wf)-sclsizp-ENDSPACE;
-        /* find new ratioed position */
-        sclpos = round((double)INT_MAX*(y-ENDSPACE)/remsizp);
-        /* send event back to parent window */
-        er.etype = pa_etsclpos; /* set scroll position event */
-        er.sclpid = wg->id; /* set id */
-        er.sclpos = sclpos; /* set scrollbar position */
-        pa_sendevent(wg->parent, &er); /* send the event to the parent */
-
-    } else if ((inbar || wg->grab) && wg->pressed && wg->lpressed && wg->mpy != wg->lmpy) {
+    /* check drag */
+    if ((inbar || wg->grab) && wg->pressed && wg->lpressed && wg->mpy != wg->lmpy) {
 
         /* mouse bar drag, process */
         y = sclposp+(wg->mpy-wg->lmpy); /* find difference in pixel location */
         if (y < 0) y = 0; /* limit to zero */
         if (y > remsizp) y = remsizp; /* limit to max */
-        /* find new ratioed position */
-        sclpos = round((double)INT_MAX*y/remsizp);
-        /* send event back to parent window */
-        er.etype = pa_etsclpos; /* set scroll position event */
-        er.sclpid = wg->id; /* set id */
-        er.sclpos = sclpos; /* set scrollbar position */
-        pa_sendevent(wg->parent, &er); /* send the event to the parent */
-        wg->grab = TRUE; /* set we grabbed the scrollbar */
+        if (y) { /* not a null move */
+
+            /* find new ratioed position */
+            sclpos = round((double)INT_MAX*y/remsizp);
+            /* send event back to parent window */
+            er.etype = pa_etsclpos; /* set scroll position event */
+            er.sclpid = wg->id; /* set id */
+            er.sclpos = sclpos; /* set scrollbar position */
+            pa_sendevent(wg->parent, &er); /* send the event to the parent */
+            wg->grab = TRUE; /* set we grabbed the scrollbar */
+
+        }
 
     } else if (!wg->pressed) wg->grab = FALSE;
 
@@ -1193,11 +1183,36 @@ static void scrollvert_event(
 
 {
 
+    int       sclpos;  /* new scrollbar position */
+    int       sclsizp; /* size of slider in pixels */
+    int       remsizp; /* remaining space after slider in pixels */
+    int       totsizp; /* total size of slider space after padding */
+    pa_evtrec er;      /* outbound button event */
+    int       y;
+
     if (ev->etype == pa_etredraw) scrollvert_draw(wg); /* redraw the window */
     else if (ev->etype == pa_etmouba && ev->amoubn == 1) {
 
         wg->lpressed = wg->pressed; /* save last pressed state */
         wg->pressed = TRUE; /* set is pressed */
+        /* find net total slider space */
+        totsizp = pa_maxyg(wg->wf)-ENDSPACE-ENDSPACE;
+        /* find size of slider in pixels */
+        sclsizp = round((double)totsizp*wg->sclsiz/INT_MAX);
+        /* find remaining size after slider */
+        remsizp = totsizp-sclsizp;
+        /* find new top for click */
+        y = wg->mpy-sclsizp/2;
+        if (y < ENDSPACE) y = ENDSPACE; /* limit top travel */
+        else if (y+sclsizp > pa_maxyg(wg->wf)-ENDSPACE)
+            y = pa_maxyg(wg->wf)-sclsizp-ENDSPACE;
+        /* find new ratioed position */
+        sclpos = round((double)INT_MAX*(y-ENDSPACE)/remsizp);
+        /* send event back to parent window */
+        er.etype = pa_etsclpos; /* set scroll position event */
+        er.sclpid = wg->id; /* set id */
+        er.sclpos = sclpos; /* set scrollbar position */
+        pa_sendevent(wg->parent, &er); /* send the event to the parent */
         scrollvert_draw(wg);
 
     } else if (ev->etype == pa_etmoubd) {
@@ -1246,7 +1261,8 @@ static void scrollhoriz_draw(
     pa_evtrec er;      /* outbound event */
     int       x;
 
-    totsizp = pa_maxxg(wg->wf)-ENDSPACE-ENDSPACE; /* find net total slider space */
+    /* find net total slider space */
+    totsizp = pa_maxxg(wg->wf)-ENDSPACE-ENDSPACE;
     /* find size of slider in pixels */
     sclsizp = round((double)totsizp*wg->sclsiz/INT_MAX);
     /* find remaining size after slider */
@@ -1258,23 +1274,8 @@ static void scrollhoriz_draw(
     /* set status of mouse inside the bar */
     inbar = wg->mpx >= sclposp+ENDSPACE && wg->mpx <= botposp+ENDSPACE;
 
-    /* process off bar click */
-    if (!inbar && wg->pressed && !wg->lpressed) {
-
-        /* find new top if click is middle */
-        x = wg->mpx-sclsizp/2;
-        if (x < ENDSPACE) x = ENDSPACE; /* limit left travel */
-        else if (x+sclsizp > pa_maxxg(wg->wf)-ENDSPACE)
-            x = pa_maxxg(wg->wf)-sclsizp-ENDSPACE;
-        /* find new ratioed position */
-        sclpos = round((double)INT_MAX*(x-ENDSPACE)/remsizp);
-        /* send event back to parent window */
-        er.etype = pa_etsclpos; /* set scroll position event */
-        er.sclpid = wg->id; /* set id */
-        er.sclpos = sclpos; /* set scrollbar position */
-        pa_sendevent(wg->parent, &er); /* send the event to the parent */
-
-    } else if ((inbar || wg->grab) && wg->pressed && wg->lpressed &&
+    /* check drag */
+    if ((inbar || wg->grab) && wg->pressed && wg->lpressed &&
                wg->mpx != wg->lmpx) {
 
         /* mouse bar drag, process */
@@ -1313,11 +1314,36 @@ static void scrollhoriz_event(
 
 {
 
+    int       sclpos;  /* new scrollbar position */
+    int       sclsizp; /* size of slider in pixels */
+    int       remsizp; /* remaining space after slider in pixels */
+    int       totsizp; /* total size of slider space after padding */
+    pa_evtrec er;      /* outbound button event */
+    int       x;
+
     if (ev->etype == pa_etredraw) scrollhoriz_draw(wg); /* redraw the window */
     else if (ev->etype == pa_etmouba && ev->amoubn == 1) {
 
         wg->lpressed = wg->pressed; /* save last pressed state */
         wg->pressed = TRUE; /* set is pressed */
+        totsizp = pa_maxxg(wg->wf)-ENDSPACE-ENDSPACE; /* find net total slider space */
+        /* find size of slider in pixels */
+        sclsizp = round((double)totsizp*wg->sclsiz/INT_MAX);
+        /* find remaining size after slider */
+        remsizp = totsizp-sclsizp;
+        /* find new top for click */
+        x = wg->mpx-sclsizp/2;
+        if (x < ENDSPACE) x = ENDSPACE; /* limit left travel */
+        else if (x+sclsizp > pa_maxxg(wg->wf)-ENDSPACE)
+            x = pa_maxxg(wg->wf)-sclsizp-ENDSPACE;
+        /* find new ratioed position */
+        sclpos = round((double)INT_MAX*(x-ENDSPACE)/remsizp);
+        /* send event back to parent window */
+        er.etype = pa_etsclpos; /* set scroll position event */
+        er.sclpid = wg->id; /* set id */
+        er.sclpos = sclpos; /* set scrollbar position */
+        pa_sendevent(wg->parent, &er); /* send the event to the parent */
+
         scrollhoriz_draw(wg);
 
     } else if (ev->etype == pa_etmoubd) {

@@ -801,6 +801,7 @@ int main(void)
 
     /* ****************** Terminal scroll bar minimums test ******************* */
 
+#endif
     printf("\f");
     chrgrid();
     pa_binvis(stdout);
@@ -1416,7 +1417,6 @@ int main(void)
 
     /* ************************* Terminal slider test ************************ */
 
-#endif
     printf("\f");
     chrgrid();
     pa_binvis(stdout);
