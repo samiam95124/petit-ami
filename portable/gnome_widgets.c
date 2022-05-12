@@ -191,44 +191,44 @@ typedef enum  {
 typedef struct wigrec* wigptr;
 typedef struct wigrec {
 
-    /* next entry in list */                 wigptr    next;
-    /* type of widget */                     wigtyp    typ;
-    /* in the pressed state */               int       pressed;
-    /* last pressed state */                 int       lpressed;
-    /* the current on/off state */           int       select;
-    /* output file for the widget window */  FILE*     wf;
-    /* face text */                          char*     face;
-    /* parent window */                      FILE*     parent;
-    /* id number */                          int       id;
-    /* widget window id */                   int       wid;
-    /* widget is enabled */                  int       enb;
-    /* scrollbar size in MAXINT ratio */     int       sclsiz;
-    /* scrollbar position in MAXINT ratio */ int       sclpos;
-    /* mouse tracking in widget */           int       mpx, mpy;
-    /* last mouse position */                int       lmpx, lmpy;
-    /* text cursor */                        int       curs;
-    /* text left side index */               int       tleft;
-    /* focused */                            int       focus;
-    /* hovered */                            int       hover;
-    /* insert/overwrite mode */              int       ins;
-    /* allow only numeric entry */           int       num;
-    /* low bound of number */                int       lbnd;
-    /* upper bound of number */              int       ubnd;
-    /* child/subclassed widget */            wigptr    cw;
-    /* child/subclassed widget 2 */          wigptr    cw2;
-    /* parent widget */                      wigptr    pw;
-    /* parent file (used to send subclass
+    /** next entry in list */                 wigptr    next;
+    /** type of widget */                     wigtyp    typ;
+    /** in the pressed state */               int       pressed;
+    /** last pressed state */                 int       lpressed;
+    /** the current on/off state */           int       select;
+    /** output file for the widget window */  FILE*     wf;
+    /** face text */                          char*     face;
+    /** parent window */                      FILE*     parent;
+    /** id number */                          int       id;
+    /** widget window id */                   int       wid;
+    /** widget is enabled */                  int       enb;
+    /** scrollbar size in MAXINT ratio */     int       sclsiz;
+    /** scrollbar position in MAXINT ratio */ int       sclpos;
+    /** mouse tracking in widget */           int       mpx, mpy;
+    /** last mouse position */                int       lmpx, lmpy;
+    /** text cursor */                        int       curs;
+    /** text left side index */               int       tleft;
+    /** focused */                            int       focus;
+    /** hovered */                            int       hover;
+    /** insert/overwrite mode */              int       ins;
+    /** allow only numeric entry */           int       num;
+    /** low bound of number */                int       lbnd;
+    /** upper bound of number */              int       ubnd;
+    /** child/subclassed widget */            wigptr    cw;
+    /** child/subclassed widget 2 */          wigptr    cw2;
+    /** parent widget */                      wigptr    pw;
+    /** parent file (used to send subclass
        messages) */                          FILE*     pf;
-    /* up button pressed */                  int       uppress;
-    /* down buton pressed */                 int       downpress;
-    /* progress bar position */              int       ppos;
-    /* string list */                        pa_strptr strlst;
-    /* string selected, 0 if none */         int       ss;
-    /* string hovered, 0 if none */          int       sh;
-    /* position of widget in parent */       int       px, py;
-    /* child window id */                    int       cid;
-    /* mouse grabs scrollbar/slider */       int       grab;
-    /* tick marks on slider */               int       ticks;
+    /** up button pressed */                  int       uppress;
+    /** down buton pressed */                 int       downpress;
+    /** progress bar position */              int       ppos;
+    /** string list */                        pa_strptr strlst;
+    /** string selected, 0 if none */         int       ss;
+    /** string hovered, 0 if none */          int       sh;
+    /** position of widget in parent */       int       px, py;
+    /** child window id */                    int       cid;
+    /** mouse grabs scrollbar/slider */       int       grab;
+    /** tick marks on slider */               int       ticks;
 
 } wigrec;
 
@@ -4000,10 +4000,10 @@ void pa_scrollvert(
 
 /** ****************************************************************************
 
-Find minimum/standard horizontal scrollbar size
+Find minimum/standard horizontal scrollbar size graphical
 
-Finds the minimum size for a horizontal scrollbar. The minimum size of a
-horizontal scrollbar is calculated and returned.
+Finds the minimum size for a graphical horizontal scrollbar. The minimum size of
+a horizontal scrollbar is calculated and returned.
 
 *******************************************************************************/
 
@@ -4019,6 +4019,15 @@ void pa_scrollhorizsizg(
     *h = 20;
 
 }
+
+/** ****************************************************************************
+
+Find minimum/standard horizontal scrollbar size text
+
+Finds the minimum size for a text horizontal scrollbar. The minimum size of a
+horizontal scrollbar is calculated and returned.
+
+*******************************************************************************/
 
 void pa_scrollhorizsiz(
     /** Window file */   FILE* f,
@@ -4037,9 +4046,9 @@ void pa_scrollhorizsiz(
 
 /** ****************************************************************************
 
-Create horizontal scrollbar
+Create horizontal scrollbar graphical
 
-Creates a horizontal scrollbar.
+Creates a graphical horizontal scrollbar.
 
 *******************************************************************************/
 
@@ -4060,6 +4069,14 @@ void pa_scrollhorizg(
     widget(f, x1, y1, x2, y2, "", id, wtscrollhoriz, &wp);
 
 }
+
+/** ****************************************************************************
+
+Create horizontal scrollbar text
+
+Creates a text horizontal scrollbar.
+
+*******************************************************************************/
 
 void pa_scrollhoriz(
     /** Window file */         FILE* f,
@@ -4139,10 +4156,10 @@ void pa_scrollsiz(
 
 /** ****************************************************************************
 
-Find minimum/standard number select box size
+Find minimum/standard number select box size graphical
 
-Finds the minimum size for a number select box. The minimum size of a number
-select box is calculated and returned.
+Finds the minimum size for a graphical number select box. The minimum size of a
+number select box is calculated and returned.
 
 *******************************************************************************/
 
@@ -4175,6 +4192,15 @@ void pa_numselboxsizg(
 
 }
 
+/** ****************************************************************************
+
+Find minimum/standard number select box size text
+
+Finds the minimum size for a text number select box. The minimum size of a
+number select box is calculated and returned.
+
+*******************************************************************************/
+
 void pa_numselboxsiz(
     /** Window file */    FILE* f,
     /** Lower bound */    int   l,
@@ -4194,9 +4220,9 @@ void pa_numselboxsiz(
 
 /** ****************************************************************************
 
-Create number selector
+Create number selector graphical
 
-Creates an up/down control for numeric selection.
+Creates an up/down control for a graphical numeric selection.
 
 *******************************************************************************/
 
@@ -4236,6 +4262,14 @@ void pa_numselboxg(
 
 }
 
+/** ****************************************************************************
+
+Create number selector text
+
+Creates an up/down control for a text numeric selection.
+
+*******************************************************************************/
+
 void pa_numselbox(
     /** Window file */         FILE* f,
     /** Placement rectangle */ int   x1,
@@ -4259,10 +4293,10 @@ void pa_numselbox(
 
 /** ****************************************************************************
 
-Find minimum/standard edit box size
+Find minimum/standard edit box size graphical
 
-Finds the minimum size for an edit box. Given a sample face string, the minimum
-size of an edit box is calculated and returned.
+Finds the minimum size for a graphical edit box. Given a sample face string, the
+minimum size of an edit box is calculated and returned.
 
 *******************************************************************************/
 
@@ -4279,6 +4313,15 @@ void pa_editboxsizg(
     *w = pa_strsiz(win0, s);
 
 }
+
+/** ****************************************************************************
+
+Find minimum/standard edit box size text
+
+Finds the minimum size for a text edit box. Given a sample face string, the
+minimum size of an edit box is calculated and returned.
+
+*******************************************************************************/
 
 void pa_editboxsiz(
     /** Window file */        FILE* f,
@@ -4298,9 +4341,9 @@ void pa_editboxsiz(
 
 /** ****************************************************************************
 
-Create edit box
+Create edit box graphical
 
-Creates single line edit box
+Creates single line graphical edit box
 
 *******************************************************************************/
 
@@ -4322,6 +4365,14 @@ void pa_editboxg(
     pa_curvis(wp->wf, FALSE); /* turn on cursor */
 
 }
+
+/** ****************************************************************************
+
+Create edit box text
+
+Creates single line text edit box
+
+*******************************************************************************/
 
 void pa_editbox(
     /** Window file */         FILE* f,
@@ -4345,7 +4396,7 @@ void pa_editbox(
 
 /** ****************************************************************************
 
-Find minimum/standard progress bar size
+Find minimum/standard progress bar size graphical
 
 Progress bars are fairly arbitrary, and the dimensions given are more of a
 suggestion. The height is based on character size, which is a pretty good base
@@ -4366,6 +4417,16 @@ void pa_progbarsizg(
 
 }
 
+/** ****************************************************************************
+
+Find minimum/standard progress bar size text
+
+Progress bars are fairly arbitrary, and the dimensions given are more of a
+suggestion. The height is based on character size, which is a pretty good base
+measure, but the width is really up to the caller.
+
+*******************************************************************************/
+
 void pa_progbarsiz(
     /** Window file */   FILE* f,
     /** Return width */  int*  w,
@@ -4383,7 +4444,7 @@ void pa_progbarsiz(
 
 /** ****************************************************************************
 
-Create progress bar
+Create progress bar graphical
 
 Creates a progress bar.
 
@@ -4406,6 +4467,14 @@ void pa_progbarg(
     widget(f, x1, y1, x2, y2, "", id, wtprogbar, &wp);
 
 }
+
+/** ****************************************************************************
+
+Create progress bar text
+
+Creates a progress bar.
+
+*******************************************************************************/
 
 void pa_progbar(
     /** Window file */         FILE* f,
@@ -4454,10 +4523,10 @@ void pa_progbarpos(
 
 /** ****************************************************************************
 
-Find minimum/standard list box size
+Find minimum/standard list box size graphical
 
-Finds the minimum size for an list box. Given a string list, the minimum size
-of an list box is calculated and returned.
+Finds the minimum size for a graphical list box. Given a string list, the
+minimum size of an list box is calculated and returned.
 
 Windows listboxes pretty much ignore the size given. If you allocate more space
 than needed, it will only put blank lines below if enough space for an entire
@@ -4500,6 +4569,22 @@ void pa_listboxsizg(
 
 }
 
+/** ****************************************************************************
+
+Find minimum/standard list box size text
+
+Finds the minimum size for a textlist box. Given a string list, the minimum size
+of an list box is calculated and returned.
+
+Windows listboxes pretty much ignore the size given. If you allocate more space
+than needed, it will only put blank lines below if enough space for an entire
+line is present. If the size does not contain exactly enough to display the
+whole line list, the box will colapse to a single line with an up/down
+control. The only thing that is garanteed is that the box will fit within the
+specified rectangle, one way or another.
+
+*******************************************************************************/
+
 void pa_listboxsiz(
     /** Window file */         FILE*     f,
     /** string list pointer */ pa_strptr sp,
@@ -4518,9 +4603,9 @@ void pa_listboxsiz(
 
 /** ****************************************************************************
 
-Create list box
+Create list box graphical
 
-Creates a list box. Fills it with the string list provided.
+Creates a graphical list box. Fills it with the string list provided.
 
 *******************************************************************************/
 
@@ -4549,6 +4634,14 @@ void pa_listboxg(
 
 }
 
+/** ****************************************************************************
+
+Create list box text
+
+Creates a text list box. Fills it with the string list provided.
+
+*******************************************************************************/
+
 void pa_listbox(
     /** Window file */         FILE*     f,
     /** Placement rectangle */ int       x1,
@@ -4572,10 +4665,11 @@ void pa_listbox(
 
 /** ****************************************************************************
 
-Find minimum/standard dropbox size
+Find minimum/standard dropbox size graphical
 
-Finds the minimum size for a dropbox. Given the face string, the minimum size of
-a dropbox is calculated and returned, for both the "open" and "closed" case.
+Finds the minimum size for a graphical dropbox. Given the face string, the
+minimum size of a dropbox is calculated and returned, for both the "open" and
+"closed" case.
 
 The open sizing is used to create the widget. The reason for this is that the
 widget can be smaller than the open size, and it will still work, because the
@@ -4609,6 +4703,20 @@ void pa_dropboxsizg(
 
 }
 
+/** ****************************************************************************
+
+Find minimum/standard dropbox size text
+
+Finds the minimum size for a text dropbox. Given the face string, the minimum
+size of a dropbox is calculated and returned, for both the "open" and "closed"
+case.
+
+The open sizing is used to create the widget. The reason for this is that the
+widget can be smaller than the open size, and it will still work, because the
+selections can be scrolled.
+
+*******************************************************************************/
+
 void pa_dropboxsiz(
     /** Window file */         FILE*     f,
     /** String list pointer */ pa_strptr sp,
@@ -4631,9 +4739,9 @@ void pa_dropboxsiz(
 
 /** ****************************************************************************
 
-Create dropdown box
+Create dropdown box graphical
 
-Creates a dropdown box. Fills it with the string list provided.
+Creates a graphical dropdown box. Fills it with the string list provided.
 
 *******************************************************************************/
 
@@ -4668,6 +4776,14 @@ void pa_dropboxg(
 
 }
 
+/** ****************************************************************************
+
+Create dropdown box text
+
+Creates a text dropdown box. Fills it with the string list provided.
+
+*******************************************************************************/
+
 void pa_dropbox(
     /** Window file */         FILE*     f,
     /** Placement rectangle */ int       x1,
@@ -4691,11 +4807,11 @@ void pa_dropbox(
 
 /** ****************************************************************************
 
-Find minimum/standard drop edit box size
+Find minimum/standard drop edit box size graphical
 
-Finds the minimum size for a drop edit box. Given the face string, the minimum
-size of a drop edit box is calculated and returned, for both the "open" and
-"closed" case.
+Finds the minimum size for a graphical drop edit box. Given the face string, the
+minimum size of a drop edit box is calculated and returned, for both the "open"
+and "closed" case.
 
 The open sizing is used to create the widget. The reason for this is that the
 widget can be smaller than the open size, and it will still work, because the
@@ -4719,6 +4835,20 @@ void pa_dropeditboxsizg(
 
 }
 
+/** ****************************************************************************
+
+Find minimum/standard drop edit box size text
+
+Finds the minimum size for a text drop edit box. Given the face string, the
+minimum size of a drop edit box is calculated and returned, for both the "open"
+and "closed" case.
+
+The open sizing is used to create the widget. The reason for this is that the
+widget can be smaller than the open size, and it will still work, because the
+selections can be scrolled.
+
+*******************************************************************************/
+
 void pa_dropeditboxsiz(
     /** Window file */          FILE*     f,
     /** string list pointer */  pa_strptr sp,
@@ -4741,9 +4871,9 @@ void pa_dropeditboxsiz(
 
 /** ****************************************************************************
 
-Create dropdown edit box
+Create dropdown edit box graphical
 
-Creates a dropdown edit box. Fills it with the string list provided.
+Creates a graphical dropdown edit box. Fills it with the string list provided.
 
 We need to subclass a mode where a return selects the current contents of the
 box.
@@ -4800,6 +4930,17 @@ void pa_dropeditboxg(
 
 }
 
+/** ****************************************************************************
+
+Create dropdown edit box text
+
+Creates a text dropdown edit box. Fills it with the string list provided.
+
+We need to subclass a mode where a return selects the current contents of the
+box.
+
+*******************************************************************************/
+
 void pa_dropeditbox(
     /** Window file */         FILE*     f,
     /** Placement rectangle */ int       x1,
@@ -4823,10 +4964,10 @@ void pa_dropeditbox(
 
 /** ****************************************************************************
 
-Find minimum/standard horizontal slider size
+Find minimum/standard horizontal slider size graphical
 
-Finds the minimum size for a horizontal slider. The minimum size of a horizontal
-slider is calculated and returned.
+Finds the minimum size for a graphical horizontal slider. The minimum size of a
+horizontal slider is calculated and returned.
 
 *******************************************************************************/
 
@@ -4842,6 +4983,15 @@ void pa_slidehorizsizg(
     *h = pa_chrsizy(win0)*1.5;
 
 }
+
+/** ****************************************************************************
+
+Find minimum/standard horizontal slider size text
+
+Finds the minimum size for a text horizontal slider. The minimum size of a
+horizontal slider is calculated and returned.
+
+*******************************************************************************/
 
 void pa_slidehorizsiz(
     /** Window file */   FILE* f,
@@ -4861,9 +5011,9 @@ void pa_slidehorizsiz(
 
 /** ****************************************************************************
 
-Create horizontal slider
+Create horizontal slider graphical
 
-Creates a horizontal slider.
+Creates a graphical horizontal slider.
 
 *******************************************************************************/
 
@@ -4886,6 +5036,14 @@ void pa_slidehorizg(
     widget(f, x1, y1, x2, y2, "", id, wtslidehoriz, &wp);
 
 }
+
+/** ****************************************************************************
+
+Create horizontal slider text
+
+Creates a text horizontal slider.
+
+*******************************************************************************/
 
 void pa_slidehoriz(
     /** Window file */         FILE* f,
@@ -4910,10 +5068,10 @@ void pa_slidehoriz(
 
 /** ****************************************************************************
 
-Find minimum/standard vertical slider size
+Find minimum/standard vertical slider size graphical
 
-Finds the minimum size for a vertical slider. The minimum size of a vertical
-slider is calculated and returned.
+Finds the minimum size for a graphical vertical slider. The minimum size of a
+vertical slider is calculated and returned.
 
 *******************************************************************************/
 
@@ -4929,6 +5087,15 @@ void pa_slidevertsizg(
     *h = 40;
 
 }
+
+/** ****************************************************************************
+
+Find minimum/standard vertical slider size text
+
+Finds the minimum size for a text vertical slider. The minimum size of a
+vertical slider is calculated and returned.
+
+*******************************************************************************/
 
 void pa_slidevertsiz(
     /** Window file */   FILE* f,
@@ -4947,9 +5114,9 @@ void pa_slidevertsiz(
 
 /** ****************************************************************************
 
-Create vertical slider
+Create vertical slider graphical
 
-Creates a vertical slider.
+Creates a graphical vertical slider.
 
 Bugs: The tick marks should be in pixel terms, not logical terms.
 
@@ -4975,6 +5142,16 @@ void pa_slidevertg(
 
 }
 
+/** ****************************************************************************
+
+Create vertical slider text
+
+Creates a text vertical slider.
+
+Bugs: The tick marks should be in pixel terms, not logical terms.
+
+*******************************************************************************/
+
 void pa_slidevert(
     /** Window file */         FILE* f,
     /** Placement rectangle */ int   x1,
@@ -4998,9 +5175,9 @@ void pa_slidevert(
 
 /** ****************************************************************************
 
-Find minimum/standard tab bar size
+Find minimum/standard tab bar size graphical
 
-Finds the minimum size for a tab bar. The minimum size of a tab bar is
+Finds the minimum size for a graphical tab bar. The minimum size of a tab bar is
 calculated and returned.
 
 *******************************************************************************/
@@ -5032,6 +5209,15 @@ void pa_tabbarsizg(
 
 }
 
+/** ****************************************************************************
+
+Find minimum/standard tab bar size text
+
+Finds the minimum size for a text tab bar. The minimum size of a tab bar is
+calculated and returned.
+
+*******************************************************************************/
+
 void pa_tabbarsiz(
     /** Window file */            FILE* f,
     /** Tab orientation */        pa_tabori tor,
@@ -5061,11 +5247,11 @@ void pa_tabbarsiz(
 
 /** ****************************************************************************
 
-Find client from tabbar size
+Find client from tabbar size graphical
 
-Given a tabbar size and orientation, this routine gives the client size and
-offset. This is used where the tabbar size is fixed, but the client area is
-flexible.
+Given a graphical tabbar size and orientation, this routine gives the client
+size and offset. This is used where the tabbar size is fixed, but the client
+area is flexible.
 
 *******************************************************************************/
 
@@ -5096,6 +5282,17 @@ void pa_tabbarclientg(
 
 }
 
+
+/** ****************************************************************************
+
+Find client from tabbar size text
+
+Given a text tabbar size and orientation, this routine gives the client size and
+offset. This is used where the tabbar size is fixed, but the client area is
+flexible.
+
+*******************************************************************************/
+
 void pa_tabbarclient(
     /** Window file */            FILE*     f,
     /** Tab orientation */        pa_tabori tor,
@@ -5125,9 +5322,9 @@ void pa_tabbarclient(
 
 /** ****************************************************************************
 
-Create tab bar
+Create tab bar graphical
 
-Creates a tab bar with the given orientation.
+Creates a graphical tab bar with the given orientation.
 
 *******************************************************************************/
 
@@ -5157,6 +5354,14 @@ void pa_tabbarg(
     widget(f, x1, y1, x2, y2, "", id, wttabbar, &wp);
 
 }
+
+/** ****************************************************************************
+
+Create tab bar text
+
+Creates a text tab bar with the given orientation.
+
+*******************************************************************************/
 
 void pa_tabbar(
     /** Window file */         FILE*     f,
@@ -5435,15 +5640,8 @@ Widgets startup
 
 *******************************************************************************/
 
-static void pa_init_widgets(
-    /** argument count */ int argc,
-    /** argument list */ char *argv[]
-) __attribute__((constructor (102)));
-
-static void pa_init_widgets(
-    /** argument count */ int argc,
-    /** argument list */ char *argv[]
-)
+static void init_widgets(void) __attribute__((constructor (102)));
+static void init_widgets()
 
 {
 
@@ -5507,8 +5705,8 @@ Widgets shutdown
 
 *******************************************************************************/
 
-static void pa_deinit_widgets(void) __attribute__((destructor (102)));
-static void pa_deinit_widgets()
+static void deinit_widgets(void) __attribute__((destructor (102)));
+static void deinit_widgets()
 
 {
 
