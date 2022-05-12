@@ -801,6 +801,67 @@ static int digits(int v)
 
 }
 
+/*******************************************************************************
+
+Create widget
+
+Creates a widget within the given window, within the specified bounding box,
+and using the face string and type, and the given id. The string may or may not
+be used.
+
+A predefined widget entry can be passed in. This allows subclassing widgets. The
+subclasser uses the pass-in to set parameters to control the subclassing. If the
+pass-in is NULL, then a new entry will be created. This, or the predefined entry
+will be passed back to the user.
+
+*******************************************************************************/
+
+static void widget(
+    /** Parent window file */              FILE* f,
+    /** Containing rectangle for widget */ int x1, int y1, int x2, int y2,
+    /** Face string (if exists) */         char* s,
+    /** logical id for widget */           int id,
+    /** type code for widget */            wigtyp typ,
+    /** Widget I/O pointer */              wigptr* wpr
+)
+
+{
+
+    int fn; /* logical file name */
+    wigptr wp;
+
+    if (id <= -MAXWIG || id > MAXWIG || !id) error("Invalid widget id");
+    makfil(f); /* ensure there is a file entry and validate */
+    fn = fileno(f); /* get the file index */
+    wp = *wpr; /* get any predefined widget entry */
+    if (!wp) wp = getwig(); /* get widget entry if none passed in */
+    if (opnfil[fn]->widgets[id+MAXWIG]) error("Widget by id already in use");
+    opnfil[fn]->widgets[id+MAXWIG] = wp; /* set widget entry */
+
+    wp->face = str(s); /* place face */
+    wp->wid = pa_getwinid(); /* allocate a buried wid */
+    pa_openwin(&stdin, &wp->wf, f, wp->wid); /* open widget window */
+    wp->parent = f; /* save parent file */
+    xltwig[wp->wid+MAXFIL] = wp; /* set the tracking entry for the window */
+    wp->id = id; /* set button widget id */
+    pa_buffer(wp->wf, FALSE); /* turn off buffering */
+    pa_auto(wp->wf, FALSE); /* turn off auto */
+    pa_curvis(wp->wf, FALSE); /* turn off cursor */
+    pa_font(wp->wf, PA_FONT_SIGN); /* set sign font */
+    pa_frame(wp->wf, FALSE); /* turn off frame */
+    pa_setposg(wp->wf, x1, y1); /* place at position */
+    pa_setsizg(wp->wf, x2-x1, y2-y1); /* set size */
+    pa_binvis(wp->wf); /* no background write */
+    wp->typ = typ; /* place type */
+    wp->enb = TRUE; /* set is enabled */
+    wp->sclsiz = INT_MAX/10; /* set default size scrollbar */
+    wp->px = x1; /* set widget position in parent */
+    wp->py = y1;
+
+    *wpr = wp; /* copy back to caller */
+
+}
+
 /** ****************************************************************************
 
 Button draw handler
@@ -2981,66 +3042,7 @@ static void widget_event(
 
 }
 
-/*******************************************************************************
 
-Create widget
-
-Creates a widget within the given window, within the specified bounding box,
-and using the face string and type, and the given id. The string may or may not
-be used.
-
-A predefined widget entry can be passed in. This allows subclassing widgets. The
-subclasser uses the pass-in to set parameters to control the subclassing. If the
-pass-in is NULL, then a new entry will be created. This, or the predefined entry
-will be passed back to the user.
-
-*******************************************************************************/
-
-static void widget(
-    /** Parent window file */              FILE* f,
-    /** Containing rectangle for widget */ int x1, int y1, int x2, int y2,
-    /** Face string (if exists) */         char* s,
-    /** logical id for widget */           int id,
-    /** type code for widget */            wigtyp typ,
-    /** Widget I/O pointer */              wigptr* wpr
-)
-
-{
-
-    int fn; /* logical file name */
-    wigptr wp;
-
-    if (id <= -MAXWIG || id > MAXWIG || !id) error("Invalid widget id");
-    makfil(f); /* ensure there is a file entry and validate */
-    fn = fileno(f); /* get the file index */
-    wp = *wpr; /* get any predefined widget entry */
-    if (!wp) wp = getwig(); /* get widget entry if none passed in */
-    if (opnfil[fn]->widgets[id+MAXWIG]) error("Widget by id already in use");
-    opnfil[fn]->widgets[id+MAXWIG] = wp; /* set widget entry */
-
-    wp->face = str(s); /* place face */
-    wp->wid = pa_getwinid(); /* allocate a buried wid */
-    pa_openwin(&stdin, &wp->wf, f, wp->wid); /* open widget window */
-    wp->parent = f; /* save parent file */
-    xltwig[wp->wid+MAXFIL] = wp; /* set the tracking entry for the window */
-    wp->id = id; /* set button widget id */
-    pa_buffer(wp->wf, FALSE); /* turn off buffering */
-    pa_auto(wp->wf, FALSE); /* turn off auto */
-    pa_curvis(wp->wf, FALSE); /* turn off cursor */
-    pa_font(wp->wf, PA_FONT_SIGN); /* set sign font */
-    pa_frame(wp->wf, FALSE); /* turn off frame */
-    pa_setposg(wp->wf, x1, y1); /* place at position */
-    pa_setsizg(wp->wf, x2-x1, y2-y1); /* set size */
-    pa_binvis(wp->wf); /* no background write */
-    wp->typ = typ; /* place type */
-    wp->enb = TRUE; /* set is enabled */
-    wp->sclsiz = INT_MAX/10; /* set default size scrollbar */
-    wp->px = x1; /* set widget position in parent */
-    wp->py = y1;
-
-    *wpr = wp; /* copy back to caller */
-
-}
 
 /** ****************************************************************************
 
