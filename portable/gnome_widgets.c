@@ -253,9 +253,6 @@ static FILE*         win0;               /* "window zero" dummy window */
 /* table of colors or other theme values */
 static unsigned long themetable[th_endmarker];
 
-/* forwards */
-static void numselbox_draw(wigptr wg);
-
 /** ****************************************************************************
 
 Process error
