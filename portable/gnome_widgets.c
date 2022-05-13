@@ -62,9 +62,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <config.h>
 #include <graphics.h>
 
-/* external definitions */
-extern char *program_invocation_short_name;
-
 /*
  * Debug print system
  *

@@ -10112,15 +10112,17 @@ static winptr fndfocus(winptr win)
 
 /* Remove focus from window. Searches from the given window down the tree until
    the window containing focus is found. The focus is them removed by sending a
-   defocus event, removing focus status, and repainting the cursor. */
-static int remfocus(winptr win)
+   defocus event, removing focus status, and repainting the cursor.
+   If a focus window is provided, will not take the focus from that. This is
+   to prevent "bouncing" the focus. */
+static int remfocus(winptr win, winptr curwin)
 
 {
 
     pa_evtrec er;   /* event record */
 
     win = fndfocus(win); /* find focused window */
-    if (win) { /* found */
+    if (win && win != curwin) { /* found */
 
         /* found the focus window */
         er.etype = pa_etnofocus; /* send defocus to parent */
@@ -10563,7 +10565,7 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
 
             /* We will fake focus. We still need to process the mouse click, so
                we will send the focus event on ahead. */
-            ff = remfocus(root(win)); /* remove focus from whatever window has it */
+            ff = remfocus(root(win), win); /* remove focus from whatever window has it */
             if (!ff) error(esystem); /* couldn't find focus window */
             er2.etype = pa_etfocus; /* set focus event */
             isendevent(win, &er2); /* send it */
@@ -10579,7 +10581,7 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
 
     } else if (e->type == FocusOut) {
 
-        remfocus(root(win)); /* remove focus from child window if it has it */
+        remfocus(root(win), NULL); /* remove focus from child window if it has it */
         curoff(win); /* remove cursor */
         win->focus = FALSE; /* remove focus */
         curon(win); /* replace cursor */
@@ -10588,7 +10590,7 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
 
     } else if (e->type == FocusIn) {
 
-        remfocus(root(win)); /* remove focus from child window if it has it */
+        remfocus(root(win), win); /* remove focus from child window if it has it */
         curoff(win); /* remove cursor */
         win->focus = TRUE; /* put focus */
         curon(win); /* replace cursor */
