@@ -66,6 +66,7 @@ static int           br, bg, bb;
 static pa_qfteffects fe;
 static int           cx, cy;
 static int           ox, oy;
+static int           cox, coy;
 
 static int           i, cnt;
 static char          fns[100];
@@ -801,7 +802,6 @@ int main(void)
 
     /* ****************** Terminal scroll bar minimums test ******************* */
 
-#endif
     printf("\f");
     chrgrid();
     pa_binvis(stdout);
@@ -1590,9 +1590,15 @@ int main(void)
 
    /* ************************* Graphical tab bar test ************************ */
 
+#endif
     printf("\f");
     printf("Graphical tab bar test\n");
     printf("\n");
+
+    ox = pa_maxyg(stdout)*0.125;
+    oy = pa_curyg(stdout);
+    xs = pa_maxxg(stdout)*0.25;
+    ys = pa_maxyg(stdout)*0.125;
 
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("Right");
@@ -1605,8 +1611,8 @@ int main(void)
     sp->str = str("Left");
     sp->next = lp;
     lp = sp;
-    pa_tabbarsizg(stdout, pa_totop, 400/*200*/, 400/*20*/, &x, &y, &ox, &oy);
-    pa_tabbarg(stdout, 100, 100, 100+x-1, 100+y-1, lp, pa_totop, 1);
+    pa_tabbarsizg(stdout, pa_totop, xs, ys, &x, &y, &cox, &coy);
+    pa_tabbarg(stdout, ox*2, oy, ox*2+x-1, oy+y-1, lp, pa_totop, 1);
 
 #if 0
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
@@ -1622,7 +1628,9 @@ int main(void)
     lp = sp;
     pa_tabbarsizg(stdout, pa_toright, 20, 200, &x, &y, &ox, &oy);
     pa_tabbarg(stdout, 400, 100, 400+x-1, 100+y-1, lp, pa_toright, 2);
+#endif
 
+    oy = pa_maxyg(stdout)-pa_maxyg(stdout)*0.25;
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("Right");
     lp->next = NULL;
@@ -1634,9 +1642,10 @@ int main(void)
     sp->str = str("Left");
     sp->next = lp;
     lp = sp;
-    pa_tabbarsizg(stdout, pa_tobottom, 200, 20, &x, &y, &ox, &oy);
-    pa_tabbarg(stdout, 150, 300, 150+x-1, 300+y-1, lp, pa_tobottom, 3);
+    pa_tabbarsizg(stdout, pa_tobottom, xs, ys, &x, &y, &cox, &coy);
+    pa_tabbarg(stdout, ox*2, oy, ox*2+x-1, oy+y-1, lp, pa_tobottom, 3);
 
+#if 0
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("Bottom");
     lp->next = NULL;

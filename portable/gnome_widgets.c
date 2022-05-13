@@ -98,7 +98,7 @@ static enum { /* debug levels */
 /* user defined messages */
 #define WMC_LGTFOC pa_etwidget+0 /* widget message code: light up focus */
 #define WMC_DRKFOC pa_etwidget+1 /* widget message code: turn off focus */
-#define TABHGT 2 /* tab bar tab height /* char size y */
+#define TABHGT 2 /* tab bar tab height * char size y */
 
 /* macro to make a color from RGB values */
 #define RGB(r, g, b) (r<<16|g<<8|b)
@@ -229,6 +229,7 @@ typedef struct wigrec {
     /** child window id */                    int       cid;
     /** mouse grabs scrollbar/slider */       int       grab;
     /** tick marks on slider */               int       ticks;
+    /** Tab orientation */                    pa_tabori tor;
 
 } wigrec;
 
@@ -645,6 +646,7 @@ static wigptr getwig(void)
     wp->cid = 0; /* clear child id */
     wp->grab = FALSE; /* set no scrollbar/slider grab */
     wp->ticks = 0; /* set no tick marks on slider */
+    wp->tor = pa_totop; /* set tab orientation top */
 
     return wp; /* return entry */
 
@@ -2807,15 +2809,30 @@ static void tabbar_draw(
     pa_fcolor(wg->wf, pa_white);
     pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
     fcolort(wg->wf, th_tabback);
-    pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_chrsizy(wg->wf)*TABHGT);
+    if (wg->tor == pa_totop)
+        pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_chrsizy(wg->wf)*TABHGT);
+    else
+        pa_frect(wg->wf, 1, pa_maxyg(wg->wf)-pa_chrsizy(wg->wf)*TABHGT,
+                         pa_maxxg(wg->wf), pa_maxyg(wg->wf));
     /* outline */
     pa_linewidth(wg->wf, 2);
     fcolort(wg->wf, th_outline1);
     pa_rect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1, pa_maxyg(wg->wf)-1);
-    pa_line(wg->wf, 1, pa_chrsizy(wg->wf)*TABHGT,
-                    pa_maxxg(wg->wf), pa_chrsizy(wg->wf)*TABHGT);
+    if (wg->tor == pa_totop)
+        pa_line(wg->wf, 1, pa_chrsizy(wg->wf)*TABHGT,
+                        pa_maxxg(wg->wf), pa_chrsizy(wg->wf)*TABHGT);
+    else
+        pa_line(wg->wf, 1,
+                        pa_maxyg(wg->wf)-pa_chrsizy(wg->wf)*TABHGT,
+                        pa_maxxg(wg->wf),
+                        pa_maxyg(wg->wf)-pa_chrsizy(wg->wf)*TABHGT);
     /* draw tab text */
-    pa_cursorg(wg->wf, pa_chrsizy(wg->wf), pa_chrsizy(wg->wf)*0.5);
+    if (wg->tor == pa_totop)
+        pa_cursorg(wg->wf, pa_chrsizy(wg->wf), pa_chrsizy(wg->wf)*0.5);
+    else
+        pa_cursorg(wg->wf, pa_chrsizy(wg->wf),
+                           pa_maxyg(wg->wf)-pa_chrsizy(wg->wf)*TABHGT+
+                               pa_chrsizy(wg->wf)*0.5);
     sp = wg->strlst; /* index tab string list */
     sc = 1; /* set first string */
     while (sp && pa_curxg(wg->wf) <= pa_maxxg(wg->wf)) {
@@ -2825,21 +2842,35 @@ static void tabbar_draw(
             pa_linewidth(wg->wf, 6);
             if (sc == wg->ss) fcolort(wg->wf, th_tabsel);
             else fcolort(wg->wf, th_outline1);
-            pa_line(wg->wf, pa_curxg(wg->wf)-pa_chrsizy(wg->wf)*0.5,
-                            pa_chrsizy(wg->wf)*TABHGT-3,
-                            pa_curxg(wg->wf)+pa_strsiz(wg->wf, sp->str)+
-                                     pa_chrsizy(wg->wf)*0.5,
-                            pa_chrsizy(wg->wf)*TABHGT-3);
+            if (wg->tor == pa_totop)
+                pa_line(wg->wf, pa_curxg(wg->wf)-pa_chrsizy(wg->wf)*0.5,
+                             pa_chrsizy(wg->wf)*TABHGT-3,
+                             pa_curxg(wg->wf)+pa_strsiz(wg->wf, sp->str)+
+                                      pa_chrsizy(wg->wf)*0.5,
+                             pa_chrsizy(wg->wf)*TABHGT-3);
+            else
+                pa_line(wg->wf, pa_curxg(wg->wf)-pa_chrsizy(wg->wf)*0.5,
+                             pa_maxyg(wg->wf)-pa_chrsizy(wg->wf)*TABHGT+3,
+                             pa_curxg(wg->wf)+pa_strsiz(wg->wf, sp->str)+
+                                      pa_chrsizy(wg->wf)*0.5,
+                             pa_maxyg(wg->wf)-pa_chrsizy(wg->wf)*TABHGT+3);
 
         }
         if (sc == wg->ss && wg->focus) { /* draw focus box */
 
             pa_linewidth(wg->wf, 2);
             fcolort(wg->wf, th_tabfocus);
-            pa_rrect(wg->wf, pa_curxg(wg->wf)-pa_chrsizy(wg->wf)*0.5,
-                             5, pa_curxg(wg->wf)+pa_strsiz(wg->wf, sp->str)+
-                             pa_chrsizy(wg->wf)*0.5, pa_chrsizy(wg->wf)*TABHGT-3,
-                             10, 10);
+            if (wg->tor == pa_totop)
+                pa_rrect(wg->wf, pa_curxg(wg->wf)-pa_chrsizy(wg->wf)*0.5,
+                                 5, pa_curxg(wg->wf)+pa_strsiz(wg->wf, sp->str)+
+                                 pa_chrsizy(wg->wf)*0.5, pa_chrsizy(wg->wf)*TABHGT-3,
+                                 10, 10);
+            else
+                pa_rrect(wg->wf, pa_curxg(wg->wf)-pa_chrsizy(wg->wf)*0.5,
+                                 pa_maxyg(wg->wf)-pa_chrsizy(wg->wf)*TABHGT+5,
+                                 pa_curxg(wg->wf)+pa_strsiz(wg->wf, sp->str)+pa_chrsizy(wg->wf)*0.5,
+                                 pa_maxyg(wg->wf)-pa_chrsizy(wg->wf)*TABHGT+pa_chrsizy(wg->wf)*TABHGT-3,
+                                 10, 10);
 
         }
         fcolort(wg->wf, th_tabdis); /* set color disabled */
@@ -2906,10 +2937,21 @@ static void tabbar_event(
         while (sp) { /* traverse string list */
 
             /* if within the string bounding box, select it */
-            if (wg->mpx >= x-pa_chrsizy(wg->wf)*0.5 &&
-                wg->mpx <= x+pa_strsiz(wg->wf, sp->str)+pa_chrsizy(wg->wf)*0.5 &&
-                wg->mpy <= pa_chrsizy(wg->wf)*TABHGT)
-                wg->sh = sc;
+            if (wg->tor == pa_totop) {
+
+                if (wg->mpx >= x-pa_chrsizy(wg->wf)*0.5 &&
+                    wg->mpx <= x+pa_strsiz(wg->wf, sp->str)+pa_chrsizy(wg->wf)*0.5 &&
+                    wg->mpy <= pa_chrsizy(wg->wf)*TABHGT)
+                    wg->sh = sc;
+
+            } else {
+
+                if (wg->mpx >= x-pa_chrsizy(wg->wf)*0.5 &&
+                    wg->mpx <= x+pa_strsiz(wg->wf, sp->str)+pa_chrsizy(wg->wf)*0.5 &&
+                    wg->mpy >= pa_maxyg(wg->wf)-pa_chrsizy(wg->wf)*TABHGT)
+                    wg->sh = sc;
+
+            }
             /* next tab */
             x += pa_strsiz(wg->wf, sp->str)+pa_chrsizy(wg->wf);
             sc++; /* next select */
@@ -5180,14 +5222,14 @@ calculated and returned.
 *******************************************************************************/
 
 void pa_tabbarsizg(
-    /** Window file */            FILE* f,
+    /** Window file */            FILE*     f,
     /** Tab orientation */        pa_tabori tor,
-    /** Client width */           int cw,
-    /** Client height */          int ch,
-    /** Return width */           int*  w,
-    /** Return height */          int*  h,
-    /** Return client offset x */ int *ox,
-    /** Return client offset x */ int *oy
+    /** Client width */           int       cw,
+    /** Client height */          int       ch,
+    /** Return width */           int*      w,
+    /** Return height */          int*      h,
+    /** Return client offset x */ int*      ox,
+    /** Return client offset x */ int*      oy
 )
 
 {
@@ -5216,14 +5258,14 @@ calculated and returned.
 *******************************************************************************/
 
 void pa_tabbarsiz(
-    /** Window file */            FILE* f,
+    /** Window file */            FILE*     f,
     /** Tab orientation */        pa_tabori tor,
-    /** Client width */           int cw,
-    /** Client height */          int ch,
-    /** Return width */           int*  w,
-    /** Return height */          int*  h,
-    /** Return client offset x */ int *ox,
-    /** Return client offset x */ int *oy
+    /** Client width */           int       cw,
+    /** Client height */          int       ch,
+    /** Return width */           int*      w,
+    /** Return height */          int*      h,
+    /** Return client offset x */ int*      ox,
+    /** Return client offset x */ int*      oy
 )
 
 {
@@ -5348,6 +5390,7 @@ void pa_tabbarg(
     wp = getwig(); /* predef so we can plant list before display */
     wp->strlst = nl; /* plant the list */
     wp->ss = 1; /* select first entry */
+    wp->tor = tor; /* set tab orientation */
     widget(f, x1, y1, x2, y2, "", id, wttabbar, &wp);
 
 }
