@@ -67,6 +67,7 @@ static pa_qfteffects fe;
 static int           cx, cy;
 static int           ox, oy;
 static int           cox, coy;
+static int           csx, csy;
 
 static int           i, cnt;
 static char          fns[100];
@@ -1595,10 +1596,10 @@ int main(void)
     printf("Graphical tab bar test\n");
     printf("\n");
 
-    ox = pa_maxyg(stdout)*0.125;
+    ox = pa_maxyg(stdout)*0.3;
     oy = pa_curyg(stdout);
-    xs = pa_maxxg(stdout)*0.25;
-    ys = pa_maxyg(stdout)*0.125;
+    csx = pa_maxyg(stdout)*0.5;
+    csy = pa_maxyg(stdout)*0.1;
 
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("Right");
@@ -1611,10 +1612,15 @@ int main(void)
     sp->str = str("Left");
     sp->next = lp;
     lp = sp;
-    pa_tabbarsizg(stdout, pa_totop, xs, ys, &x, &y, &cox, &coy);
-    pa_tabbarg(stdout, ox*2, oy, ox*2+x-1, oy+y-1, lp, pa_totop, 1);
+    pa_tabbarsizg(stdout, pa_totop, csx, csy, &xs, &ys, &cox, &coy);
+    pa_tabbarg(stdout, ox, oy, ox+xs-1, oy+ys-1, lp, pa_totop, 1);
+    y = oy+ys-1;
 
-#if 0
+    ox = pa_maxxg(stdout)*0.5;
+    oy = y;
+    csx = pa_maxyg(stdout)*0.1;
+    csy = pa_maxyg(stdout)*0.5;
+
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("Bottom");
     lp->next = NULL;
@@ -1626,11 +1632,14 @@ int main(void)
     sp->str = str("Top");
     sp->next = lp;
     lp = sp;
-    pa_tabbarsizg(stdout, pa_toright, 20, 200, &x, &y, &ox, &oy);
-    pa_tabbarg(stdout, 400, 100, 400+x-1, 100+y-1, lp, pa_toright, 2);
-#endif
+    pa_tabbarsizg(stdout, pa_toright, csx, csy, &xs, &ys, &cox, &coy);
+//    pa_tabbarg(stdout, ox, oy, ox+xs-1, oy+ys-1, lp, pa_toright, 2);
 
-    oy = pa_maxyg(stdout)-pa_maxyg(stdout)*0.25;
+    ox = pa_maxyg(stdout)*0.3;
+    oy = oy+ys-1;
+    csx = pa_maxyg(stdout)*0.5;
+    csy = pa_maxyg(stdout)*0.1;
+
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("Right");
     lp->next = NULL;
@@ -1642,10 +1651,14 @@ int main(void)
     sp->str = str("Left");
     sp->next = lp;
     lp = sp;
-    pa_tabbarsizg(stdout, pa_tobottom, xs, ys, &x, &y, &cox, &coy);
-    pa_tabbarg(stdout, ox*2, oy, ox*2+x-1, oy+y-1, lp, pa_tobottom, 3);
+    pa_tabbarsizg(stdout, pa_tobottom, csx, csy, &xs, &ys, &cox, &coy);
+//    pa_tabbarg(stdout, ox, oy, ox+xs-1, oy+ys-1, lp, pa_tobottom, 3);
 
-#if 0
+    ox = pa_maxxg(stdout)*0.05;
+    oy = y;
+    csx = pa_maxyg(stdout)*0.1;
+    csy = pa_maxyg(stdout)*0.5;
+
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("Bottom");
     lp->next = NULL;
@@ -1657,9 +1670,8 @@ int main(void)
     sp->str = str("Top");
     sp->next = lp;
     lp = sp;
-    pa_tabbarsizg(stdout, pa_toleft, 20, 200, &x, &y, &ox, &oy);
-    pa_tabbarg(stdout, 50, 100, 50+x-1, 100+y-1, lp, pa_toleft, 4);
-#endif
+    pa_tabbarsizg(stdout, pa_toleft, csx, csy, &xs, &ys, &cox, &coy);
+    pa_tabbarg(stdout, ox, oy, ox+xs-1, oy+ys-1, lp, pa_toleft, 4);
 
     do {
 
