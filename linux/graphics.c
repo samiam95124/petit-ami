@@ -5448,6 +5448,101 @@ static void iauto(winptr win, int e)
 
 /** ****************************************************************************
 
+Place character with foreground and background
+
+Places the given character with selected background and foreground. Accepts the
+current window, current screen, character spacing, a flag indicating the
+character exists in the current font, and the window to draw on.
+
+*******************************************************************************/
+
+static void drwchr(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
+
+{
+
+    if (sc->bmod != mdinvis) { /* background is visible */
+
+        XWLOCK();
+        /* set background function */
+        XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->bmod]);
+        /* set background to foreground to draw character background */
+        if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+        else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+        XFillRectangle(padisplay, d, sc->xcxt,
+                       sc->curxg-1, sc->curyg-1,
+                       cs, win->linespace);
+        /* xor is non-destructive, and we can restore it. And and or are
+           destructive, and would require a combining buffer to perform */
+        if (sc->bmod == mdxor) {
+
+            if (ce) /* character exists */
+                /* draw character */
+                XDrawString(padisplay, d, sc->xcxt,
+                            sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
+            else /* does not exist, draw missing character box */
+                XDrawRectangle(padisplay, d, sc->xcxt,
+                               sc->curxg-1+win->misoffx,
+                               sc->curyg-1+win->misoffy,
+                               win->mischrx, win->mischry);
+
+        }
+        /* restore colors */
+        if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+        else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+        /* reset background function */
+        XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
+        XWUNLOCK();
+
+    }
+    if (sc->fmod != mdinvis) {
+
+        XWLOCK();
+        /* set foreground function */
+        XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
+        if (ce) /* character exists */
+            /* draw character */
+            XDrawString(padisplay, d, sc->xcxt,
+                        sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
+        else /* does not exist, draw missing character box */
+            XDrawRectangle(padisplay, d, sc->xcxt,
+                           sc->curxg-1+win->misoffx,
+                           sc->curyg-1+win->misoffy,
+                           win->mischrx, win->mischry);
+        /* check draw underline */
+        if (sc->attr & BIT(saundl)){
+
+            /* double line, may need ajusting for low DP displays */
+            XDrawLine(padisplay, d, sc->xcxt,
+                      sc->curxg-1, sc->curyg-1+win->baseoff+1,
+                      sc->curxg-1+cs, sc->curyg-1+win->baseoff+1);
+            XDrawLine(padisplay, d, sc->xcxt,
+                      sc->curxg-1, sc->curyg-1+win->baseoff+2,
+                      sc->curxg-1+cs, sc->curyg-1+win->baseoff+2);
+
+        }
+
+        /* check draw strikeout */
+        if (sc->attr & BIT(sastkout)) {
+
+            XDrawLine(padisplay, d, sc->xcxt,
+                      sc->curxg-1, sc->curyg-1+win->baseoff/STRIKE,
+                      sc->curxg-1+cs, sc->curyg-1+win->baseoff/STRIKE);
+            XDrawLine(padisplay, d, sc->xcxt,
+                      sc->curxg-1, sc->curyg-1+win->baseoff/STRIKE+1,
+                      sc->curxg-1+cs, sc->curyg-1+win->baseoff/STRIKE+1);
+
+        }
+        /* reset foreground function */
+        XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
+        XWUNLOCK();
+
+    }
+
+
+}
+
+/** ****************************************************************************
+
 Place next terminal character
 
 Places the given character to the current cursor position using the current
@@ -5504,167 +5599,14 @@ static void plcchr(winptr win, char c)
             ce = FALSE; /* set character does not exist */
 
         }
-        if (win->bufmod) { /* buffer is active */
-
-            if (sc->bmod != mdinvis) { /* background is visible */
-
-                XWLOCK();
-                /* set background function */
-                XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->bmod]);
-                /* set background to foreground to draw character background */
-                if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
-                else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-                XFillRectangle(padisplay, sc->xbuf, sc->xcxt,
-                               sc->curxg-1, sc->curyg-1,
-                               cs, win->linespace);
-                /* xor is non-destructive, and we can restore it. And and or are
-                   destructive, and would require a combining buffer to perform */
-                if (sc->bmod == mdxor) {
-
-                    if (ce) /* character exists */
-                        /* draw character */
-                        XDrawString(padisplay, sc->xbuf, sc->xcxt,
-                                    sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
-                    else /* does not exist, draw missing character box */
-                        XDrawRectangle(padisplay, sc->xbuf, sc->xcxt,
-                                       sc->curxg-1+win->misoffx,
-                                       sc->curyg-1+win->misoffy,
-                                       win->mischrx, win->mischry);
-
-                }
-                /* restore colors */
-                if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-                else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
-                /* reset background function */
-                XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
-                XWUNLOCK();
-
-            }
-            if (sc->fmod != mdinvis) {
-
-                XWLOCK();
-                /* set foreground function */
-                XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
-                if (ce) /* character exists */
-                    /* draw character */
-                    XDrawString(padisplay, sc->xbuf, sc->xcxt,
-                                sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
-                else /* does not exist, draw missing character box */
-                    XDrawRectangle(padisplay, sc->xbuf, sc->xcxt,
-                                   sc->curxg-1+win->misoffx,
-                                   sc->curyg-1+win->misoffy,
-                                   win->mischrx, win->mischry);
-                /* check draw underline */
-                if (sc->attr & BIT(saundl)){
-
-                    /* double line, may need ajusting for low DP displays */
-                    XDrawLine(padisplay, sc->xbuf, sc->xcxt,
-                              sc->curxg-1, sc->curyg-1+win->baseoff+1,
-                              sc->curxg-1+cs, sc->curyg-1+win->baseoff+1);
-                    XDrawLine(padisplay, sc->xbuf, sc->xcxt,
-                              sc->curxg-1, sc->curyg-1+win->baseoff+2,
-                              sc->curxg-1+cs, sc->curyg-1+win->baseoff+2);
-
-                }
-
-                /* check draw strikeout */
-                if (sc->attr & BIT(sastkout)) {
-
-                    XDrawLine(padisplay, sc->xbuf, sc->xcxt,
-                              sc->curxg-1, sc->curyg-1+win->baseoff/STRIKE,
-                              sc->curxg-1+cs, sc->curyg-1+win->baseoff/STRIKE);
-                    XDrawLine(padisplay, sc->xbuf, sc->xcxt,
-                              sc->curxg-1, sc->curyg-1+win->baseoff/STRIKE+1,
-                              sc->curxg-1+cs, sc->curyg-1+win->baseoff/STRIKE+1);
-
-                }
-                /* reset foreground function */
-                XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
-                XWUNLOCK();
-
-            }
-
-        }
+        if (win->bufmod) /* buffer is active */
+            /* draw character to buffer */
+            drwchr(win, sc, cs, ce, sc->xbuf, c);
         if (indisp(win)) { /* do it again for the current screen */
 
             curoff(win); /* hide the cursor */
-            if (sc->bmod != mdinvis) { /* background is visible */
-
-                XWLOCK();
-                /* set background function */
-                XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->bmod]);
-                /* set background to foreground to draw character background */
-                if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
-                else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-                XFillRectangle(padisplay, win->xwhan, sc->xcxt,
-                               sc->curxg-1, sc->curyg-1,
-                               cs, win->linespace);
-                /* xor is non-destructive, and we can restore it. And and or are
-                   destructive, and would require a combining buffer to perform */
-                if (sc->bmod == mdxor) {
-
-                    if (ce) /* character exists */
-                        /* draw character */
-                        XDrawString(padisplay, win->xwhan, sc->xcxt,
-                                    sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
-                    else /* does not exist, draw missing character box */
-                        XDrawRectangle(padisplay, win->xwhan, sc->xcxt,
-                                       sc->curxg-1+win->misoffx,
-                                       sc->curyg-1+win->misoffy,
-                                       win->mischrx, win->mischry);
-
-                }
-                /* restore colors */
-                if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-                else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
-                /* reset background function */
-                XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
-                XWUNLOCK();
-
-            }
-            if (sc->fmod != mdinvis) {
-
-                XWLOCK();
-                /* set foreground function */
-                XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
-                if (ce) /* character exists */
-                    /* draw character */
-                    XDrawString(padisplay, win->xwhan, sc->xcxt,
-                                sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
-                else /* does not exist, draw missing character box */
-                    XDrawRectangle(padisplay, win->xwhan, sc->xcxt,
-                                   sc->curxg-1+win->misoffx,
-                                   sc->curyg-1+win->misoffy,
-                                   win->mischrx, win->mischry);
-                /* check draw underline */
-                if (sc->attr & BIT(saundl)){
-
-                    /* double line, may need ajusting for low DP displays */
-                    XDrawLine(padisplay, win->xwhan, sc->xcxt,
-                              sc->curxg-1, sc->curyg-1+win->baseoff+1,
-                              sc->curxg-1+cs, sc->curyg-1+win->baseoff+1);
-                    XDrawLine(padisplay, win->xwhan, sc->xcxt,
-                              sc->curxg-1, sc->curyg-1+win->baseoff+2,
-                              sc->curxg-1+cs, sc->curyg-1+win->baseoff+2);
-
-                }
-
-                /* check draw strikeout */
-                if (sc->attr & BIT(sastkout)) {
-
-                    XDrawLine(padisplay, win->xwhan, sc->xcxt,
-                              sc->curxg-1, sc->curyg-1+win->baseoff/STRIKE,
-                              sc->curxg-1+cs, sc->curyg-1+win->baseoff/STRIKE);
-                    XDrawLine(padisplay, win->xwhan, sc->xcxt,
-                              sc->curxg-1, sc->curyg-1+win->baseoff/STRIKE+1,
-                             sc->curxg-1+cs, sc->curyg-1+win->baseoff/STRIKE+1);
-
-                }
-                /* reset foreground function */
-                XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
-                XWUNLOCK();
-
-            }
+            /* draw character to active screen */
+            drwchr(win, sc, cs, ce, win->xwhan, c);
             curon(win); /* show the cursor */
 
         }
