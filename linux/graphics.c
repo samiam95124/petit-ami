@@ -401,6 +401,7 @@ typedef struct scncon { /* screen context */
     int     cury;        /* current cursor location y */
     int     curxg;       /* current cursor location in pixels x */
     int     curyg;       /* current cursor location in pixels y */
+    int     angle;       /* character drawing angle */
     int     fcrgb;       /* current writing foreground color in rgb */
     int     bcrgb;       /* current writing background color in rgb */
     mode    fmod;        /* foreground mix mode */
@@ -660,6 +661,7 @@ typedef enum {
     enoinps,  /* no input side for this window */
     enowid,   /* No more window ids available */
     evecaxe,  /* cannot vector auxillary event */
+    eangato,  /* cannot set character drawing angle in auto mode */
     esystem   /* System consistency check */
 
 } errcod;
@@ -1067,6 +1069,7 @@ static char* errstr(errcod e)
       case enoinps:  s = "No input side for this window"; break;
       case enowid:   s = "No more window ids available"; break;
       case evecaxe:  s = "Cannot vector auxillary event"; break;
+      case eangato:  s = "Cannot set character drawing angle in auto mode"; break;
       case esystem:  s = "System consistency check"; break;
       default:       s = "Unknown error"; break;
 
@@ -3863,6 +3866,7 @@ static void iniscn(winptr win, scnptr sc)
     sc->cury = 1;
     sc->curxg = 1;
     sc->curyg = 1;
+    sc->angle = INT_MAX/4; /* set character draw at 90 degrees */
     sc->fcrgb = win->gfcrgb; /* set colors and attributes */
     sc->bcrgb = win->gbcrgb;
     sc->attr = win->gattr;
@@ -12582,6 +12586,41 @@ void pa_focus(FILE* f)
     XWUNLOCK();
 
 }
+
+/** ****************************************************************************
+
+Set character drawing angle
+
+Sets the angle or path at which characters are drawn. The angle is 0 up,
+clockwise to 360, in INT_MAX ratio. The normal setting is INT_MAX/4 or 90
+degrees.
+
+This cannot be set with auto on (even to 90 degrees), nor can auto be enabled if
+the angle is not 90 degrees and on grid. The background is rotated along with
+the characters, and the cursor position will be updated along with the character
+path.
+
+In XWindows, the rotation is done in software, so the user can expect the
+performance of off-angle drawing to be compromsed. At this time only the 90
+degree case is optimized, but it is possible to optimize at 90 degree
+increments.
+
+*******************************************************************************/
+
+void pa_chrangle(FILE* f, int a)
+
+{
+
+    winptr win; /* pointer to windows context */
+    scnptr sc;  /* screen buffer */
+
+    win = txt2win(f); /* get window context */
+    sc = win->screens[win->curupd-1];
+    if (sc->autof) error(eangato); /* autowrap is on */
+    sc->angle = a; /* set drawing angle */
+
+}
+
 
 /** ****************************************************************************
 
