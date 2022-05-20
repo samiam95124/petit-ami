@@ -79,6 +79,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <math.h>
 
 /* linux definitions */
 #include <sys/time.h>
@@ -5552,29 +5553,45 @@ static void drwchr90(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
 Add vector to position
 
 Adds a vector specified by angle and length to an x-y position and returns that.
+The angle for the vector is using PA 12'oclock INT_MAX ratioed angles clockwise.
 
 *******************************************************************************/
+
+/* convert PA INT_MAX ratio angle to RADIAN measure */
+#define RADIAN(a) ((double)2*M_PI/INT_MAX*a)
 
 static void addvect(int* x, int* y, int a, int l)
 
 {
 
+    *x += l*cos(RADIAN(a)-2*M_PI/4);
+    *y += l*sin(RADIAN(a)-2*M_PI/4);
+
 }
 
 /** ****************************************************************************
 
-Draw arbitrary 4 sided polygon
+Draw rotated rectangle
 
-Draws a 4 sided polygon with 4 sides.
+Draws a rectangle rotated by an angle.
 
 *******************************************************************************/
 
-static void drw4gon(Drawable d, scnptr sc,
-                    int x1, int y1, int x2, int y2,
-                    int x3, int y3, int x4, int y4)
+static void drwrecta(Drawable d, scnptr sc, int a, int x, int y, int w, int h)
 
 {
 
+    int x1, x2, x3, x4;
+    int y1, y2, y3, y4;
+
+    x1 = x;
+    y1 = y;
+    x2 = x+w-1;
+    y2 = y;
+    x3 = x+w-1;
+    y3 = y+h-1;
+    x4 = x;
+    y4 = y+h-1;
     XDrawLine(padisplay, d, sc->xcxt, x1, y1, x2, y2);
     XDrawLine(padisplay, d, sc->xcxt, x2, y2, x3, y3);
     XDrawLine(padisplay, d, sc->xcxt, x3, y3, x4, y4);
@@ -5595,7 +5612,7 @@ This routine handles drawing at any angle.
 *******************************************************************************/
 
 /* Convert PA angle notation to XRot notation, 360 degrees 0 at right */
-#define ROTANGLE(a) ((double)a*360/INT_MAX+90)
+#define ROTANGLE(a) (360-(double)a*360/INT_MAX+90)
 
 static void drwchr(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
 
@@ -5749,7 +5766,7 @@ static void plcchr(winptr win, char c)
         if (win->bufmod) { /* buffer is active */
 
             /* draw character to buffer */
-            if (sc->angle = INT_MAX/4) drwchr90(win, sc, cs, ce, sc->xbuf, c);
+            if (sc->angle == INT_MAX/4) drwchr90(win, sc, cs, ce, sc->xbuf, c);
             else drwchr(win, sc, cs, ce, sc->xbuf, c);
 
         }
@@ -5757,21 +5774,37 @@ static void plcchr(winptr win, char c)
 
             curoff(win); /* hide the cursor */
             /* draw character to active screen */
-            drwchr90(win, sc, cs, ce, win->xwhan, c);
-            if (sc->angle = INT_MAX/4) drwchr90(win, sc, cs, ce, win->xwhan, c);
+            if (sc->angle == INT_MAX/4) drwchr90(win, sc, cs, ce, win->xwhan, c);
             else drwchr(win, sc, cs, ce, win->xwhan, c);
             curon(win); /* show the cursor */
 
         }
         /* advance to next character */
-        if (sc->cfont->fix) iright(win); /* move cursor right character */
-        else { /* perform proportional version */
+        if (sc->angle == INT_MAX/4) {
 
+            if (sc->cfont->fix) iright(win); /* move cursor right character */
+            else { /* perform proportional version */
+
+                if (indisp(win)) curoff(win); /* remove cursor */
+                sc->curxg += cs; /* advance the character width */
+                /* the cursor x position really has no meaning with proportional
+                   but we recalculate it using space anyways. */
+                sc->curx = sc->curxg/win->charspace+1;
+                if (indisp(win)) curon(win); /* set cursor on screen */
+
+            }
+
+        } else  { /* arbitrary angle */
+
+            /* if fixed font use fixed width of character */
+            if (sc->cfont->fix) cs = win->charspace;
             if (indisp(win)) curoff(win); /* remove cursor */
-            sc->curxg += cs; /* advance the character width */
-            /* the cursor x position really has no meaning with proportional
-               but we recalculate it using space anyways. */
+            /* find next position */
+            addvect(&(sc->curxg), &(sc->curyg), sc->angle, cs);
+            /* the cursor position really has no meaning with proportional
+               and off-angle but we recalculate it using space anyways. */
             sc->curx = sc->curxg/win->charspace+1;
+            sc->cury = sc->curyg/win->linespace+1;
             if (indisp(win)) curon(win); /* set cursor on screen */
 
         }

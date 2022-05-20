@@ -305,6 +305,8 @@ static XImage *MakeXImage(Display *dpy,int  w, int h)
 
 int XRotDrawString(Display *dpy, XFontStruct *font,float angle,Drawable drawable, GC gc, int x, int y, char *str)
 {
+   /* draw all blanks makes it hang up */
+   if (!strcmp(str, " ")) return 0;
    return (XRotPaintAlignedString(dpy, font, angle, drawable, gc,
                                   x, y, str, NONE, 0));
 }
@@ -405,7 +407,6 @@ static int XRotPaintAlignedString(Display *dpy, XFontStruct *font, float angle, 
    }
    else
       hot_y=-((float)item->fRowsIn/2-(float)font->descent)*gRotStyle.fMagnify;
-
    /* x position */
    if(align==TLEFT || align==MLEFT || align==BLEFT || align==NONE)
       hot_x=-(float)item->fMaxWidth/2*gRotStyle.fMagnify;
