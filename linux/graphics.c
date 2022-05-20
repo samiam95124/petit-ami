@@ -103,7 +103,8 @@
 #include <localdefs.h>
 #include <config.h>
 #include <graphics.h>
-#include "system_event.h"
+#include "system_event.h" /* system event (mouse, joystick) handler */
+#include "rotated.h"      /* character rotation drawing package */
 
 /* external definitions */
 #ifndef __MACH__ /* Mac OS X */
@@ -662,6 +663,7 @@ typedef enum {
     enowid,   /* No more window ids available */
     evecaxe,  /* cannot vector auxillary event */
     eangato,  /* cannot set character drawing angle in auto mode */
+    eatoang,  /* Cannot reenable auto with non-90 degree text */
     esystem   /* System consistency check */
 
 } errcod;
@@ -1070,6 +1072,7 @@ static char* errstr(errcod e)
       case enowid:   s = "No more window ids available"; break;
       case evecaxe:  s = "Cannot vector auxillary event"; break;
       case eangato:  s = "Cannot set character drawing angle in auto mode"; break;
+      case eatoang:  s = "Cannot reenable auto with non-90 degree text"; break;
       case esystem:  s = "System consistency check"; break;
       default:       s = "Unknown error"; break;
 
@@ -5438,6 +5441,7 @@ static void iauto(winptr win, int e)
         /* check display is on grid and in bounds */
         if (sc->curxg-1%win->charspace) error(eatoofg);
         if (sc->curxg-1%win->charspace) error(eatoofg);
+        if (sc->angle != INT_MAX/4) error(eatoang);
         if (!icurbnd(sc)) error(eatoecb);
 
     }
@@ -5448,15 +5452,18 @@ static void iauto(winptr win, int e)
 
 /** ****************************************************************************
 
-Place character with foreground and background
+Place character with foreground and background 90 degrees
 
 Places the given character with selected background and foreground. Accepts the
 current window, current screen, character spacing, a flag indicating the
 character exists in the current font, and the window to draw on.
 
+This routine handles the special case of a 90 degree draw, which means normal
+XWindows text.
+
 *******************************************************************************/
 
-static void drwchr(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
+static void drwchr90(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
 
 {
 
@@ -5468,17 +5475,16 @@ static void drwchr(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
         /* set background to foreground to draw character background */
         if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
         else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-        XFillRectangle(padisplay, d, sc->xcxt,
-                       sc->curxg-1, sc->curyg-1,
-                       cs, win->linespace);
+        XFillRectangle(padisplay, d, sc->xcxt, sc->curxg-1, sc->curyg-1, cs,
+                       win->linespace);
         /* xor is non-destructive, and we can restore it. And and or are
            destructive, and would require a combining buffer to perform */
         if (sc->bmod == mdxor) {
 
             if (ce) /* character exists */
                 /* draw character */
-                XDrawString(padisplay, d, sc->xcxt,
-                            sc->curxg-1, sc->curyg-1+win->baseoff, &c, 1);
+                XDrawString(padisplay, d, sc->xcxt, sc->curxg-1,
+                            sc->curyg-1+win->baseoff, &c, 1);
             else /* does not exist, draw missing character box */
                 XDrawRectangle(padisplay, d, sc->xcxt,
                                sc->curxg-1+win->misoffx,
@@ -5487,7 +5493,8 @@ static void drwchr(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
 
         }
         /* restore colors */
-        if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+        if (BIT(sarev) & sc->attr)
+            XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
         else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
         /* reset background function */
         XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
@@ -5538,6 +5545,146 @@ static void drwchr(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
 
     }
 
+}
+
+/** ****************************************************************************
+
+Add vector to position
+
+Adds a vector specified by angle and length to an x-y position and returns that.
+
+*******************************************************************************/
+
+static void addvect(int* x, int* y, int a, int l)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Draw arbitrary 4 sided polygon
+
+Draws a 4 sided polygon with 4 sides.
+
+*******************************************************************************/
+
+static void drw4gon(Drawable d, scnptr sc,
+                    int x1, int y1, int x2, int y2,
+                    int x3, int y3, int x4, int y4)
+
+{
+
+    XDrawLine(padisplay, d, sc->xcxt, x1, y1, x2, y2);
+    XDrawLine(padisplay, d, sc->xcxt, x2, y2, x3, y3);
+    XDrawLine(padisplay, d, sc->xcxt, x3, y3, x4, y4);
+    XDrawLine(padisplay, d, sc->xcxt, x4, y4, x1, y1);
+
+}
+
+/** ****************************************************************************
+
+Place character with foreground and background
+
+Places the given character with selected background and foreground. Accepts the
+current window, current screen, character spacing, a flag indicating the
+character exists in the current font, and the window to draw on.
+
+This routine handles drawing at any angle.
+
+*******************************************************************************/
+
+/* Convert PA angle notation to XRot notation, 360 degrees 0 at right */
+#define ROTANGLE(a) ((double)a*360/INT_MAX+90)
+
+static void drwchr(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
+
+{
+
+    XPoint* ext;   /* extents of character cell */
+    char    cb[2]; /* character buffer */
+
+    cb[0] = c; /* place character in string form */
+    cb[1] = 0;
+    /* find extents of character cell */
+    ext = XRotTextExtents(padisplay, win->xfont, ROTANGLE(sc->angle),
+                          sc->curxg-1, sc->curyg-1+win->baseoff, cb, FALSE);
+    if (sc->bmod != mdinvis) { /* background is visible */
+
+        XWLOCK();
+        /* set background function */
+        XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->bmod]);
+        /* set background to foreground to draw character background */
+        if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+        else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+        XFillPolygon(padisplay, d, sc->xcxt, ext, 4, Nonconvex, CoordModeOrigin);
+        /* xor is non-destructive, and we can restore it. And and or are
+           destructive, and would require a combining buffer to perform */
+        if (sc->bmod == mdxor) {
+
+            if (ce) /* character exists */
+                /* draw character */
+                XRotDrawString(padisplay, win->xfont, ROTANGLE(sc->angle), d,
+                               sc->xcxt, sc->curxg-1, sc->curyg-1+win->baseoff,
+                               cb);
+            else /* does not exist, draw missing character box */
+                XDrawRectangle(padisplay, d, sc->xcxt,
+                               sc->curxg-1+win->misoffx,
+                               sc->curyg-1+win->misoffy,
+                               win->mischrx, win->mischry);
+
+        }
+        /* restore colors */
+        if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+        else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+        /* reset background function */
+        XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
+        XWUNLOCK();
+
+    }
+    if (sc->fmod != mdinvis) {
+
+        XWLOCK();
+        /* set foreground function */
+        XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
+        if (ce) /* character exists */
+            /* draw character */
+            XRotDrawString(padisplay, win->xfont, ROTANGLE(sc->angle), d, sc->xcxt,
+                            sc->curxg-1, sc->curyg-1+win->baseoff, cb);
+        else /* does not exist, draw missing character box */
+            XDrawRectangle(padisplay, d, sc->xcxt,
+                           sc->curxg-1+win->misoffx,
+                           sc->curyg-1+win->misoffy,
+                           win->mischrx, win->mischry);
+        /* check draw underline */
+        if (sc->attr & BIT(saundl)){
+
+            /* double line, may need ajusting for low DP displays */
+            XDrawLine(padisplay, d, sc->xcxt,
+                      sc->curxg-1, sc->curyg-1+win->baseoff+1,
+                      sc->curxg-1+cs, sc->curyg-1+win->baseoff+1);
+            XDrawLine(padisplay, d, sc->xcxt,
+                      sc->curxg-1, sc->curyg-1+win->baseoff+2,
+                      sc->curxg-1+cs, sc->curyg-1+win->baseoff+2);
+
+        }
+
+        /* check draw strikeout */
+        if (sc->attr & BIT(sastkout)) {
+
+            XDrawLine(padisplay, d, sc->xcxt,
+                      sc->curxg-1, sc->curyg-1+win->baseoff/STRIKE,
+                      sc->curxg-1+cs, sc->curyg-1+win->baseoff/STRIKE);
+            XDrawLine(padisplay, d, sc->xcxt,
+                      sc->curxg-1, sc->curyg-1+win->baseoff/STRIKE+1,
+                      sc->curxg-1+cs, sc->curyg-1+win->baseoff/STRIKE+1);
+
+        }
+        /* reset foreground function */
+        XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
+        XWUNLOCK();
+
+    }
 
 }
 
@@ -5599,14 +5746,20 @@ static void plcchr(winptr win, char c)
             ce = FALSE; /* set character does not exist */
 
         }
-        if (win->bufmod) /* buffer is active */
+        if (win->bufmod) { /* buffer is active */
+
             /* draw character to buffer */
-            drwchr(win, sc, cs, ce, sc->xbuf, c);
+            if (sc->angle = INT_MAX/4) drwchr90(win, sc, cs, ce, sc->xbuf, c);
+            else drwchr(win, sc, cs, ce, sc->xbuf, c);
+
+        }
         if (indisp(win)) { /* do it again for the current screen */
 
             curoff(win); /* hide the cursor */
             /* draw character to active screen */
-            drwchr(win, sc, cs, ce, win->xwhan, c);
+            drwchr90(win, sc, cs, ce, win->xwhan, c);
+            if (sc->angle = INT_MAX/4) drwchr90(win, sc, cs, ce, win->xwhan, c);
+            else drwchr(win, sc, cs, ce, win->xwhan, c);
             curon(win); /* show the cursor */
 
         }
@@ -7110,6 +7263,90 @@ void pa_select(FILE* f, int u, int d)
 
 /** ****************************************************************************
 
+Place string with foreground and background 90 degrees
+
+Places the given string with selected background and foreground. Accepts the
+current window, current screen, character spacing, a flag indicating the
+character exists in the current font, and the window to draw on.
+
+This routine handles the special case of a 90 degree draw, which means normal
+XWindows text.
+
+Note: Does not deal with missing characters in font.
+
+*******************************************************************************/
+
+static void drwstr90(winptr win, scnptr sc, int tw, Drawable d, char* s, int l)
+
+{
+
+    if (sc->bmod != mdinvis) { /* background is visible */
+
+        XWLOCK();
+        /* set background function */
+        XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->bmod]);
+        /* set background to foreground to draw character background */
+        if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+        else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+        XFillRectangle(padisplay, d, sc->xcxt, sc->curxg-1, sc->curyg-1,
+                       tw, win->linespace);
+        /* xor is non-destructive, and we can restore it. And and or are
+           destructive, and would require a combining buffer to perform */
+        if (sc->bmod == mdxor)
+            /* restore surface under text */
+            XDrawString(padisplay, d, sc->xcxt, sc->curxg-1,
+                        sc->curyg-1+win->baseoff, s, l);
+        /* restore colors */
+        if (BIT(sarev) & sc->attr)
+            XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+        else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+        /* reset background function */
+        XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
+        XWUNLOCK();
+
+    }
+    if (sc->fmod != mdinvis) {
+
+        XWLOCK();
+        /* set foreground function */
+        XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
+        /* draw character */
+        XDrawString(padisplay, d, sc->xcxt,
+                    sc->curxg-1, sc->curyg-1+win->baseoff, s, l);
+        /* check draw underline */
+        if (sc->attr & BIT(saundl)){
+
+            /* double line, may need ajusting for low DP displays */
+            XDrawLine(padisplay, d, sc->xcxt,
+                      sc->curxg-1, sc->curyg-1+win->baseoff+1,
+                      sc->curxg-1+tw, sc->curyg-1+win->baseoff+1);
+            XDrawLine(padisplay, d, sc->xcxt,
+                      sc->curxg-1, sc->curyg-1+win->baseoff+2,
+                      sc->curxg-1+tw, sc->curyg-1+win->baseoff+2);
+
+        }
+
+        /* check draw strikeout */
+        if (sc->attr & BIT(sastkout)) {
+
+            XDrawLine(padisplay, d, sc->xcxt,
+                      sc->curxg-1, sc->curyg-1+win->baseoff/STRIKE,
+                      sc->curxg-1+tw, sc->curyg-1+win->baseoff/STRIKE);
+            XDrawLine(padisplay, d, sc->xcxt,
+                      sc->curxg-1, sc->curyg-1+win->baseoff/STRIKE+1,
+                      sc->curxg-1+tw, sc->curyg-1+win->baseoff/STRIKE+1);
+
+        }
+        /* reset foreground function */
+        XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
+        XWUNLOCK();
+
+    }
+
+}
+
+/** ****************************************************************************
+
 Write string to current cursor position
 
 Writes a string to the current cursor position, then updates the cursor
@@ -7130,6 +7367,10 @@ Character kerning is only available via this routine, and strsiz() is only
 accurate for this routine, and not direct character placement, if kerning is
 enabled.
 
+Note: If an off angle (non-90 degree) text path is selected, this routine just
+passes the characters on to plcchr(). This basically negates any speed
+advantage.
+
 *******************************************************************************/
 
 void pa_wrtstr(FILE* f, char* s)
@@ -7139,154 +7380,35 @@ void pa_wrtstr(FILE* f, char* s)
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
     int    l;   /* length of string */
+    int    tw;  /* text length in pixels */
+    char*  p;
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
     if (sc->autof) error(estrato); /* autowrap is on */
     if (!win->visible) winvis(win); /* make sure we are displayed */
     l = strlen(s); /* get length of string */
-    if (win->bufmod) { /* buffer is active */
+    if (sc->angle == INT_MAX/4) { /* text is normal (90 degrees) */
 
-        if (sc->bmod != mdinvis) { /* background is visible */
+        tw = XTextWidth(win->xfont, s, l); /* find text width in pixels */
+        if (win->bufmod) { /* buffer is active */
 
-            XWLOCK();
-            /* set background function */
-            XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->bmod]);
-            /* set background to foreground to draw character background */
-            if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
-            else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-            XFillRectangle(padisplay, sc->xbuf, sc->xcxt,
-                           sc->curxg-1, sc->curyg-1,
-                           win->charspace*l, win->linespace);
-            /* xor is non-destructive, and we can restore it. And and or are
-               destructive, and would require a combining buffer to perform */
-            if (sc->bmod == mdxor)
-                /* restore the surface under text */
-                XDrawString(padisplay, sc->xbuf, sc->xcxt,
-                            sc->curxg-1, sc->curyg-1+win->baseoff, s, l);
-            /* restore colors */
-            if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-            else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
-            /* reset background function */
-            XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
-            XWUNLOCK();
+            /* draw string */
+            drwstr90(win, sc, tw, sc->xbuf, s, l);
 
         }
-        if (sc->fmod != mdinvis) {
+        if (indisp(win)) { /* do it again for the current screen */
 
-            XWLOCK();
-            /* set foreground function */
-            XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
-            /* draw character */
-            XDrawString(padisplay, sc->xbuf, sc->xcxt,
-                        sc->curxg-1, sc->curyg-1+win->baseoff, s, l);
-
-            /* check draw underline */
-            if (sc->attr & BIT(saundl)){
-
-                /* double line, may need ajusting for low DP displays */
-                XDrawLine(padisplay, sc->xbuf, sc->xcxt,
-                          sc->curxg-1, sc->curyg-1+win->baseoff+1,
-                          sc->curxg-1+win->charspace*l, sc->curyg-1+win->baseoff+1);
-                XDrawLine(padisplay, sc->xbuf, sc->xcxt,
-                          sc->curxg-1, sc->curyg-1+win->baseoff+2,
-                          sc->curxg-1+win->charspace*l, sc->curyg-1+win->baseoff+2);
-
-            }
-
-            /* check draw strikeout */
-            if (sc->attr & BIT(sastkout)) {
-
-                XDrawLine(padisplay, sc->xbuf, sc->xcxt,
-                          sc->curxg-1, sc->curyg-1+win->baseoff/STRIKE,
-                          sc->curxg-1+win->charspace*l, sc->curyg-1+win->baseoff/STRIKE);
-                XDrawLine(padisplay, sc->xbuf, sc->xcxt,
-                          sc->curxg-1, sc->curyg-1+win->baseoff/STRIKE+1,
-                          sc->curxg-1+win->charspace*l, sc->curyg-1+win->baseoff/STRIKE+1);
-
-            }
-            /* reset foreground function */
-            XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
-            XWUNLOCK();
+            curoff(win); /* hide the cursor */
+            /* draw string */
+            drwstr90(win, sc, tw, win->xwhan, s, l);
+            curon(win); /* show the cursor */
 
         }
 
-    }
-    if (indisp(win)) { /* do it again for the current screen */
-
-        curoff(win); /* hide the cursor */
-        if (sc->bmod != mdinvis) { /* background is visible */
-
-            XWLOCK();
-            /* set background function */
-            XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->bmod]);
-            /* set background to foreground to draw character background */
-            if (BIT(sarev) & sc->attr)
-                XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
-            else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-            XFillRectangle(padisplay, win->xwhan, sc->xcxt,
-                           sc->curxg-1, sc->curyg-1,
-                           win->charspace*l, win->linespace);
-            /* xor is non-destructive, and we can restore it. And and or are
-               destructive, and would require a combining buffer to perform */
-            if (sc->bmod == mdxor)
-                /* restore the surface under text */
-                XDrawString(padisplay, win->xwhan, sc->xcxt,
-                            sc->curxg-1, sc->curyg-1+win->baseoff, s, l);
-            /* restore colors */
-            if (BIT(sarev) & sc->attr)
-                XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-            else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
-            /* reset background function */
-            XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
-            XWUNLOCK();
-
-        }
-        if (sc->fmod != mdinvis) {
-
-            XWLOCK();
-            /* set foreground function */
-            XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
-            /* draw character */
-            XDrawString(padisplay, win->xwhan, sc->xcxt,
-                        sc->curxg-1, sc->curyg-1+win->baseoff, s, l);
-
-            /* check draw underline */
-            if (sc->attr & BIT(saundl)){
-
-                /* double line, may need ajusting for low DP displays */
-                XDrawLine(padisplay, win->xwhan, sc->xcxt,
-                          sc->curxg-1, sc->curyg-1+win->baseoff+1,
-                          sc->curxg-1+win->charspace*l,
-                          sc->curyg-1+win->baseoff+1);
-                XDrawLine(padisplay, win->xwhan, sc->xcxt,
-                          sc->curxg-1, sc->curyg-1+win->baseoff+2,
-                          sc->curxg-1+win->charspace*l,
-                          sc->curyg-1+win->baseoff+2);
-
-            }
-
-            /* check draw strikeout */
-            if (sc->attr & BIT(sastkout)) {
-
-                XDrawLine(padisplay, win->xwhan, sc->xcxt,
-                          sc->curxg-1, sc->curyg-1+win->baseoff/STRIKE,
-                          sc->curxg-1+win->charspace*l,
-                          sc->curyg-1+win->baseoff/STRIKE);
-                XDrawLine(padisplay, win->xwhan, sc->xcxt,
-                          sc->curxg-1, sc->curyg-1+win->baseoff/STRIKE+1,
-                          sc->curxg-1+win->charspace*l,
-                          sc->curyg-1+win->baseoff/STRIKE+1);
-
-            }
-            /* reset foreground function */
-            XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
-            XWUNLOCK();
-
-        }
-        curon(win); /* show the cursor */
-
-    }
+    } else /* off angle */
+        /* just pass each character on */
+        for (p = s; *p; p++) plcchr(win, *p);
 
 }
 

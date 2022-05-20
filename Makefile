@@ -466,6 +466,9 @@ linux/graphics.o: linux/graphics.c include/graphics.h Makefile
 linux/system_event.o: linux/system_event.c linux/system_event.h Makefile
 	gcc -g3 -Iinclude -fPIC -c linux/system_event.c -o linux/system_event.o
 	
+linux/rotated.o: linux/rotated.c linux/rotated.h Makefile
+	gcc -g3 -Iinclude -fPIC -c linux/rotated.c -o linux/rotated.o
+	
 #
 # Windows library components
 #
@@ -639,21 +642,21 @@ bin/petit_ami_term.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
 		cpp/terminal.o
 	
 bin/petit_ami_graph.so: linux/services.o linux/network.o linux/graphics.o \
-    linux/system_event.o portable/gnome_widgets.o utils/config.o \
-    utils/option.o cpp/terminal.o
+    linux/rotated.o linux/system_event.o portable/gnome_widgets.o \
+    utils/config.o utils/option.o cpp/terminal.o
 	gcc -shared linux/services.o linux/network.o linux/graphics.o \
-		linux/system_event.o portable/gnome_widgets.o utils/config.o \
-		utils/option.o cpp/terminal.o \
-		-o bin/petit_ami_graph.so
+        linux/rotated.o linux/system_event.o portable/gnome_widgets.o \
+        utils/config.o utils/option.o cpp/terminal.o \
+        -o bin/petit_ami_graph.so
 	
 bin/petit_ami_graph.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
     linux/dumpsynthplug.o linux/network.o linux/graphics.o \
-    linux/system_event.o portable/gnome_widgets.o utils/config.o \
-    utils/option.o cpp/terminal.o
+    linux/rotated.o linux/system_event.o portable/gnome_widgets.o \
+    utils/config.o utils/option.o cpp/terminal.o
 	ar rcs bin/petit_ami_graph.a linux/services.o linux/sound.o \
 		linux/fluidsynthplug.o linux/dumpsynthplug.o  linux/network.o \
-		linux/graphics.o linux/system_event.o portable/gnome_widgets.o \
-		utils/config.o utils/option.o cpp/terminal.o
+		linux/graphics.o linux/rotated.o linux/system_event.o \ 
+		portable/gnome_widgets.o utils/config.o utils/option.o cpp/terminal.o
 	
 endif
 
