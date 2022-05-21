@@ -5800,7 +5800,7 @@ static void plcchr(winptr win, char c)
             if (sc->cfont->fix) cs = win->charspace;
             if (indisp(win)) curoff(win); /* remove cursor */
             /* find next position */
-            addvect(&(sc->curxg), &(sc->curyg), sc->angle, cs);
+            addvect(&sc->curxg, &sc->curyg, sc->angle, cs);
             /* the cursor position really has no meaning with proportional
                and off-angle but we recalculate it using space anyways. */
             sc->curx = sc->curxg/win->charspace+1;

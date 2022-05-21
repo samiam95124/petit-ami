@@ -186,6 +186,15 @@ static void               XRotAddToLinkedList(Display *dpy, RotatedTextItem_t *i
 static void               XRotFreeTextItem(Display *dpy, RotatedTextItem_t *item);
 static XImage            *XRotMagnifyImage(Display *dpy, XImage *ximage);
 
+////////////////////////////////////////////////////////////////////////////////
+/// Routine to check string is blank
+
+static int blank(char *str)
+{
+   while (*str == ' ') str++;
+
+   return !*str;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Routine to mimic `strdup()' (some machines don't have it)
@@ -306,7 +315,7 @@ static XImage *MakeXImage(Display *dpy,int  w, int h)
 int XRotDrawString(Display *dpy, XFontStruct *font,float angle,Drawable drawable, GC gc, int x, int y, char *str)
 {
    /* draw all blanks makes it hang up */
-   if (!strcmp(str, " ")) return 0;
+   if (blank(str)) return 0;
    return (XRotPaintAlignedString(dpy, font, angle, drawable, gc,
                                   x, y, str, NONE, 0));
 }
@@ -329,6 +338,8 @@ int XRotDrawImageString(Display *dpy,XFontStruct *font, float angle, Drawable dr
 
 int XRotDrawAlignedString(Display *dpy, XFontStruct *font, float angle, Drawable drawable, GC gc, int x, int y, char *text,int align)
 {
+   /* draw all blanks makes it hang up */
+   if (blank(text)) return 0;
    return(XRotPaintAlignedString(dpy, font, angle, drawable, gc,
                                  x, y, text, align, 0));
 }
