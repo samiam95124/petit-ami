@@ -5557,15 +5557,12 @@ The angle for the vector is using PA 12'oclock INT_MAX ratioed angles clockwise.
 
 *******************************************************************************/
 
-/* convert PA INT_MAX ratio angle to RADIAN measure */
-#define RADIAN(a) ((double)2*M_PI/INT_MAX*a)
-
-static void addvect(int* x, int* y, int a, int l)
+static void addvect(int* x, int* y, float a, int l)
 
 {
 
-    *x += l*cos(RADIAN(a)-2*M_PI/4);
-    *y += l*sin(RADIAN(a)-2*M_PI/4);
+    *x += round(sin(a)*l);
+    *y -= round(cos(a)*l);
 
 }
 
@@ -5577,25 +5574,66 @@ Draws a rectangle rotated by an angle.
 
 *******************************************************************************/
 
+/* convert PA INT_MAX ratio angle to RADIAN measure */
+#define RADIAN(a) ((double)2*M_PI/INT_MAX*a)
+
 static void drwrecta(Drawable d, scnptr sc, int a, int x, int y, int w, int h)
 
 {
 
     int x1, x2, x3, x4;
     int y1, y2, y3, y4;
+    int c;
+    double ac;
 
-    x1 = x;
-    y1 = y;
-    x2 = x+w-1;
-    y2 = y;
-    x3 = x+w-1;
-    y3 = y+h-1;
-    x4 = x;
-    y4 = y+h-1;
+    x1 = x2 = x3 = x4= x;
+    y1 = y2 = y3 = y4= y;
+    addvect(&x2, &y2, RADIAN(a), w);
+    addvect(&x4, &y4, RADIAN(a)+2*M_PI/4, h);
+    c = sqrt((double)w*w+(double)h*h);
+    ac = atan((double)h/w);
+    addvect(&x3, &y3, ac+RADIAN(a), c);
     XDrawLine(padisplay, d, sc->xcxt, x1, y1, x2, y2);
     XDrawLine(padisplay, d, sc->xcxt, x2, y2, x3, y3);
     XDrawLine(padisplay, d, sc->xcxt, x3, y3, x4, y4);
     XDrawLine(padisplay, d, sc->xcxt, x4, y4, x1, y1);
+
+}
+
+/** ****************************************************************************
+
+Draw filled rotated rectangle
+
+Draws a filled rectangle rotated by an angle.
+
+*******************************************************************************/
+
+static void drwfrecta(Drawable d, scnptr sc, int a, int x, int y, int w, int h)
+
+{
+
+    int x1, x2, x3, x4;
+    int y1, y2, y3, y4;
+    int c;
+    double ac;
+    XPoint xp[4];
+
+    x1 = x2 = x3 = x4= x;
+    y1 = y2 = y3 = y4= y;
+    addvect(&x2, &y2, RADIAN(a), w);
+    addvect(&x4, &y4, RADIAN(a)+2*M_PI/4, h);
+    c = sqrt((double)w*w+(double)h*h);
+    ac = atan((double)h/w);
+    addvect(&x3, &y3, ac+RADIAN(a), c);
+    xp[0].x = x1;
+    xp[0].y = y1;
+    xp[1].x = x2;
+    xp[1].y = y2;
+    xp[2].x = x3;
+    xp[2].y = y3;
+    xp[3].x = x4;
+    xp[3].y = y4;
+    XFillPolygon(padisplay, d, sc->xcxt, xp, 4, Nonconvex, CoordModeOrigin);
 
 }
 
@@ -5618,14 +5656,14 @@ static void drwchr(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
 
 {
 
-    XPoint* ext;   /* extents of character cell */
-    char    cb[2]; /* character buffer */
-
+    char cb[2]; /* character buffer */
+    int  xb, yb; /* rotated baseline */
+    /* find rotated character baseline */
+    xb = sc->curxg-1;
+    yb = sc->curyg-1;
+    addvect(&xb, &yb, RADIAN(sc->angle)+2*M_PI/4, win->baseoff);
     cb[0] = c; /* place character in string form */
     cb[1] = 0;
-    /* find extents of character cell */
-    ext = XRotTextExtents(padisplay, win->xfont, ROTANGLE(sc->angle),
-                          sc->curxg-1, sc->curyg-1+win->baseoff, cb, FALSE);
     if (sc->bmod != mdinvis) { /* background is visible */
 
         XWLOCK();
@@ -5634,7 +5672,7 @@ static void drwchr(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
         /* set background to foreground to draw character background */
         if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
         else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-        XFillPolygon(padisplay, d, sc->xcxt, ext, 4, Nonconvex, CoordModeOrigin);
+        drwfrecta(d, sc, sc->angle, sc->curxg-1, sc->curyg-1, cs, win->linespace);
         /* xor is non-destructive, and we can restore it. And and or are
            destructive, and would require a combining buffer to perform */
         if (sc->bmod == mdxor) {
@@ -5642,13 +5680,11 @@ static void drwchr(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
             if (ce) /* character exists */
                 /* draw character */
                 XRotDrawString(padisplay, win->xfont, ROTANGLE(sc->angle), d,
-                               sc->xcxt, sc->curxg-1, sc->curyg-1+win->baseoff,
-                               cb);
+                               sc->xcxt, xb, yb, cb);
             else /* does not exist, draw missing character box */
-                XDrawRectangle(padisplay, d, sc->xcxt,
-                               sc->curxg-1+win->misoffx,
-                               sc->curyg-1+win->misoffy,
-                               win->mischrx, win->mischry);
+                drwrecta(d, sc, sc->angle,
+                         sc->curxg-1+win->misoffx, sc->curyg-1+win->misoffy,
+                         win->mischrx, win->mischry);
 
         }
         /* restore colors */
@@ -5667,12 +5703,11 @@ static void drwchr(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
         if (ce) /* character exists */
             /* draw character */
             XRotDrawString(padisplay, win->xfont, ROTANGLE(sc->angle), d, sc->xcxt,
-                            sc->curxg-1, sc->curyg-1+win->baseoff, cb);
+                           xb, yb, cb);
         else /* does not exist, draw missing character box */
-            XDrawRectangle(padisplay, d, sc->xcxt,
-                           sc->curxg-1+win->misoffx,
-                           sc->curyg-1+win->misoffy,
-                           win->mischrx, win->mischry);
+            drwrecta(d, sc, sc->angle,
+                     sc->curxg-1+win->misoffx, sc->curyg-1+win->misoffy,
+                     win->mischrx, win->mischry);
         /* check draw underline */
         if (sc->attr & BIT(saundl)){
 
@@ -5766,7 +5801,7 @@ static void plcchr(winptr win, char c)
         if (win->bufmod) { /* buffer is active */
 
             /* draw character to buffer */
-            if (sc->angle == INT_MAX/4) drwchr90(win, sc, cs, ce, sc->xbuf, c);
+            if (0 && sc->angle == INT_MAX/4) drwchr90(win, sc, cs, ce, sc->xbuf, c);
             else drwchr(win, sc, cs, ce, sc->xbuf, c);
 
         }
@@ -5774,7 +5809,7 @@ static void plcchr(winptr win, char c)
 
             curoff(win); /* hide the cursor */
             /* draw character to active screen */
-            if (sc->angle == INT_MAX/4) drwchr90(win, sc, cs, ce, win->xwhan, c);
+            if (0 && sc->angle == INT_MAX) drwchr90(win, sc, cs, ce, win->xwhan, c);
             else drwchr(win, sc, cs, ce, win->xwhan, c);
             curon(win); /* show the cursor */
 
@@ -5800,7 +5835,7 @@ static void plcchr(winptr win, char c)
             if (sc->cfont->fix) cs = win->charspace;
             if (indisp(win)) curoff(win); /* remove cursor */
             /* find next position */
-            addvect(&sc->curxg, &sc->curyg, sc->angle, cs);
+            addvect(&sc->curxg, &sc->curyg, RADIAN(sc->angle), cs);
             /* the cursor position really has no meaning with proportional
                and off-angle but we recalculate it using space anyways. */
             sc->curx = sc->curxg/win->charspace+1;
