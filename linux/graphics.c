@@ -5656,12 +5656,24 @@ static void drwchr(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
 
 {
 
-    char cb[2]; /* character buffer */
-    int  xb, yb; /* rotated baseline */
+    char cb[2];      /* character buffer */
+    int  xb, yb;     /* rotated baseline */
+    int  xul1l, yul1l, xul1r, yul1r; /* underline 1 */
+
     /* find rotated character baseline */
     xb = sc->curxg-1;
     yb = sc->curyg-1;
     addvect(&xb, &yb, RADIAN(sc->angle)+2*M_PI/4, win->baseoff);
+
+    /* find rotated underline left side */
+    xul1l = sc->curxg-1;
+    yul1l = sc->curyg-1;
+    addvect(&xul1l, &yul1l, RADIAN(sc->angle)+2*M_PI/4, win->baseoff+1);
+    /* find right side */
+    xul1r = xul1l;
+    yul1r = yul1l;
+    addvect(&xul1r, &yul1r, RADIAN(sc->angle), cs);
+
     cb[0] = c; /* place character in string form */
     cb[1] = 0;
     if (sc->bmod != mdinvis) { /* background is visible */
@@ -5712,12 +5724,10 @@ static void drwchr(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
         if (sc->attr & BIT(saundl)){
 
             /* double line, may need ajusting for low DP displays */
-            XDrawLine(padisplay, d, sc->xcxt,
-                      sc->curxg-1, sc->curyg-1+win->baseoff+1,
-                      sc->curxg-1+cs, sc->curyg-1+win->baseoff+1);
-            XDrawLine(padisplay, d, sc->xcxt,
-                      sc->curxg-1, sc->curyg-1+win->baseoff+2,
-                      sc->curxg-1+cs, sc->curyg-1+win->baseoff+2);
+            XSetLineAttributes(padisplay, sc->xcxt, 2, LineSolid, CapButt, JoinMiter);
+            XDrawLine(padisplay, d, sc->xcxt, xul1l, yul1l, xul1r, yul1r);
+            XSetLineAttributes(padisplay, sc->xcxt, sc->lwidth, LineSolid, CapButt,
+                               JoinMiter);
 
         }
 
@@ -5801,7 +5811,7 @@ static void plcchr(winptr win, char c)
         if (win->bufmod) { /* buffer is active */
 
             /* draw character to buffer */
-            if (0 && sc->angle == INT_MAX/4) drwchr90(win, sc, cs, ce, sc->xbuf, c);
+            if (sc->angle == INT_MAX/4) drwchr90(win, sc, cs, ce, sc->xbuf, c);
             else drwchr(win, sc, cs, ce, sc->xbuf, c);
 
         }
@@ -5809,7 +5819,7 @@ static void plcchr(winptr win, char c)
 
             curoff(win); /* hide the cursor */
             /* draw character to active screen */
-            if (0 && sc->angle == INT_MAX) drwchr90(win, sc, cs, ce, win->xwhan, c);
+            if (sc->angle == INT_MAX) drwchr90(win, sc, cs, ce, win->xwhan, c);
             else drwchr(win, sc, cs, ce, win->xwhan, c);
             curon(win); /* show the cursor */
 
@@ -8670,7 +8680,9 @@ void pa_linewidth(FILE* f, int w)
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1]; /* index update screen */
+    sc->lwidth = w; /* set the line width */
     XWLOCK();
+    /* copy to X */
     XSetLineAttributes(padisplay, sc->xcxt, w, LineSolid, CapButt, JoinMiter);
     XWUNLOCK();
 
