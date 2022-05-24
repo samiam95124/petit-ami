@@ -802,42 +802,6 @@ static int digits(
 
 }
 
-/** ****************************************************************************
-
-Print vertical
-
-Prints the given string in vertical.
-
-*******************************************************************************/
-
-static void prtstrvert(
-    /** Window file */            FILE* f,
-    /** Centering window left */  int   x1,
-    /** Centering window right */ int   x2,
-    /** String to print */        char* s
-)
-
-{
-
-    int   cury;
-    char* p;
-    char  sb[2];
-
-    sb[1] = 0; /* terminate string buffer */
-    cury = pa_curyg(f); /* save current draw y */
-    for (p = s; *p; p++) {
-
-        sb[0] = *p; /* place next character in buffer */
-        /* position character */
-        pa_cursorg(f, x1+(x2-x1)*0.5-pa_strsiz(f, sb)*0.5, cury);
-        fputc(*p, f); /* draw character */
-        cury += pa_chrsizy(f); /* advance to next line */
-
-    }
-    pa_cursorg(f, pa_curxg(f), cury);
-
-}
-
 /*******************************************************************************
 
 Create widget
@@ -2839,7 +2803,7 @@ static void tabbar_draw(
 
     pa_strptr sp; /* string list pointer */
     int       sc;
-    int       x, x1, x2;
+    int       xm, x1, x2;
 
     if (wg->tor == pa_totop || wg->tor == pa_tobottom) { /* top or bottom */
 
@@ -2965,15 +2929,17 @@ static void tabbar_draw(
 
         /* draw tab text */
         if (wg->tor == pa_toleft)
-            pa_cursorg(wg->wf, pa_chrsizy(wg->wf)*0.5, pa_chrsizy(wg->wf));
+            pa_cursorg(wg->wf, pa_chrsizy(wg->wf)*0.5,
+                               pa_maxyg(wg->wf)-pa_chrsizy(wg->wf));
         else
             pa_cursorg(wg->wf, pa_maxxg(wg->wf)-pa_chrsizy(wg->wf)*TABHGT+
                                    pa_chrsizy(wg->wf)*0.5,
                                pa_chrsizy(wg->wf));
-        x = pa_curxg(wg->wf); /* save placement x */
+        xm = pa_curxg(wg->wf); /* save the left margin */
         sp = wg->strlst; /* index tab string list */
         sc = 1; /* set first string */
-        while (sp && pa_curyg(wg->wf) <= pa_maxyg(wg->wf)) {
+        pa_chrangle(wg->wf, 0); /* set vertical upwards text */
+        while (sp && pa_curyg(wg->wf) >= 1) {
 
 #if 0
             if (sc == wg->ss || sc == wg->sh) { /* draw select/hover */
@@ -3020,18 +2986,17 @@ static void tabbar_draw(
             }
 #endif
             fcolort(wg->wf, th_tabdis); /* set color disabled */
-            /* place button face vertical */
-            prtstrvert(wg->wf, x1, x2, sp->str);
+            fprintf(wg->wf, "%s", sp->str); /* place button face */
             /* space off between tabs */
             if (sp->next) pa_cursorg(wg->wf,
-                                     x,
-                                     pa_curyg(wg->wf)+pa_chrsizy(wg->wf));
+                                     xm,
+                                     pa_curyg(wg->wf)-pa_chrsizy(wg->wf));
             sp = sp->next; /* next tab */
             sc++; /* count */
+dbg_printf(dlinfo, "new cx: %d cy: %d\n", pa_curxg(wg->wf), pa_curyg(wg->wf));
 
         }
-
-
+        pa_chrangle(wg->wf, INT_MAX/4); /* set normal text */
 
     }
 
