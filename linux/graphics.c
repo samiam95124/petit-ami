@@ -5658,7 +5658,9 @@ static void drwchr(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
 
     char cb[2];      /* character buffer */
     int  xb, yb;     /* rotated baseline */
-    int  xul1l, yul1l, xul1r, yul1r; /* underline 1 */
+    int  xull, yull, xulr, yulr; /* underline 1 */
+
+    int  xsol, ysol, xsor, ysor; /* underline 1 */
 
     /* find rotated character baseline */
     xb = sc->curxg-1;
@@ -5666,13 +5668,22 @@ static void drwchr(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
     addvect(&xb, &yb, RADIAN(sc->angle)+2*M_PI/4, win->baseoff);
 
     /* find rotated underline left side */
-    xul1l = sc->curxg-1;
-    yul1l = sc->curyg-1;
-    addvect(&xul1l, &yul1l, RADIAN(sc->angle)+2*M_PI/4, win->baseoff+1);
+    xull = sc->curxg-1;
+    yull = sc->curyg-1;
+    addvect(&xull, &yull, RADIAN(sc->angle)+2*M_PI/4, win->baseoff+1);
     /* find right side */
-    xul1r = xul1l;
-    yul1r = yul1l;
-    addvect(&xul1r, &yul1r, RADIAN(sc->angle), cs);
+    xulr = xull;
+    yulr = yull;
+    addvect(&xulr, &yulr, RADIAN(sc->angle), cs);
+
+    /* find rotated strikeout left side */
+    xsol = sc->curxg-1;
+    ysol = sc->curyg-1;
+    addvect(&xsol, &ysol, RADIAN(sc->angle)+2*M_PI/4, win->baseoff/STRIKE);
+    /* find right side */
+    xsor = xsol;
+    ysor = ysol;
+    addvect(&xsor, &ysor, RADIAN(sc->angle), cs);
 
     cb[0] = c; /* place character in string form */
     cb[1] = 0;
@@ -5725,7 +5736,7 @@ static void drwchr(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
 
             /* double line, may need ajusting for low DP displays */
             XSetLineAttributes(padisplay, sc->xcxt, 2, LineSolid, CapButt, JoinMiter);
-            XDrawLine(padisplay, d, sc->xcxt, xul1l, yul1l, xul1r, yul1r);
+            XDrawLine(padisplay, d, sc->xcxt, xull, yull, xulr, yulr);
             XSetLineAttributes(padisplay, sc->xcxt, sc->lwidth, LineSolid, CapButt,
                                JoinMiter);
 
@@ -5734,12 +5745,10 @@ static void drwchr(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
         /* check draw strikeout */
         if (sc->attr & BIT(sastkout)) {
 
-            XDrawLine(padisplay, d, sc->xcxt,
-                      sc->curxg-1, sc->curyg-1+win->baseoff/STRIKE,
-                      sc->curxg-1+cs, sc->curyg-1+win->baseoff/STRIKE);
-            XDrawLine(padisplay, d, sc->xcxt,
-                      sc->curxg-1, sc->curyg-1+win->baseoff/STRIKE+1,
-                      sc->curxg-1+cs, sc->curyg-1+win->baseoff/STRIKE+1);
+            XSetLineAttributes(padisplay, sc->xcxt, 2, LineSolid, CapButt, JoinMiter);
+            XDrawLine(padisplay, d, sc->xcxt, xsol, ysol, xsor, ysor);
+            XSetLineAttributes(padisplay, sc->xcxt, sc->lwidth, LineSolid, CapButt,
+                               JoinMiter);
 
         }
         /* reset foreground function */
