@@ -215,7 +215,7 @@ typedef struct wigrec {
     /** child/subclassed widget 2 */          wigptr    cw2;
     /** parent widget */                      wigptr    pw;
     /** parent file (used to send subclass
-       messages) */                          FILE*     pf;
+       messages) */                           FILE*     pf;
     /** up button pressed */                  int       uppress;
     /** down buton pressed */                 int       downpress;
     /** progress bar position */              int       ppos;
@@ -3028,6 +3028,7 @@ static void tabbar_event(
     pa_evtrec er; /* outbound button event */
     int       x, y;
     int       sc;
+    int       sh;
     pa_strptr sp;
 
     if (ev->etype == pa_etredraw) tabbar_draw(wg); /* redraw the window */
@@ -3061,6 +3062,7 @@ static void tabbar_event(
             y = pa_chrsizy(wg->wf); /* space to first string */
         sp = wg->strlst; /* index top of string list */
         sc = 1; /* set first string */
+        sh = wg->sh; /* save previous hover */
         wg->sh = 0; /* set no string selected */
         while (sp) { /* traverse string list */
 
@@ -3104,7 +3106,8 @@ static void tabbar_event(
             sp = sp->next; /* next string */
 
         }
-        tabbar_draw(wg); /* redraw the window */
+        /* only draw if the hover has changed */
+        if (sh != wg->sh) tabbar_draw(wg); /* redraw the window */
 
     } else if (ev->etype == pa_ethover) {
 
