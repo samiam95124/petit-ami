@@ -3026,7 +3026,7 @@ static void tabbar_event(
 {
 
     pa_evtrec er; /* outbound button event */
-    int       x;
+    int       x, y;
     int       sc;
     pa_strptr sp;
 
@@ -3055,7 +3055,10 @@ static void tabbar_event(
         wg->mpy = ev->moupyg;
 
         /* find which string the mouse is over */
-        x = pa_chrsizy(wg->wf); /* space to first string */
+        if (wg->tor == pa_totop || wg->tor == pa_tobottom)
+            x = pa_chrsizy(wg->wf); /* space to first string */
+        else
+            y = pa_chrsizy(wg->wf); /* space to first string */
         sp = wg->strlst; /* index top of string list */
         sc = 1; /* set first string */
         wg->sh = 0; /* set no string selected */
@@ -3069,16 +3072,34 @@ static void tabbar_event(
                     wg->mpy <= pa_chrsizy(wg->wf)*TABHGT)
                     wg->sh = sc;
 
-            } else {
+            } else if (wg->tor == pa_tobottom) {
 
                 if (wg->mpx >= x-pa_chrsizy(wg->wf)*0.5 &&
                     wg->mpx <= x+pa_strsiz(wg->wf, sp->str)+pa_chrsizy(wg->wf)*0.5 &&
                     wg->mpy >= pa_maxyg(wg->wf)-pa_chrsizy(wg->wf)*TABHGT)
                     wg->sh = sc;
 
+            } if (wg->tor == pa_toleft) {
+
+                if (wg->mpy >= y-pa_chrsizy(wg->wf)*0.5 &&
+                    wg->mpy <= y+pa_strsiz(wg->wf, sp->str)+pa_chrsizy(wg->wf)*0.5 &&
+                    wg->mpx <= pa_chrsizy(wg->wf)*TABHGT)
+                    wg->sh = sc;
+
+            } else {
+
+                if (wg->mpy >= y-pa_chrsizy(wg->wf)*0.5 &&
+                    wg->mpy <= y+pa_strsiz(wg->wf, sp->str)+pa_chrsizy(wg->wf)*0.5 &&
+                    wg->mpx >= pa_maxyg(wg->wf)-pa_chrsizy(wg->wf)*TABHGT)
+                    wg->sh = sc;
+
             }
+
             /* next tab */
-            x += pa_strsiz(wg->wf, sp->str)+pa_chrsizy(wg->wf);
+            if (wg->tor == pa_totop || wg->tor == pa_tobottom)
+                x += pa_strsiz(wg->wf, sp->str)+pa_chrsizy(wg->wf);
+            else
+                y += pa_strsiz(wg->wf, sp->str)+pa_chrsizy(wg->wf);
             sc++; /* next select */
             sp = sp->next; /* next string */
 
