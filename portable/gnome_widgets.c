@@ -3090,7 +3090,7 @@ static void tabbar_event(
 
                 if (wg->mpy >= y-pa_chrsizy(wg->wf)*0.5 &&
                     wg->mpy <= y+pa_strsiz(wg->wf, sp->str)+pa_chrsizy(wg->wf)*0.5 &&
-                    wg->mpx >= pa_maxyg(wg->wf)-pa_chrsizy(wg->wf)*TABHGT)
+                    wg->mpx >= pa_maxxg(wg->wf)-pa_chrsizy(wg->wf)*TABHGT)
                     wg->sh = sc;
 
             }
