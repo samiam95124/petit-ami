@@ -447,7 +447,7 @@ int pa_pictsizy(FILE* f, int p);
 void pa_picture(FILE* f, int p, int x1, int y1, int x2, int y2);
 void pa_delpict(FILE* f, int p);
 void pa_scrollg(FILE* f, int x, int y);
-void pa_chrangle(FILE* f, int a);
+void pa_path(FILE* f, int a);
 
 /* Window management functions */
 

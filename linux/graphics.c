@@ -12760,7 +12760,7 @@ increments.
 
 *******************************************************************************/
 
-void pa_chrangle(FILE* f, int a)
+void pa_path(FILE* f, int a)
 
 {
 

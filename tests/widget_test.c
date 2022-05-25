@@ -1633,7 +1633,7 @@ int main(void)
     sp->next = lp;
     lp = sp;
     pa_tabbarsizg(stdout, pa_toright, csx, csy, &xs, &ys, &cox, &coy);
-//    pa_tabbarg(stdout, ox, oy, ox+xs-1, oy+ys-1, lp, pa_toright, 2);
+    pa_tabbarg(stdout, ox, oy, ox+xs-1, oy+ys-1, lp, pa_toright, 2);
 
     ox = pa_maxyg(stdout)*0.3;
     oy = oy+ys-1;
@@ -1652,7 +1652,7 @@ int main(void)
     sp->next = lp;
     lp = sp;
     pa_tabbarsizg(stdout, pa_tobottom, csx, csy, &xs, &ys, &cox, &coy);
-//    pa_tabbarg(stdout, ox, oy, ox+xs-1, oy+ys-1, lp, pa_tobottom, 3);
+    pa_tabbarg(stdout, ox, oy, ox+xs-1, oy+ys-1, lp, pa_tobottom, 3);
 
     ox = pa_maxxg(stdout)*0.05;
     oy = y;

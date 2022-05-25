@@ -2803,7 +2803,7 @@ static void tabbar_draw(
 
     pa_strptr sp; /* string list pointer */
     int       sc;
-    int       xm, x1, x2;
+    int       xm, y, x1, x2;
 
     if (wg->tor == pa_totop || wg->tor == pa_tobottom) { /* top or bottom */
 
@@ -2813,7 +2813,7 @@ static void tabbar_draw(
         fcolort(wg->wf, th_tabback);
         if (wg->tor == pa_totop)
             pa_frect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_chrsizy(wg->wf)*TABHGT);
-        else
+        else /* bottom */
             pa_frect(wg->wf, 1, pa_maxyg(wg->wf)-pa_chrsizy(wg->wf)*TABHGT,
                              pa_maxxg(wg->wf), pa_maxyg(wg->wf));
         /* outline */
@@ -2831,7 +2831,7 @@ static void tabbar_draw(
         /* draw tab text */
         if (wg->tor == pa_totop)
             pa_cursorg(wg->wf, pa_chrsizy(wg->wf), pa_chrsizy(wg->wf)*0.5);
-        else
+        else /* bottom */
             pa_cursorg(wg->wf, pa_chrsizy(wg->wf),
                                pa_maxyg(wg->wf)-pa_chrsizy(wg->wf)*TABHGT+
                                    pa_chrsizy(wg->wf)*0.5);
@@ -2919,26 +2919,26 @@ static void tabbar_draw(
         if (wg->tor == pa_toleft)
            pa_line(wg->wf, pa_chrsizy(wg->wf)*TABHGT, 1,
                            pa_chrsizy(wg->wf)*TABHGT, pa_maxyg(wg->wf));
-        else
+        else /* right */
            pa_line(wg->wf, pa_maxxg(wg->wf)-pa_chrsizy(wg->wf)*TABHGT,
                            1,
                            pa_maxxg(wg->wf)-pa_chrsizy(wg->wf)*TABHGT,
                            pa_maxyg(wg->wf));
 
-
-
         /* draw tab text */
         if (wg->tor == pa_toleft)
-            pa_cursorg(wg->wf, pa_chrsizy(wg->wf)*0.5,
-                               pa_maxyg(wg->wf)-pa_chrsizy(wg->wf));
+            pa_cursorg(wg->wf, pa_chrsizy(wg->wf)*0.5, pa_chrsizy(wg->wf));
         else
             pa_cursorg(wg->wf, pa_maxxg(wg->wf)-pa_chrsizy(wg->wf)*TABHGT+
-                                   pa_chrsizy(wg->wf)*0.5,
+                                   pa_chrsizy(wg->wf)+pa_chrsizy(wg->wf)*0.5,
                                pa_chrsizy(wg->wf));
         xm = pa_curxg(wg->wf); /* save the left margin */
         sp = wg->strlst; /* index tab string list */
         sc = 1; /* set first string */
-        pa_chrangle(wg->wf, 0); /* set vertical upwards text */
+        if (wg->tor == pa_toleft)
+            pa_path(wg->wf, 0); /* set vertical upwards text */
+        else /* right */
+            pa_path(wg->wf, INT_MAX/2); /* set vertical downwards text */
         while (sp && pa_curyg(wg->wf) >= 1) {
 
 #if 0
@@ -2986,17 +2986,27 @@ static void tabbar_draw(
             }
 #endif
             fcolort(wg->wf, th_tabdis); /* set color disabled */
+            if (wg->tor == pa_toleft)
+                /* back up to start of string */
+                pa_cursorg(wg->wf, pa_curxg(wg->wf),
+                                   pa_curyg(wg->wf)+pa_strsiz(wg->wf, sp->str));
+            y = pa_curyg(wg->wf); /* save y position */
             fprintf(wg->wf, "%s", sp->str); /* place button face */
             /* space off between tabs */
-            if (sp->next) pa_cursorg(wg->wf,
-                                     xm,
-                                     pa_curyg(wg->wf)-pa_chrsizy(wg->wf));
+            if (sp->next) {
+
+                if (wg->tor == pa_toleft)
+                    pa_cursorg(wg->wf, xm, y+pa_chrsizy(wg->wf));
+                else
+                    pa_cursorg(wg->wf, xm, pa_curyg(wg->wf)+pa_chrsizy(wg->wf));
+
+
+            }
             sp = sp->next; /* next tab */
             sc++; /* count */
-dbg_printf(dlinfo, "new cx: %d cy: %d\n", pa_curxg(wg->wf), pa_curyg(wg->wf));
 
         }
-        pa_chrangle(wg->wf, INT_MAX/4); /* set normal text */
+        pa_path(wg->wf, INT_MAX/4); /* set normal text */
 
     }
 
