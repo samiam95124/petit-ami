@@ -3126,7 +3126,10 @@ static void tabbar_event(
         wg->focus = 0; /* out of focus */
         tabbar_draw(wg); /* redraw the window */
 
-    } else if (ev->etype == pa_etleft) {
+    } else if (ev->etype == pa_etleft &&
+                   (wg->tor == pa_totop || wg->tor == pa_tobottom) ||
+               ev->etype == pa_etup &&
+                   (wg->tor == pa_toleft || wg->tor == pa_toright)) {
 
         if (wg->focus && wg->strlst) {
 
@@ -3151,7 +3154,10 @@ static void tabbar_event(
 
         }
 
-    } else if (ev->etype == pa_etright) {
+    } else if (ev->etype == pa_etright &&
+                   (wg->tor == pa_totop || wg->tor == pa_tobottom) ||
+               ev->etype == pa_etdown &&
+                   (wg->tor == pa_toleft || wg->tor == pa_toright)) {
 
         if (wg->focus && sp) { /* in focus, there is a list */
 
