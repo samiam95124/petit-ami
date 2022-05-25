@@ -2941,50 +2941,48 @@ static void tabbar_draw(
             pa_path(wg->wf, INT_MAX/2); /* set vertical downwards text */
         while (sp && pa_curyg(wg->wf) >= 1) {
 
-#if 0
             if (sc == wg->ss || sc == wg->sh) { /* draw select/hover */
 
                 pa_linewidth(wg->wf, 6);
                 if (sc == wg->ss) fcolort(wg->wf, th_tabsel);
                 else fcolort(wg->wf, th_outline1);
-                if (wg->tor == pa_totop)
-                    pa_line(wg->wf, pa_curxg(wg->wf)-pa_chrsizy(wg->wf)*0.5,
+                if (wg->tor == pa_toleft)
+                    pa_line(wg->wf, pa_chrsizy(wg->wf)*TABHGT-3,
+                                 pa_curyg(wg->wf)-pa_chrsizy(wg->wf)*0.5,
                                  pa_chrsizy(wg->wf)*TABHGT-3,
-                                 pa_curxg(wg->wf)+pa_strsiz(wg->wf, sp->str)+
-                                          pa_chrsizy(wg->wf)*0.5,
-                                 pa_chrsizy(wg->wf)*TABHGT-3);
+                                 pa_curyg(wg->wf)+pa_strsiz(wg->wf, sp->str)+
+                                          pa_chrsizy(wg->wf)*0.5);
                 else
-                    pa_line(wg->wf, pa_curxg(wg->wf)-pa_chrsizy(wg->wf)*0.5,
-                                 pa_maxyg(wg->wf)-pa_chrsizy(wg->wf)*TABHGT+3,
-                                 pa_curxg(wg->wf)+pa_strsiz(wg->wf, sp->str)+
-                                          pa_chrsizy(wg->wf)*0.5,
-                                 pa_maxyg(wg->wf)-pa_chrsizy(wg->wf)*TABHGT+3);
+                    pa_line(wg->wf, pa_maxxg(wg->wf)-pa_chrsizy(wg->wf)*TABHGT+3,
+                                    pa_curyg(wg->wf)-pa_chrsizy(wg->wf)*0.5,
+                                    pa_maxxg(wg->wf)-pa_chrsizy(wg->wf)*TABHGT+3,
+                                    pa_curyg(wg->wf)+pa_strsiz(wg->wf, sp->str)+
+                                             pa_chrsizy(wg->wf)*0.5);
 
             }
             if (sc == wg->ss && wg->focus) { /* draw focus box */
 
                 pa_linewidth(wg->wf, 2);
                 fcolort(wg->wf, th_tabfocus);
-                if (wg->tor == pa_totop)
-                    pa_rrect(wg->wf, pa_curxg(wg->wf)-pa_chrsizy(wg->wf)*0.5,
-                                     5,
-                                     pa_curxg(wg->wf)+
+                if (wg->tor == pa_toleft)
+                    pa_rrect(wg->wf, 5,
+                                     pa_curyg(wg->wf)-pa_chrsizy(wg->wf)*0.5,
+                                     pa_chrsizy(wg->wf)*TABHGT-3,
+                                     pa_curyg(wg->wf)+
                                          pa_strsiz(wg->wf, sp->str)+
                                          pa_chrsizy(wg->wf)*0.5,
-                                     pa_chrsizy(wg->wf)*TABHGT-3,
                                      10, 10);
                 else
-                    pa_rrect(wg->wf, pa_curxg(wg->wf)-pa_chrsizy(wg->wf)*0.5,
-                                     pa_maxyg(wg->wf)-
+                    pa_rrect(wg->wf, pa_maxxg(wg->wf)-
                                          pa_chrsizy(wg->wf)*TABHGT+5,
-                                     pa_curxg(wg->wf)+pa_strsiz(wg->wf, sp->str)+
-                                         pa_chrsizy(wg->wf)*0.5,
-                                     pa_maxyg(wg->wf)-pa_chrsizy(wg->wf)*TABHGT+
+                                     pa_curyg(wg->wf)-pa_chrsizy(wg->wf)*0.5,
+                                     pa_maxxg(wg->wf)-pa_chrsizy(wg->wf)*TABHGT+
                                          pa_chrsizy(wg->wf)*TABHGT-3,
+                                     pa_curyg(wg->wf)+pa_strsiz(wg->wf, sp->str)+
+                                         pa_chrsizy(wg->wf)*0.5,
                                      10, 10);
 
             }
-#endif
             fcolort(wg->wf, th_tabdis); /* set color disabled */
             if (wg->tor == pa_toleft)
                 /* back up to start of string */
