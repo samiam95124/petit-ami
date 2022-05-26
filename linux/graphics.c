@@ -809,6 +809,7 @@ static int        dspsev;         /* XWindows display system event */
 static sevtptr    sidtab[MAXSID]; /* system event table */
 static int        xerrbyp;        /* bypass the xerror() handler */
 static int        evtcnt;         /* count of PA event diagnostics output */
+static int        dfault;         /* double fault error */
 
 /* code storage for XWindow state atoms */
 Atom cmaxhorz; /* horizontally maximized */
@@ -1128,7 +1129,6 @@ static int xerror(Display* d, XErrorEvent* e)
 
 {
 
-    int r; /* error return */
     char ebuf[250]; /* buffer for error string */
 
     /* if the bypass flag is on, just return ignoring the error */
@@ -1139,14 +1139,14 @@ static int xerror(Display* d, XErrorEvent* e)
     XWUNLOCK();
     /* get text of error */
     XGetErrorText(padisplay, e->error_code, ebuf, 250);
-    r = 1; /* set error not displayed */
-    if (dialogerr) {
+    /* if dialogerr  is selected, and not double faulted */
+    if (dialogerr && !dfault) {
 
+        dfault = 1; /* set this already executed */
         /* send error to dialog */
         errdlg("Graphics Module: XWindow", ebuf);
 
-    }
-    if (r) { /* send error to console */
+    } else { /* send error to console */
 
         fprintf(stderr, "*** Error: Graphics: XWindow: %s\n", ebuf);
         fflush(stderr); /* make sure error message is output */
@@ -4246,10 +4246,14 @@ static void clsfil(int fn)
     filptr fp;
 
     fp = opnfil[fn];
-    /* release all of the screen buffers */
-    for (si = 0; si < MAXCON; si++)
-        if (fp->win->screens[si]) ifree(fp->win->screens[si]);
-    putwin(fp->win); /* release the window data */
+    if (fp->win) { /* there is a window component */
+
+        /* release all of the screen buffers */
+        for (si = 0; si < MAXCON; si++)
+            if (fp->win->screens[si]) ifree(fp->win->screens[si]);
+        putwin(fp->win); /* release the window data */
+
+    }
     fp->win = NULL; /* set end open */
     fp->inw = FALSE;
     fp->inl = -1;
@@ -11453,6 +11457,7 @@ static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, int wid,
         *infile = fopen("/dev/null", "r"); /* open null as read only */
         if (!*infile) error(enoopn); /* can't open */
         setvbuf(*infile, NULL, _IONBF, 0); /* turn off buffering */
+        ifn = fileno(*infile); /* get logical file no */
 
     }
     /* open output file */
@@ -12887,6 +12892,8 @@ static void pa_init_graphics(int argc, char *argv[])
     paqevt = NULL; /* clear pa event input queue */
     fremet = NULL; /* clear free menu tracking entries */
     winfre = NULL; /* clear free windows structure list */
+
+    dfault = 0; /* set no double fault */
 
     stdchrx = stdchrx; /* set default for standard/reference character size x */
     stdchry = stdchry; /* set default for standard/reference character size y */

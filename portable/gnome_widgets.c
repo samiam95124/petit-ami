@@ -5652,7 +5652,7 @@ void pa_alert(
     if (ms > mxs) mxs = ms;
     pa_buttonsizg(out, "OK", &bw, &bh); /* find button sizing */
     pa_setsizg(out, mxs+pa_chrsizy(out)*2,
-                    pa_chrsizy(out)*3+bh+pa_chrsizy(out)*2); /* set size */
+                    pa_chrsizy(out)*4+bh+pa_chrsizy(out)*2); /* set size */
 
     /* place "OK" button at lower right */
     pa_buttong(out, pa_maxxg(out)-bw-pa_chrsizy(out),
@@ -5675,7 +5675,8 @@ void pa_alert(
                 pa_fcolor(out, pa_black);
                 /* draw message center left */
                 pa_cursorg(out, pa_chrsizy(out)*2,
-                                pa_maxyg(out)/2-pa_chrsizy(out)*0.5);
+                                (pa_maxyg(out)-pa_chrsizy(out))/2-
+                                    pa_chrsizy(out)/2);
                 fputs(message, out);
                 break;
 
