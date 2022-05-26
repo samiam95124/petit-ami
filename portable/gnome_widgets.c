@@ -96,6 +96,8 @@ static enum { /* debug levels */
 #define WMC_LGTFOC pa_etwidget+0 /* widget message code: light up focus */
 #define WMC_DRKFOC pa_etwidget+1 /* widget message code: turn off focus */
 #define TABHGT 2 /* tab bar tab height * char size y */
+/* this should probably programmatically determined */
+#define SYSTITOVR 150 /* window system title overhead */
 
 /* macro to make a color from RGB values */
 #define RGB(r, g, b) (r<<16|g<<8|b)
@@ -178,9 +180,7 @@ typedef enum  {
     wtbutton, wtcheckbox, wtradiobutton, wtgroup, wtbackground,
     wtscrollvert, wtscrollhoriz, wtnumselbox, wteditbox,
     wtprogbar, wtlistbox, wtdropbox, wtdropeditbox,
-    wtslidehoriz, wtslidevert, wttabbar, wtalert, wtquerycolor,
-    wtqueryopen, wtquerysave, wtqueryfind, wtqueryfindrep,
-    wtqueryfont
+    wtslidehoriz, wtslidevert, wttabbar
 
 } wigtyp;
 
@@ -3222,13 +3222,6 @@ static void widget_event(
         case wtslidehoriz:   slidehoriz_event(ev, wg); break;
         case wtslidevert:    slidevert_event(ev, wg); break;
         case wttabbar:       tabbar_event(ev, wg); break;
-        case wtalert:        break;
-        case wtquerycolor:   break;
-        case wtqueryopen:    break;
-        case wtquerysave:    break;
-        case wtqueryfind:    break;
-        case wtqueryfindrep: break;
-        case wtqueryfont:    break;
 
     }
 
@@ -5629,15 +5622,73 @@ Outputs a message dialog with the given title and message strings.
 *******************************************************************************/
 
 void pa_alert(
-    /** Title string */ char* title,
+    /** Title string */   char* title,
     /** Message string */ char* message
 )
 
 {
 
-    wigptr wp; /* widget entry pointer */
+    FILE*     in;     /* window to create */
+    FILE*     out;
+    int       wid;    /* window number */
+    int       mxs;    /* maximum text size */
+    pa_evtrec er;     /* event record */
+    int       bw, bh; /* button width and height */
+    int       ts;     /* title pixel size */
+    int       ms;     /* message pixel size */
 
-    //widget(f, x1, y1, x2, y2, message, id, wtalert, &wp);
+    wid = pa_getwinid(); /* get anonymous window id */
+    pa_openwin(&in, &out, NULL, wid); /* create window */
+    pa_buffer(out, FALSE); /* turn off buffering */
+    pa_auto(out, FALSE); /* turn off auto */
+    pa_curvis(out, FALSE); /* turn off cursor */
+    pa_font(out, PA_FONT_SIGN); /* set sign font */
+    pa_binvis(out); /* no background write */
+    pa_sizable(out, FALSE); /* turn off sizing bars */
+    /* find maximum text size */
+    ts = pa_strsiz(out, title)+SYSTITOVR;
+    ms = pa_strsiz(out, message);
+    mxs = ts;
+    if (ms > mxs) mxs = ms;
+    pa_buttonsizg(out, "OK", &bw, &bh); /* find button sizing */
+    pa_setsizg(out, mxs+pa_chrsizy(out)*2,
+                    pa_chrsizy(out)*3+bh+pa_chrsizy(out)*2); /* set size */
+
+    /* place "OK" button at lower right */
+    pa_buttong(out, pa_maxxg(out)-bw-pa_chrsizy(out),
+                    pa_maxyg(out)-bh-pa_chrsizy(out),
+                    pa_maxxg(out)-pa_chrsizy(out),
+                    pa_maxyg(out)-pa_chrsizy(out),
+                    "OK", 1);
+    /* place the title */
+    pa_title(out, title);
+
+    /* start with events */
+    do {
+
+        pa_event(in, &er);
+        switch (er.etype) {
+
+            case pa_etredraw:
+                pa_fcolor(out, pa_white); /* draw background */
+                pa_frect(out, 1, 1, pa_maxxg(out), pa_maxyg(out));
+                pa_fcolor(out, pa_black);
+                /* draw message center left */
+                pa_cursorg(out, pa_chrsizy(out)*2,
+                                pa_maxyg(out)/2-pa_chrsizy(out)*0.5);
+                fputs(message, out);
+                break;
+
+            case pa_etbutton:
+                /* terminate dialog */
+                er.etype = pa_etterm;
+                break;
+
+        }
+
+    } while (er.etype != pa_etterm); /* until terminate */
+    /* kill the dialog window */
+    fclose(out);
 
 }
 

@@ -1591,7 +1591,6 @@ int main(void)
 
    /* ************************* Graphical tab bar test ************************ */
 
-#endif
     printf("\f");
     printf("Graphical tab bar test\n");
     printf("\n");
@@ -1932,6 +1931,7 @@ int main(void)
 
     /* ************************* Alert test ************************ */
 
+#endif
     printf("\f");
     printf("Alert test\n");
     printf("\n");
