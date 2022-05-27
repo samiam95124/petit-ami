@@ -1,30 +1,22 @@
                              NOTES FOR WIDGETS LIBRARY
 
-1. error() does not exit, despite the exit(1) call at the end.
-
-2. A full close of the window would leave the widget space abandoned. Need to 
-hook the close call to fix this.
-
-3. To implement tab to next field/widget, I think the best way is to leave this
+1. To implement tab to next field/widget, I think the best way is to leave this
 to the parent what the tab means. This means at least sending the tab back to
 parent, then implementing a focus() command to be able to select what 
 widget/window gets focus.
 
-4. Find a way to tie widgets to GTK theming.
+2. Find a way to tie widgets to GTK theming.
 
-5. Should not show focus highlighting on disabled button.
+3. Should not show focus highlighting on disabled button.
 
 This may be difficult, since management determines focus. One way is to pass
 focus back to parent.
 
 Note Windows does this (denys focus).
 
-6. Shold clear select on disabled widgets (checkbox/radiobutton).
+4. Shold clear select on disabled widgets (checkbox/radiobutton).
 
 Note Windows does not do this.
 
-7. Windows does not allow focus on widgets like backgrounds. Is there a way to
+5. Windows does not allow focus on widgets like backgrounds. Is there a way to
 do this in Linux?
-
-8. In scroll bar minimums test, clicking at the same line of y as the minimized
-scroll bar, but not IN the bar, causes widgets to enter a loop.

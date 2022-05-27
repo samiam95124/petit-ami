@@ -87,6 +87,10 @@ static enum { /* debug levels */
                                 __func__, __LINE__, ##__VA_ARGS__); \
                                 fflush(stderr); } while (0)
 
+#ifndef __MACH__ /* Mac OS X */
+#define NOCANCEL /* include nocancel overrides */
+#endif
+
 #define MAXFIL 100 /* maximum open files */
 #define MAXWIG 100 /* maximum widgets per window */
 /* amount of space in pixels to add around scrollbar sliders */
@@ -138,6 +142,18 @@ static enum { /* debug levels */
 #define TD_TABBACK          BW(247)             /* tab background */
 #define TD_TABSEL           RGB(233, 84, 32)    /* tab selected underbar */
 #define TD_TABFOCUS         (TD_TABSEL+BW(20))  /* tab focus box */
+
+/* types of system vectors for override calls */
+
+typedef int (*pclose_t)(int);
+
+/* system override calls */
+
+extern void ovr_close(pclose_t nfp, pclose_t* ofp);
+
+#ifdef NOCANCEL
+extern void ovr_close_nocancel(pclose_t nfp, pclose_t* ofp);
+#endif
 
 /* values table ids */
 
@@ -229,6 +245,14 @@ typedef struct wigrec {
     /** Tab orientation */                    pa_tabori tor;
 
 } wigrec;
+
+/*
+ * Saved vectors to system calls. These vectors point to the old, existing
+ * vectors that were overriden by this module.
+ *
+ */
+static pclose_t  ofpclose;
+static pclose_t  ofpclose_nocancel;
 
 /* File tracking.
   Files can be passthrough to the OS, or can be associated with a window. If
@@ -799,6 +823,37 @@ static int digits(
     }
 
     return (c); /* return digits */
+
+}
+
+/** ****************************************************************************
+
+Kill widget
+
+Kills the given widget by id and in the window file by file id.
+
+*******************************************************************************/
+
+static void ikillwidget(
+    /** file id */           int fn,
+    /** Logical widget id */ int wid
+)
+
+{
+
+    wigptr wp; /* widget entry pointer */
+
+    if (fn < 0 || fn > MAXFIL) error("Invalid file number");
+    if (!opnfil[fn]) error("File by id not open");
+    if (wid <= -MAXWIG || wid > MAXWIG || !wid) error("Invalid widget id");
+    if (!opnfil[fn]->widgets[wid+MAXWIG]) error("No widget by given id");
+    wp = opnfil[fn]->widgets[wid+MAXWIG]; /* index that */
+    /* if there is a subwidget, kill that as well */
+    if (wp->cw) pa_killwidget(wp->cw->pw->wf, wp->cw->id);
+    if (wp->cw2) pa_killwidget(wp->cw2->pw->wf, wp->cw2->id);
+    fclose(wp->wf); /* close the window file */
+    opnfil[fn]->widgets[wid+MAXWIG] = NULL; /* clear widget slot  */
+    putwig(wp); /* release widget data */
 
 }
 
@@ -3287,17 +3342,10 @@ void pa_killwidget(
 
 {
 
-    wigptr wp; /* widget entry pointer */
     int    fn; /* logical file name */
 
-    wp = fndwig(f, id); /* index the widget */
-    /* if there is a subwidget, kill that as well */
-    if (wp->cw) pa_killwidget(wp->cw->pw->wf, wp->cw->id);
-    if (wp->cw2) pa_killwidget(wp->cw2->pw->wf, wp->cw2->id);
-    fclose(wp->wf); /* close the window file */
     fn = fileno(f); /* get the logical file number */
-    opnfil[fn]->widgets[id+MAXWIG] = NULL; /* clear widget slot  */
-    putwig(wp); /* release widget data */
+    ikillwidget(fn, id); /* kill widget */
 
 }
 
@@ -5885,6 +5933,75 @@ void pa_queryfont(
 
 }
 
+
+/** ****************************************************************************
+
+System call interdiction handlers
+
+The interdiction calls are the basic system calls used to implement stdio:
+
+read
+write
+open
+close
+lseek
+
+We use interdiction to filter standard I/O calls towards the terminal. The
+0 (input) and 1 (output) files are interdicted. In ANSI terminal, we act as a
+filter, so this does not change the user ability to redirect the file handles
+elsewhere.
+
+*******************************************************************************/
+
+/** ****************************************************************************
+
+Close
+
+If the file is attached to an output window, closes the window file. Otherwise,
+the close is just passed on.
+
+*******************************************************************************/
+
+static int ivclose(
+    /** Base call vector */ pclose_t closedc,
+    /** File logical id */  int fd)
+
+{
+
+    int i;
+
+    if (fd < 0 || fd >= MAXFIL) error("Invalid file handle");
+    /* check if the file is an output window */
+    if (opnfil[fd]) {
+
+        /* close any widgets in file */
+        for (i = 0; i < MAXWIG*2+1; i++)
+            if (opnfil[fd]->widgets[i]) ikillwidget(fd, i-MAXWIG);
+        free(opnfil[fd]); /* free the file record */
+        opnfil[fd] = NULL; /* clear it */
+
+    }
+
+    return (*closedc)(fd);
+
+}
+
+static int iclose(int fd)
+
+{
+
+    return ivclose(ofpclose, fd);
+
+}
+
+static int iclose_nocancel(int fd)
+
+{
+
+    return ivclose(ofpclose_nocancel, fd);
+
+}
+
 /** ****************************************************************************
 
 Widgets startup
@@ -5918,6 +6035,12 @@ static void init_widgets()
     pa_auto(win0, FALSE); /* turn off auto (for font change) */
     pa_font(win0, PA_FONT_SIGN); /* set sign font */
     pa_frame(win0, FALSE); /* turn off frame */
+
+    /* override system calls for basic I/O */
+    ovr_close(iclose, &ofpclose);
+#ifdef NOCANCEL
+    ovr_close_nocancel(iclose_nocancel, &ofpclose_nocancel);
+#endif
 
     /* fill out the theme table defaults */
     themetable[th_backpressed]      = TD_BACKPRESSED;
@@ -5961,6 +6084,31 @@ static void deinit_widgets()
 
 {
 
-    /* should shut down all widgets */
+    int fn; /* file number */
+    int i;
+
+    /* holding copies of system vectors */
+    pclose_t cppclose;
+    pclose_t cppclose_nocancel;
+
+    /* shut down file and widgets */
+    for (fn = 0; fn < MAXFIL; fn++) if (opnfil[fn]) {
+
+        /* close any widgets in file */
+        for (i = 0; i < MAXWIG*2+1; i++)
+            if (opnfil[fn]->widgets[i]) ikillwidget(fn, i-MAXWIG);
+        free(opnfil[fn]); /* free the file record */
+        opnfil[fn] = NULL; /* clear it */
+
+    }
+
+    /* swap old vectors for existing vectors */
+    ovr_close(ofpclose, &cppclose);
+#ifdef NOCANCEL
+    ovr_close_nocancel(ofpclose_nocancel, &cppclose_nocancel);
+#endif
+
+    /* if we don't see our own vector flag an error */
+    if (cppclose != iclose) error("System override vector mismatch");
 
 }
