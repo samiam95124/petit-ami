@@ -5660,6 +5660,7 @@ void pa_alert(
                     pa_maxxg(out)-pa_chrsizy(out),
                     pa_maxyg(out)-pa_chrsizy(out),
                     "OK", 1);
+
     /* place the title */
     pa_title(out, title);
 
@@ -5688,6 +5689,9 @@ void pa_alert(
         }
 
     } while (er.etype != pa_etterm); /* until terminate */
+
+    /* kill the button */
+    pa_killwidget(out, 1);
     /* kill the dialog window */
     fclose(out);
 
