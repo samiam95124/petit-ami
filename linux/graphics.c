@@ -809,7 +809,6 @@ static int        dspsev;         /* XWindows display system event */
 static sevtptr    sidtab[MAXSID]; /* system event table */
 static int        xerrbyp;        /* bypass the xerror() handler */
 static int        evtcnt;         /* count of PA event diagnostics output */
-static int        dfault;         /* double fault error */
 
 /* code storage for XWindow state atoms */
 Atom cmaxhorz; /* horizontally maximized */
@@ -1139,19 +1138,8 @@ static int xerror(Display* d, XErrorEvent* e)
     XWUNLOCK();
     /* get text of error */
     XGetErrorText(padisplay, e->error_code, ebuf, 250);
-    /* if dialogerr  is selected, and not double faulted */
-    if (dialogerr && !dfault) {
-
-        dfault = 1; /* set this already executed */
-        /* send error to dialog */
-        errdlg("Graphics Module: XWindow", ebuf);
-
-    } else { /* send error to console */
-
-        fprintf(stderr, "*** Error: Graphics: XWindow: %s\n", ebuf);
-        fflush(stderr); /* make sure error message is output */
-
-    }
+    fprintf(stderr, "*** Error: Graphics: XWindow: %s\n", ebuf);
+    fflush(stderr); /* make sure error message is output */
     errflg = TRUE; /* flag error occurred */
 
     exit(1);
@@ -12893,8 +12881,6 @@ static void pa_init_graphics(int argc, char *argv[])
     fremet = NULL; /* clear free menu tracking entries */
     winfre = NULL; /* clear free windows structure list */
 
-    dfault = 0; /* set no double fault */
-
     stdchrx = stdchrx; /* set default for standard/reference character size x */
     stdchry = stdchry; /* set default for standard/reference character size y */
 
@@ -13105,12 +13091,13 @@ static void pa_deinit_graphics()
     win = NULL; /* set no window */
     fn = fileno(stdout); /* get fid */
     if (fn >= 0 && fn < MAXFIL && opnfil[fn]) win = opnfil[fn]->win;
-    if (win) { /* if stdout is attached to a window */
+    if (win && !errflg) { /* if stdout is attached to a window and no error
+                             exit */
 
         /* if the program tries to exit when the user has not ordered an exit,
            it is assumed to be a windows "unaware" program. We stop before we
            exit these, so that their content may be viewed */
-        if (!errflg && !fend && fautohold) {
+        if (!fend && fautohold) {
 
             /* process automatic exit sequence */
             if (!win->visible) winvis(win); /* make sure we are displayed */
@@ -13182,4 +13169,3 @@ static void pa_deinit_graphics()
 #endif
 
 }
-
