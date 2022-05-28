@@ -20,3 +20,9 @@ Note Windows does not do this.
 
 5. Windows does not allow focus on widgets like backgrounds. Is there a way to
 do this in Linux?
+
+6. If you kill the master window when it has an alert window up, it kills the
+alert window but not the master window. It should abort everything.
+
+7. GTK uses rounded corner windows on widgets. See if it is possible to do this
+with PA.

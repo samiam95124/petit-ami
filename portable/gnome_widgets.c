@@ -100,8 +100,6 @@ static enum { /* debug levels */
 #define WMC_LGTFOC pa_etwidget+0 /* widget message code: light up focus */
 #define WMC_DRKFOC pa_etwidget+1 /* widget message code: turn off focus */
 #define TABHGT 2 /* tab bar tab height * char size y */
-/* this should probably programmatically determined */
-#define SYSTITOVR 150 /* window system title overhead */
 
 /* macro to make a color from RGB values */
 #define RGB(r, g, b) (r<<16|g<<8|b)
@@ -5669,6 +5667,9 @@ Outputs a message dialog with the given title and message strings.
 
 *******************************************************************************/
 
+#define ICIRCSIZ 2.3 /* size of i circle */
+#define ICHRSIZ  0.3 /* size of i character */
+
 void pa_alert(
     /** Title string */   char* title,
     /** Message string */ char* message
@@ -5676,15 +5677,21 @@ void pa_alert(
 
 {
 
-    FILE*     in;     /* window to create */
-    FILE*     out;
-    int       wid;    /* window number */
-    int       mxs;    /* maximum text size */
-    pa_evtrec er;     /* event record */
-    int       bw, bh; /* button width and height */
-    int       ts;     /* title pixel size */
-    int       ms;     /* message pixel size */
+    FILE*      in;       /* window to create */
+    FILE*      out;
+    int        wid;      /* window number */
+    int        mxs;      /* maximum text size */
+    pa_evtrec  er;       /* event record */
+    int        ts;       /* title pixel size */
+    int        ms;       /* message pixel size */
+    int        icsize;   /* size of circle i in pixels */
+    int        isize;    /* size of i character in pixels */
+    int        tstart;   /* start of text to right of i circle */
+    int        fs;       /* font size save */
+    int        mpx, mpy; /* mouse position */
+    themeindex tc;       /* text color */
 
+    tc = th_text; /* set focused text */
     wid = pa_getwinid(); /* get anonymous window id */
     pa_openwin(&in, &out, NULL, wid); /* create window */
     pa_buffer(out, FALSE); /* turn off buffering */
@@ -5692,25 +5699,26 @@ void pa_alert(
     pa_curvis(out, FALSE); /* turn off cursor */
     pa_font(out, PA_FONT_SIGN); /* set sign font */
     pa_binvis(out); /* no background write */
-    pa_sizable(out, FALSE); /* turn off sizing bars */
+    pa_frame(out, FALSE); /* turn off sizing bars */
     /* find maximum text size */
-    ts = pa_strsiz(out, title)+SYSTITOVR;
+    pa_bold(out, TRUE); /* set bold */
+    fs = pa_chrsizy(out); /* save font size */
+    pa_fontsiz(out, fs*1.1); /* increase font size */
+    ts = pa_strsiz(out, title);
+    pa_fontsiz(out, fs); /* restore font size */
+    pa_bold(out, FALSE); /* set normal */
     ms = pa_strsiz(out, message);
     mxs = ts;
     if (ms > mxs) mxs = ms;
-    pa_buttonsizg(out, "OK", &bw, &bh); /* find button sizing */
-    pa_setsizg(out, mxs+pa_chrsizy(out)*2,
-                    pa_chrsizy(out)*4+bh+pa_chrsizy(out)*2); /* set size */
-
-    /* place "OK" button at lower right */
-    pa_buttong(out, pa_maxxg(out)-bw-pa_chrsizy(out),
-                    pa_maxyg(out)-bh-pa_chrsizy(out),
-                    pa_maxxg(out)-pa_chrsizy(out),
-                    pa_maxyg(out)-pa_chrsizy(out),
-                    "OK", 1);
-
-    /* place the title */
-    pa_title(out, title);
+    /* set size of i circle */
+    icsize = pa_chrsizy(out)*ICIRCSIZ;
+    /* size of i character */
+    isize = pa_chrsizy(out)*ICHRSIZ;
+    /* start of text */
+    tstart = icsize*3;
+    /* set size */
+    pa_setsizg(out, icsize*3+mxs+pa_chrsizy(out)*3,
+                    pa_chrsizy(out)*7);
 
     /* start with events */
     do {
@@ -5718,28 +5726,70 @@ void pa_alert(
         pa_event(in, &er);
         switch (er.etype) {
 
+            case pa_etfocus:
+            case pa_etnofocus:
+                if (er.etype == pa_etfocus) tc = th_text; else tc = th_tabdis;
+                /* fall through to redraw */
+
             case pa_etredraw:
-                pa_fcolor(out, pa_white); /* draw background */
+
+                /* draw background */
+                pa_fcolor(out, pa_backcolor);
                 pa_frect(out, 1, 1, pa_maxxg(out), pa_maxyg(out));
-                pa_fcolor(out, pa_black);
-                /* draw message center left */
-                pa_cursorg(out, pa_chrsizy(out)*2,
-                                (pa_maxyg(out)-pa_chrsizy(out))/2-
-                                    pa_chrsizy(out)/2);
-                fputs(message, out);
+                pa_fcolor(out, pa_white);
+                pa_frect(out, 1, pa_maxyg(out)-pa_chrsizy(out)*2,
+                                pa_maxxg(out), pa_maxyg(out));;
+                fcolort(out, th_outline1);
+                pa_linewidth(out, 2);
+                pa_line(out, 1, pa_maxyg(out)-pa_chrsizy(out)*2,
+                                pa_maxxg(out), pa_maxyg(out)-pa_chrsizy(out)*2);
+
+                /* draw circle i */
+                fcolort(out, tc);
+                pa_linewidth(out, 6);
+                pa_ellipse(out, icsize, pa_chrsizy(out),
+                                icsize+icsize, pa_chrsizy(out)+icsize);
+                pa_fellipse(out, icsize+icsize*0.5-isize*0.5, pa_chrsizy(out)+icsize*0.2,
+                                 icsize+icsize*0.5+isize*0.5, pa_chrsizy(out)+icsize*0.2+isize);
+                pa_frect(out, icsize+icsize*0.5-isize*0.5, pa_chrsizy(out)+icsize*0.4,
+                              icsize+icsize*0.5+isize*0.5, pa_chrsizy(out)+icsize*0.75);
+
+                /* draw title and message */
+                fcolort(out, tc);
+                pa_bold(out, TRUE); /* set bold */
+                fs = pa_chrsizy(out); /* save font size */
+                pa_fontsiz(out, fs*1.1); /* increase font size */
+                pa_cursorg(out, (pa_maxxg(out)-tstart-pa_chrsizy(out)*2)*0.5-ts*0.5+tstart,
+                                pa_chrsizy(out));
+                fputs(title, out); /* place title */
+                pa_fontsiz(out, fs); /* restore font size */
+                pa_bold(out, FALSE); /* set normal */
+                pa_cursorg(out, (pa_maxxg(out)-tstart-pa_chrsizy(out)*2)*0.5-ms*0.5+tstart,
+                                pa_chrsizy(out)*2.5);
+                fputs(message, out); /* place message */
+
+                /* draw ok button */
+                fcolort(out, tc);
+                pa_cursorg(out, pa_maxxg(out)*0.5-pa_strsiz(out, "OK")*0.5,
+                                pa_maxyg(out)-pa_chrsizy(out)*1.5);
+                fputs("OK", out);
+
                 break;
 
-            case pa_etbutton:
-                /* terminate dialog */
-                er.etype = pa_etterm;
+            case pa_etmoumovg:
+                mpx = er.moupxg; /* save mouse position */
+                mpy = er.moupyg;
+                break;
+
+            case pa_etmouba:
+                if (er.amoubn == 1 && mpy >= pa_maxyg(out)-pa_chrsizy(out)*2)
+                    er.etype = pa_etterm;
                 break;
 
         }
 
     } while (er.etype != pa_etterm); /* until terminate */
 
-    /* kill the button */
-    pa_killwidget(out, 1);
     /* kill the dialog window */
     fclose(out);
 
