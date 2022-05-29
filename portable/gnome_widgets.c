@@ -5690,7 +5690,9 @@ void pa_alert(
     int        fs;       /* font size save */
     int        mpx, mpy; /* mouse position */
     themeindex tc;       /* text color */
+    int        focus;    /* in focus */
 
+    focus = FALSE; /* set not in focus */
     tc = th_text; /* set focused text */
     wid = pa_getwinid(); /* get anonymous window id */
     pa_openwin(&in, &out, NULL, wid); /* create window */
@@ -5728,7 +5730,17 @@ void pa_alert(
 
             case pa_etfocus:
             case pa_etnofocus:
-                if (er.etype == pa_etfocus) tc = th_text; else tc = th_tabdis;
+                if (er.etype == pa_etfocus) {
+
+                    tc = th_text;
+                    focus = TRUE;
+
+                } else {
+
+                    tc = th_tabdis;
+                    focus = FALSE;
+
+                }
                 /* fall through to redraw */
 
             case pa_etredraw:
@@ -5743,6 +5755,14 @@ void pa_alert(
                 pa_linewidth(out, 2);
                 pa_line(out, 1, pa_maxyg(out)-pa_chrsizy(out)*2,
                                 pa_maxxg(out), pa_maxyg(out)-pa_chrsizy(out)*2);
+                if (focus) { /* in focus */
+
+                    pa_linewidth(out, 4);
+                    fcolort(out, th_focus);
+                    pa_rect(out, 2, pa_maxyg(out)-pa_chrsizy(out)*2+2,
+                                    pa_maxxg(out)-1, pa_maxyg(out)-1);
+
+                }
 
                 /* draw circle i */
                 fcolort(out, tc);
@@ -5784,6 +5804,10 @@ void pa_alert(
             case pa_etmouba:
                 if (er.amoubn == 1 && mpy >= pa_maxyg(out)-pa_chrsizy(out)*2)
                     er.etype = pa_etterm;
+                break;
+
+            case pa_etenter:
+                er.etype = pa_etterm;
                 break;
 
         }
