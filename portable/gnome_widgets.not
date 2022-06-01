@@ -26,3 +26,12 @@ alert window but not the master window. It should abort everything.
 
 7. GTK uses rounded corner windows on widgets. See if it is possible to do this
 with PA.
+
+8. GTK manages to turn off sizing controls while keeping the system bar. Find 
+out how.
+
+Most of the dialogs from GTK I see appear to have client drawn system bars,
+which means the client controls all the characteristics.
+
+In fact, because GTK title bars are slightly different in size than the window
+manager provided titles, I think ALL GTK system bars are client drawn.

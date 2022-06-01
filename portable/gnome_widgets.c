@@ -140,6 +140,10 @@ static enum { /* debug levels */
 #define TD_TABBACK          BW(247)             /* tab background */
 #define TD_TABSEL           RGB(233, 84, 32)    /* tab selected underbar */
 #define TD_TABFOCUS         (TD_TABSEL+BW(20))  /* tab focus box */
+#define TD_CANCELBACKFOCUS  BW(72)              /* Cancel background in focus */
+#define TD_CANCELTEXTFOCUS  BW(247)             /* Cancel text in focus */
+#define TD_CANCELOUTLINE    BW(42)              /* Cancel outline unfocused */
+#define TD_TITLE            BW(48)              /* GTK dialog titlebar color */
 
 /* types of system vectors for override calls */
 
@@ -184,6 +188,10 @@ typedef enum {
     th_tabback,          /* tab background */
     th_tabsel,           /* tab selected underbar */
     th_tabfocus,         /* tab focus box */
+    th_cancelbackfocus,  /* Cancel background in focus */
+    th_canceltextfocus,  /* Cancel text in focus */
+    th_canceloutline,    /* Cancel outline unfocused */
+    th_title,            /* GTK dialog titlebar color */
     th_endmarker         /* end of theme entries */
 
 } themeindex;
@@ -191,12 +199,25 @@ typedef enum {
 /* widget type */
 typedef enum  {
 
-    wtbutton, wtcheckbox, wtradiobutton, wtgroup, wtbackground,
+    wtcbutton, wtbutton, wtcheckbox, wtradiobutton, wtgroup, wtbackground,
     wtscrollvert, wtscrollhoriz, wtnumselbox, wteditbox,
     wtprogbar, wtlistbox, wtdropbox, wtdropeditbox,
     wtslidehoriz, wtslidevert, wttabbar
 
 } wigtyp;
+
+/* custom button color structure */
+typedef struct ccolor* ccolorp;
+typedef struct ccolor {
+
+    /** Button background normal */           themeindex bbn;
+    /** Button background pressed */          themeindex bbp;
+    /** Button outline normal */              themeindex bon;
+    /** Button outline focus */               themeindex bof;
+    /** Button text normal */                 themeindex btn;
+    /** Button text disabled */               themeindex btd;
+
+} ccolor;
 
 /* Widget control structure */
 typedef struct wigrec* wigptr;
@@ -241,6 +262,8 @@ typedef struct wigrec {
     /** mouse grabs scrollbar/slider */       int       grab;
     /** tick marks on slider */               int       ticks;
     /** Tab orientation */                    pa_tabori tor;
+
+    /* Configurable button fields */          ccolorp   cbc;
 
 } wigrec;
 
@@ -913,6 +936,102 @@ static void widget(
     wp->py = y1;
 
     *wpr = wp; /* copy back to caller */
+
+}
+
+/** ****************************************************************************
+
+Customizable button draw handler
+
+Handles drawing customizable buttons. Customizable buttons are designed to be
+subclassed only, and have their parameters set by the widget record they
+receive.
+
+*******************************************************************************/
+
+static void cbutton_draw(
+    /** Widget data pointer */ wigptr wg
+)
+
+{
+
+    /* color the background */
+    if (wg->pressed) fcolort(wg->wf, wg->cbc->bbp);
+    else fcolort(wg->wf, wg->cbc->bbn);
+    pa_frrect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf), 20, 20);
+    /* outline */
+    pa_linewidth(wg->wf, 3);
+    if (wg->focus) fcolort(wg->wf, wg->cbc->bof);
+    else fcolort(wg->wf, wg->cbc->bon);
+    pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1, pa_maxyg(wg->wf)-1, 20, 20);
+    if (wg->enb) fcolort(wg->wf, wg->cbc->btn);
+    else fcolort(wg->wf, wg->cbc->btd);
+    pa_cursorg(wg->wf,
+               pa_maxxg(wg->wf)/2-pa_strsiz(wg->wf, wg->face)/2,
+               pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
+    fprintf(wg->wf, "%s", wg->face); /* place button face */
+
+}
+
+/** ****************************************************************************
+
+Button event handler
+
+Handles the events posted to buttons.
+
+*******************************************************************************/
+
+static void cbutton_event(
+    /** Event record pointer */ pa_evtrec* ev,
+    /** Widget data pointer */  wigptr     wg
+)
+
+{
+
+    pa_evtrec er; /* outbound button event */
+
+    if (ev->etype == pa_etredraw) cbutton_draw(wg); /* redraw the window */
+    else if (ev->etype == pa_etmouba && ev->amoubn == 1) {
+
+        if (wg->enb) { /* enabled */
+
+            /* send event back to parent window */
+            er.etype = pa_etbutton; /* set button event */
+            er.butid = wg->id; /* set id */
+            pa_sendevent(wg->parent, &er); /* send the event to the parent */
+
+        }
+
+        /* process button press */
+        wg->pressed = TRUE;
+        cbutton_draw(wg); /* redraw the window */
+
+    } else if (ev->etype == pa_etmoubd  && ev->dmoubn == 1) {
+
+        wg->pressed = FALSE;
+        cbutton_draw(wg); /* redraw the window */
+
+    } else if (ev->etype == pa_etfocus) {
+
+        wg->focus = 1; /* in focus */
+        cbutton_draw(wg); /* redraw the window */
+
+    } else if (ev->etype == pa_etnofocus) {
+
+        wg->focus = 0; /* out of focus */
+        cbutton_draw(wg); /* redraw the window */
+
+    } else if (ev->etype == pa_ethover) {
+
+        wg->hover = 1; /* hovered */
+        cbutton_draw(wg); /* redraw the window */
+
+    } else if (ev->etype == pa_etnohover) {
+
+        wg->hover = 0; /* not hovered */
+        cbutton_draw(wg); /* redraw the window */
+
+    }
 
 }
 
@@ -3259,6 +3378,7 @@ static void widget_event(
     if (!wg) widget_event_old(ev);
     else switch (wg->typ) { /* handle according to type */
 
+        case wtcbutton:      cbutton_event(ev, wg); break;
         case wtbutton:       button_event(ev, wg); break;
         case wtcheckbox:     checkbox_event(ev, wg); break;
         case wtradiobutton:  radiobutton_event(ev, wg); break;
@@ -5835,9 +5955,78 @@ void pa_querycolor(
 
 {
 
-    wigptr wp; /* widget entry pointer */
+    FILE*        in = NULL;  /* window to create */
+    FILE*        out;
+    int          wid;      /* window number */
+    pa_evtrec    er;       /* event record */
+    char*        title = "Select a color"; /* title string */
+    char*        cancel = "Cancel"; /* cancel string */
+    int          titbot;   /* bottom of title bar */
+    const double mg = 0.15; /* button to side margin fraction */
+    int          mgt;      /* margin for system bar */
+    wigptr       wp;       /* widget entry pointer */
+    /* colors for cancel button */
+    ccolor       cancel_cbc = {
 
-    //widget(f, x1, y1, x2, y2, "", id, wtquerycolor, &wp);
+        th_cancelbackfocus, /* background normal */
+        th_cancelbackfocus, /* background pressed */
+        th_canceloutline,   /* outline normal */
+        th_canceloutline,   /* outline focused */
+        th_canceltextfocus, /* text normal */
+        th_canceltextfocus  /* text disabled */
+
+    };
+
+    wid = pa_getwinid(); /* get anonymous window id */
+    pa_openwin(&in, &out, NULL, wid); /* create window */
+    pa_buffer(out, FALSE); /* turn off buffering */
+    pa_auto(out, FALSE); /* turn off auto */
+    pa_curvis(out, FALSE); /* turn off cursor */
+    pa_font(out, PA_FONT_SIGN); /* set sign font */
+    pa_binvis(out); /* no background write */
+    pa_frame(out, FALSE); /* turn off sizing bars */
+    /* size the dialog */
+    pa_setsizg(out, pa_chrsizy(out)*25.8,
+                    pa_chrsizy(out)*15.2);
+    titbot = pa_maxyg(out)*0.165; /* set bottom of system bar */
+    mgt = titbot*mg; /* set margins */
+    /* place cancel button */
+    wp = getwig(); /* get widget entry */
+    wp->cbc = &cancel_cbc; /* set colors */
+    widget(out, mgt, mgt,
+                mgt+pa_strsiz(out, cancel)+pa_chrsizy(out)*1.5, titbot-mgt,
+                cancel, 1, wtcbutton, &wp);
+
+    /* start with events */
+    do {
+
+        pa_event(in, &er);
+        switch (er.etype) {
+
+            case pa_etredraw:
+
+                /* draw background */
+                pa_fcolor(out, pa_backcolor);
+                pa_frect(out, 1, 1, pa_maxxg(out), pa_maxyg(out));
+                /* draw system bar */
+                fcolort(out, th_title);
+                pa_frect(out, 1, 1, pa_maxxg(out), titbot);
+                /* draw title */
+                pa_fcolor(out, pa_white);
+                pa_bold(out, TRUE);
+                pa_cursorg(out, pa_maxxg(out)*0.5-pa_strsiz(out, title)*0.5,
+                                titbot*0.5-pa_chrsizy(out)*0.5);
+                fputs(title, out);
+                pa_bold(out, FALSE);
+
+                break;
+
+        }
+
+    } while (er.etype != pa_etterm); /* until terminate */
+
+    /* kill the dialog window */
+    fclose(out);
 
 }
 
@@ -6144,6 +6333,10 @@ static void init_widgets()
     themetable[th_tabback]          = TD_TABBACK;
     themetable[th_tabsel]           = TD_TABSEL;
     themetable[th_tabfocus]         = TD_TABFOCUS;
+    themetable[th_cancelbackfocus]  = TD_CANCELBACKFOCUS;
+    themetable[th_canceltextfocus]  = TD_CANCELTEXTFOCUS;
+    themetable[th_canceloutline]    = TD_CANCELOUTLINE;
+    themetable[th_title]            = TD_TITLE;
 
 }
 

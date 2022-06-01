@@ -1931,7 +1931,6 @@ int main(void)
 
     /* ************************* Alert test ************************ */
 
-#endif
     printf("\f");
     printf("Alert test\n");
     printf("\n");
@@ -1944,6 +1943,7 @@ int main(void)
 
     /* ************************* Color query test ************************ */
 
+#endif
     printf("\f");
     printf("Color query test\n");
     printf("\n");
