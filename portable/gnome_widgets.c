@@ -112,38 +112,85 @@ static enum { /* debug levels */
 #define GREEN(v) (INT_MAX/256*(v >> 8 & 0xff)) /* green */
 #define BLUE(v)  (INT_MAX/256*(v & 0xff))      /* blue */
 
-/* default values for color table. Note these can be overridden. */
-#define TD_BACKPRESSED      BW(211)             /* button background pressed */
-#define TD_BACK             BW(252)             /* button background not pressed */
-#define TD_OUTLINE1         BW(196)             /* button outline */
-#define TD_TEXT             BW(61)              /* widget face text */
-#define TD_TEXTDIS          BW(191)             /* widget face text disabled */
-#define TD_FOCUS            RGB(236, 174, 152)  /* widget focused outline */
-#define TD_CHKRAD           RGB(146, 77,  139)  /* checkbox/radio button selected */
-#define TD_CHKRADOUT        BW(186)             /* checkbox/radio button outline */
-#define TD_SCROLLBACK       BW(210)             /* scrollbar background */
-#define TD_SCROLLBAR        BW(135)             /* scrollbar not pressed */
-#define TD_SCROLLBARPRESSED RGB(195, 65,  19)   /* scrollbar pressed */
-#define TD_NUMSELDIV        BW(239)             /* numselbox divider */
-#define TD_NUMSELUD         BW(164)             /* numselbox up/down figures */
-#define TD_TEXTERR          RGB(255, 61,  61)   /* widget face text in error */
-#define TD_PROGINACEN       BW(222)             /* progress bar inactive center */
-#define TD_PROGINAEDG       BW(196)             /* progress bar inactive edge */
-#define TD_PROGACTCEN       RGB(146, 77,  139)  /* progress bar active center */
-#define TD_PROGACTEDG       RGB(129, 68,  123)  /* progress bar active edge */
-#define TD_LSTHOV           BW(230)             /* list background for hover */
-#define TD_OUTLINE2         BW(206)             /* numselbox, dropbox outline */
-#define TD_DROPARROW        BW(61)              /* dropbox arrow */
-#define TD_DROPTEXT         BW(0)               /* dropbox text */
-#define TD_SLDINT           BW(233)             /* slider track internal */
-#define TD_TABDIS           BW(154)             /* tab unselected text */
-#define TD_TABBACK          BW(247)             /* tab background */
-#define TD_TABSEL           RGB(233, 84, 32)    /* tab selected underbar */
-#define TD_TABFOCUS         (TD_TABSEL+BW(20))  /* tab focus box */
-#define TD_CANCELBACKFOCUS  BW(72)              /* Cancel background in focus */
-#define TD_CANCELTEXTFOCUS  BW(247)             /* Cancel text in focus */
-#define TD_CANCELOUTLINE    BW(42)              /* Cancel outline unfocused */
-#define TD_TITLE            BW(48)              /* GTK dialog titlebar color */
+/* default values for color table. Note these can be overridden.
+ * To increase or decrease luminescence, add or subtract a BW() value from
+ * another color or B&W value, but be careful not to overflow.
+ */
+#define TD_BACKPRESSED        BW(211)             /* button background pressed */
+#define TD_BACK               BW(252)             /* button background not pressed */
+#define TD_OUTLINE1           BW(196)             /* button outline */
+#define TD_TEXT               BW(61)              /* widget face text */
+#define TD_TEXTDIS            BW(191)             /* widget face text disabled */
+#define TD_FOCUS              RGB(236, 174, 152)  /* widget focused outline */
+#define TD_CHKRAD             RGB(146, 77,  139)  /* checkbox/radio button selected */
+#define TD_CHKRADOUT          BW(186)             /* checkbox/radio button outline */
+#define TD_SCROLLBACK         BW(210)             /* scrollbar background */
+#define TD_SCROLLBAR          BW(135)             /* scrollbar not pressed */
+#define TD_SCROLLBARPRESSED   RGB(195, 65,  19)   /* scrollbar pressed */
+#define TD_NUMSELDIV          BW(239)             /* numselbox divider */
+#define TD_NUMSELUD           BW(164)             /* numselbox up/down figures */
+#define TD_TEXTERR            RGB(255, 61,  61)   /* widget face text in error */
+#define TD_PROGINACEN         BW(222)             /* progress bar inactive center */
+#define TD_PROGINAEDG         BW(196)             /* progress bar inactive edge */
+#define TD_PROGACTCEN         RGB(146, 77,  139)  /* progress bar active center */
+#define TD_PROGACTEDG         RGB(129, 68,  123)  /* progress bar active edge */
+#define TD_LSTHOV             BW(230)             /* list background for hover */
+#define TD_OUTLINE2           BW(206)             /* numselbox, dropbox outline */
+#define TD_DROPARROW          BW(61)              /* dropbox arrow */
+#define TD_DROPTEXT           BW(0)               /* dropbox text */
+#define TD_SLDINT             BW(233)             /* slider track internal */
+#define TD_TABDIS             BW(154)             /* tab unselected text */
+#define TD_TABBACK            BW(247)             /* tab background */
+#define TD_TABSEL             RGB(233, 84, 32)    /* tab selected underbar */
+#define TD_TABFOCUS           (TD_TABSEL+BW(20))  /* tab focus box */
+#define TD_CANCELBACKFOCUS    BW(72)              /* Cancel background in focus */
+#define TD_CANCELTEXTFOCUS    BW(247)             /* Cancel text in focus */
+#define TD_CANCELOUTLINE      BW(42)              /* Cancel outline unfocused */
+#define TD_SELECTBACKFOCUS    RGB(17,164,40)      /* Select background in focus */
+#define TD_SELECTBACK         RGB(16,155,38)      /* Select background in normal */
+#define TD_SELECTTEXTFOCUS    BW(255)             /* Select text in focus */
+#define TD_SELECTTEXT         BW(220)             /* Select text in focus */
+#define TD_SELECTOUTLINE      RGB(16,155,38)      /* Select outline unfocused */
+#define TD_SELECTOUTLINEFOCUS RGB(16,155,38)      /* Select outline focused */
+#define TD_TITLE              BW(48)              /* GTK dialog titlebar color */
+
+/* colors in the querycolor select grid */
+#define TD_QUERYCOLOR1        RGB(239,41,41)
+#define TD_QUERYCOLOR2        RGB(252,175,62)
+#define TD_QUERYCOLOR3        RGB(252,233,79)
+#define TD_QUERYCOLOR4        RGB(138,226,52)
+#define TD_QUERYCOLOR5        RGB(114,159,207)
+#define TD_QUERYCOLOR6        RGB(173,127,168)
+#define TD_QUERYCOLOR7        RGB(233,185,110)
+#define TD_QUERYCOLOR8        RGB(136,138,133)
+#define TD_QUERYCOLOR9        RGB(238,238,236)
+#define TD_QUERYCOLOR10       RGB(204,0,0)
+#define TD_QUERYCOLOR11       RGB(245,121,0)
+#define TD_QUERYCOLOR12       RGB(237,212,0)
+#define TD_QUERYCOLOR13       RGB(115,210,22)
+#define TD_QUERYCOLOR14       RGB(52,101,164)
+#define TD_QUERYCOLOR15       RGB(117,80,123)
+#define TD_QUERYCOLOR16       RGB(193,125,17)
+#define TD_QUERYCOLOR17       RGB(85,87,83)
+#define TD_QUERYCOLOR18       RGB(211,215,207)
+#define TD_QUERYCOLOR19       RGB(164,0,0)
+#define TD_QUERYCOLOR20       RGB(206,92,0)
+#define TD_QUERYCOLOR21       RGB(196,160,0)
+#define TD_QUERYCOLOR22       RGB(78,154,6)
+#define TD_QUERYCOLOR23       RGB(32,74,135)
+#define TD_QUERYCOLOR24       RGB(92,53,102)
+#define TD_QUERYCOLOR25       RGB(143,89,2)
+#define TD_QUERYCOLOR26       RGB(46,52,54)
+#define TD_QUERYCOLOR27       RGB(186,189,182)
+#define TD_QUERYCOLOR28       RGB(0,0,0)
+#define TD_QUERYCOLOR29       RGB(46,52,54)
+#define TD_QUERYCOLOR30       RGB(85,87,83)
+#define TD_QUERYCOLOR31       RGB(136,138,133)
+#define TD_QUERYCOLOR32       RGB(186,189,182)
+#define TD_QUERYCOLOR33       RGB(211,215,207)
+#define TD_QUERYCOLOR34       RGB(238,238,236)
+#define TD_QUERYCOLOR35       RGB(243,243,243)
+#define TD_QUERYCOLOR36       RGB(255,255,255)
 
 /* types of system vectors for override calls */
 
@@ -161,38 +208,81 @@ extern void ovr_close_nocancel(pclose_t nfp, pclose_t* ofp);
 
 typedef enum {
 
-    th_backpressed,      /* button background when pressed */
-    th_back,             /* button background when not pressed */
-    th_outline1,         /* button outline */
-    th_text,             /* button face text enabled */
-    th_textdis,          /* button face text disabled */
-    th_focus,            /* button focused outline */
-    th_chkrad,           /* checkbox/radio button selected */
-    th_chkradout,        /* checkbox/radio button outline */
-    th_scrollback,       /* scrollbar background */
-    th_scrollbar,        /* scrollbar not pressed */
-    th_scrollbarpressed, /* scrollbar pressed */
-    th_numseldiv,        /* numselbox divider */
-    th_numselud,         /* numselbox up/down figures */
-    th_texterr,          /* widget face text in error */
-    th_proginacen,       /* progress bar inactive center */
-    th_proginaedg,       /* progress bar inactive edge */
-    th_progactcen,       /* progress bar active center */
-    th_progactedg,       /* progress bar active edge */
-    th_lsthov,           /* list background for hover */
-    th_outline2,         /* numselbox, dropbox outline */
-    th_droparrow,        /* dropbox arrow */
-    th_droptext,         /* dropbox text */
-    th_sldint,           /* slider track internal */
-    th_tabdis,           /* tab unselected text */
-    th_tabback,          /* tab background */
-    th_tabsel,           /* tab selected underbar */
-    th_tabfocus,         /* tab focus box */
-    th_cancelbackfocus,  /* Cancel background in focus */
-    th_canceltextfocus,  /* Cancel text in focus */
-    th_canceloutline,    /* Cancel outline unfocused */
-    th_title,            /* GTK dialog titlebar color */
-    th_endmarker         /* end of theme entries */
+    th_backpressed,        /* button background when pressed */
+    th_back,               /* button background when not pressed */
+    th_outline1,           /* button outline */
+    th_text,               /* button face text enabled */
+    th_textdis,            /* button face text disabled */
+    th_focus,              /* button focused outline */
+    th_chkrad,             /* checkbox/radio button selected */
+    th_chkradout,          /* checkbox/radio button outline */
+    th_scrollback,         /* scrollbar background */
+    th_scrollbar,          /* scrollbar not pressed */
+    th_scrollbarpressed,   /* scrollbar pressed */
+    th_numseldiv,          /* numselbox divider */
+    th_numselud,           /* numselbox up/down figures */
+    th_texterr,            /* widget face text in error */
+    th_proginacen,         /* progress bar inactive center */
+    th_proginaedg,         /* progress bar inactive edge */
+    th_progactcen,         /* progress bar active center */
+    th_progactedg,         /* progress bar active edge */
+    th_lsthov,             /* list background for hover */
+    th_outline2,           /* numselbox, dropbox outline */
+    th_droparrow,          /* dropbox arrow */
+    th_droptext,           /* dropbox text */
+    th_sldint,             /* slider track internal */
+    th_tabdis,             /* tab unselected text */
+    th_tabback,            /* tab background */
+    th_tabsel,             /* tab selected underbar */
+    th_tabfocus,           /* tab focus box */
+    th_cancelbackfocus,    /* Cancel background in focus */
+    th_canceltextfocus,    /* Cancel text in focus */
+    th_canceloutline,      /* Cancel outline unfocused */
+    th_selectbackfocus,    /* Select background in focus */
+    th_selectback,         /* Select background in normal */
+    th_selecttextfocus,    /* Select text in focus */
+    th_selecttext,         /* Select text in focus */
+    th_selectoutline,      /* Select outline unfocused */
+    th_selectoutlinefocus, /* Select outline focused */
+    th_title,              /* GTK dialog titlebar color */
+    /* colors in color chooser grid */
+    th_querycolor1,
+    th_querycolor2,
+    th_querycolor3,
+    th_querycolor4,
+    th_querycolor5,
+    th_querycolor6,
+    th_querycolor7,
+    th_querycolor8,
+    th_querycolor9,
+    th_querycolor10,
+    th_querycolor11,
+    th_querycolor12,
+    th_querycolor13,
+    th_querycolor14,
+    th_querycolor15,
+    th_querycolor16,
+    th_querycolor17,
+    th_querycolor18,
+    th_querycolor19,
+    th_querycolor20,
+    th_querycolor21,
+    th_querycolor22,
+    th_querycolor23,
+    th_querycolor24,
+    th_querycolor25,
+    th_querycolor26,
+    th_querycolor27,
+    th_querycolor28,
+    th_querycolor29,
+    th_querycolor30,
+    th_querycolor31,
+    th_querycolor32,
+    th_querycolor33,
+    th_querycolor34,
+    th_querycolor35,
+    th_querycolor36,
+    th_endmarker           /* end of theme entries */
 
 } themeindex;
 
@@ -5961,12 +6051,25 @@ void pa_querycolor(
     pa_evtrec    er;       /* event record */
     char*        title = "Select a color"; /* title string */
     char*        cancel = "Cancel"; /* cancel string */
+    char*        selects = "Select"; /* select string */
     int          titbot;   /* bottom of title bar */
     const double mg = 0.15; /* button to side margin fraction */
     int          mgt;      /* margin for system bar */
     wigptr       wp;       /* widget entry pointer */
+    const double gtop = 0.5; /* color grid top */
+    int          gtopp;
+    const double gside = 0.5; /* color grid side */
+    int          gsidep;
+    const double ggapv = 0.1; /* color gap between buttons vertical */
+    int          ggapvp;
+    const double ggaph = 0.1; /* color gap between buttons horizontal */
+    int          ggaphp;
+    const double ggap = 0.5; /* color grid gap */
+    int          ggapp;
+    int          cbx, cby; /* color button size */
+
     /* colors for cancel button */
-    ccolor       cancel_cbc = {
+    ccolor cancel_cbc = {
 
         th_cancelbackfocus, /* background normal */
         th_cancelbackfocus, /* background pressed */
@@ -5974,6 +6077,30 @@ void pa_querycolor(
         th_canceloutline,   /* outline focused */
         th_canceltextfocus, /* text normal */
         th_canceltextfocus  /* text disabled */
+
+    };
+
+    /* colors for select button */
+    ccolor select_cbc = {
+
+        th_selectbackfocus,    /* background normal */
+        th_selectbackfocus,    /* background pressed */
+        th_selectoutline,      /* outline normal */
+        th_selectoutlinefocus, /* outline focused */
+        th_selecttextfocus,    /* text normal */
+        th_selecttextfocus     /* text disabled */
+
+    };
+
+    /* colors for individual grid buttons */
+    ccolor grid_cbc = {
+
+        th_selectbackfocus,    /* background normal */
+        th_selectbackfocus,    /* background pressed */
+        th_selectoutline,      /* outline normal */
+        th_selectoutlinefocus, /* outline focused */
+        th_selecttextfocus,    /* text normal */
+        th_selecttextfocus     /* text disabled */
 
     };
 
@@ -5990,12 +6117,41 @@ void pa_querycolor(
                     pa_chrsizy(out)*15.2);
     titbot = pa_maxyg(out)*0.165; /* set bottom of system bar */
     mgt = titbot*mg; /* set margins */
+
     /* place cancel button */
     wp = getwig(); /* get widget entry */
     wp->cbc = &cancel_cbc; /* set colors */
     widget(out, mgt, mgt,
                 mgt+pa_strsiz(out, cancel)+pa_chrsizy(out)*1.5, titbot-mgt,
                 cancel, 1, wtcbutton, &wp);
+
+    /* place select button */
+    wp = getwig(); /* get widget entry */
+    wp->cbc = &select_cbc; /* set colors */
+    widget(out, pa_maxxg(out)-(mgt+pa_strsiz(out, selects)+pa_chrsizy(out)*1.9),
+                mgt,
+                pa_maxxg(out)-mgt, titbot-mgt,
+                selects, 2, wtcbutton, &wp);
+
+    /* calculate spacing for the color grid */
+    gtopp = pa_chrsizy(out)*gtop;
+    gsidep = pa_chrsizy(out)*gside;
+    ggapvp = pa_chrsizy(out)*ggapv;
+    ggaphp = pa_chrsizy(out)*ggaph;
+    ggapp = pa_chrsizy(out)*ggap;
+
+    /* based on that, find size of individual buttons */
+    cbx = (pa_maxxg(out)-gsidep*2-ggapvp*8)/9;
+    cby =
+        (pa_maxyg(out)-titbot-gtopp*2-ggapp-ggaphp*2-ggapp-pa_chrsizy(out)*3)/5;
+
+    /* place color buttons */
+    wp = getwig(); /* get widget entry */
+    wp->cbc = &grid_cbc; /* set colors */
+    grid_cbc.bbn = th_querycolor1;
+    grid_cbc.bbp = th_querycolor1;
+    widget(out, gsidep, titbot+gtopp, gsidep+cbx, gtopp+cby, "", 3, wtcbutton,
+           &wp);
 
     /* start with events */
     do {
@@ -6306,37 +6462,79 @@ static void init_widgets()
 #endif
 
     /* fill out the theme table defaults */
-    themetable[th_backpressed]      = TD_BACKPRESSED;
-    themetable[th_back]             = TD_BACK;
-    themetable[th_outline1]         = TD_OUTLINE1;
-    themetable[th_text]             = TD_TEXT;
-    themetable[th_textdis]          = TD_TEXTDIS;
-    themetable[th_focus]            = TD_FOCUS;
-    themetable[th_chkrad]           = TD_CHKRAD;
-    themetable[th_chkradout]        = TD_CHKRADOUT;
-    themetable[th_scrollback]       = TD_SCROLLBACK;
-    themetable[th_scrollbar]        = TD_SCROLLBAR;
-    themetable[th_scrollbarpressed] = TD_SCROLLBARPRESSED;
-    themetable[th_numseldiv]        = TD_NUMSELDIV;
-    themetable[th_numselud]         = TD_NUMSELUD;
-    themetable[th_texterr]          = TD_TEXTERR;
-    themetable[th_proginacen]       = TD_PROGINACEN;
-    themetable[th_proginaedg]       = TD_PROGINAEDG;
-    themetable[th_progactcen]       = TD_PROGACTCEN;
-    themetable[th_progactedg]       = TD_PROGACTEDG;
-    themetable[th_lsthov]           = TD_LSTHOV;
-    themetable[th_outline2]         = TD_OUTLINE2;
-    themetable[th_droparrow]        = TD_DROPARROW;
-    themetable[th_droptext]         = TD_DROPTEXT;
-    themetable[th_sldint]           = TD_SLDINT;
-    themetable[th_tabdis]           = TD_TABDIS;
-    themetable[th_tabback]          = TD_TABBACK;
-    themetable[th_tabsel]           = TD_TABSEL;
-    themetable[th_tabfocus]         = TD_TABFOCUS;
-    themetable[th_cancelbackfocus]  = TD_CANCELBACKFOCUS;
-    themetable[th_canceltextfocus]  = TD_CANCELTEXTFOCUS;
-    themetable[th_canceloutline]    = TD_CANCELOUTLINE;
-    themetable[th_title]            = TD_TITLE;
+    themetable[th_backpressed]        = TD_BACKPRESSED;
+    themetable[th_back]               = TD_BACK;
+    themetable[th_outline1]           = TD_OUTLINE1;
+    themetable[th_text]               = TD_TEXT;
+    themetable[th_textdis]            = TD_TEXTDIS;
+    themetable[th_focus]              = TD_FOCUS;
+    themetable[th_chkrad]             = TD_CHKRAD;
+    themetable[th_chkradout]          = TD_CHKRADOUT;
+    themetable[th_scrollback]         = TD_SCROLLBACK;
+    themetable[th_scrollbar]          = TD_SCROLLBAR;
+    themetable[th_scrollbarpressed]   = TD_SCROLLBARPRESSED;
+    themetable[th_numseldiv]          = TD_NUMSELDIV;
+    themetable[th_numselud]           = TD_NUMSELUD;
+    themetable[th_texterr]            = TD_TEXTERR;
+    themetable[th_proginacen]         = TD_PROGINACEN;
+    themetable[th_proginaedg]         = TD_PROGINAEDG;
+    themetable[th_progactcen]         = TD_PROGACTCEN;
+    themetable[th_progactedg]         = TD_PROGACTEDG;
+    themetable[th_lsthov]             = TD_LSTHOV;
+    themetable[th_outline2]           = TD_OUTLINE2;
+    themetable[th_droparrow]          = TD_DROPARROW;
+    themetable[th_droptext]           = TD_DROPTEXT;
+    themetable[th_sldint]             = TD_SLDINT;
+    themetable[th_tabdis]             = TD_TABDIS;
+    themetable[th_tabback]            = TD_TABBACK;
+    themetable[th_tabsel]             = TD_TABSEL;
+    themetable[th_tabfocus]           = TD_TABFOCUS;
+    themetable[th_cancelbackfocus]    = TD_CANCELBACKFOCUS;
+    themetable[th_canceltextfocus]    = TD_CANCELTEXTFOCUS;
+    themetable[th_canceloutline]      = TD_CANCELOUTLINE;
+    themetable[th_title]              = TD_TITLE;
+    themetable[th_selectbackfocus]    = TD_SELECTBACKFOCUS;
+    themetable[th_selectback]         = TD_SELECTBACK;
+    themetable[th_selecttextfocus]    = TD_SELECTTEXTFOCUS;
+    themetable[th_selecttext]         = TD_SELECTTEXT;
+    themetable[th_selectoutline]      = TD_SELECTOUTLINE;
+    themetable[th_selectoutlinefocus] = TD_SELECTOUTLINEFOCUS;
+    themetable[th_querycolor1]        = TD_QUERYCOLOR1;
+    themetable[th_querycolor2]        = TD_QUERYCOLOR2;
+    themetable[th_querycolor3]        = TD_QUERYCOLOR3;
+    themetable[th_querycolor4]        = TD_QUERYCOLOR4;
+    themetable[th_querycolor5]        = TD_QUERYCOLOR5;
+    themetable[th_querycolor6]        = TD_QUERYCOLOR6;
+    themetable[th_querycolor7]        = TD_QUERYCOLOR7;
+    themetable[th_querycolor8]        = TD_QUERYCOLOR8;
+    themetable[th_querycolor9]        = TD_QUERYCOLOR9;
+    themetable[th_querycolor10]       = TD_QUERYCOLOR10;
+    themetable[th_querycolor11]       = TD_QUERYCOLOR11;
+    themetable[th_querycolor12]       = TD_QUERYCOLOR12;
+    themetable[th_querycolor13]       = TD_QUERYCOLOR13;
+    themetable[th_querycolor14]       = TD_QUERYCOLOR14;
+    themetable[th_querycolor15]       = TD_QUERYCOLOR15;
+    themetable[th_querycolor16]       = TD_QUERYCOLOR16;
+    themetable[th_querycolor17]       = TD_QUERYCOLOR17;
+    themetable[th_querycolor18]       = TD_QUERYCOLOR18;
+    themetable[th_querycolor19]       = TD_QUERYCOLOR19;
+    themetable[th_querycolor20]       = TD_QUERYCOLOR20;
+    themetable[th_querycolor21]       = TD_QUERYCOLOR21;
+    themetable[th_querycolor22]       = TD_QUERYCOLOR22;
+    themetable[th_querycolor23]       = TD_QUERYCOLOR23;
+    themetable[th_querycolor24]       = TD_QUERYCOLOR24;
+    themetable[th_querycolor25]       = TD_QUERYCOLOR25;
+    themetable[th_querycolor26]       = TD_QUERYCOLOR26;
+    themetable[th_querycolor27]       = TD_QUERYCOLOR27;
+    themetable[th_querycolor28]       = TD_QUERYCOLOR28;
+    themetable[th_querycolor29]       = TD_QUERYCOLOR29;
+    themetable[th_querycolor30]       = TD_QUERYCOLOR30;
+    themetable[th_querycolor31]       = TD_QUERYCOLOR31;
+    themetable[th_querycolor32]       = TD_QUERYCOLOR32;
+    themetable[th_querycolor33]       = TD_QUERYCOLOR33;
+    themetable[th_querycolor34]       = TD_QUERYCOLOR34;
+    themetable[th_querycolor35]       = TD_QUERYCOLOR35;
+    themetable[th_querycolor36]       = TD_QUERYCOLOR36;
 
 }
 
