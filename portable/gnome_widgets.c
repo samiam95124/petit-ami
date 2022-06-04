@@ -157,6 +157,12 @@ static enum { /* debug levels */
 #define TD_SELECTTEXT         BW(220)             /* Select text in focus */
 #define TD_SELECTOUTLINE      RGB(16,155,38)      /* Select outline unfocused */
 #define TD_SELECTOUTLINEFOCUS RGB(16,155,38)      /* Select outline focused */
+#define TD_PLUSBACKFOCUS      RGB(252,252,252)    /* Select background in focus */
+#define TD_PLUSBACK           RGB(252,252,252)    /* Select background in normal */
+#define TD_PLUSTEXTFOCUS      BW(61)              /* Select text in focus */
+#define TD_PLUSTEXT           BW(61)              /* Select text in focus */
+#define TD_PLUSOUTLINE        BW(196)             /* Select outline unfocused */
+#define TD_PLUSOUTLINEFOCUS   BW(196)             /* Select outline focused */
 #define TD_TITLE              BW(48)              /* GTK dialog titlebar color */
 
 /* colors in the querycolor select grid */
@@ -256,6 +262,12 @@ typedef enum {
     th_selecttext,         /* Select text in focus */
     th_selectoutline,      /* Select outline unfocused */
     th_selectoutlinefocus, /* Select outline focused */
+    th_plusbackfocus,      /* Select background in focus */
+    th_plusback,           /* Select background in normal */
+    th_plustextfocus,      /* Select text in focus */
+    th_plustext,           /* Select text in focus */
+    th_plusoutline,        /* Select outline unfocused */
+    th_plusoutlinefocus,   /* Select outline focused */
     th_title,              /* GTK dialog titlebar color */
     /* colors in color chooser grid */
     th_querycolor1,
@@ -6119,6 +6131,7 @@ void pa_querycolor(
     int          rw, cl;   /* row and collumn */
     themeindex   th; /* theme index */
     int          wn; /* widget number */
+    int          cusy; /* location of "custom" message */
     int          x, y;
 
     /* colors for cancel button */
@@ -6142,6 +6155,18 @@ void pa_querycolor(
         themetable[th_selectoutlinefocus], /* outline focused */
         themetable[th_selecttextfocus],    /* text normal */
         themetable[th_selecttextfocus]     /* text disabled */
+
+    };
+
+    /* colors for "+" button */
+    ccolor plus_cbc = {
+
+        themetable[th_plusbackfocus],    /* background normal */
+        themetable[th_plusbackfocus],    /* background pressed */
+        themetable[th_plusoutline],      /* outline normal */
+        themetable[th_plusoutlinefocus], /* outline focused */
+        themetable[th_plustextfocus],    /* text normal */
+        themetable[th_plustextfocus]     /* text disabled */
 
     };
 
@@ -6216,6 +6241,13 @@ void pa_querycolor(
         else y += cby+ggaphp; /* gap between color rows */
 
     }
+    cusy = y+pa_chrsizy(out)*0.5; /* find top of "custom" message */
+
+    /* place "+" button */
+    y += pa_chrsizy(out)*2; /* position past "+" */
+    wp = getwig(); /* get widget entry */
+    wp->cbc = &plus_cbc; /* set colors */
+    widget(out, x, y, x+cbx-1, y+cby-1, "+", wn, wtcbutton, &wp);
 
     /* start with events */
     do {
@@ -6238,7 +6270,10 @@ void pa_querycolor(
                                 titbot*0.5-pa_chrsizy(out)*0.5);
                 fputs(title, out);
                 pa_bold(out, FALSE);
-
+                /* draw "Custom" */
+                pa_cursorg(out, gsidep, cusy);
+                pa_fcolor(out, pa_black);
+                fputs("Custom", out);
                 break;
 
         }
@@ -6556,13 +6591,19 @@ static void init_widgets()
     themetable[th_cancelbackfocus]    = TD_CANCELBACKFOCUS;
     themetable[th_canceltextfocus]    = TD_CANCELTEXTFOCUS;
     themetable[th_canceloutline]      = TD_CANCELOUTLINE;
-    themetable[th_title]              = TD_TITLE;
     themetable[th_selectbackfocus]    = TD_SELECTBACKFOCUS;
     themetable[th_selectback]         = TD_SELECTBACK;
     themetable[th_selecttextfocus]    = TD_SELECTTEXTFOCUS;
     themetable[th_selecttext]         = TD_SELECTTEXT;
     themetable[th_selectoutline]      = TD_SELECTOUTLINE;
     themetable[th_selectoutlinefocus] = TD_SELECTOUTLINEFOCUS;
+    themetable[th_plusbackfocus]      = TD_PLUSBACKFOCUS;
+    themetable[th_plusback]           = TD_PLUSBACK;
+    themetable[th_plustextfocus]      = TD_PLUSTEXTFOCUS;
+    themetable[th_plustext]           = TD_PLUSTEXT;
+    themetable[th_plusoutline]        = TD_PLUSOUTLINE;
+    themetable[th_plusoutlinefocus]   = TD_PLUSOUTLINEFOCUS;
+    themetable[th_title]              = TD_TITLE;
     themetable[th_querycolor1]        = TD_QUERYCOLOR1;
     themetable[th_querycolor2]        = TD_QUERYCOLOR2;
     themetable[th_querycolor3]        = TD_QUERYCOLOR3;
