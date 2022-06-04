@@ -6106,33 +6106,35 @@ void pa_querycolor(
 
 {
 
-    FILE*        in = NULL;  /* window to create */
-    FILE*        out;
-    int          wid;      /* window number */
-    pa_evtrec    er;       /* event record */
-    char*        title = "Select a color"; /* title string */
-    char*        cancel = "Cancel"; /* cancel string */
-    char*        selects = "Select"; /* select string */
-    int          titbot;   /* bottom of title bar */
-    const double mg = 0.15; /* button to side margin fraction */
-    int          mgt;      /* margin for system bar */
-    wigptr       wp;       /* widget entry pointer */
-    const double gtop = 0.65; /* color grid top */
-    int          gtopp;
-    const double gside = 0.5; /* color grid side */
-    int          gsidep;
-    const double ggapv = 0.1; /* color gap between buttons vertical */
-    int          ggapvp;
-    const double ggaph = 0.1; /* color gap between buttons horizontal */
-    int          ggaphp;
-    const double ggap = 0.5; /* color to b&w grid gap */
-    int          ggapp;
-    int          cbx, cby; /* color button size */
-    int          rw, cl;   /* row and collumn */
-    themeindex   th; /* theme index */
-    int          wn; /* widget number */
-    int          cusy; /* location of "custom" message */
-    int          x, y;
+    FILE*         in = NULL;  /* window to create */
+    FILE*         out;
+    int           wid;      /* window number */
+    pa_evtrec     er;       /* event record */
+    char*         title = "Select a color"; /* title string */
+    char*         cancel = "Cancel"; /* cancel string */
+    char*         selects = "Select"; /* select string */
+    int           titbot;   /* bottom of title bar */
+    const double  mg = 0.15; /* button to side margin fraction */
+    int           mgt;      /* margin for system bar */
+    wigptr        wp;       /* widget entry pointer */
+    const double  gtop = 0.65; /* color grid top */
+    int           gtopp;
+    const double  gside = 0.5; /* color grid side */
+    int           gsidep;
+    const double  ggapv = 0.1; /* color gap between buttons vertical */
+    int           ggapvp;
+    const double  ggaph = 0.1; /* color gap between buttons horizontal */
+    int           ggaphp;
+    const double  ggap = 0.5; /* color to b&w grid gap */
+    int           ggapp;
+    int           cbx, cby; /* color button size */
+    int           rw, cl;   /* row and collumn */
+    themeindex    th; /* theme index */
+    int           wn; /* widget number */
+    int           cusy; /* location of "custom" message */
+    int           rs, gs, bs; /* colors selected */
+    unsigned long rgb; /* packed color selected */
+    int           x, y;
 
     /* colors for cancel button */
     ccolor cancel_cbc = {
@@ -6249,6 +6251,12 @@ void pa_querycolor(
     wp->cbc = &plus_cbc; /* set colors */
     widget(out, x, y, x+cbx-1, y+cby-1, "+", wn, wtcbutton, &wp);
 
+    /* set initial select */
+    rgb = themetable[th_querycolor36]; /* get raw color */
+    rs = RED(rgb); /* get the individual colors */
+    gs = GREEN(rgb);
+    bs = BLUE(rgb);
+
     /* start with events */
     do {
 
@@ -6256,7 +6264,6 @@ void pa_querycolor(
         switch (er.etype) {
 
             case pa_etredraw:
-
                 /* draw background */
                 pa_fcolor(out, pa_backcolor);
                 pa_frect(out, 1, 1, pa_maxxg(out), pa_maxyg(out));
@@ -6274,6 +6281,30 @@ void pa_querycolor(
                 pa_cursorg(out, gsidep, cusy);
                 pa_fcolor(out, pa_black);
                 fputs("Custom", out);
+                break;
+
+            case pa_etbutton:
+                if (er.butid == 1) /* cancel */
+                    er.etype = pa_etterm;
+                else if (er.butid == 2) { /* select */
+
+                    *r = rs; /* set final colors */
+                    *g = gs;
+                    *b = bs;
+                    er.etype = pa_etterm;
+
+                } else if (er.butid == 2+36+1) { /* plus */
+
+                    er.etype = pa_etterm;
+
+                } else if (er.butid >= 2+1 && er.butid <= 2+36) { /* color select */
+
+                    rgb = themetable[er.butid-(2+1)+th_querycolor1]; /* get raw color */
+                    rs = RED(rgb); /* get the individual colors */
+                    gs = GREEN(rgb);
+                    bs = BLUE(rgb);
+
+                }
                 break;
 
         }
