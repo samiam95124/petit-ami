@@ -107,10 +107,15 @@ static enum { /* debug levels */
 /* macro to make a black and white value */
 #define BW(v) (v<<16|v<<8|v)
 
+/* unpack RGB packed values */
+#define REDP(v)   (v >> 16 & 0xff)
+#define GREENP(v) (v >> 8 & 0xff)
+#define BLUEP(v)  (v & 0xff)
+
 /* macros to unpack color table entries to INT_MAX ratioed numbers */
-#define RED(v)   (INT_MAX/256*(v >> 16))       /* red */
-#define GREEN(v) (INT_MAX/256*(v >> 8 & 0xff)) /* green */
-#define BLUE(v)  (INT_MAX/256*(v & 0xff))      /* blue */
+#define RED(v)   (INT_MAX/256*REDP(v))   /* red */
+#define GREEN(v) (INT_MAX/256*GREENP(v)) /* green */
+#define BLUE(v)  (INT_MAX/256*BLUEP(v)) /* blue */
 
 /* default values for color table. Note these can be overridden.
  * To increase or decrease luminescence, add or subtract a BW() value from
@@ -156,77 +161,48 @@ static enum { /* debug levels */
 
 /* colors in the querycolor select grid */
 #define TD_QUERYCOLOR1        RGB(239,41,41)
-#define TD_QUERYCOLOROL1      RGB(168,29,29)
 #define TD_QUERYCOLOR2        RGB(252,175,62)
-#define TD_QUERYCOLOROL2      RGB(252,175,62)
 #define TD_QUERYCOLOR3        RGB(252,233,79)
-#define TD_QUERYCOLOROL3      RGB(252,233,79)
 #define TD_QUERYCOLOR4        RGB(138,226,52)
-#define TD_QUERYCOLOROL4      RGB(138,226,52)
 #define TD_QUERYCOLOR5        RGB(114,159,207)
-#define TD_QUERYCOLOROL5      RGB(114,159,207)
 #define TD_QUERYCOLOR6        RGB(173,127,168)
-#define TD_QUERYCOLOROL6      RGB(173,127,168)
 #define TD_QUERYCOLOR7        RGB(233,185,110)
-#define TD_QUERYCOLOROL7      RGB(233,185,110)
 #define TD_QUERYCOLOR8        RGB(136,138,133)
-#define TD_QUERYCOLOROL8      RGB(136,138,133)
 #define TD_QUERYCOLOR9        RGB(238,238,236)
-#define TD_QUERYCOLOROL9      RGB(238,238,236)
 #define TD_QUERYCOLOR10       RGB(204,0,0)
-#define TD_QUERYCOLOROL10     RGB(204,0,0)
 #define TD_QUERYCOLOR11       RGB(245,121,0)
-#define TD_QUERYCOLOROL11     RGB(245,121,0)
 #define TD_QUERYCOLOR12       RGB(237,212,0)
-#define TD_QUERYCOLOROL12     RGB(237,212,0)
 #define TD_QUERYCOLOR13       RGB(115,210,22)
-#define TD_QUERYCOLOROL13     RGB(115,210,22)
 #define TD_QUERYCOLOR14       RGB(52,101,164)
-#define TD_QUERYCOLOROL14     RGB(52,101,164)
 #define TD_QUERYCOLOR15       RGB(117,80,123)
-#define TD_QUERYCOLOROL15     RGB(117,80,123)
 #define TD_QUERYCOLOR16       RGB(193,125,17)
-#define TD_QUERYCOLOROL16     RGB(193,125,17)
 #define TD_QUERYCOLOR17       RGB(85,87,83)
-#define TD_QUERYCOLOROL17     RGB(85,87,83)
 #define TD_QUERYCOLOR18       RGB(211,215,207)
-#define TD_QUERYCOLOROL18     RGB(211,215,207)
 #define TD_QUERYCOLOR19       RGB(164,0,0)
-#define TD_QUERYCOLOROL19     RGB(164,0,0)
 #define TD_QUERYCOLOR20       RGB(206,92,0)
-#define TD_QUERYCOLOROL20     RGB(206,92,0)
 #define TD_QUERYCOLOR21       RGB(196,160,0)
-#define TD_QUERYCOLOROL21     RGB(196,160,0)
 #define TD_QUERYCOLOR22       RGB(78,154,6)
-#define TD_QUERYCOLOROL22     RGB(78,154,6)
 #define TD_QUERYCOLOR23       RGB(32,74,135)
-#define TD_QUERYCOLOROL23     RGB(32,74,135)
 #define TD_QUERYCOLOR24       RGB(92,53,102)
-#define TD_QUERYCOLOROL24     RGB(92,53,102)
 #define TD_QUERYCOLOR25       RGB(143,89,2)
-#define TD_QUERYCOLOROL25     RGB(143,89,2)
 #define TD_QUERYCOLOR26       RGB(46,52,54)
-#define TD_QUERYCOLOROL26     RGB(46,52,54)
 #define TD_QUERYCOLOR27       RGB(186,189,182)
-#define TD_QUERYCOLOROL27     RGB(186,189,182)
 #define TD_QUERYCOLOR28       RGB(0,0,0)
-#define TD_QUERYCOLOROL28     RGB(0,0,0)
 #define TD_QUERYCOLOR29       RGB(46,52,54)
-#define TD_QUERYCOLOROL29     RGB(46,52,54)
 #define TD_QUERYCOLOR30       RGB(85,87,83)
-#define TD_QUERYCOLOROL30     RGB(85,87,83)
 #define TD_QUERYCOLOR31       RGB(136,138,133)
-#define TD_QUERYCOLOROL31     RGB(136,138,133)
 #define TD_QUERYCOLOR32       RGB(186,189,182)
-#define TD_QUERYCOLOROL32     RGB(186,189,182)
 #define TD_QUERYCOLOR33       RGB(211,215,207)
-#define TD_QUERYCOLOROL33     RGB(211,215,207)
 #define TD_QUERYCOLOR34       RGB(238,238,236)
-#define TD_QUERYCOLOROL34     RGB(238,238,236)
 #define TD_QUERYCOLOR35       RGB(243,243,243)
-#define TD_QUERYCOLOROL35     RGB(243,243,243)
 #define TD_QUERYCOLOR36       RGB(255,255,255)
-#define TD_QUERYCOLOROL36     RGB(255,255,255)
+
+/* find given percentage of N */
+#define PERCENT(n, p) (n*p/100)
+
+/* find RGB value as percentage */
+#define PERRGB(rgb, p) (PERCENT(REDP(rgb), p)<<16 | PERCENT(GREENP(rgb), p)<<8 | \
+        PERCENT(BLUEP(rgb), p))
 
 /* types of system vectors for override calls */
 
@@ -283,77 +259,41 @@ typedef enum {
     th_title,              /* GTK dialog titlebar color */
     /* colors in color chooser grid */
     th_querycolor1,
-    th_querycolorol1,
     th_querycolor2,
-    th_querycolorol2,
     th_querycolor3,
-    th_querycolorol3,
     th_querycolor4,
-    th_querycolorol4,
     th_querycolor5,
-    th_querycolorol5,
     th_querycolor6,
-    th_querycolorol6,
     th_querycolor7,
-    th_querycolorol7,
     th_querycolor8,
-    th_querycolorol8,
     th_querycolor9,
-    th_querycolorol9,
     th_querycolor10,
-    th_querycolorol10,
     th_querycolor11,
-    th_querycolorol11,
     th_querycolor12,
-    th_querycolorol12,
     th_querycolor13,
-    th_querycolorol13,
     th_querycolor14,
-    th_querycolorol14,
     th_querycolor15,
-    th_querycolorol15,
     th_querycolor16,
-    th_querycolorol16,
     th_querycolor17,
-    th_querycolorol17,
     th_querycolor18,
-    th_querycolorol18,
     th_querycolor19,
-    th_querycolorol19,
     th_querycolor20,
-    th_querycolorol20,
     th_querycolor21,
-    th_querycolorol21,
     th_querycolor22,
-    th_querycolorol22,
     th_querycolor23,
-    th_querycolorol23,
     th_querycolor24,
-    th_querycolorol24,
     th_querycolor25,
-    th_querycolorol25,
     th_querycolor26,
-    th_querycolorol26,
     th_querycolor27,
-    th_querycolorol27,
     th_querycolor28,
-    th_querycolorol28,
     th_querycolor29,
-    th_querycolorol29,
     th_querycolor30,
-    th_querycolorol30,
     th_querycolor31,
-    th_querycolorol31,
     th_querycolor32,
-    th_querycolorol32,
     th_querycolor33,
-    th_querycolorol33,
     th_querycolor34,
-    th_querycolorol34,
     th_querycolor35,
-    th_querycolorol35,
     th_querycolor36,
-    th_querycolorol36,
     th_endmarker           /* end of theme entries */
 
 } themeindex;
@@ -372,12 +312,12 @@ typedef enum  {
 typedef struct ccolor* ccolorp;
 typedef struct ccolor {
 
-    /** Button background normal */           themeindex bbn;
-    /** Button background pressed */          themeindex bbp;
-    /** Button outline normal */              themeindex bon;
-    /** Button outline focus */               themeindex bof;
-    /** Button text normal */                 themeindex btn;
-    /** Button text disabled */               themeindex btd;
+    /** Button background normal */           unsigned long bbn;
+    /** Button background pressed */          unsigned long bbp;
+    /** Button outline normal */              unsigned long bon;
+    /** Button outline focus */               unsigned long bof;
+    /** Button text normal */                 unsigned long btn;
+    /** Button text disabled */               unsigned long btd;
 
 } ccolor;
 
@@ -938,6 +878,45 @@ static void widget_redraw(
 
 /** ****************************************************************************
 
+Draw foreground color from packed 32 bit color
+
+Takes a file and a 32 bit packed RGB color, and sets the foreground color.
+
+*******************************************************************************/
+
+static void fcolorp(
+    /** Window file pointer */ FILE*         f,
+    /** 32 bit packed color */ unsigned long c
+)
+
+{
+
+    pa_fcolorg(f, RED(c), GREEN(c), BLUE(c));
+
+}
+
+/** ****************************************************************************
+
+Draw background color from packed 32 bit color
+
+Takes a file and a 32 bit packed RGB color, and sets the background color.
+table.
+
+*******************************************************************************/
+
+static void bcolorp(
+    /** Window file pointer */ FILE*         f,
+    /** 32 bit packed color */ unsigned long c
+)
+
+{
+
+    pa_bcolorg(f, RED(c), GREEN(c), BLUE(c));
+
+}
+
+/** ****************************************************************************
+
 Draw foreground color from theme table
 
 Takes a file and a theme index, and sets the foreground color from the theme
@@ -952,8 +931,7 @@ static void fcolort(
 
 {
 
-    pa_fcolorg(f, RED(themetable[t]), GREEN(themetable[t]),
-                  BLUE(themetable[t]));
+    fcolorp(f, themetable[t]);
 
 }
 
@@ -973,8 +951,7 @@ static void bcolort(
 
 {
 
-    pa_bcolorg(f, RED(themetable[t]), GREEN(themetable[t]),
-                  BLUE(themetable[t]));
+    bcolorp(f, themetable[t]);
 
 }
 
@@ -1118,16 +1095,16 @@ static void cbutton_draw(
 {
 
     /* color the background */
-    if (wg->pressed) fcolort(wg->wf, wg->cbc->bbp);
-    else fcolort(wg->wf, wg->cbc->bbn);
+    if (wg->pressed) fcolorp(wg->wf, wg->cbc->bbp);
+    else fcolorp(wg->wf, wg->cbc->bbn);
     pa_frrect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf), 20, 20);
     /* outline */
     pa_linewidth(wg->wf, 3);
-    if (wg->focus) fcolort(wg->wf, wg->cbc->bof);
-    else fcolort(wg->wf, wg->cbc->bon);
+    if (wg->focus) fcolorp(wg->wf, wg->cbc->bof);
+    else fcolorp(wg->wf, wg->cbc->bon);
     pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1, pa_maxyg(wg->wf)-1, 20, 20);
-    if (wg->enb) fcolort(wg->wf, wg->cbc->btn);
-    else fcolort(wg->wf, wg->cbc->btd);
+    if (wg->enb) fcolorp(wg->wf, wg->cbc->btn);
+    else fcolorp(wg->wf, wg->cbc->btd);
     pa_cursorg(wg->wf,
                pa_maxxg(wg->wf)/2-pa_strsiz(wg->wf, wg->face)/2,
                pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
@@ -6147,24 +6124,24 @@ void pa_querycolor(
     /* colors for cancel button */
     ccolor cancel_cbc = {
 
-        th_cancelbackfocus, /* background normal */
-        th_cancelbackfocus, /* background pressed */
-        th_canceloutline,   /* outline normal */
-        th_canceloutline,   /* outline focused */
-        th_canceltextfocus, /* text normal */
-        th_canceltextfocus  /* text disabled */
+        themetable[th_cancelbackfocus], /* background normal */
+        themetable[th_cancelbackfocus], /* background pressed */
+        themetable[th_canceloutline],   /* outline normal */
+        themetable[th_canceloutline],   /* outline focused */
+        themetable[th_canceltextfocus], /* text normal */
+        themetable[th_canceltextfocus]  /* text disabled */
 
     };
 
     /* colors for select button */
     ccolor select_cbc = {
 
-        th_selectbackfocus,    /* background normal */
-        th_selectbackfocus,    /* background pressed */
-        th_selectoutline,      /* outline normal */
-        th_selectoutlinefocus, /* outline focused */
-        th_selecttextfocus,    /* text normal */
-        th_selecttextfocus     /* text disabled */
+        themetable[th_selectbackfocus],    /* background normal */
+        themetable[th_selectbackfocus],    /* background pressed */
+        themetable[th_selectoutline],      /* outline normal */
+        themetable[th_selectoutlinefocus], /* outline focused */
+        themetable[th_selecttextfocus],    /* text normal */
+        themetable[th_selecttextfocus]     /* text disabled */
 
     };
 
@@ -6220,10 +6197,13 @@ void pa_querycolor(
 
             wp = getwig(); /* get widget entry */
             wp->cbc = malloc(sizeof(ccolor)); /* set colors */
-            wp->cbc->bbn = th;
-            wp->cbc->bbp = th++;
-            wp->cbc->bon = th;
-            wp->cbc->bof = th++;
+            /* set color */
+            wp->cbc->bbn = themetable[th];
+            wp->cbc->bbp = themetable[th];
+            /* set outline as 70 percent lumenosity of that */
+            wp->cbc->bon = PERRGB(themetable[th], 70);
+            wp->cbc->bof = PERRGB(themetable[th], 70);
+            th++; /* next color */
             wp->cbc->btn = th_selecttextfocus;
             wp->cbc->btd = th_selecttextfocus;
             widget(out, x, y, x+cbx-1, y+cby-1, "", wn++, wtcbutton, &wp);
@@ -6584,77 +6564,41 @@ static void init_widgets()
     themetable[th_selectoutline]      = TD_SELECTOUTLINE;
     themetable[th_selectoutlinefocus] = TD_SELECTOUTLINEFOCUS;
     themetable[th_querycolor1]        = TD_QUERYCOLOR1;
-    themetable[th_querycolorol1]      = TD_QUERYCOLOROL1;
     themetable[th_querycolor2]        = TD_QUERYCOLOR2;
-    themetable[th_querycolorol2]      = TD_QUERYCOLOROL2;
     themetable[th_querycolor3]        = TD_QUERYCOLOR3;
-    themetable[th_querycolorol3]      = TD_QUERYCOLOROL3;
     themetable[th_querycolor4]        = TD_QUERYCOLOR4;
-    themetable[th_querycolorol4]      = TD_QUERYCOLOROL4;
     themetable[th_querycolor5]        = TD_QUERYCOLOR5;
-    themetable[th_querycolorol5]      = TD_QUERYCOLOROL5;
     themetable[th_querycolor6]        = TD_QUERYCOLOR6;
-    themetable[th_querycolorol6]      = TD_QUERYCOLOROL6;
     themetable[th_querycolor7]        = TD_QUERYCOLOR7;
-    themetable[th_querycolorol7]      = TD_QUERYCOLOROL7;
     themetable[th_querycolor8]        = TD_QUERYCOLOR8;
-    themetable[th_querycolorol8]      = TD_QUERYCOLOROL8;
     themetable[th_querycolor9]        = TD_QUERYCOLOR9;
-    themetable[th_querycolorol9]      = TD_QUERYCOLOROL9;
     themetable[th_querycolor10]       = TD_QUERYCOLOR10;
-    themetable[th_querycolorol10]     = TD_QUERYCOLOROL10;
     themetable[th_querycolor11]       = TD_QUERYCOLOR11;
-    themetable[th_querycolorol11]     = TD_QUERYCOLOROL11;
     themetable[th_querycolor12]       = TD_QUERYCOLOR12;
-    themetable[th_querycolorol12]     = TD_QUERYCOLOROL12;
     themetable[th_querycolor13]       = TD_QUERYCOLOR13;
-    themetable[th_querycolorol13]     = TD_QUERYCOLOROL13;
     themetable[th_querycolor14]       = TD_QUERYCOLOR14;
-    themetable[th_querycolorol14]     = TD_QUERYCOLOROL14;
     themetable[th_querycolor15]       = TD_QUERYCOLOR15;
-    themetable[th_querycolorol15]     = TD_QUERYCOLOROL15;
     themetable[th_querycolor16]       = TD_QUERYCOLOR16;
-    themetable[th_querycolorol16]     = TD_QUERYCOLOROL16;
     themetable[th_querycolor17]       = TD_QUERYCOLOR17;
-    themetable[th_querycolorol17]     = TD_QUERYCOLOROL17;
     themetable[th_querycolor18]       = TD_QUERYCOLOR18;
-    themetable[th_querycolorol18]     = TD_QUERYCOLOROL18;
     themetable[th_querycolor19]       = TD_QUERYCOLOR19;
-    themetable[th_querycolorol19]     = TD_QUERYCOLOROL19;
     themetable[th_querycolor20]       = TD_QUERYCOLOR20;
-    themetable[th_querycolorol20]     = TD_QUERYCOLOROL20;
     themetable[th_querycolor21]       = TD_QUERYCOLOR21;
-    themetable[th_querycolorol21]     = TD_QUERYCOLOROL21;
     themetable[th_querycolor22]       = TD_QUERYCOLOR22;
-    themetable[th_querycolorol22]     = TD_QUERYCOLOROL22;
     themetable[th_querycolor23]       = TD_QUERYCOLOR23;
-    themetable[th_querycolorol23]     = TD_QUERYCOLOROL23;
     themetable[th_querycolor24]       = TD_QUERYCOLOR24;
-    themetable[th_querycolorol24]     = TD_QUERYCOLOROL24;
     themetable[th_querycolor25]       = TD_QUERYCOLOR25;
-    themetable[th_querycolorol25]     = TD_QUERYCOLOROL25;
     themetable[th_querycolor26]       = TD_QUERYCOLOR26;
-    themetable[th_querycolorol26]     = TD_QUERYCOLOROL26;
     themetable[th_querycolor27]       = TD_QUERYCOLOR27;
-    themetable[th_querycolorol27]     = TD_QUERYCOLOROL27;
     themetable[th_querycolor28]       = TD_QUERYCOLOR28;
-    themetable[th_querycolorol28]     = TD_QUERYCOLOROL28;
     themetable[th_querycolor29]       = TD_QUERYCOLOR29;
-    themetable[th_querycolorol29]     = TD_QUERYCOLOROL29;
     themetable[th_querycolor30]       = TD_QUERYCOLOR30;
-    themetable[th_querycolorol30]     = TD_QUERYCOLOROL30;
     themetable[th_querycolor31]       = TD_QUERYCOLOR31;
-    themetable[th_querycolorol31]     = TD_QUERYCOLOROL31;
     themetable[th_querycolor32]       = TD_QUERYCOLOR32;
-    themetable[th_querycolorol32]     = TD_QUERYCOLOROL32;
     themetable[th_querycolor33]       = TD_QUERYCOLOR33;
-    themetable[th_querycolorol33]     = TD_QUERYCOLOROL33;
     themetable[th_querycolor34]       = TD_QUERYCOLOR34;
-    themetable[th_querycolorol34]     = TD_QUERYCOLOROL34;
     themetable[th_querycolor35]       = TD_QUERYCOLOR35;
-    themetable[th_querycolorol35]     = TD_QUERYCOLOROL35;
     themetable[th_querycolor36]       = TD_QUERYCOLOR36;
-    themetable[th_querycolorol36]     = TD_QUERYCOLOROL36;
 
 }
 
