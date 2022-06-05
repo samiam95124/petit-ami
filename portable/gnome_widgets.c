@@ -6169,6 +6169,7 @@ void pa_querycolor(
     int           rs, gs, bs; /* colors selected */
     unsigned long rgb; /* packed color selected */
     int           cursel; /* currently selected color widget */
+    int           sx, sy;
     int           x, y;
 
     /* colors for cancel button */
@@ -6207,6 +6208,17 @@ void pa_querycolor(
 
     };
 
+    /* black/white map for color button checkboxes, on is white */
+    int bwmap[36] = {
+
+        TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,
+        TRUE,FALSE,FALSE,FALSE,TRUE,TRUE,FALSE,TRUE,FALSE,
+        TRUE,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,TRUE,FALSE,
+        TRUE,TRUE,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE
+
+    };
+
+
     wid = pa_getwinid(); /* get anonymous window id */
     pa_openwin(&in, &out, NULL, wid); /* create window */
     pa_buffer(out, FALSE); /* turn off buffering */
@@ -6218,6 +6230,12 @@ void pa_querycolor(
     /* size the dialog */
     pa_setsizg(out, pa_chrsizy(out)*25.8,
                     pa_chrsizy(out)*15.2);
+
+    /* center the dialog */
+    pa_scnsizg(out, &sx, &sy); /* find total screen size */
+    pa_getsizg(out, &x, &y); /* find window size */
+    pa_setposg(out, sx/2-x/2, sy/2-y/2); /* set center position */
+
     titbot = pa_maxyg(out)*0.165; /* set bottom of system bar */
     mgt = titbot*mg; /* set margins */
 
@@ -6265,11 +6283,20 @@ void pa_querycolor(
             /* set outline as 70 percent lumenosity of that */
             wp->cbc->bon = PERRGB(themetable[th], 70);
             wp->cbc->bof = PERRGB(themetable[th], 70);
-            th++; /* next color */
-            wp->cbc->btn = th_selecttextfocus;
-            wp->cbc->btd = th_selecttextfocus;
+            if (bwmap[th-th_querycolor1]) { /* set white checkmark */
+
+                wp->cbc->btn = BW(255);
+                wp->cbc->btd = BW(255);
+
+            } else {
+
+                wp->cbc->btn = th_selecttextfocus;
+                wp->cbc->btd = th_selecttextfocus;
+
+            }
             wp->check = TRUE; /* set use check instead of text */
             widget(out, x, y, x+cbx-1, y+cby-1, "", wn++, wtcbutton, &wp);
+            th++; /* next color */
             x += cbx+ggapvp; /* move to next button */
 
         }
