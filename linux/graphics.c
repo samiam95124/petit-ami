@@ -12443,6 +12443,46 @@ void pa_scnsiz(FILE* f, int* x, int* y)
 
 /** ****************************************************************************
 
+Get screen center graphical
+
+Finds the center of the screen which contains the given window. This is usually
+used to locate where dialogs will go. It could be another location depending on
+the system.
+
+The old system was to simply locate the dialogs in the middle of the screen,
+which fails (or at least is not the optimal placement) in the case of multiple
+screens that are joined at one or more sides.
+
+*******************************************************************************/
+
+void pa_scnceng(FILE* f, int* x, int* y)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Get screen center character
+
+Finds the center of the screen which contains the given window. This is usually
+used to locate where dialogs will go. It could be another location depending on
+the system.
+
+The old system was to simply locate the dialogs in the middle of the screen,
+which fails (or at least is not the optimal placement) in the case of multiple
+screens that are joined at one or more sides.
+
+*******************************************************************************/
+
+void pa_scncen(FILE* f, int* x, int* y)
+
+{
+
+}
+
+/** ****************************************************************************
+
 Find window size from client
 
 Finds the window size, in parent terms, needed to result in a given client

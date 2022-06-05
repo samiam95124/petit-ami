@@ -464,6 +464,8 @@ void pa_setpos(FILE* f, int x, int y);
 void pa_setposg(FILE* f, int x, int y);
 void pa_scnsiz(FILE* f, int* x, int* y);
 void pa_scnsizg(FILE* f, int* x, int*y);
+void pa_scncen(FILE* f, int* x, int* y);
+void pa_scnceng(FILE* f, int* x, int* y);
 void pa_winclient(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms);
 void pa_winclientg(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms);
 void pa_front(FILE* f);

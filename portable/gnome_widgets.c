@@ -380,7 +380,8 @@ typedef struct wigrec {
     /** tick marks on slider */               int       ticks;
     /** Tab orientation */                    pa_tabori tor;
 
-    /* Configurable button fields */          ccolorp   cbc;
+    /** Configurable button fields */         ccolorp   cbc;
+    /** use check/text */                     int       check;
 
 } wigrec;
 
@@ -810,6 +811,7 @@ static wigptr getwig(void)
     wp->grab = FALSE; /* set no scrollbar/slider grab */
     wp->ticks = 0; /* set no tick marks on slider */
     wp->tor = pa_totop; /* set tab orientation top */
+    wp->check = FALSE; /* do not use check instead of text */
 
     return wp; /* return entry */
 
@@ -1113,6 +1115,11 @@ static void cbutton_draw(
 
 {
 
+    int sq; /* size of checkbox square */
+    int sqm; /* center x of checkbox square */
+    int md; /* checkbox center line */
+    int cb; /* bounding box of check figure */
+
     /* color the background */
     if (wg->pressed) fcolorp(wg->wf, wg->cbc->bbp);
     else fcolorp(wg->wf, wg->cbc->bbn);
@@ -1124,10 +1131,29 @@ static void cbutton_draw(
     pa_rrect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1, pa_maxyg(wg->wf)-1, 20, 20);
     if (wg->enb) fcolorp(wg->wf, wg->cbc->btn);
     else fcolorp(wg->wf, wg->cbc->btd);
-    pa_cursorg(wg->wf,
-               pa_maxxg(wg->wf)/2-pa_strsiz(wg->wf, wg->face)/2,
-               pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
-    fprintf(wg->wf, "%s", wg->face); /* place button face */
+    if (wg->select && wg->check) { /* use check instead of text */
+
+        /* set size of square as ratio of font height */
+        sq = 0.80*pa_chrsizy(wg->wf);
+        md = pa_maxyg(wg->wf)/2; /* set middle line of checkbox */
+        sqm = pa_maxxg(wg->wf)/2; /* set square middle x */
+        cb = sq*.70; /* set bounding box of check figure */
+        /* place selected checkmark */
+        pa_linewidth(wg->wf, 4);
+        pa_line(wg->wf, sqm-cb/2, md-cb*.10,
+                        sqm, md+cb*.25);
+        pa_line(wg->wf, sqm-1, md+cb*.25-1,
+                        sqm+cb/2, md-cb*.4);
+        pa_linewidth(wg->wf, 1);
+
+    } else { /* use text */
+
+        pa_cursorg(wg->wf,
+                   pa_maxxg(wg->wf)/2-pa_strsiz(wg->wf, wg->face)/2,
+                   pa_maxyg(wg->wf)/2-pa_chrsizy(wg->wf)/2);
+        fprintf(wg->wf, "%s", wg->face); /* place button face */
+
+    }
 
 }
 
@@ -3646,7 +3672,8 @@ void pa_selectwidget(
 
     wp = fndwig(f, id); /* index the widget */
     /* check this widget is selectable */
-    if (wp->typ != wtcheckbox && wp->typ != wtradiobutton)
+    if (wp->typ != wtcheckbox && wp->typ != wtradiobutton && 
+        wp->typ != wtcbutton)
         error("Widget is not selectable");
     chg = wp->select != !!e; /* check select state changes */
     wp->select = !!e; /* set select state */
@@ -6241,6 +6268,7 @@ void pa_querycolor(
             th++; /* next color */
             wp->cbc->btn = th_selecttextfocus;
             wp->cbc->btd = th_selecttextfocus;
+            wp->check = TRUE; /* set use check instead of text */
             widget(out, x, y, x+cbx-1, y+cby-1, "", wn++, wtcbutton, &wp);
             x += cbx+ggapvp; /* move to next button */
 
@@ -6257,6 +6285,7 @@ void pa_querycolor(
     y += pa_chrsizy(out)*2; /* position past "+" */
     wp = getwig(); /* get widget entry */
     wp->cbc = &plus_cbc; /* set colors */
+    wp->check = TRUE; /* set use check instead of text */
     widget(out, x, y, x+cbx-1, y+cby-1, "+", wn, wtcbutton, &wp);
 
     /* set initial select */
