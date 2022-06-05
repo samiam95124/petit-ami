@@ -87,6 +87,9 @@ static enum { /* debug levels */
                                 __func__, __LINE__, ##__VA_ARGS__); \
                                 fflush(stderr); } while (0)
 
+/* select dialog/command line error */
+#define USEDLG
+
 #ifndef __MACH__ /* Mac OS X */
 #define NOCANCEL /* include nocancel overrides */
 #endif
@@ -423,8 +426,12 @@ static void error(
 
 {
 
+#ifdef USEDLG
+    pa_alert("Error: widgets", es);
+#else
     fprintf(stderr, "Error: widgets: %s\n", es);
     fflush(stderr);
+#endif
 
     exit(1);
 
@@ -6134,6 +6141,7 @@ void pa_querycolor(
     int           cusy; /* location of "custom" message */
     int           rs, gs, bs; /* colors selected */
     unsigned long rgb; /* packed color selected */
+    int           cursel; /* currently selected color widget */
     int           x, y;
 
     /* colors for cancel button */
@@ -6256,6 +6264,8 @@ void pa_querycolor(
     rs = RED(rgb); /* get the individual colors */
     gs = GREEN(rgb);
     bs = BLUE(rgb);
+    pa_selectwidget(out, 2+36, TRUE); /* select the widget */
+    cursel = 2+36; /* save selection */
 
     /* start with events */
     do {
@@ -6303,6 +6313,10 @@ void pa_querycolor(
                     rs = RED(rgb); /* get the individual colors */
                     gs = GREEN(rgb);
                     bs = BLUE(rgb);
+                    /* deselect previous button */
+                    pa_selectwidget(out, cursel, FALSE); 
+                    pa_selectwidget(out, er.butid, TRUE); /* select the widget */
+                    cursel = er.butid; /* save selection */
 
                 }
                 break;
