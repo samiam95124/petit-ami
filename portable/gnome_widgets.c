@@ -6232,9 +6232,9 @@ void pa_querycolor(
                     pa_chrsizy(out)*15.2);
 
     /* center the dialog */
-    pa_scnsizg(out, &sx, &sy); /* find total screen size */
+    pa_scnceng(out, &sx, &sy); /* find screen center */
     pa_getsizg(out, &x, &y); /* find window size */
-    pa_setposg(out, sx/2-x/2, sy/2-y/2); /* set center position */
+    pa_setposg(out, sx-x/2, sy-y/2); /* set center position */
 
     titbot = pa_maxyg(out)*0.165; /* set bottom of system bar */
     mgt = titbot*mg; /* set margins */

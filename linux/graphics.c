@@ -3809,6 +3809,8 @@ static void winvis(winptr win)
         /* present the master window onscreen */
         XWLOCK();
         XMapWindow(padisplay, win->xmwhan);
+        /* place */
+        XMoveWindow(padisplay, win->xmwhan, win->xmwr.x, win->xmwr.y);
         XFlush(padisplay);
         XWUNLOCK();
 
@@ -12432,9 +12434,6 @@ void pa_scnsiz(FILE* f, int* x, int* y)
 
 {
 
-    winptr win; /* windows record pointer */
-
-    win = txt2win(f); /* get window from file */
     pa_scnsizg(f, x, y); /* execute */
     *x = *x/stdchrx; /* convert to "standard character" size */
     *y = *y/stdchry;
@@ -12459,6 +12458,10 @@ void pa_scnceng(FILE* f, int* x, int* y)
 
 {
 
+    /* give fixed position for testing */
+    *x = 5120/2;
+    *y = 5760/4;
+
 }
 
 /** ****************************************************************************
@@ -12478,6 +12481,10 @@ screens that are joined at one or more sides.
 void pa_scncen(FILE* f, int* x, int* y)
 
 {
+
+    pa_scnceng(f, x, y); /* execute */
+    *x = *x/stdchrx; /* convert to "standard character" size */
+    *y = *y/stdchry;
 
 }
 
