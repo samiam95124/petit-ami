@@ -6169,8 +6169,13 @@ void pa_querycolor(
     int           rs, gs, bs; /* colors selected */
     unsigned long rgb; /* packed color selected */
     int           cursel; /* currently selected color widget */
-    int           sx, sy;
+    int           mpx, mpy; /* mouse position */
+    int           lmpx, lmpy; /* last mouse position */
+    int           pressed; /* mouse button 1 pressed */
+    int           sx, sy; /* screen center */
+    int           wpx, wpy; /* window position in parent */
     int           x, y;
+    int           dx, dy;
 
     /* colors for cancel button */
     ccolor cancel_cbc = {
@@ -6234,7 +6239,9 @@ void pa_querycolor(
     /* center the dialog */
     pa_scnceng(out, &sx, &sy); /* find screen center */
     pa_getsizg(out, &x, &y); /* find window size */
-    pa_setposg(out, sx-x/2, sy-y/2); /* set center position */
+    wpx = sx-x/2; /* set window position */
+    wpy = sy-y/2;
+    pa_setposg(out, wpx, wpy); /* set center position */
 
     titbot = pa_maxyg(out)*0.165; /* set bottom of system bar */
     mgt = titbot*mg; /* set margins */
@@ -6323,6 +6330,10 @@ void pa_querycolor(
     pa_selectwidget(out, 2+36, TRUE); /* select the widget */
     cursel = 2+36; /* save selection */
 
+    pressed = FALSE; /* set no mouse button pressed */
+    mpx = 0; /* set no mouse position */
+    mpy = 0;
+
     /* start with events */
     do {
 
@@ -6375,6 +6386,45 @@ void pa_querycolor(
                     cursel = er.butid; /* save selection */
 
                 }
+                break;
+
+            case pa_etmoumovg:
+                lmpx = mpx; /* save last mouse position */
+                lmpy = mpy;
+                mpx = er.moupxg; /* save mouse position */
+                mpy = er.moupyg;
+                if (pressed && mpx && mpy && lmpx && lmpy && 
+                    (lmpx != mpx || lmpy != mpy)) {
+
+                    /* mouse button pressed and has moved */
+                    dx = mpx-lmpx; /* find difference */
+                    dy = mpy-lmpy;
+                    x = wpx+dx; /* find potential new position */
+                    y = wpy+dy;
+                    if (x > 0 && y > 0) { /* valid new position */
+
+                        wpx = x; /* set new position */
+                        wpy = y;
+                        pa_setposg(out, wpx, wpy); /* set new position */
+                        /* Need to adjust the mouse relative positions. The 
+                           mouse moves opposite from the window. */
+                        lmpx -= dx;
+                        lmpy -= dy;
+                        mpx -= dx;
+                        mpy -= dy;
+
+                    }
+
+                }
+                break;
+
+            case pa_etmouba:
+                if (er.amoubn == 1 && mpy <= titbot)
+                    pressed = TRUE; /* set mouse button assert */
+                break;
+
+            case pa_etmoubd:
+                if (er.dmoubn == 1) pressed = FALSE;
                 break;
 
         }
