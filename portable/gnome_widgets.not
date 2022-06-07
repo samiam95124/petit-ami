@@ -35,3 +35,7 @@ which means the client controls all the characteristics.
 
 In fact, because GTK title bars are slightly different in size than the window
 manager provided titles, I think ALL GTK system bars are client drawn.
+
+9. Errors in widgets don't exit.
+
+10. querycolor() sets of $ffffff do not give INT_MAX values.

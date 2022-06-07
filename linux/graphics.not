@@ -41,6 +41,8 @@ Note also this wold remove the need to check redundant sets, because if the
 request is redundant and ignored, we don't care. It does, however, remove the
 need to run the communication, and the time required.
 
+[implemented by compiler flag.]
+
 8. Need to find out how to implement cut and paste in Xwindow for edit boxes.
 
 9. If standard input is performed from multiple windows, the system has a
@@ -50,6 +52,10 @@ data. The issue with this is how does the system know what window is intended to
 perform input? Any window can have text/controls entered, and it will edit at
 wherever the cursor happens to be. This means either multiple windows are an
 error, or the user should be warned about input with multiple output windows.
+
+10. In management_test, the "size and cover me" test paints noticably slow, I 
+suspect it is painting white over every redraw. This may be a Xwindow limitation
+(buffering is off).
 
 MACOSX/Quartz ==================================================================
 

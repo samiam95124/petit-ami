@@ -1037,6 +1037,7 @@ int main(void)
 
     /* ******************** Terminal number select box test ******************* */
 
+#endif
     printf("\f");
     chrgrid();
     pa_binvis(stdout);
@@ -1943,7 +1944,6 @@ int main(void)
 
     /* ************************* Color query test ************************ */
 
-#endif
     printf("\f");
     printf("Color query test\n");
     printf("\n");

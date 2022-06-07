@@ -143,6 +143,7 @@ static enum { /* debug levels */
 //#define PRTFRM /* print Xwindow frame parameters */
 //#define NOWDELAY /* don't delay window presentation until drawn */
 //#define NOFAKEFOCUS /* don't fake focus for child windows */
+#define WAITWMR     /* wait on window manager replies for window configures */
 
 #ifndef __MACH__ /* Mac OS X */
 #define NOCANCEL /* include nocancel overrides */
@@ -10494,10 +10495,12 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
                 XWLOCK();
                 XConfigureWindow(padisplay, win->xwhan, CWWidth|CWHeight, &xwc);
                 XWUNLOCK();
+#ifdef WAITWMR
                 /* wait for the configure response with correct sizes */
                 do { peekxevt(&xe); /* peek next event */
                 } while (xe.type != ConfigureNotify || xe.xconfigure.width != xwc.width ||
                          xe.xconfigure.height != xwc.height || xe.xany.window != win->xwhan);
+#endif
                 /* change saved size to match */
                 win->xwr.w = xwc.width;
                 win->xwr.h = xwc.height;
@@ -10517,10 +10520,12 @@ static void xwinevt(winptr win, pa_evtrec* er, XEvent* e, int* keep)
                     XWLOCK();
                     XConfigureWindow(padisplay, mwin->xmwhan, CWWidth|CWHeight, &xwc);
                     XWUNLOCK();
+#ifdef WAITWMR
                     /* wait for the configure response with correct sizes */
                     do { peekxevt(&xe); /* peek next event */
                     } while (xe.type != ConfigureNotify || xe.xconfigure.width != xwc.width ||
                              xe.xconfigure.height != xwc.height || xe.xany.window != mwin->xmwhan);
+#endif
                     /* change saved size to match */
                     mwin->xmwr.w = xwc.width;
                     mwin->xmwr.h = xwc.height;
@@ -11526,6 +11531,7 @@ void pa_sizbufg(FILE* f, int x, int y)
         XConfigureWindow(padisplay, win->xmwhan, CWWidth|CWHeight, &xwc);
         XWUNLOCK();
 
+#ifdef WAITWMR
         /* wait for the configure response with correct sizes */
         do {
 
@@ -11533,6 +11539,7 @@ void pa_sizbufg(FILE* f, int x, int y)
 
         } while (e.type != ConfigureNotify && e.xconfigure.width != x ||
                  e.xconfigure.height != y || e.xany.window != win->xmwhan);
+#endif
 
         /* set new size */
         win->xmwr.w = win->gmaxxg;
@@ -11604,10 +11611,12 @@ void pa_buffer(FILE* f, int e)
         /* change saved size to match */
         win->xmwr.w = xwc.width;
         win->xmwr.h = xwc.height;
+#ifdef WAITWMR
         /* wait for the configure response with correct sizes */
         do { peekxevt(&xe); /* peek next event */
         } while (xe.type != ConfigureNotify || xe.xconfigure.width != xwc.width ||
                  xe.xconfigure.height != xwc.height || xe.xany.window != win->xmwhan);
+#endif
         restore(win); /* restore buffer to screen */
 
     } else if (win->bufmod) { /* perform buffer off actions */
@@ -11807,11 +11816,13 @@ static void menu_resize(FILE* f, winptr win, int menuon)
     XMoveWindow(padisplay, win->xwhan, 0, yes);
     XWUNLOCK();
 
+#ifdef WAITWMR
     /* wait for the configure response */
     do { peekxevt(&e); /* peek next event */
     } while (e.type != ConfigureNotify || e.xconfigure.x != 0 ||
              e.xconfigure.y != yes ||
              e.xany.window != win->xwhan);
+#endif
     restore(win);
 
 }
@@ -12164,6 +12175,8 @@ void pa_getsizg(FILE* f, int* x, int* y)
     unsigned          ncw;
 
     win = txt2win(f); /* get window context */
+#ifdef WAITWMR
+    /* if wait for window manager is set, ask the WM what the size is */
     XWLOCK();
     /* find parent */
     XQueryTree(padisplay, win->xwhan, &rw, &pw, &cwl, &ncw);
@@ -12172,6 +12185,11 @@ void pa_getsizg(FILE* f, int* x, int* y)
     XWUNLOCK();
     *x = xwa.width+win->pfw;
     *y = xwa.height+win->pfh;
+#else
+    /* if wait for window manager is not set, just use stored */
+    *x = win->xmwr.w+win->pfw;
+    *y = win->xmwr.h+win->pfh;
+#endif
 
 }
 
@@ -12251,10 +12269,12 @@ void pa_setsizg(FILE* f, int x, int y)
         win->xmwr.w = xwc.width;
         win->xmwr.h = xwc.height;
 
+#ifdef WAITWMR
         /* wait for the configure response with correct sizes */
         do { peekxevt(&e); /* peek next event */
         } while (e.type != ConfigureNotify || e.xconfigure.width != xwc.width ||
                  e.xconfigure.height != xwc.height || e.xany.window != win->xmwhan);
+#endif
 
         /* because this event may not reach pa_event() for some time, we have to
            set the dimensions now */
@@ -12339,9 +12359,11 @@ void pa_setposg(FILE* f, int x, int y)
         XMoveWindow(padisplay, win->xmwhan, x-1, y-1);
         XWUNLOCK();
 
+#ifdef WAITWMR
         /* wait for the configure response */
         do { peekxevt(&e); /* peek next event */
         } while (e.type != ConfigureNotify || e.xany.window != win->xmwhan);
+#endif
 
         /* set origin for next time */
         win->xmwr.x = x-1;

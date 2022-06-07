@@ -513,6 +513,7 @@ int main(void)
     fb = FALSE; /* clear front/back status */
     pa_font(stdout, PA_FONT_SIGN);
     pa_fontsiz(stdout, ys);
+
     do {
 
         pa_event(stdin, &er);
