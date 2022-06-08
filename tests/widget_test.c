@@ -1483,6 +1483,7 @@ int main(void)
 
     /* ************************* Terminal tab bar test ************************ */
 
+#endif
     printf("\f");
     chrgrid();
     pa_binvis(stdout);
@@ -1718,7 +1719,6 @@ int main(void)
 
     /* ************************* Terminal overlaid tab bar test ************************ */
 
-#endif
     printf("\f");
     chrgrid();
     pa_binvis(stdout);
