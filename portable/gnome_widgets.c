@@ -5778,8 +5778,10 @@ void pa_tabbarsiz(
     /* change graphical size to character */
     *w = (gw-1) / pa_chrsizx(f)+1;
     *h = (gh-1) / pa_chrsizy(f)+1;
-    *ox = (gox-1) / pa_chrsizx(f)+1;
-    *oy = (goy-1) / pa_chrsizy(f)+1;
+    *ox = gox / pa_chrsizx(f);
+    if (gox % pa_chrsizx(f)) (*ox)++;
+    *oy = goy / pa_chrsizy(f);
+    if (goy % pa_chrsizy(f)) (*oy)++;
 
 }
 

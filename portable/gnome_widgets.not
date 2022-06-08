@@ -12,7 +12,7 @@ widget/window gets focus.
 This may be difficult, since management determines focus. One way is to pass
 focus back to parent.
 
-Note Windows does this (denys focus).
+Note Windows does this (denies focus).
 
 4. Shold clear select on disabled widgets (checkbox/radiobutton).
 
@@ -39,3 +39,5 @@ manager provided titles, I think ALL GTK system bars are client drawn.
 9. Errors in widgets don't exit.
 
 10. querycolor() sets of $ffffff do not give INT_MAX values.
+
+11. Vertical tab bars sparkle when rolled over. They need redraw optimization. 

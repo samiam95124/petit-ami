@@ -1037,7 +1037,6 @@ int main(void)
 
     /* ******************** Terminal number select box test ******************* */
 
-#endif
     printf("\f");
     chrgrid();
     pa_binvis(stdout);
@@ -1515,8 +1514,8 @@ int main(void)
     sp->str = str("Top");
     sp->next = lp;
     lp = sp;
-    pa_tabbarsiz(stdout, pa_toright, 2, 12, &x, &y, &ox, &oy);
-    pa_tabbar(stdout, 40, 7, 40+x-1, 7+y-1, lp, pa_toright, 2);
+    pa_tabbarsiz(stdout, pa_toright, 4, 12, &x, &y, &ox, &oy);
+    pa_tabbar(stdout, 37, 7, 37+x-1, 7+y-1, lp, pa_toright, 2);
 
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("Right");
@@ -1530,7 +1529,7 @@ int main(void)
     sp->next = lp;
     lp = sp;
     pa_tabbarsiz(stdout, pa_tobottom, 20, 2, &x, &y, &ox, &oy);
-    pa_tabbar(stdout, 15, 20, 15+x-1, 20+y-1, lp, pa_tobottom, 3);
+    pa_tabbar(stdout, 15, 19, 15+x-1, 19+y-1, lp, pa_tobottom, 3);
 
     lp = (pa_strptr)imalloc(sizeof(pa_strrec));
     lp->str = str("Bottom");
@@ -1543,7 +1542,7 @@ int main(void)
     sp->str = str("Top");
     sp->next = lp;
     lp = sp;
-    pa_tabbarsiz(stdout, pa_toleft, 2, 12, &x, &y, &ox, &oy);
+    pa_tabbarsiz(stdout, pa_toleft, 4, 12, &x, &y, &ox, &oy);
     pa_tabbar(stdout, 5, 7, 5+x-1, 7+y-1, lp, pa_toleft, 4);
 
     do {
@@ -1719,6 +1718,7 @@ int main(void)
 
     /* ************************* Terminal overlaid tab bar test ************************ */
 
+#endif
     printf("\f");
     chrgrid();
     pa_binvis(stdout);
