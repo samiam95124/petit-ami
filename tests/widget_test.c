@@ -151,13 +151,13 @@ int main(void)
     if (setjmp(terminate_buf)) goto terminate;
 
     pa_curvis(stdout, FALSE);
-#if 0
+#if 1
     printf("Widget test vs. 0.1\n");
     printf("\n");
     printf("Hit return in any window to continue for each test\n");
     waitnext();
 
-    /* ************************** Terminal Button test ************************* */
+    /* ************************** Background test ************************* */
 
     pa_bcolor(stdout, pa_backcolor);
     printf("\f");
@@ -175,7 +175,9 @@ int main(void)
     printf("Terminal buttons test\n");
     printf("\n");
     pa_buttonsiz(stdout, "Hello, there", &x, &y);
-    pa_button(stdout, 10, 7, 10+x-1, 7+y-1, "Hello, there", 1);
+dbg_printf(dlinfo, "character size: %d,%d button size: %d,%d\n", 
+                   pa_chrsizx(stdout), pa_chrsizy(stdout), x, y);
+    pa_button(stdout, 10, 7, 10+x-1, 7+y-1, "Hello, there", 1); 
     pa_buttonsiz(stdout, "Bark!", &x, &y);
     pa_button(stdout, 10, 10, 10+x-1, 10+y-1, "Bark!", 2);
     pa_buttonsiz(stdout, "Sniff", &x, &y);

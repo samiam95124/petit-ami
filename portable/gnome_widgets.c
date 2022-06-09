@@ -4039,8 +4039,8 @@ void pa_button(
     /* form graphical from character coordinates */
     x1 = (x1-1)*pa_chrsizx(f)+1;
     y1 = (y1-1)*pa_chrsizy(f)+1;
-    x2 = (x2)*pa_chrsizx(f);
-    y2 = (y2)*pa_chrsizy(f);
+    x2 = x2*pa_chrsizx(f)+1;
+    y2 = y2*pa_chrsizy(f)+1;
     pa_buttong(f, x1, y1, x2, y2, s, id); /* create button graphical */
 
 }
@@ -4145,8 +4145,8 @@ void pa_checkbox(
     /* form graphical from character coordinates */
     x1 = (x1-1)*pa_chrsizx(f)+1;
     y1 = (y1-1)*pa_chrsizy(f)+1;
-    x2 = (x2)*pa_chrsizx(f);
-    y2 = (y2)*pa_chrsizy(f);
+    x2 = x2*pa_chrsizx(f)+1;
+    y2 = y2*pa_chrsizy(f)+1;
     pa_checkboxg(f, x1, y1, x2, y2, s, id); /* create button graphical */
 
 }
@@ -4251,8 +4251,8 @@ void pa_radiobutton(
     /* form graphical from character coordinates */
     x1 = (x1-1)*pa_chrsizx(f)+1;
     y1 = (y1-1)*pa_chrsizy(f)+1;
-    x2 = (x2)*pa_chrsizx(f);
-    y2 = (y2)*pa_chrsizy(f);
+    x2 = x2*pa_chrsizx(f)+1;
+    y2 = y2*pa_chrsizy(f)+1;
     pa_radiobuttong(f, x1, y1, x2, y2, s, id); /* create button graphical */
 
 }
@@ -4373,8 +4373,8 @@ void pa_group(
     /* form graphical from character coordinates */
     x1 = (x1-1)*pa_chrsizx(f)+1;
     y1 = (y1-1)*pa_chrsizy(f)+1;
-    x2 = (x2)*pa_chrsizx(f);
-    y2 = (y2)*pa_chrsizy(f);
+    x2 = x2*pa_chrsizx(f)+1;
+    y2 = y2*pa_chrsizy(f)+1;
     pa_groupg(f, x1, y1, x2, y2, s, id); /* create button graphical */
 
 }
@@ -4429,8 +4429,8 @@ void pa_background(
     /* form graphical from character coordinates */
     x1 = (x1-1)*pa_chrsizx(f)+1;
     y1 = (y1-1)*pa_chrsizy(f)+1;
-    x2 = (x2)*pa_chrsizx(f);
-    y2 = (y2)*pa_chrsizy(f);
+    x2 = x2*pa_chrsizx(f)+1;
+    y2 = y2*pa_chrsizy(f)+1;
     pa_backgroundg(f, x1, y1, x2, y2, id); /* create button graphical */
 
 }
@@ -4529,8 +4529,8 @@ void pa_scrollvert(
     /* form graphical from character coordinates */
     x1 = (x1-1)*pa_chrsizx(f)+1;
     y1 = (y1-1)*pa_chrsizy(f)+1;
-    x2 = (x2)*pa_chrsizx(f);
-    y2 = (y2)*pa_chrsizy(f);
+    x2 = x2*pa_chrsizx(f)+1;
+    y2 = y2*pa_chrsizy(f)+1;
     pa_scrollvertg(f, x1, y1, x2, y2, id); /* create button graphical */
 
 }
@@ -4629,8 +4629,8 @@ void pa_scrollhoriz(
     /* form graphical from character coordinates */
     x1 = (x1-1)*pa_chrsizx(f)+1;
     y1 = (y1-1)*pa_chrsizy(f)+1;
-    x2 = (x2)*pa_chrsizx(f);
-    y2 = (y2)*pa_chrsizy(f);
+    x2 = x2*pa_chrsizx(f)+1;
+    y2 = y2*pa_chrsizy(f)+1;
     pa_scrollhorizg(f, x1, y1, x2, y2, id); /* create button graphical */
 
 }
@@ -4822,8 +4822,8 @@ void pa_numselbox(
     /* form graphical from character coordinates */
     x1 = (x1-1)*pa_chrsizx(f)+1;
     y1 = (y1-1)*pa_chrsizy(f)+1;
-    x2 = (x2)*pa_chrsizx(f);
-    y2 = (y2)*pa_chrsizy(f);
+    x2 = x2*pa_chrsizx(f)+1;
+    y2 = y2*pa_chrsizy(f)+1;
     pa_numselboxg(f, x1, y1, x2, y2, l, u, id); /* create button graphical */
 
 }
@@ -4925,8 +4925,8 @@ void pa_editbox(
     /* form graphical from character coordinates */
     x1 = (x1-1)*pa_chrsizx(f)+1;
     y1 = (y1-1)*pa_chrsizy(f)+1;
-    x2 = (x2)*pa_chrsizx(f);
-    y2 = (y2)*pa_chrsizy(f);
+    x2 = x2*pa_chrsizx(f)+1;
+    y2 = y2*pa_chrsizy(f)+1;
     pa_editboxg(f, x1, y1, x2, y2, id); /* create button graphical */
 
 }
@@ -5027,8 +5027,8 @@ void pa_progbar(
     /* form graphical from character coordinates */
     x1 = (x1-1)*pa_chrsizx(f)+1;
     y1 = (y1-1)*pa_chrsizy(f)+1;
-    x2 = (x2)*pa_chrsizx(f);
-    y2 = (y2)*pa_chrsizy(f);
+    x2 = x2*pa_chrsizx(f)+1;
+    y2 = y2*pa_chrsizy(f)+1;
     pa_progbarg(f, x1, y1, x2, y2, id); /* create button graphical */
 
 }
@@ -5194,8 +5194,8 @@ void pa_listbox(
     /* form graphical from character coordinates */
     x1 = (x1-1)*pa_chrsizx(f)+1;
     y1 = (y1-1)*pa_chrsizy(f)+1;
-    x2 = (x2)*pa_chrsizx(f);
-    y2 = (y2)*pa_chrsizy(f);
+    x2 = x2*pa_chrsizx(f)+1;
+    y2 = y2*pa_chrsizy(f)+1;
     pa_listboxg(f, x1, y1, x2, y2, sp, id); /* create button graphical */
 
 }
@@ -5336,8 +5336,8 @@ void pa_dropbox(
     /* form graphical from character coordinates */
     x1 = (x1-1)*pa_chrsizx(f)+1;
     y1 = (y1-1)*pa_chrsizy(f)+1;
-    x2 = (x2)*pa_chrsizx(f);
-    y2 = (y2)*pa_chrsizy(f);
+    x2 = x2*pa_chrsizx(f)+1;
+    y2 = y2*pa_chrsizy(f)+1;
     pa_dropboxg(f, x1, y1, x2, y2, sp, id); /* create button graphical */
 
 }
@@ -5493,8 +5493,8 @@ void pa_dropeditbox(
     /* form graphical from character coordinates */
     x1 = (x1-1)*pa_chrsizx(f)+1;
     y1 = (y1-1)*pa_chrsizy(f)+1;
-    x2 = (x2)*pa_chrsizx(f);
-    y2 = (y2)*pa_chrsizy(f);
+    x2 = x2*pa_chrsizx(f)+1;
+    y2 = y2*pa_chrsizy(f)+1;
     pa_dropeditboxg(f, x1, y1, x2, y2, sp, id); /* create button graphical */
 
 }
@@ -5597,8 +5597,8 @@ void pa_slidehoriz(
     /* form graphical from character coordinates */
     x1 = (x1-1)*pa_chrsizx(f)+1;
     y1 = (y1-1)*pa_chrsizy(f)+1;
-    x2 = (x2)*pa_chrsizx(f);
-    y2 = (y2)*pa_chrsizy(f);
+    x2 = x2*pa_chrsizx(f)+1;
+    y2 = y2*pa_chrsizy(f)+1;
     pa_slidehorizg(f, x1, y1, x2, y2, mark, id); /* create button graphical */
 
 }
@@ -5704,8 +5704,8 @@ void pa_slidevert(
     /* form graphical from character coordinates */
     x1 = (x1-1)*pa_chrsizx(f)+1;
     y1 = (y1-1)*pa_chrsizy(f)+1;
-    x2 = (x2)*pa_chrsizx(f);
-    y2 = (y2)*pa_chrsizy(f);
+    x2 = x2*pa_chrsizx(f)+1;
+    y2 = y2*pa_chrsizy(f)+1;
     pa_slidevertg(f, x1, y1, x2, y2, mark, id); /* create button graphical */
 
 }
@@ -5922,8 +5922,8 @@ void pa_tabbar(
     /* form graphical from character coordinates */
     x1 = (x1-1)*pa_chrsizx(f)+1;
     y1 = (y1-1)*pa_chrsizy(f)+1;
-    x2 = (x2)*pa_chrsizx(f)+1;
-    y2 = (y2)*pa_chrsizy(f)+1;
+    x2 = x2*pa_chrsizx(f)+1;
+    y2 = y2*pa_chrsizy(f)+1;
 
     /* make a copy of the list */
     cpystrlst(&nl, sp);
