@@ -3179,14 +3179,23 @@ static void tabbar_draw(
             pa_frect(wg->wf, 1, pa_maxyg(wg->wf)-th,
                              pa_maxxg(wg->wf), pa_maxyg(wg->wf));
         /* outline */
-        pa_linewidth(wg->wf, 2);
+        pa_linewidth(wg->wf, 1);
         fcolort(wg->wf, th_outline1);
+        pa_rect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
         pa_rect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1, pa_maxyg(wg->wf)-1);
-        if (wg->tor == pa_totop)
+        if (wg->tor == pa_totop) {
+
             pa_line(wg->wf, 1, th, pa_maxxg(wg->wf), th);
-        else
-            pa_line(wg->wf, 1, pa_maxyg(wg->wf)-th, 
-                            pa_maxxg(wg->wf), pa_maxyg(wg->wf)-th);
+            pa_line(wg->wf, 1, th-1, pa_maxxg(wg->wf), th-1);
+
+        } else {
+
+            pa_line(wg->wf, 1, pa_maxyg(wg->wf)-th+1, 
+                            pa_maxxg(wg->wf), pa_maxyg(wg->wf)-th+1);
+            pa_line(wg->wf, 1, pa_maxyg(wg->wf)-th+2, 
+                            pa_maxxg(wg->wf), pa_maxyg(wg->wf)-th+2);
+
+        }
         /* draw tab text */
         if (wg->tor == pa_totop)
             pa_cursorg(wg->wf, pa_chrsizy(wg->wf), pa_chrsizy(wg->wf)*0.5);
@@ -3204,16 +3213,16 @@ static void tabbar_draw(
                 else fcolort(wg->wf, th_outline1);
                 if (wg->tor == pa_totop)
                     pa_line(wg->wf, pa_curxg(wg->wf)-pa_chrsizy(wg->wf)*0.5,
-                                    th-3,
+                                    th-2,
                                     pa_curxg(wg->wf)+pa_strsiz(wg->wf, sp->str)+
                                              pa_chrsizy(wg->wf)*0.5,
-                                    th-3);
+                                    th-2);
                 else
                     pa_line(wg->wf, pa_curxg(wg->wf)-pa_chrsizy(wg->wf)*0.5,
-                                    pa_maxyg(wg->wf)-th+3,
+                                    pa_maxyg(wg->wf)-th+4,
                                     pa_curxg(wg->wf)+pa_strsiz(wg->wf, sp->str)+
                                              pa_chrsizy(wg->wf)*0.5,
-                                    pa_maxyg(wg->wf)-th+3);
+                                    pa_maxyg(wg->wf)-th+4);
 
             }
             if (sc == wg->ss && wg->focus) { /* draw focus box */
@@ -3267,20 +3276,28 @@ static void tabbar_draw(
 
             x1 = pa_maxxg(wg->wf)-th;
             x2 = pa_maxxg(wg->wf);
-            pa_frect(wg->wf, x1, 1, x2, pa_maxyg(wg->wf));
+            pa_frect(wg->wf, x1+1, 1, x2, pa_maxyg(wg->wf));
 
         }
         /* outline */
-        pa_linewidth(wg->wf, 2);
+        pa_linewidth(wg->wf, 1);
         fcolort(wg->wf, th_outline1);
+        pa_rect(wg->wf, 1, 1, pa_maxxg(wg->wf), pa_maxyg(wg->wf));
         pa_rect(wg->wf, 2, 2, pa_maxxg(wg->wf)-1, pa_maxyg(wg->wf)-1);
 
-        if (wg->tor == pa_toleft)
-           pa_line(wg->wf, th, 1,
-                           th, pa_maxyg(wg->wf));
-        else /* right */
-           pa_line(wg->wf, pa_maxxg(wg->wf)-th, 1,
-                           pa_maxxg(wg->wf)-th, pa_maxyg(wg->wf));
+        if (wg->tor == pa_toleft) {
+
+            pa_line(wg->wf, th, 1, th, pa_maxyg(wg->wf));
+            pa_line(wg->wf, th, 1, th-1, pa_maxyg(wg->wf)-1);
+
+        } else { /* right */
+
+           pa_line(wg->wf, pa_maxxg(wg->wf)-th+1, 1,
+                           pa_maxxg(wg->wf)-th+1, pa_maxyg(wg->wf));
+           pa_line(wg->wf, pa_maxxg(wg->wf)-th+2, 1,
+                           pa_maxxg(wg->wf)-th+2, pa_maxyg(wg->wf));
+
+        }
 
         /* draw tab text */
         if (wg->tor == pa_toleft)
