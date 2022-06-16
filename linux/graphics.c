@@ -1,73 +1,73 @@
 /** ****************************************************************************
-*                                                                              *
-*                        GRAPHICAL MODE LIBRARY FOR X                          *
-*                                                                              *
-*                       Copyright (C) 2019 Scott A. Franco                     *
-*                                                                              *
-*                            2019/05/17 S. A. Franco                           *
-*                                                                              *
-* Implements the graphical mode functions on X. Gralib is upward               *
-* compatible with trmlib functions.                                            *
-*                                                                              *
-* Proposed improvements:                                                       *
-*                                                                              *
-* Move(f, d, dx, dy, s, sx1, sy1, sx2, sy2)                                    *
-*                                                                              *
-* Moves a block of pixels from one buffer to another, or to a different place  *
-* in the same buffer. Used to implement various features like intrabuffer      *
-* moves, off screen image chaching, special clipping, etc.                     *
-*                                                                              *
-* History:                                                                     *
-*                                                                              *
-* Gralib started in 1996 as a graphical window demonstrator as a twin to       *
-* ansilib, the ANSI control character based terminal mode library.             *
-* In 2003, gralib was upgraded to the graphical terminal standard.             *
-* In 2005, gralib was upgraded to include the window mangement calls, and the  *
-* widget calls.                                                                *
-*                                                                              *
-* The XWindow version started at various times around 2018, the first try was  *
-* an attempt at use of GTK.This encountered technical problems that seemed to  *
-* be a dead end, but later a solution was found. Irregardless, the rule from   *
-* the effort was "the shallower the depth of stacked APIs, the better".        *
-*                                                                              *
-* The XWindow version was created about the same time as the Windows version   *
-* was translated to C. An attempt was and is made to make the structure of the *
-* code to be as similar as possible between them. Never the less, there is no  *
-* attempt made to produce a universal code base between them. If for no other  *
-* reason, that is Petit-Ami's job description.                                 *
-*                                                                              *
-*                          BSD LICENSE INFORMATION                             *
-*                                                                              *
-* Copyright (C) 2019 - Scott A. Franco                                         *
-*                                                                              *
-* All rights reserved.                                                         *
-*                                                                              *
-* Redistribution and use in source and binary forms, with or without           *
-* modification, are permitted provided that the following conditions           *
-* are met:                                                                     *
-*                                                                              *
-* 1. Redistributions of source code must retain the above copyright            *
-*    notice, this list of conditions and the following disclaimer.             *
-* 2. Redistributions in binary form must reproduce the above copyright         *
-*    notice, this list of conditions and the following disclaimer in the       *
-*    documentation and/or other materials provided with the distribution.      *
-* 3. Neither the name of the project nor the names of its contributors         *
-*    may be used to endorse or promote products derived from this software     *
-*    without specific prior written permission.                                *
-*                                                                              *
-* THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND      *
-* ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE        *
-* IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE   *
-* ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE     *
-* FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL   *
-* DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS      *
-* OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)        *
-* HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT   *
-* LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    *
-* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF       *
-* SUCH DAMAGE.                                                                 *
-*                                                                              *
-*******************************************************************************/
+ *                                                                              *
+ *                        GRAPHICAL MODE LIBRARY FOR X                          *
+ *                                                                              *
+ *                       Copyright (C) 2019 Scott A. Franco                     *
+ *                                                                              *
+ *                            2019/05/17 S. A. Franco                           *
+ *                                                                              *
+ * Implements the graphical mode functions on X. Gralib is upward               *
+ * compatible with trmlib functions.                                            *
+ *                                                                              *
+ * Proposed improvements:                                                       *
+ *                                                                              *
+ * Move(f, d, dx, dy, s, sx1, sy1, sx2, sy2)                                    *
+ *                                                                              *
+ * Moves a block of pixels from one buffer to another, or to a different place  *
+ * in the same buffer. Used to implement various features like intrabuffer      *
+ * moves, off screen image chaching, special clipping, etc.                     *
+ *                                                                              *
+ * History:                                                                     *
+ *                                                                              *
+ * Gralib started in 1996 as a graphical window demonstrator as a twin to       *
+ * ansilib, the ANSI control character based terminal mode library.             *
+ * In 2003, gralib was upgraded to the graphical terminal standard.             *
+ * In 2005, gralib was upgraded to include the window mangement calls, and the  *
+ * widget calls.                                                                *
+ *                                                                              *
+ * The XWindow version started at various times around 2018, the first try was  *
+ * an attempt at use of GTK.This encountered technical problems that seemed to  *
+ * be a dead end, but later a solution was found. Irregardless, the rule from   *
+ * the effort was "the shallower the depth of stacked APIs, the better".        *
+ *                                                                              *
+ * The XWindow version was created about the same time as the Windows version   *
+ * was translated to C. An attempt was and is made to make the structure of the *
+ * code to be as similar as possible between them. Never the less, there is no  *
+ * attempt made to produce a universal code base between them. If for no other  *
+ * reason, that is Petit-Ami's job description.                                 *
+ *                                                                              *
+ *                          BSD LICENSE INFORMATION                             *
+ *                                                                              *
+ * Copyright (C) 2019 - Scott A. Franco                                         *
+ *                                                                              *
+ * All rights reserved.                                                         *
+ *                                                                              *
+ * Redistribution and use in source and binary forms, with or without           *
+ * modification, are permitted provided that the following conditions           *
+ * are met:                                                                     *
+ *                                                                              *
+ * 1. Redistributions of source code must retain the above copyright            *
+ *    notice, this list of conditions and the following disclaimer.             *
+ * 2. Redistributions in binary form must reproduce the above copyright         *
+ *    notice, this list of conditions and the following disclaimer in the       *
+ *    documentation and/or other materials provided with the distribution.      *
+ * 3. Neither the name of the project nor the names of its contributors         *
+ *    may be used to endorse or promote products derived from this software     *
+ *    without specific prior written permission.                                *
+ *                                                                              *
+ * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND      *
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE        *
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE   *
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE     *
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL   *
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS      *
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)        *
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT   *
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    *
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF       *
+ * SUCH DAMAGE.                                                                 *
+ *                                                                              *
+ *******************************************************************************/
 
 /* X11 definitions */
 #include <X11/Xlib.h>
@@ -264,6 +264,252 @@ typedef ssize_t (*pwrite_t)(int, const void*, size_t);
 typedef int (*popen_t)(const char*, int, int);
 typedef int (*pclose_t)(int);
 typedef off_t (*plseek_t)(int, off_t, int);
+
+/*
+ * Override vectors for calls in this package
+ *
+ */
+typedef void (*pa_cursor_t)(FILE* f, int x, int y);
+typedef int (*pa_maxx_t)(FILE* f);
+typedef int (*pa_maxy_t)(FILE* f);
+typedef void (*pa_home_t)(FILE* f);
+typedef void (*pa_del_t)(FILE* f);
+typedef void (*pa_up_t)(FILE* f);
+typedef void (*pa_down_t)(FILE* f);
+typedef void (*pa_left_t)(FILE* f);
+typedef void (*pa_right_t)(FILE* f);
+typedef void (*pa_blink_t)(FILE* f, int e);
+typedef void (*pa_reverse_t)(FILE* f, int e);
+typedef void (*pa_underline_t)(FILE* f, int e);
+typedef void (*pa_superscript_t)(FILE* f, int e);
+typedef void (*pa_subscript_t)(FILE* f, int e);
+typedef void (*pa_italic_t)(FILE* f, int e);
+typedef void (*pa_bold_t)(FILE* f, int e);
+typedef void (*pa_strikeout_t)(FILE* f, int e);
+typedef void (*pa_standout_t)(FILE* f, int e);
+typedef void (*pa_fcolor_t)(FILE* f, pa_color c);
+typedef void (*pa_bcolor_t)(FILE* f, pa_color c);
+typedef void (*pa_auto_t)(FILE* f, int e);
+typedef void (*pa_curvis_t)(FILE* f, int e);
+typedef void (*pa_scroll_t)(FILE* f, int x, int y);
+typedef int (*pa_curx_t)(FILE* f);
+typedef int (*pa_cury_t)(FILE* f);
+typedef int (*pa_curbnd_t)(FILE* f);
+typedef void (*pa_select_t)(FILE* f, int u, int d);
+typedef void (*pa_event_t)(FILE* f, pa_evtrec* er);
+typedef void (*pa_timer_t)(FILE* f, int i, long t, int r);
+typedef void (*pa_killtimer_t)(FILE* f, int i);
+typedef int (*pa_mouse_t)(FILE* f);
+typedef int (*pa_mousebutton_t)(FILE* f, int m);
+typedef int (*pa_joystick_t)(FILE* f);
+typedef int (*pa_joybutton_t)(FILE* f, int j);
+typedef int (*pa_joyaxis_t)(FILE* f, int j);
+typedef void (*pa_settab_t)(FILE* f, int t);
+typedef void (*pa_restab_t)(FILE* f, int t);
+typedef void (*pa_clrtab_t)(FILE* f);
+typedef int (*pa_funkey_t)(FILE* f);
+typedef void (*pa_frametimer_t)(FILE* f, int e);
+typedef void (*pa_autohold_t)(int e);
+typedef void (*pa_wrtstr_t)(FILE* f, char* s);
+typedef void (*pa_eventover_t)(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh);
+typedef void (*pa_eventsover_t)(pa_pevthan eh,  pa_pevthan* oeh);
+typedef void (*pa_sendevent_t)(FILE* f, pa_evtrec* er);
+typedef int (*pa_maxxg_t)(FILE* f);
+typedef int (*pa_maxyg_t)(FILE* f);
+typedef int (*pa_curxg_t)(FILE* f);
+typedef int (*pa_curyg_t)(FILE* f);
+typedef void (*pa_line_t)(FILE* f, int x1, int y1, int x2, int y2);
+typedef void (*pa_linewidth_t)(FILE* f, int w);
+typedef void (*pa_rect_t)(FILE* f, int x1, int y1, int x2, int y2);
+typedef void (*pa_frect_t)(FILE* f, int x1, int y1, int x2, int y2);
+typedef void (*pa_rrect_t)(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys);
+typedef void (*pa_frrect_t)(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys);
+typedef void (*pa_ellipse_t)(FILE* f, int x1, int y1, int x2, int y2);
+typedef void (*pa_fellipse_t)(FILE* f, int x1, int y1, int x2, int y2);
+typedef void (*pa_arc_t)(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea);
+typedef void (*pa_farc_t)(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea);
+typedef void (*pa_fchord_t)(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea);
+typedef void (*pa_ftriangle_t)(FILE* f, int x1, int y1, int x2, int y2, int x3, int y3);
+typedef void (*pa_cursorg_t)(FILE* f, int x, int y);
+typedef int (*pa_baseline_t)(FILE* f);
+typedef void (*pa_setpixel_t)(FILE* f, int x, int y);
+typedef void (*pa_fover_t)(FILE* f);
+typedef void (*pa_bover_t)(FILE* f);
+typedef void (*pa_finvis_t)(FILE* f);
+typedef void (*pa_binvis_t)(FILE* f);
+typedef void (*pa_fxor_t)(FILE* f);
+typedef void (*pa_bxor_t)(FILE* f);
+typedef void (*pa_fand_t)(FILE* f);
+typedef void (*pa_band_t)(FILE* f);
+typedef void (*pa_for_t)(FILE* f);
+typedef void (*pa_bor_t)(FILE* f);
+typedef int (*pa_chrsizx_t)(FILE* f);
+typedef int (*pa_chrsizy_t)(FILE* f);
+typedef int (*pa_fonts_t)(FILE* f);
+typedef void (*pa_font_t)(FILE* f, int fc);
+typedef void (*pa_fontnam_t)(FILE* f, int fc, char* fns, int fnsl);
+typedef void (*pa_fontsiz_t)(FILE* f, int s);
+typedef void (*pa_chrspcy_t)(FILE* f, int s);
+typedef void (*pa_chrspcx_t)(FILE* f, int s);
+typedef int (*pa_dpmx_t)(FILE* f);
+typedef int (*pa_dpmy_t)(FILE* f);
+typedef int (*pa_strsiz_t)(FILE* f, const char* s);
+typedef int (*pa_chrpos_t)(FILE* f, const char* s, int p);
+typedef void (*pa_writejust_t)(FILE* f, const char* s, int n);
+typedef int (*pa_justpos_t)(FILE* f, const char* s, int p, int n);
+typedef void (*pa_condensed_t)(FILE* f, int e);
+typedef void (*pa_extended_t)(FILE* f, int e);
+typedef void (*pa_xlight_t)(FILE* f, int e);
+typedef void (*pa_light_t)(FILE* f, int e);
+typedef void (*pa_xbold_t)(FILE* f, int e);
+typedef void (*pa_hollow_t)(FILE* f, int e);
+typedef void (*pa_raised_t)(FILE* f, int e);
+typedef void (*pa_settabg_t)(FILE* f, int t);
+typedef void (*pa_restabg_t)(FILE* f, int t);
+typedef void (*pa_fcolorg_t)(FILE* f, int r, int g, int b);
+typedef void (*pa_fcolorc_t)(FILE* f, int r, int g, int b);
+typedef void (*pa_bcolorg_t)(FILE* f, int r, int g, int b);
+typedef void (*pa_bcolorc_t)(FILE* f, int r, int g, int b);
+typedef void (*pa_loadpict_t)(FILE* f, int p, char* fn);
+typedef int (*pa_pictsizx_t)(FILE* f, int p);
+typedef int (*pa_pictsizy_t)(FILE* f, int p);
+typedef void (*pa_picture_t)(FILE* f, int p, int x1, int y1, int x2, int y2);
+typedef void (*pa_delpict_t)(FILE* f, int p);
+typedef void (*pa_viewoffg_t)(FILE* f, int x, int y);
+typedef void (*pa_viewscale_t)(FILE* f, float x, float y);
+typedef void (*pa_scrollg_t)(FILE* f, int x, int y);
+typedef void (*pa_path_t)(FILE* f, int a);
+typedef void (*pa_title_t)(FILE* f, char* ts);
+typedef void (*pa_openwin_t)(FILE** infile, FILE** outfile, FILE* parent, int wid);
+typedef void (*pa_buffer_t)(FILE* f, int e);
+typedef void (*pa_sizbuf_t)(FILE* f, int x, int y);
+typedef void (*pa_sizbufg_t)(FILE* f, int x, int y);
+typedef void (*pa_getsiz_t)(FILE* f, int* x, int* y);
+typedef void (*pa_getsizg_t)(FILE* f, int* x, int* y);
+typedef void (*pa_setsiz_t)(FILE* f, int x, int y);
+typedef void (*pa_setsizg_t)(FILE* f, int x, int y);
+typedef void (*pa_setpos_t)(FILE* f, int x, int y);
+typedef void (*pa_setposg_t)(FILE* f, int x, int y);
+typedef void (*pa_scnsiz_t)(FILE* f, int* x, int* y);
+typedef void (*pa_scnsizg_t)(FILE* f, int* x, int*y);
+typedef void (*pa_scncen_t)(FILE* f, int* x, int* y);
+typedef void (*pa_scnceng_t)(FILE* f, int* x, int* y);
+typedef void (*pa_winclient_t)(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms);
+typedef void (*pa_winclientg_t)(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms);
+typedef void (*pa_front_t)(FILE* f);
+typedef void (*pa_back_t)(FILE* f);
+typedef void (*pa_frame_t)(FILE* f, int e);
+typedef void (*pa_sizable_t)(FILE* f, int e);
+typedef void (*pa_sysbar_t)(FILE* f, int e);
+typedef void (*pa_menu_t)(FILE* f, pa_menuptr m);
+typedef void (*pa_menuena_t)(FILE* f, int id, int onoff);
+typedef void (*pa_menusel_t)(FILE* f, int id, int select);
+typedef void (*pa_stdmenu_t)(pa_stdmenusel sms, pa_menuptr* sm, pa_menuptr pm);
+typedef int (*pa_getwinid_t)(void);
+typedef void (*pa_focus_t)(FILE* f);
+typedef int (*pa_getwigid_t)(FILE* f);
+typedef void (*pa_killwidget_t)(FILE* f, int id);
+typedef void (*pa_selectwidget_t)(FILE* f, int id, int e);
+typedef void (*pa_enablewidget_t)(FILE* f, int id, int e);
+typedef void (*pa_getwidgettext_t)(FILE* f, int id, char* s, int sl);
+typedef void (*pa_putwidgettext_t)(FILE* f, int id, char* s);
+typedef void (*pa_sizwidget_t)(FILE* f, int id, int x, int y);
+typedef void (*pa_sizwidgetg_t)(FILE* f, int id, int x, int y);
+typedef void (*pa_poswidget_t)(FILE* f, int id, int x, int y);
+typedef void (*pa_poswidgetg_t)(FILE* f, int id, int x, int y);
+typedef void (*pa_backwidget_t)(FILE* f, int id);
+typedef void (*pa_frontwidget_t)(FILE* f, int id);
+typedef void (*pa_focuswidget_t)(FILE* f, int id);
+typedef void (*pa_buttonsiz_t)(FILE* f, char* s, int* w, int* h);
+typedef void (*pa_buttonsizg_t)(FILE* f, char* s, int* w, int* h);
+typedef void (*pa_button_t)(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
+typedef void (*pa_buttong_t)(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
+typedef void (*pa_checkboxsiz_t)(FILE* f, char* s, int* w, int* h);
+typedef void (*pa_checkboxsizg_t)(FILE* f, char* s, int* w, int* h);
+typedef void (*pa_checkbox_t)(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
+typedef void (*pa_checkboxg_t)(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
+typedef void (*pa_radiobuttonsiz_t)(FILE* f, char* s, int* w, int* h);
+typedef void (*pa_radiobuttonsizg_t)(FILE* f, char* s, int* w, int* h);
+typedef void (*pa_radiobutton_t)(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
+typedef void (*pa_radiobuttong_t)(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
+typedef void (*pa_groupsizg_t)(FILE* f, char* s, int cw, int ch, int* w, int* h, int* ox,
+                  int* oy);
+typedef void (*pa_groupsiz_t)(FILE* f, char* s, int cw, int ch, int* w, int* h, int* ox,
+                 int* oy);
+typedef void (*pa_group_t)(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
+typedef void (*pa_groupg_t)(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
+typedef void (*pa_background_t)(FILE* f, int x1, int y1, int x2, int y2, int id);
+typedef void (*pa_backgroundg_t)(FILE* f, int x1, int y1, int x2, int y2, int id);
+typedef void (*pa_scrollvertsizg_t)(FILE* f, int* w, int* h);
+typedef void (*pa_scrollvertsiz_t)(FILE* f, int* w, int* h);
+typedef void (*pa_scrollvert_t)(FILE* f, int x1, int y1, int x2, int y2, int id);
+typedef void (*pa_scrollvertg_t)(FILE* f, int x1, int y1, int x2, int y2, int id);
+typedef void (*pa_scrollhorizsizg_t)(FILE* f, int* w, int* h);
+typedef void (*pa_scrollhorizsiz_t)(FILE* f, int* w, int* h);
+typedef void (*pa_scrollhoriz_t)(FILE* f, int x1, int y1, int x2, int y2, int id);
+typedef void (*pa_scrollhorizg_t)(FILE* f, int x1, int y1, int x2, int y2, int id);
+typedef void (*pa_scrollpos_t)(FILE* f, int id, int r);
+typedef void (*pa_scrollsiz_t)(FILE* f, int id, int r);
+typedef void (*pa_numselboxsizg_t)(FILE* f, int l, int u, int* w, int* h);
+typedef void (*pa_numselboxsiz_t)(FILE* f, int l, int u, int* w, int* h);
+typedef void (*pa_numselbox_t)(FILE* f, int x1, int y1, int x2, int y2, int l, int u,
+                  int id);
+typedef void (*pa_numselboxg_t)(FILE* f, int x1, int y1, int x2, int y2, int l, int u,
+                   int id);
+typedef void (*pa_editboxsizg_t)(FILE* f, char* s, int* w, int* h);
+typedef void (*pa_editboxsiz_t)(FILE* f, char* s, int* w, int* h);
+typedef void (*pa_editbox_t)(FILE* f, int x1, int y1, int x2, int y2, int id);
+typedef void (*pa_editboxg_t)(FILE* f, int x1, int y1, int x2, int y2, int id);
+typedef void (*pa_progbarsizg_t)(FILE* f, int* w, int* h);
+typedef void (*pa_progbarsiz_t)(FILE* f, int* w, int* h);
+typedef void (*pa_progbar_t)(FILE* f, int x1, int y1, int x2, int y2, int id);
+typedef void (*pa_progbarg_t)(FILE* f, int x1, int y1, int x2, int y2, int id);
+typedef void (*pa_progbarpos_t)(FILE* f, int id, int pos);
+typedef void (*pa_listboxsizg_t)(FILE* f, pa_strptr sp, int* w, int* h);
+typedef void (*pa_listboxsiz_t)(FILE* f, pa_strptr sp, int* w, int* h);
+typedef void (*pa_listbox_t)(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id);
+typedef void (*pa_listboxg_t)(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id);
+typedef void (*pa_dropboxsizg_t)(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh);
+typedef void (*pa_dropboxsiz_t)(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh);
+typedef void (*pa_dropbox_t)(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id);
+typedef void (*pa_dropboxg_t)(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id);
+typedef void (*pa_dropeditboxsizg_t)(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh);
+typedef void (*pa_dropeditboxsiz_t)(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh);
+typedef void (*pa_dropeditbox_t)(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id);
+typedef void (*pa_dropeditboxg_t)(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp,
+                     int id);
+typedef void (*pa_slidehorizsizg_t)(FILE* f, int* w, int* h);
+typedef void (*pa_slidehorizsiz_t)(FILE* f, int* w, int* h);
+typedef void (*pa_slidehoriz_t)(FILE* f, int x1, int y1, int x2, int y2, int mark, int id);
+typedef void (*pa_slidehorizg_t)(FILE* f, int x1, int y1, int x2, int y2, int mark, int id);
+typedef void (*pa_slidevertsizg_t)(FILE* f, int* w, int* h);
+typedef void (*pa_slidevertsiz_t)(FILE* f, int* w, int* h);
+typedef void (*pa_slidevert_t)(FILE* f, int x1, int y1, int x2, int y2, int mark, int id);
+typedef void (*pa_slidevertg_t)(FILE* f, int x1, int y1, int x2, int y2, int mark, int id);
+typedef void (*pa_tabbarsizg_t)(FILE* f, pa_tabori tor, int cw, int ch, int* w, int* h,
+                   int* ox, int* oy);
+typedef void (*pa_tabbarsiz_t)(FILE* f, pa_tabori tor, int cw, int ch, int* w, int* h, int* ox,
+                  int* oy);
+typedef void (*pa_tabbarclientg_t)(FILE* f, pa_tabori tor, int w, int h, int* cw, int* ch,
+                      int* ox, int* oy);
+typedef void (*pa_tabbarclient_t)(FILE* f, pa_tabori tor, int w, int h, int* cw, int* ch,
+                     int* ox, int* oy);
+typedef void (*pa_tabbar_t)(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp,
+               pa_tabori tor, int id);
+typedef void (*pa_tabbarg_t)(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp,
+                pa_tabori tor, int id);
+typedef void (*pa_tabsel_t)(FILE* f, int id, int tn);
+typedef void (*pa_alert_t)(char* title, char* message);
+typedef void (*pa_querycolor_t)(int* r, int* g, int* b);
+typedef void (*pa_queryopen_t)(char* s, int sl);
+typedef void (*pa_querysave_t)(char* s, int sl);
+typedef void (*pa_querysave_t)(char* s, int sl);
+typedef void (*pa_querysave_t)(char* s, int sl);
+typedef void (*pa_querysave_t)(char* s, int sl);
+typedef void (*pa_queryfind_t)(char* s, int sl, pa_qfnopts* opt);
+typedef void (*pa_queryfindrep_t)(char* s, int sl, char* r, int rl, pa_qfropts* opt);
+typedef void (*pa_queryfont_t)(FILE* f, int* fc, int* s, int* fr, int* fg, int* fb, int* br,
+                  int* bg, int* bb, pa_qfteffects* effect);
 
 /* system override calls */
 
@@ -666,6 +912,97 @@ typedef enum {
     evecaxe,  /* cannot vector auxillary event */
     eangato,  /* cannot set character drawing angle in auto mode */
     eatoang,  /* Cannot reenable auto with non-90 degree text */
+
+    /* unimplemented override errors */
+    egetwigid_unimp,        /* getwigid unimplemented */
+    ekillwidget_unimp,      /* killwidget unimplemented */
+    eselectwidget_unimp,    /* selectwidget unimplemented */
+    eenablewidget_unimp,    /* enablewidget unimplemented */
+    egetwidgettext_unimp,   /* getwidgettext unimplemented */
+    eputwidgettext_unimp,   /* putwidgettext unimplemented */
+    esizwidget_unimp,       /* sizwidget unimplemented */
+    esizwidgetg_unimp,      /* sizwidgetg unimplemented */
+    eposwidget_unimp,       /* poswidget unimplemented */
+    eposwidgetg_unimp,      /* poswidgetg unimplemented */
+    ebackwidget_unimp,      /* backwidget unimplemented */
+    efrontwidget_unimp,     /* frontwidget unimplemented */
+    efocuswidget_unimp,     /* focuswidget unimplemented */
+    ebuttonsiz_unimp,       /* buttonsiz unimplemented */
+    ebuttonsizg_unimp,      /* buttonsizg unimplemented */
+    ebutton_unimp,          /* button unimplemented */
+    ebuttong_unimp,         /* buttong unimplemented */
+    echeckboxsiz_unimp,     /* checkboxsiz unimplemented */
+    echeckboxsizg_unimp,    /* checkboxsizg unimplemented */
+    echeckbox_unimp,        /* checkbox unimplemented */
+    echeckboxg_unimp,       /* checkboxg unimplemented */
+    eradiobuttonsiz_unimp,  /* radiobuttonsiz unimplemented */
+    eradiobuttonsizg_unimp, /* radiobuttonsizg unimplemented */
+    eradiobutton_unimp,     /* radiobutton unimplemented */
+    eradiobuttong_unimp,    /* radiobuttong unimplemented */
+    egroupsizg_unimp,       /* groupsizg unimplemented */
+    egroupsiz_unimp,        /* groupsiz unimplemented */
+    egroup_unimp,           /* group unimplemented */
+    egroupg_unimp,          /* groupg unimplemented */
+    ebackground_unimp,      /* background unimplemented */
+    ebackgroundg_unimp,     /* backgroundg unimplemented */
+    escrollvertsizg_unimp,  /* scrollvertsizg unimplemented */
+    escrollvertsiz_unimp,   /* scrollvertsiz unimplemented */
+    escrollvert_unimp,      /* scrollvert unimplemented */
+    escrollvertg_unimp,     /* scrollvertg unimplemented */
+    escrollhorizsizg_unimp, /* scrollhorizsizg unimplemented */
+    escrollhorizsiz_unimp,  /* scrollhorizsiz unimplemented */
+    escrollhoriz_unimp,     /* scrollhoriz unimplemented */
+    escrollhorizg_unimp,    /* scrollhorizg unimplemented */
+    escrollpos_unimp,       /* scrollpos unimplemented */
+    escrollsiz_unimp,       /* scrollsiz unimplemented */
+    enumselboxsizg_unimp,   /* numselboxsizg unimplemented */
+    enumselboxsiz_unimp,    /* numselboxsiz unimplemented */
+    enumselbox_unimp,       /* numselbox unimplemented */
+    enumselboxg_unimp,      /* numselboxg unimplemented */
+    eeditboxsizg_unimp,     /* editboxsizg unimplemented */
+    eeditboxsiz_unimp,      /* editboxsiz unimplemented */
+    eeditbox_unimp,         /* editbox unimplemented */
+    eeditboxg_unimp,        /* editboxg unimplemented */
+    eprogbarsizg_unimp,     /* progbarsizg unimplemented */
+    eprogbarsiz_unimp,      /* progbarsiz unimplemented */
+    eprogbar_unimp,         /* progbar unimplemented */
+    eprogbarg_unimp,        /* progbarg unimplemented */
+    eprogbarpos_unimp,      /* progbarpos unimplemented */
+    elistboxsizg_unimp,     /* listboxsizg unimplemented */
+    elistboxsiz_unimp,      /* listboxsiz unimplemented */
+    elistbox_unimp,         /* listbox unimplemented */
+    elistboxg_unimp,        /* listboxg unimplemented */
+    edropboxsizg_unimp,     /* dropboxsizg unimplemented */
+    edropboxsiz_unimp,      /* dropboxsiz unimplemented */
+    edropbox_unimp,         /* dropbox unimplemented */
+    edropboxg_unimp,        /* dropboxg unimplemented */
+    edropeditboxsizg_unimp, /* dropeditboxsizg unimplemented */
+    edropeditboxsiz_unimp,  /* dropeditboxsiz unimplemented */
+    edropeditbox_unimp,     /* dropeditbox unimplemented */
+    edropeditboxg_unimp,    /* dropeditboxg unimplemented */
+    eslidehorizsizg_unimp,  /* slidehorizsizg unimplemented */
+    eslidehorizsiz_unimp,   /* slidehorizsiz unimplemented */
+    eslidehoriz_unimp,      /* slidehoriz unimplemented */
+    eslidehorizg_unimp,     /* slidehorizg unimplemented */
+    eslidevertsizg_unimp,   /* slidevertsizg unimplemented */
+    eslidevertsiz_unimp,    /* slidevertsiz unimplemented */
+    eslidevert_unimp,       /* slidevert unimplemented */
+    eslidevertg_unimp,      /* slidevertg unimplemented */
+    etabbarsizg_unimp,      /* tabbarsizg unimplemented */
+    etabbarsiz_unimp,       /* tabbarsiz unimplemented */
+    etabbarclientg_unimp,   /* tabbarclientg unimplemented */
+    etabbarclient_unimp,    /* tabbarclient unimplemented */
+    etabbar_unimp,          /* tabbar unimplemented */
+    etabbarg_unimp,         /* tabbarg unimplemented */
+    etabsel_unimp,          /* tabsel unimplemented */
+    ealert_unimp,           /* alert unimplemented */
+    equerycolor_unimp,      /* querycolor unimplemented */
+    equeryopen_unimp,       /* queryopen unimplemented */
+    equerysave_unimp,       /* querysave unimplemented */
+    equeryfind_unimp,       /* queryfind unimplemented */
+    equeryfindrep_unimp,    /* queryfindrep unimplemented */
+    equeryfont_unimp,       /* queryfont unimplemented */
+
     esystem   /* System consistency check */
 
 } errcod;
@@ -764,6 +1101,240 @@ static popen_t   ofpopen_nocancel;
 static pclose_t  ofpclose;
 static pclose_t  ofpclose_nocancel;
 static plseek_t  ofplseek;
+
+/*
+ * Override vectors for calls in this package
+ *
+ */
+static pa_cursor_t          cursor_vect;
+static pa_maxx_t            maxx_vect;
+static pa_maxy_t            maxy_vect;
+static pa_home_t            home_vect;
+static pa_del_t             del_vect;
+static pa_up_t              up_vect;
+static pa_down_t            down_vect;
+static pa_left_t            left_vect;
+static pa_right_t           right_vect;
+static pa_blink_t           blink_vect;
+static pa_reverse_t         reverse_vect;
+static pa_underline_t       underline_vect;
+static pa_superscript_t     superscript_vect;
+static pa_subscript_t       subscript_vect;
+static pa_italic_t          italic_vect;
+static pa_bold_t            bold_vect;
+static pa_strikeout_t       strikeout_vect;
+static pa_standout_t        standout_vect;
+static pa_fcolor_t          fcolor_vect;
+static pa_bcolor_t          bcolor_vect;
+static pa_auto_t            auto_vect;
+static pa_curvis_t          curvis_vect;
+static pa_scroll_t          scroll_vect;
+static pa_curx_t            curx_vect;
+static pa_cury_t            cury_vect;
+static pa_curbnd_t          curbnd_vect;
+static pa_select_t          select_vect;
+static pa_event_t           event_vect;
+static pa_timer_t           timer_vect;
+static pa_killtimer_t       killtimer_vect;
+static pa_mouse_t           mouse_vect;
+static pa_mousebutton_t     mousebutton_vect;
+static pa_joystick_t        joystick_vect;
+static pa_joybutton_t       joybutton_vect;
+static pa_joyaxis_t         joyaxis_vect;
+static pa_settab_t          settab_vect;
+static pa_restab_t          restab_vect;
+static pa_clrtab_t          clrtab_vect;
+static pa_funkey_t          funkey_vect;
+static pa_frametimer_t      frametimer_vect;
+static pa_autohold_t        autohold_vect;
+static pa_wrtstr_t          wrtstr_vect;
+static pa_eventover_t       eventover_vect;
+static pa_eventsover_t      eventsover_vect;
+static pa_sendevent_t       sendevent_vect;
+static pa_maxxg_t           maxxg_vect;;
+static pa_maxyg_t           maxyg_vect;
+static pa_curxg_t           curxg_vect;
+static pa_curyg_t           curyg_vect;
+static pa_line_t            line_vect;
+static pa_linewidth_t       linewidth_vect;
+static pa_rect_t            rect_vect;
+static pa_frect_t           frect_vect;
+static pa_rrect_t           rrect_vect;
+static pa_frrect_t          frrect_vect;
+static pa_ellipse_t         ellipse_vect;
+static pa_fellipse_t        fellipse_vect;
+static pa_arc_t             arc_vect;
+static pa_farc_t            farc_vect;
+static pa_fchord_t          fchord_vect;
+static pa_ftriangle_t       ftriangle_vect;
+static pa_cursorg_t         cursorg_vect;
+static pa_baseline_t        baseline_vect;
+static pa_setpixel_t        setpixel_vect;
+static pa_fover_t           fover_vect;
+static pa_bover_t           bover_vect;
+static pa_finvis_t          finvis_vect;
+static pa_binvis_t          binvis_vect;
+static pa_fxor_t            fxor_vect;
+static pa_bxor_t            bxor_vect;
+static pa_fand_t            fand_vect;
+static pa_band_t            band_vect;
+static pa_for_t             for_vect;
+static pa_bor_t             bor_vect;
+static pa_chrsizx_t         chrsizx_vect;
+static pa_chrsizy_t         chrsizy_vect;
+static pa_fonts_t           fonts_vect;
+static pa_font_t            font_vect;
+static pa_fontnam_t         fontnam_vect;
+static pa_fontsiz_t         fontsiz_vect;
+static pa_chrspcy_t         chrspcy_vect;
+static pa_chrspcx_t         chrspcx_vect;
+static pa_dpmx_t            dpmx_vect;
+static pa_dpmy_t            dpmy_vect;
+static pa_strsiz_t          strsiz_vect;
+static pa_chrpos_t          chrpos_vect;
+static pa_writejust_t       writejust_vect;
+static pa_justpos_t         justpos_vect;
+static pa_condensed_t       condensed_vect;
+static pa_extended_t        extended_vect;
+static pa_xlight_t          xlight_vect;
+static pa_light_t           light_vect;
+static pa_xbold_t           xbold_vect;
+static pa_hollow_t          hollow_vect;
+static pa_raised_t          raised_vect;
+static pa_settabg_t         settabg_vect;
+static pa_restabg_t         restabg_vect;
+static pa_fcolorg_t         fcolorg_vect;
+static pa_fcolorc_t         fcolorc_vect;
+static pa_bcolorg_t         bcolorg_vect;
+static pa_bcolorc_t         bcolorc_vect;
+static pa_loadpict_t        loadpict_vect;
+static pa_pictsizx_t        pictsizx_vect;
+static pa_pictsizy_t        pictsizy_vect;
+static pa_picture_t         picture_vect;
+static pa_delpict_t         delpict_vect;
+static pa_viewoffg_t        viewoffg_vect;
+static pa_viewscale_t       viewscale_vect;
+static pa_scrollg_t         scrollg_vect;
+static pa_path_t            path_vect;
+static pa_title_t           title_vect;
+static pa_openwin_t         openwin_vect;
+static pa_buffer_t          buffer_vect;
+static pa_sizbuf_t          sizbuf_vect;
+static pa_sizbufg_t         sizbufg_vect;
+static pa_getsiz_t          getsiz_vect;
+static pa_getsizg_t         getsizg_vect;
+static pa_setsiz_t          setsiz_vect;
+static pa_setsizg_t         setsizg_vect;
+static pa_setpos_t          setpos_vect;
+static pa_setposg_t         setposg_vect;
+static pa_scnsiz_t          scnsiz_vect;
+static pa_scnsizg_t         scnsizg_vect;
+static pa_scncen_t          scncen_vect;
+static pa_scnceng_t         scnceng_vect;
+static pa_winclient_t       winclient_vect;
+static pa_winclientg_t      winclientg_vect;
+static pa_front_t           front_vect;
+static pa_back_t            back_vect;
+static pa_frame_t           frame_vect;
+static pa_sizable_t         sizable_vect;
+static pa_sysbar_t          sysbar_vect;
+static pa_menu_t            menu_vect;
+static pa_menuena_t         menuena_vect;
+static pa_menusel_t         menusel_vect;
+static pa_stdmenu_t         stdmenu_vect;
+static pa_getwinid_t        getwinid_vect;
+static pa_focus_t           focus_vect;
+static pa_getwigid_t        getwigid_vect;
+static pa_killwidget_t      killwidget_vect;
+static pa_selectwidget_t    selectwidget_vect;
+static pa_enablewidget_t    enablewidget_vect;
+static pa_getwidgettext_t   getwidgettext_vect;
+static pa_putwidgettext_t   putwidgettext_vect;
+static pa_sizwidget_t       sizwidget_vect;
+static pa_sizwidgetg_t      sizwidgetg_vect;
+static pa_poswidget_t       poswidget_vect;
+static pa_poswidgetg_t      poswidgetg_vect;
+static pa_backwidget_t      backwidget_vect;
+static pa_frontwidget_t     frontwidget_vect;
+static pa_focuswidget_t     focuswidget_vect;
+static pa_buttonsiz_t       buttonsiz_vect;
+static pa_buttonsizg_t      buttonsizg_vect;
+static pa_button_t          button_vect;
+static pa_buttong_t         buttong_vect;
+static pa_checkboxsiz_t     checkboxsiz_vect;
+static pa_checkboxsizg_t    checkboxsizg_vect;
+static pa_checkbox_t        checkbox_vect;
+static pa_checkboxg_t       checkboxg_vect;
+static pa_radiobuttonsiz_t  radiobuttonsiz_vect;
+static pa_radiobuttonsizg_t radiobuttonsizg_vect;
+static pa_radiobutton_t     radiobutton_vect;
+static pa_radiobuttong_t    radiobuttong_vect;
+static pa_groupsizg_t       groupsizg_vect;
+static pa_groupsiz_t        groupsiz_vect;
+static pa_group_t           group_vect;
+static pa_groupg_t          groupg_vect;
+static pa_background_t      background_vect;
+static pa_backgroundg_t     backgroundg_vect;
+static pa_scrollvertsizg_t  scrollvertsizg_vect;
+static pa_scrollvertsiz_t   scrollvertsiz_vect;
+static pa_scrollvert_t      scrollvert_vect;
+static pa_scrollvertg_t     scrollvertg_vect;
+static pa_scrollhorizsizg_t scrollhorizsizg_vect;
+static pa_scrollhorizsiz_t  scrollhorizsiz_vect;
+static pa_scrollhoriz_t     scrollhoriz_vect;
+static pa_scrollhorizg_t    scrollhorizg_vect;
+static pa_scrollpos_t       scrollpos_vect;
+static pa_scrollsiz_t       scrollsiz_vect;
+static pa_numselboxsizg_t   numselboxsizg_vect;
+static pa_numselboxsiz_t    numselboxsiz_vect;
+static pa_numselbox_t       numselbox_vect;
+static pa_numselboxg_t      numselboxg_vect;
+static pa_editboxsizg_t     editboxsizg_vect;
+static pa_editboxsiz_t      editboxsiz_vect;
+static pa_editbox_t         editbox_vect;
+static pa_editboxg_t        editboxg_vect;
+static pa_progbarsizg_t     progbarsizg_vect;
+static pa_progbarsiz_t      progbarsiz_vect;
+static pa_progbar_t         progbar_vect;
+static pa_progbarg_t        progbarg_vect;
+static pa_progbarpos_t      progbarpos_vect;
+static pa_listboxsizg_t     listboxsizg_vect;
+static pa_listboxsiz_t      listboxsiz_vect;
+static pa_listbox_t         listbox_vect;
+static pa_listboxg_t        listboxg_vect;
+static pa_dropboxsizg_t     dropboxsizg_vect;
+static pa_dropboxsiz_t      dropboxsiz_vect;
+static pa_dropbox_t         dropbox_vect;
+static pa_dropboxg_t        dropboxg_vect;
+static pa_dropeditboxsizg_t dropeditboxsizg_vect;
+static pa_dropeditboxsiz_t  dropeditboxsiz_vect;
+static pa_dropeditbox_t     dropeditbox_vect;
+static pa_dropeditboxg_t    dropeditboxg_vect;
+static pa_slidehorizsizg_t  slidehorizsizg_vect;
+static pa_slidehorizsiz_t   slidehorizsiz_vect;
+static pa_slidehoriz_t      slidehoriz_vect;
+static pa_slidehorizg_t     slidehorizg_vect;
+static pa_slidevertsizg_t   slidevertsizg_vect;
+static pa_slidevertsiz_t    slidevertsiz_vect;
+static pa_slidevert_t       slidevert_vect;
+static pa_slidevertg_t      slidevertg_vect;
+static pa_tabbarsizg_t      tabbarsizg_vect;
+static pa_tabbarsiz_t       tabbarsiz_vect;
+static pa_tabbarclientg_t   tabbarclientg_vect;
+static pa_tabbarclient_t    tabbarclient_vect;
+static pa_tabbar_t          tabbar_vect;
+static pa_tabbarg_t         tabbarg_vect;
+static pa_tabsel_t          tabsel_vect;
+static pa_alert_t           alert_vect;
+static pa_querycolor_t      querycolor_vect;
+static pa_queryopen_t       queryopen_vect;
+static pa_querysave_t       querysave_vect;
+static pa_querysave_t       querysave_vect;
+static pa_querysave_t       querysave_vect;
+static pa_querysave_t       querysave_vect;
+static pa_queryfind_t       queryfind_vect;
+static pa_queryfindrep_t    queryfindrep_vect;
+static pa_queryfont_t       queryfont_vect;
 
 /* X Windows globals */
 
@@ -1004,79 +1575,167 @@ static char* errstr(errcod e)
 
     switch (e) { /* error */
 
-      case eftbful:  s = "Too many files"; break;
-      case ejoyacc:  s = "No joystick access available"; break;
-      case etimacc:  s = "No timer access available"; break;
-      case einvhan:  s = "Invalid file number"; break;
-      case efilopr:  s = "Cannot perform operation on special file"; break;
-      case einvscn:  s = "Invalid screen number"; break;
-      case einvtab:  s = "Tab position specified off screen"; break;
-      case eatopos:  s = "Cannot position text by pixel with auto on"; break;
-      case eatocur:  s = "Cannot position outside screen with auto on"; break;
-      case eatoofg:  s = "Cannot reenable auto off grid"; break;
-      case eatoecb:  s = "Cannot reenable auto outside screen"; break;
-      case einvftn:  s = "Invalid font number"; break;
-      case etrmfnt:  s = "No valid terminal font was found"; break;
-      case eatofts:  s = "Cannot resize font with auto enabled"; break;
-      case eatoftc:  s = "Cannot change fonts with auto enabled"; break;
-      case einvfnm:  s = "Invalid logical font number"; break;
-      case efntemp:  s = "Logical font number has no assigned font"; break;
-      case etrmfts:  s = "Cannot size terminal font"; break;
-      case etabful:  s = "Too many tabs set"; break;
-      case eatotab:  s = "Cannot set off grid tabs with auto on"; break;
-      case estrinx:  s = "String index out of range"; break;
-      case epicfnf:  s = "Picture file not found"; break;
-      case epicftl:  s = "Picture filename too large"; break;
-      case etimnum:  s = "Invalid timer number"; break;
-      case ejstsys:  s = "Cannot justify system font"; break;
-      case efnotwin: s = "File is not attached to a window"; break;
-      case ewinuse:  s = "Window id in use"; break;
-      case efinuse:  s = "File already in use"; break;
-      case einmode:  s = "Input side of window in wrong mode"; break;
-      case edcrel:   s = "Cannot release Windows device context"; break;
-      case einvsiz:  s = "Invalid buffer size"; break;
-      case ebufoff:  s = "Buffered mode not enabled"; break;
-      case edupmen:  s = "Menu id was duplicated"; break;
-      case emennf:   s = "Menu id was not found"; break;
-      case ewignf:   s = "Widget id was not found"; break;
-      case ewigdup:  s = "Widget id was duplicated"; break;
-      case einvspos: s = "Invalid scroll bar slider position"; break;
-      case einvssiz: s = "Invalid scroll bar slider size"; break;
-      case ectlfal:  s = "Attempt to create control fails"; break;
-      case eprgpos:  s = "Invalid progress bar position"; break;
-      case estrspc:  s = "Out of string space"; break;
-      case etabbar:  s = "Unable to create tab in tab bar"; break;
-      case efildlg:  s = "Unable to create file dialog"; break;
-      case efnddlg:  s = "Unable to create find dialog"; break;
-      case efntdlg:  s = "Unable to create font dialog"; break;
-      case efndstl:  s = "Find/replace string too long"; break;
-      case einvwin:  s = "Invalid window number"; break;
-      case einvjye:  s = "Invalid joystick event"; break;
-      case ejoyqry:  s = "Could not get information on joystick"; break;
-      case einvjoy:  s = "Invalid joystick ID"; break;
-      case eclsinw:  s = "Cannot directly close input side of window"; break;
-      case ewigsel:  s = "Widget is not selectable"; break;
-      case ewigptxt: s = "Cannot put text in this widget"; break;
-      case ewiggtxt: s = "Cannot get text from this widget"; break;
-      case ewigdis:  s = "Cannot disable this widget"; break;
-      case estrato:  s = "Cannot direct write string with auto on"; break;
-      case etabsel:  s = "Invalid tab select"; break;
-      case enomem:   s = "Out of memory"; break;
-      case einvfil:  s = "File is invalid"; break;
-      case enotinp:  s = "Not input side of any window"; break;
-      case estdfnt:  s = "Cannot find standard font"; break;
-      case eftntl:   s = "Font name too large"; break;
-      case epicopn:  s = "Cannot open picture file"; break;
-      case ebadfmt:  s = "Bad format of picture file"; break;
-      case ecfgval:  s = "Invalid configuration value"; break;
-      case enoopn:   s = "Cannot open file"; break;
-      case enoinps:  s = "No input side for this window"; break;
-      case enowid:   s = "No more window ids available"; break;
-      case evecaxe:  s = "Cannot vector auxillary event"; break;
-      case eangato:  s = "Cannot set character drawing angle in auto mode"; break;
-      case eatoang:  s = "Cannot reenable auto with non-90 degree text"; break;
-      case esystem:  s = "System consistency check"; break;
-      default:       s = "Unknown error"; break;
+        case eftbful:  s = "Too many files"; break;
+        case ejoyacc:  s = "No joystick access available"; break;
+        case etimacc:  s = "No timer access available"; break;
+        case einvhan:  s = "Invalid file number"; break;
+        case efilopr:  s = "Cannot perform operation on special file"; break;
+        case einvscn:  s = "Invalid screen number"; break;
+        case einvtab:  s = "Tab position specified off screen"; break;
+        case eatopos:  s = "Cannot position text by pixel with auto on"; break;
+        case eatocur:  s = "Cannot position outside screen with auto on"; break;
+        case eatoofg:  s = "Cannot reenable auto off grid"; break;
+        case eatoecb:  s = "Cannot reenable auto outside screen"; break;
+        case einvftn:  s = "Invalid font number"; break;
+        case etrmfnt:  s = "No valid terminal font was found"; break;
+        case eatofts:  s = "Cannot resize font with auto enabled"; break;
+        case eatoftc:  s = "Cannot change fonts with auto enabled"; break;
+        case einvfnm:  s = "Invalid logical font number"; break;
+        case efntemp:  s = "Logical font number has no assigned font"; break;
+        case etrmfts:  s = "Cannot size terminal font"; break;
+        case etabful:  s = "Too many tabs set"; break;
+        case eatotab:  s = "Cannot set off grid tabs with auto on"; break;
+        case estrinx:  s = "String index out of range"; break;
+        case epicfnf:  s = "Picture file not found"; break;
+        case epicftl:  s = "Picture filename too large"; break;
+        case etimnum:  s = "Invalid timer number"; break;
+        case ejstsys:  s = "Cannot justify system font"; break;
+        case efnotwin: s = "File is not attached to a window"; break;
+        case ewinuse:  s = "Window id in use"; break;
+        case efinuse:  s = "File already in use"; break;
+        case einmode:  s = "Input side of window in wrong mode"; break;
+        case edcrel:   s = "Cannot release Windows device context"; break;
+        case einvsiz:  s = "Invalid buffer size"; break;
+        case ebufoff:  s = "Buffered mode not enabled"; break;
+        case edupmen:  s = "Menu id was duplicated"; break;
+        case emennf:   s = "Menu id was not found"; break;
+        case ewignf:   s = "Widget id was not found"; break;
+        case ewigdup:  s = "Widget id was duplicated"; break;
+        case einvspos: s = "Invalid scroll bar slider position"; break;
+        case einvssiz: s = "Invalid scroll bar slider size"; break;
+        case ectlfal:  s = "Attempt to create control fails"; break;
+        case eprgpos:  s = "Invalid progress bar position"; break;
+        case estrspc:  s = "Out of string space"; break;
+        case etabbar:  s = "Unable to create tab in tab bar"; break;
+        case efildlg:  s = "Unable to create file dialog"; break;
+        case efnddlg:  s = "Unable to create find dialog"; break;
+        case efntdlg:  s = "Unable to create font dialog"; break;
+        case efndstl:  s = "Find/replace string too long"; break;
+        case einvwin:  s = "Invalid window number"; break;
+        case einvjye:  s = "Invalid joystick event"; break;
+        case ejoyqry:  s = "Could not get information on joystick"; break;
+        case einvjoy:  s = "Invalid joystick ID"; break;
+        case eclsinw:  s = "Cannot directly close input side of window"; break;
+        case ewigsel:  s = "Widget is not selectable"; break;
+        case ewigptxt: s = "Cannot put text in this widget"; break;
+        case ewiggtxt: s = "Cannot get text from this widget"; break;
+        case ewigdis:  s = "Cannot disable this widget"; break;
+        case estrato:  s = "Cannot direct write string with auto on"; break;
+        case etabsel:  s = "Invalid tab select"; break;
+        case enomem:   s = "Out of memory"; break;
+        case einvfil:  s = "File is invalid"; break;
+        case enotinp:  s = "Not input side of any window"; break;
+        case estdfnt:  s = "Cannot find standard font"; break;
+        case eftntl:   s = "Font name too large"; break;
+        case epicopn:  s = "Cannot open picture file"; break;
+        case ebadfmt:  s = "Bad format of picture file"; break;
+        case ecfgval:  s = "Invalid configuration value"; break;
+        case enoopn:   s = "Cannot open file"; break;
+        case enoinps:  s = "No input side for this window"; break;
+        case enowid:   s = "No more window ids available"; break;
+        case evecaxe:  s = "Cannot vector auxillary event"; break;
+        case eangato:  s = "Cannot set character drawing angle in auto mode"; break;
+        case eatoang:  s = "Cannot reenable auto with non-90 degree text"; break;
+        case egetwigid_unimp:        s = "getwigid unimplemented"; break;
+        case ekillwidget_unimp:      s = "killwidget unimplemented"; break;
+        case eselectwidget_unimp:    s = "selectwidget unimplemented"; break;
+        case eenablewidget_unimp:    s = "enablewidget unimplemented"; break;
+        case egetwidgettext_unimp:   s = "getwidgettext unimplemented"; break;
+        case eputwidgettext_unimp:   s = "putwidgettext unimplemented"; break;
+        case esizwidget_unimp:       s = "sizwidget unimplemented"; break;
+        case esizwidgetg_unimp:      s = "sizwidgetg unimplemented"; break;
+        case eposwidget_unimp:       s = "poswidget unimplemented"; break;
+        case eposwidgetg_unimp:      s = "poswidgetg unimplemented"; break;
+        case ebackwidget_unimp:      s = "backwidget unimplemented"; break;
+        case efrontwidget_unimp:     s = "frontwidget unimplemented"; break;
+        case efocuswidget_unimp:     s = "focuswidget unimplemented"; break;
+        case ebuttonsiz_unimp:       s = "buttonsiz unimplemented"; break;
+        case ebuttonsizg_unimp:      s = "buttonsizg unimplemented"; break;
+        case ebutton_unimp:          s = "button unimplemented"; break;
+        case ebuttong_unimp:         s = "buttong unimplemented"; break;
+        case echeckboxsiz_unimp:     s = "checkboxsiz unimplemented"; break;
+        case echeckboxsizg_unimp:    s = "checkboxsizg unimplemented"; break;
+        case echeckbox_unimp:        s = "checkbox unimplemented"; break;
+        case echeckboxg_unimp:       s = "checkboxg unimplemented"; break;
+        case eradiobuttonsiz_unimp:  s = "radiobuttonsiz unimplemented"; break;
+        case eradiobuttonsizg_unimp: s = "radiobuttonsizg unimplemented"; break;
+        case eradiobutton_unimp:     s = "radiobutton unimplemented"; break;
+        case eradiobuttong_unimp:    s = "radiobuttong unimplemented"; break;
+        case egroupsizg_unimp:       s = "groupsizg unimplemented"; break;
+        case egroupsiz_unimp:        s = "groupsiz unimplemented"; break;
+        case egroup_unimp:           s = "group unimplemented"; break;
+        case egroupg_unimp:          s = "groupg unimplemented"; break;
+        case ebackground_unimp:      s = "background unimplemented"; break;
+        case ebackgroundg_unimp:     s = "backgroundg unimplemented"; break;
+        case escrollvertsizg_unimp:  s = "scrollvertsizg unimplemented"; break;
+        case escrollvertsiz_unimp:   s = "scrollvertsiz unimplemented"; break;
+        case escrollvert_unimp:      s = "scrollvert unimplemented"; break;
+        case escrollvertg_unimp:     s = "scrollvertg unimplemented"; break;
+        case escrollhorizsizg_unimp: s = "scrollhorizsizg unimplemented"; break;
+        case escrollhorizsiz_unimp:  s = "scrollhorizsiz unimplemented"; break;
+        case escrollhoriz_unimp:     s = "scrollhoriz unimplemented"; break;
+        case escrollhorizg_unimp:    s = "scrollhorizg unimplemented"; break;
+        case escrollpos_unimp:       s = "scrollpos unimplemented"; break;
+        case escrollsiz_unimp:       s = "scrollsiz unimplemented"; break;
+        case enumselboxsizg_unimp:   s = "numselboxsizg unimplemented"; break;
+        case enumselboxsiz_unimp:    s = "numselboxsiz unimplemented"; break;
+        case enumselbox_unimp:       s = "numselbox unimplemented"; break;
+        case enumselboxg_unimp:      s = "numselboxg unimplemented"; break;
+        case eeditboxsizg_unimp:     s = "editboxsizg unimplemented"; break;
+        case eeditboxsiz_unimp:      s = "editboxsiz unimplemented"; break;
+        case eeditbox_unimp:         s = "editbox unimplemented"; break;
+        case eeditboxg_unimp:        s = "editboxg unimplemented"; break;
+        case eprogbarsizg_unimp:     s = "progbarsizg unimplemented"; break;
+        case eprogbarsiz_unimp:      s = "progbarsiz unimplemented"; break;
+        case eprogbar_unimp:         s = "progbar unimplemented"; break;
+        case eprogbarg_unimp:        s = "progbarg unimplemented"; break;
+        case eprogbarpos_unimp:      s = "progbarpos unimplemented"; break;
+        case elistboxsizg_unimp:     s = "listboxsizg unimplemented"; break;
+        case elistboxsiz_unimp:      s = "listboxsiz unimplemented"; break;
+        case elistbox_unimp:         s = "listbox unimplemented"; break;
+        case elistboxg_unimp:        s = "listboxg unimplemented"; break;
+        case edropboxsizg_unimp:     s = "dropboxsizg unimplemented"; break;
+        case edropboxsiz_unimp:      s = "dropboxsiz unimplemented"; break;
+        case edropbox_unimp:         s = "dropbox unimplemented"; break;
+        case edropboxg_unimp:        s = "dropboxg unimplemented"; break;
+        case edropeditboxsizg_unimp: s = "dropeditboxsizg unimplemented"; break;
+        case edropeditboxsiz_unimp:  s = "dropeditboxsiz unimplemented"; break;
+        case edropeditbox_unimp:     s = "dropeditbox unimplemented"; break;
+        case edropeditboxg_unimp:    s = "dropeditboxg unimplemented"; break;
+        case eslidehorizsizg_unimp:  s = "slidehorizsizg unimplemented"; break;
+        case eslidehorizsiz_unimp:   s = "slidehorizsiz unimplemented"; break;
+        case eslidehoriz_unimp:      s = "slidehoriz unimplemented"; break;
+        case eslidehorizg_unimp:     s = "slidehorizg unimplemented"; break;
+        case eslidevertsizg_unimp:   s = "slidevertsizg unimplemented"; break;
+        case eslidevertsiz_unimp:    s = "slidevertsiz unimplemented"; break;
+        case eslidevert_unimp:       s = "slidevert unimplemented"; break;
+        case eslidevertg_unimp:      s = "slidevertg unimplemented"; break;
+        case etabbarsizg_unimp:      s = "tabbarsizg unimplemented"; break;
+        case etabbarsiz_unimp:       s = "tabbarsiz unimplemented"; break;
+        case etabbarclientg_unimp:   s = "tabbarclientg unimplemented"; break;
+        case etabbarclient_unimp:    s = "tabbarclient unimplemented"; break;
+        case etabbar_unimp:          s = "tabbar unimplemented"; break;
+        case etabbarg_unimp:         s = "tabbarg unimplemented"; break;
+        case etabsel_unimp:          s = "tabsel unimplemented"; break;
+        case ealert_unimp:           s = "alert unimplemented"; break;
+        case equerycolor_unimp:      s = "querycolor unimplemented"; break;
+        case equeryopen_unimp:       s = "queryopen unimplemented"; break;
+        case equerysave_unimp:       s = "querysave unimplemented"; break;
+        case equeryfind_unimp:       s = "queryfind unimplemented"; break;
+        case equeryfindrep_unimp:    s = "queryfindrep unimplemented"; break;
+        case equeryfont_unimp:       s = "queryfont unimplemented"; break;
+        case esystem:  s = "System consistency check"; break;
+        default:       s = "Unknown error"; break;
 
     }
 
@@ -6383,6 +7042,8 @@ static off_t ilseek(int fd, off_t offset, int whence)
 
 External interface routines
 
+These routines all have override capability.
+
 *******************************************************************************/
 
 /** ****************************************************************************
@@ -6402,7 +7063,11 @@ to the window.
 
 *******************************************************************************/
 
-void pa_scrollg(FILE* f, int x, int y)
+void pa_scrollg_ovr(pa_scrollg_t nfp, pa_scrollg_t* ofp)
+    { *ofp = scrollg_vect; scrollg_vect = nfp; }
+void pa_scrollg(FILE* f, int x, int y) { (*scrollg_vect)(f, x, y); }
+
+static void scrollg_ivf(FILE* f, int x, int y)
 
 {
 
@@ -6413,7 +7078,11 @@ void pa_scrollg(FILE* f, int x, int y)
 
 }
 
-void pa_scroll(FILE* f, int x, int y)
+void pa_scroll_ovr(pa_scroll_t nfp, pa_scroll_t* ofp)
+    { *ofp = scroll_vect; scroll_vect = nfp; }
+void pa_scroll(FILE* f, int x, int y) { (*scroll_vect)(f, x, y); }
+
+static void scroll_ivf(FILE* f, int x, int y)
 
 {
 
@@ -6433,7 +7102,11 @@ Moves the cursor to the specified x and y location.
 
 *******************************************************************************/
 
-void pa_cursor(FILE* f, int x, int y)
+void pa_cursor_ovr(pa_cursor_t nfp, pa_cursor_t* ofp)
+    { *ofp = cursor_vect; cursor_vect = nfp; }
+void pa_cursor(FILE* f, int x, int y) { (*cursor_vect)(f, x, y); }
+
+static void cursor_ivf(FILE* f, int x, int y)
 
 {
 
@@ -6452,7 +7125,11 @@ Moves the cursor to the specified x and y location in pixels.
 
 *******************************************************************************/
 
-void pa_cursorg(FILE* f, int x, int y)
+void pa_cursorg_ovr(pa_cursorg_t nfp, pa_cursorg_t* ofp)
+    { *ofp = cursorg_vect; cursorg_vect = nfp; }
+void pa_cursorg(FILE* f, int x, int y) { (*cursorg_vect)(f, x, y); }
+
+static void cursorg_ivf(FILE* f, int x, int y)
 
 {
 
@@ -6472,7 +7149,11 @@ to the font baseline. The baseline is the line all characters rest on.
 
 *******************************************************************************/
 
-int pa_baseline(FILE* f)
+void pa_baseline_ovr(pa_baseline_t nfp, pa_baseline_t* ofp)
+    { *ofp = baseline_vect; baseline_vect = nfp; }
+int pa_baseline(FILE* f) { (*baseline_vect)(f); }
+
+static int baseline_ivf(FILE* f)
 
 {
 
@@ -6495,7 +7176,11 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-int pa_maxx(FILE* f)
+void pa_maxx_ovr(pa_maxx_t nfp, pa_maxx_t* ofp)
+    { *ofp = maxx_vect; maxx_vect = nfp; }
+int pa_maxx(FILE* f) { (*maxx_vect)(f); }
+
+static int maxx_ivf(FILE* f)
 
 {
 
@@ -6516,7 +7201,11 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-int pa_maxy(FILE* f)
+void pa_maxy_ovr(pa_maxy_t nfp, pa_maxy_t* ofp)
+    { *ofp = maxy_vect; maxy_vect = nfp; }
+int pa_maxy(FILE* f) { (*maxy_vect)(f); }
+
+static int maxy_ivf(FILE* f)
 
 {
 
@@ -6537,7 +7226,11 @@ pixels.
 
 *******************************************************************************/
 
-int pa_maxxg(FILE* f)
+void pa_maxxg_ovr(pa_maxxg_t nfp, pa_maxxg_t* ofp)
+    { *ofp = maxxg_vect; maxxg_vect = nfp; }
+int pa_maxxg(FILE* f) { (*maxxg_vect)(f); }
+
+static int maxxg_ivf(FILE* f)
 
 {
 
@@ -6558,7 +7251,11 @@ pixels.
 
 *******************************************************************************/
 
-int pa_maxyg(FILE* f)
+void pa_maxyg_ovr(pa_maxyg_t nfp, pa_maxyg_t* ofp)
+    { *ofp = maxyg_vect; maxyg_vect = nfp; }
+int pa_maxyg(FILE* f) { (*maxyg_vect)(f); }
+
+static int maxyg_ivf(FILE* f)
 
 {
 
@@ -6578,7 +7275,11 @@ Moves the cursor to the home position at (1, 1), the upper right hand corner.
 
 *******************************************************************************/
 
-void pa_home(FILE* f)
+void pa_home_ovr(pa_home_t nfp, pa_home_t* ofp)
+    { *ofp = home_vect; home_vect = nfp; }
+void pa_home(FILE* f) { (*home_vect)(f); }
+
+static void home_ivf(FILE* f)
 
 {
 
@@ -6597,7 +7298,11 @@ Moves the cursor position up one line.
 
 *******************************************************************************/
 
-void pa_up(FILE* f)
+void pa_up_ovr(pa_up_t nfp, pa_up_t* ofp)
+    { *ofp = up_vect; up_vect = nfp; }
+void pa_up(FILE* f) { (*up_vect)(f); }
+
+static void up_ivf(FILE* f)
 
 {
 
@@ -6616,7 +7321,11 @@ Moves the cursor position down one line.
 
 *******************************************************************************/
 
-void pa_down(FILE* f)
+void pa_down_ovr(pa_down_t nfp, pa_down_t* ofp)
+    { *ofp = down_vect; down_vect = nfp; }
+void pa_down(FILE* f) { (*down_vect)(f); }
+
+static void down_ivf(FILE* f)
 
 {
 
@@ -6637,7 +7346,11 @@ the cursor will move into negative space, limited only by maxint.
 
 *******************************************************************************/
 
-void pa_left(FILE* f)
+void pa_left_ovr(pa_left_t nfp, pa_left_t* ofp)
+    { *ofp = left_vect; left_vect = nfp; }
+void pa_left(FILE* f) { (*left_vect)(f); }
+
+static void left_ivf(FILE* f)
 
 {
 
@@ -6656,7 +7369,11 @@ Moves the cursor one character right.
 
 *******************************************************************************/
 
-void pa_right(FILE* f)
+void pa_right_ovr(pa_right_t nfp, pa_right_t* ofp)
+    { *ofp = right_vect; right_vect = nfp; }
+void pa_right(FILE* f) { (*right_vect)(f); }
+
+static void right_ivf(FILE* f)
 
 {
 
@@ -6679,7 +7396,11 @@ Graphical mode does not implement blink mode.
 
 *******************************************************************************/
 
-void pa_blink(FILE* f, int e)
+void pa_blink_ovr(pa_blink_t nfp, pa_blink_t* ofp)
+    { *ofp = blink_vect; blink_vect = nfp; }
+void pa_blink(FILE* f, int e) { (*blink_vect)(f, e); }
+
+static void blink_ivf(FILE* f, int e)
 
 {
 
@@ -6696,7 +7417,11 @@ and foreground writing colors.
 
 *******************************************************************************/
 
-void pa_reverse(FILE* f, int e)
+void pa_reverse_ovr(pa_reverse_t nfp, pa_reverse_t* ofp)
+    { *ofp = reverse_vect; reverse_vect = nfp; }
+void pa_reverse(FILE* f, int e) { (*reverse_vect)(f, e); }
+
+static void reverse_ivf(FILE* f, int e)
 
 {
 
@@ -6732,7 +7457,11 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void pa_underline(FILE* f, int e)
+void pa_underline_ovr(pa_underline_t nfp, pa_underline_t* ofp)
+    { *ofp = underline_vect; underline_vect = nfp; }
+void pa_underline(FILE* f, int e) { (*underline_vect)(f, e); }
+
+static void underline_ivf(FILE* f, int e)
 
 {
 
@@ -6766,7 +7495,11 @@ Note that subscript is implemented by a reduced size and elevated font.
 
 *******************************************************************************/
 
-void pa_superscript(FILE* f, int e)
+void pa_superscript_ovr(pa_superscript_t nfp, pa_superscript_t* ofp)
+    { *ofp = superscript_vect; superscript_vect = nfp; }
+void pa_superscript(FILE* f, int e) { (*superscript_vect)(f, e); }
+
+static void superscript_ivf(FILE* f, int e)
 
 {
 
@@ -6800,7 +7533,11 @@ Note that subscript is implemented by a reduced size and lowered font.
 
 *******************************************************************************/
 
-void pa_subscript(FILE* f, int e)
+void pa_subscript_ovr(pa_subscript_t nfp, pa_subscript_t* ofp)
+    { *ofp = subscript_vect; subscript_vect = nfp; }
+void pa_subscript(FILE* f, int e) { (*subscript_vect)(f, e); }
+
+static void subscript_ivf(FILE* f, int e)
 
 {
 
@@ -6837,7 +7574,11 @@ italic on fixed fonts.
 
 *******************************************************************************/
 
-void pa_italic(FILE* f, int e)
+void pa_italic_ovr(pa_italic_t nfp, pa_italic_t* ofp)
+    { *ofp = italic_vect; italic_vect = nfp; }
+void pa_italic(FILE* f, int e) { (*italic_vect)(f, e); }
+
+static void italic_ivf(FILE* f, int e)
 
 {
 
@@ -6878,7 +7619,11 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void pa_bold(FILE* f, int e)
+void pa_bold_ovr(pa_bold_t nfp, pa_bold_t* ofp)
+    { *ofp = bold_vect; bold_vect = nfp; }
+void pa_bold(FILE* f, int e) { (*bold_vect)(f, e); }
+
+static void bold_ivf(FILE* f, int e)
 
 {
 
@@ -6921,7 +7666,11 @@ just placed.
 
 *******************************************************************************/
 
-void pa_strikeout(FILE* f, int e)
+void pa_strikeout_ovr(pa_strikeout_t nfp, pa_strikeout_t* ofp)
+    { *ofp = strikeout_vect; strikeout_vect = nfp; }
+void pa_strikeout(FILE* f, int e) { (*strikeout_vect)(f, e); }
+
+static void strikeout_ivf(FILE* f, int e)
 
 {
 
@@ -6953,7 +7702,11 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void pa_standout(FILE* f, int e)
+void pa_standout_ovr(pa_standout_t nfp, pa_standout_t* ofp)
+    { *ofp = standout_vect; standout_vect = nfp; }
+void pa_standout(FILE* f, int e) { (*standout_vect)(f, e); }
+
+static void standout_ivf(FILE* f, int e)
 
 {
 
@@ -6969,7 +7722,11 @@ Sets the foreground color from the universal primary code.
 
 *******************************************************************************/
 
-void pa_fcolor(FILE* f, pa_color c)
+void pa_fcolor_ovr(pa_fcolor_t nfp, pa_fcolor_t* ofp)
+    { *ofp = fcolor_vect; fcolor_vect = nfp; }
+void pa_fcolor(FILE* f, pa_color c) { (*fcolor_vect)(f, c); }
+
+static void fcolor_ivf(FILE* f, pa_color c)
 
 {
 
@@ -6996,7 +7753,11 @@ Sets the foreground color from individual r, g, b values.
 
 *******************************************************************************/
 
-void pa_fcolorc(FILE* f, int r, int g, int b)
+void pa_fcolorc_ovr(pa_fcolorc_t nfp, pa_fcolorc_t* ofp)
+    { *ofp = fcolorc_vect; fcolorc_vect = nfp; }
+void pa_fcolorc(FILE* f, int r, int g, int b) { (*fcolorc_vect)(f, r, g, b); }
+
+static void fcolorc_ivf(FILE* f, int r, int g, int b)
 
 {
 
@@ -7028,7 +7789,11 @@ fcolorg for backward compatiblity to the days before overloads.
 
 *******************************************************************************/
 
-void pa_fcolorg(FILE* f, int r, int g, int b)
+void pa_fcolorg_ovr(pa_fcolorg_t nfp, pa_fcolorg_t* ofp)
+    { *ofp = fcolorg_vect; fcolorg_vect = nfp; }
+void pa_fcolorg(FILE* f, int r, int g, int b) { (*fcolorg_vect)(f, r, g, b); }
+
+static void fcolorg_ivf(FILE* f, int r, int g, int b)
 
 {
 
@@ -7055,7 +7820,11 @@ Sets the background color from the universal primary code.
 
 *******************************************************************************/
 
-void pa_bcolor(FILE* f, pa_color c)
+void pa_bcolor_ovr(pa_bcolor_t nfp, pa_bcolor_t* ofp)
+    { *ofp = bcolor_vect; bcolor_vect = nfp; }
+void pa_bcolor(FILE* f, pa_color c) { (*bcolor_vect)(f, c); }
+
+static void bcolor_ivf(FILE* f, pa_color c)
 
 {
 
@@ -7082,7 +7851,11 @@ Sets the background color from individual r, g, b values.
 
 *******************************************************************************/
 
-void pa_bcolorc(FILE* f, int r, int g, int b)
+void pa_bcolorc_ovr(pa_bcolorc_t nfp, pa_bcolorc_t* ofp)
+    { *ofp = bcolorc_vect; bcolorc_vect = nfp; }
+void pa_bcolorc(FILE* f, int r, int g, int b) { (*bcolorc_vect)(f, r, g, b); }
+
+static void bcolorc_ivf(FILE* f, int r, int g, int b)
 
 {
 
@@ -7111,7 +7884,11 @@ up, we will be ready.
 
 *******************************************************************************/
 
-void pa_bcolorg(FILE* f, int r, int g, int b)
+void pa_bcolorg_ovr(pa_bcolorg_t nfp, pa_bcolorg_t* ofp)
+    { *ofp = bcolorg_vect; bcolorg_vect = nfp; }
+void pa_bcolorg(FILE* f, int r, int g, int b) { (*bcolorg_vect)(f, r, g, b); }
+
+static void bcolorg_ivf(FILE* f, int r, int g, int b)
 
 {
 
@@ -7138,7 +7915,11 @@ Checks if the cursor lies in the current bounds, and returns TRUE if so.
 
 *******************************************************************************/
 
-int pa_curbnd(FILE* f)
+void pa_curbnd_ovr(pa_curbnd_t nfp, pa_curbnd_t* ofp)
+    { *ofp = curbnd_vect; curbnd_vect = nfp; }
+int pa_curbnd(FILE* f) { (*curbnd_vect)(f); }
+
+static int curbnd_ivf(FILE* f)
 
 {
 
@@ -7175,7 +7956,11 @@ anywhere.
 
 *******************************************************************************/
 
-void pa_auto(FILE* f, int e)
+void pa_auto_ovr(pa_auto_t nfp, pa_auto_t* ofp)
+    { *ofp = auto_vect; auto_vect = nfp; }
+void pa_auto(FILE* f, int e) { (*auto_vect)(f, e); }
+
+static void auto_ivf(FILE* f, int e)
 
 {
 
@@ -7194,7 +7979,11 @@ Enable or disable cursor visibility.
 
 *******************************************************************************/
 
-void pa_curvis(FILE* f, int e)
+void pa_curvis_ovr(pa_curvis_t nfp, pa_curvis_t* ofp)
+    { *ofp = curvis_vect; curvis_vect = nfp; }
+void pa_curvis(FILE* f, int e) { (*curvis_vect)(f, e); }
+
+static void curvis_ivf(FILE* f, int e)
 
 {
 
@@ -7215,7 +8004,11 @@ Returns the current location of the cursor in x.
 
 *******************************************************************************/
 
-int pa_curx(FILE* f)
+void pa_curx_ovr(pa_curx_t nfp, pa_curx_t* ofp)
+    { *ofp = curx_vect; curx_vect = nfp; }
+int pa_curx(FILE* f) { (*curx_vect)(f); }
+
+static int curx_ivf(FILE* f)
 
 {
 
@@ -7235,7 +8028,11 @@ Returns the current location of the cursor in y.
 
 *******************************************************************************/
 
-int pa_cury(FILE* f)
+void pa_cury_ovr(pa_cury_t nfp, pa_cury_t* ofp)
+    { *ofp = cury_vect; cury_vect = nfp; }
+int pa_cury(FILE* f) { (*cury_vect)(f); }
+
+static int cury_ivf(FILE* f)
 
 {
 
@@ -7255,7 +8052,11 @@ Returns the current location of the cursor in x, in pixels.
 
 *******************************************************************************/
 
-int pa_curxg(FILE* f)
+void pa_curxg_ovr(pa_curxg_t nfp, pa_curxg_t* ofp)
+    { *ofp = curxg_vect; curxg_vect = nfp; }
+int pa_curxg(FILE* f) { (*curxg_vect)(f); }
+
+static int curxg_ivf(FILE* f)
 
 {
 
@@ -7275,7 +8076,11 @@ Returns the current location of the cursor in y, in pixels.
 
 *******************************************************************************/
 
-int pa_curyg(FILE* f)
+void pa_curyg_ovr(pa_curyg_t nfp, pa_curyg_t* ofp)
+    { *ofp = curyg_vect; curyg_vect = nfp; }
+int pa_curyg(FILE* f) { (*curyg_vect)(f); }
+
+static int curyg_ivf(FILE* f)
 
 {
 
@@ -7301,7 +8106,11 @@ forces a screen refresh, which can be important when working on terminals.
 
 *******************************************************************************/
 
-void pa_select(FILE* f, int u, int d)
+void pa_select_ovr(pa_select_t nfp, pa_select_t* ofp)
+    { *ofp = select_vect; select_vect = nfp; }
+void pa_select(FILE* f, int u, int d) { (*select_vect)(f, u, d); }
+
+static void select_ivf(FILE* f, int u, int d)
 
 {
 
@@ -7455,7 +8264,11 @@ advantage.
 
 *******************************************************************************/
 
-void pa_wrtstr(FILE* f, char* s)
+void pa_wrtstr_ovr(pa_wrtstr_t nfp, pa_wrtstr_t* ofp)
+    { *ofp = wrtstr_vect; wrtstr_vect = nfp; }
+void pa_wrtstr(FILE* f, char* s) { (*wrtstr_vect)(f, s); }
+
+static void wrtstr_ivf(FILE* f, char* s)
 
 {
 
@@ -7503,7 +8316,11 @@ position left.
 
 *******************************************************************************/
 
-void pa_del(FILE* f)
+void pa_del_ovr(pa_del_t nfp, pa_del_t* ofp)
+    { *ofp = del_vect; del_vect = nfp; }
+void pa_del(FILE* f) { (*del_vect)(f); }
+
+static void del_ivf(FILE* f)
 
 {
 
@@ -7524,7 +8341,12 @@ Draws a single line in the foreground color.
 
 *******************************************************************************/
 
+void pa_line_ovr(pa_line_t nfp, pa_line_t* ofp)
+    { *ofp = line_vect; line_vect = nfp; }
 void pa_line(FILE* f, int x1, int y1, int x2, int y2)
+    { (*line_vect)(f, x1, y1, x2, y2); }
+
+static void line_ivf(FILE* f, int x1, int y1, int x2, int y2)
 
 {
 
@@ -7583,7 +8405,12 @@ Draws a rectangle in foreground color.
 
 *******************************************************************************/
 
+void pa_rect_ovr(pa_rect_t nfp, pa_rect_t* ofp)
+    { *ofp = rect_vect; rect_vect = nfp; }
 void pa_rect(FILE* f, int x1, int y1, int x2, int y2)
+    { (*rect_vect)(f, x1, y1, x2, y2); }
+
+static void rect_ivf(FILE* f, int x1, int y1, int x2, int y2)
 
 {
 
@@ -7642,7 +8469,12 @@ Draws a filled rectangle in foreground color.
 
 *******************************************************************************/
 
+void pa_frect_ovr(pa_frect_t nfp, pa_frect_t* ofp)
+    { *ofp = frect_vect; frect_vect = nfp; }
 void pa_frect(FILE* f, int x1, int y1, int x2, int y2)
+    { (*frect_vect)(f, x1, y1, x2, y2); }
+
+static void frect_ivf(FILE* f, int x1, int y1, int x2, int y2)
 
 {
 
@@ -7703,7 +8535,12 @@ In XWindow, this has to be constructed, since there is no equivalent function.
 
 *******************************************************************************/
 
+void pa_rrect_ovr(pa_rrect_t nfp, pa_rrect_t* ofp)
+    { *ofp = rrect_vect; rrect_vect = nfp; }
 void pa_rrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
+    { (*rrect_vect)(f, x1, y1, x2, y2, xs, ys); }
+
+static void rrect_ivf(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
 
 {
 
@@ -7799,7 +8636,12 @@ x or y sizes.
 
 *******************************************************************************/
 
+void pa_frrect_ovr(pa_frrect_t nfp, pa_frrect_t* ofp)
+    { *ofp = frrect_vect; frrect_vect = nfp; }
 void pa_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
+    { (*frrect_vect)(f, x1, y1, x2, y2, xs, ys); }
+
+static void frrect_ivf(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
 
 {
 
@@ -7983,7 +8825,12 @@ Draws an ellipse with the current foreground color and line width.
 
 *******************************************************************************/
 
+void pa_ellipse_ovr(pa_ellipse_t nfp, pa_ellipse_t* ofp)
+    { *ofp = ellipse_vect; ellipse_vect = nfp; }
 void pa_ellipse(FILE* f, int x1, int y1, int x2, int y2)
+    { (*ellipse_vect)(f, x1, y1, x2, y2); }
+
+static void ellipse_ivf(FILE* f, int x1, int y1, int x2, int y2)
 
 {
 
@@ -8044,7 +8891,12 @@ Draws a filled ellipse with the current foreground color.
 
 *******************************************************************************/
 
+void pa_fellipse_ovr(pa_fellipse_t nfp, pa_fellipse_t* ofp)
+    { *ofp = fellipse_vect; fellipse_vect = nfp; }
 void pa_fellipse(FILE* f, int x1, int y1, int x2, int y2)
+    { (*fellipse_vect)(f, x1, y1, x2, y2); }
+
+static void fellipse_ivf(FILE* f, int x1, int y1, int x2, int y2)
 
 {
 
@@ -8125,7 +8977,12 @@ Negative angles are allowed.
 
 *******************************************************************************/
 
+void pa_arc_ovr(pa_arc_t nfp, pa_arc_t* ofp)
+    { *ofp = arc_vect; arc_vect = nfp; }
 void pa_arc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
+    { (*arc_vect)(f, x1, y1, x2, y2, sa, ea); }
+
+static void arc_ivf(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
 
 {
 
@@ -8201,7 +9058,12 @@ this.
 
 *******************************************************************************/
 
+void pa_farc_ovr(pa_farc_t nfp, pa_farc_t* ofp)
+    { *ofp = farc_vect; farc_vect = nfp; }
 void pa_farc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
+    { (*farc_vect)(f, x1, y1, x2, y2, sa, ea); }
+
+static void farc_ivf(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
 
 {
 
@@ -8274,7 +9136,12 @@ as for the arc function above.
 
 *******************************************************************************/
 
+void pa_fchord_ovr(pa_fchord_t nfp, pa_fchord_t* ofp)
+    { *ofp = fchord_vect; fchord_vect = nfp; }
 void pa_fchord(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
+    { (*fchord_vect)(f, x1, y1, x2, y2, sa, ea); }
+
+static void fchord_ivf(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
 
 {
 
@@ -8348,7 +9215,12 @@ Draws a filled triangle in the current foreground color.
 
 *******************************************************************************/
 
+void pa_ftriangle_ovr(pa_ftriangle_t nfp, pa_ftriangle_t* ofp)
+    { *ofp = ftriangle_vect; ftriangle_vect = nfp; }
 void pa_ftriangle(FILE* f, int x1, int y1, int x2, int y2, int x3, int y3)
+    { (*ftriangle_vect)(f, x1, y1, x2, y2, x3, y3); }
+
+static void ftriangle_ivf(FILE* f, int x1, int y1, int x2, int y2, int x3, int y3)
 
 {
 
@@ -8406,7 +9278,11 @@ Sets a single logical pixel to the foreground color.
 
 *******************************************************************************/
 
-void pa_setpixel(FILE* f, int x, int y)
+void pa_setpixel_ovr(pa_setpixel_t nfp, pa_setpixel_t* ofp)
+    { *ofp = setpixel_vect; setpixel_vect = nfp; }
+void pa_setpixel(FILE* f, int x, int y) { (*setpixel_vect)(f, x, y); }
+
+static void setpixel_ivf(FILE* f, int x, int y)
 
 {
 
@@ -8455,7 +9331,11 @@ Sets the foreground write mode to overwrite.
 
 *******************************************************************************/
 
-void pa_fover(FILE* f)
+void pa_fover_ovr(pa_fover_t nfp, pa_fover_t* ofp)
+    { *ofp = fover_vect; fover_vect = nfp; }
+void pa_fover(FILE* f) { (*fover_vect)(f); }
+
+static void fover_ivf(FILE* f)
 
 {
 
@@ -8477,7 +9357,11 @@ Sets the background write mode to overwrite.
 
 *******************************************************************************/
 
-void pa_bover(FILE* f)
+void pa_bover_ovr(pa_bover_t nfp, pa_bover_t* ofp)
+    { *ofp = bover_vect; bover_vect = nfp; }
+void pa_bover(FILE* f) { (*bover_vect)(f); }
+
+static void bover_ivf(FILE* f)
 
 {
 
@@ -8499,7 +9383,11 @@ Sets the foreground write mode to invisible.
 
 *******************************************************************************/
 
-void pa_finvis(FILE* f)
+void pa_finvis_ovr(pa_finvis_t nfp, pa_finvis_t* ofp)
+    { *ofp = finvis_vect; finvis_vect = nfp; }
+void pa_finvis(FILE* f) { (*finvis_vect)(f); }
+
+static void finvis_ivf(FILE* f)
 
 {
 
@@ -8521,7 +9409,11 @@ Sets the background write mode to invisible.
 
 *******************************************************************************/
 
-void pa_binvis(FILE* f)
+void pa_binvis_ovr(pa_binvis_t nfp, pa_binvis_t* ofp)
+    { *ofp = binvis_vect; binvis_vect = nfp; }
+void pa_binvis(FILE* f) { (*binvis_vect)(f); }
+
+static void binvis_ivf(FILE* f)
 
 {
 
@@ -8543,7 +9435,11 @@ Sets the foreground write mode to xor.
 
 *******************************************************************************/
 
-void pa_fxor(FILE* f)
+void pa_fxor_ovr(pa_fxor_t nfp, pa_fxor_t* ofp)
+    { *ofp = fxor_vect; fxor_vect = nfp; }
+void pa_fxor(FILE* f) { (*fxor_vect)(f); }
+
+static void fxor_ivf(FILE* f)
 
 {
 
@@ -8565,7 +9461,11 @@ Sets the background write mode to xor.
 
 *******************************************************************************/
 
-void pa_bxor(FILE* f)
+void pa_bxor_ovr(pa_bxor_t nfp, pa_bxor_t* ofp)
+    { *ofp = bxor_vect; bxor_vect = nfp; }
+void pa_bxor(FILE* f) { (*bxor_vect)(f); }
+
+static void bxor_ivf(FILE* f)
 
 {
 
@@ -8587,7 +9487,11 @@ Sets the foreground write mode to and.
 
 *******************************************************************************/
 
-void pa_fand(FILE* f)
+void pa_fand_ovr(pa_fand_t nfp, pa_fand_t* ofp)
+    { *ofp = fand_vect; fand_vect = nfp; }
+void pa_fand(FILE* f) { (*fand_vect)(f); }
+
+static void fand_ivf(FILE* f)
 
 {
 
@@ -8609,7 +9513,11 @@ Sets the background write mode to and.
 
 *******************************************************************************/
 
-void pa_band(FILE* f)
+void pa_band_ovr(pa_band_t nfp, pa_band_t* ofp)
+    { *ofp = band_vect; band_vect = nfp; }
+void pa_band(FILE* f) { (*band_vect)(f); }
+
+static void band_ivf(FILE* f)
 
 {
 
@@ -8631,7 +9539,11 @@ Sets the foreground write mode to or.
 
 *******************************************************************************/
 
-void pa_for(FILE* f)
+void pa_for_ovr(pa_for_t nfp, pa_for_t* ofp)
+    { *ofp = for_vect; for_vect = nfp; }
+void pa_for(FILE* f) { (*for_vect)(f); }
+
+static void for_ivf(FILE* f)
 
 {
 
@@ -8653,7 +9565,11 @@ Sets the background write mode to or.
 
 *******************************************************************************/
 
-void pa_bor(FILE* f)
+void pa_bor_ovr(pa_bor_t nfp, pa_bor_t* ofp)
+    { *ofp = bor_vect; bor_vect = nfp; }
+void pa_bor(FILE* f) { (*bor_vect)(f); }
+
+static void bor_ivf(FILE* f)
 
 {
 
@@ -8675,7 +9591,11 @@ Sets the width of lines and several other figures.
 
 *******************************************************************************/
 
-void pa_linewidth(FILE* f, int w)
+void pa_linewidth_ovr(pa_linewidth_t nfp, pa_linewidth_t* ofp)
+    { *ofp = linewidth_vect; linewidth_vect = nfp; }
+void pa_linewidth(FILE* f, int w) { (*linewidth_vect)(f, w); }
+
+static void linewidth_ivf(FILE* f, int w)
 
 {
 
@@ -8702,7 +9622,11 @@ character in the character set.
 
 *******************************************************************************/
 
-int pa_chrsizx(FILE* f)
+void pa_chrsizx_ovr(pa_chrsizx_t nfp, pa_chrsizx_t* ofp)
+    { *ofp = chrsizx_vect; chrsizx_vect = nfp; }
+int pa_chrsizx(FILE* f) { (*chrsizx_vect)(f); }
+
+static int chrsizx_ivf(FILE* f)
 
 {
 
@@ -8724,7 +9648,11 @@ Returns the character height.
 
 *******************************************************************************/
 
-int pa_chrsizy(FILE* f)
+void pa_chrsizy_ovr(pa_chrsizy_t nfp, pa_chrsizy_t* ofp)
+    { *ofp = chrsizy_vect; chrsizy_vect = nfp; }
+int pa_chrsizy(FILE* f) { (*chrsizy_vect)(f); }
+
+static int chrsizy_ivf(FILE* f)
 
 {
 
@@ -8746,7 +9674,11 @@ Finds the total number of installed fonts.
 
 *******************************************************************************/
 
-int pa_fonts(FILE* f)
+void pa_fonts_ovr(pa_fonts_t nfp, pa_fonts_t* ofp)
+    { *ofp = fonts_vect; fonts_vect = nfp; }
+int pa_fonts(FILE* f) { (*fonts_vect)(f); }
+
+static int fonts_ivf(FILE* f)
 
 {
 
@@ -8762,7 +9694,11 @@ Changes the current font to the indicated logical font number.
 
 *******************************************************************************/
 
-void pa_font(FILE* f, int fc)
+void pa_font_ovr(pa_font_t nfp, pa_font_t* ofp)
+    { *ofp = font_vect; font_vect = nfp; }
+void pa_font(FILE* f, int fc) { (*font_vect)(f, fc); }
+
+static void font_ivf(FILE* f, int fc)
 
 {
 
@@ -8805,7 +9741,12 @@ Returns the name of a font by number.
 
 *******************************************************************************/
 
+void pa_fontnam_ovr(pa_fontnam_t nfp, pa_fontnam_t* ofp)
+    { *ofp = fontnam_vect; fontnam_vect = nfp; }
 void pa_fontnam(FILE* f, int fc, char* fns, int fnsl)
+    { (*fontnam_vect)(f, fc, fns, fnsl); }
+
+static void fontnam_ivf(FILE* f, int fc, char* fns, int fnsl)
 
 {
 
@@ -8835,7 +9776,11 @@ and line spacing are changed, as well as the baseline.
 
 *******************************************************************************/
 
-void pa_fontsiz(FILE* f, int s)
+void pa_fontsiz_ovr(pa_fontsiz_t nfp, pa_fontsiz_t* ofp)
+    { *ofp = fontsiz_vect; fontsiz_vect = nfp; }
+void pa_fontsiz(FILE* f, int s) { (*fontsiz_vect)(f, s); }
+
+static void fontsiz_ivf(FILE* f, int s)
 
 {
 
@@ -8872,7 +9817,11 @@ as "leading".
 
 *******************************************************************************/
 
-void pa_chrspcy(FILE* f, int s)
+void pa_chrspcy_ovr(pa_chrspcy_t nfp, pa_chrspcy_t* ofp)
+    { *ofp = chrspcy_vect; chrspcy_vect = nfp; }
+void pa_chrspcy(FILE* f, int s) { (*chrspcy_vect)(f, s); }
+
+static void chrspcy_ivf(FILE* f, int s)
 
 {
 
@@ -8892,7 +9841,11 @@ as "spacing".
 
 *******************************************************************************/
 
-void pa_chrspcx(FILE* f, int s)
+void pa_chrspcx_ovr(pa_chrspcx_t nfp, pa_chrspcx_t* ofp)
+    { *ofp = chrspcx_vect; chrspcx_vect = nfp; }
+void pa_chrspcx(FILE* f, int s) { (*chrspcx_vect)(f, s); }
+
+static void chrspcx_ivf(FILE* f, int s)
 
 {
 
@@ -8911,7 +9864,11 @@ Returns the number of dots per meter resolution in x.
 
 *******************************************************************************/
 
-int pa_dpmx(FILE* f)
+void pa_dpmx_ovr(pa_dpmx_t nfp, pa_dpmx_t* ofp)
+    { *ofp = dpmx_vect; dpmx_vect = nfp; }
+int pa_dpmx(FILE* f) { (*dpmx_vect)(f); }
+
+static int dpmx_ivf(FILE* f)
 
 {
 
@@ -8931,7 +9888,11 @@ Returns the number of dots per meter resolution in y.
 
 *******************************************************************************/
 
-int pa_dpmy(FILE* f)
+void pa_dpmy_ovr(pa_dpmy_t nfp, pa_dpmy_t* ofp)
+    { *ofp = dpmy_vect; dpmy_vect = nfp; }
+int pa_dpmy(FILE* f) { (*dpmy_vect)(f); }
+
+static int dpmy_ivf(FILE* f)
 
 {
 
@@ -8952,7 +9913,11 @@ character spacing and kerning.
 
 *******************************************************************************/
 
-int pa_strsiz(FILE* f, const char* s)
+void pa_strsiz_ovr(pa_strsiz_t nfp, pa_strsiz_t* ofp)
+    { *ofp = strsiz_vect; strsiz_vect = nfp; }
+int pa_strsiz(FILE* f, const char* s) { (*strsiz_vect)(f, s); }
+
+static int strsiz_ivf(FILE* f, const char* s)
 
 {
 
@@ -8976,7 +9941,11 @@ Finds the pixel offset to the given character in the string.
 
 *******************************************************************************/
 
-int pa_chrpos(FILE* f, const char* s, int p)
+void pa_chrpos_ovr(pa_chrpos_t nfp, pa_chrpos_t* ofp)
+    { *ofp = chrpos_vect; chrpos_vect = nfp; }
+int pa_chrpos(FILE* f, const char* s, int p) { (*chrpos_vect)(f, s, p); }
+
+static int chrpos_ivf(FILE* f, const char* s, int p)
 
 {
 
@@ -9005,7 +9974,11 @@ distributes the space amoung the spaces present in the string.
 
 *******************************************************************************/
 
-void pa_writejust(FILE* f, const char* s, int n)
+void pa_writejust_ovr(pa_writejust_t nfp, pa_writejust_t* ofp)
+    { *ofp = writejust_vect; writejust_vect = nfp; }
+void pa_writejust(FILE* f, const char* s, int n) { (*writejust_vect)(f, s, n); }
+
+static void writejust_ivf(FILE* f, const char* s, int n)
 
 {
 
@@ -9129,7 +10102,12 @@ spaces, with the fractional part lost.
 
 *******************************************************************************/
 
+void pa_justpos_ovr(pa_justpos_t nfp, pa_justpos_t* ofp)
+    { *ofp = justpos_vect; justpos_vect = nfp; }
 int pa_justpos(FILE* f, const char* s, int p, int n)
+    { (*justpos_vect)(f, s, p, n); }
+
+static int justpos_ivf(FILE* f, const char* s, int p, int n)
 
 {
 
@@ -9204,7 +10182,11 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void pa_condensed(FILE* f, int e)
+void pa_condensed_ovr(pa_condensed_t nfp, pa_condensed_t* ofp)
+    { *ofp = condensed_vect; condensed_vect = nfp; }
+void pa_condensed(FILE* f, int e) { (*condensed_vect)(f, e); }
+
+static void condensed_ivf(FILE* f, int e)
 
 {
 
@@ -9249,7 +10231,11 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void pa_extended(FILE* f, int e)
+void pa_extended_ovr(pa_extended_t nfp, pa_extended_t* ofp)
+    { *ofp = extended_vect; extended_vect = nfp; }
+void pa_extended(FILE* f, int e) { (*extended_vect)(f, e); }
+
+static void extended_ivf(FILE* f, int e)
 
 {
 
@@ -9294,7 +10280,11 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void pa_xlight(FILE* f, int e)
+void pa_xlight_ovr(pa_xlight_t nfp, pa_xlight_t* ofp)
+    { *ofp = xlight_vect; xlight_vect = nfp; }
+void pa_xlight(FILE* f, int e) { (*xlight_vect)(f, e); }
+
+static void xlight_ivf(FILE* f, int e)
 
 {
 
@@ -9339,7 +10329,11 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void pa_light(FILE* f, int e)
+void pa_light_ovr(pa_light_t nfp, pa_light_t* ofp)
+    { *ofp = light_vect; light_vect = nfp; }
+void pa_light(FILE* f, int e) { (*light_vect)(f, e); }
+
+static void light_ivf(FILE* f, int e)
 
 {
 
@@ -9384,7 +10378,11 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void pa_xbold(FILE* f, int e)
+void pa_xbold_ovr(pa_xbold_t nfp, pa_xbold_t* ofp)
+    { *ofp = xbold_vect; xbold_vect = nfp; }
+void pa_xbold(FILE* f, int e) { (*xbold_vect)(f, e); }
+
+static void xbold_ivf(FILE* f, int e)
 
 {
 
@@ -9429,7 +10427,11 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void pa_hollow(FILE* f, int e)
+void pa_hollow_ovr(pa_hollow_t nfp, pa_hollow_t* ofp)
+    { *ofp = hollow_vect; hollow_vect = nfp; }
+void pa_hollow(FILE* f, int e) { (*hollow_vect)(f, e); }
+
+static void hollow_ivf(FILE* f, int e)
 
 {
 
@@ -9474,7 +10476,11 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void pa_raised(FILE* f, int e)
+void pa_raised_ovr(pa_raised_t nfp, pa_raised_t* ofp)
+    { *ofp = raised_vect; raised_vect = nfp; }
+void pa_raised(FILE* f, int e) { (*raised_vect)(f, e); }
+
+static void raised_ivf(FILE* f, int e)
 
 {
 
@@ -9514,7 +10520,11 @@ Deletes a loaded picture.
 
 *******************************************************************************/
 
-void pa_delpict(FILE* f, int p)
+void pa_delpict_ovr(pa_delpict_t nfp, pa_delpict_t* ofp)
+    { *ofp = delpict_vect; delpict_vect = nfp; }
+void pa_delpict(FILE* f, int p) { (*delpict_vect)(f, p); }
+
+static void delpict_ivf(FILE* f, int p)
 
 {
 
@@ -9561,7 +10571,7 @@ static void setext(char* fnh, char* ext)
 
 }
 
-byte getbyt(FILE* f)
+static byte getbyt(FILE* f)
 
 {
 
@@ -9575,7 +10585,7 @@ byte getbyt(FILE* f)
 
 }
 
-unsigned int read32(FILE* f)
+static unsigned int read32(FILE* f)
 
 {
 
@@ -9593,7 +10603,7 @@ unsigned int read32(FILE* f)
 
 }
 
-unsigned int read16(FILE* f)
+static unsigned int read16(FILE* f)
 
 {
 
@@ -9612,7 +10622,11 @@ unsigned int read16(FILE* f)
 
 }
 
-void pa_loadpict(FILE* f, int p, char* fn)
+void pa_loadpict_ovr(pa_loadpict_t nfp, pa_loadpict_t* ofp)
+    { *ofp = loadpict_vect; loadpict_vect = nfp; }
+void pa_loadpict(FILE* f, int p, char* fn) { (*loadpict_vect)(f, p, fn); }
+
+static void loadpict_ivf(FILE* f, int p, char* fn)
 
 {
 
@@ -9720,7 +10734,11 @@ Returns the size in x of the logical picture.
 
 *******************************************************************************/
 
-int pa_pictsizx(FILE* f, int p)
+void pa_pictsizx_ovr(pa_pictsizx_t nfp, pa_pictsizx_t* ofp)
+    { *ofp = pictsizx_vect; pictsizx_vect = nfp; }
+int pa_pictsizx(FILE* f, int p) { (*pictsizx_vect)(f, p); }
+
+static int pictsizx_ivf(FILE* f, int p)
 
 {
 
@@ -9742,7 +10760,11 @@ Returns the size in y of the logical picture.
 
 *******************************************************************************/
 
-int pa_pictsizy(FILE* f, int p)
+void pa_pictsizy_ovr(pa_pictsizy_t nfp, pa_pictsizy_t* ofp)
+    { *ofp = pictsizy_vect; pictsizy_vect = nfp; }
+int pa_pictsizy(FILE* f, int p) { (*pictsizy_vect)(f, p); }
+
+static int pictsizy_ivf(FILE* f, int p)
 
 {
 
@@ -9767,7 +10789,12 @@ Images will be kept in a rotating cache to prevent repeating reloads.
 
 *******************************************************************************/
 
+void pa_picture_ovr(pa_picture_t nfp, pa_picture_t* ofp)
+    { *ofp = picture_vect; picture_vect = nfp; }
 void pa_picture(FILE* f, int p, int x1, int y1, int x2, int y2)
+    { (*picture_vect)(f, p, x1, y1, x2, y2); }
+
+static void picture_ivf(FILE* f, int p, int x1, int y1, int x2, int y2)
 
 {
 
@@ -9871,7 +10898,11 @@ Sets the offset of the viewport in logical space, in pixels, anywhere from
 
 *******************************************************************************/
 
-void pa_viewoffg(FILE* f, int x, int y)
+void pa_viewoffg_ovr(pa_viewoffg_t nfp, pa_viewoffg_t* ofp)
+    { *ofp = viewoffg_vect; viewoffg_vect = nfp; }
+void pa_viewoffg(FILE* f, int x, int y) { (*viewoffg_vect)(f, x, y); }
+
+static void viewoffg_ivf(FILE* f, int x, int y)
 
 {
 
@@ -9897,7 +10928,11 @@ painting into a buffer and transfering asymmetrically, or using outlines.
 
 *******************************************************************************/
 
-void pa_viewscale(FILE* f, float x, float y)
+void pa_viewscale_ovr(pa_viewscale_t nfp, pa_viewscale_t* ofp)
+    { *ofp = viewscale_vect; viewscale_vect = nfp; }
+void pa_viewscale(FILE* f, float x, float y) { (*viewscale_vect)(f, x, y); }
+
+static void viewscale_ivf(FILE* f, float x, float y)
 
 {
 
@@ -10914,7 +11949,11 @@ static void ievent(FILE* f, pa_evtrec* er)
 
 /* external event interface */
 
-void pa_event(FILE* f, pa_evtrec* er)
+void pa_event_ovr(pa_event_t nfp, pa_event_t* ofp)
+    { *ofp = event_vect; event_vect = nfp; }
+void pa_event(FILE* f, pa_evtrec* er) { (*event_vect)(f, er); }
+
+static void event_ivf(FILE* f, pa_evtrec* er)
 
 {
 
@@ -10959,7 +11998,11 @@ window. Thus it is a more complete send of the event.
 
 *******************************************************************************/
 
-void pa_sendevent(FILE* f, pa_evtrec* er)
+void pa_sendevent_ovr(pa_sendevent_t nfp, pa_sendevent_t* ofp)
+    { *ofp = sendevent_vect; sendevent_vect = nfp; }
+void pa_sendevent(FILE* f, pa_evtrec* er) { (*sendevent_vect)(f, er); }
+
+static void sendevent_ivf(FILE* f, pa_evtrec* er)
 
 {
 
@@ -10985,7 +12028,12 @@ call down into the stack by executing the overridden event.
 
 *******************************************************************************/
 
-void pa_eventover(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh)
+void pa_eventover_ovr(pa_eventover_t nfp, pa_eventover_t* ofp)
+    { *ofp = eventover_vect; eventover_vect = nfp; }
+void pa_eventover(pa_evtcod e, pa_pevthan eh, pa_pevthan* oeh)
+    { (*eventover_vect)(e, eh, oeh); }
+
+static void eventover_ivf(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh)
 
 {
 
@@ -11006,7 +12054,12 @@ call down into the stack by executing the overridden event.
 
 *******************************************************************************/
 
+void pa_eventsover_ovr(pa_eventsover_t nfp, pa_eventsover_t* ofp)
+    { *ofp = eventsover_vect; eventsover_vect = nfp; }
 void pa_eventsover(pa_pevthan eh,  pa_pevthan* oeh)
+    { (*eventsover_vect)(eh, oeh); }
+
+static void eventsover_ivf(pa_pevthan eh,  pa_pevthan* oeh)
 
 {
 
@@ -11030,10 +12083,14 @@ the associated input file.
 
 *******************************************************************************/
 
-void pa_timer(FILE* f, /* file to send event to */
-              int   i, /* timer handle */
-              long  t, /* number of tenth-milliseconds to run */
-              int   r) /* timer is to rerun after completion */
+void pa_timer_ovr(pa_timer_t nfp, pa_timer_t* ofp)
+    { *ofp = timer_vect; timer_vect = nfp; }
+void pa_timer(FILE* f, int i, long t, int r) { (*timer_vect)(f, i, t, r); }
+
+static void timer_ivf(FILE* f, /* file to send event to */
+                      int   i, /* timer handle */
+                      long  t, /* number of tenth-milliseconds to run */
+                      int   r) /* timer is to rerun after completion */
 
 {
 
@@ -11060,9 +12117,13 @@ Kills a given timer, by it's id number. Only repeating timers should be killed.
 
 *******************************************************************************/
 
-void pa_killtimer(FILE* f, /* file to kill timer on */
-                  int   i  /* handle of timer */
-                 )
+void pa_killtimer_ovr(pa_killtimer_t nfp, pa_killtimer_t* ofp)
+    { *ofp = killtimer_vect; killtimer_vect = nfp; }
+void pa_killtimer(FILE* f, int   i ) { (*killtimer_vect)(f, i ); }
+
+static void killtimer_ivf(FILE* f, /* file to kill timer on */
+                          int   i  /* handle of timer */
+                         )
 
 {
 
@@ -11086,7 +12147,11 @@ of the blanking interval.
 
 *******************************************************************************/
 
-void pa_frametimer(FILE* f, int e)
+void pa_frametimer_ovr(pa_frametimer_t nfp, pa_frametimer_t* ofp)
+    { *ofp = frametimer_vect; frametimer_vect = nfp; }
+void pa_frametimer(FILE* f, int e) { (*frametimer_vect)(f, e); }
+
+static void frametimer_ivf(FILE* f, int e)
 
 {
 
@@ -11126,7 +12191,11 @@ holding gralib unaware programs.
 
 *******************************************************************************/
 
-void pa_autohold(int e)
+void pa_autohold_ovr(pa_autohold_t nfp, pa_autohold_t* ofp)
+    { *ofp = autohold_vect; autohold_vect = nfp; }
+void pa_autohold(int e) { (*autohold_vect)(e); }
+
+static void autohold_ivf(int e)
 
 {
 
@@ -11142,7 +12211,11 @@ Returns the number of mice implemented. XWindow supports only one mouse.
 
 *******************************************************************************/
 
-int pa_mouse(FILE* f)
+void pa_mouse_ovr(pa_mouse_t nfp, pa_mouse_t* ofp)
+    { *ofp = mouse_vect; mouse_vect = nfp; }
+int pa_mouse(FILE* f) { (*mouse_vect)(f); }
+
+static int mouse_ivf(FILE* f)
 
 {
 
@@ -11159,7 +12232,11 @@ version. XWindow supports from 1 to 5 buttons.
 
 *******************************************************************************/
 
-int pa_mousebutton(FILE* f, int m)
+void pa_mousebutton_ovr(pa_mousebutton_t nfp, pa_mousebutton_t* ofp)
+    { *ofp = mousebutton_vect; mousebutton_vect = nfp; }
+int pa_mousebutton(FILE* f, int m) { (*mousebutton_vect)(f, m); }
+
+static int mousebutton_ivf(FILE* f, int m)
 
 {
 
@@ -11175,7 +12252,11 @@ Return number of joysticks attached.
 
 *******************************************************************************/
 
-int pa_joystick(FILE* f)
+void pa_joystick_ovr(pa_joystick_t nfp, pa_joystick_t* ofp)
+    { *ofp = joystick_vect; joystick_vect = nfp; }
+int pa_joystick(FILE* f) { (*joystick_vect)(f); }
+
+static int joystick_ivf(FILE* f)
 
 {
 
@@ -11191,7 +12272,11 @@ Returns the number of buttons on a given joystick.
 
 *******************************************************************************/
 
-int pa_joybutton(FILE* f, int j)
+void pa_joybutton_ovr(pa_joybutton_t nfp, pa_joybutton_t* ofp)
+    { *ofp = joybutton_vect; joybutton_vect = nfp; }
+int pa_joybutton(FILE* f, int j) { (*joybutton_vect)(f, j); }
+
+static int joybutton_ivf(FILE* f, int j)
 
 {
 
@@ -11212,7 +12297,11 @@ joystick can be considered a slider without positional meaning.
 
 *******************************************************************************/
 
-int pa_joyaxis(FILE* f, int j)
+void pa_joyaxis_ovr(pa_joyaxis_t nfp, pa_joyaxis_t* ofp)
+    { *ofp = joyaxis_vect; joyaxis_vect = nfp; }
+int pa_joyaxis(FILE* f, int j) { (*joyaxis_vect)(f, j); }
+
+static int joyaxis_ivf(FILE* f, int j)
 
 {
 
@@ -11236,7 +12325,11 @@ Sets a tab at the indicated pixel number.
 
 *******************************************************************************/
 
-void pa_settabg(FILE* f, int t)
+void pa_settabg_ovr(pa_settabg_t nfp, pa_settabg_t* ofp)
+    { *ofp = settabg_vect; settabg_vect = nfp; }
+void pa_settabg(FILE* f, int t) { (*settabg_vect)(f, t); }
+
+static void settabg_ivf(FILE* f, int t)
 
 {
 
@@ -11255,7 +12348,11 @@ Sets a tab at the indicated collumn number.
 
 *******************************************************************************/
 
-void pa_settab(FILE* f, int t)
+void pa_settab_ovr(pa_settab_t nfp, pa_settab_t* ofp)
+    { *ofp = settab_vect; settab_vect = nfp; }
+void pa_settab(FILE* f, int t) { (*settab_vect)(f, t); }
+
+static void settab_ivf(FILE* f, int t)
 
 {
 
@@ -11274,7 +12371,11 @@ Resets the tab at the indicated pixel number.
 
 *******************************************************************************/
 
-void pa_restabg(FILE* f, int t)
+void pa_restabg_ovr(pa_restabg_t nfp, pa_restabg_t* ofp)
+    { *ofp = restabg_vect; restabg_vect = nfp; }
+void pa_restabg(FILE* f, int t) { (*restabg_vect)(f, t); }
+
+static void restabg_ivf(FILE* f, int t)
 
 {
 
@@ -11293,7 +12394,11 @@ Resets the tab at the indicated collumn number.
 
 *******************************************************************************/
 
-void pa_restab(FILE* f, int t)
+void pa_restab_ovr(pa_restab_t nfp, pa_restab_t* ofp)
+    { *ofp = restab_vect; restab_vect = nfp; }
+void pa_restab(FILE* f, int t) { (*restab_vect)(f, t); }
+
+static void restab_ivf(FILE* f, int t)
 
 {
 
@@ -11313,7 +12418,11 @@ arrangement.
 
 *******************************************************************************/
 
-void pa_clrtab(FILE* f)
+void pa_clrtab_ovr(pa_clrtab_t nfp, pa_clrtab_t* ofp)
+    { *ofp = clrtab_vect; clrtab_vect = nfp; }
+void pa_clrtab(FILE* f) { (*clrtab_vect)(f); }
+
+static void clrtab_ivf(FILE* f)
 
 {
 
@@ -11335,7 +12444,11 @@ function keys as well.
 
 *******************************************************************************/
 
-int pa_funkey(FILE* f)
+void pa_funkey_ovr(pa_funkey_t nfp, pa_funkey_t* ofp)
+    { *ofp = funkey_vect; funkey_vect = nfp; }
+int pa_funkey(FILE* f) { (*funkey_vect)(f); }
+
+static int funkey_ivf(FILE* f)
 
 {
 
@@ -11351,7 +12464,11 @@ Sets the title of the current window.
 
 *******************************************************************************/
 
-void pa_title(FILE* f, char* ts)
+void pa_title_ovr(pa_title_t nfp, pa_title_t* ofp)
+    { *ofp = title_vect; title_vect = nfp; }
+void pa_title(FILE* f, char* ts) { (*title_vect)(f, ts); }
+
+static void title_ivf(FILE* f, char* ts)
 
 {
 
@@ -11385,7 +12502,11 @@ is allocated, it is reserved until it is used and removed by killwidget().
 
 *******************************************************************************/
 
-int pa_getwinid(void)
+void pa_getwinid_ovr(pa_getwinid_t nfp, pa_getwinid_t* ofp)
+    { *ofp = getwinid_vect; getwinid_vect = nfp; }
+int pa_getwinid(void) { (*getwinid_vect)(); }
+
+static int getwinid_ivf(void)
 
 {
 
@@ -11474,7 +12595,12 @@ static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, int wid,
 
 }
 
+void pa_openwin_ovr(pa_openwin_t nfp, pa_openwin_t* ofp)
+    { *ofp = openwin_vect; openwin_vect = nfp; }
 void pa_openwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
+    { (*openwin_vect)(infile, outfile, parent, wid); }
+
+static void openwin_ivf(FILE** infile, FILE** outfile, FILE* parent, int wid)
 
 {
 
@@ -11491,7 +12617,11 @@ Sets or resets the size of the buffer surface, in pixel units.
 
 *******************************************************************************/
 
-void pa_sizbufg(FILE* f, int x, int y)
+void pa_sizbufg_ovr(pa_sizbufg_t nfp, pa_sizbufg_t* ofp)
+    { *ofp = sizbufg_vect; sizbufg_vect = nfp; }
+void pa_sizbufg(FILE* f, int x, int y) { (*sizbufg_vect)(f, x, y); }
+
+static void sizbufg_ivf(FILE* f, int x, int y)
 
 {
 
@@ -11559,7 +12689,11 @@ Sets or resets the size of the buffer surface, in character counts.
 
 *******************************************************************************/
 
-void pa_sizbuf(FILE* f, int x, int y)
+void pa_sizbuf_ovr(pa_sizbuf_t nfp, pa_sizbuf_t* ofp)
+    { *ofp = sizbuf_vect; sizbuf_vect = nfp; }
+void pa_sizbuf(FILE* f, int x, int y) { (*sizbuf_vect)(f, x, y); }
+
+static void sizbuf_ivf(FILE* f, int x, int y)
 
 {
 
@@ -11580,7 +12714,11 @@ freed.
 
 *******************************************************************************/
 
-void pa_buffer(FILE* f, int e)
+void pa_buffer_ovr(pa_buffer_t nfp, pa_buffer_t* ofp)
+    { *ofp = buffer_vect; buffer_vect = nfp; }
+void pa_buffer(FILE* f, int e) { (*buffer_vect)(f, e); }
+
+static void buffer_ivf(FILE* f, int e)
 
 {
 
@@ -11827,7 +12965,11 @@ static void menu_resize(FILE* f, winptr win, int menuon)
 
 }
 
-void pa_menu(FILE* f, pa_menuptr m)
+void pa_menu_ovr(pa_menu_t nfp, pa_menu_t* ofp)
+    { *ofp = menu_vect; menu_vect = nfp; }
+void pa_menu(FILE* f, pa_menuptr m) { (*menu_vect)(f, m); }
+
+static void menu_ivf(FILE* f, pa_menuptr m)
 
 {
 
@@ -11884,7 +13026,11 @@ and will no longer send messages.
 
 *******************************************************************************/
 
-void pa_menuena(FILE* f, int id, int onoff)
+void pa_menuena_ovr(pa_menuena_t nfp, pa_menuena_t* ofp)
+    { *ofp = menuena_vect; menuena_vect = nfp; }
+void pa_menuena(FILE* f, int id, int onoff) { (*menuena_vect)(f, id, onoff); }
+
+static void menuena_ivf(FILE* f, int id, int onoff)
 
 {
 
@@ -11960,7 +13106,11 @@ static void clrlst(metptr mp)
 
 }
 
-void pa_menusel(FILE* f, int id, int select)
+void pa_menusel_ovr(pa_menusel_t nfp, pa_menusel_t* ofp)
+    { *ofp = menusel_vect; menusel_vect = nfp; }
+void pa_menusel(FILE* f, int id, int select) { (*menusel_vect)(f, id, select); }
+
+static void menusel_ivf(FILE* f, int id, int select)
 
 {
 
@@ -12024,7 +13174,12 @@ static void additem(pa_stdmenusel sms, int i, pa_menuptr* m, pa_menuptr* l,
 
 }
 
+void pa_stdmenu_ovr(pa_stdmenu_t nfp, pa_stdmenu_t* ofp)
+    { *ofp = stdmenu_vect; stdmenu_vect = nfp; }
 void pa_stdmenu(pa_stdmenusel sms, pa_menuptr* sm, pa_menuptr pm)
+    { (*stdmenu_vect)(sms, sm, pm); }
+
+static void stdmenu_ivf(pa_stdmenusel sms, pa_menuptr* sm, pa_menuptr pm)
 
 {
 
@@ -12122,7 +13277,11 @@ Brings the indicated window to the front of the Z order.
 
 *******************************************************************************/
 
-void pa_front(FILE* f)
+void pa_front_ovr(pa_front_t nfp, pa_front_t* ofp)
+    { *ofp = front_vect; front_vect = nfp; }
+void pa_front(FILE* f) { (*front_vect)(f); }
+
+static void front_ivf(FILE* f)
 
 {
 
@@ -12143,7 +13302,11 @@ Puts the indicated window to the back of the Z order.
 
 *******************************************************************************/
 
-void pa_back(FILE* f)
+void pa_back_ovr(pa_back_t nfp, pa_back_t* ofp)
+    { *ofp = back_vect; back_vect = nfp; }
+void pa_back(FILE* f) { (*back_vect)(f); }
+
+static void back_ivf(FILE* f)
 
 {
 
@@ -12164,7 +13327,11 @@ Gets the onscreen window size.
 
 *******************************************************************************/
 
-void pa_getsizg(FILE* f, int* x, int* y)
+void pa_getsizg_ovr(pa_getsizg_t nfp, pa_getsizg_t* ofp)
+    { *ofp = getsizg_vect; getsizg_vect = nfp; }
+void pa_getsizg(FILE* f, int* x, int* y) { (*getsizg_vect)(f, x, y); }
+
+static void getsizg_ivf(FILE* f, int* x, int* y)
 
 {
 
@@ -12206,7 +13373,11 @@ relative measurement.
 
 *******************************************************************************/
 
-void pa_getsiz(FILE* f, int* x, int* y)
+void pa_getsiz_ovr(pa_getsiz_t nfp, pa_getsiz_t* ofp)
+    { *ofp = getsiz_vect; getsiz_vect = nfp; }
+void pa_getsiz(FILE* f, int* x, int* y) { (*getsiz_vect)(f, x, y); }
+
+static void getsiz_ivf(FILE* f, int* x, int* y)
 
 {
 
@@ -12244,7 +13415,11 @@ and height of 1 as the minimum size window.
 
 *******************************************************************************/
 
-void pa_setsizg(FILE* f, int x, int y)
+void pa_setsizg_ovr(pa_setsizg_t nfp, pa_setsizg_t* ofp)
+    { *ofp = setsizg_vect; setsizg_vect = nfp; }
+void pa_setsizg(FILE* f, int x, int y) { (*setsizg_vect)(f, x, y); }
+
+static void setsizg_ivf(FILE* f, int x, int y)
 
 {
 
@@ -12307,7 +13482,11 @@ relative measurement.
 
 *******************************************************************************/
 
-void pa_setsiz(FILE* f, int x, int y)
+void pa_setsiz_ovr(pa_setsiz_t nfp, pa_setsiz_t* ofp)
+    { *ofp = setsiz_vect; setsiz_vect = nfp; }
+void pa_setsiz(FILE* f, int x, int y) { (*setsiz_vect)(f, x, y); }
+
+static void setsiz_ivf(FILE* f, int x, int y)
 
 {
 
@@ -12341,7 +13520,11 @@ Sets the onscreen window to the given position in its parent.
 
 *******************************************************************************/
 
-void pa_setposg(FILE* f, int x, int y)
+void pa_setposg_ovr(pa_setposg_t nfp, pa_setposg_t* ofp)
+    { *ofp = setposg_vect; setposg_vect = nfp; }
+void pa_setposg(FILE* f, int x, int y) { (*setposg_vect)(f, x, y); }
+
+static void setposg_ivf(FILE* f, int x, int y)
 
 {
 
@@ -12386,7 +13569,11 @@ relative measurement.
 
 *******************************************************************************/
 
-void pa_setpos(FILE* f, int x, int y)
+void pa_setpos_ovr(pa_setpos_t nfp, pa_setpos_t* ofp)
+    { *ofp = setpos_vect; setpos_vect = nfp; }
+void pa_setpos(FILE* f, int x, int y) { (*setpos_vect)(f, x, y); }
+
+static void setpos_ivf(FILE* f, int x, int y)
 
 {
 
@@ -12419,7 +13606,11 @@ Gets the total screen size.
 
 *******************************************************************************/
 
-void pa_scnsizg(FILE* f, int* x, int* y)
+void pa_scnsizg_ovr(pa_scnsizg_t nfp, pa_scnsizg_t* ofp)
+    { *ofp = scnsizg_vect; scnsizg_vect = nfp; }
+void pa_scnsizg(FILE* f, int* x, int* y) { (*scnsizg_vect)(f, x, y); }
+
+static void scnsizg_ivf(FILE* f, int* x, int* y)
 
 {
 
@@ -12452,7 +13643,11 @@ because it can only be used as a relative measurement.
 
 *******************************************************************************/
 
-void pa_scnsiz(FILE* f, int* x, int* y)
+void pa_scnsiz_ovr(pa_scnsiz_t nfp, pa_scnsiz_t* ofp)
+    { *ofp = scnsiz_vect; scnsiz_vect = nfp; }
+void pa_scnsiz(FILE* f, int* x, int* y) { (*scnsiz_vect)(f, x, y); }
+
+static void scnsiz_ivf(FILE* f, int* x, int* y)
 
 {
 
@@ -12476,7 +13671,11 @@ screens that are joined at one or more sides.
 
 *******************************************************************************/
 
-void pa_scnceng(FILE* f, int* x, int* y)
+void pa_scnceng_ovr(pa_scnceng_t nfp, pa_scnceng_t* ofp)
+    { *ofp = scnceng_vect; scnceng_vect = nfp; }
+void pa_scnceng(FILE* f, int* x, int* y) { (*scnceng_vect)(f, x, y); }
+
+static void scnceng_ivf(FILE* f, int* x, int* y)
 
 {
 
@@ -12500,7 +13699,11 @@ screens that are joined at one or more sides.
 
 *******************************************************************************/
 
-void pa_scncen(FILE* f, int* x, int* y)
+void pa_scncen_ovr(pa_scncen_t nfp, pa_scncen_t* ofp)
+    { *ofp = scncen_vect; scncen_vect = nfp; }
+void pa_scncen(FILE* f, int* x, int* y) { (*scncen_vect)(f, x, y); }
+
+static void scncen_ivf(FILE* f, int* x, int* y)
 
 {
 
@@ -12525,7 +13728,12 @@ Do we also need a menu style type ?
 
 *******************************************************************************/
 
+void pa_winclientg_ovr(pa_winclientg_t nfp, pa_winclientg_t* ofp)
+    { *ofp = winclientg_vect; winclientg_vect = nfp; }
 void pa_winclientg(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
+    { (*winclientg_vect)(f, cx, cy, wx, wy, ms); }
+
+static void winclientg_ivf(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
 
 {
 
@@ -12555,7 +13763,12 @@ void pa_winclientg(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
 
 }
 
+void pa_winclient_ovr(pa_winclient_t nfp, pa_winclient_t* ofp)
+    { *ofp = winclient_vect; winclient_vect = nfp; }
 void pa_winclient(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
+    { (*winclient_vect)(f, cx, cy, wx, wy, ms); }
+
+static void winclient_ivf(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
 
 {
 
@@ -12590,7 +13803,11 @@ Turns the window frame on and off.
 
 *******************************************************************************/
 
-void pa_frame(FILE* f, int e)
+void pa_frame_ovr(pa_frame_t nfp, pa_frame_t* ofp)
+    { *ofp = frame_vect; frame_vect = nfp; }
+void pa_frame(FILE* f, int e) { (*frame_vect)(f, e); }
+
+static void frame_ivf(FILE* f, int e)
 
 {
 
@@ -12658,7 +13875,11 @@ managers.
 
 *******************************************************************************/
 
-void pa_sizable(FILE* f, int e)
+void pa_sizable_ovr(pa_sizable_t nfp, pa_sizable_t* ofp)
+    { *ofp = sizable_vect; sizable_vect = nfp; }
+void pa_sizable(FILE* f, int e) { (*sizable_vect)(f, e); }
+
+static void sizable_ivf(FILE* f, int e)
 
 {
 
@@ -12725,7 +13946,11 @@ used to create component windows.
 
 *******************************************************************************/
 
-void pa_sysbar(FILE* f, int e)
+void pa_sysbar_ovr(pa_sysbar_t nfp, pa_sysbar_t* ofp)
+    { *ofp = sysbar_vect; sysbar_vect = nfp; }
+void pa_sysbar(FILE* f, int e) { (*sysbar_vect)(f, e); }
+
+static void sysbar_ivf(FILE* f, int e)
 
 {
 
@@ -12789,7 +14014,11 @@ Sends the focus, or which window gets input characters, to a given window.
 
 *******************************************************************************/
 
-void pa_focus(FILE* f)
+void pa_focus_ovr(pa_focus_t nfp, pa_focus_t* ofp)
+    { *ofp = focus_vect; focus_vect = nfp; }
+void pa_focus(FILE* f) { (*focus_vect)(f); }
+
+static void focus_ivf(FILE* f)
 
 {
 
@@ -12822,7 +14051,11 @@ increments.
 
 *******************************************************************************/
 
-void pa_path(FILE* f, int a)
+void pa_path_ovr(pa_path_t nfp, pa_path_t* ofp)
+    { *ofp = path_vect; path_vect = nfp; }
+void pa_path(FILE* f, int a) { (*path_vect)(f, a); }
+
+static void path_ivf(FILE* f, int a)
 
 {
 
@@ -12836,6 +14069,703 @@ void pa_path(FILE* f, int a)
 
 }
 
+/** ****************************************************************************
+
+Widget extention package
+
+There are no native widgets in XWindows. This section is a series of
+overrideable vectors. Each vector will normally give an "unimplemented" error.
+The widget package for XWindows will be supplied by an add-on package.
+
+*******************************************************************************/
+
+void pa_getwigid_ovr(pa_getwigid_t nfp, pa_getwigid_t* ofp)
+    { *ofp = getwigid_vect; getwigid_vect = nfp; }
+int pa_getwigid(FILE* f) { (*getwigid_vect)(f); }
+
+static int getwigid_ivf(FILE* f) { error(egetwigid_unimp); }
+
+void pa_killwidget_ovr(pa_killwidget_t nfp, pa_killwidget_t* ofp)
+    { *ofp = killwidget_vect; killwidget_vect = nfp; }
+void pa_killwidget(FILE* f, int id) { (*killwidget_vect)(f, id); }
+
+static void killwidget_ivf(FILE* f, int id) { error(ekillwidget_unimp); }
+
+void pa_selectwidget_ovr(pa_selectwidget_t nfp, pa_selectwidget_t* ofp)
+    { *ofp = selectwidget_vect; selectwidget_vect = nfp; }
+void pa_selectwidget(FILE* f, int id, int e)
+    { (*selectwidget_vect)(f, id, e); }
+
+static void selectwidget_ivf(FILE* f, int id, int e)
+    { error(eselectwidget_unimp); }
+
+void pa_enablewidget_ovr(pa_enablewidget_t nfp, pa_enablewidget_t* ofp)
+    { *ofp = enablewidget_vect; enablewidget_vect = nfp; }
+void pa_enablewidget(FILE* f, int id, int e)
+    { (*enablewidget_vect)(f, id, e); }
+
+static void enablewidget_ivf(FILE* f, int id, int e)
+    { error(eenablewidget_unimp); }
+
+void pa_getwidgettext_ovr(pa_getwidgettext_t nfp, pa_getwidgettext_t* ofp)
+    { *ofp = getwidgettext_vect; getwidgettext_vect = nfp; }
+void pa_getwidgettext(FILE* f, int id, char* s, int sl)
+    { (*getwidgettext_vect)(f, id, s, sl); }
+
+static void getwidgettext_ivf(FILE* f, int id, char* s, int sl)
+    { error(egetwidgettext_unimp); }
+
+void pa_putwidgettext_ovr(pa_putwidgettext_t nfp, pa_putwidgettext_t* ofp)
+    { *ofp = putwidgettext_vect; putwidgettext_vect = nfp; }
+void pa_putwidgettext(FILE* f, int id, char* s)
+    { (*putwidgettext_vect)(f, id, s); }
+
+static void putwidgettext_ivf(FILE* f, int id, char* s)
+    { error(eputwidgettext_unimp); }
+
+void pa_sizwidget_ovr(pa_sizwidget_t nfp, pa_sizwidget_t* ofp)
+    { *ofp = sizwidget_vect; sizwidget_vect = nfp; }
+void pa_sizwidget(FILE* f, int id, int x, int y)
+    { (*sizwidget_vect)(f, id, x, y); }
+
+static void sizwidget_ivf(FILE* f, int id, int x, int y)
+    { error(esizwidget_unimp); }
+
+void pa_sizwidgetg_ovr(pa_sizwidgetg_t nfp, pa_sizwidgetg_t* ofp)
+    { *ofp = sizwidgetg_vect; sizwidgetg_vect = nfp; }
+void pa_sizwidgetg(FILE* f, int id, int x, int y)
+    { (*sizwidgetg_vect)(f, id, x, y); }
+
+static void sizwidgetg_ivf(FILE* f, int id, int x, int y)
+    { error(esizwidgetg_unimp); }
+
+void pa_poswidget_ovr(pa_poswidget_t nfp, pa_poswidget_t* ofp)
+    { *ofp = poswidget_vect; poswidget_vect = nfp; }
+void pa_poswidget(FILE* f, int id, int x, int y)
+    { (*poswidget_vect)(f, id, x, y); }
+
+static void poswidget_ivf(FILE* f, int id, int x, int y)
+    { error(eposwidget_unimp); }
+
+void pa_poswidgetg_ovr(pa_poswidgetg_t nfp, pa_poswidgetg_t* ofp)
+    { *ofp = poswidgetg_vect; poswidgetg_vect = nfp; }
+void pa_poswidgetg(FILE* f, int id, int x, int y)
+    { (*poswidgetg_vect)(f, id, x, y); }
+
+static void poswidgetg_ivf(FILE* f, int id, int x, int y)
+    { error(eposwidgetg_unimp); }
+
+void pa_backwidget_ovr(pa_backwidget_t nfp, pa_backwidget_t* ofp)
+    { *ofp = backwidget_vect; backwidget_vect = nfp; }
+void pa_backwidget(FILE* f, int id) { (*backwidget_vect)(f, id); }
+
+static void backwidget_ivf(FILE* f, int id) { error(ebackwidget_unimp); }
+
+void pa_frontwidget_ovr(pa_frontwidget_t nfp, pa_frontwidget_t* ofp)
+    { *ofp = frontwidget_vect; frontwidget_vect = nfp; }
+void pa_frontwidget(FILE* f, int id) { (*frontwidget_vect)(f, id); }
+
+static void frontwidget_ivf(FILE* f, int id) { error(efrontwidget_unimp); }
+
+void pa_focuswidget_ovr(pa_focuswidget_t nfp, pa_focuswidget_t* ofp)
+    { *ofp = focuswidget_vect; focuswidget_vect = nfp; }
+void pa_focuswidget(FILE* f, int id) { (*focuswidget_vect)(f, id); }
+
+static void focuswidget_ivf(FILE* f, int id) { error(efocuswidget_unimp); }
+
+void pa_buttonsiz_ovr(pa_buttonsiz_t nfp, pa_buttonsiz_t* ofp)
+    { *ofp = buttonsiz_vect; buttonsiz_vect = nfp; }
+void pa_buttonsiz(FILE* f, char* s, int* w, int* h)
+    { (*buttonsiz_vect)(f, s, w, h); }
+
+static void buttonsiz_ivf(FILE* f, char* s, int* w, int* h)
+    { error(ebuttonsiz_unimp); }
+
+void pa_buttonsizg_ovr(pa_buttonsizg_t nfp, pa_buttonsizg_t* ofp)
+    { *ofp = buttonsizg_vect; buttonsizg_vect = nfp; }
+void pa_buttonsizg(FILE* f, char* s, int* w, int* h)
+    { (*buttonsizg_vect)(f, s, w, h); }
+
+static void buttonsizg_ivf(FILE* f, char* s, int* w, int* h)
+    { error(ebuttonsizg_unimp); }
+
+void pa_button_ovr(pa_button_t nfp, pa_button_t* ofp)
+    { *ofp = button_vect; button_vect = nfp; }
+void pa_button(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+    { (*button_vect)(f, x1, y1, x2, y2, s, id); }
+
+static void button_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+    { error(ebutton_unimp); }
+
+void pa_buttong_ovr(pa_buttong_t nfp, pa_buttong_t* ofp)
+    { *ofp = buttong_vect; buttong_vect = nfp; }
+void pa_buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+    { (*buttong_vect)(f, x1, y1, x2, y2, s, id); }
+
+static void buttong_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+    { error(ebuttong_unimp); }
+
+void pa_checkboxsiz_ovr(pa_checkboxsiz_t nfp, pa_checkboxsiz_t* ofp)
+    { *ofp = checkboxsiz_vect; checkboxsiz_vect = nfp; }
+void pa_checkboxsiz(FILE* f, char* s, int* w, int* h)
+    { (*checkboxsiz_vect)(f, s, w, h); }
+
+static void checkboxsiz_ivf(FILE* f, char* s, int* w, int* h)
+    { error(echeckboxsiz_unimp); }
+
+void pa_checkboxsizg_ovr(pa_checkboxsizg_t nfp, pa_checkboxsizg_t* ofp)
+    { *ofp = checkboxsizg_vect; checkboxsizg_vect = nfp; }
+void pa_checkboxsizg(FILE* f, char* s, int* w, int* h)
+    { (*checkboxsizg_vect)(f, s, w, h); }
+
+static void checkboxsizg_ivf(FILE* f, char* s, int* w, int* h)
+    { error(echeckboxsizg_unimp); }
+
+void pa_checkbox_ovr(pa_checkbox_t nfp, pa_checkbox_t* ofp)
+    { *ofp = checkbox_vect; checkbox_vect = nfp; }
+void pa_checkbox(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+    { (*checkbox_vect)(f, x1, y1, x2, y2, s, id); }
+
+static void checkbox_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+    { error(echeckbox_unimp); }
+
+void pa_checkboxg_ovr(pa_checkboxg_t nfp, pa_checkboxg_t* ofp)
+    { *ofp = checkboxg_vect; checkboxg_vect = nfp; }
+void pa_checkboxg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+    { (*checkboxg_vect)(f, x1, y1, x2, y2, s, id); }
+
+static void checkboxg_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+    { error(echeckboxg_unimp); }
+
+void pa_radiobuttonsiz_ovr(pa_radiobuttonsiz_t nfp, pa_radiobuttonsiz_t* ofp)
+    { *ofp = radiobuttonsiz_vect; radiobuttonsiz_vect = nfp; }
+void pa_radiobuttonsiz(FILE* f, char* s, int* w, int* h)
+    { (*radiobuttonsiz_vect)(f, s, w, h); }
+
+static void radiobuttonsiz_ivf(FILE* f, char* s, int* w, int* h)
+    { error(eradiobuttonsiz_unimp); }
+
+void pa_radiobuttonsizg_ovr(pa_radiobuttonsizg_t nfp, pa_radiobuttonsizg_t* ofp)
+    { *ofp = radiobuttonsizg_vect; radiobuttonsizg_vect = nfp; }
+void pa_radiobuttonsizg(FILE* f, char* s, int* w, int* h)
+    { (*radiobuttonsizg_vect)(f, s, w, h); }
+
+static void radiobuttonsizg_ivf(FILE* f, char* s, int* w, int* h)
+    { error(eradiobuttonsizg_unimp); }
+
+void pa_radiobutton_ovr(pa_radiobutton_t nfp, pa_radiobutton_t* ofp)
+    { *ofp = radiobutton_vect; radiobutton_vect = nfp; }
+void pa_radiobutton(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+    { (*radiobutton_vect)(f, x1, y1, x2, y2, s, id); }
+
+static void radiobutton_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+    { error(eradiobutton_unimp); }
+
+void pa_radiobuttong_ovr(pa_radiobuttong_t nfp, pa_radiobuttong_t* ofp)
+    { *ofp = radiobuttong_vect; radiobuttong_vect = nfp; }
+void pa_radiobuttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+    { (*radiobuttong_vect)(f, x1, y1, x2, y2, s, id); }
+
+static void radiobuttong_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+    { error(eradiobuttong_unimp); }
+
+void pa_groupsizg_ovr(pa_groupsizg_t nfp, pa_groupsizg_t* ofp)
+    { *ofp = groupsizg_vect; groupsizg_vect = nfp; }
+void pa_groupsizg(FILE* f, char* s, int cw, int ch, int* w, int* h, int* ox, int* oy)
+    { (*groupsizg_vect)(f, s, cw, ch, w, h, ox, oy); }
+
+static void groupsizg_ivf(FILE* f, char* s, int cw, int ch, int* w, int* h,
+                          int* ox, int* oy)
+    { error(egroupsizg_unimp); }
+
+void pa_groupsiz_ovr(pa_groupsiz_t nfp, pa_groupsiz_t* ofp)
+    { *ofp = groupsiz_vect; groupsiz_vect = nfp; }
+void pa_groupsiz(FILE* f, char* s, int cw, int ch, int* w, int* h, int* ox, int* oy)
+    { (*groupsiz_vect)(f, s, cw, ch, w, h, ox, oy); }
+
+static void groupsiz_ivf(FILE* f, char* s, int cw, int ch, int* w, int* h, int* ox,
+                 int* oy) { error(egroupsiz_unimp); }
+
+void pa_group_ovr(pa_group_t nfp, pa_group_t* ofp)
+    { *ofp = group_vect; group_vect = nfp; }
+void pa_group(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+    { (*group_vect)(f, x1, y1, x2, y2, s, id); }
+
+static void group_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+    { error(egroup_unimp); }
+
+void pa_groupg_ovr(pa_groupg_t nfp, pa_groupg_t* ofp)
+    { *ofp = groupg_vect; groupg_vect = nfp; }
+void pa_groupg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+    { (*groupg_vect)(f, x1, y1, x2, y2, s, id); }
+
+static void groupg_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+    { error(egroupg_unimp); }
+
+void pa_background_ovr(pa_background_t nfp, pa_background_t* ofp)
+    { *ofp = background_vect; background_vect = nfp; }
+void pa_background(FILE* f, int x1, int y1, int x2, int y2, int id)
+    { (*background_vect)(f, x1, y1, x2, y2, id); }
+
+static void background_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
+    { error(ebackground_unimp); }
+
+void pa_backgroundg_ovr(pa_backgroundg_t nfp, pa_backgroundg_t* ofp)
+    { *ofp = backgroundg_vect; backgroundg_vect = nfp; }
+void pa_backgroundg(FILE* f, int x1, int y1, int x2, int y2, int id)
+    { (*backgroundg_vect)(f, x1, y1, x2, y2, id); }
+
+static void backgroundg_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
+    { error(ebackgroundg_unimp); }
+
+void pa_scrollvertsizg_ovr(pa_scrollvertsizg_t nfp, pa_scrollvertsizg_t* ofp)
+    { *ofp = scrollvertsizg_vect; scrollvertsizg_vect = nfp; }
+void pa_scrollvertsizg(FILE* f, int* w, int* h)
+    { (*scrollvertsizg_vect)(f, w, h); }
+
+static void scrollvertsizg_ivf(FILE* f, int* w, int* h)
+    { error(escrollvertsizg_unimp); }
+
+void pa_scrollvertsiz_ovr(pa_scrollvertsiz_t nfp, pa_scrollvertsiz_t* ofp)
+    { *ofp = scrollvertsiz_vect; scrollvertsiz_vect = nfp; }
+void pa_scrollvertsiz(FILE* f, int* w, int* h)
+    { (*scrollvertsiz_vect)(f, w, h); }
+
+static void scrollvertsiz_ivf(FILE* f, int* w, int* h)
+    { error(escrollvertsiz_unimp); }
+
+void pa_scrollvert_ovr(pa_scrollvert_t nfp, pa_scrollvert_t* ofp)
+    { *ofp = scrollvert_vect; scrollvert_vect = nfp; }
+void pa_scrollvert(FILE* f, int x1, int y1, int x2, int y2, int id)
+    { (*scrollvert_vect)(f, x1, y1, x2, y2, id); }
+
+static void scrollvert_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
+    { error(escrollvert_unimp); }
+
+void pa_scrollvertg_ovr(pa_scrollvertg_t nfp, pa_scrollvertg_t* ofp)
+    { *ofp = scrollvertg_vect; scrollvertg_vect = nfp; }
+void pa_scrollvertg(FILE* f, int x1, int y1, int x2, int y2, int id)
+    { (*scrollvertg_vect)(f, x1, y1, x2, y2, id); }
+
+static void scrollvertg_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
+    { error(escrollvertg_unimp); }
+
+void pa_scrollhorizsizg_ovr(pa_scrollhorizsizg_t nfp, pa_scrollhorizsizg_t* ofp)
+    { *ofp = scrollhorizsizg_vect; scrollhorizsizg_vect = nfp; }
+void pa_scrollhorizsizg(FILE* f, int* w, int* h)
+    { (*scrollhorizsizg_vect)(f, w, h); }
+
+static void scrollhorizsizg_ivf(FILE* f, int* w, int* h)
+    { error(escrollhorizsizg_unimp); }
+
+void pa_scrollhorizsiz_ovr(pa_scrollhorizsiz_t nfp, pa_scrollhorizsiz_t* ofp)
+    { *ofp = scrollhorizsiz_vect; scrollhorizsiz_vect = nfp; }
+void pa_scrollhorizsiz(FILE* f, int* w, int* h)
+    { (*scrollhorizsiz_vect)(f, w, h); }
+
+static void scrollhorizsiz_ivf(FILE* f, int* w, int* h)
+    { error(escrollhorizsiz_unimp); }
+
+void pa_scrollhoriz_ovr(pa_scrollhoriz_t nfp, pa_scrollhoriz_t* ofp)
+    { *ofp = scrollhoriz_vect; scrollhoriz_vect = nfp; }
+void pa_scrollhoriz(FILE* f, int x1, int y1, int x2, int y2, int id)
+    { (*scrollhoriz_vect)(f, x1, y1, x2, y2, id); }
+
+static void scrollhoriz_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
+    { error(escrollhoriz_unimp); }
+
+void pa_scrollhorizg_ovr(pa_scrollhorizg_t nfp, pa_scrollhorizg_t* ofp)
+    { *ofp = scrollhorizg_vect; scrollhorizg_vect = nfp; }
+void pa_scrollhorizg(FILE* f, int x1, int y1, int x2, int y2, int id)
+    { (*scrollhorizg_vect)(f, x1, y1, x2, y2, id); }
+
+static void scrollhorizg_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
+    { error(escrollhorizg_unimp); }
+
+void pa_scrollpos_ovr(pa_scrollpos_t nfp, pa_scrollpos_t* ofp)
+    { *ofp = scrollpos_vect; scrollpos_vect = nfp; }
+void pa_scrollpos(FILE* f, int id, int r)
+    { (*scrollpos_vect)(f, id, r); }
+
+static void scrollpos_ivf(FILE* f, int id, int r) { error(escrollpos_unimp); }
+
+void pa_scrollsiz_ovr(pa_scrollsiz_t nfp, pa_scrollsiz_t* ofp)
+    { *ofp = scrollsiz_vect; scrollsiz_vect = nfp; }
+void pa_scrollsiz(FILE* f, int id, int r)
+    { (*scrollsiz_vect)(f, id, r); }
+
+static void scrollsiz_ivf(FILE* f, int id, int r) { error(escrollsiz_unimp); }
+
+void pa_numselboxsizg_ovr(pa_numselboxsizg_t nfp, pa_numselboxsizg_t* ofp)
+    { *ofp = numselboxsizg_vect; numselboxsizg_vect = nfp; }
+void pa_numselboxsizg(FILE* f, int l, int u, int* w, int* h)
+    { (*numselboxsizg_vect)(f, l, u, w, h); }
+
+static void numselboxsizg_ivf(FILE* f, int l, int u, int* w, int* h)
+    { error(enumselboxsizg_unimp); }
+
+void pa_numselboxsiz_ovr(pa_numselboxsiz_t nfp, pa_numselboxsiz_t* ofp)
+    { *ofp = numselboxsiz_vect; numselboxsiz_vect = nfp; }
+void pa_numselboxsiz(FILE* f, int l, int u, int* w, int* h)
+    { (*numselboxsiz_vect)(f, l, u, w, h); }
+
+static void numselboxsiz_ivf(FILE* f, int l, int u, int* w, int* h)
+    { error(enumselboxsiz_unimp); }
+
+void pa_numselbox_ovr(pa_numselbox_t nfp, pa_numselbox_t* ofp)
+    { *ofp = numselbox_vect; numselbox_vect = nfp; }
+void pa_numselbox(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id)
+    { (*numselbox_vect)(f, x1, y1, x2, y2, l, u, id); }
+
+static void numselbox_ivf(FILE* f, int x1, int y1, int x2, int y2, int l, int u,
+                  int id) { error(enumselbox_unimp); }
+
+void pa_numselboxg_ovr(pa_numselboxg_t nfp, pa_numselboxg_t* ofp)
+    { *ofp = numselboxg_vect; numselboxg_vect = nfp; }
+void pa_numselboxg(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id)
+    { (*numselboxg_vect)(f, x1, y1, x2, y2, l, u, id); }
+
+static void numselboxg_ivf(FILE* f, int x1, int y1, int x2, int y2, int l, int u,
+                   int id) { error(enumselboxg_unimp); }
+
+void pa_editboxsizg_ovr(pa_editboxsizg_t nfp, pa_editboxsizg_t* ofp)
+    { *ofp = editboxsizg_vect; editboxsizg_vect = nfp; }
+void pa_editboxsizg(FILE* f, char* s, int* w, int* h)
+    { (*editboxsizg_vect)(f, s, w, h); }
+
+static void editboxsizg_ivf(FILE* f, char* s, int* w, int* h)
+    { error(eeditboxsizg_unimp); }
+
+void pa_editboxsiz_ovr(pa_editboxsiz_t nfp, pa_editboxsiz_t* ofp)
+    { *ofp = editboxsiz_vect; editboxsiz_vect = nfp; }
+void pa_editboxsiz(FILE* f, char* s, int* w, int* h)
+    { (*editboxsiz_vect)(f, s, w, h); }
+
+static void editboxsiz_ivf(FILE* f, char* s, int* w, int* h)
+    { error(eeditboxsiz_unimp); }
+
+void pa_editbox_ovr(pa_editbox_t nfp, pa_editbox_t* ofp)
+    { *ofp = editbox_vect; editbox_vect = nfp; }
+void pa_editbox(FILE* f, int x1, int y1, int x2, int y2, int id)
+    { (*editbox_vect)(f, x1, y1, x2, y2, id); }
+
+static void editbox_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
+    { error(eeditbox_unimp); }
+
+void pa_editboxg_ovr(pa_editboxg_t nfp, pa_editboxg_t* ofp)
+    { *ofp = editboxg_vect; editboxg_vect = nfp; }
+void pa_editboxg(FILE* f, int x1, int y1, int x2, int y2, int id)
+    { (*editboxg_vect)(f, x1, y1, x2, y2, id); }
+
+static void editboxg_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
+    { error(eeditboxg_unimp); }
+
+void pa_progbarsizg_ovr(pa_progbarsizg_t nfp, pa_progbarsizg_t* ofp)
+    { *ofp = progbarsizg_vect; progbarsizg_vect = nfp; }
+void pa_progbarsizg(FILE* f, int* w, int* h) { (*progbarsizg_vect)(f, w, h); }
+
+static void progbarsizg_ivf(FILE* f, int* w, int* h)
+    { error(eprogbarsizg_unimp); }
+
+void pa_progbarsiz_ovr(pa_progbarsiz_t nfp, pa_progbarsiz_t* ofp)
+    { *ofp = progbarsiz_vect; progbarsiz_vect = nfp; }
+void pa_progbarsiz(FILE* f, int* w, int* h) { (*progbarsiz_vect)(f, w, h); }
+
+static void progbarsiz_ivf(FILE* f, int* w, int* h)
+    { error(eprogbarsiz_unimp); }
+
+void pa_progbar_ovr(pa_progbar_t nfp, pa_progbar_t* ofp)
+    { *ofp = progbar_vect; progbar_vect = nfp; }
+void pa_progbar(FILE* f, int x1, int y1, int x2, int y2, int id)
+    { (*progbar_vect)(f, x1, y1, x2, y2, id); }
+
+static void progbar_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
+    { error(eprogbar_unimp); }
+
+void pa_progbarg_ovr(pa_progbarg_t nfp, pa_progbarg_t* ofp)
+    { *ofp = progbarg_vect; progbarg_vect = nfp; }
+void pa_progbarg(FILE* f, int x1, int y1, int x2, int y2, int id)
+    { (*progbarg_vect)(f, x1, y1, x2, y2, id); }
+
+static void progbarg_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
+    { error(eprogbarg_unimp); }
+
+void pa_progbarpos_ovr(pa_progbarpos_t nfp, pa_progbarpos_t* ofp)
+    { *ofp = progbarpos_vect; progbarpos_vect = nfp; }
+void pa_progbarpos(FILE* f, int id, int pos) { (*progbarpos_vect)(f, id, pos); }
+
+static void progbarpos_ivf(FILE* f, int id, int pos)
+    { error(eprogbarpos_unimp); }
+
+void pa_listboxsizg_ovr(pa_listboxsizg_t nfp, pa_listboxsizg_t* ofp)
+    { *ofp = listboxsizg_vect; listboxsizg_vect = nfp; }
+void pa_listboxsizg(FILE* f, pa_strptr sp, int* w, int* h)
+    { (*listboxsizg_vect)(f, sp, w, h); }
+
+static void listboxsizg_ivf(FILE* f, pa_strptr sp, int* w, int* h)
+    { error(elistboxsizg_unimp); }
+
+void pa_listboxsiz_ovr(pa_listboxsiz_t nfp, pa_listboxsiz_t* ofp)
+    { *ofp = listboxsiz_vect; listboxsiz_vect = nfp; }
+void pa_listboxsiz(FILE* f, pa_strptr sp, int* w, int* h)
+    { (*listboxsiz_vect)(f, sp, w, h); }
+
+static void listboxsiz_ivf(FILE* f, pa_strptr sp, int* w, int* h)
+    { error(elistboxsiz_unimp); }
+
+void pa_listbox_ovr(pa_listbox_t nfp, pa_listbox_t* ofp)
+    { *ofp = listbox_vect; listbox_vect = nfp; }
+void pa_listbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
+    { (*listbox_vect)(f, x1, y1, x2, y2, sp, id); }
+
+static void listbox_ivf(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
+    { error(elistbox_unimp); }
+
+void pa_listboxg_ovr(pa_listboxg_t nfp, pa_listboxg_t* ofp)
+    { *ofp = listboxg_vect; listboxg_vect = nfp; }
+void pa_listboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
+    { (*listboxg_vect)(f, x1, y1, x2, y2, sp, id); }
+
+static void listboxg_ivf(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
+    { error(elistboxg_unimp); }
+
+void pa_dropboxsizg_ovr(pa_dropboxsizg_t nfp, pa_dropboxsizg_t* ofp)
+    { *ofp = dropboxsizg_vect; dropboxsizg_vect = nfp; }
+void pa_dropboxsizg(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
+    { (*dropboxsizg_vect)(f, sp, cw, ch, ow, oh); }
+
+static void dropboxsizg_ivf(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
+    { error(edropboxsizg_unimp); }
+
+void pa_dropboxsiz_ovr(pa_dropboxsiz_t nfp, pa_dropboxsiz_t* ofp)
+    { *ofp = dropboxsiz_vect; dropboxsiz_vect = nfp; }
+void pa_dropboxsiz(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
+    { (*dropboxsiz_vect)(f, sp, cw, ch, ow, oh); }
+
+static void dropboxsiz_ivf(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
+    { error(edropboxsiz_unimp); }
+
+void pa_dropbox_ovr(pa_dropbox_t nfp, pa_dropbox_t* ofp)
+    { *ofp = dropbox_vect; dropbox_vect = nfp; }
+void pa_dropbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
+    { (*dropbox_vect)(f, x1, y1, x2, y2, sp, id); }
+
+static void dropbox_ivf(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
+    { error(edropbox_unimp); }
+
+void pa_dropboxg_ovr(pa_dropboxg_t nfp, pa_dropboxg_t* ofp)
+    { *ofp = dropboxg_vect; dropboxg_vect = nfp; }
+void pa_dropboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
+    { (*dropboxg_vect)(f, x1, y1, x2, y2, sp, id); }
+
+static void dropboxg_ivf(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
+    { error(edropboxg_unimp); }
+
+void pa_dropeditboxsizg_ovr(pa_dropeditboxsizg_t nfp, pa_dropeditboxsizg_t* ofp)
+    { *ofp = dropeditboxsizg_vect; dropeditboxsizg_vect = nfp; }
+void pa_dropeditboxsizg(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
+    { (*dropeditboxsizg_vect)(f, sp, cw, ch, ow, oh); }
+
+static void dropeditboxsizg_ivf(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
+    { error(edropeditboxsizg_unimp); }
+
+void pa_dropeditboxsiz_ovr(pa_dropeditboxsiz_t nfp, pa_dropeditboxsiz_t* ofp)
+    { *ofp = dropeditboxsiz_vect; dropeditboxsiz_vect = nfp; }
+void pa_dropeditboxsiz(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
+    { (*dropeditboxsiz_vect)(f, sp, cw, ch, ow, oh); }
+
+static void dropeditboxsiz_ivf(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
+    { error(edropeditboxsiz_unimp); }
+
+void pa_dropeditbox_ovr(pa_dropeditbox_t nfp, pa_dropeditbox_t* ofp)
+    { *ofp = dropeditbox_vect; dropeditbox_vect = nfp; }
+void pa_dropeditbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
+    { (*dropeditbox_vect)(f, x1, y1, x2, y2, sp, id); }
+
+static void dropeditbox_ivf(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
+    { error(edropeditbox_unimp); }
+
+void pa_dropeditboxg_ovr(pa_dropeditboxg_t nfp, pa_dropeditboxg_t* ofp)
+    { *ofp = dropeditboxg_vect; dropeditboxg_vect = nfp; }
+void pa_dropeditboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
+    { (*dropeditboxg_vect)(f, x1, y1, x2, y2, sp, id); }
+
+static void dropeditboxg_ivf(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp,
+                             int id)
+    { error(edropeditboxg_unimp); }
+
+void pa_slidehorizsizg_ovr(pa_slidehorizsizg_t nfp, pa_slidehorizsizg_t* ofp)
+    { *ofp = slidehorizsizg_vect; slidehorizsizg_vect = nfp; }
+void pa_slidehorizsizg(FILE* f, int* w, int* h) { (*slidehorizsizg_vect)(f, w, h); }
+
+static void slidehorizsizg_ivf(FILE* f, int* w, int* h)
+    { error(eslidehorizsizg_unimp); }
+
+void pa_slidehorizsiz_ovr(pa_slidehorizsiz_t nfp, pa_slidehorizsiz_t* ofp)
+    { *ofp = slidehorizsiz_vect; slidehorizsiz_vect = nfp; }
+void pa_slidehorizsiz(FILE* f, int* w, int* h)
+    { (*slidehorizsiz_vect)(f, w, h); }
+
+static void slidehorizsiz_ivf(FILE* f, int* w, int* h)
+    { error(eslidehorizsiz_unimp); }
+
+void pa_slidehoriz_ovr(pa_slidehoriz_t nfp, pa_slidehoriz_t* ofp)
+    { *ofp = slidehoriz_vect; slidehoriz_vect = nfp; }
+void pa_slidehoriz(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+    { (*slidehoriz_vect)(f, x1, y1, x2, y2, mark, id); }
+
+static void slidehoriz_ivf(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+    { error(eslidehoriz_unimp); }
+
+void pa_slidehorizg_ovr(pa_slidehorizg_t nfp, pa_slidehorizg_t* ofp)
+    { *ofp = slidehorizg_vect; slidehorizg_vect = nfp; }
+void pa_slidehorizg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+    { (*slidehorizg_vect)(f, x1, y1, x2, y2, mark, id); }
+
+static void slidehorizg_ivf(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+    { error(eslidehorizg_unimp); }
+
+void pa_slidevertsizg_ovr(pa_slidevertsizg_t nfp, pa_slidevertsizg_t* ofp)
+    { *ofp = slidevertsizg_vect; slidevertsizg_vect = nfp; }
+void pa_slidevertsizg(FILE* f, int* w, int* h)
+    { (*slidevertsizg_vect)(f, w, h); }
+
+static void slidevertsizg_ivf(FILE* f, int* w, int* h)
+    { error(eslidevertsizg_unimp); }
+
+void pa_slidevertsiz_ovr(pa_slidevertsiz_t nfp, pa_slidevertsiz_t* ofp)
+    { *ofp = slidevertsiz_vect; slidevertsiz_vect = nfp; }
+void pa_slidevertsiz(FILE* f, int* w, int* h) { (*slidevertsiz_vect)(f, w, h); }
+
+static void slidevertsiz_ivf(FILE* f, int* w, int* h)
+    { error(eslidevertsiz_unimp); }
+
+void pa_slidevert_ovr(pa_slidevert_t nfp, pa_slidevert_t* ofp)
+    { *ofp = slidevert_vect; slidevert_vect = nfp; }
+void pa_slidevert(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+    { (*slidevert_vect)(f, x1, y1, x2, y2, mark, id); }
+
+static void slidevert_ivf(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+    { error(eslidevert_unimp); }
+
+void pa_slidevertg_ovr(pa_slidevertg_t nfp, pa_slidevertg_t* ofp)
+    { *ofp = slidevertg_vect; slidevertg_vect = nfp; }
+void pa_slidevertg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+    { (*slidevertg_vect)(f, x1, y1, x2, y2, mark, id); }
+
+static void slidevertg_ivf(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+    { error(eslidevertg_unimp); }
+
+void pa_tabbarsizg_ovr(pa_tabbarsizg_t nfp, pa_tabbarsizg_t* ofp)
+    { *ofp = tabbarsizg_vect; tabbarsizg_vect = nfp; }
+void pa_tabbarsizg(FILE* f, pa_tabori tor, int cw, int ch, int* w, int* h, int* ox, int* oy)
+    { (*tabbarsizg_vect)(f, tor, cw, ch, w, h, ox, oy); }
+
+static void tabbarsizg_ivf(FILE* f, pa_tabori tor, int cw, int ch, int* w, int* h,
+                           int* ox, int* oy)
+    { error(etabbarsizg_unimp); }
+
+void pa_tabbarsiz_ovr(pa_tabbarsiz_t nfp, pa_tabbarsiz_t* ofp)
+    { *ofp = tabbarsiz_vect; tabbarsiz_vect = nfp; }
+void pa_tabbarsiz(FILE* f, pa_tabori tor, int cw, int ch, int* w, int* h, int* ox, int* oy)
+    { (*tabbarsiz_vect)(f, tor, cw, ch, w, h, ox, oy); }
+
+static void tabbarsiz_ivf(FILE* f, pa_tabori tor, int cw, int ch, int* w, int* h, int* ox,
+                  int* oy)
+    { error(etabbarsiz_unimp); }
+
+void pa_tabbarclientg_ovr(pa_tabbarclientg_t nfp, pa_tabbarclientg_t* ofp)
+    { *ofp = tabbarclientg_vect; tabbarclientg_vect = nfp; }
+void pa_tabbarclientg(FILE* f, pa_tabori tor, int cw, int ch, int* w, int* h, int* ox, int* oy)
+    { (*tabbarclientg_vect)(f, tor, cw, ch, w, h, ox, oy); }
+
+static void tabbarclientg_ivf(FILE* f, pa_tabori tor, int w, int h, int* cw, int* ch,
+                              int* ox, int* oy)
+    { error(etabbarclientg_unimp); }
+
+void pa_tabbarclient_ovr(pa_tabbarclient_t nfp, pa_tabbarclient_t* ofp)
+    { *ofp = tabbarclient_vect; tabbarclient_vect = nfp; }
+void pa_tabbarclient(FILE* f, pa_tabori tor, int cw, int ch, int* w, int* h, int* ox, int* oy)
+    { (*tabbarclient_vect)(f, tor, cw, ch, w, h, ox, oy); }
+
+static void tabbarclient_ivf(FILE* f, pa_tabori tor, int w, int h, int* cw, int* ch,
+                     int* ox, int* oy)
+    { error(etabbarclient_unimp); }
+
+void pa_tabbar_ovr(pa_tabbar_t nfp, pa_tabbar_t* ofp)
+    { *ofp = tabbar_vect; tabbar_vect = nfp; }
+void pa_tabbar(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, pa_tabori tor, int id)
+    { (*tabbar_vect)(f, x1, y1, x2, y2, sp, tor, id); }
+
+static void tabbar_ivf(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp,
+               pa_tabori tor, int id)
+    { error(etabbar_unimp); }
+
+void pa_tabbarg_ovr(pa_tabbarg_t nfp, pa_tabbarg_t* ofp)
+    { *ofp = tabbarg_vect; tabbarg_vect = nfp; }
+void pa_tabbarg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, pa_tabori tor, int id)
+    { (*tabbarg_vect)(f, x1, y1, x2, y2, sp, tor, id); }
+
+static void tabbarg_ivf(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp,
+                pa_tabori tor, int id)
+    { error(etabbarg_unimp); }
+
+void pa_tabsel_ovr(pa_tabsel_t nfp, pa_tabsel_t* ofp)
+    { *ofp = tabsel_vect; tabsel_vect = nfp; }
+void pa_tabsel(FILE* f, int id, int tn) { (*tabsel_vect)(f, id, tn); }
+
+static void tabsel_ivf(FILE* f, int id, int tn)
+    { error(etabsel_unimp); }
+
+void pa_alert_ovr(pa_alert_t nfp, pa_alert_t* ofp)
+    { *ofp = alert_vect; alert_vect = nfp; }
+void pa_alert(char* title, char* message) { (*alert_vect)(title, message); }
+
+static void alert_ivf(char* title, char* message) { error(ealert_unimp); }
+
+void pa_querycolor_ovr(pa_querycolor_t nfp, pa_querycolor_t* ofp)
+    { *ofp = querycolor_vect; querycolor_vect = nfp; }
+void pa_querycolor(int* r, int* g, int* b) { (*querycolor_vect)(r, g, b); }
+
+static void querycolor_ivf(int* r, int* g, int* b) { error(equerycolor_unimp); }
+
+void pa_queryopen_ovr(pa_queryopen_t nfp, pa_queryopen_t* ofp)
+    { *ofp = queryopen_vect; queryopen_vect = nfp; }
+void pa_queryopen(char* s, int sl) { (*queryopen_vect)(s, sl); }
+
+static void queryopen_ivf(char* s, int sl) { error(equeryopen_unimp); }
+
+void pa_querysave_ovr(pa_querysave_t nfp, pa_querysave_t* ofp)
+    { *ofp = querysave_vect; querysave_vect = nfp; }
+void pa_querysave(char* s, int sl) { (*querysave_vect)(s, sl); }
+
+static void querysave_ivf(char* s, int sl) { error(equerysave_unimp); }
+
+void pa_queryfind_ovr(pa_queryfind_t nfp, pa_queryfind_t* ofp)
+    { *ofp = queryfind_vect; queryfind_vect = nfp; }
+void pa_queryfind(char* s, int sl, pa_qfnopts* opt)
+    { (*queryfind_vect)(s, sl, opt); }
+
+static void queryfind_ivf(char* s, int sl, pa_qfnopts* opt)
+    { error(equeryfind_unimp); }
+
+void pa_queryfindrep_ovr(pa_queryfindrep_t nfp, pa_queryfindrep_t* ofp)
+    { *ofp = queryfindrep_vect; queryfindrep_vect = nfp; }
+void pa_queryfindrep(char* s, int sl, char* r, int rl, pa_qfropts* opt)
+    { (*queryfindrep_vect)(s, sl, r, rl, opt); }
+
+static void queryfindrep_ivf(char* s, int sl, char* r, int rl, pa_qfropts* opt)
+    { error(equeryfindrep_unimp); }
+
+void pa_queryfont_ovr(pa_queryfont_t nfp, pa_queryfont_t* ofp)
+    { *ofp = queryfont_vect; queryfont_vect = nfp; }
+void pa_queryfont(FILE* f, int* fc, int* s, int* fr, int* fg, int* fb,
+                  int* br, int* bg, int* bb, pa_qfteffects* effect)
+    { (*queryfont_vect)(f, fc, s, fr, fg, fb, br, bg, bb, effect); }
+
+static void queryfont_ivf(FILE* f, int* fc, int* s, int* fr, int* fg, int* fb,
+                          int* br, int* bg, int* bb, pa_qfteffects* effect)
+    { error(equeryfont_unimp); }
 
 /** ****************************************************************************
 
@@ -12866,6 +14796,238 @@ static void pa_init_graphics(int argc, char *argv[])
     char      joyfil[] = "/dev/input/js0";
     int       joyfid;
     char      jc;
+
+    /* set override vectors to defaults */
+    cursor_vect =          cursor_ivf;
+    cursor_vect =          cursor_ivf;
+    maxx_vect =            maxx_ivf;
+    maxy_vect =            maxy_ivf;
+    home_vect =            home_ivf;
+    del_vect =             del_ivf;
+    up_vect =              up_ivf;
+    down_vect =            down_ivf;
+    left_vect =            left_ivf;
+    right_vect =           right_ivf;
+    blink_vect =           blink_ivf;
+    reverse_vect =         reverse_ivf;
+    underline_vect =       underline_ivf;
+    superscript_vect =     superscript_ivf;
+    subscript_vect =       subscript_ivf;
+    italic_vect =          italic_ivf;
+    bold_vect =            bold_ivf;
+    strikeout_vect =       strikeout_ivf;
+    standout_vect =        standout_ivf;
+    fcolor_vect =          fcolor_ivf;
+    bcolor_vect =          bcolor_ivf;
+    auto_vect =            auto_ivf;
+    curvis_vect =          curvis_ivf;
+    scroll_vect =          scroll_ivf;
+    curx_vect =            curx_ivf;
+    cury_vect =            cury_ivf;
+    curbnd_vect =          curbnd_ivf;
+    select_vect =          select_ivf;
+    event_vect =           event_ivf;
+    timer_vect =           timer_ivf;
+    killtimer_vect =       killtimer_ivf;
+    mouse_vect =           mouse_ivf;
+    mousebutton_vect =     mousebutton_ivf;
+    joystick_vect =        joystick_ivf;
+    joybutton_vect =       joybutton_ivf;
+    joyaxis_vect =         joyaxis_ivf;
+    settab_vect =          settab_ivf;
+    restab_vect =          restab_ivf;
+    clrtab_vect =          clrtab_ivf;
+    funkey_vect =          funkey_ivf;
+    frametimer_vect =      frametimer_ivf;
+    autohold_vect =        autohold_ivf;
+    wrtstr_vect =          wrtstr_ivf;
+    eventover_vect =       eventover_ivf;
+    eventsover_vect =      eventsover_ivf;
+    sendevent_vect =       sendevent_ivf;
+    maxxg_vect =           maxxg_ivf;
+    maxyg_vect =           maxyg_ivf;
+    curxg_vect =           curxg_ivf;
+    curyg_vect =           curyg_ivf;
+    line_vect =            line_ivf;
+    linewidth_vect =       linewidth_ivf;
+    rect_vect =            rect_ivf;
+    frect_vect =           frect_ivf;
+    rrect_vect =           rrect_ivf;
+    frrect_vect =          frrect_ivf;
+    ellipse_vect =         ellipse_ivf;
+    fellipse_vect =        fellipse_ivf;
+    arc_vect =             arc_ivf;
+    farc_vect =            farc_ivf;
+    fchord_vect =          fchord_ivf;
+    ftriangle_vect =       ftriangle_ivf;
+    cursorg_vect =         cursorg_ivf;
+    baseline_vect =        baseline_ivf;
+    setpixel_vect =        setpixel_ivf;
+    fover_vect =           fover_ivf;
+    bover_vect =           bover_ivf;
+    finvis_vect =          finvis_ivf;
+    binvis_vect =          binvis_ivf;
+    fxor_vect =            fxor_ivf;
+    bxor_vect =            bxor_ivf;
+    fand_vect =            fand_ivf;
+    band_vect =            band_ivf;
+    for_vect =             for_ivf;
+    bor_vect =             bor_ivf;
+    chrsizx_vect =         chrsizx_ivf;
+    chrsizy_vect =         chrsizy_ivf;
+    fonts_vect =           fonts_ivf;
+    font_vect =            font_ivf;
+    fontnam_vect =         fontnam_ivf;
+    fontsiz_vect =         fontsiz_ivf;
+    chrspcy_vect =         chrspcy_ivf;
+    chrspcx_vect =         chrspcx_ivf;
+    dpmx_vect =            dpmx_ivf;
+    dpmy_vect =            dpmy_ivf;
+    strsiz_vect =          strsiz_ivf;
+    chrpos_vect =          chrpos_ivf;
+    writejust_vect =       writejust_ivf;
+    justpos_vect =         justpos_ivf;
+    condensed_vect =       condensed_ivf;
+    extended_vect =        extended_ivf;
+    xlight_vect =          xlight_ivf;
+    light_vect =           light_ivf;
+    xbold_vect =           xbold_ivf;
+    hollow_vect =          hollow_ivf;
+    raised_vect =          raised_ivf;
+    settabg_vect =         settabg_ivf;
+    restabg_vect =         restabg_ivf;
+    fcolorg_vect =         fcolorg_ivf;
+    fcolorc_vect =         fcolorc_ivf;
+    bcolorg_vect =         bcolorg_ivf;
+    bcolorc_vect =         bcolorc_ivf;
+    loadpict_vect =        loadpict_ivf;
+    pictsizx_vect =        pictsizx_ivf;
+    pictsizy_vect =        pictsizy_ivf;
+    picture_vect =         picture_ivf;
+    delpict_vect =         delpict_ivf;
+    viewoffg_vect =        viewoffg_ivf;
+    viewscale_vect =       viewscale_ivf;
+    scrollg_vect =         scrollg_ivf;
+    path_vect =            path_ivf;
+    title_vect =           title_ivf;
+    openwin_vect =         openwin_ivf;
+    buffer_vect =          buffer_ivf;
+    sizbuf_vect =          sizbuf_ivf;
+    sizbufg_vect =         sizbufg_ivf;
+    getsiz_vect =          getsiz_ivf;
+    getsizg_vect =         getsizg_ivf;
+    setsiz_vect =          setsiz_ivf;
+    setsizg_vect =         setsizg_ivf;
+    setpos_vect =          setpos_ivf;
+    setposg_vect =         setposg_ivf;
+    scnsiz_vect =          scnsiz_ivf;
+    scnsizg_vect =         scnsizg_ivf;
+    scncen_vect =          scncen_ivf;
+    scnceng_vect =         scnceng_ivf;
+    winclient_vect =       winclient_ivf;
+    winclientg_vect =      winclientg_ivf;
+    front_vect =           front_ivf;
+    back_vect =            back_ivf;
+    frame_vect =           frame_ivf;
+    sizable_vect =         sizable_ivf;
+    sysbar_vect =          sysbar_ivf;
+    menu_vect =            menu_ivf;
+    menuena_vect =         menuena_ivf;
+    menusel_vect =         menusel_ivf;
+    stdmenu_vect =         stdmenu_ivf;
+    getwinid_vect =        getwinid_ivf;
+    focus_vect =           focus_ivf;
+    getwigid_vect =        getwigid_ivf;
+    killwidget_vect =      killwidget_ivf;
+    selectwidget_vect =    selectwidget_ivf;
+    enablewidget_vect =    enablewidget_ivf;
+    getwidgettext_vect =   getwidgettext_ivf;
+    putwidgettext_vect =   putwidgettext_ivf;
+    sizwidget_vect =       sizwidget_ivf;
+    sizwidgetg_vect =      sizwidgetg_ivf;
+    poswidget_vect =       poswidget_ivf;
+    poswidgetg_vect =      poswidgetg_ivf;
+    backwidget_vect =      backwidget_ivf;
+    frontwidget_vect =     frontwidget_ivf;
+    focuswidget_vect =     focuswidget_ivf;
+    buttonsiz_vect =       buttonsiz_ivf;
+    buttonsizg_vect =      buttonsizg_ivf;
+    button_vect =          button_ivf;
+    buttong_vect =         buttong_ivf;
+    checkboxsiz_vect =     checkboxsiz_ivf;
+    checkboxsizg_vect =    checkboxsizg_ivf;
+    checkbox_vect =        checkbox_ivf;
+    checkboxg_vect =       checkboxg_ivf;
+    radiobuttonsiz_vect =  radiobuttonsiz_ivf;
+    radiobuttonsizg_vect = radiobuttonsizg_ivf;
+    radiobutton_vect =     radiobutton_ivf;
+    radiobuttong_vect =    radiobuttong_ivf;
+    groupsizg_vect =       groupsizg_ivf;
+    groupsiz_vect =        groupsiz_ivf;
+    group_vect =           group_ivf;
+    groupg_vect =          groupg_ivf;
+    background_vect =      background_ivf;
+    backgroundg_vect =     backgroundg_ivf;
+    scrollvertsizg_vect =  scrollvertsizg_ivf;
+    scrollvertsiz_vect =   scrollvertsiz_ivf;
+    scrollvert_vect =      scrollvert_ivf;
+    scrollvertg_vect =     scrollvertg_ivf;
+    scrollhorizsizg_vect = scrollhorizsizg_ivf;
+    scrollhorizsiz_vect =  scrollhorizsiz_ivf;
+    scrollhoriz_vect =     scrollhoriz_ivf;
+    scrollhorizg_vect =    scrollhorizg_ivf;
+    scrollpos_vect =       scrollpos_ivf;
+    scrollsiz_vect =       scrollsiz_ivf;
+    numselboxsizg_vect =   numselboxsizg_ivf;
+    numselboxsiz_vect =    numselboxsiz_ivf;
+    numselbox_vect =       numselbox_ivf;
+    numselboxg_vect =      numselboxg_ivf;
+    editboxsizg_vect =     editboxsizg_ivf;
+    editboxsiz_vect =      editboxsiz_ivf;
+    editbox_vect =         editbox_ivf;
+    editboxg_vect =        editboxg_ivf;
+    progbarsizg_vect =     progbarsizg_ivf;
+    progbarsiz_vect =      progbarsiz_ivf;
+    progbar_vect =         progbar_ivf;
+    progbarg_vect =        progbarg_ivf;
+    progbarpos_vect =      progbarpos_ivf;
+    listboxsizg_vect =     listboxsizg_ivf;
+    listboxsiz_vect =      listboxsiz_ivf;
+    listbox_vect =         listbox_ivf;
+    listboxg_vect =        listboxg_ivf;
+    dropboxsizg_vect =     dropboxsizg_ivf;
+    dropboxsiz_vect =      dropboxsiz_ivf;
+    dropbox_vect =         dropbox_ivf;
+    dropboxg_vect =        dropboxg_ivf;
+    dropeditboxsizg_vect = dropeditboxsizg_ivf;
+    dropeditboxsiz_vect =  dropeditboxsiz_ivf;
+    dropeditbox_vect =     dropeditbox_ivf;
+    dropeditboxg_vect =    dropeditboxg_ivf;
+    slidehorizsizg_vect =  slidehorizsizg_ivf;
+    slidehorizsiz_vect =   slidehorizsiz_ivf;
+    slidehoriz_vect =      slidehoriz_ivf;
+    slidehorizg_vect =     slidehorizg_ivf;
+    slidevertsizg_vect =   slidevertsizg_ivf;
+    slidevertsiz_vect =    slidevertsiz_ivf;
+    slidevert_vect =       slidevert_ivf;
+    slidevertg_vect =      slidevertg_ivf;
+    tabbarsizg_vect =      tabbarsizg_ivf;
+    tabbarsiz_vect =       tabbarsiz_ivf;
+    tabbarclientg_vect =   tabbarclientg_ivf;
+    tabbarclient_vect =    tabbarclient_ivf;
+    tabbar_vect =          tabbar_ivf;
+    tabbarg_vect =         tabbarg_ivf;
+    tabsel_vect =          tabsel_ivf;
+    alert_vect =           alert_ivf;
+    querycolor_vect =      querycolor_ivf;
+    queryopen_vect =       queryopen_ivf;
+    querysave_vect =       querysave_ivf;
+    querysave_vect =       querysave_ivf;
+    querysave_vect =       querysave_ivf;
+    querysave_vect =       querysave_ivf;
+    queryfind_vect =       queryfind_ivf;
+    queryfindrep_vect =    queryfindrep_ivf;
+    queryfont_vect =       queryfont_ivf;
 
     /* clear malloc in use total */
     memusd = 0; /* total memory in use */
