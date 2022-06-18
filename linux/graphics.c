@@ -265,251 +265,11 @@ typedef int (*popen_t)(const char*, int, int);
 typedef int (*pclose_t)(int);
 typedef off_t (*plseek_t)(int, off_t, int);
 
-/*
- * Override vectors for calls in this package
- *
+/* types of override calls not already declared in graphics.h.
+ * This is because these are unpublished as yet.
  */
-typedef void (*pa_cursor_t)(FILE* f, int x, int y);
-typedef int (*pa_maxx_t)(FILE* f);
-typedef int (*pa_maxy_t)(FILE* f);
-typedef void (*pa_home_t)(FILE* f);
-typedef void (*pa_del_t)(FILE* f);
-typedef void (*pa_up_t)(FILE* f);
-typedef void (*pa_down_t)(FILE* f);
-typedef void (*pa_left_t)(FILE* f);
-typedef void (*pa_right_t)(FILE* f);
-typedef void (*pa_blink_t)(FILE* f, int e);
-typedef void (*pa_reverse_t)(FILE* f, int e);
-typedef void (*pa_underline_t)(FILE* f, int e);
-typedef void (*pa_superscript_t)(FILE* f, int e);
-typedef void (*pa_subscript_t)(FILE* f, int e);
-typedef void (*pa_italic_t)(FILE* f, int e);
-typedef void (*pa_bold_t)(FILE* f, int e);
-typedef void (*pa_strikeout_t)(FILE* f, int e);
-typedef void (*pa_standout_t)(FILE* f, int e);
-typedef void (*pa_fcolor_t)(FILE* f, pa_color c);
-typedef void (*pa_bcolor_t)(FILE* f, pa_color c);
-typedef void (*pa_auto_t)(FILE* f, int e);
-typedef void (*pa_curvis_t)(FILE* f, int e);
-typedef void (*pa_scroll_t)(FILE* f, int x, int y);
-typedef int (*pa_curx_t)(FILE* f);
-typedef int (*pa_cury_t)(FILE* f);
-typedef int (*pa_curbnd_t)(FILE* f);
-typedef void (*pa_select_t)(FILE* f, int u, int d);
-typedef void (*pa_event_t)(FILE* f, pa_evtrec* er);
-typedef void (*pa_timer_t)(FILE* f, int i, long t, int r);
-typedef void (*pa_killtimer_t)(FILE* f, int i);
-typedef int (*pa_mouse_t)(FILE* f);
-typedef int (*pa_mousebutton_t)(FILE* f, int m);
-typedef int (*pa_joystick_t)(FILE* f);
-typedef int (*pa_joybutton_t)(FILE* f, int j);
-typedef int (*pa_joyaxis_t)(FILE* f, int j);
-typedef void (*pa_settab_t)(FILE* f, int t);
-typedef void (*pa_restab_t)(FILE* f, int t);
-typedef void (*pa_clrtab_t)(FILE* f);
-typedef int (*pa_funkey_t)(FILE* f);
-typedef void (*pa_frametimer_t)(FILE* f, int e);
-typedef void (*pa_autohold_t)(int e);
-typedef void (*pa_wrtstr_t)(FILE* f, char* s);
-typedef void (*pa_eventover_t)(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh);
-typedef void (*pa_eventsover_t)(pa_pevthan eh,  pa_pevthan* oeh);
-typedef void (*pa_sendevent_t)(FILE* f, pa_evtrec* er);
-typedef int (*pa_maxxg_t)(FILE* f);
-typedef int (*pa_maxyg_t)(FILE* f);
-typedef int (*pa_curxg_t)(FILE* f);
-typedef int (*pa_curyg_t)(FILE* f);
-typedef void (*pa_line_t)(FILE* f, int x1, int y1, int x2, int y2);
-typedef void (*pa_linewidth_t)(FILE* f, int w);
-typedef void (*pa_rect_t)(FILE* f, int x1, int y1, int x2, int y2);
-typedef void (*pa_frect_t)(FILE* f, int x1, int y1, int x2, int y2);
-typedef void (*pa_rrect_t)(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys);
-typedef void (*pa_frrect_t)(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys);
-typedef void (*pa_ellipse_t)(FILE* f, int x1, int y1, int x2, int y2);
-typedef void (*pa_fellipse_t)(FILE* f, int x1, int y1, int x2, int y2);
-typedef void (*pa_arc_t)(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea);
-typedef void (*pa_farc_t)(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea);
-typedef void (*pa_fchord_t)(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea);
-typedef void (*pa_ftriangle_t)(FILE* f, int x1, int y1, int x2, int y2, int x3, int y3);
-typedef void (*pa_cursorg_t)(FILE* f, int x, int y);
-typedef int (*pa_baseline_t)(FILE* f);
-typedef void (*pa_setpixel_t)(FILE* f, int x, int y);
-typedef void (*pa_fover_t)(FILE* f);
-typedef void (*pa_bover_t)(FILE* f);
-typedef void (*pa_finvis_t)(FILE* f);
-typedef void (*pa_binvis_t)(FILE* f);
-typedef void (*pa_fxor_t)(FILE* f);
-typedef void (*pa_bxor_t)(FILE* f);
-typedef void (*pa_fand_t)(FILE* f);
-typedef void (*pa_band_t)(FILE* f);
-typedef void (*pa_for_t)(FILE* f);
-typedef void (*pa_bor_t)(FILE* f);
-typedef int (*pa_chrsizx_t)(FILE* f);
-typedef int (*pa_chrsizy_t)(FILE* f);
-typedef int (*pa_fonts_t)(FILE* f);
-typedef void (*pa_font_t)(FILE* f, int fc);
-typedef void (*pa_fontnam_t)(FILE* f, int fc, char* fns, int fnsl);
-typedef void (*pa_fontsiz_t)(FILE* f, int s);
-typedef void (*pa_chrspcy_t)(FILE* f, int s);
-typedef void (*pa_chrspcx_t)(FILE* f, int s);
-typedef int (*pa_dpmx_t)(FILE* f);
-typedef int (*pa_dpmy_t)(FILE* f);
-typedef int (*pa_strsiz_t)(FILE* f, const char* s);
-typedef int (*pa_chrpos_t)(FILE* f, const char* s, int p);
-typedef void (*pa_writejust_t)(FILE* f, const char* s, int n);
-typedef int (*pa_justpos_t)(FILE* f, const char* s, int p, int n);
-typedef void (*pa_condensed_t)(FILE* f, int e);
-typedef void (*pa_extended_t)(FILE* f, int e);
-typedef void (*pa_xlight_t)(FILE* f, int e);
-typedef void (*pa_light_t)(FILE* f, int e);
-typedef void (*pa_xbold_t)(FILE* f, int e);
-typedef void (*pa_hollow_t)(FILE* f, int e);
-typedef void (*pa_raised_t)(FILE* f, int e);
-typedef void (*pa_settabg_t)(FILE* f, int t);
-typedef void (*pa_restabg_t)(FILE* f, int t);
-typedef void (*pa_fcolorg_t)(FILE* f, int r, int g, int b);
-typedef void (*pa_fcolorc_t)(FILE* f, int r, int g, int b);
-typedef void (*pa_bcolorg_t)(FILE* f, int r, int g, int b);
-typedef void (*pa_bcolorc_t)(FILE* f, int r, int g, int b);
-typedef void (*pa_loadpict_t)(FILE* f, int p, char* fn);
-typedef int (*pa_pictsizx_t)(FILE* f, int p);
-typedef int (*pa_pictsizy_t)(FILE* f, int p);
-typedef void (*pa_picture_t)(FILE* f, int p, int x1, int y1, int x2, int y2);
-typedef void (*pa_delpict_t)(FILE* f, int p);
 typedef void (*pa_viewoffg_t)(FILE* f, int x, int y);
 typedef void (*pa_viewscale_t)(FILE* f, float x, float y);
-typedef void (*pa_scrollg_t)(FILE* f, int x, int y);
-typedef void (*pa_path_t)(FILE* f, int a);
-typedef void (*pa_title_t)(FILE* f, char* ts);
-typedef void (*pa_openwin_t)(FILE** infile, FILE** outfile, FILE* parent, int wid);
-typedef void (*pa_buffer_t)(FILE* f, int e);
-typedef void (*pa_sizbuf_t)(FILE* f, int x, int y);
-typedef void (*pa_sizbufg_t)(FILE* f, int x, int y);
-typedef void (*pa_getsiz_t)(FILE* f, int* x, int* y);
-typedef void (*pa_getsizg_t)(FILE* f, int* x, int* y);
-typedef void (*pa_setsiz_t)(FILE* f, int x, int y);
-typedef void (*pa_setsizg_t)(FILE* f, int x, int y);
-typedef void (*pa_setpos_t)(FILE* f, int x, int y);
-typedef void (*pa_setposg_t)(FILE* f, int x, int y);
-typedef void (*pa_scnsiz_t)(FILE* f, int* x, int* y);
-typedef void (*pa_scnsizg_t)(FILE* f, int* x, int*y);
-typedef void (*pa_scncen_t)(FILE* f, int* x, int* y);
-typedef void (*pa_scnceng_t)(FILE* f, int* x, int* y);
-typedef void (*pa_winclient_t)(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms);
-typedef void (*pa_winclientg_t)(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms);
-typedef void (*pa_front_t)(FILE* f);
-typedef void (*pa_back_t)(FILE* f);
-typedef void (*pa_frame_t)(FILE* f, int e);
-typedef void (*pa_sizable_t)(FILE* f, int e);
-typedef void (*pa_sysbar_t)(FILE* f, int e);
-typedef void (*pa_menu_t)(FILE* f, pa_menuptr m);
-typedef void (*pa_menuena_t)(FILE* f, int id, int onoff);
-typedef void (*pa_menusel_t)(FILE* f, int id, int select);
-typedef void (*pa_stdmenu_t)(pa_stdmenusel sms, pa_menuptr* sm, pa_menuptr pm);
-typedef int (*pa_getwinid_t)(void);
-typedef void (*pa_focus_t)(FILE* f);
-typedef int (*pa_getwigid_t)(FILE* f);
-typedef void (*pa_killwidget_t)(FILE* f, int id);
-typedef void (*pa_selectwidget_t)(FILE* f, int id, int e);
-typedef void (*pa_enablewidget_t)(FILE* f, int id, int e);
-typedef void (*pa_getwidgettext_t)(FILE* f, int id, char* s, int sl);
-typedef void (*pa_putwidgettext_t)(FILE* f, int id, char* s);
-typedef void (*pa_sizwidget_t)(FILE* f, int id, int x, int y);
-typedef void (*pa_sizwidgetg_t)(FILE* f, int id, int x, int y);
-typedef void (*pa_poswidget_t)(FILE* f, int id, int x, int y);
-typedef void (*pa_poswidgetg_t)(FILE* f, int id, int x, int y);
-typedef void (*pa_backwidget_t)(FILE* f, int id);
-typedef void (*pa_frontwidget_t)(FILE* f, int id);
-typedef void (*pa_focuswidget_t)(FILE* f, int id);
-typedef void (*pa_buttonsiz_t)(FILE* f, char* s, int* w, int* h);
-typedef void (*pa_buttonsizg_t)(FILE* f, char* s, int* w, int* h);
-typedef void (*pa_button_t)(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-typedef void (*pa_buttong_t)(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-typedef void (*pa_checkboxsiz_t)(FILE* f, char* s, int* w, int* h);
-typedef void (*pa_checkboxsizg_t)(FILE* f, char* s, int* w, int* h);
-typedef void (*pa_checkbox_t)(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-typedef void (*pa_checkboxg_t)(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-typedef void (*pa_radiobuttonsiz_t)(FILE* f, char* s, int* w, int* h);
-typedef void (*pa_radiobuttonsizg_t)(FILE* f, char* s, int* w, int* h);
-typedef void (*pa_radiobutton_t)(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-typedef void (*pa_radiobuttong_t)(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-typedef void (*pa_groupsizg_t)(FILE* f, char* s, int cw, int ch, int* w, int* h, int* ox,
-                  int* oy);
-typedef void (*pa_groupsiz_t)(FILE* f, char* s, int cw, int ch, int* w, int* h, int* ox,
-                 int* oy);
-typedef void (*pa_group_t)(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-typedef void (*pa_groupg_t)(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-typedef void (*pa_background_t)(FILE* f, int x1, int y1, int x2, int y2, int id);
-typedef void (*pa_backgroundg_t)(FILE* f, int x1, int y1, int x2, int y2, int id);
-typedef void (*pa_scrollvertsizg_t)(FILE* f, int* w, int* h);
-typedef void (*pa_scrollvertsiz_t)(FILE* f, int* w, int* h);
-typedef void (*pa_scrollvert_t)(FILE* f, int x1, int y1, int x2, int y2, int id);
-typedef void (*pa_scrollvertg_t)(FILE* f, int x1, int y1, int x2, int y2, int id);
-typedef void (*pa_scrollhorizsizg_t)(FILE* f, int* w, int* h);
-typedef void (*pa_scrollhorizsiz_t)(FILE* f, int* w, int* h);
-typedef void (*pa_scrollhoriz_t)(FILE* f, int x1, int y1, int x2, int y2, int id);
-typedef void (*pa_scrollhorizg_t)(FILE* f, int x1, int y1, int x2, int y2, int id);
-typedef void (*pa_scrollpos_t)(FILE* f, int id, int r);
-typedef void (*pa_scrollsiz_t)(FILE* f, int id, int r);
-typedef void (*pa_numselboxsizg_t)(FILE* f, int l, int u, int* w, int* h);
-typedef void (*pa_numselboxsiz_t)(FILE* f, int l, int u, int* w, int* h);
-typedef void (*pa_numselbox_t)(FILE* f, int x1, int y1, int x2, int y2, int l, int u,
-                  int id);
-typedef void (*pa_numselboxg_t)(FILE* f, int x1, int y1, int x2, int y2, int l, int u,
-                   int id);
-typedef void (*pa_editboxsizg_t)(FILE* f, char* s, int* w, int* h);
-typedef void (*pa_editboxsiz_t)(FILE* f, char* s, int* w, int* h);
-typedef void (*pa_editbox_t)(FILE* f, int x1, int y1, int x2, int y2, int id);
-typedef void (*pa_editboxg_t)(FILE* f, int x1, int y1, int x2, int y2, int id);
-typedef void (*pa_progbarsizg_t)(FILE* f, int* w, int* h);
-typedef void (*pa_progbarsiz_t)(FILE* f, int* w, int* h);
-typedef void (*pa_progbar_t)(FILE* f, int x1, int y1, int x2, int y2, int id);
-typedef void (*pa_progbarg_t)(FILE* f, int x1, int y1, int x2, int y2, int id);
-typedef void (*pa_progbarpos_t)(FILE* f, int id, int pos);
-typedef void (*pa_listboxsizg_t)(FILE* f, pa_strptr sp, int* w, int* h);
-typedef void (*pa_listboxsiz_t)(FILE* f, pa_strptr sp, int* w, int* h);
-typedef void (*pa_listbox_t)(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id);
-typedef void (*pa_listboxg_t)(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id);
-typedef void (*pa_dropboxsizg_t)(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh);
-typedef void (*pa_dropboxsiz_t)(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh);
-typedef void (*pa_dropbox_t)(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id);
-typedef void (*pa_dropboxg_t)(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id);
-typedef void (*pa_dropeditboxsizg_t)(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh);
-typedef void (*pa_dropeditboxsiz_t)(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh);
-typedef void (*pa_dropeditbox_t)(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id);
-typedef void (*pa_dropeditboxg_t)(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp,
-                     int id);
-typedef void (*pa_slidehorizsizg_t)(FILE* f, int* w, int* h);
-typedef void (*pa_slidehorizsiz_t)(FILE* f, int* w, int* h);
-typedef void (*pa_slidehoriz_t)(FILE* f, int x1, int y1, int x2, int y2, int mark, int id);
-typedef void (*pa_slidehorizg_t)(FILE* f, int x1, int y1, int x2, int y2, int mark, int id);
-typedef void (*pa_slidevertsizg_t)(FILE* f, int* w, int* h);
-typedef void (*pa_slidevertsiz_t)(FILE* f, int* w, int* h);
-typedef void (*pa_slidevert_t)(FILE* f, int x1, int y1, int x2, int y2, int mark, int id);
-typedef void (*pa_slidevertg_t)(FILE* f, int x1, int y1, int x2, int y2, int mark, int id);
-typedef void (*pa_tabbarsizg_t)(FILE* f, pa_tabori tor, int cw, int ch, int* w, int* h,
-                   int* ox, int* oy);
-typedef void (*pa_tabbarsiz_t)(FILE* f, pa_tabori tor, int cw, int ch, int* w, int* h, int* ox,
-                  int* oy);
-typedef void (*pa_tabbarclientg_t)(FILE* f, pa_tabori tor, int w, int h, int* cw, int* ch,
-                      int* ox, int* oy);
-typedef void (*pa_tabbarclient_t)(FILE* f, pa_tabori tor, int w, int h, int* cw, int* ch,
-                     int* ox, int* oy);
-typedef void (*pa_tabbar_t)(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp,
-               pa_tabori tor, int id);
-typedef void (*pa_tabbarg_t)(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp,
-                pa_tabori tor, int id);
-typedef void (*pa_tabsel_t)(FILE* f, int id, int tn);
-typedef void (*pa_alert_t)(char* title, char* message);
-typedef void (*pa_querycolor_t)(int* r, int* g, int* b);
-typedef void (*pa_queryopen_t)(char* s, int sl);
-typedef void (*pa_querysave_t)(char* s, int sl);
-typedef void (*pa_querysave_t)(char* s, int sl);
-typedef void (*pa_querysave_t)(char* s, int sl);
-typedef void (*pa_querysave_t)(char* s, int sl);
-typedef void (*pa_queryfind_t)(char* s, int sl, pa_qfnopts* opt);
-typedef void (*pa_queryfindrep_t)(char* s, int sl, char* r, int rl, pa_qfropts* opt);
-typedef void (*pa_queryfont_t)(FILE* f, int* fc, int* s, int* fr, int* fg, int* fb, int* br,
-                  int* bg, int* bb, pa_qfteffects* effect);
 
 /* system override calls */
 
@@ -7063,7 +6823,7 @@ to the window.
 
 *******************************************************************************/
 
-void pa_scrollg_ovr(pa_scrollg_t nfp, pa_scrollg_t* ofp)
+void _pa_scrollg_ovr(pa_scrollg_t nfp, pa_scrollg_t* ofp)
     { *ofp = scrollg_vect; scrollg_vect = nfp; }
 void pa_scrollg(FILE* f, int x, int y) { (*scrollg_vect)(f, x, y); }
 
@@ -7078,7 +6838,7 @@ static void scrollg_ivf(FILE* f, int x, int y)
 
 }
 
-void pa_scroll_ovr(pa_scroll_t nfp, pa_scroll_t* ofp)
+void _pa_scroll_ovr(pa_scroll_t nfp, pa_scroll_t* ofp)
     { *ofp = scroll_vect; scroll_vect = nfp; }
 void pa_scroll(FILE* f, int x, int y) { (*scroll_vect)(f, x, y); }
 
@@ -7102,7 +6862,7 @@ Moves the cursor to the specified x and y location.
 
 *******************************************************************************/
 
-void pa_cursor_ovr(pa_cursor_t nfp, pa_cursor_t* ofp)
+void _pa_cursor_ovr(pa_cursor_t nfp, pa_cursor_t* ofp)
     { *ofp = cursor_vect; cursor_vect = nfp; }
 void pa_cursor(FILE* f, int x, int y) { (*cursor_vect)(f, x, y); }
 
@@ -7125,7 +6885,7 @@ Moves the cursor to the specified x and y location in pixels.
 
 *******************************************************************************/
 
-void pa_cursorg_ovr(pa_cursorg_t nfp, pa_cursorg_t* ofp)
+void _pa_cursorg_ovr(pa_cursorg_t nfp, pa_cursorg_t* ofp)
     { *ofp = cursorg_vect; cursorg_vect = nfp; }
 void pa_cursorg(FILE* f, int x, int y) { (*cursorg_vect)(f, x, y); }
 
@@ -7149,7 +6909,7 @@ to the font baseline. The baseline is the line all characters rest on.
 
 *******************************************************************************/
 
-void pa_baseline_ovr(pa_baseline_t nfp, pa_baseline_t* ofp)
+void _pa_baseline_ovr(pa_baseline_t nfp, pa_baseline_t* ofp)
     { *ofp = baseline_vect; baseline_vect = nfp; }
 int pa_baseline(FILE* f) { (*baseline_vect)(f); }
 
@@ -7176,7 +6936,7 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-void pa_maxx_ovr(pa_maxx_t nfp, pa_maxx_t* ofp)
+void _pa_maxx_ovr(pa_maxx_t nfp, pa_maxx_t* ofp)
     { *ofp = maxx_vect; maxx_vect = nfp; }
 int pa_maxx(FILE* f) { (*maxx_vect)(f); }
 
@@ -7201,7 +6961,7 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-void pa_maxy_ovr(pa_maxy_t nfp, pa_maxy_t* ofp)
+void _pa_maxy_ovr(pa_maxy_t nfp, pa_maxy_t* ofp)
     { *ofp = maxy_vect; maxy_vect = nfp; }
 int pa_maxy(FILE* f) { (*maxy_vect)(f); }
 
@@ -7226,7 +6986,7 @@ pixels.
 
 *******************************************************************************/
 
-void pa_maxxg_ovr(pa_maxxg_t nfp, pa_maxxg_t* ofp)
+void _pa_maxxg_ovr(pa_maxxg_t nfp, pa_maxxg_t* ofp)
     { *ofp = maxxg_vect; maxxg_vect = nfp; }
 int pa_maxxg(FILE* f) { (*maxxg_vect)(f); }
 
@@ -7251,7 +7011,7 @@ pixels.
 
 *******************************************************************************/
 
-void pa_maxyg_ovr(pa_maxyg_t nfp, pa_maxyg_t* ofp)
+void _pa_maxyg_ovr(pa_maxyg_t nfp, pa_maxyg_t* ofp)
     { *ofp = maxyg_vect; maxyg_vect = nfp; }
 int pa_maxyg(FILE* f) { (*maxyg_vect)(f); }
 
@@ -7275,7 +7035,7 @@ Moves the cursor to the home position at (1, 1), the upper right hand corner.
 
 *******************************************************************************/
 
-void pa_home_ovr(pa_home_t nfp, pa_home_t* ofp)
+void _pa_home_ovr(pa_home_t nfp, pa_home_t* ofp)
     { *ofp = home_vect; home_vect = nfp; }
 void pa_home(FILE* f) { (*home_vect)(f); }
 
@@ -7298,7 +7058,7 @@ Moves the cursor position up one line.
 
 *******************************************************************************/
 
-void pa_up_ovr(pa_up_t nfp, pa_up_t* ofp)
+void _pa_up_ovr(pa_up_t nfp, pa_up_t* ofp)
     { *ofp = up_vect; up_vect = nfp; }
 void pa_up(FILE* f) { (*up_vect)(f); }
 
@@ -7321,7 +7081,7 @@ Moves the cursor position down one line.
 
 *******************************************************************************/
 
-void pa_down_ovr(pa_down_t nfp, pa_down_t* ofp)
+void _pa_down_ovr(pa_down_t nfp, pa_down_t* ofp)
     { *ofp = down_vect; down_vect = nfp; }
 void pa_down(FILE* f) { (*down_vect)(f); }
 
@@ -7346,7 +7106,7 @@ the cursor will move into negative space, limited only by maxint.
 
 *******************************************************************************/
 
-void pa_left_ovr(pa_left_t nfp, pa_left_t* ofp)
+void _pa_left_ovr(pa_left_t nfp, pa_left_t* ofp)
     { *ofp = left_vect; left_vect = nfp; }
 void pa_left(FILE* f) { (*left_vect)(f); }
 
@@ -7369,7 +7129,7 @@ Moves the cursor one character right.
 
 *******************************************************************************/
 
-void pa_right_ovr(pa_right_t nfp, pa_right_t* ofp)
+void _pa_right_ovr(pa_right_t nfp, pa_right_t* ofp)
     { *ofp = right_vect; right_vect = nfp; }
 void pa_right(FILE* f) { (*right_vect)(f); }
 
@@ -7396,7 +7156,7 @@ Graphical mode does not implement blink mode.
 
 *******************************************************************************/
 
-void pa_blink_ovr(pa_blink_t nfp, pa_blink_t* ofp)
+void _pa_blink_ovr(pa_blink_t nfp, pa_blink_t* ofp)
     { *ofp = blink_vect; blink_vect = nfp; }
 void pa_blink(FILE* f, int e) { (*blink_vect)(f, e); }
 
@@ -7417,7 +7177,7 @@ and foreground writing colors.
 
 *******************************************************************************/
 
-void pa_reverse_ovr(pa_reverse_t nfp, pa_reverse_t* ofp)
+void _pa_reverse_ovr(pa_reverse_t nfp, pa_reverse_t* ofp)
     { *ofp = reverse_vect; reverse_vect = nfp; }
 void pa_reverse(FILE* f, int e) { (*reverse_vect)(f, e); }
 
@@ -7457,7 +7217,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void pa_underline_ovr(pa_underline_t nfp, pa_underline_t* ofp)
+void _pa_underline_ovr(pa_underline_t nfp, pa_underline_t* ofp)
     { *ofp = underline_vect; underline_vect = nfp; }
 void pa_underline(FILE* f, int e) { (*underline_vect)(f, e); }
 
@@ -7495,7 +7255,7 @@ Note that subscript is implemented by a reduced size and elevated font.
 
 *******************************************************************************/
 
-void pa_superscript_ovr(pa_superscript_t nfp, pa_superscript_t* ofp)
+void _pa_superscript_ovr(pa_superscript_t nfp, pa_superscript_t* ofp)
     { *ofp = superscript_vect; superscript_vect = nfp; }
 void pa_superscript(FILE* f, int e) { (*superscript_vect)(f, e); }
 
@@ -7533,7 +7293,7 @@ Note that subscript is implemented by a reduced size and lowered font.
 
 *******************************************************************************/
 
-void pa_subscript_ovr(pa_subscript_t nfp, pa_subscript_t* ofp)
+void _pa_subscript_ovr(pa_subscript_t nfp, pa_subscript_t* ofp)
     { *ofp = subscript_vect; subscript_vect = nfp; }
 void pa_subscript(FILE* f, int e) { (*subscript_vect)(f, e); }
 
@@ -7574,7 +7334,7 @@ italic on fixed fonts.
 
 *******************************************************************************/
 
-void pa_italic_ovr(pa_italic_t nfp, pa_italic_t* ofp)
+void _pa_italic_ovr(pa_italic_t nfp, pa_italic_t* ofp)
     { *ofp = italic_vect; italic_vect = nfp; }
 void pa_italic(FILE* f, int e) { (*italic_vect)(f, e); }
 
@@ -7619,7 +7379,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void pa_bold_ovr(pa_bold_t nfp, pa_bold_t* ofp)
+void _pa_bold_ovr(pa_bold_t nfp, pa_bold_t* ofp)
     { *ofp = bold_vect; bold_vect = nfp; }
 void pa_bold(FILE* f, int e) { (*bold_vect)(f, e); }
 
@@ -7666,7 +7426,7 @@ just placed.
 
 *******************************************************************************/
 
-void pa_strikeout_ovr(pa_strikeout_t nfp, pa_strikeout_t* ofp)
+void _pa_strikeout_ovr(pa_strikeout_t nfp, pa_strikeout_t* ofp)
     { *ofp = strikeout_vect; strikeout_vect = nfp; }
 void pa_strikeout(FILE* f, int e) { (*strikeout_vect)(f, e); }
 
@@ -7702,7 +7462,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void pa_standout_ovr(pa_standout_t nfp, pa_standout_t* ofp)
+void _pa_standout_ovr(pa_standout_t nfp, pa_standout_t* ofp)
     { *ofp = standout_vect; standout_vect = nfp; }
 void pa_standout(FILE* f, int e) { (*standout_vect)(f, e); }
 
@@ -7722,7 +7482,7 @@ Sets the foreground color from the universal primary code.
 
 *******************************************************************************/
 
-void pa_fcolor_ovr(pa_fcolor_t nfp, pa_fcolor_t* ofp)
+void _pa_fcolor_ovr(pa_fcolor_t nfp, pa_fcolor_t* ofp)
     { *ofp = fcolor_vect; fcolor_vect = nfp; }
 void pa_fcolor(FILE* f, pa_color c) { (*fcolor_vect)(f, c); }
 
@@ -7753,7 +7513,7 @@ Sets the foreground color from individual r, g, b values.
 
 *******************************************************************************/
 
-void pa_fcolorc_ovr(pa_fcolorc_t nfp, pa_fcolorc_t* ofp)
+void _pa_fcolorc_ovr(pa_fcolorc_t nfp, pa_fcolorc_t* ofp)
     { *ofp = fcolorc_vect; fcolorc_vect = nfp; }
 void pa_fcolorc(FILE* f, int r, int g, int b) { (*fcolorc_vect)(f, r, g, b); }
 
@@ -7789,7 +7549,7 @@ fcolorg for backward compatiblity to the days before overloads.
 
 *******************************************************************************/
 
-void pa_fcolorg_ovr(pa_fcolorg_t nfp, pa_fcolorg_t* ofp)
+void _pa_fcolorg_ovr(pa_fcolorg_t nfp, pa_fcolorg_t* ofp)
     { *ofp = fcolorg_vect; fcolorg_vect = nfp; }
 void pa_fcolorg(FILE* f, int r, int g, int b) { (*fcolorg_vect)(f, r, g, b); }
 
@@ -7820,7 +7580,7 @@ Sets the background color from the universal primary code.
 
 *******************************************************************************/
 
-void pa_bcolor_ovr(pa_bcolor_t nfp, pa_bcolor_t* ofp)
+void _pa_bcolor_ovr(pa_bcolor_t nfp, pa_bcolor_t* ofp)
     { *ofp = bcolor_vect; bcolor_vect = nfp; }
 void pa_bcolor(FILE* f, pa_color c) { (*bcolor_vect)(f, c); }
 
@@ -7851,7 +7611,7 @@ Sets the background color from individual r, g, b values.
 
 *******************************************************************************/
 
-void pa_bcolorc_ovr(pa_bcolorc_t nfp, pa_bcolorc_t* ofp)
+void _pa_bcolorc_ovr(pa_bcolorc_t nfp, pa_bcolorc_t* ofp)
     { *ofp = bcolorc_vect; bcolorc_vect = nfp; }
 void pa_bcolorc(FILE* f, int r, int g, int b) { (*bcolorc_vect)(f, r, g, b); }
 
@@ -7884,7 +7644,7 @@ up, we will be ready.
 
 *******************************************************************************/
 
-void pa_bcolorg_ovr(pa_bcolorg_t nfp, pa_bcolorg_t* ofp)
+void _pa_bcolorg_ovr(pa_bcolorg_t nfp, pa_bcolorg_t* ofp)
     { *ofp = bcolorg_vect; bcolorg_vect = nfp; }
 void pa_bcolorg(FILE* f, int r, int g, int b) { (*bcolorg_vect)(f, r, g, b); }
 
@@ -7915,7 +7675,7 @@ Checks if the cursor lies in the current bounds, and returns TRUE if so.
 
 *******************************************************************************/
 
-void pa_curbnd_ovr(pa_curbnd_t nfp, pa_curbnd_t* ofp)
+void _pa_curbnd_ovr(pa_curbnd_t nfp, pa_curbnd_t* ofp)
     { *ofp = curbnd_vect; curbnd_vect = nfp; }
 int pa_curbnd(FILE* f) { (*curbnd_vect)(f); }
 
@@ -7956,7 +7716,7 @@ anywhere.
 
 *******************************************************************************/
 
-void pa_auto_ovr(pa_auto_t nfp, pa_auto_t* ofp)
+void _pa_auto_ovr(pa_auto_t nfp, pa_auto_t* ofp)
     { *ofp = auto_vect; auto_vect = nfp; }
 void pa_auto(FILE* f, int e) { (*auto_vect)(f, e); }
 
@@ -7979,7 +7739,7 @@ Enable or disable cursor visibility.
 
 *******************************************************************************/
 
-void pa_curvis_ovr(pa_curvis_t nfp, pa_curvis_t* ofp)
+void _pa_curvis_ovr(pa_curvis_t nfp, pa_curvis_t* ofp)
     { *ofp = curvis_vect; curvis_vect = nfp; }
 void pa_curvis(FILE* f, int e) { (*curvis_vect)(f, e); }
 
@@ -8004,7 +7764,7 @@ Returns the current location of the cursor in x.
 
 *******************************************************************************/
 
-void pa_curx_ovr(pa_curx_t nfp, pa_curx_t* ofp)
+void _pa_curx_ovr(pa_curx_t nfp, pa_curx_t* ofp)
     { *ofp = curx_vect; curx_vect = nfp; }
 int pa_curx(FILE* f) { (*curx_vect)(f); }
 
@@ -8028,7 +7788,7 @@ Returns the current location of the cursor in y.
 
 *******************************************************************************/
 
-void pa_cury_ovr(pa_cury_t nfp, pa_cury_t* ofp)
+void _pa_cury_ovr(pa_cury_t nfp, pa_cury_t* ofp)
     { *ofp = cury_vect; cury_vect = nfp; }
 int pa_cury(FILE* f) { (*cury_vect)(f); }
 
@@ -8052,7 +7812,7 @@ Returns the current location of the cursor in x, in pixels.
 
 *******************************************************************************/
 
-void pa_curxg_ovr(pa_curxg_t nfp, pa_curxg_t* ofp)
+void _pa_curxg_ovr(pa_curxg_t nfp, pa_curxg_t* ofp)
     { *ofp = curxg_vect; curxg_vect = nfp; }
 int pa_curxg(FILE* f) { (*curxg_vect)(f); }
 
@@ -8076,7 +7836,7 @@ Returns the current location of the cursor in y, in pixels.
 
 *******************************************************************************/
 
-void pa_curyg_ovr(pa_curyg_t nfp, pa_curyg_t* ofp)
+void _pa_curyg_ovr(pa_curyg_t nfp, pa_curyg_t* ofp)
     { *ofp = curyg_vect; curyg_vect = nfp; }
 int pa_curyg(FILE* f) { (*curyg_vect)(f); }
 
@@ -8106,7 +7866,7 @@ forces a screen refresh, which can be important when working on terminals.
 
 *******************************************************************************/
 
-void pa_select_ovr(pa_select_t nfp, pa_select_t* ofp)
+void _pa_select_ovr(pa_select_t nfp, pa_select_t* ofp)
     { *ofp = select_vect; select_vect = nfp; }
 void pa_select(FILE* f, int u, int d) { (*select_vect)(f, u, d); }
 
@@ -8264,7 +8024,7 @@ advantage.
 
 *******************************************************************************/
 
-void pa_wrtstr_ovr(pa_wrtstr_t nfp, pa_wrtstr_t* ofp)
+void _pa_wrtstr_ovr(pa_wrtstr_t nfp, pa_wrtstr_t* ofp)
     { *ofp = wrtstr_vect; wrtstr_vect = nfp; }
 void pa_wrtstr(FILE* f, char* s) { (*wrtstr_vect)(f, s); }
 
@@ -8316,7 +8076,7 @@ position left.
 
 *******************************************************************************/
 
-void pa_del_ovr(pa_del_t nfp, pa_del_t* ofp)
+void _pa_del_ovr(pa_del_t nfp, pa_del_t* ofp)
     { *ofp = del_vect; del_vect = nfp; }
 void pa_del(FILE* f) { (*del_vect)(f); }
 
@@ -8341,7 +8101,7 @@ Draws a single line in the foreground color.
 
 *******************************************************************************/
 
-void pa_line_ovr(pa_line_t nfp, pa_line_t* ofp)
+void _pa_line_ovr(pa_line_t nfp, pa_line_t* ofp)
     { *ofp = line_vect; line_vect = nfp; }
 void pa_line(FILE* f, int x1, int y1, int x2, int y2)
     { (*line_vect)(f, x1, y1, x2, y2); }
@@ -8405,7 +8165,7 @@ Draws a rectangle in foreground color.
 
 *******************************************************************************/
 
-void pa_rect_ovr(pa_rect_t nfp, pa_rect_t* ofp)
+void _pa_rect_ovr(pa_rect_t nfp, pa_rect_t* ofp)
     { *ofp = rect_vect; rect_vect = nfp; }
 void pa_rect(FILE* f, int x1, int y1, int x2, int y2)
     { (*rect_vect)(f, x1, y1, x2, y2); }
@@ -8469,7 +8229,7 @@ Draws a filled rectangle in foreground color.
 
 *******************************************************************************/
 
-void pa_frect_ovr(pa_frect_t nfp, pa_frect_t* ofp)
+void _pa_frect_ovr(pa_frect_t nfp, pa_frect_t* ofp)
     { *ofp = frect_vect; frect_vect = nfp; }
 void pa_frect(FILE* f, int x1, int y1, int x2, int y2)
     { (*frect_vect)(f, x1, y1, x2, y2); }
@@ -8535,7 +8295,7 @@ In XWindow, this has to be constructed, since there is no equivalent function.
 
 *******************************************************************************/
 
-void pa_rrect_ovr(pa_rrect_t nfp, pa_rrect_t* ofp)
+void _pa_rrect_ovr(pa_rrect_t nfp, pa_rrect_t* ofp)
     { *ofp = rrect_vect; rrect_vect = nfp; }
 void pa_rrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
     { (*rrect_vect)(f, x1, y1, x2, y2, xs, ys); }
@@ -8636,7 +8396,7 @@ x or y sizes.
 
 *******************************************************************************/
 
-void pa_frrect_ovr(pa_frrect_t nfp, pa_frrect_t* ofp)
+void _pa_frrect_ovr(pa_frrect_t nfp, pa_frrect_t* ofp)
     { *ofp = frrect_vect; frrect_vect = nfp; }
 void pa_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
     { (*frrect_vect)(f, x1, y1, x2, y2, xs, ys); }
@@ -8825,7 +8585,7 @@ Draws an ellipse with the current foreground color and line width.
 
 *******************************************************************************/
 
-void pa_ellipse_ovr(pa_ellipse_t nfp, pa_ellipse_t* ofp)
+void _pa_ellipse_ovr(pa_ellipse_t nfp, pa_ellipse_t* ofp)
     { *ofp = ellipse_vect; ellipse_vect = nfp; }
 void pa_ellipse(FILE* f, int x1, int y1, int x2, int y2)
     { (*ellipse_vect)(f, x1, y1, x2, y2); }
@@ -8891,7 +8651,7 @@ Draws a filled ellipse with the current foreground color.
 
 *******************************************************************************/
 
-void pa_fellipse_ovr(pa_fellipse_t nfp, pa_fellipse_t* ofp)
+void _pa_fellipse_ovr(pa_fellipse_t nfp, pa_fellipse_t* ofp)
     { *ofp = fellipse_vect; fellipse_vect = nfp; }
 void pa_fellipse(FILE* f, int x1, int y1, int x2, int y2)
     { (*fellipse_vect)(f, x1, y1, x2, y2); }
@@ -8977,7 +8737,7 @@ Negative angles are allowed.
 
 *******************************************************************************/
 
-void pa_arc_ovr(pa_arc_t nfp, pa_arc_t* ofp)
+void _pa_arc_ovr(pa_arc_t nfp, pa_arc_t* ofp)
     { *ofp = arc_vect; arc_vect = nfp; }
 void pa_arc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
     { (*arc_vect)(f, x1, y1, x2, y2, sa, ea); }
@@ -9058,7 +8818,7 @@ this.
 
 *******************************************************************************/
 
-void pa_farc_ovr(pa_farc_t nfp, pa_farc_t* ofp)
+void _pa_farc_ovr(pa_farc_t nfp, pa_farc_t* ofp)
     { *ofp = farc_vect; farc_vect = nfp; }
 void pa_farc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
     { (*farc_vect)(f, x1, y1, x2, y2, sa, ea); }
@@ -9136,7 +8896,7 @@ as for the arc function above.
 
 *******************************************************************************/
 
-void pa_fchord_ovr(pa_fchord_t nfp, pa_fchord_t* ofp)
+void _pa_fchord_ovr(pa_fchord_t nfp, pa_fchord_t* ofp)
     { *ofp = fchord_vect; fchord_vect = nfp; }
 void pa_fchord(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
     { (*fchord_vect)(f, x1, y1, x2, y2, sa, ea); }
@@ -9215,7 +8975,7 @@ Draws a filled triangle in the current foreground color.
 
 *******************************************************************************/
 
-void pa_ftriangle_ovr(pa_ftriangle_t nfp, pa_ftriangle_t* ofp)
+void _pa_ftriangle_ovr(pa_ftriangle_t nfp, pa_ftriangle_t* ofp)
     { *ofp = ftriangle_vect; ftriangle_vect = nfp; }
 void pa_ftriangle(FILE* f, int x1, int y1, int x2, int y2, int x3, int y3)
     { (*ftriangle_vect)(f, x1, y1, x2, y2, x3, y3); }
@@ -9278,7 +9038,7 @@ Sets a single logical pixel to the foreground color.
 
 *******************************************************************************/
 
-void pa_setpixel_ovr(pa_setpixel_t nfp, pa_setpixel_t* ofp)
+void _pa_setpixel_ovr(pa_setpixel_t nfp, pa_setpixel_t* ofp)
     { *ofp = setpixel_vect; setpixel_vect = nfp; }
 void pa_setpixel(FILE* f, int x, int y) { (*setpixel_vect)(f, x, y); }
 
@@ -9331,7 +9091,7 @@ Sets the foreground write mode to overwrite.
 
 *******************************************************************************/
 
-void pa_fover_ovr(pa_fover_t nfp, pa_fover_t* ofp)
+void _pa_fover_ovr(pa_fover_t nfp, pa_fover_t* ofp)
     { *ofp = fover_vect; fover_vect = nfp; }
 void pa_fover(FILE* f) { (*fover_vect)(f); }
 
@@ -9357,7 +9117,7 @@ Sets the background write mode to overwrite.
 
 *******************************************************************************/
 
-void pa_bover_ovr(pa_bover_t nfp, pa_bover_t* ofp)
+void _pa_bover_ovr(pa_bover_t nfp, pa_bover_t* ofp)
     { *ofp = bover_vect; bover_vect = nfp; }
 void pa_bover(FILE* f) { (*bover_vect)(f); }
 
@@ -9383,7 +9143,7 @@ Sets the foreground write mode to invisible.
 
 *******************************************************************************/
 
-void pa_finvis_ovr(pa_finvis_t nfp, pa_finvis_t* ofp)
+void _pa_finvis_ovr(pa_finvis_t nfp, pa_finvis_t* ofp)
     { *ofp = finvis_vect; finvis_vect = nfp; }
 void pa_finvis(FILE* f) { (*finvis_vect)(f); }
 
@@ -9409,7 +9169,7 @@ Sets the background write mode to invisible.
 
 *******************************************************************************/
 
-void pa_binvis_ovr(pa_binvis_t nfp, pa_binvis_t* ofp)
+void _pa_binvis_ovr(pa_binvis_t nfp, pa_binvis_t* ofp)
     { *ofp = binvis_vect; binvis_vect = nfp; }
 void pa_binvis(FILE* f) { (*binvis_vect)(f); }
 
@@ -9435,7 +9195,7 @@ Sets the foreground write mode to xor.
 
 *******************************************************************************/
 
-void pa_fxor_ovr(pa_fxor_t nfp, pa_fxor_t* ofp)
+void _pa_fxor_ovr(pa_fxor_t nfp, pa_fxor_t* ofp)
     { *ofp = fxor_vect; fxor_vect = nfp; }
 void pa_fxor(FILE* f) { (*fxor_vect)(f); }
 
@@ -9461,7 +9221,7 @@ Sets the background write mode to xor.
 
 *******************************************************************************/
 
-void pa_bxor_ovr(pa_bxor_t nfp, pa_bxor_t* ofp)
+void _pa_bxor_ovr(pa_bxor_t nfp, pa_bxor_t* ofp)
     { *ofp = bxor_vect; bxor_vect = nfp; }
 void pa_bxor(FILE* f) { (*bxor_vect)(f); }
 
@@ -9487,7 +9247,7 @@ Sets the foreground write mode to and.
 
 *******************************************************************************/
 
-void pa_fand_ovr(pa_fand_t nfp, pa_fand_t* ofp)
+void _pa_fand_ovr(pa_fand_t nfp, pa_fand_t* ofp)
     { *ofp = fand_vect; fand_vect = nfp; }
 void pa_fand(FILE* f) { (*fand_vect)(f); }
 
@@ -9513,7 +9273,7 @@ Sets the background write mode to and.
 
 *******************************************************************************/
 
-void pa_band_ovr(pa_band_t nfp, pa_band_t* ofp)
+void _pa_band_ovr(pa_band_t nfp, pa_band_t* ofp)
     { *ofp = band_vect; band_vect = nfp; }
 void pa_band(FILE* f) { (*band_vect)(f); }
 
@@ -9539,7 +9299,7 @@ Sets the foreground write mode to or.
 
 *******************************************************************************/
 
-void pa_for_ovr(pa_for_t nfp, pa_for_t* ofp)
+void _pa_for_ovr(pa_for_t nfp, pa_for_t* ofp)
     { *ofp = for_vect; for_vect = nfp; }
 void pa_for(FILE* f) { (*for_vect)(f); }
 
@@ -9565,7 +9325,7 @@ Sets the background write mode to or.
 
 *******************************************************************************/
 
-void pa_bor_ovr(pa_bor_t nfp, pa_bor_t* ofp)
+void _pa_bor_ovr(pa_bor_t nfp, pa_bor_t* ofp)
     { *ofp = bor_vect; bor_vect = nfp; }
 void pa_bor(FILE* f) { (*bor_vect)(f); }
 
@@ -9591,7 +9351,7 @@ Sets the width of lines and several other figures.
 
 *******************************************************************************/
 
-void pa_linewidth_ovr(pa_linewidth_t nfp, pa_linewidth_t* ofp)
+void _pa_linewidth_ovr(pa_linewidth_t nfp, pa_linewidth_t* ofp)
     { *ofp = linewidth_vect; linewidth_vect = nfp; }
 void pa_linewidth(FILE* f, int w) { (*linewidth_vect)(f, w); }
 
@@ -9622,7 +9382,7 @@ character in the character set.
 
 *******************************************************************************/
 
-void pa_chrsizx_ovr(pa_chrsizx_t nfp, pa_chrsizx_t* ofp)
+void _pa_chrsizx_ovr(pa_chrsizx_t nfp, pa_chrsizx_t* ofp)
     { *ofp = chrsizx_vect; chrsizx_vect = nfp; }
 int pa_chrsizx(FILE* f) { (*chrsizx_vect)(f); }
 
@@ -9648,7 +9408,7 @@ Returns the character height.
 
 *******************************************************************************/
 
-void pa_chrsizy_ovr(pa_chrsizy_t nfp, pa_chrsizy_t* ofp)
+void _pa_chrsizy_ovr(pa_chrsizy_t nfp, pa_chrsizy_t* ofp)
     { *ofp = chrsizy_vect; chrsizy_vect = nfp; }
 int pa_chrsizy(FILE* f) { (*chrsizy_vect)(f); }
 
@@ -9674,7 +9434,7 @@ Finds the total number of installed fonts.
 
 *******************************************************************************/
 
-void pa_fonts_ovr(pa_fonts_t nfp, pa_fonts_t* ofp)
+void _pa_fonts_ovr(pa_fonts_t nfp, pa_fonts_t* ofp)
     { *ofp = fonts_vect; fonts_vect = nfp; }
 int pa_fonts(FILE* f) { (*fonts_vect)(f); }
 
@@ -9694,7 +9454,7 @@ Changes the current font to the indicated logical font number.
 
 *******************************************************************************/
 
-void pa_font_ovr(pa_font_t nfp, pa_font_t* ofp)
+void _pa_font_ovr(pa_font_t nfp, pa_font_t* ofp)
     { *ofp = font_vect; font_vect = nfp; }
 void pa_font(FILE* f, int fc) { (*font_vect)(f, fc); }
 
@@ -9741,7 +9501,7 @@ Returns the name of a font by number.
 
 *******************************************************************************/
 
-void pa_fontnam_ovr(pa_fontnam_t nfp, pa_fontnam_t* ofp)
+void _pa_fontnam_ovr(pa_fontnam_t nfp, pa_fontnam_t* ofp)
     { *ofp = fontnam_vect; fontnam_vect = nfp; }
 void pa_fontnam(FILE* f, int fc, char* fns, int fnsl)
     { (*fontnam_vect)(f, fc, fns, fnsl); }
@@ -9776,7 +9536,7 @@ and line spacing are changed, as well as the baseline.
 
 *******************************************************************************/
 
-void pa_fontsiz_ovr(pa_fontsiz_t nfp, pa_fontsiz_t* ofp)
+void _pa_fontsiz_ovr(pa_fontsiz_t nfp, pa_fontsiz_t* ofp)
     { *ofp = fontsiz_vect; fontsiz_vect = nfp; }
 void pa_fontsiz(FILE* f, int s) { (*fontsiz_vect)(f, s); }
 
@@ -9817,7 +9577,7 @@ as "leading".
 
 *******************************************************************************/
 
-void pa_chrspcy_ovr(pa_chrspcy_t nfp, pa_chrspcy_t* ofp)
+void _pa_chrspcy_ovr(pa_chrspcy_t nfp, pa_chrspcy_t* ofp)
     { *ofp = chrspcy_vect; chrspcy_vect = nfp; }
 void pa_chrspcy(FILE* f, int s) { (*chrspcy_vect)(f, s); }
 
@@ -9841,7 +9601,7 @@ as "spacing".
 
 *******************************************************************************/
 
-void pa_chrspcx_ovr(pa_chrspcx_t nfp, pa_chrspcx_t* ofp)
+void _pa_chrspcx_ovr(pa_chrspcx_t nfp, pa_chrspcx_t* ofp)
     { *ofp = chrspcx_vect; chrspcx_vect = nfp; }
 void pa_chrspcx(FILE* f, int s) { (*chrspcx_vect)(f, s); }
 
@@ -9864,7 +9624,7 @@ Returns the number of dots per meter resolution in x.
 
 *******************************************************************************/
 
-void pa_dpmx_ovr(pa_dpmx_t nfp, pa_dpmx_t* ofp)
+void _pa_dpmx_ovr(pa_dpmx_t nfp, pa_dpmx_t* ofp)
     { *ofp = dpmx_vect; dpmx_vect = nfp; }
 int pa_dpmx(FILE* f) { (*dpmx_vect)(f); }
 
@@ -9888,7 +9648,7 @@ Returns the number of dots per meter resolution in y.
 
 *******************************************************************************/
 
-void pa_dpmy_ovr(pa_dpmy_t nfp, pa_dpmy_t* ofp)
+void _pa_dpmy_ovr(pa_dpmy_t nfp, pa_dpmy_t* ofp)
     { *ofp = dpmy_vect; dpmy_vect = nfp; }
 int pa_dpmy(FILE* f) { (*dpmy_vect)(f); }
 
@@ -9913,7 +9673,7 @@ character spacing and kerning.
 
 *******************************************************************************/
 
-void pa_strsiz_ovr(pa_strsiz_t nfp, pa_strsiz_t* ofp)
+void _pa_strsiz_ovr(pa_strsiz_t nfp, pa_strsiz_t* ofp)
     { *ofp = strsiz_vect; strsiz_vect = nfp; }
 int pa_strsiz(FILE* f, const char* s) { (*strsiz_vect)(f, s); }
 
@@ -9941,7 +9701,7 @@ Finds the pixel offset to the given character in the string.
 
 *******************************************************************************/
 
-void pa_chrpos_ovr(pa_chrpos_t nfp, pa_chrpos_t* ofp)
+void _pa_chrpos_ovr(pa_chrpos_t nfp, pa_chrpos_t* ofp)
     { *ofp = chrpos_vect; chrpos_vect = nfp; }
 int pa_chrpos(FILE* f, const char* s, int p) { (*chrpos_vect)(f, s, p); }
 
@@ -9974,7 +9734,7 @@ distributes the space amoung the spaces present in the string.
 
 *******************************************************************************/
 
-void pa_writejust_ovr(pa_writejust_t nfp, pa_writejust_t* ofp)
+void _pa_writejust_ovr(pa_writejust_t nfp, pa_writejust_t* ofp)
     { *ofp = writejust_vect; writejust_vect = nfp; }
 void pa_writejust(FILE* f, const char* s, int n) { (*writejust_vect)(f, s, n); }
 
@@ -10102,7 +9862,7 @@ spaces, with the fractional part lost.
 
 *******************************************************************************/
 
-void pa_justpos_ovr(pa_justpos_t nfp, pa_justpos_t* ofp)
+void _pa_justpos_ovr(pa_justpos_t nfp, pa_justpos_t* ofp)
     { *ofp = justpos_vect; justpos_vect = nfp; }
 int pa_justpos(FILE* f, const char* s, int p, int n)
     { (*justpos_vect)(f, s, p, n); }
@@ -10182,7 +9942,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void pa_condensed_ovr(pa_condensed_t nfp, pa_condensed_t* ofp)
+void _pa_condensed_ovr(pa_condensed_t nfp, pa_condensed_t* ofp)
     { *ofp = condensed_vect; condensed_vect = nfp; }
 void pa_condensed(FILE* f, int e) { (*condensed_vect)(f, e); }
 
@@ -10231,7 +9991,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void pa_extended_ovr(pa_extended_t nfp, pa_extended_t* ofp)
+void _pa_extended_ovr(pa_extended_t nfp, pa_extended_t* ofp)
     { *ofp = extended_vect; extended_vect = nfp; }
 void pa_extended(FILE* f, int e) { (*extended_vect)(f, e); }
 
@@ -10280,7 +10040,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void pa_xlight_ovr(pa_xlight_t nfp, pa_xlight_t* ofp)
+void _pa_xlight_ovr(pa_xlight_t nfp, pa_xlight_t* ofp)
     { *ofp = xlight_vect; xlight_vect = nfp; }
 void pa_xlight(FILE* f, int e) { (*xlight_vect)(f, e); }
 
@@ -10329,7 +10089,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void pa_light_ovr(pa_light_t nfp, pa_light_t* ofp)
+void _pa_light_ovr(pa_light_t nfp, pa_light_t* ofp)
     { *ofp = light_vect; light_vect = nfp; }
 void pa_light(FILE* f, int e) { (*light_vect)(f, e); }
 
@@ -10378,7 +10138,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void pa_xbold_ovr(pa_xbold_t nfp, pa_xbold_t* ofp)
+void _pa_xbold_ovr(pa_xbold_t nfp, pa_xbold_t* ofp)
     { *ofp = xbold_vect; xbold_vect = nfp; }
 void pa_xbold(FILE* f, int e) { (*xbold_vect)(f, e); }
 
@@ -10427,7 +10187,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void pa_hollow_ovr(pa_hollow_t nfp, pa_hollow_t* ofp)
+void _pa_hollow_ovr(pa_hollow_t nfp, pa_hollow_t* ofp)
     { *ofp = hollow_vect; hollow_vect = nfp; }
 void pa_hollow(FILE* f, int e) { (*hollow_vect)(f, e); }
 
@@ -10476,7 +10236,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void pa_raised_ovr(pa_raised_t nfp, pa_raised_t* ofp)
+void _pa_raised_ovr(pa_raised_t nfp, pa_raised_t* ofp)
     { *ofp = raised_vect; raised_vect = nfp; }
 void pa_raised(FILE* f, int e) { (*raised_vect)(f, e); }
 
@@ -10520,7 +10280,7 @@ Deletes a loaded picture.
 
 *******************************************************************************/
 
-void pa_delpict_ovr(pa_delpict_t nfp, pa_delpict_t* ofp)
+void _pa_delpict_ovr(pa_delpict_t nfp, pa_delpict_t* ofp)
     { *ofp = delpict_vect; delpict_vect = nfp; }
 void pa_delpict(FILE* f, int p) { (*delpict_vect)(f, p); }
 
@@ -10622,7 +10382,7 @@ static unsigned int read16(FILE* f)
 
 }
 
-void pa_loadpict_ovr(pa_loadpict_t nfp, pa_loadpict_t* ofp)
+void _pa_loadpict_ovr(pa_loadpict_t nfp, pa_loadpict_t* ofp)
     { *ofp = loadpict_vect; loadpict_vect = nfp; }
 void pa_loadpict(FILE* f, int p, char* fn) { (*loadpict_vect)(f, p, fn); }
 
@@ -10734,7 +10494,7 @@ Returns the size in x of the logical picture.
 
 *******************************************************************************/
 
-void pa_pictsizx_ovr(pa_pictsizx_t nfp, pa_pictsizx_t* ofp)
+void _pa_pictsizx_ovr(pa_pictsizx_t nfp, pa_pictsizx_t* ofp)
     { *ofp = pictsizx_vect; pictsizx_vect = nfp; }
 int pa_pictsizx(FILE* f, int p) { (*pictsizx_vect)(f, p); }
 
@@ -10760,7 +10520,7 @@ Returns the size in y of the logical picture.
 
 *******************************************************************************/
 
-void pa_pictsizy_ovr(pa_pictsizy_t nfp, pa_pictsizy_t* ofp)
+void _pa_pictsizy_ovr(pa_pictsizy_t nfp, pa_pictsizy_t* ofp)
     { *ofp = pictsizy_vect; pictsizy_vect = nfp; }
 int pa_pictsizy(FILE* f, int p) { (*pictsizy_vect)(f, p); }
 
@@ -10789,7 +10549,7 @@ Images will be kept in a rotating cache to prevent repeating reloads.
 
 *******************************************************************************/
 
-void pa_picture_ovr(pa_picture_t nfp, pa_picture_t* ofp)
+void _pa_picture_ovr(pa_picture_t nfp, pa_picture_t* ofp)
     { *ofp = picture_vect; picture_vect = nfp; }
 void pa_picture(FILE* f, int p, int x1, int y1, int x2, int y2)
     { (*picture_vect)(f, p, x1, y1, x2, y2); }
@@ -10898,7 +10658,7 @@ Sets the offset of the viewport in logical space, in pixels, anywhere from
 
 *******************************************************************************/
 
-void pa_viewoffg_ovr(pa_viewoffg_t nfp, pa_viewoffg_t* ofp)
+void _pa_viewoffg_ovr(pa_viewoffg_t nfp, pa_viewoffg_t* ofp)
     { *ofp = viewoffg_vect; viewoffg_vect = nfp; }
 void pa_viewoffg(FILE* f, int x, int y) { (*viewoffg_vect)(f, x, y); }
 
@@ -10928,7 +10688,7 @@ painting into a buffer and transfering asymmetrically, or using outlines.
 
 *******************************************************************************/
 
-void pa_viewscale_ovr(pa_viewscale_t nfp, pa_viewscale_t* ofp)
+void _pa_viewscale_ovr(pa_viewscale_t nfp, pa_viewscale_t* ofp)
     { *ofp = viewscale_vect; viewscale_vect = nfp; }
 void pa_viewscale(FILE* f, float x, float y) { (*viewscale_vect)(f, x, y); }
 
@@ -11949,7 +11709,7 @@ static void ievent(FILE* f, pa_evtrec* er)
 
 /* external event interface */
 
-void pa_event_ovr(pa_event_t nfp, pa_event_t* ofp)
+void _pa_event_ovr(pa_event_t nfp, pa_event_t* ofp)
     { *ofp = event_vect; event_vect = nfp; }
 void pa_event(FILE* f, pa_evtrec* er) { (*event_vect)(f, er); }
 
@@ -11998,7 +11758,7 @@ window. Thus it is a more complete send of the event.
 
 *******************************************************************************/
 
-void pa_sendevent_ovr(pa_sendevent_t nfp, pa_sendevent_t* ofp)
+void _pa_sendevent_ovr(pa_sendevent_t nfp, pa_sendevent_t* ofp)
     { *ofp = sendevent_vect; sendevent_vect = nfp; }
 void pa_sendevent(FILE* f, pa_evtrec* er) { (*sendevent_vect)(f, er); }
 
@@ -12028,7 +11788,7 @@ call down into the stack by executing the overridden event.
 
 *******************************************************************************/
 
-void pa_eventover_ovr(pa_eventover_t nfp, pa_eventover_t* ofp)
+void _pa_eventover_ovr(pa_eventover_t nfp, pa_eventover_t* ofp)
     { *ofp = eventover_vect; eventover_vect = nfp; }
 void pa_eventover(pa_evtcod e, pa_pevthan eh, pa_pevthan* oeh)
     { (*eventover_vect)(e, eh, oeh); }
@@ -12054,7 +11814,7 @@ call down into the stack by executing the overridden event.
 
 *******************************************************************************/
 
-void pa_eventsover_ovr(pa_eventsover_t nfp, pa_eventsover_t* ofp)
+void _pa_eventsover_ovr(pa_eventsover_t nfp, pa_eventsover_t* ofp)
     { *ofp = eventsover_vect; eventsover_vect = nfp; }
 void pa_eventsover(pa_pevthan eh,  pa_pevthan* oeh)
     { (*eventsover_vect)(eh, oeh); }
@@ -12083,7 +11843,7 @@ the associated input file.
 
 *******************************************************************************/
 
-void pa_timer_ovr(pa_timer_t nfp, pa_timer_t* ofp)
+void _pa_timer_ovr(pa_timer_t nfp, pa_timer_t* ofp)
     { *ofp = timer_vect; timer_vect = nfp; }
 void pa_timer(FILE* f, int i, long t, int r) { (*timer_vect)(f, i, t, r); }
 
@@ -12117,7 +11877,7 @@ Kills a given timer, by it's id number. Only repeating timers should be killed.
 
 *******************************************************************************/
 
-void pa_killtimer_ovr(pa_killtimer_t nfp, pa_killtimer_t* ofp)
+void _pa_killtimer_ovr(pa_killtimer_t nfp, pa_killtimer_t* ofp)
     { *ofp = killtimer_vect; killtimer_vect = nfp; }
 void pa_killtimer(FILE* f, int   i ) { (*killtimer_vect)(f, i ); }
 
@@ -12147,7 +11907,7 @@ of the blanking interval.
 
 *******************************************************************************/
 
-void pa_frametimer_ovr(pa_frametimer_t nfp, pa_frametimer_t* ofp)
+void _pa_frametimer_ovr(pa_frametimer_t nfp, pa_frametimer_t* ofp)
     { *ofp = frametimer_vect; frametimer_vect = nfp; }
 void pa_frametimer(FILE* f, int e) { (*frametimer_vect)(f, e); }
 
@@ -12191,7 +11951,7 @@ holding gralib unaware programs.
 
 *******************************************************************************/
 
-void pa_autohold_ovr(pa_autohold_t nfp, pa_autohold_t* ofp)
+void _pa_autohold_ovr(pa_autohold_t nfp, pa_autohold_t* ofp)
     { *ofp = autohold_vect; autohold_vect = nfp; }
 void pa_autohold(int e) { (*autohold_vect)(e); }
 
@@ -12211,7 +11971,7 @@ Returns the number of mice implemented. XWindow supports only one mouse.
 
 *******************************************************************************/
 
-void pa_mouse_ovr(pa_mouse_t nfp, pa_mouse_t* ofp)
+void _pa_mouse_ovr(pa_mouse_t nfp, pa_mouse_t* ofp)
     { *ofp = mouse_vect; mouse_vect = nfp; }
 int pa_mouse(FILE* f) { (*mouse_vect)(f); }
 
@@ -12232,7 +11992,7 @@ version. XWindow supports from 1 to 5 buttons.
 
 *******************************************************************************/
 
-void pa_mousebutton_ovr(pa_mousebutton_t nfp, pa_mousebutton_t* ofp)
+void _pa_mousebutton_ovr(pa_mousebutton_t nfp, pa_mousebutton_t* ofp)
     { *ofp = mousebutton_vect; mousebutton_vect = nfp; }
 int pa_mousebutton(FILE* f, int m) { (*mousebutton_vect)(f, m); }
 
@@ -12252,7 +12012,7 @@ Return number of joysticks attached.
 
 *******************************************************************************/
 
-void pa_joystick_ovr(pa_joystick_t nfp, pa_joystick_t* ofp)
+void _pa_joystick_ovr(pa_joystick_t nfp, pa_joystick_t* ofp)
     { *ofp = joystick_vect; joystick_vect = nfp; }
 int pa_joystick(FILE* f) { (*joystick_vect)(f); }
 
@@ -12272,7 +12032,7 @@ Returns the number of buttons on a given joystick.
 
 *******************************************************************************/
 
-void pa_joybutton_ovr(pa_joybutton_t nfp, pa_joybutton_t* ofp)
+void _pa_joybutton_ovr(pa_joybutton_t nfp, pa_joybutton_t* ofp)
     { *ofp = joybutton_vect; joybutton_vect = nfp; }
 int pa_joybutton(FILE* f, int j) { (*joybutton_vect)(f, j); }
 
@@ -12297,7 +12057,7 @@ joystick can be considered a slider without positional meaning.
 
 *******************************************************************************/
 
-void pa_joyaxis_ovr(pa_joyaxis_t nfp, pa_joyaxis_t* ofp)
+void _pa_joyaxis_ovr(pa_joyaxis_t nfp, pa_joyaxis_t* ofp)
     { *ofp = joyaxis_vect; joyaxis_vect = nfp; }
 int pa_joyaxis(FILE* f, int j) { (*joyaxis_vect)(f, j); }
 
@@ -12325,7 +12085,7 @@ Sets a tab at the indicated pixel number.
 
 *******************************************************************************/
 
-void pa_settabg_ovr(pa_settabg_t nfp, pa_settabg_t* ofp)
+void _pa_settabg_ovr(pa_settabg_t nfp, pa_settabg_t* ofp)
     { *ofp = settabg_vect; settabg_vect = nfp; }
 void pa_settabg(FILE* f, int t) { (*settabg_vect)(f, t); }
 
@@ -12348,7 +12108,7 @@ Sets a tab at the indicated collumn number.
 
 *******************************************************************************/
 
-void pa_settab_ovr(pa_settab_t nfp, pa_settab_t* ofp)
+void _pa_settab_ovr(pa_settab_t nfp, pa_settab_t* ofp)
     { *ofp = settab_vect; settab_vect = nfp; }
 void pa_settab(FILE* f, int t) { (*settab_vect)(f, t); }
 
@@ -12371,7 +12131,7 @@ Resets the tab at the indicated pixel number.
 
 *******************************************************************************/
 
-void pa_restabg_ovr(pa_restabg_t nfp, pa_restabg_t* ofp)
+void _pa_restabg_ovr(pa_restabg_t nfp, pa_restabg_t* ofp)
     { *ofp = restabg_vect; restabg_vect = nfp; }
 void pa_restabg(FILE* f, int t) { (*restabg_vect)(f, t); }
 
@@ -12394,7 +12154,7 @@ Resets the tab at the indicated collumn number.
 
 *******************************************************************************/
 
-void pa_restab_ovr(pa_restab_t nfp, pa_restab_t* ofp)
+void _pa_restab_ovr(pa_restab_t nfp, pa_restab_t* ofp)
     { *ofp = restab_vect; restab_vect = nfp; }
 void pa_restab(FILE* f, int t) { (*restab_vect)(f, t); }
 
@@ -12418,7 +12178,7 @@ arrangement.
 
 *******************************************************************************/
 
-void pa_clrtab_ovr(pa_clrtab_t nfp, pa_clrtab_t* ofp)
+void _pa_clrtab_ovr(pa_clrtab_t nfp, pa_clrtab_t* ofp)
     { *ofp = clrtab_vect; clrtab_vect = nfp; }
 void pa_clrtab(FILE* f) { (*clrtab_vect)(f); }
 
@@ -12444,7 +12204,7 @@ function keys as well.
 
 *******************************************************************************/
 
-void pa_funkey_ovr(pa_funkey_t nfp, pa_funkey_t* ofp)
+void _pa_funkey_ovr(pa_funkey_t nfp, pa_funkey_t* ofp)
     { *ofp = funkey_vect; funkey_vect = nfp; }
 int pa_funkey(FILE* f) { (*funkey_vect)(f); }
 
@@ -12464,7 +12224,7 @@ Sets the title of the current window.
 
 *******************************************************************************/
 
-void pa_title_ovr(pa_title_t nfp, pa_title_t* ofp)
+void _pa_title_ovr(pa_title_t nfp, pa_title_t* ofp)
     { *ofp = title_vect; title_vect = nfp; }
 void pa_title(FILE* f, char* ts) { (*title_vect)(f, ts); }
 
@@ -12502,7 +12262,7 @@ is allocated, it is reserved until it is used and removed by killwidget().
 
 *******************************************************************************/
 
-void pa_getwinid_ovr(pa_getwinid_t nfp, pa_getwinid_t* ofp)
+void _pa_getwinid_ovr(pa_getwinid_t nfp, pa_getwinid_t* ofp)
     { *ofp = getwinid_vect; getwinid_vect = nfp; }
 int pa_getwinid(void) { (*getwinid_vect)(); }
 
@@ -12595,7 +12355,7 @@ static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, int wid,
 
 }
 
-void pa_openwin_ovr(pa_openwin_t nfp, pa_openwin_t* ofp)
+void _pa_openwin_ovr(pa_openwin_t nfp, pa_openwin_t* ofp)
     { *ofp = openwin_vect; openwin_vect = nfp; }
 void pa_openwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
     { (*openwin_vect)(infile, outfile, parent, wid); }
@@ -12617,7 +12377,7 @@ Sets or resets the size of the buffer surface, in pixel units.
 
 *******************************************************************************/
 
-void pa_sizbufg_ovr(pa_sizbufg_t nfp, pa_sizbufg_t* ofp)
+void _pa_sizbufg_ovr(pa_sizbufg_t nfp, pa_sizbufg_t* ofp)
     { *ofp = sizbufg_vect; sizbufg_vect = nfp; }
 void pa_sizbufg(FILE* f, int x, int y) { (*sizbufg_vect)(f, x, y); }
 
@@ -12689,7 +12449,7 @@ Sets or resets the size of the buffer surface, in character counts.
 
 *******************************************************************************/
 
-void pa_sizbuf_ovr(pa_sizbuf_t nfp, pa_sizbuf_t* ofp)
+void _pa_sizbuf_ovr(pa_sizbuf_t nfp, pa_sizbuf_t* ofp)
     { *ofp = sizbuf_vect; sizbuf_vect = nfp; }
 void pa_sizbuf(FILE* f, int x, int y) { (*sizbuf_vect)(f, x, y); }
 
@@ -12714,7 +12474,7 @@ freed.
 
 *******************************************************************************/
 
-void pa_buffer_ovr(pa_buffer_t nfp, pa_buffer_t* ofp)
+void _pa_buffer_ovr(pa_buffer_t nfp, pa_buffer_t* ofp)
     { *ofp = buffer_vect; buffer_vect = nfp; }
 void pa_buffer(FILE* f, int e) { (*buffer_vect)(f, e); }
 
@@ -12965,7 +12725,7 @@ static void menu_resize(FILE* f, winptr win, int menuon)
 
 }
 
-void pa_menu_ovr(pa_menu_t nfp, pa_menu_t* ofp)
+void _pa_menu_ovr(pa_menu_t nfp, pa_menu_t* ofp)
     { *ofp = menu_vect; menu_vect = nfp; }
 void pa_menu(FILE* f, pa_menuptr m) { (*menu_vect)(f, m); }
 
@@ -13026,7 +12786,7 @@ and will no longer send messages.
 
 *******************************************************************************/
 
-void pa_menuena_ovr(pa_menuena_t nfp, pa_menuena_t* ofp)
+void _pa_menuena_ovr(pa_menuena_t nfp, pa_menuena_t* ofp)
     { *ofp = menuena_vect; menuena_vect = nfp; }
 void pa_menuena(FILE* f, int id, int onoff) { (*menuena_vect)(f, id, onoff); }
 
@@ -13106,7 +12866,7 @@ static void clrlst(metptr mp)
 
 }
 
-void pa_menusel_ovr(pa_menusel_t nfp, pa_menusel_t* ofp)
+void _pa_menusel_ovr(pa_menusel_t nfp, pa_menusel_t* ofp)
     { *ofp = menusel_vect; menusel_vect = nfp; }
 void pa_menusel(FILE* f, int id, int select) { (*menusel_vect)(f, id, select); }
 
@@ -13174,7 +12934,7 @@ static void additem(pa_stdmenusel sms, int i, pa_menuptr* m, pa_menuptr* l,
 
 }
 
-void pa_stdmenu_ovr(pa_stdmenu_t nfp, pa_stdmenu_t* ofp)
+void _pa_stdmenu_ovr(pa_stdmenu_t nfp, pa_stdmenu_t* ofp)
     { *ofp = stdmenu_vect; stdmenu_vect = nfp; }
 void pa_stdmenu(pa_stdmenusel sms, pa_menuptr* sm, pa_menuptr pm)
     { (*stdmenu_vect)(sms, sm, pm); }
@@ -13277,7 +13037,7 @@ Brings the indicated window to the front of the Z order.
 
 *******************************************************************************/
 
-void pa_front_ovr(pa_front_t nfp, pa_front_t* ofp)
+void _pa_front_ovr(pa_front_t nfp, pa_front_t* ofp)
     { *ofp = front_vect; front_vect = nfp; }
 void pa_front(FILE* f) { (*front_vect)(f); }
 
@@ -13302,7 +13062,7 @@ Puts the indicated window to the back of the Z order.
 
 *******************************************************************************/
 
-void pa_back_ovr(pa_back_t nfp, pa_back_t* ofp)
+void _pa_back_ovr(pa_back_t nfp, pa_back_t* ofp)
     { *ofp = back_vect; back_vect = nfp; }
 void pa_back(FILE* f) { (*back_vect)(f); }
 
@@ -13327,7 +13087,7 @@ Gets the onscreen window size.
 
 *******************************************************************************/
 
-void pa_getsizg_ovr(pa_getsizg_t nfp, pa_getsizg_t* ofp)
+void _pa_getsizg_ovr(pa_getsizg_t nfp, pa_getsizg_t* ofp)
     { *ofp = getsizg_vect; getsizg_vect = nfp; }
 void pa_getsizg(FILE* f, int* x, int* y) { (*getsizg_vect)(f, x, y); }
 
@@ -13373,7 +13133,7 @@ relative measurement.
 
 *******************************************************************************/
 
-void pa_getsiz_ovr(pa_getsiz_t nfp, pa_getsiz_t* ofp)
+void _pa_getsiz_ovr(pa_getsiz_t nfp, pa_getsiz_t* ofp)
     { *ofp = getsiz_vect; getsiz_vect = nfp; }
 void pa_getsiz(FILE* f, int* x, int* y) { (*getsiz_vect)(f, x, y); }
 
@@ -13415,7 +13175,7 @@ and height of 1 as the minimum size window.
 
 *******************************************************************************/
 
-void pa_setsizg_ovr(pa_setsizg_t nfp, pa_setsizg_t* ofp)
+void _pa_setsizg_ovr(pa_setsizg_t nfp, pa_setsizg_t* ofp)
     { *ofp = setsizg_vect; setsizg_vect = nfp; }
 void pa_setsizg(FILE* f, int x, int y) { (*setsizg_vect)(f, x, y); }
 
@@ -13482,7 +13242,7 @@ relative measurement.
 
 *******************************************************************************/
 
-void pa_setsiz_ovr(pa_setsiz_t nfp, pa_setsiz_t* ofp)
+void _pa_setsiz_ovr(pa_setsiz_t nfp, pa_setsiz_t* ofp)
     { *ofp = setsiz_vect; setsiz_vect = nfp; }
 void pa_setsiz(FILE* f, int x, int y) { (*setsiz_vect)(f, x, y); }
 
@@ -13520,7 +13280,7 @@ Sets the onscreen window to the given position in its parent.
 
 *******************************************************************************/
 
-void pa_setposg_ovr(pa_setposg_t nfp, pa_setposg_t* ofp)
+void _pa_setposg_ovr(pa_setposg_t nfp, pa_setposg_t* ofp)
     { *ofp = setposg_vect; setposg_vect = nfp; }
 void pa_setposg(FILE* f, int x, int y) { (*setposg_vect)(f, x, y); }
 
@@ -13569,7 +13329,7 @@ relative measurement.
 
 *******************************************************************************/
 
-void pa_setpos_ovr(pa_setpos_t nfp, pa_setpos_t* ofp)
+void _pa_setpos_ovr(pa_setpos_t nfp, pa_setpos_t* ofp)
     { *ofp = setpos_vect; setpos_vect = nfp; }
 void pa_setpos(FILE* f, int x, int y) { (*setpos_vect)(f, x, y); }
 
@@ -13606,7 +13366,7 @@ Gets the total screen size.
 
 *******************************************************************************/
 
-void pa_scnsizg_ovr(pa_scnsizg_t nfp, pa_scnsizg_t* ofp)
+void _pa_scnsizg_ovr(pa_scnsizg_t nfp, pa_scnsizg_t* ofp)
     { *ofp = scnsizg_vect; scnsizg_vect = nfp; }
 void pa_scnsizg(FILE* f, int* x, int* y) { (*scnsizg_vect)(f, x, y); }
 
@@ -13643,7 +13403,7 @@ because it can only be used as a relative measurement.
 
 *******************************************************************************/
 
-void pa_scnsiz_ovr(pa_scnsiz_t nfp, pa_scnsiz_t* ofp)
+void _pa_scnsiz_ovr(pa_scnsiz_t nfp, pa_scnsiz_t* ofp)
     { *ofp = scnsiz_vect; scnsiz_vect = nfp; }
 void pa_scnsiz(FILE* f, int* x, int* y) { (*scnsiz_vect)(f, x, y); }
 
@@ -13671,7 +13431,7 @@ screens that are joined at one or more sides.
 
 *******************************************************************************/
 
-void pa_scnceng_ovr(pa_scnceng_t nfp, pa_scnceng_t* ofp)
+void _pa_scnceng_ovr(pa_scnceng_t nfp, pa_scnceng_t* ofp)
     { *ofp = scnceng_vect; scnceng_vect = nfp; }
 void pa_scnceng(FILE* f, int* x, int* y) { (*scnceng_vect)(f, x, y); }
 
@@ -13699,7 +13459,7 @@ screens that are joined at one or more sides.
 
 *******************************************************************************/
 
-void pa_scncen_ovr(pa_scncen_t nfp, pa_scncen_t* ofp)
+void _pa_scncen_ovr(pa_scncen_t nfp, pa_scncen_t* ofp)
     { *ofp = scncen_vect; scncen_vect = nfp; }
 void pa_scncen(FILE* f, int* x, int* y) { (*scncen_vect)(f, x, y); }
 
@@ -13728,7 +13488,7 @@ Do we also need a menu style type ?
 
 *******************************************************************************/
 
-void pa_winclientg_ovr(pa_winclientg_t nfp, pa_winclientg_t* ofp)
+void _pa_winclientg_ovr(pa_winclientg_t nfp, pa_winclientg_t* ofp)
     { *ofp = winclientg_vect; winclientg_vect = nfp; }
 void pa_winclientg(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
     { (*winclientg_vect)(f, cx, cy, wx, wy, ms); }
@@ -13763,7 +13523,7 @@ static void winclientg_ivf(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmods
 
 }
 
-void pa_winclient_ovr(pa_winclient_t nfp, pa_winclient_t* ofp)
+void _pa_winclient_ovr(pa_winclient_t nfp, pa_winclient_t* ofp)
     { *ofp = winclient_vect; winclient_vect = nfp; }
 void pa_winclient(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
     { (*winclient_vect)(f, cx, cy, wx, wy, ms); }
@@ -13803,7 +13563,7 @@ Turns the window frame on and off.
 
 *******************************************************************************/
 
-void pa_frame_ovr(pa_frame_t nfp, pa_frame_t* ofp)
+void _pa_frame_ovr(pa_frame_t nfp, pa_frame_t* ofp)
     { *ofp = frame_vect; frame_vect = nfp; }
 void pa_frame(FILE* f, int e) { (*frame_vect)(f, e); }
 
@@ -13875,7 +13635,7 @@ managers.
 
 *******************************************************************************/
 
-void pa_sizable_ovr(pa_sizable_t nfp, pa_sizable_t* ofp)
+void _pa_sizable_ovr(pa_sizable_t nfp, pa_sizable_t* ofp)
     { *ofp = sizable_vect; sizable_vect = nfp; }
 void pa_sizable(FILE* f, int e) { (*sizable_vect)(f, e); }
 
@@ -13946,7 +13706,7 @@ used to create component windows.
 
 *******************************************************************************/
 
-void pa_sysbar_ovr(pa_sysbar_t nfp, pa_sysbar_t* ofp)
+void _pa_sysbar_ovr(pa_sysbar_t nfp, pa_sysbar_t* ofp)
     { *ofp = sysbar_vect; sysbar_vect = nfp; }
 void pa_sysbar(FILE* f, int e) { (*sysbar_vect)(f, e); }
 
@@ -14014,7 +13774,7 @@ Sends the focus, or which window gets input characters, to a given window.
 
 *******************************************************************************/
 
-void pa_focus_ovr(pa_focus_t nfp, pa_focus_t* ofp)
+void _pa_focus_ovr(pa_focus_t nfp, pa_focus_t* ofp)
     { *ofp = focus_vect; focus_vect = nfp; }
 void pa_focus(FILE* f) { (*focus_vect)(f); }
 
@@ -14051,7 +13811,7 @@ increments.
 
 *******************************************************************************/
 
-void pa_path_ovr(pa_path_t nfp, pa_path_t* ofp)
+void _pa_path_ovr(pa_path_t nfp, pa_path_t* ofp)
     { *ofp = path_vect; path_vect = nfp; }
 void pa_path(FILE* f, int a) { (*path_vect)(f, a); }
 
@@ -14079,19 +13839,19 @@ The widget package for XWindows will be supplied by an add-on package.
 
 *******************************************************************************/
 
-void pa_getwigid_ovr(pa_getwigid_t nfp, pa_getwigid_t* ofp)
+void _pa_getwigid_ovr(pa_getwigid_t nfp, pa_getwigid_t* ofp)
     { *ofp = getwigid_vect; getwigid_vect = nfp; }
 int pa_getwigid(FILE* f) { (*getwigid_vect)(f); }
 
 static int getwigid_ivf(FILE* f) { error(egetwigid_unimp); }
 
-void pa_killwidget_ovr(pa_killwidget_t nfp, pa_killwidget_t* ofp)
+void _pa_killwidget_ovr(pa_killwidget_t nfp, pa_killwidget_t* ofp)
     { *ofp = killwidget_vect; killwidget_vect = nfp; }
 void pa_killwidget(FILE* f, int id) { (*killwidget_vect)(f, id); }
 
 static void killwidget_ivf(FILE* f, int id) { error(ekillwidget_unimp); }
 
-void pa_selectwidget_ovr(pa_selectwidget_t nfp, pa_selectwidget_t* ofp)
+void _pa_selectwidget_ovr(pa_selectwidget_t nfp, pa_selectwidget_t* ofp)
     { *ofp = selectwidget_vect; selectwidget_vect = nfp; }
 void pa_selectwidget(FILE* f, int id, int e)
     { (*selectwidget_vect)(f, id, e); }
@@ -14099,7 +13859,7 @@ void pa_selectwidget(FILE* f, int id, int e)
 static void selectwidget_ivf(FILE* f, int id, int e)
     { error(eselectwidget_unimp); }
 
-void pa_enablewidget_ovr(pa_enablewidget_t nfp, pa_enablewidget_t* ofp)
+void _pa_enablewidget_ovr(pa_enablewidget_t nfp, pa_enablewidget_t* ofp)
     { *ofp = enablewidget_vect; enablewidget_vect = nfp; }
 void pa_enablewidget(FILE* f, int id, int e)
     { (*enablewidget_vect)(f, id, e); }
@@ -14107,7 +13867,7 @@ void pa_enablewidget(FILE* f, int id, int e)
 static void enablewidget_ivf(FILE* f, int id, int e)
     { error(eenablewidget_unimp); }
 
-void pa_getwidgettext_ovr(pa_getwidgettext_t nfp, pa_getwidgettext_t* ofp)
+void _pa_getwidgettext_ovr(pa_getwidgettext_t nfp, pa_getwidgettext_t* ofp)
     { *ofp = getwidgettext_vect; getwidgettext_vect = nfp; }
 void pa_getwidgettext(FILE* f, int id, char* s, int sl)
     { (*getwidgettext_vect)(f, id, s, sl); }
@@ -14115,7 +13875,7 @@ void pa_getwidgettext(FILE* f, int id, char* s, int sl)
 static void getwidgettext_ivf(FILE* f, int id, char* s, int sl)
     { error(egetwidgettext_unimp); }
 
-void pa_putwidgettext_ovr(pa_putwidgettext_t nfp, pa_putwidgettext_t* ofp)
+void _pa_putwidgettext_ovr(pa_putwidgettext_t nfp, pa_putwidgettext_t* ofp)
     { *ofp = putwidgettext_vect; putwidgettext_vect = nfp; }
 void pa_putwidgettext(FILE* f, int id, char* s)
     { (*putwidgettext_vect)(f, id, s); }
@@ -14123,7 +13883,7 @@ void pa_putwidgettext(FILE* f, int id, char* s)
 static void putwidgettext_ivf(FILE* f, int id, char* s)
     { error(eputwidgettext_unimp); }
 
-void pa_sizwidget_ovr(pa_sizwidget_t nfp, pa_sizwidget_t* ofp)
+void _pa_sizwidget_ovr(pa_sizwidget_t nfp, pa_sizwidget_t* ofp)
     { *ofp = sizwidget_vect; sizwidget_vect = nfp; }
 void pa_sizwidget(FILE* f, int id, int x, int y)
     { (*sizwidget_vect)(f, id, x, y); }
@@ -14131,7 +13891,7 @@ void pa_sizwidget(FILE* f, int id, int x, int y)
 static void sizwidget_ivf(FILE* f, int id, int x, int y)
     { error(esizwidget_unimp); }
 
-void pa_sizwidgetg_ovr(pa_sizwidgetg_t nfp, pa_sizwidgetg_t* ofp)
+void _pa_sizwidgetg_ovr(pa_sizwidgetg_t nfp, pa_sizwidgetg_t* ofp)
     { *ofp = sizwidgetg_vect; sizwidgetg_vect = nfp; }
 void pa_sizwidgetg(FILE* f, int id, int x, int y)
     { (*sizwidgetg_vect)(f, id, x, y); }
@@ -14139,7 +13899,7 @@ void pa_sizwidgetg(FILE* f, int id, int x, int y)
 static void sizwidgetg_ivf(FILE* f, int id, int x, int y)
     { error(esizwidgetg_unimp); }
 
-void pa_poswidget_ovr(pa_poswidget_t nfp, pa_poswidget_t* ofp)
+void _pa_poswidget_ovr(pa_poswidget_t nfp, pa_poswidget_t* ofp)
     { *ofp = poswidget_vect; poswidget_vect = nfp; }
 void pa_poswidget(FILE* f, int id, int x, int y)
     { (*poswidget_vect)(f, id, x, y); }
@@ -14147,7 +13907,7 @@ void pa_poswidget(FILE* f, int id, int x, int y)
 static void poswidget_ivf(FILE* f, int id, int x, int y)
     { error(eposwidget_unimp); }
 
-void pa_poswidgetg_ovr(pa_poswidgetg_t nfp, pa_poswidgetg_t* ofp)
+void _pa_poswidgetg_ovr(pa_poswidgetg_t nfp, pa_poswidgetg_t* ofp)
     { *ofp = poswidgetg_vect; poswidgetg_vect = nfp; }
 void pa_poswidgetg(FILE* f, int id, int x, int y)
     { (*poswidgetg_vect)(f, id, x, y); }
@@ -14155,25 +13915,25 @@ void pa_poswidgetg(FILE* f, int id, int x, int y)
 static void poswidgetg_ivf(FILE* f, int id, int x, int y)
     { error(eposwidgetg_unimp); }
 
-void pa_backwidget_ovr(pa_backwidget_t nfp, pa_backwidget_t* ofp)
+void _pa_backwidget_ovr(pa_backwidget_t nfp, pa_backwidget_t* ofp)
     { *ofp = backwidget_vect; backwidget_vect = nfp; }
 void pa_backwidget(FILE* f, int id) { (*backwidget_vect)(f, id); }
 
 static void backwidget_ivf(FILE* f, int id) { error(ebackwidget_unimp); }
 
-void pa_frontwidget_ovr(pa_frontwidget_t nfp, pa_frontwidget_t* ofp)
+void _pa_frontwidget_ovr(pa_frontwidget_t nfp, pa_frontwidget_t* ofp)
     { *ofp = frontwidget_vect; frontwidget_vect = nfp; }
 void pa_frontwidget(FILE* f, int id) { (*frontwidget_vect)(f, id); }
 
 static void frontwidget_ivf(FILE* f, int id) { error(efrontwidget_unimp); }
 
-void pa_focuswidget_ovr(pa_focuswidget_t nfp, pa_focuswidget_t* ofp)
+void _pa_focuswidget_ovr(pa_focuswidget_t nfp, pa_focuswidget_t* ofp)
     { *ofp = focuswidget_vect; focuswidget_vect = nfp; }
 void pa_focuswidget(FILE* f, int id) { (*focuswidget_vect)(f, id); }
 
 static void focuswidget_ivf(FILE* f, int id) { error(efocuswidget_unimp); }
 
-void pa_buttonsiz_ovr(pa_buttonsiz_t nfp, pa_buttonsiz_t* ofp)
+void _pa_buttonsiz_ovr(pa_buttonsiz_t nfp, pa_buttonsiz_t* ofp)
     { *ofp = buttonsiz_vect; buttonsiz_vect = nfp; }
 void pa_buttonsiz(FILE* f, char* s, int* w, int* h)
     { (*buttonsiz_vect)(f, s, w, h); }
@@ -14181,7 +13941,7 @@ void pa_buttonsiz(FILE* f, char* s, int* w, int* h)
 static void buttonsiz_ivf(FILE* f, char* s, int* w, int* h)
     { error(ebuttonsiz_unimp); }
 
-void pa_buttonsizg_ovr(pa_buttonsizg_t nfp, pa_buttonsizg_t* ofp)
+void _pa_buttonsizg_ovr(pa_buttonsizg_t nfp, pa_buttonsizg_t* ofp)
     { *ofp = buttonsizg_vect; buttonsizg_vect = nfp; }
 void pa_buttonsizg(FILE* f, char* s, int* w, int* h)
     { (*buttonsizg_vect)(f, s, w, h); }
@@ -14189,7 +13949,7 @@ void pa_buttonsizg(FILE* f, char* s, int* w, int* h)
 static void buttonsizg_ivf(FILE* f, char* s, int* w, int* h)
     { error(ebuttonsizg_unimp); }
 
-void pa_button_ovr(pa_button_t nfp, pa_button_t* ofp)
+void _pa_button_ovr(pa_button_t nfp, pa_button_t* ofp)
     { *ofp = button_vect; button_vect = nfp; }
 void pa_button(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
     { (*button_vect)(f, x1, y1, x2, y2, s, id); }
@@ -14197,7 +13957,7 @@ void pa_button(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 static void button_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
     { error(ebutton_unimp); }
 
-void pa_buttong_ovr(pa_buttong_t nfp, pa_buttong_t* ofp)
+void _pa_buttong_ovr(pa_buttong_t nfp, pa_buttong_t* ofp)
     { *ofp = buttong_vect; buttong_vect = nfp; }
 void pa_buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
     { (*buttong_vect)(f, x1, y1, x2, y2, s, id); }
@@ -14205,7 +13965,7 @@ void pa_buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 static void buttong_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
     { error(ebuttong_unimp); }
 
-void pa_checkboxsiz_ovr(pa_checkboxsiz_t nfp, pa_checkboxsiz_t* ofp)
+void _pa_checkboxsiz_ovr(pa_checkboxsiz_t nfp, pa_checkboxsiz_t* ofp)
     { *ofp = checkboxsiz_vect; checkboxsiz_vect = nfp; }
 void pa_checkboxsiz(FILE* f, char* s, int* w, int* h)
     { (*checkboxsiz_vect)(f, s, w, h); }
@@ -14213,7 +13973,7 @@ void pa_checkboxsiz(FILE* f, char* s, int* w, int* h)
 static void checkboxsiz_ivf(FILE* f, char* s, int* w, int* h)
     { error(echeckboxsiz_unimp); }
 
-void pa_checkboxsizg_ovr(pa_checkboxsizg_t nfp, pa_checkboxsizg_t* ofp)
+void _pa_checkboxsizg_ovr(pa_checkboxsizg_t nfp, pa_checkboxsizg_t* ofp)
     { *ofp = checkboxsizg_vect; checkboxsizg_vect = nfp; }
 void pa_checkboxsizg(FILE* f, char* s, int* w, int* h)
     { (*checkboxsizg_vect)(f, s, w, h); }
@@ -14221,7 +13981,7 @@ void pa_checkboxsizg(FILE* f, char* s, int* w, int* h)
 static void checkboxsizg_ivf(FILE* f, char* s, int* w, int* h)
     { error(echeckboxsizg_unimp); }
 
-void pa_checkbox_ovr(pa_checkbox_t nfp, pa_checkbox_t* ofp)
+void _pa_checkbox_ovr(pa_checkbox_t nfp, pa_checkbox_t* ofp)
     { *ofp = checkbox_vect; checkbox_vect = nfp; }
 void pa_checkbox(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
     { (*checkbox_vect)(f, x1, y1, x2, y2, s, id); }
@@ -14229,7 +13989,7 @@ void pa_checkbox(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 static void checkbox_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
     { error(echeckbox_unimp); }
 
-void pa_checkboxg_ovr(pa_checkboxg_t nfp, pa_checkboxg_t* ofp)
+void _pa_checkboxg_ovr(pa_checkboxg_t nfp, pa_checkboxg_t* ofp)
     { *ofp = checkboxg_vect; checkboxg_vect = nfp; }
 void pa_checkboxg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
     { (*checkboxg_vect)(f, x1, y1, x2, y2, s, id); }
@@ -14237,7 +13997,7 @@ void pa_checkboxg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 static void checkboxg_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
     { error(echeckboxg_unimp); }
 
-void pa_radiobuttonsiz_ovr(pa_radiobuttonsiz_t nfp, pa_radiobuttonsiz_t* ofp)
+void _pa_radiobuttonsiz_ovr(pa_radiobuttonsiz_t nfp, pa_radiobuttonsiz_t* ofp)
     { *ofp = radiobuttonsiz_vect; radiobuttonsiz_vect = nfp; }
 void pa_radiobuttonsiz(FILE* f, char* s, int* w, int* h)
     { (*radiobuttonsiz_vect)(f, s, w, h); }
@@ -14245,7 +14005,7 @@ void pa_radiobuttonsiz(FILE* f, char* s, int* w, int* h)
 static void radiobuttonsiz_ivf(FILE* f, char* s, int* w, int* h)
     { error(eradiobuttonsiz_unimp); }
 
-void pa_radiobuttonsizg_ovr(pa_radiobuttonsizg_t nfp, pa_radiobuttonsizg_t* ofp)
+void _pa_radiobuttonsizg_ovr(pa_radiobuttonsizg_t nfp, pa_radiobuttonsizg_t* ofp)
     { *ofp = radiobuttonsizg_vect; radiobuttonsizg_vect = nfp; }
 void pa_radiobuttonsizg(FILE* f, char* s, int* w, int* h)
     { (*radiobuttonsizg_vect)(f, s, w, h); }
@@ -14253,7 +14013,7 @@ void pa_radiobuttonsizg(FILE* f, char* s, int* w, int* h)
 static void radiobuttonsizg_ivf(FILE* f, char* s, int* w, int* h)
     { error(eradiobuttonsizg_unimp); }
 
-void pa_radiobutton_ovr(pa_radiobutton_t nfp, pa_radiobutton_t* ofp)
+void _pa_radiobutton_ovr(pa_radiobutton_t nfp, pa_radiobutton_t* ofp)
     { *ofp = radiobutton_vect; radiobutton_vect = nfp; }
 void pa_radiobutton(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
     { (*radiobutton_vect)(f, x1, y1, x2, y2, s, id); }
@@ -14261,7 +14021,7 @@ void pa_radiobutton(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 static void radiobutton_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
     { error(eradiobutton_unimp); }
 
-void pa_radiobuttong_ovr(pa_radiobuttong_t nfp, pa_radiobuttong_t* ofp)
+void _pa_radiobuttong_ovr(pa_radiobuttong_t nfp, pa_radiobuttong_t* ofp)
     { *ofp = radiobuttong_vect; radiobuttong_vect = nfp; }
 void pa_radiobuttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
     { (*radiobuttong_vect)(f, x1, y1, x2, y2, s, id); }
@@ -14269,7 +14029,7 @@ void pa_radiobuttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 static void radiobuttong_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
     { error(eradiobuttong_unimp); }
 
-void pa_groupsizg_ovr(pa_groupsizg_t nfp, pa_groupsizg_t* ofp)
+void _pa_groupsizg_ovr(pa_groupsizg_t nfp, pa_groupsizg_t* ofp)
     { *ofp = groupsizg_vect; groupsizg_vect = nfp; }
 void pa_groupsizg(FILE* f, char* s, int cw, int ch, int* w, int* h, int* ox, int* oy)
     { (*groupsizg_vect)(f, s, cw, ch, w, h, ox, oy); }
@@ -14278,7 +14038,7 @@ static void groupsizg_ivf(FILE* f, char* s, int cw, int ch, int* w, int* h,
                           int* ox, int* oy)
     { error(egroupsizg_unimp); }
 
-void pa_groupsiz_ovr(pa_groupsiz_t nfp, pa_groupsiz_t* ofp)
+void _pa_groupsiz_ovr(pa_groupsiz_t nfp, pa_groupsiz_t* ofp)
     { *ofp = groupsiz_vect; groupsiz_vect = nfp; }
 void pa_groupsiz(FILE* f, char* s, int cw, int ch, int* w, int* h, int* ox, int* oy)
     { (*groupsiz_vect)(f, s, cw, ch, w, h, ox, oy); }
@@ -14286,7 +14046,7 @@ void pa_groupsiz(FILE* f, char* s, int cw, int ch, int* w, int* h, int* ox, int*
 static void groupsiz_ivf(FILE* f, char* s, int cw, int ch, int* w, int* h, int* ox,
                  int* oy) { error(egroupsiz_unimp); }
 
-void pa_group_ovr(pa_group_t nfp, pa_group_t* ofp)
+void _pa_group_ovr(pa_group_t nfp, pa_group_t* ofp)
     { *ofp = group_vect; group_vect = nfp; }
 void pa_group(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
     { (*group_vect)(f, x1, y1, x2, y2, s, id); }
@@ -14294,7 +14054,7 @@ void pa_group(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 static void group_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
     { error(egroup_unimp); }
 
-void pa_groupg_ovr(pa_groupg_t nfp, pa_groupg_t* ofp)
+void _pa_groupg_ovr(pa_groupg_t nfp, pa_groupg_t* ofp)
     { *ofp = groupg_vect; groupg_vect = nfp; }
 void pa_groupg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
     { (*groupg_vect)(f, x1, y1, x2, y2, s, id); }
@@ -14302,7 +14062,7 @@ void pa_groupg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 static void groupg_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
     { error(egroupg_unimp); }
 
-void pa_background_ovr(pa_background_t nfp, pa_background_t* ofp)
+void _pa_background_ovr(pa_background_t nfp, pa_background_t* ofp)
     { *ofp = background_vect; background_vect = nfp; }
 void pa_background(FILE* f, int x1, int y1, int x2, int y2, int id)
     { (*background_vect)(f, x1, y1, x2, y2, id); }
@@ -14310,7 +14070,7 @@ void pa_background(FILE* f, int x1, int y1, int x2, int y2, int id)
 static void background_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
     { error(ebackground_unimp); }
 
-void pa_backgroundg_ovr(pa_backgroundg_t nfp, pa_backgroundg_t* ofp)
+void _pa_backgroundg_ovr(pa_backgroundg_t nfp, pa_backgroundg_t* ofp)
     { *ofp = backgroundg_vect; backgroundg_vect = nfp; }
 void pa_backgroundg(FILE* f, int x1, int y1, int x2, int y2, int id)
     { (*backgroundg_vect)(f, x1, y1, x2, y2, id); }
@@ -14318,7 +14078,7 @@ void pa_backgroundg(FILE* f, int x1, int y1, int x2, int y2, int id)
 static void backgroundg_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
     { error(ebackgroundg_unimp); }
 
-void pa_scrollvertsizg_ovr(pa_scrollvertsizg_t nfp, pa_scrollvertsizg_t* ofp)
+void _pa_scrollvertsizg_ovr(pa_scrollvertsizg_t nfp, pa_scrollvertsizg_t* ofp)
     { *ofp = scrollvertsizg_vect; scrollvertsizg_vect = nfp; }
 void pa_scrollvertsizg(FILE* f, int* w, int* h)
     { (*scrollvertsizg_vect)(f, w, h); }
@@ -14326,7 +14086,7 @@ void pa_scrollvertsizg(FILE* f, int* w, int* h)
 static void scrollvertsizg_ivf(FILE* f, int* w, int* h)
     { error(escrollvertsizg_unimp); }
 
-void pa_scrollvertsiz_ovr(pa_scrollvertsiz_t nfp, pa_scrollvertsiz_t* ofp)
+void _pa_scrollvertsiz_ovr(pa_scrollvertsiz_t nfp, pa_scrollvertsiz_t* ofp)
     { *ofp = scrollvertsiz_vect; scrollvertsiz_vect = nfp; }
 void pa_scrollvertsiz(FILE* f, int* w, int* h)
     { (*scrollvertsiz_vect)(f, w, h); }
@@ -14334,7 +14094,7 @@ void pa_scrollvertsiz(FILE* f, int* w, int* h)
 static void scrollvertsiz_ivf(FILE* f, int* w, int* h)
     { error(escrollvertsiz_unimp); }
 
-void pa_scrollvert_ovr(pa_scrollvert_t nfp, pa_scrollvert_t* ofp)
+void _pa_scrollvert_ovr(pa_scrollvert_t nfp, pa_scrollvert_t* ofp)
     { *ofp = scrollvert_vect; scrollvert_vect = nfp; }
 void pa_scrollvert(FILE* f, int x1, int y1, int x2, int y2, int id)
     { (*scrollvert_vect)(f, x1, y1, x2, y2, id); }
@@ -14342,7 +14102,7 @@ void pa_scrollvert(FILE* f, int x1, int y1, int x2, int y2, int id)
 static void scrollvert_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
     { error(escrollvert_unimp); }
 
-void pa_scrollvertg_ovr(pa_scrollvertg_t nfp, pa_scrollvertg_t* ofp)
+void _pa_scrollvertg_ovr(pa_scrollvertg_t nfp, pa_scrollvertg_t* ofp)
     { *ofp = scrollvertg_vect; scrollvertg_vect = nfp; }
 void pa_scrollvertg(FILE* f, int x1, int y1, int x2, int y2, int id)
     { (*scrollvertg_vect)(f, x1, y1, x2, y2, id); }
@@ -14350,7 +14110,7 @@ void pa_scrollvertg(FILE* f, int x1, int y1, int x2, int y2, int id)
 static void scrollvertg_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
     { error(escrollvertg_unimp); }
 
-void pa_scrollhorizsizg_ovr(pa_scrollhorizsizg_t nfp, pa_scrollhorizsizg_t* ofp)
+void _pa_scrollhorizsizg_ovr(pa_scrollhorizsizg_t nfp, pa_scrollhorizsizg_t* ofp)
     { *ofp = scrollhorizsizg_vect; scrollhorizsizg_vect = nfp; }
 void pa_scrollhorizsizg(FILE* f, int* w, int* h)
     { (*scrollhorizsizg_vect)(f, w, h); }
@@ -14358,7 +14118,7 @@ void pa_scrollhorizsizg(FILE* f, int* w, int* h)
 static void scrollhorizsizg_ivf(FILE* f, int* w, int* h)
     { error(escrollhorizsizg_unimp); }
 
-void pa_scrollhorizsiz_ovr(pa_scrollhorizsiz_t nfp, pa_scrollhorizsiz_t* ofp)
+void _pa_scrollhorizsiz_ovr(pa_scrollhorizsiz_t nfp, pa_scrollhorizsiz_t* ofp)
     { *ofp = scrollhorizsiz_vect; scrollhorizsiz_vect = nfp; }
 void pa_scrollhorizsiz(FILE* f, int* w, int* h)
     { (*scrollhorizsiz_vect)(f, w, h); }
@@ -14366,7 +14126,7 @@ void pa_scrollhorizsiz(FILE* f, int* w, int* h)
 static void scrollhorizsiz_ivf(FILE* f, int* w, int* h)
     { error(escrollhorizsiz_unimp); }
 
-void pa_scrollhoriz_ovr(pa_scrollhoriz_t nfp, pa_scrollhoriz_t* ofp)
+void _pa_scrollhoriz_ovr(pa_scrollhoriz_t nfp, pa_scrollhoriz_t* ofp)
     { *ofp = scrollhoriz_vect; scrollhoriz_vect = nfp; }
 void pa_scrollhoriz(FILE* f, int x1, int y1, int x2, int y2, int id)
     { (*scrollhoriz_vect)(f, x1, y1, x2, y2, id); }
@@ -14374,7 +14134,7 @@ void pa_scrollhoriz(FILE* f, int x1, int y1, int x2, int y2, int id)
 static void scrollhoriz_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
     { error(escrollhoriz_unimp); }
 
-void pa_scrollhorizg_ovr(pa_scrollhorizg_t nfp, pa_scrollhorizg_t* ofp)
+void _pa_scrollhorizg_ovr(pa_scrollhorizg_t nfp, pa_scrollhorizg_t* ofp)
     { *ofp = scrollhorizg_vect; scrollhorizg_vect = nfp; }
 void pa_scrollhorizg(FILE* f, int x1, int y1, int x2, int y2, int id)
     { (*scrollhorizg_vect)(f, x1, y1, x2, y2, id); }
@@ -14382,21 +14142,21 @@ void pa_scrollhorizg(FILE* f, int x1, int y1, int x2, int y2, int id)
 static void scrollhorizg_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
     { error(escrollhorizg_unimp); }
 
-void pa_scrollpos_ovr(pa_scrollpos_t nfp, pa_scrollpos_t* ofp)
+void _pa_scrollpos_ovr(pa_scrollpos_t nfp, pa_scrollpos_t* ofp)
     { *ofp = scrollpos_vect; scrollpos_vect = nfp; }
 void pa_scrollpos(FILE* f, int id, int r)
     { (*scrollpos_vect)(f, id, r); }
 
 static void scrollpos_ivf(FILE* f, int id, int r) { error(escrollpos_unimp); }
 
-void pa_scrollsiz_ovr(pa_scrollsiz_t nfp, pa_scrollsiz_t* ofp)
+void _pa_scrollsiz_ovr(pa_scrollsiz_t nfp, pa_scrollsiz_t* ofp)
     { *ofp = scrollsiz_vect; scrollsiz_vect = nfp; }
 void pa_scrollsiz(FILE* f, int id, int r)
     { (*scrollsiz_vect)(f, id, r); }
 
 static void scrollsiz_ivf(FILE* f, int id, int r) { error(escrollsiz_unimp); }
 
-void pa_numselboxsizg_ovr(pa_numselboxsizg_t nfp, pa_numselboxsizg_t* ofp)
+void _pa_numselboxsizg_ovr(pa_numselboxsizg_t nfp, pa_numselboxsizg_t* ofp)
     { *ofp = numselboxsizg_vect; numselboxsizg_vect = nfp; }
 void pa_numselboxsizg(FILE* f, int l, int u, int* w, int* h)
     { (*numselboxsizg_vect)(f, l, u, w, h); }
@@ -14404,7 +14164,7 @@ void pa_numselboxsizg(FILE* f, int l, int u, int* w, int* h)
 static void numselboxsizg_ivf(FILE* f, int l, int u, int* w, int* h)
     { error(enumselboxsizg_unimp); }
 
-void pa_numselboxsiz_ovr(pa_numselboxsiz_t nfp, pa_numselboxsiz_t* ofp)
+void _pa_numselboxsiz_ovr(pa_numselboxsiz_t nfp, pa_numselboxsiz_t* ofp)
     { *ofp = numselboxsiz_vect; numselboxsiz_vect = nfp; }
 void pa_numselboxsiz(FILE* f, int l, int u, int* w, int* h)
     { (*numselboxsiz_vect)(f, l, u, w, h); }
@@ -14412,7 +14172,7 @@ void pa_numselboxsiz(FILE* f, int l, int u, int* w, int* h)
 static void numselboxsiz_ivf(FILE* f, int l, int u, int* w, int* h)
     { error(enumselboxsiz_unimp); }
 
-void pa_numselbox_ovr(pa_numselbox_t nfp, pa_numselbox_t* ofp)
+void _pa_numselbox_ovr(pa_numselbox_t nfp, pa_numselbox_t* ofp)
     { *ofp = numselbox_vect; numselbox_vect = nfp; }
 void pa_numselbox(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id)
     { (*numselbox_vect)(f, x1, y1, x2, y2, l, u, id); }
@@ -14420,7 +14180,7 @@ void pa_numselbox(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id)
 static void numselbox_ivf(FILE* f, int x1, int y1, int x2, int y2, int l, int u,
                   int id) { error(enumselbox_unimp); }
 
-void pa_numselboxg_ovr(pa_numselboxg_t nfp, pa_numselboxg_t* ofp)
+void _pa_numselboxg_ovr(pa_numselboxg_t nfp, pa_numselboxg_t* ofp)
     { *ofp = numselboxg_vect; numselboxg_vect = nfp; }
 void pa_numselboxg(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id)
     { (*numselboxg_vect)(f, x1, y1, x2, y2, l, u, id); }
@@ -14428,7 +14188,7 @@ void pa_numselboxg(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id
 static void numselboxg_ivf(FILE* f, int x1, int y1, int x2, int y2, int l, int u,
                    int id) { error(enumselboxg_unimp); }
 
-void pa_editboxsizg_ovr(pa_editboxsizg_t nfp, pa_editboxsizg_t* ofp)
+void _pa_editboxsizg_ovr(pa_editboxsizg_t nfp, pa_editboxsizg_t* ofp)
     { *ofp = editboxsizg_vect; editboxsizg_vect = nfp; }
 void pa_editboxsizg(FILE* f, char* s, int* w, int* h)
     { (*editboxsizg_vect)(f, s, w, h); }
@@ -14436,7 +14196,7 @@ void pa_editboxsizg(FILE* f, char* s, int* w, int* h)
 static void editboxsizg_ivf(FILE* f, char* s, int* w, int* h)
     { error(eeditboxsizg_unimp); }
 
-void pa_editboxsiz_ovr(pa_editboxsiz_t nfp, pa_editboxsiz_t* ofp)
+void _pa_editboxsiz_ovr(pa_editboxsiz_t nfp, pa_editboxsiz_t* ofp)
     { *ofp = editboxsiz_vect; editboxsiz_vect = nfp; }
 void pa_editboxsiz(FILE* f, char* s, int* w, int* h)
     { (*editboxsiz_vect)(f, s, w, h); }
@@ -14444,7 +14204,7 @@ void pa_editboxsiz(FILE* f, char* s, int* w, int* h)
 static void editboxsiz_ivf(FILE* f, char* s, int* w, int* h)
     { error(eeditboxsiz_unimp); }
 
-void pa_editbox_ovr(pa_editbox_t nfp, pa_editbox_t* ofp)
+void _pa_editbox_ovr(pa_editbox_t nfp, pa_editbox_t* ofp)
     { *ofp = editbox_vect; editbox_vect = nfp; }
 void pa_editbox(FILE* f, int x1, int y1, int x2, int y2, int id)
     { (*editbox_vect)(f, x1, y1, x2, y2, id); }
@@ -14452,7 +14212,7 @@ void pa_editbox(FILE* f, int x1, int y1, int x2, int y2, int id)
 static void editbox_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
     { error(eeditbox_unimp); }
 
-void pa_editboxg_ovr(pa_editboxg_t nfp, pa_editboxg_t* ofp)
+void _pa_editboxg_ovr(pa_editboxg_t nfp, pa_editboxg_t* ofp)
     { *ofp = editboxg_vect; editboxg_vect = nfp; }
 void pa_editboxg(FILE* f, int x1, int y1, int x2, int y2, int id)
     { (*editboxg_vect)(f, x1, y1, x2, y2, id); }
@@ -14460,21 +14220,21 @@ void pa_editboxg(FILE* f, int x1, int y1, int x2, int y2, int id)
 static void editboxg_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
     { error(eeditboxg_unimp); }
 
-void pa_progbarsizg_ovr(pa_progbarsizg_t nfp, pa_progbarsizg_t* ofp)
+void _pa_progbarsizg_ovr(pa_progbarsizg_t nfp, pa_progbarsizg_t* ofp)
     { *ofp = progbarsizg_vect; progbarsizg_vect = nfp; }
 void pa_progbarsizg(FILE* f, int* w, int* h) { (*progbarsizg_vect)(f, w, h); }
 
 static void progbarsizg_ivf(FILE* f, int* w, int* h)
     { error(eprogbarsizg_unimp); }
 
-void pa_progbarsiz_ovr(pa_progbarsiz_t nfp, pa_progbarsiz_t* ofp)
+void _pa_progbarsiz_ovr(pa_progbarsiz_t nfp, pa_progbarsiz_t* ofp)
     { *ofp = progbarsiz_vect; progbarsiz_vect = nfp; }
 void pa_progbarsiz(FILE* f, int* w, int* h) { (*progbarsiz_vect)(f, w, h); }
 
 static void progbarsiz_ivf(FILE* f, int* w, int* h)
     { error(eprogbarsiz_unimp); }
 
-void pa_progbar_ovr(pa_progbar_t nfp, pa_progbar_t* ofp)
+void _pa_progbar_ovr(pa_progbar_t nfp, pa_progbar_t* ofp)
     { *ofp = progbar_vect; progbar_vect = nfp; }
 void pa_progbar(FILE* f, int x1, int y1, int x2, int y2, int id)
     { (*progbar_vect)(f, x1, y1, x2, y2, id); }
@@ -14482,7 +14242,7 @@ void pa_progbar(FILE* f, int x1, int y1, int x2, int y2, int id)
 static void progbar_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
     { error(eprogbar_unimp); }
 
-void pa_progbarg_ovr(pa_progbarg_t nfp, pa_progbarg_t* ofp)
+void _pa_progbarg_ovr(pa_progbarg_t nfp, pa_progbarg_t* ofp)
     { *ofp = progbarg_vect; progbarg_vect = nfp; }
 void pa_progbarg(FILE* f, int x1, int y1, int x2, int y2, int id)
     { (*progbarg_vect)(f, x1, y1, x2, y2, id); }
@@ -14490,14 +14250,14 @@ void pa_progbarg(FILE* f, int x1, int y1, int x2, int y2, int id)
 static void progbarg_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
     { error(eprogbarg_unimp); }
 
-void pa_progbarpos_ovr(pa_progbarpos_t nfp, pa_progbarpos_t* ofp)
+void _pa_progbarpos_ovr(pa_progbarpos_t nfp, pa_progbarpos_t* ofp)
     { *ofp = progbarpos_vect; progbarpos_vect = nfp; }
 void pa_progbarpos(FILE* f, int id, int pos) { (*progbarpos_vect)(f, id, pos); }
 
 static void progbarpos_ivf(FILE* f, int id, int pos)
     { error(eprogbarpos_unimp); }
 
-void pa_listboxsizg_ovr(pa_listboxsizg_t nfp, pa_listboxsizg_t* ofp)
+void _pa_listboxsizg_ovr(pa_listboxsizg_t nfp, pa_listboxsizg_t* ofp)
     { *ofp = listboxsizg_vect; listboxsizg_vect = nfp; }
 void pa_listboxsizg(FILE* f, pa_strptr sp, int* w, int* h)
     { (*listboxsizg_vect)(f, sp, w, h); }
@@ -14505,7 +14265,7 @@ void pa_listboxsizg(FILE* f, pa_strptr sp, int* w, int* h)
 static void listboxsizg_ivf(FILE* f, pa_strptr sp, int* w, int* h)
     { error(elistboxsizg_unimp); }
 
-void pa_listboxsiz_ovr(pa_listboxsiz_t nfp, pa_listboxsiz_t* ofp)
+void _pa_listboxsiz_ovr(pa_listboxsiz_t nfp, pa_listboxsiz_t* ofp)
     { *ofp = listboxsiz_vect; listboxsiz_vect = nfp; }
 void pa_listboxsiz(FILE* f, pa_strptr sp, int* w, int* h)
     { (*listboxsiz_vect)(f, sp, w, h); }
@@ -14513,7 +14273,7 @@ void pa_listboxsiz(FILE* f, pa_strptr sp, int* w, int* h)
 static void listboxsiz_ivf(FILE* f, pa_strptr sp, int* w, int* h)
     { error(elistboxsiz_unimp); }
 
-void pa_listbox_ovr(pa_listbox_t nfp, pa_listbox_t* ofp)
+void _pa_listbox_ovr(pa_listbox_t nfp, pa_listbox_t* ofp)
     { *ofp = listbox_vect; listbox_vect = nfp; }
 void pa_listbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
     { (*listbox_vect)(f, x1, y1, x2, y2, sp, id); }
@@ -14521,7 +14281,7 @@ void pa_listbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 static void listbox_ivf(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
     { error(elistbox_unimp); }
 
-void pa_listboxg_ovr(pa_listboxg_t nfp, pa_listboxg_t* ofp)
+void _pa_listboxg_ovr(pa_listboxg_t nfp, pa_listboxg_t* ofp)
     { *ofp = listboxg_vect; listboxg_vect = nfp; }
 void pa_listboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
     { (*listboxg_vect)(f, x1, y1, x2, y2, sp, id); }
@@ -14529,7 +14289,7 @@ void pa_listboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 static void listboxg_ivf(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
     { error(elistboxg_unimp); }
 
-void pa_dropboxsizg_ovr(pa_dropboxsizg_t nfp, pa_dropboxsizg_t* ofp)
+void _pa_dropboxsizg_ovr(pa_dropboxsizg_t nfp, pa_dropboxsizg_t* ofp)
     { *ofp = dropboxsizg_vect; dropboxsizg_vect = nfp; }
 void pa_dropboxsizg(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
     { (*dropboxsizg_vect)(f, sp, cw, ch, ow, oh); }
@@ -14537,7 +14297,7 @@ void pa_dropboxsizg(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
 static void dropboxsizg_ivf(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
     { error(edropboxsizg_unimp); }
 
-void pa_dropboxsiz_ovr(pa_dropboxsiz_t nfp, pa_dropboxsiz_t* ofp)
+void _pa_dropboxsiz_ovr(pa_dropboxsiz_t nfp, pa_dropboxsiz_t* ofp)
     { *ofp = dropboxsiz_vect; dropboxsiz_vect = nfp; }
 void pa_dropboxsiz(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
     { (*dropboxsiz_vect)(f, sp, cw, ch, ow, oh); }
@@ -14545,7 +14305,7 @@ void pa_dropboxsiz(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
 static void dropboxsiz_ivf(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
     { error(edropboxsiz_unimp); }
 
-void pa_dropbox_ovr(pa_dropbox_t nfp, pa_dropbox_t* ofp)
+void _pa_dropbox_ovr(pa_dropbox_t nfp, pa_dropbox_t* ofp)
     { *ofp = dropbox_vect; dropbox_vect = nfp; }
 void pa_dropbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
     { (*dropbox_vect)(f, x1, y1, x2, y2, sp, id); }
@@ -14553,7 +14313,7 @@ void pa_dropbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 static void dropbox_ivf(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
     { error(edropbox_unimp); }
 
-void pa_dropboxg_ovr(pa_dropboxg_t nfp, pa_dropboxg_t* ofp)
+void _pa_dropboxg_ovr(pa_dropboxg_t nfp, pa_dropboxg_t* ofp)
     { *ofp = dropboxg_vect; dropboxg_vect = nfp; }
 void pa_dropboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
     { (*dropboxg_vect)(f, x1, y1, x2, y2, sp, id); }
@@ -14561,7 +14321,7 @@ void pa_dropboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
 static void dropboxg_ivf(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
     { error(edropboxg_unimp); }
 
-void pa_dropeditboxsizg_ovr(pa_dropeditboxsizg_t nfp, pa_dropeditboxsizg_t* ofp)
+void _pa_dropeditboxsizg_ovr(pa_dropeditboxsizg_t nfp, pa_dropeditboxsizg_t* ofp)
     { *ofp = dropeditboxsizg_vect; dropeditboxsizg_vect = nfp; }
 void pa_dropeditboxsizg(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
     { (*dropeditboxsizg_vect)(f, sp, cw, ch, ow, oh); }
@@ -14569,7 +14329,7 @@ void pa_dropeditboxsizg(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* o
 static void dropeditboxsizg_ivf(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
     { error(edropeditboxsizg_unimp); }
 
-void pa_dropeditboxsiz_ovr(pa_dropeditboxsiz_t nfp, pa_dropeditboxsiz_t* ofp)
+void _pa_dropeditboxsiz_ovr(pa_dropeditboxsiz_t nfp, pa_dropeditboxsiz_t* ofp)
     { *ofp = dropeditboxsiz_vect; dropeditboxsiz_vect = nfp; }
 void pa_dropeditboxsiz(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
     { (*dropeditboxsiz_vect)(f, sp, cw, ch, ow, oh); }
@@ -14577,7 +14337,7 @@ void pa_dropeditboxsiz(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh
 static void dropeditboxsiz_ivf(FILE* f, pa_strptr sp, int* cw, int* ch, int* ow, int* oh)
     { error(edropeditboxsiz_unimp); }
 
-void pa_dropeditbox_ovr(pa_dropeditbox_t nfp, pa_dropeditbox_t* ofp)
+void _pa_dropeditbox_ovr(pa_dropeditbox_t nfp, pa_dropeditbox_t* ofp)
     { *ofp = dropeditbox_vect; dropeditbox_vect = nfp; }
 void pa_dropeditbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
     { (*dropeditbox_vect)(f, x1, y1, x2, y2, sp, id); }
@@ -14585,7 +14345,7 @@ void pa_dropeditbox(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int i
 static void dropeditbox_ivf(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
     { error(edropeditbox_unimp); }
 
-void pa_dropeditboxg_ovr(pa_dropeditboxg_t nfp, pa_dropeditboxg_t* ofp)
+void _pa_dropeditboxg_ovr(pa_dropeditboxg_t nfp, pa_dropeditboxg_t* ofp)
     { *ofp = dropeditboxg_vect; dropeditboxg_vect = nfp; }
 void pa_dropeditboxg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, int id)
     { (*dropeditboxg_vect)(f, x1, y1, x2, y2, sp, id); }
@@ -14594,14 +14354,14 @@ static void dropeditboxg_ivf(FILE* f, int x1, int y1, int x2, int y2, pa_strptr 
                              int id)
     { error(edropeditboxg_unimp); }
 
-void pa_slidehorizsizg_ovr(pa_slidehorizsizg_t nfp, pa_slidehorizsizg_t* ofp)
+void _pa_slidehorizsizg_ovr(pa_slidehorizsizg_t nfp, pa_slidehorizsizg_t* ofp)
     { *ofp = slidehorizsizg_vect; slidehorizsizg_vect = nfp; }
 void pa_slidehorizsizg(FILE* f, int* w, int* h) { (*slidehorizsizg_vect)(f, w, h); }
 
 static void slidehorizsizg_ivf(FILE* f, int* w, int* h)
     { error(eslidehorizsizg_unimp); }
 
-void pa_slidehorizsiz_ovr(pa_slidehorizsiz_t nfp, pa_slidehorizsiz_t* ofp)
+void _pa_slidehorizsiz_ovr(pa_slidehorizsiz_t nfp, pa_slidehorizsiz_t* ofp)
     { *ofp = slidehorizsiz_vect; slidehorizsiz_vect = nfp; }
 void pa_slidehorizsiz(FILE* f, int* w, int* h)
     { (*slidehorizsiz_vect)(f, w, h); }
@@ -14609,7 +14369,7 @@ void pa_slidehorizsiz(FILE* f, int* w, int* h)
 static void slidehorizsiz_ivf(FILE* f, int* w, int* h)
     { error(eslidehorizsiz_unimp); }
 
-void pa_slidehoriz_ovr(pa_slidehoriz_t nfp, pa_slidehoriz_t* ofp)
+void _pa_slidehoriz_ovr(pa_slidehoriz_t nfp, pa_slidehoriz_t* ofp)
     { *ofp = slidehoriz_vect; slidehoriz_vect = nfp; }
 void pa_slidehoriz(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
     { (*slidehoriz_vect)(f, x1, y1, x2, y2, mark, id); }
@@ -14617,7 +14377,7 @@ void pa_slidehoriz(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 static void slidehoriz_ivf(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
     { error(eslidehoriz_unimp); }
 
-void pa_slidehorizg_ovr(pa_slidehorizg_t nfp, pa_slidehorizg_t* ofp)
+void _pa_slidehorizg_ovr(pa_slidehorizg_t nfp, pa_slidehorizg_t* ofp)
     { *ofp = slidehorizg_vect; slidehorizg_vect = nfp; }
 void pa_slidehorizg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
     { (*slidehorizg_vect)(f, x1, y1, x2, y2, mark, id); }
@@ -14625,7 +14385,7 @@ void pa_slidehorizg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 static void slidehorizg_ivf(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
     { error(eslidehorizg_unimp); }
 
-void pa_slidevertsizg_ovr(pa_slidevertsizg_t nfp, pa_slidevertsizg_t* ofp)
+void _pa_slidevertsizg_ovr(pa_slidevertsizg_t nfp, pa_slidevertsizg_t* ofp)
     { *ofp = slidevertsizg_vect; slidevertsizg_vect = nfp; }
 void pa_slidevertsizg(FILE* f, int* w, int* h)
     { (*slidevertsizg_vect)(f, w, h); }
@@ -14633,14 +14393,14 @@ void pa_slidevertsizg(FILE* f, int* w, int* h)
 static void slidevertsizg_ivf(FILE* f, int* w, int* h)
     { error(eslidevertsizg_unimp); }
 
-void pa_slidevertsiz_ovr(pa_slidevertsiz_t nfp, pa_slidevertsiz_t* ofp)
+void _pa_slidevertsiz_ovr(pa_slidevertsiz_t nfp, pa_slidevertsiz_t* ofp)
     { *ofp = slidevertsiz_vect; slidevertsiz_vect = nfp; }
 void pa_slidevertsiz(FILE* f, int* w, int* h) { (*slidevertsiz_vect)(f, w, h); }
 
 static void slidevertsiz_ivf(FILE* f, int* w, int* h)
     { error(eslidevertsiz_unimp); }
 
-void pa_slidevert_ovr(pa_slidevert_t nfp, pa_slidevert_t* ofp)
+void _pa_slidevert_ovr(pa_slidevert_t nfp, pa_slidevert_t* ofp)
     { *ofp = slidevert_vect; slidevert_vect = nfp; }
 void pa_slidevert(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
     { (*slidevert_vect)(f, x1, y1, x2, y2, mark, id); }
@@ -14648,7 +14408,7 @@ void pa_slidevert(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 static void slidevert_ivf(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
     { error(eslidevert_unimp); }
 
-void pa_slidevertg_ovr(pa_slidevertg_t nfp, pa_slidevertg_t* ofp)
+void _pa_slidevertg_ovr(pa_slidevertg_t nfp, pa_slidevertg_t* ofp)
     { *ofp = slidevertg_vect; slidevertg_vect = nfp; }
 void pa_slidevertg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
     { (*slidevertg_vect)(f, x1, y1, x2, y2, mark, id); }
@@ -14656,7 +14416,7 @@ void pa_slidevertg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 static void slidevertg_ivf(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
     { error(eslidevertg_unimp); }
 
-void pa_tabbarsizg_ovr(pa_tabbarsizg_t nfp, pa_tabbarsizg_t* ofp)
+void _pa_tabbarsizg_ovr(pa_tabbarsizg_t nfp, pa_tabbarsizg_t* ofp)
     { *ofp = tabbarsizg_vect; tabbarsizg_vect = nfp; }
 void pa_tabbarsizg(FILE* f, pa_tabori tor, int cw, int ch, int* w, int* h, int* ox, int* oy)
     { (*tabbarsizg_vect)(f, tor, cw, ch, w, h, ox, oy); }
@@ -14665,7 +14425,7 @@ static void tabbarsizg_ivf(FILE* f, pa_tabori tor, int cw, int ch, int* w, int* 
                            int* ox, int* oy)
     { error(etabbarsizg_unimp); }
 
-void pa_tabbarsiz_ovr(pa_tabbarsiz_t nfp, pa_tabbarsiz_t* ofp)
+void _pa_tabbarsiz_ovr(pa_tabbarsiz_t nfp, pa_tabbarsiz_t* ofp)
     { *ofp = tabbarsiz_vect; tabbarsiz_vect = nfp; }
 void pa_tabbarsiz(FILE* f, pa_tabori tor, int cw, int ch, int* w, int* h, int* ox, int* oy)
     { (*tabbarsiz_vect)(f, tor, cw, ch, w, h, ox, oy); }
@@ -14674,7 +14434,7 @@ static void tabbarsiz_ivf(FILE* f, pa_tabori tor, int cw, int ch, int* w, int* h
                   int* oy)
     { error(etabbarsiz_unimp); }
 
-void pa_tabbarclientg_ovr(pa_tabbarclientg_t nfp, pa_tabbarclientg_t* ofp)
+void _pa_tabbarclientg_ovr(pa_tabbarclientg_t nfp, pa_tabbarclientg_t* ofp)
     { *ofp = tabbarclientg_vect; tabbarclientg_vect = nfp; }
 void pa_tabbarclientg(FILE* f, pa_tabori tor, int cw, int ch, int* w, int* h, int* ox, int* oy)
     { (*tabbarclientg_vect)(f, tor, cw, ch, w, h, ox, oy); }
@@ -14683,7 +14443,7 @@ static void tabbarclientg_ivf(FILE* f, pa_tabori tor, int w, int h, int* cw, int
                               int* ox, int* oy)
     { error(etabbarclientg_unimp); }
 
-void pa_tabbarclient_ovr(pa_tabbarclient_t nfp, pa_tabbarclient_t* ofp)
+void _pa_tabbarclient_ovr(pa_tabbarclient_t nfp, pa_tabbarclient_t* ofp)
     { *ofp = tabbarclient_vect; tabbarclient_vect = nfp; }
 void pa_tabbarclient(FILE* f, pa_tabori tor, int cw, int ch, int* w, int* h, int* ox, int* oy)
     { (*tabbarclient_vect)(f, tor, cw, ch, w, h, ox, oy); }
@@ -14692,7 +14452,7 @@ static void tabbarclient_ivf(FILE* f, pa_tabori tor, int w, int h, int* cw, int*
                      int* ox, int* oy)
     { error(etabbarclient_unimp); }
 
-void pa_tabbar_ovr(pa_tabbar_t nfp, pa_tabbar_t* ofp)
+void _pa_tabbar_ovr(pa_tabbar_t nfp, pa_tabbar_t* ofp)
     { *ofp = tabbar_vect; tabbar_vect = nfp; }
 void pa_tabbar(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, pa_tabori tor, int id)
     { (*tabbar_vect)(f, x1, y1, x2, y2, sp, tor, id); }
@@ -14701,7 +14461,7 @@ static void tabbar_ivf(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp,
                pa_tabori tor, int id)
     { error(etabbar_unimp); }
 
-void pa_tabbarg_ovr(pa_tabbarg_t nfp, pa_tabbarg_t* ofp)
+void _pa_tabbarg_ovr(pa_tabbarg_t nfp, pa_tabbarg_t* ofp)
     { *ofp = tabbarg_vect; tabbarg_vect = nfp; }
 void pa_tabbarg(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp, pa_tabori tor, int id)
     { (*tabbarg_vect)(f, x1, y1, x2, y2, sp, tor, id); }
@@ -14710,38 +14470,38 @@ static void tabbarg_ivf(FILE* f, int x1, int y1, int x2, int y2, pa_strptr sp,
                 pa_tabori tor, int id)
     { error(etabbarg_unimp); }
 
-void pa_tabsel_ovr(pa_tabsel_t nfp, pa_tabsel_t* ofp)
+void _pa_tabsel_ovr(pa_tabsel_t nfp, pa_tabsel_t* ofp)
     { *ofp = tabsel_vect; tabsel_vect = nfp; }
 void pa_tabsel(FILE* f, int id, int tn) { (*tabsel_vect)(f, id, tn); }
 
 static void tabsel_ivf(FILE* f, int id, int tn)
     { error(etabsel_unimp); }
 
-void pa_alert_ovr(pa_alert_t nfp, pa_alert_t* ofp)
+void _pa_alert_ovr(pa_alert_t nfp, pa_alert_t* ofp)
     { *ofp = alert_vect; alert_vect = nfp; }
 void pa_alert(char* title, char* message) { (*alert_vect)(title, message); }
 
 static void alert_ivf(char* title, char* message) { error(ealert_unimp); }
 
-void pa_querycolor_ovr(pa_querycolor_t nfp, pa_querycolor_t* ofp)
+void _pa_querycolor_ovr(pa_querycolor_t nfp, pa_querycolor_t* ofp)
     { *ofp = querycolor_vect; querycolor_vect = nfp; }
 void pa_querycolor(int* r, int* g, int* b) { (*querycolor_vect)(r, g, b); }
 
 static void querycolor_ivf(int* r, int* g, int* b) { error(equerycolor_unimp); }
 
-void pa_queryopen_ovr(pa_queryopen_t nfp, pa_queryopen_t* ofp)
+void _pa_queryopen_ovr(pa_queryopen_t nfp, pa_queryopen_t* ofp)
     { *ofp = queryopen_vect; queryopen_vect = nfp; }
 void pa_queryopen(char* s, int sl) { (*queryopen_vect)(s, sl); }
 
 static void queryopen_ivf(char* s, int sl) { error(equeryopen_unimp); }
 
-void pa_querysave_ovr(pa_querysave_t nfp, pa_querysave_t* ofp)
+void _pa_querysave_ovr(pa_querysave_t nfp, pa_querysave_t* ofp)
     { *ofp = querysave_vect; querysave_vect = nfp; }
 void pa_querysave(char* s, int sl) { (*querysave_vect)(s, sl); }
 
 static void querysave_ivf(char* s, int sl) { error(equerysave_unimp); }
 
-void pa_queryfind_ovr(pa_queryfind_t nfp, pa_queryfind_t* ofp)
+void _pa_queryfind_ovr(pa_queryfind_t nfp, pa_queryfind_t* ofp)
     { *ofp = queryfind_vect; queryfind_vect = nfp; }
 void pa_queryfind(char* s, int sl, pa_qfnopts* opt)
     { (*queryfind_vect)(s, sl, opt); }
@@ -14749,7 +14509,7 @@ void pa_queryfind(char* s, int sl, pa_qfnopts* opt)
 static void queryfind_ivf(char* s, int sl, pa_qfnopts* opt)
     { error(equeryfind_unimp); }
 
-void pa_queryfindrep_ovr(pa_queryfindrep_t nfp, pa_queryfindrep_t* ofp)
+void _pa_queryfindrep_ovr(pa_queryfindrep_t nfp, pa_queryfindrep_t* ofp)
     { *ofp = queryfindrep_vect; queryfindrep_vect = nfp; }
 void pa_queryfindrep(char* s, int sl, char* r, int rl, pa_qfropts* opt)
     { (*queryfindrep_vect)(s, sl, r, rl, opt); }
@@ -14757,7 +14517,7 @@ void pa_queryfindrep(char* s, int sl, char* r, int rl, pa_qfropts* opt)
 static void queryfindrep_ivf(char* s, int sl, char* r, int rl, pa_qfropts* opt)
     { error(equeryfindrep_unimp); }
 
-void pa_queryfont_ovr(pa_queryfont_t nfp, pa_queryfont_t* ofp)
+void _pa_queryfont_ovr(pa_queryfont_t nfp, pa_queryfont_t* ofp)
     { *ofp = queryfont_vect; queryfont_vect = nfp; }
 void pa_queryfont(FILE* f, int* fc, int* s, int* fr, int* fg, int* fb,
                   int* br, int* bg, int* bb, pa_qfteffects* effect)

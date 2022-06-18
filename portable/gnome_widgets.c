@@ -394,6 +394,101 @@ typedef struct wigrec {
 static pclose_t  ofpclose;
 static pclose_t  ofpclose_nocancel;
 
+/*
+ * Saved vectors for entry calls for widgets.
+ */
+static pa_getwigid_t        getwigid_vect;
+static pa_killwidget_t      killwidget_vect;
+static pa_selectwidget_t    selectwidget_vect;
+static pa_enablewidget_t    enablewidget_vect;
+static pa_getwidgettext_t   getwidgettext_vect;
+static pa_putwidgettext_t   putwidgettext_vect;
+static pa_sizwidget_t       sizwidget_vect;
+static pa_sizwidgetg_t      sizwidgetg_vect;
+static pa_poswidget_t       poswidget_vect;
+static pa_poswidgetg_t      poswidgetg_vect;
+static pa_backwidget_t      backwidget_vect;
+static pa_frontwidget_t     frontwidget_vect;
+static pa_focuswidget_t     focuswidget_vect;
+static pa_buttonsiz_t       buttonsiz_vect;
+static pa_buttonsizg_t      buttonsizg_vect;
+static pa_button_t          button_vect;
+static pa_buttong_t         buttong_vect;
+static pa_checkboxsiz_t     checkboxsiz_vect;
+static pa_checkboxsizg_t    checkboxsizg_vect;
+static pa_checkbox_t        checkbox_vect;
+static pa_checkboxg_t       checkboxg_vect;
+static pa_radiobuttonsiz_t  radiobuttonsiz_vect;
+static pa_radiobuttonsizg_t radiobuttonsizg_vect;
+static pa_radiobutton_t     radiobutton_vect;
+static pa_radiobuttong_t    radiobuttong_vect;
+static pa_groupsizg_t       groupsizg_vect;
+static pa_groupsiz_t        groupsiz_vect;
+static pa_group_t           group_vect;
+static pa_groupg_t          groupg_vect;
+static pa_background_t      background_vect;
+static pa_backgroundg_t     backgroundg_vect;
+static pa_scrollvertsizg_t  scrollvertsizg_vect;
+static pa_scrollvertsiz_t   scrollvertsiz_vect;
+static pa_scrollvert_t      scrollvert_vect;
+static pa_scrollvertg_t     scrollvertg_vect;
+static pa_scrollhorizsizg_t scrollhorizsizg_vect;
+static pa_scrollhorizsiz_t  scrollhorizsiz_vect;
+static pa_scrollhoriz_t     scrollhoriz_vect;
+static pa_scrollhorizg_t    scrollhorizg_vect;
+static pa_scrollpos_t       scrollpos_vect;
+static pa_scrollsiz_t       scrollsiz_vect;
+static pa_numselboxsizg_t   numselboxsizg_vect;
+static pa_numselboxsiz_t    numselboxsiz_vect;
+static pa_numselbox_t       numselbox_vect;
+static pa_numselboxg_t      numselboxg_vect;
+static pa_editboxsizg_t     editboxsizg_vect;
+static pa_editboxsiz_t      editboxsiz_vect;
+static pa_editbox_t         editbox_vect;
+static pa_editboxg_t        editboxg_vect;
+static pa_progbarsizg_t     progbarsizg_vect;
+static pa_progbarsiz_t      progbarsiz_vect;
+static pa_progbar_t         progbar_vect;
+static pa_progbarg_t        progbarg_vect;
+static pa_progbarpos_t      progbarpos_vect;
+static pa_listboxsizg_t     listboxsizg_vect;
+static pa_listboxsiz_t      listboxsiz_vect;
+static pa_listbox_t         listbox_vect;
+static pa_listboxg_t        listboxg_vect;
+static pa_dropboxsizg_t     dropboxsizg_vect;
+static pa_dropboxsiz_t      dropboxsiz_vect;
+static pa_dropbox_t         dropbox_vect;
+static pa_dropboxg_t        dropboxg_vect;
+static pa_dropeditboxsizg_t dropeditboxsizg_vect;
+static pa_dropeditboxsiz_t  dropeditboxsiz_vect;
+static pa_dropeditbox_t     dropeditbox_vect;
+static pa_dropeditboxg_t    dropeditboxg_vect;
+static pa_slidehorizsizg_t  slidehorizsizg_vect;
+static pa_slidehorizsiz_t   slidehorizsiz_vect;
+static pa_slidehoriz_t      slidehoriz_vect;
+static pa_slidehorizg_t     slidehorizg_vect;
+static pa_slidevertsizg_t   slidevertsizg_vect;
+static pa_slidevertsiz_t    slidevertsiz_vect;
+static pa_slidevert_t       slidevert_vect;
+static pa_slidevertg_t      slidevertg_vect;
+static pa_tabbarsizg_t      tabbarsizg_vect;
+static pa_tabbarsiz_t       tabbarsiz_vect;
+static pa_tabbarclientg_t   tabbarclientg_vect;
+static pa_tabbarclient_t    tabbarclient_vect;
+static pa_tabbar_t          tabbar_vect;
+static pa_tabbarg_t         tabbarg_vect;
+static pa_tabsel_t          tabsel_vect;
+static pa_alert_t           alert_vect;
+static pa_querycolor_t      querycolor_vect;
+static pa_queryopen_t       queryopen_vect;
+static pa_querysave_t       querysave_vect;
+static pa_querysave_t       querysave_vect;
+static pa_querysave_t       querysave_vect;
+static pa_querysave_t       querysave_vect;
+static pa_queryfind_t       queryfind_vect;
+static pa_queryfindrep_t    queryfindrep_vect;
+static pa_queryfont_t       queryfont_vect;
+
 /* File tracking.
   Files can be passthrough to the OS, or can be associated with a window. If
   on a window, they can be output, or they can be input. In the case of
@@ -1017,7 +1112,7 @@ Kills the given widget by id and in the window file by file id.
 
 *******************************************************************************/
 
-static void ikillwidget(
+static void intkillwidget(
     /** file id */           int fn,
     /** Logical widget id */ int wid
 )
@@ -3625,7 +3720,7 @@ and removed by killwidget().
 
 *******************************************************************************/
 
-int pa_getwigid(
+static int igetwigid(
     /** Window file */ FILE* f
 )
 
@@ -3653,7 +3748,7 @@ Removes the widget by id from the window.
 
 *******************************************************************************/
 
-void pa_killwidget(
+static void ikillwidget(
     /** Window file */       FILE* f,
     /** Logical widget id */ int id
 )
@@ -3663,7 +3758,7 @@ void pa_killwidget(
     int    fn; /* logical file name */
 
     fn = fileno(f); /* get the logical file number */
-    ikillwidget(fn, id); /* kill widget */
+    intkillwidget(fn, id); /* kill widget */
 
 }
 
@@ -3675,7 +3770,7 @@ Selects or deselects a widget.
 
 *******************************************************************************/
 
-void pa_selectwidget(
+static void iselectwidget(
     /** Window file */       FILE* f,
     /** Logical widget id */ int id,
     /** On/off for select */ int e
@@ -3706,7 +3801,7 @@ Enables or disables a widget.
 
 *******************************************************************************/
 
-void pa_enablewidget(
+static void ienablewidget(
     /** Window file */       FILE* f,
     /** Logical widget id */ int   id,
     /** On/off for enable */ int   e
@@ -3740,7 +3835,7 @@ This error is currently unchecked.
 
 *******************************************************************************/
 
-void pa_getwidgettext(
+static void igetwidgettext(
     /** Window file */                   FILE* f,
     /** Logical widget id */             int   id,
     /** Output pointer to widget text */ char* s,
@@ -3769,7 +3864,7 @@ Places text into an edit box.
 
 *******************************************************************************/
 
-void pa_putwidgettext(
+static void iputwidgettext(
     /** Window file */       FILE* f,
     /** Logical widget id */ int   id,
     /** Text to place */     char* s
@@ -3797,7 +3892,7 @@ Changes the size of a graphical widget.
 
 *******************************************************************************/
 
-void pa_sizwidgetg(
+static void isizwidgetg(
     /** Window file */         FILE* f,
     /** Logical widget id */   int   id,
     /** New size for widget */ int   x,
@@ -3821,7 +3916,7 @@ Changes the size of a text widget.
 
 *******************************************************************************/
 
-void pa_sizwidget(
+static void isizwidget(
     /** Window file */         FILE* f,
     /** Logical widget id */   int   id,
     /** New size for widget */ int   x,
@@ -3848,7 +3943,7 @@ Changes the parent position of a graphical widget.
 
 *******************************************************************************/
 
-void pa_poswidgetg(
+static void iposwidgetg(
     /** Window file */             FILE* f,
     /** Logical widget id */       int   id,
     /** New position for widget */ int   x,
@@ -3872,7 +3967,7 @@ Changes the parent position of a text widget.
 
 *******************************************************************************/
 
-void pa_poswidget(
+static void iposwidget(
     /** Window file */             FILE* f,
     /** Logical widget id */       int   id,
     /** New position for widget */ int   x,
@@ -3897,7 +3992,7 @@ Place widget to back of Z order
 
 *******************************************************************************/
 
-void pa_backwidget(
+static void ibackwidget(
     /** Window file */       FILE* f,
     /** Logical widget id */ int   id
 )
@@ -3917,7 +4012,7 @@ Place widget to back of Z order
 
 *******************************************************************************/
 
-void pa_frontwidget(
+static void ifrontwidget(
     /** Window file */       FILE* f,
     /** Logical widget id */ int   id
 )
@@ -3937,7 +4032,7 @@ Place input focus on a given widget
 
 *******************************************************************************/
 
-void pa_focuswidget(
+static void ifocuswidget(
     /** Window file */       FILE* f,
     /** Logical widget id */ int   id
 )
@@ -3962,7 +4057,7 @@ Note the spacing is copied from gnome defaults.
 
 *******************************************************************************/
 
-void pa_buttonsizg(
+static void ibuttonsizg(
     /** Window file */           FILE* f,
     /** Face string */           char* s,
     /** Minimum width return */  int*  w,
@@ -3987,7 +4082,7 @@ Note the spacing is copied from gnome defaults.
 
 *******************************************************************************/
 
-void pa_buttonsiz(
+static void ibuttonsiz(
     /** Window file */           FILE* f,
     /** Face string */           char* s,
     /** Minimum width return */  int*  w,
@@ -4012,7 +4107,7 @@ window.
 
 *******************************************************************************/
 
-void pa_buttong(
+static void ibuttong(
     /** Window file */         FILE* f,
     /** Placement rectangle */ int   x1,
                                int   y1,
@@ -4041,7 +4136,7 @@ window.
 
 *******************************************************************************/
 
-void pa_button(
+static void ibutton(
     /** Window file */         FILE* f,
     /** Placement rectangle */ int   x1,
                                int   y1,
@@ -4071,7 +4166,7 @@ minimum size of a checkbox is calculated and returned.
 
 *******************************************************************************/
 
-void pa_checkboxsizg(
+static void icheckboxsizg(
     /** Window file */   FILE* f,
     /** Face string */   char* s,
     /** Return width */  int*  w,
@@ -4095,7 +4190,7 @@ size of a checkbox is calculated and returned.
 
 *******************************************************************************/
 
-void pa_checkboxsiz(
+static void icheckboxsiz(
     /** Window file */   FILE* f,
     /** Face string */   char* s,
     /** Return width */  int*  w,
@@ -4120,7 +4215,7 @@ given window.
 
 *******************************************************************************/
 
-void pa_checkboxg(
+static void icheckboxg(
     /** Window file */         FILE* f,
     /** Placement rectangle */ int   x1,
                                int   y1,
@@ -4147,7 +4242,7 @@ window.
 
 *******************************************************************************/
 
-void pa_checkbox(
+static void icheckbox(
     /** Window file */         FILE* f,
     /** Placement rectangle */ int   x1,
                                int   y1,
@@ -4177,7 +4272,7 @@ minimum size of a radio button is calculated and returned.
 
 *******************************************************************************/
 
-void pa_radiobuttonsizg(
+static void iradiobuttonsizg(
     /** Window file */   FILE* f,
     /** Face string */   char* s,
     /** Return width */  int*  w,
@@ -4200,7 +4295,7 @@ minimum size of a radio button is calculated and returned.
 
 *******************************************************************************/
 
-void pa_radiobuttonsiz(
+static void iradiobuttonsiz(
     /** Window file */   FILE* f,
     /** Face string */   char* s,
     /** Return width */  int*  w,
@@ -4225,7 +4320,7 @@ given window.
 
 *******************************************************************************/
 
-void pa_radiobuttong(
+static void iradiobuttong(
     /** Window file */         FILE* f,
     /** Placement rectangle */ int   x1,
                                int   y1,
@@ -4253,7 +4348,7 @@ given window.
 
 *******************************************************************************/
 
-void pa_radiobutton(
+static void iradiobutton(
     /** Window file */ FILE* f,
     /** Placement rectangle */ int   x1,
                                int   y1,
@@ -4283,7 +4378,7 @@ size of a group is calculated and returned.
 
 *******************************************************************************/
 
-void pa_groupsizg(
+static void igroupsizg(
     /** Window file */           FILE* f,
     /** Face string */           char* s,
     /** Client width */          int   cw,
@@ -4314,7 +4409,7 @@ size of a group is calculated and returned.
 
 *******************************************************************************/
 
-void pa_groupsiz(
+static void igroupsiz(
     /** Window file */           FILE* f,
     /** Face string */           char* s,
     /** Client width */          int cw,
@@ -4348,7 +4443,7 @@ gererates no messages. It is used as a background for other widgets.
 
 *******************************************************************************/
 
-void pa_groupg(
+static void igroupg(
     /** Window file */         FILE* f,
     /** Placement rectangle */ int   x1,
                                int   y1,
@@ -4376,7 +4471,7 @@ gererates no messages. It is used as a background for other widgets.
 
 *******************************************************************************/
 
-void pa_group(
+static void igroup(
     /** Window file */         FILE* f,
     /** Placement rectangle */ int   x1,
                                int   y1,
@@ -4405,7 +4500,7 @@ that generates no messages. It is used as a background for other widgets.
 
 *******************************************************************************/
 
-void pa_backgroundg(
+static void ibackgroundg(
     /** Window file */         FILE* f,
     /** Placement rectangle */ int   x1,
                                int   y1,
@@ -4432,7 +4527,7 @@ generates no messages. It is used as a background for other widgets.
 
 *******************************************************************************/
 
-void pa_background(
+static void ibackground(
     /** Window file */         FILE* f,
     /** Placement rectangle */ int   x1,
                                int   y1,
@@ -4461,7 +4556,7 @@ vertical scrollbar is calculated and returned.
 
 *******************************************************************************/
 
-void pa_scrollvertsizg(
+static void iscrollvertsizg(
     /** Window file */    FILE* f,
     /** Returns width */  int*  w,
     /** Returns height */ int*  h
@@ -4483,7 +4578,7 @@ vertical scrollbar is calculated and returned.
 
 *******************************************************************************/
 
-void pa_scrollvertsiz(
+static void iscrollvertsiz(
     /** Window file */    FILE* f,
     /** Returns width */  int*  w,
     /** Returns height */ int*  h
@@ -4506,7 +4601,7 @@ Creates a graphical vertical scrollbar.
 
 *******************************************************************************/
 
-void pa_scrollvertg(
+static void iscrollvertg(
     /** Window file */         FILE* f,
     /** Placement rectangle */ int   x1,
                                int   y1,
@@ -4532,7 +4627,7 @@ Creates a text vertical scrollbar.
 
 *******************************************************************************/
 
-void pa_scrollvert(
+static void iscrollvert(
     /** Window file */         FILE* f,
     /** Placement rectangle */ int   x1,
                                int   y1,
@@ -4561,7 +4656,7 @@ a horizontal scrollbar is calculated and returned.
 
 *******************************************************************************/
 
-void pa_scrollhorizsizg(
+static void iscrollhorizsizg(
     /** Window file */   FILE* f,
     /** Return width */  int*  w,
     /** Return height */ int*  h
@@ -4583,7 +4678,7 @@ horizontal scrollbar is calculated and returned.
 
 *******************************************************************************/
 
-void pa_scrollhorizsiz(
+static void iscrollhorizsiz(
     /** Window file */   FILE* f,
     /** Return width */  int*  w,
     /** Return height */ int*  h
@@ -4606,7 +4701,7 @@ Creates a graphical horizontal scrollbar.
 
 *******************************************************************************/
 
-void pa_scrollhorizg(
+static void iscrollhorizg(
     /** Window file */         FILE* f,
     /** Placement rectangle */ int   x1,
                                int   y1,
@@ -4632,7 +4727,7 @@ Creates a text horizontal scrollbar.
 
 *******************************************************************************/
 
-void pa_scrollhoriz(
+static void iscrollhoriz(
     /** Window file */         FILE* f,
     /** Placement rectangle */ int   x1,
                                int   y1,
@@ -4660,7 +4755,7 @@ Sets the current position of a scrollbar slider.
 
 *******************************************************************************/
 
-void pa_scrollpos(
+static void iscrollpos(
     /** Window file */             FILE* f,
     /** Logical widget id */       int id,
     /** Ratioed slider position */ int r
@@ -4688,7 +4783,7 @@ Sets the current size of a scrollbar slider.
 
 *******************************************************************************/
 
-void pa_scrollsiz(
+static void iscrollsiz(
     /** Window file */       FILE* f,
     /** Logical widget id */ int   id,
     /** Ratioed size */      int   r
@@ -4717,7 +4812,7 @@ number select box is calculated and returned.
 
 *******************************************************************************/
 
-void pa_numselboxsizg(
+static void inumselboxsizg(
     /** Window file */    FILE* f,
     /** Lower bound */    int   l,
     /** Upper bound */    int   u,
@@ -4755,7 +4850,7 @@ number select box is calculated and returned.
 
 *******************************************************************************/
 
-void pa_numselboxsiz(
+static void inumselboxsiz(
     /** Window file */    FILE* f,
     /** Lower bound */    int   l,
     /** Upper bound */    int   u,
@@ -4780,7 +4875,7 @@ Creates an up/down control for a graphical numeric selection.
 
 *******************************************************************************/
 
-void pa_numselboxg(
+static void inumselboxg(
     /** Window file */         FILE* f,
     /** Placement rectangle */ int   x1,
                                int   y1,
@@ -4824,7 +4919,7 @@ Creates an up/down control for a text numeric selection.
 
 *******************************************************************************/
 
-void pa_numselbox(
+static void inumselbox(
     /** Window file */         FILE* f,
     /** Placement rectangle */ int   x1,
                                int   y1,
@@ -4854,7 +4949,7 @@ minimum size of an edit box is calculated and returned.
 
 *******************************************************************************/
 
-void pa_editboxsizg(
+static void ieditboxsizg(
     /** Window file */        FILE* f,
     /** Sample face string */ char* s,
     /** Returns width */      int*  w,
@@ -4877,7 +4972,7 @@ minimum size of an edit box is calculated and returned.
 
 *******************************************************************************/
 
-void pa_editboxsiz(
+static void ieditboxsiz(
     /** Window file */        FILE* f,
     /** Sample face string */ char* s,
     /** Returns width */      int*  w,
@@ -4901,7 +4996,7 @@ Creates single line graphical edit box
 
 *******************************************************************************/
 
-void pa_editboxg(
+static void ieditboxg(
     /** Window file */         FILE* f,
     /** Placement rectangle */ int   x1,
                                int   y1,
@@ -4928,7 +5023,7 @@ Creates single line text edit box
 
 *******************************************************************************/
 
-void pa_editbox(
+static void ieditbox(
     /** Window file */         FILE* f,
     /** Placement rectangle */ int   x1,
                                int   y1,
@@ -4958,7 +5053,7 @@ measure, but the width is really up to the caller.
 
 *******************************************************************************/
 
-void pa_progbarsizg(
+static void iprogbarsizg(
     /** Window file */   FILE* f,
     /** Return width */  int*  w,
     /** Return height */ int*  h
@@ -4981,7 +5076,7 @@ measure, but the width is really up to the caller.
 
 *******************************************************************************/
 
-void pa_progbarsiz(
+static void iprogbarsiz(
     /** Window file */   FILE* f,
     /** Return width */  int*  w,
     /** Return height */ int*  h
@@ -5004,7 +5099,7 @@ Creates a progress bar.
 
 *******************************************************************************/
 
-void pa_progbarg(
+static void iprogbarg(
     /** Window file */         FILE* f,
     /** Placement rectangle */ int   x1,
                                int   y1,
@@ -5030,7 +5125,7 @@ Creates a progress bar.
 
 *******************************************************************************/
 
-void pa_progbar(
+static void iprogbar(
     /** Window file */         FILE* f,
     /** Placement rectangle */ int   x1,
                                int   y1,
@@ -5058,7 +5153,7 @@ Sets the position of a progress bar, from 0 to maxint.
 
 *******************************************************************************/
 
-void pa_progbarpos(
+static void iprogbarpos(
     /** Window file */       FILE* f,
     /** logical widget id */ int id,
     /** Ratioed position */  int pos)
@@ -5091,7 +5186,7 @@ specified rectangle, one way or another.
 
 *******************************************************************************/
 
-void pa_listboxsizg(
+static void ilistboxsizg(
     /** Window file */         FILE*     f,
     /** string list pointer */ pa_strptr sp,
     /** Return width */        int*      w,
@@ -5139,7 +5234,7 @@ specified rectangle, one way or another.
 
 *******************************************************************************/
 
-void pa_listboxsiz(
+static void ilistboxsiz(
     /** Window file */         FILE*     f,
     /** string list pointer */ pa_strptr sp,
     /** Return width */        int*      w,
@@ -5163,7 +5258,7 @@ Creates a graphical list box. Fills it with the string list provided.
 
 *******************************************************************************/
 
-void pa_listboxg(
+static void ilistboxg(
     /** Window file */         FILE*     f,
     /** Placement rectangle */ int       x1,
                                int       y1,
@@ -5196,7 +5291,7 @@ Creates a text list box. Fills it with the string list provided.
 
 *******************************************************************************/
 
-void pa_listbox(
+static void ilistbox(
     /** Window file */         FILE*     f,
     /** Placement rectangle */ int       x1,
                                int       y1,
@@ -5231,7 +5326,7 @@ selections can be scrolled.
 
 *******************************************************************************/
 
-void pa_dropboxsizg(
+static void idropboxsizg(
     /** Window file */         FILE*     f,
     /** String list pointer */ pa_strptr sp,
     /** Closed width */        int*      cw,
@@ -5271,7 +5366,7 @@ selections can be scrolled.
 
 *******************************************************************************/
 
-void pa_dropboxsiz(
+static void idropboxsiz(
     /** Window file */         FILE*     f,
     /** String list pointer */ pa_strptr sp,
     /** Closed width */        int*      cw,
@@ -5299,7 +5394,7 @@ Creates a graphical dropdown box. Fills it with the string list provided.
 
 *******************************************************************************/
 
-void pa_dropboxg(
+static void idropboxg(
     /** Window file */         FILE*     f,
     /** Placement rectangle */ int       x1,
                                int       y1,
@@ -5338,7 +5433,7 @@ Creates a text dropdown box. Fills it with the string list provided.
 
 *******************************************************************************/
 
-void pa_dropbox(
+static void idropbox(
     /** Window file */         FILE*     f,
     /** Placement rectangle */ int       x1,
                                int       y1,
@@ -5373,7 +5468,7 @@ selections can be scrolled.
 
 *******************************************************************************/
 
-void pa_dropeditboxsizg(
+static void idropeditboxsizg(
     /** Window file */          FILE*     f,
     /** string list pointer */  pa_strptr sp,
     /** Return closed width */  int*      cw,
@@ -5403,7 +5498,7 @@ selections can be scrolled.
 
 *******************************************************************************/
 
-void pa_dropeditboxsiz(
+static void idropeditboxsiz(
     /** Window file */          FILE*     f,
     /** string list pointer */  pa_strptr sp,
     /** Return closed width */  int*      cw,
@@ -5434,7 +5529,7 @@ box.
 
 *******************************************************************************/
 
-void pa_dropeditboxg(
+static void idropeditboxg(
     /** Window file */         FILE*     f,
     /** Placement rectangle */ int       x1,
                                int       y1,
@@ -5495,7 +5590,7 @@ box.
 
 *******************************************************************************/
 
-void pa_dropeditbox(
+static void idropeditbox(
     /** Window file */         FILE*     f,
     /** Placement rectangle */ int       x1,
                                int       y1,
@@ -5525,7 +5620,7 @@ horizontal slider is calculated and returned.
 
 *******************************************************************************/
 
-void pa_slidehorizsizg(
+static void islidehorizsizg(
     /** Window file */   FILE* f,
     /** Return width */  int*  w,
     /** Return height */ int*  h
@@ -5547,7 +5642,7 @@ horizontal slider is calculated and returned.
 
 *******************************************************************************/
 
-void pa_slidehorizsiz(
+static void islidehorizsiz(
     /** Window file */   FILE* f,
     /** Return width */  int*  w,
     /** Return height */ int*  h
@@ -5571,7 +5666,7 @@ Creates a graphical horizontal slider.
 
 *******************************************************************************/
 
-void pa_slidehorizg(
+static void islidehorizg(
     /** Window file */         FILE* f,
     /** Placement rectangle */ int   x1,
                                int   y1,
@@ -5599,7 +5694,7 @@ Creates a text horizontal slider.
 
 *******************************************************************************/
 
-void pa_slidehoriz(
+static void islidehoriz(
     /** Window file */         FILE* f,
     /** Placement rectangle */ int   x1,
                                int   y1,
@@ -5629,7 +5724,7 @@ vertical slider is calculated and returned.
 
 *******************************************************************************/
 
-void pa_slidevertsizg(
+static void islidevertsizg(
     /** Window file */   FILE* f,
     /** Return width */  int*  w,
     /** Return height */ int*  h
@@ -5651,7 +5746,7 @@ vertical slider is calculated and returned.
 
 *******************************************************************************/
 
-void pa_slidevertsiz(
+static void islidevertsiz(
     /** Window file */   FILE* f,
     /** Return width */  int*  w,
     /** Return height */ int*  h
@@ -5676,7 +5771,7 @@ Bugs: The tick marks should be in pixel terms, not logical terms.
 
 *******************************************************************************/
 
-void pa_slidevertg(
+static void islidevertg(
     /** Window file */         FILE* f,
     /** Placement rectangle */ int   x1,
                                int   y1,
@@ -5706,7 +5801,7 @@ Bugs: The tick marks should be in pixel terms, not logical terms.
 
 *******************************************************************************/
 
-void pa_slidevert(
+static void islidevert(
     /** Window file */         FILE* f,
     /** Placement rectangle */ int   x1,
                                int   y1,
@@ -5736,7 +5831,7 @@ calculated and returned.
 
 *******************************************************************************/
 
-void pa_tabbarsizg(
+static void itabbarsizg(
     /** Window file */            FILE*     f,
     /** Tab orientation */        pa_tabori tor,
     /** Client width */           int       cw,
@@ -5772,7 +5867,7 @@ calculated and returned.
 
 *******************************************************************************/
 
-void pa_tabbarsiz(
+static void itabbarsiz(
     /** Window file */            FILE*     f,
     /** Tab orientation */        pa_tabori tor,
     /** Client width */           int       cw,
@@ -5811,7 +5906,7 @@ area is flexible.
 
 *******************************************************************************/
 
-void pa_tabbarclientg(
+static void itabbarclientg(
     /** Window file */            FILE*     f,
     /** Tab orientation */        pa_tabori tor,
     /** Return client width */    int       w,
@@ -5849,7 +5944,7 @@ flexible.
 
 *******************************************************************************/
 
-void pa_tabbarclient(
+static void itabbarclient(
     /** Window file */            FILE*     f,
     /** Tab orientation */        pa_tabori tor,
     /** Return client width */    int       w,
@@ -5884,7 +5979,7 @@ Creates a graphical tab bar with the given orientation.
 
 *******************************************************************************/
 
-void pa_tabbarg(
+static void itabbarg(
     /** Window file */         FILE*     f,
     /** Placement rectangle */ int       x1,
                                int       y1,
@@ -5920,7 +6015,7 @@ Creates a text tab bar with the given orientation.
 
 *******************************************************************************/
 
-void pa_tabbar(
+static void itabbar(
     /** Window file */         FILE*     f,
     /** Placement rectangle */ int       x1,
                                int       y1,
@@ -5964,7 +6059,7 @@ of the tab.
 
 *******************************************************************************/
 
-void pa_tabsel(
+static void itabsel(
     /** Window file */         FILE* f,
     /** logical widget id */   int   id,
     /** Logical tab number */  int   tn
@@ -6006,7 +6101,7 @@ Outputs a message dialog with the given title and message strings.
 #define ICIRCSIZ 2.3 /* size of i circle */
 #define ICHRSIZ  0.3 /* size of i character */
 
-void pa_alert(
+static void ialert(
     /** Title string */   char* title,
     /** Message string */ char* message
 )
@@ -6163,7 +6258,7 @@ Presents the choose color dialog, then returns the resulting color.
 
 *******************************************************************************/
 
-void pa_querycolor(
+static void iquerycolor(
     /** Input/Output for red ratioed color */   int* r,
     /** Input/Output for green ratioed color */ int* g,
     /** Input/Output for blue ratioed color */  int* b
@@ -6483,7 +6578,7 @@ If the operation is cancelled, then a null string will be returned.
 
 *******************************************************************************/
 
-void pa_queryopen(
+static void iqueryopen(
     /** Input/output for filename string */ char* s,
     /** Length of filename string buffer */ int sl
 )
@@ -6512,7 +6607,7 @@ If the operation is cancelled, then a null string will be returned.
 
 *******************************************************************************/
 
-void pa_querysave(
+static void iquerysave(
     /** Input/output for filename string */ char* s,
     /** Length of filename string buffer */ int sl
 )
@@ -6550,7 +6645,7 @@ table this issue until later.
 
 *******************************************************************************/
 
-void pa_queryfind(
+static void iqueryfind(
     /** Input/output for search string */   char* s,
     /** Length of search string buffer */ int sl,
     /** Set of find/replace options */      pa_qfnopts* opt
@@ -6581,7 +6676,7 @@ Bug: See comment, queryfind.
 
 *******************************************************************************/
 
-void pa_queryfindrep(
+static void iqueryfindrep(
     /** Input/output for search string */  char* s,
     /** Length of search string buffer */  int sl,
     /** Input/output for replace string */ char* r,
@@ -6612,7 +6707,7 @@ user as the defaults.
 
 *******************************************************************************/
 
-void pa_queryfont(
+static void iqueryfont(
     /** Window file */                   FILE*          f,
     /** Input/output font code */        int*           fc,
     /** Input/output point size */       int*           s,
@@ -6676,7 +6771,7 @@ static int ivclose(
 
         /* close any widgets in file */
         for (i = 0; i < MAXWIG*2+1; i++)
-            if (opnfil[fd]->widgets[i]) ikillwidget(fd, i-MAXWIG);
+            if (opnfil[fd]->widgets[i]) intkillwidget(fd, i-MAXWIG);
         free(opnfil[fd]); /* free the file record */
         opnfil[fd] = NULL; /* clear it */
 
@@ -6741,6 +6836,96 @@ static void init_widgets()
 #ifdef NOCANCEL
     ovr_close_nocancel(iclose_nocancel, &ofpclose_nocancel);
 #endif
+
+    /* override entry calls to widgets */
+    _pa_getwigid_ovr(igetwigid, &getwigid_vect);
+    _pa_killwidget_ovr(ikillwidget, &killwidget_vect);
+    _pa_selectwidget_ovr(iselectwidget, &selectwidget_vect);
+    _pa_enablewidget_ovr(ienablewidget, &enablewidget_vect);
+    _pa_getwidgettext_ovr(igetwidgettext, &getwidgettext_vect);
+    _pa_putwidgettext_ovr(iputwidgettext, &putwidgettext_vect);
+    _pa_sizwidget_ovr(isizwidget, &sizwidget_vect);
+    _pa_sizwidgetg_ovr(isizwidgetg, &sizwidgetg_vect);
+    _pa_poswidget_ovr(iposwidget, &poswidget_vect);
+    _pa_poswidgetg_ovr(iposwidgetg, &poswidgetg_vect);
+    _pa_backwidget_ovr(ibackwidget, &backwidget_vect);
+    _pa_frontwidget_ovr(ifrontwidget, &frontwidget_vect);
+    _pa_focuswidget_ovr(ifocuswidget, &focuswidget_vect);
+    _pa_buttonsiz_ovr(ibuttonsiz, &buttonsiz_vect);
+    _pa_buttonsizg_ovr(ibuttonsizg, &buttonsizg_vect);
+    _pa_button_ovr(ibutton, &button_vect);
+    _pa_buttong_ovr(ibuttong, &buttong_vect);
+    _pa_checkboxsiz_ovr(icheckboxsiz, &checkboxsiz_vect);
+    _pa_checkboxsizg_ovr(icheckboxsizg, &checkboxsizg_vect);
+    _pa_checkbox_ovr(icheckbox, &checkbox_vect);
+    _pa_checkboxg_ovr(icheckboxg, &checkboxg_vect);
+    _pa_radiobuttonsiz_ovr(iradiobuttonsiz, &radiobuttonsiz_vect);
+    _pa_radiobuttonsizg_ovr(iradiobuttonsizg, &radiobuttonsizg_vect);
+    _pa_radiobutton_ovr(iradiobutton, &radiobutton_vect);
+    _pa_radiobuttong_ovr(iradiobuttong, &radiobuttong_vect);
+    _pa_groupsizg_ovr(igroupsizg, &groupsizg_vect);
+    _pa_groupsiz_ovr(igroupsiz, &groupsiz_vect);
+    _pa_group_ovr(igroup, &group_vect);
+    _pa_groupg_ovr(igroupg, &groupg_vect);
+    _pa_background_ovr(ibackground, &background_vect);
+    _pa_backgroundg_ovr(ibackgroundg, &backgroundg_vect);
+    _pa_scrollvertsizg_ovr(iscrollvertsizg, &scrollvertsizg_vect);
+    _pa_scrollvertsiz_ovr(iscrollvertsiz, &scrollvertsiz_vect);
+    _pa_scrollvert_ovr(iscrollvert, &scrollvert_vect);
+    _pa_scrollvertg_ovr(iscrollvertg, &scrollvertg_vect);
+    _pa_scrollhorizsizg_ovr(iscrollhorizsizg, &scrollhorizsizg_vect);
+    _pa_scrollhorizsiz_ovr(iscrollhorizsiz, &scrollhorizsiz_vect);
+    _pa_scrollhoriz_ovr(iscrollhoriz, &scrollhoriz_vect);
+    _pa_scrollhorizg_ovr(iscrollhorizg, &scrollhorizg_vect);
+    _pa_scrollpos_ovr(iscrollpos, &scrollpos_vect);
+    _pa_scrollsiz_ovr(iscrollsiz, &scrollsiz_vect);
+    _pa_numselboxsizg_ovr(inumselboxsizg, &numselboxsizg_vect);
+    _pa_numselboxsiz_ovr(inumselboxsiz, &numselboxsiz_vect);
+    _pa_numselbox_ovr(inumselbox, &numselbox_vect);
+    _pa_numselboxg_ovr(inumselboxg, &numselboxg_vect);
+    _pa_editboxsizg_ovr(ieditboxsizg, &editboxsizg_vect);
+    _pa_editboxsiz_ovr(ieditboxsiz, &editboxsiz_vect);
+    _pa_editbox_ovr(ieditbox, &editbox_vect);
+    _pa_editboxg_ovr(ieditboxg, &editboxg_vect);
+    _pa_progbarsizg_ovr(iprogbarsizg, &progbarsizg_vect);
+    _pa_progbarsiz_ovr(iprogbarsiz, &progbarsiz_vect);
+    _pa_progbar_ovr(iprogbar, &progbar_vect);
+    _pa_progbarg_ovr(iprogbarg, &progbarg_vect);
+    _pa_progbarpos_ovr(iprogbarpos, &progbarpos_vect);
+    _pa_listboxsizg_ovr(ilistboxsizg, &listboxsizg_vect);
+    _pa_listboxsiz_ovr(ilistboxsiz, &listboxsiz_vect);
+    _pa_listbox_ovr(ilistbox, &listbox_vect);
+    _pa_listboxg_ovr(ilistboxg, &listboxg_vect);
+    _pa_dropboxsizg_ovr(idropboxsizg, &dropboxsizg_vect);
+    _pa_dropboxsiz_ovr(idropboxsiz, &dropboxsiz_vect);
+    _pa_dropbox_ovr(idropbox, &dropbox_vect);
+    _pa_dropboxg_ovr(idropboxg, &dropboxg_vect);
+    _pa_dropeditboxsizg_ovr(idropeditboxsizg, &dropeditboxsizg_vect);
+    _pa_dropeditboxsiz_ovr(idropeditboxsiz, &dropeditboxsiz_vect);
+    _pa_dropeditbox_ovr(idropeditbox, &dropeditbox_vect);
+    _pa_dropeditboxg_ovr(idropeditboxg, &dropeditboxg_vect);
+    _pa_slidehorizsizg_ovr(islidehorizsizg, &slidehorizsizg_vect);
+    _pa_slidehorizsiz_ovr(islidehorizsiz, &slidehorizsiz_vect);
+    _pa_slidehoriz_ovr(islidehoriz, &slidehoriz_vect);
+    _pa_slidehorizg_ovr(islidehorizg, &slidehorizg_vect);
+    _pa_slidevertsizg_ovr(islidevertsizg, &slidevertsizg_vect);
+    _pa_slidevertsiz_ovr(islidevertsiz, &slidevertsiz_vect);
+    _pa_slidevert_ovr(islidevert, &slidevert_vect);
+    _pa_slidevertg_ovr(islidevertg, &slidevertg_vect);
+    _pa_tabbarsizg_ovr(itabbarsizg, &tabbarsizg_vect);
+    _pa_tabbarsiz_ovr(itabbarsiz, &tabbarsiz_vect);
+    _pa_tabbarclientg_ovr(itabbarclientg, &tabbarclientg_vect);
+    _pa_tabbarclient_ovr(itabbarclient, &tabbarclient_vect);
+    _pa_tabbar_ovr(itabbar, &tabbar_vect);
+    _pa_tabbarg_ovr(itabbarg, &tabbarg_vect);
+    _pa_tabsel_ovr(itabsel, &tabsel_vect);
+    _pa_alert_ovr(ialert, &alert_vect);
+    _pa_querycolor_ovr(iquerycolor, &querycolor_vect);
+    _pa_queryopen_ovr(iqueryopen, &queryopen_vect);
+    _pa_querysave_ovr(iquerysave, &querysave_vect);
+    _pa_queryfind_ovr(iqueryfind, &queryfind_vect);
+    _pa_queryfindrep_ovr(iqueryfindrep, &queryfindrep_vect);
+    _pa_queryfont_ovr(iqueryfont, &queryfont_vect);
 
     /* fill out the theme table defaults */
     themetable[th_backpressed]        = TD_BACKPRESSED;
@@ -6843,16 +7028,197 @@ static void deinit_widgets()
     pclose_t cppclose;
     pclose_t cppclose_nocancel;
 
+    /* holding copies of widgets override vectors */
+    pa_getwigid_t        cppgetwigid;
+    pa_killwidget_t      cppkillwidget;
+    pa_selectwidget_t    cppselectwidget;
+    pa_enablewidget_t    cppenablewidget;
+    pa_getwidgettext_t   cppgetwidgettext;
+    pa_putwidgettext_t   cppputwidgettext;
+    pa_sizwidget_t       cppsizwidget;
+    pa_sizwidgetg_t      cppsizwidgetg;
+    pa_poswidget_t       cppposwidget;
+    pa_poswidgetg_t      cppposwidgetg;
+    pa_backwidget_t      cppbackwidget;
+    pa_frontwidget_t     cppfrontwidget;
+    pa_focuswidget_t     cppfocuswidget;
+    pa_buttonsiz_t       cppbuttonsiz;
+    pa_buttonsizg_t      cppbuttonsizg;
+    pa_button_t          cppbutton;
+    pa_buttong_t         cppbuttong;
+    pa_checkboxsiz_t     cppcheckboxsiz;
+    pa_checkboxsizg_t    cppcheckboxsizg;
+    pa_checkbox_t        cppcheckbox;
+    pa_checkboxg_t       cppcheckboxg;
+    pa_radiobuttonsiz_t  cppradiobuttonsiz;
+    pa_radiobuttonsizg_t cppradiobuttonsizg;
+    pa_radiobutton_t     cppradiobutton;
+    pa_radiobuttong_t    cppradiobuttong;
+    pa_groupsizg_t       cppgroupsizg;
+    pa_groupsiz_t        cppgroupsiz;
+    pa_group_t           cppgroup;
+    pa_groupg_t          cppgroupg;
+    pa_background_t      cppbackground;
+    pa_backgroundg_t     cppbackgroundg;
+    pa_scrollvertsizg_t  cppscrollvertsizg;
+    pa_scrollvertsiz_t   cppscrollvertsiz;
+    pa_scrollvert_t      cppscrollvert;
+    pa_scrollvertg_t     cppscrollvertg;
+    pa_scrollhorizsizg_t cppscrollhorizsizg;
+    pa_scrollhorizsiz_t  cppscrollhorizsiz;
+    pa_scrollhoriz_t     cppscrollhoriz;
+    pa_scrollhorizg_t    cppscrollhorizg;
+    pa_scrollpos_t       cppscrollpos;
+    pa_scrollsiz_t       cppscrollsiz;
+    pa_numselboxsizg_t   cppnumselboxsizg;
+    pa_numselboxsiz_t    cppnumselboxsiz;
+    pa_numselbox_t       cppnumselbox;
+    pa_numselboxg_t      cppnumselboxg;
+    pa_editboxsizg_t     cppeditboxsizg;
+    pa_editboxsiz_t      cppeditboxsiz;
+    pa_editbox_t         cppeditbox;
+    pa_editboxg_t        cppeditboxg;
+    pa_progbarsizg_t     cppprogbarsizg;
+    pa_progbarsiz_t      cppprogbarsiz;
+    pa_progbar_t         cppprogbar;
+    pa_progbarg_t        cppprogbarg;
+    pa_progbarpos_t      cppprogbarpos;
+    pa_listboxsizg_t     cpplistboxsizg;
+    pa_listboxsiz_t      cpplistboxsiz;
+    pa_listbox_t         cpplistbox;
+    pa_listboxg_t        cpplistboxg;
+    pa_dropboxsizg_t     cppdropboxsizg;
+    pa_dropboxsiz_t      cppdropboxsiz;
+    pa_dropbox_t         cppdropbox;
+    pa_dropboxg_t        cppdropboxg;
+    pa_dropeditboxsizg_t cppdropeditboxsizg;
+    pa_dropeditboxsiz_t  cppdropeditboxsiz;
+    pa_dropeditbox_t     cppdropeditbox;
+    pa_dropeditboxg_t    cppdropeditboxg;
+    pa_slidehorizsizg_t  cppslidehorizsizg;
+    pa_slidehorizsiz_t   cppslidehorizsiz;
+    pa_slidehoriz_t      cppslidehoriz;
+    pa_slidehorizg_t     cppslidehorizg;
+    pa_slidevertsizg_t   cppslidevertsizg;
+    pa_slidevertsiz_t    cppslidevertsiz;
+    pa_slidevert_t       cppslidevert;
+    pa_slidevertg_t      cppslidevertg;
+    pa_tabbarsizg_t      cpptabbarsizg;
+    pa_tabbarsiz_t       cpptabbarsiz;
+    pa_tabbarclientg_t   cpptabbarclientg;
+    pa_tabbarclient_t    cpptabbarclient;
+    pa_tabbar_t          cpptabbar;
+    pa_tabbarg_t         cpptabbarg;
+    pa_tabsel_t          cpptabsel;
+    pa_alert_t           cppalert;
+    pa_querycolor_t      cppquerycolor;
+    pa_queryopen_t       cppqueryopen;
+    pa_querysave_t       cppquerysave;
+    pa_queryfind_t       cppqueryfind;
+    pa_queryfindrep_t    cppqueryfindrep;
+    pa_queryfont_t       cppqueryfont;
+
     /* shut down file and widgets */
     for (fn = 0; fn < MAXFIL; fn++) if (opnfil[fn]) {
 
         /* close any widgets in file */
         for (i = 0; i < MAXWIG*2+1; i++)
-            if (opnfil[fn]->widgets[i]) ikillwidget(fn, i-MAXWIG);
+            if (opnfil[fn]->widgets[i]) intkillwidget(fn, i-MAXWIG);
         free(opnfil[fn]); /* free the file record */
         opnfil[fn] = NULL; /* clear it */
 
     }
+
+    /* swap old override vectors for existing vectors */
+    _pa_getwigid_ovr(getwigid_vect, &cppgetwigid);
+
+    _pa_killwidget_ovr(killwidget_vect, &cppkillwidget);
+    _pa_selectwidget_ovr(selectwidget_vect, &cppselectwidget);
+    _pa_enablewidget_ovr(enablewidget_vect, &cppenablewidget);
+    _pa_getwidgettext_ovr(getwidgettext_vect, &cppgetwidgettext);
+    _pa_putwidgettext_ovr(putwidgettext_vect, &cppputwidgettext);
+    _pa_sizwidget_ovr(sizwidget_vect, &cppsizwidget);
+    _pa_sizwidgetg_ovr(sizwidgetg_vect, &cppsizwidgetg);
+    _pa_poswidget_ovr(poswidget_vect, &cppposwidget);
+    _pa_poswidgetg_ovr(poswidgetg_vect, &cppposwidgetg);
+    _pa_backwidget_ovr(backwidget_vect, &cppbackwidget);
+    _pa_frontwidget_ovr(frontwidget_vect, &cppfrontwidget);
+    _pa_focuswidget_ovr(focuswidget_vect, &cppfocuswidget);
+    _pa_buttonsiz_ovr(buttonsiz_vect, &cppbuttonsiz);
+    _pa_buttonsizg_ovr(buttonsizg_vect, &cppbuttonsizg);
+    _pa_button_ovr(button_vect, &cppbutton);
+    _pa_buttong_ovr(buttong_vect, &cppbuttong);
+    _pa_checkboxsiz_ovr(checkboxsiz_vect, &cppcheckboxsiz);
+    _pa_checkboxsizg_ovr(checkboxsizg_vect, &cppcheckboxsizg);
+    _pa_checkbox_ovr(checkbox_vect, &cppcheckbox);
+    _pa_checkboxg_ovr(checkboxg_vect, &cppcheckboxg);
+    _pa_radiobuttonsiz_ovr(radiobuttonsiz_vect, &cppradiobuttonsiz);
+    _pa_radiobuttonsizg_ovr(radiobuttonsizg_vect, &cppradiobuttonsizg);
+    _pa_radiobutton_ovr(radiobutton_vect, &cppradiobutton);
+    _pa_radiobuttong_ovr(radiobuttong_vect, &cppradiobuttong);
+    _pa_groupsizg_ovr(groupsizg_vect, &cppgroupsizg);
+    _pa_groupsiz_ovr(groupsiz_vect, &cppgroupsiz);
+    _pa_group_ovr(group_vect, &cppgroup);
+    _pa_groupg_ovr(groupg_vect, &cppgroupg);
+    _pa_background_ovr(background_vect, &cppbackground);
+    _pa_backgroundg_ovr(backgroundg_vect, &cppbackgroundg);
+    _pa_scrollvertsizg_ovr(scrollvertsizg_vect, &cppscrollvertsizg);
+    _pa_scrollvertsiz_ovr(scrollvertsiz_vect, &cppscrollvertsiz);
+    _pa_scrollvert_ovr(scrollvert_vect, &cppscrollvert);
+    _pa_scrollvertg_ovr(scrollvertg_vect, &cppscrollvertg);
+    _pa_scrollhorizsizg_ovr(scrollhorizsizg_vect, &cppscrollhorizsizg);
+    _pa_scrollhorizsiz_ovr(scrollhorizsiz_vect, &cppscrollhorizsiz);
+    _pa_scrollhoriz_ovr(scrollhoriz_vect, &cppscrollhoriz);
+    _pa_scrollhorizg_ovr(scrollhorizg_vect, &cppscrollhorizg);
+    _pa_scrollpos_ovr(scrollpos_vect, &cppscrollpos);
+    _pa_scrollsiz_ovr(scrollsiz_vect, &cppscrollsiz);
+    _pa_numselboxsizg_ovr(numselboxsizg_vect, &cppnumselboxsizg);
+    _pa_numselboxsiz_ovr(numselboxsiz_vect, &cppnumselboxsiz);
+    _pa_numselbox_ovr(numselbox_vect, &cppnumselbox);
+    _pa_numselboxg_ovr(numselboxg_vect, &cppnumselboxg);
+    _pa_editboxsizg_ovr(editboxsizg_vect, &cppeditboxsizg);
+    _pa_editboxsiz_ovr(editboxsiz_vect, &cppeditboxsiz);
+    _pa_editbox_ovr(editbox_vect, &cppeditbox);
+    _pa_editboxg_ovr(editboxg_vect, &cppeditboxg);
+    _pa_progbarsizg_ovr(progbarsizg_vect, &cppprogbarsizg);
+    _pa_progbarsiz_ovr(progbarsiz_vect, &cppprogbarsiz);
+    _pa_progbar_ovr(progbar_vect, &cppprogbar);
+    _pa_progbarg_ovr(progbarg_vect, &cppprogbarg);
+    _pa_progbarpos_ovr(progbarpos_vect, &cppprogbarpos);
+    _pa_listboxsizg_ovr(listboxsizg_vect, &cpplistboxsizg);
+    _pa_listboxsiz_ovr(listboxsiz_vect, &cpplistboxsiz);
+    _pa_listbox_ovr(listbox_vect, &cpplistbox);
+    _pa_listboxg_ovr(listboxg_vect, &cpplistboxg);
+    _pa_dropboxsizg_ovr(dropboxsizg_vect, &cppdropboxsizg);
+    _pa_dropboxsiz_ovr(dropboxsiz_vect, &cppdropboxsiz);
+    _pa_dropbox_ovr(dropbox_vect, &cppdropbox);
+    _pa_dropboxg_ovr(dropboxg_vect, &cppdropboxg);
+    _pa_dropeditboxsizg_ovr(dropeditboxsizg_vect, &cppdropeditboxsizg);
+    _pa_dropeditboxsiz_ovr(dropeditboxsiz_vect, &cppdropeditboxsiz);
+    _pa_dropeditbox_ovr(dropeditbox_vect, &cppdropeditbox);
+    _pa_dropeditboxg_ovr(dropeditboxg_vect, &cppdropeditboxg);
+    _pa_slidehorizsizg_ovr(slidehorizsizg_vect, &cppslidehorizsizg);
+    _pa_slidehorizsiz_ovr(slidehorizsiz_vect, &cppslidehorizsiz);
+    _pa_slidehoriz_ovr(slidehoriz_vect, &cppslidehoriz);
+    _pa_slidehorizg_ovr(slidehorizg_vect, &cppslidehorizg);
+    _pa_slidevertsizg_ovr(slidevertsizg_vect, &cppslidevertsizg);
+    _pa_slidevertsiz_ovr(slidevertsiz_vect, &cppslidevertsiz);
+    _pa_slidevert_ovr(slidevert_vect, &cppslidevert);
+    _pa_slidevertg_ovr(slidevertg_vect, &cppslidevertg);
+    _pa_tabbarsizg_ovr(tabbarsizg_vect, &cpptabbarsizg);
+    _pa_tabbarsiz_ovr(tabbarsiz_vect, &cpptabbarsiz);
+    _pa_tabbarclientg_ovr(tabbarclientg_vect, &cpptabbarclientg);
+    _pa_tabbarclient_ovr(tabbarclient_vect, &cpptabbarclient);
+    _pa_tabbar_ovr(tabbar_vect, &cpptabbar);
+    _pa_tabbarg_ovr(tabbarg_vect, &cpptabbarg);
+    _pa_tabsel_ovr(tabsel_vect, &cpptabsel);
+    _pa_alert_ovr(alert_vect, &cppalert);
+    _pa_querycolor_ovr(querycolor_vect, &cppquerycolor);
+    _pa_queryopen_ovr(queryopen_vect, &cppqueryopen);
+    _pa_querysave_ovr(querysave_vect, &cppquerysave);
+    _pa_queryfind_ovr(queryfind_vect, &cppqueryfind);
+    _pa_queryfindrep_ovr(queryfindrep_vect, &cppqueryfindrep);
+    _pa_queryfont_ovr(queryfont_vect, &cppqueryfont);
 
     /* swap old vectors for existing vectors */
     ovr_close(ofpclose, &cppclose);
