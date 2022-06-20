@@ -6810,7 +6810,7 @@ These routines all have override capability.
 
 Scroll screen
 
-Scrolls the ANSI terminal screen by deltas in any given direction. If the scroll
+Scrolls the terminal screen by deltas in any given direction. If the scroll
 would move all content off the screen, the screen is simply blanked. Otherwise,
 we find the section of the screen that would remain after the scroll, determine
 its source and destination rectangles, and use a bitblt to move it.
@@ -7326,11 +7326,6 @@ Turn on italic attribute
 
 Turns on/off the italic attribute.
 Note that the attributes can only be set singly.
-
-Italic is causing problems with fixed mode on some fonts, and Windows does not
-seem to want to share with me just what the true width of an italic font is
-(without taking heroic measures like drawing and testing pixels). So we disable
-italic on fixed fonts.
 
 *******************************************************************************/
 

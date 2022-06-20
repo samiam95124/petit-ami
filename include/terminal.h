@@ -190,4 +190,87 @@ void pa_wrtstr(FILE* f, char *s);
 void pa_eventover(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh);
 void pa_eventsover(pa_pevthan eh,  pa_pevthan* oeh);
 
+/*
+ * Override vector types
+ *
+ */
+typedef void (*pa_cursor_t)(FILE* f, int x, int y);
+typedef int (*pa_maxx_t)(FILE* f);
+typedef int (*pa_maxy_t)(FILE* f);
+typedef void (*pa_home_t)(FILE* f);
+typedef void (*pa_del_t)(FILE* f);
+typedef void (*pa_up_t)(FILE* f);
+typedef void (*pa_down_t)(FILE* f);
+typedef void (*pa_left_t)(FILE* f);
+typedef void (*pa_right_t)(FILE* f);
+typedef void (*pa_blink_t)(FILE* f, int e);
+typedef void (*pa_reverse_t)(FILE* f, int e);
+typedef void (*pa_underline_t)(FILE* f, int e);
+typedef void (*pa_superscript_t)(FILE* f, int e);
+typedef void (*pa_subscript_t)(FILE* f, int e);
+typedef void (*pa_italic_t)(FILE* f, int e);
+typedef void (*pa_bold_t)(FILE* f, int e);
+typedef void (*pa_strikeout_t)(FILE* f, int e);
+typedef void (*pa_standout_t)(FILE* f, int e);
+typedef void (*pa_fcolor_t)(FILE* f, pa_color c);
+typedef void (*pa_bcolor_t)(FILE* f, pa_color c);
+typedef void (*pa_auto_t)(FILE* f, int e);
+typedef void (*pa_curvis_t)(FILE* f, int e);
+typedef void (*pa_scroll_t)(FILE* f, int x, int y);
+typedef int (*pa_curx_t)(FILE* f);
+typedef int (*pa_cury_t)(FILE* f);
+typedef int (*pa_curbnd_t)(FILE* f);
+typedef void (*pa_select_t)(FILE* f, int u, int d);
+typedef void (*pa_event_t)(FILE* f, pa_evtrec* er);
+typedef void (*pa_timer_t)(FILE* f, int i, long t, int r);
+typedef void (*pa_killtimer_t)(FILE* f, int i);
+typedef int (*pa_mouse_t)(FILE* f);
+typedef int (*pa_mousebutton_t)(FILE* f, int m);
+typedef int (*pa_joystick_t)(FILE* f);
+typedef int (*pa_joybutton_t)(FILE* f, int j);
+typedef int (*pa_joyaxis_t)(FILE* f, int j);
+typedef void (*pa_settab_t)(FILE* f, int t);
+typedef void (*pa_restab_t)(FILE* f, int t);
+typedef void (*pa_clrtab_t)(FILE* f);
+typedef int (*pa_funkey_t)(FILE* f);
+typedef void (*pa_frametimer_t)(FILE* f, int e);
+typedef void (*pa_autohold_t)(int e);
+typedef void (*pa_wrtstr_t)(FILE* f, char* s);
+typedef void (*pa_eventover_t)(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh);
+typedef void (*pa_eventsover_t)(pa_pevthan eh,  pa_pevthan* oeh);
+
+/*
+ * Overrider routines
+ */
+void _pa_scroll_ovr(pa_scroll_t nfp, pa_scroll_t* ofp);
+void _pa_cursor_ovr(pa_cursor_t nfp, pa_cursor_t* ofp);
+void _pa_maxx_ovr(pa_maxx_t nfp, pa_maxx_t* ofp);
+void _pa_maxy_ovr(pa_maxy_t nfp, pa_maxy_t* ofp);
+void _pa_home_ovr(pa_home_t nfp, pa_home_t* ofp);
+void _pa_up_ovr(pa_up_t nfp, pa_up_t* ofp);
+void _pa_down_ovr(pa_down_t nfp, pa_down_t* ofp);
+void _pa_left_ovr(pa_left_t nfp, pa_left_t* ofp);
+void _pa_right_ovr(pa_right_t nfp, pa_right_t* ofp);
+void _pa_blink_ovr(pa_blink_t nfp, pa_blink_t* ofp);
+void _pa_reverse_ovr(pa_reverse_t nfp, pa_reverse_t* ofp);
+void _pa_underline_ovr(pa_underline_t nfp, pa_underline_t* ofp);
+void _pa_superscript_ovr(pa_superscript_t nfp, pa_superscript_t* ofp);
+void _pa_subscript_ovr(pa_subscript_t nfp, pa_subscript_t* ofp);
+void _pa_italic_ovr(pa_italic_t nfp, pa_italic_t* ofp);
+void _pa_bold_ovr(pa_bold_t nfp, pa_bold_t* ofp);
+void _pa_strikeout_ovr(pa_strikeout_t nfp, pa_strikeout_t* ofp);
+void _pa_standout_ovr(pa_standout_t nfp, pa_standout_t* ofp);
+void _pa_fcolor_ovr(pa_fcolor_t nfp, pa_fcolor_t* ofp);
+void _pa_fcolorc_ovr(pa_fcolorc_t nfp, pa_fcolorc_t* ofp);
+void _pa_bcolor_ovr(pa_bcolor_t nfp, pa_bcolor_t* ofp);
+void _pa_bcolorc_ovr(pa_bcolorc_t nfp, pa_bcolorc_t* ofp);
+void _pa_curbnd_ovr(pa_curbnd_t nfp, pa_curbnd_t* ofp);
+void _pa_auto_ovr(pa_auto_t nfp, pa_auto_t* ofp);
+void _pa_curvis_ovr(pa_curvis_t nfp, pa_curvis_t* ofp);
+void _pa_curx_ovr(pa_curx_t nfp, pa_curx_t* ofp);
+void _pa_cury_ovr(pa_cury_t nfp, pa_cury_t* ofp);
+void _pa_select_ovr(pa_select_t nfp, pa_select_t* ofp);
+void _pa_wrtstr_ovr(pa_wrtstr_t nfp, pa_wrtstr_t* ofp);
+void _pa_del_ovr(pa_del_t nfp, pa_del_t* ofp);
+
 #endif /* __TERMINAL_H__ */
