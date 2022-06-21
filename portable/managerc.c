@@ -137,6 +137,20 @@ typedef int (*popen_t)(const char*, int, int);
 typedef int (*pclose_t)(int);
 typedef off_t (*plseek_t)(int, off_t, int);
 
+/* screen text attribute */
+typedef enum {
+
+    sablink,     /* blinking text (foreground) */
+    sarev,       /* reverse video */
+    saundl,      /* underline */
+    sasuper,     /* superscript */
+    sasubs,      /* subscripting */
+    saital,      /* italic text */
+    sabold,      /* bold text */
+    sastkout,    /* strikeout text */
+
+} scnatt;
+
 /* system override calls */
 
 extern void ovr_read(pread_t nfp, pread_t* ofp);
@@ -270,19 +284,17 @@ typedef struct metrec {
 typedef struct scncon* scnptr;
 typedef struct scncon { /* screen context */
 
-    /* fields used by graph module */
-    int     lwidth;      /* width of lines */
-    /* note that the pixel and character dimensions and positions are kept
-      in parallel for both characters and pixels */
-    int     maxx;        /* maximum characters in x */
-    int     maxy;        /* maximum characters in y */
-    int     curx;        /* current cursor location x */
-    int     cury;        /* current cursor location y */
-    int     attr;        /* set of active attributes */
-    int     autof;       /* current status of scroll and wrap */
-    int     tab[MAXTAB]; /* tabbing array */
-    int     curv;        /* cursor visible */
-    char*   buf;         /* screen buffer */
+    int      maxx;        /* maximum characters in x */
+    int      maxy;        /* maximum characters in y */
+    int      curx;        /* current cursor location x */
+    int      cury;        /* current cursor location y */
+    int      attr;        /* set of active attributes */
+    pa_color fcolor;      /* foreground color */
+    pa_color bcolor;      /* background color */
+    int      autof;       /* current status of scroll and wrap */
+    int      tab[MAXTAB]; /* tabbing array */
+    int      curv;        /* cursor visible */
+    char*    buf;         /* screen buffer */
 
 } scncon;
 
@@ -290,27 +302,30 @@ typedef struct scncon { /* screen context */
 typedef struct winrec* winptr;
 typedef struct winrec {
 
-    winptr next;              /* next entry (for free list) */
-    int    parlfn;            /* logical parent */
-    winptr parwin;            /* link to parent (or NULL for parentless) */
-    int    wid;               /* this window logical id */
-    winptr childwin;          /* list of child windows */
-    winptr childlst;          /* list pointer if this is a child */
-    scnptr screens[MAXCON];   /* screen contexts array */
-    int    curdsp;            /* index for current display screen */
-    int    curupd;            /* index for current update screen */
-    int    orgx;              /* window origin in root x */
-    int    orgy;              /* window origin in root y */
-    int    maxx;              /* maximum x size */
-    int    maxy;              /* maximum y size */
-    int    bufx;              /* buffer size x characters */
-    int    bufy;              /* buffer size y characters */
-    int    bufmod;            /* buffered screen mode */
-    metptr metlst;            /* menu tracking list */
-    metptr menu;              /* "faux menu" bar */
-    int    frame;             /* frame on/off */
-    int    size;              /* size bars on/off */
-    int    sysbar;            /* system bar on/off */
+    winptr   next;            /* next entry (for free list) */
+    int      parlfn;          /* logical parent */
+    winptr   parwin;          /* link to parent (or NULL for parentless) */
+    int      wid;             /* this window logical id */
+    winptr   childwin;        /* list of child windows */
+    winptr   childlst;        /* list pointer if this is a child */
+    scnptr   screens[MAXCON]; /* screen contexts array */
+    int      curdsp;          /* index for current display screen */
+    int      curupd;          /* index for current update screen */
+    int      orgx;            /* window origin in root x */
+    int      orgy;            /* window origin in root y */
+    int      maxx;            /* maximum x size */
+    int      maxy;            /* maximum y size */
+    int      attr;            /* set of active attributes */
+    pa_color fcolor;          /* foreground color */
+    pa_color bcolor;          /* background color */
+    int      bufx;            /* buffer size x characters */
+    int      bufy;            /* buffer size y characters */
+    int      bufmod;          /* buffered screen mode */
+    metptr   metlst;          /* menu tracking list */
+    metptr   menu;            /* "faux menu" bar */
+    int      frame;           /* frame on/off */
+    int      size;            /* size bars on/off */
+    int      sysbar;          /* system bar on/off */
 
 } winrec;
 
@@ -322,12 +337,17 @@ typedef struct winrec {
 typedef struct filrec* filptr;
 typedef struct filrec {
 
-      FILE*  sfp;  /* file pointer used to establish entry, or NULL */
-      winptr win;  /* associated window (if exists) */
+      FILE*  sfp; /* file pointer used to establish entry, or NULL */
+      winptr win; /* associated window (if exists) */
 
 } filrec;
 
-static filptr        opnfil[MAXFIL];     /* open files table */
+static filptr opnfil[MAXFIL]; /* open files table */
+
+/* colors and attributes for root window */
+static int    attr;           /* set of active attributes */
+static pa_color fcolor;       /* foreground color */
+static pa_color bcolor;       /* background color */
 
 /** ****************************************************************************
 
@@ -537,13 +557,21 @@ void icursor(FILE* f, int x, int y)
 
 {
 
+    winptr win; /* windows record pointer */
+    scnptr sc;
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1]; /* index update screen */
+    sc->cury = y; /* set new position */
+    sc->curx = x;
+
 }
 
 /** ****************************************************************************
 
 Return maximum x dimension
 
-Returns the maximum x dimension, also equal to the number of collumns in the
+Returns the maximum x dimension, also equal to the number of columns in the
 display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
@@ -552,13 +580,19 @@ int imaxx(FILE* f)
 
 {
 
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+
+    return (win->maxx);
+
 }
 
 /** ****************************************************************************
 
 Return maximum y dimension
 
-Returns the maximum y dimension, also equal to the number of collumns in the
+Returns the maximum y dimension, also equal to the number of columns in the
 display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
@@ -566,6 +600,12 @@ display. Because ANSI has no information return capability, this is preset.
 int imaxy(FILE* f)
 
 {
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+
+    return (win->maxy);
 
 }
 
@@ -581,6 +621,15 @@ void ihome(FILE* f)
 
 {
 
+    winptr win; /* windows record pointer */
+    scnptr sc;
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1]; /* index screen */
+    /* reset cursors */
+    sc->curx = 1;
+    sc->cury = 1;
+
 }
 
 /** ****************************************************************************
@@ -593,6 +642,17 @@ position left.
 *******************************************************************************/
 
 void idel(FILE* f)
+
+{
+
+    winptr win; /* window record pointer */
+
+    win = txt2win(f); /* get window from file */
+    ileft(f); /* back up cursor */
+    plcchr(f, win, ' '); /* blank out */
+    ileft(f); /* back up again */
+
+}
 
 /** ****************************************************************************
 
@@ -642,6 +702,29 @@ void ileft(FILE* f)
 
 {
 
+    winptr win; /* windows record pointer */
+    scnptr sc;
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1]; /* index screen */
+    /* check not at extreme left */
+    if (sc->curx > 1) sc->curx--; /* update position */
+    else { /* wrap cursor motion */
+
+        if (sc->autof) { /* autowrap is on */
+
+            iup(f); /* move cursor up one line */
+            sc->curx = sc->maxx; /* set cursor to extreme right */
+
+        } else {
+
+            /* check won't overflow */
+            if (sc->curx > -INT_MAX) sc->curx--; /* update position */
+
+        }
+
+    }
+
 }
 
 /** ****************************************************************************
@@ -674,6 +757,23 @@ void iblink(FILE* f, int e)
 
 {
 
+    winptr win; /* windows record pointer */
+    scnptr sc; /* screen pointer */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    if (e) { /* blink on */
+
+        sc->attr |= BIT(sablink); /* set attribute active */
+        win->gattr |= BIT(sablink);
+
+    } else { /* turn it off */
+
+        sc->attr &= ~BIT(sablink); /* set attribute inactive */
+        win->gattr &= ~BIT(sablink);
+
+    }
+
 }
 
 /** ****************************************************************************
@@ -688,6 +788,23 @@ and foreground writing colors.
 void ireverse(FILE* f, int e)
 
 {
+
+    winptr win; /* windows record pointer */
+    scnptr sc; /* screen pointer */
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    if (e) { /* blink on */
+
+        sc->attr |= BIT(sarev); /* set attribute active */
+        win->gattr |= BIT(sarev);
+
+    } else { /* turn it off */
+
+        sc->attr &= ~BIT(sarev); /* set attribute inactive */
+        win->gattr &= ~BIT(sarev);
+
+    }
 
 }
 
@@ -1624,6 +1741,107 @@ void ifocus(FILE* f)
 
 /** ****************************************************************************
 
+Set screen attribute
+
+Sets the current screen attribute according to the current set of attributes.
+Note that if multiple attributes are set, but the system only allows a single
+attribute, then only the standout attribute will be set, since that is the last
+attribute to be activated.
+
+The standout attribute is a series of attributes in priority order.
+
+The attribute change is only coped to the root window if it has changed from the
+root window to cut down on chatter between the modules.
+
+*******************************************************************************/
+
+static void setattrs(FILE* f, scnptr sc)
+
+{
+
+    if (BIT(sasuper) & sc->attr != BIT(sasuper) & attr) { /* has changed */
+
+        (*superscript_vect)(f, BIT(sasuper) & sc->attr);
+        attr = attr & ~BIT(sasuper) | BIT(sasuper) & sc->attr;
+
+    }
+    if (BIT(sasubs) & sc->attr != BIT(sasubs) & attr) { /* has changed */
+
+        (*subscript_vect)(f, BIT(sasubs) & sc->attr);
+        attr = attr & ~BIT(sasubs) | BIT(sasubs) & sc->attr;
+
+    }
+    if (BIT(sablink) & sc->attr != BIT(sablink) & attr) { /* has changed */
+
+        (*blink_vect)(f, BIT(sablink) & sc->attr);
+        attr = attr & ~BIT(sablink) | BIT(sablink) & sc->attr;
+
+    }
+    if (BIT(sastkout) & sc->attr != BIT(sastkout) & attr) { /* has changed */
+
+        (*blink_vect)(f, BIT(sastkout) & sc->attr);
+        attr = attr & ~BIT(sastkout) | BIT(sastkout) & sc->attr;
+
+    }
+    if (BIT(saital) & sc->attr != BIT(saital) & attr) { /* has changed */
+
+        (*blink_vect)(f, BIT(saital) & sc->attr);
+        attr = attr & ~BIT(saital) | BIT(saital) & sc->attr;
+
+    }
+    if (BIT(sabold) & sc->attr != BIT(sabold) & attr) { /* has changed */
+
+        (*blink_vect)(f, BIT(sabold) & sc->attr);
+        attr = attr & ~BIT(sabold) | BIT(sabold) & sc->attr;
+
+    }
+    if (BIT(saundl) & sc->attr != BIT(saundl) & attr) { /* has changed */
+
+        (*blink_vect)(f, BIT(saundl) & sc->attr);
+        attr = attr & ~BIT(saundl) | BIT(saundl) & sc->attr;
+
+    }
+    if (BIT(sarev) & sc->attr != BIT(sarev) & attr) { /* has changed */
+
+        (*blink_vect)(f, BIT(sarev) & sc->attr);
+        attr = attr & ~BIT(sarev) | BIT(sarev) & sc->attr;
+
+    }
+
+}
+
+/** ****************************************************************************
+
+Set screen colors
+
+Sets the current foreground and background colors.
+
+The color change is only coped to the root window if it has changed from the
+root window to cut down on chatter between the modules.
+
+*******************************************************************************/
+
+static void setcolors(FILE* f, scnptr sc)
+
+{
+
+    if (sc->fcolor != fcolor) {
+
+        (*fcolor_vect)(f, sc->fcolor);
+        fcolor = sc->fcolor);
+
+    }
+    if (sc->bcolor != bcolor) {
+
+        (*bcolor_vect)(f, sc->bcolor);
+        bcolor = sc->bcolor);
+
+    }
+
+}
+
+/** ****************************************************************************
+
 Place next terminal character
 
 Places the given character to the current cursor position using the current
@@ -1635,7 +1853,7 @@ That's what the API is for.
 
 *******************************************************************************/
 
-static void plcchr(int fd, winptr win, char c)
+static void plcchr(FILE* f, winptr win, char c)
 
 {
 
@@ -1658,19 +1876,26 @@ static void plcchr(int fd, winptr win, char c)
     /* only output visible characters */
     else if (c >= ' ' && c != 0x7f) {
 
-        if (win->bufmod) { /* buffer is active */
+        if (icurbnd(f)) { /* cursor is in bounds */
 
-            /* place character to buffer */
-            sc->buf[(sc->cury-1)*sc->maxx+(sc->curx-1)] = c;
+            if (win->bufmod) { /* buffer is active */
 
-        }
-        if (indisp(win)) { /* do it again for the current screen */
+                /* place character to buffer */
+                sc->buf[(sc->cury-1)*sc->maxx+(sc->curx-1)] = c;
 
-            /* draw character to active screen */
-            (*cursor_vect)(opnfil[fd]->sfp, sc->curx+win->orgx-1, sc->cury+win->orgy-1);
-            cb[0] = c; /* place character in buffer */
-            cb[1] = 0; /* terminate */
-            (*wrtstr)(opnfil[fd]->sfp, cb); /* output */
+            }
+            if (indisp(win)) { /* do it again for the current screen */
+
+
+                setattrs(f, sc); /* set attributes */
+                setcolors(f, sc); /* set colors */
+                /* draw character to active screen */
+                (*cursor_vect)(f, sc->curx+win->orgx-1, sc->cury+win->orgy-1);
+                cb[0] = c; /* place character in buffer */
+                cb[1] = 0; /* terminate */
+                (*wrtstr)(opnfil[fd]->sfp, cb); /* output */
+
+            }
 
         }
         /* advance to next character */
@@ -1813,7 +2038,7 @@ static ssize_t ivwrite(pwrite_t writedc, int fd, const void* buff, size_t count)
 
         win = opnfil[fd]->win; /* index window */
         /* send data to terminal */
-        while (cnt--) plcchr(fd, win, *p++);
+        while (cnt--) plcchr(opnfil[fd]->sfp, win, *p++);
         rc = count; /* set return same as count */
 
     } else rc = (*writedc)(fd, buff, count);
@@ -1951,11 +2176,6 @@ static void init_widgets()
     int fn; /* file number */
     int wid; /* window id */
 
-    /* override the event handler */
-    pa_eventsover(widget_event, &widget_event_old);
-
-    wigfre = NULL; /* clear widget free list */
-
     /* clear open files table */
     for (fn = 0; fn < MAXFIL; fn++) opnfil[fn] = NULL;
 
@@ -1963,13 +2183,6 @@ static void init_widgets()
     for (fn = 0; fn < MAXFIL*2+1; fn++)
         /* clear window logical number translator table */
         xltwig[fn] = NULL; /* set no widget entry */
-
-    /* open "window 0" dummy window */
-    pa_openwin(&stdin, &win0, NULL, pa_getwinid()); /* open window */
-    pa_buffer(win0, FALSE); /* turn off buffering */
-    pa_auto(win0, FALSE); /* turn off auto (for font change) */
-    pa_font(win0, PA_FONT_SIGN); /* set sign font */
-    pa_frame(win0, FALSE); /* turn off frame */
 
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
@@ -2051,6 +2264,23 @@ static void init_widgets()
     _pa_stdmenu_ovr(istdmenu, &stdmenu_vect);
     _pa_getwinid_ovr(igetwinid, &getwinid_vect);
     _pa_focus_ovr(ifocus, &focus_vect);
+
+    /* reset all attributes */
+    (*superscript_vect)(f, FALSE);
+    (*subscript_vect)(f, FALSE);
+    (*blink_vect)(f, FALSE);
+    (*strikeout_vect)(f, FALSE);
+    (*italic_vect)(f, FALSE);
+    (*bold_vect)(f, FALSE);
+    (*underline_vect)(f, FALSE);
+    (*reverse_vect)(f, FALSE);
+    attr = 0;
+
+    /* set default colors */
+    fcolor = pa_black;
+    bcolor = pa_white;
+    (*fcolor_vect)(f, fcolor);
+    (*bcolor_vect)(f, bcolor);
 
 }
 
