@@ -233,7 +233,6 @@ static enum { /* debug levels */
 #endif
 
 /* file handle numbers at the system interface level */
-
 #define INPFIL 0 /* handle to standard input */
 #define OUTFIL 1 /* handle to standard output */
 #define ERRFIL 2 /* handle to standard error */

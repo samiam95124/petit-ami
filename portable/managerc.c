@@ -120,14 +120,14 @@ static enum { /* debug levels */
 #endif
 
 #define MAXFIL 100 /* maximum open files */
-#define MAXWIG 100 /* maximum widgets per window */
-/* amount of space in pixels to add around scrollbar sliders */
-#define ENDSPACE 6
-#define ENDLEDSPC 10 /* space at start and end of text edit box */
-/* user defined messages */
-#define WMC_LGTFOC pa_etwidget+0 /* widget message code: light up focus */
-#define WMC_DRKFOC pa_etwidget+1 /* widget message code: turn off focus */
-#define TABHGT 2 /* tab bar tab height * char size y */
+#define MAXCON 10  /* number of screen contexts */
+#define MAXTAB 50  /* total number of tabs possible per window */
+#define MAXLIN 250 /* maximum length of input bufferred line */
+
+/* file handle numbers at the system interface level */
+#define INPFIL 0 /* handle to standard input */
+#define OUTFIL 1 /* handle to standard output */
+#define ERRFIL 2 /* handle to standard error */
 
 /* types of system vectors for override calls */
 
@@ -202,7 +202,7 @@ static pa_strikeout_t strikeout_vect;
 static pa_standout_t standout_vect;
 static pa_fcolor_t fcolor_vect;
 static pa_bcolor_t bcolor_vect;
-static pa_auto(_t auto(_vect;
+static pa_auto_t auto_vect;
 static pa_curvis_t curvis_vect;
 static pa_scroll_t scroll_vect;
 static pa_curx_t curx_vect;
@@ -281,23 +281,6 @@ typedef struct metrec {
 
 } metrec;
 
-typedef struct scncon* scnptr;
-typedef struct scncon { /* screen context */
-
-    int      maxx;        /* maximum characters in x */
-    int      maxy;        /* maximum characters in y */
-    int      curx;        /* current cursor location x */
-    int      cury;        /* current cursor location y */
-    int      attr;        /* set of active attributes */
-    pa_color fcolor;      /* foreground color */
-    pa_color bcolor;      /* background color */
-    int      autof;       /* current status of scroll and wrap */
-    int      tab[MAXTAB]; /* tabbing array */
-    int      curv;        /* cursor visible */
-    char*    buf;         /* screen buffer */
-
-} scncon;
-
 /* window description */
 typedef struct winrec* winptr;
 typedef struct winrec {
@@ -308,24 +291,31 @@ typedef struct winrec {
     int      wid;             /* this window logical id */
     winptr   childwin;        /* list of child windows */
     winptr   childlst;        /* list pointer if this is a child */
-    scnptr   screens[MAXCON]; /* screen contexts array */
+    char*    screens[MAXCON]; /* screen contexts array */
     int      curdsp;          /* index for current display screen */
     int      curupd;          /* index for current update screen */
     int      orgx;            /* window origin in root x */
     int      orgy;            /* window origin in root y */
     int      maxx;            /* maximum x size */
     int      maxy;            /* maximum y size */
+    int      curx;            /* current cursor location x */
+    int      cury;             /* current cursor location y */
     int      attr;            /* set of active attributes */
     pa_color fcolor;          /* foreground color */
     pa_color bcolor;          /* background color */
     int      bufx;            /* buffer size x characters */
     int      bufy;            /* buffer size y characters */
+    int      curv;            /* cursor visible */
+    int      autof;           /* current status of scroll and wrap */
     int      bufmod;          /* buffered screen mode */
+    int      tab[MAXTAB];     /* tabbing array */
     metptr   metlst;          /* menu tracking list */
     metptr   menu;            /* "faux menu" bar */
     int      frame;           /* frame on/off */
     int      size;            /* size bars on/off */
     int      sysbar;          /* system bar on/off */
+    char     inpbuf[MAXLIN];    /* input line buffer */
+    int      inpptr;            /* input line index */
 
 } winrec;
 
@@ -337,17 +327,24 @@ typedef struct winrec {
 typedef struct filrec* filptr;
 typedef struct filrec {
 
-      FILE*  sfp; /* file pointer used to establish entry, or NULL */
-      winptr win; /* associated window (if exists) */
+    FILE*  sfp; /* file pointer used to establish entry, or NULL */
+    winptr win; /* associated window (if exists) */
+    int    inl; /* this output file is linked to the input file, logical */
+    int    inw; /* entry is input linked to window */
 
 } filrec;
 
 static filptr opnfil[MAXFIL]; /* open files table */
 
 /* colors and attributes for root window */
-static int    attr;           /* set of active attributes */
+static int      attr;         /* set of active attributes */
 static pa_color fcolor;       /* foreground color */
 static pa_color bcolor;       /* background color */
+static int      curx;         /* cursor x */
+static int      cury;         /* cursor y */
+
+/* forwards */
+static void plcchr(FILE* f, char c);
 
 /** ****************************************************************************
 
@@ -539,6 +536,138 @@ static void prtevt(
 
 }
 
+/*******************************************************************************
+
+Index window from logical file number
+
+Finds the window associated with a logical file id. The file is checked
+Finds the window associated with a text file. Gets the logical top level
+filenumber for the file, converts this via its top to bottom alias,
+validates that an alias has been established. This effectively means the file
+was opened. , the window structure assigned to the file is fetched, and
+validated. That means that the file was opened as a window input or output
+file.
+
+*******************************************************************************/
+
+static winptr lfn2win(int fn)
+
+{
+
+    if (fn < 0 || fn >= MAXFIL) error("Invalid handle");
+    if (!opnfil[fn]) error("Invalid handle");
+    if (!opnfil[fn]->win) error("Not a window file");
+
+    return (opnfil[fn]->win); /* return windows pointer */
+
+}
+
+/*******************************************************************************
+
+Index window from file
+
+Finds the window associated with a text file. Gets the logical top level
+filenumber for the file, converts this via its top to bottom alias,
+validates that an alias has been established. This effectively means the file
+was opened. , the window structure assigned to the file is fetched, and
+validated. That means that the file was opened as a window input or output
+file.
+
+*******************************************************************************/
+
+static winptr txt2win(FILE* f)
+
+{
+
+   int fn;
+
+   fn = fileno(f); /* get file number */
+   if (fn < 0) error("Invalid file");
+
+   return (lfn2win(fn)); /* get logical filenumber for file */
+
+}
+
+/** ****************************************************************************
+
+Clear screen
+
+Clears the screen and homes the cursor. This effectively occurs by writing all
+characters on the screen to spaces with the current colors and attributes.
+
+*******************************************************************************/
+
+static void clrscn(FILE* f)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Process tab
+
+Process a single tab. We search to the right of the current cursor collumn to
+find the next tab. If there is no tab, no action is taken, otherwise, the
+cursor is moved to the tab stop.
+
+*******************************************************************************/
+
+static void itab(FILE* f)
+
+{
+
+}
+
+/*******************************************************************************
+
+Check in display mode
+
+Checks if the current update screen is also the current display screen. Returns
+TRUE if so. If the screen is in display, it means that all of the actions to
+the update screen should also be reflected on the real screen.
+
+*******************************************************************************/
+
+static int indisp(winptr win)
+
+{
+
+    return (win->curupd == win->curdsp);
+
+}
+
+/*******************************************************************************
+
+Process input line
+
+Reads an input line with full echo and editing. The line is placed into the
+input line buffer.
+
+*******************************************************************************/
+
+static void readline(int fd)
+
+{
+
+}
+
+/*******************************************************************************
+
+Close window
+
+Closes an open window pair. Accepts an output window. The window is closed, and
+the window and file handles are freed. The input file is freed only if no other
+window also links it.
+
+*******************************************************************************/
+
+static void closewin(int ofn)
+
+{
+
+}
+
 /** ****************************************************************************
 
 API calls implemented at this level
@@ -558,12 +687,10 @@ void icursor(FILE* f, int x, int y)
 {
 
     winptr win; /* windows record pointer */
-    scnptr sc;
 
     win = txt2win(f); /* get window from file */
-    sc = win->screens[win->curupd-1]; /* index update screen */
-    sc->cury = y; /* set new position */
-    sc->curx = x;
+    win->cury = y; /* set new position */
+    win->curx = x;
 
 }
 
@@ -622,35 +749,11 @@ void ihome(FILE* f)
 {
 
     winptr win; /* windows record pointer */
-    scnptr sc;
 
     win = txt2win(f); /* get window from file */
-    sc = win->screens[win->curupd-1]; /* index screen */
     /* reset cursors */
-    sc->curx = 1;
-    sc->cury = 1;
-
-}
-
-/** ****************************************************************************
-
-Delete last character
-
-Deletes the character to the left of the cursor, and moves the cursor one
-position left.
-
-*******************************************************************************/
-
-void idel(FILE* f)
-
-{
-
-    winptr win; /* window record pointer */
-
-    win = txt2win(f); /* get window from file */
-    ileft(f); /* back up cursor */
-    plcchr(f, win, ' '); /* blank out */
-    ileft(f); /* back up again */
+    win->curx = 1;
+    win->cury = 1;
 
 }
 
@@ -703,23 +806,21 @@ void ileft(FILE* f)
 {
 
     winptr win; /* windows record pointer */
-    scnptr sc;
 
     win = txt2win(f); /* get window from file */
-    sc = win->screens[win->curupd-1]; /* index screen */
     /* check not at extreme left */
-    if (sc->curx > 1) sc->curx--; /* update position */
+    if (win->curx > 1) win->curx--; /* update position */
     else { /* wrap cursor motion */
 
-        if (sc->autof) { /* autowrap is on */
+        if (win->autof) { /* autowrap is on */
 
             iup(f); /* move cursor up one line */
-            sc->curx = sc->maxx; /* set cursor to extreme right */
+            win->curx = win->maxx; /* set cursor to extreme right */
 
         } else {
 
             /* check won't overflow */
-            if (sc->curx > -INT_MAX) sc->curx--; /* update position */
+            if (win->curx > -INT_MAX) win->curx--; /* update position */
 
         }
 
@@ -743,6 +844,28 @@ void iright(FILE* f)
 
 /** ****************************************************************************
 
+Delete last character
+
+Deletes the character to the left of the cursor, and moves the cursor one
+position left.
+
+*******************************************************************************/
+
+void idel(FILE* f)
+
+{
+
+    winptr win; /* window record pointer */
+
+    win = txt2win(f); /* get window from file */
+    ileft(f); /* back up cursor */
+    plcchr(f, ' '); /* blank out */
+    ileft(f); /* back up again */
+
+}
+
+/** ****************************************************************************
+
 Turn on blink attribute
 
 Turns on/off the blink attribute.
@@ -758,21 +881,10 @@ void iblink(FILE* f, int e)
 {
 
     winptr win; /* windows record pointer */
-    scnptr sc; /* screen pointer */
 
     win = txt2win(f); /* get window from file */
-    sc = win->screens[win->curupd-1];
-    if (e) { /* blink on */
-
-        sc->attr |= BIT(sablink); /* set attribute active */
-        win->gattr |= BIT(sablink);
-
-    } else { /* turn it off */
-
-        sc->attr &= ~BIT(sablink); /* set attribute inactive */
-        win->gattr &= ~BIT(sablink);
-
-    }
+    if (e) win->attr |= BIT(sablink); /* turn on */
+    else win->attr &= ~BIT(sablink); /* turn off */
 
 }
 
@@ -790,21 +902,10 @@ void ireverse(FILE* f, int e)
 {
 
     winptr win; /* windows record pointer */
-    scnptr sc; /* screen pointer */
 
     win = txt2win(f); /* get window from file */
-    sc = win->screens[win->curupd-1];
-    if (e) { /* blink on */
-
-        sc->attr |= BIT(sarev); /* set attribute active */
-        win->gattr |= BIT(sarev);
-
-    } else { /* turn it off */
-
-        sc->attr &= ~BIT(sarev); /* set attribute inactive */
-        win->gattr &= ~BIT(sarev);
-
-    }
+    if (e) win->attr |= BIT(sarev); /* turn on */
+    else win->attr &= ~BIT(sarev); /* turn off */
 
 }
 
@@ -820,6 +921,12 @@ and foreground writing colors.
 void iunderline(FILE* f, int e)
 
 {
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    if (e) win->attr |= BIT(saundl); /* turn on */
+    else win->attr &= ~BIT(saundl); /* turn off */
 
 }
 
@@ -838,6 +945,12 @@ void isuperscript(FILE* f, int e)
 
 {
 
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    if (e) win->attr |= BIT(sasuper); /* turn on */
+    else win->attr &= ~BIT(sasuper); /* turn off */
+
 }
 
 /** ****************************************************************************
@@ -855,6 +968,12 @@ void isubscript(FILE* f, int e)
 
 {
 
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    if (e) win->attr |= BIT(sasubs); /* turn on */
+    else win->attr &= ~BIT(sasubs); /* turn off */
+
 }
 
 /** ****************************************************************************
@@ -870,6 +989,12 @@ void iitalic(FILE* f, int e)
 
 {
 
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    if (e) win->attr |= BIT(saital); /* turn on */
+    else win->attr &= ~BIT(saital); /* turn off */
+
 }
 
 /** ****************************************************************************
@@ -884,6 +1009,12 @@ Note that the attributes can only be set singly.
 void ibold(FILE* f, int e)
 
 {
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    if (e) win->attr |= BIT(sabold); /* turn on */
+    else win->attr &= ~BIT(sabold); /* turn off */
 
 }
 
@@ -902,6 +1033,12 @@ void istrikeout(FILE* f, int e)
 
 {
 
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    if (e) win->attr |= BIT(sastkout); /* turn on */
+    else win->attr &= ~BIT(sastkout); /* turn off */
+
 }
 
 /** ****************************************************************************
@@ -916,6 +1053,12 @@ Note that the attributes can only be set singly.
 void istandout(FILE* f, int e)
 
 {
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    if (e) win->attr |= BIT(sarev); /* turn on */
+    else win->attr &= ~BIT(sarev); /* turn off */
 
 }
 
@@ -1485,6 +1628,10 @@ relative measurement.
 
 void isetsiz(FILE* f, int x, int y)
 
+{
+
+}
+
 /** ****************************************************************************
 
 Set window position character
@@ -1536,6 +1683,10 @@ screens that are joined at one or more sides.
 *******************************************************************************/
 
 void iscncen(FILE* f, int* x, int* y)
+
+{
+
+}
 
 /** ****************************************************************************
 
@@ -1725,6 +1876,10 @@ is allocated, it is reserved until it is used and removed by killwidget().
 
 int igetwinid(void)
 
+{
+
+}
+
 /** ****************************************************************************
 
 Set window focus
@@ -1755,56 +1910,56 @@ root window to cut down on chatter between the modules.
 
 *******************************************************************************/
 
-static void setattrs(FILE* f, scnptr sc)
+static void setattrs(FILE* f, winptr win)
 
 {
 
-    if (BIT(sasuper) & sc->attr != BIT(sasuper) & attr) { /* has changed */
+    if (BIT(sasuper) & win->attr != BIT(sasuper) & attr) { /* has changed */
 
-        (*superscript_vect)(f, BIT(sasuper) & sc->attr);
-        attr = attr & ~BIT(sasuper) | BIT(sasuper) & sc->attr;
-
-    }
-    if (BIT(sasubs) & sc->attr != BIT(sasubs) & attr) { /* has changed */
-
-        (*subscript_vect)(f, BIT(sasubs) & sc->attr);
-        attr = attr & ~BIT(sasubs) | BIT(sasubs) & sc->attr;
+        (*superscript_vect)(f, BIT(sasuper) & win->attr);
+        attr = attr & ~BIT(sasuper) | BIT(sasuper) & win->attr;
 
     }
-    if (BIT(sablink) & sc->attr != BIT(sablink) & attr) { /* has changed */
+    if (BIT(sasubs) & win->attr != BIT(sasubs) & attr) { /* has changed */
 
-        (*blink_vect)(f, BIT(sablink) & sc->attr);
-        attr = attr & ~BIT(sablink) | BIT(sablink) & sc->attr;
-
-    }
-    if (BIT(sastkout) & sc->attr != BIT(sastkout) & attr) { /* has changed */
-
-        (*blink_vect)(f, BIT(sastkout) & sc->attr);
-        attr = attr & ~BIT(sastkout) | BIT(sastkout) & sc->attr;
+        (*subscript_vect)(f, BIT(sasubs) & win->attr);
+        attr = attr & ~BIT(sasubs) | BIT(sasubs) & win->attr;
 
     }
-    if (BIT(saital) & sc->attr != BIT(saital) & attr) { /* has changed */
+    if (BIT(sablink) & win->attr != BIT(sablink) & attr) { /* has changed */
 
-        (*blink_vect)(f, BIT(saital) & sc->attr);
-        attr = attr & ~BIT(saital) | BIT(saital) & sc->attr;
-
-    }
-    if (BIT(sabold) & sc->attr != BIT(sabold) & attr) { /* has changed */
-
-        (*blink_vect)(f, BIT(sabold) & sc->attr);
-        attr = attr & ~BIT(sabold) | BIT(sabold) & sc->attr;
+        (*blink_vect)(f, BIT(sablink) & win->attr);
+        attr = attr & ~BIT(sablink) | BIT(sablink) & win->attr;
 
     }
-    if (BIT(saundl) & sc->attr != BIT(saundl) & attr) { /* has changed */
+    if (BIT(sastkout) & win->attr != BIT(sastkout) & attr) { /* has changed */
 
-        (*blink_vect)(f, BIT(saundl) & sc->attr);
-        attr = attr & ~BIT(saundl) | BIT(saundl) & sc->attr;
+        (*blink_vect)(f, BIT(sastkout) & win->attr);
+        attr = attr & ~BIT(sastkout) | BIT(sastkout) & win->attr;
 
     }
-    if (BIT(sarev) & sc->attr != BIT(sarev) & attr) { /* has changed */
+    if (BIT(saital) & win->attr != BIT(saital) & attr) { /* has changed */
 
-        (*blink_vect)(f, BIT(sarev) & sc->attr);
-        attr = attr & ~BIT(sarev) | BIT(sarev) & sc->attr;
+        (*blink_vect)(f, BIT(saital) & win->attr);
+        attr = attr & ~BIT(saital) | BIT(saital) & win->attr;
+
+    }
+    if (BIT(sabold) & win->attr != BIT(sabold) & attr) { /* has changed */
+
+        (*blink_vect)(f, BIT(sabold) & win->attr);
+        attr = attr & ~BIT(sabold) | BIT(sabold) & win->attr;
+
+    }
+    if (BIT(saundl) & win->attr != BIT(saundl) & attr) { /* has changed */
+
+        (*blink_vect)(f, BIT(saundl) & win->attr);
+        attr = attr & ~BIT(saundl) | BIT(saundl) & win->attr;
+
+    }
+    if (BIT(sarev) & win->attr != BIT(sarev) & attr) { /* has changed */
+
+        (*blink_vect)(f, BIT(sarev) & win->attr);
+        attr = attr & ~BIT(sarev) | BIT(sarev) & win->attr;
 
     }
 
@@ -1821,20 +1976,20 @@ root window to cut down on chatter between the modules.
 
 *******************************************************************************/
 
-static void setcolors(FILE* f, scnptr sc)
+static void setcolors(FILE* f, winptr win)
 
 {
 
-    if (sc->fcolor != fcolor) {
+    if (win->fcolor != fcolor) {
 
-        (*fcolor_vect)(f, sc->fcolor);
-        fcolor = sc->fcolor);
+        (*fcolor_vect)(f, win->fcolor);
+        fcolor = win->fcolor;
 
     }
-    if (sc->bcolor != bcolor) {
+    if (win->bcolor != bcolor) {
 
-        (*bcolor_vect)(f, sc->bcolor);
-        bcolor = sc->bcolor);
+        (*bcolor_vect)(f, win->bcolor);
+        bcolor = win->bcolor;
 
     }
 
@@ -1853,26 +2008,26 @@ That's what the API is for.
 
 *******************************************************************************/
 
-static void plcchr(FILE* f, winptr win, char c)
+static void plcchr(FILE* f, char c)
 
 {
 
-    scnptr sc;    /* pointer to current screen */
+    winptr win;   /* windows record pointer */
     char   cb[2]; /* character send buffer */
 
-    sc = win->screens[win->curupd-1]; /* index current screen */
+    win = txt2win(f); /* get window from file */
     /* handle special character cases first */
     if (c == '\r')
         /* carriage return, position to extreme left */
-        sc->curx = 1; /* set to extreme left */
+        win->curx = 1; /* set to extreme left */
     else if (c == '\n') {
 
-        sc->curx = 1; /* set to extreme left */
-        idown(win); /* line feed, move down */
+        win->curx = 1; /* set to extreme left */
+        idown(f); /* line feed, move down */
 
-    } else if (c == '\b') ileft(win); /* back space, move left */
-    else if (c == '\f') iclear(win); /* clear screen */
-    else if (c == '\t') itab(win); /* process tab */
+    } else if (c == '\b') ileft(f); /* back space, move left */
+    else if (c == '\f') clrscn(f); /* clear screen */
+    else if (c == '\t') itab(f); /* process tab */
     /* only output visible characters */
     else if (c >= ' ' && c != 0x7f) {
 
@@ -1881,25 +2036,28 @@ static void plcchr(FILE* f, winptr win, char c)
             if (win->bufmod) { /* buffer is active */
 
                 /* place character to buffer */
-                sc->buf[(sc->cury-1)*sc->maxx+(sc->curx-1)] = c;
+                win->screens[win->curdsp]
+                    [(win->cury-1)*win->maxx+(win->curx-1)] = c;
 
             }
             if (indisp(win)) { /* do it again for the current screen */
 
 
-                setattrs(f, sc); /* set attributes */
-                setcolors(f, sc); /* set colors */
+                setattrs(f, win); /* set attributes */
+                setcolors(f, win); /* set colors */
                 /* draw character to active screen */
-                (*cursor_vect)(f, sc->curx+win->orgx-1, sc->cury+win->orgy-1);
+                if (win->curx != curx || win->cury != cury)
+                    (*cursor_vect)(f, win->curx+win->orgx-1,
+                                      win->cury+win->orgy-1);
                 cb[0] = c; /* place character in buffer */
                 cb[1] = 0; /* terminate */
-                (*wrtstr)(opnfil[fd]->sfp, cb); /* output */
+                (*wrtstr_vect)(f, cb); /* output */
 
             }
 
         }
         /* advance to next character */
-        iright(win);
+        iright(f);
 
     }
 
@@ -1959,7 +2117,7 @@ static ssize_t ivread(pread_t readdc, int fd, void* buff, size_t count)
     ssize_t        rc;  /* return code */
     unsigned char* ba;
 
-    if (fd < 0 || fd >= MAXFIL) error(einvhan); /* invalid file handle */
+    if (fd < 0 || fd >= MAXFIL) error("Invalid handle");
     if (opnfil[fd] && opnfil[fd]->inw) { /* process input file */
 
         ba = (unsigned char*)buff; /* index start of buffer */
@@ -2033,12 +2191,12 @@ static ssize_t ivwrite(pwrite_t writedc, int fd, const void* buff, size_t count)
     size_t  cnt = count;
     winptr  win; /* pointer to window data */
 
-    if (fd < 0 || fd >= MAXFIL) error(einvhan); /* invalid file handle */
+    if (fd < 0 || fd >= MAXFIL) error("Invalid handle");
     if (opnfil[fd] && opnfil[fd]->win) { /* process window output file */
 
         win = opnfil[fd]->win; /* index window */
         /* send data to terminal */
-        while (cnt--) plcchr(opnfil[fd]->sfp, win, *p++);
+        while (cnt--) plcchr(opnfil[fd]->sfp, *p++);
         rc = count; /* set return same as count */
 
     } else rc = (*writedc)(fd, buff, count);
@@ -2109,7 +2267,7 @@ static int ivclose(pclose_t closedc, int fd)
 
 {
 
-    if (fd < 0 || fd >= MAXFIL) error(einvhan); /* invalid file handle */
+    if (fd < 0 || fd >= MAXFIL) error("Invalid handle");
     /* check if the file is an output window, and close if so */
     if (opnfil[fd] && opnfil[fd]->win) closewin(fd);
 
@@ -2148,7 +2306,8 @@ static off_t ivlseek(plseek_t lseekdc, int fd, off_t offset, int whence)
 
     /* check seeking on terminal attached file (input or output) and error
        if so */
-    if (fd == INPFIL || fd == OUTFIL) error(efilopr);
+    if (fd == INPFIL || fd == OUTFIL)
+        error("Cannot perform operation on special file");
 
     return (*lseekdc)(fd, offset, whence);
 
@@ -2178,11 +2337,6 @@ static void init_widgets()
 
     /* clear open files table */
     for (fn = 0; fn < MAXFIL; fn++) opnfil[fn] = NULL;
-
-    /* clear window equivalence table */
-    for (fn = 0; fn < MAXFIL*2+1; fn++)
-        /* clear window logical number translator table */
-        xltwig[fn] = NULL; /* set no widget entry */
 
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
@@ -2218,7 +2372,7 @@ static void init_widgets()
     _pa_standout_ovr(istandout, &standout_vect);
     _pa_fcolor_ovr(ifcolor, &fcolor_vect);
     _pa_bcolor_ovr(ibcolor, &bcolor_vect);
-    _pa_auto(_ovr(iauto(, &auto(_vect);
+    _pa_auto_ovr(iauto, &auto_vect);
     _pa_curvis_ovr(icurvis, &curvis_vect);
     _pa_scroll_ovr(iscroll, &scroll_vect);
     _pa_curx_ovr(icurx, &curx_vect);
@@ -2266,21 +2420,26 @@ static void init_widgets()
     _pa_focus_ovr(ifocus, &focus_vect);
 
     /* reset all attributes */
-    (*superscript_vect)(f, FALSE);
-    (*subscript_vect)(f, FALSE);
-    (*blink_vect)(f, FALSE);
-    (*strikeout_vect)(f, FALSE);
-    (*italic_vect)(f, FALSE);
-    (*bold_vect)(f, FALSE);
-    (*underline_vect)(f, FALSE);
-    (*reverse_vect)(f, FALSE);
+    (*superscript_vect)(stdout, FALSE);
+    (*subscript_vect)(stdout, FALSE);
+    (*blink_vect)(stdout, FALSE);
+    (*strikeout_vect)(stdout, FALSE);
+    (*italic_vect)(stdout, FALSE);
+    (*bold_vect)(stdout, FALSE);
+    (*underline_vect)(stdout, FALSE);
+    (*reverse_vect)(stdout, FALSE);
     attr = 0;
 
     /* set default colors */
     fcolor = pa_black;
     bcolor = pa_white;
-    (*fcolor_vect)(f, fcolor);
-    (*bcolor_vect)(f, bcolor);
+    (*fcolor_vect)(stdout, fcolor);
+    (*bcolor_vect)(stdout, bcolor);
+
+    /* home cursor */
+    (*home_vect)(stdout);
+    curx = 1;
+    cury = 1;
 
 }
 
@@ -2330,7 +2489,7 @@ static void deinit_widgets()
     pa_standout_t cppstandout;
     pa_fcolor_t cppfcolor;
     pa_bcolor_t cppbcolor;
-    pa_auto(_t cppauto(;
+    pa_auto_t cppauto;
     pa_curvis_t cppcurvis;
     pa_scroll_t cppscroll;
     pa_curx_t cppcurx;
@@ -2398,7 +2557,7 @@ static void deinit_widgets()
     _pa_standout_ovr(standout_vect, &cppstandout);
     _pa_fcolor_ovr(fcolor_vect, &cppfcolor);
     _pa_bcolor_ovr(bcolor_vect, &cppbcolor);
-    _pa_auto(_ovr(auto(_vect, &cppauto();
+    _pa_auto_ovr(auto_vect, &cppauto);
     _pa_curvis_ovr(curvis_vect, &cppcurvis);
     _pa_scroll_ovr(scroll_vect, &cppscroll);
     _pa_curx_ovr(curx_vect, &cppcurx);
@@ -2461,6 +2620,6 @@ static void deinit_widgets()
     /* if we don't see our own vector flag an error */
     if (cppread != iread || cppwrite != iwrite || cppopen != iopen ||
         cppclose != iclose || cpplseek != ilseek)
-        error(esystem);
+        error("System consistency check");
 
 }

@@ -540,7 +540,12 @@ cpp/terminal.o: cpp/terminal.cpp
 	g++ -g3 -fPIC -Iinclude -Ihpp -c cpp/terminal.cpp -o cpp/terminal.o
 	
 portable/gnome_widgets.o: portable/gnome_widgets.c
-	gcc -g3 -fPIC -Iinclude -c portable/gnome_widgets.c -o portable/gnome_widgets.o
+	gcc -g3 -fPIC -Iinclude -c portable/gnome_widgets.c \
+		-o portable/gnome_widgets.o
+		
+portable/managerc.o: portable/managerc.c
+	gcc -g3 -fPIC -Iinclude -c portable/managerc.c \
+		-o portable/managerc.o
 	
 ################################################################################
 #
