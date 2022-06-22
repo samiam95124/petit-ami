@@ -29,13 +29,9 @@ has effects on the following points.
 is, a maximized windows is the same as the original window of the terminal
 surface.
 
-3. The default I/O surface is created maximized, as are all created windows by
-default.
+3. The default I/O surface is created maximized.
 
-4. A control character is provided to cycle forward through windows, as well as
-backwards. Thus managerc serves as a "screen switcher" by default.
-
-5. By default, only standard ASCII characters are used to depict frame
+4. By default, only standard ASCII characters are used to depict frame
 components.
 
 The reason for these rules is that managerc is "transparent" by default. A
@@ -118,6 +114,11 @@ static enum { /* debug levels */
 #ifndef __MACH__ /* Mac OS X */
 #define NOCANCEL /* include nocancel overrides */
 #endif
+
+/* The maximum dimensions are used to set the size of the holding arrays.
+   These should be reasonable values to prevent becoming a space hog. */
+#define MAXXD 250     /**< Maximum terminal size x */
+#define MAXYD 250     /**< Maximum terminal size y */
 
 #define MAXFIL 100 /* maximum open files */
 #define MAXCON 10  /* number of screen contexts */
@@ -281,6 +282,18 @@ typedef struct metrec {
 
 } metrec;
 
+/** single character on screen container. note that not all the attributes
+   that appear here can be changed */
+typedef struct {
+
+      /* character at location */        char ch;
+      /* foreground color at location */ pa_color forec;
+      /* background color at location */ pa_color backc;
+      /* active attribute at location */ scnatt attr;
+
+} scnrec;
+typedef scnrec scnbuf[MAXYD][MAXXD];
+
 /* window description */
 typedef struct winrec* winptr;
 typedef struct winrec {
@@ -291,7 +304,7 @@ typedef struct winrec {
     int      wid;             /* this window logical id */
     winptr   childwin;        /* list of child windows */
     winptr   childlst;        /* list pointer if this is a child */
-    char*    screens[MAXCON]; /* screen contexts array */
+    scnbuf   screens[MAXCON]; /* screen contexts array */
     int      curdsp;          /* index for current display screen */
     int      curupd;          /* index for current update screen */
     int      orgx;            /* window origin in root x */
@@ -303,8 +316,6 @@ typedef struct winrec {
     int      attr;            /* set of active attributes */
     pa_color fcolor;          /* foreground color */
     pa_color bcolor;          /* background color */
-    int      bufx;            /* buffer size x characters */
-    int      bufy;            /* buffer size y characters */
     int      curv;            /* cursor visible */
     int      autof;           /* current status of scroll and wrap */
     int      bufmod;          /* buffered screen mode */
@@ -342,6 +353,7 @@ static pa_color fcolor;       /* foreground color */
 static pa_color bcolor;       /* background color */
 static int      curx;         /* cursor x */
 static int      cury;         /* cursor y */
+static int      curon;        /* current on/off state of cursor */
 
 /* forwards */
 static void plcchr(FILE* f, char c);
@@ -670,6 +682,81 @@ static void closewin(int ofn)
 
 /** ****************************************************************************
 
+Find if cursor is in screen bounds internal
+
+Checks if the cursor lies in the current bounds, and returns TRUE if so.
+
+*******************************************************************************/
+
+int intcurbnd(winptr win)
+
+{
+
+    return (win->curx >= 1 && win->curx <= win->maxx &&
+            win->cury >= 1 && win->cury <= win->maxy);
+
+}
+
+/*******************************************************************************
+
+Position cursor in window
+
+Positions the cursor (caret) image to the right location on screen, and handles
+the visible or invisible status of that. We consider the current position and
+visible/invisible status, and try to output only the minimum terminal controls
+to bring the old state of the display to the same state as the new display.
+
+*******************************************************************************/
+
+void setcur(FILE* f, winptr win)
+
+{
+
+    if (indisp(win)) { /* in display */
+
+        /* check cursor in bounds and visible */
+        if (intcurbnd(win) && win->curv) {
+
+            if (!curon) { /* cursor not on */
+
+                (*curvis_vect)(f, TRUE); /* set cursor on */
+                curon = TRUE;
+
+            }
+            /* position actual cursor */
+            curx = win->curx+win->orgx-1;
+            cury = win->cury+win->orgy-1;
+            (*cursor_vect)(f, curx, cury);
+
+        }
+
+    }
+
+}
+
+/** ****************************************************************************
+
+Scroll screen
+
+Scrolls the screen by deltas in any given direction. If the scroll would move
+all content off the screen, the screen is simply blanked. Otherwise, we find the
+section of the screen that would remain after the scroll, determine its source
+and destination rectangles, and use a move.
+
+In buffered mode, this routine works by scrolling the buffer, then restoring
+it to the current window. In non-buffered mode, the scroll is applied directly
+to the window.
+
+*******************************************************************************/
+
+static void intscroll(winptr win, int x, int y)
+
+{
+
+}
+
+/** ****************************************************************************
+
 API calls implemented at this level
 
 *******************************************************************************/
@@ -691,6 +778,7 @@ void icursor(FILE* f, int x, int y)
     win = txt2win(f); /* get window from file */
     win->cury = y; /* set new position */
     win->curx = x;
+    setcur(f, win); /* activate cursor onscreen as required */
 
 }
 
@@ -754,6 +842,7 @@ void ihome(FILE* f)
     /* reset cursors */
     win->curx = 1;
     win->cury = 1;
+    setcur(f, win); /* activate cursor onscreen as required */
 
 }
 
@@ -772,6 +861,16 @@ void iup(FILE* f)
 
 {
 
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    /* check not top of screen */
+    if (win->cury > 1) win->cury--; /* update position */
+    else if (win->autof) intscroll(win, 0, -1); /* scroll up */
+    /* check won't overflow */
+    else if (win->cury > -INT_MAX) win->cury--; /* set new position */
+    setcur(f, win); /* activate cursor onscreen as required */
+
 }
 
 /** ****************************************************************************
@@ -788,6 +887,17 @@ undrawn space as long as it stays within the bounds of -INT_MAX to INT_MAX.
 void idown(FILE* f)
 
 {
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+
+    /* check not bottom of screen */
+    if (win->cury < win->maxy) win->cury++; /* update position */
+    else if (win->autof) intscroll(win, 0, +1); /* scroll down */
+    /* check won't overflow */
+    else if (win->cury < INT_MAX) win->cury++; /* set new position */
+    setcur(f, win); /* activate cursor onscreen as required */
 
 }
 
@@ -817,14 +927,12 @@ void ileft(FILE* f)
             iup(f); /* move cursor up one line */
             win->curx = win->maxx; /* set cursor to extreme right */
 
-        } else {
-
+        } else
             /* check won't overflow */
             if (win->curx > -INT_MAX) win->curx--; /* update position */
 
-        }
-
     }
+    setcur(f, win); /* activate cursor onscreen as required */
 
 }
 
@@ -839,6 +947,25 @@ Moves the cursor one character right.
 void iright(FILE* f)
 
 {
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    /* check not at extreme right */
+    if (win->curx < win->maxx) win->curx++; /* update position */
+    else { /* wrap cursor motion */
+
+        if (win->autof) { /* autowrap is on */
+
+            idown(f); /* move cursor up one line */
+            win->curx = 1; /* set cursor to extreme left */
+
+        } else
+            /* check won't overflow */
+            if (win->curx < INT_MAX) win->curx++; /* update position */
+
+    }
+    setcur(f, win); /* activate cursor onscreen as required */
 
 }
 
@@ -855,9 +982,6 @@ void idel(FILE* f)
 
 {
 
-    winptr win; /* window record pointer */
-
-    win = txt2win(f); /* get window from file */
     ileft(f); /* back up cursor */
     plcchr(f, ' '); /* blank out */
     ileft(f); /* back up again */
@@ -1074,6 +1198,11 @@ void ifcolor(FILE* f, pa_color c)
 
 {
 
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    win->fcolor = c; /* set color */
+
 }
 
 /** ****************************************************************************
@@ -1087,6 +1216,11 @@ Sets the background color from the universal primary code.
 void ibcolor(FILE* f, pa_color c)
 
 {
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    win->bcolor = c; /* set color */
 
 }
 
@@ -1119,6 +1253,11 @@ void iauto(FILE* f, int e)
 
 {
 
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    win->autof = e; /* set auto state */
+
 }
 
 /** ****************************************************************************
@@ -1133,13 +1272,19 @@ void icurvis(FILE* f, int e)
 
 {
 
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    win->curv = e; /* set/reset cursor visibility */
+    setcur(f, win); /* activate cursor onscreen as required */
+
 }
 
 /** ****************************************************************************
 
 Scroll screen
 
-Scrolls the terminal screen by deltas in any given direction. If the scroll
+Scrolls the window by deltas in any given direction. If the scroll
 would move all content off the screen, the screen is simply blanked. Otherwise,
 we find the section of the screen that would remain after the scroll, determine
 its source and destination rectangles, and use a bitblt to move it.
@@ -1170,6 +1315,12 @@ int icurx(FILE* f)
 
 {
 
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+
+    return win->curx; /* return cursor x */
+
 }
 
 /** ****************************************************************************
@@ -1184,6 +1335,12 @@ int icury(FILE* f)
 
 {
 
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+
+    return win->cury; /* return cursor y */
+
 }
 
 /** ****************************************************************************
@@ -1197,6 +1354,12 @@ Checks if the cursor lies in the current bounds, and returns TRUE if so.
 int icurbnd(FILE* f)
 
 {
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+
+    return intcurbnd(win); /* return cursor bound status */
 
 }
 
@@ -1278,7 +1441,7 @@ void ikilltimer(FILE* f, int i)
 
 Return number of mice
 
-Returns the number of mice implemented. XWindow supports only one mouse.
+Returns the number of mice implemented. This is a pure passthrough function.
 
 *******************************************************************************/
 
@@ -1286,14 +1449,16 @@ int imouse(FILE* f)
 
 {
 
+    return (*mouse_vect)(f); /* find number of mice */
+
 }
 
 /** ****************************************************************************
 
 Return number of buttons on mouse
 
-Returns the number of buttons on the mouse. There is only one mouse in this
-version. XWindow supports from 1 to 5 buttons.
+Returns the number of buttons on the given mouse. This is a pure passthrough
+function.
 
 *******************************************************************************/
 
@@ -1301,13 +1466,15 @@ int imousebutton(FILE* f, int m)
 
 {
 
+    return (*mousebutton_vect)(f, m); /* find number of buttons */
+
 }
 
 /** ****************************************************************************
 
 Return number of joysticks
 
-Return number of joysticks attached.
+Return number of joysticks attached. This is a pure passthrough function.
 
 *******************************************************************************/
 
@@ -1315,19 +1482,24 @@ int ijoystick(FILE* f)
 
 {
 
+    return (*joystick_vect)(f); /* find number of joysticks */
+
 }
 
 /** ****************************************************************************
 
 Return number of buttons on a joystick
 
-Returns the number of buttons on a given joystick.
+Returns the number of buttons on a given joystick. This is a pure passthrough
+function.
 
 *******************************************************************************/
 
 int ijoybutton(FILE* f, int j)
 
 {
+
+    return (*joybutton_vect)(f, j); /* find number of buttons */
 
 }
 
@@ -1337,7 +1509,8 @@ Return number of axies on a joystick
 
 Returns the number of axies implemented on a joystick, which can be 1 to 3.
 The axies order of implementation is x, y, then z. Typically, a monodimensional
-joystick can be considered a slider without positional meaning.
+joystick can be considered a slider without positional meaning. This is a pure
+passthrough function.
 
 *******************************************************************************/
 
@@ -1345,19 +1518,27 @@ int ijoyaxis(FILE* f, int j)
 
 {
 
+    return (*joyaxis_vect)(f, j); /* find number of axies */
+
 }
 
 /** ****************************************************************************
 
 Set tab
 
-Sets a tab at the indicated collumn number.
+Sets a tab at the indicated column number.
 
 *******************************************************************************/
 
 void isettab(FILE* f, int t)
 
 {
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    if (t < 1 || t > MAXTAB) error("Invalid tab position");
+    win->tab[t-1] = TRUE; /* set tab position */
 
 }
 
@@ -1372,6 +1553,12 @@ Resets the tab at the indicated collumn number.
 void irestab(FILE* f, int t)
 
 {
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    if (t < 1 || t > MAXTAB) error("Invalid tab position");
+    win->tab[t-1] = FALSE; /* set tab position */
 
 }
 
@@ -1388,21 +1575,28 @@ void iclrtab(FILE* f)
 
 {
 
+    winptr win; /* windows record pointer */
+    int t;
+
+    win = txt2win(f); /* get window from file */
+    for (t = 0; t < MAXTAB; t++) win->tab[t] = 0; /* clear all tab stops */
+
 }
 
 /** ****************************************************************************
 
 Find number of function keys
 
-Finds the total number of function, or general assignment keys. Currently, we
-just implement the 12 unshifted PC function keys. We may add control and shift
-function keys as well.
+Finds the total number of function, or general assignment keys. This is a pure
+passthrough function.
 
 *******************************************************************************/
 
 int ifunkey(FILE* f)
 
 {
+
+    return (*funkey_vect)(f); /* find number of function keys */
 
 }
 
@@ -1430,10 +1624,10 @@ Set automatic hold state
 Sets the state of the automatic hold flag. Automatic hold is used to hold
 programs that exit without having received a "terminate" signal from gralib.
 This exists to allow the results of gralib unaware programs to be viewed after
-termination, instead of exiting an distroying the window. This mode works for
+termination, instead of exiting an destroying the window. This mode works for
 most circumstances, but an advanced program may want to exit for other reasons
 than being closed by the system bar. This call can turn automatic holding off,
-and can only be used by an advanced program, so fufills the requirement of
+and can only be used by an advanced program, so fulfills the requirement of
 holding gralib unaware programs.
 
 *******************************************************************************/
@@ -2012,8 +2206,9 @@ static void plcchr(FILE* f, char c)
 
 {
 
-    winptr win;   /* windows record pointer */
-    char   cb[2]; /* character send buffer */
+    winptr  win;   /* windows record pointer */
+    char    cb[2]; /* character send buffer */
+    scnrec* scp;   /* pointer to screenlocation */
 
     win = txt2win(f); /* get window from file */
     /* handle special character cases first */
@@ -2035,9 +2230,13 @@ static void plcchr(FILE* f, char c)
 
             if (win->bufmod) { /* buffer is active */
 
+                /* index screen character location */
+                scp = &win->screens[win->curdsp][win->cury][win->cury];
                 /* place character to buffer */
-                win->screens[win->curdsp]
-                    [(win->cury-1)*win->maxx+(win->curx-1)] = c;
+                scp->ch = c;
+                scp->forec = win->fcolor;
+                scp->backc = win->bcolor;
+                scp->attr = win->attr;
 
             }
             if (indisp(win)) { /* do it again for the current screen */
@@ -2327,8 +2526,8 @@ Widgets startup
 
 *******************************************************************************/
 
-static void init_widgets(void) __attribute__((constructor (102)));
-static void init_widgets()
+static void init_managerc(void) __attribute__((constructor (102)));
+static void init_managerc()
 
 {
 
@@ -2441,6 +2640,10 @@ static void init_widgets()
     curx = 1;
     cury = 1;
 
+    /* set cursor on */
+    (*curvis_vect)(stdout, TRUE);
+    curon = TRUE;
+
 }
 
 /** ****************************************************************************
@@ -2449,8 +2652,8 @@ Widgets shutdown
 
 *******************************************************************************/
 
-static void deinit_widgets(void) __attribute__((destructor (102)));
-static void deinit_widgets()
+static void deinit_managerc(void) __attribute__((destructor (102)));
+static void deinit_managerc()
 
 {
 

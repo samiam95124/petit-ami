@@ -3975,8 +3975,8 @@ static int icurbnd(scnptr sc)
 
 {
 
-   return (sc->curx >= 1 && sc->curx <= sc->maxx &&
-           sc->cury >= 1 && sc->cury <= sc->maxy);
+    return (sc->curx >= 1 && sc->curx <= sc->maxx &&
+            sc->cury >= 1 && sc->cury <= sc->maxy);
 
 }
 
