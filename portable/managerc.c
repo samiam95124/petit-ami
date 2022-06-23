@@ -304,7 +304,7 @@ typedef struct winrec {
     int      wid;             /* this window logical id */
     winptr   childwin;        /* list of child windows */
     winptr   childlst;        /* list pointer if this is a child */
-    scnbuf   screens[MAXCON]; /* screen contexts array */
+    scnbuf*  screens[MAXCON]; /* screen contexts array */
     int      curdsp;          /* index for current display screen */
     int      curupd;          /* index for current update screen */
     int      orgx;            /* window origin in root x */
@@ -325,8 +325,8 @@ typedef struct winrec {
     int      frame;           /* frame on/off */
     int      size;            /* size bars on/off */
     int      sysbar;          /* system bar on/off */
-    char     inpbuf[MAXLIN];    /* input line buffer */
-    int      inpptr;            /* input line index */
+    char     inpbuf[MAXLIN];  /* input line buffer */
+    int      inpptr;          /* input line index */
 
 } winrec;
 
@@ -354,6 +354,8 @@ static pa_color bcolor;       /* background color */
 static int      curx;         /* cursor x */
 static int      cury;         /* cursor y */
 static int      curon;        /* current on/off state of cursor */
+
+static winptr   winfre;       /* free windows structure list */
 
 /* forwards */
 static void plcchr(FILE* f, char c);
@@ -545,6 +547,69 @@ static void prtevt(
         default: ;
 
     }
+
+}
+
+/** ****************************************************************************
+
+Get file entry
+
+Allocates and initalizes a new file entry. File entries are left in the opnfil
+array, so are recycled in place.
+
+*******************************************************************************/
+
+static void getfil(filptr* fp)
+
+{
+
+    *fp = malloc(sizeof(filrec)); /* get new file entry */
+    (*fp)->sfp = NULL; /* set no file pointer */
+    (*fp)->win = NULL; /* set no window */
+    (*fp)->inw = FALSE; /* clear input window link */
+    (*fp)->inl = -1; /* set no input file linked */
+
+}
+
+/** ****************************************************************************
+
+Get freed/new window structure
+
+Either gets a new entry from malloc or returns a previously freed entry.
+
+*******************************************************************************/
+
+static winptr getwin(void)
+
+{
+
+    winptr p;
+
+    if (winfre) { /* there is a freed entry */
+
+        p = winfre; /* index top entry */
+        winfre = p->next; /* gap from list */
+
+    } else p = malloc(sizeof(winrec));
+
+    return (p);
+
+}
+
+/** ****************************************************************************
+
+Get freed/new window structure
+
+Either gets a new entry from malloc or returns a previously freed entry.
+
+*******************************************************************************/
+
+static void putwin(winptr p)
+
+{
+
+    p->next = winfre; /* push to list */
+    winfre = p;
 
 }
 
@@ -752,6 +817,133 @@ to the window.
 static void intscroll(winptr win, int x, int y)
 
 {
+
+}
+
+/** ****************************************************************************
+
+Initalize screen
+
+Clears all the parameters in the present screen context. Also, the backing
+buffer bitmap is created and cleared to the present colors.
+
+*******************************************************************************/
+
+static void iniscn(winptr win, scnbuf* sc)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Restore screen
+
+Updates all the buffer and screen parameters from the display screen to the
+terminal.
+
+*******************************************************************************/
+
+static void restore(winptr win) /* window to restore */
+
+{
+
+}
+
+/** ****************************************************************************
+
+Open and present window
+
+Given a windows file id and an (optional) parent window file id opens and
+presents the window associated with it. All of the screen buffer data is
+cleared, and a single buffer assigned to the window.
+
+*******************************************************************************/
+
+static void opnwin(int fn, int pfn, int wid, int subclient)
+
+{
+
+    int                  si;    /* index for current display screen */
+    winptr               win;   /* window pointer */
+    winptr               pwin;  /* parent window pointer */
+
+    win = lfn2win(fn); /* get a pointer to the window */
+    /* find parent */
+    win->parlfn = pfn; /* set parent logical number */
+    win->wid = wid; /* set window id */
+    pwin = NULL; /* set no parent */
+    if (pfn >= 0) pwin = lfn2win(pfn); /* index parent window */
+    win->parwin = pwin; /* copy link to windows structure */
+    win->childwin = NULL; /* clear the child window list */
+    win->childlst = NULL; /* clear child member list pointer */
+    if (pwin) { /* we have a parent, enter this child to the parent list */
+
+        win->childlst = pwin->childwin; /* push to parent's child list */
+        pwin->childwin = win;
+
+    }
+    win->inpptr = -1; /* set buffer empty */
+    win->inpbuf[0] = 0;
+    win->bufmod = TRUE; /* set buffering on */
+    win->metlst = NULL; /* clear menu tracking list */
+    win->menu = NULL; /* set menu bar not active */
+    win->frame = TRUE; /* set frame on */
+    win->size = TRUE; /* set size bars on */
+    win->sysbar = TRUE; /* set system bar on */
+    /* clear the screen array */
+    for (si = 0; si < MAXCON; si++) win->screens[si] = NULL;
+    win->screens[0] = malloc(sizeof(scnbuf)); /* get the default screen */
+    win->curdsp = 1; /* set current display screen */
+    win->curupd = 1; /* set current update screen */
+
+    /* set up global buffer parameters */
+    win->maxx = (*maxx_vect)(stdout); /* character max dimensions */
+    win->maxy = (*maxy_vect)(stdout);
+    win->attr = attr; /* no attribute */
+    win->autof = TRUE; /* auto on */
+    win->fcolor = pa_black; /*foreground black */
+    win->bcolor = pa_white; /* background white */
+    win->curv = TRUE; /* cursor visible */
+    win->orgx = 0;  /* set origin to root */
+    win->orgy = 0;
+
+    iniscn(win, win->screens[0]); /* initalize screen buffer */
+    restore(win); /* update to screen */
+
+}
+
+/** ****************************************************************************
+
+Open an input and output pair
+
+Creates, opens and initializes an input and output pair of files.
+
+*******************************************************************************/
+
+static void openio(FILE* infile, FILE* outfile, int ifn, int ofn, int pfn,
+                   int wid, int subclient)
+
+{
+
+    /* if output was never opened, create it now */
+    if (!opnfil[ofn]) getfil(&opnfil[ofn]);
+    /* if input was never opened, create it now */
+    if (!opnfil[ifn]) getfil(&opnfil[ifn]);
+    opnfil[ofn]->inl = ifn; /* link output to input */
+    opnfil[ifn]->inw = TRUE; /* set input is window handler */
+    /* set file descriptor locations */
+    opnfil[ifn]->sfp = infile;
+    opnfil[ofn]->sfp = outfile;
+    /* now see if it has a window attached */
+    if (!opnfil[ofn]->win) {
+
+        /* Haven't already started the main input/output window, so allocate
+           and start that. We tolerate multiple opens to the output file. */
+        opnfil[ofn]->win = getwin();
+        opnwin(ofn, pfn, wid, subclient); /* and start that up */
+
+    }
 
 }
 
@@ -2231,7 +2423,7 @@ static void plcchr(FILE* f, char c)
             if (win->bufmod) { /* buffer is active */
 
                 /* index screen character location */
-                scp = &win->screens[win->curdsp][win->cury][win->cury];
+                scp = &(*(win->screens[win->curdsp])[win->cury][win->cury]);
                 /* place character to buffer */
                 scp->ch = c;
                 scp->forec = win->fcolor;
@@ -2531,8 +2723,12 @@ static void init_managerc()
 
 {
 
-    int fn; /* file number */
+    int fn;  /* file number */
     int wid; /* window id */
+    int ofn; /* standard output file number */
+    int ifn; /* standard input file number */
+
+    winfre = NULL; /* clear free windows structure list */
 
     /* clear open files table */
     for (fn = 0; fn < MAXFIL; fn++) opnfil[fn] = NULL;
@@ -2643,6 +2839,11 @@ static void init_managerc()
     /* set cursor on */
     (*curvis_vect)(stdout, TRUE);
     curon = TRUE;
+
+    /* open stdin and stdout as I/O window set */
+    ifn = fileno(stdin); /* get logical id stdin */
+    ofn = fileno(stdout); /* get logical id stdout */
+    openio(stdin, stdout, ifn, ofn, -1, 1, FALSE); /* process open */
 
 }
 
