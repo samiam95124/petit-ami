@@ -3385,12 +3385,12 @@ static winptr txt2win(FILE* f)
 
 {
 
-   int fn;
+    int fn;
 
-   fn = fileno(f); /* get file number */
-   if (fn < 0) error(einvfil); /* file invalid */
+    fn = fileno(f); /* get file number */
+    if (fn < 0) error(einvfil); /* file invalid */
 
-   return (lfn2win(fn)); /* get logical filenumber for file */
+    return (lfn2win(fn)); /* get logical filenumber for file */
 
 }
 

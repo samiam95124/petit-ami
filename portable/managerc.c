@@ -656,12 +656,12 @@ static winptr txt2win(FILE* f)
 
 {
 
-   int fn;
+    int fn;
 
-   fn = fileno(f); /* get file number */
-   if (fn < 0) error("Invalid file");
+    fn = fileno(f); /* get file number */
+    if (fn < 0) error("Invalid file");
 
-   return (lfn2win(fn)); /* get logical filenumber for file */
+    return (lfn2win(fn)); /* get logical filenumber for file */
 
 }
 
@@ -864,9 +864,10 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
 
 {
 
-    int                  si;    /* index for current display screen */
-    winptr               win;   /* window pointer */
-    winptr               pwin;  /* parent window pointer */
+    int     si;   /* index for current display screen */
+    winptr  win;  /* window pointer */
+    winptr  pwin; /* parent window pointer */
+    int     t;
 
     win = lfn2win(fn); /* get a pointer to the window */
     /* find parent */
@@ -905,8 +906,11 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
     win->fcolor = pa_black; /*foreground black */
     win->bcolor = pa_white; /* background white */
     win->curv = TRUE; /* cursor visible */
-    win->orgx = 0;  /* set origin to root */
-    win->orgy = 0;
+    win->orgx = 1;  /* set origin to root */
+    win->orgy = 1;
+    win->curx = 1; /* set cursor at home */
+    win->cury = 1;
+    for (t = 0; t < MAXTAB; t++) win->tab[t] = 0; /* clear tab array */
 
     iniscn(win, win->screens[0]); /* initalize screen buffer */
     restore(win); /* update to screen */
@@ -2401,8 +2405,11 @@ static void plcchr(FILE* f, char c)
     winptr  win;   /* windows record pointer */
     char    cb[2]; /* character send buffer */
     scnrec* scp;   /* pointer to screenlocation */
+    int     fn;    /* logical file no */
 
-    win = txt2win(f); /* get window from file */
+    fn = fileno(f); /* get file number */
+    if (fn < 0) error("Invalid file");
+    win = lfn2win(fn); /* get window from file */
     /* handle special character cases first */
     if (c == '\r')
         /* carriage return, position to extreme left */
@@ -2423,7 +2430,7 @@ static void plcchr(FILE* f, char c)
             if (win->bufmod) { /* buffer is active */
 
                 /* index screen character location */
-                scp = &(*(win->screens[win->curdsp])[win->cury][win->cury]);
+                scp = &(*(win->screens[win->curdsp-1])[win->cury][win->cury]);
                 /* place character to buffer */
                 scp->ch = c;
                 scp->forec = win->fcolor;
@@ -2442,7 +2449,7 @@ static void plcchr(FILE* f, char c)
                                       win->cury+win->orgy-1);
                 cb[0] = c; /* place character in buffer */
                 cb[1] = 0; /* terminate */
-                (*wrtstr_vect)(f, cb); /* output */
+                (*ofpwrite)(fn, &c, 1); /* output */
 
             }
 
@@ -2718,7 +2725,7 @@ Widgets startup
 
 *******************************************************************************/
 
-static void init_managerc(void) __attribute__((constructor (102)));
+static void init_managerc(void) __attribute__((constructor (104)));
 static void init_managerc()
 
 {
@@ -2853,7 +2860,7 @@ Widgets shutdown
 
 *******************************************************************************/
 
-static void deinit_managerc(void) __attribute__((destructor (102)));
+static void deinit_managerc(void) __attribute__((destructor (104)));
 static void deinit_managerc()
 
 {
