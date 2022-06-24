@@ -345,7 +345,10 @@ typedef struct filrec {
 
 } filrec;
 
-static filptr opnfil[MAXFIL]; /* open files table */
+static filptr opnfil[MAXFIL];     /* open files table */
+static int    xltwin[MAXFIL*2+1]; /* window equivalence table, includes
+                                     negatives and 0 */
+static int    filwin[MAXFIL];     /* file to window equivalence table */
 
 /* colors and attributes for root window */
 static int      attr;         /* set of active attributes */
@@ -665,6 +668,28 @@ static winptr txt2win(FILE* f)
 
 }
 
+/*******************************************************************************
+
+Get logical file number from file
+
+Gets the logical translated file number from a text file, and verifies it
+is valid.
+
+*******************************************************************************/
+
+static int txt2lfn(FILE* f)
+
+{
+
+    int fn;
+
+    fn = fileno(f); /* get file id */
+    if (fn < 0) error("Invalid file");
+
+    return (fn); /* return result */
+
+}
+
 /** ****************************************************************************
 
 Clear screen
@@ -724,97 +749,6 @@ input line buffer.
 *******************************************************************************/
 
 static void readline(int fd)
-
-{
-
-}
-
-/*******************************************************************************
-
-Close window
-
-Closes an open window pair. Accepts an output window. The window is closed, and
-the window and file handles are freed. The input file is freed only if no other
-window also links it.
-
-*******************************************************************************/
-
-static void closewin(int ofn)
-
-{
-
-}
-
-/** ****************************************************************************
-
-Find if cursor is in screen bounds internal
-
-Checks if the cursor lies in the current bounds, and returns TRUE if so.
-
-*******************************************************************************/
-
-int intcurbnd(winptr win)
-
-{
-
-    return (win->curx >= 1 && win->curx <= win->maxx &&
-            win->cury >= 1 && win->cury <= win->maxy);
-
-}
-
-/*******************************************************************************
-
-Position cursor in window
-
-Positions the cursor (caret) image to the right location on screen, and handles
-the visible or invisible status of that. We consider the current position and
-visible/invisible status, and try to output only the minimum terminal controls
-to bring the old state of the display to the same state as the new display.
-
-*******************************************************************************/
-
-void setcur(FILE* f, winptr win)
-
-{
-
-    if (indisp(win)) { /* in display */
-
-        /* check cursor in bounds and visible */
-        if (intcurbnd(win) && win->curv) {
-
-            if (!curon) { /* cursor not on */
-
-                (*curvis_vect)(f, TRUE); /* set cursor on */
-                curon = TRUE;
-
-            }
-            /* position actual cursor */
-            curx = win->curx+win->orgx-1;
-            cury = win->cury+win->orgy-1;
-            (*cursor_vect)(f, curx, cury);
-
-        }
-
-    }
-
-}
-
-/** ****************************************************************************
-
-Scroll screen
-
-Scrolls the screen by deltas in any given direction. If the scroll would move
-all content off the screen, the screen is simply blanked. Otherwise, we find the
-section of the screen that would remain after the scroll, determine its source
-and destination rectangles, and use a move.
-
-In buffered mode, this routine works by scrolling the buffer, then restoring
-it to the current window. In non-buffered mode, the scroll is applied directly
-to the window.
-
-*******************************************************************************/
-
-static void intscroll(winptr win, int x, int y)
 
 {
 
@@ -948,6 +882,178 @@ static void openio(FILE* infile, FILE* outfile, int ifn, int ofn, int pfn,
         opnwin(ofn, pfn, wid, subclient); /* and start that up */
 
     }
+    /* check if the window has been pinned to something else */
+    if (xltwin[wid+MAXFIL] >= 0 && xltwin[wid+MAXFIL] != ofn)
+        error("Window in use"); /* flag error */
+    xltwin[wid+MAXFIL] = ofn; /* pin the window to the output file */
+    filwin[ofn] = wid;
+
+}
+
+/** ****************************************************************************
+
+Open window
+
+Opens a window to an input/output pair. The window is opened and initalized.
+If a parent is provided, the window becomes a child window of the parent.
+
+The window id can be from 1 to MAXFIL, but 1 is reserved for the main I/O
+window.
+
+*******************************************************************************/
+
+/* check file is already in use */
+static int fndfil(FILE* fp)
+
+{
+
+    int fi; /* file index */
+    int ff; /* found file */
+
+    ff = -1; /* set no file found */
+    for (fi = 0; fi < MAXFIL; fi++)
+        if (opnfil[fi] && opnfil[fi]->sfp == fp) ff = fi; /* set found */
+
+    return (ff);
+
+}
+
+void intopenwin(FILE** infile, FILE** outfile, FILE* parent, int wid,
+                int subclient)
+
+{
+
+    int ifn, ofn, pfn; /* file logical handles */
+
+    /* check valid window handle */
+    if (!wid || wid < -MAXFIL || wid > MAXFIL) error("Invalid window ID");
+    /* check if the window id is already in use */
+    if (xltwin[wid+MAXFIL] >= 0) error("Window ID already in use");
+    if (parent) {
+
+        txt2win(parent); /* validate parent is a window file */
+        pfn = txt2lfn(parent); /* get logical parent */
+
+    } else pfn = -1; /* set no parent */
+    ifn = fndfil(*infile); /* find previous open input side */
+    if (ifn < 0) { /* no other input file, open new */
+
+        /* open input file */
+        *infile = fopen("/dev/null", "r"); /* open null as read only */
+        if (!*infile) error("Can't open file"); /* can't open */
+        setvbuf(*infile, NULL, _IONBF, 0); /* turn off buffering */
+        ifn = fileno(*infile); /* get logical file no */
+
+    }
+    /* open output file */
+    *outfile = fopen("/dev/null", "w");
+    ofn = fileno(*outfile); /* get logical file no. */
+    if (ofn == -1) error("System consistency error");
+    if (!*outfile) error("Can't open file");
+    setvbuf(*outfile, NULL, _IONBF, 0); /* turn off buffering */
+
+    /* check either input is unused, or is already an input side of a window */
+    if (opnfil[ifn]) /* entry exists */
+        if (!opnfil[ifn]->inw || opnfil[ifn]->win)
+            error("File in incorrect mode");
+    /* check output file is in use for input or output from window */
+    if (opnfil[ofn]) /* entry exists */
+        if (opnfil[ofn]->inw || opnfil[ofn]->win)
+            error("File in use"); /* file in use */
+    /* establish all logical files and links, translation tables, and open
+       window */
+    openio(*infile, *outfile, ifn, ofn, pfn, wid, subclient);
+
+}
+
+/*******************************************************************************
+
+Close window
+
+Closes an open window pair. Accepts an output window. The window is closed, and
+the window and file handles are freed. The input file is freed only if no other
+window also links it.
+
+*******************************************************************************/
+
+static void closewin(int ofn)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Find if cursor is in screen bounds internal
+
+Checks if the cursor lies in the current bounds, and returns TRUE if so.
+
+*******************************************************************************/
+
+int intcurbnd(winptr win)
+
+{
+
+    return (win->curx >= 1 && win->curx <= win->maxx &&
+            win->cury >= 1 && win->cury <= win->maxy);
+
+}
+
+/*******************************************************************************
+
+Position cursor in window
+
+Positions the cursor (caret) image to the right location on screen, and handles
+the visible or invisible status of that. We consider the current position and
+visible/invisible status, and try to output only the minimum terminal controls
+to bring the old state of the display to the same state as the new display.
+
+*******************************************************************************/
+
+void setcur(winptr win)
+
+{
+
+    if (indisp(win)) { /* in display */
+
+        /* check cursor in bounds and visible */
+        if (intcurbnd(win) && win->curv) {
+
+            if (!curon) { /* cursor not on */
+
+                (*curvis_vect)(stdout, TRUE); /* set cursor on */
+                curon = TRUE;
+
+            }
+            /* position actual cursor */
+            curx = win->curx+win->orgx-1;
+            cury = win->cury+win->orgy-1;
+            (*cursor_vect)(stdout, curx, cury);
+
+        }
+
+    }
+
+}
+
+/** ****************************************************************************
+
+Scroll screen
+
+Scrolls the screen by deltas in any given direction. If the scroll would move
+all content off the screen, the screen is simply blanked. Otherwise, we find the
+section of the screen that would remain after the scroll, determine its source
+and destination rectangles, and use a move.
+
+In buffered mode, this routine works by scrolling the buffer, then restoring
+it to the current window. In non-buffered mode, the scroll is applied directly
+to the window.
+
+*******************************************************************************/
+
+static void intscroll(winptr win, int x, int y)
+
+{
 
 }
 
@@ -974,7 +1080,7 @@ void icursor(FILE* f, int x, int y)
     win = txt2win(f); /* get window from file */
     win->cury = y; /* set new position */
     win->curx = x;
-    setcur(f, win); /* activate cursor onscreen as required */
+    setcur(win); /* activate cursor onscreen as required */
 
 }
 
@@ -1038,7 +1144,7 @@ void ihome(FILE* f)
     /* reset cursors */
     win->curx = 1;
     win->cury = 1;
-    setcur(f, win); /* activate cursor onscreen as required */
+    setcur(win); /* activate cursor onscreen as required */
 
 }
 
@@ -1065,7 +1171,7 @@ void iup(FILE* f)
     else if (win->autof) intscroll(win, 0, -1); /* scroll up */
     /* check won't overflow */
     else if (win->cury > -INT_MAX) win->cury--; /* set new position */
-    setcur(f, win); /* activate cursor onscreen as required */
+    setcur(win); /* activate cursor onscreen as required */
 
 }
 
@@ -1093,7 +1199,7 @@ void idown(FILE* f)
     else if (win->autof) intscroll(win, 0, +1); /* scroll down */
     /* check won't overflow */
     else if (win->cury < INT_MAX) win->cury++; /* set new position */
-    setcur(f, win); /* activate cursor onscreen as required */
+    setcur(win); /* activate cursor onscreen as required */
 
 }
 
@@ -1128,7 +1234,7 @@ void ileft(FILE* f)
             if (win->curx > -INT_MAX) win->curx--; /* update position */
 
     }
-    setcur(f, win); /* activate cursor onscreen as required */
+    setcur(win); /* activate cursor onscreen as required */
 
 }
 
@@ -1161,7 +1267,7 @@ void iright(FILE* f)
             if (win->curx < INT_MAX) win->curx++; /* update position */
 
     }
-    setcur(f, win); /* activate cursor onscreen as required */
+    setcur(win); /* activate cursor onscreen as required */
 
 }
 
@@ -1472,7 +1578,7 @@ void icurvis(FILE* f, int e)
 
     win = txt2win(f); /* get window from file */
     win->curv = e; /* set/reset cursor visibility */
-    setcur(f, win); /* activate cursor onscreen as required */
+    setcur(win); /* activate cursor onscreen as required */
 
 }
 
@@ -1953,6 +2059,9 @@ void iopenwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
 
 {
 
+    /* open as child of client window */
+    intopenwin(infile, outfile, parent, wid, TRUE);
+
 }
 
 /** ****************************************************************************
@@ -2038,6 +2147,12 @@ relative measurement.
 void isetpos(FILE* f, int x, int y)
 
 {
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    win->orgx = x; /* set position in parent */
+    win->orgy = y;
 
 }
 
@@ -2300,55 +2415,55 @@ root window to cut down on chatter between the modules.
 
 *******************************************************************************/
 
-static void setattrs(FILE* f, winptr win)
+static void setattrs(winptr win)
 
 {
 
     if (BIT(sasuper) & win->attr != BIT(sasuper) & attr) { /* has changed */
 
-        (*superscript_vect)(f, BIT(sasuper) & win->attr);
+        (*superscript_vect)(stdout, BIT(sasuper) & win->attr);
         attr = attr & ~BIT(sasuper) | BIT(sasuper) & win->attr;
 
     }
     if (BIT(sasubs) & win->attr != BIT(sasubs) & attr) { /* has changed */
 
-        (*subscript_vect)(f, BIT(sasubs) & win->attr);
+        (*subscript_vect)(stdout, BIT(sasubs) & win->attr);
         attr = attr & ~BIT(sasubs) | BIT(sasubs) & win->attr;
 
     }
     if (BIT(sablink) & win->attr != BIT(sablink) & attr) { /* has changed */
 
-        (*blink_vect)(f, BIT(sablink) & win->attr);
+        (*blink_vect)(stdout, BIT(sablink) & win->attr);
         attr = attr & ~BIT(sablink) | BIT(sablink) & win->attr;
 
     }
     if (BIT(sastkout) & win->attr != BIT(sastkout) & attr) { /* has changed */
 
-        (*blink_vect)(f, BIT(sastkout) & win->attr);
+        (*blink_vect)(stdout, BIT(sastkout) & win->attr);
         attr = attr & ~BIT(sastkout) | BIT(sastkout) & win->attr;
 
     }
     if (BIT(saital) & win->attr != BIT(saital) & attr) { /* has changed */
 
-        (*blink_vect)(f, BIT(saital) & win->attr);
+        (*blink_vect)(stdout, BIT(saital) & win->attr);
         attr = attr & ~BIT(saital) | BIT(saital) & win->attr;
 
     }
     if (BIT(sabold) & win->attr != BIT(sabold) & attr) { /* has changed */
 
-        (*blink_vect)(f, BIT(sabold) & win->attr);
+        (*blink_vect)(stdout, BIT(sabold) & win->attr);
         attr = attr & ~BIT(sabold) | BIT(sabold) & win->attr;
 
     }
     if (BIT(saundl) & win->attr != BIT(saundl) & attr) { /* has changed */
 
-        (*blink_vect)(f, BIT(saundl) & win->attr);
+        (*blink_vect)(stdout, BIT(saundl) & win->attr);
         attr = attr & ~BIT(saundl) | BIT(saundl) & win->attr;
 
     }
     if (BIT(sarev) & win->attr != BIT(sarev) & attr) { /* has changed */
 
-        (*blink_vect)(f, BIT(sarev) & win->attr);
+        (*blink_vect)(stdout, BIT(sarev) & win->attr);
         attr = attr & ~BIT(sarev) | BIT(sarev) & win->attr;
 
     }
@@ -2366,19 +2481,19 @@ root window to cut down on chatter between the modules.
 
 *******************************************************************************/
 
-static void setcolors(FILE* f, winptr win)
+static void setcolors(winptr win)
 
 {
 
     if (win->fcolor != fcolor) {
 
-        (*fcolor_vect)(f, win->fcolor);
+        (*fcolor_vect)(stdout, win->fcolor);
         fcolor = win->fcolor;
 
     }
     if (win->bcolor != bcolor) {
 
-        (*bcolor_vect)(f, win->bcolor);
+        (*bcolor_vect)(stdout, win->bcolor);
         bcolor = win->bcolor;
 
     }
@@ -2405,11 +2520,8 @@ static void plcchr(FILE* f, char c)
     winptr  win;   /* windows record pointer */
     char    cb[2]; /* character send buffer */
     scnrec* scp;   /* pointer to screenlocation */
-    int     fn;    /* logical file no */
 
-    fn = fileno(f); /* get file number */
-    if (fn < 0) error("Invalid file");
-    win = lfn2win(fn); /* get window from file */
+    win = txt2win(f); /* get window from file */
     /* handle special character cases first */
     if (c == '\r')
         /* carriage return, position to extreme left */
@@ -2430,7 +2542,7 @@ static void plcchr(FILE* f, char c)
             if (win->bufmod) { /* buffer is active */
 
                 /* index screen character location */
-                scp = &(*(win->screens[win->curdsp-1])[win->cury][win->cury]);
+                scp = &(*(win->screens[win->curdsp-1])[win->cury-1][win->cury-1]);
                 /* place character to buffer */
                 scp->ch = c;
                 scp->forec = win->fcolor;
@@ -2441,15 +2553,15 @@ static void plcchr(FILE* f, char c)
             if (indisp(win)) { /* do it again for the current screen */
 
 
-                setattrs(f, win); /* set attributes */
-                setcolors(f, win); /* set colors */
+                setattrs(win); /* set attributes */
+                setcolors(win); /* set colors */
                 /* draw character to active screen */
                 if (win->curx != curx || win->cury != cury)
-                    (*cursor_vect)(f, win->curx+win->orgx-1,
+                    (*cursor_vect)(stdout, win->curx+win->orgx-1,
                                       win->cury+win->orgy-1);
                 cb[0] = c; /* place character in buffer */
                 cb[1] = 0; /* terminate */
-                (*ofpwrite)(fn, &c, 1); /* output */
+                (*ofpwrite)(OUTFIL, &c, 1); /* output */
 
             }
 
@@ -2737,8 +2849,22 @@ static void init_managerc()
 
     winfre = NULL; /* clear free windows structure list */
 
-    /* clear open files table */
-    for (fn = 0; fn < MAXFIL; fn++) opnfil[fn] = NULL;
+    /* clear open files tables */
+    for (fn = 0; fn < MAXFIL; fn++) {
+
+        opnfil[fn] = NULL; /* set unoccupied */
+        /* clear file to window logical number translator table */
+        filwin[fn] = -1; /* set unoccupied */
+
+    }
+
+    /* clear window equivalence table */
+    for (fn = 0; fn < MAXFIL*2+1; fn++) {
+
+        /* clear window logical number translator table */
+        xltwin[fn] = -1; /* set unoccupied */
+
+    }
 
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
