@@ -312,7 +312,7 @@ typedef struct winrec {
     int      maxx;            /* maximum x size */
     int      maxy;            /* maximum y size */
     int      curx;            /* current cursor location x */
-    int      cury;             /* current cursor location y */
+    int      cury;            /* current cursor location y */
     int      attr;            /* set of active attributes */
     pa_color fcolor;          /* foreground color */
     pa_color bcolor;          /* background color */
@@ -327,6 +327,7 @@ typedef struct winrec {
     int      sysbar;          /* system bar on/off */
     char     inpbuf[MAXLIN];  /* input line buffer */
     int      inpptr;          /* input line index */
+    int      visible;         /* window is visible */
 
 } winrec;
 
@@ -356,7 +357,7 @@ static pa_color fcolor;       /* foreground color */
 static pa_color bcolor;       /* background color */
 static int      curx;         /* cursor x */
 static int      cury;         /* cursor y */
-static int      curon;        /* current on/off state of cursor */
+static int      curon;        /* current on/off visible state of cursor */
 
 static winptr   winfre;       /* free windows structure list */
 
@@ -741,6 +742,162 @@ static int indisp(winptr win)
 
 /*******************************************************************************
 
+Set cursor cached
+
+Sets the root cursor if it has changed.
+
+*******************************************************************************/
+
+static int setcursor(int x, int y)
+
+{
+
+    if (x != curx || y != cury) {
+
+        (*cursor_vect)(stdout, x, y); /* set new position */
+        curx = x; /* set new location */
+        cury = y;
+
+    }
+
+}
+
+/*******************************************************************************
+
+Set foreground color cached
+
+Sets the root foreground color if it has changed.
+
+*******************************************************************************/
+
+static int setfcolor(pa_color c)
+
+{
+
+    if (c != fcolor) {
+
+        (*fcolor_vect)(stdout, c); /* set new color */
+        fcolor = c; /* cache that */
+
+    }
+
+}
+
+/*******************************************************************************
+
+Set background color cached
+
+Sets the root background color if it has changed.
+
+*******************************************************************************/
+
+static int setbcolor(pa_color c)
+
+{
+
+    if (c != bcolor) {
+
+        (*bcolor_vect)(stdout, c); /* set new color */
+        bcolor = c; /* cache that */
+
+    }
+
+}
+
+/** ****************************************************************************
+
+Set screen attribute cached
+
+Sets the current root screen attribute according to the current set of attributes.
+Note that if multiple attributes are set, but the system only allows a single
+attribute, then only the standout attribute will be set, since that is the last
+attribute to be activated.
+
+The standout attribute is a series of attributes in priority order.
+
+The attribute change is only coped to the root window if it has changed from the
+root window to cut down on chatter between the modules.
+
+*******************************************************************************/
+
+static void setattrs(int at)
+
+{
+
+    if (BIT(sasuper) & at != BIT(sasuper) & attr) { /* has changed */
+
+        (*superscript_vect)(stdout, BIT(sasuper) & at);
+        attr = attr & ~BIT(sasuper) | BIT(sasuper) & at;
+
+    }
+    if (BIT(sasubs) & at != BIT(sasubs) & attr) { /* has changed */
+
+        (*subscript_vect)(stdout, BIT(sasubs) & at);
+        attr = attr & ~BIT(sasubs) | BIT(sasubs) & at;
+
+    }
+    if (BIT(sablink) & at != BIT(sablink) & attr) { /* has changed */
+
+        (*blink_vect)(stdout, BIT(sablink) & at);
+        attr = attr & ~BIT(sablink) | BIT(sablink) & at;
+
+    }
+    if (BIT(sastkout) & at != BIT(sastkout) & attr) { /* has changed */
+
+        (*blink_vect)(stdout, BIT(sastkout) & at);
+        attr = attr & ~BIT(sastkout) | BIT(sastkout) & at;
+
+    }
+    if (BIT(saital) & at != BIT(saital) & attr) { /* has changed */
+
+        (*blink_vect)(stdout, BIT(saital) & at);
+        attr = attr & ~BIT(saital) | BIT(saital) & at;
+
+    }
+    if (BIT(sabold) & at != BIT(sabold) & attr) { /* has changed */
+
+        (*blink_vect)(stdout, BIT(sabold) & at);
+        attr = attr & ~BIT(sabold) | BIT(sabold) & at;
+
+    }
+    if (BIT(saundl) & at != BIT(saundl) & attr) { /* has changed */
+
+        (*blink_vect)(stdout, BIT(saundl) & at);
+        attr = attr & ~BIT(saundl) | BIT(saundl) & at;
+
+    }
+    if (BIT(sarev) & at != BIT(sarev) & attr) { /* has changed */
+
+        (*blink_vect)(stdout, BIT(sarev) & at);
+        attr = attr & ~BIT(sarev) | BIT(sarev) & at;
+
+    }
+
+}
+
+/*******************************************************************************
+
+Set cursor on/off cached
+
+Sets the root cursor visible if it has changed.
+
+*******************************************************************************/
+
+static void setcurvis(int e)
+
+{
+
+    if (e != curon) {
+
+        (*curvis_vect)(stdout, e); /* set new visible state */
+        curon = e; /* set cache */
+
+    }
+
+}
+
+/*******************************************************************************
+
 Process input line
 
 Reads an input line with full echo and editing. The line is placed into the
@@ -751,6 +908,63 @@ input line buffer.
 static void readline(int fd)
 
 {
+
+}
+
+/** ****************************************************************************
+
+Draw frame on window
+
+Draws a frame around the indicated window.
+
+    +------------------+
+    |            _ ^ X |
+    |==================|
+    |                  |
+    |                  |
+    +------------------+
+
+    ╔══════════════════╗
+    ║                  ║
+    ║                  ║
+    ║                  ║
+
+(is seamless in xterm).
+
+₠⁳
+
+*******************************************************************************/
+
+static void drwfrm(winptr win)
+
+{
+
+    int x, y;
+    char tc, sc, cc;
+
+    /* set top,side and corner characters */
+    tc = '-';
+    sc = '|';
+    cc = '+';
+    /* draw top and bottom */
+    setcursor(win->orgx, win->orgy);
+    (ofpwrite)(OUTFIL, &cc, 1);
+    for (x = 2; x <= win->maxx-1; x++) (ofpwrite)(OUTFIL, &tc, 1);
+    (ofpwrite)(OUTFIL, &cc, 1);
+    (*cursor_vect)(stdout, win->orgx, win->orgy+win->maxy-1);
+    (ofpwrite)(OUTFIL, &cc, 1);
+    for (x = 2; x <= win->maxx-1; x++) (ofpwrite)(OUTFIL, &tc, 1);
+    (ofpwrite)(OUTFIL, &cc, 1);
+
+    /* draw sides */
+    for (y = win->orgy+1; y < win->orgy+win->maxy-2; y++) {
+
+        (*cursor_vect)(stdout, win->orgx, y);
+        (ofpwrite)(OUTFIL, &sc, 1);
+        (*cursor_vect)(stdout, win->orgx+win->maxx-1, y);
+        (ofpwrite)(OUTFIL, &sc, 1);
+
+    }
 
 }
 
@@ -767,6 +981,23 @@ static void iniscn(winptr win, scnbuf* sc)
 
 {
 
+    int x, y;
+    scnrec* scp;   /* pointer to screenlocation */
+
+    /* clear buffer */
+    for (y = 1; y < MAXYD; y++)
+        for (x = 1; x < MAXXD; x++) {
+
+        /* index screen character location */
+        scp = &(*sc[win->cury-1][win->cury-1]);
+        /* place character to buffer */
+        scp->ch = ' ';
+        scp->forec = pa_black;
+        scp->backc = pa_white;
+        scp->attr = 0;
+
+    }
+
 }
 
 /** ****************************************************************************
@@ -782,6 +1013,61 @@ static void restore(winptr win) /* window to restore */
 
 {
 
+    int x, y;
+    scnrec* scp;   /* pointer to screenlocation */
+
+dbg_printf(dlinfo, "orgx: %d orgy: %d\n", win->orgx, win->orgy);
+    if (win->bufmod && win->visible)  { /* buffered mode is on, and visible */
+
+        if (win->frame) drwfrm(win); /* draw window frame */
+
+        /* restore window from buffer */
+        for (y = 1; y < MAXYD; y++) {
+
+            /* Reset cursor at the start of each line. Note frame offsets. */
+            setcursor(1+win->orgx-1+win->frame, y+win->orgy-1+win->frame);
+            /* draw each line */
+            for (x = 1; x < MAXXD; x++) {
+
+                /* index screen character location */
+                scp = &(*(win->screens[win->curdsp-1])[win->cury-1][win->cury-1]);
+                setfcolor(scp->forec); /* set colors */
+                setbcolor(scp->backc);
+                setattrs(scp->attr); /* set attributes */
+                (*ofpwrite)(OUTFIL, &scp->ch, 1); /* output character */
+
+            }
+
+        }
+
+    }
+
+}
+
+/*******************************************************************************
+
+Display window
+
+Presents a window, and sends it a first paint message. Used to process the
+delayed window display function.
+
+*******************************************************************************/
+
+static void winvis(winptr win)
+
+{
+
+   if (!win->visible) { /* not already visible */
+
+        /* first make all parents visible */
+        if (win->parwin) winvis(win->parwin);
+
+        /* now display this one */
+        win->visible = TRUE; /* set now visible */
+        restore(win); /* restore window */
+
+    }
+
 }
 
 /** ****************************************************************************
@@ -794,7 +1080,7 @@ cleared, and a single buffer assigned to the window.
 
 *******************************************************************************/
 
-static void opnwin(int fn, int pfn, int wid, int subclient)
+static void opnwin(int fn, int pfn, int wid, int subclient, int root)
 
 {
 
@@ -823,14 +1109,25 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
     win->bufmod = TRUE; /* set buffering on */
     win->metlst = NULL; /* clear menu tracking list */
     win->menu = NULL; /* set menu bar not active */
-    win->frame = TRUE; /* set frame on */
-    win->size = TRUE; /* set size bars on */
-    win->sysbar = TRUE; /* set system bar on */
+    if (root) { /* set up root without frame */
+
+        win->frame = FALSE; /* set frame off */
+        win->size = FALSE; /* set size bars off */
+        win->sysbar = FALSE; /* set system bar off */
+
+    } else {
+
+        win->frame = TRUE; /* set frame on */
+        win->size = TRUE; /* set size bars on */
+        win->sysbar = TRUE; /* set system bar on */
+
+    }
     /* clear the screen array */
     for (si = 0; si < MAXCON; si++) win->screens[si] = NULL;
     win->screens[0] = malloc(sizeof(scnbuf)); /* get the default screen */
     win->curdsp = 1; /* set current display screen */
     win->curupd = 1; /* set current update screen */
+    win->visible = FALSE; /* set not visible */
 
     /* set up global buffer parameters */
     win->maxx = (*maxx_vect)(stdout); /* character max dimensions */
@@ -860,7 +1157,7 @@ Creates, opens and initializes an input and output pair of files.
 *******************************************************************************/
 
 static void openio(FILE* infile, FILE* outfile, int ifn, int ofn, int pfn,
-                   int wid, int subclient)
+                   int wid, int subclient, int root)
 
 {
 
@@ -879,7 +1176,7 @@ static void openio(FILE* infile, FILE* outfile, int ifn, int ofn, int pfn,
         /* Haven't already started the main input/output window, so allocate
            and start that. We tolerate multiple opens to the output file. */
         opnfil[ofn]->win = getwin();
-        opnwin(ofn, pfn, wid, subclient); /* and start that up */
+        opnwin(ofn, pfn, wid, subclient, root); /* and start that up */
 
     }
     /* check if the window has been pinned to something else */
@@ -918,8 +1215,7 @@ static int fndfil(FILE* fp)
 
 }
 
-void intopenwin(FILE** infile, FILE** outfile, FILE* parent, int wid,
-                int subclient)
+void intopenwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
 
 {
 
@@ -962,7 +1258,7 @@ void intopenwin(FILE** infile, FILE** outfile, FILE* parent, int wid,
             error("File in use"); /* file in use */
     /* establish all logical files and links, translation tables, and open
        window */
-    openio(*infile, *outfile, ifn, ofn, pfn, wid, subclient);
+    openio(*infile, *outfile, ifn, ofn, pfn, wid, TRUE, FALSE);
 
 }
 
@@ -1026,8 +1322,8 @@ void setcur(winptr win)
 
             }
             /* position actual cursor */
-            curx = win->curx+win->orgx-1;
-            cury = win->cury+win->orgy-1;
+            curx = win->curx+win->orgx-1+win->frame;
+            cury = win->cury+win->orgy-1+win->frame;
             (*cursor_vect)(stdout, curx, cury);
 
         }
@@ -2060,7 +2356,7 @@ void iopenwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
 {
 
     /* open as child of client window */
-    intopenwin(infile, outfile, parent, wid, TRUE);
+    intopenwin(infile, outfile, parent, wid);
 
 }
 
@@ -2097,12 +2393,7 @@ void isizbuf(FILE* f, int x, int y)
 
 Get window size character
 
-Gets the onscreen window size, in character terms. If the window has a parent,
-the demensions are converted to the current character size there. Otherwise,
-the pixel based dementions are returned. This occurs because the desktop does
-not have a fixed character aspect, so we make one up, and our logical character
-is "one pixel" high and wide. It works because it can only be used as a
-relative measurement.
+Gets the onscreen window size, in character terms.
 
 *******************************************************************************/
 
@@ -2110,24 +2401,31 @@ void igetsiz(FILE* f, int* x, int* y)
 
 {
 
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    *x = win->maxx; /* set size */
+    *y = win->maxy;
+
 }
 
 /** ****************************************************************************
 
 Set window size character
 
-Sets the onscreen window size, in character terms. If the window has a parent,
-the demensions are converted to the current character size there. Otherwise,
-the pixel based dementions are used. This occurs because the desktop does
-not have a fixed character aspect, so we make one up, and our logical character
-is "one pixel" high and wide. It works because it can only be used as a
-relative measurement.
+Sets the onscreen window size, in character terms.
 
 *******************************************************************************/
 
 void isetsiz(FILE* f, int x, int y)
 
 {
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    win->maxx = x; /* set size */
+    win->maxy = y;
 
 }
 
@@ -2253,6 +2551,11 @@ Turns the window frame on and off.
 void iframe(FILE* f, int e)
 
 {
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    win->frame = e; /* set frame state */
 
 }
 
@@ -2401,107 +2704,6 @@ void ifocus(FILE* f)
 
 /** ****************************************************************************
 
-Set screen attribute
-
-Sets the current screen attribute according to the current set of attributes.
-Note that if multiple attributes are set, but the system only allows a single
-attribute, then only the standout attribute will be set, since that is the last
-attribute to be activated.
-
-The standout attribute is a series of attributes in priority order.
-
-The attribute change is only coped to the root window if it has changed from the
-root window to cut down on chatter between the modules.
-
-*******************************************************************************/
-
-static void setattrs(winptr win)
-
-{
-
-    if (BIT(sasuper) & win->attr != BIT(sasuper) & attr) { /* has changed */
-
-        (*superscript_vect)(stdout, BIT(sasuper) & win->attr);
-        attr = attr & ~BIT(sasuper) | BIT(sasuper) & win->attr;
-
-    }
-    if (BIT(sasubs) & win->attr != BIT(sasubs) & attr) { /* has changed */
-
-        (*subscript_vect)(stdout, BIT(sasubs) & win->attr);
-        attr = attr & ~BIT(sasubs) | BIT(sasubs) & win->attr;
-
-    }
-    if (BIT(sablink) & win->attr != BIT(sablink) & attr) { /* has changed */
-
-        (*blink_vect)(stdout, BIT(sablink) & win->attr);
-        attr = attr & ~BIT(sablink) | BIT(sablink) & win->attr;
-
-    }
-    if (BIT(sastkout) & win->attr != BIT(sastkout) & attr) { /* has changed */
-
-        (*blink_vect)(stdout, BIT(sastkout) & win->attr);
-        attr = attr & ~BIT(sastkout) | BIT(sastkout) & win->attr;
-
-    }
-    if (BIT(saital) & win->attr != BIT(saital) & attr) { /* has changed */
-
-        (*blink_vect)(stdout, BIT(saital) & win->attr);
-        attr = attr & ~BIT(saital) | BIT(saital) & win->attr;
-
-    }
-    if (BIT(sabold) & win->attr != BIT(sabold) & attr) { /* has changed */
-
-        (*blink_vect)(stdout, BIT(sabold) & win->attr);
-        attr = attr & ~BIT(sabold) | BIT(sabold) & win->attr;
-
-    }
-    if (BIT(saundl) & win->attr != BIT(saundl) & attr) { /* has changed */
-
-        (*blink_vect)(stdout, BIT(saundl) & win->attr);
-        attr = attr & ~BIT(saundl) | BIT(saundl) & win->attr;
-
-    }
-    if (BIT(sarev) & win->attr != BIT(sarev) & attr) { /* has changed */
-
-        (*blink_vect)(stdout, BIT(sarev) & win->attr);
-        attr = attr & ~BIT(sarev) | BIT(sarev) & win->attr;
-
-    }
-
-}
-
-/** ****************************************************************************
-
-Set screen colors
-
-Sets the current foreground and background colors.
-
-The color change is only coped to the root window if it has changed from the
-root window to cut down on chatter between the modules.
-
-*******************************************************************************/
-
-static void setcolors(winptr win)
-
-{
-
-    if (win->fcolor != fcolor) {
-
-        (*fcolor_vect)(stdout, win->fcolor);
-        fcolor = win->fcolor;
-
-    }
-    if (win->bcolor != bcolor) {
-
-        (*bcolor_vect)(stdout, win->bcolor);
-        bcolor = win->bcolor;
-
-    }
-
-}
-
-/** ****************************************************************************
-
 Place next terminal character
 
 Places the given character to the current cursor position using the current
@@ -2518,10 +2720,10 @@ static void plcchr(FILE* f, char c)
 {
 
     winptr  win;   /* windows record pointer */
-    char    cb[2]; /* character send buffer */
     scnrec* scp;   /* pointer to screenlocation */
 
     win = txt2win(f); /* get window from file */
+    if (!win->visible) winvis(win); /* make sure we are displayed */
     /* handle special character cases first */
     if (c == '\r')
         /* carriage return, position to extreme left */
@@ -2553,14 +2755,12 @@ static void plcchr(FILE* f, char c)
             if (indisp(win)) { /* do it again for the current screen */
 
 
-                setattrs(win); /* set attributes */
-                setcolors(win); /* set colors */
+                setattrs(win->attr); /* set attributes */
+                setfcolor(win->fcolor); /* set colors */
+                setbcolor(win->bcolor);
                 /* draw character to active screen */
-                if (win->curx != curx || win->cury != cury)
-                    (*cursor_vect)(stdout, win->curx+win->orgx-1,
-                                      win->cury+win->orgy-1);
-                cb[0] = c; /* place character in buffer */
-                cb[1] = 0; /* terminate */
+                setcursor(win->curx+win->orgx-1+win->frame,
+                          win->cury+win->orgy-1+win->frame);
                 (*ofpwrite)(OUTFIL, &c, 1); /* output */
 
             }
@@ -2973,10 +3173,13 @@ static void init_managerc()
     (*curvis_vect)(stdout, TRUE);
     curon = TRUE;
 
+    /* set auto off */
+    (*auto_vect)(stdout, FALSE);
+
     /* open stdin and stdout as I/O window set */
     ifn = fileno(stdin); /* get logical id stdin */
     ofn = fileno(stdout); /* get logical id stdout */
-    openio(stdin, stdout, ifn, ofn, -1, 1, FALSE); /* process open */
+    openio(stdin, stdout, ifn, ofn, -1, 1, FALSE, TRUE); /* process open */
 
 }
 
