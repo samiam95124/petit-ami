@@ -292,7 +292,6 @@ typedef struct {
       /* active attribute at location */ scnatt attr;
 
 } scnrec;
-typedef scnrec scnbuf[MAXYD][MAXXD];
 
 /* window description */
 typedef struct winrec* winptr;
@@ -304,13 +303,17 @@ typedef struct winrec {
     int      wid;             /* this window logical id */
     winptr   childwin;        /* list of child windows */
     winptr   childlst;        /* list pointer if this is a child */
-    scnbuf*  screens[MAXCON]; /* screen contexts array */
+    scnrec*  screens[MAXCON]; /* screen contexts array */
     int      curdsp;          /* index for current display screen */
     int      curupd;          /* index for current update screen */
     int      orgx;            /* window origin in root x */
     int      orgy;            /* window origin in root y */
+    int      coffx;           /* client offset x */
+    int      coffy;           /* client offset y */
     int      maxx;            /* maximum x size */
     int      maxy;            /* maximum y size */
+    int      pmaxx;           /* parent maximum x */
+    int      pmaxy;           /* parent maximum y */
     int      curx;            /* current cursor location x */
     int      cury;            /* current cursor location y */
     int      attr;            /* set of active attributes */
@@ -345,6 +348,41 @@ typedef struct filrec {
     int    inw; /* entry is input linked to window */
 
 } filrec;
+
+/* Characters for window "dressing" (frame components) */
+typedef enum {
+
+    horzlin,   /* horizontal line */
+    vertlin,   /* vertical line */
+    sysudl,    /* system bar underline */
+    toplftcnr, /* top left corner*/
+    toprgtcnr, /* top right corner */
+    btmlftcnr, /* bottom left corner */
+    btmrgtcnr, /* bottom right corner */
+    intlft,    /* left intersection */
+    intrgt,    /* right intersection */
+    minbtn,    /* minimize button */
+    maxbtn,    /* maximize button */
+    canbtn    /* cancel button */
+
+} framecomp;
+
+char* frmchrs[] = {
+
+    "-", /* horizontal line */
+    "|", /* vertical line */
+    "=", /* system bar underline */
+    "+", /* top left corner*/
+    "+", /* top right corner */
+    "+", /* bottom left corner */
+    "+", /* bottom right corner */
+    "|", /* left intersection */
+    "|", /* right intersection */
+    "_", /* minimize button */
+    "^", /* maximize button */
+    "X", /* cancel button */
+
+};
 
 static filptr opnfil[MAXFIL];     /* open files table */
 static int    xltwin[MAXFIL*2+1]; /* window equivalence table, includes
@@ -898,6 +936,41 @@ static void setcurvis(int e)
 
 /*******************************************************************************
 
+Output character to root window
+
+Outputs a single character to the root window and advances the x cursor. Note
+we assume auto is off and x can climb to infinity (INT_MAX).
+
+*******************************************************************************/
+
+static void wrtchr(char c)
+
+{
+
+    (*ofpwrite)(OUTFIL, &c, 1);
+    curx++;
+
+}
+
+/*******************************************************************************
+
+Output string to root window
+
+Outputs a string to the root window and advances the x cursor. Note we assume
+auto is off and x can climb to infinity (INT_MAX).
+
+*******************************************************************************/
+
+static void wrtstr(char* s)
+
+{
+
+    while (*s) { wrtchr(*s); s++; }
+
+}
+
+/*******************************************************************************
+
 Process input line
 
 Reads an input line with full echo and editing. The line is placed into the
@@ -915,7 +988,9 @@ static void readline(int fd)
 
 Draw frame on window
 
-Draws a frame around the indicated window.
+Draws a frame around the indicated window. This is one of the following:
+
+(ASCII)
 
     +------------------+
     |            _ ^ X |
@@ -924,14 +999,15 @@ Draws a frame around the indicated window.
     |                  |
     +------------------+
 
+(UTF-8)
     ╔══════════════════╗
+    ║           - ▢ Ⓧ ║
+    ╠══════════════════╣
     ║                  ║
     ║                  ║
-    ║                  ║
+    ╚══════════════════╝
 
-(is seamless in xterm).
-
-₠⁳
+(is seamless in xterm, here it depends on the editor).
 
 *******************************************************************************/
 
@@ -940,29 +1016,52 @@ static void drwfrm(winptr win)
 {
 
     int x, y;
-    char tc, sc, cc;
 
-    /* set top,side and corner characters */
-    tc = '-';
-    sc = '|';
-    cc = '+';
-    /* draw top and bottom */
-    setcursor(win->orgx, win->orgy);
-    (ofpwrite)(OUTFIL, &cc, 1);
-    for (x = 2; x <= win->maxx-1; x++) (ofpwrite)(OUTFIL, &tc, 1);
-    (ofpwrite)(OUTFIL, &cc, 1);
-    (*cursor_vect)(stdout, win->orgx, win->orgy+win->maxy-1);
-    (ofpwrite)(OUTFIL, &cc, 1);
-    for (x = 2; x <= win->maxx-1; x++) (ofpwrite)(OUTFIL, &tc, 1);
-    (ofpwrite)(OUTFIL, &cc, 1);
+    if (win->frame) { /* draw window frame */
 
-    /* draw sides */
-    for (y = win->orgy+1; y < win->orgy+win->maxy-2; y++) {
+        if (win->size) { /* draw size bars */
 
-        (*cursor_vect)(stdout, win->orgx, y);
-        (ofpwrite)(OUTFIL, &sc, 1);
-        (*cursor_vect)(stdout, win->orgx+win->maxx-1, y);
-        (ofpwrite)(OUTFIL, &sc, 1);
+            /* draw top and bottom */
+            setcursor(win->orgx, win->orgy);
+            wrtstr(frmchrs[toplftcnr]);
+            for (x = 2; x <= win->pmaxx-1; x++) wrtstr(frmchrs[horzlin]);
+            wrtstr(frmchrs[toprgtcnr]);
+
+            setcursor(win->orgx, win->orgy+win->pmaxy-1);
+            wrtstr(frmchrs[btmlftcnr]);
+            for (x = 2; x <= win->pmaxx-1; x++) wrtstr(frmchrs[horzlin]);
+            wrtstr(frmchrs[btmrgtcnr]);
+
+            /* draw sides */
+            for (y = win->orgy+1; y < win->orgy+win->pmaxy-1; y++) {
+
+                setcursor(win->orgx, y);
+                wrtstr(frmchrs[vertlin]);
+                setcursor(win->orgx+win->pmaxx-1, y);
+                wrtstr(frmchrs[vertlin]);
+
+            }
+
+        }
+        if (win->sysbar) { /* draw system bar */
+
+            y = win->size; /* offset to system bar */
+            x = win->pmaxx-6; /* start of system bar buttons */
+            /* set draw location */
+            setcursor(win->orgx+x-1, win->orgy+y);
+            wrtstr(frmchrs[minbtn]);
+            wrtchr(' ');
+            wrtstr(frmchrs[maxbtn]);
+            wrtchr(' ');
+            wrtstr(frmchrs[canbtn]);
+            wrtchr(' ');
+
+            /* draw underbar */
+            y++;
+            setcursor(win->orgx+1, win->orgy+y);
+            for (x = 2; x <= win->pmaxx-1; x++) wrtstr(frmchrs[sysudl]);
+
+        }
 
     }
 
@@ -977,19 +1076,19 @@ buffer bitmap is created and cleared to the present colors.
 
 *******************************************************************************/
 
-static void iniscn(winptr win, scnbuf* sc)
+static void iniscn(winptr win, scnrec* sc)
 
 {
 
     int x, y;
-    scnrec* scp;   /* pointer to screenlocation */
+    scnrec* scp;   /* pointer to screen location */
 
     /* clear buffer */
     for (y = 1; y < MAXYD; y++)
         for (x = 1; x < MAXXD; x++) {
 
         /* index screen character location */
-        scp = &(*sc[win->cury-1][win->cury-1]);
+        scp = &(sc[(win->cury-1)*win->maxx+(win->curx-1)*sizeof(scnrec)]);
         /* place character to buffer */
         scp->ch = ' ';
         scp->forec = pa_black;
@@ -1016,11 +1115,11 @@ static void restore(winptr win) /* window to restore */
     int x, y;
     scnrec* scp;   /* pointer to screenlocation */
 
-dbg_printf(dlinfo, "orgx: %d orgy: %d\n", win->orgx, win->orgy);
     if (win->bufmod && win->visible)  { /* buffered mode is on, and visible */
 
         if (win->frame) drwfrm(win); /* draw window frame */
 
+#if 0
         /* restore window from buffer */
         for (y = 1; y < MAXYD; y++) {
 
@@ -1030,15 +1129,17 @@ dbg_printf(dlinfo, "orgx: %d orgy: %d\n", win->orgx, win->orgy);
             for (x = 1; x < MAXXD; x++) {
 
                 /* index screen character location */
-                scp = &(*(win->screens[win->curdsp-1])[win->cury-1][win->cury-1]);
+                scp = &(win->screens[win->curdsp-1]
+                    [(win->cury-1)*win->maxx+(win->curx-1)*sizeof(scnrec)]);
                 setfcolor(scp->forec); /* set colors */
                 setbcolor(scp->backc);
                 setattrs(scp->attr); /* set attributes */
-                (*ofpwrite)(OUTFIL, &scp->ch, 1); /* output character */
+                wrtchr(scp->ch); /* output character */
 
             }
 
         }
+#endif
 
     }
 
@@ -1122,16 +1223,15 @@ static void opnwin(int fn, int pfn, int wid, int subclient, int root)
         win->sysbar = TRUE; /* set system bar on */
 
     }
-    /* clear the screen array */
-    for (si = 0; si < MAXCON; si++) win->screens[si] = NULL;
-    win->screens[0] = malloc(sizeof(scnbuf)); /* get the default screen */
-    win->curdsp = 1; /* set current display screen */
-    win->curupd = 1; /* set current update screen */
-    win->visible = FALSE; /* set not visible */
 
     /* set up global buffer parameters */
-    win->maxx = (*maxx_vect)(stdout); /* character max dimensions */
-    win->maxy = (*maxy_vect)(stdout);
+    win->pmaxx = (*maxx_vect)(stdout); /* character max dimensions */
+    win->pmaxy = (*maxy_vect)(stdout);
+    win->maxx = win->pmaxx; /* copy to client dimensions */
+    win->maxy = win->pmaxy;
+    /* subtract frame from client if enabled */
+    win->maxx -= (win->frame && win->size)*2;
+    win->maxy -= win->frame*2+win->size*2;
     win->attr = attr; /* no attribute */
     win->autof = TRUE; /* auto on */
     win->fcolor = pa_black; /*foreground black */
@@ -1139,9 +1239,20 @@ static void opnwin(int fn, int pfn, int wid, int subclient, int root)
     win->curv = TRUE; /* cursor visible */
     win->orgx = 1;  /* set origin to root */
     win->orgy = 1;
+    /* set client offset considering framing characteristics */
+    win->coffx = 0+(win->frame && win->size);
+    win->coffy = 0+(win->frame && win->size)+win->sysbar*2;
     win->curx = 1; /* set cursor at home */
     win->cury = 1;
     for (t = 0; t < MAXTAB; t++) win->tab[t] = 0; /* clear tab array */
+
+    /* clear the screen array */
+    for (si = 0; si < MAXCON; si++) win->screens[si] = NULL;
+    /* get the default screen */
+    win->screens[0] = malloc(sizeof(scnrec)*win->maxy*win->maxx);
+    win->curdsp = 1; /* set current display screen */
+    win->curupd = 1; /* set current update screen */
+    win->visible = FALSE; /* set not visible */
 
     iniscn(win, win->screens[0]); /* initalize screen buffer */
     restore(win); /* update to screen */
@@ -1322,8 +1433,8 @@ void setcur(winptr win)
 
             }
             /* position actual cursor */
-            curx = win->curx+win->orgx-1+win->frame;
-            cury = win->cury+win->orgy-1+win->frame;
+            curx = win->curx+win->orgx-1+win->coffx;
+            cury = win->cury+win->orgy-1+win->coffy;
             (*cursor_vect)(stdout, curx, cury);
 
         }
@@ -2424,8 +2535,13 @@ void isetsiz(FILE* f, int x, int y)
     winptr win; /* windows record pointer */
 
     win = txt2win(f); /* get window from file */
-    win->maxx = x; /* set size */
-    win->maxy = y;
+    win->pmaxx = x; /* set size */
+    win->pmaxy = y;
+    win->maxx = win->pmaxx; /* copy to client dimensions */
+    win->maxy = win->pmaxy;
+    /* subtract frame from client if enabled */
+    win->maxx -= (win->frame && win->size)*2;
+    win->maxy -= win->frame*2+win->size*2;
 
 }
 
@@ -2744,7 +2860,8 @@ static void plcchr(FILE* f, char c)
             if (win->bufmod) { /* buffer is active */
 
                 /* index screen character location */
-                scp = &(*(win->screens[win->curdsp-1])[win->cury-1][win->cury-1]);
+                scp = &(win->screens[win->curdsp-1]
+                    [(win->cury-1)*win->maxx+(win->curx-1)*sizeof(scnrec)]);
                 /* place character to buffer */
                 scp->ch = c;
                 scp->forec = win->fcolor;
@@ -2759,9 +2876,9 @@ static void plcchr(FILE* f, char c)
                 setfcolor(win->fcolor); /* set colors */
                 setbcolor(win->bcolor);
                 /* draw character to active screen */
-                setcursor(win->curx+win->orgx-1+win->frame,
-                          win->cury+win->orgy-1+win->frame);
-                (*ofpwrite)(OUTFIL, &c, 1); /* output */
+                setcursor(win->curx+win->orgx-1+win->coffx,
+                          win->cury+win->orgy-1+win->coffy);
+                wrtchr(c); /* output */
 
             }
 
