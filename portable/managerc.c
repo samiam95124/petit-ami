@@ -83,6 +83,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <config.h>
 #include <graphics.h>
 
+/* external definitions */
+#ifndef __MACH__ /* Mac OS X */
+extern char *program_invocation_short_name;
+#endif
+
 /*
  * Debug print system
  *
@@ -331,6 +336,7 @@ typedef struct winrec {
     char     inpbuf[MAXLIN];  /* input line buffer */
     int      inpptr;          /* input line index */
     int      visible;         /* window is visible */
+    char*    title;           /* window title */
 
 } winrec;
 
@@ -1015,7 +1021,7 @@ static void drwfrm(winptr win)
 
 {
 
-    int x, y;
+    int x, y, l;
 
     if (win->frame) { /* draw window frame */
 
@@ -1055,6 +1061,17 @@ static void drwfrm(winptr win)
             wrtchr(' ');
             wrtstr(frmchrs[canbtn]);
             wrtchr(' ');
+
+            /* draw title, if exists */
+            if (win->title) {
+
+                l = strlen(win->title); /* get length */
+                /* limit string length to available space */
+                if (win->pmaxx-6 < l) l = win->pmaxx-6;
+                setcursor(win->orgx+(win->pmaxx-6)/2-(l/2), win->orgy+y);
+                wrtstr(win->title);
+
+            }
 
             /* draw underbar */
             y++;
@@ -1113,7 +1130,7 @@ static void restore(winptr win) /* window to restore */
 {
 
     int x, y;
-    scnrec* scp;   /* pointer to screenlocation */
+    scnrec* scp;   /* pointer to screen location */
 
     if (win->bufmod && win->visible)  { /* buffered mode is on, and visible */
 
@@ -1251,6 +1268,17 @@ static void opnwin(int fn, int pfn, int wid, int subclient, int root)
     win->curdsp = 1; /* set current display screen */
     win->curupd = 1; /* set current update screen */
     win->visible = FALSE; /* set not visible */
+    win->title = NULL; /* set no title */
+    if (root) {
+
+#ifndef __MACH__ /* Mac OS X */
+    win->title = malloc(strlen(program_invocation_short_name)+1);
+    if (!win->title) error("Out of memory");
+    /* set title to invoking program */
+    strcpy(win->title, program_invocation_short_name);
+#endif
+
+    }
 
     iniscn(win, win->screens[0]); /* initalize screen buffer */
     restore(win); /* update to screen */
@@ -2445,6 +2473,15 @@ Sets the title of the current window.
 void ititle(FILE* f, char* ts)
 
 {
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    if (win->title) free(win->title); /* free previous string */
+    win->title = malloc(strlen(ts)+1);
+    if (!win->title) error("Out of memory");
+    /* set title to invoking program */
+    strcpy(win->title, ts);
 
 }
 
