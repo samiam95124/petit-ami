@@ -1119,14 +1119,13 @@ static void restore(winptr win) /* window to restore */
 
         if (win->frame) drwfrm(win); /* draw window frame */
 
-#if 0
         /* restore window from buffer */
-        for (y = 1; y < MAXYD; y++) {
+        for (y = 1; y <= win->maxy; y++) {
 
             /* Reset cursor at the start of each line. Note frame offsets. */
-            setcursor(1+win->orgx-1+win->frame, y+win->orgy-1+win->frame);
+            setcursor(win->orgx+win->coffx, win->orgy+win->coffy+y-1);
             /* draw each line */
-            for (x = 1; x < MAXXD; x++) {
+            for (x = 1; x <= win->maxx; x++) {
 
                 /* index screen character location */
                 scp = &(win->screens[win->curdsp-1]
@@ -1139,7 +1138,6 @@ static void restore(winptr win) /* window to restore */
             }
 
         }
-#endif
 
     }
 
