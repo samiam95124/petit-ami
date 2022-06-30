@@ -308,6 +308,8 @@ typedef struct winrec {
     int      wid;             /* this window logical id */
     winptr   childwin;        /* list of child windows */
     winptr   childlst;        /* list pointer if this is a child */
+    winptr   winlst;          /* master list of all windows */
+    winptr   rootlst;         /* master list of all roots */
     scnrec*  screens[MAXCON]; /* screen contexts array */
     int      curdsp;          /* index for current display screen */
     int      curupd;          /* index for current update screen */
@@ -337,6 +339,8 @@ typedef struct winrec {
     int      inpptr;          /* input line index */
     int      visible;         /* window is visible */
     char*    title;           /* window title */
+    int      focus;           /* window has focus */
+    int      zorder;          /* Z ordering of window, 0 = bottom, N = top */
 
 } winrec;
 
@@ -404,6 +408,9 @@ static int      cury;         /* cursor y */
 static int      curon;        /* current on/off visible state of cursor */
 
 static winptr   winfre;       /* free windows structure list */
+static winptr   winlst;       /* master list of all windows */
+static winptr   rootlst;      /* master list of all roots */
+static int      ztop;         /* current maximum/front Z order *
 
 /* forwards */
 static void plcchr(FILE* f, char c);
@@ -977,6 +984,102 @@ static void wrtstr(char* s)
 
 /*******************************************************************************
 
+Remove all focus windows
+
+Removes all windows that show focus. Usually used before marking a window as
+having focus. Note that normally there should only be a single window with
+focus.
+
+*******************************************************************************/
+
+void remfocus(void)
+
+{
+
+    winptr win; /* pointer to windows list */
+
+    win = winlst; /* get the master list */
+    while (win) { /* traverse the windows list */
+
+        win->focus = FALSE;
+        win = win->winlst; /* next window */
+
+    }
+
+}
+
+/*******************************************************************************
+
+Find focus window
+
+Finds the window currently holding focus. Returns the window pointer, or NULL if
+no window is found to have focus. This would happen if the user clicked on an
+unoccupied area of the root window.
+
+*******************************************************************************/
+
+winptr fndfocus(void)
+
+{
+
+    winptr win; /* pointer to windows list */
+    winptr fp;  /* found window pointer */
+
+    win = winlst; /* get the master list */
+    fp = NULL; /* set no window found */
+    while (win) { /* traverse the windows list */
+
+        /* if in focus, find and terminate */
+        if (win->focus) { fp = win; win = NULL; }
+        else win = win->winlst; /* next window */
+
+    }
+
+    return (fp);
+
+}
+
+/*******************************************************************************
+
+Find Z order top window from point
+
+Given an X-Y point in the root surface, finds the topmost window containing that
+point. If there is no containing window, NULL is returned.
+
+*******************************************************************************/
+
+winptr fndtop(int x, int y)
+
+{
+
+    winptr win; /* pointer to windows list */
+    winptr fp;  /* found window pointer */
+    int    z;   /* z order of last found */
+
+    win = winlst; /* get the master list */
+    fp = NULL; /* set no window found */
+    z = -1; /* set invalid z order */
+    while (win) { /* traverse the windows list */
+
+        if (win->orgx <= x && x <= win->orgx+win->pmaxx-1 &&
+            win->orgy <= y && y <= win->orgy+win->pmaxy-1 &&
+            win->zorder > z) {
+
+            /* found inclusion, Z order above previous */
+            fp = win; /* set candidate */
+            z = win->zorder;
+
+        }
+        win = win->winlst; /* next window */
+
+    }
+
+    return (win); /* exit wth container or NULL */
+
+}
+
+/*******************************************************************************
+
 Process input line
 
 Reads an input line with full echo and editing. The line is placed into the
@@ -1214,12 +1317,22 @@ static void opnwin(int fn, int pfn, int wid, int subclient, int root)
     win->parwin = pwin; /* copy link to windows structure */
     win->childwin = NULL; /* clear the child window list */
     win->childlst = NULL; /* clear child member list pointer */
+    /* push window to master list */
+    win->winlst = winlst;
+    winlst = win;
+    /* push window to root list */
+    win->rootlst = rootlst;
+    rootlst = win;
     if (pwin) { /* we have a parent, enter this child to the parent list */
 
         win->childlst = pwin->childwin; /* push to parent's child list */
         pwin->childwin = win;
 
     }
+    ztop++; /* increase Z ordering */
+    remfocus(); /* remove any existing focus */
+    win->focus = TRUE; /* last window in gets focus */
+    win->zorder = ztop; /* set Z order for this window */
     win->inpptr = -1; /* set buffer empty */
     win->inpbuf[0] = 0;
     win->bufmod = TRUE; /* set buffering on */
@@ -2134,6 +2247,34 @@ Our event loop here is like an event to event translation.
 void ievent(FILE* f, pa_evtrec* er)
 
 {
+
+    pa_evtrec ev;    /* local event record */
+    int       valid; /* event is for this window and complete */
+    winptr    win;   /* windows record pointer */
+
+    valid = FALSE; /* set no valid event */
+    (*event_vect)(stdin, &ev); /* get root event */
+    switch (ev.etype) { /* process root events */
+
+        case pa_etchar: /* input character ready */
+
+            win = fndfocus(); /* find focus window (if any) */
+            if (win) { /* found focus window */
+
+                er->etype = pa_etchar; /* place character code */
+                er->echar = ev.echar; /* place character */
+                er->winid = win->wid; /* send keys to focus window */
+
+            }
+            break;
+//??? need to process focus
+        case pa_etmouba:  /* mouse button assertion */
+        case pa_etmoubd:  /* mouse button deassertion */
+        case pa_etmoumov: /* mouse move */
+        default: ; /* ignore the rest */
+
+    }
+
 
 }
 
@@ -3200,6 +3341,9 @@ static void init_managerc()
     int ifn; /* standard input file number */
 
     winfre = NULL; /* clear free windows structure list */
+    winlst = NULL; /* clear master window list */
+    rootlst = NULL; /* clear root window list */
+    ztop = -1; /* clear Z order top (none) */
 
     /* clear open files tables */
     for (fn = 0; fn < MAXFIL; fn++) {
