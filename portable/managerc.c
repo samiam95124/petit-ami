@@ -410,7 +410,9 @@ static int      curon;        /* current on/off visible state of cursor */
 static winptr   winfre;       /* free windows structure list */
 static winptr   winlst;       /* master list of all windows */
 static winptr   rootlst;      /* master list of all roots */
-static int      ztop;         /* current maximum/front Z order *
+static int      ztop;         /* current maximum/front Z order */
+static int      mousex;       /* mouse tracking x */
+static int      mousey;       /* mouse tracking y */
 
 /* forwards */
 static void plcchr(FILE* f, char c);
@@ -2254,7 +2256,8 @@ void ievent(FILE* f, pa_evtrec* er)
 
     valid = FALSE; /* set no valid event */
     (*event_vect)(stdin, &ev); /* get root event */
-    switch (ev.etype) { /* process root events */
+    while (!valid)
+        switch (ev.etype) { /* process root events */
 
         case pa_etchar: /* input character ready */
 
@@ -2264,13 +2267,53 @@ void ievent(FILE* f, pa_evtrec* er)
                 er->etype = pa_etchar; /* place character code */
                 er->echar = ev.echar; /* place character */
                 er->winid = win->wid; /* send keys to focus window */
+                valid = TRUE; /* set as valid event */
 
             }
             break;
-//??? need to process focus
         case pa_etmouba:  /* mouse button assertion */
+            win = fndtop(mousex, mousey); /* find the enclosing window */
+            /* first click with no focus gives focus, next click gives message */
+            if (win) {
+
+                if (win->focus) {
+
+                    er->etype = pa_etmouba; /* set mouse button asserts */
+                    er->amoun = ev.amoun; /* set mouse number */
+                    er->amoubn = ev.amoubn; /* set button number */
+                    valid = TRUE; /* set as valid event */
+
+                } else if (ev.mmoun == 1) { /* button 1 click */
+
+                    remfocus(); /* remove previous focus */
+                    win->focus = TRUE;
+
+                }
+
+            }
+            break;
         case pa_etmoubd:  /* mouse button deassertion */
         case pa_etmoumov: /* mouse move */
+            mousex = ev.moupx; /* set current mouse position */
+            mousey = ev.moupy;
+            win = fndtop(mousex, mousey); /* see if in a window */
+            if (win && win->focus) { /* in window and in focus */
+
+                /* check in client area */
+                if (win->orgx+win->coffx <= mousex &&
+                    mousex <= win->orgx+win->coffx+win->maxx-1 &&
+                    win->orgy+win->coffy <= mousey &&
+                    mousey <= win->orgy+win->coffy+win->maxy-1) {
+
+                    er->etype = pa_etmoumov; /* set mouse move event */
+                    /* calculate relative location in client area */
+                    er->moupx = mousex-(win->orgx+win->coffx);
+                    er->moupy = mousey-(win->orgy+win->coffy);
+
+                }
+
+            }
+            break;
         default: ; /* ignore the rest */
 
     }
@@ -3471,6 +3514,10 @@ static void init_managerc()
 
     /* set auto off */
     (*auto_vect)(stdout, FALSE);
+
+    /* set mouse tracking invalid */
+    mousex = -1;
+    mousey = -1;
 
     /* open stdin and stdout as I/O window set */
     ifn = fileno(stdin); /* get logical id stdin */
