@@ -129,6 +129,7 @@ static enum { /* debug levels */
 #define MAXCON 10  /* number of screen contexts */
 #define MAXTAB 50  /* total number of tabs possible per window */
 #define MAXLIN 250 /* maximum length of input bufferred line */
+//#define PRTROOTEVT /* print root window events */
 
 /* file handle numbers at the system interface level */
 #define INPFIL 0 /* handle to standard input */
@@ -2255,69 +2256,76 @@ void ievent(FILE* f, pa_evtrec* er)
     winptr    win;   /* windows record pointer */
 
     valid = FALSE; /* set no valid event */
-    (*event_vect)(stdin, &ev); /* get root event */
-    while (!valid)
+
+
+    while (!valid) {
+
+        (*event_vect)(stdin, &ev); /* get root event */
+#ifdef PRTROOTEVT
+        prtevt(&ev); dbg_printf(dlinfo, "\n");
+#endif
         switch (ev.etype) { /* process root events */
 
-        case pa_etchar: /* input character ready */
+            case pa_etchar: /* input character ready */
 
-            win = fndfocus(); /* find focus window (if any) */
-            if (win) { /* found focus window */
+                win = fndfocus(); /* find focus window (if any) */
+                if (win) { /* found focus window */
 
-                er->etype = pa_etchar; /* place character code */
-                er->echar = ev.echar; /* place character */
-                er->winid = win->wid; /* send keys to focus window */
-                valid = TRUE; /* set as valid event */
-
-            }
-            break;
-        case pa_etmouba:  /* mouse button assertion */
-            win = fndtop(mousex, mousey); /* find the enclosing window */
-            /* first click with no focus gives focus, next click gives message */
-            if (win) {
-
-                if (win->focus) {
-
-                    er->etype = pa_etmouba; /* set mouse button asserts */
-                    er->amoun = ev.amoun; /* set mouse number */
-                    er->amoubn = ev.amoubn; /* set button number */
+                    er->etype = pa_etchar; /* place character code */
+                    er->echar = ev.echar; /* place character */
+                    er->winid = win->wid; /* send keys to focus window */
                     valid = TRUE; /* set as valid event */
 
-                } else if (ev.mmoun == 1) { /* button 1 click */
+                }
+                break;
+            case pa_etmouba:  /* mouse button assertion */
+                win = fndtop(mousex, mousey); /* find the enclosing window */
+                /* first click with no focus gives focus, next click gives message */
+                if (win) {
 
-                    remfocus(); /* remove previous focus */
-                    win->focus = TRUE;
+                    if (win->focus) {
+
+                        er->etype = pa_etmouba; /* set mouse button asserts */
+                        er->amoun = ev.amoun; /* set mouse number */
+                        er->amoubn = ev.amoubn; /* set button number */
+                        valid = TRUE; /* set as valid event */
+
+                    } else if (ev.mmoun == 1) { /* button 1 click */
+
+                        remfocus(); /* remove previous focus */
+                        win->focus = TRUE;
+
+                    }
 
                 }
+                break;
+            case pa_etmoubd:  /* mouse button deassertion */
+            case pa_etmoumov: /* mouse move */
+                mousex = ev.moupx; /* set current mouse position */
+                mousey = ev.moupy;
+                win = fndtop(mousex, mousey); /* see if in a window */
+                if (win && win->focus) { /* in window and in focus */
 
-            }
-            break;
-        case pa_etmoubd:  /* mouse button deassertion */
-        case pa_etmoumov: /* mouse move */
-            mousex = ev.moupx; /* set current mouse position */
-            mousey = ev.moupy;
-            win = fndtop(mousex, mousey); /* see if in a window */
-            if (win && win->focus) { /* in window and in focus */
+                    /* check in client area */
+                    if (win->orgx+win->coffx <= mousex &&
+                        mousex <= win->orgx+win->coffx+win->maxx-1 &&
+                        win->orgy+win->coffy <= mousey &&
+                        mousey <= win->orgy+win->coffy+win->maxy-1) {
 
-                /* check in client area */
-                if (win->orgx+win->coffx <= mousex &&
-                    mousex <= win->orgx+win->coffx+win->maxx-1 &&
-                    win->orgy+win->coffy <= mousey &&
-                    mousey <= win->orgy+win->coffy+win->maxy-1) {
+                        er->etype = pa_etmoumov; /* set mouse move event */
+                        /* calculate relative location in client area */
+                        er->moupx = mousex-(win->orgx+win->coffx);
+                        er->moupy = mousey-(win->orgy+win->coffy);
 
-                    er->etype = pa_etmoumov; /* set mouse move event */
-                    /* calculate relative location in client area */
-                    er->moupx = mousex-(win->orgx+win->coffx);
-                    er->moupy = mousey-(win->orgy+win->coffy);
+                    }
 
                 }
+                break;
+            default: ; /* ignore the rest */
 
-            }
-            break;
-        default: ; /* ignore the rest */
+        }
 
     }
-
 
 }
 
