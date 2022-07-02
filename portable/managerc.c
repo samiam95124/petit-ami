@@ -130,6 +130,7 @@ static enum { /* debug levels */
 #define MAXTAB 50  /* total number of tabs possible per window */
 #define MAXLIN 250 /* maximum length of input bufferred line */
 //#define PRTROOTEVT /* print root window events */
+#define PRTEVT /* print outbound events */
 
 /* file handle numbers at the system interface level */
 #define INPFIL 0 /* handle to standard input */
@@ -1077,7 +1078,7 @@ winptr fndtop(int x, int y)
 
     }
 
-    return (win); /* exit wth container or NULL */
+    return (fp); /* exit wth container or NULL */
 
 }
 
@@ -2262,7 +2263,7 @@ void ievent(FILE* f, pa_evtrec* er)
 
         (*event_vect)(stdin, &ev); /* get root event */
 #ifdef PRTROOTEVT
-        prtevt(&ev); dbg_printf(dlinfo, "\n");
+        prtevt(&ev); fprintf(stderr, "\n"); fflush(stderr);
 #endif
         switch (ev.etype) { /* process root events */
 
@@ -2314,8 +2315,9 @@ void ievent(FILE* f, pa_evtrec* er)
 
                         er->etype = pa_etmoumov; /* set mouse move event */
                         /* calculate relative location in client area */
-                        er->moupx = mousex-(win->orgx+win->coffx);
-                        er->moupy = mousey-(win->orgy+win->coffy);
+                        er->moupx = mousex-(win->orgx+win->coffx)+1;
+                        er->moupy = mousey-(win->orgy+win->coffy)+1;
+                        valid = TRUE; /* set as valid event */
 
                     }
 
@@ -2326,6 +2328,9 @@ void ievent(FILE* f, pa_evtrec* er)
         }
 
     }
+#ifdef PRTEVT
+    prtevt(er); fprintf(stderr, "\n"); fflush(stderr);
+#endif
 
 }
 
