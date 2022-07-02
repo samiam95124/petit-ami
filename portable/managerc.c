@@ -2233,6 +2233,40 @@ void iselect(FILE* f, int u, int d)
 
 {
 
+    int    ld;  /* last display screen number save */
+    winptr win; /* window record pointer */
+
+    win = txt2win(f); /* get window from file */
+    if (!win->bufmod) error("Buffered mode not enabled"); /* error */
+    if (u < 1 || u > MAXCON || d < 1 || d > MAXCON)
+        error("Invalid screen number"); /* invalid screen number */
+    ld = win->curdsp; /* save the current display screen number */
+    win->curupd = u; /* set the current update screen */
+    if (!win->screens[win->curupd-1]) { /* no screen, create one */
+
+        /* get a new screen context */
+        win->screens[win->curupd-1] =
+            malloc(sizeof(scnrec)*win->maxy*win->maxx);
+        iniscn(win, win->screens[win->curupd-1]); /* initalize that */
+
+    }
+    win->curdsp = d; /* set the current display screen */
+    if (!win->screens[win->curdsp-1]) { /* no screen, create one */
+
+        /* no current screen, create a new one */
+        win->screens[win->curdsp-1] =
+            malloc(sizeof(scnrec)*win->maxy*win->maxx);
+        iniscn(win, win->screens[win->curdsp-1]); /* initalize that */
+
+    }
+    /* if the screen has changed, restore it */
+    if (win->curdsp != ld) {
+
+        if (!win->visible) winvis(win); /* make sure we are displayed */
+        else restore(win);
+
+    }
+
 }
 
 /** ****************************************************************************
