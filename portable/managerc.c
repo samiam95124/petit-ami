@@ -2257,8 +2257,6 @@ void ievent(FILE* f, pa_evtrec* er)
     winptr    win;   /* windows record pointer */
 
     valid = FALSE; /* set no valid event */
-
-
     while (!valid) {
 
         (*event_vect)(stdin, &ev); /* get root event */
@@ -2301,6 +2299,16 @@ void ievent(FILE* f, pa_evtrec* er)
                 }
                 break;
             case pa_etmoubd:  /* mouse button deassertion */
+                win = fndtop(mousex, mousey); /* find the enclosing window */
+                if (win && win->focus) {
+
+                    er->etype = pa_etmoubd; /* set mouse button deasserts */
+                    er->dmoun = ev.dmoun; /* set mouse number */
+                    er->dmoubn = ev.dmoubn; /* set button number */
+                    valid = TRUE; /* set as valid event */
+
+                }
+                break;
             case pa_etmoumov: /* mouse move */
                 mousex = ev.moupx; /* set current mouse position */
                 mousey = ev.moupy;
