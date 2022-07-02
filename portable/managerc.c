@@ -2287,6 +2287,7 @@ void ievent(FILE* f, pa_evtrec* er)
                         er->etype = pa_etmouba; /* set mouse button asserts */
                         er->amoun = ev.amoun; /* set mouse number */
                         er->amoubn = ev.amoubn; /* set button number */
+                        er->winid = win->wid; /* set window logical id */
                         valid = TRUE; /* set as valid event */
 
                     } else if (ev.mmoun == 1) { /* button 1 click */
@@ -2305,6 +2306,7 @@ void ievent(FILE* f, pa_evtrec* er)
                     er->etype = pa_etmoubd; /* set mouse button deasserts */
                     er->dmoun = ev.dmoun; /* set mouse number */
                     er->dmoubn = ev.dmoubn; /* set button number */
+                    er->winid = win->wid; /* set window logical id */
                     valid = TRUE; /* set as valid event */
 
                 }
@@ -2325,9 +2327,56 @@ void ievent(FILE* f, pa_evtrec* er)
                         /* calculate relative location in client area */
                         er->moupx = mousex-(win->orgx+win->coffx)+1;
                         er->moupy = mousey-(win->orgy+win->coffy)+1;
+                        er->winid = win->wid; /* set window logical id */
                         valid = TRUE; /* set as valid event */
 
                     }
+
+                }
+                break;
+            case pa_etup:      /* cursor up one line */
+            case pa_etdown:    /* down one line */
+            case pa_etleft:    /* left one character */
+            case pa_etright:   /* right one character */
+            case pa_etleftw:   /* left one word */
+            case pa_etrightw:  /* right one word */
+            case pa_ethome:    /* home of document */
+            case pa_ethomes:   /* home of screen */
+            case pa_ethomel:   /* home of line */
+            case pa_etend:     /* end of document */
+            case pa_etends:    /* end of screen */
+            case pa_etendl:    /* end of line */
+            case pa_etscrl:    /* scroll left one character */
+            case pa_etscrr:    /* scroll right one character */
+            case pa_etscru:    /* scroll up one line */
+            case pa_etscrd:    /* scroll down one line */
+            case pa_etpagd:    /* page down */
+            case pa_etpagu:    /* page up */
+            case pa_ettab:     /* tab */
+            case pa_etenter:   /* enter line */
+            case pa_etinsert:  /* insert block */
+            case pa_etinsertl: /* insert line */
+            case pa_etinsertt: /* insert toggle */
+            case pa_etdel:     /* delete block */
+            case pa_etdell:    /* delete line */
+            case pa_etdelcf:   /* delete character forward */
+            case pa_etdelcb:   /* delete character backward */
+            case pa_etcopy:    /* copy block */
+            case pa_etcopyl:   /* copy line */
+            case pa_etcan:     /* cancel current operation */
+            case pa_etstop:    /* stop current operation */
+            case pa_etcont:    /* continue current operation */
+            case pa_etprint:   /* print document */
+            case pa_etprintb:  /* print block */
+            case pa_etprints:  /* print screen */
+            case pa_etfun:     /* function key */
+            case pa_etmenu:    /* display menu */
+                win = fndtop(mousex, mousey); /* find the enclosing window */
+                if (win && win->focus) {
+
+                    er->etype = ev.etype; /* set key type */
+                    er->winid = win->wid; /* set window logical id */
+                    valid = TRUE; /* set as valid event */
 
                 }
                 break;
@@ -3639,7 +3688,6 @@ static void deinit_managerc()
     pa_stdmenu_t cppstdmenu;
     pa_getwinid_t cppgetwinid;
     pa_focus_t cppfocus;
-
 
     _pa_cursor_ovr(cursor_vect, &cppcursor);
     _pa_maxx_ovr(maxx_vect, &cppmaxx);
