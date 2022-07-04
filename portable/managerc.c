@@ -120,17 +120,12 @@ static enum { /* debug levels */
 #define NOCANCEL /* include nocancel overrides */
 #endif
 
-/* The maximum dimensions are used to set the size of the holding arrays.
-   These should be reasonable values to prevent becoming a space hog. */
-#define MAXXD 250     /**< Maximum terminal size x */
-#define MAXYD 250     /**< Maximum terminal size y */
-
 #define MAXFIL 100 /* maximum open files */
 #define MAXCON 10  /* number of screen contexts */
 #define MAXTAB 50  /* total number of tabs possible per window */
 #define MAXLIN 250 /* maximum length of input bufferred line */
 //#define PRTROOTEVT /* print root window events */
-#define PRTEVT /* print outbound events */
+//#define PRTEVT /* print outbound events */
 
 /* file handle numbers at the system interface level */
 #define INPFIL 0 /* handle to standard input */
@@ -298,7 +293,10 @@ typedef struct {
       /* background color at location */ pa_color backc;
       /* active attribute at location */ scnatt attr;
 
-} scnrec;
+} scnrec, *scnptr;
+
+/* macro to access screen elements by y,x */
+#define SCNBUFYX(sc, y, x) (sc[(y-1)*win->maxx+(x-1)*sizeof(scnrec)])
 
 /* window description */
 typedef struct winrec* winptr;
@@ -606,6 +604,38 @@ static void prtevt(
         default: ;
 
     }
+
+}
+
+/** ****************************************************************************
+
+Print screen buffer
+
+Prints the screen buffer to the error output. A diagnostic.
+
+*******************************************************************************/
+
+void prtscnbuf(winptr win, int bufno)
+
+{
+
+    scnptr sc;
+    int y;
+    int x;
+
+    fprintf(stderr, "Buffer for wid: %d\n", win->wid);
+    sc = win->screens[bufno-1]; /* index screen */
+    for (y = 1; y <= win->maxy; y++) {
+
+        fprintf(stderr, "%02d: \"", y);
+        for (x = 1; x <= win->maxx; x++)
+            //fputc(SCNBUFYX(sc, y, x).ch, stderr);
+            fputc(sc[(y-1)*win->maxx+(x-1)*sizeof(scnrec)].ch, stderr);
+        fprintf(stderr, "\"\n"); fflush(stderr);
+
+    }
+    fprintf(stderr, "Complete\n");
+    fflush(stderr);
 
 }
 
@@ -1208,8 +1238,8 @@ static void iniscn(winptr win, scnrec* sc)
     scnrec* scp;   /* pointer to screen location */
 
     /* clear buffer */
-    for (y = 1; y < MAXYD; y++)
-        for (x = 1; x < MAXXD; x++) {
+    for (y = 1; y <= win->maxy; y++)
+        for (x = 1; x <= win->maxx; x++) {
 
         /* index screen character location */
         scp = &(sc[(win->cury-1)*win->maxx+(win->curx-1)*sizeof(scnrec)]);
@@ -1576,9 +1606,8 @@ void setcur(winptr win)
 
             }
             /* position actual cursor */
-            curx = win->curx+win->orgx-1+win->coffx;
-            cury = win->cury+win->orgy-1+win->coffy;
-            (*cursor_vect)(stdout, curx, cury);
+            setcursor(win->curx+win->orgx-1+win->coffx,
+                      win->cury+win->orgy-1+win->coffy);
 
         }
 
@@ -1604,6 +1633,186 @@ to the window.
 static void intscroll(winptr win, int x, int y)
 
 {
+
+    int      xi, yi; /* screen counters */
+    scnptr   scnsav; /* full screen buffer save */
+    int      lx;     /* last unmatching character index */
+    int      m;      /* match flag */
+    scnptr   sc;     /* pointer to current screen */
+    scnptr   sp;     /* pointer to screen record */
+
+dbg_printf(dlinfo, "wid: %d before scroll\n", win->wid);
+prtscnbuf(win, 1);
+
+    /* when the scroll is arbitrary, we do it by completely refreshing the
+       contents of the screen from the buffer */
+    if (x <= -win->maxx || x >= win->maxx || y <= -win->maxy || y >= win->maxy) {
+
+        wrtchr('\f'); /* scroll would result in complete clear, do it */
+        iniscn(win, win->screens[win->curupd-1]);   /* clear the screen buffer */
+        /* restore cursor positition */
+        setcursor(win->orgx+win->coffx, win->orgy+win->coffy);
+
+    } else { /* scroll */
+
+        /* true scroll is done in two steps. first, the contents of the buffer
+           are adjusted to read as after the scroll. then, the contents of the
+           buffer are output to the terminal. before the buffer is changed,
+           we perform a full save of it, which then represents the "current"
+           state of the real terminal. then, the new buffer contents are
+           compared to that while being output. this saves work when most of
+           the screen is spaces anyways */
+
+        sc = win->screens[win->curupd-1]; /* index current screen */
+        if (indisp(win)) { /* in display */
+
+            /* save the entire buffer */
+            scnsav = malloc(sizeof(scnrec)*win->maxy*win->maxx);
+            memcpy(scnsav, sc, sizeof(scnrec)*win->maxy*win->maxx);
+
+        }
+        if (y > 0) {  /* move text up */
+
+            for (yi = 1; yi < win->maxy; yi++) /* move any lines up */
+                if (yi + y <= win->maxy) /* still within buffer */
+                    /* move lines up */
+                    memcpy(&sc[(yi-1)*win->maxx], &sc[(yi+y-1)*win->maxx],
+                           win->maxx*sizeof(scnrec));
+            for (yi = win->maxy-y+1; yi <= win->maxy; yi++)
+                /* clear blank lines at end */
+                for (xi = 1; xi <= win->maxx; xi++) {
+
+                sp = &SCNBUFYX(sc, yi, xi);
+                sp->ch = ' ';   /* clear to blanks at colors and attributes */
+                sp->forec = sc->forec;
+                sp->backc = sc->backc;
+                sp->attr = sc->attr;
+
+            }
+
+        } else if (y < 0) { /* move text down */
+
+            for (yi = win->maxy; yi >= 2; yi--)   /* move any lines up */
+                if (yi + y >= 1) /* still within buffer */
+                    /* move lines up */
+                    memcpy(&sc[(yi-1)*win->maxx], &sc[(yi+y-1)*win->maxx],
+                           win->maxx*sizeof(scnrec));
+            for (yi = 1; yi <= abs(y); yi++) /* clear blank lines at start */
+                for (xi = 1; xi <= win->maxx; xi++) {
+
+                sp = &SCNBUFYX(sc, yi, xi);
+                /* clear to blanks at colors and attributes */
+                sp->ch = ' ';
+                sp->forec = sc->forec;
+                sp->backc = sc->backc;
+                sp->attr = sc->attr;
+
+            }
+
+        }
+        if (x > 0) { /* move text left */
+            for (yi = 1; yi <= win->maxy; yi++) { /* move text left */
+
+                for (xi = 1; xi <= win->maxx-1; xi++) /* move left */
+                    if (xi+x <= win->maxx) /* still within buffer */
+                        /* move characters left */
+                        memcpy(&SCNBUFYX(sc, yi, xi), &SCNBUFYX(sc, yi, xi+x),
+                               sizeof(scnrec));
+                /* clear blank spaces at right */
+                for (xi = win->maxx-x+1; xi <= win->maxx; xi++) {
+
+                    sp = &SCNBUFYX(sc, yi, xi);
+                    /* clear to blanks at colors and attributes */
+                    sp->ch = ' ';
+                    sp->forec = sc->forec;
+                    sp->backc = sc->backc;
+                    sp->attr = sc->attr;
+
+                }
+
+            }
+
+        } else if (x < 0) { /* move text right */
+
+            for (yi = 1; yi <= win->maxy; yi++) { /* move text right */
+
+                for (xi = win->maxx; xi >= 2; xi--) /* move right */
+                    if (xi+x >= 1) /* still within buffer */
+                        /* move characters left */
+                        memcpy(&SCNBUFYX(sc, yi, xi), &SCNBUFYX(sc, yi, xi+x),
+                               sizeof(scnrec));
+                /* clear blank spaces at left */
+                for (xi = 1; xi <= abs(x); xi++) {
+
+                    sp = &SCNBUFYX(sc, yi, xi);
+                    sp->ch = ' ';   /* clear to blanks at colors and attributes */
+                    sp->forec = sc->forec;
+                    sp->backc = sc->backc;
+                    sp->attr = sc->attr;
+
+                }
+
+            }
+
+        }
+dbg_printf(dlinfo, "Scrolled buffer\n");
+prtscnbuf(win, 1);
+        if (indisp(win)) { /* in display */
+
+            /* the buffer is adjusted. now just copy the complete buffer to the
+               screen */
+            win->curx = 1; /* restore cursor to upper left to start */
+            win->cury = 1;
+            setcur(win);
+            for (yi = 1; yi <= win->maxy; yi++) { /* lines */
+
+                /* find the last unmatching character between real and new buffers.
+                   Then, we only need output the leftmost non-matching characters
+                   on the line. note that it does not really help us that characters
+                   WITHIN the line match, because a character output is as or more
+                   efficient as a cursor movement. if, however, you want to get
+                   SERIOUSLY complex, we could check runs of matching characters,
+                   then check if performing a direct cursor position is less output
+                   characters than just outputting data :) */
+                lx = win->maxx; /* set to end */
+                do { /* check matches */
+
+                    m = 1; /* set match */
+                    /* check all elements match */
+                    if (SCNBUFYX(sc, yi, lx).ch != SCNBUFYX(scnsav, yi, lx).ch)
+                        m = 0;
+                    if (SCNBUFYX(sc, yi, lx).forec !=
+                        SCNBUFYX(scnsav, yi, lx).forec) m = 0;
+                    if (SCNBUFYX(sc, yi, lx).backc !=
+                        SCNBUFYX(scnsav, yi, lx).backc) m = 0;
+                    if (SCNBUFYX(sc, yi, lx).attr != SCNBUFYX(scnsav, yi, lx).attr)
+                        m = 0;
+                    if (m) lx--; /* next character */
+
+                } while (m && lx); /* until match or no more */
+                for (xi = 1; xi <= lx; xi++) { /* characters */
+
+                    /* for each new character, we compare the attributes and colors
+                       with what is set. if a new color or attribute is called for,
+                       we set that, and update the saves. this technique cuts down on
+                       the amount of output characters */
+                    sp = &SCNBUFYX(sc, yi, xi);
+                    setfcolor(sp->forec); /* set the foreground color */
+                    setbcolor(sp->backc); /* set the background color */
+                    setattrs(sp->attr); /* set the attribute */
+                    wrtchr(sp->ch);
+
+                }
+                if (yi < win->maxy)
+                    /* output next line sequence on all lines but the last. this is
+                       because the last one would cause us to scroll */
+                    wrtstr("\r\n");
+
+            }
+
+        }
+
+    }
 
 }
 
@@ -2152,6 +2361,12 @@ to the window.
 void iscroll(FILE* f, int x, int y)
 
 {
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+
+    intscroll(win, x, y); /* process scroll */
 
 }
 
