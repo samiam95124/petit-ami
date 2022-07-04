@@ -629,8 +629,7 @@ void prtscnbuf(winptr win, int bufno)
 
         fprintf(stderr, "%02d: \"", y);
         for (x = 1; x <= win->maxx; x++)
-            //fputc(SCNBUFYX(sc, y, x).ch, stderr);
-            fputc(sc[(y-1)*win->maxx+(x-1)].ch, stderr);
+            fputc(SCNBUFYX(sc, y, x).ch, stderr);
         fprintf(stderr, "\"\n"); fflush(stderr);
 
     }
@@ -1282,8 +1281,8 @@ static void restore(winptr win) /* window to restore */
             for (x = 1; x <= win->maxx; x++) {
 
                 /* index screen character location */
-                scp = &(win->screens[win->curdsp-1]
-                    [(win->cury-1)*win->maxx+(win->curx-1)]);
+                scp = &SCNBUFYX(win->screens[win->curdsp-1],
+                                win->cury, win->curx);
                 setfcolor(scp->forec); /* set colors */
                 setbcolor(scp->backc);
                 setattrs(scp->attr); /* set attributes */
@@ -3398,8 +3397,8 @@ static void plcchr(FILE* f, char c)
             if (win->bufmod) { /* buffer is active */
 
                 /* index screen character location */
-                scp = &(win->screens[win->curdsp-1]
-                    [(win->cury-1)*win->maxx+(win->curx-1)]);
+                scp = &SCNBUFYX(win->screens[win->curdsp-1],
+                                win->cury, win->curx);
                 /* place character to buffer */
                 scp->ch = c;
                 scp->forec = win->fcolor;
@@ -3408,7 +3407,6 @@ static void plcchr(FILE* f, char c)
 
             }
             if (indisp(win)) { /* do it again for the current screen */
-
 
                 setattrs(win->attr); /* set attributes */
                 setfcolor(win->fcolor); /* set colors */
