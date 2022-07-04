@@ -630,7 +630,7 @@ void prtscnbuf(winptr win, int bufno)
         fprintf(stderr, "%02d: \"", y);
         for (x = 1; x <= win->maxx; x++)
             //fputc(SCNBUFYX(sc, y, x).ch, stderr);
-            fputc(sc[(y-1)*win->maxx+(x-1)*sizeof(scnrec)].ch, stderr);
+            fputc(sc[(y-1)*win->maxx+(x-1)].ch, stderr);
         fprintf(stderr, "\"\n"); fflush(stderr);
 
     }
@@ -1283,7 +1283,7 @@ static void restore(winptr win) /* window to restore */
 
                 /* index screen character location */
                 scp = &(win->screens[win->curdsp-1]
-                    [(win->cury-1)*win->maxx+(win->curx-1)*sizeof(scnrec)]);
+                    [(win->cury-1)*win->maxx+(win->curx-1)]);
                 setfcolor(scp->forec); /* set colors */
                 setbcolor(scp->backc);
                 setattrs(scp->attr); /* set attributes */
@@ -3399,7 +3399,7 @@ static void plcchr(FILE* f, char c)
 
                 /* index screen character location */
                 scp = &(win->screens[win->curdsp-1]
-                    [(win->cury-1)*win->maxx+(win->curx-1)*sizeof(scnrec)]);
+                    [(win->cury-1)*win->maxx+(win->curx-1)]);
                 /* place character to buffer */
                 scp->ch = c;
                 scp->forec = win->fcolor;
