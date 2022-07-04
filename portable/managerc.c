@@ -296,7 +296,7 @@ typedef struct {
 } scnrec, *scnptr;
 
 /* macro to access screen elements by y,x */
-#define SCNBUFYX(sc, y, x) (sc[(y-1)*win->maxx+(x-1)*sizeof(scnrec)])
+#define SCNBUFYX(sc, y, x) (sc[(y-1)*win->maxx+(x-1)])
 
 /* window description */
 typedef struct winrec* winptr;
@@ -1242,7 +1242,7 @@ static void iniscn(winptr win, scnrec* sc)
         for (x = 1; x <= win->maxx; x++) {
 
         /* index screen character location */
-        scp = &(sc[(win->cury-1)*win->maxx+(win->curx-1)*sizeof(scnrec)]);
+        scp = &SCNBUFYX(sc, y, x);
         /* place character to buffer */
         scp->ch = ' ';
         scp->forec = pa_black;
