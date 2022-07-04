@@ -775,55 +775,6 @@ static int txt2lfn(FILE* f)
 
 }
 
-/** ****************************************************************************
-
-Clear screen
-
-Clears the screen and homes the cursor. This effectively occurs by writing all
-characters on the screen to spaces with the current colors and attributes.
-
-*******************************************************************************/
-
-static void clrscn(FILE* f)
-
-{
-
-}
-
-/** ****************************************************************************
-
-Process tab
-
-Process a single tab. We search to the right of the current cursor collumn to
-find the next tab. If there is no tab, no action is taken, otherwise, the
-cursor is moved to the tab stop.
-
-*******************************************************************************/
-
-static void itab(FILE* f)
-
-{
-
-}
-
-/*******************************************************************************
-
-Check in display mode
-
-Checks if the current update screen is also the current display screen. Returns
-TRUE if so. If the screen is in display, it means that all of the actions to
-the update screen should also be reflected on the real screen.
-
-*******************************************************************************/
-
-static int indisp(winptr win)
-
-{
-
-    return (win->curupd == win->curdsp);
-
-}
-
 /*******************************************************************************
 
 Set cursor cached
@@ -961,27 +912,6 @@ static void setattrs(int at)
 
 /*******************************************************************************
 
-Set cursor on/off cached
-
-Sets the root cursor visible if it has changed.
-
-*******************************************************************************/
-
-static void setcurvis(int e)
-
-{
-
-    if (e != curon) {
-
-        (*curvis_vect)(stdout, e); /* set new visible state */
-        curon = e; /* set cache */
-
-    }
-
-}
-
-/*******************************************************************************
-
 Output character to root window
 
 Outputs a single character to the root window and advances the x cursor. Note
@@ -1012,6 +942,272 @@ static void wrtstr(char* s)
 {
 
     while (*s) { wrtchr(*s); s++; }
+
+}
+
+/** ****************************************************************************
+
+Initalize screen
+
+Clears all the parameters in the present screen context. Also, the backing
+buffer bitmap is created and cleared to the present colors.
+
+*******************************************************************************/
+
+static void iniscn(winptr win, scnrec* sc)
+
+{
+
+    int x, y;
+    scnrec* scp;   /* pointer to screen location */
+
+    /* clear buffer */
+    for (y = 1; y <= win->maxy; y++)
+        for (x = 1; x <= win->maxx; x++) {
+
+        /* index screen character location */
+        scp = &SCNBUFYX(sc, y, x);
+        /* place character to buffer */
+        scp->ch = ' ';
+        scp->forec = pa_black;
+        scp->backc = pa_white;
+        scp->attr = 0;
+
+    }
+
+}
+
+/*******************************************************************************
+
+Check in display mode
+
+Checks if the current update screen is also the current display screen. Returns
+TRUE if so. If the screen is in display, it means that all of the actions to
+the update screen should also be reflected on the real screen.
+
+*******************************************************************************/
+
+static int indisp(winptr win)
+
+{
+
+    return (win->curupd == win->curdsp);
+
+}
+
+/** ****************************************************************************
+
+Draw frame on window
+
+Draws a frame around the indicated window. This is one of the following:
+
+(ASCII)
+
+    +------------------+
+    |            _ ^ X |
+    |==================|
+    |                  |
+    |                  |
+    +------------------+
+
+(UTF-8)
+    ╔══════════════════╗
+    ║           - ▢ Ⓧ ║
+    ╠══════════════════╣
+    ║                  ║
+    ║                  ║
+    ╚══════════════════╝
+
+(is seamless in xterm, here it depends on the editor).
+
+*******************************************************************************/
+
+static void drwfrm(winptr win)
+
+{
+
+    int x, y, l;
+
+    if (win->frame) { /* draw window frame */
+
+        if (win->size) { /* draw size bars */
+
+            /* draw top and bottom */
+            setcursor(win->orgx, win->orgy);
+            wrtstr(frmchrs[toplftcnr]);
+            for (x = 2; x <= win->pmaxx-1; x++) wrtstr(frmchrs[horzlin]);
+            wrtstr(frmchrs[toprgtcnr]);
+
+            setcursor(win->orgx, win->orgy+win->pmaxy-1);
+            wrtstr(frmchrs[btmlftcnr]);
+            for (x = 2; x <= win->pmaxx-1; x++) wrtstr(frmchrs[horzlin]);
+            wrtstr(frmchrs[btmrgtcnr]);
+
+            /* draw sides */
+            for (y = win->orgy+1; y < win->orgy+win->pmaxy-1; y++) {
+
+                setcursor(win->orgx, y);
+                wrtstr(frmchrs[vertlin]);
+                setcursor(win->orgx+win->pmaxx-1, y);
+                wrtstr(frmchrs[vertlin]);
+
+            }
+
+        }
+        if (win->sysbar) { /* draw system bar */
+
+            y = win->size; /* offset to system bar */
+            x = win->pmaxx-6; /* start of system bar buttons */
+            /* set draw location */
+            setcursor(win->orgx+x-1, win->orgy+y);
+            wrtstr(frmchrs[minbtn]);
+            wrtchr(' ');
+            wrtstr(frmchrs[maxbtn]);
+            wrtchr(' ');
+            wrtstr(frmchrs[canbtn]);
+            wrtchr(' ');
+
+            /* draw title, if exists */
+            if (win->title) {
+
+                l = strlen(win->title); /* get length */
+                /* limit string length to available space */
+                if (win->pmaxx-6 < l) l = win->pmaxx-6;
+                setcursor(win->orgx+(win->pmaxx-6)/2-(l/2), win->orgy+y);
+                wrtstr(win->title);
+
+            }
+
+            /* draw underbar */
+            y++;
+            setcursor(win->orgx+1, win->orgy+y);
+            for (x = 2; x <= win->pmaxx-1; x++) wrtstr(frmchrs[sysudl]);
+
+        }
+
+    }
+
+}
+
+/** ****************************************************************************
+
+Restore screen
+
+Updates all the buffer and screen parameters from the display screen to the
+terminal.
+
+*******************************************************************************/
+
+static void restore(winptr win) /* window to restore */
+
+{
+
+    int x, y;
+    scnrec* scp;   /* pointer to screen location */
+
+    if (win->bufmod && win->visible)  { /* buffered mode is on, and visible */
+
+        if (win->frame) drwfrm(win); /* draw window frame */
+
+        /* restore window from buffer */
+        for (y = 1; y <= win->maxy; y++) {
+
+            /* Reset cursor at the start of each line. Note frame offsets. */
+            setcursor(win->orgx+win->coffx, win->orgy+win->coffy+y-1);
+            /* draw each line */
+            for (x = 1; x <= win->maxx; x++) {
+
+                /* index screen character location */
+                scp = &SCNBUFYX(win->screens[win->curdsp-1],
+                                win->cury, win->curx);
+                setfcolor(scp->forec); /* set colors */
+                setbcolor(scp->backc);
+                setattrs(scp->attr); /* set attributes */
+                wrtchr(scp->ch); /* output character */
+
+            }
+
+        }
+
+    }
+
+}
+
+/** ****************************************************************************
+
+Clear screen
+
+Clears the screen and homes the cursor. This effectively occurs by writing all
+characters on the screen to spaces with the current colors and attributes.
+
+*******************************************************************************/
+
+static void clrscn(FILE* f)
+
+{
+
+    winptr win; /* windows record pointer */
+    scnptr sc;
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1]; /* index current update screen */
+    win->curx = 1; /* set cursor at home */
+    win->cury = 1;
+    iniscn(win, sc); /* clear screen buffer */
+    if (indisp(win)) restore(win); /* also process to display */
+
+}
+
+/** ****************************************************************************
+
+Process tab
+
+Process a single tab. We search to the right of the current cursor collumn to
+find the next tab. If there is no tab, no action is taken, otherwise, the
+cursor is moved to the tab stop.
+
+*******************************************************************************/
+
+static void itab(FILE* f)
+
+{
+
+    winptr win; /* windows record pointer */
+    int i;
+    int x;
+    scnptr sc;
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    /* first, find if next tab even exists */
+    x = win->curx+1; /* get just after the current x position */
+    if (x < 1) x = 1; /* don"t bother to search to left of screen */
+    /* find tab || } of screen */
+    i = 0; /* set 1st tab position */
+    while (x > win->tab[i] && win->tab[i] && i < MAXTAB && x < win->maxx) i++;
+    if (win->tab[i] && x < win->tab[i]) /* not off right of tabs */
+       win->curx = win->tab[i]; /* set position to that tab */
+
+}
+
+/*******************************************************************************
+
+Set cursor on/off cached
+
+Sets the root cursor visible if it has changed.
+
+*******************************************************************************/
+
+static void setcurvis(int e)
+
+{
+
+    if (e != curon) {
+
+        (*curvis_vect)(stdout, e); /* set new visible state */
+        curon = e; /* set cache */
+
+    }
 
 }
 
@@ -1123,176 +1319,6 @@ input line buffer.
 static void readline(int fd)
 
 {
-
-}
-
-/** ****************************************************************************
-
-Draw frame on window
-
-Draws a frame around the indicated window. This is one of the following:
-
-(ASCII)
-
-    +------------------+
-    |            _ ^ X |
-    |==================|
-    |                  |
-    |                  |
-    +------------------+
-
-(UTF-8)
-    ╔══════════════════╗
-    ║           - ▢ Ⓧ ║
-    ╠══════════════════╣
-    ║                  ║
-    ║                  ║
-    ╚══════════════════╝
-
-(is seamless in xterm, here it depends on the editor).
-
-*******************************************************************************/
-
-static void drwfrm(winptr win)
-
-{
-
-    int x, y, l;
-
-    if (win->frame) { /* draw window frame */
-
-        if (win->size) { /* draw size bars */
-
-            /* draw top and bottom */
-            setcursor(win->orgx, win->orgy);
-            wrtstr(frmchrs[toplftcnr]);
-            for (x = 2; x <= win->pmaxx-1; x++) wrtstr(frmchrs[horzlin]);
-            wrtstr(frmchrs[toprgtcnr]);
-
-            setcursor(win->orgx, win->orgy+win->pmaxy-1);
-            wrtstr(frmchrs[btmlftcnr]);
-            for (x = 2; x <= win->pmaxx-1; x++) wrtstr(frmchrs[horzlin]);
-            wrtstr(frmchrs[btmrgtcnr]);
-
-            /* draw sides */
-            for (y = win->orgy+1; y < win->orgy+win->pmaxy-1; y++) {
-
-                setcursor(win->orgx, y);
-                wrtstr(frmchrs[vertlin]);
-                setcursor(win->orgx+win->pmaxx-1, y);
-                wrtstr(frmchrs[vertlin]);
-
-            }
-
-        }
-        if (win->sysbar) { /* draw system bar */
-
-            y = win->size; /* offset to system bar */
-            x = win->pmaxx-6; /* start of system bar buttons */
-            /* set draw location */
-            setcursor(win->orgx+x-1, win->orgy+y);
-            wrtstr(frmchrs[minbtn]);
-            wrtchr(' ');
-            wrtstr(frmchrs[maxbtn]);
-            wrtchr(' ');
-            wrtstr(frmchrs[canbtn]);
-            wrtchr(' ');
-
-            /* draw title, if exists */
-            if (win->title) {
-
-                l = strlen(win->title); /* get length */
-                /* limit string length to available space */
-                if (win->pmaxx-6 < l) l = win->pmaxx-6;
-                setcursor(win->orgx+(win->pmaxx-6)/2-(l/2), win->orgy+y);
-                wrtstr(win->title);
-
-            }
-
-            /* draw underbar */
-            y++;
-            setcursor(win->orgx+1, win->orgy+y);
-            for (x = 2; x <= win->pmaxx-1; x++) wrtstr(frmchrs[sysudl]);
-
-        }
-
-    }
-
-}
-
-/** ****************************************************************************
-
-Initalize screen
-
-Clears all the parameters in the present screen context. Also, the backing
-buffer bitmap is created and cleared to the present colors.
-
-*******************************************************************************/
-
-static void iniscn(winptr win, scnrec* sc)
-
-{
-
-    int x, y;
-    scnrec* scp;   /* pointer to screen location */
-
-    /* clear buffer */
-    for (y = 1; y <= win->maxy; y++)
-        for (x = 1; x <= win->maxx; x++) {
-
-        /* index screen character location */
-        scp = &SCNBUFYX(sc, y, x);
-        /* place character to buffer */
-        scp->ch = ' ';
-        scp->forec = pa_black;
-        scp->backc = pa_white;
-        scp->attr = 0;
-
-    }
-
-}
-
-/** ****************************************************************************
-
-Restore screen
-
-Updates all the buffer and screen parameters from the display screen to the
-terminal.
-
-*******************************************************************************/
-
-static void restore(winptr win) /* window to restore */
-
-{
-
-    int x, y;
-    scnrec* scp;   /* pointer to screen location */
-
-    if (win->bufmod && win->visible)  { /* buffered mode is on, and visible */
-
-        if (win->frame) drwfrm(win); /* draw window frame */
-
-        /* restore window from buffer */
-        for (y = 1; y <= win->maxy; y++) {
-
-            /* Reset cursor at the start of each line. Note frame offsets. */
-            setcursor(win->orgx+win->coffx, win->orgy+win->coffy+y-1);
-            /* draw each line */
-            for (x = 1; x <= win->maxx; x++) {
-
-                /* index screen character location */
-                scp = &SCNBUFYX(win->screens[win->curdsp-1],
-                                win->cury, win->curx);
-                setfcolor(scp->forec); /* set colors */
-                setbcolor(scp->backc);
-                setattrs(scp->attr); /* set attributes */
-                wrtchr(scp->ch); /* output character */
-
-            }
-
-        }
-
-    }
 
 }
 
@@ -1555,9 +1581,76 @@ window also links it.
 
 *******************************************************************************/
 
+
+
+/*******************************************************************************
+
+Close window
+
+Closes an open window pair. Accepts an output window. The window is closed, and
+the window and file handles are freed. The input file is freed only if no other
+window also links it.
+
+*******************************************************************************/
+
+/* flush and close file */
+
+static void clsfil(int fn)
+
+{
+
+    int    si; /* index for screens */
+    filptr fp;
+
+    fp = opnfil[fn];
+    if (fp->win) { /* there is a window component */
+
+        /* release all of the screen buffers */
+        for (si = 0; si < MAXCON; si++)
+            if (fp->win->screens[si]) free(fp->win->screens[si]);
+        putwin(fp->win); /* release the window data */
+
+    }
+    fp->win = NULL; /* set end open */
+    fp->inw = FALSE;
+    fp->inl = -1;
+
+}
+
+static int inplnk(int fn)
+
+{
+
+    int fi; /* index for files */
+    int fc; /* counter for files */
+
+    fc = 0; /* clear count */
+    for (fi = 0; fi < MAXFIL; fi++) /* traverse files */
+        if (opnfil[fi]) /* entry is occupied */
+            if (opnfil[fi]->inl == fn) fc++; /* count the file link */
+
+    return (fc); /* return result */
+
+}
+
 static void closewin(int ofn)
 
 {
+
+    int       ifn;  /* input file id */
+    int       wid;  /* window id */
+    winptr    win;  /* window data structure */
+    winptr    pwin; /* parent window */
+    pa_evtrec er;   /* PA event record */
+
+    wid = filwin[ofn]; /* get window id */
+    ifn = opnfil[ofn]->inl; /* get the input file link */
+    win = lfn2win(ofn); /* get a pointer to the window */
+    clsfil(ofn); /* flush and close output file */
+    /* if no remaining links exist, flush and close input file */
+    if (!inplnk(ifn)) clsfil(ifn);
+    filwin[ofn] = -1; /* clear file to window translation */
+    xltwin[wid+MAXFIL] = -1; /* clear window to file translation */
 
 }
 
