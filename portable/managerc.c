@@ -1640,9 +1640,6 @@ static void intscroll(winptr win, int x, int y)
     scnptr   sc;     /* pointer to current screen */
     scnptr   sp;     /* pointer to screen record */
 
-dbg_printf(dlinfo, "wid: %d before scroll\n", win->wid);
-prtscnbuf(win, 1);
-
     /* when the scroll is arbitrary, we do it by completely refreshing the
        contents of the screen from the buffer */
     if (x <= -win->maxx || x >= win->maxx || y <= -win->maxy || y >= win->maxy) {
@@ -1661,7 +1658,6 @@ prtscnbuf(win, 1);
            state of the real terminal. then, the new buffer contents are
            compared to that while being output. this saves work when most of
            the screen is spaces anyways */
-
         sc = win->screens[win->curupd-1]; /* index current screen */
         if (indisp(win)) { /* in display */
 
@@ -1754,17 +1750,15 @@ prtscnbuf(win, 1);
             }
 
         }
-dbg_printf(dlinfo, "Scrolled buffer\n");
-prtscnbuf(win, 1);
         if (indisp(win)) { /* in display */
 
             /* the buffer is adjusted. now just copy the complete buffer to the
                screen */
-            win->curx = 1; /* restore cursor to upper left to start */
-            win->cury = 1;
-            setcur(win);
             for (yi = 1; yi <= win->maxy; yi++) { /* lines */
 
+                win->curx = 1; /* set cursor */
+                win->cury = yi;
+                setcur(win);
                 /* find the last unmatching character between real and new buffers.
                    Then, we only need output the leftmost non-matching characters
                    on the line. note that it does not really help us that characters
@@ -1802,10 +1796,6 @@ prtscnbuf(win, 1);
                     wrtchr(sp->ch);
 
                 }
-                if (yi < win->maxy)
-                    /* output next line sequence on all lines but the last. this is
-                       because the last one would cause us to scroll */
-                    wrtstr("\r\n");
 
             }
 
