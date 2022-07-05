@@ -302,46 +302,47 @@ typedef struct {
 typedef struct winrec* winptr;
 typedef struct winrec {
 
-    winptr   next;            /* next entry (for free list) */
-    int      parlfn;          /* logical parent */
-    winptr   parwin;          /* link to parent (or NULL for parentless) */
-    int      wid;             /* this window logical id */
-    winptr   childwin;        /* list of child windows */
-    winptr   childlst;        /* list pointer if this is a child */
-    winptr   winlst;          /* master list of all windows */
-    winptr   rootlst;         /* master list of all roots */
-    scnrec*  screens[MAXCON]; /* screen contexts array */
-    int      curdsp;          /* index for current display screen */
-    int      curupd;          /* index for current update screen */
-    int      orgx;            /* window origin in root x */
-    int      orgy;            /* window origin in root y */
-    int      coffx;           /* client offset x */
-    int      coffy;           /* client offset y */
-    int      maxx;            /* maximum x size */
-    int      maxy;            /* maximum y size */
-    int      pmaxx;           /* parent maximum x */
-    int      pmaxy;           /* parent maximum y */
+    winptr   next;              /* next entry (for free list) */
+    int      parlfn;            /* logical parent */
+    winptr   parwin;            /* link to parent (or NULL for parentless) */
+    int      wid;               /* this window logical id */
+    winptr   childwin;          /* list of child windows */
+    winptr   childlst;          /* list pointer if this is a child */
+    winptr   winlst;            /* master list of all windows */
+    winptr   rootlst;           /* master list of all roots */
+    scnrec*  screens[MAXCON];   /* screen contexts array */
+    int      curdsp;            /* index for current display screen */
+    int      curupd;            /* index for current update screen */
+    int      orgx;              /* window origin in root x */
+    int      orgy;              /* window origin in root y */
+    int      coffx;             /* client offset x */
+    int      coffy;             /* client offset y */
+    int      maxx;              /* maximum x size */
+    int      maxy;              /* maximum y size */
+    int      pmaxx;             /* parent maximum x */
+    int      pmaxy;             /* parent maximum y */
     int      mpx, mpy;          /* mouse current position */
-    int      curx;            /* current cursor location x */
-    int      cury;            /* current cursor location y */
-    int      attr;            /* set of active attributes */
-    pa_color fcolor;          /* foreground color */
-    pa_color bcolor;          /* background color */
-    int      curv;            /* cursor visible */
-    int      autof;           /* current status of scroll and wrap */
-    int      bufmod;          /* buffered screen mode */
-    int      tab[MAXTAB];     /* tabbing array */
-    metptr   metlst;          /* menu tracking list */
-    metptr   menu;            /* "faux menu" bar */
-    int      frame;           /* frame on/off */
-    int      size;            /* size bars on/off */
-    int      sysbar;          /* system bar on/off */
-    char     inpbuf[MAXLIN];  /* input line buffer */
-    int      inpptr;          /* input line index */
-    int      visible;         /* window is visible */
-    char*    title;           /* window title */
-    int      focus;           /* window has focus */
-    int      zorder;          /* Z ordering of window, 0 = bottom, N = top */
+    int      curx;              /* current cursor location x */
+    int      cury;              /* current cursor location y */
+    int      attr;              /* set of active attributes */
+    pa_color fcolor;            /* foreground color */
+    pa_color bcolor;            /* background color */
+    int      curv;              /* cursor visible */
+    int      autof;             /* current status of scroll and wrap */
+    int      bufmod;            /* buffered screen mode */
+    int      tab[MAXTAB];       /* tabbing array */
+    metptr   metlst;            /* menu tracking list */
+    metptr   menu;              /* "faux menu" bar */
+    int      frame;             /* frame on/off */
+    int      size;              /* size bars on/off */
+    int      sysbar;            /* system bar on/off */
+    char     inpbuf[MAXLIN];    /* input line buffer */
+    int      inpptr;            /* input line index */
+    int      visible;           /* window is visible */
+    char*    title;             /* window title */
+    int      focus;             /* window has focus */
+    int      zorder;            /* Z ordering of window, 0 = bottom, N = top */
+    int      timers[PA_MAXTIM]; /* timer id array */
 
 } winrec;
 
@@ -414,7 +415,8 @@ static winptr   rootlst;      /* master list of all roots */
 static int      ztop;         /* current maximum/front Z order */
 static int      mousex;       /* mouse tracking x */
 static int      mousey;       /* mouse tracking y */
-
+static winptr   timtbl[PA_MAXTIM]; /* timer translation table */
+static int      timids[PA_MAXTIM]; /* timer logical ids */
 /* forwards */
 static void plcchr(FILE* f, char c);
 
@@ -1378,6 +1380,7 @@ static void opnwin(int fn, int pfn, int wid, int subclient, int root)
     winptr  win;  /* window pointer */
     winptr  pwin; /* parent window pointer */
     int     t;
+    int     ti;
 
     win = lfn2win(fn); /* get a pointer to the window */
     /* find parent */
@@ -1446,6 +1449,8 @@ static void opnwin(int fn, int pfn, int wid, int subclient, int root)
     win->curx = 1; /* set cursor at home */
     win->cury = 1;
     for (t = 0; t < MAXTAB; t++) win->tab[t] = 0; /* clear tab array */
+    /* clear timer array */
+    for (ti = 0; ti < PA_MAXTIM; ti++) win->timers[ti] = 0;
 
     /* clear the screen array */
     for (si = 0; si < MAXCON; si++) win->screens[si] = NULL;
@@ -2715,6 +2720,16 @@ void ievent(FILE* f, pa_evtrec* er)
 
                 }
                 break;
+            case pa_ettim:     /* timer matures */
+                if (timtbl[ev.timnum]) { /* there is a window assigned */
+
+                    win = timtbl[ev.timnum]; /* get the assigned window */
+                    er->etype = pa_ettim; /* set timer type */
+                    er->timnum = timids[ev.timnum]; /* set id of timer */
+                    er->winid = win->wid; /* set window logical id */
+                    valid = TRUE; /* set as valid event */
+                }
+                break;
             default: ; /* ignore the rest */
 
         }
@@ -3005,6 +3020,23 @@ void itimer(FILE* f, int i, long t, int r)
 
 {
 
+    winptr win; /* windows record pointer */
+    int    ti;
+
+    if (i < 1 || i > PA_MAXTIM) error("Invalid timer handle");
+    win = txt2win(f); /* get window from file */
+    if (!win->timers[i-1]) { /* no current timer assigned */
+
+        ti = 0;
+        while (ti < PA_MAXTIM && timtbl[ti]) ti++;
+        if (ti >= PA_MAXTIM) error("Root timers are full");
+        timtbl[ti] = win; /* place owner link */
+        timids[ti] = i; /* place timer logical id */
+
+    }
+    /* pass it down */
+    (*timer_vect)(f, win->timers[i-1], t, r);
+
 }
 
 /** ****************************************************************************
@@ -3018,6 +3050,17 @@ Kills a given timer, by it's id number. Only repeating timers should be killed.
 void ikilltimer(FILE* f, int i)
 
 {
+
+    winptr win; /* windows record pointer */
+
+    if (i < 1 || i > PA_MAXTIM) error("Invalid timer handle");
+    win = txt2win(f); /* get window from file */
+    if (!win->timers[i-1]) error("No such timer");
+    /* pass it down */
+    (*killtimer_vect)(f, win->timers[i-1]);
+    /* release the root timer so that we can reuse it */
+    win->timers[i-1] = 0;
+    timtbl[i-1] = NULL;
 
 }
 
@@ -4046,6 +4089,7 @@ static void init_managerc()
     int wid; /* window id */
     int ofn; /* standard output file number */
     int ifn; /* standard input file number */
+    int ti;  /* timer index */
 
     winfre = NULL; /* clear free windows structure list */
     winlst = NULL; /* clear master window list */
@@ -4068,6 +4112,9 @@ static void init_managerc()
         xltwin[fn] = -1; /* set unoccupied */
 
     }
+
+    /* clear timer equivalence table */
+    for (ti = 0; ti < PA_MAXTIM; ti++) timtbl[ti] = NULL;
 
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
