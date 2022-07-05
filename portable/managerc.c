@@ -2730,6 +2730,32 @@ void ievent(FILE* f, pa_evtrec* er)
                     valid = TRUE; /* set as valid event */
                 }
                 break;
+            case pa_etjoyba:  /* joystick button assertion */
+                    er->etype = pa_etjoyba; /* set joystick button asserts */
+                    er->ajoyn = ev.ajoyn; /* set joystick number */
+                    er->ajoybn = ev.ajoybn; /* set button number */
+                    er->winid = 0; /* set window logical id (anonymous) */
+                    valid = TRUE; /* set as valid event */
+                break;
+            case pa_etjoybd:  /* joystick button deassertion */
+                    er->etype = pa_etjoybd; /* set joystick button deasserts */
+                    er->djoyn = ev.djoyn; /* set joystick number */
+                    er->djoybn = ev.djoybn; /* set button number */
+                    er->winid = 0; /* set window logical id (anonymous) */
+                    valid = TRUE; /* set as valid event */
+                break;
+            case pa_etjoymov: /* joystick move */
+                    er->etype = pa_etjoymov; /* set joystick move */
+                    er->mjoyn = ev.mjoyn; /* set joystick number */
+                    er->joypx = ev.joypx; /* set motion axies */
+                    er->joypy = ev.joypy;
+                    er->joypz = ev.joypz;
+                    er->joyp4 = ev.joyp4;
+                    er->joyp5 = ev.joyp5;
+                    er->joyp6 = ev.joyp6;
+                    er->winid = 0; /* set window logical id (anonymous) */
+                    valid = TRUE; /* set as valid event */
+                break;
             default: ; /* ignore the rest */
 
         }
