@@ -321,6 +321,7 @@ typedef struct winrec {
     int      maxy;            /* maximum y size */
     int      pmaxx;           /* parent maximum x */
     int      pmaxy;           /* parent maximum y */
+    int      mpx, mpy;          /* mouse current position */
     int      curx;            /* current cursor location x */
     int      cury;            /* current cursor location y */
     int      attr;            /* set of active attributes */
@@ -750,6 +751,30 @@ static winptr txt2win(FILE* f)
     if (fn < 0) error("Invalid file");
 
     return (lfn2win(fn)); /* get logical filenumber for file */
+
+}
+
+
+/*******************************************************************************
+
+Index window from logical window
+
+Finds the windows context record from the logical window number, with checking.
+
+*******************************************************************************/
+
+static winptr lwn2win(int wid)
+
+{
+
+    int    ofn; /* output file handle */
+    winptr win; /* window context pointer */
+
+    if (wid < -MAXFIL || wid >= MAXFIL || !wid)  error("Invalid file handle");
+    ofn = xltwin[wid+MAXFIL]; /* get the output file handle */
+    win = lfn2win(ofn); /* index window context */
+
+    return (win); /* return result */
 
 }
 
@@ -1307,20 +1332,7 @@ winptr fndtop(int x, int y)
 
 }
 
-/*******************************************************************************
 
-Process input line
-
-Reads an input line with full echo and editing. The line is placed into the
-input line buffer.
-
-*******************************************************************************/
-
-static void readline(int fd)
-
-{
-
-}
 
 /*******************************************************************************
 
@@ -1419,6 +1431,8 @@ static void opnwin(int fn, int pfn, int wid, int subclient, int root)
     /* subtract frame from client if enabled */
     win->maxx -= (win->frame && win->size)*2;
     win->maxy -= win->frame*2+win->size*2;
+    win->mpx = 0; /* set mouse relative position invalid */
+    win->mpy = 0;
     win->attr = attr; /* no attribute */
     win->autof = TRUE; /* auto on */
     win->fcolor = pa_black; /*foreground black */
@@ -1570,18 +1584,6 @@ void intopenwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
     openio(*infile, *outfile, ifn, ofn, pfn, wid, TRUE, FALSE);
 
 }
-
-/*******************************************************************************
-
-Close window
-
-Closes an open window pair. Accepts an output window. The window is closed, and
-the window and file handles are freed. The input file is freed only if no other
-window also links it.
-
-*******************************************************************************/
-
-
 
 /*******************************************************************************
 
@@ -2658,6 +2660,8 @@ void ievent(FILE* f, pa_evtrec* er)
                         /* calculate relative location in client area */
                         er->moupx = mousex-(win->orgx+win->coffx)+1;
                         er->moupy = mousey-(win->orgy+win->coffy)+1;
+                        win->mpx = er->moupx; /* copy to window data */
+                        win->mpy = er->moupy;
                         er->winid = win->wid; /* set window logical id */
                         valid = TRUE; /* set as valid event */
 
@@ -2719,6 +2723,266 @@ void ievent(FILE* f, pa_evtrec* er)
 #ifdef PRTEVT
     prtevt(er); fprintf(stderr, "\n"); fflush(stderr);
 #endif
+
+}
+
+/*******************************************************************************
+
+Process input line
+
+Reads an input line with full echo and editing. The line is placed into the
+input line buffer.
+
+*******************************************************************************/
+
+static void readline(int fd)
+
+{
+
+    pa_evtrec er;   /* event record */
+    winptr    win;  /* window pointer */
+    int       ins;  /* insert/overwrite mode */
+    int       xoff; /* x starting line offset */
+    int       l;    /* buffer length */
+    int       ofn;  /* logical output file */
+    int       lcmp; /* line complete */
+    int       i;
+    FILE*     f;
+
+    lcmp = FALSE; /* set line not complete */
+    do { /* get line characters */
+
+        f = opnfil[fd]->sfp; /* get window file */
+        ievent(f, &er); /* get next event */
+        ofn = xltwin[er.winid+MAXFIL]; /* get logical output file */
+        if (ofn >= 0 && opnfil[ofn]->inl == fd) {
+
+            /* output file indexes our input file */
+            win = lwn2win(er.winid); /* get the window from the id */
+            if (win->inpptr < 0) { /* buffer is flagged empty */
+
+                win->inpptr = 0; /* reset input */
+                win->inpbuf[win->inpptr] = 0; /* and terminate buffer */
+                ins = 1;
+                xoff = win->curx; /* save starting line offset */
+
+            }
+            switch (er.etype) { /* event */
+
+                case pa_etterm: exit(1); /* halt program */
+                case pa_etenter: /* line terminate */
+                    while (win->inpbuf[win->inpptr])
+                        win->inpptr++; /* advance to end */
+                    win->inpbuf[win->inpptr] = '\n'; /* return newline */
+                    /* terminate the line */
+                    win->inpbuf[win->inpptr+1] = 0;
+                    plcchr(f, '\r'); /* output newline sequence */
+                    plcchr(f, '\n');
+                    lcmp = TRUE; /* set line complete */
+                    break;
+                case pa_etchar: /* character */
+                    if (win->inpptr < MAXLIN-2) {
+
+                        if (ins) { /* insert */
+
+                            i = win->inpptr; /* find end */
+                            while (win->inpbuf[i]) i++;
+                            /* move line up */
+                            while (win->inpptr <= i)
+                                { win->inpbuf[i+1] = win->inpbuf[i]; i--; }
+                            /* place new character */
+                            win->inpbuf[win->inpptr] = er.echar;
+                            /* reprint line */
+                            i = win->inpptr;
+                            while (win->inpbuf[i])
+                                plcchr(f, win->inpbuf[i++]);
+                            /* back up */
+                            i = win->inpptr;
+                            while (win->inpbuf[i++]) plcchr(f, '\b');
+                            /* forward and next char */
+                            plcchr(f, win->inpbuf[win->inpptr]);
+                            win->inpptr++;
+
+                        } else { /* overwrite */
+
+                            /* if end, move end marker */
+                            if (!win->inpbuf[win->inpptr]) win->inpbuf[win->inpptr+1] = 0;
+                            win->inpbuf[win->inpptr] = er.echar; /* place new character */
+                            /* forward and next char */
+                            plcchr(f, win->inpbuf[win->inpptr]);
+                            win->inpptr++;
+
+                        }
+
+                    }
+                    break;
+                case pa_etdelcb: /* delete character backwards */
+                    if (win->inpptr > 0) { /* not at extreme left */
+
+                        win->inpptr--; /* back up pointer */
+                        /* move characters back */
+                        i = win->inpptr;
+                        while (win->inpbuf[i]) { win->inpbuf[i] = win->inpbuf[i+1]; i++; }
+                        plcchr(f, '\b'); /* move cursor back */
+                        /* repaint line */
+                        i = win->inpptr;
+                        while (win->inpbuf[i]) plcchr(f, win->inpbuf[i++]);
+                        plcchr(f, ' '); /* blank last */
+                        /* back up */
+                        plcchr(f, '\b');
+                        i = win->inpptr;
+                        while (win->inpbuf[i++]) plcchr(f, '\b');
+
+                    }
+                    break;
+                case pa_etdelcf: /* delete character forward */
+                    if (win->inpbuf[win->inpptr]) { /* not at extreme right */
+
+                        /* move characters down */
+                        i = win->inpptr;
+                        while (win->inpbuf[i]) { win->inpbuf[i] = win->inpbuf[i+1]; i++; }
+                        /* repaint right */
+                        i = win->inpptr;
+                        while (win->inpbuf[i]) plcchr(f, win->inpbuf[i++]);
+                        plcchr(f, ' '); /* blank last */
+                        /* back up */
+                        plcchr(f, '\b');
+                        i = win->inpptr;
+                        while (win->inpbuf[i++]) plcchr(f, '\b');
+
+                    }
+                    break;
+                case pa_etright: /* right character */
+                    /* not at extreme right, go right */
+                    if (win->inpbuf[win->inpptr]) {
+
+                        plcchr(f, win->inpbuf[win->inpptr]);
+                        win->inpptr++; /* advance input */
+
+                    }
+                    break;
+
+                case pa_etleft: /* left character */
+                    /* not at extreme left, go left */
+                    if (win->inpptr > 0) {
+
+                        plcchr(f, '\b');
+                        win->inpptr--; /* back up pointer */
+
+                    }
+                    break;
+
+                case pa_etmoumov: /* mouse moved */
+                    /* we can track this internally */
+                    break;
+
+                case pa_etmouba: /* mouse click */
+                    if (er.amoubn == 1) {
+
+                        l = strlen(win->inpbuf);
+                        if (win->cury == win->mpy && xoff <= win->mpx && xoff+l >= win->mpx) {
+
+                            /* mouse position is within buffer space, set
+                               position */
+                            icursor(f, win->mpx, win->cury);
+                            win->inpptr = win->mpx-xoff;
+
+                        }
+
+                    }
+                    break;
+
+                case pa_ethomel: /* beginning of line */
+                    /* back up to start of line */
+                    while (win->inpptr) {
+
+                        plcchr(f, '\b');
+                        win->inpptr--;
+
+                    }
+                    break;
+
+                case pa_etendl: /* end of line */
+                    /* go to end of line */
+                    while (win->inpbuf[win->inpptr]) {
+
+                        plcchr(f, win->inpbuf[win->inpptr]);
+                        win->inpptr++;
+
+                    }
+                    break;
+
+                case pa_etinsertt: /* toggle insert mode */
+                    ins = !ins; /* toggle insert mode */
+                    break;
+
+                case pa_etdell: /* delete whole line */
+                    /* back up to start of line */
+                    while (win->inpptr) {
+
+                        plcchr(f, '\b');
+                        win->inpptr--;
+
+                    }
+                    /* erase line on screen */
+                    while (win->inpbuf[win->inpptr]) {
+
+                        plcchr(f, ' ');
+                        win->inpptr++;
+
+                    }
+                    /* back up again */
+                    while (win->inpptr) {
+
+                        plcchr(f, '\b');
+                        win->inpptr--;
+
+                    }
+                    win->inpbuf[win->inpptr] = 0; /* clear line */
+                    break;
+
+                case pa_etleftw: /* left word */
+                    /* back over any spaces */
+                    while (win->inpptr && win->inpbuf[win->inpptr-1] == ' ') {
+
+                        plcchr(f, '\b');
+                        win->inpptr--;
+
+                    }
+                    /* now back over any non-space */
+                    while (win->inpptr && win->inpbuf[win->inpptr-1] != ' ') {
+
+                        plcchr(f, '\b');
+                        win->inpptr--;
+
+                    }
+                    break;
+
+                case pa_etrightw: /* right word */
+                    /* advance over any non-space */
+                    while (win->inpbuf[win->inpptr] && win->inpbuf[win->inpptr] != ' ') {
+
+                        plcchr(f, win->inpbuf[win->inpptr]);
+                        win->inpptr++;
+
+                    }
+                    /* advance over any spaces */
+                    while (win->inpbuf[win->inpptr] && win->inpbuf[win->inpptr] == ' ') {
+
+                        plcchr(f, win->inpbuf[win->inpptr]);
+                        win->inpptr++;
+
+                    }
+                    break;
+
+                default: ;
+
+            }
+
+        }
+
+    } while (!lcmp); /* until line complete */
+    win->inpptr = 0; /* set 1st position on active line */
 
 }
 
