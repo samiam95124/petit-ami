@@ -418,6 +418,9 @@ static int      mousex;       /* mouse tracking x */
 static int      mousey;       /* mouse tracking y */
 static winptr   timtbl[PA_MAXTIM]; /* timer translation table */
 static int      timids[PA_MAXTIM]; /* timer logical ids */
+static int      fautohold;    /* automatic hold on exit flag */
+static int      fend;         /* end of program ordered flag */
+
 /* forwards */
 static void plcchr(FILE* f, char c);
 
@@ -2764,6 +2767,10 @@ void ievent(FILE* f, pa_evtrec* er)
                     er->winid = 0; /* set window logical id (anonymous) */
                     valid = TRUE; /* set as valid event */
                 break;
+            case pa_etterm: /* terminate */
+                er->etype = pa_etterm; /* set type */
+                fend = TRUE; /* set end program requested */
+                break;
             default: ; /* ignore the rest */
 
         }
@@ -3326,6 +3333,9 @@ holding gralib unaware programs.
 void iautohold(int e)
 
 {
+
+    (*autohold_vect)(e); /* copy state to root */
+    fautohold = e; /* set new state of autohold */
 
 }
 
@@ -4159,6 +4169,8 @@ static void init_managerc()
     winlst = NULL; /* clear master window list */
     rootlst = NULL; /* clear root window list */
     ztop = -1; /* clear Z order top (none) */
+    fend = FALSE; /* set no end of program ordered */
+    fautohold = TRUE; /* set automatically hold self terminators */
 
     /* clear open files tables */
     for (fn = 0; fn < MAXFIL; fn++) {
@@ -4394,6 +4406,11 @@ static void deinit_managerc()
     pa_getwinid_t cppgetwinid;
     pa_focus_t cppfocus;
 
+    /* If autohold is active and and a local end was ordered, disable autohold
+       in the root. Note the root also could have ordered an exit. */
+    if (fautohold && fend) (*autohold_vect)(FALSE);
+
+    /* swap old vectors for existing vectors API */
     _pa_cursor_ovr(cursor_vect, &cppcursor);
     _pa_maxx_ovr(maxx_vect, &cppmaxx);
     _pa_maxy_ovr(maxy_vect, &cppmaxy);
@@ -4461,7 +4478,7 @@ static void deinit_managerc()
     _pa_getwinid_ovr(getwinid_vect, &cppgetwinid);
     _pa_focus_ovr(focus_vect, &cppfocus);
 
-    /* swap old vectors for existing vectors */
+    /* swap old vectors for existing vectors I/O */
     ovr_read(ofpread, &cppread);
     ovr_write(ofpwrite, &cppwrite);
     ovr_open(ofpopen, &cppopen);
