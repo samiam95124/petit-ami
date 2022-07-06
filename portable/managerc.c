@@ -3320,13 +3320,13 @@ void iframetimer(FILE* f, int e)
 Set automatic hold state
 
 Sets the state of the automatic hold flag. Automatic hold is used to hold
-programs that exit without having received a "terminate" signal from gralib.
-This exists to allow the results of gralib unaware programs to be viewed after
+programs that exit without having received a "terminate" signal from manager.
+This exists to allow the results of manager unaware programs to be viewed after
 termination, instead of exiting an destroying the window. This mode works for
 most circumstances, but an advanced program may want to exit for other reasons
 than being closed by the system bar. This call can turn automatic holding off,
 and can only be used by an advanced program, so fulfills the requirement of
-holding gralib unaware programs.
+holding manager unaware programs.
 
 *******************************************************************************/
 
@@ -3357,19 +3357,54 @@ such as controls are not suppressed.
 Attributes are performed, such as foreground/background coloring, modes, and
 character attributes.
 
-Character kerning is only available via this routine, and strsiz() is only
-accurate for this routine, and not direct character placement, if kerning is
-enabled.
-
-Note: If an off angle (non-90 degree) text path is selected, this routine just
-passes the characters on to plcchr(). This basically negates any speed
-advantage.
-
 *******************************************************************************/
 
 void iwrtstr(FILE* f, char* s)
 
 {
+
+    winptr win; /* window record pointer */
+    scnptr scp; /* screen buffer */
+    char*  ss;
+
+    win = txt2win(f); /* get window from file */
+    if (win->autof) error("Cannot direct write string with auto on");
+    if (!win->visible) winvis(win); /* make sure we are displayed */
+    if (win->bufmod) { /* buffer is active */
+
+        ss = s; /* save string */
+        while (*ss && icurbnd(f)) { /* print string */
+
+            /* index screen character location */
+            scp = &SCNBUFYX(win->screens[win->curdsp-1],
+                            win->cury, win->curx);
+            /* place character to buffer */
+            scp->ch = *ss++;
+            scp->forec = win->fcolor;
+            scp->backc = win->bcolor;
+            scp->attr = win->attr;
+            win->curx++; /* next location */
+
+        }
+
+    }
+    if (indisp(win)) { /* do it again for the current screen */
+
+        /* set root cursor to correct position */
+        setcursor(win->curx+win->orgx-1+win->coffx,
+                  win->cury+win->orgy-1+win->coffy);
+        setattrs(win->attr); /* set attributes */
+        setfcolor(win->fcolor); /* set colors */
+        setbcolor(win->bcolor);
+        while (*s && icurbnd(f)) { /* print string */
+
+            /* draw character to active screen */
+            wrtchr(*s); /* output */
+            win->curx++; /* next location */
+
+        }
+
+    }
 
 }
 
