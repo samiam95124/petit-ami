@@ -343,6 +343,7 @@ typedef struct winrec {
     int      focus;             /* window has focus */
     int      zorder;            /* Z ordering of window, 0 = bottom, N = top */
     int      timers[PA_MAXTIM]; /* timer id array */
+    int      frmtim;            /* frame timer */
 
 } winrec;
 
@@ -1451,6 +1452,7 @@ static void opnwin(int fn, int pfn, int wid, int subclient, int root)
     for (t = 0; t < MAXTAB; t++) win->tab[t] = 0; /* clear tab array */
     /* clear timer array */
     for (ti = 0; ti < PA_MAXTIM; ti++) win->timers[ti] = 0;
+    win->frmtim = 0; /* clear frame timer */
 
     /* clear the screen array */
     for (si = 0; si < MAXCON; si++) win->screens[si] = NULL;
@@ -2723,9 +2725,15 @@ void ievent(FILE* f, pa_evtrec* er)
             case pa_ettim:     /* timer matures */
                 if (timtbl[ev.timnum]) { /* there is a window assigned */
 
-                    win = timtbl[ev.timnum]; /* get the assigned window */
-                    er->etype = pa_ettim; /* set timer type */
-                    er->timnum = timids[ev.timnum]; /* set id of timer */
+                    win = timtbl[ev.timnum-1]; /* get the assigned window */
+                     /* check framing/normal timer */
+                    if (win->frmtim = ev.timnum) er->etype = pa_etframe;
+                    else {
+
+                        er->etype = pa_ettim; /* set type */
+                        er->timnum = timids[ev.timnum-1]; /* set id of timer */
+
+                    }
                     er->winid = win->wid; /* set window logical id */
                     valid = TRUE; /* set as valid event */
                 }
@@ -3058,6 +3066,7 @@ void itimer(FILE* f, int i, long t, int r)
         if (ti >= PA_MAXTIM) error("Root timers are full");
         timtbl[ti] = win; /* place owner link */
         timids[ti] = i; /* place timer logical id */
+        win->timers[i-1] = ti; /* place root id */
 
     }
     /* pass it down */
@@ -3085,8 +3094,9 @@ void ikilltimer(FILE* f, int i)
     /* pass it down */
     (*killtimer_vect)(f, win->timers[i-1]);
     /* release the root timer so that we can reuse it */
+    timtbl[win->timers[i-1]-1] = NULL;
     win->timers[i-1] = 0;
-    timtbl[i-1] = NULL;
+
 
 }
 
@@ -3267,6 +3277,34 @@ of the blanking interval.
 void iframetimer(FILE* f, int e)
 
 {
+
+    winptr win; /* windows record pointer */
+    int    ti;
+
+    win = txt2win(f); /* get window from file */
+    if (e) { /* enable framing timer */
+
+        if (!win->frmtim) { /* no current timer assigned */
+
+            ti = 0;
+            while (ti < PA_MAXTIM && timtbl[ti]) ti++;
+            if (ti >= PA_MAXTIM) error("Root timers are full");
+            timtbl[ti] = win; /* place owner link */
+            win->frmtim = ti+1; /* place root id */
+
+        }
+        /* pass it down */
+        (*timer_vect)(f, win->frmtim, 166, TRUE);
+
+    } else { /* disable framing timer */
+
+        /* pass it down */
+        (*killtimer_vect)(f, win->frmtim);
+        /* release the root timer so that we can reuse it */
+        timtbl[win->frmtim-1] = NULL;
+        win->frmtim = 0;
+
+    }
 
 }
 
