@@ -2636,7 +2636,8 @@ void ievent(FILE* f, pa_evtrec* er)
                     } else if (ev.mmoun == 1) { /* button 1 click */
 
                         remfocus(); /* remove previous focus */
-                        win->focus = TRUE;
+                        win->focus = TRUE; /* set current focus */
+                        setcur(win); /* set cursor active */
 
                     }
 
