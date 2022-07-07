@@ -2658,13 +2658,25 @@ void ievent(FILE* f, pa_evtrec* er)
                             er->winid = win->wid; /* set window logical id */
                             valid = TRUE; /* set as valid event */
 
-                        } else if (win->sysbar && mousey == win->size) {
+                        } else if (win->sysbar &&
+                                   mousey-win->orgy == win->size) {
 
                             /* check for system bar events */
-                            if (mousex == win->pmaxx-2) { /* terminate */
+                            if (mousex-win->orgx == win->pmaxx-3) {
 
+                                /* terminate */
                                 er->etype = pa_etterm; /* set type */
                                 fend = TRUE; /* set end program requested */
+                                valid = TRUE; /* set as valid event */
+
+                            } if (mousex-win->orgx == win->pmaxx-5) { /* max */
+
+                                er->etype = pa_etmax; /* set type */
+                                valid = TRUE; /* set as valid event */
+
+                            } if (mousex-win->orgx == win->pmaxx-7) { /* min */
+
+                                er->etype = pa_etmin; /* set type */
                                 valid = TRUE; /* set as valid event */
 
                             }
