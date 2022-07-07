@@ -2647,13 +2647,29 @@ void ievent(FILE* f, pa_evtrec* er)
                 /* first click with no focus gives focus, next click gives message */
                 if (win) {
 
-                    if (win->focus && inclient(win, mousex, mousey)) {
+                    if (win->focus) { /* window has focus */
 
-                        er->etype = pa_etmouba; /* set mouse button asserts */
-                        er->amoun = ev.amoun; /* set mouse number */
-                        er->amoubn = ev.amoubn; /* set button number */
-                        er->winid = win->wid; /* set window logical id */
-                        valid = TRUE; /* set as valid event */
+                        if (inclient(win, mousex, mousey)) {
+
+                            /* in client area */
+                            er->etype = pa_etmouba; /* set mouse button asserts */
+                            er->amoun = ev.amoun; /* set mouse number */
+                            er->amoubn = ev.amoubn; /* set button number */
+                            er->winid = win->wid; /* set window logical id */
+                            valid = TRUE; /* set as valid event */
+
+                        } else if (win->sysbar && mousey == win->size) {
+
+                            /* check for system bar events */
+                            if (mousex == win->pmaxx-2) { /* terminate */
+
+                                er->etype = pa_etterm; /* set type */
+                                fend = TRUE; /* set end program requested */
+                                valid = TRUE; /* set as valid event */
+
+                            }
+
+                        }
 
                     } else if (ev.mmoun == 1) { /* button 1 click */
 
@@ -2687,6 +2703,7 @@ void ievent(FILE* f, pa_evtrec* er)
                     if (inclient(win, mousex, mousey)) {
 
                         er->etype = pa_etmoumov; /* set mouse move event */
+                        er->mmoun = ev.mmoun; /* set mouse number */
                         /* calculate relative location in client area */
                         er->moupx = mousex-(win->orgx+win->coffx)+1;
                         er->moupy = mousey-(win->orgy+win->coffy)+1;
