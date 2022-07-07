@@ -125,7 +125,7 @@ static enum { /* debug levels */
 #define MAXTAB 50  /* total number of tabs possible per window */
 #define MAXLIN 250 /* maximum length of input bufferred line */
 //#define PRTROOTEVT /* print root window events */
-//#define PRTEVT /* print outbound events */
+#define PRTEVT /* print outbound events */
 
 /* file handle numbers at the system interface level */
 #define INPFIL 0 /* handle to standard input */
@@ -1666,6 +1666,28 @@ static void closewin(int ofn)
 
 }
 
+
+/*******************************************************************************
+
+Check x,y location is in the client area
+
+Finds if the given x,y location lies in the client area. Note that this does not
+include frame or system bar.
+
+*******************************************************************************/
+
+int inclient(winptr win, int x, int y)
+
+{
+
+    /* check in client area */
+    return (win->orgx+win->coffx <= x &&
+            x <= win->orgx+win->coffx+win->maxx-1 &&
+            win->orgy+win->coffy <= y &&
+            y <= win->orgy+win->coffy+win->maxy-1);
+
+}
+
 /** ****************************************************************************
 
 Find if cursor is in screen bounds internal
@@ -2625,7 +2647,7 @@ void ievent(FILE* f, pa_evtrec* er)
                 /* first click with no focus gives focus, next click gives message */
                 if (win) {
 
-                    if (win->focus) {
+                    if (win->focus && inclient(win, mousex, mousey)) {
 
                         er->etype = pa_etmouba; /* set mouse button asserts */
                         er->amoun = ev.amoun; /* set mouse number */
@@ -2645,7 +2667,7 @@ void ievent(FILE* f, pa_evtrec* er)
                 break;
             case pa_etmoubd:  /* mouse button deassertion */
                 win = fndtop(mousex, mousey); /* find the enclosing window */
-                if (win && win->focus) {
+                if (win && win->focus && inclient(win, mousex, mousey)) {
 
                     er->etype = pa_etmoubd; /* set mouse button deasserts */
                     er->dmoun = ev.dmoun; /* set mouse number */
@@ -2662,10 +2684,7 @@ void ievent(FILE* f, pa_evtrec* er)
                 if (win && win->focus) { /* in window and in focus */
 
                     /* check in client area */
-                    if (win->orgx+win->coffx <= mousex &&
-                        mousex <= win->orgx+win->coffx+win->maxx-1 &&
-                        win->orgy+win->coffy <= mousey &&
-                        mousey <= win->orgy+win->coffy+win->maxy-1) {
+                    if (inclient(win, mousex, mousey)) {
 
                         er->etype = pa_etmoumov; /* set mouse move event */
                         /* calculate relative location in client area */
