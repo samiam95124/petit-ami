@@ -2604,7 +2604,7 @@ void ievent(FILE* f, pa_evtrec* er)
 
         (*event_vect)(stdin, &ev); /* get root event */
 #ifdef PRTROOTEVT
-        prtevt(&ev); fprintf(stderr, "\n"); fflush(stderr);
+        fprintf(stderr, "Inbound: "); prtevt(&ev); fprintf(stderr, "\n"); fflush(stderr);
 #endif
         switch (ev.etype) { /* process root events */
 
@@ -2771,6 +2771,7 @@ void ievent(FILE* f, pa_evtrec* er)
             case pa_etterm: /* terminate */
                 er->etype = pa_etterm; /* set type */
                 fend = TRUE; /* set end program requested */
+                valid = TRUE; /* set as valid event */
                 break;
             default: ; /* ignore the rest */
 
@@ -2778,7 +2779,7 @@ void ievent(FILE* f, pa_evtrec* er)
 
     }
 #ifdef PRTEVT
-    prtevt(er); fprintf(stderr, "\n"); fflush(stderr);
+    fprintf(stderr, "Outbound: "); prtevt(er); fprintf(stderr, "\n"); fflush(stderr);
 #endif
 
 }
