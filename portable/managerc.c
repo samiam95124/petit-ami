@@ -125,7 +125,7 @@ static enum { /* debug levels */
 #define MAXTAB 50  /* total number of tabs possible per window */
 #define MAXLIN 250 /* maximum length of input bufferred line */
 //#define PRTROOTEVT /* print root window events */
-#define PRTEVT /* print outbound events */
+//#define PRTEVT /* print outbound events */
 
 /* file handle numbers at the system interface level */
 #define INPFIL 0 /* handle to standard input */
@@ -153,6 +153,9 @@ typedef enum {
     sastkout,    /* strikeout text */
 
 } scnatt;
+
+/* rectangle */
+typedef struct { int x1, y1, x2, y2; } rectangle;
 
 /* system override calls */
 
@@ -296,7 +299,7 @@ typedef struct {
 } scnrec, *scnptr;
 
 /* macro to access screen elements by y,x */
-#define SCNBUFYX(sc, y, x) (sc[(y-1)*win->maxx+(x-1)])
+#define SCNBUF(sc, x, y) (sc[(y-1)*win->maxx+(x-1)])
 
 /* window description */
 typedef struct winrec* winptr;
@@ -310,6 +313,7 @@ typedef struct winrec {
     winptr   childlst;          /* list pointer if this is a child */
     winptr   winlst;            /* master list of all windows */
     winptr   rootlst;           /* master list of all roots */
+    winptr   zmin2max;          /* Z order minimum to maximum list */
     scnrec*  screens[MAXCON];   /* screen contexts array */
     int      curdsp;            /* index for current display screen */
     int      curupd;            /* index for current update screen */
@@ -413,6 +417,7 @@ static int      curon;        /* current on/off visible state of cursor */
 static winptr   winfre;       /* free windows structure list */
 static winptr   winlst;       /* master list of all windows */
 static winptr   rootlst;      /* master list of all roots */
+static winptr   zmin2max;     /* Z order minimum to maximum list */
 static int      ztop;         /* current maximum/front Z order */
 static int      mousex;       /* mouse tracking x */
 static int      mousey;       /* mouse tracking y */
@@ -636,7 +641,7 @@ void prtscnbuf(winptr win, int bufno)
 
         fprintf(stderr, "%02d: \"", y);
         for (x = 1; x <= win->maxx; x++)
-            fputc(SCNBUFYX(sc, y, x).ch, stderr);
+            fputc(SCNBUF(sc, x, y).ch, stderr);
         fprintf(stderr, "\"\n"); fflush(stderr);
 
     }
@@ -803,6 +808,71 @@ static int txt2lfn(FILE* f)
     if (fn < 0) error("Invalid file");
 
     return (fn); /* return result */
+
+}
+
+/*******************************************************************************
+
+Set rectangle from individual values
+
+Sets up a rectangle structure according to the top left and bottom right x,y
+coordinates.
+
+*******************************************************************************/
+
+/* set rectangle to values */
+void setrect(rectangle* r, int x1, int y1, int x2, int y2)
+
+{
+
+    r->x1 = x1;
+    r->y1 = y1;
+    r->x2 = x2;
+    r->y2 = y2;
+
+}
+
+/*******************************************************************************
+
+Check intersection of rectangles
+
+Returns true if the given rectangles intersect, that is, overlap in some area.
+
+*******************************************************************************/
+
+int intersect(rectangle* r1, rectangle* r2)
+
+{
+
+    return ((*r1).x2 >= (*r2).x1 && (*r1).x1 <= (*r2).x2 &&
+            (*r1).y2 >= (*r2).y1 && (*r1).y1 <= (*r2).y2);
+
+}
+
+/*******************************************************************************
+
+Find intersection of rectangles
+
+Finds a rectangle that is the intersection of the two given rectangles. The
+operation is meaningless if the rectangles do not intersect.
+
+*******************************************************************************/
+
+void intersection(rectangle* ri, rectangle* r1, rectangle* r2)
+
+{
+
+    /* copy to destination */
+    ri->x1 = r1->x1;
+    ri->x2 = r1->x2;
+    ri->y1 = r1->y1;
+    ri->y2 = r1->y2;
+
+    /* find intersection */
+    if (r1->x1 < r2->x1) ri->x1 = r2->x1;
+    if (r1->x2 > r2->x2) ri->x2 = r2->x2;
+    if (r1->y1 < r2->y1) ri->y1 = r2->y1;
+    if (r1->y2 > r2->y2) ri->y2 = r2->y2;
 
 }
 
@@ -997,7 +1067,7 @@ static void iniscn(winptr win, scnrec* sc)
         for (x = 1; x <= win->maxx; x++) {
 
         /* index screen character location */
-        scp = &SCNBUFYX(sc, y, x);
+        scp = &SCNBUF(sc, x, y);
         /* place character to buffer */
         scp->ch = ' ';
         scp->forec = pa_black;
@@ -1133,13 +1203,15 @@ static void restore(winptr win) /* window to restore */
 
 {
 
-    int x, y;
     scnrec* scp;   /* pointer to screen location */
+    scnrec* sc;
+    int x, y;
 
     if (win->bufmod && win->visible)  { /* buffered mode is on, and visible */
 
         if (win->frame) drwfrm(win); /* draw window frame */
 
+        sc = win->screens[win->curdsp-1]; /* index screen */
         /* restore window from buffer */
         for (y = 1; y <= win->maxy; y++) {
 
@@ -1149,8 +1221,7 @@ static void restore(winptr win) /* window to restore */
             for (x = 1; x <= win->maxx; x++) {
 
                 /* index screen character location */
-                scp = &SCNBUFYX(win->screens[win->curdsp-1],
-                                win->cury, win->curx);
+                scp = &SCNBUF(sc, x, y);
                 setfcolor(scp->forec); /* set colors */
                 setbcolor(scp->backc);
                 setattrs(scp->attr); /* set attributes */
@@ -1159,6 +1230,41 @@ static void restore(winptr win) /* window to restore */
             }
 
         }
+
+    }
+
+}
+
+/** ****************************************************************************
+
+Redraw screen
+
+Given an onscreen rectangle, redraws the "hole" in the screen by touring the
+current windows and redrawing parts of the screen from that.
+
+There are two basic algorithms for redrawing a screen hole, the bottom up and
+top down methods. A bottom up draws each window found from the bottom of the Z
+order to the top. A top down method draws from the top of the Z order to the
+bottom. The difference is that the bottom up method will redundantly redraw
+parts of the window as uppermost Z order elements draw over lower ones. In the
+top down method, we must keep track of already drawn parts of the rectangle,
+which means keeping a list of increasingly fractured rectangles. It does not
+redundantly draw, and thus is more efficient and produces less onscreen
+"sparkle" due to overdraws. The current implementation uses bottom up.
+
+*******************************************************************************/
+
+void redraw(int x1, int y1, int x2, int y2)
+
+{
+
+    winptr    win; /* pointer to windows list */
+
+    win = zmin2max; /* get the min to max list */
+    while (win) { /* traverse the windows list */
+
+        restore(win);
+        win = win->zmin2max; /* next window in Z order */
 
     }
 
@@ -1338,7 +1444,67 @@ winptr fndtop(int x, int y)
 
 }
 
+/*******************************************************************************
 
+Find Z order window
+
+Finds the given Z order window. Returns that or NULL if not found.
+
+*******************************************************************************/
+
+winptr fndzorder(int z)
+
+{
+
+    winptr win; /* pointer to windows list */
+    winptr fp;  /* found window pointer */
+
+    win = winlst; /* get the master list */
+    fp = NULL; /* set no window found */
+    while (win) { /* traverse the windows list */
+
+        if (win->zorder == z) { fp = win; win = NULL; }
+        else win = win->winlst; /* next window */
+
+    }
+
+    return (fp); /* exit wth container or NULL */
+
+}
+
+/*******************************************************************************
+
+Construct minimum to maximum Z order list
+
+Sorts the window list for Z order, and leaves the list in zmin2max. This picks
+from the general window list and does not affect it, so can be rerun at any
+time.
+
+*******************************************************************************/
+
+void makzmin2max(void)
+
+{
+
+    winptr win; /* pointer to windows list */
+    int    z;
+
+    zmin2max = NULL; /* clear the target list */
+    if (ztop >= 0) { /* Z order is valid */
+
+        for (z = ztop; z >= 0; z--) { /* find each window by Z order */
+
+            /* since we find max to min, the list gets pushed backwards and ends
+               up min to max */
+            win = fndzorder(z); /* find this Z window */
+            win->zmin2max = zmin2max; /* push to list */
+            zmin2max = win;
+
+        }
+
+    }
+
+}
 
 /*******************************************************************************
 
@@ -1411,6 +1577,7 @@ static void opnwin(int fn, int pfn, int wid, int subclient, int root)
     remfocus(); /* remove any existing focus */
     win->focus = TRUE; /* last window in gets focus */
     win->zorder = ztop; /* set Z order for this window */
+    makzmin2max(); /* (re)create the Z min to max list */
     win->inpptr = -1; /* set buffer empty */
     win->inpbuf[0] = 0;
     win->bufmod = TRUE; /* set buffering on */
@@ -1804,7 +1971,7 @@ static void intscroll(winptr win, int x, int y)
                 /* clear blank lines at end */
                 for (xi = 1; xi <= win->maxx; xi++) {
 
-                sp = &SCNBUFYX(sc, yi, xi);
+                sp = &SCNBUF(sc, xi, yi);
                 sp->ch = ' ';   /* clear to blanks at colors and attributes */
                 sp->forec = sc->forec;
                 sp->backc = sc->backc;
@@ -1822,7 +1989,7 @@ static void intscroll(winptr win, int x, int y)
             for (yi = 1; yi <= abs(y); yi++) /* clear blank lines at start */
                 for (xi = 1; xi <= win->maxx; xi++) {
 
-                sp = &SCNBUFYX(sc, yi, xi);
+                sp = &SCNBUF(sc, xi, yi);
                 /* clear to blanks at colors and attributes */
                 sp->ch = ' ';
                 sp->forec = sc->forec;
@@ -1838,12 +2005,12 @@ static void intscroll(winptr win, int x, int y)
                 for (xi = 1; xi <= win->maxx-1; xi++) /* move left */
                     if (xi+x <= win->maxx) /* still within buffer */
                         /* move characters left */
-                        memcpy(&SCNBUFYX(sc, yi, xi), &SCNBUFYX(sc, yi, xi+x),
+                        memcpy(&SCNBUF(sc, xi, yi), &SCNBUF(sc, xi+x, yi),
                                sizeof(scnrec));
                 /* clear blank spaces at right */
                 for (xi = win->maxx-x+1; xi <= win->maxx; xi++) {
 
-                    sp = &SCNBUFYX(sc, yi, xi);
+                    sp = &SCNBUF(sc, xi, yi);
                     /* clear to blanks at colors and attributes */
                     sp->ch = ' ';
                     sp->forec = sc->forec;
@@ -1861,12 +2028,12 @@ static void intscroll(winptr win, int x, int y)
                 for (xi = win->maxx; xi >= 2; xi--) /* move right */
                     if (xi+x >= 1) /* still within buffer */
                         /* move characters left */
-                        memcpy(&SCNBUFYX(sc, yi, xi), &SCNBUFYX(sc, yi, xi+x),
+                        memcpy(&SCNBUF(sc, xi, yi), &SCNBUF(sc, xi+x, yi),
                                sizeof(scnrec));
                 /* clear blank spaces at left */
                 for (xi = 1; xi <= abs(x); xi++) {
 
-                    sp = &SCNBUFYX(sc, yi, xi);
+                    sp = &SCNBUF(sc, xi, yi);
                     sp->ch = ' ';   /* clear to blanks at colors and attributes */
                     sp->forec = sc->forec;
                     sp->backc = sc->backc;
@@ -1899,13 +2066,13 @@ static void intscroll(winptr win, int x, int y)
 
                     m = 1; /* set match */
                     /* check all elements match */
-                    if (SCNBUFYX(sc, yi, lx).ch != SCNBUFYX(scnsav, yi, lx).ch)
+                    if (SCNBUF(sc, lx, yi).ch != SCNBUF(scnsav, lx, yi).ch)
                         m = 0;
-                    if (SCNBUFYX(sc, yi, lx).forec !=
-                        SCNBUFYX(scnsav, yi, lx).forec) m = 0;
-                    if (SCNBUFYX(sc, yi, lx).backc !=
-                        SCNBUFYX(scnsav, yi, lx).backc) m = 0;
-                    if (SCNBUFYX(sc, yi, lx).attr != SCNBUFYX(scnsav, yi, lx).attr)
+                    if (SCNBUF(sc, lx, yi).forec !=
+                        SCNBUF(scnsav, lx, yi).forec) m = 0;
+                    if (SCNBUF(sc, lx, yi).backc !=
+                        SCNBUF(scnsav, lx, yi).backc) m = 0;
+                    if (SCNBUF(sc, lx, yi).attr != SCNBUF(scnsav, lx, yi).attr)
                         m = 0;
                     if (m) lx--; /* next character */
 
@@ -1916,7 +2083,7 @@ static void intscroll(winptr win, int x, int y)
                        with what is set. if a new color or attribute is called for,
                        we set that, and update the saves. this technique cuts down on
                        the amount of output characters */
-                    sp = &SCNBUFYX(sc, yi, xi);
+                    sp = &SCNBUF(sc, xi, yi);
                     setfcolor(sp->forec); /* set the foreground color */
                     setbcolor(sp->backc); /* set the background color */
                     setattrs(sp->attr); /* set the attribute */
@@ -3426,8 +3593,8 @@ void iwrtstr(FILE* f, char* s)
         while (*ss && icurbnd(f)) { /* print string */
 
             /* index screen character location */
-            scp = &SCNBUFYX(win->screens[win->curdsp-1],
-                            win->cury, win->curx);
+            scp = &SCNBUF(win->screens[win->curdsp-1],
+                            win->curx, win->cury);
             /* place character to buffer */
             scp->ch = *ss++;
             scp->forec = win->fcolor;
@@ -3653,6 +3820,11 @@ void isetpos(FILE* f, int x, int y)
     win = txt2win(f); /* get window from file */
     win->orgx = x; /* set position in parent */
     win->orgy = y;
+    if (win->visible) /* window is onscreen */
+        /* draw the current window out */
+        redraw(win->orgx, win->orgy,
+               win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+
 
 }
 
@@ -3946,8 +4118,8 @@ static void plcchr(FILE* f, char c)
             if (win->bufmod) { /* buffer is active */
 
                 /* index screen character location */
-                scp = &SCNBUFYX(win->screens[win->curdsp-1],
-                                win->cury, win->curx);
+                scp = &SCNBUF(win->screens[win->curdsp-1],
+                              win->curx, win->cury);
                 /* place character to buffer */
                 scp->ch = c;
                 scp->forec = win->fcolor;
