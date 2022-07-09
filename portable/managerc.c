@@ -425,6 +425,9 @@ static winptr   timtbl[PA_MAXTIM]; /* timer translation table */
 static int      timids[PA_MAXTIM]; /* timer logical ids */
 static int      fautohold;    /* automatic hold on exit flag */
 static int      fend;         /* end of program ordered flag */
+static winptr   drgwin;       /* drag window */
+static int      drgx;         /* drag pin x */
+static int      drgy;         /* drag pin y */
 
 /* forwards */
 static void plcchr(FILE* f, char c);
@@ -900,6 +903,27 @@ static int setcursor(int x, int y)
 
 /*******************************************************************************
 
+Set cursor on/off cached
+
+Sets the root cursor visible if it has changed.
+
+*******************************************************************************/
+
+static void setcurvis(int e)
+
+{
+
+    if (e != curon) {
+
+        (*curvis_vect)(stdout, e); /* set new visible state */
+        curon = e; /* set cache */
+
+    }
+
+}
+
+/*******************************************************************************
+
 Set foreground color cached
 
 Sets the root foreground color if it has changed.
@@ -1209,6 +1233,7 @@ static void restore(winptr win) /* window to restore */
 
     if (win->bufmod && win->visible)  { /* buffered mode is on, and visible */
 
+        setcurvis(FALSE); /* turn off cursor for drawing */
         if (win->frame) drwfrm(win); /* draw window frame */
 
         sc = win->screens[win->curdsp-1]; /* index screen */
@@ -1230,6 +1255,7 @@ static void restore(winptr win) /* window to restore */
             }
 
         }
+        setcurvis(TRUE); /* reenable cursor */
 
     }
 
@@ -1324,27 +1350,6 @@ static void itab(FILE* f)
     while (x > win->tab[i] && win->tab[i] && i < MAXTAB && x < win->maxx) i++;
     if (win->tab[i] && x < win->tab[i]) /* not off right of tabs */
        win->curx = win->tab[i]; /* set position to that tab */
-
-}
-
-/*******************************************************************************
-
-Set cursor on/off cached
-
-Sets the root cursor visible if it has changed.
-
-*******************************************************************************/
-
-static void setcurvis(int e)
-
-{
-
-    if (e != curon) {
-
-        (*curvis_vect)(stdout, e); /* set new visible state */
-        curon = e; /* set cache */
-
-    }
 
 }
 
@@ -2101,6 +2106,33 @@ static void intscroll(winptr win, int x, int y)
 
 /** ****************************************************************************
 
+Set window position character
+
+Sets the onscreen window position, in character terms. If the window has a
+parent, the demensions are converted to the current character size there.
+Otherwise, pixel based demensions are used. This occurs because the desktop does
+not have a fixed character aspect, so we make one up, and our logical character
+is "one pixel" high and wide. It works because it can only be used as a
+relative measurement.
+
+*******************************************************************************/
+
+void intsetpos(winptr win, int x, int y)
+
+{
+
+    win->orgx = x; /* set position in parent */
+    win->orgy = y;
+    if (win->visible) /* window is onscreen */
+        /* draw the current window out */
+        redraw(win->orgx, win->orgy,
+               win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+
+
+}
+
+/** ****************************************************************************
+
 API calls implemented at this level
 
 *******************************************************************************/
@@ -2787,6 +2819,7 @@ void ievent(FILE* f, pa_evtrec* er)
     pa_evtrec ev;    /* local event record */
     int       valid; /* event is for this window and complete */
     winptr    win;   /* windows record pointer */
+    int       x, y;
 
     valid = FALSE; /* set no valid event */
     while (!valid) {
@@ -2846,6 +2879,14 @@ void ievent(FILE* f, pa_evtrec* er)
                                 er->etype = pa_etmin; /* set type */
                                 valid = TRUE; /* set as valid event */
 
+                            } else if (mousex-win->orgx > 1 &&
+                                       mousex-win->orgx < win->pmaxx) {
+
+                                /* system bar click */
+                                drgwin = win; /* set up drag pin */
+                                drgx = mousex;
+                                drgy = mousey;
+
                             }
 
                         }
@@ -2871,6 +2912,8 @@ void ievent(FILE* f, pa_evtrec* er)
                     valid = TRUE; /* set as valid event */
 
                 }
+                /* cancel any drag */
+                drgwin = NULL;
                 break;
             case pa_etmoumov: /* mouse move */
                 mousex = ev.moupx; /* set current mouse position */
@@ -2892,6 +2935,17 @@ void ievent(FILE* f, pa_evtrec* er)
                         valid = TRUE; /* set as valid event */
 
                     }
+
+                }
+                if (drgwin && (drgx != mousex || drgy != mousey)) {
+
+                    /* process drag */
+                    x = mousex-drgx; /* find drag distance */
+                    y = mousey-drgy;
+                    /* move the window */
+                    intsetpos(drgwin, win->orgx+x, win->orgy+y);
+                    drgx = mousex; /* reset drag position */
+                    drgy = mousey;
 
                 }
                 break;
@@ -3815,16 +3869,7 @@ void isetpos(FILE* f, int x, int y)
 
 {
 
-    winptr win; /* windows record pointer */
-
-    win = txt2win(f); /* get window from file */
-    win->orgx = x; /* set position in parent */
-    win->orgy = y;
-    if (win->visible) /* window is onscreen */
-        /* draw the current window out */
-        redraw(win->orgx, win->orgy,
-               win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
-
+    intsetpos(txt2win(f), x, y);
 
 }
 
@@ -4428,6 +4473,7 @@ static void init_managerc()
     ztop = -1; /* clear Z order top (none) */
     fend = FALSE; /* set no end of program ordered */
     fautohold = TRUE; /* set automatically hold self terminators */
+    drgwin = NULL; /* set no drag active */
 
     /* clear open files tables */
     for (fn = 0; fn < MAXFIL; fn++) {
