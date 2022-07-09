@@ -157,6 +157,23 @@ typedef enum {
 /* rectangle */
 typedef struct { int x1, y1, x2, y2; } rectangle;
 
+/* drag type */
+
+typedef enum {
+
+    dt_none,   /* no drag active */
+    dt_sysbar, /* sysbar drag (whole window) */
+    dt_ulcnr,  /* upper left corner */
+    dt_urcnr,  /* upper right corner */
+    dt_blcnr,  /* bottom left corner */
+    dt_brcnr,  /* bottom right corner */
+    dt_top,    /* top frame bar */
+    dt_left,   /* left frame bar */
+    dt_right,  /* right frame bar */
+    dt_bottom  /* bottom frame bar */
+
+} drgtyp;
+
 /* system override calls */
 
 extern void ovr_read(pread_t nfp, pread_t* ofp);
@@ -425,6 +442,7 @@ static winptr   timtbl[PA_MAXTIM]; /* timer translation table */
 static int      timids[PA_MAXTIM]; /* timer logical ids */
 static int      fautohold;    /* automatic hold on exit flag */
 static int      fend;         /* end of program ordered flag */
+static drgtyp   drag;         /* drag type in progress */
 static winptr   drgwin;       /* drag window */
 static int      drgx;         /* drag pin x */
 static int      drgy;         /* drag pin y */
@@ -2858,34 +2876,115 @@ void ievent(FILE* f, pa_evtrec* er)
                             er->winid = win->wid; /* set window logical id */
                             valid = TRUE; /* set as valid event */
 
-                        } else if (win->sysbar &&
-                                   mousey-win->orgy == win->size) {
+                        } else if (ev.mmoun == 1) {
 
-                            /* check for system bar events */
-                            if (mousex-win->orgx == win->pmaxx-3) {
+                            if (win->sysbar && mousey-win->orgy == win->size &&
+                                mousex-win->orgx >= 1 &&
+                                mousex-win->orgx < win->pmaxx-1) {
 
-                                /* terminate */
-                                er->etype = pa_etterm; /* set type */
-                                fend = TRUE; /* set end program requested */
-                                valid = TRUE; /* set as valid event */
+                                /* check for system bar events */
+                                if (mousex-win->orgx == win->pmaxx-3) {
 
-                            } if (mousex-win->orgx == win->pmaxx-5) { /* max */
+                                    /* terminate */
+                                    er->etype = pa_etterm; /* set type */
+                                    fend = TRUE; /* set end program requested */
+                                    valid = TRUE; /* set as valid event */
 
-                                er->etype = pa_etmax; /* set type */
-                                valid = TRUE; /* set as valid event */
+                                } if (mousex-win->orgx == win->pmaxx-5) {
 
-                            } if (mousex-win->orgx == win->pmaxx-7) { /* min */
+                                    /* max */
+                                    er->etype = pa_etmax; /* set type */
+                                    valid = TRUE; /* set as valid event */
 
-                                er->etype = pa_etmin; /* set type */
-                                valid = TRUE; /* set as valid event */
+                                } if (mousex-win->orgx == win->pmaxx-7) {
 
-                            } else if (mousex-win->orgx > 1 &&
-                                       mousex-win->orgx < win->pmaxx) {
+                                    /* min */
+                                    er->etype = pa_etmin; /* set type */
+                                    valid = TRUE; /* set as valid event */
 
-                                /* system bar click */
-                                drgwin = win; /* set up drag pin */
-                                drgx = mousex;
-                                drgy = mousey;
+                                } else if (mousex-win->orgx >= 1 &&
+                                           mousex-win->orgx < win->pmaxx-1) {
+
+                                    /* system bar click */
+                                    drag = dt_sysbar; /* set drag type */
+                                    drgwin = win; /* set up drag pin */
+                                    drgx = mousex;
+                                    drgy = mousey;
+
+                                }
+
+                            } else if (win->frame && win->size) {
+
+                                /* frame and sizebars are enabled */
+                                if (mousey-win->orgy == 0 &&
+                                      mousex-win->orgx == 0) {
+
+                                    /* top left click */
+                                    drag = dt_ulcnr; /* set drag type */
+                                    drgwin = win; /* set up drag pin */
+                                    drgx = mousex;
+                                    drgy = mousey;
+
+                                } else if (mousey-win->orgy == 0 &&
+                                      mousex-win->orgx == win->pmaxx-1) {
+
+                                    /* top right click */
+                                    drag = dt_urcnr; /* set drag type */
+                                    drgwin = win; /* set up drag pin */
+                                    drgx = mousex;
+                                    drgy = mousey;
+
+                                } else if (mousey-win->orgy == win->pmaxy-1 &&
+                                      mousex-win->orgx == 0) {
+
+                                    /* bottom left click */
+                                    drag = dt_blcnr; /* set drag type */
+                                    drgwin = win; /* set up drag pin */
+                                    drgx = mousex;
+                                    drgy = mousey;
+
+                                } else if (mousey-win->orgy == win->pmaxy-1 &&
+                                      mousex-win->orgx == win->pmaxx-1) {
+
+                                    /* bottom right click */
+                                    drag = dt_brcnr; /* set drag type */
+                                    drgwin = win; /* set up drag pin */
+                                    drgx = mousex;
+                                    drgy = mousey;
+
+                                } else if (mousey-win->orgy == 0) {
+
+                                    /* top bar click */
+                                    drag = dt_top; /* set drag type */
+                                    drgwin = win; /* set up drag pin */
+                                    drgx = mousex;
+                                    drgy = mousey;
+
+                                } else if (mousey-win->orgy == win->pmaxy-1) {
+
+                                    /* bottom bar click */
+                                    drag = dt_bottom; /* set drag type */
+                                    drgwin = win; /* set up drag pin */
+                                    drgx = mousex;
+                                    drgy = mousey;
+
+                                } else if (mousex-win->orgx == 0) {
+
+                                    /* left bar click */
+                                    drag = dt_left; /* set drag type */
+                                    drgwin = win; /* set up drag pin */
+                                    drgx = mousex;
+                                    drgy = mousey;
+
+                                } else if (mousex-win->orgx == win->pmaxx-1) {
+
+                                    /* right bar click */
+                                    drag = dt_right; /* set drag type */
+                                    drgwin = win; /* set up drag pin */
+                                    drgx = mousex;
+                                    drgy = mousey;
+
+                                }
 
                             }
 
@@ -2913,7 +3012,7 @@ void ievent(FILE* f, pa_evtrec* er)
 
                 }
                 /* cancel any drag */
-                drgwin = NULL;
+                drag = dt_none;
                 break;
             case pa_etmoumov: /* mouse move */
                 mousex = ev.moupx; /* set current mouse position */
@@ -2937,7 +3036,7 @@ void ievent(FILE* f, pa_evtrec* er)
                     }
 
                 }
-                if (drgwin && (drgx != mousex || drgy != mousey)) {
+                if (drag != dt_none && (drgx != mousex || drgy != mousey)) {
 
                     /* process drag */
                     x = mousex-drgx; /* find drag distance */
@@ -4474,6 +4573,7 @@ static void init_managerc()
     fend = FALSE; /* set no end of program ordered */
     fautohold = TRUE; /* set automatically hold self terminators */
     drgwin = NULL; /* set no drag active */
+    drag = dt_none;
 
     /* clear open files tables */
     for (fn = 0; fn < MAXFIL; fn++) {
