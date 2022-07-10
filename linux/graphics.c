@@ -12386,6 +12386,7 @@ static void sizbufg_ivf(FILE* f, int x, int y)
 
     if (x < 1 || y < 1)  error(einvsiz); /* invalid buffer size */
     win = txt2win(f); /* get window context */
+    if (!win->bufmod) error(ebufoff); /* error */
     /* set buffer size */
     win->gmaxx = x/win->charspace; /* find character size x */
     win->gmaxy = y/win->linespace; /* find character size y */

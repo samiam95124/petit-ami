@@ -340,6 +340,8 @@ typedef struct winrec {
     int      coffy;             /* client offset y */
     int      maxx;              /* maximum x size */
     int      maxy;              /* maximum y size */
+    int      bufx;              /* buffer size x characters */
+    int      bufy;              /* buffer size y characters */
     int      pmaxx;             /* parent maximum x */
     int      pmaxy;             /* parent maximum y */
     int      mpx, mpy;          /* mouse current position */
@@ -430,7 +432,6 @@ static pa_color bcolor;       /* background color */
 static int      curx;         /* cursor x */
 static int      cury;         /* cursor y */
 static int      curon;        /* current on/off visible state of cursor */
-
 static winptr   winfre;       /* free windows structure list */
 static winptr   winlst;       /* master list of all windows */
 static winptr   rootlst;      /* master list of all roots */
@@ -446,6 +447,8 @@ static drgtyp   drag;         /* drag type in progress */
 static winptr   drgwin;       /* drag window */
 static int      drgx;         /* drag pin x */
 static int      drgy;         /* drag pin y */
+static pa_pevthan evthan[pa_ettabbar+1]; /* array of event handler routines */
+static pa_pevthan evtshan;        /* single master event handler routine */
 
 /* forwards */
 static void plcchr(FILE* f, char c);
@@ -1120,6 +1123,29 @@ static void iniscn(winptr win, scnrec* sc)
 
 }
 
+/** ****************************************************************************
+
+Clear screen buffers
+
+Releases all screen buffers for the current window and clears their indexes.
+
+*******************************************************************************/
+
+static void clrbufs(winptr win)
+
+{
+
+    int si; /* index for screen buffers */
+
+    for (si = 0; si < MAXCON; si++) {
+
+        if (win->screens[si]) free(win->screens[si]); /* free screen data */
+        win->screens[si] = NULL; /* clear screen data */
+
+    }
+
+}
+
 /*******************************************************************************
 
 Check in display mode
@@ -1651,6 +1677,8 @@ static void opnwin(int fn, int pfn, int wid, int subclient, int root)
     for (si = 0; si < MAXCON; si++) win->screens[si] = NULL;
     /* get the default screen */
     win->screens[0] = malloc(sizeof(scnrec)*win->maxy*win->maxx);
+    win->bufx = win->maxx; /* save size of buffer */
+    win->bufy = win->maxy;
     win->curdsp = 1; /* set current display screen */
     win->curupd = 1; /* set current update screen */
     win->visible = FALSE; /* set not visible */
@@ -2136,11 +2164,15 @@ void intsetsiz(winptr win, int x, int y)
 
     win->pmaxx = x; /* set size */
     win->pmaxy = y;
-    win->maxx = win->pmaxx; /* copy to client dimensions */
-    win->maxy = win->pmaxy;
-    /* subtract frame from client if enabled */
-    win->maxx -= (win->frame && win->size)*2;
-    win->maxy -= win->frame*2+win->size*2;
+    if (!win->bufmod) { /* in follow mode */
+
+        win->maxx = win->pmaxx; /* copy to client dimensions */
+        win->maxy = win->pmaxy;
+        /* subtract frame from client if enabled */
+        win->maxx -= (win->frame && win->size)*2;
+        win->maxy -= win->frame*2+win->size*2;
+
+    }
     if (win->visible) /* window is onscreen */
         /* draw the current window out */
         redraw(win->orgx, win->orgy,
@@ -2845,6 +2877,25 @@ void iselect(FILE* f, int u, int d)
 
 /** ****************************************************************************
 
+Default event handler
+
+If we reach this event handler, it means none of the overriders has handled the
+event, but rather passed it down. We flag the event was not handled and return,
+which will cause the event to return to the event() caller.
+
+*******************************************************************************/
+
+static void defaultevent(pa_evtrec* ev)
+
+{
+
+    /* set not handled and exit */
+    ev->handled = 0;
+
+}
+
+/** ****************************************************************************
+
 Acquire next input event
 
 Waits for and returns the next event. For now, the input file is ignored, and
@@ -2856,7 +2907,7 @@ Our event loop here is like an event to event translation.
 
 *******************************************************************************/
 
-void ievent(FILE* f, pa_evtrec* er)
+void intevent(FILE* f, pa_evtrec* er)
 
 {
 
@@ -3210,9 +3261,95 @@ void ievent(FILE* f, pa_evtrec* er)
         }
 
     }
+
+
+}
+
+static void ievent(FILE* f, pa_evtrec* er)
+
+{
+
+    do { /* loop handling via event vectors and queuing */
+
+        intevent(f, er); /* get next event */
 #ifdef PRTEVT
-    fprintf(stderr, "Outbound: "); prtevt(er); fprintf(stderr, "\n"); fflush(stderr);
+        fprintf(stderr, "Outbound: "); prtevt(er); fprintf(stderr, "\n"); fflush(stderr);
 #endif
+        er->handled = 1; /* set event is handled by default */
+        (evtshan)(er); /* call master event handler */
+        if (!er->handled && er->etype <= pa_ettabbar) { /* send it to fanout */
+
+            er->handled = 1; /* set event is handled by default */
+            (*evthan[er->etype])(er); /* call event handler first */
+
+        }
+
+    } while (er->handled);
+    /* event not handled, return it to the caller */
+
+}
+
+/** ****************************************************************************
+
+Override event handler
+
+Overrides or "hooks" the indicated event handler. The existing event handler is
+given to the caller, and the new event handler becomes effective. If the event
+is called, and the overrider does not want to handle it, that overrider can
+call down into the stack by executing the overridden event.
+
+*******************************************************************************/
+
+void ieventover(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh)
+
+{
+
+    if (e > pa_ettabbar) error("Cannot vector auxillary event");
+    *oeh = evthan[e]; /* save existing event handler */
+    evthan[e] = eh; /* place new event handler */
+
+}
+
+/** ****************************************************************************
+
+Override master event handler
+
+Overrides or "hooks" the master event handler. The existing event handler is
+given to the caller, and the new event handler becomes effective. If the event
+is called, and the overrider does not want to handle it, that overrider can
+call down into the stack by executing the overridden event.
+
+*******************************************************************************/
+
+void ieventsover(pa_pevthan eh,  pa_pevthan* oeh)
+
+{
+
+    *oeh = evtshan; /* save existing event handler */
+    evtshan = eh; /* place new event handler */
+
+}
+
+/** ****************************************************************************
+
+Send event to window
+
+Send an event to the given window. The event is placed into the queue for the
+given window. Note that the input side of the window is found, and the event
+spooled for that side. Note that any window number given the event is
+overwritten with the proper window id after a copy is made.
+
+The difference between this and inserting to the event chain is that this
+routine enters to the top of the chain, and specifies the input side of the
+window. Thus it is a more complete send of the event.
+
+*******************************************************************************/
+
+void isendevent(FILE* f, pa_evtrec* er)
+
+{
+
+    /* needs event queue */
 
 }
 
@@ -3842,60 +3979,6 @@ void iwrtstr(FILE* f, char* s)
 
 }
 
-/** ****************************************************************************
-
-Override event handler
-
-Overrides or "hooks" the indicated event handler. The existing event handler is
-given to the caller, and the new event handler becomes effective. If the event
-is called, and the overrider does not want to handle it, that overrider can
-call down into the stack by executing the overridden event.
-
-*******************************************************************************/
-
-void ieventover(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh)
-
-{
-
-}
-
-/** ****************************************************************************
-
-Override master event handler
-
-Overrides or "hooks" the master event handler. The existing event handler is
-given to the caller, and the new event handler becomes effective. If the event
-is called, and the overrider does not want to handle it, that overrider can
-call down into the stack by executing the overridden event.
-
-*******************************************************************************/
-
-void ieventsover(pa_pevthan eh,  pa_pevthan* oeh)
-
-{
-
-}
-
-/** ****************************************************************************
-
-Send event to window
-
-Send an event to the given window. The event is placed into the queue for the
-given window. Note that the input side of the window is found, and the event
-spooled for that side. Note that any window number given the event is
-overwritten with the proper window id after a copy is made.
-
-The difference between this and inserting to the event chain is that this
-routine enters to the top of the chain, and specifies the input side of the
-window. Thus it is a more complete send of the event.
-
-*******************************************************************************/
-
-void isendevent(FILE* f, pa_evtrec* er)
-
-{
-
-}
 
 /** ****************************************************************************
 
@@ -3954,6 +4037,36 @@ void ibuffer(FILE* f, int e)
 
 {
 
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    e = !!e; /* clean boolean */
+    if (e != win->bufmod) { /* buffered status has changed */
+
+        win->bufmod = e; /* set new buffer status */
+        if (e) { /* enable buffered mode */
+
+            win->maxx = win->bufx; /* restore previous buffer size */
+            win->maxy = win->bufy;
+            /* allocate prime buffer */
+            win->screens[0] = malloc(sizeof(scnrec)*win->maxy*win->maxx);
+            /* clear */
+            iniscn(win, win->screens[0]);
+
+        } else {
+
+            /* find dimensions from parent for follow modes */
+            win->maxx = win->pmaxx; /* copy to client dimensions */
+            win->maxy = win->pmaxy;
+            /* subtract frame from client if enabled */
+            win->maxx -= (win->frame && win->size)*2;
+            win->maxy -= win->frame*2+win->size*2;
+            clrbufs(win); /* clear out all allocatedbuffers */
+
+        }
+
+    }
+
 }
 
 /** ****************************************************************************
@@ -3968,13 +4081,28 @@ void isizbuf(FILE* f, int x, int y)
 
 {
 
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    if (!win->bufmod) error("Buffer mode is not enabled");
+    if (win->bufx != x || win->bufy != y) {
+
+        /* buffer size has changed */
+        clrbufs(win); /* all the screen buffers are wrong, so tear them out */
+        /* allocate prime buffer */
+        win->screens[0] = malloc(sizeof(scnrec)*win->maxy*win->maxx);
+        /* clear */
+        iniscn(win, win->screens[0]);
+
+    }
+
 }
 
 /** ****************************************************************************
 
 Get window size character
 
-Gets the onscreen window size, in character terms.
+Gets the onscreen parent window size, in character terms.
 
 *******************************************************************************/
 
@@ -3985,8 +4113,8 @@ void igetsiz(FILE* f, int* x, int* y)
     winptr win; /* windows record pointer */
 
     win = txt2win(f); /* get window from file */
-    *x = win->maxx; /* set size */
-    *y = win->maxy;
+    *x = win->pmaxx; /* set size */
+    *y = win->pmaxy;
 
 }
 
@@ -4042,6 +4170,12 @@ void iscnsiz(FILE* f, int* x, int* y)
 
 {
 
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    *x = (*maxx_vect)(stdout); /* return parent size */
+    *y = (*maxy_vect)(stdout);
+
 }
 
 /** ****************************************************************************
@@ -4061,6 +4195,12 @@ screens that are joined at one or more sides.
 void iscncen(FILE* f, int* x, int* y)
 
 {
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    *x = (*maxx_vect)(stdout)/2; /* return parent size/2 */
+    *y = (*maxy_vect)(stdout)/2;
 
 }
 
@@ -4083,6 +4223,14 @@ void iwinclient(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
 
 {
 
+    if ((BIT(pa_wmframe) & ms) && (BIT(pa_wmsize) & ms)) {
+
+        cx++; /* add size bars to client */
+        cy++;
+
+    }
+    if (BIT(pa_wmsysbar) & ms) cy += 2; /* add sysbar to client */
+
 }
 
 /** ****************************************************************************
@@ -4097,6 +4245,8 @@ void ifront(FILE* f)
 
 {
 
+    /* need to refactor Z ordering before this */
+
 }
 
 /** ****************************************************************************
@@ -4110,6 +4260,8 @@ Puts the indicated window to the back of the Z order.
 void iback(FILE* f)
 
 {
+
+    /* need to refactor Z ordering before this */
 
 }
 
@@ -4128,7 +4280,13 @@ void iframe(FILE* f, int e)
     winptr win; /* windows record pointer */
 
     win = txt2win(f); /* get window from file */
-    win->frame = e; /* set frame state */
+    e = !!e; /* clean boolean */
+    if (win->frame != e) {
+
+        win->frame = e; /* set frame state */
+        restore(win); /* redraw */
+
+    }
 
 }
 
@@ -4148,6 +4306,17 @@ void isizable(FILE* f, int e)
 
 {
 
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    e = !!e; /* clean boolean */
+    if (win->size != e) {
+
+        win->size = e; /* set frame state */
+        restore(win); /* redraw */
+
+    }
+
 }
 
 /** ****************************************************************************
@@ -4164,6 +4333,17 @@ used to create component windows.
 void isysbar(FILE* f, int e)
 
 {
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    e = !!e; /* clean boolean */
+    if (win->sysbar != e) {
+
+        win->sysbar = e; /* set frame state */
+        restore(win); /* redraw */
+
+    }
 
 }
 
@@ -4259,6 +4439,15 @@ int igetwinid(void)
 
 {
 
+    int wid; /* window id */
+
+    wid = -1; /* start at -1 */
+    /* find any open entry */
+    while (wid > -MAXFIL && xltwin[wid+MAXFIL] >= 0) wid--;
+    if (wid == -MAXFIL) error("No more anonymous wids");
+
+    return (wid); /* return the wid */
+
 }
 
 /** ****************************************************************************
@@ -4272,6 +4461,17 @@ Sends the focus, or which window gets input characters, to a given window.
 void ifocus(FILE* f)
 
 {
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    if (!win->focus) { /* not already in focus */
+
+        remfocus(); /* remove previous focus */
+        win->focus = TRUE; /* set current focus */
+        setcur(win); /* set cursor active */
+
+    }
 
 }
 
@@ -4615,11 +4815,12 @@ static void init_managerc()
 
 {
 
-    int fn;  /* file number */
-    int wid; /* window id */
-    int ofn; /* standard output file number */
-    int ifn; /* standard input file number */
-    int ti;  /* timer index */
+    int       fn;  /* file number */
+    int       wid; /* window id */
+    int       ofn; /* standard output file number */
+    int       ifn; /* standard input file number */
+    int       ti;  /* timer index */
+    pa_evtcod e;
 
     winfre = NULL; /* clear free windows structure list */
     winlst = NULL; /* clear master window list */
@@ -4649,6 +4850,10 @@ static void init_managerc()
 
     /* clear timer equivalence table */
     for (ti = 0; ti < PA_MAXTIM; ti++) timtbl[ti] = NULL;
+
+    /* clear event vector table */
+    evtshan = defaultevent;
+    for (e = pa_etchar; e <= pa_ettabbar; e++) evthan[e] = defaultevent;
 
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
