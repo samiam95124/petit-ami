@@ -2124,7 +2124,33 @@ static void intscroll(winptr win, int x, int y)
 
 /** ****************************************************************************
 
-Set window position character
+Set window size character internal
+
+Sets the onscreen window size, in character terms.
+
+*******************************************************************************/
+
+void intsetsiz(winptr win, int x, int y)
+
+{
+
+    win->pmaxx = x; /* set size */
+    win->pmaxy = y;
+    win->maxx = win->pmaxx; /* copy to client dimensions */
+    win->maxy = win->pmaxy;
+    /* subtract frame from client if enabled */
+    win->maxx -= (win->frame && win->size)*2;
+    win->maxy -= win->frame*2+win->size*2;
+    if (win->visible) /* window is onscreen */
+        /* draw the current window out */
+        redraw(win->orgx, win->orgy,
+               win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+
+}
+
+/** ****************************************************************************
+
+Set window position character internal
 
 Sets the onscreen window position, in character terms. If the window has a
 parent, the demensions are converted to the current character size there.
@@ -3036,13 +3062,51 @@ void ievent(FILE* f, pa_evtrec* er)
                     }
 
                 }
+                /* check drag is active and mouse has moved */
                 if (drag != dt_none && (drgx != mousex || drgy != mousey)) {
 
-                    /* process drag */
-                    x = mousex-drgx; /* find drag distance */
+                    /* find drag distance */
+                    x = mousex-drgx;
                     y = mousey-drgy;
                     /* move the window */
-                    intsetpos(drgwin, win->orgx+x, win->orgy+y);
+                    switch (drag) {
+
+                        case dt_none:   /* no drag active */
+                            break;
+                        case dt_sysbar: /* sysbar drag (whole window) */
+                            intsetpos(drgwin, drgwin->orgx+x, drgwin->orgy+y);
+                            break;
+                        case dt_ulcnr:  /* upper left corner */
+                            intsetpos(drgwin, drgwin->orgx+x, drgwin->orgy+y);
+                            intsetsiz(drgwin, drgwin->pmaxx-x, drgwin->pmaxy-y);
+                            break;
+                        case dt_urcnr:  /* upper right corner */
+                            intsetpos(drgwin, drgwin->orgx, drgwin->orgy+y);
+                            intsetsiz(drgwin, drgwin->pmaxx+x, drgwin->pmaxy-y);
+                            break;
+                        case dt_blcnr:  /* bottom left corner */
+                            intsetpos(drgwin, drgwin->orgx+x, drgwin->orgy);
+                            intsetsiz(drgwin, drgwin->pmaxx-x, drgwin->pmaxy+y);
+                            break;
+                        case dt_brcnr:  /* bottom right corner */
+                            intsetsiz(drgwin, drgwin->pmaxx+x, drgwin->pmaxy+y);
+                            break;
+                        case dt_top:    /* top frame bar */
+                            intsetpos(drgwin, drgwin->orgx, drgwin->orgy+y);
+                            intsetsiz(drgwin, drgwin->pmaxx, drgwin->pmaxy-y);
+                            break;
+                        case dt_left:   /* left frame bar */
+                            intsetpos(drgwin, drgwin->orgx+x, drgwin->orgy);
+                            intsetsiz(drgwin, drgwin->pmaxx-x, drgwin->pmaxy);
+                            break;
+                        case dt_right:  /* right frame bar */
+                            intsetsiz(drgwin, drgwin->pmaxx+x, drgwin->pmaxy);
+                            break;
+                        case dt_bottom:  /* bottom frame bar */
+                            intsetsiz(drgwin, drgwin->pmaxx, drgwin->pmaxy+y);
+                            break;
+
+                    }
                     drgx = mousex; /* reset drag position */
                     drgy = mousey;
 
@@ -3938,16 +4002,7 @@ void isetsiz(FILE* f, int x, int y)
 
 {
 
-    winptr win; /* windows record pointer */
-
-    win = txt2win(f); /* get window from file */
-    win->pmaxx = x; /* set size */
-    win->pmaxy = y;
-    win->maxx = win->pmaxx; /* copy to client dimensions */
-    win->maxy = win->pmaxy;
-    /* subtract frame from client if enabled */
-    win->maxx -= (win->frame && win->size)*2;
-    win->maxy -= win->frame*2+win->size*2;
+    intsetsiz(txt2win(f), x, y);
 
 }
 
