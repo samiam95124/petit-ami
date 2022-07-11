@@ -347,10 +347,14 @@ typedef struct winrec {
     int      orgy;              /* window origin in root y */
     int      coffx;             /* client offset x */
     int      coffy;             /* client offset y */
+    /* note: maxx/y tracks the buffer size in buffered mode, but tracks the
+       client size with buffering off */
     int      maxx;              /* maximum x size */
     int      maxy;              /* maximum y size */
     int      bufx;              /* buffer size x characters */
     int      bufy;              /* buffer size y characters */
+    int      cmaxx;             /* onscreen client size x */
+    int      cmaxy;             /* onscreen client size x */
     int      pmaxx;             /* parent maximum x */
     int      pmaxy;             /* parent maximum y */
     int      mpx, mpy;          /* mouse current position */
@@ -1421,12 +1425,12 @@ static void restore(winptr win) /* window to restore */
 
         sc = win->screens[win->curdsp-1]; /* index screen */
         /* restore window from buffer */
-        for (y = 1; y <= win->maxy; y++) {
+        for (y = 1; y <= win->cmaxy; y++) {
 
             /* Reset cursor at the start of each line. Note frame offsets. */
             setcursor(win->orgx+win->coffx, win->orgy+win->coffy+y-1);
             /* draw each line */
-            for (x = 1; x <= win->maxx; x++) {
+            for (x = 1; x <= win->cmaxx; x++) {
 
                 /* index screen character location */
                 scp = &SCNBUF(sc, x, y);
@@ -1793,6 +1797,8 @@ static void opnwin(int fn, int pfn, int wid, int subclient, int root)
     /* subtract frame from client if enabled */
     win->maxx -= (win->frame && win->size)*2;
     win->maxy -= win->frame*2+win->size*2;
+    win->cmaxx = win->maxx; /* set client size to track buffer */
+    win->cmaxy = win->maxy;
     win->mpx = 0; /* set mouse relative position invalid */
     win->mpy = 0;
     win->attr = attr; /* no attribute */
@@ -2303,6 +2309,11 @@ void intsetsiz(winptr win, int x, int y)
 
     win->pmaxx = x; /* set size */
     win->pmaxy = y;
+    win->cmaxx = win->pmaxx; /* copy to client dimensions */
+    win->cmaxy = win->pmaxy;
+    /* subtract frame from client if enabled */
+    win->cmaxx -= (win->frame && win->size)*2;
+    win->cmaxy -= win->frame*2+win->size*2;
     if (!win->bufmod) { /* in follow mode */
 
         win->maxx = win->pmaxx; /* copy to client dimensions */
@@ -4129,7 +4140,6 @@ void iwrtstr(FILE* f, char* s)
     }
 
 }
-
 
 /** ****************************************************************************
 
