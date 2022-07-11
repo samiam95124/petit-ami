@@ -174,6 +174,15 @@ typedef enum {
 
 } drgtyp;
 
+/* PA queue structure. Its a bubble list. */
+typedef struct paevtque {
+
+    struct paevtque* next; /* next in list */
+    struct paevtque* last; /* last in list */
+    pa_evtrec       evt;  /* event data */
+
+} paevtque;
+
 /* system override calls */
 
 extern void ovr_read(pread_t nfp, pread_t* ofp);
@@ -449,6 +458,8 @@ static int      drgx;         /* drag pin x */
 static int      drgy;         /* drag pin y */
 static pa_pevthan evthan[pa_ettabbar+1]; /* array of event handler routines */
 static pa_pevthan evtshan;        /* single master event handler routine */
+static paevtque*  paqfre;         /* free PA event queue entries list */
+static paevtque*  paqevt;         /* PA event input save queue */
 
 /* forwards */
 static void plcchr(FILE* f, char c);
@@ -897,6 +908,134 @@ void intersection(rectangle* ri, rectangle* r1, rectangle* r2)
     if (r1->x2 > r2->x2) ri->x2 = r2->x2;
     if (r1->y1 < r2->y1) ri->y1 = r2->y1;
     if (r1->y2 > r2->y2) ri->y2 = r2->y2;
+
+}
+
+/** ****************************************************************************
+
+Get freed/new PA queue entry
+
+Either gets a new entry from malloc or returns a previously freed entry.
+
+*******************************************************************************/
+
+static paevtque* getpaevt(void)
+
+{
+
+    paevtque* p;
+
+    if (paqfre) { /* there is a freed entry */
+
+        p = paqfre; /* index top entry */
+        paqfre = p->next; /* gap from list */
+
+    } else p = (paevtque*)malloc(sizeof(paevtque));
+
+    return (p);
+
+}
+
+/** ****************************************************************************
+
+Get freed/new PA queue entry
+
+Either gets a new entry from malloc or returns a previously freed entry.
+
+*******************************************************************************/
+
+static void putpaevt(paevtque* p)
+
+{
+
+    p->next = paqfre; /* push to list */
+    paqfre = p;
+
+}
+
+/** ****************************************************************************
+
+Print contents of PA queue
+
+A diagnostic, prints the contents of the PA queue.
+
+*******************************************************************************/
+
+static void prtquepaevt(void)
+
+{
+
+    paevtque* p;
+
+    p = paqevt; /* index root entry */
+    while (p) {
+
+        prtevt(&p->evt); /* print this entry */
+        fprintf(stderr, "\n"); fflush(stderr);
+        p = p->next; /* link next */
+        if (p == paqevt) p = NULL; /* end of queue, terminate */
+
+    }
+
+}
+
+/** ****************************************************************************
+
+Place PA event into input queue
+
+*******************************************************************************/
+
+static void enquepaevt(pa_evtrec* e)
+
+{
+
+    paevtque* p;
+
+    p = getpaevt(); /* get a queue entry */
+    memcpy(&p->evt, e, sizeof(pa_evtrec)); /* copy event to queue entry */
+    if (paqevt) { /* there are entries in queue */
+
+        /* we push TO next (current) and take FROM last (final) */
+        p->next = paqevt; /* link next to current entry */
+        p->last = paqevt->last; /* link last to final entry */
+        paqevt->last = p; /* link current to this */
+        p->last->next = p; /* link final to this */
+        paqevt = p; /* point to new entry */
+
+    } else { /* queue is empty */
+
+        p->next = p; /* link to self */
+        p->last = p;
+        paqevt = p; /* place in list */
+
+    }
+
+}
+
+/** ****************************************************************************
+
+Remove PA event from input queue
+
+*******************************************************************************/
+
+static void dequepaevt(pa_evtrec* e)
+
+{
+
+    paevtque* p;
+
+    if (!paqevt) error("System fault"); /* should not be called empty */
+    /* we push TO next (current) and take FROM last (final) */
+    p = paqevt->last; /* index final entry */
+    if (p->next == p) paqevt = NULL; /* only one entry, clear list */
+    else { /* other entries */
+
+        p->last->next = p->next; /* point last at current */
+        p->next->last = p->last; /* point current at last */
+
+    }
+    memcpy(e, &p->evt, sizeof(pa_evtrec)); /* copy out to caller */
+    putpaevt(p); /* release queue entry to free */
 
 }
 
@@ -3271,7 +3410,9 @@ static void ievent(FILE* f, pa_evtrec* er)
 
     do { /* loop handling via event vectors and queuing */
 
-        intevent(f, er); /* get next event */
+        /* check input PA queue */
+        if (paqevt) dequepaevt(er);
+        else intevent(f, er); /* get next event */
 #ifdef PRTEVT
         fprintf(stderr, "Outbound: "); prtevt(er); fprintf(stderr, "\n"); fflush(stderr);
 #endif
@@ -3349,7 +3490,17 @@ void isendevent(FILE* f, pa_evtrec* er)
 
 {
 
-    /* needs event queue */
+    pa_evtrec ec; /* copy of event record */
+    winptr win;   /* pointer to windows context */
+    int fn;       /* logical file number */
+
+    fn = fileno(f); /* find find number */
+    if (fn < 0) error("Invalid file"); /* file invalid */
+    if (opnfil[fn]->inl < 0) error("No input side for this window");
+    win = lfn2win(fn); /* index window for file */
+    memcpy(&ec, er, sizeof(pa_evtrec));
+    ec.winid = win->wid; /* overwrite window id */
+    enquepaevt(&ec); /* send to queue */
 
 }
 
@@ -4830,6 +4981,8 @@ static void init_managerc()
     fautohold = TRUE; /* set automatically hold self terminators */
     drgwin = NULL; /* set no drag active */
     drag = dt_none;
+    paqfre = NULL; /* clear pa event free queue */
+    paqevt = NULL; /* clear pa event input queue */
 
     /* clear open files tables */
     for (fn = 0; fn < MAXFIL; fn++) {

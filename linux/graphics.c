@@ -1128,8 +1128,8 @@ static pa_pevthan evthan[pa_ettabbar+1]; /* array of event handler routines */
 static pa_pevthan evtshan;        /* single master event handler routine */
 static xevtque*   freque;         /* free XEvent queue entries list */
 static xevtque*   evtque;         /* XEvent input save queue */
-static paevtque*  paqfre;         /* free XEvent queue entries list */
-static paevtque*  paqevt;         /* XEvent input save queue */
+static paevtque*  paqfre;         /* free PA event queue entries list */
+static paevtque*  paqevt;         /* PA event input save queue */
 static pa_pevthan menu_event_oeh; /* event callback save for menus */
 static metptr     fremet;         /* free menu entrys list */
 static winptr     winfre;         /* free windows structure list */
