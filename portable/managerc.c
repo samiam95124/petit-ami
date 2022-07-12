@@ -1593,6 +1593,33 @@ static void itab(FILE* f)
 
 }
 
+/** ****************************************************************************
+
+Send event to window
+
+Send an event to the given window. The event is placed into the queue for the
+given window. Note that the input side of the window is found, and the event
+spooled for that side. Note that any window number given the event is
+overwritten with the proper window id after a copy is made.
+
+The difference between this and inserting to the event chain is that this
+routine enters to the top of the chain, and specifies the input side of the
+window. Thus it is a more complete send of the event.
+
+*******************************************************************************/
+
+static void intsendevent(winptr win, pa_evtrec* er)
+
+{
+
+    pa_evtrec ec; /* copy of event record */
+
+    memcpy(&ec, er, sizeof(pa_evtrec));
+    ec.winid = win->wid; /* overwrite window id */
+    enquepaevt(&ec); /* send to queue */
+
+}
+
 /*******************************************************************************
 
 Remove all focus windows
@@ -1607,11 +1634,19 @@ void remfocus(void)
 
 {
 
-    winptr win; /* pointer to windows list */
+    winptr    win; /* pointer to windows list */
+    pa_evtrec ev;  /* local event record */
 
     win = winlst; /* get the master list */
     while (win) { /* traverse the windows list */
 
+        if (win->focus) { /* if this window has focus */
+
+            /* send defocus message */
+            ev.etype = pa_etnofocus; /* set no focus event */
+            intsendevent(win, &ev); /* send to queue */
+
+        }
         win->focus = FALSE;
         win = win->winlst; /* next window */
 
@@ -3297,6 +3332,9 @@ void intevent(FILE* f, pa_evtrec* er)
                     } else if (ev.mmoun == 1) { /* button 1 click */
 
                         remfocus(); /* remove previous focus */
+                        /* send focus message */
+                        ev.etype = pa_etfocus; /* set focus event */
+                        intsendevent(win, &ev); /* send to queue */
                         win->focus = TRUE; /* set current focus */
                         if (win->zorder != ztop) { /* if not already top window */
 
@@ -3585,17 +3623,14 @@ void isendevent(FILE* f, pa_evtrec* er)
 
 {
 
-    pa_evtrec ec; /* copy of event record */
     winptr win;   /* pointer to windows context */
     int fn;       /* logical file number */
 
     fn = fileno(f); /* find find number */
-    if (fn < 0) error("Invalid file"); /* file invalid */
-    if (opnfil[fn]->inl < 0) error("No input side for this window");
+    if (fn < 0) error("Invalid file");
+    if (opnfil[fn]->inl < 0) error("No input side for window");
     win = lfn2win(fn); /* index window for file */
-    memcpy(&ec, er, sizeof(pa_evtrec));
-    ec.winid = win->wid; /* overwrite window id */
-    enquepaevt(&ec); /* send to queue */
+    intsendevent(win, er); /* send it */
 
 }
 
