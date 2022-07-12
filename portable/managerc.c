@@ -1403,6 +1403,59 @@ static void drwfrm(winptr win)
 
 /** ****************************************************************************
 
+Find if cursor is in screen bounds internal
+
+Checks if the cursor lies in the current bounds, and returns TRUE if so.
+
+*******************************************************************************/
+
+int intcurbnd(winptr win)
+
+{
+
+    return (win->curx >= 1 && win->curx <= win->maxx &&
+            win->cury >= 1 && win->cury <= win->maxy);
+
+}
+
+/*******************************************************************************
+
+Position cursor in window
+
+Positions the cursor (caret) image to the right location on screen, and handles
+the visible or invisible status of that. We consider the current position and
+visible/invisible status, and try to output only the minimum terminal controls
+to bring the old state of the display to the same state as the new display.
+
+*******************************************************************************/
+
+void setcur(winptr win)
+
+{
+
+    if (indisp(win)) { /* in display */
+
+        /* check cursor in bounds and visible */
+        if (intcurbnd(win) && win->curv) {
+
+            if (!curon) { /* cursor not on */
+
+                (*curvis_vect)(stdout, TRUE); /* set cursor on */
+                curon = TRUE;
+
+            }
+            /* position actual cursor */
+            setcursor(win->curx+win->orgx-1+win->coffx,
+                      win->cury+win->orgy-1+win->coffy);
+
+        }
+
+    }
+
+}
+
+/** ****************************************************************************
+
 Restore screen
 
 Updates all the buffer and screen parameters from the display screen to the
@@ -1442,7 +1495,7 @@ static void restore(winptr win) /* window to restore */
             }
 
         }
-        setcurvis(TRUE); /* reenable cursor */
+        setcur(win); /* reenable cursor */
 
     }
 
@@ -1695,6 +1748,83 @@ void makzmin2max(void)
         }
 
     }
+
+}
+
+/*******************************************************************************
+
+Print min 2 max windows list
+
+Prints the contents of the min 2 max list. A diagnostic.
+
+*******************************************************************************/
+
+void prtmin2maxlst(void)
+
+{
+
+    winptr wp;
+
+    fprintf(stderr, "Min to max windows list\n");
+    wp = zmin2max; /* index top of list */
+    while (wp) {
+
+        fprintf(stderr, "Window; %d zorder: %d\n", wp->wid, wp->zorder);
+        wp = wp->zmin2max; /* next */
+
+    }
+    fprintf(stderr, "\n");
+    fflush(stderr);
+
+}
+
+/*******************************************************************************
+
+Bring window to front of the Z order
+
+Brings the indicated window to the front of the Z order.
+
+*******************************************************************************/
+
+void intfront(winptr win)
+
+{
+
+    winptr wp, lp;
+    int    z;
+
+    /* remove from min to maxlist */
+    if (zmin2max == win) /* is first entry */
+        zmin2max = zmin2max->zmin2max; /* gap top list */
+    else { /* find in list */
+
+        wp = zmin2max; /* index top of list */
+        while (wp != win) { /* traverse */
+
+            lp = wp; /* set last */
+            wp = wp->zmin2max; /* go next */
+            if (!wp) error("System fault");
+
+        }
+        lp->zmin2max = win->zmin2max; /* gap out of list */
+
+    }
+    /* reorder list */
+    wp = zmin2max; /* index top of list */
+    z = 0; /* set z order count */
+    lp = NULL; /* set no last */
+    while (wp) { /* traverse the list */
+
+        lp = wp; /* set last entry */
+        wp->zorder = z++; /* set new order */
+        wp = wp->zmin2max; /* next entry */
+
+    }
+    win->zmin2max = NULL; /* terminate last entry */
+    if (lp) /* if there is a last entry */
+        lp->zmin2max = win; /* set as new last */
+    else zmin2max = win; /* list is empty, set first */
+    win->zorder = ztop; /* set our entry as top Z order */
 
 }
 
@@ -2048,59 +2178,6 @@ int inclient(winptr win, int x, int y)
             x <= win->orgx+win->coffx+win->maxx-1 &&
             win->orgy+win->coffy <= y &&
             y <= win->orgy+win->coffy+win->maxy-1);
-
-}
-
-/** ****************************************************************************
-
-Find if cursor is in screen bounds internal
-
-Checks if the cursor lies in the current bounds, and returns TRUE if so.
-
-*******************************************************************************/
-
-int intcurbnd(winptr win)
-
-{
-
-    return (win->curx >= 1 && win->curx <= win->maxx &&
-            win->cury >= 1 && win->cury <= win->maxy);
-
-}
-
-/*******************************************************************************
-
-Position cursor in window
-
-Positions the cursor (caret) image to the right location on screen, and handles
-the visible or invisible status of that. We consider the current position and
-visible/invisible status, and try to output only the minimum terminal controls
-to bring the old state of the display to the same state as the new display.
-
-*******************************************************************************/
-
-void setcur(winptr win)
-
-{
-
-    if (indisp(win)) { /* in display */
-
-        /* check cursor in bounds and visible */
-        if (intcurbnd(win) && win->curv) {
-
-            if (!curon) { /* cursor not on */
-
-                (*curvis_vect)(stdout, TRUE); /* set cursor on */
-                curon = TRUE;
-
-            }
-            /* position actual cursor */
-            setcursor(win->curx+win->orgx-1+win->coffx,
-                      win->cury+win->orgy-1+win->coffy);
-
-        }
-
-    }
 
 }
 
@@ -3221,7 +3298,14 @@ void intevent(FILE* f, pa_evtrec* er)
 
                         remfocus(); /* remove previous focus */
                         win->focus = TRUE; /* set current focus */
-                        setcur(win); /* set cursor active */
+                        if (win->zorder != ztop) { /* if not already top window */
+
+                            intfront(win); /* bring to front */
+                            /* redraw for order */
+                            redraw(win->orgx, win->orgy,
+                                   win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+
+                        }
 
                     }
 
@@ -4406,7 +4490,10 @@ void ifront(FILE* f)
 
 {
 
-    /* need to refactor Z ordering before this */
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    intfront(win); /* make this the front window */
 
 }
 
