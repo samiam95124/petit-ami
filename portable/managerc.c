@@ -1865,6 +1865,54 @@ void intfront(winptr win)
 
 /*******************************************************************************
 
+Put window to back of the Z order
+
+Puts the indicated window to the back of the Z order. Note that this routine
+will never put the window in back of Z order window 0, since that is the root.
+That makes the back of the list 1.
+
+*******************************************************************************/
+
+void intback(winptr win)
+
+{
+
+    winptr wp, lp;
+    int    z;
+
+    /* remove from min to maxlist */
+    if (zmin2max == win) /* is first entry */
+        zmin2max = zmin2max->zmin2max; /* gap top list */
+    else { /* find in list */
+
+        wp = zmin2max; /* index top of list */
+        while (wp != win) { /* traverse */
+
+            lp = wp; /* set last */
+            wp = wp->zmin2max; /* go next */
+            if (!wp) error("System fault");
+
+        }
+        lp->zmin2max = win->zmin2max; /* gap out of list */
+
+    }
+    /* reorder list */
+    wp = zmin2max; /* index top of list */
+    z = 2; /* set z order count */
+    while (wp) { /* traverse the list */
+
+        wp->zorder = z++; /* set new order */
+        wp = wp->zmin2max; /* next entry */
+
+    }
+    win->zmin2max = zmin2max->zmin2max; /* push ahead of root */
+    zmin2max->zmin2max = win;
+    win->zorder = ztop; /* set our entry as bottom Z order */
+
+}
+
+/*******************************************************************************
+
 Display window
 
 Presents a window, and sends it a first paint message. Used to process the
@@ -4544,7 +4592,10 @@ void iback(FILE* f)
 
 {
 
-    /* need to refactor Z ordering before this */
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    intback(win); /* make this the back window */
 
 }
 
