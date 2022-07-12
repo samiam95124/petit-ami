@@ -3221,371 +3221,365 @@ Our event loop here is like an event to event translation.
 
 *******************************************************************************/
 
-void intevent(FILE* f, pa_evtrec* er)
+void intevent(FILE* f)
 
 {
 
-    pa_evtrec ev;    /* local event record */
-    int       valid; /* event is for this window and complete */
+    pa_evtrec ev, er;    /* local event record */
     winptr    win;   /* windows record pointer */
     int       x, y;
 
-    valid = FALSE; /* set no valid event */
-    while (!valid) {
-
-        (*event_vect)(stdin, &ev); /* get root event */
+    (*event_vect)(stdin, &ev); /* get root event */
 #ifdef PRTROOTEVT
         fprintf(stderr, "Inbound: "); prtevt(&ev); fprintf(stderr, "\n"); fflush(stderr);
 #endif
-        switch (ev.etype) { /* process root events */
+    switch (ev.etype) { /* process root events */
 
-            case pa_etchar: /* input character ready */
+        case pa_etchar: /* input character ready */
 
-                win = fndfocus(); /* find focus window (if any) */
-                if (win) { /* found focus window */
+            win = fndfocus(); /* find focus window (if any) */
+            if (win) { /* found focus window */
 
-                    er->etype = pa_etchar; /* place character code */
-                    er->echar = ev.echar; /* place character */
-                    er->winid = win->wid; /* send keys to focus window */
-                    valid = TRUE; /* set as valid event */
+                er.etype = pa_etchar; /* place character code */
+                er.echar = ev.echar; /* place character */
+                er.winid = win->wid; /* send keys to focus window */
+                intsendevent(win, &er); /* issue event */
 
-                }
-                break;
-            case pa_etmouba:  /* mouse button assertion */
-                win = fndtop(mousex, mousey); /* find the enclosing window */
-                /* first click with no focus gives focus, next click gives message */
-                if (win) {
+            }
+            break;
+        case pa_etmouba:  /* mouse button assertion */
+            win = fndtop(mousex, mousey); /* find the enclosing window */
+            /* first click with no focus gives focus, next click gives message */
+            if (win) {
 
-                    if (win->focus) { /* window has focus */
+                if (win->focus) { /* window has focus */
 
-                        if (inclient(win, mousex, mousey)) {
+                    if (inclient(win, mousex, mousey)) {
 
-                            /* in client area */
-                            er->etype = pa_etmouba; /* set mouse button asserts */
-                            er->amoun = ev.amoun; /* set mouse number */
-                            er->amoubn = ev.amoubn; /* set button number */
-                            er->winid = win->wid; /* set window logical id */
-                            valid = TRUE; /* set as valid event */
+                        /* in client area */
+                        er.etype = pa_etmouba; /* set mouse button asserts */
+                        er.amoun = ev.amoun; /* set mouse number */
+                        er.amoubn = ev.amoubn; /* set button number */
+                        er.winid = win->wid; /* set window logical id */
+                        intsendevent(win, &er); /* issue event */
 
-                        } else if (ev.mmoun == 1) {
+                    } else if (ev.mmoun == 1) {
 
-                            if (win->sysbar && mousey-win->orgy == win->size &&
-                                mousex-win->orgx >= 1 &&
-                                mousex-win->orgx < win->pmaxx-1) {
+                        if (win->sysbar && mousey-win->orgy == win->size &&
+                            mousex-win->orgx >= 1 &&
+                            mousex-win->orgx < win->pmaxx-1) {
 
-                                /* check for system bar events */
-                                if (mousex-win->orgx == win->pmaxx-3) {
+                            /* check for system bar events */
+                            if (mousex-win->orgx == win->pmaxx-3) {
 
-                                    /* terminate */
-                                    er->etype = pa_etterm; /* set type */
-                                    fend = TRUE; /* set end program requested */
-                                    valid = TRUE; /* set as valid event */
+                                /* terminate */
+                                er.etype = pa_etterm; /* set type */
+                                intsendevent(win, &er); /* issue event */
+                                fend = TRUE; /* set end program requested */
 
-                                } if (mousex-win->orgx == win->pmaxx-5) {
+                            } if (mousex-win->orgx == win->pmaxx-5) {
 
-                                    /* max */
-                                    er->etype = pa_etmax; /* set type */
-                                    valid = TRUE; /* set as valid event */
+                                /* max */
+                                er.etype = pa_etmax; /* set type */
+                                intsendevent(win, &er); /* issue event */
 
-                                } if (mousex-win->orgx == win->pmaxx-7) {
+                            } if (mousex-win->orgx == win->pmaxx-7) {
 
-                                    /* min */
-                                    er->etype = pa_etmin; /* set type */
-                                    valid = TRUE; /* set as valid event */
+                                /* min */
+                                er.etype = pa_etmin; /* set type */
+                                intsendevent(win, &er); /* issue event */
 
-                                } else if (mousex-win->orgx >= 1 &&
-                                           mousex-win->orgx < win->pmaxx-1) {
+                            } else if (mousex-win->orgx >= 1 &&
+                                       mousex-win->orgx < win->pmaxx-1) {
 
-                                    /* system bar click */
-                                    drag = dt_sysbar; /* set drag type */
-                                    drgwin = win; /* set up drag pin */
-                                    drgx = mousex;
-                                    drgy = mousey;
+                                /* system bar click */
+                                drag = dt_sysbar; /* set drag type */
+                                drgwin = win; /* set up drag pin */
+                                drgx = mousex;
+                                drgy = mousey;
 
-                                }
+                            }
 
-                            } else if (win->frame && win->size) {
+                        } else if (win->frame && win->size) {
 
-                                /* frame and sizebars are enabled */
-                                if (mousey-win->orgy == 0 &&
-                                      mousex-win->orgx == 0) {
+                            /* frame and sizebars are enabled */
+                            if (mousey-win->orgy == 0 &&
+                                  mousex-win->orgx == 0) {
 
-                                    /* top left click */
-                                    drag = dt_ulcnr; /* set drag type */
-                                    drgwin = win; /* set up drag pin */
-                                    drgx = mousex;
-                                    drgy = mousey;
+                                /* top left click */
+                                drag = dt_ulcnr; /* set drag type */
+                                drgwin = win; /* set up drag pin */
+                                drgx = mousex;
+                                drgy = mousey;
 
-                                } else if (mousey-win->orgy == 0 &&
-                                      mousex-win->orgx == win->pmaxx-1) {
+                            } else if (mousey-win->orgy == 0 &&
+                                  mousex-win->orgx == win->pmaxx-1) {
 
-                                    /* top right click */
-                                    drag = dt_urcnr; /* set drag type */
-                                    drgwin = win; /* set up drag pin */
-                                    drgx = mousex;
-                                    drgy = mousey;
+                                /* top right click */
+                                drag = dt_urcnr; /* set drag type */
+                                drgwin = win; /* set up drag pin */
+                                drgx = mousex;
+                                drgy = mousey;
 
-                                } else if (mousey-win->orgy == win->pmaxy-1 &&
-                                      mousex-win->orgx == 0) {
+                            } else if (mousey-win->orgy == win->pmaxy-1 &&
+                                  mousex-win->orgx == 0) {
 
-                                    /* bottom left click */
-                                    drag = dt_blcnr; /* set drag type */
-                                    drgwin = win; /* set up drag pin */
-                                    drgx = mousex;
-                                    drgy = mousey;
+                                /* bottom left click */
+                                drag = dt_blcnr; /* set drag type */
+                                drgwin = win; /* set up drag pin */
+                                drgx = mousex;
+                                drgy = mousey;
 
-                                } else if (mousey-win->orgy == win->pmaxy-1 &&
-                                      mousex-win->orgx == win->pmaxx-1) {
+                            } else if (mousey-win->orgy == win->pmaxy-1 &&
+                                  mousex-win->orgx == win->pmaxx-1) {
 
-                                    /* bottom right click */
-                                    drag = dt_brcnr; /* set drag type */
-                                    drgwin = win; /* set up drag pin */
-                                    drgx = mousex;
-                                    drgy = mousey;
+                                /* bottom right click */
+                                drag = dt_brcnr; /* set drag type */
+                                drgwin = win; /* set up drag pin */
+                                drgx = mousex;
+                                drgy = mousey;
 
-                                } else if (mousey-win->orgy == 0) {
+                            } else if (mousey-win->orgy == 0) {
 
-                                    /* top bar click */
-                                    drag = dt_top; /* set drag type */
-                                    drgwin = win; /* set up drag pin */
-                                    drgx = mousex;
-                                    drgy = mousey;
+                                /* top bar click */
+                                drag = dt_top; /* set drag type */
+                                drgwin = win; /* set up drag pin */
+                                drgx = mousex;
+                                drgy = mousey;
 
-                                } else if (mousey-win->orgy == win->pmaxy-1) {
+                            } else if (mousey-win->orgy == win->pmaxy-1) {
 
-                                    /* bottom bar click */
-                                    drag = dt_bottom; /* set drag type */
-                                    drgwin = win; /* set up drag pin */
-                                    drgx = mousex;
-                                    drgy = mousey;
+                                /* bottom bar click */
+                                drag = dt_bottom; /* set drag type */
+                                drgwin = win; /* set up drag pin */
+                                drgx = mousex;
+                                drgy = mousey;
 
-                                } else if (mousex-win->orgx == 0) {
+                            } else if (mousex-win->orgx == 0) {
 
-                                    /* left bar click */
-                                    drag = dt_left; /* set drag type */
-                                    drgwin = win; /* set up drag pin */
-                                    drgx = mousex;
-                                    drgy = mousey;
+                                /* left bar click */
+                                drag = dt_left; /* set drag type */
+                                drgwin = win; /* set up drag pin */
+                                drgx = mousex;
+                                drgy = mousey;
 
-                                } else if (mousex-win->orgx == win->pmaxx-1) {
+                            } else if (mousex-win->orgx == win->pmaxx-1) {
 
-                                    /* right bar click */
-                                    drag = dt_right; /* set drag type */
-                                    drgwin = win; /* set up drag pin */
-                                    drgx = mousex;
-                                    drgy = mousey;
-
-                                }
+                                /* right bar click */
+                                drag = dt_right; /* set drag type */
+                                drgwin = win; /* set up drag pin */
+                                drgx = mousex;
+                                drgy = mousey;
 
                             }
 
                         }
 
-                    } else if (ev.mmoun == 1) { /* button 1 click */
+                    }
 
-                        remfocus(); /* remove previous focus */
-                        /* send focus message */
-                        ev.etype = pa_etfocus; /* set focus event */
-                        intsendevent(win, &ev); /* send to queue */
-                        win->focus = TRUE; /* set current focus */
-                        if (win->zorder != ztop) { /* if not already top window */
+                } else if (ev.mmoun == 1) { /* button 1 click */
 
-                            intfront(win); /* bring to front */
-                            /* redraw for order */
-                            redraw(win->orgx, win->orgy,
-                                   win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+                    remfocus(); /* remove previous focus */
+                    /* send focus message */
+                    er.etype = pa_etfocus; /* set focus event */
+                    intsendevent(win, &er); /* send to queue */
+                    win->focus = TRUE; /* set current focus */
+                    if (win->zorder != ztop) { /* if not already top window */
 
-                        }
+                        intfront(win); /* bring to front */
+                        /* redraw for order */
+                        redraw(win->orgx, win->orgy,
+                               win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
 
                     }
 
                 }
-                break;
-            case pa_etmoubd:  /* mouse button deassertion */
-                win = fndtop(mousex, mousey); /* find the enclosing window */
-                if (win && win->focus && inclient(win, mousex, mousey)) {
 
-                    er->etype = pa_etmoubd; /* set mouse button deasserts */
-                    er->dmoun = ev.dmoun; /* set mouse number */
-                    er->dmoubn = ev.dmoubn; /* set button number */
-                    er->winid = win->wid; /* set window logical id */
-                    valid = TRUE; /* set as valid event */
+            }
+            break;
+        case pa_etmoubd:  /* mouse button deassertion */
+            win = fndtop(mousex, mousey); /* find the enclosing window */
+            if (win && win->focus && inclient(win, mousex, mousey)) {
 
-                }
-                /* cancel any drag */
-                drag = dt_none;
-                break;
-            case pa_etmoumov: /* mouse move */
-                mousex = ev.moupx; /* set current mouse position */
-                mousey = ev.moupy;
-                win = fndtop(mousex, mousey); /* see if in a window */
-                if (win && win->focus) { /* in window and in focus */
+                er.etype = pa_etmoubd; /* set mouse button deasserts */
+                er.dmoun = ev.dmoun; /* set mouse number */
+                er.dmoubn = ev.dmoubn; /* set button number */
+                er.winid = win->wid; /* set window logical id */
+                intsendevent(win, &er); /* send to queue */
 
-                    /* check in client area */
-                    if (inclient(win, mousex, mousey)) {
+            }
+            /* cancel any drag */
+            drag = dt_none;
+            break;
+        case pa_etmoumov: /* mouse move */
+            mousex = ev.moupx; /* set current mouse position */
+            mousey = ev.moupy;
+            win = fndtop(mousex, mousey); /* see if in a window */
+            if (win && win->focus) { /* in window and in focus */
 
-                        er->etype = pa_etmoumov; /* set mouse move event */
-                        er->mmoun = ev.mmoun; /* set mouse number */
-                        /* calculate relative location in client area */
-                        er->moupx = mousex-(win->orgx+win->coffx)+1;
-                        er->moupy = mousey-(win->orgy+win->coffy)+1;
-                        win->mpx = er->moupx; /* copy to window data */
-                        win->mpy = er->moupy;
-                        er->winid = win->wid; /* set window logical id */
-                        valid = TRUE; /* set as valid event */
+                /* check in client area */
+                if (inclient(win, mousex, mousey)) {
 
-                    }
-
-                }
-                /* check drag is active and mouse has moved */
-                if (drag != dt_none && (drgx != mousex || drgy != mousey)) {
-
-                    /* find drag distance */
-                    x = mousex-drgx;
-                    y = mousey-drgy;
-                    /* move the window */
-                    switch (drag) {
-
-                        case dt_none:   /* no drag active */
-                            break;
-                        case dt_sysbar: /* sysbar drag (whole window) */
-                            intsetpos(drgwin, drgwin->orgx+x, drgwin->orgy+y);
-                            break;
-                        case dt_ulcnr:  /* upper left corner */
-                            intsetpos(drgwin, drgwin->orgx+x, drgwin->orgy+y);
-                            intsetsiz(drgwin, drgwin->pmaxx-x, drgwin->pmaxy-y);
-                            break;
-                        case dt_urcnr:  /* upper right corner */
-                            intsetpos(drgwin, drgwin->orgx, drgwin->orgy+y);
-                            intsetsiz(drgwin, drgwin->pmaxx+x, drgwin->pmaxy-y);
-                            break;
-                        case dt_blcnr:  /* bottom left corner */
-                            intsetpos(drgwin, drgwin->orgx+x, drgwin->orgy);
-                            intsetsiz(drgwin, drgwin->pmaxx-x, drgwin->pmaxy+y);
-                            break;
-                        case dt_brcnr:  /* bottom right corner */
-                            intsetsiz(drgwin, drgwin->pmaxx+x, drgwin->pmaxy+y);
-                            break;
-                        case dt_top:    /* top frame bar */
-                            intsetpos(drgwin, drgwin->orgx, drgwin->orgy+y);
-                            intsetsiz(drgwin, drgwin->pmaxx, drgwin->pmaxy-y);
-                            break;
-                        case dt_left:   /* left frame bar */
-                            intsetpos(drgwin, drgwin->orgx+x, drgwin->orgy);
-                            intsetsiz(drgwin, drgwin->pmaxx-x, drgwin->pmaxy);
-                            break;
-                        case dt_right:  /* right frame bar */
-                            intsetsiz(drgwin, drgwin->pmaxx+x, drgwin->pmaxy);
-                            break;
-                        case dt_bottom:  /* bottom frame bar */
-                            intsetsiz(drgwin, drgwin->pmaxx, drgwin->pmaxy+y);
-                            break;
-
-                    }
-                    drgx = mousex; /* reset drag position */
-                    drgy = mousey;
+                    er.etype = pa_etmoumov; /* set mouse move event */
+                    er.mmoun = ev.mmoun; /* set mouse number */
+                    /* calculate relative location in client area */
+                    er.moupx = mousex-(win->orgx+win->coffx)+1;
+                    er.moupy = mousey-(win->orgy+win->coffy)+1;
+                    win->mpx = er.moupx; /* copy to window data */
+                    win->mpy = er.moupy;
+                    er.winid = win->wid; /* set window logical id */
+                    intsendevent(win, &er); /* issue event */
 
                 }
-                break;
-            case pa_etup:      /* cursor up one line */
-            case pa_etdown:    /* down one line */
-            case pa_etleft:    /* left one character */
-            case pa_etright:   /* right one character */
-            case pa_etleftw:   /* left one word */
-            case pa_etrightw:  /* right one word */
-            case pa_ethome:    /* home of document */
-            case pa_ethomes:   /* home of screen */
-            case pa_ethomel:   /* home of line */
-            case pa_etend:     /* end of document */
-            case pa_etends:    /* end of screen */
-            case pa_etendl:    /* end of line */
-            case pa_etscrl:    /* scroll left one character */
-            case pa_etscrr:    /* scroll right one character */
-            case pa_etscru:    /* scroll up one line */
-            case pa_etscrd:    /* scroll down one line */
-            case pa_etpagd:    /* page down */
-            case pa_etpagu:    /* page up */
-            case pa_ettab:     /* tab */
-            case pa_etenter:   /* enter line */
-            case pa_etinsert:  /* insert block */
-            case pa_etinsertl: /* insert line */
-            case pa_etinsertt: /* insert toggle */
-            case pa_etdel:     /* delete block */
-            case pa_etdell:    /* delete line */
-            case pa_etdelcf:   /* delete character forward */
-            case pa_etdelcb:   /* delete character backward */
-            case pa_etcopy:    /* copy block */
-            case pa_etcopyl:   /* copy line */
-            case pa_etcan:     /* cancel current operation */
-            case pa_etstop:    /* stop current operation */
-            case pa_etcont:    /* continue current operation */
-            case pa_etprint:   /* print document */
-            case pa_etprintb:  /* print block */
-            case pa_etprints:  /* print screen */
-            case pa_etfun:     /* function key */
-            case pa_etmenu:    /* display menu */
-                win = fndtop(mousex, mousey); /* find the enclosing window */
-                if (win && win->focus) {
 
-                    er->etype = ev.etype; /* set key type */
-                    er->winid = win->wid; /* set window logical id */
-                    valid = TRUE; /* set as valid event */
+            }
+            /* check drag is active and mouse has moved */
+            if (drag != dt_none && (drgx != mousex || drgy != mousey)) {
+
+                /* find drag distance */
+                x = mousex-drgx;
+                y = mousey-drgy;
+                /* move the window */
+                switch (drag) {
+
+                    case dt_none:   /* no drag active */
+                        break;
+                    case dt_sysbar: /* sysbar drag (whole window) */
+                        intsetpos(drgwin, drgwin->orgx+x, drgwin->orgy+y);
+                        break;
+                    case dt_ulcnr:  /* upper left corner */
+                        intsetpos(drgwin, drgwin->orgx+x, drgwin->orgy+y);
+                        intsetsiz(drgwin, drgwin->pmaxx-x, drgwin->pmaxy-y);
+                        break;
+                    case dt_urcnr:  /* upper right corner */
+                        intsetpos(drgwin, drgwin->orgx, drgwin->orgy+y);
+                        intsetsiz(drgwin, drgwin->pmaxx+x, drgwin->pmaxy-y);
+                        break;
+                    case dt_blcnr:  /* bottom left corner */
+                        intsetpos(drgwin, drgwin->orgx+x, drgwin->orgy);
+                        intsetsiz(drgwin, drgwin->pmaxx-x, drgwin->pmaxy+y);
+                        break;
+                    case dt_brcnr:  /* bottom right corner */
+                        intsetsiz(drgwin, drgwin->pmaxx+x, drgwin->pmaxy+y);
+                        break;
+                    case dt_top:    /* top frame bar */
+                        intsetpos(drgwin, drgwin->orgx, drgwin->orgy+y);
+                        intsetsiz(drgwin, drgwin->pmaxx, drgwin->pmaxy-y);
+                        break;
+                    case dt_left:   /* left frame bar */
+                        intsetpos(drgwin, drgwin->orgx+x, drgwin->orgy);
+                        intsetsiz(drgwin, drgwin->pmaxx-x, drgwin->pmaxy);
+                        break;
+                    case dt_right:  /* right frame bar */
+                        intsetsiz(drgwin, drgwin->pmaxx+x, drgwin->pmaxy);
+                        break;
+                    case dt_bottom:  /* bottom frame bar */
+                        intsetsiz(drgwin, drgwin->pmaxx, drgwin->pmaxy+y);
+                        break;
 
                 }
-                break;
-            case pa_ettim:     /* timer matures */
-                if (timtbl[ev.timnum]) { /* there is a window assigned */
+                drgx = mousex; /* reset drag position */
+                drgy = mousey;
 
-                    win = timtbl[ev.timnum-1]; /* get the assigned window */
-                     /* check framing/normal timer */
-                    if (win->frmtim = ev.timnum) er->etype = pa_etframe;
-                    else {
+            }
+            break;
+        case pa_etup:      /* cursor up one line */
+        case pa_etdown:    /* down one line */
+        case pa_etleft:    /* left one character */
+        case pa_etright:   /* right one character */
+        case pa_etleftw:   /* left one word */
+        case pa_etrightw:  /* right one word */
+        case pa_ethome:    /* home of document */
+        case pa_ethomes:   /* home of screen */
+        case pa_ethomel:   /* home of line */
+        case pa_etend:     /* end of document */
+        case pa_etends:    /* end of screen */
+        case pa_etendl:    /* end of line */
+        case pa_etscrl:    /* scroll left one character */
+        case pa_etscrr:    /* scroll right one character */
+        case pa_etscru:    /* scroll up one line */
+        case pa_etscrd:    /* scroll down one line */
+        case pa_etpagd:    /* page down */
+        case pa_etpagu:    /* page up */
+        case pa_ettab:     /* tab */
+        case pa_etenter:   /* enter line */
+        case pa_etinsert:  /* insert block */
+        case pa_etinsertl: /* insert line */
+        case pa_etinsertt: /* insert toggle */
+        case pa_etdel:     /* delete block */
+        case pa_etdell:    /* delete line */
+        case pa_etdelcf:   /* delete character forward */
+        case pa_etdelcb:   /* delete character backward */
+        case pa_etcopy:    /* copy block */
+        case pa_etcopyl:   /* copy line */
+        case pa_etcan:     /* cancel current operation */
+        case pa_etstop:    /* stop current operation */
+        case pa_etcont:    /* continue current operation */
+        case pa_etprint:   /* print document */
+        case pa_etprintb:  /* print block */
+        case pa_etprints:  /* print screen */
+        case pa_etfun:     /* function key */
+        case pa_etmenu:    /* display menu */
+            win = fndtop(mousex, mousey); /* find the enclosing window */
+            if (win && win->focus) {
 
-                        er->etype = pa_ettim; /* set type */
-                        er->timnum = timids[ev.timnum-1]; /* set id of timer */
+                er.etype = ev.etype; /* set key type */
+                er.winid = win->wid; /* set window logical id */
+                intsendevent(win, &er); /* issue event */
 
-                    }
-                    er->winid = win->wid; /* set window logical id */
-                    valid = TRUE; /* set as valid event */
+            }
+            break;
+        case pa_ettim:     /* timer matures */
+            if (timtbl[ev.timnum]) { /* there is a window assigned */
+
+                win = timtbl[ev.timnum-1]; /* get the assigned window */
+                 /* check framing/normal timer */
+                if (win->frmtim = ev.timnum) er.etype = pa_etframe;
+                else {
+
+                    er.etype = pa_ettim; /* set type */
+                    er.timnum = timids[ev.timnum-1]; /* set id of timer */
+
                 }
-                break;
-            case pa_etjoyba:  /* joystick button assertion */
-                    er->etype = pa_etjoyba; /* set joystick button asserts */
-                    er->ajoyn = ev.ajoyn; /* set joystick number */
-                    er->ajoybn = ev.ajoybn; /* set button number */
-                    er->winid = 0; /* set window logical id (anonymous) */
-                    valid = TRUE; /* set as valid event */
-                break;
-            case pa_etjoybd:  /* joystick button deassertion */
-                    er->etype = pa_etjoybd; /* set joystick button deasserts */
-                    er->djoyn = ev.djoyn; /* set joystick number */
-                    er->djoybn = ev.djoybn; /* set button number */
-                    er->winid = 0; /* set window logical id (anonymous) */
-                    valid = TRUE; /* set as valid event */
-                break;
-            case pa_etjoymov: /* joystick move */
-                    er->etype = pa_etjoymov; /* set joystick move */
-                    er->mjoyn = ev.mjoyn; /* set joystick number */
-                    er->joypx = ev.joypx; /* set motion axies */
-                    er->joypy = ev.joypy;
-                    er->joypz = ev.joypz;
-                    er->joyp4 = ev.joyp4;
-                    er->joyp5 = ev.joyp5;
-                    er->joyp6 = ev.joyp6;
-                    er->winid = 0; /* set window logical id (anonymous) */
-                    valid = TRUE; /* set as valid event */
-                break;
-            case pa_etterm: /* terminate */
-                er->etype = pa_etterm; /* set type */
-                fend = TRUE; /* set end program requested */
-                valid = TRUE; /* set as valid event */
-                break;
-            default: ; /* ignore the rest */
+                er.winid = win->wid; /* set window logical id */
+                intsendevent(win, &er); /* issue event */
 
-        }
+            }
+            break;
+        case pa_etjoyba:  /* joystick button assertion */
+                er.etype = pa_etjoyba; /* set joystick button asserts */
+                er.ajoyn = ev.ajoyn; /* set joystick number */
+                er.ajoybn = ev.ajoybn; /* set button number */
+                er.winid = 0; /* set window logical id (anonymous) */
+                intsendevent(win, &er); /* issue event */
+            break;
+        case pa_etjoybd:  /* joystick button deassertion */
+                er.etype = pa_etjoybd; /* set joystick button deasserts */
+                er.djoyn = ev.djoyn; /* set joystick number */
+                er.djoybn = ev.djoybn; /* set button number */
+                er.winid = 0; /* set window logical id (anonymous) */
+                intsendevent(win, &er); /* issue event */
+            break;
+        case pa_etjoymov: /* joystick move */
+                er.etype = pa_etjoymov; /* set joystick move */
+                er.mjoyn = ev.mjoyn; /* set joystick number */
+                er.joypx = ev.joypx; /* set motion axies */
+                er.joypy = ev.joypy;
+                er.joypz = ev.joypz;
+                er.joyp4 = ev.joyp4;
+                er.joyp5 = ev.joyp5;
+                er.joyp6 = ev.joyp6;
+                er.winid = 0; /* set window logical id (anonymous) */
+                intsendevent(win, &er); /* issue event */
+            break;
+        case pa_etterm: /* terminate */
+            er.etype = pa_etterm; /* set type */
+            intsendevent(win, &er); /* issue event */
+            fend = TRUE; /* set end program requested */
+            break;
+        default: ; /* ignore the rest */
 
     }
-
 
 }
 
@@ -3596,8 +3590,8 @@ static void ievent(FILE* f, pa_evtrec* er)
     do { /* loop handling via event vectors and queuing */
 
         /* check input PA queue */
-        if (paqevt) dequepaevt(er);
-        else intevent(f, er); /* get next event */
+        while (!paqevt) intevent(f); /* get next event */
+        dequepaevt(er); /* get next queued event */
 #ifdef PRTEVT
         fprintf(stderr, "Outbound: "); prtevt(er); fprintf(stderr, "\n"); fflush(stderr);
 #endif
