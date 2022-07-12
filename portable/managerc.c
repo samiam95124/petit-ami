@@ -2256,11 +2256,15 @@ int inclient(winptr win, int x, int y)
 
 {
 
+    int ox, oy;
+
+    ox = (win->frame && win->size)*2;
+    oy = (win->frame && win->size)*2+win->sysbar*2;
     /* check in client area */
     return (win->orgx+win->coffx <= x &&
-            x <= win->orgx+win->coffx+win->maxx-1 &&
+            x <= win->orgx+win->coffx+win->pmaxx-ox-1 &&
             win->orgy+win->coffy <= y &&
-            y <= win->orgy+win->coffy+win->maxy-1);
+            y <= win->orgy+win->coffy+win->pmaxy-oy-1);
 
 }
 
