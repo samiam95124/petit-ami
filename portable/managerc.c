@@ -377,6 +377,7 @@ typedef struct winrec {
     int      visible;           /* window is visible */
     char*    title;             /* window title */
     int      focus;             /* window has focus */
+    int      hover;             /* window being hovered */
     int      zorder;            /* Z ordering of window, 0 = bottom, N = top */
     int      timers[PA_MAXTIM]; /* timer id array */
     int      frmtim;            /* frame timer */
@@ -1685,6 +1686,65 @@ winptr fndfocus(void)
 
 }
 
+
+/*******************************************************************************
+
+Check x,y location is in the client area
+
+Finds if the given x,y location lies in the client area. Note that this does not
+include frame or system bar.
+
+*******************************************************************************/
+
+int inclient(winptr win, int x, int y)
+
+{
+
+    int ox, oy;
+
+    ox = (win->frame && win->size)*2;
+    oy = (win->frame && win->size)*2+win->sysbar*2;
+    /* check in client area */
+    return (win->orgx+win->coffx <= x &&
+            x <= win->orgx+win->coffx+win->pmaxx-ox-1 &&
+            win->orgy+win->coffy <= y &&
+            y <= win->orgy+win->coffy+win->pmaxy-oy-1);
+
+}
+
+/*******************************************************************************
+
+Remove hover if left window
+
+Expects the current x,y position of the mouse. If any window has hover active,
+but does not contain the mouse in it's client area, the hover mode is cancelled.
+
+*******************************************************************************/
+
+void remhover(int x, int y)
+
+{
+
+    winptr    win; /* pointer to windows list */
+    pa_evtrec ev;  /* local event record */
+
+    win = winlst; /* get the master list */
+    while (win) { /* traverse the windows list */
+
+        if (win->hover && !inclient(win, x, y)) {
+
+            /* Window has hover active, but no longer in client area */
+            ev.etype = pa_etnohover; /* set no focus event */
+            intsendevent(win, &ev); /* send to queue */
+            win->hover = FALSE; /* cancel hover */
+
+        }
+        win = win->winlst; /* next window */
+
+    }
+
+}
+
 /*******************************************************************************
 
 Find Z order top window from point
@@ -1981,6 +2041,7 @@ static void opnwin(int fn, int pfn, int wid, int subclient, int root)
     ztop++; /* increase Z ordering */
     remfocus(); /* remove any existing focus */
     win->focus = TRUE; /* last window in gets focus */
+    win->hover = FALSE; /* set no hover */
     win->zorder = ztop; /* set Z order for this window */
     makzmin2max(); /* (re)create the Z min to max list */
     win->inpptr = -1; /* set buffer empty */
@@ -2239,32 +2300,6 @@ static void closewin(int ofn)
     if (!inplnk(ifn)) clsfil(ifn);
     filwin[ofn] = -1; /* clear file to window translation */
     xltwin[wid+MAXFIL] = -1; /* clear window to file translation */
-
-}
-
-
-/*******************************************************************************
-
-Check x,y location is in the client area
-
-Finds if the given x,y location lies in the client area. Note that this does not
-include frame or system bar.
-
-*******************************************************************************/
-
-int inclient(winptr win, int x, int y)
-
-{
-
-    int ox, oy;
-
-    ox = (win->frame && win->size)*2;
-    oy = (win->frame && win->size)*2+win->sysbar*2;
-    /* check in client area */
-    return (win->orgx+win->coffx <= x &&
-            x <= win->orgx+win->coffx+win->pmaxx-ox-1 &&
-            win->orgy+win->coffy <= y &&
-            y <= win->orgy+win->coffy+win->pmaxy-oy-1);
 
 }
 
@@ -3414,6 +3449,7 @@ void intevent(FILE* f)
         case pa_etmoumov: /* mouse move */
             mousex = ev.moupx; /* set current mouse position */
             mousey = ev.moupy;
+            remhover(mousex, mousey); /* remove hover if left a window */
             win = fndtop(mousex, mousey); /* see if in a window */
             if (win && win->focus) { /* in window and in focus */
 
@@ -3429,6 +3465,13 @@ void intevent(FILE* f)
                     win->mpy = er.moupy;
                     er.winid = win->wid; /* set window logical id */
                     intsendevent(win, &er); /* issue event */
+                    if (!win->hover) { /* enter hover mode */
+
+                        er.etype = pa_ethover; /* set enter hover */
+                        intsendevent(win, &er); /* issue event */
+                        win->hover = TRUE; /* set hover active */
+
+                    }
 
                 }
 
