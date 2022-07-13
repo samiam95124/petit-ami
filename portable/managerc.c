@@ -3419,6 +3419,18 @@ void intevent(FILE* f)
                     er.etype = pa_etfocus; /* set focus event */
                     intsendevent(win, &er); /* send to queue */
                     win->focus = TRUE; /* set current focus */
+                    if (inclient(win, mousex, mousey)) {
+
+                        /* window went into focus, can have hover now */
+                        if (!win->hover) { /* enter hover mode */
+
+                            er.etype = pa_ethover; /* set enter hover */
+                            intsendevent(win, &er); /* issue event */
+                            win->hover = TRUE; /* set hover active */
+
+                        }
+
+                    }
                     if (win->zorder != ztop) { /* if not already top window */
 
                         intfront(win); /* bring to front */
