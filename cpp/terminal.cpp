@@ -127,8 +127,7 @@ int  funkey(FILE* f) { return pa_funkey(f); }
 int  funkey(void) { return pa_funkey(stdout); }
 void frametimer(FILE* f, int e) { pa_frametimer(f, e); }
 void frametimer(int e) { pa_frametimer(stdout, e); }
-void autohold(FILE* f, int e) { pa_autohold(f, e); }
-void autohold(int e) { pa_autohold(stdout, e); }
+void autohold(int e) { pa_autohold(e); }
 void wrtstr(FILE* f, char *s) { pa_wrtstr(f, s); }
 void wrtstr(char *s) { pa_wrtstr(stdout, s); }
 void eventover(evtcod e, pevthan eh, pevthan* oeh) { pa_eventover((pa_evtcod)e, (pa_pevthan)eh, (pa_pevthan*)oeh); }
@@ -186,7 +185,7 @@ void term::restab(int t) { pa_restab(outfile, t); }
 void term::clrtab(void) { pa_clrtab(outfile); }
 int  term::funkey(void) { return pa_funkey(outfile); }
 void term::frametimer(int e) { pa_frametimer(outfile, e); }
-void term::autohold(int e) { pa_autohold(outfile, e); }
+void term::autohold(int e) { pa_autohold(e); }
 void term::wrtstr(char *s) { pa_wrtstr(outfile, s); }
 
 /* virtual callbacks */

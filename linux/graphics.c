@@ -14554,7 +14554,6 @@ static void pa_init_graphics(int argc, char *argv[])
 
     /* set override vectors to defaults */
     cursor_vect =          cursor_ivf;
-    cursor_vect =          cursor_ivf;
     maxx_vect =            maxx_ivf;
     maxy_vect =            maxy_ivf;
     home_vect =            home_ivf;

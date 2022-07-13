@@ -372,6 +372,56 @@ static pclose_t  ofpclose;
 static punlink_t ofpunlink;
 static plseek_t  ofplseek;
 
+/*
+ * Override vectors for calls in this package
+ *
+ */
+static pa_cursor_t          cursor_vect;
+static pa_maxx_t            maxx_vect;
+static pa_maxy_t            maxy_vect;
+static pa_home_t            home_vect;
+static pa_del_t             del_vect;
+static pa_up_t              up_vect;
+static pa_down_t            down_vect;
+static pa_left_t            left_vect;
+static pa_right_t           right_vect;
+static pa_blink_t           blink_vect;
+static pa_reverse_t         reverse_vect;
+static pa_underline_t       underline_vect;
+static pa_superscript_t     superscript_vect;
+static pa_subscript_t       subscript_vect;
+static pa_italic_t          italic_vect;
+static pa_bold_t            bold_vect;
+static pa_strikeout_t       strikeout_vect;
+static pa_standout_t        standout_vect;
+static pa_fcolor_t          fcolor_vect;
+static pa_bcolor_t          bcolor_vect;
+static pa_auto_t            auto_vect;
+static pa_curvis_t          curvis_vect;
+static pa_scroll_t          scroll_vect;
+static pa_curx_t            curx_vect;
+static pa_cury_t            cury_vect;
+static pa_curbnd_t          curbnd_vect;
+static pa_select_t          select_vect;
+static pa_event_t           event_vect;
+static pa_timer_t           timer_vect;
+static pa_killtimer_t       killtimer_vect;
+static pa_mouse_t           mouse_vect;
+static pa_mousebutton_t     mousebutton_vect;
+static pa_joystick_t        joystick_vect;
+static pa_joybutton_t       joybutton_vect;
+static pa_joyaxis_t         joyaxis_vect;
+static pa_settab_t          settab_vect;
+static pa_restab_t          restab_vect;
+static pa_clrtab_t          clrtab_vect;
+static pa_funkey_t          funkey_vect;
+static pa_frametimer_t      frametimer_vect;
+static pa_autohold_t        autohold_vect;
+static pa_wrtstr_t          wrtstr_vect;
+static pa_wrtstrn_t         wrtstrn_vect;
+static pa_eventover_t       eventover_vect;
+static pa_eventsover_t      eventsover_vect;
+
 /**
  * Save for terminal status
  */
@@ -2349,7 +2399,11 @@ This is the external interface to cursor.
 
 *******************************************************************************/
 
-void pa_cursor(FILE *f, int x, int y)
+void _pa_cursor_ovr(pa_cursor_t nfp, pa_cursor_t* ofp)
+    { *ofp = cursor_vect; cursor_vect = nfp; }
+void pa_cursor(FILE* f, int x, int y) { (*cursor_vect)(f, x, y); }
+
+static void cursor_ivf(FILE *f, int x, int y)
 
 {
 
@@ -2365,7 +2419,11 @@ This is the external interface to curbnd.
 
 *******************************************************************************/
 
-int pa_curbnd(FILE *f)
+void _pa_curbnd_ovr(pa_curbnd_t nfp, pa_curbnd_t* ofp)
+    { *ofp = curbnd_vect; curbnd_vect = nfp; }
+int pa_curbnd(FILE* f) { (*curbnd_vect)(f); }
+
+static int curbnd_ivf(FILE *f)
 
 {
 
@@ -2382,7 +2440,11 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-int pa_maxx(FILE *f)
+void _pa_maxx_ovr(pa_maxx_t nfp, pa_maxx_t* ofp)
+    { *ofp = maxx_vect; maxx_vect = nfp; }
+int pa_maxx(FILE* f) { (*maxx_vect)(f); }
+
+static int maxx_ivf(FILE *f)
 
 {
 
@@ -2399,7 +2461,11 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-int pa_maxy(FILE *f)
+void _pa_maxy_ovr(pa_maxy_t nfp, pa_maxy_t* ofp)
+    { *ofp = maxy_vect; maxy_vect = nfp; }
+int pa_maxy(FILE* f) { (*maxy_vect)(f); }
+
+static int maxy_ivf(FILE *f)
 
 {
 
@@ -2415,7 +2481,11 @@ Moves the cursor to the home position at (1, 1), the upper right hand corner.
 
 *******************************************************************************/
 
-void pa_home(FILE *f)
+void _pa_home_ovr(pa_home_t nfp, pa_home_t* ofp)
+    { *ofp = home_vect; home_vect = nfp; }
+void pa_home(FILE* f) { (*home_vect)(f); }
+
+static void home_ivf(FILE *f)
 
 {
 
@@ -2434,7 +2504,11 @@ position left.
 
 *******************************************************************************/
 
-void pa_del(FILE* f)
+void _pa_del_ovr(pa_del_t nfp, pa_del_t* ofp)
+    { *ofp = del_vect; del_vect = nfp; }
+void pa_del(FILE* f) { (*del_vect)(f); }
+
+static void del_ivf(FILE* f)
 
 {
 
@@ -2452,7 +2526,11 @@ This is the external interface to up.
 
 *******************************************************************************/
 
-void pa_up(FILE *f)
+void _pa_up_ovr(pa_up_t nfp, pa_up_t* ofp)
+    { *ofp = up_vect; up_vect = nfp; }
+void pa_up(FILE* f) { (*up_vect)(f); }
+
+static void up_ivf(FILE *f)
 
 {
 
@@ -2469,7 +2547,11 @@ This is the external interface to down.
 
 *******************************************************************************/
 
-void pa_down(FILE *f)
+void _pa_down_ovr(pa_down_t nfp, pa_down_t* ofp)
+    { *ofp = down_vect; down_vect = nfp; }
+void pa_down(FILE* f) { (*down_vect)(f); }
+
+static void down_ivf(FILE *f)
 
 {
 
@@ -2485,7 +2567,11 @@ This is the external interface to left.
 
 *******************************************************************************/
 
-void pa_left(FILE *f)
+void _pa_left_ovr(pa_left_t nfp, pa_left_t* ofp)
+    { *ofp = left_vect; left_vect = nfp; }
+void pa_left(FILE* f) { (*left_vect)(f); }
+
+static void left_ivf(FILE *f)
 
 {
 
@@ -2501,7 +2587,11 @@ This is the external interface to right.
 
 *******************************************************************************/
 
-void pa_right(FILE *f)
+void _pa_right_ovr(pa_right_t nfp, pa_right_t* ofp)
+    { *ofp = right_vect; right_vect = nfp; }
+void pa_right(FILE* f) { (*right_vect)(f); }
+
+static void right_ivf(FILE *f)
 
 {
 
@@ -2523,7 +2613,11 @@ colors, which an ATTRIBUTE command seems to mess with !
 
 *******************************************************************************/
 
-void pa_blink(FILE *f, int e)
+void _pa_blink_ovr(pa_blink_t nfp, pa_blink_t* ofp)
+    { *ofp = blink_vect; blink_vect = nfp; }
+void pa_blink(FILE* f, int e) { (*blink_vect)(f, e); }
+
+static void blink_ivf(FILE *f, int e)
 
 {
 
@@ -2568,7 +2662,11 @@ colors, which an ATTRIBUTE command seems to mess with !
 
 *******************************************************************************/
 
-void pa_reverse(FILE *f, int e)
+void _pa_reverse_ovr(pa_reverse_t nfp, pa_reverse_t* ofp)
+    { *ofp = reverse_vect; reverse_vect = nfp; }
+void pa_reverse(FILE* f, int e) { (*reverse_vect)(f, e); }
+
+static void reverse_ivf(FILE *f, int e)
 
 {
 
@@ -2613,7 +2711,11 @@ colors, which an ATTRIBUTE command seems to mess with !
 
 *******************************************************************************/
 
-void pa_underline(FILE *f, int e)
+void _pa_underline_ovr(pa_underline_t nfp, pa_underline_t* ofp)
+    { *ofp = underline_vect; underline_vect = nfp; }
+void pa_underline(FILE* f, int e) { (*underline_vect)(f, e); }
+
+static void underline_ivf(FILE *f, int e)
 
 {
 
@@ -2655,7 +2757,11 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void pa_superscript(FILE *f, int e)
+void _pa_superscript_ovr(pa_superscript_t nfp, pa_superscript_t* ofp)
+    { *ofp = superscript_vect; superscript_vect = nfp; }
+void pa_superscript(FILE* f, int e) { (*superscript_vect)(f, e); }
+
+static void superscript_ivf(FILE *f, int e)
 
 {
 
@@ -2672,7 +2778,11 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void pa_subscript(FILE *f, int e)
+void _pa_subscript_ovr(pa_subscript_t nfp, pa_subscript_t* ofp)
+    { *ofp = subscript_vect; subscript_vect = nfp; }
+void pa_subscript(FILE* f, int e) { (*subscript_vect)(f, e); }
+
+static void subscript_ivf(FILE *f, int e)
 
 {
 
@@ -2689,7 +2799,11 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void pa_italic(FILE *f, int e)
+void _pa_italic_ovr(pa_italic_t nfp, pa_italic_t* ofp)
+    { *ofp = italic_vect; italic_vect = nfp; }
+void pa_italic(FILE* f, int e) { (*italic_vect)(f, e); }
+
+static void italic_ivf(FILE *f, int e)
 
 {
 
@@ -2734,7 +2848,11 @@ colors, which an ATTRIBUTE command seems to mess with !
 
 *******************************************************************************/
 
-void pa_bold(FILE *f, int e)
+void _pa_bold_ovr(pa_bold_t nfp, pa_bold_t* ofp)
+    { *ofp = bold_vect; bold_vect = nfp; }
+void pa_bold(FILE* f, int e) { (*bold_vect)(f, e); }
+
+static void bold_ivf(FILE *f, int e)
 
 {
 
@@ -2777,7 +2895,11 @@ Not implemented.
 
 *******************************************************************************/
 
-void pa_strikeout(FILE *f, int e)
+void _pa_strikeout_ovr(pa_strikeout_t nfp, pa_strikeout_t* ofp)
+    { *ofp = strikeout_vect; strikeout_vect = nfp; }
+void pa_strikeout(FILE* f, int e) { (*strikeout_vect)(f, e); }
+
+static void strikeout_ivf(FILE *f, int e)
 
 {
 
@@ -2794,7 +2916,11 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void pa_standout(FILE *f, int e)
+void _pa_standout_ovr(pa_standout_t nfp, pa_standout_t* ofp)
+    { *ofp = standout_vect; standout_vect = nfp; }
+void pa_standout(FILE* f, int e) { (*standout_vect)(f, e); }
+
+static void standout_ivf(FILE *f, int e)
 
 {
 
@@ -2810,7 +2936,11 @@ Sets the foreground (text) color from the universal primary code.
 
 *******************************************************************************/
 
-void pa_fcolor(FILE *f, pa_color c)
+void _pa_fcolor_ovr(pa_fcolor_t nfp, pa_fcolor_t* ofp)
+    { *ofp = fcolor_vect; fcolor_vect = nfp; }
+void pa_fcolor(FILE* f, pa_color c) { (*fcolor_vect)(f, c); }
+
+static void fcolor_ivf(FILE *f, pa_color c)
 
 {
 
@@ -2827,7 +2957,11 @@ Sets the background color from the universal primary code.
 
 *******************************************************************************/
 
-void pa_bcolor(FILE *f, pa_color c)
+void _pa_bcolor_ovr(pa_bcolor_t nfp, pa_bcolor_t* ofp)
+    { *ofp = bcolor_vect; bcolor_vect = nfp; }
+void pa_bcolor(FILE* f, pa_color c) { (*bcolor_vect)(f, c); }
+
+static void bcolor_ivf(FILE *f, pa_color c)
 
 {
 
@@ -2845,7 +2979,11 @@ off the screen at the top or bottom will scroll up or down, respectively.
 
 *******************************************************************************/
 
-void pa_auto(FILE *f, int e)
+void _pa_auto_ovr(pa_auto_t nfp, pa_auto_t* ofp)
+    { *ofp = auto_vect; auto_vect = nfp; }
+void pa_auto(FILE* f, int e) { (*auto_vect)(f, e); }
+
+static void auto_ivf(FILE *f, int e)
 
 {
 
@@ -2862,7 +3000,11 @@ Enable or disable cursor visibility.
 
 *******************************************************************************/
 
-void pa_curvis(FILE *f, int e)
+void _pa_curvis_ovr(pa_curvis_t nfp, pa_curvis_t* ofp)
+    { *ofp = curvis_vect; curvis_vect = nfp; }
+void pa_curvis(FILE* f, int e) { (*curvis_vect)(f, e); }
+
+static void curvis_ivf(FILE *f, int e)
 
 {
 
@@ -2880,7 +3022,11 @@ int.
 
 *******************************************************************************/
 
-void pa_scroll(FILE *f, int x, int y)
+void _pa_scroll_ovr(pa_scroll_t nfp, pa_scroll_t* ofp)
+    { *ofp = scroll_vect; scroll_vect = nfp; }
+void pa_scroll(FILE* f, int x, int y) { (*scroll_vect)(f, x, y); }
+
+static void scroll_ivf(FILE *f, int x, int y)
 
 {
 
@@ -2896,7 +3042,11 @@ Returns the current location of the cursor in x.
 
 *******************************************************************************/
 
-int pa_curx(FILE *f)
+void _pa_curx_ovr(pa_curx_t nfp, pa_curx_t* ofp)
+    { *ofp = curx_vect; curx_vect = nfp; }
+int pa_curx(FILE* f) { (*curx_vect)(f); }
+
+static int curx_ivf(FILE *f)
 
 {
 
@@ -2912,7 +3062,11 @@ Returns the current location of the cursor in y.
 
 *******************************************************************************/
 
-int pa_cury(FILE *f)
+void _pa_cury_ovr(pa_cury_t nfp, pa_cury_t* ofp)
+    { *ofp = cury_vect; cury_vect = nfp; }
+int pa_cury(FILE* f) { (*cury_vect)(f); }
+
+static int cury_ivf(FILE *f)
 
 {
 
@@ -2937,7 +3091,11 @@ Note that split update and display screens are not implemented at present.
 
 *******************************************************************************/
 
-void pa_select(FILE *f, int u, int d)
+void _pa_select_ovr(pa_select_t nfp, pa_select_t* ofp)
+    { *ofp = select_vect; select_vect = nfp; }
+void pa_select(FILE* f, int u, int d) { (*select_vect)(f, u, d); }
+
+static void select_ivf(FILE *f, int u, int d)
 
 {
 
@@ -2983,7 +3141,11 @@ caller.
 
 *******************************************************************************/
 
-void pa_event(FILE* f, pa_evtrec *er)
+void _pa_event_ovr(pa_event_t nfp, pa_event_t* ofp)
+    { *ofp = event_vect; event_vect = nfp; }
+void pa_event(FILE* f, pa_evtrec* er) { (*event_vect)(f, er); }
+
+static void event_ivf(FILE* f, pa_evtrec *er)
 
 {
 
@@ -3021,10 +3183,14 @@ Set timer
 
 *******************************************************************************/
 
-void pa_timer(/* file to send event to */              FILE *f,
-              /* timer handle */                       int i,
-              /* number of 100us counts */             int t,
-              /* timer is to rerun after completion */ int r)
+void _pa_timer_ovr(pa_timer_t nfp, pa_timer_t* ofp)
+    { *ofp = timer_vect; timer_vect = nfp; }
+void pa_timer(FILE* f, int i, long t, int r) { (*timer_vect)(f, i, t, r); }
+
+static void timer_ivf(/* file to send event to */              FILE* f,
+                      /* timer handle */                       int   i,
+                      /* number of 100us counts */             long  t,
+                      /* timer is to rerun after completion */ int   r)
 
 {
 
@@ -3043,7 +3209,11 @@ in reserve.
 
 *******************************************************************************/
 
-void pa_killtimer(/* file to kill timer on */ FILE *f,
+void _pa_killtimer_ovr(pa_killtimer_t nfp, pa_killtimer_t* ofp)
+    { *ofp = killtimer_vect; killtimer_vect = nfp; }
+void pa_killtimer(FILE* f, int   i ) { (*killtimer_vect)(f, i ); }
+
+static void killtimer_ivf(/* file to kill timer on */ FILE *f,
                   /* handle of timer */       int i)
 
 {
@@ -3064,7 +3234,11 @@ if none is available, never changing it's state.
 
 *******************************************************************************/
 
-int pa_mouse(FILE *f)
+void _pa_mouse_ovr(pa_mouse_t nfp, pa_mouse_t* ofp)
+    { *ofp = mouse_vect; mouse_vect = nfp; }
+int pa_mouse(FILE* f) { (*mouse_vect)(f); }
+
+static int mouse_ivf(FILE *f)
 
 {
 
@@ -3081,7 +3255,11 @@ to assume 3 buttons.
 
 *******************************************************************************/
 
-int pa_mousebutton(FILE *f, int m)
+void _pa_mousebutton_ovr(pa_mousebutton_t nfp, pa_mousebutton_t* ofp)
+    { *ofp = mousebutton_vect; mousebutton_vect = nfp; }
+int pa_mousebutton(FILE* f, int m) { (*mousebutton_vect)(f, m); }
+
+static int mousebutton_ivf(FILE *f, int m)
 
 {
 
@@ -3097,7 +3275,11 @@ Return number of joysticks attached.
 
 *******************************************************************************/
 
-int pa_joystick(FILE *f)
+void _pa_joystick_ovr(pa_joystick_t nfp, pa_joystick_t* ofp)
+    { *ofp = joystick_vect; joystick_vect = nfp; }
+int pa_joystick(FILE* f) { (*joystick_vect)(f); }
+
+static int joystick_ivf(FILE *f)
 
 {
 
@@ -3114,7 +3296,11 @@ Note that Windows 95 has no joystick capability.
 
 *******************************************************************************/
 
-int pa_joybutton(FILE *f, int j)
+void _pa_joybutton_ovr(pa_joybutton_t nfp, pa_joybutton_t* ofp)
+    { *ofp = joybutton_vect; joybutton_vect = nfp; }
+int pa_joybutton(FILE* f, int j) { (*joybutton_vect)(f, j); }
+
+static int joybutton_ivf(FILE *f, int j)
 
 {
 
@@ -3136,7 +3322,11 @@ Note that Windows 95 has no joystick capability.
 
 *******************************************************************************/
 
-int pa_joyaxis(FILE *f, int j)
+void _pa_joyaxis_ovr(pa_joyaxis_t nfp, pa_joyaxis_t* ofp)
+    { *ofp = joyaxis_vect; joyaxis_vect = nfp; }
+int pa_joyaxis(FILE* f, int j) { (*joyaxis_vect)(f, j); }
+
+static int joyaxis_ivf(FILE *f, int j)
 
 {
 
@@ -3162,7 +3352,11 @@ tab stop that is set. If there is no next tab stop, nothing will happen.
 
 *******************************************************************************/
 
-void pa_settab(FILE* f, int t)
+void _pa_settab_ovr(pa_settab_t nfp, pa_settab_t* ofp)
+    { *ofp = settab_vect; settab_vect = nfp; }
+void pa_settab(FILE* f, int t) { (*settab_vect)(f, t); }
+
+static void settab_ivf(FILE* f, int t)
 
 {
 
@@ -3179,7 +3373,11 @@ Resets a tab. The tab number t is 1 to n, and indicates the column for the tab.
 
 *******************************************************************************/
 
-void pa_restab(FILE* f, int t)
+void _pa_restab_ovr(pa_restab_t nfp, pa_restab_t* ofp)
+    { *ofp = restab_vect; restab_vect = nfp; }
+void pa_restab(FILE* f, int t) { (*restab_vect)(f, t); }
+
+static void restab_ivf(FILE* f, int t)
 
 {
 
@@ -3196,7 +3394,11 @@ Clears all tabs.
 
 *******************************************************************************/
 
-void pa_clrtab(FILE* f)
+void _pa_clrtab_ovr(pa_clrtab_t nfp, pa_clrtab_t* ofp)
+    { *ofp = clrtab_vect; clrtab_vect = nfp; }
+void pa_clrtab(FILE* f) { (*clrtab_vect)(f); }
+
+static void clrtab_ivf(FILE* f)
 
 {
 
@@ -3218,7 +3420,11 @@ but more can be allocated if needed.
 
 *******************************************************************************/
 
-int pa_funkey(FILE* f)
+void _pa_funkey_ovr(pa_funkey_t nfp, pa_funkey_t* ofp)
+    { *ofp = funkey_vect; funkey_vect = nfp; }
+int pa_funkey(FILE* f) { (*funkey_vect)(f); }
+
+static int funkey_ivf(FILE* f)
 
 {
 
@@ -3236,7 +3442,11 @@ Not currently implemented.
 
 *******************************************************************************/
 
-void pa_frametimer(FILE* f, int e)
+void _pa_frametimer_ovr(pa_frametimer_t nfp, pa_frametimer_t* ofp)
+    { *ofp = frametimer_vect; frametimer_vect = nfp; }
+void pa_frametimer(FILE* f, int e) { (*frametimer_vect)(f, e); }
+
+static void frametimer_ivf(FILE* f, int e)
 
 {
 
@@ -3263,7 +3473,11 @@ we abort to the same window.
 
 *******************************************************************************/
 
-void pa_autohold(FILE* f, int e)
+void _pa_autohold_ovr(pa_autohold_t nfp, pa_autohold_t* ofp)
+    { *ofp = autohold_vect; autohold_vect = nfp; }
+void pa_autohold(int e) { (*autohold_vect)(e); }
+
+static void autohold_ivf(int e)
 
 {
 
@@ -3277,7 +3491,11 @@ Writes a string direct to the terminal, bypassing character handling.
 
 *******************************************************************************/
 
-void pa_wrtstr(FILE* f, char *s)
+void _pa_wrtstr_ovr(pa_wrtstr_t nfp, pa_wrtstr_t* ofp)
+    { *ofp = wrtstr_vect; wrtstr_vect = nfp; }
+void pa_wrtstr(FILE* f, char* s) { (*wrtstr_vect)(f, s); }
+
+static void wrtstr_ivf(FILE* f, char *s)
 
 {
 
@@ -3294,7 +3512,11 @@ handling.
 
 *******************************************************************************/
 
-void pa_wrtstrn(FILE* f, char *s, int n)
+void _pa_wrtstrn_ovr(pa_wrtstrn_t nfp, pa_wrtstrn_t* ofp)
+    { *ofp = wrtstrn_vect; wrtstrn_vect = nfp; }
+void pa_wrtstrn(FILE* f, char* s, int n) { (*wrtstrn_vect)(f, s, n); }
+
+static void wrtstrn_ivf(FILE* f, char *s, int n)
 
 {
 
@@ -3313,7 +3535,12 @@ call down into the stack by executing the overridden event.
 
 *******************************************************************************/
 
-void pa_eventover(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh)
+void _pa_eventover_ovr(pa_eventover_t nfp, pa_eventover_t* ofp)
+    { *ofp = eventover_vect; eventover_vect = nfp; }
+void pa_eventover(pa_evtcod e, pa_pevthan eh, pa_pevthan* oeh)
+    { (*eventover_vect)(e, eh, oeh); }
+
+static void eventover_ivf(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh)
 
 {
 
@@ -3333,7 +3560,12 @@ call down into the stack by executing the overridden event.
 
 *******************************************************************************/
 
+void _pa_eventsover_ovr(pa_eventsover_t nfp, pa_eventsover_t* ofp)
+    { *ofp = eventsover_vect; eventsover_vect = nfp; }
 void pa_eventsover(pa_pevthan eh,  pa_pevthan* oeh)
+    { (*eventsover_vect)(eh, oeh); }
+
+static void eventsover_ivf(pa_pevthan eh,  pa_pevthan* oeh)
 
 {
 
@@ -3373,6 +3605,54 @@ static void pa_init_terminal()
     /** joystick file id */            int            joyfid;
     /** joystick device name */        char           joyfil[] = "/dev/input/js0";
     /** joystick parameter read */     char           jc;
+
+    /* set override vectors to defaults */
+    cursor_vect =          cursor_ivf;
+    cursor_vect =          cursor_ivf;
+    maxx_vect =            maxx_ivf;
+    maxy_vect =            maxy_ivf;
+    home_vect =            home_ivf;
+    del_vect =             del_ivf;
+    up_vect =              up_ivf;
+    down_vect =            down_ivf;
+    left_vect =            left_ivf;
+    right_vect =           right_ivf;
+    blink_vect =           blink_ivf;
+    reverse_vect =         reverse_ivf;
+    underline_vect =       underline_ivf;
+    superscript_vect =     superscript_ivf;
+    subscript_vect =       subscript_ivf;
+    italic_vect =          italic_ivf;
+    bold_vect =            bold_ivf;
+    strikeout_vect =       strikeout_ivf;
+    standout_vect =        standout_ivf;
+    fcolor_vect =          fcolor_ivf;
+    bcolor_vect =          bcolor_ivf;
+    auto_vect =            auto_ivf;
+    curvis_vect =          curvis_ivf;
+    scroll_vect =          scroll_ivf;
+    curx_vect =            curx_ivf;
+    cury_vect =            cury_ivf;
+    curbnd_vect =          curbnd_ivf;
+    select_vect =          select_ivf;
+    event_vect =           event_ivf;
+    timer_vect =           timer_ivf;
+    killtimer_vect =       killtimer_ivf;
+    mouse_vect =           mouse_ivf;
+    mousebutton_vect =     mousebutton_ivf;
+    joystick_vect =        joystick_ivf;
+    joybutton_vect =       joybutton_ivf;
+    joyaxis_vect =         joyaxis_ivf;
+    settab_vect =          settab_ivf;
+    restab_vect =          restab_ivf;
+    clrtab_vect =          clrtab_ivf;
+    funkey_vect =          funkey_ivf;
+    frametimer_vect =      frametimer_ivf;
+    autohold_vect =        autohold_ivf;
+    wrtstr_vect =          wrtstr_ivf;
+    wrtstrn_vect =         wrtstrn_ivf;
+    eventover_vect =       eventover_ivf;
+    eventsover_vect =      eventsover_ivf;
 
     /* turn off I/O buffering */
     setvbuf(stdin, NULL, _IONBF, 0);
