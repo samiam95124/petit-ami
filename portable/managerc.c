@@ -861,7 +861,7 @@ coordinates.
 *******************************************************************************/
 
 /* set rectangle to values */
-void setrect(rectangle* r, int x1, int y1, int x2, int y2)
+static void setrect(rectangle* r, int x1, int y1, int x2, int y2)
 
 {
 
@@ -880,7 +880,7 @@ Returns true if the given rectangles intersect, that is, overlap in some area.
 
 *******************************************************************************/
 
-int intersect(rectangle* r1, rectangle* r2)
+static int intersect(rectangle* r1, rectangle* r2)
 
 {
 
@@ -898,7 +898,7 @@ operation is meaningless if the rectangles do not intersect.
 
 *******************************************************************************/
 
-void intersection(rectangle* ri, rectangle* r1, rectangle* r2)
+static void intersection(rectangle* ri, rectangle* r1, rectangle* r2)
 
 {
 
@@ -1410,7 +1410,7 @@ Checks if the cursor lies in the current bounds, and returns TRUE if so.
 
 *******************************************************************************/
 
-int intcurbnd(winptr win)
+static int intcurbnd(winptr win)
 
 {
 
@@ -1430,7 +1430,7 @@ to bring the old state of the display to the same state as the new display.
 
 *******************************************************************************/
 
-void setcur(winptr win)
+static void setcur(winptr win)
 
 {
 
@@ -1521,7 +1521,7 @@ redundantly draw, and thus is more efficient and produces less onscreen
 
 *******************************************************************************/
 
-void redraw(int x1, int y1, int x2, int y2)
+static void redraw(int x1, int y1, int x2, int y2)
 
 {
 
@@ -1665,7 +1665,7 @@ unoccupied area of the root window.
 
 *******************************************************************************/
 
-winptr fndfocus(void)
+static winptr fndfocus(void)
 
 {
 
@@ -1696,7 +1696,7 @@ include frame or system bar.
 
 *******************************************************************************/
 
-int inclient(winptr win, int x, int y)
+static int inclient(winptr win, int x, int y)
 
 {
 
@@ -1721,7 +1721,7 @@ but does not contain the mouse in it's client area, the hover mode is cancelled.
 
 *******************************************************************************/
 
-void remhover(int x, int y)
+static void remhover(int x, int y)
 
 {
 
@@ -1754,7 +1754,7 @@ point. If there is no containing window, NULL is returned.
 
 *******************************************************************************/
 
-winptr fndtop(int x, int y)
+static winptr fndtop(int x, int y)
 
 {
 
@@ -1792,7 +1792,7 @@ Finds the given Z order window. Returns that or NULL if not found.
 
 *******************************************************************************/
 
-winptr fndzorder(int z)
+static winptr fndzorder(int z)
 
 {
 
@@ -1822,7 +1822,7 @@ time.
 
 *******************************************************************************/
 
-void makzmin2max(void)
+static void makzmin2max(void)
 
 {
 
@@ -1854,7 +1854,7 @@ Prints the contents of the min 2 max list. A diagnostic.
 
 *******************************************************************************/
 
-void prtmin2maxlst(void)
+static void prtmin2maxlst(void)
 
 {
 
@@ -1881,7 +1881,7 @@ Brings the indicated window to the front of the Z order.
 
 *******************************************************************************/
 
-void intfront(winptr win)
+static void intfront(winptr win)
 
 {
 
@@ -1933,7 +1933,7 @@ That makes the back of the list 1.
 
 *******************************************************************************/
 
-void intback(winptr win)
+static void intback(winptr win)
 
 {
 
@@ -2185,7 +2185,7 @@ static int fndfil(FILE* fp)
 
 }
 
-void intopenwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
+static void intopenwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
 
 {
 
@@ -2502,7 +2502,7 @@ Sets the onscreen window size, in character terms.
 
 *******************************************************************************/
 
-void intsetsiz(winptr win, int x, int y)
+static void intsetsiz(winptr win, int x, int y)
 
 {
 
@@ -2542,7 +2542,7 @@ relative measurement.
 
 *******************************************************************************/
 
-void intsetpos(winptr win, int x, int y)
+static void intsetpos(winptr win, int x, int y)
 
 {
 
@@ -2570,7 +2570,7 @@ Moves the cursor to the specified x and y location.
 
 *******************************************************************************/
 
-void icursor(FILE* f, int x, int y)
+static void icursor(FILE* f, int x, int y)
 
 {
 
@@ -2592,7 +2592,7 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-int imaxx(FILE* f)
+static int imaxx(FILE* f)
 
 {
 
@@ -2613,7 +2613,7 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-int imaxy(FILE* f)
+static int imaxy(FILE* f)
 
 {
 
@@ -2633,7 +2633,7 @@ Moves the cursor to the home position at (1, 1), the upper right hand corner.
 
 *******************************************************************************/
 
-void ihome(FILE* f)
+static void ihome(FILE* f)
 
 {
 
@@ -2658,7 +2658,7 @@ negative space as long as it stays within the bounds -INT_MAX to INT_MAX.
 
 *******************************************************************************/
 
-void iup(FILE* f)
+static void iup(FILE* f)
 
 {
 
@@ -2685,7 +2685,7 @@ undrawn space as long as it stays within the bounds of -INT_MAX to INT_MAX.
 
 *******************************************************************************/
 
-void idown(FILE* f)
+static void idown(FILE* f)
 
 {
 
@@ -2712,7 +2712,7 @@ the cursor will move into negative space, limited only by maxint.
 
 *******************************************************************************/
 
-void ileft(FILE* f)
+static void ileft(FILE* f)
 
 {
 
@@ -2745,7 +2745,7 @@ Moves the cursor one character right.
 
 *******************************************************************************/
 
-void iright(FILE* f)
+static void iright(FILE* f)
 
 {
 
@@ -2779,7 +2779,7 @@ position left.
 
 *******************************************************************************/
 
-void idel(FILE* f)
+static void idel(FILE* f)
 
 {
 
@@ -2801,7 +2801,7 @@ Graphical mode does not implement blink mode.
 
 *******************************************************************************/
 
-void iblink(FILE* f, int e)
+static void iblink(FILE* f, int e)
 
 {
 
@@ -2822,7 +2822,7 @@ and foreground writing colors.
 
 *******************************************************************************/
 
-void ireverse(FILE* f, int e)
+static void ireverse(FILE* f, int e)
 
 {
 
@@ -2843,7 +2843,7 @@ and foreground writing colors.
 
 *******************************************************************************/
 
-void iunderline(FILE* f, int e)
+static void iunderline(FILE* f, int e)
 
 {
 
@@ -2866,7 +2866,7 @@ Note that subscript is implemented by a reduced size and elevated font.
 
 *******************************************************************************/
 
-void isuperscript(FILE* f, int e)
+static void isuperscript(FILE* f, int e)
 
 {
 
@@ -2889,7 +2889,7 @@ Note that subscript is implemented by a reduced size and lowered font.
 
 *******************************************************************************/
 
-void isubscript(FILE* f, int e)
+static void isubscript(FILE* f, int e)
 
 {
 
@@ -2910,7 +2910,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void iitalic(FILE* f, int e)
+static void iitalic(FILE* f, int e)
 
 {
 
@@ -2931,7 +2931,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void ibold(FILE* f, int e)
+static void ibold(FILE* f, int e)
 
 {
 
@@ -2954,7 +2954,7 @@ just placed.
 
 *******************************************************************************/
 
-void istrikeout(FILE* f, int e)
+static void istrikeout(FILE* f, int e)
 
 {
 
@@ -2975,7 +2975,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void istandout(FILE* f, int e)
+static void istandout(FILE* f, int e)
 
 {
 
@@ -2995,7 +2995,7 @@ Sets the foreground color from the universal primary code.
 
 *******************************************************************************/
 
-void ifcolor(FILE* f, pa_color c)
+static void ifcolor(FILE* f, pa_color c)
 
 {
 
@@ -3014,7 +3014,7 @@ Sets the background color from the universal primary code.
 
 *******************************************************************************/
 
-void ibcolor(FILE* f, pa_color c)
+static void ibcolor(FILE* f, pa_color c)
 
 {
 
@@ -3050,7 +3050,7 @@ anywhere.
 
 *******************************************************************************/
 
-void iauto(FILE* f, int e)
+static void iauto(FILE* f, int e)
 
 {
 
@@ -3069,7 +3069,7 @@ Enable or disable cursor visibility.
 
 *******************************************************************************/
 
-void icurvis(FILE* f, int e)
+static void icurvis(FILE* f, int e)
 
 {
 
@@ -3098,7 +3098,7 @@ to the window.
 
 *******************************************************************************/
 
-void iscroll(FILE* f, int x, int y)
+static void iscroll(FILE* f, int x, int y)
 
 {
 
@@ -3118,7 +3118,7 @@ Returns the current location of the cursor in x.
 
 *******************************************************************************/
 
-int icurx(FILE* f)
+static int icurx(FILE* f)
 
 {
 
@@ -3138,7 +3138,7 @@ Returns the current location of the cursor in y.
 
 *******************************************************************************/
 
-int icury(FILE* f)
+static int icury(FILE* f)
 
 {
 
@@ -3158,7 +3158,7 @@ Checks if the cursor lies in the current bounds, and returns TRUE if so.
 
 *******************************************************************************/
 
-int icurbnd(FILE* f)
+static int icurbnd(FILE* f)
 
 {
 
@@ -3184,7 +3184,7 @@ forces a screen refresh, which can be important when working on terminals.
 
 *******************************************************************************/
 
-void iselect(FILE* f, int u, int d)
+static void iselect(FILE* f, int u, int d)
 
 {
 
@@ -3256,7 +3256,7 @@ Our event loop here is like an event to event translation.
 
 *******************************************************************************/
 
-void intevent(FILE* f)
+static void intevent(FILE* f)
 
 {
 
@@ -3675,7 +3675,7 @@ call down into the stack by executing the overridden event.
 
 *******************************************************************************/
 
-void ieventover(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh)
+static void ieventover(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh)
 
 {
 
@@ -3696,7 +3696,7 @@ call down into the stack by executing the overridden event.
 
 *******************************************************************************/
 
-void ieventsover(pa_pevthan eh,  pa_pevthan* oeh)
+static void ieventsover(pa_pevthan eh,  pa_pevthan* oeh)
 
 {
 
@@ -3720,7 +3720,7 @@ window. Thus it is a more complete send of the event.
 
 *******************************************************************************/
 
-void isendevent(FILE* f, pa_evtrec* er)
+static void isendevent(FILE* f, pa_evtrec* er)
 
 {
 
@@ -4010,7 +4010,7 @@ the associated input file.
 
 *******************************************************************************/
 
-void itimer(FILE* f, int i, long t, int r)
+static void itimer(FILE* f, int i, long t, int r)
 
 {
 
@@ -4042,7 +4042,7 @@ Kills a given timer, by it's id number. Only repeating timers should be killed.
 
 *******************************************************************************/
 
-void ikilltimer(FILE* f, int i)
+static void ikilltimer(FILE* f, int i)
 
 {
 
@@ -4068,7 +4068,7 @@ Returns the number of mice implemented. This is a pure passthrough function.
 
 *******************************************************************************/
 
-int imouse(FILE* f)
+static int imouse(FILE* f)
 
 {
 
@@ -4085,7 +4085,7 @@ function.
 
 *******************************************************************************/
 
-int imousebutton(FILE* f, int m)
+static int imousebutton(FILE* f, int m)
 
 {
 
@@ -4101,7 +4101,7 @@ Return number of joysticks attached. This is a pure passthrough function.
 
 *******************************************************************************/
 
-int ijoystick(FILE* f)
+static int ijoystick(FILE* f)
 
 {
 
@@ -4118,7 +4118,7 @@ function.
 
 *******************************************************************************/
 
-int ijoybutton(FILE* f, int j)
+static int ijoybutton(FILE* f, int j)
 
 {
 
@@ -4137,7 +4137,7 @@ passthrough function.
 
 *******************************************************************************/
 
-int ijoyaxis(FILE* f, int j)
+static int ijoyaxis(FILE* f, int j)
 
 {
 
@@ -4153,7 +4153,7 @@ Sets a tab at the indicated column number.
 
 *******************************************************************************/
 
-void isettab(FILE* f, int t)
+static void isettab(FILE* f, int t)
 
 {
 
@@ -4173,7 +4173,7 @@ Resets the tab at the indicated collumn number.
 
 *******************************************************************************/
 
-void irestab(FILE* f, int t)
+static void irestab(FILE* f, int t)
 
 {
 
@@ -4194,7 +4194,7 @@ arrangement.
 
 *******************************************************************************/
 
-void iclrtab(FILE* f)
+static void iclrtab(FILE* f)
 
 {
 
@@ -4215,7 +4215,7 @@ passthrough function.
 
 *******************************************************************************/
 
-int ifunkey(FILE* f)
+static int ifunkey(FILE* f)
 
 {
 
@@ -4234,7 +4234,7 @@ of the blanking interval.
 
 *******************************************************************************/
 
-void iframetimer(FILE* f, int e)
+static void iframetimer(FILE* f, int e)
 
 {
 
@@ -4283,7 +4283,7 @@ holding manager unaware programs.
 
 *******************************************************************************/
 
-void iautohold(int e)
+static void iautohold(int e)
 
 {
 
@@ -4312,7 +4312,7 @@ character attributes.
 
 *******************************************************************************/
 
-void iwrtstr(FILE* f, char* s)
+static void iwrtstr(FILE* f, char* s)
 
 {
 
@@ -4369,7 +4369,7 @@ Sets the title of the current window.
 
 *******************************************************************************/
 
-void ititle(FILE* f, char* ts)
+static void ititle(FILE* f, char* ts)
 
 {
 
@@ -4396,7 +4396,7 @@ window.
 
 *******************************************************************************/
 
-void iopenwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
+static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
 
 {
 
@@ -4414,7 +4414,7 @@ freed.
 
 *******************************************************************************/
 
-void ibuffer(FILE* f, int e)
+static void ibuffer(FILE* f, int e)
 
 {
 
@@ -4458,7 +4458,7 @@ Sets or resets the size of the buffer surface, in character counts.
 
 *******************************************************************************/
 
-void isizbuf(FILE* f, int x, int y)
+static void isizbuf(FILE* f, int x, int y)
 
 {
 
@@ -4487,7 +4487,7 @@ Gets the onscreen parent window size, in character terms.
 
 *******************************************************************************/
 
-void igetsiz(FILE* f, int* x, int* y)
+static void igetsiz(FILE* f, int* x, int* y)
 
 {
 
@@ -4507,7 +4507,7 @@ Sets the onscreen window size, in character terms.
 
 *******************************************************************************/
 
-void isetsiz(FILE* f, int x, int y)
+static void isetsiz(FILE* f, int x, int y)
 
 {
 
@@ -4528,7 +4528,7 @@ relative measurement.
 
 *******************************************************************************/
 
-void isetpos(FILE* f, int x, int y)
+static void isetpos(FILE* f, int x, int y)
 
 {
 
@@ -4547,7 +4547,7 @@ because it can only be used as a relative measurement.
 
 *******************************************************************************/
 
-void iscnsiz(FILE* f, int* x, int* y)
+static void iscnsiz(FILE* f, int* x, int* y)
 
 {
 
@@ -4573,7 +4573,7 @@ screens that are joined at one or more sides.
 
 *******************************************************************************/
 
-void iscncen(FILE* f, int* x, int* y)
+static void iscncen(FILE* f, int* x, int* y)
 
 {
 
@@ -4600,7 +4600,7 @@ Do we also need a menu style type ?
 
 *******************************************************************************/
 
-void iwinclient(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
+static void iwinclient(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
 
 {
 
@@ -4622,7 +4622,7 @@ Brings the indicated window to the front of the Z order.
 
 *******************************************************************************/
 
-void ifront(FILE* f)
+static void ifront(FILE* f)
 
 {
 
@@ -4641,7 +4641,7 @@ Puts the indicated window to the back of the Z order.
 
 *******************************************************************************/
 
-void iback(FILE* f)
+static void iback(FILE* f)
 
 {
 
@@ -4660,7 +4660,7 @@ Turns the window frame on and off.
 
 *******************************************************************************/
 
-void iframe(FILE* f, int e)
+static void iframe(FILE* f, int e)
 
 {
 
@@ -4689,7 +4689,7 @@ managers.
 
 *******************************************************************************/
 
-void isizable(FILE* f, int e)
+static void isizable(FILE* f, int e)
 
 {
 
@@ -4717,7 +4717,7 @@ used to create component windows.
 
 *******************************************************************************/
 
-void isysbar(FILE* f, int e)
+static void isysbar(FILE* f, int e)
 
 {
 
@@ -4744,7 +4744,7 @@ deleted.
 
 *******************************************************************************/
 
-void imenu(FILE* f, pa_menuptr m)
+static void imenu(FILE* f, pa_menuptr m)
 
 {
 
@@ -4759,7 +4759,7 @@ and will no longer send messages.
 
 *******************************************************************************/
 
-void imenuena(FILE* f, int id, int onoff)
+static void imenuena(FILE* f, int id, int onoff)
 
 {
 
@@ -4774,7 +4774,7 @@ selected, with no check if not.
 
 *******************************************************************************/
 
-void imenusel(FILE* f, int id, int select)
+static void imenusel(FILE* f, int id, int select)
 
 {
 
@@ -4796,7 +4796,7 @@ end of the menu, then the program selections placed in the menu.
 
 *******************************************************************************/
 
-void istdmenu(pa_stdmenusel sms, pa_menuptr* sm, pa_menuptr pm)
+static void istdmenu(pa_stdmenusel sms, pa_menuptr* sm, pa_menuptr pm)
 
 {
 
@@ -4822,7 +4822,7 @@ is allocated, it is reserved until it is used and removed by killwidget().
 
 *******************************************************************************/
 
-int igetwinid(void)
+static int igetwinid(void)
 
 {
 
@@ -4845,7 +4845,7 @@ Sends the focus, or which window gets input characters, to a given window.
 
 *******************************************************************************/
 
-void ifocus(FILE* f)
+static void ifocus(FILE* f)
 
 {
 

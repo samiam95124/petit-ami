@@ -264,6 +264,28 @@ typedef enum {
     einpdev,  /* input device error */
     einvtab,  /* invalid tab stop */
     einvjoy,  /* Invalid joystick ID */
+    esendevent_unimp, /* sendevent unimplemented */
+    etitle_unimp,     /* title unimplemented */
+    eopenwin_unimp,   /* openwin unimplemented */
+    ebuffer_unimp,    /* buffer unimplemented */
+    esizbuf_unimp,    /* sizbuf unimplemented */
+    egetsiz_unimp,    /* getsiz unimplemented */
+    esetsiz_unimp,    /* setsiz unimplemented */
+    esetpos_unimp,    /* setpos unimplemented */
+    escnsiz_unimp,    /* scnsiz unimplemented */
+    escncen_unimp,    /* scncen unimplemented */
+    ewinclient_unimp, /* winclient unimplemented */
+    efront_unimp,     /* front unimplemented */
+    eback_unimp,      /* back unimplemented */
+    eframe_unimp,     /* frame unimplemented */
+    esizable_unimp,   /* sizable unimplemented */
+    esysbar_unimp,    /* sysbar unimplemented */
+    emenu_unimp,      /* menu unimplemented */
+    emenuena_unimp,   /* menuena unimplemented */
+    emenusel_unimp,   /* menusel unimplemented */
+    estdmenu_unimp,   /* stdmenu unimplemented */
+    egetwinid_unimp,  /* getwinid unimplemented */
+    efocus_unimp,     /* focus unimplemented */
     esystem   /* system fault */
 
 } errcod;
@@ -421,6 +443,28 @@ static pa_wrtstr_t          wrtstr_vect;
 static pa_wrtstrn_t         wrtstrn_vect;
 static pa_eventover_t       eventover_vect;
 static pa_eventsover_t      eventsover_vect;
+static pa_sendevent_t       sendevent_vect;
+static pa_title_t           title_vect;
+static pa_openwin_t         openwin_vect;
+static pa_buffer_t          buffer_vect;
+static pa_sizbuf_t          sizbuf_vect;
+static pa_getsiz_t          getsiz_vect;
+static pa_setsiz_t          setsiz_vect;
+static pa_setpos_t          setpos_vect;
+static pa_scnsiz_t          scnsiz_vect;
+static pa_scncen_t          scncen_vect;
+static pa_winclient_t       winclient_vect;
+static pa_front_t           front_vect;
+static pa_back_t            back_vect;
+static pa_frame_t           frame_vect;
+static pa_sizable_t         sizable_vect;
+static pa_sysbar_t          sysbar_vect;
+static pa_menu_t            menu_vect;
+static pa_menuena_t         menuena_vect;
+static pa_menusel_t         menusel_vect;
+static pa_stdmenu_t         stdmenu_vect;
+static pa_getwinid_t        getwinid_vect;
+static pa_focus_t           focus_vect;
 
 /**
  * Save for terminal status
@@ -504,6 +548,28 @@ static void error(errcod e)
         case einpdev: fprintf(stderr, "Error in input device"); break;
         case einvtab: fprintf(stderr, "Invalid tab stop position"); break;
         case einvjoy: fprintf(stderr, "Invalid joystick ID"); break;
+        case esendevent_unimp: fprintf(stderr, "sendevent unimplemented"); break;
+        case etitle_unimp:     fprintf(stderr, "title unimplemented"); break;
+        case eopenwin_unimp:   fprintf(stderr, "openwin unimplemented"); break;
+        case ebuffer_unimp:    fprintf(stderr, "buffer unimplemented"); break;
+        case esizbuf_unimp:    fprintf(stderr, "sizbuf unimplemented"); break;
+        case egetsiz_unimp:    fprintf(stderr, "getsiz unimplemented"); break;
+        case esetsiz_unimp:    fprintf(stderr, "setsiz unimplemented"); break;
+        case esetpos_unimp:    fprintf(stderr, "setpos unimplemented"); break;
+        case escnsiz_unimp:    fprintf(stderr, "scnsiz unimplemented"); break;
+        case escncen_unimp:    fprintf(stderr, "scncen unimplemented"); break;
+        case ewinclient_unimp: fprintf(stderr, "winclient unimplemented"); break;
+        case efront_unimp:     fprintf(stderr, "front unimplemented"); break;
+        case eback_unimp:      fprintf(stderr, "back unimplemented"); break;
+        case eframe_unimp:     fprintf(stderr, "frame unimplemented"); break;
+        case esizable_unimp:   fprintf(stderr, "sizable unimplemented"); break;
+        case esysbar_unimp:    fprintf(stderr, "sysbar unimplemented"); break;
+        case emenu_unimp:      fprintf(stderr, "menu unimplemented"); break;
+        case emenuena_unimp:   fprintf(stderr, "menuena unimplemented"); break;
+        case emenusel_unimp:   fprintf(stderr, "menusel unimplemented"); break;
+        case estdmenu_unimp:   fprintf(stderr, "stdmenu unimplemented"); break;
+        case egetwinid_unimp:  fprintf(stderr, "getwinid unimplemented"); break;
+        case efocus_unimp:     fprintf(stderr, "focus unimplemented"); break;
         case esystem: fprintf(stderr, "System fault"); break;
 
     }
@@ -3574,6 +3640,172 @@ static void eventsover_ivf(pa_pevthan eh,  pa_pevthan* oeh)
 
 }
 
+/** ****************************************************************************
+
+Management extension package
+
+This section is a series of override vectors for unimplemented window management
+calls.
+
+*******************************************************************************/
+
+void _pa_sendevent_ovr(pa_sendevent_t nfp, pa_sendevent_t* ofp)
+    { *ofp = sendevent_vect; sendevent_vect = nfp; }
+void pa_sendevent(FILE* f, pa_evtrec* er) { (*sendevent_vect)(f, er); }
+
+static void sendevent_ivf(FILE* f, pa_evtrec* er)
+    { error(esendevent_unimp); }
+
+void _pa_title_ovr(pa_title_t nfp, pa_title_t* ofp)
+    { *ofp = title_vect; title_vect = nfp; }
+void pa_title(FILE* f, char* ts) { (*title_vect)(f, ts); }
+
+static void title_ivf(FILE* f, char* ts)
+    { error(etitle_unimp); }
+
+void _pa_openwin_ovr(pa_openwin_t nfp, pa_openwin_t* ofp)
+    { *ofp = openwin_vect; openwin_vect = nfp; }
+void pa_openwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
+    { (*openwin_vect)(infile, outfile, parent, wid); }
+
+static void openwin_ivf(FILE** infile, FILE** outfile, FILE* parent, int wid)
+    { error(eopenwin_unimp); }
+
+void _pa_buffer_ovr(pa_buffer_t nfp, pa_buffer_t* ofp)
+    { *ofp = buffer_vect; buffer_vect = nfp; }
+void pa_buffer(FILE* f, int e) { (*buffer_vect)(f, e); }
+
+static void buffer_ivf(FILE* f, int e)
+    { error(ebuffer_unimp); }
+
+void _pa_sizbuf_ovr(pa_sizbuf_t nfp, pa_sizbuf_t* ofp)
+    { *ofp = sizbuf_vect; sizbuf_vect = nfp; }
+void pa_sizbuf(FILE* f, int x, int y) { (*sizbuf_vect)(f, x, y); }
+
+static void sizbuf_ivf(FILE* f, int x, int y)
+    { error(esizbuf_unimp); }
+
+void _pa_getsiz_ovr(pa_getsiz_t nfp, pa_getsiz_t* ofp)
+    { *ofp = getsiz_vect; getsiz_vect = nfp; }
+void pa_getsiz(FILE* f, int* x, int* y) { (*getsiz_vect)(f, x, y); }
+
+static void getsiz_ivf(FILE* f, int* x, int* y)
+    { error(egetsiz_unimp); }
+
+void _pa_setsiz_ovr(pa_setsiz_t nfp, pa_setsiz_t* ofp)
+    { *ofp = setsiz_vect; setsiz_vect = nfp; }
+void pa_setsiz(FILE* f, int x, int y) { (*setsiz_vect)(f, x, y); }
+
+static void setsiz_ivf(FILE* f, int x, int y)
+    { error(esetsiz_unimp); }
+
+void _pa_setpos_ovr(pa_setpos_t nfp, pa_setpos_t* ofp)
+    { *ofp = setpos_vect; setpos_vect = nfp; }
+void pa_setpos(FILE* f, int x, int y) { (*setpos_vect)(f, x, y); }
+
+static void setpos_ivf(FILE* f, int x, int y)
+    { error(esetpos_unimp); }
+
+void _pa_scnsiz_ovr(pa_scnsiz_t nfp, pa_scnsiz_t* ofp)
+    { *ofp = scnsiz_vect; scnsiz_vect = nfp; }
+void pa_scnsiz(FILE* f, int* x, int* y) { (*scnsiz_vect)(f, x, y); }
+
+static void scnsiz_ivf(FILE* f, int* x, int* y)
+    { error(escnsiz_unimp); }
+
+void _pa_scncen_ovr(pa_scncen_t nfp, pa_scncen_t* ofp)
+    { *ofp = scncen_vect; scncen_vect = nfp; }
+void pa_scncen(FILE* f, int* x, int* y) { (*scncen_vect)(f, x, y); }
+
+static void scncen_ivf(FILE* f, int* x, int* y)
+    { error(escncen_unimp); }
+
+void _pa_winclient_ovr(pa_winclient_t nfp, pa_winclient_t* ofp)
+    { *ofp = winclient_vect; winclient_vect = nfp; }
+void pa_winclient(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
+    { (*winclient_vect)(f, cx, cy, wx, wy, ms); }
+
+static void winclient_ivf(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
+    { error(ewinclient_unimp); }
+
+void _pa_front_ovr(pa_front_t nfp, pa_front_t* ofp)
+    { *ofp = front_vect; front_vect = nfp; }
+void pa_front(FILE* f) { (*front_vect)(f); }
+
+static void front_ivf(FILE* f)
+    { error(efront_unimp); }
+
+void _pa_back_ovr(pa_back_t nfp, pa_back_t* ofp)
+    { *ofp = back_vect; back_vect = nfp; }
+void pa_back(FILE* f) { (*back_vect)(f); }
+
+static void back_ivf(FILE* f)
+    { error(eback_unimp); }
+
+void _pa_frame_ovr(pa_frame_t nfp, pa_frame_t* ofp)
+    { *ofp = frame_vect; frame_vect = nfp; }
+void pa_frame(FILE* f, int e) { (*frame_vect)(f, e); }
+
+static void frame_ivf(FILE* f, int e)
+    { error(eframe_unimp); }
+
+void _pa_sizable_ovr(pa_sizable_t nfp, pa_sizable_t* ofp)
+    { *ofp = sizable_vect; sizable_vect = nfp; }
+void pa_sizable(FILE* f, int e) { (*sizable_vect)(f, e); }
+
+static void sizable_ivf(FILE* f, int e)
+    { error(esizable_unimp); }
+
+void _pa_sysbar_ovr(pa_sysbar_t nfp, pa_sysbar_t* ofp)
+    { *ofp = sysbar_vect; sysbar_vect = nfp; }
+void pa_sysbar(FILE* f, int e) { (*sysbar_vect)(f, e); }
+
+static void sysbar_ivf(FILE* f, int e)
+    { error(esysbar_unimp); }
+
+void _pa_menu_ovr(pa_menu_t nfp, pa_menu_t* ofp)
+    { *ofp = menu_vect; menu_vect = nfp; }
+void pa_menu(FILE* f, pa_menuptr m) { (*menu_vect)(f, m); }
+
+static void menu_ivf(FILE* f, pa_menuptr m)
+    { error(emenu_unimp); }
+
+void _pa_menuena_ovr(pa_menuena_t nfp, pa_menuena_t* ofp)
+    { *ofp = menuena_vect; menuena_vect = nfp; }
+void pa_menuena(FILE* f, int id, int onoff) { (*menuena_vect)(f, id, onoff); }
+
+static void menuena_ivf(FILE* f, int id, int onoff)
+    { error(emenuena_unimp); }
+
+void _pa_menusel_ovr(pa_menusel_t nfp, pa_menusel_t* ofp)
+    { *ofp = menusel_vect; menusel_vect = nfp; }
+void pa_menusel(FILE* f, int id, int select) { (*menusel_vect)(f, id, select); }
+
+static void menusel_ivf(FILE* f, int id, int select)
+    { error(emenusel_unimp); }
+
+void _pa_stdmenu_ovr(pa_stdmenu_t nfp, pa_stdmenu_t* ofp)
+    { *ofp = stdmenu_vect; stdmenu_vect = nfp; }
+void pa_stdmenu(pa_stdmenusel sms, pa_menuptr* sm, pa_menuptr pm)
+    { (*stdmenu_vect)(sms, sm, pm); }
+
+static void stdmenu_ivf(pa_stdmenusel sms, pa_menuptr* sm, pa_menuptr pm)
+    { error(estdmenu_unimp); }
+
+void _pa_getwinid_ovr(pa_getwinid_t nfp, pa_getwinid_t* ofp)
+    { *ofp = getwinid_vect; getwinid_vect = nfp; }
+int pa_getwinid(void) { (*getwinid_vect)(); }
+
+static int getwinid_ivf(void)
+    { error(egetwinid_unimp); }
+
+void _pa_focus_ovr(pa_focus_t nfp, pa_focus_t* ofp)
+    { *ofp = focus_vect; focus_vect = nfp; }
+void pa_focus(FILE* f) { (*focus_vect)(f); }
+
+static void focus_ivf(FILE* f)
+    { error(efocus_unimp); }
+
 /*******************************************************************************
 
 Module startup/shutdown
@@ -3653,6 +3885,28 @@ static void pa_init_terminal()
     wrtstrn_vect =         wrtstrn_ivf;
     eventover_vect =       eventover_ivf;
     eventsover_vect =      eventsover_ivf;
+    sendevent_vect =       sendevent_ivf;
+    title_vect =           title_ivf;
+    openwin_vect =         openwin_ivf;
+    buffer_vect =          buffer_ivf;
+    sizbuf_vect =          sizbuf_ivf;
+    getsiz_vect =          getsiz_ivf;
+    setsiz_vect =          setsiz_ivf;
+    setpos_vect =          setpos_ivf;
+    scnsiz_vect =          scnsiz_ivf;
+    scncen_vect =          scncen_ivf;
+    winclient_vect =       winclient_ivf;
+    front_vect =           front_ivf;
+    back_vect =            back_ivf;
+    frame_vect =           frame_ivf;
+    sizable_vect =         sizable_ivf;
+    sysbar_vect =          sysbar_ivf;
+    menu_vect =            menu_ivf;
+    menuena_vect =         menuena_ivf;
+    menusel_vect =         menusel_ivf;
+    stdmenu_vect =         stdmenu_ivf;
+    getwinid_vect =        getwinid_ivf;
+    focus_vect =           focus_ivf;
 
     /* turn off I/O buffering */
     setvbuf(stdin, NULL, _IONBF, 0);

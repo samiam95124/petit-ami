@@ -272,4 +272,59 @@ void _pa_select_ovr(pa_select_t nfp, pa_select_t* ofp);
 void _pa_wrtstr_ovr(pa_wrtstr_t nfp, pa_wrtstr_t* ofp);
 void _pa_del_ovr(pa_del_t nfp, pa_del_t* ofp);
 
+/*
+ * Extension types
+ */
+/* menu */
+typedef struct pa_menurec* pa_menuptr;
+typedef struct pa_menurec {
+
+        pa_menuptr next;   /* next menu item in list */
+        pa_menuptr branch; /* menu branch */
+        int        onoff;  /* on/off highlight */
+        int        oneof;  /* "one of" highlight */
+        int        bar;    /* place bar under */
+        int        id;     /* id of menu item */
+        char*      face;   /* text to place on button */
+
+} pa_menurec;
+/* standard menu selector */
+typedef int pa_stdmenusel;
+/* windows mode sets */
+typedef enum {
+
+    pa_wmframe, /* frame on/off */
+    pa_wmsize,  /* size bars on/off */
+    pa_wmsysbar /* system bar on/off */
+
+} pa_winmod;
+typedef int pa_winmodset;
+
+/*
+ * Extension override types
+ */
+typedef void (*pa_sendevent_t)(FILE* f, pa_evtrec* er);
+typedef void (*pa_title_t)(FILE* f, char* ts);
+typedef void (*pa_openwin_t)(FILE** infile, FILE** outfile, FILE* parent, int wid);
+typedef void (*pa_buffer_t)(FILE* f, int e);
+typedef void (*pa_sizbuf_t)(FILE* f, int x, int y);
+typedef void (*pa_getsiz_t)(FILE* f, int* x, int* y);
+typedef void (*pa_setsiz_t)(FILE* f, int x, int y);
+typedef void (*pa_setpos_t)(FILE* f, int x, int y);
+typedef void (*pa_scnsiz_t)(FILE* f, int* x, int* y);
+typedef void (*pa_scncen_t)(FILE* f, int* x, int* y);
+typedef void (*pa_winclient_t)(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms);
+typedef void (*pa_front_t)(FILE* f);
+typedef void (*pa_back_t)(FILE* f);
+typedef void (*pa_frame_t)(FILE* f, int e);
+typedef void (*pa_sizable_t)(FILE* f, int e);
+typedef void (*pa_sysbar_t)(FILE* f, int e);
+typedef void (*pa_menu_t)(FILE* f, pa_menuptr m);
+typedef void (*pa_menuena_t)(FILE* f, int id, int onoff);
+typedef void (*pa_menusel_t)(FILE* f, int id, int select);
+typedef void (*pa_stdmenu_t)(pa_stdmenusel sms, pa_menuptr* sm, pa_menuptr pm);
+typedef int (*pa_getwinid_t)(void);
+typedef void (*pa_focus_t)(FILE* f);
+typedef int (*pa_getwigid_t)(FILE* f);
+
 #endif /* __TERMINAL_H__ */
