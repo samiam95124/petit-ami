@@ -124,6 +124,7 @@ static enum { /* debug levels */
 #define MAXCON 10  /* number of screen contexts */
 #define MAXTAB 50  /* total number of tabs possible per window */
 #define MAXLIN 250 /* maximum length of input bufferred line */
+//#define USEUNICODE /* use unicode frame characters */
 //#define PRTROOTEVT /* print root window events */
 //#define PRTEVT /* print outbound events */
 
@@ -340,6 +341,7 @@ typedef struct winrec {
     winptr   winlst;            /* master list of all windows */
     winptr   rootlst;           /* master list of all roots */
     winptr   zmin2max;          /* Z order minimum to maximum list */
+    winptr   zmax2min;          /* Z order maximum to minimum list */
     scnrec*  screens[MAXCON];   /* screen contexts array */
     int      curdsp;            /* index for current display screen */
     int      curupd;            /* index for current update screen */
@@ -417,6 +419,24 @@ typedef enum {
 
 } framecomp;
 
+#ifdef USEUNICODE
+char* frmchrs[] = {
+
+    "═", /* horizontal line */
+    "║", /* vertical line */
+    "═", /* system bar underline */
+    "╔", /* top left corner*/
+    "╗", /* top right corner */
+    "╚", /* bottom left corner */
+    "╝", /* bottom right corner */
+    "╠", /* left intersection */
+    "╣", /* right intersection */
+    "-", /* minimize button */
+    "▢", /* maximize button */
+    "Ⓧ", /* cancel button */
+
+};
+#else
 char* frmchrs[] = {
 
     "-", /* horizontal line */
@@ -433,6 +453,7 @@ char* frmchrs[] = {
     "X", /* cancel button */
 
 };
+#endif
 
 static filptr opnfil[MAXFIL];     /* open files table */
 static int    xltwin[MAXFIL*2+1]; /* window equivalence table, includes
@@ -450,6 +471,7 @@ static winptr   winfre;       /* free windows structure list */
 static winptr   winlst;       /* master list of all windows */
 static winptr   rootlst;      /* master list of all roots */
 static winptr   zmin2max;     /* Z order minimum to maximum list */
+static winptr   zmax2min;     /* Z order maximum to minimum list */
 static int      ztop;         /* current maximum/front Z order */
 static int      mousex;       /* mouse tracking x */
 static int      mousey;       /* mouse tracking y */
@@ -884,8 +906,26 @@ static int intersect(rectangle* r1, rectangle* r2)
 
 {
 
-    return ((*r1).x2 >= (*r2).x1 && (*r1).x1 <= (*r2).x2 &&
-            (*r1).y2 >= (*r2).y1 && (*r1).y1 <= (*r2).y2);
+    return (r1->x2 >= r2->x1 && r1->x1 <= r2->x2 &&
+            r1->y2 >= r2->y1 && r1->y1 <= r2->y2);
+
+}
+
+/*******************************************************************************
+
+Check inclusion of rectangle
+
+Returns true if the second rectangle is included in the first, that is, the
+second rectangle is completely within the first.
+
+*******************************************************************************/
+
+static int included(rectangle* r1, rectangle* r2)
+
+{
+
+    return (r2->x1 >= r1->x1 && r2->x2 <= r1->x2 &&
+            r2->y1 >= r1->y1 && r2->y2 <= r1->y2);
 
 }
 
@@ -913,6 +953,83 @@ static void intersection(rectangle* ri, rectangle* r1, rectangle* r2)
     if (r1->x2 > r2->x2) ri->x2 = r2->x2;
     if (r1->y1 < r2->y1) ri->y1 = r2->y1;
     if (r1->y2 > r2->y2) ri->y2 = r2->y2;
+
+}
+
+/*******************************************************************************
+
+Find rectangles zero
+
+Checks if the rectangle provided is all zeros. Returns true if so.
+
+*******************************************************************************/
+
+int zerorect(rectangle* r)
+
+{
+
+    return (!(r->x1 | r->x2 | r->y1 | r->y2));
+
+}
+
+/*******************************************************************************
+
+Subtract two rectangles
+
+Subtracts the second rectangle from the first, and returns 1 to 4 rectangles
+resulting from that subtraction. Any of the rectangles returned could be zero,
+and all should be checked.
+
+*******************************************************************************/
+
+void subrect(rectangle* r1, rectangle* r2, rectangle* rst, rectangle* rsl,
+             rectangle* rsr, rectangle* rsb)
+
+{
+
+    /* zero all outputs */
+    rst->x1 = rst->x2 = rst->y1 = rst->y2 = 0;
+    rsl->x1 = rsl->x2 = rsl->y1 = rsl->y2 = 0;
+    rsr->x1 = rsr->x2 = rsr->y1 = rsr->y2 = 0;
+    rsb->x1 = rsb->x2 = rsb->y1 = rsb->y2 = 0;
+
+    /* top */
+    if (r1->y1 < r2->y1 && r2->y1 <= r1->y2)
+        { rst->x1 = r1->x1; rst->x2 = r1->x2;
+          rst->y1 = r1->y1; rst->y2 = r2->y1-1; }
+
+    /* left */
+    if (r1->x1 < r2->x1 && r2->x1 <= r1->x2)
+        { rsl->x1 = r1->x1; rsl->x2 = r2->x1-1;
+          rsl->y1 = r1->y1; rsl->y2 = r1->y2; }
+
+    /* right */
+    if (r1->x1 <= r2->x2 && r2->x2 < r1->x2)
+        { rsr->x1 = r2->x2+1; rsr->x2 = r1->x2;
+          rsr->y1 = r1->y1; rsr->y2 = r1->y2; }
+
+    /* bottom */
+    if (r1->y1 <= r2->y2 && r2->y2 < r1->y2)
+        { rsb->x1 = r1->x1; rsb->x2 = r1->x2;
+          rsb->y1 = r2->y2+1; rsb->y2 = r1->y2; }
+
+    if (included(r1, r2)) {
+
+        /* adjust left and right for included rectangle */
+        if (r2->y1 > r1->y1) {
+
+            if (!zerorect(rsl)) rsl->y1 = r2->y1;
+            if (!zerorect(rsr)) rsr->y1 = r2->y1;
+
+        }
+        if (r2->y2 < r1->y2) {
+
+            if (!zerorect(rsl)) rsl->y2 = r2->y2;
+            if (!zerorect(rsr)) rsr->y2 = r2->y2;
+
+        }
+
+    }
 
 }
 
@@ -1220,7 +1337,7 @@ static void wrtchr(char c)
 
 /*******************************************************************************
 
-Output string to root window
+Output character string to root window
 
 Outputs a string to the root window and advances the x cursor. Note we assume
 auto is off and x can climb to infinity (INT_MAX).
@@ -1232,6 +1349,104 @@ static void wrtstr(char* s)
 {
 
     while (*s) { wrtchr(*s); s++; }
+
+}
+
+/*******************************************************************************
+
+Output extended character string to root window
+
+Outputs a string to the root window and advances the x cursor. Note we assume
+auto is off and x can climb to infinity (INT_MAX). This routine writes extended
+UTF-8 characters, meaning that it only advances the cursor once for the whole
+string.
+
+*******************************************************************************/
+
+static void wrtext(char* s)
+
+{
+
+    while (*s) { (*ofpwrite)(OUTFIL, s, 1); s++; }
+    curx++; /* advance cursor */
+
+}
+
+/*******************************************************************************
+
+Find point in rectangle
+
+Finds if the given x y point is included in the given rectangle. Returns true if
+so.
+
+*******************************************************************************/
+
+static int inrect(int x, int y, rectangle* r)
+
+{
+
+    return (r->x1 <= x && x <= r->x2 && r->y1 <= y && y <= r->y2);
+
+}
+
+/*******************************************************************************
+
+Output character to root window with clipping
+
+Outputs a single character to the root window and advances the x cursor. Note
+we assume auto is off and x can climb to infinity (INT_MAX).
+
+Clips to the given rectangle. Note the cursor position is still advanced.
+
+*******************************************************************************/
+
+static void wrtchrclp(char c, rectangle* cr)
+
+{
+
+    if (inrect(curx, cury, cr)) (*ofpwrite)(OUTFIL, &c, 1);
+    curx++;
+
+}
+
+/*******************************************************************************
+
+Output character string to root window with clipping
+
+Outputs a string to the root window and advances the x cursor. Note we assume
+auto is off and x can climb to infinity (INT_MAX).
+
+Clips to the given rectangle. Note the cursor position is still advanced.
+
+*******************************************************************************/
+
+static void wrtstrclp(char* s, rectangle* cr)
+
+{
+
+    while (*s) { wrtchrclp(*s, cr); s++; }
+
+}
+
+/*******************************************************************************
+
+Output extended character string to root window
+
+Outputs a string to the root window and advances the x cursor. Note we assume
+auto is off and x can climb to infinity (INT_MAX). This routine writes extended
+UTF-8 characters, meaning that it only advances the cursor once for the whole
+string.
+
+Clips to the given rectangle. Note the cursor position is still advanced.
+
+*******************************************************************************/
+
+static void wrtextclp(char* s, rectangle* cr)
+
+{
+
+    if (inrect(curx, cury, cr)) while (*s) { (*ofpwrite)(OUTFIL, s, 1); s++; }
+    curx++; /* advance cursor */
 
 }
 
@@ -1331,11 +1546,13 @@ Draws a frame around the indicated window. This is one of the following:
     ║                  ║
     ╚══════════════════╝
 
-(is seamless in xterm, here it depends on the editor).
+(it is seamless in xterm, here it depends on the editor).
+
+Accepts a clipping rectangle and clips to that.
 
 *******************************************************************************/
 
-static void drwfrm(winptr win)
+static void drwfrm(winptr win, rectangle* cr)
 
 {
 
@@ -1347,22 +1564,22 @@ static void drwfrm(winptr win)
 
             /* draw top and bottom */
             setcursor(win->orgx, win->orgy);
-            wrtstr(frmchrs[toplftcnr]);
-            for (x = 2; x <= win->pmaxx-1; x++) wrtstr(frmchrs[horzlin]);
-            wrtstr(frmchrs[toprgtcnr]);
+            wrtextclp(frmchrs[toplftcnr], cr);
+            for (x = 2; x <= win->pmaxx-1; x++) wrtextclp(frmchrs[horzlin], cr);
+            wrtextclp(frmchrs[toprgtcnr], cr);
 
             setcursor(win->orgx, win->orgy+win->pmaxy-1);
-            wrtstr(frmchrs[btmlftcnr]);
-            for (x = 2; x <= win->pmaxx-1; x++) wrtstr(frmchrs[horzlin]);
-            wrtstr(frmchrs[btmrgtcnr]);
+            wrtextclp(frmchrs[btmlftcnr], cr);
+            for (x = 2; x <= win->pmaxx-1; x++) wrtextclp(frmchrs[horzlin], cr);
+            wrtextclp(frmchrs[btmrgtcnr], cr);
 
             /* draw sides */
             for (y = win->orgy+1; y < win->orgy+win->pmaxy-1; y++) {
 
                 setcursor(win->orgx, y);
-                wrtstr(frmchrs[vertlin]);
+                wrtextclp(frmchrs[vertlin], cr);
                 setcursor(win->orgx+win->pmaxx-1, y);
-                wrtstr(frmchrs[vertlin]);
+                wrtextclp(frmchrs[vertlin], cr);
 
             }
 
@@ -1373,12 +1590,12 @@ static void drwfrm(winptr win)
             x = win->pmaxx-6; /* start of system bar buttons */
             /* set draw location */
             setcursor(win->orgx+x-1, win->orgy+y);
-            wrtstr(frmchrs[minbtn]);
-            wrtchr(' ');
-            wrtstr(frmchrs[maxbtn]);
-            wrtchr(' ');
-            wrtstr(frmchrs[canbtn]);
-            wrtchr(' ');
+            wrtextclp(frmchrs[minbtn], cr);
+            wrtchrclp(' ', cr);
+            wrtextclp(frmchrs[maxbtn], cr);
+            wrtchrclp(' ', cr);
+            wrtextclp(frmchrs[canbtn], cr);
+            wrtchrclp(' ', cr);
 
             /* draw title, if exists */
             if (win->title) {
@@ -1387,14 +1604,14 @@ static void drwfrm(winptr win)
                 /* limit string length to available space */
                 if (win->pmaxx-6 < l) l = win->pmaxx-6;
                 setcursor(win->orgx+(win->pmaxx-6)/2-(l/2), win->orgy+y);
-                wrtstr(win->title);
+                wrtstrclp(win->title, cr);
 
             }
 
             /* draw underbar */
             y++;
             setcursor(win->orgx+1, win->orgy+y);
-            for (x = 2; x <= win->pmaxx-1; x++) wrtstr(frmchrs[sysudl]);
+            for (x = 2; x <= win->pmaxx-1; x++) wrtextclp(frmchrs[sysudl], cr);
 
         }
 
@@ -1457,7 +1674,69 @@ static void setcur(winptr win)
 
 /** ****************************************************************************
 
-Restore screen
+Restore screen with clipping
+
+Updates all the buffer and screen parameters from the display screen to the
+terminal into the selected rectangle. Note we assume there exists an
+intersection of the window with the clipping rectangle.
+
+*******************************************************************************/
+
+static void restoreclp(winptr win,   /* window to restore */
+                      rectangle* cr) /* area to restore */
+
+{
+
+    scnrec* scp;   /* pointer to screen location */
+    scnrec* sc;
+    int x, y;
+    rectangle r1, r2;
+
+    if (win->bufmod && win->visible)  { /* buffered mode is on, and visible */
+
+        /* find intersection with client area *
+        setrect(r, win->orgx+coffx, win->orgy+
+        setcurvis(FALSE); /* turn off cursor for drawing */
+        if (win->frame) drwfrm(win, cr); /* draw window frame */
+
+        /* find intersection with client area */
+        setrect(&r1, win->orgx+win->coffx, win->orgy+win->coffy,
+                   win->orgx+win->coffx+win->cmaxx-1,
+                   win->orgy+win->coffy+win->cmaxy-1);
+        if (intersect(cr, &r1)) { /* there is an intersection with client area */
+
+            intersection(&r2, cr, &r1); /* find client-clip intersection */
+            sc = win->screens[win->curdsp-1]; /* index screen */
+            /* restore window from buffer */
+            for (y = r2.y1; y <= r2.y2; y++) {
+
+                /* Reset cursor at the start of each line. Note frame offsets. */
+                setcursor(r2.x1, y);
+                /* draw each line */
+                for (x = r2.x1; x <= r2.x2; x++) {
+
+                    /* index screen character location */
+                    scp = &SCNBUF(sc, x-(win->orgx+win->coffx)+1,
+                                      y-(win->orgy+win->coffy)+1);
+                    setfcolor(scp->forec); /* set colors */
+                    setbcolor(scp->backc);
+                    setattrs(scp->attr); /* set attributes */
+                    wrtchr(scp->ch); /* output character */
+
+                }
+
+            }
+
+        }
+        setcur(win); /* reenable cursor */
+
+    }
+
+}
+
+/** ****************************************************************************
+
+Restore screen with clipping
 
 Updates all the buffer and screen parameters from the display screen to the
 terminal.
@@ -1468,37 +1747,12 @@ static void restore(winptr win) /* window to restore */
 
 {
 
-    scnrec* scp;   /* pointer to screen location */
-    scnrec* sc;
-    int x, y;
+    rectangle cr;
 
-    if (win->bufmod && win->visible)  { /* buffered mode is on, and visible */
-
-        setcurvis(FALSE); /* turn off cursor for drawing */
-        if (win->frame) drwfrm(win); /* draw window frame */
-
-        sc = win->screens[win->curdsp-1]; /* index screen */
-        /* restore window from buffer */
-        for (y = 1; y <= win->cmaxy; y++) {
-
-            /* Reset cursor at the start of each line. Note frame offsets. */
-            setcursor(win->orgx+win->coffx, win->orgy+win->coffy+y-1);
-            /* draw each line */
-            for (x = 1; x <= win->cmaxx; x++) {
-
-                /* index screen character location */
-                scp = &SCNBUF(sc, x, y);
-                setfcolor(scp->forec); /* set colors */
-                setbcolor(scp->backc);
-                setattrs(scp->attr); /* set attributes */
-                wrtchr(scp->ch); /* output character */
-
-            }
-
-        }
-        setcur(win); /* reenable cursor */
-
-    }
+    /* set clipping rectangle to whole window */
+    setrect(&cr, win->orgx, win->orgy,
+               win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+    restoreclp(win, &cr);
 
 }
 
@@ -1517,21 +1771,52 @@ parts of the window as uppermost Z order elements draw over lower ones. In the
 top down method, we must keep track of already drawn parts of the rectangle,
 which means keeping a list of increasingly fractured rectangles. It does not
 redundantly draw, and thus is more efficient and produces less onscreen
-"sparkle" due to overdraws. The current implementation uses bottom up.
+"sparkle" due to overdraws. The current implementation uses top down.
+
+The "fractioning" keeps the list on the stack, and tracks the subtrectangles
+by recursion. First the intersection of the draw area and the list window is
+found and redrawn, then that is subtracted from the draw area, yeilding 1 to 4
+subrectangles, then each of these is recursively applied to the next window in
+the max 2 min list given.
 
 *******************************************************************************/
 
-static void redraw(int x1, int y1, int x2, int y2)
+static void redraw(winptr win, int x1, int y1, int x2, int y2)
 
 {
 
-    winptr    win; /* pointer to windows list */
+    rectangle r1, r2, r3, rt, rl, rr, rb;
 
-    win = zmin2max; /* get the min to max list */
-    while (win) { /* traverse the windows list */
+    if (win) { /* if window exists */
 
-        restore(win);
-        win = win->zmin2max; /* next window in Z order */
+        setrect(&r1, x1, y1, x2, y2); /* set update rectangle */
+        /* set window rectangle */
+        setrect(&r2, win->orgx, win->orgy,
+                    win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+        if (intersect(&r1, &r2)) { /* there is an intersection */
+
+            intersection(&r3, &r1, &r2); /* find the intersected rectangle */
+            /* restore that part of the window */
+            restoreclp(win, &r3);
+            if (win->zmax2min) { /* not last window in max 2 min list*/
+
+                /* find rectangle fractions */
+                subrect(&r1, &r3, &rt, &rl, &rr, &rb);
+                /* process down list for each fraction */
+                if (!zerorect(&rt))
+                    redraw(win->zmax2min, rt.x1, rt.y1, rt.x2, rt.y2);
+                if (!zerorect(&rl))
+                    redraw(win->zmax2min, rl.x1, rl.y1, rl.x2, rl.y2);
+                if (!zerorect(&rr))
+                    redraw(win->zmax2min, rr.x1, rr.y1, rr.x2, rr.y2);
+                if (!zerorect(&rb))
+                    redraw(win->zmax2min, rb.x1, rb.y1, rb.x2, rb.y2);
+
+            }
+
+        } else
+            /* no intersect this window, go next */
+            redraw(win->zmax2min, x1, y1, x2, y2);
 
     }
 
@@ -1848,6 +2133,40 @@ static void makzmin2max(void)
 
 /*******************************************************************************
 
+Construct maximum to minimum Z order list
+
+Sorts the window list for Z order, and leaves the list in zmax2min. This picks
+from the general window list and does not affect it, so can be rerun at any
+time.
+
+*******************************************************************************/
+
+static void makzmax2min(void)
+
+{
+
+    winptr win; /* pointer to windows list */
+    int    z;
+
+    zmax2min = NULL; /* clear the target list */
+    if (ztop >= 0) { /* Z order is valid */
+
+        for (z = 0; z <= ztop; z++) { /* find each window by Z order */
+
+            /* since we find min to max, the list gets pushed backwards and ends
+               up max to min */
+            win = fndzorder(z); /* find this Z window */
+            win->zmax2min = zmax2min; /* push to list */
+            zmax2min = win;
+
+        }
+
+    }
+
+}
+
+/*******************************************************************************
+
 Print min 2 max windows list
 
 Prints the contents of the min 2 max list. A diagnostic.
@@ -1875,18 +2194,44 @@ static void prtmin2maxlst(void)
 
 /*******************************************************************************
 
-Bring window to front of the Z order
+Print max 2 min windows list
 
-Brings the indicated window to the front of the Z order.
+Prints the contents of the max 2 min list. A diagnostic.
 
 *******************************************************************************/
 
-static void intfront(winptr win)
+static void prtmax2minlst(void)
+
+{
+
+    winptr wp;
+
+    fprintf(stderr, "Max to min windows list\n");
+    wp = zmax2min; /* index top of list */
+    while (wp) {
+
+        fprintf(stderr, "Window; %d zorder: %d\n", wp->wid, wp->zorder);
+        wp = wp->zmax2min; /* next */
+
+    }
+    fprintf(stderr, "\n");
+    fflush(stderr);
+
+}
+
+/*******************************************************************************
+
+Remove window from min 2 max list
+
+Removes the given window from the min to max list.
+
+*******************************************************************************/
+
+static void remmin2max(winptr win)
 
 {
 
     winptr wp, lp;
-    int    z;
 
     /* remove from min to maxlist */
     if (zmin2max == win) /* is first entry */
@@ -1904,6 +2249,58 @@ static void intfront(winptr win)
         lp->zmin2max = win->zmin2max; /* gap out of list */
 
     }
+
+}
+
+/*******************************************************************************
+
+Remove window from max 2 min list
+
+Removes the given window from the max 2 min list.
+
+*******************************************************************************/
+
+static void remmax2min(winptr win)
+
+{
+
+    winptr wp, lp;
+
+    /* remove from min to maxlist */
+    if (zmax2min == win) /* is first entry */
+        zmax2min = zmax2min->zmax2min; /* gap top list */
+    else { /* find in list */
+
+        wp = zmax2min; /* index top of list */
+        while (wp != win) { /* traverse */
+
+            lp = wp; /* set last */
+            wp = wp->zmax2min; /* go next */
+            if (!wp) error("System fault");
+
+        }
+        lp->zmax2min = win->zmax2min; /* gap out of list */
+
+    }
+
+}
+
+/*******************************************************************************
+
+Bring window to front of the Z order
+
+Brings the indicated window to the front of the Z order.
+
+*******************************************************************************/
+
+static void intfront(winptr win)
+
+{
+
+    winptr wp, lp;
+    int    z;
+
+    remmin2max(win); /* remove from min to maxlist */
     /* reorder list */
     wp = zmin2max; /* index top of list */
     z = 0; /* set z order count */
@@ -1920,6 +2317,7 @@ static void intfront(winptr win)
         lp->zmin2max = win; /* set as new last */
     else zmin2max = win; /* list is empty, set first */
     win->zorder = ztop; /* set our entry as top Z order */
+    makzmax2min(); /* remake the max 2 min list */
 
 }
 
@@ -1940,22 +2338,7 @@ static void intback(winptr win)
     winptr wp, lp;
     int    z;
 
-    /* remove from min to maxlist */
-    if (zmin2max == win) /* is first entry */
-        zmin2max = zmin2max->zmin2max; /* gap top list */
-    else { /* find in list */
-
-        wp = zmin2max; /* index top of list */
-        while (wp != win) { /* traverse */
-
-            lp = wp; /* set last */
-            wp = wp->zmin2max; /* go next */
-            if (!wp) error("System fault");
-
-        }
-        lp->zmin2max = win->zmin2max; /* gap out of list */
-
-    }
+    remmin2max(win); /* remove from min to maxlist */
     /* reorder list */
     wp = zmin2max; /* index top of list */
     z = 2; /* set z order count */
@@ -1968,6 +2351,7 @@ static void intback(winptr win)
     win->zmin2max = zmin2max->zmin2max; /* push ahead of root */
     zmin2max->zmin2max = win;
     win->zorder = ztop; /* set our entry as bottom Z order */
+    makzmax2min(); /* remake the max 2 min list */
 
 }
 
@@ -2044,6 +2428,7 @@ static void opnwin(int fn, int pfn, int wid, int subclient, int root)
     win->hover = FALSE; /* set no hover */
     win->zorder = ztop; /* set Z order for this window */
     makzmin2max(); /* (re)create the Z min to max list */
+    makzmax2min(); /* (re)create the Z max to min list */
     win->inpptr = -1; /* set buffer empty */
     win->inpbuf[0] = 0;
     win->bufmod = TRUE; /* set buffering on */
@@ -2524,8 +2909,8 @@ static void intsetsiz(winptr win, int x, int y)
     }
     if (win->visible) /* window is onscreen */
         /* draw the current window out */
-        redraw(win->orgx, win->orgy,
-               win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+        redraw(win, win->orgx, win->orgy,
+                    win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
 
 }
 
@@ -2533,12 +2918,8 @@ static void intsetsiz(winptr win, int x, int y)
 
 Set window position character internal
 
-Sets the onscreen window position, in character terms. If the window has a
-parent, the demensions are converted to the current character size there.
-Otherwise, pixel based demensions are used. This occurs because the desktop does
-not have a fixed character aspect, so we make one up, and our logical character
-is "one pixel" high and wide. It works because it can only be used as a
-relative measurement.
+Sets the onscreen window position, in character terms. Keeps the existing Z
+order.
 
 *******************************************************************************/
 
@@ -2546,13 +2927,25 @@ static void intsetpos(winptr win, int x, int y)
 
 {
 
+    int ox, oy; /* previous position of window */
+
+    ox = win->orgx; /* save previous position of window */
+    oy = win->orgy;
     win->orgx = x; /* set position in parent */
     win->orgy = y;
-    if (win->visible) /* window is onscreen */
-        /* draw the current window out */
-        redraw(win->orgx, win->orgy,
-               win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+    if (win->visible) { /* window is onscreen */
 
+        remmax2min(win); /* take out of max 2 min list */
+        /* draw the current window position out */
+        redraw(zmax2min, ox, oy, ox+win->pmaxx-1, oy+win->pmaxy-1);
+        /* note we kept the Z order of the repositioned window */
+        makzmax2min(); /* remake the max 2 min list */
+        /* draw the new window position in */
+        redraw(zmax2min, win->orgx, win->orgy,
+                         win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+
+
+    }
 
 }
 
@@ -3435,8 +3828,9 @@ static void intevent(FILE* f)
 
                         intfront(win); /* bring to front */
                         /* redraw for order */
-                        redraw(win->orgx, win->orgy,
-                               win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+                        redraw(win, win->orgx, win->orgy,
+                                    win->orgx+win->pmaxx-1,
+                                    win->orgy+win->pmaxy-1);
 
                     }
 
