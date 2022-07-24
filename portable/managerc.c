@@ -1602,11 +1602,11 @@ static void drwfrm(winptr win, rectangle* cr)
 
                 l = strlen(win->title); /* get length */
                 /* limit string length to available space */
-                if (win->pmaxx-6 < l) l = win->pmaxx-6;
-                if (l) { /* there is room for some of the title */
+                if (win->pmaxx-6-4 < l) l = win->pmaxx-6-4;
+                if (l > 0) { /* there is room for some of the title */
 
-                    setcursor(win->orgx+(win->pmaxx-6)/2-(l/2), win->orgy+y);
-                    wrtstrclp(win->title, strlen(win->title), cr);
+                    setcursor(win->orgx+2+(win->pmaxx-6-4)/2-(l/2), win->orgy+y);
+                    wrtstrclp(win->title, l, cr);
 
                 }
 
