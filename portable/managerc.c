@@ -1420,11 +1420,11 @@ Clips to the given rectangle. Note the cursor position is still advanced.
 
 *******************************************************************************/
 
-static void wrtstrclp(char* s, rectangle* cr)
+static void wrtstrclp(char* s, int l, rectangle* cr)
 
 {
 
-    while (*s) { wrtchrclp(*s, cr); s++; }
+    while (*s && l) { wrtchrclp(*s, cr); s++; l--; }
 
 }
 
@@ -1603,8 +1603,12 @@ static void drwfrm(winptr win, rectangle* cr)
                 l = strlen(win->title); /* get length */
                 /* limit string length to available space */
                 if (win->pmaxx-6 < l) l = win->pmaxx-6;
-                setcursor(win->orgx+(win->pmaxx-6)/2-(l/2), win->orgy+y);
-                wrtstrclp(win->title, cr);
+                if (l) { /* there is room for some of the title */
+
+                    setcursor(win->orgx+(win->pmaxx-6)/2-(l/2), win->orgy+y);
+                    wrtstrclp(win->title, strlen(win->title), cr);
+
+                }
 
             }
 
@@ -2891,6 +2895,10 @@ static void intsetsiz(winptr win, int x, int y)
 
 {
 
+    int ox, oy; /* previous size of window */
+
+    ox = win->pmaxx; /* save previous size of window */
+    oy = win->pmaxy;
     win->pmaxx = x; /* set size */
     win->pmaxy = y;
     win->cmaxx = win->pmaxx; /* copy to client dimensions */
@@ -2900,17 +2908,25 @@ static void intsetsiz(winptr win, int x, int y)
     win->cmaxy -= win->frame*2+win->size*2;
     if (!win->bufmod) { /* in follow mode */
 
-        win->maxx = win->pmaxx; /* copy to client dimensions */
+        win->maxx = win->pmaxx; /* copy to client area dimensions */
         win->maxy = win->pmaxy;
-        /* subtract frame from client if enabled */
+        /* subtract frame from client area if enabled */
         win->maxx -= (win->frame && win->size)*2;
         win->maxy -= win->frame*2+win->size*2;
 
     }
-    if (win->visible) /* window is onscreen */
-        /* draw the current window out */
-        redraw(win, win->orgx, win->orgy,
-                    win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+    if (win->visible) { /* window is onscreen */
+
+        remmax2min(win); /* take out of max 2 min list */
+        /* draw the current window position out */
+        redraw(zmax2min, win->orgx, win->orgy, win->orgx+ox-1, win->orgy+oy-1);
+        /* note we kept the Z order of the repositioned window */
+        makzmax2min(); /* remake the max 2 min list */
+        /* draw the new window size in */
+        redraw(zmax2min, win->orgx, win->orgy,
+                         win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+
+    }
 
 }
 
@@ -2943,7 +2959,6 @@ static void intsetpos(winptr win, int x, int y)
         /* draw the new window position in */
         redraw(zmax2min, win->orgx, win->orgy,
                          win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
-
 
     }
 
