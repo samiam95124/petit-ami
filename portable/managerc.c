@@ -1404,8 +1404,12 @@ static void wrtchrclp(char c, rectangle* cr)
 
 {
 
-    if (inrect(curx, cury, cr)) (*ofpwrite)(OUTFIL, &c, 1);
-    curx++;
+    if (inrect(curx, cury, cr)) { /* not clipped */
+
+        (*ofpwrite)(OUTFIL, &c, 1);
+        curx++;
+
+    } else setcursor(curx+1, cury); /* just move the cursor */
 
 }
 
@@ -1445,8 +1449,13 @@ static void wrtextclp(char* s, rectangle* cr)
 
 {
 
-    if (inrect(curx, cury, cr)) while (*s) { (*ofpwrite)(OUTFIL, s, 1); s++; }
-    curx++; /* advance cursor */
+    if (inrect(curx, cury, cr)) { /* not clipped */
+
+        while (*s) { (*ofpwrite)(OUTFIL, s, 1); s++; }
+        curx++; /* advance cursor */
+
+    } else setcursor(curx+1, cury); /* just move the cursor */
+
 
 }
 
