@@ -1587,6 +1587,13 @@ static void drwfrm(winptr win, rectangle* cr)
         if (win->sysbar) { /* draw system bar */
 
             y = win->size; /* offset to system bar */
+            /* draw blanks in title section */
+            if (win->pmaxx-6 > 2) {
+
+                setcursor(win->orgx+1, win->orgy+y);
+                for (x = 1; x < win->pmaxx-6; x++) wrtchrclp(' ', cr);
+
+            }
             x = win->pmaxx-6; /* start of system bar buttons */
             /* lay each button down if it's location is valid */
             if (x > 2) {
