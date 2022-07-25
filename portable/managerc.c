@@ -1754,8 +1754,7 @@ static void restoreclp(winptr win,   /* window to restore */
 
     if (win->bufmod && win->visible)  { /* buffered mode is on, and visible */
 
-        /* find intersection with client area *
-        setrect(r, win->orgx+coffx, win->orgy+
+        /* find intersection with client area */
         setcurvis(FALSE); /* turn off cursor for drawing */
         if (win->frame) drwfrm(win, cr); /* draw window frame */
 
@@ -2952,6 +2951,7 @@ static void intsetsiz(winptr win, int x, int y)
 {
 
     int ox, oy; /* previous size of window */
+    rectangle r1, r2, r3, rt, rl, rr, rb;
 
     ox = win->pmaxx; /* save previous size of window */
     oy = win->pmaxy;
@@ -2973,14 +2973,41 @@ static void intsetsiz(winptr win, int x, int y)
     }
     if (win->visible) { /* window is onscreen */
 
-        remmax2min(win); /* take out of max 2 min list */
-        /* draw the current window position out */
-        redraw(zmax2min, win->orgx, win->orgy, win->orgx+ox-1, win->orgy+oy-1);
-        /* note we kept the Z order of the repositioned window */
-        makzmax2min(); /* remake the max 2 min list */
-        /* draw the new window size in */
-        redraw(zmax2min, win->orgx, win->orgy,
-                         win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+        /* check old and new overlap */
+        setrect(&r1, win->orgx, win->orgy, win->orgx+ox-1, win->orgy+oy-1);
+        setrect(&r2, win->orgx, win->orgy,
+                             win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+        if (intersect(&r1, &r2)) { /* intersects */
+
+            /* find rectangle fractions */
+            subrect(&r1, &r2, &rt, &rl, &rr, &rb);
+            /* process down list for each fraction */
+            if (!zerorect(&rt))
+                redraw(win->zmax2min, rt.x1, rt.y1, rt.x2, rt.y2);
+            if (!zerorect(&rl))
+                redraw(win->zmax2min, rl.x1, rl.y1, rl.x2, rl.y2);
+            if (!zerorect(&rr))
+                redraw(win->zmax2min, rr.x1, rr.y1, rr.x2, rr.y2);
+            if (!zerorect(&rb))
+                redraw(win->zmax2min, rb.x1, rb.y1, rb.x2, rb.y2);
+            /* note we kept the Z order of the repositioned window */
+            makzmax2min(); /* remake the max 2 min list */
+            /* draw the new window position in */
+            redraw(zmax2min, win->orgx, win->orgy,
+                             win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+
+        } else {
+
+            remmax2min(win); /* take out of max 2 min list */
+            /* draw the current window position out */
+            redraw(zmax2min, win->orgx, win->orgy, win->orgx+ox-1, win->orgy+oy-1);
+            /* note we kept the Z order of the repositioned window */
+            makzmax2min(); /* remake the max 2 min list */
+            /* draw the new window size in */
+            redraw(zmax2min, win->orgx, win->orgy,
+                             win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+
+        }
 
     }
 
@@ -3000,6 +3027,7 @@ static void intsetpos(winptr win, int x, int y)
 {
 
     int ox, oy; /* previous position of window */
+    rectangle r1, r2, r3, rt, rl, rr, rb;
 
     ox = win->orgx; /* save previous position of window */
     oy = win->orgy;
@@ -3007,14 +3035,41 @@ static void intsetpos(winptr win, int x, int y)
     win->orgy = y;
     if (win->visible) { /* window is onscreen */
 
-        remmax2min(win); /* take out of max 2 min list */
-        /* draw the current window position out */
-        redraw(zmax2min, ox, oy, ox+win->pmaxx-1, oy+win->pmaxy-1);
-        /* note we kept the Z order of the repositioned window */
-        makzmax2min(); /* remake the max 2 min list */
-        /* draw the new window position in */
-        redraw(zmax2min, win->orgx, win->orgy,
-                         win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+        /* check old and new overlap */
+        setrect(&r1, ox, oy, ox+win->pmaxx-1, oy+win->pmaxy-1);
+        setrect(&r2, win->orgx, win->orgy,
+                    win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+        if (intersect(&r1, &r2)) { /* intersects */
+
+            /* find rectangle fractions */
+            subrect(&r1, &r2, &rt, &rl, &rr, &rb);
+            /* process down list for each fraction */
+            if (!zerorect(&rt))
+                redraw(win->zmax2min, rt.x1, rt.y1, rt.x2, rt.y2);
+            if (!zerorect(&rl))
+                redraw(win->zmax2min, rl.x1, rl.y1, rl.x2, rl.y2);
+            if (!zerorect(&rr))
+                redraw(win->zmax2min, rr.x1, rr.y1, rr.x2, rr.y2);
+            if (!zerorect(&rb))
+                redraw(win->zmax2min, rb.x1, rb.y1, rb.x2, rb.y2);
+            /* note we kept the Z order of the repositioned window */
+            makzmax2min(); /* remake the max 2 min list */
+            /* draw the new window position in */
+            redraw(zmax2min, win->orgx, win->orgy,
+                             win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+
+        } else {
+
+            remmax2min(win); /* take out of max 2 min list */
+            /* draw the current window position out */
+            redraw(zmax2min, ox, oy, ox+win->pmaxx-1, oy+win->pmaxy-1);
+            /* note we kept the Z order of the repositioned window */
+            makzmax2min(); /* remake the max 2 min list */
+            /* draw the new window position in */
+            redraw(zmax2min, win->orgx, win->orgy,
+                             win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+
+        }
 
     }
 
