@@ -1588,14 +1588,54 @@ static void drwfrm(winptr win, rectangle* cr)
 
             y = win->size; /* offset to system bar */
             x = win->pmaxx-6; /* start of system bar buttons */
-            /* set draw location */
-            setcursor(win->orgx+x-1, win->orgy+y);
-            wrtextclp(frmchrs[minbtn], cr);
-            wrtchrclp(' ', cr);
-            wrtextclp(frmchrs[maxbtn], cr);
-            wrtchrclp(' ', cr);
-            wrtextclp(frmchrs[canbtn], cr);
-            wrtchrclp(' ', cr);
+            /* lay each button down if it's location is valid */
+            if (x > 2) {
+
+                /* set draw location */
+                setcursor(win->orgx+x-1, win->orgy+y);
+                wrtextclp(frmchrs[minbtn], cr);
+
+            }
+            x++;
+            if (x > 2) {
+
+                /* set draw location */
+                setcursor(win->orgx+x-1, win->orgy+y);
+                wrtchrclp(' ', cr);
+
+            }
+            x++;
+            if (x > 2) {
+
+                /* set draw location */
+                setcursor(win->orgx+x-1, win->orgy+y);
+                wrtextclp(frmchrs[maxbtn], cr);
+
+            }
+            x++;
+            if (x > 2) {
+
+                /* set draw location */
+                setcursor(win->orgx+x-1, win->orgy+y);
+                wrtchrclp(' ', cr);
+
+            }
+            x++;
+            if (x > 2) {
+
+                /* set draw location */
+                setcursor(win->orgx+x-1, win->orgy+y);
+                wrtextclp(frmchrs[canbtn], cr);
+
+            }
+            x++;
+            if (x > 2) {
+
+                /* set draw location */
+                setcursor(win->orgx+x-1, win->orgy+y);
+                wrtchrclp(' ', cr);
+
+            }
 
             /* draw title, if exists */
             if (win->title) {
