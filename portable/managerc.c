@@ -5402,18 +5402,21 @@ static void plcchr(FILE* f, char c)
 {
 
     winptr  win;   /* windows record pointer */
-    scnrec* scp;   /* pointer to screenlocation */
+    scnrec* scp;   /* pointer to screen location */
 
+if (c < 0x80) dbg_printf(dlinfo, "c: %02x:%c\n", c, c); else dbg_printf(dlinfo, "c: %02x:.\n", c);
     win = txt2win(f); /* get window from file */
     if (!win->visible) winvis(win); /* make sure we are displayed */
     /* handle special character cases first */
     if (c == '\r')
         /* carriage return, position to extreme left */
-        win->curx = 1; /* set to extreme left */
+        icursor(f, 1, win->cury);
     else if (c == '\n') {
 
-        win->curx = 1; /* set to extreme left */
+        /* line end */
         idown(f); /* line feed, move down */
+        /* position to extreme left */
+        icursor(f, 1, win->cury);
 
     } else if (c == '\b') ileft(f); /* back space, move left */
     else if (c == '\f') clrscn(f); /* clear screen */

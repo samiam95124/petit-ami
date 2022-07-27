@@ -209,9 +209,9 @@ typedef enum {
 typedef struct {
 
 #ifdef ALLOWUTF8
-    /* character at location */        char ch[4]; /* encoded utf-8 */
+    /* character at location */        unsigned char ch[4]; /* encoded utf-8 */
 #else
-    /* character at location */        char ch;
+    /* character at location */        unsigned char ch;
 #endif
     /* foreground color at location */ pa_color forec;
     /* background color at location */ pa_color backc;
@@ -1443,7 +1443,7 @@ sequence is cleared.
 
 *******************************************************************************/
 
-static void plcchrext(scnrec* p, char c)
+static void plcchrext(scnrec* p, unsigned char c)
 
 {
 
@@ -2115,6 +2115,7 @@ static void plcchr(scnptr sc, unsigned char c)
     scnrec* p;
     int i;
 
+if (c < 0x80) dbg_printf(dlinfo, "c: %02x:%c\n", c, c); else dbg_printf(dlinfo, "c: %02x:.\n", c);
     /* handle special character cases first */
     if (c == '\r') /* carriage return, position to extreme left */
         icursor(sc, 1, screens[curupd-1]->cury);
