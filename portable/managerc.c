@@ -124,7 +124,7 @@ static enum { /* debug levels */
 #define MAXCON 10  /* number of screen contexts */
 #define MAXTAB 50  /* total number of tabs possible per window */
 #define MAXLIN 250 /* maximum length of input bufferred line */
-//#define USEUNICODE /* use unicode frame characters */
+#define USEUNICODE /* use unicode frame characters */
 //#define PRTROOTEVT /* print root window events */
 //#define PRTEVT /* print outbound events */
 
@@ -432,8 +432,8 @@ char* frmchrs[] = {
     "╠", /* left intersection */
     "╣", /* right intersection */
     "-", /* minimize button */
-    "▢", /* maximize button */
-    "Ⓧ", /* cancel button */
+    "▯", /* maximize button */
+    "X", /* cancel button */
 
 };
 #else
@@ -1670,8 +1670,10 @@ static void drwfrm(winptr win, rectangle* cr)
 
             /* draw underbar */
             y++;
-            setcursor(win->orgx+1, win->orgy+y);
+            setcursor(win->orgx, win->orgy+y);
+            wrtextclp(frmchrs[intlft], cr);
             for (x = 2; x <= win->pmaxx-1; x++) wrtextclp(frmchrs[sysudl], cr);
+            wrtextclp(frmchrs[intrgt], cr);
 
         }
 

@@ -135,6 +135,7 @@ static enum { /* debug levels */
 #define MAXFKEY 10    /**< maximum number of function keys */
 #define MAXJOY  10    /* number of joysticks possible */
 #define DMPEVT  FALSE /* enable dump Petit-Ami messages */
+#define ALLOWUTF8     /* enable UTF-8 encoding */
 
 /* file handle numbers at the system interface level */
 
@@ -207,10 +208,14 @@ typedef enum {
    that appear here can be changed */
 typedef struct {
 
-      /* character at location */        char ch;
-      /* foreground color at location */ pa_color forec;
-      /* background color at location */ pa_color backc;
-      /* active attribute at location */ scnatt attr;
+#ifdef ALLOWUTF8
+    /* character at location */        char ch[4]; /* encoded utf-8 */
+#else
+    /* character at location */        char ch;
+#endif
+    /* foreground color at location */ pa_color forec;
+    /* background color at location */ pa_color backc;
+    /* active attribute at location */ scnatt attr;
 
 } scnrec;
 typedef scnrec scnbuf[MAXYD][MAXXD];
@@ -376,6 +381,32 @@ char *keytab[pa_etterm+1+MAXFKEY] = {
 
 };
 
+#ifdef ALLOWUTF8
+/*
+ * bit count table for UTF-8
+ */
+unsigned char utf8bits[] = {
+
+    0, /* 0000 */
+    1, /* 0001 */
+    1, /* 0010 */
+    2, /* 0011 */
+    1, /* 0100 */
+    2, /* 0101 */
+    2, /* 0110 */
+    3, /* 0111 */
+    1, /* 1000 */
+    2, /* 1001 */
+    2, /* 1010 */
+    3, /* 1011 */
+    2, /* 1100 */
+    3, /* 1101 */
+    3, /* 1110 */
+    4  /* 1111 */
+
+};
+#endif
+
 /* screen contexts array */               static scnptr screens[MAXCON];
 /* index for current display screen */    static int curdsp;
 /* index for current update screen */     static int curupd;
@@ -515,6 +546,9 @@ static int    dmpevt;      /* enable dump Petit-Ami messages */
 static int    inpsev;      /* keyboard input system event number */
 static int    frmsev;      /* frame timer system event number */
 static int    winchsev;    /* windows change system event number */
+#ifdef ALLOWUTF8
+static int    utf8cnt;      /* UTF-8 extended character count */
+#endif
 
 /* forwards */
 static void restore(scnptr sc);
@@ -714,7 +748,7 @@ Uses the write() override.
 
 *******************************************************************************/
 
-static void putchr(char c)
+static void putchr(unsigned char c)
 
 {
 
@@ -735,7 +769,7 @@ Writes a string directly to the output file.
 
 *******************************************************************************/
 
-static void putstr(char *s)
+static void putstr(unsigned char *s)
 
 
 {
@@ -743,6 +777,25 @@ static void putstr(char *s)
     /** index for string */ int i;
 
     while (*s) putchr(*s++); /* output characters */
+
+}
+
+/** ****************************************************************************
+
+Write n length string to output file
+
+Writes a string directly to the output file of n length.
+
+*******************************************************************************/
+
+static void putnstr(unsigned char *s, int n)
+
+
+{
+
+    /** index for string */ int i;
+
+    while (*s && n--) putchr(*s++); /* output characters */
 
 }
 
@@ -1371,6 +1424,75 @@ void setcur(scnptr sc)
 
 /** ****************************************************************************
 
+Place character in screen buffer
+
+Places the next character or extension in the given screen buffer location.
+Handles either ISO 8859 characters or UTF-8 characters.
+
+For UTF-8, there are a few errors possible. Here is how they are handled:
+
+1. Too many extension (10xxxxxx) characters. Overflowing 4 places will cause
+the sequence to be reset to 0 and thus cleared.
+
+2. Too many extension (10xxxxxx) characters for format. This happens if the
+first or count character indicates fewer than the number of extension characters
+received. The sequence is cleared and reset.
+
+3. An extension (10xxxxxx) character received as the first character. The
+sequence is cleared.
+
+*******************************************************************************/
+
+static void plcchrext(scnrec* p, char c)
+
+{
+
+#ifdef ALLOWUTF8
+    int ci;
+
+    if (c < 0x80 || c >= 0xc0) { /* normal ASCII or start UTF-8 character */
+
+        /* start of character sequence, clear whole sequence */
+        for (ci = 0; ci < 4; ci++) p->ch[ci] = 0;
+        p->ch[0] = c; /* place start character */
+
+    } else if ( c & 0xc0 == 0x80) { /* extension character */
+
+        if (p->ch[0] == 0) { /* extension received as first character */
+
+            for (ci = 0; ci < 4; ci++) p->ch[ci] = 0;
+
+        } else {
+
+            /* follow on character */
+            ci = 0;
+            while (ci < 4 && p->ch[ci]) ci++;
+            /* overflow, clear out */
+            if (ci >= 4) {
+
+                for (ci = 0; ci < 4; ci++) p->ch[ci] = 0;
+
+            } else {
+
+                /* more extension characters than count char */
+                if (ci > utf8bits[p->ch[0]])
+                    for (ci = 0; ci < 4; ci++) p->ch[ci] = 0;
+                else /* place next in sequence */
+                    p->ch[ci] = c;
+
+            }
+
+        }
+
+    }
+#else
+    p->ch = c; /* place character */
+#endif
+
+}
+
+/** ****************************************************************************
+
 Clear screen buffer
 
 Clears the entire screen buffer to spaces with the current colors and
@@ -1390,7 +1512,7 @@ static void clrbuf(scnptr sc)
         for (x = 1; x <= MAXXD; x++) {
 
         sp = &sc->buf[y-1][x-1];
-        sp->ch = ' '; /* clear to spaces */
+        plcchrext(sp, ' '); /* clear to spaces */
         /* colors and attributes to the set for that screen */
         sp->forec = sc->forec;
         sp->backc = sc->backc;
@@ -1479,7 +1601,11 @@ static void restore(scnptr sc)
                 as = p->attr; /* set save */
 
             };
+#ifdef ALLOWUTF8
+            putnstr(p->ch, 4); /* now output the actual character */
+#else
             putchr(p->ch); /* now output the actual character */
+#endif
 
         };
         if (yi < dimy)
@@ -1545,7 +1671,11 @@ void prtbuf(scnptr sc)
     for (y = 1; y <= dimy; y++) {
 
         fprintf(stderr, "%2d\"", y);
+#ifdef ALLOWUTF8
+        for (x = 1; x <= dimx; x++) fprintf(stderr, "%c", sc->buf[y-1][x-1].ch[0]);
+#else
         for (x = 1; x <= dimx; x++) fprintf(stderr, "%c", sc->buf[y-1][x-1].ch);
+#endif
         fprintf(stderr, "\"\n");
 
     }
@@ -1594,7 +1724,7 @@ static void iscroll(scnptr sc, int x, int y)
             for (xi = 1; xi <= dimx; xi++) {
 
             sp = &sc->buf[yi-1][xi-1];
-            sp->ch = ' ';   /* clear to blanks at colors and attributes */
+            plcchrext(sp, ' '); /* clear to blanks at colors and attributes */
             sp->forec = sc->forec;
             sp->backc = sc->backc;
             sp->attr = sc->attr;
@@ -1638,7 +1768,8 @@ static void iscroll(scnptr sc, int x, int y)
                     for (xi = 1; xi <= dimx; xi++) {
 
                     sp = &sc->buf[yi-1][xi-1];
-                    sp->ch = ' ';   /* clear to blanks at colors and attributes */
+                    /* clear to blanks at colors and attributes */
+                    plcchrext(sp, ' ');
                     sp->forec = sc->forec;
                     sp->backc = sc->backc;
                     sp->attr = sc->attr;
@@ -1658,7 +1789,7 @@ static void iscroll(scnptr sc, int x, int y)
 
                     sp = &sc->buf[yi-1][xi-1];
                     /* clear to blanks at colors and attributes */
-                    sp->ch = ' ';
+                    plcchrext(sp, ' ');
                     sp->forec = sc->forec;
                     sp->backc = sc->backc;
                     sp->attr = sc->attr;
@@ -1679,7 +1810,7 @@ static void iscroll(scnptr sc, int x, int y)
 
                         sp = &sc->buf[yi-1][xi-1];
                         /* clear to blanks at colors and attributes */
-                        sp->ch = ' ';
+                        plcchrext(sp, ' ');
                         sp->forec = sc->forec;
                         sp->backc = sc->backc;
                         sp->attr = sc->attr;
@@ -1701,7 +1832,8 @@ static void iscroll(scnptr sc, int x, int y)
                     for (xi = 1; xi <= abs(x); xi++) {
 
                         sp = &sc->buf[yi-1][xi-1];
-                        sp->ch = ' ';   /* clear to blanks at colors and attributes */
+                        /* clear to blanks at colors and attributes */
+                        plcchrext(sp, ' ');
                         sp->forec = sc->forec;
                         sp->backc = sc->backc;
                         sp->attr = sc->attr;
@@ -1771,7 +1903,11 @@ static void iscroll(scnptr sc, int x, int y)
                             as = sp->attr;   /* set save */
 
                         }
+#ifdef ALLOWUTF8
+                        putnstr(sp->ch, 4); /* now output the actual character */
+#else
                         putchr(sp->ch);
+#endif
 
                     }
                     if (yi < dimy)
@@ -1957,6 +2093,8 @@ static void iright(scnptr sc)
 
 }
 
+
+
 /** ****************************************************************************
 
 Place next terminal character
@@ -1970,7 +2108,7 @@ That's what the API is for.
 
 *******************************************************************************/
 
-static void plcchr(scnptr sc, char c)
+static void plcchr(scnptr sc, unsigned char c)
 
 {
 
@@ -1999,47 +2137,58 @@ static void plcchr(scnptr sc, char c)
 
     } else if (c >= ' ' && c != 0x7f) {
 
+#ifdef ALLOWUTF8
+        /* if UTF-8 leader, set character count */
+        if (c >= 0xc0) utf8cnt = utf8bits[c >> 4];
+        /* if extended character, count off */
+        else if (c & 0xc0 == 0x80 && utf8cnt) utf8cnt--;
+#endif
         /* normal character case, not control character */
         if (sc->curx >= 1 && sc->curx <= MAXXD &&
             sc->cury >= 1 && sc->cury <= MAXYD) {
 
             /* within the buffer space, otherwise just dump */
             p = &sc->buf[sc->cury-1][sc->curx-1];
-            p->ch = c; /* place character */
+            plcchrext(p, c); /* place character in buffer */
             p->forec = sc->forec; /* place colors */
             p->backc = sc->backc;
             p->attr = sc->attr; /* place attribute */
 
         }
+        /* cursor in bounds, in display, and not mid-UTF-8 */
         if (icurbnd(sc) && indisp(sc)) {
 
             /* This handling is from iright. We do this here because
                placement implicitly moves the cursor */
             putchr(c); /* output character to terminal */
-            /* at right side, don't count on the screen wrap action */
-            if (curx == dimx) curval = 0;
-            else curx++; /* update physical cursor */
-            if (sc->scroll) { /* autowrap is on */
+            if (!utf8cnt) { /* not working on partial character */
 
-                if (sc->curx < dimx) /* not at extreme right */
-                    sc->curx = sc->curx+1; /* update position */
-                else { /* wrap cursor motion */
+                /* at right side, don't count on the screen wrap action */
+                if (curx == dimx) curval = 0;
+                else curx++; /* update physical cursor */
+                if (sc->scroll) { /* autowrap is on */
 
-                    idown(sc); /* move cursor down one line */
-                    sc->curx = 1; /* set cursor to extreme left */
+                    if (sc->curx < dimx) /* not at extreme right */
+                        sc->curx = sc->curx+1; /* update position */
+                    else { /* wrap cursor motion */
+
+                        idown(sc); /* move cursor down one line */
+                        sc->curx = 1; /* set cursor to extreme left */
+
+                    }
+
+                } else {/* autowrap is off */
+
+                    /* prevent overflow, but otherwise its unlimited */
+                    if (sc->curx < INT_MAX) sc->curx++;
+                    /* don't count on physical cursor behavior if scrolling is
+                       off and we are at extreme right */
+                    curval = 0;
 
                 }
-
-            } else {/* autowrap is off */
-
-                /* prevent overflow, but otherwise its unlimited */
-                if (sc->curx < INT_MAX) sc->curx++;
-                /* don't count on physical cursor behavior if scrolling is
-                   off and we are at extreme right */
-                curval = 0;
+                setcur(sc); /* update physical cursor */
 
             }
-            setcur(sc); /* update physical cursor */
 
         } else iright(sc); /* move right */
 
@@ -2366,7 +2515,7 @@ static ssize_t iwrite(int fd, const void* buff, size_t count)
 {
 
     ssize_t rc; /* return code */
-    char *p = (char *)buff;
+    unsigned char *p = (unsigned char *)buff;
     size_t cnt = count;
 
     if (fd == OUTFIL) {
@@ -3945,6 +4094,9 @@ static void pa_init_terminal()
     restore(screens[curdsp-1]); /* place on display */
     joyenb = JOYENB; /* enable joystick */
     inpptr = -1; /* set no input line active */
+#ifdef ALLOWUTF8
+    utf8cnt = 0; /* clear utf-8 character count */
+#endif
 
     /* clear event vector table */
     evtshan = defaultevent;
