@@ -510,7 +510,7 @@ static int timtbl[PA_MAXTIM];
 /**
  * Key matching input buffer
  */
-static char   keybuf[10]; /* buffer */
+static unsigned char keybuf[10]; /* buffer */
 static int    keylen;      /* number of characters in buffer */
 static int    tabs[MAXXD]; /* tabs set */
 static int    dimx;        /* actual width of screen */
