@@ -5404,7 +5404,6 @@ static void plcchr(FILE* f, char c)
     winptr  win;   /* windows record pointer */
     scnrec* scp;   /* pointer to screen location */
 
-if (c < 0x80) dbg_printf(dlinfo, "c: %02x:%c\n", c, c); else dbg_printf(dlinfo, "c: %02x:.\n", c);
     win = txt2win(f); /* get window from file */
     if (!win->visible) winvis(win); /* make sure we are displayed */
     /* handle special character cases first */

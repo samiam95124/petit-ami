@@ -2115,7 +2115,6 @@ static void plcchr(scnptr sc, unsigned char c)
     scnrec* p;
     int i;
 
-if (c < 0x80) dbg_printf(dlinfo, "c: %02x:%c\n", c, c); else dbg_printf(dlinfo, "c: %02x:.\n", c);
     /* handle special character cases first */
     if (c == '\r') /* carriage return, position to extreme left */
         icursor(sc, 1, screens[curupd-1]->cury);
@@ -2141,8 +2140,7 @@ if (c < 0x80) dbg_printf(dlinfo, "c: %02x:%c\n", c, c); else dbg_printf(dlinfo, 
 #ifdef ALLOWUTF8
         /* if UTF-8 leader, set character count */
         if (c >= 0xc0) utf8cnt = utf8bits[c >> 4];
-        /* if extended character, count off */
-        else if (c & 0xc0 == 0x80 && utf8cnt) utf8cnt--;
+        if (utf8cnt) utf8cnt--; /* count off characters */
 #endif
         /* normal character case, not control character */
         if (sc->curx >= 1 && sc->curx <= MAXXD &&
