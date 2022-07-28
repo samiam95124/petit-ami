@@ -1593,7 +1593,7 @@ static void drwfrm(winptr win, rectangle* cr)
             }
 
         }
-        if (win->sysbar) { /* draw system bar */
+        if (win->sysbar && win->pmaxy >= 3) { /* draw system bar */
 
             y = win->size; /* offset to system bar */
             /* draw blanks in title section */
@@ -1671,9 +1671,11 @@ static void drwfrm(winptr win, rectangle* cr)
             /* draw underbar */
             y++;
             setcursor(win->orgx, win->orgy+y);
-            wrtextclp(frmchrs[intlft], cr);
+            if (win->pmaxy <= 3) wrtextclp(frmchrs[btmlftcnr], cr);
+            else wrtextclp(frmchrs[intlft], cr);
             for (x = 2; x <= win->pmaxx-1; x++) wrtextclp(frmchrs[sysudl], cr);
-            wrtextclp(frmchrs[intrgt], cr);
+            if (win->pmaxy <= 3) wrtextclp(frmchrs[btmrgtcnr], cr);
+            else wrtextclp(frmchrs[intrgt], cr);
 
         }
 
