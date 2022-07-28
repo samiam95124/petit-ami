@@ -2955,6 +2955,13 @@ static void intsetsiz(winptr win, int x, int y)
     int ox, oy; /* previous size of window */
     rectangle r1, r2, r3, rt, rl, rr, rb;
 
+    if (win->frame && win->size) {
+
+        /* if size bars are on */
+        if (x < 2) x = 2; /* set minimum size to preseve size bars */
+        if (y < 2) y = 2;
+
+    }
     ox = win->pmaxx; /* save previous size of window */
     oy = win->pmaxy;
     win->pmaxx = x; /* set size */
