@@ -1695,8 +1695,8 @@ static int intcurbnd(winptr win)
 
 {
 
-    return (win->curx >= 1 && win->curx <= win->maxx &&
-            win->cury >= 1 && win->cury <= win->maxy);
+    return (win->curx >= 1 && win->curx <= win->cmaxx &&
+            win->cury >= 1 && win->cury <= win->cmaxy);
 
 }
 
@@ -1720,17 +1720,12 @@ static void setcur(winptr win)
         /* check cursor in bounds and visible */
         if (intcurbnd(win) && win->curv) {
 
-            if (!curon) { /* cursor not on */
-
-                (*curvis_vect)(stdout, TRUE); /* set cursor on */
-                curon = TRUE;
-
-            }
+            setcurvis(TRUE); /* set cursor on */
             /* position actual cursor */
             setcursor(win->curx+win->orgx-1+win->coffx,
                       win->cury+win->orgy-1+win->coffy);
 
-        }
+        } else setcurvis(FALSE); /* set cursor off */
 
     }
 
