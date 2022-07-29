@@ -420,6 +420,12 @@ typedef enum {
 } framecomp;
 
 #ifdef USEUNICODE
+/*
+ * Unicode characters MUST be fixed pitch and match the other fixed pitch
+ * characters of the current character set in width. Xterm takes Unicode
+ * characters that do NOT meet these restructions and thus it malfunctions.
+ * Its up to the user to carefully choose these characters.
+ */
 char* frmchrs[] = {
 
     "═", /* horizontal line */

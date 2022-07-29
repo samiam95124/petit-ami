@@ -137,6 +137,10 @@ static enum { /* debug levels */
 #define MAXJOY  10    /* number of joysticks possible */
 #define DMPEVT  FALSE /* enable dump Petit-Ami messages */
 #define ALLOWUTF8     /* enable UTF-8 encoding */
+/*
+ * Standard mouse decoding has a limit of about 223 in x or y. SGR mode
+ * can go from 1 to 2015.
+ */
 #define MOUSESGR      /* use SGR mouse mode (extended positions) */
 
 /* file handle numbers at the system interface level */
@@ -1001,7 +1005,7 @@ static void ievent(pa_evtrec* ev)
                 if (keybuf[keylen-1] == 'm' || keybuf[keylen-1] == 'M') {
 
                     /* mouse message is complete, parse */
-                    ba = keybuf[keylen-1] == 'M'; /* set assert */
+                    ba = keybuf[keylen-1] == 'm'; /* set assert */
                     keylen = 3; /* set start of sequence in buffer */
                     bn = 0; /* clear button number */
                     while (keybuf[keylen] >= '0' && keybuf[keylen] <= '9')
@@ -1017,14 +1021,11 @@ static void ievent(pa_evtrec* ev)
                     if (keybuf[keylen] == 'm' || keybuf[keylen] == 'M') {
 
                         /* mouse sequence is correct, process */
-                        nbutton1 = 1;
-                        nbutton2 = 1;
-                        nbutton3 = 1;
                         switch (bn) { /* decode button */
 
-                            case 0: nbutton1 = 0; break; /* assert button 1 */
-                            case 1: nbutton2 = 0; break; /* assert button 2 */
-                            case 2: nbutton3 = 0; break; /* assert button 3 */
+                            case 0: nbutton1 = ba; break; /* assert button 1 */
+                            case 1: nbutton2 = ba; break; /* assert button 2 */
+                            case 2: nbutton3 = ba; break; /* assert button 3 */
                             default: break; /* deassert all, do nothing */
 
                         }
