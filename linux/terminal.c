@@ -130,12 +130,14 @@ static enum { /* debug levels */
 #define MAXXD 250     /**< Maximum terminal size x */
 #define MAXYD 250     /**< Maximum terminal size y */
 
+#define MAXKEY 20     /* maximum length of key sequence */
 #define MAXCON  10    /**< number of screen contexts */
 #define MAXLIN  250   /* maximum length of input buffered line */
 #define MAXFKEY 10    /**< maximum number of function keys */
 #define MAXJOY  10    /* number of joysticks possible */
 #define DMPEVT  FALSE /* enable dump Petit-Ami messages */
 #define ALLOWUTF8     /* enable UTF-8 encoding */
+#define MOUSESGR      /* use SGR mouse mode (extended positions) */
 
 /* file handle numbers at the system interface level */
 
@@ -357,7 +359,11 @@ char *keytab[pa_etterm+1+MAXFKEY] = {
     "",                     /* mouse button deassertion */
     /* mouse move is just the leader for the mouse move/assert message. The
        characters are read in the input handler. */
+#ifdef MOUSESGR
+    "\33[<",                /* mouse move */
+#else
     "\33[M",                /* mouse move */
+#endif
     "",                     /* timer matures */
     "",                     /* joystick button assertion */
     "",                     /* joystick button deassertion */
@@ -510,7 +516,7 @@ static int timtbl[PA_MAXTIM];
 /**
  * Key matching input buffer
  */
-static unsigned char keybuf[10]; /* buffer */
+static unsigned char keybuf[MAXKEY]; /* buffer */
 static int    keylen;      /* number of characters in buffer */
 static int    tabs[MAXXD]; /* tabs set */
 static int    dimx;        /* actual width of screen */
@@ -923,6 +929,8 @@ static void ievent(pa_evtrec* ev)
     int       dimys;
     sysevt    sev;    /* system event */
     joyptr    jp;
+    int       bn;     /* mouse button number */
+    int       ba;     /* mouse button assert */
 
     mousts = mnone; /* set no mouse event being processed */
     do { /* match input events */
@@ -988,6 +996,46 @@ static void ievent(pa_evtrec* ev)
 
             } else { /* parse mouse components */
 
+#ifdef MOUSESGR
+                /* SGR is variable length */
+                if (keybuf[keylen-1] == 'm' || keybuf[keylen-1] == 'M') {
+
+                    /* mouse message is complete, parse */
+                    ba = keybuf[keylen-1] == 'M'; /* set assert */
+                    keylen = 3; /* set start of sequence in buffer */
+                    bn = 0; /* clear button number */
+                    while (keybuf[keylen] >= '0' && keybuf[keylen] <= '9')
+                        bn = bn*10+keybuf[keylen++]-'0';
+                    if (keybuf[keylen] == ';') keylen++;
+                    nmpx = 0; /* clear x */
+                    while (keybuf[keylen] >= '0' && keybuf[keylen] <= '9')
+                        nmpx = nmpx*10+keybuf[keylen++]-'0';
+                    if (keybuf[keylen] == ';') keylen++;
+                    nmpy = 0; /* clear y */
+                    while (keybuf[keylen] >= '0' && keybuf[keylen] <= '9')
+                        nmpy = nmpy*10+keybuf[keylen++]-'0';
+                    if (keybuf[keylen] == 'm' || keybuf[keylen] == 'M') {
+
+                        /* mouse sequence is correct, process */
+                        nbutton1 = 1;
+                        nbutton2 = 1;
+                        nbutton3 = 1;
+                        switch (bn) { /* decode button */
+
+                            case 0: nbutton1 = 0; break; /* assert button 1 */
+                            case 1: nbutton2 = 0; break; /* assert button 2 */
+                            case 2: nbutton3 = 0; break; /* assert button 3 */
+                            default: break; /* deassert all, do nothing */
+
+                        }
+                        keylen = 0; /* clear key buffer */
+                        mousts = mnone; /* reset mouse aquire */
+
+                    }
+
+                }
+#else
+                /* standard mouse encode */
                 if (mousts < my) mousts++;
                 else { /* mouse has matured */
 
@@ -1011,6 +1059,7 @@ static void ievent(pa_evtrec* ev)
                     mousts = mnone; /* reset mouse aquire */
 
                 }
+#endif
 
             }
 
@@ -4196,6 +4245,9 @@ static void pa_init_terminal()
 
     /* now signal xterm we want all mouse events including all movements */
     putstr("\33[?1003h");
+#ifdef MOUSESGR
+    putstr("\33[?1006h"); /* enable SGR mouse mode (extended) */
+#endif
 
     /* enable windows change signal */
     winchsev = system_event_addsesig(SIGWINCH);
