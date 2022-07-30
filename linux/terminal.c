@@ -224,22 +224,23 @@ typedef struct {
     /* active attribute at location */ scnatt attr;
 
 } scnrec;
-typedef scnrec scnbuf[MAXYD][MAXXD];
 /** Screen context */
 typedef struct { /* screen context */
 
-      /* screen buffer */                    scnbuf buf;
-      /* current cursor location x */        int curx;
-      /* current cursor location y */        int cury;
+      /* screen buffer */                    scnrec*  buf;
+      /* current cursor location x */        int      curx;
+      /* current cursor location y */        int      cury;
       /* current writing foreground color */ pa_color forec;
       /* current writing background color */ pa_color backc;
-      /* current writing attribute */        scnatt attr;
-      /* current status of scroll */         int scroll;
-      /* current status of cursor visible */ int curvis;
-      /* tabbing array */                    int tabs[MAXXD];
+      /* current writing attribute */        scnatt   attr;
+      /* current status of scroll */         int      scroll;
+      /* current status of cursor visible */ int      curvis;
 
 } scncon;
 /** pointer to screen context block */ typedef scncon* scnptr;
+
+/* macro to access screen elements by y,x */
+#define SCNBUF(sc, x, y) (sc[(y-1)*dimx+(x-1)])
 
 /* Joystick tracking structure */
 typedef struct joyrec* joyptr; /* pointer to joystick record */
@@ -522,7 +523,7 @@ static int timtbl[PA_MAXTIM];
  */
 static unsigned char keybuf[MAXKEY]; /* buffer */
 static int    keylen;      /* number of characters in buffer */
-static int    tabs[MAXXD]; /* tabs set */
+static int*   tabs;        /* tabs set */
 static int    dimx;        /* actual width of screen */
 static int    dimy;        /* actual height of screen */
 static int    curon;       /* current on/off state of cursor */
@@ -1558,10 +1559,11 @@ static void clrbuf(scnptr sc)
     /** pointer to screen record */ scnrec* sp;
 
     /* clear the screen buffer */
-    for (y = 1;  y <= MAXYD; y++)
-        for (x = 1; x <= MAXXD; x++) {
+    for (y = 1;  y <= dimy; y++)
+        for (x = 1; x <= dimx; x++) {
 
-        sp = &sc->buf[y-1][x-1];
+        /* index screen character location */
+        sp = &SCNBUF(sc->buf, x, y);
         plcchrext(sp, ' '); /* clear to spaces */
         /* colors and attributes to the set for that screen */
         sp->forec = sc->forec;
@@ -1632,7 +1634,7 @@ static void restore(scnptr sc)
                with what is set. if a new color or attribute is called for,
                we set that, and update the saves. this technique cuts down on
                the amount of output characters */
-            p = &(sc->buf[yi-1][xi-1]); /* index this screen element */
+            p = &SCNBUF(sc->buf, xi, yi); /* index this screen element */
             if (p->forec != fs) { /* new foreground color */
 
                 trm_fcolor(p->forec); /* set the new color */
@@ -1722,9 +1724,9 @@ void prtbuf(scnptr sc)
 
         fprintf(stderr, "%2d\"", y);
 #ifdef ALLOWUTF8
-        for (x = 1; x <= dimx; x++) fprintf(stderr, "%c", sc->buf[y-1][x-1].ch[0]);
+        for (x = 1; x <= dimx; x++) fprintf(stderr, "%c", SCNBUF(sc->buf, x, y).ch[0]);
 #else
-        for (x = 1; x <= dimx; x++) fprintf(stderr, "%c", sc->buf[y-1][x-1].ch);
+        for (x = 1; x <= dimx; x++) fprintf(stderr, "%c", SCNBUF(sc->buf, x, y).ch);
 #endif
         fprintf(stderr, "\"\n");
 
@@ -1736,13 +1738,14 @@ static void iscroll(scnptr sc, int x, int y)
 
 {
 
-    int     xi, yi;    /* screen counters */
-    pa_color   fs, bs; /* color saves */
-    scnatt  as;        /* attribute saves */
-    scnbuf  scnsav;    /* full screen buffer save */
-    int     lx;        /* last unmatching character index */
-    int     m;         /* match flag */
-    scnrec* sp;        /* pointer to screen record */
+    int      xi, yi; /* screen counters */
+    pa_color fs, bs; /* color saves */
+    scnatt   as;     /* attribute saves */
+    scnrec*  scnsav; /* full screen buffer save */
+    int      lx;     /* last unmatching character index */
+    int      m;      /* match flag */
+    scnrec*  sp;     /* pointer to screen record */
+    scnrec*  sp2;
 
     if (y > 0 && x == 0) {
 
@@ -1767,13 +1770,12 @@ static void iscroll(scnptr sc, int x, int y)
         for (yi = 1; yi <= dimy-1; yi++) /* move any lines up */
             if (yi+y <= dimy) /* still within buffer */
                 /* move lines up */
-                    memcpy(sc->buf[yi-1],
-                           sc->buf[yi+y-1],
-                           MAXXD * sizeof(scnrec));
+                    memcpy(&sc[(yi-1)*dimx], &sc[(yi+y-1)*dimx],
+                           dimx*sizeof(scnrec));
         for (yi = dimy-y+1; yi <= dimy; yi++) /* clear blank lines at end */
             for (xi = 1; xi <= dimx; xi++) {
 
-            sp = &sc->buf[yi-1][xi-1];
+            sp = &SCNBUF(sc->buf, xi, yi);
             plcchrext(sp, ' '); /* clear to blanks at colors and attributes */
             sp->forec = sc->forec;
             sp->backc = sc->backc;
@@ -1790,7 +1792,7 @@ static void iscroll(scnptr sc, int x, int y)
             /* scroll would result in complete clear, do it */
             trm_clear();   /* scroll would result in complete clear, do it */
             clrbuf(sc);   /* clear the screen buffer */
-            /* restore cursor positition */
+            /* restore cursor position */
             trm_cursor(sc->curx, sc->cury);
 
         } else { /* scroll */
@@ -1804,20 +1806,20 @@ static void iscroll(scnptr sc, int x, int y)
                the screen is spaces anyways */
 
             /* save the entire buffer */
-            memcpy(scnsav, sc->buf, sizeof(scnbuf));
+            scnsav = malloc(sizeof(scnrec)*dimy*dimx);
+            memcpy(scnsav, sc->buf, sizeof(scnrec)*dimy*dimx);
             if (y > 0) {  /* move text up */
 
                 for (yi = 1; yi < dimy; yi++) /* move any lines up */
                     if (yi + y <= dimy) /* still within buffer */
                         /* move lines up */
-                        memcpy(sc->buf[yi-1],
-                               sc->buf[yi+y-1],
-                               MAXXD*sizeof(scnrec));
+                        memcpy(&sc[(yi-1)*dimx], &sc[(yi+y-1)*dimx],
+                           dimx*sizeof(scnrec));
                 for (yi = dimy-y+1; yi <= dimy; yi++)
                     /* clear blank lines at end */
                     for (xi = 1; xi <= dimx; xi++) {
 
-                    sp = &sc->buf[yi-1][xi-1];
+                    sp = &SCNBUF(sc->buf, xi, yi);
                     /* clear to blanks at colors and attributes */
                     plcchrext(sp, ' ');
                     sp->forec = sc->forec;
@@ -1831,13 +1833,12 @@ static void iscroll(scnptr sc, int x, int y)
                 for (yi = dimy; yi >= 2; yi--)   /* move any lines up */
                     if (yi + y >= 1) /* still within buffer */
                         /* move lines up */
-                        memcpy(sc->buf[yi-1],
-                               sc->buf[yi+y-1],
-                               MAXXD * sizeof(scnrec));
+                        memcpy(&sc[(yi-1)*dimx], &sc[(yi+y-1)*dimx],
+                           dimx*sizeof(scnrec));
                 for (yi = 1; yi <= abs(y); yi++) /* clear blank lines at start */
                     for (xi = 1; xi <= dimx; xi++) {
 
-                    sp = &sc->buf[yi-1][xi-1];
+                    sp = &SCNBUF(sc->buf, xi, yi);
                     /* clear to blanks at colors and attributes */
                     plcchrext(sp, ' ');
                     sp->forec = sc->forec;
@@ -1853,12 +1854,12 @@ static void iscroll(scnptr sc, int x, int y)
                     for (xi = 1; xi <= dimx-1; xi++) /* move left */
                         if (xi+x <= dimx) /* still within buffer */
                             /* move characters left */
-                            sc->buf[yi-1][xi-1] =
-                                sc->buf[yi-1][xi+x-1];
+                            memcpy(&SCNBUF(sc, xi, yi), &SCNBUF(sc, xi+x, yi),
+                               sizeof(scnrec));
                     /* clear blank spaces at right */
                     for (xi = dimx-x+1; xi <= dimx; xi++) {
 
-                        sp = &sc->buf[yi-1][xi-1];
+                        sp = &SCNBUF(sc->buf, xi, yi);
                         /* clear to blanks at colors and attributes */
                         plcchrext(sp, ' ');
                         sp->forec = sc->forec;
@@ -1876,12 +1877,12 @@ static void iscroll(scnptr sc, int x, int y)
                     for (xi = dimx; xi >= 2; xi--) /* move right */
                         if (xi+x >= 1) /* still within buffer */
                             /* move characters left */
-                            sc->buf[yi-1][xi-1] =
-                                sc->buf[yi-1][xi+x-1];
+                            memcpy(&SCNBUF(sc, xi, yi), &SCNBUF(sc, xi+x, yi),
+                               sizeof(scnrec));
                     /* clear blank spaces at left */
                     for (xi = 1; xi <= abs(x); xi++) {
 
-                        sp = &sc->buf[yi-1][xi-1];
+                        sp = &SCNBUF(sc->buf, xi, yi);
                         /* clear to blanks at colors and attributes */
                         plcchrext(sp, ' ');
                         sp->forec = sc->forec;
@@ -1916,14 +1917,12 @@ static void iscroll(scnptr sc, int x, int y)
 
                         m = 1; /* set match */
                         /* check all elements match */
-                        if (sc->buf[yi-1][lx-1].ch != scnsav[yi-1][lx-1].ch)
-                            m = 0;
-                        if (sc->buf[yi-1][lx-1].forec !=
-                            scnsav[yi-1][lx-1].forec) m = 0;
-                        if (sc->buf[yi-1][lx-1].backc !=
-                            scnsav[yi-1][lx-1].backc) m = 0;
-                        if (sc->buf[yi-1][lx-1].attr !=
-                            scnsav[yi-1][lx-1].attr)  m = 0;
+                        sp = &SCNBUF(sc->buf, lx, yi);
+                        sp2 = &SCNBUF(scnsav, lx, yi);
+                        if (sp->ch != sp2->ch) m = 0;
+                        if (sp->forec != sp2->forec) m = 0;
+                        if (sp->backc != sp2->backc) m = 0;
+                        if (sp->attr != sp2->attr)  m = 0;
                         if (m) lx--; /* next character */
 
                     } while (m && lx); /* until match or no more */
@@ -1933,7 +1932,7 @@ static void iscroll(scnptr sc, int x, int y)
                            with what is set. if a new color or attribute is called for,
                            we set that, and update the saves. this technique cuts down on
                            the amount of output characters */
-                        sp = &sc->buf[yi-1][xi-1];
+                        sp = &SCNBUF(sc->buf, xi, yi);
                         if (sp->forec != fs) { /* new foreground color */
 
                             trm_fcolor(sp->forec); /* set the new color */
@@ -2197,7 +2196,7 @@ static void plcchr(scnptr sc, unsigned char c)
             sc->cury >= 1 && sc->cury <= MAXYD) {
 
             /* within the buffer space, otherwise just dump */
-            p = &sc->buf[sc->cury-1][sc->curx-1];
+            p = &SCNBUF(sc->buf, sc->curx, sc->cury);
             plcchrext(p, c); /* place character in buffer */
             p->forec = sc->forec; /* place colors */
             p->backc = sc->backc;
@@ -3372,6 +3371,8 @@ static void select_ivf(FILE *f, int u, int d)
 
             /* get a new screen context */
             screens[curupd-1] = (scncon*)malloc(sizeof(scncon));
+            /* allocate screen array */
+            screens[curupd-1]->buf = malloc(sizeof(scnrec)*dimy*dimx);
             iniscn(screens[curupd-1]); /* initalize that */
 
         }
@@ -3386,6 +3387,8 @@ static void select_ivf(FILE *f, int u, int d)
 
             /* get a new screen context */
             screens[curdsp-1] = (scncon*)malloc(sizeof(scncon));
+            /* allocate screen array */
+            screens[curdsp-1]->buf = malloc(sizeof(scnrec)*dimy*dimx);
             iniscn(screens[curdsp-1]); /* initalize that */
             restore(screens[curdsp-1]); /* place on display */
 
@@ -4036,6 +4039,7 @@ static void pa_init_terminal()
     /** joystick device name */        char           joyfil[] = "/dev/input/js0";
     /** joystick parameter read */     char           jc;
 
+dbg_printf(dlinfo, "begin\n");
     /* set override vectors to defaults */
     cursor_vect =          cursor_ivf;
     cursor_vect =          cursor_ivf;
@@ -4133,6 +4137,11 @@ static void pa_init_terminal()
     /* clear screens array */
     for (curupd = 1; curupd <= MAXCON; curupd++) screens[curupd-1] = 0;
     screens[0] = (scncon*)malloc(sizeof(scncon)); /* get the default screen */
+    /* allocate screen array */
+    screens[0]->buf = malloc(sizeof(scnrec)*dimy*dimx);
+    /* alloocate tab array */
+    tabs = malloc(sizeof(int)*dimx);
+
     curdsp = 1; /* set display current screen */
     curupd = 1; /* set current update screen */
     trm_wrapoff(); /* physical wrap is always off */
@@ -4255,6 +4264,7 @@ static void pa_init_terminal()
 
     /* restore terminal state after flushing */
     tcsetattr(0,TCSAFLUSH,&raw);
+dbg_printf(dlinfo, "end\n");
 
 }
 
