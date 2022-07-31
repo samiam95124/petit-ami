@@ -125,11 +125,6 @@ static enum { /* debug levels */
 #define DEFXD 80 /* default terminal size, 80x24, this is Linux standard */
 #define DEFYD 24
 
-/* The maximum dimensions are used to set the size of the holding arrays.
-   These should be reasonable values to prevent becoming a space hog. */
-#define MAXXD 250     /**< Maximum terminal size x */
-#define MAXYD 250     /**< Maximum terminal size y */
-
 #define MAXKEY 20     /* maximum length of key sequence */
 #define MAXCON  10    /**< number of screen contexts */
 #define MAXLIN  250   /* maximum length of input buffered line */
@@ -1765,6 +1760,7 @@ static void iscroll(scnptr sc, int x, int y)
             }
             /* restore cursor position */
             trm_cursor(sc->curx, sc->cury);
+            cursts(sc); /* re-enable cursor */
 
         }
         /* now, adjust the buffer to be the same */
@@ -1783,7 +1779,6 @@ static void iscroll(scnptr sc, int x, int y)
             sp->attr = sc->attr;
 
         }
-        cursts(sc); /* re-enable cursor */
 
     } else { /* odd direction scroll */
 
@@ -1898,6 +1893,7 @@ static void iscroll(scnptr sc, int x, int y)
             }
             if (indisp(sc)) { /* in display */
 
+                trm_curoff(); /* turn cursor off for display */
                 /* the buffer is adjusted. now just copy the complete buffer to the
                    screen */
                 trm_home(); /* restore cursor to upper left to start */
@@ -1972,6 +1968,7 @@ static void iscroll(scnptr sc, int x, int y)
                 trm_fcolor(sc->forec);   /* restore colors */
                 trm_bcolor(sc->backc);   /* restore attributes */
                 setattr(sc, sc->attr);
+                cursts(sc); /* re-enable cursor */
 
             }
 
@@ -2194,8 +2191,8 @@ static void plcchr(scnptr sc, unsigned char c)
         if (utf8cnt) utf8cnt--; /* count off characters */
 #endif
         /* normal character case, not control character */
-        if (sc->curx >= 1 && sc->curx <= MAXXD &&
-            sc->cury >= 1 && sc->cury <= MAXYD) {
+        if (sc->curx >= 1 && sc->curx <= dimx &&
+            sc->cury >= 1 && sc->cury <= dimy) {
 
             /* within the buffer space, otherwise just dump */
             p = &SCNBUF(sc->buf, sc->curx, sc->cury);
@@ -3383,7 +3380,7 @@ static void select_ivf(FILE *f, int u, int d)
     if (curdsp != d) { /* display screen changes */
 
         curdsp = d; /* change to new screen */
-        if (screens[curdsp-1]) /* no screen allocated there */
+        if (screens[curdsp-1]) /* screen allocated there */
             restore(screens[curdsp-1]); /* restore current screen */
         else { /* no current screen, create a new one */
 
