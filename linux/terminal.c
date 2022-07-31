@@ -1751,6 +1751,7 @@ static void iscroll(scnptr sc, int x, int y)
 
         if (indisp(sc)) { /* in display */
 
+            trm_curoff(); /* turn cursor off for display */
             /* downward straight scroll, we can do this with native scrolling */
             trm_cursor(1, dimy); /* position to bottom of screen */
             /* use linefeed to scroll. linefeeds work no matter the state of
@@ -1770,7 +1771,7 @@ static void iscroll(scnptr sc, int x, int y)
         for (yi = 1; yi <= dimy-1; yi++) /* move any lines up */
             if (yi+y <= dimy) /* still within buffer */
                 /* move lines up */
-                    memcpy(&sc[(yi-1)*dimx], &sc[(yi+y-1)*dimx],
+                    memcpy(&sc->buf[(yi-1)*dimx], &sc->buf[(yi+y-1)*dimx],
                            dimx*sizeof(scnrec));
         for (yi = dimy-y+1; yi <= dimy; yi++) /* clear blank lines at end */
             for (xi = 1; xi <= dimx; xi++) {
@@ -1782,6 +1783,7 @@ static void iscroll(scnptr sc, int x, int y)
             sp->attr = sc->attr;
 
         }
+        cursts(sc); /* re-enable cursor */
 
     } else { /* odd direction scroll */
 
@@ -1813,7 +1815,7 @@ static void iscroll(scnptr sc, int x, int y)
                 for (yi = 1; yi < dimy; yi++) /* move any lines up */
                     if (yi + y <= dimy) /* still within buffer */
                         /* move lines up */
-                        memcpy(&sc[(yi-1)*dimx], &sc[(yi+y-1)*dimx],
+                        memcpy(&sc->buf[(yi-1)*dimx], &sc->buf[(yi+y-1)*dimx],
                            dimx*sizeof(scnrec));
                 for (yi = dimy-y+1; yi <= dimy; yi++)
                     /* clear blank lines at end */
@@ -1833,7 +1835,7 @@ static void iscroll(scnptr sc, int x, int y)
                 for (yi = dimy; yi >= 2; yi--)   /* move any lines up */
                     if (yi + y >= 1) /* still within buffer */
                         /* move lines up */
-                        memcpy(&sc[(yi-1)*dimx], &sc[(yi+y-1)*dimx],
+                        memcpy(&sc->buf[(yi-1)*dimx], &sc->buf[(yi+y-1)*dimx],
                            dimx*sizeof(scnrec));
                 for (yi = 1; yi <= abs(y); yi++) /* clear blank lines at start */
                     for (xi = 1; xi <= dimx; xi++) {
@@ -1854,7 +1856,7 @@ static void iscroll(scnptr sc, int x, int y)
                     for (xi = 1; xi <= dimx-1; xi++) /* move left */
                         if (xi+x <= dimx) /* still within buffer */
                             /* move characters left */
-                            memcpy(&SCNBUF(sc, xi, yi), &SCNBUF(sc, xi+x, yi),
+                            memcpy(&SCNBUF(sc->buf, xi, yi), &SCNBUF(sc->buf, xi+x, yi),
                                sizeof(scnrec));
                     /* clear blank spaces at right */
                     for (xi = dimx-x+1; xi <= dimx; xi++) {
@@ -1877,7 +1879,7 @@ static void iscroll(scnptr sc, int x, int y)
                     for (xi = dimx; xi >= 2; xi--) /* move right */
                         if (xi+x >= 1) /* still within buffer */
                             /* move characters left */
-                            memcpy(&SCNBUF(sc, xi, yi), &SCNBUF(sc, xi+x, yi),
+                            memcpy(&SCNBUF(sc->buf, xi, yi), &SCNBUF(sc->buf, xi+x, yi),
                                sizeof(scnrec));
                     /* clear blank spaces at left */
                     for (xi = 1; xi <= abs(x); xi++) {
@@ -4039,7 +4041,6 @@ static void pa_init_terminal()
     /** joystick device name */        char           joyfil[] = "/dev/input/js0";
     /** joystick parameter read */     char           jc;
 
-dbg_printf(dlinfo, "begin\n");
     /* set override vectors to defaults */
     cursor_vect =          cursor_ivf;
     cursor_vect =          cursor_ivf;
@@ -4264,7 +4265,6 @@ dbg_printf(dlinfo, "begin\n");
 
     /* restore terminal state after flushing */
     tcsetattr(0,TCSAFLUSH,&raw);
-dbg_printf(dlinfo, "end\n");
 
 }
 
