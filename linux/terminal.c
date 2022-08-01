@@ -233,8 +233,6 @@ typedef struct {
 typedef struct { /* screen context */
 
       /* screen buffer */                    scnrec*  buf;
-      /* current cursor location x */        int      curx;
-      /* current cursor location y */        int      cury;
 
 } scncon;
 /** pointer to screen context block */ typedef scncon* scnptr;
@@ -529,6 +527,8 @@ static int    dimy;        /* actual height of screen */
 static int    curon;       /* current on/off state of cursor */
 static int    curx;        /* cursor position on screen */
 static int    cury;
+static int    ncurx;       /* new cursor position on screen */
+static int    ncury;
 static int    curval;      /* physical cursor position valid */
 static int    curvis;      /* current status of cursor visible */
 static pa_color forec;     /* current writing foreground color */
@@ -1432,8 +1432,7 @@ int icurbnd(scnptr sc)
 
 {
 
-   return (sc->curx >= 1) && (sc->curx <= dimx) &&
-          (sc->cury >= 1) && (sc->cury <= dimy);
+   return (ncurx >= 1) && (ncurx <= dimx) && (ncury >= 1) && (ncury <= dimy);
 
 }
 
@@ -1500,28 +1499,28 @@ void setcur(scnptr sc)
         if (icurbnd(sc)) {
 
             /* set cursor position */
-            if ((sc->curx != curx || sc->cury != cury) && curval) {
+            if ((ncurx != curx || ncury != cury) && curval) {
 
                 /* Cursor position and actual don't match. Try some optimized
                    cursor positions to reduce bandwidth. Note we don't count on
                    real terminal behavior at the borders. */
-                if (sc->curx == 1 && sc->cury == 1) trm_home();
-                else if (sc->curx == curx && sc->cury == cury-1) trm_up();
-                else if (sc->curx == curx && sc->cury == cury+1) trm_down();
-                else if (sc->curx == curx-1 && sc->cury == cury) trm_left();
-                else if (sc->curx == curx+1 && sc->cury == cury) trm_right();
-                else if (sc->curx == 1 && sc->cury == cury) putchr('\r');
-                else trm_cursor(sc->curx, sc->cury);
-                curx = sc->curx;
-                cury = sc->cury;
+                if (ncurx == 1 && ncury == 1) trm_home();
+                else if (ncurx == curx && ncury == cury-1) trm_up();
+                else if (ncurx == curx && ncury == cury+1) trm_down();
+                else if (ncurx == curx-1 && ncury == cury) trm_left();
+                else if (ncurx == curx+1 && ncury == cury) trm_right();
+                else if (ncurx == 1 && ncury == cury) putchr('\r');
+                else trm_cursor(ncurx, ncury);
+                curx = ncurx;
+                cury = ncury;
                 curval = 1;
 
             } else {
 
                 /* don't count on physical cursor location, just reset */
-                trm_cursor(sc->curx, sc->cury);
-                curx = sc->curx;
-                cury = sc->cury;
+                trm_cursor(ncurx, ncury);
+                curx = ncurx;
+                cury = ncury;
                 curval = 1;
 
             }
@@ -1647,8 +1646,8 @@ static void iniscn(scnptr sc)
 
 {
 
-    sc->cury = 1; /* set cursor at home */
-    sc->curx = 1;
+    ncury = 1; /* set cursor at home */
+    ncurx = 1;
     /* these attributes and colors are pretty much windows 95 specific. The
        Bizarre setting of "blink" actually allows access to bright white */
     forec = pa_black; /* set colors and attributes */
@@ -1726,9 +1725,9 @@ static void restore(scnptr sc)
 
     };
     /* restore cursor position */
-    trm_cursor(sc->curx, sc->cury);
-    curx = sc->curx; /* set physical cursor */
-    cury = sc->cury;
+    trm_cursor(ncurx, ncury);
+    curx = ncurx; /* set physical cursor */
+    cury = ncury;
     curval = 1; /* set it is valid */
     trm_fcolor(forec); /* restore colors */
     trm_bcolor(backc);
@@ -1824,7 +1823,7 @@ static void iscroll(scnptr sc, int x, int y)
 
             }
             /* restore cursor position */
-            trm_cursor(sc->curx, sc->cury);
+            trm_cursor(ncurx, ncury);
             cursts(sc); /* re-enable cursor */
 
         }
@@ -1855,7 +1854,7 @@ static void iscroll(scnptr sc, int x, int y)
             trm_clear();   /* scroll would result in complete clear, do it */
             clrbuf(sc);   /* clear the screen buffer */
             /* restore cursor position */
-            trm_cursor(sc->curx, sc->cury);
+            trm_cursor(ncurx, ncury);
 
         } else { /* scroll */
 
@@ -2030,7 +2029,7 @@ static void iscroll(scnptr sc, int x, int y)
 
                 }
                 /* restore cursor position */
-                trm_cursor(sc->curx, sc->cury);
+                trm_cursor(ncurx, ncury);
                 trm_fcolor(forec);   /* restore colors */
                 trm_bcolor(backc);   /* restore attributes */
                 setattr(sc, attr);
@@ -2058,8 +2057,8 @@ static void iclear(scnptr sc)
 {
 
     clrbuf(sc); /* clear the screen buffer */
-    sc->cury = 1; /* set cursor at home */
-    sc->curx = 1;
+    ncury = 1; /* set cursor at home */
+    ncurx = 1;
     if (indisp(sc)) { /* in display */
 
         trm_clear(); /* erase screen */
@@ -2085,8 +2084,8 @@ static void icursor(scnptr sc, int x, int y)
 
 {
 
-    sc->cury = y; /* set new position */
-    sc->curx = x;
+    ncury = y; /* set new position */
+    ncurx = x;
     setcur(sc);
 
 }
@@ -2105,16 +2104,16 @@ static void iup(scnptr sc)
 
     if (scroll) { /* autowrap is on */
 
-        if (sc->cury > 1) /* not at top of screen */
-            sc->cury = sc->cury-1; /* update position */
+        if (ncury > 1) /* not at top of screen */
+            ncury = ncury-1; /* update position */
         else if (scroll) /* scroll enabled */
             iscroll(sc, 0, -1); /* at top already, scroll up */
         else /* wrap cursor around to screen bottom */
-            sc->cury = dimy; /* set new position */
+            ncury = dimy; /* set new position */
 
     } else /* autowrap is off */
         /* prevent overflow, but otherwise its unlimited */
-        if (sc->cury > -INT_MAX) sc->cury--;
+        if (ncury > -INT_MAX) ncury--;
     setcur(sc);
 
 }
@@ -2133,16 +2132,16 @@ static void idown(scnptr sc)
 
     if (scroll) { /* autowrap is on */
 
-        if (sc->cury < dimy) /* not at bottom of screen */
-            sc->cury = sc->cury+1; /* update position */
+        if (ncury < dimy) /* not at bottom of screen */
+            ncury = ncury+1; /* update position */
         else if (scroll) /* wrap enabled */
             iscroll(sc, 0, +1); /* already at bottom, scroll down */
         else /* wrap cursor around to screen top */
-            sc->cury = 1; /* set new position */
+            ncury = 1; /* set new position */
 
     } else /* autowrap is off */
         /* prevent overflow, but otherwise its unlimited */
-        if (sc->cury < INT_MAX) sc->cury++;
+        if (ncury < INT_MAX) ncury++;
     setcur(sc);
 
 }
@@ -2161,18 +2160,18 @@ static void ileft(scnptr sc)
 
     if (scroll) { /* autowrap is on */
 
-        if (sc->curx > 1)  /* not at extreme left */
-            sc->curx = screens[curupd-1]->curx-1; /* update position */
+        if (ncurx > 1)  /* not at extreme left */
+            ncurx = ncurx-1; /* update position */
         else { /* wrap cursor motion */
 
             iup(sc); /* move cursor up one line */
-            sc->curx = dimx; /* set cursor to extreme right */
+            ncurx = dimx; /* set cursor to extreme right */
 
         }
 
     } else /* autowrap is off */
         /* prevent overflow, but otherwise its unlimited */
-        if (sc->curx > -INT_MAX) sc->curx--;
+        if (ncurx > -INT_MAX) ncurx--;
     setcur(sc);
 
 }
@@ -2191,18 +2190,18 @@ static void iright(scnptr sc)
 
     if (scroll) { /* autowrap is on */
 
-        if (sc->curx < dimx) /* not at extreme right */
-            sc->curx = sc->curx+1; /* update position */
+        if (ncurx < dimx) /* not at extreme right */
+            ncurx = ncurx+1; /* update position */
         else { /* wrap cursor motion */
 
             idown(sc); /* move cursor up one line */
-            sc->curx = 1; /* set cursor to extreme left */
+            ncurx = 1; /* set cursor to extreme left */
 
         }
 
     } else /* autowrap is off */
         /* prevent overflow, but otherwise its unlimited */
-        if (sc->curx < INT_MAX) sc->curx++;
+        if (ncurx < INT_MAX) ncurx++;
     setcur(sc);
 
 }
@@ -2231,23 +2230,23 @@ static void plcchr(scnptr sc, unsigned char c)
 
     /* handle special character cases first */
     if (c == '\r') /* carriage return, position to extreme left */
-        icursor(sc, 1, screens[curupd-1]->cury);
+        icursor(sc, 1, ncury);
     else if (c == '\n') {
 
         /* line end */
         idown(sc); /* line feed, move down */
         /* position to extreme left */
-        icursor(sc, 1, sc->cury);
+        icursor(sc, 1, ncury);
 
     } else if (c == '\b') ileft(sc); /* back space, move left */
     else if (c == '\f') iclear(sc); /* clear screen */
     else if (c == '\t') {
 
         /* find next tab position */
-        i = sc->curx+1; /* find current x +1 */
+        i = ncurx+1; /* find current x +1 */
         while (i < dimx && !tabs[i-1]) i++;
         if (tabs[i-1]) /* we found a tab */
-           while (sc->curx < i) iright(sc);
+           while (ncurx < i) iright(sc);
 
     } else if (c >= ' ' && c != 0x7f) {
 
@@ -2257,11 +2256,11 @@ static void plcchr(scnptr sc, unsigned char c)
         if (utf8cnt) utf8cnt--; /* count off characters */
 #endif
         /* normal character case, not control character */
-        if (sc->curx >= 1 && sc->curx <= dimx &&
-            sc->cury >= 1 && sc->cury <= dimy) {
+        if (ncurx >= 1 && ncurx <= dimx &&
+            ncury >= 1 && ncury <= dimy) {
 
             /* within the buffer space, otherwise just dump */
-            p = &SCNBUF(sc->buf, sc->curx, sc->cury);
+            p = &SCNBUF(sc->buf, ncurx, ncury);
             plcchrext(p, c); /* place character in buffer */
             p->forec = forec; /* place colors */
             p->backc = backc;
@@ -2281,19 +2280,19 @@ static void plcchr(scnptr sc, unsigned char c)
                 else curx++; /* update physical cursor */
                 if (scroll) { /* autowrap is on */
 
-                    if (sc->curx < dimx) /* not at extreme right */
-                        sc->curx = sc->curx+1; /* update position */
+                    if (ncurx < dimx) /* not at extreme right */
+                        ncurx = ncurx+1; /* update position */
                     else { /* wrap cursor motion */
 
                         idown(sc); /* move cursor down one line */
-                        sc->curx = 1; /* set cursor to extreme left */
+                        ncurx = 1; /* set cursor to extreme left */
 
                     }
 
                 } else {/* autowrap is off */
 
                     /* prevent overflow, but otherwise its unlimited */
-                    if (sc->curx < INT_MAX) sc->curx++;
+                    if (ncurx < INT_MAX) ncurx++;
                     /* don't count on physical cursor behavior if scrolling is
                        off and we are at extreme right */
                     curval = 0;
@@ -2333,7 +2332,7 @@ static void readline(void)
     inpptr = 0; /* set 1st character position */
     inpbuf[0] = 0; /* terminate line */
     ins = 1;
-    xoff = sc->curx; /* save starting line offset */
+    xoff = ncurx; /* save starting line offset */
     do { /* get line characters */
 
         ievent(&er); /* get next event */
@@ -2445,11 +2444,11 @@ static void readline(void)
                 if (er.amoubn == 1) {
 
                     l = strlen(inpbuf);
-                    if (sc->cury == nmpy && xoff <= nmpx && xoff+l >= nmpx) {
+                    if (ncury == nmpy && xoff <= nmpx && xoff+l >= nmpx) {
 
                         /* mouse position is within buffer space, set
                            position */
-                        icursor(sc, nmpx, sc->cury);
+                        icursor(sc, nmpx, ncury);
                         inpptr = nmpx-xoff;
 
                     }
@@ -2817,8 +2816,8 @@ static void home_ivf(FILE *f)
 
 {
 
-    screens[curupd-1]->cury = 1; /* set cursor at home */
-    screens[curupd-1]->curx = 1;
+    ncury = 1; /* set cursor at home */
+    ncurx = 1;
     setcur(screens[curupd-1]);
 
 }
@@ -3377,7 +3376,7 @@ static int curx_ivf(FILE *f)
 
 {
 
-    return screens[curupd-1]->curx; /* return current location x */
+    return ncurx; /* return current location x */
 
 }
 
@@ -3397,7 +3396,7 @@ static int cury_ivf(FILE *f)
 
 {
 
-    return screens[curupd-1]->cury; /* return current location y */
+    return ncury; /* return current location y */
 
 }
 
