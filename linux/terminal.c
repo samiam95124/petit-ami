@@ -228,14 +228,7 @@ typedef struct {
     /* background color at location */ pa_color backc;
     /* active attribute at location */ scnatt attr;
 
-} scnrec;
-/** Screen context */
-typedef struct { /* screen context */
-
-      /* screen buffer */                    scnrec*  buf;
-
-} scncon;
-/** pointer to screen context block */ typedef scncon* scnptr;
+} scnrec, *scnptr;
 
 /* macro to access screen elements by y,x */
 #define SCNBUF(sc, x, y) (sc[(y-1)*dimx+(x-1)])
@@ -416,7 +409,7 @@ unsigned char utf8bits[] = {
 };
 #endif
 
-/* screen contexts array */               static scnptr screens[MAXCON];
+/* screen contexts array */               static scnrec* screens[MAXCON];
 /* index for current display screen */    static int curdsp;
 /* index for current update screen */     static int curupd;
 /* array of event handler routines */     static pa_pevthan evthan[pa_etframe+1];
@@ -1622,7 +1615,7 @@ static void clrbuf(scnptr sc)
         for (x = 1; x <= dimx; x++) {
 
         /* index screen character location */
-        sp = &SCNBUF(sc->buf, x, y);
+        sp = &SCNBUF(sc, x, y);
         plcchrext(sp, ' '); /* clear to spaces */
         /* colors and attributes to the global set */
         sp->forec = forec;
@@ -1692,7 +1685,7 @@ static void restore(scnptr sc)
                with what is set. if a new color or attribute is called for,
                we set that, and update the saves. this technique cuts down on
                the amount of output characters */
-            p = &SCNBUF(sc->buf, xi, yi); /* index this screen element */
+            p = &SCNBUF(sc, xi, yi); /* index this screen element */
             if (p->forec != fs) { /* new foreground color */
 
                 trm_fcolor(p->forec); /* set the new color */
@@ -1782,9 +1775,9 @@ void prtbuf(scnptr sc)
 
         fprintf(stderr, "%2d\"", y);
 #ifdef ALLOWUTF8
-        for (x = 1; x <= dimx; x++) fprintf(stderr, "%c", SCNBUF(sc->buf, x, y).ch[0]);
+        for (x = 1; x <= dimx; x++) fprintf(stderr, "%c", SCNBUF(sc, x, y).ch[0]);
 #else
-        for (x = 1; x <= dimx; x++) fprintf(stderr, "%c", SCNBUF(sc->buf, x, y).ch);
+        for (x = 1; x <= dimx; x++) fprintf(stderr, "%c", SCNBUF(sc, x, y).ch);
 #endif
         fprintf(stderr, "\"\n");
 
@@ -1831,12 +1824,12 @@ static void iscroll(scnptr sc, int x, int y)
         for (yi = 1; yi <= dimy-1; yi++) /* move any lines up */
             if (yi+y <= dimy) /* still within buffer */
                 /* move lines up */
-                    memcpy(&sc->buf[(yi-1)*dimx], &sc->buf[(yi+y-1)*dimx],
+                    memcpy(&sc[(yi-1)*dimx], &sc[(yi+y-1)*dimx],
                            dimx*sizeof(scnrec));
         for (yi = dimy-y+1; yi <= dimy; yi++) /* clear blank lines at end */
             for (xi = 1; xi <= dimx; xi++) {
 
-            sp = &SCNBUF(sc->buf, xi, yi);
+            sp = &SCNBUF(sc, xi, yi);
             plcchrext(sp, ' '); /* clear to blanks at colors and attributes */
             sp->forec = forec;
             sp->backc = backc;
@@ -1868,19 +1861,19 @@ static void iscroll(scnptr sc, int x, int y)
 
             /* save the entire buffer */
             scnsav = malloc(sizeof(scnrec)*dimy*dimx);
-            memcpy(scnsav, sc->buf, sizeof(scnrec)*dimy*dimx);
+            memcpy(scnsav, sc, sizeof(scnrec)*dimy*dimx);
             if (y > 0) {  /* move text up */
 
                 for (yi = 1; yi < dimy; yi++) /* move any lines up */
                     if (yi + y <= dimy) /* still within buffer */
                         /* move lines up */
-                        memcpy(&sc->buf[(yi-1)*dimx], &sc->buf[(yi+y-1)*dimx],
+                        memcpy(&sc[(yi-1)*dimx], &sc[(yi+y-1)*dimx],
                            dimx*sizeof(scnrec));
                 for (yi = dimy-y+1; yi <= dimy; yi++)
                     /* clear blank lines at end */
                     for (xi = 1; xi <= dimx; xi++) {
 
-                    sp = &SCNBUF(sc->buf, xi, yi);
+                    sp = &SCNBUF(sc, xi, yi);
                     /* clear to blanks at colors and attributes */
                     plcchrext(sp, ' ');
                     sp->forec = forec;
@@ -1894,12 +1887,12 @@ static void iscroll(scnptr sc, int x, int y)
                 for (yi = dimy; yi >= 2; yi--)   /* move any lines up */
                     if (yi + y >= 1) /* still within buffer */
                         /* move lines up */
-                        memcpy(&sc->buf[(yi-1)*dimx], &sc->buf[(yi+y-1)*dimx],
+                        memcpy(&sc[(yi-1)*dimx], &sc[(yi+y-1)*dimx],
                            dimx*sizeof(scnrec));
                 for (yi = 1; yi <= abs(y); yi++) /* clear blank lines at start */
                     for (xi = 1; xi <= dimx; xi++) {
 
-                    sp = &SCNBUF(sc->buf, xi, yi);
+                    sp = &SCNBUF(sc, xi, yi);
                     /* clear to blanks at colors and attributes */
                     plcchrext(sp, ' ');
                     sp->forec = forec;
@@ -1915,12 +1908,12 @@ static void iscroll(scnptr sc, int x, int y)
                     for (xi = 1; xi <= dimx-1; xi++) /* move left */
                         if (xi+x <= dimx) /* still within buffer */
                             /* move characters left */
-                            memcpy(&SCNBUF(sc->buf, xi, yi), &SCNBUF(sc->buf, xi+x, yi),
+                            memcpy(&SCNBUF(sc, xi, yi), &SCNBUF(sc, xi+x, yi),
                                sizeof(scnrec));
                     /* clear blank spaces at right */
                     for (xi = dimx-x+1; xi <= dimx; xi++) {
 
-                        sp = &SCNBUF(sc->buf, xi, yi);
+                        sp = &SCNBUF(sc, xi, yi);
                         /* clear to blanks at colors and attributes */
                         plcchrext(sp, ' ');
                         sp->forec = forec;
@@ -1938,12 +1931,12 @@ static void iscroll(scnptr sc, int x, int y)
                     for (xi = dimx; xi >= 2; xi--) /* move right */
                         if (xi+x >= 1) /* still within buffer */
                             /* move characters left */
-                            memcpy(&SCNBUF(sc->buf, xi, yi), &SCNBUF(sc->buf, xi+x, yi),
+                            memcpy(&SCNBUF(sc, xi, yi), &SCNBUF(sc, xi+x, yi),
                                sizeof(scnrec));
                     /* clear blank spaces at left */
                     for (xi = 1; xi <= abs(x); xi++) {
 
-                        sp = &SCNBUF(sc->buf, xi, yi);
+                        sp = &SCNBUF(sc, xi, yi);
                         /* clear to blanks at colors and attributes */
                         plcchrext(sp, ' ');
                         sp->forec = forec;
@@ -1980,7 +1973,7 @@ static void iscroll(scnptr sc, int x, int y)
 
                         m = 1; /* set match */
                         /* check all elements match */
-                        sp = &SCNBUF(sc->buf, lx, yi);
+                        sp = &SCNBUF(sc, lx, yi);
                         sp2 = &SCNBUF(scnsav, lx, yi);
                         if (sp->ch != sp2->ch) m = 0;
                         if (sp->forec != sp2->forec) m = 0;
@@ -1995,7 +1988,7 @@ static void iscroll(scnptr sc, int x, int y)
                            with what is set. if a new color or attribute is called for,
                            we set that, and update the saves. this technique cuts down on
                            the amount of output characters */
-                        sp = &SCNBUF(sc->buf, xi, yi);
+                        sp = &SCNBUF(sc, xi, yi);
                         if (sp->forec != fs) { /* new foreground color */
 
                             trm_fcolor(sp->forec); /* set the new color */
@@ -2260,7 +2253,7 @@ static void plcchr(scnptr sc, unsigned char c)
             ncury >= 1 && ncury <= dimy) {
 
             /* within the buffer space, otherwise just dump */
-            p = &SCNBUF(sc->buf, ncurx, ncury);
+            p = &SCNBUF(sc, ncurx, ncury);
             plcchrext(p, c); /* place character in buffer */
             p->forec = forec; /* place colors */
             p->backc = backc;
@@ -3432,10 +3425,8 @@ static void select_ivf(FILE *f, int u, int d)
         curupd = u; /* change to new screen */
         if (!screens[curupd-1]) { /* no screen allocated there */
 
-            /* get a new screen context */
-            screens[curupd-1] = (scncon*)malloc(sizeof(scncon));
             /* allocate screen array */
-            screens[curupd-1]->buf = malloc(sizeof(scnrec)*dimy*dimx);
+            screens[curupd-1] = malloc(sizeof(scnrec)*dimy*dimx);
             iniscn(screens[curupd-1]); /* initalize that */
 
         }
@@ -3448,10 +3439,8 @@ static void select_ivf(FILE *f, int u, int d)
             restore(screens[curdsp-1]); /* restore current screen */
         else { /* no current screen, create a new one */
 
-            /* get a new screen context */
-            screens[curdsp-1] = (scncon*)malloc(sizeof(scncon));
             /* allocate screen array */
-            screens[curdsp-1]->buf = malloc(sizeof(scnrec)*dimy*dimx);
+            screens[curdsp-1] = malloc(sizeof(scnrec)*dimy*dimx);
             iniscn(screens[curdsp-1]); /* initalize that */
             restore(screens[curdsp-1]); /* place on display */
 
@@ -4197,10 +4186,9 @@ static void pa_init_terminal()
     findsize();
 
     /* clear screens array */
-    for (curupd = 1; curupd <= MAXCON; curupd++) screens[curupd-1] = 0;
-    screens[0] = (scncon*)malloc(sizeof(scncon)); /* get the default screen */
+    for (curupd = 1; curupd <= MAXCON; curupd++) screens[curupd-1] = NULL;
     /* allocate screen array */
-    screens[0]->buf = malloc(sizeof(scnrec)*dimy*dimx);
+    screens[0] = malloc(sizeof(scnrec)*dimy*dimx);
     /* alloocate tab array */
     tabs = malloc(sizeof(int)*dimx);
 
