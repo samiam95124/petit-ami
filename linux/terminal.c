@@ -409,12 +409,6 @@ unsigned char utf8bits[] = {
 };
 #endif
 
-/* screen contexts array */               static scnrec* screens[MAXCON];
-/* index for current display screen */    static int curdsp;
-/* index for current update screen */     static int curupd;
-/* array of event handler routines */     static pa_pevthan evthan[pa_etframe+1];
-/* single master event handler routine */ static pa_pevthan evtshan;
-
 /*
  * Saved vectors to system calls. These vectors point to the old, existing
  * vectors that were overriden by this module.
@@ -508,6 +502,12 @@ static struct termios trmsav;
  * Active timers table
  */
 static int timtbl[PA_MAXTIM];
+
+/* screen contexts array */               static scnrec* screens[MAXCON];
+/* index for current display screen */    static int curdsp;
+/* index for current update screen */     static int curupd;
+/* array of event handler routines */     static pa_pevthan evthan[pa_etframe+1];
+/* single master event handler routine */ static pa_pevthan evtshan;
 
 /**
  * Key matching input buffer
