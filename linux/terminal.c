@@ -235,7 +235,6 @@ typedef struct { /* screen context */
       /* screen buffer */                    scnrec*  buf;
       /* current cursor location x */        int      curx;
       /* current cursor location y */        int      cury;
-      /* current status of scroll */         int      scroll;
 
 } scncon;
 /** pointer to screen context block */ typedef scncon* scnptr;
@@ -1656,7 +1655,6 @@ static void iniscn(scnptr sc)
     backc = pa_white;
     attr = sanone;
     curvis = curon; /* set cursor visible from curent state */
-    sc->scroll = scroll; /* set autoscroll from global state */
     clrbuf(sc); /* clear screen buffer with that */
 
 }
@@ -2105,11 +2103,11 @@ static void iup(scnptr sc)
 
 {
 
-    if (sc->scroll) { /* autowrap is on */
+    if (scroll) { /* autowrap is on */
 
         if (sc->cury > 1) /* not at top of screen */
             sc->cury = sc->cury-1; /* update position */
-        else if (sc->scroll) /* scroll enabled */
+        else if (scroll) /* scroll enabled */
             iscroll(sc, 0, -1); /* at top already, scroll up */
         else /* wrap cursor around to screen bottom */
             sc->cury = dimy; /* set new position */
@@ -2133,11 +2131,11 @@ static void idown(scnptr sc)
 
 {
 
-    if (sc->scroll) { /* autowrap is on */
+    if (scroll) { /* autowrap is on */
 
         if (sc->cury < dimy) /* not at bottom of screen */
             sc->cury = sc->cury+1; /* update position */
-        else if (sc->scroll) /* wrap enabled */
+        else if (scroll) /* wrap enabled */
             iscroll(sc, 0, +1); /* already at bottom, scroll down */
         else /* wrap cursor around to screen top */
             sc->cury = 1; /* set new position */
@@ -2161,7 +2159,7 @@ static void ileft(scnptr sc)
 
 {
 
-    if (sc->scroll) { /* autowrap is on */
+    if (scroll) { /* autowrap is on */
 
         if (sc->curx > 1)  /* not at extreme left */
             sc->curx = screens[curupd-1]->curx-1; /* update position */
@@ -2191,7 +2189,7 @@ static void iright(scnptr sc)
 
 {
 
-    if (sc->scroll) { /* autowrap is on */
+    if (scroll) { /* autowrap is on */
 
         if (sc->curx < dimx) /* not at extreme right */
             sc->curx = sc->curx+1; /* update position */
@@ -2281,7 +2279,7 @@ static void plcchr(scnptr sc, unsigned char c)
                 /* at right side, don't count on the screen wrap action */
                 if (curx == dimx) curval = 0;
                 else curx++; /* update physical cursor */
-                if (sc->scroll) { /* autowrap is on */
+                if (scroll) { /* autowrap is on */
 
                     if (sc->curx < dimx) /* not at extreme right */
                         sc->curx = sc->curx+1; /* update position */
@@ -3317,8 +3315,7 @@ static void auto_ivf(FILE *f, int e)
 
 {
 
-    screens[curupd-1]->scroll = e; /* set line wrap status */
-    if (indisp(screens[curupd-1])) scroll = e; /* also global status */
+    scroll = e; /* set line wrap status */
 
 }
 
