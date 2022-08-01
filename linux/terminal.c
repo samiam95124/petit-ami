@@ -1482,7 +1482,7 @@ to bring the old state of the display to the same state as the new display.
 
 *******************************************************************************/
 
-void setcur(scnptr sc)
+void setcurxy(scnptr sc, int x, int y)
 
 {
 
@@ -1492,28 +1492,28 @@ void setcur(scnptr sc)
         if (icurbnd(sc)) {
 
             /* set cursor position */
-            if ((ncurx != curx || ncury != cury) && curval) {
+            if ((x != curx || y != cury) && curval) {
 
                 /* Cursor position and actual don't match. Try some optimized
                    cursor positions to reduce bandwidth. Note we don't count on
                    real terminal behavior at the borders. */
-                if (ncurx == 1 && ncury == 1) trm_home();
-                else if (ncurx == curx && ncury == cury-1) trm_up();
-                else if (ncurx == curx && ncury == cury+1) trm_down();
-                else if (ncurx == curx-1 && ncury == cury) trm_left();
-                else if (ncurx == curx+1 && ncury == cury) trm_right();
-                else if (ncurx == 1 && ncury == cury) putchr('\r');
-                else trm_cursor(ncurx, ncury);
-                curx = ncurx;
-                cury = ncury;
+                if (x == 1 && y == 1) trm_home();
+                else if (x == curx && y == cury-1) trm_up();
+                else if (x == curx && y == cury+1) trm_down();
+                else if (x == curx-1 && y == cury) trm_left();
+                else if (x == curx+1 && y == cury) trm_right();
+                else if (x == 1 && y == cury) putchr('\r');
+                else trm_cursor(x, y);
+                curx = x;
+                cury = y;
                 curval = 1;
 
             } else {
 
                 /* don't count on physical cursor location, just reset */
-                trm_cursor(ncurx, ncury);
-                curx = ncurx;
-                cury = ncury;
+                trm_cursor(x, y);
+                curx = x;
+                cury = y;
                 curval = 1;
 
             }
@@ -1522,6 +1522,14 @@ void setcur(scnptr sc)
         cursts(sc); /* set new cursor status */
 
     }
+
+}
+
+void setcur(scnptr sc)
+
+{
+
+    setcurxy(sc, ncurx, ncury);
 
 }
 
