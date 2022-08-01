@@ -235,9 +235,7 @@ typedef struct { /* screen context */
       /* screen buffer */                    scnrec*  buf;
       /* current cursor location x */        int      curx;
       /* current cursor location y */        int      cury;
-
       /* current status of scroll */         int      scroll;
-      /* current status of cursor visible */ int      curvis;
 
 } scncon;
 /** pointer to screen context block */ typedef scncon* scnptr;
@@ -532,10 +530,11 @@ static int    dimy;        /* actual height of screen */
 static int    curon;       /* current on/off state of cursor */
 static int    curx;        /* cursor position on screen */
 static int    cury;
-static int    curval; /* physical cursor position valid */
-static pa_color forec; /* current writing foreground color */
-static pa_color backc; /* current writing background color */
-static scnatt   attr; /* current writing attribute */
+static int    curval;      /* physical cursor position valid */
+static int    curvis;      /* current status of cursor visible */
+static pa_color forec;     /* current writing foreground color */
+static pa_color backc;     /* current writing background color */
+static scnatt   attr;      /* current writing attribute */
 /* global scroll enable. This does not reflect the physical state, we never
    turn on automatic scroll. */
 static int    scroll;
@@ -1459,7 +1458,7 @@ void cursts(scnptr sc)
 
     if (indisp(sc)) { /* in display */
 
-        cv = sc->curvis; /* set current buffer status */
+        cv = curvis; /* set current buffer status */
         if (!icurbnd(sc)) cv = 0; /* not in bounds, force off */
         if (cv != curon) { /* not already at the desired state */
 
@@ -1656,7 +1655,7 @@ static void iniscn(scnptr sc)
     forec = pa_black; /* set colors and attributes */
     backc = pa_white;
     attr = sanone;
-    sc->curvis = curon; /* set cursor visible from curent state */
+    curvis = curon; /* set cursor visible from curent state */
     sc->scroll = scroll; /* set autoscroll from global state */
     clrbuf(sc); /* clear screen buffer with that */
 
@@ -3339,7 +3338,7 @@ static void curvis_ivf(FILE *f, int e)
 
 {
 
-    screens[curupd-1]->curvis = !!e; /* set cursor visible status */
+    curvis = !!e; /* set cursor visible status */
     if (e) trm_curon(); else trm_curoff();
 
 }
