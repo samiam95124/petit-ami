@@ -235,9 +235,7 @@ typedef struct { /* screen context */
       /* screen buffer */                    scnrec*  buf;
       /* current cursor location x */        int      curx;
       /* current cursor location y */        int      cury;
-      /* current writing foreground color */ pa_color forec;
-      /* current writing background color */ pa_color backc;
-      /* current writing attribute */        scnatt   attr;
+
       /* current status of scroll */         int      scroll;
       /* current status of cursor visible */ int      curvis;
 
@@ -535,6 +533,9 @@ static int    curon;       /* current on/off state of cursor */
 static int    curx;        /* cursor position on screen */
 static int    cury;
 static int    curval; /* physical cursor position valid */
+static pa_color forec; /* current writing foreground color */
+static pa_color backc; /* current writing background color */
+static scnatt   attr; /* current writing attribute */
 /* global scroll enable. This does not reflect the physical state, we never
    turn on automatic scroll. */
 static int    scroll;
@@ -1412,8 +1413,8 @@ static void setattr(scnptr sc, scnatt a)
            need to restore colors in this case, since PA/TK preserves colors. */
         if (a == sanone) {
 
-            trm_fcolor(sc->forec); /* set current colors */
-            trm_bcolor(sc->backc);
+            trm_fcolor(forec); /* set current colors */
+            trm_bcolor(backc);
 
         }
 
@@ -1626,10 +1627,10 @@ static void clrbuf(scnptr sc)
         /* index screen character location */
         sp = &SCNBUF(sc->buf, x, y);
         plcchrext(sp, ' '); /* clear to spaces */
-        /* colors and attributes to the set for that screen */
-        sp->forec = sc->forec;
-        sp->backc = sc->backc;
-        sp->attr = sc->attr;
+        /* colors and attributes to the global set */
+        sp->forec = forec;
+        sp->backc = backc;
+        sp->attr = attr;
 
     }
 
@@ -1652,9 +1653,9 @@ static void iniscn(scnptr sc)
     sc->curx = 1;
     /* these attributes and colors are pretty much windows 95 specific. The
        Bizarre setting of "blink" actually allows access to bright white */
-    sc->forec = pa_black; /* set colors and attributes */
-    sc->backc = pa_white;
-    sc->attr = sanone;
+    forec = pa_black; /* set colors and attributes */
+    backc = pa_white;
+    attr = sanone;
     sc->curvis = curon; /* set cursor visible from curent state */
     sc->scroll = scroll; /* set autoscroll from global state */
     clrbuf(sc); /* clear screen buffer with that */
@@ -1680,12 +1681,12 @@ static void restore(scnptr sc)
 
     trm_home(); /* restore cursor to upper left to start */
     /* set colors and attributes */
-    trm_fcolor(sc->forec); /* restore colors */
-    trm_bcolor(sc->backc);
-    setattr(sc, sc->attr); /* restore attributes */
-    fs = sc->forec; /* save current colors and attributes */
-    bs = sc->backc;
-    as = sc->attr;
+    trm_fcolor(forec); /* restore colors */
+    trm_bcolor(backc);
+    setattr(sc, attr); /* restore attributes */
+    fs = forec; /* save current colors and attributes */
+    bs = backc;
+    as = attr;
     /* copy buffer to screen */
     for (yi = 1; yi <= dimy; yi++) { /* lines */
 
@@ -1732,9 +1733,9 @@ static void restore(scnptr sc)
     curx = sc->curx; /* set physical cursor */
     cury = sc->cury;
     curval = 1; /* set it is valid */
-    trm_fcolor(sc->forec); /* restore colors */
-    trm_bcolor(sc->backc);
-    setattr(sc, sc->attr); /* restore attributes */
+    trm_fcolor(forec); /* restore colors */
+    trm_bcolor(backc);
+    setattr(sc, attr); /* restore attributes */
     setcur(sc); /* set cursor status */
 
 }
@@ -1841,9 +1842,9 @@ static void iscroll(scnptr sc, int x, int y)
 
             sp = &SCNBUF(sc->buf, xi, yi);
             plcchrext(sp, ' '); /* clear to blanks at colors and attributes */
-            sp->forec = sc->forec;
-            sp->backc = sc->backc;
-            sp->attr = sc->attr;
+            sp->forec = forec;
+            sp->backc = backc;
+            sp->attr = attr;
 
         }
 
@@ -1886,9 +1887,9 @@ static void iscroll(scnptr sc, int x, int y)
                     sp = &SCNBUF(sc->buf, xi, yi);
                     /* clear to blanks at colors and attributes */
                     plcchrext(sp, ' ');
-                    sp->forec = sc->forec;
-                    sp->backc = sc->backc;
-                    sp->attr = sc->attr;
+                    sp->forec = forec;
+                    sp->backc = backc;
+                    sp->attr = attr;
 
                 }
 
@@ -1905,9 +1906,9 @@ static void iscroll(scnptr sc, int x, int y)
                     sp = &SCNBUF(sc->buf, xi, yi);
                     /* clear to blanks at colors and attributes */
                     plcchrext(sp, ' ');
-                    sp->forec = sc->forec;
-                    sp->backc = sc->backc;
-                    sp->attr = sc->attr;
+                    sp->forec = forec;
+                    sp->backc = backc;
+                    sp->attr = attr;
 
                 }
 
@@ -1926,9 +1927,9 @@ static void iscroll(scnptr sc, int x, int y)
                         sp = &SCNBUF(sc->buf, xi, yi);
                         /* clear to blanks at colors and attributes */
                         plcchrext(sp, ' ');
-                        sp->forec = sc->forec;
-                        sp->backc = sc->backc;
-                        sp->attr = sc->attr;
+                        sp->forec = forec;
+                        sp->backc = backc;
+                        sp->attr = attr;
 
                     }
 
@@ -1949,9 +1950,9 @@ static void iscroll(scnptr sc, int x, int y)
                         sp = &SCNBUF(sc->buf, xi, yi);
                         /* clear to blanks at colors and attributes */
                         plcchrext(sp, ' ');
-                        sp->forec = sc->forec;
-                        sp->backc = sc->backc;
-                        sp->attr = sc->attr;
+                        sp->forec = forec;
+                        sp->backc = backc;
+                        sp->attr = attr;
 
                     }
 
@@ -1965,9 +1966,9 @@ static void iscroll(scnptr sc, int x, int y)
                 /* the buffer is adjusted. now just copy the complete buffer to the
                    screen */
                 trm_home(); /* restore cursor to upper left to start */
-                fs = sc->forec; /* save current colors and attributes */
-                bs = sc->backc;
-                as = sc->attr;
+                fs = forec; /* save current colors and attributes */
+                bs = backc;
+                as = attr;
                 for (yi = 1; yi <= dimy; yi++) { /* lines */
 
                     /* find the last unmatching character between real and new buffers.
@@ -2033,9 +2034,9 @@ static void iscroll(scnptr sc, int x, int y)
                 }
                 /* restore cursor position */
                 trm_cursor(sc->curx, sc->cury);
-                trm_fcolor(sc->forec);   /* restore colors */
-                trm_bcolor(sc->backc);   /* restore attributes */
-                setattr(sc, sc->attr);
+                trm_fcolor(forec);   /* restore colors */
+                trm_bcolor(backc);   /* restore attributes */
+                setattr(sc, attr);
                 cursts(sc); /* re-enable cursor */
 
             }
@@ -2265,9 +2266,9 @@ static void plcchr(scnptr sc, unsigned char c)
             /* within the buffer space, otherwise just dump */
             p = &SCNBUF(sc->buf, sc->curx, sc->cury);
             plcchrext(p, c); /* place character in buffer */
-            p->forec = sc->forec; /* place colors */
-            p->backc = sc->backc;
-            p->attr = sc->attr; /* place attribute */
+            p->forec = forec; /* place colors */
+            p->backc = backc;
+            p->attr = attr; /* place attribute */
 
         }
         /* cursor in bounds, in display, and not mid-UTF-8 */
@@ -2954,25 +2955,25 @@ static void blink_ivf(FILE *f, int e)
     setattr(screens[curupd-1], sanone); /* turn off attributes */
     if (e) { /* reverse on */
 
-        screens[curupd-1]->attr = sablink; /* set attribute active */
+        attr = sablink; /* set attribute active */
         /* set current attribute */
-        setattr(screens[curupd-1], screens[curupd-1]->attr);
+        setattr(screens[curupd-1], attr);
         if (curupd == curdsp) { /* in display */
 
-            trm_fcolor(screens[curupd-1]->forec); /* set current colors */
-            trm_bcolor(screens[curupd-1]->backc);
+            trm_fcolor(forec); /* set current colors */
+            trm_bcolor(backc);
 
         }
 
     } else { /* turn it off */
 
-        screens[curupd-1]->attr = sanone; /* set attribute active */
+        attr = sanone; /* set attribute active */
         /* set current attribute */
-        setattr(screens[curupd-1], screens[curupd-1]->attr);
+        setattr(screens[curupd-1], attr);
         if (curupd == curdsp) { /* in display */
 
-            trm_fcolor(screens[curupd-1]->forec); /* set current colors */
-            trm_bcolor(screens[curupd-1]->backc);
+            trm_fcolor(forec); /* set current colors */
+            trm_bcolor(backc);
 
         }
 
@@ -3003,25 +3004,25 @@ static void reverse_ivf(FILE *f, int e)
     setattr(screens[curupd-1], sanone); /* turn off attributes */
     if (e) { /* reverse on */
 
-        screens[curupd-1]->attr = sarev; /* set attribute active */
+        attr = sarev; /* set attribute active */
         /* set current attribute */
-        setattr(screens[curupd-1], screens[curupd-1]->attr);
+        setattr(screens[curupd-1], attr);
         if (curupd == curdsp) { /* in display */
 
-            trm_fcolor(screens[curupd-1]->forec); /* set current colors */
-            trm_bcolor(screens[curupd-1]->backc);
+            trm_fcolor(forec); /* set current colors */
+            trm_bcolor(backc);
 
         }
 
     } else { /* turn it off */
 
-        screens[curupd-1]->attr = sanone; /* set attribute active */
+        attr = sanone; /* set attribute active */
         /* set current attribute */
-        setattr(screens[curupd-1], screens[curupd-1]->attr);
+        setattr(screens[curupd-1], attr);
         if (curupd == curdsp) { /* in display */
 
-            trm_fcolor(screens[curupd-1]->forec); /* set current colors */
-            trm_bcolor(screens[curupd-1]->backc);
+            trm_fcolor(forec); /* set current colors */
+            trm_bcolor(backc);
 
         }
 
@@ -3052,25 +3053,25 @@ static void underline_ivf(FILE *f, int e)
     setattr(screens[curupd-1], sanone); /* turn off attributes */
     if (e) { /* underline on */
 
-        screens[curupd-1]->attr = saundl; /* set attribute active */
+        attr = saundl; /* set attribute active */
         /* set current attribute */
-        setattr(screens[curupd-1], screens[curupd-1]->attr);
+        setattr(screens[curupd-1], attr);
         if (curupd == curdsp) { /* in display */
 
-            trm_fcolor(screens[curupd-1]->forec); /* set current colors */
-            trm_bcolor(screens[curupd-1]->backc);
+            trm_fcolor(forec); /* set current colors */
+            trm_bcolor(backc);
 
         }
 
     } else { /* turn it off */
 
-        screens[curupd-1]->attr = sanone; /* set attribute active */
+        attr = sanone; /* set attribute active */
         /* set current attribute */
-        setattr(screens[curupd-1], screens[curupd-1]->attr);
+        setattr(screens[curupd-1], attr);
         if (curupd == curdsp) { /* in display */
 
-            trm_fcolor(screens[curupd-1]->forec); /* set current colors */
-            trm_bcolor(screens[curupd-1]->backc);
+            trm_fcolor(forec); /* set current colors */
+            trm_bcolor(backc);
 
         }
 
@@ -3140,25 +3141,25 @@ static void italic_ivf(FILE *f, int e)
     setattr(screens[curupd-1], sanone); /* turn off attributes */
     if (e) { /* italic on */
 
-        screens[curupd-1]->attr = saital; /* set attribute active */
+        attr = saital; /* set attribute active */
         /* set current attribute */
-        setattr(screens[curupd-1], screens[curupd-1]->attr);
+        setattr(screens[curupd-1], attr);
         if (curupd == curdsp) { /* in display */
 
-            trm_fcolor(screens[curupd-1]->forec); /* set current colors */
-            trm_bcolor(screens[curupd-1]->backc);
+            trm_fcolor(forec); /* set current colors */
+            trm_bcolor(backc);
 
         }
 
     } else { /* turn it off */
 
-        screens[curupd-1]->attr = sanone; /* set attribute active */
+        attr = sanone; /* set attribute active */
         /* set current attribute */
-        setattr(screens[curupd-1], screens[curupd-1]->attr);
+        setattr(screens[curupd-1], attr);
         if (curupd == curdsp) { /* in display */
 
-            trm_fcolor(screens[curupd-1]->forec); /* set current colors */
-            trm_bcolor(screens[curupd-1]->backc);
+            trm_fcolor(forec); /* set current colors */
+            trm_bcolor(backc);
 
         }
 
@@ -3189,25 +3190,25 @@ static void bold_ivf(FILE *f, int e)
     setattr(screens[curupd-1], sanone); /* turn off attributes */
     if (e) { /* bold on */
 
-        screens[curupd-1]->attr = sabold; /* set attribute active */
+        attr = sabold; /* set attribute active */
         /* set current attribute */
-        setattr(screens[curupd-1], screens[curupd-1]->attr);
+        setattr(screens[curupd-1], attr);
         if (curupd == curdsp) { /* in display */
 
-            trm_fcolor(screens[curupd-1]->forec); /* set current colors */
-            trm_bcolor(screens[curupd-1]->backc);
+            trm_fcolor(forec); /* set current colors */
+            trm_bcolor(backc);
 
         }
 
     } else { /* turn it off */
 
-        screens[curupd-1]->attr = sanone; /* set attribute active */
+        attr = sanone; /* set attribute active */
         /* set current attribute */
-        setattr(screens[curupd-1], screens[curupd-1]->attr);
+        setattr(screens[curupd-1], attr);
         if (curupd == curdsp) { /* in display */
 
-            trm_fcolor(screens[curupd-1]->forec); /* set current colors */
-            trm_bcolor(screens[curupd-1]->backc);
+            trm_fcolor(forec); /* set current colors */
+            trm_bcolor(backc);
 
         }
 
@@ -3275,7 +3276,7 @@ static void fcolor_ivf(FILE *f, pa_color c)
 {
 
     if (curupd == curdsp) trm_fcolor(c); /* set color */
-    screens[curupd-1]->forec = c;
+    forec = c;
 
 }
 
@@ -3296,7 +3297,7 @@ static void bcolor_ivf(FILE *f, pa_color c)
 {
 
     if (curupd == curdsp) trm_bcolor(c); /* set color */
-    screens[curupd-1]->backc = c;
+    backc = c;
 
 }
 

@@ -1,11 +1,5 @@
              NOTES FOR XTERM TERMINAL LIBRARY
 
-1. The other terminal modules treat tabbing as per buffer, that is, each buffer
-keeps track of separate tabbing drums. This is logical, since every other
-characteristic tracks with the buffer.
-
-2. Still looks like we are not getting true white on the background.
-
 MACOSX/Quartz version ============================================================
 
 1. In the Mac OS X version, the final benchmark tallys are getting erased. I 
