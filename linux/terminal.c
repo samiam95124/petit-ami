@@ -28,9 +28,12 @@
 *                                                                              *
 * The ANSI driver really has two modes: one when used as a local program, and  *
 * another when used remotely via serial connection, telnet, ssh or similar     *
-* program. In the latter case, the mouse and joystick position is irrelevant,  *
-* and we need to determine terminal geometry via ANSI sequences (yes, it is    *
-* possible!).                                                                  *
+* program. In the latter case, the joystick position is irrelevant, because    *
+* there is, at this writing, no remote method to read the joystick.            *
+*                                                                              *
+* Terminal can also be used on Linux that boots to the console. This is either *
+* a Linux that boots up without XWindows, or by switching to an alternate      *
+* console. This may or may not support a mouse.                                *
 *                                                                              *
 * Petit-Ami is a standard that goes back to a start in 1984 with significant   *
 * improvements in the 1997 and on years. It was the library standard for       *
@@ -1399,12 +1402,12 @@ void cursts(scnptr sc)
             if (cv) {
 
                 trm_curon();
-                curon = 1;
+                curon = TRUE;
 
             } else {
 
                 trm_curoff();
-                curon = 0;
+                curon = FALSE;
 
             }
 
@@ -1747,6 +1750,7 @@ static void iscroll(scnptr sc, int x, int y)
         if (indisp(sc)) { /* in display */
 
             trm_curoff(); /* turn cursor off for display */
+            curon = FALSE;
             /* downward straight scroll, we can do this with native scrolling */
             trm_cursor(1, dimy); /* position to bottom of screen */
             /* use linefeed to scroll. linefeeds work no matter the state of
@@ -1894,6 +1898,7 @@ static void iscroll(scnptr sc, int x, int y)
             if (indisp(sc)) { /* in display */
 
                 trm_curoff(); /* turn cursor off for display */
+                curon = FALSE;
                 /* the buffer is adjusted. now just copy the complete buffer to the
                    screen */
                 trm_home(); /* restore cursor to upper left to start */

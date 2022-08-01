@@ -981,6 +981,7 @@ int main(int argc, char *argv[])
        (clipping). */
 
     printf("\f");
+    pa_auto(stdout, FALSE); /* turn off auto */
     /* fill top with column order data */
     c = '1';
     for (x = 1; x <= pa_maxx(stdout); x++) {
