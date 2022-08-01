@@ -135,11 +135,18 @@ static enum { /* debug levels */
 #define MAXJOY  10    /* number of joysticks possible */
 #define DMPEVT  FALSE /* enable dump Petit-Ami messages */
 #define ALLOWUTF8     /* enable UTF-8 encoding */
+
 /*
  * Standard mouse decoding has a limit of about 223 in x or y. SGR mode
  * can go from 1 to 2015.
  */
 #define MOUSESGR      /* use SGR mouse mode (extended positions) */
+
+/*
+ * Use 24 bit color encoding. This was used to get pure white in an Xterm, which
+ * normally does not appear to be possible.
+ */
+#define COLOR24
 
 /* file handle numbers at the system interface level */
 
@@ -1219,6 +1226,36 @@ static int colnum(pa_color c)
 
 }
 
+/******************************************************************************
+
+Translate colors code rgb
+
+Translates an independent to primary RGB color codes.
+
+******************************************************************************/
+
+void colnumrgb(pa_color c, int* r, int* g, int* b)
+
+{
+
+    int n;
+
+    /* translate color number */
+    switch (c) { /* color */
+
+        case pa_black:     *r = 0x00; *g = 0x00; *b = 0x00; break;
+        case pa_white:     *r = 0xff; *g = 0xff; *b = 0xff; break;
+        case pa_red:       *r = 0xff; *g = 0x00; *b = 0x00; break;
+        case pa_green:     *r = 0x00; *g = 0xff; *b = 0x00; break;
+        case pa_blue:      *r = 0x00; *g = 0x00; *b = 0xff; break;
+        case pa_cyan:      *r = 0x00; *g = 0xff; *b = 0xff; break;
+        case pa_yellow:    *r = 0xff; *g = 0xff; *b = 0x00; break;
+        case pa_magenta:   *r = 0xff; *g = 0x00; *b = 0xff; break;
+
+    }
+
+}
+
 /** ****************************************************************************
 
 Basic terminal controls
@@ -1266,11 +1303,24 @@ static void trm_fcolor(pa_color c)
 
 {
 
+#ifdef COLOR24
+    int r, g, b;
+
+    colnumrgb(c, &r, &g, &b); /* get rgb equivalent color */
+    putstr("\33[38;2;");
+    wrtint(r);
+    putstr(";");
+    wrtint(g);
+    putstr(";");
+    wrtint(b);
+    putstr("m");
+#else
     putstr("\33[");
     /* override "bright" black, which is more like grey */
     if (c == pa_black) wrtint(ANSIFORECOLORBASE+colnum(c));
     else wrtint(FORECOLORBASE+colnum(c));
     putstr("m");
+#endif
 
 }
 
@@ -1279,11 +1329,24 @@ static void trm_bcolor(pa_color c)
 
 {
 
+#ifdef COLOR24
+    int r, g, b;
+
+    colnumrgb(c, &r, &g, &b); /* get rgb equivalent color */
+    putstr("\33[48;2;");
+    wrtint(r);
+    putstr(";");
+    wrtint(g);
+    putstr(";");
+    wrtint(b);
+    putstr("m");
+#else
     putstr("\33[");
     /* override "bright" black, which is more like grey */
     if (c == pa_black) wrtint(ANSIBACKCOLORBASE+colnum(c));
     else wrtint(BACKCOLORBASE+colnum(c));
     putstr("m");
+#endif
 
 }
 
