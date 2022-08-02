@@ -1525,14 +1525,6 @@ void setcurxy(scnptr sc, int x, int y)
 
 }
 
-void setcur(scnptr sc)
-
-{
-
-    setcurxy(sc, ncurx, ncury);
-
-}
-
 /** ****************************************************************************
 
 Place character in screen buffer
@@ -1733,7 +1725,7 @@ static void restore(scnptr sc)
     trm_fcolor(forec); /* restore colors */
     trm_bcolor(backc);
     setattr(sc, attr); /* restore attributes */
-    setcur(sc); /* set cursor status */
+    setcurxy(sc, ncurx, ncury); /* set cursor status */
 
 }
 
@@ -2066,7 +2058,7 @@ static void iclear(scnptr sc)
         curx = 1; /* set actual cursor location */
         cury = 1;
         curval = 1;
-        setcur(sc);
+        setcurxy(sc, ncurx, ncury);
 
     }
 
