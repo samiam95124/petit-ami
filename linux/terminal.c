@@ -2087,7 +2087,7 @@ static void icursor(scnptr sc, int x, int y)
 
     ncury = y; /* set new position */
     ncurx = x;
-    setcur(sc);
+    setcurxy(sc, ncurx, ncury);
 
 }
 
@@ -2115,7 +2115,7 @@ static void iup(scnptr sc)
     } else /* autowrap is off */
         /* prevent overflow, but otherwise its unlimited */
         if (ncury > -INT_MAX) ncury--;
-    setcur(sc);
+    setcurxy(sc, ncurx, ncury);
 
 }
 
@@ -2143,7 +2143,7 @@ static void idown(scnptr sc)
     } else /* autowrap is off */
         /* prevent overflow, but otherwise its unlimited */
         if (ncury < INT_MAX) ncury++;
-    setcur(sc);
+    setcurxy(sc, ncurx, ncury);
 
 }
 
@@ -2173,7 +2173,7 @@ static void ileft(scnptr sc)
     } else /* autowrap is off */
         /* prevent overflow, but otherwise its unlimited */
         if (ncurx > -INT_MAX) ncurx--;
-    setcur(sc);
+    setcurxy(sc, ncurx, ncury);
 
 }
 
@@ -2203,7 +2203,7 @@ static void iright(scnptr sc)
     } else /* autowrap is off */
         /* prevent overflow, but otherwise its unlimited */
         if (ncurx < INT_MAX) ncurx++;
-    setcur(sc);
+    setcurxy(sc, ncurx, ncury);
 
 }
 
@@ -2299,7 +2299,7 @@ static void plcchr(scnptr sc, unsigned char c)
                     curval = 0;
 
                 }
-                setcur(sc); /* update physical cursor */
+                setcurxy(sc, ncurx, ncury); /* update physical cursor */
 
             }
 
@@ -2819,7 +2819,7 @@ static void home_ivf(FILE *f)
 
     ncury = 1; /* set cursor at home */
     ncurx = 1;
-    setcur(screens[curupd-1]);
+    setcurxy(screens[curupd-1], ncurx, ncury);
 
 }
 
