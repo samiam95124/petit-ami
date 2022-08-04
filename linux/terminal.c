@@ -1482,7 +1482,7 @@ to bring the old state of the display to the same state as the new display.
 
 *******************************************************************************/
 
-void setcurxy(scnptr sc, int x, int y)
+void setcur(scnptr sc)
 
 {
 
@@ -1492,28 +1492,28 @@ void setcurxy(scnptr sc, int x, int y)
         if (icurbnd(sc)) {
 
             /* set cursor position */
-            if ((x != curx || y != cury) && curval) {
+            if ((ncurx != curx || ncury != cury) && curval) {
 
                 /* Cursor position and actual don't match. Try some optimized
                    cursor positions to reduce bandwidth. Note we don't count on
                    real terminal behavior at the borders. */
-                if (x == 1 && y == 1) trm_home();
-                else if (x == curx && y == cury-1) trm_up();
-                else if (x == curx && y == cury+1) trm_down();
-                else if (x == curx-1 && y == cury) trm_left();
-                else if (x == curx+1 && y == cury) trm_right();
-                else if (x == 1 && y == cury) putchr('\r');
-                else trm_cursor(x, y);
-                curx = x;
-                cury = y;
+                if (ncurx == 1 && ncury == 1) trm_home();
+                else if (ncurx == curx && ncury == cury-1) trm_up();
+                else if (ncurx == curx && ncury == cury+1) trm_down();
+                else if (ncurx == curx-1 && ncury == cury) trm_left();
+                else if (ncurx == curx+1 && ncury == cury) trm_right();
+                else if (ncurx == 1 && ncury == cury) putchr('\r');
+                else trm_cursor(ncurx, ncury);
+                curx = ncurx;
+                cury = ncury;
                 curval = 1;
 
             } else {
 
                 /* don't count on physical cursor location, just reset */
-                trm_cursor(x, y);
-                curx = x;
-                cury = y;
+                trm_cursor(ncurx, ncury);
+                curx = ncurx;
+                cury = ncury;
                 curval = 1;
 
             }
@@ -1725,7 +1725,7 @@ static void restore(scnptr sc)
     trm_fcolor(forec); /* restore colors */
     trm_bcolor(backc);
     setattr(sc, attr); /* restore attributes */
-    setcurxy(sc, ncurx, ncury); /* set cursor status */
+    setcur(sc); /* set cursor status */
 
 }
 
@@ -2058,7 +2058,7 @@ static void iclear(scnptr sc)
         curx = 1; /* set actual cursor location */
         cury = 1;
         curval = 1;
-        setcurxy(sc, ncurx, ncury);
+        setcur(sc);
 
     }
 
@@ -2079,7 +2079,7 @@ static void icursor(scnptr sc, int x, int y)
 
     ncury = y; /* set new position */
     ncurx = x;
-    setcurxy(sc, ncurx, ncury);
+    setcur(sc);
 
 }
 
@@ -2107,7 +2107,7 @@ static void iup(scnptr sc)
     } else /* autowrap is off */
         /* prevent overflow, but otherwise its unlimited */
         if (ncury > -INT_MAX) ncury--;
-    setcurxy(sc, ncurx, ncury);
+    setcur(sc);
 
 }
 
@@ -2135,7 +2135,7 @@ static void idown(scnptr sc)
     } else /* autowrap is off */
         /* prevent overflow, but otherwise its unlimited */
         if (ncury < INT_MAX) ncury++;
-    setcurxy(sc, ncurx, ncury);
+    setcur(sc);
 
 }
 
@@ -2165,7 +2165,7 @@ static void ileft(scnptr sc)
     } else /* autowrap is off */
         /* prevent overflow, but otherwise its unlimited */
         if (ncurx > -INT_MAX) ncurx--;
-    setcurxy(sc, ncurx, ncury);
+    setcur(sc);
 
 }
 
@@ -2195,7 +2195,7 @@ static void iright(scnptr sc)
     } else /* autowrap is off */
         /* prevent overflow, but otherwise its unlimited */
         if (ncurx < INT_MAX) ncurx++;
-    setcurxy(sc, ncurx, ncury);
+    setcur(sc);
 
 }
 
@@ -2291,7 +2291,7 @@ static void plcchr(scnptr sc, unsigned char c)
                     curval = 0;
 
                 }
-                setcurxy(sc, ncurx, ncury); /* update physical cursor */
+                setcur(sc); /* update physical cursor */
 
             }
 
@@ -2811,7 +2811,7 @@ static void home_ivf(FILE *f)
 
     ncury = 1; /* set cursor at home */
     ncurx = 1;
-    setcurxy(screens[curupd-1], ncurx, ncury);
+    setcur(screens[curupd-1]);
 
 }
 
