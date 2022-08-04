@@ -2921,15 +2921,55 @@ static void right_ivf(FILE *f)
 
 /** ****************************************************************************
 
+Turn on/off attribute
+
+Turns on or off a single attribute. The attributes can only be set singly.
+If the screen is in display, refreshes the colors. This is because in Windows,
+changing attributes causes the colors to change. This should be verified on
+xterm.
+
+*******************************************************************************/
+
+static void attronoff(FILE *f, int e, scnatt nattr)
+
+{
+
+    setattr(screens[curupd-1], sanone); /* turn off attributes */
+    if (e) { /* attribute on */
+
+        attr = nattr; /* set attribute active */
+        /* set current attribute */
+        setattr(screens[curupd-1], attr);
+        if (curupd == curdsp) { /* in display */
+
+            trm_fcolor(forec); /* set current colors */
+            trm_bcolor(backc);
+
+        }
+
+    } else { /* turn it off */
+
+        attr = sanone; /* set attribute active */
+        /* set current attribute */
+        setattr(screens[curupd-1], attr);
+        if (curupd == curdsp) { /* in display */
+
+            trm_fcolor(forec); /* set current colors */
+            trm_bcolor(backc);
+
+        }
+
+    }
+
+}
+
+/** ****************************************************************************
+
 Turn on blink attribute
 
 Turns on/off the blink attribute. Note that under windows 95 in a shell window,
 blink does not mean blink, but instead "bright". We leave this alone because
 we are supposed to also work over a com interface.
-Note that the attributes can only be set singly.
-Basically, the only way that I have found to reliably change attributes
-on a PC is to turn it all off, then reset everything, including the
-colors, which an ATTRIBUTE command seems to mess with !
 
 *******************************************************************************/
 
@@ -2941,32 +2981,7 @@ static void blink_ivf(FILE *f, int e)
 
 {
 
-    setattr(screens[curupd-1], sanone); /* turn off attributes */
-    if (e) { /* reverse on */
-
-        attr = sablink; /* set attribute active */
-        /* set current attribute */
-        setattr(screens[curupd-1], attr);
-        if (curupd == curdsp) { /* in display */
-
-            trm_fcolor(forec); /* set current colors */
-            trm_bcolor(backc);
-
-        }
-
-    } else { /* turn it off */
-
-        attr = sanone; /* set attribute active */
-        /* set current attribute */
-        setattr(screens[curupd-1], attr);
-        if (curupd == curdsp) { /* in display */
-
-            trm_fcolor(forec); /* set current colors */
-            trm_bcolor(backc);
-
-        }
-
-    }
+    attronoff(f, e, sablink); /* enable/disable attbute */
 
 }
 
@@ -2975,10 +2990,6 @@ static void blink_ivf(FILE *f, int e)
 Turn on reverse attribute
 
 Turns on/off the reverse attribute.
-Note that the attributes can only be set singly.
-Basically, the only way that I have found to reliably change attributes
-on a PC is to turn it all off, then reset everything, including the
-colors, which an ATTRIBUTE command seems to mess with !
 
 *******************************************************************************/
 
@@ -2990,32 +3001,7 @@ static void reverse_ivf(FILE *f, int e)
 
 {
 
-    setattr(screens[curupd-1], sanone); /* turn off attributes */
-    if (e) { /* reverse on */
-
-        attr = sarev; /* set attribute active */
-        /* set current attribute */
-        setattr(screens[curupd-1], attr);
-        if (curupd == curdsp) { /* in display */
-
-            trm_fcolor(forec); /* set current colors */
-            trm_bcolor(backc);
-
-        }
-
-    } else { /* turn it off */
-
-        attr = sanone; /* set attribute active */
-        /* set current attribute */
-        setattr(screens[curupd-1], attr);
-        if (curupd == curdsp) { /* in display */
-
-            trm_fcolor(forec); /* set current colors */
-            trm_bcolor(backc);
-
-        }
-
-    }
+    attronoff(f, e, sarev); /* enable/disable attbute */
 
 }
 
@@ -3024,10 +3010,6 @@ static void reverse_ivf(FILE *f, int e)
 Turn on underline attribute
 
 Turns on/off the underline attribute.
-Note that the attributes can only be set singly.
-Basically, the only way that I have found to reliably change attributes
-on a PC is to turn it all off, then reset everything, including the
-colors, which an ATTRIBUTE command seems to mess with !
 
 *******************************************************************************/
 
@@ -3039,32 +3021,7 @@ static void underline_ivf(FILE *f, int e)
 
 {
 
-    setattr(screens[curupd-1], sanone); /* turn off attributes */
-    if (e) { /* underline on */
-
-        attr = saundl; /* set attribute active */
-        /* set current attribute */
-        setattr(screens[curupd-1], attr);
-        if (curupd == curdsp) { /* in display */
-
-            trm_fcolor(forec); /* set current colors */
-            trm_bcolor(backc);
-
-        }
-
-    } else { /* turn it off */
-
-        attr = sanone; /* set attribute active */
-        /* set current attribute */
-        setattr(screens[curupd-1], attr);
-        if (curupd == curdsp) { /* in display */
-
-            trm_fcolor(forec); /* set current colors */
-            trm_bcolor(backc);
-
-        }
-
-    }
+    attronoff(f, e, saundl); /* enable/disable attbute */
 
 }
 
@@ -3073,7 +3030,6 @@ static void underline_ivf(FILE *f, int e)
 Turn on superscript attribute
 
 Turns on/off the superscript attribute.
-Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
@@ -3094,7 +3050,6 @@ static void superscript_ivf(FILE *f, int e)
 Turn on subscript attribute
 
 Turns on/off the subscript attribute.
-Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
@@ -3115,7 +3070,6 @@ static void subscript_ivf(FILE *f, int e)
 Turn on italic attribute
 
 Turns on/off the italic attribute.
-Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
@@ -3127,32 +3081,7 @@ static void italic_ivf(FILE *f, int e)
 
 {
 
-    setattr(screens[curupd-1], sanone); /* turn off attributes */
-    if (e) { /* italic on */
-
-        attr = saital; /* set attribute active */
-        /* set current attribute */
-        setattr(screens[curupd-1], attr);
-        if (curupd == curdsp) { /* in display */
-
-            trm_fcolor(forec); /* set current colors */
-            trm_bcolor(backc);
-
-        }
-
-    } else { /* turn it off */
-
-        attr = sanone; /* set attribute active */
-        /* set current attribute */
-        setattr(screens[curupd-1], attr);
-        if (curupd == curdsp) { /* in display */
-
-            trm_fcolor(forec); /* set current colors */
-            trm_bcolor(backc);
-
-        }
-
-    }
+    attronoff(f, e, saital); /* enable/disable attbute */
 
 }
 
@@ -3161,10 +3090,6 @@ static void italic_ivf(FILE *f, int e)
 Turn on bold attribute
 
 Turns on/off the bold attribute.
-Note that the attributes can only be set singly.
-Basically, the only way that I have found to reliably change attributes
-on a PC is to turn it all off, then reset everything, including the
-colors, which an ATTRIBUTE command seems to mess with !
 
 *******************************************************************************/
 
@@ -3176,32 +3101,7 @@ static void bold_ivf(FILE *f, int e)
 
 {
 
-    setattr(screens[curupd-1], sanone); /* turn off attributes */
-    if (e) { /* bold on */
-
-        attr = sabold; /* set attribute active */
-        /* set current attribute */
-        setattr(screens[curupd-1], attr);
-        if (curupd == curdsp) { /* in display */
-
-            trm_fcolor(forec); /* set current colors */
-            trm_bcolor(backc);
-
-        }
-
-    } else { /* turn it off */
-
-        attr = sanone; /* set attribute active */
-        /* set current attribute */
-        setattr(screens[curupd-1], attr);
-        if (curupd == curdsp) { /* in display */
-
-            trm_fcolor(forec); /* set current colors */
-            trm_bcolor(backc);
-
-        }
-
-    }
+    attronoff(f, e, sabold); /* enable/disable attbute */
 
 }
 
