@@ -3780,10 +3780,26 @@ static void blockcopy_ivf(FILE* f, int s, int d,
     int     dx2, dy2;           /* destination extents */
     int     dyb;
     int     i;
+    int     tx, ty;
 
     if (s < 1 || s > MAXCON || d < 1 || d > MAXCON)
         error(einvscn); /* invalid screen number */
-    if (dx <= dimx && dy <= dimy) { /* destination is within buffer space */
+    /* rationalize the source rectangle to right/down */
+    if (sx1 > sx2 || (sx1 == sx2 && sy1 > sy2)) { /* swap */
+
+       tx = sx1;
+       ty = sy1;
+       sx1 = sx2;
+       sy1 = sy2;
+       sx2 = tx;
+       sy2 = ty;
+
+    }
+    /* find extents of destination */
+    dx2 = dx+(sx2-sx1);
+    dy2 = dy+(sy2-sy1);
+    if (dx <= dimx && dy <= dimy && dx2 >= 1 && dy2 >= 1) { 
+        /* destination is within buffer space */
 
         /* if either screen buffer does not exist, make one */
         if (!screens[s-1]) {
@@ -3800,9 +3816,6 @@ static void blockcopy_ivf(FILE* f, int s, int d,
             iniscn(screens[d-1]); /* initalize that */
 
         }
-        /* find extents of destination */
-        dx2 = dx+(sx2-sx1);
-        dy2 = dy+(sy2-sy1);
         /* clip destination */
         if (dx2 > dimx) {
 
@@ -3814,6 +3827,20 @@ static void blockcopy_ivf(FILE* f, int s, int d,
 
             dy2 = dimy; /* clip destination */
             sy2 = sy1+(dy2-dy); /* clip source as well */
+
+        }
+        if (dx < 1) {
+
+            sx1 += -(dx-1); /* clip source */
+            dx = 1; /* clip destination */
+
+
+        }
+        if (dy < 1) {
+
+            sy1 += -(dy-1); /* clip source */
+            dy = 1; /* clip destination */
+
 
         }
         /* index source and destination screens */
