@@ -187,6 +187,9 @@ int  pa_funkey(FILE* f);
 void pa_frametimer(FILE* f, int e);
 void pa_autohold(int e);
 void pa_wrtstr(FILE* f, char *s);
+void pa_wrtstrn(FILE* f, char* s, int n);
+void pa_blockcopy(FILE* f, int s, int d, 
+                        int sx1, int sy1, int sx2, int sy2, int dx, int dy);
 void pa_eventover(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh);
 void pa_eventsover(pa_pevthan eh,  pa_pevthan* oeh);
 
@@ -237,6 +240,9 @@ typedef void (*pa_frametimer_t)(FILE* f, int e);
 typedef void (*pa_autohold_t)(int e);
 typedef void (*pa_wrtstr_t)(FILE* f, char* s);
 typedef void (*pa_wrtstrn_t)(FILE* f, char* s, int n);
+typedef void (*pa_blockcopy_t)(FILE* f, int s, int d, 
+                               int sx1, int sy1, int sx2, int sy2, 
+                               int dx, int dy);
 typedef void (*pa_eventover_t)(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh);
 typedef void (*pa_eventsover_t)(pa_pevthan eh,  pa_pevthan* oeh);
 
