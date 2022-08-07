@@ -468,7 +468,6 @@ static pa_frametimer_t      frametimer_vect;
 static pa_autohold_t        autohold_vect;
 static pa_wrtstr_t          wrtstr_vect;
 static pa_wrtstrn_t         wrtstrn_vect;
-static pa_blockcopy_t       blockcopy_vect;
 static pa_eventover_t       eventover_vect;
 static pa_eventsover_t      eventsover_vect;
 static pa_sendevent_t       sendevent_vect;
@@ -3746,192 +3745,6 @@ static void wrtstrn_ivf(FILE* f, char *s, int n)
 
 /** ****************************************************************************
 
-Move block character
-
-Moves a block of characters between different buffers or to different locations
-within the same buffer. Used to accelerate higher level operations, since we can
-perform moves within this module.
-
-Note that if the underlying implementation can do this operation, it is sent on.
-This normally can only happen for moves on the buffer currently in display. This
-is not available in xterm.
-
-Note the caller is responsible for filling in the areas vacated by the block, if
-that is the goal.
-
-*******************************************************************************/
-
-void _pa_blockcopy_ovr(pa_blockcopy_t nfp, pa_blockcopy_t* ofp)
-    { *ofp = blockcopy_vect; blockcopy_vect = nfp; }
-void pa_blockcopy(FILE* f, int s, int d, int sx1, int sy1, int sx2, int sy2, 
-                           int dx, int dy) 
-    { (*blockcopy_vect)(f, s, d, sx1, sy1, sx2, sy2, dx, dy); }
-
-static void blockcopy_ivf(FILE* f, int s, int d, 
-                          int sx1, int sy1, int sx2, int sy2, int dx, int dy)
-
-{
-
-    scnrec* sp;                 /* pointer to source screen record */
-    scnrec* dp;                 /* pointer to destination screen record */
-    scnptr  sc;                 /* pointer to source screen buffer */
-    scnptr  dc;                 /* pointer to destination screen buffer */
-    int     sxi, syi, dxi, dyi; /* block indexes */
-    int     dx2, dy2;           /* destination extents */
-    int     dyb;
-    int     i;
-    int     tx, ty;
-
-    if (s < 1 || s > MAXCON || d < 1 || d > MAXCON)
-        error(einvscn); /* invalid screen number */
-    /* rationalize the source rectangle to right/down */
-    if (sx1 > sx2 || (sx1 == sx2 && sy1 > sy2)) { /* swap */
-
-       tx = sx1;
-       ty = sy1;
-       sx1 = sx2;
-       sy1 = sy2;
-       sx2 = tx;
-       sy2 = ty;
-
-    }
-    /* find extents of destination */
-    dx2 = dx+(sx2-sx1);
-    dy2 = dy+(sy2-sy1);
-    if (dx <= dimx && dy <= dimy && dx2 >= 1 && dy2 >= 1) { 
-        /* destination is within buffer space */
-
-        /* if either screen buffer does not exist, make one */
-        if (!screens[s-1]) {
-
-            /* allocate screen array */
-            screens[s-1] = malloc(sizeof(scnrec)*dimy*dimx);
-            iniscn(screens[s-1]); /* initalize that */
-
-        }
-        if (!screens[d-1]) {
-
-            /* allocate screen array */
-            screens[d-1] = malloc(sizeof(scnrec)*dimy*dimx);
-            iniscn(screens[d-1]); /* initalize that */
-
-        }
-        /* clip destination */
-        if (dx2 > dimx) {
-
-            dx2 = dimx; /* clip destination */
-            sx2 = sx1+(dx2-dx); /* clip source as well */
-
-        }
-        if (dy2 > dimy) {
-
-            dy2 = dimy; /* clip destination */
-            sy2 = sy1+(dy2-dy); /* clip source as well */
-
-        }
-        if (dx < 1) {
-
-            sx1 += -(dx-1); /* clip source */
-            dx = 1; /* clip destination */
-
-
-        }
-        if (dy < 1) {
-
-            sy1 += -(dy-1); /* clip source */
-            dy = 1; /* clip destination */
-
-
-        }
-        /* index source and destination screens */
-        sc = screens[s-1];
-        dc = screens[d-1];
-        /* check same screen for source and destination, and overlapping upwards */
-        if (s == d && (sx1 < dx || sy1 < dy) && (sx2 < dx || sy2 < dy)) {
-
-            for (syi = sy2, dyi = dy2; syi >= sy1; syi--, dyi--)
-                for (sxi = sx2, dxi = dx2; sxi >= sx1; sxi--, dxi--) {
-     
-                    /* index source */
-                    sp = &SCNBUF(sc, sxi, syi); /* index source */
-                    dp = &SCNBUF(dc, dxi, dyi); /* index destination */
-                    /* move character contents */
-#ifdef ALLOWUTF8
-                    for (i = 0; i < 4; i++) dp->ch[i] = sp->ch[i];
-#else
-                    dp->ch = sp->ch;
-#endif
-                    /* copy colors and attributes */
-                    dp->forec = sp->forec;
-                    dp->backc = sp->backc;
-                    dp->attr = sp->attr;
-
-            }
-
-        } else { /* regular move/copy */
-
-            for (syi = sy1, dyi = dy; syi <= sy2; syi++, dyi++)
-                for (sxi = sx1, dxi = dx; sxi <= sx2; sxi++, dxi++) {
-     
-                    /* index source */
-                    sp = &SCNBUF(sc, sxi, syi); /* index source */
-                    dp = &SCNBUF(dc, dxi, dyi); /* index destination */
-                    /* move character contents */
-#ifdef ALLOWUTF8
-                    for (i = 0; i < 4; i++) dp->ch[i] = sp->ch[i];
-#else
-                    dp->ch = sp->ch;
-#endif
-                    /* copy colors and attributes */
-                    dp->forec = sp->forec;
-                    dp->backc = sp->backc;
-                    dp->attr = sp->attr;
-
-            }
-
-        }
-        /* check destination rectangle is in display */
-        if (indisp(dc)) {
-
-            /* copy the destination rectangle out to the display */
-            trm_curoff(); /* turn cursor off for display */
-            curon = FALSE;
-            for (dyi = dy; dyi <= dy2; dyi++) {
-
-                trm_cursor(dx, dyi); /* go next line */
-                for (dxi = dx; dxi <= dx2; dxi++) {
-     
-                    /* index source */
-                    dp = &SCNBUF(dc, dxi, dyi); /* index destination */
-                    /* move character contents */
-                    trm_fcolor(dp->forec); /* set the new color */
-                    trm_bcolor(dp->backc); /* set the new color */
-                    setattr(dc, dp->attr); /* set the new attribute */
-#ifdef ALLOWUTF8
-                    putnstr(dp->ch, 4); /* now output the actual character */
-#else
-                    putchr(dp->ch);
-#endif
-
-                }
-
-
-            }
-            /* restore cursor position */
-            trm_cursor(ncurx, ncury);
-            trm_fcolor(forec);   /* restore colors */
-            trm_bcolor(backc);   /* restore attributes */
-            setattr(sc, attr);
-            cursts(sc); /* re-enable cursor */
-
-        }
-
-    }
-
-}
-
-/** ****************************************************************************
-
 Override event handler
 
 Overrides or "hooks" the indicated event handler. The existing even handler is
@@ -4223,7 +4036,6 @@ static void pa_init_terminal()
     autohold_vect =        autohold_ivf;
     wrtstr_vect =          wrtstr_ivf;
     wrtstrn_vect =         wrtstrn_ivf;
-    blockcopy_vect =       blockcopy_ivf;
     eventover_vect =       eventover_ivf;
     eventsover_vect =      eventsover_ivf;
     sendevent_vect =       sendevent_ivf;
