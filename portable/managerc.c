@@ -1965,7 +1965,8 @@ static void intsendevent(winptr win, pa_evtrec* er)
     pa_evtrec ec; /* copy of event record */
 
     memcpy(&ec, er, sizeof(pa_evtrec));
-    ec.winid = win->wid; /* overwrite window id */
+    ec.winid = 0; /* set anonymous window id */
+    if (win) ec.winid = win->wid; /* overwrite window id */
     enquepaevt(&ec); /* send to queue */
 
 }
@@ -3795,6 +3796,7 @@ static void intevent(FILE* f)
     winptr    win;   /* windows record pointer */
     int       x, y;
 
+    win = NULL; /* set no window active */
     (*event_vect)(stdin, &ev); /* get root event */
 #ifdef PRTROOTEVT
         fprintf(stderr, "Inbound: "); prtevt(&ev); fprintf(stderr, "\n"); fflush(stderr);
