@@ -87,6 +87,7 @@
 #include <stdint.h>
 #include <limits.h>
 #include <signal.h>
+#include <pthread.h>
 #ifndef __MACH__ /* Mac OS X */
 #include <linux/joystick.h>
 #endif
@@ -503,17 +504,38 @@ static struct termios trmsav;
  */
 static int timtbl[PA_MAXTIM];
 
-/* screen contexts array */               static scnrec* screens[MAXCON];
-/* index for current display screen */    static int curdsp;
-/* index for current update screen */     static int curupd;
-/* array of event handler routines */     static pa_pevthan evthan[pa_etframe+1];
-/* single master event handler routine */ static pa_pevthan evtshan;
+static scnrec* screens[MAXCON];         /* screen contexts array */ 
+static int curdsp;                      /* index for current display screen */ 
+static int curupd;                      /* index for current update screen */ 
+static pa_pevthan evthan[pa_etframe+1]; /* array of event handler routines */ 
+static pa_pevthan evtshan;              /* single master event handler routine */
 
-/**
- * Key matching input buffer
+/*
+ * Input event parsing
  */
+
+/*
+ * Key matching input buffer.
+ *
+ * Note mouse also comes in as input keys.
+ */
+static pthread_mutex_t evtlock; /* lock for event tracking */
 static unsigned char keybuf[MAXKEY]; /* buffer */
 static int    keylen;      /* number of characters in buffer */
+/* current tracking states of mouse */
+static int    button1;     /* button 1 state: 0=assert, 1=deassert */
+static int    button2;     /* button 2 state: 0=assert, 1=deassert */
+static int    button3;     /* button 3 state: 0=assert, 1=deassert */
+static int    mpx;         /* mouse x/y current position */
+static int    mpy;
+/* new, incoming states of mouse */
+static int    nbutton1;    /* button 1 state: 0=assert, 1=deassert */
+static int    nbutton2;    /* button 2 state: 0=assert, 1=deassert */
+static int    nbutton3;    /* button 3 state: 0=assert, 1=deassert */
+static int    nmpx;        /* mouse x/y current position */
+static int    nmpy;
+/* end evtlock area */
+
 static int*   tabs;        /* tabs set */
 static int    dimx;        /* actual width of screen */
 static int    dimy;        /* actual height of screen */
@@ -530,32 +552,21 @@ static scnatt   attr;      /* current writing attribute */
 /* global scroll enable. This does not reflect the physical state, we never
    turn on automatic scroll. */
 static int    scroll;
-/* current tracking states of mouse */
-static int    button1;     /* button 1 state: 0=assert, 1=deassert */
-static int    button2;     /* button 2 state: 0=assert, 1=deassert */
-static int    button3;     /* button 3 state: 0=assert, 1=deassert */
-static int    mpx;         /* mouse x/y current position */
-static int    mpy;
-/* new, incoming states of mouse */
-static int    nbutton1;    /* button 1 state: 0=assert, 1=deassert */
-static int    nbutton2;    /* button 2 state: 0=assert, 1=deassert */
-static int    nbutton3;    /* button 3 state: 0=assert, 1=deassert */
-static int    nmpx;        /* mouse x/y current position */
-static int    nmpy;
+
 /* maximum power of 10 in integer */
 static int    maxpow10;
-static int    numjoy;      /* number of joysticks found */
-static int    joyenb;      /* enable joysticks */
-static int    frmfid;      /* framing timer fid */
-char          inpbuf[MAXLIN];  /* input line buffer */
-int           inpptr;          /* input line index */
+static int    numjoy;         /* number of joysticks found */
+static int    joyenb;         /* enable joysticks */
+static int    frmfid;         /* framing timer fid */
+char          inpbuf[MAXLIN]; /* input line buffer */
+int           inpptr;         /* input line index */
 static joyptr joytab[MAXJOY]; /* joystick control table */
-static int    dmpevt;      /* enable dump Petit-Ami messages */
-static int    inpsev;      /* keyboard input system event number */
-static int    frmsev;      /* frame timer system event number */
-static int    winchsev;    /* windows change system event number */
+static int    dmpevt;         /* enable dump Petit-Ami messages */
+static int    inpsev;         /* keyboard input system event number */
+static int    frmsev;         /* frame timer system event number */
+static int    winchsev;       /* windows change system event number */
 #ifdef ALLOWUTF8
-static int    utf8cnt;      /* UTF-8 extended character count */
+static int    utf8cnt;        /* UTF-8 extended character count */
 #endif
 
 /* forwards */
@@ -934,6 +945,7 @@ static void ievent(pa_evtrec* ev)
     int       bn;     /* mouse button number */
     int       ba;     /* mouse button assert */
 
+    pthread_mutex_lock(&evtlock); /* take the event lock */
     mousts = mnone; /* set no mouse event being processed */
     do { /* match input events */
 
@@ -1182,6 +1194,7 @@ static void ievent(pa_evtrec* ev)
 
     /* while substring match and no other event found, or buffer empty */
     } while (!evtfnd);
+    pthread_mutex_unlock(&evtlock); /* release the keyboard lock */
 
 }
 
@@ -4060,6 +4073,9 @@ static void pa_init_terminal()
     stdmenu_vect =         stdmenu_ivf;
     getwinid_vect =        getwinid_ivf;
     focus_vect =           focus_ivf;
+
+    /* initialize the event tracking lock */
+    pthread_mutex_init(&evtlock, NULL);
 
     /* turn off I/O buffering */
     setvbuf(stdin, NULL, _IONBF, 0);
