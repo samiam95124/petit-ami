@@ -1,0 +1,32 @@
+                          NOTES FOR MANAGERC LIBRARY
+                          
+********************************************************************************
+
+1. Its possible for the hover state to escape the root window. This would
+happen if the hover window was clipped to an edge of the root window and the
+mouse leaves from that clipped side, this would leave the hover enabled on that
+window.
+
+This is only a problem on windowed terminals, since a raw terminal won't be able
+to go "outside the window". Thus, like the buffer following issue, it is only a
+thing that occurs in a windowed system. Thus, like redraw, we can broadcast the
+hover and nohover messages from the root window to the manager.
+
+Xterm has a focus in/out escape code system for this. See:
+
+https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Graphics
+
+Unknown what Windows console mode can do.
+                                          
+2. Moving windows offscreen left leaves frame litter on the right side of the 
+clipped frame.
+
+3. The root window should be restricted against movement in Z, and no window is
+allows to move behind it. This is part of the compatibility system.
+
+4. Need to implement arbitrary clipping masks.
+
+5. Moving large windows across the screen shows "drag lag", or slow movement as
+the draw time causes the input queue to back up. This could be fixed by pulling
+in event queue entries and eliminating duplicate moves. To do this we would have
+to run a thread that continually transfers events to the managerc queue.
