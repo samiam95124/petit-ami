@@ -157,5 +157,16 @@ extern int  pa_dateorder(void);
 extern char pa_datesep(void);
 extern char pa_timesep(void);
 extern char pa_currchr(void);
+extern int pa_newthread(void *(*main)(void *));
+extern void pa_killthread(int tn);
+extern int pa_initlock(void);
+extern int pa_deinitlock(int ln);
+extern void pa_lock(int ln);
+extern void pa_unlock(int ln);
+extern int pa_initsig(void);
+extern int pa_deinitsig(int sn);
+extern void pa_signal(int sn);
+extern void pa_signalone(int sn);
+extern void pa_wait(int ln, int sn);
 
 #endif

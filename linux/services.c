@@ -67,6 +67,7 @@
 #include <stdlib.h>
 #include <dirent.h>
 #include <limits.h>
+#include <pthread.h>
 
 #ifdef __MACH__ /* Mac OS X */
 #include <mach-o/dyld.h>
@@ -119,8 +120,11 @@ extern char **environ;
 
 typedef char bufstr[MAXSTR]; /* standard string buffer */
 
-#define MAXARG 1000 /* maximum number of argv strings */
-#define MAXENV 10000 /* maximum number of environment strings */
+#define MAXARG    1000  /* maximum number of argv strings */
+#define MAXENV    10000 /* maximum number of environment strings */
+#define MAXTHREAD 100   /* maximum number of threads */
+#define MAXSEMA   100   /* maximum number of semaphores */
+#define MAXLOCK   100   /* maximum number of locks */
 
 static bufstr pthstr;   /* buffer for execution path */
 static bufstr langstr;  /* buffer for language country string (locale) */
@@ -129,6 +133,10 @@ static pa_envrec *envlst;   /* our environment list */
 
 static int language;    /* current language */
 static int country;     /* current country */
+
+static pthread_t*       threadtbl[MAXTHREAD]; /* thread table */
+static pthread_cond_t*  sematbl[MAXSEMA];     /* semaphore table */
+static pthread_mutex_t* locktbl[MAXLOCK];     /* lock table */
 
 /********************************************************************************
 
@@ -2918,6 +2926,306 @@ char pa_currchr(void)
 
 /** ****************************************************************************
 
+Start logical thread
+
+Start new thread. Expects a function to start as the new thread. A logical
+thread number is created from 1 to N, where N is the maximum number of threads
+supported. A new thread number is allocated and returned to the caller. The
+thread is created and executes at the given function. The thread will run until
+it returns from the called function or is killed.
+
+*******************************************************************************/
+
+int pa_newthread(void *(*threadmain)(void *))
+
+{
+
+    int i;
+    int r;
+
+    /* find free table entry */
+    i = 0;
+    while (threadtbl[i] && i < MAXTHREAD) i++;
+    if (threadtbl[i]) error("Thread table full");
+    /* allocate thread data block. This is long integer in Linux, but POSIX
+       says don't count on it */
+    threadtbl[i] = malloc(sizeof(pthread_t));
+    if (!threadtbl[i]) error("Out of memory");
+    /* start thread at specified function */
+    r = pthread_create(threadtbl[i], NULL, threadmain, NULL);
+    if (r) error(strerror(r));
+
+    return (i+1); /* return the thread logical id to caller */
+
+}
+
+/** ****************************************************************************
+
+Kill logical thread
+
+Stops the given thread by logical number and terminates the thread. Normally
+threads are terminated when the function called to start them exits. A thread
+can be terminated by another thread, or by the process that created it. A thread
+can also self-terminate.
+
+Normally a program arranges for the thread to self-terminate by sending it a
+signal or other means. The safest use of this call is to kill a thread that is
+in a loop forever.
+
+*******************************************************************************/
+
+void pa_killthread(int tn)
+
+{
+
+    int r;
+
+    if (tn < 1 || tn > MAXTHREAD) error("Invalid thread logical id");
+    if (!threadtbl[tn-1]) error("Thread by logical id is not active");
+    /* cancel the thread by force */
+    r = pthread_cancel(*threadtbl[tn-1]);
+    if (r) error(strerror(r));
+    free(threadtbl[tn-1]); /* free memory used by thread data */
+    threadtbl[tn-1] = NULL; /* flag entry free */
+
+}
+
+/** ****************************************************************************
+
+Create concurrency lock
+
+Creates a new concurrency lock and returns the logical id for it.
+
+*******************************************************************************/
+
+int pa_initlock(void)
+
+{
+
+    int i;
+    int r;
+
+    /* find free table entry */
+    i = 0;
+    while (locktbl[i] && i < MAXLOCK) i++;
+    if (locktbl[i]) error("Concurrency lock table full");
+    /* allocate lock data block */
+    locktbl[i] = malloc(sizeof(pthread_mutex_t));
+    if (!locktbl[i]) error("Out of memory");
+    /* initialize the lock */
+    r = pthread_mutex_init(locktbl[i], NULL);
+    if (r) error(strerror(r));
+
+    return (i+1); /* return the lock logical id to caller */
+
+}
+
+/** ****************************************************************************
+
+Destroy concurrency lock
+
+Releases a concurrency lock by logical id.
+
+*******************************************************************************/
+
+int pa_deinitlock(int ln)
+
+{
+
+    int r;
+
+    if (ln < 1 || ln > MAXLOCK) error("Invalid concurrency lock logical id");
+    if (!locktbl[ln-1]) error("Concurrency lock by logical id is not active");
+    r = pthread_mutex_destroy(locktbl[ln-1]); /* release the lock */
+    if (r) error(strerror(r));
+    free(locktbl[ln-1]); /* free lock data */
+    locktbl[ln-1] = NULL; /* flag entry free */
+
+}
+
+/** ****************************************************************************
+
+Lock concurrency
+
+The given lock by logical id is aquired. Generally fairlocking can be assumed,
+which means that for N waiters on the lock, they will be given the lock first
+come first served.
+
+*******************************************************************************/
+
+void pa_lock(int ln)
+
+{
+
+    int r;
+
+    if (ln < 1 || ln > MAXLOCK) error("Invalid concurrency lock logical id");
+    if (!locktbl[ln-1]) error("Concurrency lock by logical id is not active");
+    /* acquire lock */
+    r = pthread_mutex_lock(locktbl[ln]);
+    if (r) error(strerror(r));
+
+}
+
+/** ****************************************************************************
+
+Unlock concurrency
+
+The concurrency lock by logical id is released. The next thread queued for the
+lock and that is in a runnable state is set to run.
+
+*******************************************************************************/
+
+void pa_unlock(int ln)
+
+{
+
+    int r;
+
+    if (ln < 1 || ln > MAXLOCK) error("Invalid concurrency lock logical id");
+    if (!locktbl[ln-1]) error("Concurrency lock by logical id is not active");
+    /* release lock */
+    r = pthread_mutex_unlock(locktbl[ln]);
+    if (r) error(strerror(r));
+
+}
+
+/** ****************************************************************************
+
+Create concurrency signal
+
+Creates a new concurrency signal and returns the logical id for it.
+
+*******************************************************************************/
+
+int pa_initsig(void)
+
+{
+
+    int i;
+    int r;
+
+    /* find free table entry */
+    i = 0;
+    while (sematbl[i] && i < MAXSEMA) i++;
+    if (sematbl[i]) error("Semaphore table full");
+    /* allocate semaphore data block */
+    sematbl[i] = malloc(sizeof(pthread_cond_t));
+    if (!sematbl[i]) error("Out of memory");
+    /* initialize semaphore */
+    r = pthread_cond_init(sematbl[i], NULL);
+    if (r) error(strerror(r));
+
+    return (i+1); /* return the lock logical id to caller */
+
+}
+
+/** ****************************************************************************
+
+Destroy concurrency signal
+
+Releases a concurrency lock by logical id.
+
+*******************************************************************************/
+
+int pa_deinitsig(int sn)
+
+{
+
+    int r;
+
+    if (sn < 1 || sn > MAXSEMA) error("Semaphore logical id");
+    if (!sematbl[sn-1]) error("Semaphore by logical id is not active");
+    r = pthread_cond_destroy(sematbl[sn-1]); /* release the semaphore */
+    if (r) error(strerror(r));
+    free(sematbl[sn-1]); /* free semaphore data */
+    sematbl[sn-1] = NULL; /* flag entry free */
+
+}
+
+/** ****************************************************************************
+
+Signal event
+
+Flags an event to the given signal by logical id. Either all waiters on the
+signal or just one is set to run by a signal.
+
+*******************************************************************************/
+
+void pa_signal(int sn)
+
+{
+
+    int r;
+
+    if (sn < 1 || sn > MAXSEMA) error("Semaphore logical id");
+    if (!sematbl[sn-1]) error("Semaphore by logical id is not active");
+    /* signal single event waiter */
+    r = pthread_cond_broadcast(sematbl[sn-1]);
+    if (r) error(strerror(r));
+
+}
+
+/** ****************************************************************************
+
+Signal single event
+
+Flags an event to the given signal by logical id. Only one thread is signaled
+to run. This version of signal is used when only one waiter can use the
+event signaled.
+
+Note that it is possible for this call to be equivalent to pa_signal() on a
+given implementation. Thus programs should check if the signaled event is
+still active, and not just assume it.
+
+*******************************************************************************/
+
+void pa_signalone(int sn)
+
+{
+
+    int r;
+
+    if (sn < 1 || sn > MAXSEMA) error("Semaphore logical id");
+    if (!sematbl[sn-1]) error("Semaphore by logical id is not active");
+    /* signal single event waiter */
+    r = pthread_cond_signal(sematbl[sn-1]);
+    if (r) error(strerror(r));
+
+}
+
+/** ****************************************************************************
+
+Wait signal
+
+Wait for a given signal. wait() accepts a currency lock logical id, and a signal
+logical id. Releases the concurrency lock and waits for the given signal, then
+returns when the signal flags.
+
+The purpose of accepting a lock number is that it is released and the signal is
+checked atomically. This means other threads that are not signaling will not
+run, and thus the wait and signal operations are synchronized together.
+
+*******************************************************************************/
+
+void pa_wait(int ln, int sn)
+
+{
+
+    int r;
+
+    if (ln < 1 || ln > MAXLOCK) error("Invalid concurrency lock logical id");
+    if (!locktbl[ln-1]) error("Concurrency lock by logical id is not active");
+    if (sn < 1 || sn > MAXSEMA) error("Semaphore logical id");
+    if (!sematbl[sn-1]) error("Semaphore by logical id is not active");
+    /* wait on signal with lock release */
+    r = pthread_cond_wait(sematbl[sn-1], locktbl[sn-1]);
+    if (r) error(strerror(r));
+
+}
+
+/** ****************************************************************************
+
 Initialize services
 
 We initialize all variables and tables.
@@ -2945,7 +3253,7 @@ static void pa_init_services()
     pa_envrec*  p1;
     char*       cp;
     int         l;
-
+    int         i;
 
     /* Copy environment to local */
     envlst = NULL;   /* clear environment strings */
@@ -3005,35 +3313,44 @@ static void pa_init_services()
        or does not contain valid contents, we fall back to defaults above.
      */
 
-     if (strlen(langstr) >= 6 && langstr[2] == '_' && langstr[5] == '.')
+    if (strlen(langstr) >= 6 && langstr[2] == '_' && langstr[5] == '.') {
 
-         /* search language */
-         lp = langtab;
-         while (lp && lp->langnum) {
+        /* search language */
+        lp = langtab;
+        while (lp && lp->langnum) {
 
-             if (!strncmp(langstr, lp->langnamea2c, 2)) {
+            if (!strncmp(langstr, lp->langnamea2c, 2)) {
 
-                 language = lp->langnum;
-                 lp = 0;
+                language = lp->langnum;
+                lp = 0;
 
-             } else lp++;
+            } else lp++;
 
-         }
+        }
 
-         /* search country */
-         ctp = countrytab;
-         while (ctp && ctp->countrynum) {
+        /* search country */
+        ctp = countrytab;
+        while (ctp && ctp->countrynum) {
 
-             if (!strncmp(&langstr[3], ctp->countrya2c, 2)) {
+            if (!strncmp(&langstr[3], ctp->countrya2c, 2)) {
 
-                 country = ctp->countrynum;
-                 ctp = 0;
+                country = ctp->countrynum;
+                ctp = 0;
 
-             } else ctp++;
+            } else ctp++;
 
-         }
+        }
 
+    }
 
+    /* clear thread table */
+    for (i = 0; i < MAXTHREAD; i++) threadtbl[i] = NULL;
+
+    /* clear semaphore table */
+    for (i = 0; i < MAXSEMA; i++) sematbl[i] = NULL;
+
+    /* clear lock table */
+    for (i = 0; i < MAXLOCK; i++) locktbl[i] = NULL;
 
 }
 
