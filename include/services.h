@@ -163,10 +163,10 @@ extern int pa_initlock(void);
 extern int pa_deinitlock(int ln);
 extern void pa_lock(int ln);
 extern void pa_unlock(int ln);
-extern int pa_initsig(void);
+extern int pa_initsignal(void);
 extern int pa_deinitsig(int sn);
-extern void pa_signal(int sn);
-extern void pa_signalone(int sn);
-extern void pa_wait(int ln, int sn);
+extern void pa_sendsig(int sn);
+extern void pa_sendsigone(int sn);
+extern void pa_waitsig(int ln, int sn);
 
 #endif

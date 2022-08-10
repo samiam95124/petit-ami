@@ -2630,7 +2630,7 @@ static langety langtab[] = {
     { 51,  "Georgian",                                            "ka" },
     { 52,  "German",                                              "de" },
     { 53,  "Greek (modern)",                                      "el" },
-    { 54,  "Guaraní",                                             "gn" },
+    { 54,  "Guarana",                                             "gn" },
     { 55,  "Gujarati",                                            "gu" },
     { 56,  "Haitian, Haitian Creole",                             "ht" },
     { 57,  "Hausa",                                               "ha" },
@@ -2680,8 +2680,8 @@ static langety langtab[] = {
     { 101, "Malay",                                               "ms" },
     { 102, "Malayalam",                                           "ml" },
     { 103, "Maltese",                                             "mt" },
-    { 104, "Māori",                                               "mi" },
-    { 105, "Marathi (Marāṭhī)",                                   "mr" },
+    { 104, "Maori",                                               "mi" },
+    { 105, "Marathi",                                             "mr" },
     { 106, "Marshallese",                                         "mh" },
     { 107, "Mongolian",                                           "mn" },
     { 108, "Nauruan",                                             "na" },
@@ -2689,7 +2689,7 @@ static langety langtab[] = {
     { 110, "Northern Ndebele",                                    "nd" },
     { 111, "Nepali",                                              "ne" },
     { 112, "Ndonga",                                              "ng" },
-    { 113, "Norwegian Bokmål",                                    "nb" },
+    { 113, "Norwegian Bokmal",                                    "nb" },
     { 114, "Norwegian Nynorsk",                                   "nn" },
     { 115, "Norwegian",                                           "no" },
     { 116, "Nuosu",                                               "ii" },
@@ -2701,7 +2701,7 @@ static langety langtab[] = {
     { 122, "Oriya",                                               "or" },
     { 123, "Ossetian, Ossetic",                                   "os" },
     { 124, "(Eastern) Punjabi",                                   "pa" },
-    { 125, "Pāli",                                                "pi" },
+    { 125, "P�li",                                                "pi" },
     { 126, "Persian (Farsi)",                                     "fa" },
     { 127, "Polish",                                              "pl" },
     { 128, "Pashto, Pushto",                                      "ps" },
@@ -2711,7 +2711,7 @@ static langety langtab[] = {
     { 132, "Kirundi",                                             "rn" },
     { 133, "Romanian",                                            "ro" },
     { 134, "Russian",                                             "ru" },
-    { 135, "Sanskrit (Saṁskṛta)",                                 "sa" },
+    { 135, "Sanskrit",                                            "sa" },
     { 136, "Sardinian",                                           "sc" },
     { 137, "Sindhi",                                              "sd" },
     { 138, "Northern Sami",                                       "se" },
@@ -2751,7 +2751,7 @@ static langety langtab[] = {
     { 172, "Uzbek",                                               "uz" },
     { 173, "Venda",                                               "ve" },
     { 174, "Vietnamese",                                          "vi" },
-    { 175, "Volapük",                                             "vo" },
+    { 175, "Volapak",                                             "vo" },
     { 176, "Walloon",                                             "wa" },
     { 177, "Welsh",                                               "cy" },
     { 178, "Wolof",                                               "wo" },
@@ -2964,7 +2964,7 @@ int pa_newthread(void *(*threadmain)(void *))
 Kill logical thread
 
 Stops the given thread by logical number and terminates the thread. Normally
-threads are terminated when the function called to start them exits. A thread
+threads are terminated when the function called to start then exits. A thread
 can be terminated by another thread, or by the process that created it. A thread
 can also self-terminate.
 
@@ -3152,7 +3152,7 @@ signal or just one is set to run by a signal.
 
 *******************************************************************************/
 
-void pa_signal(int sn)
+void pa_sendsig(int sn)
 
 {
 
@@ -3180,7 +3180,7 @@ still active, and not just assume it.
 
 *******************************************************************************/
 
-void pa_signalone(int sn)
+void pa_sendsigone(int sn)
 
 {
 
@@ -3208,7 +3208,7 @@ run, and thus the wait and signal operations are synchronized together.
 
 *******************************************************************************/
 
-void pa_wait(int ln, int sn)
+void pa_waitsig(int ln, int sn)
 
 {
 
