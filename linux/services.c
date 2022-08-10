@@ -2701,7 +2701,7 @@ static langety langtab[] = {
     { 122, "Oriya",                                               "or" },
     { 123, "Ossetian, Ossetic",                                   "os" },
     { 124, "(Eastern) Punjabi",                                   "pa" },
-    { 125, "PÄli",                                                "pi" },
+    { 125, "Pali",                                                "pi" },
     { 126, "Persian (Farsi)",                                     "fa" },
     { 127, "Polish",                                              "pl" },
     { 128, "Pashto, Pushto",                                      "ps" },
@@ -2751,7 +2751,7 @@ static langety langtab[] = {
     { 172, "Uzbek",                                               "uz" },
     { 173, "Venda",                                               "ve" },
     { 174, "Vietnamese",                                          "vi" },
-    { 175, "Volapak",                                             "vo" },
+    { 175, "Volapuk",                                             "vo" },
     { 176, "Walloon",                                             "wa" },
     { 177, "Welsh",                                               "cy" },
     { 178, "Wolof",                                               "wo" },
@@ -2936,15 +2936,28 @@ it returns from the called function or is killed.
 
 *******************************************************************************/
 
-int pa_newthread(void *(*threadmain)(void *))
+static void* dummystart(void *function)
+
+{
+
+    void (*fp)(void) = function;
+
+    fp();
+
+    return (NULL);
+
+}
+
+int pa_newthread(void (*threadmain)(void))
 
 {
 
     int i;
     int r;
 
-    /* find free table entry */
-    i = 0;
+    /* Find free table entry. Note that we reserve thread 1 as the thread for
+       the process. This has no use at the moment. */
+    i = 1;
     while (threadtbl[i] && i < MAXTHREAD) i++;
     if (threadtbl[i]) error("Thread table full");
     /* allocate thread data block. This is long integer in Linux, but POSIX
@@ -2952,7 +2965,8 @@ int pa_newthread(void *(*threadmain)(void *))
     threadtbl[i] = malloc(sizeof(pthread_t));
     if (!threadtbl[i]) error("Out of memory");
     /* start thread at specified function */
-    r = pthread_create(threadtbl[i], NULL, threadmain, NULL);
+    //r = pthread_create(threadtbl[i], NULL, void *(*start_routine)(void *)threadmain, NULL);
+    r = pthread_create(threadtbl[i], NULL, dummystart, threadmain);
     if (r) error(strerror(r));
 
     return (i+1); /* return the thread logical id to caller */
@@ -3062,7 +3076,7 @@ void pa_lock(int ln)
     if (ln < 1 || ln > MAXLOCK) error("Invalid concurrency lock logical id");
     if (!locktbl[ln-1]) error("Concurrency lock by logical id is not active");
     /* acquire lock */
-    r = pthread_mutex_lock(locktbl[ln]);
+    r = pthread_mutex_lock(locktbl[ln-1]);
     if (r) error(strerror(r));
 
 }
@@ -3085,7 +3099,7 @@ void pa_unlock(int ln)
     if (ln < 1 || ln > MAXLOCK) error("Invalid concurrency lock logical id");
     if (!locktbl[ln-1]) error("Concurrency lock by logical id is not active");
     /* release lock */
-    r = pthread_mutex_unlock(locktbl[ln]);
+    r = pthread_mutex_unlock(locktbl[ln-1]);
     if (r) error(strerror(r));
 
 }
