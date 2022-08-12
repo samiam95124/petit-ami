@@ -81,7 +81,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /* local definitions */
 #include <localdefs.h>
 #include <config.h>
-#include <services.h>
 #include <graphics.h>
 
 /* external definitions */
@@ -494,9 +493,6 @@ static pa_pevthan evthan[pa_ettabbar+1]; /* array of event handler routines */
 static pa_pevthan evtshan;        /* single master event handler routine */
 static paevtque*  paqfre;         /* free PA event queue entries list */
 static paevtque*  paqevt;         /* PA event input save queue */
-static int        eventthread;    /* thread handle for event thread */
-static int        evtlck;         /* event queue lock */
-static int        evtquene;       /* semaphore: event queue not empty */
 
 /* forwards */
 static void plcchr(FILE* f, char c);
@@ -1049,8 +1045,6 @@ Get freed/new PA queue entry
 
 Either gets a new entry from malloc or returns a previously freed entry.
 
-Note: This routine should be called within the event queue lock.
-
 *******************************************************************************/
 
 static paevtque* getpaevt(void)
@@ -1075,8 +1069,6 @@ static paevtque* getpaevt(void)
 Get freed/new PA queue entry
 
 Either gets a new entry from malloc or returns a previously freed entry.
-
-Note: This routine should be called within the event queue lock.
 
 *******************************************************************************/
 
@@ -1103,7 +1095,6 @@ static void prtquepaevt(void)
 
     paevtque* p;
 
-    pa_lock(evtlck); /* lock event queue */
     p = paqevt; /* index root entry */
     while (p) {
 
@@ -1113,7 +1104,6 @@ static void prtquepaevt(void)
         if (p == paqevt) p = NULL; /* end of queue, terminate */
 
     }
-    pa_unlock(evtlck); /* release event queue */
 
 }
 
@@ -1129,7 +1119,6 @@ static void enquepaevt(pa_evtrec* e)
 
     paevtque* p;
 
-    pa_lock(evtlck); /* lock event queue */
     p = getpaevt(); /* get a queue entry */
     memcpy(&p->evt, e, sizeof(pa_evtrec)); /* copy event to queue entry */
     if (paqevt) { /* there are entries in queue */
@@ -1146,10 +1135,8 @@ static void enquepaevt(pa_evtrec* e)
         p->next = p; /* link to self */
         p->last = p;
         paqevt = p; /* place in list */
-        pa_sendsigone(evtquene); /* signal event queue not empty */
 
     }
-    pa_unlock(evtlck); /* release event queue */
 
 }
 
@@ -1165,9 +1152,7 @@ static void dequepaevt(pa_evtrec* e)
 
     paevtque* p;
 
-    pa_lock(evtlck); /* lock event queue */
-    /* if queue is empty, wait for not empty event */
-    while (!paqevt) pa_waitsig(evtlck, evtquene);
+    if (!paqevt) error("System fault"); /* should not be called empty */
     /* we push TO next (current) and take FROM last (final) */
     p = paqevt->last; /* index final entry */
     if (p->next == p) paqevt = NULL; /* only one entry, clear list */
@@ -1179,7 +1164,6 @@ static void dequepaevt(pa_evtrec* e)
     }
     memcpy(e, &p->evt, sizeof(pa_evtrec)); /* copy out to caller */
     putpaevt(p); /* release queue entry to free */
-    pa_unlock(evtlck); /* release event queue */
 
 }
 
@@ -4194,6 +4178,8 @@ static void ievent(FILE* f, pa_evtrec* er)
 
     do { /* loop handling via event vectors and queuing */
 
+        /* check input PA queue */
+        while (!paqevt) intevent(f); /* get next event */
         dequepaevt(er); /* get next queued event */
 #ifdef PRTEVT
         fprintf(stderr, "Outbound: "); prtevt(er); fprintf(stderr, "\n"); fflush(stderr);
@@ -4209,28 +4195,6 @@ static void ievent(FILE* f, pa_evtrec* er)
 
     } while (er->handled);
     /* event not handled, return it to the caller */
-
-}
-
-/** ****************************************************************************
-
-Event input thread
-
-This thread runs continuously and gets events from the lower level, then spools
-them into the input queue. This allows the input queue to run ahead of the
-client program.
-
-*******************************************************************************/
-
-static void eventtask(void)
-
-{
-
-    while (1) { /* run continuously */
-
-        intevent(stdin); /* get and spool input event */
-
-    }
 
 }
 
@@ -5765,7 +5729,7 @@ static off_t ilseek(int fd, off_t offset, int whence)
 
 /** ****************************************************************************
 
-Managerc startup
+Widgets startup
 
 *******************************************************************************/
 
@@ -5930,15 +5894,6 @@ static void init_managerc()
     mousex = -1;
     mousey = -1;
 
-    /* get event queue lock */
-    evtlck = pa_initlock();
-
-    /* get event queue not empty semaphore */
-    evtquene = pa_initsig();
-
-    /* start input events thread */
-    eventthread = pa_newthread(eventtask);
-
     /* open stdin and stdout as I/O window set */
     ifn = fileno(stdin); /* get logical id stdin */
     ofn = fileno(stdout); /* get logical id stdout */
@@ -5948,7 +5903,7 @@ static void init_managerc()
 
 /** ****************************************************************************
 
-Managerc shutdown
+Widgets shutdown
 
 *******************************************************************************/
 
@@ -6038,9 +5993,6 @@ static void deinit_managerc()
     pa_stdmenu_t cppstdmenu;
     pa_getwinid_t cppgetwinid;
     pa_focus_t cppfocus;
-
-    /* shut down event thread */
-    pa_killthread(eventthread);
 
     /* If autohold is active and and a local end was ordered, disable autohold
        in the root. Note the root also could have ordered an exit. */
