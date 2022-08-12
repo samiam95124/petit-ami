@@ -252,6 +252,15 @@ typedef struct joyrec {
 
 } joyrec;
 
+/* PA queue structure. Its a bubble list. */
+typedef struct paevtque {
+
+    struct paevtque* next; /* next in list */
+    struct paevtque* last; /* last in list */
+    pa_evtrec       evt;  /* event data */
+
+} paevtque;
+
 /** Error codes this module */
 typedef enum {
 
@@ -569,6 +578,15 @@ static int    winchsev;       /* windows change system event number */
 static int    utf8cnt;        /* UTF-8 extended character count */
 #endif
 
+static paevtque*       paqfre;      /* free PA event queue entries list */
+static paevtque*       paqevt;      /* PA event input save queue */
+static pthread_t       eventthread; /* thread handle for event thread */
+static pthread_mutex_t evtlck;      /* event queue lock */
+static pthread_cond_t  evtquene;    /* semaphore: event queue not empty */
+static int             evtquecnt;   /* number of entries in event queue */
+static int             evtquemax;   /* high water mark for event queue */
+static int             matrem;      /* matching entries removed */
+
 /* forwards */
 static void restore(scnptr sc);
 
@@ -632,6 +650,24 @@ static void error(errcod e)
 
 }
 
+/** ****************************************************************************
+
+Print Linux error
+
+Accepts a linux error code. Prints the error string and exits.
+
+*******************************************************************************/
+
+void linuxerror(int ec)
+
+{
+
+    fprintf(stderr, "Linux error: %s\n", strerror(ec)); fflush(stderr);
+
+    exit(1);
+
+}
+
 /******************************************************************************
 
 Print event symbol
@@ -640,7 +676,7 @@ A diagnostic, print the given event code as a symbol to the error file.
 
 ******************************************************************************/
 
-void prtevt(pa_evtcod e)
+void prtevtt(pa_evtcod e)
 
 {
 
@@ -696,6 +732,51 @@ void prtevt(pa_evtcod e)
         case pa_etframe:   fprintf(stderr, "etframe"); break;
 
         default: fprintf(stderr, "???");
+
+    }
+
+}
+
+/** ***************************************************************************
+
+Print Petit-Ami event diagnostic
+
+Prints a decoded version of PA events on one line, including paraemters. Only
+prints if the dump PA event flag is true. Does not terminate the line.
+
+Note: does not output a debugging preamble. If that is required, print it
+before calling this routine.
+
+******************************************************************************/
+
+static void prtevt(
+    /** Event record */ pa_evtptr er
+)
+
+{
+
+    fprintf(stderr, "PA Event: ");
+    prtevtt(er->etype);
+    switch (er->etype) {
+
+        case pa_etchar: fprintf(stderr, ": char: %c", er->echar); break;
+        case pa_ettim: fprintf(stderr, ": timer: %d", er->timnum); break;
+        case pa_etmoumov: fprintf(stderr, ": mouse: %d x: %4d y: %4d",
+                                  er->mmoun, er->moupx, er->moupy); break;
+        case pa_etmouba: fprintf(stderr, ": mouse: %d button: %d",
+                                 er->amoun, er->amoubn); break;
+        case pa_etmoubd: fprintf(stderr, ": mouse: %d button: %d",
+                                 er->dmoun, er->dmoubn); break;
+        case pa_etjoyba: fprintf(stderr, ": joystick: %d button: %d",
+                                 er->ajoyn, er->ajoybn); break;
+        case pa_etjoybd: fprintf(stderr, ": joystick: %d button: %d",
+                                 er->djoyn, er->djoybn); break;
+        case pa_etjoymov: fprintf(stderr, ": joystick: %d x: %4d y: %4d z: %4d "
+                                  "a4: %4d a5: %4d a6: %4d", er->mjoyn,
+                                  er->joypx, er->joypy, er->joypz,
+                                  er->joyp4, er->joyp5, er->joyp6); break;
+        case pa_etfun: fprintf(stderr, ": key: %d", er->fkey); break;
+        default: ;
 
     }
 
@@ -848,6 +929,212 @@ static void wrtint(int i)
 
 }
 
+/** ****************************************************************************
+
+Get freed/new PA queue entry
+
+Either gets a new entry from malloc or returns a previously freed entry.
+
+Note: This routine should be called within the event queue lock.
+
+*******************************************************************************/
+
+static paevtque* getpaevt(void)
+
+{
+
+    paevtque* p;
+
+    if (paqfre) { /* there is a freed entry */
+
+        p = paqfre; /* index top entry */
+        paqfre = p->next; /* gap from list */
+
+    } else p = (paevtque*)malloc(sizeof(paevtque));
+
+    return (p);
+
+}
+
+/** ****************************************************************************
+
+Get freed/new PA queue entry
+
+Either gets a new entry from malloc or returns a previously freed entry.
+
+Note: This routine should be called within the event queue lock.
+
+*******************************************************************************/
+
+static void putpaevt(paevtque* p)
+
+{
+
+    p->next = paqfre; /* push to list */
+    paqfre = p;
+
+}
+
+/** ****************************************************************************
+
+Print contents of PA queue
+
+A diagnostic, prints the contents of the PA queue.
+
+*******************************************************************************/
+
+static void prtquepaevt(void)
+
+{
+
+    paevtque* p;
+    int       r;
+
+    r = pthread_mutex_lock(&evtlck); /* lock event queue */
+    if (r) linuxerror(r);
+    p = paqevt; /* index root entry */
+    while (p) {
+
+        prtevt(&p->evt); /* print this entry */
+        fprintf(stderr, "\n"); fflush(stderr);
+        p = p->next; /* link next */
+        if (p == paqevt) p = NULL; /* end of queue, terminate */
+
+    }
+    r = pthread_mutex_unlock(&evtlck); /* release event queue */
+    if (r) linuxerror(r);
+
+}
+
+/** ****************************************************************************
+
+Remove queue duplicates
+
+Removes any entries in the current queue that would be made redundant by the new
+queue entry. Right now this consists only of mouse movements.
+
+*******************************************************************************/
+
+void remdupque(pa_evtrec* e)
+
+{
+
+    paevtque* p;
+
+    if (paqevt) { /* the queue has content */
+
+        p = paqevt; /* index first queue entry */
+        do { /* run around the bubble */
+
+            if (e->etype == pa_etmoumov && p->evt.etype == pa_etmoumov &&
+                e->mmoun == p->evt.mmoun) {
+
+                /* matching entry, remove */
+                matrem++; /* count */
+                if (p->next == p) {
+
+                    paqevt = NULL; /* only one entry, clear list */
+                    p = NULL; /* set no next entry */
+
+                } else { /* other entries */
+
+                    p->last->next = p->next; /* point last at current */
+                    p->next->last = p->last; /* point current at last */
+                    p = p->next; /* go next entry */
+
+                }
+
+            } else p = p->next; /* go next queue entry */
+
+        } while (p && p->next != paqevt); /* not back at beginning */
+
+    }
+
+}
+
+/** ****************************************************************************
+
+Place PA event into input queue
+
+*******************************************************************************/
+
+static void enquepaevt(pa_evtrec* e)
+
+{
+
+    paevtque* p;
+    int       r;
+
+    r = pthread_mutex_lock(&evtlck); /* lock event queue */
+    if (r) linuxerror(r);
+    remdupque(e); /* remove any duplicates */
+    p = getpaevt(); /* get a queue entry */
+    memcpy(&p->evt, e, sizeof(pa_evtrec)); /* copy event to queue entry */
+    if (paqevt) { /* there are entries in queue */
+
+        /* we push TO next (current) and take FROM last (final) */
+        p->next = paqevt; /* link next to current entry */
+        p->last = paqevt->last; /* link last to final entry */
+        paqevt->last = p; /* link current to this */
+        p->last->next = p; /* link final to this */
+        paqevt = p; /* point to new entry */
+
+    } else { /* queue is empty */
+
+        p->next = p; /* link to self */
+        p->last = p;
+        paqevt = p; /* place in list */
+        r = pthread_cond_signal(&evtquene);
+        if (r) linuxerror(r);
+
+    }
+    evtquecnt++; /* count entries in queue */
+    /* set new high water mark */
+    if (evtquecnt > evtquemax) evtquemax = evtquecnt;
+    r = pthread_mutex_unlock(&evtlck); /* release event queue */
+    if (r) linuxerror(r);
+
+}
+
+/** ****************************************************************************
+
+Remove PA event from input queue
+
+*******************************************************************************/
+
+static void dequepaevt(pa_evtrec* e)
+
+{
+
+    paevtque* p;
+    int       r;
+
+    r = pthread_mutex_lock(&evtlck); /* lock event queue */
+    if (r) linuxerror(r);
+    /* if queue is empty, wait for not empty event */
+    while (!paqevt) {
+
+        r = pthread_cond_wait(&evtquene, &evtlck);
+        if (r) linuxerror(r);
+
+    }
+    /* we push TO next (current) and take FROM last (final) */
+    p = paqevt->last; /* index final entry */
+    if (p->next == p) paqevt = NULL; /* only one entry, clear list */
+    else { /* other entries */
+
+        p->last->next = p->next; /* point last at current */
+        p->next->last = p->last; /* point current at last */
+
+    }
+    memcpy(e, &p->evt, sizeof(pa_evtrec)); /* copy out to caller */
+    putpaevt(p); /* release queue entry to free */
+    evtquecnt--; /* count entries in queue */
+    r = pthread_mutex_unlock(&evtlck); /* release event queue */
+    if (r) linuxerror(r);
+
+}
+
 /** *****************************************************************************
 
 Get keyboard code control match or other event
@@ -945,7 +1232,6 @@ static void ievent(pa_evtrec* ev)
     int       bn;     /* mouse button number */
     int       ba;     /* mouse button assert */
 
-    pthread_mutex_lock(&evtlock); /* take the event lock */
     mousts = mnone; /* set no mouse event being processed */
     do { /* match input events */
 
@@ -1194,7 +1480,33 @@ static void ievent(pa_evtrec* ev)
 
     /* while substring match and no other event found, or buffer empty */
     } while (!evtfnd);
-    pthread_mutex_unlock(&evtlock); /* release the keyboard lock */
+
+}
+
+/** ****************************************************************************
+
+Event input thread
+
+This thread runs continuously and gets events from the lower level, then spools
+them into the input queue. This allows the input queue to run ahead of the
+client program.
+
+*******************************************************************************/
+
+static void* eventtask(void* param)
+
+{
+
+    pa_evtrec er; /* event record */
+
+    while (1) { /* run continuously */
+
+        ievent(&er); /* get next event */
+        enquepaevt(&er); /* send to queue */
+
+    }
+
+    return (NULL);
 
 }
 
@@ -3386,7 +3698,7 @@ static void event_ivf(FILE* f, pa_evtrec *er)
     do { /* loop handling via event vectors */
 
         /* get next input event */
-        ievent(er);
+        dequepaevt(er); /* get next queued event */
         er->handled = 1; /* set event is handled by default */
         (evtshan)(er); /* call master event handler */
         if (!er->handled) { /* send it to fanout */
@@ -3402,8 +3714,7 @@ static void event_ivf(FILE* f, pa_evtrec *er)
     /* do diagnostic dump of PA events */
     if (dmpevt) {
 
-        dbg_printf(dlinfo, "PA Event: %5d Window: %d ", ecnt++, er->winid);
-        prtevt(er->etype); fprintf(stderr, "\n"); fflush(stderr);
+        prtevtt(er->etype); fprintf(stderr, "\n"); fflush(stderr);
 
     }
 
@@ -4003,6 +4314,7 @@ static void pa_init_terminal()
     /** joystick file id */            int            joyfid;
     /** joystick device name */        char           joyfil[] = "/dev/input/js0";
     /** joystick parameter read */     char           jc;
+    /** Linux return value */          int            r;
 
     /* set override vectors to defaults */
     cursor_vect =          cursor_ivf;
@@ -4074,9 +4386,6 @@ static void pa_init_terminal()
     getwinid_vect =        getwinid_ivf;
     focus_vect =           focus_ivf;
 
-    /* initialize the event tracking lock */
-    pthread_mutex_init(&evtlock, NULL);
-
     /* turn off I/O buffering */
     setvbuf(stdin, NULL, _IONBF, 0);
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -4092,7 +4401,7 @@ static void pa_init_terminal()
 //    ovr_unlink(iunlink, &ofpunlink);
     ovr_lseek(ilseek, &ofplseek);
 
-    dmpevt    = DMPEVT;    /* dump Petit-Ami messages */
+    dmpevt  = DMPEVT;    /* dump Petit-Ami messages */
 
     /* set default screen geometry */
     dimx = DEFXD;
@@ -4121,6 +4430,11 @@ static void pa_init_terminal()
 #ifdef ALLOWUTF8
     utf8cnt = 0; /* clear utf-8 character count */
 #endif
+    paqfre    = NULL;  /* clear pa event free queue */
+    paqevt    = NULL;  /* clear pa event input queue */
+    evtquecnt = 0;     /* clear event queue counter */
+    evtquemax = 0;     /* clear event queue max */
+    matrem    = 0;     /* set no duplicate removal */
 
     /* clear event vector table */
     evtshan = defaultevent;
@@ -4230,6 +4544,18 @@ static void pa_init_terminal()
 
     /* restore terminal state after flushing */
     tcsetattr(0,TCSAFLUSH,&raw);
+
+    /* initialize the event tracking lock */
+    r = pthread_mutex_init(&evtlock, NULL);
+    if (r) linuxerror(r);
+
+    /* initialize queue not empty semaphore */
+    r = pthread_cond_init(&evtquene, NULL);
+    if (r) linuxerror(r);
+
+    /* start event thread */
+    r = pthread_create(&eventthread, NULL, eventtask, NULL);
+    if (r) linuxerror(r); /* error, print and exit */
 
 }
 
