@@ -383,6 +383,7 @@ typedef struct winrec {
     int      zorder;            /* Z ordering of window, 0 = bottom, N = top */
     int      timers[PA_MAXTIM]; /* timer id array */
     int      frmtim;            /* frame timer */
+    pa_color frmcolor;          /* frame color */
 
 } winrec;
 
@@ -493,6 +494,7 @@ static pa_pevthan evthan[pa_ettabbar+1]; /* array of event handler routines */
 static pa_pevthan evtshan;        /* single master event handler routine */
 static paevtque*  paqfre;         /* free PA event queue entries list */
 static paevtque*  paqevt;         /* PA event input save queue */
+static int        dimx, dimy;     /* terminal/root dimensions */
 
 /* forwards */
 static void plcchr(FILE* f, char c);
@@ -1575,6 +1577,7 @@ static void drwfrm(winptr win, rectangle* cr)
 
     if (win->frame) { /* draw window frame */
 
+        (*fcolor_vect)(stdout, win->frmcolor);
         if (win->size) { /* draw size bars */
 
             /* draw top and bottom */
@@ -1684,6 +1687,7 @@ static void drwfrm(winptr win, rectangle* cr)
             else wrtextclp(frmchrs[intrgt], cr);
 
         }
+        (*fcolor_vect)(stdout, fcolor);
 
     }
 
@@ -1734,6 +1738,27 @@ static void setcur(winptr win)
         } else setcurvis(FALSE); /* set cursor off */
 
     }
+
+}
+
+/** ****************************************************************************
+
+Clip to root surface
+
+Clips the given rectangle to the terminal root surface. The rectangle must be
+regular.
+
+*******************************************************************************/
+
+static void cliproot(rectangle* r)
+
+{
+
+    if (r->x1 < 1) r->x1 = 1;
+    if (r->x2 > dimx) r->x2 = dimx;
+
+    if (r->y1 < 1) r->y1 = 1;
+    if (r->y2 > dimy) r->y2 = dimy;
 
 }
 
@@ -1853,7 +1878,9 @@ static void redraw(winptr win, int x1, int y1, int x2, int y2)
 
     if (win) { /* if window exists */
 
+
         setrect(&r1, x1, y1, x2, y2); /* set update rectangle */
+        cliproot(&r1); /* clip to terminal root window */
         /* set window rectangle */
         setrect(&r2, win->orgx, win->orgy,
                     win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
@@ -2514,8 +2541,8 @@ static void opnwin(int fn, int pfn, int wid, int subclient, int root)
     }
 
     /* set up global buffer parameters */
-    win->pmaxx = (*maxx_vect)(stdout); /* character max dimensions */
-    win->pmaxy = (*maxy_vect)(stdout);
+    win->pmaxx = dimx; /* character max dimensions */
+    win->pmaxy = dimy;
     win->maxx = win->pmaxx; /* copy to client dimensions */
     win->maxy = win->pmaxy;
     /* subtract frame from client if enabled */
@@ -2529,6 +2556,7 @@ static void opnwin(int fn, int pfn, int wid, int subclient, int root)
     win->autof = TRUE; /* auto on */
     win->fcolor = pa_black; /*foreground black */
     win->bcolor = pa_white; /* background white */
+    win->frmcolor = pa_blue; /* frame color blue */
     win->curv = TRUE; /* cursor visible */
     win->orgx = 1;  /* set origin to root */
     win->orgy = 1;
@@ -5088,8 +5116,8 @@ static void iscnsiz(FILE* f, int* x, int* y)
     winptr win; /* windows record pointer */
 
     win = txt2win(f); /* get window from file */
-    *x = (*maxx_vect)(stdout); /* return parent size */
-    *y = (*maxy_vect)(stdout);
+    *x = dimx; /* return parent size */
+    *y = dimy;
 
 }
 
@@ -5114,8 +5142,8 @@ static void iscncen(FILE* f, int* x, int* y)
     winptr win; /* windows record pointer */
 
     win = txt2win(f); /* get window from file */
-    *x = (*maxx_vect)(stdout)/2; /* return parent size/2 */
-    *y = (*maxy_vect)(stdout)/2;
+    *x = dimx/2; /* return parent size/2 */
+    *y = dimy/2;
 
 }
 
@@ -5860,6 +5888,10 @@ static void init_managerc()
     _pa_stdmenu_ovr(istdmenu, &stdmenu_vect);
     _pa_getwinid_ovr(igetwinid, &getwinid_vect);
     _pa_focus_ovr(ifocus, &focus_vect);
+
+    /* find dimensions of base screen */
+    dimx = (*maxx_vect)(stdout);
+    dimy = (*maxy_vect)(stdout);
 
     /* reset all attributes */
     (*superscript_vect)(stdout, FALSE);
