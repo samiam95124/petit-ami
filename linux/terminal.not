@@ -2,9 +2,6 @@
 
 1. Implement buffer follow mode and a test for same.
 
-2. If we implement a block copy character, this can be used to speed scrolls in
-managerc.
-
 MACOSX/Quartz version ============================================================
 
 1. In the Mac OS X version, the final benchmark tallys are getting erased. I 

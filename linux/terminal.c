@@ -1823,8 +1823,10 @@ static void ievent(pa_evtrec* ev)
             dimys = dimy;
             /* recalculate window size */
             findsize();
-            /* now find if we have exposed any new areas, then redraw if so */
-            if (dimx > dimxs || dimy > dimys) restore(screens[curdsp-1]);
+            /* linux/xterm has an oddity here, if the winch contracts in y, it
+               occasionally relocates the buffer contents up. This means we
+               always need to refresh, and means it can flash. */
+            restore(screens[curdsp-1]);
             ev->etype = pa_etresize;
             ev->rszx = dimx; /* send new size in message */
             ev->rszy = dimy;
@@ -4623,6 +4625,9 @@ static void pa_deinit_terminal()
     pclose_t cppclose;
     punlink_t cppunlink;
     plseek_t cpplseek;
+
+    /* restore cursor visible */
+    trm_curon();
 
     /* restore terminal */
     tcsetattr(0,TCSAFLUSH,&trmsav);
