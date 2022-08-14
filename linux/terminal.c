@@ -3132,7 +3132,7 @@ static int maxx_ivf(FILE *f)
 
 {
 
-    return dimx; /* set maximum x */
+    return bufx; /* set maximum x */
 
 }
 
@@ -3153,7 +3153,7 @@ static int maxy_ivf(FILE *f)
 
 {
 
-    return dimy; /* set maximum y */
+    return bufy; /* set maximum y */
 
 }
 
@@ -4108,6 +4108,55 @@ static void wrtstrn_ivf(FILE* f, char *s, int n)
 
 /** ****************************************************************************
 
+Size buffer
+
+Sets or resets the size of the buffer surface.
+
+*******************************************************************************/
+
+void _pa_sizbuf_ovr(pa_sizbuf_t nfp, pa_sizbuf_t* ofp)
+    { *ofp = sizbuf_vect; sizbuf_vect = nfp; }
+void pa_sizbuf(FILE* f, int x, int y) { (*sizbuf_vect)(f, x, y); }
+
+static void sizbuf_ivf(FILE* f, int x, int y)
+
+{
+
+    int si;
+
+    if (bufx != x || bufy != y) {
+
+        /* the buffer asked is not the same as present */
+        for (si = 0; si < MAXCON; si++) {
+
+            /* free up any/all present buffers */
+            if (screens[si]) free(screens[si]);
+            /* allocate new update screen */
+            screens[curupd-1] = malloc(sizeof(scnrec)*y*x);
+            /* clear it */
+            clrbuf(screens[curupd-1]);
+            if (curupd != curdsp) { /* display screen not the same */
+
+                /* allocate */
+                screens[curdsp-1] = malloc(sizeof(scnrec)*y*x);
+                /* clear it */
+                clrbuf(screens[curupd-1]);
+
+            }
+
+        }
+        /* set new buffer size */
+        bufx = x;
+        bufy = y;
+        /* redraw screen */
+        restore(screens[curdsp-1]);
+
+    }
+
+}
+
+/** ****************************************************************************
+
 Override event handler
 
 Overrides or "hooks" the indicated event handler. The existing even handler is
@@ -4193,13 +4242,6 @@ void pa_buffer(FILE* f, int e) { (*buffer_vect)(f, e); }
 
 static void buffer_ivf(FILE* f, int e)
     { error(ebuffer_unimp); }
-
-void _pa_sizbuf_ovr(pa_sizbuf_t nfp, pa_sizbuf_t* ofp)
-    { *ofp = sizbuf_vect; sizbuf_vect = nfp; }
-void pa_sizbuf(FILE* f, int x, int y) { (*sizbuf_vect)(f, x, y); }
-
-static void sizbuf_ivf(FILE* f, int x, int y)
-    { error(esizbuf_unimp); }
 
 void _pa_getsiz_ovr(pa_getsiz_t nfp, pa_getsiz_t* ofp)
     { *ofp = getsiz_vect; getsiz_vect = nfp; }

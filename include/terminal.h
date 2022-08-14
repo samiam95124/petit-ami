@@ -194,6 +194,7 @@ void pa_frametimer(FILE* f, int e);
 void pa_autohold(int e);
 void pa_wrtstr(FILE* f, char *s);
 void pa_wrtstrn(FILE* f, char* s, int n);
+void pa_sizbuf(FILE* f, int x, int y);
 void pa_eventover(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh);
 void pa_eventsover(pa_pevthan eh,  pa_pevthan* oeh);
 
@@ -244,6 +245,7 @@ typedef void (*pa_frametimer_t)(FILE* f, int e);
 typedef void (*pa_autohold_t)(int e);
 typedef void (*pa_wrtstr_t)(FILE* f, char* s);
 typedef void (*pa_wrtstrn_t)(FILE* f, char* s, int n);
+typedef void (*pa_sizbuf_t)(FILE* f, int x, int y);
 typedef void (*pa_eventover_t)(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh);
 typedef void (*pa_eventsover_t)(pa_pevthan eh,  pa_pevthan* oeh);
 
@@ -277,6 +279,7 @@ void _pa_curx_ovr(pa_curx_t nfp, pa_curx_t* ofp);
 void _pa_cury_ovr(pa_cury_t nfp, pa_cury_t* ofp);
 void _pa_select_ovr(pa_select_t nfp, pa_select_t* ofp);
 void _pa_wrtstr_ovr(pa_wrtstr_t nfp, pa_wrtstr_t* ofp);
+void _pa_sizbuf_ovr(pa_sizbuf_t nfp, pa_sizbuf_t* ofp);
 void _pa_del_ovr(pa_del_t nfp, pa_del_t* ofp);
 
 /*
