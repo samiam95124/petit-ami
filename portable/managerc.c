@@ -125,7 +125,7 @@ static enum { /* debug levels */
 #define MAXTAB 50  /* total number of tabs possible per window */
 #define MAXLIN 250 /* maximum length of input bufferred line */
 #define USEUNICODE /* use unicode frame characters */
-#define PRTROOTEVT /* print root window events */
+//#define PRTROOTEVT /* print root window events */
 //#define PRTEVT /* print outbound events */
 
 /* file handle numbers at the system interface level */

@@ -232,7 +232,7 @@ typedef struct {
 } scnrec, *scnptr;
 
 /* macro to access screen elements by y,x */
-#define SCNBUF(sc, x, y) (sc[(y-1)*dimx+(x-1)])
+#define SCNBUF(sc, x, y) (sc[(y-1)*bufx+(x-1)])
 
 /* Joystick tracking structure */
 typedef struct joyrec* joyptr; /* pointer to joystick record */
@@ -548,6 +548,7 @@ static int    nmpy;
 static int*   tabs;        /* tabs set */
 static int    dimx;        /* actual width of screen */
 static int    dimy;        /* actual height of screen */
+static int    bufx, bufy;  /* buffer size */
 static int    curon;       /* current on/off state of cursor */
 static int    curx;        /* cursor position on screen */
 static int    cury;
@@ -586,9 +587,6 @@ static pthread_cond_t  evtquene;    /* semaphore: event queue not empty */
 static int             evtquecnt;   /* number of entries in event queue */
 static int             evtquemax;   /* high water mark for event queue */
 static int             matrem;      /* matching entries removed */
-
-/* forwards */
-static void restore(scnptr sc);
 
 /** ****************************************************************************
 
@@ -1135,6 +1133,393 @@ static void dequepaevt(pa_evtrec* e)
 
 }
 
+
+/******************************************************************************
+
+Translate colors code rgb
+
+Translates an independent to primary RGB color codes.
+
+******************************************************************************/
+
+void colnumrgb(pa_color c, int* r, int* g, int* b)
+
+{
+
+    int n;
+
+    /* translate color number */
+    switch (c) { /* color */
+
+        case pa_black:     *r = 0x00; *g = 0x00; *b = 0x00; break;
+        case pa_white:     *r = 0xff; *g = 0xff; *b = 0xff; break;
+        case pa_red:       *r = 0xff; *g = 0x00; *b = 0x00; break;
+        case pa_green:     *r = 0x00; *g = 0xff; *b = 0x00; break;
+        case pa_blue:      *r = 0x00; *g = 0x00; *b = 0xff; break;
+        case pa_cyan:      *r = 0x00; *g = 0xff; *b = 0xff; break;
+        case pa_yellow:    *r = 0xff; *g = 0xff; *b = 0x00; break;
+        case pa_magenta:   *r = 0xff; *g = 0x00; *b = 0xff; break;
+
+    }
+
+}
+
+/** ****************************************************************************
+
+Basic terminal controls
+
+These routines control the basic terminal functions. They exist just to
+encapsulate this information. All of these functions are specific to ANSI
+compliant terminals.
+
+ANSI is able to set more than one attribute at a time, but under windows 95
+there are no two attributes that you can detect together ! This is because
+win95 modifies the attributes quite a bit (there is no blink). This capability
+can be replaced later if needed.
+
+Other notes:
+
+1. Underline only works on monochrome terminals. On color, it makes
+the text turn blue.
+
+2. On linux, gnome-terminal and xterm both do not also home the cursor on
+a clear (as the ANSI spec says). We fake this by adding a specific cursor home.
+
+*******************************************************************************/
+
+/** clear screen and home cursor */
+static void trm_clear(void) { putstr("\33[2J\33[H"); }
+/** home cursor */ static void trm_home(void) { putstr("\33[H"); }
+/** move cursor up */ static void trm_up(void) { putstr("\33[A"); }
+/** move cursor down */ static void trm_down(void) { putstr("\33[B"); }
+/** move cursor left */ static void trm_left(void) { putstr("\33[D"); }
+/** move cursor right */ static void trm_right(void) { putstr("\33[C"); }
+/** turn on blink attribute */ static void trm_blink(void) { putstr("\33[5m"); }
+/** turn on reverse video */ static void trm_rev(void) { putstr("\33[7m"); }
+/** turn on underline */ static void trm_undl(void) { putstr("\33[4m"); }
+/** turn on bold attribute */ static void trm_bold(void) { putstr("\33[1m"); }
+/** turn on italic attribute */ static void trm_ital(void) { putstr("\33[3m"); }
+/** turn off all attributes */
+static void trm_attroff(void) { putstr("\33[0m"); }
+/** turn on cursor wrap */ static void trm_wrapon(void) { putstr("\33[7h"); }
+/** turn off cursor wrap */ static void trm_wrapoff(void) { putstr("\33[7l"); }
+/** turn off cursor */ static void trm_curoff(void) { putstr("\33[?25l"); }
+/** turn on cursor */ static void trm_curon(void) { putstr("\33[?25h"); }
+
+/** set foreground color */
+static void trm_fcolor(pa_color c)
+
+{
+
+#ifdef COLOR24
+    int r, g, b;
+
+    colnumrgb(c, &r, &g, &b); /* get rgb equivalent color */
+    putstr("\33[38;2;");
+    wrtint(r);
+    putstr(";");
+    wrtint(g);
+    putstr(";");
+    wrtint(b);
+    putstr("m");
+#else
+    putstr("\33[");
+    /* override "bright" black, which is more like grey */
+    if (c == pa_black) wrtint(ANSIFORECOLORBASE+colnum(c));
+    else wrtint(FORECOLORBASE+colnum(c));
+    putstr("m");
+#endif
+
+}
+
+/** set background color */
+static void trm_bcolor(pa_color c)
+
+{
+
+#ifdef COLOR24
+    int r, g, b;
+
+    colnumrgb(c, &r, &g, &b); /* get rgb equivalent color */
+    putstr("\33[48;2;");
+    wrtint(r);
+    putstr(";");
+    wrtint(g);
+    putstr(";");
+    wrtint(b);
+    putstr("m");
+#else
+    putstr("\33[");
+    /* override "bright" black, which is more like grey */
+    if (c == pa_black) wrtint(ANSIBACKCOLORBASE+colnum(c));
+    else wrtint(BACKCOLORBASE+colnum(c));
+    putstr("m");
+#endif
+
+}
+
+/** position cursor */
+static void trm_cursor(int x, int y)
+
+{
+
+    putstr("\33[");
+    wrtint(y);
+    putstr(";");
+    wrtint(x);
+    putstr("H");
+
+}
+
+/** ****************************************************************************
+
+Check in display
+
+Check that the given screen context is currently being displayed.
+
+*******************************************************************************/
+
+int indisp(scnptr sc)
+
+{
+
+    return sc == screens[curdsp-1];
+
+}
+
+/** ****************************************************************************
+
+Set attribute from attribute code
+
+Accepts a "universal" attribute code, and executes the attribute set required
+to make that happen on screen. A few of these don't work on ANSI terminals,
+including superscript and subscript.
+
+*******************************************************************************/
+
+static void setattr(scnptr sc, scnatt a)
+
+{
+
+    if (indisp(sc)) { /* in display */
+
+        switch (a) { /* attribute */
+
+            case sanone:  trm_attroff(); break; /* no attribute */
+            case sablink: trm_blink();   break; /* blinking text (foreground) */
+            case sarev:   trm_rev();     break; /* reverse video */
+            case saundl:  trm_undl();    break; /* underline */
+            case sasuper: break;                /* superscript */
+            case sasubs:  break;                /* subscripting */
+            case saital:  trm_ital();    break; /* italic text */
+            case sabold:  trm_bold();    break; /* bold text */
+
+        }
+        /* attribute off may change the colors back to "normal" (normal for that
+           particular implementation), apparently to remove reverse video. So we
+           need to restore colors in this case, since PA/TK preserves colors. */
+        if (a == sanone) {
+
+            trm_fcolor(forec); /* set current colors */
+            trm_bcolor(backc);
+
+        }
+
+    }
+
+}
+
+
+/*******************************************************************************
+
+Find if cursor is in screen bounds
+
+Checks if the cursor lies in the current bounds, and returns true if so.
+
+*******************************************************************************/
+
+int icurbnd(scnptr sc)
+
+{
+
+   return (ncurx >= 1) && (ncurx <= dimx) && (ncury >= 1) && (ncury <= dimy);
+
+}
+
+/*******************************************************************************
+
+Set cursor status
+
+Sets the cursor visible or invisible. If the cursor is out of bounds, it is
+invisible regardless. Otherwise, it is visible according to the state of the
+current buffer's visible status.
+
+Should suppress redundant visibility sets here.
+
+*******************************************************************************/
+
+void cursts(scnptr sc)
+
+{
+
+    int cv;
+
+    if (indisp(sc)) { /* in display */
+
+        cv = curvis; /* set current buffer status */
+        if (!icurbnd(sc)) cv = 0; /* not in bounds, force off */
+        if (cv != curon) { /* not already at the desired state */
+
+            if (cv) {
+
+                trm_curon();
+                curon = TRUE;
+
+            } else {
+
+                trm_curoff();
+                curon = FALSE;
+
+            }
+
+        }
+
+    }
+
+}
+
+/*******************************************************************************
+
+Position cursor
+
+Positions the cursor (caret) image to the right location on screen, and handles
+the visible or invisible status of that. We consider the current position and
+visible/invisible status, and try to output only the minimum terminal controls
+to bring the old state of the display to the same state as the new display.
+
+*******************************************************************************/
+
+void setcur(scnptr sc)
+
+{
+
+    if (indisp(sc)) { /* in display */
+
+        /* check cursor in bounds */
+        if (icurbnd(sc)) {
+
+            /* set cursor position */
+            if ((ncurx != curx || ncury != cury) && curval) {
+
+                /* Cursor position and actual don't match. Try some optimized
+                   cursor positions to reduce bandwidth. Note we don't count on
+                   real terminal behavior at the borders. */
+                if (ncurx == 1 && ncury == 1) trm_home();
+                else if (ncurx == curx && ncury == cury-1) trm_up();
+                else if (ncurx == curx && ncury == cury+1) trm_down();
+                else if (ncurx == curx-1 && ncury == cury) trm_left();
+                else if (ncurx == curx+1 && ncury == cury) trm_right();
+                else if (ncurx == 1 && ncury == cury) putchr('\r');
+                else trm_cursor(ncurx, ncury);
+                curx = ncurx;
+                cury = ncury;
+                curval = 1;
+
+            } else {
+
+                /* don't count on physical cursor location, just reset */
+                trm_cursor(ncurx, ncury);
+                curx = ncurx;
+                cury = ncury;
+                curval = 1;
+
+            }
+
+        }
+        cursts(sc); /* set new cursor status */
+
+    }
+
+}
+
+/** ****************************************************************************
+
+Restore screen
+
+Updates all the buffer and screen parameters to the terminal.
+
+*******************************************************************************/
+
+static void restore(scnptr sc)
+
+{
+
+    /** screen indexes */         int xi, yi;
+    /** color saves */            pa_color fs, bs;
+    /** attribute saves */        scnatt as;
+    /** screen element pointer */ scnrec *p;
+
+    trm_home(); /* restore cursor to upper left to start */
+    /* set colors and attributes */
+    trm_fcolor(forec); /* restore colors */
+    trm_bcolor(backc);
+    setattr(sc, attr); /* restore attributes */
+    fs = forec; /* save current colors and attributes */
+    bs = backc;
+    as = attr;
+    /* copy buffer to screen */
+    for (yi = 1; yi <= bufy; yi++) { /* lines */
+
+        for (xi = 1; xi <= bufx; xi++) { /* characters */
+
+            /* for each new character, we compare the attributes and colors
+               with what is set. if a new color or attribute is called for,
+               we set that, and update the saves. this technique cuts down on
+               the amount of output characters */
+            p = &SCNBUF(sc, xi, yi); /* index this screen element */
+            if (p->forec != fs) { /* new foreground color */
+
+                trm_fcolor(p->forec); /* set the new color */
+                fs = p->forec; /* set save */
+
+            };
+            if (p->backc != bs) { /* new foreground color */
+
+                trm_bcolor(p->backc); /* set the new color */
+                bs = p->backc; /* set save */
+
+            };
+            if (p->attr != as) { /* new attribute */
+
+                setattr(sc, p->attr); /* set the new attribute */
+                as = p->attr; /* set save */
+
+            };
+#ifdef ALLOWUTF8
+            putnstr(p->ch, 4); /* now output the actual character */
+#else
+            putchr(p->ch); /* now output the actual character */
+#endif
+
+        };
+        if (yi < bufy)
+            /* output next line sequence on all lines but the last. this is
+               because the last one would cause us to scroll */
+            putstr("\r\n");
+
+    };
+    /* restore cursor position */
+    trm_cursor(ncurx, ncury);
+    curx = ncurx; /* set physical cursor */
+    cury = ncury;
+    curval = 1; /* set it is valid */
+    trm_fcolor(forec); /* restore colors */
+    trm_bcolor(backc);
+    setattr(sc, attr); /* restore attributes */
+    setcur(sc); /* set cursor status */
+
+}
+
 /** *****************************************************************************
 
 Get keyboard code control match or other event
@@ -1545,313 +1930,6 @@ static int colnum(pa_color c)
 
 }
 
-/******************************************************************************
-
-Translate colors code rgb
-
-Translates an independent to primary RGB color codes.
-
-******************************************************************************/
-
-void colnumrgb(pa_color c, int* r, int* g, int* b)
-
-{
-
-    int n;
-
-    /* translate color number */
-    switch (c) { /* color */
-
-        case pa_black:     *r = 0x00; *g = 0x00; *b = 0x00; break;
-        case pa_white:     *r = 0xff; *g = 0xff; *b = 0xff; break;
-        case pa_red:       *r = 0xff; *g = 0x00; *b = 0x00; break;
-        case pa_green:     *r = 0x00; *g = 0xff; *b = 0x00; break;
-        case pa_blue:      *r = 0x00; *g = 0x00; *b = 0xff; break;
-        case pa_cyan:      *r = 0x00; *g = 0xff; *b = 0xff; break;
-        case pa_yellow:    *r = 0xff; *g = 0xff; *b = 0x00; break;
-        case pa_magenta:   *r = 0xff; *g = 0x00; *b = 0xff; break;
-
-    }
-
-}
-
-/** ****************************************************************************
-
-Basic terminal controls
-
-These routines control the basic terminal functions. They exist just to
-encapsulate this information. All of these functions are specific to ANSI
-compliant terminals.
-
-ANSI is able to set more than one attribute at a time, but under windows 95
-there are no two attributes that you can detect together ! This is because
-win95 modifies the attributes quite a bit (there is no blink). This capability
-can be replaced later if needed.
-
-Other notes:
-
-1. Underline only works on monochrome terminals. On color, it makes
-the text turn blue.
-
-2. On linux, gnome-terminal and xterm both do not also home the cursor on
-a clear (as the ANSI spec says). We fake this by adding a specific cursor home.
-
-*******************************************************************************/
-
-/** clear screen and home cursor */
-static void trm_clear(void) { putstr("\33[2J\33[H"); }
-/** home cursor */ static void trm_home(void) { putstr("\33[H"); }
-/** move cursor up */ static void trm_up(void) { putstr("\33[A"); }
-/** move cursor down */ static void trm_down(void) { putstr("\33[B"); }
-/** move cursor left */ static void trm_left(void) { putstr("\33[D"); }
-/** move cursor right */ static void trm_right(void) { putstr("\33[C"); }
-/** turn on blink attribute */ static void trm_blink(void) { putstr("\33[5m"); }
-/** turn on reverse video */ static void trm_rev(void) { putstr("\33[7m"); }
-/** turn on underline */ static void trm_undl(void) { putstr("\33[4m"); }
-/** turn on bold attribute */ static void trm_bold(void) { putstr("\33[1m"); }
-/** turn on italic attribute */ static void trm_ital(void) { putstr("\33[3m"); }
-/** turn off all attributes */
-static void trm_attroff(void) { putstr("\33[0m"); }
-/** turn on cursor wrap */ static void trm_wrapon(void) { putstr("\33[7h"); }
-/** turn off cursor wrap */ static void trm_wrapoff(void) { putstr("\33[7l"); }
-/** turn off cursor */ static void trm_curoff(void) { putstr("\33[?25l"); }
-/** turn on cursor */ static void trm_curon(void) { putstr("\33[?25h"); }
-
-/** set foreground color */
-static void trm_fcolor(pa_color c)
-
-{
-
-#ifdef COLOR24
-    int r, g, b;
-
-    colnumrgb(c, &r, &g, &b); /* get rgb equivalent color */
-    putstr("\33[38;2;");
-    wrtint(r);
-    putstr(";");
-    wrtint(g);
-    putstr(";");
-    wrtint(b);
-    putstr("m");
-#else
-    putstr("\33[");
-    /* override "bright" black, which is more like grey */
-    if (c == pa_black) wrtint(ANSIFORECOLORBASE+colnum(c));
-    else wrtint(FORECOLORBASE+colnum(c));
-    putstr("m");
-#endif
-
-}
-
-/** set background color */
-static void trm_bcolor(pa_color c)
-
-{
-
-#ifdef COLOR24
-    int r, g, b;
-
-    colnumrgb(c, &r, &g, &b); /* get rgb equivalent color */
-    putstr("\33[48;2;");
-    wrtint(r);
-    putstr(";");
-    wrtint(g);
-    putstr(";");
-    wrtint(b);
-    putstr("m");
-#else
-    putstr("\33[");
-    /* override "bright" black, which is more like grey */
-    if (c == pa_black) wrtint(ANSIBACKCOLORBASE+colnum(c));
-    else wrtint(BACKCOLORBASE+colnum(c));
-    putstr("m");
-#endif
-
-}
-
-/** position cursor */
-static void trm_cursor(int x, int y)
-
-{
-
-    putstr("\33[");
-    wrtint(y);
-    putstr(";");
-    wrtint(x);
-    putstr("H");
-
-}
-
-/** ****************************************************************************
-
-Check in display
-
-Check that the given screen context is currently being displayed.
-
-*******************************************************************************/
-
-int indisp(scnptr sc)
-
-{
-
-    return sc == screens[curdsp-1];
-
-}
-
-/** ****************************************************************************
-
-Set attribute from attribute code
-
-Accepts a "universal" attribute code, and executes the attribute set required
-to make that happen on screen. A few of these don't work on ANSI terminals,
-including superscript and subscript.
-
-*******************************************************************************/
-
-static void setattr(scnptr sc, scnatt a)
-
-{
-
-    if (indisp(sc)) { /* in display */
-
-        switch (a) { /* attribute */
-
-            case sanone:  trm_attroff(); break; /* no attribute */
-            case sablink: trm_blink();   break; /* blinking text (foreground) */
-            case sarev:   trm_rev();     break; /* reverse video */
-            case saundl:  trm_undl();    break; /* underline */
-            case sasuper: break;                /* superscript */
-            case sasubs:  break;                /* subscripting */
-            case saital:  trm_ital();    break; /* italic text */
-            case sabold:  trm_bold();    break; /* bold text */
-
-        }
-        /* attribute off may change the colors back to "normal" (normal for that
-           particular implementation), apparently to remove reverse video. So we
-           need to restore colors in this case, since PA/TK preserves colors. */
-        if (a == sanone) {
-
-            trm_fcolor(forec); /* set current colors */
-            trm_bcolor(backc);
-
-        }
-
-    }
-
-}
-
-/*******************************************************************************
-
-Find if cursor is in screen bounds
-
-Checks if the cursor lies in the current bounds, and returns true if so.
-
-*******************************************************************************/
-
-int icurbnd(scnptr sc)
-
-{
-
-   return (ncurx >= 1) && (ncurx <= dimx) && (ncury >= 1) && (ncury <= dimy);
-
-}
-
-/*******************************************************************************
-
-Set cursor status
-
-Sets the cursor visible or invisible. If the cursor is out of bounds, it is
-invisible regardless. Otherwise, it is visible according to the state of the
-current buffer's visible status.
-
-Should suppress redundant visibility sets here.
-
-*******************************************************************************/
-
-void cursts(scnptr sc)
-
-{
-
-    int cv;
-
-    if (indisp(sc)) { /* in display */
-
-        cv = curvis; /* set current buffer status */
-        if (!icurbnd(sc)) cv = 0; /* not in bounds, force off */
-        if (cv != curon) { /* not already at the desired state */
-
-            if (cv) {
-
-                trm_curon();
-                curon = TRUE;
-
-            } else {
-
-                trm_curoff();
-                curon = FALSE;
-
-            }
-
-        }
-
-    }
-
-}
-
-/*******************************************************************************
-
-Position cursor
-
-Positions the cursor (caret) image to the right location on screen, and handles
-the visible or invisible status of that. We consider the current position and
-visible/invisible status, and try to output only the minimum terminal controls
-to bring the old state of the display to the same state as the new display.
-
-*******************************************************************************/
-
-void setcur(scnptr sc)
-
-{
-
-    if (indisp(sc)) { /* in display */
-
-        /* check cursor in bounds */
-        if (icurbnd(sc)) {
-
-            /* set cursor position */
-            if ((ncurx != curx || ncury != cury) && curval) {
-
-                /* Cursor position and actual don't match. Try some optimized
-                   cursor positions to reduce bandwidth. Note we don't count on
-                   real terminal behavior at the borders. */
-                if (ncurx == 1 && ncury == 1) trm_home();
-                else if (ncurx == curx && ncury == cury-1) trm_up();
-                else if (ncurx == curx && ncury == cury+1) trm_down();
-                else if (ncurx == curx-1 && ncury == cury) trm_left();
-                else if (ncurx == curx+1 && ncury == cury) trm_right();
-                else if (ncurx == 1 && ncury == cury) putchr('\r');
-                else trm_cursor(ncurx, ncury);
-                curx = ncurx;
-                cury = ncury;
-                curval = 1;
-
-            } else {
-
-                /* don't count on physical cursor location, just reset */
-                trm_cursor(ncurx, ncury);
-                curx = ncurx;
-                cury = ncury;
-                curval = 1;
-
-            }
-
-        }
-        cursts(sc); /* set new cursor status */
-
-    }
-
-}
-
 /** ****************************************************************************
 
 Place character in screen buffer
@@ -1975,84 +2053,6 @@ static void iniscn(scnptr sc)
     attr = sanone;
     curvis = curon; /* set cursor visible from curent state */
     clrbuf(sc); /* clear screen buffer with that */
-
-}
-
-/** ****************************************************************************
-
-Restore screen
-
-Updates all the buffer and screen parameters to the terminal.
-
-*******************************************************************************/
-
-static void restore(scnptr sc)
-
-{
-
-    /** screen indexes */         int xi, yi;
-    /** color saves */            pa_color fs, bs;
-    /** attribute saves */        scnatt as;
-    /** screen element pointer */ scnrec *p;
-
-    trm_home(); /* restore cursor to upper left to start */
-    /* set colors and attributes */
-    trm_fcolor(forec); /* restore colors */
-    trm_bcolor(backc);
-    setattr(sc, attr); /* restore attributes */
-    fs = forec; /* save current colors and attributes */
-    bs = backc;
-    as = attr;
-    /* copy buffer to screen */
-    for (yi = 1; yi <= dimy; yi++) { /* lines */
-
-        for (xi = 1; xi <= dimx; xi++) { /* characters */
-
-            /* for each new character, we compare the attributes and colors
-               with what is set. if a new color or attribute is called for,
-               we set that, and update the saves. this technique cuts down on
-               the amount of output characters */
-            p = &SCNBUF(sc, xi, yi); /* index this screen element */
-            if (p->forec != fs) { /* new foreground color */
-
-                trm_fcolor(p->forec); /* set the new color */
-                fs = p->forec; /* set save */
-
-            };
-            if (p->backc != bs) { /* new foreground color */
-
-                trm_bcolor(p->backc); /* set the new color */
-                bs = p->backc; /* set save */
-
-            };
-            if (p->attr != as) { /* new attribute */
-
-                setattr(sc, p->attr); /* set the new attribute */
-                as = p->attr; /* set save */
-
-            };
-#ifdef ALLOWUTF8
-            putnstr(p->ch, 4); /* now output the actual character */
-#else
-            putchr(p->ch); /* now output the actual character */
-#endif
-
-        };
-        if (yi < dimy)
-            /* output next line sequence on all lines but the last. this is
-               because the last one would cause us to scroll */
-            putstr("\r\n");
-
-    };
-    /* restore cursor position */
-    trm_cursor(ncurx, ncury);
-    curx = ncurx; /* set physical cursor */
-    cury = ncury;
-    curval = 1; /* set it is valid */
-    trm_fcolor(forec); /* restore colors */
-    trm_bcolor(backc);
-    setattr(sc, attr); /* restore attributes */
-    setcur(sc); /* set cursor status */
 
 }
 
@@ -2593,7 +2593,10 @@ static void plcchr(scnptr sc, unsigned char c)
             /* This handling is from iright. We do this here because
                placement implicitly moves the cursor */
             putchr(c); /* output character to terminal */
-            if (!utf8cnt) { /* not working on partial character */
+#ifdef ALLOWUTF8
+            if (!utf8cnt)
+#endif
+            { /* not working on partial character */
 
                 /* at right side, don't count on the screen wrap action */
                 if (curx == dimx) curval = 0;
@@ -4416,6 +4419,11 @@ static void pa_init_terminal()
     for (curupd = 1; curupd <= MAXCON; curupd++) screens[curupd-1] = NULL;
     /* allocate screen array */
     screens[0] = malloc(sizeof(scnrec)*dimy*dimx);
+
+    /* set buffer size */
+    bufx = dimx;
+    bufy = dimy;
+
     /* alloocate tab array */
     tabs = malloc(sizeof(int)*dimx);
 
