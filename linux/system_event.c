@@ -87,6 +87,7 @@
 #include <sys/timerfd.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <sys/signalfd.h>
 
 #include "system_event.h"
 
@@ -115,6 +116,7 @@ static enum { /* debug levels */
                                 __func__, __LINE__, ##__VA_ARGS__); \
                                 fflush(stderr); } while (0)
 
+//#define PRTSEVT /* print signals diagnostic */
 #define MAXSYS 100 /* number of possible logical system events */
 
 /* logical system event record */
@@ -140,23 +142,6 @@ static int ifdmax;
 
 static sigset_t sigmsk; /* signal mask */
 static sigset_t sigact; /* signal active */
-
-/*******************************************************************************
-
-Handle signal from Linux
-
-Handle signal from linux kernel.
-
-*******************************************************************************/
-
-static void sig_handler(int signo)
-
-{
-
-    /* add this signal to active set */
-    sigaddset(&sigact, signo);
-
-}
 
 /** *****************************************************************************
 
@@ -242,23 +227,30 @@ including handling the signal. If both use of this package to handle signals,
 as well as allowing the client to handle signals, a chain handler using
 sigaction should be used.
 
+Note we piped the signal through a fid using signalfd() so that it could use
+pselect() multiplexing.
+
 *******************************************************************************/
 
 int system_event_addsesig(int sig)
 
 {
 
-    int sid; /* system logical event id */
+    int      sid;    /* system logical event id */
+    sigset_t sigmsk; /* signal mask */
+    int      fid;     /* file id */
+
+    sigemptyset(&sigmsk);
+    sigaddset(&sigmsk, sig);
+    sigprocmask(SIG_BLOCK, &sigmsk, NULL);
+    fid = signalfd(-1, &sigmsk, 0);
 
     sid = getsys(); /* get a new system event id */
-    systab[sid-1]->typ = se_inp; /* set type */
+    systab[sid-1]->typ = se_sig; /* set type */
     systab[sid-1]->sig = sig; /* set signal */
-
-    /* add this signal to mask set */
-    sigaddset(&sigmsk, sig);
-
-    /* add signal handler */
-    signal(sig, sig_handler);
+    systab[sid-1]->fid = fid; /* set file id */
+    FD_SET(fid, &ifdseta); /* add to active set */
+    if (fid+1 > ifdmax) ifdmax = fid+1; /* set maximum fid for pselect() */
 
     return (sid); /* exit with logical event id */
 
@@ -386,11 +378,12 @@ void system_event_getsevt(sevptr ev)
 
 {
 
-    int      rv;  /* return value */
-    int      ti;  /* index for timers */
-    int      ji;  /* index for joysticks */
-    int      si;  /* index for system event entries */
-    uint64_t exp; /* timer expiration time */
+    int                     rv;  /* return value */
+    int                     ti;  /* index for timers */
+    int                     ji;  /* index for joysticks */
+    int                     si;  /* index for system event entries */
+    uint64_t                exp; /* timer expiration time */
+    struct signalfd_siginfo fdsi; /* signal data */
 
     ev->typ = se_none; /* set no event occurred */
     do { /* find an active event */
@@ -398,8 +391,7 @@ void system_event_getsevt(sevptr ev)
         /* search for fid and sig entries */
         for (si = 0; si < sysno; si++) if (systab[si]) {
 
-            if (systab[si]->fid >= 0 && systab[si]->typ != se_sig &&
-                FD_ISSET(systab[si]->fid, &ifdsets)) {
+            if (systab[si]->fid >= 0 && FD_ISSET(systab[si]->fid, &ifdsets)) {
 
                 /* fid has flagged */
                 ev->typ = systab[si]->typ; /* set key event occurred */
@@ -408,14 +400,9 @@ void system_event_getsevt(sevptr ev)
                 if (systab[si]->typ == se_tim) /* is a timer */
                     /* clear the timer by reading it's expiration time */
                     read(systab[si]->fid, &exp, sizeof(uint64_t));
-
-            } else if (systab[si]->typ == se_sig && systab[si]->sig > 0 &&
-                       sigismember(&sigact, systab[si]->sig)) {
-
-                /* signal has flagged */
-                ev->typ = systab[si]->typ; /* set key event occurred */
-                ev->lse = si+1; /* set system logical event no */
-                sigdelset(&sigact, systab[si]->sig); /* remove signal */
+                else if (systab[si]->typ == se_sig) /* it's a signal */
+                    /* clear the signal by reading its data */
+                    read(systab[si]->fid, &fdsi, sizeof(fdsi));
 
             }
 
@@ -432,7 +419,8 @@ void system_event_getsevt(sevptr ev)
         }
 
     } while (ev->typ == se_none);
-#if 0
+
+#ifdef PRTSEVT
 switch (ev->typ) {
     case se_none: fprintf(stderr, "lse: %d None\n", ev->lse); break;
     case se_inp:  fprintf(stderr, "lse: %d Input file ready\n", ev->lse); break;
@@ -472,9 +460,6 @@ static void init_system_event()
     FD_ZERO(&ifdsets);
 
     /* clear the set of signals we capture */
-    sigemptyset(&sigmsk);
-
-    /* clear active signals */
     sigemptyset(&sigmsk);
 
     sysno = 0; /* set no active system events */

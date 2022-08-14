@@ -1401,8 +1401,6 @@ static void ievent(pa_evtrec* ev)
 
         } else if (sev.typ == se_sig && !evtfnd && sev.lse == winchsev) {
 
-            ev->etype = pa_etresize;
-            evtfnd = 1;
             /* save current window size */
             dimxs = dimx;
             dimys = dimy;
@@ -1410,6 +1408,10 @@ static void ievent(pa_evtrec* ev)
             findsize();
             /* now find if we have exposed any new areas, then redraw if so */
             if (dimx > dimxs || dimy > dimys) restore(screens[curdsp-1]);
+            ev->etype = pa_etresize;
+            ev->rszx = dimx; /* send new size in message */
+            ev->rszy = dimy;
+            evtfnd = 1;
 
         }
 

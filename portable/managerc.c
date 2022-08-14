@@ -125,7 +125,7 @@ static enum { /* debug levels */
 #define MAXTAB 50  /* total number of tabs possible per window */
 #define MAXLIN 250 /* maximum length of input bufferred line */
 #define USEUNICODE /* use unicode frame characters */
-//#define PRTROOTEVT /* print root window events */
+#define PRTROOTEVT /* print root window events */
 //#define PRTEVT /* print outbound events */
 
 /* file handle numbers at the system interface level */
@@ -653,9 +653,8 @@ static void prtevt(
                                   "a4: %4d a5: %4d a6: %4d", er->mjoyn,
                                   er->joypx, er->joypy, er->joypz,
                                   er->joyp4, er->joyp5, er->joyp6); break;
-        case pa_etresize: fprintf(stderr, ": x: %d y: %d xg: %d yg: %d",
-                                  er->rszx, er->rszy,
-                                  er->rszxg, er->rszyg); break;
+        case pa_etresize: fprintf(stderr, ": x: %d y: %d", er->rszx, er->rszy);
+                          break;
         case pa_etfun: fprintf(stderr, ": key: %d", er->fkey); break;
         case pa_etmoumovg: fprintf(stderr, ": mouse: %d x: %4d y: %4d",
                                    er->mmoung, er->moupxg, er->moupyg); break;

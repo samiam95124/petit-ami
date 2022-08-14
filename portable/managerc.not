@@ -31,3 +31,5 @@ to run a thread that continually transfers events to the managerc queue.
 5. Background color sets don't work.
 
 6. Moving a window offscreen left puts it's cursor in an invalid location.
+
+7. When moving a window offscreen right, parts of the size bars disappear.

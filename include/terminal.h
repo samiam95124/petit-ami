@@ -136,6 +136,12 @@ typedef struct {
 
         };
         /** function key */ int fkey;
+        /** etresize */
+        struct {
+
+            int rszx, rszy;
+
+        };
 
      };
 
