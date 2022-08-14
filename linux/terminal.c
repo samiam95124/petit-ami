@@ -1446,7 +1446,8 @@ void setcur(scnptr sc)
 
 Restore screen
 
-Updates all the buffer and screen parameters to the terminal.
+Updates all the buffer and screen parameters to the terminal. We specifically
+write each location. A clear would be faster, but would flash.
 
 *******************************************************************************/
 
@@ -1458,6 +1459,7 @@ static void restore(scnptr sc)
     /** color saves */            pa_color fs, bs;
     /** attribute saves */        scnatt as;
     /** screen element pointer */ scnrec *p;
+    /** clipped buffer sizes */   int cbufx, cbufy;
 
     trm_home(); /* restore cursor to upper left to start */
     /* set colors and attributes */
@@ -1467,10 +1469,15 @@ static void restore(scnptr sc)
     fs = forec; /* save current colors and attributes */
     bs = backc;
     as = attr;
+    /* find buffer sizes clipped by onscreen image */
+    cbufx = bufx;
+    cbufy = bufy;
+    if (cbufx > dimx) cbufx = dimx;
+    if (cbufy > dimy) cbufy = dimy;
     /* copy buffer to screen */
-    for (yi = 1; yi <= bufy; yi++) { /* lines */
+    for (yi = 1; yi <= cbufy; yi++) { /* lines */
 
-        for (xi = 1; xi <= bufx; xi++) { /* characters */
+        for (xi = 1; xi <= cbufx; xi++) { /* characters */
 
             /* for each new character, we compare the attributes and colors
                with what is set. if a new color or attribute is called for,
@@ -1502,12 +1509,37 @@ static void restore(scnptr sc)
 #endif
 
         };
-        if (yi < bufy)
+        if (yi < cbufy)
             /* output next line sequence on all lines but the last. this is
                because the last one would cause us to scroll */
             putstr("\r\n");
 
     };
+    /* color backgrounds outside of buffer */
+    if (dimx > bufx) {
+
+        /* space to right */
+        trm_bcolor(backc); /* set background color */
+        for (yi = 1; yi <= bufy; yi++) {
+
+            trm_cursor(bufx+1, yi); /* locate to line start */
+            for (xi = bufx+1; xi <= dimx; xi++) putchr(' '); /* fill */
+
+        }
+
+    }
+    if (dimy > bufy) {
+
+        /* space to bottom, we color right bottom here because it is easier */
+        trm_bcolor(backc); /* set background color */
+        for (yi = bufy+1; yi <= dimy; yi++) {
+
+            trm_cursor(1, yi); /* locate to line start */
+            for (xi = 1; xi <= dimx; xi++) putchr(' '); /* fill */
+
+        }
+
+    }
     /* restore cursor position */
     trm_cursor(ncurx, ncury);
     curx = ncurx; /* set physical cursor */
