@@ -11,6 +11,10 @@
 #ifndef __SERVICES_H__
 #define __SERVICES_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdio.h>
 
 #define BIT(b) (1<<b) /* set bit from bit number */
@@ -168,5 +172,9 @@ extern int pa_deinitsig(int sn);
 extern void pa_sendsig(int sn);
 extern void pa_sendsigone(int sn);
 extern void pa_waitsig(int ln, int sn);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

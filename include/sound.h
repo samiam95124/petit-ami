@@ -29,6 +29,10 @@
 #ifndef __SOUND_H__
 #define __SOUND_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* PA local defines */
 #include <localdefs.h>
 
@@ -472,5 +476,9 @@ void _pa_waveinplug(int addend, string name,
 
 /* execute sequencer entry in main code */
 void _pa_excseq(int p, pa_seqptr sp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __SOUND_H__ */

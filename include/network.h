@@ -53,6 +53,10 @@
 #ifndef __NETWORK_H__
 #define __NETWORK_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdio.h>
 #include <localdefs.h>
 
@@ -90,5 +94,9 @@ int pa_certmsg(int fn, int which, string cert, int len);
 void pa_certlistnet(FILE *f, int which, pa_certptr* list);
 void pa_certlistmsg(int fn, int which, pa_certptr* list);
 void pa_certlistfree(pa_certptr* list);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __NETWORK_H__ */

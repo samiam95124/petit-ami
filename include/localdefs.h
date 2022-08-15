@@ -11,6 +11,10 @@
 #ifndef __LOCALDEFS_H__
 #define __LOCALDEFS_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define FALSE 0
 #define TRUE  1
 
@@ -19,5 +23,9 @@
 
 typedef char* string;  /* general string type */
 typedef unsigned char byte; /* byte */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __LOCALDEFS_H__ */

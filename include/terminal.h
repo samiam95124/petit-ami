@@ -15,6 +15,10 @@
 #ifndef __TERMINAL_H__
 #define __TERMINAL_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdio.h>
 
 #include <localdefs.h>
@@ -336,5 +340,9 @@ typedef void (*pa_stdmenu_t)(pa_stdmenusel sms, pa_menuptr* sm, pa_menuptr pm);
 typedef int (*pa_getwinid_t)(void);
 typedef void (*pa_focus_t)(FILE* f);
 typedef int (*pa_getwigid_t)(FILE* f);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __TERMINAL_H__ */

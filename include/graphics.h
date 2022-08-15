@@ -14,6 +14,10 @@
 #ifndef __GRAPHICS_H__
 #define __GRAPHICS_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdio.h>
 
 #define PA_MAXTIM 10 /**< maximum number of timers available */
@@ -1051,5 +1055,9 @@ void _pa_querysave_ovr(pa_querysave_t nfp, pa_querysave_t* ofp);
 void _pa_queryfind_ovr(pa_queryfind_t nfp, pa_queryfind_t* ofp);
 void _pa_queryfindrep_ovr(pa_queryfindrep_t nfp, pa_queryfindrep_t* ofp);
 void _pa_queryfont_ovr(pa_queryfont_t nfp, pa_queryfont_t* ofp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __GRAPH_H__ */

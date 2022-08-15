@@ -23,6 +23,10 @@ The <lead> is whatever option character services says.
 #ifndef __OPTION_H__
 #define __OPTION_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <localdefs.h>
 
 /* option record */
@@ -39,5 +43,9 @@ typedef struct {
 void pa_dequote(string s);
 int pa_option(string s, pa_optrec opts[], int single);
 int pa_options(int* argi, int* argc, char **argv, pa_optrec  opts[], int single);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __OPTION_H__ */
