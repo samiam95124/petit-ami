@@ -2050,8 +2050,8 @@ static void clrbuf(scnptr sc)
     /** pointer to screen record */ scnrec* sp;
 
     /* clear the screen buffer */
-    for (y = 1;  y <= dimy; y++)
-        for (x = 1; x <= dimx; x++) {
+    for (y = 1;  y <= bufy; y++)
+        for (x = 1; x <= bufx; x++) {
 
         /* index screen character location */
         sp = &SCNBUF(sc, x, y);
@@ -4126,28 +4126,29 @@ static void sizbuf_ivf(FILE* f, int x, int y)
 
     if (bufx != x || bufy != y) {
 
+        /* set new buffer size */
+        bufx = x;
+        bufy = y;
         /* the buffer asked is not the same as present */
         for (si = 0; si < MAXCON; si++) {
 
             /* free up any/all present buffers */
             if (screens[si]) free(screens[si]);
-            /* allocate new update screen */
-            screens[curupd-1] = malloc(sizeof(scnrec)*y*x);
-            /* clear it */
-            clrbuf(screens[curupd-1]);
-            if (curupd != curdsp) { /* display screen not the same */
-
-                /* allocate */
-                screens[curdsp-1] = malloc(sizeof(scnrec)*y*x);
-                /* clear it */
-                clrbuf(screens[curupd-1]);
-
-            }
+            screens[curupd-1] = NULL; /* clear it */
 
         }
-        /* set new buffer size */
-        bufx = x;
-        bufy = y;
+        /* allocate new update screen */
+        screens[curupd-1] = malloc(sizeof(scnrec)*y*x);
+        /* clear it */
+        clrbuf(screens[curupd-1]);
+        if (curupd != curdsp) { /* display screen not the same */
+
+            /* allocate */
+            screens[curdsp-1] = malloc(sizeof(scnrec)*y*x);
+            /* clear it */
+            clrbuf(screens[curupd-1]);
+
+        }
         /* redraw screen */
         restore(screens[curdsp-1]);
 
