@@ -789,7 +789,7 @@ sucessful, the size remains unchanged.
 
 *******************************************************************************/
 
-void findsize(void)
+void findsize(int* x, int* y)
 
 {
 
@@ -800,8 +800,8 @@ void findsize(void)
     r = ioctl(STDIN_FILENO, TIOCGWINSZ, &ws);
     if (!r) {
 
-        dimx = ws.ws_col;
-        dimy = ws.ws_row;
+        *x = ws.ws_col;
+        *y = ws.ws_row;
 
     }
 
@@ -1818,18 +1818,10 @@ static void ievent(pa_evtrec* ev)
 
         } else if (sev.typ == se_sig && !evtfnd && sev.lse == winchsev) {
 
-            /* save current window size */
-            dimxs = dimx;
-            dimys = dimy;
-            /* recalculate window size */
-            findsize();
-            /* linux/xterm has an oddity here, if the winch contracts in y, it
-               occasionally relocates the buffer contents up. This means we
-               always need to refresh, and means it can flash. */
-            restore(screens[curdsp-1]);
+            findsize(&dimxs, &dimys); /* get new size */
             ev->etype = pa_etresize;
-            ev->rszx = dimx; /* send new size in message */
-            ev->rszy = dimy;
+            ev->rszx = dimxs; /* send new size in message */
+            ev->rszy = dimys;
             evtfnd = 1;
 
         }
@@ -3738,6 +3730,18 @@ static void event_ivf(FILE* f, pa_evtrec *er)
 
         /* get next input event */
         dequepaevt(er); /* get next queued event */
+        /* handle actions we must take here */
+        if (er->etype == pa_etresize) {
+
+            /* set new size */
+            dimx = er->rszx;
+            dimy = er->rszy;
+            /* linux/xterm has an oddity here, if the winch contracts in y, it
+               occasionally relocates the buffer contents up. This means we
+               always need to refresh, and means it can flash. */
+            restore(screens[curdsp-1]);
+
+        }
         er->handled = 1; /* set event is handled by default */
         (evtshan)(er); /* call master event handler */
         if (!er->handled) { /* send it to fanout */
@@ -4490,7 +4494,7 @@ static void pa_init_terminal()
     dimy = DEFYD;
 
     /* try getting size from system */
-    findsize();
+    findsize(&dimx, &dimy);
 
     /* clear screens array */
     for (curupd = 1; curupd <= MAXCON; curupd++) screens[curupd-1] = NULL;
