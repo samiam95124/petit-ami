@@ -163,6 +163,7 @@ endif
 
 CC=gcc
 CFLAGS=-g3 -Iinclude
+CFLAGSCPP=$(CFLAGS) -Ihpp
 CPP=g++
 
 #
@@ -310,6 +311,8 @@ else
     CLIBS += stub/keeper.o bin/petit_ami_term.so 
 endif
 
+CLIBSCPP = $(CLIBS) cpp/terminal.o
+
 #
 # Graphical model API
 #
@@ -330,6 +333,7 @@ PLIBSD = bin/petit_ami_plain$(LIBEXT)
 CLIBSD = bin/petit_ami_term$(LIBEXT) stub/keeper.o
 GLIBSD = bin/petit_ami_graph$(LIBEXT) stub/keeper.o
 
+CLIBSCPPD = $(CLIBSD) cpp/terminal.cpp
 #
 # add external packages
 #
@@ -692,7 +696,6 @@ test: $(PLIBSD) test.c
 	$(CC) $(CFLAGS) test.c $(PLIBS) -o test
 	
 testc: $(CLIBSD) test.c
-	echo "CFLAGS: $(CFLAGS) STDIO_SOURCE: $(STDIO_SOURCE)"
 	$(CC) $(CFLAGS) test.c $(CLIBS) -o testc
 	
 testg: $(GLIBSD) test.c
@@ -701,8 +704,8 @@ testg: $(GLIBSD) test.c
 test++: $(PLIBSD) test.cpp
 	$(CPP) $(CFLAGS) test.cpp $(PLIBS) -o test
 	
-testc++: $(CLIBSD) test.cpp
-	$(CPP) $(CFLAGS) test.cpp $(CLIBS) -o testc
+testc++: $(CLIBSCPPD) test.cpp
+	$(CPP) $(CFLAGSCPP) test.cpp $(CLIBSCPP) -o testc
 	
 testg++: $(GLIBSD) test.cpp
 	$(CPP) $(CFLAGS) test.cpp $(GLIBS) -o testg

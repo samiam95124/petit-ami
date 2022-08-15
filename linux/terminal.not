@@ -1,6 +1,6 @@
              NOTES FOR XTERM TERMINAL LIBRARY
 
-1. Implement buffer follow mode and a test for same.
+1. A lot of white (xterm background) flash when resizing/winch.
 
 MACOSX/Quartz version ============================================================
 
