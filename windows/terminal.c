@@ -2246,7 +2246,7 @@ the associated input file.
 *******************************************************************************/
 
 static void itimer(int i, /* timer handle */
-            int t, /* number of tenth-milliseconds to run */
+            long t, /* number of tenth-milliseconds to run */
             int r) /* timer is to rerun after completion */
 
 {
@@ -2267,7 +2267,7 @@ static void itimer(int i, /* timer handle */
 
 }
 
-void pa_timer(FILE* f, int i, int t, int r)
+void pa_timer(FILE* f, int i, long t, int r)
 
 {
 

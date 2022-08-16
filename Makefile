@@ -333,7 +333,7 @@ PLIBSD = bin/petit_ami_plain$(LIBEXT)
 CLIBSD = bin/petit_ami_term$(LIBEXT) stub/keeper.o
 GLIBSD = bin/petit_ami_graph$(LIBEXT) stub/keeper.o
 
-CLIBSCPPD = $(CLIBSD) cpp/terminal.cpp
+CLIBSCPPD = $(CLIBSD) cpp/terminal.o
 #
 # add external packages
 #
