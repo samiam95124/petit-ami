@@ -26,11 +26,16 @@
 #
 # CFLAGS	Contains the compiler/linker flags to build programs.
 #
+# CFLAGSCPP Contains the compiler/linker flags to build C++ programs.
+#
 # PLIBS		Contains the libraries and flags required to build plain (no display
 #           model) programs.
 # 
 # CLIBS		Contains the libraries and flags required to build console model
 #           programs.
+#
+# CLIBSCPP  Contains the libraries and flags required to build console model
+#           programs for C++.
 #
 # GLIBS		Contains the libraries and flags required to build graphical model
 #           programs.
@@ -38,6 +43,8 @@
 # PLIBSD	Contains dependencies only for plain (no display model) programs.
 #
 # CLIBSD    Contains dependencies only for console model programs.
+#
+# CLIBSCPPD Contains dependencies only for console model programs in C++.
 #
 # GLIBSD    Contains dependencies only for graphical model programs.
 #
@@ -241,27 +248,48 @@ else ifeq ($(OSTYPE),Darwin)
     
 else
 
-    #
-    # Linux, use modified GLIBC
-    #
+	ifeq ($(STDIO_SOURCE),stdio)
+	
+		# Nothing, libc is linked in overall lib
+		
+	else
+	
+	    #
+	    # Linux, use modified GLIBC
+	    #
+	    
+	    #
+	    # For modified GLIBC, we need to specify the libary first or it won't
+	    # link correctly.
+	    #
+	    ifeq ($(LINK_TYPE),static)
+	        PLIBS = -Wl,--whole-archive bin/libc.a -Wl,--no-whole-archive
+	        CLIBS = -Wl,--whole-archive bin/libc.a -Wl,--no-whole-archive
+	        GLIBS = -Wl,--whole-archive bin/libc.a -Wl,--no-whole-archive
+	        PLIBSD = bin/libc.a
+	        CLIBSD = bin/libc.a
+	        GLIBSD = bin/libc.a
+	    else
+		    PLIBS = bin/libc.so.6
+		    CLIBS = bin/libc.so.6
+		    GLIBS = bin/libc.so.6
+	    endif
+	   
+	endif
     
-    #
-    # For modified GLIBC, we need to specify the libary first or it won't
-    # link correctly.
-    #
-    ifeq ($(LINK_TYPE),static)
-        PLIBS = -Wl,--whole-archive bin/libc.a -Wl,--no-whole-archive
-        CLIBS = -Wl,--whole-archive bin/libc.a -Wl,--no-whole-archive
-        GLIBS = -Wl,--whole-archive bin/libc.a -Wl,--no-whole-archive
-        PLIBSD = bin/libc.a
-        CLIBSD = bin/libc.a
-        GLIBSD = bin/libc.a
-    else
-	    PLIBS = bin/libc.so.6
-	    CLIBS = bin/libc.so.6
-	    GLIBS = bin/libc.so.6
-    endif
-    
+endif
+
+#
+# Specify stdio for Linux libraries
+#
+ifeq ($(STDIO_SOURCE),stdio)
+
+	LINUXSTDIO = linux/stdio.o
+	
+else
+	
+	LINUXSTDIO =
+	
 endif
 
 #
@@ -446,6 +474,9 @@ endif
 #
 # Linux library components
 #
+linux/stdio.o: libc/stdio.c libc/stdio.h Makefile
+	gcc -g3 -Ilibc -c libc/stdio.c -o linux/stdio.o
+
 linux/services.o: linux/services.c include/services.h Makefile
 	gcc -g3 -Iinclude -fPIC -c linux/services.c -o linux/services.o
 	
@@ -626,46 +657,50 @@ else
 # to do things like midi to wave conversion.
 #
 bin/petit_ami_plain.so: linux/services.o linux/network.o utils/config.o \
-    utils/option.o
+    utils/option.o $(LINUXSTDIO)
 	gcc -shared linux/services.o linux/network.o utils/config.o utils/option.o \
-	    -o bin/petit_ami_plain.so
+	    $(LINUXSTDIO) -o bin/petit_ami_plain.so
 	
 bin/petit_ami_plain.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/network.o utils/config.o utils/option.o
+    linux/dumpsynthplug.o linux/network.o utils/config.o utils/option.o \
+    $(LINUXSTDIO)
 	ar rcs bin/petit_ami_plain.a linux/services.o linux/sound.o \
 	    linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
-	    utils/config.o utils/option.o
+	    utils/config.o utils/option.o $(LINUXSTDIO)
 	
 bin/petit_ami_term.so: linux/services.o linux/network.o linux/terminal.o \
-    linux/system_event.o utils/config.o utils/option.o cpp/terminal.o
+    linux/system_event.o utils/config.o utils/option.o $(LINUXSTDIO) \
+    cpp/terminal.o
 	gcc -shared linux/services.o linux/network.o linux/terminal.o \
-	    linux/system_event.o utils/config.o utils/option.o cpp/terminal.o \
-	    -o bin/petit_ami_term.so 
+	    linux/system_event.o utils/config.o utils/option.o $(LINUXSTDIO) \
+	    cpp/terminal.o -o bin/petit_ami_term.so 
 	
 bin/petit_ami_term.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
     linux/dumpsynthplug.o linux/network.o linux/terminal.o \
-    linux/system_event.o utils/config.o utils/option.o cpp/terminal.o
+    linux/system_event.o utils/config.o utils/option.o $(LINUXSTDIO) \
+    cpp/terminal.o
 	ar rcs bin/petit_ami_term.a linux/services.o linux/sound.o \
 		linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
 		linux/terminal.o linux/system_event.o utils/config.o utils/option.o \
-		cpp/terminal.o
+		$(LINUXSTDIO) cpp/terminal.o
 	
 bin/petit_ami_graph.so: linux/services.o linux/network.o linux/graphics.o \
     linux/rotated.o linux/system_event.o portable/gnome_widgets.o \
-    utils/config.o utils/option.o cpp/terminal.o
+    utils/config.o utils/option.o $(LINUXSTDIO) cpp/terminal.o
 	gcc -shared linux/services.o linux/network.o linux/graphics.o \
         linux/rotated.o linux/system_event.o portable/gnome_widgets.o \
-        utils/config.o utils/option.o cpp/terminal.o \
+        utils/config.o utils/option.o $(LINUXSTDIO) cpp/terminal.o \
         -o bin/petit_ami_graph.so
 	
 bin/petit_ami_graph.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
     linux/dumpsynthplug.o linux/network.o linux/graphics.o \
     linux/rotated.o linux/system_event.o portable/gnome_widgets.o \
-    utils/config.o utils/option.o cpp/terminal.o
+    utils/config.o utils/option.o $(LINUXSTDIO) cpp/terminal.o
 	ar rcs bin/petit_ami_graph.a linux/services.o linux/sound.o \
 		linux/fluidsynthplug.o linux/dumpsynthplug.o  linux/network.o \
 		linux/graphics.o linux/rotated.o linux/system_event.o \ 
-		portable/gnome_widgets.o utils/config.o utils/option.o cpp/terminal.o
+		portable/gnome_widgets.o utils/config.o utils/option.o $(LINUXSTDIO) \
+		cpp/terminal.o
 	
 endif
 

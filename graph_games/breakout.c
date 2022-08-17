@@ -20,7 +20,7 @@
 #include <graphics.h>
 
 /* enable sounds */
-//#define SOUND 1
+#define SOUND 1
 
 #define   SECOND      10000                   /* one second */
 #define   OSEC        (SECOND/8)              /* 1/8 second */
