@@ -127,6 +127,7 @@ ifndef STDIO_SOURCE
         # glibc assumes that this is a patched glibc with override calls.
         #
         STDIO_SOURCE=glibc
+        #STDIO_SOURCE=stdio
     endif
 endif
 
@@ -404,8 +405,6 @@ else
     
 endif
 
-
-
 ################################################################################
 #
 # Build targets
@@ -475,7 +474,7 @@ endif
 # Linux library components
 #
 linux/stdio.o: libc/stdio.c libc/stdio.h Makefile
-	gcc -g3 -Ilibc -c libc/stdio.c -o linux/stdio.o
+	gcc -g3 -Ilibc -fPIC -c libc/stdio.c -o linux/stdio.o
 
 linux/services.o: linux/services.c include/services.h Makefile
 	gcc -g3 -Iinclude -fPIC -c linux/services.c -o linux/services.o
@@ -656,50 +655,50 @@ else
 # The linux build uses fluidsynth, and uses a series of runtime plug-ins
 # to do things like midi to wave conversion.
 #
-bin/petit_ami_plain.so: linux/services.o linux/network.o utils/config.o \
-    utils/option.o $(LINUXSTDIO)
-	gcc -shared linux/services.o linux/network.o utils/config.o utils/option.o \
-	    $(LINUXSTDIO) -o bin/petit_ami_plain.so
+bin/petit_ami_plain.so: $(LINUXSTDIO) linux/services.o linux/network.o utils/config.o \
+    utils/option.o
+	gcc -shared $(LINUXSTDIO) linux/services.o linux/network.o utils/config.o \
+		utils/option.o -o bin/petit_ami_plain.so
 	
-bin/petit_ami_plain.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/network.o utils/config.o utils/option.o \
-    $(LINUXSTDIO)
-	ar rcs bin/petit_ami_plain.a linux/services.o linux/sound.o \
+bin/petit_ami_plain.a: $(LINUXSTDIO) linux/services.o linux/sound.o \
+	linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
+	utils/config.o utils/option.o
+	ar rcs bin/petit_ami_plain.a $(LINUXSTDIO) linux/services.o linux/sound.o \
 	    linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
-	    utils/config.o utils/option.o $(LINUXSTDIO)
+	    utils/config.o utils/option.o
 	
-bin/petit_ami_term.so: linux/services.o linux/network.o linux/terminal.o \
-    linux/system_event.o utils/config.o utils/option.o $(LINUXSTDIO) \
+bin/petit_ami_term.so: $(LINUXSTDIO) linux/services.o linux/network.o \
+	linux/terminal.o linux/system_event.o utils/config.o utils/option.o \
     cpp/terminal.o
-	gcc -shared linux/services.o linux/network.o linux/terminal.o \
-	    linux/system_event.o utils/config.o utils/option.o $(LINUXSTDIO) \
+	gcc -shared $(LINUXSTDIO) linux/services.o linux/network.o \
+		linux/terminal.o linux/system_event.o utils/config.o utils/option.o  \
 	    cpp/terminal.o -o bin/petit_ami_term.so 
 	
-bin/petit_ami_term.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/network.o linux/terminal.o \
-    linux/system_event.o utils/config.o utils/option.o $(LINUXSTDIO) \
+bin/petit_ami_term.a: $(LINUXSTDIO) linux/services.o linux/sound.o \
+	linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
+	linux/terminal.o linux/system_event.o utils/config.o utils/option.o \
     cpp/terminal.o
-	ar rcs bin/petit_ami_term.a linux/services.o linux/sound.o \
+	ar rcs bin/petit_ami_term.a $(LINUXSTDIO) linux/services.o linux/sound.o \
 		linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
 		linux/terminal.o linux/system_event.o utils/config.o utils/option.o \
-		$(LINUXSTDIO) cpp/terminal.o
+		 cpp/terminal.o
 	
-bin/petit_ami_graph.so: linux/services.o linux/network.o linux/graphics.o \
-    linux/rotated.o linux/system_event.o portable/gnome_widgets.o \
-    utils/config.o utils/option.o $(LINUXSTDIO) cpp/terminal.o
-	gcc -shared linux/services.o linux/network.o linux/graphics.o \
-        linux/rotated.o linux/system_event.o portable/gnome_widgets.o \
-        utils/config.o utils/option.o $(LINUXSTDIO) cpp/terminal.o \
+bin/petit_ami_graph.so: $(LINUXSTDIO) linux/services.o linux/network.o \
+	linux/graphics.o linux/rotated.o linux/system_event.o \
+	portable/gnome_widgets.o utils/config.o utils/option.o cpp/terminal.o
+	gcc -shared $(LINUXSTDIO) linux/services.o linux/network.o \
+		linux/graphics.o linux/rotated.o linux/system_event.o \
+		portable/gnome_widgets.o utils/config.o utils/option.o cpp/terminal.o \
         -o bin/petit_ami_graph.so
 	
-bin/petit_ami_graph.a: linux/services.o linux/sound.o linux/fluidsynthplug.o \
-    linux/dumpsynthplug.o linux/network.o linux/graphics.o \
-    linux/rotated.o linux/system_event.o portable/gnome_widgets.o \
-    utils/config.o utils/option.o $(LINUXSTDIO) cpp/terminal.o
-	ar rcs bin/petit_ami_graph.a linux/services.o linux/sound.o \
-		linux/fluidsynthplug.o linux/dumpsynthplug.o  linux/network.o \
+bin/petit_ami_graph.a: $(LINUXSTDIO) linux/services.o linux/sound.o \
+	linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
+	linux/graphics.o linux/rotated.o linux/system_event.o \
+	portable/gnome_widgets.o utils/config.o utils/option.o cpp/terminal.o
+	ar rcs bin/petit_ami_graph.a $(LINUXSTDIO) linux/services.o linux/sound.o \
+		linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
 		linux/graphics.o linux/rotated.o linux/system_event.o \ 
-		portable/gnome_widgets.o utils/config.o utils/option.o $(LINUXSTDIO) \
+		portable/gnome_widgets.o utils/config.o utils/option.o  \
 		cpp/terminal.o
 	
 endif

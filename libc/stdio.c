@@ -178,6 +178,11 @@ static vt_close_t  vt_close  = wclose;
 static vt_unlink_t vt_unlink = wunlink;
 static vt_lseek_t  vt_lseek  = wlseek;
 
+static vt_read_t   vt_read_nocancel   = wread;
+static vt_write_t  vt_write_nocancel  = wwrite;
+static vt_open_t   vt_open_nocancel   = wopen;
+static vt_close_t  vt_close_nocancel  = wclose;
+
 /* counters to generate temp files */
 
 static int tmpcnt; /* temp counter, starting at 0 */
@@ -238,6 +243,16 @@ void ovr_close(vt_close_t nfp, vt_close_t* ofp) { *ofp = vt_close; vt_close = nf
 void ovr_unlink(vt_unlink_t nfp, vt_unlink_t* ofp)
     { *ofp = vt_unlink; vt_unlink = nfp; }
 void ovr_lseek(vt_lseek_t nfp, vt_lseek_t* ofp) { *ofp = vt_lseek; vt_lseek = nfp; }
+
+/* nocancel is a glibc thing. We equate it to the regular calls */
+void ovr_read_nocancel(vt_read_t nfp, vt_read_t* ofp)
+    { *ofp = vt_read; vt_read = nfp; }
+void ovr_write_nocancel(vt_write_t nfp, vt_write_t* ofp)
+    { *ofp = vt_write; vt_write = nfp; }
+void ovr_open_nocancel(vt_open_t nfp, vt_open_t* ofp)
+    { *ofp = vt_open; vt_open = nfp; }
+void ovr_close_nocancel(vt_close_t nfp, vt_close_t* ofp)
+    { *ofp = vt_close; vt_close = nfp; }
 
 /*******************************************************************************
 
