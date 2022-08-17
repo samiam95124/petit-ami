@@ -17,6 +17,10 @@
 #ifndef _STDIO_H_
 #define _STDIO_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stddef.h>
 #include <stdarg.h>
 
@@ -185,5 +189,9 @@ int feof(FILE* stream);
 int ferror(FILE* stream);
 void perror(const char *s);
 int fileno(FILE* stream);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* stdio.h */

@@ -701,6 +701,9 @@ testc: $(CLIBSD) test.c
 testg: $(GLIBSD) test.c
 	$(CC) $(CFLAGS) test.c $(GLIBS) -o testg
 	
+test+: $(PLIBSD) test.cp
+	$(CPP) $(CFLAGS) test.cp $(PLIBS) -o test
+	
 test++: $(PLIBSD) test.cpp
 	$(CPP) $(CFLAGS) test.cpp $(PLIBS) -o test
 	
