@@ -1568,6 +1568,8 @@ discarded, and matching goes on with the next input character. Such "stillborn"
 matches are either the result of ill considered input key equivalences, or of
 a user typing in keys manually that happen to evaluate to special keys.
 
+ievent() is called within the input spooler task only.
+
 *******************************************************************************/
 
 /* get and process a joystick event */
@@ -2690,7 +2692,7 @@ static void readline(void)
     xoff = ncurx; /* save starting line offset */
     do { /* get line characters */
 
-        ievent(&er); /* get next event */
+        dequepaevt(&er); /* get next event */
         switch (er.etype) { /* event */
 
             case pa_etterm: exit(1); /* halt program */
