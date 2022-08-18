@@ -88,6 +88,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <sys/signalfd.h>
+#include <pthread.h>
 
 #include "system_event.h"
 
@@ -129,6 +130,11 @@ typedef struct systrk {
 
 } systrk;
 
+/*
+ * Lock for module data
+ */
+static pthread_mutex_t evtlock; /* lock for this module data */
+
 /* logical system event tracking array */
 static sevtptr systab[MAXSYS];
 static int sysno; /* number of system event ids allocated */
@@ -142,6 +148,8 @@ static int ifdmax;
 
 static sigset_t sigmsk; /* signal mask */
 static sigset_t sigact; /* signal active */
+
+/* end of evtlock section */
 
 /** *****************************************************************************
 
@@ -207,11 +215,13 @@ int system_event_addseinp(int fid)
 
     int sid; /* system logical event id */
 
+    pthread_mutex_lock(&evtlock); /* take the event lock */
     sid = getsys(); /* get a new system event id */
     systab[sid-1]->typ = se_inp; /* set type */
     systab[sid-1]->fid = fid; /* set fid for file */
     FD_SET(fid, &ifdseta); /* add to active set */
     if (fid+1 > ifdmax) ifdmax = fid+1; /* set maximum fid for pselect() */
+    pthread_mutex_unlock(&evtlock); /* release the event lock */
 
     return (sid); /* exit with logical event id */
 
@@ -240,6 +250,7 @@ int system_event_addsesig(int sig)
     sigset_t sigmsk; /* signal mask */
     int      fid;     /* file id */
 
+    pthread_mutex_lock(&evtlock); /* take the event lock */
     sigemptyset(&sigmsk);
     sigaddset(&sigmsk, sig);
     sigprocmask(SIG_BLOCK, &sigmsk, NULL);
@@ -251,6 +262,7 @@ int system_event_addsesig(int sig)
     systab[sid-1]->fid = fid; /* set file id */
     FD_SET(fid, &ifdseta); /* add to active set */
     if (fid+1 > ifdmax) ifdmax = fid+1; /* set maximum fid for pselect() */
+    pthread_mutex_unlock(&evtlock); /* release the event lock */
 
     return (sid); /* exit with logical event id */
 
@@ -274,7 +286,9 @@ int system_event_addsetim(int sid, int t, int r)
     struct itimerspec ts;
     int  rv;
     long tl;
+    int fid;
 
+    pthread_mutex_lock(&evtlock); /* take the event lock */
     if (!sid) { /* no previous system id */
 
         sid = getsys(); /* get a new system event id */
@@ -282,6 +296,7 @@ int system_event_addsetim(int sid, int t, int r)
         systab[sid-1]->fid = timerfd_create(CLOCK_REALTIME, 0);
         if (systab[sid-1]->fid == -1) {
 
+            pthread_mutex_unlock(&evtlock); /* release the event lock */
             fprintf(stderr, "*** System event: Cannot create timer\n");
             fflush(stderr);
             exit(1);
@@ -292,6 +307,8 @@ int system_event_addsetim(int sid, int t, int r)
             ifdmax = systab[sid-1]->fid+1; /* set maximum fid for pselect() */
 
     }
+    fid = systab[sid-1]->fid; /* get the fid for the timer */
+    pthread_mutex_unlock(&evtlock); /* release the event lock */
 
     /* set timer run time */
     tl = t;
@@ -309,7 +326,7 @@ int system_event_addsetim(int sid, int t, int r)
 
     }
 
-    rv = timerfd_settime(systab[sid-1]->fid, 0, &ts, NULL);
+    rv = timerfd_settime(fid, 0, &ts, NULL);
     if (rv < 0) {
 
         fprintf(stderr, "*** System event: Unable to set time\n");
@@ -338,14 +355,19 @@ void system_event_deasetim(int sid)
 
     struct itimerspec ts;
     int rv;
+    int fid;
 
+    pthread_mutex_lock(&evtlock); /* take the event lock */
     if (sid <= 0 || !systab[sid-1]) {
 
+        pthread_mutex_unlock(&evtlock); /* release the event lock */
         fprintf(stderr, "*** System event: Invalid system event id\n");
         fflush(stderr);
         exit(1);
 
     }
+    fid = systab[sid-1]->fid; /* get the timer fid */
+    pthread_mutex_unlock(&evtlock); /* release the event lock */
 
     /* set timer run time to zero to kill it */
     ts.it_value.tv_sec = 0;
@@ -353,7 +375,7 @@ void system_event_deasetim(int sid)
     ts.it_interval.tv_sec = 0;
     ts.it_interval.tv_nsec = 0;
 
-    rv = timerfd_settime(systab[sid-1]->fid, 0, &ts, NULL);
+    rv = timerfd_settime(fid, 0, &ts, NULL);
     if (rv < 0) {
 
         fprintf(stderr, "*** System event: Unable to set time\n");
@@ -361,6 +383,7 @@ void system_event_deasetim(int sid)
         exit(1);
 
     }
+
 
 }
 
@@ -385,6 +408,7 @@ void system_event_getsevt(sevptr ev)
     uint64_t                exp; /* timer expiration time */
     struct signalfd_siginfo fdsi; /* signal data */
 
+    pthread_mutex_lock(&evtlock); /* take the event lock */
     ev->typ = se_none; /* set no event occurred */
     do { /* find an active event */
 
@@ -411,7 +435,9 @@ void system_event_getsevt(sevptr ev)
 
             /* no input is active, load a new signaler set */
             ifdsets = ifdseta; /* set up request set */
+            pthread_mutex_unlock(&evtlock); /* release the event lock */
             rv = pselect(ifdmax, &ifdsets, NULL, NULL, NULL, &sigmsk);
+            pthread_mutex_lock(&evtlock); /* take the event lock */
             /* if error, the input set won't be modified and thus will appear as
                if they were active. We clear them in this case */
             if (rv < 0) FD_ZERO(&ifdsets);
@@ -419,6 +445,7 @@ void system_event_getsevt(sevptr ev)
         }
 
     } while (ev->typ == se_none);
+    pthread_mutex_unlock(&evtlock); /* release the event lock */
 
 #ifdef PRTSEVT
 switch (ev->typ) {
@@ -446,6 +473,9 @@ static void init_system_event()
 {
 
     int si; /* index for system event array */
+
+    /* initialize the events lock */
+    pthread_mutex_init(&evtlock, NULL);
 
     /* clear the tracking array */
     for (si = 0; si < MAXSYS; si++) systab[si] = NULL;
@@ -484,5 +514,8 @@ static void deinit_system_event()
     /* close any open timers */
     for (si = 0; si < MAXSYS ; si++)
         if (systab[si] && systab[si]->typ == se_tim) close(systab[si]->fid);
+
+    /* release the event lock */
+    pthread_mutex_destroy(&evtlock);
 
 }
