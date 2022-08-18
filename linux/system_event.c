@@ -149,6 +149,8 @@ static int ifdmax;
 static sigset_t sigmsk; /* signal mask */
 static sigset_t sigact; /* signal active */
 
+static int resetsev; /* reset system event */
+
 /* end of evtlock section */
 
 /** *****************************************************************************
@@ -213,7 +215,8 @@ int system_event_addseinp(int fid)
 
 {
 
-    int sid; /* system logical event id */
+    int   sid; /* system logical event id */
+    pid_t pid;
 
     pthread_mutex_lock(&evtlock); /* take the event lock */
     sid = getsys(); /* get a new system event id */
@@ -222,6 +225,10 @@ int system_event_addseinp(int fid)
     FD_SET(fid, &ifdseta); /* add to active set */
     if (fid+1 > ifdmax) ifdmax = fid+1; /* set maximum fid for pselect() */
     pthread_mutex_unlock(&evtlock); /* release the event lock */
+
+    /* send reset to this process */
+    pid = getpid();
+    kill(pid, SIGUSR1);
 
     return (sid); /* exit with logical event id */
 
@@ -249,6 +256,7 @@ int system_event_addsesig(int sig)
     int      sid;    /* system logical event id */
     sigset_t sigmsk; /* signal mask */
     int      fid;     /* file id */
+    pid_t    pid;
 
     pthread_mutex_lock(&evtlock); /* take the event lock */
     sigemptyset(&sigmsk);
@@ -263,6 +271,10 @@ int system_event_addsesig(int sig)
     FD_SET(fid, &ifdseta); /* add to active set */
     if (fid+1 > ifdmax) ifdmax = fid+1; /* set maximum fid for pselect() */
     pthread_mutex_unlock(&evtlock); /* release the event lock */
+
+    /* send reset to this process */
+    pid = getpid();
+    kill(pid, SIGUSR1);
 
     return (sid); /* exit with logical event id */
 
@@ -284,9 +296,10 @@ int system_event_addsetim(int sid, int t, int r)
 {
 
     struct itimerspec ts;
-    int  rv;
-    long tl;
-    int fid;
+    int    rv;
+    long   tl;
+    int    fid;
+    pid_t  pid;
 
     pthread_mutex_lock(&evtlock); /* take the event lock */
     if (!sid) { /* no previous system id */
@@ -334,6 +347,10 @@ int system_event_addsetim(int sid, int t, int r)
         exit(1);
 
     }
+
+    /* send reset to this process */
+    pid = getpid();
+    kill(pid, SIGUSR1);
 
     return (sid);
 
@@ -493,6 +510,10 @@ static void init_system_event()
     sigemptyset(&sigmsk);
 
     sysno = 0; /* set no active system events */
+
+    /* enable select reset signal */
+    signal(SIGUSR1, SIG_IGN);
+    resetsev = system_event_addsesig(SIGUSR1);
 
 }
 
