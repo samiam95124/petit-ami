@@ -511,7 +511,11 @@ static struct termios trmsav;
 /**
  * Active timers table
  */
+
+static pthread_mutex_t timlock; /* lock for timer table */
 static int timtbl[PA_MAXTIM];
+static int frmsev; /* frame timer system event number */
+/* end of timlock region */
 
 static scnrec* screens[MAXCON];         /* screen contexts array */ 
 static int curdsp;                      /* index for current display screen */ 
@@ -573,7 +577,6 @@ int           inpptr;         /* input line index */
 static joyptr joytab[MAXJOY]; /* joystick control table */
 static int    dmpevt;         /* enable dump Petit-Ami messages */
 static int    inpsev;         /* keyboard input system event number */
-static int    frmsev;         /* frame timer system event number */
 static int    winchsev;       /* windows change system event number */
 #ifdef ALLOWUTF8
 static int    utf8cnt;        /* UTF-8 extended character count */
@@ -1780,6 +1783,7 @@ static void ievent(pa_evtrec* ev)
         } else if (sev.typ == se_tim) {
 
             /* look in timer set */
+            pthread_mutex_lock(&timlock); /* take the timer lock */
             for (ti = 0; ti < PA_MAXTIM && !evtfnd; ti++) {
 
                 if (timtbl[ti] == sev.lse) {
@@ -1793,6 +1797,7 @@ static void ievent(pa_evtrec* ev)
                 }
 
             }
+
             /* could also be the frame timer */
             if (!evtfnd && sev.lse == frmsev) {
 
@@ -1801,6 +1806,7 @@ static void ievent(pa_evtrec* ev)
                 evtfnd = TRUE; /* set event found */
 
             }
+            pthread_mutex_unlock(&timlock); /* release the timer lock */
 
         } else if (sev.typ == se_inp && !evtfnd && joyenb) {
 
@@ -3781,7 +3787,9 @@ static void timer_ivf(/* file to send event to */              FILE* f,
 {
 
     if (i < 1 || i > PA_MAXTIM) error(einvhan); /* invalid timer handle */
+    pthread_mutex_lock(&timlock); /* take the timer lock */
     timtbl[i-1] = system_event_addsetim(timtbl[i-1], t, r);
+    pthread_mutex_unlock(&timlock); /* release the timer lock */
 
 }
 
@@ -3805,8 +3813,15 @@ static void killtimer_ivf(/* file to kill timer on */ FILE *f,
 {
 
     if (i < 1 || i > PA_MAXTIM) error(einvhan); /* invalid timer handle */
-    if (timtbl[i-1] <= 0) error(etimacc); /* no such timer */
+    pthread_mutex_lock(&timlock); /* take the timer lock */
+    if (timtbl[i-1] <= 0) {
+
+        pthread_mutex_unlock(&evtlock); /* release the timer lock */
+        error(etimacc); /* no such timer */
+
+    }
     system_event_deasetim(timtbl[i-1]); /* deactivate timer */
+    pthread_mutex_unlock(&timlock); /* release the timer lock */
 
 }
 
@@ -4036,6 +4051,7 @@ static void frametimer_ivf(FILE* f, int e)
 
 {
 
+    pthread_mutex_lock(&timlock); /* take the timer lock */
     if (e) { /* set framing timer to run */
 
         frmsev = system_event_addsetim(frmsev, 166, TRUE);
@@ -4045,6 +4061,7 @@ static void frametimer_ivf(FILE* f, int e)
         system_event_deasetim(frmsev);
 
     }
+    pthread_mutex_unlock(&timlock); /* release the timer lock */
 
 }
 
@@ -4640,6 +4657,9 @@ static void pa_init_terminal()
     r = pthread_mutex_init(&evtlock, NULL);
     if (r) linuxerror(r);
 
+    /* initialize the time table lock */
+    pthread_mutex_init(&timlock, NULL);
+
     /* initialize queue not empty semaphore */
     r = pthread_cond_init(&evtquene, NULL);
     if (r) linuxerror(r);
@@ -4672,6 +4692,12 @@ static void pa_deinit_terminal()
     pclose_t cppclose;
     punlink_t cppunlink;
     plseek_t cpplseek;
+
+    /* release the time table lock */
+    pthread_mutex_destroy(&timlock);
+
+    /* release the event lock */
+    pthread_mutex_destroy(&evtlock);
 
     /* restore cursor visible */
     trm_curon();
