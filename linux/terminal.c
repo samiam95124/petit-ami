@@ -3765,7 +3765,7 @@ static void event_ivf(FILE* f, pa_evtrec *er)
     /* do diagnostic dump of PA events */
     if (dmpevt) {
 
-        prtevtt(er->etype); fprintf(stderr, "\n"); fflush(stderr);
+        prtevt(er); fprintf(stderr, "\n"); fflush(stderr);
 
     }
 
