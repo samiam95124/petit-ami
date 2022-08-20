@@ -571,7 +571,7 @@ stub/keeper.o: stub/keeper.c
 	gcc -g3 -fPIC -Iinclude -c stub/keeper.c -o stub/keeper.o
 
 cpp/terminal.o: cpp/terminal.cpp
-	g++ -g3 -fPIC -Iinclude -Ihpp -c cpp/terminal.cpp -o cpp/terminal.o
+	$(CPP) -g3 -fPIC -Iinclude -Ihpp -c cpp/terminal.cpp -o cpp/terminal.o
 	
 portable/gnome_widgets.o: portable/gnome_widgets.c
 	gcc -g3 -fPIC -Iinclude -c portable/gnome_widgets.c \
@@ -915,6 +915,9 @@ termg: $(GLIBSD) tests/term.c
 #	
 snake: $(CLIBSD) terminal_games/snake.c
 	$(CC) $(CFLAGS) terminal_games/snake.c $(CLIBS) -o bin/snake
+
+snake+: $(CLIBSCPPD) terminal_games/snake.cp
+	$(CPP) $(CFLAGSCPP) terminal_games/snake.cp $(CLIBSCPP) -o bin/snake
 	
 snakeg: $(GLIBSD) terminal_games/snake.c
 	$(CC) $(CFLAGS) terminal_games/snake.c $(GLIBS) -o bin/snakeg
