@@ -155,6 +155,25 @@ static int resetsev; /* reset system event */
 
 /** *****************************************************************************
 
+Print file descriptor set
+
+Given a set of file descriptors, prints out active bits. A diagnostic.
+
+*******************************************************************************/
+
+static void prtfds(fd_set* fdset)
+
+{
+
+    int fid;
+
+    for (fid = 0; fid < ifdmax; fid++) 
+        fprintf(stderr, "%d", FD_ISSET(fid, fdset));
+
+}
+
+/** *****************************************************************************
+
 Get system logical event
 
 Finds a slot in the system event id table and allocates that, then returns the
@@ -430,7 +449,7 @@ void system_event_getsevt(sevptr ev)
     do { /* find an active event */
 
         /* search for fid and sig entries */
-        for (si = 0; si < sysno; si++) if (systab[si]) {
+        for (si = 0; si < sysno && ev->typ == se_none; si++) if (systab[si]) {
 
             if (systab[si]->fid >= 0 && FD_ISSET(systab[si]->fid, &ifdsets)) {
 
