@@ -85,24 +85,49 @@ typedef struct {
 
 } scnpos;
 
-// 
-// Terminal object
-//
-class myterm: public term
+/*******************************************************************************
+
+Terminal object
+
+Adds:
+
+1. Stored screen image, and methods to read and write that.
+2. An event structure and the method event() to refresh it.
+3. Write screen at x,y location.
+4. Write string centered at a given line.
+5. Handling for the terminate event.
+
+*******************************************************************************/
+
+class gameterm: public term
 
 {
 
     public:
+
+    /* members */
     evtrec er;
+    char   image[MAXSCN][MAXSCN]; /* screen image */
+
+    /* methods */
     int evterm(void);
     void event(void);
+    void writeimage(int x, int y, char c);
+    char readimage(int x, int y);
+    void writescreen(int x, int y, char c);
+    void wrtcen(int y, const char* s, int* off);
 
 };
 
-//
-// Get next event
-//
-void myterm::event(void)
+/*******************************************************************************
+
+Get next event
+
+Retrieves the next event to the gameterm er event record.
+  
+*******************************************************************************/
+
+void gameterm::event(void)
 
 {
 
@@ -110,10 +135,16 @@ void myterm::event(void)
 
 }
 
-//
-// terminate program
-//
-int myterm::evterm(void)
+/*******************************************************************************
+
+Terminate program
+
+Called on etterm event, restores the cursor, automatic mode, and changes the
+screen back to 1, then exits the program with no error.
+
+*******************************************************************************/
+
+int gameterm::evterm(void)
 
 {
 
@@ -125,20 +156,39 @@ int myterm::evterm(void)
 
 }
 
-myterm ti;                    /* terminal object */
-int    timcnt;                /* move countdown */
-scnpos snakel[MAXSN];         /* snake's positions */
-int    sntop;                 /* current snake array top */
-evtcod lstmov;                /* player move type */
-char   scrsav[SCRNUM];        /* screen score counter */
-int    scrlft;                /* units of score left to add */
-int    scrloc;                /* location of score digits */
-int    fblink;                /* crash blinker */
-char   image[MAXSCN][MAXSCN]; /* screen image */
-int    crash;                 /* crash occurred flag */
-int    i;
-int    x;
-int    tx, ty;
+/*******************************************************************************
+
+Write single character to screen image
+
+Writes the given character to the given X and Y point on the screen image. 
+
+********************************************************************************/
+
+void gameterm::writeimage(int x, int y, /* position to place character */
+                        char c)       /* write screen */
+
+{
+
+    image[x][y] = c;
+
+}
+
+/*******************************************************************************
+
+Read single character from screen image
+
+Reads a character from the given X and Y point on the screen image and returns
+it. 
+
+********************************************************************************/
+
+char gameterm::readimage(int x, int y) /* position to place character */
+
+{
+
+    return (image[x][y]);
+
+}
 
 /*******************************************************************************
 
@@ -149,12 +199,12 @@ a copy to our screen image.
 
 ********************************************************************************/
 
-void writescreen(int x, int y, /* position to place character */
-                 char c)       /* write screen */
+void gameterm::writescreen(int x, int y, /* position to place character */
+                         char c)       /* write screen */
 
 {
 
-    ti.cursor(x, y); /* position to the given location */
+    cursor(x, y); /* position to the given location */
     if (c != image[x][y]) { /* filter redundant placements */
 
         cout << c; /* write the character */
@@ -173,19 +223,34 @@ position of the string.
 
 *******************************************************************************/
 
-void wrtcen(int          y,   /* y position of string */
-            const char*  s,   /* string to write */
-            int*         off) /* returns string offset */
+void gameterm::wrtcen(int          y,   /* y position of string */
+                    const char*  s,   /* string to write */
+                    int*         off) /* returns string offset */
 
 {
 
     int i; /* index for string */
 
-    *off = ti.maxx() / 2-strlen(s) / 2;
+    *off = maxx()/2-strlen(s) / 2;
     /* write out contents */
     for (i = 1; i < strlen(s); i++) writescreen(i+*off, y, s[i]);
 
 }
+
+gameterm ti;             /* terminal object */
+int      timcnt;         /* move countdown */
+scnpos   snakel[MAXSN];  /* snake's positions */
+int      sntop;          /* current snake array top */
+evtcod   lstmov;         /* player move type */
+char     scrsav[SCRNUM]; /* screen score counter */
+int      scrlft;         /* units of score left to add */
+int      scrloc;         /* location of score digits */
+int      fblink;         /* crash blinker */
+
+int      crash;          /* crash occurred flag */
+int      i;
+int      x;
+int      tx, ty;
 
 /*******************************************************************************
 
@@ -205,24 +270,24 @@ void clrscn(void)
     int y; /* index y */
     int x; /* index x */
 
-    putchar('\f'); /* clear display screen */
+    cout << '\f'; /* clear display screen */
     for (x = 1; x <= ti.maxx(); x++) /* clear image */
-        for (y = 1; y <= ti.maxy(); y++) image[x][y] = ' ';
+        for (y = 1; y <= ti.maxy(); y++) ti.writeimage(x, y, ' ');
     /* place top */
-    for (x = 1; x <= ti.maxx(); x++) writescreen(x, 1, '*');
+    for (x = 1; x <= ti.maxx(); x++) ti.writescreen(x, 1, '*');
     /* place sides */
     for (y = 2; y <= ti.maxy()-1; y++) { /* lines */
 
-        writescreen(1, y, '*'); /* place left border */
-        writescreen(ti.maxx(), y, '*'); /* place right border */
+        ti.writescreen(1, y, '*'); /* place left border */
+        ti.writescreen(ti.maxx(), y, '*'); /* place right border */
 
     }
     /* place bottom */
-    for (x = 1; x <= ti.maxx(); x++) writescreen(x, ti.maxy(), '*');
+    for (x = 1; x <= ti.maxx(); x++) ti.writescreen(x, ti.maxy(), '*');
     /* size and place banners */
-    wrtcen(1, " -> FUNCTION 1 RESTARTS <-   SCORE - 0000 ", &x);
+    ti.wrtcen(1, " -> FUNCTION 1 RESTARTS <-   SCORE - 0000 ", &x);
     scrloc = x+38;
-    wrtcen(maxy(), " SNAKE VS. 2.0 ", &x);
+    ti.wrtcen(maxy(), " SNAKE VS. 2.0 ", &x);
 
 }
 
@@ -266,11 +331,11 @@ void plctrg(void)
            a zero - n random function */
         y = randn(ti.maxy()-2)+2;
         x = randn(ti.maxx()-2)+2;
-        c = image[x][y]; /* get character at position */
+        c = ti.readimage(x, y); /* get character at position */
 
     } while (c != ' '); /* area is unoccupied */
     /* place target integer */
-    writescreen(x, y, randn(9)+'1');
+    ti.writescreen(x, y, randn(9)+'1');
 
 }
 
@@ -306,7 +371,7 @@ void nxtscr(void)
 
    } while (i >= 0 && carry); /* last digit is processed, no digit carry */
    /* place score on screen */
-   for (i = 0; i < SCRNUM; i++) writescreen(scrloc+i, 1, scrsav[i]);
+   for (i = 0; i < SCRNUM; i++) ti.writescreen(scrloc+i, 1, scrsav[i]);
 
 }
 
@@ -361,7 +426,7 @@ void movesnake(evtcod usrmov)
         if (sntop == 0 || x != snakel[sntop-1].scnx ||
                           y != snakel[sntop-1].scny) {
 
-            c = image[x][y]; /* load new character */
+            c = ti.readimage(x, y); /* load new character */
             /* check terminate */
             if (y == 1 || y == maxy() || x == 1 || x == maxx() ||
                 (c != ' ' && !isdigit(c))) {
@@ -370,7 +435,7 @@ void movesnake(evtcod usrmov)
                 goto terminate; /* exit */
 
             }
-            writescreen(x, y, '@'); /* place new head */
+            ti.writescreen(x, y, '@'); /* place new head */
             if (isdigit(c)) {
 
                 plctrg(); /* place new target */
@@ -392,7 +457,7 @@ void movesnake(evtcod usrmov)
 
             } else {
 
-                writescreen(snakel[0].scnx, snakel[0].scny, ' ');
+                ti.writescreen(snakel[0].scnx, snakel[0].scny, ' ');
                 for (sn = 0; sn < sntop; sn++) /* copy old positions */
                     snakel[sn] = snakel[sn+1];
 
@@ -508,7 +573,7 @@ int main(void) /* snake */
         snakel[0].scnx = maxx()/2; /* set snake position middle */
         snakel[0].scny = maxy()/2;
         sntop = 0; /* set top snake character */
-        writescreen(ti.maxx()/2, ti.maxy()/2, '@'); /* place snake */
+        ti.writescreen(ti.maxx()/2, ti.maxy()/2, '@'); /* place snake */
         timcnt = TIMMAX;
         for (i = 0; i < SCRNUM; i++) scrsav[i] = '0'; /* zero score */
         nxtscr();
@@ -538,9 +603,9 @@ int main(void) /* snake */
             if (ti.er.timnum == 2) { /* blink cycle */
 
                 if (fblink) /* turn back on */
-                    writescreen(tx, ty, '@');
+                    ti.writescreen(tx, ty, '@');
                 else /* turn off */
-                    writescreen(tx, ty, ' ');
+                    ti.writescreen(tx, ty, ' ');
                 fblink = !fblink; /* invert blinker status */
 
             }
