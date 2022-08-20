@@ -44,14 +44,17 @@ Translated to C, 2019/04/28.
 
 Translated to C+, 2022/08/19.
 
+Translated to C++, 2022/08/19.
+
 *******************************************************************************/
 
 #include <setjmp.h>
 #include <string.h>
 #include <ctype.h>
 #include <limits.h>
-#include <stdio.h>
 #include <stdlib.h>
+
+#include <iostream>
 
 #include <localdefs.h>
 #include <terminal.hpp>
@@ -81,20 +84,60 @@ typedef struct {
 
 } scnpos;
 
-int       timcnt;                /* move countdown */
-scnpos    snakel[MAXSN];         /* snake's positions */
-int       sntop;                 /* current snake array top */
+// 
+// Terminal object
+//
+class myterm: public term
+
+{
+
+    public:
+    evtrec er;
+    int evterm(void);
+    void event(void);
+
+};
+
+//
+// Get next event
+//
+void myterm::event(void)
+
+{
+
+    term::event(&er);
+
+}
+
+//
+// terminate program
+//
+int myterm::evterm(void)
+
+{
+
+    curvis(TRUE); /* restore drawing cursor */
+    autom(TRUE); /* restore automatic scrolling */
+    select(1, 1); /* back to original screen */
+
+    exit(0);
+
+}
+
+myterm ti;                    /* terminal object */
+int    timcnt;                /* move countdown */
+scnpos snakel[MAXSN];         /* snake's positions */
+int    sntop;                 /* current snake array top */
 evtcod lstmov;                /* player move type */
-char      scrsav[SCRNUM];        /* screen score counter */
-int       scrlft;                /* units of score left to add */
-int       scrloc;                /* location of score digits */
-int       fblink;                /* crash blinker */
-evtrec er;                    /* event record */
-char      image[MAXSCN][MAXSCN]; /* screen image */
-int       crash;                 /* crash occurred flag */
-int       i;
-int       x;
-int       tx, ty;
+char   scrsav[SCRNUM];        /* screen score counter */
+int    scrlft;                /* units of score left to add */
+int    scrloc;                /* location of score digits */
+int    fblink;                /* crash blinker */
+char   image[MAXSCN][MAXSCN]; /* screen image */
+int    crash;                 /* crash occurred flag */
+int    i;
+int    x;
+int    tx, ty;
 
 /*******************************************************************************
 
@@ -110,7 +153,7 @@ void writescreen(int x, int y, /* position to place character */
 
 {
 
-    cursor(x, y); /* position to the given location */
+    ti.cursor(x, y); /* position to the given location */
     if (c != image[x][y]) { /* filter redundant placements */
 
         putchar(c); /* write the character */
@@ -137,7 +180,7 @@ void wrtcen(int          y,   /* y position of string */
 
     int i; /* index for string */
 
-    *off = maxx() / 2-strlen(s) / 2;
+    *off = ti.maxx() / 2-strlen(s) / 2;
     /* write out contents */
     for (i = 1; i < strlen(s); i++) writescreen(i+*off, y, s[i]);
 
@@ -162,19 +205,19 @@ void clrscn(void)
     int x; /* index x */
 
     putchar('\f'); /* clear display screen */
-    for (x = 1; x <= maxx(); x++) /* clear image */
-        for (y = 1; y <= maxy(); y++) image[x][y] = ' ';
+    for (x = 1; x <= ti.maxx(); x++) /* clear image */
+        for (y = 1; y <= ti.maxy(); y++) image[x][y] = ' ';
     /* place top */
-    for (x = 1; x <= maxx(); x++) writescreen(x, 1, '*');
+    for (x = 1; x <= ti.maxx(); x++) writescreen(x, 1, '*');
     /* place sides */
-    for (y = 2; y <= maxy()-1; y++) { /* lines */
+    for (y = 2; y <= ti.maxy()-1; y++) { /* lines */
 
         writescreen(1, y, '*'); /* place left border */
-        writescreen(maxx(), y, '*'); /* place right border */
+        writescreen(ti.maxx(), y, '*'); /* place right border */
 
     }
     /* place bottom */
-    for (x = 1; x <= maxx(); x++) writescreen(x, maxy(), '*');
+    for (x = 1; x <= ti.maxx(); x++) writescreen(x, ti.maxy(), '*');
     /* size and place banners */
     wrtcen(1, " -> FUNCTION 1 RESTARTS <-   SCORE - 0000 ", &x);
     scrloc = x+38;
@@ -220,8 +263,8 @@ void plctrg(void)
 
         /* find x, y locations, not on a border using
            a zero - n random function */
-        y = randn(maxy()-2)+2;
-        x = randn(maxx()-2)+2;
+        y = randn(ti.maxy()-2)+2;
+        x = randn(ti.maxx()-2)+2;
         c = image[x][y]; /* get character at position */
 
     } while (c != ' '); /* area is unoccupied */
@@ -393,34 +436,34 @@ void getevt(int tim) /* accept timer events */
 
         do { /* event rejection loop */
 
-            event(&er); /* get event */
+            ti.event(); /* get event */
 
-        } while (er.etype != etleft && er.etype != etright &&
-                 er.etype != etup   && er.etype != etdown &&
-                 er.etype != etterm && er.etype != ettim &&
-                 er.etype != etfun  && er.etype != etjoymov);
+        } while (ti.er.etype != etleft && ti.er.etype != etright &&
+                 ti.er.etype != etup   && ti.er.etype != etdown &&
+                 ti.er.etype != etterm && ti.er.etype != ettim &&
+                 ti.er.etype != etfun  && ti.er.etype != etjoymov);
         accept = TRUE; /* set event accepted by default */
-        if (er.etype == etjoymov) { /* handle joystick */
+        if (ti.er.etype == etjoymov) { /* handle joystick */
 
             /* change joystick to default move directions */
-            if (er.joypx > INT_MAX/10) lstmov = etright;
-            else if (er.joypx < -INT_MAX/10) lstmov = etleft;
-            else if (er.joypy > INT_MAX/10) lstmov = etdown;
-            else if (er.joypy < -INT_MAX/10) lstmov = etup;
+            if (ti.er.joypx > INT_MAX/10) lstmov = etright;
+            else if (ti.er.joypx < -INT_MAX/10) lstmov = etleft;
+            else if (ti.er.joypy > INT_MAX/10) lstmov = etdown;
+            else if (ti.er.joypy < -INT_MAX/10) lstmov = etup;
             accept = FALSE; /* these events don't exit */
 
-        } else if (er.etype == ettim) { /* timer */
+        } else if (ti.er.etype == ettim) { /* timer */
 
             if (tim) {
 
-                if (er.timnum == 1) /* time's up..default move */
+                if (ti.er.timnum == 1) /* time's up..default move */
                     movesnake(lstmov); /* move the same as last */
                 else accept = FALSE; /* suppress exit */
 
             } else accept = FALSE; /* suppress exit */
 
-        } else if (er.etype != etfun && er.etype != etterm) /* movement */
-            movesnake(er.etype); /* process user move */
+        } else if (ti.er.etype != etfun && ti.er.etype != etterm) /* movement */
+            movesnake(ti.er.etype); /* process user move */
 
    } while (!accept);
 
@@ -443,18 +486,18 @@ int main(void) /* snake */
 
 {
 
-    if (maxx() > MAXSCN || maxy() > MAXSCN) {
+    if (ti.maxx() > MAXSCN || ti.maxy() > MAXSCN) {
 
         fprintf(stderr, "*** Error: Screen exceeds maximum size\n");
         exit(1);
 
     }
-    select(2, 2); /* switch screens */
-    curvis(FALSE); /* remove drawing cursor */
-    autom(FALSE); /* remove automatic scrolling */
-    bcolor(cyan); /* on cyan background */
-    timer(1, TIMMAX, TRUE); /* set move timer */
-    timer(2, BLNTIM, TRUE); /* set blinker timer */
+    ti.select(2, 2); /* switch screens */
+    ti.curvis(FALSE); /* remove drawing cursor */
+    ti.autom(FALSE); /* remove automatic scrolling */
+    ti.bcolor(cyan); /* on cyan background */
+    ti.timer(1, TIMMAX, TRUE); /* set move timer */
+    ti.timer(2, BLNTIM, TRUE); /* set blinker timer */
     do { /* game */
 
         restart: /* start new game */
@@ -464,20 +507,18 @@ int main(void) /* snake */
         snakel[0].scnx = maxx()/2; /* set snake position middle */
         snakel[0].scny = maxy()/2;
         sntop = 0; /* set top snake character */
-        writescreen(maxx()/2, maxy()/2, '@'); /* place snake */
+        writescreen(ti.maxx()/2, ti.maxy()/2, '@'); /* place snake */
         timcnt = TIMMAX;
         for (i = 0; i < SCRNUM; i++) scrsav[i] = '0'; /* zero score */
         nxtscr();
         getevt(FALSE); /* get the next event, without timers */
-        if (er.etype == etterm) goto terminate; /* immediate termination */
-        else if (er.etype == etfun) goto restart; /* start new game */
+        if (ti.er.etype == etfun) goto restart; /* start new game */
         plctrg(); /* place starting target */
         crash = FALSE; /* set no crash occurred */
         do { /* game loop */
 
             getevt(TRUE); /* get next event, with timers */
-            if (er.etype == etterm) goto terminate; /* immediate termination */
-            if (er.etype == etfun) goto restart; /* start new game */
+            if (ti.er.etype == etfun) goto restart; /* start new game */
 
         } while (!crash); /* we crash into an object */
         /* not a voluntary cancel, must have *** crashed *** */
@@ -489,12 +530,11 @@ int main(void) /* snake */
         do { /* blink cycles */
 
             /* wait for an interesting event */
-            do { event(&er); }
-            while (er.etype != ettim && er.etype != etterm && er.etype != etfun);
-            if (er.etype == etterm) goto terminate; /* immediate termination */
-            if (er.etype == etfun) goto restart; /* restart game */
+            do { ti.event(); }
+            while (ti.er.etype != ettim && ti.er.etype != etterm && ti.er.etype != etfun);
+            if (ti.er.etype == etfun) goto restart; /* restart game */
             /* must be timer */
-            if (er.timnum == 2) { /* blink cycle */
+            if (ti.er.timnum == 2) { /* blink cycle */
 
                 if (fblink) /* turn back on */
                     writescreen(tx, ty, '@');
@@ -507,13 +547,5 @@ int main(void) /* snake */
         } while (1); /* forever */
 
     } while (1); /* forever */
-
-   terminate: /* terminate program */
-
-   curvis(TRUE); /* restore drawing cursor */
-   autom(TRUE); /* restore automatic scrolling */
-   select(1, 1); /* back to original screen */
-
-   return (0); /* exit no error */
 
 }

@@ -912,12 +912,17 @@ termg: $(GLIBSD) tests/term.c
 	
 #
 # Snake game
+#
+# Snake is console only, but has cp and cpp versions as well.
 #	
 snake: $(CLIBSD) terminal_games/snake.c
 	$(CC) $(CFLAGS) terminal_games/snake.c $(CLIBS) -o bin/snake
 
 snake+: $(CLIBSCPPD) terminal_games/snake.cp
 	$(CPP) $(CFLAGSCPP) terminal_games/snake.cp $(CLIBSCPP) -o bin/snake
+
+snake++: $(CLIBSCPPD) terminal_games/snake.cpp
+	$(CPP) $(CFLAGSCPP) terminal_games/snake.cpp $(CLIBSCPP) -o bin/snake
 	
 snakeg: $(GLIBSD) terminal_games/snake.c
 	$(CC) $(CFLAGS) terminal_games/snake.c $(GLIBS) -o bin/snakeg
