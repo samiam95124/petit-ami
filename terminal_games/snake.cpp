@@ -59,6 +59,7 @@ Translated to C++, 2022/08/19.
 #include <localdefs.h>
 #include <terminal.hpp>
 
+using namespace std;
 using namespace terminal;
 
 #define MAXSN  1000  /* total snake positions */
@@ -156,7 +157,7 @@ void writescreen(int x, int y, /* position to place character */
     ti.cursor(x, y); /* position to the given location */
     if (c != image[x][y]) { /* filter redundant placements */
 
-        putchar(c); /* write the character */
+        cout << c; /* write the character */
         image[x][y] = c; /* place character in image */
 
     }
@@ -488,7 +489,7 @@ int main(void) /* snake */
 
     if (ti.maxx() > MAXSCN || ti.maxy() > MAXSCN) {
 
-        fprintf(stderr, "*** Error: Screen exceeds maximum size\n");
+        clog << "*** Error: Screen exceeds maximum size" << endl;
         exit(1);
 
     }
