@@ -699,23 +699,27 @@ int main(void) /* snake */
 
 {
 
-    game gi; /* game object */
+    game gi;      /* game object */
+    int  restart; /* restart flag */
 
     do { /* game */
 
-        restart: /* start new game */
+        do { /* restarts */
 
-        gi.restart(); /* restart the game */
-        do { /* game loop */
+            gi.restart(); /* restart the game */
+            restart = FALSE; /* set no restart */
+            do { /* game loop */
 
-            gi.getevt(TRUE); /* get next event, with timers */
-            if (gi.er.etype == etfun && gi.er.fkey == 1) 
-                goto restart; /* start new game */
+                gi.getevt(TRUE); /* get next event, with timers */
+                if (gi.er.etype == etfun && gi.er.fkey == 1) 
+                    restart = TRUE; /* start new game */
 
-        } while (!gi.crash); /* we crash into an object */
-        /* not a voluntary cancel, must have *** crashed *** */
-        gi.blink(); /* blink snake head */
+            } while (!gi.crash && !restart); /* we crash into an object */
+            /* not a voluntary cancel, must have *** crashed *** */
+            if (gi.crash) gi.blink(); /* blink snake head */
 
-    } while (1); /* forever */
+        } while (restart); /* loop restarts */
+
+    } while (1); /* until etterm event */
 
 }
