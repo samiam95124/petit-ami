@@ -73,8 +73,6 @@ using namespace terminal;
                         (should correspond with 'msgstr' above */
 #define MAXSCN 250   /* maximum screen dimension */
 
-typedef unsigned short       word;    /* 16 bit word */
-typedef char*                string;  /* general string type */
 typedef int                  scrinx;  /* index for score save */
 typedef int                  sninx;   /* index for snake array */
 /* index set for screen */
@@ -84,6 +82,19 @@ typedef struct {
     int scny;
 
 } scnpos;
+
+int      timcnt;         /* move countdown */
+scnpos   snakel[MAXSN];  /* snake's positions */
+int      sntop;          /* current snake array top */
+evtcod   lstmov;         /* player move type */
+char     scrsav[SCRNUM]; /* screen score counter */
+int      scrlft;         /* units of score left to add */
+int      scrloc;         /* location of score digits */
+int      fblink;         /* crash blinker */
+int      crash;          /* crash occurred flag */
+int      i;
+int      x;
+int      tx, ty;
 
 /*******************************************************************************
 
@@ -237,20 +248,28 @@ void gameterm::wrtcen(int          y,   /* y position of string */
 
 }
 
-gameterm ti;             /* terminal object */
-int      timcnt;         /* move countdown */
-scnpos   snakel[MAXSN];  /* snake's positions */
-int      sntop;          /* current snake array top */
-evtcod   lstmov;         /* player move type */
-char     scrsav[SCRNUM]; /* screen score counter */
-int      scrlft;         /* units of score left to add */
-int      scrloc;         /* location of score digits */
-int      fblink;         /* crash blinker */
+gameterm ti; /* terminal object */
 
-int      crash;          /* crash occurred flag */
-int      i;
-int      x;
-int      tx, ty;
+/*******************************************************************************
+
+Game object
+
+Contains data and methods for the game.
+
+*******************************************************************************/
+
+class game {
+
+    public:
+
+    void clrscn(void);
+    int randn(int limit);
+    void plctrg(void);
+    void nxtscr(void);
+    void movesnake(evtcod usrmov);
+    void getevt(int tim);
+
+};
 
 /*******************************************************************************
 
@@ -263,7 +282,7 @@ a concern because the screen clear is not quite instantaineous.
 
 *******************************************************************************/
 
-void clrscn(void)
+void game::clrscn(void)
 
 {
 
@@ -299,7 +318,7 @@ Find random number between 0 and N.
 
 *******************************************************************************/
 
-int randn(int limit)
+int game::randn(int limit)
 
 {
 
@@ -317,7 +336,7 @@ avoid colisions.
 
 *******************************************************************************/
 
-void plctrg(void)
+void game::plctrg(void)
 
 {
 
@@ -349,7 +368,7 @@ scrnum indicates the number of score digits.
 
 ********************************************************************************/
 
-void nxtscr(void)
+void game::nxtscr(void)
 
 {
 
@@ -399,7 +418,7 @@ opposite the new one).
 
 *******************************************************************************/
 
-void movesnake(evtcod usrmov)
+void game::movesnake(evtcod usrmov)
 
 {
 
@@ -492,7 +511,7 @@ proportional to it's deflection, ie., move it farther, go faster.
 
 *******************************************************************************/
 
-void getevt(int tim) /* accept timer events */
+void game::getevt(int tim) /* accept timer events */
 
 {
 
@@ -535,6 +554,9 @@ void getevt(int tim) /* accept timer events */
 
 }
 
+
+game     gi; /* game object */
+
 /*******************************************************************************
 
 Main program
@@ -569,21 +591,21 @@ int main(void) /* snake */
         restart: /* start new game */
 
         scrlft = 0; /* clear score add count */
-        clrscn();
+        gi.clrscn();
         snakel[0].scnx = maxx()/2; /* set snake position middle */
         snakel[0].scny = maxy()/2;
         sntop = 0; /* set top snake character */
         ti.writescreen(ti.maxx()/2, ti.maxy()/2, '@'); /* place snake */
         timcnt = TIMMAX;
         for (i = 0; i < SCRNUM; i++) scrsav[i] = '0'; /* zero score */
-        nxtscr();
-        getevt(FALSE); /* get the next event, without timers */
+        gi.nxtscr();
+        gi.getevt(FALSE); /* get the next event, without timers */
         if (ti.er.etype == etfun) goto restart; /* start new game */
-        plctrg(); /* place starting target */
+        gi.plctrg(); /* place starting target */
         crash = FALSE; /* set no crash occurred */
         do { /* game loop */
 
-            getevt(TRUE); /* get next event, with timers */
+            gi.getevt(TRUE); /* get next event, with timers */
             if (ti.er.etype == etfun) goto restart; /* start new game */
 
         } while (!crash); /* we crash into an object */
