@@ -267,6 +267,8 @@ class game: public gameterm
     void nxtscr(void);             /* increment score counter */
     void movesnake(evtcod usrmov); /* move snake to location */
     void getevt(int tim);          /* get and processnext event */
+    void restart(void);            /* restart new game */
+    void blink(void);              /* blink crashed snake head */
 
 };
 
@@ -555,6 +557,85 @@ void game::getevt(int tim) /* accept timer events */
 
 /*******************************************************************************
 
+Restart game
+
+Restarts the game. Clears the screen and redraws. Clears score, places starting
+snake,
+
+*******************************************************************************/
+
+void game::restart(void)
+
+{
+
+    int i; /* index */
+
+    do {
+
+        scrlft = 0; /* clear score add count */
+        clrscn();
+        snakel[0].scnx = maxx()/2; /* set snake position middle */
+        snakel[0].scny = maxy()/2;
+        sntop = 0; /* set top snake character */
+        writescreen(maxx()/2, maxy()/2, '@'); /* place snake */
+        timcnt = TIMMAX;
+        for (i = 0; i < SCRNUM; i++) scrsav[i] = '0'; /* zero score */
+        nxtscr();
+        /* now wait for the user to hit a key */
+        getevt(FALSE); /* get the next event, without timers */
+
+    } while (er.etype == etfun && er.fkey == 1); /* user hits restart */
+    plctrg(); /* place starting target */
+    crash = FALSE; /* set no crash occurred */
+
+}
+
+/*******************************************************************************
+
+Blink snake head
+
+When the snake crashes, it blinks until the user exits or hits restart.
+
+*******************************************************************************/
+
+void game::blink(void)
+
+{
+
+    int  tx, ty;  /* location of snake */
+    int  restart; /* restart requested flag */
+
+    tx = snakel[sntop].scnx;
+    ty = snakel[sntop].scny;
+    /* blink the head off and on (so that snakes behind us won't run into
+       us) */
+    fblink = FALSE; /* clear crash blinker */
+    restart = FALSE; /* set no restart */
+    do { /* blink cycles */
+
+        /* wait for an interesting event */
+        do { event(); }
+        while (er.etype != ettim && er.etype != etterm && er.etype != etfun);
+        if (er.etype == etfun && er.fkey == 1) 
+            restart = TRUE; /* restart game */
+        else
+            /* must be timer */
+            if (er.timnum == 2) { /* blink cycle */
+
+            if (fblink) /* turn back on */
+                writescreen(tx, ty, '@');
+            else /* turn off */
+                writescreen(tx, ty, ' ');
+            fblink = !fblink; /* invert blinker status */
+
+        }
+
+    } while (!restart); /* forever */
+
+}
+
+/*******************************************************************************
+
 Initialize game
 
 Checks the screen size is within limits, moves to screen buffer 2, then removes
@@ -619,56 +700,21 @@ int main(void) /* snake */
 {
 
     game gi; /* game object */
-    int  i;
-    int  tx, ty;
 
     do { /* game */
 
         restart: /* start new game */
 
-        gi.scrlft = 0; /* clear score add count */
-        gi.clrscn();
-        gi.snakel[0].scnx = maxx()/2; /* set snake position middle */
-        gi.snakel[0].scny = maxy()/2;
-        gi.sntop = 0; /* set top snake character */
-        gi.writescreen(gi.maxx()/2, gi.maxy()/2, '@'); /* place snake */
-        gi.timcnt = TIMMAX;
-        for (i = 0; i < SCRNUM; i++) gi.scrsav[i] = '0'; /* zero score */
-        gi.nxtscr();
-        gi.getevt(FALSE); /* get the next event, without timers */
-        if (gi.er.etype == etfun) goto restart; /* start new game */
-        gi.plctrg(); /* place starting target */
-        gi.crash = FALSE; /* set no crash occurred */
+        gi.restart(); /* restart the game */
         do { /* game loop */
 
             gi.getevt(TRUE); /* get next event, with timers */
-            if (gi.er.etype == etfun) goto restart; /* start new game */
+            if (gi.er.etype == etfun && gi.er.fkey == 1) 
+                goto restart; /* start new game */
 
         } while (!gi.crash); /* we crash into an object */
         /* not a voluntary cancel, must have *** crashed *** */
-        tx = gi.snakel[gi.sntop].scnx;
-        ty = gi.snakel[gi.sntop].scny;
-        /* blink the head off and on (so that snakes behind us won't run into
-           us) */
-        gi.fblink = FALSE; /* clear crash blinker */
-        do { /* blink cycles */
-
-            /* wait for an interesting event */
-            do { gi.event(); }
-            while (gi.er.etype != ettim && gi.er.etype != etterm && gi.er.etype != etfun);
-            if (gi.er.etype == etfun) goto restart; /* restart game */
-            /* must be timer */
-            if (gi.er.timnum == 2) { /* blink cycle */
-
-                if (gi.fblink) /* turn back on */
-                    gi.writescreen(tx, ty, '@');
-                else /* turn off */
-                    gi.writescreen(tx, ty, ' ');
-                gi.fblink = !gi.fblink; /* invert blinker status */
-
-            }
-
-        } while (1); /* forever */
+        gi.blink(); /* blink snake head */
 
     } while (1); /* forever */
 
