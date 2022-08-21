@@ -83,10 +83,6 @@ typedef struct {
 
 } scnpos;
 
-int      i;
-int      x;
-int      tx, ty;
-
 /*******************************************************************************
 
 Terminal object
@@ -605,8 +601,6 @@ game::~game()
 
 }
 
-game     gi; /* game object */
-
 /*******************************************************************************
 
 Main program
@@ -623,6 +617,10 @@ Besides the direction keys, the user has avalible restart and cancel game keys.
 int main(void) /* snake */
 
 {
+
+    game gi; /* game object */
+    int  i;
+    int  tx, ty;
 
     do { /* game */
 
