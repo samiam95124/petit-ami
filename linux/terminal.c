@@ -134,7 +134,7 @@ static enum { /* debug levels */
 #define MAXLIN  250   /* maximum length of input buffered line */
 #define MAXFKEY 10    /**< maximum number of function keys */
 #define MAXJOY  10    /* number of joysticks possible */
-#define DMPEVT  TRUE/*FALSE*/ /* enable dump Petit-Ami messages */
+#define DMPEVT  FALSE /* enable dump Petit-Ami messages */
 #define ALLOWUTF8     /* enable UTF-8 encoding */
 
 /*
@@ -521,12 +521,6 @@ static int timtbl[PA_MAXTIM];
 static int frmsev; /* frame timer system event number */
 /* end of timlock region */
 
-static scnrec* screens[MAXCON];         /* screen contexts array */ 
-static int curdsp;                      /* index for current display screen */ 
-static int curupd;                      /* index for current update screen */ 
-static pa_pevthan evthan[pa_etframe+1]; /* array of event handler routines */ 
-static pa_pevthan evtshan;              /* single master event handler routine */
-
 /*
  * Input event parsing
  */
@@ -536,7 +530,6 @@ static pa_pevthan evtshan;              /* single master event handler routine *
  *
  * Note mouse also comes in as input keys.
  */
-static pthread_mutex_t evtlock; /* lock for event tracking */
 static unsigned char keybuf[MAXKEY]; /* buffer */
 static int    keylen;      /* number of characters in buffer */
 /* current tracking states of mouse */
@@ -551,7 +544,13 @@ static int    nbutton2;    /* button 2 state: 0=assert, 1=deassert */
 static int    nbutton3;    /* button 3 state: 0=assert, 1=deassert */
 static int    nmpx;        /* mouse x/y current position */
 static int    nmpy;
-/* end evtlock area */
+
+static pthread_mutex_t termlock;        /* broadlock for terminal calls */
+static scnrec* screens[MAXCON];         /* screen contexts array */ 
+static int curdsp;                      /* index for current display screen */ 
+static int curupd;                      /* index for current update screen */ 
+static pa_pevthan evthan[pa_etframe+1]; /* array of event handler routines */ 
+static pa_pevthan evtshan;              /* single master event handler routine */
 
 static int*   tabs;        /* tabs set */
 static int    dimx;        /* actual width of screen */
@@ -3099,7 +3098,9 @@ static void cursor_ivf(FILE *f, int x, int y)
 
 {
 
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     icursor(screens[curupd-1], x, y); /* position cursor */
+    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
 
@@ -3119,7 +3120,13 @@ static int curbnd_ivf(FILE *f)
 
 {
 
-   return icurbnd(screens[curupd-1]);
+    int fl;
+
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
+    fl = icurbnd(screens[curupd-1]);
+    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
+
+    return (fl);
 
 }
 
@@ -3140,7 +3147,7 @@ static int maxx_ivf(FILE *f)
 
 {
 
-    return bufx; /* set maximum x */
+    return (bufx); /* set maximum x */
 
 }
 
@@ -3161,7 +3168,7 @@ static int maxy_ivf(FILE *f)
 
 {
 
-    return bufy; /* set maximum y */
+    return (bufy); /* set maximum y */
 
 }
 
@@ -3181,9 +3188,11 @@ static void home_ivf(FILE *f)
 
 {
 
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     ncury = 1; /* set cursor at home */
     ncurx = 1;
     setcur(screens[curupd-1]);
+    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
 
@@ -3204,9 +3213,11 @@ static void del_ivf(FILE* f)
 
 {
 
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     ileft(screens[curupd-1]); /* back up cursor */
     plcchr(screens[curupd-1], ' '); /* blank out */
     ileft(screens[curupd-1]); /* back up again */
+    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
 
@@ -3226,7 +3237,9 @@ static void up_ivf(FILE *f)
 
 {
 
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     iup(screens[curupd-1]); /* move up */
+    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
 
@@ -3247,7 +3260,9 @@ static void down_ivf(FILE *f)
 
 {
 
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     idown(screens[curupd-1]); /* move cursor down */
+    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
 
@@ -3267,7 +3282,9 @@ static void left_ivf(FILE *f)
 
 {
 
-   ileft(screens[curupd-1]); /* move cursor left */
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
+    ileft(screens[curupd-1]); /* move cursor left */
+    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
 
@@ -3287,7 +3304,9 @@ static void right_ivf(FILE *f)
 
 {
 
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     iright(screens[curupd-1]); /* move cursor right */
+    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
 
@@ -3306,6 +3325,7 @@ static void attronoff(FILE *f, int e, scnatt nattr)
 
 {
 
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     setattr(screens[curupd-1], sanone); /* turn off attributes */
     if (e) { /* attribute on */
 
@@ -3332,6 +3352,7 @@ static void attronoff(FILE *f, int e, scnatt nattr)
         }
 
     }
+    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
 
@@ -3536,8 +3557,10 @@ static void fcolor_ivf(FILE *f, pa_color c)
 
 {
 
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     if (curupd == curdsp) trm_fcolor(c); /* set color */
     forec = c;
+    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
 
@@ -3557,8 +3580,10 @@ static void bcolor_ivf(FILE *f, pa_color c)
 
 {
 
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     if (curupd == curdsp) trm_bcolor(c); /* set color */
     backc = c;
+    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
 
@@ -3579,7 +3604,9 @@ static void auto_ivf(FILE *f, int e)
 
 {
 
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     scroll = e; /* set line wrap status */
+    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
 
@@ -3599,8 +3626,10 @@ static void curvis_ivf(FILE *f, int e)
 
 {
 
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     curvis = !!e; /* set cursor visible status */
     if (e) trm_curon(); else trm_curoff();
+    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
 
@@ -3621,7 +3650,9 @@ static void scroll_ivf(FILE *f, int x, int y)
 
 {
 
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     iscroll(screens[curupd-1], x, y); /* process scroll */
+    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
 
@@ -3641,7 +3672,7 @@ static int curx_ivf(FILE *f)
 
 {
 
-    return ncurx; /* return current location x */
+    return (ncurx); /* return current location x */
 
 }
 
@@ -3661,7 +3692,7 @@ static int cury_ivf(FILE *f)
 
 {
 
-    return ncury; /* return current location y */
+    return (ncury); /* return current location y */
 
 }
 
@@ -3692,6 +3723,7 @@ static void select_ivf(FILE *f, int u, int d)
 
     if (u < 1 || u > MAXCON || d < 1 || d > MAXCON)
         error(einvscn); /* invalid screen number */
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     if (curupd != u) { /* update screen changes */
 
         curupd = u; /* change to new screen */
@@ -3719,6 +3751,7 @@ static void select_ivf(FILE *f, int u, int d)
         }
 
     }
+    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
 
@@ -3746,6 +3779,7 @@ static void event_ivf(FILE* f, pa_evtrec *er)
 
         /* get next input event */
         dequepaevt(er); /* get next queued event */
+        pthread_mutex_lock(&termlock); /* lock terminal broadlock */
         /* handle actions we must take here */
         if (er->etype == pa_etresize) {
 
@@ -3766,16 +3800,19 @@ static void event_ivf(FILE* f, pa_evtrec *er)
             (*evthan[er->etype])(er); /* call event handler first */
 
         }
+        pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
     } while (er->handled);
     /* event not handled, return it to the caller */
 
     /* do diagnostic dump of PA events */
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     if (dmpevt) {
 
         prtevt(er); fprintf(stderr, "\n"); fflush(stderr);
 
     }
+    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
 
@@ -3826,7 +3863,7 @@ static void killtimer_ivf(/* file to kill timer on */ FILE *f,
     pthread_mutex_lock(&timlock); /* take the timer lock */
     if (timtbl[i-1] <= 0) {
 
-        pthread_mutex_unlock(&evtlock); /* release the timer lock */
+        pthread_mutex_unlock(&timlock); /* release the timer lock */
         error(etimacc); /* no such timer */
 
     }
@@ -3915,10 +3952,25 @@ static int joybutton_ivf(FILE *f, int j)
 
 {
 
-    if (j < 1 || j > numjoy) error(einvjoy); /* bad joystick id */
-    if (!joytab[j-1]) error(esystem); /* should be a table entry */
+    int b;
 
-    return (joytab[j-1]->button); /* return button count */
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
+    if (j < 1 || j > numjoy) {
+
+        pthread_mutex_unlock(&termlock); /* release terminal broadlock */
+        error(einvjoy); /* bad joystick id */
+
+    }
+    if (!joytab[j-1]) {
+
+        pthread_mutex_unlock(&termlock); /* release terminal broadlock */
+        error(esystem); /* should be a table entry */
+
+    }
+    b = joytab[j-1]->button; /* get button count */
+    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
+
+    return (b); /* return button count */
 
 }
 
@@ -3943,11 +3995,22 @@ static int joyaxis_ivf(FILE *f, int j)
 
     int ja;
 
-    if (j < 1 || j > numjoy) error(einvjoy); /* bad joystick id */
-    if (!joytab[j-1]) error(esystem); /* should be a table entry */
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
+    if (j < 1 || j > numjoy) {
 
+        pthread_mutex_unlock(&termlock); /* release terminal broadlock */
+        error(einvjoy); /* bad joystick id */
+
+    }
+    if (!joytab[j-1]) {
+
+        pthread_mutex_unlock(&termlock); /* release terminal broadlock */
+        error(esystem); /* should be a table entry */
+
+    }
     ja = joytab[j-1]->axis; /* get axis number */
     if (ja > 6) ja = 6; /* limit to 6 maximum */
+    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
     return (ja); /* set axis number */
 
@@ -3971,8 +4034,15 @@ static void settab_ivf(FILE* f, int t)
 
 {
 
-    if (t < 1 || t > dimx) error(einvtab); /* invalid tab position */
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
+    if (t < 1 || t > dimx) {
+
+        pthread_mutex_unlock(&termlock); /* release terminal broadlock */
+        error(einvtab); /* invalid tab position */
+
+    }
     tabs[t-1] = 1; /* set tab position */
+    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
 
@@ -3992,8 +4062,15 @@ static void restab_ivf(FILE* f, int t)
 
 {
 
-    if (t < 1 || t > dimx) error(einvtab); /* invalid tab position */
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
+    if (t < 1 || t > dimx) {
+
+        pthread_mutex_unlock(&termlock); /* release terminal broadlock */
+        error(einvtab); /* invalid tab position */
+
+    }
     tabs[t-1] = 0; /* reset tab position */
+    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
 
@@ -4015,7 +4092,9 @@ static void clrtab_ivf(FILE* f)
 
     int i;
 
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     for (i = 0; i < dimx; i++) tabs[i] = 0; /* clear all tab stops */
+    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
 
@@ -4112,7 +4191,9 @@ static void wrtstr_ivf(FILE* f, char *s)
 
 {
 
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     putstr(s);
+    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
 
@@ -4133,7 +4214,9 @@ static void wrtstrn_ivf(FILE* f, char *s, int n)
 
 {
 
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     while (n--) putchr(*s++);
+    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
 
@@ -4155,6 +4238,7 @@ static void sizbuf_ivf(FILE* f, int x, int y)
 
     int si;
 
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     if (bufx != x || bufy != y) {
 
         /* set new buffer size */
@@ -4184,6 +4268,7 @@ static void sizbuf_ivf(FILE* f, int x, int y)
         restore(screens[curdsp-1]);
 
     }
+    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
 
@@ -4207,8 +4292,10 @@ static void eventover_ivf(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh)
 
 {
 
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     *oeh = evthan[e]; /* save existing event handler */
     evthan[e] = eh; /* place new event handler */
+    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
 
@@ -4232,8 +4319,10 @@ static void eventsover_ivf(pa_pevthan eh,  pa_pevthan* oeh)
 
 {
 
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     *oeh = evtshan; /* save existing event handler */
     evtshan = eh; /* place new event handler */
+    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
 
@@ -4667,11 +4756,16 @@ static void pa_init_terminal()
     tcsetattr(0,TCSAFLUSH,&raw);
 
     /* initialize the event tracking lock */
-    r = pthread_mutex_init(&evtlock, NULL);
+    r = pthread_mutex_init(&evtlck, NULL);
     if (r) linuxerror(r);
 
     /* initialize the time table lock */
-    pthread_mutex_init(&timlock, NULL);
+    r = pthread_mutex_init(&timlock, NULL);
+    if (r) linuxerror(r);
+
+    /* initialize the broadlock for terminal APIs */
+    r = pthread_mutex_init(&termlock, NULL);
+    if (r) linuxerror(r);
 
     /* initialize queue not empty semaphore */
     r = pthread_cond_init(&evtquene, NULL);
@@ -4706,11 +4800,14 @@ static void pa_deinit_terminal()
     punlink_t cppunlink;
     plseek_t cpplseek;
 
+    /* release the terminal broadlock */
+    pthread_mutex_destroy(&termlock);
+
     /* release the time table lock */
     pthread_mutex_destroy(&timlock);
 
     /* release the event lock */
-    pthread_mutex_destroy(&evtlock);
+    pthread_mutex_destroy(&evtlck);
 
     /* restore cursor visible */
     trm_curon();
