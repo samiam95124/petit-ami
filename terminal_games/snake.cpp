@@ -258,7 +258,6 @@ class game: public gameterm
     int    scrloc;         /* location of score digits */
     int    fblink;         /* crash blinker */
     int    crash;          /* crash occurred flag */
-    int    start;          /* game in startup state (don't automove) */
 
     game();                        /* constructor */
     ~game();                       /* destuctor */
@@ -517,8 +516,8 @@ void game::movesnake(evtcod usrmov)
     int   x;  /* index x */
     int   y;  /* index y */
 
-    if (usrmov == etdown || usrmov == etup || usrmov == etleft ||
-        usrmov == etright) {
+    if ((usrmov == etdown || usrmov == etup || usrmov == etleft ||
+         usrmov == etright) && !crash) {
 
         x = snakel[sntop].scnx; /* save present top */
         y = snakel[sntop].scny;
@@ -609,10 +608,9 @@ void game::restart(void)
         timcnt = TIMMAX;
         for (i = 0; i < SCRNUM; i++) scrsav[i] = '0'; /* zero score */
         nxtscr();
-        start = TRUE; /* set in startup state */
+        lstmov = etchar; /* set move to invalid */
         /* now wait for the user to hit a key */
         event(); /* get the next event, without timers */
-        start = FALSE; /* exit startup state */
 
     } while (evtrst()); /* user hits restart */
     plctrg(); /* place starting target */
@@ -689,7 +687,6 @@ game::game()
     bcolor(cyan); /* on cyan background */
     timer(1, TIMMAX, TRUE); /* set move timer */
     timer(2, BLNTIM, TRUE); /* set blinker timer */
-    start = FALSE; /* clear start state */
 
 }
 
