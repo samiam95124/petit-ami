@@ -83,15 +83,6 @@ typedef struct {
 
 } scnpos;
 
-int      timcnt;         /* move countdown */
-scnpos   snakel[MAXSN];  /* snake's positions */
-int      sntop;          /* current snake array top */
-evtcod   lstmov;         /* player move type */
-char     scrsav[SCRNUM]; /* screen score counter */
-int      scrlft;         /* units of score left to add */
-int      scrloc;         /* location of score digits */
-int      fblink;         /* crash blinker */
-int      crash;          /* crash occurred flag */
 int      i;
 int      x;
 int      tx, ty;
@@ -248,8 +239,6 @@ void gameterm::wrtcen(int          y,   /* y position of string */
 
 }
 
-gameterm ti; /* terminal object */
-
 /*******************************************************************************
 
 Game object
@@ -258,16 +247,30 @@ Contains data and methods for the game.
 
 *******************************************************************************/
 
-class game {
+class game: public gameterm 
+
+{
 
     public:
 
-    void clrscn(void);
-    int randn(int limit);
-    void plctrg(void);
-    void nxtscr(void);
-    void movesnake(evtcod usrmov);
-    void getevt(int tim);
+    int    timcnt;         /* move countdown */
+    scnpos snakel[MAXSN];  /* snake's positions */
+    int    sntop;          /* current snake array top */
+    evtcod lstmov;         /* player move type */
+    char   scrsav[SCRNUM]; /* screen score counter */
+    int    scrlft;         /* units of score left to add */
+    int    scrloc;         /* location of score digits */
+    int    fblink;         /* crash blinker */
+    int    crash;          /* crash occurred flag */
+
+    game();                        /* constructor */
+    ~game();                       /* destuctor */
+    void clrscn(void);             /* clear and format game screen */
+    int randn(int limit);          /* find random number */
+    void plctrg(void);             /* place game goals */
+    void nxtscr(void);             /* increment score counter */
+    void movesnake(evtcod usrmov); /* move snake to location */
+    void getevt(int tim);          /* get and processnext event */
 
 };
 
@@ -290,23 +293,23 @@ void game::clrscn(void)
     int x; /* index x */
 
     cout << '\f'; /* clear display screen */
-    for (x = 1; x <= ti.maxx(); x++) /* clear image */
-        for (y = 1; y <= ti.maxy(); y++) ti.writeimage(x, y, ' ');
+    for (x = 1; x <= maxx(); x++) /* clear image */
+        for (y = 1; y <= maxy(); y++) writeimage(x, y, ' ');
     /* place top */
-    for (x = 1; x <= ti.maxx(); x++) ti.writescreen(x, 1, '*');
+    for (x = 1; x <= maxx(); x++) writescreen(x, 1, '*');
     /* place sides */
-    for (y = 2; y <= ti.maxy()-1; y++) { /* lines */
+    for (y = 2; y <= maxy()-1; y++) { /* lines */
 
-        ti.writescreen(1, y, '*'); /* place left border */
-        ti.writescreen(ti.maxx(), y, '*'); /* place right border */
+        writescreen(1, y, '*'); /* place left border */
+        writescreen(maxx(), y, '*'); /* place right border */
 
     }
     /* place bottom */
-    for (x = 1; x <= ti.maxx(); x++) ti.writescreen(x, ti.maxy(), '*');
+    for (x = 1; x <= maxx(); x++) writescreen(x, maxy(), '*');
     /* size and place banners */
-    ti.wrtcen(1, " -> FUNCTION 1 RESTARTS <-   SCORE - 0000 ", &x);
+    wrtcen(1, " -> FUNCTION 1 RESTARTS <-   SCORE - 0000 ", &x);
     scrloc = x+38;
-    ti.wrtcen(maxy(), " SNAKE VS. 2.0 ", &x);
+    wrtcen(maxy(), " SNAKE VS. 2.0 ", &x);
 
 }
 
@@ -348,13 +351,13 @@ void game::plctrg(void)
 
         /* find x, y locations, not on a border using
            a zero - n random function */
-        y = randn(ti.maxy()-2)+2;
-        x = randn(ti.maxx()-2)+2;
-        c = ti.readimage(x, y); /* get character at position */
+        y = randn(maxy()-2)+2;
+        x = randn(maxx()-2)+2;
+        c = readimage(x, y); /* get character at position */
 
     } while (c != ' '); /* area is unoccupied */
     /* place target integer */
-    ti.writescreen(x, y, randn(9)+'1');
+    writescreen(x, y, randn(9)+'1');
 
 }
 
@@ -390,7 +393,7 @@ void game::nxtscr(void)
 
    } while (i >= 0 && carry); /* last digit is processed, no digit carry */
    /* place score on screen */
-   for (i = 0; i < SCRNUM; i++) ti.writescreen(scrloc+i, 1, scrsav[i]);
+   for (i = 0; i < SCRNUM; i++) writescreen(scrloc+i, 1, scrsav[i]);
 
 }
 
@@ -445,7 +448,7 @@ void game::movesnake(evtcod usrmov)
         if (sntop == 0 || x != snakel[sntop-1].scnx ||
                           y != snakel[sntop-1].scny) {
 
-            c = ti.readimage(x, y); /* load new character */
+            c = readimage(x, y); /* load new character */
             /* check terminate */
             if (y == 1 || y == maxy() || x == 1 || x == maxx() ||
                 (c != ' ' && !isdigit(c))) {
@@ -454,7 +457,7 @@ void game::movesnake(evtcod usrmov)
                 goto terminate; /* exit */
 
             }
-            ti.writescreen(x, y, '@'); /* place new head */
+            writescreen(x, y, '@'); /* place new head */
             if (isdigit(c)) {
 
                 plctrg(); /* place new target */
@@ -476,7 +479,7 @@ void game::movesnake(evtcod usrmov)
 
             } else {
 
-                ti.writescreen(snakel[0].scnx, snakel[0].scny, ' ');
+                writescreen(snakel[0].scnx, snakel[0].scny, ' ');
                 for (sn = 0; sn < sntop; sn++) /* copy old positions */
                     snakel[sn] = snakel[sn+1];
 
@@ -521,39 +524,86 @@ void game::getevt(int tim) /* accept timer events */
 
         do { /* event rejection loop */
 
-            ti.event(); /* get event */
+            event(); /* get event */
 
-        } while (ti.er.etype != etleft && ti.er.etype != etright &&
-                 ti.er.etype != etup   && ti.er.etype != etdown &&
-                 ti.er.etype != etterm && ti.er.etype != ettim &&
-                 ti.er.etype != etfun  && ti.er.etype != etjoymov);
+        } while (er.etype != etleft && er.etype != etright &&
+                 er.etype != etup   && er.etype != etdown &&
+                 er.etype != etterm && er.etype != ettim &&
+                 er.etype != etfun  && er.etype != etjoymov);
         accept = TRUE; /* set event accepted by default */
-        if (ti.er.etype == etjoymov) { /* handle joystick */
+        if (er.etype == etjoymov) { /* handle joystick */
 
             /* change joystick to default move directions */
-            if (ti.er.joypx > INT_MAX/10) lstmov = etright;
-            else if (ti.er.joypx < -INT_MAX/10) lstmov = etleft;
-            else if (ti.er.joypy > INT_MAX/10) lstmov = etdown;
-            else if (ti.er.joypy < -INT_MAX/10) lstmov = etup;
+            if (er.joypx > INT_MAX/10) lstmov = etright;
+            else if (er.joypx < -INT_MAX/10) lstmov = etleft;
+            else if (er.joypy > INT_MAX/10) lstmov = etdown;
+            else if (er.joypy < -INT_MAX/10) lstmov = etup;
             accept = FALSE; /* these events don't exit */
 
-        } else if (ti.er.etype == ettim) { /* timer */
+        } else if (er.etype == ettim) { /* timer */
 
             if (tim) {
 
-                if (ti.er.timnum == 1) /* time's up..default move */
+                if (er.timnum == 1) /* time's up..default move */
                     movesnake(lstmov); /* move the same as last */
                 else accept = FALSE; /* suppress exit */
 
             } else accept = FALSE; /* suppress exit */
 
-        } else if (ti.er.etype != etfun && ti.er.etype != etterm) /* movement */
-            movesnake(ti.er.etype); /* process user move */
+        } else if (er.etype != etfun && er.etype != etterm) /* movement */
+            movesnake(er.etype); /* process user move */
 
    } while (!accept);
 
 }
 
+/*******************************************************************************
+
+Initialize game
+
+Checks the screen size is within limits, moves to screen buffer 2, then removes
+the cursor, automatic mode, places the background color, and starts the move and
+blink timers.
+
+*******************************************************************************/
+
+game::game()
+
+{
+
+    if (maxx() > MAXSCN || maxy() > MAXSCN) {
+
+        clog << "*** Error: Screen exceeds maximum size" << endl;
+        exit(1);
+
+    }
+    select(2, 2); /* switch screens */
+    curvis(FALSE); /* remove drawing cursor */
+    autom(FALSE); /* remove automatic scrolling */
+    bcolor(cyan); /* on cyan background */
+    timer(1, TIMMAX, TRUE); /* set move timer */
+    timer(2, BLNTIM, TRUE); /* set blinker timer */
+
+}
+
+/*******************************************************************************
+
+Deinitialize game
+
+Restores the drawing cursor, automatic mode, and flips the screen back to screen
+1.
+
+*******************************************************************************/
+
+game::~game()
+
+{
+
+    curvis(TRUE); /* restore drawing cursor */
+    autom(TRUE); /* restore automatic scrolling */
+    select(1, 1); /* back to original screen */
+
+}
 
 game     gi; /* game object */
 
@@ -574,61 +624,49 @@ int main(void) /* snake */
 
 {
 
-    if (ti.maxx() > MAXSCN || ti.maxy() > MAXSCN) {
-
-        clog << "*** Error: Screen exceeds maximum size" << endl;
-        exit(1);
-
-    }
-    ti.select(2, 2); /* switch screens */
-    ti.curvis(FALSE); /* remove drawing cursor */
-    ti.autom(FALSE); /* remove automatic scrolling */
-    ti.bcolor(cyan); /* on cyan background */
-    ti.timer(1, TIMMAX, TRUE); /* set move timer */
-    ti.timer(2, BLNTIM, TRUE); /* set blinker timer */
     do { /* game */
 
         restart: /* start new game */
 
-        scrlft = 0; /* clear score add count */
+        gi.scrlft = 0; /* clear score add count */
         gi.clrscn();
-        snakel[0].scnx = maxx()/2; /* set snake position middle */
-        snakel[0].scny = maxy()/2;
-        sntop = 0; /* set top snake character */
-        ti.writescreen(ti.maxx()/2, ti.maxy()/2, '@'); /* place snake */
-        timcnt = TIMMAX;
-        for (i = 0; i < SCRNUM; i++) scrsav[i] = '0'; /* zero score */
+        gi.snakel[0].scnx = maxx()/2; /* set snake position middle */
+        gi.snakel[0].scny = maxy()/2;
+        gi.sntop = 0; /* set top snake character */
+        gi.writescreen(gi.maxx()/2, gi.maxy()/2, '@'); /* place snake */
+        gi.timcnt = TIMMAX;
+        for (i = 0; i < SCRNUM; i++) gi.scrsav[i] = '0'; /* zero score */
         gi.nxtscr();
         gi.getevt(FALSE); /* get the next event, without timers */
-        if (ti.er.etype == etfun) goto restart; /* start new game */
+        if (gi.er.etype == etfun) goto restart; /* start new game */
         gi.plctrg(); /* place starting target */
-        crash = FALSE; /* set no crash occurred */
+        gi.crash = FALSE; /* set no crash occurred */
         do { /* game loop */
 
             gi.getevt(TRUE); /* get next event, with timers */
-            if (ti.er.etype == etfun) goto restart; /* start new game */
+            if (gi.er.etype == etfun) goto restart; /* start new game */
 
-        } while (!crash); /* we crash into an object */
+        } while (!gi.crash); /* we crash into an object */
         /* not a voluntary cancel, must have *** crashed *** */
-        tx = snakel[sntop].scnx;
-        ty = snakel[sntop].scny;
+        tx = gi.snakel[gi.sntop].scnx;
+        ty = gi.snakel[gi.sntop].scny;
         /* blink the head off and on (so that snakes behind us won't run into
            us) */
-        fblink = FALSE; /* clear crash blinker */
+        gi.fblink = FALSE; /* clear crash blinker */
         do { /* blink cycles */
 
             /* wait for an interesting event */
-            do { ti.event(); }
-            while (ti.er.etype != ettim && ti.er.etype != etterm && ti.er.etype != etfun);
-            if (ti.er.etype == etfun) goto restart; /* restart game */
+            do { gi.event(); }
+            while (gi.er.etype != ettim && gi.er.etype != etterm && gi.er.etype != etfun);
+            if (gi.er.etype == etfun) goto restart; /* restart game */
             /* must be timer */
-            if (ti.er.timnum == 2) { /* blink cycle */
+            if (gi.er.timnum == 2) { /* blink cycle */
 
-                if (fblink) /* turn back on */
-                    ti.writescreen(tx, ty, '@');
+                if (gi.fblink) /* turn back on */
+                    gi.writescreen(tx, ty, '@');
                 else /* turn off */
-                    ti.writescreen(tx, ty, ' ');
-                fblink = !fblink; /* invert blinker status */
+                    gi.writescreen(tx, ty, ' ');
+                gi.fblink = !gi.fblink; /* invert blinker status */
 
             }
 
