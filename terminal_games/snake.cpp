@@ -85,9 +85,9 @@ typedef struct {
 
 /*******************************************************************************
 
-Terminal object
+Game terminal object
 
-Adds:
+Adds to term:
 
 1. Stored screen image, and methods to read and write that.
 2. An event structure and the method event() to refresh it.
@@ -258,20 +258,92 @@ class game: public gameterm
     int    scrloc;         /* location of score digits */
     int    fblink;         /* crash blinker */
     int    crash;          /* crash occurred flag */
+    int    start;          /* game in startup state (don't automove) */
 
     game();                        /* constructor */
     ~game();                       /* destuctor */
+
+    /* event callbacks */
+    int evleft(void);              /* left arrow */
+    int evright(void);             /* right arrow */
+    int evup(void);                /* up arrow */
+    int evdown(void);              /* down arrow */
+    int evjoymov(int j, int x, int y, int z); /* joystick move */
+    int evtim(int t);              /* timer fires */
+
+    /* additional methods */
     void clrscn(void);             /* clear and format game screen */
     int randn(int limit);          /* find random number */
     void plctrg(void);             /* place game goals */
     void nxtscr(void);             /* increment score counter */
     void movesnake(evtcod usrmov); /* move snake to location */
-    void getevt(int tim);          /* get and processnext event */
     void restart(void);            /* restart new game */
     void blink(void);              /* blink crashed snake head */
     int evtrst(void);              /* check event is restart */
 
 };
+
+/*******************************************************************************
+
+Event direction handlers
+
+Called on arrow keys, moves the snake in the direction indicated.
+
+*******************************************************************************/
+
+int game::evleft(void) { movesnake(etleft); return (1); }
+int game::evright(void) { movesnake(etright); return (1); }
+int game::evup(void) { movesnake(etup); return (1); }
+int game::evdown(void) { movesnake(etdown); return (1); }
+
+/*******************************************************************************
+
+Joystick handler
+
+Called on joystick events, sets up the automatic move so that the next move
+goes in the joystick indicated direction.
+
+*******************************************************************************/
+
+int game::evjoymov(int j, int x, int y, int z)
+
+{
+
+    /* change joystick to default move directions */
+    if (x > INT_MAX/10) lstmov = etright;
+    else if (x < -INT_MAX/10) lstmov = etleft;
+    else if (y > INT_MAX/10) lstmov = etdown;
+    else if (y < -INT_MAX/10) lstmov = etup;
+
+    return (TRUE); /* set handled */
+
+}
+
+/*******************************************************************************
+
+Timer handler
+
+Called on timer events. We handle only timer 1 here, the automatic move timer.
+
+*******************************************************************************/
+
+int game::evtim(int t)
+
+{
+
+    int handled;
+
+    handled = FALSE; /* set not handled */
+    if (t == 1) { /* timer 1 */
+
+        movesnake(lstmov); /* move the same as last */
+        handled = TRUE; /* set we handled the event */
+
+    }
+
+    return (handled); /* return state of handled */
+
+}
 
 /*******************************************************************************
 
@@ -513,67 +585,6 @@ void game::movesnake(evtcod usrmov)
 
 /*******************************************************************************
 
-Event loop
-
-Waits for interesting events, processes them, and if a move is performed,
-executes that. We include a flag to reject timer forced moves, because we
-may be waiting for the user to start the game.
-We treat the joystick as being direction arrows, so we in fact convert it to
-direction events here. I don't care which joystick is being used.
-The joystick is deadbanded to 1/10 of it's travel (it must be moved more than
-1/10 away from center to register a move). If the user is trying to give
-us two axies at once, one is picked ad hoc. Because the joystick dosen't
-dictate speed, we just set up the default move with it.
-The advanced mode for the joystick would be to pick a rate for it that is
-proportional to it's deflection, ie., move it farther, go faster.
-
-*******************************************************************************/
-
-void game::getevt(int tim) /* accept timer events */
-
-{
-
-    int accept; /* accept event flag */
-
-    do { /* process rejection loop */
-
-        do { /* event rejection loop */
-
-            event(); /* get event */
-
-        } while (er.etype != etleft && er.etype != etright &&
-                 er.etype != etup   && er.etype != etdown &&
-                 er.etype != etterm && er.etype != ettim &&
-                 !evtrst()  && er.etype != etjoymov);
-        accept = TRUE; /* set event accepted by default */
-        if (er.etype == etjoymov) { /* handle joystick */
-
-            /* change joystick to default move directions */
-            if (er.joypx > INT_MAX/10) lstmov = etright;
-            else if (er.joypx < -INT_MAX/10) lstmov = etleft;
-            else if (er.joypy > INT_MAX/10) lstmov = etdown;
-            else if (er.joypy < -INT_MAX/10) lstmov = etup;
-            accept = FALSE; /* these events don't exit */
-
-        } else if (er.etype == ettim) { /* timer */
-
-            if (tim) {
-
-                if (er.timnum == 1) /* time's up..default move */
-                    movesnake(lstmov); /* move the same as last */
-                else accept = FALSE; /* suppress exit */
-
-            } else accept = FALSE; /* suppress exit */
-
-        } else if (!evtrst() && er.etype != etterm) /* movement */
-            movesnake(er.etype); /* process user move */
-
-   } while (!accept);
-
-}
-
-/*******************************************************************************
-
 Restart game
 
 Restarts the game. Clears the screen and redraws. Clears score, places starting
@@ -598,8 +609,10 @@ void game::restart(void)
         timcnt = TIMMAX;
         for (i = 0; i < SCRNUM; i++) scrsav[i] = '0'; /* zero score */
         nxtscr();
+        start = TRUE; /* set in startup state */
         /* now wait for the user to hit a key */
-        getevt(FALSE); /* get the next event, without timers */
+        event(); /* get the next event, without timers */
+        start = FALSE; /* exit startup state */
 
     } while (evtrst()); /* user hits restart */
     plctrg(); /* place starting target */
@@ -676,6 +689,7 @@ game::game()
     bcolor(cyan); /* on cyan background */
     timer(1, TIMMAX, TRUE); /* set move timer */
     timer(2, BLNTIM, TRUE); /* set blinker timer */
+    start = FALSE; /* clear start state */
 
 }
 
@@ -726,7 +740,7 @@ int main(void) /* snake */
             restart = FALSE; /* set no restart */
             do { /* game loop */
 
-                gi.getevt(TRUE); /* get next event, with timers */
+                gi.event(); /* get next event */
                 if (gi.evtrst()) restart = TRUE; /* start new game */
 
             } while (!gi.crash && !restart); /* we crash into an object */
