@@ -269,8 +269,25 @@ class game: public gameterm
     void getevt(int tim);          /* get and processnext event */
     void restart(void);            /* restart new game */
     void blink(void);              /* blink crashed snake head */
+    int evtrst(void);              /* check event is restart */
 
 };
+
+/*******************************************************************************
+
+Check current event is restart
+
+Restart is ordered by function key 1.
+
+*******************************************************************************/
+
+int game::evtrst(void)
+
+{
+
+    return (er.etype == etfun && er.fkey == 1);
+
+}
 
 /*******************************************************************************
 
@@ -527,7 +544,7 @@ void game::getevt(int tim) /* accept timer events */
         } while (er.etype != etleft && er.etype != etright &&
                  er.etype != etup   && er.etype != etdown &&
                  er.etype != etterm && er.etype != ettim &&
-                 er.etype != etfun  && er.etype != etjoymov);
+                 !evtrst()  && er.etype != etjoymov);
         accept = TRUE; /* set event accepted by default */
         if (er.etype == etjoymov) { /* handle joystick */
 
@@ -548,7 +565,7 @@ void game::getevt(int tim) /* accept timer events */
 
             } else accept = FALSE; /* suppress exit */
 
-        } else if (er.etype != etfun && er.etype != etterm) /* movement */
+        } else if (!evtrst() && er.etype != etterm) /* movement */
             movesnake(er.etype); /* process user move */
 
    } while (!accept);
@@ -584,7 +601,7 @@ void game::restart(void)
         /* now wait for the user to hit a key */
         getevt(FALSE); /* get the next event, without timers */
 
-    } while (er.etype == etfun && er.fkey == 1); /* user hits restart */
+    } while (evtrst()); /* user hits restart */
     plctrg(); /* place starting target */
     crash = FALSE; /* set no crash occurred */
 
@@ -615,9 +632,8 @@ void game::blink(void)
 
         /* wait for an interesting event */
         do { event(); }
-        while (er.etype != ettim && er.etype != etterm && er.etype != etfun);
-        if (er.etype == etfun && er.fkey == 1) 
-            restart = TRUE; /* restart game */
+        while (er.etype != ettim && er.etype != etterm && !evtrst());
+        if (evtrst()) restart = TRUE; /* restart game */
         else
             /* must be timer */
             if (er.timnum == 2) { /* blink cycle */
@@ -711,8 +727,7 @@ int main(void) /* snake */
             do { /* game loop */
 
                 gi.getevt(TRUE); /* get next event, with timers */
-                if (gi.er.etype == etfun && gi.er.fkey == 1) 
-                    restart = TRUE; /* start new game */
+                if (gi.evtrst()) restart = TRUE; /* start new game */
 
             } while (!gi.crash && !restart); /* we crash into an object */
             /* not a voluntary cancel, must have *** crashed *** */
