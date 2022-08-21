@@ -109,6 +109,10 @@ typedef enum {
     pa_etjoybd,    /* joystick button deassertion */
     pa_etjoymov,   /* joystick move */
     pa_etresize,   /* window was resized */
+    pa_etfocus,    /* window has focus */
+    pa_etnofocus,  /* window lost focus */
+    pa_ethover,    /* window being hovered */
+    pa_etnohover,  /* window stopped being hovered */
     pa_etterm,     /* terminate program */
     pa_etframe,    /* frame sync */
     pa_etmoumovg,  /* mouse move graphical */
@@ -116,10 +120,6 @@ typedef enum {
     pa_etmin,      /* window minimized */
     pa_etmax,      /* window maximized */
     pa_etnorm,     /* window normalized */
-    pa_etfocus,    /* window has focus */
-    pa_etnofocus,  /* window lost focus */
-    pa_ethover,    /* window being hovered */
-    pa_etnohover,  /* window stopped being hovered */
     pa_etmenus,    /* menu item selected */
     pa_etbutton,   /* button assert */
     pa_etchkbox,   /* checkbox click */

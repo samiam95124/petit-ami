@@ -134,7 +134,7 @@ static enum { /* debug levels */
 #define MAXLIN  250   /* maximum length of input buffered line */
 #define MAXFKEY 10    /**< maximum number of function keys */
 #define MAXJOY  10    /* number of joysticks possible */
-#define DMPEVT  FALSE /* enable dump Petit-Ami messages */
+#define DMPEVT  TRUE/*FALSE*/ /* enable dump Petit-Ami messages */
 #define ALLOWUTF8     /* enable UTF-8 encoding */
 
 /*
@@ -307,7 +307,7 @@ typedef enum {
  * keyboard key equivalents table
  *
  * Contains equivalent strings as are returned from xterm keys
- * attached to an IBM-PC keyboard.
+ * attached to an IBM-PC keyboard, or for special codes xterm sends.
  *
  * Note these definitions are mosly CUA (common user interface). One exception
  * was the terminate key, which has a long tradition as CTRL-C, and I left it.
@@ -375,6 +375,10 @@ char *keytab[pa_etterm+1+MAXFKEY] = {
     "",                     /* joystick button deassertion */
     "",                     /* joystick move */
     "",                     /* window resize */
+    "\33[I",                /* focus in */
+    "\33[O",                /* focus out */
+    "",                     /* hover */
+    "",                     /* no hover */
     "\3",                   /* terminate program           (ctrl-c) */
     /* we added the Fx key codes to the end here */
     "\33\117\120",          /* F1 */
@@ -729,6 +733,10 @@ void prtevtt(pa_evtcod e)
         case pa_etjoybd:   fprintf(stderr, "etjoybd"); break;
         case pa_etjoymov:  fprintf(stderr, "etjoymov"); break;
         case pa_etresize:  fprintf(stderr, "etresize"); break;
+        case pa_etfocus:   fprintf(stderr, "etfocus"); break;
+        case pa_etnofocus: fprintf(stderr, "etnofocus"); break;
+        case pa_ethover:   fprintf(stderr, "ethover"); break;
+        case pa_etnohover: fprintf(stderr, "etnohover"); break;
         case pa_etterm:    fprintf(stderr, "etterm"); break;
         case pa_etframe:   fprintf(stderr, "etframe"); break;
 
@@ -4649,6 +4657,9 @@ static void pa_init_terminal()
     putstr("\33[?1006h"); /* enable SGR mouse mode (extended) */
 #endif
 
+    /* signal we want xterm focus in/out events */
+    putstr("\33[?1004h");
+
     /* enable windows change signal */
     winchsev = system_event_addsesig(SIGWINCH);
 
@@ -4706,6 +4717,9 @@ static void pa_deinit_terminal()
 
     /* restore terminal */
     tcsetattr(0,TCSAFLUSH,&trmsav);
+
+    /* turn off xterm focus in/out events */
+    putstr("\33[?1004l");
 
     /* turn off mouse tracking */
     putstr("\33[?1003l");
