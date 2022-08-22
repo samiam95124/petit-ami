@@ -14910,10 +14910,13 @@ static void pa_init_graphics(int argc, char *argv[])
     if (*errstr) error(ecfgval);
     vp = pa_schlst("joystick", term_root);
     if (vp) joyenb = strtol(vp->value, &errstr, 10);
+    if (*errstr) error(ecfgval);
     vp = pa_schlst("mouse", term_root);
     if (vp) mouseenb = strtol(vp->value, &errstr, 10);
+    if (*errstr) error(ecfgval);
     vp = pa_schlst("dump_event", term_root);
     if (vp) dmpevt = strtol(vp->value, &errstr, 10);
+    if (*errstr) error(ecfgval);
 
     /* find graph block */
     graph_root = pa_schlst("graphics", config_root);

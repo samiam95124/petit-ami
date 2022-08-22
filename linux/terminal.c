@@ -94,7 +94,9 @@
 #include <fcntl.h>
 
 /* Petit-Ami definitions */
-#include "terminal.h"
+#include <localdefs.h>
+#include <config.h>
+#include <terminal.h>
 #include "system_event.h"
 
 /*
@@ -122,20 +124,38 @@ static enum { /* debug levels */
                                 __func__, __LINE__, ##__VA_ARGS__); \
                                 fflush(stderr); } while (0)
 
-#define JOYENB TRUE /* enable joysticks */
+/*
+ * Configurable parameters
+ *
+ * These parameters can be configured here at compile time, or are overriden
+ * at runtime by values of the same name in the config files.
+ * The values are overriddable.
+ */
+#ifndef JOYENB
+#define JOYENB   TRUE /* enable joysticks */
+#endif
+
+#ifndef MOUSEENB
+#define MOUSEENB TRUE /* enable mouse */
+#endif
 
 /* Default terminal size sets the geometry of the terminal if we cannot find
    out the geometry from the terminal itself. */
+#ifndef DEFXD
 #define DEFXD 80 /* default terminal size, 80x24, this is Linux standard */
-#define DEFYD 24
+#endif
 
-#define MAXKEY 20     /* maximum length of key sequence */
-#define MAXCON  10    /**< number of screen contexts */
-#define MAXLIN  250   /* maximum length of input buffered line */
-#define MAXFKEY 10    /**< maximum number of function keys */
-#define MAXJOY  10    /* number of joysticks possible */
-#define DMPEVT  FALSE /* enable dump Petit-Ami messages */
-#define ALLOWUTF8     /* enable UTF-8 encoding */
+#ifndef DEFYD
+#define DEFYD 24
+#endif
+
+#define MAXKEY    20    /* maximum length of key sequence */
+#define MAXCON    10    /**< number of screen contexts */
+#define MAXLIN    250   /* maximum length of input buffered line */
+#define MAXFKEY   10    /**< maximum number of function keys */
+#define MAXJOY    10    /* number of joysticks possible */
+#define DMPEVT    FALSE /* enable dump Petit-Ami messages */
+#define ALLOWUTF8       /* enable UTF-8 encoding */
 
 /*
  * Standard mouse decoding has a limit of about 223 in x or y. SGR mode
@@ -277,6 +297,7 @@ typedef enum {
     einpdev,  /* input device error */
     einvtab,  /* invalid tab stop */
     einvjoy,  /* Invalid joystick ID */
+    ecfgval,  /* invalid configuration value */
     esendevent_unimp, /* sendevent unimplemented */
     etitle_unimp,     /* title unimplemented */
     eopenwin_unimp,   /* openwin unimplemented */
@@ -557,7 +578,7 @@ static int    dimx;        /* actual width of screen */
 static int    dimy;        /* actual height of screen */
 static int    bufx, bufy;  /* buffer size */
 static int    curon;       /* current on/off state of cursor */
-static int    curx;        /* cursor position on screen */
+static int curx;           /* cursor position on screen */
 static int    cury;
 static int    ncurx;       /* new cursor position on screen */
 static int    ncury;
@@ -574,6 +595,7 @@ static int    scroll;
 static int    maxpow10;
 static int    numjoy;         /* number of joysticks found */
 static int    joyenb;         /* enable joysticks */
+static int    mouseenb;       /* enable mouse */
 static int    frmfid;         /* framing timer fid */
 char          inpbuf[MAXLIN]; /* input line buffer */
 int           inpptr;         /* input line index */
@@ -623,6 +645,7 @@ static void error(errcod e)
         case einpdev: fprintf(stderr, "Error in input device"); break;
         case einvtab: fprintf(stderr, "Invalid tab stop position"); break;
         case einvjoy: fprintf(stderr, "Invalid joystick ID"); break;
+        case ecfgval: fprintf(stderr, "Invalid configuration value"); break;
         case esendevent_unimp: fprintf(stderr, "sendevent unimplemented"); break;
         case etitle_unimp:     fprintf(stderr, "title unimplemented"); break;
         case eopenwin_unimp:   fprintf(stderr, "openwin unimplemented"); break;
@@ -1729,35 +1752,39 @@ static void ievent(pa_evtrec* ev)
                 /* SGR is variable length */
                 if (keybuf[keylen-1] == 'm' || keybuf[keylen-1] == 'M') {
 
-                    /* mouse message is complete, parse */
-                    ba = keybuf[keylen-1] == 'm'; /* set assert */
-                    keylen = 3; /* set start of sequence in buffer */
-                    bn = 0; /* clear button number */
-                    while (keybuf[keylen] >= '0' && keybuf[keylen] <= '9')
-                        bn = bn*10+keybuf[keylen++]-'0';
-                    if (keybuf[keylen] == ';') keylen++;
-                    nmpx = 0; /* clear x */
-                    while (keybuf[keylen] >= '0' && keybuf[keylen] <= '9')
-                        nmpx = nmpx*10+keybuf[keylen++]-'0';
-                    if (keybuf[keylen] == ';') keylen++;
-                    nmpy = 0; /* clear y */
-                    while (keybuf[keylen] >= '0' && keybuf[keylen] <= '9')
-                        nmpy = nmpy*10+keybuf[keylen++]-'0';
-                    if (keybuf[keylen] == 'm' || keybuf[keylen] == 'M') {
+                    if (mouseenb) { /* mouse is enabled */
 
-                        /* mouse sequence is correct, process */
-                        switch (bn) { /* decode button */
+                        /* mouse message is complete, parse */
+                        ba = keybuf[keylen-1] == 'm'; /* set assert */
+                        keylen = 3; /* set start of sequence in buffer */
+                        bn = 0; /* clear button number */
+                        while (keybuf[keylen] >= '0' && keybuf[keylen] <= '9')
+                            bn = bn*10+keybuf[keylen++]-'0';
+                        if (keybuf[keylen] == ';') keylen++;
+                        nmpx = 0; /* clear x */
+                        while (keybuf[keylen] >= '0' && keybuf[keylen] <= '9')
+                            nmpx = nmpx*10+keybuf[keylen++]-'0';
+                        if (keybuf[keylen] == ';') keylen++;
+                        nmpy = 0; /* clear y */
+                        while (keybuf[keylen] >= '0' && keybuf[keylen] <= '9')
+                            nmpy = nmpy*10+keybuf[keylen++]-'0';
+                        if (keybuf[keylen] == 'm' || keybuf[keylen] == 'M') {
 
-                            case 0: nbutton1 = ba; break; /* assert button 1 */
-                            case 1: nbutton2 = ba; break; /* assert button 2 */
-                            case 2: nbutton3 = ba; break; /* assert button 3 */
-                            default: break; /* deassert all, do nothing */
+                            /* mouse sequence is correct, process */
+                            switch (bn) { /* decode button */
+
+                                case 0: nbutton1 = ba; break; /* assert button 1 */
+                                case 1: nbutton2 = ba; break; /* assert button 2 */
+                                case 2: nbutton3 = ba; break; /* assert button 3 */
+                                default: break; /* deassert all, do nothing */
+
+                            }
 
                         }
-                        keylen = 0; /* clear key buffer */
-                        mousts = mnone; /* reset mouse aquire */
 
                     }
+                    keylen = 0; /* clear key buffer */
+                    mousts = mnone; /* reset mouse aquire */
 
                 }
 #else
@@ -1765,22 +1792,26 @@ static void ievent(pa_evtrec* ev)
                 if (mousts < my) mousts++;
                 else { /* mouse has matured */
 
-                    /* the mouse event state is laid out in the buffer, we will
-                       decompose it into a new mouse status */
-                    nbutton1 = 1;
-                    nbutton2 = 1;
-                    nbutton3 = 1;
-                    switch (keybuf[3] & 0x3) {
+                    if (mouseenb) { /* mouse is enabled */
 
-                        case 0: nbutton1 = 0; break; /* assert button 1 */
-                        case 1: nbutton2 = 0; break; /* assert button 2 */
-                        case 2: nbutton3 = 0; break; /* assert button 3 */
-                        case 3: break; /* deassert all, do nothing */
+                        /* the mouse event state is laid out in the buffer, we will
+                           decompose it into a new mouse status */
+                        nbutton1 = 1;
+                        nbutton2 = 1;
+                        nbutton3 = 1;
+                        switch (keybuf[3] & 0x3) {
+
+                            case 0: nbutton1 = 0; break; /* assert button 1 */
+                            case 1: nbutton2 = 0; break; /* assert button 2 */
+                            case 2: nbutton3 = 0; break; /* assert button 3 */
+                            case 3: break; /* deassert all, do nothing */
+
+                        }
+                        /* set new mouse position */
+                        nmpx = keybuf[4]-33+1;
+                        nmpy = keybuf[5]-33+1;
 
                     }
-                    /* set new mouse position */
-                    nmpx = keybuf[4]-33+1;
-                    nmpy = keybuf[5]-33+1;
                     keylen = 0; /* clear key buffer */
                     mousts = mnone; /* reset mouse aquire */
 
@@ -3890,7 +3921,7 @@ static int mouse_ivf(FILE *f)
 
 {
 
-    return 1; /* set 1 mouse */
+    return !!mouseenb; /* set 0 or 1 mouse */
 
 }
 
@@ -4517,6 +4548,10 @@ static void pa_init_terminal()
     /** joystick device name */        char           joyfil[] = "/dev/input/js0";
     /** joystick parameter read */     char           jc;
     /** Linux return value */          int            r;
+    /** root for config block */       pa_valptr      config_root;
+    /** root for terminal block */     pa_valptr      term_root; 
+                                       pa_valptr      vp;
+                                       char*          errstr;
 
     /* set override vectors to defaults */
     cursor_vect =          cursor_ivf;
@@ -4603,7 +4638,10 @@ static void pa_init_terminal()
 //    ovr_unlink(iunlink, &ofpunlink);
     ovr_lseek(ilseek, &ofplseek);
 
-    dmpevt  = DMPEVT;    /* dump Petit-Ami messages */
+    /* set internal configurable settings */
+    dmpevt    = DMPEVT;   /* dump Petit-Ami messages */
+    joyenb    = JOYENB;   /* enable/disable joystick */
+    mouseenb  = MOUSEENB; /* enable/disable mouse */
 
     /* set default screen geometry */
     dimx = DEFXD;
@@ -4612,16 +4650,68 @@ static void pa_init_terminal()
     /* try getting size from system */
     findsize(&dimx, &dimy);
 
-    /* clear screens array */
-    for (curupd = 1; curupd <= MAXCON; curupd++) screens[curupd-1] = NULL;
-    /* allocate screen array */
-    screens[0] = malloc(sizeof(scnrec)*dimy*dimx);
-
     /* set buffer size */
     bufx = dimx;
     bufy = dimy;
 
-    /* alloocate tab array */
+    /* get setup configuration */
+    config_root = NULL;
+    pa_config(&config_root);
+
+    /* find "terminal" block */
+    term_root = pa_schlst("terminal", config_root);
+    if (term_root && term_root->sublist) term_root = term_root->sublist;
+
+    if (term_root) {
+
+        /* find x an y max if they exist */
+        vp = pa_schlst("maxxd", term_root);
+        if (vp) {
+
+            bufx = strtol(vp->value, &errstr, 10);
+            if (*errstr) error(ecfgval);
+
+        }
+        vp = pa_schlst("maxyd", term_root);
+        if (vp) {
+
+            bufy = strtol(vp->value, &errstr, 10);
+            if (*errstr) error(ecfgval);
+
+        }
+        /* enable/disable joystick */
+        vp = pa_schlst("joystick", term_root);
+        if (vp) {
+
+            joyenb = strtol(vp->value, &errstr, 10);
+            if (*errstr) error(ecfgval);
+
+        }
+        /* enable/disable mouse */
+        vp = pa_schlst("mouse", term_root);
+        if (vp) {
+
+            mouseenb = strtol(vp->value, &errstr, 10);
+            if (*errstr) error(ecfgval);
+
+        }
+        /* dump PA events */
+        vp = pa_schlst("dump_event", term_root);
+        if (vp) {
+
+            dmpevt = strtol(vp->value, &errstr, 10);
+            if (*errstr) error(ecfgval);
+
+        }
+
+    }
+
+    /* clear screens array */
+    for (curupd = 1; curupd <= MAXCON; curupd++) screens[curupd-1] = NULL;
+    /* allocate screen array */
+    screens[0] = malloc(sizeof(scnrec)*bufy*bufx);
+
+    /* allocate tab array */
     tabs = malloc(sizeof(int)*dimx);
 
     curdsp = 1; /* set display current screen */
@@ -4632,7 +4722,7 @@ static void pa_init_terminal()
     trm_curon(); /* and make sure that is so */
     iniscn(screens[curdsp-1]); /* initalize screen */
     restore(screens[curdsp-1]); /* place on display */
-    joyenb = JOYENB; /* enable joystick */
+
     inpptr = -1; /* set no input line active */
 #ifdef ALLOWUTF8
     utf8cnt = 0; /* clear utf-8 character count */
