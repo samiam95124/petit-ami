@@ -13,6 +13,8 @@ mode to the user, but we don't have the title bar message capability.
 4. Need to fill in tests for buffer follow, focus, and hover. Also for
 multithreading.
 
+5. Update features to documentation.
+
 MACOSX/Quartz version ============================================================
 
 1. In the Mac OS X version, the final benchmark tallys are getting erased. I 

@@ -2424,7 +2424,7 @@ static void iup(scnptr sc)
         else if (scroll) /* scroll enabled */
             iscroll(sc, 0, -1); /* at top already, scroll up */
         else /* wrap cursor around to screen bottom */
-            ncury = dimy; /* set new position */
+            ncury = bufy; /* set new position */
 
     } else /* autowrap is off */
         /* prevent overflow, but otherwise its unlimited */
@@ -2447,7 +2447,7 @@ static void idown(scnptr sc)
 
     if (scroll) { /* autowrap is on */
 
-        if (ncury < dimy) /* not at bottom of screen */
+        if (ncury < bufy) /* not at bottom of screen */
             ncury = ncury+1; /* update position */
         else if (scroll) /* wrap enabled */
             iscroll(sc, 0, +1); /* already at bottom, scroll down */
@@ -2480,7 +2480,7 @@ static void ileft(scnptr sc)
         else { /* wrap cursor motion */
 
             iup(sc); /* move cursor up one line */
-            ncurx = dimx; /* set cursor to extreme right */
+            ncurx = bufx; /* set cursor to extreme right */
 
         }
 
@@ -2505,7 +2505,7 @@ static void iright(scnptr sc)
 
     if (scroll) { /* autowrap is on */
 
-        if (ncurx < dimx) /* not at extreme right */
+        if (ncurx < bufx) /* not at extreme right */
             ncurx = ncurx+1; /* update position */
         else { /* wrap cursor motion */
 
@@ -2520,8 +2520,6 @@ static void iright(scnptr sc)
     setcur(sc);
 
 }
-
-
 
 /** ****************************************************************************
 
@@ -2587,7 +2585,9 @@ static void plcchr(scnptr sc, unsigned char c)
 
             /* This handling is from iright. We do this here because
                placement implicitly moves the cursor */
-            putchr(c); /* output character to terminal */
+            if (ncurx >= 1 && ncurx <= bufx &&
+                ncury >= 1 && ncury <= bufy)
+                putchr(c); /* output character to terminal */
 #ifdef ALLOWUTF8
             if (!utf8cnt)
 #endif
@@ -2598,7 +2598,7 @@ static void plcchr(scnptr sc, unsigned char c)
                 else curx++; /* update physical cursor */
                 if (scroll) { /* autowrap is on */
 
-                    if (ncurx < dimx) /* not at extreme right */
+                    if (ncurx < bufx) /* not at extreme right */
                         ncurx = ncurx+1; /* update position */
                     else { /* wrap cursor motion */
 
