@@ -3711,7 +3711,7 @@ static void select_ivf(FILE *f, int u, int d)
         if (!screens[curupd-1]) { /* no screen allocated there */
 
             /* allocate screen array */
-            screens[curupd-1] = malloc(sizeof(scnrec)*dimy*dimx);
+            screens[curupd-1] = malloc(sizeof(scnrec)*bufy*bufx);
             iniscn(screens[curupd-1]); /* initalize that */
 
         }
@@ -3725,7 +3725,7 @@ static void select_ivf(FILE *f, int u, int d)
         else { /* no current screen, create a new one */
 
             /* allocate screen array */
-            screens[curdsp-1] = malloc(sizeof(scnrec)*dimy*dimx);
+            screens[curdsp-1] = malloc(sizeof(scnrec)*bufy*bufx);
             iniscn(screens[curdsp-1]); /* initalize that */
             restore(screens[curdsp-1]); /* place on display */
 
