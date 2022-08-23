@@ -14903,32 +14903,60 @@ static void pa_init_graphics(int argc, char *argv[])
 
     /* find x an y max if they exist */
     vp = pa_schlst("maxxd", term_root);
-    if (vp) maxxd = strtol(vp->value, &errstr, 10);
-    if (*errstr) error(ecfgval);
+    if (vp) {
+
+        maxxd = strtol(vp->value, &errstr, 10);
+        if (*errstr) error(ecfgval);
+
+    }
     vp = pa_schlst("maxyd", term_root);
-    if (vp) maxyd = strtol(vp->value, &errstr, 10);
-    if (*errstr) error(ecfgval);
+    if (vp) {
+
+        maxyd = strtol(vp->value, &errstr, 10);
+        if (*errstr) error(ecfgval);
+
+    }
     vp = pa_schlst("joystick", term_root);
-    if (vp) joyenb = strtol(vp->value, &errstr, 10);
-    if (*errstr) error(ecfgval);
+    if (vp) {
+
+        joyenb = strtol(vp->value, &errstr, 10);
+        if (*errstr) error(ecfgval);
+
+    }
     vp = pa_schlst("mouse", term_root);
-    if (vp) mouseenb = strtol(vp->value, &errstr, 10);
-    if (*errstr) error(ecfgval);
+    if (vp) {
+
+        mouseenb = strtol(vp->value, &errstr, 10);
+        if (*errstr) error(ecfgval);
+
+    }
     vp = pa_schlst("dump_event", term_root);
-    if (vp) dmpevt = strtol(vp->value, &errstr, 10);
-    if (*errstr) error(ecfgval);
+    if (vp) {
+
+        dmpevt = strtol(vp->value, &errstr, 10);
+        if (*errstr) error(ecfgval);
+
+    }
 
     /* find graph block */
     graph_root = pa_schlst("graphics", config_root);
     if (graph_root) {
 
         vp = pa_schlst("console_points", graph_root->sublist);
-        if (vp) conpnt = strtol(vp->value, &errstr, 10);
-        if (*errstr) error(ecfgval);
+        if (vp) {
+
+            conpnt = strtol(vp->value, &errstr, 10);
+            if (*errstr) error(ecfgval);
+
+        }
 
         vp = pa_schlst("dialogerr", graph_root->sublist);
-        if (vp) dialogerr = strtol(vp->value, &errstr, 10);
-        if (*errstr) error(ecfgval);
+        if (vp) {
+
+            dialogerr = strtol(vp->value, &errstr, 10);
+            if (*errstr) error(ecfgval);
+
+        }
 
         /* find windows subsection */
         xwin_root = pa_schlst("xwindow", graph_root->sublist);
@@ -14939,12 +14967,20 @@ static void pa_init_graphics(int argc, char *argv[])
             if (diag_root) {
 
                 vp = pa_schlst("dump_messages", diag_root->sublist);
-                if (vp) dmpmsg = strtol(vp->value, &errstr, 10);
-                if (*errstr) error(ecfgval);
+                if (vp) {
+
+                    dmpmsg = strtol(vp->value, &errstr, 10);
+                    if (*errstr) error(ecfgval);
+
+                }
 
                 vp = pa_schlst("print_font_metrics", diag_root->sublist);
-                if (vp) prtftm = strtol(vp->value, &errstr, 10);
-                if (*errstr) error(ecfgval);
+                if (vp) {
+
+                    prtftm = strtol(vp->value, &errstr, 10);
+                    if (*errstr) error(ecfgval);
+
+                }
 
             }
 

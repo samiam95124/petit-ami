@@ -3,8 +3,7 @@
 1. A lot of white (xterm background) flash when resizing/winch.
 
 2. We can implement "fake hover". When the mouse moves, hover is flagged on, and
-if the mouse goes to the edge of window and stays more than 5 seconds, hover is
-cancelled.
+if the mouse doesn't move for more than 5 seconds, hover is cancelled.
 
 3. Does lack of autohold for terminal need to be reexamined? Any messages, like
 error messages, are wiped out when terminal exits, because it must restore the
@@ -22,4 +21,4 @@ buffer" command in deinit().
 
 2. INS key does not work in edit mode.
 
-3. Forward and backward word to not work.
+3. Forward and backward word do not work.

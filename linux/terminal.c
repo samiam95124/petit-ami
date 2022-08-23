@@ -112,6 +112,7 @@
 
 static enum { /* debug levels */
 
+    dlapi,  /* dump api executions */
     dlinfo, /* informational */
     dlwarn, /* warnings */
     dlfail, /* failure/critical */
@@ -1494,6 +1495,8 @@ static void restore(scnptr sc)
     /** screen element pointer */ scnrec *p;
     /** clipped buffer sizes */   int cbufx, cbufy;
 
+    trm_curoff(); /* turn cursor off for display */
+    curon = FALSE;
     trm_home(); /* restore cursor to upper left to start */
     /* set colors and attributes */
     trm_fcolor(forec); /* restore colors */
@@ -2220,13 +2223,13 @@ static void iscroll(scnptr sc, int x, int y)
 
         }
         /* now, adjust the buffer to be the same */
-        for (yi = 1; yi <= dimy-1; yi++) /* move any lines up */
-            if (yi+y <= dimy) /* still within buffer */
+        for (yi = 1; yi <= bufy-1; yi++) /* move any lines up */
+            if (yi+y <= bufy) /* still within buffer */
                 /* move lines up */
-                    memcpy(&sc[(yi-1)*dimx], &sc[(yi+y-1)*dimx],
-                           dimx*sizeof(scnrec));
-        for (yi = dimy-y+1; yi <= dimy; yi++) /* clear blank lines at end */
-            for (xi = 1; xi <= dimx; xi++) {
+                    memcpy(&sc[(yi-1)*bufx], &sc[(yi+y-1)*bufx],
+                           bufx*sizeof(scnrec));
+        for (yi = bufy-y+1; yi <= bufy; yi++) /* clear blank lines at end */
+            for (xi = 1; xi <= bufx; xi++) {
 
             sp = &SCNBUF(sc, xi, yi);
             plcchrext(sp, ' '); /* clear to blanks at colors and attributes */
@@ -2240,7 +2243,7 @@ static void iscroll(scnptr sc, int x, int y)
 
         /* when the scroll is arbitrary, we do it by completely refreshing the
            contents of the screen from the buffer */
-        if (x <= -dimx || x >= dimx || y <= -dimy || y >= dimy) {
+        if (x <= -bufx || x >= bufx || y <= -bufy || y >= bufy) {
 
             /* scroll would result in complete clear, do it */
             trm_clear();   /* scroll would result in complete clear, do it */
@@ -2259,18 +2262,18 @@ static void iscroll(scnptr sc, int x, int y)
                the screen is spaces anyways */
 
             /* save the entire buffer */
-            scnsav = malloc(sizeof(scnrec)*dimy*dimx);
-            memcpy(scnsav, sc, sizeof(scnrec)*dimy*dimx);
+            scnsav = malloc(sizeof(scnrec)*bufy*bufx);
+            memcpy(scnsav, sc, sizeof(scnrec)*bufy*bufx);
             if (y > 0) {  /* move text up */
 
-                for (yi = 1; yi < dimy; yi++) /* move any lines up */
-                    if (yi + y <= dimy) /* still within buffer */
+                for (yi = 1; yi < bufy; yi++) /* move any lines up */
+                    if (yi + y <= bufy) /* still within buffer */
                         /* move lines up */
-                        memcpy(&sc[(yi-1)*dimx], &sc[(yi+y-1)*dimx],
-                           dimx*sizeof(scnrec));
-                for (yi = dimy-y+1; yi <= dimy; yi++)
+                        memcpy(&sc[(yi-1)*bufx], &sc[(yi+y-1)*bufx],
+                           bufx*sizeof(scnrec));
+                for (yi = bufy-y+1; yi <= bufy; yi++)
                     /* clear blank lines at end */
-                    for (xi = 1; xi <= dimx; xi++) {
+                    for (xi = 1; xi <= bufx; xi++) {
 
                     sp = &SCNBUF(sc, xi, yi);
                     /* clear to blanks at colors and attributes */
@@ -2283,13 +2286,13 @@ static void iscroll(scnptr sc, int x, int y)
 
             } else if (y < 0) { /* move text down */
 
-                for (yi = dimy; yi >= 2; yi--)   /* move any lines up */
+                for (yi = bufy; yi >= 2; yi--)   /* move any lines up */
                     if (yi + y >= 1) /* still within buffer */
                         /* move lines up */
-                        memcpy(&sc[(yi-1)*dimx], &sc[(yi+y-1)*dimx],
-                           dimx*sizeof(scnrec));
+                        memcpy(&sc[(yi-1)*bufx], &sc[(yi+y-1)*bufx],
+                           bufx*sizeof(scnrec));
                 for (yi = 1; yi <= abs(y); yi++) /* clear blank lines at start */
-                    for (xi = 1; xi <= dimx; xi++) {
+                    for (xi = 1; xi <= bufx; xi++) {
 
                     sp = &SCNBUF(sc, xi, yi);
                     /* clear to blanks at colors and attributes */
@@ -2302,15 +2305,15 @@ static void iscroll(scnptr sc, int x, int y)
 
             }
             if (x > 0) { /* move text left */
-                for (yi = 1; yi <= dimy; yi++) { /* move text left */
+                for (yi = 1; yi <= bufy; yi++) { /* move text left */
 
-                    for (xi = 1; xi <= dimx-1; xi++) /* move left */
-                        if (xi+x <= dimx) /* still within buffer */
+                    for (xi = 1; xi <= bufx-1; xi++) /* move left */
+                        if (xi+x <= bufx) /* still within buffer */
                             /* move characters left */
                             memcpy(&SCNBUF(sc, xi, yi), &SCNBUF(sc, xi+x, yi),
                                sizeof(scnrec));
                     /* clear blank spaces at right */
-                    for (xi = dimx-x+1; xi <= dimx; xi++) {
+                    for (xi = bufx-x+1; xi <= bufx; xi++) {
 
                         sp = &SCNBUF(sc, xi, yi);
                         /* clear to blanks at colors and attributes */
@@ -2325,9 +2328,9 @@ static void iscroll(scnptr sc, int x, int y)
 
             } else if (x < 0) { /* move text right */
 
-                for (yi = 1; yi <= dimy; yi++) { /* move text right */
+                for (yi = 1; yi <= bufy; yi++) { /* move text right */
 
-                    for (xi = dimx; xi >= 2; xi--) /* move right */
+                    for (xi = bufx; xi >= 2; xi--) /* move right */
                         if (xi+x >= 1) /* still within buffer */
                             /* move characters left */
                             memcpy(&SCNBUF(sc, xi, yi), &SCNBUF(sc, xi+x, yi),
@@ -2347,87 +2350,7 @@ static void iscroll(scnptr sc, int x, int y)
                 }
 
             }
-            if (indisp(sc)) { /* in display */
-
-                trm_curoff(); /* turn cursor off for display */
-                curon = FALSE;
-                /* the buffer is adjusted. now just copy the complete buffer to the
-                   screen */
-                trm_home(); /* restore cursor to upper left to start */
-                fs = forec; /* save current colors and attributes */
-                bs = backc;
-                as = attr;
-                for (yi = 1; yi <= dimy; yi++) { /* lines */
-
-                    /* find the last unmatching character between real and new buffers.
-                       Then, we only need output the leftmost non-matching characters
-                       on the line. note that it does not really help us that characters
-                       WITHIN the line match, because a character output is as or more
-                       efficient as a cursor movement. if, however, you want to get
-                       SERIOUSLY complex, we could check runs of matching characters,
-                       then check if performing a direct cursor position is less output
-                       characters than just outputting data :) */
-                    lx = dimx; /* set to end */
-                    do { /* check matches */
-
-                        m = 1; /* set match */
-                        /* check all elements match */
-                        sp = &SCNBUF(sc, lx, yi);
-                        sp2 = &SCNBUF(scnsav, lx, yi);
-                        if (sp->ch != sp2->ch) m = 0;
-                        if (sp->forec != sp2->forec) m = 0;
-                        if (sp->backc != sp2->backc) m = 0;
-                        if (sp->attr != sp2->attr)  m = 0;
-                        if (m) lx--; /* next character */
-
-                    } while (m && lx); /* until match or no more */
-                    for (xi = 1; xi <= lx; xi++) { /* characters */
-
-                        /* for each new character, we compare the attributes and colors
-                           with what is set. if a new color or attribute is called for,
-                           we set that, and update the saves. this technique cuts down on
-                           the amount of output characters */
-                        sp = &SCNBUF(sc, xi, yi);
-                        if (sp->forec != fs) { /* new foreground color */
-
-                            trm_fcolor(sp->forec); /* set the new color */
-                            fs = sp->forec; /* set save */
-
-                        }
-                        if (sp->backc != bs) { /* new background color */
-
-                            trm_bcolor(sp->backc); /* set the new color */
-                            bs = sp->backc; /* set save */
-
-                        }
-
-                        if (sp->attr != as)  { /* new attribute */
-
-                            setattr(sc, sp->attr); /* set the new attribute */
-                            as = sp->attr;   /* set save */
-
-                        }
-#ifdef ALLOWUTF8
-                        putnstr(sp->ch, 4); /* now output the actual character */
-#else
-                        putchr(sp->ch);
-#endif
-
-                    }
-                    if (yi < dimy)
-                        /* output next line sequence on all lines but the last. this is
-                           because the last one would cause us to scroll */
-                        putstr("\r\n");
-
-                }
-                /* restore cursor position */
-                trm_cursor(ncurx, ncury);
-                trm_fcolor(forec);   /* restore colors */
-                trm_bcolor(backc);   /* restore attributes */
-                setattr(sc, attr);
-                cursts(sc); /* re-enable cursor */
-
-            }
+            if (indisp(sc)) restore(sc); /* in display, restore to screen */
 
         }
 
@@ -2648,8 +2571,8 @@ static void plcchr(scnptr sc, unsigned char c)
         if (utf8cnt) utf8cnt--; /* count off characters */
 #endif
         /* normal character case, not control character */
-        if (ncurx >= 1 && ncurx <= dimx &&
-            ncury >= 1 && ncury <= dimy) {
+        if (ncurx >= 1 && ncurx <= bufx &&
+            ncury >= 1 && ncury <= bufy) {
 
             /* within the buffer space, otherwise just dump */
             p = &SCNBUF(sc, ncurx, ncury);
@@ -3129,6 +3052,7 @@ static void cursor_ivf(FILE *f, int x, int y)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     icursor(screens[curupd-1], x, y); /* position cursor */
     pthread_mutex_unlock(&termlock); /* release terminal broadlock */
@@ -3153,6 +3077,7 @@ static int curbnd_ivf(FILE *f)
 
     int fl;
 
+    dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     fl = icurbnd(screens[curupd-1]);
     pthread_mutex_unlock(&termlock); /* release terminal broadlock */
@@ -3178,6 +3103,7 @@ static int maxx_ivf(FILE *f)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     return (bufx); /* set maximum x */
 
 }
@@ -3199,6 +3125,7 @@ static int maxy_ivf(FILE *f)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     return (bufy); /* set maximum y */
 
 }
@@ -3219,6 +3146,7 @@ static void home_ivf(FILE *f)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     ncury = 1; /* set cursor at home */
     ncurx = 1;
@@ -3244,6 +3172,7 @@ static void del_ivf(FILE* f)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     ileft(screens[curupd-1]); /* back up cursor */
     plcchr(screens[curupd-1], ' '); /* blank out */
@@ -3268,6 +3197,7 @@ static void up_ivf(FILE *f)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     iup(screens[curupd-1]); /* move up */
     pthread_mutex_unlock(&termlock); /* release terminal broadlock */
@@ -3291,6 +3221,7 @@ static void down_ivf(FILE *f)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     idown(screens[curupd-1]); /* move cursor down */
     pthread_mutex_unlock(&termlock); /* release terminal broadlock */
@@ -3313,6 +3244,7 @@ static void left_ivf(FILE *f)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     ileft(screens[curupd-1]); /* move cursor left */
     pthread_mutex_unlock(&termlock); /* release terminal broadlock */
@@ -3335,6 +3267,7 @@ static void right_ivf(FILE *f)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     iright(screens[curupd-1]); /* move cursor right */
     pthread_mutex_unlock(&termlock); /* release terminal broadlock */
@@ -3405,6 +3338,7 @@ static void blink_ivf(FILE *f, int e)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     attronoff(f, e, sablink); /* enable/disable attbute */
 
 }
@@ -3425,6 +3359,7 @@ static void reverse_ivf(FILE *f, int e)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     attronoff(f, e, sarev); /* enable/disable attbute */
 
 }
@@ -3445,6 +3380,7 @@ static void underline_ivf(FILE *f, int e)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     attronoff(f, e, saundl); /* enable/disable attbute */
 
 }
@@ -3465,6 +3401,7 @@ static void superscript_ivf(FILE *f, int e)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     /* no capability */
 
 }
@@ -3485,6 +3422,7 @@ static void subscript_ivf(FILE *f, int e)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     /* no capability */
 
 }
@@ -3505,6 +3443,7 @@ static void italic_ivf(FILE *f, int e)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     attronoff(f, e, saital); /* enable/disable attbute */
 
 }
@@ -3525,6 +3464,7 @@ static void bold_ivf(FILE *f, int e)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     attronoff(f, e, sabold); /* enable/disable attbute */
 
 }
@@ -3547,6 +3487,7 @@ static void strikeout_ivf(FILE *f, int e)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     /* no capability */
 
 }
@@ -3568,6 +3509,7 @@ static void standout_ivf(FILE *f, int e)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     pa_reverse(f, e); /* implement as reverse */
 
 }
@@ -3588,6 +3530,7 @@ static void fcolor_ivf(FILE *f, pa_color c)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     if (curupd == curdsp) trm_fcolor(c); /* set color */
     forec = c;
@@ -3611,6 +3554,7 @@ static void bcolor_ivf(FILE *f, pa_color c)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     if (curupd == curdsp) trm_bcolor(c); /* set color */
     backc = c;
@@ -3635,6 +3579,7 @@ static void auto_ivf(FILE *f, int e)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     scroll = e; /* set line wrap status */
     pthread_mutex_unlock(&termlock); /* release terminal broadlock */
@@ -3657,6 +3602,7 @@ static void curvis_ivf(FILE *f, int e)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     curvis = !!e; /* set cursor visible status */
     if (e) trm_curon(); else trm_curoff();
@@ -3681,6 +3627,7 @@ static void scroll_ivf(FILE *f, int x, int y)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     iscroll(screens[curupd-1], x, y); /* process scroll */
     pthread_mutex_unlock(&termlock); /* release terminal broadlock */
@@ -3703,6 +3650,7 @@ static int curx_ivf(FILE *f)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     return (ncurx); /* return current location x */
 
 }
@@ -3723,6 +3671,7 @@ static int cury_ivf(FILE *f)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     return (ncury); /* return current location y */
 
 }
@@ -3752,6 +3701,7 @@ static void select_ivf(FILE *f, int u, int d)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     if (u < 1 || u > MAXCON || d < 1 || d > MAXCON)
         error(einvscn); /* invalid screen number */
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
@@ -3806,6 +3756,7 @@ static void event_ivf(FILE* f, pa_evtrec *er)
 
     static int ecnt = 0; /* PA event counter */
 
+    dbg_printf(dlapi, "API\n");
     do { /* loop handling via event vectors */
 
         /* get next input event */
@@ -3864,6 +3815,7 @@ static void timer_ivf(/* file to send event to */              FILE* f,
 
 {
 
+    dbg_printf(dlapi, "API\n");
     if (i < 1 || i > PA_MAXTIM) error(einvhan); /* invalid timer handle */
     pthread_mutex_lock(&timlock); /* take the timer lock */
     timtbl[i-1] = system_event_addsetim(timtbl[i-1], t, r);
@@ -3890,6 +3842,7 @@ static void killtimer_ivf(/* file to kill timer on */ FILE *f,
 
 {
 
+    dbg_printf(dlapi, "API\n");
     if (i < 1 || i > PA_MAXTIM) error(einvhan); /* invalid timer handle */
     pthread_mutex_lock(&timlock); /* take the timer lock */
     if (timtbl[i-1] <= 0) {
@@ -3921,6 +3874,7 @@ static int mouse_ivf(FILE *f)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     return !!mouseenb; /* set 0 or 1 mouse */
 
 }
@@ -3942,6 +3896,7 @@ static int mousebutton_ivf(FILE *f, int m)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     return 3; /* set three buttons */
 
 }
@@ -3962,6 +3917,7 @@ static int joystick_ivf(FILE *f)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     return (numjoy); /* set number of joysticks */
 
 }
@@ -3985,6 +3941,7 @@ static int joybutton_ivf(FILE *f, int j)
 
     int b;
 
+    dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     if (j < 1 || j > numjoy) {
 
@@ -4026,6 +3983,7 @@ static int joyaxis_ivf(FILE *f, int j)
 
     int ja;
 
+    dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     if (j < 1 || j > numjoy) {
 
@@ -4065,6 +4023,7 @@ static void settab_ivf(FILE* f, int t)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     if (t < 1 || t > dimx) {
 
@@ -4093,6 +4052,7 @@ static void restab_ivf(FILE* f, int t)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     if (t < 1 || t > dimx) {
 
@@ -4123,6 +4083,7 @@ static void clrtab_ivf(FILE* f)
 
     int i;
 
+    dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     for (i = 0; i < dimx; i++) tabs[i] = 0; /* clear all tab stops */
     pthread_mutex_unlock(&termlock); /* release terminal broadlock */
@@ -4149,6 +4110,7 @@ static int funkey_ivf(FILE* f)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     return MAXFKEY;
 
 }
@@ -4171,6 +4133,7 @@ static void frametimer_ivf(FILE* f, int e)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&timlock); /* take the timer lock */
     if (e) { /* set framing timer to run */
 
@@ -4204,6 +4167,8 @@ static void autohold_ivf(int e)
 
 {
 
+    dbg_printf(dlapi, "API\n");
+
 }
 
 /** ****************************************************************************
@@ -4222,6 +4187,7 @@ static void wrtstr_ivf(FILE* f, char *s)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     putstr(s);
     pthread_mutex_unlock(&termlock); /* release terminal broadlock */
@@ -4245,6 +4211,7 @@ static void wrtstrn_ivf(FILE* f, char *s, int n)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     while (n--) putchr(*s++);
     pthread_mutex_unlock(&termlock); /* release terminal broadlock */
@@ -4269,6 +4236,7 @@ static void sizbuf_ivf(FILE* f, int x, int y)
 
     int si;
 
+    dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     if (bufx != x || bufy != y) {
 
@@ -4292,7 +4260,7 @@ static void sizbuf_ivf(FILE* f, int x, int y)
             /* allocate */
             screens[curdsp-1] = malloc(sizeof(scnrec)*y*x);
             /* clear it */
-            clrbuf(screens[curupd-1]);
+            clrbuf(screens[curdsp-1]);
 
         }
         /* redraw screen */
@@ -4323,6 +4291,7 @@ static void eventover_ivf(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     *oeh = evthan[e]; /* save existing event handler */
     evthan[e] = eh; /* place new event handler */
@@ -4350,6 +4319,7 @@ static void eventsover_ivf(pa_pevthan eh,  pa_pevthan* oeh)
 
 {
 
+    dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     *oeh = evtshan; /* save existing event handler */
     evtshan = eh; /* place new event handler */
