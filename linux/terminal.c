@@ -1607,7 +1607,7 @@ ievent() is called within the input spooler task only.
 *******************************************************************************/
 
 /* get and process a joystick event */
-static void joyevt(pa_evtrec* er, int* keep, joyptr jp)
+static void joyevt(pa_evtrec* er, joyptr jp)
 
 {
 
@@ -1625,15 +1625,16 @@ static void joyevt(pa_evtrec* er, int* keep, joyptr jp)
                 er->etype = pa_etjoyba; /* set assert */
                 er->ajoyn = jp->no; /* set joystick 1 */
                 er->ajoybn = ev.number+1; /* set button number */
+                enquepaevt(er); /* send to queue */
 
             } else { /* deassert */
 
                 er->etype = pa_etjoybd; /* set assert */
                 er->djoyn = jp->no; /* set joystick 1 */
                 er->djoybn = ev.number+1; /* set button number */
+                enquepaevt(er); /* send to queue */
 
             }
-            *keep = TRUE; /* set keep event */
 
         }
         if (ev.type & JS_EVENT_AXIS) {
@@ -1658,7 +1659,7 @@ static void joyevt(pa_evtrec* er, int* keep, joyptr jp)
                 er->joyp4 = jp->a4;
                 er->joyp5 = jp->a5;
                 er->joyp6 = jp->a6;
-                *keep = TRUE; /* set keep event */
+                enquepaevt(er); /* send to queue */
 
             }
 
@@ -1669,7 +1670,7 @@ static void joyevt(pa_evtrec* er, int* keep, joyptr jp)
 
 }
 
-static void ievent(pa_evtrec* ev)
+static void ievent(void)
 
 {
 
@@ -1677,7 +1678,6 @@ static void ievent(pa_evtrec* ev)
     pa_evtcod i;      /* index for events */
     int       rv;     /* return value */
     int       evtfnd; /* found an event */
-    int       evtsig; /* event signaled */
     int       ti;     /* index for timers */
     int       ji;     /* index for joysticks */
     enum { mnone, mbutton, mx, my } mousts; /* mouse state variable */
@@ -1687,18 +1687,17 @@ static void ievent(pa_evtrec* ev)
     joyptr    jp;
     int       bn;     /* mouse button number */
     int       ba;     /* mouse button assert */
+    pa_evtrec er;     /* event record */
 
     mousts = mnone; /* set no mouse event being processed */
     do { /* match input events */
 
         evtfnd = 0; /* set no event found */
-        evtsig = 0; /* set no event signaled */
         system_event_getsevt(&sev); /* get the next system event */
         /* check the read file has signaled */
         if (sev.typ == se_inp && sev.lse == inpsev) {
 
             /* keyboard (standard input) */
-            evtsig = 1; /* event signaled */
             keybuf[keylen++] = getchr(); /* get next character to match buffer */
             if (mousts == mnone) { /* do table matching */
 
@@ -1718,13 +1717,14 @@ static void ievent(pa_evtrec* ev)
                             /* complete match found, set as event */
                             if (i > pa_etterm) { /* it's a function key */
 
-                                ev->etype = pa_etfun;
+                                er.etype = pa_etfun;
                                 /* compensate for F12 subsitution */
-                                if (i == pa_etterm+MAXFKEY) ev->fkey = 10;
-                                else ev->fkey = i-pa_etterm;
+                                if (i == pa_etterm+MAXFKEY) er.fkey = 10;
+                                else er.fkey = i-pa_etterm;
 
-                            } else ev->etype = i; /* set event */
+                            } else er.etype = i; /* set event */
                             evtfnd = 1; /* set event found */
+                            enquepaevt(&er); /* send to queue */
                             keylen = 0; /* clear buffer */
                             pmatch = 0; /* clear partial match */
 
@@ -1741,9 +1741,10 @@ static void ievent(pa_evtrec* ev)
                     if (keylen > 1) keylen = 0;
                     else if (keylen == 1) { /* have valid character */
 
-                        ev->etype = pa_etchar; /* set event */
-                        ev->echar = keybuf[0]; /* place character */
+                        er.etype = pa_etchar; /* set event */
+                        er.echar = keybuf[0]; /* place character */
                         evtfnd = 1; /* set event found */
+                        enquepaevt(&er); /* send to queue */
                         keylen = 0; /* clear buffer */
 
                     }
@@ -1833,10 +1834,10 @@ static void ievent(pa_evtrec* ev)
                 if (timtbl[ti] == sev.lse) {
 
                     /* timer found, set as event */
-                    evtsig = 1; /* set event signaled */
-                    ev->etype = pa_ettim; /* set timer type */
-                    ev->timnum = ti+1; /* set timer number */
+                    er.etype = pa_ettim; /* set timer type */
+                    er.timnum = ti+1; /* set timer number */
                     evtfnd = 1; /* set event found */
+                    enquepaevt(&er); /* send to queue */
 
                 }
 
@@ -1845,9 +1846,9 @@ static void ievent(pa_evtrec* ev)
             /* could also be the frame timer */
             if (!evtfnd && sev.lse == frmsev) {
 
-                evtsig = 1; /* set event signaled */
-                ev->etype = pa_etframe; /* set frame event occurred */
+                er.etype = pa_etframe; /* set frame event occurred */
                 evtfnd = TRUE; /* set event found */
+                enquepaevt(&er); /* send to queue */
 
             }
             pthread_mutex_unlock(&timlock); /* release the timer lock */
@@ -1859,8 +1860,7 @@ static void ievent(pa_evtrec* ev)
 
                 if (joytab[ji] && joytab[ji]->sid == sev.lse) {
 
-                    evtsig = 1; /* set event signaled */
-                    joyevt(ev, &evtfnd, joytab[ji]); /* process joystick */
+                    joyevt(&er, joytab[ji]); /* process joystick */
 
                 }
 
@@ -1869,10 +1869,11 @@ static void ievent(pa_evtrec* ev)
         } else if (sev.typ == se_sig && !evtfnd && sev.lse == winchsev) {
 
             findsize(&dimxs, &dimys); /* get new size */
-            ev->etype = pa_etresize;
-            ev->rszx = dimxs; /* send new size in message */
-            ev->rszy = dimys;
+            er.etype = pa_etresize;
+            er.rszx = dimxs; /* send new size in message */
+            er.rszy = dimys;
             evtfnd = 1;
+            enquepaevt(&er); /* send to queue */
 
         }
 
@@ -1881,59 +1882,66 @@ static void ievent(pa_evtrec* ev)
             /* check any mouse states have changed, flag and remove */
             if (nbutton1 < button1) {
 
-                ev->etype = pa_etmouba;
-                ev->amoun = 1;
-                ev->amoubn = 1;
+                er.etype = pa_etmouba;
+                er.amoun = 1;
+                er.amoubn = 1;
                 evtfnd = 1;
+                enquepaevt(&er); /* send to queue */
                 button1 = nbutton1;
 
             } else if (nbutton1 > button1) {
 
-                ev->etype = pa_etmoubd;
-                ev->dmoun = 1;
-                ev->dmoubn = 1;
+                er.etype = pa_etmoubd;
+                er.dmoun = 1;
+                er.dmoubn = 1;
                 evtfnd = 1;
+                enquepaevt(&er); /* send to queue */
                 button1 = nbutton1;
 
             } else if (nbutton2 < button2) {
 
-                ev->etype = pa_etmouba;
-                ev->amoun = 1;
-                ev->amoubn = 2;
+                er.etype = pa_etmouba;
+                er.amoun = 1;
+                er.amoubn = 2;
                 evtfnd = 1;
+                enquepaevt(&er); /* send to queue */
                 button2 = nbutton2;
 
             } else if (nbutton2 > button2) {
 
-                ev->etype = pa_etmoubd;
-                ev->dmoun = 1;
-                ev->dmoubn = 2;
+                er.etype = pa_etmoubd;
+                er.dmoun = 1;
+                er.dmoubn = 2;
                 evtfnd = 1;
+                enquepaevt(&er); /* send to queue */
                 button2 = nbutton2;
 
             } else if (nbutton3 < button3) {
 
-                ev->etype = pa_etmouba;
-                ev->amoun = 1;
-                ev->amoubn = 3;
+                er.etype = pa_etmouba;
+                er.amoun = 1;
+                er.amoubn = 3;
                 evtfnd = 1;
+                enquepaevt(&er); /* send to queue */
                 button3 = nbutton3;
 
             } else if (nbutton3 > button3) {
 
-                ev->etype = pa_etmoubd;
-                ev->dmoun = 1;
-                ev->dmoubn = 3;
+                er.etype = pa_etmoubd;
+                er.dmoun = 1;
+                er.dmoubn = 3;
                 evtfnd = 1;
+                enquepaevt(&er); /* send to queue */
                 button3 = nbutton3;
 
             } if (nmpx != mpx || nmpy != mpy) {
 
-                ev->etype = pa_etmoumov;
-                ev->mmoun = 1;
-                ev->moupx = nmpx;
-                ev->moupy = nmpy;
+                er.etype = pa_etmoumov;
+                er.mmoun = 1;
+                er.moupx = nmpx;
+                er.moupy = nmpy;
                 evtfnd = 1;
+                enquepaevt(&er); /* send to queue */
                 mpx = nmpx;
                 mpy = nmpy;
 
@@ -1941,8 +1949,7 @@ static void ievent(pa_evtrec* ev)
 
         }
 
-    /* while substring match and no other event found, or buffer empty */
-    } while (!evtfnd);
+    } while (1); /* forever */
 
 }
 
@@ -1962,12 +1969,7 @@ static void* eventtask(void* param)
 
     pa_evtrec er; /* event record */
 
-    while (1) { /* run continuously */
-
-        ievent(&er); /* get next event */
-        enquepaevt(&er); /* send to queue */
-
-    }
+    ievent(); /* process events (forever) */
 
     return (NULL);
 
