@@ -591,6 +591,7 @@ static scnatt   attr;      /* current writing attribute */
 /* global scroll enable. This does not reflect the physical state, we never
    turn on automatic scroll. */
 static int    scroll;
+static int    hover;       /* current state of hover */
 
 /* maximum power of 10 in integer */
 static int    maxpow10;
@@ -4689,6 +4690,7 @@ static void pa_init_terminal()
     trm_wrapoff(); /* physical wrap is always off */
     scroll = 1; /* turn on virtual wrap */
     curon = 1; /* set default cursor on */
+    hover = FALSE; /* set hover off */
     trm_curon(); /* and make sure that is so */
     iniscn(screens[curdsp-1]); /* initalize screen */
     restore(screens[curdsp-1]); /* place on display */
