@@ -592,6 +592,7 @@ static scnatt   attr;      /* current writing attribute */
    turn on automatic scroll. */
 static int    scroll;
 static int    hover;       /* current state of hover */
+static int    hovsev;      /* hover timer event */
 
 /* maximum power of 10 in integer */
 static int    maxpow10;
@@ -1843,7 +1844,7 @@ static void ievent(void)
 
             }
 
-            /* could also be the frame timer */
+            /* could be the frame timer */
             if (!evtfnd && sev.lse == frmsev) {
 
                 er.etype = pa_etframe; /* set frame event occurred */
@@ -1851,6 +1852,17 @@ static void ievent(void)
                 enquepaevt(&er); /* send to queue */
 
             }
+
+            /* could be the hover timer */
+            if (!evtfnd && sev.lse == hovsev && hover) {
+
+                er.etype = pa_etnohover; /* set no hover event occurred */
+                evtfnd = TRUE; /* set event found */
+                enquepaevt(&er); /* send to queue */
+                hover = FALSE; /* remove hover status */
+
+            }
+
             pthread_mutex_unlock(&timlock); /* release the timer lock */
 
         } else if (sev.typ == se_inp && !evtfnd && joyenb) {
@@ -1944,6 +1956,18 @@ static void ievent(void)
                 enquepaevt(&er); /* send to queue */
                 mpx = nmpx;
                 mpy = nmpy;
+                /* mouse moved, that means we are within the window. Check if
+                   hover is activated */
+                if (!hover) {
+
+                    er.etype = pa_ethover;
+                    evtfnd = 1;
+                    enquepaevt(&er); /* send to queue */
+                    hover = TRUE; /* activate hover */
+                    /* set the hover timer, one shot, 5 seconds */
+                    hovsev = system_event_addsetim(hovsev, 5*10000, FALSE);
+
+                }
 
             }
 
@@ -4693,6 +4717,7 @@ static void pa_init_terminal()
     scroll = 1; /* turn on virtual wrap */
     curon = 1; /* set default cursor on */
     hover = FALSE; /* set hover off */
+    hovsev = 0; /* set no hover timer */
     trm_curon(); /* and make sure that is so */
     iniscn(screens[curdsp-1]); /* initalize screen */
     restore(screens[curdsp-1]); /* place on display */

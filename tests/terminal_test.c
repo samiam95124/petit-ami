@@ -365,6 +365,7 @@ int main(int argc, char *argv[])
 
     if (setjmp(terminate_buf)) goto terminate;
 
+#if 1
     pa_select(stdout, 2, 2);   /* move off the display buffer */
     /* set black on white text */
     pa_fcolor(stdout, pa_black);
@@ -1072,6 +1073,7 @@ int main(int argc, char *argv[])
 
     /* **************************** Writethrough test ************************** */
 
+#endif
     printf("\f");
     prtcen(pa_maxy(stdout), "File writethrough test");
     pa_home(stdout);

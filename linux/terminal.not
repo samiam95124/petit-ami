@@ -2,18 +2,19 @@
 
 1. A lot of white (xterm background) flash when resizing/winch.
 
-2. We can implement "fake hover". When the mouse moves, hover is flagged on, and
-if the mouse doesn't move for more than 5 seconds, hover is cancelled.
-
-3. Does lack of autohold for terminal need to be reexamined? Any messages, like
+2. Does lack of autohold for terminal need to be reexamined? Any messages, like
 error messages, are wiped out when terminal exits, because it must restore the
 screen. The biggest issue with this mode is that we need a way to indicate hold
 mode to the user, but we don't have the title bar message capability.
 
-4. Need to fill in tests for buffer follow, focus, and hover. Also for
+The plan is to place a white text on black bar at the top of the window, then
+blink it so that the text under it can be read. The bar reads 
+"finished - program" just as for graphics.c.
+
+3. Need to fill in tests for buffer follow, focus, and hover. Also for
 multithreading.
 
-5. Update features to documentation.
+4. Update features to documentation.
 
 MACOSX/Quartz version ============================================================
 
