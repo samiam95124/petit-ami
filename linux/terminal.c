@@ -1964,10 +1964,10 @@ static void ievent(void)
                     evtfnd = 1;
                     enquepaevt(&er); /* send to queue */
                     hover = TRUE; /* activate hover */
-                    /* set the hover timer, one shot, 5 seconds */
-                    hovsev = system_event_addsetim(hovsev, 5*10000, FALSE);
 
                 }
+                /* set the hover timer, one shot, 5 seconds */
+                hovsev = system_event_addsetim(hovsev, 5*10000, FALSE);
 
             }
 
