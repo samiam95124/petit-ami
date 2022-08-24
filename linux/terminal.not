@@ -2,19 +2,10 @@
 
 1. A lot of white (xterm background) flash when resizing/winch.
 
-2. Does lack of autohold for terminal need to be reexamined? Any messages, like
-error messages, are wiped out when terminal exits, because it must restore the
-screen. The biggest issue with this mode is that we need a way to indicate hold
-mode to the user, but we don't have the title bar message capability.
-
-The plan is to place a white text on black bar at the top of the window, then
-blink it so that the text under it can be read. The bar reads 
-"finished - program" just as for graphics.c.
-
-3. Need to fill in tests for buffer follow, focus, and hover. Also for
+2. Need to fill in tests for buffer follow, focus, and hover. Also for
 multithreading.
 
-4. Update features to documentation.
+3. Update features to documentation.
 
 MACOSX/Quartz version ============================================================
 

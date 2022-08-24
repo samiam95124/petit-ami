@@ -99,6 +99,11 @@
 #include <terminal.h>
 #include "system_event.h"
 
+/* external definitions */
+#ifndef __MACH__ /* Mac OS X */
+extern char *program_invocation_short_name;
+#endif
+
 /*
  * Debug print system
  *
@@ -593,6 +598,10 @@ static scnatt   attr;      /* current writing attribute */
 static int    scroll;
 static int    hover;       /* current state of hover */
 static int    hovsev;      /* hover timer event */
+static int    blksev;      /* finish blink event */
+static int    fend;        /* end of program ordered flag */
+static int    fautohold;   /* automatic hold on exit flag */
+static int    errflg;      /* error occurred */
 
 /* maximum power of 10 in integer */
 static int    maxpow10;
@@ -675,6 +684,7 @@ static void error(errcod e)
 
     }
     fprintf(stderr, "\n");
+    errflg = TRUE; /* flag error occurred */
 
     exit(1);
 
@@ -693,6 +703,7 @@ void linuxerror(int ec)
 {
 
     fprintf(stderr, "Linux error: %s\n", strerror(ec)); fflush(stderr);
+    errflg = TRUE; /* flag error occurred */
 
     exit(1);
 
@@ -1844,7 +1855,7 @@ static void ievent(void)
 
             }
 
-            /* could be the frame timer */
+            /* check the frame timer */
             if (!evtfnd && sev.lse == frmsev) {
 
                 er.etype = pa_etframe; /* set frame event occurred */
@@ -1853,13 +1864,22 @@ static void ievent(void)
 
             }
 
-            /* could be the hover timer */
+            /* check the the hover timer */
             if (!evtfnd && sev.lse == hovsev && hover) {
 
                 er.etype = pa_etnohover; /* set no hover event occurred */
                 evtfnd = TRUE; /* set event found */
                 enquepaevt(&er); /* send to queue */
                 hover = FALSE; /* remove hover status */
+
+            }
+
+            /* check the the finish blink timer */
+            if (!evtfnd && sev.lse == blksev) {
+
+                er.etype = pa_etsys; /* set no hover event occurred */
+                evtfnd = TRUE; /* set event found */
+                enquepaevt(&er); /* send to queue */
 
             }
 
@@ -3800,13 +3820,19 @@ static void event_ivf(FILE* f, pa_evtrec *er)
                always need to refresh, and means it can flash. */
             restore(screens[curdsp-1]);
 
-        }
+        } else if (er->etype == pa_etterm) 
+            /* set user ordered termination */
+            fend = TRUE;
         er->handled = 1; /* set event is handled by default */
         (evtshan)(er); /* call master event handler */
         if (!er->handled) { /* send it to fanout */
 
-            er->handled = 1; /* set event is handled by default */
-            (*evthan[er->etype])(er); /* call event handler first */
+            if (er->etype <= pa_etframe) {
+
+                er->handled = 1; /* set event is handled by default */
+                (*evthan[er->etype])(er); /* call event handler first */
+
+            }
 
         }
         pthread_mutex_unlock(&termlock); /* release terminal broadlock */
@@ -4181,8 +4207,14 @@ Autohold
 
 Turns on or off automatic hold mode.
 
-We don't implement automatic hold here, it has no real use on a terminal, since
-we abort to the same window.
+Sets the state of the automatic hold flag. Automatic hold is used to hold
+programs that exit without having received a "terminate" signal from terminal.
+This exists to allow the results of terminal unaware programs to be viewed after
+termination, instead of exiting and clearing the screen. This mode works for
+most circumstances, but an advanced program may want to exit for other reasons
+than being closed by CTL-C. This call can turn automatic holding off,
+and can only be used by an advanced program, so fufills the requirement of
+holding terminal unaware programs.
 
 *******************************************************************************/
 
@@ -4195,6 +4227,7 @@ static void autohold_ivf(int e)
 {
 
     dbg_printf(dlapi, "API\n");
+    fautohold = e; /* set new state of autohold */
 
 }
 
@@ -4718,6 +4751,9 @@ static void pa_init_terminal()
     curon = 1; /* set default cursor on */
     hover = FALSE; /* set hover off */
     hovsev = 0; /* set no hover timer */
+    fend = FALSE; /* set no end of program ordered */
+    fautohold = TRUE; /* set automatically hold self terminators */
+    errflg = FALSE; /* set no error occurred */
     trm_curon(); /* and make sure that is so */
     iniscn(screens[curdsp-1]); /* initalize screen */
     restore(screens[curdsp-1]); /* place on display */
@@ -4888,6 +4924,105 @@ static void pa_deinit_terminal()
     pclose_t cppclose;
     punlink_t cppunlink;
     plseek_t cpplseek;
+
+    pa_evtrec er;  /* event record */
+    string trmnam; /* termination name */
+    char   fini[] = "Finished - ";
+    int    bobble; /* bobble display bit */
+    scnptr sc;     /* screen buffer */
+    int    ml;     /* message length */
+    scnrec *p;     /* screen element pointer */ 
+    int    xi;
+    int    i;
+    int    xs;
+
+    /* if the program tries to exit when the user has not ordered an exit,
+       it is assumed to be a windows "unaware" program. We stop before we
+       exit these, so that their content may be viewed */
+    if (!fend && fautohold && !errflg) {
+
+        /* process automatic exit sequence */
+#ifndef __MACH__ /* Mac OS X */
+        /* construct final name for window */
+        ml = strlen(fini)+strlen(program_invocation_short_name);
+        trmnam = malloc(ml+1);
+        strcpy(trmnam, fini); /* place first part */
+        /* place program name */
+        strcat(trmnam, program_invocation_short_name);
+        /* set window title */
+        // XStoreName(padisplay, win->xmwhan, trmnam);
+#endif
+        bobble = FALSE; /* start bobble bit */
+        trm_curoff(); /* turn cursor off for display */
+        curon = FALSE;
+        /* set the blink timer, repeating, 1 second */
+        blksev = system_event_addsetim(blksev, 1*10000, TRUE);
+        /* wait for a formal end */
+        while (!fend) {
+// Add bobble flip timer
+
+            if (bobble) { /* clear top line by redrawing it */
+
+                trm_home(); /* restore cursor to upper left to start */
+                for (xi = 1; xi <= bufx; xi++) {
+
+                    p = &SCNBUF(sc, xi, 1); /* index this screen element */
+                    trm_fcolor(p->forec); /* set the new color */
+                    trm_bcolor(p->backc); /* set the new color */
+                    setattr(sc, p->attr); /* set the new attribute */
+#ifdef ALLOWUTF8
+                    putnstr(p->ch, 4); /* now output the actual character */
+#else
+                    putchr(p->ch); /* now output the actual character */
+#endif
+
+                }
+                /* color leftover line after buffer */
+                trm_bcolor(backc); /* set background color */
+                setattr(sc, sanone); /* set the new attribute */
+                for (xi = bufx+1; xi <= dimx; xi++) {
+
+                    p = &SCNBUF(sc, xi, 1); /* index this screen element */
+                    putchr(' '); /* blank out */
+
+                }                
+
+            } else {
+
+                /* blank out */
+                trm_home(); /* restore cursor to upper left to start */
+                trm_bcolor(pa_black); /* set background color */
+                setattr(sc, sanone); /* set no attribute */
+                for (xi = 1; xi <= dimx; xi++) {
+
+                    p = &SCNBUF(sc, xi, 1); /* index this screen element */
+                    putchr(' '); /* blank out */
+
+                } 
+                /* draw the "finished" message */
+                trm_home(); /* restore cursor to upper left to start */
+                trm_bcolor(pa_black); /* set background color */
+                trm_fcolor(pa_white); /* set foreground color */
+                i = 0; /* set string start */
+                xs = dimx/2-ml/2; /* set centered line start */
+                if (xs < 1) xs = 1; /* if string too long, clip right */
+                trm_cursor(xs, 1); /* move cursor to start */
+                for (xi = xs; xi <= dimx && i < ml; xi++) {
+
+                    p = &SCNBUF(sc, xi, 1); /* index this screen element */
+                    putchr(trmnam[i++]); /* place message character */
+
+                }
+
+            }
+            pa_event(stdin, &er);
+            /* if the blink timer fires, flip the display */
+            if (er.etype == pa_etsys) bobble = !bobble;
+
+        }
+        free(trmnam); /* free up termination name */
+
+    }
 
     /* release the terminal broadlock */
     pthread_mutex_destroy(&termlock);
