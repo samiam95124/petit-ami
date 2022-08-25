@@ -2975,37 +2975,6 @@ int pa_newthread(void (*threadmain)(void))
 
 /** ****************************************************************************
 
-Kill logical thread
-
-Stops the given thread by logical number and terminates the thread. Normally
-threads are terminated when the function called to start then exits. A thread
-can be terminated by another thread, or by the process that created it. A thread
-can also self-terminate.
-
-Normally a program arranges for the thread to self-terminate by sending it a
-signal or other means. The safest use of this call is to kill a thread that is
-in a loop forever.
-
-*******************************************************************************/
-
-void pa_killthread(int tn)
-
-{
-
-    int r;
-
-    if (tn < 1 || tn > MAXTHREAD) error("Invalid thread logical id");
-    if (!threadtbl[tn-1]) error("Thread by logical id is not active");
-    /* cancel the thread by force */
-    r = pthread_cancel(*threadtbl[tn-1]);
-    if (r) error(strerror(r));
-    free(threadtbl[tn-1]); /* free memory used by thread data */
-    threadtbl[tn-1] = NULL; /* flag entry free */
-
-}
-
-/** ****************************************************************************
-
 Create concurrency lock
 
 Creates a new concurrency lock and returns the logical id for it.
@@ -3042,7 +3011,7 @@ Releases a concurrency lock by logical id.
 
 *******************************************************************************/
 
-int pa_deinitlock(int ln)
+void pa_deinitlock(int ln)
 
 {
 

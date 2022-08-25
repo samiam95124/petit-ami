@@ -108,6 +108,8 @@ static enum { /* debug levels */
                                 __func__, __LINE__, ##__VA_ARGS__); \
                                 fflush(stderr); } while (0)
 
+#define SECOND 10000 /* one second */
+
 typedef enum {
 
     bncharw,     /* character write */
@@ -130,7 +132,7 @@ static int top, bottom, lside, rside; /* borders */
 static enum { dup, ddown, dleft, dright } direction; /* writing direction */
 static int count, t1, t2, delay, minlen;   /* maximum direction, x or y */
 static pa_evtrec er;   /* event record */
-static int i, b, tc, cnt;
+static int i, j, b, tc, cnt, tn;
 static long clk;
 static FILE *tf;   /* test file */
 static char tf_NAME[10/*_FNSIZE*/] = "testfile";
@@ -138,6 +140,10 @@ static int eventflag1, eventflag2;
 static pa_pevthan oeh1;
 static pa_pevthan oeh2;
 static char line[250];
+
+static int      tn; /* thread number */
+static int      ln; /* lock number */
+static volatile int thdstp; /* thread stop flag */
 
 /* draw box */
 
@@ -165,12 +171,12 @@ static jmp_buf terminate_buf;
 
 /* wait time in 100 microseconds */
 
-static void waittime(int t)
+static void waittime(int n, int t)
 {
 
     pa_evtrec er; /* event record */
 
-    pa_timer(stdout, 1, t, 0);
+    pa_timer(stdout, n, t, 0);
     do { pa_event(stdin, &er);
     } while (er.etype != pa_ettim && er.etype != pa_etterm);
     if (er.etype == pa_etterm) { longjmp(terminate_buf, 1); }
@@ -357,6 +363,35 @@ void event_vector_2(pa_evtptr er)
 
     if (er->etype != pa_etframe) er->handled = FALSE;
     eventflag2 = TRUE;
+
+}
+
+void thread(void)
+
+{
+
+    int i;
+    int x, y;
+
+    x = pa_maxx(stdout)/3*2;
+    y = pa_maxy(stdout)/2;
+    while (!thdstp) { /* while no stop flag */
+
+        i = 1;
+        for (i = 0; i < 10; i++) {
+
+            pa_lock(ln);
+            box(x-i, y-i, x+i, y+i, '*');
+            pa_unlock(ln);
+            waittime(2, SECOND/10);
+            pa_lock(ln);
+            box(x-i, y-i, x+i, y+i, ' ');
+            pa_unlock(ln);
+            i++;
+
+        }
+
+    }
 
 }
 
@@ -678,7 +713,7 @@ int main(int argc, char *argv[])
         tc++;
         if (tc >= 10) {
 
-            waittime(50); /* 5 milliseconds */
+            waittime(1, 50); /* 5 milliseconds */
             tc = 0;
 
         }
@@ -747,7 +782,7 @@ int main(int argc, char *argv[])
 
         pa_cursor(stdout, x, y);   /* place character */
         putchar('*');
-        waittime(100); /* wait for display, otherwise cannot see */
+        waittime(1, 100); /* wait for display, otherwise cannot see */
         pa_cursor(stdout, lx, ly);   /* place character */
         putchar(' ');
         lx = x;   /* set last */
@@ -761,7 +796,7 @@ int main(int argc, char *argv[])
         if (y == 1 || ty == pa_maxy(stdout))   /* find new dir y */
         dy = -dy;
         /* slow this down */
-        waittime(100);
+        waittime(1, 100);
 
     }
     prtcen(pa_maxy(stdout)-1, "                    ");
@@ -855,7 +890,7 @@ int main(int argc, char *argv[])
         else c = '0'; /* start over */
 
     }
-    for (y = 1; y <= pa_maxy(stdout); y++) { waittime(200); pa_scroll(stdout, 0, 1); }
+    for (y = 1; y <= pa_maxy(stdout); y++) { waittime(1, 200); pa_scroll(stdout, 0, 1); }
     prtcen(pa_maxy(stdout), "Scroll up");
     waitnext();
     printf("\f");
@@ -869,7 +904,7 @@ int main(int argc, char *argv[])
         else c = '0';   /* start over */
 
     }
-    for (y = 1; y <= pa_maxy(stdout); y++) { waittime(200); pa_scroll(stdout, 0, -1); }
+    for (y = 1; y <= pa_maxy(stdout); y++) { waittime(1, 200); pa_scroll(stdout, 0, -1); }
     prtcen(pa_maxy(stdout), "Scroll down");
     waitnext();
     printf("\f");
@@ -887,7 +922,7 @@ int main(int argc, char *argv[])
         }
 
     }
-    for (x = 1; x <= pa_maxx(stdout); x++) { waittime(200); pa_scroll(stdout, 1, 0); }
+    for (x = 1; x <= pa_maxx(stdout); x++) { waittime(1, 200); pa_scroll(stdout, 1, 0); }
     prtcen(pa_maxy(stdout), "Scroll left");
     waitnext();
     printf("\f");
@@ -905,7 +940,7 @@ int main(int argc, char *argv[])
         }
 
     }
-    for (x = 1; x <= pa_maxx(stdout); x++) { waittime(200); pa_scroll(stdout, -1, 0); }
+    for (x = 1; x <= pa_maxx(stdout); x++) { waittime(1, 200); pa_scroll(stdout, -1, 0); }
     /* find minimum direction, x or y */
     if (x < y) minlen = x; else minlen = y;
     prtcen(pa_maxy(stdout), "Scroll right");
@@ -925,7 +960,7 @@ int main(int argc, char *argv[])
         }
 
     }
-    for (i = 1; i <= minlen; i++) { waittime(200); pa_scroll(stdout, 1, 1); }
+    for (i = 1; i <= minlen; i++) { waittime(1, 200); pa_scroll(stdout, 1, 1); }
     prtcen(pa_maxy(stdout), "Scroll up/left");
     waitnext();
     printf("\f");
@@ -943,7 +978,7 @@ int main(int argc, char *argv[])
         }
 
     }
-    for (i = 1; i <= minlen; i++) { waittime(200); pa_scroll(stdout, 1, -1); }
+    for (i = 1; i <= minlen; i++) { waittime(1, 200); pa_scroll(stdout, 1, -1); }
     prtcen(pa_maxy(stdout), "Scroll down/left");
     waitnext();
     printf("\f");
@@ -961,7 +996,7 @@ int main(int argc, char *argv[])
         }
 
     }
-    for (i = 1; i <= minlen; i++) { waittime(200); pa_scroll(stdout, -1, 1); }
+    for (i = 1; i <= minlen; i++) { waittime(1, 200); pa_scroll(stdout, -1, 1); }
     prtcen(pa_maxy(stdout), "Scroll up/right");
     waitnext();
     printf("\f");
@@ -979,7 +1014,7 @@ int main(int argc, char *argv[])
          }
 
     }
-    for (i = 1; i <= minlen; i++) { waittime(200); pa_scroll(stdout, -1, -1); }
+    for (i = 1; i <= minlen; i++) { waittime(1, 200); pa_scroll(stdout, -1, -1); }
     prtcen(pa_maxy(stdout), "Scroll down/right");
     waitnext();
 
@@ -1075,7 +1110,7 @@ int main(int argc, char *argv[])
 
     }
     for (i = 1; i <= 30; i++) /* flip buffers */
-        for (b = 2; b <= 10; b++) { waittime(300); pa_select(stdout, 2, b); }
+        for (b = 2; b <= 10; b++) { waittime(1, 300); pa_select(stdout, 2, b); }
     pa_select(stdout, 2, 2);   /* restore buffer select */
 
     /* **************************** Writethrough test ************************** */
@@ -1116,7 +1151,6 @@ int main(int argc, char *argv[])
 
     /* **************************** buffer follow test ************************* */
 
-#endif
     printf("\f");
     pa_auto(stdout, FALSE);
     box(1, 1, pa_maxx(stdout), pa_maxy(stdout), '*');
@@ -1145,6 +1179,76 @@ int main(int argc, char *argv[])
     } while (er.etype != pa_etenter && er.etype != pa_etterm);
     if (er.etype == pa_etterm) { longjmp(terminate_buf, 1); }
     pa_auto(stdout, TRUE);
+
+    /* **************************** Focus and hover test *********************** */
+
+    printf("\f");
+    pa_curvis(stdout, FALSE);
+    prtcen(pa_maxy(stdout), "Focus and hover test");
+    pa_home(stdout);
+    printf("Click the window, then other windows and watch the focus box.\n");
+    printf("\n");
+    printf("Roll over the window, then outside the window, and watch the hover box.\n");
+    printf("\n");
+    printf("Note with simulated hover, assert is immedate, but deassert is\n");
+    printf("after about 5 seconds.\n");
+    box(10, 10, 30, 14, '*');
+    pa_cursor(stdout, 17, 12);
+    printf("Focus");
+    box(40, 10, 60, 14, '*');
+    pa_cursor(stdout, 47, 12);
+    printf("hover");
+    do { 
+
+        pa_event(stdin, &er);
+        if (er.etype == pa_etfocus) box(10, 10, 30, 14, '#');
+        else if (er.etype == pa_etnofocus) box(10, 10, 30, 14, '*');
+        if (er.etype == pa_ethover) box(40, 10, 60, 14, '#');
+        else if (er.etype == pa_etnohover) box(40, 10, 60, 14, '*');
+
+    } while (er.etype != pa_etenter && er.etype != pa_etterm);
+    if (er.etype == pa_etterm) { longjmp(terminate_buf, 1); }
+    pa_curvis(stdout, TRUE);
+
+    /* ******************************* Threading test ************************** */
+
+#endif
+#if 1
+    pa_auto(stdout, FALSE);
+    pa_curvis(stdout, FALSE);
+    printf("\f");
+    printf("The left and right figures are run on different threads\n");
+    prtcen(pa_maxy(stdout), "Threading test");
+    thdstp = FALSE;
+    tn = pa_newthread(thread);
+    ln = pa_initlock();
+    x = pa_maxx(stdout)/3;
+    y = pa_maxy(stdout)/2;
+    for (j = 0; j < 30; j++) {
+
+        i = 1;
+        for (i = 0; i < 10; i++) {
+
+            pa_lock(ln);
+            box(x-i, y-i, x+i, y+i, '*');
+            pa_unlock(ln);
+            waittime(1, SECOND/10);
+            pa_lock(ln);
+            box(x-i, y-i, x+i, y+i, ' ');
+            pa_unlock(ln);
+            i++;
+
+        }
+
+    }
+    thdstp = TRUE;
+    pa_cursor(stdout, 1, 3);
+    pa_deinitlock(ln);
+    printf("Test complete!\n");
+    waitnext();
+    pa_auto(stdout, TRUE);
+    pa_curvis(stdout, TRUE);
+#endif
 
     /* ****************************** Joystick test **************************** */
 
@@ -1228,6 +1332,7 @@ int main(int argc, char *argv[])
                 }
 
             }
+            if (er.etype == pa_etterm) { longjmp(terminate_buf, 1); }
 
         } while (er.etype != pa_etenter && er.etype != pa_etterm);
 
@@ -1277,7 +1382,7 @@ int main(int argc, char *argv[])
                 prtcen(pa_maxy(stdout), "Mouse test");
 
             }
-
+            if (er.etype == pa_etterm) { longjmp(terminate_buf, 1); }
 
         } while (er.etype != pa_etenter && er.etype != pa_etterm);
         if (er.etype == pa_etterm) goto terminate;

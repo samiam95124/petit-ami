@@ -609,8 +609,8 @@ static int    numjoy;         /* number of joysticks found */
 static int    joyenb;         /* enable joysticks */
 static int    mouseenb;       /* enable mouse */
 static int    frmfid;         /* framing timer fid */
-char          inpbuf[MAXLIN]; /* input line buffer */
-int           inpptr;         /* input line index */
+volatile char inpbuf[MAXLIN]; /* input line buffer */
+volatile int  inpptr;         /* input line index */
 static joyptr joytab[MAXJOY]; /* joystick control table */
 static int    dmpevt;         /* enable dump Petit-Ami messages */
 static int    inpsev;         /* keyboard input system event number */
@@ -2681,6 +2681,21 @@ input line buffer.
 
 *******************************************************************************/
 
+/* threadable version of strlen */
+
+static size_t strlent(volatile const char* s)
+
+{
+
+    int sl;
+
+    sl = 0;
+    while (*s) { s++; sl++; }
+
+    return (sl);
+
+}
+
 static void readline(void)
 
 {
@@ -2699,7 +2714,9 @@ static void readline(void)
     xoff = ncurx; /* save starting line offset */
     do { /* get line characters */
 
+        pthread_mutex_unlock(&termlock); /* release terminal broadlock */
         dequepaevt(&er); /* get next event */
+        pthread_mutex_lock(&termlock); /* lock terminal broadlock */
         switch (er.etype) { /* event */
 
             case pa_etterm: exit(1); /* halt program */
@@ -2807,7 +2824,7 @@ static void readline(void)
             case pa_etmouba: /* mouse click */
                 if (er.amoubn == 1) {
 
-                    l = strlen(inpbuf);
+                    l = strlent(inpbuf);
                     if (ncury == nmpy && xoff <= nmpx && xoff+l >= nmpx) {
 
                         /* mouse position is within buffer space, set
@@ -2961,6 +2978,7 @@ static ssize_t iread(int fd, void* buff, size_t count)
         /* get data from terminal */
         while (cnt) {
 
+            pthread_mutex_lock(&termlock); /* lock terminal broadlock */
             /* if there is no line in the input buffer, get one */
             if (inpptr == -1) readline();
             *p = inpbuf[inpptr]; /* get and place next character */
@@ -2970,6 +2988,7 @@ static ssize_t iread(int fd, void* buff, size_t count)
             if (*p == '\n') inpptr = -1;
             p++; /* next character */
             cnt--; /* count characters */
+            pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
         }
         rc = count; /* set return same as count */
@@ -2997,7 +3016,13 @@ static ssize_t iwrite(int fd, const void* buff, size_t count)
     if (fd == OUTFIL) {
 
         /* send data to terminal */
-        while (cnt--) plcchr(screens[curupd-1], *p++);
+        while (cnt--) {
+
+            pthread_mutex_lock(&termlock); /* lock terminal broadlock */
+            plcchr(screens[curupd-1], *p++);
+            pthread_mutex_unlock(&termlock); /* release terminal broadlock */
+
+        }
         rc = count; /* set return same as count */
 
     } else rc = (*ofpwrite)(fd, buff, count);

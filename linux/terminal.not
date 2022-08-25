@@ -2,12 +2,30 @@
 
 1. A lot of white (xterm background) flash when resizing/winch.
 
-2. Need to fill in tests for buffer follow, focus, and hover. Also for
-multithreading.
+2. Update features to documentation.
 
-3. Update features to documentation.
+3. See if I don't use xterm scroll, the flash can be eliminated.
 
-4. See if I don't use xterm scroll, the flash can be eliminated.
+4. Buffer follow blows up on first section resize (double free), retest.
+
+5. I think buffer follow redraws can be improved.
+
+6. Need double return to get through the buffer follow test?
+
+7. Hover timeout is too long, try 1 second.
+
+8. Mouse test has splatter, looks like it is scrolling if you move the mouse to
+the bottom of the screen.
+
+9. Event test takes mouse movement as a return.
+
+10. Terminal test splatters the final screen.
+
+12. Terminal test should not execute autohold.
+
+13. Need to do something about error printouts. My guess is to put the error 
+string in a buffer, then print that out after we have restored the terminal
+original screen.
 
 MACOSX/Quartz version ============================================================
 
