@@ -365,6 +365,7 @@ int main(int argc, char *argv[])
 
     if (setjmp(terminate_buf)) goto terminate;
 
+#if 0
     pa_select(stdout, 2, 2);   /* move off the display buffer */
     /* set black on white text */
     pa_fcolor(stdout, pa_black);
@@ -1098,7 +1099,7 @@ int main(int argc, char *argv[])
         exit(1);
 
     }
-// find out why getc() does not work.
+// find out why getc() does not work, believe limitation in our stdio.
     c = fgetc(tf);
     while (c != '\n' && c != EOF) {
 
@@ -1112,6 +1113,38 @@ int main(int argc, char *argv[])
     printf("\n");
     printf("This is a test file\n");
     waitnext();
+
+    /* **************************** buffer follow test ************************* */
+
+#endif
+    printf("\f");
+    pa_auto(stdout, FALSE);
+    box(1, 1, pa_maxx(stdout), pa_maxy(stdout), '*');
+    prtcen(pa_maxy(stdout), " Buffer follow test ");
+    pa_cursor(stdout, 3, 3);
+    printf("Resize the window, the frame should stay at the original size\n");
+    waitnext();
+    printf("\f");
+    box(1, 1, pa_maxx(stdout), pa_maxy(stdout), '*');
+    prtcen(pa_maxy(stdout), " Buffer follow test ");
+    pa_cursor(stdout, 3, 3);
+    printf("Resize the window, the frame should stay at the original size\n");
+    do { 
+
+        pa_event(stdin, &er);
+        if (er.etype == pa_etresize) {
+
+            pa_sizbuf(stdout, er.rszx, er.rszy);
+            box(1, 1, pa_maxx(stdout), pa_maxy(stdout), '*');
+            prtcen(pa_maxy(stdout), " Buffer follow test ");
+            pa_cursor(stdout, 3, 3);
+            printf("Resize the window, the frame should stay at the original size\n");
+
+        }
+
+    } while (er.etype != pa_etenter && er.etype != pa_etterm);
+    if (er.etype == pa_etterm) { longjmp(terminate_buf, 1); }
+    pa_auto(stdout, TRUE);
 
     /* ****************************** Joystick test **************************** */
 

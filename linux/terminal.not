@@ -7,6 +7,8 @@ multithreading.
 
 3. Update features to documentation.
 
+4. See if I don't use xterm scroll, the flash can be eliminated.
+
 MACOSX/Quartz version ============================================================
 
 1. In the Mac OS X version, the final benchmark tallys are getting erased. I 
