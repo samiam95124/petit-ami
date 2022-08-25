@@ -1180,6 +1180,38 @@ static void dequepaevt(pa_evtrec* e)
 
 }
 
+/** *****************************************************************************
+
+Translate colors code
+
+Translates an independent to a terminal specific primary color code for an
+ANSI compliant terminal..
+
+*******************************************************************************/
+
+static int colnum(pa_color c)
+
+{
+
+    /** numeric equivalent of color */ int n;
+
+    /* translate color number */
+    switch (c) { /* color */
+
+        case pa_black:   n = 0;  break;
+        case pa_white:   n = 7; break;
+        case pa_red:     n = 1; break;
+        case pa_green:   n = 2; break;
+        case pa_blue:    n = 4; break;
+        case pa_cyan:    n = 6; break;
+        case pa_yellow:  n = 3; break;
+        case pa_magenta: n = 5; break;
+
+    }
+
+    return n; /* return number */
+
+}
 
 /******************************************************************************
 
@@ -2016,39 +2048,6 @@ static void* eventtask(void* param)
     ievent(); /* process events (forever) */
 
     return (NULL);
-
-}
-
-/** *****************************************************************************
-
-Translate colors code
-
-Translates an independent to a terminal specific primary color code for an
-ANSI compliant terminal..
-
-*******************************************************************************/
-
-static int colnum(pa_color c)
-
-{
-
-    /** numeric equivalent of color */ int n;
-
-    /* translate color number */
-    switch (c) { /* color */
-
-        case pa_black:   n = 0;  break;
-        case pa_white:   n = 7; break;
-        case pa_red:     n = 1; break;
-        case pa_green:   n = 2; break;
-        case pa_blue:    n = 4; break;
-        case pa_cyan:    n = 6; break;
-        case pa_yellow:  n = 3; break;
-        case pa_magenta: n = 5; break;
-
-    }
-
-    return n; /* return number */
 
 }
 
@@ -4957,9 +4956,9 @@ static void pa_deinit_terminal()
         curon = FALSE;
         /* set the blink timer, repeating, 1 second */
         blksev = system_event_addsetim(blksev, 1*10000, TRUE);
+        sc = screens[curdsp-1]; /* index display screen */
         /* wait for a formal end */
         while (!fend) {
-// Add bobble flip timer
 
             if (bobble) { /* clear top line by redrawing it */
 
@@ -4991,14 +4990,10 @@ static void pa_deinit_terminal()
 
                 /* blank out */
                 trm_home(); /* restore cursor to upper left to start */
-                trm_bcolor(pa_black); /* set background color */
                 setattr(sc, sanone); /* set no attribute */
-                for (xi = 1; xi <= dimx; xi++) {
-
-                    p = &SCNBUF(sc, xi, 1); /* index this screen element */
-                    putchr(' '); /* blank out */
-
-                } 
+                trm_bcolor(pa_black); /* set background color */
+                trm_fcolor(pa_black); /* set foreground color */
+                for (xi = 1; xi <= dimx; xi++) putchr(' '); /* blank out */
                 /* draw the "finished" message */
                 trm_home(); /* restore cursor to upper left to start */
                 trm_bcolor(pa_black); /* set background color */
