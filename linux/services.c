@@ -134,8 +134,11 @@ static pa_envrec *envlst;   /* our environment list */
 static int language;    /* current language */
 static int country;     /* current country */
 
+static pthread_mutex_t* thdtbllck;            /* thread table lock */
 static pthread_t*       threadtbl[MAXTHREAD]; /* thread table */
+static pthread_mutex_t* semtbllck;            /* semaphore table lock */
 static pthread_cond_t*  sematbl[MAXSEMA];     /* semaphore table */
+static pthread_mutex_t* lcktbllck;            /* lock table lock */
 static pthread_mutex_t* locktbl[MAXLOCK];     /* lock table */
 
 /********************************************************************************
@@ -2954,19 +2957,27 @@ int pa_newthread(void (*threadmain)(void))
 
     int i;
     int r;
+    pthread_t* tp;
 
+    tp = malloc(sizeof(pthread_t)); /* get new thread entry out of lock */
+    if (!tp) error("Out of memory"); /* couldn't allocate */
+    pthread_mutex_lock(thdtbllck); /* lock thread table */
     /* Find free table entry. Note that we reserve thread 1 as the thread for
        the process. This has no use at the moment. */
     i = 1;
     while (threadtbl[i] && i < MAXTHREAD) i++;
-    if (threadtbl[i]) error("Thread table full");
+    if (threadtbl[i]) {
+
+        pthread_mutex_unlock(thdtbllck); /* unlock thread table */
+        error("Thread table full");
+
+    }
     /* allocate thread data block. This is long integer in Linux, but POSIX
        says don't count on it */
-    threadtbl[i] = malloc(sizeof(pthread_t));
-    if (!threadtbl[i]) error("Out of memory");
-    /* start thread at specified function */
-    //r = pthread_create(threadtbl[i], NULL, void *(*start_routine)(void *)threadmain, NULL);
-    r = pthread_create(threadtbl[i], NULL, dummystart, threadmain);
+    threadtbl[i] = tp;
+    pthread_mutex_unlock(thdtbllck); /* unlock thread table */
+    /* now we own the table entry. Start thread at specified function */
+    r = pthread_create(tp, NULL, dummystart, threadmain);
     if (r) error(strerror(r));
 
     return (i+1); /* return the thread logical id to caller */
@@ -2987,16 +2998,25 @@ int pa_initlock(void)
 
     int i;
     int r;
+    pthread_mutex_t* lp;
 
+    lp = malloc(sizeof(pthread_mutex_t)); /* get new lock entry out of lock */
+    if (!lp) error("Out of memory"); /* couldn't allocate */
+    pthread_mutex_lock(lcktbllck); /* lock lock table */
     /* find free table entry */
     i = 0;
     while (locktbl[i] && i < MAXLOCK) i++;
-    if (locktbl[i]) error("Concurrency lock table full");
+    if (locktbl[i]) {
+
+        pthread_mutex_unlock(lcktbllck); /* unlock thread table */
+        error("Concurrency lock table full");
+
+    }
     /* allocate lock data block */
-    locktbl[i] = malloc(sizeof(pthread_mutex_t));
-    if (!locktbl[i]) error("Out of memory");
-    /* initialize the lock */
-    r = pthread_mutex_init(locktbl[i], NULL);
+    locktbl[i] = lp;
+    pthread_mutex_unlock(lcktbllck); /* unlock thread table */
+    /* Now we own the table entry, initialize the lock */
+    r = pthread_mutex_init(lp, NULL);
     if (r) error(strerror(r));
 
     return (i+1); /* return the lock logical id to caller */
@@ -3016,13 +3036,17 @@ void pa_deinitlock(int ln)
 {
 
     int r;
+    pthread_mutex_t* lp;
 
     if (ln < 1 || ln > MAXLOCK) error("Invalid concurrency lock logical id");
-    if (!locktbl[ln-1]) error("Concurrency lock by logical id is not active");
-    r = pthread_mutex_destroy(locktbl[ln-1]); /* release the lock */
-    if (r) error(strerror(r));
-    free(locktbl[ln-1]); /* free lock data */
+    pthread_mutex_lock(lcktbllck); /* lock lock table */
+    lp = locktbl[ln-1]; /* get lock pointer */
     locktbl[ln-1] = NULL; /* flag entry free */
+    pthread_mutex_unlock(lcktbllck); /* unlock thread table */
+    if (!lp) error("Concurrency lock by logical id is not active");
+    r = pthread_mutex_destroy(lp); /* release the lock */
+    if (r) error(strerror(r));
+    free(lp); /* free lock data */
 
 }
 
@@ -3041,11 +3065,14 @@ void pa_lock(int ln)
 {
 
     int r;
+    pthread_mutex_t* lp;
 
     if (ln < 1 || ln > MAXLOCK) error("Invalid concurrency lock logical id");
-    if (!locktbl[ln-1]) error("Concurrency lock by logical id is not active");
+    /* assume this is an atomic access (single word) */
+    lp = locktbl[ln-1]; /* get lock pointer */
+    if (!lp) error("Concurrency lock by logical id is not active");
     /* acquire lock */
-    r = pthread_mutex_lock(locktbl[ln-1]);
+    r = pthread_mutex_lock(lp);
     if (r) error(strerror(r));
 
 }
@@ -3064,11 +3091,14 @@ void pa_unlock(int ln)
 {
 
     int r;
+    pthread_mutex_t* lp;
 
     if (ln < 1 || ln > MAXLOCK) error("Invalid concurrency lock logical id");
-    if (!locktbl[ln-1]) error("Concurrency lock by logical id is not active");
+    /* assume this is an atomic access (single word) */
+    lp = locktbl[ln-1]; /* get lock pointer */
+    if (!lp) error("Concurrency lock by logical id is not active");
     /* release lock */
-    r = pthread_mutex_unlock(locktbl[ln-1]);
+    r = pthread_mutex_unlock(lp);
     if (r) error(strerror(r));
 
 }
@@ -3087,16 +3117,26 @@ int pa_initsig(void)
 
     int i;
     int r;
+    pthread_cond_t* sp;
 
+    /* get new semaphore entry out of lock */
+    sp = malloc(sizeof(pthread_cond_t)); 
+    if (!sp) error("Out of memory"); /* couldn't allocate */
+    pthread_mutex_lock(semtbllck); /* lock semaphore table */
     /* find free table entry */
     i = 0;
     while (sematbl[i] && i < MAXSEMA) i++;
-    if (sematbl[i]) error("Semaphore table full");
-    /* allocate semaphore data block */
-    sematbl[i] = malloc(sizeof(pthread_cond_t));
-    if (!sematbl[i]) error("Out of memory");
+    if (sematbl[i]) {
+
+        pthread_mutex_unlock(semtbllck); /* unlock semaphore table */
+        error("Semaphore table full");
+
+    }
+    /* place semaphore data block */
+    sematbl[i] = sp;
+    pthread_mutex_unlock(semtbllck); /* unlock semaphore table */
     /* initialize semaphore */
-    r = pthread_cond_init(sematbl[i], NULL);
+    r = pthread_cond_init(sp, NULL);
     if (r) error(strerror(r));
 
     return (i+1); /* return the lock logical id to caller */
@@ -3116,13 +3156,17 @@ int pa_deinitsig(int sn)
 {
 
     int r;
+    pthread_cond_t* sp;
 
     if (sn < 1 || sn > MAXSEMA) error("Semaphore logical id");
-    if (!sematbl[sn-1]) error("Semaphore by logical id is not active");
-    r = pthread_cond_destroy(sematbl[sn-1]); /* release the semaphore */
-    if (r) error(strerror(r));
-    free(sematbl[sn-1]); /* free semaphore data */
+    pthread_mutex_lock(semtbllck); /* lock semaphore table */
+    sp = sematbl[sn-1];
     sematbl[sn-1] = NULL; /* flag entry free */
+    pthread_mutex_unlock(semtbllck); /* unlock semaphore table */
+    if (!sp) error("Semaphore by logical id is not active");
+    r = pthread_cond_destroy(sp); /* release the semaphore */
+    if (r) error(strerror(r));
+    free(sp); /* free semaphore data */
 
 }
 
@@ -3140,11 +3184,14 @@ void pa_sendsig(int sn)
 {
 
     int r;
+    pthread_cond_t* sp;
 
     if (sn < 1 || sn > MAXSEMA) error("Semaphore logical id");
-    if (!sematbl[sn-1]) error("Semaphore by logical id is not active");
+    /* assume this is an atomic access (single word) */
+    sp = sematbl[sn-1]; /* get semaphore pointer */
+    if (!sp) error("Semaphore by logical id is not active");
     /* signal single event waiter */
-    r = pthread_cond_broadcast(sematbl[sn-1]);
+    r = pthread_cond_broadcast(sp);
     if (r) error(strerror(r));
 
 }
@@ -3168,11 +3215,14 @@ void pa_sendsigone(int sn)
 {
 
     int r;
+    pthread_cond_t* sp;
 
     if (sn < 1 || sn > MAXSEMA) error("Semaphore logical id");
-    if (!sematbl[sn-1]) error("Semaphore by logical id is not active");
+    /* assume this is an atomic access (single word) */
+    sp = sematbl[sn-1]; /* get semaphore pointer */
+    if (!sp) error("Semaphore by logical id is not active");
     /* signal single event waiter */
-    r = pthread_cond_signal(sematbl[sn-1]);
+    r = pthread_cond_signal(sp);
     if (r) error(strerror(r));
 
 }
@@ -3196,13 +3246,19 @@ void pa_waitsig(int ln, int sn)
 {
 
     int r;
+    pthread_cond_t* sp;
+    pthread_mutex_t* lp;
 
     if (ln < 1 || ln > MAXLOCK) error("Invalid concurrency lock logical id");
-    if (!locktbl[ln-1]) error("Concurrency lock by logical id is not active");
+    /* assume this is an atomic access (single word) */
+    lp = locktbl[ln-1]; /* get lock pointer */
+    if (!lp) error("Concurrency lock by logical id is not active");
     if (sn < 1 || sn > MAXSEMA) error("Semaphore logical id");
-    if (!sematbl[sn-1]) error("Semaphore by logical id is not active");
+    /* assume this is an atomic access (single word) */
+    sp = sematbl[ln-1]; /* get semaphore pointer */
+    if (!sp) error("Semaphore by logical id is not active");
     /* wait on signal with lock release */
-    r = pthread_cond_wait(sematbl[sn-1], locktbl[sn-1]);
+    r = pthread_cond_wait(sp, lp);
     if (r) error(strerror(r));
 
 }
@@ -3237,6 +3293,7 @@ static void pa_init_services()
     char*       cp;
     int         l;
     int         i;
+    int         r;
 
     /* Copy environment to local */
     envlst = NULL;   /* clear environment strings */
@@ -3335,6 +3392,14 @@ static void pa_init_services()
     /* clear lock table */
     for (i = 0; i < MAXLOCK; i++) locktbl[i] = NULL;
 
+    /* initialize the locks */
+    r = pthread_mutex_init(thdtbllck, NULL);
+    if (r) error(strerror(r));
+    r = pthread_mutex_init(semtbllck, NULL);
+    if (r) error(strerror(r));
+    r = pthread_mutex_init(lcktbllck, NULL);
+    if (r) error(strerror(r));
+
 }
 
 /** ****************************************************************************
@@ -3352,6 +3417,7 @@ static void pa_deinit_services()
 
     int        ti; /* index for timers */
     pa_envrec* p;  /* environment entry pointer */
+    int        r;
 
     while (envlst) {
 
@@ -3360,5 +3426,13 @@ static void pa_deinit_services()
         free(p);
 
     }
+
+    /* deinitialize the locks */
+    r = pthread_mutex_destroy(thdtbllck);
+    if (r) error(strerror(r));
+    r = pthread_mutex_destroy(semtbllck);
+    if (r) error(strerror(r));
+    r = pthread_mutex_destroy(lcktbllck);
+    if (r) error(strerror(r));
 
 }

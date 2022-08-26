@@ -142,7 +142,7 @@ static pa_pevthan oeh2;
 static char line[250];
 
 static int      tn; /* thread number */
-static int      ln; /* lock number */
+static volatile int ln; /* lock number */
 static volatile int thdstp; /* thread stop flag */
 
 /* draw box */
@@ -1220,8 +1220,8 @@ int main(int argc, char *argv[])
     printf("The left and right figures are run on different threads\n");
     prtcen(pa_maxy(stdout), "Threading test");
     thdstp = FALSE;
-    tn = pa_newthread(thread);
     ln = pa_initlock();
+    tn = pa_newthread(thread);
     x = pa_maxx(stdout)/3;
     y = pa_maxy(stdout)/2;
     for (j = 0; j < 30; j++) {
