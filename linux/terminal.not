@@ -10,29 +10,21 @@
 
 5. I think buffer follow redraws can be improved.
 
-6. Need double return to get through the buffer follow test?
+6. Event test takes mouse movement as a return.
 
-7. Hover timeout is too long, try 1 second.
+7. Terminal test splatters the final screen.
 
-8. Mouse test has splatter, looks like it is scrolling if you move the mouse to
-the bottom of the screen.
+8. Terminal test should not execute autohold.
 
-9. Event test takes mouse movement as a return.
+9. readline() bypasses the event callbacks. Hitting ctl-c during readline()
+input test bombs.
 
-10. Terminal test splatters the final screen.
+10. snake++ does not work anymore.
 
-12. Terminal test should not execute autohold.
+11. Tab test overflows to right.
 
-13. Need to do something about error printouts. My guess is to put the error 
-string in a buffer, then print that out after we have restored the terminal
-original screen.
-
-14. Turn off cursor during mouse test.
-
-15. Can use a override for etterm as a general purpose abort? This is scattered
-all over.
-
-16. readline() bypasses the event callbacks.
+12. Focus does not go on unless you click outside the window, then inside the
+window.
 
 MACOSX/Quartz version ============================================================
 

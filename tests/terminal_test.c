@@ -411,6 +411,7 @@ int main(int argc, char *argv[])
     /* override terminate handler */
     pa_eventover(pa_etterm, termevent, &oldtermevent); 
 
+#if 0
     pa_select(stdout, 2, 2);   /* move off the display buffer */
     /* set black on white text */
     pa_fcolor(stdout, pa_black);
@@ -1163,6 +1164,7 @@ int main(int argc, char *argv[])
 
     printf("\f");
     pa_auto(stdout, FALSE);
+    pa_curvis(stdout, FALSE);
     box(1, 1, pa_maxx(stdout), pa_maxy(stdout), '*');
     prtcen(pa_maxy(stdout), " Buffer follow test ");
     pa_cursor(stdout, 3, 3);
@@ -1172,7 +1174,7 @@ int main(int argc, char *argv[])
     box(1, 1, pa_maxx(stdout), pa_maxy(stdout), '*');
     prtcen(pa_maxy(stdout), " Buffer follow test ");
     pa_cursor(stdout, 3, 3);
-    printf("Resize the window, the frame should stay at the original size\n");
+    printf("Resize the window, the frame should follow the window\n");
     do { 
 
         pa_event(stdin, &er);
@@ -1182,12 +1184,13 @@ int main(int argc, char *argv[])
             box(1, 1, pa_maxx(stdout), pa_maxy(stdout), '*');
             prtcen(pa_maxy(stdout), " Buffer follow test ");
             pa_cursor(stdout, 3, 3);
-            printf("Resize the window, the frame should stay at the original size\n");
+            printf("Resize the window, the frame should follow the window\n");
 
         }
 
     } while (er.etype != pa_etenter);
     pa_auto(stdout, TRUE);
+    pa_curvis(stdout, FALSE);
 
     /* **************************** Focus and hover test *********************** */
 
@@ -1351,6 +1354,8 @@ int main(int argc, char *argv[])
     if (pa_mouse(stdin) > 0) {  /* mouse test */
 
         printf("\f");
+        pa_auto(stdout, FALSE);
+        pa_curvis(stdout, FALSE);
         prtcen(1, "Move the mouse, and hit buttons");
         prtcen(pa_maxy(stdout), "Mouse test");
         do { /* gather mouse events */
@@ -1392,11 +1397,14 @@ int main(int argc, char *argv[])
             }
 
         } while (er.etype != pa_etenter);
+        pa_auto(stdout, TRUE);
+        pa_curvis(stdout, TRUE);
 
     }
 
     /* ************************* Event vector test  **************************** */
 
+#endif
     printf("\f");
     prtcen(pa_maxy(stdout), "Event vector test");
     pa_home(stdout);
@@ -1408,7 +1416,7 @@ int main(int argc, char *argv[])
     pa_frametimer(stdout, TRUE);
     printf("Waiting for frame event, hit return to continue\n");
     do { pa_event(stdin, &er); }
-    while (er.etype != pa_etframe && !eventflag1);
+    while (er.etype != pa_etframe && !eventflag1 && er.etype != pa_etenter);
     if (er.etype == pa_etframe) printf("*** Event bled through! ***\n");
     if (eventflag1) printf("Fanout event passes\n");
     else printf("*** Fanout event fails! ***\n");
@@ -1417,7 +1425,7 @@ int main(int argc, char *argv[])
     pa_eventsover(event_vector_2, &oeh1);
     printf("Waiting for frame event, hit return to continue\n");
     do { pa_event(stdin, &er); }
-    while (er.etype != pa_etframe && !eventflag2);
+    while (er.etype != pa_etframe && !eventflag2 && er.etype != pa_etenter);
     if (er.etype == pa_etframe) printf("*** Event bled through! ***\n");
     if (eventflag2) printf("Master event passes\n");
     else printf("*** Master event fails! ***\n");
