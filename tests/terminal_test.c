@@ -141,9 +141,10 @@ static pa_pevthan oeh1;
 static pa_pevthan oeh2;
 static char line[250];
 
-static int      tn; /* thread number */
-static volatile int ln; /* lock number */
+static int      tn;         /* thread number */
+static volatile int ln;     /* lock number */
 static volatile int thdstp; /* thread stop flag */
+static volatile int sn;     /* thread stop signal */
 
 /* draw box */
 
@@ -392,6 +393,7 @@ void thread(void)
         }
 
     }
+    pa_sendsig(sn); /* signal thread complete */
 
 }
 
@@ -400,7 +402,6 @@ int main(int argc, char *argv[])
 
     if (setjmp(terminate_buf)) goto terminate;
 
-#if 0
     pa_select(stdout, 2, 2);   /* move off the display buffer */
     /* set black on white text */
     pa_fcolor(stdout, pa_black);
@@ -1212,8 +1213,6 @@ int main(int argc, char *argv[])
 
     /* ******************************* Threading test ************************** */
 
-#endif
-#if 1
     pa_auto(stdout, FALSE);
     pa_curvis(stdout, FALSE);
     printf("\f");
@@ -1221,6 +1220,7 @@ int main(int argc, char *argv[])
     prtcen(pa_maxy(stdout), "Threading test");
     thdstp = FALSE;
     ln = pa_initlock();
+    sn = pa_initsig();
     tn = pa_newthread(thread);
     x = pa_maxx(stdout)/3;
     y = pa_maxy(stdout)/2;
@@ -1242,13 +1242,15 @@ int main(int argc, char *argv[])
 
     }
     thdstp = TRUE;
+    pa_lock(ln);
+    pa_waitsig(ln, sn);
+    pa_unlock(ln);
     pa_cursor(stdout, 1, 3);
     pa_deinitlock(ln);
     printf("Test complete!\n");
     waitnext();
     pa_auto(stdout, TRUE);
     pa_curvis(stdout, TRUE);
-#endif
 
     /* ****************************** Joystick test **************************** */
 
