@@ -27,6 +27,11 @@ the bottom of the screen.
 string in a buffer, then print that out after we have restored the terminal
 original screen.
 
+14. Turn off cursor during mouse test.
+
+15. Can use a override for etterm as a general purpose abort? This is scattered
+all over.
+
 MACOSX/Quartz version ============================================================
 
 1. In the Mac OS X version, the final benchmark tallys are getting erased. I 

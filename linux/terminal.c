@@ -155,13 +155,14 @@ static enum { /* debug levels */
 #define DEFYD 24
 #endif
 
-#define MAXKEY    20    /* maximum length of key sequence */
-#define MAXCON    10    /**< number of screen contexts */
-#define MAXLIN    250   /* maximum length of input buffered line */
-#define MAXFKEY   10    /**< maximum number of function keys */
-#define MAXJOY    10    /* number of joysticks possible */
-#define DMPEVT    FALSE /* enable dump Petit-Ami messages */
-#define ALLOWUTF8       /* enable UTF-8 encoding */
+#define MAXKEY    20        /* maximum length of key sequence */
+#define MAXCON    10        /**< number of screen contexts */
+#define MAXLIN    250       /* maximum length of input buffered line */
+#define MAXFKEY   10        /**< maximum number of function keys */
+#define MAXJOY    10        /* number of joysticks possible */
+#define DMPEVT    FALSE     /* enable dump Petit-Ami messages */
+#define ALLOWUTF8           /* enable UTF-8 encoding */
+#define HOVERTIME (1*10000) /* hover timeout, 1 second */ 
 
 /*
  * Standard mouse decoding has a limit of about 223 in x or y. SGR mode
@@ -2019,7 +2020,7 @@ static void ievent(void)
 
                 }
                 /* set the hover timer, one shot, 5 seconds */
-                hovsev = system_event_addsetim(hovsev, 5*10000, FALSE);
+                hovsev = system_event_addsetim(hovsev, HOVERTIME, FALSE);
 
             }
 
