@@ -3848,6 +3848,7 @@ static void event_ivf(FILE* f, pa_evtrec *er)
         } else if (er->etype == pa_etterm) 
             /* set user ordered termination */
             fend = TRUE;
+        pthread_mutex_unlock(&termlock); /* release terminal broadlock */
         er->handled = 1; /* set event is handled by default */
         (evtshan)(er); /* call master event handler */
         if (!er->handled) { /* send it to fanout */
@@ -3860,7 +3861,6 @@ static void event_ivf(FILE* f, pa_evtrec *er)
             }
 
         }
-        pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
     } while (er->handled);
     /* event not handled, return it to the caller */

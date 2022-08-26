@@ -168,7 +168,7 @@ static void box(int sx, int sy, int ex, int ey, char c)
 
 
 static jmp_buf terminate_buf;
-
+static pa_pevthan oldtermevent;
 
 /* wait time in 100 microseconds */
 
@@ -179,8 +179,7 @@ static void waittime(int n, int t)
 
     pa_timer(stdout, n, t, 0);
     do { pa_event(stdin, &er);
-    } while (er.etype != pa_ettim && er.etype != pa_etterm);
-    if (er.etype == pa_etterm) { longjmp(terminate_buf, 1); }
+    } while (er.etype != pa_ettim);
 
 }
 
@@ -193,8 +192,7 @@ static void waitnext(void)
     pa_evtrec er; /* event record */
 
     do { pa_event(stdin, &er);
-    } while (er.etype != pa_etenter && er.etype != pa_etterm);
-    if (er.etype == pa_etterm) { longjmp(terminate_buf, 1); }
+    } while (er.etype != pa_etenter);
 
 }
 
@@ -238,8 +236,7 @@ static void timetest(void)
 
         pa_timer(stdout, 1, 10000, 0);
         do { pa_event(stdin, &er);
-        } while (er.etype != pa_ettim && er.etype != pa_etterm);
-        if (er.etype == pa_etterm) longjmp(terminate_buf, 1);
+        } while (er.etype != pa_ettim);
         putchar('.');
 
     }
@@ -397,10 +394,22 @@ void thread(void)
 
 }
 
+/* terminate program on terminate event*/
+
+void termevent(pa_evtptr er)
+
+{
+
+    longjmp(terminate_buf, 1);
+
+}
+
 int main(int argc, char *argv[])
 {
 
-    if (setjmp(terminate_buf)) goto terminate;
+    if (setjmp(terminate_buf)) goto terminate; /* set up long jump to end */
+    /* override terminate handler */
+    pa_eventover(pa_etterm, termevent, &oldtermevent); 
 
     pa_select(stdout, 2, 2);   /* move off the display buffer */
     /* set black on white text */
@@ -1177,8 +1186,7 @@ int main(int argc, char *argv[])
 
         }
 
-    } while (er.etype != pa_etenter && er.etype != pa_etterm);
-    if (er.etype == pa_etterm) { longjmp(terminate_buf, 1); }
+    } while (er.etype != pa_etenter);
     pa_auto(stdout, TRUE);
 
     /* **************************** Focus and hover test *********************** */
@@ -1207,8 +1215,7 @@ int main(int argc, char *argv[])
         if (er.etype == pa_ethover) box(40, 10, 60, 14, '#');
         else if (er.etype == pa_etnohover) box(40, 10, 60, 14, '*');
 
-    } while (er.etype != pa_etenter && er.etype != pa_etterm);
-    if (er.etype == pa_etterm) { longjmp(terminate_buf, 1); }
+    } while (er.etype != pa_etenter);
     pa_curvis(stdout, TRUE);
 
     /* ******************************* Threading test ************************** */
@@ -1334,9 +1341,8 @@ int main(int argc, char *argv[])
                 }
 
             }
-            if (er.etype == pa_etterm) { longjmp(terminate_buf, 1); }
 
-        } while (er.etype != pa_etenter && er.etype != pa_etterm);
+        } while (er.etype != pa_etenter);
 
     }
 
@@ -1384,10 +1390,8 @@ int main(int argc, char *argv[])
                 prtcen(pa_maxy(stdout), "Mouse test");
 
             }
-            if (er.etype == pa_etterm) { longjmp(terminate_buf, 1); }
 
-        } while (er.etype != pa_etenter && er.etype != pa_etterm);
-        if (er.etype == pa_etterm) goto terminate;
+        } while (er.etype != pa_etenter);
 
     }
 
@@ -1404,8 +1408,7 @@ int main(int argc, char *argv[])
     pa_frametimer(stdout, TRUE);
     printf("Waiting for frame event, hit return to continue\n");
     do { pa_event(stdin, &er); }
-    while (er.etype != pa_etterm && er.etype != pa_etframe && !eventflag1);
-    if (er.etype == pa_etterm) goto terminate;
+    while (er.etype != pa_etframe && !eventflag1);
     if (er.etype == pa_etframe) printf("*** Event bled through! ***\n");
     if (eventflag1) printf("Fanout event passes\n");
     else printf("*** Fanout event fails! ***\n");
@@ -1414,8 +1417,7 @@ int main(int argc, char *argv[])
     pa_eventsover(event_vector_2, &oeh1);
     printf("Waiting for frame event, hit return to continue\n");
     do { pa_event(stdin, &er); }
-    while (er.etype != pa_etterm && er.etype != pa_etframe && !eventflag2);
-    if (er.etype == pa_etterm) goto terminate;
+    while (er.etype != pa_etframe && !eventflag2);
     if (er.etype == pa_etframe) printf("*** Event bled through! ***\n");
     if (eventflag2) printf("Master event passes\n");
     else printf("*** Master event fails! ***\n");

@@ -32,6 +32,8 @@ original screen.
 15. Can use a override for etterm as a general purpose abort? This is scattered
 all over.
 
+16. readline() bypasses the event callbacks.
+
 MACOSX/Quartz version ============================================================
 
 1. In the Mac OS X version, the final benchmark tallys are getting erased. I 
