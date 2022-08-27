@@ -1416,16 +1416,15 @@ int main(int argc, char *argv[])
     pa_frametimer(stdout, TRUE);
     printf("Waiting for frame event, hit return to continue\n");
     do { pa_event(stdin, &er); }
-    while (er.etype != pa_etframe && !eventflag1 && er.etype != pa_etenter);
+    while (er.etype != pa_etframe && er.etype != pa_etenter);
     if (er.etype == pa_etframe) printf("*** Event bled through! ***\n");
     if (eventflag1) printf("Fanout event passes\n");
     else printf("*** Fanout event fails! ***\n");
-
     eventflag2 = FALSE;
     pa_eventsover(event_vector_2, &oeh1);
     printf("Waiting for frame event, hit return to continue\n");
     do { pa_event(stdin, &er); }
-    while (er.etype != pa_etframe && !eventflag2 && er.etype != pa_etenter);
+    while (er.etype != pa_etframe && er.etype != pa_etenter);
     if (er.etype == pa_etframe) printf("*** Event bled through! ***\n");
     if (eventflag2) printf("Master event passes\n");
     else printf("*** Master event fails! ***\n");

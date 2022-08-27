@@ -10,20 +10,18 @@
 
 5. I think buffer follow redraws can be improved.
 
-6. Event test takes mouse movement as a return.
+6. Terminal test splatters the final screen.
 
-7. Terminal test splatters the final screen.
+7. Terminal test should not execute autohold.
 
-8. Terminal test should not execute autohold.
-
-9. readline() bypasses the event callbacks. Hitting ctl-c during readline()
+8. readline() bypasses the event callbacks. Hitting ctl-c during readline()
 input test bombs.
 
-10. snake++ does not work anymore.
+9. snake++ does not work anymore.
 
-11. Tab test overflows to right.
+10. Tab test overflows to right.
 
-12. Focus does not go on unless you click outside the window, then inside the
+11. Focus does not go on unless you click outside the window, then inside the
 window.
 
 MACOSX/Quartz version ============================================================
