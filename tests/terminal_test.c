@@ -411,7 +411,7 @@ int main(int argc, char *argv[])
     /* override terminate handler */
     pa_eventover(pa_etterm, termevent, &oldtermevent); 
 
-#if 0
+#if 1
     pa_select(stdout, 2, 2);   /* move off the display buffer */
     /* set black on white text */
     pa_fcolor(stdout, pa_black);
@@ -470,7 +470,6 @@ int main(int argc, char *argv[])
 
     /* *********************** Console standard text entry ********************* */
 
-#endif
    printf("\f");
    pa_curvis(stdout, 1);
    printf("Standard input line enter test\n");
@@ -1163,6 +1162,7 @@ int main(int argc, char *argv[])
 
     /* **************************** buffer follow test ************************* */
 
+#endif
     printf("\f");
     pa_auto(stdout, FALSE);
     pa_curvis(stdout, FALSE);

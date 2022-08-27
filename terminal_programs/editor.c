@@ -58,7 +58,7 @@ typedef struct crdrec { /* cursor coordinate save */
 } crdrec;
 
 linbuf    inpbuf;        /* input line buffer */
-int   buflin;        /* current line in buffer flag */
+int       buflin;        /* current line in buffer flag */
 linptr    linstr;        /* edit lines storage */
 linptr    paglin;        /* top of page line */
 int       lincnt;        /* number of lines in buffer */
@@ -1534,7 +1534,10 @@ int main(int argc, char *argv[])
             case pa_etfun:     func(er.fkey); break; /* functions */
             case pa_etmouba:   mouass(); break; /* mouse button 1 assertion */
             case pa_etmoumov:  moumov(); break; /* mouse move */
-            case pa_etresize:  update(FALSE); break; /* resize window */
+            case pa_etresize:  
+                pa_sizbuf(stdout, er.rszx, er.rszy); /* resize buffer to fit screen */
+                update(FALSE); /* update window */
+                break;
             case pa_etterm:    break; /* terminate program */
             default:;
 

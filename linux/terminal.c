@@ -4332,8 +4332,12 @@ static void sizbuf_ivf(FILE* f, int x, int y)
         for (si = 0; si < MAXCON; si++) {
 
             /* free up any/all present buffers */
-            if (screens[si]) free(screens[si]);
-            screens[curupd-1] = NULL; /* clear it */
+            if (screens[si]) {
+
+                free(screens[si]);
+                screens[si] = NULL; /* clear it */
+
+            }
 
         }
         /* allocate new update screen */
@@ -4342,7 +4346,7 @@ static void sizbuf_ivf(FILE* f, int x, int y)
         clrbuf(screens[curupd-1]);
         if (curupd != curdsp) { /* display screen not the same */
 
-            /* allocate */
+            /* allocate display screen */
             screens[curdsp-1] = malloc(sizeof(scnrec)*y*x);
             /* clear it */
             clrbuf(screens[curdsp-1]);
