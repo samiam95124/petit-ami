@@ -4954,16 +4954,21 @@ static void pa_deinit_terminal()
     punlink_t cppunlink;
     plseek_t cpplseek;
 
-    pa_evtrec er;  /* event record */
-    string trmnam; /* termination name */
-    char   fini[] = "Finished - ";
-    int    bobble; /* bobble display bit */
-    scnptr sc;     /* screen buffer */
-    int    ml;     /* message length */
-    scnrec *p;     /* screen element pointer */ 
-    int    xi;
-    int    i;
-    int    xs;
+    pa_evtrec er;     /* event record */
+    string    trmnam; /* termination name */
+    char      fini[] = "Finished - ";
+    int       bobble; /* bobble display bit */
+    scnptr    sc;     /* screen buffer */
+    int       ml;     /* message length */
+    scnrec    *p;     /* screen element pointer */ 
+    int       xi;
+    int       i;
+    int       xs;
+    pa_evtcod e;
+
+    /* clear event vector table */
+    evtshan = defaultevent;
+    for (e = pa_etchar; e <= pa_etframe; e++) evthan[e] = defaultevent;
 
     /* if the program tries to exit when the user has not ordered an exit,
        it is assumed to be a windows "unaware" program. We stop before we

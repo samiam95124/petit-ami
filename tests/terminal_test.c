@@ -411,7 +411,6 @@ int main(int argc, char *argv[])
     /* override terminate handler */
     pa_eventover(pa_etterm, termevent, &oldtermevent); 
 
-#if 1
     pa_select(stdout, 2, 2);   /* move off the display buffer */
     /* set black on white text */
     pa_fcolor(stdout, pa_black);
@@ -1162,7 +1161,6 @@ int main(int argc, char *argv[])
 
     /* **************************** buffer follow test ************************* */
 
-#endif
     printf("\f");
     pa_auto(stdout, FALSE);
     pa_curvis(stdout, FALSE);
@@ -1553,26 +1551,26 @@ terminate: /* terminate */
 
     /* output table */
 
-    fprintf(stderr, "\n");
-    fprintf(stderr, "Benchmark table\n");
-    fprintf(stderr, "\n");
-    fprintf(stderr, "Type                   Seconds  Per fig\n");
-    fprintf(stderr, "--------------------------------------------\n");
+    printf("\n");
+    printf("Benchmark table\n");
+    printf("\n");
+    printf("Type                   Seconds  Per fig\n");
+    printf("--------------------------------------------\n");
     for (bi = bncharw; bi <= bnbuffer; bi++) {
 
         switch (bi) { /* benchmark type */
 
-            case bncharw:  fprintf(stderr, "character write speed "); break;
-            case bnscroll: fprintf(stderr, "Scroll speed          "); break;
-            case bnbuffer: fprintf(stderr, "Buffer flip speed     "); break;
+            case bncharw:  printf("character write speed "); break;
+            case bnscroll: printf("Scroll speed          "); break;
+            case bnbuffer: printf("Buffer flip speed     "); break;
 
         };
-        fprintf(stderr, "%6.2f", benchtab[bi].time*0.0001);
-        fprintf(stderr, "    ");
-        fprintf(stderr, "%f", benchtab[bi].time*0.0001/benchtab[bi].iter);
-        fprintf(stderr, "\n");
+        printf("%6.2f", benchtab[bi].time*0.0001);
+        printf("    ");
+        printf("%f", benchtab[bi].time*0.0001/benchtab[bi].iter);
+        printf("\n");
 
     }
-    fprintf(stderr, "\n");
+    printf("\n");
 
 }
