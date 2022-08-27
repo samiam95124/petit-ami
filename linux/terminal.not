@@ -2,21 +2,19 @@
 
 1. A lot of white (xterm background) flash when resizing/winch.
 
-2. Update features to documentation.
+2. See if I don't use xterm scroll, the flash can be eliminated.
 
-3. See if I don't use xterm scroll, the flash can be eliminated.
+3. Buffer follow blows up on first section resize (double free), retest.
 
-4. Buffer follow blows up on first section resize (double free), retest.
+4. I think buffer follow redraws can be improved.
 
-5. I think buffer follow redraws can be improved.
+5. Terminal test splatters the final screen.
 
-6. Terminal test splatters the final screen.
+6. Terminal test should not execute autohold.
 
-7. Terminal test should not execute autohold.
+7. snake++ does not work anymore.
 
-9. snake++ does not work anymore.
-
-10. Tab test overflows to right.
+8. Tab test overflows to right.
 
 11. Focus does not go on unless you click outside the window, then inside the
 window.
