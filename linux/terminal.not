@@ -14,9 +14,6 @@
 
 7. Terminal test should not execute autohold.
 
-8. readline() bypasses the event callbacks. Hitting ctl-c during readline()
-input test bombs.
-
 9. snake++ does not work anymore.
 
 10. Tab test overflows to right.

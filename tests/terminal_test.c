@@ -470,6 +470,7 @@ int main(int argc, char *argv[])
 
     /* *********************** Console standard text entry ********************* */
 
+#endif
    printf("\f");
    pa_curvis(stdout, 1);
    printf("Standard input line enter test\n");
@@ -1404,7 +1405,6 @@ int main(int argc, char *argv[])
 
     /* ************************* Event vector test  **************************** */
 
-#endif
     printf("\f");
     prtcen(pa_maxy(stdout), "Event vector test");
     pa_home(stdout);

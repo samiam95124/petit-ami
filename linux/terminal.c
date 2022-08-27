@@ -2716,7 +2716,7 @@ static void readline(void)
     do { /* get line characters */
 
         pthread_mutex_unlock(&termlock); /* release terminal broadlock */
-        dequepaevt(&er); /* get next event */
+        pa_event(stdin, &er); /* get next event */
         pthread_mutex_lock(&termlock); /* lock terminal broadlock */
         switch (er.etype) { /* event */
 
