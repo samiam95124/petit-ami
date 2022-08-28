@@ -1048,8 +1048,9 @@ void remdupque(pa_evtrec* e)
         p = paqevt; /* index first queue entry */
         do { /* run around the bubble */
 
-            if (e->etype == pa_etmoumov && p->evt.etype == pa_etmoumov &&
-                e->mmoun == p->evt.mmoun) {
+            if ((e->etype == pa_etmoumov && p->evt.etype == pa_etmoumov &&
+                 e->mmoun == p->evt.mmoun) ||
+                 (e->etype == pa_etresize && p->evt.etype == pa_etresize)) {
 
                 /* matching entry, remove */
                 matrem++; /* count */

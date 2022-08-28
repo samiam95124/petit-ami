@@ -2,3 +2,5 @@
 
 2. Allow editing the filename section on the status bar. Need also a non-mouse method
 to do it.
+
+3. Tabs in the file show up as I in yellow. See Makefile for example of this.

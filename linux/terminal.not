@@ -9,8 +9,6 @@
 4. Focus does not go on unless you click outside the window, then inside the
 window.
 
-5. Editor segfaults.
-
 MACOSX/Quartz version ============================================================
 
 1. In the Mac OS X version, the final benchmark tallys are getting erased. I 
