@@ -8,10 +8,12 @@ environment.
 2. The date is still one day off. I think that was the full day compensation
 I removed.
 
+3. Test32 is wrong.
+
 macosx =========================================================================
 
 1. Test 32 fails, path and name are combined.
 
-2. Test 42 fails.
+2. Test 42 fails (these are removed from linux).
 
-3. Test 44 fails.
+3. Test 44 fails (these are removed from linux).

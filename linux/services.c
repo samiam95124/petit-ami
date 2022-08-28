@@ -126,13 +126,16 @@ typedef char bufstr[MAXSTR]; /* standard string buffer */
 #define MAXSEMA   100   /* maximum number of semaphores */
 #define MAXLOCK   100   /* maximum number of locks */
 
+/* these aren't locked because they are only set during init, read otherwise */
 static bufstr pthstr;   /* buffer for execution path */
 static bufstr langstr;  /* buffer for language country string (locale) */
-
-static pa_envrec *envlst;   /* our environment list */
-
 static int language;    /* current language */
 static int country;     /* current country */
+/* end of read-only group */
+
+static pthread_mutex_t  envlck;               /* environment list lock */
+static pa_envrec*       envlst;               /* our environment list */
+/* end of environment lock group */
 
 static pthread_mutex_t  thdtbllck;            /* thread table lock */
 static pthread_t*       threadtbl[MAXTHREAD]; /* thread table */
@@ -915,6 +918,8 @@ Find environment string
 Finds the environment string by name, and returns that. Returns nil if not
 found.
 
+Expects the environment lock to be on.
+
 ********************************************************************************/
 
 static void fndenv(
@@ -954,14 +959,21 @@ void pa_getenv(
 
     pa_envrec *p;
 
+    pthread_mutex_lock(&envlck); /* lock environment list */
     *esd = 0;
     fndenv(esn, &p);
     if (p) {
 
-        if (strlen(p->data)+1 > esdl) error("String too large for destination");
+        if (strlen(p->data)+1 > esdl) {
+
+            pthread_mutex_unlock(&envlck); /* unlock environment list */
+            error("String too large for destination");
+
+        }
         if (p) strcpy(esd, p->data);
 
     }
+    pthread_mutex_unlock(&envlck); /* unlock environment list */
 
 }
 
@@ -982,31 +994,53 @@ void pa_setenv(
 
     pa_envrec *p;   /* pointer to environment entry */
 
+    pthread_mutex_lock(&envlck); /* lock environment list */
     fndenv(sn, &p); /* find environment string */
     if (p) { /* found */
 
         free(p->data);   /* release last contents */
         /* create new data string */
         p->data = (char *) malloc(strlen(sd));
-        if (!p) error("Could not allocate string");
+        if (!p) {
+
+            pthread_mutex_unlock(&envlck); /* unlock environment list */
+            error("Could not allocate string");
+
+        }
         strcpy(p->data, sd);
 
     } else {
 
         p = malloc(sizeof(pa_envrec)); /* get a new environment entry */
-        if (!p) error("Could not allocate structure");
+        if (!p) {
+
+            pthread_mutex_unlock(&envlck); /* unlock environment list */
+            error("Could not allocate structure");
+
+        }
         p->next = envlst; /* push onto environment list */
         envlst = p;
         /* create new name string and place */
         p->name = (char *) malloc(strlen(sn)+1);
-        if (!p) error("Could not allocate string");
+        if (!p) {
+
+            pthread_mutex_unlock(&envlck); /* unlock environment list */
+            error("Could not allocate string");
+
+        }
         strcpy(p->name, sn);
         /* create new data string and place */
         p->data = (char *) malloc(strlen(sd)+1);
-        if (!p) error("Could not allocate string");
+        if (!p) {
+
+            pthread_mutex_unlock(&envlck); /* unlock environment list */
+            error("Could not allocate string");
+
+        }
         strcpy(p->data, sd);
 
     }
+    pthread_mutex_unlock(&envlck); /* unlock environment list */
 
 }
 
@@ -1026,6 +1060,7 @@ void pa_remenv(
 
     pa_envrec *p, *l; /* pointer to environment entry */
 
+    pthread_mutex_lock(&envlck); /* lock environment list */
     fndenv(sn, &p);   /* find environment string */
     if (p != NULL) { /* found */
 
@@ -1036,7 +1071,12 @@ void pa_remenv(
             /* find last entry that indexes this one */
             l = envlst;  /* index top of list */
             while (l->next != p && l != NULL) l = l->next; /* search */
-            if (l == NULL) error("Bad environment list");
+            if (l == NULL) {
+
+                pthread_mutex_unlock(&envlck); /* unlock environment list */
+                error("Bad environment list");
+
+            }
             l->next = p->next; /* gap out of list */
 
         }
@@ -1045,6 +1085,7 @@ void pa_remenv(
         free(p); /* release entry */
 
     }
+    pthread_mutex_unlock(&envlck); /* unlock environment list */
 
 }
 
@@ -1052,7 +1093,8 @@ void pa_remenv(
 
 Get environment strings all
 
-Returns a table with the entire environment string set in it.
+Returns a table with the entire environment string set in it. The string set is
+a copy.
 
 ********************************************************************************/
 
@@ -1064,6 +1106,7 @@ void pa_allenv(
 
     pa_envrec *p, *lp, *tp; /* environment pointers */
 
+    pthread_mutex_lock(&envlck); /* lock environment list */
     /* copy current environment list */
     lp = envlst; /* index top of environment list */
     tp = NULL; /* clear destination */
@@ -1089,6 +1132,7 @@ void pa_allenv(
         *el = p;
 
     }
+    pthread_mutex_unlock(&envlck); /* unlock environment list */
 
 }
 
@@ -1131,6 +1175,8 @@ Create Linux environment array from services format
 Creates a copy of a services environment string array from a services format
 environment list.
 
+Expects the environment lock to be active. Drops it on error.
+
 ********************************************************************************/
 
 void cpyenv(
@@ -1145,7 +1191,12 @@ void cpyenv(
     i = 0;
     while (env) { /* traverse services environment list */
 
-        if (!envpl) error("Environment list too large");
+        if (!envpl) {
+
+            pthread_mutex_unlock(&envlck); /* unlock environment list */
+            error("Environment list too large");
+
+        }
         envp[i] = malloc(strlen(env->name)+1+strlen(env->data)+1);
         strcpy(envp[i], env->name);
         strcat(envp[i], "=");
@@ -1255,7 +1306,9 @@ void pa_exec(
 
         cpyargv(cmd, argv, MAXARG); /* construct argv list for new command */
         /* construct environment list for new command */
+        pthread_mutex_lock(&envlck); /* lock environment list */
         cpyenv(envlst, envp, MAXENV);
+        pthread_mutex_unlock(&envlck); /* unlock environment list */
         r = execve(cn, argv, envp);   /* execute directory */
         if (r < 0) unixerr();  /* process unix error */
         error("Execute failed");
@@ -1301,7 +1354,9 @@ void pa_execw(
 
         cpyargv(cmd, argv, MAXARG); /* construct argv list for new command */
         /* construct environment list for new command */
+        pthread_mutex_lock(&envlck); /* lock environment list */
         cpyenv(envlst, envp, MAXENV);
+        pthread_mutex_unlock(&envlck); /* unlock environment list */
         r = execve(cn, argv, envp);   /* execute directory */
         if (r < 0) unixerr();  /* process unix error */
         error("Execute failed");
@@ -3399,6 +3454,8 @@ static void pa_init_services()
     if (r) error(strerror(r));
     r = pthread_mutex_init(&lcktbllck, NULL);
     if (r) error(strerror(r));
+    r = pthread_mutex_init(&envlck, NULL);
+    if (r) error(strerror(r));
 
 }
 
@@ -3433,6 +3490,8 @@ static void pa_deinit_services()
     r = pthread_mutex_destroy(&semtbllck);
     if (r) error(strerror(r));
     r = pthread_mutex_destroy(&lcktbllck);
+    if (r) error(strerror(r));
+    r = pthread_mutex_destroy(&envlck);
     if (r) error(strerror(r));
 
 }
