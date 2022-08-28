@@ -130,6 +130,12 @@ void frametimer(int e) { pa_frametimer(stdout, e); }
 void autohold(int e) { pa_autohold(e); }
 void wrtstr(FILE* f, char *s) { pa_wrtstr(f, s); }
 void wrtstr(char *s) { pa_wrtstr(stdout, s); }
+void wrtstr(FILE* f, char *s, int n) { pa_wrtstrn(f, s, n); }
+void wrtstr(char *s, int n) { pa_wrtstrn(stdout, s, n); }
+void wrtstrn(FILE* f, char *s, int n) { pa_wrtstrn(f, s, n); }
+void wrtstrn(char *s, int n) { pa_wrtstrn(stdout, s, n); }
+void sizbuf(FILE* f, int x, int y) { pa_sizbuf(f, x, y); }
+void sizbuf(int x, int y) { pa_sizbuf(stdout, x, y); }
 void eventover(evtcod e, pevthan eh, pevthan* oeh) { pa_eventover((pa_evtcod)e, (pa_pevthan)eh, (pa_pevthan*)oeh); }
 void eventsover(pevthan eh, pevthan* oeh) { pa_eventsover((pa_pevthan)eh, (pa_pevthan*)oeh); }
 
@@ -187,6 +193,9 @@ int  term::funkey(void) { return pa_funkey(outfile); }
 void term::frametimer(int e) { pa_frametimer(outfile, e); }
 void term::autohold(int e) { pa_autohold(e); }
 void term::wrtstr(char *s) { pa_wrtstr(outfile, s); }
+void term::wrtstr(char *s, int n) { pa_wrtstrn(outfile, s, n); }
+void term::wrtstrn(char *s, int n) { pa_wrtstrn(outfile, s, n); }
+void term::sizbuf(int x, int y) { pa_sizbuf(outfile, x, y); }
 
 /* virtual callbacks */
 int term::evchar(char c) { return 0; }

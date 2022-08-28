@@ -6,12 +6,10 @@
 
 3. I think buffer follow redraws can be improved.
 
-4. snake++ does not work anymore.
-
-5. Focus does not go on unless you click outside the window, then inside the
+4. Focus does not go on unless you click outside the window, then inside the
 window.
 
-6. Editor segfaults.
+5. Editor segfaults.
 
 MACOSX/Quartz version ============================================================
 

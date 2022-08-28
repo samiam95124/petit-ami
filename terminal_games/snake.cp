@@ -84,12 +84,12 @@ typedef struct {
 int       timcnt;                /* move countdown */
 scnpos    snakel[MAXSN];         /* snake's positions */
 int       sntop;                 /* current snake array top */
-evtcod lstmov;                /* player move type */
+evtcod    lstmov;                /* player move type */
 char      scrsav[SCRNUM];        /* screen score counter */
 int       scrlft;                /* units of score left to add */
 int       scrloc;                /* location of score digits */
 int       fblink;                /* crash blinker */
-evtrec er;                    /* event record */
+evtrec    er;                    /* event record */
 char      image[MAXSCN][MAXSCN]; /* screen image */
 int       crash;                 /* crash occurred flag */
 int       i;
@@ -489,6 +489,7 @@ int main(void) /* snake */
         do { /* blink cycles */
 
             /* wait for an interesting event */
+
             do { event(&er); }
             while (er.etype != ettim && er.etype != etterm && er.etype != etfun);
             if (er.etype == etterm) goto terminate; /* immediate termination */

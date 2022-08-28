@@ -24,53 +24,57 @@ typedef enum { black, white, red, green, blue, cyan,
 /* events */
 typedef enum {
 
-    /** ANSI character returned */     etchar,
-    /** cursor up one line */          etup,
-    /** down one line */               etdown,
-    /** left one character */          etleft,
-    /** right one character */         etright,
-    /** left one word */               etleftw,
-    /** right one word */              etrightw,
-    /** home of document */            ethome,
-    /** home of screen */              ethomes,
-    /** home of line */                ethomel,
-    /** end of document */             etend,
-    /** end of screen */               etends,
-    /** end of line */                 etendl,
-    /** scroll left one character */   etscrl,
-    /** scroll right one character */  etscrr,
-    /** scroll up one line */          etscru,
-    /** scroll down one line */        etscrd,
-    /** page down */                   etpagd,
-    /** page up */                     etpagu,
-    /** tab */                         ettab,
-    /** enter line */                  etenter,
-    /** insert block */                etinsert,
-    /** insert line */                 etinsertl,
-    /** insert toggle */               etinsertt,
-    /** delete block */                etdel,
-    /** delete line */                 etdell,
-    /** delete character forward */    etdelcf,
-    /** delete character backward */   etdelcb,
-    /** copy block */                  etcopy,
-    /** copy line */                   etcopyl,
-    /** cancel current operation */    etcan,
-    /** stop current operation */      etstop,
-    /** continue current operation */  etcont,
-    /** print document */              etprint,
-    /** print block */                 etprintb,
-    /** print screen */                etprints,
-    /** function key */                etfun,
-    /** display menu */                etmenu,
-    /** mouse button assertion */      etmouba,
-    /** mouse button deassertion */    etmoubd,
-    /** mouse move */                  etmoumov,
-    /** timer matures */               ettim,
-    /** joystick button assertion */   etjoyba,
-    /** joystick button deassertion */ etjoybd,
-    /** joystick move */               etjoymov,
-    /** window was resized */          etresize,
-    /** terminate program */           etterm
+    /** ANSI character returned */      etchar,
+    /** cursor up one line */           etup,
+    /** down one line */                etdown,
+    /** left one character */           etleft,
+    /** right one character */          etright,
+    /** left one word */                etleftw,
+    /** right one word */               etrightw,
+    /** home of document */             ethome,
+    /** home of screen */               ethomes,
+    /** home of line */                 ethomel,
+    /** end of document */              etend,
+    /** end of screen */                etends,
+    /** end of line */                  etendl,
+    /** scroll left one character */    etscrl,
+    /** scroll right one character */   etscrr,
+    /** scroll up one line */           etscru,
+    /** scroll down one line */         etscrd,
+    /** page down */                    etpagd,
+    /** page up */                      etpagu,
+    /** tab */                          ettab,
+    /** enter line */                   etenter,
+    /** insert block */                 etinsert,
+    /** insert line */                  etinsertl,
+    /** insert toggle */                etinsertt,
+    /** delete block */                 etdel,
+    /** delete line */                  etdell,
+    /** delete character forward */     etdelcf,
+    /** delete character backward */    etdelcb,
+    /** copy block */                   etcopy,
+    /** copy line */                    etcopyl,
+    /** cancel current operation */     etcan,
+    /** stop current operation */       etstop,
+    /** continue current operation */   etcont,
+    /** print document */               etprint,
+    /** print block */                  etprintb,
+    /** print screen */                 etprints,
+    /** function key */                 etfun,
+    /** display menu */                 etmenu,
+    /** mouse button assertion */       etmouba,
+    /** mouse button deassertion */     etmoubd,
+    /** mouse move */                   etmoumov,
+    /** timer matures */                ettim,
+    /** joystick button assertion */    etjoyba,
+    /** joystick button deassertion */  etjoybd,
+    /** joystick move */                etjoymov,
+    /** window was resized */           etresize,
+    /** window has focus */             etfocus,    
+    /** window lost focus */            etnofocus,  
+    /** window being hovered */         ethover,    
+    /** window stopped being hovered */ etnohover, 
+    /** terminate program */            etterm
 
 } evtcod;
 
@@ -128,6 +132,12 @@ typedef struct {
 
         };
         /** function key */ int fkey;
+        /** etresize */
+        struct {
+
+            int rszx, rszy;
+
+        };
 
      };
 
@@ -221,6 +231,12 @@ void autohold(FILE* f, int e);
 void autohold(int e);
 void wrtstr(FILE* f, char *s);
 void wrtstr(char *s);
+void wrtstr(FILE* f, char *s, int n);
+void wrtstr(char *s, int n);
+void wrtstrn(FILE* f, char* s, int n);
+void wrtstrn(char* s, int n);
+void sizbuf(FILE* f, int x, int y);
+void sizbuf(int x, int y);
 void eventover(evtcod e, pevthan eh, pevthan* oeh);
 void eventsover(pevthan eh, pevthan* oeh);
 
@@ -278,6 +294,9 @@ int  funkey(void);
 void frametimer(int e);
 void autohold(int e);
 void wrtstr(char *s);
+void wrtstr(char *s, int n);
+void wrtstrn(char *s, int n);
+void sizbuf(int x, int y);
 static void termCB(evtrec* er);
 
 /* virtual callbacks */
