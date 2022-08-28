@@ -1,7 +1,5 @@
              NOTES FOR XTERM TERMINAL LIBRARY
 
-1. Can also remove joystick redundant moves.
-
 MACOSX/Quartz version ============================================================
 
 1. In the Mac OS X version, the final benchmark tallys are getting erased. I 

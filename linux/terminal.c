@@ -1050,7 +1050,9 @@ void remdupque(pa_evtrec* e)
 
             if ((e->etype == pa_etmoumov && p->evt.etype == pa_etmoumov &&
                  e->mmoun == p->evt.mmoun) ||
-                 (e->etype == pa_etresize && p->evt.etype == pa_etresize)) {
+                (e->etype == pa_etresize && p->evt.etype == pa_etresize) ||
+                (e->etype == pa_etjoymov && p->evt.etype == pa_etjoymov &&
+                 e->mjoyn == p->evt.mjoyn)) {
 
                 /* matching entry, remove */
                 matrem++; /* count */
