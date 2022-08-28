@@ -1206,7 +1206,7 @@ int main(int argc, char *argv[])
     box(10, 10, 30, 14, '*');
     pa_cursor(stdout, 17, 12);
     printf("Focus");
-    box(40, 10, 60, 14, '*');
+    box(40, 10, 60, 14, '#');
     pa_cursor(stdout, 47, 12);
     printf("hover");
     do { 

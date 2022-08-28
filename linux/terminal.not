@@ -1,13 +1,6 @@
              NOTES FOR XTERM TERMINAL LIBRARY
 
-1. A lot of white (xterm background) flash when resizing/winch.
-
-2. See if I don't use xterm scroll, the flash can be eliminated.
-
-3. I think buffer follow redraws can be improved.
-
-4. Focus does not go on unless you click outside the window, then inside the
-window.
+1. Can also remove joystick redundant moves.
 
 MACOSX/Quartz version ============================================================
 
