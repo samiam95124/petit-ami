@@ -101,13 +101,6 @@
 *                                                                              *
 *******************************************************************************/
 
-#ifndef __STDIO_H__
-#define __STDIO_H__
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -3053,9 +3046,3 @@ static void deinit_stdio()
     for (i = 0; i < tmpnamc; i++) remove(tmpstr[i]);
 
 }
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* __STDIO_H__ */
