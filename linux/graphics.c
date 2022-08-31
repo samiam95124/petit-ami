@@ -907,6 +907,7 @@ static pa_funkey_t          funkey_vect;
 static pa_frametimer_t      frametimer_vect;
 static pa_autohold_t        autohold_vect;
 static pa_wrtstr_t          wrtstr_vect;
+static pa_wrtstrn_t         wrtstrn_vect;
 static pa_eventover_t       eventover_vect;
 static pa_eventsover_t      eventsover_vect;
 static pa_sendevent_t       sendevent_vect;
@@ -7992,6 +7993,75 @@ static void drwstr90(winptr win, scnptr sc, int tw, Drawable d, char* s, int l)
 
 /** ****************************************************************************
 
+Write string to current cursor position with length
+
+Writes a string with length to the current cursor position, then updates the 
+cursor position. This acts as a series of write character calls. However, it 
+eliminates several layers of protocol, and results in much faster write time for
+applications that require it.
+
+It is an error to call this routine with auto enabled, since it could exceed
+the bounds of the screen.
+
+No control characters or other interpretation is done, and invisible characters
+such as controls are not suppressed.
+
+Attributes are performed, such as foreground/background coloring, modes, and
+character attributes.
+
+Character kerning is only available via this routine, and strsiz() is only
+accurate for this routine, and not direct character placement, if kerning is
+enabled.
+
+Note: If an off angle (non-90 degree) text path is selected, this routine just
+passes the characters on to plcchr(). This basically negates any speed
+advantage.
+
+*******************************************************************************/
+
+void _pa_wrtstrn_ovr(pa_wrtstrn_t nfp, pa_wrtstrn_t* ofp)
+    { *ofp = wrtstrn_vect; wrtstrn_vect = nfp; }
+void pa_wrtstrn(FILE* f, char* s, int l) { (*wrtstrn_vect)(f, s, l); }
+
+static void wrtstrn_ivf(FILE* f, char* s, int l)
+
+{
+
+    winptr win; /* window record pointer */
+    scnptr sc;  /* screen buffer */
+    int    tw;  /* text length in pixels */
+    char*  p;
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    if (sc->autof) error(estrato); /* autowrap is on */
+    if (!win->visible) winvis(win); /* make sure we are displayed */
+    if (sc->angle == INT_MAX/4) { /* text is normal (90 degrees) */
+
+        tw = XTextWidth(win->xfont, s, l); /* find text width in pixels */
+        if (win->bufmod) { /* buffer is active */
+
+            /* draw string */
+            drwstr90(win, sc, tw, sc->xbuf, s, l);
+
+        }
+        if (indisp(win)) { /* do it again for the current screen */
+
+            curoff(win); /* hide the cursor */
+            /* draw string */
+            drwstr90(win, sc, tw, win->xwhan, s, l);
+            curon(win); /* show the cursor */
+
+        }
+
+    } else /* off angle */
+        /* just pass each character on */
+        for (p = s; *p && l; p++, l--) plcchr(win, *p);
+
+}
+
+/** ****************************************************************************
+
 Write string to current cursor position
 
 Writes a string to the current cursor position, then updates the cursor
@@ -8026,38 +8096,9 @@ static void wrtstr_ivf(FILE* f, char* s)
 
 {
 
-    winptr win; /* window record pointer */
-    scnptr sc;  /* screen buffer */
     int    l;   /* length of string */
-    int    tw;  /* text length in pixels */
-    char*  p;
 
-    win = txt2win(f); /* get window from file */
-    sc = win->screens[win->curupd-1];
-    if (sc->autof) error(estrato); /* autowrap is on */
-    if (!win->visible) winvis(win); /* make sure we are displayed */
-    l = strlen(s); /* get length of string */
-    if (sc->angle == INT_MAX/4) { /* text is normal (90 degrees) */
-
-        tw = XTextWidth(win->xfont, s, l); /* find text width in pixels */
-        if (win->bufmod) { /* buffer is active */
-
-            /* draw string */
-            drwstr90(win, sc, tw, sc->xbuf, s, l);
-
-        }
-        if (indisp(win)) { /* do it again for the current screen */
-
-            curoff(win); /* hide the cursor */
-            /* draw string */
-            drwstr90(win, sc, tw, win->xwhan, s, l);
-            curon(win); /* show the cursor */
-
-        }
-
-    } else /* off angle */
-        /* just pass each character on */
-        for (p = s; *p; p++) plcchr(win, *p);
+    pa_wrtstrn(f, s, strlen(s));
 
 }
 
@@ -14595,6 +14636,7 @@ static void pa_init_graphics(int argc, char *argv[])
     frametimer_vect =      frametimer_ivf;
     autohold_vect =        autohold_ivf;
     wrtstr_vect =          wrtstr_ivf;
+    wrtstrn_vect =         wrtstrn_ivf;
     eventover_vect =       eventover_ivf;
     eventsover_vect =      eventsover_ivf;
     sendevent_vect =       sendevent_ivf;

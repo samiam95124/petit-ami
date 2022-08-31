@@ -97,7 +97,7 @@ extern "C" {
 
 /* this switch allows getc() and putc() to be macros. This is the way LIBC does
    it, and the ability is included here for possible compatability issues */
-#define USEMACRO 1 /* use macros for getc and putc */
+//#define USEMACRO 1 /* use macros for getc and putc */
 
 typedef long fpos_t;
 

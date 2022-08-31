@@ -1,5 +1,11 @@
              NOTES FOR XTERM TERMINAL LIBRARY
 
+1. Why is "finished" tape yellow on mine.c?
+
+2. If it is possible to find the FILE* in iwrite() and iread(), these files could
+be directed to stdin or stdout. An example is stderr, which is often redirected
+into stdout. This would stop stderr prints from messing up the screen.
+
 MACOSX/Quartz version ============================================================
 
 1. In the Mac OS X version, the final benchmark tallys are getting erased. I 

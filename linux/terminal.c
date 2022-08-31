@@ -5027,6 +5027,8 @@ static void pa_deinit_terminal()
             pa_event(stdin, &er);
             /* if the blink timer fires, flip the display */
             if (er.etype == pa_etsys) bobble = !bobble;
+            /* let the enter exit via enter */
+            if (er.etype == pa_etenter) fend = TRUE;
 
         }
         free(trmnam); /* free up termination name */

@@ -43,7 +43,70 @@
 *                                                                              *
 * 3. Need a test suite for stdio.                                              *
 *                                                                              *
+* API implemented.                                                             *
+*                                                                              *
+* The API implemented is the full set of stdio calls. They are listed here:    *
+*                                                                              *
+* FILE *fopen(const char *filename, const char *mode) - Open a file by name.   *
+* FILE *freopen(const char* filename, const char* mode, FILE* stream)          *
+*     - Reopen a file by name.                                                 *
+* FILE *fdopen(int fd, const char *mode) - Open file descriptor as file.       *
+* int fflush(FILE *stream) - Flush pending I/O from file.                      *
+* int fclose(FILE *stream) - Close open file.                                  *
+* int remove(const char *filename) - Remove file by name.                      *
+* int rename(const char *oldname, const char *newname) - Rename file.          *
+* FILE *tmpfile(void) - Create a temporary file.                               *
+* char *tmpnam(char s[]) - Create a temporary name.                            *
+* int setvbuf(FILE* stream, char *buf, int mode, size_t size) - Set file       *
+*     buffering characteristics.                                               *
+* void setbuf(FILE* stream, char *buf) - Set buffer for file.                  *
+* int fprintf(FILE* stream, const char *format, ...) - Print to file.          *
+* int printf(const char* format, ...) - Print to stdout.                       *
+* int sprintf(char* s, const char *format, ...) - Print to string.             *
+* int vprintf(const char* format, va_list arg) - Print to stdout with          *
+*     variable list.                                                           *
+* int vfprintf(FILE* stream, const char *format, va_list arg) - Print to file  *
+*     with variable list.                                                      *
+* int vsprintf(char* s, const char *format, va_list arg) - Print to string     *
+*     with variable list.                                                      *
+* int fscanf(FILE* stream, const char *format, ...) - Scan from file.          *
+* int scanf(const char* format, ...) - Scan from stdin.                        *
+* int sscanf(const char* s, const char *format, ...) - Scan from string.       *
+* int fgetc(FILE *stream) - Get character from file.                           *
+* int getc(FILE *stream) - Get character from file.                            *
+* char *fgets(char *s, int n, FILE *stream) - Get string from file.            *
+* int fputc(int c, FILE *stream) - Put character to file.                      *
+* int fputs(const char *s, FILE *stream) - Put string to file.                 *
+* int putc(int c, FILE *stream) - Put character to stdout.                     *
+* int getchar(void) - Get character from stdin.                                *
+* char *gets(char *s) - Get string from stdin.                                 *
+* int putc(int c, FILE *stream) - Put character to file.                       *
+* int putchar(int c) - Put character to stdout.                                *
+* int puts(const char *s) - Put string to stdout.                              *
+* int ungetc(int c, FILE *stream) - Put back single character to file.         *
+* size_t fread(void *ptr, size_t size, size_t nobj, FILE *stream) - Read       *
+*     blocks from file.                                                        *
+* size_t fwrite(const void *ptr, size_t size, size_t nobj, FILE *stream)       *
+*     Write blocks to file.                                                    *
+* int fseek(FILE* stream, long offset, int origin) - Seek file location.       *
+* long ftell(FILE* stream) - Find file location.                               *
+* void rewind(FILE* stream) - Go to file beginning.                            *
+* int fgetpos(FILE* stream, fpos_t *ptr) - Find file location.                 *
+* int fsetpos(FILE* stream, const fpos_t *ptr) - Set file location.            *
+* void clearerr(FILE* stream) - Clear pending errors on file.                  *
+* int feof(FILE* stream) - Check end of file.                                  *
+* int ferror(FILE* stream) - Check error on file.                              *
+* void perror(const char *s) - Print error message.                            *
+* int fileno(FILE* stream) - Find descriptor for file.                         *
+*                                                                              *
 *******************************************************************************/
+
+#ifndef __STDIO_H__
+#define __STDIO_H__
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -57,6 +120,20 @@
 #include <sys/stat.h>
 
 /* We use a custom stdio.h */
+
+/* Backdoor trap.
+ * 
+ * This flag allocates invalid pages for the file structure on any new file.
+ * We keep a table to lookup the actual address from the fake address, and we
+ * use that internally. However, the external client program will cause a fault
+ * for any read or write access to the file structure.
+ */
+
+#define BACKTRAP
+
+#ifdef BACKTRAP
+#include <sys/mman.h>
+#endif
 
 #define FALSE 0
 #define TRUE 1
@@ -89,8 +166,6 @@ typedef int     (*vt_open_t)(const char*, int, int);
 typedef int     (*vt_close_t)(int);
 typedef int     (*vt_unlink_t)(const char*);
 typedef off_t   (*vt_lseek_t)(int, off_t, int);
-
-
 
 /* standard files definitions */
 
@@ -133,9 +208,19 @@ static FILE stderrfe = {
 
 /* standard in, out and error files */
 
+#ifdef BACKTRAP
+/* Place invalid values for standard files. These can't be 0, so they are the
+ * standard I/O codes+1. The codes have to be valid at startup (no init). These
+ * codes will place them in the first page, and thus generate a trap.
+ */
+FILE *stdin = (FILE*) 1;
+FILE *stdout = (FILE*) 2;
+FILE *stderr = (FILE*) 3;
+#else
 FILE *stdin = &stdinfe;
 FILE *stdout = &stdoutfe;
 FILE *stderr = &stderrfe;
+#endif
 
 /* open files table. The first 0, 1, and 2 entries are tied to stdin, stdout
    and stderr. This does not have to be, but it makes the system more
@@ -150,6 +235,19 @@ static FILE *opnfil[FOPEN_MAX] = {
     /* remaining entries are NULL */
 
 };
+
+#ifdef BACKTRAP
+static FILE* fakefile[FOPEN_MAX] = {
+
+    (FILE*) 1, /* standard input */
+    (FILE*) 2, /* standard output */
+    (FILE*) 3, /* standard error */
+
+    /* remaining entries are NULL */
+
+};
+
+#endif
 
 /* top powers table, we precalculate this to save runtime */
 
@@ -308,6 +406,80 @@ static int maknod(void)
     return f; /* return file id */
 
 }
+
+/*******************************************************************************
+
+FUNCTION NAME: fake2real
+
+SHORT DESCRIPTION: Translate fake (mmaped invalid address) to real
+
+DETAILED DESCRIPTION:
+
+Takes a fake, or address of a mmaped invalid file structure block, and returns
+the real address. This is a simple table lookup in the current version.
+
+If the file pointer is not found in translation the original is simply returned.
+This means that there is a system error or we were really passed the actual file
+pointer.
+
+BUGS/ISSUES:
+
+*******************************************************************************/
+
+#ifdef BACKTRAP
+static FILE* fake2real(FILE* stream)
+
+{
+
+    int   i;  /* file index */
+    FILE* ff; /* found file pointer */
+
+    ff = 0; /* set no file found */
+    for (i = 0; i < FOPEN_MAX && !ff; i++) /* traverse the table */
+        if (fakefile[i] == stream) 
+            ff = opnfil[i]; /* found, get corresponding real address */
+    /* if not found, return the original pointer */
+    if (!ff) ff = stream;
+
+    return (ff); /* exit with pointer */
+
+}
+#endif
+
+/*******************************************************************************
+
+FUNCTION NAME: real2fake
+
+SHORT DESCRIPTION: Translates a real file descriptor to fake.
+
+DETAILED DESCRIPTION:
+
+Given an actual file structure pointer, finds the corresponding fake one and
+returns that. If nothing is found, returns the original pointer.
+
+BUGS/ISSUES:
+
+*******************************************************************************/
+
+#ifdef BACKTRAP
+static FILE* real2fake(FILE* stream)
+
+{
+
+    int   i;  /* file index */
+    FILE* ff; /* found file pointer */
+
+    ff = 0; /* set no file found */
+    for (i = 0; i < FOPEN_MAX && !ff; i++) /* traverse the table */
+        if (opnfil[i] == stream) 
+            ff = fakefile[i]; /* found, get corresponding fake address */
+    /* if not found, return the original pointer */
+    if (!ff) ff = stream;
+
+    return (ff); /* exit with pointer */
+
+}
+#endif
 
 /*******************************************************************************
 
@@ -834,6 +1006,14 @@ static unsigned long strtouli(const char **s, int base, int *cnt, int *err, int 
 
 /*******************************************************************************
 
+External API section
+
+This begins the external API section.
+
+*******************************************************************************/
+
+/*******************************************************************************
+
 FUNCTION NAME: fopen
 
 SHORT DESCRIPTION: Open a new or existing file
@@ -917,8 +1097,18 @@ FILE *fopen(const char *filename, const char *mode)
     opnfil[fti]->append = append; /* set append mode */
     opnfil[fti]->flags = 0; /* clear status/error flags */
 
+#ifdef BACKTRAP
+    /* get a trap block for outward facing address */
+    fakefile[fti] = 
+        mmap(NULL, sizeof(FILE), PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (fakefile[fti] == (void*)-1) return NULL; /* couldn't create entry */
+
+    /* return fake file entry */
+    return (fakefile[fti]);
+#else
     /* return new file entry */
-    return opnfil[fti];
+    return (opnfil[fti]);
+#endif
 
 }
 
@@ -946,6 +1136,11 @@ int fflush(FILE *stream)
 
 {
 
+#ifdef BACKTRAP
+    /* translate file pointer from fake to real */
+    stream = fake2real(stream);
+#endif
+
     return (0); /* no op */
 
 }
@@ -971,6 +1166,10 @@ int fclose(FILE *stream)
 
     int r; /* result holder */
 
+#ifdef BACKTRAP
+    /* translate file pointer from fake to real */
+    stream = fake2real(stream);
+#endif
     /* check file is allocated and open */
     if (!stream || stream->fid < 0) return (EOF);
     r = vclose(stream->fid); /* close file */
@@ -1008,6 +1207,10 @@ FILE *freopen(const char *filename, const char *mode, FILE *stream)
     int update; /* update mode */
     int perm;   /* permissions */
 
+#ifdef BACKTRAP
+    /* translate file pointer from fake to real */
+    stream = fake2real(stream);
+#endif
     /* close the stream, and return error if occurs */
     if (fclose(stream) != 0) return (NULL);
 
@@ -1050,8 +1253,13 @@ FILE *freopen(const char *filename, const char *mode, FILE *stream)
     stream->append = update; /* set append mode */
     stream->flags = 0; /* clear status/error flags */
 
+#ifdef BACKTRAP
+    /* return fake file entry */
+    return real2fake(stream);
+#else
     /* return new file entry */
     return stream;
+#endif
 
 }
 
@@ -1152,8 +1360,18 @@ FILE *fdopen(int fd, const char *mode)
     opnfil[fti]->append = append; /* set append mode */
     opnfil[fti]->flags = 0; /* clear status/error flags */
 
+#ifdef BACKTRAP
+    /* get a trap block for outward facing address */
+    fakefile[fti] = 
+        mmap(NULL, sizeof(FILE), PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+    if (fakefile[fti] == (void*)-1) return NULL; /* couldn't create entry */
+    /* return fake file entry */
+    return (fakefile[fti]);
+#else
     /* return new file entry */
-    return opnfil[fti];
+    return (opnfil[fti]);
+#endif
+
 }
 
 /*******************************************************************************
@@ -1295,6 +1513,10 @@ int setvbuf(FILE *stream, char *buf, int mode, size_t size)
 
 {
 
+#ifdef BACKTRAP
+    /* translate file pointer from fake to real */
+    stream = fake2real(stream);
+#endif
     return (0);
 
 }
@@ -1438,6 +1660,10 @@ static int vsprintfe(char *s, const char *fmt, va_list ap, FILE *fd)
     double        d;    /* floating point holder */
     int           dp;   /* decimal point is printed */
 
+#ifdef BACKTRAP
+    /* translate file pointer from fake to real */
+    fd = fake2real(fd);
+#endif
     cnt = 0; /* clear output count */
     while (*fmt) { /* while format characters remain */
 
@@ -1909,6 +2135,10 @@ int vsscanfe(const char *s, const char *fmt, va_list ap, FILE *fd)
     int      c;
     int      x;
 
+#ifdef BACKTRAP
+    /* translate file pointer from fake to real */
+    fd = fake2real(fd);
+#endif
     pcnt = 0; /* clear parameter count */
     ccnt = 0; /* clear character count */
     while (*fmt) { /* while format characters remain */
@@ -2182,7 +2412,7 @@ static int vsscanf(const char *s, const char *fmt, va_list ap)
 
 /*******************************************************************************
 
-FUNCTION NAME: vsscanf
+FUNCTION NAME: vfscanf
 
 SHORT DESCRIPTION:
 
@@ -2306,6 +2536,10 @@ int fgetc(FILE *stream)
     int rc;          /* read count */
     int c;           /* character buffer */
 
+#ifdef BACKTRAP
+    /* translate file pointer from fake to real */
+    stream = fake2real(stream);
+#endif
     if (!stream || stream->fid < 0) return EOF; /* check stream is open */
     if (stream->pback != EOF) { /* there is a pushback character */
 
@@ -2349,6 +2583,10 @@ char *fgets(char *s, int n, FILE *stream)
     char *s1; /* input array holder */
     int cc;   /* character count */
 
+#ifdef BACKTRAP
+    /* translate file pointer from fake to real */
+    stream = fake2real(stream);
+#endif
     if (!stream || stream->fid < 0) return (NULL);
     s1 = s; /* save array to return */
     cc = 0; /* clear character count */
@@ -2394,6 +2632,10 @@ int fputc(int c, FILE *stream)
     unsigned char b; /* byte buffer */
     int wc;          /* write count */
 
+#ifdef BACKTRAP
+    /* translate file pointer from fake to real */
+    stream = fake2real(stream);
+#endif
     /* check file is allocated and open */
     if (!stream || stream->fid < 0) return (EOF);
     b = c; /* place character value in buffer */
@@ -2625,6 +2867,7 @@ int ungetc(int c, FILE *stream)
 
 {
 
+
     /* check file is allocated and open */
     if (!stream || stream->fid < 0) return (EOF);
     stream->pback = c; /* put back single character */
@@ -2654,6 +2897,10 @@ size_t fread(void *ptr, size_t size, size_t nobj, FILE *stream)
 
     int r;
 
+#ifdef BACKTRAP
+    /* translate file pointer from fake to real */
+    stream = fake2real(stream);
+#endif
     /* check file is allocated and open */
     if (!stream || stream->fid < 0) return (0);
     r = vread(stream->fid, ptr, size*nobj); /* process read */
@@ -2682,8 +2929,13 @@ size_t fwrite(const void *ptr, size_t size, size_t nobj, FILE *stream)
 
 {
 
+#ifdef BACKTRAP
+    /* translate file pointer from fake to real */
+    stream = fake2real(stream);
+#endif
     /* check file is allocated and open */
     if (!stream || stream->fid < 0) return (0);
+
     return (vwrite(stream->fid, ptr, size*nobj)); /* process write */
 
 }
@@ -2715,6 +2967,10 @@ int fseek(FILE *stream, long offset, int origin)
 
 {
 
+#ifdef BACKTRAP
+    /* translate file pointer from fake to real */
+    stream = fake2real(stream);
+#endif
     /* check file is allocated and open */
     if (!stream || stream->fid < 0) return (0);
     stream->flags &= ~_EFEOF; /* reset any EOF indication */
@@ -2741,6 +2997,10 @@ long ftell(FILE *stream)
 
 {
 
+#ifdef BACKTRAP
+    /* translate file pointer from fake to real */
+    stream = fake2real(stream);
+#endif
     /* check file is allocated and open */
     if (!stream || stream->fid < 0) return (0);
 
@@ -2837,6 +3097,10 @@ void clearerr(FILE *stream)
 
 {
 
+#ifdef BACKTRAP
+    /* translate file pointer from fake to real */
+    stream = fake2real(stream);
+#endif
     /* check file is allocated and open */
     if (!stream || stream->fid < 0) return;
     stream->flags = 0; /* clear all flags */
@@ -2862,6 +3126,10 @@ int feof(FILE *stream)
 
 {
 
+#ifdef BACKTRAP
+    /* translate file pointer from fake to real */
+    stream = fake2real(stream);
+#endif
     /* check file is allocated and open */
     if (!stream || stream->fid < 0) return (0);
     return (!!(stream->flags &_EFEOF)); /* return EOF status */
@@ -2889,6 +3157,10 @@ int ferror(FILE *stream)
 
 {
 
+#ifdef BACKTRAP
+    /* translate file pointer from fake to real */
+    stream = fake2real(stream);
+#endif
     /* check file is allocated and open */
     if (!stream || stream->fid < 0) return (0);
     return (!!(stream->flags & ~_EFEOF));
@@ -2943,6 +3215,10 @@ int fileno(FILE* stream)
 
     int r;
 
+#ifdef BACKTRAP
+    /* translate file pointer from fake to real */
+    stream = fake2real(stream);
+#endif
     /* check file is allocated and open */
     if (!stream || stream->fid < 0) {
 
@@ -2950,6 +3226,36 @@ int fileno(FILE* stream)
         errno = EBADF;
 
     } else r = stream->fid;
+
+    return (r);
+
+}
+
+/*******************************************************************************
+
+FUNCTION NAME: ___fprintf_chk
+
+SHORT DESCRIPTION: Print formatted to file
+
+DETAILED DESCRIPTION:
+
+Prints formatted to a file. See vsprintfe. The destination string, the
+format string, and the argument list are provided.
+
+BUGS/ISSUES:
+
+*******************************************************************************/
+
+int ___fprintf_chk(FILE *stream, int flag, const char *fmt, ...)
+
+{
+
+    va_list ap; /* argument list pointer */
+    int r;
+
+    va_start(ap, fmt); /* open argument list */
+    r = vfprintf(stream, fmt, ap);
+    va_end(ap); /* close argument list */
 
     return (r);
 
@@ -2981,3 +3287,9 @@ static void deinit_stdio()
     for (i = 0; i < tmpnamc; i++) remove(tmpstr[i]);
 
 }
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __STDIO_H__ */
