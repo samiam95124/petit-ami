@@ -121,20 +121,6 @@ extern "C" {
 
 /* We use a custom stdio.h */
 
-/* Backdoor trap.
- * 
- * This flag allocates invalid pages for the file structure on any new file.
- * We keep a table to lookup the actual address from the fake address, and we
- * use that internally. However, the external client program will cause a fault
- * for any read or write access to the file structure.
- */
-
-#define BACKTRAP
-
-#ifdef BACKTRAP
-#include <sys/mman.h>
-#endif
-
 #define FALSE 0
 #define TRUE 1
 
@@ -208,19 +194,9 @@ static FILE stderrfe = {
 
 /* standard in, out and error files */
 
-#ifdef BACKTRAP
-/* Place invalid values for standard files. These can't be 0, so they are the
- * standard I/O codes+1. The codes have to be valid at startup (no init). These
- * codes will place them in the first page, and thus generate a trap.
- */
-FILE *stdin = (FILE*) 1;
-FILE *stdout = (FILE*) 2;
-FILE *stderr = (FILE*) 3;
-#else
 FILE *stdin = &stdinfe;
 FILE *stdout = &stdoutfe;
 FILE *stderr = &stderrfe;
-#endif
 
 /* open files table. The first 0, 1, and 2 entries are tied to stdin, stdout
    and stderr. This does not have to be, but it makes the system more
@@ -235,19 +211,6 @@ static FILE *opnfil[FOPEN_MAX] = {
     /* remaining entries are NULL */
 
 };
-
-#ifdef BACKTRAP
-static FILE* fakefile[FOPEN_MAX] = {
-
-    (FILE*) 1, /* standard input */
-    (FILE*) 2, /* standard output */
-    (FILE*) 3, /* standard error */
-
-    /* remaining entries are NULL */
-
-};
-
-#endif
 
 /* top powers table, we precalculate this to save runtime */
 
@@ -406,80 +369,6 @@ static int maknod(void)
     return f; /* return file id */
 
 }
-
-/*******************************************************************************
-
-FUNCTION NAME: fake2real
-
-SHORT DESCRIPTION: Translate fake (mmaped invalid address) to real
-
-DETAILED DESCRIPTION:
-
-Takes a fake, or address of a mmaped invalid file structure block, and returns
-the real address. This is a simple table lookup in the current version.
-
-If the file pointer is not found in translation the original is simply returned.
-This means that there is a system error or we were really passed the actual file
-pointer.
-
-BUGS/ISSUES:
-
-*******************************************************************************/
-
-#ifdef BACKTRAP
-static FILE* fake2real(FILE* stream)
-
-{
-
-    int   i;  /* file index */
-    FILE* ff; /* found file pointer */
-
-    ff = 0; /* set no file found */
-    for (i = 0; i < FOPEN_MAX && !ff; i++) /* traverse the table */
-        if (fakefile[i] == stream) 
-            ff = opnfil[i]; /* found, get corresponding real address */
-    /* if not found, return the original pointer */
-    if (!ff) ff = stream;
-
-    return (ff); /* exit with pointer */
-
-}
-#endif
-
-/*******************************************************************************
-
-FUNCTION NAME: real2fake
-
-SHORT DESCRIPTION: Translates a real file descriptor to fake.
-
-DETAILED DESCRIPTION:
-
-Given an actual file structure pointer, finds the corresponding fake one and
-returns that. If nothing is found, returns the original pointer.
-
-BUGS/ISSUES:
-
-*******************************************************************************/
-
-#ifdef BACKTRAP
-static FILE* real2fake(FILE* stream)
-
-{
-
-    int   i;  /* file index */
-    FILE* ff; /* found file pointer */
-
-    ff = 0; /* set no file found */
-    for (i = 0; i < FOPEN_MAX && !ff; i++) /* traverse the table */
-        if (opnfil[i] == stream) 
-            ff = fakefile[i]; /* found, get corresponding fake address */
-    /* if not found, return the original pointer */
-    if (!ff) ff = stream;
-
-    return (ff); /* exit with pointer */
-
-}
-#endif
 
 /*******************************************************************************
 
@@ -1097,18 +986,8 @@ FILE *fopen(const char *filename, const char *mode)
     opnfil[fti]->append = append; /* set append mode */
     opnfil[fti]->flags = 0; /* clear status/error flags */
 
-#ifdef BACKTRAP
-    /* get a trap block for outward facing address */
-    fakefile[fti] = 
-        mmap(NULL, sizeof(FILE), PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if (fakefile[fti] == (void*)-1) return NULL; /* couldn't create entry */
-
-    /* return fake file entry */
-    return (fakefile[fti]);
-#else
     /* return new file entry */
     return (opnfil[fti]);
-#endif
 
 }
 
@@ -1136,11 +1015,6 @@ int fflush(FILE *stream)
 
 {
 
-#ifdef BACKTRAP
-    /* translate file pointer from fake to real */
-    stream = fake2real(stream);
-#endif
-
     return (0); /* no op */
 
 }
@@ -1166,10 +1040,6 @@ int fclose(FILE *stream)
 
     int r; /* result holder */
 
-#ifdef BACKTRAP
-    /* translate file pointer from fake to real */
-    stream = fake2real(stream);
-#endif
     /* check file is allocated and open */
     if (!stream || stream->fid < 0) return (EOF);
     r = vclose(stream->fid); /* close file */
@@ -1207,10 +1077,6 @@ FILE *freopen(const char *filename, const char *mode, FILE *stream)
     int update; /* update mode */
     int perm;   /* permissions */
 
-#ifdef BACKTRAP
-    /* translate file pointer from fake to real */
-    stream = fake2real(stream);
-#endif
     /* close the stream, and return error if occurs */
     if (fclose(stream) != 0) return (NULL);
 
@@ -1253,13 +1119,8 @@ FILE *freopen(const char *filename, const char *mode, FILE *stream)
     stream->append = update; /* set append mode */
     stream->flags = 0; /* clear status/error flags */
 
-#ifdef BACKTRAP
-    /* return fake file entry */
-    return real2fake(stream);
-#else
     /* return new file entry */
     return stream;
-#endif
 
 }
 
@@ -1360,17 +1221,8 @@ FILE *fdopen(int fd, const char *mode)
     opnfil[fti]->append = append; /* set append mode */
     opnfil[fti]->flags = 0; /* clear status/error flags */
 
-#ifdef BACKTRAP
-    /* get a trap block for outward facing address */
-    fakefile[fti] = 
-        mmap(NULL, sizeof(FILE), PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-    if (fakefile[fti] == (void*)-1) return NULL; /* couldn't create entry */
-    /* return fake file entry */
-    return (fakefile[fti]);
-#else
     /* return new file entry */
     return (opnfil[fti]);
-#endif
 
 }
 
@@ -1513,10 +1365,6 @@ int setvbuf(FILE *stream, char *buf, int mode, size_t size)
 
 {
 
-#ifdef BACKTRAP
-    /* translate file pointer from fake to real */
-    stream = fake2real(stream);
-#endif
     return (0);
 
 }
@@ -1660,10 +1508,6 @@ static int vsprintfe(char *s, const char *fmt, va_list ap, FILE *fd)
     double        d;    /* floating point holder */
     int           dp;   /* decimal point is printed */
 
-#ifdef BACKTRAP
-    /* translate file pointer from fake to real */
-    fd = fake2real(fd);
-#endif
     cnt = 0; /* clear output count */
     while (*fmt) { /* while format characters remain */
 
@@ -2135,10 +1979,6 @@ int vsscanfe(const char *s, const char *fmt, va_list ap, FILE *fd)
     int      c;
     int      x;
 
-#ifdef BACKTRAP
-    /* translate file pointer from fake to real */
-    fd = fake2real(fd);
-#endif
     pcnt = 0; /* clear parameter count */
     ccnt = 0; /* clear character count */
     while (*fmt) { /* while format characters remain */
@@ -2536,10 +2376,6 @@ int fgetc(FILE *stream)
     int rc;          /* read count */
     int c;           /* character buffer */
 
-#ifdef BACKTRAP
-    /* translate file pointer from fake to real */
-    stream = fake2real(stream);
-#endif
     if (!stream || stream->fid < 0) return EOF; /* check stream is open */
     if (stream->pback != EOF) { /* there is a pushback character */
 
@@ -2583,10 +2419,6 @@ char *fgets(char *s, int n, FILE *stream)
     char *s1; /* input array holder */
     int cc;   /* character count */
 
-#ifdef BACKTRAP
-    /* translate file pointer from fake to real */
-    stream = fake2real(stream);
-#endif
     if (!stream || stream->fid < 0) return (NULL);
     s1 = s; /* save array to return */
     cc = 0; /* clear character count */
@@ -2632,10 +2464,6 @@ int fputc(int c, FILE *stream)
     unsigned char b; /* byte buffer */
     int wc;          /* write count */
 
-#ifdef BACKTRAP
-    /* translate file pointer from fake to real */
-    stream = fake2real(stream);
-#endif
     /* check file is allocated and open */
     if (!stream || stream->fid < 0) return (EOF);
     b = c; /* place character value in buffer */
@@ -2897,10 +2725,6 @@ size_t fread(void *ptr, size_t size, size_t nobj, FILE *stream)
 
     int r;
 
-#ifdef BACKTRAP
-    /* translate file pointer from fake to real */
-    stream = fake2real(stream);
-#endif
     /* check file is allocated and open */
     if (!stream || stream->fid < 0) return (0);
     r = vread(stream->fid, ptr, size*nobj); /* process read */
@@ -2929,10 +2753,6 @@ size_t fwrite(const void *ptr, size_t size, size_t nobj, FILE *stream)
 
 {
 
-#ifdef BACKTRAP
-    /* translate file pointer from fake to real */
-    stream = fake2real(stream);
-#endif
     /* check file is allocated and open */
     if (!stream || stream->fid < 0) return (0);
 
@@ -2967,10 +2787,6 @@ int fseek(FILE *stream, long offset, int origin)
 
 {
 
-#ifdef BACKTRAP
-    /* translate file pointer from fake to real */
-    stream = fake2real(stream);
-#endif
     /* check file is allocated and open */
     if (!stream || stream->fid < 0) return (0);
     stream->flags &= ~_EFEOF; /* reset any EOF indication */
@@ -2997,10 +2813,6 @@ long ftell(FILE *stream)
 
 {
 
-#ifdef BACKTRAP
-    /* translate file pointer from fake to real */
-    stream = fake2real(stream);
-#endif
     /* check file is allocated and open */
     if (!stream || stream->fid < 0) return (0);
 
@@ -3097,10 +2909,6 @@ void clearerr(FILE *stream)
 
 {
 
-#ifdef BACKTRAP
-    /* translate file pointer from fake to real */
-    stream = fake2real(stream);
-#endif
     /* check file is allocated and open */
     if (!stream || stream->fid < 0) return;
     stream->flags = 0; /* clear all flags */
@@ -3126,10 +2934,6 @@ int feof(FILE *stream)
 
 {
 
-#ifdef BACKTRAP
-    /* translate file pointer from fake to real */
-    stream = fake2real(stream);
-#endif
     /* check file is allocated and open */
     if (!stream || stream->fid < 0) return (0);
     return (!!(stream->flags &_EFEOF)); /* return EOF status */
@@ -3157,10 +2961,6 @@ int ferror(FILE *stream)
 
 {
 
-#ifdef BACKTRAP
-    /* translate file pointer from fake to real */
-    stream = fake2real(stream);
-#endif
     /* check file is allocated and open */
     if (!stream || stream->fid < 0) return (0);
     return (!!(stream->flags & ~_EFEOF));
@@ -3215,10 +3015,6 @@ int fileno(FILE* stream)
 
     int r;
 
-#ifdef BACKTRAP
-    /* translate file pointer from fake to real */
-    stream = fake2real(stream);
-#endif
     /* check file is allocated and open */
     if (!stream || stream->fid < 0) {
 
@@ -3226,36 +3022,6 @@ int fileno(FILE* stream)
         errno = EBADF;
 
     } else r = stream->fid;
-
-    return (r);
-
-}
-
-/*******************************************************************************
-
-FUNCTION NAME: ___fprintf_chk
-
-SHORT DESCRIPTION: Print formatted to file
-
-DETAILED DESCRIPTION:
-
-Prints formatted to a file. See vsprintfe. The destination string, the
-format string, and the argument list are provided.
-
-BUGS/ISSUES:
-
-*******************************************************************************/
-
-int ___fprintf_chk(FILE *stream, int flag, const char *fmt, ...)
-
-{
-
-    va_list ap; /* argument list pointer */
-    int r;
-
-    va_start(ap, fmt); /* open argument list */
-    r = vfprintf(stream, fmt, ap);
-    va_end(ap); /* close argument list */
 
     return (r);
 
