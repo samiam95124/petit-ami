@@ -164,6 +164,31 @@ typedef struct {
 /** event function pointer */
 typedef void (*pa_pevthan)(pa_evtrec*);
 
+/* menu */
+typedef struct pa_menurec* pa_menuptr;
+typedef struct pa_menurec {
+
+        pa_menuptr next;   /* next menu item in list */
+        pa_menuptr branch; /* menu branch */
+        int        onoff;  /* on/off highlight */
+        int        oneof;  /* "one of" highlight */
+        int        bar;    /* place bar under */
+        int        id;     /* id of menu item */
+        char*      face;   /* text to place on button */
+
+} pa_menurec;
+/* standard menu selector */
+typedef int pa_stdmenusel;
+/* windows mode sets */
+typedef enum {
+
+    pa_wmframe, /* frame on/off */
+    pa_wmsize,  /* size bars on/off */
+    pa_wmsysbar /* system bar on/off */
+
+} pa_winmod;
+typedef int pa_winmodset;
+
 /* routines at this level */
 void pa_cursor(FILE* f, int x, int y);
 int  pa_maxx(FILE* f);
@@ -211,6 +236,30 @@ void pa_wrtstrn(FILE* f, char* s, int n);
 void pa_sizbuf(FILE* f, int x, int y);
 void pa_eventover(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh);
 void pa_eventsover(pa_pevthan eh,  pa_pevthan* oeh);
+void pa_sendevent(FILE* f, pa_evtrec* er);
+
+/* Window management functions */
+
+void pa_title(FILE* f, char* ts);
+void pa_openwin(FILE** infile, FILE** outfile, FILE* parent, int wid);
+void pa_buffer(FILE* f, int e);
+void pa_getsiz(FILE* f, int* x, int* y);
+void pa_setsiz(FILE* f, int x, int y);
+void pa_setpos(FILE* f, int x, int y);
+void pa_scnsiz(FILE* f, int* x, int* y);
+void pa_scncen(FILE* f, int* x, int* y);
+void pa_winclient(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms);
+void pa_front(FILE* f);
+void pa_back(FILE* f);
+void pa_frame(FILE* f, int e);
+void pa_sizable(FILE* f, int e);
+void pa_sysbar(FILE* f, int e);
+void pa_menu(FILE* f, pa_menuptr m);
+void pa_menuena(FILE* f, int id, int onoff);
+void pa_menusel(FILE* f, int id, int select);
+void pa_stdmenu(pa_stdmenusel sms, pa_menuptr* sm, pa_menuptr pm);
+int pa_getwinid(void);
+void pa_focus(FILE* f);
 
 /*
  * Override vector types
@@ -262,6 +311,27 @@ typedef void (*pa_wrtstrn_t)(FILE* f, char* s, int n);
 typedef void (*pa_sizbuf_t)(FILE* f, int x, int y);
 typedef void (*pa_eventover_t)(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh);
 typedef void (*pa_eventsover_t)(pa_pevthan eh,  pa_pevthan* oeh);
+typedef void (*pa_sendevent_t)(FILE* f, pa_evtrec* er);
+typedef void (*pa_title_t)(FILE* f, char* ts);
+typedef void (*pa_openwin_t)(FILE** infile, FILE** outfile, FILE* parent, int wid);
+typedef void (*pa_buffer_t)(FILE* f, int e);
+typedef void (*pa_getsiz_t)(FILE* f, int* x, int* y);
+typedef void (*pa_setsiz_t)(FILE* f, int x, int y);
+typedef void (*pa_setpos_t)(FILE* f, int x, int y);
+typedef void (*pa_scnsiz_t)(FILE* f, int* x, int* y);
+typedef void (*pa_scncen_t)(FILE* f, int* x, int* y);
+typedef void (*pa_winclient_t)(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms);
+typedef void (*pa_front_t)(FILE* f);
+typedef void (*pa_back_t)(FILE* f);
+typedef void (*pa_frame_t)(FILE* f, int e);
+typedef void (*pa_sizable_t)(FILE* f, int e);
+typedef void (*pa_sysbar_t)(FILE* f, int e);
+typedef void (*pa_menu_t)(FILE* f, pa_menuptr m);
+typedef void (*pa_menuena_t)(FILE* f, int id, int onoff);
+typedef void (*pa_menusel_t)(FILE* f, int id, int select);
+typedef void (*pa_stdmenu_t)(pa_stdmenusel sms, pa_menuptr* sm, pa_menuptr pm);
+typedef int (*pa_getwinid_t)(void);
+typedef void (*pa_focus_t)(FILE* f);
 
 /*
  * Overrider routines
@@ -295,34 +365,26 @@ void _pa_select_ovr(pa_select_t nfp, pa_select_t* ofp);
 void _pa_wrtstr_ovr(pa_wrtstr_t nfp, pa_wrtstr_t* ofp);
 void _pa_sizbuf_ovr(pa_sizbuf_t nfp, pa_sizbuf_t* ofp);
 void _pa_del_ovr(pa_del_t nfp, pa_del_t* ofp);
-
-/*
- * Extension types
- */
-/* menu */
-typedef struct pa_menurec* pa_menuptr;
-typedef struct pa_menurec {
-
-        pa_menuptr next;   /* next menu item in list */
-        pa_menuptr branch; /* menu branch */
-        int        onoff;  /* on/off highlight */
-        int        oneof;  /* "one of" highlight */
-        int        bar;    /* place bar under */
-        int        id;     /* id of menu item */
-        char*      face;   /* text to place on button */
-
-} pa_menurec;
-/* standard menu selector */
-typedef int pa_stdmenusel;
-/* windows mode sets */
-typedef enum {
-
-    pa_wmframe, /* frame on/off */
-    pa_wmsize,  /* size bars on/off */
-    pa_wmsysbar /* system bar on/off */
-
-} pa_winmod;
-typedef int pa_winmodset;
+void _pa_title_ovr(pa_title_t nfp, pa_title_t* ofp);
+void _pa_getwinid_ovr(pa_getwinid_t nfp, pa_getwinid_t* ofp);
+void _pa_openwin_ovr(pa_openwin_t nfp, pa_openwin_t* ofp);
+void _pa_buffer_ovr(pa_buffer_t nfp, pa_buffer_t* ofp);
+void _pa_menu_ovr(pa_menu_t nfp, pa_menu_t* ofp);
+void _pa_menuena_ovr(pa_menuena_t nfp, pa_menuena_t* ofp);
+void _pa_menusel_ovr(pa_menusel_t nfp, pa_menusel_t* ofp);
+void _pa_stdmenu_ovr(pa_stdmenu_t nfp, pa_stdmenu_t* ofp);
+void _pa_front_ovr(pa_front_t nfp, pa_front_t* ofp);
+void _pa_back_ovr(pa_back_t nfp, pa_back_t* ofp);
+void _pa_getsiz_ovr(pa_getsiz_t nfp, pa_getsiz_t* ofp);
+void _pa_setsiz_ovr(pa_setsiz_t nfp, pa_setsiz_t* ofp);
+void _pa_setpos_ovr(pa_setpos_t nfp, pa_setpos_t* ofp);
+void _pa_scnsiz_ovr(pa_scnsiz_t nfp, pa_scnsiz_t* ofp);
+void _pa_scncen_ovr(pa_scncen_t nfp, pa_scncen_t* ofp);
+void _pa_winclient_ovr(pa_winclient_t nfp, pa_winclient_t* ofp);
+void _pa_frame_ovr(pa_frame_t nfp, pa_frame_t* ofp);
+void _pa_sizable_ovr(pa_sizable_t nfp, pa_sizable_t* ofp);
+void _pa_sysbar_ovr(pa_sysbar_t nfp, pa_sysbar_t* ofp);
+void _pa_focus_ovr(pa_focus_t nfp, pa_focus_t* ofp);
 
 /*
  * Extension override types
