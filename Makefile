@@ -169,6 +169,31 @@ ifndef LINK_TYPE
     
 endif
 
+#
+# Does terminal model get window management?
+#
+ifndef USEMANAGERC
+
+	#
+	# Default is managerc disabled on terminal mode
+	#
+	USEMANAGERC=0
+
+endif
+
+#
+# Set managerc object
+#
+ifeq ($(USEMANAGERC),1)
+
+	MANAGERC=portable/managerc.o
+
+else
+
+	MANAGERC=
+
+endif
+
 CC=gcc
 CFLAGS=-g3 -Iinclude
 CFLAGSCPP=$(CFLAGS) -Ihpp
@@ -190,6 +215,8 @@ else
     #
     # Linux
     #
+	# Link path is through bin to get glibc.
+	#
     CFLAGS+=-Wl,--rpath=bin
     
 endif
@@ -578,8 +605,7 @@ portable/gnome_widgets.o: portable/gnome_widgets.c
 		-o portable/gnome_widgets.o
 		
 portable/managerc.o: portable/managerc.c
-	gcc -g3 -fPIC -Iinclude -c portable/managerc.c \
-		-o portable/managerc.o
+	gcc -g3 -fPIC -Iinclude -c portable/managerc.c -o portable/managerc.o
 	
 ################################################################################
 #
@@ -668,19 +694,19 @@ bin/petit_ami_plain.a: $(LINUXSTDIO) linux/services.o linux/sound.o \
 	    utils/config.o utils/option.o
 	
 bin/petit_ami_term.so: $(LINUXSTDIO) linux/services.o linux/network.o \
-	linux/terminal.o linux/system_event.o utils/config.o utils/option.o \
+	linux/terminal.o $(MANAGERC) linux/system_event.o utils/config.o utils/option.o \
     cpp/terminal.o
 	gcc -shared $(LINUXSTDIO) linux/services.o linux/network.o \
-		linux/terminal.o linux/system_event.o utils/config.o utils/option.o  \
-	    cpp/terminal.o -o bin/petit_ami_term.so 
+		linux/terminal.o $(MANAGERC) linux/system_event.o utils/config.o \
+		utils/option.o  cpp/terminal.o -o bin/petit_ami_term.so 
 	
 bin/petit_ami_term.a: $(LINUXSTDIO) linux/services.o linux/sound.o \
 	linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
-	linux/terminal.o linux/system_event.o utils/config.o utils/option.o \
+	linux/terminal.o $(MANAGERC) linux/system_event.o utils/config.o utils/option.o \
     cpp/terminal.o
 	ar rcs bin/petit_ami_term.a $(LINUXSTDIO) linux/services.o linux/sound.o \
 		linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
-		linux/terminal.o linux/system_event.o utils/config.o utils/option.o \
+		linux/terminal.o $(MANAGERC) linux/system_event.o utils/config.o utils/option.o \
 		 cpp/terminal.o
 	
 bin/petit_ami_graph.so: $(LINUXSTDIO) linux/services.o linux/network.o \

@@ -6,6 +6,10 @@
 be directed to stdin or stdout. An example is stderr, which is often redirected
 into stdout. This would stop stderr prints from messing up the screen.
 
+3. editor crashes on incorrect filename.
+
+4. Wator crashes on ctl-c after running for quite a while.
+
 MACOSX/Quartz version ============================================================
 
 1. In the Mac OS X version, the final benchmark tallys are getting erased. I 
