@@ -973,6 +973,10 @@ static paevtque* getpaevt(void)
         paqfre = p->next; /* gap from list */
 
     } else p = (paevtque*)malloc(sizeof(paevtque));
+    /* set invalid fields */
+    p->next = NULL;
+    p->last = NULL;
+    p->evt.etype = pa_etsys;
 
     return (p);
 
@@ -992,6 +996,9 @@ static void putpaevt(paevtque* p)
 
 {
 
+    /* set invalid fields for use after free */
+    p->last = NULL;
+    p->evt.etype = pa_etsys;
     p->next = paqfre; /* push to list */
     paqfre = p;
 
@@ -1011,9 +1018,11 @@ static void prtquepaevt(void)
 
     paevtque* p;
     int       r;
+    int       loopcnt = evtquecnt+10;
 
     r = pthread_mutex_lock(&evtlck); /* lock event queue */
     if (r) linuxerror(r);
+    loopcnt = evtquecnt; /* set total queue entries */
     p = paqevt; /* index root entry */
     while (p) {
 
@@ -1021,6 +1030,14 @@ static void prtquepaevt(void)
         fprintf(stderr, "\n"); fflush(stderr);
         p = p->next; /* link next */
         if (p == paqevt) p = NULL; /* end of queue, terminate */
+        loopcnt--; /* count entries */
+        if (loopcnt < 0) { /* too many iterations, halt */
+
+            r = pthread_mutex_unlock(&evtlck); /* release event queue */
+            if (r) linuxerror(r);
+            error(esystem); /* go error */
+
+        }
 
     }
     r = pthread_mutex_unlock(&evtlck); /* release event queue */
@@ -1035,6 +1052,8 @@ Remove queue duplicates
 Removes any entries in the current queue that would be made redundant by the new
 queue entry. Right now this consists only of mouse movements.
 
+Should be called only within lock context.
+
 *******************************************************************************/
 
 void remdupque(pa_evtrec* e)
@@ -1042,6 +1061,7 @@ void remdupque(pa_evtrec* e)
 {
 
     paevtque* p;
+    paevtque* fp;
 
     if (paqevt) { /* the queue has content */
 
@@ -1055,6 +1075,7 @@ void remdupque(pa_evtrec* e)
                  e->mjoyn == p->evt.mjoyn)) {
 
                 /* matching entry, remove */
+                fp = p; /* set entry found */
                 matrem++; /* count */
                 if (p->next == p) {
 
@@ -1065,13 +1086,17 @@ void remdupque(pa_evtrec* e)
 
                     p->last->next = p->next; /* point last at current */
                     p->next->last = p->last; /* point current at last */
+                    /* if removing the queue root, step to next */
+                    if (paqevt == p) paqevt = p->next;
                     p = p->next; /* go next entry */
 
                 }
+                evtquecnt--; /* count entries in queue */
+                putpaevt(fp); /* release queue entry to free */
 
             } else p = p->next; /* go next queue entry */
 
-        } while (p && p->next != paqevt); /* not back at beginning */
+        } while (p && p != paqevt); /* not back at beginning */
 
     }
 
@@ -1140,7 +1165,12 @@ static void dequepaevt(pa_evtrec* e)
     while (!paqevt) {
 
         r = pthread_cond_wait(&evtquene, &evtlck);
-        if (r) linuxerror(r);
+        if (r) {
+
+            pthread_mutex_unlock(&evtlck); /* release event queue */
+            linuxerror(r);
+
+        }
 
     }
     /* we push TO next (current) and take FROM last (final) */

@@ -23,13 +23,6 @@ allows to move behind it. This is part of the compatibility system.
 
 3. Need to implement arbitrary clipping masks.
 
-4. Moving large windows across the screen shows "drag lag", or slow movement as
-the draw time causes the input queue to back up. This could be fixed by pulling
-in event queue entries and eliminating duplicate moves. To do this we would have
-to run a thread that continually transfers events to the managerc queue.
+4. Background color sets don't work.
 
-5. Background color sets don't work.
-
-6. Moving a window offscreen left puts it's cursor in an invalid location.
-
-7. When moving a window offscreen right, parts of the size bars disappear.
+5. Moving a window offscreen left puts it's cursor in an invalid location.
