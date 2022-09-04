@@ -5078,9 +5078,6 @@ static void pa_deinit_terminal()
     pa_evtrec er;     /* event record */
     string    trmnam; /* termination name */
     char      fini[] = "Finished - ";
-    int       bobble; /* bobble display bit */
-    scnptr    sc;     /* screen buffer */
-    int       ml;     /* message length */
     pa_evtcod e;
 
     /* clear event vector table */
@@ -5095,8 +5092,7 @@ static void pa_deinit_terminal()
         /* process automatic exit sequence */
 #ifndef __MACH__ /* Mac OS X */
         /* construct final name for window */
-        ml = strlen(fini)+strlen(program_invocation_short_name);
-        trmnam = malloc(ml+1);
+        trmnam = malloc(strlen(fini)+strlen(program_invocation_short_name)+1);
         strcpy(trmnam, fini); /* place first part */
         /* place program name */
         strcat(trmnam, program_invocation_short_name);
