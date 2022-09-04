@@ -291,7 +291,6 @@ typedef enum {
     einvjoy,  /* Invalid joystick ID */
     ecfgval,  /* invalid configuration value */
     esendevent_unimp, /* sendevent unimplemented */
-    etitle_unimp,     /* title unimplemented */
     eopenwin_unimp,   /* openwin unimplemented */
     ebuffer_unimp,    /* buffer unimplemented */
     esizbuf_unimp,    /* sizbuf unimplemented */
@@ -645,7 +644,6 @@ static void error(errcod e)
         case einvjoy: fprintf(stderr, "Invalid joystick ID"); break;
         case ecfgval: fprintf(stderr, "Invalid configuration value"); break;
         case esendevent_unimp: fprintf(stderr, "sendevent unimplemented"); break;
-        case etitle_unimp:     fprintf(stderr, "title unimplemented"); break;
         case eopenwin_unimp:   fprintf(stderr, "openwin unimplemented"); break;
         case ebuffer_unimp:    fprintf(stderr, "buffer unimplemented"); break;
         case esizbuf_unimp:    fprintf(stderr, "sizbuf unimplemented"); break;
@@ -4483,6 +4481,29 @@ static void sizbuf_ivf(FILE* f, int x, int y)
 
 /** ****************************************************************************
 
+Set window title
+
+Sets the title of the current window.
+
+*******************************************************************************/
+
+void _pa_title_ovr(pa_title_t nfp, pa_title_t* ofp)
+    { *ofp = title_vect; title_vect = nfp; }
+void pa_title(FILE* f, char* ts) { (*title_vect)(f, ts); }
+
+static void title_ivf(FILE* f, char* ts)
+    
+{ 
+
+    dbg_printf(dlapi, "API\n");
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
+    trm_title(ts); /* set title */
+    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
+
+}
+
+/** ****************************************************************************
+
 Override event handler
 
 Overrides or "hooks" the indicated event handler. The existing even handler is
@@ -4552,13 +4573,6 @@ void pa_sendevent(FILE* f, pa_evtrec* er) { (*sendevent_vect)(f, er); }
 
 static void sendevent_ivf(FILE* f, pa_evtrec* er)
     { error(esendevent_unimp); }
-
-void _pa_title_ovr(pa_title_t nfp, pa_title_t* ofp)
-    { *ofp = title_vect; title_vect = nfp; }
-void pa_title(FILE* f, char* ts) { (*title_vect)(f, ts); }
-
-static void title_ivf(FILE* f, char* ts)
-    { error(etitle_unimp); }
 
 void _pa_openwin_ovr(pa_openwin_t nfp, pa_openwin_t* ofp)
     { *ofp = openwin_vect; openwin_vect = nfp; }
