@@ -131,6 +131,15 @@ extern char *program_invocation_short_name;
 #define DEFYD 24
 #endif
 
+/*
+ * Use xterm title function
+ *
+ * Use the xterm/ANSI title function, or use flashing title bar for autohold
+ */
+#ifndef XTERMTITLE
+#define XTERMTITLE TRUE /* enable xterm title */
+#endif
+
 #define MAXKEY    20        /* maximum length of key sequence */
 #define MAXCON    10        /**< number of screen contexts */
 #define MAXLIN    250       /* maximum length of input buffered line */
@@ -1357,6 +1366,17 @@ static void trm_cursor(int x, int y)
     putstr(";");
     wrtint(x);
     putstr("H");
+
+}
+
+/** set title */
+static void trm_title(char* title)
+
+{
+
+    putstr("\33]0;");
+    putstr(title);
+    putstr("\7");
 
 }
 
@@ -2936,6 +2956,98 @@ static void readline(void)
 
     } while (er.etype != pa_etenter); /* until line terminate */
     inpptr = 0; /* set 1st position on active line */
+
+}
+
+/*******************************************************************************
+
+Present finish message
+
+Presents a finish message to a bar at top of screen. The message is flashed so
+that the underlying screen content is seen. Exits on termination.
+
+*******************************************************************************/
+
+void finish(char* title)
+
+{
+
+    int       bobble; /* bobble display bit */
+    scnptr    sc;     /* screen buffer */
+    scnrec*   p;      /* screen element pointer */
+    int       ml;     /* message length */
+    pa_evtrec er;     /* event record */
+    int       xi;
+    int       i;
+    int       xs;
+
+    bobble = FALSE; /* start bobble bit */
+    trm_curoff(); /* turn cursor off for display */
+    curon = FALSE;
+    ml = strlen(title); /* set size of title */
+    /* set the blink timer, repeating, 1 second */
+    blksev = system_event_addsetim(blksev, 1*10000, TRUE);
+    sc = screens[curdsp-1]; /* index display screen */
+    /* wait for a formal end */
+    while (!fend) {
+
+        if (bobble) { /* clear top line by redrawing it */
+
+            trm_home(); /* restore cursor to upper left to start */
+            for (xi = 1; xi <= bufx; xi++) {
+
+                p = &SCNBUF(sc, xi, 1); /* index this screen element */
+                trm_fcolor(p->forec); /* set the new color */
+                trm_bcolor(p->backc); /* set the new color */
+                setattr(sc, p->attr); /* set the new attribute */
+#ifdef ALLOWUTF8
+                putnstr(p->ch, 4); /* now output the actual character */
+#else
+                putchr(p->ch); /* now output the actual character */
+#endif
+
+            }
+            /* color leftover line after buffer */
+            trm_bcolor(backc); /* set background color */
+            setattr(sc, sanone); /* set the new attribute */
+            for (xi = bufx+1; xi <= dimx; xi++) {
+
+                p = &SCNBUF(sc, xi, 1); /* index this screen element */
+                putchr(' '); /* blank out */
+
+            }                
+
+        } else {
+
+            /* blank out */
+            trm_home(); /* restore cursor to upper left to start */
+            setattr(sc, sanone); /* set no attribute */
+            trm_bcolor(pa_black); /* set background color */
+            trm_fcolor(pa_black); /* set foreground color */
+            for (xi = 1; xi <= dimx; xi++) putchr(' '); /* blank out */
+            /* draw the "finished" message */
+            trm_home(); /* restore cursor to upper left to start */
+            trm_bcolor(pa_black); /* set background color */
+            trm_fcolor(pa_white); /* set foreground color */
+            i = 0; /* set string start */
+            xs = dimx/2-ml/2; /* set centered line start */
+            if (xs < 1) xs = 1; /* if string too long, clip right */
+            trm_cursor(xs, 1); /* move cursor to start */
+            for (xi = xs; xi <= dimx && i < ml; xi++) {
+
+                p = &SCNBUF(sc, xi, 1); /* index this screen element */
+                putchr(title[i++]); /* place message character */
+
+            }
+
+        }
+        pa_event(stdin, &er);
+        /* if the blink timer fires, flip the display */
+        if (er.etype == pa_etsys) bobble = !bobble;
+        /* let the enter exit via enter */
+        if (er.etype == pa_etenter) fend = TRUE;
+
+    }
 
 }
 
@@ -4969,10 +5081,6 @@ static void pa_deinit_terminal()
     int       bobble; /* bobble display bit */
     scnptr    sc;     /* screen buffer */
     int       ml;     /* message length */
-    scnrec    *p;     /* screen element pointer */ 
-    int       xi;
-    int       i;
-    int       xs;
     pa_evtcod e;
 
     /* clear event vector table */
@@ -4992,75 +5100,16 @@ static void pa_deinit_terminal()
         strcpy(trmnam, fini); /* place first part */
         /* place program name */
         strcat(trmnam, program_invocation_short_name);
-        /* set window title */
-        // XStoreName(padisplay, win->xmwhan, trmnam);
 #endif
-        bobble = FALSE; /* start bobble bit */
-        trm_curoff(); /* turn cursor off for display */
-        curon = FALSE;
-        /* set the blink timer, repeating, 1 second */
-        blksev = system_event_addsetim(blksev, 1*10000, TRUE);
-        sc = screens[curdsp-1]; /* index display screen */
-        /* wait for a formal end */
-        while (!fend) {
-
-            if (bobble) { /* clear top line by redrawing it */
-
-                trm_home(); /* restore cursor to upper left to start */
-                for (xi = 1; xi <= bufx; xi++) {
-
-                    p = &SCNBUF(sc, xi, 1); /* index this screen element */
-                    trm_fcolor(p->forec); /* set the new color */
-                    trm_bcolor(p->backc); /* set the new color */
-                    setattr(sc, p->attr); /* set the new attribute */
-#ifdef ALLOWUTF8
-                    putnstr(p->ch, 4); /* now output the actual character */
+#if XTERMTITLE
+        trm_title(trmnam); /* put up termination title */
+        /* wait for user termination */
+        do { pa_event(stdin, &er);
+        } while (!fend && er.etype != pa_etenter);
+        trm_title(""); /* blank out title */
 #else
-                    putchr(p->ch); /* now output the actual character */
+        finish(trmnam);
 #endif
-
-                }
-                /* color leftover line after buffer */
-                trm_bcolor(backc); /* set background color */
-                setattr(sc, sanone); /* set the new attribute */
-                for (xi = bufx+1; xi <= dimx; xi++) {
-
-                    p = &SCNBUF(sc, xi, 1); /* index this screen element */
-                    putchr(' '); /* blank out */
-
-                }                
-
-            } else {
-
-                /* blank out */
-                trm_home(); /* restore cursor to upper left to start */
-                setattr(sc, sanone); /* set no attribute */
-                trm_bcolor(pa_black); /* set background color */
-                trm_fcolor(pa_black); /* set foreground color */
-                for (xi = 1; xi <= dimx; xi++) putchr(' '); /* blank out */
-                /* draw the "finished" message */
-                trm_home(); /* restore cursor to upper left to start */
-                trm_bcolor(pa_black); /* set background color */
-                trm_fcolor(pa_white); /* set foreground color */
-                i = 0; /* set string start */
-                xs = dimx/2-ml/2; /* set centered line start */
-                if (xs < 1) xs = 1; /* if string too long, clip right */
-                trm_cursor(xs, 1); /* move cursor to start */
-                for (xi = xs; xi <= dimx && i < ml; xi++) {
-
-                    p = &SCNBUF(sc, xi, 1); /* index this screen element */
-                    putchr(trmnam[i++]); /* place message character */
-
-                }
-
-            }
-            pa_event(stdin, &er);
-            /* if the blink timer fires, flip the display */
-            if (er.etype == pa_etsys) bobble = !bobble;
-            /* let the enter exit via enter */
-            if (er.etype == pa_etenter) fend = TRUE;
-
-        }
         free(trmnam); /* free up termination name */
 
     }
