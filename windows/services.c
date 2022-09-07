@@ -19,7 +19,7 @@
 * pa_timesep(), pa_currchar(), pa_timeorder(), pa_numbersep(), pa_decimal(),   *
 * pa_time24hour().                                                             *
 *
-* 3. The Unix emulation layer treats .axe and similar endings as having set    *
+* 3. The Unix emulation layer treats .exe and similar endings as having set    *
 * the executable flag, which is a good goal. Similarly, it treats '.' and '..' *
 * directory entries as setting the "hidden" flag, although notably, windows    *
 * itself does not (they are visible in dir listings).                          *
@@ -67,6 +67,10 @@
 *                                                                              *
 *******************************************************************************/
 
+#define WINVER 0x0A00
+#define _WIN32_WINNT 0xA00
+#define _WIN32_IE 0xA00
+
 #include <windows.h>
 #include <limits.h>
 
@@ -112,6 +116,10 @@ extern char **environ;
 #define MAXSTR 500  /* maximum size of holding buffers */
 #define MAXPTH 5000 /* max size of path */
 
+#define MAXTHREAD 100   /* maximum number of threads */
+#define MAXSEMA   100   /* maximum number of semaphores */
+#define MAXLOCK   100   /* maximum number of locks */
+
 typedef char bufstr[MAXSTR]; /* standard string buffer */
 
 static char pthstr[MAXPTH]; /* buffer for execution path */
@@ -124,6 +132,13 @@ static int country;     /* current country */
 
 void pa_brknam(char *fn, char *p, int pl, char *n, int nl, char *e, int el);
 void pa_maknam(char *fn, int fnl, char *p, char *n, char *e);
+
+static CRITICAL_SECTION    thdtbllck;            /* thread table lock */
+static HANDLE              threadtbl[MAXTHREAD]; /* thread id table */
+static CRITICAL_SECTION    semtbllck;            /* semaphore table lock */
+static PCONDITION_VARIABLE sematbl[MAXSEMA];     /* semaphore table */
+static CRITICAL_SECTION    lcktbllck;            /* lock table lock */
+static CRITICAL_SECTION*   locktbl[MAXLOCK];     /* lock table */
 
 /********************************************************************************
 
@@ -2871,6 +2886,319 @@ char pa_currchr(void)
 
 /** ****************************************************************************
 
+Start logical thread
+
+Start new thread. Expects a function to start as the new thread. A logical
+thread number is created from 1 to N, where N is the maximum number of threads
+supported. A new thread number is allocated and returned to the caller. The
+thread is created and executes at the given function. The thread will run until
+it returns from the called function or is killed.
+
+*******************************************************************************/
+
+static DWORD WINAPI dummystart(LPVOID function)
+
+{
+
+    void (*fp)(void) = function;
+
+    /* call thread main function */
+    fp();
+
+    return (ERROR_SUCCESS);
+
+}
+
+int pa_newthread(void (*threadmain)(void))
+
+{
+
+    int   i;
+    HANDLE th;
+
+    EnterCriticalSection(&thdtbllck); /* lock thread table */
+    /* Find free table entry. Note that we reserve thread 1 as the thread for
+       the process. This has no use at the moment. */
+    i = 1;
+    while (threadtbl[i] && i < MAXTHREAD) i++;
+    if (threadtbl[i]) {
+
+        LeaveCriticalSection(&thdtbllck); /* unlock thread table */
+        error("Thread table full");
+
+    }
+    th = CreateThread(NULL, 0, dummystart, threadmain, 0, NULL);
+    if (!th) {
+        
+        LeaveCriticalSection(&thdtbllck); /* unlock thread table */
+        winerr(); /* process error */
+
+    }
+    threadtbl[i] = th;
+    LeaveCriticalSection(&thdtbllck); /* unlock thread table */
+
+    return (i+1); /* return the thread logical id to caller */
+
+}
+
+/** ****************************************************************************
+
+Create concurrency lock
+
+Creates a new concurrency lock and returns the logical id for it.
+
+*******************************************************************************/
+
+int pa_initlock(void)
+
+{
+
+    int i;
+    int r;
+    CRITICAL_SECTION* lp;
+
+    lp = malloc(sizeof(CRITICAL_SECTION)); /* get new lock entry out of lock */
+    if (!lp) error("Out of memory"); /* couldn't allocate */
+    EnterCriticalSection(&lcktbllck); /* lock lock table */
+    /* find free table entry */
+    i = 0;
+    while (locktbl[i] && i < MAXLOCK) i++;
+    if (locktbl[i]) {
+
+        LeaveCriticalSection(&lcktbllck); /* unlock thread table */
+        error("Concurrency lock table full");
+
+    }
+    /* allocate lock data block */
+    locktbl[i] = lp;
+    LeaveCriticalSection(&lcktbllck); /* unlock thread table */
+    /* Now we own the table entry, initialize the lock */
+    InitializeCriticalSection(lp);
+
+    return (i+1); /* return the lock logical id to caller */
+
+}
+
+/** ****************************************************************************
+
+Destroy concurrency lock
+
+Releases a concurrency lock by logical id.
+
+*******************************************************************************/
+
+void pa_deinitlock(int ln)
+
+{
+
+    CRITICAL_SECTION* lp;
+
+    if (ln < 1 || ln > MAXLOCK) error("Invalid concurrency lock logical id");
+    EnterCriticalSection(&lcktbllck); /* lock lock table */
+    lp = locktbl[ln-1]; /* get lock pointer */
+    locktbl[ln-1] = NULL; /* flag entry free */
+    LeaveCriticalSection(&lcktbllck); /* unlock thread table */
+    if (!lp) error("Concurrency lock by logical id is not active");
+    DeleteCriticalSection(lp); /* release the lock */
+
+}
+
+/** ****************************************************************************
+
+Lock concurrency
+
+The given lock by logical id is aquired. Generally fairlocking can be assumed,
+which means that for N waiters on the lock, they will be given the lock first
+come first served.
+
+*******************************************************************************/
+
+void pa_lock(int ln)
+
+{
+
+    CRITICAL_SECTION* lp;
+
+    if (ln < 1 || ln > MAXLOCK) error("Invalid concurrency lock logical id");
+    /* assume this is an atomic access (single word) */
+    lp = locktbl[ln-1]; /* get lock pointer */
+    if (!lp) error("Concurrency lock by logical id is not active");
+    /* acquire lock */
+    EnterCriticalSection(lp);
+
+}
+
+/** ****************************************************************************
+
+Unlock concurrency
+
+The concurrency lock by logical id is released. The next thread queued for the
+lock and that is in a runnable state is set to run.
+
+*******************************************************************************/
+
+void pa_unlock(int ln)
+
+{
+
+    CRITICAL_SECTION* lp;
+
+    if (ln < 1 || ln > MAXLOCK) error("Invalid concurrency lock logical id");
+    /* assume this is an atomic access (single word) */
+    lp = locktbl[ln-1]; /* get lock pointer */
+    if (!lp) error("Concurrency lock by logical id is not active");
+    /* release lock */
+    LeaveCriticalSection(lp);
+
+}
+
+/** ****************************************************************************
+
+Create concurrency signal
+
+Creates a new concurrency signal and returns the logical id for it.
+
+*******************************************************************************/
+
+int pa_initsig(void)
+
+{
+
+    int i;
+
+    EnterCriticalSection(&semtbllck); /* lock semaphore table */
+    /* find free table entry */
+    i = 0;
+    while (sematbl[i] && i < MAXSEMA) i++;
+    if (sematbl[i]) {
+
+        LeaveCriticalSection(&semtbllck); /* unlock semaphore table */
+        error("Semaphore table full");
+
+    }
+    /* create condition variable */
+    InitializeConditionVariable(sematbl[i]);
+    LeaveCriticalSection(&semtbllck); /* unlock semaphore table */
+
+    return (i+1); /* return the lock logical id to caller */
+
+}
+
+/** ****************************************************************************
+
+Destroy concurrency signal
+
+Releases a concurrency lock by logical id.
+
+*******************************************************************************/
+
+int pa_deinitsig(int sn)
+
+{
+
+    PCONDITION_VARIABLE sp;
+
+    if (sn < 1 || sn > MAXSEMA) error("Semaphore logical id");
+    EnterCriticalSection(&semtbllck); /* lock semaphore table */
+    sp = sematbl[sn-1]; /* get pointer to conditional variable */
+    sematbl[sn-1] = NULL; /* flag entry free */
+    LeaveCriticalSection(&semtbllck); /* unlock semaphore table */
+    if (!sp) error("Semaphore by logical id is not active");
+    /* Windows does not have a delete conditional variable routine */
+
+}
+
+/** ****************************************************************************
+
+Signal event
+
+Flags an event to the given signal by logical id. Either all waiters on the
+signal or just one is set to run by a signal.
+
+*******************************************************************************/
+
+void pa_sendsig(int sn)
+
+{
+
+    PCONDITION_VARIABLE sp;
+
+    if (sn < 1 || sn > MAXSEMA) error("Semaphore logical id");
+    /* assume this is an atomic access (single word) */
+    sp = sematbl[sn-1]; /* get semaphore pointer */
+    if (!sp) error("Semaphore by logical id is not active");
+    /* signal single event waiter */
+    WakeAllConditionVariable(sp);
+
+}
+
+/** ****************************************************************************
+
+Signal single event
+
+Flags an event to the given signal by logical id. Only one thread is signaled
+to run. This version of signal is used when only one waiter can use the
+event signaled.
+
+Note that it is possible for this call to be equivalent to pa_signal() on a
+given implementation. Thus programs should check if the signaled event is
+still active, and not just assume it.
+
+*******************************************************************************/
+
+void pa_sendsigone(int sn)
+
+{
+
+    PCONDITION_VARIABLE sp;
+
+    if (sn < 1 || sn > MAXSEMA) error("Semaphore logical id");
+    /* assume this is an atomic access (single word) */
+    sp = sematbl[sn-1]; /* get semaphore pointer */
+    if (!sp) error("Semaphore by logical id is not active");
+    /* signal single event waiter */
+    WakeConditionVariable(sp);
+
+}
+
+/** ****************************************************************************
+
+Wait signal
+
+Wait for a given signal. wait() accepts a currency lock logical id, and a signal
+logical id. Releases the concurrency lock and waits for the given signal, then
+returns when the signal flags.
+
+The purpose of accepting a lock number is that it is released and the signal is
+checked atomically. This means other threads that are not signaling will not
+run, and thus the wait and signal operations are synchronized together.
+
+*******************************************************************************/
+
+void pa_waitsig(int ln, int sn)
+
+{
+
+    int r;
+    PCONDITION_VARIABLE sp;
+    CRITICAL_SECTION* lp;
+
+    if (ln < 1 || ln > MAXLOCK) error("Invalid concurrency lock logical id");
+    /* assume this is an atomic access (single word) */
+    lp = locktbl[ln-1]; /* get lock pointer */
+    if (!lp) error("Concurrency lock by logical id is not active");
+    if (sn < 1 || sn > MAXSEMA) error("Semaphore logical id");
+    /* assume this is an atomic access (single word) */
+    sp = sematbl[ln-1]; /* get semaphore pointer */
+    if (!sp) error("Semaphore by logical id is not active");
+    /* wait on signal with lock release */
+    r = SleepConditionVariableCS(sp, lp, INFINITE);
+    if (!r) winerr(); /* fails, process error */
+
+}
+
+/** ****************************************************************************
+
 Initialize services
 
 We initialize all variables and tables.
@@ -2901,6 +3229,7 @@ static void pa_init_services()
     char*       cp;
     char*       np;
     int         l;
+    int         i;
 
     /* Copy environment to local */
     envlst = NULL;   /* clear environment strings */
@@ -2938,6 +3267,20 @@ static void pa_init_services()
     language = 41; /* english */
     country = 840; /* USA */
 
+    /* clear thread table */
+    for (i = 0; i < MAXTHREAD; i++) threadtbl[i] = NULL;
+
+    /* clear semaphore table */
+    for (i = 0; i < MAXSEMA; i++) sematbl[i] = NULL;
+
+    /* clear lock table */
+    for (i = 0; i < MAXLOCK; i++) locktbl[i] = NULL;
+
+    /* initialize the locks */
+    InitializeCriticalSection(&thdtbllck);
+    InitializeCriticalSection(&semtbllck);
+    InitializeCriticalSection(&lcktbllck);
+
 }
 
 /** ****************************************************************************
@@ -2963,5 +3306,10 @@ static void pa_deinit_services()
         free(p);
 
     }
+
+    /* deinitialize the locks */
+    DeleteCriticalSection(&thdtbllck);
+    DeleteCriticalSection(&semtbllck);
+    DeleteCriticalSection(&lcktbllck);
 
 }
