@@ -2539,6 +2539,94 @@ int pa_funkey(FILE* f)
 
 }
 
+/** ****************************************************************************
+
+Autohold
+
+Turns on or off automatic hold mode.
+
+Sets the state of the automatic hold flag. Automatic hold is used to hold
+programs that exit without having received a "terminate" signal from terminal.
+This exists to allow the results of terminal unaware programs to be viewed after
+termination, instead of exiting and clearing the screen. This mode works for
+most circumstances, but an advanced program may want to exit for other reasons
+than being closed by CTL-C. This call can turn automatic holding off,
+and can only be used by an advanced program, so fufills the requirement of
+holding terminal unaware programs.
+
+Windows console does not have or need autohold because it has "transparent" 
+mode. This means that terminal unaware programs operate just as other terminal
+programs, and write on the main screen (screen 1). Note this is a critical
+difference between Windows and Liux/MacOS, because transparent mode is
+specifically disallowed there.
+
+*******************************************************************************/
+
+void pa_autohold(int e)
+
+{
+
+    /* no function */
+
+}
+
+/** ****************************************************************************
+
+Write string direct
+
+Writes a string direct to the terminal, bypassing character handling.
+
+*******************************************************************************/
+
+void pa_wrtstr(FILE* f, char *s)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Write string direct with length
+
+Writes a string with length direct to the terminal, bypassing character
+handling.
+
+*******************************************************************************/
+
+void pa_wrtstrn(FILE* f, char *s, int n)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Size buffer
+
+Sets or resets the size of the buffer surface.
+
+*******************************************************************************/
+
+void pa_sizbuf(FILE* f, int x, int y)
+
+{
+
+}
+
+/** ****************************************************************************
+
+Set window title
+
+Sets the title of the current window.
+
+*******************************************************************************/
+
+void pa_title(FILE* f, char* ts)
+    
+{ 
+
+}
+
 /*******************************************************************************
 
 Process input line
