@@ -2572,20 +2572,6 @@ void pa_autohold(int e)
 
 /** ****************************************************************************
 
-Write string direct
-
-Writes a string direct to the terminal, bypassing character handling.
-
-*******************************************************************************/
-
-void pa_wrtstr(FILE* f, char *s)
-
-{
-
-}
-
-/** ****************************************************************************
-
 Write string direct with length
 
 Writes a string with length direct to the terminal, bypassing character
@@ -2596,6 +2582,46 @@ handling.
 void pa_wrtstrn(FILE* f, char *s, int n)
 
 {
+
+    WORD   ab;  /* attribute output buffer */
+    DWORD  len; /* length dummy */
+    scnptr sc;  /* screen context pointer */
+    COORD  xy;
+
+    sc = screens[curupd-1];
+    while (n > 0) {
+
+        if (icurbnd(sc)) { /* cursor in bounds */
+
+            ab = sc->sattr; /* place attribute in buffer */
+            /* write character */
+            xy.X = sc->curx-1;
+            xy.Y = sc->cury+sc->offy-1;
+            WriteConsoleOutputCharacter(sc->han, s, 1, xy, &len);
+            WriteConsoleOutputAttribute(sc->han, &ab, 1, xy, &len);
+
+        }
+        iright(); /* move cursor right */
+        s++; /* next character */
+        n--;
+
+    }
+
+}
+
+/** ****************************************************************************
+
+Write string direct
+
+Writes a string direct to the terminal, bypassing character handling.
+
+*******************************************************************************/
+
+void pa_wrtstr(FILE* f, char *s)
+
+{
+
+    pa_wrtstrn(f, s, strlen(s));
 
 }
 
