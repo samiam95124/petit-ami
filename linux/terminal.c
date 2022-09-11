@@ -246,8 +246,8 @@ typedef struct {
     /* character at location */        unsigned char ch;
 #endif
 #ifdef NATIVE24
-    /* foreground color at location */ int forec;
-    /* background color at location */ int backc;
+    /* foreground color at location */ int forergb;
+    /* background color at location */ int backrgb;
 #else
     /* foreground color at location */ pa_color forec;
     /* background color at location */ pa_color backc;
@@ -1384,6 +1384,36 @@ static void trm_attroff(void) { putstr("\33[0m"); }
 /** turn off cursor */ static void trm_curoff(void) { putstr("\33[?25l"); }
 /** turn on cursor */ static void trm_curon(void) { putstr("\33[?25h"); }
 
+/** set foreground color in rgb */
+static void trm_fcolorrgb(int rgb)
+
+{
+
+    putstr("\33[38;2;");
+    wrtint(rgb >> 16 & 0xff);
+    putstr(";");
+    wrtint(rgb >> 8 & 0xff);
+    putstr(";");
+    wrtint(rgb & 0xff);
+    putstr("m");
+
+}
+
+/** set background color in rgb */
+static void trm_bcolorrgb(int rgb)
+
+{
+
+    putstr("\33[48;2;");
+    wrtint(rgb >> 16 & 0xff);
+    putstr(";");
+    wrtint(rgb >> 8 & 0xff);
+    putstr(";");
+    wrtint(rgb & 0xff);
+    putstr("m");
+
+}
+
 /** set foreground color */
 static void trm_fcolor(pa_color c)
 
@@ -1509,8 +1539,13 @@ static void setattr(scnptr sc, scnatt a)
            need to restore colors in this case, since PA/TK preserves colors. */
         if (a == sanone) {
 
+#ifdef NATIVE24
+            trm_fcolorrgb(forergb); /* set current colors */
+            trm_bcolorrgb(backrgb);
+#else
             trm_fcolor(forec); /* set current colors */
             trm_bcolor(backc);
+#endif
 
         }
 
@@ -1645,7 +1680,11 @@ static void restore(scnptr sc)
 {
 
     /** screen indexes */         int xi, yi;
+#ifdef NATIVE24
+    /** color saves */            int fs, bs;
+#else
     /** color saves */            pa_color fs, bs;
+#endif
     /** attribute saves */        scnatt as;
     /** screen element pointer */ scnrec *p;
     /** clipped buffer sizes */   int cbufx, cbufy;
@@ -1654,11 +1693,21 @@ static void restore(scnptr sc)
     curon = FALSE;
     trm_home(); /* restore cursor to upper left to start */
     /* set colors and attributes */
+#ifdef NATIVE24
+    trm_fcolorrgb(forergb); /* restore colors */
+    trm_bcolorrgb(backrgb);
+#else
     trm_fcolor(forec); /* restore colors */
     trm_bcolor(backc);
+#endif
     setattr(sc, attr); /* restore attributes */
+#ifdef NATIVE24
+    fs = forergb; /* save current colors and attributes */
+    bs = backrgb;
+#else
     fs = forec; /* save current colors and attributes */
     bs = backc;
+#endif
     as = attr;
     /* find buffer sizes clipped by onscreen image */
     cbufx = bufx;
@@ -1677,14 +1726,24 @@ static void restore(scnptr sc)
             p = &SCNBUF(sc, xi, yi); /* index this screen element */
             if (p->forec != fs) { /* new foreground color */
 
+#ifdef NATIVE24
+                trm_fcolorrgb(p->forergb); /* set the new color */
+                fs = p->forergb; /* set save */
+#else
                 trm_fcolor(p->forec); /* set the new color */
                 fs = p->forec; /* set save */
+#endif
 
             };
             if (p->backc != bs) { /* new foreground color */
 
+#ifdef NATIVE24
+                trm_bcolorrgb(p->backrgb); /* set the new color */
+                bs = p->backrgb; /* set save */
+#else
                 trm_bcolor(p->backc); /* set the new color */
                 bs = p->backc; /* set save */
+#endif
 
             };
             if (p->attr != as) { /* new attribute */
@@ -1710,7 +1769,11 @@ static void restore(scnptr sc)
     if (dimx > bufx) {
 
         /* space to right */
+#ifdef NATIVE24
+        trm_bcolorgb(backrgb); /* set background color */
+#else
         trm_bcolor(backc); /* set background color */
+#endif
         for (yi = 1; yi <= bufy; yi++) {
 
             trm_cursor(bufx+1, yi); /* locate to line start */
@@ -1722,7 +1785,11 @@ static void restore(scnptr sc)
     if (dimy > bufy) {
 
         /* space to bottom, we color right bottom here because it is easier */
+#ifdef NATIVE24
+        trm_bcolorrgb(backrgb); /* set background color */
+#else
         trm_bcolor(backc); /* set background color */
+#endif
         for (yi = bufy+1; yi <= dimy; yi++) {
 
             trm_cursor(1, yi); /* locate to line start */
@@ -1736,8 +1803,13 @@ static void restore(scnptr sc)
     curx = ncurx; /* set physical cursor */
     cury = ncury;
     curval = 1; /* set it is valid */
+#ifdef NATIVE24
+    trm_fcolorrgb(forergb); /* restore colors */
+    trm_bcolorrgb(backrgb);
+#else
     trm_fcolor(forec); /* restore colors */
     trm_bcolor(backc);
+#endif
     setattr(sc, attr); /* restore attributes */
     setcur(sc); /* set cursor status */
 
@@ -2280,7 +2352,9 @@ static void iniscn(scnptr sc)
     /* these attributes and colors are pretty much windows 95 specific. The
        Bizarre setting of "blink" actually allows access to bright white */
     forec = pa_black; /* set colors and attributes */
+    forergb = colnumrgbp(pa_black);
     backc = pa_white;
+    backrgb = colnumrgbp(pa_white);
     attr = sanone;
     curvis = curon; /* set cursor visible from curent state */
     clrbuf(sc); /* clear screen buffer with that */
@@ -2389,8 +2463,13 @@ static void iscroll(scnptr sc, int x, int y)
 
             sp = &SCNBUF(sc, xi, yi);
             plcchrext(sp, ' '); /* clear to blanks at colors and attributes */
+#ifdef NATIVE24
+            sp->forergb = forergb;
+            sp->backrgb = backrgb;
+#else
             sp->forec = forec;
             sp->backc = backc;
+#endif
             sp->attr = attr;
 
         }
@@ -2434,8 +2513,13 @@ static void iscroll(scnptr sc, int x, int y)
                     sp = &SCNBUF(sc, xi, yi);
                     /* clear to blanks at colors and attributes */
                     plcchrext(sp, ' ');
+#ifdef NATIVE24
+                    sp->forergb = forergb;
+                    sp->backrgb = backrgb;
+#else
                     sp->forec = forec;
                     sp->backc = backc;
+#endif
                     sp->attr = attr;
 
                 }
@@ -2453,8 +2537,13 @@ static void iscroll(scnptr sc, int x, int y)
                     sp = &SCNBUF(sc, xi, yi);
                     /* clear to blanks at colors and attributes */
                     plcchrext(sp, ' ');
+#ifdef NATIVE24
+                    sp->forergb = forergb;
+                    sp->backrgb = backrgb;
+#else
                     sp->forec = forec;
                     sp->backc = backc;
+#endif
                     sp->attr = attr;
 
                 }
@@ -2474,8 +2563,13 @@ static void iscroll(scnptr sc, int x, int y)
                         sp = &SCNBUF(sc, xi, yi);
                         /* clear to blanks at colors and attributes */
                         plcchrext(sp, ' ');
+#ifdef NATIVE24
+                        sp->forergb = forergb;
+                        sp->backrgb = backrgb;
+#else
                         sp->forec = forec;
                         sp->backc = backc;
+#endif
                         sp->attr = attr;
 
                     }
@@ -2497,8 +2591,13 @@ static void iscroll(scnptr sc, int x, int y)
                         sp = &SCNBUF(sc, xi, yi);
                         /* clear to blanks at colors and attributes */
                         plcchrext(sp, ' ');
+#ifdef NATIVE24
+                        sp->forergb = forergb;
+                        sp->backrgb = backrgb;
+#else
                         sp->forec = forec;
                         sp->backc = backc;
+#endif
                         sp->attr = attr;
 
                     }
@@ -2731,8 +2830,13 @@ static void plcchr(scnptr sc, unsigned char c)
             /* within the buffer space, otherwise just dump */
             p = &SCNBUF(sc, ncurx, ncury);
             plcchrext(p, c); /* place character in buffer */
+#ifdef NATIVE24
+            p->forergb = forergb; /* place colors */
+            p->backrgb = backrgb;
+#else
             p->forec = forec; /* place colors */
             p->backc = backc;
+#endif
             p->attr = attr; /* place attribute */
 
         }
@@ -3077,8 +3181,13 @@ void finish(char* title)
             for (xi = 1; xi <= bufx; xi++) {
 
                 p = &SCNBUF(sc, xi, 1); /* index this screen element */
+#ifdef NATIVE24
+                trm_fcolorrgb(p->forergb); /* set the new color */
+                trm_bcolorrgb(p->backrgb); /* set the new color */
+#else
                 trm_fcolor(p->forec); /* set the new color */
                 trm_bcolor(p->backc); /* set the new color */
+#endif
                 setattr(sc, p->attr); /* set the new attribute */
 #ifdef ALLOWUTF8
                 putnstr(p->ch, 4); /* now output the actual character */
@@ -3571,8 +3680,13 @@ static void attronoff(FILE *f, int e, scnatt nattr)
         setattr(screens[curupd-1], attr);
         if (curupd == curdsp) { /* in display */
 
+#ifdef NATIVE24
+            trm_fcolorrgb(forergb); /* set current colors */
+            trm_bcolorrgb(backrgb);
+#else
             trm_fcolor(forec); /* set current colors */
             trm_bcolor(backc);
+#endif
 
         }
 
@@ -3583,8 +3697,13 @@ static void attronoff(FILE *f, int e, scnatt nattr)
         setattr(screens[curupd-1], attr);
         if (curupd == curdsp) { /* in display */
 
+#ifdef NATIVE24
+            trm_fcolorrgb(forergb); /* set current colors */
+            trm_bcolorrgb(backrgb);
+#else
             trm_fcolor(forec); /* set current colors */
             trm_bcolor(backc);
+#endif
 
         }
 
@@ -4605,7 +4724,13 @@ static void fcolorc_ivf(FILE* f, int r, int g, int b)
     dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     forec = colrgbnum(r, g, b);
-    if (curupd == curdsp) trm_fcolor(forec); /* set color */
+    forergb = colnumrgbp(forec);
+    if (curupd == curdsp) 
+#ifdef NATIVE24
+        trm_fcolorrgb(forergb); /* set color */
+#else
+        trm_fcolor(forec); /* set color */
+#endif
     pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
@@ -4629,7 +4754,13 @@ static void bcolorc_ivf(FILE* f, int r, int g, int b)
     dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     backc = colrgbnum(r, g, b);
-    if (curupd == curdsp) trm_fcolor(backc); /* set color */
+    backrgb = colnumrgbp(backc);
+    if (curupd == curdsp) 
+#ifdef NATIVE24
+        trm_fcolorrgb(backrgb); /* set color */
+#else
+        trm_fcolor(backc); /* set color */
+#endif
     pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
