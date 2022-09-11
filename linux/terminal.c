@@ -471,6 +471,8 @@ static pa_strikeout_t       strikeout_vect;
 static pa_standout_t        standout_vect;
 static pa_fcolor_t          fcolor_vect;
 static pa_bcolor_t          bcolor_vect;
+static pa_fcolorc_t         fcolorc_vect;
+static pa_bcolorc_t         bcolorc_vect;
 static pa_auto_t            auto_vect;
 static pa_curvis_t          curvis_vect;
 static pa_scroll_t          scroll_vect;
@@ -564,17 +566,17 @@ static int curupd;                      /* index for current update screen */
 static pa_pevthan evthan[pa_etframe+1]; /* array of event handler routines */ 
 static pa_pevthan evtshan;              /* single master event handler routine */
 
-static int*   tabs;        /* tabs set */
-static int    dimx;        /* actual width of screen */
-static int    dimy;        /* actual height of screen */
-static int    bufx, bufy;  /* buffer size */
-static int    curon;       /* current on/off state of cursor */
-static int curx;           /* cursor position on screen */
-static int    cury;
-static int    ncurx;       /* new cursor position on screen */
-static int    ncury;
-static int    curval;      /* physical cursor position valid */
-static int    curvis;      /* current status of cursor visible */
+static int*     tabs;        /* tabs set */
+static int      dimx;        /* actual width of screen */
+static int      dimy;        /* actual height of screen */
+static int      bufx, bufy;  /* buffer size */
+static int      curon;       /* current on/off state of cursor */
+static int      curx;        /* cursor position on screen */
+static int      cury;
+static int      ncurx;       /* new cursor position on screen */
+static int      ncury;
+static int      curval;      /* physical cursor position valid */
+static int      curvis;      /* current status of cursor visible */
 static pa_color forec;     /* current writing foreground color */
 static pa_color backc;     /* current writing background color */
 static scnatt   attr;      /* current writing attribute */
@@ -1215,7 +1217,7 @@ static int colnum(pa_color c)
     /* translate color number */
     switch (c) { /* color */
 
-        case pa_black:   n = 0;  break;
+        case pa_black:   n = 0; break;
         case pa_white:   n = 7; break;
         case pa_red:     n = 1; break;
         case pa_green:   n = 2; break;
@@ -1232,9 +1234,9 @@ static int colnum(pa_color c)
 
 /******************************************************************************
 
-Translate colors code rgb
+Translate color code to rgb
 
-Translates an independent to primary RGB color codes.
+Translates a primary color code to RGB colors.
 
 ******************************************************************************/
 
@@ -1257,6 +1259,39 @@ void colnumrgb(pa_color c, int* r, int* g, int* b)
         case pa_magenta:   *r = 0xff; *g = 0x00; *b = 0xff; break;
 
     }
+
+}
+
+/******************************************************************************
+
+Translate rgb to colors code rgb
+
+Translates an rgb color to primiary color code. It does this by finding the
+nearest primary color to the given RGB color.
+
+******************************************************************************/
+
+pa_color colrgbnum(int r, int g, int b)
+
+{
+
+    pa_color c;
+
+    switch ((r > INT_MAX/2) << 2 | (g > INT_MAX/2) << 1 | (b > INT_MAX/2)) {
+
+        /* rgb */
+        /* 000 */ case 0: c = pa_black;   break;
+        /* 001 */ case 1: c = pa_blue;    break;
+        /* 010 */ case 2: c = pa_green;   break;
+        /* 011 */ case 3: c = pa_cyan;    break;
+        /* 100 */ case 4: c = pa_red;     break;
+        /* 101 */ case 5: c = pa_magenta; break;
+        /* 110 */ case 6: c = pa_yellow;  break;
+        /* 111 */ case 7: c = pa_white;   break;
+
+    }
+
+    return (c); /* exit with translated color */
 
 }
 
@@ -4504,6 +4539,54 @@ static void title_ivf(FILE* f, char* ts)
 
 /** ****************************************************************************
 
+Set foreground color rgb
+
+Sets the foreground color from individual r, g, b values.
+
+*******************************************************************************/
+
+void _pa_fcolorc_ovr(pa_fcolorc_t nfp, pa_fcolorc_t* ofp)
+    { *ofp = fcolorc_vect; fcolorc_vect = nfp; }
+void pa_fcolorc(FILE* f, int r, int g, int b) { (*fcolorc_vect)(f, r, g, b); }
+
+static void fcolorc_ivf(FILE* f, int r, int g, int b)
+
+{
+
+    dbg_printf(dlapi, "API\n");
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
+    forec = colrgbnum(r, g, b);
+    if (curupd == curdsp) trm_fcolor(forec); /* set color */
+    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
+
+}
+
+/** ****************************************************************************
+
+Set background color
+
+Sets the background color from individual r, g, b values.
+
+*******************************************************************************/
+
+void _pa_bcolorc_ovr(pa_bcolorc_t nfp, pa_bcolorc_t* ofp)
+    { *ofp = bcolorc_vect; bcolorc_vect = nfp; }
+void pa_bcolorc(FILE* f, int r, int g, int b) { (*bcolorc_vect)(f, r, g, b); }
+
+static void bcolorc_ivf(FILE* f, int r, int g, int b)
+
+{
+
+    dbg_printf(dlapi, "API\n");
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
+    backc = colrgbnum(r, g, b);
+    if (curupd == curdsp) trm_fcolor(backc); /* set color */
+    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
+
+}
+
+/** ****************************************************************************
+
 Override event handler
 
 Overrides or "hooks" the indicated event handler. The existing even handler is
@@ -4769,6 +4852,8 @@ static void pa_init_terminal()
     standout_vect =        standout_ivf;
     fcolor_vect =          fcolor_ivf;
     bcolor_vect =          bcolor_ivf;
+    fcolorc_vect =         fcolorc_ivf;
+    bcolorc_vect =         bcolorc_ivf;
     auto_vect =            auto_ivf;
     curvis_vect =          curvis_ivf;
     scroll_vect =          scroll_ivf;
