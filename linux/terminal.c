@@ -157,9 +157,17 @@ extern char *program_invocation_short_name;
 
 /*
  * Use 24 bit color encoding. This was used to get pure white in an Xterm, which
- * normally does not appear to be possible.
+ * normally does not appear to be possible. Note this only applies to convertion
+ * of standard primary colors to screen colors.
  */
 #define COLOR24
+
+/*
+ * Use 24 bit color encoding throughout. This means that colors are stored in 24
+ * bit rgb form, and presented on the screen in that form. It also sets the
+ * COLOR24 flag.
+ */
+//#define NATIVE24
 
 /* file handle numbers at the system interface level */
 
@@ -237,8 +245,13 @@ typedef struct {
 #else
     /* character at location */        unsigned char ch;
 #endif
+#ifdef NATIVE24
+    /* foreground color at location */ int forec;
+    /* background color at location */ int backc;
+#else
     /* foreground color at location */ pa_color forec;
     /* background color at location */ pa_color backc;
+#endif
     /* active attribute at location */ scnatt attr;
 
 } scnrec, *scnptr;
@@ -577,9 +590,11 @@ static int      ncurx;       /* new cursor position on screen */
 static int      ncury;
 static int      curval;      /* physical cursor position valid */
 static int      curvis;      /* current status of cursor visible */
-static pa_color forec;     /* current writing foreground color */
-static pa_color backc;     /* current writing background color */
-static scnatt   attr;      /* current writing attribute */
+static pa_color forec;       /* current writing foreground color primaries */
+static int      forergb;     /* foreground color in RGB */
+static pa_color backc;       /* current writing background color primaries */
+static int      backrgb;     /* background color in RGB */
+static scnatt   attr;        /* current writing attribute */
 /* global scroll enable. This does not reflect the physical state, we never
    turn on automatic scroll. */
 static int    scroll;
@@ -1264,6 +1279,38 @@ void colnumrgb(pa_color c, int* r, int* g, int* b)
 
 /******************************************************************************
 
+Translate colors code to packed rgb
+
+Translates an independent to a packed RGB color word.
+
+******************************************************************************/
+
+int colnumrgbp(pa_color c)
+
+{
+
+    int n;
+
+    /* translate color number */
+    switch (c) { /* color */
+
+        case pa_black:     n = 0x000000; break;
+        case pa_white:     n = 0xffffff; break;
+        case pa_red:       n = 0xff0000; break;
+        case pa_green:     n = 0x00ff00; break;
+        case pa_blue:      n = 0x0000ff; break;
+        case pa_cyan:      n = 0x00ffff; break;
+        case pa_yellow:    n = 0xffff00; break;
+        case pa_magenta:   n = 0xff00ff; break;
+
+    }
+
+    return (n); /* return number */
+
+}
+
+/******************************************************************************
+
 Translate rgb to colors code rgb
 
 Translates an rgb color to primiary color code. It does this by finding the
@@ -1342,7 +1389,7 @@ static void trm_fcolor(pa_color c)
 
 {
 
-#ifdef COLOR24
+#if defined(COLOR24) || defined(NATIVE24)
     int r, g, b;
 
     colnumrgb(c, &r, &g, &b); /* get rgb equivalent color */
@@ -1368,7 +1415,7 @@ static void trm_bcolor(pa_color c)
 
 {
 
-#ifdef COLOR24
+#if defined(COLOR24) || defined(NATIVE24)
     int r, g, b;
 
     colnumrgb(c, &r, &g, &b); /* get rgb equivalent color */
@@ -3760,6 +3807,7 @@ static void fcolor_ivf(FILE *f, pa_color c)
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     if (curupd == curdsp) trm_fcolor(c); /* set color */
     forec = c;
+    forergb = colnumrgbp(c);
     pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
@@ -3784,6 +3832,7 @@ static void bcolor_ivf(FILE *f, pa_color c)
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     if (curupd == curdsp) trm_bcolor(c); /* set color */
     backc = c;
+    backrgb = colnumrgbp(c);
     pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
