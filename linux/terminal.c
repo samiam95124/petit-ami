@@ -167,7 +167,7 @@ extern char *program_invocation_short_name;
  * bit rgb form, and presented on the screen in that form. It also sets the
  * COLOR24 flag.
  */
-//#define NATIVE24
+#define NATIVE24
 
 /* file handle numbers at the system interface level */
 
@@ -1342,6 +1342,23 @@ pa_color colrgbnum(int r, int g, int b)
 
 }
 
+/*******************************************************************************
+
+Translate rgb to packed 24 bit color
+
+Translates a ratioed INT_MAX graph color to packed 24 bit form, which is a 32
+bit word with blue, green and red bytes.
+
+*******************************************************************************/
+
+static int rgb2rgbp(int r, int g, int b)
+
+{
+
+   return ((r/8388608)*65536+(g/8388608)*256+(b/8388608));
+
+}
+
 /** ****************************************************************************
 
 Basic terminal controls
@@ -1724,7 +1741,11 @@ static void restore(scnptr sc)
                we set that, and update the saves. this technique cuts down on
                the amount of output characters */
             p = &SCNBUF(sc, xi, yi); /* index this screen element */
+#ifdef NATIVE24
+            if (p->forergb != fs) { /* new foreground color */
+#else
             if (p->forec != fs) { /* new foreground color */
+#endif
 
 #ifdef NATIVE24
                 trm_fcolorrgb(p->forergb); /* set the new color */
@@ -1735,7 +1756,11 @@ static void restore(scnptr sc)
 #endif
 
             };
+#ifdef NATIVE24
+            if (p->backrgb != bs) { /* new foreground color */
+#else
             if (p->backc != bs) { /* new foreground color */
+#endif
 
 #ifdef NATIVE24
                 trm_bcolorrgb(p->backrgb); /* set the new color */
@@ -1770,7 +1795,7 @@ static void restore(scnptr sc)
 
         /* space to right */
 #ifdef NATIVE24
-        trm_bcolorgb(backrgb); /* set background color */
+        trm_bcolorrgb(backrgb); /* set background color */
 #else
         trm_bcolor(backc); /* set background color */
 #endif
@@ -2326,8 +2351,13 @@ static void clrbuf(scnptr sc)
         sp = &SCNBUF(sc, x, y);
         plcchrext(sp, ' '); /* clear to spaces */
         /* colors and attributes to the global set */
+#ifdef NATIVE24
+        sp->forergb = forergb;
+        sp->backrgb = backrgb;
+#else
         sp->forec = forec;
         sp->backc = backc;
+#endif
         sp->attr = attr;
 
     }
@@ -4724,7 +4754,7 @@ static void fcolorc_ivf(FILE* f, int r, int g, int b)
     dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     forec = colrgbnum(r, g, b);
-    forergb = colnumrgbp(forec);
+    forergb = rgb2rgbp(r, g, b);
     if (curupd == curdsp) 
 #ifdef NATIVE24
         trm_fcolorrgb(forergb); /* set color */
@@ -4754,7 +4784,7 @@ static void bcolorc_ivf(FILE* f, int r, int g, int b)
     dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     backc = colrgbnum(r, g, b);
-    backrgb = colnumrgbp(backc);
+    backrgb = rgb2rgbp(r, g, b);
     if (curupd == curdsp) 
 #ifdef NATIVE24
         trm_fcolorrgb(backrgb); /* set color */

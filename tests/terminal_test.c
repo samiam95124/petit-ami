@@ -914,6 +914,9 @@ int main(int argc, char *argv[])
                 putchar('X');
 
             }
+    waitnext();
+    pa_bcolor(stdout, pa_white);
+    pa_fcolor(stdout, pa_black);
 
     /* ***************************** Scrolling test **************************** */
 
