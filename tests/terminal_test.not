@@ -1,0 +1,4 @@
+                                       Terminal test notes
+                                       
+1. In writethrough test, see why getc() does not work. This should be done on
+Windows or Mac version, since I believe it was a problem with stdio.c.

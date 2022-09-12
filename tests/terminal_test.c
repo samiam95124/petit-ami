@@ -83,30 +83,7 @@
 #include <terminal.h>
 #include <services.h>
 
-/*
- * Debug print system
- *
- * Example use:
- *
- * dbg_printf(dlinfo, "There was an error: string: %s\n", bark);
- *
- * mydir/test.c:myfunc():12: There was an error: somestring
- *
- */
-
-static enum { /* debug levels */
-
-    dlinfo, /* informational */
-    dlwarn, /* warnings */
-    dlfail, /* failure/critical */
-    dlnone  /* no messages */
-
-} dbglvl = dlinfo;
-
-#define dbg_printf(lvl, fmt, ...) \
-        do { if (lvl >= dbglvl) fprintf(stderr, "%s:%s():%d: " fmt, __FILE__, \
-                                __func__, __LINE__, ##__VA_ARGS__); \
-                                fflush(stderr); } while (0)
+#include <diag.h>
 
 #define SECOND 10000 /* one second */
 
@@ -140,6 +117,9 @@ static int eventflag1, eventflag2;
 static pa_pevthan oeh1;
 static pa_pevthan oeh2;
 static char line[250];
+static float cr, cg, cb;
+static float step;
+static int points;
 
 static int      tn;         /* thread number */
 static volatile int ln;     /* lock number */
@@ -420,6 +400,24 @@ int main(int argc, char *argv[])
     prtban("Terminal mode screen test vs. 1.0");
     prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
+
+#if 0
+    /* *********************** Title set test ********************* */
+
+    printf("\f");
+    pa_title(stdout, "Terminal test");
+    printf("Terminal window title set test.\n");
+    printf("\n");
+    printf("See of the title of the terminal window above has changed.\n");
+    printf("\n");
+    printf("Note that this will do nothing if the terminal is not windowed.\n");
+    printf("Note also that changing the terminal title may not be\n");
+    printf("implemented.\n");
+    prtcen(pa_maxy(stdout), "Press return to continue");
+    waitnext();
+
+    /* *********************** Display screen parameters ********************* */
+
     printf("\f");   /* clear screen */
     printf("Screen size: x -> %d y -> %d\n\n", pa_maxx(stdout), pa_maxy(stdout));
     printf("Number of joysticks: %d\n", pa_joystick(stdout));
@@ -443,12 +441,18 @@ int main(int argc, char *argv[])
     }
     prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
+
+    /* ***************************** Timers test **************************** */
+
     printf("\f");
     timetest();
     printf("\n");
     frametest();
     prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
+
+    /* ********************* Cursor visible/invisible test ****************** */
+
     printf("\f");
     pa_curvis(stdout, 1);
     printf("Cursor should be [on ], press return ->");
@@ -463,8 +467,7 @@ int main(int argc, char *argv[])
     pa_curvis(stdout, 0);
     printf("\n");
     printf("\n");
-    prtcen(pa_maxy(stdout),
-           "Press return to start test (and to pass each pattern)");
+    prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
 
     /* *********************** Console standard text entry ********************* */
@@ -813,7 +816,7 @@ int main(int argc, char *argv[])
     prtcen(pa_maxy(stdout), " Bouncing ball test ");
     waitnext();
 
-    /* *************************** Attributes test ************************** */
+    /* ************************ Attributes and colors test ******************** */
 
     printf("\f");
     if (pa_maxy(stdout) < 20)
@@ -882,10 +885,35 @@ int main(int argc, char *argv[])
         printf("Black on white text\n");
         pa_bcolor(stdout, pa_white);
         pa_fcolor(stdout, pa_black);
-        prtcen(pa_maxy(stdout), "Attributes test");
+        prtcen(pa_maxy(stdout), "Attributes and colors test");
 
     }
     waitnext();
+
+    /* **************************** RGB colors test ************************* */
+
+#endif
+    printf("\f");
+    pa_auto(stdout, TRUE);
+    prtcen(pa_maxy(stdout), "RGB colors test");
+    pa_home(stdout);
+    printf("The terminal may not implement 24 bit RGB colors for characters.\n");
+    printf("\n");
+    printf("In this case the colors will be the nearest primaries to the RGB\n");
+    printf("Colors.\n");
+    printf("\n");
+    points = pa_maxx(stdout)*(pa_maxy(stdout)-pa_cury(stdout)-5);
+    step = INT_MAX/cbrt(points);
+    for (cr = 0; cr <= INT_MAX; cr += step)
+        for (cg = 0; cg <= INT_MAX; cg += step)
+            for (cb = 0; cb <= INT_MAX; cb += step) {
+
+                if (cr > INT_MAX/2 && cg > INT_MAX/2 && cb > INT_MAX/2) pa_bcolor(stdout, pa_black);
+                else pa_bcolor(stdout, pa_white);
+                pa_fcolorc(stdout, cr, cg, cb);
+                putchar('X');
+
+            }
 
     /* ***************************** Scrolling test **************************** */
 
@@ -1201,9 +1229,11 @@ int main(int argc, char *argv[])
     printf("\n");
     printf("Roll over the window, then outside the window, and watch the hover box.\n");
     printf("\n");
+    printf("If focus is not supported, it is always on");
+    printf("\n");
     printf("Note with simulated hover, assert is immedate, but deassert is\n");
     printf("after about 5 seconds.\n");
-    box(10, 10, 30, 14, '*');
+    box(10, 10, 30, 14, '#');
     pa_cursor(stdout, 17, 12);
     printf("Focus");
     box(40, 10, 60, 14, '#');
@@ -1266,6 +1296,7 @@ int main(int argc, char *argv[])
     if (pa_joystick(stdout) > 0) {  /* joystick test */
 
         printf("\f");
+        pa_curvis(stdout, FALSE);
         prtcen(1, "Move the joystick(s) X, Y and Z, and hit buttons");
         prtcen(pa_maxy(stdout), "Joystick test");
         do {   /* gather joystick events */
@@ -1345,6 +1376,7 @@ int main(int argc, char *argv[])
             }
 
         } while (er.etype != pa_etenter);
+        pa_curvis(stdout, TRUE);
 
     }
 
