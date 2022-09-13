@@ -87,6 +87,38 @@
 
 #define SECOND 10000 /* one second */
 
+/* unpack RGB packed values */
+#define REDP(v)   (v >> 16 & 0xff)
+#define GREENP(v) (v >> 8 & 0xff)
+#define BLUEP(v)  (v & 0xff)
+
+/* macros to unpack color table entries to INT_MAX ratioed numbers */
+#define RED(v)   (INT_MAX/256*REDP(v))   /* red */
+#define GREEN(v) (INT_MAX/256*GREENP(v)) /* green */
+#define BLUE(v)  (INT_MAX/256*BLUEP(v)) /* blue */
+
+static const int colormap[] = {
+
+    0x330000, 0x331900, 0x333300, 0x193300, 0x003300, 0x003319, 0x003333, 
+    0x001933, 0x000033, 0x190033, 0x330033, 0x330019, 0x000000, 0x660000,
+    0x663300, 0x666600, 0x336600, 0x006600, 0x006633, 0x006666, 0x003366, 
+    0x000066, 0x330066, 0x660066, 0x660033, 0x202020, 0x990000, 0x994c00,
+    0x999900, 0x4c9900, 0x009900, 0x00994c, 0x009999, 0x004c99, 0x000099,
+    0x4c0099, 0x990099, 0x99004c, 0x404040, 0xcc0000, 0xcc6600, 0xcccc00,
+    0x66cc00, 0x00cc00, 0x00cc66, 0x00cccc, 0x0066cc, 0x0000cc, 0x6600cc,
+    0xcc00cc, 0xcc0066, 0x606060, 0xff0000, 0xff8000, 0xffff00, 0x80ff00,
+    0x00ff00, 0x00ff80, 0x00ffff, 0x0080ff, 0x0000ff, 0x7f00ff, 0xff00ff,
+    0xff007f, 0x808080, 0xff3333, 0xff9933, 0xffff33, 0x99ff33, 0x33ff33,
+    0x33ff99, 0x33ffff, 0x3399ff, 0x3333ff, 0x9933ff, 0xff33ff, 0xff3399,
+    0xa0a0a0, 0xff6666, 0xffb266, 0xffff66, 0xb2ff66, 0x66ff66, 0x66ffb2,
+    0x66ffff, 0x66b2ff, 0x6666ff, 0xb266ff, 0xff66ff, 0xff66b2, 0xc0c0c0,
+    0xff9999, 0xffcc99, 0xffff99, 0xccff99, 0x99ff99, 0x99ffcc, 0x99ffff,
+    0x99ccff, 0x9999ff, 0xcc99ff, 0xff99ff, 0xff99cc, 0xe0e0e0, 0xffcccc,
+    0xffe5cc, 0xffffcc, 0xe5ffcc, 0xccffcc, 0xccffe5, 0xccffff, 0xcce5ff,
+    0xccccff, 0xe5ccff, 0xffccff, 0xffcce5, 0xffffff
+
+};
+
 typedef enum {
 
     bncharw,     /* character write */
@@ -117,9 +149,6 @@ static int eventflag1, eventflag2;
 static pa_pevthan oeh1;
 static pa_pevthan oeh2;
 static char line[250];
-static float cr, cg, cb;
-static float step;
-static int points;
 
 static int      tn;         /* thread number */
 static volatile int ln;     /* lock number */
@@ -173,6 +202,43 @@ static void waitnext(void)
 
     do { pa_event(stdin, &er);
     } while (er.etype != pa_etenter);
+
+}
+
+/** ****************************************************************************
+
+Draw foreground color from packed 32 bit color
+
+Takes a file and a 32 bit packed RGB color, and sets the foreground color.
+
+*******************************************************************************/
+
+static void fcolorp(
+    /** 32 bit packed color */ unsigned long c
+)
+
+{
+
+    pa_fcolorc(stdout, RED(c), GREEN(c), BLUE(c));
+
+}
+
+/** ****************************************************************************
+
+Draw background color from packed 32 bit color
+
+Takes a file and a 32 bit packed RGB color, and sets the background color.
+table.
+
+*******************************************************************************/
+
+static void bcolorp(
+    /** 32 bit packed color */ unsigned long c
+)
+
+{
+
+    pa_bcolorc(stdout, RED(c), GREEN(c), BLUE(c));
 
 }
 
@@ -401,7 +467,6 @@ int main(int argc, char *argv[])
     prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
 
-#if 0
     /* *********************** Title set test ********************* */
 
     printf("\f");
@@ -892,7 +957,6 @@ int main(int argc, char *argv[])
 
     /* **************************** RGB colors test ************************* */
 
-#endif
     printf("\f");
     pa_auto(stdout, TRUE);
     prtcen(pa_maxy(stdout), "RGB colors test");
@@ -902,18 +966,32 @@ int main(int argc, char *argv[])
     printf("In this case the colors will be the nearest primaries to the RGB\n");
     printf("Colors.\n");
     printf("\n");
-    points = pa_maxx(stdout)*(pa_maxy(stdout)-pa_cury(stdout)-5);
-    step = INT_MAX/cbrt(points);
-    for (cr = 0; cr <= INT_MAX; cr += step)
-        for (cg = 0; cg <= INT_MAX; cg += step)
-            for (cb = 0; cb <= INT_MAX; cb += step) {
+    printf("Foreground      Background\n");
+    j = 0;
+    for (i = 0; i < sizeof(colormap)/sizeof(int); i++) {
 
-                if (cr > INT_MAX/2 && cg > INT_MAX/2 && cb > INT_MAX/2) pa_bcolor(stdout, pa_black);
-                else pa_bcolor(stdout, pa_white);
-                pa_fcolorc(stdout, cr, cg, cb);
-                putchar('X');
+        pa_bcolor(stdout, pa_white);
+        fcolorp(colormap[i]);
+        putchar('*');
+        j++;
+        if (j >= 13) {
+
+            printf("   ");
+            j = 0;
+            while (j < 13) {
+
+                pa_fcolor(stdout, pa_white);
+                bcolorp(colormap[i-13+j+1]);
+                putchar('*');
+                j++;
 
             }
+            j = 0;
+            printf("\n");
+
+        }
+
+    }
     waitnext();
     pa_bcolor(stdout, pa_white);
     pa_fcolor(stdout, pa_black);

@@ -4787,9 +4787,9 @@ static void bcolorc_ivf(FILE* f, int r, int g, int b)
     backrgb = rgb2rgbp(r, g, b);
     if (curupd == curdsp) 
 #ifdef NATIVE24
-        trm_fcolorrgb(backrgb); /* set color */
+        trm_bcolorrgb(backrgb); /* set color */
 #else
-        trm_fcolor(backc); /* set color */
+        trm_bcolor(backc); /* set color */
 #endif
     pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
