@@ -419,6 +419,62 @@ typedef int (*pa_getwinid_t)(void);
 typedef void (*pa_focus_t)(FILE* f);
 typedef int (*pa_getwigid_t)(FILE* f);
 
+/*
+ * Event override types
+ */
+typedef int (*pa_evchar_t)(char c);
+typedef int (*pa_evup_t)(void);
+typedef int (*pa_evdown_t)(void);
+typedef int (*pa_evleft_t)(void);
+typedef int (*pa_evright_t)(void);
+typedef int (*pa_evleftw_t)(void);
+typedef int (*pa_evrightw_t)(void);
+typedef int (*pa_evhome_t)(void);
+typedef int (*pa_evhomes_t)(void);
+typedef int (*pa_evhomel_t)(void);
+typedef int (*pa_evend_t)(void);
+typedef int (*pa_evends_t)(void);
+typedef int (*pa_evendl_t)(void);
+typedef int (*pa_evscrl_t)(void);
+typedef int (*pa_evscrr_t)(void);
+typedef int (*pa_evscru_t)(void);
+typedef int (*pa_evscrd_t)(void);
+typedef int (*pa_evpagd_t)(void);
+typedef int (*pa_evpagu_t)(void);
+typedef int (*pa_evtab_t)(void);
+typedef int (*pa_eventer_t)(void);
+typedef int (*pa_evinsert_t)(void);
+typedef int (*pa_evinsertl_t)(void);
+typedef int (*pa_evinsertt_t)(void);
+typedef int (*pa_evdel_t)(void);
+typedef int (*pa_evdell_t)(void);
+typedef int (*pa_evdelcf_t)(void);
+typedef int (*pa_evdelcb_t)(void);
+typedef int (*pa_evcopy_t)(void);
+typedef int (*pa_evcopyl_t)(void);
+typedef int (*pa_evcan_t)(void);
+typedef int (*pa_evstop_t)(void);
+typedef int (*pa_evcont_t)(void);
+typedef int (*pa_evprint_t)(void);
+typedef int (*pa_evprintb_t)(void);
+typedef int (*pa_evprints_t)(void);
+typedef int (*pa_evfun_t)(int k);
+typedef int (*pa_evmenu_t)(void);
+typedef int (*pa_evmouba_t)(int m, int b);
+typedef int (*pa_evmoubd_t)(int m, int b);
+typedef int (*pa_evmoumov_t)(int m, int x, int y);
+typedef int (*pa_evtim_t)(int t);
+typedef int (*pa_evjoyba_t)(int j, int b);
+typedef int (*pa_evjoybd_t)(int j, int b);
+typedef int (*pa_evjoymov_t)(int j, int x, int y, int z);
+typedef int (*pa_evresize_t)(int rszx, int rszy);
+typedef int (*pa_evfocus_t)(void);
+typedef int (*pa_evnofocus_t)(void);
+typedef int (*pa_evhover_t)(void);
+typedef int (*pa_evnohover_t)(void);
+typedef int (*pa_evterm_t)(void);
+typedef int (*pa_evframe_t)(void);
+
 #ifdef __cplusplus
 }
 #endif

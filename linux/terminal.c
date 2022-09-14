@@ -464,75 +464,131 @@ static plseek_t  ofplseek;
  * Override vectors for calls in this package
  *
  */
-static pa_cursor_t          cursor_vect;
-static pa_maxx_t            maxx_vect;
-static pa_maxy_t            maxy_vect;
-static pa_home_t            home_vect;
-static pa_del_t             del_vect;
-static pa_up_t              up_vect;
-static pa_down_t            down_vect;
-static pa_left_t            left_vect;
-static pa_right_t           right_vect;
-static pa_blink_t           blink_vect;
-static pa_reverse_t         reverse_vect;
-static pa_underline_t       underline_vect;
-static pa_superscript_t     superscript_vect;
-static pa_subscript_t       subscript_vect;
-static pa_italic_t          italic_vect;
-static pa_bold_t            bold_vect;
-static pa_strikeout_t       strikeout_vect;
-static pa_standout_t        standout_vect;
-static pa_fcolor_t          fcolor_vect;
-static pa_bcolor_t          bcolor_vect;
-static pa_fcolorc_t         fcolorc_vect;
-static pa_bcolorc_t         bcolorc_vect;
-static pa_auto_t            auto_vect;
-static pa_curvis_t          curvis_vect;
-static pa_scroll_t          scroll_vect;
-static pa_curx_t            curx_vect;
-static pa_cury_t            cury_vect;
-static pa_curbnd_t          curbnd_vect;
-static pa_select_t          select_vect;
-static pa_event_t           event_vect;
-static pa_timer_t           timer_vect;
-static pa_killtimer_t       killtimer_vect;
-static pa_mouse_t           mouse_vect;
-static pa_mousebutton_t     mousebutton_vect;
-static pa_joystick_t        joystick_vect;
-static pa_joybutton_t       joybutton_vect;
-static pa_joyaxis_t         joyaxis_vect;
-static pa_settab_t          settab_vect;
-static pa_restab_t          restab_vect;
-static pa_clrtab_t          clrtab_vect;
-static pa_funkey_t          funkey_vect;
-static pa_frametimer_t      frametimer_vect;
-static pa_autohold_t        autohold_vect;
-static pa_wrtstr_t          wrtstr_vect;
-static pa_wrtstrn_t         wrtstrn_vect;
-static pa_eventover_t       eventover_vect;
-static pa_eventsover_t      eventsover_vect;
-static pa_sendevent_t       sendevent_vect;
-static pa_title_t           title_vect;
-static pa_openwin_t         openwin_vect;
-static pa_buffer_t          buffer_vect;
-static pa_sizbuf_t          sizbuf_vect;
-static pa_getsiz_t          getsiz_vect;
-static pa_setsiz_t          setsiz_vect;
-static pa_setpos_t          setpos_vect;
-static pa_scnsiz_t          scnsiz_vect;
-static pa_scncen_t          scncen_vect;
-static pa_winclient_t       winclient_vect;
-static pa_front_t           front_vect;
-static pa_back_t            back_vect;
-static pa_frame_t           frame_vect;
-static pa_sizable_t         sizable_vect;
-static pa_sysbar_t          sysbar_vect;
-static pa_menu_t            menu_vect;
-static pa_menuena_t         menuena_vect;
-static pa_menusel_t         menusel_vect;
-static pa_stdmenu_t         stdmenu_vect;
-static pa_getwinid_t        getwinid_vect;
-static pa_focus_t           focus_vect;
+static pa_cursor_t      cursor_vect;
+static pa_maxx_t        maxx_vect;
+static pa_maxy_t        maxy_vect;
+static pa_home_t        home_vect;
+static pa_del_t         del_vect;
+static pa_up_t          up_vect;
+static pa_down_t        down_vect;
+static pa_left_t        left_vect;
+static pa_right_t       right_vect;
+static pa_blink_t       blink_vect;
+static pa_reverse_t     reverse_vect;
+static pa_underline_t   underline_vect;
+static pa_superscript_t superscript_vect;
+static pa_subscript_t   subscript_vect;
+static pa_italic_t      italic_vect;
+static pa_bold_t        bold_vect;
+static pa_strikeout_t   strikeout_vect;
+static pa_standout_t    standout_vect;
+static pa_fcolor_t      fcolor_vect;
+static pa_bcolor_t      bcolor_vect;
+static pa_fcolorc_t     fcolorc_vect;
+static pa_bcolorc_t     bcolorc_vect;
+static pa_auto_t        auto_vect;
+static pa_curvis_t      curvis_vect;
+static pa_scroll_t      scroll_vect;
+static pa_curx_t        curx_vect;
+static pa_cury_t        cury_vect;
+static pa_curbnd_t      curbnd_vect;
+static pa_select_t      select_vect;
+static pa_event_t       event_vect;
+static pa_timer_t       timer_vect;
+static pa_killtimer_t   killtimer_vect;
+static pa_mouse_t       mouse_vect;
+static pa_mousebutton_t mousebutton_vect;
+static pa_joystick_t    joystick_vect;
+static pa_joybutton_t   joybutton_vect;
+static pa_joyaxis_t     joyaxis_vect;
+static pa_settab_t      settab_vect;
+static pa_restab_t      restab_vect;
+static pa_clrtab_t      clrtab_vect;
+static pa_funkey_t      funkey_vect;
+static pa_frametimer_t  frametimer_vect;
+static pa_autohold_t    autohold_vect;
+static pa_wrtstr_t      wrtstr_vect;
+static pa_wrtstrn_t     wrtstrn_vect;
+static pa_eventover_t   eventover_vect;
+static pa_eventsover_t  eventsover_vect;
+static pa_sendevent_t   sendevent_vect;
+static pa_title_t       title_vect;
+static pa_openwin_t     openwin_vect;
+static pa_buffer_t      buffer_vect;
+static pa_sizbuf_t      sizbuf_vect;
+static pa_getsiz_t      getsiz_vect;
+static pa_setsiz_t      setsiz_vect;
+static pa_setpos_t      setpos_vect;
+static pa_scnsiz_t      scnsiz_vect;
+static pa_scncen_t      scncen_vect;
+static pa_winclient_t   winclient_vect;
+static pa_front_t       front_vect;
+static pa_back_t        back_vect;
+static pa_frame_t       frame_vect;
+static pa_sizable_t     sizable_vect;
+static pa_sysbar_t      sysbar_vect;
+static pa_menu_t        menu_vect;
+static pa_menuena_t     menuena_vect;
+static pa_menusel_t     menusel_vect;
+static pa_stdmenu_t     stdmenu_vect;
+static pa_getwinid_t    getwinid_vect;
+static pa_focus_t       focus_vect;
+
+/*
+ * Event override vectors
+ */
+static pa_evchar_t          evchar_vect;
+static pa_evup_t            evup_vect;
+static pa_evdown_t          evdown_vect;
+static pa_evleft_t          evleft_vect;
+static pa_evright_t         evright_vect;
+static pa_evleftw_t         evleftw_vect;
+static pa_evrightw_t        evrightw_vect;
+static pa_evhome_t          evhome_vect;
+static pa_evhomes_t         evhomes_vect;
+static pa_evhomel_t         evhomel_vect;
+static pa_evend_t           evend_vect;
+static pa_evends_t          evends_vect;
+static pa_evendl_t          evendl_vect;
+static pa_evscrl_t          evscrl_vect;
+static pa_evscrr_t          evscrr_vect;
+static pa_evscru_t          evscru_vect;
+static pa_evscrd_t          evscrd_vect;
+static pa_evpagd_t          evpagd_vect;
+static pa_evpagu_t          evpagu_vect;
+static pa_evtab_t           evtab_vect;
+static pa_eventer_t         eventer_vect;
+static pa_evinsert_t        evinsert_vect;
+static pa_evinsertl_t       evinsertl_vect;
+static pa_evinsertt_t       evinsertt_vect;
+static pa_evdel_t           evdel_vect;
+static pa_evdell_t          evdell_vect;
+static pa_evdelcf_t         evdelcf_vect;
+static pa_evdelcb_t         evdelcb_vect;
+static pa_evcopy_t          evcopy_vect;
+static pa_evcopyl_t         evcopyl_vect;
+static pa_evcan_t           evcan_vect;
+static pa_evstop_t          evstop_vect;
+static pa_evcont_t          evcont_vect;
+static pa_evprint_t         evprint_vect;
+static pa_evprintb_t        evprintb_vect;
+static pa_evprints_t        evprints_vect;
+static pa_evfun_t           evfun_vect;
+static pa_evmenu_t          evmenu_vect;
+static pa_evmouba_t         evmouba_vect;
+static pa_evmoubd_t         evmoubd_vect;
+static pa_evmoumov_t        evmoumov_vect;
+static pa_evtim_t           evtim_vect;
+static pa_evjoyba_t         evjoyba_vect;
+static pa_evjoybd_t         evjoybd_vect;
+static pa_evjoymov_t        evjoymov_vect;
+static pa_evresize_t        evresize_vect;
+static pa_evfocus_t         evfocus_vect;
+static pa_evnofocus_t       evnofocus_vect;
+static pa_evhover_t         evhover_vect;
+static pa_evnohover_t       evnohover_vect;
+static pa_evterm_t          evterm_vect;
+static pa_evframe_t         evframe_vect;
 
 /**
  * Save for terminal status
@@ -4162,6 +4218,110 @@ static void select_ivf(FILE *f, int u, int d)
 
 /** ****************************************************************************
 
+Default event handlers
+
+Gives the default handling for event function vectors. The default is just to
+return handled is false. Not all function vectors have individual handlers.
+They are ganged by parameter signature.
+
+*******************************************************************************/
+
+static int genfnc(void) { return FALSE; }
+static int charfnc(char c) { return FALSE; }
+static int funfnc(int k) { return FALSE; }
+static int moubafnc(int m, int b) { return FALSE; }
+static int moubdfnc(int m, int b) { return FALSE; }
+static int moumovfnc(int m, int x, int y) { return FALSE; }
+static int timfnc(int t) { return FALSE; }
+static int joybafnc(int j, int b) { return FALSE; }
+static int joybdfnc(int j, int b) { return FALSE; }
+static int joymovfnc(int j, int x, int y, int z) { return FALSE; }
+static int resizefnc(int rszx, int rszy) { return FALSE; }
+
+/** ****************************************************************************
+
+Execute event function handler
+
+Executes a function handler for a given event. Each function returns a boolean
+that is true if it has handled the given event.
+
+*******************************************************************************/
+
+void evtfnc(pa_evtrec* er)
+
+{
+
+    switch (er->etype) {
+
+        case pa_etchar:    er->handled = (*evchar_vect)(er->echar); break;
+        case pa_etup:      er->handled = (*evup_vect)(); break;    
+        case pa_etdown:    er->handled = (*evdown_vect)(); break;
+        case pa_etleft:    er->handled = (*evleft_vect)(); break;
+        case pa_etright:   er->handled = (*evright_vect)(); break;
+        case pa_etleftw:   er->handled = (*evleftw_vect)(); break;
+        case pa_etrightw:  er->handled = (*evrightw_vect)(); break;
+        case pa_ethome:    er->handled = (*evhome_vect)(); break;
+        case pa_ethomes:   er->handled = (*evhomes_vect)(); break;
+        case pa_ethomel:   er->handled = (*evhomel_vect)(); break;
+        case pa_etend:     er->handled = (*evend_vect)(); break;
+        case pa_etends:    er->handled = (*evends_vect)(); break;
+        case pa_etendl:    er->handled = (*evendl_vect)(); break;
+        case pa_etscrl:    er->handled = (*evscrl_vect)(); break;
+        case pa_etscrr:    er->handled = (*evscrr_vect)(); break;
+        case pa_etscru:    er->handled = (*evscru_vect)(); break;
+        case pa_etscrd:    er->handled = (*evscrd_vect)(); break;
+        case pa_etpagd:    er->handled = (*evpagd_vect)(); break;
+        case pa_etpagu:    er->handled = (*evpagu_vect)(); break;
+        case pa_ettab:     er->handled = (*evtab_vect)(); break;
+        case pa_etenter:   er->handled = (*eventer_vect)(); break;
+        case pa_etinsert:  er->handled = (*evinsert_vect)(); break;
+        case pa_etinsertl: er->handled = (*evinsertl_vect)(); break;
+        case pa_etinsertt: er->handled = (*evinsertt_vect)(); break;
+        case pa_etdel:     er->handled = (*evdel_vect)(); break;
+        case pa_etdell:    er->handled = (*evdell_vect)(); break;
+        case pa_etdelcf:   er->handled = (*evdelcf_vect)(); break;
+        case pa_etdelcb:   er->handled = (*evdelcb_vect)(); break;
+        case pa_etcopy:    er->handled = (*evcopy_vect)(); break;
+        case pa_etcopyl:   er->handled = (*evcopyl_vect)(); break;
+        case pa_etcan:     er->handled = (*evcan_vect)(); break;
+        case pa_etstop:    er->handled = (*evstop_vect)(); break;
+        case pa_etcont:    er->handled = (*evcont_vect)(); break;
+        case pa_etprint:   er->handled = (*evprint_vect)(); break;
+        case pa_etprintb:  er->handled = (*evprintb_vect)(); break;
+        case pa_etprints:  er->handled = (*evprints_vect)(); break;
+        case pa_etfun:     er->handled = (*evfun_vect)(er->fkey); break;
+        case pa_etmenu:    er->handled = (*evmenu_vect)(); break;
+        case pa_etmouba:   er->handled = (*evmouba_vect)(er->amoun, er->amoubn);
+                           break;
+        case pa_etmoubd:   er->handled = (*evmoubd_vect)(er->dmoun, er->dmoubn);
+                           break;
+        case pa_etmoumov:  
+            er->handled = (*evmoumov_vect)(er->mmoun, er->moupx, er->moupy); 
+            break;
+        case pa_ettim:     er->handled = (*evtim_vect)(er->timnum); break;
+        case pa_etjoyba:   er->handled = (*evjoyba_vect)(er->ajoyn, er->ajoybn);
+                           break;
+        case pa_etjoybd:   er->handled = (*evjoybd_vect)(er->djoyn, er->djoybn);
+                           break;
+        case pa_etjoymov:  
+            er->handled = (*evjoymov_vect)(er->mjoyn, er->joypx, er->joypy, 
+                                           er->joypz); 
+            break;
+        case pa_etresize:  er->handled = (*evresize_vect)(er->rszx, er->rszy); 
+                           break;
+        case pa_etfocus:   er->handled = (*evfocus_vect)(); break;
+        case pa_etnofocus: er->handled = (*evnofocus_vect)(); break;
+        case pa_ethover:   er->handled = (*evhover_vect)(); break;
+        case pa_etnohover: er->handled = (*evnohover_vect)(); break;
+        case pa_etterm:    er->handled = (*evterm_vect)(); break;
+        case pa_etframe:   er->handled = (*evframe_vect)(); break;
+
+    }
+
+}
+
+/** ****************************************************************************
+
 Acquire next input event
 
 Decodes the input for various events. These are sent to the override handlers
@@ -4209,6 +4369,8 @@ static void event_ivf(FILE* f, pa_evtrec *er)
 
                 er->handled = 1; /* set event is handled by default */
                 (*evthan[er->etype])(er); /* call event handler first */
+                if (!er->handled) 
+                    evtfnc(er); /* send it to function handler */
 
             }
 
@@ -5111,6 +5273,62 @@ static void pa_init_terminal()
     stdmenu_vect =         stdmenu_ivf;
     getwinid_vect =        getwinid_ivf;
     focus_vect =           focus_ivf;
+
+/*
+ * Event override vectors
+ */
+    evchar_vect    = charfnc;
+    evup_vect      = genfnc;
+    evdown_vect    = genfnc;
+    evleft_vect    = genfnc;
+    evright_vect   = genfnc;
+    evleftw_vect   = genfnc;
+    evrightw_vect  = genfnc;
+    evhome_vect    = genfnc;
+    evhomes_vect   = genfnc;
+    evhomel_vect   = genfnc;
+    evend_vect     = genfnc;
+    evends_vect    = genfnc;
+    evendl_vect    = genfnc;
+    evscrl_vect    = genfnc;
+    evscrr_vect    = genfnc;
+    evscru_vect    = genfnc;
+    evscrd_vect    = genfnc;
+    evpagd_vect    = genfnc;
+    evpagu_vect    = genfnc;
+    evtab_vect     = genfnc;
+    eventer_vect   = genfnc;
+    evinsert_vect  = genfnc;
+    evinsertl_vect = genfnc;
+    evinsertt_vect = genfnc;
+    evdel_vect     = genfnc;
+    evdell_vect    = genfnc;
+    evdelcf_vect   = genfnc;
+    evdelcb_vect   = genfnc;
+    evcopy_vect    = genfnc;
+    evcopyl_vect   = genfnc;
+    evcan_vect     = genfnc;
+    evstop_vect    = genfnc;
+    evcont_vect    = genfnc;
+    evprint_vect   = genfnc;
+    evprintb_vect  = genfnc;
+    evprints_vect  = genfnc;
+    evfun_vect     = funfnc;
+    evmenu_vect    = genfnc;
+    evmouba_vect   = moubafnc;
+    evmoubd_vect   = moubdfnc;
+    evmoumov_vect  = moumovfnc;
+    evtim_vect     = timfnc;
+    evjoyba_vect   = joybafnc;
+    evjoybd_vect   = joybdfnc;
+    evjoymov_vect  = joymovfnc;
+    evresize_vect  = resizefnc;
+    evfocus_vect   = genfnc;
+    evnofocus_vect = genfnc;
+    evhover_vect   = genfnc;
+    evnohover_vect = genfnc;
+    evterm_vect    = genfnc;
+    evframe_vect   = genfnc;
 
     /* turn off I/O buffering */
     setvbuf(stdin, NULL, _IONBF, 0);
