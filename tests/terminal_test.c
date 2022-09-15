@@ -416,6 +416,7 @@ void thread(void)
 
     int i;
     int x, y;
+    int stop;
 
     x = pa_maxx(stdout)/3*2;
     y = pa_maxy(stdout)/2;
@@ -434,6 +435,10 @@ void thread(void)
             i++;
 
         }
+        pa_lock(ln);
+        stop = thdstp;
+        pa_unlock(ln);
+
 
     }
     pa_sendsig(sn); /* signal thread complete */
@@ -1361,8 +1366,8 @@ int main(int argc, char *argv[])
         }
 
     }
-    thdstp = TRUE;
     pa_lock(ln);
+    thdstp = TRUE;
     pa_waitsig(ln, sn);
     pa_unlock(ln);
     pa_cursor(stdout, 1, 3);
