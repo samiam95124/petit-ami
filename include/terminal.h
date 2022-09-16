@@ -238,7 +238,7 @@ void pa_title(FILE* f, char* ts);
 void pa_fcolorc(FILE* f, int r, int g, int b);
 void pa_bcolorc(FILE* f, int r, int g, int b);
 void pa_eventover(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh);
-void pa_eventsover(pa_pevthan eh,  pa_pevthan* oeh);
+void pa_eventsover(pa_pevthan eh, pa_pevthan* oeh);
 void pa_sendevent(FILE* f, pa_evtrec* er);
 
 /* Window management functions */

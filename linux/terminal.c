@@ -204,6 +204,18 @@ extern char *program_invocation_short_name;
 
 #endif
 
+#define APIOVER(name) void _pa_##name##_ovr(pa_##name##_t nfp, pa_##name##_t* ofp) \
+                      { *ofp = name##_vect; name##_vect = nfp; }
+
+#define EVTOVER(name) \
+void pa_##name##over(pa_ev##name##_t eh, pa_ev##name##_t* oeh) { \
+    dbg_printf(dlapi, "API\n"); \
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */ \
+    *oeh = ev##name##_vect; /* save existing event handler */ \
+    ev##name##_vect = eh; /* place new event handler */ \
+    pthread_mutex_unlock(&termlock); /* release terminal broadlock */ \
+}
+
 /* types of system vectors for override calls */
 
 typedef ssize_t (*pread_t)(int, void*, size_t);
@@ -3512,10 +3524,8 @@ This is the external interface to cursor.
 
 *******************************************************************************/
 
-void _pa_cursor_ovr(pa_cursor_t nfp, pa_cursor_t* ofp)
-    { *ofp = cursor_vect; cursor_vect = nfp; }
+APIOVER(cursor)
 void pa_cursor(FILE* f, int x, int y) { (*cursor_vect)(f, x, y); }
-
 static void cursor_ivf(FILE *f, int x, int y)
 
 {
@@ -3535,10 +3545,8 @@ This is the external interface to curbnd.
 
 *******************************************************************************/
 
-void _pa_curbnd_ovr(pa_curbnd_t nfp, pa_curbnd_t* ofp)
-    { *ofp = curbnd_vect; curbnd_vect = nfp; }
+APIOVER(curbnd)
 int pa_curbnd(FILE* f) { (*curbnd_vect)(f); }
-
 static int curbnd_ivf(FILE *f)
 
 {
@@ -3563,10 +3571,8 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-void _pa_maxx_ovr(pa_maxx_t nfp, pa_maxx_t* ofp)
-    { *ofp = maxx_vect; maxx_vect = nfp; }
+APIOVER(maxx)
 int pa_maxx(FILE* f) { (*maxx_vect)(f); }
-
 static int maxx_ivf(FILE *f)
 
 {
@@ -3585,10 +3591,8 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-void _pa_maxy_ovr(pa_maxy_t nfp, pa_maxy_t* ofp)
-    { *ofp = maxy_vect; maxy_vect = nfp; }
+APIOVER(maxy)
 int pa_maxy(FILE* f) { (*maxy_vect)(f); }
-
 static int maxy_ivf(FILE *f)
 
 {
@@ -3606,10 +3610,8 @@ Moves the cursor to the home position at (1, 1), the upper right hand corner.
 
 *******************************************************************************/
 
-void _pa_home_ovr(pa_home_t nfp, pa_home_t* ofp)
-    { *ofp = home_vect; home_vect = nfp; }
+APIOVER(home)
 void pa_home(FILE* f) { (*home_vect)(f); }
-
 static void home_ivf(FILE *f)
 
 {
@@ -3632,10 +3634,8 @@ position left.
 
 *******************************************************************************/
 
-void _pa_del_ovr(pa_del_t nfp, pa_del_t* ofp)
-    { *ofp = del_vect; del_vect = nfp; }
+APIOVER(del)
 void pa_del(FILE* f) { (*del_vect)(f); }
-
 static void del_ivf(FILE* f)
 
 {
@@ -3657,10 +3657,8 @@ This is the external interface to up.
 
 *******************************************************************************/
 
-void _pa_up_ovr(pa_up_t nfp, pa_up_t* ofp)
-    { *ofp = up_vect; up_vect = nfp; }
+APIOVER(up)
 void pa_up(FILE* f) { (*up_vect)(f); }
-
 static void up_ivf(FILE *f)
 
 {
@@ -3681,10 +3679,8 @@ This is the external interface to down.
 
 *******************************************************************************/
 
-void _pa_down_ovr(pa_down_t nfp, pa_down_t* ofp)
-    { *ofp = down_vect; down_vect = nfp; }
+APIOVER(down)
 void pa_down(FILE* f) { (*down_vect)(f); }
-
 static void down_ivf(FILE *f)
 
 {
@@ -3704,10 +3700,8 @@ This is the external interface to left.
 
 *******************************************************************************/
 
-void _pa_left_ovr(pa_left_t nfp, pa_left_t* ofp)
-    { *ofp = left_vect; left_vect = nfp; }
+APIOVER(left)
 void pa_left(FILE* f) { (*left_vect)(f); }
-
 static void left_ivf(FILE *f)
 
 {
@@ -3727,10 +3721,8 @@ This is the external interface to right.
 
 *******************************************************************************/
 
-void _pa_right_ovr(pa_right_t nfp, pa_right_t* ofp)
-    { *ofp = right_vect; right_vect = nfp; }
+APIOVER(right)
 void pa_right(FILE* f) { (*right_vect)(f); }
-
 static void right_ivf(FILE *f)
 
 {
@@ -3808,10 +3800,8 @@ we are supposed to also work over a com interface.
 
 *******************************************************************************/
 
-void _pa_blink_ovr(pa_blink_t nfp, pa_blink_t* ofp)
-    { *ofp = blink_vect; blink_vect = nfp; }
+APIOVER(blink)
 void pa_blink(FILE* f, int e) { (*blink_vect)(f, e); }
-
 static void blink_ivf(FILE *f, int e)
 
 {
@@ -3829,10 +3819,8 @@ Turns on/off the reverse attribute.
 
 *******************************************************************************/
 
-void _pa_reverse_ovr(pa_reverse_t nfp, pa_reverse_t* ofp)
-    { *ofp = reverse_vect; reverse_vect = nfp; }
+APIOVER(reverse)
 void pa_reverse(FILE* f, int e) { (*reverse_vect)(f, e); }
-
 static void reverse_ivf(FILE *f, int e)
 
 {
@@ -3850,10 +3838,8 @@ Turns on/off the underline attribute.
 
 *******************************************************************************/
 
-void _pa_underline_ovr(pa_underline_t nfp, pa_underline_t* ofp)
-    { *ofp = underline_vect; underline_vect = nfp; }
+APIOVER(underline)
 void pa_underline(FILE* f, int e) { (*underline_vect)(f, e); }
-
 static void underline_ivf(FILE *f, int e)
 
 {
@@ -3871,10 +3857,8 @@ Turns on/off the superscript attribute.
 
 *******************************************************************************/
 
-void _pa_superscript_ovr(pa_superscript_t nfp, pa_superscript_t* ofp)
-    { *ofp = superscript_vect; superscript_vect = nfp; }
+APIOVER(superscript)
 void pa_superscript(FILE* f, int e) { (*superscript_vect)(f, e); }
-
 static void superscript_ivf(FILE *f, int e)
 
 {
@@ -3892,10 +3876,8 @@ Turns on/off the subscript attribute.
 
 *******************************************************************************/
 
-void _pa_subscript_ovr(pa_subscript_t nfp, pa_subscript_t* ofp)
-    { *ofp = subscript_vect; subscript_vect = nfp; }
+APIOVER(subscript)
 void pa_subscript(FILE* f, int e) { (*subscript_vect)(f, e); }
-
 static void subscript_ivf(FILE *f, int e)
 
 {
@@ -3913,10 +3895,8 @@ Turns on/off the italic attribute.
 
 *******************************************************************************/
 
-void _pa_italic_ovr(pa_italic_t nfp, pa_italic_t* ofp)
-    { *ofp = italic_vect; italic_vect = nfp; }
+APIOVER(italic)
 void pa_italic(FILE* f, int e) { (*italic_vect)(f, e); }
-
 static void italic_ivf(FILE *f, int e)
 
 {
@@ -3934,10 +3914,8 @@ Turns on/off the bold attribute.
 
 *******************************************************************************/
 
-void _pa_bold_ovr(pa_bold_t nfp, pa_bold_t* ofp)
-    { *ofp = bold_vect; bold_vect = nfp; }
+APIOVER(bold)
 void pa_bold(FILE* f, int e) { (*bold_vect)(f, e); }
-
 static void bold_ivf(FILE *f, int e)
 
 {
@@ -3957,10 +3935,8 @@ Not implemented.
 
 *******************************************************************************/
 
-void _pa_strikeout_ovr(pa_strikeout_t nfp, pa_strikeout_t* ofp)
-    { *ofp = strikeout_vect; strikeout_vect = nfp; }
+APIOVER(strikeout)
 void pa_strikeout(FILE* f, int e) { (*strikeout_vect)(f, e); }
-
 static void strikeout_ivf(FILE *f, int e)
 
 {
@@ -3979,10 +3955,8 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void _pa_standout_ovr(pa_standout_t nfp, pa_standout_t* ofp)
-    { *ofp = standout_vect; standout_vect = nfp; }
+APIOVER(standout)
 void pa_standout(FILE* f, int e) { (*standout_vect)(f, e); }
-
 static void standout_ivf(FILE *f, int e)
 
 {
@@ -4000,10 +3974,8 @@ Sets the foreground (text) color from the universal primary code.
 
 *******************************************************************************/
 
-void _pa_fcolor_ovr(pa_fcolor_t nfp, pa_fcolor_t* ofp)
-    { *ofp = fcolor_vect; fcolor_vect = nfp; }
+APIOVER(fcolor)
 void pa_fcolor(FILE* f, pa_color c) { (*fcolor_vect)(f, c); }
-
 static void fcolor_ivf(FILE *f, pa_color c)
 
 {
@@ -4025,10 +3997,8 @@ Sets the background color from the universal primary code.
 
 *******************************************************************************/
 
-void _pa_bcolor_ovr(pa_bcolor_t nfp, pa_bcolor_t* ofp)
-    { *ofp = bcolor_vect; bcolor_vect = nfp; }
+APIOVER(bcolor)
 void pa_bcolor(FILE* f, pa_color c) { (*bcolor_vect)(f, c); }
-
 static void bcolor_ivf(FILE *f, pa_color c)
 
 {
@@ -4051,10 +4021,8 @@ off the screen at the top or bottom will scroll up or down, respectively.
 
 *******************************************************************************/
 
-void _pa_auto_ovr(pa_auto_t nfp, pa_auto_t* ofp)
-    { *ofp = auto_vect; auto_vect = nfp; }
+APIOVER(auto)
 void pa_auto(FILE* f, int e) { (*auto_vect)(f, e); }
-
 static void auto_ivf(FILE *f, int e)
 
 {
@@ -4074,10 +4042,8 @@ Enable or disable cursor visibility.
 
 *******************************************************************************/
 
-void _pa_curvis_ovr(pa_curvis_t nfp, pa_curvis_t* ofp)
-    { *ofp = curvis_vect; curvis_vect = nfp; }
+APIOVER(curvis)
 void pa_curvis(FILE* f, int e) { (*curvis_vect)(f, e); }
-
 static void curvis_ivf(FILE *f, int e)
 
 {
@@ -4099,10 +4065,8 @@ int.
 
 *******************************************************************************/
 
-void _pa_scroll_ovr(pa_scroll_t nfp, pa_scroll_t* ofp)
-    { *ofp = scroll_vect; scroll_vect = nfp; }
+APIOVER(scroll)
 void pa_scroll(FILE* f, int x, int y) { (*scroll_vect)(f, x, y); }
-
 static void scroll_ivf(FILE *f, int x, int y)
 
 {
@@ -4122,10 +4086,8 @@ Returns the current location of the cursor in x.
 
 *******************************************************************************/
 
-void _pa_curx_ovr(pa_curx_t nfp, pa_curx_t* ofp)
-    { *ofp = curx_vect; curx_vect = nfp; }
+APIOVER(curx)
 int pa_curx(FILE* f) { (*curx_vect)(f); }
-
 static int curx_ivf(FILE *f)
 
 {
@@ -4143,10 +4105,8 @@ Returns the current location of the cursor in y.
 
 *******************************************************************************/
 
-void _pa_cury_ovr(pa_cury_t nfp, pa_cury_t* ofp)
-    { *ofp = cury_vect; cury_vect = nfp; }
+APIOVER(cury)
 int pa_cury(FILE* f) { (*cury_vect)(f); }
-
 static int cury_ivf(FILE *f)
 
 {
@@ -4173,10 +4133,8 @@ Note that split update and display screens are not implemented at present.
 
 *******************************************************************************/
 
-void _pa_select_ovr(pa_select_t nfp, pa_select_t* ofp)
-    { *ofp = select_vect; select_vect = nfp; }
+APIOVER(select)
 void pa_select(FILE* f, int u, int d) { (*select_vect)(f, u, d); }
-
 static void select_ivf(FILE *f, int u, int d)
 
 {
@@ -4322,6 +4280,67 @@ void evtfnc(pa_evtrec* er)
 
 /** ****************************************************************************
 
+Function event overrides
+
+Each routine overrides an individual function event routine.
+
+*******************************************************************************/
+
+EVTOVER(char)
+EVTOVER(up)
+EVTOVER(down)
+EVTOVER(left)
+EVTOVER(right)
+EVTOVER(leftw)
+EVTOVER(rightw)
+EVTOVER(home)
+EVTOVER(homes)
+EVTOVER(homel)
+EVTOVER(end)
+EVTOVER(ends)
+EVTOVER(endl)
+EVTOVER(scrl)
+EVTOVER(scrr)
+EVTOVER(scru)
+EVTOVER(scrd)
+EVTOVER(pagd)
+EVTOVER(pagu)
+EVTOVER(tab)
+EVTOVER(enter)
+EVTOVER(insert)
+EVTOVER(insertl)
+EVTOVER(insertt)
+EVTOVER(del)
+EVTOVER(dell)
+EVTOVER(delcf)
+EVTOVER(delcb)
+EVTOVER(copy)
+EVTOVER(copyl)
+EVTOVER(can)
+EVTOVER(stop)
+EVTOVER(cont)
+EVTOVER(print)
+EVTOVER(printb)
+EVTOVER(prints)
+EVTOVER(fun)
+EVTOVER(menu)
+EVTOVER(mouba)
+EVTOVER(moubd)
+EVTOVER(moumov)
+EVTOVER(tim)
+EVTOVER(joyba)
+EVTOVER(joybd)
+EVTOVER(joymov)
+EVTOVER(resize)
+EVTOVER(focus)
+EVTOVER(nofocus)
+EVTOVER(hover)
+EVTOVER(nohover)
+EVTOVER(term)
+EVTOVER(frame)
+
+/** ****************************************************************************
+
 Acquire next input event
 
 Decodes the input for various events. These are sent to the override handlers
@@ -4330,10 +4349,8 @@ caller.
 
 *******************************************************************************/
 
-void _pa_event_ovr(pa_event_t nfp, pa_event_t* ofp)
-    { *ofp = event_vect; event_vect = nfp; }
+APIOVER(event)
 void pa_event(FILE* f, pa_evtrec* er) { (*event_vect)(f, er); }
-
 static void event_ivf(FILE* f, pa_evtrec *er)
 
 {
@@ -4396,10 +4413,8 @@ Set timer
 
 *******************************************************************************/
 
-void _pa_timer_ovr(pa_timer_t nfp, pa_timer_t* ofp)
-    { *ofp = timer_vect; timer_vect = nfp; }
+APIOVER(timer)
 void pa_timer(FILE* f, int i, long t, int r) { (*timer_vect)(f, i, t, r); }
-
 static void timer_ivf(/* file to send event to */              FILE* f,
                       /* timer handle */                       int   i,
                       /* number of 100us counts */             long  t,
@@ -4425,10 +4440,8 @@ in reserve.
 
 *******************************************************************************/
 
-void _pa_killtimer_ovr(pa_killtimer_t nfp, pa_killtimer_t* ofp)
-    { *ofp = killtimer_vect; killtimer_vect = nfp; }
+APIOVER(killtimer)
 void pa_killtimer(FILE* f, int   i ) { (*killtimer_vect)(f, i ); }
-
 static void killtimer_ivf(/* file to kill timer on */ FILE *f,
                   /* handle of timer */       int i)
 
@@ -4458,10 +4471,8 @@ if none is available, never changing it's state.
 
 *******************************************************************************/
 
-void _pa_mouse_ovr(pa_mouse_t nfp, pa_mouse_t* ofp)
-    { *ofp = mouse_vect; mouse_vect = nfp; }
+APIOVER(mouse)
 int pa_mouse(FILE* f) { (*mouse_vect)(f); }
-
 static int mouse_ivf(FILE *f)
 
 {
@@ -4480,10 +4491,8 @@ to assume 3 buttons.
 
 *******************************************************************************/
 
-void _pa_mousebutton_ovr(pa_mousebutton_t nfp, pa_mousebutton_t* ofp)
-    { *ofp = mousebutton_vect; mousebutton_vect = nfp; }
+APIOVER(mousebutton)
 int pa_mousebutton(FILE* f, int m) { (*mousebutton_vect)(f, m); }
-
 static int mousebutton_ivf(FILE *f, int m)
 
 {
@@ -4501,10 +4510,8 @@ Return number of joysticks attached.
 
 *******************************************************************************/
 
-void _pa_joystick_ovr(pa_joystick_t nfp, pa_joystick_t* ofp)
-    { *ofp = joystick_vect; joystick_vect = nfp; }
+APIOVER(joystick)
 int pa_joystick(FILE* f) { (*joystick_vect)(f); }
-
 static int joystick_ivf(FILE *f)
 
 {
@@ -4523,10 +4530,8 @@ Note that Windows 95 has no joystick capability.
 
 *******************************************************************************/
 
-void _pa_joybutton_ovr(pa_joybutton_t nfp, pa_joybutton_t* ofp)
-    { *ofp = joybutton_vect; joybutton_vect = nfp; }
+APIOVER(joybutton)
 int pa_joybutton(FILE* f, int j) { (*joybutton_vect)(f, j); }
-
 static int joybutton_ivf(FILE *f, int j)
 
 {
@@ -4565,10 +4570,8 @@ Note that Windows 95 has no joystick capability.
 
 *******************************************************************************/
 
-void _pa_joyaxis_ovr(pa_joyaxis_t nfp, pa_joyaxis_t* ofp)
-    { *ofp = joyaxis_vect; joyaxis_vect = nfp; }
+APIOVER(joyaxis)
 int pa_joyaxis(FILE* f, int j) { (*joyaxis_vect)(f, j); }
-
 static int joyaxis_ivf(FILE *f, int j)
 
 {
@@ -4607,10 +4610,8 @@ tab stop that is set. If there is no next tab stop, nothing will happen.
 
 *******************************************************************************/
 
-void _pa_settab_ovr(pa_settab_t nfp, pa_settab_t* ofp)
-    { *ofp = settab_vect; settab_vect = nfp; }
+APIOVER(settab)
 void pa_settab(FILE* f, int t) { (*settab_vect)(f, t); }
-
 static void settab_ivf(FILE* f, int t)
 
 {
@@ -4636,10 +4637,8 @@ Resets a tab. The tab number t is 1 to n, and indicates the column for the tab.
 
 *******************************************************************************/
 
-void _pa_restab_ovr(pa_restab_t nfp, pa_restab_t* ofp)
-    { *ofp = restab_vect; restab_vect = nfp; }
+APIOVER(restab)
 void pa_restab(FILE* f, int t) { (*restab_vect)(f, t); }
-
 static void restab_ivf(FILE* f, int t)
 
 {
@@ -4665,10 +4664,8 @@ Clears all tabs.
 
 *******************************************************************************/
 
-void _pa_clrtab_ovr(pa_clrtab_t nfp, pa_clrtab_t* ofp)
-    { *ofp = clrtab_vect; clrtab_vect = nfp; }
+APIOVER(clrtab)
 void pa_clrtab(FILE* f) { (*clrtab_vect)(f); }
-
 static void clrtab_ivf(FILE* f)
 
 {
@@ -4694,10 +4691,8 @@ but more can be allocated if needed.
 
 *******************************************************************************/
 
-void _pa_funkey_ovr(pa_funkey_t nfp, pa_funkey_t* ofp)
-    { *ofp = funkey_vect; funkey_vect = nfp; }
+APIOVER(funkey)
 int pa_funkey(FILE* f) { (*funkey_vect)(f); }
-
 static int funkey_ivf(FILE* f)
 
 {
@@ -4717,10 +4712,8 @@ Not currently implemented.
 
 *******************************************************************************/
 
-void _pa_frametimer_ovr(pa_frametimer_t nfp, pa_frametimer_t* ofp)
-    { *ofp = frametimer_vect; frametimer_vect = nfp; }
+APIOVER(frametimer)
 void pa_frametimer(FILE* f, int e) { (*frametimer_vect)(f, e); }
-
 static void frametimer_ivf(FILE* f, int e)
 
 {
@@ -4757,10 +4750,8 @@ holding terminal unaware programs.
 
 *******************************************************************************/
 
-void _pa_autohold_ovr(pa_autohold_t nfp, pa_autohold_t* ofp)
-    { *ofp = autohold_vect; autohold_vect = nfp; }
+APIOVER(autohold)
 void pa_autohold(int e) { (*autohold_vect)(e); }
-
 static void autohold_ivf(int e)
 
 {
@@ -4778,10 +4769,8 @@ Writes a string direct to the terminal, bypassing character handling.
 
 *******************************************************************************/
 
-void _pa_wrtstr_ovr(pa_wrtstr_t nfp, pa_wrtstr_t* ofp)
-    { *ofp = wrtstr_vect; wrtstr_vect = nfp; }
+APIOVER(wrtstr)
 void pa_wrtstr(FILE* f, char* s) { (*wrtstr_vect)(f, s); }
-
 static void wrtstr_ivf(FILE* f, char *s)
 
 {
@@ -4802,10 +4791,8 @@ handling.
 
 *******************************************************************************/
 
-void _pa_wrtstrn_ovr(pa_wrtstrn_t nfp, pa_wrtstrn_t* ofp)
-    { *ofp = wrtstrn_vect; wrtstrn_vect = nfp; }
+APIOVER(wrtstrn)
 void pa_wrtstrn(FILE* f, char* s, int n) { (*wrtstrn_vect)(f, s, n); }
-
 static void wrtstrn_ivf(FILE* f, char *s, int n)
 
 {
@@ -4825,10 +4812,8 @@ Sets or resets the size of the buffer surface.
 
 *******************************************************************************/
 
-void _pa_sizbuf_ovr(pa_sizbuf_t nfp, pa_sizbuf_t* ofp)
-    { *ofp = sizbuf_vect; sizbuf_vect = nfp; }
+APIOVER(sizbuf)
 void pa_sizbuf(FILE* f, int x, int y) { (*sizbuf_vect)(f, x, y); }
-
 static void sizbuf_ivf(FILE* f, int x, int y)
 
 {
@@ -4882,10 +4867,8 @@ Sets the title of the current window.
 
 *******************************************************************************/
 
-void _pa_title_ovr(pa_title_t nfp, pa_title_t* ofp)
-    { *ofp = title_vect; title_vect = nfp; }
+APIOVER(title)
 void pa_title(FILE* f, char* ts) { (*title_vect)(f, ts); }
-
 static void title_ivf(FILE* f, char* ts)
     
 { 
@@ -4905,10 +4888,8 @@ Sets the foreground color from individual r, g, b values.
 
 *******************************************************************************/
 
-void _pa_fcolorc_ovr(pa_fcolorc_t nfp, pa_fcolorc_t* ofp)
-    { *ofp = fcolorc_vect; fcolorc_vect = nfp; }
+APIOVER(fcolorc)
 void pa_fcolorc(FILE* f, int r, int g, int b) { (*fcolorc_vect)(f, r, g, b); }
-
 static void fcolorc_ivf(FILE* f, int r, int g, int b)
 
 {
@@ -4935,10 +4916,8 @@ Sets the background color from individual r, g, b values.
 
 *******************************************************************************/
 
-void _pa_bcolorc_ovr(pa_bcolorc_t nfp, pa_bcolorc_t* ofp)
-    { *ofp = bcolorc_vect; bcolorc_vect = nfp; }
+APIOVER(bcolorc)
 void pa_bcolorc(FILE* f, int r, int g, int b) { (*bcolorc_vect)(f, r, g, b); }
-
 static void bcolorc_ivf(FILE* f, int r, int g, int b)
 
 {
@@ -4968,11 +4947,9 @@ call down into the stack by executing the overridden event.
 
 *******************************************************************************/
 
-void _pa_eventover_ovr(pa_eventover_t nfp, pa_eventover_t* ofp)
-    { *ofp = eventover_vect; eventover_vect = nfp; }
+APIOVER(eventover)
 void pa_eventover(pa_evtcod e, pa_pevthan eh, pa_pevthan* oeh)
     { (*eventover_vect)(e, eh, oeh); }
-
 static void eventover_ivf(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh)
 
 {
@@ -4996,11 +4973,9 @@ call down into the stack by executing the overridden event.
 
 *******************************************************************************/
 
-void _pa_eventsover_ovr(pa_eventsover_t nfp, pa_eventsover_t* ofp)
-    { *ofp = eventsover_vect; eventsover_vect = nfp; }
+APIOVER(eventsover)
 void pa_eventsover(pa_pevthan eh,  pa_pevthan* oeh)
     { (*eventsover_vect)(eh, oeh); }
-
 static void eventsover_ivf(pa_pevthan eh,  pa_pevthan* oeh)
 
 {
@@ -5022,148 +4997,92 @@ calls.
 
 *******************************************************************************/
 
-void _pa_sendevent_ovr(pa_sendevent_t nfp, pa_sendevent_t* ofp)
-    { *ofp = sendevent_vect; sendevent_vect = nfp; }
+APIOVER(sendevent)
 void pa_sendevent(FILE* f, pa_evtrec* er) { (*sendevent_vect)(f, er); }
+static void sendevent_ivf(FILE* f, pa_evtrec* er) { error(esendevent_unimp); }
 
-static void sendevent_ivf(FILE* f, pa_evtrec* er)
-    { error(esendevent_unimp); }
-
-void _pa_openwin_ovr(pa_openwin_t nfp, pa_openwin_t* ofp)
-    { *ofp = openwin_vect; openwin_vect = nfp; }
+APIOVER(openwin)
 void pa_openwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
     { (*openwin_vect)(infile, outfile, parent, wid); }
-
 static void openwin_ivf(FILE** infile, FILE** outfile, FILE* parent, int wid)
     { error(eopenwin_unimp); }
 
-void _pa_buffer_ovr(pa_buffer_t nfp, pa_buffer_t* ofp)
-    { *ofp = buffer_vect; buffer_vect = nfp; }
+APIOVER(buffer)
 void pa_buffer(FILE* f, int e) { (*buffer_vect)(f, e); }
+static void buffer_ivf(FILE* f, int e) { error(ebuffer_unimp); }
 
-static void buffer_ivf(FILE* f, int e)
-    { error(ebuffer_unimp); }
-
-void _pa_getsiz_ovr(pa_getsiz_t nfp, pa_getsiz_t* ofp)
-    { *ofp = getsiz_vect; getsiz_vect = nfp; }
+APIOVER(getsiz)
 void pa_getsiz(FILE* f, int* x, int* y) { (*getsiz_vect)(f, x, y); }
+static void getsiz_ivf(FILE* f, int* x, int* y) { error(egetsiz_unimp); }
 
-static void getsiz_ivf(FILE* f, int* x, int* y)
-    { error(egetsiz_unimp); }
-
-void _pa_setsiz_ovr(pa_setsiz_t nfp, pa_setsiz_t* ofp)
-    { *ofp = setsiz_vect; setsiz_vect = nfp; }
+APIOVER(setsiz)
 void pa_setsiz(FILE* f, int x, int y) { (*setsiz_vect)(f, x, y); }
+static void setsiz_ivf(FILE* f, int x, int y) { error(esetsiz_unimp); }
 
-static void setsiz_ivf(FILE* f, int x, int y)
-    { error(esetsiz_unimp); }
-
-void _pa_setpos_ovr(pa_setpos_t nfp, pa_setpos_t* ofp)
-    { *ofp = setpos_vect; setpos_vect = nfp; }
+APIOVER(setpos)
 void pa_setpos(FILE* f, int x, int y) { (*setpos_vect)(f, x, y); }
+static void setpos_ivf(FILE* f, int x, int y) { error(esetpos_unimp); }
 
-static void setpos_ivf(FILE* f, int x, int y)
-    { error(esetpos_unimp); }
-
-void _pa_scnsiz_ovr(pa_scnsiz_t nfp, pa_scnsiz_t* ofp)
-    { *ofp = scnsiz_vect; scnsiz_vect = nfp; }
+APIOVER(scnsiz)
 void pa_scnsiz(FILE* f, int* x, int* y) { (*scnsiz_vect)(f, x, y); }
+static void scnsiz_ivf(FILE* f, int* x, int* y) { error(escnsiz_unimp); }
 
-static void scnsiz_ivf(FILE* f, int* x, int* y)
-    { error(escnsiz_unimp); }
-
-void _pa_scncen_ovr(pa_scncen_t nfp, pa_scncen_t* ofp)
-    { *ofp = scncen_vect; scncen_vect = nfp; }
+APIOVER(scncen)
 void pa_scncen(FILE* f, int* x, int* y) { (*scncen_vect)(f, x, y); }
+static void scncen_ivf(FILE* f, int* x, int* y) { error(escncen_unimp); }
 
-static void scncen_ivf(FILE* f, int* x, int* y)
-    { error(escncen_unimp); }
-
-void _pa_winclient_ovr(pa_winclient_t nfp, pa_winclient_t* ofp)
-    { *ofp = winclient_vect; winclient_vect = nfp; }
+APIOVER(winclient)
 void pa_winclient(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
     { (*winclient_vect)(f, cx, cy, wx, wy, ms); }
-
-static void winclient_ivf(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
+static void winclient_ivf(FILE* f, int cx, int cy, int* wx, int* wy, 
+                          pa_winmodset ms)
     { error(ewinclient_unimp); }
 
-void _pa_front_ovr(pa_front_t nfp, pa_front_t* ofp)
-    { *ofp = front_vect; front_vect = nfp; }
+APIOVER(front)
 void pa_front(FILE* f) { (*front_vect)(f); }
+static void front_ivf(FILE* f) { error(efront_unimp); }
 
-static void front_ivf(FILE* f)
-    { error(efront_unimp); }
-
-void _pa_back_ovr(pa_back_t nfp, pa_back_t* ofp)
-    { *ofp = back_vect; back_vect = nfp; }
+APIOVER(back)
 void pa_back(FILE* f) { (*back_vect)(f); }
+static void back_ivf(FILE* f) { error(eback_unimp); }
 
-static void back_ivf(FILE* f)
-    { error(eback_unimp); }
-
-void _pa_frame_ovr(pa_frame_t nfp, pa_frame_t* ofp)
-    { *ofp = frame_vect; frame_vect = nfp; }
+APIOVER(frame)
 void pa_frame(FILE* f, int e) { (*frame_vect)(f, e); }
+static void frame_ivf(FILE* f, int e) { error(eframe_unimp); }
 
-static void frame_ivf(FILE* f, int e)
-    { error(eframe_unimp); }
-
-void _pa_sizable_ovr(pa_sizable_t nfp, pa_sizable_t* ofp)
-    { *ofp = sizable_vect; sizable_vect = nfp; }
+APIOVER(sizable)
 void pa_sizable(FILE* f, int e) { (*sizable_vect)(f, e); }
+static void sizable_ivf(FILE* f, int e) { error(esizable_unimp); }
 
-static void sizable_ivf(FILE* f, int e)
-    { error(esizable_unimp); }
-
-void _pa_sysbar_ovr(pa_sysbar_t nfp, pa_sysbar_t* ofp)
-    { *ofp = sysbar_vect; sysbar_vect = nfp; }
+APIOVER(sysbar)
 void pa_sysbar(FILE* f, int e) { (*sysbar_vect)(f, e); }
+static void sysbar_ivf(FILE* f, int e) { error(esysbar_unimp); }
 
-static void sysbar_ivf(FILE* f, int e)
-    { error(esysbar_unimp); }
-
-void _pa_menu_ovr(pa_menu_t nfp, pa_menu_t* ofp)
-    { *ofp = menu_vect; menu_vect = nfp; }
+APIOVER(menu)
 void pa_menu(FILE* f, pa_menuptr m) { (*menu_vect)(f, m); }
+static void menu_ivf(FILE* f, pa_menuptr m) { error(emenu_unimp); }
 
-static void menu_ivf(FILE* f, pa_menuptr m)
-    { error(emenu_unimp); }
-
-void _pa_menuena_ovr(pa_menuena_t nfp, pa_menuena_t* ofp)
-    { *ofp = menuena_vect; menuena_vect = nfp; }
+APIOVER(menuena)
 void pa_menuena(FILE* f, int id, int onoff) { (*menuena_vect)(f, id, onoff); }
+static void menuena_ivf(FILE* f, int id, int onoff) { error(emenuena_unimp); }
 
-static void menuena_ivf(FILE* f, int id, int onoff)
-    { error(emenuena_unimp); }
-
-void _pa_menusel_ovr(pa_menusel_t nfp, pa_menusel_t* ofp)
-    { *ofp = menusel_vect; menusel_vect = nfp; }
+APIOVER(menusel)
 void pa_menusel(FILE* f, int id, int select) { (*menusel_vect)(f, id, select); }
+static void menusel_ivf(FILE* f, int id, int select) { error(emenusel_unimp); }
 
-static void menusel_ivf(FILE* f, int id, int select)
-    { error(emenusel_unimp); }
-
-void _pa_stdmenu_ovr(pa_stdmenu_t nfp, pa_stdmenu_t* ofp)
-    { *ofp = stdmenu_vect; stdmenu_vect = nfp; }
+APIOVER(stdmenu)
 void pa_stdmenu(pa_stdmenusel sms, pa_menuptr* sm, pa_menuptr pm)
     { (*stdmenu_vect)(sms, sm, pm); }
-
 static void stdmenu_ivf(pa_stdmenusel sms, pa_menuptr* sm, pa_menuptr pm)
     { error(estdmenu_unimp); }
 
-void _pa_getwinid_ovr(pa_getwinid_t nfp, pa_getwinid_t* ofp)
-    { *ofp = getwinid_vect; getwinid_vect = nfp; }
+APIOVER(getwinid)
 int pa_getwinid(void) { (*getwinid_vect)(); }
+static int getwinid_ivf(void) { error(egetwinid_unimp); }
 
-static int getwinid_ivf(void)
-    { error(egetwinid_unimp); }
-
-void _pa_focus_ovr(pa_focus_t nfp, pa_focus_t* ofp)
-    { *ofp = focus_vect; focus_vect = nfp; }
+APIOVER(focus)
 void pa_focus(FILE* f) { (*focus_vect)(f); }
-
-static void focus_ivf(FILE* f)
-    { error(efocus_unimp); }
+static void focus_ivf(FILE* f) { error(efocus_unimp); }
 
 /*******************************************************************************
 
