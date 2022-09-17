@@ -4198,6 +4198,73 @@ static int resizefnc(int rszx, int rszy) { return FALSE; }
 
 /** ****************************************************************************
 
+Initialize event function vectors
+
+Sets the default handlers for each of the event function vectors.
+
+*******************************************************************************/
+
+void inifncvec(void)
+
+{
+
+    evchar_vect    = charfnc;
+    evup_vect      = genfnc;
+    evdown_vect    = genfnc;
+    evleft_vect    = genfnc;
+    evright_vect   = genfnc;
+    evleftw_vect   = genfnc;
+    evrightw_vect  = genfnc;
+    evhome_vect    = genfnc;
+    evhomes_vect   = genfnc;
+    evhomel_vect   = genfnc;
+    evend_vect     = genfnc;
+    evends_vect    = genfnc;
+    evendl_vect    = genfnc;
+    evscrl_vect    = genfnc;
+    evscrr_vect    = genfnc;
+    evscru_vect    = genfnc;
+    evscrd_vect    = genfnc;
+    evpagd_vect    = genfnc;
+    evpagu_vect    = genfnc;
+    evtab_vect     = genfnc;
+    eventer_vect   = genfnc;
+    evinsert_vect  = genfnc;
+    evinsertl_vect = genfnc;
+    evinsertt_vect = genfnc;
+    evdel_vect     = genfnc;
+    evdell_vect    = genfnc;
+    evdelcf_vect   = genfnc;
+    evdelcb_vect   = genfnc;
+    evcopy_vect    = genfnc;
+    evcopyl_vect   = genfnc;
+    evcan_vect     = genfnc;
+    evstop_vect    = genfnc;
+    evcont_vect    = genfnc;
+    evprint_vect   = genfnc;
+    evprintb_vect  = genfnc;
+    evprints_vect  = genfnc;
+    evfun_vect     = funfnc;
+    evmenu_vect    = genfnc;
+    evmouba_vect   = moubafnc;
+    evmoubd_vect   = moubdfnc;
+    evmoumov_vect  = moumovfnc;
+    evtim_vect     = timfnc;
+    evjoyba_vect   = joybafnc;
+    evjoybd_vect   = joybdfnc;
+    evjoymov_vect  = joymovfnc;
+    evresize_vect  = resizefnc;
+    evfocus_vect   = genfnc;
+    evnofocus_vect = genfnc;
+    evhover_vect   = genfnc;
+    evnohover_vect = genfnc;
+    evterm_vect    = genfnc;
+    evframe_vect   = genfnc;
+
+}
+
+/** ****************************************************************************
+
 Execute event function handler
 
 Executes a function handler for a given event. Each function returns a boolean
@@ -5193,61 +5260,10 @@ static void pa_init_terminal()
     getwinid_vect =        getwinid_ivf;
     focus_vect =           focus_ivf;
 
-/*
- * Event override vectors
- */
-    evchar_vect    = charfnc;
-    evup_vect      = genfnc;
-    evdown_vect    = genfnc;
-    evleft_vect    = genfnc;
-    evright_vect   = genfnc;
-    evleftw_vect   = genfnc;
-    evrightw_vect  = genfnc;
-    evhome_vect    = genfnc;
-    evhomes_vect   = genfnc;
-    evhomel_vect   = genfnc;
-    evend_vect     = genfnc;
-    evends_vect    = genfnc;
-    evendl_vect    = genfnc;
-    evscrl_vect    = genfnc;
-    evscrr_vect    = genfnc;
-    evscru_vect    = genfnc;
-    evscrd_vect    = genfnc;
-    evpagd_vect    = genfnc;
-    evpagu_vect    = genfnc;
-    evtab_vect     = genfnc;
-    eventer_vect   = genfnc;
-    evinsert_vect  = genfnc;
-    evinsertl_vect = genfnc;
-    evinsertt_vect = genfnc;
-    evdel_vect     = genfnc;
-    evdell_vect    = genfnc;
-    evdelcf_vect   = genfnc;
-    evdelcb_vect   = genfnc;
-    evcopy_vect    = genfnc;
-    evcopyl_vect   = genfnc;
-    evcan_vect     = genfnc;
-    evstop_vect    = genfnc;
-    evcont_vect    = genfnc;
-    evprint_vect   = genfnc;
-    evprintb_vect  = genfnc;
-    evprints_vect  = genfnc;
-    evfun_vect     = funfnc;
-    evmenu_vect    = genfnc;
-    evmouba_vect   = moubafnc;
-    evmoubd_vect   = moubdfnc;
-    evmoumov_vect  = moumovfnc;
-    evtim_vect     = timfnc;
-    evjoyba_vect   = joybafnc;
-    evjoybd_vect   = joybdfnc;
-    evjoymov_vect  = joymovfnc;
-    evresize_vect  = resizefnc;
-    evfocus_vect   = genfnc;
-    evnofocus_vect = genfnc;
-    evhover_vect   = genfnc;
-    evnohover_vect = genfnc;
-    evterm_vect    = genfnc;
-    evframe_vect   = genfnc;
+    /*
+     * Event override vectors
+     */
+    inifncvec();
 
     /* turn off I/O buffering */
     setvbuf(stdin, NULL, _IONBF, 0);
@@ -5529,6 +5545,9 @@ static void pa_deinit_terminal()
     /* clear event vector table */
     evtshan = defaultevent;
     for (e = pa_etchar; e <= pa_etframe; e++) evthan[e] = defaultevent;
+
+    /* clear function events */
+    inifncvec();
 
     /* if the program tries to exit when the user has not ordered an exit,
        it is assumed to be a windows "unaware" program. We stop before we
