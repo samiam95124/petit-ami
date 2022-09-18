@@ -142,6 +142,7 @@ typedef enum {
     pa_etman    = 0x2000, /* start of window management reserved codes */
     pa_etwidget = 0x3000, /* start of widget reserved codes */
     pa_etuser   = 0x4000  /* start of user defined codes */
+
 } pa_evtcod;
 /* event record */
 typedef struct {
@@ -198,14 +199,15 @@ typedef struct {
                                         int joyp4, joyp5, joyp6;
 
         };
+        /* pa_etfun */
+        /** function key */ int fkey;
         /* pa_etresize */
         struct {
 
             int rszx, rszy, rszxg, rszyg;
 
         };
-        /* pa_etfun */
-        /** function key */ int fkey;
+
         /** etmoumovg: */
         struct {
 
