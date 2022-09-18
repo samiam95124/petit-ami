@@ -263,6 +263,118 @@ void pa_focus(FILE* f);
 int pa_getwinid(void);
 
 /*
+ * Event override types
+ */
+typedef int (*pa_evchar_t)(char c);
+typedef int (*pa_evup_t)(void);
+typedef int (*pa_evdown_t)(void);
+typedef int (*pa_evleft_t)(void);
+typedef int (*pa_evright_t)(void);
+typedef int (*pa_evleftw_t)(void);
+typedef int (*pa_evrightw_t)(void);
+typedef int (*pa_evhome_t)(void);
+typedef int (*pa_evhomes_t)(void);
+typedef int (*pa_evhomel_t)(void);
+typedef int (*pa_evend_t)(void);
+typedef int (*pa_evends_t)(void);
+typedef int (*pa_evendl_t)(void);
+typedef int (*pa_evscrl_t)(void);
+typedef int (*pa_evscrr_t)(void);
+typedef int (*pa_evscru_t)(void);
+typedef int (*pa_evscrd_t)(void);
+typedef int (*pa_evpagd_t)(void);
+typedef int (*pa_evpagu_t)(void);
+typedef int (*pa_evtab_t)(void);
+typedef int (*pa_eventer_t)(void);
+typedef int (*pa_evinsert_t)(void);
+typedef int (*pa_evinsertl_t)(void);
+typedef int (*pa_evinsertt_t)(void);
+typedef int (*pa_evdel_t)(void);
+typedef int (*pa_evdell_t)(void);
+typedef int (*pa_evdelcf_t)(void);
+typedef int (*pa_evdelcb_t)(void);
+typedef int (*pa_evcopy_t)(void);
+typedef int (*pa_evcopyl_t)(void);
+typedef int (*pa_evcan_t)(void);
+typedef int (*pa_evstop_t)(void);
+typedef int (*pa_evcont_t)(void);
+typedef int (*pa_evprint_t)(void);
+typedef int (*pa_evprintb_t)(void);
+typedef int (*pa_evprints_t)(void);
+typedef int (*pa_evfun_t)(int k);
+typedef int (*pa_evmenu_t)(void);
+typedef int (*pa_evmouba_t)(int m, int b);
+typedef int (*pa_evmoubd_t)(int m, int b);
+typedef int (*pa_evmoumov_t)(int m, int x, int y);
+typedef int (*pa_evtim_t)(int t);
+typedef int (*pa_evjoyba_t)(int j, int b);
+typedef int (*pa_evjoybd_t)(int j, int b);
+typedef int (*pa_evjoymov_t)(int j, int x, int y, int z);
+typedef int (*pa_evresize_t)(int rszx, int rszy);
+typedef int (*pa_evfocus_t)(void);
+typedef int (*pa_evnofocus_t)(void);
+typedef int (*pa_evhover_t)(void);
+typedef int (*pa_evnohover_t)(void);
+typedef int (*pa_evterm_t)(void);
+typedef int (*pa_evframe_t)(void);
+
+/*
+ * Event function overrides
+ */
+void pa_charover(pa_evchar_t eh, pa_evchar_t* oeh);
+void pa_upover(pa_evup_t eh, pa_evup_t* oeh);
+void pa_downover(pa_evdown_t eh, pa_evdown_t* oeh);
+void pa_leftover(pa_evleft_t eh, pa_evleft_t* oeh);
+void pa_rightover(pa_evright_t eh, pa_evright_t* oeh);
+void pa_leftwover(pa_evleftw_t eh, pa_evleftw_t* oeh);
+void pa_rightwover(pa_evrightw_t eh, pa_evrightw_t* oeh);
+void pa_homeover(pa_evhome_t eh, pa_evhome_t* oeh);
+void pa_homesover(pa_evhomes_t eh, pa_evhomes_t* oeh);
+void pa_homelover(pa_evhomel_t eh, pa_evhomel_t* oeh);
+void pa_endover(pa_evend_t eh, pa_evend_t* oeh);
+void pa_endsover(pa_evends_t eh, pa_evends_t* oeh);
+void pa_endlover(pa_evendl_t eh, pa_evendl_t* oeh);
+void pa_scrlover(pa_evscrl_t eh, pa_evscrl_t* oeh);
+void pa_scrrover(pa_evscrr_t eh, pa_evscrr_t* oeh);
+void pa_scruover(pa_evscru_t eh, pa_evscru_t* oeh);
+void pa_scrdover(pa_evscrd_t eh, pa_evscrd_t* oeh);
+void pa_pagdover(pa_evpagd_t eh, pa_evpagd_t* oeh);
+void pa_paguover(pa_evpagu_t eh, pa_evpagu_t* oeh);
+void pa_tabover(pa_evtab_t eh, pa_evtab_t* oeh);
+void pa_enterover(pa_eventer_t eh, pa_eventer_t* oeh);
+void pa_insertover(pa_evinsert_t eh, pa_evinsert_t* oeh);
+void pa_insertlover(pa_evinsertl_t eh, pa_evinsertl_t* oeh);
+void pa_inserttover(pa_evinsertt_t eh, pa_evinsertt_t* oeh);
+void pa_delover(pa_evdel_t eh, pa_evdel_t* oeh);
+void pa_dellover(pa_evdell_t eh, pa_evdell_t* oeh);
+void pa_delcfover(pa_evdelcf_t eh, pa_evdelcf_t* oeh);
+void pa_delcbover(pa_evdelcb_t eh, pa_evdelcb_t* oeh);
+void pa_copyover(pa_evcopy_t eh, pa_evcopy_t* oeh);
+void pa_copylover(pa_evcopyl_t eh, pa_evcopyl_t* oeh);
+void pa_canover(pa_evcan_t eh, pa_evcan_t* oeh);
+void pa_stopover(pa_evstop_t eh, pa_evstop_t* oeh);
+void pa_contover(pa_evcont_t eh, pa_evcont_t* oeh);
+void pa_printover(pa_evprint_t eh, pa_evprint_t* oeh);
+void pa_printbover(pa_evprintb_t eh, pa_evprintb_t* oeh);
+void pa_printsover(pa_evprints_t eh, pa_evprints_t* oeh);
+void pa_funover(pa_evfun_t eh, pa_evfun_t* oeh);
+void pa_menuover(pa_evmenu_t eh, pa_evmenu_t* oeh);
+void pa_moubaover(pa_evmouba_t eh, pa_evmouba_t* oeh);
+void pa_moubdover(pa_evmoubd_t eh, pa_evmoubd_t* oeh);
+void pa_moumovover(pa_evmoumov_t eh, pa_evmoumov_t* oeh);
+void pa_timover(pa_evtim_t eh, pa_evtim_t* oeh);
+void pa_joybaover(pa_evjoyba_t eh, pa_evjoyba_t* oeh);
+void pa_joybdover(pa_evjoybd_t eh, pa_evjoybd_t* oeh);
+void pa_joymovover(pa_evjoymov_t eh, pa_evjoymov_t* oeh);
+void pa_resizeover(pa_evresize_t eh, pa_evresize_t* oeh);
+void pa_focusover(pa_evfocus_t eh, pa_evfocus_t* oeh);
+void pa_nofocusover(pa_evnofocus_t eh, pa_evnofocus_t* oeh);
+void pa_hoverover(pa_evhover_t eh, pa_evhover_t* oeh);
+void pa_nohoverover(pa_evnohover_t eh, pa_evnohover_t* oeh);
+void pa_termover(pa_evterm_t eh, pa_evterm_t* oeh);
+void pa_frameover(pa_evframe_t eh, pa_evframe_t* oeh);
+
+/*
  * Override vector types
  *
  */
@@ -411,118 +523,6 @@ void _pa_menusel_ovr(_pa_menusel_t nfp, _pa_menusel_t* ofp);
 void _pa_stdmenu_ovr(_pa_stdmenu_t nfp, _pa_stdmenu_t* ofp);
 void _pa_focus_ovr(_pa_focus_t nfp, _pa_focus_t* ofp);
 void _pa_getwinid_ovr(_pa_getwinid_t nfp, _pa_getwinid_t* ofp);
-
-/*
- * Event override types
- */
-typedef int (*pa_evchar_t)(char c);
-typedef int (*pa_evup_t)(void);
-typedef int (*pa_evdown_t)(void);
-typedef int (*pa_evleft_t)(void);
-typedef int (*pa_evright_t)(void);
-typedef int (*pa_evleftw_t)(void);
-typedef int (*pa_evrightw_t)(void);
-typedef int (*pa_evhome_t)(void);
-typedef int (*pa_evhomes_t)(void);
-typedef int (*pa_evhomel_t)(void);
-typedef int (*pa_evend_t)(void);
-typedef int (*pa_evends_t)(void);
-typedef int (*pa_evendl_t)(void);
-typedef int (*pa_evscrl_t)(void);
-typedef int (*pa_evscrr_t)(void);
-typedef int (*pa_evscru_t)(void);
-typedef int (*pa_evscrd_t)(void);
-typedef int (*pa_evpagd_t)(void);
-typedef int (*pa_evpagu_t)(void);
-typedef int (*pa_evtab_t)(void);
-typedef int (*pa_eventer_t)(void);
-typedef int (*pa_evinsert_t)(void);
-typedef int (*pa_evinsertl_t)(void);
-typedef int (*pa_evinsertt_t)(void);
-typedef int (*pa_evdel_t)(void);
-typedef int (*pa_evdell_t)(void);
-typedef int (*pa_evdelcf_t)(void);
-typedef int (*pa_evdelcb_t)(void);
-typedef int (*pa_evcopy_t)(void);
-typedef int (*pa_evcopyl_t)(void);
-typedef int (*pa_evcan_t)(void);
-typedef int (*pa_evstop_t)(void);
-typedef int (*pa_evcont_t)(void);
-typedef int (*pa_evprint_t)(void);
-typedef int (*pa_evprintb_t)(void);
-typedef int (*pa_evprints_t)(void);
-typedef int (*pa_evfun_t)(int k);
-typedef int (*pa_evmenu_t)(void);
-typedef int (*pa_evmouba_t)(int m, int b);
-typedef int (*pa_evmoubd_t)(int m, int b);
-typedef int (*pa_evmoumov_t)(int m, int x, int y);
-typedef int (*pa_evtim_t)(int t);
-typedef int (*pa_evjoyba_t)(int j, int b);
-typedef int (*pa_evjoybd_t)(int j, int b);
-typedef int (*pa_evjoymov_t)(int j, int x, int y, int z);
-typedef int (*pa_evresize_t)(int rszx, int rszy);
-typedef int (*pa_evfocus_t)(void);
-typedef int (*pa_evnofocus_t)(void);
-typedef int (*pa_evhover_t)(void);
-typedef int (*pa_evnohover_t)(void);
-typedef int (*pa_evterm_t)(void);
-typedef int (*pa_evframe_t)(void);
-
-/*
- * Event function overrides
- */
-void pa_charover(pa_evchar_t eh, pa_evchar_t* oeh);
-void pa_upover(pa_evup_t eh, pa_evup_t* oeh);
-void pa_downover(pa_evdown_t eh, pa_evdown_t* oeh);
-void pa_leftover(pa_evleft_t eh, pa_evleft_t* oeh);
-void pa_rightover(pa_evright_t eh, pa_evright_t* oeh);
-void pa_leftwover(pa_evleftw_t eh, pa_evleftw_t* oeh);
-void pa_rightwover(pa_evrightw_t eh, pa_evrightw_t* oeh);
-void pa_homeover(pa_evhome_t eh, pa_evhome_t* oeh);
-void pa_homesover(pa_evhomes_t eh, pa_evhomes_t* oeh);
-void pa_homelover(pa_evhomel_t eh, pa_evhomel_t* oeh);
-void pa_endover(pa_evend_t eh, pa_evend_t* oeh);
-void pa_endsover(pa_evends_t eh, pa_evends_t* oeh);
-void pa_endlover(pa_evendl_t eh, pa_evendl_t* oeh);
-void pa_scrlover(pa_evscrl_t eh, pa_evscrl_t* oeh);
-void pa_scrrover(pa_evscrr_t eh, pa_evscrr_t* oeh);
-void pa_scruover(pa_evscru_t eh, pa_evscru_t* oeh);
-void pa_scrdover(pa_evscrd_t eh, pa_evscrd_t* oeh);
-void pa_pagdover(pa_evpagd_t eh, pa_evpagd_t* oeh);
-void pa_paguover(pa_evpagu_t eh, pa_evpagu_t* oeh);
-void pa_tabover(pa_evtab_t eh, pa_evtab_t* oeh);
-void pa_enterover(pa_eventer_t eh, pa_eventer_t* oeh);
-void pa_insertover(pa_evinsert_t eh, pa_evinsert_t* oeh);
-void pa_insertlover(pa_evinsertl_t eh, pa_evinsertl_t* oeh);
-void pa_inserttover(pa_evinsertt_t eh, pa_evinsertt_t* oeh);
-void pa_delover(pa_evdel_t eh, pa_evdel_t* oeh);
-void pa_dellover(pa_evdell_t eh, pa_evdell_t* oeh);
-void pa_delcfover(pa_evdelcf_t eh, pa_evdelcf_t* oeh);
-void pa_delcbover(pa_evdelcb_t eh, pa_evdelcb_t* oeh);
-void pa_copyover(pa_evcopy_t eh, pa_evcopy_t* oeh);
-void pa_copylover(pa_evcopyl_t eh, pa_evcopyl_t* oeh);
-void pa_canover(pa_evcan_t eh, pa_evcan_t* oeh);
-void pa_stopover(pa_evstop_t eh, pa_evstop_t* oeh);
-void pa_contover(pa_evcont_t eh, pa_evcont_t* oeh);
-void pa_printover(pa_evprint_t eh, pa_evprint_t* oeh);
-void pa_printbover(pa_evprintb_t eh, pa_evprintb_t* oeh);
-void pa_printsover(pa_evprints_t eh, pa_evprints_t* oeh);
-void pa_funover(pa_evfun_t eh, pa_evfun_t* oeh);
-void pa_menuover(pa_evmenu_t eh, pa_evmenu_t* oeh);
-void pa_moubaover(pa_evmouba_t eh, pa_evmouba_t* oeh);
-void pa_moubdover(pa_evmoubd_t eh, pa_evmoubd_t* oeh);
-void pa_moumovover(pa_evmoumov_t eh, pa_evmoumov_t* oeh);
-void pa_timover(pa_evtim_t eh, pa_evtim_t* oeh);
-void pa_joybaover(pa_evjoyba_t eh, pa_evjoyba_t* oeh);
-void pa_joybdover(pa_evjoybd_t eh, pa_evjoybd_t* oeh);
-void pa_joymovover(pa_evjoymov_t eh, pa_evjoymov_t* oeh);
-void pa_resizeover(pa_evresize_t eh, pa_evresize_t* oeh);
-void pa_focusover(pa_evfocus_t eh, pa_evfocus_t* oeh);
-void pa_nofocusover(pa_evnofocus_t eh, pa_evnofocus_t* oeh);
-void pa_hoverover(pa_evhover_t eh, pa_evhover_t* oeh);
-void pa_nohoverover(pa_evnohover_t eh, pa_evnohover_t* oeh);
-void pa_termover(pa_evterm_t eh, pa_evterm_t* oeh);
-void pa_frameover(pa_evframe_t eh, pa_evframe_t* oeh);
 
 /*
  * Event function override override types
