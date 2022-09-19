@@ -2,3 +2,7 @@
                                        
 1. In writethrough test, see why getc() does not work. This should be done on
 Windows or Mac version, since I believe it was a problem with stdio.c.
+
+2. In scroll right and left, does not fill the last line.
+
+3. Still problems with the threading test.

@@ -161,8 +161,53 @@ typedef struct {
 
 } pa_evtrec, *pa_evtptr;
 
+/** Error codes this module */
+typedef enum {
+
+    pa_eftbful,          /* file table full */
+    pa_ejoyacc,          /* joystick access */
+    pa_etimacc,          /* timer access */
+    pa_efilopr,          /* cannot perform operation on special file */
+    pa_einvpos,          /* invalid screen position */
+    pa_efilzer,          /* filename is empty */
+    pa_einvscn,          /* invalid screen number */
+    pa_einvhan,          /* invalid handle */
+    pa_emouacc,          /* mouse access */
+    pa_eoutdev,          /* output device error */
+    pa_einpdev,          /* input device error */
+    pa_einvtab,          /* invalid tab stop */
+    pa_einvjoy,          /* Invalid joystick ID */
+    pa_ecfgval,          /* invalid configuration value */
+    pa_esendevent_unimp, /* sendevent unimplemented */
+    pa_eopenwin_unimp,   /* openwin unimplemented */
+    pa_ebuffer_unimp,    /* buffer unimplemented */
+    pa_esizbuf_unimp,    /* sizbuf unimplemented */
+    pa_egetsiz_unimp,    /* getsiz unimplemented */
+    pa_esetsiz_unimp,    /* setsiz unimplemented */
+    pa_esetpos_unimp,    /* setpos unimplemented */
+    pa_escnsiz_unimp,    /* scnsiz unimplemented */
+    pa_escncen_unimp,    /* scncen unimplemented */
+    pa_ewinclient_unimp, /* winclient unimplemented */
+    pa_efront_unimp,     /* front unimplemented */
+    pa_eback_unimp,      /* back unimplemented */
+    pa_eframe_unimp,     /* frame unimplemented */
+    pa_esizable_unimp,   /* sizable unimplemented */
+    pa_esysbar_unimp,    /* sysbar unimplemented */
+    pa_emenu_unimp,      /* menu unimplemented */
+    pa_emenuena_unimp,   /* menuena unimplemented */
+    pa_emenusel_unimp,   /* menusel unimplemented */
+    pa_estdmenu_unimp,   /* stdmenu unimplemented */
+    pa_egetwinid_unimp,  /* getwinid unimplemented */
+    pa_efocus_unimp,     /* focus unimplemented */
+    pa_esystem           /* system fault */
+
+} pa_errcod;
+
 /** event function pointer */
 typedef void (*pa_pevthan)(pa_evtrec*);
+
+/** error function pointer */
+typedef void (*pa_errhan)(pa_errcod e);
 
 /* menu */
 typedef struct pa_menurec* pa_menuptr;
@@ -261,6 +306,7 @@ void pa_menusel(FILE* f, int id, int select);
 void pa_stdmenu(pa_stdmenusel sms, pa_menuptr* sm, pa_menuptr pm);
 void pa_focus(FILE* f);
 int pa_getwinid(void);
+
 
 /*
  * Event override types
