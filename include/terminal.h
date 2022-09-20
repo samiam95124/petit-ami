@@ -306,7 +306,7 @@ void pa_menusel(FILE* f, int id, int select);
 void pa_stdmenu(pa_stdmenusel sms, pa_menuptr* sm, pa_menuptr pm);
 void pa_focus(FILE* f);
 int pa_getwinid(void);
-
+void pa_errorover(pa_errhan nfp, pa_errhan* ofp);
 
 /*
  * Event override types

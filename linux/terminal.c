@@ -722,8 +722,8 @@ Prints the given error in ASCII text, then aborts the program.
 
 *******************************************************************************/
 
-void pa_errorover(pa_errhan nfp, pa_errhan* ofp) \
-                      { *ofp = error_vect; error_vect = nfp; }
+void pa_errorover(pa_errhan nfp, pa_errhan* ofp)
+    { *ofp = error_vect; error_vect = nfp; }
 static void error(pa_errcod e) { (*error_vect)(e); }
 static void error_ivf(pa_errcod e)
 
@@ -732,68 +732,42 @@ static void error_ivf(pa_errcod e)
     fprintf(stderr, "*** Error: AnsiTerm: ");
     switch (e) { /* error */
 
-        case pa_eftbful:          fprintf(stderr, "Too many files"); break;
-        case pa_ejoyacc:          
-            fprintf(stderr, "No joystick access available"); break;
-        case pa_etimacc:          fprintf(stderr, "No timer access available");
-            break;
-        case pa_efilopr:          
-            fprintf(stderr, "Cannot perform operation on special file"); break;
-        case pa_einvpos:          fprintf(stderr, "Invalid screen position");
-            break;
-        case pa_efilzer:          fprintf(stderr, "Filename is empty"); break;
-        case pa_einvscn:          fprintf(stderr, "Invalid screen number"); 
-            break;
-        case pa_einvhan:          fprintf(stderr, "Invalid file handle"); break;
-        case pa_emouacc:          fprintf(stderr, "No mouse access available"); 
-            break;
-        case pa_eoutdev:          fprintf(stderr, "Error in output device"); 
-            break;
-        case pa_einpdev:          fprintf(stderr, "Error in input device"); 
-            break;
-        case pa_einvtab:          fprintf(stderr, "Invalid tab stop position"); 
-            break;
-        case pa_einvjoy:          fprintf(stderr, "Invalid joystick ID"); break;
-        case pa_ecfgval:          
-            fprintf(stderr, "Invalid configuration value"); break;
-        case pa_esendevent_unimp: fprintf(stderr, "sendevent unimplemented"); 
-            break;
-        case pa_eopenwin_unimp:   fprintf(stderr, "openwin unimplemented"); 
-            break;
-        case pa_ebuffer_unimp:    fprintf(stderr, "buffer unimplemented"); 
-            break;
-        case pa_esizbuf_unimp:    fprintf(stderr, "sizbuf unimplemented"); 
-            break;
-        case pa_egetsiz_unimp:    fprintf(stderr, "getsiz unimplemented"); 
-            break;
-        case pa_esetsiz_unimp:    fprintf(stderr, "setsiz unimplemented"); 
-            break;
-        case pa_esetpos_unimp:    fprintf(stderr, "setpos unimplemented"); 
-            break;
-        case pa_escnsiz_unimp:    fprintf(stderr, "scnsiz unimplemented"); 
-            break;
-        case pa_escncen_unimp:    fprintf(stderr, "scncen unimplemented"); 
-            break;
-        case pa_ewinclient_unimp: fprintf(stderr, "winclient unimplemented"); 
-            break;
-        case pa_efront_unimp:     fprintf(stderr, "front unimplemented"); break;
-        case pa_eback_unimp:      fprintf(stderr, "back unimplemented"); break;
-        case pa_eframe_unimp:     fprintf(stderr, "frame unimplemented"); break;
-        case pa_esizable_unimp:   fprintf(stderr, "sizable unimplemented"); 
-            break;
-        case pa_esysbar_unimp:    fprintf(stderr, "sysbar unimplemented"); 
-            break;
-        case pa_emenu_unimp:      fprintf(stderr, "menu unimplemented"); break;
-        case pa_emenuena_unimp:   fprintf(stderr, "menuena unimplemented"); 
-            break;
-        case pa_emenusel_unimp:   fprintf(stderr, "menusel unimplemented"); 
-            break;
-        case pa_estdmenu_unimp:   fprintf(stderr, "stdmenu unimplemented"); 
-            break;
-        case pa_egetwinid_unimp:  fprintf(stderr, "getwinid unimplemented"); 
-            break;
-        case pa_efocus_unimp:     fprintf(stderr, "focus unimplemented"); break;
-        case pa_esystem:          fprintf(stderr, "System fault"); break;
+        case pa_eftbful: fprintf(stderr, "Too many files"); break;
+        case pa_ejoyacc: fprintf(stderr, "No joystick access available"); break;
+        case pa_etimacc: fprintf(stderr, "No timer access available"); break;
+        case pa_efilopr: fprintf(stderr, "Cannot perform operation on special file"); break;
+        case pa_einvpos: fprintf(stderr, "Invalid screen position"); break;
+        case pa_efilzer: fprintf(stderr, "Filename is empty"); break;
+        case pa_einvscn: fprintf(stderr, "Invalid screen number"); break;
+        case pa_einvhan: fprintf(stderr, "Invalid file handle"); break;
+        case pa_emouacc: fprintf(stderr, "No mouse access available"); break;
+        case pa_eoutdev: fprintf(stderr, "Error in output device"); break;
+        case pa_einpdev: fprintf(stderr, "Error in input device"); break;
+        case pa_einvtab: fprintf(stderr, "Invalid tab stop position"); break;
+        case pa_einvjoy: fprintf(stderr, "Invalid joystick ID"); break;
+        case pa_ecfgval: fprintf(stderr, "Invalid configuration value"); break;
+        case pa_esendevent_unimp: fprintf(stderr, "sendevent unimplemented"); break;
+        case pa_eopenwin_unimp: fprintf(stderr, "openwin unimplemented"); break;
+        case pa_ebuffer_unimp: fprintf(stderr, "buffer unimplemented"); break;
+        case pa_esizbuf_unimp: fprintf(stderr, "sizbuf unimplemented"); break;
+        case pa_egetsiz_unimp: fprintf(stderr, "getsiz unimplemented"); break;
+        case pa_esetsiz_unimp: fprintf(stderr, "setsiz unimplemented"); break;
+        case pa_esetpos_unimp: fprintf(stderr, "setpos unimplemented"); break;
+        case pa_escnsiz_unimp: fprintf(stderr, "scnsiz unimplemented"); break;
+        case pa_escncen_unimp: fprintf(stderr, "scncen unimplemented"); break;
+        case pa_ewinclient_unimp: fprintf(stderr, "winclient unimplemented"); break;
+        case pa_efront_unimp: fprintf(stderr, "front unimplemented"); break;
+        case pa_eback_unimp: fprintf(stderr, "back unimplemented"); break;
+        case pa_eframe_unimp: fprintf(stderr, "frame unimplemented"); break;
+        case pa_esizable_unimp: fprintf(stderr, "sizable unimplemented"); break;
+        case pa_esysbar_unimp: fprintf(stderr, "sysbar unimplemented"); break;
+        case pa_emenu_unimp: fprintf(stderr, "menu unimplemented"); break;
+        case pa_emenuena_unimp: fprintf(stderr, "menuena unimplemented"); break;
+        case pa_emenusel_unimp: fprintf(stderr, "menusel unimplemented"); break;
+        case pa_estdmenu_unimp: fprintf(stderr, "stdmenu unimplemented"); break;
+        case pa_egetwinid_unimp: fprintf(stderr, "getwinid unimplemented"); break;
+        case pa_efocus_unimp: fprintf(stderr, "focus unimplemented"); break;
+        case pa_esystem: fprintf(stderr, "System fault"); break;
 
     }
     fprintf(stderr, "\n");
@@ -5359,6 +5333,11 @@ static void pa_init_terminal()
     nohoverover_vect = nohoverover_ivf;
     termover_vect    = termover_ivf;
     frameover_vect   = frameover_ivf;
+
+    /*
+     * Set error override vector
+     */
+    error_vect = error_ivf;
 
     /*
      * Event override vectors
