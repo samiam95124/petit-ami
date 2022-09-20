@@ -209,6 +209,9 @@ typedef void (*pa_pevthan)(pa_evtrec*);
 /** error function pointer */
 typedef void (*pa_errhan)(pa_errcod e);
 
+/** linux system error function pointer */
+typedef void (*pa_linuxerrhan)(int e);
+
 /* menu */
 typedef struct pa_menurec* pa_menuptr;
 typedef struct pa_menurec {
