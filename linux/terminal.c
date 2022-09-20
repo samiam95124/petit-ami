@@ -662,7 +662,7 @@ static int curupd;                      /* index for current update screen */
 static pa_pevthan evthan[pa_etframe+1]; /* array of event handler routines */ 
 static pa_pevthan evtshan;              /* single master event handler routine */
 static pa_errhan error_vect;            /* PA error handler override */
-static pa_linuxerrhan linuxerror_vect;  /* Linux system error handler override */
+static _pa_linuxerrhan linuxerror_vect;  /* Linux system error handler override */
 
 static int*     tabs;        /* tabs set */
 static int      dimx;        /* actual width of screen */
@@ -786,10 +786,10 @@ Accepts a linux error code. Prints the error string and exits.
 
 *******************************************************************************/
 
-void pa_linuxerrorover(pa_linuxerrhan nfp, pa_linuxerrhan* ofp)
+void _pa_linuxerrorover(_pa_linuxerrhan nfp, _pa_linuxerrhan* ofp)
     { *ofp = linuxerror_vect; linuxerror_vect = nfp; }
 static void linuxerror(int ec) { (*linuxerror_vect)(ec); }
-void linuxerror_ivf(int ec)
+static void linuxerror_ivf(int ec)
 
 {
 

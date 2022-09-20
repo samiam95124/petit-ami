@@ -209,9 +209,6 @@ typedef void (*pa_pevthan)(pa_evtrec*);
 /** error function pointer */
 typedef void (*pa_errhan)(pa_errcod e);
 
-/** linux system error function pointer */
-typedef void (*pa_linuxerrhan)(int e);
-
 /* menu */
 typedef struct pa_menurec* pa_menuptr;
 typedef struct pa_menurec {
@@ -422,6 +419,12 @@ void pa_hoverover(pa_evhover_t eh, pa_evhover_t* oeh);
 void pa_nohoverover(pa_evnohover_t eh, pa_evnohover_t* oeh);
 void pa_termover(pa_evterm_t eh, pa_evterm_t* oeh);
 void pa_frameover(pa_evframe_t eh, pa_evframe_t* oeh);
+
+/** linux system error function pointer */
+typedef void (*_pa_linuxerrhan)(int e);
+
+/** linux system error function override */
+void _pa_linuxerrorover(_pa_linuxerrhan nfp, _pa_linuxerrhan* ofp);
 
 /*
  * Override vector types
