@@ -164,42 +164,42 @@ typedef struct {
 /** Error codes this module */
 typedef enum {
 
-    pa_eftbful,          /* file table full */
-    pa_ejoyacc,          /* joystick access */
-    pa_etimacc,          /* timer access */
-    pa_efilopr,          /* cannot perform operation on special file */
-    pa_einvpos,          /* invalid screen position */
-    pa_efilzer,          /* filename is empty */
-    pa_einvscn,          /* invalid screen number */
-    pa_einvhan,          /* invalid handle */
-    pa_emouacc,          /* mouse access */
-    pa_eoutdev,          /* output device error */
-    pa_einpdev,          /* input device error */
-    pa_einvtab,          /* invalid tab stop */
-    pa_einvjoy,          /* Invalid joystick ID */
-    pa_ecfgval,          /* invalid configuration value */
-    pa_esendevent_unimp, /* sendevent unimplemented */
-    pa_eopenwin_unimp,   /* openwin unimplemented */
-    pa_ebuffer_unimp,    /* buffer unimplemented */
-    pa_esizbuf_unimp,    /* sizbuf unimplemented */
-    pa_egetsiz_unimp,    /* getsiz unimplemented */
-    pa_esetsiz_unimp,    /* setsiz unimplemented */
-    pa_esetpos_unimp,    /* setpos unimplemented */
-    pa_escnsiz_unimp,    /* scnsiz unimplemented */
-    pa_escncen_unimp,    /* scncen unimplemented */
-    pa_ewinclient_unimp, /* winclient unimplemented */
-    pa_efront_unimp,     /* front unimplemented */
-    pa_eback_unimp,      /* back unimplemented */
-    pa_eframe_unimp,     /* frame unimplemented */
-    pa_esizable_unimp,   /* sizable unimplemented */
-    pa_esysbar_unimp,    /* sysbar unimplemented */
-    pa_emenu_unimp,      /* menu unimplemented */
-    pa_emenuena_unimp,   /* menuena unimplemented */
-    pa_emenusel_unimp,   /* menusel unimplemented */
-    pa_estdmenu_unimp,   /* stdmenu unimplemented */
-    pa_egetwinid_unimp,  /* getwinid unimplemented */
-    pa_efocus_unimp,     /* focus unimplemented */
-    pa_esystem           /* system fault */
+    pa_dispeftbful,          /* file table full */
+    pa_dispejoyacc,          /* joystick access */
+    pa_dispetimacc,          /* timer access */
+    pa_dispefilopr,          /* cannot perform operation on special file */
+    pa_dispeinvpos,          /* invalid screen position */
+    pa_dispefilzer,          /* filename is empty */
+    pa_dispeinvscn,          /* invalid screen number */
+    pa_dispeinvhan,          /* invalid handle */
+    pa_dispemouacc,          /* mouse access */
+    pa_dispeoutdev,          /* output device error */
+    pa_dispeinpdev,          /* input device error */
+    pa_dispeinvtab,          /* invalid tab stop */
+    pa_dispeinvjoy,          /* Invalid joystick ID */
+    pa_dispecfgval,          /* invalid configuration value */
+    pa_dispesendevent_unimp, /* sendevent unimplemented */
+    pa_dispeopenwin_unimp,   /* openwin unimplemented */
+    pa_dispebuffer_unimp,    /* buffer unimplemented */
+    pa_dispesizbuf_unimp,    /* sizbuf unimplemented */
+    pa_dispegetsiz_unimp,    /* getsiz unimplemented */
+    pa_dispesetsiz_unimp,    /* setsiz unimplemented */
+    pa_dispesetpos_unimp,    /* setpos unimplemented */
+    pa_dispescnsiz_unimp,    /* scnsiz unimplemented */
+    pa_dispescncen_unimp,    /* scncen unimplemented */
+    pa_dispewinclient_unimp, /* winclient unimplemented */
+    pa_dispefront_unimp,     /* front unimplemented */
+    pa_dispeback_unimp,      /* back unimplemented */
+    pa_dispeframe_unimp,     /* frame unimplemented */
+    pa_dispesizable_unimp,   /* sizable unimplemented */
+    pa_dispesysbar_unimp,    /* sysbar unimplemented */
+    pa_dispemenu_unimp,      /* menu unimplemented */
+    pa_dispemenuena_unimp,   /* menuena unimplemented */
+    pa_dispemenusel_unimp,   /* menusel unimplemented */
+    pa_dispestdmenu_unimp,   /* stdmenu unimplemented */
+    pa_dispegetwinid_unimp,  /* getwinid unimplemented */
+    pa_dispefocus_unimp,     /* focus unimplemented */
+    pa_dispesystem           /* system fault */
 
 } pa_errcod;
 

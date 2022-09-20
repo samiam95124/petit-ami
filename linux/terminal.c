@@ -732,42 +732,42 @@ static void error_ivf(pa_errcod e)
     fprintf(stderr, "*** Error: AnsiTerm: ");
     switch (e) { /* error */
 
-        case pa_eftbful: fprintf(stderr, "Too many files"); break;
-        case pa_ejoyacc: fprintf(stderr, "No joystick access available"); break;
-        case pa_etimacc: fprintf(stderr, "No timer access available"); break;
-        case pa_efilopr: fprintf(stderr, "Cannot perform operation on special file"); break;
-        case pa_einvpos: fprintf(stderr, "Invalid screen position"); break;
-        case pa_efilzer: fprintf(stderr, "Filename is empty"); break;
-        case pa_einvscn: fprintf(stderr, "Invalid screen number"); break;
-        case pa_einvhan: fprintf(stderr, "Invalid file handle"); break;
-        case pa_emouacc: fprintf(stderr, "No mouse access available"); break;
-        case pa_eoutdev: fprintf(stderr, "Error in output device"); break;
-        case pa_einpdev: fprintf(stderr, "Error in input device"); break;
-        case pa_einvtab: fprintf(stderr, "Invalid tab stop position"); break;
-        case pa_einvjoy: fprintf(stderr, "Invalid joystick ID"); break;
-        case pa_ecfgval: fprintf(stderr, "Invalid configuration value"); break;
-        case pa_esendevent_unimp: fprintf(stderr, "sendevent unimplemented"); break;
-        case pa_eopenwin_unimp: fprintf(stderr, "openwin unimplemented"); break;
-        case pa_ebuffer_unimp: fprintf(stderr, "buffer unimplemented"); break;
-        case pa_esizbuf_unimp: fprintf(stderr, "sizbuf unimplemented"); break;
-        case pa_egetsiz_unimp: fprintf(stderr, "getsiz unimplemented"); break;
-        case pa_esetsiz_unimp: fprintf(stderr, "setsiz unimplemented"); break;
-        case pa_esetpos_unimp: fprintf(stderr, "setpos unimplemented"); break;
-        case pa_escnsiz_unimp: fprintf(stderr, "scnsiz unimplemented"); break;
-        case pa_escncen_unimp: fprintf(stderr, "scncen unimplemented"); break;
-        case pa_ewinclient_unimp: fprintf(stderr, "winclient unimplemented"); break;
-        case pa_efront_unimp: fprintf(stderr, "front unimplemented"); break;
-        case pa_eback_unimp: fprintf(stderr, "back unimplemented"); break;
-        case pa_eframe_unimp: fprintf(stderr, "frame unimplemented"); break;
-        case pa_esizable_unimp: fprintf(stderr, "sizable unimplemented"); break;
-        case pa_esysbar_unimp: fprintf(stderr, "sysbar unimplemented"); break;
-        case pa_emenu_unimp: fprintf(stderr, "menu unimplemented"); break;
-        case pa_emenuena_unimp: fprintf(stderr, "menuena unimplemented"); break;
-        case pa_emenusel_unimp: fprintf(stderr, "menusel unimplemented"); break;
-        case pa_estdmenu_unimp: fprintf(stderr, "stdmenu unimplemented"); break;
-        case pa_egetwinid_unimp: fprintf(stderr, "getwinid unimplemented"); break;
-        case pa_efocus_unimp: fprintf(stderr, "focus unimplemented"); break;
-        case pa_esystem: fprintf(stderr, "System fault"); break;
+        case pa_dispeftbful: fprintf(stderr, "Too many files"); break;
+        case pa_dispejoyacc: fprintf(stderr, "No joystick access available"); break;
+        case pa_dispetimacc: fprintf(stderr, "No timer access available"); break;
+        case pa_dispefilopr: fprintf(stderr, "Cannot perform operation on special file"); break;
+        case pa_dispeinvpos: fprintf(stderr, "Invalid screen position"); break;
+        case pa_dispefilzer: fprintf(stderr, "Filename is empty"); break;
+        case pa_dispeinvscn: fprintf(stderr, "Invalid screen number"); break;
+        case pa_dispeinvhan: fprintf(stderr, "Invalid file handle"); break;
+        case pa_dispemouacc: fprintf(stderr, "No mouse access available"); break;
+        case pa_dispeoutdev: fprintf(stderr, "Error in output device"); break;
+        case pa_dispeinpdev: fprintf(stderr, "Error in input device"); break;
+        case pa_dispeinvtab: fprintf(stderr, "Invalid tab stop position"); break;
+        case pa_dispeinvjoy: fprintf(stderr, "Invalid joystick ID"); break;
+        case pa_dispecfgval: fprintf(stderr, "Invalid configuration value"); break;
+        case pa_dispesendevent_unimp: fprintf(stderr, "sendevent unimplemented"); break;
+        case pa_dispeopenwin_unimp: fprintf(stderr, "openwin unimplemented"); break;
+        case pa_dispebuffer_unimp: fprintf(stderr, "buffer unimplemented"); break;
+        case pa_dispesizbuf_unimp: fprintf(stderr, "sizbuf unimplemented"); break;
+        case pa_dispegetsiz_unimp: fprintf(stderr, "getsiz unimplemented"); break;
+        case pa_dispesetsiz_unimp: fprintf(stderr, "setsiz unimplemented"); break;
+        case pa_dispesetpos_unimp: fprintf(stderr, "setpos unimplemented"); break;
+        case pa_dispescnsiz_unimp: fprintf(stderr, "scnsiz unimplemented"); break;
+        case pa_dispescncen_unimp: fprintf(stderr, "scncen unimplemented"); break;
+        case pa_dispewinclient_unimp: fprintf(stderr, "winclient unimplemented"); break;
+        case pa_dispefront_unimp: fprintf(stderr, "front unimplemented"); break;
+        case pa_dispeback_unimp: fprintf(stderr, "back unimplemented"); break;
+        case pa_dispeframe_unimp: fprintf(stderr, "frame unimplemented"); break;
+        case pa_dispesizable_unimp: fprintf(stderr, "sizable unimplemented"); break;
+        case pa_dispesysbar_unimp: fprintf(stderr, "sysbar unimplemented"); break;
+        case pa_dispemenu_unimp: fprintf(stderr, "menu unimplemented"); break;
+        case pa_dispemenuena_unimp: fprintf(stderr, "menuena unimplemented"); break;
+        case pa_dispemenusel_unimp: fprintf(stderr, "menusel unimplemented"); break;
+        case pa_dispestdmenu_unimp: fprintf(stderr, "stdmenu unimplemented"); break;
+        case pa_dispegetwinid_unimp: fprintf(stderr, "getwinid unimplemented"); break;
+        case pa_dispefocus_unimp: fprintf(stderr, "focus unimplemented"); break;
+        case pa_dispesystem: fprintf(stderr, "System fault"); break;
 
     }
     fprintf(stderr, "\n");
@@ -963,7 +963,7 @@ static char getchr(void)
     /* receive character to the next hander in the override chain */
     rc = (*ofpread)(INPFIL, &c, 1);
     // rc = read(INPFIL, &c, 1);
-    if (rc != 1) error(pa_einpdev); /* input device error */
+    if (rc != 1) error(pa_dispeinpdev); /* input device error */
 
     return c; /* return character */
 
@@ -989,7 +989,7 @@ static void putchr(unsigned char c)
     /* send character to the next hander in the override chain */
     rc = (*ofpwrite)(OUTFIL, &c, 1);
 
-    if (rc != 1) error(pa_eoutdev); /* output device error */
+    if (rc != 1) error(pa_dispeoutdev); /* output device error */
 
 }
 
@@ -1145,7 +1145,7 @@ static void prtquepaevt(void)
 
             r = pthread_mutex_unlock(&evtlck); /* release event queue */
             if (r) linuxerror(r);
-            error(pa_esystem); /* go error */
+            error(pa_dispesystem); /* go error */
 
         }
 
@@ -3522,7 +3522,7 @@ static off_t ilseek(int fd, off_t offset, int whence)
 
     /* check seeking on terminal attached file (input or output) and error
        if so */
-    if (fd == INPFIL || fd == OUTFIL) error(pa_efilopr);
+    if (fd == INPFIL || fd == OUTFIL) error(pa_dispefilopr);
 
     return (*ofplseek)(fd, offset, whence);
 
@@ -4159,7 +4159,7 @@ static void select_ivf(FILE *f, int u, int d)
 
     dbg_printf(dlapi, "API\n");
     if (u < 1 || u > MAXCON || d < 1 || d > MAXCON)
-        error(pa_einvscn); /* invalid screen number */
+        error(pa_dispeinvscn); /* invalid screen number */
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     if (curupd != u) { /* update screen changes */
 
@@ -4510,7 +4510,7 @@ static void timer_ivf(/* file to send event to */              FILE* f,
 {
 
     dbg_printf(dlapi, "API\n");
-    if (i < 1 || i > PA_MAXTIM) error(pa_einvhan); /* invalid timer handle */
+    if (i < 1 || i > PA_MAXTIM) error(pa_dispeinvhan); /* invalid timer handle */
     pthread_mutex_lock(&timlock); /* take the timer lock */
     timtbl[i-1] = system_event_addsetim(timtbl[i-1], t, r);
     pthread_mutex_unlock(&timlock); /* release the timer lock */
@@ -4535,12 +4535,12 @@ static void killtimer_ivf(/* file to kill timer on */ FILE *f,
 {
 
     dbg_printf(dlapi, "API\n");
-    if (i < 1 || i > PA_MAXTIM) error(pa_einvhan); /* invalid timer handle */
+    if (i < 1 || i > PA_MAXTIM) error(pa_dispeinvhan); /* invalid timer handle */
     pthread_mutex_lock(&timlock); /* take the timer lock */
     if (timtbl[i-1] <= 0) {
 
         pthread_mutex_unlock(&timlock); /* release the timer lock */
-        error(pa_etimacc); /* no such timer */
+        error(pa_dispetimacc); /* no such timer */
 
     }
     system_event_deasetim(timtbl[i-1]); /* deactivate timer */
@@ -4630,13 +4630,13 @@ static int joybutton_ivf(FILE *f, int j)
     if (j < 1 || j > numjoy) {
 
         pthread_mutex_unlock(&termlock); /* release terminal broadlock */
-        error(pa_einvjoy); /* bad joystick id */
+        error(pa_dispeinvjoy); /* bad joystick id */
 
     }
     if (!joytab[j-1]) {
 
         pthread_mutex_unlock(&termlock); /* release terminal broadlock */
-        error(pa_esystem); /* should be a table entry */
+        error(pa_dispesystem); /* should be a table entry */
 
     }
     b = joytab[j-1]->button; /* get button count */
@@ -4670,13 +4670,13 @@ static int joyaxis_ivf(FILE *f, int j)
     if (j < 1 || j > numjoy) {
 
         pthread_mutex_unlock(&termlock); /* release terminal broadlock */
-        error(pa_einvjoy); /* bad joystick id */
+        error(pa_dispeinvjoy); /* bad joystick id */
 
     }
     if (!joytab[j-1]) {
 
         pthread_mutex_unlock(&termlock); /* release terminal broadlock */
-        error(pa_esystem); /* should be a table entry */
+        error(pa_dispesystem); /* should be a table entry */
 
     }
     ja = joytab[j-1]->axis; /* get axis number */
@@ -4708,7 +4708,7 @@ static void settab_ivf(FILE* f, int t)
     if (t < 1 || t > dimx) {
 
         pthread_mutex_unlock(&termlock); /* release terminal broadlock */
-        error(pa_einvtab); /* invalid tab position */
+        error(pa_dispeinvtab); /* invalid tab position */
 
     }
     tabs[t-1] = 1; /* set tab position */
@@ -4735,7 +4735,7 @@ static void restab_ivf(FILE* f, int t)
     if (t < 1 || t > dimx) {
 
         pthread_mutex_unlock(&termlock); /* release terminal broadlock */
-        error(pa_einvtab); /* invalid tab position */
+        error(pa_dispeinvtab); /* invalid tab position */
 
     }
     tabs[t-1] = 0; /* reset tab position */
@@ -5086,90 +5086,90 @@ calls.
 
 APIOVER(sendevent)
 void pa_sendevent(FILE* f, pa_evtrec* er) { (*sendevent_vect)(f, er); }
-static void sendevent_ivf(FILE* f, pa_evtrec* er) { error(pa_esendevent_unimp); }
+static void sendevent_ivf(FILE* f, pa_evtrec* er) { error(pa_dispesendevent_unimp); }
 
 APIOVER(openwin)
 void pa_openwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
     { (*openwin_vect)(infile, outfile, parent, wid); }
 static void openwin_ivf(FILE** infile, FILE** outfile, FILE* parent, int wid)
-    { error(pa_eopenwin_unimp); }
+    { error(pa_dispeopenwin_unimp); }
 
 APIOVER(buffer)
 void pa_buffer(FILE* f, int e) { (*buffer_vect)(f, e); }
-static void buffer_ivf(FILE* f, int e) { error(pa_ebuffer_unimp); }
+static void buffer_ivf(FILE* f, int e) { error(pa_dispebuffer_unimp); }
 
 APIOVER(getsiz)
 void pa_getsiz(FILE* f, int* x, int* y) { (*getsiz_vect)(f, x, y); }
-static void getsiz_ivf(FILE* f, int* x, int* y) { error(pa_egetsiz_unimp); }
+static void getsiz_ivf(FILE* f, int* x, int* y) { error(pa_dispegetsiz_unimp); }
 
 APIOVER(setsiz)
 void pa_setsiz(FILE* f, int x, int y) { (*setsiz_vect)(f, x, y); }
-static void setsiz_ivf(FILE* f, int x, int y) { error(pa_esetsiz_unimp); }
+static void setsiz_ivf(FILE* f, int x, int y) { error(pa_dispesetsiz_unimp); }
 
 APIOVER(setpos)
 void pa_setpos(FILE* f, int x, int y) { (*setpos_vect)(f, x, y); }
-static void setpos_ivf(FILE* f, int x, int y) { error(pa_esetpos_unimp); }
+static void setpos_ivf(FILE* f, int x, int y) { error(pa_dispesetpos_unimp); }
 
 APIOVER(scnsiz)
 void pa_scnsiz(FILE* f, int* x, int* y) { (*scnsiz_vect)(f, x, y); }
-static void scnsiz_ivf(FILE* f, int* x, int* y) { error(pa_escnsiz_unimp); }
+static void scnsiz_ivf(FILE* f, int* x, int* y) { error(pa_dispescnsiz_unimp); }
 
 APIOVER(scncen)
 void pa_scncen(FILE* f, int* x, int* y) { (*scncen_vect)(f, x, y); }
-static void scncen_ivf(FILE* f, int* x, int* y) { error(pa_escncen_unimp); }
+static void scncen_ivf(FILE* f, int* x, int* y) { error(pa_dispescncen_unimp); }
 
 APIOVER(winclient)
 void pa_winclient(FILE* f, int cx, int cy, int* wx, int* wy, pa_winmodset ms)
     { (*winclient_vect)(f, cx, cy, wx, wy, ms); }
 static void winclient_ivf(FILE* f, int cx, int cy, int* wx, int* wy, 
                           pa_winmodset ms)
-    { error(pa_ewinclient_unimp); }
+    { error(pa_dispewinclient_unimp); }
 
 APIOVER(front)
 void pa_front(FILE* f) { (*front_vect)(f); }
-static void front_ivf(FILE* f) { error(pa_efront_unimp); }
+static void front_ivf(FILE* f) { error(pa_dispefront_unimp); }
 
 APIOVER(back)
 void pa_back(FILE* f) { (*back_vect)(f); }
-static void back_ivf(FILE* f) { error(pa_eback_unimp); }
+static void back_ivf(FILE* f) { error(pa_dispeback_unimp); }
 
 APIOVER(frame)
 void pa_frame(FILE* f, int e) { (*frame_vect)(f, e); }
-static void frame_ivf(FILE* f, int e) { error(pa_eframe_unimp); }
+static void frame_ivf(FILE* f, int e) { error(pa_dispeframe_unimp); }
 
 APIOVER(sizable)
 void pa_sizable(FILE* f, int e) { (*sizable_vect)(f, e); }
-static void sizable_ivf(FILE* f, int e) { error(pa_esizable_unimp); }
+static void sizable_ivf(FILE* f, int e) { error(pa_dispesizable_unimp); }
 
 APIOVER(sysbar)
 void pa_sysbar(FILE* f, int e) { (*sysbar_vect)(f, e); }
-static void sysbar_ivf(FILE* f, int e) { error(pa_esysbar_unimp); }
+static void sysbar_ivf(FILE* f, int e) { error(pa_dispesysbar_unimp); }
 
 APIOVER(menu)
 void pa_menu(FILE* f, pa_menuptr m) { (*menu_vect)(f, m); }
-static void menu_ivf(FILE* f, pa_menuptr m) { error(pa_emenu_unimp); }
+static void menu_ivf(FILE* f, pa_menuptr m) { error(pa_dispemenu_unimp); }
 
 APIOVER(menuena)
 void pa_menuena(FILE* f, int id, int onoff) { (*menuena_vect)(f, id, onoff); }
-static void menuena_ivf(FILE* f, int id, int onoff) { error(pa_emenuena_unimp); }
+static void menuena_ivf(FILE* f, int id, int onoff) { error(pa_dispemenuena_unimp); }
 
 APIOVER(menusel)
 void pa_menusel(FILE* f, int id, int select) { (*menusel_vect)(f, id, select); }
-static void menusel_ivf(FILE* f, int id, int select) { error(pa_emenusel_unimp); }
+static void menusel_ivf(FILE* f, int id, int select) { error(pa_dispemenusel_unimp); }
 
 APIOVER(stdmenu)
 void pa_stdmenu(pa_stdmenusel sms, pa_menuptr* sm, pa_menuptr pm)
     { (*stdmenu_vect)(sms, sm, pm); }
 static void stdmenu_ivf(pa_stdmenusel sms, pa_menuptr* sm, pa_menuptr pm)
-    { error(pa_estdmenu_unimp); }
+    { error(pa_dispestdmenu_unimp); }
 
 APIOVER(getwinid)
 int pa_getwinid(void) { (*getwinid_vect)(); }
-static int getwinid_ivf(void) { error(pa_egetwinid_unimp); }
+static int getwinid_ivf(void) { error(pa_dispegetwinid_unimp); }
 
 APIOVER(focus)
 void pa_focus(FILE* f) { (*focus_vect)(f); }
-static void focus_ivf(FILE* f) { error(pa_efocus_unimp); }
+static void focus_ivf(FILE* f) { error(pa_dispefocus_unimp); }
 
 /*******************************************************************************
 
@@ -5390,14 +5390,14 @@ static void pa_init_terminal()
         if (vp) {
 
             bufx = strtol(vp->value, &errstr, 10);
-            if (*errstr) error(pa_ecfgval);
+            if (*errstr) error(pa_dispecfgval);
 
         }
         vp = pa_schlst("maxyd", term_root);
         if (vp) {
 
             bufy = strtol(vp->value, &errstr, 10);
-            if (*errstr) error(pa_ecfgval);
+            if (*errstr) error(pa_dispecfgval);
 
         }
         /* enable/disable joystick */
@@ -5405,7 +5405,7 @@ static void pa_init_terminal()
         if (vp) {
 
             joyenb = strtol(vp->value, &errstr, 10);
-            if (*errstr) error(pa_ecfgval);
+            if (*errstr) error(pa_dispecfgval);
 
         }
         /* enable/disable mouse */
@@ -5413,7 +5413,7 @@ static void pa_init_terminal()
         if (vp) {
 
             mouseenb = strtol(vp->value, &errstr, 10);
-            if (*errstr) error(pa_ecfgval);
+            if (*errstr) error(pa_dispecfgval);
 
         }
         /* dump PA events */
@@ -5421,7 +5421,7 @@ static void pa_init_terminal()
         if (vp) {
 
             dmpevt = strtol(vp->value, &errstr, 10);
-            if (*errstr) error(pa_ecfgval);
+            if (*errstr) error(pa_dispecfgval);
 
         }
 
@@ -5685,7 +5685,7 @@ static void pa_deinit_terminal()
     /* if we don't see our own vector flag an error */
     if (cppread != iread || cppwrite != iwrite || cppopen != iopen ||
         cppclose != iclose /* || cppunlink != iunlink */ || cpplseek != ilseek)
-        error(pa_esystem);
+        error(pa_dispesystem);
 
     /* back to normal buffer on xterm */
     printf("\033[?1049l"); fflush(stdout);
