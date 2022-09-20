@@ -140,14 +140,16 @@ extern char *program_invocation_short_name;
 #define XTERMTITLE TRUE /* enable xterm title */
 #endif
 
-#define MAXKEY    20        /* maximum length of key sequence */
-#define MAXCON    10        /**< number of screen contexts */
-#define MAXLIN    250       /* maximum length of input buffered line */
-#define MAXFKEY   10        /**< maximum number of function keys */
-#define MAXJOY    10        /* number of joysticks possible */
-#define DMPEVT    FALSE     /* enable dump Petit-Ami messages */
-#define ALLOWUTF8           /* enable UTF-8 encoding */
-#define HOVERTIME (1*10000) /* hover timeout, 1 second */ 
+#define MAXKEY    20          /* maximum length of key sequence */
+#define MAXCON    10          /**< number of screen contexts */
+#define MAXLIN    250         /* maximum length of input buffered line */
+#define MAXFKEY   10          /**< maximum number of function keys */
+#define MAXJOY    10          /* number of joysticks possible */
+#define DMPEVT    FALSE       /* enable dump Petit-Ami messages */
+#define SECOND    10000       /* 1 second time (using 100us timer */
+#define ALLOWUTF8             /* enable UTF-8 encoding */
+#define HOVERTIME (1*SECOND)  /* hover timeout, 1 second */ 
+#define RESPTIME  (15*SECOND) /* default response time limit */
 
 /*
  * Standard mouse decoding has a limit of about 223 in x or y. SGR mode
@@ -686,6 +688,8 @@ static int    scroll;
 static int    hover;       /* current state of hover */
 static int    hovsev;      /* hover timer event */
 static int    blksev;      /* finish blink event */
+static int    respsev;     /* response check event */
+static int    respto;      /* response has timed out */
 static int    fend;        /* end of program ordered flag */
 static int    fautohold;   /* automatic hold on exit flag */
 static int    errflg;      /* error occurred */
@@ -2015,20 +2019,20 @@ static void ievent(void)
 
 {
 
-    int       pmatch; /* partial match found */
-    pa_evtcod i;      /* index for events */
-    int       rv;     /* return value */
-    int       evtfnd; /* found an event */
-    int       ti;     /* index for timers */
-    int       ji;     /* index for joysticks */
+    int       pmatch;  /* partial match found */
+    pa_evtcod i;       /* index for events */
+    int       rv;      /* return value */
+    int       evtfnd;  /* found an event */
+    int       ti;      /* index for timers */
+    int       ji;      /* index for joysticks */
     enum { mnone, mbutton, mx, my } mousts; /* mouse state variable */
-    int       dimxs;  /* save for screen size */
+    int       dimxs;   /* save for screen size */
     int       dimys;
-    sysevt    sev;    /* system event */
+    sysevt    sev;     /* system event */
     joyptr    jp;
-    int       bn;     /* mouse button number */
-    int       ba;     /* mouse button assert */
-    pa_evtrec er;     /* event record */
+    int       bn;      /* mouse button number */
+    int       ba;      /* mouse button assert */
+    pa_evtrec er;      /* event record */
 
     mousts = mnone; /* set no mouse event being processed */
     do { /* match input events */
@@ -2193,7 +2197,7 @@ static void ievent(void)
 
             }
 
-            /* check the the hover timer */
+            /* check the hover timer */
             if (!evtfnd && sev.lse == hovsev && hover) {
 
                 er.etype = pa_etnohover; /* set no hover event occurred */
@@ -2203,12 +2207,21 @@ static void ievent(void)
 
             }
 
-            /* check the the finish blink timer */
+            /* check the finish blink timer */
             if (!evtfnd && sev.lse == blksev) {
 
                 er.etype = pa_etsys; /* set no hover event occurred */
                 evtfnd = TRUE; /* set event found */
                 enquepaevt(&er); /* send to queue */
+
+            }
+
+            /* check the response timer */
+            if (!evtfnd && sev.lse == respsev) {
+
+                /* present unresponsive message and flag state */
+                trm_title("Program unresponsive");
+                respto = TRUE;
 
             }
 
@@ -4451,6 +4464,16 @@ static void event_ivf(FILE* f, pa_evtrec *er)
     dbg_printf(dlapi, "API\n");
     do { /* loop handling via event vectors */
 
+        /* reset the response timer */
+        respsev = system_event_addsetim(respsev, RESPTIME, FALSE);
+        /* reset any response state */
+        if (respto) {
+
+            trm_title(""); /* reset message (should reset previous) */
+            respto = FALSE; /* reset state */
+
+        }
+
         /* get next input event */
         dequepaevt(er); /* get next queued event */
         pthread_mutex_lock(&termlock); /* lock terminal broadlock */
@@ -5599,6 +5622,11 @@ static void pa_init_terminal()
     /* start event thread */
     r = pthread_create(&eventthread, NULL, eventtask, NULL);
     if (r) linuxerror(r); /* error, print and exit */
+
+    /*
+     * Set response timer
+     */
+    respsev = system_event_addsetim(respsev, RESPTIME, FALSE);
 
 }
 
