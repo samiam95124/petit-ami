@@ -131,6 +131,17 @@ extern char *program_invocation_short_name;
 #define DEFYD 24
 #endif
 
+/* Set unresponsive timer and present message and state if the program has not
+   serviced the event queue */
+#ifndef UNRESPONSE
+#define UNRESPONSE TRUE /* check non-responsive program */
+#endif
+
+/* Allow the user to force terminate an unesposive program */
+#ifndef UNRESPONSEKILL
+#define UNRESPONSEKILL TRUE /* terminate non-responsive program */
+#endif
+
 /*
  * Use xterm title function
  *
@@ -697,8 +708,7 @@ static int    errflg;      /* error occurred */
 /* maximum power of 10 in integer */
 static int    maxpow10;
 static int    numjoy;         /* number of joysticks found */
-static int    joyenb;         /* enable joysticks */
-static int    mouseenb;       /* enable mouse */
+
 static int    frmfid;         /* framing timer fid */
 volatile char inpbuf[MAXLIN]; /* input line buffer */
 volatile int  inpptr;         /* input line index */
@@ -709,6 +719,14 @@ static int    winchsev;       /* windows change system event number */
 #ifdef ALLOWUTF8
 static int    utf8cnt;        /* UTF-8 extended character count */
 #endif
+
+/*
+ * Configurable parameters
+ */
+static int    joyenb;         /* enable joysticks */
+static int    mouseenb;       /* enable mouse */
+static int    unresponse;     /* check non-responsive program */
+static int    unresponsekill; /* enable kill of non-responsive programs */
 
 static paevtque*       paqfre;      /* free PA event queue entries list */
 static paevtque*       paqevt;      /* PA event input save queue */
@@ -2073,6 +2091,11 @@ static void ievent(void)
                             keylen = 0; /* clear buffer */
                             pmatch = 0; /* clear partial match */
 
+                            /* if its an unresponsive program timeout, we can
+                               handle the termination right here */
+                            if (unresponsekill && respto && 
+                                er.etype == pa_etterm) exit(1);
+
                         }
 
                     }
@@ -2217,7 +2240,7 @@ static void ievent(void)
             }
 
             /* check the response timer */
-            if (!evtfnd && sev.lse == respsev) {
+            if (!evtfnd && sev.lse == respsev && unresponse) {
 
                 /* present unresponsive message and flag state */
                 trm_title("Program unresponsive");
@@ -4465,12 +4488,16 @@ static void event_ivf(FILE* f, pa_evtrec *er)
     do { /* loop handling via event vectors */
 
         /* reset the response timer */
-        respsev = system_event_addsetim(respsev, RESPTIME, FALSE);
-        /* reset any response state */
-        if (respto) {
+        if (unresponse) {
 
-            trm_title(""); /* reset message (should reset previous) */
-            respto = FALSE; /* reset state */
+            respsev = system_event_addsetim(respsev, RESPTIME, FALSE);
+            /* reset any response state */
+            if (respto) {
+
+                trm_title(""); /* reset message (should reset previous) */
+                respto = FALSE; /* reset state */
+
+            }
 
         }
 
@@ -5395,6 +5422,8 @@ static void pa_init_terminal()
     dmpevt    = DMPEVT;   /* dump Petit-Ami messages */
     joyenb    = JOYENB;   /* enable/disable joystick */
     mouseenb  = MOUSEENB; /* enable/disable mouse */
+    unresponse = UNRESPONSE; /* check unresponsive program */
+    unresponsekill = UNRESPONSEKILL; /* kill unresponsive program */
 
     /* set default screen geometry */
     dimx = DEFXD;
@@ -5626,7 +5655,8 @@ static void pa_init_terminal()
     /*
      * Set response timer
      */
-    respsev = system_event_addsetim(respsev, RESPTIME, FALSE);
+    if (unresponse)
+        respsev = system_event_addsetim(respsev, RESPTIME, FALSE);
 
 }
 
