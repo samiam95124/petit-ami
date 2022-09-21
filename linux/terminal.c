@@ -498,6 +498,7 @@ static _pa_eventover_t   eventover_vect;
 static _pa_eventsover_t  eventsover_vect;
 static _pa_sendevent_t   sendevent_vect;
 static _pa_title_t       title_vect;
+static _pa_titlen_t      titlen_vect;
 static _pa_openwin_t     openwin_vect;
 static _pa_buffer_t      buffer_vect;
 static _pa_sizbuf_t      sizbuf_vect;
@@ -727,6 +728,7 @@ static int    joyenb;         /* enable joysticks */
 static int    mouseenb;       /* enable mouse */
 static int    unresponse;     /* check non-responsive program */
 static int    unresponsekill; /* enable kill of non-responsive programs */
+static int    xtermtitle;     /* use xterm title bar set mode */
 
 static paevtque*       paqfre;      /* free PA event queue entries list */
 static paevtque*       paqevt;      /* PA event input save queue */
@@ -1615,6 +1617,17 @@ static void trm_title(char* title)
 
     putstr("\33]0;");
     putstr(title);
+    putstr("\7");
+
+}
+
+/** set title with length */
+static void trm_titlen(char* title, int l)
+
+{
+
+    putstr("\33]0;");
+    putnstr(title, l);
     putstr("\7");
 
 }
@@ -5023,6 +5036,27 @@ static void title_ivf(FILE* f, char* ts)
 
 /** ****************************************************************************
 
+Set window title with length
+
+Sets the title of the current window.
+
+*******************************************************************************/
+
+APIOVER(titlen)
+void pa_titlen(FILE* f, char* ts, int l) { (*titlen_vect)(f, ts, l); }
+static void titlen_ivf(FILE* f, char* ts, int l)
+    
+{ 
+
+    dbg_printf(dlapi, "API\n");
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
+    trm_titlen(ts, l); /* set title */
+    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
+
+}
+
+/** ****************************************************************************
+
 Set foreground color rgb
 
 Sets the foreground color from individual r, g, b values.
@@ -5313,6 +5347,7 @@ static void pa_init_terminal()
     eventsover_vect  = eventsover_ivf;
     sendevent_vect   = sendevent_ivf;
     title_vect       = title_ivf;
+    titlen_vect      = titlen_ivf;
     openwin_vect     = openwin_ivf;
     buffer_vect      = buffer_ivf;
     sizbuf_vect      = sizbuf_ivf;
@@ -5419,11 +5454,12 @@ static void pa_init_terminal()
     ovr_lseek(ilseek, &ofplseek);
 
     /* set internal configurable settings */
-    dmpevt    = DMPEVT;   /* dump Petit-Ami messages */
-    joyenb    = JOYENB;   /* enable/disable joystick */
-    mouseenb  = MOUSEENB; /* enable/disable mouse */
-    unresponse = UNRESPONSE; /* check unresponsive program */
+    dmpevt         = DMPEVT;         /* dump Petit-Ami messages */
+    joyenb         = JOYENB;         /* enable/disable joystick */
+    mouseenb       = MOUSEENB;       /* enable/disable mouse */
+    unresponse     = UNRESPONSE;     /* check unresponsive program */
     unresponsekill = UNRESPONSEKILL; /* kill unresponsive program */
+    xtermtitle     = XTERMTITLE;     /* use xterm title bar mode */
 
     /* set default screen geometry */
     dimx = DEFXD;
@@ -5708,15 +5744,15 @@ static void pa_deinit_terminal()
         /* place program name */
         strcat(trmnam, program_invocation_short_name);
 #endif
-#if XTERMTITLE
-        trm_title(trmnam); /* put up termination title */
-        /* wait for user termination */
-        do { pa_event(stdin, &er);
-        } while (!fend && er.etype != pa_etenter);
-        trm_title(""); /* blank out title */
-#else
-        finish(trmnam);
-#endif
+        if (xtermtitle) {
+
+            trm_title(trmnam); /* put up termination title */
+            /* wait for user termination */
+            do { pa_event(stdin, &er);
+            } while (!fend && er.etype != pa_etenter);
+            trm_title(""); /* blank out title */
+
+        } else finish(trmnam);
         free(trmnam); /* free up termination name */
 
     }
