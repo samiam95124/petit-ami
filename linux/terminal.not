@@ -10,6 +10,12 @@ into stdout. This would stop stderr prints from messing up the screen.
 
 4. Wator crashes on ctl-c after running for quite a while.
 
+5. The unresponsive program check cannot use the blinking title line if the
+title function does not exist or is not wanted.
+
+6. In buffer follow test, first part, moving the window up causes flash I believe
+is do to using xterm scroll to move. We can turn this off.
+
 MACOSX/Quartz version ============================================================
 
 1. In the Mac OS X version, the final benchmark tallys are getting erased. I 

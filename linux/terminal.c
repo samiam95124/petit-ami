@@ -2248,7 +2248,7 @@ static void ievent(void)
             /* check the finish blink timer */
             if (!evtfnd && sev.lse == blksev) {
 
-                er.etype = pa_etsys; /* set no hover event occurred */
+                er.etype = pa_etsys; /* set system timer event occurred */
                 evtfnd = TRUE; /* set event found */
                 enquepaevt(&er); /* send to queue */
 
