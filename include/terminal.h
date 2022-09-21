@@ -178,6 +178,7 @@ typedef enum {
     pa_dispeinvtab,          /* invalid tab stop */
     pa_dispeinvjoy,          /* Invalid joystick ID */
     pa_dispecfgval,          /* invalid configuration value */
+    pa_dispenomem,           /* out of memory */
     pa_dispesendevent_unimp, /* sendevent unimplemented */
     pa_dispeopenwin_unimp,   /* openwin unimplemented */
     pa_dispebuffer_unimp,    /* buffer unimplemented */

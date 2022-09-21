@@ -720,6 +720,7 @@ static int    winchsev;       /* windows change system event number */
 #ifdef ALLOWUTF8
 static int    utf8cnt;        /* UTF-8 extended character count */
 #endif
+static char*  titsav;         /* save for title string */
 
 /*
  * Configurable parameters
@@ -771,6 +772,7 @@ static void error_ivf(pa_errcod e)
         case pa_dispeinvtab: fprintf(stderr, "Invalid tab stop position"); break;
         case pa_dispeinvjoy: fprintf(stderr, "Invalid joystick ID"); break;
         case pa_dispecfgval: fprintf(stderr, "Invalid configuration value"); break;
+        case pa_dispenomem: fprintf(stderr, "Out of memory"); break;
         case pa_dispesendevent_unimp: fprintf(stderr, "sendevent unimplemented"); break;
         case pa_dispeopenwin_unimp: fprintf(stderr, "openwin unimplemented"); break;
         case pa_dispebuffer_unimp: fprintf(stderr, "buffer unimplemented"); break;
@@ -4507,7 +4509,8 @@ static void event_ivf(FILE* f, pa_evtrec *er)
             /* reset any response state */
             if (respto) {
 
-                trm_title(""); /* reset message (should reset previous) */
+                if (titsav) trm_title(titsav); /* set previous title */
+                else trm_title(""); /* reset message (should reset previous) */
                 respto = FALSE; /* reset state */
 
             }
@@ -5030,6 +5033,10 @@ static void title_ivf(FILE* f, char* ts)
     dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     trm_title(ts); /* set title */
+    if (titsav) free(titsav); /* free any existing title string */
+    titsav = malloc(strlen(ts)+1);
+    if (!titsav) error(pa_dispenomem); /* no memory */
+    strcpy(titsav, ts); /* place string */
     pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
@@ -5051,6 +5058,11 @@ static void titlen_ivf(FILE* f, char* ts, int l)
     dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     trm_titlen(ts, l); /* set title */
+    if (titsav) free(titsav); /* free any existing title string */
+    titsav = malloc(l+1);
+    if (!titsav) error(pa_dispenomem); /* no memory */
+    strncpy(titsav, ts, l); /* place string */
+    titsav[l] = 0; /* terminate */
     pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
@@ -5471,6 +5483,9 @@ static void pa_init_terminal()
     /* set buffer size */
     bufx = dimx;
     bufy = dimy;
+
+    /* clear title string */
+    titsav = NULL;
 
     /* get setup configuration */
     config_root = NULL;
