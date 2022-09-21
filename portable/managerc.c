@@ -333,6 +333,7 @@ typedef struct winrec* winptr;
 typedef struct winrec {
 
     winptr   next;              /* next entry (for free list) */
+    int      root;              /* window is the root */
     int      parlfn;            /* logical parent */
     winptr   parwin;            /* link to parent (or NULL for parentless) */
     int      wid;               /* this window logical id */
@@ -2493,6 +2494,7 @@ static void opnwin(int fn, int pfn, int wid, int subclient, int root)
     int     ti;
 
     win = lfn2win(fn); /* get a pointer to the window */
+    win->root = root; /* set root window status */
     /* find parent */
     win->parlfn = pfn; /* set parent logical number */
     win->wid = wid; /* set window id */
@@ -3991,7 +3993,7 @@ static void intevent(FILE* f)
                         }
 
                     }
-                    if (win->zorder != ztop) { /* if not already top window */
+                    if (win->zorder != ztop && !win->root) { /* if not already top window */
 
                         intfront(win); /* bring to front */
                         /* redraw for order */
@@ -5756,7 +5758,7 @@ static off_t ilseek(int fd, off_t offset, int whence)
 
 /** ****************************************************************************
 
-Widgets startup
+Managerc startup
 
 *******************************************************************************/
 
@@ -5934,7 +5936,7 @@ static void init_managerc()
 
 /** ****************************************************************************
 
-Widgets shutdown
+Managerc shutdown
 
 *******************************************************************************/
 

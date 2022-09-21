@@ -16,6 +16,8 @@ title function does not exist or is not wanted.
 6. In buffer follow test, first part, moving the window up causes flash I believe
 is do to using xterm scroll to move. We can turn this off.
 
+7. Make sure all configurations are represented in the config file.
+
 MACOSX/Quartz version ============================================================
 
 1. In the Mac OS X version, the final benchmark tallys are getting erased. I 
