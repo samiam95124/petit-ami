@@ -1,0 +1,18 @@
+{
+    "tasks": [
+        {
+            "label": "Compile Petit-ami application",
+            "type": "shell",
+            "command": "make ${fileBasenameNoExtension}",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ],
+    "version": "2.0.0"
+}
