@@ -15,6 +15,7 @@
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
+            "miDebuggerArgs": "-ex \"handle SIGUSR1 nostop noprint\""
         },
         {
             "name": "Run Petit-ami application, stop at entry",
@@ -27,6 +28,7 @@
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
+            "miDebuggerArgs": "-ex \"handle SIGUSR1 nostop noprint\""
         },
     ]
 }
