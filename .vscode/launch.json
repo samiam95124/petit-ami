@@ -15,6 +15,8 @@
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
+            // PA uses SIGUSR1 to resolve pselect() issue. This ignores it in
+            // gdb, otherwise it will stop on normal runs.
             "miDebuggerArgs": "-ex \"handle SIGUSR1 nostop noprint\""
         },
         {
@@ -28,6 +30,8 @@
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
+            // PA uses SIGUSR1 to resolve pselect() issue. This ignores it in
+            // gdb, otherwise it will stop on normal runs.
             "miDebuggerArgs": "-ex \"handle SIGUSR1 nostop noprint\""
         },
     ]

@@ -1,0 +1,20 @@
+################################################################################
+#                                                                              #
+#                           DEBUG PETIT-AMI PROGRAM                            #
+#                                                                              #
+# Sets up to run a PA program using gdb. The following actions are performed:  #
+#                                                                              #
+# 1. The command line arguments are passed in.                                 #
+#                                                                              #
+# 2. Stopping or printing on SIGUSR1 is supressed. This is used to solve       #
+# pselect() issues in PA. Otherwise gdb will stop on normal runs.              #
+#                                                                              #
+# Execute as:                                                                  #
+#                                                                              #
+# debug <program> <arguments>                                                  #
+#                                                                              #
+################################################################################
+
+#!/bin/bash
+
+gdb -ex "handle SIGUSR1 nostop noprint" --args "$@"
