@@ -1,2 +1,4 @@
+#!/usr/bin/env bash
+
 echo Will execute on "$1" >> test_results
 dumpmidi "$1" > junk 2>> test_results

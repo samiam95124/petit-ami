@@ -6,7 +6,7 @@
 #                                                                              #
 ################################################################################
 
-#!/bin/bash
+#!/usr/bin/env bash
 
 version=`ls -l /lib/x86_64-linux-gnu/libc.so.6 | sed 's/.*libc\-\([0-9].[0-9][0-9]\).*/\1/'`
 if [ -z $version ]; then

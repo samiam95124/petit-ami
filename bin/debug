@@ -15,6 +15,6 @@
 #                                                                              #
 ################################################################################
 
-#!/bin/bash
+#!/usr/bin/env bash
 
 gdb -ex "handle SIGUSR1 nostop noprint" --args "$@"
