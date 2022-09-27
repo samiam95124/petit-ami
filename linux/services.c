@@ -131,6 +131,7 @@ static bufstr pthstr;   /* buffer for execution path */
 static bufstr langstr;  /* buffer for language country string (locale) */
 static int language;    /* current language */
 static int country;     /* current country */
+static char* prgpth;    /* program path */
 /* end of read-only group */
 
 static pthread_mutex_t  envlck;               /* environment list lock */
@@ -1713,10 +1714,11 @@ void pa_getpgm(
 
 #if defined(__linux) || defined(__MINGW32__) /* linux, Windows */
     strcpy(pn, program_invocation_name); /* copy invoke name to path */
+#elif defined(__FreeBSD__) /* BSD, FreeBSD */
+    strcpy(pn, prgpth); /* copy from program path */
 #else /* Mac OS X */
     bl = MAXSTR;
     _NSGetExecutablePath(pn, &bl);
-//    strcpy(pn, getprogname());
 #endif
     pa_fulnam(pn, MAXSTR);   /* clean that */
     pa_brknam(pn, p, pl, n, MAXSTR, e, MAXSTR); /* extract path from that */
@@ -3206,7 +3208,7 @@ Releases a concurrency lock by logical id.
 
 *******************************************************************************/
 
-int pa_deinitsig(int sn)
+void pa_deinitsig(int sn)
 
 {
 
@@ -3332,8 +3334,8 @@ Note the environment is unordered.
 
 *******************************************************************************/
 
-static void pa_init_services (void) __attribute__((constructor (102)));
-static void pa_init_services()
+static void pa_init_services (int argc, char* argv[]) __attribute__((constructor (102)));
+static void pa_init_services(int argc, char* argv[])
 
 {
 
@@ -3437,6 +3439,11 @@ static void pa_init_services()
         }
 
     }
+
+    /* find program path */
+    l = strlen(argv[0]); /* get length */
+    prgpth = malloc(l+1); /* allocate string */
+    strcpy(prgpth, argv[0]);
 
     /* clear thread table */
     for (i = 0; i < MAXTHREAD; i++) threadtbl[i] = NULL;

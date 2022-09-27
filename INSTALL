@@ -22,6 +22,12 @@ setpath [recommended]
 configure
 make
 
+Linux:
+
+. setpath [recommended]
+./configure
+gmake
+
 If you get something like:
 
 Version number: 2.31
@@ -42,3 +48,6 @@ $ setver_glibc
 If this gives errors, it means the current glibc has changed enough that it no
 longer can just be automatically patched to find the new version. In this case,
 you will need to get an updated petit_ami or do some serious debug work.
+
+Note that building an override version of glibc is specific to Linux 
+distributions.

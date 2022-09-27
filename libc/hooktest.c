@@ -112,8 +112,8 @@ static void pa_init_hooker()
 
 }
 
-static void pa_deinit_terminal (void) __attribute__((destructor (102)));
-static void pa_deinit_terminal()
+static void pa_deinit_hooker (void) __attribute__((destructor (102)));
+static void pa_deinit_hooker()
 
 {
 

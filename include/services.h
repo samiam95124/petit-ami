@@ -167,7 +167,7 @@ extern void pa_deinitlock(int ln);
 extern void pa_lock(int ln);
 extern void pa_unlock(int ln);
 extern int pa_initsig(void);
-extern int pa_deinitsig(int sn);
+extern void pa_deinitsig(int sn);
 extern void pa_sendsig(int sn);
 extern void pa_sendsigone(int sn);
 extern void pa_waitsig(int ln, int sn);

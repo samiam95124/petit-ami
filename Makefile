@@ -106,6 +106,7 @@ endif
 #
 ifndef STDIO_SOURCE
     ifeq ($(OSTYPE),Windows_NT)
+
         #
         # stdio is a local stdio implementation with overrides.
         # Note it is not a complete libc. It works because in dynamic linking a module
@@ -115,19 +116,30 @@ ifndef STDIO_SOURCE
         # Windows builds must use stdio since they don't use glibc.
         #
         STDIO_SOURCE=stdio
+
     else ifeq ($(OSTYPE),Darwin)
+
         #
         # Mac OS x builds must use stdio since they don't use glibc.
         #
         STDIO_SOURCE=stdio
+
+    else ifeq ($(OSTYPE),FreeBSD)
+
+        #
+        # BSD builds must use stdio since they don't use glibc.
+        #
+        STDIO_SOURCE=stdio		
+
     else
+
         #
         # Linux
         #
         # glibc assumes that this is a patched glibc with override calls.
         #
         STDIO_SOURCE=glibc
-        #STDIO_SOURCE=stdio
+
     endif
 endif
 
@@ -152,6 +164,13 @@ ifndef LINK_TYPE
         #
         LINK_TYPE=static
         
+    else ifeq ($(OSTYPE),FreeBSD)
+    
+        #
+        # Mac OS X is static
+        #
+        LINK_TYPE=static
+
     else
     
         #
@@ -194,10 +213,19 @@ else
 
 endif
 
-CC=gcc
-CFLAGS=-g3 -Iinclude
-CFLAGSCPP=$(CFLAGS) -Ihpp
-CPP=g++
+ifeq ($(OSTYPE),FreeBSD)
+
+	CC=cc
+	CFLAGS=-g3 -Iinclude
+	CPP=c++
+
+else
+
+	CC=gcc
+	CFLAGS=-g3 -Iinclude
+	CPP=g++
+
+endif
 
 #
 # Add flags by OS
@@ -209,7 +237,11 @@ ifeq ($(OSTYPE),Windows_NT)
 else ifeq ($(OSTYPE),Darwin)
 
     # Mac OS X, nothing
-    
+
+else ifeq ($(OSTYPE),FreeBSD)
+
+    # BSD, nothing
+
 else
 
     #
@@ -254,6 +286,10 @@ ifeq ($(LINK_TYPE),static)
 
         # Mac OS X, nothing
     
+    else ifeq ($(OSTYPE),FreeBSD)
+
+        # BSD, nothing
+
     else
 
         # Linux
@@ -274,6 +310,10 @@ else ifeq ($(OSTYPE),Darwin)
 
     # Nothing, libc is linked in overall lib
     
+else ifeq ($(OSTYPE),FreeBSD)
+
+    # Nothing, libc is linked in overall lib
+
 else
 
 	ifeq ($(STDIO_SOURCE),stdio)
@@ -343,6 +383,8 @@ endif
 ifeq ($(LINK_TYPE),static)
     ifeq ($(OSTYPE),Darwin)
     	PLIBS += bin/petit_ami_plain.a
+    else ifeq ($(OSTYPE),FreeBSD)
+    	PLIBS += bin/petit_ami_plain.a
     else
     	PLIBS += -Wl,--whole-archive bin/petit_ami_plain.a -Wl,--no-whole-archive
     endif
@@ -360,6 +402,8 @@ endif
 ifeq ($(LINK_TYPE),static)
     ifeq ($(OSTYPE),Darwin)
     	CLIBS += bin/petit_ami_term.a
+    else ifeq ($(OSTYPE),FreeBSD)
+    	CLIBS += bin/petit_ami_term.a
     else
     	CLIBS += -Wl,--whole-archive bin/petit_ami_term.a -Wl,--no-whole-archive
     endif
@@ -374,6 +418,8 @@ CLIBSCPP = $(CLIBS) cpp/terminal.o
 #
 ifeq ($(LINK_TYPE),static)
     ifeq ($(OSTYPE),Darwin)
+    	GLIBS += bin/petit_ami_graph.a
+    else ifeq ($(OSTYPE),FreeBSD)
     	GLIBS += bin/petit_ami_graph.a
     else
     	GLIBS += -Wl,--whole-archive bin/petit_ami_graph.a -Wl,--no-whole-archive
@@ -414,7 +460,19 @@ else ifeq ($(OSTYPE),Darwin)
     GLIBS += /opt/X11/lib/libX11.6.dylib \
              /usr/local/Cellar/openssl@3/3.0.0_1/lib/libssl.dylib \
              /usr/local/Cellar/openssl@3/3.0.0_1/lib/libcrypto.dylib
-    
+
+else ifeq ($(OSTYPE),FreeBSD)
+
+    #
+    # BSD
+    #
+	PLIBS += -lm -lpthread -lssl -lcrypto
+	CLIBS += -lm -lpthread -lssl -lcrypto
+	GLIBS += -lm -lpthread -lssl -lcrypto -lX11
+	PLIBSD +=
+    CLIBSD +=
+	GLIBSD +=
+
 else
 
     #
@@ -472,6 +530,22 @@ all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
      prtconfig prtconfigg pixel ball1 ball2 ball3 ball4 ball5 ball6 line1 \
      line2 line4 line5 clock
+
+else ifeq ($(OSTYPE),FreeBSD)
+
+#
+# BSD
+#
+all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
+     playwaveg printdev printdevg connectmidi connectmidig connectwave \
+     connectwaveg random randomg genwave genwaveg terminal_test terminal_testg \
+     graphics_test management_test widget_test \
+     sound_test sound_testg services_test event eventg term termg snake snakeg mine mineg \
+     wator watorg pong pongg breakout editor editorg getpage getpageg getmail \
+     getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
+     prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
+     prtconfig prtconfigg pixel ball1 ball2 ball3 ball4 ball5 ball6 line1 \
+     line2 line4 line5 clock
     
 else
 
@@ -504,31 +578,31 @@ linux/stdio.o: libc/stdio.c libc/stdio.h Makefile
 	gcc -g3 -Ilibc -fPIC -c libc/stdio.c -o linux/stdio.o
 
 linux/services.o: linux/services.c include/services.h Makefile
-	gcc -g3 -Iinclude -fPIC -c linux/services.c -o linux/services.o
+	$(CC) -g3 -Iinclude -fPIC -c linux/services.c -o linux/services.o
 	
 linux/sound.o: linux/sound.c include/sound.h Makefile
-	gcc -g3 -Iinclude -fPIC -c linux/sound.c -lasound -lm -pthread -o linux/sound.o
+	$(CC) -g3 -Iinclude -fPIC -c linux/sound.c -lasound -lm -pthread -o linux/sound.o
 	
 linux/network.o: linux/network.c include/network.h Makefile
-	gcc -g3 -Iinclude -fPIC -c linux/network.c -o linux/network.o
+	$(CC) -g3 -Iinclude -fPIC -c linux/network.c -o linux/network.o
 	
 linux/fluidsynthplug.o: linux/fluidsynthplug.c include/sound.h Makefile
-	gcc -g3 -Iinclude -fPIC -c linux/fluidsynthplug.c -lasound -lm -pthread -o linux/fluidsynthplug.o
+	$(CC) -g3 -Iinclude -fPIC -c linux/fluidsynthplug.c -lasound -lm -pthread -o linux/fluidsynthplug.o
 	
 linux/dumpsynthplug.o: linux/dumpsynthplug.c include/sound.h Makefile
-	gcc -g3 -Iinclude -fPIC -c linux/dumpsynthplug.c -lasound -lm -pthread -o linux/dumpsynthplug.o
+	$(CC) -g3 -Iinclude -fPIC -c linux/dumpsynthplug.c -lasound -lm -pthread -o linux/dumpsynthplug.o
 	
 linux/terminal.o: linux/terminal.c include/terminal.h Makefile
-	gcc -g3 -Iinclude -fPIC -c linux/terminal.c -o linux/terminal.o
+	$(CC) -g3 -Iinclude -fPIC -c linux/terminal.c -o linux/terminal.o
 	
 linux/graphics.o: linux/graphics.c include/graphics.h Makefile
-	gcc -g3 -Iinclude -fPIC -c linux/graphics.c -o linux/graphics.o
+	$(CC) -g3 -Iinclude -fPIC -c linux/graphics.c -o linux/graphics.o
 	
 linux/system_event.o: linux/system_event.c linux/system_event.h Makefile
-	gcc -g3 -Iinclude -fPIC -c linux/system_event.c -o linux/system_event.o
+	$(CC) -g3 -Iinclude -fPIC -c linux/system_event.c -o linux/system_event.o
 	
 linux/rotated.o: linux/rotated.c linux/rotated.h Makefile
-	gcc -g3 -Iinclude -fPIC -c linux/rotated.c -o linux/rotated.o
+	$(CC) -g3 -Iinclude -fPIC -c linux/rotated.c -o linux/rotated.o
 	
 #
 # Windows library components
@@ -536,22 +610,22 @@ linux/rotated.o: linux/rotated.c linux/rotated.h Makefile
 # Note that stub sources are not yet implemented
 #
 windows/stdio.o: libc/stdio.c libc/stdio.h Makefile
-	gcc -g3 -Ilibc -c libc/stdio.c -o windows/stdio.o
+	$(CC) -g3 -Ilibc -c libc/stdio.c -o windows/stdio.o
 	
 windows/services.o: windows/services.c include/services.h Makefile
-	gcc -g3 -Ilibc -Iinclude -c windows/services.c -o windows/services.o
+	$(CC) -g3 -Ilibc -Iinclude -c windows/services.c -o windows/services.o
 	
 windows/sound.o: windows/sound.c include/sound.h Makefile
-	gcc -g3 -Ilibc -Iinclude -c windows/sound.c -o windows/sound.o
+	$(CC) -g3 -Ilibc -Iinclude -c windows/sound.c -o windows/sound.o
 	
 windows/network.o: windows/network.c include/network.h Makefile
-	gcc -g3 -Ilibc -Iinclude -c windows/network.c -o windows/network.o
+	$(CC) -g3 -Ilibc -Iinclude -c windows/network.c -o windows/network.o
 	
 windows/terminal.o: windows/terminal.c include/terminal.h Makefile
-	gcc -g3 -Ilibc -Iinclude -c windows/terminal.c -o windows/terminal.o
+	$(CC) -g3 -Ilibc -Iinclude -c windows/terminal.c -o windows/terminal.o
 	
 windows/graphics.o: windows/graphics.c include/graphics.h Makefile
-	gcc -g3 -Ilibc -Iinclude -c windows/graphics.c -o windows/graphics.o
+	$(CC) -g3 -Ilibc -Iinclude -c windows/graphics.c -o windows/graphics.o
 
 #
 # Mac OS X library components
@@ -561,51 +635,82 @@ windows/graphics.o: windows/graphics.c include/graphics.h Makefile
 # Mac OS X can use some of the same components as Linux.
 #
 macosx/stdio.o: libc/stdio.c libc/stdio.h Makefile
-	gcc -g3 -Ilibc -c libc/stdio.c -o macosx/stdio.o
+	$(CC) -g3 -Ilibc -c libc/stdio.c -o macosx/stdio.o
 	
 macosx/services.o: linux/services.c include/services.h Makefile
-	gcc -g3 -Ilibc -Iinclude -c linux/services.c -o macosx/services.o
+	$(CC) -g3 -Ilibc -Iinclude -c linux/services.c -o macosx/services.o
 	
 macosx/sound.o: stub/sound.c include/sound.h Makefile
-	gcc -g3 -Ilibc -Iinclude -c stub/sound.c -o macosx/sound.o
+	$(CC) -g3 -Ilibc -Iinclude -c stub/sound.c -o macosx/sound.o
 	
 macosx/network.o: linux/network.c include/network.h Makefile
-	gcc -g3 -Ilibc -Iinclude -I/usr/local/Cellar/openssl@3/3.0.0_1/include \
+	$(CC) -g3 -Ilibc -Iinclude -I/usr/local/Cellar/openssl@3/3.0.0_1/include \
 		-c linux/network.c -o macosx/network.o
 	
 macosx/terminal.o: linux/terminal.c include/terminal.h Makefile
-	gcc -g3 -Ilibc -Iinclude -c linux/terminal.c -o macosx/terminal.o
+	$(CC) -g3 -Ilibc -Iinclude -c linux/terminal.c -o macosx/terminal.o
 	
 macosx/graphics.o: linux/graphics.c include/graphics.h Makefile
-	gcc -g3 -Ilibc -Iinclude -I/opt/X11/include -c linux/graphics.c \
+	$(CC) -g3 -Ilibc -Iinclude -I/opt/X11/include -c linux/graphics.c \
 	-o macosx/graphics.o
 	
 macosx/system_event.o: macosx/system_event.c linux/system_event.h Makefile
-	gcc -g3 -Iinclude -fPIC -c macosx/system_event.c -o macosx/system_event.o
+	$(CC) -g3 -Iinclude -fPIC -c macosx/system_event.c -o macosx/system_event.o
 	
+#
+# BSD library components
+#
+# Note that stub sources are not yet implemented.
+#
+# BSD can use some of the same components as Linux.
+#
+bsd/stdio.o: libc/stdio.c libc/stdio.h Makefile
+	$(CC) -g3 -Ilibc -c libc/stdio.c -o bsd/stdio.o
+	
+bsd/services.o: linux/services.c include/services.h Makefile
+	$(CC) -g3 -Ilibc -Iinclude -c linux/services.c -o bsd/services.o
+	
+bsd/sound.o: stub/sound.c include/sound.h Makefile
+	$(CC) -g3 -Ilibc -Iinclude -c stub/sound.c -o bsd/sound.o
+	
+bsd/network.o: stub/network.c include/network.h Makefile
+	$(CC) -g3 -Ilibc -Iinclude -I/usr/local/Cellar/openssl@3/3.0.0_1/include \
+		-c stub/network.c -o bsd/network.o
+	
+bsd/terminal.o: linux/terminal.c include/terminal.h Makefile
+	$(CC) -g3 -Ilibc -Iinclude -c linux/terminal.c -o bsd/terminal.o
+	
+bsd/graphics.o: linux/graphics.c include/graphics.h Makefile
+	$(CC) -g3 -Ilibc -Iinclude -I/usr/local/include -c linux/graphics.c \
+	-o bsd/graphics.o
+	
+bsd/system_event.o: macosx/system_event.c linux/system_event.h Makefile
+	$(CC) -g3 -Iinclude -fPIC -c macosx/system_event.c -o bsd/system_event.o
+
 #
 # Components in common to all systems
 #
 utils/config.o: utils/config.c include/localdefs.h include/services.h \
 	            include/config.h Makefile
-	gcc -g3 -fPIC -Ilibc -Iinclude -c utils/config.c -o utils/config.o
+	$(CC) -g3 -fPIC -Ilibc -Iinclude -c utils/config.c -o utils/config.o
 	
 utils/option.o: utils/option.c include/localdefs.h include/services.h \
 	            include/option.h Makefile
-	gcc -g3 -fPIC -Ilibc -Iinclude -c utils/option.c -o utils/option.o
+	$(CC) -g3 -fPIC -Ilibc -Iinclude -c utils/option.c -o utils/option.o
 	
 stub/keeper.o: stub/keeper.c
-	gcc -g3 -fPIC -Iinclude -c stub/keeper.c -o stub/keeper.o
+	$(CC) -g3 -fPIC -Iinclude -c stub/keeper.c -o stub/keeper.o
 
 cpp/terminal.o: cpp/terminal.cpp
-	$(CPP) -g3 -fPIC -Iinclude -Ihpp -c cpp/terminal.cpp -o cpp/terminal.o
+	g++ -g3 -fPIC -Iinclude -Ihpp -c cpp/terminal.cpp -o cpp/terminal.o
 	
 portable/gnome_widgets.o: portable/gnome_widgets.c
-	gcc -g3 -fPIC -Iinclude -c portable/gnome_widgets.c \
+	$(CC) -g3 -fPIC -Iinclude -c portable/gnome_widgets.c \
 		-o portable/gnome_widgets.o
 		
 portable/managerc.o: portable/managerc.c
-	gcc -g3 -fPIC -Iinclude -c portable/managerc.c -o portable/managerc.o
+	$(CC) -g3 -fPIC -Iinclude -c portable/managerc.c \
+		-o portable/managerc.o
 	
 ################################################################################
 #
@@ -667,7 +772,33 @@ bin/petit_ami_graph.a: macosx/services.o macosx/sound.o macosx/network.o \
 	ar rcs bin/petit_ami_graph.a macosx/services.o macosx/sound.o \
 	    macosx/network.o macosx/system_event.o macosx/graphics.o \
 	    portable/gnome_widgets.o utils/config.o utils/option.o macosx/stdio.o
-	    
+
+else ifeq ($(OSTYPE),FreeBSD)
+
+#
+# BSD
+#
+# Use statically linked files, for BSD
+#
+bin/petit_ami_plain.a: bsd/services.o bsd/sound.o bsd/network.o \
+	utils/config.o utils/option.o bsd/stdio.o
+	ar rcs bin/petit_ami_plain.a bsd/services.o bsd/sound.o \
+        bsd/network.o utils/config.o utils/option.o bsd/stdio.o
+	
+bin/petit_ami_term.a: bsd/services.o bsd/sound.o bsd/network.o \
+    bsd/system_event.o bsd/terminal.o utils/config.o utils/option.o \
+    bsd/stdio.o
+	ar rcs bin/petit_ami_term.a bsd/services.o bsd/sound.o \
+	    bsd/network.o bsd/system_event.o bsd/terminal.o \
+	    utils/config.o utils/option.o bsd/stdio.o
+	
+bin/petit_ami_graph.a: bsd/services.o bsd/sound.o bsd/network.o \
+    bsd/system_event.o bsd/graphics.o portable/gnome_widgets.o \
+    utils/config.o utils/option.o bsd/stdio.o
+	ar rcs bin/petit_ami_graph.a bsd/services.o bsd/sound.o \
+	    bsd/network.o bsd/system_event.o bsd/graphics.o \
+	    portable/gnome_widgets.o utils/config.o utils/option.o bsd/stdio.o
+	
 else
 
 #
@@ -683,7 +814,7 @@ else
 #
 bin/petit_ami_plain.so: $(LINUXSTDIO) linux/services.o linux/network.o utils/config.o \
     utils/option.o
-	gcc -shared $(LINUXSTDIO) linux/services.o linux/network.o utils/config.o \
+	$(CC) -shared $(LINUXSTDIO) linux/services.o linux/network.o utils/config.o \
 		utils/option.o -o bin/petit_ami_plain.so
 	
 bin/petit_ami_plain.a: $(LINUXSTDIO) linux/services.o linux/sound.o \
@@ -696,7 +827,7 @@ bin/petit_ami_plain.a: $(LINUXSTDIO) linux/services.o linux/sound.o \
 bin/petit_ami_term.so: $(LINUXSTDIO) linux/services.o linux/network.o \
 	linux/terminal.o $(MANAGERC) linux/system_event.o utils/config.o utils/option.o \
     cpp/terminal.o
-	gcc -shared $(LINUXSTDIO) linux/services.o linux/network.o \
+	$(CC) -shared $(LINUXSTDIO) linux/services.o linux/network.o \
 		linux/terminal.o $(MANAGERC) linux/system_event.o utils/config.o \
 		utils/option.o  cpp/terminal.o -o bin/petit_ami_term.so 
 	
@@ -712,7 +843,7 @@ bin/petit_ami_term.a: $(LINUXSTDIO) linux/services.o linux/sound.o \
 bin/petit_ami_graph.so: $(LINUXSTDIO) linux/services.o linux/network.o \
 	linux/graphics.o linux/rotated.o linux/system_event.o \
 	portable/gnome_widgets.o utils/config.o utils/option.o cpp/terminal.o
-	gcc -shared $(LINUXSTDIO) linux/services.o linux/network.o \
+	$(CC) -shared $(LINUXSTDIO) linux/services.o linux/network.o \
 		linux/graphics.o linux/rotated.o linux/system_event.o \
 		portable/gnome_widgets.o utils/config.o utils/option.o cpp/terminal.o \
         -o bin/petit_ami_graph.so
@@ -743,7 +874,7 @@ endif
 # Dump midi file in readable format (not Petit-Ami dependent)
 #
 dumpmidi: utils/dumpmidi.c Makefile
-	gcc utils/dumpmidi.c -o bin/dumpmidi
+	$(CC) utils/dumpmidi.c -o bin/dumpmidi
 
 #
 # General test program

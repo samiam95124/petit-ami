@@ -85,15 +85,15 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
-#ifndef __MACH__ /* Mac OS X */
-#include <sys/timerfd.h>
+#if !defined(__MACH__) && !defined(__FreeBSD__) /* Mac OS X */
+//#include <sys/timerfd.h>
 #endif
 #include <time.h>
 #include <unistd.h>
 #include <stdint.h>
 #include <limits.h>
 #include <stdio.h>
-#ifndef __MACH__ /* Mac OS X */
+#if !defined(__MACH__) && !defined(__FreeBSD__) /* Mac OS X */
 #include <linux/joystick.h>
 #endif
 #include <sys/stat.h>
@@ -108,7 +108,7 @@
 #include "rotated.h"      /* character rotation drawing package */
 
 /* external definitions */
-#ifndef __MACH__ /* Mac OS X */
+#if !defined(__MACH__) && !defined(__FreeBSD__) /* Mac OS X */
 extern char *program_invocation_short_name;
 #endif
 
@@ -145,7 +145,7 @@ static enum { /* debug levels */
 //#define NOFAKEFOCUS /* don't fake focus for child windows */
 #define WAITWMR     /* wait on window manager replies for window configures */
 
-#ifndef __MACH__ /* Mac OS X */
+#if !defined(__MACH__) && !defined(__FreeBSD__) /* Mac OS X */
 #define NOCANCEL /* include nocancel overrides */
 #endif
 
@@ -4600,7 +4600,7 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
     win->cwoy = frmoffy[frmcfgall];
 
     /* set window title from program name */
-#ifndef __MACH__ /* Mac OS X */
+#if !defined(__MACH__) && !defined(__FreeBSD__) /* Mac OS X */
     XWLOCK();
     XStoreName(padisplay, win->xmwhan, program_invocation_short_name);
     XWUNLOCK();
@@ -6911,7 +6911,7 @@ to the font baseline. The baseline is the line all characters rest on.
 
 void _pa_baseline_ovr(pa_baseline_t nfp, pa_baseline_t* ofp)
     { *ofp = baseline_vect; baseline_vect = nfp; }
-int pa_baseline(FILE* f) { (*baseline_vect)(f); }
+int pa_baseline(FILE* f) { return ((*baseline_vect)(f)); }
 
 static int baseline_ivf(FILE* f)
 
@@ -6938,7 +6938,7 @@ display. Because ANSI has no information return capability, this is preset.
 
 void _pa_maxx_ovr(pa_maxx_t nfp, pa_maxx_t* ofp)
     { *ofp = maxx_vect; maxx_vect = nfp; }
-int pa_maxx(FILE* f) { (*maxx_vect)(f); }
+int pa_maxx(FILE* f) { return ((*maxx_vect)(f)); }
 
 static int maxx_ivf(FILE* f)
 
@@ -6963,7 +6963,7 @@ display. Because ANSI has no information return capability, this is preset.
 
 void _pa_maxy_ovr(pa_maxy_t nfp, pa_maxy_t* ofp)
     { *ofp = maxy_vect; maxy_vect = nfp; }
-int pa_maxy(FILE* f) { (*maxy_vect)(f); }
+int pa_maxy(FILE* f) { return ((*maxy_vect)(f)); }
 
 static int maxy_ivf(FILE* f)
 
@@ -6988,7 +6988,7 @@ pixels.
 
 void _pa_maxxg_ovr(pa_maxxg_t nfp, pa_maxxg_t* ofp)
     { *ofp = maxxg_vect; maxxg_vect = nfp; }
-int pa_maxxg(FILE* f) { (*maxxg_vect)(f); }
+int pa_maxxg(FILE* f) { return ((*maxxg_vect)(f)); }
 
 static int maxxg_ivf(FILE* f)
 
@@ -7013,7 +7013,7 @@ pixels.
 
 void _pa_maxyg_ovr(pa_maxyg_t nfp, pa_maxyg_t* ofp)
     { *ofp = maxyg_vect; maxyg_vect = nfp; }
-int pa_maxyg(FILE* f) { (*maxyg_vect)(f); }
+int pa_maxyg(FILE* f) { return ((*maxyg_vect)(f)); }
 
 static int maxyg_ivf(FILE* f)
 
@@ -7672,7 +7672,7 @@ Checks if the cursor lies in the current bounds, and returns TRUE if so.
 
 void _pa_curbnd_ovr(pa_curbnd_t nfp, pa_curbnd_t* ofp)
     { *ofp = curbnd_vect; curbnd_vect = nfp; }
-int pa_curbnd(FILE* f) { (*curbnd_vect)(f); }
+int pa_curbnd(FILE* f) { return ((*curbnd_vect)(f)); }
 
 static int curbnd_ivf(FILE* f)
 
@@ -7761,7 +7761,7 @@ Returns the current location of the cursor in x.
 
 void _pa_curx_ovr(pa_curx_t nfp, pa_curx_t* ofp)
     { *ofp = curx_vect; curx_vect = nfp; }
-int pa_curx(FILE* f) { (*curx_vect)(f); }
+int pa_curx(FILE* f) { return ((*curx_vect)(f)); }
 
 static int curx_ivf(FILE* f)
 
@@ -7785,7 +7785,7 @@ Returns the current location of the cursor in y.
 
 void _pa_cury_ovr(pa_cury_t nfp, pa_cury_t* ofp)
     { *ofp = cury_vect; cury_vect = nfp; }
-int pa_cury(FILE* f) { (*cury_vect)(f); }
+int pa_cury(FILE* f) { return ((*cury_vect)(f)); }
 
 static int cury_ivf(FILE* f)
 
@@ -7809,7 +7809,7 @@ Returns the current location of the cursor in x, in pixels.
 
 void _pa_curxg_ovr(pa_curxg_t nfp, pa_curxg_t* ofp)
     { *ofp = curxg_vect; curxg_vect = nfp; }
-int pa_curxg(FILE* f) { (*curxg_vect)(f); }
+int pa_curxg(FILE* f) { return ((*curxg_vect)(f)); }
 
 static int curxg_ivf(FILE* f)
 
@@ -7833,7 +7833,7 @@ Returns the current location of the cursor in y, in pixels.
 
 void _pa_curyg_ovr(pa_curyg_t nfp, pa_curyg_t* ofp)
     { *ofp = curyg_vect; curyg_vect = nfp; }
-int pa_curyg(FILE* f) { (*curyg_vect)(f); }
+int pa_curyg(FILE* f) { return ((*curyg_vect)(f)); }
 
 static int curyg_ivf(FILE* f)
 
@@ -9419,7 +9419,7 @@ character in the character set.
 
 void _pa_chrsizx_ovr(pa_chrsizx_t nfp, pa_chrsizx_t* ofp)
     { *ofp = chrsizx_vect; chrsizx_vect = nfp; }
-int pa_chrsizx(FILE* f) { (*chrsizx_vect)(f); }
+int pa_chrsizx(FILE* f) { return ((*chrsizx_vect)(f)); }
 
 static int chrsizx_ivf(FILE* f)
 
@@ -9445,7 +9445,7 @@ Returns the character height.
 
 void _pa_chrsizy_ovr(pa_chrsizy_t nfp, pa_chrsizy_t* ofp)
     { *ofp = chrsizy_vect; chrsizy_vect = nfp; }
-int pa_chrsizy(FILE* f) { (*chrsizy_vect)(f); }
+int pa_chrsizy(FILE* f) { return ((*chrsizy_vect)(f)); }
 
 static int chrsizy_ivf(FILE* f)
 
@@ -9471,7 +9471,7 @@ Finds the total number of installed fonts.
 
 void _pa_fonts_ovr(pa_fonts_t nfp, pa_fonts_t* ofp)
     { *ofp = fonts_vect; fonts_vect = nfp; }
-int pa_fonts(FILE* f) { (*fonts_vect)(f); }
+int pa_fonts(FILE* f) { return ((*fonts_vect)(f)); }
 
 static int fonts_ivf(FILE* f)
 
@@ -9661,7 +9661,7 @@ Returns the number of dots per meter resolution in x.
 
 void _pa_dpmx_ovr(pa_dpmx_t nfp, pa_dpmx_t* ofp)
     { *ofp = dpmx_vect; dpmx_vect = nfp; }
-int pa_dpmx(FILE* f) { (*dpmx_vect)(f); }
+int pa_dpmx(FILE* f) { return ((*dpmx_vect)(f)); }
 
 static int dpmx_ivf(FILE* f)
 
@@ -9685,7 +9685,7 @@ Returns the number of dots per meter resolution in y.
 
 void _pa_dpmy_ovr(pa_dpmy_t nfp, pa_dpmy_t* ofp)
     { *ofp = dpmy_vect; dpmy_vect = nfp; }
-int pa_dpmy(FILE* f) { (*dpmy_vect)(f); }
+int pa_dpmy(FILE* f) { return ((*dpmy_vect)(f)); }
 
 static int dpmy_ivf(FILE* f)
 
@@ -9710,7 +9710,7 @@ character spacing and kerning.
 
 void _pa_strsiz_ovr(pa_strsiz_t nfp, pa_strsiz_t* ofp)
     { *ofp = strsiz_vect; strsiz_vect = nfp; }
-int pa_strsiz(FILE* f, const char* s) { (*strsiz_vect)(f, s); }
+int pa_strsiz(FILE* f, const char* s) { return ((*strsiz_vect)(f, s)); }
 
 static int strsiz_ivf(FILE* f, const char* s)
 
@@ -9738,7 +9738,8 @@ Finds the pixel offset to the given character in the string.
 
 void _pa_chrpos_ovr(pa_chrpos_t nfp, pa_chrpos_t* ofp)
     { *ofp = chrpos_vect; chrpos_vect = nfp; }
-int pa_chrpos(FILE* f, const char* s, int p) { (*chrpos_vect)(f, s, p); }
+int pa_chrpos(FILE* f, const char* s, int p) 
+    { return ((*chrpos_vect)(f, s, p)); }
 
 static int chrpos_ivf(FILE* f, const char* s, int p)
 
@@ -9900,7 +9901,7 @@ spaces, with the fractional part lost.
 void _pa_justpos_ovr(pa_justpos_t nfp, pa_justpos_t* ofp)
     { *ofp = justpos_vect; justpos_vect = nfp; }
 int pa_justpos(FILE* f, const char* s, int p, int n)
-    { (*justpos_vect)(f, s, p, n); }
+    { return ((*justpos_vect)(f, s, p, n)); }
 
 static int justpos_ivf(FILE* f, const char* s, int p, int n)
 
@@ -10531,7 +10532,7 @@ Returns the size in x of the logical picture.
 
 void _pa_pictsizx_ovr(pa_pictsizx_t nfp, pa_pictsizx_t* ofp)
     { *ofp = pictsizx_vect; pictsizx_vect = nfp; }
-int pa_pictsizx(FILE* f, int p) { (*pictsizx_vect)(f, p); }
+int pa_pictsizx(FILE* f, int p) { return ((*pictsizx_vect)(f, p)); }
 
 static int pictsizx_ivf(FILE* f, int p)
 
@@ -10557,7 +10558,7 @@ Returns the size in y of the logical picture.
 
 void _pa_pictsizy_ovr(pa_pictsizy_t nfp, pa_pictsizy_t* ofp)
     { *ofp = pictsizy_vect; pictsizy_vect = nfp; }
-int pa_pictsizy(FILE* f, int p) { (*pictsizy_vect)(f, p); }
+int pa_pictsizy(FILE* f, int p) { return ((*pictsizy_vect)(f, p)); }
 
 static int pictsizy_ivf(FILE* f, int p)
 
@@ -10751,7 +10752,7 @@ static void joyevt(pa_evtrec* er, int* keep, joyptr jp)
 
 {
 
-#ifndef __MACH__ /* Mac OS X */
+#if !defined(__MACH__) && !defined(__FreeBSD__) /* Mac OS X */
     struct js_event ev;
 
     read(jp->fid, &ev, sizeof(ev)); /* get next joystick event */
@@ -12008,7 +12009,7 @@ Returns the number of mice implemented. XWindow supports only one mouse.
 
 void _pa_mouse_ovr(pa_mouse_t nfp, pa_mouse_t* ofp)
     { *ofp = mouse_vect; mouse_vect = nfp; }
-int pa_mouse(FILE* f) { (*mouse_vect)(f); }
+int pa_mouse(FILE* f) { return ((*mouse_vect)(f)); }
 
 static int mouse_ivf(FILE* f)
 
@@ -12029,7 +12030,7 @@ version. XWindow supports from 1 to 5 buttons.
 
 void _pa_mousebutton_ovr(pa_mousebutton_t nfp, pa_mousebutton_t* ofp)
     { *ofp = mousebutton_vect; mousebutton_vect = nfp; }
-int pa_mousebutton(FILE* f, int m) { (*mousebutton_vect)(f, m); }
+int pa_mousebutton(FILE* f, int m) { return ((*mousebutton_vect)(f, m)); }
 
 static int mousebutton_ivf(FILE* f, int m)
 
@@ -12049,7 +12050,7 @@ Return number of joysticks attached.
 
 void _pa_joystick_ovr(pa_joystick_t nfp, pa_joystick_t* ofp)
     { *ofp = joystick_vect; joystick_vect = nfp; }
-int pa_joystick(FILE* f) { (*joystick_vect)(f); }
+int pa_joystick(FILE* f) { return ((*joystick_vect)(f)); }
 
 static int joystick_ivf(FILE* f)
 
@@ -12069,7 +12070,7 @@ Returns the number of buttons on a given joystick.
 
 void _pa_joybutton_ovr(pa_joybutton_t nfp, pa_joybutton_t* ofp)
     { *ofp = joybutton_vect; joybutton_vect = nfp; }
-int pa_joybutton(FILE* f, int j) { (*joybutton_vect)(f, j); }
+int pa_joybutton(FILE* f, int j) { return ((*joybutton_vect)(f, j)); }
 
 static int joybutton_ivf(FILE* f, int j)
 
@@ -12094,7 +12095,7 @@ joystick can be considered a slider without positional meaning.
 
 void _pa_joyaxis_ovr(pa_joyaxis_t nfp, pa_joyaxis_t* ofp)
     { *ofp = joyaxis_vect; joyaxis_vect = nfp; }
-int pa_joyaxis(FILE* f, int j) { (*joyaxis_vect)(f, j); }
+int pa_joyaxis(FILE* f, int j) { return ((*joyaxis_vect)(f, j)); }
 
 static int joyaxis_ivf(FILE* f, int j)
 
@@ -12241,7 +12242,7 @@ function keys as well.
 
 void _pa_funkey_ovr(pa_funkey_t nfp, pa_funkey_t* ofp)
     { *ofp = funkey_vect; funkey_vect = nfp; }
-int pa_funkey(FILE* f) { (*funkey_vect)(f); }
+int pa_funkey(FILE* f) { return ((*funkey_vect)(f)); }
 
 static int funkey_ivf(FILE* f)
 
@@ -12299,7 +12300,7 @@ is allocated, it is reserved until it is used and removed by killwidget().
 
 void _pa_getwinid_ovr(pa_getwinid_t nfp, pa_getwinid_t* ofp)
     { *ofp = getwinid_vect; getwinid_vect = nfp; }
-int pa_getwinid(void) { (*getwinid_vect)(); }
+int pa_getwinid(void) { return ((*getwinid_vect)()); }
 
 static int getwinid_ivf(void)
 
@@ -13877,9 +13878,9 @@ The widget package for XWindows will be supplied by an add-on package.
 
 void _pa_getwigid_ovr(pa_getwigid_t nfp, pa_getwigid_t* ofp)
     { *ofp = getwigid_vect; getwigid_vect = nfp; }
-int pa_getwigid(FILE* f) { (*getwigid_vect)(f); }
+int pa_getwigid(FILE* f) { return ((*getwigid_vect)(f)); }
 
-static int getwigid_ivf(FILE* f) { error(egetwigid_unimp); }
+static int getwigid_ivf(FILE* f) { error(egetwigid_unimp); return (0); }
 
 void _pa_killwidget_ovr(pa_killwidget_t nfp, pa_killwidget_t* ofp)
     { *ofp = killwidget_vect; killwidget_vect = nfp; }
@@ -15096,7 +15097,7 @@ static void pa_init_graphics(int argc, char *argv[])
                 joytab[numjoy]->a5 = 0;
                 joytab[numjoy]->a6 = 0;
                 joytab[numjoy]->no = numjoy+1; /* set logical number */
-#ifndef __MACH__ /* Mac OS X */
+#if !defined(__MACH__) && !defined(__FreeBSD__) /* Mac OS X */
                 /* get number of axes */
                 ioctl(joyfid, JSIOCGAXES, &jc);
                 joytab[numjoy]->axis = jc;
@@ -15167,7 +15168,7 @@ static void pa_deinit_graphics()
 
             /* process automatic exit sequence */
             if (!win->visible) winvis(win); /* make sure we are displayed */
-#ifndef __MACH__ /* Mac OS X */
+#if !defined(__MACH__) && !defined(__FreeBSD__) /* Mac OS X */
             /* construct final name for window */
             trmnam = imalloc(strlen(fini)+
                              strlen(program_invocation_short_name)+1);

@@ -1,9 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
 ################################################################################
 #
-# Configure scipt for Pascal-P5
+# Configure scipt for Petit-ami
 #
-# Sets up the complete Pascal-P5 project.
+# Sets up the complete Petit-ami project.
 #
 ################################################################################
 
@@ -33,25 +33,65 @@ function checkexists {
 #
 # Set default variables
 #
-compiler="gcc"
-bits="32"
-host="linux"
+if [ "$(uname)" = "Linux" ]
+then
+
+    compiler="gcc"
+    bits="64"
+    host="linux"
+
+elif [ "$(uname)" = "FreeBSD" ]
+then
+
+    compiler="clang"
+    bits="64"
+    host="bsd"
+
+elif [ "$(uname)" = "Darwin" ]
+then
+
+    compiler="clang"
+    bits="64"
+    host="bsd"
+
+else
+
+    echo "*** Supported operating system not found"
+    exit 1
+
+fi
 
 ################################################################################
 #
 # Make sure used packages are installed.
 #
-sudo apt-get -y install alsa alsa-tools
-sudo apt-get -y install libasound2-dev
-sudo apt-get -y install openssl
-sudo apt-get -y install libssl-dev
-sudo apt-get -y install fluidsynth
-sudo apt-get -y install libfluidsynth-dev
-sudo apt-get -y install gawk
-sudo apt-get -y install bison
-sudo apt-get -y install git
-sudo apt-get -y install openssl
-sudo apt-get -y install libx11-dev
+if [ "$host" = "linux" ]
+then
+
+    sudo apt-get -y install alsa alsa-tools
+    sudo apt-get -y install libasound2-dev
+    sudo apt-get -y install openssl
+    sudo apt-get -y install libssl-dev
+    sudo apt-get -y install fluidsynth
+    sudo apt-get -y install libfluidsynth-dev
+    sudo apt-get -y install gawk
+    sudo apt-get -y install bison
+    sudo apt-get -y install git
+    sudo apt-get -y install openssl
+    sudo apt-get -y install libx11-dev
+
+elif [ "$host" = "bsd" ]
+then
+
+    sudo pkg install openssl
+    sudo pkg install fluidsynth
+    sudo pkg install gawk
+    sudo pkg install bison
+    sudo pkg install git
+    sudo pkg install openssl
+    sudo pkg install gmake
+
+fi
 
 ################################################################################
 #
@@ -69,16 +109,14 @@ checkexists cp
 checkexists mv
 checkexists ls
 checkexists tar
-checkexists flip
-checkexists cpp
 
 #
-# Fail on no gcc found
+# Fail on no C compiler found
 #
-checkexists gcc > /dev/null
+checkexists $compiler > /dev/null
 if [[ $rc != 0 ]] ; then
 
-    echo "*** Aborting: cannot complete without gcc"
+    echo "*** Aborting: cannot complete without known C compiler"
     exit 1
 
 fi
@@ -108,6 +146,11 @@ done
 #
 # Set the version of libc override that is needed.
 #
-setver_glibc
+if [ "$host" = "linux" ]
+then
+
+    setver_glibc
+
+fi
 
 echo "Configure completed!"

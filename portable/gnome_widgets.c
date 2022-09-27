@@ -2472,6 +2472,8 @@ static void numselbox_event(
 
             }
 
+        default: ;
+
     }
 
 }
@@ -6241,6 +6243,8 @@ static void ialert(
                 er.etype = pa_etterm;
                 break;
 
+            default: ;
+
         }
 
     } while (er.etype != pa_etterm); /* until terminate */
@@ -6552,6 +6556,8 @@ static void iquerycolor(
             case pa_etmoubd:
                 if (er.dmoubn == 1) pressed = FALSE;
                 break;
+
+            default: ;
 
         }
 

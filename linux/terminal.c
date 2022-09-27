@@ -88,7 +88,7 @@
 #include <limits.h>
 #include <signal.h>
 #include <pthread.h>
-#ifndef __MACH__ /* Mac OS X */
+#if !defined(__MACH__) && !defined(__FreeBSD__) /* Mac OS X or BSD */
 #include <linux/joystick.h>
 #endif
 #include <fcntl.h>
@@ -102,7 +102,7 @@
 #include <diag.h>
 
 /* external definitions */
-#ifndef __MACH__ /* Mac OS X */
+#if !defined(__MACH__) && !defined(__FreeBSD__) /* Mac OS X or BSD */
 extern char *program_invocation_short_name;
 #endif
 
@@ -1044,6 +1044,25 @@ static void putstr(unsigned char *s)
 
 /** ****************************************************************************
 
+Write string to output file signed
+
+Writes a signed string directly to the output file. This is to stop clang
+warnings.
+
+*******************************************************************************/
+
+static void putstrc(char *s)
+
+{
+
+    /** index for string */ int i;
+
+    while (*s) putchr(*s++); /* output characters */
+
+}
+
+/** ****************************************************************************
+
 Write n length string to output file
 
 Writes a string directly to the output file of n length.
@@ -1051,6 +1070,25 @@ Writes a string directly to the output file of n length.
 *******************************************************************************/
 
 static void putnstr(unsigned char *s, int n)
+
+{
+
+    /** index for string */ int i;
+
+    while (*s && n--) putchr(*s++); /* output characters */
+
+}
+
+/** ****************************************************************************
+
+Write n length string to output file signed
+
+Writes a string directly to the output file of n length. This is to stop clang
+warnings.
+
+*******************************************************************************/
+
+static void putnstrc(char *s, int n)
 
 
 {
@@ -1499,36 +1537,36 @@ a clear (as the ANSI spec says). We fake this by adding a specific cursor home.
 *******************************************************************************/
 
 /** clear screen and home cursor */
-static void trm_clear(void) { putstr("\33[2J\33[H"); }
-/** home cursor */ static void trm_home(void) { putstr("\33[H"); }
-/** move cursor up */ static void trm_up(void) { putstr("\33[A"); }
-/** move cursor down */ static void trm_down(void) { putstr("\33[B"); }
-/** move cursor left */ static void trm_left(void) { putstr("\33[D"); }
-/** move cursor right */ static void trm_right(void) { putstr("\33[C"); }
-/** turn on blink attribute */ static void trm_blink(void) { putstr("\33[5m"); }
-/** turn on reverse video */ static void trm_rev(void) { putstr("\33[7m"); }
-/** turn on underline */ static void trm_undl(void) { putstr("\33[4m"); }
-/** turn on bold attribute */ static void trm_bold(void) { putstr("\33[1m"); }
-/** turn on italic attribute */ static void trm_ital(void) { putstr("\33[3m"); }
+static void trm_clear(void) { putstrc("\33[2J\33[H"); }
+/** home cursor */ static void trm_home(void) { putstrc("\33[H"); }
+/** move cursor up */ static void trm_up(void) { putstrc("\33[A"); }
+/** move cursor down */ static void trm_down(void) { putstrc("\33[B"); }
+/** move cursor left */ static void trm_left(void) { putstrc("\33[D"); }
+/** move cursor right */ static void trm_right(void) { putstrc("\33[C"); }
+/** turn on blink attribute */ static void trm_blink(void) { putstrc("\33[5m"); }
+/** turn on reverse video */ static void trm_rev(void) { putstrc("\33[7m"); }
+/** turn on underline */ static void trm_undl(void) { putstrc("\33[4m"); }
+/** turn on bold attribute */ static void trm_bold(void) { putstrc("\33[1m"); }
+/** turn on italic attribute */ static void trm_ital(void) { putstrc("\33[3m"); }
 /** turn off all attributes */
-static void trm_attroff(void) { putstr("\33[0m"); }
-/** turn on cursor wrap */ static void trm_wrapon(void) { putstr("\33[7h"); }
-/** turn off cursor wrap */ static void trm_wrapoff(void) { putstr("\33[7l"); }
-/** turn off cursor */ static void trm_curoff(void) { putstr("\33[?25l"); }
-/** turn on cursor */ static void trm_curon(void) { putstr("\33[?25h"); }
+static void trm_attroff(void) { putstrc("\33[0m"); }
+/** turn on cursor wrap */ static void trm_wrapon(void) { putstrc("\33[7h"); }
+/** turn off cursor wrap */ static void trm_wrapoff(void) { putstrc("\33[7l"); }
+/** turn off cursor */ static void trm_curoff(void) { putstrc("\33[?25l"); }
+/** turn on cursor */ static void trm_curon(void) { putstrc("\33[?25h"); }
 
 /** set foreground color in rgb */
 static void trm_fcolorrgb(int rgb)
 
 {
 
-    putstr("\33[38;2;");
+    putstrc("\33[38;2;");
     wrtint(rgb >> 16 & 0xff);
-    putstr(";");
+    putstrc(";");
     wrtint(rgb >> 8 & 0xff);
-    putstr(";");
+    putstrc(";");
     wrtint(rgb & 0xff);
-    putstr("m");
+    putstrc("m");
 
 }
 
@@ -1537,13 +1575,13 @@ static void trm_bcolorrgb(int rgb)
 
 {
 
-    putstr("\33[48;2;");
+    putstrc("\33[48;2;");
     wrtint(rgb >> 16 & 0xff);
-    putstr(";");
+    putstrc(";");
     wrtint(rgb >> 8 & 0xff);
-    putstr(";");
+    putstrc(";");
     wrtint(rgb & 0xff);
-    putstr("m");
+    putstrc("m");
 
 }
 
@@ -1556,19 +1594,19 @@ static void trm_fcolor(pa_color c)
     int r, g, b;
 
     colnumrgb(c, &r, &g, &b); /* get rgb equivalent color */
-    putstr("\33[38;2;");
+    putstrc("\33[38;2;");
     wrtint(r);
-    putstr(";");
+    putstrc(";");
     wrtint(g);
-    putstr(";");
+    putstrc(";");
     wrtint(b);
-    putstr("m");
+    putstrc("m");
 #else
-    putstr("\33[");
+    putstrc("\33[");
     /* override "bright" black, which is more like grey */
     if (c == pa_black) wrtint(ANSIFORECOLORBASE+colnum(c));
     else wrtint(FORECOLORBASE+colnum(c));
-    putstr("m");
+    putstrc("m");
 #endif
 
 }
@@ -1582,19 +1620,19 @@ static void trm_bcolor(pa_color c)
     int r, g, b;
 
     colnumrgb(c, &r, &g, &b); /* get rgb equivalent color */
-    putstr("\33[48;2;");
+    putstrc("\33[48;2;");
     wrtint(r);
-    putstr(";");
+    putstrc(";");
     wrtint(g);
-    putstr(";");
+    putstrc(";");
     wrtint(b);
-    putstr("m");
+    putstrc("m");
 #else
-    putstr("\33[");
+    putstrc("\33[");
     /* override "bright" black, which is more like grey */
     if (c == pa_black) wrtint(ANSIBACKCOLORBASE+colnum(c));
     else wrtint(BACKCOLORBASE+colnum(c));
-    putstr("m");
+    putstrc("m");
 #endif
 
 }
@@ -1604,11 +1642,11 @@ static void trm_cursor(int x, int y)
 
 {
 
-    putstr("\33[");
+    putstrc("\33[");
     wrtint(y);
-    putstr(";");
+    putstrc(";");
     wrtint(x);
-    putstr("H");
+    putstrc("H");
 
 }
 
@@ -1617,9 +1655,9 @@ static void trm_title(char* title)
 
 {
 
-    putstr("\33]0;");
-    putstr(title);
-    putstr("\7");
+    putstrc("\33]0;");
+    putstrc(title);
+    putstrc("\7");
 
 }
 
@@ -1628,9 +1666,9 @@ static void trm_titlen(char* title, int l)
 
 {
 
-    putstr("\33]0;");
-    putnstr(title, l);
-    putstr("\7");
+    putstrc("\33]0;");
+    putnstrc(title, l);
+    putstrc("\7");
 
 }
 
@@ -1914,7 +1952,7 @@ static void restore(scnptr sc)
         if (yi < cbufy)
             /* output next line sequence on all lines but the last. this is
                because the last one would cause us to scroll */
-            putstr("\r\n");
+            putstrc("\r\n");
 
     };
     /* color backgrounds outside of buffer */
@@ -1989,7 +2027,7 @@ static void joyevt(pa_evtrec* er, joyptr jp)
 
 {
 
-#ifndef __MACH__ /* Mac OS X */
+#if !defined(__MACH__) && !defined(__FreeBSD__) /* Mac OS X or BSD */
     struct js_event ev;
 
     read(jp->fid, &ev, sizeof(ev)); /* get next joystick event */
@@ -2048,6 +2086,20 @@ static void joyevt(pa_evtrec* er, joyptr jp)
 
 }
 
+/* Type specific strncmp to make clang happy */
+int strncmpus(const unsigned char* cs, const char* ct, size_t n)
+
+{
+
+    /* skip to end of either, or first non-equal character */
+    while (*cs && *ct & (*cs == *ct) && n--) cs++, ct++;
+
+    if (*cs < *ct) return -1; /* return less than status */
+    else if (*cs > *ct) return 1; /* return greater than status */
+    return (0); /* return match status */
+
+}
+
 static void ievent(void)
 
 {
@@ -2081,7 +2133,7 @@ static void ievent(void)
 
                 pmatch = 0; /* set no partial matches */
                 for (i = pa_etchar; i <= pa_etterm+MAXFKEY && !evtfnd; i++)
-                    if (!strncmp(keybuf, keytab[i], keylen)) {
+                    if (!strncmpus(keybuf, keytab[i], keylen)) {
 
                     pmatch = 1; /* set partial match */
                     /* set if the match is whole key */
@@ -2433,7 +2485,7 @@ static void plcchrext(scnrec* p, unsigned char c)
         for (ci = 0; ci < 4; ci++) p->ch[ci] = 0;
         p->ch[0] = c; /* place start character */
 
-    } else if ( c & 0xc0 == 0x80) { /* extension character */
+    } else if ( (c & 0xc0) == 0x80) { /* extension character */
 
         if (p->ch[0] == 0) { /* extension received as first character */
 
@@ -3619,7 +3671,7 @@ This is the external interface to curbnd.
 *******************************************************************************/
 
 APIOVER(curbnd)
-int pa_curbnd(FILE* f) { (*curbnd_vect)(f); }
+int pa_curbnd(FILE* f) { return ((*curbnd_vect)(f)); }
 static int curbnd_ivf(FILE *f)
 
 {
@@ -3645,7 +3697,7 @@ display. Because ANSI has no information return capability, this is preset.
 *******************************************************************************/
 
 APIOVER(maxx)
-int pa_maxx(FILE* f) { (*maxx_vect)(f); }
+int pa_maxx(FILE* f) { return ((*maxx_vect)(f)); }
 static int maxx_ivf(FILE *f)
 
 {
@@ -3665,7 +3717,7 @@ display. Because ANSI has no information return capability, this is preset.
 *******************************************************************************/
 
 APIOVER(maxy)
-int pa_maxy(FILE* f) { (*maxy_vect)(f); }
+int pa_maxy(FILE* f) { return ((*maxy_vect)(f)); }
 static int maxy_ivf(FILE *f)
 
 {
@@ -4160,7 +4212,7 @@ Returns the current location of the cursor in x.
 *******************************************************************************/
 
 APIOVER(curx)
-int pa_curx(FILE* f) { (*curx_vect)(f); }
+int pa_curx(FILE* f) { return ((*curx_vect)(f)); }
 static int curx_ivf(FILE *f)
 
 {
@@ -4179,7 +4231,7 @@ Returns the current location of the cursor in y.
 *******************************************************************************/
 
 APIOVER(cury)
-int pa_cury(FILE* f) { (*cury_vect)(f); }
+int pa_cury(FILE* f) { return ((*cury_vect)(f)); }
 static int cury_ivf(FILE *f)
 
 {
@@ -4414,6 +4466,8 @@ void evtfnc(pa_evtrec* er)
         case pa_etterm:    er->handled = (*evterm_vect)(); break;
         case pa_etframe:   er->handled = (*evframe_vect)(); break;
 
+        default: ;
+
     }
 
 }
@@ -4629,7 +4683,7 @@ if none is available, never changing it's state.
 *******************************************************************************/
 
 APIOVER(mouse)
-int pa_mouse(FILE* f) { (*mouse_vect)(f); }
+int pa_mouse(FILE* f) { return ((*mouse_vect)(f)); }
 static int mouse_ivf(FILE *f)
 
 {
@@ -4649,7 +4703,7 @@ to assume 3 buttons.
 *******************************************************************************/
 
 APIOVER(mousebutton)
-int pa_mousebutton(FILE* f, int m) { (*mousebutton_vect)(f, m); }
+int pa_mousebutton(FILE* f, int m) { return ((*mousebutton_vect)(f, m)); }
 static int mousebutton_ivf(FILE *f, int m)
 
 {
@@ -4668,7 +4722,7 @@ Return number of joysticks attached.
 *******************************************************************************/
 
 APIOVER(joystick)
-int pa_joystick(FILE* f) { (*joystick_vect)(f); }
+int pa_joystick(FILE* f) { return ((*joystick_vect)(f)); }
 static int joystick_ivf(FILE *f)
 
 {
@@ -4688,7 +4742,7 @@ Note that Windows 95 has no joystick capability.
 *******************************************************************************/
 
 APIOVER(joybutton)
-int pa_joybutton(FILE* f, int j) { (*joybutton_vect)(f, j); }
+int pa_joybutton(FILE* f, int j) { return ((*joybutton_vect)(f, j)); }
 static int joybutton_ivf(FILE *f, int j)
 
 {
@@ -4728,7 +4782,7 @@ Note that Windows 95 has no joystick capability.
 *******************************************************************************/
 
 APIOVER(joyaxis)
-int pa_joyaxis(FILE* f, int j) { (*joyaxis_vect)(f, j); }
+int pa_joyaxis(FILE* f, int j) { return ((*joyaxis_vect)(f, j)); }
 static int joyaxis_ivf(FILE *f, int j)
 
 {
@@ -4849,7 +4903,7 @@ but more can be allocated if needed.
 *******************************************************************************/
 
 APIOVER(funkey)
-int pa_funkey(FILE* f) { (*funkey_vect)(f); }
+int pa_funkey(FILE* f) { return ((*funkey_vect)(f)); }
 static int funkey_ivf(FILE* f)
 
 {
@@ -4934,7 +4988,7 @@ static void wrtstr_ivf(FILE* f, char *s)
 
     dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
-    putstr(s);
+    putstrc(s);
     pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
@@ -5264,8 +5318,8 @@ static void stdmenu_ivf(pa_stdmenusel sms, pa_menuptr* sm, pa_menuptr pm)
     { error(pa_dispestdmenu_unimp); }
 
 APIOVER(getwinid)
-int pa_getwinid(void) { (*getwinid_vect)(); }
-static int getwinid_ivf(void) { error(pa_dispegetwinid_unimp); }
+int pa_getwinid(void) { return ((*getwinid_vect)()); }
+static int getwinid_ivf(void) { error(pa_dispegetwinid_unimp); return 0; }
 
 APIOVER(focus)
 void pa_focus(FILE* f) { (*focus_vect)(f); }
@@ -5289,8 +5343,8 @@ before the client program runs.
 
 *******************************************************************************/
 
-static void pa_init_terminal (void) __attribute__((constructor (102)));
-static void pa_init_terminal()
+static void pa_init_terminal (int argc, char* argv[]) __attribute__((constructor (103)));
+static void pa_init_terminal(int argc, char* argv[])
 
 {
 
@@ -5639,7 +5693,7 @@ static void pa_init_terminal()
                 joytab[numjoy]->a5 = 0;
                 joytab[numjoy]->a6 = 0;
                 joytab[numjoy]->no = numjoy+1; /* set logical number */
-#ifndef __MACH__ /* Mac OS X */
+#if !defined(__MACH__) && !defined(__FreeBSD__) /* Mac OS X or BSD */
                 /* get number of axes */
                 ioctl(joyfid, JSIOCGAXES, &jc);
                 joytab[numjoy]->axis = jc;
@@ -5669,13 +5723,13 @@ static void pa_init_terminal()
     mpy = nmpy = -INT_MAX;
 
     /* now signal xterm we want all mouse events including all movements */
-    putstr("\33[?1003h");
+    putstrc("\33[?1003h");
 #ifdef MOUSESGR
-    putstr("\33[?1006h"); /* enable SGR mouse mode (extended) */
+    putstrc("\33[?1006h"); /* enable SGR mouse mode (extended) */
 #endif
 
     /* signal we want xterm focus in/out events */
-    putstr("\33[?1004h");
+    putstrc("\33[?1004h");
 
     /* enable windows change signal */
     winchsev = system_event_addsesig(SIGWINCH);
@@ -5721,7 +5775,7 @@ and that should be corrected.
 
 *******************************************************************************/
 
-static void pa_deinit_terminal (void) __attribute__((destructor (102)));
+static void pa_deinit_terminal (void) __attribute__((destructor (103)));
 static void pa_deinit_terminal()
 
 {
@@ -5752,7 +5806,7 @@ static void pa_deinit_terminal()
     if (!fend && fautohold && !errflg) {
 
         /* process automatic exit sequence */
-#ifndef __MACH__ /* Mac OS X */
+#if !defined(__MACH__) && !defined(__FreeBSD__) /* Mac OS X or BSD */        
         /* construct final name for window */
         trmnam = malloc(strlen(fini)+strlen(program_invocation_short_name)+1);
         strcpy(trmnam, fini); /* place first part */
@@ -5788,10 +5842,10 @@ static void pa_deinit_terminal()
     tcsetattr(0,TCSAFLUSH,&trmsav);
 
     /* turn off xterm focus in/out events */
-    putstr("\33[?1004l");
+    putstrc("\33[?1004l");
 
     /* turn off mouse tracking */
-    putstr("\33[?1003l");
+    putstrc("\33[?1003l");
 
     /* swap old vectors for existing vectors */
     ovr_read(ofpread, &cppread);
@@ -5806,6 +5860,6 @@ static void pa_deinit_terminal()
         error(pa_dispesystem);
 
     /* back to normal buffer on xterm */
-    printf("\033[?1049l"); fflush(stdout);
+    putstrc("\033[?1049l"); fflush(stdout);
 
 }
