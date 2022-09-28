@@ -18,8 +18,6 @@ is do to using xterm scroll to move. We can turn this off.
 
 7. Make sure all configurations are represented in the config file.
 
-9. Focus and hover died in the 4ecc4df7131e354c6ab2ab77422260563455bf2a commit.
-
 MACOSX/Quartz version ============================================================
 
 1. In the Mac OS X version, the final benchmark tallys are getting erased. I 

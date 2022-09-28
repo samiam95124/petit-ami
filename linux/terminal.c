@@ -2092,8 +2092,11 @@ int strncmpus(const unsigned char* cs, const char* ct, size_t n)
 {
 
     /* skip to end of either, or first non-equal character */
-    while (*cs && *ct & (*cs == *ct) && n--) cs++, ct++;
+    while (*cs && *ct && (*cs == *ct) && n) cs++, ct++, n--;
 
+    if (!n || (!*cs && !*ct)) return (0); /* end of strings, return equal */
+    if (!*cs) return (-1); /* end of 1st, return less than */
+    if (!*ct) return (1); /* end of 2nd, return greater than */
     if (*cs < *ct) return -1; /* return less than status */
     else if (*cs > *ct) return 1; /* return greater than status */
     return (0); /* return match status */
