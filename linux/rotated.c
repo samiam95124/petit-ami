@@ -729,7 +729,7 @@ static RotatedTextItem_t *XRotRetrieveFromCache(Display *dpy, XFontStruct *font,
    while(i1 && !item) {
       /* match everything EXCEPT fontname/ID */
       if(strcmp(text, i1->fText)==0 &&
-         /*TMath::A*/abs(angle-i1->fAngle)<0.00001 &&
+         /*TMath::A*/fabs(angle-i1->fAngle)<0.00001 &&
          gRotStyle.fMagnify==i1->fMagnify &&
          (i1->fNl==1 ||
          ((align==0)?9:(align-1))%3==
@@ -1025,11 +1025,11 @@ static RotatedTextItem_t *XRotCreateTextItem(Display *dpy, XFontStruct *font, fl
    }
 
    /* how big will rotated text be ? */
-   item->fColsOut=int(/*TMath::A*/abs((float)item->fRowsIn*sin_angle) +
-       /*TMath::A*/abs((float)item->fColsIn*cos_angle) +0.99999 +2);
+   item->fColsOut=int(/*TMath::A*/fabs((float)item->fRowsIn*sin_angle) +
+       /*TMath::A*/fabs((float)item->fColsIn*cos_angle) +0.99999 +2);
 
-   item->fRowsOut=int(/*TMath::A*/abs((float)item->fRowsIn*cos_angle) +
-       /*TMath::A*/abs((float)item->fColsIn*sin_angle) +0.99999 +2);
+   item->fRowsOut=int(/*TMath::A*/fabs((float)item->fRowsIn*cos_angle) +
+       /*TMath::A*/fabs((float)item->fColsIn*sin_angle) +0.99999 +2);
 
    if(item->fColsOut%2==0) item->fColsOut++;
 

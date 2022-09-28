@@ -466,9 +466,9 @@ else ifeq ($(OSTYPE),FreeBSD)
     #
     # BSD
     #
-	PLIBS += -lm -lpthread -lssl -lcrypto
-	CLIBS += -lm -lpthread -lssl -lcrypto
-	GLIBS += -lm -lpthread -lssl -lcrypto -lX11
+	PLIBS += -L/usr/local/lib -lm -lpthread -lssl -lcrypto
+	CLIBS += -L/usr/local/lib -lm -lpthread -lssl -lcrypto
+	GLIBS += -L/usr/local/lib -lm -lpthread -lssl -lcrypto -lX11
 	PLIBSD +=
     CLIBSD +=
 	GLIBSD +=
@@ -683,9 +683,12 @@ bsd/terminal.o: linux/terminal.c include/terminal.h Makefile
 bsd/graphics.o: linux/graphics.c include/graphics.h Makefile
 	$(CC) -g3 -Ilibc -Iinclude -I/usr/local/include -c linux/graphics.c \
 	-o bsd/graphics.o
+
+bsd/rotated.o: linux/rotated.c linux/rotated.h Makefile
+	$(CC) -g3 -Iinclude -I/usr/local/include -c linux/rotated.c -o bsd/rotated.o
 	
 bsd/system_event.o: macosx/system_event.c linux/system_event.h Makefile
-	$(CC) -g3 -Iinclude -fPIC -c macosx/system_event.c -o bsd/system_event.o
+	$(CC) -g3 -Iinclude -c macosx/system_event.c -o bsd/system_event.o
 
 #
 # Components in common to all systems
@@ -793,9 +796,9 @@ bin/petit_ami_term.a: bsd/services.o bsd/sound.o bsd/network.o \
 	    utils/config.o utils/option.o bsd/stdio.o
 	
 bin/petit_ami_graph.a: bsd/services.o bsd/sound.o bsd/network.o \
-    bsd/system_event.o bsd/graphics.o portable/gnome_widgets.o \
-    utils/config.o utils/option.o bsd/stdio.o
-	ar rcs bin/petit_ami_graph.a bsd/services.o bsd/sound.o \
+    bsd/graphics.o bsd/rotated.o bsd/system_event.o \
+	portable/gnome_widgets.o utils/config.o utils/option.o bsd/stdio.o
+	ar rcs bin/petit_ami_graph.a bsd/services.o bsd/sound.o bsd/rotated.o \
 	    bsd/network.o bsd/system_event.o bsd/graphics.o \
 	    portable/gnome_widgets.o utils/config.o utils/option.o bsd/stdio.o
 	
