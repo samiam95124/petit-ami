@@ -213,14 +213,27 @@ else
 
 endif
 
-ifeq ($(OSTYPE),FreeBSD)
+ifeq ($(OSTYPE),Windows_NT)
+
+	CC=gcc
+	CFLAGS=-g3 -Ilibc -Iinclude
+	CPP=g++
+
+else ifeq ($(OSTYPE),Darwin)
 
 	CC=cc
-	CFLAGS=-g3 -Iinclude
+	CFLAGS=-g3 -Ilibc -Iinclude
+	CPP=c++
+
+else ifeq ($(OSTYPE),FreeBSD)
+
+	CC=cc
+	CFLAGS=-g3 -Ilibc -Iinclude
 	CPP=c++
 
 else
 
+	# linux
 	CC=gcc
 	CFLAGS=-g3 -Iinclude
 	CPP=g++
@@ -655,7 +668,7 @@ macosx/graphics.o: linux/graphics.c include/graphics.h Makefile
 	-o macosx/graphics.o
 	
 macosx/system_event.o: macosx/system_event.c linux/system_event.h Makefile
-	$(CC) -g3 -Iinclude -fPIC -c macosx/system_event.c -o macosx/system_event.o
+	$(CC) -g3 -Ilibc -Iinclude -fPIC -c macosx/system_event.c -o macosx/system_event.o
 	
 #
 # BSD library components
@@ -685,10 +698,10 @@ bsd/graphics.o: linux/graphics.c include/graphics.h Makefile
 	-o bsd/graphics.o
 
 bsd/rotated.o: linux/rotated.c linux/rotated.h Makefile
-	$(CC) -g3 -Iinclude -I/usr/local/include -c linux/rotated.c -o bsd/rotated.o
+	$(CC) -g3 -Ilibc -Iinclude -I/usr/local/include -c linux/rotated.c -o bsd/rotated.o
 	
 bsd/system_event.o: macosx/system_event.c linux/system_event.h Makefile
-	$(CC) -g3 -Iinclude -c macosx/system_event.c -o bsd/system_event.o
+	$(CC) -g3 -Ilibc -Iinclude -c macosx/system_event.c -o bsd/system_event.o
 
 #
 # Components in common to all systems
