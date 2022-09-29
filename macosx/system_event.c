@@ -90,6 +90,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <pthread.h>
+#include <string.h>
 
 /* somewhat kludgy, but there should be only one include file for this */
 #include "../linux/system_event.h"
@@ -124,8 +125,10 @@ static sigset_t sigmsk; /* signal mask */
 static sigset_t sigact; /* signal active */
 
 static struct kevent chgevt[MAXSYS]; /* event change list */
+static struct kevent chgevtc[MAXSYS]; /* event change list copy */
 static int kerque; /* kernel queue fid */
 static int nchg; /* number of change filters defined */
+static int nchgc; /* number of change filters defined copy */
 
 static int resetsev; /* reset system event */
 
@@ -387,11 +390,14 @@ void system_event_getsevt(sevptr ev)
     ei = 0; /* clear event index */
     do { /* find an active event */
 
-        if (ei >= nev) {
+        if (ei >= nev) { /* out of events, read the next ones */
 
-            /* out of events, read the next ones */
+            /* because chgevt/nchg could be changed by another thread, we make
+               a copy and pass that while still holding the lock */
+            memcpy(chgevtc, chgevt, nchg*sizeof(struct kevent));
+            nchgc = nchg;
             pthread_mutex_unlock(&evtlock); /* release the event lock */
-            nev = kevent(kerque, chgevt, nchg, events, MAXSYS, NULL);
+            nev = kevent(kerque, chgevtc, nchgc, events, MAXSYS, NULL);
             pthread_mutex_lock(&evtlock); /* take the event lock */
             if (nev <= 0) {
 
