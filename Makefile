@@ -129,7 +129,7 @@ ifndef STDIO_SOURCE
         #
         # BSD builds must use stdio since they don't use glibc.
         #
-        STDIO_SOURCE=stdio		
+        STDIO_SOURCE=stdio
 
     else
 
@@ -216,26 +216,42 @@ endif
 ifeq ($(OSTYPE),Windows_NT)
 
 	CC=gcc
-	CFLAGS=-g3 -Ilibc -Iinclude
+	ifeq ($(STDIO_SOURCE),stdio)
+		CFLAGS=-g3 -Ilibc -Iinclude
+	else
+		CFLAGS=-g3 -Iinclude
+	endif
 	CPP=g++
 
 else ifeq ($(OSTYPE),Darwin)
 
 	CC=cc
-	CFLAGS=-g3 -Ilibc -Iinclude
+	ifeq ($(STDIO_SOURCE),stdio)
+		CFLAGS=-g3 -Ilibc -Iinclude
+	else
+		CFLAGS=-g3 -Iinclude
+	endif
 	CPP=c++
 
 else ifeq ($(OSTYPE),FreeBSD)
 
 	CC=cc
-	CFLAGS=-g3 -Ilibc -Iinclude
+	ifeq ($(STDIO_SOURCE),stdio)
+		CFLAGS=-g3 -Ilibc -Iinclude
+	else
+		CFLAGS=-g3 -Iinclude
+	endif
 	CPP=c++
 
 else
 
 	# linux
 	CC=gcc
-	CFLAGS=-g3 -Iinclude
+	ifeq ($(STDIO_SOURCE),stdio)
+		CFLAGS=-g3 -Ilibc -Iinclude -fPIC
+	else
+		CFLAGS=-g3 -Iinclude -fPIC
+	endif
 	CPP=g++
 
 endif
@@ -588,34 +604,34 @@ endif
 # Linux library components
 #
 linux/stdio.o: libc/stdio.c libc/stdio.h Makefile
-	gcc -g3 -Ilibc -fPIC -c libc/stdio.c -o linux/stdio.o
+	$(CC) $(CFLAGS) -c libc/stdio.c -o linux/stdio.o
 
 linux/services.o: linux/services.c include/services.h Makefile
-	$(CC) -g3 -Iinclude -fPIC -c linux/services.c -o linux/services.o
+	$(CC) $(CFLAGS) -c linux/services.c -o linux/services.o
 	
 linux/sound.o: linux/sound.c include/sound.h Makefile
-	$(CC) -g3 -Iinclude -fPIC -c linux/sound.c -lasound -lm -pthread -o linux/sound.o
+	$(CC) $(CFLAGS) -c linux/sound.c -lasound -lm -pthread -o linux/sound.o
 	
 linux/network.o: linux/network.c include/network.h Makefile
-	$(CC) -g3 -Iinclude -fPIC -c linux/network.c -o linux/network.o
+	$(CC) $(CFLAGS) -c linux/network.c -o linux/network.o
 	
 linux/fluidsynthplug.o: linux/fluidsynthplug.c include/sound.h Makefile
-	$(CC) -g3 -Iinclude -fPIC -c linux/fluidsynthplug.c -lasound -lm -pthread -o linux/fluidsynthplug.o
+	$(CC) $(CFLAGS) -c linux/fluidsynthplug.c -lasound -lm -pthread -o linux/fluidsynthplug.o
 	
 linux/dumpsynthplug.o: linux/dumpsynthplug.c include/sound.h Makefile
-	$(CC) -g3 -Iinclude -fPIC -c linux/dumpsynthplug.c -lasound -lm -pthread -o linux/dumpsynthplug.o
+	$(CC) $(CFLAGS) -c linux/dumpsynthplug.c -lasound -lm -pthread -o linux/dumpsynthplug.o
 	
 linux/terminal.o: linux/terminal.c include/terminal.h Makefile
-	$(CC) -g3 -Iinclude -fPIC -c linux/terminal.c -o linux/terminal.o
+	$(CC) $(CFLAGS) -c linux/terminal.c -o linux/terminal.o
 	
 linux/graphics.o: linux/graphics.c include/graphics.h Makefile
-	$(CC) -g3 -Iinclude -fPIC -c linux/graphics.c -o linux/graphics.o
+	$(CC) $(CFLAGS) -c linux/graphics.c -o linux/graphics.o
 	
 linux/system_event.o: linux/system_event.c linux/system_event.h Makefile
-	$(CC) -g3 -Iinclude -fPIC -c linux/system_event.c -o linux/system_event.o
+	$(CC) $(CFLAGS) -c linux/system_event.c -o linux/system_event.o
 	
 linux/rotated.o: linux/rotated.c linux/rotated.h Makefile
-	$(CC) -g3 -Iinclude -fPIC -c linux/rotated.c -o linux/rotated.o
+	$(CC) $(CFLAGS) -c linux/rotated.c -o linux/rotated.o
 	
 #
 # Windows library components
@@ -623,22 +639,22 @@ linux/rotated.o: linux/rotated.c linux/rotated.h Makefile
 # Note that stub sources are not yet implemented
 #
 windows/stdio.o: libc/stdio.c libc/stdio.h Makefile
-	$(CC) -g3 -Ilibc -c libc/stdio.c -o windows/stdio.o
+	$(CC) $(CFLAGS) -c libc/stdio.c -o windows/stdio.o
 	
 windows/services.o: windows/services.c include/services.h Makefile
-	$(CC) -g3 -Ilibc -Iinclude -c windows/services.c -o windows/services.o
+	$(CC) $(CFLAGS) -c windows/services.c -o windows/services.o
 	
 windows/sound.o: windows/sound.c include/sound.h Makefile
-	$(CC) -g3 -Ilibc -Iinclude -c windows/sound.c -o windows/sound.o
+	$(CC) $(CFLAGS) -c windows/sound.c -o windows/sound.o
 	
 windows/network.o: windows/network.c include/network.h Makefile
-	$(CC) -g3 -Ilibc -Iinclude -c windows/network.c -o windows/network.o
+	$(CC) $(CFLAGS) -c windows/network.c -o windows/network.o
 	
 windows/terminal.o: windows/terminal.c include/terminal.h Makefile
-	$(CC) -g3 -Ilibc -Iinclude -c windows/terminal.c -o windows/terminal.o
+	$(CC) $(CFLAGS) -c windows/terminal.c -o windows/terminal.o
 	
 windows/graphics.o: windows/graphics.c include/graphics.h Makefile
-	$(CC) -g3 -Ilibc -Iinclude -c windows/graphics.c -o windows/graphics.o
+	$(CC) $(CFLAGS) -c windows/graphics.c -o windows/graphics.o
 
 #
 # Mac OS X library components
@@ -648,27 +664,27 @@ windows/graphics.o: windows/graphics.c include/graphics.h Makefile
 # Mac OS X can use some of the same components as Linux.
 #
 macosx/stdio.o: libc/stdio.c libc/stdio.h Makefile
-	$(CC) -g3 -Ilibc -c libc/stdio.c -o macosx/stdio.o
+	$(CC) $(CFLAGS) -c libc/stdio.c -o macosx/stdio.o
 	
 macosx/services.o: linux/services.c include/services.h Makefile
-	$(CC) -g3 -Ilibc -Iinclude -c linux/services.c -o macosx/services.o
+	$(CC) $(CFLAGS) -c linux/services.c -o macosx/services.o
 	
 macosx/sound.o: stub/sound.c include/sound.h Makefile
-	$(CC) -g3 -Ilibc -Iinclude -c stub/sound.c -o macosx/sound.o
+	$(CC) $(CFLAGS) -c stub/sound.c -o macosx/sound.o
 	
 macosx/network.o: linux/network.c include/network.h Makefile
-	$(CC) -g3 -Ilibc -Iinclude -I/usr/local/Cellar/openssl@3/3.0.0_1/include \
+	$(CC) $(CFLAGS) -I/usr/local/Cellar/openssl@3/3.0.0_1/include \
 		-c linux/network.c -o macosx/network.o
 	
 macosx/terminal.o: linux/terminal.c include/terminal.h Makefile
-	$(CC) -g3 -Ilibc -Iinclude -c linux/terminal.c -o macosx/terminal.o
+	$(CC) $(CFLAGS) -c linux/terminal.c -o macosx/terminal.o
 	
 macosx/graphics.o: linux/graphics.c include/graphics.h Makefile
-	$(CC) -g3 -Ilibc -Iinclude -I/opt/X11/include -c linux/graphics.c \
+	$(CC) $(CFLAGS) -I/opt/X11/include -c linux/graphics.c \
 	-o macosx/graphics.o
 	
 macosx/system_event.o: macosx/system_event.c linux/system_event.h Makefile
-	$(CC) -g3 -Ilibc -Iinclude -fPIC -c macosx/system_event.c -o macosx/system_event.o
+	$(CC) $(CFLAGS) -fPIC -c macosx/system_event.c -o macosx/system_event.o
 	
 #
 # BSD library components
@@ -678,54 +694,54 @@ macosx/system_event.o: macosx/system_event.c linux/system_event.h Makefile
 # BSD can use some of the same components as Linux.
 #
 bsd/stdio.o: libc/stdio.c libc/stdio.h Makefile
-	$(CC) -g3 -Ilibc -c libc/stdio.c -o bsd/stdio.o
+	$(CC) $(CFLAGS) -c libc/stdio.c -o bsd/stdio.o
 	
 bsd/services.o: linux/services.c include/services.h Makefile
-	$(CC) -g3 -Ilibc -Iinclude -c linux/services.c -o bsd/services.o
+	$(CC) $(CFLAGS) -c linux/services.c -o bsd/services.o
 	
 bsd/sound.o: stub/sound.c include/sound.h Makefile
-	$(CC) -g3 -Ilibc -Iinclude -c stub/sound.c -o bsd/sound.o
+	$(CC) $(CFLAGS) -c stub/sound.c -o bsd/sound.o
 	
 bsd/network.o: stub/network.c include/network.h Makefile
-	$(CC) -g3 -Ilibc -Iinclude -I/usr/local/Cellar/openssl@3/3.0.0_1/include \
+	$(CC) $(CFLAGS) -I/usr/local/Cellar/openssl@3/3.0.0_1/include \
 		-c stub/network.c -o bsd/network.o
 	
 bsd/terminal.o: linux/terminal.c include/terminal.h Makefile
-	$(CC) -g3 -Ilibc -Iinclude -c linux/terminal.c -o bsd/terminal.o
+	$(CC) $(CFLAGS) -c linux/terminal.c -o bsd/terminal.o
 	
 bsd/graphics.o: linux/graphics.c include/graphics.h Makefile
-	$(CC) -g3 -Ilibc -Iinclude -I/usr/local/include -c linux/graphics.c \
+	$(CC) $(CFLAGS) -I/usr/local/include -c linux/graphics.c \
 	-o bsd/graphics.o
 
 bsd/rotated.o: linux/rotated.c linux/rotated.h Makefile
-	$(CC) -g3 -Ilibc -Iinclude -I/usr/local/include -c linux/rotated.c -o bsd/rotated.o
+	$(CC) $(CFLAGS) -I/usr/local/include -c linux/rotated.c -o bsd/rotated.o
 	
 bsd/system_event.o: macosx/system_event.c linux/system_event.h Makefile
-	$(CC) -g3 -Ilibc -Iinclude -c macosx/system_event.c -o bsd/system_event.o
+	$(CC) $(CFLAGS) -c macosx/system_event.c -o bsd/system_event.o
 
 #
 # Components in common to all systems
 #
 utils/config.o: utils/config.c include/localdefs.h include/services.h \
 	            include/config.h Makefile
-	$(CC) -g3 -fPIC -Ilibc -Iinclude -c utils/config.c -o utils/config.o
+	$(CC) $(CFLAGS) -c utils/config.c -o utils/config.o
 	
 utils/option.o: utils/option.c include/localdefs.h include/services.h \
 	            include/option.h Makefile
-	$(CC) -g3 -fPIC -Ilibc -Iinclude -c utils/option.c -o utils/option.o
+	$(CC) $(CFLAGS) -c utils/option.c -o utils/option.o
 	
 stub/keeper.o: stub/keeper.c
-	$(CC) -g3 -fPIC -Iinclude -c stub/keeper.c -o stub/keeper.o
+	$(CC) $(CFLAGS) -c stub/keeper.c -o stub/keeper.o
 
 cpp/terminal.o: cpp/terminal.cpp
-	g++ -g3 -fPIC -Iinclude -Ihpp -c cpp/terminal.cpp -o cpp/terminal.o
+	$(CPP) $(CFLAGS) -Ihpp -c cpp/terminal.cpp -o cpp/terminal.o
 	
 portable/gnome_widgets.o: portable/gnome_widgets.c
-	$(CC) -g3 -fPIC -Iinclude -c portable/gnome_widgets.c \
+	$(CC) $(CFLAGS) -c portable/gnome_widgets.c \
 		-o portable/gnome_widgets.o
 		
 portable/managerc.o: portable/managerc.c
-	$(CC) -g3 -fPIC -Iinclude -c portable/managerc.c \
+	$(CC) $(CFLAGS) -c portable/managerc.c \
 		-o portable/managerc.o
 	
 ################################################################################
