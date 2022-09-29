@@ -27,3 +27,9 @@ buffer" command in deinit().
 2. INS key does not work in edit mode.
 
 3. Forward and backward word do not work.
+
+BSD version ======================================================================
+
+1. Resize with fixed frame test and buffer follow does not work.
+
+2. In the threading test each thread is running exclusively, then it dies.

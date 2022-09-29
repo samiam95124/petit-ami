@@ -4922,8 +4922,6 @@ Frametimer
 
 Enables or disables the framing timer.
 
-Not currently implemented.
-
 *******************************************************************************/
 
 APIOVER(frametimer)

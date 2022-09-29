@@ -89,35 +89,14 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <pthread.h>
 
 /* somewhat kludgy, but there should be only one include file for this */
 #include "../linux/system_event.h"
 
-/*
- * Debug print system
- *
- * Example use:
- *
- * dbg_printf(dlinfo, "There was an error: string: %s\n", bark);
- *
- * mydir/test.c:myfunc():12: There was an error: somestring
- *
- */
+#include <diag.h>
 
-static enum { /* debug levels */
-
-    dlinfo, /* informational */
-    dlwarn, /* warnings */
-    dlfail, /* failure/critical */
-    dlnone  /* no messages */
-
-} dbglvl = dlinfo;
-
-#define dbg_printf(lvl, fmt, ...) \
-        do { if (lvl >= dbglvl) fprintf(stderr, "%s:%s():%d: " fmt, __FILE__, \
-                                __func__, __LINE__, ##__VA_ARGS__); \
-                                fflush(stderr); } while (0)
-
+//#define PRTSEVT /* print signals diagnostic */
 #define MAXSYS 100 /* number of possible logical system events */
 
 /* logical system event record */
@@ -132,6 +111,11 @@ typedef struct systrk {
 
 } systrk;
 
+/*
+ * Lock for module data
+ */
+static pthread_mutex_t evtlock; /* lock for this module data */
+
 /* logical system event tracking array */
 static sevtptr systab[MAXSYS];
 static int sysno; /* number of system event ids allocated */
@@ -142,6 +126,10 @@ static sigset_t sigact; /* signal active */
 static struct kevent chgevt[MAXSYS]; /* event change list */
 static int kerque; /* kernel queue fid */
 static int nchg; /* number of change filters defined */
+
+static int resetsev; /* reset system event */
+
+/* end of evtlock section */
 
 /*******************************************************************************
 
@@ -224,13 +212,16 @@ int system_event_addseinp(int fid)
 {
 
     int sid; /* system logical event id */
+    pid_t pid;
 
+    pthread_mutex_lock(&evtlock); /* take the event lock */
     sid = getsys(); /* get a new system event id */
     systab[sid-1]->typ = se_inp; /* set type */
     systab[sid-1]->fid = fid; /* set fid for file */
 
     if (nchg >= MAXSYS) {
 
+        pthread_mutex_unlock(&evtlock); /* release the event lock */
         fprintf(stderr, "*** System event: Too many events defined\n");
         fflush(stderr);
         exit(1);
@@ -241,6 +232,11 @@ int system_event_addseinp(int fid)
     EV_SET(&chgevt[nchg], fid, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, 0);
     systab[sid-1]->ei = nchg; /* link to event entry */
     nchg++; /* count events registered */
+    pthread_mutex_unlock(&evtlock); /* release the event lock */
+
+    /* send reset to this process */
+    pid = getpid();
+    kill(pid, SIGUSR1);
 
     return (sid); /* exit with logical event id */
 
@@ -262,8 +258,10 @@ int system_event_addsesig(int sig)
 
 {
 
-    int sid; /* system logical event id */
+    int   sid; /* system logical event id */
+    pid_t pid;
 
+    pthread_mutex_lock(&evtlock); /* take the event lock */
     sid = getsys(); /* get a new system event id */
     systab[sid-1]->typ = se_inp; /* set type */
     systab[sid-1]->sig = sig; /* set signal */
@@ -278,6 +276,11 @@ int system_event_addsesig(int sig)
     EV_SET(&chgevt[nchg], sig, EVFILT_SIGNAL, EV_ADD | EV_ENABLE, 0, 0, 0);
     systab[sid-1]->ei = nchg; /* link to event entry */
     nchg++; /* count events registered */
+    pthread_mutex_unlock(&evtlock); /* release the event lock */
+
+    /* send reset to this process */
+    pid = getpid();
+    kill(pid, SIGUSR1);
 
     return (sid); /* exit with logical event id */
 
@@ -298,6 +301,9 @@ int system_event_addsetim(int sid, int t, int r)
 
 {
 
+    pid_t pid;
+
+    pthread_mutex_lock(&evtlock); /* take the event lock */
     if (!sid) { /* no previous system id */
 
         sid = getsys(); /* get a new system event id */
@@ -311,6 +317,11 @@ int system_event_addsetim(int sid, int t, int r)
     /* construct timer event */
     EV_SET(&chgevt[systab[sid-1]->ei], sid, EVFILT_TIMER, EV_ADD | EV_ENABLE,
            NOTE_USECONDS, (int64_t)t*100, 0);
+    pthread_mutex_unlock(&evtlock); /* release the event lock */
+
+    /* send reset to this process */
+    pid = getpid();
+    kill(pid, SIGUSR1);
 
     return (sid);
 
@@ -330,8 +341,10 @@ void system_event_deasetim(int sid)
 
 {
 
+    pthread_mutex_lock(&evtlock); /* take the event lock */
     if (sid <= 0 || !systab[sid-1]) {
 
+        pthread_mutex_unlock(&evtlock); /* release the event lock */
         fprintf(stderr, "*** System event: Invalid system event id\n");
         fflush(stderr);
         exit(1);
@@ -341,6 +354,7 @@ void system_event_deasetim(int sid)
     /* construct timer event */
     EV_SET(&chgevt[systab[sid-1]->ei], sid, EVFILT_TIMER, EV_ADD | EV_DISABLE,
            0, 0, 0);
+    pthread_mutex_unlock(&evtlock); /* release the event lock */
 
 }
 
@@ -367,6 +381,7 @@ void system_event_getsevt(sevptr ev)
     int           nev;            /* number of events available */
     int           ei;             /* event index */
 
+    pthread_mutex_lock(&evtlock); /* take the event lock */
     ev->typ = se_none; /* set no event occurred */
     nev = 0; /* set no events read */
     ei = 0; /* clear event index */
@@ -375,9 +390,12 @@ void system_event_getsevt(sevptr ev)
         if (ei >= nev) {
 
             /* out of events, read the next ones */
+            pthread_mutex_unlock(&evtlock); /* release the event lock */
             nev = kevent(kerque, chgevt, nchg, events, MAXSYS, NULL);
+            pthread_mutex_lock(&evtlock); /* take the event lock */
             if (nev <= 0) {
 
+                pthread_mutex_unlock(&evtlock); /* release the event lock */
                 fprintf(stderr, "*** System event: Error reading next event\n");
                 fflush(stderr);
                 exit(1);
@@ -429,7 +447,9 @@ void system_event_getsevt(sevptr ev)
         }
 
     } while (ev->typ == se_none);
-#if 0
+    pthread_mutex_unlock(&evtlock); /* release the event lock */
+
+#ifdef PRTSEVT
 switch (ev->typ) {
     case se_none: fprintf(stderr, "lse: %d None\n", ev->lse); break;
     case se_inp:  fprintf(stderr, "lse: %d Input file ready\n", ev->lse); break;
@@ -456,6 +476,9 @@ static void init_system_event()
 
     int si; /* index for system event array */
 
+    /* initialize the events lock */
+    pthread_mutex_init(&evtlock, NULL);
+
     /* clear the tracking array */
     for (si = 0; si < MAXSYS; si++) systab[si] = NULL;
 
@@ -480,6 +503,10 @@ static void init_system_event()
     /* set no change filters registered */
     nchg = 0;
 
+    /* enable select reset signal */
+    signal(SIGUSR1, SIG_IGN);
+    resetsev = system_event_addsesig(SIGUSR1);
+
 }
 
 /** *****************************************************************************
@@ -497,5 +524,8 @@ static void deinit_system_event()
 
     /* close the event queue */
     close(kerque);
+
+    /* release the event lock */
+    pthread_mutex_destroy(&evtlock);
 
 }
