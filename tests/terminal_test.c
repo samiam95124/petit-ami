@@ -441,7 +441,9 @@ void thread(void)
 
 
     }
+    pa_lock(ln);
     pa_sendsig(sn); /* signal thread complete */
+    pa_unlock(ln);
 
 }
 
@@ -472,7 +474,7 @@ int main(int argc, char *argv[])
     prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
 
-#if 1
+#if 0
     /* *********************** Title set test ********************* */
 
     printf("\f");
@@ -1276,7 +1278,6 @@ int main(int argc, char *argv[])
 
     /* **************************** buffer follow test ************************* */
 
-#endif
     printf("\f");
     pa_auto(stdout, FALSE);
     pa_curvis(stdout, FALSE);
@@ -1340,6 +1341,7 @@ int main(int argc, char *argv[])
 
     /* ******************************* Threading test ************************** */
 
+#endif
     pa_auto(stdout, FALSE);
     pa_curvis(stdout, FALSE);
     printf("\f");

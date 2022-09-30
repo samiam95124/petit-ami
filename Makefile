@@ -139,6 +139,7 @@ ifndef STDIO_SOURCE
         # glibc assumes that this is a patched glibc with override calls.
         #
         STDIO_SOURCE=glibc
+		#STDIO_SOURCE=stdio
 
     endif
 endif

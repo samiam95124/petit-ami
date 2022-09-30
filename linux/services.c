@@ -3056,6 +3056,7 @@ int pa_initlock(void)
     int i;
     int r;
     pthread_mutex_t* lp;
+    pthread_mutexattr_t attr;
 
     lp = malloc(sizeof(pthread_mutex_t)); /* get new lock entry out of lock */
     if (!lp) error("Out of memory"); /* couldn't allocate */
@@ -3073,7 +3074,10 @@ int pa_initlock(void)
     locktbl[i] = lp;
     pthread_mutex_unlock(&lcktbllck); /* unlock thread table */
     /* Now we own the table entry, initialize the lock */
-    r = pthread_mutex_init(lp, NULL);
+    pthread_mutexattr_init(&attr); /* initialize the attribute */
+    /* make sure lock is not recursive, and returns errors */
+    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK);
+    r = pthread_mutex_init(lp, &attr);
     if (r) error(strerror(r));
 
     return (i+1); /* return the lock logical id to caller */
@@ -3123,6 +3127,7 @@ void pa_lock(int ln)
 
     int r;
     pthread_mutex_t* lp;
+    int lc;
 
     if (ln < 1 || ln > MAXLOCK) error("Invalid concurrency lock logical id");
     /* assume this is an atomic access (single word) */
