@@ -404,6 +404,31 @@ static void error(string s)
 
 /*******************************************************************************
 
+String compare unsigned to signed char with length
+
+This is the same as whitebook strncmp, but takes the first argument unsigned.
+It is used to compare to string constants, and satistfy llvm warnings.
+
+*******************************************************************************/
+
+static int strncmpus(const unsigned char* cs, const char* ct, size_t n)
+
+{
+
+    /* skip to end of either, or first non-equal character */
+    while (*cs && *ct && (*cs == *ct) && n) cs++, ct++, n--;
+
+    if (!n || (!*cs && !*ct)) return (0); /* end of strings, return equal */
+    if (!*cs) return (-1); /* end of 1st, return less than */
+    if (!*ct) return (1); /* end of 2nd, return greater than */
+    if (*cs < *ct) return -1; /* return less than status */
+    else if (*cs > *ct) return 1; /* return greater than status */
+    return (0); /* return match status */
+
+}
+
+/*******************************************************************************
+
 Place extension on filename
 
 Places, or replaces, an extension on the given filename. Finds either the last
@@ -1279,7 +1304,7 @@ static void inpseq(int p, pa_seqptr sp)
     /* if the channel has just been enabled, skip until we get a bit 8 high
        command so we sync to MIDI stream */
     do { b = rdsynth(mp); } while (!mp->sync && b < 0x80);
-    mp->sync; /* set midi syncronized */
+    mp->sync = TRUE; /* set midi syncronized */
     if (b < 0x80) { /* process running status or repeat */
 
         mp->pback = b; /* put back parameter byte */
@@ -4763,7 +4788,7 @@ static void* alsaplaywave(void* data)
     if (len != sizeof(wavhdr)) error(".wav file format");
 
     /* check a RIFF header with WAVE type */
-    if (strncmp("RIFF", whd.id, 4) || strncmp("WAVE", whd.type, 4))
+    if (strncmpus(whd.id, "RIFF", 4) || strncmpus(whd.type, "WAVE", 4))
        error("Not a valid .wav file");
 
     /* read in fmt header. Note we expect that at the top of the file, and that
@@ -4772,7 +4797,7 @@ static void* alsaplaywave(void* data)
     if (len != sizeof(fmthdr)) error(".wav file format");
 
     /* check a format header */
-    if (strncmp("fmt ", fhd.id, 4)) error("Not a valid .wav file");
+    if (strncmpus(fhd.id, "fmt ", 4)) error("Not a valid .wav file");
 
     r = snd_pcm_open(&pdh, alsapcmout[p-1]->name, SND_PCM_STREAM_PLAYBACK, 0);
     if (r < 0) error("Cannot open audio output device");
@@ -4802,7 +4827,7 @@ static void* alsaplaywave(void* data)
         if (len && len != sizeof(cnkhdr)) error(".wav file format");
         if (len) { /* not EOF */
 
-            if (!strncmp("data", chd.id, 4)) {
+            if (!strncmpus(chd.id, "data", 4)) {
 
                 /* is a "data" chunk, play */
                 remsiz = chd.len; /* set remaining transfer length */

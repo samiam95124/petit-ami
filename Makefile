@@ -102,6 +102,15 @@ else
 endif
 
 #
+# Use clang or use gcc
+#
+# Note some systems only can use one or the other.
+#
+ifndef CLANG
+	CLANG=0
+endif
+
+#
 # Where do stdio definitions and overrides come from?
 #
 ifndef STDIO_SOURCE
@@ -216,44 +225,63 @@ endif
 
 ifeq ($(OSTYPE),Windows_NT)
 
-	CC=gcc
+	ifeq ($(CLANG),1)
+
+		CC=clang
+		CPP=clang++
+
+	else
+
+		CC=gcc
+		CPP=g++
+
+	endif
 	ifeq ($(STDIO_SOURCE),stdio)
 		CFLAGS=-g3 -Ilibc -Iinclude
 	else
 		CFLAGS=-g3 -Iinclude
 	endif
-	CPP=g++
 
 else ifeq ($(OSTYPE),Darwin)
 
-	CC=cc
+	CC=clang
+	CPP=clang++
 	ifeq ($(STDIO_SOURCE),stdio)
 		CFLAGS=-g3 -Ilibc -Iinclude
 	else
 		CFLAGS=-g3 -Iinclude
 	endif
-	CPP=c++
 
 else ifeq ($(OSTYPE),FreeBSD)
 
-	CC=cc
+	CC=clang
+	CPP=clang++
 	ifeq ($(STDIO_SOURCE),stdio)
 		CFLAGS=-g3 -Ilibc -Iinclude
 	else
 		CFLAGS=-g3 -Iinclude
 	endif
-	CPP=c++
 
 else
 
 	# linux
-	CC=gcc
+	ifeq ($(CLANG),1)
+
+		CC=clang
+		CPP=clang++
+
+	else
+
+		CC=gcc
+		CPP=g++
+
+	endif
 	ifeq ($(STDIO_SOURCE),stdio)
 		CFLAGS=-g3 -Ilibc -Iinclude -fPIC
 	else
 		CFLAGS=-g3 -Iinclude -fPIC
 	endif
-	CPP=g++
+
 
 endif
 

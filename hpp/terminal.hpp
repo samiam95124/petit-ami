@@ -346,6 +346,10 @@ virtual int evjoyba(int j, int b);
 virtual int evjoybd(int j, int b);
 virtual int evjoymov(int j, int x, int y, int z);
 virtual int evresize(void);
+virtual int evfocus(void);
+virtual int evnofocus(void);
+virtual int evhover(void);
+virtual int evnohover(void);
 virtual int evterm(void);
 
 }; /* class term */

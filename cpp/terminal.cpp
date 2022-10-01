@@ -244,6 +244,10 @@ int term::evjoyba(int j, int b) { return 0; }
 int term::evjoybd(int j, int b) { return 0; }
 int term::evjoymov(int j, int x, int y, int z) { return 0; }
 int term::evresize(void) { return 0; }
+int term::evfocus(void) { return 0; }
+int term::evnofocus(void) { return 0; }
+int term::evhover(void) { return 0; }
+int term::evnohover(void) { return 0; }
 int term::evterm(void) { return 0; }
 
 void term::termCB(evtrec* er)
@@ -308,7 +312,11 @@ void term::termCB(evtrec* er)
             handled = termoCB->evjoymov(er->mjoyn, er->joypx, er->joypy,
                                         er->joypz);
             break;
-        case  etresize: handled = termoCB->evresize(); break;
+        case etresize:  handled = termoCB->evresize(); break;
+        case etfocus:   handled = termoCB->evfocus(); break;
+        case etnofocus: handled = termoCB->evnofocus(); break;
+        case ethover:   handled = termoCB->evhover(); break;
+        case etnohover: handled = termoCB->evnohover(); break;
         case etterm:    handled = termoCB->evterm(); break;
 
     }
