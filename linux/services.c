@@ -3180,6 +3180,7 @@ int pa_initsig(void)
     int i;
     int r;
     pthread_cond_t* sp;
+    pthread_condattr_t attr;
 
     /* get new semaphore entry out of lock */
     sp = malloc(sizeof(pthread_cond_t)); 
@@ -3198,7 +3199,9 @@ int pa_initsig(void)
     sematbl[i] = sp;
     pthread_mutex_unlock(&semtbllck); /* unlock semaphore table */
     /* initialize semaphore */
-    r = pthread_cond_init(sp, NULL);
+    r = pthread_condattr_init(&attr);
+    if (r) error(strerror(r));
+    r = pthread_cond_init(sp, &attr);
     if (r) error(strerror(r));
 
     return (i+1); /* return the lock logical id to caller */
@@ -3317,7 +3320,7 @@ void pa_waitsig(int ln, int sn)
     if (!lp) error("Concurrency lock by logical id is not active");
     if (sn < 1 || sn > MAXSEMA) error("Semaphore logical id");
     /* assume this is an atomic access (single word) */
-    sp = sematbl[ln-1]; /* get semaphore pointer */
+    sp = sematbl[sn-1]; /* get semaphore pointer */
     if (!sp) error("Semaphore by logical id is not active");
     /* wait on signal with lock release */
     r = pthread_cond_wait(sp, lp);

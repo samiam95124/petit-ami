@@ -150,10 +150,15 @@ static pa_pevthan oeh1;
 static pa_pevthan oeh2;
 static char line[250];
 
-static int      tn;         /* thread number */
-static volatile int ln;     /* lock number */
-static volatile int thdstp; /* thread stop flag */
-static volatile int sn;     /* thread stop signal */
+static int          tn;       /* thread number */
+static volatile int ln;       /* lock number */
+static volatile int thdstp;   /* thread stop flag */
+static int          sn;       /* thread stop signal */
+static int          etn;      /* event thread number */
+static int          esn;      /* event thread stop signal */
+static volatile int ethdstp;  /* event thread stop flag */
+static int          timeout1; /* first timer fires */
+static int          timeout2; /* second timer fires */
 
 /* draw box */
 
@@ -180,7 +185,6 @@ static jmp_buf terminate_buf;
 static pa_pevthan oldtermevent;
 
 /* wait time in 100 microseconds */
-
 static void waittime(int n, int t)
 {
 
@@ -194,7 +198,6 @@ static void waittime(int n, int t)
 
 
 /* wait return to be pressed, or handle terminate */
-
 static void waitnext(void)
 {
 
@@ -410,6 +413,34 @@ void event_vector_2(pa_evtptr er)
 
 }
 
+/* wait events and signal threads for timer events */
+void eventthread(void)
+
+{
+
+    pa_evtrec er; /* event record */
+    int stop;
+
+    stop = FALSE; /* set no stop */
+    do { pa_event(stdin, &er);
+
+        pa_lock(ln);
+        if (er.etype == pa_ettim) {
+
+            if (er.timnum == 1) pa_sendsig(timeout1);
+            else if (er.timnum == 2) pa_sendsig(timeout2);
+
+        }
+        stop = ethdstp;
+        pa_unlock(ln);
+
+    } while (!stop);
+    pa_lock(ln);
+    pa_sendsig(esn); /* signal thread complete */
+    pa_unlock(ln);
+
+}
+
 void thread(void)
 
 {
@@ -418,18 +449,17 @@ void thread(void)
     int x, y;
     int stop;
 
+    stop = FALSE; /* set no stop */
     x = pa_maxx(stdout)/3*2;
     y = pa_maxy(stdout)/2;
-    while (!thdstp) { /* while no stop flag */
+    while (!stop) { /* while no stop flag */
 
         i = 1;
         for (i = 0; i < 10; i++) {
 
             pa_lock(ln);
             box(x-i, y-i, x+i, y+i, '*');
-            pa_unlock(ln);
-            waittime(2, SECOND/10);
-            pa_lock(ln);
+            pa_waitsig(ln, timeout2);
             box(x-i, y-i, x+i, y+i, ' ');
             pa_unlock(ln);
             i++;
@@ -1348,9 +1378,16 @@ int main(int argc, char *argv[])
     printf("The left and right figures are run on different threads\n");
     prtcen(pa_maxy(stdout), "Threading test");
     thdstp = FALSE;
+    ethdstp = FALSE;
     ln = pa_initlock();
     sn = pa_initsig();
+    esn = pa_initsig();
+    timeout1 = pa_initsig();
+    timeout2 = pa_initsig();
     tn = pa_newthread(thread);
+    etn = pa_newthread(eventthread);
+    pa_timer(stdout, 1, SECOND/10, TRUE);
+    pa_timer(stdout, 2, SECOND/10, TRUE);
     x = pa_maxx(stdout)/3;
     y = pa_maxy(stdout)/2;
     for (j = 0; j < 30; j++) {
@@ -1360,9 +1397,7 @@ int main(int argc, char *argv[])
 
             pa_lock(ln);
             box(x-i, y-i, x+i, y+i, '*');
-            pa_unlock(ln);
-            waittime(1, SECOND/10);
-            pa_lock(ln);
+            pa_waitsig(ln, timeout1);
             box(x-i, y-i, x+i, y+i, ' ');
             pa_unlock(ln);
             i++;
@@ -1370,10 +1405,18 @@ int main(int argc, char *argv[])
         }
 
     }
+    /* stop subthread */
     pa_lock(ln);
     thdstp = TRUE;
     pa_waitsig(ln, sn);
     pa_unlock(ln);
+    /* stop event thread */
+    pa_lock(ln);
+    ethdstp = TRUE;
+    pa_waitsig(ln, esn);
+    pa_unlock(ln);
+    pa_killtimer(stdout, 1);
+    pa_killtimer(stdout, 2);
     pa_cursor(stdout, 1, 3);
     pa_deinitlock(ln);
     printf("Test complete!\n");

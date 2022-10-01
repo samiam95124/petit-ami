@@ -311,7 +311,7 @@ int pa_getwinid(void);
 void pa_errorover(pa_errhan nfp, pa_errhan* ofp);
 
 /*
- * Event override types
+ * Event function override types
  */
 typedef int (*pa_evchar_t)(char c);
 typedef int (*pa_evup_t)(void);

@@ -755,7 +755,7 @@ static void error_ivf(pa_errcod e)
 
 {
 
-    fprintf(stderr, "*** Error: AnsiTerm: ");
+    fprintf(stderr, "*** Error: xterm: ");
     switch (e) { /* error */
 
         case pa_dispeftbful: fprintf(stderr, "Too many files"); break;
