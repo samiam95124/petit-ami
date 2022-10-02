@@ -124,11 +124,15 @@ static int sysno; /* number of system event ids allocated */
 static sigset_t sigmsk; /* signal mask */
 static sigset_t sigact; /* signal active */
 
-static struct kevent chgevt[MAXSYS]; /* event change list */
+static struct kevent chgevt[MAXSYS];  /* event change list */
 static struct kevent chgevtc[MAXSYS]; /* event change list copy */
-static int kerque; /* kernel queue fid */
-static int nchg; /* number of change filters defined */
-static int nchgc; /* number of change filters defined copy */
+static struct kevent events[MAXSYS];  /* event list */
+static        int    ei;              /* event index */
+static        int    nev;             /* number of events available */
+static        int    kerque;          /* kernel queue fid */
+static        int    nchg;            /* number of change filters defined */
+static        int    nchgc;           /* number of change filters defined
+                                         copy */
 
 static int resetsev; /* reset system event */
 
@@ -380,14 +384,10 @@ void system_event_getsevt(sevptr ev)
     int           ji;             /* index for joysticks */
     int           si;             /* index for system event entries */
     uint64_t      exp;            /* timer expiration time */
-    struct kevent events[MAXSYS]; /* event list */
-    int           nev;            /* number of events available */
-    int           ei;             /* event index */
+
 
     pthread_mutex_lock(&evtlock); /* take the event lock */
     ev->typ = se_none; /* set no event occurred */
-    nev = 0; /* set no events read */
-    ei = 0; /* clear event index */
     do { /* find an active event */
 
         if (ei >= nev) { /* out of events, read the next ones */
@@ -407,11 +407,13 @@ void system_event_getsevt(sevptr ev)
                 exit(1);
 
             }
+            /* copy the event list back again */
             ei = 0; /* reset the event index */
 
         }
-        for (ei = 0; ei < nev; ei++) { /* traverse the event array */
-
+        while (ei < nev && ev->typ == se_none) { 
+            
+            /* traverse the event array */
             if (events[ei].filter == EVFILT_READ) { /* it's a fid ready event */
 
                 for (si = 0; si < sysno; si++) if (systab[si])
@@ -449,6 +451,7 @@ void system_event_getsevt(sevptr ev)
                 ev->lse = events[ei].ident; /* set system logical event no */
 
             }
+            ei++; /* next event */
 
         }
 
@@ -512,6 +515,10 @@ static void init_system_event()
     /* enable select reset signal */
     signal(SIGUSR1, SIG_IGN);
     resetsev = system_event_addsesig(SIGUSR1);
+
+    /* clear kevent index and count (no events active ) */
+    ei = 0;
+    nev = 0;
 
 }
 

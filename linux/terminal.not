@@ -32,4 +32,9 @@ BSD version ====================================================================
 
 1. Resize with fixed frame test and buffer follow does not work.
 
-2. In the threading test each thread is running exclusively, then it dies.
+2. In the threading test each thread is running exclusively, then it dies. NOTE
+that it slows down on mouse rollover, which is a symptom we have seen before with
+problems handling events.
+
+3. Test also has issues with mouse rollover. The queue seems to be flooding, but
+the max queue shows light loading.
