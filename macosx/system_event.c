@@ -133,6 +133,7 @@ static        int    kerque;          /* kernel queue fid */
 static        int    nchg;            /* number of change filters defined */
 static        int    nchgc;           /* number of change filters defined
                                          copy */
+static        int    maxnev;          /* maximum number of events returned */
 
 static int resetsev; /* reset system event */
 
@@ -322,7 +323,8 @@ int system_event_addsetim(int sid, int t, int r)
     }
 
     /* construct timer event */
-    EV_SET(&chgevt[systab[sid-1]->ei], sid, EVFILT_TIMER, EV_ADD | EV_ENABLE,
+    EV_SET(&chgevt[systab[sid-1]->ei], sid, EVFILT_TIMER, 
+           EV_ADD | EV_ENABLE | EV_ONESHOT*!!r,
            NOTE_USECONDS, (int64_t)t*100, 0);
     pthread_mutex_unlock(&evtlock); /* release the event lock */
 
@@ -409,6 +411,7 @@ void system_event_getsevt(sevptr ev)
             }
             /* copy the event list back again */
             ei = 0; /* reset the event index */
+            if (nev > maxnev) maxnev = nev; /* find new maximum */
 
         }
         while (ei < nev && ev->typ == se_none) { 
@@ -519,6 +522,7 @@ static void init_system_event()
     /* clear kevent index and count (no events active ) */
     ei = 0;
     nev = 0;
+    maxnev = 0;
 
 }
 
