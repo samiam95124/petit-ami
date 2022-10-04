@@ -1518,7 +1518,7 @@ static void alcfmask(winptr win)
 
     int i, t;
 
-    t = win->maxy*win->maxx; /* find total characters in buffer */
+    t = win->bufy*win->bufx; /* find total characters in buffer */
     i = t/8; /* find bytes for forward mask */
     if (t%8) i++; /* round up */
     win->fmask = malloc(i); /* allocate forward mask */
@@ -2693,9 +2693,9 @@ static void opnwin(int fn, int pfn, int wid, int subclient, int root)
     /* get the default screen */
     win->screens[0] = malloc(sizeof(scnrec)*win->maxy*win->maxx);
     if (!win->screens[0]) error("Out of memory");
-    alcfmask(win); /* allocate forward mask */
     win->bufx = win->maxx; /* save size of buffer */
     win->bufy = win->maxy;
+    alcfmask(win); /* allocate forward mask */
     win->curdsp = 1; /* set current display screen */
     win->curupd = 1; /* set current update screen */
     win->visible = FALSE; /* set not visible */
@@ -3887,7 +3887,6 @@ static void iselect(FILE* f, int u, int d)
         win->screens[win->curupd-1] =
             malloc(sizeof(scnrec)*win->maxy*win->maxx);
         iniscn(win, win->screens[win->curupd-1]); /* initalize that */
-        alcfmask(win); /* allocate and clear forward mask */
 
     }
     win->curdsp = d; /* set the current display screen */
@@ -3897,7 +3896,6 @@ static void iselect(FILE* f, int u, int d)
         win->screens[win->curdsp-1] =
             malloc(sizeof(scnrec)*win->maxy*win->maxx);
         iniscn(win, win->screens[win->curdsp-1]); /* initalize that */
-        if (!win->fmask) alcfmask(win); /* allocate and clear forward mask */
 
     }
     /* if the screen has changed, restore it */
@@ -5162,6 +5160,7 @@ static void isizbuf(FILE* f, int x, int y)
         win->screens[0] = malloc(sizeof(scnrec)*win->maxy*win->maxx);
         /* clear */
         iniscn(win, win->screens[0]);
+        free(win->fmask); /* release previous mask */
         alcfmask(win); /* allocate and clear forward mask */
 
     }
